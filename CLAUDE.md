@@ -97,6 +97,30 @@ reason before it goes in.
   source in the data model, or when a design decision would introduce a number
   that is not one of the three sources.
 
+## Where we are
+
+Every reply ends with a **Where we are** block. Artem is steering a seven-phase
+build across many sessions; without it he has to reconstruct the state of play
+from the middle of a technical answer.
+
+The block is three lines, after the substance of the reply:
+
+```
+**Where we are**
+- Just did — what changed, in one line
+- You — what needs Artem next: a decision, an account, a credential, a look at
+  a screen. Write "nothing" when the ball is entirely in my court.
+- Me — what I do next, once he says go
+```
+
+Keep it concrete: "create the Clerk JWT template named convex" rather than "set
+up auth". Where a step is blocked, name what it is waiting on.
+
+Expand it into a **plan position** at every phase boundary, whenever a session
+resumes, and any time roughly five turns have passed without one — state the
+current `PLAN.md` §4 phase, the done-when that closes it, and how many phases
+remain. Artem asked for this refresh explicitly; it is how he keeps the map.
+
 ## Repo notes
 
 The design folder `2nd version Daily focus with chain model/` is a Claude Design

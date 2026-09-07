@@ -3,3 +3,16 @@
 node_modules/
 .env
 .env.local
+
+# --- from TanStack Start scaffold ---
+node_modules
+dist
+dist-ssr
+*.local
+.nitro
+.tanstack
+.wrangler
+.output
+.vinxi
+__unconfig*
+todos.json

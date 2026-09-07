@@ -1,0 +1,9 @@
+package-lock.json
+pnpm-lock.yaml
+yarn.lock2nd version Daily focus with chain model
+convex/_generated
+.claude
+.agents
+.output
+.wrangler
+dist

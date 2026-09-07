@@ -1,0 +1,110 @@
+/* ============================================================================
+   NOCTURNE — token layer
+   ----------------------------------------------------------------------------
+   Extracted verbatim from the Claude Design project's design system:
+     "2nd version Daily focus with chain model/_ds/nocturne-688ea808-.../styles.css"
+
+   Per PLAN.md §3, Nocturne is the design source of truth. Only the TOKENS are
+   copied here — none of Nocturne's component classes (.btn, .card, .tag …).
+   Components are shadcn/ui restyled with these values.
+
+   Values below the "APP ADDITIONS" rule are NOT from Nocturne. Each one exists
+   because PLAN.md §3 requires something Nocturne does not carry, and each says
+   why. Nothing else may be added without the same treatment: no raw hex in
+   components, ever.
+   ========================================================================= */
+
+:root {
+  /* — Roles ————————————————————————————————————————————————————— */
+  --color-bg: #161826;
+  --color-surface: #232532;
+  --color-text: #e9e9ed;
+  --color-accent: #9184d9;
+  --color-accent-2: #a7a1db;
+  --color-divider: color-mix(in srgb, #e9e9ed 16%, transparent);
+
+  /* — Tonal ramps ——————————————————————————————————————————————
+     Generated in OKLCH on one shared lightness scale, so the same step of any
+     role matches the others in visual value. On this dark ground: 700–900 for
+     tinted fills, hovers and subtle borders; 500 as the role's base; 100–300
+     for text on those tints. Prefer a ramp step over ad-hoc color-mix(). */
+  --color-neutral-100: #f3f5fe;
+  --color-neutral-200: #e4e7f5;
+  --color-neutral-300: #cfd3e5;
+  --color-neutral-400: #b2b6ca;
+  --color-neutral-500: #9397ab;
+  --color-neutral-600: #75798c;
+  --color-neutral-700: #595d6c;
+  --color-neutral-800: #3f424d;
+  --color-neutral-900: #292b31;
+
+  --color-accent-100: #f5f4ff;
+  --color-accent-200: #e7e5fe;
+  --color-accent-300: #d2cefd;
+  --color-accent-400: #b5abfc;
+  --color-accent-500: #968ae0;
+  --color-accent-600: #796cbf;
+  --color-accent-700: #5d5294;
+  --color-accent-800: #423a6a;
+  --color-accent-900: #2b2741;
+
+  /* — Type ——————————————————————————————————————————————————————— */
+  --font-heading: 'Inter', system-ui, sans-serif;
+  --font-heading-weight: 500;
+  --font-body: 'Inter', system-ui, sans-serif;
+
+  /* — Space (density 0.7×, dense on purpose) ——————————————————— */
+  --space-1: 2.8px;
+  --space-2: 5.6px;
+  --space-3: 8.4px;
+  --space-4: 11.2px;
+  --space-6: 16.8px;
+  --space-8: 22.4px;
+
+  /* — Radius ————————————————————————————————————————————————————— */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+
+  /* — Elevation ————————————————————————————————————————————————
+     On a dark ground, elevation is a hairline edge plus ambient darkness.
+     Do not stack these. */
+  --shadow-sm: 0 0 0 1px #3f424d;
+  --shadow-md: 0 0 0 1px #595d6c, 0 6px 18px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0, 0, 0, 0.65);
+
+  /* ==========================================================================
+     APP ADDITIONS — not Nocturne. Three, each required by PLAN.md §3.
+     ======================================================================= */
+
+  /* 1. Near-black ground. §3 Visual asks for a "near-black ground" with
+        frosted panels above it; Nocturne's --color-bg (#161826) is the panel
+        value, not a ground. This is the design canvas's own page background,
+        so it stays in the system's hue family. Panels sit on top in
+        --color-bg / --color-surface. */
+  --color-ground: #0e0f1b;
+
+  /* 2. Mono face. §3 asks for "mono caps for labels" throughout; Nocturne
+        defines no mono token and loads no mono face. JetBrains Mono is what
+        the wireframes set every label in. */
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* 3. Frosted panel. §3 asks for "frosted panels"; Nocturne has no glass
+        treatment (its readme argues against heavy fills). Held as tokens so
+        the look stays tunable in one place instead of being re-typed as inline
+        rgba() on every panel — that re-typing is exactly what the wireframes
+        did and what we are not shipping.
+        --glass-blur is deliberately below the wireframes' 28px: several
+        stacked backdrop-filters at that radius cost real frames on the phone
+        this is used on daily. */
+  --glass-fill: linear-gradient(
+    155deg,
+    rgba(233, 233, 237, 0.075),
+    rgba(233, 233, 237, 0.02)
+  );
+  --glass-edge: rgba(233, 233, 237, 0.09);
+  --glass-blur: 18px;
+  --glass-shadow:
+    inset 0 1px 0 rgba(233, 233, 237, 0.08),
+    0 24px 48px -28px rgba(0, 0, 0, 0.9);
+}

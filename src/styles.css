@@ -1,0 +1,167 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+@import './styles/tokens.css';
+
+@plugin '@tailwindcss/typography';
+@import 'tw-animate-css';
+
+/* SOLO LEVELING is dark-only. There is no light theme and no theme toggle —
+   PLAN.md §3 describes one ground. shadcn components read the semantic names
+   below; those names are the ONLY bridge between shadcn and Nocturne. */
+
+:root {
+  --background: var(--color-ground);
+  --foreground: var(--color-text);
+
+  --card: var(--color-bg);
+  --card-foreground: var(--color-text);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-text);
+
+  /* "One lavender accent used only for live things" (§3). Primary is the
+     accent; anything not live uses neutral. */
+  --primary: var(--color-accent);
+  --primary-foreground: var(--color-accent-900);
+  --secondary: var(--color-neutral-900);
+  --secondary-foreground: var(--color-neutral-200);
+
+  --muted: var(--color-neutral-900);
+  --muted-foreground: var(--color-neutral-500);
+  --accent: var(--color-accent-800);
+  --accent-foreground: var(--color-accent-200);
+
+  --destructive: #d9848c;
+  --destructive-foreground: var(--color-neutral-100);
+
+  --border: var(--color-divider);
+  --input: var(--color-neutral-800);
+  --ring: var(--color-accent);
+
+  --radius: var(--radius-md);
+
+  --sidebar: var(--color-bg);
+  --sidebar-foreground: var(--color-text);
+  --sidebar-primary: var(--color-accent);
+  --sidebar-primary-foreground: var(--color-accent-900);
+  --sidebar-accent: var(--color-accent-800);
+  --sidebar-accent-foreground: var(--color-accent-200);
+  --sidebar-border: var(--color-divider);
+  --sidebar-ring: var(--color-accent);
+}
+
+@theme inline {
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Nocturne ramps, reachable as utilities (text-ink-500, bg-lav-800 …).
+     Namespaced so they don't shadow Tailwind's own neutral/violet scales. */
+  --color-ink-100: var(--color-neutral-100);
+  --color-ink-200: var(--color-neutral-200);
+  --color-ink-300: var(--color-neutral-300);
+  --color-ink-400: var(--color-neutral-400);
+  --color-ink-500: var(--color-neutral-500);
+  --color-ink-600: var(--color-neutral-600);
+  --color-ink-700: var(--color-neutral-700);
+  --color-ink-800: var(--color-neutral-800);
+  --color-ink-900: var(--color-neutral-900);
+
+  --color-lav-100: var(--color-accent-100);
+  --color-lav-200: var(--color-accent-200);
+  --color-lav-300: var(--color-accent-300);
+  --color-lav-400: var(--color-accent-400);
+  --color-lav-500: var(--color-accent-500);
+  --color-lav-600: var(--color-accent-600);
+  --color-lav-700: var(--color-accent-700);
+  --color-lav-800: var(--color-accent-800);
+  --color-lav-900: var(--color-accent-900);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ground);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+/* Keyboard focus is themed, never the browser default (Nocturne readme). */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+::selection {
+  background: var(--color-accent-800);
+  color: var(--color-accent-100);
+}
+
+/* The frosted panel from §3, as one class instead of inline rgba everywhere. */
+@utility glass {
+  background-image: var(--glass-fill);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Mono caps — the label voice used across every screen in §3. */
+@utility label-caps {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+}

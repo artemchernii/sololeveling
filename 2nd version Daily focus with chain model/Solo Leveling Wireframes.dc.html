@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/nocturne-688ea808-7cad-46e7-bf90-42a9c6bb4f3a/styles.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="_ds/nocturne-688ea808-7cad-46e7-bf90-42a9c6bb4f3a/_ds_bundle.js"></script>
+<style>
+body{margin:0;background:#0e0f1b;font-family:"Inter",system-ui,sans-serif;color:#e9e9ed}
+a{color:#9184d9;text-decoration:none}
+a:hover{color:#b5abfc}
+.dv-turn{padding:44px 48px 36px;border-bottom:1px solid rgba(233,233,237,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 6px}
+.dv-tid{font:600 10px "JetBrains Mono",ui-monospace,monospace;padding:3px 7px;background:#e9e9ed;color:#0e0f1b;border-radius:4px;text-decoration:none}
+.dv-tname{font:500 13px/1.2 "Inter",system-ui,sans-serif;color:#e9e9ed}
+.dv-tsub{margin:0 0 24px;font:400 12px/1.5 "Inter",system-ui,sans-serif;color:#75798c;max-width:760px}
+.dv-opts{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:500 10.5px "JetBrains Mono",ui-monospace,monospace;padding:3px 7px;background:rgba(233,233,237,.1);color:#e9e9ed;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:9px;font:400 11.5px/1.3 "Inter",system-ui,sans-serif;color:#9397ab}
+.dv-onote{margin:0;font:400 11px/1.5 "Inter",system-ui,sans-serif;color:#75798c;max-width:640px}
+.dv-card{max-width:100%;background:#161826;border:1px solid #3f424d;border-radius:10px;overflow:hidden}
+.dv-opt:target .dv-oid{background:#9184d9;color:#161826}
+.dv-next{margin:26px 0 0;font:400 12px/1.6 "Inter",system-ui,sans-serif;color:#75798c}
+</style></helmet>
+
+<section class="dv-turn" id="t4">
+<div class="dv-thd"><a class="dv-tid" href="#t4">4</a><span class="dv-tname">No attributes &#8212; actions this month, plus mobile</span></div>
+<p class="dv-tsub">CHARACTER / CURRENT STATE is gone. In its place: THIS MONTH, a count of actions actually taken per area &#8212; 34 tasks shipped, 18 Portuguese sessions, 12 workouts &#8212; each against the same count last month. No scores, nothing out of 100, nothing that needs an opinion to compute. Mobile keeps only what a phone is for: today&#8217;s quests, the next hours, and a two-tap log.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="4a">
+<div class="dv-olabel"><a class="dv-oid" href="#4a">4a</a>Dashboard &#8212; attributes replaced by monthly action counts</div>
+<div class="dv-card" style="width:1180px;border-color:rgba(233,233,237,.07);border-radius:14px">
+<div style="position:relative;min-height:1000px;overflow:hidden;background:#07070b">
+  <div style="position:absolute;width:660px;height:660px;left:-180px;top:-300px;border-radius:50%;background:#5d5294;opacity:.45;filter:blur(130px)"></div>
+  <div style="position:absolute;width:560px;height:560px;right:-160px;top:160px;border-radius:50%;background:#2b2f4c;opacity:.7;filter:blur(120px)"></div>
+  <div style="position:absolute;width:520px;height:520px;left:420px;bottom:-260px;border-radius:50%;background:#3a2f66;opacity:.45;filter:blur(130px)"></div>
+
+  <div style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:58px;box-sizing:border-box;border-bottom:1px solid rgba(233,233,237,.08);background:linear-gradient(180deg,rgba(233,233,237,.055),rgba(233,233,237,.015));backdrop-filter:blur(30px) saturate(140%);-webkit-backdrop-filter:blur(30px) saturate(140%)">
+    <div style="display:flex;align-items:center;gap:10px"><div style="width:14px;height:14px;border-radius:4px;background:#9184d9"></div><span style="font:500 12px/1 'Inter';letter-spacing:.2em;color:#e9e9ed">SOLO LEVELING</span></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="display:flex;align-items:center;gap:9px;padding:7px 12px;border:1px solid rgba(233,233,237,.1);border-radius:10px;background:rgba(0,0,0,.2)">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="rgba(233,233,237,.72)" stroke-width="1.3"><circle cx="6.8" cy="6.8" r="4.6"></circle><path d="M10.3 10.3 14 14"></path></svg>
+        <span style="font:400 11.5px/1 'Inter';color:rgba(233,233,237,.72)">Search</span>
+        <span style="font:400 10px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">&#8984;K</span>
+      </div>
+      <div style="position:relative;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid rgba(233,233,237,.1);border-radius:10px;background:rgba(0,0,0,.2)">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(233,233,237,.78)" stroke-width="1.3"><path d="M4 6.6a4 4 0 0 1 8 0c0 3 .8 4.2 1.3 4.7H2.7C3.2 10.8 4 9.6 4 6.6Z"></path><path d="M6.6 13.4a1.6 1.6 0 0 0 2.8 0"></path></svg>
+        <span style="position:absolute;top:6px;right:7px;width:5px;height:5px;border-radius:50%;background:#9184d9"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px;padding:6px 10px 6px 7px;border:1px solid rgba(233,233,237,.1);border-radius:10px;background:rgba(0,0,0,.2)">
+        <div style="width:20px;height:20px;border-radius:6px;background:rgba(145,132,217,.35)"></div>
+        <span style="font:400 11.5px/1 'Inter';color:#e9e9ed">{{ personName }}</span>
+        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="rgba(233,233,237,.7)" stroke-width="1.3"><path d="M1.6 3.4 5 6.8l3.4-3.4"></path></svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="position:relative;display:grid;grid-template-columns:216px 1fr;gap:20px;padding:20px 24px 26px;box-sizing:border-box">
+    <div style="display:flex;flex-direction:column;gap:20px;padding:18px 14px;box-sizing:border-box;align-self:start;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.02));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9)">
+      <sc-for list="{{ navGroups }}" as="g" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <sc-if value="{{ g.k }}" hint-placeholder-val="{{ true }}"><div style="font:400 10px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.62);padding:0 10px 6px">{{ g.k }}</div></sc-if>
+          <sc-for list="{{ g.items }}" as="n" hint-placeholder-count="4">
+            <sc-if value="{{ n.on }}" hint-placeholder-val="{{ true }}"><div style="padding:8px 10px;border-radius:9px;background:rgba(233,233,237,.09);font:500 12.5px/1 'Inter';color:#e9e9ed">{{ n.t }}</div></sc-if>
+            <sc-if value="{{ n.off }}" hint-placeholder-val="{{ true }}"><div style="padding:8px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.72)">{{ n.t }}</div></sc-if>
+          </sc-for>
+        </div>
+      </sc-for>
+      <div style="display:flex;flex-direction:column;gap:8px;padding-top:16px;border-top:1px solid rgba(233,233,237,.07)">
+        <div style="padding:0 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.72)">Settings</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:8px 4px 0">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="font:300 30px/1.15 'Inter';letter-spacing:-.01em">Good morning, {{ personName }}.</div>
+          <div style="display:flex;align-items:center;gap:16px">
+            <span style="font:400 11px/1 'JetBrains Mono';letter-spacing:.12em;color:rgba(233,233,237,.72)">LEVEL {{ level }}</span>
+            <span style="width:1px;height:12px;background:rgba(233,233,237,.16)"></span>
+            <span style="display:flex;align-items:center;gap:8px"><span style="width:5px;height:5px;border-radius:50%;background:#9184d9"></span><span style="font:400 11px/1 'JetBrains Mono';letter-spacing:.12em;color:#b5abfc">CURRENT FOCUS &#183; BUILD</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 15px;border:1px solid rgba(145,132,217,.5);border-radius:11px;font:400 12px/1 'Inter';color:#b5abfc">Log something</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1.25fr;gap:18px;min-width:0">
+        <div style="padding:20px 22px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.02));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:14px;min-width:0">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">TODAY</span>
+            <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">MON 7 SEP</span>
+          </div>
+          <sc-for list="{{ agenda }}" as="e" hint-placeholder-count="3">
+            <div style="display:flex;align-items:baseline;gap:13px;padding:11px 0;border-top:1px solid rgba(233,233,237,.07)">
+              <span style="font:400 11px/1.3 'JetBrains Mono';color:#b5abfc;width:40px;flex:none">{{ e.time }}</span>
+              <span style="font:400 13.5px/1.3 'Inter';flex:1;min-width:0">{{ e.t }}</span>
+              <span style="font:400 10.5px/1.3 'JetBrains Mono';color:rgba(233,233,237,.66)">{{ e.m }}</span>
+            </div>
+          </sc-for>
+          <div style="margin-top:6px;font:400 11.5px/1.5 'Inter';color:rgba(233,233,237,.66)">Three booked hours. The rest of the day is yours.</div>
+        </div>
+        <div style="padding:20px 22px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.02));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:14px;min-width:0">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">ACTIVE PROJECTS</span>
+            <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">3 LIVE</span>
+          </div>
+          <sc-for list="{{ activeProjects }}" as="p" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:14px;padding:11px 0;border-top:1px solid rgba(233,233,237,.07)">
+              <div style="display:flex;flex-direction:column;gap:5px;flex:1;min-width:0">
+                <span style="font:400 14px/1.2 'Inter'">{{ p.t }}</span>
+                <span style="font:400 10.5px/1.2 'JetBrains Mono';color:rgba(233,233,237,.66)">{{ p.m }}</span>
+              </div>
+              <sc-if value="{{ p.on }}" hint-placeholder-val="{{ true }}"><span style="display:flex;align-items:center;gap:7px"><span style="width:5px;height:5px;border-radius:50%;background:#9184d9"></span><span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.1em;color:#b5abfc">{{ p.tag }}</span></span></sc-if>
+              <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}"><span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.1em;color:rgba(233,233,237,.62);padding:4px 8px;border:1px solid rgba(233,233,237,.1);border-radius:6px">{{ p.tag }}</span></sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="padding:22px 24px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.085),rgba(233,233,237,.022));backdrop-filter:blur(30px) saturate(140%);-webkit-backdrop-filter:blur(30px) saturate(140%);border:1px solid rgba(233,233,237,.1);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.09),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:16px;min-width:0">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">THIS MONTH &#183; ACTIONS LOGGED</span>
+          <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">1&#8212;7 SEP &#183; 74 IN TOTAL</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+          <sc-for list="{{ monthActions }}" as="m" hint-placeholder-count="6">
+            <div style="padding:16px 18px;box-sizing:border-box;border:1px solid rgba(233,233,237,.08);border-radius:16px;background:rgba(0,0,0,.18);display:flex;flex-direction:column;gap:9px;min-width:0">
+              <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.12em;color:rgba(233,233,237,.7)">{{ m.k }}</span>
+              <span style="display:flex;align-items:baseline;gap:9px"><span style="font:300 28px/1 'Inter'">{{ m.v }}</span><span style="font:400 12px/1.3 'Inter';color:rgba(233,233,237,.72)">{{ m.u }}</span></span>
+              <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">{{ m.prev }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font:400 11.5px/1.5 'Inter';color:rgba(233,233,237,.66)">Counts of things you did. There is no score for Portuguese, and there never will be.</div>
+      </div>
+
+      <div style="padding:20px 22px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.02));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:12px;min-width:0">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">TODAY&#8217;S QUESTS</span>
+          <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">4 OPEN &#183; 2 DONE</span>
+        </div>
+        <sc-for list="{{ quests3 }}" as="q" hint-placeholder-count="4">
+          <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid rgba(233,233,237,.07)">
+            <div style="width:14px;height:14px;border:1px solid rgba(233,233,237,.3);border-radius:5px;flex:none"></div>
+            <span style="font:400 14px/1.25 'Inter';flex:1;min-width:0">{{ q.t }}</span>
+            <span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.08em;color:rgba(233,233,237,.66);padding:4px 8px;border:1px solid rgba(233,233,237,.1);border-radius:6px">{{ q.tag }}</span>
+            <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.66);width:56px;text-align:right">{{ q.m }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="4b">
+<div class="dv-olabel"><a class="dv-oid" href="#4b">4b</a>Mobile &#8212; 390&#215;844, the morning open</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><p class="dv-onote">Phone carries the two things a phone is for: check today, log what just happened. Focus is one line, quests are the body, the month is a two-up summary below the fold, and the log button is a thumb-reachable pill. Rows and tabs are 48&#8211;56px tall.</p></sc-if>
+<div class="dv-card" style="width:390px;border-radius:38px;border-color:rgba(233,233,237,.1)">
+<div style="position:relative;width:390px;height:844px;overflow:hidden;background:#07070b">
+  <div style="position:absolute;width:420px;height:420px;left:-140px;top:-180px;border-radius:50%;background:#5d5294;opacity:.5;filter:blur(110px)"></div>
+  <div style="position:absolute;width:380px;height:380px;right:-140px;top:300px;border-radius:50%;background:#2b2f4c;opacity:.75;filter:blur(110px)"></div>
+  <div style="position:absolute;width:360px;height:360px;left:60px;bottom:-200px;border-radius:50%;background:#3a2f66;opacity:.5;filter:blur(110px)"></div>
+
+  <div style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:14px 22px 8px">
+    <span style="font:500 11px/1 'JetBrains Mono';color:#e9e9ed">9:41</span>
+    <div style="display:flex;align-items:center;gap:6px"><div style="width:16px;height:9px;border:1px solid rgba(233,233,237,.6);border-radius:2px"></div><div style="width:3px;height:9px;background:rgba(233,233,237,.6)"></div></div>
+  </div>
+
+  <div style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:8px 20px 16px">
+    <div style="display:flex;align-items:center;gap:9px"><div style="width:13px;height:13px;border-radius:4px;background:#9184d9"></div><span style="font:500 11px/1 'Inter';letter-spacing:.18em">SOLO LEVELING</span></div>
+    <div style="display:flex;align-items:center;gap:9px">
+      <div style="position:relative;width:34px;height:34px;border:1px solid rgba(233,233,237,.1);border-radius:11px;background:rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(233,233,237,.8)" stroke-width="1.3"><path d="M4 6.6a4 4 0 0 1 8 0c0 3 .8 4.2 1.3 4.7H2.7C3.2 10.8 4 9.6 4 6.6Z"></path><path d="M6.6 13.4a1.6 1.6 0 0 0 2.8 0"></path></svg>
+        <span style="position:absolute;top:7px;right:8px;width:5px;height:5px;border-radius:50%;background:#9184d9"></span>
+      </div>
+      <div style="width:34px;height:34px;border-radius:11px;background:rgba(145,132,217,.35)"></div>
+    </div>
+  </div>
+
+  <div style="position:relative;padding:0 20px;display:flex;flex-direction:column;gap:14px">
+    <div style="padding:18px 20px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.085),rgba(233,233,237,.022));backdrop-filter:blur(30px) saturate(140%);-webkit-backdrop-filter:blur(30px) saturate(140%);border:1px solid rgba(233,233,237,.1);border-radius:24px;box-shadow:inset 0 1px 0 rgba(233,233,237,.09),0 22px 44px -26px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:13px">
+      <div style="font:300 24px/1.2 'Inter'">Good morning, {{ personName }}.</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.12em;color:rgba(233,233,237,.72)">LEVEL {{ level }}</span>
+        <span style="width:1px;height:11px;background:rgba(233,233,237,.16)"></span>
+        <span style="display:flex;align-items:center;gap:7px"><span style="width:5px;height:5px;border-radius:50%;background:#9184d9"></span><span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.12em;color:#b5abfc">FOCUS &#183; BUILD</span></span>
+      </div>
+      <div style="display:flex;gap:14px;align-items:baseline;padding-top:12px;border-top:1px solid rgba(233,233,237,.08)">
+        <span style="font:400 11px/1.4 'JetBrains Mono';color:#b5abfc;width:40px;flex:none">09:00</span>
+        <span style="font:400 13.5px/1.4 'Inter';flex:1">Deep work &#8212; Oreum</span>
+        <span style="font:400 10.5px/1.4 'JetBrains Mono';color:rgba(233,233,237,.66)">next</span>
+      </div>
+    </div>
+
+    <div style="padding:16px 18px 6px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.02));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:24px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 22px 44px -26px rgba(0,0,0,.9);display:flex;flex-direction:column">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:6px">
+        <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">TODAY&#8217;S QUESTS</span>
+        <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">4 OPEN</span>
+      </div>
+      <sc-for list="{{ quests3 }}" as="q" hint-placeholder-count="4">
+        <div style="display:flex;align-items:center;gap:13px;min-height:52px;border-top:1px solid rgba(233,233,237,.07)">
+          <div style="width:20px;height:20px;border:1px solid rgba(233,233,237,.3);border-radius:6px;flex:none"></div>
+          <span style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="font:400 14.5px/1.2 'Inter'">{{ q.t }}</span><span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.08em;color:rgba(233,233,237,.66)">{{ q.tag }}</span></span>
+          <span style="font:400 11px/1 'JetBrains Mono';color:rgba(233,233,237,.66)">{{ q.m }}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="padding:16px 18px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.07),rgba(233,233,237,.018));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.085);border-radius:24px;box-shadow:inset 0 1px 0 rgba(233,233,237,.07),0 22px 44px -26px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:13px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between">
+        <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">THIS MONTH</span>
+        <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">74 ACTIONS</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
+        <div style="display:flex;flex-direction:column;gap:6px;padding:12px 13px;border:1px solid rgba(233,233,237,.08);border-radius:14px;background:rgba(0,0,0,.18)"><span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.1em;color:rgba(233,233,237,.7)">PROJECTS</span><span style="display:flex;align-items:baseline;gap:7px"><span style="font:300 22px/1 'Inter'">34</span><span style="font:400 11px/1.2 'Inter';color:rgba(233,233,237,.72)">shipped</span></span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:12px 13px;border:1px solid rgba(233,233,237,.08);border-radius:14px;background:rgba(0,0,0,.18)"><span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.1em;color:rgba(233,233,237,.7)">PORTUGUESE</span><span style="display:flex;align-items:baseline;gap:7px"><span style="font:300 22px/1 'Inter'">18</span><span style="font:400 11px/1.2 'Inter';color:rgba(233,233,237,.72)">sessions</span></span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:12px 13px;border:1px solid rgba(233,233,237,.08);border-radius:14px;background:rgba(0,0,0,.18)"><span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.1em;color:rgba(233,233,237,.7)">BODY</span><span style="display:flex;align-items:baseline;gap:7px"><span style="font:300 22px/1 'Inter'">12</span><span style="font:400 11px/1.2 'Inter';color:rgba(233,233,237,.72)">workouts</span></span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:12px 13px;border:1px solid rgba(233,233,237,.08);border-radius:14px;background:rgba(0,0,0,.18)"><span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.1em;color:rgba(233,233,237,.7)">STYLE</span><span style="display:flex;align-items:baseline;gap:7px"><span style="font:300 22px/1 'Inter'">5</span><span style="font:400 11px/1.2 'Inter';color:rgba(233,233,237,.72)">pieces</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;padding:0 20px 12px">
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;min-height:52px;margin-bottom:12px;border:1px solid rgba(145,132,217,.55);border-radius:16px;background:rgba(145,132,217,.14);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);font:400 14px/1 'Inter';color:#cfc7ff">
+      <span style="font:400 17px/1 'Inter'">+</span>Log something
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);align-items:center;min-height:60px;padding:0 6px;box-sizing:border-box;background:linear-gradient(180deg,rgba(233,233,237,.06),rgba(233,233,237,.03));backdrop-filter:blur(30px) saturate(140%);-webkit-backdrop-filter:blur(30px) saturate(140%);border:1px solid rgba(233,233,237,.1);border-radius:20px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08)">
+      <sc-for list="{{ mobileNav }}" as="t" hint-placeholder-count="5">
+        <div style="display:flex;align-items:center;justify-content:center;min-height:48px">
+          <sc-if value="{{ t.on }}" hint-placeholder-val="{{ true }}"><span style="font:500 11.5px/1 'Inter';color:#e9e9ed;padding:8px 10px;border-radius:10px;background:rgba(233,233,237,.1)">{{ t.t }}</span></sc-if>
+          <sc-if value="{{ t.off }}" hint-placeholder-val="{{ true }}"><span style="font:400 11.5px/1 'Inter';color:rgba(233,233,237,.68)">{{ t.t }}</span></sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Next: &#8220;add the Month screen &#8212; every action in September&#8221; &#183; &#8220;mobile quest detail + log sheet&#8221; &#183; &#8220;swap Style for Career in the month grid&#8221;</p>
+</section>
+
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Dashboard, your structure &#8212; black glass</span></div>
+<p class="dv-tsub">Your layout exactly: top bar, full-height grouped nav, greeting &#8594; level &#8594; current focus, then TODAY and ACTIVE PROJECTS side by side, CHARACTER / CURRENT STATE full width, TODAY&#8217;S QUESTS below. Rendered in the black-glass language, no bars anywhere &#8212; every figure is a count against a real target. Two things I&#8217;d flag: the nav is 14 items, so I grouped them (Do / Track / Know) rather than one flat list, and CHARACTER / CURRENT STATE is a plain two-column ledger &#8212; no scores, no emoji.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="3a">
+<div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Dashboard &#8212; 1180&#215;1000, scrolls below the fold</div>
+<div class="dv-card" style="width:1180px;border-color:rgba(233,233,237,.07);border-radius:14px">
+<div style="position:relative;min-height:1000px;overflow:hidden;background:#07070b">
+  <div style="position:absolute;width:660px;height:660px;left:-180px;top:-300px;border-radius:50%;background:#5d5294;opacity:.45;filter:blur(130px)"></div>
+  <div style="position:absolute;width:560px;height:560px;right:-160px;top:160px;border-radius:50%;background:#2b2f4c;opacity:.7;filter:blur(120px)"></div>
+  <div style="position:absolute;width:520px;height:520px;left:420px;bottom:-260px;border-radius:50%;background:#3a2f66;opacity:.45;filter:blur(130px)"></div>
+
+  <div style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:58px;box-sizing:border-box;border-bottom:1px solid rgba(233,233,237,.08);background:linear-gradient(180deg,rgba(233,233,237,.055),rgba(233,233,237,.015));backdrop-filter:blur(30px) saturate(140%);-webkit-backdrop-filter:blur(30px) saturate(140%)">
+    <div style="display:flex;align-items:center;gap:10px"><div style="width:14px;height:14px;border-radius:4px;background:#9184d9"></div><span style="font:500 12px/1 'Inter';letter-spacing:.2em;color:#e9e9ed">SOLO LEVELING</span></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="display:flex;align-items:center;gap:9px;padding:7px 12px;border:1px solid rgba(233,233,237,.1);border-radius:10px;background:rgba(0,0,0,.2)">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="rgba(233,233,237,.72)" stroke-width="1.3"><circle cx="6.8" cy="6.8" r="4.6"></circle><path d="M10.3 10.3 14 14"></path></svg>
+        <span style="font:400 11.5px/1 'Inter';color:rgba(233,233,237,.72)">Search</span>
+        <span style="font:400 10px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">&#8984;K</span>
+      </div>
+      <div style="position:relative;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid rgba(233,233,237,.1);border-radius:10px;background:rgba(0,0,0,.2)">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(233,233,237,.78)" stroke-width="1.3"><path d="M4 6.6a4 4 0 0 1 8 0c0 3 .8 4.2 1.3 4.7H2.7C3.2 10.8 4 9.6 4 6.6Z"></path><path d="M6.6 13.4a1.6 1.6 0 0 0 2.8 0"></path></svg>
+        <span style="position:absolute;top:6px;right:7px;width:5px;height:5px;border-radius:50%;background:#9184d9"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px;padding:6px 10px 6px 7px;border:1px solid rgba(233,233,237,.1);border-radius:10px;background:rgba(0,0,0,.2)">
+        <div style="width:20px;height:20px;border-radius:6px;background:rgba(145,132,217,.35)"></div>
+        <span style="font:400 11.5px/1 'Inter';color:#e9e9ed">{{ personName }}</span>
+        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="rgba(233,233,237,.7)" stroke-width="1.3"><path d="M1.6 3.4 5 6.8l3.4-3.4"></path></svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="position:relative;display:grid;grid-template-columns:216px 1fr;gap:20px;padding:20px 24px 26px;box-sizing:border-box">
+    <div style="display:flex;flex-direction:column;gap:20px;padding:18px 14px;box-sizing:border-box;align-self:start;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.02));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9)">
+      <sc-for list="{{ navGroups }}" as="g" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <sc-if value="{{ g.k }}" hint-placeholder-val="{{ true }}"><div style="font:400 10px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.62);padding:0 10px 6px">{{ g.k }}</div></sc-if>
+          <sc-for list="{{ g.items }}" as="n" hint-placeholder-count="4">
+            <sc-if value="{{ n.on }}" hint-placeholder-val="{{ true }}"><div style="padding:8px 10px;border-radius:9px;background:rgba(233,233,237,.09);font:500 12.5px/1 'Inter';color:#e9e9ed">{{ n.t }}</div></sc-if>
+            <sc-if value="{{ n.off }}" hint-placeholder-val="{{ true }}"><div style="padding:8px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.72)">{{ n.t }}</div></sc-if>
+          </sc-for>
+        </div>
+      </sc-for>
+      <div style="display:flex;flex-direction:column;gap:8px;padding-top:16px;border-top:1px solid rgba(233,233,237,.07)">
+        <div style="padding:0 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.72)">Settings</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:8px 4px 0">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="font:300 30px/1.15 'Inter';letter-spacing:-.01em">Good morning, {{ personName }}.</div>
+          <div style="display:flex;align-items:center;gap:16px">
+            <span style="font:400 11px/1 'JetBrains Mono';letter-spacing:.12em;color:rgba(233,233,237,.72)">LEVEL {{ level }}</span>
+            <span style="width:1px;height:12px;background:rgba(233,233,237,.16)"></span>
+            <span style="display:flex;align-items:center;gap:8px"><span style="width:5px;height:5px;border-radius:50%;background:#9184d9"></span><span style="font:400 11px/1 'JetBrains Mono';letter-spacing:.12em;color:#b5abfc">CURRENT FOCUS &#183; BUILD</span></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 15px;border:1px solid rgba(145,132,217,.5);border-radius:11px;font:400 12px/1 'Inter';color:#b5abfc">Log something</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1.25fr;gap:18px;min-width:0">
+        <div style="padding:20px 22px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.02));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:14px;min-width:0">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">TODAY</span>
+            <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">MON 7 SEP</span>
+          </div>
+          <sc-for list="{{ agenda }}" as="e" hint-placeholder-count="3">
+            <div style="display:flex;align-items:baseline;gap:13px;padding:11px 0;border-top:1px solid rgba(233,233,237,.07)">
+              <span style="font:400 11px/1.3 'JetBrains Mono';color:#b5abfc;width:40px;flex:none">{{ e.time }}</span>
+              <span style="font:400 13.5px/1.3 'Inter';flex:1;min-width:0">{{ e.t }}</span>
+              <span style="font:400 10.5px/1.3 'JetBrains Mono';color:rgba(233,233,237,.66)">{{ e.m }}</span>
+            </div>
+          </sc-for>
+          <div style="margin-top:6px;font:400 11.5px/1.5 'Inter';color:rgba(233,233,237,.66)">Three booked hours. The rest of the day is yours.</div>
+        </div>
+        <div style="padding:20px 22px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.02));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:14px;min-width:0">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">ACTIVE PROJECTS</span>
+            <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">3 LIVE</span>
+          </div>
+          <sc-for list="{{ activeProjects }}" as="p" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:14px;padding:11px 0;border-top:1px solid rgba(233,233,237,.07)">
+              <div style="display:flex;flex-direction:column;gap:5px;flex:1;min-width:0">
+                <span style="font:400 14px/1.2 'Inter'">{{ p.t }}</span>
+                <span style="font:400 10.5px/1.2 'JetBrains Mono';color:rgba(233,233,237,.66)">{{ p.m }}</span>
+              </div>
+              <sc-if value="{{ p.on }}" hint-placeholder-val="{{ true }}"><span style="display:flex;align-items:center;gap:7px"><span style="width:5px;height:5px;border-radius:50%;background:#9184d9"></span><span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.1em;color:#b5abfc">{{ p.tag }}</span></span></sc-if>
+              <sc-if value="{{ p.off }}" hint-placeholder-val="{{ true }}"><span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.1em;color:rgba(233,233,237,.62);padding:4px 8px;border:1px solid rgba(233,233,237,.1);border-radius:6px">{{ p.tag }}</span></sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="padding:22px 24px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.085),rgba(233,233,237,.022));backdrop-filter:blur(30px) saturate(140%);-webkit-backdrop-filter:blur(30px) saturate(140%);border:1px solid rgba(233,233,237,.1);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.09),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:2px;min-width:0">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:14px">
+          <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">CHARACTER / CURRENT STATE</span>
+          <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">FROM THE LOG &#183; UPDATED 13:10</span>
+        </div>
+        <sc-for list="{{ state }}" as="s" hint-placeholder-count="6">
+          <div style="display:grid;grid-template-columns:170px 1fr 1fr;gap:16px;align-items:baseline;padding:13px 0;border-top:1px solid rgba(233,233,237,.07)">
+            <span style="font:400 13.5px/1.2 'Inter'">{{ s.k }}</span>
+            <span style="font:400 14px/1.2 'Inter';color:#e9e9ed">{{ s.v }}</span>
+            <span style="font:400 11px/1.2 'JetBrains Mono';color:rgba(233,233,237,.66)">{{ s.m }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="padding:20px 22px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.02));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:12px;min-width:0">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">TODAY&#8217;S QUESTS</span>
+          <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">4 OPEN &#183; 2 DONE</span>
+        </div>
+        <sc-for list="{{ quests3 }}" as="q" hint-placeholder-count="4">
+          <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid rgba(233,233,237,.07)">
+            <div style="width:14px;height:14px;border:1px solid rgba(233,233,237,.3);border-radius:5px;flex:none"></div>
+            <span style="font:400 14px/1.25 'Inter';flex:1;min-width:0">{{ q.t }}</span>
+            <span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.08em;color:rgba(233,233,237,.66);padding:4px 8px;border:1px solid rgba(233,233,237,.1);border-radius:6px">{{ q.tag }}</span>
+            <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.66);width:56px;text-align:right">{{ q.m }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Next: &#8220;<a class="dv-oid" href="#3a">3a</a> with the &#8984;K palette open&#8221; &#183; &#8220;build the Quests and Money screens on this frame&#8221; &#183; &#8220;keep the nav flat like my sketch&#8221;</p>
+</section>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">LEDGER &#8212; black glass, absolute numbers</span></div>
+<p class="dv-tsub">The consolidated direction in a modernist black-glass treatment: near-black ground, frosted translucent panels, one accent used only for live things. Every progress bar is gone &#8212; each figure is now a real count against a real target (&#8364;42,100 of &#8364;80,000; 1,240 of 3,000 words), so nothing pretends a life can be 100% complete. Three screens: the day page, the chains, the weekly review.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a">
+<div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Today &#8212; one focus, five items, the day&#8217;s log</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><p class="dv-onote">Readable in ten seconds. The focus panel names what I&#8217;m building and how far in real units; today&#8217;s items sit on bare ground with the chain each belongs to; the log grows downward as evidence. Command bar logs anything in three seconds.</p></sc-if>
+<div class="dv-card" style="width:1180px;border-color:rgba(233,233,237,.07);border-radius:14px">
+<div style="position:relative;height:720px;overflow:hidden;background:#07070b">
+  <div style="position:absolute;width:620px;height:620px;left:-140px;top:-260px;border-radius:50%;background:#5d5294;opacity:.5;filter:blur(120px)"></div>
+  <div style="position:absolute;width:520px;height:520px;right:-120px;top:120px;border-radius:50%;background:#2f3350;opacity:.65;filter:blur(120px)"></div>
+  <div style="position:absolute;width:420px;height:420px;left:360px;bottom:-220px;border-radius:50%;background:#3a2f66;opacity:.5;filter:blur(120px)"></div>
+  <div style="position:relative;height:100%;display:grid;grid-template-columns:214px 1fr;gap:18px;padding:18px 20px;box-sizing:border-box">
+
+    <div style="display:flex;flex-direction:column;gap:22px;padding:20px 16px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.02));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;gap:9px"><div style="width:14px;height:14px;border-radius:4px;background:#9184d9"></div><span style="font:500 11px/1 'Inter';letter-spacing:.2em;color:#e9e9ed">LEDGER</span></div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="font:400 10px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.66);padding:0 10px 5px">DO</div>
+        <div style="padding:7px 10px;border-radius:9px;background:rgba(233,233,237,.09);font:500 12.5px/1 'Inter'">Today</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">Chains</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">Calendar</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="font:400 10px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.66);padding:0 10px 5px">REVIEW</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">Weekly review</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">Money</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">Body</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">People</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="font:400 10px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.66);padding:0 10px 5px">KNOW</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">Notes</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">Principles</div>
+      </div>
+      <div style="margin-top:auto;display:flex;align-items:baseline;justify-content:space-between;padding:0 10px">
+        <span style="font:400 12px/1 'Inter';color:#e9e9ed">{{ personName }}</span>
+        <span style="font:400 10px/1 'JetBrains Mono';color:rgba(233,233,237,.7)">LVL {{ level }}</span>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;min-width:0">
+        <div style="padding:24px 26px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.085),rgba(233,233,237,.022));backdrop-filter:blur(30px) saturate(140%);-webkit-backdrop-filter:blur(30px) saturate(140%);border:1px solid rgba(233,233,237,.1);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.09),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.15em;color:rgba(233,233,237,.7)">MONDAY 7 SEPTEMBER</span>
+            <span style="display:flex;align-items:center;gap:7px"><span style="width:5px;height:5px;border-radius:50%;background:#9184d9"></span><span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.1em;color:#b5abfc">IN FOCUS</span></span>
+          </div>
+          <div style="font:300 32px/1.15 'Inter';letter-spacing:-.02em">Validate the SaaS idea.</div>
+          <div style="display:flex;gap:36px;align-items:flex-end">
+            <div><div style="font:300 30px/1 'Inter'">11<span style="font:400 14px/1 'Inter';color:rgba(233,233,237,.72)"> / 17</span></div><div style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.1em;color:rgba(233,233,237,.7);margin-top:8px">TASKS DONE</div></div>
+            <div><div style="font:300 30px/1 'Inter'">23</div><div style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.1em;color:rgba(233,233,237,.7);margin-top:8px">DAYS TO 30 SEP</div></div>
+            <div><div style="font:300 30px/1 'Inter'">3<span style="font:400 14px/1 'Inter';color:rgba(233,233,237,.72)"> / 5</span></div><div style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.1em;color:rgba(233,233,237,.7);margin-top:8px">CUSTOMERS SEEN</div></div>
+          </div>
+        </div>
+        <div style="padding:18px 18px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.07),rgba(233,233,237,.018));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.085);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.07),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:12px;min-width:0">
+          <div style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">BOOKED HOURS</div>
+          <sc-for list="{{ hours }}" as="e" hint-placeholder-count="4">
+            <div style="display:flex;gap:11px;align-items:baseline"><span style="font:400 10px/1.4 'JetBrains Mono';color:#b5abfc;width:34px;flex:none">{{ e.time }}</span><span style="font:400 12px/1.4 'Inter';color:rgba(233,233,237,.86);flex:1;min-width:0">{{ e.t }}</span><span style="font:400 10px/1.4 'JetBrains Mono';color:rgba(233,233,237,.66)">{{ e.m }}</span></div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;flex:1;min-height:0;min-width:0">
+        <div style="display:flex;flex-direction:column;gap:0;padding:2px 4px;min-width:0">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px 10px">
+            <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">TODAY &#183; 5 OPEN</span>
+            <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">2 DONE</span>
+          </div>
+          <sc-for list="{{ todayItems }}" as="t" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:14px;padding:13px 6px;border-top:1px solid rgba(233,233,237,.07)">
+              <div style="width:14px;height:14px;border:1px solid rgba(233,233,237,.28);border-radius:50%;flex:none"></div>
+              <span style="font:400 14.5px/1.25 'Inter';flex:1;min-width:0">{{ t.t }}</span>
+              <span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.08em;color:rgba(233,233,237,.7);padding:4px 7px;border:1px solid rgba(233,233,237,.1);border-radius:6px">{{ t.tag }}</span>
+              <span style="font:400 10px/1 'JetBrains Mono';color:rgba(233,233,237,.66);width:52px;text-align:right">{{ t.m }}</span>
+            </div>
+          </sc-for>
+          <div style="margin-top:auto;display:flex;align-items:center;gap:12px;padding:11px 16px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.08),rgba(233,233,237,.03));backdrop-filter:blur(24px) saturate(140%);-webkit-backdrop-filter:blur(24px) saturate(140%);border:1px solid rgba(233,233,237,.11);border-radius:14px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 18px 34px -22px rgba(0,0,0,.9)">
+            <span style="font:500 10px/1 'JetBrains Mono';color:#b5abfc">&#8984;K</span>
+            <span style="width:1px;height:14px;background:rgba(233,233,237,.12)"></span>
+            <span style="font:400 12px/1 'Inter';color:rgba(233,233,237,.72)">log a workout, a spend, a word count, a note&#8230;</span>
+          </div>
+        </div>
+        <div style="padding:18px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.07),rgba(233,233,237,.018));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.085);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.07),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:11px;min-width:0;overflow:hidden">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">TODAY&#8217;S LOG</span>
+            <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">6 ENTRIES</span>
+          </div>
+          <sc-for list="{{ logToday }}" as="l" hint-placeholder-count="6">
+            <div style="display:flex;gap:10px;align-items:baseline"><span style="font:400 10.5px/1.5 'JetBrains Mono';color:rgba(233,233,237,.32);flex:none">{{ l.ts }}</span><span style="font:400 11.5px/1.5 'Inter';color:rgba(233,233,237,.78)">{{ l.t }}</span></div>
+          </sc-for>
+          <div style="margin-top:auto;padding-top:12px;border-top:1px solid rgba(233,233,237,.07);font:400 11px/1.5 'Inter';color:rgba(233,233,237,.66)">Nothing here is scored. It is what happened.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="2b">
+<div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Chains &#8212; goal &#8594; project &#8594; tasks, counted in real units</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><p class="dv-onote">The data model made visible. One chain carries the focus marker; the rest are live but unlit. Each shows a count against a target and its next action &#8212; never a percentage.</p></sc-if>
+<div class="dv-card" style="width:1180px;border-color:rgba(233,233,237,.07);border-radius:14px">
+<div style="position:relative;height:720px;overflow:hidden;background:#07070b">
+  <div style="position:absolute;width:560px;height:560px;left:120px;top:-240px;border-radius:50%;background:#4a3f80;opacity:.45;filter:blur(120px)"></div>
+  <div style="position:absolute;width:600px;height:600px;right:-180px;bottom:-200px;border-radius:50%;background:#2b2f4c;opacity:.7;filter:blur(120px)"></div>
+  <div style="position:relative;height:100%;display:grid;grid-template-columns:214px 1fr;gap:18px;padding:18px 20px;box-sizing:border-box">
+    <div style="display:flex;flex-direction:column;gap:22px;padding:20px 16px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.02));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;gap:9px"><div style="width:14px;height:14px;border-radius:4px;background:#9184d9"></div><span style="font:500 11px/1 'Inter';letter-spacing:.2em;color:#e9e9ed">LEDGER</span></div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="font:400 10px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.66);padding:0 10px 5px">DO</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">Today</div>
+        <div style="padding:7px 10px;border-radius:9px;background:rgba(233,233,237,.09);font:500 12.5px/1 'Inter'">Chains</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">Calendar</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="font:400 10px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.66);padding:0 10px 5px">REVIEW</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">Weekly review</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">Money</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">Body</div>
+        <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:rgba(233,233,237,.62)">People</div>
+      </div>
+      <div style="margin-top:auto;display:flex;align-items:baseline;justify-content:space-between;padding:0 10px">
+        <span style="font:400 12px/1 'Inter';color:#e9e9ed">{{ personName }}</span>
+        <span style="font:400 10px/1 'JetBrains Mono';color:rgba(233,233,237,.7)">LVL {{ level }}</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:4px 4px 0">
+        <div>
+          <div style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">FOUR LIVE CHAINS &#183; ONE IN FOCUS</div>
+          <div style="font:300 26px/1.2 'Inter';margin-top:11px">What I&#8217;m building</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border:1px solid rgba(145,132,217,.5);border-radius:10px;font:400 12px/1 'Inter';color:#b5abfc">New chain</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;flex:1;min-height:0">
+        <sc-for list="{{ chains2 }}" as="c" hint-placeholder-count="4">
+          <div style="padding:20px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.02));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:13px;min-width:0">
+            <div style="display:flex;align-items:baseline;justify-content:space-between">
+              <span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.12em;color:rgba(233,233,237,.7)">{{ c.goal }}</span>
+              <sc-if value="{{ c.focus }}" hint-placeholder-val="{{ true }}"><span style="display:flex;align-items:center;gap:6px"><span style="width:5px;height:5px;border-radius:50%;background:#9184d9"></span><span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.1em;color:#b5abfc">FOCUS</span></span></sc-if>
+            </div>
+            <div style="font:300 21px/1.2 'Inter'">{{ c.project }}</div>
+            <div style="display:flex;align-items:baseline;gap:9px">
+              <span style="font:300 26px/1 'Inter'">{{ c.n }}</span>
+              <span style="font:400 12px/1 'Inter';color:rgba(233,233,237,.72)">{{ c.of }}</span>
+            </div>
+            <div style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.66)">{{ c.ends }}</div>
+            <div style="display:flex;flex-direction:column;gap:7px;padding-top:12px;border-top:1px solid rgba(233,233,237,.07)">
+              <sc-for list="{{ c.tasks }}" as="ct" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:10px"><div style="width:11px;height:11px;border:1px solid rgba(233,233,237,.26);border-radius:50%;flex:none"></div><span style="font:400 12px/1.35 'Inter';color:rgba(233,233,237,.78)">{{ ct }}</span></div>
+              </sc-for>
+            </div>
+            <div style="margin-top:auto;display:flex;align-items:baseline;gap:9px;padding-top:12px">
+              <span style="font:400 10px/1 'JetBrains Mono';letter-spacing:.1em;color:rgba(233,233,237,.66)">NEXT</span>
+              <span style="font:400 12.5px/1.3 'Inter';color:#e9e9ed">{{ c.next }}</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="2c">
+<div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>Weekly review &#8212; where all measurement lives</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><p class="dv-onote">The only screen with numbers about me. Twelve-week movement stated as a direction plus an absolute change &#8212; no scores out of 100, no streak to break. It ends with one decision, which is what makes the loop close.</p></sc-if>
+<div class="dv-card" style="width:1180px;border-color:rgba(233,233,237,.07);border-radius:14px">
+<div style="position:relative;height:720px;overflow:hidden;background:#07070b">
+  <div style="position:absolute;width:640px;height:640px;left:-180px;bottom:-260px;border-radius:50%;background:#4a3f80;opacity:.4;filter:blur(130px)"></div>
+  <div style="position:absolute;width:560px;height:560px;right:-120px;top:-220px;border-radius:50%;background:#2b2f4c;opacity:.75;filter:blur(120px)"></div>
+  <div style="position:relative;height:100%;display:flex;flex-direction:column;gap:18px;padding:26px 34px;box-sizing:border-box">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between">
+      <div>
+        <div style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.15em;color:rgba(233,233,237,.7)">WEEK 37 &#183; 1&#8212;7 SEPTEMBER</div>
+        <div style="font:300 30px/1.15 'Inter';margin-top:12px">The week, as it actually went.</div>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:22px">
+        <span style="font:400 11px/1 'Inter';color:rgba(233,233,237,.74)">{{ personName }}</span>
+        <span style="font:400 10px/1 'JetBrains Mono';color:rgba(233,233,237,.7)">LEVEL {{ level }} &#183; 2 CHAINS CLOSED</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+      <sc-for list="{{ weekFacts }}" as="f" hint-placeholder-count="4">
+        <div style="padding:18px 20px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.02));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:20px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:10px">
+          <span style="font:300 30px/1 'Inter'">{{ f.v }}</span>
+          <span style="font:400 10.5px/1.4 'Inter';color:rgba(233,233,237,.72)">{{ f.k }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 344px;gap:16px;flex:1;min-height:0">
+      <div style="padding:22px 24px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.07),rgba(233,233,237,.018));backdrop-filter:blur(30px) saturate(140%);-webkit-backdrop-filter:blur(30px) saturate(140%);border:1px solid rgba(233,233,237,.085);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:4px;min-width:0">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:14px">
+          <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">TWELVE WEEKS OF MOVEMENT</span>
+          <span style="font:400 10.5px/1 'JetBrains Mono';color:rgba(233,233,237,.62)">FROM THE LOG</span>
+        </div>
+        <sc-for list="{{ reviewRows }}" as="row" hint-placeholder-count="5">
+          <div style="display:grid;grid-template-columns:110px 1fr 110px 84px;gap:14px;align-items:baseline;padding:14px 0;border-top:1px solid rgba(233,233,237,.07)">
+            <span style="font:400 14px/1.2 'Inter'">{{ row.k }}</span>
+            <span style="display:flex;flex-direction:column;gap:5px;min-width:0"><span style="font:400 15px/1.1 'Inter';color:#e9e9ed">{{ row.now }}</span><span style="font:400 10.5px/1.2 'JetBrains Mono';color:rgba(233,233,237,.66)">{{ row.was }}</span></span>
+            <span style="font:400 12px/1.2 'Inter';color:rgba(233,233,237,.6)">{{ row.dir }}</span>
+            <span style="font:400 12px/1.2 'JetBrains Mono';color:#b5abfc;text-align:right">{{ row.d }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+        <div style="padding:20px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.07),rgba(233,233,237,.018));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.085);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.07),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:11px">
+          <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">ONE PRINCIPLE, HERE ON PURPOSE</span>
+          <span style="font:300 17px/1.4 'Inter';color:#e9e9ed">Action beats overthinking.</span>
+          <span style="font:400 11px/1.5 'Inter';color:rgba(233,233,237,.7)">Surfaced because you shipped nothing on Wednesday and Thursday.</span>
+        </div>
+        <div style="padding:20px;box-sizing:border-box;background:linear-gradient(155deg,rgba(233,233,237,.075),rgba(233,233,237,.022));backdrop-filter:blur(28px) saturate(140%);-webkit-backdrop-filter:blur(28px) saturate(140%);border:1px solid rgba(233,233,237,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(233,233,237,.08),0 24px 48px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:13px;flex:1;min-height:0">
+          <span style="font:400 10.5px/1 'JetBrains Mono';letter-spacing:.14em;color:rgba(233,233,237,.7)">WHAT CHANGES NEXT WEEK</span>
+          <div style="padding:12px 13px;border:1px solid rgba(233,233,237,.1);border-radius:12px;background:rgba(0,0,0,.22);font:400 12.5px/1.5 'Inter';color:rgba(233,233,237,.74)">One sentence. Kept where the day page can see it&#8230;</div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;align-items:center;gap:10px"><div style="width:12px;height:12px;border:1px solid rgba(233,233,237,.26);border-radius:4px;flex:none"></div><span style="font:400 12px/1.3 'Inter';color:rgba(233,233,237,.78)">Keep Validate SaaS in focus</span></div>
+            <div style="display:flex;align-items:center;gap:10px"><div style="width:12px;height:12px;border:1px solid rgba(233,233,237,.26);border-radius:4px;flex:none"></div><span style="font:400 12px/1.3 'Inter';color:rgba(233,233,237,.78)">Book one meetup &#8212; People slipped</span></div>
+          </div>
+          <div style="margin-top:auto;display:flex;align-items:center;justify-content:center;padding:11px;border:1px solid rgba(145,132,217,.5);border-radius:12px;font:400 12.5px/1 'Inter';color:#b5abfc">Close the week</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Next moves: &#8220;make the glass heavier / lighter&#8221; &#183; &#8220;add Money and Body detail screens in this language&#8221; &#183; &#8220;show the &#8984;K palette open&#8221; &#183; &#8220;mobile version of <a class="dv-oid" href="#2a">2a</a>&#8221;</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Five dashboard directions — SOLO LEVELING</span></div>
+<p class="dv-tsub">Structural wireframes at desktop width (1180&#215;720). Same data, same nav, five different answers to "who am I becoming / what matters now / what today". Grey blocks are copy or content that isn't the point yet. Pick one and I'll build out its quests, goals, calendar, finance and body screens.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Minimal / premium — one column, today first</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><p class="dv-onote">Everything else is one click away in the rail; the canvas holds a single narrow column so the day reads like a page. Character stats compress to one hairline strip at the top — present, never the subject.</p></sc-if>
+<div class="dv-card" style="width:1180px">
+<div style="display:grid;grid-template-columns:208px 1fr;height:720px">
+  <div style="border-right:1px solid #292b31;padding:20px 16px;display:flex;flex-direction:column;gap:26px">
+    <div style="display:flex;align-items:center;gap:9px"><div style="width:16px;height:16px;border:1px solid #9184d9;border-radius:3px"></div><span style="font:500 12px/1 'Inter';letter-spacing:.16em">SOLO</span></div>
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <div style="padding:7px 10px;border-radius:6px;background:#292b31;font:500 12.5px/1 'Inter'">Today</div>
+      <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:#9397ab">Quests</div>
+      <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:#9397ab">Goals</div>
+      <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:#9397ab">Calendar</div>
+      <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:#9397ab">Finance</div>
+      <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:#9397ab">Body</div>
+      <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:#9397ab">Social</div>
+      <div style="padding:7px 10px;font:400 12.5px/1 'Inter';color:#9397ab">Notes</div>
+    </div>
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:7px">
+      <div style="height:1px;background:linear-gradient(to right,transparent,#292b31 24px,#292b31 calc(100% - 24px),transparent)"></div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font:400 12px/1 'Inter'">{{ personName }}</span><span style="font:500 10px/1 'JetBrains Mono';color:#9184d9">LVL {{ level }}</span></div>
+      <div style="height:2px;background:#292b31;border-radius:2px;overflow:hidden"><div style="height:2px;width:82%;background:#9184d9"></div></div>
+    </div>
+  </div>
+  <div style="padding:28px 40px;display:flex;flex-direction:column;gap:0;overflow:hidden">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between">
+      <div>
+        <div style="font:400 10px/1 'JetBrains Mono';letter-spacing:.14em;color:#75798c">TUE 7 SEP</div>
+        <div style="font:300 34px/1.15 'Inter';letter-spacing:-.02em;margin-top:10px">Validate the SaaS idea.</div>
+        <div style="font:400 12.5px/1 'Inter';color:#9397ab;margin-top:10px">Current focus &#183; week 2 of 6</div>
+      </div>
+      <div style="display:flex;gap:8px"><div class="btn btn-secondary" style="font-size:12px">Log</div><div class="btn btn-primary" style="font-size:12px">Add quest</div></div>
+    </div>
+    <div style="display:flex;gap:22px;margin:26px 0 0;padding:12px 0;border-top:1px solid #292b31;border-bottom:1px solid #292b31">
+      <sc-for list="{{ stats }}" as="s" hint-placeholder-count="7">
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:400 9px/1 'JetBrains Mono';letter-spacing:.1em;color:#75798c">{{ s.k }}</span><span style="font:500 10px/1 'JetBrains Mono';color:#b2b6ca">{{ s.n }}</span></div>
+          <div style="height:2px;background:#292b31"><div style="height:2px;background:#796cbf;width:{{ s.w }}"></div></div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 260px;gap:44px;margin-top:26px;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="font:500 10px/1 'JetBrains Mono';letter-spacing:.14em;color:#75798c">TODAY &#183; 5</div>
+        <sc-for list="{{ tasks }}" as="t" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:13px;padding:11px 0;border-bottom:1px solid #21232f">
+            <div style="width:13px;height:13px;border:1px solid #595d6c;border-radius:50%;flex:none"></div>
+            <span style="font:400 14px/1.3 'Inter';flex:1">{{ t.t }}</span>
+            <span style="font:400 10px/1 'JetBrains Mono';color:#75798c">{{ t.m }}</span>
+          </div>
+        </sc-for>
+        <div style="margin-top:auto;padding-top:18px">
+          <div style="font:400 11px/1.5 'Inter';color:#595d6c">Principle in play</div>
+          <div style="font:300 15px/1.4 'Inter';color:#b2b6ca;margin-top:5px">Action &gt; overthinking.</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="font:500 10px/1 'JetBrains Mono';letter-spacing:.14em;color:#75798c">SCHEDULE</div>
+          <sc-for list="{{ sched }}" as="e" hint-placeholder-count="4">
+            <div style="display:flex;gap:11px;align-items:baseline"><span style="font:400 10px/1.4 'JetBrains Mono';color:#9184d9;width:34px;flex:none">{{ e.time }}</span><span style="font:400 12px/1.4 'Inter';color:#cfd3e5">{{ e.t }}</span></div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="font:500 10px/1 'JetBrains Mono';letter-spacing:.14em;color:#75798c">THIS WEEK</div>
+          <sc-for list="{{ week }}" as="w" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:5px"><div style="display:flex;justify-content:space-between"><span style="font:400 11.5px/1 'Inter';color:#b2b6ca">{{ w.k }}</span><span style="font:400 10px/1 'JetBrains Mono';color:#75798c">{{ w.n }}</span></div><div style="height:2px;background:#292b31"><div style="height:2px;background:#595d6c;width:{{ w.w }}"></div></div></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Dark technical — command bar, three dense columns</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><p class="dv-onote">Keyboard-first: an icon rail, a persistent command input, hotkeys on every queue row, and an append-only activity log. Reads like a tool you operate rather than a page you browse.</p></sc-if>
+<div class="dv-card" style="width:1180px">
+<div style="display:grid;grid-template-columns:54px 1fr;height:720px">
+  <div style="border-right:1px solid #292b31;padding:16px 0;display:flex;flex-direction:column;align-items:center;gap:14px">
+    <div style="width:18px;height:18px;border:1px solid #9184d9;border-radius:4px"></div>
+    <div style="width:26px;height:26px;border-radius:6px;background:#292b31"></div>
+    <div style="width:26px;height:26px;border-radius:6px;background:#1f212e"></div>
+    <div style="width:26px;height:26px;border-radius:6px;background:#1f212e"></div>
+    <div style="width:26px;height:26px;border-radius:6px;background:#1f212e"></div>
+    <div style="width:26px;height:26px;border-radius:6px;background:#1f212e"></div>
+    <div style="width:26px;height:26px;border-radius:6px;background:#1f212e"></div>
+    <div style="margin-top:auto;width:26px;height:26px;border-radius:50%;background:#292b31"></div>
+  </div>
+  <div style="display:flex;flex-direction:column;min-width:0">
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid #292b31">
+      <div style="flex:1;display:flex;align-items:center;gap:9px;padding:7px 11px;border:1px solid #3f424d;border-radius:6px;background:#1b1d29">
+        <span style="font:500 10px/1 'JetBrains Mono';color:#9184d9">&#8984;K</span>
+        <span style="font:400 12px/1 'JetBrains Mono';color:#75798c">run a command &#8212; log workout, new quest, review week&#8230;</span>
+      </div>
+      <span style="font:400 10px/1 'JetBrains Mono';color:#595d6c">LVL {{ level }}</span>
+      <span style="font:400 10px/1 'JetBrains Mono';color:#595d6c">14d streak</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 300px;flex:1;min-height:0">
+      <div style="border-right:1px solid #292b31;padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;justify-content:space-between"><span style="font:500 10px/1 'JetBrains Mono';letter-spacing:.12em;color:#75798c">QUEUE / TODAY</span><span style="font:400 10px/1 'JetBrains Mono';color:#595d6c">5</span></div>
+        <sc-for list="{{ tasks }}" as="t" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid #21232f;border-radius:6px;background:#1a1c28">
+            <span style="font:500 9px/1 'JetBrains Mono';color:#75798c;border:1px solid #3f424d;border-radius:3px;padding:2px 4px;flex:none">{{ t.k }}</span>
+            <span style="font:400 12.5px/1.2 'Inter';flex:1;min-width:0">{{ t.t }}</span>
+            <span style="font:400 9px/1 'JetBrains Mono';color:#5d5294">{{ t.tag }}</span>
+          </div>
+        </sc-for>
+        <div style="margin-top:6px;font:500 10px/1 'JetBrains Mono';letter-spacing:.12em;color:#75798c">BLOCKED / 1</div>
+        <div style="padding:9px 10px;border:1px dashed #3f424d;border-radius:6px;font:400 12px/1.2 'Inter';color:#9397ab">Send 30 cold emails &#8212; waiting on list</div>
+      </div>
+      <div style="border-right:1px solid #292b31;padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0">
+        <div style="font:500 10px/1 'JetBrains Mono';letter-spacing:.12em;color:#75798c">TIMELINE / 07&#8212;23</div>
+        <sc-for list="{{ grid }}" as="g" hint-placeholder-count="9">
+          <div style="display:flex;gap:10px;align-items:stretch;min-height:{{ g.h }}">
+            <span style="font:400 9px/1.4 'JetBrains Mono';color:#595d6c;width:26px;flex:none;padding-top:2px">{{ g.time }}</span>
+            <div style="flex:1;border-top:1px solid #21232f;padding-top:4px">
+              <sc-if value="{{ g.t }}" hint-placeholder-val="{{ true }}">
+                <div style="padding:6px 9px;border-left:2px solid #796cbf;background:#1e2030;border-radius:0 5px 5px 0"><div style="font:400 11.5px/1.2 'Inter'">{{ g.t }}</div><div style="font:400 9px/1.4 'JetBrains Mono';color:#75798c;margin-top:3px">{{ g.m }}</div></div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding:16px 18px;display:flex;flex-direction:column;gap:16px;min-width:0">
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="font:500 10px/1 'JetBrains Mono';letter-spacing:.12em;color:#75798c">ATTRIBUTES</div>
+          <sc-for list="{{ stats }}" as="s" hint-placeholder-count="7">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font:400 10px/1 'JetBrains Mono';color:#b2b6ca;width:64px;flex:none">{{ s.k }}</span>
+              <div style="flex:1;height:1px;background:#292b31"><div style="height:1px;background:#9184d9;width:{{ s.w }}"></div></div>
+              <span style="font:500 10px/1 'JetBrains Mono';color:#e9e9ed;width:18px;text-align:right">{{ s.n }}</span>
+              <span style="font:400 9px/1 'JetBrains Mono';color:#5d5294;width:20px">{{ s.d }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;min-height:0">
+          <div style="font:500 10px/1 'JetBrains Mono';letter-spacing:.12em;color:#75798c">LOG</div>
+          <sc-for list="{{ log }}" as="l" hint-placeholder-count="8">
+            <div style="display:flex;gap:8px"><span style="font:400 9px/1.5 'JetBrains Mono';color:#595d6c;flex:none">{{ l.ts }}</span><span style="font:400 10.5px/1.5 'Inter';color:#9397ab">{{ l.t }}</span></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:24px;padding:8px 18px;border-top:1px solid #292b31;background:#13141f">
+      <span style="font:400 9px/1 'JetBrains Mono';color:#595d6c">XP 8240/10000</span>
+      <span style="font:400 9px/1 'JetBrains Mono';color:#595d6c">NET &#8364;42.1K</span>
+      <span style="font:400 9px/1 'JetBrains Mono';color:#595d6c">WEIGHT 78.4</span>
+      <span style="font:400 9px/1 'JetBrains Mono';color:#595d6c">FOCUS 18.5H/WK</span>
+      <span style="margin-left:auto;font:400 9px/1 'JetBrains Mono';color:#5d5294">REVIEW DUE SUN</span>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Subtle RPG — character sheet spine, goal chains</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><p class="dv-onote">The character sheet is permanent furniture on the left; the canvas shows goal &#8594; project &#8594; task chains so every task visibly belongs to something. Progression is the organising idea, not a badge.</p></sc-if>
+<div class="dv-card" style="width:1180px">
+<div style="display:grid;grid-template-columns:276px 1fr 244px;height:720px">
+  <div style="border-right:1px solid #292b31;padding:22px 20px;display:flex;flex-direction:column;gap:22px;background:#14151f">
+    <div style="display:flex;align-items:center;gap:9px"><div style="width:15px;height:15px;border:1px solid #9184d9;border-radius:3px"></div><span style="font:500 11px/1 'Inter';letter-spacing:.16em;color:#9397ab">SOLO</span></div>
+    <div>
+      <div style="font:300 26px/1.1 'Inter';letter-spacing:.02em">{{ personName }}</div>
+      <div style="display:flex;align-items:baseline;gap:9px;margin-top:8px"><span style="font:500 11px/1 'JetBrains Mono';letter-spacing:.1em;color:#9184d9">LEVEL {{ level }}</span><span style="font:400 10px/1 'JetBrains Mono';color:#75798c">8,240 / 10,000</span></div>
+      <div style="height:3px;background:#292b31;border-radius:3px;margin-top:9px;overflow:hidden"><div style="height:3px;width:82%;background:linear-gradient(to right,#5d5294,#9184d9)"></div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <div style="font:500 10px/1 'JetBrains Mono';letter-spacing:.14em;color:#75798c">ATTRIBUTES</div>
+      <sc-for list="{{ stats }}" as="s" hint-placeholder-count="7">
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <span style="font:400 11.5px/1 'Inter';color:#cfd3e5">{{ s.long }}</span>
+            <span style="display:flex;gap:6px;align-items:baseline"><span style="font:500 11px/1 'JetBrains Mono'">{{ s.n }}</span><span style="font:400 9px/1 'JetBrains Mono';color:#5d5294;width:18px">{{ s.d }}</span></span>
+          </div>
+          <div style="height:2px;background:#21232f"><div style="height:2px;background:#796cbf;width:{{ s.w }}"></div></div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:9px">
+      <div style="height:1px;background:linear-gradient(to right,transparent,#292b31 20px,#292b31 calc(100% - 20px),transparent)"></div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div style="font:400 11.5px/1.9 'Inter';color:#9397ab">Quests</div>
+        <div style="font:400 11.5px/1.9 'Inter';color:#9397ab">Calendar</div>
+        <div style="font:400 11.5px/1.9 'Inter';color:#9397ab">Finance &#183; Body &#183; Social</div>
+        <div style="font:400 11.5px/1.9 'Inter';color:#9397ab">Notes</div>
+      </div>
+    </div>
+  </div>
+  <div style="padding:24px 28px;display:flex;flex-direction:column;gap:18px;min-width:0;overflow:hidden">
+    <div style="display:flex;align-items:baseline;justify-content:space-between">
+      <div><div style="font:400 10px/1 'JetBrains Mono';letter-spacing:.14em;color:#75798c">ACTIVE CHAINS &#183; 3</div><div style="font:300 24px/1.2 'Inter';margin-top:9px">What I&#8217;m building</div></div>
+      <div class="btn btn-primary" style="font-size:12px">New chain</div>
+    </div>
+    <sc-for list="{{ chains }}" as="c" hint-placeholder-count="3">
+      <div style="border:1px solid #292b31;border-radius:8px;padding:14px 16px;background:#1a1c28;display:flex;flex-direction:column;gap:11px">
+        <div style="display:flex;align-items:baseline;gap:10px">
+          <span style="font:400 9px/1 'JetBrains Mono';letter-spacing:.1em;color:#75798c">GOAL</span>
+          <span style="font:400 14px/1.2 'Inter';flex:1">{{ c.goal }}</span>
+          <span style="font:500 10px/1 'JetBrains Mono';color:#b5abfc">{{ c.n }}</span>
+        </div>
+        <div style="height:2px;background:#21232f"><div style="height:2px;background:#9184d9;width:{{ c.w }}"></div></div>
+        <div style="display:flex;gap:14px;padding-left:14px;border-left:1px solid #3f424d">
+          <div style="flex:1;min-width:0">
+            <div style="font:400 9px/1 'JetBrains Mono';letter-spacing:.1em;color:#75798c">PROJECT</div>
+            <div style="font:400 12.5px/1.3 'Inter';color:#cfd3e5;margin-top:5px">{{ c.project }}</div>
+            <div style="font:400 10px/1.4 'JetBrains Mono';color:#595d6c;margin-top:6px">{{ c.due }}</div>
+          </div>
+          <div style="flex:1.6;min-width:0;display:flex;flex-direction:column;gap:6px">
+            <div style="font:400 9px/1 'JetBrains Mono';letter-spacing:.1em;color:#75798c">TASKS</div>
+            <sc-for list="{{ c.tasks }}" as="ct" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:9px"><div style="width:10px;height:10px;border:1px solid #595d6c;border-radius:50%;flex:none"></div><span style="font:400 12px/1.3 'Inter';color:#b2b6ca">{{ ct }}</span></div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+  <div style="border-left:1px solid #292b31;padding:22px 18px;display:flex;flex-direction:column;gap:20px;min-width:0">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font:500 10px/1 'JetBrains Mono';letter-spacing:.14em;color:#75798c">TODAY</div>
+      <sc-for list="{{ sched }}" as="e" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;gap:3px;padding-bottom:9px;border-bottom:1px solid #21232f"><span style="font:400 10px/1 'JetBrains Mono';color:#9184d9">{{ e.time }}</span><span style="font:400 12px/1.35 'Inter';color:#cfd3e5">{{ e.t }}</span></div>
+      </sc-for>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:500 10px/1 'JetBrains Mono';letter-spacing:.14em;color:#75798c">RECURRING</div>
+      <div style="font:400 11.5px/1.7 'Inter';color:#9397ab">Gym &#183; Mon Wed Fri</div>
+      <div style="font:400 11.5px/1.7 'Inter';color:#9397ab">Portuguese &#183; daily</div>
+      <div style="font:400 11.5px/1.7 'Inter';color:#9397ab">Weekly review &#183; Sun</div>
+    </div>
+    <div style="margin-top:auto;padding:12px;border:1px solid #292b31;border-radius:8px">
+      <div style="font:400 9px/1 'JetBrains Mono';letter-spacing:.1em;color:#75798c">PRINCIPLE</div>
+      <div style="font:300 14px/1.4 'Inter';color:#cfd3e5;margin-top:7px">Don&#8217;t perform. Participate.</div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="1d">
+<div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Ultra-minimal editorial — no chrome, type as hierarchy</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><p class="dv-onote">No sidebar, no cards, no bars. Horizontal nav, one hairline, and the day set as an editorial page &#8212; four numbered commitments at reading size, stats as plain ratios. Calmest option; the least dense.</p></sc-if>
+<div class="dv-card" style="width:1180px">
+<div style="height:720px;padding:38px 56px;display:flex;flex-direction:column">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:16px">
+    <span style="font:500 12px/1 'Inter';letter-spacing:.22em">SOLO&#8202;LEVELING</span>
+    <div style="display:flex;gap:22px">
+      <span style="font:400 11.5px/1 'Inter';color:#e9e9ed">Today</span>
+      <span style="font:400 11.5px/1 'Inter';color:#75798c">Quests</span>
+      <span style="font:400 11.5px/1 'Inter';color:#75798c">Goals</span>
+      <span style="font:400 11.5px/1 'Inter';color:#75798c">Calendar</span>
+      <span style="font:400 11.5px/1 'Inter';color:#75798c">Finance</span>
+      <span style="font:400 11.5px/1 'Inter';color:#75798c">Body</span>
+      <span style="font:400 11.5px/1 'Inter';color:#75798c">Notes</span>
+      <span style="font:400 11.5px/1 'JetBrains Mono';color:#9184d9">{{ personName }} &#183; {{ level }}</span>
+    </div>
+  </div>
+  <div style="height:1px;background:linear-gradient(to right,transparent,#3f424d 48px,#3f424d calc(100% - 48px),transparent)"></div>
+  <div style="display:grid;grid-template-columns:1fr 300px;gap:72px;padding-top:44px;flex:1;min-height:0">
+    <div style="display:flex;flex-direction:column;min-width:0">
+      <div style="font:400 10px/1 'JetBrains Mono';letter-spacing:.16em;color:#75798c">TUESDAY 7 SEPTEMBER &#183; WEEK 37</div>
+      <div style="font:300 42px/1.1 'Inter';letter-spacing:-.025em;margin-top:18px;max-width:16ch">Four things, then the day is won.</div>
+      <div style="display:flex;flex-direction:column;margin-top:34px">
+        <sc-for list="{{ four }}" as="f" hint-placeholder-count="4">
+          <div style="display:flex;align-items:baseline;gap:18px;padding:15px 0;border-bottom:1px solid #21232f">
+            <span style="font:400 10px/1 'JetBrains Mono';color:#5d5294;flex:none">{{ f.i }}</span>
+            <span style="font:300 19px/1.25 'Inter';flex:1">{{ f.t }}</span>
+            <span style="font:400 10px/1 'JetBrains Mono';color:#75798c">{{ f.m }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="margin-top:auto;padding-top:24px;max-width:56ch">
+        <div style="font:300 13px/1.7 'Inter';color:#75798c">I don&#8217;t chase interest, I notice it. I am allowed to be imperfect. Build &gt; consume.</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:34px;min-width:0">
+      <div>
+        <div style="font:400 10px/1 'JetBrains Mono';letter-spacing:.16em;color:#75798c">ON THE CLOCK</div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:11px">
+          <sc-for list="{{ sched }}" as="e" hint-placeholder-count="4">
+            <div style="display:flex;gap:12px;align-items:baseline"><span style="font:400 10px/1.3 'JetBrains Mono';color:#9397ab;width:32px;flex:none">{{ e.time }}</span><span style="font:300 13px/1.35 'Inter';color:#cfd3e5">{{ e.t }}</span></div>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <div style="font:400 10px/1 'JetBrains Mono';letter-spacing:.16em;color:#75798c">STANDING</div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:9px">
+          <sc-for list="{{ stats }}" as="s" hint-placeholder-count="7">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid #1c1e29;padding-bottom:7px"><span style="font:300 13px/1 'Inter';color:#9397ab">{{ s.long }}</span><span style="font:400 11px/1 'JetBrains Mono';color:#cfd3e5">{{ s.n }}<span style="color:#4b4e5c"> / 100</span></span></div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="margin-top:auto">
+        <div style="font:400 10px/1 'JetBrains Mono';letter-spacing:.16em;color:#75798c">BUILDING</div>
+        <div style="font:300 15px/1.4 'Inter';margin-top:12px">Validate SaaS idea</div>
+        <div style="font:400 10px/1.6 'JetBrains Mono';color:#75798c;margin-top:7px">64% &#183; 11 of 17 tasks &#183; due 30 Sep</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="1e">
+<div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Data-heavy analytical — KPI strip, tables, trends</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><p class="dv-onote">Answers &#8220;am I making progress?&#8221; first: a KPI strip with sparklines, the goal&#8594;project ledger as a real table, and finance/body trends on one screen. Highest information density &#8212; closest to a fintech console.</p></sc-if>
+<div class="dv-card" style="width:1180px">
+<div style="display:grid;grid-template-columns:186px 1fr;height:720px">
+  <div style="border-right:1px solid #292b31;padding:18px 14px;display:flex;flex-direction:column;gap:20px;background:#14151f">
+    <div style="display:flex;align-items:center;gap:8px"><div style="width:15px;height:15px;border:1px solid #9184d9;border-radius:3px"></div><span style="font:500 11px/1 'Inter';letter-spacing:.16em">SOLO</span></div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="font:400 9px/1 'JetBrains Mono';letter-spacing:.12em;color:#595d6c;margin-bottom:4px">EXECUTE</div>
+        <div style="padding:6px 9px;border-radius:5px;background:#292b31;font:500 12px/1 'Inter'">Overview</div>
+        <div style="padding:6px 9px;font:400 12px/1 'Inter';color:#9397ab">Quests</div>
+        <div style="padding:6px 9px;font:400 12px/1 'Inter';color:#9397ab">Goals &amp; projects</div>
+        <div style="padding:6px 9px;font:400 12px/1 'Inter';color:#9397ab">Calendar</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="font:400 9px/1 'JetBrains Mono';letter-spacing:.12em;color:#595d6c;margin-bottom:4px">MEASURE</div>
+        <div style="padding:6px 9px;font:400 12px/1 'Inter';color:#9397ab">Finance</div>
+        <div style="padding:6px 9px;font:400 12px/1 'Inter';color:#9397ab">Body</div>
+        <div style="padding:6px 9px;font:400 12px/1 'Inter';color:#9397ab">Social</div>
+        <div style="padding:6px 9px;font:400 12px/1 'Inter';color:#9397ab">Review</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="font:400 9px/1 'JetBrains Mono';letter-spacing:.12em;color:#595d6c;margin-bottom:4px">KNOW</div>
+        <div style="padding:6px 9px;font:400 12px/1 'Inter';color:#9397ab">Notes</div>
+        <div style="padding:6px 9px;font:400 12px/1 'Inter';color:#9397ab">Principles</div>
+      </div>
+    </div>
+  </div>
+  <div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px;min-width:0;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font:400 13px/1 'Inter'">{{ personName }} &#183; overview <span style="color:#75798c">&#183; level {{ level }}</span></div>
+      <div class="seg" style="font-size:11px"><span class="seg-opt" style="padding:4px 10px;font:400 11px/1.4 'Inter';color:#75798c">W</span><span class="seg-opt" style="padding:4px 10px;font:500 11px/1.4 'Inter';color:#e9e9ed;background:#292b31">M</span><span class="seg-opt" style="padding:4px 10px;font:400 11px/1.4 'Inter';color:#75798c">Q</span><span class="seg-opt" style="padding:4px 10px;font:400 11px/1.4 'Inter';color:#75798c">Y</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
+      <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="5">
+        <div style="border:1px solid #292b31;border-radius:7px;padding:10px 11px;background:#1a1c28;display:flex;flex-direction:column;gap:7px">
+          <span style="font:400 9px/1 'JetBrains Mono';letter-spacing:.1em;color:#75798c">{{ k.k }}</span>
+          <span style="display:flex;align-items:baseline;gap:6px"><span style="font:400 19px/1 'Inter'">{{ k.v }}</span><span style="font:400 9px/1 'JetBrains Mono';color:#8f86c9">{{ k.d }}</span></span>
+          <svg viewBox="0 0 100 22" preserveAspectRatio="none" style="width:100%;height:22px;display:block"><polyline points="{{ k.pts }}" fill="none" stroke="#796cbf" stroke-width="1.4" vector-effect="non-scaling-stroke"></polyline></svg>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 316px;gap:14px;flex:1;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+        <div style="border:1px solid #292b31;border-radius:7px;padding:12px;background:#1a1c28;display:flex;flex-direction:column;gap:9px;min-width:0">
+          <div style="display:flex;justify-content:space-between"><span style="font:500 10px/1 'JetBrains Mono';letter-spacing:.12em;color:#75798c">GOAL LEDGER</span><span style="font:400 10px/1 'JetBrains Mono';color:#595d6c">3 goals &#183; 5 projects</span></div>
+          <div style="display:grid;grid-template-columns:1.15fr 1fr 1.1fr 44px 52px;gap:8px;padding:0 0 8px">
+            <span style="font:400 9px/1 'JetBrains Mono';letter-spacing:.08em;color:#75798c">GOAL</span>
+            <span style="font:400 9px/1 'JetBrains Mono';color:#75798c">PROJECT</span>
+            <span style="font:400 9px/1 'JetBrains Mono';color:#75798c">NEXT ACTION</span>
+            <span style="font:400 9px/1 'JetBrains Mono';color:#75798c;text-align:right">PROG</span>
+            <span style="font:400 9px/1 'JetBrains Mono';color:#75798c;text-align:right">DUE</span>
+          </div>
+          <sc-for list="{{ ledger }}" as="lr" hint-placeholder-count="5">
+            <div style="display:grid;grid-template-columns:1.15fr 1fr 1.1fr 44px 52px;gap:8px;align-items:baseline;padding:8px 0;border-top:1px solid #21232f">
+              <span style="font:400 11.5px/1.3 'Inter'">{{ lr.goal }}</span>
+              <span style="font:400 11.5px/1.3 'Inter';color:#b2b6ca">{{ lr.project }}</span>
+              <span style="font:400 11.5px/1.3 'Inter';color:#9397ab">{{ lr.next }}</span>
+              <span style="font:400 10px/1.3 'JetBrains Mono';color:#b5abfc;text-align:right">{{ lr.n }}</span>
+              <span style="font:400 10px/1.3 'JetBrains Mono';color:#75798c;text-align:right">{{ lr.due }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:1;min-height:0">
+          <div style="border:1px solid #292b31;border-radius:7px;padding:12px;background:#1a1c28;display:flex;flex-direction:column;gap:10px">
+            <div style="font:500 10px/1 'JetBrains Mono';letter-spacing:.12em;color:#75798c">SPEND BY CATEGORY</div>
+            <sc-for list="{{ spend }}" as="p" hint-placeholder-count="5">
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;justify-content:space-between"><span style="font:400 11px/1 'Inter';color:#b2b6ca">{{ p.k }}</span><span style="font:400 10px/1 'JetBrains Mono';color:#9397ab">{{ p.v }}</span></div><div style="height:3px;background:#21232f;border-radius:2px"><div style="height:3px;border-radius:2px;background:#5d5294;width:{{ p.w }}"></div></div></div>
+            </sc-for>
+          </div>
+          <div style="border:1px solid #292b31;border-radius:7px;padding:12px;background:#1a1c28;display:flex;flex-direction:column;gap:10px">
+            <div style="font:500 10px/1 'JetBrains Mono';letter-spacing:.12em;color:#75798c">ATTRIBUTE MATRIX</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+              <sc-for list="{{ stats }}" as="s" hint-placeholder-count="7">
+                <div style="border:1px solid #21232f;border-radius:5px;padding:7px 8px;display:flex;flex-direction:column;gap:5px"><span style="font:400 8.5px/1 'JetBrains Mono';letter-spacing:.08em;color:#75798c">{{ s.k }}</span><span style="display:flex;align-items:baseline;gap:5px"><span style="font:400 15px/1 'Inter'">{{ s.n }}</span><span style="font:400 8.5px/1 'JetBrains Mono';color:#8f86c9">{{ s.d }}</span></span><div style="height:2px;background:#21232f"><div style="height:2px;background:#796cbf;width:{{ s.w }}"></div></div></div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+        <div style="border:1px solid #292b31;border-radius:7px;padding:12px;background:#1a1c28;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between"><span style="font:500 10px/1 'JetBrains Mono';letter-spacing:.12em;color:#75798c">TODAY</span><span style="font:400 10px/1 'JetBrains Mono';color:#595d6c">5 open</span></div>
+          <sc-for list="{{ tasks }}" as="t" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid #21232f"><div style="width:11px;height:11px;border:1px solid #595d6c;border-radius:3px;flex:none"></div><span style="font:400 11.5px/1.3 'Inter';flex:1;min-width:0">{{ t.t }}</span><span style="font:400 9px/1 'JetBrains Mono';color:#75798c">{{ t.tag }}</span></div>
+          </sc-for>
+        </div>
+        <div style="border:1px solid #292b31;border-radius:7px;padding:12px;background:#1a1c28;display:flex;flex-direction:column;gap:9px;flex:1;min-height:0">
+          <div style="font:500 10px/1 'JetBrains Mono';letter-spacing:.12em;color:#75798c">BODY &#183; 12 WEEKS</div>
+          <svg viewBox="0 0 280 96" preserveAspectRatio="none" style="width:100%;height:96px;display:block">
+            <line x1="0" y1="24" x2="280" y2="24" stroke="#21232f" stroke-width="1"></line>
+            <line x1="0" y1="60" x2="280" y2="60" stroke="#21232f" stroke-width="1"></line>
+            <polyline points="0,72 26,68 52,70 78,62 104,58 130,60 156,50 182,44 208,46 234,36 260,32 280,26" fill="none" stroke="#9184d9" stroke-width="1.6"></polyline>
+            <polyline points="0,84 26,80 52,82 78,78 104,74 130,76 156,70 182,66 208,68 234,62 260,58 280,56" fill="none" stroke="#4b4e5c" stroke-width="1.2" stroke-dasharray="3 3"></polyline>
+          </svg>
+          <div style="display:flex;gap:14px"><span style="font:400 9px/1 'JetBrains Mono';color:#8f86c9">&#8212; strength index</span><span style="font:400 9px/1 'JetBrains Mono';color:#75798c">&#183;&#183; weight</span></div>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between"><span style="font:400 10.5px/1 'Inter';color:#9397ab">Workouts / wk</span><span style="font:400 10px/1 'JetBrains Mono'">3.4</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font:400 10.5px/1 'Inter';color:#9397ab">Weight</span><span style="font:400 10px/1 'JetBrains Mono'">78.4 kg</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font:400 10.5px/1 'Inter';color:#9397ab">Protein avg</span><span style="font:400 10px/1 'JetBrains Mono'">148 g</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: &#8220;build out <a class="dv-oid" href="#1c">1c</a> &#8212; quests, calendar and finance screens&#8221; &#183; &#8220;merge <a class="dv-oid" href="#1b">1b</a>&#8217;s command bar into <a class="dv-oid" href="#1a">1a</a>&#8221; &#183; &#8220;<a class="dv-oid" href="#1e">1e</a> but half the density&#8221;</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;personName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;ARTEM&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;level&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:32,&quot;min&quot;:1,&quot;max&quot;:99,&quot;tsType&quot;:&quot;number&quot;},&quot;showNotes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Wireframe&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const stats = [
+      { k: "STR", long: "Strength", n: 64, d: "+2", w: "64%" },
+      { k: "FIT", long: "Fitness", n: 71, d: "+1", w: "71%" },
+      { k: "MONEY", long: "Money", n: 38, d: "+4", w: "38%" },
+      { k: "CAREER", long: "Career", n: 57, d: "+3", w: "57%" },
+      { k: "SOCIAL", long: "Social", n: 44, d: "+1", w: "44%" },
+      { k: "PT-BR", long: "Portuguese", n: 29, d: "+5", w: "29%" },
+      { k: "STYLE", long: "Style", n: 52, d: "\u2014", w: "52%" }
+    ];
+    const tasks = [
+      { t: "Gym session \u2014 push", m: "07:30", k: "1", tag: "FIT" },
+      { t: "Work on business MVP", m: "2h block", k: "2", tag: "CAREER" },
+      { t: "Portuguese practice", m: "20 min", k: "3", tag: "PT-BR" },
+      { t: "Interview 2 customers", m: "19:00", k: "4", tag: "CAREER" },
+      { t: "Attend climbing meetup", m: "21:00", k: "5", tag: "SOCIAL" }
+    ];
+    const sched = [
+      { time: "07:30", t: "Gym \u2014 push day", m: "60 min" },
+      { time: "09:00", t: "Deep work \u2014 MVP", m: "2h" },
+      { time: "19:00", t: "Customer interviews", m: "2 calls" },
+      { time: "21:00", t: "Climbing meetup", m: "social" }
+    ];
+    const grid = [
+      { time: "07", t: "Gym \u2014 push day", m: "FIT \u00b7 60 min", h: "48px" },
+      { time: "08", t: "", m: "", h: "30px" },
+      { time: "09", t: "Deep work \u2014 MVP", m: "CAREER \u00b7 2h", h: "62px" },
+      { time: "11", t: "", m: "", h: "30px" },
+      { time: "13", t: "Portuguese \u2014 speaking", m: "PT-BR \u00b7 20 min", h: "48px" },
+      { time: "15", t: "", m: "", h: "30px" },
+      { time: "19", t: "Customer interviews \u00d7 2", m: "CAREER \u00b7 90 min", h: "56px" },
+      { time: "21", t: "Climbing meetup", m: "SOCIAL", h: "48px" },
+      { time: "23", t: "", m: "", h: "26px" }
+    ];
+    const week = [
+      { k: "Quests closed", n: "18 / 24", w: "75%" },
+      { k: "Workouts", n: "3 / 4", w: "75%" },
+      { k: "Focus hours", n: "12.5 / 18", w: "69%" }
+    ];
+    const four = [
+      { i: "01", t: "Interview two customers", m: "19:00" },
+      { i: "02", t: "Ship the landing page draft", m: "2h" },
+      { i: "03", t: "Push day at the gym", m: "07:30" },
+      { i: "04", t: "Twenty minutes of Portuguese", m: "anytime" }
+    ];
+    const chains = [
+      {
+        goal: "Build my own business", project: "Validate SaaS idea", n: "64%", w: "64%",
+        due: "due 30 Sep \u00b7 11 / 17 tasks",
+        tasks: ["Interview 5 customers", "Build landing page", "Send 30 emails"]
+      },
+      {
+        goal: "Own a body I trust", project: "Strength block \u2014 phase 2", n: "48%", w: "48%",
+        due: "week 4 of 8 \u00b7 3\u00d7 per week",
+        tasks: ["Push day", "Hit 148g protein", "Log weekly weigh-in"]
+      },
+      {
+        goal: "Live in Portuguese", project: "B1 by December", n: "29%", w: "29%",
+        due: "due 15 Dec \u00b7 daily streak 14",
+        tasks: ["20 min speaking", "Review 40 cards", "Book tutor session"]
+      }
+    ];
+    const log = [
+      { ts: "07:42", t: "Gym session logged \u2014 STR +2" },
+      { ts: "09:15", t: "Deep work started" },
+      { ts: "11:04", t: "Landing page draft \u2192 review" },
+      { ts: "12:30", t: "Expense \u20ac48 \u2014 groceries" },
+      { ts: "13:10", t: "Portuguese \u2014 20 min, streak 14" },
+      { ts: "16:22", t: "Note added \u2014 pricing objections" },
+      { ts: "17:00", t: "Quest closed \u2014 outreach batch 3" },
+      { ts: "18:05", t: "Weekly review scheduled \u2014 Sun 10:00" }
+    ];
+    const kpis = [
+      { k: "NET WORTH", v: "\u20ac42.1K", d: "+3.2%", pts: "0,18 20,16 40,17 60,12 80,9 100,5" },
+      { k: "SAVINGS RATE", v: "34%", d: "+2pt", pts: "0,14 20,15 40,11 60,12 80,8 100,7" },
+      { k: "LEVEL XP", v: "8,240", d: "+420", pts: "0,20 20,17 40,14 60,13 80,9 100,4" },
+      { k: "WORKOUTS", v: "3.4/wk", d: "+0.3", pts: "0,12 20,15 40,10 60,13 80,9 100,8" },
+      { k: "FOCUS HOURS", v: "18.5", d: "\u22121.0", pts: "0,8 20,10 40,7 60,11 80,13 100,12" }
+    ];
+    const ledger = [
+      { goal: "Build my own business", project: "Validate SaaS idea", next: "Interview 2 customers", n: "64%", due: "30 Sep" },
+      { goal: "Build my own business", project: "Landing page v1", next: "Write hero copy", n: "35%", due: "12 Sep" },
+      { goal: "Own a body I trust", project: "Strength block ph.2", next: "Push day", n: "48%", due: "ongoing" },
+      { goal: "Live in Portuguese", project: "B1 by December", next: "Book tutor session", n: "29%", due: "15 Dec" },
+      { goal: "Financial floor", project: "6-month runway", next: "Move \u20ac800 to index", n: "72%", due: "31 Dec" }
+    ];
+    const spend = [
+      { k: "Rent", v: "\u20ac1,150", w: "88%" },
+      { k: "Food", v: "\u20ac420", w: "42%" },
+      { k: "Gym & health", v: "\u20ac95", w: "18%" },
+      { k: "Learning", v: "\u20ac140", w: "24%" },
+      { k: "Social", v: "\u20ac210", w: "30%" }
+    ];
+    const domains = [
+      { k: "MONEY", v: "\u20ac42,100", of: "of \u20ac80,000 floor", ctx: "+\u20ac1,310 this month" },
+      { k: "BODY", v: "3.4", of: "workouts / week", ctx: "78.4 kg \u00b7 148 g protein" },
+      { k: "CRAFT", v: "11", of: "of 17 tasks \u00b7 Validate SaaS", ctx: "23 days to 30 Sep" },
+      { k: "PORTUGUESE", v: "1,240", of: "of 3,000 words", ctx: "20 min today \u00b7 14 days logged" },
+      { k: "PEOPLE", v: "6", of: "of 8 meetups this quarter", ctx: "2 calls booked" }
+    ];
+    const todayItems = [
+      { t: "Interview two customers", tag: "VALIDATE SAAS", m: "19:00" },
+      { t: "Ship the landing page draft", tag: "LANDING V1", m: "2h block" },
+      { t: "Push day at the gym", tag: "STRENGTH PH.2", m: "07:30" },
+      { t: "Twenty minutes of Portuguese", tag: "B1 BY DEC", m: "anytime" },
+      { t: "Move \u20ac800 into the index fund", tag: "6-MONTH RUNWAY", m: "5 min" }
+    ];
+    const hours = [
+      { time: "07:30", t: "Gym \u2014 push day", m: "60 min" },
+      { time: "09:00", t: "Deep work \u2014 MVP", m: "2h" },
+      { time: "19:00", t: "Customer interviews", m: "2 calls" },
+      { time: "21:00", t: "Climbing meetup", m: "open end" }
+    ];
+    const logToday = [
+      { ts: "07:42", t: "Gym \u2014 push day, 62 min" },
+      { ts: "09:15", t: "Deep work started" },
+      { ts: "11:04", t: "Landing page draft \u2192 review" },
+      { ts: "12:30", t: "Spend \u2014 \u20ac48 groceries" },
+      { ts: "13:10", t: "Portuguese \u2014 20 min, 18 new words" },
+      { ts: "16:22", t: "Note \u2014 pricing objections" }
+    ];
+    const chains2 = [
+      {
+        goal: "Build my own business", project: "Validate SaaS idea",
+        n: "11", of: "of 17 tasks", ends: "ends 30 Sep \u00b7 23 days",
+        next: "Interview two customers",
+        tasks: ["Interview 5 customers \u2014 3 done", "Landing page draft", "Send 30 cold emails"],
+        focus: true
+      },
+      {
+        goal: "Own a body I trust", project: "Strength block \u2014 phase 2",
+        n: "14", of: "of 24 sessions", ends: "week 4 of 8",
+        next: "Push day, 07:30",
+        tasks: ["Push \u00b7 pull \u00b7 legs", "148 g protein daily", "Weekly weigh-in"],
+        focus: false
+      },
+      {
+        goal: "Live in Portuguese", project: "B1 by December",
+        n: "1,240", of: "of 3,000 words", ends: "ends 15 Dec \u00b7 99 days",
+        next: "Book a tutor session",
+        tasks: ["20 min speaking", "40 cards reviewed", "Tutor \u00d7 1 per week"],
+        focus: false
+      },
+      {
+        goal: "Financial floor", project: "6-month runway",
+        n: "\u20ac42,100", of: "of \u20ac80,000", ends: "ends 31 Dec",
+        next: "Move \u20ac800 to index",
+        tasks: ["Automate \u20ac800 / month", "Cut two subscriptions", "Quarterly rebalance"],
+        focus: false
+      }
+    ];
+    const reviewRows = [
+      { k: "Money", now: "\u20ac42,100", was: "\u20ac37,600 twelve weeks ago", dir: "Rising", d: "+\u20ac4,500" },
+      { k: "Body", now: "3.4 / wk", was: "2.1 / wk twelve weeks ago", dir: "Rising", d: "+1.3" },
+      { k: "Craft", now: "11 / 17", was: "0 / 17 at start", dir: "Rising", d: "+11" },
+      { k: "Portuguese", now: "1,240 words", was: "410 words", dir: "Rising", d: "+830" },
+      { k: "People", now: "6 meetups", was: "7 last quarter", dir: "Slipping", d: "\u22121" }
+    ];
+    const weekFacts = [
+      { v: "12", k: "of last 14 days logged" },
+      { v: "18", k: "of 24 quests closed" },
+      { v: "3", k: "of 4 workouts done" },
+      { v: "\u20ac1,310", k: "added to the floor" }
+    ];
+    const navGroups = [
+      { k: "", items: [{ t: "Dashboard", on: true, off: false }] },
+      { k: "DO", items: [{ t: "Quests", on: false, off: true }, { t: "Calendar", on: false, off: true }, { t: "Goals", on: false, off: true }, { t: "Projects", on: false, off: true }] },
+      { k: "TRACK", items: [{ t: "Money", on: false, off: true }, { t: "Body", on: false, off: true }, { t: "Social", on: false, off: true }, { t: "Portuguese", on: false, off: true }, { t: "Career", on: false, off: true }, { t: "Style", on: false, off: true }] },
+      { k: "KNOW", items: [{ t: "Notes", on: false, off: true }, { t: "Knowledge", on: false, off: true }, { t: "Principles", on: false, off: true }] }
+    ];
+    const agenda = [
+      { time: "09:00", t: "Deep work \u2014 Oreum", m: "2h" },
+      { time: "18:00", t: "Gym \u2014 push day", m: "60 min" },
+      { time: "20:00", t: "Business \u2014 customer calls", m: "2 calls" }
+    ];
+    const activeProjects = [
+      { t: "Oreum", m: "11 of 17 tasks \u00b7 ends 30 Sep", tag: "FOCUS", on: true, off: false },
+      { t: "Solo Leveling", m: "6 of 14 tasks \u00b7 ends 12 Oct", tag: "LIVE", on: false, off: true },
+      { t: "Business #3", m: "2 of 9 tasks \u00b7 no end date", tag: "IDLE", on: false, off: true }
+    ];
+    const state = [
+      { k: "Portuguese", v: "B1 \u00b7 2 of 4 sessions", m: "1,240 of 3,000 words" },
+      { k: "Body", v: "75.4 kg \u00b7 3 workouts", m: "148 g protein avg" },
+      { k: "Money", v: "\u20ac42,100 net worth", m: "of \u20ac80,000 floor" },
+      { k: "Social", v: "2 events this month", m: "of 3 planned" },
+      { k: "Business", v: "2 active projects", m: "1 in focus" },
+      { k: "Career", v: "6 of 8 skills logged", m: "reviewed 4 days ago" }
+    ];
+    const quests3 = [
+      { t: "Gym", m: "18:00", tag: "BODY" },
+      { t: "Portuguese 30 min", m: "anytime", tag: "PORTUGUESE" },
+      { t: "Work on business", m: "2h block", tag: "OREUM" },
+      { t: "Two customer calls", m: "20:00", tag: "OREUM" }
+    ];
+    const monthActions = [
+      { k: "Projects", v: "34", u: "tasks shipped", prev: "27 in August" },
+      { k: "Portuguese", v: "18", u: "sessions logged", prev: "12 in August" },
+      { k: "Body", v: "12", u: "workouts done", prev: "14 in August" },
+      { k: "Money", v: "3", u: "transfers to the floor", prev: "3 in August" },
+      { k: "Style", v: "5", u: "pieces bought or altered", prev: "2 in August" },
+      { k: "Social", v: "2", u: "events attended", prev: "4 in August" }
+    ];
+    const mobileNav = [
+      { t: "Today", on: true, off: false },
+      { t: "Quests", on: false, off: true },
+      { t: "Projects", on: false, off: true },
+      { t: "Month", on: false, off: true },
+      { t: "More", on: false, off: true }
+    ];
+    return {
+      domains, todayItems, hours, logToday, chains2, reviewRows, weekFacts,
+      navGroups, agenda, activeProjects, state, quests3, monthActions, mobileNav,
+      personName: this.props.personName ?? "ARTEM",
+      level: this.props.level ?? 32,
+      showNotes: this.props.showNotes ?? true,
+      stats, tasks, sched, grid, week, four, chains, log, kpis, ledger, spend
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -34,6 +34,27 @@ a workout, a session, an expense, a weight — is a separate row the user confir
 with one tap. Keep the two apart in both directions: never infer activity from a
 completion, never infer a completion from activity.
 
+## Nothing is seeded
+
+`seed.ts` inserts the six principle lines and stops. Goals, chains and tasks
+are created through the UI, because creating them **is** the product.
+
+Never write fixture data to make a screen look populated. If a screen has
+nothing to show, build its empty state — that is the screen I will actually see
+on day one, and the one a demo row would hide.
+
+## Three quests a day, and no backlog on the morning screen
+
+Both are enforced in the data layer, not suggested in the UI (`PLAN.md` §3c).
+
+`tasks.pickForToday` throws `TODAY_FULL` on the fourth. Choosing three is the
+planning ritual; there is no other one. `tasks.complete` and
+`tasks.dropFromToday` free the slot.
+
+Unpicked tasks live on the backlog page and nowhere else. No screen shows a
+total of open tasks — "47 remaining" is the number that makes people close the
+app. If a design would surface it on the dashboard, don't build it: ask.
+
 ## Tasks and events are two tables
 
 They stay two tables. They meet only in the UI, through a `TimelineItem` mapper
@@ -72,8 +93,12 @@ slow the daily loop to make a rarer screen better, the daily loop wins.
 - `convex/schema.ts` validators are the single source of truth for shape.
   Import `Doc<'tasks'>`, `Id<'projects'>`. Every field is typed — when a shape
   is genuinely unknown, ask rather than widening it.
-- Every mutation and every non-public query opens with `requireOwner(ctx)` from
-  `convex/auth.ts`. It fails closed: an unset `OWNER_ID` authorizes nothing.
+- Every table carries `ownerId: v.string()` and an owner-scoped index. Every
+  mutation and every query opens with `requireUser(ctx)` from `convex/auth.ts`,
+  which returns the Clerk `identity.subject`, then scopes the read **through an
+  index** — never `.filter()` over a full table scan. There is no `OWNER_ID`
+  env var. A query that could return another user's row is a bug, even while
+  there is only one user.
 - Aggregations live only in `convex/aggregate.ts`, as `monthCounts()`,
   `currentState()` and `entityCounts()`.
 
@@ -91,8 +116,9 @@ reason before it goes in.
 - Close a phase by running typecheck and lint, summarizing in five lines or
   fewer, and naming the single thing to verify by hand. Commit per meaningful
   step with a real message.
-- Ship phases 0–3 first. Each later route stays an empty destination until its
-  own phase.
+- Ship phases 0–4 first, in that order: the ways in before the screen that
+  reads them back (`PLAN.md` §4). Each later route stays an empty destination
+  until its own phase.
 - Ask rather than guess when `PLAN.md` is ambiguous, when a UI element has no
   source in the data model, or when a design decision would introduce a number
   that is not one of the three sources.

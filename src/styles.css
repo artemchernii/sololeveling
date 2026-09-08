@@ -156,6 +156,15 @@ h6 {
   box-shadow: var(--glass-shadow);
 }
 
+/* The same material as .glass, but lit top-down and edged only along the
+   bottom — the treatment for the one element that spans the full width. */
+@utility glass-bar {
+  background-image: var(--glass-bar-fill);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border-bottom: 1px solid var(--glass-edge);
+}
+
 /* Mono caps — the label voice used across every screen in §3. */
 @utility label-caps {
   font-family: var(--font-mono);

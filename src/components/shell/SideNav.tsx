@@ -7,14 +7,7 @@ import { navGroups } from '@/lib/nav'
    they are grouped DO / TRACK / KNOW per PLAN.md §3, with Settings pinned. */
 export function SideNav() {
   return (
-    <nav className="glass hidden w-[214px] shrink-0 flex-col gap-[22px] rounded-[22px] p-4 lg:flex">
-      <div className="flex items-center gap-[9px] px-[10px] pt-1">
-        <span className="size-3.5 rounded-[4px] bg-lav-500" aria-hidden />
-        <span className="text-[11px] font-medium tracking-[0.2em] text-foreground">
-          SOLO LEVELING
-        </span>
-      </div>
-
+    <nav className="glass hidden flex-col gap-[22px] self-start rounded-[22px] p-4 lg:flex">
       <div className="flex flex-1 flex-col gap-[22px]">
         {navGroups.map((group) => (
           <div key={group.heading} className="flex flex-col gap-[3px]">

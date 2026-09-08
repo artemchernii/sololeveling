@@ -79,10 +79,11 @@
 
   /* 1. Near-black ground. §3 Visual asks for a "near-black ground" with
         frosted panels above it; Nocturne's --color-bg (#161826) is the panel
-        value, not a ground. This is the design canvas's own page background,
-        so it stays in the system's hue family. Panels sit on top in
-        --color-bg / --color-surface. */
-  --color-ground: #0e0f1b;
+        value, not a ground. This is the wireframe artboard's own background —
+        NOT the #0e0f1b of the export's surrounding document, which is a page
+        for viewing artboards on and sits too light for the ambient glow to
+        read against. Panels sit on top in --color-bg / --color-surface. */
+  --color-ground: #07070b;
 
   /* 2. Mono face. §3 asks for "mono caps for labels" throughout; Nocturne
         defines no mono token and loads no mono face. JetBrains Mono is what
@@ -103,6 +104,13 @@
     rgba(233, 233, 237, 0.02)
   );
   --glass-edge: rgba(233, 233, 237, 0.09);
+  /* The same material lit top-down, for the one full-width bar. The 155deg
+     diagonal above reads as a smear across a 58px strip. */
+  --glass-bar-fill: linear-gradient(
+    180deg,
+    rgba(233, 233, 237, 0.055),
+    rgba(233, 233, 237, 0.015)
+  );
   --glass-blur: 18px;
   --glass-shadow:
     inset 0 1px 0 rgba(233, 233, 237, 0.08),

@@ -2,6 +2,7 @@ import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { auth } from '@clerk/tanstack-react-start/server'
 
+import { Ambient } from '@/components/shell/Ambient'
 import { MobileNav } from '@/components/shell/MobileNav'
 import { SideNav } from '@/components/shell/SideNav'
 import { TopBar } from '@/components/shell/TopBar'
@@ -28,11 +29,12 @@ export const Route = createFileRoute('/_app')({
 
 function AppShell() {
   return (
-    <div className="flex min-h-dvh gap-[18px] p-[18px] pb-20 lg:pb-[18px]">
-      <SideNav />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar />
-        <main className="min-w-0 flex-1">
+    <div className="flex min-h-dvh flex-col">
+      <Ambient />
+      <TopBar />
+      <div className="relative z-10 grid flex-1 gap-5 px-[18px] pt-5 pb-24 lg:grid-cols-[214px_minmax(0,1fr)] lg:px-6 lg:pb-[26px]">
+        <SideNav />
+        <main className="min-w-0">
           <Outlet />
         </main>
       </div>

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as AppBacklogRouteImport } from './routes/_app/backlog'
 import { Route as AppBodyRouteImport } from './routes/_app/body'
 import { Route as AppCalendarRouteImport } from './routes/_app/calendar'
 import { Route as AppCareerRouteImport } from './routes/_app/career'
@@ -42,6 +43,11 @@ const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppBacklogRoute = AppBacklogRouteImport.update({
+  id: '/backlog',
+  path: '/backlog',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppBodyRoute = AppBodyRouteImport.update({
   id: '/body',
@@ -127,6 +133,7 @@ const AppStyleRoute = AppStyleRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/backlog': typeof AppBacklogRoute
   '/body': typeof AppBodyRoute
   '/calendar': typeof AppCalendarRoute
   '/career': typeof AppCareerRoute
@@ -147,6 +154,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/backlog': typeof AppBacklogRoute
   '/body': typeof AppBodyRoute
   '/calendar': typeof AppCalendarRoute
   '/career': typeof AppCareerRoute
@@ -169,6 +177,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/backlog': typeof AppBacklogRoute
   '/_app/body': typeof AppBodyRoute
   '/_app/calendar': typeof AppCalendarRoute
   '/_app/career': typeof AppCareerRoute
@@ -191,6 +200,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/backlog'
     | '/body'
     | '/calendar'
     | '/career'
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/backlog'
     | '/body'
     | '/calendar'
     | '/career'
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/login'
+    | '/_app/backlog'
     | '/_app/body'
     | '/_app/calendar'
     | '/_app/career'
@@ -278,6 +290,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/backlog': {
+      id: '/_app/backlog'
+      path: '/backlog'
+      fullPath: '/backlog'
+      preLoaderRoute: typeof AppBacklogRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/body': {
       id: '/_app/body'
@@ -395,6 +414,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppBacklogRoute: typeof AppBacklogRoute
   AppBodyRoute: typeof AppBodyRoute
   AppCalendarRoute: typeof AppCalendarRoute
   AppCareerRoute: typeof AppCareerRoute
@@ -414,6 +434,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppBacklogRoute: AppBacklogRoute,
   AppBodyRoute: AppBodyRoute,
   AppCalendarRoute: AppCalendarRoute,
   AppCareerRoute: AppCareerRoute,

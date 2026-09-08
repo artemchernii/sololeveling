@@ -14,16 +14,18 @@ concurrency:
 
 jobs:
   check:
-    name: typecheck · lint · format
+    name: typecheck · lint · format · test · build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 24
+          # .nvmrc is the single answer to "which Node", shared with anyone
+          # running nvm use locally.
+          node-version-file: .nvmrc
           cache: pnpm
 
       # --frozen-lockfile is the point of running this at all: it catches a
@@ -37,3 +39,12 @@ jobs:
       - run: pnpm lint --max-warnings 0
 
       - run: pnpm check
+
+      # The invariants that fail silently: three quests a day, and a completed
+      # task writing evidence it has no right to write.
+      - run: pnpm test
+
+      # `pnpm deploy` is `build && wrangler deploy`, so without this CI can be
+      # green while shipping is broken. It needs no secrets: the Convex client
+      # is built at render, not at module load.
+      - run: pnpm build

@@ -274,3 +274,27 @@ export const listByProject = query({
       .take(MAX_ROWS)
   },
 })
+
+/**
+ * Give a quest a time, or take it away. This is what puts a task on the TODAY
+ * timeline (§3b.3) — an undated task stays in the checklist, which is the
+ * normal case, not an error.
+ */
+export const setSchedule = mutation({
+  args: {
+    taskId: v.id('tasks'),
+    scheduledAt: v.union(v.number(), v.null()),
+    durationMin: v.optional(v.number()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedTask(ctx, ownerId, args.taskId)
+
+    await ctx.db.patch(args.taskId, {
+      scheduledAt: args.scheduledAt ?? undefined,
+      durationMin: args.scheduledAt === null ? undefined : args.durationMin,
+    })
+    return null
+  },
+})

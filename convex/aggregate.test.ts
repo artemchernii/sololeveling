@@ -160,7 +160,7 @@ describe('currentState is the latest row per key (PLAN.md §1)', () => {
     const t = as(ME)
     const state = await t.query(api.aggregate.currentState, {})
     /* Absent, so the cell renders nothing. A zero would be a claim. */
-    expect(state.net_worth).toBeUndefined()
+    expect(state.net_worth).toBeNull()
   })
 
   test('a snapshot with neither value nor text is refused', async () => {
@@ -207,6 +207,9 @@ describe('currentState is the latest row per key (PLAN.md §1)', () => {
     })
 
     const theirs = as(SOMEONE_ELSE)
-    expect(await theirs.query(api.aggregate.currentState, {})).toEqual({})
+    const state = await theirs.query(api.aggregate.currentState, {})
+    /* Every key present and every one null: the shape is fixed, the values are
+       theirs alone. */
+    expect(Object.values(state).every((v) => v === null)).toBe(true)
   })
 })

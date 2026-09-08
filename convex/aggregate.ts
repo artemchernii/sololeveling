@@ -179,51 +179,62 @@ export const STATE_KEYS = [
   'skills_target',
 ] as const
 
+const stateValue = v.union(
+  v.object({
+    value: v.optional(v.number()),
+    textValue: v.optional(v.string()),
+    unit: v.optional(v.string()),
+    recordedAt: v.number(),
+  }),
+  v.null(),
+)
+
 export const currentState = query({
   args: {},
-  returns: v.record(
-    v.string(),
-    v.object({
-      value: v.optional(v.number()),
-      textValue: v.optional(v.string()),
-      unit: v.optional(v.string()),
-      recordedAt: v.number(),
-    }),
-  ),
+  /* A fixed shape, for the same reason monthCounts has one: a strip driven by
+     "whatever keys exist" would change shape as a side-effect of logging a
+     weight. Explicitly null when never recorded — a record type would tell
+     TypeScript every key is always present, which is how a missing value
+     becomes an invisible bug. */
+  returns: v.object({
+    cefr_level: stateValue,
+    sessions_target: stateValue,
+    weight: stateValue,
+    net_worth: stateValue,
+    skills_logged: stateValue,
+    skills_target: stateValue,
+  }),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
 
-    const state: Record<
-      string,
-      {
-        value?: number
-        textValue?: string
-        unit?: string
-        recordedAt: number
-      }
-    > = {}
-
-    for (const key of STATE_KEYS) {
+    async function latest(key: (typeof STATE_KEYS)[number]) {
       /* Latest row wins. Descending on [ownerId, key, recordedAt] means one
-         document read per key, not a scan of every weigh-in you ever logged. */
-      const [latest] = await ctx.db
+         document read per key, not a scan of every weigh-in ever logged. */
+      const row = await ctx.db
         .query('stateSnapshots')
         .withIndex('by_owner_key_time', (q) =>
           q.eq('ownerId', ownerId).eq('key', key),
         )
         .order('desc')
-        .take(1)
+        .first()
 
-      if (latest) {
-        state[key] = {
-          value: latest.value,
-          textValue: latest.textValue,
-          unit: latest.unit,
-          recordedAt: latest.recordedAt,
-        }
-      }
+      return row === null
+        ? null
+        : {
+            value: row.value,
+            textValue: row.textValue,
+            unit: row.unit,
+            recordedAt: row.recordedAt,
+          }
     }
 
-    return state
+    return {
+      cefr_level: await latest('cefr_level'),
+      sessions_target: await latest('sessions_target'),
+      weight: await latest('weight'),
+      net_worth: await latest('net_worth'),
+      skills_logged: await latest('skills_logged'),
+      skills_target: await latest('skills_target'),
+    }
   },
 })

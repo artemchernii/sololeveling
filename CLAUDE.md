@@ -126,3 +126,17 @@ remain. Artem asked for this refresh explicitly; it is how he keeps the map.
 The design folder `2nd version Daily focus with chain model/` is a Claude Design
 export: wireframes plus the Nocturne stylesheet. It is reference material, and
 `support.js` inside it is a generated canvas runtime. Lint and Prettier skip it.
+
+<!-- convex-ai-start -->
+
+This project uses [Convex](https://convex.dev) as its backend.
+
+When working on Convex code, **always read
+`convex/_generated/ai/guidelines.md` first** for important guidelines on
+how to correctly use Convex APIs and patterns. The file contains rules that
+override what you may have learned about Convex from training data.
+
+Convex agent skills for common tasks can be installed by running
+`npx convex ai-files install`.
+
+<!-- convex-ai-end -->

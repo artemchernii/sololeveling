@@ -21,7 +21,7 @@ const KINDS: Array<{ value: Kind | 'all'; label: string }> = [
 
 /* PLAN.md §2. A note counts towards nothing — it appears in no tile and moves
    no number, which is why this page has no count anywhere on it. "14 notes
-   this month" would be a fourth source measuring typing. */
+   this month" would be an unsanctioned source measuring typing. */
 function Notes() {
   const [kind, setKind] = useState<Kind | 'all'>('all')
   const [title, setTitle] = useState('')

@@ -9,7 +9,7 @@ import schema from './schema'
 /* PLAN.md §2. A note is a thing you wrote down, and that is all it is: it
    counts towards nothing, appears in no tile, and moves no number. Which is
    why there is no aggregate over notes anywhere — "14 notes this month" would
-   be a fourth source measuring typing. */
+   be an unsanctioned source measuring typing. */
 
 const MAX_ROWS = 300
 

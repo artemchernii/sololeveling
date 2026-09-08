@@ -151,8 +151,8 @@ describe('currentState is the latest row per key (PLAN.md §1)', () => {
     })
 
     const state = await t.query(api.aggregate.currentState, {})
-    /* "2 of 4 sessions" is a log count over this — source 2 twice, not a
-       fourth source. */
+    /* "2 of 4 sessions" is a log count over this — source 2 twice, not a new
+       source. */
     expect(state.sessions_target?.value).toBe(4)
   })
 

@@ -3,10 +3,11 @@ import { v } from 'convex/values'
 import { requireUser } from './auth'
 import { query } from './_generated/server'
 
-/* PLAN.md §1: every number on screen comes from exactly one of three sources —
-   a log count over a period, the latest stateSnapshots row for a key, or an
-   entity count over projects/tasks. All three live here and nowhere else.
-   Components read these numbers; they never compute them.
+/* PLAN.md §1: every number on screen comes from exactly one of four sources —
+   a log count over a period, the latest stateSnapshots row for a key, an entity
+   count over projects/tasks, or a stored external reading. All four live here
+   and nowhere else; the fourth has no implementation yet, and arrives with
+   Money. Components read these numbers; they never compute them.
  
    None of these can produce a score, an index or a percentage. `done` and
    `total` are handed over separately on purpose: a component may render
@@ -163,8 +164,9 @@ export const monthCounts = query({
  * Counts only. "Rising" and "slipping" are not returned, and neither is a
  * delta: a difference between two of these is a comparison a component makes
  * from two source values, the way the dashboard renders "2 of 4". Returning a
- * trend from here would make it a fourth source, and the sign of a subtraction
- * is not a measurement of anything.
+ * trend from here would make it an unsanctioned source, and the sign of a
+ * subtraction is not a measurement of anything. (§1 has four sources; a trend
+ * is not one of them, and the fourth is an external reading, not a verdict.)
  *
  * Week boundaries arrive as arguments for the same reason month boundaries do:
  * the server does not know where you are, and weeks start on Monday only
@@ -247,9 +249,9 @@ export const weekCounts = query({
 
    A target is a state value like any other. "2 of 4 sessions" is a log count
    over `sessions_target`; §3's Career row already reads this way
-   (state `skills_logged` / `skills_target`). That is source 2 twice, not a
-   fourth source — and it is the only thing a count may be divided by, besides
-   a goal's own targetValue.
+   (state `skills_logged` / `skills_target`). That is source 2 twice, not a new
+   source — and it is the only thing a count may be divided by, besides a goal's
+   own targetValue.
    ------------------------------------------------------------------------ */
 
 export const STATE_KEYS = [

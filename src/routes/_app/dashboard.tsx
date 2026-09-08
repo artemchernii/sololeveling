@@ -28,6 +28,17 @@ function Dashboard() {
   const now = new Date()
   const today = localToday(now)
 
+  /* Rows, not occurrences: a series that began in March is one row that the
+     mapper expands into whatever falls inside today (§3b.6). */
+  const dayStart = new Date(now)
+  dayStart.setHours(0, 0, 0, 0)
+  const dayEnd = new Date(dayStart)
+  dayEnd.setDate(dayEnd.getDate() + 1)
+  const events = useQuery(api.events.listInRange, {
+    from: dayStart.getTime(),
+    to: dayEnd.getTime(),
+  })
+
   const quests = useQuery(api.tasks.listToday, { today })
   const chains = useQuery(api.projects.listLive, {})
 
@@ -60,14 +71,7 @@ function Dashboard() {
       </div>
 
       <div className="grid gap-[18px] lg:grid-cols-2">
-        <TodayCard
-          tasks={quests}
-          /* Empty until Phase 5 builds the Calendar — nothing creates an event
-             yet. The mapper takes both from day one so Phase 5 changes nothing
-             here (§3b.3). */
-          events={[]}
-          date={now}
-        />
+        <TodayCard tasks={quests} events={events ?? []} date={now} />
         <ChainsCard />
       </div>
 

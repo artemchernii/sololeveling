@@ -207,3 +207,62 @@ describe('a weight is both an event and a state (PLAN.md §2)', () => {
     expect(state[0]).toMatchObject({ key: 'weight', value: 75.4, unit: 'kg' })
   })
 })
+
+describe('what the week view reads (PLAN.md §4 phase 5)', () => {
+  const MONDAY = new Date(2026, 8, 7, 9).getTime()
+  const WEEK = 7 * 24 * 60 * 60 * 1000
+
+  test('a task scheduled inside the week is there', async () => {
+    const t = as(ME)
+    const taskId = await t.mutation(api.tasks.create, { title: 'Deep work' })
+    await t.mutation(api.tasks.setSchedule, {
+      taskId,
+      scheduledAt: MONDAY,
+      durationMin: 90,
+    })
+    const found = await t.query(api.tasks.listScheduledInRange, {
+      from: MONDAY - 9 * 60 * 60 * 1000,
+      to: MONDAY + WEEK,
+    })
+    expect(found.map((x) => x.title)).toEqual(['Deep work'])
+  })
+
+  /* §3c.3: an undated task is a quest, and quests are not on this screen. */
+  test('an undated task is absent, not filtered out later', async () => {
+    const t = as(ME)
+    await t.mutation(api.tasks.create, { title: 'Someday' })
+    const found = await t.query(api.tasks.listScheduledInRange, {
+      from: MONDAY - 9 * 60 * 60 * 1000,
+      to: MONDAY + WEEK,
+    })
+    expect(found).toEqual([])
+  })
+
+  test('a task scheduled in another week is absent', async () => {
+    const t = as(ME)
+    const taskId = await t.mutation(api.tasks.create, { title: 'Later' })
+    await t.mutation(api.tasks.setSchedule, {
+      taskId,
+      scheduledAt: MONDAY + 3 * WEEK,
+    })
+    const found = await t.query(api.tasks.listScheduledInRange, {
+      from: MONDAY,
+      to: MONDAY + WEEK,
+    })
+    expect(found).toEqual([])
+  })
+
+  test('never another owner’s task', async () => {
+    const theirs = as(SOMEONE_ELSE)
+    const taskId = await theirs.mutation(api.tasks.create, { title: 'Theirs' })
+    await theirs.mutation(api.tasks.setSchedule, {
+      taskId,
+      scheduledAt: MONDAY,
+    })
+    const found = await as(ME).query(api.tasks.listScheduledInRange, {
+      from: MONDAY,
+      to: MONDAY + WEEK,
+    })
+    expect(found).toEqual([])
+  })
+})

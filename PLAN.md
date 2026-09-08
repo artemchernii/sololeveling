@@ -31,7 +31,7 @@ gives a fast first paint on mobile and a place for server functions later (cron 
   routes/           TanStack file routes
     __root.tsx  _app.tsx (authed shell, Clerk guard in beforeLoad)  _app/dashboard.tsx  _app/quests.tsx
     _app/calendar.tsx  _app/goals.tsx  _app/projects.$id.tsx
-    _app/{money,body,social,portuguese,career,style}.tsx   (phase 7+, empty)
+    _app/{money,body,social,portuguese,career,style,knowledge}.tsx   (phase 7+, empty)
     _app/{notes,principles,reviews,settings}.tsx  login.tsx
   components/
     shell/      TopBar, SideNav, MobileNav, QuickCapture (⌘K)
@@ -252,7 +252,13 @@ debt. Three constraints are enforced in the data layer, not suggested in the UI:
 | 4   | **Dashboard**: aggregate layer + today / chains / current state / month tiles                                                                                     | Morning screen is true, built only from what I entered |
 | 5   | Calendar (week view, rrule expansion, events + scheduled tasks; series-level editing only)                                                                        | Recurring gym/PT/review show up                        |
 | 6   | Weekly review + Notes + Principles + mobile pass + PWA                                                                                                            | I close a week on my phone                             |
-| 7+  | Money, Body, Portuguese, Social, Career, Style detail pages — one per sprint                                                                                      | —                                                      |
+| 7+  | Money, Body, Portuguese, Social, Career, Style, Knowledge detail pages — one per sprint                                                                           | —                                                      |
+
+**Knowledge is a 7+ page, and the only one without a shape yet.** The other six read an area's own
+logs and state. Knowledge reads neither — §3 item 4 already says it has no month tile because nothing
+about it is countable. Its contents are Artem's to specify before it is built; until then it stays an
+empty destination. It briefly carried a "Phase 6" label, which was an inference from the KNOW nav
+grouping rather than anything this section said.
 
 **Why the dashboard is fourth, not second:** it only reads. With nothing seeded, a dashboard built
 early renders six empty tiles and proves nothing. Build the ways in first, use them for a few days,

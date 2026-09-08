@@ -23,12 +23,20 @@ pnpm dev
 
 `.env.local` needs Convex and Clerk values before the app renders — see
 `.env.example`. Clerk needs a JWT template named `convex`, and the Convex
-deployment needs `CLERK_JWT_ISSUER_DOMAIN` and `OWNER_ID` set on it:
+deployment needs `CLERK_JWT_ISSUER_DOMAIN` set on it — per deployment, so dev
+and prod each get their own:
 
 ```sh
 npx convex env set CLERK_JWT_ISSUER_DOMAIN https://<your-clerk-issuer>
-npx convex env set OWNER_ID <your Clerk user id>
 ```
 
-`OWNER_ID` is the single-user guard. Until it is set, every mutation and private
-query refuses.
+There is no `OWNER_ID`. Every row carries an `ownerId` and every function opens
+with `requireUser(ctx)` from `convex/auth.ts` (PLAN.md §3b.4), so the database
+is scoped by who is signed in rather than by a deployment variable.
+
+The database starts empty on purpose — everything is created through the UI. The
+one exception is the six principles:
+
+```sh
+npx convex run seed:run '{"ownerId":"user_..."}'
+```

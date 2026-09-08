@@ -6,7 +6,7 @@ import { useAuth } from '@clerk/tanstack-react-start'
 /* ConvexProviderWithClerk — not the bare ConvexProvider the scaffold ships.
    It hands Clerk's JWT to every Convex call, which is what makes
    ctx.auth.getUserIdentity() return anything at all. With the bare provider the
-   UI looks signed in while every requireOwner() check on the backend sees an
+   UI looks signed in while every requireUser() check on the backend sees an
    anonymous caller: a hole that stays invisible until someone else finds the
    deployment URL.
 

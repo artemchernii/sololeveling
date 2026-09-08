@@ -12,6 +12,7 @@ progress bars only when an explicit target exists · **everything is created by 
 ## 1. Architecture
 
 **Stack (deliberately different from Oreum's Next+Supabase):**
+
 - **TanStack Start** (Vite, React 19, file-based routes, SSR + server functions) · TS · Tailwind v4 · shadcn/ui · lucide
 - **Convex** — DB + backend functions + realtime. Schema in TS, no migrations, no SQL.
 - **Clerk** — auth (Google one-tap), wired via `ConvexProviderWithClerk`. Multi-tenant from day one: every row carries `ownerId` (see §2).
@@ -24,6 +25,7 @@ updates instantly, zero code. Start's SSR is not needed for the data (Convex is 
 gives a fast first paint on mobile and a place for server functions later (cron digests, imports).
 
 **Structure**
+
 ```
 /src
   routes/           TanStack file routes
@@ -46,6 +48,7 @@ gives a fast first paint on mobile and a place for server functions later (cron 
 ```
 
 **Key rule — every number on screen comes from exactly one of three sanctioned sources:**
+
 1. **log count** — aggregate over `logs` for a period (12 workouts this month, 2 events this month)
 2. **state** — latest `stateSnapshots` row for a key (weight 75.4 kg, net worth €42,100, CEFR B1)
 3. **entity count** — rows in `projects` / `tasks` matching a filter (2 active projects, 11 of 17 tasks)
@@ -120,6 +123,7 @@ project `done/total`, free hours today. All via `convex/aggregate.ts` queries �
 ## 3. Layout (from the design exploration — final = 3a + 4a merged + chains)
 
 **Shell (desktop ≥1024)**
+
 - TopBar: ■ SOLO LEVELING · Search ⌘K · bell · ARTEM ▾
 - SideNav grouped: **DO** Dashboard/Quests/Calendar/Goals/Projects · **TRACK** Money/Body/Social/
   Portuguese/Career/Style · **KNOW** Notes/Knowledge/Principles · Settings at bottom
@@ -127,34 +131,37 @@ project `done/total`, free hours today. All via `convex/aggregate.ts` queries �
   `pt 30`, `weight 75.4`, `note …` → parsed into a `logs` row. Three seconds, no form.
 
 **Dashboard** (in order)
+
 1. `Good morning, ARTEM.` · `LEVEL 32 · CURRENT FOCUS · <focus project>`
 2. Two columns: **TODAY** (events + scheduled tasks, "Three booked hours. The rest is yours.")
    | **CHAINS** (goal → focus project → done/total · next action; FOCUS/LIVE/IDLE tag)
 3. **CURRENT STATE** — one compact strip, six cells, each labelled with its source:
-   | cell | value | source |
-   |---|---|---|
-   | Portuguese | B1 · 2 of 4 sessions | state `cefr_level` + log count |
-   | Body | 75.4 kg · 3 workouts | state `weight` + log count |
-   | Money | €42,100 net worth | state `net_worth` |
-   | Social | 2 events this month | log count `kind:'event'` |
-   | Business | 2 active projects · 1 in focus | entity count |
-   | Career | 6 of 8 skills logged | state `skills_logged` / `skills_target` |
+   | cell       | value                          | source                                  |
+   | ---------- | ------------------------------ | --------------------------------------- |
+   | Portuguese | B1 · 2 of 4 sessions           | state `cefr_level` + log count          |
+   | Body       | 75.4 kg · 3 workouts           | state `weight` + log count              |
+   | Money      | €42,100 net worth              | state `net_worth`                       |
+   | Social     | 2 events this month            | log count `kind:'event'`                |
+   | Business   | 2 active projects · 1 in focus | entity count                            |
+   | Career     | 6 of 8 skills logged           | state `skills_logged` / `skills_target` |
 4. **THIS MONTH · ACTIONS LOGGED** — exactly these six tiles, in this order, each vs last month.
    `monthCounts()` returns this fixed shape; the grid is not driven by the `area` enum.
-   | tile | counts | source |
-   |---|---|---|
-   | Projects | tasks shipped | log `task_done` |
-   | Portuguese | sessions logged | log `session` |
-   | Body | workouts done | log `workout` |
-   | Money | transfers to the floor | log `transfer` |
-   | Style | pieces bought or altered | log `piece` |
-   | Social | events attended | log `event` |
+
+   | tile       | counts                   | source          |
+   | ---------- | ------------------------ | --------------- |
+   | Projects   | tasks shipped            | log `task_done` |
+   | Portuguese | sessions logged          | log `session`   |
+   | Body       | workouts done            | log `workout`   |
+   | Money      | transfers to the floor   | log `transfer`  |
+   | Style      | pieces bought or altered | log `piece`     |
+   | Social     | events attended          | log `event`     |
 
    Career, Knowledge and Life have no tile: nothing about them is countable per-month yet.
    They still exist as `area` values for tagging tasks and notes. Nine areas, six tiles, on purpose.
    ("Counts of things you did. There is no score for Portuguese, and there never will be.")
+
 5. **TODAY'S QUESTS** — at most three. Checklist, area tag, time/duration. When all three slots are
-   full, the "add" affordance is replaced by the line *"Today is full. Finish one or drop one."*
+   full, the "add" affordance is replaced by the line _"Today is full. Finish one or drop one."_
    The dashboard never shows a backlog count — see §3c.
 
 **Projects page** = chains grid (cards from design v2: title, `11 of 17 tasks`, `ends 30 Sep · 23 days`,
@@ -163,7 +170,7 @@ project `done/total`, free hours today. All via `convex/aggregate.ts` queries �
 **Weekly review page** = "The week, as it actually went." KPI tiles · 12-week movement table
 (rising/slipping + absolute delta) · one principle · **What changes next week** (one sentence) · Close the week.
 
-**Backlog page** — the only place unpicked tasks live. A list with one action per row: *pick for today*
+**Backlog page** — the only place unpicked tasks live. A list with one action per row: _pick for today_
 (disabled when today is full). Reachable from the nav, never surfaced on the dashboard.
 
 **Mobile (<768)**: greeting+focus → Today (2 lines) → Today's quests (max 3) → This month (2×2) → sticky
@@ -196,7 +203,12 @@ mono caps for labels, big light numerals. No bars without a target. No emoji.
    `identity.subject` as `ownerId`; every mutation and query calls it first and scopes by it.
    No `OWNER_ID` env var, no single-user shortcut — retrofitting ownership later is a day of work
    and a good way to leak your own net worth to a friend.
-5. **Nothing is seeded except principles.** Goals, chains and tasks are created through the UI,
+5. **Nothing is seeded except principles.** The six lines, in order, from the source brief §16:
+   `DON'T PERFORM. PARTICIPATE.` · `I DON'T CHASE INTEREST. I NOTICE IT.` · `I CHOOSE TOO.` ·
+   `I AM ALLOWED TO BE IMPERFECT.` · `ACTION > OVERTHINKING.` · `BUILD > CONSUME.`
+   `seed.ts` is an internal mutation taking `ownerId` as an argument — it has no identity to read:
+   `npx convex run seed:run '{"ownerId":"user_..."}'`. No auto-seed on first sign-in.
+   Beyond these six rows: Goals, chains and tasks are created through the UI,
    because creating them is the product. `seed.ts` inserts the six principle lines and stops.
 
 ## 3c. Three limits that keep it usable
@@ -213,16 +225,16 @@ debt. Three constraints are enforced in the data layer, not suggested in the UI:
 
 ## 4. Phases
 
-| # | Deliverable | Done when |
-|---|---|---|
-| 0 | Scaffold: TanStack Start + Cloudflare plugin + Tailwind + shadcn, Nocturne tokens imported, Convex init, Clerk auth, shell, empty routes, CLAUDE.md, first deploy | Logged in, nav visible, live on `*.workers.dev` |
-| 1 | `schema.ts` with `ownerId` everywhere, `auth.ts` `requireUser`, `seed.ts` (principles only) | Typed schema deployed; DB otherwise empty on purpose |
-| 2 | **Quick capture (⌘K) + Quests**: create a task, pick up to 3 for today, complete, log an action, backlog page | I run one real day on it with data I created myself |
-| 3 | **Goals + Chains**: create a goal, create a project under it, attach tasks, set focus | I can build a chain end to end without touching the DB |
-| 4 | **Dashboard**: aggregate layer + today / chains / current state / month tiles | Morning screen is true, built only from what I entered |
-| 5 | Calendar (week view, rrule expansion, events + scheduled tasks) | Recurring gym/PT/review show up |
-| 6 | Weekly review + Notes + Principles + mobile pass + PWA | I close a week on my phone |
-| 7+ | Money, Body, Portuguese, Social, Career, Style detail pages — one per sprint | — |
+| #   | Deliverable                                                                                                                                                       | Done when                                              |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| 0   | Scaffold: TanStack Start + Cloudflare plugin + Tailwind + shadcn, Nocturne tokens imported, Convex init, Clerk auth, shell, empty routes, CLAUDE.md, first deploy | Logged in, nav visible, live on `*.workers.dev`        |
+| 1   | `schema.ts` with `ownerId` everywhere, `auth.ts` `requireUser`, `seed.ts` (principles only)                                                                       | Typed schema deployed; DB otherwise empty on purpose   |
+| 2   | **Quick capture (⌘K) + Quests**: create a task, pick up to 3 for today, complete, log an action, backlog page                                                     | I run one real day on it with data I created myself    |
+| 3   | **Goals + Chains**: create a goal, create a project under it, attach tasks, set focus                                                                             | I can build a chain end to end without touching the DB |
+| 4   | **Dashboard**: aggregate layer + today / chains / current state / month tiles                                                                                     | Morning screen is true, built only from what I entered |
+| 5   | Calendar (week view, rrule expansion, events + scheduled tasks)                                                                                                   | Recurring gym/PT/review show up                        |
+| 6   | Weekly review + Notes + Principles + mobile pass + PWA                                                                                                            | I close a week on my phone                             |
+| 7+  | Money, Body, Portuguese, Social, Career, Style detail pages — one per sprint                                                                                      | —                                                      |
 
 **Why the dashboard is fourth, not second:** it only reads. With nothing seeded, a dashboard built
 early renders six empty tiles and proves nothing. Build the ways in first, use them for a few days,
@@ -305,6 +317,7 @@ Start with the Nocturne import, then give me your Phase 0 file plan and any ques
 ```
 
 **Before you paste, have ready:**
+
 - Convex project (`npx convex dev` creates it on first run)
 - Clerk app with a JWT template named `convex` — publishable key in `.env.local`, issuer URL in the
   Convex dashboard as `CLERK_JWT_ISSUER_DOMAIN` (set per deployment: dev and prod separately)

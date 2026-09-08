@@ -1,4 +1,4 @@
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { mutation, query } from './_generated/server'
@@ -129,7 +129,8 @@ export const pickForToday = mutation({
       .take(TODAY_LIMIT)
 
     if (picked.length >= TODAY_LIMIT) {
-      throw new Error('TODAY_FULL')
+      /* Read by the UI, so it travels as data rather than a stack trace. */
+      throw new ConvexError('TODAY_FULL')
     }
 
     await ctx.db.patch(args.taskId, { todayFor: args.today })
@@ -214,5 +215,62 @@ export const remove = mutation({
     await ownedTask(ctx, ownerId, args.taskId)
     await ctx.db.delete(args.taskId)
     return null
+  },
+})
+
+/**
+ * Attach a task to a chain, or cut it loose. A task is creatable from a title
+ * alone (§3b.3), so this is how a loose one joins a chain later — which is the
+ * common case, since quick capture writes titles and nothing else.
+ */
+export const setProject = mutation({
+  args: {
+    taskId: v.id('tasks'),
+    projectId: v.union(v.id('projects'), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedTask(ctx, ownerId, args.taskId)
+
+    if (args.projectId === null) {
+      await ctx.db.patch(args.taskId, {
+        projectId: undefined,
+        goalId: undefined,
+      })
+      return null
+    }
+
+    const project = await ctx.db.get(args.projectId)
+    if (project === null || project.ownerId !== ownerId) {
+      throw new Error('No such project')
+    }
+
+    /* goalId is denormalised from the chain so a task can be filtered by goal
+       without walking through its project. The project is the authority; this
+       follows it, and is rewritten whenever the task moves. */
+    await ctx.db.patch(args.taskId, {
+      projectId: args.projectId,
+      goalId: project.goalId,
+    })
+    return null
+  },
+})
+
+/** One chain's work, newest last. Open tasks first — the rest is history. */
+export const listByProject = query({
+  args: { projectId: v.id('projects') },
+  returns: v.array(schema.doc('tasks')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const project = await ctx.db.get(args.projectId)
+    if (project === null || project.ownerId !== ownerId) {
+      throw new Error('No such project')
+    }
+
+    return await ctx.db
+      .query('tasks')
+      .withIndex('by_project', (q) => q.eq('projectId', args.projectId))
+      .take(MAX_ROWS)
   },
 })

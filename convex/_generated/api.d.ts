@@ -8,8 +8,11 @@
  * @module
  */
 
+import type * as aggregate from "../aggregate.js";
 import type * as auth from "../auth.js";
+import type * as goals from "../goals.js";
 import type * as logs from "../logs.js";
+import type * as projects from "../projects.js";
 import type * as seed from "../seed.js";
 import type * as tasks from "../tasks.js";
 
@@ -20,8 +23,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  aggregate: typeof aggregate;
   auth: typeof auth;
+  goals: typeof goals;
   logs: typeof logs;
+  projects: typeof projects;
   seed: typeof seed;
   tasks: typeof tasks;
 }>;

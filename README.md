@@ -58,3 +58,36 @@ pnpm build       # what `pnpm deploy` does first
 ```
 
 `pnpm format` fixes what `check` and `lint` complain about.
+
+## Deploying
+
+A merge to `master` deploys, once the checks above pass. One job, in
+`.github/workflows/ci.yml`:
+
+```sh
+convex deploy --cmd 'pnpm build'   # schema + functions to prod Convex, and a
+                                   # build with VITE_CONVEX_URL already set to it
+wrangler deploy                    # the worker
+```
+
+The two steps are one command on purpose. Building separately is how the site
+ends up serving production against a development backend.
+
+**Three GitHub secrets** make it work:
+
+| secret                       | where it comes from                               |
+| ---------------------------- | ------------------------------------------------- |
+| `CONVEX_DEPLOY_KEY`          | Convex dashboard → Production → Deploy key        |
+| `CLOUDFLARE_API_TOKEN`       | Cloudflare → API tokens → Edit Cloudflare Workers |
+| `VITE_CLERK_PUBLISHABLE_KEY` | the `pk_...` in `.env.local` — public by design   |
+
+`CLERK_SECRET_KEY` is deliberately **not** among them. It belongs to the running
+worker, not to the build, and is set once:
+
+```sh
+npx wrangler secret put CLERK_SECRET_KEY
+```
+
+The production Convex deployment needs `CLERK_JWT_ISSUER_DOMAIN` set on it, the
+same way dev does — without it, prod trusts nobody and every query refuses.
+Principles are seeded there once, by hand, with `--prod`.

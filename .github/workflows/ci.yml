@@ -1,8 +1,8 @@
 name: CI
 
-# Every phase lands through a PR (PLAN.md §4), so this runs there and on the
-# branch it merges into. Nothing here deploys: pushing schema or functions to
-# Convex is a deliberate act with a deploy key, not a consequence of merging.
+# Every phase lands through a PR (PLAN.md §4), so the checks run there and on
+# the branch it merges into. A merge to master then deploys — but only after
+# those checks have passed, which is what `needs: check` buys.
 on:
   push:
     branches: [master]
@@ -10,7 +10,9 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded PR runs, never a deploy: killing wrangler halfway leaves
+  # the worker and the Convex backend on different versions of the schema.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -48,3 +50,46 @@ jobs:
       # green while shipping is broken. It needs no secrets: the Convex client
       # is built at render, not at module load.
       - run: pnpm build
+
+  deploy:
+    name: deploy to production
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # One command, deliberately. `convex deploy` pushes schema and functions
+      # to the production deployment AND runs the build with VITE_CONVEX_URL
+      # already set to that deployment's URL. Building separately is how the
+      # site ends up pointing at a dev backend, which is exactly what it was
+      # doing before this workflow existed.
+      - name: Deploy Convex, and build against it
+        run: pnpm exec convex deploy --cmd 'pnpm build'
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+
+      # CLERK_SECRET_KEY is not here on purpose: it is a Worker secret, set once
+      # with `wrangler secret put`, and it belongs to the running worker rather
+      # than to the build.
+      - name: Deploy the worker
+        run: pnpm exec wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Check it answers
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            https://sololeveling.soloxleveling.workers.dev/login)
+          echo "login page returned $code"
+          test "$code" = "200"

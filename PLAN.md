@@ -241,6 +241,60 @@ debt. Three constraints are enforced in the data layer, not suggested in the UI:
 3. **The backlog is never on the dashboard.** No "47 open tasks" anywhere on the morning screen.
    That number is the one that makes people close the app. It lives on its own page or nowhere.
 
+## 3d. Motion, loading, and what colour is allowed to say
+
+Written before it is built, because these three are the ones that spread. A
+transition added in one component becomes four durations in a month, and a
+colour that means something in one place means nothing three screens later.
+
+This section is a floor, not a ceiling. The app is meant to become considerably
+more alive than §3 first described it — more colour, more badges, more things
+that respond when touched. Only one thing stays fixed: a number on screen still
+comes from a sanctioned source, and colour still may not grade the person using
+it. Everything else is open.
+
+**1. Motion has two speeds and one curve.** Added to `tokens.css` under APP
+ADDITIONS with the rest of the reasoned exceptions: `--motion-fast` (120ms) for
+feedback on something you are touching — hover, press, focus — and
+`--motion-base` (220ms) for something arriving or leaving. One easing,
+`--motion-ease`. Nothing gets a third duration without a written reason.
+
+The rule for what moves: **a state change you caused animates; the app moving on
+its own does not.** A card you opened, a quest you completed, a week you closed —
+those animate, because the motion tells you the app heard you. Data arriving from
+Convex does not slide in; it is not a response to anything you did, and a
+dashboard that reflows every time a query resolves is a dashboard you cannot
+read. `prefers-reduced-motion: reduce` removes all of it — the information is in
+the change, not the movement.
+
+**2. Loading shows shape, never values.** A skeleton mirrors the layout that is
+coming: the same tile grid, the same row heights, the same number of rows where
+the count is known. It shows no numbers, no placeholder figures, no "0" standing
+in for a value that has not arrived — a skeleton that renders a plausible number
+is a fixture, and §3b.5 rules those out everywhere else too.
+
+`Reading…` as grey text is not a loading state and is not to be used as the
+default. A spinner is for something with no knowable shape; almost nothing here
+qualifies.
+
+**3. Colour says what a thing is, not whether it is good.** This is the §1 rule
+in visual form, and the distinction is the whole of it:
+
+- **Kind and state — freely.** Area, `LIVE` / `FOCUS` / `IDLE`, open versus
+  closed, a series versus a one-off, a slot that is full. This is information,
+  and the app has been too monochrome about it.
+- **Valence — per metric, declared, opt-in.** Green-up/red-down as a global rule
+  is banned. `+1 workout` green and `+1 transfer` green look identical and mean
+  opposite things; more spending is not an achievement. Where a direction is
+  genuinely known it is declared once beside that metric, with the direction
+  written down. Where it is not known, the number is flat — which is where the
+  dashboard's month tiles stay, deliberately.
+
+Lavender remains reserved for live and focus things (§3 Visual). Colour added
+under this rule is additional vocabulary, not a licence to repaint that.
+
+---
+
 ## 4. Phases
 
 | #   | Deliverable                                                                                                                                                       | Done when                                              |
@@ -252,6 +306,7 @@ debt. Three constraints are enforced in the data layer, not suggested in the UI:
 | 4   | **Dashboard**: aggregate layer + today / chains / current state / month tiles                                                                                     | Morning screen is true, built only from what I entered |
 | 5   | Calendar (week view, rrule expansion, events + scheduled tasks; series-level editing only)                                                                        | Recurring gym/PT/review show up                        |
 | 6   | Weekly review + Notes + Principles + mobile pass + PWA                                                                                                            | I close a week on my phone                             |
+| 6b  | Polish pass: motion tokens, skeletons everywhere, the colour rule applied (§3d)                                                                                   | It feels alive without grading me                      |
 | 7+  | Money, Body, Portuguese, Social, Career, Style, Knowledge detail pages — one per sprint                                                                           | —                                                      |
 
 **Knowledge is a 7+ page, and the only one without a shape yet.** The other six read an area's own

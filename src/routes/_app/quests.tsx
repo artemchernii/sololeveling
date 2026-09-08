@@ -128,6 +128,7 @@ function QuestRow({
   const complete = useMutation(api.tasks.complete)
   const drop = useMutation(api.tasks.dropFromToday)
   const setArea = useMutation(api.tasks.setArea)
+  const setSchedule = useMutation(api.tasks.setSchedule)
 
   return (
     <div className="flex flex-col gap-2 border-b border-white/[0.05] py-2.5 last:border-b-0">
@@ -152,11 +153,12 @@ function QuestRow({
           onChange={(area: Area) => void setArea({ taskId: task._id, area })}
         />
 
-        {task.durationMin ? (
-          <span className="font-mono text-[11px] text-ink-600">
-            {task.durationMin} min
-          </span>
-        ) : null}
+        <ScheduleField
+          task={task}
+          onSet={(scheduledAt, durationMin) =>
+            void setSchedule({ taskId: task._id, scheduledAt, durationMin })
+          }
+        />
 
         <button
           type="button"
@@ -168,6 +170,88 @@ function QuestRow({
         </button>
       </div>
     </div>
+  )
+}
+
+/* A time is what puts a quest on the dashboard's TODAY timeline (§3b.3) —
+   without it the card can never show anything, because nothing else in the app
+   sets scheduledAt. Undated stays the normal case: most quests are things to
+   do today, not things at a time today. */
+function ScheduleField({
+  task,
+  onSet,
+}: {
+  task: Doc<'tasks'>
+  onSet: (scheduledAt: number | null, durationMin?: number) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [time, setTime] = useState(
+    task.scheduledAt
+      ? new Date(task.scheduledAt).toTimeString().slice(0, 5)
+      : '',
+  )
+  const [minutes, setMinutes] = useState(
+    task.durationMin ? String(task.durationMin) : '',
+  )
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="font-mono text-[11px] text-ink-700 transition-colors hover:text-ink-300"
+        title="Give this a time"
+      >
+        {task.scheduledAt
+          ? `${new Date(task.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${task.durationMin ? ` · ${task.durationMin} min` : ''}`
+          : 'add a time'}
+      </button>
+    )
+  }
+
+  function save() {
+    if (time.length === 0) {
+      onSet(null)
+      setOpen(false)
+      return
+    }
+    const [h, m] = time.split(':').map(Number)
+    const when = new Date()
+    when.setHours(h, m, 0, 0)
+    const length = Number(minutes)
+    onSet(
+      when.getTime(),
+      Number.isFinite(length) && length > 0 ? length : undefined,
+    )
+    setOpen(false)
+  }
+
+  return (
+    <span className="flex items-center gap-1">
+      <input
+        autoFocus
+        type="time"
+        value={time}
+        onChange={(e) => setTime(e.target.value)}
+        aria-label={`Time for ${task.title}`}
+        className="rounded-[5px] border border-white/10 bg-black/20 px-1.5 py-0.5 font-mono text-[11px] text-foreground outline-none"
+      />
+      <input
+        value={minutes}
+        onChange={(e) => setMinutes(e.target.value)}
+        placeholder="min"
+        inputMode="numeric"
+        aria-label={`Length for ${task.title}`}
+        className="w-12 rounded-[5px] border border-white/10 bg-black/20 px-1.5 py-0.5 text-center font-mono text-[11px] text-foreground outline-none"
+      />
+      <button
+        type="button"
+        onClick={save}
+        className="rounded-[5px] border border-lav-500/60 px-1.5 py-0.5 text-[11px] text-lav-300"
+      >
+        Set
+      </button>
+    </span>
   )
 }
 

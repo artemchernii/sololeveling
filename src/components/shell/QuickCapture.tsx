@@ -53,8 +53,18 @@ export function QuickCapture({
       onOpenChange={onOpenChange}
       label="Log something"
       shouldFilter={false}
-      overlayClassName="fixed inset-0 z-40 bg-black/60"
-      contentClassName="fixed left-1/2 top-[18vh] z-50 w-[min(560px,92vw)] -translate-x-1/2"
+      /* The blur belongs on the overlay, not the panel. `.glass` already asks
+         to blur what is behind it — but behind it was a flat 60% black sheet,
+         so it was faithfully blurring nothing and reading as plain
+         transparency. Dim less, blur the page itself, and the panel has
+         something to sit on.
+
+         `outline-none` is on the content because Radix focuses this element
+         when the dialog opens, and the browser's default ring traces the
+         square content box just outside the panel's rounded corners. The input
+         autofocuses, so nothing is lost by removing it. */
+      overlayClassName="fixed inset-0 z-40 bg-black/45 backdrop-blur-md"
+      contentClassName="fixed left-1/2 top-[18vh] z-50 w-[min(560px,92vw)] -translate-x-1/2 outline-none"
     >
       <div className="glass rounded-[18px] p-2">
         <Command.Input

@@ -1,0 +1,39 @@
+name: CI
+
+# Every phase lands through a PR (PLAN.md §4), so this runs there and on the
+# branch it merges into. Nothing here deploys: pushing schema or functions to
+# Convex is a deliberate act with a deploy key, not a consequence of merging.
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: typecheck · lint · format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # --frozen-lockfile is the point of running this at all: it catches a
+      # dependency added locally without the lockfile that proves it installs.
+      - run: pnpm install --frozen-lockfile
+
+      # Two projects, two configs: the app compiles against the DOM, convex/
+      # against the Convex runtime with its own generated types.
+      - run: pnpm typecheck
+
+      - run: pnpm lint --max-warnings 0
+
+      - run: pnpm check

@@ -35,7 +35,7 @@ export const run = internalMutation({
        a wiped deployment, and silently doing nothing hides both. */
     if (existing.length > 0) {
       throw new Error(
-        `${args.ownerId} already has principles. Delete them in the dashboard first if you meant to reseed.`,
+        `${args.ownerId} already has principles. Run seed:clear with the same ownerId if you meant to reseed.`,
       )
     }
 
@@ -48,5 +48,26 @@ export const run = internalMutation({
     }
 
     return null
+  },
+})
+
+/* The counterpart to run, so reseeding is a command rather than a trip to the
+   dashboard — needed once already, when ownerId moved from the Clerk subject to
+   the token identifier. Deletes principles and nothing else: there is no
+   "clear everything" in this app, because everything else is real. */
+export const clear = internalMutation({
+  args: { ownerId: v.string() },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query('principles')
+      .withIndex('by_owner_order', (q) => q.eq('ownerId', args.ownerId))
+      .take(100)
+
+    for (const row of rows) {
+      await ctx.db.delete(row._id)
+    }
+
+    return rows.length
   },
 })

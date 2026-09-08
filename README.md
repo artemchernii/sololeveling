@@ -38,5 +38,8 @@ The database starts empty on purpose — everything is created through the UI. T
 one exception is the six principles:
 
 ```sh
-npx convex run seed:run '{"ownerId":"user_..."}'
+npx convex run seed:run '{"ownerId":"<the Owner ID shown on /settings>"}'
 ```
+
+`seed:clear` takes the same argument and undoes it. The ownerId is Clerk's
+opaque token identifier, so read it off the page rather than building it.

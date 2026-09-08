@@ -95,8 +95,8 @@ slow the daily loop to make a rarer screen better, the daily loop wins.
   is genuinely unknown, ask rather than widening it.
 - Every table carries `ownerId: v.string()` and an owner-scoped index. Every
   mutation and every query opens with `requireUser(ctx)` from `convex/auth.ts`,
-  which returns the Clerk `identity.subject`, then scopes the read **through an
-  index** — never `.filter()` over a full table scan. There is no `OWNER_ID`
+  which returns the Clerk `identity.tokenIdentifier`, then scopes the read
+  **through an index** — never `.filter()` over a full table scan. There is no `OWNER_ID`
   env var. A query that could return another user's row is a bug, even while
   there is only one user.
 - Aggregations live only in `convex/aggregate.ts`, as `monthCounts()`,

@@ -11,6 +11,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit && tsc -p convex --noEmit",
     "format": "prettier --write . && eslint --fix",
     "check": "prettier --check .",
     "deploy": "pnpm run build && wrangler deploy"
@@ -56,5 +57,6 @@
       "sharp",
       "workerd"
     ]
-  }
+  },
+  "packageManager": "pnpm@10.12.4"
 }

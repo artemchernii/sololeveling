@@ -60,7 +60,8 @@ three can produce a score, an index, or a percentage without an explicit `target
 
 ## 2. Data model (`convex/schema.ts`)
 
-**Every table carries `ownerId: v.string()`** (the Clerk `identity.subject`) and an `by_owner…` index.
+**Every table carries `ownerId: v.string()`** (the Clerk `identity.tokenIdentifier`) and an
+`by_owner…` index.
 Every query and mutation filters by it. This is not for sharing — it is so that no query can
 accidentally return everything, and so a second user costs nothing later.
 
@@ -200,14 +201,18 @@ mono caps for labels, big light numerals. No bars without a target. No emoji.
    Calendar and the dashboard TODAY card.
 4. **Clerk stays, and the schema is multi-tenant from day one.** `ConvexProviderWithClerk` + a JWT
    template named `convex`. A shared `requireUser(ctx)` helper in `convex/auth.ts` returns
-   `identity.subject` as `ownerId`; every mutation and query calls it first and scopes by it.
+   `identity.tokenIdentifier` as `ownerId`; every mutation and query calls it first and scopes by it.
+   Not `identity.subject`: Convex guarantees the token identifier is unique across providers, where a
+   bare subject only happens to be unique while there is one. The value is opaque by contract, so it
+   is read from the public `auth.whoami` query — shown on /settings — never assembled by hand.
    No `OWNER_ID` env var, no single-user shortcut — retrofitting ownership later is a day of work
    and a good way to leak your own net worth to a friend.
 5. **Nothing is seeded except principles.** The six lines, in order, from the source brief §16:
    `DON'T PERFORM. PARTICIPATE.` · `I DON'T CHASE INTEREST. I NOTICE IT.` · `I CHOOSE TOO.` ·
    `I AM ALLOWED TO BE IMPERFECT.` · `ACTION > OVERTHINKING.` · `BUILD > CONSUME.`
    `seed.ts` is an internal mutation taking `ownerId` as an argument — it has no identity to read:
-   `npx convex run seed:run '{"ownerId":"user_..."}'`. No auto-seed on first sign-in.
+   `npx convex run seed:run '{"ownerId":"<the value on /settings>"}'`, with `seed:clear` as its
+   counterpart. No auto-seed on first sign-in.
    Beyond these six rows: Goals, chains and tasks are created through the UI,
    because creating them is the product. `seed.ts` inserts the six principle lines and stops.
 
@@ -298,8 +303,8 @@ Data and auth conventions:
 - convex/schema.ts validators are the single source of truth. Import Doc<'tasks'>, Id<'projects'>;
   never hand-write DB types.
 - Every table has ownerId: v.string() and an owner-scoped index. Every mutation and query starts
-  with requireUser(ctx) from convex/auth.ts, which returns the Clerk identity.subject, and filters
-  by it using an index — never .filter() over a full table scan. There is no OWNER_ID env var.
+  with requireUser(ctx) from convex/auth.ts, which returns the Clerk identity.tokenIdentifier, and
+  filters by it using an index — never .filter() over a full table scan. There is no OWNER_ID env var.
   A query that could return another user's row is a bug, even while there is only one user.
 - Aggregations live only in convex/aggregate.ts, exposing three shapes: monthCounts(),
   currentState() and entityCounts(). Components never compute numbers themselves.

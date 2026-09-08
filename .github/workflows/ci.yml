@@ -87,9 +87,22 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
+      # Cloudflare's API returns before the new version is answering in every
+      # location, so a single curl a fraction of a second later measures
+      # propagation rather than the deploy. Retry for half a minute; a worker
+      # still failing after that is genuinely broken, which is what this step
+      # exists to catch — a 500 here once cost an evening.
       - name: Check it answers
         run: |
-          code=$(curl -s -o /dev/null -w '%{http_code}' \
-            https://sololeveling.soloxleveling.workers.dev/login)
-          echo "login page returned $code"
-          test "$code" = "200"
+          for attempt in 1 2 3 4 5 6; do
+            # `|| code=000` matters: the job runs under `bash -e`, and a
+            # connection-level curl failure is precisely the transient this
+            # loop is for. Without it the step dies on attempt 1.
+            code=$(curl -s -o /dev/null -w '%{http_code}' \
+              https://sololeveling.soloxleveling.workers.dev/login) || code=000
+            echo "attempt $attempt: login page returned $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 5
+          done
+          echo "login never returned 200"
+          exit 1

@@ -10,17 +10,26 @@ This is the rule the whole product exists to keep. It is invisible in a diff:
 an invented metric looks exactly like a real one until someone asks where the
 number came from.
 
-Every number on screen comes from one of **three sanctioned sources**, all of
+Every number on screen comes from one of **four sanctioned sources**, all of
 them in `convex/aggregate.ts`:
 
 1. **log count** — rows in `logs` over a period
 2. **state** — the latest `stateSnapshots` row for a key
 3. **entity count** — rows in `projects` / `tasks` matching a filter
+4. **external reading** — a stored, attributed, timestamped value from a named
+   outside source (a share price, an exchange rate). See `PLAN.md` §1 for the
+   four conditions it must meet: stored not fetched at render, attributed,
+   shown as of a time, and not a licence to derive.
 
 Components read those numbers; they never compute them. A progress bar renders
 only where `goals.targetValue` gives it a real denominator. When you reach for a
-fourth source, or find yourself deriving a score, an index, or a percentage out
+fifth source, or find yourself deriving a score, an index, or a percentage out
 of thin air — stop and ask.
+
+The fourth was added deliberately, on 2026-09-09, because money cannot be
+tracked without prices that come from outside. That is the bar for adding
+another: a real thing the app must show, and a written set of conditions that
+keep it auditable. Not convenience.
 
 `monthCounts()` returns the fixed six-tile shape in `PLAN.md` §3 item 4. It is
 not derived from the `area` enum: nine areas, six tiles, deliberately.

@@ -47,14 +47,33 @@ gives a fast first paint on mobile and a place for server functions later (cron 
   auth.config.ts
 ```
 
-**Key rule — every number on screen comes from exactly one of three sanctioned sources:**
+**Key rule — every number on screen comes from exactly one of four sanctioned sources:**
 
 1. **log count** — aggregate over `logs` for a period (12 workouts this month, 2 events this month)
 2. **state** — latest `stateSnapshots` row for a key (weight 75.4 kg, net worth €42,100, CEFR B1)
 3. **entity count** — rows in `projects` / `tasks` matching a filter (2 active projects, 11 of 17 tasks)
+4. **external reading** — a value fetched from a named outside source, stored as a row with that
+   source and the instant it was read (a share price, an exchange rate)
 
-All three live in `convex/aggregate.ts` and nowhere else. There is no fourth source, and none of the
-three can produce a score, an index, or a percentage without an explicit `targetValue` to divide by.
+All four live in `convex/aggregate.ts` and nowhere else, and none of them can produce a score, an
+index, or a percentage without an explicit `targetValue` to divide by.
+
+**Why there is a fourth, and what it costs to have one.** The first three are all things this app
+observed: you logged it, you recorded it, or it counted its own rows. A share price is none of those
+— it is true, and it comes from somewhere else. Tracking money without it is not possible, so the
+rule extends rather than being quietly broken. The extension carries four conditions, and a number
+that fails any of them is not a source-4 number:
+
+- **Stored, never fetched at render.** A value read at paint time changes under you and cannot be
+  audited. It is written as a row first, and screens read the row.
+- **Attributed.** The row says which source it came from and when it was read.
+- **Shown as of a time.** `€42,100 · read 09:41` — a price presented as current when it is twenty
+  minutes old is a lie told by omission, and it is the exact failure §1 exists to prevent.
+- **Not a licence to derive.** `holding × price` is composition of two sanctioned values, the same
+  shape as "2 of 4". A "portfolio health score" is still invented, and still forbidden.
+
+The storage shape is decided when Money is built, not here. What is decided here is that an external
+number is allowed to exist, and what it must carry to be shown.
 
 ---
 

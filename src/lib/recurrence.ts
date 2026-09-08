@@ -21,6 +21,26 @@ export function occurrenceId(
   return `${occurrence.eventId}:${occurrence.startsAt}`
 }
 
+/**
+ * The inverse of `occurrenceId`. A TimelineItem deliberately cannot say whether
+ * it is a task or an event beyond its `source` (§3b.3), so a caller holding one
+ * needs this to get back to the row it came from.
+ *
+ * Splits on the last colon, not the first: the id format is the event id and
+ * then an instant, and this stays correct if an id ever contains one.
+ */
+export function parseOccurrenceId(
+  id: string,
+): { eventId: Id<'events'>; startsAt: number } | null {
+  const cut = id.lastIndexOf(':')
+  if (cut <= 0) return null
+
+  const startsAt = Number(id.slice(cut + 1))
+  if (!Number.isFinite(startsAt)) return null
+
+  return { eventId: id.slice(0, cut) as Id<'events'>, startsAt }
+}
+
 /* rrule reasons in UTC. Expanding a weekly 09:00 session that way preserves the
    instant rather than the wall clock, so the morning Lisbon springs forward the
    session slides to 10:00 and stays there — measured, not guessed: a naive

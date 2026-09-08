@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest'
 
-import { expandEvent, expandEvents, occurrenceId } from './recurrence'
+import {
+  expandEvent,
+  expandEvents,
+  occurrenceId,
+  parseOccurrenceId,
+} from './recurrence'
 import type { Doc } from '../../convex/_generated/dataModel'
 
 /* All times below are Europe/Lisbon wall clock, pinned in vitest.config.ts.
@@ -182,5 +187,32 @@ describe('expanding many events', () => {
       at(2026, 3, 9, 0),
     )
     expect(occurrences.map((o) => o.startsAt)).toEqual([at(2026, 3, 3, 9)])
+  })
+})
+
+describe('reading an occurrence id back', () => {
+  test('recovers the event and the instant', () => {
+    const parsed = parseOccurrenceId(`event1:${at(2026, 3, 3, 9)}`)
+    expect(parsed).toEqual({ eventId: 'event1', startsAt: at(2026, 3, 3, 9) })
+  })
+
+  test('round-trips whatever expansion produced', () => {
+    const [occurrence] = expandEvent(
+      event({ rrule: 'FREQ=WEEKLY;BYDAY=TU' }),
+      at(2026, 3, 2, 0),
+      at(2026, 3, 9, 0),
+    )
+    expect(parseOccurrenceId(occurrence.id)).toEqual({
+      eventId: occurrence.eventId,
+      startsAt: occurrence.startsAt,
+    })
+  })
+
+  test('refuses a task id, which carries no instant', () => {
+    expect(parseOccurrenceId('task1')).toBeNull()
+  })
+
+  test('refuses an id whose instant is not a number', () => {
+    expect(parseOccurrenceId('event1:tuesday')).toBeNull()
   })
 })

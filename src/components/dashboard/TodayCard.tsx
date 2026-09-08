@@ -4,9 +4,10 @@ import type { Doc } from '../../../convex/_generated/dataModel'
 /* PLAN.md §3 item 2. Events and scheduled tasks, merged only here, through the
    TimelineItem mapper (§3b.3).
  
-   `events` is empty until Phase 5 builds the Calendar — nothing creates one
-   yet. The mapper takes both from day one because merging them anywhere else
-   is what §3b.3 forbids, and Phase 5 should have nothing to change here. */
+   The card was built to take events from day one so Phase 5 would have little
+   to change, and it did: the only change is that the mapper now needs to know
+   which day this is. A recurring event is one row that means nothing until a
+   period is named (§3b.6), and "today" is that period. */
 
 export function TodayCard({
   tasks,
@@ -17,7 +18,15 @@ export function TodayCard({
   events: Array<Doc<'events'>>
   date: Date
 }) {
-  const items = buildTimeline(tasks ?? [], events)
+  const dayStart = new Date(date)
+  dayStart.setHours(0, 0, 0, 0)
+  const dayEnd = new Date(dayStart)
+  dayEnd.setDate(dayEnd.getDate() + 1)
+
+  const items = buildTimeline(tasks ?? [], events, {
+    start: dayStart.getTime(),
+    end: dayEnd.getTime(),
+  })
 
   return (
     <div className="glass flex flex-col gap-3 rounded-[22px] p-5">

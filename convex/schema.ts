@@ -136,7 +136,16 @@ export default defineSchema({
     endsAt: v.number(),
     rrule: v.optional(v.string()),
     notes: v.optional(v.string()),
-  }).index('by_owner_start', ['ownerId', 'startsAt']),
+  })
+    .index('by_owner_start', ['ownerId', 'startsAt'])
+    /* A series that began in March still has occurrences in June, so a window
+       read on `startsAt` cannot find it — the row is behind the window and the
+       occurrences are computed. This index is how the running series are read
+       without scanning every past event. PLAN §2 lists only `by_owner_start`;
+       this is the one addition, and it exists because expansion is client-side.
+       `.gte('rrule', '')` selects exactly the rows that have one: an absent
+       optional field sorts before every string. */
+    .index('by_owner_rrule', ['ownerId', 'rrule']),
 
   /* Quick capture lands here. Append-only: a log is a record of something that
      happened, so it is never edited into a different truth. */

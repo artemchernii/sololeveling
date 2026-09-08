@@ -71,8 +71,8 @@ The three tokens under that file's `APP ADDITIONS` rule are the only values not
 from Nocturne, and each carries the reason it exists. Adding a fourth means
 writing that reason too.
 
-`Solo Leveling Wireframes.dc.html` is visual reference for rhythm and component
-anatomy. Where it and `PLAN.md` §3 disagree, §3 wins — the wireframe paints its
+`design/wireframes-v2/Solo Leveling Wireframes.dc.html` is visual reference for
+rhythm and component anatomy. Where it and `PLAN.md` §3 disagree, §3 wins — the wireframe paints its
 glass with inline hex, which is what tokens replaced.
 
 Voice: dark ground, frosted panels, one lavender accent reserved for live and
@@ -149,9 +149,16 @@ remain. Artem asked for this refresh explicitly; it is how he keeps the map.
 
 ## Repo notes
 
-The design folder `2nd version Daily focus with chain model/` is a Claude Design
-export: wireframes plus the Nocturne stylesheet. It is reference material, and
-`support.js` inside it is a generated canvas runtime. Lint and Prettier skip it.
+Everything under `design/` is reference material, not app source — lint and
+Prettier skip the whole folder.
+
+`design/wireframes-v2/` is a Claude Design export: wireframes plus the Nocturne
+stylesheet that `src/styles/tokens.css` was extracted from. `support.js` inside
+it is a generated canvas runtime. `design/sololeveling_design.pdf` is the source
+brief — its §16 is where the six principles in `seed.ts` come from.
+
+Nothing in `design/` is imported by the app. It is kept because losing it would
+mean losing the argument behind every token.
 
 <!-- convex-ai-start -->
 

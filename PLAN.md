@@ -181,7 +181,8 @@ project `done/total`, free hours today. All via `convex/aggregate.ts` queries �
 `_ds/nocturne-688ea808-.../styles.css` + `_ds_bundle.js`. Extract the **token layer only**
 (colors, radii, spacing, type scale) into `src/styles/tokens.css` and map it in Tailwind v4's
 `@theme`. Do not ship `_ds_bundle.js` components — shadcn/ui restyled with these tokens instead.
-`Solo Leveling Wireframes.dc.html` is visual reference for rhythm and component anatomy;
+`design/wireframes-v2/Solo Leveling Wireframes.dc.html` is visual reference for rhythm and
+component anatomy;
 where it disagrees with §3 above, §3 wins.
 
 **Visual:** near-black ground, frosted panels, one lavender accent used only for live things,

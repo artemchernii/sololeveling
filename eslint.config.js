@@ -22,7 +22,7 @@ export default [
       'convex/_generated/**',
       // The Claude Design canvas export: a design reference, not app source.
       // support.js there is a generated canvas runtime marked "do not edit".
-      '2nd version Daily focus with chain model/**',
+      'design/**',
       // Third-party skill packages, installed via `skills add`.
       '.claude/**',
       '.agents/**',

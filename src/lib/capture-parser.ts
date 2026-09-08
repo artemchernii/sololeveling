@@ -35,6 +35,9 @@ type Verb = {
   amount: 'required' | 'none'
   /** What the value means, for the confirmation line. */
   describe: (log: ParsedLog) => string
+  /** How to type it. Lives beside the rule that has to accept it, so the hint
+      in the palette and the parser cannot drift apart. */
+  example: string
 }
 
 /* `| undefined` is the honest type: this is looked up with whatever the user
@@ -46,6 +49,7 @@ const VERBS: Record<string, Verb | undefined> = {
     unit: 'min',
     amount: 'required',
     describe: (l) => `${l.value} min of training`,
+    example: 'workout 60',
   },
   pt: {
     kind: 'session',
@@ -53,6 +57,7 @@ const VERBS: Record<string, Verb | undefined> = {
     unit: 'min',
     amount: 'required',
     describe: (l) => `${l.value} min of Portuguese`,
+    example: 'pt 30',
   },
   weight: {
     kind: 'weight',
@@ -60,6 +65,7 @@ const VERBS: Record<string, Verb | undefined> = {
     unit: 'kg',
     amount: 'required',
     describe: (l) => `${l.value} kg`,
+    example: 'weight 75.4',
   },
   spend: {
     kind: 'expense',
@@ -67,16 +73,23 @@ const VERBS: Record<string, Verb | undefined> = {
     unit: 'eur',
     amount: 'required',
     describe: (l) => `€${l.value}${l.text ? ` on ${l.text}` : ''}`,
+    example: 'spend 48 groceries',
   },
   note: {
     kind: 'note',
     area: 'life',
     amount: 'none',
     describe: (l) => l.text ?? '',
+    example: 'note call the landlord',
   },
 }
 
 export const CAPTURE_VERBS = Object.keys(VERBS)
+
+/** One example per verb, in the order they are listed — the palette's hints. */
+export const CAPTURE_EXAMPLES = Object.values(VERBS).map(
+  (verb) => verb!.example,
+)
 
 /* Accepts 75.4 and 75,4 — a comma decimal is what a European keyboard produces
    under the thumb, and rejecting it would cost a retype in the fastest path. */

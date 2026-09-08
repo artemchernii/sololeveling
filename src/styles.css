@@ -156,6 +156,19 @@ h6 {
   box-shadow: var(--glass-shadow);
 }
 
+/* The material behind a dialog, not a panel of its own. Its job is the page:
+   remove the detail while leaving the layout readable as shape, so the panel
+   above it has structure to frost rather than a flat sheet to sit on.
+
+   Blur derived from --glass-blur rather than picked: a scrim carries more than
+   a card because it is hiding text, and 1.6x is where the dashboard stops
+   being readable but still reads as the dashboard. */
+@utility glass-scrim {
+  background-color: color-mix(in srgb, var(--color-ground) 52%, transparent);
+  backdrop-filter: blur(calc(var(--glass-blur) * 1.6)) saturate(120%);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 1.6)) saturate(120%);
+}
+
 /* The same material as .glass, but lit top-down and edged only along the
    bottom — the treatment for the one element that spans the full width. */
 @utility glass-bar {

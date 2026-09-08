@@ -190,7 +190,7 @@ mono caps for labels, big light numerals. No bars without a target. No emoji.
 
 ---
 
-## 3b. Five settled decisions
+## 3b. Six settled decisions
 
 1. **Completing a workout task ≠ a workout.** `tasks.complete` writes `logs{kind:'task_done'}` only.
    A real workout is `logs{kind:'workout'}`. If the completed task has `area:'body'` (or `'portuguese'`),
@@ -216,6 +216,18 @@ mono caps for labels, big light numerals. No bars without a target. No emoji.
    counterpart. No auto-seed on first sign-in.
    Beyond these six rows: Goals, chains and tasks are created through the UI,
    because creating them is the product. `seed.ts` inserts the six principle lines and stops.
+6. **A recurring occurrence has an identity, even though it is not a row.**
+   Expansion is client-side (§2), so the Tuesday gym you see is computed, not
+   stored. It still carries a stable id — `${eventId}:${occurrenceStartMs}` —
+   because the alternative is components that address occurrences by array
+   position, and that is the thing that makes exceptions expensive later.
+
+   Phase 5 ships expansion only: a recurring event is editable as a series and
+   not as one instance. **Deferred to a later phase: materialize-on-edit** —
+   moving or skipping a single occurrence writes a real `events` row that
+   overrides the computed one, leaving the rest of the series computed. It is
+   deferred because the exception _taxonomy_ (this event / this and following /
+   all events) should be chosen from a week of real use, not guessed.
 
 ## 3c. Three limits that keep it usable
 
@@ -238,7 +250,7 @@ debt. Three constraints are enforced in the data layer, not suggested in the UI:
 | 2   | **Quick capture (⌘K) + Quests**: create a task, pick up to 3 for today, complete, log an action, backlog page                                                     | I run one real day on it with data I created myself    |
 | 3   | **Goals + Chains**: create a goal, create a project under it, attach tasks, set focus                                                                             | I can build a chain end to end without touching the DB |
 | 4   | **Dashboard**: aggregate layer + today / chains / current state / month tiles                                                                                     | Morning screen is true, built only from what I entered |
-| 5   | Calendar (week view, rrule expansion, events + scheduled tasks)                                                                                                   | Recurring gym/PT/review show up                        |
+| 5   | Calendar (week view, rrule expansion, events + scheduled tasks; series-level editing only)                                                                        | Recurring gym/PT/review show up                        |
 | 6   | Weekly review + Notes + Principles + mobile pass + PWA                                                                                                            | I close a week on my phone                             |
 | 7+  | Money, Body, Portuguese, Social, Career, Style detail pages — one per sprint                                                                                      | —                                                      |
 

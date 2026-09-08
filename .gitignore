@@ -16,3 +16,12 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+
+# --- Convex agent skills ---
+# Vendored from get-convex/agent-skills by `npx convex ai-files install`.
+# skills-lock.json is the record: source + hash for each, reinstallable.
+# The three authored skills stay tracked; these do not.
+.claude/skills/convex/
+.claude/skills/convex-*/
+.agents/
+AGENTS.md

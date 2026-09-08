@@ -1,0 +1,19 @@
+name: diagnose
+
+# Temporary. Answers one question: is the publishable key CI builds with the
+# same key that works locally? Prints a fingerprint, never the value. Deletes
+# itself once the answer is written down.
+on: workflow_dispatch
+
+jobs:
+  fingerprint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fingerprint the Clerk publishable key
+        env:
+          KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+        run: |
+          printf 'prefix=%s len=%s sha=%s\n' \
+            "$(printf %s "$KEY" | cut -d_ -f1-2)" \
+            "$(printf %s "$KEY" | wc -c | tr -d ' ')" \
+            "$(printf %s "$KEY" | sha256sum | cut -c1-12)"

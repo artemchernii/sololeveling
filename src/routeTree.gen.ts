@@ -23,12 +23,13 @@ import { Route as AppMoneyRouteImport } from './routes/_app/money'
 import { Route as AppNotesRouteImport } from './routes/_app/notes'
 import { Route as AppPortugueseRouteImport } from './routes/_app/portuguese'
 import { Route as AppPrinciplesRouteImport } from './routes/_app/principles'
-import { Route as AppProjectsRouteImport } from './routes/_app/projects'
 import { Route as AppQuestsRouteImport } from './routes/_app/quests'
 import { Route as AppReviewsRouteImport } from './routes/_app/reviews'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSocialRouteImport } from './routes/_app/social'
 import { Route as AppStyleRouteImport } from './routes/_app/style'
+import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects.index'
+import { Route as AppProjectsIdRouteImport } from './routes/_app/projects.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -99,11 +100,6 @@ const AppPrinciplesRoute = AppPrinciplesRouteImport.update({
   path: '/principles',
   getParentRoute: () => AppRoute,
 } as any)
-const AppProjectsRoute = AppProjectsRouteImport.update({
-  id: '/projects',
-  path: '/projects',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppQuestsRoute = AppQuestsRouteImport.update({
   id: '/quests',
   path: '/quests',
@@ -129,6 +125,16 @@ const AppStyleRoute = AppStyleRouteImport.update({
   path: '/style',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProjectsIndexRoute = AppProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProjectsIdRoute = AppProjectsIdRouteImport.update({
+  id: '/projects/$id',
+  path: '/projects/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -144,12 +150,13 @@ export interface FileRoutesByFullPath {
   '/notes': typeof AppNotesRoute
   '/portuguese': typeof AppPortugueseRoute
   '/principles': typeof AppPrinciplesRoute
-  '/projects': typeof AppProjectsRoute
   '/quests': typeof AppQuestsRoute
   '/reviews': typeof AppReviewsRoute
   '/settings': typeof AppSettingsRoute
   '/social': typeof AppSocialRoute
   '/style': typeof AppStyleRoute
+  '/projects/$id': typeof AppProjectsIdRoute
+  '/projects/': typeof AppProjectsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -165,12 +172,13 @@ export interface FileRoutesByTo {
   '/notes': typeof AppNotesRoute
   '/portuguese': typeof AppPortugueseRoute
   '/principles': typeof AppPrinciplesRoute
-  '/projects': typeof AppProjectsRoute
   '/quests': typeof AppQuestsRoute
   '/reviews': typeof AppReviewsRoute
   '/settings': typeof AppSettingsRoute
   '/social': typeof AppSocialRoute
   '/style': typeof AppStyleRoute
+  '/projects/$id': typeof AppProjectsIdRoute
+  '/projects': typeof AppProjectsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -188,12 +196,13 @@ export interface FileRoutesById {
   '/_app/notes': typeof AppNotesRoute
   '/_app/portuguese': typeof AppPortugueseRoute
   '/_app/principles': typeof AppPrinciplesRoute
-  '/_app/projects': typeof AppProjectsRoute
   '/_app/quests': typeof AppQuestsRoute
   '/_app/reviews': typeof AppReviewsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/social': typeof AppSocialRoute
   '/_app/style': typeof AppStyleRoute
+  '/_app/projects/$id': typeof AppProjectsIdRoute
+  '/_app/projects/': typeof AppProjectsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -211,12 +220,13 @@ export interface FileRouteTypes {
     | '/notes'
     | '/portuguese'
     | '/principles'
-    | '/projects'
     | '/quests'
     | '/reviews'
     | '/settings'
     | '/social'
     | '/style'
+    | '/projects/$id'
+    | '/projects/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -232,12 +242,13 @@ export interface FileRouteTypes {
     | '/notes'
     | '/portuguese'
     | '/principles'
-    | '/projects'
     | '/quests'
     | '/reviews'
     | '/settings'
     | '/social'
     | '/style'
+    | '/projects/$id'
+    | '/projects'
   id:
     | '__root__'
     | '/'
@@ -254,12 +265,13 @@ export interface FileRouteTypes {
     | '/_app/notes'
     | '/_app/portuguese'
     | '/_app/principles'
-    | '/_app/projects'
     | '/_app/quests'
     | '/_app/reviews'
     | '/_app/settings'
     | '/_app/social'
     | '/_app/style'
+    | '/_app/projects/$id'
+    | '/_app/projects/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -368,13 +380,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPrinciplesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/projects': {
-      id: '/_app/projects'
-      path: '/projects'
-      fullPath: '/projects'
-      preLoaderRoute: typeof AppProjectsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/quests': {
       id: '/_app/quests'
       path: '/quests'
@@ -410,6 +415,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStyleRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/projects/': {
+      id: '/_app/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof AppProjectsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/projects/$id': {
+      id: '/_app/projects/$id'
+      path: '/projects/$id'
+      fullPath: '/projects/$id'
+      preLoaderRoute: typeof AppProjectsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -425,12 +444,13 @@ interface AppRouteChildren {
   AppNotesRoute: typeof AppNotesRoute
   AppPortugueseRoute: typeof AppPortugueseRoute
   AppPrinciplesRoute: typeof AppPrinciplesRoute
-  AppProjectsRoute: typeof AppProjectsRoute
   AppQuestsRoute: typeof AppQuestsRoute
   AppReviewsRoute: typeof AppReviewsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSocialRoute: typeof AppSocialRoute
   AppStyleRoute: typeof AppStyleRoute
+  AppProjectsIdRoute: typeof AppProjectsIdRoute
+  AppProjectsIndexRoute: typeof AppProjectsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -445,12 +465,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppNotesRoute: AppNotesRoute,
   AppPortugueseRoute: AppPortugueseRoute,
   AppPrinciplesRoute: AppPrinciplesRoute,
-  AppProjectsRoute: AppProjectsRoute,
   AppQuestsRoute: AppQuestsRoute,
   AppReviewsRoute: AppReviewsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSocialRoute: AppSocialRoute,
   AppStyleRoute: AppStyleRoute,
+  AppProjectsIdRoute: AppProjectsIdRoute,
+  AppProjectsIndexRoute: AppProjectsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

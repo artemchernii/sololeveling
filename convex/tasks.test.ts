@@ -35,6 +35,12 @@ describe('three quests a day (PLAN.md §3c.1)', () => {
     await expect(
       t.mutation(api.tasks.pickForToday, { taskId: ids[3], today: TODAY }),
     ).rejects.toThrow('TODAY_FULL')
+    /* And it arrives as data, not a stack trace, because the UI renders it. */
+    await t
+      .mutation(api.tasks.pickForToday, { taskId: ids[3], today: TODAY })
+      .catch((e: unknown) => {
+        expect((e as { data: unknown }).data).toBe('TODAY_FULL')
+      })
 
     expect(await t.query(api.tasks.listToday, { today: TODAY })).toHaveLength(3)
   })

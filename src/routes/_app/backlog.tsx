@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery } from 'convex/react'
+import { ConvexError } from 'convex/values'
 import { ArrowUp, Plus, Trash2 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
@@ -47,7 +48,7 @@ function Backlog() {
          button as a courtesy, and this is what happens when the courtesy and
          the rule disagree. */
       setRefusal(
-        e instanceof Error && e.message.includes('TODAY_FULL')
+        e instanceof ConvexError && e.data === 'TODAY_FULL'
           ? 'Today is full. Finish one or drop one.'
           : 'That did not work.',
       )

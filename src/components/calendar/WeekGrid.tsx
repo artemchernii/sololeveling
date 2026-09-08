@@ -1,4 +1,5 @@
 import type { TimelineItem } from '@/lib/timeline'
+import { addDays } from '@/lib/weeks'
 
 /* PLAN.md §4 phase 5. Seven columns, one week, events and scheduled tasks in
    the same grid — because a day does not care which table a thing came from.
@@ -19,12 +20,6 @@ const HOURS = Array.from(
 function startOfDay(date: Date): Date {
   const d = new Date(date)
   d.setHours(0, 0, 0, 0)
-  return d
-}
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date)
-  d.setDate(d.getDate() + days)
   return d
 }
 

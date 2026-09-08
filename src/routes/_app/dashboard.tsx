@@ -48,8 +48,14 @@ function Dashboard() {
   const firstName = user?.firstName ?? user?.username ?? 'you'
 
   return (
-    <div className="flex flex-col gap-[18px]">
-      <div className="flex flex-col gap-1">
+    /* PLAN.md §3, mobile: greeting+focus → Today → today's quests → this
+       month. Chains and Current State follow rather than lead on a phone —
+       they are what you read when you have time, not at 7am.
+
+       One source of markup, reordered: a phone-shaped copy of this screen is a
+       second version of the same page, and they drift. */
+    <div className="flex flex-col gap-[18px] lg:grid lg:grid-cols-2">
+      <div className="order-1 flex flex-col gap-1 lg:order-1 lg:col-span-2">
         <h1 className="text-[34px] leading-tight font-light text-foreground">
           {greeting(now)}, {firstName.toUpperCase()}.
         </h1>
@@ -70,19 +76,30 @@ function Dashboard() {
         </div>
       </div>
 
-      <div className="grid gap-[18px] lg:grid-cols-2">
+      <div className="order-2 lg:order-2">
         <TodayCard tasks={quests} events={events ?? []} date={now} />
+      </div>
+
+      <div className="order-5 lg:order-3">
         <ChainsCard />
       </div>
 
-      <StateStrip today={now.getTime()} />
+      <div className="order-6 lg:order-4 lg:col-span-2">
+        <StateStrip today={now.getTime()} />
+      </div>
 
-      <ActionsLogged today={now.getTime()} />
+      <div className="order-4 lg:order-5 lg:col-span-2">
+        <ActionsLogged today={now.getTime()} />
+      </div>
 
-      <QuestList tasks={quests} onCompleted={setJustDone} />
+      <div className="order-3 lg:order-6 lg:col-span-2">
+        <QuestList tasks={quests} onCompleted={setJustDone} />
+      </div>
 
       {justDone ? (
-        <FollowUp task={justDone} onDone={() => setJustDone(null)} />
+        <div className="order-7 lg:order-7 lg:col-span-2">
+          <FollowUp task={justDone} onDone={() => setJustDone(null)} />
+        </div>
       ) : null}
     </div>
   )

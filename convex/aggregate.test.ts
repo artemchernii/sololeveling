@@ -213,3 +213,86 @@ describe('currentState is the latest row per key (PLAN.md §1)', () => {
     expect(Object.values(state).every((v) => v === null)).toBe(true)
   })
 })
+
+describe('weekCounts is the same six tiles, over weeks (PLAN.md §3)', () => {
+  /* Mondays. Boundaries arrive as arguments for the same reason months do. */
+  const MON = (day: number) => new Date(2026, 8, day).getTime()
+  const STARTS = [MON(7), MON(14), MON(21)]
+  const END = MON(28)
+
+  test('a log lands in the week it happened in', async () => {
+    const t = as(ME)
+    const log = (when: number) =>
+      t.mutation(api.logs.create, {
+        kind: 'workout',
+        area: 'body',
+        occurredAt: when,
+      })
+
+    await log(new Date(2026, 8, 8, 12).getTime())
+    await log(new Date(2026, 8, 9, 12).getTime())
+    await log(new Date(2026, 8, 22, 12).getTime())
+
+    const weeks = await t.query(api.aggregate.weekCounts, {
+      starts: STARTS,
+      end: END,
+    })
+    expect(weeks.map((w) => w.body)).toEqual([2, 0, 1])
+    expect(weeks.map((w) => w.total)).toEqual([2, 0, 1])
+  })
+
+  test('one row per week start, in the order given', async () => {
+    const weeks = await as(ME).query(api.aggregate.weekCounts, {
+      starts: STARTS,
+      end: END,
+    })
+    expect(weeks.map((w) => w.start)).toEqual(STARTS)
+  })
+
+  test('it returns counts and nothing derived from them', async () => {
+    const weeks = await as(ME).query(api.aggregate.weekCounts, {
+      starts: STARTS,
+      end: END,
+    })
+    expect(Object.keys(weeks[0]).sort()).toEqual(
+      [
+        'body',
+        'money',
+        'portuguese',
+        'projects',
+        'social',
+        'start',
+        'style',
+        'total',
+      ].sort(),
+    )
+  })
+
+  test('a log before the first week is not counted anywhere', async () => {
+    const t = as(ME)
+    await t.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: new Date(2026, 8, 1, 12).getTime(),
+    })
+    const weeks = await t.query(api.aggregate.weekCounts, {
+      starts: STARTS,
+      end: END,
+    })
+    expect(weeks.map((w) => w.total)).toEqual([0, 0, 0])
+  })
+
+  test('never another owner’s logs', async () => {
+    const theirs = as(SOMEONE_ELSE)
+    await theirs.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: new Date(2026, 8, 8, 12).getTime(),
+    })
+    const weeks = await as(ME).query(api.aggregate.weekCounts, {
+      starts: STARTS,
+      end: END,
+    })
+    expect(weeks.map((w) => w.total)).toEqual([0, 0, 0])
+  })
+})

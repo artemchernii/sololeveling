@@ -7,29 +7,13 @@ import type { Doc } from '../../../convex/_generated/dataModel'
 import { EventDialog } from '@/components/calendar/EventDialog'
 import { WeekGrid } from '@/components/calendar/WeekGrid'
 import { parseOccurrenceId } from '@/lib/recurrence'
+import { addDays, startOfWeek } from '@/lib/weeks'
 import { buildTimeline } from '@/lib/timeline'
 import type { TimelineItem } from '@/lib/timeline'
 
 export const Route = createFileRoute('/_app/calendar')({
   component: Calendar,
 })
-
-/** Monday, at local midnight. The week the given day falls in. */
-function startOfWeek(date: Date): Date {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  /* getDay() is 0 for Sunday, which belongs to the week that began six days
-     earlier rather than the one starting today. */
-  const daysFromMonday = (d.getDay() + 6) % 7
-  d.setDate(d.getDate() - daysFromMonday)
-  return d
-}
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date)
-  d.setDate(d.getDate() + days)
-  return d
-}
 
 /* PLAN.md §4 phase 5. The week reads rows and expands them here: one recurring
    row becomes however many occurrences fall inside these seven days (§3b.6),

@@ -125,7 +125,12 @@ export default defineSchema({
     .index('by_owner_status', ['ownerId', 'status'])
     .index('by_owner_today', ['ownerId', 'todayFor'])
     .index('by_project', ['projectId'])
-    .index('by_owner_due', ['ownerId', 'dueDate']),
+    .index('by_owner_due', ['ownerId', 'dueDate'])
+    /* The week view asks "what is scheduled between these two instants", and
+       status cannot answer it. An absent `scheduledAt` sorts before every
+       number, so a `gte(from)` range excludes undated tasks without a filter —
+       the same shape as events' by_owner_rrule, for the same reason. */
+    .index('by_owner_scheduled', ['ownerId', 'scheduledAt']),
 
   events: defineTable({
     ownerId: v.string(),

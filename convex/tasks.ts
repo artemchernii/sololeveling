@@ -298,3 +298,29 @@ export const setSchedule = mutation({
     return null
   },
 })
+
+/**
+ * Tasks with a time inside `[from, to)` — what the week view draws beside
+ * events (PLAN §4 phase 5).
+ *
+ * Undated tasks are absent by construction rather than by filter: an absent
+ * `scheduledAt` sorts before every number, so the range never reaches them.
+ * That is the point — an undated task is a quest, and quests live on the
+ * backlog page and nowhere else (§3c.3).
+ */
+export const listScheduledInRange = query({
+  args: { from: v.number(), to: v.number() },
+  returns: v.array(schema.doc('tasks')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    return await ctx.db
+      .query('tasks')
+      .withIndex('by_owner_scheduled', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .gte('scheduledAt', args.from)
+          .lt('scheduledAt', args.to),
+      )
+      .take(MAX_ROWS)
+  },
+})

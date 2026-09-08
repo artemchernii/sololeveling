@@ -8,9 +8,6 @@ import { query } from './_generated/server'
    entity count over projects/tasks. All three live here and nowhere else.
    Components read these numbers; they never compute them.
  
-   Phase 3 needs only the third. monthCounts() and currentState() arrive with
-   the dashboard in Phase 4.
- 
    None of these can produce a score, an index or a percentage. `done` and
    `total` are handed over separately on purpose: a component may render
    "11 of 17", and a bar only where goals.targetValue gives a real denominator.
@@ -75,5 +72,158 @@ export const entityCounts = query({
     }
 
     return { activeProjects, focusProjects, tasksByProject }
+  },
+})
+
+/* ---------------------------------------------------------------------------
+   Source 1 — log counts over a period.
+
+   The six tiles of PLAN.md §3 item 4, in that order, as a fixed shape. NOT
+   derived from the `area` enum: nine areas, six tiles, deliberately. Career,
+   Knowledge and Life have no tile because nothing about them is countable
+   per-month yet, and inventing a count for them is exactly the failure this
+   whole file exists to prevent.
+
+   Month boundaries arrive as arguments. The server does not know what month it
+   is where you are, and a query does not rerun because a clock ticked.
+   ------------------------------------------------------------------------ */
+
+/** tile -> the log kind it counts. The one place this mapping lives. */
+const TILE_KINDS = {
+  projects: 'task_done',
+  portuguese: 'session',
+  body: 'workout',
+  money: 'transfer',
+  style: 'piece',
+  social: 'event',
+} as const
+
+const tileCount = v.object({ now: v.number(), prev: v.number() })
+
+export const monthCounts = query({
+  args: {
+    /** Epoch ms, local midnights: [prevStart, monthStart) and [monthStart, nextStart). */
+    prevStart: v.number(),
+    monthStart: v.number(),
+    nextStart: v.number(),
+  },
+  returns: v.object({
+    projects: tileCount,
+    portuguese: tileCount,
+    body: tileCount,
+    money: tileCount,
+    style: tileCount,
+    social: tileCount,
+    total: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+
+    /* One scan of the two months, bucketed here, rather than twelve queries.
+       A personal month of logs is small; the bound is a guard, not a page. */
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .gte('occurredAt', args.prevStart)
+          .lt('occurredAt', args.nextStart),
+      )
+      .take(MAX_ROWS)
+
+    const counts = {
+      projects: { now: 0, prev: 0 },
+      portuguese: { now: 0, prev: 0 },
+      body: { now: 0, prev: 0 },
+      money: { now: 0, prev: 0 },
+      style: { now: 0, prev: 0 },
+      social: { now: 0, prev: 0 },
+    }
+
+    let total = 0
+    for (const log of rows) {
+      const bucket = log.occurredAt >= args.monthStart ? 'now' : 'prev'
+      if (bucket === 'now') total += 1
+
+      for (const [tile, kind] of Object.entries(TILE_KINDS)) {
+        if (log.kind === kind) {
+          counts[tile as keyof typeof counts][bucket] += 1
+        }
+      }
+    }
+
+    return { ...counts, total }
+  },
+})
+
+/* ---------------------------------------------------------------------------
+   Source 2 — the latest stateSnapshots row for a key.
+
+   The keys the §3 strip reads, fixed here for the same reason the tiles are:
+   a strip driven by "whatever keys exist" would change shape as a side-effect
+   of logging a weight.
+
+   A target is a state value like any other. "2 of 4 sessions" is a log count
+   over `sessions_target`; §3's Career row already reads this way
+   (state `skills_logged` / `skills_target`). That is source 2 twice, not a
+   fourth source — and it is the only thing a count may be divided by, besides
+   a goal's own targetValue.
+   ------------------------------------------------------------------------ */
+
+export const STATE_KEYS = [
+  'cefr_level',
+  'sessions_target',
+  'weight',
+  'net_worth',
+  'skills_logged',
+  'skills_target',
+] as const
+
+export const currentState = query({
+  args: {},
+  returns: v.record(
+    v.string(),
+    v.object({
+      value: v.optional(v.number()),
+      textValue: v.optional(v.string()),
+      unit: v.optional(v.string()),
+      recordedAt: v.number(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+
+    const state: Record<
+      string,
+      {
+        value?: number
+        textValue?: string
+        unit?: string
+        recordedAt: number
+      }
+    > = {}
+
+    for (const key of STATE_KEYS) {
+      /* Latest row wins. Descending on [ownerId, key, recordedAt] means one
+         document read per key, not a scan of every weigh-in you ever logged. */
+      const [latest] = await ctx.db
+        .query('stateSnapshots')
+        .withIndex('by_owner_key_time', (q) =>
+          q.eq('ownerId', ownerId).eq('key', key),
+        )
+        .order('desc')
+        .take(1)
+
+      if (latest) {
+        state[key] = {
+          value: latest.value,
+          textValue: latest.textValue,
+          unit: latest.unit,
+          recordedAt: latest.recordedAt,
+        }
+      }
+    }
+
+    return state
   },
 })

@@ -14,6 +14,7 @@ import type * as goals from "../goals.js";
 import type * as logs from "../logs.js";
 import type * as projects from "../projects.js";
 import type * as seed from "../seed.js";
+import type * as state from "../state.js";
 import type * as tasks from "../tasks.js";
 
 import type {
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   logs: typeof logs;
   projects: typeof projects;
   seed: typeof seed;
+  state: typeof state;
   tasks: typeof tasks;
 }>;
 

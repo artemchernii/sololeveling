@@ -156,6 +156,88 @@ export const monthCounts = query({
   },
 })
 
+/**
+ * The same six tiles, over as many weeks as you hand it — the 12-week movement
+ * table on the weekly review (§3).
+ *
+ * Counts only. "Rising" and "slipping" are not returned, and neither is a
+ * delta: a difference between two of these is a comparison a component makes
+ * from two source values, the way the dashboard renders "2 of 4". Returning a
+ * trend from here would make it a fourth source, and the sign of a subtraction
+ * is not a measurement of anything.
+ *
+ * Week boundaries arrive as arguments for the same reason month boundaries do:
+ * the server does not know where you are, and weeks start on Monday only
+ * because a person says so.
+ */
+export const weekCounts = query({
+  args: {
+    /** Local midnights, ascending, one per week. */
+    starts: v.array(v.number()),
+    /** The end of the last week — exclusive. */
+    end: v.number(),
+  },
+  returns: v.array(
+    v.object({
+      start: v.number(),
+      projects: v.number(),
+      portuguese: v.number(),
+      body: v.number(),
+      money: v.number(),
+      style: v.number(),
+      social: v.number(),
+      total: v.number(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    if (args.starts.length === 0) return []
+
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .gte('occurredAt', args.starts[0])
+          .lt('occurredAt', args.end),
+      )
+      .take(MAX_ROWS)
+
+    const weeks = args.starts.map((start) => ({
+      start,
+      projects: 0,
+      portuguese: 0,
+      body: 0,
+      money: 0,
+      style: 0,
+      social: 0,
+      total: 0,
+    }))
+
+    for (const log of rows) {
+      /* The last boundary at or below this log. Walked from the end because a
+         review looks at recent weeks far more often than old ones. */
+      let index = -1
+      for (let i = weeks.length - 1; i >= 0; i--) {
+        if (log.occurredAt >= weeks[i].start) {
+          index = i
+          break
+        }
+      }
+      if (index === -1) continue
+
+      weeks[index].total += 1
+      for (const [tile, kind] of Object.entries(TILE_KINDS)) {
+        if (log.kind === kind) {
+          weeks[index][tile as keyof (typeof TILE_KINDS & object)] += 1
+        }
+      }
+    }
+
+    return weeks
+  },
+})
+
 /* ---------------------------------------------------------------------------
    Source 2 — the latest stateSnapshots row for a key.
 

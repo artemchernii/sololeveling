@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "lint": "eslint",
     "typecheck": "tsc --noEmit && tsc -p convex --noEmit",
+    "test": "vitest run",
     "format": "prettier --write . && eslint --fix",
     "check": "prettier --check .",
     "deploy": "pnpm run build && wrangler deploy"
@@ -26,6 +27,7 @@
     "@tanstack/react-start": "latest",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "convex": "^1.32.0",
     "lucide-react": "^0.577.0",
     "react": "^19.2.0",
@@ -36,6 +38,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.26.0",
+    "@edge-runtime/vm": "^5.0.0",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-vite": "latest",
     "@tanstack/eslint-config": "latest",
@@ -44,10 +47,12 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.1",
+    "convex-test": "^0.0.56",
     "eslint": "^9.20.0",
     "prettier": "^3.8.1",
     "typescript": "^6.0.2",
     "vite": "^8.0.0",
+    "vitest": "^5.0.0",
     "wrangler": "^4.70.0"
   },
   "pnpm": {

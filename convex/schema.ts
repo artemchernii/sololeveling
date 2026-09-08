@@ -12,7 +12,7 @@ import { v } from 'convex/values'
    a prefix scan, not a table scan. No function needs a `.filter()` to stay in
    its own lane. */
 
-const area = v.union(
+export const areaValidator = v.union(
   v.literal('business'),
   v.literal('portuguese'),
   v.literal('body'),
@@ -74,6 +74,8 @@ const reviewPeriod = v.union(
   v.literal('weekly'),
   v.literal('monthly'),
 )
+
+const area = areaValidator
 
 export default defineSchema({
   goals: defineTable({

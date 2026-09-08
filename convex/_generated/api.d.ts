@@ -9,7 +9,9 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as logs from "../logs.js";
 import type * as seed from "../seed.js";
+import type * as tasks from "../tasks.js";
 
 import type {
   ApiFromModules,
@@ -19,7 +21,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  logs: typeof logs;
   seed: typeof seed;
+  tasks: typeof tasks;
 }>;
 
 /**

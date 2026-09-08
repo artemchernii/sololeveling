@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   check:
-    name: typecheck · lint · format
+    name: typecheck · lint · format · test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,3 +37,7 @@ jobs:
       - run: pnpm lint --max-warnings 0
 
       - run: pnpm check
+
+      # The invariants that fail silently: three quests a day, and a completed
+      # task writing evidence it has no right to write.
+      - run: pnpm test

@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Compass,
   Euro,
+  Inbox,
   Layers,
   LayoutDashboard,
   Languages,
@@ -36,6 +37,7 @@ export const navGroups: Array<NavGroup> = [
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/quests', label: 'Quests', icon: ListChecks },
+      { to: '/backlog', label: 'Backlog', icon: Inbox },
       { to: '/calendar', label: 'Calendar', icon: CalendarDays },
       { to: '/goals', label: 'Goals', icon: Target },
       { to: '/projects', label: 'Projects', icon: Layers },

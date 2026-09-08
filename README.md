@@ -43,3 +43,17 @@ npx convex run seed:run '{"ownerId":"<the Owner ID shown on /settings>"}'
 
 `seed:clear` takes the same argument and undoes it. The ownerId is Clerk's
 opaque token identifier, so read it off the page rather than building it.
+
+## Checks
+
+The same four commands CI runs, in the same order:
+
+```sh
+pnpm typecheck   # the app against the DOM, convex/ against the Convex runtime
+pnpm lint
+pnpm check       # prettier
+pnpm test        # vitest + convex-test
+pnpm build       # what `pnpm deploy` does first
+```
+
+`pnpm format` fixes what `check` and `lint` complain about.

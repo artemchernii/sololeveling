@@ -4,4 +4,16 @@
   "compatibility_date": "2025-09-02",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
+
+  // Workers Logs. The SSR half of this app runs here, and Convex's dashboard
+  // only sees the backend — without this, a route that throws in production is
+  // invisible. Set in the file rather than the dashboard on purpose: `pnpm
+  // deploy` runs `wrangler deploy`, which pushes this config and overwrites
+  // whatever the dashboard was toggled to.
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+    },
+  },
 }

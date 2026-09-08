@@ -5,8 +5,9 @@ Personal operating system for one user.
 
 - **`PLAN.md`** — the spec: architecture, data model, layout, phases.
 - **`CLAUDE.md`** — the standing rules for anyone (human or agent) writing code here.
-- **`2nd version Daily focus with chain model/`** — design reference: wireframes
-  and the Nocturne design system the token layer is extracted from.
+- **`design/`** — reference material, not app source: the wireframes and the
+  Nocturne design system `src/styles/tokens.css` is extracted from, plus the
+  source brief.
 
 ## Stack
 

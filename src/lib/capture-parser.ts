@@ -38,6 +38,11 @@ type Verb = {
   /** How to type it. Lives beside the rule that has to accept it, so the hint
       in the palette and the parser cannot drift apart. */
   example: string
+  /** What that line records, in the palette's example list. Here for the same
+      reason as `example`, and because the unit is otherwise invisible until
+      after you have typed the number: `workout 60` is minutes, `weight 75.4`
+      is kilos, and nothing on screen said so. */
+  hint: string
 }
 
 /* `| undefined` is the honest type: this is looked up with whatever the user
@@ -50,6 +55,7 @@ const VERBS: Record<string, Verb | undefined> = {
     amount: 'required',
     describe: (l) => `${l.value} min of training`,
     example: 'workout 60',
+    hint: 'minutes of training',
   },
   pt: {
     kind: 'session',
@@ -58,6 +64,7 @@ const VERBS: Record<string, Verb | undefined> = {
     amount: 'required',
     describe: (l) => `${l.value} min of Portuguese`,
     example: 'pt 30',
+    hint: 'a Portuguese session, in minutes',
   },
   weight: {
     kind: 'weight',
@@ -66,6 +73,7 @@ const VERBS: Record<string, Verb | undefined> = {
     amount: 'required',
     describe: (l) => `${l.value} kg`,
     example: 'weight 75.4',
+    hint: 'a weigh-in, in kg',
   },
   spend: {
     kind: 'expense',
@@ -74,6 +82,7 @@ const VERBS: Record<string, Verb | undefined> = {
     amount: 'required',
     describe: (l) => `€${l.value}${l.text ? ` on ${l.text}` : ''}`,
     example: 'spend 48 groceries',
+    hint: 'euros, and what on',
   },
   note: {
     kind: 'note',
@@ -81,15 +90,18 @@ const VERBS: Record<string, Verb | undefined> = {
     amount: 'none',
     describe: (l) => l.text ?? '',
     example: 'note call the landlord',
+    hint: 'a thought, filed under life',
   },
 }
 
 export const CAPTURE_VERBS = Object.keys(VERBS)
 
-/** One example per verb, in the order they are listed — the palette's hints. */
-export const CAPTURE_EXAMPLES = Object.values(VERBS).map(
-  (verb) => verb!.example,
-)
+/** One row per verb, in the order they are listed — the palette's example
+    list, which is the only documentation this grammar has. */
+export const CAPTURE_HINTS = Object.values(VERBS).map((verb) => ({
+  example: verb!.example,
+  hint: verb!.hint,
+}))
 
 /* Accepts 75.4 and 75,4 — a comma decimal is what a European keyboard produces
    under the thumb, and rejecting it would cost a retype in the fastest path. */

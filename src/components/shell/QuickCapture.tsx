@@ -1,16 +1,30 @@
 import { useEffect, useState } from 'react'
 import { Command } from 'cmdk'
 import { useMutation } from 'convex/react'
+import { Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import { CAPTURE_EXAMPLES, parseCapture } from '@/lib/capture-parser'
+import { CAPTURE_HINTS, parseCapture } from '@/lib/capture-parser'
 
 /* PLAN.md §3: three seconds, no form. The palette parses as you type and shows
    what it is about to write, so Enter is a confirmation rather than a gamble.
- 
+
    Deliberately not a form with fields: every control added here is paid for on
    every capture, forever, and capture is the thing this app has to be fastest
-   at. Area is inferred from the verb and corrected later on the badge. */
+   at. Area is inferred from the verb and corrected later on the badge.
+
+   Three regions, edge to edge, in the order you read them: the field, what the
+   field means, and the keys. The caps header that used to sit above the field
+   is gone — it made the box read as a form, and the field is the top edge in
+   every palette worth copying. */
+
+function Key({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="rounded-[5px] border border-white/10 bg-white/[0.06] px-1.5 py-[3px] font-mono text-[10px] leading-none text-ink-400">
+      {children}
+    </kbd>
+  )
+}
 
 export function QuickCapture({
   open,
@@ -53,8 +67,8 @@ export function QuickCapture({
       onOpenChange={onOpenChange}
       label="Log something"
       shouldFilter={false}
-      /* The blur belongs on the overlay, not the panel. `.glass` already asks
-         to blur what is behind it — but behind it was a flat 60% black sheet,
+      /* The blur belongs on the overlay, not the panel. `.glass-modal` already
+         asks to blur what is behind it — but behind it was a flat 60% black sheet,
          so it was faithfully blurring nothing and reading as plain
          transparency. Dim less, blur the page itself, and the panel has
          something to sit on.
@@ -64,56 +78,71 @@ export function QuickCapture({
          square content box just outside the panel's rounded corners. The input
          autofocuses, so nothing is lost by removing it. */
       overlayClassName="glass-scrim fixed inset-0 z-40"
-      contentClassName="fixed left-1/2 top-[18vh] z-50 w-[min(560px,92vw)] -translate-x-1/2 outline-none"
+      contentClassName="fixed left-1/2 top-[18vh] z-50 w-[min(640px,92vw)] -translate-x-1/2 outline-none"
     >
-      <div className="glass rounded-[22px] p-2">
-        {/* The box says what it is. It had no title at all, which left the
-            placeholder doing two jobs: prompting and documenting the syntax. */}
-        <div className="flex items-baseline justify-between px-4 pt-3">
-          <span className="label-caps">Log something</span>
-          <span className="label-caps">Esc to close</span>
+      {/* overflow-hidden so the footer's tint stops at the rounded corner: the
+          regions run edge to edge now, where the old panel padded them in. */}
+      <div className="glass-modal overflow-hidden rounded-[22px]">
+        <div className="flex items-center gap-3 px-5">
+          <Plus className="size-5 shrink-0 text-ink-500" aria-hidden />
+          <Command.Input
+            autoFocus
+            value={input}
+            onValueChange={(v) => {
+              setInput(v)
+              setError(null)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                void submit()
+              }
+            }}
+            placeholder="Log something…"
+            className="w-full bg-transparent py-[18px] text-[18px] text-foreground outline-none placeholder:text-ink-600"
+          />
         </div>
 
-        <Command.Input
-          autoFocus
-          value={input}
-          onValueChange={(v) => {
-            setInput(v)
-            setError(null)
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              void submit()
-            }
-          }}
-          placeholder="workout 60"
-          className="w-full bg-transparent px-4 py-4 text-[16.5px] text-foreground outline-none placeholder:text-ink-600"
-        />
-
-        <div className="border-t border-white/[0.07] px-4 py-3">
+        <div className="border-t border-white/[0.07] px-5 py-3.5">
           {input.trim().length === 0 ? (
-            /* One row, not two. The bare verb list said WORKOUT · PT · WEIGHT
-               and left you to guess that weight wants a number and note wants
-               words — while the placeholder above said the same thing again in
-               a different shape. An example of each says both at once. */
-            <div className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-ink-600">
-              {CAPTURE_EXAMPLES.map((example) => (
-                <span key={example}>{example}</span>
+            /* A list, not a wrapped mono row. This is the only documentation
+               the grammar has — the verb must be typed exactly and nothing
+               completes it — so it is worth a line each, with the unit said
+               out loud beside it. */
+            <ul className="space-y-[7px]">
+              {CAPTURE_HINTS.map(({ example, hint }) => (
+                <li key={example} className="flex items-baseline gap-3">
+                  <span className="w-[176px] shrink-0 font-mono text-[12px] text-ink-300">
+                    {example}
+                  </span>
+                  <span className="text-[12.5px] text-ink-600">{hint}</span>
+                </li>
               ))}
-            </div>
+            </ul>
           ) : result.ok ? (
-            <div className="flex items-baseline gap-2 text-[12.5px]">
+            <div className="flex items-baseline gap-2.5 text-[13px]">
               <span className="label-caps">{result.log.area}</span>
-              <span className="text-ink-300">{result.summary}</span>
-              <span className="label-caps ml-auto">↵ log it</span>
+              <span className="text-ink-200">{result.summary}</span>
             </div>
           ) : (
-            <div className="text-[12.5px] text-ink-500">{result.message}</div>
+            <div className="text-[13px] text-ink-500">{result.message}</div>
           )}
           {error ? (
-            <div className="mt-1 text-[12.5px] text-ink-400">{error}</div>
+            <div className="mt-1.5 text-[13px] text-ink-400">{error}</div>
           ) : null}
+        </div>
+
+        {/* One place for the keys. They were in two before: a caps label above
+            the field and a hint buried in the confirmation row. */}
+        <div className="flex items-center border-t border-white/[0.07] bg-black/20 px-5 py-2.5">
+          <span className="flex items-center gap-[7px] text-[11px] text-ink-500">
+            <Key>↵</Key>
+            log it
+          </span>
+          <span className="ml-auto flex items-center gap-[7px] text-[11px] text-ink-500">
+            <Key>esc</Key>
+            close
+          </span>
         </div>
       </div>
     </Command.Dialog>

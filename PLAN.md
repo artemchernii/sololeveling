@@ -43,6 +43,8 @@ gives a fast first paint on mobile and a place for server functions later (cron 
   tasks.ts projects.ts goals.ts logs.ts state.ts events.ts notes.ts reviews.ts
   auth.ts        -- requireUser(ctx) -> ownerId; called first in every mutation and query
   aggregate.ts   -- monthCounts(), currentState(), entityCounts()  (the only number sources)
+  search.ts      -- everything(): ⌘K over your own rows. A read, not an aggregation:
+                    it returns rows grouped by kind and never scores or ranks across them.
   seed.ts        -- internal mutation: principles only. Nothing else is ever seeded.
   auth.config.ts
 ```

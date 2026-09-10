@@ -4,7 +4,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { auth } from '@clerk/tanstack-react-start/server'
 
 import { Ambient } from '@/components/shell/Ambient'
-import { LogPill } from '@/components/shell/LogPill'
+import { MobileActions } from '@/components/shell/MobileActions'
 import { MobileNav } from '@/components/shell/MobileNav'
 import { QuickCapture } from '@/components/shell/QuickCapture'
 import { SearchPalette } from '@/components/shell/SearchPalette'
@@ -76,7 +76,10 @@ function AppShell() {
           <Outlet />
         </main>
       </div>
-      <LogPill onLog={() => openCapture()} />
+      <MobileActions
+        onLog={() => openCapture()}
+        onSearch={() => setOverlay('search')}
+      />
       <MobileNav />
       <SearchPalette
         open={overlay === 'search'}

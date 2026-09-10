@@ -179,6 +179,19 @@ h6 {
   -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 1.6)) saturate(120%);
 }
 
+/* cmdk draws group headings itself, so they are styled by attribute rather
+   than handed a className. Same voice as every other label in the app —
+   label-caps, one step dimmer, because a section name should be findable
+   without competing with the rows under it. */
+[cmdk-group-heading] {
+  padding: 12px 20px 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+}
+
 /* A dialog is not a card. .glass tops out at a 7.5% fill, which is right for a
    panel sitting in the layout and wrong for one sitting on top of it: over the
    dashboard, the palette's own text collided with the chains card showing

@@ -19,15 +19,21 @@ import { Key } from './Key'
    things (§3 Visual); this is the most focused thing on the screen, and the
    fill is the same lavender the border already spent, at full strength.
 
-   Both controls open the same ⌘K palette — there is one way to log something,
-   reachable by mouse or by keyboard. The palette itself lives in the shell, so
-   that the mobile pill and these buttons open one instance rather than two
-   racing for the same ⌘K.
+   The two controls open two different modals, because their Enter keys do
+   opposite things: Search navigates, Log writes a row. Both modals live in the
+   shell so that the mobile pill and these buttons open one instance rather
+   than two racing for the same ⌘K.
 
    Under 768 the two pills are gone: they do not fit beside the brand on a
    phone, and the sticky pill above the bottom nav is the thumb-reachable way
    in that §3 asks for. */
-export function TopBar({ onCapture }: { onCapture: () => void }) {
+export function TopBar({
+  onLog,
+  onSearch,
+}: {
+  onLog: () => void
+  onSearch: () => void
+}) {
   return (
     <header className="glass-bar sticky top-0 z-20 flex h-[58px] shrink-0 items-center justify-between px-[18px] lg:px-6">
       <div className="flex items-center gap-[10px]">
@@ -40,7 +46,7 @@ export function TopBar({ onCapture }: { onCapture: () => void }) {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={onCapture}
+          onClick={onLog}
           className="hidden h-9 items-center gap-[7px] rounded-[10px] bg-lav-500 pr-4 pl-3 text-[12.5px] font-medium text-lav-900 transition-colors hover:bg-lav-400 md:flex"
         >
           <Plus className="size-[17px]" strokeWidth={2.5} />
@@ -49,7 +55,7 @@ export function TopBar({ onCapture }: { onCapture: () => void }) {
 
         <button
           type="button"
-          onClick={onCapture}
+          onClick={onSearch}
           className="hidden h-9 w-[180px] items-center gap-2.5 rounded-[10px] border border-white/10 bg-black/20 pr-2 pl-3 text-[12.5px] text-ink-400 transition-colors hover:border-white/20 md:flex"
         >
           <Search className="size-[18px] shrink-0 text-ink-500" />

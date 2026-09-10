@@ -70,7 +70,7 @@ function AppShell() {
         onLog={() => openCapture()}
         onSearch={() => setOverlay('search')}
       />
-      <div className="relative z-10 grid flex-1 gap-5 px-[18px] pt-5 pb-[136px] md:pb-24 lg:grid-cols-[214px_minmax(0,1fr)] lg:px-6 lg:pb-[26px]">
+      <div className="relative z-10 grid flex-1 gap-5 px-[18px] pt-5 pb-[calc(150px+env(safe-area-inset-bottom))] md:pb-24 lg:grid-cols-[214px_minmax(0,1fr)] lg:px-6 lg:pb-[26px]">
         <SideNav />
         <main className="min-w-0">
           <Outlet />

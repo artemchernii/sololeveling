@@ -9,6 +9,11 @@ import { Plus, Search } from 'lucide-react'
    modals as the desktop buttons — one implementation each, because a
    phone-shaped copy of either would drift from it within a week.
 
+   Floating, so it needs to look like it: 14px of clear ground above the nav's
+   56px row, and a z above it. At the same z and touching, the nav painted last
+   and its rounded top edge cut across the Log pill — the pair read as one
+   welded object rather than two buttons over a bar.
+
    Hidden from 768 up, where the TopBar's own pair is already visible. */
 export function MobileActions({
   onLog,
@@ -18,7 +23,7 @@ export function MobileActions({
   onSearch: () => void
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom))] z-20 mx-auto flex w-[min(320px,86vw)] items-center gap-2.5 md:hidden">
+    <div className="fixed inset-x-0 bottom-[calc(70px+env(safe-area-inset-bottom))] z-30 mx-auto flex w-[min(320px,86vw)] items-center gap-2.5 md:hidden">
       <button
         type="button"
         onClick={onLog}

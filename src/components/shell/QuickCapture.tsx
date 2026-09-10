@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import { CAPTURE_HINTS, parseCapture } from '@/lib/capture-parser'
+import { Key } from './Key'
 
 /* PLAN.md §3: three seconds, no form. The palette parses as you type and shows
    what it is about to write, so Enter is a confirmation rather than a gamble.
@@ -17,14 +18,6 @@ import { CAPTURE_HINTS, parseCapture } from '@/lib/capture-parser'
    field means, and the keys. The caps header that used to sit above the field
    is gone — it made the box read as a form, and the field is the top edge in
    every palette worth copying. */
-
-function Key({ children }: { children: React.ReactNode }) {
-  return (
-    <kbd className="rounded-[5px] border border-white/10 bg-white/[0.06] px-1.5 py-[3px] font-mono text-[10px] leading-none text-ink-400">
-      {children}
-    </kbd>
-  )
-}
 
 export function QuickCapture({
   open,
@@ -98,7 +91,7 @@ export function QuickCapture({
                 void submit()
               }
             }}
-            placeholder="Log something…"
+            placeholder="What happened?"
             className="w-full bg-transparent py-[18px] text-[18px] text-foreground outline-none placeholder:text-ink-600"
           />
         </div>

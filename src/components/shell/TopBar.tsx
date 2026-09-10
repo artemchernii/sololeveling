@@ -1,6 +1,8 @@
 import { UserButton } from '@clerk/tanstack-react-start'
 import { Bell, Plus, Search } from 'lucide-react'
 
+import { Key } from './Key'
+
 /* PLAN.md §3: ■ SOLO LEVELING · Search ⌘K · bell · ARTEM ▾, plus the persistent
    "Log something" button. Full-bleed above the rail at the wireframe's 58px,
    with the brand at the left edge. Search is a pill, not a field: it opens the
@@ -10,6 +12,12 @@ import { Bell, Plus, Search } from 'lucide-react'
    reads as the field it stands for: icon at the left edge, ⌘K pushed to the
    right, the space between them the room a query would occupy. Every control
    in the row is 36px so they share a baseline.
+
+   Log is filled, not outlined. It is the one thing this app exists to make
+   fast, and it was the palest object in its own header — an outline beside an
+   outline beside an outline. The accent stays reserved for live and focus
+   things (§3 Visual); this is the most focused thing on the screen, and the
+   fill is the same lavender the border already spent, at full strength.
 
    Both controls open the same ⌘K palette — there is one way to log something,
    reachable by mouse or by keyboard. The palette itself lives in the shell, so
@@ -33,20 +41,22 @@ export function TopBar({ onCapture }: { onCapture: () => void }) {
         <button
           type="button"
           onClick={onCapture}
-          className="hidden h-9 items-center gap-2 rounded-[10px] border border-lav-500/60 px-3.5 text-[12.5px] font-medium text-lav-300 transition-colors hover:bg-lav-900/60 md:flex"
+          className="hidden h-9 items-center gap-[7px] rounded-[10px] bg-lav-500 pr-4 pl-3 text-[12.5px] font-medium text-lav-900 transition-colors hover:bg-lav-400 md:flex"
         >
-          <Plus className="size-4" />
-          Log something
+          <Plus className="size-[17px]" strokeWidth={2.5} />
+          Log
         </button>
 
         <button
           type="button"
           onClick={onCapture}
-          className="hidden h-9 w-[250px] items-center gap-2.5 rounded-[10px] border border-white/10 bg-black/20 px-3.5 text-[12.5px] text-ink-400 transition-colors hover:border-white/20 md:flex"
+          className="hidden h-9 w-[180px] items-center gap-2.5 rounded-[10px] border border-white/10 bg-black/20 pr-2 pl-3 text-[12.5px] text-ink-400 transition-colors hover:border-white/20 md:flex"
         >
           <Search className="size-[18px] shrink-0 text-ink-500" />
           Search
-          <kbd className="ml-auto font-mono text-[11px] text-ink-500">⌘K</kbd>
+          <span className="ml-auto">
+            <Key>⌘K</Key>
+          </span>
         </button>
 
         <button

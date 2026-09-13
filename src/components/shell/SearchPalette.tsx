@@ -108,6 +108,7 @@ export function SearchPalette({
       placeholder="Search, or / for commands"
       value={query}
       onValueChange={setQuery}
+      onClear={() => setQuery('')}
       footer={
         <>
           <Hint>

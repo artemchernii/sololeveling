@@ -1,5 +1,6 @@
 import { Command } from 'cmdk'
 import type { CSSProperties, Ref } from 'react'
+import { X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 /* The chrome both palettes wear: the scrim, the frosted box, the field with
@@ -25,6 +26,7 @@ export function PaletteShell({
   iconClassName = 'text-ink-500',
   panelStyle,
   fieldClassName = '',
+  onClear,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -45,6 +47,8 @@ export function PaletteShell({
       the order Tailwind emits two utilities in. */
   panelStyle?: CSSProperties
   fieldClassName?: string
+  /** Empties the field. Shown only while there is something in it. */
+  onClear?: () => void
 }) {
   return (
     <Command.Dialog
@@ -104,6 +108,25 @@ export function PaletteShell({
               className="relative w-full bg-transparent py-[18px] text-[18px] text-foreground outline-none placeholder:text-ink-600"
             />
           </div>
+          {/* The way back to an empty line from anywhere — a recent taken, a
+              verb chosen from the list — without deleting it a character at a
+              time. Focus goes back to the field, ready to type. */}
+          {onClear && value.length > 0 ? (
+            <button
+              type="button"
+              aria-label="Clear"
+              onClick={(e) => {
+                onClear()
+                const field = e.currentTarget
+                  .closest('[cmdk-root]')
+                  ?.querySelector<HTMLInputElement>('[cmdk-input]')
+                requestAnimationFrame(() => field?.focus())
+              }}
+              className="motion-press motion-arrive chip-focus grid size-7 shrink-0 place-items-center rounded-full text-ink-500 hover:bg-white/10 hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          ) : null}
         </div>
 
         {/* cmdk handles keys on its root and prevents their defaults: Enter

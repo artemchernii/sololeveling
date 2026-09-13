@@ -440,6 +440,14 @@ export function QuickCapture({
         setAttempted(false)
         setFailure(null)
       }}
+      onClear={() => {
+        setInput('')
+        setAreaFor(null)
+        setWhen(null)
+        setPicker(null)
+        setAttempted(false)
+        setFailure(null)
+      }}
       onInputKeyDown={(e) => {
         const atEnd = e.currentTarget.selectionStart === input.length
         if (

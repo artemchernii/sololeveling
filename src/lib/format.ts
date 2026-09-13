@@ -33,3 +33,29 @@ export function deadlineLabel(iso: string, now: Date = new Date()): string {
   }
   return `ends ${shortDate(iso)} · ${days} day${days === 1 ? '' : 's'}`
 }
+
+function clock(d: Date): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+/**
+ * When a log happened, said the way you would say it: "now", "today 14:05",
+ * "yesterday 19:10", "Thu 19:10", "12 Sep 19:10". The time is always shown
+ * once it is not now — a back-dated log that hides its hour is one you cannot
+ * check before pressing Enter.
+ */
+export function whenLabel(ms: number, now: Date = new Date()): string {
+  if (Math.abs(now.getTime() - ms) < 90_000) return 'now'
+
+  const at = new Date(ms)
+  const day = new Date(ms).setHours(0, 0, 0, 0)
+  const today = new Date(now).setHours(0, 0, 0, 0)
+  const days = Math.round((today - day) / MS_PER_DAY)
+
+  if (days === 0) return `today ${clock(at)}`
+  if (days === 1) return `yesterday ${clock(at)}`
+  if (days > 1 && days < 7) {
+    return `${at.toLocaleDateString(undefined, { weekday: 'short' })} ${clock(at)}`
+  }
+  return `${at.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} ${clock(at)}`
+}

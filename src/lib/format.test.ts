@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { deadlineLabel } from './format'
+import { deadlineLabel, whenLabel } from './format'
 
 const SEPT_8 = new Date(2026, 8, 8, 14, 30)
 
@@ -29,6 +29,35 @@ describe('a deadline says how far off it is', () => {
        midnights makes a deadline 20 hours away round to "today". */
     expect(deadlineLabel('2026-09-09', new Date(2026, 8, 8, 23, 59))).toContain(
       '1 day',
+    )
+  })
+})
+
+describe('whenLabel says when a log happened', () => {
+  const now = new Date(2026, 8, 13, 22, 0)
+
+  test('within a minute and a half is now', () => {
+    expect(whenLabel(now.getTime() - 60_000, now)).toBe('now')
+  })
+
+  test('earlier today shows the hour', () => {
+    expect(whenLabel(new Date(2026, 8, 13, 9, 5).getTime(), now)).toBe(
+      'today 09:05',
+    )
+  })
+
+  test('yesterday is by calendar day, not by 24 hours', () => {
+    expect(whenLabel(new Date(2026, 8, 12, 23, 30).getTime(), now)).toBe(
+      'yesterday 23:30',
+    )
+  })
+
+  test('this week is a weekday, older is a date — always with the hour', () => {
+    expect(whenLabel(new Date(2026, 8, 10, 19, 10).getTime(), now)).toMatch(
+      / 19:10$/,
+    )
+    expect(whenLabel(new Date(2026, 7, 1, 8, 0).getTime(), now)).toMatch(
+      / 08:00$/,
     )
   })
 })

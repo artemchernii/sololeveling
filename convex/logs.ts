@@ -9,6 +9,10 @@ import schema, { areaValidator } from './schema'
    completing a task — that writes its own 'task_done' row and stops (§3b.1). */
 
 const MAX_ROWS = 200
+const FUTURE_GRACE_MS = 5 * 60_000
+/* Enough history to find five different lines in, when the last few days were
+   the same gym session over and over. */
+const RECENT_ROWS = 40
 
 const logKindValidator = v.union(
   v.literal('workout'),
@@ -46,6 +50,14 @@ export const create = mutation({
        otherwise capture becomes a way to fake shipped work. */
     if (args.kind === 'task_done') {
       throw new Error('task_done is written by tasks.complete, not by capture')
+    }
+
+    /* Capture can be back-dated now, so it can also be forward-dated by a
+       slip. A log is evidence that something happened, and nothing has
+       happened in the future — that is intent, which is a task. Five minutes
+       of grace for a phone whose clock runs a little ahead. */
+    if (args.occurredAt > Date.now() + FUTURE_GRACE_MS) {
+      throw new Error('A log is something that happened — not in the future')
     }
 
     const logId = await ctx.db.insert('logs', {
@@ -90,6 +102,32 @@ export const listSince = query({
       )
       .order('desc')
       .take(MAX_ROWS)
+  },
+})
+
+/**
+ * The latest logs, newest first, for the capture modal's "recent" list — so
+ * yesterday's gym is one tap away. The modal turns them into lines and
+ * de-duplicates; this only reads.
+ *
+ * No time argument on purpose. `listSince(Date.now() - …)` would be a new
+ * argument on every render, and a new subscription with it.
+ */
+export const recent = query({
+  args: {},
+  returns: v.array(schema.doc('logs')),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
+      .order('desc')
+      .take(RECENT_ROWS)
+    /* A ticked task is not something you log by hand (§3b.1), so it is not
+       something to offer again. Filtered after the take rather than through
+       the index: the index is still owner-scoped, and this only drops rows
+       from a bounded page. */
+    return rows.filter((row) => row.kind !== 'task_done')
   },
 })
 

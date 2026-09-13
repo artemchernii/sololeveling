@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from 'convex-test'
-import { describe, expect, test } from 'vitest'
+import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 
 import { api } from './_generated/api'
 import schema from './schema'
@@ -16,6 +16,19 @@ const AUG_1 = new Date(2026, 7, 1).getTime()
 const SEP_1 = new Date(2026, 8, 1).getTime()
 const OCT_1 = new Date(2026, 9, 1).getTime()
 const MONTH = { prevStart: AUG_1, monthStart: SEP_1, nextStart: OCT_1 }
+
+/* The fixtures above are fixed dates in September 2026, and logs.create
+   refuses anything in the future. Without a clock of its own this file would
+   start failing on whatever real day first falls before a fixture — so it
+   lives on 1 October, after every one of them. Only Date is faked: the
+   timers convex-test awaits keep running. */
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 9, 1, 12))
+})
+afterAll(() => {
+  vi.useRealTimers()
+})
 
 function as(subject: string) {
   return convexTest(schema, modules).withIdentity({ tokenIdentifier: subject })

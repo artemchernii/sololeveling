@@ -124,7 +124,7 @@ export function QuickCapture({
         at: number
       }
     | { type: 'removed'; line: string; row: Doc<'logs'> }
-    | { type: 'noted'; id: Id<'notes'>; title: string; text: string }
+    | { type: 'noted'; id: Id<'notes'>; title: string }
     | null
   >(null)
 
@@ -357,7 +357,7 @@ export function QuickCapture({
     }
     try {
       const id = await createNote({ title, body, kind: noteKind })
-      setLast({ type: 'noted', id, title, text: noteText })
+      setLast({ type: 'noted', id, title })
       setNoteText(null)
       setNoteKind('note')
       setInput('')
@@ -369,23 +369,23 @@ export function QuickCapture({
     }
   }
 
-  /** Undoes whatever the top row says was just done. A line logged is taken
-      back and its text put back in the field, so a slip is fixed by editing
-      rather than retyping; a log removed is written back as it was, time and
-      all. */
+  /** Undoes whatever the top row says was just done, and nothing more: a
+      log or a note is taken back, a removed log is written back as it was.
+      It used to put the line back in the field as well, which made undo
+      read as "edit" — two actions behind one word (settled 14 Sep). Fixing a
+      log is retyping it; fixing a note is its own page. */
   async function undo() {
     if (!last) return
     const action = last
     setLast(null)
     if (action.type === 'logged') {
       await removeLog({ logId: action.id })
-      takeLine(action.line)
+      focusLine()
       return
     }
     if (action.type === 'noted') {
       await removeNote({ noteId: action.id })
-      setNoteText(action.text)
-      takeLine('note')
+      focusLine()
       return
     }
     const { row } = action

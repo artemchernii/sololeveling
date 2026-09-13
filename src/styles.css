@@ -173,6 +173,12 @@ h6 {
 [data-chip-input]:focus-visible {
   outline: none;
 }
+/* The note editor too: it sits inside a rounded sheet that rings in the
+   knowledge colour when focused, and the square lavender outline inside that
+   ring was a second, uglier way of saying the same thing. */
+[data-note-editor]:focus-visible {
+  outline: none;
+}
 /* And a chip that is itself a button: the global ring is lavender, which on a
    teal Portuguese chip says "live" about a thing that is not. Keyboard focus
    rings in the chip's own area colour instead, or grey where it has none. */

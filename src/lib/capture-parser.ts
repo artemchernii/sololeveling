@@ -95,6 +95,13 @@ type Verb = {
   keywords: Array<string>
 }
 
+/* The summary under the chips reads as a sentence about what happened —
+   "Spent €23", not "€23" — so a line with no words after the number still
+   says something. */
+function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
 const VERBS: Array<Verb> = [
   {
     /* Gym first: it is the word actually used. Duration is optional because
@@ -106,7 +113,9 @@ const VERBS: Array<Verb> = [
     unit: 'min',
     amount: 'optional',
     describe: (l) =>
-      l.value !== undefined ? `${l.value} min of training` : 'a gym session',
+      ['Gym session', l.value !== undefined ? `${l.value} min` : null, l.text]
+        .filter(Boolean)
+        .join(' · '),
     example: 'gym',
     hint: 'a session — minutes if you want them',
     keywords: ['training', 'exercise', 'lift', 'run', 'sport', 'fitness'],
@@ -126,7 +135,7 @@ const VERBS: Array<Verb> = [
     /* No area in the sentence: the chip beside it says where this is filed,
        and it can be changed — a summary that said "of Portuguese" under a
        Career chip contradicted the thing it was summarising. */
-    describe: (l) => `${l.value} min${l.text ? ` · ${l.text}` : ''}`,
+    describe: (l) => `${capitalise(l.text ?? 'session')} · ${l.value} min`,
     example: 'pt',
     hint: 'a class, 50 min — or pt homework 20',
     keywords: [
@@ -144,7 +153,7 @@ const VERBS: Array<Verb> = [
     area: 'body',
     unit: 'kg',
     amount: 'required',
-    describe: (l) => `${l.value} kg`,
+    describe: (l) => `Weighed ${l.value} kg`,
     example: 'weight 75.4',
     hint: 'a weigh-in, in kg',
     keywords: ['weigh', 'kg', 'scale', 'kilos'],
@@ -155,7 +164,7 @@ const VERBS: Array<Verb> = [
     area: 'money',
     unit: 'eur',
     amount: 'required',
-    describe: (l) => `€${l.value}${l.text ? ` on ${l.text}` : ''}`,
+    describe: (l) => `Spent €${l.value}${l.text ? ` on ${l.text}` : ''}`,
     example: 'spend 48 groceries',
     hint: 'euros, and what on',
     keywords: ['expense', 'buy', 'bought', 'paid', 'cost', 'purchase', 'euro'],
@@ -166,7 +175,7 @@ const VERBS: Array<Verb> = [
     area: 'money',
     unit: 'eur',
     amount: 'required',
-    describe: (l) => `€${l.value} invested${l.text ? ` · ${l.text}` : ''}`,
+    describe: (l) => `Invested €${l.value}${l.text ? ` in ${l.text}` : ''}`,
     example: 'invest 500',
     hint: 'euros into savings or investments',
     keywords: [

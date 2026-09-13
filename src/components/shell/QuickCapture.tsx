@@ -3,6 +3,7 @@ import { Command } from 'cmdk'
 import { useMutation, useQuery } from 'convex/react'
 import { useNavigate } from '@tanstack/react-router'
 import {
+  ArrowLeft,
   ArrowUpRight,
   Check,
   Clock,
@@ -336,6 +337,13 @@ export function QuickCapture({
     } catch (error) {
       setFailure(error instanceof Error ? error.message : 'That did not log.')
     }
+  }
+
+  function leaveNote() {
+    setInput('')
+    setFailure(null)
+    setAttempted(false)
+    focusLine()
   }
 
   async function saveNote() {
@@ -678,6 +686,17 @@ export function QuickCapture({
           className="motion-arrive px-5 pt-3 pb-4"
         >
           <div className="flex flex-wrap items-center gap-1.5">
+            {/* The way back, for a change of mind. What was written stays as
+                a draft — type `note` again and it is still there. Backspace
+                in an empty sheet does the same. */}
+            <button
+              type="button"
+              onClick={leaveNote}
+              className={`${NEUTRAL_CHIP} mr-1 h-7 px-2.5 text-[12px]`}
+            >
+              <ArrowLeft className="size-3.5" />
+              log
+            </button>
             {NOTE_KINDS.map((option) => (
               <button
                 key={option}
@@ -706,6 +725,7 @@ export function QuickCapture({
                 setAttempted(false)
               }}
               onSubmit={() => void saveNote()}
+              onEmptyBackspace={leaveNote}
             />
           </div>
           <p
@@ -749,54 +769,64 @@ export function QuickCapture({
                 ) : (
                   <Timer className="size-3.5 shrink-0 text-(--area)" />
                 )}
-                <input
-                  data-chip-input
-                  inputMode="decimal"
-                  aria-label="Amount"
-                  value={
-                    valueDraft ??
-                    (result.ok
-                      ? (result.log.value?.toString() ?? '')
-                      : (typed.value?.toString() ?? ''))
-                  }
-                  placeholder={verb.amount === 'required' ? 'amount' : '—'}
-                  size={Math.max(
-                    2,
-                    (
+                {/* Sized by an invisible copy of its own text (or its
+                    placeholder) in the same grid cell, so the chip is exactly
+                    as wide as what it says — `size` guessed from a character
+                    count, and clipped "amount" to "am". */}
+                <span className="inline-grid">
+                  <span
+                    aria-hidden
+                    className="invisible col-start-1 row-start-1 whitespace-pre"
+                  >
+                    {(valueDraft ??
+                      (result.ok
+                        ? (result.log.value?.toString() ?? '')
+                        : (typed.value?.toString() ?? ''))) ||
+                      (verb.amount === 'required' ? 'amount' : '—')}
+                  </span>
+                  <input
+                    data-chip-input
+                    inputMode="decimal"
+                    aria-label="Amount"
+                    value={
                       valueDraft ??
-                      String(result.ok ? (result.log.value ?? '') : '')
-                    ).length,
-                  )}
-                  onFocus={(e) => e.currentTarget.select()}
-                  onBlur={() => setValueDraft(null)}
-                  onChange={(e) => {
-                    const cleaned = e.target.value.replace(/[^\d.,]/g, '')
-                    setValueDraft(cleaned)
-                    if (cleaned === '') rewrite({ value: null })
-                    else {
-                      const n = toNumber(cleaned)
-                      if (n !== null) rewrite({ value: n })
+                      (result.ok
+                        ? (result.log.value?.toString() ?? '')
+                        : (typed.value?.toString() ?? ''))
                     }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      void submit()
-                    }
-                  }}
-                  /* A default is a real value you can see and change — dimmer
-                     until you do, so it never reads as something you typed. */
-                  className={`min-w-0 bg-transparent text-center outline-none placeholder:text-ink-600 ${
-                    result.ok && result.defaulted.value && valueDraft === null
-                      ? 'text-ink-500'
-                      : 'text-foreground'
-                  } ${
-                    attempted && !result.ok && verb.amount === 'required'
-                      ? 'placeholder:text-(--area)'
-                      : ''
-                  }`}
-                  style={areaVars(area)}
-                />
+                    placeholder={verb.amount === 'required' ? 'amount' : '—'}
+                    size={1}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onBlur={() => setValueDraft(null)}
+                    onChange={(e) => {
+                      const cleaned = e.target.value.replace(/[^\d.,]/g, '')
+                      setValueDraft(cleaned)
+                      if (cleaned === '') rewrite({ value: null })
+                      else {
+                        const n = toNumber(cleaned)
+                        if (n !== null) rewrite({ value: n })
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        void submit()
+                      }
+                    }}
+                    /* A default is a real value you can see and change — dimmer
+                       until you do, so it never reads as something you typed. */
+                    className={`col-start-1 row-start-1 w-full min-w-0 bg-transparent outline-none placeholder:text-ink-600 ${
+                      result.ok && result.defaulted.value && valueDraft === null
+                        ? 'text-ink-500'
+                        : 'text-foreground'
+                    } ${
+                      attempted && !result.ok && verb.amount === 'required'
+                        ? 'placeholder:text-(--area)'
+                        : ''
+                    }`}
+                    style={areaVars(area)}
+                  />
+                </span>
                 {verb.unit === 'min' ? (
                   <span className="text-ink-500">min</span>
                 ) : verb.unit === 'kg' ? (
@@ -810,40 +840,45 @@ export function QuickCapture({
               className={`${NEUTRAL_CHIP} cursor-text focus-within:bg-(--area)/10 focus-within:ring-(--area)/55`}
             >
               <PenLine className="size-3.5 shrink-0 text-(--area)" />
-              <input
-                data-chip-input
-                aria-label={verb.amount === 'none' ? 'What' : 'Words'}
-                value={
-                  textDraft ??
-                  (result.ok ? (result.log.text ?? '') : (typed.text ?? ''))
-                }
-                placeholder={verb.amount === 'none' ? 'what?' : '+ words'}
-                size={
-                  1 +
-                  Math.max(
-                    6,
-                    (textDraft ?? (result.ok ? (result.log.text ?? '') : ''))
-                      .length,
-                  )
-                }
-                onFocus={(e) => e.currentTarget.select()}
-                onBlur={() => setTextDraft(null)}
-                onChange={(e) => {
-                  setTextDraft(e.target.value)
-                  rewrite({ text: e.target.value.trim() || null })
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    void submit()
+              <span className="inline-grid">
+                <span
+                  aria-hidden
+                  className="invisible col-start-1 row-start-1 whitespace-pre"
+                >
+                  {(textDraft ??
+                    (result.ok
+                      ? (result.log.text ?? '')
+                      : (typed.text ?? ''))) ||
+                    (verb.amount === 'none' ? 'what?' : 'words')}
+                </span>
+                <input
+                  data-chip-input
+                  aria-label={verb.amount === 'none' ? 'What' : 'Words'}
+                  value={
+                    textDraft ??
+                    (result.ok ? (result.log.text ?? '') : (typed.text ?? ''))
                   }
-                }}
-                className={`min-w-0 bg-transparent outline-none placeholder:text-ink-600 ${
-                  result.ok && result.defaulted.text && textDraft === null
-                    ? 'text-ink-500'
-                    : 'text-foreground'
-                }`}
-              />
+                  placeholder={verb.amount === 'none' ? 'what?' : 'words'}
+                  size={1}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onBlur={() => setTextDraft(null)}
+                  onChange={(e) => {
+                    setTextDraft(e.target.value)
+                    rewrite({ text: e.target.value.trim() || null })
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      void submit()
+                    }
+                  }}
+                  className={`col-start-1 row-start-1 w-full min-w-0 bg-transparent outline-none placeholder:text-ink-600 ${
+                    result.ok && result.defaulted.text && textDraft === null
+                      ? 'text-ink-500'
+                      : 'text-foreground'
+                  }`}
+                />
+              </span>
             </label>
 
             <button

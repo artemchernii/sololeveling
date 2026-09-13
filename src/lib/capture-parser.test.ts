@@ -274,3 +274,25 @@ describe('searchVerbs — the / list, by name or by meaning', () => {
     expect(words('zzz')).toEqual([])
   })
 })
+
+describe('the summary says what happened', () => {
+  const summary = (line: string) => parsed(line).summary
+
+  test('a number alone still reads as a sentence', () => {
+    expect(summary('spend 23')).toBe('Spent €23')
+    expect(summary('invest 500')).toBe('Invested €500')
+    expect(summary('weight 75.4')).toBe('Weighed 75.4 kg')
+  })
+
+  test('words join in where they belong', () => {
+    expect(summary('spend 48 groceries')).toBe('Spent €48 on groceries')
+    expect(summary('invest 250 TSLA')).toBe('Invested €250 in TSLA')
+    expect(summary('gym 60 push day')).toBe('Gym session · 60 min · push day')
+  })
+
+  test('a bare verb is still a sentence', () => {
+    expect(summary('gym')).toBe('Gym session')
+    expect(summary('pt')).toBe('Class · 50 min')
+    expect(summary('pt homework 20')).toBe('Homework · 20 min')
+  })
+})

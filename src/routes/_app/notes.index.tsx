@@ -45,7 +45,17 @@ function Notes() {
   const [writing, setWriting] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
 
-  const notes = useQuery(api.notes.list, kind === 'all' ? {} : { kind })
+  /* Every note, once, filtered below. A query per tab meant every switch
+     started a new subscription, and the list blinked to its skeleton and back
+     for a moment each time. Filtering a personal list of notes in the browser
+     is instant, and the skeleton now only ever shows on the first load. */
+  const allNotes = useQuery(api.notes.list, {})
+  const notes =
+    allNotes === undefined
+      ? undefined
+      : kind === 'all'
+        ? allNotes
+        : allNotes.filter((note) => note.kind === kind)
   const create = useMutation(api.notes.create)
 
   async function save() {

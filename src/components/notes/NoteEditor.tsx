@@ -17,6 +17,7 @@ export function NoteEditor({
   autoFocus = false,
   className = '',
   textareaRef,
+  onEmptyBackspace,
 }: {
   value: string
   onChange: (value: string) => void
@@ -26,6 +27,9 @@ export function NoteEditor({
   autoFocus?: boolean
   className?: string
   textareaRef?: Ref<HTMLTextAreaElement>
+  /** Backspace with nothing written — the Log sheet uses it to step back to
+      the line, the way deleting past the start of a field would. */
+  onEmptyBackspace?: () => void
 }) {
   const own = useRef<HTMLTextAreaElement>(null)
 
@@ -50,6 +54,7 @@ export function NoteEditor({
         if (typeof textareaRef === 'function') textareaRef(el)
         else if (textareaRef) textareaRef.current = el
       }}
+      data-note-editor
       value={value}
       autoFocus={autoFocus}
       placeholder={placeholder}
@@ -58,6 +63,11 @@ export function NoteEditor({
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={(e) => {
         const el = e.currentTarget
+        if (e.key === 'Backspace' && value.length === 0 && onEmptyBackspace) {
+          e.preventDefault()
+          onEmptyBackspace()
+          return
+        }
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
           onSubmit?.()

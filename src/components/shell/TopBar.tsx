@@ -47,10 +47,13 @@ export function TopBar({
         <button
           type="button"
           onClick={onLog}
-          className="hidden h-9 items-center gap-[7px] rounded-[10px] bg-lav-500 pr-4 pl-3 text-[12.5px] font-medium text-lav-900 transition-colors hover:bg-lav-400 md:flex"
+          className="hidden h-9 items-center gap-[7px] rounded-[10px] bg-lav-500 pr-2 pl-3 text-[12.5px] font-medium text-lav-900 transition-colors hover:bg-lav-400 md:flex"
         >
           <Plus className="size-[17px]" strokeWidth={2.5} />
           Log
+          <span className="ml-1.5">
+            <Key onAccent>⌘L</Key>
+          </span>
         </button>
 
         <button

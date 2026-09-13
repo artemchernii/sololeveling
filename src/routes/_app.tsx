@@ -54,9 +54,21 @@ function AppShell() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return
+      const key = e.key.toLowerCase()
+      if (key === 'k') {
         e.preventDefault()
         setOverlay((current) => (current === null ? 'search' : null))
+      }
+      /* ⌘L opens Log, chosen over a bare L (13 Sep). It is the browser's
+         "jump to the address bar", so on this app that is given up — a page
+         can take it in Chromium, and in the installed PWA there is no address
+         bar to lose. From Search it switches straight to Log rather than
+         stacking; pressed again inside Log, it closes, the way ⌘K does. */
+      if (key === 'l') {
+        e.preventDefault()
+        setCapturePrefill('')
+        setOverlay((current) => (current === 'capture' ? null : 'capture'))
       }
     }
     document.addEventListener('keydown', onKey)

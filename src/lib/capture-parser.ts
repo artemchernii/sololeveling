@@ -180,14 +180,19 @@ const VERBS: Array<Verb> = [
     ],
   },
   {
+    /* A note is not logged: the Log modal hands `note` to a writing sheet
+       that saves to the notes table (logs.create refuses kind 'note'). It
+       stays a verb so `note`, `/note` and "save as a note" all reach it the
+       same way — and it is tinted knowledge, the colour a note wears on its
+       own page. */
     words: ['note'],
     kind: 'note',
-    area: 'life',
+    area: 'knowledge',
     amount: 'none',
     describe: (l) => l.text ?? '',
-    example: 'note call the landlord',
-    hint: 'a thought, filed under life',
-    keywords: ['thought', 'idea', 'remember', 'reminder', 'write'],
+    example: 'note',
+    hint: 'a note — its first line is the title',
+    keywords: ['thought', 'idea', 'remember', 'reminder', 'write', 'notes'],
   },
 ]
 

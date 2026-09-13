@@ -20,7 +20,6 @@ import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppGoalsRouteImport } from './routes/_app/goals'
 import { Route as AppKnowledgeRouteImport } from './routes/_app/knowledge'
 import { Route as AppMoneyRouteImport } from './routes/_app/money'
-import { Route as AppNotesRouteImport } from './routes/_app/notes'
 import { Route as AppPortugueseRouteImport } from './routes/_app/portuguese'
 import { Route as AppPrinciplesRouteImport } from './routes/_app/principles'
 import { Route as AppQuestsRouteImport } from './routes/_app/quests'
@@ -28,6 +27,8 @@ import { Route as AppReviewsRouteImport } from './routes/_app/reviews'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSocialRouteImport } from './routes/_app/social'
 import { Route as AppStyleRouteImport } from './routes/_app/style'
+import { Route as AppNotesIndexRouteImport } from './routes/_app/notes.index'
+import { Route as AppNotesIdRouteImport } from './routes/_app/notes.$id'
 import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects.index'
 import { Route as AppProjectsIdRouteImport } from './routes/_app/projects.$id'
 
@@ -85,11 +86,6 @@ const AppMoneyRoute = AppMoneyRouteImport.update({
   path: '/money',
   getParentRoute: () => AppRoute,
 } as any)
-const AppNotesRoute = AppNotesRouteImport.update({
-  id: '/notes',
-  path: '/notes',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppPortugueseRoute = AppPortugueseRouteImport.update({
   id: '/portuguese',
   path: '/portuguese',
@@ -125,6 +121,16 @@ const AppStyleRoute = AppStyleRouteImport.update({
   path: '/style',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNotesIndexRoute = AppNotesIndexRouteImport.update({
+  id: '/notes/',
+  path: '/notes/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotesIdRoute = AppNotesIdRouteImport.update({
+  id: '/notes/$id',
+  path: '/notes/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProjectsIndexRoute = AppProjectsIndexRouteImport.update({
   id: '/projects/',
   path: '/projects/',
@@ -147,7 +153,6 @@ export interface FileRoutesByFullPath {
   '/goals': typeof AppGoalsRoute
   '/knowledge': typeof AppKnowledgeRoute
   '/money': typeof AppMoneyRoute
-  '/notes': typeof AppNotesRoute
   '/portuguese': typeof AppPortugueseRoute
   '/principles': typeof AppPrinciplesRoute
   '/quests': typeof AppQuestsRoute
@@ -155,7 +160,9 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/social': typeof AppSocialRoute
   '/style': typeof AppStyleRoute
+  '/notes/$id': typeof AppNotesIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
+  '/notes/': typeof AppNotesIndexRoute
   '/projects/': typeof AppProjectsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -169,7 +176,6 @@ export interface FileRoutesByTo {
   '/goals': typeof AppGoalsRoute
   '/knowledge': typeof AppKnowledgeRoute
   '/money': typeof AppMoneyRoute
-  '/notes': typeof AppNotesRoute
   '/portuguese': typeof AppPortugueseRoute
   '/principles': typeof AppPrinciplesRoute
   '/quests': typeof AppQuestsRoute
@@ -177,7 +183,9 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/social': typeof AppSocialRoute
   '/style': typeof AppStyleRoute
+  '/notes/$id': typeof AppNotesIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
+  '/notes': typeof AppNotesIndexRoute
   '/projects': typeof AppProjectsIndexRoute
 }
 export interface FileRoutesById {
@@ -193,7 +201,6 @@ export interface FileRoutesById {
   '/_app/goals': typeof AppGoalsRoute
   '/_app/knowledge': typeof AppKnowledgeRoute
   '/_app/money': typeof AppMoneyRoute
-  '/_app/notes': typeof AppNotesRoute
   '/_app/portuguese': typeof AppPortugueseRoute
   '/_app/principles': typeof AppPrinciplesRoute
   '/_app/quests': typeof AppQuestsRoute
@@ -201,7 +208,9 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/social': typeof AppSocialRoute
   '/_app/style': typeof AppStyleRoute
+  '/_app/notes/$id': typeof AppNotesIdRoute
   '/_app/projects/$id': typeof AppProjectsIdRoute
+  '/_app/notes/': typeof AppNotesIndexRoute
   '/_app/projects/': typeof AppProjectsIndexRoute
 }
 export interface FileRouteTypes {
@@ -217,7 +226,6 @@ export interface FileRouteTypes {
     | '/goals'
     | '/knowledge'
     | '/money'
-    | '/notes'
     | '/portuguese'
     | '/principles'
     | '/quests'
@@ -225,7 +233,9 @@ export interface FileRouteTypes {
     | '/settings'
     | '/social'
     | '/style'
+    | '/notes/$id'
     | '/projects/$id'
+    | '/notes/'
     | '/projects/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -239,7 +249,6 @@ export interface FileRouteTypes {
     | '/goals'
     | '/knowledge'
     | '/money'
-    | '/notes'
     | '/portuguese'
     | '/principles'
     | '/quests'
@@ -247,7 +256,9 @@ export interface FileRouteTypes {
     | '/settings'
     | '/social'
     | '/style'
+    | '/notes/$id'
     | '/projects/$id'
+    | '/notes'
     | '/projects'
   id:
     | '__root__'
@@ -262,7 +273,6 @@ export interface FileRouteTypes {
     | '/_app/goals'
     | '/_app/knowledge'
     | '/_app/money'
-    | '/_app/notes'
     | '/_app/portuguese'
     | '/_app/principles'
     | '/_app/quests'
@@ -270,7 +280,9 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/social'
     | '/_app/style'
+    | '/_app/notes/$id'
     | '/_app/projects/$id'
+    | '/_app/notes/'
     | '/_app/projects/'
   fileRoutesById: FileRoutesById
 }
@@ -359,13 +371,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMoneyRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/notes': {
-      id: '/_app/notes'
-      path: '/notes'
-      fullPath: '/notes'
-      preLoaderRoute: typeof AppNotesRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/portuguese': {
       id: '/_app/portuguese'
       path: '/portuguese'
@@ -415,6 +420,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStyleRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/notes/': {
+      id: '/_app/notes/'
+      path: '/notes'
+      fullPath: '/notes/'
+      preLoaderRoute: typeof AppNotesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notes/$id': {
+      id: '/_app/notes/$id'
+      path: '/notes/$id'
+      fullPath: '/notes/$id'
+      preLoaderRoute: typeof AppNotesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/projects/': {
       id: '/_app/projects/'
       path: '/projects'
@@ -441,7 +460,6 @@ interface AppRouteChildren {
   AppGoalsRoute: typeof AppGoalsRoute
   AppKnowledgeRoute: typeof AppKnowledgeRoute
   AppMoneyRoute: typeof AppMoneyRoute
-  AppNotesRoute: typeof AppNotesRoute
   AppPortugueseRoute: typeof AppPortugueseRoute
   AppPrinciplesRoute: typeof AppPrinciplesRoute
   AppQuestsRoute: typeof AppQuestsRoute
@@ -449,7 +467,9 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppSocialRoute: typeof AppSocialRoute
   AppStyleRoute: typeof AppStyleRoute
+  AppNotesIdRoute: typeof AppNotesIdRoute
   AppProjectsIdRoute: typeof AppProjectsIdRoute
+  AppNotesIndexRoute: typeof AppNotesIndexRoute
   AppProjectsIndexRoute: typeof AppProjectsIndexRoute
 }
 
@@ -462,7 +482,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppGoalsRoute: AppGoalsRoute,
   AppKnowledgeRoute: AppKnowledgeRoute,
   AppMoneyRoute: AppMoneyRoute,
-  AppNotesRoute: AppNotesRoute,
   AppPortugueseRoute: AppPortugueseRoute,
   AppPrinciplesRoute: AppPrinciplesRoute,
   AppQuestsRoute: AppQuestsRoute,
@@ -470,7 +489,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppSocialRoute: AppSocialRoute,
   AppStyleRoute: AppStyleRoute,
+  AppNotesIdRoute: AppNotesIdRoute,
   AppProjectsIdRoute: AppProjectsIdRoute,
+  AppNotesIndexRoute: AppNotesIndexRoute,
   AppProjectsIndexRoute: AppProjectsIndexRoute,
 }
 

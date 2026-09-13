@@ -75,10 +75,10 @@ describe('the verbs', () => {
     })
   })
 
-  test("note defaults to 'life' — the badge changes it later", () => {
+  test('note is tinted knowledge — the modal saves it to notes, not logs', () => {
     expect(log('note buy a better desk lamp')).toMatchObject({
       kind: 'note',
-      area: 'life',
+      area: 'knowledge',
       text: 'buy a better desk lamp',
     })
   })
@@ -222,7 +222,11 @@ describe('formatLine and lineFromLog', () => {
         text: 'groceries',
       },
       { kind: 'weight' as const, area: 'body' as const, value: 75.4 },
-      { kind: 'note' as const, area: 'life' as const, text: 'call 3 people' },
+      {
+        kind: 'note' as const,
+        area: 'knowledge' as const,
+        text: 'call 3 people',
+      },
     ]
     for (const row of rows) {
       const line = lineFromLog(row)!

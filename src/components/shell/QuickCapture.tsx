@@ -1,11 +1,23 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Command } from 'cmdk'
 import { useMutation, useQuery } from 'convex/react'
-import { Check, Clock, Plus, Trash2 } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import {
+  ArrowUpRight,
+  Check,
+  Clock,
+  Euro,
+  PenLine,
+  Plus,
+  Scale,
+  Timer,
+  Trash2,
+} from 'lucide-react'
 
 import { Hint, PaletteShell } from './PaletteShell'
 import { Key } from './Key'
 import { api } from '../../../convex/_generated/api'
+import { NoteEditor } from '@/components/notes/NoteEditor'
 import { AREAS, areaVars } from '@/lib/areas'
 import {
   CAPTURE_CHOICES,
@@ -21,6 +33,7 @@ import {
 import type { Area, LogKind } from '@/lib/capture-parser'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { whenLabel } from '@/lib/format'
+import { splitNote } from '@/lib/note-text'
 
 /* PLAN.md §3: three seconds. `gym` ⏎ is still the whole of it.
 
@@ -41,12 +54,20 @@ import { whenLabel } from '@/lib/format'
 
    `/` lists every verb with what it means, and matches on the meaning — the
    point of the list is the verb you have forgotten, so `/portuguese` has to
-   find `pt`. */
+   find `pt`.
+
+   `note` is the one verb that does not log. A note is written down, not done,
+   so the line hands over to a writing sheet — first line the title, lists
+   that carry on — and it saves to the notes table, where the Notes page and
+   search find it. */
 
 const CHIP =
   'motion-press chip-focus inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px]'
 const NEUTRAL_CHIP = `${CHIP} bg-white/[0.06] text-ink-300 ring-1 ring-white/10 ring-inset hover:bg-white/10`
 const AREA_CHIP = `${CHIP} bg-(--area)/14 text-(--area) ring-1 ring-(--area)/30 ring-inset hover:bg-(--area)/22`
+
+type NoteKind = Doc<'notes'>['kind']
+const NOTE_KINDS: Array<NoteKind> = ['note', 'idea', 'book', 'reference']
 
 /** A datetime-local value, in local time, for an instant. */
 function toLocalInput(ms: number): string {
@@ -83,6 +104,11 @@ export function QuickCapture({
   const [valueDraft, setValueDraft] = useState<string | null>(null)
   const [textDraft, setTextDraft] = useState<string | null>(null)
 
+  /** The note being written, once the line says `note`. Null otherwise. */
+  const [noteText, setNoteText] = useState<string | null>(null)
+  const [noteKind, setNoteKind] = useState<NoteKind>('note')
+  const noteRef = useRef<HTMLTextAreaElement>(null)
+
   /* The last thing done from this modal, for the row at the top: a line
      logged, with how many of its kind this month and an undo; or a past log
      removed, with an undo that writes it back. One row, so the two never
@@ -97,12 +123,16 @@ export function QuickCapture({
         at: number
       }
     | { type: 'removed'; line: string; row: Doc<'logs'> }
+    | { type: 'noted'; id: Id<'notes'>; title: string; text: string }
     | null
   >(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const createLog = useMutation(api.logs.create)
   const removeLog = useMutation(api.logs.remove)
+  const createNote = useMutation(api.notes.create)
+  const removeNote = useMutation(api.notes.remove)
+  const navigate = useNavigate()
 
   /* Subscribed whether or not the modal is open, so it opens with the list
      already there rather than flashing a skeleton every time. */
@@ -124,6 +154,8 @@ export function QuickCapture({
       setValueDraft(null)
       setTextDraft(null)
       setLast(null)
+      setNoteText(null)
+      setNoteKind('note')
     }
   }
 
@@ -165,6 +197,29 @@ export function QuickCapture({
       ? areaFor.area
       : verb.area
     : undefined
+
+  /* Entering note mode: whatever followed `note` on the line moves into the
+     sheet, and the line keeps only the word — so there is one place the note
+     is being written, not two halves of it. Done during render against the
+     previous state, like the open reset above, so no frame shows both. */
+  const isNote = verb?.kind === 'note'
+  /* A draft is never thrown away by the line: change `note` to something else
+     by accident and back, and the sheet still holds what was written. It is
+     cleared only by saving, or by closing the modal. */
+  if (isNote && (noteText === null || (noteText === '' && typed.text))) {
+    setNoteText(typed.text ?? '')
+    setInput(trimmed.split(/\s+/)[0])
+  }
+
+  useEffect(() => {
+    if (!isNote) return
+    requestAnimationFrame(() => {
+      const el = noteRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
+    })
+  }, [isNote])
 
   const slashed = trimmed.startsWith('/')
   const slashMatches = slashed ? searchVerbs(trimmed.slice(1)) : []
@@ -242,6 +297,10 @@ export function QuickCapture({
   }
 
   async function submit() {
+    if (isNote) {
+      await saveNote()
+      return
+    }
     setAttempted(true)
     setFailure(null)
     if (!result.ok) {
@@ -279,6 +338,29 @@ export function QuickCapture({
     }
   }
 
+  async function saveNote() {
+    if (noteText === null) return
+    const { title, body } = splitNote(noteText)
+    if (title.length === 0) {
+      setAttempted(true)
+      setFailure('A note needs a first line — it becomes the title.')
+      noteRef.current?.focus()
+      return
+    }
+    try {
+      const id = await createNote({ title, body, kind: noteKind })
+      setLast({ type: 'noted', id, title, text: noteText })
+      setNoteText(null)
+      setNoteKind('note')
+      setInput('')
+      setAttempted(false)
+      setFailure(null)
+      focusLine()
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : 'That did not save.')
+    }
+  }
+
   /** Undoes whatever the top row says was just done. A line logged is taken
       back and its text put back in the field, so a slip is fixed by editing
       rather than retyping; a log removed is written back as it was, time and
@@ -290,6 +372,12 @@ export function QuickCapture({
     if (action.type === 'logged') {
       await removeLog({ logId: action.id })
       takeLine(action.line)
+      return
+    }
+    if (action.type === 'noted') {
+      await removeNote({ noteId: action.id })
+      setNoteText(action.text)
+      takeLine('note')
       return
     }
     const { row } = action
@@ -360,17 +448,30 @@ export function QuickCapture({
              the highlighted verb — both are cmdk's to handle. */
           if (trimmed.length === 0 || slashed) return
           e.preventDefault()
+          /* In a note, Enter on the line means "start writing", not "save":
+             the sheet is where the note is. ⌘↵ saves from either place. */
+          if (isNote && !(e.metaKey || e.ctrlKey)) {
+            noteRef.current?.focus()
+            return
+          }
           void submit()
         }
       }}
       footer={
         <>
-          <Hint>
-            <Key>↵</Key>
-            {(trimmed.length === 0 && recents.length > 0) || slashed
-              ? 'use'
-              : 'log it'}
-          </Hint>
+          {isNote ? (
+            <Hint>
+              <Key>⌘↵</Key>
+              save note
+            </Hint>
+          ) : (
+            <Hint>
+              <Key>↵</Key>
+              {(trimmed.length === 0 && recents.length > 0) || slashed
+                ? 'use'
+                : 'log it'}
+            </Hint>
+          )}
           {/* The way into the list has to be visible, or it is one more
               thing to remember — which is the problem the list solves. */}
           {trimmed.length === 0 ? (
@@ -394,17 +495,19 @@ export function QuickCapture({
     >
       {trimmed.length === 0 && last ? (
         <div
-          key={last.type === 'logged' ? last.id : `removed-${last.row._id}`}
+          key={last.type === 'removed' ? `removed-${last.row._id}` : last.id}
           style={
             last.type === 'logged'
               ? areaVars(last.area)
-              : areaVars(last.row.area)
+              : last.type === 'noted'
+                ? areaVars('knowledge')
+                : areaVars(last.row.area)
           }
           className={`motion-arrive mx-1.5 mt-2 flex items-center gap-3 rounded-[10px] px-3.5 py-2 ${
-            last.type === 'logged' ? 'bg-(--area)/10' : 'bg-white/[0.04]'
+            last.type === 'removed' ? 'bg-white/[0.04]' : 'bg-(--area)/10'
           }`}
         >
-          {last.type === 'logged' ? (
+          {last.type !== 'removed' ? (
             <Check
               className="size-3.5 shrink-0 text-(--area)"
               strokeWidth={2.5}
@@ -413,15 +516,31 @@ export function QuickCapture({
             <Trash2 className="size-3.5 shrink-0 text-ink-500" />
           )}
           <span
-            className={`font-mono text-[13px] ${
-              last.type === 'logged'
+            className={`min-w-0 truncate text-[13px] ${
+              last.type === 'noted'
                 ? 'text-foreground'
-                : 'text-ink-500 line-through decoration-ink-600'
+                : last.type === 'logged'
+                  ? 'font-mono text-foreground'
+                  : 'font-mono text-ink-500 line-through decoration-ink-600'
             }`}
           >
-            {last.line}
+            {last.type === 'noted' ? last.title : last.line}
           </span>
-          {last.type === 'logged' ? (
+          {last.type === 'noted' ? (
+            /* Saved, and one tap from being read — no count: a note counts
+               towards nothing (notes.ts). */
+            <button
+              type="button"
+              onClick={() => {
+                onOpenChange(false)
+                void navigate({ to: '/notes/$id', params: { id: last.id } })
+              }}
+              className="motion-press flex shrink-0 items-center gap-1 text-[12px] text-(--area) hover:underline"
+            >
+              saved to notes
+              <ArrowUpRight className="size-3" />
+            </button>
+          ) : last.type === 'logged' ? (
             <span className="text-[12px] text-(--area)">
               logged
               {/* Nothing until the count has answered: a placeholder number
@@ -543,7 +662,7 @@ export function QuickCapture({
               </p>
               <button
                 type="button"
-                style={areaVars('life')}
+                style={areaVars('knowledge')}
                 onClick={() => takeLine(`note ${trimmed.slice(1)}`)}
                 className={`${AREA_CHIP} mt-3`}
               >
@@ -552,6 +671,50 @@ export function QuickCapture({
             </div>
           )}
         </Command.List>
+      ) : isNote && noteText !== null ? (
+        <div
+          key="note"
+          style={areaVars('knowledge')}
+          className="motion-arrive px-5 pt-3 pb-4"
+        >
+          <div className="flex flex-wrap items-center gap-1.5">
+            {NOTE_KINDS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => {
+                  setNoteKind(option)
+                  noteRef.current?.focus()
+                }}
+                className={`${CHIP} h-7 px-2.5 font-mono text-[10.5px] tracking-[0.12em] uppercase ${
+                  noteKind === option
+                    ? 'bg-(--area)/16 text-(--area) ring-1 ring-(--area)/40 ring-inset'
+                    : 'text-ink-500 hover:bg-(--area)/10 hover:text-(--area)'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 max-h-[46vh] overflow-y-auto rounded-[14px] bg-black/15 px-4 py-3 ring-1 ring-white/[0.06] focus-within:ring-(--area)/35">
+            <NoteEditor
+              textareaRef={noteRef}
+              value={noteText}
+              onChange={(next) => {
+                setNoteText(next)
+                setFailure(null)
+                setAttempted(false)
+              }}
+              onSubmit={() => void saveNote()}
+            />
+          </div>
+          <p
+            className={`mt-2.5 text-[12px] ${failure ? 'text-foreground' : 'text-ink-600'}`}
+          >
+            {failure ??
+              'The first line is the title. Lists carry on when you press Enter; Tab indents.'}
+          </p>
+        </div>
       ) : verb && area ? (
         /* Keyed by kind: the block arrives when the line first names a verb
            and again when it names a different one, and stays still while you
@@ -576,9 +739,16 @@ export function QuickCapture({
                 style={areaVars(area)}
                 className={`${NEUTRAL_CHIP} cursor-text focus-within:bg-(--area)/10 focus-within:ring-(--area)/55`}
               >
+                {/* The unit as an icon at the front, so every chip opens on
+                    one — the time chip already did, and a row where some
+                    chips have a lead and some do not never lines up. */}
                 {verb.unit === 'eur' ? (
-                  <span className="text-ink-500">€</span>
-                ) : null}
+                  <Euro className="size-3.5 shrink-0 text-(--area)" />
+                ) : verb.unit === 'kg' ? (
+                  <Scale className="size-3.5 shrink-0 text-(--area)" />
+                ) : (
+                  <Timer className="size-3.5 shrink-0 text-(--area)" />
+                )}
                 <input
                   data-chip-input
                   inputMode="decimal"
@@ -627,8 +797,10 @@ export function QuickCapture({
                   }`}
                   style={areaVars(area)}
                 />
-                {verb.unit && verb.unit !== 'eur' ? (
-                  <span className="text-ink-500">{verb.unit}</span>
+                {verb.unit === 'min' ? (
+                  <span className="text-ink-500">min</span>
+                ) : verb.unit === 'kg' ? (
+                  <span className="text-ink-500">kg</span>
                 ) : null}
               </label>
             ) : null}
@@ -637,6 +809,7 @@ export function QuickCapture({
               style={areaVars(area)}
               className={`${NEUTRAL_CHIP} cursor-text focus-within:bg-(--area)/10 focus-within:ring-(--area)/55`}
             >
+              <PenLine className="size-3.5 shrink-0 text-(--area)" />
               <input
                 data-chip-input
                 aria-label={verb.amount === 'none' ? 'What' : 'Words'}
@@ -810,7 +983,7 @@ export function QuickCapture({
                   : null}
                 <button
                   type="button"
-                  style={areaVars('life')}
+                  style={areaVars('knowledge')}
                   onClick={() => takeLine(`note ${trimmed}`)}
                   className={meant.length > 0 ? NEUTRAL_CHIP : AREA_CHIP}
                 >

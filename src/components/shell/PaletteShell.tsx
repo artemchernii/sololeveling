@@ -106,14 +106,30 @@ export function PaletteShell({
           </div>
         </div>
 
-        {/* cmdk handles Enter on its root and prevents the default, so a
-            focused button inside the body — a chip, a picker option — never
-            received the click Enter means. Stopped here, for buttons only:
-            list items are not buttons, and still get cmdk's selection. */}
+        {/* cmdk handles keys on its root and prevents their defaults: Enter
+            to select, the arrows and Home/End to move through the list. Inside
+            the body that is wrong in two places, and both are stopped here
+            before cmdk sees them.
+
+            A field of its own — the note sheet, a chip's input — needs every
+            key: Enter is a new line, the arrows move the caret. Escape still
+            goes through, so the dialog closes from anywhere.
+
+            A focused button needs Enter, or it never gets the click Enter
+            means. List items are not buttons, and keep cmdk's selection. */}
         <div
           className="border-t border-white/[0.07]"
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && e.target instanceof HTMLButtonElement) {
+            if (e.key === 'Escape') return
+            const target = e.target
+            const ownField =
+              target instanceof HTMLTextAreaElement ||
+              (target instanceof HTMLInputElement &&
+                target.dataset.chipInput !== undefined)
+            if (
+              ownField ||
+              (e.key === 'Enter' && target instanceof HTMLButtonElement)
+            ) {
               e.stopPropagation()
             }
           }}

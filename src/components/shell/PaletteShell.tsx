@@ -1,4 +1,5 @@
 import { Command } from 'cmdk'
+import type { CSSProperties, Ref } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
 /* The chrome both palettes wear: the scrim, the frosted box, the field with
@@ -19,6 +20,11 @@ export function PaletteShell({
   onInputKeyDown,
   footer,
   children,
+  ghost,
+  inputRef,
+  iconClassName = 'text-ink-500',
+  panelStyle,
+  fieldClassName = '',
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -30,6 +36,15 @@ export function PaletteShell({
   onInputKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
   footer: React.ReactNode
   children: React.ReactNode
+  /** The rest of a word the field is about to become, drawn in grey after
+      what has been typed. */
+  ghost?: string
+  inputRef?: Ref<HTMLInputElement>
+  iconClassName?: string
+  /** Inline, so it wins over `.glass-modal`'s own border without depending on
+      the order Tailwind emits two utilities in. */
+  panelStyle?: CSSProperties
+  fieldClassName?: string
 }) {
   return (
     <Command.Dialog
@@ -55,17 +70,40 @@ export function PaletteShell({
     >
       {/* overflow-hidden so the footer's tint stops at the rounded corner: the
           regions run edge to edge. */}
-      <div className="glass-modal overflow-hidden rounded-[22px]">
-        <div className="flex items-center gap-3 px-5">
-          <Icon className="size-5 shrink-0 text-ink-500" aria-hidden />
-          <Command.Input
-            autoFocus
-            value={value}
-            onValueChange={onValueChange}
-            onKeyDown={onInputKeyDown}
-            placeholder={placeholder}
-            className="w-full bg-transparent py-[18px] text-[18px] text-foreground outline-none placeholder:text-ink-600"
+      <div
+        style={panelStyle}
+        className="glass-modal overflow-hidden rounded-[22px] transition-[border-color] duration-(--motion-base) ease-(--motion-ease)"
+      >
+        <div
+          className={`flex items-center gap-3 px-5 transition-colors duration-(--motion-base) ease-(--motion-ease) ${fieldClassName}`}
+        >
+          <Icon
+            className={`size-5 shrink-0 transition-colors duration-(--motion-base) ${iconClassName}`}
+            aria-hidden
           />
+          <div className="relative w-full">
+            {/* The completion sits under the field, in the same face and
+                size, behind an invisible copy of what has been typed — so the
+                grey letters start exactly where the caret is. */}
+            {ghost ? (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-0 flex items-center text-[18px] whitespace-pre"
+              >
+                <span className="invisible">{value}</span>
+                <span className="text-ink-600">{ghost}</span>
+              </span>
+            ) : null}
+            <Command.Input
+              ref={inputRef}
+              autoFocus
+              value={value}
+              onValueChange={onValueChange}
+              onKeyDown={onInputKeyDown}
+              placeholder={placeholder}
+              className="relative w-full bg-transparent py-[18px] text-[18px] text-foreground outline-none placeholder:text-ink-600"
+            />
+          </div>
         </div>
 
         <div className="border-t border-white/[0.07]">{children}</div>

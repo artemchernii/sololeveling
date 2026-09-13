@@ -175,7 +175,21 @@ export const CAPTURE_VERBS = VERBS.flatMap((verb) => verb.words)
 export const CAPTURE_HINTS = VERBS.map((verb) => ({
   example: verb.example,
   hint: verb.hint,
+  area: verb.area,
 }))
+
+/** The verbs as the modal offers them when a word is not one: one chip per
+    verb, in its first spelling, tinted by the area it files under. */
+export const CAPTURE_CHOICES = VERBS.map((verb) => ({
+  word: verb.words[0],
+  area: verb.area,
+}))
+
+/** A spelling's verb, for tinting a suggestion before it is typed. */
+export function verbFor(word: string): VerbInfo | undefined {
+  const verb = BY_WORD.get(word.toLowerCase())
+  return verb ? info(verb) : undefined
+}
 
 function info(verb: Verb): VerbInfo {
   return {

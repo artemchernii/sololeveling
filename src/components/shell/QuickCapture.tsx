@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { Command } from 'cmdk'
 import { useMutation, useQuery } from 'convex/react'
-import { Clock, Plus } from 'lucide-react'
+import { Check, Clock, Plus } from 'lucide-react'
 
 import { Hint, PaletteShell } from './PaletteShell'
 import { Key } from './Key'
@@ -18,6 +18,7 @@ import {
   verbFor,
 } from '@/lib/capture-parser'
 import type { Area, LogKind } from '@/lib/capture-parser'
+import type { Id } from '../../../convex/_generated/dataModel'
 import { whenLabel } from '@/lib/format'
 
 /* PLAN.md §3: three seconds. `gym` ⏎ is still the whole of it.
@@ -30,10 +31,15 @@ import { whenLabel } from '@/lib/format'
    language.
 
    Reached three ways — the Log button, `/log` in search, and Enter on the
-   first row of an empty search — and written in one place. */
+   first row of an empty search — and written in one place.
+
+   Enter logs and stays open. An evening of catching up is several lines in a
+   row, and a modal that closed after each one made it several trips. Esc is
+   the way out, and the line just logged sits at the top with an undo, so
+   staying open is also the moment a slip is cheapest to take back. */
 
 const CHIP =
-  'motion-press inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px]'
+  'motion-press chip-focus inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px]'
 const NEUTRAL_CHIP = `${CHIP} bg-white/[0.06] text-ink-300 ring-1 ring-white/10 ring-inset hover:bg-white/10`
 const AREA_CHIP = `${CHIP} bg-(--area)/14 text-(--area) ring-1 ring-(--area)/30 ring-inset hover:bg-(--area)/22`
 
@@ -72,8 +78,16 @@ export function QuickCapture({
   const [valueDraft, setValueDraft] = useState<string | null>(null)
   const [textDraft, setTextDraft] = useState<string | null>(null)
 
+  /** The last thing logged while the modal has been open, for the ✓ row. */
+  const [justLogged, setJustLogged] = useState<{
+    id: Id<'logs'>
+    line: string
+    area: Area
+  } | null>(null)
+
   const inputRef = useRef<HTMLInputElement>(null)
   const createLog = useMutation(api.logs.create)
+  const removeLog = useMutation(api.logs.remove)
 
   /* Subscribed whether or not the modal is open, so it opens with the list
      already there rather than flashing a skeleton every time. */
@@ -94,6 +108,7 @@ export function QuickCapture({
       setFailure(null)
       setValueDraft(null)
       setTextDraft(null)
+      setJustLogged(null)
     }
   }
 
@@ -107,6 +122,8 @@ export function QuickCapture({
       at: number
     }> = []
     for (const row of recentRows ?? []) {
+      /* The row just logged is already on screen, with its undo. */
+      if (row._id === justLogged?.id) continue
       const line = lineFromLog(row)
       if (line === null || seen.has(line)) continue
       seen.add(line)
@@ -120,7 +137,7 @@ export function QuickCapture({
       if (out.length === 5) break
     }
     return out
-  }, [recentRows])
+  }, [recentRows, justLogged])
 
   const trimmed = input.trim()
   const result = parseCapture(input)
@@ -176,16 +193,38 @@ export function QuickCapture({
     if (!result.ok) {
       return
     }
+    const filed = area ?? result.log.area
     try {
-      await createLog({
+      const id = await createLog({
         ...result.log,
-        area: area ?? result.log.area,
+        area: filed,
         occurredAt: when ?? Date.now(),
       })
-      onOpenChange(false)
+      /* Back to a blank line, ready for the next one. `when` goes back to now
+         as well: a back-dated time that quietly carried over to the next line
+         would file today's thing under yesterday. */
+      setJustLogged({ id, line: trimmed, area: filed })
+      setInput('')
+      setAreaFor(null)
+      setWhen(null)
+      setPicker(null)
+      setAttempted(false)
+      setValueDraft(null)
+      setTextDraft(null)
+      focusLine()
     } catch (error) {
       setFailure(error instanceof Error ? error.message : 'That did not log.')
     }
+  }
+
+  /** Takes the log back and puts its line back in the field, so a slip is
+      corrected by editing rather than retyping. */
+  async function undo() {
+    if (!justLogged) return
+    const { id, line } = justLogged
+    setJustLogged(null)
+    await removeLog({ logId: id })
+    takeLine(line)
   }
 
   return (
@@ -249,11 +288,35 @@ export function QuickCapture({
           ) : null}
           <Hint className="ml-auto">
             <Key>esc</Key>
-            close
+            {justLogged ? 'done' : 'close'}
           </Hint>
         </>
       }
     >
+      {trimmed.length === 0 && justLogged ? (
+        <div
+          key={justLogged.id}
+          style={areaVars(justLogged.area)}
+          className="motion-arrive mx-1.5 mt-2 flex items-center gap-3 rounded-[10px] bg-(--area)/10 px-3.5 py-2"
+        >
+          <Check
+            className="size-3.5 shrink-0 text-(--area)"
+            strokeWidth={2.5}
+          />
+          <span className="font-mono text-[13px] text-foreground">
+            {justLogged.line}
+          </span>
+          <span className="text-[12px] text-(--area)">logged</span>
+          <button
+            type="button"
+            onClick={() => void undo()}
+            className="motion-press ml-auto rounded-full px-2.5 py-1 text-[12px] text-ink-400 hover:bg-white/10 hover:text-foreground"
+          >
+            undo
+          </button>
+        </div>
+      ) : null}
+
       {trimmed.length === 0 ? (
         recentRows === undefined ? (
           /* Shape, never values (§3d.2): three rows the height the recent
@@ -330,12 +393,14 @@ export function QuickCapture({
 
             {verb.amount !== 'none' ? (
               <label
-                className={`${NEUTRAL_CHIP} cursor-text focus-within:ring-white/30`}
+                style={areaVars(area)}
+                className={`${NEUTRAL_CHIP} cursor-text focus-within:bg-(--area)/10 focus-within:ring-(--area)/55`}
               >
                 {verb.unit === 'eur' ? (
                   <span className="text-ink-500">€</span>
                 ) : null}
                 <input
+                  data-chip-input
                   inputMode="decimal"
                   aria-label="Amount"
                   value={
@@ -389,20 +454,25 @@ export function QuickCapture({
             ) : null}
 
             <label
-              className={`${NEUTRAL_CHIP} cursor-text focus-within:ring-white/30`}
+              style={areaVars(area)}
+              className={`${NEUTRAL_CHIP} cursor-text focus-within:bg-(--area)/10 focus-within:ring-(--area)/55`}
             >
               <input
+                data-chip-input
                 aria-label={verb.amount === 'none' ? 'What' : 'Words'}
                 value={
                   textDraft ??
                   (result.ok ? (result.log.text ?? '') : (typed.text ?? ''))
                 }
                 placeholder={verb.amount === 'none' ? 'what?' : '+ words'}
-                size={Math.max(
-                  6,
-                  (textDraft ?? (result.ok ? (result.log.text ?? '') : ''))
-                    .length,
-                )}
+                size={
+                  1 +
+                  Math.max(
+                    6,
+                    (textDraft ?? (result.ok ? (result.log.text ?? '') : ''))
+                      .length,
+                  )
+                }
                 onFocus={(e) => e.currentTarget.select()}
                 onBlur={() => setTextDraft(null)}
                 onChange={(e) => {

@@ -166,6 +166,23 @@ h6 {
 [cmdk-input]:focus-visible {
   outline: none;
 }
+/* The same for a field inside a chip, for a different reason: the chip draws
+   its own focus ring round the whole pill, and the square outline cut straight
+   through its rounded ends. Focus is still shown — on the chip, in its area's
+   colour — just not twice. */
+[data-chip-input]:focus-visible {
+  outline: none;
+}
+/* And a chip that is itself a button: the global ring is lavender, which on a
+   teal Portuguese chip says "live" about a thing that is not. Keyboard focus
+   rings in the chip's own area colour instead, or grey where it has none. */
+.chip-focus:focus-visible {
+  /* A plain rule, not an @utility: utilities live in @layer utilities, and
+     the global ring above is unlayered, so a utility can never beat it. */
+  outline: none;
+  box-shadow: inset 0 0 0 2px
+    color-mix(in oklab, var(--area, var(--color-neutral-400)) 70%, transparent);
+}
 ::selection {
   background: var(--color-accent-800);
   color: var(--color-accent-100);
@@ -227,12 +244,12 @@ h6 {
    above it has structure to frost rather than a flat sheet to sit on.
 
    Blur derived from --glass-blur rather than picked: a scrim carries more than
-   a card because it is hiding text, and 1.6x is where the dashboard stops
+   a card because it is hiding text. 1.6x read as thick; 1.4x is where the dashboard stops
    being readable but still reads as the dashboard. */
 @utility glass-scrim {
   background-color: color-mix(in srgb, var(--color-ground) 52%, transparent);
-  backdrop-filter: blur(calc(var(--glass-blur) * 1.6)) saturate(120%);
-  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 1.6)) saturate(120%);
+  backdrop-filter: blur(calc(var(--glass-blur) * 1.4)) saturate(120%);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 1.4)) saturate(120%);
 }
 
 /* cmdk draws group headings itself, so they are styled by attribute rather

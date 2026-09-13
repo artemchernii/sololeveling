@@ -117,8 +117,10 @@ const VERBS: Array<Verb> = [
     amount: 'optional',
     defaultValue: 50,
     defaultText: 'class',
-    describe: (l) =>
-      `${l.value} min of Portuguese${l.text ? ` · ${l.text}` : ''}`,
+    /* No area in the sentence: the chip beside it says where this is filed,
+       and it can be changed — a summary that said "of Portuguese" under a
+       Career chip contradicted the thing it was summarising. */
+    describe: (l) => `${l.value} min${l.text ? ` · ${l.text}` : ''}`,
     example: 'pt',
     hint: 'a class, 50 min — or pt homework 20',
   },

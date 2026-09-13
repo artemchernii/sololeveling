@@ -106,7 +106,20 @@ export function PaletteShell({
           </div>
         </div>
 
-        <div className="border-t border-white/[0.07]">{children}</div>
+        {/* cmdk handles Enter on its root and prevents the default, so a
+            focused button inside the body — a chip, a picker option — never
+            received the click Enter means. Stopped here, for buttons only:
+            list items are not buttons, and still get cmdk's selection. */}
+        <div
+          className="border-t border-white/[0.07]"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target instanceof HTMLButtonElement) {
+              e.stopPropagation()
+            }
+          }}
+        >
+          {children}
+        </div>
 
         <div className="flex items-center gap-4 border-t border-white/[0.07] bg-black/20 px-5 py-2.5 text-[11px] text-ink-500">
           {footer}

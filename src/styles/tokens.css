@@ -74,7 +74,7 @@
   --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0, 0, 0, 0.65);
 
   /* ==========================================================================
-     APP ADDITIONS — not Nocturne. Three, each required by PLAN.md §3.
+     APP ADDITIONS — not Nocturne. Five, each with the reason it exists.
      ======================================================================= */
 
   /* 1. Near-black ground. §3 Visual asks for a "near-black ground" with
@@ -115,4 +115,40 @@
   --glass-shadow:
     inset 0 1px 0 rgba(233, 233, 237, 0.08),
     0 24px 48px -28px rgba(0, 0, 0, 0.9);
+
+  /* 4. Motion. PLAN.md §3d, written before any of it was built: two speeds and
+        one curve. Fast is feedback on the thing under your finger — hover,
+        press, focus. Base is something arriving or leaving because you asked
+        for it. Nocturne carries no motion at all, and without a token every
+        component picks its own duration and the app ends up with nine.
+        A third duration needs a written reason, here. */
+  --motion-fast: 120ms;
+  --motion-base: 220ms;
+  /* Out-weighted: quick to respond, soft to land. No overshoot — a spring
+     that bounces past its mark reads as the app celebrating, and nothing
+     here is being celebrated. */
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* 5. Area colours. §3d: colour says what a thing is — freely — and never
+        whether it is good. An area is a kind, so it gets a colour; the app
+        has been monochrome about kinds, and a badge you have to read is
+        slower than one you can see.
+
+        One OKLCH lightness and chroma for all nine, so no area is louder than
+        another — body is not more important than style because its green
+        happens to be brighter. Hues are spaced round the wheel with a gap
+        left at 265–305°, where the lavender accent lives: the accent still
+        means live and focus, and no area may be mistaken for it.
+
+        One value per area. Fills and edges are this colour at an opacity
+        (`bg-(--area)/14`), not nine more tokens each. */
+  --area-social: oklch(0.8 0.1 15);
+  --area-business: oklch(0.8 0.1 50);
+  --area-money: oklch(0.8 0.1 88);
+  --area-life: oklch(0.8 0.1 122);
+  --area-body: oklch(0.8 0.1 155);
+  --area-portuguese: oklch(0.8 0.1 190);
+  --area-knowledge: oklch(0.8 0.1 225);
+  --area-career: oklch(0.8 0.1 250);
+  --area-style: oklch(0.8 0.1 330);
 }

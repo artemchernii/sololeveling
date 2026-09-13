@@ -95,6 +95,20 @@
   --color-lav-800: var(--color-accent-800);
   --color-lav-900: var(--color-accent-900);
 
+  /* Area colours as utilities (text-area-body, bg-area-money/14). Where the
+     area is only known at runtime, set --area on the element with
+     areaVars() and use bg-(--area)/14 instead — a class name assembled from
+     a string is one Tailwind never sees and never generates. */
+  --color-area-social: var(--area-social);
+  --color-area-business: var(--area-business);
+  --color-area-money: var(--area-money);
+  --color-area-life: var(--area-life);
+  --color-area-body: var(--area-body);
+  --color-area-portuguese: var(--area-portuguese);
+  --color-area-knowledge: var(--area-knowledge);
+  --color-area-career: var(--area-career);
+  --color-area-style: var(--area-style);
+
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
@@ -155,6 +169,48 @@ h6 {
 ::selection {
   background: var(--color-accent-800);
   color: var(--color-accent-100);
+}
+
+/* §3d.1 — a state change you caused animates; the app moving on its own does
+   not. `motion-arrive` is for the first kind only: a block that appears
+   because of what you typed, a picker you opened. Never put it on something
+   that renders because a query resolved. */
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility motion-arrive {
+  animation: arrive var(--motion-base) var(--motion-ease) both;
+}
+
+/* Feedback on the thing under your finger: colour eases, and a press gives a
+   little. Fast, because feedback that lags reads as the app not hearing you. */
+@utility motion-press {
+  transition-property:
+    background-color, border-color, color, box-shadow, transform, opacity;
+  transition-duration: var(--motion-fast);
+  transition-timing-function: var(--motion-ease);
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+/* The information is in the change, not the movement (§3d.1), so a reduced-
+   motion setting removes the movement and keeps every change. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }
 
 /* The frosted panel from §3, as one class instead of inline rgba everywhere. */

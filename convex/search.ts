@@ -36,8 +36,8 @@ const hit = v.object({
   /* A second line, only where the match would otherwise be invisible — a note
      found by a word in its body needs to show that body. */
   subtitle: v.optional(v.string()),
-  /** Where Enter lands. Only projects have a page of their own; everything
-      else goes to the list it lives on. */
+  /** Where Enter lands. Projects and notes have a page of their own;
+      everything else goes to the list it lives on. */
   to: v.string(),
 })
 
@@ -136,7 +136,7 @@ export const everything = query({
         id: note._id,
         title: note.title,
         subtitle: snippet(note.body),
-        to: '/notes',
+        to: `/notes/${note._id}`,
       })
     }
 

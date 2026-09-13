@@ -52,6 +52,15 @@ export const create = mutation({
       throw new Error('task_done is written by tasks.complete, not by capture')
     }
 
+    /* A note is something written down, not something that happened, and it
+       has one home: the notes table, where the Notes page and search can find
+       it. A log of kind 'note' was a second, invisible copy of the same idea —
+       the Notes page never showed one. Refused here so the Log modal cannot
+       drift back into writing them. */
+    if (args.kind === 'note') {
+      throw new Error('A note is written to notes, not logged')
+    }
+
     /* Capture can be back-dated now, so it can also be forward-dated by a
        slip. A log is evidence that something happened, and nothing has
        happened in the future — that is intent, which is a task. Five minutes

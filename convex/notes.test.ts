@@ -86,3 +86,26 @@ describe('ownership', () => {
     ).rejects.toThrow()
   })
 })
+
+describe('notes.get', () => {
+  test('mine by id, and null for someone else or a deleted one', async () => {
+    /* One database, two people in it — so "not yours" is tested against a
+       note that exists, not one the other test instance never had. */
+    const db = convexTest(schema, modules)
+    const t = db.withIdentity({ tokenIdentifier: ME })
+    const theirs = db.withIdentity({ tokenIdentifier: SOMEONE_ELSE })
+
+    const noteId = await t.mutation(api.notes.create, {
+      title: 'Гоління',
+      body: '* Станок\n* Леза',
+    })
+    expect((await t.query(api.notes.get, { noteId }))?.body).toBe(
+      '* Станок\n* Леза',
+    )
+
+    expect(await theirs.query(api.notes.get, { noteId })).toBeNull()
+
+    await t.mutation(api.notes.remove, { noteId })
+    expect(await t.query(api.notes.get, { noteId })).toBeNull()
+  })
+})

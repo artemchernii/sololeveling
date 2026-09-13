@@ -176,8 +176,8 @@ describe('a mistake is not permanent', () => {
   test('another user cannot remove my log', async () => {
     const mine = as(ME)
     const logId = await mine.mutation(api.logs.create, {
-      kind: 'note',
-      area: 'life',
+      kind: 'workout',
+      area: 'body',
       occurredAt: Date.now(),
       text: 'mine',
     })

@@ -82,14 +82,16 @@ describe('monthCounts is six fixed tiles (PLAN.md §3 item 4)', () => {
   test('a log tagged body but of another kind does not become a workout', async () => {
     const t = as(ME)
     await t.mutation(api.logs.create, {
-      kind: 'note',
+      kind: 'expense',
       area: 'body',
       occurredAt: at('sep', 6),
-      text: 'knee felt off',
+      value: 30,
+      text: 'knee brace',
     })
 
     const counts = await t.query(api.aggregate.monthCounts, MONTH)
-    /* The tiles count kinds, not areas: a note about the body is not a workout. */
+    /* The tiles count kinds, not areas: money spent on the body is not a
+       workout. (This was a note, until notes stopped being logs.) */
     expect(counts.body.now).toBe(0)
     expect(counts.total).toBe(1)
   })

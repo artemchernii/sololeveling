@@ -80,3 +80,16 @@ describe('logs.recent', () => {
     expect(rows.map((r) => r.kind)).toEqual(['workout', 'session'])
   })
 })
+
+describe('a note is not a log', () => {
+  test('logs.create refuses kind note — notes live in notes', async () => {
+    await expect(
+      as(ME).mutation(api.logs.create, {
+        kind: 'note',
+        area: 'life',
+        occurredAt: Date.now(),
+        text: 'call the landlord',
+      }),
+    ).rejects.toThrow('written to notes')
+  })
+})

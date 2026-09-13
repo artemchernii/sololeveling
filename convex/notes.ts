@@ -143,3 +143,18 @@ export const list = query({
       .take(MAX_ROWS)
   },
 })
+
+/**
+ * One note, for its own page. Null rather than an error when it is not yours
+ * or no longer exists: a stale link — a search result for a note deleted since
+ * — is an ordinary thing to open, and the page says so instead of crashing.
+ */
+export const get = query({
+  args: { noteId: v.id('notes') },
+  returns: v.union(schema.doc('notes'), v.null()),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const note = await ctx.db.get(args.noteId)
+    return note !== null && note.ownerId === ownerId ? note : null
+  },
+})

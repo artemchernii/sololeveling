@@ -14,7 +14,7 @@ const FUTURE_GRACE_MS = 5 * 60_000
    the same gym session over and over. */
 const RECENT_ROWS = 40
 
-const logKindValidator = v.union(
+export const logKindValidator = v.union(
   v.literal('workout'),
   v.literal('weight'),
   v.literal('expense'),

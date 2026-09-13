@@ -88,6 +88,11 @@ type Verb = {
       reason as `example`, and because a unit is otherwise invisible until
       after you have typed the number. */
   hint: string
+  /** What someone who has forgotten the verb might type instead. The `/`
+      list matches these, because typing `/pt` is no help to a person who
+      does not remember `pt` — `/portuguese` or `/class` is what they reach
+      for. */
+  keywords: Array<string>
 }
 
 const VERBS: Array<Verb> = [
@@ -104,6 +109,7 @@ const VERBS: Array<Verb> = [
       l.value !== undefined ? `${l.value} min of training` : 'a gym session',
     example: 'gym',
     hint: 'a session — minutes if you want them',
+    keywords: ['training', 'exercise', 'lift', 'run', 'sport', 'fitness'],
   },
   {
     /* A class is 50 minutes, so a bare `pt` means one. The 50 is shown and
@@ -123,6 +129,14 @@ const VERBS: Array<Verb> = [
     describe: (l) => `${l.value} min${l.text ? ` · ${l.text}` : ''}`,
     example: 'pt',
     hint: 'a class, 50 min — or pt homework 20',
+    keywords: [
+      'portuguese',
+      'class',
+      'lesson',
+      'homework',
+      'language',
+      'study',
+    ],
   },
   {
     words: ['weight'],
@@ -133,6 +147,7 @@ const VERBS: Array<Verb> = [
     describe: (l) => `${l.value} kg`,
     example: 'weight 75.4',
     hint: 'a weigh-in, in kg',
+    keywords: ['weigh', 'kg', 'scale', 'kilos'],
   },
   {
     words: ['spend'],
@@ -143,6 +158,7 @@ const VERBS: Array<Verb> = [
     describe: (l) => `€${l.value}${l.text ? ` on ${l.text}` : ''}`,
     example: 'spend 48 groceries',
     hint: 'euros, and what on',
+    keywords: ['expense', 'buy', 'bought', 'paid', 'cost', 'purchase', 'euro'],
   },
   {
     words: ['invest'],
@@ -153,6 +169,15 @@ const VERBS: Array<Verb> = [
     describe: (l) => `€${l.value} invested${l.text ? ` · ${l.text}` : ''}`,
     example: 'invest 500',
     hint: 'euros into savings or investments',
+    keywords: [
+      'stock',
+      'shares',
+      'savings',
+      'transfer',
+      'etf',
+      'crypto',
+      'save',
+    ],
   },
   {
     words: ['note'],
@@ -162,6 +187,7 @@ const VERBS: Array<Verb> = [
     describe: (l) => l.text ?? '',
     example: 'note call the landlord',
     hint: 'a thought, filed under life',
+    keywords: ['thought', 'idea', 'remember', 'reminder', 'write'],
   },
 ]
 
@@ -191,6 +217,39 @@ export const CAPTURE_CHOICES = VERBS.map((verb) => ({
 export function verbFor(word: string): VerbInfo | undefined {
   const verb = BY_WORD.get(word.toLowerCase())
   return verb ? info(verb) : undefined
+}
+
+export type VerbChoice = { word: string; area: Area; hint: string }
+
+/**
+ * The verbs that fit what you typed, by name or by meaning — for the `/` list
+ * and for "that isn't a verb". An empty query is every verb, in listed order.
+ *
+ * Ordered by how the match was made, not by a score: a verb whose own name
+ * starts with the query, then one whose area or keyword does, then one whose
+ * hint merely contains it. Three tiers is a sort order anyone can predict;
+ * a weighted relevance number is not, and it would be a number with no
+ * sanctioned source.
+ */
+export function searchVerbs(query: string): Array<VerbChoice> {
+  const q = query.trim().toLowerCase()
+  const tier = (verb: Verb): number => {
+    if (q.length === 0) return 0
+    if (verb.words.some((w) => w.startsWith(q))) return 0
+    if (verb.area.startsWith(q) || verb.keywords.some((k) => k.startsWith(q))) {
+      return 1
+    }
+    if (verb.hint.toLowerCase().includes(q)) return 2
+    return -1
+  }
+  return VERBS.map((verb, index) => ({ verb, index, rank: tier(verb) }))
+    .filter(({ rank }) => rank !== -1)
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map(({ verb }) => ({
+      word: verb.words[0],
+      area: verb.area,
+      hint: verb.hint,
+    }))
 }
 
 function info(verb: Verb): VerbInfo {

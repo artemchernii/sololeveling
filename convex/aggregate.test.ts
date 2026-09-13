@@ -309,3 +309,35 @@ describe('weekCounts is the same six tiles, over weeks (PLAN.md §3)', () => {
     expect(weeks.map((w) => w.total)).toEqual([0, 0, 0])
   })
 })
+
+describe('kindCount is a log count for one kind (PLAN.md §1, source 1)', () => {
+  test('it counts that kind, in that period, and only mine', async () => {
+    const t = as(ME)
+    const log = (kind: 'workout' | 'session', when: number) =>
+      t.mutation(api.logs.create, {
+        kind,
+        area: kind === 'workout' ? 'body' : 'portuguese',
+        occurredAt: when,
+      })
+
+    await log('workout', at('sep', 3))
+    await log('workout', at('sep', 20))
+    await log('session', at('sep', 4))
+    await log('workout', at('aug', 30))
+    await t.run(async (ctx) => {
+      await ctx.db.insert('logs', {
+        ownerId: SOMEONE_ELSE,
+        kind: 'workout',
+        area: 'body',
+        occurredAt: at('sep', 5),
+      })
+    })
+
+    const count = (kind: 'workout' | 'session', start: number, end: number) =>
+      t.query(api.aggregate.kindCount, { kind, start, end })
+
+    expect(await count('workout', SEP_1, OCT_1)).toBe(2)
+    expect(await count('session', SEP_1, OCT_1)).toBe(1)
+    expect(await count('workout', AUG_1, SEP_1)).toBe(1)
+  })
+})

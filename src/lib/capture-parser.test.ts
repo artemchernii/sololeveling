@@ -4,6 +4,7 @@ import {
   formatLine,
   lineFromLog,
   parseCapture,
+  searchVerbs,
   suggestVerbs,
 } from './capture-parser'
 
@@ -227,5 +228,45 @@ describe('formatLine and lineFromLog', () => {
       const line = lineFromLog(row)!
       expect(log(line)).toMatchObject(row)
     }
+  })
+})
+
+describe('searchVerbs — the / list, by name or by meaning', () => {
+  const words = (q: string) => searchVerbs(q).map((c) => c.word)
+
+  test('nothing typed is every verb, in listed order', () => {
+    expect(words('')).toEqual([
+      'gym',
+      'pt',
+      'weight',
+      'spend',
+      'invest',
+      'note',
+    ])
+  })
+
+  test('a forgotten verb is found by what it means', () => {
+    expect(words('portuguese')).toEqual(['pt'])
+    expect(words('class')).toEqual(['pt'])
+    expect(words('training')).toEqual(['gym'])
+  })
+
+  test('an area finds every verb filed under it', () => {
+    expect(words('money')).toEqual(['spend', 'invest'])
+    expect(words('body')).toEqual(['gym', 'weight'])
+  })
+
+  test('a name match comes before a meaning match', () => {
+    // "s" starts `spend` by name, and `savings`/`shares`/`sport`… by meaning.
+    expect(words('s')[0]).toBe('spend')
+  })
+
+  test('a second spelling counts as the name, ahead of a hint', () => {
+    // `workout` is gym by name; pt's hint says "homework", which is weaker.
+    expect(words('work')).toEqual(['gym', 'pt'])
+  })
+
+  test('nothing that fits is nothing, not everything', () => {
+    expect(words('zzz')).toEqual([])
   })
 })

@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { logKindValidator } from './logs'
 import { query } from './_generated/server'
 
 /* PLAN.md §1: every number on screen comes from exactly one of four sources —
@@ -320,5 +321,40 @@ export const currentState = query({
       skills_logged: await latest('skills_logged'),
       skills_target: await latest('skills_target'),
     }
+  },
+})
+
+/**
+ * Logs of one kind in a period: the "4 this month" beside a line you have just
+ * logged, so Enter shows that it counted and not only that it saved.
+ *
+ * Source 1, a log count, the same as the tiles — for any kind capture can
+ * write, not only the six the dashboard has room for. A count and nothing
+ * else: not a streak, not a rank, not "4th". An ordinal would claim an order,
+ * and a back-dated log is not the latest one just because it was typed last.
+ *
+ * Boundaries arrive as arguments, as they do for months and weeks.
+ */
+export const kindCount = query({
+  args: {
+    kind: logKindValidator,
+    /** Epoch ms, local midnight — inclusive. */
+    start: v.number(),
+    /** Epoch ms, local midnight — exclusive. */
+    end: v.number(),
+  },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .take(MAX_ROWS)
+    return rows.filter((row) => row.kind === args.kind).length
   },
 })

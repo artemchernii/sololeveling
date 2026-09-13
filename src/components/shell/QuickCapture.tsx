@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { Command } from 'cmdk'
 import { useMutation, useQuery } from 'convex/react'
-import { Check, Clock, Plus } from 'lucide-react'
+import { Check, Clock, Plus, Trash2 } from 'lucide-react'
 
 import { Hint, PaletteShell } from './PaletteShell'
 import { Key } from './Key'
@@ -13,12 +13,13 @@ import {
   formatLine,
   lineFromLog,
   parseCapture,
+  searchVerbs,
   suggestVerbs,
   toNumber,
   verbFor,
 } from '@/lib/capture-parser'
 import type { Area, LogKind } from '@/lib/capture-parser'
-import type { Id } from '../../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { whenLabel } from '@/lib/format'
 
 /* PLAN.md §3: three seconds. `gym` ⏎ is still the whole of it.
@@ -36,7 +37,11 @@ import { whenLabel } from '@/lib/format'
    Enter logs and stays open. An evening of catching up is several lines in a
    row, and a modal that closed after each one made it several trips. Esc is
    the way out, and the line just logged sits at the top with an undo, so
-   staying open is also the moment a slip is cheapest to take back. */
+   staying open is also the moment a slip is cheapest to take back.
+
+   `/` lists every verb with what it means, and matches on the meaning — the
+   point of the list is the verb you have forgotten, so `/portuguese` has to
+   find `pt`. */
 
 const CHIP =
   'motion-press chip-focus inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px]'
@@ -78,12 +83,22 @@ export function QuickCapture({
   const [valueDraft, setValueDraft] = useState<string | null>(null)
   const [textDraft, setTextDraft] = useState<string | null>(null)
 
-  /** The last thing logged while the modal has been open, for the ✓ row. */
-  const [justLogged, setJustLogged] = useState<{
-    id: Id<'logs'>
-    line: string
-    area: Area
-  } | null>(null)
+  /* The last thing done from this modal, for the row at the top: a line
+     logged, with how many of its kind this month and an undo; or a past log
+     removed, with an undo that writes it back. One row, so the two never
+     stack and the undo always means the most recent action. */
+  const [last, setLast] = useState<
+    | {
+        type: 'logged'
+        id: Id<'logs'>
+        line: string
+        kind: LogKind
+        area: Area
+        at: number
+      }
+    | { type: 'removed'; line: string; row: Doc<'logs'> }
+    | null
+  >(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const createLog = useMutation(api.logs.create)
@@ -108,7 +123,7 @@ export function QuickCapture({
       setFailure(null)
       setValueDraft(null)
       setTextDraft(null)
-      setJustLogged(null)
+      setLast(null)
     }
   }
 
@@ -120,10 +135,11 @@ export function QuickCapture({
       kind: LogKind
       area: Area
       at: number
+      row: Doc<'logs'>
     }> = []
     for (const row of recentRows ?? []) {
       /* The row just logged is already on screen, with its undo. */
-      if (row._id === justLogged?.id) continue
+      if (last?.type === 'logged' && row._id === last.id) continue
       const line = lineFromLog(row)
       if (line === null || seen.has(line)) continue
       seen.add(line)
@@ -133,11 +149,12 @@ export function QuickCapture({
         kind: row.kind,
         area: row.area,
         at: row.occurredAt,
+        row,
       })
       if (out.length === 5) break
     }
     return out
-  }, [recentRows, justLogged])
+  }, [recentRows, last])
 
   const trimmed = input.trim()
   const result = parseCapture(input)
@@ -148,6 +165,43 @@ export function QuickCapture({
       ? areaFor.area
       : verb.area
     : undefined
+
+  const slashed = trimmed.startsWith('/')
+  const slashMatches = slashed ? searchVerbs(trimmed.slice(1)) : []
+  const [firstWord = '', ...restWords] = trimmed.split(/\s+/)
+  const rest = restWords.join(' ')
+  /** Verbs that mean the first word, when it is not one itself. */
+  const meant = verb || slashed ? [] : searchVerbs(firstWord)
+
+  /* A log count, from aggregate.ts like every other number — for the month
+     the line was logged into, which is not this month if it was back-dated. */
+  const loggedMonth = last?.type === 'logged' ? new Date(last.at) : null
+  const count = useQuery(
+    api.aggregate.kindCount,
+    last?.type === 'logged' && loggedMonth
+      ? {
+          kind: last.kind,
+          start: new Date(
+            loggedMonth.getFullYear(),
+            loggedMonth.getMonth(),
+            1,
+          ).getTime(),
+          end: new Date(
+            loggedMonth.getFullYear(),
+            loggedMonth.getMonth() + 1,
+            1,
+          ).getTime(),
+        }
+      : 'skip',
+  )
+  const now = new Date()
+  const countLabel =
+    count === undefined || loggedMonth === null
+      ? null
+      : loggedMonth.getFullYear() === now.getFullYear() &&
+          loggedMonth.getMonth() === now.getMonth()
+        ? `${count} this month`
+        : `${count} in ${loggedMonth.toLocaleDateString(undefined, { month: 'long' })}`
 
   const suggestions = suggestVerbs(
     input,
@@ -194,16 +248,24 @@ export function QuickCapture({
       return
     }
     const filed = area ?? result.log.area
+    const at = when ?? Date.now()
     try {
       const id = await createLog({
         ...result.log,
         area: filed,
-        occurredAt: when ?? Date.now(),
+        occurredAt: at,
       })
       /* Back to a blank line, ready for the next one. `when` goes back to now
          as well: a back-dated time that quietly carried over to the next line
          would file today's thing under yesterday. */
-      setJustLogged({ id, line: trimmed, area: filed })
+      setLast({
+        type: 'logged',
+        id,
+        line: trimmed,
+        kind: result.log.kind,
+        area: filed,
+        at,
+      })
       setInput('')
       setAreaFor(null)
       setWhen(null)
@@ -217,14 +279,40 @@ export function QuickCapture({
     }
   }
 
-  /** Takes the log back and puts its line back in the field, so a slip is
-      corrected by editing rather than retyping. */
+  /** Undoes whatever the top row says was just done. A line logged is taken
+      back and its text put back in the field, so a slip is fixed by editing
+      rather than retyping; a log removed is written back as it was, time and
+      all. */
   async function undo() {
-    if (!justLogged) return
-    const { id, line } = justLogged
-    setJustLogged(null)
-    await removeLog({ logId: id })
-    takeLine(line)
+    if (!last) return
+    const action = last
+    setLast(null)
+    if (action.type === 'logged') {
+      await removeLog({ logId: action.id })
+      takeLine(action.line)
+      return
+    }
+    const { row } = action
+    await createLog({
+      kind: row.kind,
+      area: row.area,
+      occurredAt: row.occurredAt,
+      value: row.value,
+      unit: row.unit,
+      text: row.text,
+      taskId: row.taskId,
+      projectId: row.projectId,
+    })
+    focusLine()
+  }
+
+  /** A past log that should not exist — logged twice, logged wrong. Removed
+      at once, with the undo row as the safety rather than a confirm dialog:
+      a question asked before every removal is one you stop reading. */
+  async function remove(recent: { line: string; row: Doc<'logs'> }) {
+    await removeLog({ logId: recent.row._id })
+    setLast({ type: 'removed', line: recent.line, row: recent.row })
+    focusLine()
   }
 
   return (
@@ -268,8 +356,9 @@ export function QuickCapture({
           return
         }
         if (e.key === 'Enter') {
-          /* An empty line lets cmdk pick the highlighted recent instead. */
-          if (trimmed.length === 0) return
+          /* An empty line picks the highlighted recent, and a slash picks
+             the highlighted verb — both are cmdk's to handle. */
+          if (trimmed.length === 0 || slashed) return
           e.preventDefault()
           void submit()
         }
@@ -278,8 +367,18 @@ export function QuickCapture({
         <>
           <Hint>
             <Key>↵</Key>
-            {trimmed.length === 0 && recents.length > 0 ? 'use' : 'log it'}
+            {(trimmed.length === 0 && recents.length > 0) || slashed
+              ? 'use'
+              : 'log it'}
           </Hint>
+          {/* The way into the list has to be visible, or it is one more
+              thing to remember — which is the problem the list solves. */}
+          {trimmed.length === 0 ? (
+            <Hint>
+              <Key>/</Key>
+              all verbs
+            </Hint>
+          ) : null}
           {ghost ? (
             <Hint className="motion-arrive">
               <Key>tab</Key>
@@ -288,25 +387,52 @@ export function QuickCapture({
           ) : null}
           <Hint className="ml-auto">
             <Key>esc</Key>
-            {justLogged ? 'done' : 'close'}
+            {last ? 'done' : 'close'}
           </Hint>
         </>
       }
     >
-      {trimmed.length === 0 && justLogged ? (
+      {trimmed.length === 0 && last ? (
         <div
-          key={justLogged.id}
-          style={areaVars(justLogged.area)}
-          className="motion-arrive mx-1.5 mt-2 flex items-center gap-3 rounded-[10px] bg-(--area)/10 px-3.5 py-2"
+          key={last.type === 'logged' ? last.id : `removed-${last.row._id}`}
+          style={
+            last.type === 'logged'
+              ? areaVars(last.area)
+              : areaVars(last.row.area)
+          }
+          className={`motion-arrive mx-1.5 mt-2 flex items-center gap-3 rounded-[10px] px-3.5 py-2 ${
+            last.type === 'logged' ? 'bg-(--area)/10' : 'bg-white/[0.04]'
+          }`}
         >
-          <Check
-            className="size-3.5 shrink-0 text-(--area)"
-            strokeWidth={2.5}
-          />
-          <span className="font-mono text-[13px] text-foreground">
-            {justLogged.line}
+          {last.type === 'logged' ? (
+            <Check
+              className="size-3.5 shrink-0 text-(--area)"
+              strokeWidth={2.5}
+            />
+          ) : (
+            <Trash2 className="size-3.5 shrink-0 text-ink-500" />
+          )}
+          <span
+            className={`font-mono text-[13px] ${
+              last.type === 'logged'
+                ? 'text-foreground'
+                : 'text-ink-500 line-through decoration-ink-600'
+            }`}
+          >
+            {last.line}
           </span>
-          <span className="text-[12px] text-(--area)">logged</span>
+          {last.type === 'logged' ? (
+            <span className="text-[12px] text-(--area)">
+              logged
+              {/* Nothing until the count has answered: a placeholder number
+                  would be a fixture (§3d.2). */}
+              {countLabel ? (
+                <span className="text-ink-400"> · {countLabel}</span>
+              ) : null}
+            </span>
+          ) : (
+            <span className="text-[12px] text-ink-500">removed</span>
+          )}
           <button
             type="button"
             onClick={() => void undo()}
@@ -338,13 +464,26 @@ export function QuickCapture({
                     takeLine(recent.line)
                   }}
                   style={areaVars(recent.area)}
-                  className="motion-press mx-1.5 flex cursor-pointer items-center gap-3 rounded-[10px] px-3.5 py-2 text-ink-300 data-[selected=true]:bg-(--area)/10 data-[selected=true]:text-foreground"
+                  className="group motion-press mx-1.5 flex cursor-pointer items-center gap-3 rounded-[10px] px-3.5 py-2 text-ink-300 data-[selected=true]:bg-(--area)/10 data-[selected=true]:text-foreground"
                 >
                   <span className="size-2 shrink-0 rounded-full bg-(--area)" />
                   <span className="font-mono text-[13px]">{recent.line}</span>
                   <span className="ml-auto text-[11.5px] text-ink-600">
                     {whenLabel(recent.at)}
                   </span>
+                  {/* Shown on the row you are on — hovered or highlighted —
+                      and always on a touch screen, which has no hover. */}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${recent.line}, ${whenLabel(recent.at)}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void remove(recent)
+                    }}
+                    className="motion-press chip-focus -my-1 -mr-2 grid size-7 place-items-center rounded-full text-ink-600 opacity-0 group-hover:opacity-100 group-data-[selected=true]:opacity-100 hover:bg-white/10 hover:text-foreground focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
                 </Command.Item>
               ))}
             </Command.Group>
@@ -372,6 +511,47 @@ export function QuickCapture({
             ))}
           </ul>
         )
+      ) : slashed ? (
+        <Command.List key="verbs" className="motion-arrive pb-2">
+          {slashMatches.length > 0 ? (
+            <Command.Group heading="Verbs">
+              {slashMatches.map((choice) => (
+                <Command.Item
+                  key={choice.word}
+                  value={choice.word}
+                  onSelect={() => takeLine(`${choice.word} `)}
+                  style={areaVars(choice.area)}
+                  className="motion-press mx-1.5 flex cursor-pointer items-center gap-3 rounded-[10px] px-3.5 py-2 text-ink-300 data-[selected=true]:bg-(--area)/10 data-[selected=true]:text-foreground"
+                >
+                  <span className="size-2 shrink-0 rounded-full bg-(--area)" />
+                  <span className="w-[72px] shrink-0 font-mono text-[13px]">
+                    {choice.word}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink-500">
+                    {choice.hint}
+                  </span>
+                  <span className="shrink-0 font-mono text-[10.5px] tracking-[0.12em] text-(--area) uppercase">
+                    {choice.area}
+                  </span>
+                </Command.Item>
+              ))}
+            </Command.Group>
+          ) : (
+            <div className="px-5 py-4">
+              <p className="text-[13px] text-ink-500">
+                No verb means “{trimmed.slice(1)}”.
+              </p>
+              <button
+                type="button"
+                style={areaVars('life')}
+                onClick={() => takeLine(`note ${trimmed.slice(1)}`)}
+                className={`${AREA_CHIP} mt-3`}
+              >
+                keep it as a note
+              </button>
+            </div>
+          )}
+        </Command.List>
       ) : verb && area ? (
         /* Keyed by kind: the block arrives when the line first names a verb
            and again when it names a different one, and stays still while you
@@ -604,30 +784,54 @@ export function QuickCapture({
           ) : (
             <div className="motion-arrive">
               <p className="text-[13px] text-ink-500">
-                “{trimmed.split(/\s+/)[0]}” isn’t a verb. Pick one, or keep it
-                as a note.
+                “{firstWord}” isn’t a verb.{' '}
+                {meant.length > 0
+                  ? 'Did you mean one of these?'
+                  : 'Pick one, or keep it as a note.'}
               </p>
+              {/* When something means what was typed, that is the answer and
+                  it leads, in its colour; the note is the fallback beside it.
+                  When nothing does, the note leads and every verb follows. */}
               <div className="mt-3 flex flex-wrap items-center gap-2">
+                {meant.length > 0
+                  ? meant.map(({ word, area: tone }) => (
+                      <button
+                        key={word}
+                        type="button"
+                        style={areaVars(tone)}
+                        /* The rest of the line comes along: `portuguese 30`
+                           becomes `pt 30`, not `pt` and a retype. */
+                        onClick={() => takeLine(`${word} ${rest}`.trim())}
+                        className={`${AREA_CHIP} font-mono`}
+                      >
+                        {word}
+                      </button>
+                    ))
+                  : null}
                 <button
                   type="button"
                   style={areaVars('life')}
                   onClick={() => takeLine(`note ${trimmed}`)}
-                  className={AREA_CHIP}
+                  className={meant.length > 0 ? NEUTRAL_CHIP : AREA_CHIP}
                 >
                   save as a note
                 </button>
-                <span className="mx-1 h-4 w-px bg-white/10" />
-                {CAPTURE_CHOICES.map(({ word, area: tone }) => (
-                  <button
-                    key={word}
-                    type="button"
-                    style={areaVars(tone)}
-                    onClick={() => takeLine(`${word} `)}
-                    className={`${NEUTRAL_CHIP} font-mono text-[12.5px] hover:text-(--area)`}
-                  >
-                    {word}
-                  </button>
-                ))}
+                {meant.length === 0 ? (
+                  <>
+                    <span className="mx-1 h-4 w-px bg-white/10" />
+                    {CAPTURE_CHOICES.map(({ word, area: tone }) => (
+                      <button
+                        key={word}
+                        type="button"
+                        style={areaVars(tone)}
+                        onClick={() => takeLine(`${word} ${rest}`.trim())}
+                        className={`${NEUTRAL_CHIP} font-mono text-[12.5px] hover:text-(--area)`}
+                      >
+                        {word}
+                      </button>
+                    ))}
+                  </>
+                ) : null}
               </div>
             </div>
           )}

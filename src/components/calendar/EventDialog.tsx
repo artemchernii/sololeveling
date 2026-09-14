@@ -3,6 +3,7 @@ import { useMutation } from 'convex/react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
+import { SaveLabel, useSave } from '@/components/Saving'
 import type { Area } from '@/lib/capture-parser'
 
 /* Creating and editing an event. Series-level only, per PLAN §3b.6: an
@@ -66,13 +67,17 @@ export function EventDialog({
   const [area, setArea] = useState<Area | ''>('')
   const [rrule, setRrule] = useState<string | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+  const saving = useSave()
+  const [deleting, setDeleting] = useState(false)
 
   /* Reset whenever the dialog is opened on something different, so an edit
      never opens showing the last thing that was edited. */
   useEffect(() => {
     if (!open) return
     setError(null)
+    /* A tick left over from a save that finished after the dialog was closed
+       must not play — its end closes the dialog. */
+    saving.settle()
     if (event) {
       setTitle(event.title)
       setStart(toLocalInput(event.startsAt))
@@ -86,7 +91,7 @@ export function EventDialog({
       setArea('')
       setRrule(undefined)
     }
-  }, [open, event, startsAt])
+  }, [open, event, startsAt, saving.settle])
 
   useEffect(() => {
     if (!open) return
@@ -111,38 +116,39 @@ export function EventDialog({
       return
     }
 
-    setSaving(true)
+    const fields = {
+      title: trimmed,
+      startsAt: startsMs,
+      endsAt: startsMs + durationMin * 60_000,
+      area: area === '' ? undefined : area,
+      rrule,
+    }
     try {
-      const fields = {
-        title: trimmed,
-        startsAt: startsMs,
-        endsAt: startsMs + durationMin * 60_000,
-        area: area === '' ? undefined : area,
-        rrule,
-      }
-      if (event) {
-        await update({ eventId: event._id, ...fields })
-      } else {
-        await create(fields)
-      }
-      onClose()
+      /* The dialog closes when the tick has been seen (onSettled below), not
+         the instant the write lands — the event is already on the grid
+         behind it by then. */
+      await saving.run(async () => {
+        if (event) {
+          await update({ eventId: event._id, ...fields })
+        } else {
+          await create(fields)
+        }
+      })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'That did not save')
-    } finally {
-      setSaving(false)
     }
   }
 
   async function destroy() {
     if (!event) return
-    setSaving(true)
+    setDeleting(true)
     try {
       await remove({ eventId: event._id })
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'That did not delete')
     } finally {
-      setSaving(false)
+      setDeleting(false)
     }
   }
 
@@ -246,7 +252,7 @@ export function EventDialog({
               <button
                 type="button"
                 onClick={destroy}
-                disabled={saving}
+                disabled={saving.busy || deleting}
                 className="text-[12px] text-ink-600 hover:text-red-300/90"
               >
                 Delete series
@@ -265,10 +271,18 @@ export function EventDialog({
               <button
                 type="button"
                 onClick={save}
-                disabled={saving}
-                className="rounded-[7px] bg-lav-300/20 px-3 py-1.5 text-[12.5px] text-foreground ring-1 ring-lav-300/40 disabled:opacity-50"
+                disabled={saving.busy || deleting}
+                className="rounded-[7px] bg-lav-300/20 px-3 py-1.5 text-[12.5px] text-foreground ring-1 ring-lav-300/40 disabled:cursor-default"
               >
-                {saving ? 'Saving…' : 'Save'}
+                <SaveLabel
+                  status={saving.status}
+                  onSettled={() => {
+                    saving.settle()
+                    onClose()
+                  }}
+                >
+                  Save
+                </SaveLabel>
               </button>
             </div>
           </div>

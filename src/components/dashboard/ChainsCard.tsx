@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { useQuery } from 'convex/react'
 
 import { api } from '../../../convex/_generated/api'
+import { SkeletonRows } from '@/components/Skeleton'
 
 /* PLAN.md §3 item 2, right column: goal → focus project → done/total · next
    action, with a FOCUS / LIVE / IDLE tag.
@@ -29,7 +30,7 @@ export function ChainsCard() {
       </div>
 
       {chains === undefined ? (
-        <p className="text-[12.5px] text-ink-600">Reading&hellip;</p>
+        <SkeletonRows rows={2} twoLine />
       ) : ordered.length === 0 ? (
         <p className="text-[13px] text-ink-500">
           No chains yet.{' '}

@@ -6,6 +6,8 @@ import { Check, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { AreaBadge } from '@/components/AreaBadge'
+import { SaveGlyph, SaveLabel, useSave } from '@/components/Saving'
+import { SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
 import { localToday, startOfLocalDay } from '@/lib/today'
 
@@ -28,6 +30,7 @@ function Quests() {
   const createTask = useMutation(api.tasks.create)
   const pickForToday = useMutation(api.tasks.pickForToday)
   const [title, setTitle] = useState('')
+  const adding = useSave()
 
   /* Completing a task removes it from this list, so the §3b.1 follow-up cannot
      live inside the row it belongs to — the row is already gone. It sits here,
@@ -38,11 +41,13 @@ function Quests() {
 
   async function add() {
     const trimmed = title.trim()
-    if (trimmed.length === 0) return
-    const id = await createTask({ title: trimmed })
-    /* Created from this screen means "I intend to do it today" — so it takes a
-       slot immediately. Created anywhere else, it waits in the backlog. */
-    await pickForToday({ taskId: id, today })
+    if (trimmed.length === 0 || adding.status === 'saving') return
+    await adding.run(async () => {
+      const id = await createTask({ title: trimmed })
+      /* Created from this screen means "I intend to do it today" — so it takes
+         a slot immediately. Created anywhere else, it waits in the backlog. */
+      await pickForToday({ taskId: id, today })
+    })
     setTitle('')
   }
 
@@ -57,7 +62,7 @@ function Quests() {
         </div>
 
         {tasks === undefined ? (
-          <p className="text-[12.5px] text-ink-600">Reading&hellip;</p>
+          <SkeletonRows rows={3} />
         ) : tasks.length === 0 ? (
           <p className="text-[13px] text-ink-500">
             Nothing picked yet. Three is the whole day.
@@ -80,7 +85,12 @@ function Quests() {
           </p>
         ) : (
           <div className="flex items-center gap-2 border-t border-white/[0.07] pt-3">
-            <Plus className="size-3.5 text-ink-600" />
+            <SaveGlyph
+              status={adding.status}
+              onSettled={adding.settle}
+              idle={<Plus className="size-3.5" />}
+              className="text-ink-600"
+            />
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -266,6 +276,9 @@ function FollowUp({
 }) {
   const createLog = useMutation(api.logs.create)
   const [minutes, setMinutes] = useState('')
+  /* The row goes when the tick has been seen, not when the write lands —
+     otherwise the confirmation is removed along with the thing it confirms. */
+  const logging = useSave()
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.07] pt-3 text-[12.5px]">
@@ -282,20 +295,30 @@ function FollowUp({
       />
       <button
         type="button"
-        onClick={async () => {
+        disabled={logging.busy}
+        onClick={() => {
           const value = Number(minutes.replace(',', '.'))
-          await createLog({
-            kind: pending.kind,
-            area: pending.area,
-            occurredAt: Date.now(),
-            value: Number.isFinite(value) && value > 0 ? value : undefined,
-            unit: 'min',
-          })
-          onDone()
+          void logging.run(() =>
+            createLog({
+              kind: pending.kind,
+              area: pending.area,
+              occurredAt: Date.now(),
+              value: Number.isFinite(value) && value > 0 ? value : undefined,
+              unit: 'min',
+            }),
+          )
         }}
         className="rounded-[5px] border border-lav-500/60 px-2 py-0.5 text-[11.5px] text-lav-300 transition-colors hover:bg-lav-900/60"
       >
-        Yes
+        <SaveLabel
+          status={logging.status}
+          onSettled={() => {
+            logging.settle()
+            onDone()
+          }}
+        >
+          Yes
+        </SaveLabel>
       </button>
       <button
         type="button"
@@ -317,7 +340,7 @@ function LoggedToday({ logs }: { logs: Array<Doc<'logs'>> | undefined }) {
       <div className="label-caps">Logged today</div>
 
       {logs === undefined ? (
-        <p className="text-[12.5px] text-ink-600">Reading&hellip;</p>
+        <SkeletonRows rows={3} />
       ) : logs.length === 0 ? (
         <p className="text-[13px] text-ink-500">
           Nothing yet. &#8984;K logs something in three seconds.

@@ -6,6 +6,8 @@ import { ChevronRight } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { NoteEditor } from '@/components/notes/NoteEditor'
+import { SaveLabel, useSave } from '@/components/Saving'
+import { SkeletonRows } from '@/components/Skeleton'
 import { Key } from '@/components/shell/Key'
 import { splitNote } from '@/lib/note-text'
 
@@ -57,16 +59,21 @@ function Notes() {
         ? allNotes
         : allNotes.filter((note) => note.kind === kind)
   const create = useMutation(api.notes.create)
+  const saving = useSave()
 
   async function save() {
+    if (saving.status === 'saving') return
     const { title, body } = splitNote(text)
     if (title.length === 0) {
       setProblem('A note needs a first line — it becomes the title.')
       return
     }
-    await create({ title, body, kind: kind === 'all' ? 'note' : kind })
+    await saving.run(() =>
+      create({ title, body, kind: kind === 'all' ? 'note' : kind }),
+    )
+    /* The words clear at once, so the next note can start; the sheet folds
+       away when the tick has been seen (below). */
     setText('')
-    setWriting(false)
     setProblem(null)
   }
 
@@ -123,10 +130,20 @@ function Notes() {
             ) : null}
             <button
               type="button"
+              disabled={saving.busy}
               onClick={() => void save()}
               className="motion-press ml-auto rounded-full bg-area-knowledge/16 px-3 py-1 text-[12px] text-area-knowledge ring-1 ring-area-knowledge/35 hover:bg-area-knowledge/24"
             >
-              Save note
+              <SaveLabel
+                status={saving.status}
+                onSettled={() => {
+                  saving.settle()
+                  /* Unless a new note was begun while the tick played. */
+                  setWriting((w) => w && text.length > 0)
+                }}
+              >
+                Save note
+              </SaveLabel>
             </button>
           </div>
         ) : null}
@@ -134,13 +151,8 @@ function Notes() {
 
       {notes === undefined ? (
         /* Shape, never values (§3d.2). */
-        <div
-          className="glass flex flex-col gap-3 rounded-[22px] p-5"
-          aria-hidden
-        >
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-4 w-1/2 rounded-full bg-white/[0.05]" />
-          ))}
+        <div className="glass rounded-[22px] p-2">
+          <SkeletonRows rows={3} rowClassName="px-3.5 py-3" line="h-[22px]" />
         </div>
       ) : notes.length === 0 ? (
         <p className="text-[13px] text-ink-500">

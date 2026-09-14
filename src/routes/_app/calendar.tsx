@@ -93,30 +93,28 @@ function Calendar() {
         </div>
       </div>
 
-      {loading ? (
-        <div className="glass rounded-[22px] p-8">
-          <p className="text-[12.5px] text-ink-600">Reading&hellip;</p>
-        </div>
-      ) : (
-        <>
-          {items.length === 0 ? (
-            /* The empty state is the screen this app opens on for a while, so
+      {/* While loading, the grid itself is the skeleton (§3d.2): seven days
+          and their hours are known before a single row is, and an empty grid
+          carries no values. Only the empty-week sentence waits for the data,
+          so it cannot claim a week is empty before it has been read. */}
+      <>
+        {!loading && items.length === 0 ? (
+          /* The empty state is the screen this app opens on for a while, so
                it says what to do rather than that there is nothing. */
-            <p className="text-[13px] text-ink-500">
-              Nothing this week. Click an hour to put something in it.
-            </p>
-          ) : null}
-          <WeekGrid
-            weekStart={weekStart}
-            items={items}
-            onSelect={openItem}
-            onCreateAt={(startsAt) => {
-              setEditing(undefined)
-              setCreatingAt(startsAt)
-            }}
-          />
-        </>
-      )}
+          <p className="text-[13px] text-ink-500">
+            Nothing this week. Click an hour to put something in it.
+          </p>
+        ) : null}
+        <WeekGrid
+          weekStart={weekStart}
+          items={items}
+          onSelect={openItem}
+          onCreateAt={(startsAt) => {
+            setEditing(undefined)
+            setCreatingAt(startsAt)
+          }}
+        />
+      </>
 
       <EventDialog
         open={editing !== undefined || creatingAt !== null}

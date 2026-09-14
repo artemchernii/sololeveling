@@ -6,6 +6,8 @@ import { ArrowUp, Plus, Trash2 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import { AreaBadge } from '@/components/AreaBadge'
+import { SaveGlyph, useSave } from '@/components/Saving'
+import { SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
 import { localToday } from '@/lib/today'
 
@@ -29,13 +31,14 @@ function Backlog() {
 
   const [title, setTitle] = useState('')
   const [refusal, setRefusal] = useState<string | null>(null)
+  const adding = useSave()
 
   const full = (picked?.length ?? 0) >= 3
 
   async function add() {
     const trimmed = title.trim()
-    if (trimmed.length === 0) return
-    await createTask({ title: trimmed })
+    if (trimmed.length === 0 || adding.status === 'saving') return
+    await adding.run(() => createTask({ title: trimmed }))
     setTitle('')
   }
 
@@ -65,7 +68,12 @@ function Backlog() {
       </div>
 
       <div className="flex items-center gap-2 border-b border-white/[0.07] pb-3">
-        <Plus className="size-3.5 text-ink-600" />
+        <SaveGlyph
+          status={adding.status}
+          onSettled={adding.settle}
+          idle={<Plus className="size-3.5" />}
+          className="text-ink-600"
+        />
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -78,7 +86,7 @@ function Backlog() {
       </div>
 
       {tasks === undefined ? (
-        <p className="text-[12.5px] text-ink-600">Reading&hellip;</p>
+        <SkeletonRows rows={4} line="h-[26px]" />
       ) : tasks.length === 0 ? (
         <p className="text-[13px] text-ink-500">
           Empty. Everything you have written down is either done or on today.

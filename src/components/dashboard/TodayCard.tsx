@@ -1,3 +1,4 @@
+import { SkeletonRows } from '@/components/Skeleton'
 import { bookedHoursLine, buildTimeline } from '@/lib/timeline'
 import type { Doc } from '../../../convex/_generated/dataModel'
 
@@ -44,7 +45,7 @@ export function TodayCard({
       </div>
 
       {tasks === undefined ? (
-        <p className="text-[12.5px] text-ink-600">Reading&hellip;</p>
+        <SkeletonRows rows={3} />
       ) : items.length === 0 ? (
         <p className="text-[13px] text-ink-500">
           Nothing at a time today. Give a quest an hour and it appears here.

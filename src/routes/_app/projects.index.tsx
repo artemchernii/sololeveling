@@ -7,6 +7,8 @@ import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { ChainCard } from '@/components/chains/ChainCard'
 import { AREAS } from '@/components/AreaBadge'
+import { SaveLabel, useSave } from '@/components/Saving'
+import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
 
 export const Route = createFileRoute('/_app/projects/')({
@@ -36,7 +38,29 @@ function Chains() {
       <NewChain />
 
       {chains === undefined ? (
-        <p className="text-[12.5px] text-ink-600">Reading&hellip;</p>
+        /* The focus card with its open tasks, then two quiet ones (§3c.2). */
+        <div role="status" aria-label="Loading" className="contents">
+          <div className="glass flex flex-col gap-3 rounded-[22px] p-5">
+            <div className="flex h-[23px] items-center">
+              <Skeleton className="h-3.5 w-1/3" />
+            </div>
+            <Skeleton className="h-2.5 w-1/4" />
+            <SkeletonRows rows={3} />
+          </div>
+          <div className="grid gap-[18px] md:grid-cols-2">
+            {[0, 1].map((i) => (
+              <div
+                key={i}
+                className="glass flex flex-col gap-3 rounded-[22px] p-5"
+              >
+                <div className="flex h-[23px] items-center">
+                  <Skeleton className="h-3.5 w-2/5" />
+                </div>
+                <Skeleton className="w-1/2" />
+              </div>
+            ))}
+          </div>
+        </div>
       ) : chains.length === 0 ? (
         <div className="glass rounded-[22px] p-6">
           <p className="text-[13px] text-ink-500">
@@ -92,27 +116,37 @@ function NewChain() {
   const [area, setArea] = useState<Area>('business')
   const [deadline, setDeadline] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const starting = useSave()
 
   async function submit() {
+    if (starting.busy) return
     if (goal.trim().length === 0 || project.trim().length === 0) {
       setError('A chain needs both a goal and a first project.')
       return
     }
     try {
-      const goalId = await createGoal({ title: goal.trim(), area })
-      await createProject({
-        goalId,
-        title: project.trim(),
-        deadline: deadline.length > 0 ? deadline : undefined,
+      await starting.run(async () => {
+        const goalId = await createGoal({ title: goal.trim(), area })
+        await createProject({
+          goalId,
+          title: project.trim(),
+          deadline: deadline.length > 0 ? deadline : undefined,
+        })
       })
-      setGoal('')
-      setProject('')
-      setDeadline('')
       setError(null)
-      setOpen(false)
     } catch {
       setError('That did not work.')
     }
+  }
+
+  /* The form closes once the tick has been seen, and only then clears — the
+     chain has already appeared below it by then. */
+  function finish() {
+    starting.settle()
+    setGoal('')
+    setProject('')
+    setDeadline('')
+    setOpen(false)
   }
 
   if (!open) {
@@ -183,17 +217,22 @@ function NewChain() {
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setOpen(false)}
+            onClick={
+              starting.status === 'saved' ? finish : () => setOpen(false)
+            }
             className="text-[12px] text-ink-600 transition-colors hover:text-ink-400"
           >
             Cancel
           </button>
           <button
             type="button"
+            disabled={starting.busy}
             onClick={() => void submit()}
             className="rounded-[7px] border border-lav-500/60 px-3 py-1 text-[12px] text-lav-300 transition-colors hover:bg-lav-900/60"
           >
-            Start it
+            <SaveLabel status={starting.status} onSettled={finish}>
+              Start it
+            </SaveLabel>
           </button>
         </div>
       </div>

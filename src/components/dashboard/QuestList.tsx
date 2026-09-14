@@ -5,6 +5,7 @@ import { Check } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { AreaBadge } from '@/components/AreaBadge'
+import { SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
 
 /* PLAN.md §3 item 5. At most three; when the slots are full the "add"
@@ -31,7 +32,7 @@ export function QuestList({
       </div>
 
       {tasks === undefined ? (
-        <p className="text-[12.5px] text-ink-600">Reading&hellip;</p>
+        <SkeletonRows rows={3} />
       ) : tasks.length === 0 ? (
         <p className="text-[13px] text-ink-500">
           Nothing picked yet. Three is the whole day &mdash; choose them on{' '}

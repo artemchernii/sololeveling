@@ -285,6 +285,48 @@ h6 {
   }
 }
 
+/* A write you started (§3d.1 — you caused it, so it may move). Three states:
+   waiting, done, back to rest. See components/Saving.tsx.
+
+   The spinner is held back by --motion-fast. Most Convex writes land inside
+   that, and a ring that flashes for 60ms is noise, not feedback — so a quick
+   save goes straight from the label to the tick, and only a slow one shows it
+   is still waiting. §3d.2 keeps spinners for things with no knowable shape; a
+   pending write is exactly that. */
+@keyframes save-appear {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes save-vanish {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes save-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@utility save-spinner {
+  animation:
+    save-appear var(--motion-fast) var(--motion-ease) var(--motion-fast) both,
+    save-turn var(--motion-spin) linear infinite;
+}
+/* The label under a spinner gives way on the same delay, so a fast save never
+   blanks the button. */
+@utility save-yield {
+  animation: save-vanish var(--motion-fast) var(--motion-ease)
+    var(--motion-fast) both;
+}
+/* The tick draws (motion-draw), is seen, and leaves at linger — a thing on its
+   way out, which is what linger exists for. Its end is what hands the control
+   back, so nothing here keeps a timer. */
+@utility save-done {
+  animation: save-vanish var(--motion-linger) var(--motion-ease)
+    var(--motion-base) both;
+}
+
 /* The information is in the change, not the movement (§3d.1), so a reduced-
    motion setting removes the movement and keeps every change. */
 @media (prefers-reduced-motion: reduce) {

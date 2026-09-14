@@ -1,6 +1,8 @@
 import { ClerkProvider } from '@clerk/tanstack-react-start'
 import { dark } from '@clerk/themes'
 
+import { useTheme } from '@/integrations/theme/provider'
+
 /* Must sit OUTSIDE the Convex provider: ConvexProviderWithClerk calls Clerk's
    useAuth(), which needs this context above it.
 
@@ -22,22 +24,36 @@ const NOCTURNE = {
   accent: '#968ae0', // --color-accent-500
 }
 
+/* The light theme's equivalents (tokens.css, 7), for the same reason as
+   above: Clerk derives its variants from literal colours. */
+const MILKY = {
+  ground: '#f4f0e9', // --color-ground
+  panel: '#fbf9f5', // --color-bg
+  surface: '#ece8e1', // --color-surface
+  text: '#26232f', // --color-text
+  accent: '#6e5bc8', // --color-accent
+}
+
 export default function AppClerkProvider({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const { resolved } = useTheme()
+  const colors = resolved === 'dark' ? NOCTURNE : MILKY
+
   return (
     <ClerkProvider
       appearance={{
-        theme: dark,
+        /* Clerk's default is its light theme, so light needs no base. */
+        theme: resolved === 'dark' ? dark : undefined,
         variables: {
-          colorBackground: NOCTURNE.panel,
-          colorPrimary: NOCTURNE.accent,
-          colorForeground: NOCTURNE.text,
-          colorInput: NOCTURNE.surface,
-          colorInputForeground: NOCTURNE.text,
-          colorModalBackdrop: NOCTURNE.ground,
+          colorBackground: colors.panel,
+          colorPrimary: colors.accent,
+          colorForeground: colors.text,
+          colorInput: colors.surface,
+          colorInputForeground: colors.text,
+          colorModalBackdrop: colors.ground,
           borderRadius: '10px',
         },
         elements: {

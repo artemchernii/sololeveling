@@ -5,9 +5,11 @@
 @plugin '@tailwindcss/typography';
 @import 'tw-animate-css';
 
-/* SOLO LEVELING is dark-only. There is no light theme and no theme toggle —
-   PLAN.md §3 describes one ground. shadcn components read the semantic names
-   below; those names are the ONLY bridge between shadcn and Nocturne. */
+/* Dark by default — PLAN.md §3's ground — and light when <html data-theme>
+   says so (tokens.css, 7; lib/theme.ts). Nothing below names a theme: every
+   semantic name points at a token, and the tokens change underneath. shadcn
+   components read these names; they are the ONLY bridge between shadcn and
+   Nocturne. */
 
 :root {
   --background: var(--color-ground);

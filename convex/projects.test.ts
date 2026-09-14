@@ -245,3 +245,34 @@ describe('a chain is removable, and takes nothing down with it', () => {
     ).rejects.toThrow('No such project')
   })
 })
+
+/* A chain's page is reached by URL, and a URL can be anything: pasted wrong,
+   left over from a deleted chain, cut short. None of those is a crash — the
+   page says "No such chain" — so the reads it makes answer null and empty
+   rather than throwing an argument error the page cannot catch. */
+describe('a chain page read by a bad link', () => {
+  test('an id that is not a chain id reads as no chain', async () => {
+    const t = as(ME)
+    expect(
+      await t.query(api.projects.get, { projectId: 'not-an-id' }),
+    ).toBeNull()
+    expect(
+      await t.query(api.tasks.listByProject, { projectId: 'not-an-id' }),
+    ).toEqual([])
+  })
+
+  test('a deleted chain, or someone else’s, reads as no chain', async () => {
+    const db = convexTest(schema, modules)
+    const mine = db.withIdentity({ tokenIdentifier: ME })
+    const theirs = db.withIdentity({ tokenIdentifier: SOMEONE_ELSE })
+    const projectId = await chain(mine, 'Oreum')
+
+    expect(await theirs.query(api.tasks.listByProject, { projectId })).toEqual(
+      [],
+    )
+
+    await mine.mutation(api.projects.remove, { projectId })
+    expect(await mine.query(api.projects.get, { projectId })).toBeNull()
+    expect(await mine.query(api.tasks.listByProject, { projectId })).toEqual([])
+  })
+})

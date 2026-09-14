@@ -148,13 +148,17 @@ export const list = query({
  * One note, for its own page. Null rather than an error when it is not yours
  * or no longer exists: a stale link — a search result for a note deleted since
  * — is an ordinary thing to open, and the page says so instead of crashing.
+ * The id is a plain string for the same reason: a malformed link is "no such
+ * note" too, not an argument-validation error the page cannot catch.
  */
 export const get = query({
-  args: { noteId: v.id('notes') },
+  args: { noteId: v.string() },
   returns: v.union(schema.doc('notes'), v.null()),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    const note = await ctx.db.get(args.noteId)
+    const noteId = ctx.db.normalizeId('notes', args.noteId)
+    if (noteId === null) return null
+    const note = await ctx.db.get(noteId)
     return note !== null && note.ownerId === ownerId ? note : null
   },
 })

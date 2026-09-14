@@ -327,6 +327,16 @@ h6 {
     var(--motion-base) both;
 }
 
+/* The offline pill (shell/ConnectionStatus). Held back by --motion-linger, so
+   a drop shorter than that — a token refresh, a laptop waking — never shows.
+   The app changing state on its own does not normally move (§3d.1); this is
+   the exception because the change is the whole message, and it fades rather
+   than slides. */
+@utility offline-appear {
+  animation: save-appear var(--motion-base) var(--motion-ease)
+    var(--motion-linger) both;
+}
+
 /* The information is in the change, not the movement (§3d.1), so a reduced-
    motion setting removes the movement and keeps every change. */
 @media (prefers-reduced-motion: reduce) {

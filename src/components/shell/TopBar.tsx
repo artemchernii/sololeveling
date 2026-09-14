@@ -1,6 +1,7 @@
 import { UserButton } from '@clerk/tanstack-react-start'
 import { Bell, Plus, Search } from 'lucide-react'
 
+import { ConnectionStatus } from './ConnectionStatus'
 import { Key } from './Key'
 
 /* PLAN.md §3: ■ SOLO LEVELING · Search ⌘K · bell · ARTEM ▾, plus the persistent
@@ -41,6 +42,7 @@ export function TopBar({
         <span className="text-[12px] font-medium tracking-[0.2em] text-foreground">
           SOLO LEVELING
         </span>
+        <ConnectionStatus />
       </div>
 
       <div className="flex items-center gap-3">

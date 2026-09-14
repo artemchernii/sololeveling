@@ -4,6 +4,8 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import ClerkProvider from '../integrations/clerk/provider'
 import ConvexProvider from '../integrations/convex/provider'
+import ThemeProvider from '../integrations/theme/provider'
+import { THEME_SCRIPT } from '../lib/theme'
 
 import appCss from '../styles.css?url'
 
@@ -12,7 +14,9 @@ export const Route = createRootRoute({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { name: 'color-scheme', content: 'dark' },
+      /* Both, so form controls and scrollbars follow whichever theme
+         <html data-theme> sets (tokens.css sets color-scheme per theme). */
+      { name: 'color-scheme', content: 'dark light' },
       { title: 'SOLO LEVELING' },
       /* PLAN.md §1 asks for a PWA manifest, so the phone can keep this on a
          home screen rather than in a tab. A manifest and icons only — there is
@@ -38,26 +42,33 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    /* The head script sets data-theme and data-palette before React hydrates,
+       so the server's <html> and the browser's differ on purpose. */
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* First in <head>: the theme is decided before anything paints
+            (lib/theme.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
         {/* Clerk outside Convex — ConvexProviderWithClerk reads Clerk's context. */}
-        <ClerkProvider>
-          <ConvexProvider>
-            {children}
-            <TanStackDevtools
-              config={{ position: 'bottom-right' }}
-              plugins={[
-                {
-                  name: 'Tanstack Router',
-                  render: <TanStackRouterDevtoolsPanel />,
-                },
-              ]}
-            />
-          </ConvexProvider>
-        </ClerkProvider>
+        <ThemeProvider>
+          <ClerkProvider>
+            <ConvexProvider>
+              {children}
+              <TanStackDevtools
+                config={{ position: 'bottom-right' }}
+                plugins={[
+                  {
+                    name: 'Tanstack Router',
+                    render: <TanStackRouterDevtoolsPanel />,
+                  },
+                ]}
+              />
+            </ConvexProvider>
+          </ClerkProvider>
+        </ThemeProvider>
         <Scripts />
       </body>
     </html>

@@ -329,6 +329,16 @@ in visual form, and the distinction is the whole of it:
 Lavender remains reserved for live and focus things (§3 Visual). Colour added
 under this rule is additional vocabulary, not a licence to repaint that.
 
+**4. Light as well as dark** (decided 14 Sep). The dark ground above stays the
+default and the design's voice. A light theme exists because Artem's day has
+daylight in it: the app follows the device's appearance — macOS and iOS "Auto"
+switch at sunset — and Settings can force Light or Dark on one device. It is
+made of tokens, not components: components mix `lift` and `sink` instead of
+white and black (`tokens.css` item 6), and the light theme redefines those,
+turns the grey and lavender ramps around so each step keeps its role, and
+darkens the area colours to one shared lightness. Three light palettes are on
+trial (milky glass, cool paper, soft dusk); when one is kept, the others and
+the picker are deleted. Everything in 1–3 holds in both themes.
 ---
 
 ## 4. Phases

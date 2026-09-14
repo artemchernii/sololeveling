@@ -10,6 +10,7 @@ import { QuickCapture } from '@/components/shell/QuickCapture'
 import { SearchPalette } from '@/components/shell/SearchPalette'
 import { SideNav } from '@/components/shell/SideNav'
 import { TopBar } from '@/components/shell/TopBar'
+import { WriteFailureNotice } from '@/components/shell/WriteFailureNotice'
 
 /* Guard runs on the server (PLAN.md §1: "Clerk guard in beforeLoad"), so an
    unauthenticated request never renders the shell at all. This checks only
@@ -120,6 +121,7 @@ function AppShell() {
         onOpenChange={(next) => setOverlay(next ? 'capture' : null)}
         initialInput={capturePrefill}
       />
+      <WriteFailureNotice />
     </div>
   )
 }

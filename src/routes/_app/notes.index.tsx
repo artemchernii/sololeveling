@@ -98,7 +98,7 @@ function Notes() {
               'motion-press rounded-full px-3 py-1 text-[12px]',
               kind === option.value
                 ? 'bg-(--area)/16 text-(--area) ring-1 ring-(--area)/40'
-                : 'bg-white/[0.05] text-ink-500 ring-1 ring-white/10 hover:text-ink-300',
+                : 'bg-lift/[0.05] text-ink-500 ring-1 ring-lift/10 hover:text-ink-300',
             ].join(' ')}
           >
             {option.label}
@@ -123,7 +123,7 @@ function Notes() {
           className={writing ? '' : 'max-h-[26px] overflow-hidden'}
         />
         {writing ? (
-          <div className="motion-arrive mt-3 flex items-center gap-3 border-t border-white/[0.06] pt-3 text-[11.5px] text-ink-500">
+          <div className="motion-arrive mt-3 flex items-center gap-3 border-t border-lift/[0.06] pt-3 text-[11.5px] text-ink-500">
             <span className="flex items-center gap-[7px]">
               <Key>⌘↵</Key>
               save
@@ -170,7 +170,7 @@ function Notes() {
                 key={note._id}
                 to="/notes/$id"
                 params={{ id: note._id }}
-                className="group motion-press flex items-center gap-3 rounded-[14px] px-3.5 py-3 hover:bg-white/[0.04]"
+                className="group motion-press flex items-center gap-3 rounded-[14px] px-3.5 py-3 hover:bg-lift/[0.04]"
               >
                 <span className="size-1.5 shrink-0 rounded-full bg-area-knowledge/70" />
                 <span className="min-w-0 flex-1">

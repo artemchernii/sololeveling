@@ -85,14 +85,14 @@ function Reviews() {
           <button
             type="button"
             onClick={() => setWeekStart(addWeeks(weekStart, -1))}
-            className="rounded-[7px] bg-white/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-white/10"
+            className="rounded-[7px] bg-lift/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-lift/10"
           >
             ←
           </button>
           <button
             type="button"
             onClick={() => setWeekStart(startOfWeek(new Date()))}
-            className="rounded-[7px] bg-white/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-white/10"
+            className="rounded-[7px] bg-lift/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-lift/10"
           >
             This week
           </button>
@@ -100,7 +100,7 @@ function Reviews() {
             type="button"
             disabled={isCurrentWeek}
             onClick={() => setWeekStart(addWeeks(weekStart, 1))}
-            className="rounded-[7px] bg-white/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-white/10 disabled:opacity-40"
+            className="rounded-[7px] bg-lift/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-lift/10 disabled:opacity-40"
           >
             →
           </button>
@@ -159,7 +159,7 @@ function ReviewSkeleton() {
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <div
               key={i}
-              className="flex h-[92px] flex-col justify-center gap-3 rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4"
+              className="flex h-[92px] flex-col justify-center gap-3 rounded-[16px] border border-lift/[0.06] bg-lift/[0.02] p-4"
             >
               <Skeleton className="h-2.5 w-1/3" />
               <Skeleton className="h-6 w-1/4" />

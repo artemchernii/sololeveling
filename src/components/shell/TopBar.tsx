@@ -65,7 +65,7 @@ export function TopBar({
         <button
           type="button"
           onClick={onSearch}
-          className="hidden h-9 w-[180px] items-center gap-2.5 rounded-[10px] border border-white/10 bg-black/20 pr-2 pl-3 text-[12.5px] text-ink-400 transition-colors hover:border-white/20 md:flex"
+          className="hidden h-9 w-[180px] items-center gap-2.5 rounded-[10px] border border-lift/10 bg-sink/20 pr-2 pl-3 text-[12.5px] text-ink-400 transition-colors hover:border-lift/20 md:flex"
         >
           <Search className="size-[18px] shrink-0 text-ink-500" />
           Search
@@ -77,7 +77,7 @@ export function TopBar({
         <button
           type="button"
           disabled
-          className="relative hidden size-9 place-items-center rounded-[10px] border border-white/10 bg-black/20 text-ink-400 disabled:cursor-default md:grid"
+          className="relative hidden size-9 place-items-center rounded-[10px] border border-lift/10 bg-sink/20 text-ink-400 disabled:cursor-default md:grid"
           aria-label="Notifications"
         >
           <Bell className="size-4" />
@@ -93,12 +93,12 @@ export function TopBar({
         <span className="relative grid size-9 shrink-0 place-items-center">
           <span
             aria-hidden
-            className="absolute inset-0 rounded-[10px] bg-white/[0.06]"
+            className="absolute inset-0 rounded-[10px] bg-lift/[0.06]"
           />
           <ClerkLoading>
             <span
               aria-hidden
-              className="motion-breathe absolute inset-0 rounded-[10px] bg-white/[0.06]"
+              className="motion-breathe absolute inset-0 rounded-[10px] bg-lift/[0.06]"
             />
           </ClerkLoading>
           <ClerkLoaded>

@@ -75,21 +75,21 @@ function Calendar() {
           <button
             type="button"
             onClick={() => setWeekStart(addDays(weekStart, -7))}
-            className="rounded-[7px] bg-white/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-white/10"
+            className="rounded-[7px] bg-lift/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-lift/10"
           >
             ←
           </button>
           <button
             type="button"
             onClick={() => setWeekStart(startOfWeek(new Date()))}
-            className="rounded-[7px] bg-white/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-white/10"
+            className="rounded-[7px] bg-lift/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-lift/10"
           >
             This week
           </button>
           <button
             type="button"
             onClick={() => setWeekStart(addDays(weekStart, 7))}
-            className="rounded-[7px] bg-white/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-white/10"
+            className="rounded-[7px] bg-lift/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-lift/10"
           >
             →
           </button>

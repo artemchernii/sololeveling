@@ -48,7 +48,7 @@ function Principles() {
           {principles.map((principle, index) => (
             <div
               key={principle._id}
-              className="flex items-baseline gap-4 border-b border-white/[0.05] px-4 py-4 last:border-b-0"
+              className="flex items-baseline gap-4 border-b border-lift/[0.05] px-4 py-4 last:border-b-0"
             >
               <span className="font-mono text-[11px] text-ink-700">
                 {String(index + 1).padStart(2, '0')}

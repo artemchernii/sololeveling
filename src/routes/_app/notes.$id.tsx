@@ -56,9 +56,9 @@ function NotePage() {
   if (note === undefined) {
     return (
       <div className="glass flex flex-col gap-3 rounded-[22px] p-6" aria-hidden>
-        <div className="h-6 w-2/5 rounded-full bg-white/[0.06]" />
+        <div className="h-6 w-2/5 rounded-full bg-lift/[0.06]" />
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-4 w-3/5 rounded-full bg-white/[0.04]" />
+          <div key={i} className="h-4 w-3/5 rounded-full bg-lift/[0.04]" />
         ))}
       </div>
     )
@@ -102,7 +102,7 @@ function NotePage() {
       <div className="flex items-center gap-2">
         <Link
           to="/notes"
-          className="motion-press flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] text-ink-500 hover:bg-white/[0.05] hover:text-foreground"
+          className="motion-press flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] text-ink-500 hover:bg-lift/[0.05] hover:text-foreground"
         >
           <ArrowLeft className="size-3.5" />
           Notes
@@ -131,7 +131,7 @@ function NotePage() {
           className={`motion-press flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] ring-1 ${
             editing
               ? 'bg-(--area)/16 text-(--area) ring-(--area)/40'
-              : 'text-ink-400 ring-white/10 hover:text-foreground'
+              : 'text-ink-400 ring-lift/10 hover:text-foreground'
           }`}
         >
           <PenLine className="size-3.5" />
@@ -150,7 +150,7 @@ function NotePage() {
           onBlur={() => setConfirmDelete(false)}
           className={`motion-press flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] ring-1 ${
             confirmDelete
-              ? 'bg-white/[0.08] text-foreground ring-white/25'
+              ? 'bg-lift/[0.08] text-foreground ring-lift/25'
               : 'text-ink-600 ring-transparent hover:text-ink-300'
           }`}
         >

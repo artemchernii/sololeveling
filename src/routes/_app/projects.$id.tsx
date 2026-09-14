@@ -56,7 +56,7 @@ function Chain() {
             <Skeleton className="h-5 w-2/5" />
           </div>
           <Skeleton className="h-2.5 w-1/4" />
-          <div className="flex h-[38px] items-end border-t border-white/[0.07]">
+          <div className="flex h-[38px] items-end border-t border-lift/[0.07]">
             <Skeleton className="h-[26px] w-3/5 rounded-[7px]" />
           </div>
         </div>
@@ -119,7 +119,7 @@ function Chain() {
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-2 border-t border-white/[0.07] pt-3">
+        <div className="flex flex-wrap gap-2 border-t border-lift/[0.07] pt-3">
           {project.status === 'focus' ? (
             <span className="label-caps rounded-[6px] bg-lav-900/70 px-2 py-1 text-lav-300">
               This is the focus
@@ -169,13 +169,13 @@ function Chain() {
             {open.map((task) => (
               <div
                 key={task._id}
-                className="flex items-center gap-3 border-b border-white/[0.05] py-2.5 last:border-b-0"
+                className="flex items-center gap-3 border-b border-lift/[0.05] py-2.5 last:border-b-0"
               >
                 <button
                   type="button"
                   aria-label={`Complete ${task.title}`}
                   onClick={() => void complete({ taskId: task._id })}
-                  className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-white/15 text-transparent transition-colors hover:border-lav-500 hover:text-lav-300"
+                  className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-lift/15 text-transparent transition-colors hover:border-lav-500 hover:text-lav-300"
                 >
                   <Check className="size-3" />
                 </button>
@@ -193,7 +193,7 @@ function Chain() {
           </div>
         )}
 
-        <div className="flex items-center gap-2 border-t border-white/[0.07] pt-3">
+        <div className="flex items-center gap-2 border-t border-lift/[0.07] pt-3">
           <SaveGlyph
             status={adding.status}
             onSettled={adding.settle}
@@ -237,7 +237,7 @@ function Action({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-[7px] border border-white/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-white/20 hover:text-ink-200"
+      className="rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lift/20 hover:text-ink-200"
     >
       {children}
     </button>

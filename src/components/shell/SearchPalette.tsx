@@ -217,7 +217,7 @@ function Row({
     <Command.Item
       value={value}
       onSelect={onSelect}
-      className="mx-1.5 flex cursor-pointer items-center gap-3 rounded-[10px] px-3.5 py-2 text-[13.5px] text-ink-300 data-[selected=true]:bg-white/[0.07] data-[selected=true]:text-foreground"
+      className="mx-1.5 flex cursor-pointer items-center gap-3 rounded-[10px] px-3.5 py-2 text-[13.5px] text-ink-300 data-[selected=true]:bg-lift/[0.07] data-[selected=true]:text-foreground"
     >
       <Icon className="size-4 shrink-0 text-ink-500" aria-hidden />
       <span className="min-w-0 flex-1">

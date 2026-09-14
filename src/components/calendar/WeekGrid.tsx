@@ -51,7 +51,7 @@ export function WeekGrid({
 
   return (
     <div className="glass overflow-hidden rounded-[22px]">
-      <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-white/[0.06]">
+      <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-lift/[0.06]">
         <div />
         {days.map((day) => {
           const isToday = startOfDay(day).getTime() === todayKey
@@ -81,7 +81,7 @@ export function WeekGrid({
           {HOURS.map((hour) => (
             <div
               key={hour}
-              className="relative border-b border-white/[0.04]"
+              className="relative border-b border-lift/[0.04]"
               style={{ height: ROW_HEIGHT }}
             >
               <span className="absolute -top-[7px] right-2 font-mono text-[10px] text-ink-700">
@@ -101,7 +101,7 @@ export function WeekGrid({
           return (
             <div
               key={day.getTime()}
-              className="relative border-l border-white/[0.04]"
+              className="relative border-l border-lift/[0.04]"
             >
               {HOURS.map((hour) => (
                 <button
@@ -111,7 +111,7 @@ export function WeekGrid({
                   onClick={() =>
                     onCreateAt(new Date(day).setHours(hour, 0, 0, 0))
                   }
-                  className="block w-full border-b border-white/[0.04] transition-colors hover:bg-white/[0.03]"
+                  className="block w-full border-b border-lift/[0.04] transition-colors hover:bg-lift/[0.03]"
                   style={{ height: ROW_HEIGHT }}
                 />
               ))}
@@ -131,7 +131,7 @@ export function WeekGrid({
                          the first, per the design voice. */
                       item.source === 'task'
                         ? 'bg-lav-300/15 ring-1 ring-lav-300/30'
-                        : 'bg-white/[0.07] ring-1 ring-white/10',
+                        : 'bg-lift/[0.07] ring-1 ring-lift/10',
                     ].join(' ')}
                   >
                     <span className="block truncate text-[11.5px] text-foreground">

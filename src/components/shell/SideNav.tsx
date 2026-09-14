@@ -79,7 +79,7 @@ export function SideNav() {
           className={`pointer-events-none absolute inset-x-3 top-0 rounded-[10px] ${
             active.area
               ? 'bg-(--area)/14 ring-1 ring-(--area)/25 ring-inset'
-              : 'bg-white/[0.08] ring-1 ring-white/10 ring-inset'
+              : 'bg-lift/[0.08] ring-1 ring-lift/10 ring-inset'
           }`}
         >
           {/* The edge in the page's colour, so the pill says where you are
@@ -99,7 +99,7 @@ export function SideNav() {
               <span className="font-mono text-[10px] tracking-[0.18em] text-ink-400">
                 {group.heading}
               </span>
-              <span className="h-px flex-1 bg-gradient-to-r from-white/[0.10] to-transparent" />
+              <span className="h-px flex-1 bg-gradient-to-r from-lift/[0.10] to-transparent" />
             </div>
             {group.items.map((item) => (
               <NavLink
@@ -146,7 +146,7 @@ function NavLink({
       className={`group relative flex items-center gap-2.5 rounded-[10px] px-[10px] py-[7px] text-[13px] transition-colors duration-(--motion-fast) ${
         active
           ? 'font-medium text-foreground'
-          : 'text-ink-400 hover:bg-white/[0.04] hover:text-foreground'
+          : 'text-ink-400 hover:bg-lift/[0.04] hover:text-foreground'
       }`}
     >
       <Icon

@@ -57,7 +57,7 @@ export function TodayCard({
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex items-baseline gap-3 border-b border-white/[0.05] py-2.5 last:border-b-0"
+              className="flex items-baseline gap-3 border-b border-lift/[0.05] py-2.5 last:border-b-0"
             >
               <span className="font-mono text-[11px] text-lav-300">
                 {new Date(item.startsAt).toLocaleTimeString([], {

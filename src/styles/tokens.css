@@ -172,4 +172,18 @@
   --area-knowledge: oklch(0.8 0.1 225);
   --area-career: oklch(0.8 0.1 250);
   --area-style: oklch(0.8 0.1 330);
+
+  /* 6. Lift and sink (14 Sep, the first step to a light theme). Components
+        drew hairlines, hover fills and wells as `white/10` or `black/20` —
+        135 of them — which is a colour that only means anything on a dark
+        ground. On a light one, white hairlines vanish.
+
+        `lift` is the colour mixed in to raise or edge something: hairlines,
+        rings, hover fills (`border-lift/10`). `sink` is the colour mixed in
+        to recess it: input wells, the dim behind a dialog (`bg-sink/20`).
+        Under the dark theme they are exactly white and black, so nothing
+        drawn today changes. A light theme redefines these two, not 135
+        class names. */
+  --lift: #fff;
+  --sink: #000;
 }

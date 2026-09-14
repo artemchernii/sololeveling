@@ -89,7 +89,7 @@ function Quests() {
             Today is full. Finish one or drop one.
           </p>
         ) : (
-          <div className="flex items-center gap-2 border-t border-white/[0.07] pt-3">
+          <div className="flex items-center gap-2 border-t border-lift/[0.07] pt-3">
             <SaveGlyph
               status={adding.status}
               onSettled={adding.settle}
@@ -146,7 +146,7 @@ function QuestRow({
   const setSchedule = useMutation(api.tasks.setSchedule)
 
   return (
-    <div className="flex flex-col gap-2 border-b border-white/[0.05] py-2.5 last:border-b-0">
+    <div className="flex flex-col gap-2 border-b border-lift/[0.05] py-2.5 last:border-b-0">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -156,7 +156,7 @@ function QuestRow({
             await complete({ taskId: task._id })
             onCompleted(pending)
           }}
-          className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-white/15 text-transparent transition-colors hover:border-lav-500 hover:text-lav-300"
+          className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-lift/15 text-transparent transition-colors hover:border-lav-500 hover:text-lav-300"
         >
           <Check className="size-3" />
         </button>
@@ -249,7 +249,7 @@ function ScheduleField({
         value={time}
         onChange={(e) => setTime(e.target.value)}
         aria-label={`Time for ${task.title}`}
-        className="rounded-[5px] border border-white/10 bg-black/20 px-1.5 py-0.5 font-mono text-[11px] text-foreground outline-none"
+        className="rounded-[5px] border border-lift/10 bg-sink/20 px-1.5 py-0.5 font-mono text-[11px] text-foreground outline-none"
       />
       <input
         value={minutes}
@@ -257,7 +257,7 @@ function ScheduleField({
         placeholder="min"
         inputMode="numeric"
         aria-label={`Length for ${task.title}`}
-        className="w-12 rounded-[5px] border border-white/10 bg-black/20 px-1.5 py-0.5 text-center font-mono text-[11px] text-foreground outline-none"
+        className="w-12 rounded-[5px] border border-lift/10 bg-sink/20 px-1.5 py-0.5 text-center font-mono text-[11px] text-foreground outline-none"
       />
       <button
         type="button"
@@ -286,7 +286,7 @@ function FollowUp({
   const logging = useSave()
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.07] pt-3 text-[12.5px]">
+    <div className="flex flex-wrap items-center gap-2 border-t border-lift/[0.07] pt-3 text-[12.5px]">
       <span className="text-ink-400">{pending.title}</span>
       <span className="text-ink-600">
         &mdash; done. Log it as a {pending.kind}?
@@ -296,7 +296,7 @@ function FollowUp({
         onChange={(e) => setMinutes(e.target.value)}
         placeholder="min"
         inputMode="numeric"
-        className="w-12 rounded-[5px] border border-white/10 bg-black/20 px-1.5 py-0.5 text-center font-mono text-[11px] text-foreground outline-none"
+        className="w-12 rounded-[5px] border border-lift/10 bg-sink/20 px-1.5 py-0.5 text-center font-mono text-[11px] text-foreground outline-none"
       />
       <button
         type="button"
@@ -356,7 +356,7 @@ function LoggedToday({ logs }: { logs: Array<Doc<'logs'>> | undefined }) {
           {logs.map((log) => (
             <div
               key={log._id}
-              className="flex items-center gap-3 border-b border-white/[0.05] py-2 last:border-b-0"
+              className="flex items-center gap-3 border-b border-lift/[0.05] py-2 last:border-b-0"
             >
               <span className="font-mono text-[11px] text-lav-300">
                 {new Date(log.occurredAt).toLocaleTimeString([], {

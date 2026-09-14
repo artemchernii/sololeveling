@@ -48,7 +48,7 @@ export function QuestList({
           {tasks.map((task) => (
             <div
               key={task._id}
-              className="flex items-center gap-3 border-b border-white/[0.05] py-2.5 last:border-b-0"
+              className="flex items-center gap-3 border-b border-lift/[0.05] py-2.5 last:border-b-0"
             >
               <button
                 type="button"
@@ -57,7 +57,7 @@ export function QuestList({
                   await complete({ taskId: task._id })
                   onCompleted(task)
                 }}
-                className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-white/15 text-transparent transition-colors hover:border-lav-500 hover:text-lav-300"
+                className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-lift/15 text-transparent transition-colors hover:border-lav-500 hover:text-lav-300"
               >
                 <Check className="size-3" />
               </button>

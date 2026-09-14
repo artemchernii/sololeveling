@@ -70,7 +70,7 @@ function Backlog() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 border-b border-white/[0.07] pb-3">
+      <div className="flex items-center gap-2 border-b border-lift/[0.07] pb-3">
         <SaveGlyph
           status={adding.status}
           onSettled={adding.settle}
@@ -99,7 +99,7 @@ function Backlog() {
           {tasks.map((task) => (
             <div
               key={task._id}
-              className="flex items-center gap-3 border-b border-white/[0.05] py-2.5 last:border-b-0"
+              className="flex items-center gap-3 border-b border-lift/[0.05] py-2.5 last:border-b-0"
             >
               <span className="flex-1 text-[13px] text-foreground">
                 {task.title}
@@ -119,7 +119,7 @@ function Backlog() {
                 title={
                   full ? 'Today is full. Finish one or drop one.' : undefined
                 }
-                className="flex items-center gap-1.5 rounded-[7px] border border-white/10 px-2 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300 disabled:cursor-default disabled:border-white/[0.06] disabled:text-ink-700 disabled:hover:text-ink-700"
+                className="flex items-center gap-1.5 rounded-[7px] border border-lift/10 px-2 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300 disabled:cursor-default disabled:border-lift/[0.06] disabled:text-ink-700 disabled:hover:text-ink-700"
               >
                 <ArrowUp className="size-3" />
                 Today

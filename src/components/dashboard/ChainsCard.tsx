@@ -53,7 +53,7 @@ export function ChainsCard() {
             return (
               <div
                 key={chain._id}
-                className="flex flex-col gap-1 border-b border-white/[0.05] py-2.5 last:border-b-0"
+                className="flex flex-col gap-1 border-b border-lift/[0.05] py-2.5 last:border-b-0"
               >
                 {goal ? <div className="label-caps">{goal.title}</div> : null}
 
@@ -101,7 +101,7 @@ function Tag({ status, hasOpen }: { status: string; hasOpen: boolean }) {
   return (
     <span
       className={`label-caps ml-auto shrink-0 rounded-[4px] px-1.5 py-0.5 ${
-        focus ? 'bg-lav-900/70 text-lav-300' : 'bg-white/5'
+        focus ? 'bg-lav-900/70 text-lav-300' : 'bg-lift/5'
       }`}
     >
       {label}

@@ -52,7 +52,7 @@ export function WriteFailureNotice() {
           type="button"
           aria-label="Dismiss"
           onClick={() => setMessage(null)}
-          className="motion-press grid size-7 shrink-0 place-items-center rounded-[8px] text-ink-500 hover:bg-white/[0.06] hover:text-ink-200"
+          className="motion-press grid size-7 shrink-0 place-items-center rounded-[8px] text-ink-500 hover:bg-lift/[0.06] hover:text-ink-200"
         >
           <X className="size-3.5" />
         </button>

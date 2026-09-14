@@ -18,7 +18,7 @@ export function ConnectionStatus() {
   return (
     <span
       role="status"
-      className="offline-appear flex items-center gap-1.5 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-[11px] text-ink-300"
+      className="offline-appear flex items-center gap-1.5 rounded-full border border-lift/10 bg-sink/30 px-2.5 py-1 text-[11px] text-ink-300"
     >
       {/* Hollow: a thing that is absent, not an alert. */}
       <span className="size-[7px] rounded-full border border-ink-400" />

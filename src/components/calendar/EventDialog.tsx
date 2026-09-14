@@ -158,7 +158,7 @@ export function EventDialog({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="fixed inset-0 z-40 cursor-default bg-black/60"
+        className="fixed inset-0 z-40 cursor-default bg-sink/60"
       />
       <div
         role="dialog"
@@ -174,7 +174,7 @@ export function EventDialog({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Gym, PT, weekly review…"
-            className="rounded-[7px] bg-white/[0.05] px-3 py-2 text-[13px] text-foreground outline-none ring-1 ring-white/10 focus:ring-lav-300/40"
+            className="rounded-[7px] bg-lift/[0.05] px-3 py-2 text-[13px] text-foreground outline-none ring-1 ring-lift/10 focus:ring-lav-300/40"
           />
 
           <div className="flex gap-2">
@@ -184,7 +184,7 @@ export function EventDialog({
                 type="datetime-local"
                 value={start}
                 onChange={(e) => setStart(e.target.value)}
-                className="rounded-[7px] bg-white/[0.05] px-3 py-2 font-mono text-[12px] text-foreground outline-none ring-1 ring-white/10 focus:ring-lav-300/40"
+                className="rounded-[7px] bg-lift/[0.05] px-3 py-2 font-mono text-[12px] text-foreground outline-none ring-1 ring-lift/10 focus:ring-lav-300/40"
               />
             </label>
             <label className="flex w-[110px] flex-col gap-1">
@@ -195,7 +195,7 @@ export function EventDialog({
                 step={5}
                 value={durationMin}
                 onChange={(e) => setDurationMin(Number(e.target.value))}
-                className="rounded-[7px] bg-white/[0.05] px-3 py-2 font-mono text-[12px] text-foreground outline-none ring-1 ring-white/10 focus:ring-lav-300/40"
+                className="rounded-[7px] bg-lift/[0.05] px-3 py-2 font-mono text-[12px] text-foreground outline-none ring-1 ring-lift/10 focus:ring-lav-300/40"
               />
             </label>
           </div>
@@ -212,7 +212,7 @@ export function EventDialog({
                     'rounded-[6px] px-2.5 py-1 text-[11.5px] transition-colors',
                     rrule === option.rrule
                       ? 'bg-lav-300/20 text-foreground ring-1 ring-lav-300/40'
-                      : 'bg-white/[0.05] text-ink-500 ring-1 ring-white/10',
+                      : 'bg-lift/[0.05] text-ink-500 ring-1 ring-lift/10',
                   ].join(' ')}
                 >
                   {option.label}
@@ -232,7 +232,7 @@ export function EventDialog({
             <select
               value={area}
               onChange={(e) => setArea(e.target.value as Area | '')}
-              className="rounded-[7px] bg-white/[0.05] px-3 py-2 text-[12.5px] text-foreground outline-none ring-1 ring-white/10 focus:ring-lav-300/40"
+              className="rounded-[7px] bg-lift/[0.05] px-3 py-2 text-[12.5px] text-foreground outline-none ring-1 ring-lift/10 focus:ring-lav-300/40"
             >
               <option value="">None</option>
               {AREAS.map((a) => (

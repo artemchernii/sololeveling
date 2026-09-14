@@ -43,7 +43,7 @@ export function ActionsLogged({ today }: { today: number }) {
           return (
             <div
               key={tile.key}
-              className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-4"
+              className="rounded-[16px] border border-lift/[0.06] bg-lift/[0.02] p-4"
             >
               <div className="label-caps">{tile.label}</div>
               <div className="mt-1 flex items-baseline gap-2">

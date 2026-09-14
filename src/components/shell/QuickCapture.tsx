@@ -68,7 +68,7 @@ import { splitNote } from '@/lib/note-text'
 
 const CHIP =
   'motion-press chip-focus inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px]'
-const NEUTRAL_CHIP = `${CHIP} bg-white/[0.06] text-ink-300 ring-1 ring-white/10 ring-inset hover:bg-white/10`
+const NEUTRAL_CHIP = `${CHIP} bg-lift/[0.06] text-ink-300 ring-1 ring-lift/10 ring-inset hover:bg-lift/10`
 const AREA_CHIP = `${CHIP} bg-(--area)/14 text-(--area) ring-1 ring-(--area)/30 ring-inset hover:bg-(--area)/22`
 
 /** What a count after logging is a count of, so "4" is never a bare number
@@ -649,7 +649,7 @@ export function QuickCapture({
              while the tick draws itself. A removal only arrives: nothing to
              celebrate there, only something to undo. */
           className={`motion-arrive relative mx-1.5 mt-2 flex items-center gap-3 rounded-[10px] px-3.5 py-2 ${
-            last.type === 'removed' ? 'bg-white/[0.04]' : 'bg-(--area)/10'
+            last.type === 'removed' ? 'bg-lift/[0.04]' : 'bg-(--area)/10'
           }`}
         >
           {last.type !== 'removed' ? (
@@ -722,7 +722,7 @@ export function QuickCapture({
           <button
             type="button"
             onClick={() => void undo()}
-            className="motion-press ml-auto rounded-full px-2.5 py-1 text-[12px] text-ink-400 hover:bg-white/10 hover:text-foreground"
+            className="motion-press ml-auto rounded-full px-2.5 py-1 text-[12px] text-ink-400 hover:bg-lift/10 hover:text-foreground"
           >
             undo
           </button>
@@ -768,7 +768,7 @@ export function QuickCapture({
                       e.stopPropagation()
                       void remove(recent)
                     }}
-                    className="motion-press chip-focus -my-1 -mr-2 grid size-7 place-items-center rounded-full text-ink-600 opacity-0 group-hover:opacity-100 group-data-[selected=true]:opacity-100 hover:bg-white/10 hover:text-foreground focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                    className="motion-press chip-focus -my-1 -mr-2 grid size-7 place-items-center rounded-full text-ink-600 opacity-0 group-hover:opacity-100 group-data-[selected=true]:opacity-100 hover:bg-lift/10 hover:text-foreground focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                   >
                     <Trash2 className="size-3.5" />
                   </button>
@@ -879,7 +879,7 @@ export function QuickCapture({
               </button>
             ))}
           </div>
-          <div className="mt-3 max-h-[46vh] overflow-y-auto rounded-[14px] bg-black/15 px-4 py-3 ring-1 ring-white/[0.06] focus-within:ring-(--area)/35">
+          <div className="mt-3 max-h-[46vh] overflow-y-auto rounded-[14px] bg-sink/15 px-4 py-3 ring-1 ring-lift/[0.06] focus-within:ring-(--area)/35">
             <NoteEditor
               textareaRef={noteRef}
               value={noteText}
@@ -1194,7 +1194,7 @@ export function QuickCapture({
                 </button>
                 {meant.length === 0 ? (
                   <>
-                    <span className="mx-1 h-4 w-px bg-white/10" />
+                    <span className="mx-1 h-4 w-px bg-lift/10" />
                     {CAPTURE_CHOICES.map(({ word, area: tone, icon }) => (
                       <button
                         key={word}

@@ -103,7 +103,7 @@ export function CloseWeek({
               onChange={(e) =>
                 setAnswers({ ...answers, [question.key]: e.target.value })
               }
-              className="resize-y rounded-[7px] bg-white/[0.05] px-3 py-2 text-[13px] text-foreground outline-none ring-1 ring-white/10 focus:ring-lav-300/40"
+              className="resize-y rounded-[7px] bg-lift/[0.05] px-3 py-2 text-[13px] text-foreground outline-none ring-1 ring-lift/10 focus:ring-lav-300/40"
             />
           </label>
         ))}
@@ -115,7 +115,7 @@ export function CloseWeek({
           value={decision}
           onChange={(e) => setDecision(e.target.value)}
           placeholder="One sentence."
-          className="rounded-[7px] bg-white/[0.05] px-3 py-2 text-[13px] text-foreground outline-none ring-1 ring-white/10 focus:ring-lav-300/40"
+          className="rounded-[7px] bg-lift/[0.05] px-3 py-2 text-[13px] text-foreground outline-none ring-1 ring-lift/10 focus:ring-lav-300/40"
         />
         <span className="text-[11.5px] text-ink-700">
           The week does not close without this. The rest is how you arrive at
@@ -130,7 +130,7 @@ export function CloseWeek({
             type="button"
             disabled={saving.busy}
             onClick={persist}
-            className="rounded-[7px] bg-white/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-white/10"
+            className="rounded-[7px] bg-lift/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-lift/10"
           >
             <SaveLabel status={saving.status} onSettled={saving.settle}>
               Save

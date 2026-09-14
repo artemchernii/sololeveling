@@ -16,7 +16,7 @@ import { isSignedOut } from '@/lib/convex-errors'
 /* Neutral, not lavender: the accent means live and focus (§3), and nothing
    here is either. */
 const ACTION =
-  'motion-press inline-flex items-center gap-1.5 rounded-[8px] border border-white/10 px-3 py-1.5 text-[12.5px] text-ink-300 hover:border-white/20 hover:text-foreground'
+  'motion-press inline-flex items-center gap-1.5 rounded-[8px] border border-lift/10 px-3 py-1.5 text-[12.5px] text-ink-300 hover:border-lift/20 hover:text-foreground'
 
 export function NotFound() {
   return (
@@ -79,7 +79,7 @@ export function PageCrash({ error, reset }: ErrorComponentProps) {
 
       {/* The words for whoever fixes it, folded away from whoever doesn't
           need them. */}
-      <details className="w-full border-t border-white/[0.07] pt-3">
+      <details className="w-full border-t border-lift/[0.07] pt-3">
         <summary className="label-caps cursor-pointer select-none hover:text-ink-300">
           What went wrong
         </summary>

@@ -25,3 +25,8 @@ todos.json
 .claude/skills/convex-*/
 .agents/
 AGENTS.md
+
+# --- Backups ---
+# Snapshots are real data. scripts/backup.sh writes them outside the repo;
+# this is the net for one copied in by hand.
+sololeveling-*.zip

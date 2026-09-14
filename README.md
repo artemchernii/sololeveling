@@ -91,3 +91,24 @@ npx wrangler secret put CLERK_SECRET_KEY
 The production Convex deployment needs `CLERK_JWT_ISSUER_DOMAIN` set on it, the
 same way dev does — without it, prod trusts nobody and every query refuses.
 Principles are seeded there once, by hand, with `--prod`.
+
+## Backups
+
+Snapshots of both deployments' data, as zips you own, outside the repo:
+
+```sh
+pnpm backup         # prod + dev → ~/Backups/sololeveling (BACKUP_DIR to move it)
+pnpm backup:drill   # restore the newest prod snapshot into a throwaway local
+                    # backend and check every table came back row for row
+```
+
+The drill never touches a real deployment: it checks the commit out into a temp
+folder, runs a local Convex backend there with no account, and deletes it all
+afterwards. Pass a zip to drill a specific snapshot.
+
+Restoring for real replaces the deployment's data with the snapshot, and loses
+anything written after it was taken:
+
+```sh
+npx convex import <snapshot.zip> --replace-all --prod
+```

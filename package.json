@@ -15,7 +15,9 @@
     "test": "vitest run",
     "format": "prettier --write . && eslint --fix",
     "check": "prettier --check .",
-    "deploy": "pnpm run build && wrangler deploy"
+    "deploy": "pnpm run build && wrangler deploy",
+    "backup": "scripts/backup.sh",
+    "backup:drill": "scripts/restore-drill.sh"
   },
   "dependencies": {
     "@clerk/tanstack-react-start": "^1.4.21",

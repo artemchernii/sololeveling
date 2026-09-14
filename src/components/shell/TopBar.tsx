@@ -1,4 +1,8 @@
-import { UserButton } from '@clerk/tanstack-react-start'
+import {
+  ClerkLoaded,
+  ClerkLoading,
+  UserButton,
+} from '@clerk/tanstack-react-start'
 import { Bell, Plus, Search } from 'lucide-react'
 
 import { ConnectionStatus } from './ConnectionStatus'
@@ -80,11 +84,33 @@ export function TopBar({
           <span className="absolute top-[6px] right-[7px] size-[5px] rounded-full bg-lav-500" />
         </button>
 
-        <UserButton
-          appearance={{
-            elements: { userButtonAvatarBox: 'size-9 rounded-[10px]' },
-          }}
-        />
+        {/* The avatar's place is held from the first paint. Clerk's button
+            renders nothing until Clerk's script has loaded, and then its
+            image loads after that — the corner sat empty and then popped.
+            A tile the avatar's size breathes there while Clerk loads
+            (PLAN §3d.2), stays behind the image while it downloads, and the
+            button fades in over it. */}
+        <span className="relative grid size-9 shrink-0 place-items-center">
+          <span
+            aria-hidden
+            className="absolute inset-0 rounded-[10px] bg-white/[0.06]"
+          />
+          <ClerkLoading>
+            <span
+              aria-hidden
+              className="motion-breathe absolute inset-0 rounded-[10px] bg-white/[0.06]"
+            />
+          </ClerkLoading>
+          <ClerkLoaded>
+            <span className="motion-fade relative grid">
+              <UserButton
+                appearance={{
+                  elements: { userButtonAvatarBox: 'size-9 rounded-[10px]' },
+                }}
+              />
+            </span>
+          </ClerkLoaded>
+        </span>
       </div>
     </header>
   )

@@ -31,20 +31,32 @@ function holdMs(): number {
 
 /**
  * The query's value, held back as `undefined` until --loading-hold has passed
- * — but only if it was `undefined` when the component mounted. Wrap the
- * query whose `undefined` decides between skeleton and content:
+ * — but only if it was `undefined` when the hold began. Wrap the query whose
+ * `undefined` decides between skeleton and content:
  *
  *   const goals = useHeld(useQuery(api.goals.listActive, {}))
+ *
+ * A hold begins at mount, and again whenever `key` changes — pass one when the
+ * same component loads something new in place, like paging to another week.
+ * The key must be a primitive; an array made during render is new every time.
  */
-export function useHeld<T>(value: T | undefined): T | undefined {
+export function useHeld<T>(value: T | undefined, key?: unknown): T | undefined {
   const [holding, setHolding] = useState(() => value === undefined)
+  const [heldKey, setHeldKey] = useState(key)
+
+  /* Adjusting state while rendering, the React-sanctioned way to reset on a
+     prop change: this render already sees the new hold, so there is no frame
+     of stale content between the old key and the new skeleton. */
+  if (key !== heldKey) {
+    setHeldKey(key)
+    setHolding(value === undefined)
+  }
 
   useEffect(() => {
     if (!holding) return
     const timer = setTimeout(() => setHolding(false), holdMs())
     return () => clearTimeout(timer)
-    // Once, from mount: the hold is measured from when the skeleton appeared.
-  }, [])
+  }, [holding, heldKey])
 
   return holding ? undefined : value
 }

@@ -1,5 +1,6 @@
 import { SkeletonRows } from '@/components/Skeleton'
 import { bookedHoursLine, buildTimeline } from '@/lib/timeline'
+import { useArrived } from '@/lib/loading'
 import type { Doc } from '../../../convex/_generated/dataModel'
 
 /* PLAN.md §3 item 2. Events and scheduled tasks, merged only here, through the
@@ -19,6 +20,7 @@ export function TodayCard({
   events: Array<Doc<'events'>>
   date: Date
 }) {
+  const arrived = useArrived(tasks)
   const dayStart = new Date(date)
   dayStart.setHours(0, 0, 0, 0)
   const dayEnd = new Date(dayStart)
@@ -47,11 +49,11 @@ export function TodayCard({
       {tasks === undefined ? (
         <SkeletonRows rows={3} />
       ) : items.length === 0 ? (
-        <p className="text-[13px] text-ink-500">
+        <p className={`text-[13px] text-ink-500 ${arrived}`}>
           Nothing at a time today. Give a quest an hour and it appears here.
         </p>
       ) : (
-        <div className="flex flex-col">
+        <div className={`flex flex-col ${arrived}`}>
           {items.map((item) => (
             <div
               key={item.id}

@@ -10,6 +10,7 @@ import { parseOccurrenceId } from '@/lib/recurrence'
 import { addDays, startOfWeek } from '@/lib/weeks'
 import { buildTimeline } from '@/lib/timeline'
 import type { TimelineItem } from '@/lib/timeline'
+import { useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/calendar')({
   component: Calendar,
@@ -26,8 +27,10 @@ function Calendar() {
   const weekEnd = addDays(weekStart, 7)
   const range = { from: weekStart.getTime(), to: weekEnd.getTime() }
 
-  const events = useQuery(api.events.listInRange, range)
-  const tasks = useQuery(api.tasks.listScheduledInRange, range)
+  /* Held only on the first load: paging to another week keeps the grid on
+     screen and fills it as the week arrives. */
+  const events = useHeld(useQuery(api.events.listInRange, range))
+  const tasks = useHeld(useQuery(api.tasks.listScheduledInRange, range))
 
   const items = buildTimeline(tasks ?? [], events ?? [], {
     start: range.from,

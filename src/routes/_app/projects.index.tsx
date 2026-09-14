@@ -11,6 +11,7 @@ import { AREAS } from '@/components/AreaBadge'
 import { SaveLabel, useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
+import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/projects/')({
   component: Chains,
@@ -22,7 +23,8 @@ export const Route = createFileRoute('/_app/projects/')({
    "New chain" is one form: a goal and its first project together, because a
    project without a goal above it is the thing this app exists to prevent. */
 function Chains() {
-  const chains = useQuery(api.projects.listLive, {})
+  const chains = useHeld(useQuery(api.projects.listLive, {}))
+  const arrived = useArrived(chains)
   const counts = useQuery(api.aggregate.entityCounts, {})
   const openTasks = useQuery(api.tasks.listBacklog, {})
   const setFocus = useMutation(api.projects.setFocus)
@@ -63,14 +65,16 @@ function Chains() {
           </div>
         </div>
       ) : chains.length === 0 ? (
-        <div className="glass rounded-[22px] p-6">
+        <div className={`glass rounded-[22px] p-6 ${arrived}`}>
           <p className="text-[13px] text-ink-500">
             No chains yet. A chain is a goal with work hanging off it &mdash;
             start one above.
           </p>
         </div>
       ) : (
-        <>
+        /* Same gap as the page, so this wrapper changes no spacing — it is
+           here to fade the chains in over their skeleton as one. */
+        <div className={`flex flex-col gap-[18px] ${arrived}`}>
           {focus ? (
             <ChainCard
               project={focus}
@@ -101,7 +105,7 @@ function Chains() {
               ))}
             </div>
           ) : null}
-        </>
+        </div>
       )}
     </div>
   )

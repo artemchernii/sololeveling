@@ -3,6 +3,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import { SkeletonRows } from '@/components/Skeleton'
+import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/principles')({
   component: Principles,
@@ -12,7 +13,8 @@ export const Route = createFileRoute('/_app/principles')({
    (§3b.5): they are seeded once and they are the only fixture data this app
    has. A principle you can edit from a screen at 2am is a mood. */
 function Principles() {
-  const principles = useQuery(api.principles.list, {})
+  const principles = useHeld(useQuery(api.principles.list, {}))
+  const arrived = useArrived(principles)
 
   return (
     <div className="flex flex-col gap-[18px]">
@@ -32,7 +34,7 @@ function Principles() {
           />
         </div>
       ) : principles.length === 0 ? (
-        <div className="glass rounded-[22px] p-5">
+        <div className={`glass rounded-[22px] p-5 ${arrived}`}>
           <p className="text-[13px] text-ink-500">
             Nothing seeded yet. These six lines are written once from the CLI —
             <code className="mx-1 font-mono text-[12px] text-ink-400">
@@ -42,7 +44,7 @@ function Principles() {
           </p>
         </div>
       ) : (
-        <div className="glass flex flex-col rounded-[22px] p-2">
+        <div className={`glass flex flex-col rounded-[22px] p-2 ${arrived}`}>
           {principles.map((principle, index) => (
             <div
               key={principle._id}

@@ -11,6 +11,7 @@ import { SaveGlyph, useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
 import { deadlineLabel } from '@/lib/format'
+import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/projects/$id')({
   component: Chain,
@@ -23,7 +24,8 @@ function Chain() {
   const { id } = Route.useParams()
   const projectId = id as Id<'projects'>
 
-  const project = useQuery(api.projects.get, { projectId })
+  const project = useHeld(useQuery(api.projects.get, { projectId }))
+  const arrived = useArrived(project)
   const tasks = useQuery(api.tasks.listByProject, { projectId })
   const counts = useQuery(api.aggregate.entityCounts, {})
 
@@ -89,7 +91,7 @@ function Chain() {
   }
 
   return (
-    <div className="flex flex-col gap-[18px]">
+    <div className={`flex flex-col gap-[18px] ${arrived}`}>
       <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
         <Link
           to="/projects"

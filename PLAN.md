@@ -299,14 +299,19 @@ is a fixture, and §3b.5 rules those out everywhere else too.
 default. A spinner is for something with no knowable shape; almost nothing here
 qualifies — except a write you pressed for and are waiting on.
 
-**A skeleton breathes** (decided 14 Sep, after using it). Built static first, by
-the letter of rule 1: loading is the app, not you. On screen a still grey block
-read as a page that had died, not one that was coming. So a skeleton pulses
-slowly in opacity — never a sweep, never a slide — and waits `--motion-fast`
-before appearing at all, so a load quicker than that shows nothing. The same
-goes for anything standing in for a thing still loading, like the avatar's
-place in the top bar. It is the one exception to rule 1, and it moves no layout:
-nothing reflows, only the stand-in's opacity changes.
+**A skeleton breathes, and stays long enough to be seen** (decided 14 Sep,
+after using it). Built static first, by the letter of rule 1: loading is the
+app, not you. On screen a still grey block read as a page that had died, not
+one that was coming. So a skeleton pulses slowly in opacity — never a sweep,
+never a slide. It first waited `--motion-fast` before appearing, which made a
+load just past that flash a skeleton for a few frames; Artem called that a
+flicker. Now a page that opens without its data shows the skeleton at once and
+holds it for `--loading-hold` (half a breath), then fades the content in. A
+page that already has its data — visited in the last few minutes — shows it on
+the first frame, with no skeleton and no wait. The same goes for anything
+standing in for a thing still loading, like the avatar's place in the top bar.
+It is the one exception to rule 1, and it moves no layout: nothing reflows,
+only opacity changes.
 
 **3. Colour says what a thing is, not whether it is good.** This is the §1 rule
 in visual form, and the distinction is the whole of it:

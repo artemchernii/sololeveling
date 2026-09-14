@@ -138,7 +138,13 @@
      a still skeleton read as a dead page. Slow on purpose: it should be
      noticed only as "alive", never watched. Only a stand-in for something
      still loading may use it. */
-  --motion-breathe: 1800ms;
+  --motion-breathe: 1600ms;
+  /* The shortest a skeleton stays once it has appeared (14 Sep, Artem): a
+     skeleton that lasted 30ms before the page replaced it read as a flicker,
+     not as loading. Half a breath, so what you see is one exhale and then the
+     page. Read by src/lib/loading.ts — a page that already has its data never
+     waits for it. */
+  --loading-hold: 800ms;
   /* Out-weighted: quick to respond, soft to land. No overshoot — a spring
      that bounces past its mark reads as the app celebrating, and nothing
      here is being celebrated. */

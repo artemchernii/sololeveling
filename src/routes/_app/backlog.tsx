@@ -11,6 +11,7 @@ import { SaveGlyph, useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
 import { localToday } from '@/lib/today'
+import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/backlog')({
   component: Backlog,
@@ -22,7 +23,8 @@ export const Route = createFileRoute('/_app/backlog')({
    the app (§3c.3). */
 function Backlog() {
   const today = localToday()
-  const tasks = useQuery(api.tasks.listBacklog, {})
+  const tasks = useHeld(useQuery(api.tasks.listBacklog, {}))
+  const arrived = useArrived(tasks)
   const picked = useQuery(api.tasks.listToday, { today })
 
   const createTask = useMutation(api.tasks.create)
@@ -89,11 +91,11 @@ function Backlog() {
       {tasks === undefined ? (
         <SkeletonRows rows={4} line="h-[26px]" />
       ) : tasks.length === 0 ? (
-        <p className="text-[13px] text-ink-500">
+        <p className={`text-[13px] text-ink-500 ${arrived}`}>
           Empty. Everything you have written down is either done or on today.
         </p>
       ) : (
-        <div className="flex flex-col">
+        <div className={`flex flex-col ${arrived}`}>
           {tasks.map((task) => (
             <div
               key={task._id}

@@ -134,6 +134,11 @@
      still waiting goes round. Slower reads as stuck, faster as panic. Only a
      write you started and that has not come back may use it. */
   --motion-spin: 800ms;
+  /* A period too (14 Sep): one breath of a skeleton, in and out. PLAN §3d —
+     a still skeleton read as a dead page. Slow on purpose: it should be
+     noticed only as "alive", never watched. Only a stand-in for something
+     still loading may use it. */
+  --motion-breathe: 1800ms;
   /* Out-weighted: quick to respond, soft to land. No overshoot — a spring
      that bounces past its mark reads as the app celebrating, and nothing
      here is being celebrated. */

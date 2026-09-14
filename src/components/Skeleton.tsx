@@ -3,9 +3,11 @@ import { cn } from '@/lib/utils'
 /* §3d.2: loading shows shape, never values. A bar stands where text will be
    and carries no number, no "0", no plausible figure.
 
-   Still, not shimmering: §3d.1 lets a thing move only when you caused it, and
-   a query resolving is the app moving on its own. The rows swap in without a
-   transition for the same reason. */
+   It breathes (motion-breathe, PLAN §3d.2). Built still at first, by §3d.1's
+   rule that the app moving on its own does not animate — and a still grey bar
+   read as a page that had died. Only opacity moves; the rows it stands in for
+   still swap in without a transition, so nothing reflows. Every bar mounts at
+   the same moment, so they breathe together. */
 
 /* Fixed, not random: a skeleton that changes shape between renders is itself
    motion nobody asked for. */
@@ -15,7 +17,10 @@ export function Skeleton({ className }: { className?: string }) {
   return (
     <span
       aria-hidden
-      className={cn('block h-3 rounded-full bg-white/[0.05]', className)}
+      className={cn(
+        'motion-breathe block h-3 rounded-full bg-white/[0.08]',
+        className,
+      )}
     />
   )
 }

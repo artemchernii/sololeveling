@@ -297,7 +297,16 @@ is a fixture, and §3b.5 rules those out everywhere else too.
 
 `Reading…` as grey text is not a loading state and is not to be used as the
 default. A spinner is for something with no knowable shape; almost nothing here
-qualifies.
+qualifies — except a write you pressed for and are waiting on.
+
+**A skeleton breathes** (decided 14 Sep, after using it). Built static first, by
+the letter of rule 1: loading is the app, not you. On screen a still grey block
+read as a page that had died, not one that was coming. So a skeleton pulses
+slowly in opacity — never a sweep, never a slide — and waits `--motion-fast`
+before appearing at all, so a load quicker than that shows nothing. The same
+goes for anything standing in for a thing still loading, like the avatar's
+place in the top bar. It is the one exception to rule 1, and it moves no layout:
+nothing reflows, only the stand-in's opacity changes.
 
 **3. Colour says what a thing is, not whether it is good.** This is the §1 rule
 in visual form, and the distinction is the whole of it:
@@ -319,17 +328,18 @@ under this rule is additional vocabulary, not a licence to repaint that.
 
 ## 4. Phases
 
-| #   | Deliverable                                                                                                                                                       | Done when                                              |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| 0   | Scaffold: TanStack Start + Cloudflare plugin + Tailwind + shadcn, Nocturne tokens imported, Convex init, Clerk auth, shell, empty routes, CLAUDE.md, first deploy | Logged in, nav visible, live on `*.workers.dev`        |
-| 1   | `schema.ts` with `ownerId` everywhere, `auth.ts` `requireUser`, `seed.ts` (principles only)                                                                       | Typed schema deployed; DB otherwise empty on purpose   |
-| 2   | **Quick capture (⌘K) + Quests**: create a task, pick up to 3 for today, complete, log an action, backlog page                                                     | I run one real day on it with data I created myself    |
-| 3   | **Goals + Chains**: create a goal, create a project under it, attach tasks, set focus                                                                             | I can build a chain end to end without touching the DB |
-| 4   | **Dashboard**: aggregate layer + today / chains / current state / month tiles                                                                                     | Morning screen is true, built only from what I entered |
-| 5   | Calendar (week view, rrule expansion, events + scheduled tasks; series-level editing only)                                                                        | Recurring gym/PT/review show up                        |
-| 6   | Weekly review + Notes + Principles + mobile pass + PWA                                                                                                            | I close a week on my phone                             |
-| 6b  | Polish pass: motion tokens, skeletons everywhere, the colour rule applied (§3d)                                                                                   | It feels alive without grading me                      |
-| 7+  | Money, Body, Portuguese, Social, Career, Style, Knowledge detail pages — one per sprint                                                                           | —                                                      |
+| #    | Deliverable                                                                                                                                                       | Done when                                                                                                     |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 0    | Scaffold: TanStack Start + Cloudflare plugin + Tailwind + shadcn, Nocturne tokens imported, Convex init, Clerk auth, shell, empty routes, CLAUDE.md, first deploy | Logged in, nav visible, live on `*.workers.dev`                                                               |
+| 1    | `schema.ts` with `ownerId` everywhere, `auth.ts` `requireUser`, `seed.ts` (principles only)                                                                       | Typed schema deployed; DB otherwise empty on purpose                                                          |
+| 2    | **Quick capture (⌘K) + Quests**: create a task, pick up to 3 for today, complete, log an action, backlog page                                                     | I run one real day on it with data I created myself                                                           |
+| 3    | **Goals + Chains**: create a goal, create a project under it, attach tasks, set focus                                                                             | I can build a chain end to end without touching the DB                                                        |
+| 4    | **Dashboard**: aggregate layer + today / chains / current state / month tiles                                                                                     | Morning screen is true, built only from what I entered                                                        |
+| 5    | Calendar (week view, rrule expansion, events + scheduled tasks; series-level editing only)                                                                        | Recurring gym/PT/review show up                                                                               |
+| 6    | Weekly review + Notes + Principles + mobile pass + PWA                                                                                                            | I close a week on my phone                                                                                    |
+| 6b   | Polish pass: motion tokens, skeletons everywhere, the colour rule applied (§3d)                                                                                   | It feels alive without grading me                                                                             |
+| 7+   | Money, Body, Portuguese, Social, Career, Style, Knowledge detail pages — one per sprint                                                                           | —                                                                                                             |
+| Late | Scheduled backups: `pnpm backup` daily without being asked (LaunchAgent or CI to storage Artem owns), a retention window, a restore drill on a schedule           | Deferred 14 Sep while the app is still being built — the manual `pnpm backup` / `pnpm backup:drill` exist now |
 
 **Knowledge is a 7+ page, and the only one without a shape yet.** The other six read an area's own
 logs and state. Knowledge reads neither — §3 item 4 already says it has no month tile because nothing

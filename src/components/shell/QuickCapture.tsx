@@ -21,6 +21,7 @@ import { Key } from './Key'
 import { VERB_ICONS, VerbTile } from './VerbIcon'
 import { api } from '../../../convex/_generated/api'
 import { NoteEditor } from '@/components/notes/NoteEditor'
+import { Skeleton } from '@/components/Skeleton'
 import { AREAS, areaVars } from '@/lib/areas'
 import {
   CAPTURE_CHOICES,
@@ -734,7 +735,7 @@ export function QuickCapture({
              list will be. */
           <div className="space-y-2 px-5 py-4" aria-hidden>
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-5 w-2/5 rounded-full bg-white/[0.05]" />
+              <Skeleton key={i} className="h-5 w-2/5" />
             ))}
           </div>
         ) : recents.length > 0 ? (

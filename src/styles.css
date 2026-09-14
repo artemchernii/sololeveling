@@ -327,6 +327,30 @@ h6 {
     var(--motion-base) both;
 }
 
+/* The real thing arriving over its stand-in: opacity only, at base. */
+@utility motion-fade {
+  animation: save-appear var(--motion-base) var(--motion-ease) both;
+}
+
+/* A stand-in for something still loading (PLAN §3d.2): it waits
+   --motion-fast before showing, so a quick load shows nothing, then breathes
+   in opacity. Never a sweep or a slide — nothing about the layout moves. */
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@utility motion-breathe {
+  animation:
+    save-appear var(--motion-base) var(--motion-ease) var(--motion-fast) both,
+    breathe var(--motion-breathe) ease-in-out
+      calc(var(--motion-fast) + var(--motion-base)) infinite;
+}
+
 /* The offline pill (shell/ConnectionStatus). Held back by --motion-linger, so
    a drop shorter than that — a token refresh, a laptop waking — never shows.
    The app changing state on its own does not normally move (§3d.1); this is

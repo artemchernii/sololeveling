@@ -1,6 +1,8 @@
 import { v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { logKindValidator } from './logs'
+import { areaValidator } from './schema'
 import { query } from './_generated/server'
 
 /* PLAN.md §1: every number on screen comes from exactly one of four sources —
@@ -89,15 +91,35 @@ export const entityCounts = query({
    is where you are, and a query does not rerun because a clock ticked.
    ------------------------------------------------------------------------ */
 
-/** tile -> the log kind it counts. The one place this mapping lives. */
-const TILE_KINDS = {
-  projects: 'task_done',
-  portuguese: 'session',
-  body: 'workout',
-  money: 'transfer',
-  style: 'piece',
-  social: 'event',
-} as const
+/** tile -> the log it counts. The one place this mapping lives.
+
+    Portuguese counts sessions *filed under Portuguese*, not every session.
+    It was kind alone while `pt` was the only thing that wrote a session; once
+    `work` and a project could write one too, a morning at the office would
+    have counted as Portuguese practice. Every other tile's kind is written by
+    one area only, so kind still says enough for them. */
+const TILE_KINDS: Record<
+  'projects' | 'portuguese' | 'body' | 'money' | 'style' | 'social',
+  { kind: string; area?: string }
+> = {
+  projects: { kind: 'task_done' },
+  portuguese: { kind: 'session', area: 'portuguese' },
+  body: { kind: 'workout' },
+  money: { kind: 'transfer' },
+  style: { kind: 'piece' },
+  social: { kind: 'event' },
+}
+
+function countsFor(
+  tile: keyof typeof TILE_KINDS,
+  log: { kind: string; area: string },
+): boolean {
+  const rule = TILE_KINDS[tile]
+  return (
+    log.kind === rule.kind &&
+    (rule.area === undefined || log.area === rule.area)
+  )
+}
 
 const tileCount = v.object({ now: v.number(), prev: v.number() })
 
@@ -146,9 +168,11 @@ export const monthCounts = query({
       const bucket = log.occurredAt >= args.monthStart ? 'now' : 'prev'
       if (bucket === 'now') total += 1
 
-      for (const [tile, kind] of Object.entries(TILE_KINDS)) {
-        if (log.kind === kind) {
-          counts[tile as keyof typeof counts][bucket] += 1
+      for (const tile of Object.keys(TILE_KINDS) as Array<
+        keyof typeof TILE_KINDS
+      >) {
+        if (countsFor(tile, log)) {
+          counts[tile][bucket] += 1
         }
       }
     }
@@ -229,9 +253,11 @@ export const weekCounts = query({
       if (index === -1) continue
 
       weeks[index].total += 1
-      for (const [tile, kind] of Object.entries(TILE_KINDS)) {
-        if (log.kind === kind) {
-          weeks[index][tile as keyof (typeof TILE_KINDS & object)] += 1
+      for (const tile of Object.keys(TILE_KINDS) as Array<
+        keyof typeof TILE_KINDS
+      >) {
+        if (countsFor(tile, log)) {
+          weeks[index][tile] += 1
         }
       }
     }
@@ -320,5 +346,51 @@ export const currentState = query({
       skills_logged: await latest('skills_logged'),
       skills_target: await latest('skills_target'),
     }
+  },
+})
+
+/**
+ * Logs of one kind in a period: the "4 this month" beside a line you have just
+ * logged, so Enter shows that it counted and not only that it saved.
+ *
+ * Source 1, a log count, the same as the tiles — for any kind capture can
+ * write, not only the six the dashboard has room for. A count and nothing
+ * else: not a streak, not a rank, not "4th". An ordinal would claim an order,
+ * and a back-dated log is not the latest one just because it was typed last.
+ *
+ * Boundaries arrive as arguments, as they do for months and weeks.
+ */
+export const kindCount = query({
+  args: {
+    kind: logKindValidator,
+    /** Narrows a kind written by more than one verb — a session filed under
+        Portuguese is not a work session, and a count that mixed them would
+        say "5 this month" about neither. */
+    area: v.optional(areaValidator),
+    /** Narrows to time on one project. */
+    projectId: v.optional(v.id('projects')),
+    /** Epoch ms, local midnight — inclusive. */
+    start: v.number(),
+    /** Epoch ms, local midnight — exclusive. */
+    end: v.number(),
+  },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .take(MAX_ROWS)
+    return rows.filter(
+      (row) =>
+        row.kind === args.kind &&
+        (args.area === undefined || row.area === args.area) &&
+        (args.projectId === undefined || row.projectId === args.projectId),
+    ).length
   },
 })

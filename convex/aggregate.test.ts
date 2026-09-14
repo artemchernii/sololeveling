@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from 'convex-test'
-import { describe, expect, test } from 'vitest'
+import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 
 import { api } from './_generated/api'
 import schema from './schema'
@@ -16,6 +16,19 @@ const AUG_1 = new Date(2026, 7, 1).getTime()
 const SEP_1 = new Date(2026, 8, 1).getTime()
 const OCT_1 = new Date(2026, 9, 1).getTime()
 const MONTH = { prevStart: AUG_1, monthStart: SEP_1, nextStart: OCT_1 }
+
+/* The fixtures above are fixed dates in September 2026, and logs.create
+   refuses anything in the future. Without a clock of its own this file would
+   start failing on whatever real day first falls before a fixture — so it
+   lives on 1 October, after every one of them. Only Date is faked: the
+   timers convex-test awaits keep running. */
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 9, 1, 12))
+})
+afterAll(() => {
+  vi.useRealTimers()
+})
 
 function as(subject: string) {
   return convexTest(schema, modules).withIdentity({ tokenIdentifier: subject })
@@ -69,14 +82,16 @@ describe('monthCounts is six fixed tiles (PLAN.md §3 item 4)', () => {
   test('a log tagged body but of another kind does not become a workout', async () => {
     const t = as(ME)
     await t.mutation(api.logs.create, {
-      kind: 'note',
+      kind: 'expense',
       area: 'body',
       occurredAt: at('sep', 6),
-      text: 'knee felt off',
+      value: 30,
+      text: 'knee brace',
     })
 
     const counts = await t.query(api.aggregate.monthCounts, MONTH)
-    /* The tiles count kinds, not areas: a note about the body is not a workout. */
+    /* The tiles count kinds, not areas: money spent on the body is not a
+       workout. (This was a note, until notes stopped being logs.) */
     expect(counts.body.now).toBe(0)
     expect(counts.total).toBe(1)
   })
@@ -294,5 +309,117 @@ describe('weekCounts is the same six tiles, over weeks (PLAN.md §3)', () => {
       end: END,
     })
     expect(weeks.map((w) => w.total)).toEqual([0, 0, 0])
+  })
+})
+
+describe('kindCount is a log count for one kind (PLAN.md §1, source 1)', () => {
+  test('it counts that kind, in that period, and only mine', async () => {
+    const t = as(ME)
+    const log = (kind: 'workout' | 'session', when: number) =>
+      t.mutation(api.logs.create, {
+        kind,
+        area: kind === 'workout' ? 'body' : 'portuguese',
+        occurredAt: when,
+      })
+
+    await log('workout', at('sep', 3))
+    await log('workout', at('sep', 20))
+    await log('session', at('sep', 4))
+    await log('workout', at('aug', 30))
+    await t.run(async (ctx) => {
+      await ctx.db.insert('logs', {
+        ownerId: SOMEONE_ELSE,
+        kind: 'workout',
+        area: 'body',
+        occurredAt: at('sep', 5),
+      })
+    })
+
+    const count = (kind: 'workout' | 'session', start: number, end: number) =>
+      t.query(api.aggregate.kindCount, { kind, start, end })
+
+    expect(await count('workout', SEP_1, OCT_1)).toBe(2)
+    expect(await count('session', SEP_1, OCT_1)).toBe(1)
+    expect(await count('workout', AUG_1, SEP_1)).toBe(1)
+  })
+})
+
+describe('the Portuguese tile counts Portuguese sessions only', () => {
+  test('a work session is not Portuguese practice', async () => {
+    const t = as(ME)
+    const session = (area: 'portuguese' | 'career' | 'business') =>
+      t.mutation(api.logs.create, {
+        kind: 'session',
+        area,
+        occurredAt: at('sep', 7),
+        value: 60,
+        unit: 'min',
+      })
+    await session('portuguese')
+    await session('career')
+    await session('business')
+
+    const counts = await t.query(api.aggregate.monthCounts, MONTH)
+    expect(counts.portuguese.now).toBe(1)
+    expect(counts.total).toBe(3)
+
+    const [week] = await t.query(api.aggregate.weekCounts, {
+      starts: [new Date(2026, 8, 7).getTime()],
+      end: new Date(2026, 8, 14).getTime(),
+    })
+    expect(week.portuguese).toBe(1)
+  })
+})
+
+describe('kindCount narrows by area and project', () => {
+  test('Portuguese sessions, work sessions and time on a project are three counts', async () => {
+    const db = convexTest(schema, modules)
+    const t = db.withIdentity({ tokenIdentifier: ME })
+    const goalId = await t.run((ctx) =>
+      ctx.db.insert('goals', {
+        ownerId: ME,
+        title: 'g',
+        area: 'business',
+        status: 'active',
+      }),
+    )
+    const projectId = await t.run((ctx) =>
+      ctx.db.insert('projects', {
+        ownerId: ME,
+        goalId,
+        title: 'Oreum',
+        status: 'active',
+      }),
+    )
+    const session = (
+      area: 'portuguese' | 'career' | 'business',
+      project?: typeof projectId,
+    ) =>
+      t.mutation(api.logs.create, {
+        kind: 'session',
+        area,
+        occurredAt: at('sep', 9),
+        projectId: project,
+      })
+    await session('portuguese')
+    await session('portuguese')
+    await session('career')
+    await session('business', projectId)
+
+    const count = (extra: {
+      area?: 'portuguese' | 'career'
+      projectId?: typeof projectId
+    }) =>
+      t.query(api.aggregate.kindCount, {
+        kind: 'session',
+        start: SEP_1,
+        end: OCT_1,
+        ...extra,
+      })
+
+    expect(await count({})).toBe(4)
+    expect(await count({ area: 'portuguese' })).toBe(2)
+    expect(await count({ area: 'career' })).toBe(1)
+    expect(await count({ projectId })).toBe(1)
   })
 })

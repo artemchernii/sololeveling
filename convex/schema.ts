@@ -51,6 +51,9 @@ const logKind = v.union(
   v.literal('weight'),
   v.literal('expense'),
   v.literal('transfer'),
+  /* Money in — `earn`, `salary`. Added 14 Sep: nothing could record income,
+     and money tracked only as it leaves is half a picture. */
+  v.literal('income'),
   v.literal('session'),
   v.literal('conversation'),
   v.literal('event'),
@@ -91,7 +94,12 @@ export default defineSchema({
     targetValue: v.optional(v.number()),
     unit: v.optional(v.string()),
     deadline: v.optional(v.string()), // ISO date
-  }).index('by_owner_status', ['ownerId', 'status']),
+  })
+    .index('by_owner_status', ['ownerId', 'status'])
+    .searchIndex('search_title', {
+      searchField: 'title',
+      filterFields: ['ownerId'],
+    }),
 
   /* A chain is a goal with a project under it, so goalId is required: a project
      that answers to nothing is the thing this app exists to prevent. */
@@ -102,7 +110,12 @@ export default defineSchema({
     description: v.optional(v.string()),
     status: projectStatus,
     deadline: v.optional(v.string()), // ISO date
-  }).index('by_owner_status', ['ownerId', 'status']), // one 'focus' per owner — setFocus enforces
+  })
+    .index('by_owner_status', ['ownerId', 'status']) // one 'focus' per owner — setFocus enforces
+    .searchIndex('search_title', {
+      searchField: 'title',
+      filterFields: ['ownerId'],
+    }),
 
   tasks: defineTable({
     ownerId: v.string(),
@@ -130,7 +143,11 @@ export default defineSchema({
        status cannot answer it. An absent `scheduledAt` sorts before every
        number, so a `gte(from)` range excludes undated tasks without a filter —
        the same shape as events' by_owner_rrule, for the same reason. */
-    .index('by_owner_scheduled', ['ownerId', 'scheduledAt']),
+    .index('by_owner_scheduled', ['ownerId', 'scheduledAt'])
+    .searchIndex('search_title', {
+      searchField: 'title',
+      filterFields: ['ownerId'],
+    }),
 
   events: defineTable({
     ownerId: v.string(),
@@ -150,7 +167,11 @@ export default defineSchema({
        this is the one addition, and it exists because expansion is client-side.
        `.gte('rrule', '')` selects exactly the rows that have one: an absent
        optional field sorts before every string. */
-    .index('by_owner_rrule', ['ownerId', 'rrule']),
+    .index('by_owner_rrule', ['ownerId', 'rrule'])
+    .searchIndex('search_title', {
+      searchField: 'title',
+      filterFields: ['ownerId'],
+    }),
 
   /* Quick capture lands here. Append-only: a log is a record of something that
      happened, so it is never edited into a different truth. */
@@ -197,13 +218,30 @@ export default defineSchema({
     projectId: v.optional(v.id('projects')),
     goalId: v.optional(v.id('goals')),
     kind: noteKind,
-  }).index('by_owner_kind', ['ownerId', 'kind']),
+  })
+    .index('by_owner_kind', ['ownerId', 'kind'])
+    /* Two, because a search index carries exactly one field and a note is
+       findable by either half of it. convex/search.ts queries both and
+       de-duplicates by _id. */
+    .searchIndex('search_title', {
+      searchField: 'title',
+      filterFields: ['ownerId'],
+    })
+    .searchIndex('search_body', {
+      searchField: 'body',
+      filterFields: ['ownerId'],
+    }),
 
   principles: defineTable({
     ownerId: v.string(),
     text: v.string(),
     sortOrder: v.number(),
-  }).index('by_owner_order', ['ownerId', 'sortOrder']),
+  })
+    .index('by_owner_order', ['ownerId', 'sortOrder'])
+    .searchIndex('search_text', {
+      searchField: 'text',
+      filterFields: ['ownerId'],
+    }),
 
   reviews: defineTable({
     ownerId: v.string(),

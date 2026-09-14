@@ -43,6 +43,8 @@ gives a fast first paint on mobile and a place for server functions later (cron 
   tasks.ts projects.ts goals.ts logs.ts state.ts events.ts notes.ts reviews.ts
   auth.ts        -- requireUser(ctx) -> ownerId; called first in every mutation and query
   aggregate.ts   -- monthCounts(), currentState(), entityCounts()  (the only number sources)
+  search.ts      -- everything(): ⌘K over your own rows. A read, not an aggregation:
+                    it returns rows grouped by kind and never scores or ranks across them.
   seed.ts        -- internal mutation: principles only. Nothing else is ever seeded.
   auth.config.ts
 ```
@@ -88,7 +90,7 @@ accidentally return everything, and so a second user costs nothing later.
 const area = v.union(...literals('business','portuguese','body','money','social','career','style','knowledge','life'));
 const projectStatus = literals('focus','active','paused','completed','archived');
 const taskStatus = literals('open','done','skipped');
-const logKind = literals('workout','weight','expense','transfer','session','conversation',
+const logKind = literals('workout','weight','expense','transfer','income','session','conversation',
   'event','people_met','task_done','piece','note','idea','custom');
 
 goals:     { ownerId, title, description?, area, status: 'active'|'done'|'dropped',
@@ -145,8 +147,9 @@ project `done/total`, free hours today. All via `convex/aggregate.ts` queries �
 **Shell (desktop ≥1024)**
 
 - TopBar: ■ SOLO LEVELING · Search ⌘K · bell · ARTEM ▾
-- SideNav grouped: **DO** Dashboard/Quests/Calendar/Goals/Projects · **TRACK** Money/Body/Social/
+- SideNav grouped: **NOW** Dashboard/Quests/Calendar · **PLAN** Goals/Projects/Backlog · **TRACK** Money/Body/Social/
   Portuguese/Career/Style · **KNOW** Notes/Knowledge/Principles · Settings at bottom
+  (four groups since 14 Sep — DO had held both the day and the planning behind it)
 - Persistent "Log something" button (top-right) → ⌘K palette: type `workout 60`, `spend 48 groceries`,
   `pt 30`, `weight 75.4`, `note …` → parsed into a `logs` row. Three seconds, no form.
 

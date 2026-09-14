@@ -1,24 +1,20 @@
+import { AREAS, areaVars } from '@/lib/areas'
 import type { Area } from '@/lib/capture-parser'
+
+export { AREAS }
 
 /* The badge is the editor (settled with Artem, 8 Sep). A wrong area is fixed
    where you notice it, rather than demanded up front in a dropdown at the
    moment you have least patience for one.
- 
-   Neutral on purpose: PLAN.md §3 reserves the lavender accent for live and
-   focus things, and nine coloured badges would be a rainbow competing with the
-   one signal that is supposed to mean "this is the thing". */
 
-export const AREAS: Array<Area> = [
-  'business',
-  'portuguese',
-  'body',
-  'money',
-  'social',
-  'career',
-  'style',
-  'knowledge',
-  'life',
-]
+   Coloured by area. It was neutral on purpose, so that nine colours would not
+   compete with the lavender that means live and focus — and §3d, written the
+   day after, settled it the other way: an area is a kind, colour says what a
+   thing is, and the app had been too monochrome about kinds. The area palette
+   leaves a gap round the accent's hue so the two cannot be confused. Unfiled
+   stays grey, because it is not a kind. */
+
+const CAPS = 'font-mono text-[10px] tracking-[0.14em] uppercase'
 
 export function AreaBadge({
   area,
@@ -29,9 +25,16 @@ export function AreaBadge({
 }) {
   const label = area ?? 'unfiled'
 
+  const tone = area
+    ? 'bg-(--area)/14 text-(--area) ring-1 ring-(--area)/25 ring-inset'
+    : 'bg-white/5 text-ink-500'
+
   if (!onChange) {
     return (
-      <span className="label-caps rounded-[4px] bg-white/5 px-1.5 py-0.5">
+      <span
+        style={area ? areaVars(area) : undefined}
+        className={`${CAPS} ${tone} rounded-[4px] px-1.5 py-0.5`}
+      >
         {label}
       </span>
     )
@@ -40,8 +43,11 @@ export function AreaBadge({
   /* A native select: it inherits keyboard behaviour and the platform's own
      picker on a phone, which is the device this gets used on. */
   return (
-    <span className="relative inline-flex items-center rounded-[4px] bg-white/5 px-1.5 py-0.5 transition-colors hover:bg-white/10">
-      <span className="label-caps pointer-events-none">{label}</span>
+    <span
+      style={area ? areaVars(area) : undefined}
+      className={`${tone} motion-press relative inline-flex items-center rounded-[4px] px-1.5 py-0.5 hover:brightness-125`}
+    >
+      <span className={`${CAPS} pointer-events-none`}>{label}</span>
       <select
         aria-label={`Area — currently ${label}`}
         value={area ?? ''}

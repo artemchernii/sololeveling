@@ -147,8 +147,9 @@ project `done/total`, free hours today. All via `convex/aggregate.ts` queries �
 **Shell (desktop ≥1024)**
 
 - TopBar: ■ SOLO LEVELING · Search ⌘K · bell · ARTEM ▾
-- SideNav grouped: **DO** Dashboard/Quests/Calendar/Goals/Projects · **TRACK** Money/Body/Social/
+- SideNav grouped: **NOW** Dashboard/Quests/Calendar · **PLAN** Goals/Projects/Backlog · **TRACK** Money/Body/Social/
   Portuguese/Career/Style · **KNOW** Notes/Knowledge/Principles · Settings at bottom
+  (four groups since 14 Sep — DO had held both the day and the planning behind it)
 - Persistent "Log something" button (top-right) → ⌘K palette: type `workout 60`, `spend 48 groceries`,
   `pt 30`, `weight 75.4`, `note …` → parsed into a `logs` row. Three seconds, no form.
 

@@ -1,6 +1,9 @@
+import { useAuth } from '@clerk/tanstack-react-start'
 import { Link, useRouter } from '@tanstack/react-router'
 import type { ErrorComponentProps } from '@tanstack/react-router'
 import { ArrowRight, RotateCw } from 'lucide-react'
+
+import { isSignedOut } from '@/lib/convex-errors'
 
 /* What a page shows when there is no page, and when the page broke. Both are
    rendered where the page would have been — inside the shell, under the
@@ -32,6 +35,14 @@ export function NotFound() {
 
 export function PageCrash({ error, reset }: ErrorComponentProps) {
   const router = useRouter()
+  const { isSignedIn } = useAuth()
+
+  /* A query refused because the session ended is not a broken page. The
+     shell's SessionGuard is already on its way to /login; showing "Something
+     broke" for the frame in between would be a false alarm. Only when Clerk
+     agrees nobody is signed in — if it still thinks someone is, this is a real
+     fault and says so. */
+  if (isSignedOut(error) && isSignedIn === false) return null
 
   return (
     <div

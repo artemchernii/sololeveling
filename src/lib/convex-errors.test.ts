@@ -1,7 +1,7 @@
 import { ConvexError } from 'convex/values'
 import { describe, expect, test } from 'vitest'
 
-import { failureMessage } from './write-failure'
+import { failureMessage, isSignedOut } from './convex-errors'
 
 /* The shapes the Convex client rejects with. A thrown Error reaches the client
    as a message carrying the function, a request id, and the server's words
@@ -46,5 +46,17 @@ describe('a failed save says what went wrong, in words', () => {
 
   test('signing out is not a failed save — the session handles it', () => {
     expect(failureMessage(serverError('Not signed in'))).toBeNull()
+  })
+})
+
+describe('a read or write refused because nobody is signed in', () => {
+  test('is recognised from the server’s words', () => {
+    expect(isSignedOut(serverError('Not signed in'))).toBe(true)
+  })
+
+  test('and nothing else is', () => {
+    expect(isSignedOut(serverError('No such task'))).toBe(false)
+    expect(isSignedOut(new Error('Not signed in'))).toBe(false)
+    expect(isSignedOut(undefined)).toBe(false)
   })
 })

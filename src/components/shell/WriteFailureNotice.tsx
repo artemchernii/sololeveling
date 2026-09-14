@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
-import { failureMessage } from '@/lib/write-failure'
+import { failureMessage } from '@/lib/convex-errors'
 
 /* Most writes in the app are fired from a tap — `void setArea(...)`, a tick,
    a drop — with nothing waiting on the answer. When one of those failed, the

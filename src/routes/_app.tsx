@@ -8,6 +8,7 @@ import { MobileActions } from '@/components/shell/MobileActions'
 import { MobileNav } from '@/components/shell/MobileNav'
 import { QuickCapture } from '@/components/shell/QuickCapture'
 import { SearchPalette } from '@/components/shell/SearchPalette'
+import { SessionGuard } from '@/components/shell/SessionGuard'
 import { SideNav } from '@/components/shell/SideNav'
 import { TopBar } from '@/components/shell/TopBar'
 import { WriteFailureNotice } from '@/components/shell/WriteFailureNotice'
@@ -122,6 +123,7 @@ function AppShell() {
         initialInput={capturePrefill}
       />
       <WriteFailureNotice />
+      <SessionGuard />
     </div>
   )
 }

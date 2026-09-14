@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
+import { PageTitle } from '@/components/PageTitle'
 import { Skeleton } from '@/components/Skeleton'
 import { useTheme } from '@/integrations/theme/provider'
 import { PREFERENCES } from '@/lib/theme'
@@ -23,10 +24,10 @@ function Settings() {
       {/* The same header as Principles and Notes: a title and one line
           saying what the page is for. It carried "Phase 6", a build-plan
           label that meant nothing on the page. */}
-      <div>
-        <h1 className="text-[22px] text-foreground">Settings</h1>
-        <p className="label-caps">How the app looks, and whose it is.</p>
-      </div>
+      <PageTitle
+        title="Settings"
+        subtitle="How the app looks, and whose it is."
+      />
 
       <Appearance />
 

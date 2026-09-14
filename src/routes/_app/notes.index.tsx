@@ -6,6 +6,7 @@ import { ChevronRight } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
+import { PageTitle } from '@/components/PageTitle'
 import { NoteEditor } from '@/components/notes/NoteEditor'
 import { SaveLabel, useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
@@ -82,10 +83,10 @@ function Notes() {
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <div>
-        <h1 className="text-[22px] text-foreground">Notes</h1>
-        <p className="label-caps">Written down, and counted towards nothing.</p>
-      </div>
+      <PageTitle
+        title="Notes"
+        subtitle="Written down, and counted towards nothing."
+      />
 
       <div className="flex flex-wrap gap-1.5">
         {KINDS.map((option) => (

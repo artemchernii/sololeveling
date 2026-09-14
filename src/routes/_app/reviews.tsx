@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
+import { PageTitle } from '@/components/PageTitle'
 import { CloseWeek } from '@/components/review/CloseWeek'
 import { KpiTiles } from '@/components/review/KpiTiles'
 import { MovementTable } from '@/components/review/MovementTable'
@@ -69,17 +70,19 @@ function Reviews() {
   return (
     <div className="flex flex-col gap-[18px]">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[22px] text-foreground">Weekly review</h1>
-          <p className="label-caps">
-            Week of{' '}
-            {weekStart.toLocaleDateString(undefined, {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
-          </p>
-        </div>
+        <PageTitle
+          title="Weekly review"
+          subtitle={
+            <>
+              Week of{' '}
+              {weekStart.toLocaleDateString(undefined, {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </>
+          }
+        />
 
         <div className="flex items-center gap-2">
           <button

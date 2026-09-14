@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
+import { PageTitle } from '@/components/PageTitle'
 import { Skeleton } from '@/components/Skeleton'
 import { useTheme } from '@/integrations/theme/provider'
 import { PREFERENCES } from '@/lib/theme'
@@ -11,20 +12,22 @@ export const Route = createFileRoute('/_app/settings')({
   component: Settings,
 })
 
-/* Settings proper is Phase 6. The one thing it carries now is the ownerId,
-   because it is the only place that value is observable: every row in the
-   database is scoped by it, and seeding a deployment's principles needs it
-   typed into the CLI. Convex documents the token identifier as opaque, so it
+/* How the app looks on this device, and the ownerId — the only place that
+   value is observable: every row in the database is scoped by it, and seeding
+   a deployment's principles needs it typed into the CLI. Convex documents the token identifier as opaque, so it
    is read here rather than assembled from an issuer and a Clerk user id. */
 function Settings() {
   const ownerId = useHeld(useQuery(api.auth.whoami))
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <div className="glass flex flex-col gap-1 rounded-[22px] p-6">
-        <div className="label-caps">Phase 6</div>
-        <h1 className="text-[28px] font-light text-foreground">Settings</h1>
-      </div>
+      {/* The same header as Principles and Notes: a title and one line
+          saying what the page is for. It carried "Phase 6", a build-plan
+          label that meant nothing on the page. */}
+      <PageTitle
+        title="Settings"
+        subtitle="How the app looks, and whose it is."
+      />
 
       <Appearance />
 

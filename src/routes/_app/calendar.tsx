@@ -4,6 +4,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
+import { PageTitle } from '@/components/PageTitle'
 import { EventDialog } from '@/components/calendar/EventDialog'
 import { WeekGrid } from '@/components/calendar/WeekGrid'
 import { parseOccurrenceId } from '@/lib/recurrence'
@@ -55,21 +56,23 @@ function Calendar() {
   return (
     <div className="flex flex-col gap-[18px]">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[22px] text-foreground">Calendar</h1>
-          <p className="label-caps">
-            {weekStart.toLocaleDateString(undefined, {
-              day: 'numeric',
-              month: 'short',
-            })}
-            {' — '}
-            {addDays(weekStart, 6).toLocaleDateString(undefined, {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            })}
-          </p>
-        </div>
+        <PageTitle
+          title="Calendar"
+          subtitle={
+            <>
+              {weekStart.toLocaleDateString(undefined, {
+                day: 'numeric',
+                month: 'short',
+              })}
+              {' — '}
+              {addDays(weekStart, 6).toLocaleDateString(undefined, {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </>
+          }
+        />
 
         <div className="flex items-center gap-2">
           <button

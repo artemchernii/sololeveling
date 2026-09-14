@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
+import { PageTitle } from '@/components/PageTitle'
 import { SkeletonRows } from '@/components/Skeleton'
 import { useArrived, useHeld } from '@/lib/loading'
 
@@ -18,10 +19,7 @@ function Principles() {
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <div>
-        <h1 className="text-[22px] text-foreground">Principles</h1>
-        <p className="label-caps">Six lines. They do not change.</p>
-      </div>
+      <PageTitle title="Principles" subtitle="Six lines. They do not change." />
 
       {principles === undefined ? (
         /* Six is known: they are the six lines. */

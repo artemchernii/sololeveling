@@ -17,6 +17,7 @@ import {
 
 import { Hint, PaletteShell } from './PaletteShell'
 import { Key } from './Key'
+import { VERB_ICONS, VerbTile } from './VerbIcon'
 import { api } from '../../../convex/_generated/api'
 import { NoteEditor } from '@/components/notes/NoteEditor'
 import { AREAS, areaVars } from '@/lib/areas'
@@ -26,12 +27,13 @@ import {
   formatLine,
   lineFromLog,
   parseCapture,
+  projectVerbs,
   searchVerbs,
   suggestVerbs,
   toNumber,
   verbFor,
 } from '@/lib/capture-parser'
-import type { Area, LogKind } from '@/lib/capture-parser'
+import type { Area, LogKind, VerbInfo } from '@/lib/capture-parser'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { whenLabel } from '@/lib/format'
 import { splitNote } from '@/lib/note-text'
@@ -67,8 +69,57 @@ const CHIP =
 const NEUTRAL_CHIP = `${CHIP} bg-white/[0.06] text-ink-300 ring-1 ring-white/10 ring-inset hover:bg-white/10`
 const AREA_CHIP = `${CHIP} bg-(--area)/14 text-(--area) ring-1 ring-(--area)/30 ring-inset hover:bg-(--area)/22`
 
+/** What a count after logging is a count of, so "4" is never a bare number
+    beside a word it does not count: `boxing` says "4 workouts", because
+    every workout is counted, and `pt` says "3 Portuguese sessions". */
+function countNoun(
+  last: { kind: LogKind; area: Area; projectId?: string },
+  count: number,
+): string {
+  const one = count === 1
+  switch (last.kind) {
+    case 'workout':
+      return one ? 'workout' : 'workouts'
+    case 'weight':
+      return one ? 'weigh-in' : 'weigh-ins'
+    case 'expense':
+      return one ? 'expense' : 'expenses'
+    case 'transfer':
+      return one ? 'investment' : 'investments'
+    case 'income':
+      return one ? 'payment in' : 'payments in'
+    case 'event':
+      return one ? 'event' : 'events'
+    case 'piece':
+      return one ? 'piece' : 'pieces'
+    case 'session': {
+      const noun = one ? 'session' : 'sessions'
+      if (last.projectId) return `${noun} on this project`
+      if (last.area === 'portuguese') return `Portuguese ${noun}`
+      if (last.area === 'career') return `work ${noun}`
+      return noun
+    }
+    default:
+      return one ? 'log' : 'logs'
+  }
+}
+
 type NoteKind = Doc<'notes'>['kind']
 const NOTE_KINDS: Array<NoteKind> = ['note', 'idea', 'book', 'reference']
+
+/** A verb's icon at chip size, in its area colour. */
+function ChipIcon({ icon }: { icon: VerbInfo['icon'] | undefined }) {
+  if (!icon) return null
+  const Icon = VERB_ICONS[icon]
+  return <Icon className="size-3.5 shrink-0 text-(--area)" />
+}
+
+/* 35ms per chip: short enough that four chips are all in within a base
+   duration of the first, long enough that the eye reads them as a sequence.
+   It delays an existing motion rather than being a duration of its own. */
+function beat(index: number): React.CSSProperties {
+  return { animationDelay: `${index * 35}ms` }
+}
 
 /** A datetime-local value, in local time, for an instant. */
 function toLocalInput(ms: number): string {
@@ -88,10 +139,11 @@ export function QuickCapture({
   initialInput?: string
 }) {
   const [input, setInput] = useState(initialInput)
-  /* An area chosen for one verb. Keyed by the kind it was chosen for, so
-     changing the verb drops it without an effect racing the recent list that
-     sets both at once. */
-  const [areaFor, setAreaFor] = useState<{ kind: LogKind; area: Area } | null>(
+  /* An area chosen for one verb. Keyed by the verb's word, so changing the
+     verb drops it without an effect racing the recent list that sets both at
+     once — and by word rather than kind, since `pt` and `work` are both
+     sessions and must not share an override. */
+  const [areaFor, setAreaFor] = useState<{ word: string; area: Area } | null>(
     null,
   )
   /** null is "now", resolved at the moment of logging, not of opening. */
@@ -122,9 +174,11 @@ export function QuickCapture({
         kind: LogKind
         area: Area
         at: number
+        projectId?: Id<'projects'>
       }
     | { type: 'removed'; line: string; row: Doc<'logs'> }
     | { type: 'noted'; id: Id<'notes'>; title: string }
+    | { type: 'tasked'; id: Id<'tasks'>; title: string }
     | null
   >(null)
 
@@ -132,6 +186,13 @@ export function QuickCapture({
   const createLog = useMutation(api.logs.create)
   const removeLog = useMutation(api.logs.remove)
   const createNote = useMutation(api.notes.create)
+  const createTask = useMutation(api.tasks.create)
+  const removeTask = useMutation(api.tasks.remove)
+  /* Your live projects, each of which is a verb — `sololeveling 90`. */
+  const projects = useQuery(api.projects.listLive, {})
+  const extra = useMemo(() => projectVerbs(projects ?? []), [projects])
+  /** Which row is on its way out, so it can animate before it is removed. */
+  const [leaving, setLeaving] = useState<string | null>(null)
   const removeNote = useMutation(api.notes.remove)
   const navigate = useNavigate()
 
@@ -165,7 +226,8 @@ export function QuickCapture({
     const out: Array<{
       id: string
       line: string
-      kind: LogKind
+      word: string
+      icon: VerbInfo['icon']
       area: Area
       at: number
       row: Doc<'logs'>
@@ -173,13 +235,15 @@ export function QuickCapture({
     for (const row of recentRows ?? []) {
       /* The row just logged is already on screen, with its undo. */
       if (last?.type === 'logged' && row._id === last.id) continue
-      const line = lineFromLog(row)
+      const line = lineFromLog(row, extra)
       if (line === null || seen.has(line)) continue
       seen.add(line)
+      const word = line.split(' ')[0]
       out.push({
         id: row._id,
         line,
-        kind: row.kind,
+        word,
+        icon: verbFor(word, extra)?.icon ?? 'sticky-note',
         area: row.area,
         at: row.occurredAt,
         row,
@@ -187,14 +251,14 @@ export function QuickCapture({
       if (out.length === 5) break
     }
     return out
-  }, [recentRows, last])
+  }, [recentRows, last, extra])
 
   const trimmed = input.trim()
-  const result = parseCapture(input)
+  const result = parseCapture(input, extra)
   const verb = result.verb
   const typed = result.typed ?? {}
   const area: Area | undefined = verb
-    ? areaFor?.kind === verb.kind
+    ? areaFor?.word === verb.word
       ? areaFor.area
       : verb.area
     : undefined
@@ -203,7 +267,8 @@ export function QuickCapture({
      sheet, and the line keeps only the word — so there is one place the note
      is being written, not two halves of it. Done during render against the
      previous state, like the open reset above, so no frame shows both. */
-  const isNote = verb?.kind === 'note'
+  const isNote = verb?.action === 'note'
+  const isTask = verb?.action === 'task'
   /* A draft is never thrown away by the line: change `note` to something else
      by accident and back, and the sheet still holds what was written. It is
      cleared only by saving, or by closing the modal. */
@@ -223,20 +288,28 @@ export function QuickCapture({
   }, [isNote])
 
   const slashed = trimmed.startsWith('/')
-  const slashMatches = slashed ? searchVerbs(trimmed.slice(1)) : []
+  const slashMatches = slashed ? searchVerbs(trimmed.slice(1), extra) : []
   const [firstWord = '', ...restWords] = trimmed.split(/\s+/)
   const rest = restWords.join(' ')
   /** Verbs that mean the first word, when it is not one itself. */
-  const meant = verb || slashed ? [] : searchVerbs(firstWord)
+  const meant = verb || slashed ? [] : searchVerbs(firstWord, extra)
 
   /* A log count, from aggregate.ts like every other number — for the month
      the line was logged into, which is not this month if it was back-dated. */
-  const loggedMonth = last?.type === 'logged' ? new Date(last.at) : null
+  const loggedLast = last?.type === 'logged' ? last : null
+  const loggedMonth = loggedLast ? new Date(loggedLast.at) : null
   const count = useQuery(
     api.aggregate.kindCount,
     last?.type === 'logged' && loggedMonth
       ? {
           kind: last.kind,
+          /* A session is written by pt, work and every project, so it is
+             counted within what this one was: its project, or its area. */
+          ...(last.kind === 'session'
+            ? last.projectId
+              ? { projectId: last.projectId }
+              : { area: last.area }
+            : {}),
           start: new Date(
             loggedMonth.getFullYear(),
             loggedMonth.getMonth(),
@@ -252,16 +325,17 @@ export function QuickCapture({
   )
   const now = new Date()
   const countLabel =
-    count === undefined || loggedMonth === null
+    count === undefined || loggedMonth === null || loggedLast === null
       ? null
       : loggedMonth.getFullYear() === now.getFullYear() &&
           loggedMonth.getMonth() === now.getMonth()
-        ? `${count} this month`
-        : `${count} in ${loggedMonth.toLocaleDateString(undefined, { month: 'long' })}`
+        ? `${count} ${countNoun(loggedLast, count)} this month`
+        : `${count} ${countNoun(loggedLast, count)} in ${loggedMonth.toLocaleDateString(undefined, { month: 'long' })}`
 
   const suggestions = suggestVerbs(
     input,
-    recents.map((r) => r.line.split(' ')[0]),
+    recents.map((r) => r.word),
+    extra,
   )
   const ghost =
     suggestions.length > 0 ? suggestions[0].slice(input.length) : undefined
@@ -282,6 +356,14 @@ export function QuickCapture({
     focusLine()
   }
 
+  /* The words chip shows what you typed, or a default you can see — never
+     the text as stored. For `boxing 60 sparring` the row says "boxing
+     sparring", but the chip is "sparring": editing it writes back into the
+     line, and the line already starts with `boxing`. */
+  const chipText =
+    typed.text ??
+    (result.ok && result.defaulted.text ? (result.log.text ?? '') : '')
+
   /** A chip edit, written back into the line alongside what was typed. */
   function rewrite(patch: { value?: number | null; text?: string | null }) {
     if (!verb) return
@@ -300,6 +382,10 @@ export function QuickCapture({
   async function submit() {
     if (isNote) {
       await saveNote()
+      return
+    }
+    if (isTask) {
+      await addTask()
       return
     }
     setAttempted(true)
@@ -325,6 +411,7 @@ export function QuickCapture({
         kind: result.log.kind,
         area: filed,
         at,
+        projectId: result.log.projectId,
       })
       setInput('')
       setAreaFor(null)
@@ -336,6 +423,25 @@ export function QuickCapture({
       focusLine()
     } catch (error) {
       setFailure(error instanceof Error ? error.message : 'That did not log.')
+    }
+  }
+
+  /** `todo` — a task to the backlog, from its title alone (§3b.3). */
+  async function addTask() {
+    setAttempted(true)
+    setFailure(null)
+    if (!result.ok || !result.log.text) return
+    try {
+      const title = result.log.text
+      const id = await createTask({ title, area })
+      setLast({ type: 'tasked', id, title })
+      setInput('')
+      setAreaFor(null)
+      setAttempted(false)
+      setTextDraft(null)
+      focusLine()
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : 'That did not save.')
     }
   }
 
@@ -388,6 +494,11 @@ export function QuickCapture({
       focusLine()
       return
     }
+    if (action.type === 'tasked') {
+      await removeTask({ taskId: action.id })
+      focusLine()
+      return
+    }
     const { row } = action
     await createLog({
       kind: row.kind,
@@ -406,7 +517,10 @@ export function QuickCapture({
       at once, with the undo row as the safety rather than a confirm dialog:
       a question asked before every removal is one you stop reading. */
   async function remove(recent: { line: string; row: Doc<'logs'> }) {
+    setLeaving(recent.row._id)
+    await new Promise((resolve) => setTimeout(resolve, 200))
     await removeLog({ logId: recent.row._id })
+    setLeaving(null)
     setLast({ type: 'removed', line: recent.line, row: recent.row })
     focusLine()
   }
@@ -416,7 +530,8 @@ export function QuickCapture({
       open={open}
       onOpenChange={onOpenChange}
       label="Log"
-      icon={Plus}
+      icon={verb ? VERB_ICONS[verb.icon] : Plus}
+      iconKey={verb?.icon ?? 'plus'}
       placeholder="What happened?"
       value={input}
       inputRef={inputRef}
@@ -430,6 +545,13 @@ export function QuickCapture({
           ? {
               ...areaVars(area),
               borderColor: 'color-mix(in oklab, var(--area) 38%, transparent)',
+              /* A glow of the area's colour behind the panel, on top of the
+                 glass's own shadow — the whole modal takes on what the line
+                 has become, not only its edge. */
+              boxShadow:
+                'var(--glass-shadow), 0 28px 80px -28px color-mix(in oklab, var(--area) 45%, transparent)',
+              transition:
+                'border-color var(--motion-base) var(--motion-ease), box-shadow var(--motion-base) var(--motion-ease)',
             }
           : undefined
       }
@@ -517,15 +639,26 @@ export function QuickCapture({
               ? areaVars(last.area)
               : last.type === 'noted'
                 ? areaVars('knowledge')
-                : areaVars(last.row.area)
+                : last.type === 'tasked'
+                  ? areaVars('business')
+                  : areaVars(last.row.area)
           }
-          className={`motion-arrive mx-1.5 mt-2 flex items-center gap-3 rounded-[10px] px-3.5 py-2 ${
+          /* Arrives, and — for something added — rings once in its colour
+             while the tick draws itself. A removal only arrives: nothing to
+             celebrate there, only something to undo. */
+          className={`motion-arrive relative mx-1.5 mt-2 flex items-center gap-3 rounded-[10px] px-3.5 py-2 ${
             last.type === 'removed' ? 'bg-white/[0.04]' : 'bg-(--area)/10'
           }`}
         >
           {last.type !== 'removed' ? (
+            <span
+              aria-hidden
+              className="motion-pulse pointer-events-none absolute inset-0 rounded-[10px]"
+            />
+          ) : null}
+          {last.type !== 'removed' ? (
             <Check
-              className="size-3.5 shrink-0 text-(--area)"
+              className="motion-draw size-3.5 shrink-0 text-(--area)"
               strokeWidth={2.5}
             />
           ) : (
@@ -533,14 +666,16 @@ export function QuickCapture({
           )}
           <span
             className={`min-w-0 truncate text-[13px] ${
-              last.type === 'noted'
+              last.type === 'noted' || last.type === 'tasked'
                 ? 'text-foreground'
                 : last.type === 'logged'
                   ? 'font-mono text-foreground'
                   : 'font-mono text-ink-500 line-through decoration-ink-600'
             }`}
           >
-            {last.type === 'noted' ? last.title : last.line}
+            {last.type === 'noted' || last.type === 'tasked'
+              ? last.title
+              : last.line}
           </span>
           {last.type === 'noted' ? (
             /* Saved, and one tap from being read — no count: a note counts
@@ -554,6 +689,20 @@ export function QuickCapture({
               className="motion-press flex shrink-0 items-center gap-1 text-[12px] text-(--area) hover:underline"
             >
               saved to notes
+              <ArrowUpRight className="size-3" />
+            </button>
+          ) : last.type === 'tasked' ? (
+            /* To the backlog — the one place unpicked tasks live, and no
+               count of them here (§3c): "added", never "12 open". */
+            <button
+              type="button"
+              onClick={() => {
+                onOpenChange(false)
+                void navigate({ to: '/backlog' })
+              }}
+              className="motion-press flex shrink-0 items-center gap-1 text-[12px] text-(--area) hover:underline"
+            >
+              added to backlog
               <ArrowUpRight className="size-3" />
             </button>
           ) : last.type === 'logged' ? (
@@ -595,13 +744,15 @@ export function QuickCapture({
                   key={recent.id}
                   value={recent.id}
                   onSelect={() => {
-                    setAreaFor({ kind: recent.kind, area: recent.area })
+                    setAreaFor({ word: recent.word, area: recent.area })
                     takeLine(recent.line)
                   }}
                   style={areaVars(recent.area)}
-                  className="group motion-press mx-1.5 flex cursor-pointer items-center gap-3 rounded-[10px] px-3.5 py-2 text-ink-300 data-[selected=true]:bg-(--area)/10 data-[selected=true]:text-foreground"
+                  className={`group motion-press mx-1.5 flex cursor-pointer items-center gap-3 rounded-[10px] px-3 py-1.5 text-ink-300 data-[selected=true]:bg-(--area)/10 data-[selected=true]:text-foreground ${
+                    leaving === recent.id ? 'motion-leave' : ''
+                  }`}
                 >
-                  <span className="size-2 shrink-0 rounded-full bg-(--area)" />
+                  <VerbTile icon={recent.icon} />
                   <span className="font-mono text-[13px]">{recent.line}</span>
                   <span className="ml-auto text-[11.5px] text-ink-600">
                     {whenLabel(recent.at)}
@@ -628,15 +779,15 @@ export function QuickCapture({
              empty state until there is a history to show instead — and each
              example fills the line, so it can be tried rather than read. */
           <ul className="space-y-0.5 px-2 py-2.5">
-            {CAPTURE_HINTS.map(({ example, hint, area: tone }) => (
+            {CAPTURE_HINTS.map(({ example, hint, area: tone, icon }) => (
               <li key={example}>
                 <button
                   type="button"
                   onClick={() => takeLine(example)}
                   style={areaVars(tone)}
-                  className="motion-press flex w-full items-baseline gap-3 rounded-[10px] px-3 py-1.5 text-left hover:bg-(--area)/10"
+                  className="motion-press flex w-full items-center gap-3 rounded-[10px] px-3 py-1 text-left hover:bg-(--area)/10"
                 >
-                  <span className="size-2 shrink-0 translate-y-[-1px] self-center rounded-full bg-(--area)" />
+                  <VerbTile icon={icon} size="sm" />
                   <span className="w-[164px] shrink-0 font-mono text-[12.5px] text-ink-200">
                     {example}
                   </span>
@@ -647,7 +798,10 @@ export function QuickCapture({
           </ul>
         )
       ) : slashed ? (
-        <Command.List key="verbs" className="motion-arrive pb-2">
+        <Command.List
+          key="verbs"
+          className="motion-arrive max-h-[52vh] overflow-y-auto pb-2"
+        >
           {slashMatches.length > 0 ? (
             <Command.Group heading="Verbs">
               {slashMatches.map((choice) => (
@@ -656,10 +810,10 @@ export function QuickCapture({
                   value={choice.word}
                   onSelect={() => takeLine(`${choice.word} `)}
                   style={areaVars(choice.area)}
-                  className="motion-press mx-1.5 flex cursor-pointer items-center gap-3 rounded-[10px] px-3.5 py-2 text-ink-300 data-[selected=true]:bg-(--area)/10 data-[selected=true]:text-foreground"
+                  className="motion-press mx-1.5 flex cursor-pointer items-center gap-3 rounded-[10px] px-3 py-1.5 text-ink-300 data-[selected=true]:bg-(--area)/10 data-[selected=true]:text-foreground"
                 >
-                  <span className="size-2 shrink-0 rounded-full bg-(--area)" />
-                  <span className="w-[72px] shrink-0 font-mono text-[13px]">
+                  <VerbTile icon={choice.icon} />
+                  <span className="w-[96px] shrink-0 font-mono text-[13px]">
                     {choice.word}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink-500">
@@ -747,12 +901,15 @@ export function QuickCapture({
         /* Keyed by kind: the block arrives when the line first names a verb
            and again when it names a different one, and stays still while you
            type the rest. */
-        <div key={verb.kind} className="motion-arrive px-5 py-4">
+        <div key={verb.word} className="px-5 py-4">
+          {/* Each chip arrives a beat after the one before it (see `beat`),
+              so the row assembles in reading order instead of appearing as
+              one block. */}
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              style={areaVars(area)}
-              className={AREA_CHIP}
+              style={{ ...areaVars(area), ...beat(0) }}
+              className={`${AREA_CHIP} motion-arrive`}
               aria-expanded={picker === 'area'}
               onClick={() => setPicker(picker === 'area' ? null : 'area')}
             >
@@ -764,8 +921,8 @@ export function QuickCapture({
 
             {verb.amount !== 'none' ? (
               <label
-                style={areaVars(area)}
-                className={`${NEUTRAL_CHIP} cursor-text focus-within:bg-(--area)/10 focus-within:ring-(--area)/55`}
+                style={{ ...areaVars(area), ...beat(1) }}
+                className={`${NEUTRAL_CHIP} motion-arrive cursor-text focus-within:bg-(--area)/10 focus-within:ring-(--area)/55`}
               >
                 {/* The unit as an icon at the front, so every chip opens on
                     one — the time chip already did, and a row where some
@@ -844,8 +1001,8 @@ export function QuickCapture({
             ) : null}
 
             <label
-              style={areaVars(area)}
-              className={`${NEUTRAL_CHIP} cursor-text focus-within:bg-(--area)/10 focus-within:ring-(--area)/55`}
+              style={{ ...areaVars(area), ...beat(2) }}
+              className={`${NEUTRAL_CHIP} motion-arrive cursor-text focus-within:bg-(--area)/10 focus-within:ring-(--area)/55`}
             >
               <PenLine className="size-3.5 shrink-0 text-(--area)" />
               <span className="inline-grid">
@@ -853,19 +1010,13 @@ export function QuickCapture({
                   aria-hidden
                   className="invisible col-start-1 row-start-1 whitespace-pre"
                 >
-                  {(textDraft ??
-                    (result.ok
-                      ? (result.log.text ?? '')
-                      : (typed.text ?? ''))) ||
+                  {(textDraft ?? chipText) ||
                     (verb.amount === 'none' ? 'what?' : 'words')}
                 </span>
                 <input
                   data-chip-input
                   aria-label={verb.amount === 'none' ? 'What' : 'Words'}
-                  value={
-                    textDraft ??
-                    (result.ok ? (result.log.text ?? '') : (typed.text ?? ''))
-                  }
+                  value={textDraft ?? chipText}
                   placeholder={verb.amount === 'none' ? 'what?' : 'words'}
                   size={1}
                   onFocus={(e) => e.currentTarget.select()}
@@ -889,15 +1040,19 @@ export function QuickCapture({
               </span>
             </label>
 
-            <button
-              type="button"
-              className={NEUTRAL_CHIP}
-              aria-expanded={picker === 'when'}
-              onClick={() => setPicker(picker === 'when' ? null : 'when')}
-            >
-              <Clock className="size-3.5 text-ink-500" />
-              {when === null ? 'now' : whenLabel(when)}
-            </button>
+            {/* A task has no time — it has not happened — so no when chip. */}
+            {isTask ? null : (
+              <button
+                type="button"
+                style={beat(3)}
+                className={`${NEUTRAL_CHIP} motion-arrive`}
+                aria-expanded={picker === 'when'}
+                onClick={() => setPicker(picker === 'when' ? null : 'when')}
+              >
+                <Clock className="size-3.5 text-ink-500" />
+                {when === null ? 'now' : whenLabel(when)}
+              </button>
+            )}
           </div>
 
           {picker === 'area' ? (
@@ -908,7 +1063,7 @@ export function QuickCapture({
                   type="button"
                   style={areaVars(choice)}
                   onClick={() => {
-                    setAreaFor({ kind: verb.kind, area: choice })
+                    setAreaFor({ word: verb.word, area: choice })
                     setPicker(null)
                     focusLine()
                   }}
@@ -983,7 +1138,8 @@ export function QuickCapture({
           {suggestions.length > 0 ? (
             <div className="motion-arrive flex flex-wrap items-center gap-2">
               {suggestions.map((word) => {
-                const tone = verbFor(word)?.area ?? 'life'
+                const suggested = verbFor(word, extra)
+                const tone = suggested?.area ?? 'life'
                 return (
                   <button
                     key={word}
@@ -992,6 +1148,7 @@ export function QuickCapture({
                     onClick={() => takeLine(`${word} `)}
                     className={`${AREA_CHIP} font-mono`}
                   >
+                    <ChipIcon icon={suggested?.icon} />
                     {word}
                   </button>
                 )
@@ -1010,7 +1167,7 @@ export function QuickCapture({
                   When nothing does, the note leads and every verb follows. */}
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {meant.length > 0
-                  ? meant.map(({ word, area: tone }) => (
+                  ? meant.map(({ word, area: tone, icon }) => (
                       <button
                         key={word}
                         type="button"
@@ -1020,6 +1177,7 @@ export function QuickCapture({
                         onClick={() => takeLine(`${word} ${rest}`.trim())}
                         className={`${AREA_CHIP} font-mono`}
                       >
+                        <ChipIcon icon={icon} />
                         {word}
                       </button>
                     ))
@@ -1035,7 +1193,7 @@ export function QuickCapture({
                 {meant.length === 0 ? (
                   <>
                     <span className="mx-1 h-4 w-px bg-white/10" />
-                    {CAPTURE_CHOICES.map(({ word, area: tone }) => (
+                    {CAPTURE_CHOICES.map(({ word, area: tone, icon }) => (
                       <button
                         key={word}
                         type="button"
@@ -1043,6 +1201,7 @@ export function QuickCapture({
                         onClick={() => takeLine(`${word} ${rest}`.trim())}
                         className={`${NEUTRAL_CHIP} font-mono text-[12.5px] hover:text-(--area)`}
                       >
+                        <ChipIcon icon={icon} />
                         {word}
                       </button>
                     ))}

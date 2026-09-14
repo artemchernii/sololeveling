@@ -19,6 +19,7 @@ export const logKindValidator = v.union(
   v.literal('weight'),
   v.literal('expense'),
   v.literal('transfer'),
+  v.literal('income'),
   v.literal('session'),
   v.literal('conversation'),
   v.literal('event'),

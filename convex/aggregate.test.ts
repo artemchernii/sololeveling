@@ -343,3 +343,83 @@ describe('kindCount is a log count for one kind (PLAN.md §1, source 1)', () => 
     expect(await count('workout', AUG_1, SEP_1)).toBe(1)
   })
 })
+
+describe('the Portuguese tile counts Portuguese sessions only', () => {
+  test('a work session is not Portuguese practice', async () => {
+    const t = as(ME)
+    const session = (area: 'portuguese' | 'career' | 'business') =>
+      t.mutation(api.logs.create, {
+        kind: 'session',
+        area,
+        occurredAt: at('sep', 7),
+        value: 60,
+        unit: 'min',
+      })
+    await session('portuguese')
+    await session('career')
+    await session('business')
+
+    const counts = await t.query(api.aggregate.monthCounts, MONTH)
+    expect(counts.portuguese.now).toBe(1)
+    expect(counts.total).toBe(3)
+
+    const [week] = await t.query(api.aggregate.weekCounts, {
+      starts: [new Date(2026, 8, 7).getTime()],
+      end: new Date(2026, 8, 14).getTime(),
+    })
+    expect(week.portuguese).toBe(1)
+  })
+})
+
+describe('kindCount narrows by area and project', () => {
+  test('Portuguese sessions, work sessions and time on a project are three counts', async () => {
+    const db = convexTest(schema, modules)
+    const t = db.withIdentity({ tokenIdentifier: ME })
+    const goalId = await t.run((ctx) =>
+      ctx.db.insert('goals', {
+        ownerId: ME,
+        title: 'g',
+        area: 'business',
+        status: 'active',
+      }),
+    )
+    const projectId = await t.run((ctx) =>
+      ctx.db.insert('projects', {
+        ownerId: ME,
+        goalId,
+        title: 'Oreum',
+        status: 'active',
+      }),
+    )
+    const session = (
+      area: 'portuguese' | 'career' | 'business',
+      project?: typeof projectId,
+    ) =>
+      t.mutation(api.logs.create, {
+        kind: 'session',
+        area,
+        occurredAt: at('sep', 9),
+        projectId: project,
+      })
+    await session('portuguese')
+    await session('portuguese')
+    await session('career')
+    await session('business', projectId)
+
+    const count = (extra: {
+      area?: 'portuguese' | 'career'
+      projectId?: typeof projectId
+    }) =>
+      t.query(api.aggregate.kindCount, {
+        kind: 'session',
+        start: SEP_1,
+        end: OCT_1,
+        ...extra,
+      })
+
+    expect(await count({})).toBe(4)
+    expect(await count({ area: 'portuguese' })).toBe(2)
+    expect(await count({ area: 'career' })).toBe(1)
+    expect(await count({ projectId })).toBe(1)
+  })
+})

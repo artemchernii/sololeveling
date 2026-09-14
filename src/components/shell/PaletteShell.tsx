@@ -27,6 +27,7 @@ export function PaletteShell({
   panelStyle,
   fieldClassName = '',
   onClear,
+  iconKey,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -49,6 +50,9 @@ export function PaletteShell({
   fieldClassName?: string
   /** Empties the field. Shown only while there is something in it. */
   onClear?: () => void
+  /** Changes when the icon means something new — the + becoming gym — so it
+      pops in rather than swapping silently. */
+  iconKey?: string
 }) {
   return (
     <Command.Dialog
@@ -81,10 +85,15 @@ export function PaletteShell({
         <div
           className={`flex items-center gap-3 px-5 transition-colors duration-(--motion-base) ease-(--motion-ease) ${fieldClassName}`}
         >
-          <Icon
-            className={`size-5 shrink-0 transition-colors duration-(--motion-base) ${iconClassName}`}
-            aria-hidden
-          />
+          <span
+            key={iconKey}
+            className="motion-pop grid shrink-0 place-items-center"
+          >
+            <Icon
+              className={`size-5 shrink-0 transition-colors duration-(--motion-base) ${iconClassName}`}
+              aria-hidden
+            />
+          </span>
           <div className="relative w-full">
             {/* The completion sits under the field, in the same face and
                 size, behind an invisible copy of what has been typed — so the

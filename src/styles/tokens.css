@@ -124,6 +124,11 @@
         A third duration needs a written reason, here. */
   --motion-fast: 120ms;
   --motion-base: 220ms;
+  /* The third, with its reason (14 Sep): a confirmation that fades out — the
+     one pulse when a log lands — has to be watched leaving to be noticed at
+     all. At base it reads as a flicker. Nothing that arrives or responds may
+     use it; only a thing on its way out. */
+  --motion-linger: 550ms;
   /* Out-weighted: quick to respond, soft to land. No overshoot — a spring
      that bounces past its mark reads as the app celebrating, and nothing
      here is being celebrated. */

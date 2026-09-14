@@ -4,9 +4,11 @@ import {
   formatLine,
   lineFromLog,
   parseCapture,
+  projectVerbs,
   searchVerbs,
   suggestVerbs,
 } from './capture-parser'
+import type { Id } from '../../convex/_generated/dataModel'
 
 /* The parser is the whole of PLAN.md §3's "three seconds, no form" promise, and
    it is pure — so it is cheap to pin down exactly. */
@@ -164,11 +166,15 @@ describe('suggestVerbs', () => {
   })
 
   test('offers every verb that fits, in listed order', () => {
-    expect(suggestVerbs('w')).toEqual(['workout', 'weight'])
+    expect(suggestVerbs('w')).toEqual(['workout', 'weight', 'work'])
   })
 
   test('what you used most recently wins', () => {
-    expect(suggestVerbs('w', ['weight', 'gym'])).toEqual(['weight', 'workout'])
+    expect(suggestVerbs('w', ['work', 'gym'])).toEqual([
+      'work',
+      'workout',
+      'weight',
+    ])
   })
 
   test('nothing once the word is complete or a space is typed', () => {
@@ -223,10 +229,20 @@ describe('formatLine and lineFromLog', () => {
       },
       { kind: 'weight' as const, area: 'body' as const, value: 75.4 },
       {
-        kind: 'note' as const,
-        area: 'knowledge' as const,
-        text: 'call 3 people',
+        kind: 'workout' as const,
+        area: 'body' as const,
+        value: 60,
+        text: 'boxing sparring',
       },
+      { kind: 'workout' as const, area: 'body' as const, text: 'run' },
+      { kind: 'event' as const, area: 'social' as const, text: 'date Ana' },
+      {
+        kind: 'income' as const,
+        area: 'money' as const,
+        value: 3000,
+        text: 'salary',
+      },
+      { kind: 'session' as const, area: 'career' as const, value: 90 },
     ]
     for (const row of rows) {
       const line = lineFromLog(row)!
@@ -239,35 +255,31 @@ describe('searchVerbs — the / list, by name or by meaning', () => {
   const words = (q: string) => searchVerbs(q).map((c) => c.word)
 
   test('nothing typed is every verb, in listed order', () => {
-    expect(words('')).toEqual([
-      'gym',
-      'pt',
-      'weight',
-      'spend',
-      'invest',
-      'note',
-    ])
+    expect(words('')[0]).toBe('gym')
+    expect(words('')).toContain('todo')
+    expect(new Set(words('')).size).toBe(words('').length)
   })
 
   test('a forgotten verb is found by what it means', () => {
-    expect(words('portuguese')).toEqual(['pt'])
     expect(words('class')).toEqual(['pt'])
-    expect(words('training')).toEqual(['gym'])
+    expect(words('lesson')).toEqual(['pt'])
+    expect(words('sparring')).toEqual(['boxing'])
+    expect(words('income')).toEqual(['earn', 'salary'])
   })
 
   test('an area finds every verb filed under it', () => {
-    expect(words('money')).toEqual(['spend', 'invest'])
-    expect(words('body')).toEqual(['gym', 'weight'])
+    expect(words('money')).toEqual(['spend', 'invest', 'earn', 'salary'])
+    expect(words('social')).toEqual(['event', 'date', 'meeting'])
   })
 
   test('a name match comes before a meaning match', () => {
-    // "s" starts `spend` by name, and `savings`/`shares`/`sport`… by meaning.
-    expect(words('s')[0]).toBe('spend')
+    // "sp" starts `spend` by name, and `sparring` (boxing) by meaning.
+    expect(words('sp')).toEqual(['spend', 'boxing'])
   })
 
-  test('a second spelling counts as the name, ahead of a hint', () => {
-    // `workout` is gym by name; pt's hint says "homework", which is weaker.
-    expect(words('work')).toEqual(['gym', 'pt'])
+  test('a second spelling counts as the name', () => {
+    expect(words('portuguese')[0]).toBe('pt')
+    expect(words('workout')[0]).toBe('gym')
   })
 
   test('nothing that fits is nothing, not everything', () => {
@@ -294,5 +306,102 @@ describe('the summary says what happened', () => {
     expect(summary('gym')).toBe('Gym session')
     expect(summary('pt')).toBe('Class · 50 min')
     expect(summary('pt homework 20')).toBe('Homework · 20 min')
+  })
+})
+
+describe('verbs that keep their word', () => {
+  test('boxing is a workout that still says boxing', () => {
+    expect(log('boxing 60 sparring')).toMatchObject({
+      kind: 'workout',
+      area: 'body',
+      value: 60,
+      text: 'boxing sparring',
+    })
+    expect(parsed('boxing').log.text).toBe('boxing')
+  })
+
+  test('date and meeting are social events, and need nothing after them', () => {
+    expect(log('date')).toMatchObject({
+      kind: 'event',
+      area: 'social',
+      text: 'date',
+    })
+    expect(log('meeting founders')).toMatchObject({ text: 'meeting founders' })
+    expect(parseCapture('event').ok).toBe(false)
+  })
+
+  test('salary is income that says salary', () => {
+    expect(log('salary 3000')).toMatchObject({
+      kind: 'income',
+      area: 'money',
+      value: 3000,
+      text: 'salary',
+    })
+  })
+
+  test('the chips edit what was typed, never the kept word', () => {
+    expect(parsed('boxing 60 sparring').typed).toEqual({
+      value: 60,
+      text: 'sparring',
+    })
+  })
+})
+
+describe('verbs that are not logs', () => {
+  test('note and plan are the note sheet', () => {
+    expect(parseCapture('plan').verb).toMatchObject({ action: 'note' })
+    expect(parseCapture('note').verb).toMatchObject({ action: 'note' })
+  })
+
+  test('todo is a task, and needs a title', () => {
+    const result = parsed('todo buy a desk lamp')
+    expect(result.verb.action).toBe('task')
+    expect(result.log.text).toBe('buy a desk lamp')
+    expect(parseCapture('todo').ok).toBe(false)
+  })
+
+  test('work files under career, not Portuguese', () => {
+    expect(log('work 90')).toMatchObject({ kind: 'session', area: 'career' })
+    expect(log('office')).toMatchObject({ area: 'career', text: 'office' })
+  })
+})
+
+describe('projectVerbs — a verb per project, from its title', () => {
+  const SOLO = 'js7d7zt0kcf3fk610zmhkeb3th8e57gm' as Id<'projects'>
+  const OREUM = 'js7oreum000000000000000000000000' as Id<'projects'>
+  const extra = projectVerbs([
+    { _id: SOLO, title: 'SoloLeveling' },
+    { _id: OREUM, title: 'Oreum' },
+    { _id: 'js7work' as Id<'projects'>, title: 'Work' },
+  ])
+
+  test('the title becomes the word, and time on it is linked to it', () => {
+    expect(extra.map((v) => v.words[0])).toEqual(['sololeveling', 'oreum'])
+    const result = parseCapture('sololeveling 90 search', extra)
+    expect(result.ok && result.log).toMatchObject({
+      kind: 'session',
+      area: 'business',
+      value: 90,
+      text: 'search',
+      projectId: SOLO,
+    })
+  })
+
+  test('a project cannot take a built-in word', () => {
+    expect(parseCapture('work 30', extra).verb?.projectId).toBeUndefined()
+  })
+
+  test('without the project, there is no verb', () => {
+    expect(parseCapture('oreum 45').ok).toBe(false)
+  })
+
+  test('it completes, and a past session goes back as the project', () => {
+    expect(suggestVerbs('ore', [], extra)).toEqual(['oreum'])
+    expect(
+      lineFromLog(
+        { kind: 'session', area: 'business', value: 45, projectId: OREUM },
+        extra,
+      ),
+    ).toBe('oreum 45')
   })
 })

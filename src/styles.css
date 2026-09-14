@@ -212,6 +212,67 @@ h6 {
   animation: arrive var(--motion-base) var(--motion-ease) both;
 }
 
+/* Something that has just become a different thing — the + in the Log field
+   turning into the gym icon as the line names it. Scales up from a little
+   smaller, so the change is seen rather than simply having happened. */
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility motion-pop {
+  animation: pop var(--motion-base) var(--motion-ease) both;
+}
+
+/* A tick drawn rather than shown: the stroke runs its own length. Works on
+   any lucide icon whose paths are short, which the check is. */
+@keyframes draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@utility motion-draw {
+  & path,
+  & polyline {
+    stroke-dasharray: 24;
+    animation: draw var(--motion-base) var(--motion-ease) 60ms both;
+  }
+}
+
+/* One ring of the row's own colour, out and gone — the app heard you. Once,
+   never looping: a pulse that repeats is a notification, and this is not. */
+@keyframes pulse-once {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--area) 45%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 10px color-mix(in oklab, var(--area) 0%, transparent);
+  }
+}
+@utility motion-pulse {
+  animation: pulse-once var(--motion-linger) var(--motion-ease) both;
+}
+
+/* Leaving because you removed it: fades and slides aside before the row is
+   gone, so the list closes over a space you watched empty. */
+@keyframes leave {
+  to {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+@utility motion-leave {
+  animation: leave var(--motion-base) var(--motion-ease) both;
+}
+
 /* Feedback on the thing under your finger: colour eases, and a press gives a
    little. Fast, because feedback that lags reads as the app not hearing you. */
 @utility motion-press {

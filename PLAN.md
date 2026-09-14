@@ -90,7 +90,7 @@ accidentally return everything, and so a second user costs nothing later.
 const area = v.union(...literals('business','portuguese','body','money','social','career','style','knowledge','life'));
 const projectStatus = literals('focus','active','paused','completed','archived');
 const taskStatus = literals('open','done','skipped');
-const logKind = literals('workout','weight','expense','transfer','session','conversation',
+const logKind = literals('workout','weight','expense','transfer','income','session','conversation',
   'event','people_met','task_done','piece','note','idea','custom');
 
 goals:     { ownerId, title, description?, area, status: 'active'|'done'|'dropped',

@@ -51,6 +51,9 @@ const logKind = v.union(
   v.literal('weight'),
   v.literal('expense'),
   v.literal('transfer'),
+  /* Money in — `earn`, `salary`. Added 14 Sep: nothing could record income,
+     and money tracked only as it leaves is half a picture. */
+  v.literal('income'),
   v.literal('session'),
   v.literal('conversation'),
   v.literal('event'),

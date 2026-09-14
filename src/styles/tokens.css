@@ -129,6 +129,11 @@
      all. At base it reads as a flicker. Nothing that arrives or responds may
      use it; only a thing on its way out. */
   --motion-linger: 550ms;
+  /* A period, not a transition (14 Sep): one turn of the save spinner. The
+     three above are how long a change takes; this is how fast a thing that is
+     still waiting goes round. Slower reads as stuck, faster as panic. Only a
+     write you started and that has not come back may use it. */
+  --motion-spin: 800ms;
   /* Out-weighted: quick to respond, soft to land. No overshoot — a spring
      that bounces past its mark reads as the app celebrating, and nothing
      here is being celebrated. */

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ConvexReactClient } from 'convex/react'
 import { ConvexProviderWithClerk } from 'convex/react-clerk'
+import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache/provider'
 import { useAuth } from '@clerk/tanstack-react-start'
 
 /* ConvexProviderWithClerk — not the bare ConvexProvider the scaffold ships.
@@ -34,7 +35,14 @@ export default function AppConvexProvider({
 
   return (
     <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-      {children}
+      {/* Keeps a page's query subscriptions open for a while after you leave
+          it. Convex's own useQuery unsubscribes on unmount, so every sidebar
+          click started from nothing: skeleton, then the page snapping in
+          ~60ms later. With the subscription still live, going back renders
+          the data on the first frame — and it is still reactive, not a
+          stale copy. Screens import useQuery from
+          convex-helpers/react/cache/hooks; eslint enforces it. */}
+      <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
     </ConvexProviderWithClerk>
   )
 }

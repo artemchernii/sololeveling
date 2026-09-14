@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useMutation, useQuery } from 'convex/react'
+import { useMutation } from 'convex/react'
+import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { ConvexError } from 'convex/values'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
+import { Skeleton } from '@/components/Skeleton'
 import { deadlineLabel } from '@/lib/format'
 
 export const Route = createFileRoute('/_app/goals')({
@@ -25,7 +27,24 @@ function Goals() {
   return (
     <div className="flex flex-col gap-[18px]">
       {goals === undefined ? (
-        <p className="text-[12.5px] text-ink-600">Reading&hellip;</p>
+        /* Two goal cards as shape: title, target, the meta line, the actions. */
+        <div role="status" aria-label="Loading" className="contents">
+          {[0, 1].map((i) => (
+            <div
+              key={i}
+              className="glass flex flex-col gap-3 rounded-[22px] p-6"
+            >
+              <div className="flex h-5 items-center">
+                <Skeleton className={i === 0 ? 'h-4 w-2/5' : 'h-4 w-1/3'} />
+              </div>
+              <Skeleton className="w-1/5" />
+              <Skeleton className="h-2.5 w-16" />
+              <div className="flex h-[38px] items-end border-t border-white/[0.07]">
+                <Skeleton className="h-[26px] w-48 rounded-[7px]" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : goals.length === 0 ? (
         <div className="glass rounded-[22px] p-6">
           <p className="text-[13px] text-ink-500">

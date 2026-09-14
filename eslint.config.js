@@ -12,6 +12,22 @@ export default [
       '@typescript-eslint/array-type': 'off',
       '@typescript-eslint/require-await': 'off',
       'pnpm/json-enforce-catalog': 'off',
+      /* Convex's useQuery drops its subscription on unmount, which made every
+         page switch flash a skeleton. The cached hook keeps it (see
+         src/integrations/convex/provider.tsx). */
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'convex/react',
+              importNames: ['useQuery'],
+              message:
+                "Import useQuery from 'convex-helpers/react/cache/hooks' so the subscription survives a page switch.",
+            },
+          ],
+        },
+      ],
     },
   },
   {

@@ -1,7 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from 'convex/react'
+import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
+import { SkeletonRows } from '@/components/Skeleton'
 
 export const Route = createFileRoute('/_app/principles')({
   component: Principles,
@@ -21,7 +22,15 @@ function Principles() {
       </div>
 
       {principles === undefined ? (
-        <p className="text-[12.5px] text-ink-600">Reading&hellip;</p>
+        /* Six is known: they are the six lines. */
+        <div className="glass rounded-[22px] p-2">
+          <SkeletonRows
+            rows={6}
+            rowClassName="px-4 py-4"
+            line="h-[26px]"
+            bar="h-3.5"
+          />
+        </div>
       ) : principles.length === 0 ? (
         <div className="glass rounded-[22px] p-5">
           <p className="text-[13px] text-ink-500">

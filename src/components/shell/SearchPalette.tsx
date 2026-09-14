@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Command } from 'cmdk'
+/* The one exception to the cached hook: search runs a query per keystroke, and
+   keeping every half-typed term subscribed for minutes buys nothing. */
+// eslint-disable-next-line no-restricted-imports
 import { useQuery } from 'convex/react'
 import { useNavigate } from '@tanstack/react-router'
 import {

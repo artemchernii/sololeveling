@@ -1,7 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from 'convex/react'
+import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
+import { Skeleton } from '@/components/Skeleton'
 
 export const Route = createFileRoute('/_app/settings')({
   component: Settings,
@@ -25,7 +26,17 @@ function Settings() {
       <div className="glass flex flex-col gap-2 rounded-[22px] p-6">
         <div className="label-caps">Owner ID</div>
         <code className="font-mono text-[12.5px] break-all text-ink-300">
-          {ownerId === undefined ? 'Reading…' : (ownerId ?? 'Not signed in')}
+          {ownerId === undefined ? (
+            <span
+              role="status"
+              aria-label="Loading"
+              className="flex h-5 items-center"
+            >
+              <Skeleton className="w-3/4" />
+            </span>
+          ) : (
+            (ownerId ?? 'Not signed in')
+          )}
         </code>
         <p className="text-[12.5px] text-ink-600">
           Every row you create is scoped to this. It is the argument{' '}

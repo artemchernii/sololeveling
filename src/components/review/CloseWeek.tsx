@@ -3,6 +3,8 @@ import { useMutation } from 'convex/react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
+import { SaveLabel, useSave } from '@/components/Saving'
+import { cn } from '@/lib/utils'
 
 /* PLAN.md §3: five questions, then the one sentence, then close the week.
  
@@ -35,6 +37,11 @@ export function CloseWeek({
   const [answers, setAnswers] = useState<Answers>({})
   const [decision, setDecision] = useState('')
   const [status, setStatus] = useState<string | null>(null)
+  const saving = useSave()
+  const closing = useSave()
+  /* The week this screen closed, so the Closed tag pops for the press — not
+     for a week that was already closed when the page loaded, or paged to. */
+  const [closedHere, setClosedHere] = useState<string | null>(null)
 
   /* Reload whenever the week changes, or when the row arrives after the first
      render — a query is undefined before it resolves, and typing into a form
@@ -49,15 +56,22 @@ export function CloseWeek({
   const closed = review?.closedAt !== undefined
 
   async function persist() {
-    await save({ periodStart: weekKey, answers, decision })
-    setStatus('Saved')
+    try {
+      await saving.run(() => save({ periodStart: weekKey, answers, decision }))
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : 'That did not save')
+    }
   }
 
   async function closeWeek() {
     try {
-      await save({ periodStart: weekKey, answers, decision })
-      await close({ periodStart: weekKey })
-      setStatus('Week closed')
+      await closing.run(async () => {
+        await save({ periodStart: weekKey, answers, decision })
+        await close({ periodStart: weekKey })
+      })
+      /* The button that would carry the tick has already become Reopen; the
+         Closed tag arriving is the confirmation instead. */
+      setClosedHere(weekKey)
     } catch (e) {
       setStatus(e instanceof Error ? e.message : 'That did not close')
     }
@@ -68,7 +82,14 @@ export function CloseWeek({
       <div className="flex items-baseline justify-between">
         <div className="label-caps">Close the week</div>
         {closed ? (
-          <span className="label-caps text-lav-300">Closed</span>
+          <span
+            className={cn(
+              'label-caps text-lav-300',
+              closedHere === weekKey && 'motion-pop',
+            )}
+          >
+            Closed
+          </span>
         ) : null}
       </div>
 
@@ -107,10 +128,13 @@ export function CloseWeek({
         <div className="flex gap-2">
           <button
             type="button"
+            disabled={saving.busy}
             onClick={persist}
             className="rounded-[7px] bg-white/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-white/10"
           >
-            Save
+            <SaveLabel status={saving.status} onSettled={saving.settle}>
+              Save
+            </SaveLabel>
           </button>
           {closed ? (
             <button
@@ -123,10 +147,13 @@ export function CloseWeek({
           ) : (
             <button
               type="button"
+              disabled={closing.busy}
               onClick={closeWeek}
               className="rounded-[7px] bg-lav-300/20 px-3 py-1.5 text-[12.5px] text-foreground ring-1 ring-lav-300/40"
             >
-              Close the week
+              <SaveLabel status={closing.status} onSettled={closing.settle}>
+                Close the week
+              </SaveLabel>
             </button>
           )}
         </div>

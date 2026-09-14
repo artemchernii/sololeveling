@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useMutation, useQuery } from 'convex/react'
+import { useMutation } from 'convex/react'
+import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { ArrowLeft, Check, Plus, Trash2 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { AreaBadge } from '@/components/AreaBadge'
+import { SaveGlyph, useSave } from '@/components/Saving'
+import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
 import { deadlineLabel } from '@/lib/format'
 
@@ -35,9 +38,32 @@ function Chain() {
   const navigate = useNavigate()
 
   const [title, setTitle] = useState('')
+  const adding = useSave()
 
   if (project === undefined) {
-    return <p className="text-[12.5px] text-ink-600">Reading&hellip;</p>
+    /* The header card and the open list, as shape (§3d.2). */
+    return (
+      <div
+        role="status"
+        aria-label="Loading"
+        className="flex flex-col gap-[18px]"
+      >
+        <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
+          <Skeleton className="h-2.5 w-16" />
+          <div className="flex h-[29px] items-center">
+            <Skeleton className="h-5 w-2/5" />
+          </div>
+          <Skeleton className="h-2.5 w-1/4" />
+          <div className="flex h-[38px] items-end border-t border-white/[0.07]">
+            <Skeleton className="h-[26px] w-3/5 rounded-[7px]" />
+          </div>
+        </div>
+        <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
+          <Skeleton className="h-2.5 w-12" />
+          <SkeletonRows rows={3} />
+        </div>
+      </div>
+    )
   }
 
   if (project === null) {
@@ -54,9 +80,11 @@ function Chain() {
 
   async function add() {
     const trimmed = title.trim()
-    if (trimmed.length === 0) return
-    const taskId = await createTask({ title: trimmed })
-    await setProject({ taskId, projectId })
+    if (trimmed.length === 0 || adding.status === 'saving') return
+    await adding.run(async () => {
+      const taskId = await createTask({ title: trimmed })
+      await setProject({ taskId, projectId })
+    })
     setTitle('')
   }
 
@@ -164,7 +192,12 @@ function Chain() {
         )}
 
         <div className="flex items-center gap-2 border-t border-white/[0.07] pt-3">
-          <Plus className="size-3.5 text-ink-600" />
+          <SaveGlyph
+            status={adding.status}
+            onSettled={adding.settle}
+            idle={<Plus className="size-3.5" />}
+            className="text-ink-600"
+          />
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}

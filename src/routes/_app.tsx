@@ -20,9 +20,26 @@ const getAuthState = createServerFn({ method: 'GET' }).handler(async () => {
   return { userId }
 })
 
+/* The Clerk instance the browser already holds, typed only as far as this
+   guard reads it. */
+type LoadedClerk = { loaded: boolean; user: { id: string } | null | undefined }
+
+/* beforeLoad runs on every navigation between the app's pages, not only the
+   first. Asking the server each time held the old page on screen for a round
+   trip (40–100ms locally, more from a Worker) before the new one snapped in —
+   the jump on every sidebar click. Once Clerk has loaded in the browser it
+   already knows who is signed in, so the server is asked only when it has
+   not: the first, server-rendered request. */
+function signedInLocally(): { userId: string | null } | null {
+  if (typeof window === 'undefined') return null
+  const clerk = (window as { Clerk?: LoadedClerk }).Clerk
+  if (!clerk?.loaded) return null
+  return { userId: clerk.user?.id ?? null }
+}
+
 export const Route = createFileRoute('/_app')({
   beforeLoad: async () => {
-    const { userId } = await getAuthState()
+    const { userId } = signedInLocally() ?? (await getAuthState())
     if (!userId) {
       throw redirect({ to: '/login' })
     }

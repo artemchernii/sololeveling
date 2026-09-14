@@ -336,9 +336,9 @@ switch at sunset — and Settings can force Light or Dark on one device. It is
 made of tokens, not components: components mix `lift` and `sink` instead of
 white and black (`tokens.css` item 6), and the light theme redefines those,
 turns the grey and lavender ramps around so each step keeps its role, and
-darkens the area colours to one shared lightness. Three light palettes are on
-trial (milky glass, cool paper, soft dusk); when one is kept, the others and
-the picker are deleted. Everything in 1–3 holds in both themes.
+darkens the area colours to one shared lightness. One light palette, "milky glass" — kept after living with it beside two others, which
+were deleted rather than left as options: every theme is one more to check on every
+screen. Everything in 1–3 holds in both themes.
 ---
 
 ## 4. Phases

@@ -42,7 +42,7 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    /* The head script sets data-theme and data-palette before React hydrates,
+    /* The head script sets data-theme before React hydrates,
        so the server's <html> and the browser's differ on purpose. */
     <html lang="en" suppressHydrationWarning>
       <head>

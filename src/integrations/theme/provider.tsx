@@ -1,19 +1,17 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 
 import {
-  PALETTE_KEY,
   THEME_COLOR,
   THEME_KEY,
-  readPalette,
   readPreference,
   resolveTheme,
 } from '@/lib/theme'
-import type { LightPalette, ResolvedTheme, ThemePreference } from '@/lib/theme'
+import type { ResolvedTheme, ThemePreference } from '@/lib/theme'
 
-/* Keeps <html data-theme data-palette> true after the first paint. The script
-   in <head> (THEME_SCRIPT) set them before React existed; this takes over:
-   it follows the system appearance live — the switch at sunset happens
-   without a reload — and applies a choice made in Settings.
+/* Keeps <html data-theme> true after the first paint. The script in <head>
+   (THEME_SCRIPT) set it before React existed; this takes over: it follows the
+   system appearance live — the switch at sunset happens without a reload — and
+   applies a choice made in Settings.
 
    Outside Clerk's provider, because Clerk's own surfaces (the avatar menu,
    the sign-in card) are themed from `resolved`. */
@@ -21,19 +19,10 @@ import type { LightPalette, ResolvedTheme, ThemePreference } from '@/lib/theme'
 type Theme = {
   preference: ThemePreference
   setPreference: (next: ThemePreference) => void
-  palette: LightPalette
-  setPalette: (next: LightPalette) => void
   resolved: ResolvedTheme
 }
 
 const ThemeContext = createContext<Theme | null>(null)
-
-function systemPrefersLight() {
-  return (
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-color-scheme: light)').matches
-  )
-}
 
 function stored(key: string): string | null {
   try {
@@ -60,7 +49,6 @@ export default function ThemeProvider({
      real values are read after mount. The page itself is already right: the
      head script coloured it before React hydrated. */
   const [preference, setPreferenceState] = useState<ThemePreference>('system')
-  const [palette, setPaletteState] = useState<LightPalette>('milky')
   const [prefersLight, setPrefersLight] = useState(false)
   /* Nothing is written to <html> until the stored choice has been read.
      Before then `resolved` is the server default — dark — and stamping it
@@ -68,12 +56,11 @@ export default function ThemeProvider({
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
+    const query = window.matchMedia('(prefers-color-scheme: light)')
     setPreferenceState(readPreference(stored(THEME_KEY)))
-    setPaletteState(readPalette(stored(PALETTE_KEY)))
-    setPrefersLight(systemPrefersLight())
+    setPrefersLight(query.matches)
     setReady(true)
 
-    const query = window.matchMedia('(prefers-color-scheme: light)')
     const onChange = () => setPrefersLight(query.matches)
     query.addEventListener('change', onChange)
     return () => query.removeEventListener('change', onChange)
@@ -83,27 +70,17 @@ export default function ThemeProvider({
 
   useEffect(() => {
     if (!ready) return
-    const root = document.documentElement
-    root.setAttribute('data-theme', resolved)
-    root.setAttribute('data-palette', palette)
+    document.documentElement.setAttribute('data-theme', resolved)
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute(
-        'content',
-        resolved === 'dark' ? THEME_COLOR.dark : THEME_COLOR[palette],
-      )
-  }, [ready, resolved, palette])
+      ?.setAttribute('content', THEME_COLOR[resolved])
+  }, [ready, resolved])
 
   const value: Theme = {
     preference,
     setPreference: (next) => {
       store(THEME_KEY, next)
       setPreferenceState(next)
-    },
-    palette,
-    setPalette: (next) => {
-      store(PALETTE_KEY, next)
-      setPaletteState(next)
     },
     resolved,
   }

@@ -148,6 +148,21 @@ h6 {
   margin: 0;
 }
 
+/* Anything you can press shows a hand. Tailwind v4's preflight took the
+   pointer off <button> (it follows the browser default, an arrow), so Log,
+   Search, every chip and every action in the app read as not clickable. Links
+   already have it; this states it for them too, so nothing depends on a
+   browser's default. A disabled control keeps the arrow. */
+@layer base {
+  a[href],
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  summary,
+  label:has(> input[type='checkbox'], > select) {
+    cursor: pointer;
+  }
+}
+
 /* Keyboard focus is themed, never the browser default (Nocturne readme). */
 :focus {
   outline: none;
@@ -373,11 +388,18 @@ h6 {
   }
 }
 
+/* The glass utilities below write `backdrop-filter` ONCE, unprefixed, and let
+   the build add `-webkit-` for Safari. Writing both by hand looked safe and
+   was not: Lightning CSS, minifying for production, collapsed the pair into
+   the last one written — `-webkit-backdrop-filter` only, which Chrome
+   ignores. Every panel, the top bar and the modals lost their blur on the
+   deployed site while dev, unminified, still showed it. Guarded by
+   src/lib/styles.test.ts. */
+
 /* The frosted panel from §3, as one class instead of inline rgba everywhere. */
 @utility glass {
   background-image: var(--glass-fill);
   backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
   border: 1px solid var(--glass-edge);
   box-shadow: var(--glass-shadow);
 }
@@ -392,7 +414,6 @@ h6 {
 @utility glass-scrim {
   background-color: color-mix(in srgb, var(--color-ground) 52%, transparent);
   backdrop-filter: blur(calc(var(--glass-blur) * 1.4)) saturate(120%);
-  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 1.4)) saturate(120%);
 }
 
 /* cmdk draws group headings itself, so they are styled by attribute rather
@@ -417,7 +438,6 @@ h6 {
   background-color: color-mix(in srgb, var(--color-bg) 92%, transparent);
   background-image: var(--glass-fill);
   backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
   border: 1px solid var(--glass-edge);
   box-shadow: var(--glass-shadow);
 }
@@ -427,7 +447,6 @@ h6 {
 @utility glass-bar {
   background-image: var(--glass-bar-fill);
   backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
   border-bottom: 1px solid var(--glass-edge);
 }
 

@@ -244,7 +244,7 @@ export function EventDialog({
           </label>
 
           {error ? (
-            <p className="text-[12px] text-red-300/90">{error}</p>
+            <p className="text-[12px] text-destructive">{error}</p>
           ) : null}
 
           <div className="flex items-center justify-between pt-1">
@@ -253,7 +253,7 @@ export function EventDialog({
                 type="button"
                 onClick={destroy}
                 disabled={saving.busy || deleting}
-                className="text-[12px] text-ink-600 hover:text-red-300/90"
+                className="text-[12px] text-ink-600 hover:text-destructive"
               >
                 Delete series
               </button>

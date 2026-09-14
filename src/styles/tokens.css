@@ -255,14 +255,24 @@
   --color-neutral-200: oklch(0.29 0.01 60);
   --color-neutral-300: oklch(0.37 0.01 60);
   --color-neutral-400: oklch(0.46 0.01 60);
-  --color-neutral-500: oklch(0.55 0.01 60);
-  --color-neutral-600: oklch(0.63 0.01 60);
-  --color-neutral-700: oklch(0.72 0.01 60);
-  --color-neutral-800: oklch(0.83 0.01 60);
+  /* 500–800 sit a step darker than a straight mirror of the dark ramp
+     (polish pass, 14 Sep). Mirrored, the dim steps read fainter on warm
+     white than they do on near-black: captions 4.6:1 against 6.2:1 in dark,
+     hints 3.3 against 4.2. Darkened, each keeps the same standing it has in
+     dark — still dim, still readable. */
+  --color-neutral-500: oklch(0.5 0.01 60);
+  --color-neutral-600: oklch(0.57 0.01 60);
+  --color-neutral-700: oklch(0.65 0.01 60);
+  --color-neutral-800: oklch(0.77 0.01 60);
   --color-neutral-900: oklch(0.92 0.008 60);
 
   --lift: oklch(0.25 0.02 285);
-  --sink: oklch(0.45 0.02 60);
+  /* A well on white is a faint recess, not a grey band: at 0.45 the Search
+     pill, the bell and Log's footer read as muddy strips. */
+  --sink: oklch(0.62 0.02 60);
+
+  /* The destructive red, deepened: dark's #d9848c is a pale pink on white. */
+  --destructive: oklch(0.52 0.14 20);
 
   --glass-fill: linear-gradient(
     155deg,

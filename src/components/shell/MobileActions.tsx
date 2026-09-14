@@ -27,7 +27,7 @@ export function MobileActions({
       <button
         type="button"
         onClick={onLog}
-        className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-lav-500 text-[13.5px] font-medium text-lav-900 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.9)]"
+        className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-lav-500 text-[13.5px] font-medium text-lav-900 shadow-[0_10px_30px_-12px_color-mix(in_oklab,var(--sink)_90%,transparent)]"
       >
         <Plus className="size-[18px]" strokeWidth={2.5} />
         Log

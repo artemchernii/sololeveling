@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { useMutation, useQuery } from 'convex/react'
+import { useMutation } from 'convex/react'
+import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { ChevronRight } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'

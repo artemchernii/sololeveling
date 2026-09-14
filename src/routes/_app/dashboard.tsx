@@ -11,6 +11,7 @@ import { QuestList } from '@/components/dashboard/QuestList'
 import { StateStrip } from '@/components/dashboard/StateStrip'
 import { TodayCard } from '@/components/dashboard/TodayCard'
 import { localToday } from '@/lib/today'
+import { useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/dashboard')({
   component: Dashboard,
@@ -39,7 +40,9 @@ function Dashboard() {
     to: dayEnd.getTime(),
   })
 
-  const quests = useQuery(api.tasks.listToday, { today })
+  /* Held at the source, so TODAY and today's quests leave their skeletons
+     together rather than one card at a time. */
+  const quests = useHeld(useQuery(api.tasks.listToday, { today }))
   const chains = useQuery(api.projects.listLive, {})
 
   const [justDone, setJustDone] = useState<Doc<'tasks'> | null>(null)

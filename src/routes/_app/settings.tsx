@@ -3,6 +3,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import { Skeleton } from '@/components/Skeleton'
+import { useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/settings')({
   component: Settings,
@@ -14,7 +15,7 @@ export const Route = createFileRoute('/_app/settings')({
    typed into the CLI. Convex documents the token identifier as opaque, so it
    is read here rather than assembled from an issuer and a Clerk user id. */
 function Settings() {
-  const ownerId = useQuery(api.auth.whoami)
+  const ownerId = useHeld(useQuery(api.auth.whoami))
 
   return (
     <div className="flex flex-col gap-[18px]">

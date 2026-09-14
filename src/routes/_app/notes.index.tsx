@@ -11,6 +11,7 @@ import { SaveLabel, useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Key } from '@/components/shell/Key'
 import { splitNote } from '@/lib/note-text'
+import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/notes/')({
   component: Notes,
@@ -52,7 +53,8 @@ function Notes() {
      started a new subscription, and the list blinked to its skeleton and back
      for a moment each time. Filtering a personal list of notes in the browser
      is instant, and the skeleton now only ever shows on the first load. */
-  const allNotes = useQuery(api.notes.list, {})
+  const allNotes = useHeld(useQuery(api.notes.list, {}))
+  const arrived = useArrived(allNotes)
   const notes =
     allNotes === undefined
       ? undefined
@@ -156,11 +158,11 @@ function Notes() {
           <SkeletonRows rows={3} rowClassName="px-3.5 py-3" line="h-[22px]" />
         </div>
       ) : notes.length === 0 ? (
-        <p className="text-[13px] text-ink-500">
+        <p className={`text-[13px] text-ink-500 ${arrived}`}>
           Nothing here yet. Write the first line above; the rest can wait.
         </p>
       ) : (
-        <div className="glass flex flex-col rounded-[22px] p-2">
+        <div className={`glass flex flex-col rounded-[22px] p-2 ${arrived}`}>
           {notes.map((note) => {
             const line = preview(note.body)
             return (

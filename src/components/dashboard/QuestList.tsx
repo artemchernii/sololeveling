@@ -7,6 +7,7 @@ import type { Doc } from '../../../convex/_generated/dataModel'
 import { AreaBadge } from '@/components/AreaBadge'
 import { SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
+import { useArrived } from '@/lib/loading'
 
 /* PLAN.md §3 item 5. At most three; when the slots are full the "add"
    affordance is replaced by a sentence rather than left there disabled.
@@ -21,6 +22,7 @@ export function QuestList({
   tasks: Array<Doc<'tasks'>> | undefined
   onCompleted: (task: Doc<'tasks'>) => void
 }) {
+  const arrived = useArrived(tasks)
   const complete = useMutation(api.tasks.complete)
   const setArea = useMutation(api.tasks.setArea)
 
@@ -34,7 +36,7 @@ export function QuestList({
       {tasks === undefined ? (
         <SkeletonRows rows={3} />
       ) : tasks.length === 0 ? (
-        <p className="text-[13px] text-ink-500">
+        <p className={`text-[13px] text-ink-500 ${arrived}`}>
           Nothing picked yet. Three is the whole day &mdash; choose them on{' '}
           <Link to="/quests" className="text-lav-300">
             Quests
@@ -42,7 +44,7 @@ export function QuestList({
           .
         </p>
       ) : (
-        <div className="flex flex-col">
+        <div className={`flex flex-col ${arrived}`}>
           {tasks.map((task) => (
             <div
               key={task._id}

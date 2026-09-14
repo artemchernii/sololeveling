@@ -347,9 +347,12 @@ h6 {
   animation: save-appear var(--motion-base) var(--motion-ease) both;
 }
 
-/* A stand-in for something still loading (PLAN §3d.2): it waits
-   --motion-fast before showing, so a quick load shows nothing, then breathes
-   in opacity. Never a sweep or a slide — nothing about the layout moves. */
+/* A stand-in for something still loading (PLAN §3d.2): it fades in at once
+   and breathes in opacity. It used to wait --motion-fast so a quick load
+   showed nothing — which made a load just past that threshold flash a
+   skeleton for a few frames. Now the page holds it for --loading-hold
+   instead (src/lib/loading.ts). Never a sweep or a slide — nothing about the
+   layout moves. */
 @keyframes breathe {
   0%,
   100% {
@@ -361,9 +364,8 @@ h6 {
 }
 @utility motion-breathe {
   animation:
-    save-appear var(--motion-base) var(--motion-ease) var(--motion-fast) both,
-    breathe var(--motion-breathe) ease-in-out
-      calc(var(--motion-fast) + var(--motion-base)) infinite;
+    save-appear var(--motion-base) var(--motion-ease) both,
+    breathe var(--motion-breathe) ease-in-out var(--motion-base) infinite;
 }
 
 /* The offline pill (shell/ConnectionStatus). Held back by --motion-linger, so

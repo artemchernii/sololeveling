@@ -11,6 +11,7 @@ import { SaveGlyph, SaveLabel, useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
 import { localToday, startOfLocalDay } from '@/lib/today'
+import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/quests')({
   component: Quests,
@@ -25,8 +26,11 @@ const TODAY_LIMIT = 3
    route or nowhere (§3c.3). */
 function Quests() {
   const today = localToday()
-  const tasks = useQuery(api.tasks.listToday, { today })
-  const logs = useQuery(api.logs.listSince, { since: startOfLocalDay() })
+  const tasks = useHeld(useQuery(api.tasks.listToday, { today }))
+  const logs = useHeld(
+    useQuery(api.logs.listSince, { since: startOfLocalDay() }),
+  )
+  const tasksArrived = useArrived(tasks)
 
   const createTask = useMutation(api.tasks.create)
   const pickForToday = useMutation(api.tasks.pickForToday)
@@ -65,11 +69,11 @@ function Quests() {
         {tasks === undefined ? (
           <SkeletonRows rows={3} />
         ) : tasks.length === 0 ? (
-          <p className="text-[13px] text-ink-500">
+          <p className={`text-[13px] text-ink-500 ${tasksArrived}`}>
             Nothing picked yet. Three is the whole day.
           </p>
         ) : (
-          <div className="flex flex-col">
+          <div className={`flex flex-col ${tasksArrived}`}>
             {tasks.map((task) => (
               <QuestRow key={task._id} task={task} onCompleted={setPending} />
             ))}
@@ -333,6 +337,7 @@ function FollowUp({
 }
 
 function LoggedToday({ logs }: { logs: Array<Doc<'logs'>> | undefined }) {
+  const arrived = useArrived(logs)
   const setArea = useMutation(api.logs.setArea)
   const removeLog = useMutation(api.logs.remove)
 
@@ -343,11 +348,11 @@ function LoggedToday({ logs }: { logs: Array<Doc<'logs'>> | undefined }) {
       {logs === undefined ? (
         <SkeletonRows rows={3} />
       ) : logs.length === 0 ? (
-        <p className="text-[13px] text-ink-500">
+        <p className={`text-[13px] text-ink-500 ${arrived}`}>
           Nothing yet. &#8984;K logs something in three seconds.
         </p>
       ) : (
-        <div className="flex flex-col">
+        <div className={`flex flex-col ${arrived}`}>
           {logs.map((log) => (
             <div
               key={log._id}

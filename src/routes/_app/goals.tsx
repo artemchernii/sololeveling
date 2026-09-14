@@ -8,6 +8,7 @@ import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { Skeleton } from '@/components/Skeleton'
 import { deadlineLabel } from '@/lib/format'
+import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/goals')({
   component: Goals,
@@ -18,7 +19,8 @@ export const Route = createFileRoute('/_app/goals')({
    wish, and this app is not for those. This page is where they are reviewed,
    and where one is finally called done or dropped. */
 function Goals() {
-  const goals = useQuery(api.goals.listActive, {})
+  const goals = useHeld(useQuery(api.goals.listActive, {}))
+  const arrived = useArrived(goals)
   const chains = useQuery(api.projects.listLive, {})
   const setStatus = useMutation(api.goals.setStatus)
   const removeGoal = useMutation(api.goals.remove)
@@ -46,7 +48,7 @@ function Goals() {
           ))}
         </div>
       ) : goals.length === 0 ? (
-        <div className="glass rounded-[22px] p-6">
+        <div className={`glass rounded-[22px] p-6 ${arrived}`}>
           <p className="text-[13px] text-ink-500">
             No goals yet. They are created with their first chain, on the
             Projects page.
@@ -56,7 +58,7 @@ function Goals() {
         goals.map((goal) => (
           <div
             key={goal._id}
-            className="glass flex flex-col gap-3 rounded-[22px] p-6"
+            className={`glass flex flex-col gap-3 rounded-[22px] p-6 ${arrived}`}
           >
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <h2 className="text-[18px] font-light text-foreground">

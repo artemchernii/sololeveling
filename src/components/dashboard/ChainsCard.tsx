@@ -3,6 +3,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import { SkeletonRows } from '@/components/Skeleton'
+import { useArrived, useHeld } from '@/lib/loading'
 
 /* PLAN.md §3 item 2, right column: goal → focus project → done/total · next
    action, with a FOCUS / LIVE / IDLE tag.
@@ -11,7 +12,8 @@ import { SkeletonRows } from '@/components/Skeleton'
    chain. §3c.2 keeps the non-focus rows to a line — no task lists here either. */
 
 export function ChainsCard() {
-  const chains = useQuery(api.projects.listLive, {})
+  const chains = useHeld(useQuery(api.projects.listLive, {}))
+  const arrived = useArrived(chains)
   const goals = useQuery(api.goals.listActive, {})
   const counts = useQuery(api.aggregate.entityCounts, {})
   const openTasks = useQuery(api.tasks.listBacklog, {})
@@ -32,7 +34,7 @@ export function ChainsCard() {
       {chains === undefined ? (
         <SkeletonRows rows={2} twoLine />
       ) : ordered.length === 0 ? (
-        <p className="text-[13px] text-ink-500">
+        <p className={`text-[13px] text-ink-500 ${arrived}`}>
           No chains yet.{' '}
           <Link to="/projects" className="text-lav-300">
             Start one
@@ -40,7 +42,7 @@ export function ChainsCard() {
           .
         </p>
       ) : (
-        <div className="flex flex-col">
+        <div className={`flex flex-col ${arrived}`}>
           {ordered.map((chain) => {
             const goal = goals?.find((g) => g._id === chain.goalId)
             const count = counts?.tasksByProject[chain._id]

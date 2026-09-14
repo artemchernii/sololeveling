@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
+import {
+  Outlet,
+  createFileRoute,
+  redirect,
+  useRouterState,
+} from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { auth } from '@clerk/tanstack-react-start/server'
 
@@ -62,6 +67,7 @@ type Overlay = 'search' | 'capture' | null
 
 function AppShell() {
   const [overlay, setOverlay] = useState<Overlay>(null)
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
   const [capturePrefill, setCapturePrefill] = useState('')
 
   /* `/log workout 60` hands the rest of the line over, so capture opens with
@@ -104,7 +110,15 @@ function AppShell() {
       <div className="relative z-10 grid flex-1 gap-5 px-[18px] pt-5 pb-[calc(150px+env(safe-area-inset-bottom))] md:pb-24 lg:grid-cols-[214px_minmax(0,1fr)] lg:px-6 lg:pb-[26px]">
         <SideNav />
         <main className="min-w-0">
-          <Outlet />
+          {/* Every page arrives the same way: a short fade, keyed by the
+              path. Without it a page you had visited cut in on one frame while
+              a first visit faded in after its skeleton — the same page
+              arriving two ways, which read as a flicker. A page switch is
+              something you caused (§3d.1), so it may move; only opacity does,
+              so nothing reflows. */}
+          <div key={pathname} className="motion-fade">
+            <Outlet />
+          </div>
         </main>
       </div>
       <MobileActions

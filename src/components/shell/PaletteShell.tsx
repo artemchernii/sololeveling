@@ -131,7 +131,7 @@ export function PaletteShell({
                   ?.querySelector<HTMLInputElement>('[cmdk-input]')
                 requestAnimationFrame(() => field?.focus())
               }}
-              className="motion-press motion-arrive chip-focus grid size-7 shrink-0 place-items-center rounded-full text-ink-500 hover:bg-white/10 hover:text-foreground"
+              className="motion-press motion-arrive chip-focus grid size-7 shrink-0 place-items-center rounded-full text-ink-500 hover:bg-lift/10 hover:text-foreground"
             >
               <X className="size-4" />
             </button>
@@ -150,7 +150,7 @@ export function PaletteShell({
             A focused button needs Enter, or it never gets the click Enter
             means. List items are not buttons, and keep cmdk's selection. */}
         <div
-          className="border-t border-white/[0.07]"
+          className="border-t border-lift/[0.07]"
           onKeyDown={(e) => {
             if (e.key === 'Escape') return
             const target = e.target
@@ -169,7 +169,7 @@ export function PaletteShell({
           {children}
         </div>
 
-        <div className="flex items-center gap-4 border-t border-white/[0.07] bg-black/20 px-5 py-2.5 text-[11px] text-ink-500">
+        <div className="flex items-center gap-4 border-t border-lift/[0.07] bg-sink/20 px-5 py-2.5 text-[11px] text-ink-500">
           {footer}
         </div>
       </div>

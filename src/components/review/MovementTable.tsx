@@ -70,7 +70,7 @@ export function MovementTable({ weeks }: { weeks: Array<WeekCount> }) {
               return (
                 <tr
                   key={row.key}
-                  className="border-b border-white/[0.05] last:border-b-0"
+                  className="border-b border-lift/[0.05] last:border-b-0"
                 >
                   <th
                     scope="row"
@@ -94,7 +94,7 @@ export function MovementTable({ weeks }: { weeks: Array<WeekCount> }) {
                           <span
                             key={week.start}
                             title={`${week[row.key]} in the week of ${new Date(week.start).toLocaleDateString()}`}
-                            className="w-[6px] rounded-[2px] bg-white/[0.16]"
+                            className="w-[6px] rounded-[2px] bg-lift/[0.16]"
                             style={{ height: `${Math.max(height, 4)}%` }}
                           />
                         )

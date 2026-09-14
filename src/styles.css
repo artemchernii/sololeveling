@@ -95,6 +95,12 @@
   --color-lav-800: var(--color-accent-800);
   --color-lav-900: var(--color-accent-900);
 
+  /* Lift and sink as utilities (tokens.css, item 6): `border-lift/10`,
+     `bg-sink/20`. Use these, not white/black, for anything mixed into a
+     surface — they are what a light theme turns around. */
+  --color-lift: var(--lift);
+  --color-sink: var(--sink);
+
   /* Area colours as utilities (text-area-body, bg-area-money/14). Where the
      area is only known at runtime, set --area on the element with
      areaVars() and use bg-(--area)/14 instead — a class name assembled from

@@ -61,7 +61,7 @@ export function ChainCard({
           </div>
 
           {openTasks.length > 0 ? (
-            <div className="flex flex-col gap-1.5 border-t border-white/[0.06] pt-3">
+            <div className="flex flex-col gap-1.5 border-t border-lift/[0.06] pt-3">
               {openTasks.slice(0, 3).map((task) => (
                 <div key={task._id} className="text-[12.5px] text-ink-400">
                   {task.title}
@@ -92,7 +92,7 @@ export function ChainCard({
         <button
           type="button"
           onClick={onFocus}
-          className="self-start rounded-[7px] border border-white/10 px-2 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300"
+          className="self-start rounded-[7px] border border-lift/10 px-2 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300"
         >
           Make this the focus
         </button>
@@ -108,7 +108,7 @@ function StatusTag({ status }: { status: Doc<'projects'>['status'] }) {
   return (
     <span
       className={`label-caps shrink-0 rounded-[4px] px-1.5 py-0.5 ${
-        focus ? 'bg-lav-900/70 text-lav-300' : 'bg-white/5'
+        focus ? 'bg-lav-900/70 text-lav-300' : 'bg-lift/5'
       }`}
     >
       {status}

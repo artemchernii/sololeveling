@@ -242,7 +242,7 @@ function Editable({
         }}
         placeholder={slot.placeholder}
         aria-label={`Record ${slot.key.replace(/_/g, ' ')}`}
-        className="w-28 rounded-[6px] border border-lav-500/50 bg-black/20 px-2 py-0.5 font-mono text-[13px] text-foreground outline-none"
+        className="w-28 rounded-[6px] border border-lav-500/50 bg-sink/20 px-2 py-0.5 font-mono text-[13px] text-foreground outline-none"
       />
     )
   }
@@ -252,7 +252,7 @@ function Editable({
       type="button"
       onClick={() => setEditing(true)}
       title={`Record ${slot.key.replace(/_/g, ' ')}`}
-      className={`-mx-1 rounded-[5px] px-1 transition-colors hover:bg-white/10 ${className}`}
+      className={`-mx-1 rounded-[5px] px-1 transition-colors hover:bg-lift/10 ${className}`}
     >
       {children}
     </button>

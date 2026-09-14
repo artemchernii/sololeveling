@@ -16,7 +16,7 @@ export function Key({
 }) {
   const tone = onAccent
     ? 'border-lav-900/25 bg-lav-900/12 text-lav-900/80'
-    : 'border-white/12 bg-white/[0.07] text-ink-400'
+    : 'border-lift/12 bg-lift/[0.07] text-ink-400'
   return (
     <kbd
       className={`grid h-[19px] min-w-[19px] place-items-center rounded-[5px] border px-[6px] text-[11.5px] leading-none tracking-[0.07em] ${tone}`}

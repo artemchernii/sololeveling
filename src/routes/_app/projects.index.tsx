@@ -199,7 +199,7 @@ function NewChain() {
           <select
             value={area}
             onChange={(e) => setArea(e.target.value as Area)}
-            className="rounded-[6px] border border-white/10 bg-black/20 px-2 py-1 text-[12px] text-ink-300"
+            className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
           >
             {AREAS.map((a) => (
               <option key={a} value={a}>
@@ -215,7 +215,7 @@ function NewChain() {
             type="date"
             value={deadline}
             onChange={(e) => setDeadline(e.target.value)}
-            className="rounded-[6px] border border-white/10 bg-black/20 px-2 py-1 font-mono text-[12px] text-ink-300"
+            className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 font-mono text-[12px] text-ink-300"
           />
         </label>
 
@@ -255,7 +255,7 @@ function Field({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-1 border-b border-white/[0.07] pb-2">
+    <div className="flex flex-col gap-1 border-b border-lift/[0.07] pb-2">
       <span className="label-caps">{label}</span>
       {children}
     </div>

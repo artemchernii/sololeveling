@@ -18,7 +18,7 @@ export function Skeleton({ className }: { className?: string }) {
     <span
       aria-hidden
       className={cn(
-        'motion-breathe block h-3 rounded-full bg-white/[0.08]',
+        'motion-breathe block h-3 rounded-full bg-lift/[0.08]',
         className,
       )}
     />
@@ -47,7 +47,7 @@ export function SkeletonRows({
         <div
           key={i}
           className={cn(
-            'flex flex-col gap-1 border-b border-white/[0.05] last:border-b-0',
+            'flex flex-col gap-1 border-b border-lift/[0.05] last:border-b-0',
             rowClassName,
           )}
         >

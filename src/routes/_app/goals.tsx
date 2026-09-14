@@ -41,7 +41,7 @@ function Goals() {
               </div>
               <Skeleton className="w-1/5" />
               <Skeleton className="h-2.5 w-16" />
-              <div className="flex h-[38px] items-end border-t border-white/[0.07]">
+              <div className="flex h-[38px] items-end border-t border-lift/[0.07]">
                 <Skeleton className="h-[26px] w-48 rounded-[7px]" />
               </div>
             </div>
@@ -79,13 +79,13 @@ function Goals() {
               ) : null}
             </div>
 
-            <div className="flex gap-2 border-t border-white/[0.07] pt-3">
+            <div className="flex gap-2 border-t border-lift/[0.07] pt-3">
               <button
                 type="button"
                 onClick={() =>
                   void setStatus({ goalId: goal._id, status: 'done' })
                 }
-                className="rounded-[7px] border border-white/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300"
+                className="rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300"
               >
                 Reached it
               </button>
@@ -94,7 +94,7 @@ function Goals() {
                 onClick={() =>
                   void setStatus({ goalId: goal._id, status: 'dropped' })
                 }
-                className="rounded-[7px] border border-white/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-white/20 hover:text-ink-200"
+                className="rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lift/20 hover:text-ink-200"
               >
                 Drop it
               </button>
@@ -115,7 +115,7 @@ function Goals() {
                     )
                   }
                 }}
-                className="rounded-[7px] border border-white/10 px-2.5 py-1 text-[11.5px] text-ink-600 transition-colors hover:border-white/20 hover:text-ink-300"
+                className="rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-600 transition-colors hover:border-lift/20 hover:text-ink-300"
               >
                 Delete
               </button>

@@ -27,7 +27,7 @@ export function AreaBadge({
 
   const tone = area
     ? 'bg-(--area)/14 text-(--area) ring-1 ring-(--area)/25 ring-inset'
-    : 'bg-white/5 text-ink-500'
+    : 'bg-lift/5 text-ink-500'
 
   if (!onChange) {
     return (

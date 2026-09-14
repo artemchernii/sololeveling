@@ -258,19 +258,23 @@ export const setProject = mutation({
 })
 
 /** One chain's work, newest last. Open tasks first — the rest is history. */
+/* Read by the chain page's URL, like projects.get: a bad or stale id is an
+   empty list, not a throw — the page already says "No such chain" from get.
+   Someone else's chain is empty too, which reveals nothing about it. */
 export const listByProject = query({
-  args: { projectId: v.id('projects') },
+  args: { projectId: v.string() },
   returns: v.array(schema.doc('tasks')),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    const project = await ctx.db.get(args.projectId)
+    const projectId = ctx.db.normalizeId('projects', args.projectId)
+    const project = projectId === null ? null : await ctx.db.get(projectId)
     if (project === null || project.ownerId !== ownerId) {
-      throw new Error('No such project')
+      return []
     }
 
     return await ctx.db
       .query('tasks')
-      .withIndex('by_project', (q) => q.eq('projectId', args.projectId))
+      .withIndex('by_project', (q) => q.eq('projectId', project._id))
       .take(MAX_ROWS)
   },
 })

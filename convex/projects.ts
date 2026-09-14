@@ -91,12 +91,17 @@ export const listLive = query({
   },
 })
 
+/* Read by a URL, so the id is a plain string: a pasted-wrong or cut-short
+   link reads as "no such chain" instead of failing argument validation — an
+   error the page cannot tell apart from a real crash. */
 export const get = query({
-  args: { projectId: v.id('projects') },
+  args: { projectId: v.string() },
   returns: v.union(schema.doc('projects'), v.null()),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    const project = await ctx.db.get(args.projectId)
+    const projectId = ctx.db.normalizeId('projects', args.projectId)
+    if (projectId === null) return null
+    const project = await ctx.db.get(projectId)
     return project === null || project.ownerId !== ownerId ? null : project
   },
 })

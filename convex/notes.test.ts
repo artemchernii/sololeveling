@@ -109,3 +109,11 @@ describe('notes.get', () => {
     expect(await t.query(api.notes.get, { noteId })).toBeNull()
   })
 })
+
+describe('a note page read by a bad link', () => {
+  test('an id that is not a note id reads as no note', async () => {
+    expect(
+      await as(ME).query(api.notes.get, { noteId: 'not-an-id' }),
+    ).toBeNull()
+  })
+})

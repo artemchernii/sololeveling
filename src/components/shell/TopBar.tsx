@@ -105,7 +105,13 @@ export function TopBar({
             <span className="motion-fade relative grid">
               <UserButton
                 appearance={{
-                  elements: { userButtonAvatarBox: 'size-9 rounded-[10px]' },
+                  elements: {
+                    /* Important, or they lose: Clerk injects its own styles
+                       outside Tailwind's layers, and un-layered CSS beats any
+                       layered utility. Without the `!` the avatar kept
+                       Clerk's 28px circle, sitting inside this 36px tile. */
+                    userButtonAvatarBox: 'size-9! rounded-[10px]!',
+                  },
                 }}
               />
             </span>

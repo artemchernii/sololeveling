@@ -10,8 +10,21 @@ const modules = import.meta.glob('./**/*.ts')
 const ME = 'https://clerk.test|user_me'
 const SOMEONE_ELSE = 'https://clerk.test|user_them'
 
+/* One backend per call. Fine for one person; never two of these to test
+   ownership — two convexTest() backends are two databases, so "they cannot
+   see my row" would pass even if every query returned everyone's. */
 function as(subject: string) {
   return convexTest(schema, modules).withIdentity({ tokenIdentifier: subject })
+}
+
+/* Two people in one database: my row is really there when they look for it,
+   and my id is real when they pass it. */
+function twoOwners() {
+  const t = convexTest(schema, modules)
+  return {
+    mine: t.withIdentity({ tokenIdentifier: ME }),
+    theirs: t.withIdentity({ tokenIdentifier: SOMEONE_ELSE }),
+  }
 }
 
 function at(y: number, m: number, d: number, h: number) {
@@ -99,35 +112,38 @@ describe('a window read finds what belongs in it', () => {
 
 describe('ownership', () => {
   test('a window read never crosses to another owner', async () => {
-    const mine = as(ME)
-    const theirs = as(SOMEONE_ELSE)
+    const { mine, theirs } = twoOwners()
     await theirs.mutation(api.events.create, {
       title: 'Their therapy',
       startsAt: MARCH_3,
       endsAt: MARCH_3 + HOUR,
       rrule: 'FREQ=WEEKLY;BYDAY=TU',
     })
-    const found = await mine.query(api.events.listInRange, {
-      from: at(2026, 3, 2, 0),
-      to: at(2026, 3, 9, 0),
-    })
-    expect(found).toEqual([])
+    const window = { from: at(2026, 3, 2, 0), to: at(2026, 3, 9, 0) }
+
+    expect(await mine.query(api.events.listInRange, window)).toEqual([])
+    expect(await theirs.query(api.events.listInRange, window)).toHaveLength(1)
   })
 
   test('someone else cannot edit or delete my event', async () => {
-    const mine = as(ME)
+    const { mine, theirs } = twoOwners()
     const eventId = await mine.mutation(api.events.create, {
       title: 'Gym',
       startsAt: MARCH_3,
       endsAt: MARCH_3 + HOUR,
     })
-    const theirs = as(SOMEONE_ELSE)
     await expect(
       theirs.mutation(api.events.update, { eventId, title: 'Cancelled' }),
-    ).rejects.toThrow()
+    ).rejects.toThrow('No such event')
     await expect(
       theirs.mutation(api.events.remove, { eventId }),
-    ).rejects.toThrow()
+    ).rejects.toThrow('No such event')
+
+    const found = await mine.query(api.events.listInRange, {
+      from: at(2026, 3, 2, 0),
+      to: at(2026, 3, 9, 0),
+    })
+    expect(found.map((e) => e.title)).toEqual(['Gym'])
   })
 
   test('signed out reads nothing', async () => {

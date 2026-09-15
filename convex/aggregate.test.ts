@@ -30,8 +30,20 @@ afterAll(() => {
   vi.useRealTimers()
 })
 
+/* One backend per call. Fine for one person; never two of these to test
+   ownership — two convexTest() backends are two databases, so "they cannot
+   see my row" would pass even if every query returned everyone's. */
 function as(subject: string) {
   return convexTest(schema, modules).withIdentity({ tokenIdentifier: subject })
+}
+
+/* Two people in one database: my row is really there when they look for it. */
+function twoOwners() {
+  const t = convexTest(schema, modules)
+  return {
+    mine: t.withIdentity({ tokenIdentifier: ME }),
+    theirs: t.withIdentity({ tokenIdentifier: SOMEONE_ELSE }),
+  }
 }
 
 function at(month: 'aug' | 'sep', day: number) {
@@ -108,16 +120,18 @@ describe('monthCounts is six fixed tiles (PLAN.md §3 item 4)', () => {
   })
 
   test('it never counts another owner’s logs', async () => {
-    const mine = as(ME)
+    const { mine, theirs } = twoOwners()
     await mine.mutation(api.logs.create, {
       kind: 'workout',
       area: 'body',
       occurredAt: at('sep', 3),
     })
 
-    const theirs = as(SOMEONE_ELSE)
     const counts = await theirs.query(api.aggregate.monthCounts, MONTH)
     expect(counts.body.now).toBe(0)
+    expect((await mine.query(api.aggregate.monthCounts, MONTH)).body.now).toBe(
+      1,
+    )
   })
 })
 
@@ -213,7 +227,7 @@ describe('currentState is the latest row per key (PLAN.md §1)', () => {
   })
 
   test('it never reads another owner’s state', async () => {
-    const mine = as(ME)
+    const { mine, theirs } = twoOwners()
     await mine.mutation(api.state.record, {
       area: 'money',
       key: 'net_worth',
@@ -221,11 +235,13 @@ describe('currentState is the latest row per key (PLAN.md §1)', () => {
       recordedAt: at('sep', 1),
     })
 
-    const theirs = as(SOMEONE_ELSE)
     const state = await theirs.query(api.aggregate.currentState, {})
     /* Every key present and every one null: the shape is fixed, the values are
        theirs alone. */
     expect(Object.values(state).every((v) => v === null)).toBe(true)
+    expect(
+      (await mine.query(api.aggregate.currentState, {})).net_worth?.value,
+    ).toBe(42100)
   })
 })
 
@@ -298,17 +314,18 @@ describe('weekCounts is the same six tiles, over weeks (PLAN.md §3)', () => {
   })
 
   test('never another owner’s logs', async () => {
-    const theirs = as(SOMEONE_ELSE)
+    const { mine, theirs } = twoOwners()
     await theirs.mutation(api.logs.create, {
       kind: 'workout',
       area: 'body',
       occurredAt: new Date(2026, 8, 8, 12).getTime(),
     })
-    const weeks = await as(ME).query(api.aggregate.weekCounts, {
-      starts: STARTS,
-      end: END,
-    })
+    const range = { starts: STARTS, end: END }
+
+    const weeks = await mine.query(api.aggregate.weekCounts, range)
     expect(weeks.map((w) => w.total)).toEqual([0, 0, 0])
+    const theirWeeks = await theirs.query(api.aggregate.weekCounts, range)
+    expect(theirWeeks.map((w) => w.total)).toEqual([1, 0, 0])
   })
 })
 

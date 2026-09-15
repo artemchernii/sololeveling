@@ -5,13 +5,15 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { api } from '../../../convex/_generated/api'
 import type { Area } from '@/lib/capture-parser'
 
-/* PLAN.md §3 item 3. Six cells, each labelled with its source. Every number
-   here comes from currentState(), monthCounts() or entityCounts(); this
-   component reads them and renders them, and computes none of them.
+/* PLAN.md §3 item 3. Four cells, each labelled with its source — Business and
+   Career went on 15 Sep: projects were already counted on Projects, and
+   Career had nothing to count. Every number here comes from currentState() or
+   monthCounts(); this component reads them and renders them, and computes
+   none of them.
 
    Each cell has up to two editable slots, because §3's strip contains two
-   kinds of number: the state itself ("B1", "75.4 kg") and, on two cells, the
-   target it is counted against ("2 of 4 sessions", "6 of 8 skills"). A target
+   kinds of number: the state itself ("B1", "75.4 kg") and, on Languages, the
+   target it is counted against ("2 of 4 sessions"). A target
    is a stateSnapshots row like any other — source 2 twice, not a fourth
    source — so it is recorded the same way, by clicking it.
 
@@ -39,11 +41,10 @@ type Cell = {
 export function StateStrip({ today }: { today: number }) {
   const state = useQuery(api.aggregate.currentState, {})
   const counts = useQuery(api.aggregate.monthCounts, monthRange(today))
-  const entities = useQuery(api.aggregate.entityCounts, {})
 
   const cells: Array<Cell> = [
     {
-      label: 'Portuguese',
+      label: 'Languages',
       source: 'state · log count',
       lead: {
         text: state?.cefr_level?.textValue,
@@ -84,7 +85,7 @@ export function StateStrip({ today }: { today: number }) {
       trail: { text: plural(counts?.body.now, 'workout') },
     },
     {
-      label: 'Money',
+      label: 'Finances',
       source: 'state',
       lead: {
         text: money(state?.net_worth?.value),
@@ -103,50 +104,12 @@ export function StateStrip({ today }: { today: number }) {
       lead: { text: plural(counts?.social.now, 'event') },
       trail: { text: 'this month' },
     },
-    {
-      label: 'Business',
-      source: 'entity count',
-      lead: { text: plural(entities?.activeProjects, 'chain') },
-      trail: {
-        text:
-          entities === undefined
-            ? undefined
-            : entities.focusProjects > 0
-              ? `${entities.focusProjects} in focus`
-              : 'none in focus',
-      },
-    },
-    {
-      label: 'Career',
-      source: 'state / state',
-      lead: {
-        text:
-          state?.skills_logged?.value === undefined
-            ? undefined
-            : String(state.skills_logged.value),
-        slot: {
-          key: 'skills_logged',
-          area: 'career',
-          kind: 'number',
-          placeholder: '6',
-        },
-      },
-      trail: {
-        text: target(state?.skills_target?.value, 'skills logged'),
-        slot: {
-          key: 'skills_target',
-          area: 'career',
-          kind: 'number',
-          placeholder: 'skills to log',
-        },
-      },
-    },
   ]
 
   return (
     <div className="glass rounded-[22px] p-5">
       <div className="label-caps mb-4">Current state</div>
-      <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
         {cells.map((cell) => (
           <StateCell key={cell.label} cell={cell} />
         ))}
@@ -183,7 +146,7 @@ function StateCell({ cell }: { cell: Cell }) {
   )
 }
 
-/* A slot with no key is just text — Social and Business are pure counts and
+/* A slot with no key is just text — Social is a pure count and
    there is nothing to type into them. */
 function Editable({
   slot,
@@ -284,13 +247,6 @@ function ofTarget(
   return targetValue === undefined
     ? `${count} ${noun}`
     : `${count} of ${targetValue} ${noun}`
-}
-
-/** The trailing half of "6 of 8 skills logged" — clickable to set the 8. */
-function target(targetValue: number | undefined, noun: string) {
-  return targetValue === undefined
-    ? `${noun} — set a target`
-    : `of ${targetValue} ${noun}`
 }
 
 /** Local month boundaries, computed here because the server cannot know them. */

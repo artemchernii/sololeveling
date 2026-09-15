@@ -13,9 +13,9 @@ import { monthRange } from './StateStrip'
 
 const TILES = [
   { key: 'projects', label: 'Projects', noun: 'tasks shipped' },
-  { key: 'portuguese', label: 'Portuguese', noun: 'sessions logged' },
+  { key: 'portuguese', label: 'Languages', noun: 'sessions logged' },
   { key: 'body', label: 'Body', noun: 'workouts done' },
-  { key: 'money', label: 'Money', noun: 'transfers to the floor' },
+  { key: 'money', label: 'Finances', noun: 'transfers to the floor' },
   { key: 'style', label: 'Style', noun: 'pieces bought or altered' },
   { key: 'social', label: 'Social', noun: 'events attended' },
 ] as const

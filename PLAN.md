@@ -175,14 +175,15 @@ it is built in (R1–R7). Everything in §1–§2 and §3b–§3d still holds.
 
 1. Two columns (16 Sep). **Left:** greeting · `LEVEL 32` with the year's
    progress as a bar (a calendar fact: days since the last birthday over 365
-   — not a score) · `CURRENT FOCUS`. **Right:** the **principle card** — one
-   line at a time, starting with the one the date chose, moving on every 7s,
-   with six dots to reach any of them by hand, `today's` to come back, and
-   `all six` opening them full size in a panel. It pauses while you read it
-   and stops under `prefers-reduced-motion` (the §3d.1 exception, recorded
-   there). Two earlier shapes failed: one static line stopped being read
-   within a day, and all six as a list read as a wall and pushed the day's
-   cards below the fold.
+   — not a score) · `CURRENT FOCUS`. **Right:** the **principle**, as text on
+   the ground rather than in a card — one line at a time, starting with the
+   one the date chose, **rolling** to the next every 7s a character at a
+   time, with `all six` opening them full size in a panel. It pauses while
+   you read it and stops under `prefers-reduced-motion` (the §3d.1 exception,
+   recorded there). Three shapes were tried first: one static line stopped
+   being read within a day; all six as a list read as a wall and pushed the
+   day's cards below the fold; the same line in a glass card was one more box
+   on a screen made of boxes.
 2. **TODAY** (events + scheduled tasks, the timeline) beside **TODAY'S THREE**
    (the three slots, §3c.1: add, tick, drop, give a time; the evidence
    follow-up after a tick). On a phone the three come first.
@@ -317,8 +318,10 @@ dashboard that reflows every time a query resolves is a dashboard you cannot
 read. `prefers-reduced-motion: reduce` removes all of it — the information is in
 the change, not the movement.
 
-**The one exception, taken deliberately on 16 Sep: the principle card rotates.**
-Every seven seconds it moves to the next of the six. It breaks the rule above
+**The one exception, taken deliberately on 16 Sep: the principle line rolls.**
+Every seven seconds it turns over to the next of the six, character by
+character — the outgoing letters leave upward as the incoming ones arrive from
+below (`motion-roll-in` / `motion-roll-out`). It breaks the rule above
 and is allowed to, because the rule exists to stop _data_ moving under you —
 the number you are reading, the card that reflows as a query lands — and a
 principle is the one thing on Today that is not data. Two shapes were tried

@@ -355,6 +355,44 @@ h6 {
   animation: save-appear var(--motion-base) var(--motion-ease) both;
 }
 
+/* One line of text turning over to the next (PLAN.md §3d.1's one exception,
+   the principle on Today). Each character leaves upward and its replacement
+   arrives from below, a letter after the other, so the line reads as rolling
+   rather than as one card cross-fading into another — which is what it was
+   first built as, and what Artem rejected on 16 Sep.
+
+   The tilt is small on purpose: enough to read as a reel coming to rest,
+   short of the novelty of a flipping board. Both halves run at --motion-base
+   under the one easing, and the global prefers-reduced-motion rule collapses
+   them to nothing. */
+@keyframes roll-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.7em) rotateX(-55deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility motion-roll-in {
+  animation: roll-in var(--motion-base) var(--motion-ease) both;
+}
+
+@keyframes roll-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-0.7em) rotateX(55deg);
+  }
+}
+@utility motion-roll-out {
+  animation: roll-out var(--motion-base) var(--motion-ease) both;
+}
+
 /* A stand-in for something still loading (PLAN §3d.2): it fades in at once
    and breathes in opacity. It used to wait --motion-fast so a quick load
    showed nothing — which made a load just past that threshold flash a

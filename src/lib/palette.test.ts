@@ -10,21 +10,21 @@ describe('matchPalette', () => {
   })
 
   it('matches a page by its label, without a slash', () => {
-    const { pages } = matchPalette('portuguese')
+    const { pages } = matchPalette('languages')
     expect(pages.map((p) => p.target)).toEqual([
-      { kind: 'page', to: '/portuguese' },
+      { kind: 'page', to: '/languages' },
     ])
   })
 
   it('is case-insensitive and matches inside the label', () => {
-    expect(matchPalette('MONEY').pages).toHaveLength(1)
+    expect(matchPalette('FINANCES').pages).toHaveLength(1)
     expect(matchPalette('ack').pages.map((p) => p.label)).toEqual(['Backlog'])
   })
 
   it('narrows to the route when the query starts with a slash', () => {
-    const { commands, pages } = matchPalette('/mon')
+    const { commands, pages } = matchPalette('/fin')
     expect(commands).toHaveLength(0)
-    expect(pages.map((p) => p.slash)).toEqual(['/money'])
+    expect(pages.map((p) => p.slash)).toEqual(['/finances'])
   })
 
   it('finds the log command by slash and by name', () => {

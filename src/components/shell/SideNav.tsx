@@ -6,13 +6,12 @@ import { areaVars } from '@/lib/areas'
 import { navGroups } from '@/lib/nav'
 import type { NavItem } from '@/lib/nav'
 
-/* Desktop rail (≥1024). Sixteen destinations is too many for a flat list, so
-   they are grouped NOW / PLAN / TRACK / KNOW (lib/nav.ts), with Settings
-   pinned.
+/* Desktop rail (≥1024). Ten destinations grouped NOW / BUILD / TRACK
+   (lib/nav.ts, PLAN.md §3), with Settings pinned.
 
    Colour says what a page is: the TRACK pages wear their area's colour, the
-   same one their logs wear in the Log modal, and KNOW wears knowledge. NOW and
-   PLAN stay neutral, because the dashboard is not any one area.
+   same one their logs wear in the Log modal, and Notes wears knowledge. The
+   rest stay neutral, because Today is not any one area.
 
    The active page is marked by one pill that slides to it, rather than a
    background that jumps — a state change you caused, so it moves (§3d). */

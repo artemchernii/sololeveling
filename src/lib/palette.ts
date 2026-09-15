@@ -1,4 +1,4 @@
-import { Compass, Plus, Settings } from 'lucide-react'
+import { Plus, Settings } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 import { navGroups } from './nav'
@@ -9,8 +9,8 @@ import { navGroups } from './nav'
    this one.
 
    Two ways to reach the same row, deliberately. A leading slash matches the
-   route (`/money`, `/log`) and is what you use when you know where you are
-   going; bare words match the label (`portuguese`) and are what you use when
+   route (`/finances`, `/log`) and is what you use when you know where you are
+   going; bare words match the label (`languages`) and are what you use when
    you are looking. The slash is not a mode switch so much as a way of saying
    "only the things I can name". */
 
@@ -32,8 +32,9 @@ export const PALETTE_COMMANDS: Array<PaletteEntry> = [
 ]
 
 /* Built from navGroups so the palette cannot list a page the rail doesn't, or
-   miss one it does. Reviews and Settings are appended because they are
-   reachable without being in the three groups. */
+   miss one it does. Settings is appended because it sits below the three
+   groups rather than in one. Review was appended too until 15 Sep, when it
+   joined NOW. */
 export const PALETTE_PAGES: Array<PaletteEntry> = [
   ...navGroups.flatMap((group) =>
     group.items.map((item) => ({
@@ -43,12 +44,6 @@ export const PALETTE_PAGES: Array<PaletteEntry> = [
       target: { kind: 'page' as const, to: item.to },
     })),
   ),
-  {
-    slash: '/reviews',
-    label: 'Reviews',
-    icon: Compass,
-    target: { kind: 'page', to: '/reviews' },
-  },
   {
     slash: '/settings',
     label: 'Settings',

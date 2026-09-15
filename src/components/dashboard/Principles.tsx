@@ -243,8 +243,10 @@ function AllSix({
         onClick={(e) => e.stopPropagation()}
         className="glass-modal motion-arrive max-h-[85vh] w-[min(620px,92vw)] overflow-y-auto rounded-[22px] p-8"
       >
-        <div className="mb-6 flex items-baseline justify-between gap-3">
-          <span className="label-caps">Six lines. They do not change.</span>
+        {/* No heading: the six lines are the whole point of opening this,
+            and a caption above them only explained what they plainly are
+            (16 Sep). */}
+        <div className="mb-6 flex justify-end">
           <button
             type="button"
             autoFocus

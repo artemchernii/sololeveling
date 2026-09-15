@@ -34,7 +34,9 @@ export function TodayCard({
   })
 
   return (
-    <div className="glass flex flex-col gap-3 rounded-[22px] p-5">
+    /* The same resting height as TODAY'S THREE beside it, so neither card
+       resizes as its read lands (16 Sep). */
+    <div className="glass flex min-h-[216px] flex-col gap-3 rounded-[22px] p-5">
       <div className="flex items-baseline justify-between">
         <div className="label-caps">Today</div>
         <div className="label-caps">
@@ -49,7 +51,7 @@ export function TodayCard({
       </div>
 
       {tasks === undefined ? (
-        <SkeletonRows rows={3} />
+        <SkeletonRows rows={1} />
       ) : items.length === 0 ? (
         <p className={`text-[13px] text-ink-500 ${arrived}`}>
           Nothing at a time today. Give a quest an hour and it appears here.

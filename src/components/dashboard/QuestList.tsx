@@ -51,7 +51,10 @@ export function QuestList({
   }
 
   return (
-    <div className="glass flex flex-col gap-3 rounded-[22px] p-5">
+    /* Tall enough for the empty state and for one or two picks, so the card
+       does not resize when the skeleton gives way to what is actually there
+       — a page that steps as its data lands reads as flickering (16 Sep). */
+    <div className="glass flex min-h-[216px] flex-col gap-3 rounded-[22px] p-5">
       <div className="flex items-baseline justify-between">
         <div className="label-caps">Today&rsquo;s three</div>
         <div className="label-caps">
@@ -60,7 +63,7 @@ export function QuestList({
       </div>
 
       {tasks === undefined ? (
-        <SkeletonRows rows={3} />
+        <SkeletonRows rows={2} />
       ) : tasks.length === 0 ? (
         <p className={`text-[13px] text-ink-500 ${arrived}`}>
           Nothing picked yet. Three is the whole day.

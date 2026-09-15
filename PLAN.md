@@ -175,7 +175,11 @@ it is built in (R1–R7). Everything in §1–§2 and §3b–§3d still holds.
 
 1. Greeting · `LEVEL 32` with the year's progress as a bar (a calendar fact:
    days since the last birthday over 365 — not a score) · `CURRENT FOCUS`
-   · one **principle of the day**, chosen by the date, the same all day.
+   · the **six principles**: today's — chosen by the date, the same all day —
+   large, the other five small beneath it, and `all six` opening them full
+   size in a panel (16 Sep). They fade in once on arrival and never rotate:
+   a line that changed while you watched would be the app moving on its own
+   (§3d.1), and a principle that changes when you refresh is decoration.
 2. **TODAY** (events + scheduled tasks, the timeline) beside **TODAY'S THREE**
    (the three slots, §3c.1: add, tick, drop, give a time; the evidence
    follow-up after a tick). On a phone the three come first.

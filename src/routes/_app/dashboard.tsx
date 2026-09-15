@@ -4,7 +4,7 @@ import { useUser } from '@clerk/tanstack-react-start'
 
 import { api } from '../../../convex/_generated/api'
 import { ActionsLogged } from '@/components/dashboard/ActionsLogged'
-import { PrincipleLine } from '@/components/dashboard/PrincipleLine'
+import { Principles } from '@/components/dashboard/Principles'
 import { QuestList } from '@/components/dashboard/QuestList'
 import { StateStrip } from '@/components/dashboard/StateStrip'
 import { TodayCard } from '@/components/dashboard/TodayCard'
@@ -80,7 +80,7 @@ function Today() {
             </>
           )}
         </div>
-        <PrincipleLine date={now} />
+        <Principles date={now} />
       </div>
 
       <div className="order-3 lg:order-2">

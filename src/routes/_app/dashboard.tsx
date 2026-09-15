@@ -1,10 +1,8 @@
-import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { useUser } from '@clerk/tanstack-react-start'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc } from '../../../convex/_generated/dataModel'
 import { ActionsLogged } from '@/components/dashboard/ActionsLogged'
 import { ChainsCard } from '@/components/dashboard/ChainsCard'
 import { PrincipleLine } from '@/components/dashboard/PrincipleLine'
@@ -45,8 +43,6 @@ function Dashboard() {
      together rather than one card at a time. */
   const quests = useHeld(useQuery(api.tasks.listToday, { today }))
   const chains = useQuery(api.projects.listLive, {})
-
-  const [justDone, setJustDone] = useState<Doc<'tasks'> | null>(null)
 
   const focus = chains?.find((c) => c.status === 'focus')
   const firstName = user?.firstName ?? user?.username ?? 'you'
@@ -98,51 +94,8 @@ function Dashboard() {
       </div>
 
       <div className="order-3 lg:order-6 lg:col-span-2">
-        <QuestList tasks={quests} onCompleted={setJustDone} />
+        <QuestList tasks={quests} today={today} />
       </div>
-
-      {justDone ? (
-        <div className="order-7 lg:order-7 lg:col-span-2">
-          <FollowUp task={justDone} onDone={() => setJustDone(null)} />
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
-/* §3b.1 again, and for the same reason as on Quests: completing a task removes
-   it from the list, so the prompt cannot live inside the row it belongs to. */
-function FollowUp({
-  task,
-  onDone,
-}: {
-  task: Doc<'tasks'>
-  onDone: () => void
-}) {
-  const kind =
-    task.area === 'body'
-      ? 'workout'
-      : task.area === 'portuguese'
-        ? 'session'
-        : null
-  if (!kind) {
-    onDone()
-    return null
-  }
-
-  return (
-    <div className="glass flex flex-wrap items-center gap-2 rounded-[22px] p-4 text-[12.5px]">
-      <span className="text-ink-400">{task.title}</span>
-      <span className="text-ink-600">
-        &mdash; done. Log it as a {kind} on Quests, or let it go.
-      </span>
-      <button
-        type="button"
-        onClick={onDone}
-        className="ml-auto text-[11.5px] text-ink-600 transition-colors hover:text-ink-400"
-      >
-        Dismiss
-      </button>
     </div>
   )
 }

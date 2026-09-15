@@ -1,93 +1,105 @@
-import { Link } from '@tanstack/react-router'
+import { useState } from 'react'
 import { useMutation } from 'convex/react'
-import { Check } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
-import { AreaBadge } from '@/components/AreaBadge'
+import { SaveGlyph, useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
-import type { Area } from '@/lib/capture-parser'
 import { useArrived } from '@/lib/loading'
+import { QuestFollowUp } from './QuestFollowUp'
+import { QuestRow } from './QuestRow'
+import type { PendingEvidence } from './QuestRow'
 
-/* PLAN.md §3 item 5. At most three; when the slots are full the "add"
-   affordance is replaced by a sentence rather than left there disabled.
- 
-   No backlog count anywhere on this screen (§3c.3) — that number lives on its
-   own page or nowhere. The link below says "Backlog", never "47 waiting". */
+const TODAY_LIMIT = 3
 
+/* PLAN.md §3 item 2 and §3c.1. Three slots, and when they are full the "add"
+   affordance is replaced by a sentence rather than disabled and left there.
+   The Quests page lived here until 15 Sep; this card is it now.
+
+   No backlog count anywhere on this screen (§3c.3). */
 export function QuestList({
   tasks,
-  onCompleted,
+  today,
 }: {
   tasks: Array<Doc<'tasks'>> | undefined
-  onCompleted: (task: Doc<'tasks'>) => void
+  today: string
 }) {
   const arrived = useArrived(tasks)
-  const complete = useMutation(api.tasks.complete)
-  const setArea = useMutation(api.tasks.setArea)
+  const createTask = useMutation(api.tasks.create)
+  const pickForToday = useMutation(api.tasks.pickForToday)
+  const [title, setTitle] = useState('')
+  const adding = useSave()
+
+  /* Completing a task removes it from this list, so the §3b.1 follow-up
+     cannot live inside the row it belongs to — the row is already gone. It
+     sits under the list and survives until it is answered or waved off. */
+  const [pending, setPending] = useState<PendingEvidence | null>(null)
+
+  const full = (tasks?.length ?? 0) >= TODAY_LIMIT
+
+  async function add() {
+    const trimmed = title.trim()
+    if (trimmed.length === 0 || adding.status === 'saving') return
+    await adding.run(async () => {
+      const id = await createTask({ title: trimmed })
+      /* Created here means "I intend to do it today" — so it takes a slot
+         immediately. Created anywhere else, it waits in the backlog. */
+      await pickForToday({ taskId: id, today })
+    })
+    setTitle('')
+  }
 
   return (
     <div className="glass flex flex-col gap-3 rounded-[22px] p-5">
       <div className="flex items-baseline justify-between">
-        <div className="label-caps">Today&rsquo;s quests</div>
-        <div className="label-caps">{tasks ? `${tasks.length} of 3` : ''}</div>
+        <div className="label-caps">Today&rsquo;s three</div>
+        <div className="label-caps">
+          {tasks ? `${tasks.length} of ${TODAY_LIMIT}` : ''}
+        </div>
       </div>
 
       {tasks === undefined ? (
         <SkeletonRows rows={3} />
       ) : tasks.length === 0 ? (
         <p className={`text-[13px] text-ink-500 ${arrived}`}>
-          Nothing picked yet. Three is the whole day &mdash; choose them on{' '}
-          <Link to="/quests" className="text-lav-300">
-            Quests
-          </Link>
-          .
+          Nothing picked yet. Three is the whole day.
         </p>
       ) : (
         <div className={`flex flex-col ${arrived}`}>
           {tasks.map((task) => (
-            <div
-              key={task._id}
-              className="flex items-center gap-3 border-b border-lift/[0.05] py-2.5 last:border-b-0"
-            >
-              <button
-                type="button"
-                aria-label={`Complete ${task.title}`}
-                onClick={async () => {
-                  await complete({ taskId: task._id })
-                  onCompleted(task)
-                }}
-                className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-lift/15 text-transparent transition-colors hover:border-lav-500 hover:text-lav-300"
-              >
-                <Check className="size-3" />
-              </button>
-
-              <span className="flex-1 text-[13px] text-foreground">
-                {task.title}
-              </span>
-
-              <AreaBadge
-                area={task.area}
-                onChange={(area: Area) =>
-                  void setArea({ taskId: task._id, area })
-                }
-              />
-
-              {task.durationMin ? (
-                <span className="font-mono text-[11px] text-ink-600">
-                  {task.durationMin} min
-                </span>
-              ) : null}
-            </div>
+            <QuestRow key={task._id} task={task} onCompleted={setPending} />
           ))}
         </div>
       )}
 
-      {tasks && tasks.length >= 3 ? (
-        <p className="text-[12.5px] text-ink-400">
+      {pending ? (
+        <QuestFollowUp pending={pending} onDone={() => setPending(null)} />
+      ) : null}
+
+      {full ? (
+        <p className="text-[13px] text-ink-400">
           Today is full. Finish one or drop one.
         </p>
-      ) : null}
+      ) : (
+        <div className="flex items-center gap-2 border-t border-lift/[0.07] pt-3">
+          <SaveGlyph
+            status={adding.status}
+            onSettled={adding.settle}
+            idle={<Plus className="size-3.5" />}
+            className="text-ink-600"
+          />
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void add()
+            }}
+            placeholder="What are you actually doing today?"
+            className="flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
+          />
+        </div>
+      )}
     </div>
   )
 }

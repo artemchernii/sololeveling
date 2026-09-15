@@ -20,7 +20,6 @@ import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppFinancesRouteImport } from './routes/_app/finances'
 import { Route as AppGoalsRouteImport } from './routes/_app/goals'
 import { Route as AppLanguagesRouteImport } from './routes/_app/languages'
-import { Route as AppQuestsRouteImport } from './routes/_app/quests'
 import { Route as AppReviewsRouteImport } from './routes/_app/reviews'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes.index'
@@ -82,11 +81,6 @@ const AppLanguagesRoute = AppLanguagesRouteImport.update({
   path: '/languages',
   getParentRoute: () => AppRoute,
 } as any)
-const AppQuestsRoute = AppQuestsRouteImport.update({
-  id: '/quests',
-  path: '/quests',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppReviewsRoute = AppReviewsRouteImport.update({
   id: '/reviews',
   path: '/reviews',
@@ -129,7 +123,6 @@ export interface FileRoutesByFullPath {
   '/finances': typeof AppFinancesRoute
   '/goals': typeof AppGoalsRoute
   '/languages': typeof AppLanguagesRoute
-  '/quests': typeof AppQuestsRoute
   '/reviews': typeof AppReviewsRoute
   '/settings': typeof AppSettingsRoute
   '/notes/$id': typeof AppNotesIdRoute
@@ -148,7 +141,6 @@ export interface FileRoutesByTo {
   '/finances': typeof AppFinancesRoute
   '/goals': typeof AppGoalsRoute
   '/languages': typeof AppLanguagesRoute
-  '/quests': typeof AppQuestsRoute
   '/reviews': typeof AppReviewsRoute
   '/settings': typeof AppSettingsRoute
   '/notes/$id': typeof AppNotesIdRoute
@@ -169,7 +161,6 @@ export interface FileRoutesById {
   '/_app/finances': typeof AppFinancesRoute
   '/_app/goals': typeof AppGoalsRoute
   '/_app/languages': typeof AppLanguagesRoute
-  '/_app/quests': typeof AppQuestsRoute
   '/_app/reviews': typeof AppReviewsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/notes/$id': typeof AppNotesIdRoute
@@ -190,7 +181,6 @@ export interface FileRouteTypes {
     | '/finances'
     | '/goals'
     | '/languages'
-    | '/quests'
     | '/reviews'
     | '/settings'
     | '/notes/$id'
@@ -209,7 +199,6 @@ export interface FileRouteTypes {
     | '/finances'
     | '/goals'
     | '/languages'
-    | '/quests'
     | '/reviews'
     | '/settings'
     | '/notes/$id'
@@ -229,7 +218,6 @@ export interface FileRouteTypes {
     | '/_app/finances'
     | '/_app/goals'
     | '/_app/languages'
-    | '/_app/quests'
     | '/_app/reviews'
     | '/_app/settings'
     | '/_app/notes/$id'
@@ -323,13 +311,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLanguagesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/quests': {
-      id: '/_app/quests'
-      path: '/quests'
-      fullPath: '/quests'
-      preLoaderRoute: typeof AppQuestsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/reviews': {
       id: '/_app/reviews'
       path: '/reviews'
@@ -384,7 +365,6 @@ interface AppRouteChildren {
   AppFinancesRoute: typeof AppFinancesRoute
   AppGoalsRoute: typeof AppGoalsRoute
   AppLanguagesRoute: typeof AppLanguagesRoute
-  AppQuestsRoute: typeof AppQuestsRoute
   AppReviewsRoute: typeof AppReviewsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppNotesIdRoute: typeof AppNotesIdRoute
@@ -402,7 +382,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppFinancesRoute: AppFinancesRoute,
   AppGoalsRoute: AppGoalsRoute,
   AppLanguagesRoute: AppLanguagesRoute,
-  AppQuestsRoute: AppQuestsRoute,
   AppReviewsRoute: AppReviewsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppNotesIdRoute: AppNotesIdRoute,

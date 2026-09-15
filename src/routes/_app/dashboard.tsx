@@ -90,7 +90,7 @@ function Today() {
         </div>
 
         <div className="lg:w-[46%] lg:max-w-[560px] lg:shrink-0">
-          <Principles date={now} />
+          <Principles />
         </div>
       </div>
 

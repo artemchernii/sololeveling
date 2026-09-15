@@ -2,53 +2,71 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Sparkles, X } from 'lucide-react'
+import type { CSSProperties } from 'react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
-import { principleIndex } from '@/lib/principle-of-day'
 
-/** How long one line holds before the next rolls in. */
+/** How long one line holds before the column moves up by one. */
 const HOLD_MS = 7000
 
-/** Between one character and the next, along the roll. */
-const STAGGER_MS = 18
+/* Six hues for six lines, borrowed from the area palette in tokens.css
+   because those are the colours this app owns — and borrowed as a palette
+   only: a principle is not an area, and the colour says nothing except
+   "this is a different one from the last". They are spread around the wheel
+   so consecutive lines never look alike, and the light theme redefines each
+   token, so both themes are handled without a second list (§3d.3). */
+const HUES = [
+  '--area-social',
+  '--area-business',
+  '--area-body',
+  '--area-portuguese',
+  '--area-knowledge',
+  '--area-style',
+] as const
+
+function hue(i: number): CSSProperties {
+  return { '--hue': `var(${HUES[i % HUES.length]})` } as CSSProperties
+}
 
 /* The six lines from the source brief §16, beside the greeting (PLAN.md §3
    item 1). Read-only, like the page they replaced (§3b.5): seeded once,
    never edited from a screen.
 
-   Text on the ground, not a card: this is the third shape. A single static
-   line stopped being read within a day; all six as a list read as a wall;
-   the same thing in a glass card was one more box on a screen made of boxes
-   (Artem, 16 Sep). What is left is the line itself, rolling over.
+   Text on the ground, not a card, and it loops: the six are stacked in a
+   window one line tall and the column slides up by one, a ticker rather
+   than a swap.
 
-   **The rotation is the written exception to §3d.1** ("the app moving on its
-   own does not animate"), recorded there with its reason: that rule exists
-   to stop data moving under you, and a principle is the one thing on Today
-   that is not data. It holds while you are reading it, stops entirely under
-   prefers-reduced-motion, starts on the line the date chose, and every line
-   is reachable by hand from "all six". */
-export function Principles({ date }: { date: Date }) {
+   **No line is "today's".** It was picked by the date until 16 Sep, and
+   marked as such in the panel, which read as the app telling you which one
+   to live by — "it's not a prophecy" (Artem). They are six lines that are
+   all true at once; the loop shows each of them in turn and none of them is
+   chosen for you.
+
+   **The loop is the written exception to §3d.1** ("the app moving on its own
+   does not animate"), recorded there with its reason: that rule exists to
+   stop data moving under you, and a principle is the one thing on Today
+   that is not data. It holds while you are reading it and stops entirely
+   under prefers-reduced-motion. */
+export function Principles() {
   const principles = useQuery(api.principles.list, {})
   const [open, setOpen] = useState(false)
-  const [shown, setShown] = useState<number | null>(null)
   const [paused, setPaused] = useState(false)
+  /* How far down the column has travelled: `count` is the repeat of the
+     first line at the bottom, which the loop resets through. */
+  const [step, setStep] = useState(0)
 
   const count = principles?.length ?? 0
-  const todays = count > 0 ? principleIndex(date, count) : 0
-  const index = shown ?? todays
+  const index = count > 0 ? step % count : 0
 
   /* The panel is open, or you are reading it: whatever is showing stays. */
   const held = paused || open
 
   useEffect(() => {
     if (count < 2 || held || reducedMotion()) return
-    const id = setInterval(
-      () => setShown((current) => ((current ?? todays) + 1) % count),
-      HOLD_MS,
-    )
+    const id = setInterval(() => setStep((s) => s + 1), HOLD_MS)
     return () => clearInterval(id)
-  }, [count, held, todays])
+  }, [count, held])
 
   /* Renders nothing while loading or when nothing is seeded — a missing line
      is not worth a skeleton, and a fresh deployment says nothing rather than
@@ -61,107 +79,115 @@ export function Principles({ date }: { date: Date }) {
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={() => setPaused(false)}
-      className="flex h-full flex-col justify-center gap-2"
+      className="flex h-full flex-col justify-center gap-2.5"
     >
-      <div className="flex items-baseline gap-3">
-        <span className="label-caps">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span style={hue(index)} className="label-caps text-(--hue)">
           Principle {String(index + 1).padStart(2, '0')}
           <span className="text-ink-700">
             {' '}
             / {String(principles.length).padStart(2, '0')}
           </span>
         </span>
+
+        {/* The way to all six, shaped like the app's other call to action
+            (the Log pill) rather than another quiet label nobody presses. */}
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="label-caps motion-press chip-focus flex items-center gap-1.5 text-ink-600 transition-colors hover:text-lav-300"
+          className="motion-press chip-focus ml-auto flex items-center gap-1.5 rounded-full bg-lav-500 px-3 py-1.5 font-mono text-[11px] tracking-[0.14em] text-lav-900 uppercase transition-[filter] hover:brightness-110"
         >
-          <Sparkles className="size-3.5" />
-          All six
+          <Sparkles className="size-3.5" strokeWidth={2.4} />
+          Read all six
         </button>
       </div>
 
-      <Roll
-        text={principles[index].text}
-        /* Room for the longest line at this width, so a short line and a long
-           one do not move the page as they take turns. Smaller on a phone,
-           where the greeting and LEVEL are already above it. */
-        className="min-h-[3.4rem] text-[22px] leading-snug font-light text-foreground sm:min-h-[4.4rem] sm:text-[26px]"
+      <Loop
+        lines={principles}
+        step={step}
+        onLooped={() => setStep(0)}
+        label={principles[index].text}
       />
 
       {open ? (
-        <AllSix
-          principles={principles}
-          todays={todays}
-          onClose={() => setOpen(false)}
-        />
+        <AllSix principles={principles} onClose={() => setOpen(false)} />
       ) : null}
     </div>
   )
 }
 
-/* One line rolling into the place of the last: the outgoing characters leave
-   upward while the incoming ones arrive from below, each a beat after the
-   one before it. Both are in the DOM together for the length of the roll,
-   stacked, so nothing below moves while it happens. */
-function Roll({ text, className }: { text: string; className: string }) {
-  const [current, setCurrent] = useState(text)
-  const [leaving, setLeaving] = useState<string | null>(null)
+/* The loop. Every line is stacked in a column inside a window one line tall,
+   and the column is moved up by whole lines — so what you see is the text
+   itself travelling, not one line replacing another.
 
+   The first line is repeated under the last. When the column reaches that
+   repeat it is put back to the top with transitions off, which is the same
+   picture, so the loop never rewinds through the middle. */
+function Loop({
+  lines,
+  step,
+  onLooped,
+  label,
+}: {
+  lines: Array<Doc<'principles'>>
+  step: number
+  onLooped: () => void
+  label: string
+}) {
+  const [animate, setAnimate] = useState(true)
+
+  /* Reaching the repeat is the end of a lap: hold the picture, drop the
+     transition, and put the column back to the top before the next tick. */
   useEffect(() => {
-    if (text === current) return
-    setLeaving(current)
-    setCurrent(text)
-    /* Long enough for the last character of the longest line to finish;
-       it only clears a span that is already invisible. */
-    const done = setTimeout(() => setLeaving(null), 1400)
-    return () => clearTimeout(done)
-  }, [text, current])
+    if (step < lines.length) return
+    const settle = setTimeout(() => {
+      setAnimate(false)
+      onLooped()
+    }, 260)
+    return () => clearTimeout(settle)
+  }, [step, lines.length, onLooped])
+
+  /* Transitions come back on the frame after the reset, so the move that
+     put the column back is never itself animated. */
+  useEffect(() => {
+    if (animate) return
+    const id = requestAnimationFrame(() => setAnimate(true))
+    return () => cancelAnimationFrame(id)
+  }, [animate])
 
   return (
     <p
-      /* The whole line for a screen reader; the characters are scenery. */
-      aria-label={current}
-      className={`relative flex items-center ${className}`}
+      /* The line for a screen reader; the column below it is scenery. */
+      aria-label={label}
+      className="loop-window h-[3.4rem] text-[22px] leading-snug font-light sm:h-[4.4rem] sm:text-[26px]"
     >
-      {leaving === null ? null : (
-        <span aria-hidden className="absolute inset-0 flex items-center">
-          <Characters key={`out-${leaving}`} text={leaving} leaving />
-        </span>
-      )}
-      <span aria-hidden>
-        <Characters key={`in-${current}`} text={current} />
+      <span
+        aria-hidden
+        /* Per cent of the column, not of a line: the column is every line
+           plus the repeat, so one step is one seventh of it. Translating by
+           100% here moved the text a whole column out of the window. */
+        style={{
+          transform: `translateY(-${(step * 100) / (lines.length + 1)}%)`,
+        }}
+        className={`block ${animate ? 'transition-transform duration-(--motion-base) ease-(--motion-ease)' : ''}`}
+      >
+        {[...lines, lines[0]].map((principle, i) => (
+          <span
+            key={`${principle._id}-${i}`}
+            style={hue(i)}
+            /* Each item is exactly the window's height, so one step is one
+               line however long the text is. */
+            className="flex h-[3.4rem] items-center text-(--hue) sm:h-[4.4rem]"
+          >
+            {principle.text}
+          </span>
+        ))}
       </span>
     </p>
   )
 }
 
-function Characters({ text, leaving }: { text: string; leaving?: boolean }) {
-  let nth = 0
-  return (
-    <>
-      {text.split(' ').map((word, w) => (
-        /* Split by word first so a line still wraps between words, then by
-           character so the roll runs along the line rather than arriving in
-           blocks. */
-        <span key={`${word}-${w}`} className="inline-block whitespace-nowrap">
-          {[...word].map((character, c) => (
-            <span
-              key={c}
-              style={{ animationDelay: `${nth++ * STAGGER_MS}ms` }}
-              className={`inline-block ${leaving ? 'motion-roll-out' : 'motion-roll-in'}`}
-            >
-              {character}
-            </span>
-          ))}
-          {w < text.split(' ').length - 1 ? ' ' : null}
-        </span>
-      ))}
-    </>
-  )
-}
-
-/** Honours the OS switch: nothing rotates for someone who asked for less. */
+/** Honours the OS switch: nothing loops for someone who asked for less. */
 function reducedMotion(): boolean {
   return (
     typeof window !== 'undefined' &&
@@ -174,11 +200,9 @@ function reducedMotion(): boolean {
    move (§3d.1) — each line arrives after the one above it. */
 function AllSix({
   principles,
-  todays,
   onClose,
 }: {
   principles: Array<Doc<'principles'>>
-  todays: number
   onClose: () => void
 }) {
   useEffect(() => {
@@ -223,25 +247,15 @@ function AllSix({
           {principles.map((principle, i) => (
             <div
               key={principle._id}
-              style={{ animationDelay: `${i * 60}ms` }}
+              style={{ ...hue(i), animationDelay: `${i * 60}ms` }}
               className="motion-arrive flex items-baseline gap-4"
             >
-              <span
-                className={`font-mono text-[11px] ${i === todays ? 'text-lav-300' : 'text-ink-700'}`}
-              >
+              <span className="font-mono text-[11px] text-(--hue)">
                 {String(i + 1).padStart(2, '0')}
               </span>
-              <p
-                className={`text-[22px] leading-snug font-light sm:text-[26px] ${i === todays ? 'text-foreground' : 'text-ink-300'}`}
-              >
+              <p className="text-[22px] leading-snug font-light text-(--hue) sm:text-[26px]">
                 {principle.text}
               </p>
-              {/* Lavender is for the live thing, and today's is the live one. */}
-              {i === todays ? (
-                <span className="label-caps ml-auto shrink-0 text-lav-400">
-                  Today
-                </span>
-              ) : null}
             </div>
           ))}
         </div>

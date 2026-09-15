@@ -175,15 +175,22 @@ it is built in (R1–R7). Everything in §1–§2 and §3b–§3d still holds.
 
 1. Two columns (16 Sep). **Left:** greeting · `LEVEL 32` with the year's
    progress as a bar (a calendar fact: days since the last birthday over 365
-   — not a score) · `CURRENT FOCUS`. **Right:** the **principle**, as text on
-   the ground rather than in a card — one line at a time, starting with the
-   one the date chose, **rolling** to the next every 7s a character at a
-   time, with `all six` opening them full size in a panel. It pauses while
-   you read it and stops under `prefers-reduced-motion` (the §3d.1 exception,
-   recorded there). Three shapes were tried first: one static line stopped
-   being read within a day; all six as a list read as a wall and pushed the
-   day's cards below the fold; the same line in a glass card was one more box
-   on a screen made of boxes.
+   — not a score) · `CURRENT FOCUS`. **Right:** the **principles**, as text on
+   the ground rather than in a card — the six stacked in a window one line
+   tall, **looping**: the column slides up by one line every 7s, each line in
+   its own colour, with `READ ALL SIX` — a filled button, not a quiet label —
+   opening them full size. It pauses while you read it and stops under
+   `prefers-reduced-motion` (the §3d.1 exception, recorded there).
+
+   **No line is "today's" (16 Sep).** One was picked by the date until then
+   and marked as such: it read as the app naming the line to live by, and it
+   is not a prophecy. Six lines, all true at once, each shown in turn.
+
+   Four shapes were tried before the loop: one static line stopped being read
+   within a day; all six as a list read as a wall and pushed the day's cards
+   below the fold; the same line in a glass card was one more box on a screen
+   made of boxes; characters tilting in place was not what "loop text" means.
+
 2. **TODAY** (events + scheduled tasks, the timeline) beside **TODAY'S THREE**
    (the three slots, §3c.1: add, tick, drop, give a time; the evidence
    follow-up after a tick). On a phone the three come first.
@@ -318,10 +325,10 @@ dashboard that reflows every time a query resolves is a dashboard you cannot
 read. `prefers-reduced-motion: reduce` removes all of it — the information is in
 the change, not the movement.
 
-**The one exception, taken deliberately on 16 Sep: the principle line rolls.**
-Every seven seconds it turns over to the next of the six, character by
-character — the outgoing letters leave upward as the incoming ones arrive from
-below (`motion-roll-in` / `motion-roll-out`). It breaks the rule above
+**The one exception, taken deliberately on 16 Sep: the principles loop.**
+Every seven seconds the column slides up by one line inside a window one line
+tall (`loop-window`), the first line repeated under the last so the wrap has no
+rewind in it. It breaks the rule above
 and is allowed to, because the rule exists to stop _data_ moving under you —
 the number you are reading, the card that reflows as a query lands — and a
 principle is the one thing on Today that is not data. Two shapes were tried
@@ -368,6 +375,12 @@ in visual form, and the distinction is the whole of it:
   genuinely known it is declared once beside that metric, with the direction
   written down. Where it is not known, the number is flat — which is where the
   dashboard's month tiles stay, deliberately.
+- **A palette, where colour says only "another one" (16 Sep).** The six
+  principles each wear one of the area hues from `tokens.css` — borrowed as a
+  palette, not as area meaning: a principle is not an area, and the colour
+  grades nothing and measures nothing. It is there because six lines in one
+  grey are six lines nobody reads. Anything else borrowing the area hues this
+  way says so here first.
 
 Lavender remains reserved for live and focus things (§3 Visual). Colour added
 under this rule is additional vocabulary, not a licence to repaint that.

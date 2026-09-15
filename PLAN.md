@@ -173,13 +173,16 @@ it is built in (R1–R7). Everything in §1–§2 and §3b–§3d still holds.
 
 **Today** (the dashboard; the only screen that must be right at 7am), in order
 
-1. Greeting · `LEVEL 32` with the year's progress as a bar (a calendar fact:
-   days since the last birthday over 365 — not a score) · `CURRENT FOCUS`
-   · the **six principles**: today's — chosen by the date, the same all day —
-   large, the other five small beneath it, and `all six` opening them full
-   size in a panel (16 Sep). They fade in once on arrival and never rotate:
-   a line that changed while you watched would be the app moving on its own
-   (§3d.1), and a principle that changes when you refresh is decoration.
+1. Two columns (16 Sep). **Left:** greeting · `LEVEL 32` with the year's
+   progress as a bar (a calendar fact: days since the last birthday over 365
+   — not a score) · `CURRENT FOCUS`. **Right:** the **principle card** — one
+   line at a time, starting with the one the date chose, moving on every 7s,
+   with six dots to reach any of them by hand, `today's` to come back, and
+   `all six` opening them full size in a panel. It pauses while you read it
+   and stops under `prefers-reduced-motion` (the §3d.1 exception, recorded
+   there). Two earlier shapes failed: one static line stopped being read
+   within a day, and all six as a list read as a wall and pushed the day's
+   cards below the fold.
 2. **TODAY** (events + scheduled tasks, the timeline) beside **TODAY'S THREE**
    (the three slots, §3c.1: add, tick, drop, give a time; the evidence
    follow-up after a tick). On a phone the three come first.
@@ -313,6 +316,18 @@ Convex does not slide in; it is not a response to anything you did, and a
 dashboard that reflows every time a query resolves is a dashboard you cannot
 read. `prefers-reduced-motion: reduce` removes all of it — the information is in
 the change, not the movement.
+
+**The one exception, taken deliberately on 16 Sep: the principle card rotates.**
+Every seven seconds it moves to the next of the six. It breaks the rule above
+and is allowed to, because the rule exists to stop _data_ moving under you —
+the number you are reading, the card that reflows as a query lands — and a
+principle is the one thing on Today that is not data. Two shapes were tried
+first and both failed for the same reason: a single static line was stopped
+being read within a day, and all six as a list read as a wall. It holds while
+the pointer is on it or focus is inside it, it does not rotate at all under
+`prefers-reduced-motion`, the date still decides which line is showing when
+the screen opens, and every line is reachable by hand. Nothing else on Today
+moves on its own, and adding a second thing that does needs its own line here.
 
 **2. Loading shows shape, never values.** A skeleton mirrors the layout that is
 coming: the same tile grid, the same row heights, the same number of rows where

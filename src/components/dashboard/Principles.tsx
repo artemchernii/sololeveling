@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Sparkles, X } from 'lucide-react'
@@ -7,64 +7,126 @@ import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { principleIndex } from '@/lib/principle-of-day'
 
-/* The six lines from the source brief §16, under the greeting (PLAN.md §3
-   item 1). Read-only, like the page they replaced (§3b.5): they are seeded
-   once and never edited from a screen.
+/** How long one line holds before the next cross-fades in. */
+const HOLD_MS = 7000
 
-   One of them is today's, chosen by the date — the same line all day, a
-   different one tomorrow. The other five stay on screen under it, small and
-   quiet: all six were nearly never read as a page of their own, and a single
-   line was too easy to stop seeing (16 Sep, Artem).
+/* The six lines from the source brief §16, beside the greeting (PLAN.md §3
+   item 1). Read-only, like the page they replaced (§3b.5): seeded once,
+   never edited from a screen.
 
-   The fade is an arrival, once, in a short stagger — not a rotation. A line
-   that changed while you watched would be the app moving on its own (§3d.1),
-   and a principle that changes when you refresh is decoration. */
+   One at a time, starting with today's — the date decides which line you see
+   when the screen opens, and that much is unchanged. The card then moves
+   through the rest.
+
+   **This rotation is the written exception to §3d.1** ("a state change you
+   caused animates; the app moving on its own does not"), taken by Artem on
+   16 Sep after two earlier shapes failed: one static line was stopped being
+   read within a day, and all six as a list read as a wall and pushed the
+   day's cards below the fold. The principles are the one thing on this
+   screen that is not data, and the rule exists to stop numbers moving under
+   you — no number moves here. It pauses while you are reading it (hover or
+   focus), stops entirely under prefers-reduced-motion, and every line is
+   reachable by hand from the dots or from "all six". */
 export function Principles({ date }: { date: Date }) {
   const principles = useQuery(api.principles.list, {})
   const [open, setOpen] = useState(false)
+  const [shown, setShown] = useState<number | null>(null)
+  const [paused, setPaused] = useState(false)
+
+  const todays =
+    principles && principles.length > 0
+      ? principleIndex(date, principles.length)
+      : 0
+  const index = shown ?? todays
+  const count = principles?.length ?? 0
+
+  /* The panel is open, or the pointer is on the card: whatever you are
+     reading stays put. */
+  const held = paused || open
+
+  useEffect(() => {
+    if (count < 2 || held || reducedMotion()) return
+    const id = setInterval(
+      () => setShown((current) => ((current ?? todays) + 1) % count),
+      HOLD_MS,
+    )
+    return () => clearInterval(id)
+  }, [count, held, todays])
 
   /* Renders nothing while loading or when nothing is seeded — a missing line
      is not worth a skeleton, and a fresh deployment says nothing rather than
      "no principles yet" on the morning screen. */
   if (!principles || principles.length === 0) return null
 
-  const todays = principleIndex(date, principles.length)
-  const rest = principles.filter((_, i) => i !== todays)
+  const principle = principles[index]
 
   return (
-    <div className="flex flex-col gap-2.5 border-l-2 border-lift/10 pl-4">
+    <div
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
+      className="glass flex h-full flex-col gap-3 rounded-[22px] p-5"
+    >
       <div className="flex items-baseline justify-between gap-3">
-        <span className="label-caps">Principles</span>
+        <span className="label-caps">
+          Principle {String(index + 1).padStart(2, '0')}
+          <span className="text-ink-700">
+            {' '}
+            / {String(principles.length).padStart(2, '0')}
+          </span>
+        </span>
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="label-caps motion-press flex items-center gap-1.5 text-ink-500 transition-colors hover:text-lav-300"
+          className="label-caps motion-press chip-focus flex items-center gap-1.5 text-ink-500 transition-colors hover:text-lav-300"
         >
           <Sparkles className="size-3.5" />
           All six
         </button>
       </div>
 
-      <p className="motion-fade text-[26px] leading-snug font-light text-foreground">
-        {principles[todays].text}
+      {/* Two lines' worth of room, so a short line and a long one do not
+          move the cards below as they take turns. */}
+      <p className="flex min-h-[4.2rem] items-center text-[24px] leading-snug font-light text-foreground">
+        {/* Keyed by line, so each one fades in as it arrives. */}
+        <span key={principle._id} className="motion-fade">
+          {principle.text}
+        </span>
       </p>
 
-      <div className="flex flex-col gap-1">
-        {rest.map((principle, i) => (
-          <p
-            key={principle._id}
-            /* Each one 40ms after the last, so the set arrives as a set
-               rather than all at once. The delay is inline because it is per
-               row; the animation itself is the app's one fade. */
-            style={{ animationDelay: `${(i + 1) * 40}ms` }}
-            className="motion-fade flex items-baseline gap-2.5 text-[12.5px] text-ink-500"
+      <div className="mt-auto flex items-center gap-1.5">
+        {principles.map((p, i) => (
+          <button
+            key={p._id}
+            type="button"
+            aria-label={p.text}
+            aria-current={i === index}
+            onClick={() => setShown(i)}
+            className="chip-focus group grid h-4 place-items-center px-0.5"
           >
-            <span className="font-mono text-[10px] text-ink-700">
-              {number(principles, principle)}
-            </span>
-            {principle.text}
-          </p>
+            <span
+              className={`h-1 rounded-full transition-all duration-(--motion-base) ease-(--motion-ease) ${
+                i === index
+                  ? 'w-5 bg-lav-400'
+                  : 'w-1 bg-lift/25 group-hover:bg-lift/50'
+              }`}
+            />
+          </button>
         ))}
+        {/* Today's line is the one the date chose; the dots say which that
+            is once the card has moved on. */}
+        {index !== todays ? (
+          <button
+            type="button"
+            onClick={() => setShown(todays)}
+            className="label-caps motion-press chip-focus ml-2 text-ink-600 transition-colors hover:text-ink-300"
+          >
+            Today&rsquo;s
+          </button>
+        ) : (
+          <span className="label-caps ml-2 text-ink-700">Today&rsquo;s</span>
+        )}
       </div>
 
       {open ? (
@@ -75,6 +137,14 @@ export function Principles({ date }: { date: Date }) {
         />
       ) : null}
     </div>
+  )
+}
+
+/** Honours the OS switch: nothing rotates for someone who asked for less. */
+function reducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
 }
 
@@ -90,6 +160,8 @@ function AllSix({
   todays: number
   onClose: () => void
 }) {
+  const panel = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
@@ -107,6 +179,7 @@ function AllSix({
       onClick={onClose}
     >
       <div
+        ref={panel}
         role="dialog"
         aria-modal
         aria-label="The six principles"
@@ -122,7 +195,7 @@ function AllSix({
             autoFocus
             onClick={onClose}
             aria-label="Close"
-            className="motion-press grid size-7 shrink-0 place-items-center rounded-full text-ink-500 transition-colors hover:bg-lift/10 hover:text-foreground"
+            className="motion-press chip-focus grid size-7 shrink-0 place-items-center rounded-full text-ink-500 transition-colors hover:bg-lift/10 hover:text-foreground"
           >
             <X className="size-4" />
           </button>
@@ -158,12 +231,4 @@ function AllSix({
     </div>,
     document.body,
   )
-}
-
-/** Its place in the seeded order — the number the line is known by. */
-function number(
-  principles: Array<Doc<'principles'>>,
-  principle: Doc<'principles'>,
-): string {
-  return String(principles.indexOf(principle) + 1).padStart(2, '0')
 }

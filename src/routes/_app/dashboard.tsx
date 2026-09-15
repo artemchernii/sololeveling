@@ -53,34 +53,45 @@ function Today() {
        week → state. One source of markup, reordered: a phone-shaped copy of
        this screen is a second version of the same page, and they drift. */
     <div className="flex flex-col gap-[18px] lg:grid lg:grid-cols-2">
-      <div className="order-1 flex flex-col gap-2 lg:col-span-2">
-        <h1 className="text-[34px] leading-tight font-light text-foreground">
-          {greeting(now)}, {firstName.toUpperCase()}.
-        </h1>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {/* LEVEL is my age, from the birthday in lib/year.ts. It is a joke,
-              and it stays honest by being one: it goes up on 14 December and
-              never because of what I did this week. */}
-          <YearBar date={now} />
-          {/* Nothing until projects arrive: "No project in focus" is a claim,
-              and a loading screen does not get to make one (§3d.2). */}
-          {projects === undefined ? null : (
-            <>
-              <span className="text-ink-800">·</span>
-              {focus ? (
-                <>
-                  <span className="label-caps text-lav-400">Current focus</span>
-                  <span className="label-caps text-foreground">
-                    {focus.title}
-                  </span>
-                </>
-              ) : (
-                <span className="label-caps">No project in focus</span>
-              )}
-            </>
-          )}
+      {/* Who and when on the left, the principle card on the right: the six
+          used to sit under the greeting as a list, which pushed the day's
+          cards below the fold and read as a wall (16 Sep). */}
+      <div className="order-1 flex flex-col gap-4 lg:col-span-2 lg:flex-row lg:items-stretch lg:gap-8">
+        <div className="flex flex-1 flex-col justify-center gap-2">
+          <h1 className="text-[34px] leading-tight font-light text-foreground">
+            {greeting(now)}, {firstName.toUpperCase()}.
+          </h1>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {/* LEVEL is my age, from the birthday in lib/year.ts. It is a
+                joke, and it stays honest by being one: it goes up on 14
+                December and never because of what I did this week. */}
+            <YearBar date={now} />
+            {/* Nothing until projects arrive: "No project in focus" is a
+                claim, and a loading screen does not get to make one
+                (§3d.2). */}
+            {projects === undefined ? null : (
+              <>
+                <span className="text-ink-800">·</span>
+                {focus ? (
+                  <>
+                    <span className="label-caps text-lav-400">
+                      Current focus
+                    </span>
+                    <span className="label-caps text-foreground">
+                      {focus.title}
+                    </span>
+                  </>
+                ) : (
+                  <span className="label-caps">No project in focus</span>
+                )}
+              </>
+            )}
+          </div>
         </div>
-        <Principles date={now} />
+
+        <div className="lg:w-[46%] lg:max-w-[560px] lg:shrink-0">
+          <Principles date={now} />
+        </div>
       </div>
 
       <div className="order-3 lg:order-2">

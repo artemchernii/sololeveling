@@ -4,7 +4,8 @@ import { requireUser } from './auth'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
-import schema, { areaValidator } from './schema'
+import schema, { areaValidator, tileValidator } from './schema'
+import type { Tile } from './schema'
 
 /* PLAN.md §2. A goal is the thing a project answers to. It carries a target only
    when one is real: `targetLabel` is the human form ("B2", "€80,000"), and
@@ -124,6 +125,111 @@ export const remove = mutation({
     }
 
     await ctx.db.delete(args.goalId)
+    return null
+  },
+})
+
+/* What a monthly target is called when it is written from a tile. A goal
+   needs an area: Projects counts ticked tasks from every area, and business
+   is where that work is mostly filed. The unit is the tile's noun, so the
+   Goals page reads "target 9 workouts a month". */
+const TILE_GOALS: Record<
+  Tile,
+  { title: string; area: Doc<'goals'>['area']; unit: string }
+> = {
+  projects: {
+    title: 'Tasks shipped each month',
+    area: 'business',
+    unit: 'tasks',
+  },
+  portuguese: {
+    title: 'Portuguese sessions each month',
+    area: 'portuguese',
+    unit: 'sessions',
+  },
+  body: { title: 'Workouts each month', area: 'body', unit: 'workouts' },
+  money: {
+    title: 'Transfers to the floor each month',
+    area: 'money',
+    unit: 'transfers',
+  },
+  style: {
+    title: 'Pieces bought or altered each month',
+    area: 'style',
+    unit: 'pieces',
+  },
+  social: {
+    title: 'Events attended each month',
+    area: 'social',
+    unit: 'events',
+  },
+}
+
+/* Newest first, so if two ever claim a tile — a dropped one set back to
+   active on the Goals page — the one written last is the one changed. */
+async function activeTileGoals(
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string,
+  tile: Tile,
+): Promise<Array<Doc<'goals'>>> {
+  const rows = await ctx.db
+    .query('goals')
+    .withIndex('by_owner_tile', (q) =>
+      q.eq('ownerId', ownerId).eq('tile', tile),
+    )
+    .order('desc')
+    .take(MAX_ROWS)
+  return rows.filter((goal) => goal.status === 'active')
+}
+
+/**
+ * A monthly target, set from its tile (PLAN.md §3 item 4). It is a goal
+ * because a goal's targetValue is the one thing §1 lets a count be read
+ * against. Setting it again changes the number on the same goal rather than
+ * stacking a second one.
+ */
+export const setTileTarget = mutation({
+  args: { tile: tileValidator, targetValue: v.number() },
+  returns: v.id('goals'),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+
+    if (!Number.isInteger(args.targetValue) || args.targetValue <= 0) {
+      /* ConvexError: this sentence is for a person, and a plain Error
+         reaches the client wrapped in a stack trace. */
+      throw new ConvexError('A monthly target is a whole number above zero.')
+    }
+
+    /* `.length`, not `[current]`: without noUncheckedIndexedAccess the
+       destructured element is typed as always present. */
+    const existing = await activeTileGoals(ctx, ownerId, args.tile)
+    if (existing.length > 0) {
+      await ctx.db.patch(existing[0]._id, { targetValue: args.targetValue })
+      return existing[0]._id
+    }
+
+    const shape = TILE_GOALS[args.tile]
+    return await ctx.db.insert('goals', {
+      ownerId,
+      title: shape.title,
+      area: shape.area,
+      status: 'active',
+      targetValue: args.targetValue,
+      unit: shape.unit,
+      tile: args.tile,
+    })
+  },
+})
+
+/** No target on this tile any more. Dropped, not deleted. */
+export const clearTileTarget = mutation({
+  args: { tile: tileValidator },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    for (const goal of await activeTileGoals(ctx, ownerId, args.tile)) {
+      await ctx.db.patch(goal._id, { status: 'dropped' })
+    }
     return null
   },
 })

@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
+import type { Infer } from 'convex/values'
 
 /* PLAN.md §2. Every table carries `ownerId` — the Clerk `identity.subject` —
    and an owner-scoped index, so a query that reads across owners cannot be
@@ -23,6 +24,20 @@ export const areaValidator = v.union(
   v.literal('knowledge'),
   v.literal('life'),
 )
+
+/* The six THIS MONTH tiles (PLAN.md §3 item 4) — the fixed shape monthCounts
+   returns, deliberately not the area enum. A goal carrying one is a monthly
+   target read against that tile's count (R2, 15 Sep). */
+export const tileValidator = v.union(
+  v.literal('projects'),
+  v.literal('portuguese'),
+  v.literal('body'),
+  v.literal('money'),
+  v.literal('style'),
+  v.literal('social'),
+)
+
+export type Tile = Infer<typeof tileValidator>
 
 const goalStatus = v.union(
   v.literal('active'),
@@ -94,8 +109,14 @@ export default defineSchema({
     targetValue: v.optional(v.number()),
     unit: v.optional(v.string()),
     deadline: v.optional(v.string()), // ISO date
+    /* Set only on a monthly target written from a THIS MONTH tile: then
+       `targetValue` is per month, and the tile's log count is what it is
+       read against. One active goal per tile — goals.setTileTarget keeps
+       it that way. */
+    tile: v.optional(tileValidator),
   })
     .index('by_owner_status', ['ownerId', 'status'])
+    .index('by_owner_tile', ['ownerId', 'tile'])
     .searchIndex('search_title', {
       searchField: 'title',
       filterFields: ['ownerId'],

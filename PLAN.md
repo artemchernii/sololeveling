@@ -96,8 +96,10 @@ const logKind = literals('workout','weight','expense','transfer','income','sessi
 goals:     { ownerId, title, description?, area, status: 'active'|'done'|'dropped',
              targetLabel?,            // "B2", "€80,000", "profitable business"
              targetValue?: number, unit?,   // only when measurable
-             deadline?: string }      // ISO date
-           .index('by_owner_status', ['ownerId','status'])
+             deadline?: string,       // ISO date
+             tile?: 'projects'|'portuguese'|'body'|'money'|'style'|'social' }
+                                      // a monthly target read against that §3 tile (R2)
+           .index('by_owner_status', ['ownerId','status']).index('by_owner_tile', ['ownerId','tile'])
 projects:  { ownerId, goalId, title, description?, status: projectStatus, deadline? }
            .index('by_owner_status', ['ownerId','status'])   // one 'focus' per owner — setFocus enforces
 tasks:     { ownerId, title, notes?, projectId?, goalId?, area?,
@@ -182,9 +184,11 @@ it is built in (R1–R7). Everything in §1–§2 and §3b–§3d still holds.
    Social (events this month). Business and Career cells are gone — projects
    were counted twice, and Career had nothing to count.
 4. **THIS MONTH · ACTIONS LOGGED** — the six tiles, each against a **target**
-   when one exists (R2): `Gym · 5 of 9 · 12 days left`. The target is a goal's
-   `targetValue` (§1) — the only thing a count may be divided by. A tile with
-   no target shows the count and last month, as today.
+   when one exists (R2): `Body · 5 of 9 workouts · 4 to go · 16 days left`. The
+   target is a goal's `targetValue` (§1) — the only thing a count may be divided
+   by — set on the tile itself: a goal bound to that tile (`goals.tile`), read
+   per month, one per tile. A tile with no target shows the count and last
+   month, as before.
 5. **THIS WEEK** at a glance (R2): the seven days, what is booked, what was
    logged. The weekly review stays its own page.
 

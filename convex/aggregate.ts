@@ -3,6 +3,7 @@ import { v } from 'convex/values'
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
 import { areaValidator } from './schema'
+import type { Tile } from './schema'
 import { query } from './_generated/server'
 
 /* PLAN.md §1: every number on screen comes from exactly one of four sources —
@@ -263,6 +264,63 @@ export const weekCounts = query({
     }
 
     return weeks
+  },
+})
+
+/* ---------------------------------------------------------------------------
+   Targets — a goal's targetValue, the one denominator §1 allows a count.
+
+   Per tile, in the same fixed shape monthCounts has, null where none is set.
+   Handed over beside the counts and never divided by them here: "5 of 9" is
+   two values a component composes, and a ratio returned from this file would
+   make the wrong thing easy.
+   ------------------------------------------------------------------------ */
+
+const tileTarget = v.union(v.number(), v.null())
+
+export const tileTargets = query({
+  args: {},
+  returns: v.object({
+    projects: tileTarget,
+    portuguese: tileTarget,
+    body: tileTarget,
+    money: tileTarget,
+    style: tileTarget,
+    social: tileTarget,
+  }),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+
+    const targets: Record<Tile, number | null> = {
+      projects: null,
+      portuguese: null,
+      body: null,
+      money: null,
+      style: null,
+      social: null,
+    }
+
+    /* Newest first: if two active goals ever claim a tile, the later wins,
+       the same one goals.setTileTarget would change. */
+    const goals = await ctx.db
+      .query('goals')
+      .withIndex('by_owner_status', (q) =>
+        q.eq('ownerId', ownerId).eq('status', 'active'),
+      )
+      .order('desc')
+      .take(MAX_ROWS)
+
+    for (const goal of goals) {
+      if (
+        goal.tile !== undefined &&
+        goal.targetValue !== undefined &&
+        targets[goal.tile] === null
+      ) {
+        targets[goal.tile] = goal.targetValue
+      }
+    }
+
+    return targets
   },
 })
 

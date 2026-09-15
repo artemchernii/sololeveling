@@ -440,3 +440,53 @@ describe('kindCount narrows by area and project', () => {
     expect(await count({ projectId })).toBe(1)
   })
 })
+
+describe('tileTargets is a goal’s targetValue per tile (PLAN.md §1)', () => {
+  test('null where no target is set — absent, not zero', async () => {
+    const targets = await as(ME).query(api.aggregate.tileTargets, {})
+    expect(targets).toEqual({
+      projects: null,
+      portuguese: null,
+      body: null,
+      money: null,
+      style: null,
+      social: null,
+    })
+  })
+
+  test('a target shows on its own tile only', async () => {
+    const t = as(ME)
+    await t.mutation(api.goals.setTileTarget, { tile: 'body', targetValue: 9 })
+    const targets = await t.query(api.aggregate.tileTargets, {})
+    expect(targets.body).toBe(9)
+    expect(targets.social).toBeNull()
+  })
+
+  test('a measurable goal with no tile is not a monthly target', async () => {
+    const t = as(ME)
+    await t.mutation(api.goals.create, {
+      title: '€80,000',
+      area: 'money',
+      targetValue: 80000,
+      unit: '€',
+    })
+    expect((await t.query(api.aggregate.tileTargets, {})).money).toBeNull()
+  })
+
+  test('a cleared target is gone from the tile', async () => {
+    const t = as(ME)
+    await t.mutation(api.goals.setTileTarget, { tile: 'body', targetValue: 9 })
+    await t.mutation(api.goals.clearTileTarget, { tile: 'body' })
+    expect((await t.query(api.aggregate.tileTargets, {})).body).toBeNull()
+  })
+
+  test('never another owner’s', async () => {
+    const { mine, theirs } = twoOwners()
+    await theirs.mutation(api.goals.setTileTarget, {
+      tile: 'body',
+      targetValue: 9,
+    })
+    expect((await mine.query(api.aggregate.tileTargets, {})).body).toBeNull()
+    expect((await theirs.query(api.aggregate.tileTargets, {})).body).toBe(9)
+  })
+})

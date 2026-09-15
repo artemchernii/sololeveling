@@ -7,6 +7,7 @@ import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { ActionsLogged } from '@/components/dashboard/ActionsLogged'
 import { ChainsCard } from '@/components/dashboard/ChainsCard'
+import { PrincipleLine } from '@/components/dashboard/PrincipleLine'
 import { QuestList } from '@/components/dashboard/QuestList'
 import { StateStrip } from '@/components/dashboard/StateStrip'
 import { TodayCard } from '@/components/dashboard/TodayCard'
@@ -77,6 +78,7 @@ function Dashboard() {
             <span className="label-caps">No chain in focus</span>
           )}
         </div>
+        <PrincipleLine date={now} />
       </div>
 
       <div className="order-2 lg:order-2">

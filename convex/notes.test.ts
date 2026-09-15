@@ -10,8 +10,21 @@ const modules = import.meta.glob('./**/*.ts')
 const ME = 'https://clerk.test|user_me'
 const SOMEONE_ELSE = 'https://clerk.test|user_them'
 
+/* One backend per call. Fine for one person; never two of these to test
+   ownership — two convexTest() backends are two databases, so "they cannot
+   see my row" would pass even if every query returned everyone's. */
 function as(subject: string) {
   return convexTest(schema, modules).withIdentity({ tokenIdentifier: subject })
+}
+
+/* Two people in one database: my row is really there when they look for it,
+   and my id is real when they pass it. */
+function twoOwners() {
+  const t = convexTest(schema, modules)
+  return {
+    mine: t.withIdentity({ tokenIdentifier: ME }),
+    theirs: t.withIdentity({ tokenIdentifier: SOMEONE_ELSE }),
+  }
 }
 
 describe('a note is a thing you wrote down', () => {
@@ -65,19 +78,22 @@ describe('a note is a thing you wrote down', () => {
 
 describe('ownership', () => {
   test('notes are not visible to anyone else', async () => {
-    await as(ME).mutation(api.notes.create, { title: 'Mine' })
-    expect(await as(SOMEONE_ELSE).query(api.notes.list, {})).toEqual([])
+    const { mine, theirs } = twoOwners()
+    await mine.mutation(api.notes.create, { title: 'Mine' })
+    expect(await theirs.query(api.notes.list, {})).toEqual([])
+    expect(await mine.query(api.notes.list, {})).toHaveLength(1)
   })
 
   test('someone else cannot edit or delete my note', async () => {
-    const noteId = await as(ME).mutation(api.notes.create, { title: 'Mine' })
-    const theirs = as(SOMEONE_ELSE)
+    const { mine, theirs } = twoOwners()
+    const noteId = await mine.mutation(api.notes.create, { title: 'Mine' })
     await expect(
       theirs.mutation(api.notes.update, { noteId, title: 'Theirs now' }),
-    ).rejects.toThrow()
-    await expect(
-      theirs.mutation(api.notes.remove, { noteId }),
-    ).rejects.toThrow()
+    ).rejects.toThrow('No such note')
+    await expect(theirs.mutation(api.notes.remove, { noteId })).rejects.toThrow(
+      'No such note',
+    )
+    expect((await mine.query(api.notes.get, { noteId }))?.title).toBe('Mine')
   })
 
   test('signed out reads nothing', async () => {

@@ -11,8 +11,20 @@ const ME = 'https://clerk.test|user_me'
 const SOMEONE_ELSE = 'https://clerk.test|user_them'
 const WEEK = '2026-09-07'
 
+/* One backend per call. Fine for one person; never two of these to test
+   ownership — two convexTest() backends are two databases, so "they cannot
+   see my row" would pass even if every query returned everyone's. */
 function as(subject: string) {
   return convexTest(schema, modules).withIdentity({ tokenIdentifier: subject })
+}
+
+/* Two people in one database: my row is really there when they look for it. */
+function twoOwners() {
+  const t = convexTest(schema, modules)
+  return {
+    mine: t.withIdentity({ tokenIdentifier: ME }),
+    theirs: t.withIdentity({ tokenIdentifier: SOMEONE_ELSE }),
+  }
 }
 
 describe('a week is written before it is closed', () => {
@@ -124,13 +136,17 @@ describe('closing needs the sentence that changes something', () => {
 
 describe('ownership', () => {
   test('a week is not visible to anyone else', async () => {
-    await as(ME).mutation(api.reviews.save, {
+    const { mine, theirs } = twoOwners()
+    await mine.mutation(api.reviews.save, {
       periodStart: WEEK,
       answers: { didHappen: 'Mine' },
     })
     expect(
-      await as(SOMEONE_ELSE).query(api.reviews.forWeek, { periodStart: WEEK }),
+      await theirs.query(api.reviews.forWeek, { periodStart: WEEK }),
     ).toBeNull()
+    expect(
+      (await mine.query(api.reviews.forWeek, { periodStart: WEEK }))?.answers,
+    ).toEqual({ didHappen: 'Mine' })
   })
 
   test('signed out reads nothing', async () => {

@@ -8,6 +8,7 @@ import { PrincipleLine } from '@/components/dashboard/PrincipleLine'
 import { QuestList } from '@/components/dashboard/QuestList'
 import { StateStrip } from '@/components/dashboard/StateStrip'
 import { TodayCard } from '@/components/dashboard/TodayCard'
+import { YearBar } from '@/components/dashboard/YearBar'
 import { localToday } from '@/lib/today'
 import { useHeld } from '@/lib/loading'
 
@@ -57,18 +58,26 @@ function Today() {
           {greeting(now)}, {firstName.toUpperCase()}.
         </h1>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {/* LEVEL 32 is my age. It is a joke, and it stays honest by being
-              one: it is not derived from anything and it never goes up
-              because of what I did this week. */}
-          <span className="label-caps">Level 32</span>
-          <span className="text-ink-800">·</span>
-          {focus ? (
+          {/* LEVEL is my age, from the birthday in lib/year.ts. It is a joke,
+              and it stays honest by being one: it goes up on 14 December and
+              never because of what I did this week. */}
+          <YearBar date={now} />
+          {/* Nothing until projects arrive: "No project in focus" is a claim,
+              and a loading screen does not get to make one (§3d.2). */}
+          {projects === undefined ? null : (
             <>
-              <span className="label-caps text-lav-400">Current focus</span>
-              <span className="label-caps text-foreground">{focus.title}</span>
+              <span className="text-ink-800">·</span>
+              {focus ? (
+                <>
+                  <span className="label-caps text-lav-400">Current focus</span>
+                  <span className="label-caps text-foreground">
+                    {focus.title}
+                  </span>
+                </>
+              ) : (
+                <span className="label-caps">No project in focus</span>
+              )}
             </>
-          ) : (
-            <span className="label-caps">No project in focus</span>
           )}
         </div>
         <PrincipleLine date={now} />

@@ -32,13 +32,20 @@
   ```js
   const root = document.querySelector('main')
   let f = root[Object.keys(root).find((k) => k.startsWith('__reactFiber$'))]
-  while (f && !(f.memoizedProps?.client?.mutation && f.memoizedProps?.client?.watchQuery)) f = f.return
+  while (
+    f &&
+    !(f.memoizedProps?.client?.mutation && f.memoizedProps?.client?.watchQuery)
+  )
+    f = f.return
   const convex = f.memoizedProps.client
   // before clearing: find it
-  ;(await convex.query('goals:listActive', {})).filter((g) => g.tile).map((g) => [g._id, g.title, g.targetValue])
+  ;(await convex.query('goals:listActive', {}))
+    .filter((g) => g.tile)
+    .map((g) => [g._id, g.title, g.targetValue])
   // after clearing in the UI: remove it (goals.remove works on a dropped goal with no projects)
   await convex.mutation('goals:remove', { goalId: '<the _id noted above>' })
   ```
+
 - Artem runs `pnpm dev` (and `convex dev`) on this working tree. Never `git stash` or `git checkout -- <file>` while working; copy files to the scratchpad if you need to compare.
 - **Cross-owner tests share one database.** `convexTest(schema, modules)` is a fresh backend per call, so two `as(...)` helpers can never see each other's rows. In this slice, write owner-isolation tests as `const t = convexTest(schema, modules)` then `t.withIdentity(...)` twice.
 - Every commit message explains why and ends with the attribution line the session reminder gives.
@@ -48,25 +55,25 @@
 
 ## File map
 
-| action | path                                                                 | responsibility                                                              |
-| ------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| create | `src/lib/year.ts` (+ test)                                           | the birthday, LEVEL, and how far through the year of it today is            |
-| create | `src/components/dashboard/YearBar.tsx`                               | renders LEVEL, the bar and "90 days to 33"                                  |
-| modify | `convex/schema.ts`                                                   | `tileValidator`, `Tile`, `goals.tile`, index `by_owner_tile`                |
-| modify | `convex/goals.ts`                                                    | `setTileTarget`, `clearTileTarget`                                          |
-| create | `convex/goals.test.ts`                                               | a monthly target is a goal bound to its tile                                |
-| modify | `convex/aggregate.ts` (+ test)                                       | `tileTargets()`; `currentState()` loses the three target/career keys        |
-| modify | `PLAN.md` §2, §3 item 4                                              | the schema and the spec say what was built                                  |
-| create | `src/lib/month.ts` (+ test)                                          | days left in the month; "4 to go · 16 days left"                            |
-| create | `src/lib/tiles.ts` (+ test)                                          | the six tiles: key, label, noun, area colour                                |
-| modify | `src/components/dashboard/ActionsLogged.tsx`                         | tiles with target, bar, inline target editor, area-coloured labels          |
-| modify | `src/routes/_app/goals.tsx`                                          | "target 9 workouts a month" for a tile goal                                 |
-| modify | `src/components/dashboard/StateStrip.tsx`                            | Languages reads the tile target; no editable target slot                    |
-| create | `src/lib/week-glance.ts` (+ test)                                    | the seven day bounds; the timeline split by day                             |
-| modify | `src/lib/format.ts`                                                  | export `clock`                                                              |
-| create | `src/components/dashboard/WeekGlance.tsx`                            | THIS WEEK                                                                   |
-| modify | `src/components/dashboard/TodayCard.tsx`                             | an area-coloured rule on each timeline row                                  |
-| modify | `src/routes/_app/dashboard.tsx`                                      | mounts YearBar and WeekGlance, final order                                  |
+| action | path                                         | responsibility                                                       |
+| ------ | -------------------------------------------- | -------------------------------------------------------------------- |
+| create | `src/lib/year.ts` (+ test)                   | the birthday, LEVEL, and how far through the year of it today is     |
+| create | `src/components/dashboard/YearBar.tsx`       | renders LEVEL, the bar and "90 days to 33"                           |
+| modify | `convex/schema.ts`                           | `tileValidator`, `Tile`, `goals.tile`, index `by_owner_tile`         |
+| modify | `convex/goals.ts`                            | `setTileTarget`, `clearTileTarget`                                   |
+| create | `convex/goals.test.ts`                       | a monthly target is a goal bound to its tile                         |
+| modify | `convex/aggregate.ts` (+ test)               | `tileTargets()`; `currentState()` loses the three target/career keys |
+| modify | `PLAN.md` §2, §3 item 4                      | the schema and the spec say what was built                           |
+| create | `src/lib/month.ts` (+ test)                  | days left in the month; "4 to go · 16 days left"                     |
+| create | `src/lib/tiles.ts` (+ test)                  | the six tiles: key, label, noun, area colour                         |
+| modify | `src/components/dashboard/ActionsLogged.tsx` | tiles with target, bar, inline target editor, area-coloured labels   |
+| modify | `src/routes/_app/goals.tsx`                  | "target 9 workouts a month" for a tile goal                          |
+| modify | `src/components/dashboard/StateStrip.tsx`    | Languages reads the tile target; no editable target slot             |
+| create | `src/lib/week-glance.ts` (+ test)            | the seven day bounds; the timeline split by day                      |
+| modify | `src/lib/format.ts`                          | export `clock`                                                       |
+| create | `src/components/dashboard/WeekGlance.tsx`    | THIS WEEK                                                            |
+| modify | `src/components/dashboard/TodayCard.tsx`     | an area-coloured rule on each timeline row                           |
+| modify | `src/routes/_app/dashboard.tsx`              | mounts YearBar and WeekGlance, final order                           |
 
 ---
 
@@ -110,7 +117,12 @@ describe('the year of LEVEL', () => {
 
   test('the birthday itself starts the next level, from zero', () => {
     const y = yearOfLevel(new Date(2026, 11, 14, 0, 1))
-    expect(y).toEqual({ level: 33, daysIn: 0, daysInYear: 365, daysToNext: 365 })
+    expect(y).toEqual({
+      level: 33,
+      daysIn: 0,
+      daysInYear: 365,
+      daysToNext: 365,
+    })
   })
 
   test('New Year does not reset it', () => {
@@ -241,19 +253,23 @@ export function YearBar({ date }: { date: Date }) {
 In `src/routes/_app/dashboard.tsx`, add `import { YearBar } from '@/components/dashboard/YearBar'` and replace:
 
 ```tsx
-          {/* LEVEL 32 is my age. It is a joke, and it stays honest by being
+{
+  /* LEVEL 32 is my age. It is a joke, and it stays honest by being
               one: it is not derived from anything and it never goes up
-              because of what I did this week. */}
-          <span className="label-caps">Level 32</span>
+              because of what I did this week. */
+}
+;<span className="label-caps">Level 32</span>
 ```
 
 with:
 
 ```tsx
-          {/* LEVEL is my age, from the birthday in lib/year.ts. It is a joke,
+{
+  /* LEVEL is my age, from the birthday in lib/year.ts. It is a joke,
               and it stays honest by being one: it goes up on 14 December and
-              never because of what I did this week. */}
-          <YearBar date={now} />
+              never because of what I did this week. */
+}
+;<YearBar date={now} />
 ```
 
 - [ ] **Step 7: Verify in the browser**
@@ -346,7 +362,10 @@ describe('a monthly target is a goal bound to its tile (PLAN.md §3 item 4)', ()
   test('each tile has its own', async () => {
     const me = convexTest(schema, modules).withIdentity({ tokenIdentifier: ME })
     await me.mutation(api.goals.setTileTarget, { tile: 'body', targetValue: 9 })
-    await me.mutation(api.goals.setTileTarget, { tile: 'social', targetValue: 2 })
+    await me.mutation(api.goals.setTileTarget, {
+      tile: 'social',
+      targetValue: 2,
+    })
 
     const goals = await me.query(api.goals.listActive, {})
     expect(goals.map((g) => g.tile).sort()).toEqual(['body', 'social'])
@@ -378,7 +397,10 @@ describe('a monthly target is a goal bound to its tile (PLAN.md §3 item 4)', ()
     const me = t.withIdentity({ tokenIdentifier: ME })
     const them = t.withIdentity({ tokenIdentifier: SOMEONE_ELSE })
 
-    await them.mutation(api.goals.setTileTarget, { tile: 'body', targetValue: 9 })
+    await them.mutation(api.goals.setTileTarget, {
+      tile: 'body',
+      targetValue: 9,
+    })
     await me.mutation(api.goals.setTileTarget, { tile: 'body', targetValue: 4 })
     await me.mutation(api.goals.clearTileTarget, { tile: 'body' })
 
@@ -504,7 +526,11 @@ const TILE_GOALS: Record<
   Tile,
   { title: string; area: Doc<'goals'>['area']; unit: string }
 > = {
-  projects: { title: 'Tasks shipped each month', area: 'business', unit: 'tasks' },
+  projects: {
+    title: 'Tasks shipped each month',
+    area: 'business',
+    unit: 'tasks',
+  },
   portuguese: {
     title: 'Portuguese sessions each month',
     area: 'portuguese',
@@ -521,7 +547,11 @@ const TILE_GOALS: Record<
     area: 'style',
     unit: 'pieces',
   },
-  social: { title: 'Events attended each month', area: 'social', unit: 'events' },
+  social: {
+    title: 'Events attended each month',
+    area: 'social',
+    unit: 'events',
+  },
 }
 
 /* Newest first, so if two ever claim a tile — a dropped one set back to
@@ -533,7 +563,9 @@ async function activeTileGoals(
 ): Promise<Array<Doc<'goals'>>> {
   const rows = await ctx.db
     .query('goals')
-    .withIndex('by_owner_tile', (q) => q.eq('ownerId', ownerId).eq('tile', tile))
+    .withIndex('by_owner_tile', (q) =>
+      q.eq('ownerId', ownerId).eq('tile', tile),
+    )
     .order('desc')
     .take(MAX_ROWS)
   return rows.filter((goal) => goal.status === 'active')
@@ -1071,7 +1103,9 @@ function TargetInput({
 }) {
   const setTarget = useMutation(api.goals.setTileTarget)
   const clearTarget = useMutation(api.goals.clearTileTarget)
-  const [draft, setDraft] = useState(current === undefined ? '' : String(current))
+  const [draft, setDraft] = useState(
+    current === undefined ? '' : String(current),
+  )
   const closed = useRef(false)
 
   function finish(commit: boolean) {
@@ -1117,14 +1151,14 @@ function TargetInput({
 In `src/routes/_app/goals.tsx`, inside `Target`, change the measurable branch to:
 
 ```tsx
-  if (goal.targetValue !== undefined && goal.unit) {
-    return (
-      <div className="font-mono text-[12px] text-ink-300">
-        target {goal.targetValue} {goal.unit}
-        {goal.tile ? ' a month' : ''}
-      </div>
-    )
-  }
+if (goal.targetValue !== undefined && goal.unit) {
+  return (
+    <div className="font-mono text-[12px] text-ink-300">
+      target {goal.targetValue} {goal.unit}
+      {goal.tile ? ' a month' : ''}
+    </div>
+  )
+}
 ```
 
 - [ ] **Step 7: Verify in the browser** (`http://localhost:3000/dashboard`)
@@ -1179,17 +1213,17 @@ was 3 March, and the tile said March about February.
 In `convex/aggregate.test.ts`, replace the test `'a target is a state value like any other'` with:
 
 ```ts
-  test('targets are not state: they live on goals now (R2)', async () => {
-    const state = await as(ME).query(api.aggregate.currentState, {})
-    /* sessions_target moved to the Languages tile's goal; skills_* went
+test('targets are not state: they live on goals now (R2)', async () => {
+  const state = await as(ME).query(api.aggregate.currentState, {})
+  /* sessions_target moved to the Languages tile's goal; skills_* went
        with the Career cell on 15 Sep. A key nothing reads is a key that
        drifts. */
-    expect(Object.keys(state).sort()).toEqual([
-      'cefr_level',
-      'net_worth',
-      'weight',
-    ])
-  })
+  expect(Object.keys(state).sort()).toEqual([
+    'cefr_level',
+    'net_worth',
+    'weight',
+  ])
+})
 ```
 
 - [ ] **Step 2: Run it to see it fail**
@@ -1313,7 +1347,7 @@ The third paragraph ("Nothing is seeded, so these editors…") stays.
 Add the query after `counts`:
 
 ```ts
-  const targets = useQuery(api.aggregate.tileTargets, {})
+const targets = useQuery(api.aggregate.tileTargets, {})
 ```
 
 Replace the Languages cell's `trail`:
@@ -1440,27 +1474,27 @@ describe('the timeline split by day', () => {
 In `convex/aggregate.test.ts`, inside `describe('weekCounts is the same six tiles, over weeks …')`, add:
 
 ```ts
-  test('the same boundaries work for days — THIS WEEK on Today', async () => {
-    const t = as(ME)
-    const DAY = (d: number) => new Date(2026, 8, d).getTime()
-    const log = (kind: 'workout' | 'session', when: Date) =>
-      t.mutation(api.logs.create, {
-        kind,
-        area: kind === 'workout' ? 'body' : 'portuguese',
-        occurredAt: when.getTime(),
-      })
-
-    await log('workout', new Date(2026, 8, 15, 7))
-    await log('session', new Date(2026, 8, 15, 23, 30))
-    await log('workout', new Date(2026, 8, 16, 0, 10))
-
-    const days = await t.query(api.aggregate.weekCounts, {
-      starts: [DAY(14), DAY(15), DAY(16)],
-      end: DAY(17),
+test('the same boundaries work for days — THIS WEEK on Today', async () => {
+  const t = as(ME)
+  const DAY = (d: number) => new Date(2026, 8, d).getTime()
+  const log = (kind: 'workout' | 'session', when: Date) =>
+    t.mutation(api.logs.create, {
+      kind,
+      area: kind === 'workout' ? 'body' : 'portuguese',
+      occurredAt: when.getTime(),
     })
-    expect(days.map((d) => d.body)).toEqual([0, 1, 1])
-    expect(days.map((d) => d.portuguese)).toEqual([0, 1, 0])
+
+  await log('workout', new Date(2026, 8, 15, 7))
+  await log('session', new Date(2026, 8, 15, 23, 30))
+  await log('workout', new Date(2026, 8, 16, 0, 10))
+
+  const days = await t.query(api.aggregate.weekCounts, {
+    starts: [DAY(14), DAY(15), DAY(16)],
+    end: DAY(17),
   })
+  expect(days.map((d) => d.body)).toEqual([0, 1, 1])
+  expect(days.map((d) => d.portuguese)).toEqual([0, 1, 0])
+})
 ```
 
 - [ ] **Step 2: Run them**
@@ -1571,7 +1605,9 @@ export function WeekGlance({ today }: { today: number }) {
     <div className="glass rounded-[22px] p-5">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <div className="label-caps">This week</div>
-        <div className="label-caps">{rangeLabel(days[0].start, days[6].start)}</div>
+        <div className="label-caps">
+          {rangeLabel(days[0].start, days[6].start)}
+        </div>
       </div>
 
       <div className="grid gap-2 lg:grid-cols-7">

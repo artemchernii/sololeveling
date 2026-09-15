@@ -170,19 +170,16 @@ describe('currentState is the latest row per key (PLAN.md §1)', () => {
     expect(state.cefr_level?.value).toBeUndefined()
   })
 
-  test('a target is a state value like any other', async () => {
-    const t = as(ME)
-    await t.mutation(api.state.record, {
-      area: 'portuguese',
-      key: 'sessions_target',
-      value: 4,
-      recordedAt: at('sep', 1),
-    })
-
-    const state = await t.query(api.aggregate.currentState, {})
-    /* "2 of 4 sessions" is a log count over this — source 2 twice, not a new
-       source. */
-    expect(state.sessions_target?.value).toBe(4)
+  test('targets are not state: they live on goals now (R2)', async () => {
+    const state = await as(ME).query(api.aggregate.currentState, {})
+    /* sessions_target moved to the Languages tile's goal; skills_* went
+       with the Career cell on 15 Sep. A key nothing reads is a key that
+       drifts. */
+    expect(Object.keys(state).sort()).toEqual([
+      'cefr_level',
+      'net_worth',
+      'weight',
+    ])
   })
 
   test('a key never recorded is simply absent, not zero', async () => {

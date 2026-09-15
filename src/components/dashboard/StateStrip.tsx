@@ -7,15 +7,15 @@ import type { Area } from '@/lib/capture-parser'
 
 /* PLAN.md §3 item 3. Four cells, each labelled with its source — Business and
    Career went on 15 Sep: projects were already counted on Projects, and
-   Career had nothing to count. Every number here comes from currentState() or
-   monthCounts(); this component reads them and renders them, and computes
-   none of them.
+   Career had nothing to count. Every number here comes from currentState(),
+   monthCounts() or tileTargets(); this component reads them and renders
+   them, and computes none of them.
 
-   Each cell has up to two editable slots, because §3's strip contains two
-   kinds of number: the state itself ("B1", "75.4 kg") and, on Languages, the
-   target it is counted against ("2 of 4 sessions"). A target
-   is a stateSnapshots row like any other — source 2 twice, not a fourth
-   source — so it is recorded the same way, by clicking it.
+   The big value is state ("B1", "75.4 kg") and is recorded by clicking it.
+   Languages' quieter half is "2 of 4 sessions": the month's count against
+   the target set on the Languages month tile — a goal's targetValue, the
+   same number the tile reads (R2). It is set there, not here, so there is
+   one place to change it.
 
    Nothing is seeded, so these editors are the only way any of this is ever
    filled. A cell with nothing recorded shows an em dash, never a zero: zero is
@@ -41,6 +41,7 @@ type Cell = {
 export function StateStrip({ today }: { today: number }) {
   const state = useQuery(api.aggregate.currentState, {})
   const counts = useQuery(api.aggregate.monthCounts, monthRange(today))
+  const targets = useQuery(api.aggregate.tileTargets, {})
 
   const cells: Array<Cell> = [
     {
@@ -58,15 +59,9 @@ export function StateStrip({ today }: { today: number }) {
       trail: {
         text: ofTarget(
           counts?.portuguese.now,
-          state?.sessions_target?.value,
+          targets?.portuguese ?? undefined,
           'sessions',
         ),
-        slot: {
-          key: 'sessions_target',
-          area: 'portuguese',
-          kind: 'number',
-          placeholder: 'sessions a month',
-        },
       },
     },
     {

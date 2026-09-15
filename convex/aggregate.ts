@@ -331,21 +331,13 @@ export const tileTargets = query({
    a strip driven by "whatever keys exist" would change shape as a side-effect
    of logging a weight.
 
-   A target is a state value like any other. "2 of 4 sessions" is a log count
-   over `sessions_target`; §3's Career row already reads this way
-   (state `skills_logged` / `skills_target`). That is source 2 twice, not a new
-   source — and it is the only thing a count may be divided by, besides a goal's
-   own targetValue.
+   Targets are not here. Until R2 "2 of 4 sessions" read a `sessions_target`
+   state row; a target is a goal's targetValue now (tileTargets, just above),
+   set on its tile, so there is one place a target lives. Old rows stay in
+   the table and are simply not read.
    ------------------------------------------------------------------------ */
 
-export const STATE_KEYS = [
-  'cefr_level',
-  'sessions_target',
-  'weight',
-  'net_worth',
-  'skills_logged',
-  'skills_target',
-] as const
+export const STATE_KEYS = ['cefr_level', 'weight', 'net_worth'] as const
 
 const stateValue = v.union(
   v.object({
@@ -366,11 +358,8 @@ export const currentState = query({
      becomes an invisible bug. */
   returns: v.object({
     cefr_level: stateValue,
-    sessions_target: stateValue,
     weight: stateValue,
     net_worth: stateValue,
-    skills_logged: stateValue,
-    skills_target: stateValue,
   }),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
@@ -398,11 +387,8 @@ export const currentState = query({
 
     return {
       cefr_level: await latest('cefr_level'),
-      sessions_target: await latest('sessions_target'),
       weight: await latest('weight'),
       net_worth: await latest('net_worth'),
-      skills_logged: await latest('skills_logged'),
-      skills_target: await latest('skills_target'),
     }
   },
 })

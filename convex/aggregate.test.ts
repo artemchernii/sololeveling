@@ -269,6 +269,28 @@ describe('weekCounts is the same six tiles, over weeks (PLAN.md §3)', () => {
     expect(weeks.map((w) => w.total)).toEqual([2, 0, 1])
   })
 
+  test('the same boundaries work for days — THIS WEEK on Today', async () => {
+    const t = as(ME)
+    const DAY = (d: number) => new Date(2026, 8, d).getTime()
+    const log = (kind: 'workout' | 'session', when: Date) =>
+      t.mutation(api.logs.create, {
+        kind,
+        area: kind === 'workout' ? 'body' : 'portuguese',
+        occurredAt: when.getTime(),
+      })
+
+    await log('workout', new Date(2026, 8, 15, 7))
+    await log('session', new Date(2026, 8, 15, 23, 30))
+    await log('workout', new Date(2026, 8, 16, 0, 10))
+
+    const days = await t.query(api.aggregate.weekCounts, {
+      starts: [DAY(14), DAY(15), DAY(16)],
+      end: DAY(17),
+    })
+    expect(days.map((d) => d.body)).toEqual([0, 1, 1])
+    expect(days.map((d) => d.portuguese)).toEqual([0, 1, 0])
+  })
+
   test('one row per week start, in the order given', async () => {
     const weeks = await as(ME).query(api.aggregate.weekCounts, {
       starts: STARTS,

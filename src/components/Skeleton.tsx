@@ -27,7 +27,7 @@ export function Skeleton({ className }: { className?: string }) {
 
 /* Rows with the same padding and hairlines as the list that replaces them, so
    nothing below jumps when it arrives. `line` is the height of one line of the
-   real row's text; `twoLine` adds the second line chains carry. */
+   real row's text; `twoLine` adds the second line projects carry. */
 export function SkeletonRows({
   rows,
   twoLine = false,

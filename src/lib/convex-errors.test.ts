@@ -24,8 +24,8 @@ describe('a failed save says what went wrong, in words', () => {
 
   test('a ConvexError sentence is shown as written', () => {
     expect(
-      failureMessage(new ConvexError('This goal still has a chain: Oreum')),
-    ).toBe('This goal still has a chain: Oreum')
+      failureMessage(new ConvexError('This goal still has a project: Oreum')),
+    ).toBe('This goal still has a project: Oreum')
   })
 
   test('a Convex error with no words of its own still says it failed', () => {

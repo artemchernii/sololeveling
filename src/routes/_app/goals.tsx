@@ -14,14 +14,14 @@ export const Route = createFileRoute('/_app/goals')({
   component: Goals,
 })
 
-/* Goals are what chains answer to. They are created on the Projects page, in
+/* Goals are what projects answer to. They are created on the Projects page, in
    the same form as their first project — a goal with no work under it is a
    wish, and this app is not for those. This page is where they are reviewed,
    and where one is finally called done or dropped. */
 function Goals() {
   const goals = useHeld(useQuery(api.goals.listActive, {}))
   const arrived = useArrived(goals)
-  const chains = useQuery(api.projects.listLive, {})
+  const projects = useQuery(api.projects.listLive, {})
   const setStatus = useMutation(api.goals.setStatus)
   const removeGoal = useMutation(api.goals.remove)
   const [error, setError] = useState<string | null>(null)
@@ -50,7 +50,7 @@ function Goals() {
       ) : goals.length === 0 ? (
         <div className={`glass rounded-[22px] p-6 ${arrived}`}>
           <p className="text-[13px] text-ink-500">
-            No goals yet. They are created with their first chain, on the
+            No goals yet. They are created with their first project, on the
             Projects page.
           </p>
         </div>
@@ -70,10 +70,7 @@ function Goals() {
             <Target goal={goal} />
 
             <div className="flex flex-wrap items-center gap-x-3 font-mono text-[11px] text-ink-600">
-              <span>
-                {(chains ?? []).filter((c) => c.goalId === goal._id).length}{' '}
-                chains
-              </span>
+              <span>{projectCount(projects, goal._id)}</span>
               {goal.deadline ? (
                 <span>{deadlineLabel(goal.deadline)}</span>
               ) : null}
@@ -105,7 +102,7 @@ function Goals() {
                     await removeGoal({ goalId: goal._id })
                     setError(null)
                   } catch (e) {
-                    /* A goal with chains under it refuses, and names them.
+                    /* A goal with projects under it refuses, and names them.
                        ConvexError carries that sentence in .data; a plain
                        Error would arrive wrapped in a stack trace. */
                     setError(
@@ -129,6 +126,14 @@ function Goals() {
       )}
     </div>
   )
+}
+
+function projectCount(
+  projects: Array<Doc<'projects'>> | undefined,
+  goalId: Doc<'goals'>['_id'],
+) {
+  const n = (projects ?? []).filter((p) => p.goalId === goalId).length
+  return `${n} ${n === 1 ? 'project' : 'projects'}`
 }
 
 /* PLAN.md §1: a bar renders only where targetValue gives a real denominator.

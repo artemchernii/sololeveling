@@ -4,18 +4,18 @@ import type { Doc } from '../../../convex/_generated/dataModel'
 import { deadlineLabel } from '@/lib/format'
 
 /* PLAN.md §3 draws a full card: title, "11 of 17 tasks", "ends 30 Sep · 23
-   days", three open tasks, NEXT →. §3c.2 then says non-focus chains render as
-   title and next action only, "no task lists, no counts competing for
+   days", three open tasks, NEXT →. §3c.2 then says non-focus projects render
+   as title and next action only, "no task lists, no counts competing for
    attention".
- 
+
    §3c.2 wins, because it is the later and more specific rule and it is the one
-   doing real work: the whole point of a focus chain is that it looks different
-   from the others. So the focus chain gets §3's anatomy and everything else
-   gets two lines. */
+   doing real work: the whole point of a focus project is that it looks
+   different from the others. So the focus project gets §3's anatomy and
+   everything else gets two lines. (ChainCard until 15 Sep.) */
 
-export type ChainCounts = { done: number; total: number; open: number }
+export type ProjectCounts = { done: number; total: number; open: number }
 
-export function ChainCard({
+export function ProjectCard({
   project,
   counts,
   nextTask,
@@ -23,7 +23,7 @@ export function ChainCard({
   onFocus,
 }: {
   project: Doc<'projects'>
-  counts: ChainCounts | undefined
+  counts: ProjectCounts | undefined
   nextTask: Doc<'tasks'> | undefined
   openTasks: Array<Doc<'tasks'>>
   onFocus: () => void
@@ -70,7 +70,8 @@ export function ChainCard({
             </div>
           ) : (
             <p className="text-[12.5px] text-ink-600">
-              Nothing open. This chain is waiting on you to decide what is next.
+              Nothing open. This project is waiting on you to decide what is
+              next.
             </p>
           )}
         </>

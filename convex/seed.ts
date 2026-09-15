@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 
 import { internalMutation } from './_generated/server'
 
-/* The only fixture data in this app, ever (PLAN.md §3b.5). Goals, chains and
+/* The only fixture data in this app, ever (PLAN.md §3b.5). Goals, projects and
    tasks are created through the UI, because creating them is the product — a
    screen with nothing to show gets an empty state, not a demo row.
 

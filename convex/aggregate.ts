@@ -19,7 +19,7 @@ import { query } from './_generated/server'
 const MAX_ROWS = 500
 
 /**
- * Rows in `tasks` matching a filter, per chain. The chains grid's
+ * Rows in `tasks` matching a filter, per project. The projects grid's
  * "11 of 17 tasks".
  *
  * Counted rather than stored: a denormalised counter would be a second source

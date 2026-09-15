@@ -6,7 +6,7 @@ import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import schema, { areaValidator } from './schema'
 
-/* PLAN.md §2. A goal is the thing a chain answers to. It carries a target only
+/* PLAN.md §2. A goal is the thing a project answers to. It carries a target only
    when one is real: `targetLabel` is the human form ("B2", "€80,000"), and
    `targetValue` + `unit` exist only when the goal is genuinely measurable.
    Nothing may divide by anything else — that is the whole rule behind
@@ -98,9 +98,9 @@ export const setStatus = mutation({
 })
 
 /**
- * Refuses while chains still hang off it. Cascading would delete work the goal
- * merely explained, and a silent no-op would leave you wondering why the goal
- * is still there — so it says which chains are in the way.
+ * Refuses while projects still hang off it. Cascading would delete work the
+ * goal merely explained, and a silent no-op would leave you wondering why the
+ * goal is still there — so it says which projects are in the way.
  */
 export const remove = mutation({
   args: { goalId: v.id('goals') },
@@ -109,17 +109,17 @@ export const remove = mutation({
     const ownerId = await requireUser(ctx)
     await ownedGoal(ctx, ownerId, args.goalId)
 
-    const chains = await ctx.db
+    const projects = await ctx.db
       .query('projects')
       .withIndex('by_owner_status', (q) => q.eq('ownerId', ownerId))
       .take(MAX_ROWS)
 
-    const attached = chains.filter((c) => c.goalId === args.goalId)
+    const attached = projects.filter((p) => p.goalId === args.goalId)
     if (attached.length > 0) {
       /* ConvexError, not Error: a plain throw reaches the client wrapped in a
          stack trace, and this sentence is written to be read by a person. */
       throw new ConvexError(
-        `Delete its chains first: ${attached.map((c) => c.title).join(', ')}`,
+        `Delete its projects first: ${attached.map((p) => p.title).join(', ')}`,
       )
     }
 

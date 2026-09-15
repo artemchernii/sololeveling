@@ -40,10 +40,18 @@ function Today() {
     to: dayEnd.getTime(),
   })
 
-  /* Held at the source, so TODAY and the three leave their skeletons
-     together rather than one card at a time. */
-  const quests = useHeld(useQuery(api.tasks.listToday, { today }))
+  const tasks = useQuery(api.tasks.listToday, { today })
   const projects = useQuery(api.projects.listLive, {})
+
+  /* The two day cards arrive together, and only once both reads are in: a
+     skeleton and the state that replaces it are different heights, so cards
+     landing one after another stepped the page twice on every load (Artem
+     called it flickering, 16 Sep). The weekly review already works this way
+     — one page about one day, arriving as one. Held on top of that, so a
+     page that opens without its data still shows the skeleton long enough to
+     be seen (§3d.2). */
+  const dayReady = tasks !== undefined && events !== undefined
+  const quests = useHeld(dayReady ? tasks : undefined)
 
   const focus = projects?.find((p) => p.status === 'focus')
   const firstName = user?.firstName ?? user?.username ?? 'you'
@@ -68,8 +76,13 @@ function Today() {
             <YearBar date={now} />
             {/* Nothing until projects arrive: "No project in focus" is a
                 claim, and a loading screen does not get to make one
-                (§3d.2). */}
-            {projects === undefined ? null : (
+                (§3d.2). It holds the line's height while it waits, so the
+                page does not step down when the answer lands. */}
+            {projects === undefined ? (
+              <span aria-hidden className="label-caps invisible">
+                Current focus
+              </span>
+            ) : (
               <>
                 <span className="text-ink-800">·</span>
                 {focus ? (
@@ -95,7 +108,11 @@ function Today() {
       </div>
 
       <div className="order-3 lg:order-2">
-        <TodayCard tasks={quests} events={events ?? []} date={now} />
+        <TodayCard
+          tasks={quests}
+          events={quests === undefined ? [] : (events ?? [])}
+          date={now}
+        />
       </div>
 
       <div className="order-2 lg:order-3">

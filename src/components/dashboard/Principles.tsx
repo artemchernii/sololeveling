@@ -8,7 +8,7 @@ import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 
 /** How long one line holds before the column moves up by one. */
-const HOLD_MS = 7000
+const HOLD_MS = 10_000
 
 /* Six hues for six lines, borrowed from the area palette in tokens.css
    because those are the colours this app owns — and borrowed as a palette
@@ -28,6 +28,12 @@ const HUES = [
 function hue(i: number): CSSProperties {
   return { '--hue': `var(${HUES[i % HUES.length]})` } as CSSProperties
 }
+
+/* The block's own height, and the window's, in one place: the empty frame
+   shown while the query is in flight has to match the filled one exactly, or
+   the page moves when the lines arrive. */
+const FRAME = 'flex h-full flex-col justify-center gap-2.5'
+const LINE = 'min-h-[5.9rem] sm:min-h-[6.9rem]'
 
 /* The six lines from the source brief §16, beside the greeting (PLAN.md §3
    item 1). Read-only, like the page they replaced (§3b.5): seeded once,
@@ -68,10 +74,16 @@ export function Principles() {
     return () => clearInterval(id)
   }, [count, held])
 
-  /* Renders nothing while loading or when nothing is seeded — a missing line
-     is not worth a skeleton, and a fresh deployment says nothing rather than
-     "no principles yet" on the morning screen. */
-  if (!principles || principles.length === 0) return null
+  /* Loading holds the space it is about to fill, with nothing in it: the
+     block used to render null and then appear, which shoved the greeting and
+     every card below it down the page as the query landed (Artem saw it as
+     flickering, 16 Sep). Shape, never values (§3d.2).
+
+     An empty deployment keeps the same empty frame rather than saying "no
+     principles yet" on the morning screen. */
+  if (!principles || principles.length === 0) {
+    return <div aria-hidden className={`${FRAME} ${LINE}`} />
+  }
 
   return (
     <div
@@ -79,7 +91,7 @@ export function Principles() {
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={() => setPaused(false)}
-      className="flex h-full flex-col justify-center gap-2.5"
+      className={FRAME}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span style={hue(index)} className="label-caps text-(--hue)">
@@ -90,12 +102,13 @@ export function Principles() {
           </span>
         </span>
 
-        {/* The way to all six, shaped like the app's other call to action
-            (the Log pill) rather than another quiet label nobody presses. */}
+        {/* A button you can see, but outlined rather than filled: a filled
+            lavender pill is the Log pill's shape, and two of those on one
+            screen read as the same action (Artem, 16 Sep). */}
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="motion-press chip-focus ml-auto flex items-center gap-1.5 rounded-full bg-lav-500 px-3 py-1.5 font-mono text-[11px] tracking-[0.14em] text-lav-900 uppercase transition-[filter] hover:brightness-110"
+          className="motion-press chip-focus ml-auto flex items-center gap-1.5 rounded-full border border-lav-500/60 px-3 py-1.5 font-mono text-[11px] tracking-[0.14em] text-lav-300 uppercase transition-colors hover:border-lav-500 hover:bg-lav-900/50"
         >
           <Sparkles className="size-3.5" strokeWidth={2.4} />
           Read all six

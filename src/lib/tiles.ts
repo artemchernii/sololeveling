@@ -1,0 +1,40 @@
+import type { Doc } from '../../convex/_generated/dataModel'
+import type { Area } from './capture-parser'
+
+export type Tile = NonNullable<Doc<'goals'>['tile']>
+
+export type MonthTile = {
+  key: Tile
+  label: string
+  noun: string
+  /** The colour the tile wears — a kind, never a grade (§3d.3). */
+  area?: Area
+}
+
+/* PLAN.md §3 item 4: the six tiles, in monthCounts' order. Labels say
+   Languages and Finances since 15 Sep; the keys stay the area names until R6
+   migrates the enum. Projects has no area colour: it counts ticked tasks
+   from every area, so no one colour is true of it. */
+export const MONTH_TILES: ReadonlyArray<MonthTile> = [
+  { key: 'projects', label: 'Projects', noun: 'tasks shipped' },
+  {
+    key: 'portuguese',
+    label: 'Languages',
+    noun: 'sessions logged',
+    area: 'portuguese',
+  },
+  { key: 'body', label: 'Body', noun: 'workouts done', area: 'body' },
+  {
+    key: 'money',
+    label: 'Finances',
+    noun: 'transfers to the floor',
+    area: 'money',
+  },
+  {
+    key: 'style',
+    label: 'Style',
+    noun: 'pieces bought or altered',
+    area: 'style',
+  },
+  { key: 'social', label: 'Social', noun: 'events attended', area: 'social' },
+]

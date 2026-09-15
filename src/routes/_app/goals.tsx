@@ -144,6 +144,7 @@ function Target({ goal }: { goal: Doc<'goals'> }) {
     return (
       <div className="font-mono text-[12px] text-ink-300">
         target {goal.targetValue} {goal.unit}
+        {goal.tile ? ' a month' : ''}
       </div>
     )
   }

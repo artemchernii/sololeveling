@@ -170,19 +170,16 @@ describe('currentState is the latest row per key (PLAN.md §1)', () => {
     expect(state.cefr_level?.value).toBeUndefined()
   })
 
-  test('a target is a state value like any other', async () => {
-    const t = as(ME)
-    await t.mutation(api.state.record, {
-      area: 'portuguese',
-      key: 'sessions_target',
-      value: 4,
-      recordedAt: at('sep', 1),
-    })
-
-    const state = await t.query(api.aggregate.currentState, {})
-    /* "2 of 4 sessions" is a log count over this — source 2 twice, not a new
-       source. */
-    expect(state.sessions_target?.value).toBe(4)
+  test('targets are not state: they live on goals now (R2)', async () => {
+    const state = await as(ME).query(api.aggregate.currentState, {})
+    /* sessions_target moved to the Languages tile's goal; skills_* went
+       with the Career cell on 15 Sep. A key nothing reads is a key that
+       drifts. */
+    expect(Object.keys(state).sort()).toEqual([
+      'cefr_level',
+      'net_worth',
+      'weight',
+    ])
   })
 
   test('a key never recorded is simply absent, not zero', async () => {
@@ -270,6 +267,28 @@ describe('weekCounts is the same six tiles, over weeks (PLAN.md §3)', () => {
     })
     expect(weeks.map((w) => w.body)).toEqual([2, 0, 1])
     expect(weeks.map((w) => w.total)).toEqual([2, 0, 1])
+  })
+
+  test('the same boundaries work for days — THIS WEEK on Today', async () => {
+    const t = as(ME)
+    const DAY = (d: number) => new Date(2026, 8, d).getTime()
+    const log = (kind: 'workout' | 'session', when: Date) =>
+      t.mutation(api.logs.create, {
+        kind,
+        area: kind === 'workout' ? 'body' : 'portuguese',
+        occurredAt: when.getTime(),
+      })
+
+    await log('workout', new Date(2026, 8, 15, 7))
+    await log('session', new Date(2026, 8, 15, 23, 30))
+    await log('workout', new Date(2026, 8, 16, 0, 10))
+
+    const days = await t.query(api.aggregate.weekCounts, {
+      starts: [DAY(14), DAY(15), DAY(16)],
+      end: DAY(17),
+    })
+    expect(days.map((d) => d.body)).toEqual([0, 1, 1])
+    expect(days.map((d) => d.portuguese)).toEqual([0, 1, 0])
   })
 
   test('one row per week start, in the order given', async () => {
@@ -438,5 +457,55 @@ describe('kindCount narrows by area and project', () => {
     expect(await count({ area: 'portuguese' })).toBe(2)
     expect(await count({ area: 'career' })).toBe(1)
     expect(await count({ projectId })).toBe(1)
+  })
+})
+
+describe('tileTargets is a goal’s targetValue per tile (PLAN.md §1)', () => {
+  test('null where no target is set — absent, not zero', async () => {
+    const targets = await as(ME).query(api.aggregate.tileTargets, {})
+    expect(targets).toEqual({
+      projects: null,
+      portuguese: null,
+      body: null,
+      money: null,
+      style: null,
+      social: null,
+    })
+  })
+
+  test('a target shows on its own tile only', async () => {
+    const t = as(ME)
+    await t.mutation(api.goals.setTileTarget, { tile: 'body', targetValue: 9 })
+    const targets = await t.query(api.aggregate.tileTargets, {})
+    expect(targets.body).toBe(9)
+    expect(targets.social).toBeNull()
+  })
+
+  test('a measurable goal with no tile is not a monthly target', async () => {
+    const t = as(ME)
+    await t.mutation(api.goals.create, {
+      title: '€80,000',
+      area: 'money',
+      targetValue: 80000,
+      unit: '€',
+    })
+    expect((await t.query(api.aggregate.tileTargets, {})).money).toBeNull()
+  })
+
+  test('a cleared target is gone from the tile', async () => {
+    const t = as(ME)
+    await t.mutation(api.goals.setTileTarget, { tile: 'body', targetValue: 9 })
+    await t.mutation(api.goals.clearTileTarget, { tile: 'body' })
+    expect((await t.query(api.aggregate.tileTargets, {})).body).toBeNull()
+  })
+
+  test('never another owner’s', async () => {
+    const { mine, theirs } = twoOwners()
+    await theirs.mutation(api.goals.setTileTarget, {
+      tile: 'body',
+      targetValue: 9,
+    })
+    expect((await mine.query(api.aggregate.tileTargets, {})).body).toBeNull()
+    expect((await theirs.query(api.aggregate.tileTargets, {})).body).toBe(9)
   })
 })

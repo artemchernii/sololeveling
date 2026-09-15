@@ -34,7 +34,7 @@ export function deadlineLabel(iso: string, now: Date = new Date()): string {
   return `ends ${shortDate(iso)} · ${days} day${days === 1 ? '' : 's'}`
 }
 
-function clock(d: Date): string {
+export function clock(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 

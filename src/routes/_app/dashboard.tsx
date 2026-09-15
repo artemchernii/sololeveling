@@ -8,6 +8,8 @@ import { PrincipleLine } from '@/components/dashboard/PrincipleLine'
 import { QuestList } from '@/components/dashboard/QuestList'
 import { StateStrip } from '@/components/dashboard/StateStrip'
 import { TodayCard } from '@/components/dashboard/TodayCard'
+import { WeekGlance } from '@/components/dashboard/WeekGlance'
+import { YearBar } from '@/components/dashboard/YearBar'
 import { localToday } from '@/lib/today'
 import { useHeld } from '@/lib/loading'
 
@@ -15,14 +17,13 @@ export const Route = createFileRoute('/_app/dashboard')({
   component: Today,
 })
 
-/* Today — PLAN.md §3 (15 Sep): greeting, focus and a principle; TODAY beside
-   TODAY'S THREE; CURRENT STATE; THIS MONTH. The chains card and the Business
-   and Career cells are gone: projects were counted twice, and Career had
-   nothing to count.
+/* Today — PLAN.md §3: greeting, LEVEL with its year, focus and a principle;
+   TODAY beside TODAY'S THREE; CURRENT STATE; THIS MONTH; THIS WEEK.
 
    Every number on it comes from convex/aggregate.ts. This file composes them
-   and computes none, and there is no bar anywhere yet — R2 adds the year bar
-   (a calendar fact) and targets on the tiles (goals.targetValue, §1). */
+   and computes none. Two kinds of bar, each with a real denominator: the year
+   of LEVEL (a calendar fact) and a month tile's target (a goal's
+   targetValue, §1). */
 function Today() {
   const { user } = useUser()
   const now = new Date()
@@ -48,27 +49,35 @@ function Today() {
   const firstName = user?.firstName ?? user?.username ?? 'you'
 
   return (
-    /* Mobile order (§3): greeting → the three → TODAY → this month → state.
-       One source of markup, reordered: a phone-shaped copy of this screen is
-       a second version of the same page, and they drift. */
+    /* Mobile order (§3): greeting → the three → TODAY → this month → this
+       week → state. One source of markup, reordered: a phone-shaped copy of
+       this screen is a second version of the same page, and they drift. */
     <div className="flex flex-col gap-[18px] lg:grid lg:grid-cols-2">
       <div className="order-1 flex flex-col gap-2 lg:col-span-2">
         <h1 className="text-[34px] leading-tight font-light text-foreground">
           {greeting(now)}, {firstName.toUpperCase()}.
         </h1>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {/* LEVEL 32 is my age. It is a joke, and it stays honest by being
-              one: it is not derived from anything and it never goes up
-              because of what I did this week. */}
-          <span className="label-caps">Level 32</span>
-          <span className="text-ink-800">·</span>
-          {focus ? (
+          {/* LEVEL is my age, from the birthday in lib/year.ts. It is a joke,
+              and it stays honest by being one: it goes up on 14 December and
+              never because of what I did this week. */}
+          <YearBar date={now} />
+          {/* Nothing until projects arrive: "No project in focus" is a claim,
+              and a loading screen does not get to make one (§3d.2). */}
+          {projects === undefined ? null : (
             <>
-              <span className="label-caps text-lav-400">Current focus</span>
-              <span className="label-caps text-foreground">{focus.title}</span>
+              <span className="text-ink-800">·</span>
+              {focus ? (
+                <>
+                  <span className="label-caps text-lav-400">Current focus</span>
+                  <span className="label-caps text-foreground">
+                    {focus.title}
+                  </span>
+                </>
+              ) : (
+                <span className="label-caps">No project in focus</span>
+              )}
             </>
-          ) : (
-            <span className="label-caps">No project in focus</span>
           )}
         </div>
         <PrincipleLine date={now} />
@@ -82,12 +91,16 @@ function Today() {
         <QuestList tasks={quests} today={today} />
       </div>
 
-      <div className="order-5 lg:order-4 lg:col-span-2">
+      <div className="order-6 lg:order-4 lg:col-span-2">
         <StateStrip today={now.getTime()} />
       </div>
 
       <div className="order-4 lg:order-5 lg:col-span-2">
         <ActionsLogged today={now.getTime()} />
+      </div>
+
+      <div className="order-5 lg:order-6 lg:col-span-2">
+        <WeekGlance today={now.getTime()} />
       </div>
     </div>
   )

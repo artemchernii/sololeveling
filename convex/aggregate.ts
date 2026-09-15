@@ -3,6 +3,7 @@ import { v } from 'convex/values'
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
 import { areaValidator } from './schema'
+import type { Tile } from './schema'
 import { query } from './_generated/server'
 
 /* PLAN.md §1: every number on screen comes from exactly one of four sources —
@@ -267,27 +268,76 @@ export const weekCounts = query({
 })
 
 /* ---------------------------------------------------------------------------
+   Targets — a goal's targetValue, the one denominator §1 allows a count.
+
+   Per tile, in the same fixed shape monthCounts has, null where none is set.
+   Handed over beside the counts and never divided by them here: "5 of 9" is
+   two values a component composes, and a ratio returned from this file would
+   make the wrong thing easy.
+   ------------------------------------------------------------------------ */
+
+const tileTarget = v.union(v.number(), v.null())
+
+export const tileTargets = query({
+  args: {},
+  returns: v.object({
+    projects: tileTarget,
+    portuguese: tileTarget,
+    body: tileTarget,
+    money: tileTarget,
+    style: tileTarget,
+    social: tileTarget,
+  }),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+
+    const targets: Record<Tile, number | null> = {
+      projects: null,
+      portuguese: null,
+      body: null,
+      money: null,
+      style: null,
+      social: null,
+    }
+
+    /* Newest first: if two active goals ever claim a tile, the later wins,
+       the same one goals.setTileTarget would change. */
+    const goals = await ctx.db
+      .query('goals')
+      .withIndex('by_owner_status', (q) =>
+        q.eq('ownerId', ownerId).eq('status', 'active'),
+      )
+      .order('desc')
+      .take(MAX_ROWS)
+
+    for (const goal of goals) {
+      if (
+        goal.tile !== undefined &&
+        goal.targetValue !== undefined &&
+        targets[goal.tile] === null
+      ) {
+        targets[goal.tile] = goal.targetValue
+      }
+    }
+
+    return targets
+  },
+})
+
+/* ---------------------------------------------------------------------------
    Source 2 — the latest stateSnapshots row for a key.
 
    The keys the §3 strip reads, fixed here for the same reason the tiles are:
    a strip driven by "whatever keys exist" would change shape as a side-effect
    of logging a weight.
 
-   A target is a state value like any other. "2 of 4 sessions" is a log count
-   over `sessions_target`; §3's Career row already reads this way
-   (state `skills_logged` / `skills_target`). That is source 2 twice, not a new
-   source — and it is the only thing a count may be divided by, besides a goal's
-   own targetValue.
+   Targets are not here. Until R2 "2 of 4 sessions" read a `sessions_target`
+   state row; a target is a goal's targetValue now (tileTargets, just above),
+   set on its tile, so there is one place a target lives. Old rows stay in
+   the table and are simply not read.
    ------------------------------------------------------------------------ */
 
-export const STATE_KEYS = [
-  'cefr_level',
-  'sessions_target',
-  'weight',
-  'net_worth',
-  'skills_logged',
-  'skills_target',
-] as const
+export const STATE_KEYS = ['cefr_level', 'weight', 'net_worth'] as const
 
 const stateValue = v.union(
   v.object({
@@ -308,11 +358,8 @@ export const currentState = query({
      becomes an invisible bug. */
   returns: v.object({
     cefr_level: stateValue,
-    sessions_target: stateValue,
     weight: stateValue,
     net_worth: stateValue,
-    skills_logged: stateValue,
-    skills_target: stateValue,
   }),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
@@ -340,11 +387,8 @@ export const currentState = query({
 
     return {
       cefr_level: await latest('cefr_level'),
-      sessions_target: await latest('sessions_target'),
       weight: await latest('weight'),
       net_worth: await latest('net_worth'),
-      skills_logged: await latest('skills_logged'),
-      skills_target: await latest('skills_target'),
     }
   },
 })

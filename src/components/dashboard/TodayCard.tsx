@@ -1,10 +1,12 @@
 import { SkeletonRows } from '@/components/Skeleton'
+import { areaVars } from '@/lib/areas'
 import { bookedHoursLine, buildTimeline } from '@/lib/timeline'
 import { useArrived } from '@/lib/loading'
 import type { Doc } from '../../../convex/_generated/dataModel'
 
 /* PLAN.md §3 item 2. Events and scheduled tasks, merged only here, through the
-   TimelineItem mapper (§3b.3).
+   TimelineItem mapper (§3b.3). Each row carries a rule in its area's colour,
+   the same mark THIS WEEK draws: a kind, not a verdict (§3d.3).
  
    The card was built to take events from day one so Phase 5 would have little
    to change, and it did: the only change is that the mapper now needs to know
@@ -57,8 +59,14 @@ export function TodayCard({
           {items.map((item) => (
             <div
               key={item.id}
+              style={item.area ? areaVars(item.area) : undefined}
               className="flex items-baseline gap-3 border-b border-lift/[0.05] py-2.5 last:border-b-0"
             >
+              {/* Grey when unfiled: unfiled is not a kind. */}
+              <span
+                aria-hidden
+                className={`w-[2px] shrink-0 self-stretch rounded-full ${item.area ? 'bg-(--area)/70' : 'bg-lift/15'}`}
+              />
               <span className="font-mono text-[11px] text-lav-300">
                 {new Date(item.startsAt).toLocaleTimeString([], {
                   hour: '2-digit',

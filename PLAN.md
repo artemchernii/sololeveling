@@ -142,73 +142,89 @@ project `done/total`, free hours today. All via `convex/aggregate.ts` queries �
 
 ---
 
-## 3. Layout (from the design exploration — final = 3a + 4a merged + chains)
+## 3. Layout (rethought 15 Sep 2026 — fewer places, each one deep)
+
+The first layout (§3 of 8 Sep) had sixteen sidebar entries, seven of them
+placeholders, and the same day shown in three places. After a week of use the
+verdict was: **too many sections means never using them.** What is used gets
+made deep; what is not gets removed. This section is the map; §4 is the order
+it is built in (R1–R7). Everything in §1–§2 and §3b–§3d still holds.
 
 **Shell (desktop ≥1024)**
 
-- TopBar: ■ SOLO LEVELING · Search ⌘K · bell · ARTEM ▾
-- SideNav grouped: **NOW** Dashboard/Quests/Calendar · **PLAN** Goals/Projects/Backlog · **TRACK** Money/Body/Social/
-  Portuguese/Career/Style · **KNOW** Notes/Knowledge/Principles · Settings at bottom
-  (four groups since 14 Sep — DO had held both the day and the planning behind it)
-- Persistent "Log something" button (top-right) → ⌘K palette: type `workout 60`, `spend 48 groceries`,
-  `pt 30`, `weight 75.4`, `note …` → parsed into a `logs` row. Three seconds, no form.
+- TopBar unchanged: ■ SOLO LEVELING · Log ⌘L · Search ⌘K · bell · avatar.
+- SideNav, three groups, eleven entries, Settings at the bottom:
 
-**Dashboard** (in order)
+  | group     | entries                            |
+  | --------- | ---------------------------------- |
+  | **NOW**   | Today · Calendar · Review          |
+  | **BUILD** | Projects · Goals · Backlog · Notes |
+  | **TRACK** | Finances · Body · Languages        |
 
-1. `Good morning, ARTEM.` · `LEVEL 32 · CURRENT FOCUS · <focus project>`
-2. Two columns: **TODAY** (events + scheduled tasks, "Three booked hours. The rest is yours.")
-   | **CHAINS** (goal → focus project → done/total · next action; FOCUS/LIVE/IDLE tag)
-3. **CURRENT STATE** — one compact strip, six cells, each labelled with its source:
-   | cell       | value                          | source                                  |
-   | ---------- | ------------------------------ | --------------------------------------- |
-   | Portuguese | B1 · 2 of 4 sessions           | state `cefr_level` + log count          |
-   | Body       | 75.4 kg · 3 workouts           | state `weight` + log count              |
-   | Money      | €42,100 net worth              | state `net_worth`                       |
-   | Social     | 2 events this month            | log count `kind:'event'`                |
-   | Business   | 2 active projects · 1 in focus | entity count                            |
-   | Career     | 6 of 8 skills logged           | state `skills_logged` / `skills_target` |
-4. **THIS MONTH · ACTIONS LOGGED** — exactly these six tiles, in this order, each vs last month.
-   `monthCounts()` returns this fixed shape; the grid is not driven by the `area` enum.
+  Gone: Quests (merged into Today), Chains (the word and the card), Knowledge
+  (Notes _is_ the knowledge base), Principles (one line a day on Today),
+  Career (its one number becomes a goal), Social and Style (events with a
+  `social` area, a `style` notes kind, and a goal each — no page). Money is
+  renamed Finances; Portuguese becomes Languages.
 
-   | tile       | counts                   | source          |
-   | ---------- | ------------------------ | --------------- |
-   | Projects   | tasks shipped            | log `task_done` |
-   | Portuguese | sessions logged          | log `session`   |
-   | Body       | workouts done            | log `workout`   |
-   | Money      | transfers to the floor   | log `transfer`  |
-   | Style      | pieces bought or altered | log `piece`     |
-   | Social     | events attended          | log `event`     |
+- Mobile bottom nav: Today · Calendar · Projects · Notes · More.
 
-   Career, Knowledge and Life have no tile: nothing about them is countable per-month yet.
-   They still exist as `area` values for tagging tasks and notes. Nine areas, six tiles, on purpose.
-   ("Counts of things you did. There is no score for Portuguese, and there never will be.")
+**Today** (the dashboard; the only screen that must be right at 7am), in order
 
-5. **TODAY'S QUESTS** — at most three. Checklist, area tag, time/duration. When all three slots are
-   full, the "add" affordance is replaced by the line _"Today is full. Finish one or drop one."_
-   The dashboard never shows a backlog count — see §3c.
+1. Greeting · `LEVEL 32` with the year's progress as a bar (a calendar fact:
+   days since the last birthday over 365 — not a score) · `CURRENT FOCUS`
+   · one **principle of the day**, chosen by the date, the same all day.
+2. **TODAY** (events + scheduled tasks, the timeline) beside **TODAY'S THREE**
+   (the three slots, §3c.1: add, tick, drop, give a time; the evidence
+   follow-up after a tick). On a phone the three come first.
+3. **CURRENT STATE**: Languages (level + sessions of target), Body (weight +
+   workouts), Finances (net worth; later the portfolio value as of a time),
+   Social (events this month). Business and Career cells are gone — projects
+   were counted twice, and Career had nothing to count.
+4. **THIS MONTH · ACTIONS LOGGED** — the six tiles, each against a **target**
+   when one exists (R2): `Gym · 5 of 9 · 12 days left`. The target is a goal's
+   `targetValue` (§1) — the only thing a count may be divided by. A tile with
+   no target shows the count and last month, as today.
+5. **THIS WEEK** at a glance (R2): the seven days, what is booked, what was
+   logged. The weekly review stays its own page.
 
-**Projects page** = chains grid (cards from design v2: title, `11 of 17 tasks`, `ends 30 Sep · 23 days`,
-3 open tasks, `NEXT →`). "New chain" = goal + project in one form.
+**Three decisions taken by default on 15 Sep** (each is one line to flip):
 
-**Weekly review page** = "The week, as it actually went." KPI tiles · 12-week movement table
-(rising/slipping + absolute delta) · one principle · **What changes next week** (one sentence) · Close the week.
+- **Three a day stays.** §3c.1 is unchanged; only the Quests _page_ went.
+- **No red on the morning screen.** Being behind a target reads as words and a
+  calm colour (`4 to go, 12 days left`). Red/green is reserved for Finances,
+  where direction is a fact (§3d.3), and even there is added only after the
+  position itself has been watched for two weeks.
+- **Investments show the position before the gain.** What you hold, what it
+  is worth, as of when — then, later, the difference.
 
-**Backlog page** — the only place unpicked tasks live. A list with one action per row: _pick for today_
-(disabled when today is full). Reachable from the nav, never surfaced on the dashboard.
+**Pages, and what each becomes**
 
-**Mobile (<768)**: greeting+focus → Today (2 lines) → Today's quests (max 3) → This month (2×2) → sticky
-"+ Log something" pill → bottom nav Today / Quests / Projects / Month / More. Rows 48–56px.
+| page      | R1 (prune)                                                                | later                                                                                                                                                         |
+| --------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Today     | quests merged in; chains card, Business/Career cells gone; principle line | R2: year bar, targets on tiles, week glance, more colour by kind                                                                                              |
+| Calendar  | as is                                                                     | R5: drag to move, any duration, start–end instead of minutes, binding to project/goal, reminders                                                              |
+| Review    | in the sidebar at last; label "Review"                                    | —                                                                                                                                                             |
+| Projects  | "chain" → "project" everywhere; the goal+project form stays               | R3: the deep page — tasks from backlog, notes, files, time spent (project verb logs), GitHub commits (source 4), milestones                                   |
+| Goals     | as is                                                                     | R3: bound to projects and areas, a milestone timeline 0—1—2—3, deadlines, Reached/Drop/Delete kept                                                            |
+| Backlog   | as is                                                                     | R3: created-at, bind to project/goal, "put it on the calendar"                                                                                                |
+| Notes     | as is                                                                     | R4: the knowledge base — more kinds (`style` among them), expanded editor, drag-and-drop images/PDFs (Convex file storage), YouTube embeds, bind to a project |
+| Finances  | renamed; still a placeholder                                              | R6: Investments (portfolios, positions, prices as source 4), Balances, Spending                                                                               |
+| Body      | placeholder                                                               | R6: Gym · Stretch · Boxing · Other, weight progress against a target                                                                                          |
+| Languages | renamed; still a placeholder                                              | R6: Portuguese · English · German tabs; `area` gains `languages` with a language field, `portuguese` migrated                                                 |
+| Settings  | as is                                                                     | —                                                                                                                                                             |
+| Ask AI    | —                                                                         | R7: a ⌘-shortcut, not a page — a reader over your own rows, never a fifth source of numbers                                                                   |
 
-**Design system — Nocturne is the source of truth.** The Claude Design project ships
-`_ds/nocturne-688ea808-.../styles.css` + `_ds_bundle.js`. Extract the **token layer only**
-(colors, radii, spacing, type scale) into `src/styles/tokens.css` and map it in Tailwind v4's
-`@theme`. Do not ship `_ds_bundle.js` components — shadcn/ui restyled with these tokens instead.
-`design/wireframes-v2/Solo Leveling Wireframes.dc.html` is visual reference for rhythm and
-component anatomy;
-where it disagrees with §3 above, §3 wins.
+**Mobile (<768)**: greeting+principle → Today's three → Today timeline → This
+month → sticky "+ Log" pill → bottom nav. Rows 48–56px.
 
-**Visual:** near-black ground, frosted panels, one lavender accent used only for live things,
-mono caps for labels, big light numerals. No bars without a target. No emoji.
+**Design system — Nocturne is the source of truth**, dark by default, light as
+"milky glass" (§3d.4). `design/wireframes-v2/` is visual reference for rhythm
+and anatomy; where it disagrees with this section, this section wins.
+
+**Visual:** dark ground or milky glass, frosted panels, one lavender accent
+used only for live things, mono caps for labels, big light numerals. No bars
+without a target. No emoji.
 
 ---
 
@@ -258,8 +274,9 @@ debt. Three constraints are enforced in the data layer, not suggested in the UI:
 
 1. **Three quests a day, hard.** `tasks.pickForToday` throws `TODAY_FULL` on the fourth. Everything
    else waits in the backlog. Choosing three is the planning ritual; there is no other one.
-2. **One focus chain.** Already enforced by `projects.setFocus`. Non-focus chains render as title +
-   next action only — no task lists, no counts competing for attention.
+2. **One focus project.** Already enforced by `projects.setFocus`. Non-focus projects render as
+   title + next action only — no task lists, no counts competing for attention. (Called "chains"
+   until 15 Sep; the word confused more than it explained, and only the word went.)
 3. **The backlog is never on the dashboard.** No "47 open tasks" anywhere on the morning screen.
    That number is the one that makes people close the app. It lives on its own page or nowhere.
 
@@ -343,30 +360,27 @@ screen. Everything in 1–3 holds in both themes.
 
 ## 4. Phases
 
-| #    | Deliverable                                                                                                                                                       | Done when                                                                                                     |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| 0    | Scaffold: TanStack Start + Cloudflare plugin + Tailwind + shadcn, Nocturne tokens imported, Convex init, Clerk auth, shell, empty routes, CLAUDE.md, first deploy | Logged in, nav visible, live on `*.workers.dev`                                                               |
-| 1    | `schema.ts` with `ownerId` everywhere, `auth.ts` `requireUser`, `seed.ts` (principles only)                                                                       | Typed schema deployed; DB otherwise empty on purpose                                                          |
-| 2    | **Quick capture (⌘K) + Quests**: create a task, pick up to 3 for today, complete, log an action, backlog page                                                     | I run one real day on it with data I created myself                                                           |
-| 3    | **Goals + Chains**: create a goal, create a project under it, attach tasks, set focus                                                                             | I can build a chain end to end without touching the DB                                                        |
-| 4    | **Dashboard**: aggregate layer + today / chains / current state / month tiles                                                                                     | Morning screen is true, built only from what I entered                                                        |
-| 5    | Calendar (week view, rrule expansion, events + scheduled tasks; series-level editing only)                                                                        | Recurring gym/PT/review show up                                                                               |
-| 6    | Weekly review + Notes + Principles + mobile pass + PWA                                                                                                            | I close a week on my phone                                                                                    |
-| 6b   | Polish pass: motion tokens, skeletons everywhere, the colour rule applied (§3d)                                                                                   | It feels alive without grading me                                                                             |
-| 7+   | Money, Body, Portuguese, Social, Career, Style, Knowledge detail pages — one per sprint                                                                           | —                                                                                                             |
-| Late | Scheduled backups: `pnpm backup` daily without being asked (LaunchAgent or CI to storage Artem owns), a retention window, a restore drill on a schedule           | Deferred 14 Sep while the app is still being built — the manual `pnpm backup` / `pnpm backup:drill` exist now |
+**Phases 0–6b (8–14 Sep) are done**: scaffold, schema, capture and quests, goals and
+projects, dashboard, calendar, review/notes/principles/PWA, and the polish pass (motion,
+skeletons, light theme, robustness, backups). They are kept in git history; the table below
+is what is left, in the order agreed on 15 Sep. Each row is one branch, one PR, and one
+plan under `docs/superpowers/plans/`, written when the previous row has shipped — a plan
+written earlier would describe ground the earlier row changes.
 
-**Knowledge is a 7+ page, and the only one without a shape yet.** The other six read an area's own
-logs and state. Knowledge reads neither — §3 item 4 already says it has no month tile because nothing
-about it is countable. Its contents are Artem's to specify before it is built; until then it stays an
-empty destination. It briefly carried a "Phase 6" label, which was an inference from the KNOW nav
-grouping rather than anything this section said.
+| #    | Deliverable                                                                                                                                                                                          | Done when                                                                                              |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| R1   | **Prune and rename** — the §3 sidebar (11 entries), Quests merged into Today, chains card and dead cells gone, principle of the day, "chain" → "project", Money → Finances, Portuguese → Languages   | The sidebar is §3's table; nothing on Today is a placeholder or a duplicate; all checks pass           |
+| R2   | **Today, rebuilt** — year bar, targets on the month tiles (goals with `targetValue`), week glance, colour by kind                                                                                    | A morning with a gym target shows `5 of 9 · 12 days left`, in calm colour                              |
+| R3   | **Projects deep, Goals with a timeline, Backlog bound** — tasks/notes/files/time on a project, GitHub commits as source 4, milestones and deadlines on goals                                         | Oreum's page shows its tasks, notes, hours this month and last week's commits, and its goal's timeline |
+| R4   | **Notes as the knowledge base** — kinds, expanded editor, images/PDFs by drag-and-drop, YouTube embeds, bind to a project                                                                            | A PDF and a YouTube link pasted from Telegram live on a note attached to Oreum                         |
+| R5   | **Calendar** — drag, any duration, start–end, binding, reminders                                                                                                                                     | A gym session is dragged from 8:00 to 9:15 and asks nothing                                            |
+| R6   | **Areas** — Finances (investments per the parked design, balances, spending), Body, Languages (schema change)                                                                                        | `invest → Revolut → TSLA → 300$` lands in a portfolio and Finances shows the position as of a time     |
+| R7   | **Ask AI** — a ⌘-shortcut chat that reads your own rows through a Convex action                                                                                                                      | "What did I actually do in August?" is answered from logs, and nothing on screen is derived from it    |
+| Late | Scheduled backups (`pnpm backup` daily, retention, a scheduled drill); Clerk production instance (needs a domain, an ownerId migration, and the dev-vs-prod data decision); notifications (the bell) | Deferred 14 Sep while the app is still being built                                                     |
 
-**Why the dashboard is fourth, not second:** it only reads. With nothing seeded, a dashboard built
-early renders six empty tiles and proves nothing. Build the ways in first, use them for a few days,
-then build the screen that reflects them back.
-
-Each phase = one branch, one PR, one commit message per meaningful step. Ship 0–4 before touching 5+.
+**Rules that carry through every row:** every number from a sanctioned source (§1); three a
+day (§3c.1); the backlog never on Today (§3c.3); tasks and events two tables (§3b.3);
+nothing seeded (§3b.5); Nocturne tokens only (§3d).
 
 ---
 

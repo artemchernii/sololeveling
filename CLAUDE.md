@@ -52,13 +52,23 @@ Never write fixture data to make a screen look populated. If a screen has
 nothing to show, build its empty state — that is the screen I will actually see
 on day one, and the one a demo row would hide.
 
+## The map is PLAN.md §3, one slice at a time
+
+On 15 Sep the layout was rethought: fewer places, each one deep. `PLAN.md` §3
+is the map (eleven sidebar entries in three groups) and §4 the order (R1–R7).
+Each row is one branch and one plan under `docs/superpowers/plans/`, written
+only when the row before it has shipped. Do not build ahead of the current
+row, and do not add a sidebar entry §3 does not list — a section that is not
+used is the thing the rethink exists to remove.
+
 ## Three quests a day, and no backlog on the morning screen
 
 Both are enforced in the data layer, not suggested in the UI (`PLAN.md` §3c).
 
 `tasks.pickForToday` throws `TODAY_FULL` on the fourth. Choosing three is the
 planning ritual; there is no other one. `tasks.complete` and
-`tasks.dropFromToday` free the slot.
+`tasks.dropFromToday` free the slot. The three live on Today (the dashboard)
+since 15 Sep; the separate Quests page is gone, the limit is not.
 
 Unpicked tasks live on the backlog page and nowhere else. No screen shows a
 total of open tasks — "47 remaining" is the number that makes people close the
@@ -76,9 +86,10 @@ Nocturne is the design source of truth. Its tokens live in
 `src/styles/tokens.css` and reach components through Tailwind's `@theme` in
 `src/styles.css`. Take every colour, radius, space and shadow from a token.
 
-The three tokens under that file's `APP ADDITIONS` rule are the only values not
-from Nocturne, and each carries the reason it exists. Adding a fourth means
-writing that reason too.
+The tokens under that file's `APP ADDITIONS` rule (seven groups, as of 15
+Sep: ground, mono face, glass, motion, area colours, lift/sink, and the light
+theme) are the only values not from Nocturne, and each carries the reason it
+exists. Adding another means writing that reason too.
 
 `design/wireframes-v2/Solo Leveling Wireframes.dc.html` is visual reference for
 rhythm and component anatomy. Where it and `PLAN.md` §3 disagree, §3 wins — the wireframe paints its

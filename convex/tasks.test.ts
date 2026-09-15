@@ -11,8 +11,21 @@ const ME = 'https://clerk.test|user_me'
 const SOMEONE_ELSE = 'https://clerk.test|user_them'
 const TODAY = '2026-09-08'
 
+/* One backend per call. Fine for one person; never two of these to test
+   ownership — two convexTest() backends are two databases, so "they cannot
+   see my row" would pass even if every query returned everyone's. */
 function as(subject: string) {
   return convexTest(schema, modules).withIdentity({ tokenIdentifier: subject })
+}
+
+/* Two people in one database: my row is really there when they look for it,
+   and my id is real when they pass it. */
+function twoOwners() {
+  const t = convexTest(schema, modules)
+  return {
+    mine: t.withIdentity({ tokenIdentifier: ME }),
+    theirs: t.withIdentity({ tokenIdentifier: SOMEONE_ELSE }),
+  }
 }
 
 /* These three are the rules the product is built on. None of them is visible in
@@ -118,21 +131,23 @@ describe('intent is not evidence (PLAN.md §3b.1)', () => {
 
 describe('every row is scoped to its owner (PLAN.md §3b.4)', () => {
   test('another signed-in user sees none of my tasks', async () => {
-    const mine = as(ME)
+    const { mine, theirs } = twoOwners()
     await mine.mutation(api.tasks.create, { title: 'my task' })
 
-    const theirs = as(SOMEONE_ELSE)
     expect(await theirs.query(api.tasks.listBacklog, {})).toHaveLength(0)
+    expect(await mine.query(api.tasks.listBacklog, {})).toHaveLength(1)
   })
 
   test('another user cannot complete my task', async () => {
-    const mine = as(ME)
+    const { mine, theirs } = twoOwners()
     const id = await mine.mutation(api.tasks.create, { title: 'my task' })
 
-    const theirs = as(SOMEONE_ELSE)
     await expect(
       theirs.mutation(api.tasks.complete, { taskId: id }),
     ).rejects.toThrow('No such task')
+    /* Still open, and no task_done written in my name. */
+    expect(await mine.query(api.tasks.listBacklog, {})).toHaveLength(1)
+    expect(await mine.query(api.logs.listSince, { since: 0 })).toHaveLength(0)
   })
 
   test('an anonymous caller gets nothing', async () => {
@@ -174,7 +189,7 @@ describe('a mistake is not permanent', () => {
   })
 
   test('another user cannot remove my log', async () => {
-    const mine = as(ME)
+    const { mine, theirs } = twoOwners()
     const logId = await mine.mutation(api.logs.create, {
       kind: 'workout',
       area: 'body',
@@ -182,10 +197,10 @@ describe('a mistake is not permanent', () => {
       text: 'mine',
     })
 
-    const theirs = as(SOMEONE_ELSE)
     await expect(theirs.mutation(api.logs.remove, { logId })).rejects.toThrow(
       'No such log',
     )
+    expect(await mine.query(api.logs.listSince, { since: 0 })).toHaveLength(1)
   })
 })
 
@@ -253,16 +268,17 @@ describe('what the week view reads (PLAN.md §4 phase 5)', () => {
   })
 
   test('never another owner’s task', async () => {
-    const theirs = as(SOMEONE_ELSE)
+    const { mine, theirs } = twoOwners()
     const taskId = await theirs.mutation(api.tasks.create, { title: 'Theirs' })
     await theirs.mutation(api.tasks.setSchedule, {
       taskId,
       scheduledAt: MONDAY,
     })
-    const found = await as(ME).query(api.tasks.listScheduledInRange, {
-      from: MONDAY,
-      to: MONDAY + WEEK,
-    })
-    expect(found).toEqual([])
+    const window = { from: MONDAY, to: MONDAY + WEEK }
+
+    expect(await mine.query(api.tasks.listScheduledInRange, window)).toEqual([])
+    expect(
+      await theirs.query(api.tasks.listScheduledInRange, window),
+    ).toHaveLength(1)
   })
 })

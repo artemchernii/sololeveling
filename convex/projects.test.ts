@@ -10,8 +10,22 @@ const modules = import.meta.glob('./**/*.ts')
 const ME = 'https://clerk.test|user_me'
 const SOMEONE_ELSE = 'https://clerk.test|user_them'
 
+/* One backend per call. Fine for one person; never two of these to test
+   ownership — two convexTest() backends are two databases, so "they cannot
+   see my row" would pass even if every query returned everyone's. */
 function as(subject: string) {
   return convexTest(schema, modules).withIdentity({ tokenIdentifier: subject })
+}
+
+/* Two people in one database: my row is really there when they look for it,
+   and my id is real when they pass it — so a refusal comes from the
+   ownership check, not from a row that was never in their database. */
+function twoOwners() {
+  const t = convexTest(schema, modules)
+  return {
+    mine: t.withIdentity({ tokenIdentifier: ME }),
+    theirs: t.withIdentity({ tokenIdentifier: SOMEONE_ELSE }),
+  }
 }
 
 async function chain(t: ReturnType<typeof as>, title: string) {
@@ -104,27 +118,27 @@ describe('a chain answers to a goal', () => {
   })
 
   test('a chain cannot be hung on another owner’s goal', async () => {
-    const mine = as(ME)
+    const { mine, theirs } = twoOwners()
     const goalId = await mine.mutation(api.goals.create, {
       title: 'mine',
       area: 'business',
     })
 
-    const theirs = as(SOMEONE_ELSE)
     await expect(
       theirs.mutation(api.projects.create, { goalId, title: 'theirs' }),
     ).rejects.toThrow('No such goal')
+    expect(await theirs.query(api.projects.listLive, {})).toEqual([])
   })
 
   test('a task cannot be attached to another owner’s chain', async () => {
-    const mine = as(ME)
+    const { mine, theirs } = twoOwners()
     const projectId = await chain(mine, 'Oreum')
 
-    const theirs = as(SOMEONE_ELSE)
     const taskId = await theirs.mutation(api.tasks.create, { title: 'theirs' })
     await expect(
       theirs.mutation(api.tasks.setProject, { taskId, projectId }),
     ).rejects.toThrow('No such project')
+    expect(await mine.query(api.tasks.listByProject, { projectId })).toEqual([])
   })
 })
 
@@ -176,15 +190,17 @@ describe('entityCounts is the only place a count comes from (PLAN.md §1)', () =
   })
 
   test('it never counts another owner’s rows', async () => {
-    const mine = as(ME)
+    const { mine, theirs } = twoOwners()
     const projectId = await chain(mine, 'Oreum')
     const taskId = await mine.mutation(api.tasks.create, { title: 'a' })
     await mine.mutation(api.tasks.setProject, { taskId, projectId })
 
-    const theirs = as(SOMEONE_ELSE)
     const counts = await theirs.query(api.aggregate.entityCounts, {})
     expect(counts.tasksByProject).toEqual({})
     expect(counts.activeProjects).toBe(0)
+    expect(
+      (await mine.query(api.aggregate.entityCounts, {})).activeProjects,
+    ).toBe(1)
   })
 })
 
@@ -236,13 +252,13 @@ describe('a chain is removable, and takes nothing down with it', () => {
   })
 
   test('another owner cannot remove my chain', async () => {
-    const mine = as(ME)
+    const { mine, theirs } = twoOwners()
     const projectId = await chain(mine, 'Oreum')
 
-    const theirs = as(SOMEONE_ELSE)
     await expect(
       theirs.mutation(api.projects.remove, { projectId }),
     ).rejects.toThrow('No such project')
+    expect(await mine.query(api.projects.get, { projectId })).not.toBeNull()
   })
 })
 

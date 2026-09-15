@@ -10,8 +10,8 @@ import type { NavItem } from '@/lib/nav'
    (lib/nav.ts, PLAN.md §3), with Settings pinned.
 
    Colour says what a page is: the TRACK pages wear their area's colour, the
-   same one their logs wear in the Log modal, and Notes wears knowledge. The
-   rest stay neutral, because Today is not any one area.
+   same one their logs wear in the Log modal. The rest stay neutral, because
+   they are places, not areas — a group is all colour or none.
 
    The active page is marked by one pill that slides to it, rather than a
    background that jumps — a state change you caused, so it moves (§3d). */

@@ -20,8 +20,9 @@ export type NavItem = {
   label: string
   icon: LucideIcon
   /** The area whose colour the item wears. Only where the page *is* an area
-      — the TRACK pages, and Notes, which is knowledge — because colour says
-      what a thing is (§3d), and Today is not any one area. */
+      — the TRACK pages — because colour says what a thing is (§3d). The rest
+      are places, not areas. Notes wore knowledge until it joined BUILD on 15
+      Sep, where it was the one coloured icon in a grey group. */
   area?: Area
 }
 
@@ -57,7 +58,7 @@ export const navGroups: Array<NavGroup> = [
       { to: '/projects', label: 'Projects', icon: Layers },
       { to: '/goals', label: 'Goals', icon: Target },
       { to: '/backlog', label: 'Backlog', icon: Inbox },
-      { to: '/notes', label: 'Notes', icon: Notebook, area: 'knowledge' },
+      { to: '/notes', label: 'Notes', icon: Notebook },
     ],
   },
   {

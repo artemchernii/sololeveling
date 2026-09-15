@@ -42,6 +42,14 @@ describe('the sidebar is PLAN.md §3’s table', () => {
     }
   })
 
+  test('only TRACK wears area colour', () => {
+    for (const group of navGroups) {
+      for (const item of group.items) {
+        expect(item.area !== undefined).toBe(group.heading === 'TRACK')
+      }
+    }
+  })
+
   test('mobile: five, Today first, More last', () => {
     expect(mobileNav.map((i) => i.label)).toEqual([
       'Today',

@@ -6,31 +6,32 @@ import { Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
-import { ChainCard } from '@/components/chains/ChainCard'
 import { AREAS } from '@/components/AreaBadge'
+import { ProjectCard } from '@/components/projects/ProjectCard'
 import { SaveLabel, useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
 import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/projects/')({
-  component: Chains,
+  component: Projects,
 })
 
-/* The chains grid (PLAN.md §3). One focus chain at the top with its full
+/* The projects grid (PLAN.md §3). One focus project at the top with its full
    anatomy; the rest as title and next action (§3c.2).
- 
-   "New chain" is one form: a goal and its first project together, because a
-   project without a goal above it is the thing this app exists to prevent. */
-function Chains() {
-  const chains = useHeld(useQuery(api.projects.listLive, {}))
-  const arrived = useArrived(chains)
+
+   "New project" is one form: a goal and the project together, because a
+   project without a goal above it is the thing this app exists to prevent.
+   They were called chains until 15 Sep; only the word changed. */
+function Projects() {
+  const projects = useHeld(useQuery(api.projects.listLive, {}))
+  const arrived = useArrived(projects)
   const counts = useQuery(api.aggregate.entityCounts, {})
   const openTasks = useQuery(api.tasks.listBacklog, {})
   const setFocus = useMutation(api.projects.setFocus)
 
-  const focus = chains?.find((c) => c.status === 'focus')
-  const rest = chains?.filter((c) => c.status !== 'focus') ?? []
+  const focus = projects?.find((p) => p.status === 'focus')
+  const rest = projects?.filter((p) => p.status !== 'focus') ?? []
 
   function tasksFor(project: Doc<'projects'>) {
     return (openTasks ?? []).filter((t) => t.projectId === project._id)
@@ -38,9 +39,9 @@ function Chains() {
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <NewChain />
+      <NewProject />
 
-      {chains === undefined ? (
+      {projects === undefined ? (
         /* The focus card with its open tasks, then two quiet ones (§3c.2). */
         <div role="status" aria-label="Loading" className="contents">
           <div className="glass flex flex-col gap-3 rounded-[22px] p-5">
@@ -64,19 +65,19 @@ function Chains() {
             ))}
           </div>
         </div>
-      ) : chains.length === 0 ? (
+      ) : projects.length === 0 ? (
         <div className={`glass rounded-[22px] p-6 ${arrived}`}>
           <p className="text-[13px] text-ink-500">
-            No chains yet. A chain is a goal with work hanging off it &mdash;
-            start one above.
+            No projects yet. A project is work under a goal &mdash; start one
+            above.
           </p>
         </div>
       ) : (
         /* Same gap as the page, so this wrapper changes no spacing — it is
-           here to fade the chains in over their skeleton as one. */
+           here to fade the projects in over their skeleton as one. */
         <div className={`flex flex-col gap-[18px] ${arrived}`}>
           {focus ? (
-            <ChainCard
+            <ProjectCard
               project={focus}
               counts={counts?.tasksByProject[focus._id]}
               nextTask={tasksFor(focus)[0]}
@@ -86,7 +87,7 @@ function Chains() {
           ) : (
             <div className="glass rounded-[22px] p-5">
               <p className="text-[13px] text-ink-500">
-                Nothing in focus. Pick the one chain that matters this week.
+                Nothing in focus. Pick the one project that matters this week.
               </p>
             </div>
           )}
@@ -94,7 +95,7 @@ function Chains() {
           {rest.length > 0 ? (
             <div className="grid gap-[18px] md:grid-cols-2">
               {rest.map((project) => (
-                <ChainCard
+                <ProjectCard
                   key={project._id}
                   project={project}
                   counts={counts?.tasksByProject[project._id]}
@@ -111,7 +112,7 @@ function Chains() {
   )
 }
 
-function NewChain() {
+function NewProject() {
   const createGoal = useMutation(api.goals.create)
   const createProject = useMutation(api.projects.create)
 
@@ -126,7 +127,7 @@ function NewChain() {
   async function submit() {
     if (starting.busy) return
     if (goal.trim().length === 0 || project.trim().length === 0) {
-      setError('A chain needs both a goal and a first project.')
+      setError('A project needs a goal above it and a title.')
       return
     }
     try {
@@ -145,7 +146,7 @@ function NewChain() {
   }
 
   /* The form closes once the tick has been seen, and only then clears — the
-     chain has already appeared below it by then. */
+     project has already appeared below it by then. */
   function finish() {
     starting.settle()
     setGoal('')
@@ -162,14 +163,14 @@ function NewChain() {
         className="glass flex items-center gap-2 self-start rounded-[14px] px-4 py-2.5 text-[12.5px] text-ink-300 transition-colors hover:text-foreground"
       >
         <Plus className="size-3.5" />
-        New chain
+        New project
       </button>
     )
   }
 
   return (
     <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
-      <div className="label-caps">New chain</div>
+      <div className="label-caps">New project</div>
 
       <Field label="Goal — what this is ultimately for">
         <input

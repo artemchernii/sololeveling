@@ -10,7 +10,7 @@ import { isSignedOut } from '@/lib/convex-errors'
    sidebar — so one bad URL or one crashing query never takes navigation down
    with it.
 
-   A missing *record* is neither of these. "No such chain" and "No such note"
+   A missing *record* is neither of these. "No such project" and "No such note"
    are ordinary answers from their own pages, and stay quiet there. */
 
 /* Neutral, not lavender: the accent means live and focus (§3), and nothing

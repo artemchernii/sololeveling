@@ -16,18 +16,12 @@ import { Route as AppSplatRouteImport } from './routes/_app/$'
 import { Route as AppBacklogRouteImport } from './routes/_app/backlog'
 import { Route as AppBodyRouteImport } from './routes/_app/body'
 import { Route as AppCalendarRouteImport } from './routes/_app/calendar'
-import { Route as AppCareerRouteImport } from './routes/_app/career'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppFinancesRouteImport } from './routes/_app/finances'
 import { Route as AppGoalsRouteImport } from './routes/_app/goals'
-import { Route as AppKnowledgeRouteImport } from './routes/_app/knowledge'
-import { Route as AppMoneyRouteImport } from './routes/_app/money'
-import { Route as AppPortugueseRouteImport } from './routes/_app/portuguese'
-import { Route as AppPrinciplesRouteImport } from './routes/_app/principles'
-import { Route as AppQuestsRouteImport } from './routes/_app/quests'
+import { Route as AppLanguagesRouteImport } from './routes/_app/languages'
 import { Route as AppReviewsRouteImport } from './routes/_app/reviews'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
-import { Route as AppSocialRouteImport } from './routes/_app/social'
-import { Route as AppStyleRouteImport } from './routes/_app/style'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes.index'
 import { Route as AppNotesIdRouteImport } from './routes/_app/notes.$id'
 import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects.index'
@@ -67,14 +61,14 @@ const AppCalendarRoute = AppCalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => AppRoute,
 } as any)
-const AppCareerRoute = AppCareerRouteImport.update({
-  id: '/career',
-  path: '/career',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFinancesRoute = AppFinancesRouteImport.update({
+  id: '/finances',
+  path: '/finances',
   getParentRoute: () => AppRoute,
 } as any)
 const AppGoalsRoute = AppGoalsRouteImport.update({
@@ -82,29 +76,9 @@ const AppGoalsRoute = AppGoalsRouteImport.update({
   path: '/goals',
   getParentRoute: () => AppRoute,
 } as any)
-const AppKnowledgeRoute = AppKnowledgeRouteImport.update({
-  id: '/knowledge',
-  path: '/knowledge',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMoneyRoute = AppMoneyRouteImport.update({
-  id: '/money',
-  path: '/money',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPortugueseRoute = AppPortugueseRouteImport.update({
-  id: '/portuguese',
-  path: '/portuguese',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPrinciplesRoute = AppPrinciplesRouteImport.update({
-  id: '/principles',
-  path: '/principles',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppQuestsRoute = AppQuestsRouteImport.update({
-  id: '/quests',
-  path: '/quests',
+const AppLanguagesRoute = AppLanguagesRouteImport.update({
+  id: '/languages',
+  path: '/languages',
   getParentRoute: () => AppRoute,
 } as any)
 const AppReviewsRoute = AppReviewsRouteImport.update({
@@ -115,16 +89,6 @@ const AppReviewsRoute = AppReviewsRouteImport.update({
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSocialRoute = AppSocialRouteImport.update({
-  id: '/social',
-  path: '/social',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppStyleRoute = AppStyleRouteImport.update({
-  id: '/style',
-  path: '/style',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotesIndexRoute = AppNotesIndexRouteImport.update({
@@ -155,18 +119,12 @@ export interface FileRoutesByFullPath {
   '/backlog': typeof AppBacklogRoute
   '/body': typeof AppBodyRoute
   '/calendar': typeof AppCalendarRoute
-  '/career': typeof AppCareerRoute
   '/dashboard': typeof AppDashboardRoute
+  '/finances': typeof AppFinancesRoute
   '/goals': typeof AppGoalsRoute
-  '/knowledge': typeof AppKnowledgeRoute
-  '/money': typeof AppMoneyRoute
-  '/portuguese': typeof AppPortugueseRoute
-  '/principles': typeof AppPrinciplesRoute
-  '/quests': typeof AppQuestsRoute
+  '/languages': typeof AppLanguagesRoute
   '/reviews': typeof AppReviewsRoute
   '/settings': typeof AppSettingsRoute
-  '/social': typeof AppSocialRoute
-  '/style': typeof AppStyleRoute
   '/notes/$id': typeof AppNotesIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/notes/': typeof AppNotesIndexRoute
@@ -179,18 +137,12 @@ export interface FileRoutesByTo {
   '/backlog': typeof AppBacklogRoute
   '/body': typeof AppBodyRoute
   '/calendar': typeof AppCalendarRoute
-  '/career': typeof AppCareerRoute
   '/dashboard': typeof AppDashboardRoute
+  '/finances': typeof AppFinancesRoute
   '/goals': typeof AppGoalsRoute
-  '/knowledge': typeof AppKnowledgeRoute
-  '/money': typeof AppMoneyRoute
-  '/portuguese': typeof AppPortugueseRoute
-  '/principles': typeof AppPrinciplesRoute
-  '/quests': typeof AppQuestsRoute
+  '/languages': typeof AppLanguagesRoute
   '/reviews': typeof AppReviewsRoute
   '/settings': typeof AppSettingsRoute
-  '/social': typeof AppSocialRoute
-  '/style': typeof AppStyleRoute
   '/notes/$id': typeof AppNotesIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/notes': typeof AppNotesIndexRoute
@@ -205,18 +157,12 @@ export interface FileRoutesById {
   '/_app/backlog': typeof AppBacklogRoute
   '/_app/body': typeof AppBodyRoute
   '/_app/calendar': typeof AppCalendarRoute
-  '/_app/career': typeof AppCareerRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/finances': typeof AppFinancesRoute
   '/_app/goals': typeof AppGoalsRoute
-  '/_app/knowledge': typeof AppKnowledgeRoute
-  '/_app/money': typeof AppMoneyRoute
-  '/_app/portuguese': typeof AppPortugueseRoute
-  '/_app/principles': typeof AppPrinciplesRoute
-  '/_app/quests': typeof AppQuestsRoute
+  '/_app/languages': typeof AppLanguagesRoute
   '/_app/reviews': typeof AppReviewsRoute
   '/_app/settings': typeof AppSettingsRoute
-  '/_app/social': typeof AppSocialRoute
-  '/_app/style': typeof AppStyleRoute
   '/_app/notes/$id': typeof AppNotesIdRoute
   '/_app/projects/$id': typeof AppProjectsIdRoute
   '/_app/notes/': typeof AppNotesIndexRoute
@@ -231,18 +177,12 @@ export interface FileRouteTypes {
     | '/backlog'
     | '/body'
     | '/calendar'
-    | '/career'
     | '/dashboard'
+    | '/finances'
     | '/goals'
-    | '/knowledge'
-    | '/money'
-    | '/portuguese'
-    | '/principles'
-    | '/quests'
+    | '/languages'
     | '/reviews'
     | '/settings'
-    | '/social'
-    | '/style'
     | '/notes/$id'
     | '/projects/$id'
     | '/notes/'
@@ -255,18 +195,12 @@ export interface FileRouteTypes {
     | '/backlog'
     | '/body'
     | '/calendar'
-    | '/career'
     | '/dashboard'
+    | '/finances'
     | '/goals'
-    | '/knowledge'
-    | '/money'
-    | '/portuguese'
-    | '/principles'
-    | '/quests'
+    | '/languages'
     | '/reviews'
     | '/settings'
-    | '/social'
-    | '/style'
     | '/notes/$id'
     | '/projects/$id'
     | '/notes'
@@ -280,18 +214,12 @@ export interface FileRouteTypes {
     | '/_app/backlog'
     | '/_app/body'
     | '/_app/calendar'
-    | '/_app/career'
     | '/_app/dashboard'
+    | '/_app/finances'
     | '/_app/goals'
-    | '/_app/knowledge'
-    | '/_app/money'
-    | '/_app/portuguese'
-    | '/_app/principles'
-    | '/_app/quests'
+    | '/_app/languages'
     | '/_app/reviews'
     | '/_app/settings'
-    | '/_app/social'
-    | '/_app/style'
     | '/_app/notes/$id'
     | '/_app/projects/$id'
     | '/_app/notes/'
@@ -355,18 +283,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCalendarRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/career': {
-      id: '/_app/career'
-      path: '/career'
-      fullPath: '/career'
-      preLoaderRoute: typeof AppCareerRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/finances': {
+      id: '/_app/finances'
+      path: '/finances'
+      fullPath: '/finances'
+      preLoaderRoute: typeof AppFinancesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/goals': {
@@ -376,39 +304,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGoalsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/knowledge': {
-      id: '/_app/knowledge'
-      path: '/knowledge'
-      fullPath: '/knowledge'
-      preLoaderRoute: typeof AppKnowledgeRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/money': {
-      id: '/_app/money'
-      path: '/money'
-      fullPath: '/money'
-      preLoaderRoute: typeof AppMoneyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/portuguese': {
-      id: '/_app/portuguese'
-      path: '/portuguese'
-      fullPath: '/portuguese'
-      preLoaderRoute: typeof AppPortugueseRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/principles': {
-      id: '/_app/principles'
-      path: '/principles'
-      fullPath: '/principles'
-      preLoaderRoute: typeof AppPrinciplesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/quests': {
-      id: '/_app/quests'
-      path: '/quests'
-      fullPath: '/quests'
-      preLoaderRoute: typeof AppQuestsRouteImport
+    '/_app/languages': {
+      id: '/_app/languages'
+      path: '/languages'
+      fullPath: '/languages'
+      preLoaderRoute: typeof AppLanguagesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/reviews': {
@@ -423,20 +323,6 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/social': {
-      id: '/_app/social'
-      path: '/social'
-      fullPath: '/social'
-      preLoaderRoute: typeof AppSocialRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/style': {
-      id: '/_app/style'
-      path: '/style'
-      fullPath: '/style'
-      preLoaderRoute: typeof AppStyleRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/notes/': {
@@ -475,18 +361,12 @@ interface AppRouteChildren {
   AppBacklogRoute: typeof AppBacklogRoute
   AppBodyRoute: typeof AppBodyRoute
   AppCalendarRoute: typeof AppCalendarRoute
-  AppCareerRoute: typeof AppCareerRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppFinancesRoute: typeof AppFinancesRoute
   AppGoalsRoute: typeof AppGoalsRoute
-  AppKnowledgeRoute: typeof AppKnowledgeRoute
-  AppMoneyRoute: typeof AppMoneyRoute
-  AppPortugueseRoute: typeof AppPortugueseRoute
-  AppPrinciplesRoute: typeof AppPrinciplesRoute
-  AppQuestsRoute: typeof AppQuestsRoute
+  AppLanguagesRoute: typeof AppLanguagesRoute
   AppReviewsRoute: typeof AppReviewsRoute
   AppSettingsRoute: typeof AppSettingsRoute
-  AppSocialRoute: typeof AppSocialRoute
-  AppStyleRoute: typeof AppStyleRoute
   AppNotesIdRoute: typeof AppNotesIdRoute
   AppProjectsIdRoute: typeof AppProjectsIdRoute
   AppNotesIndexRoute: typeof AppNotesIndexRoute
@@ -498,18 +378,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppBacklogRoute: AppBacklogRoute,
   AppBodyRoute: AppBodyRoute,
   AppCalendarRoute: AppCalendarRoute,
-  AppCareerRoute: AppCareerRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppFinancesRoute: AppFinancesRoute,
   AppGoalsRoute: AppGoalsRoute,
-  AppKnowledgeRoute: AppKnowledgeRoute,
-  AppMoneyRoute: AppMoneyRoute,
-  AppPortugueseRoute: AppPortugueseRoute,
-  AppPrinciplesRoute: AppPrinciplesRoute,
-  AppQuestsRoute: AppQuestsRoute,
+  AppLanguagesRoute: AppLanguagesRoute,
   AppReviewsRoute: AppReviewsRoute,
   AppSettingsRoute: AppSettingsRoute,
-  AppSocialRoute: AppSocialRoute,
-  AppStyleRoute: AppStyleRoute,
   AppNotesIdRoute: AppNotesIdRoute,
   AppProjectsIdRoute: AppProjectsIdRoute,
   AppNotesIndexRoute: AppNotesIndexRoute,

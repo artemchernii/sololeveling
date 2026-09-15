@@ -101,7 +101,7 @@ export default defineSchema({
       filterFields: ['ownerId'],
     }),
 
-  /* A chain is a goal with a project under it, so goalId is required: a project
+  /* A project always has a goal above it, so goalId is required: a project
      that answers to nothing is the thing this app exists to prevent. */
   projects: defineTable({
     ownerId: v.string(),

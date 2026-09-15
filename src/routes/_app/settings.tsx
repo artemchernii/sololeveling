@@ -21,7 +21,7 @@ function Settings() {
 
   return (
     <div className="flex flex-col gap-[18px]">
-      {/* The same header as Principles and Notes: a title and one line
+      {/* The same header as Notes and Projects: a title and one line
           saying what the page is for. It carried "Phase 6", a build-plan
           label that meant nothing on the page. */}
       <PageTitle

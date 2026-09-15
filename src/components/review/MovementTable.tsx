@@ -11,9 +11,9 @@
 
 const ROWS = [
   { key: 'projects', label: 'Projects' },
-  { key: 'portuguese', label: 'Portuguese' },
+  { key: 'portuguese', label: 'Languages' },
   { key: 'body', label: 'Body' },
-  { key: 'money', label: 'Money' },
+  { key: 'money', label: 'Finances' },
   { key: 'style', label: 'Style' },
   { key: 'social', label: 'Social' },
 ] as const

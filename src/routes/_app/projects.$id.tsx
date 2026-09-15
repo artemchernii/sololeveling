@@ -14,13 +14,13 @@ import { deadlineLabel } from '@/lib/format'
 import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/projects/$id')({
-  component: Chain,
+  component: Project,
 })
 
-/* One chain, end to end: what it answers to, what is left, what is next. This
-   is where a chain is actually built — tasks attached, focus set, and finally
-   closed. */
-function Chain() {
+/* One project, end to end: what it answers to, what is left, what is next.
+   This is where a project is actually built — tasks attached, focus set, and
+   finally closed. */
+function Project() {
   const { id } = Route.useParams()
   const projectId = id as Id<'projects'>
 
@@ -71,7 +71,7 @@ function Chain() {
   if (project === null) {
     return (
       <div className="glass rounded-[22px] p-6">
-        <p className="text-[13px] text-ink-500">No such chain.</p>
+        <p className="text-[13px] text-ink-500">No such project.</p>
       </div>
     )
   }
@@ -98,7 +98,7 @@ function Chain() {
           className="label-caps flex items-center gap-1.5 self-start transition-colors hover:text-ink-300"
         >
           <ArrowLeft className="size-3" />
-          Chains
+          Projects
         </Link>
 
         <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -137,7 +137,7 @@ function Chain() {
           <Action
             onClick={() => void setStatus({ projectId, status: 'completed' })}
           >
-            Complete the chain
+            Complete the project
           </Action>
           <Action
             onClick={() => void setStatus({ projectId, status: 'archived' })}
@@ -161,7 +161,7 @@ function Chain() {
 
         {open.length === 0 ? (
           <p className="text-[13px] text-ink-500">
-            Nothing open. Either this chain is done or it is waiting on you to
+            Nothing open. Either this project is done or it is waiting on you to
             decide what is next.
           </p>
         ) : (
@@ -206,7 +206,7 @@ function Chain() {
             onKeyDown={(e) => {
               if (e.key === 'Enter') void add()
             }}
-            placeholder="Another link in the chain"
+            placeholder="Another task for this project"
             className="flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
           />
         </div>

@@ -73,10 +73,10 @@ export const everything = query({
         kind: 'task',
         id: task._id,
         title: task.title,
-        /* Today's three live on Quests and nowhere else (§3c.2); the rest are
+        /* Today's three live on Today and nowhere else (§3c.2); the rest are
            on the backlog. Landing on the page that does not hold it would be
            worse than not linking at all. */
-        to: task.todayFor ? '/quests' : '/backlog',
+        to: task.todayFor ? '/dashboard' : '/backlog',
       })
     }
 
@@ -166,7 +166,9 @@ export const everything = query({
         kind: 'principle',
         id: principle._id,
         title: principle.text,
-        to: '/principles',
+        /* One a day is shown under Today's greeting; the page of all six
+           went on 15 Sep. */
+        to: '/dashboard',
       })
     }
 

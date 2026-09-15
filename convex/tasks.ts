@@ -219,8 +219,8 @@ export const remove = mutation({
 })
 
 /**
- * Attach a task to a chain, or cut it loose. A task is creatable from a title
- * alone (§3b.3), so this is how a loose one joins a chain later — which is the
+ * Attach a task to a project, or cut it loose. A task is creatable from a title
+ * alone (§3b.3), so this is how a loose one joins a project later — which is the
  * common case, since quick capture writes titles and nothing else.
  */
 export const setProject = mutation({
@@ -246,7 +246,7 @@ export const setProject = mutation({
       throw new Error('No such project')
     }
 
-    /* goalId is denormalised from the chain so a task can be filtered by goal
+    /* goalId is denormalised from the project so a task can be filtered by goal
        without walking through its project. The project is the authority; this
        follows it, and is rewritten whenever the task moves. */
     await ctx.db.patch(args.taskId, {
@@ -257,10 +257,10 @@ export const setProject = mutation({
   },
 })
 
-/** One chain's work, newest last. Open tasks first — the rest is history. */
-/* Read by the chain page's URL, like projects.get: a bad or stale id is an
-   empty list, not a throw — the page already says "No such chain" from get.
-   Someone else's chain is empty too, which reveals nothing about it. */
+/** One project's work, newest last. Open tasks first — the rest is history. */
+/* Read by the project page's URL, like projects.get: a bad or stale id is an
+   empty list, not a throw — the page already says "No such project" from get.
+   Someone else's project is empty too, which reveals nothing about it. */
 export const listByProject = query({
   args: { projectId: v.string() },
   returns: v.array(schema.doc('tasks')),

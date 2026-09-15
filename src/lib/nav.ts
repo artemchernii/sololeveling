@@ -1,20 +1,15 @@
 import {
   Activity,
-  BookOpen,
-  Briefcase,
   CalendarDays,
   Compass,
   Euro,
   Inbox,
+  Languages,
   Layers,
   LayoutDashboard,
-  Languages,
-  ListChecks,
+  MoreHorizontal,
   Notebook,
-  Scale,
-  Shirt,
   Target,
-  Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -25,8 +20,9 @@ export type NavItem = {
   label: string
   icon: LucideIcon
   /** The area whose colour the item wears. Only where the page *is* an area
-      — the TRACK pages, and KNOW, which is knowledge — because colour says
-      what a thing is (§3d), and Dashboard is not any one area. */
+      — the TRACK pages — because colour says what a thing is (§3d). The rest
+      are places, not areas. Notes wore knowledge until it joined BUILD on 15
+      Sep, where it was the one coloured icon in a grey group. */
   area?: Area
 }
 
@@ -37,62 +33,44 @@ export type NavGroup = {
 }
 
 /**
- * The one definition of the sidebar.
+ * The one definition of the sidebar — PLAN.md §3, rethought 15 Sep: fewer
+ * places, each one deep. NOW is the day and the week that closes it. BUILD is
+ * what the day is chosen from: the projects, the goals above them, the backlog
+ * beneath, and the notes that feed them. TRACK is the three areas with numbers
+ * of their own. Settings sits below the groups (SideNav.tsx).
  *
- * Four groups, not PLAN.md §3's original three (14 Sep). DO held two different
- * things: what is happening today, and the planning that feeds it. NOW is the
- * day — the dashboard, its three quests, the calendar. PLAN is what the day is
- * chosen from — goals, the chains under them, and the backlog of everything
- * not yet picked.
+ * Languages still wears the `portuguese` colour and Finances the `money` one:
+ * the area enum is renamed in R6, with the migration; only the label and the
+ * route changed here.
  */
 export const navGroups: Array<NavGroup> = [
   {
     heading: 'NOW',
     items: [
-      { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { to: '/quests', label: 'Quests', icon: ListChecks },
+      { to: '/dashboard', label: 'Today', icon: LayoutDashboard },
       { to: '/calendar', label: 'Calendar', icon: CalendarDays },
+      { to: '/reviews', label: 'Review', icon: Compass },
     ],
   },
   {
-    heading: 'PLAN',
+    heading: 'BUILD',
     items: [
-      { to: '/goals', label: 'Goals', icon: Target },
       { to: '/projects', label: 'Projects', icon: Layers },
+      { to: '/goals', label: 'Goals', icon: Target },
       { to: '/backlog', label: 'Backlog', icon: Inbox },
+      { to: '/notes', label: 'Notes', icon: Notebook },
     ],
   },
   {
     heading: 'TRACK',
     items: [
-      { to: '/money', label: 'Money', icon: Euro, area: 'money' },
+      { to: '/finances', label: 'Finances', icon: Euro, area: 'money' },
       { to: '/body', label: 'Body', icon: Activity, area: 'body' },
-      { to: '/social', label: 'Social', icon: Users, area: 'social' },
       {
-        to: '/portuguese',
-        label: 'Portuguese',
+        to: '/languages',
+        label: 'Languages',
         icon: Languages,
         area: 'portuguese',
-      },
-      { to: '/career', label: 'Career', icon: Briefcase, area: 'career' },
-      { to: '/style', label: 'Style', icon: Shirt, area: 'style' },
-    ],
-  },
-  {
-    heading: 'KNOW',
-    items: [
-      { to: '/notes', label: 'Notes', icon: Notebook, area: 'knowledge' },
-      {
-        to: '/knowledge',
-        label: 'Knowledge',
-        icon: BookOpen,
-        area: 'knowledge',
-      },
-      {
-        to: '/principles',
-        label: 'Principles',
-        icon: Scale,
-        area: 'knowledge',
       },
     ],
   },
@@ -101,8 +79,8 @@ export const navGroups: Array<NavGroup> = [
 /** Bottom nav on mobile (PLAN.md §3): five destinations, thumb-reachable. */
 export const mobileNav: Array<NavItem> = [
   { to: '/dashboard', label: 'Today', icon: LayoutDashboard },
-  { to: '/quests', label: 'Quests', icon: ListChecks },
+  { to: '/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/projects', label: 'Projects', icon: Layers },
-  { to: '/reviews', label: 'Month', icon: Compass },
-  { to: '/settings', label: 'More', icon: Notebook },
+  { to: '/notes', label: 'Notes', icon: Notebook },
+  { to: '/settings', label: 'More', icon: MoreHorizontal },
 ]

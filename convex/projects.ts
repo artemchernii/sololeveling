@@ -6,8 +6,9 @@ import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import schema from './schema'
 
-/* A project is a chain: a goal with work hanging off it. `goalId` is required
-   by the schema, so a chain that answers to nothing cannot exist.
+/* A project is work under a goal. `goalId` is required by the schema, so a
+   project that answers to nothing cannot exist. (They were called chains
+   until 15 Sep; only the word changed.)
 
    Exactly one project per owner is 'focus' (PLAN.md §3c.2). That is enforced
    here, in setFocus, because Convex has no triggers and a rule the UI merely
@@ -37,7 +38,7 @@ async function ownedProject(
   return project
 }
 
-/** "New chain" is one form: the goal and its first project together (§3). */
+/** "New project" is one form: the goal and the project together (§3). */
 export const create = mutation({
   args: {
     goalId: v.id('goals'),
@@ -56,7 +57,7 @@ export const create = mutation({
 
     const title = args.title.trim()
     if (title.length === 0) {
-      throw new Error('A chain needs a title')
+      throw new Error('A project needs a title')
     }
 
     return await ctx.db.insert('projects', {
@@ -70,14 +71,14 @@ export const create = mutation({
   },
 })
 
-/** Everything not finished or filed away — what the chains grid renders. */
+/** Everything not finished or filed away — what the projects grid renders. */
 export const listLive = query({
   args: {},
   returns: v.array(schema.doc('projects')),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
 
-    const chains: Array<Doc<'projects'>> = []
+    const live: Array<Doc<'projects'>> = []
     for (const status of LIVE_STATUSES) {
       const rows = await ctx.db
         .query('projects')
@@ -85,14 +86,14 @@ export const listLive = query({
           q.eq('ownerId', ownerId).eq('status', status),
         )
         .take(MAX_ROWS)
-      chains.push(...rows)
+      live.push(...rows)
     }
-    return chains
+    return live
   },
 })
 
 /* Read by a URL, so the id is a plain string: a pasted-wrong or cut-short
-   link reads as "no such chain" instead of failing argument validation — an
+   link reads as "no such project" instead of failing argument validation — an
    error the page cannot tell apart from a real crash. */
 export const get = query({
   args: { projectId: v.string() },
@@ -107,7 +108,7 @@ export const get = query({
 })
 
 /**
- * §3c.2: one focus chain. Promoting one demotes the other, in the same
+ * §3c.2: one focus project. Promoting one demotes the other, in the same
  * transaction, so there is no window in which two are focused or none is.
  */
 export const setFocus = mutation({
@@ -136,8 +137,9 @@ export const setFocus = mutation({
 })
 
 /**
- * Finishing, pausing or filing a chain away. Completing the focus chain leaves
- * nothing in focus — deliberately: which chain matters next is a decision, not
+ * Finishing, pausing or filing a project away. Completing the focus project
+ * leaves nothing in focus — deliberately: which project matters next is a
+ * decision, not
  * something to be inferred from whatever happens to be nearby.
  */
 export const setStatus = mutation({
@@ -148,7 +150,9 @@ export const setStatus = mutation({
     await ownedProject(ctx, ownerId, args.projectId)
 
     if (args.status === 'focus') {
-      throw new Error('Use setFocus, which demotes the chain already in focus')
+      throw new Error(
+        'Use setFocus, which demotes the project already in focus',
+      )
     }
 
     await ctx.db.patch(args.projectId, { status: args.status })
@@ -157,8 +161,8 @@ export const setStatus = mutation({
 })
 
 /**
- * A chain written by mistake. Its tasks are cut loose rather than deleted —
- * they may still be worth doing, and a task outliving the chain it was filed
+ * A project written by mistake. Its tasks are cut loose rather than deleted —
+ * they may still be worth doing, and a task outliving the project it was filed
  * under is the normal case, not an error.
  *
  * Deleting the project without this would leave tasks pointing at a document

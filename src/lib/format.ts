@@ -59,3 +59,12 @@ export function whenLabel(ms: number, now: Date = new Date()): string {
   }
   return `${at.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} ${clock(at)}`
 }
+
+/** "45m", "2h", "7h 30m" — minutes that were logged, said the short way. */
+export function durationLabel(minutes: number): string {
+  const total = Math.round(minutes)
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  if (h === 0) return `${m}m`
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
+}

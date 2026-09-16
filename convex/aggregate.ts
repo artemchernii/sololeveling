@@ -438,3 +438,51 @@ export const kindCount = query({
     ).length
   },
 })
+
+/**
+ * Time on one project in a period: the minutes on its session logs, added
+ * up, and how many sessions there were — "7h 30m this month · 9 sessions".
+ *
+ * Source 1. A sum rather than a count, and still only the log rows
+ * themselves: each minute is one you logged with the project's verb
+ * (`oreum 45`), in its own unit. Sessions only — a ticked task on the project
+ * is intent, not time (§3b.1).
+ *
+ * The id comes from the page's URL, so it is a string: a bad or foreign id
+ * reads as nothing, and the page already says "No such project".
+ */
+export const projectTime = query({
+  args: {
+    projectId: v.string(),
+    /** Epoch ms, local midnight — inclusive. */
+    start: v.number(),
+    /** Epoch ms, local midnight — exclusive. */
+    end: v.number(),
+  },
+  returns: v.object({ minutes: v.number(), sessions: v.number() }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const projectId = ctx.db.normalizeId('projects', args.projectId)
+    if (projectId === null) return { minutes: 0, sessions: 0 }
+
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_project_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('projectId', projectId)
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .take(MAX_ROWS)
+
+    let minutes = 0
+    let sessions = 0
+    for (const row of rows) {
+      if (row.kind !== 'session') continue
+      sessions += 1
+      minutes += row.value ?? 0
+    }
+    return { minutes, sessions }
+  },
+})

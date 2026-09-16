@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { deadlineLabel, whenLabel } from './format'
+import { deadlineLabel, durationLabel, whenLabel } from './format'
 
 const SEPT_8 = new Date(2026, 8, 8, 14, 30)
 
@@ -59,5 +59,20 @@ describe('whenLabel says when a log happened', () => {
     expect(whenLabel(new Date(2026, 7, 1, 8, 0).getTime(), now)).toMatch(
       / 08:00$/,
     )
+  })
+})
+
+describe('durationLabel', () => {
+  test('under an hour is minutes', () => {
+    expect(durationLabel(45)).toBe('45m')
+  })
+  test('whole hours drop the minutes', () => {
+    expect(durationLabel(120)).toBe('2h')
+  })
+  test('hours and minutes', () => {
+    expect(durationLabel(450)).toBe('7h 30m')
+  })
+  test('a fraction of a minute is rounded, not shown', () => {
+    expect(durationLabel(59.6)).toBe('1h')
   })
 })

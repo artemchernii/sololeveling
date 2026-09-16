@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import {
   agoLabel,
+  aheadLabel,
   deadlineLabel,
   durationLabel,
   localInputValue,
@@ -119,5 +120,24 @@ describe('localInputValue', () => {
   test('round-trips through the Date constructor', () => {
     const ms = new Date(2026, 11, 1, 18, 30).getTime()
     expect(new Date(localInputValue(ms)).getTime()).toBe(ms)
+  })
+})
+
+describe('aheadLabel says when something is planned for', () => {
+  const now = new Date(2026, 8, 8, 14, 30)
+
+  test('today, tomorrow, then the weekday, then the date', () => {
+    expect(aheadLabel(new Date(2026, 8, 8, 18, 0).getTime(), now)).toMatch(
+      /^today 18:00$/,
+    )
+    expect(aheadLabel(new Date(2026, 8, 9, 9, 30).getTime(), now)).toMatch(
+      /^tomorrow 09:30$/,
+    )
+    expect(aheadLabel(new Date(2026, 8, 11, 18, 0).getTime(), now)).toMatch(
+      /18:00$/,
+    )
+    expect(aheadLabel(new Date(2026, 9, 2, 18, 0).getTime(), now)).not.toMatch(
+      /^(today|tomorrow)/,
+    )
   })
 })

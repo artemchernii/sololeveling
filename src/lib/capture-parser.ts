@@ -385,8 +385,9 @@ const VERBS: Array<Verb> = [
   {
     /* A task is intent, not evidence, so it goes to the tasks table and waits
        on the backlog — the only place unpicked tasks live (§3c). Its kind is
-       a placeholder the modal never writes as a log. */
-    words: ['todo'],
+       a placeholder the modal never writes as a log. `task` is the same verb
+       (17 Sep): it is the word people reach for. */
+    words: ['todo', 'task'],
     kind: 'custom',
     area: 'life',
     amount: 'none',

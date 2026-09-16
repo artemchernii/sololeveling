@@ -6,12 +6,15 @@ import { useNavigate } from '@tanstack/react-router'
 import {
   ArrowLeft,
   ArrowUpRight,
+  CalendarClock,
   Check,
   Clock,
+  Crosshair,
   Euro,
   PenLine,
   Plus,
   Scale,
+  Sun,
   Timer,
   Trash2,
 } from 'lucide-react'
@@ -37,7 +40,8 @@ import {
 } from '@/lib/capture-parser'
 import type { Area, LogKind, VerbInfo } from '@/lib/capture-parser'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
-import { whenLabel } from '@/lib/format'
+import { aheadLabel, whenLabel } from '@/lib/format'
+import { localToday } from '@/lib/today'
 import { splitNote } from '@/lib/note-text'
 
 /* PLAN.md §3: three seconds. `gym` ⏎ is still the whole of it.
@@ -123,6 +127,20 @@ function beat(index: number): React.CSSProperties {
   return { animationDelay: `${index * 35}ms` }
 }
 
+/** An area's colour for a chip, or neutral grey for a task not filed yet. */
+function chipTone(area: Area | undefined): React.CSSProperties {
+  return area
+    ? areaVars(area)
+    : ({ '--area': 'var(--color-neutral-400)' } as React.CSSProperties)
+}
+
+/** The top of the next hour — where a plan's time picker opens. */
+function nextHour(): number {
+  const d = new Date()
+  d.setHours(d.getHours() + 1, 0, 0, 0)
+  return d.getTime()
+}
+
 /** A datetime-local value, in local time, for an instant. */
 function toLocalInput(ms: number): string {
   const d = new Date(ms)
@@ -150,7 +168,20 @@ export function QuickCapture({
   )
   /** null is "now", resolved at the moment of logging, not of opening. */
   const [when, setWhen] = useState<number | null>(null)
-  const [picker, setPicker] = useState<'area' | 'when' | null>(null)
+  const [picker, setPicker] = useState<'area' | 'when' | 'for' | 'time' | null>(
+    null,
+  )
+  /* What a task is for, whether it goes straight onto today, and when it is
+     planned. `for` is 'p:<id>', 'g:<id>' or '' — the backlog's BindSelect
+     shape. Area and `for` survive a save, because a brain dump is usually
+     one project's list; today and time do not, because putting every line
+     of it on today, or at 15:00, is never what was meant. */
+  const [taskFor, setTaskFor] = useState('')
+  const [taskToday, setTaskToday] = useState(false)
+  const [taskTime, setTaskTime] = useState<{
+    at: number
+    minutes?: number
+  } | null>(null)
   const [attempted, setAttempted] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   /* What a chip is showing while you type in it. Rewriting the line on every
@@ -190,6 +221,10 @@ export function QuickCapture({
   const createNote = useMutation(api.notes.create)
   const createTask = useMutation(api.tasks.create)
   const removeTask = useMutation(api.tasks.remove)
+  const setTaskProject = useMutation(api.tasks.setProject)
+  const setTaskGoal = useMutation(api.tasks.setGoal)
+  const setTaskSchedule = useMutation(api.tasks.setSchedule)
+  const pickForToday = useMutation(api.tasks.pickForToday)
   /* Your live projects, each of which is a verb — `sololeveling 90`. */
   const projects = useQuery(api.projects.listLive, {})
   const extra = useMemo(() => projectVerbs(projects ?? []), [projects])
@@ -220,6 +255,9 @@ export function QuickCapture({
       setLast(null)
       setNoteText(null)
       setNoteKind('note')
+      setTaskFor('')
+      setTaskToday(false)
+      setTaskTime(null)
     }
   }
 
@@ -259,10 +297,14 @@ export function QuickCapture({
   const result = parseCapture(input, extra)
   const verb = result.verb
   const typed = result.typed ?? {}
+  /* A task starts unfiled, like one written anywhere else (17 Sep): the
+     verb's own area was `life`, which quietly filed every `todo` there. */
   const area: Area | undefined = verb
     ? areaFor?.word === verb.word
       ? areaFor.area
-      : verb.area
+      : verb.action === 'task'
+        ? undefined
+        : verb.area
     : undefined
 
   /* Entering note mode: whatever followed `note` on the line moves into the
@@ -271,6 +313,22 @@ export function QuickCapture({
      previous state, like the open reset above, so no frame shows both. */
   const isNote = verb?.action === 'note'
   const isTask = verb?.action === 'task'
+
+  /* Read only while a task is being written: the three for the Today
+     toggle, and the goals for the `for` chip. */
+  const todayIso = localToday()
+  const todays = useQuery(
+    api.tasks.listToday,
+    isTask ? { today: todayIso } : 'skip',
+  )
+  const todayFull = (todays?.length ?? 0) >= 3
+  const goals = useQuery(api.goals.listActive, isTask ? {} : 'skip')
+  const goalsToBind = (goals ?? []).filter((g) => g.tile === undefined)
+  const forLabel = taskFor.startsWith('p:')
+    ? projects?.find((x) => x._id === taskFor.slice(2))?.title
+    : taskFor.startsWith('g:')
+      ? goalsToBind.find((x) => x._id === taskFor.slice(2))?.title
+      : undefined
   /* A draft is never thrown away by the line: change `note` to something else
      by accident and back, and the sheet still holds what was written. It is
      cleared only by saving, or by closing the modal. */
@@ -447,19 +505,62 @@ export function QuickCapture({
     }
   }
 
-  /** `todo` — a task to the backlog, from its title alone (§3b.3). */
+  /** What pressing save will do with a task, in the chips' own order. */
+  function taskSummary(title: string): string {
+    return [
+      `${taskToday ? 'To today' : 'To the backlog'}: ${title}`,
+      forLabel ? `for ${forLabel}` : null,
+      taskTime ? aheadLabel(taskTime.at) : null,
+    ]
+      .filter(Boolean)
+      .join(' · ')
+  }
+
+  /** `todo` / `task` — a task to the backlog, from its title alone (§3b.3),
+      with whatever the chips added: area, what it is for, a time, today. */
   async function addTask() {
     setAttempted(true)
     setFailure(null)
     if (!result.ok || !result.log.text) return
     try {
       const title = result.log.text
-      const id = await createTask({ title, area })
-      setLast({ type: 'tasked', id, title })
-      setInput('')
-      setAreaFor(null)
+      const taskId = await createTask({ title, area })
+      /* Bound through the same mutations as the backlog row, which check
+         the project or goal is yours and carry a project's goal along. */
+      if (taskFor.startsWith('p:')) {
+        await setTaskProject({
+          taskId,
+          projectId: taskFor.slice(2) as Id<'projects'>,
+        })
+      } else if (taskFor.startsWith('g:')) {
+        await setTaskGoal({ taskId, goalId: taskFor.slice(2) as Id<'goals'> })
+      }
+      if (taskTime) {
+        await setTaskSchedule({
+          taskId,
+          scheduledAt: taskTime.at,
+          durationMin: taskTime.minutes,
+        })
+      }
+      let refused = false
+      if (taskToday) {
+        try {
+          await pickForToday({ taskId, today: todayIso })
+        } catch {
+          /* Filled from another device since the chip was set. The task is
+             written; it waits on the backlog instead. */
+          refused = true
+        }
+      }
+      setLast({ type: 'tasked', id: taskId, title })
+      /* Stays in task mode: the next line of a list is one word shorter. */
+      setInput(`${trimmed.split(/\s+/)[0]} `)
+      setTaskToday(false)
+      setTaskTime(null)
+      setPicker(null)
       setAttempted(false)
       setTextDraft(null)
+      if (refused) setFailure('Today is full, so it went to the backlog.')
       focusLine()
     } catch (error) {
       setFailure(error instanceof Error ? error.message : 'That did not save.')
@@ -943,7 +1044,7 @@ export function QuickCapture({
               'The first line is the title. Lists carry on when you press Enter; Tab indents.'}
           </p>
         </div>
-      ) : verb && area ? (
+      ) : verb && (area || isTask) ? (
         /* Keyed by kind: the block arrives when the line first names a verb
            and again when it names a different one, and stays still while you
            type the rest. */
@@ -954,20 +1055,20 @@ export function QuickCapture({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              style={{ ...areaVars(area), ...beat(0) }}
+              style={{ ...chipTone(area), ...beat(0) }}
               className={`${AREA_CHIP} motion-arrive`}
               aria-expanded={picker === 'area'}
               onClick={() => setPicker(picker === 'area' ? null : 'area')}
             >
               <span className="size-1.5 rounded-full bg-(--area)" />
               <span className="font-mono text-[11px] tracking-[0.12em] uppercase">
-                {area}
+                {area ?? 'unfiled'}
               </span>
             </button>
 
             {verb.amount !== 'none' ? (
               <label
-                style={{ ...areaVars(area), ...beat(1) }}
+                style={{ ...chipTone(area), ...beat(1) }}
                 className={`${NEUTRAL_CHIP} motion-arrive cursor-text focus-within:bg-(--area)/10 focus-within:ring-(--area)/55`}
               >
                 {/* The unit as an icon at the front, so every chip opens on
@@ -1035,7 +1136,7 @@ export function QuickCapture({
                         ? 'placeholder:text-(--area)'
                         : ''
                     }`}
-                    style={areaVars(area)}
+                    style={chipTone(area)}
                   />
                 </span>
                 {verb.unit === 'min' ? (
@@ -1047,7 +1148,7 @@ export function QuickCapture({
             ) : null}
 
             <label
-              style={{ ...areaVars(area), ...beat(2) }}
+              style={{ ...chipTone(area), ...beat(2) }}
               className={`${NEUTRAL_CHIP} motion-arrive cursor-text focus-within:bg-(--area)/10 focus-within:ring-(--area)/55`}
             >
               <PenLine className="size-3.5 shrink-0 text-(--area)" />
@@ -1086,8 +1187,63 @@ export function QuickCapture({
               </span>
             </label>
 
-            {/* A task has no time — it has not happened — so no when chip. */}
-            {isTask ? null : (
+            {/* A task has not happened, so it has no "when" — but it can be
+                planned: for something, onto today, at a time. */}
+            {isTask ? (
+              <>
+                <button
+                  type="button"
+                  style={beat(3)}
+                  className={`${NEUTRAL_CHIP} motion-arrive max-w-[14rem]`}
+                  aria-expanded={picker === 'for'}
+                  onClick={() => setPicker(picker === 'for' ? null : 'for')}
+                >
+                  <Crosshair className="size-3.5 shrink-0 text-ink-500" />
+                  <span className="truncate">{forLabel ?? 'for nothing'}</span>
+                </button>
+                <button
+                  type="button"
+                  style={beat(4)}
+                  aria-pressed={taskToday}
+                  disabled={todayFull && !taskToday}
+                  title={
+                    todayFull
+                      ? 'Today is full. Finish one or drop one.'
+                      : undefined
+                  }
+                  onClick={() => {
+                    setTaskToday(!taskToday)
+                    focusLine()
+                  }}
+                  className={`${
+                    taskToday
+                      ? `${CHIP} bg-primary text-primary-foreground`
+                      : NEUTRAL_CHIP
+                  } motion-arrive disabled:opacity-50`}
+                >
+                  <Sun
+                    className={`size-3.5 ${taskToday ? '' : 'text-ink-500'}`}
+                  />
+                  {taskToday
+                    ? '→ today'
+                    : todayFull
+                      ? 'today is full'
+                      : '→ backlog'}
+                </button>
+                <button
+                  type="button"
+                  style={beat(5)}
+                  className={`${NEUTRAL_CHIP} motion-arrive`}
+                  aria-expanded={picker === 'time'}
+                  onClick={() => setPicker(picker === 'time' ? null : 'time')}
+                >
+                  <CalendarClock className="size-3.5 text-ink-500" />
+                  {taskTime
+                    ? `${aheadLabel(taskTime.at)}${taskTime.minutes ? ` · ${taskTime.minutes} min` : ''}`
+                    : 'no time'}
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
                 style={beat(3)}
@@ -1103,6 +1259,23 @@ export function QuickCapture({
 
           {picker === 'area' ? (
             <div className="motion-arrive mt-3 flex flex-wrap gap-1.5">
+              {isTask ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAreaFor(null)
+                    setPicker(null)
+                    focusLine()
+                  }}
+                  className={`${CHIP} h-7 px-2.5 font-mono text-[10.5px] tracking-[0.12em] uppercase ${
+                    area === undefined
+                      ? 'bg-lift/10 text-ink-300 ring-1 ring-lift/20 ring-inset'
+                      : 'text-ink-500 hover:bg-lift/[0.06]'
+                  }`}
+                >
+                  unfiled
+                </button>
+              ) : null}
               {AREAS.map((choice) => (
                 <button
                   key={choice}
@@ -1167,6 +1340,91 @@ export function QuickCapture({
             </div>
           ) : null}
 
+          {picker === 'for' ? (
+            <div className="motion-arrive mt-3 flex flex-wrap gap-1.5">
+              {[
+                { value: '', label: 'nothing' },
+                ...(projects ?? []).map((x) => ({
+                  value: `p:${x._id}`,
+                  label: x.title,
+                })),
+                ...goalsToBind.map((g) => ({
+                  value: `g:${g._id}`,
+                  label: `goal · ${g.title}`,
+                })),
+              ].map((option) => (
+                <button
+                  key={option.value || 'none'}
+                  type="button"
+                  onClick={() => {
+                    setTaskFor(option.value)
+                    setPicker(null)
+                    focusLine()
+                  }}
+                  className={`${CHIP} h-7 px-2.5 text-[12px] ${
+                    option.value === taskFor
+                      ? 'bg-lift/10 text-foreground ring-1 ring-lift/20 ring-inset'
+                      : 'text-ink-400 hover:bg-lift/[0.06]'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {picker === 'time' ? (
+            <div className="motion-arrive mt-3 flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                className={NEUTRAL_CHIP}
+                onClick={() => {
+                  setTaskTime(null)
+                  setPicker(null)
+                  focusLine()
+                }}
+              >
+                no time
+              </button>
+              {/* A plan is forwards, so no cap at now — the opposite of a
+                  log's when. The platform picker, for the phone's wheel. */}
+              <input
+                type="datetime-local"
+                aria-label="Planned for"
+                value={toLocalInput(taskTime?.at ?? nextHour())}
+                onChange={(e) => {
+                  const ms = new Date(e.target.value).getTime()
+                  if (Number.isFinite(ms)) {
+                    setTaskTime({ at: ms, minutes: taskTime?.minutes })
+                  }
+                }}
+                className={`${NEUTRAL_CHIP} [color-scheme:dark]`}
+              />
+              <label className={`${NEUTRAL_CHIP} cursor-text`}>
+                <input
+                  data-chip-input
+                  inputMode="numeric"
+                  aria-label="Minutes"
+                  placeholder="—"
+                  size={3}
+                  value={taskTime?.minutes ?? ''}
+                  onChange={(e) => {
+                    const minutes = Number(e.target.value)
+                    setTaskTime({
+                      at: taskTime?.at ?? nextHour(),
+                      minutes:
+                        Number.isFinite(minutes) && minutes > 0
+                          ? minutes
+                          : undefined,
+                    })
+                  }}
+                  className="w-8 bg-transparent text-right text-foreground outline-none placeholder:text-ink-600"
+                />
+                <span className="text-ink-500">min</span>
+              </label>
+            </div>
+          ) : null}
+
           {/* One line, never two: what it is about to write, or what is
               still missing — louder once Enter has been tried. */}
           <p
@@ -1176,7 +1434,29 @@ export function QuickCapture({
                 : 'text-ink-500'
             }`}
           >
-            {failure ?? (result.ok ? result.summary : result.message)}
+            {failure ??
+              (isTask && !typed.text && last?.type === 'tasked' ? (
+                <span className="motion-arrive">
+                  Added &ldquo;{last.title}&rdquo;. Next one?{' '}
+                  <button
+                    type="button"
+                    onClick={() => void undo()}
+                    className="text-ink-300 underline decoration-lift/20 underline-offset-2 hover:text-foreground"
+                  >
+                    undo
+                  </button>
+                </span>
+              ) : isTask ? (
+                result.ok ? (
+                  taskSummary(result.log.text ?? '')
+                ) : (
+                  'What is the task?'
+                )
+              ) : result.ok ? (
+                result.summary
+              ) : (
+                result.message
+              ))}
           </p>
         </div>
       ) : (

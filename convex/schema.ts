@@ -161,6 +161,9 @@ export default defineSchema({
     pickedAt: v.optional(v.number()),
   })
     .index('by_owner_status', ['ownerId', 'status'])
+    /* The Done tab (17 Sep): what was ticked, newest first, within a period.
+       by_owner_status orders by creation, which is not when it was done. */
+    .index('by_owner_status_completed', ['ownerId', 'status', 'completedAt'])
     .index('by_owner_today', ['ownerId', 'todayFor'])
     .index('by_project', ['projectId'])
     .index('by_owner_due', ['ownerId', 'dueDate'])

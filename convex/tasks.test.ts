@@ -78,7 +78,9 @@ describe('three quests a day (PLAN.md §3c.1)', () => {
     expect(today).toHaveLength(3)
     expect(today.find((x) => x._id === ids[0])?.status).toBe('done')
     /* Done and picked is not in the backlog either way. */
-    expect(await t.query(api.tasks.listBacklog, {})).toHaveLength(1)
+    expect(await t.query(api.tasks.listBacklog, { today: TODAY })).toHaveLength(
+      1,
+    )
   })
 
   test('dropping one frees the slot without completing it', async () => {
@@ -88,7 +90,9 @@ describe('three quests a day (PLAN.md §3c.1)', () => {
     await t.mutation(api.tasks.dropFromToday, { taskId: a })
 
     expect(await t.query(api.tasks.listToday, { today: TODAY })).toHaveLength(0)
-    expect(await t.query(api.tasks.listBacklog, {})).toHaveLength(1)
+    expect(await t.query(api.tasks.listBacklog, { today: TODAY })).toHaveLength(
+      1,
+    )
   })
 
   test('the three come in the order they were picked, not made', async () => {
@@ -160,8 +164,12 @@ describe('every row is scoped to its owner (PLAN.md §3b.4)', () => {
     const { mine, theirs } = twoOwners()
     await mine.mutation(api.tasks.create, { title: 'my task' })
 
-    expect(await theirs.query(api.tasks.listBacklog, {})).toHaveLength(0)
-    expect(await mine.query(api.tasks.listBacklog, {})).toHaveLength(1)
+    expect(
+      await theirs.query(api.tasks.listBacklog, { today: TODAY }),
+    ).toHaveLength(0)
+    expect(
+      await mine.query(api.tasks.listBacklog, { today: TODAY }),
+    ).toHaveLength(1)
   })
 
   test('reopening takes the tick back, and the task_done log with it', async () => {
@@ -195,15 +203,17 @@ describe('every row is scoped to its owner (PLAN.md §3b.4)', () => {
       theirs.mutation(api.tasks.complete, { taskId: id }),
     ).rejects.toThrow('No such task')
     /* Still open, and no task_done written in my name. */
-    expect(await mine.query(api.tasks.listBacklog, {})).toHaveLength(1)
+    expect(
+      await mine.query(api.tasks.listBacklog, { today: TODAY }),
+    ).toHaveLength(1)
     expect(await mine.query(api.logs.listSince, { since: 0 })).toHaveLength(0)
   })
 
   test('an anonymous caller gets nothing', async () => {
     const t = convexTest(schema, modules)
-    await expect(t.query(api.tasks.listBacklog, {})).rejects.toThrow(
-      'Not signed in',
-    )
+    await expect(
+      t.query(api.tasks.listBacklog, { today: TODAY }),
+    ).rejects.toThrow('Not signed in')
   })
 })
 
@@ -214,7 +224,9 @@ describe('a mistake is not permanent', () => {
     await t.mutation(api.tasks.complete, { taskId: id })
     await t.mutation(api.tasks.remove, { taskId: id })
 
-    expect(await t.query(api.tasks.listBacklog, {})).toHaveLength(0)
+    expect(await t.query(api.tasks.listBacklog, { today: TODAY })).toHaveLength(
+      0,
+    )
     /* The task_done log stays: deleting the task does not un-happen the day. */
     expect(await t.query(api.logs.listSince, { since: 0 })).toHaveLength(1)
   })
@@ -352,14 +364,14 @@ describe('a task bound to a goal without a project', () => {
 
     await t.mutation(api.tasks.setGoal, { taskId, goalId: muscle })
 
-    const bound = (await t.query(api.tasks.listBacklog, {})).find(
+    const bound = (await t.query(api.tasks.listBacklog, { today: TODAY })).find(
       (x) => x._id === taskId,
     )
     expect(bound?.goalId).toBe(muscle)
     expect(bound?.projectId).toBeUndefined()
 
     await t.mutation(api.tasks.setGoal, { taskId, goalId: null })
-    const loose = (await t.query(api.tasks.listBacklog, {})).find(
+    const loose = (await t.query(api.tasks.listBacklog, { today: TODAY })).find(
       (x) => x._id === taskId,
     )
     expect(loose?.goalId).toBeUndefined()
@@ -376,5 +388,108 @@ describe('a task bound to a goal without a project', () => {
     await expect(
       mine.mutation(api.tasks.setGoal, { taskId, goalId: theirGoal }),
     ).rejects.toThrow('No such goal')
+  })
+})
+
+describe('a day ends (17 Sep)', () => {
+  const NEXT_DAY = '2026-09-09'
+
+  test('an unticked one goes back to the backlog, a ticked one does not', async () => {
+    const t = as(ME)
+    const left = await t.mutation(api.tasks.create, { title: 'left' })
+    const done = await t.mutation(api.tasks.create, { title: 'done' })
+    for (const taskId of [left, done]) {
+      await t.mutation(api.tasks.pickForToday, { taskId, today: TODAY })
+    }
+    await t.mutation(api.tasks.complete, { taskId: done })
+
+    /* The same day: both are on today, neither is waiting. */
+    expect(await t.query(api.tasks.listBacklog, { today: TODAY })).toHaveLength(
+      0,
+    )
+
+    /* The next morning: today is empty, and the unfinished one is waiting,
+       still saying which day it was chosen for. */
+    expect(
+      await t.query(api.tasks.listToday, { today: NEXT_DAY }),
+    ).toHaveLength(0)
+    const waiting = await t.query(api.tasks.listBacklog, { today: NEXT_DAY })
+    expect(waiting.map((x) => x.title)).toEqual(['left'])
+    expect(waiting[0].todayFor).toBe(TODAY)
+
+    /* And it can be chosen again: yesterday's slot does not count today. */
+    await t.mutation(api.tasks.pickForToday, { taskId: left, today: NEXT_DAY })
+    expect(
+      await t.query(api.tasks.listToday, { today: NEXT_DAY }),
+    ).toHaveLength(1)
+  })
+})
+
+describe('the Done tab (17 Sep)', () => {
+  async function tick(t: ReturnType<typeof as>, title: string, at: number) {
+    vi.setSystemTime(at)
+    const taskId = await t.mutation(api.tasks.create, { title })
+    await t.mutation(api.tasks.complete, { taskId })
+    return taskId
+  }
+
+  test('newest done first, open ones never', async () => {
+    const t = as(ME)
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      await tick(t, 'first', Date.UTC(2026, 8, 1))
+      await tick(t, 'second', Date.UTC(2026, 8, 10))
+      await t.mutation(api.tasks.create, { title: 'still open' })
+
+      const done = await t.query(api.tasks.listDone, {})
+      expect(done.map((x) => x.title)).toEqual(['second', 'first'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('a period, an area and words each narrow it', async () => {
+    const t = as(ME)
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      const old = await tick(t, 'invoice march', Date.UTC(2026, 2, 3))
+      const recent = await tick(t, 'invoice september', Date.UTC(2026, 8, 3))
+      await t.mutation(api.tasks.setArea, { taskId: recent, area: 'business' })
+      await tick(t, 'run', Date.UTC(2026, 8, 4))
+
+      const since = Date.UTC(2026, 8, 1)
+      expect(
+        (await t.query(api.tasks.listDone, { since })).map((x) => x.title),
+      ).toEqual(['run', 'invoice september'])
+      expect(
+        (await t.query(api.tasks.listDone, { area: 'business' })).map(
+          (x) => x._id,
+        ),
+      ).toEqual([recent])
+      expect(
+        (await t.query(api.tasks.listDone, { search: 'invoice' }))
+          .map((x) => x._id)
+          .sort(),
+      ).toEqual([old, recent].sort())
+      expect(
+        (await t.query(api.tasks.listDone, { search: 'invoice', since })).map(
+          (x) => x._id,
+        ),
+      ).toEqual([recent])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('someone else sees none of mine', async () => {
+    const { mine, theirs } = twoOwners()
+    const taskId = await mine.mutation(api.tasks.create, { title: 'mine' })
+    await mine.mutation(api.tasks.complete, { taskId })
+
+    expect(await theirs.query(api.tasks.listDone, {})).toHaveLength(0)
+    expect(
+      await theirs.query(api.tasks.listDone, { search: 'mine' }),
+    ).toHaveLength(0)
+    expect(await mine.query(api.tasks.listDone, {})).toHaveLength(1)
   })
 })

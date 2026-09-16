@@ -90,24 +90,91 @@ export const listToday = query({
 })
 
 /**
- * Everything open and unpicked. The only place unpicked tasks live (§3c.3) —
- * no other screen may show a count of these.
+ * Everything open and not on today. The only place unpicked tasks live
+ * (§3c.3) — no other screen may show a count of these.
+ *
+ * "Not on today" rather than "never picked": `todayFor` is a date, and a
+ * task left unfinished when its day ended still carries yesterday's. Until
+ * 17 Sep this read only rows with no date at all, so an unticked one fell
+ * off Today at midnight and landed nowhere. Now it is back here the next
+ * morning, and the row can say which day it was chosen for.
  *
  * The index gives owner + status; `todayFor` cannot join it without a third
  * index that exists only for this read, so it is a filter over an already
  * owner-scoped, status-scoped scan.
  */
 export const listBacklog = query({
-  args: {},
+  args: { today: v.string() },
   returns: v.array(schema.doc('tasks')),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     return await ctx.db
       .query('tasks')
       .withIndex('by_owner_status', (q) =>
         q.eq('ownerId', ownerId).eq('status', 'open'),
       )
-      .filter((q) => q.eq(q.field('todayFor'), undefined))
+      .filter((q) => q.neq(q.field('todayFor'), args.today))
+      .take(MAX_ROWS)
+  },
+})
+
+/**
+ * The Done tab on the backlog page: what was ticked, newest first. A read of
+ * the rows themselves, not a count — nothing here totals anything.
+ *
+ * `since` is the start of the period, worked out on the client like every
+ * other day or week boundary. With words to search for, Convex's search
+ * index finds the titles and orders them by match; the period and bindings
+ * narrow that. Without, the done-date index does the ordering and the
+ * period is its range. Sorting by title or creation is the client's, over
+ * what comes back.
+ */
+export const listDone = query({
+  args: {
+    since: v.optional(v.number()),
+    search: v.optional(v.string()),
+    area: v.optional(areaValidator),
+    projectId: v.optional(v.id('projects')),
+    goalId: v.optional(v.id('goals')),
+  },
+  returns: v.array(schema.doc('tasks')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const words = args.search?.trim() ?? ''
+
+    const base =
+      words.length > 0
+        ? ctx.db
+            .query('tasks')
+            .withSearchIndex('search_title', (q) =>
+              q.search('title', words).eq('ownerId', ownerId),
+            )
+            .filter((q) => q.eq(q.field('status'), 'done'))
+        : ctx.db
+            .query('tasks')
+            .withIndex('by_owner_status_completed', (q) =>
+              q
+                .eq('ownerId', ownerId)
+                .eq('status', 'done')
+                .gte('completedAt', args.since ?? 0),
+            )
+            .order('desc')
+
+    return await base
+      .filter((q) =>
+        q.and(
+          args.since === undefined || words.length === 0
+            ? true
+            : q.gte(q.field('completedAt'), args.since),
+          args.area === undefined ? true : q.eq(q.field('area'), args.area),
+          args.projectId === undefined
+            ? true
+            : q.eq(q.field('projectId'), args.projectId),
+          args.goalId === undefined
+            ? true
+            : q.eq(q.field('goalId'), args.goalId),
+        ),
+      )
       .take(MAX_ROWS)
   },
 })

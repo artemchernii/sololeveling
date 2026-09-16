@@ -9,6 +9,7 @@ const modules = import.meta.glob('./**/*.ts')
 
 const ME = 'https://clerk.test|user_me'
 const SOMEONE_ELSE = 'https://clerk.test|user_them'
+const TODAY = '2026-09-08'
 
 /* One backend per call. Fine for one person; never two of these to test
    ownership — two convexTest() backends are two databases, so "they cannot
@@ -215,7 +216,7 @@ describe('a chain is removable, and takes nothing down with it', () => {
 
     /* The task survives — it may still be worth doing — and no longer points
        at a document that would make listByProject throw. */
-    const loose = await t.query(api.tasks.listBacklog, {})
+    const loose = await t.query(api.tasks.listBacklog, { today: TODAY })
     expect(loose).toHaveLength(1)
     expect(loose[0].projectId).toBeUndefined()
     expect(loose[0].goalId).toBeUndefined()

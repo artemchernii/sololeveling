@@ -11,7 +11,7 @@ import { SaveGlyph, useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import { areaVars } from '@/lib/areas'
 import type { Area } from '@/lib/capture-parser'
-import { agoLabel } from '@/lib/format'
+import { agoLabel, shortDate } from '@/lib/format'
 import { useArrived } from '@/lib/loading'
 import { QuestFollowUp } from './QuestFollowUp'
 import { QuestRow, REVEAL, scheduleLabel } from './QuestRow'
@@ -75,7 +75,7 @@ export function QuestList({
      is asked for, and the list never opens as an empty box that snaps to
      size. Never on the morning screen by default (§3c.3). */
   const [warm, setWarm] = useState(false)
-  const backlog = useQuery(api.tasks.listBacklog, warm ? {} : 'skip')
+  const backlog = useQuery(api.tasks.listBacklog, warm ? { today } : 'skip')
   const typed = title.trim().toLowerCase()
   const matches = (backlog ?? []).filter(
     (t) => typed.length === 0 || t.title.toLowerCase().includes(typed),
@@ -375,7 +375,9 @@ function Picker({
               {t.title}
             </span>
             <span className="shrink-0 font-mono text-[10.5px] text-ink-700">
-              {agoLabel(t._creationTime)}
+              {t.todayFor
+                ? `picked ${shortDate(t.todayFor)}`
+                : agoLabel(t._creationTime)}
             </span>
             {/* Unfiled says nothing about the task, so it gets no chip. */}
             {t.area ? <AreaBadge area={t.area} /> : null}

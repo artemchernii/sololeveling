@@ -202,6 +202,13 @@ h6 {
 [data-note-editor]:focus-visible {
   outline: none;
 }
+/* And a bare field sitting in a card — the slot you type today's three into.
+   A 2px square traced round a full-width input inside a rounded card is the
+   ugliest shape on the screen (16 Sep); the slot it sits in lights instead,
+   and the caret says where you are. */
+[data-slot-field]:focus-visible {
+  outline: none;
+}
 /* And a chip that is itself a button: the global ring is lavender, which on a
    teal Portuguese chip says "live" about a thing that is not. Keyboard focus
    rings in the chip's own area colour instead, or grey where it has none. */

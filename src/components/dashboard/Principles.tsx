@@ -244,10 +244,19 @@ function AllSix({
         onClick={(e) => e.stopPropagation()}
         className="glass-modal motion-arrive max-h-[85vh] w-[min(620px,92vw)] overflow-y-auto rounded-[22px] p-8"
       >
-        {/* No heading: the six lines are the whole point of opening this,
-            and a caption above them only explained what they plainly are
-            (16 Sep). */}
-        <div className="mb-7 flex justify-end">
+        {/* A title that says something, rather than the caption that used to
+            sit here describing what six lines plainly are. Artem's words,
+            16 Sep — the one sentence the six of them add up to. */}
+        <div className="mb-7 flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-2.5">
+            <h2 className="text-[19px] leading-snug font-light tracking-[0.02em] text-ink-200 uppercase sm:text-[21px]">
+              Let yourself be you. You are enough.
+            </h2>
+            <span
+              aria-hidden
+              className="h-px w-20 rounded-full bg-gradient-to-r from-lav-400/80 to-transparent"
+            />
+          </div>
           <button
             type="button"
             autoFocus

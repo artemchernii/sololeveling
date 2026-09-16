@@ -54,7 +54,8 @@ export function TodayCard({
         <SkeletonRows rows={1} />
       ) : items.length === 0 ? (
         <p className={`text-[13px] text-ink-500 ${arrived}`}>
-          Nothing at a time today. Give a quest an hour and it appears here.
+          Nothing at a time today. Give one of the three a time and it appears
+          here.
         </p>
       ) : (
         <div className={`flex flex-col ${arrived}`}>

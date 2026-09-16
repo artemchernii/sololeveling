@@ -11,6 +11,7 @@ import type { Area } from '@/lib/capture-parser'
    completed task to a row of evidence, and it is one explicit tap. Only body
    and portuguese have a countable action behind them today. */
 export type PendingEvidence = {
+  taskId: Doc<'tasks'>['_id']
   title: string
   kind: 'workout' | 'session'
   area: Area
@@ -18,10 +19,20 @@ export type PendingEvidence = {
 
 export function evidenceFor(task: Doc<'tasks'>): PendingEvidence | null {
   if (task.area === 'body') {
-    return { title: task.title, kind: 'workout', area: 'body' }
+    return {
+      taskId: task._id,
+      title: task.title,
+      kind: 'workout',
+      area: 'body',
+    }
   }
   if (task.area === 'portuguese') {
-    return { title: task.title, kind: 'session', area: 'portuguese' }
+    return {
+      taskId: task._id,
+      title: task.title,
+      kind: 'session',
+      area: 'portuguese',
+    }
   }
   return null
 }
@@ -39,7 +50,7 @@ export function QuestRow({
   const setSchedule = useMutation(api.tasks.setSchedule)
 
   return (
-    <div className="flex items-center gap-3 border-b border-lift/[0.05] py-2.5 last:border-b-0">
+    <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5">
       <button
         type="button"
         aria-label={`Complete ${task.title}`}
@@ -53,7 +64,9 @@ export function QuestRow({
         <Check className="size-3" />
       </button>
 
-      <span className="flex-1 text-[13px] text-foreground">{task.title}</span>
+      <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">
+        {task.title}
+      </span>
 
       <AreaBadge
         area={task.area}

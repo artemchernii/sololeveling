@@ -68,18 +68,24 @@ export const create = mutation({
   },
 })
 
-/** The day's three. `today` is the caller's local ISO date. */
+/** The day's three, in the order they were picked. `today` is the caller's
+    local ISO date. Rows picked before `pickedAt` existed fall back to their
+    creation time, which is what the order was until then. */
 export const listToday = query({
   args: { today: v.string() },
   returns: v.array(schema.doc('tasks')),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    return await ctx.db
+    const rows = await ctx.db
       .query('tasks')
       .withIndex('by_owner_today', (q) =>
         q.eq('ownerId', ownerId).eq('todayFor', args.today),
       )
       .take(TODAY_LIMIT + 1)
+    return rows.sort(
+      (a, b) =>
+        (a.pickedAt ?? a._creationTime) - (b.pickedAt ?? b._creationTime),
+    )
   },
 })
 
@@ -133,7 +139,10 @@ export const pickForToday = mutation({
       throw new ConvexError('TODAY_FULL')
     }
 
-    await ctx.db.patch(args.taskId, { todayFor: args.today })
+    await ctx.db.patch(args.taskId, {
+      todayFor: args.today,
+      pickedAt: Date.now(),
+    })
     return null
   },
 })
@@ -145,7 +154,10 @@ export const dropFromToday = mutation({
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     await ownedTask(ctx, ownerId, args.taskId)
-    await ctx.db.patch(args.taskId, { todayFor: undefined })
+    await ctx.db.patch(args.taskId, {
+      todayFor: undefined,
+      pickedAt: undefined,
+    })
     return null
   },
 })
@@ -184,6 +196,41 @@ export const complete = mutation({
       projectId: task.projectId,
     })
 
+    return null
+  },
+})
+
+/**
+ * A tick taken back. The task is open again and the `task_done` log that
+ * completing it wrote is deleted — a misclick is not evidence, and a tile
+ * that counted it would be counting a slip. Only the log the completion
+ * wrote goes; any workout or session logged from the follow-up was a
+ * separate, deliberate tap and stays.
+ */
+export const reopen = mutation({
+  args: { taskId: v.id('tasks') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const task = await ownedTask(ctx, ownerId, args.taskId)
+    if (task.status !== 'done') return null
+
+    await ctx.db.patch(args.taskId, { status: 'open', completedAt: undefined })
+
+    /* Owner-scoped through the index, then narrowed: logs have no index by
+       task, and a completion is recent by construction. */
+    const evidence = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
+      .order('desc')
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('taskId'), args.taskId),
+          q.eq(q.field('kind'), 'task_done'),
+        ),
+      )
+      .first()
+    if (evidence !== null) await ctx.db.delete(evidence._id)
     return null
   },
 })

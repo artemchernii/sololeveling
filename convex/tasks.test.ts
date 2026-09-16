@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from 'convex-test'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 
 import { api } from './_generated/api'
 import type { Id } from './_generated/dataModel'
@@ -91,6 +91,25 @@ describe('three quests a day (PLAN.md §3c.1)', () => {
     expect(await t.query(api.tasks.listBacklog, {})).toHaveLength(1)
   })
 
+  test('the three come in the order they were picked, not made', async () => {
+    const t = as(ME)
+    const old = await t.mutation(api.tasks.create, { title: 'old' })
+    const fresh = await t.mutation(api.tasks.create, { title: 'fresh' })
+    /* Two picks in one millisecond would tie; a person takes longer. */
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date(2026, 8, 8, 9, 0, 0))
+      await t.mutation(api.tasks.pickForToday, { taskId: fresh, today: TODAY })
+      vi.setSystemTime(new Date(2026, 8, 8, 9, 0, 5))
+      await t.mutation(api.tasks.pickForToday, { taskId: old, today: TODAY })
+    } finally {
+      vi.useRealTimers()
+    }
+
+    const today = await t.query(api.tasks.listToday, { today: TODAY })
+    expect(today.map((x) => x.title)).toEqual(['fresh', 'old'])
+  })
+
   test('re-picking an already-picked task is not a fourth pick', async () => {
     const t = as(ME)
     const a = await t.mutation(api.tasks.create, { title: 'a' })
@@ -143,6 +162,29 @@ describe('every row is scoped to its owner (PLAN.md §3b.4)', () => {
 
     expect(await theirs.query(api.tasks.listBacklog, {})).toHaveLength(0)
     expect(await mine.query(api.tasks.listBacklog, {})).toHaveLength(1)
+  })
+
+  test('reopening takes the tick back, and the task_done log with it', async () => {
+    const t = as(ME)
+    const id = await t.mutation(api.tasks.create, { title: 'a', area: 'body' })
+    await t.mutation(api.tasks.pickForToday, { taskId: id, today: TODAY })
+    await t.mutation(api.tasks.complete, { taskId: id })
+    /* A workout logged from the follow-up is a separate act and stays. */
+    await t.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: Date.now(),
+      taskId: id,
+    })
+
+    await t.mutation(api.tasks.reopen, { taskId: id })
+
+    const today = await t.query(api.tasks.listToday, { today: TODAY })
+    expect(today).toHaveLength(1)
+    expect(today[0].status).toBe('open')
+    expect(today[0].completedAt).toBeUndefined()
+    const logs = await t.query(api.logs.recent, {})
+    expect(logs.map((l) => l.kind)).toEqual(['workout'])
   })
 
   test('another user cannot complete my task', async () => {

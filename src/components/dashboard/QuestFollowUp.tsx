@@ -6,8 +6,10 @@ import { SaveLabel, useSave } from '@/components/Saving'
 import type { PendingEvidence } from './QuestRow'
 
 /* Intent and evidence stay apart in both directions (§3b.1). This writes the
-   second row only when it is tapped, never as a consequence of the tick. The
-   row goes when the tick has been seen, not when the write lands. */
+   second row only when it is tapped, never as a consequence of the tick. It
+   sits inside the slot that was just ticked, at the slot's own height, so
+   asking the question moves nothing else on the page (16 Sep). It goes when
+   the tick has been seen, not when the write lands. */
 export function QuestFollowUp({
   pending,
   onDone,
@@ -20,10 +22,9 @@ export function QuestFollowUp({
   const logging = useSave()
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-lift/[0.07] pt-3 text-[12.5px]">
-      <span className="text-ink-400">{pending.title}</span>
-      <span className="text-ink-600">
-        &mdash; done. Log it as a {pending.kind}?
+    <div className="flex min-w-0 flex-1 items-center gap-2 text-[12.5px]">
+      <span className="min-w-0 flex-1 truncate text-ink-400">
+        Done. Log it as a {pending.kind}?
       </span>
       <input
         value={minutes}
@@ -44,6 +45,7 @@ export function QuestFollowUp({
               occurredAt: Date.now(),
               value: Number.isFinite(value) && value > 0 ? value : undefined,
               unit: 'min',
+              taskId: pending.taskId,
             }),
           )
         }}

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { deadlineLabel, durationLabel, whenLabel } from './format'
+import { agoLabel, deadlineLabel, durationLabel, whenLabel } from './format'
 
 const SEPT_8 = new Date(2026, 8, 8, 14, 30)
 
@@ -74,5 +74,31 @@ describe('durationLabel', () => {
   })
   test('a fraction of a minute is rounded, not shown', () => {
     expect(durationLabel(59.6)).toBe('1h')
+  })
+})
+
+describe('agoLabel', () => {
+  const now = new Date(2026, 8, 16, 10, 0)
+  test('today and yesterday by calendar day, not by 24 hours', () => {
+    expect(agoLabel(new Date(2026, 8, 16, 0, 5).getTime(), now)).toBe('today')
+    expect(agoLabel(new Date(2026, 8, 15, 23, 50).getTime(), now)).toBe(
+      'yesterday',
+    )
+  })
+  test('days up to two weeks', () => {
+    expect(agoLabel(new Date(2026, 8, 13, 9).getTime(), now)).toBe('3d ago')
+    expect(agoLabel(new Date(2026, 8, 3, 9).getTime(), now)).toBe('13d ago')
+  })
+  test('weeks up to two months', () => {
+    expect(agoLabel(new Date(2026, 8, 2, 9).getTime(), now)).toBe('2w ago')
+    expect(agoLabel(new Date(2026, 6, 20, 9).getTime(), now)).toBe('8w ago')
+  })
+  test('older than that is the date', () => {
+    expect(agoLabel(new Date(2026, 6, 1, 9).getTime(), now)).toBe(
+      new Date(2026, 6, 1).toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'short',
+      }),
+    )
   })
 })

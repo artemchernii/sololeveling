@@ -10,7 +10,8 @@ import { AreaBadge } from '@/components/AreaBadge'
 import { SaveGlyph, useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
-import { deadlineLabel } from '@/lib/format'
+import { ProjectNotes } from '@/components/projects/ProjectNotes'
+import { deadlineLabel, durationLabel } from '@/lib/format'
 import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/projects/$id')({
@@ -28,6 +29,14 @@ function Project() {
   const arrived = useArrived(project)
   const tasks = useQuery(api.tasks.listByProject, { projectId })
   const counts = useQuery(api.aggregate.entityCounts, {})
+  /* Month bounds on the client, as the dashboard computes them: the server
+     does not know what month it is where you are. */
+  const now = new Date()
+  const time = useQuery(api.aggregate.projectTime, {
+    projectId,
+    start: new Date(now.getFullYear(), now.getMonth(), 1).getTime(),
+    end: new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime(),
+  })
 
   const createTask = useMutation(api.tasks.create)
   const setProject = useMutation(api.tasks.setProject)
@@ -60,9 +69,16 @@ function Project() {
             <Skeleton className="h-[26px] w-3/5 rounded-[7px]" />
           </div>
         </div>
-        <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
-          <Skeleton className="h-2.5 w-12" />
-          <SkeletonRows rows={3} />
+        <div className="grid gap-[18px] md:grid-cols-2">
+          {[0, 1].map((i) => (
+            <div
+              key={i}
+              className="glass flex flex-col gap-3 rounded-[22px] p-6"
+            >
+              <Skeleton className="h-2.5 w-12" />
+              <SkeletonRows rows={3} />
+            </div>
+          ))}
         </div>
       </div>
     )
@@ -114,6 +130,14 @@ function Project() {
               {count.done} of {count.total} tasks
             </span>
           ) : null}
+          {time === undefined ? null : time.sessions === 0 ? (
+            <span>no time logged this month</span>
+          ) : (
+            <span>
+              {durationLabel(time.minutes)} this month · {time.sessions}{' '}
+              {time.sessions === 1 ? 'session' : 'sessions'}
+            </span>
+          )}
           <span>
             {project.deadline ? deadlineLabel(project.deadline) : 'no end date'}
           </span>
@@ -156,60 +180,65 @@ function Project() {
         </div>
       </div>
 
-      <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
-        <div className="label-caps">Open</div>
+      {/* What is left beside what was written down. */}
+      <div className="grid items-start gap-[18px] md:grid-cols-2">
+        <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
+          <div className="label-caps">Open</div>
 
-        {open.length === 0 ? (
-          <p className="text-[13px] text-ink-500">
-            Nothing open. Either this project is done or it is waiting on you to
-            decide what is next.
-          </p>
-        ) : (
-          <div className="flex flex-col">
-            {open.map((task) => (
-              <div
-                key={task._id}
-                className="flex items-center gap-3 border-b border-lift/[0.05] py-2.5 last:border-b-0"
-              >
-                <button
-                  type="button"
-                  aria-label={`Complete ${task.title}`}
-                  onClick={() => void complete({ taskId: task._id })}
-                  className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-lift/15 text-transparent transition-colors hover:border-lav-500 hover:text-lav-300"
+          {open.length === 0 ? (
+            <p className="text-[13px] text-ink-500">
+              Nothing open. Either this project is done or it is waiting on you
+              to decide what is next.
+            </p>
+          ) : (
+            <div className="flex flex-col">
+              {open.map((task) => (
+                <div
+                  key={task._id}
+                  className="flex items-center gap-3 border-b border-lift/[0.05] py-2.5 last:border-b-0"
                 >
-                  <Check className="size-3" />
-                </button>
-                <span className="flex-1 text-[13px] text-foreground">
-                  {task.title}
-                </span>
-                <AreaBadge
-                  area={task.area}
-                  onChange={(area: Area) =>
-                    void setArea({ taskId: task._id, area })
-                  }
-                />
-              </div>
-            ))}
-          </div>
-        )}
+                  <button
+                    type="button"
+                    aria-label={`Complete ${task.title}`}
+                    onClick={() => void complete({ taskId: task._id })}
+                    className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-lift/15 text-transparent transition-colors hover:border-lav-500 hover:text-lav-300"
+                  >
+                    <Check className="size-3" />
+                  </button>
+                  <span className="flex-1 text-[13px] text-foreground">
+                    {task.title}
+                  </span>
+                  <AreaBadge
+                    area={task.area}
+                    onChange={(area: Area) =>
+                      void setArea({ taskId: task._id, area })
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
-        <div className="flex items-center gap-2 border-t border-lift/[0.07] pt-3">
-          <SaveGlyph
-            status={adding.status}
-            onSettled={adding.settle}
-            idle={<Plus className="size-3.5" />}
-            className="text-ink-600"
-          />
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void add()
-            }}
-            placeholder="Another task for this project"
-            className="flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
-          />
+          <div className="flex items-center gap-2 border-t border-lift/[0.07] pt-3">
+            <SaveGlyph
+              status={adding.status}
+              onSettled={adding.settle}
+              idle={<Plus className="size-3.5" />}
+              className="text-ink-600"
+            />
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void add()
+              }}
+              placeholder="Another task for this project"
+              className="flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
+            />
+          </div>
         </div>
+
+        <ProjectNotes projectId={projectId} />
       </div>
 
       {closed.length > 0 ? (

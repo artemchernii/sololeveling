@@ -10,6 +10,8 @@
 
 **Spec:** `PLAN.md` §3 page table rows Projects, Goals, Backlog; §3c; §4 row R3. Read `CLAUDE.md` first; it wins over habit.
 
+**Status (end of 16 Sep):** R3a shipped as #34. Between R3a and R3b two Today PRs landed from Artem's use (#35, #36): a finished task keeps its slot, `tasks.reopen`, `tasks.pickedAt`, the backlog picker as an overlay, one focus rule for text fields, and the Projects tile renamed Tasks. Next: R3b (Tasks 6–9), then R3c (Tasks 10–12).
+
 **Decisions taken with Artem on 16 Sep (do not re-open):**
 
 1. **Three PRs, one plan:** `rethink-r3a` (project page + backlog), `rethink-r3b` (goal milestones), `rethink-r3c` (GitHub). Each branch starts from `master` after the previous PR is merged.
@@ -21,6 +23,7 @@
 7. **Backlog defaults:** each row says when it was added (`3d ago`); one picker binds it to a project or a goal; "put it on the calendar" sets `scheduledAt` + minutes through the existing `tasks.setSchedule`, and does not pick it for today.
 8. **Where backlog tasks join a project:** from the Backlog page only. The project page creates new tasks; it does not list unbound backlog tasks, because unpicked tasks live on the backlog page and nowhere else (§3c.3).
 9. **§3c.2 governs the projects grid, not the project's own page.** Non-focus cards on `/projects` stay title + next action. `/projects/$id` is deep for every project — you opened it on purpose.
+10. **The New project form is rebuilt in R3b, and gains Repo in R3c** (Artem, 16 Sep: "outline is bad", "maybe we can attach git projects — URL, optional"). Rows, in order: **Project** (title, first — it is the thing you know), **For** (a select of existing goals with "new goal…" last; a new goal's title and area appear only when that is chosen), **Ends** (optional). No "first project — the work that moves it" wording: it read as a wizard. In R3c the same form gains **Repo** (optional; `owner/name` or a github.com URL) and `projects.create` accepts it, so a project is connected from birth. The focus ring on its fields is already gone (#35).
 
 ## Global Constraints
 
@@ -93,7 +96,7 @@
 
 ---
 
-# R3a — the project page and the backlog
+# R3a — the project page and the backlog — SHIPPED as #34
 
 Branch: `git switch -c rethink-r3a master` (if `rethink-r3` exists from planning, rename it: `git branch -m rethink-r3 rethink-r3a`). This plan file is committed as the first commit on it.
 
@@ -110,7 +113,7 @@ Branch: `git switch -c rethink-r3a master` (if `rethink-r3` exists from planning
 
 - Produces: `api.aggregate.projectTime({ projectId: string, start: number, end: number }) → { minutes: number; sessions: number }`; `durationLabel(minutes: number): string` in `src/lib/format.ts`.
 
-- [ ] **Step 1: Write the failing Convex test**
+- [x] **Step 1: Write the failing Convex test**
 
 Create `convex/aggregate.project.test.ts`:
 
@@ -238,12 +241,12 @@ describe('time on a project (source 1: its session logs)', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to see it fail**
+- [x] **Step 2: Run it to see it fail**
 
 Run: `pnpm vitest run convex/aggregate.project.test.ts`
 Expected: FAIL — `api.aggregate.projectTime` is undefined.
 
-- [ ] **Step 3: Add the index**
+- [x] **Step 3: Add the index**
 
 In `convex/schema.ts`, the `logs` table, after `.index('by_owner_area_time', …)`:
 
@@ -257,7 +260,7 @@ In `convex/schema.ts`, the `logs` table, after `.index('by_owner_area_time', …
 
 (remove the trailing comma/paren from the previous last index accordingly so the chain ends with this one).
 
-- [ ] **Step 4: Implement `projectTime`**
+- [x] **Step 4: Implement `projectTime`**
 
 Append to `convex/aggregate.ts`:
 
@@ -311,12 +314,12 @@ export const projectTime = query({
 })
 ```
 
-- [ ] **Step 5: Run it to see it pass**
+- [x] **Step 5: Run it to see it pass**
 
 Run: `pnpm vitest run convex/aggregate.project.test.ts`
 Expected: PASS (3 tests).
 
-- [ ] **Step 6: Write the failing format test**
+- [x] **Step 6: Write the failing format test**
 
 Append to `src/lib/format.test.ts` (add `durationLabel` to its import from `./format`):
 
@@ -337,12 +340,12 @@ describe('durationLabel', () => {
 })
 ```
 
-- [ ] **Step 7: Run it to see it fail**
+- [x] **Step 7: Run it to see it fail**
 
 Run: `pnpm vitest run src/lib/format.test.ts`
 Expected: FAIL — `durationLabel` is not exported.
 
-- [ ] **Step 8: Implement**
+- [x] **Step 8: Implement**
 
 Append to `src/lib/format.ts`:
 
@@ -357,12 +360,12 @@ export function durationLabel(minutes: number): string {
 }
 ```
 
-- [ ] **Step 9: Run both, then typecheck**
+- [x] **Step 9: Run both, then typecheck**
 
 Run: `pnpm vitest run src/lib/format.test.ts convex/aggregate.project.test.ts && pnpm typecheck`
 Expected: PASS.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add convex/schema.ts convex/aggregate.ts convex/aggregate.project.test.ts src/lib/format.ts src/lib/format.test.ts
@@ -390,7 +393,7 @@ only: a ticked task is intent, not time.
 
 - Produces: `api.notes.listByProject({ projectId: string }) → Array<Doc<'notes'>>` (newest first, at most 50); `api.tasks.setGoal({ taskId: Id<'tasks'>, goalId: Id<'goals'> | null }) → null` (sets the goal and clears the project; `null` clears the goal).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `convex/notes.test.ts` (it already has `api`, `convexTest`, `schema`, `modules`; add the two identity constants if the file does not define them under these names):
 
@@ -509,12 +512,12 @@ describe('a task bound to a goal without a project', () => {
 })
 ```
 
-- [ ] **Step 2: Run them to see them fail**
+- [x] **Step 2: Run them to see them fail**
 
 Run: `pnpm vitest run convex/notes.test.ts convex/tasks.test.ts`
 Expected: FAIL — `listByProject` / `setGoal` undefined.
 
-- [ ] **Step 3: Add the notes index**
+- [x] **Step 3: Add the notes index**
 
 In `convex/schema.ts`, the `notes` table, after `.index('by_owner_kind', ['ownerId', 'kind'])`:
 
@@ -525,7 +528,7 @@ In `convex/schema.ts`, the `notes` table, after `.index('by_owner_kind', ['owner
     .index('by_owner_project', ['ownerId', 'projectId'])
 ```
 
-- [ ] **Step 4: Implement `notes.listByProject`**
+- [x] **Step 4: Implement `notes.listByProject`**
 
 Append to `convex/notes.ts`:
 
@@ -553,7 +556,7 @@ export const listByProject = query({
 })
 ```
 
-- [ ] **Step 5: Implement `tasks.setGoal`**
+- [x] **Step 5: Implement `tasks.setGoal`**
 
 Append to `convex/tasks.ts`, after `setProject`:
 
@@ -592,12 +595,12 @@ export const setGoal = mutation({
 })
 ```
 
-- [ ] **Step 6: Run them to see them pass**
+- [x] **Step 6: Run them to see them pass**
 
 Run: `pnpm vitest run convex/notes.test.ts convex/tasks.test.ts && pnpm typecheck`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add convex/schema.ts convex/notes.ts convex/notes.test.ts convex/tasks.ts convex/tasks.test.ts
@@ -627,7 +630,7 @@ disagree with it.
 - Consumes: `api.aggregate.projectTime`, `durationLabel` (Task 1); `api.notes.listByProject` (Task 2).
 - Produces: `agoLabel(ms: number, now?: Date): string`; `<ProjectNotes projectId={Id<'projects'>} />`.
 
-- [ ] **Step 1: Write the failing `agoLabel` test**
+- [x] **Step 1: Write the failing `agoLabel` test**
 
 Append to `src/lib/format.test.ts` (add `agoLabel` to the import):
 
@@ -659,12 +662,12 @@ describe('agoLabel', () => {
 })
 ```
 
-- [ ] **Step 2: Run to fail**
+- [x] **Step 2: Run to fail**
 
 Run: `pnpm vitest run src/lib/format.test.ts`
 Expected: FAIL — `agoLabel` not exported.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Append to `src/lib/format.ts`:
 
@@ -692,7 +695,7 @@ export function agoLabel(ms: number, now: Date = new Date()): string {
 
 Run: `pnpm vitest run src/lib/format.test.ts` — Expected: PASS.
 
-- [ ] **Step 4: Create `ProjectNotes`**
+- [x] **Step 4: Create `ProjectNotes`**
 
 Create `src/components/projects/ProjectNotes.tsx`:
 
@@ -782,7 +785,7 @@ export function ProjectNotes({ projectId }: { projectId: Id<'projects'> }) {
 
 `useSave().run` returns the wrapped function's result and `busy` is `status !== 'idle'` (`src/components/Saving.tsx:24-47`), so `noteId` is the new note's id.
 
-- [ ] **Step 5: Rebuild the project page's body**
+- [x] **Step 5: Rebuild the project page's body**
 
 In `src/routes/_app/projects.$id.tsx`:
 
@@ -858,7 +861,7 @@ and immediately after that card's closing `</div>` (the one after the "Another t
 
 Run `pnpm exec prettier --write src/routes/_app/projects.\$id.tsx src/components/projects/ProjectNotes.tsx`.
 
-- [ ] **Step 6: Verify in the browser**
+- [x] **Step 6: Verify in the browser**
 
 `pnpm typecheck && pnpm lint`. Open `/projects`, then Oreum.
 
@@ -867,7 +870,7 @@ Run `pnpm exec prettier --write src/routes/_app/projects.\$id.tsx src/components
 - Type `r3 check` in the notes input, dispatch Enter → lands on `/notes/<id>`; go back → the note is listed with `today`. Delete it (`notes:remove`) and confirm the card returns to "No notes on this project." (or to Artem's own notes).
 - Screenshot both themes once.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/format.ts src/lib/format.test.ts src/components/projects/ProjectNotes.tsx src/routes/_app/projects.\$id.tsx
@@ -897,7 +900,7 @@ A note started here is created attached and opened.
 - Consumes: `api.tasks.setGoal` (Task 2), `api.tasks.setProject`, `api.tasks.setSchedule`, `api.projects.listLive`, `api.goals.listActive`, `agoLabel` (Task 3), `whenLabel`.
 - Produces: `localInputValue(ms: number): string` ("YYYY-MM-DDTHH:mm", local); `<BindSelect task={Doc<'tasks'>} projects goals />`; `<ScheduleTask task={Doc<'tasks'>} />`.
 
-- [ ] **Step 1: Failing test for `localInputValue`**
+- [x] **Step 1: Failing test for `localInputValue`**
 
 Append to `src/lib/format.test.ts` (add to import):
 
@@ -918,7 +921,7 @@ describe('localInputValue', () => {
 
 Run: `pnpm vitest run src/lib/format.test.ts` — Expected: FAIL.
 
-- [ ] **Step 2: Implement**
+- [x] **Step 2: Implement**
 
 Append to `src/lib/format.ts` (import `localToday` from `./today` at the top):
 
@@ -932,7 +935,7 @@ export function localInputValue(ms: number): string {
 
 Run: `pnpm vitest run src/lib/format.test.ts` — Expected: PASS.
 
-- [ ] **Step 3: Create `BindSelect`**
+- [x] **Step 3: Create `BindSelect`**
 
 Create `src/components/backlog/BindSelect.tsx`:
 
@@ -1011,7 +1014,7 @@ export function BindSelect({
 
 (`setProject({ projectId: null })` clears both project and goal — see `convex/tasks.ts` `setProject`.)
 
-- [ ] **Step 4: Create `ScheduleTask`**
+- [x] **Step 4: Create `ScheduleTask`**
 
 Create `src/components/backlog/ScheduleTask.tsx`:
 
@@ -1125,7 +1128,7 @@ function nextHour(): number {
 }
 ```
 
-- [ ] **Step 5: Rebuild the backlog rows**
+- [x] **Step 5: Rebuild the backlog rows**
 
 In `src/routes/_app/backlog.tsx`:
 
@@ -1195,7 +1198,7 @@ const goalsToBind = (goals ?? []).filter((g) => g.tile === undefined)
 
 Run prettier on the three files.
 
-- [ ] **Step 6: Verify in the browser**
+- [x] **Step 6: Verify in the browser**
 
 `pnpm typecheck && pnpm lint`. On `/backlog`, with a throwaway task `r3 bind check` created from the input:
 
@@ -1206,7 +1209,7 @@ Run prettier on the three files.
 - Measure a real row's height: `document.querySelector('main .flex.flex-col.gap-1\\.5').getBoundingClientRect().height`, set the skeleton `line` to it.
 - Phone width: the second line wraps, no horizontal scroll.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/format.ts src/lib/format.test.ts src/components/backlog src/routes/_app/backlog.tsx
@@ -1223,11 +1226,11 @@ picker, and can be put on the calendar without being picked for today.
 
 ### Task 5: Close R3a
 
-- [ ] **Step 1: Update `PLAN.md`**
+- [x] **Step 1: Update `PLAN.md`**
 
 In §2, the `logs` line gains `.index('by_owner_project_time', ['ownerId','projectId','occurredAt'])`; the `notes` line gains `.index('by_owner_kind', ['ownerId','kind']).index('by_owner_project', ['ownerId','projectId'])`. In §4's R3 row, append to the Deliverable: `Shipped as three PRs: R3a project page + backlog, R3b goal milestones, R3c GitHub commits.`
 
-- [ ] **Step 2: The full check**
+- [x] **Step 2: The full check**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm check && pnpm test && pnpm build
@@ -1235,7 +1238,7 @@ pnpm typecheck && pnpm lint && pnpm check && pnpm test && pnpm build
 
 Expected: all pass.
 
-- [ ] **Step 3: Commit, push, PR**
+- [x] **Step 3: Commit, push, PR**
 
 ```bash
 git add PLAN.md
@@ -2453,59 +2456,130 @@ and delete the now-unused `projectCount` function.
 }
 ```
 
-- [ ] **Step 5: New project can hang on an existing goal**
+- [ ] **Step 5: The New project form, rebuilt (decision 10)**
 
-In `src/routes/_app/projects.index.tsx` `NewProject`:
+Rewrite `NewProject` in `src/routes/_app/projects.index.tsx`. Keep the closed button, `useSave` + `SaveLabel`, `Field`, and the error line; change the rows and their order.
 
-1. Add `const goals = useQuery(api.goals.listActive, {})` and state `const [goalId, setGoalId] = useState<string>('new')`. Import `useQuery` is already there at file top; `Id` from the dataModel.
-2. Replace the "Goal — what this is ultimately for" `Field` with:
+State: `const [project, setProject] = useState('')`, `const [goalId, setGoalId] = useState<string>('')` (empty = not chosen yet), `const [goal, setGoal] = useState('')`, `const [area, setArea] = useState<Area>('business')`, `const [deadline, setDeadline] = useState('')`. Add `const goals = useQuery(api.goals.listActive, {})` and import `Id` from the dataModel.
+
+The open form's body:
 
 ```tsx
-<Field label="Goal — what this is ultimately for">
-  <div className="flex flex-wrap items-center gap-2">
-    <select
-      value={goalId}
-      onChange={(e) => setGoalId(e.target.value)}
-      className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
-    >
-      <option value="new">A new goal…</option>
-      {(goals ?? [])
-        .filter((g) => g.tile === undefined)
-        .map((g) => (
-          <option key={g._id} value={g._id}>
-            {g.title}
-          </option>
-        ))}
-    </select>
-    {goalId === 'new' ? (
+<div className="glass flex flex-col gap-3 rounded-[22px] p-6">
+  <div className="label-caps">New project</div>
+
+  <Field label="Project">
+    <input
+      autoFocus
+      value={project}
+      onChange={(e) => setProject(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') void submit()
+      }}
+      placeholder="Oreum"
+      className="w-full bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
+    />
+  </Field>
+
+  <Field label="For">
+    <div className="flex flex-wrap items-center gap-2">
+      <select
+        value={goalId}
+        onChange={(e) => setGoalId(e.target.value)}
+        className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
+      >
+        <option value="">Which goal is this for?</option>
+        {(goals ?? [])
+          .filter((g) => g.tile === undefined)
+          .map((g) => (
+            <option key={g._id} value={g._id}>
+              {g.title}
+            </option>
+          ))}
+        <option value="new">A new goal…</option>
+      </select>
+      {goalId === 'new' ? (
+        <>
+          <input
+            autoFocus
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            placeholder="A profitable business"
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
+          />
+          <select
+            value={area}
+            onChange={(e) => setArea(e.target.value as Area)}
+            aria-label="Area of the new goal"
+            className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
+          >
+            {AREAS.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </>
+      ) : null}
+    </div>
+  </Field>
+
+  <div className="flex flex-wrap items-center gap-4">
+    <label className="flex items-center gap-2">
+      <span className="label-caps">Ends</span>
       <input
-        autoFocus
-        value={goal}
-        onChange={(e) => setGoal(e.target.value)}
-        placeholder="A profitable business"
-        className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
+        type="date"
+        value={deadline}
+        onChange={(e) => setDeadline(e.target.value)}
+        className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 font-mono text-[12px] text-ink-300"
       />
-    ) : null}
+    </label>
+    <div className="ml-auto flex items-center gap-2">
+      {/* Cancel and Start it, unchanged */}
+    </div>
   </div>
-</Field>
+
+  {error ? <p className="text-[12.5px] text-ink-400">{error}</p> : null}
+</div>
 ```
 
-3. The Area select only applies to a new goal: wrap its `<label>` in `{goalId === 'new' ? (…) : null}`.
-4. In `submit`, validate `(goalId === 'new' ? goal.trim().length === 0 : false) || project.trim().length === 0`, and create:
+(The R3c task adds a **Repo** row between For and Ends.)
+
+`submit`:
 
 ```tsx
-const parent =
-  goalId === 'new'
-    ? await createGoal({ title: goal.trim(), area })
-    : (goalId as Id<'goals'>)
-await createProject({
-  goalId: parent,
-  title: project.trim(),
-  deadline: deadline.length > 0 ? deadline : undefined,
-})
+async function submit() {
+  if (starting.busy) return
+  if (project.trim().length === 0) {
+    setError('A project needs a title.')
+    return
+  }
+  if (goalId === '' || (goalId === 'new' && goal.trim().length === 0)) {
+    setError('A project answers to a goal — pick one, or name a new one.')
+    return
+  }
+  try {
+    await starting.run(async () => {
+      const parent =
+        goalId === 'new'
+          ? await createGoal({ title: goal.trim(), area })
+          : (goalId as Id<'goals'>)
+      await createProject({
+        goalId: parent,
+        title: project.trim(),
+        deadline: deadline.length > 0 ? deadline : undefined,
+      })
+    })
+    setError(null)
+  } catch {
+    setError('That did not work.')
+  }
+}
 ```
 
-5. In `finish`, also `setGoalId('new')`.
+`finish` also resets `goalId` to `''` and `goal` to `''`. Remove the old "Goal — what this is ultimately for" and "First project — the work that moves it" fields and the standalone Area label.
+
+Check in the browser: the form opens with the cursor in **Project** and no ring round it; "For" lists his goals with "A new goal…" last; choosing it reveals the title and area; Start it with an existing goal creates only the project. Delete anything created.
 
 - [ ] **Step 6: The project page shows its goal**
 
@@ -3480,6 +3554,50 @@ function Count({ n, label }: { n: number; label: string }) {
 - [ ] **Step 2: Mount it**
 
 In `src/routes/_app/projects.$id.tsx`, import `ProjectCommits` and render `<ProjectCommits projectId={projectId} />` after the tasks/notes grid and before the Done card.
+
+- [ ] **Step 2b: Repo on the New project form (decision 10)**
+
+In `convex/projects.ts` `create`, add `githubRepo: v.optional(v.string())` to `args`; in the handler, when given, `const repo = parseRepo(args.githubRepo)` (import from `./github`), throw `new ConvexError('That is not a GitHub repo: use owner/name.')` when null, store it as `githubRepo`, and after the insert `await ctx.scheduler.runAfter(0, internal.github.checkOne, { projectId })` (import `internal` from `./_generated/api`; `ConvexError` from `convex/values`). Add to `convex/github.test.ts`:
+
+```ts
+test('a project made with a repo is connected from birth', async () => {
+  vi.useFakeTimers()
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  stubGitHub()
+  const goalId = await me.mutation(api.goals.create, {
+    title: 'A business',
+    area: 'business',
+  })
+  const projectId = await me.mutation(api.projects.create, {
+    goalId,
+    title: 'Oreum',
+    githubRepo: 'github.com/artemchernii/oreum',
+  })
+  await t.finishAllScheduledFunctions(vi.runAllTimers)
+  const counts = await me.query(api.aggregate.projectCommits, {
+    projectId,
+    ...bounds,
+  })
+  expect(counts.repo).toBe('artemchernii/oreum')
+  expect(counts.thisWeek).toBe(1)
+})
+```
+
+In `NewProject` (`src/routes/_app/projects.index.tsx`), add `const [repo, setRepo] = useState('')`, a row between **For** and **Ends**:
+
+```tsx
+<Field label="Repo — optional">
+  <input
+    value={repo}
+    onChange={(e) => setRepo(e.target.value)}
+    placeholder="owner/name, or the repo's github.com link"
+    className="w-full bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
+  />
+</Field>
+```
+
+pass `githubRepo: repo.trim() || undefined` to `createProject`, surface a `ConvexError`'s `.data` in the error line (as the Goals page does), and reset `repo` in `finish`. Browser check: create a project with `https://github.com/artemchernii/oreum` pasted; its page shows the GitHub card filling within seconds. If Artem has not made Oreum yet, this is how he does it — keep it.
 
 Prettier both files.
 

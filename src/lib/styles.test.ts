@@ -13,7 +13,13 @@ describe('the glass survives the production build', () => {
   })
 
   test('the glass utilities still blur', () => {
-    for (const name of ['glass', 'glass-bar', 'glass-modal', 'glass-scrim']) {
+    for (const name of [
+      'glass',
+      'glass-bar',
+      'glass-modal',
+      'glass-scrim',
+      'glass-menu',
+    ]) {
       const block = new RegExp(`@utility ${name} \\{[^}]*backdrop-filter:`)
       expect(css, name).toMatch(block)
     }

@@ -53,13 +53,31 @@ export const create = mutation({
       throw new Error('A task needs a title')
     }
 
+    /* The same rules as setProject and setGoal, checked here too: an id is
+       only a claim until the row behind it is loaded and found to be yours.
+       A project is the authority on its goal, so a task created under one
+       carries that project's goal, whatever goalId was also passed. */
+    let goalId = args.goalId
+    if (args.projectId !== undefined) {
+      const project = await ctx.db.get(args.projectId)
+      if (project === null || project.ownerId !== ownerId) {
+        throw new Error('No such project')
+      }
+      goalId = project.goalId
+    } else if (args.goalId !== undefined) {
+      const goal = await ctx.db.get(args.goalId)
+      if (goal === null || goal.ownerId !== ownerId) {
+        throw new Error('No such goal')
+      }
+    }
+
     return await ctx.db.insert('tasks', {
       ownerId,
       title,
       area: args.area,
       notes: args.notes,
       projectId: args.projectId,
-      goalId: args.goalId,
+      goalId,
       dueDate: args.dueDate,
       durationMin: args.durationMin,
       priority: 0,

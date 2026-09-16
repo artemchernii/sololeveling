@@ -13,6 +13,9 @@ import type { PendingEvidence } from './QuestRow'
 
 const TODAY_LIMIT = 3
 
+/** The add field, for anything that wants to hand you the day's first move. */
+export const PICK_FIELD_ID = 'pick-todays-three'
+
 /* PLAN.md §3 item 2 and §3c.1. Three slots, and when they are full the "add"
    affordance is replaced by a sentence rather than disabled and left there.
    The Quests page lived here until 15 Sep; this card is it now.
@@ -93,6 +96,10 @@ export function QuestList({
             className="text-ink-600"
           />
           <input
+            /* Named so the principles panel can send you straight here when
+               you close it — reading the six and picking the three are the
+               same move, a minute apart. */
+            id={PICK_FIELD_ID}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Sparkles, X } from 'lucide-react'
+import { ArrowRight, Sparkles, X } from 'lucide-react'
 import type { CSSProperties } from 'react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
+import { PICK_FIELD_ID } from './QuestList'
 
 /** How long one line holds before the column moves up by one. */
 const HOLD_MS = 10_000
@@ -246,7 +247,7 @@ function AllSix({
         {/* No heading: the six lines are the whole point of opening this,
             and a caption above them only explained what they plainly are
             (16 Sep). */}
-        <div className="mb-6 flex justify-end">
+        <div className="mb-7 flex justify-end">
           <button
             type="button"
             autoFocus
@@ -258,21 +259,49 @@ function AllSix({
           </button>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-7">
           {principles.map((principle, i) => (
             <div
               key={principle._id}
               style={{ ...hue(i), animationDelay: `${i * 60}ms` }}
-              className="motion-arrive flex items-baseline gap-4"
+              className="motion-arrive group flex items-stretch gap-4"
             >
-              <span className="font-mono text-[11px] text-(--hue)">
-                {String(i + 1).padStart(2, '0')}
+              {/* The line's own colour as a rule beside it, so six lines read
+                  as six things rather than one block of text. */}
+              <span
+                aria-hidden
+                className="w-[3px] shrink-0 rounded-full bg-(--hue)/50 transition-colors group-hover:bg-(--hue)"
+              />
+              <span className="flex items-baseline gap-4">
+                <span className="font-mono text-[11px] text-(--hue)/70">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <p className="text-[24px] leading-snug font-light text-(--hue) sm:text-[30px]">
+                  {principle.text}
+                </p>
               </span>
-              <p className="text-[22px] leading-snug font-light text-(--hue) sm:text-[26px]">
-                {principle.text}
-              </p>
             </div>
           ))}
+        </div>
+
+        {/* Reading them is not the point; the day is. This is the shortest
+            path from the six to the three, and it lands in the field with
+            the caret already in it. */}
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-lift/[0.07] pt-5">
+          <span className="label-caps text-ink-700">Esc to close</span>
+          <button
+            type="button"
+            onClick={() => {
+              onClose()
+              requestAnimationFrame(() =>
+                document.getElementById(PICK_FIELD_ID)?.focus(),
+              )
+            }}
+            className="motion-press chip-focus flex items-center gap-2 rounded-full border border-lav-500/60 px-4 py-2 font-mono text-[11px] tracking-[0.14em] text-lav-300 uppercase transition-colors hover:border-lav-500 hover:bg-lav-900/50"
+          >
+            Pick today&rsquo;s three
+            <ArrowRight className="size-3.5" />
+          </button>
         </div>
       </div>
     </div>,

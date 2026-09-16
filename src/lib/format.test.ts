@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest'
 
-import { agoLabel, deadlineLabel, durationLabel, whenLabel } from './format'
+import {
+  agoLabel,
+  deadlineLabel,
+  durationLabel,
+  localInputValue,
+  whenLabel,
+} from './format'
 
 const SEPT_8 = new Date(2026, 8, 8, 14, 30)
 
@@ -100,5 +106,18 @@ describe('agoLabel', () => {
         month: 'short',
       }),
     )
+  })
+})
+
+describe('localInputValue', () => {
+  test('is local wall-clock time, not UTC', () => {
+    /* Lisbon is UTC+1 in September: toISOString would say 08:05. */
+    expect(localInputValue(new Date(2026, 8, 17, 9, 5).getTime())).toBe(
+      '2026-09-17T09:05',
+    )
+  })
+  test('round-trips through the Date constructor', () => {
+    const ms = new Date(2026, 11, 1, 18, 30).getTime()
+    expect(new Date(localInputValue(ms)).getTime()).toBe(ms)
   })
 })

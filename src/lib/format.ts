@@ -1,3 +1,5 @@
+import { localToday } from './today'
+
 /* A deadline rendered two ways: the date, and how far off it is.
  
    This is not a fourth number source (PLAN.md §1). Those govern metrics — a
@@ -87,4 +89,10 @@ export function agoLabel(ms: number, now: Date = new Date()): string {
     day: 'numeric',
     month: 'short',
   })
+}
+
+/** A time as a `datetime-local` input wants it: local, to the minute. */
+export function localInputValue(ms: number): string {
+  const d = new Date(ms)
+  return `${localToday(d)}T${clock(d)}`
 }

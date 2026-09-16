@@ -7,9 +7,12 @@ import { ArrowUp, Plus, Trash2 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import { AreaBadge } from '@/components/AreaBadge'
+import { BindSelect } from '@/components/backlog/BindSelect'
+import { ScheduleTask } from '@/components/backlog/ScheduleTask'
 import { SaveGlyph, useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
+import { agoLabel } from '@/lib/format'
 import { localToday } from '@/lib/today'
 import { useArrived, useHeld } from '@/lib/loading'
 
@@ -26,6 +29,9 @@ function Backlog() {
   const tasks = useHeld(useQuery(api.tasks.listBacklog, {}))
   const arrived = useArrived(tasks)
   const picked = useQuery(api.tasks.listToday, { today })
+  const projects = useQuery(api.projects.listLive, {})
+  const goals = useQuery(api.goals.listActive, {})
+  const goalsToBind = (goals ?? []).filter((g) => g.tile === undefined)
 
   const createTask = useMutation(api.tasks.create)
   const pickForToday = useMutation(api.tasks.pickForToday)
@@ -89,7 +95,7 @@ function Backlog() {
       </div>
 
       {tasks === undefined ? (
-        <SkeletonRows rows={4} line="h-[26px]" />
+        <SkeletonRows rows={4} line="h-[61px]" />
       ) : tasks.length === 0 ? (
         <p className={`text-[13px] text-ink-500 ${arrived}`}>
           Empty. Everything you have written down is either done or on today.
@@ -99,40 +105,56 @@ function Backlog() {
           {tasks.map((task) => (
             <div
               key={task._id}
-              className="flex items-center gap-3 border-b border-lift/[0.05] py-2.5 last:border-b-0"
+              className="flex flex-col gap-1.5 border-b border-lift/[0.05] py-2.5 last:border-b-0"
             >
-              <span className="flex-1 text-[13px] text-foreground">
-                {task.title}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="flex-1 text-[13px] text-foreground">
+                  {task.title}
+                </span>
 
-              <AreaBadge
-                area={task.area}
-                onChange={(area: Area) =>
-                  void setArea({ taskId: task._id, area })
-                }
-              />
+                <AreaBadge
+                  area={task.area}
+                  onChange={(area: Area) =>
+                    void setArea({ taskId: task._id, area })
+                  }
+                />
 
-              <button
-                type="button"
-                disabled={full}
-                onClick={() => void pick(task._id)}
-                title={
-                  full ? 'Today is full. Finish one or drop one.' : undefined
-                }
-                className="flex items-center gap-1.5 rounded-[7px] border border-lift/10 px-2 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300 disabled:cursor-default disabled:border-lift/[0.06] disabled:text-ink-700 disabled:hover:text-ink-700"
-              >
-                <ArrowUp className="size-3" />
-                Today
-              </button>
+                <button
+                  type="button"
+                  disabled={full}
+                  onClick={() => void pick(task._id)}
+                  title={
+                    full ? 'Today is full. Finish one or drop one.' : undefined
+                  }
+                  className="flex items-center gap-1.5 rounded-[7px] border border-lift/10 px-2 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300 disabled:cursor-default disabled:border-lift/[0.06] disabled:text-ink-700 disabled:hover:text-ink-700"
+                >
+                  <ArrowUp className="size-3" />
+                  Today
+                </button>
 
-              <button
-                type="button"
-                aria-label={`Delete ${task.title}`}
-                onClick={() => void removeTask({ taskId: task._id })}
-                className="text-ink-700 transition-colors hover:text-ink-400"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
+                <button
+                  type="button"
+                  aria-label={`Delete ${task.title}`}
+                  onClick={() => void removeTask({ taskId: task._id })}
+                  className="text-ink-700 transition-colors hover:text-ink-400"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+
+              {/* What is known about it: how long it has waited, what it is
+                  for, and when — if anyone has said. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-[11px] text-ink-600">
+                  added {agoLabel(task._creationTime)}
+                </span>
+                <BindSelect
+                  task={task}
+                  projects={projects ?? []}
+                  goals={goalsToBind}
+                />
+                <ScheduleTask task={task} />
+              </div>
             </div>
           ))}
         </div>

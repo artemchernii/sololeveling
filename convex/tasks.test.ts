@@ -282,3 +282,50 @@ describe('what the week view reads (PLAN.md §4 phase 5)', () => {
     ).toHaveLength(1)
   })
 })
+
+describe('a task bound to a goal without a project', () => {
+  test('setGoal binds the goal and cuts the project loose', async () => {
+    const t = as(ME)
+    const business = await t.mutation(api.goals.create, {
+      title: 'A business',
+      area: 'business',
+    })
+    const muscle = await t.mutation(api.goals.create, {
+      title: 'Gain 5 kg of muscle',
+      area: 'body',
+    })
+    const oreum = await t.mutation(api.projects.create, {
+      goalId: business,
+      title: 'Oreum',
+    })
+    const taskId = await t.mutation(api.tasks.create, { title: 'Buy protein' })
+    await t.mutation(api.tasks.setProject, { taskId, projectId: oreum })
+
+    await t.mutation(api.tasks.setGoal, { taskId, goalId: muscle })
+
+    const bound = (await t.query(api.tasks.listBacklog, {})).find(
+      (x) => x._id === taskId,
+    )
+    expect(bound?.goalId).toBe(muscle)
+    expect(bound?.projectId).toBeUndefined()
+
+    await t.mutation(api.tasks.setGoal, { taskId, goalId: null })
+    const loose = (await t.query(api.tasks.listBacklog, {})).find(
+      (x) => x._id === taskId,
+    )
+    expect(loose?.goalId).toBeUndefined()
+  })
+
+  test('refuses someone else’s goal', async () => {
+    const { mine, theirs } = twoOwners()
+    const theirGoal = await theirs.mutation(api.goals.create, {
+      title: 'Theirs',
+      area: 'life',
+    })
+    const taskId = await mine.mutation(api.tasks.create, { title: 'Mine' })
+
+    await expect(
+      mine.mutation(api.tasks.setGoal, { taskId, goalId: theirGoal }),
+    ).rejects.toThrow('No such goal')
+  })
+})

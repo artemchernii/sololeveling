@@ -217,7 +217,11 @@ export default defineSchema({
     ),
   })
     .index('by_owner_time', ['ownerId', 'occurredAt'])
-    .index('by_owner_area_time', ['ownerId', 'area', 'occurredAt']),
+    .index('by_owner_area_time', ['ownerId', 'area', 'occurredAt'])
+    /* Time on one project (R3): a range over one project's logs, rather than
+       every log this month filtered in JavaScript. A log with no project has
+       an absent projectId and never matches an eq(). */
+    .index('by_owner_project_time', ['ownerId', 'projectId', 'occurredAt']),
 
   /* The second number source: latest row for a key wins. Keys in use so far —
      weight, bench, net_worth, cefr_level, protein_avg, savings. */
@@ -241,6 +245,9 @@ export default defineSchema({
     kind: noteKind,
   })
     .index('by_owner_kind', ['ownerId', 'kind'])
+    /* The notes on one project's page (R3). _creationTime is the implicit last
+       column, so ordering desc is newest first without a sort. */
+    .index('by_owner_project', ['ownerId', 'projectId'])
     /* Two, because a search index carries exactly one field and a note is
        findable by either half of it. convex/search.ts queries both and
        de-duplicates by _id. */

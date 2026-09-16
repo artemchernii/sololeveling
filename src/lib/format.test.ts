@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest'
 
-import { deadlineLabel, whenLabel } from './format'
+import {
+  agoLabel,
+  deadlineLabel,
+  durationLabel,
+  localInputValue,
+  whenLabel,
+} from './format'
 
 const SEPT_8 = new Date(2026, 8, 8, 14, 30)
 
@@ -59,5 +65,59 @@ describe('whenLabel says when a log happened', () => {
     expect(whenLabel(new Date(2026, 7, 1, 8, 0).getTime(), now)).toMatch(
       / 08:00$/,
     )
+  })
+})
+
+describe('durationLabel', () => {
+  test('under an hour is minutes', () => {
+    expect(durationLabel(45)).toBe('45m')
+  })
+  test('whole hours drop the minutes', () => {
+    expect(durationLabel(120)).toBe('2h')
+  })
+  test('hours and minutes', () => {
+    expect(durationLabel(450)).toBe('7h 30m')
+  })
+  test('a fraction of a minute is rounded, not shown', () => {
+    expect(durationLabel(59.6)).toBe('1h')
+  })
+})
+
+describe('agoLabel', () => {
+  const now = new Date(2026, 8, 16, 10, 0)
+  test('today and yesterday by calendar day, not by 24 hours', () => {
+    expect(agoLabel(new Date(2026, 8, 16, 0, 5).getTime(), now)).toBe('today')
+    expect(agoLabel(new Date(2026, 8, 15, 23, 50).getTime(), now)).toBe(
+      'yesterday',
+    )
+  })
+  test('days up to two weeks', () => {
+    expect(agoLabel(new Date(2026, 8, 13, 9).getTime(), now)).toBe('3d ago')
+    expect(agoLabel(new Date(2026, 8, 3, 9).getTime(), now)).toBe('13d ago')
+  })
+  test('weeks up to two months', () => {
+    expect(agoLabel(new Date(2026, 8, 2, 9).getTime(), now)).toBe('2w ago')
+    expect(agoLabel(new Date(2026, 6, 20, 9).getTime(), now)).toBe('8w ago')
+  })
+  test('older than that is the date', () => {
+    expect(agoLabel(new Date(2026, 6, 1, 9).getTime(), now)).toBe(
+      new Date(2026, 6, 1).toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'short',
+      }),
+    )
+  })
+})
+
+describe('localInputValue', () => {
+  test('is local wall-clock time, not UTC', () => {
+    /* Lisbon is UTC+1 in September: toISOString would say 08:05. */
+    expect(localInputValue(new Date(2026, 8, 17, 9, 5).getTime())).toBe(
+      '2026-09-17T09:05',
+    )
+  })
+  test('round-trips through the Date constructor', () => {
+    const ms = new Date(2026, 11, 1, 18, 30).getTime()
+    expect(new Date(localInputValue(ms)).getTime()).toBe(ms)
   })
 })

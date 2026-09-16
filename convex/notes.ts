@@ -162,3 +162,25 @@ export const get = query({
     return note !== null && note.ownerId === ownerId ? note : null
   },
 })
+
+/**
+ * The notes attached to one project, newest first — the notes card on the
+ * project page. Read by the page's URL, so the id is a string: a bad or
+ * foreign id is an empty list, which reveals nothing.
+ */
+export const listByProject = query({
+  args: { projectId: v.string() },
+  returns: v.array(schema.doc('notes')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const projectId = ctx.db.normalizeId('projects', args.projectId)
+    if (projectId === null) return []
+    return await ctx.db
+      .query('notes')
+      .withIndex('by_owner_project', (q) =>
+        q.eq('ownerId', ownerId).eq('projectId', projectId),
+      )
+      .order('desc')
+      .take(50)
+  },
+})

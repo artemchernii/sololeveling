@@ -1,3 +1,5 @@
+import { localToday } from './today'
+
 /* A deadline rendered two ways: the date, and how far off it is.
  
    This is not a fourth number source (PLAN.md §1). Those govern metrics — a
@@ -58,4 +60,39 @@ export function whenLabel(ms: number, now: Date = new Date()): string {
     return `${at.toLocaleDateString(undefined, { weekday: 'short' })} ${clock(at)}`
   }
   return `${at.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} ${clock(at)}`
+}
+
+/** "45m", "2h", "7h 30m" — minutes that were logged, said the short way. */
+export function durationLabel(minutes: number): string {
+  const total = Math.round(minutes)
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  if (h === 0) return `${m}m`
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
+}
+
+/**
+ * How long ago something was written down: "today", "yesterday", "3d ago",
+ * "2w ago", then the date. Whole local days, so last night is yesterday.
+ * A display of `_creationTime`, like deadlineLabel is of a deadline — not a
+ * metric.
+ */
+export function agoLabel(ms: number, now: Date = new Date()): string {
+  const day = new Date(ms).setHours(0, 0, 0, 0)
+  const today = new Date(now).setHours(0, 0, 0, 0)
+  const days = Math.round((today - day) / MS_PER_DAY)
+  if (days <= 0) return 'today'
+  if (days === 1) return 'yesterday'
+  if (days < 14) return `${days}d ago`
+  if (days < 60) return `${Math.floor(days / 7)}w ago`
+  return new Date(ms).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+  })
+}
+
+/** A time as a `datetime-local` input wants it: local, to the minute. */
+export function localInputValue(ms: number): string {
+  const d = new Date(ms)
+  return `${localToday(d)}T${clock(d)}`
 }

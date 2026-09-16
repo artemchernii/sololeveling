@@ -57,39 +57,39 @@
 
 ## File map
 
-| slice | action | path                                          | responsibility                                                         |
-| ----- | ------ | --------------------------------------------- | ---------------------------------------------------------------------- |
-| a     | modify | `convex/schema.ts`                            | `logs.by_owner_project_time`, `notes.by_owner_project`                 |
-| a     | modify | `convex/aggregate.ts`                         | `projectTime()`                                                        |
-| a     | create | `convex/aggregate.project.test.ts`            | time on a project is its session minutes                               |
-| a     | modify | `convex/notes.ts` (+ `notes.test.ts`)         | `listByProject`                                                        |
-| a     | modify | `convex/tasks.ts` (+ `tasks.test.ts`)         | `setGoal`                                                              |
-| a     | modify | `src/lib/format.ts` (+ test)                  | `durationLabel`, `agoLabel`, `localInputValue`                         |
-| a     | create | `src/components/projects/ProjectNotes.tsx`    | the notes card on a project                                            |
-| a     | modify | `src/routes/_app/projects.$id.tsx`            | time line in the header; tasks beside notes                            |
-| a     | create | `src/components/backlog/BindSelect.tsx`       | one picker: a project, a goal, or nothing                              |
-| a     | create | `src/components/backlog/ScheduleTask.tsx`     | put a task on the calendar, or take it off                             |
-| a     | modify | `src/routes/_app/backlog.tsx`                 | two-line rows: title, then added · bound to · on calendar              |
-| a     | modify | `PLAN.md` §2, §4                              | the indexes; R3 split into three PRs                                   |
-| b     | modify | `convex/schema.ts`                            | `milestones` table                                                     |
-| b     | create | `convex/milestones.ts` (+ test)               | create, listByGoal, setReached, update, move, remove                   |
-| b     | modify | `convex/goals.ts` (+ `goals.test.ts`)         | `get`, `update`; `remove` deletes the goal's milestones                |
-| b     | create | `src/lib/goal-timeline.ts` (+ test)           | start · milestones (reached / next / ahead) · end                      |
-| b     | create | `src/components/goals/GoalTimeline.tsx`       | draws the timeline; a tap reaches or un-reaches a milestone            |
-| b     | create | `src/components/goals/MilestoneEditor.tsx`    | add, reorder, delete milestones                                        |
-| b     | create | `src/components/goals/NewGoal.tsx`            | a goal on its own                                                      |
-| b     | modify | `src/routes/_app/goals.tsx`                   | New goal, deadline editing, projects as links, timeline + editor       |
-| b     | modify | `src/routes/_app/projects.index.tsx`          | New project can hang on an existing goal                               |
-| b     | modify | `src/routes/_app/projects.$id.tsx`            | the goal's name and timeline                                           |
-| b     | modify | `PLAN.md` §2                                  | milestones; a goal need not have a project                             |
-| c     | modify | `convex/schema.ts`                            | `commits`; `projects.githubRepo`, `githubCheckedAt`, `by_github_repo`  |
-| c     | create | `convex/github.ts` (+ test)                   | `parseRepo`, `setRepo`, `listRecent`, the internal check functions     |
-| c     | create | `convex/crons.ts`                             | hourly check                                                           |
-| c     | modify | `convex/aggregate.ts`                         | `projectCommits()`; header comment: source 4 exists now                |
-| c     | modify | `convex/projects.ts`                          | `remove` deletes the project's commits                                 |
-| c     | create | `src/components/projects/ProjectCommits.tsx`  | connect a repo; counts, as-of, latest five                             |
-| c     | modify | `src/routes/_app/projects.$id.tsx`            | mounts ProjectCommits                                                  |
-| c     | modify | `PLAN.md` §1, §2; `CLAUDE.md`                 | source 4's first reading; "three sources" → "four" in Working style    |
+| slice | action | path                                         | responsibility                                                        |
+| ----- | ------ | -------------------------------------------- | --------------------------------------------------------------------- |
+| a     | modify | `convex/schema.ts`                           | `logs.by_owner_project_time`, `notes.by_owner_project`                |
+| a     | modify | `convex/aggregate.ts`                        | `projectTime()`                                                       |
+| a     | create | `convex/aggregate.project.test.ts`           | time on a project is its session minutes                              |
+| a     | modify | `convex/notes.ts` (+ `notes.test.ts`)        | `listByProject`                                                       |
+| a     | modify | `convex/tasks.ts` (+ `tasks.test.ts`)        | `setGoal`                                                             |
+| a     | modify | `src/lib/format.ts` (+ test)                 | `durationLabel`, `agoLabel`, `localInputValue`                        |
+| a     | create | `src/components/projects/ProjectNotes.tsx`   | the notes card on a project                                           |
+| a     | modify | `src/routes/_app/projects.$id.tsx`           | time line in the header; tasks beside notes                           |
+| a     | create | `src/components/backlog/BindSelect.tsx`      | one picker: a project, a goal, or nothing                             |
+| a     | create | `src/components/backlog/ScheduleTask.tsx`    | put a task on the calendar, or take it off                            |
+| a     | modify | `src/routes/_app/backlog.tsx`                | two-line rows: title, then added · bound to · on calendar             |
+| a     | modify | `PLAN.md` §2, §4                             | the indexes; R3 split into three PRs                                  |
+| b     | modify | `convex/schema.ts`                           | `milestones` table                                                    |
+| b     | create | `convex/milestones.ts` (+ test)              | create, listByGoal, setReached, update, move, remove                  |
+| b     | modify | `convex/goals.ts` (+ `goals.test.ts`)        | `get`, `update`; `remove` deletes the goal's milestones               |
+| b     | create | `src/lib/goal-timeline.ts` (+ test)          | start · milestones (reached / next / ahead) · end                     |
+| b     | create | `src/components/goals/GoalTimeline.tsx`      | draws the timeline; a tap reaches or un-reaches a milestone           |
+| b     | create | `src/components/goals/MilestoneEditor.tsx`   | add, reorder, delete milestones                                       |
+| b     | create | `src/components/goals/NewGoal.tsx`           | a goal on its own                                                     |
+| b     | modify | `src/routes/_app/goals.tsx`                  | New goal, deadline editing, projects as links, timeline + editor      |
+| b     | modify | `src/routes/_app/projects.index.tsx`         | New project can hang on an existing goal                              |
+| b     | modify | `src/routes/_app/projects.$id.tsx`           | the goal's name and timeline                                          |
+| b     | modify | `PLAN.md` §2                                 | milestones; a goal need not have a project                            |
+| c     | modify | `convex/schema.ts`                           | `commits`; `projects.githubRepo`, `githubCheckedAt`, `by_github_repo` |
+| c     | create | `convex/github.ts` (+ test)                  | `parseRepo`, `setRepo`, `listRecent`, the internal check functions    |
+| c     | create | `convex/crons.ts`                            | hourly check                                                          |
+| c     | modify | `convex/aggregate.ts`                        | `projectCommits()`; header comment: source 4 exists now               |
+| c     | modify | `convex/projects.ts`                         | `remove` deletes the project's commits                                |
+| c     | create | `src/components/projects/ProjectCommits.tsx` | connect a repo; counts, as-of, latest five                            |
+| c     | modify | `src/routes/_app/projects.$id.tsx`           | mounts ProjectCommits                                                 |
+| c     | modify | `PLAN.md` §1, §2; `CLAUDE.md`                | source 4's first reading; "three sources" → "four" in Working style   |
 
 ---
 
@@ -140,7 +140,10 @@ afterEach(() => {
 const SEP = new Date(2026, 8, 1).getTime()
 const OCT = new Date(2026, 9, 1).getTime()
 
-async function project(t: ReturnType<ReturnType<typeof convexTest>['withIdentity']>, title: string) {
+async function project(
+  t: ReturnType<ReturnType<typeof convexTest>['withIdentity']>,
+  title: string,
+) {
   const goalId = await t.mutation(api.goals.create, {
     title: `goal for ${title}`,
     area: 'business',
@@ -155,7 +158,11 @@ describe('time on a project (source 1: its session logs)', () => {
     const oreum = await project(me, 'Oreum')
     const other = await project(me, 'Solo Leveling')
 
-    const log = (occurredAt: number, value: number | undefined, projectId = oreum) =>
+    const log = (
+      occurredAt: number,
+      value: number | undefined,
+      projectId = oreum,
+    ) =>
       me.mutation(api.logs.create, {
         kind: 'session',
         area: 'business',
@@ -396,13 +403,25 @@ describe('notes on a project', () => {
       title: 'A business',
       area: 'business',
     })
-    const oreum = await me.mutation(api.projects.create, { goalId, title: 'Oreum' })
-    const other = await me.mutation(api.projects.create, { goalId, title: 'Other' })
+    const oreum = await me.mutation(api.projects.create, {
+      goalId,
+      title: 'Oreum',
+    })
+    const other = await me.mutation(api.projects.create, {
+      goalId,
+      title: 'Other',
+    })
 
     await me.mutation(api.notes.create, { title: 'Pricing', projectId: oreum })
     await me.mutation(api.notes.create, { title: 'Loose thought' })
-    await me.mutation(api.notes.create, { title: 'Not this one', projectId: other })
-    await me.mutation(api.notes.create, { title: 'Onboarding', projectId: oreum })
+    await me.mutation(api.notes.create, {
+      title: 'Not this one',
+      projectId: other,
+    })
+    await me.mutation(api.notes.create, {
+      title: 'Onboarding',
+      projectId: oreum,
+    })
 
     const notes = await me.query(api.notes.listByProject, { projectId: oreum })
     expect(notes.map((n) => n.title)).toEqual(['Onboarding', 'Pricing'])
@@ -411,13 +430,25 @@ describe('notes on a project', () => {
   test('another owner’s project has no notes for you, and a bad id is empty', async () => {
     const t = convexTest(schema, modules)
     const me = t.withIdentity({ tokenIdentifier: 'https://clerk.test|user_me' })
-    const them = t.withIdentity({ tokenIdentifier: 'https://clerk.test|user_them' })
-    const goalId = await me.mutation(api.goals.create, { title: 'G', area: 'business' })
-    const oreum = await me.mutation(api.projects.create, { goalId, title: 'Oreum' })
+    const them = t.withIdentity({
+      tokenIdentifier: 'https://clerk.test|user_them',
+    })
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'G',
+      area: 'business',
+    })
+    const oreum = await me.mutation(api.projects.create, {
+      goalId,
+      title: 'Oreum',
+    })
     await me.mutation(api.notes.create, { title: 'Pricing', projectId: oreum })
 
-    expect(await them.query(api.notes.listByProject, { projectId: oreum })).toEqual([])
-    expect(await me.query(api.notes.listByProject, { projectId: 'nope' })).toEqual([])
+    expect(
+      await them.query(api.notes.listByProject, { projectId: oreum }),
+    ).toEqual([])
+    expect(
+      await me.query(api.notes.listByProject, { projectId: 'nope' }),
+    ).toEqual([])
   })
 })
 ```
@@ -429,28 +460,46 @@ describe('a task bound to a goal without a project', () => {
   test('setGoal binds the goal and cuts the project loose', async () => {
     const t = convexTest(schema, modules)
     const me = t.withIdentity({ tokenIdentifier: 'https://clerk.test|user_me' })
-    const business = await me.mutation(api.goals.create, { title: 'A business', area: 'business' })
-    const muscle = await me.mutation(api.goals.create, { title: 'Gain 5 kg of muscle', area: 'body' })
-    const oreum = await me.mutation(api.projects.create, { goalId: business, title: 'Oreum' })
+    const business = await me.mutation(api.goals.create, {
+      title: 'A business',
+      area: 'business',
+    })
+    const muscle = await me.mutation(api.goals.create, {
+      title: 'Gain 5 kg of muscle',
+      area: 'body',
+    })
+    const oreum = await me.mutation(api.projects.create, {
+      goalId: business,
+      title: 'Oreum',
+    })
     const taskId = await me.mutation(api.tasks.create, { title: 'Buy protein' })
     await me.mutation(api.tasks.setProject, { taskId, projectId: oreum })
 
     await me.mutation(api.tasks.setGoal, { taskId, goalId: muscle })
 
-    const [task] = (await me.query(api.tasks.listBacklog, {})).filter((x) => x._id === taskId)
+    const [task] = (await me.query(api.tasks.listBacklog, {})).filter(
+      (x) => x._id === taskId,
+    )
     expect(task.goalId).toBe(muscle)
     expect(task.projectId).toBeUndefined()
 
     await me.mutation(api.tasks.setGoal, { taskId, goalId: null })
-    const [loose] = (await me.query(api.tasks.listBacklog, {})).filter((x) => x._id === taskId)
+    const [loose] = (await me.query(api.tasks.listBacklog, {})).filter(
+      (x) => x._id === taskId,
+    )
     expect(loose.goalId).toBeUndefined()
   })
 
   test('refuses someone else’s goal', async () => {
     const t = convexTest(schema, modules)
     const me = t.withIdentity({ tokenIdentifier: 'https://clerk.test|user_me' })
-    const them = t.withIdentity({ tokenIdentifier: 'https://clerk.test|user_them' })
-    const theirGoal = await them.mutation(api.goals.create, { title: 'Theirs', area: 'life' })
+    const them = t.withIdentity({
+      tokenIdentifier: 'https://clerk.test|user_them',
+    })
+    const theirGoal = await them.mutation(api.goals.create, {
+      title: 'Theirs',
+      area: 'life',
+    })
     const taskId = await me.mutation(api.tasks.create, { title: 'Mine' })
 
     await expect(
@@ -587,7 +636,9 @@ describe('agoLabel', () => {
   const now = new Date(2026, 8, 16, 10, 0)
   test('today and yesterday by calendar day, not by 24 hours', () => {
     expect(agoLabel(new Date(2026, 8, 16, 0, 5).getTime(), now)).toBe('today')
-    expect(agoLabel(new Date(2026, 8, 15, 23, 50).getTime(), now)).toBe('yesterday')
+    expect(agoLabel(new Date(2026, 8, 15, 23, 50).getTime(), now)).toBe(
+      'yesterday',
+    )
   })
   test('days up to two weeks', () => {
     expect(agoLabel(new Date(2026, 8, 13, 9).getTime(), now)).toBe('3d ago')
@@ -599,7 +650,10 @@ describe('agoLabel', () => {
   })
   test('older than that is the date', () => {
     expect(agoLabel(new Date(2026, 6, 1, 9).getTime(), now)).toBe(
-      new Date(2026, 6, 1).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+      new Date(2026, 6, 1).toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'short',
+      }),
     )
   })
 })
@@ -629,7 +683,10 @@ export function agoLabel(ms: number, now: Date = new Date()): string {
   if (days === 1) return 'yesterday'
   if (days < 14) return `${days}d ago`
   if (days < 60) return `${Math.floor(days / 7)}w ago`
-  return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  return new Date(ms).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+  })
 }
 ```
 
@@ -665,7 +722,9 @@ export function ProjectNotes({ projectId }: { projectId: Id<'projects'> }) {
   async function add() {
     const trimmed = title.trim()
     if (trimmed.length === 0 || writing.busy) return
-    const noteId = await writing.run(() => create({ title: trimmed, projectId }))
+    const noteId = await writing.run(() =>
+      create({ title: trimmed, projectId }),
+    )
     setTitle('')
     if (noteId) await navigate({ to: '/notes/$id', params: { id: noteId } })
   }
@@ -739,25 +798,27 @@ import { durationLabel } from '@/lib/format'
 2. After `const counts = useQuery(api.aggregate.entityCounts, {})`, add the month's bounds and the query. Month bounds are computed on the client, as `StateStrip` does:
 
 ```tsx
-  const now = new Date()
-  const time = useQuery(api.aggregate.projectTime, {
-    projectId,
-    start: new Date(now.getFullYear(), now.getMonth(), 1).getTime(),
-    end: new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime(),
-  })
+const now = new Date()
+const time = useQuery(api.aggregate.projectTime, {
+  projectId,
+  start: new Date(now.getFullYear(), now.getMonth(), 1).getTime(),
+  end: new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime(),
+})
 ```
 
 3. In the header's mono meta line (the `div` holding `{count.done} of {count.total} tasks` and the deadline), add after the tasks span:
 
 ```tsx
-          {time === undefined ? null : time.sessions === 0 ? (
-            <span>no time logged this month</span>
-          ) : (
-            <span>
-              {durationLabel(time.minutes)} this month · {time.sessions}{' '}
-              {time.sessions === 1 ? 'session' : 'sessions'}
-            </span>
-          )}
+{
+  time === undefined ? null : time.sessions === 0 ? (
+    <span>no time logged this month</span>
+  ) : (
+    <span>
+      {durationLabel(time.minutes)} this month · {time.sessions}{' '}
+      {time.sessions === 1 ? 'session' : 'sessions'}
+    </span>
+  )
+}
 ```
 
 4. Wrap the "Open" card and a new `<ProjectNotes />` in a two-column grid. Replace the opening of the Open card:
@@ -785,14 +846,14 @@ and immediately after that card's closing `</div>` (the one after the "Another t
 5. The loading skeleton: replace its second glass block (the `SkeletonRows rows={3}` one) with the same two-column grid holding two of them, so the shape matches:
 
 ```tsx
-        <div className="grid gap-[18px] md:grid-cols-2">
-          {[0, 1].map((i) => (
-            <div key={i} className="glass flex flex-col gap-3 rounded-[22px] p-6">
-              <Skeleton className="h-2.5 w-12" />
-              <SkeletonRows rows={3} />
-            </div>
-          ))}
-        </div>
+<div className="grid gap-[18px] md:grid-cols-2">
+  {[0, 1].map((i) => (
+    <div key={i} className="glass flex flex-col gap-3 rounded-[22px] p-6">
+      <Skeleton className="h-2.5 w-12" />
+      <SkeletonRows rows={3} />
+    </div>
+  ))}
+</div>
 ```
 
 Run `pnpm exec prettier --write src/routes/_app/projects.\$id.tsx src/components/projects/ProjectNotes.tsx`.
@@ -844,7 +905,9 @@ Append to `src/lib/format.test.ts` (add to import):
 describe('localInputValue', () => {
   test('is local wall-clock time, not UTC', () => {
     /* Lisbon is UTC+1 in September: toISOString would say 08:05. */
-    expect(localInputValue(new Date(2026, 8, 17, 9, 5).getTime())).toBe('2026-09-17T09:05')
+    expect(localInputValue(new Date(2026, 8, 17, 9, 5).getTime())).toBe(
+      '2026-09-17T09:05',
+    )
   })
   test('round-trips through the Date constructor', () => {
     const ms = new Date(2026, 11, 1, 18, 30).getTime()
@@ -906,7 +969,10 @@ export function BindSelect({
     if (next === '') {
       void setProject({ taskId: task._id, projectId: null })
     } else if (next.startsWith('p:')) {
-      void setProject({ taskId: task._id, projectId: next.slice(2) as Id<'projects'> })
+      void setProject({
+        taskId: task._id,
+        projectId: next.slice(2) as Id<'projects'>,
+      })
     } else {
       void setGoal({ taskId: task._id, goalId: next.slice(2) as Id<'goals'> })
     }
@@ -982,7 +1048,8 @@ export function ScheduleTask({ task }: { task: Doc<'tasks'> }) {
     await setSchedule({
       taskId: task._id,
       scheduledAt: ms,
-      durationMin: Number.isFinite(mins) && mins > 0 ? Math.round(mins) : undefined,
+      durationMin:
+        Number.isFinite(mins) && mins > 0 ? Math.round(mins) : undefined,
     })
     setOpen(false)
   }
@@ -1073,65 +1140,55 @@ import { agoLabel } from '@/lib/format'
 2. After `const picked = …`, add:
 
 ```tsx
-  const projects = useQuery(api.projects.listLive, {})
-  const goals = useQuery(api.goals.listActive, {})
-  const goalsToBind = (goals ?? []).filter((g) => g.tile === undefined)
+const projects = useQuery(api.projects.listLive, {})
+const goals = useQuery(api.goals.listActive, {})
+const goalsToBind = (goals ?? []).filter((g) => g.tile === undefined)
 ```
 
 3. Replace the row `div` inside `tasks.map((task) => (…))` with a two-line row: title and actions on the first line, what is known about it on the second.
 
 ```tsx
-            <div
-              key={task._id}
-              className="flex flex-col gap-1.5 border-b border-lift/[0.05] py-2.5 last:border-b-0"
-            >
-              <div className="flex items-center gap-3">
-                <span className="flex-1 text-[13px] text-foreground">
-                  {task.title}
-                </span>
+<div
+  key={task._id}
+  className="flex flex-col gap-1.5 border-b border-lift/[0.05] py-2.5 last:border-b-0"
+>
+  <div className="flex items-center gap-3">
+    <span className="flex-1 text-[13px] text-foreground">{task.title}</span>
 
-                <AreaBadge
-                  area={task.area}
-                  onChange={(area: Area) =>
-                    void setArea({ taskId: task._id, area })
-                  }
-                />
+    <AreaBadge
+      area={task.area}
+      onChange={(area: Area) => void setArea({ taskId: task._id, area })}
+    />
 
-                <button
-                  type="button"
-                  disabled={full}
-                  onClick={() => void pick(task._id)}
-                  title={
-                    full ? 'Today is full. Finish one or drop one.' : undefined
-                  }
-                  className="flex items-center gap-1.5 rounded-[7px] border border-lift/10 px-2 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300 disabled:cursor-default disabled:border-lift/[0.06] disabled:text-ink-700 disabled:hover:text-ink-700"
-                >
-                  <ArrowUp className="size-3" />
-                  Today
-                </button>
+    <button
+      type="button"
+      disabled={full}
+      onClick={() => void pick(task._id)}
+      title={full ? 'Today is full. Finish one or drop one.' : undefined}
+      className="flex items-center gap-1.5 rounded-[7px] border border-lift/10 px-2 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300 disabled:cursor-default disabled:border-lift/[0.06] disabled:text-ink-700 disabled:hover:text-ink-700"
+    >
+      <ArrowUp className="size-3" />
+      Today
+    </button>
 
-                <button
-                  type="button"
-                  aria-label={`Delete ${task.title}`}
-                  onClick={() => void removeTask({ taskId: task._id })}
-                  className="text-ink-700 transition-colors hover:text-ink-400"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              </div>
+    <button
+      type="button"
+      aria-label={`Delete ${task.title}`}
+      onClick={() => void removeTask({ taskId: task._id })}
+      className="text-ink-700 transition-colors hover:text-ink-400"
+    >
+      <Trash2 className="size-3.5" />
+    </button>
+  </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-[11px] text-ink-600">
-                  added {agoLabel(task._creationTime)}
-                </span>
-                <BindSelect
-                  task={task}
-                  projects={projects ?? []}
-                  goals={goalsToBind}
-                />
-                <ScheduleTask task={task} />
-              </div>
-            </div>
+  <div className="flex flex-wrap items-center gap-2">
+    <span className="font-mono text-[11px] text-ink-600">
+      added {agoLabel(task._creationTime)}
+    </span>
+    <BindSelect task={task} projects={projects ?? []} goals={goalsToBind} />
+    <ScheduleTask task={task} />
+  </div>
+</div>
 ```
 
 4. The skeleton rows are one line tall; a row is now two. Change `<SkeletonRows rows={4} line="h-[26px]" />` to `<SkeletonRows rows={4} line="h-[58px]" />` and adjust after measuring in Step 6 so the skeleton row height matches a real row within 2px.
@@ -1247,9 +1304,16 @@ function setup() {
 describe('milestones belong to a goal', () => {
   test('are listed in the order they were added', async () => {
     const { me } = setup()
-    const goalId = await me.mutation(api.goals.create, { title: 'Gain 5 kg of muscle', area: 'body' })
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'Gain 5 kg of muscle',
+      area: 'body',
+    })
     await me.mutation(api.milestones.create, { goalId, title: '+1 kg' })
-    await me.mutation(api.milestones.create, { goalId, title: '+3 kg', dueDate: '2026-11-01' })
+    await me.mutation(api.milestones.create, {
+      goalId,
+      title: '+3 kg',
+      dueDate: '2026-11-01',
+    })
     await me.mutation(api.milestones.create, { goalId, title: '+5 kg' })
 
     const list = await me.query(api.milestones.listByGoal, { goalId })
@@ -1259,30 +1323,54 @@ describe('milestones belong to a goal', () => {
 
   test('reaching one stamps a time; un-reaching clears it; the goal stays active', async () => {
     const { me } = setup()
-    const goalId = await me.mutation(api.goals.create, { title: 'G', area: 'body' })
-    const m = await me.mutation(api.milestones.create, { goalId, title: 'Only one' })
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'G',
+      area: 'body',
+    })
+    const m = await me.mutation(api.milestones.create, {
+      goalId,
+      title: 'Only one',
+    })
 
-    await me.mutation(api.milestones.setReached, { milestoneId: m, reached: true })
+    await me.mutation(api.milestones.setReached, {
+      milestoneId: m,
+      reached: true,
+    })
     let [row] = await me.query(api.milestones.listByGoal, { goalId })
     expect(typeof row.reachedAt).toBe('number')
     /* Reaching the last milestone is not reaching the goal — that is its own act. */
     expect((await me.query(api.goals.get, { goalId }))?.status).toBe('active')
 
-    await me.mutation(api.milestones.setReached, { milestoneId: m, reached: false })
+    await me.mutation(api.milestones.setReached, {
+      milestoneId: m,
+      reached: false,
+    })
     ;[row] = await me.query(api.milestones.listByGoal, { goalId })
     expect(row.reachedAt).toBeUndefined()
   })
 
   test('move swaps with the neighbour, and does nothing at either end', async () => {
     const { me } = setup()
-    const goalId = await me.mutation(api.goals.create, { title: 'G', area: 'life' })
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'G',
+      area: 'life',
+    })
     const a = await me.mutation(api.milestones.create, { goalId, title: 'a' })
     const b = await me.mutation(api.milestones.create, { goalId, title: 'b' })
     await me.mutation(api.milestones.create, { goalId, title: 'c' })
 
-    await me.mutation(api.milestones.move, { milestoneId: b, direction: 'earlier' })
-    await me.mutation(api.milestones.move, { milestoneId: b, direction: 'earlier' })
-    await me.mutation(api.milestones.move, { milestoneId: a, direction: 'later' })
+    await me.mutation(api.milestones.move, {
+      milestoneId: b,
+      direction: 'earlier',
+    })
+    await me.mutation(api.milestones.move, {
+      milestoneId: b,
+      direction: 'earlier',
+    })
+    await me.mutation(api.milestones.move, {
+      milestoneId: a,
+      direction: 'later',
+    })
 
     const list = await me.query(api.milestones.listByGoal, { goalId })
     expect(list.map((m) => m.title)).toEqual(['b', 'c', 'a'])
@@ -1290,9 +1378,19 @@ describe('milestones belong to a goal', () => {
 
   test('update renames and re-dates; null clears the date', async () => {
     const { me } = setup()
-    const goalId = await me.mutation(api.goals.create, { title: 'G', area: 'life' })
-    const m = await me.mutation(api.milestones.create, { goalId, title: 'x', dueDate: '2026-10-01' })
-    await me.mutation(api.milestones.update, { milestoneId: m, title: 'Two weeks clean' })
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'G',
+      area: 'life',
+    })
+    const m = await me.mutation(api.milestones.create, {
+      goalId,
+      title: 'x',
+      dueDate: '2026-10-01',
+    })
+    await me.mutation(api.milestones.update, {
+      milestoneId: m,
+      title: 'Two weeks clean',
+    })
     await me.mutation(api.milestones.update, { milestoneId: m, dueDate: null })
     const [row] = await me.query(api.milestones.listByGoal, { goalId })
     expect(row.title).toBe('Two weeks clean')
@@ -1301,7 +1399,10 @@ describe('milestones belong to a goal', () => {
 
   test('deleting a goal deletes its milestones', async () => {
     const { t, me } = setup()
-    const goalId = await me.mutation(api.goals.create, { title: 'G', area: 'life' })
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'G',
+      area: 'life',
+    })
     await me.mutation(api.milestones.create, { goalId, title: 'a' })
     await me.mutation(api.goals.remove, { goalId })
     const left = await t.run((ctx) => ctx.db.query('milestones').collect())
@@ -1310,15 +1411,25 @@ describe('milestones belong to a goal', () => {
 
   test('another owner can neither add to my goal nor read or touch its milestones', async () => {
     const { me, them } = setup()
-    const goalId = await me.mutation(api.goals.create, { title: 'Mine', area: 'life' })
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'Mine',
+      area: 'life',
+    })
     const m = await me.mutation(api.milestones.create, { goalId, title: 'a' })
 
-    await expect(them.mutation(api.milestones.create, { goalId, title: 'b' })).rejects.toThrow('No such goal')
+    await expect(
+      them.mutation(api.milestones.create, { goalId, title: 'b' }),
+    ).rejects.toThrow('No such goal')
     expect(await them.query(api.milestones.listByGoal, { goalId })).toEqual([])
     await expect(
-      them.mutation(api.milestones.setReached, { milestoneId: m, reached: true }),
+      them.mutation(api.milestones.setReached, {
+        milestoneId: m,
+        reached: true,
+      }),
     ).rejects.toThrow('No such milestone')
-    await expect(them.mutation(api.milestones.remove, { milestoneId: m })).rejects.toThrow('No such milestone')
+    await expect(
+      them.mutation(api.milestones.remove, { milestoneId: m }),
+    ).rejects.toThrow('No such milestone')
   })
 })
 ```
@@ -1331,9 +1442,14 @@ describe('a goal stands on its own, and can be edited', () => {
     const t = convexTest(schema, modules)
     const me = t.withIdentity({ tokenIdentifier: ME })
     const them = t.withIdentity({ tokenIdentifier: SOMEONE_ELSE })
-    const goalId = await me.mutation(api.goals.create, { title: 'No fap for a month', area: 'life' })
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'No fap for a month',
+      area: 'life',
+    })
 
-    expect((await me.query(api.goals.get, { goalId }))?.title).toBe('No fap for a month')
+    expect((await me.query(api.goals.get, { goalId }))?.title).toBe(
+      'No fap for a month',
+    )
     expect(await them.query(api.goals.get, { goalId })).toBeNull()
     expect(await me.query(api.goals.get, { goalId: 'nope' })).toBeNull()
   })
@@ -1341,13 +1457,29 @@ describe('a goal stands on its own, and can be edited', () => {
   test('update sets and clears the deadline and the target label', async () => {
     const t = convexTest(schema, modules)
     const me = t.withIdentity({ tokenIdentifier: ME })
-    const goalId = await me.mutation(api.goals.create, { title: 'Gain muscle', area: 'body' })
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'Gain muscle',
+      area: 'body',
+    })
 
-    await me.mutation(api.goals.update, { goalId, deadline: '2027-03-01', targetLabel: '+5 kg', title: 'Gain 5 kg of muscle' })
+    await me.mutation(api.goals.update, {
+      goalId,
+      deadline: '2027-03-01',
+      targetLabel: '+5 kg',
+      title: 'Gain 5 kg of muscle',
+    })
     let goal = await me.query(api.goals.get, { goalId })
-    expect([goal?.title, goal?.deadline, goal?.targetLabel]).toEqual(['Gain 5 kg of muscle', '2027-03-01', '+5 kg'])
+    expect([goal?.title, goal?.deadline, goal?.targetLabel]).toEqual([
+      'Gain 5 kg of muscle',
+      '2027-03-01',
+      '+5 kg',
+    ])
 
-    await me.mutation(api.goals.update, { goalId, deadline: null, targetLabel: null })
+    await me.mutation(api.goals.update, {
+      goalId,
+      deadline: null,
+      targetLabel: null,
+    })
     goal = await me.query(api.goals.get, { goalId })
     expect(goal?.deadline).toBeUndefined()
     expect(goal?.targetLabel).toBeUndefined()
@@ -1357,9 +1489,16 @@ describe('a goal stands on its own, and can be edited', () => {
     const t = convexTest(schema, modules)
     const me = t.withIdentity({ tokenIdentifier: ME })
     const them = t.withIdentity({ tokenIdentifier: SOMEONE_ELSE })
-    const goalId = await me.mutation(api.goals.create, { title: 'G', area: 'life' })
-    await expect(me.mutation(api.goals.update, { goalId, title: '  ' })).rejects.toThrow('A goal needs a title')
-    await expect(them.mutation(api.goals.update, { goalId, title: 'x' })).rejects.toThrow('No such goal')
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'G',
+      area: 'life',
+    })
+    await expect(
+      me.mutation(api.goals.update, { goalId, title: '  ' }),
+    ).rejects.toThrow('A goal needs a title')
+    await expect(
+      them.mutation(api.goals.update, { goalId, title: 'x' }),
+    ).rejects.toThrow('No such goal')
   })
 })
 ```
@@ -1406,7 +1545,11 @@ import schema from './schema'
 
 const MAX_ROWS = 100
 
-async function ownedGoal(ctx: QueryCtx | MutationCtx, ownerId: string, goalId: Id<'goals'>) {
+async function ownedGoal(
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string,
+  goalId: Id<'goals'>,
+) {
   const goal = await ctx.db.get(goalId)
   if (goal === null || goal.ownerId !== ownerId) throw new Error('No such goal')
   return goal
@@ -1422,15 +1565,25 @@ async function ownedMilestone(
   return m
 }
 
-async function siblings(ctx: QueryCtx | MutationCtx, ownerId: string, goalId: Id<'goals'>) {
+async function siblings(
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string,
+  goalId: Id<'goals'>,
+) {
   return await ctx.db
     .query('milestones')
-    .withIndex('by_owner_goal', (q) => q.eq('ownerId', ownerId).eq('goalId', goalId))
+    .withIndex('by_owner_goal', (q) =>
+      q.eq('ownerId', ownerId).eq('goalId', goalId),
+    )
     .take(MAX_ROWS)
 }
 
 export const create = mutation({
-  args: { goalId: v.id('goals'), title: v.string(), dueDate: v.optional(v.string()) },
+  args: {
+    goalId: v.id('goals'),
+    title: v.string(),
+    dueDate: v.optional(v.string()),
+  },
   returns: v.id('milestones'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
@@ -1439,7 +1592,8 @@ export const create = mutation({
     if (title.length === 0) throw new Error('A milestone needs a title')
 
     const existing = await siblings(ctx, ownerId, args.goalId)
-    const last = existing.length === 0 ? -1 : existing[existing.length - 1].sortOrder
+    const last =
+      existing.length === 0 ? -1 : existing[existing.length - 1].sortOrder
     return await ctx.db.insert('milestones', {
       ownerId,
       goalId: args.goalId,
@@ -1489,7 +1643,8 @@ export const update = mutation({
     if (title.length === 0) throw new Error('A milestone needs a title')
     await ctx.db.patch(args.milestoneId, {
       title,
-      dueDate: args.dueDate === undefined ? m.dueDate : (args.dueDate ?? undefined),
+      dueDate:
+        args.dueDate === undefined ? m.dueDate : (args.dueDate ?? undefined),
     })
     return null
   },
@@ -1568,9 +1723,14 @@ export const update = mutation({
     await ctx.db.patch(args.goalId, {
       title,
       area: args.area ?? goal.area,
-      deadline: args.deadline === undefined ? goal.deadline : (args.deadline ?? undefined),
+      deadline:
+        args.deadline === undefined
+          ? goal.deadline
+          : (args.deadline ?? undefined),
       targetLabel:
-        args.targetLabel === undefined ? goal.targetLabel : (args.targetLabel?.trim() || undefined),
+        args.targetLabel === undefined
+          ? goal.targetLabel
+          : args.targetLabel?.trim() || undefined,
     })
     return null
   },
@@ -1580,12 +1740,14 @@ export const update = mutation({
 In `goals.remove`, before `await ctx.db.delete(args.goalId)`:
 
 ```ts
-    /* Milestones are steps of this goal and mean nothing without it. */
-    const milestones = await ctx.db
-      .query('milestones')
-      .withIndex('by_owner_goal', (q) => q.eq('ownerId', ownerId).eq('goalId', args.goalId))
-      .take(MAX_ROWS)
-    for (const m of milestones) await ctx.db.delete(m._id)
+/* Milestones are steps of this goal and mean nothing without it. */
+const milestones = await ctx.db
+  .query('milestones')
+  .withIndex('by_owner_goal', (q) =>
+    q.eq('ownerId', ownerId).eq('goalId', args.goalId),
+  )
+  .take(MAX_ROWS)
+for (const m of milestones) await ctx.db.delete(m._id)
 ```
 
 - [ ] **Step 6: Run to pass**
@@ -1635,7 +1797,13 @@ export type TimelineNode =
   | { kind: 'end'; deadline?: string }
 export function goalTimeline(
   goal: { _creationTime: number; deadline?: string },
-  milestones: Array<{ _id: string; title: string; dueDate?: string; reachedAt?: number; sortOrder: number }>,
+  milestones: Array<{
+    _id: string
+    title: string
+    dueDate?: string
+    reachedAt?: number
+    sortOrder: number
+  }>,
 ): Array<TimelineNode>
 ```
 
@@ -1648,8 +1816,16 @@ import { describe, expect, test } from 'vitest'
 
 import { goalTimeline } from './goal-timeline'
 
-const goal = { _creationTime: new Date(2026, 8, 1, 10).getTime(), deadline: '2027-03-01' }
-const m = (id: string, sortOrder: number, reachedAt?: number, dueDate?: string) => ({
+const goal = {
+  _creationTime: new Date(2026, 8, 1, 10).getTime(),
+  deadline: '2027-03-01',
+}
+const m = (
+  id: string,
+  sortOrder: number,
+  reachedAt?: number,
+  dueDate?: string,
+) => ({
   _id: id,
   title: id,
   sortOrder,
@@ -1668,7 +1844,9 @@ describe('a goal’s timeline: 0 — 1 — 2 — 3 — goal', () => {
 
   test('numbers milestones by their order, not by the array they came in', () => {
     const nodes = goalTimeline(goal, [m('c', 2), m('a', 0), m('b', 1)])
-    expect(nodes.filter((n) => n.kind === 'milestone').map((n) => [n.id, n.number])).toEqual([
+    expect(
+      nodes.filter((n) => n.kind === 'milestone').map((n) => [n.id, n.number]),
+    ).toEqual([
       ['a', 1],
       ['b', 2],
       ['c', 3],
@@ -1677,25 +1855,29 @@ describe('a goal’s timeline: 0 — 1 — 2 — 3 — goal', () => {
 
   test('the first unreached milestone is next; the rest ahead; reached ones stay reached', () => {
     const nodes = goalTimeline(goal, [m('a', 0, 1), m('b', 1), m('c', 2)])
-    expect(nodes.filter((n) => n.kind === 'milestone').map((n) => n.state)).toEqual([
-      'reached',
-      'next',
-      'ahead',
-    ])
+    expect(
+      nodes.filter((n) => n.kind === 'milestone').map((n) => n.state),
+    ).toEqual(['reached', 'next', 'ahead'])
   })
 
   test('a reached milestone after an unreached one is still reached — order is not enforced', () => {
     const nodes = goalTimeline(goal, [m('a', 0), m('b', 1, 1)])
-    expect(nodes.filter((n) => n.kind === 'milestone').map((n) => n.state)).toEqual(['next', 'reached'])
+    expect(
+      nodes.filter((n) => n.kind === 'milestone').map((n) => n.state),
+    ).toEqual(['next', 'reached'])
   })
 
   test('all reached: nothing is next', () => {
     const nodes = goalTimeline(goal, [m('a', 0, 1), m('b', 1, 2)])
-    expect(nodes.some((n) => n.kind === 'milestone' && n.state === 'next')).toBe(false)
+    expect(
+      nodes.some((n) => n.kind === 'milestone' && n.state === 'next'),
+    ).toBe(false)
   })
 
   test('no deadline is an end with no date', () => {
-    expect(goalTimeline({ _creationTime: goal._creationTime }, []).at(-1)).toEqual({ kind: 'end' })
+    expect(
+      goalTimeline({ _creationTime: goal._creationTime }, []).at(-1),
+    ).toEqual({ kind: 'end' })
   })
 })
 ```
@@ -1753,13 +1935,20 @@ export function goalTimeline(
     title: x.title,
     ...(x.dueDate === undefined ? {} : { dueDate: x.dueDate }),
     ...(x.reachedAt === undefined ? {} : { reachedAt: x.reachedAt }),
-    state: x.reachedAt !== undefined ? 'reached' : x._id === nextId ? 'next' : 'ahead',
+    state:
+      x.reachedAt !== undefined
+        ? 'reached'
+        : x._id === nextId
+          ? 'next'
+          : 'ahead',
   }))
 
   return [
     { kind: 'start', date: localToday(new Date(goal._creationTime)) },
     ...steps,
-    goal.deadline === undefined ? { kind: 'end' } : { kind: 'end', deadline: goal.deadline },
+    goal.deadline === undefined
+      ? { kind: 'end' }
+      : { kind: 'end', deadline: goal.deadline },
   ]
 }
 ```
@@ -1848,7 +2037,10 @@ export function GoalTimeline({ goal }: { goal: Doc<'goals'> }) {
               }
             />
             {i < nodes.length - 1 ? (
-              <span aria-hidden className="hidden h-px flex-1 bg-lift/10 md:block" />
+              <span
+                aria-hidden
+                className="hidden h-px flex-1 bg-lift/10 md:block"
+              />
             ) : null}
           </div>
           <Caption node={node} />
@@ -1858,13 +2050,24 @@ export function GoalTimeline({ goal }: { goal: Doc<'goals'> }) {
   )
 }
 
-function Dot({ node, onToggle }: { node: TimelineNode; onToggle?: () => void }) {
-  const base = 'grid size-[22px] shrink-0 place-items-center rounded-full font-mono text-[10px]'
+function Dot({
+  node,
+  onToggle,
+}: {
+  node: TimelineNode
+  onToggle?: () => void
+}) {
+  const base =
+    'grid size-[22px] shrink-0 place-items-center rounded-full font-mono text-[10px]'
   if (node.kind === 'start') {
-    return <span className={`${base} border border-lift/15 text-ink-500`}>0</span>
+    return (
+      <span className={`${base} border border-lift/15 text-ink-500`}>0</span>
+    )
   }
   if (node.kind === 'end') {
-    return <span className={`${base} border border-lift/25 text-ink-300`}>◆</span>
+    return (
+      <span className={`${base} border border-lift/25 text-ink-300`}>◆</span>
+    )
   }
   const tone =
     node.state === 'reached'
@@ -1891,7 +2094,9 @@ function Caption({ node }: { node: TimelineNode }) {
     return (
       <div className="flex flex-col md:pr-3">
         <span className="label-caps">Started</span>
-        <span className="font-mono text-[11px] text-ink-600">{shortDate(node.date)}</span>
+        <span className="font-mono text-[11px] text-ink-600">
+          {shortDate(node.date)}
+        </span>
       </div>
     )
   }
@@ -1958,21 +2163,50 @@ export function MilestoneEditor({ goalId }: { goalId: Id<'goals'> }) {
     setDueDate('')
   }
 
-  const iconButton = 'text-ink-600 transition-colors hover:text-ink-300 disabled:opacity-30'
+  const iconButton =
+    'text-ink-600 transition-colors hover:text-ink-300 disabled:opacity-30'
 
   return (
     <div className="flex flex-col">
       {(milestones ?? []).map((m, i, all) => (
-        <div key={m._id} className="flex items-center gap-2 border-b border-lift/[0.05] py-2">
-          <span className="w-5 font-mono text-[11px] text-ink-600">{i + 1}</span>
-          <span className="flex-1 truncate text-[12.5px] text-ink-300">{m.title}</span>
-          <button type="button" aria-label={`Move ${m.title} earlier`} disabled={i === 0} onClick={() => void move({ milestoneId: m._id, direction: 'earlier' })} className={iconButton}>
+        <div
+          key={m._id}
+          className="flex items-center gap-2 border-b border-lift/[0.05] py-2"
+        >
+          <span className="w-5 font-mono text-[11px] text-ink-600">
+            {i + 1}
+          </span>
+          <span className="flex-1 truncate text-[12.5px] text-ink-300">
+            {m.title}
+          </span>
+          <button
+            type="button"
+            aria-label={`Move ${m.title} earlier`}
+            disabled={i === 0}
+            onClick={() =>
+              void move({ milestoneId: m._id, direction: 'earlier' })
+            }
+            className={iconButton}
+          >
             <ArrowUp className="size-3.5" />
           </button>
-          <button type="button" aria-label={`Move ${m.title} later`} disabled={i === all.length - 1} onClick={() => void move({ milestoneId: m._id, direction: 'later' })} className={iconButton}>
+          <button
+            type="button"
+            aria-label={`Move ${m.title} later`}
+            disabled={i === all.length - 1}
+            onClick={() =>
+              void move({ milestoneId: m._id, direction: 'later' })
+            }
+            className={iconButton}
+          >
             <ArrowDown className="size-3.5" />
           </button>
-          <button type="button" aria-label={`Delete ${m.title}`} onClick={() => void remove({ milestoneId: m._id })} className={iconButton}>
+          <button
+            type="button"
+            aria-label={`Delete ${m.title}`}
+            onClick={() => void remove({ milestoneId: m._id })}
+            className={iconButton}
+          >
             <Trash2 className="size-3.5" />
           </button>
         </div>
@@ -2070,7 +2304,8 @@ export function NewGoal() {
     )
   }
 
-  const control = 'rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300'
+  const control =
+    'rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300'
 
   return (
     <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
@@ -2091,7 +2326,11 @@ export function NewGoal() {
       <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2">
           <span className="label-caps">Area</span>
-          <select value={area} onChange={(e) => setArea(e.target.value as Area)} className={control}>
+          <select
+            value={area}
+            onChange={(e) => setArea(e.target.value as Area)}
+            className={control}
+          >
             {AREAS.map((a) => (
               <option key={a} value={a}>
                 {a}
@@ -2101,11 +2340,21 @@ export function NewGoal() {
         </label>
         <label className="flex items-center gap-2">
           <span className="label-caps">By</span>
-          <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} className={`${control} font-mono`} />
+          <input
+            type="date"
+            value={deadline}
+            onChange={(e) => setDeadline(e.target.value)}
+            className={`${control} font-mono`}
+          />
         </label>
         <label className="flex items-center gap-2">
           <span className="label-caps">Target</span>
-          <input value={target} onChange={(e) => setTarget(e.target.value)} placeholder="+5 kg" className={`${control} w-24`} />
+          <input
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+            placeholder="+5 kg"
+            className={`${control} w-24`}
+          />
         </label>
         <div className="ml-auto flex items-center gap-2">
           <button
@@ -2154,32 +2403,32 @@ In `src/routes/_app/goals.tsx`:
 7. Replace the meta line (`projectCount(...)` and the deadline) with:
 
 ```tsx
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-ink-600">
-              {(projects ?? [])
-                .filter((p) => p.goalId === goal._id)
-                .map((p) => (
-                  <Link
-                    key={p._id}
-                    to="/projects/$id"
-                    params={{ id: p._id }}
-                    className="text-ink-400 transition-colors hover:text-lav-300"
-                  >
-                    {p.title}
-                  </Link>
-                ))}
-              <label className="flex items-center gap-1.5">
-                <span>{goal.deadline ? deadlineLabel(goal.deadline) : 'no deadline'}</span>
-                <input
-                  type="date"
-                  aria-label={`Deadline for ${goal.title}`}
-                  value={goal.deadline ?? ''}
-                  onChange={(e) =>
-                    void update({ goalId: goal._id, deadline: e.target.value || null })
-                  }
-                  className="w-[7.5rem] rounded-[6px] border border-lift/10 bg-sink/20 px-1.5 py-0.5 text-[11px] text-ink-400"
-                />
-              </label>
-            </div>
+<div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-ink-600">
+  {(projects ?? [])
+    .filter((p) => p.goalId === goal._id)
+    .map((p) => (
+      <Link
+        key={p._id}
+        to="/projects/$id"
+        params={{ id: p._id }}
+        className="text-ink-400 transition-colors hover:text-lav-300"
+      >
+        {p.title}
+      </Link>
+    ))}
+  <label className="flex items-center gap-1.5">
+    <span>{goal.deadline ? deadlineLabel(goal.deadline) : 'no deadline'}</span>
+    <input
+      type="date"
+      aria-label={`Deadline for ${goal.title}`}
+      value={goal.deadline ?? ''}
+      onChange={(e) =>
+        void update({ goalId: goal._id, deadline: e.target.value || null })
+      }
+      className="w-[7.5rem] rounded-[6px] border border-lift/10 bg-sink/20 px-1.5 py-0.5 text-[11px] text-ink-400"
+    />
+  </label>
+</div>
 ```
 
 and delete the now-unused `projectCount` function.
@@ -2187,19 +2436,21 @@ and delete the now-unused `projectCount` function.
 8. After the meta line, for goals **without** a `tile` (monthly tile targets have no timeline), add:
 
 ```tsx
-            {goal.tile === undefined ? (
-              <div className="flex flex-col gap-3 border-t border-lift/[0.07] pt-3">
-                <GoalTimeline goal={goal} />
-                <details className="group">
-                  <summary className="label-caps cursor-pointer list-none transition-colors hover:text-ink-300">
-                    Milestones
-                  </summary>
-                  <div className="pt-2">
-                    <MilestoneEditor goalId={goal._id} />
-                  </div>
-                </details>
-              </div>
-            ) : null}
+{
+  goal.tile === undefined ? (
+    <div className="flex flex-col gap-3 border-t border-lift/[0.07] pt-3">
+      <GoalTimeline goal={goal} />
+      <details className="group">
+        <summary className="label-caps cursor-pointer list-none transition-colors hover:text-ink-300">
+          Milestones
+        </summary>
+        <div className="pt-2">
+          <MilestoneEditor goalId={goal._id} />
+        </div>
+      </details>
+    </div>
+  ) : null
+}
 ```
 
 - [ ] **Step 5: New project can hang on an existing goal**
@@ -2210,48 +2461,48 @@ In `src/routes/_app/projects.index.tsx` `NewProject`:
 2. Replace the "Goal — what this is ultimately for" `Field` with:
 
 ```tsx
-      <Field label="Goal — what this is ultimately for">
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={goalId}
-            onChange={(e) => setGoalId(e.target.value)}
-            className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
-          >
-            <option value="new">A new goal…</option>
-            {(goals ?? [])
-              .filter((g) => g.tile === undefined)
-              .map((g) => (
-                <option key={g._id} value={g._id}>
-                  {g.title}
-                </option>
-              ))}
-          </select>
-          {goalId === 'new' ? (
-            <input
-              autoFocus
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-              placeholder="A profitable business"
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
-            />
-          ) : null}
-        </div>
-      </Field>
+<Field label="Goal — what this is ultimately for">
+  <div className="flex flex-wrap items-center gap-2">
+    <select
+      value={goalId}
+      onChange={(e) => setGoalId(e.target.value)}
+      className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
+    >
+      <option value="new">A new goal…</option>
+      {(goals ?? [])
+        .filter((g) => g.tile === undefined)
+        .map((g) => (
+          <option key={g._id} value={g._id}>
+            {g.title}
+          </option>
+        ))}
+    </select>
+    {goalId === 'new' ? (
+      <input
+        autoFocus
+        value={goal}
+        onChange={(e) => setGoal(e.target.value)}
+        placeholder="A profitable business"
+        className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
+      />
+    ) : null}
+  </div>
+</Field>
 ```
 
 3. The Area select only applies to a new goal: wrap its `<label>` in `{goalId === 'new' ? (…) : null}`.
 4. In `submit`, validate `(goalId === 'new' ? goal.trim().length === 0 : false) || project.trim().length === 0`, and create:
 
 ```tsx
-        const parent =
-          goalId === 'new'
-            ? await createGoal({ title: goal.trim(), area })
-            : (goalId as Id<'goals'>)
-        await createProject({
-          goalId: parent,
-          title: project.trim(),
-          deadline: deadline.length > 0 ? deadline : undefined,
-        })
+const parent =
+  goalId === 'new'
+    ? await createGoal({ title: goal.trim(), area })
+    : (goalId as Id<'goals'>)
+await createProject({
+  goalId: parent,
+  title: project.trim(),
+  deadline: deadline.length > 0 ? deadline : undefined,
+})
 ```
 
 5. In `finish`, also `setGoalId('new')`.
@@ -2265,23 +2516,25 @@ In `src/routes/_app/projects.$id.tsx`:
 3. After the header card (before the tasks/notes grid), add:
 
 ```tsx
-      {goal ? (
-        <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <div className="flex items-baseline gap-2">
-              <span className="label-caps">For</span>
-              <Link
-                to="/goals"
-                hash={`goal-${goal._id}`}
-                className="text-[14px] text-foreground transition-colors hover:text-lav-300"
-              >
-                {goal.title}
-              </Link>
-            </div>
-          </div>
-          <GoalTimeline goal={goal} />
+{
+  goal ? (
+    <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <div className="flex items-baseline gap-2">
+          <span className="label-caps">For</span>
+          <Link
+            to="/goals"
+            hash={`goal-${goal._id}`}
+            className="text-[14px] text-foreground transition-colors hover:text-lav-300"
+          >
+            {goal.title}
+          </Link>
         </div>
-      ) : null}
+      </div>
+      <GoalTimeline goal={goal} />
+    </div>
+  ) : null
+}
 ```
 
 (`useQuery` from `convex-helpers/react/cache/hooks` accepts `'skip'`; if its types object, pass `{ goalId: project?.goalId ?? '' }` — an empty string normalizes to null and returns null.)
@@ -2420,12 +2673,21 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-async function oreum(t: ReturnType<ReturnType<typeof convexTest>['withIdentity']>) {
-  const goalId = await t.mutation(api.goals.create, { title: 'A business', area: 'business' })
+async function oreum(
+  t: ReturnType<ReturnType<typeof convexTest>['withIdentity']>,
+) {
+  const goalId = await t.mutation(api.goals.create, {
+    title: 'A business',
+    area: 'business',
+  })
   return await t.mutation(api.projects.create, { goalId, title: 'Oreum' })
 }
 
-const bounds = { lastWeekStart: LAST_WEEK, weekStart: THIS_WEEK, nextWeekStart: NEXT_WEEK }
+const bounds = {
+  lastWeekStart: LAST_WEEK,
+  weekStart: THIS_WEEK,
+  nextWeekStart: NEXT_WEEK,
+}
 
 describe('parseRepo', () => {
   test.each([
@@ -2438,9 +2700,12 @@ describe('parseRepo', () => {
     expect(parseRepo(input)).toBe(out)
   })
 
-  test.each(['oreum', 'https://gitlab.com/a/b', 'a/b/c d', ''])('%s is not a repo', (input) => {
-    expect(parseRepo(input)).toBeNull()
-  })
+  test.each(['oreum', 'https://gitlab.com/a/b', 'a/b/c d', ''])(
+    '%s is not a repo',
+    (input) => {
+      expect(parseRepo(input)).toBeNull()
+    },
+  )
 })
 
 describe('commits are stored readings (source 4)', () => {
@@ -2448,36 +2713,52 @@ describe('commits are stored readings (source 4)', () => {
     const t = convexTest(schema, modules)
     const me = t.withIdentity({ tokenIdentifier: ME })
     const projectId = await oreum(me)
-    await t.run((ctx) => ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }))
+    await t.run((ctx) =>
+      ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }),
+    )
     const fetchMock = stubGitHub()
 
     await t.action(internal.github.checkOne, { projectId })
     await t.action(internal.github.checkOne, { projectId })
 
-    expect(String(fetchMock.mock.calls[0][0])).toContain('/repos/artemchernii/oreum/commits?since=')
+    expect(String(fetchMock.mock.calls[0][0])).toContain(
+      '/repos/artemchernii/oreum/commits?since=',
+    )
     const rows = await t.run((ctx) => ctx.db.query('commits').collect())
     expect(rows.map((r) => r.sha).sort()).toEqual(['c1', 'c2', 'c3'])
     expect(rows.every((r) => r.ownerId === ME)).toBe(true)
 
-    const counts = await me.query(api.aggregate.projectCommits, { projectId, ...bounds })
+    const counts = await me.query(api.aggregate.projectCommits, {
+      projectId,
+      ...bounds,
+    })
     expect(counts.repo).toBe('artemchernii/oreum')
     expect(typeof counts.checkedAt).toBe('number')
     expect([counts.thisWeek, counts.lastWeek]).toEqual([1, 1])
 
     const recent = await me.query(api.github.listRecent, { projectId })
-    expect(recent.map((c) => c.message)).toEqual(['Ship onboarding', 'Fix pricing', 'Start'])
+    expect(recent.map((c) => c.message)).toEqual([
+      'Ship onboarding',
+      'Fix pricing',
+      'Start',
+    ])
   })
 
   test('a failed fetch stores nothing and does not pretend it looked', async () => {
     const t = convexTest(schema, modules)
     const me = t.withIdentity({ tokenIdentifier: ME })
     const projectId = await oreum(me)
-    await t.run((ctx) => ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }))
+    await t.run((ctx) =>
+      ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }),
+    )
     stubGitHub(403, { message: 'API rate limit exceeded' })
 
     await t.action(internal.github.checkOne, { projectId })
 
-    const counts = await me.query(api.aggregate.projectCommits, { projectId, ...bounds })
+    const counts = await me.query(api.aggregate.projectCommits, {
+      projectId,
+      ...bounds,
+    })
     expect(counts.checkedAt).toBeNull()
     expect(await t.run((ctx) => ctx.db.query('commits').collect())).toEqual([])
   })
@@ -2489,10 +2770,16 @@ describe('commits are stored readings (source 4)', () => {
     const projectId = await oreum(me)
     stubGitHub()
 
-    await me.mutation(api.github.setRepo, { projectId, repo: 'https://github.com/artemchernii/oreum' })
+    await me.mutation(api.github.setRepo, {
+      projectId,
+      repo: 'https://github.com/artemchernii/oreum',
+    })
     await t.finishAllScheduledFunctions(vi.runAllTimers)
 
-    const counts = await me.query(api.aggregate.projectCommits, { projectId, ...bounds })
+    const counts = await me.query(api.aggregate.projectCommits, {
+      projectId,
+      ...bounds,
+    })
     expect(counts.repo).toBe('artemchernii/oreum')
     expect(counts.thisWeek).toBe(1)
   })
@@ -2501,13 +2788,27 @@ describe('commits are stored readings (source 4)', () => {
     const t = convexTest(schema, modules)
     const me = t.withIdentity({ tokenIdentifier: ME })
     const projectId = await oreum(me)
-    await t.run((ctx) => ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }))
+    await t.run((ctx) =>
+      ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }),
+    )
     stubGitHub()
     await t.action(internal.github.checkOne, { projectId })
 
-    await t.run((ctx) => ctx.db.patch(projectId, { githubRepo: 'artemchernii/other', githubCheckedAt: undefined }))
-    const counts = await me.query(api.aggregate.projectCommits, { projectId, ...bounds })
-    expect([counts.thisWeek, counts.lastWeek, counts.checkedAt]).toEqual([0, 0, null])
+    await t.run((ctx) =>
+      ctx.db.patch(projectId, {
+        githubRepo: 'artemchernii/other',
+        githubCheckedAt: undefined,
+      }),
+    )
+    const counts = await me.query(api.aggregate.projectCommits, {
+      projectId,
+      ...bounds,
+    })
+    expect([counts.thisWeek, counts.lastWeek, counts.checkedAt]).toEqual([
+      0,
+      0,
+      null,
+    ])
     expect(await me.query(api.github.listRecent, { projectId })).toEqual([])
   })
 
@@ -2517,12 +2818,21 @@ describe('commits are stored readings (source 4)', () => {
     const them = t.withIdentity({ tokenIdentifier: SOMEONE_ELSE })
     const projectId = await oreum(me)
 
-    await expect(me.mutation(api.github.setRepo, { projectId, repo: 'oreum' })).rejects.toThrow('not a GitHub repo')
-    await expect(them.mutation(api.github.setRepo, { projectId, repo: null })).rejects.toThrow('No such project')
+    await expect(
+      me.mutation(api.github.setRepo, { projectId, repo: 'oreum' }),
+    ).rejects.toThrow('not a GitHub repo')
+    await expect(
+      them.mutation(api.github.setRepo, { projectId, repo: null }),
+    ).rejects.toThrow('No such project')
 
-    await t.run((ctx) => ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }))
+    await t.run((ctx) =>
+      ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }),
+    )
     await me.mutation(api.github.setRepo, { projectId, repo: null })
-    expect((await me.query(api.aggregate.projectCommits, { projectId, ...bounds })).repo).toBeNull()
+    expect(
+      (await me.query(api.aggregate.projectCommits, { projectId, ...bounds }))
+        .repo,
+    ).toBeNull()
   })
 
   test('another owner reads nothing of mine', async () => {
@@ -2530,11 +2840,15 @@ describe('commits are stored readings (source 4)', () => {
     const me = t.withIdentity({ tokenIdentifier: ME })
     const them = t.withIdentity({ tokenIdentifier: SOMEONE_ELSE })
     const projectId = await oreum(me)
-    await t.run((ctx) => ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }))
+    await t.run((ctx) =>
+      ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }),
+    )
     stubGitHub()
     await t.action(internal.github.checkOne, { projectId })
 
-    expect(await them.query(api.aggregate.projectCommits, { projectId, ...bounds })).toEqual({
+    expect(
+      await them.query(api.aggregate.projectCommits, { projectId, ...bounds }),
+    ).toEqual({
       repo: null,
       checkedAt: null,
       thisWeek: 0,
@@ -2547,7 +2861,9 @@ describe('commits are stored readings (source 4)', () => {
     const t = convexTest(schema, modules)
     const me = t.withIdentity({ tokenIdentifier: ME })
     const projectId = await oreum(me)
-    await t.run((ctx) => ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }))
+    await t.run((ctx) =>
+      ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }),
+    )
     stubGitHub()
     await t.action(internal.github.checkOne, { projectId })
 
@@ -2638,7 +2954,9 @@ const REPO = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/
 /** `owner/name` from what a person pastes: the pair itself or a github.com URL. */
 export function parseRepo(input: string): string | null {
   const trimmed = input.trim()
-  const url = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/\s]+)\/([^/\s]+)/i)
+  const url = trimmed.match(
+    /^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/\s]+)\/([^/\s]+)/i,
+  )
   const candidate = url ? `${url[1]}/${url[2].replace(/\.git$/, '')}` : trimmed
   return REPO.test(candidate) ? candidate : null
 }
@@ -2654,7 +2972,10 @@ export const setRepo = mutation({
     }
 
     if (args.repo === null) {
-      await ctx.db.patch(args.projectId, { githubRepo: undefined, githubCheckedAt: undefined })
+      await ctx.db.patch(args.projectId, {
+        githubRepo: undefined,
+        githubCheckedAt: undefined,
+      })
       return null
     }
 
@@ -2662,9 +2983,14 @@ export const setRepo = mutation({
     if (repo === null) {
       throw new ConvexError('That is not a GitHub repo: use owner/name.')
     }
-    await ctx.db.patch(args.projectId, { githubRepo: repo, githubCheckedAt: undefined })
+    await ctx.db.patch(args.projectId, {
+      githubRepo: repo,
+      githubCheckedAt: undefined,
+    })
     /* Look now, rather than leaving the card empty until the next hour. */
-    await ctx.scheduler.runAfter(0, internal.github.checkOne, { projectId: args.projectId })
+    await ctx.scheduler.runAfter(0, internal.github.checkOne, {
+      projectId: args.projectId,
+    })
     return null
   },
 })
@@ -2673,13 +2999,19 @@ export const setRepo = mutation({
 export const listRecent = query({
   args: { projectId: v.string() },
   returns: v.array(
-    v.object({ sha: v.string(), message: v.string(), url: v.string(), authoredAt: v.number() }),
+    v.object({
+      sha: v.string(),
+      message: v.string(),
+      url: v.string(),
+      authoredAt: v.number(),
+    }),
   ),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const projectId = ctx.db.normalizeId('projects', args.projectId)
     const project = projectId === null ? null : await ctx.db.get(projectId)
-    if (project === null || project.ownerId !== ownerId || !project.githubRepo) return []
+    if (project === null || project.ownerId !== ownerId || !project.githubRepo)
+      return []
 
     const rows = await ctx.db
       .query('commits')
@@ -2691,7 +3023,12 @@ export const listRecent = query({
     return rows
       .filter((r) => r.repo === project.githubRepo)
       .slice(0, 5)
-      .map((r) => ({ sha: r.sha, message: r.message, url: r.url, authoredAt: r.authoredAt }))
+      .map((r) => ({
+        sha: r.sha,
+        message: r.message,
+        url: r.url,
+        authoredAt: r.authoredAt,
+      }))
   },
 })
 
@@ -2742,7 +3079,9 @@ export const record = internalMutation({
     for (const c of args.commits) {
       const seen = await ctx.db
         .query('commits')
-        .withIndex('by_project_sha', (q) => q.eq('projectId', args.projectId).eq('sha', c.sha))
+        .withIndex('by_project_sha', (q) =>
+          q.eq('projectId', args.projectId).eq('sha', c.sha),
+        )
         .first()
       if (seen !== null) continue
       await ctx.db.insert('commits', {
@@ -2761,11 +3100,17 @@ export const record = internalMutation({
 type GitHubCommit = {
   sha: string
   html_url: string
-  commit: { message: string; author: { date: string } | null; committer: { date: string } | null }
+  commit: {
+    message: string
+    author: { date: string } | null
+    committer: { date: string } | null
+  }
 }
 
 async function check(ctx: ActionCtx, projectId: Id<'projects'>): Promise<void> {
-  const repo: string | null = await ctx.runQuery(internal.github.repoFor, { projectId })
+  const repo: string | null = await ctx.runQuery(internal.github.repoFor, {
+    projectId,
+  })
   if (repo === null) return
 
   const since = new Date(Date.now() - LOOKBACK_MS).toISOString()
@@ -2822,7 +3167,10 @@ export const checkAll = internalAction({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const ids: Array<Id<'projects'>> = await ctx.runQuery(internal.github.connectedProjects, {})
+    const ids: Array<Id<'projects'>> = await ctx.runQuery(
+      internal.github.connectedProjects,
+      {},
+    )
     for (const id of ids) {
       await check(ctx, id)
     }
@@ -2844,7 +3192,12 @@ const crons = cronJobs()
 
 /* Source 4's readings (R3c). Hourly: often enough that "last week" is right
    the morning you look, rare enough to stay far inside GitHub's limits. */
-crons.interval('check GitHub commits', { hours: 1 }, internal.github.checkAll, {})
+crons.interval(
+  'check GitHub commits',
+  { hours: 1 },
+  internal.github.checkAll,
+  {},
+)
 
 export default crons
 ```
@@ -2883,7 +3236,11 @@ export const projectCommits = query({
     const none = { repo: null, checkedAt: null, thisWeek: 0, lastWeek: 0 }
     const projectId = ctx.db.normalizeId('projects', args.projectId)
     const project = projectId === null ? null : await ctx.db.get(projectId)
-    if (project === null || project.ownerId !== ownerId || !project.githubRepo) {
+    if (
+      project === null ||
+      project.ownerId !== ownerId ||
+      !project.githubRepo
+    ) {
       return none
     }
 
@@ -2922,14 +3279,14 @@ Update the header comment's sentence `the fourth has no implementation yet, and 
 In `convex/projects.ts` `remove`, before `await ctx.db.delete(args.projectId)`:
 
 ```ts
-    /* Readings about this project mean nothing without it. */
-    const commits = await ctx.db
-      .query('commits')
-      .withIndex('by_owner_project_time', (q) =>
-        q.eq('ownerId', ownerId).eq('projectId', args.projectId),
-      )
-      .take(1000)
-    for (const commit of commits) await ctx.db.delete(commit._id)
+/* Readings about this project mean nothing without it. */
+const commits = await ctx.db
+  .query('commits')
+  .withIndex('by_owner_project_time', (q) =>
+    q.eq('ownerId', ownerId).eq('projectId', args.projectId),
+  )
+  .take(1000)
+for (const commit of commits) await ctx.db.delete(commit._id)
 ```
 
 - [ ] **Step 8: Run to pass**
@@ -3059,7 +3416,9 @@ export function ProjectCommits({ projectId }: { projectId: Id<'projects'> }) {
           <ArrowUpRight className="size-3" />
         </a>
         <span className="font-mono text-[11px] text-ink-600">
-          {counts.checkedAt === null ? 'checking…' : `as of ${whenLabel(counts.checkedAt)}`}
+          {counts.checkedAt === null
+            ? 'checking…'
+            : `as of ${whenLabel(counts.checkedAt)}`}
         </span>
       </div>
 
@@ -3069,7 +3428,9 @@ export function ProjectCommits({ projectId }: { projectId: Id<'projects'> }) {
       </div>
 
       {recent === undefined ? null : recent.length === 0 ? (
-        <p className="text-[13px] text-ink-500">No commits in the last two weeks.</p>
+        <p className="text-[13px] text-ink-500">
+          No commits in the last two weeks.
+        </p>
       ) : (
         <div className="flex flex-col">
           {recent.map((c) => (
@@ -3105,7 +3466,9 @@ export function ProjectCommits({ projectId }: { projectId: Id<'projects'> }) {
 function Count({ n, label }: { n: number; label: string }) {
   return (
     <div className="flex flex-col">
-      <span className="text-[28px] leading-none font-light text-foreground">{n}</span>
+      <span className="text-[28px] leading-none font-light text-foreground">
+        {n}
+      </span>
       <span className="label-caps pt-1.5">{label}</span>
     </div>
   )

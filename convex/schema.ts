@@ -245,6 +245,9 @@ export default defineSchema({
     kind: noteKind,
   })
     .index('by_owner_kind', ['ownerId', 'kind'])
+    /* The notes on one project's page (R3). _creationTime is the implicit last
+       column, so ordering desc is newest first without a sort. */
+    .index('by_owner_project', ['ownerId', 'projectId'])
     /* Two, because a search index carries exactly one field and a note is
        findable by either half of it. convex/search.ts queries both and
        de-duplicates by _id. */

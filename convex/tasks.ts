@@ -257,6 +257,39 @@ export const setProject = mutation({
   },
 })
 
+/**
+ * Bind a task to a goal directly, or cut it loose. For work that serves a
+ * goal with no project under it — "buy protein" under "gain 5 kg of muscle"
+ * (R3, 16 Sep: a goal need not have a project).
+ *
+ * A task under a project already carries that project's goal (setProject), so
+ * choosing a goal here clears the project: the goal is now the authority.
+ */
+export const setGoal = mutation({
+  args: {
+    taskId: v.id('tasks'),
+    goalId: v.union(v.id('goals'), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedTask(ctx, ownerId, args.taskId)
+
+    if (args.goalId !== null) {
+      const goal = await ctx.db.get(args.goalId)
+      if (goal === null || goal.ownerId !== ownerId) {
+        throw new Error('No such goal')
+      }
+    }
+
+    await ctx.db.patch(args.taskId, {
+      goalId: args.goalId ?? undefined,
+      projectId: undefined,
+    })
+    return null
+  },
+})
+
 /** One project's work, newest last. Open tasks first — the rest is history. */
 /* Read by the project page's URL, like projects.get: a bad or stale id is an
    empty list, not a throw — the page already says "No such project" from get.

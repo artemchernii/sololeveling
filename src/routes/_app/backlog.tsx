@@ -9,13 +9,28 @@ import { api } from '../../../convex/_generated/api'
 import { AreaBadge } from '@/components/AreaBadge'
 import { BindSelect } from '@/components/backlog/BindSelect'
 import { DoneList } from '@/components/backlog/DoneList'
+import {
+  isFiltered,
+  ListControls,
+  NO_FILTER,
+} from '@/components/backlog/ListControls'
+import type { ListFilter } from '@/components/backlog/ListControls'
 import { ScheduleTask } from '@/components/backlog/ScheduleTask'
 import { SaveGlyph, useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
+import type { Doc } from '../../../convex/_generated/dataModel'
 import { agoLabel, shortDate } from '@/lib/format'
 import { localToday } from '@/lib/today'
 import { useArrived, useHeld } from '@/lib/loading'
+
+type BacklogSort = 'newest' | 'oldest' | 'title'
+
+const SORTS: Array<{ value: BacklogSort; label: string }> = [
+  { value: 'newest', label: 'newest first' },
+  { value: 'oldest', label: 'oldest first' },
+  { value: 'title', label: 'title A–Z' },
+]
 
 export const Route = createFileRoute('/_app/backlog')({
   component: Backlog,
@@ -42,6 +57,14 @@ function Backlog() {
   const pickForToday = useMutation(api.tasks.pickForToday)
   const setArea = useMutation(api.tasks.setArea)
   const removeTask = useMutation(api.tasks.remove)
+
+  /* Filtered and sorted here, not on the server: the backlog is one
+     person's list, already capped at 200 by listBacklog, and every row is
+     in hand. Newest first by default (17 Sep) — what was just written is
+     what you came to find. */
+  const [filter, setFilter] = useState<ListFilter>(NO_FILTER)
+  const [sort, setSort] = useState<BacklogSort>('newest')
+  const shown = tasks === undefined ? undefined : arrange(tasks, filter, sort)
 
   const [title, setTitle] = useState('')
   const [refusal, setRefusal] = useState<string | null>(null)
@@ -120,16 +143,34 @@ function Backlog() {
             />
           </div>
 
-          {tasks === undefined ? (
+          {tasks !== undefined && tasks.length > 0 ? (
+            <ListControls
+              filter={filter}
+              onFilter={setFilter}
+              sort={sort}
+              sorts={SORTS}
+              onSort={setSort}
+              projects={projects ?? []}
+              goals={goalsToBind}
+              placeholder="Search the backlog"
+              unfiled
+            />
+          ) : null}
+
+          {tasks === undefined || shown === undefined ? (
             <SkeletonRows rows={4} line="h-[61px]" />
           ) : tasks.length === 0 ? (
             <p className={`text-[13px] text-ink-500 ${arrived}`}>
               Empty. Everything you have written down is either done or on
               today.
             </p>
+          ) : shown.length === 0 ? (
+            <p className="text-[13px] text-ink-500">
+              Nothing waiting matches that.
+            </p>
           ) : (
             <div className={`flex flex-col ${arrived}`}>
-              {tasks.map((task) => (
+              {shown.map((task) => (
                 <div
                   key={task._id}
                   className="flex flex-col gap-1.5 border-b border-lift/[0.05] py-2.5 last:border-b-0"
@@ -205,5 +246,34 @@ function Backlog() {
         </>
       )}
     </div>
+  )
+}
+
+function arrange(
+  tasks: Array<Doc<'tasks'>>,
+  filter: ListFilter,
+  sort: BacklogSort,
+): Array<Doc<'tasks'>> {
+  const words = filter.search.trim().toLowerCase()
+  const kept = !isFiltered(filter)
+    ? [...tasks]
+    : tasks.filter(
+        (t) =>
+          (words === '' || t.title.toLowerCase().includes(words)) &&
+          (filter.area === '' ||
+            (filter.area === 'unfiled'
+              ? t.area === undefined
+              : t.area === filter.area)) &&
+          (filter.bound === '' ||
+            (filter.bound.startsWith('p:')
+              ? t.projectId === filter.bound.slice(2)
+              : t.goalId === filter.bound.slice(2))),
+      )
+  if (sort === 'title')
+    return kept.sort((a, b) => a.title.localeCompare(b.title))
+  return kept.sort((a, b) =>
+    sort === 'newest'
+      ? b._creationTime - a._creationTime
+      : a._creationTime - b._creationTime,
   )
 }

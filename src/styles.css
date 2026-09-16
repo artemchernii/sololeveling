@@ -471,6 +471,21 @@ h6 {
   box-shadow: var(--glass-shadow);
 }
 
+/* A list that drops over the cards below it (Today's three picking from the
+   backlog). The card's own material, so it reads as the card continuing:
+   the same fill over a frosted page, with no lit rim or glow, because
+   glass-modal's rim and bluer ground made it a different object (16 Sep).
+   It needs a blur of its own to hide text, and a blur only reaches the
+   page from outside every other glass layer — so it is portalled to body.
+   2x the card's blur is where a 22px numeral below stops being a number;
+   the ground at 55% keeps the violet ambient showing, as it does in a card. */
+@utility glass-menu {
+  background-color: color-mix(in srgb, var(--color-ground) 55%, transparent);
+  background-image: var(--glass-fill);
+  backdrop-filter: blur(calc(var(--glass-blur) * 2)) saturate(140%);
+  border: 1px solid color-mix(in srgb, var(--lift) 6%, transparent);
+}
+
 /* The same material as .glass, but lit top-down and edged only along the
    bottom — the treatment for the one element that spans the full width. */
 @utility glass-bar {

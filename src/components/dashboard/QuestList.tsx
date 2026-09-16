@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Check, ListChecks, Plus, X } from 'lucide-react'
@@ -20,6 +21,7 @@ const TODAY_LIMIT = 3
 
 /** The open slot's field, for anything handing you the day's first move. */
 export const PICK_FIELD_ID = 'pick-todays-three'
+const LIST_ID = 'todays-three-backlog'
 
 /* PLAN.md §3 item 2 and §3c.1: three, hard. Three slots are drawn whether or
    not they are filled, numbered 01–03 — the day has that shape before you
@@ -94,7 +96,13 @@ export function QuestList({
   useEffect(() => {
     if (!showPicker) return
     function away(e: MouseEvent) {
-      if (!slotsRef.current?.contains(e.target as Node)) close()
+      const target = e.target as Node
+      /* The list lives in body (see Picker), so it is not inside the card. */
+      if (
+        !slotsRef.current?.contains(target) &&
+        !document.getElementById(LIST_ID)?.contains(target)
+      )
+        close()
     }
     document.addEventListener('mousedown', away)
     return () => document.removeEventListener('mousedown', away)
@@ -160,13 +168,7 @@ export function QuestList({
   }
 
   return (
-    <div
-      className={`glass relative flex min-h-[216px] flex-col gap-2 rounded-[22px] p-5 ${
-        /* The card is its own layer (backdrop-filter), so the list can only
-           rise above the next card if the whole card does. */
-        showPicker ? 'z-10' : ''
-      }`}
-    >
+    <div className="glass flex min-h-[216px] flex-col gap-2 rounded-[22px] p-5">
       <div className="flex items-baseline justify-between">
         <div className="label-caps">Today&rsquo;s three</div>
         {/* Nothing until one is finished: the three rows already say how
@@ -223,7 +225,7 @@ export function QuestList({
                       value={title}
                       role="combobox"
                       aria-expanded={showPicker}
-                      aria-controls="todays-three-backlog"
+                      aria-controls={LIST_ID}
                       aria-activedescendant={
                         showPicker && active >= 0
                           ? `backlog-option-${active}`
@@ -290,8 +292,15 @@ export function QuestList({
 }
 
 /* The backlog, to pick from — over the page, not in it, so nothing moves.
-   Opaque (glass-modal), because it sits on top of the cards below; the card
-   material let their numbers read through it. What is typed narrows it. */
+   What is typed narrows it.
+
+   It hangs from the open row, not from the bottom of the three: under an
+   empty third slot it read as belonging to nothing (16 Sep).
+
+   Portalled to body and placed over the open row. Inside the card it was
+   stuck in the card's layer — drawn under the next card, and unable to
+   frost anything but the card itself, so the numbers below read through
+   sharp. Its material is glass-menu (styles.css). */
 function Picker({
   rows,
   typed,
@@ -307,12 +316,39 @@ function Picker({
   onHover: (index: number) => void
   onPick: (taskId: Doc<'tasks'>['_id']) => void
 }) {
-  return (
+  const [place, setPlace] = useState<{
+    top: number
+    left: number
+    width: number
+  } | null>(null)
+
+  useLayoutEffect(() => {
+    function measure() {
+      const row = document
+        .getElementById(PICK_FIELD_ID)
+        ?.closest<HTMLElement>('.group')
+      if (!row) return
+      const r = row.getBoundingClientRect()
+      setPlace({ top: r.bottom, left: r.left, width: r.width })
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    window.addEventListener('scroll', measure, true)
+    return () => {
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+    }
+  }, [])
+
+  if (place === null) return null
+
+  return createPortal(
     <div
-      id="todays-three-backlog"
+      id={LIST_ID}
       role="listbox"
       aria-label="Pick from the backlog"
-      className="glass-modal absolute inset-x-0 top-full z-20 mt-2 flex max-h-[280px] flex-col overflow-y-auto rounded-[14px] p-1.5"
+      style={place}
+      className="glass-menu fixed z-30 flex max-h-[280px] flex-col overflow-y-auto rounded-[12px] p-1"
     >
       {rows.length === 0 ? (
         <p className="px-2.5 py-2 text-[12.5px] text-ink-500">
@@ -332,7 +368,7 @@ function Picker({
             onMouseEnter={() => onHover(i)}
             onClick={() => onPick(t._id)}
             className={`flex h-9 shrink-0 items-center gap-3 rounded-[8px] px-2.5 text-left transition-colors ${
-              i === active ? 'bg-lift/[0.07]' : ''
+              i === active ? 'bg-lift/[0.04]' : ''
             }`}
           >
             <span className="min-w-0 flex-1 truncate text-[13px] text-ink-200">
@@ -349,7 +385,8 @@ function Picker({
       {refusal ? (
         <p className="px-2.5 pt-2 text-[12.5px] text-ink-400">{refusal}</p>
       ) : null}
-    </div>
+    </div>,
+    document.body,
   )
 }
 

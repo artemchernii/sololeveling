@@ -493,3 +493,60 @@ describe('the Done tab (17 Sep)', () => {
     expect(await mine.query(api.tasks.listDone, {})).toHaveLength(1)
   })
 })
+
+describe('a task is created only under your own project or goal', () => {
+  test("someone else's project is refused, and nothing is written", async () => {
+    const { mine, theirs } = twoOwners()
+    const goalId = await mine.mutation(api.goals.create, {
+      title: 'Ship the business',
+      area: 'business',
+    })
+    const projectId = await mine.mutation(api.projects.create, {
+      goalId,
+      title: 'Oreum',
+    })
+
+    await expect(
+      theirs.mutation(api.tasks.create, { title: 'sneak in', projectId }),
+    ).rejects.toThrow('No such project')
+    expect(
+      await theirs.query(api.tasks.listBacklog, { today: TODAY }),
+    ).toHaveLength(0)
+    expect(
+      await mine.query(api.tasks.listByProject, { projectId }),
+    ).toHaveLength(0)
+  })
+
+  test("someone else's goal is refused", async () => {
+    const { mine, theirs } = twoOwners()
+    const goalId = await mine.mutation(api.goals.create, {
+      title: 'Gain 5 kg',
+      area: 'body',
+    })
+
+    await expect(
+      theirs.mutation(api.tasks.create, { title: 'sneak in', goalId }),
+    ).rejects.toThrow('No such goal')
+    expect(
+      await theirs.query(api.tasks.listBacklog, { today: TODAY }),
+    ).toHaveLength(0)
+  })
+
+  test('your own project brings its goal', async () => {
+    const { mine } = twoOwners()
+    const goalId = await mine.mutation(api.goals.create, {
+      title: 'Ship the business',
+      area: 'business',
+    })
+    const projectId = await mine.mutation(api.projects.create, {
+      goalId,
+      title: 'Oreum',
+    })
+
+    await mine.mutation(api.tasks.create, { title: 'Invoice', projectId })
+
+    const [task] = await mine.query(api.tasks.listBacklog, { today: TODAY })
+    expect(task.projectId).toBe(projectId)
+    expect(task.goalId).toBe(goalId)
+  })
+})

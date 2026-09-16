@@ -321,6 +321,13 @@ export function QuickCapture({
      previous state, like the open reset above, so no frame shows both. */
   const isNote = verb?.action === 'note'
   const isTask = verb?.action === 'task'
+  /* `todo ` and `task ` become a badge in the line, and the field holds
+     only the task's own words (17 Sep: "todo work on oreum" read as one
+     sentence, not as a kind of thing and its title). Once a space follows
+     the word, so the word is settled; Backspace on the empty field undoes
+     it. */
+  const verbWord = input.trim().split(/\s+/)[0] ?? ''
+  const badged = isTask && /^\S+\s/.test(input)
 
   /* Read only while a task is being written: the three for the Today
      toggle, and the goals for the `for` chip. */
@@ -691,10 +698,15 @@ export function QuickCapture({
       label="Log"
       icon={verb ? VERB_ICONS[verb.icon] : Plus}
       iconKey={verb?.icon ?? 'plus'}
-      placeholder="What happened?"
-      value={input}
+      placeholder={badged ? 'What needs doing?' : 'What happened?'}
+      value={badged ? input.replace(/^\S+\s+/, '') : input}
+      prefix={
+        badged
+          ? { label: verbWord, onRemove: () => setInput(verbWord) }
+          : undefined
+      }
       inputRef={inputRef}
-      ghost={ghost}
+      ghost={badged ? undefined : ghost}
       /* The panel takes the colour of what you are logging, the moment the
          line names it: its edge, its icon, a wash behind the field. It is the
          quickest way to see that `pt` went to Portuguese, before reading a
@@ -717,7 +729,7 @@ export function QuickCapture({
       iconClassName={area ? 'text-(--area)' : 'text-ink-500'}
       fieldClassName={area ? 'bg-(--area)/[0.07]' : ''}
       onValueChange={(next) => {
-        setInput(next)
+        setInput(badged ? `${verbWord} ${next}` : next)
         setAttempted(false)
         setFailure(null)
       }}
@@ -826,7 +838,7 @@ export function QuickCapture({
               : last.type === 'noted'
                 ? areaVars('knowledge')
                 : last.type === 'tasked'
-                  ? chipTone(last.area)
+                  ? ({ '--area': 'var(--color-saved)' } as React.CSSProperties)
                   : areaVars(last.row.area)
           }
           /* Arrives, and — for something added — rings once in its colour
@@ -890,7 +902,7 @@ export function QuickCapture({
               }}
               className="motion-press flex shrink-0 items-center gap-1 text-[12px] text-(--area) hover:underline"
             >
-              {last.to === 'today' ? 'added to today' : 'added to backlog'}
+              {last.to === 'today' ? 'Added to today' : 'Added to backlog'}
               {last.forTitle ? (
                 <span className="text-ink-400"> · {last.forTitle}</span>
               ) : null}
@@ -1442,6 +1454,12 @@ export function QuickCapture({
                     setTaskTime({ at: ms, minutes: taskTime?.minutes })
                   }
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void submit()
+                  }
+                }}
                 className={`${NEUTRAL_CHIP} [color-scheme:dark]`}
               />
               <label className={`${NEUTRAL_CHIP} cursor-text`}>
@@ -1449,6 +1467,12 @@ export function QuickCapture({
                   data-chip-input
                   inputMode="numeric"
                   aria-label="Minutes"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      void submit()
+                    }
+                  }}
                   placeholder="—"
                   size={3}
                   value={taskTime?.minutes ?? ''}

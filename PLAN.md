@@ -106,7 +106,8 @@ tasks:     { ownerId, title, notes?, projectId?, goalId?, area?,
              dueDate?, scheduledAt?: number, durationMin?,
              rrule?,                  // recurring template; instances expanded on client
              priority: number, status: taskStatus, completedAt?: number,
-             todayFor?: string }      // ISO date — set only when this task is one of today's three
+             todayFor?: string,       // ISO date — set only when this task is one of today's three
+             pickedAt?: number }      // orders the three by when they were chosen (16 Sep)
            .index('by_owner_status', ['ownerId','status']).index('by_owner_today', ['ownerId','todayFor'])
            .index('by_project', ['projectId']).index('by_owner_due', ['ownerId','dueDate'])
 events:    { ownerId, title, area?, projectId?, startsAt: number, endsAt: number, rrule?, notes? }

@@ -153,8 +153,12 @@ export default defineSchema({
     status: taskStatus,
     completedAt: v.optional(v.number()),
     /* ISO date, set only while this task is one of today's three (§3c.1).
-       pickForToday sets it; complete and dropFromToday clear it. */
+       pickForToday sets it; dropFromToday clears it; a finished task keeps
+       it until the day ends. `pickedAt` orders the three by when they were
+       chosen, so a pick lands in the slot you were looking at rather than
+       wherever its creation date sorts it (16 Sep). */
     todayFor: v.optional(v.string()),
+    pickedAt: v.optional(v.number()),
   })
     .index('by_owner_status', ['ownerId', 'status'])
     .index('by_owner_today', ['ownerId', 'todayFor'])

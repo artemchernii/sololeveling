@@ -142,7 +142,8 @@ project `done/total`, free hours today. All via `convex/aggregate.ts` queries �
 `tasks.complete` → also inserts `logs{kind:'task_done'}`. `logs.create` with kind `weight` → also inserts
 `stateSnapshots{key:'weight'}`. `projects.setFocus` → demotes the previous focus to `active`.
 `tasks.pickForToday` → rejects with `TODAY_FULL` if the owner already has three tasks with
-`todayFor = today`. `tasks.complete` and `tasks.dropFromToday` clear the slot.
+`todayFor = today`. Only `tasks.dropFromToday` clears the slot; a finished task keeps
+it, ticked, until the day ends (16 Sep).
 
 ---
 

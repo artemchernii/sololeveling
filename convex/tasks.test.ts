@@ -3,6 +3,7 @@ import { convexTest } from 'convex-test'
 import { describe, expect, test } from 'vitest'
 
 import { api } from './_generated/api'
+import type { Id } from './_generated/dataModel'
 import schema from './schema'
 
 const modules = import.meta.glob('./**/*.ts')
@@ -36,7 +37,7 @@ describe('three quests a day (PLAN.md §3c.1)', () => {
   test('the fourth pick is refused', async () => {
     const t = as(ME)
 
-    const ids = []
+    const ids: Array<Id<'tasks'>> = []
     for (const title of ['one', 'two', 'three', 'four']) {
       ids.push(await t.mutation(api.tasks.create, { title }))
     }
@@ -58,9 +59,9 @@ describe('three quests a day (PLAN.md §3c.1)', () => {
     expect(await t.query(api.tasks.listToday, { today: TODAY })).toHaveLength(3)
   })
 
-  test('finishing one frees the slot', async () => {
+  test('finishing one keeps its slot: the day is still three', async () => {
     const t = as(ME)
-    const ids = []
+    const ids: Array<Id<'tasks'>> = []
     for (const title of ['one', 'two', 'three', 'four']) {
       ids.push(await t.mutation(api.tasks.create, { title }))
     }
@@ -70,8 +71,14 @@ describe('three quests a day (PLAN.md §3c.1)', () => {
 
     await t.mutation(api.tasks.complete, { taskId: ids[0] })
 
-    await t.mutation(api.tasks.pickForToday, { taskId: ids[3], today: TODAY })
-    expect(await t.query(api.tasks.listToday, { today: TODAY })).toHaveLength(3)
+    await expect(
+      t.mutation(api.tasks.pickForToday, { taskId: ids[3], today: TODAY }),
+    ).rejects.toThrow()
+    const today = await t.query(api.tasks.listToday, { today: TODAY })
+    expect(today).toHaveLength(3)
+    expect(today.find((x) => x._id === ids[0])?.status).toBe('done')
+    /* Done and picked is not in the backlog either way. */
+    expect(await t.query(api.tasks.listBacklog, {})).toHaveLength(1)
   })
 
   test('dropping one frees the slot without completing it', async () => {

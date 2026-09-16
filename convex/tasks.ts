@@ -154,6 +154,11 @@ export const dropFromToday = mutation({
  * §3b.1. Completing a task says you meant to do a thing. It writes exactly one
  * log, of kind 'task_done', and NOTHING else. A workout is a separate row the
  * user confirms with one tap; this function must never write it.
+ *
+ * It keeps `todayFor` (16 Sep). Until then finishing one cleared the slot, so
+ * the card forgot what you had done and "three a day" was really three at a
+ * time. A finished task stays in its slot, ticked, until the day ends; only
+ * dropFromToday frees one.
  */
 export const complete = mutation({
   args: { taskId: v.id('tasks') },
@@ -167,11 +172,7 @@ export const complete = mutation({
     }
 
     const completedAt = Date.now()
-    await ctx.db.patch(args.taskId, {
-      status: 'done',
-      completedAt,
-      todayFor: undefined,
-    })
+    await ctx.db.patch(args.taskId, { status: 'done', completedAt })
 
     await ctx.db.insert('logs', {
       ownerId,

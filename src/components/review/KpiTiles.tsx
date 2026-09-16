@@ -6,7 +6,7 @@ import type { WeekCount } from './MovementTable'
    the truth. */
 
 const TILES = [
-  { key: 'projects', label: 'Projects', noun: 'tasks shipped' },
+  { key: 'projects', label: 'Tasks', noun: 'tasks done' },
   { key: 'portuguese', label: 'Languages', noun: 'sessions' },
   { key: 'body', label: 'Body', noun: 'workouts' },
   { key: 'money', label: 'Finances', noun: 'transfers' },

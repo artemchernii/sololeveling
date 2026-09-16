@@ -138,7 +138,7 @@ const TILE_GOALS: Record<
   { title: string; area: Doc<'goals'>['area']; unit: string }
 > = {
   projects: {
-    title: 'Tasks shipped each month',
+    title: 'Tasks done each month',
     area: 'business',
     unit: 'tasks',
   },

@@ -179,34 +179,25 @@ h6 {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
-/* …except the command palette's field, which autofocuses the moment the
-   palette opens. The rule above is sized for a button; on a `w-full` input it
-   traced a 2px accent rectangle around the entire dialog before you had
-   touched anything. The `outline-none` utility on the element cannot win —
-   Tailwind puts utilities in @layer utilities and everything here is
-   unlayered, so an attribute selector is what it takes. The caret is the focus
-   indicator for a text field anyway. */
-[cmdk-input]:focus-visible {
-  outline: none;
-}
-/* The same for a field inside a chip, for a different reason: the chip draws
-   its own focus ring round the whole pill, and the square outline cut straight
-   through its rounded ends. Focus is still shown — on the chip, in its area's
-   colour — just not twice. */
-[data-chip-input]:focus-visible {
-  outline: none;
-}
-/* The note editor too: it sits inside a rounded sheet that rings in the
-   knowledge colour when focused, and the square lavender outline inside that
-   ring was a second, uglier way of saying the same thing. */
-[data-note-editor]:focus-visible {
-  outline: none;
-}
-/* And a bare field sitting in a card — the slot you type today's three into.
-   A 2px square traced round a full-width input inside a rounded card is the
-   ugliest shape on the screen (16 Sep); the slot it sits in lights instead,
-   and the caret says where you are. */
-[data-slot-field]:focus-visible {
+/* …except where you type. The rule above is sized for a button; round a
+   full-width field inside a rounded card it traced a 2px square — the ugliest
+   shape on the screen (16 Sep), and it kept coming back on every new field
+   (the palette, chips, the note editor, today's slots were each exempted in
+   turn). One rule instead: in a text field the caret says where you are, and
+   a field that wants to show focus lights its container (the slot, the chip,
+   the note sheet). Utilities cannot do this — they live in @layer utilities
+   and the ring above is unlayered. Buttons, selects, dates and times keep the
+   ring: the keyboard needs it there. */
+:where(
+  input:not([type]),
+  input[type='text'],
+  input[type='search'],
+  input[type='number'],
+  input[type='email'],
+  input[type='url'],
+  textarea,
+  [contenteditable]
+):focus-visible {
   outline: none;
 }
 /* And a chip that is itself a button: the global ring is lavender, which on a

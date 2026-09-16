@@ -66,9 +66,11 @@ used is the thing the rethink exists to remove.
 Both are enforced in the data layer, not suggested in the UI (`PLAN.md` §3c).
 
 `tasks.pickForToday` throws `TODAY_FULL` on the fourth. Choosing three is the
-planning ritual; there is no other one. `tasks.complete` and
-`tasks.dropFromToday` free the slot. The three live on Today (the dashboard)
-since 15 Sep; the separate Quests page is gone, the limit is not.
+planning ritual; there is no other one. A finished task keeps its slot,
+ticked, until the day ends — only `tasks.dropFromToday` frees one (16 Sep:
+freeing on completion made three a day mean three at a time). The three live
+on Today (the dashboard) since 15 Sep; the separate Quests page is gone, the
+limit is not.
 
 Unpicked tasks live on the backlog page and nowhere else. No screen shows a
 total of open tasks — "47 remaining" is the number that makes people close the
@@ -141,7 +143,7 @@ reason before it goes in.
   until its own phase.
 - Ask rather than guess when `PLAN.md` is ambiguous, when a UI element has no
   source in the data model, or when a design decision would introduce a number
-  that is not one of the three sources.
+  that is not one of the four sources.
 
 ## Where we are
 

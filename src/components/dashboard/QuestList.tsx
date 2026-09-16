@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
-import { Plus } from 'lucide-react'
+import { useQuery } from 'convex-helpers/react/cache/hooks'
+import { Check, Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
+import { AreaBadge } from '@/components/AreaBadge'
 import { SaveGlyph, useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import { areaVars } from '@/lib/areas'
@@ -24,8 +26,18 @@ export const PICK_FIELD_ID = 'pick-todays-three'
    as it was on 16 Sep — a list and a text input under it, which Artem read
    as "a shitty input and nothing more".
 
-   The Quests page lived here until 15 Sep; this card is it now. No backlog
-   count anywhere on this screen (§3c.3). */
+   A finished one stays in its slot, ticked, until the day ends (16 Sep):
+   before that it vanished and the card at night looked like a morning where
+   nothing had happened. The slot stays used — three a day is three, not
+   three at a time.
+
+   The open slot picks from the backlog as well as writing something new
+   (16 Sep). The three are not a second list beside the backlog; they are the
+   three chosen from it for today, and the slot should say so. Matches appear
+   only for what you have typed — never the backlog itself, and never its
+   count (§3c.3).
+
+   The Quests page lived here until 15 Sep; this card is it now. */
 export function QuestList({
   tasks,
   today,
@@ -45,8 +57,31 @@ export function QuestList({
   const [pending, setPending] = useState<PendingEvidence | null>(null)
 
   const picked = tasks ?? []
+  const done = picked.filter((t) => t.status === 'done').length
   /* The first slot with nothing in it is the one that takes the typing. */
   const openSlot = picked.length
+
+  /* The backlog is read only while there is something typed to match it
+     against — an empty field subscribes to nothing, so the morning screen
+     never holds the backlog (§3c.3). */
+  const typed = title.trim().toLowerCase()
+  const backlog = useQuery(api.tasks.listBacklog, typed ? {} : 'skip')
+  const matches = typed
+    ? (backlog ?? [])
+        .filter((t) => t.title.toLowerCase().includes(typed))
+        .slice(0, 4)
+    : []
+  const [refusal, setRefusal] = useState<string | null>(null)
+
+  async function pickExisting(taskId: Doc<'tasks'>['_id']) {
+    try {
+      await pickForToday({ taskId, today })
+      setTitle('')
+      setRefusal(null)
+    } catch {
+      setRefusal('Today is full. Finish one or drop one.')
+    }
+  }
 
   async function add() {
     const trimmed = title.trim()
@@ -68,7 +103,13 @@ export function QuestList({
       <div className="flex items-baseline justify-between">
         <div className="label-caps">Today&rsquo;s three</div>
         <div className="label-caps">
-          {tasks ? `${picked.length} of ${TODAY_LIMIT}` : ''}
+          {tasks === undefined
+            ? ''
+            : done === 0
+              ? `${picked.length} of ${TODAY_LIMIT}`
+              : done === picked.length
+                ? `${done} done`
+                : `${done} done · ${picked.length - done} open`}
         </div>
       </div>
 
@@ -82,8 +123,18 @@ export function QuestList({
             const task = slot < picked.length ? picked[slot] : undefined
             if (task !== undefined) {
               return (
-                <Slot key={task._id} number={slot} area={task.area} filled>
-                  <QuestRow task={task} onCompleted={setPending} />
+                <Slot
+                  key={task._id}
+                  number={slot}
+                  area={task.area}
+                  filled
+                  done={task.status === 'done'}
+                >
+                  {task.status === 'done' ? (
+                    <DoneRow task={task} />
+                  ) : (
+                    <QuestRow task={task} onCompleted={setPending} />
+                  )}
                 </Slot>
               )
             }
@@ -104,7 +155,7 @@ export function QuestList({
                   </span>
                   <input
                     id={PICK_FIELD_ID}
-                    data-slot-field
+
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     onKeyDown={(e) => {
@@ -117,6 +168,11 @@ export function QuestList({
                     }
                     className="flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
                   />
+                  {/* The slot picks as well as writes; said once, quietly,
+                      and not on a phone where the words would not fit. */}
+                  <span className="label-caps hidden shrink-0 text-ink-800 sm:inline">
+                    type to pick from the backlog
+                  </span>
                 </Slot>
               )
             }
@@ -130,11 +186,35 @@ export function QuestList({
         </div>
       )}
 
+      {matches.length > 0 ? (
+        /* From the backlog, matching what is typed. A tap picks; Enter still
+           writes what you typed — a new thing must never turn into an old one
+           because their names overlap. */
+        <div className="flex flex-col">
+          <div className="label-caps pb-1">From the backlog</div>
+          {matches.map((t) => (
+            <button
+              key={t._id}
+              type="button"
+              onClick={() => void pickExisting(t._id)}
+              className="flex items-center gap-3 border-b border-lift/[0.05] py-2 text-left last:border-b-0"
+            >
+              <span className="flex-1 truncate text-[13px] text-ink-300 transition-colors hover:text-foreground">
+                {t.title}
+              </span>
+              <AreaBadge area={t.area} />
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {refusal ? <p className="text-[12.5px] text-ink-400">{refusal}</p> : null}
+
       {pending ? (
         <QuestFollowUp pending={pending} onDone={() => setPending(null)} />
       ) : null}
 
-      {picked.length >= TODAY_LIMIT ? (
+      {picked.length >= TODAY_LIMIT && done < picked.length ? (
         <p className="text-[12.5px] text-ink-500">
           Today is full. Finish one or drop one.
         </p>
@@ -143,26 +223,48 @@ export function QuestList({
   )
 }
 
+/* A finished one: the tick filled, the title quiet, nothing left to press.
+   It is not struck through — it was done, not cancelled. */
+function DoneRow({ task }: { task: Doc<'tasks'> }) {
+  return (
+    <div className="flex items-center gap-3 py-2.5">
+      <span
+        aria-label="Done"
+        className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-lift/10 bg-lift/10 text-ink-400"
+      >
+        <Check className="size-3" />
+      </span>
+      <span className="flex-1 text-[13px] text-ink-500">{task.title}</span>
+      <AreaBadge area={task.area} />
+    </div>
+  )
+}
+
 /* One of the three, numbered. A filled slot wears its task's area colour on
-   the number and the edge; the open one lights lavender because it is the
-   live thing on this card; the rest are outlines waiting to be filled. */
+   the number and the edge; a done one keeps the colour but fades; the open
+   one lights lavender because it is the live thing on this card; the rest
+   are outlines waiting to be filled. */
 function Slot({
   number,
   area,
   filled,
+  done,
   open,
   children,
 }: {
   number: number
   area?: Doc<'tasks'>['area']
   filled?: boolean
+  done?: boolean
   open?: boolean
   children: React.ReactNode
 }) {
   const tone = filled
-    ? area
-      ? 'border-(--area)/25 bg-(--area)/[0.04]'
-      : 'border-lift/10 bg-lift/[0.03]'
+    ? done
+      ? 'border-lift/[0.06] bg-lift/[0.015]'
+      : area
+        ? 'border-(--area)/25 bg-(--area)/[0.04]'
+        : 'border-lift/10 bg-lift/[0.03]'
     : open
       ? 'border-lav-500/40 bg-lav-900/15 focus-within:border-lav-500/70'
       : 'border-dashed border-lift/[0.08]'
@@ -174,7 +276,13 @@ function Slot({
     >
       <span
         className={`font-mono text-[10px] tracking-[0.1em] ${
-          filled ? (area ? 'text-(--area)' : 'text-ink-500') : 'text-ink-800'
+          filled
+            ? done
+              ? 'text-ink-700'
+              : area
+                ? 'text-(--area)'
+                : 'text-ink-500'
+            : 'text-ink-800'
         }`}
       >
         {String(number + 1).padStart(2, '0')}

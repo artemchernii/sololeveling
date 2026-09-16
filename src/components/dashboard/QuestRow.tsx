@@ -37,6 +37,14 @@ export function evidenceFor(task: Doc<'tasks'>): PendingEvidence | null {
   return null
 }
 
+/* The row's editors — area, time, drop — wait until the row is hovered or
+   holds focus, so at rest a slot reads as a number, a tick and a title
+   (16 Sep: every control at once made the card read as a form). A device
+   that cannot hover shows them always. Faded, not removed, so nothing in the
+   row moves when they appear. */
+export const REVEAL =
+  'flex shrink-0 items-center gap-3 transition-opacity duration-(--motion-fast) [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+
 export function QuestRow({
   task,
   onCompleted,
@@ -50,7 +58,7 @@ export function QuestRow({
   const setSchedule = useMutation(api.tasks.setSchedule)
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5">
+    <div className="flex min-w-0 flex-1 items-center gap-3">
       <button
         type="button"
         aria-label={`Complete ${task.title}`}
@@ -59,37 +67,44 @@ export function QuestRow({
           await complete({ taskId: task._id })
           onCompleted(pending)
         }}
-        className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-lift/15 text-transparent transition-colors hover:border-lav-500 hover:text-lav-300"
+        className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-lift/20 text-transparent transition-colors hover:border-lav-400 hover:text-lav-300"
       >
         <Check className="size-3" />
       </button>
 
-      <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">
+      <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">
         {task.title}
       </span>
 
-      <AreaBadge
-        area={task.area}
-        onChange={(area: Area) => void setArea({ taskId: task._id, area })}
-      />
-
-      <ScheduleField
-        task={task}
-        onSet={(scheduledAt, durationMin) =>
-          void setSchedule({ taskId: task._id, scheduledAt, durationMin })
-        }
-      />
-
-      <button
-        type="button"
-        aria-label={`Drop ${task.title}`}
-        onClick={() => void drop({ taskId: task._id })}
-        className="text-ink-700 transition-colors hover:text-ink-400"
-      >
-        <X className="size-3.5" />
-      </button>
+      <div className={REVEAL}>
+        <ScheduleField
+          task={task}
+          onSet={(scheduledAt, durationMin) =>
+            void setSchedule({ taskId: task._id, scheduledAt, durationMin })
+          }
+        />
+        <AreaBadge
+          area={task.area}
+          onChange={(area: Area) => void setArea({ taskId: task._id, area })}
+        />
+        <button
+          type="button"
+          aria-label={`Drop ${task.title}`}
+          onClick={() => void drop({ taskId: task._id })}
+          className="text-ink-700 transition-colors hover:text-ink-400"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
     </div>
   )
+}
+
+/** What the time control says at rest; a done row holds the same width. */
+export function scheduleLabel(task: Doc<'tasks'>): string {
+  return task.scheduledAt
+    ? `${new Date(task.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${task.durationMin ? ` · ${task.durationMin} min` : ''}`
+    : 'add a time'
 }
 
 /* A time is what puts a quest on the TODAY timeline (§3b.3) — nothing else
@@ -119,9 +134,7 @@ function ScheduleField({
         className="font-mono text-[11px] text-ink-700 transition-colors hover:text-ink-300"
         title="Give this a time"
       >
-        {task.scheduledAt
-          ? `${new Date(task.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${task.durationMin ? ` · ${task.durationMin} min` : ''}`
-          : 'add a time'}
+        {scheduleLabel(task)}
       </button>
     )
   }

@@ -202,6 +202,13 @@ h6 {
 [data-note-editor]:focus-visible {
   outline: none;
 }
+/* And a bare field sitting in a card — the slot you type today's three into.
+   A 2px square traced round a full-width input inside a rounded card is the
+   ugliest shape on the screen (16 Sep); the slot it sits in lights instead,
+   and the caret says where you are. */
+[data-slot-field]:focus-visible {
+  outline: none;
+}
 /* And a chip that is itself a button: the global ring is lavender, which on a
    teal Portuguese chip says "live" about a thing that is not. Keyboard focus
    rings in the chip's own area colour instead, or grey where it has none. */
@@ -353,6 +360,27 @@ h6 {
 /* The real thing arriving over its stand-in: opacity only, at base. */
 @utility motion-fade {
   animation: save-appear var(--motion-base) var(--motion-ease) both;
+}
+
+/* The principle on Today, looping (PLAN.md §3d.1's one exception). The six
+   lines are stacked in a window one line tall and the column slides up by
+   one each time, the way a ticker or a reel does — the whole line moving as
+   a piece, which is what "loop text" means and what three earlier attempts
+   were not: a cross-fade, then a list, then characters tilting in place.
+
+   The slide itself is a transform transition on the column, so it is the
+   app's own duration and easing rather than a keyframe of its own. The
+   first line is repeated after the last, and the jump back to the top
+   happens with transitions off — so the loop has no rewind in it. */
+@utility loop-window {
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 12%,
+    black 88%,
+    transparent
+  );
 }
 
 /* A stand-in for something still loading (PLAN §3d.2): it fades in at once

@@ -12,6 +12,7 @@ import { SaveLabel, useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
 import { useArrived, useHeld } from '@/lib/loading'
+import { localToday } from '@/lib/today'
 
 export const Route = createFileRoute('/_app/projects/')({
   component: Projects,
@@ -27,7 +28,7 @@ function Projects() {
   const projects = useHeld(useQuery(api.projects.listLive, {}))
   const arrived = useArrived(projects)
   const counts = useQuery(api.aggregate.entityCounts, {})
-  const openTasks = useQuery(api.tasks.listBacklog, {})
+  const openTasks = useQuery(api.tasks.listBacklog, { today: localToday() })
   const setFocus = useMutation(api.projects.setFocus)
 
   const focus = projects?.find((p) => p.status === 'focus')

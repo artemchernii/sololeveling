@@ -14,7 +14,7 @@ describe('the six month tiles (PLAN.md §3 item 4)', () => {
     ])
   })
 
-  test('Projects wears no area colour — it counts every area', () => {
+  test('Tasks wears no area colour — it counts every area', () => {
     expect(MONTH_TILES[0].area).toBeUndefined()
     expect(MONTH_TILES.slice(1).every((t) => t.area !== undefined)).toBe(true)
   })

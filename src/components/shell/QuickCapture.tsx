@@ -428,6 +428,25 @@ export function QuickCapture({
     }
   }
 
+  /* What the footer button saves, and whether it would succeed. A line with
+     nothing on it, or a slash opening the verb list, has nothing to save. */
+  const saveable = isNote || (trimmed.length > 0 && !slashed)
+  const ready = isNote
+    ? splitNote(noteText ?? '').title.length > 0
+    : result.ok && (!isTask || Boolean(result.log.text))
+
+  /* One save at a time: a double tap on a phone is two logs otherwise. */
+  const pressing = useRef(false)
+  async function press() {
+    if (pressing.current) return
+    pressing.current = true
+    try {
+      await submit()
+    } finally {
+      pressing.current = false
+    }
+  }
+
   /** `todo` — a task to the backlog, from its title alone (§3b.3). */
   async function addTask() {
     setAttempted(true)
@@ -599,37 +618,62 @@ export function QuickCapture({
       }}
       footer={
         <>
-          {isNote ? (
-            <Hint>
-              <Key>⌘↵</Key>
-              save note
-            </Hint>
-          ) : (
-            <Hint>
+          {/* Keys for what the line cannot say with a button: picking a
+              recent or a verb from the list. The rest is the button. */}
+          {trimmed.length === 0 && recents.length > 0 ? (
+            <Hint className="[@media(hover:none)]:hidden">
               <Key>↵</Key>
-              {(trimmed.length === 0 && recents.length > 0) || slashed
-                ? 'use'
-                : 'log it'}
+              use
             </Hint>
-          )}
+          ) : slashed ? (
+            <Hint className="[@media(hover:none)]:hidden">
+              <Key>↵</Key>
+              use
+            </Hint>
+          ) : null}
           {/* The way into the list has to be visible, or it is one more
               thing to remember — which is the problem the list solves. */}
           {trimmed.length === 0 ? (
-            <Hint>
+            <Hint className="[@media(hover:none)]:hidden">
               <Key>/</Key>
               all verbs
             </Hint>
           ) : null}
           {ghost ? (
-            <Hint className="motion-arrive">
+            <Hint className="motion-arrive [@media(hover:none)]:hidden">
               <Key>tab</Key>
               complete
             </Hint>
           ) : null}
-          <Hint className="ml-auto">
+          <Hint className="ml-auto [@media(hover:none)]:hidden">
             <Key>esc</Key>
             {last ? 'done' : 'close'}
           </Hint>
+          {/* A button as well as Enter (17 Sep): on a phone there is no ↵
+              to see, and the keyboard's return key is not where a thumb
+              looks for "save". It does exactly what Enter does — including
+              tapping it before the line is complete, which makes the missing
+              part louder. On a keyboard it comes and goes with the line,
+              pulled into the strip by negative margins so the footer keeps
+              its height. On a phone it is always there, grey until the line
+              is ready: the footer holds only the button there, and a button
+              that appeared would grow the sheet under your thumb. */}
+          <button
+            type="button"
+            onClick={() => (saveable ? void press() : focusLine())}
+            className={`motion-press -my-1.5 flex h-7 shrink-0 items-center gap-2 rounded-full pr-1.5 pl-3 text-[12px] transition-colors duration-(--motion-fast) [@media(hover:none)]:my-0 [@media(hover:none)]:ml-auto [@media(hover:none)]:h-10 [@media(hover:none)]:px-5 [@media(hover:none)]:text-[14px] ${
+              saveable ? 'motion-arrive' : 'hidden [@media(hover:none)]:flex'
+            } ${
+              saveable && ready
+                ? 'bg-primary text-primary-foreground hover:brightness-110'
+                : 'bg-lift/[0.06] text-ink-400 ring-1 ring-lift/10 ring-inset'
+            }`}
+          >
+            {isNote ? 'Save note' : isTask ? 'Add task' : 'Log it'}
+            <span className="[@media(hover:none)]:hidden">
+              <Key onAccent={ready}>{isNote ? '⌘↵' : '↵'}</Key>
+            </span>
+          </button>
         </>
       }
     >

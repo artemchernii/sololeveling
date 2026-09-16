@@ -62,6 +62,25 @@ export function whenLabel(ms: number, now: Date = new Date()): string {
   return `${at.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} ${clock(at)}`
 }
 
+/**
+ * When something is planned for, said forwards: "today 15:00", "tomorrow
+ * 09:30", "Fri 18:00" within the week, then "2 Oct 18:00". whenLabel's twin
+ * for the other direction of time.
+ */
+export function aheadLabel(ms: number, now: Date = new Date()): string {
+  const at = new Date(ms)
+  const day = new Date(ms).setHours(0, 0, 0, 0)
+  const today = new Date(now).setHours(0, 0, 0, 0)
+  const days = Math.round((day - today) / MS_PER_DAY)
+
+  if (days === 0) return `today ${clock(at)}`
+  if (days === 1) return `tomorrow ${clock(at)}`
+  if (days > 1 && days < 7) {
+    return `${at.toLocaleDateString(undefined, { weekday: 'short' })} ${clock(at)}`
+  }
+  return `${at.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} ${clock(at)}`
+}
+
 /** "45m", "2h", "7h 30m" — minutes that were logged, said the short way. */
 export function durationLabel(minutes: number): string {
   const total = Math.round(minutes)

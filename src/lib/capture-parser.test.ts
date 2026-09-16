@@ -360,6 +360,12 @@ describe('verbs that are not logs', () => {
     expect(parseCapture('todo').ok).toBe(false)
   })
 
+  test('task is the same verb as todo', () => {
+    const result = parsed('task invoice the client')
+    expect(result.verb.action).toBe('task')
+    expect(result.log.text).toBe('invoice the client')
+  })
+
   test('work files under career, not Portuguese', () => {
     expect(log('work 90')).toMatchObject({ kind: 'session', area: 'career' })
     expect(log('office')).toMatchObject({ area: 'career', text: 'office' })

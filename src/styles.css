@@ -200,6 +200,13 @@ h6 {
 ):focus-visible {
   outline: none;
 }
+/* The palettes' dialog box is focusable only so Radix can hold focus inside
+   it; it is never something you act on. The global ring drew round the whole
+   sheet whenever focus landed there (17 Sep). A plain rule, not
+   `outline-none` on the element, for the layer reason given below. */
+[cmdk-dialog]:focus-visible {
+  outline: none;
+}
 /* And a chip that is itself a button: the global ring is lavender, which on a
    teal Portuguese chip says "live" about a thing that is not. Keyboard focus
    rings in the chip's own area colour instead, or grey where it has none. */

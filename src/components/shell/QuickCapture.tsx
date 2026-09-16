@@ -211,7 +211,15 @@ export function QuickCapture({
       }
     | { type: 'removed'; line: string; row: Doc<'logs'> }
     | { type: 'noted'; id: Id<'notes'>; title: string }
-    | { type: 'tasked'; id: Id<'tasks'>; title: string }
+    | {
+        type: 'tasked'
+        id: Id<'tasks'>
+        title: string
+        area?: Area
+        /** Where it went, for the row to say and link to. */
+        to: 'backlog' | 'today'
+        forTitle?: string
+      }
     | null
   >(null)
 
@@ -409,6 +417,23 @@ export function QuickCapture({
     })
   }
 
+  /* Focus can fall onto the sheet itself — a chip that held it turns
+     disabled (the Today chip, once today fills up), or is replaced. Enter
+     then reaches no field, and the dialog draws a focus ring round its
+     whole box: the "nothing, just an outline" of 17 Sep. Whenever that
+     happens, the line takes focus back. */
+  useEffect(() => {
+    if (!open) return
+    function strand(e: FocusEvent) {
+      const el = e.target
+      if (el instanceof HTMLElement && el.hasAttribute('cmdk-dialog')) {
+        focusLine()
+      }
+    }
+    document.addEventListener('focusin', strand)
+    return () => document.removeEventListener('focusin', strand)
+  })
+
   function takeLine(line: string) {
     setInput(line)
     setAttempted(false)
@@ -552,9 +577,21 @@ export function QuickCapture({
           refused = true
         }
       }
-      setLast({ type: 'tasked', id: taskId, title })
-      /* Stays in task mode: the next line of a list is one word shorter. */
+      setLast({
+        type: 'tasked',
+        id: taskId,
+        title,
+        area,
+        to: taskToday && !refused ? 'today' : 'backlog',
+        forTitle: forLabel,
+      })
+      /* Stays in task mode — the next line of a list is one word shorter —
+         but every chip goes back to its default (17 Sep: options that
+         carried over made a saved task look like nothing had happened).
+         What was saved is the row at the top, with its undo. */
       setInput(`${trimmed.split(/\s+/)[0]} `)
+      setAreaFor(null)
+      setTaskFor('')
       setTaskToday(false)
       setTaskTime(null)
       setPicker(null)
@@ -778,7 +815,9 @@ export function QuickCapture({
         </>
       }
     >
-      {trimmed.length === 0 && last ? (
+      {last &&
+      (trimmed.length === 0 ||
+        (isTask && !typed.text && last.type === 'tasked')) ? (
         <div
           key={last.type === 'removed' ? `removed-${last.row._id}` : last.id}
           style={
@@ -787,7 +826,7 @@ export function QuickCapture({
               : last.type === 'noted'
                 ? areaVars('knowledge')
                 : last.type === 'tasked'
-                  ? areaVars('business')
+                  ? chipTone(last.area)
                   : areaVars(last.row.area)
           }
           /* Arrives, and — for something added — rings once in its colour
@@ -845,11 +884,16 @@ export function QuickCapture({
               type="button"
               onClick={() => {
                 onOpenChange(false)
-                void navigate({ to: '/backlog' })
+                void navigate({
+                  to: last.to === 'today' ? '/dashboard' : '/backlog',
+                })
               }}
               className="motion-press flex shrink-0 items-center gap-1 text-[12px] text-(--area) hover:underline"
             >
-              added to backlog
+              {last.to === 'today' ? 'added to today' : 'added to backlog'}
+              {last.forTitle ? (
+                <span className="text-ink-400"> · {last.forTitle}</span>
+              ) : null}
               <ArrowUpRight className="size-3" />
             </button>
           ) : last.type === 'logged' ? (
@@ -1435,28 +1479,15 @@ export function QuickCapture({
             }`}
           >
             {failure ??
-              (isTask && !typed.text && last?.type === 'tasked' ? (
-                <span className="motion-arrive">
-                  Added &ldquo;{last.title}&rdquo;. Next one?{' '}
-                  <button
-                    type="button"
-                    onClick={() => void undo()}
-                    className="text-ink-300 underline decoration-lift/20 underline-offset-2 hover:text-foreground"
-                  >
-                    undo
-                  </button>
-                </span>
-              ) : isTask ? (
-                result.ok ? (
-                  taskSummary(result.log.text ?? '')
-                ) : (
-                  'What is the task?'
-                )
-              ) : result.ok ? (
-                result.summary
-              ) : (
-                result.message
-              ))}
+              (isTask
+                ? result.ok
+                  ? taskSummary(result.log.text ?? '')
+                  : last?.type === 'tasked'
+                    ? 'Next one? Or esc when the list is done.'
+                    : 'What is the task?'
+                : result.ok
+                  ? result.summary
+                  : result.message)}
           </p>
         </div>
       ) : (

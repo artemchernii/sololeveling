@@ -429,6 +429,31 @@ export function QuickCapture({
      then reaches no field, and the dialog draws a focus ring round its
      whole box: the "nothing, just an outline" of 17 Sep. Whenever that
      happens, the line takes focus back. */
+  /* Enter means save wherever focus happens to be in the sheet — on the box
+     itself, or nowhere (17 Sep: "input not focused, Enter, outline, nothing
+     added"). Fields, buttons and list rows keep their own Enter; this only
+     catches the keypress that would otherwise reach nothing. */
+  useEffect(() => {
+    if (!open) return
+    function stray(e: KeyboardEvent) {
+      if (e.key !== 'Enter' || e.defaultPrevented || e.isComposing) return
+      const el = e.target
+      const nowhere =
+        el === document.body ||
+        (el instanceof HTMLElement &&
+          el.closest('[cmdk-dialog]') !== null &&
+          el.closest(
+            'input, textarea, select, button, a, [cmdk-item], [contenteditable]',
+          ) === null)
+      if (!nowhere) return
+      e.preventDefault()
+      focusLine()
+      if (isNote || (trimmed.length > 0 && !slashed)) void press()
+    }
+    document.addEventListener('keydown', stray)
+    return () => document.removeEventListener('keydown', stray)
+  })
+
   useEffect(() => {
     if (!open) return
     function strand(e: FocusEvent) {
@@ -742,6 +767,20 @@ export function QuickCapture({
         setFailure(null)
       }}
       onInputKeyDown={(e) => {
+        /* Tab after a whole verb word settles it — `task` becomes the badge,
+           `gym` gets its space — and the cursor stays in the line for what
+           follows. The completion below handles a word still being typed. */
+        if (
+          e.key === 'Tab' &&
+          !e.shiftKey &&
+          verb &&
+          /^\S+$/.test(input) &&
+          !isNote
+        ) {
+          e.preventDefault()
+          takeLine(`${input} `)
+          return
+        }
         const atEnd = e.currentTarget.selectionStart === input.length
         if (
           suggestions.length > 0 &&
@@ -1108,7 +1147,20 @@ export function QuickCapture({
           {/* Each chip arrives a beat after the one before it (see `beat`),
               so the row assembles in reading order instead of appearing as
               one block. */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Enter on a chip saves, as it does everywhere else in the sheet;
+              Space still opens the chip. Tab walks the chips after the line,
+              so a keyboard user ends up here, and Enter opening a picker
+              read as "Enter did nothing" (17 Sep). */}
+          <div
+            className="flex flex-wrap items-center gap-2"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.target instanceof HTMLButtonElement) {
+                e.preventDefault()
+                e.stopPropagation()
+                void press()
+              }
+            }}
+          >
             <button
               type="button"
               style={{ ...chipTone(area), ...beat(0) }}

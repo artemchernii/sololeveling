@@ -141,6 +141,10 @@ export function PaletteShell({
             <button
               type="button"
               aria-label="Clear"
+              /* Mouse only. Tab from the line goes on to what the line has
+                 become — the chips — not to a button that throws it away;
+                 Backspace and Esc already do that from the keyboard. */
+              tabIndex={-1}
               onClick={(e) => {
                 onClear()
                 const field = e.currentTarget

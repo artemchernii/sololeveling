@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Search } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
-import { AreaBadge, AREAS } from '@/components/AreaBadge'
+import { AreaBadge } from '@/components/AreaBadge'
+import { isFiltered, ListControls, NO_FILTER } from './ListControls'
+import type { ListFilter } from './ListControls'
 import { SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
 import { useArrived } from '@/lib/loading'
@@ -19,8 +20,11 @@ const PERIODS: Array<{ value: Period; label: string }> = [
   { value: 'all', label: 'All' },
 ]
 
-const SELECT =
-  'rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[11.5px] text-ink-400'
+const SORTS: Array<{ value: Sort; label: string }> = [
+  { value: 'done', label: 'newest done' },
+  { value: 'created', label: 'newest written' },
+  { value: 'title', label: 'title A–Z' },
+]
 
 /* The backlog's Done tab (17 Sep): everything ticked, so a finished task
    has somewhere to be after its day ends. It is the rows, found, filtered
@@ -33,11 +37,11 @@ export function DoneList({
   projects: Array<Doc<'projects'>>
   goals: Array<Doc<'goals'>>
 }) {
-  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<ListFilter>(NO_FILTER)
   const [period, setPeriod] = useState<Period>('month')
-  const [area, setArea] = useState<Area | ''>('')
-  const [bound, setBound] = useState('')
   const [sort, setSort] = useState<Sort>('done')
+  const { search, bound } = filter
+  const area = filter.area as Area | ''
 
   /* Period boundaries are local calendar facts, worked out here and passed
      in (lib/weeks.ts). Computed once per period choice, so the query's
@@ -74,99 +78,46 @@ export function DoneList({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2 border-b border-lift/[0.07] pb-3">
-        <label className="flex min-w-[12rem] flex-1 items-center gap-2">
-          <Search className="size-3.5 shrink-0 text-ink-600" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search what you did"
-            aria-label="Search done tasks"
-            className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
-          />
-        </label>
-
-        <div
-          role="radiogroup"
-          aria-label="Period"
-          className="flex rounded-[7px] border border-lift/10 p-0.5"
-        >
-          {PERIODS.map((p) => (
-            <button
-              key={p.value}
-              type="button"
-              role="radio"
-              aria-checked={period === p.value}
-              onClick={() => setPeriod(p.value)}
-              className={`rounded-[5px] px-2 py-0.5 text-[11.5px] transition-colors ${
-                period === p.value
-                  ? 'bg-lift/[0.08] text-foreground'
-                  : 'text-ink-500 hover:text-ink-300'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        <select
-          aria-label="Area"
-          value={area}
-          onChange={(e) => setArea(e.target.value as Area | '')}
-          className={SELECT}
-        >
-          <option value="">any area</option>
-          {AREAS.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </select>
-
-        <select
-          aria-label="Project or goal"
-          value={bound}
-          onChange={(e) => setBound(e.target.value)}
-          className={`${SELECT} max-w-[10rem] truncate`}
-        >
-          <option value="">any project or goal</option>
-          {projects.length > 0 ? (
-            <optgroup label="Projects">
-              {projects.map((p) => (
-                <option key={p._id} value={`p:${p._id}`}>
-                  {p.title}
-                </option>
-              ))}
-            </optgroup>
-          ) : null}
-          {goals.length > 0 ? (
-            <optgroup label="Goals">
-              {goals.map((g) => (
-                <option key={g._id} value={`g:${g._id}`}>
-                  {g.title}
-                </option>
-              ))}
-            </optgroup>
-          ) : null}
-        </select>
-
-        <select
-          aria-label="Sort"
-          value={sort}
-          onChange={(e) => setSort(e.target.value as Sort)}
-          className={SELECT}
-        >
-          <option value="done">newest done</option>
-          <option value="created">newest written</option>
-          <option value="title">title A–Z</option>
-        </select>
-      </div>
+      <ListControls
+        filter={filter}
+        onFilter={setFilter}
+        sort={sort}
+        sorts={SORTS}
+        onSort={setSort}
+        projects={projects}
+        goals={goals}
+        placeholder="Search what you did"
+        extra={
+          <div
+            role="radiogroup"
+            aria-label="Period"
+            className="flex rounded-[7px] border border-lift/10 p-0.5"
+          >
+            {PERIODS.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                role="radio"
+                aria-checked={period === p.value}
+                onClick={() => setPeriod(p.value)}
+                className={`rounded-[5px] px-2 py-0.5 text-[11.5px] transition-colors ${
+                  period === p.value
+                    ? 'bg-lift/[0.08] text-foreground'
+                    : 'text-ink-500 hover:text-ink-300'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {sorted === undefined ? (
         <SkeletonRows rows={4} line="h-[61px]" />
       ) : sorted.length === 0 ? (
         <p className={`text-[13px] text-ink-500 ${arrived}`}>
-          {isFiltered(search, area, bound) || period !== 'all'
+          {isFiltered(filter) || period !== 'all'
             ? 'Nothing done matches that.'
             : 'Nothing ticked yet. What you finish on Today lands here.'}
         </p>
@@ -236,10 +187,6 @@ function sortRows(
   return searching
     ? copy.sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
     : copy
-}
-
-function isFiltered(search: string, area: string, bound: string): boolean {
-  return search.trim() !== '' || area !== '' || bound !== ''
 }
 
 /** "Tue 16 Sep", with the year only once it is not this year's. */

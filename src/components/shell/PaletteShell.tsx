@@ -28,6 +28,7 @@ export function PaletteShell({
   fieldClassName = '',
   onClear,
   iconKey,
+  prefix,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -53,6 +54,10 @@ export function PaletteShell({
   /** Changes when the icon means something new — the + becoming gym — so it
       pops in rather than swapping silently. */
   iconKey?: string
+  /** A word the line has turned into a badge — `todo` — with the field
+      holding only what follows it. Backspace on an empty field hands the
+      word back as text. */
+  prefix?: { label: string; onRemove: () => void }
 }) {
   return (
     <Command.Dialog
@@ -94,6 +99,11 @@ export function PaletteShell({
               aria-hidden
             />
           </span>
+          {prefix ? (
+            <span className="motion-pop shrink-0 rounded-[6px] bg-lift/[0.09] px-2 py-1 font-mono text-[11px] tracking-[0.14em] text-ink-200 uppercase ring-1 ring-lift/10 ring-inset">
+              {prefix.label}
+            </span>
+          ) : null}
           <div className="relative w-full">
             {/* The completion sits under the field, in the same face and
                 size, behind an invisible copy of what has been typed — so the
@@ -112,7 +122,14 @@ export function PaletteShell({
               autoFocus
               value={value}
               onValueChange={onValueChange}
-              onKeyDown={onInputKeyDown}
+              onKeyDown={(e) => {
+                if (prefix && e.key === 'Backspace' && value.length === 0) {
+                  e.preventDefault()
+                  prefix.onRemove()
+                  return
+                }
+                onInputKeyDown?.(e)
+              }}
               placeholder={placeholder}
               className="relative w-full bg-transparent py-[18px] text-[18px] text-foreground outline-none placeholder:text-ink-600"
             />
@@ -120,10 +137,14 @@ export function PaletteShell({
           {/* The way back to an empty line from anywhere — a recent taken, a
               verb chosen from the list — without deleting it a character at a
               time. Focus goes back to the field, ready to type. */}
-          {onClear && value.length > 0 ? (
+          {onClear && (value.length > 0 || prefix) ? (
             <button
               type="button"
               aria-label="Clear"
+              /* Mouse only. Tab from the line goes on to what the line has
+                 become — the chips — not to a button that throws it away;
+                 Backspace and Esc already do that from the keyboard. */
+              tabIndex={-1}
               onClick={(e) => {
                 onClear()
                 const field = e.currentTarget

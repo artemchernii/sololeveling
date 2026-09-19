@@ -13,6 +13,7 @@ import type * as auth from "../auth.js";
 import type * as events from "../events.js";
 import type * as goals from "../goals.js";
 import type * as logs from "../logs.js";
+import type * as milestones from "../milestones.js";
 import type * as notes from "../notes.js";
 import type * as principles from "../principles.js";
 import type * as projects from "../projects.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   events: typeof events;
   goals: typeof goals;
   logs: typeof logs;
+  milestones: typeof milestones;
   notes: typeof notes;
   principles: typeof principles;
   projects: typeof projects;

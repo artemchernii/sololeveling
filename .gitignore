@@ -26,6 +26,12 @@ todos.json
 .agents/
 AGENTS.md
 
+# --- Claude Code workspace ---
+# Worktrees live inside the repo (.claude/worktrees/<branch>); each is a full
+# checkout. launch.json is this machine's dev-server entry, not the project's.
+.claude/worktrees/
+.claude/launch.json
+
 # --- Backups ---
 # Snapshots are real data. scripts/backup.sh writes them outside the repo;
 # this is the net for one copied in by hand.

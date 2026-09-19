@@ -1257,6 +1257,23 @@ Wait for CI, merge (`gh pr merge --merge`), `git switch master && git pull`. Tel
 
 Branch: `git switch -c rethink-r3b master` after R3a is merged.
 
+**What changed under this plan since it was written (17 Sep, PRs #38–#46).**
+This plan describes R3a's ground; nine polish PRs have moved it. Tasks 7–9
+should be read against these, not against the text above:
+
+- `tasks.listBacklog` now takes `{ today }` and returns open tasks that are
+  not on today's three — an unticked task returns to the backlog when its
+  day ends (#39/#41). Any call added here passes `today`.
+- A task created in quick capture starts **unfiled** — no area until one is
+  chosen (#42). A milestone editor must not assume a task or goal has an area
+  to borrow.
+- The backlog page has **Backlog** and **Done** tabs, with search, area,
+  project-or-goal and sort controls shared through
+  `src/components/backlog/ListControls.tsx` (#45). A Goals page list reuses
+  that component rather than growing its own.
+- `--color-saved` is gone; a confirmation with no area of its own borrows
+  `--color-accent` (#47).
+
 ### Task 6: Milestones, and goals that can be edited
 
 **Files:**
@@ -1278,7 +1295,7 @@ Branch: `git switch -c rethink-r3b master` after R3a is merged.
   - `api.goals.update({ goalId, title?: string, area?: Area, deadline?: string | null, targetLabel?: string | null }) → null`
   - `goals.remove` also deletes the goal's milestones.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `convex/milestones.test.ts`:
 
@@ -1508,12 +1525,12 @@ describe('a goal stands on its own, and can be edited', () => {
 
 (If `convex/goals.test.ts` names its constants differently, use its names.)
 
-- [ ] **Step 2: Run to fail**
+- [x] **Step 2: Run to fail**
 
 Run: `pnpm vitest run convex/milestones.test.ts convex/goals.test.ts`
 Expected: FAIL — `api.milestones` undefined.
 
-- [ ] **Step 3: Add the table**
+- [x] **Step 3: Add the table**
 
 In `convex/schema.ts`, after the `goals` table:
 
@@ -1532,7 +1549,7 @@ In `convex/schema.ts`, after the `goals` table:
   }).index('by_owner_goal', ['ownerId', 'goalId', 'sortOrder']),
 ```
 
-- [ ] **Step 4: Implement `convex/milestones.ts`**
+- [x] **Step 4: Implement `convex/milestones.ts`**
 
 ```ts
 import { v } from 'convex/values'
@@ -1685,7 +1702,7 @@ export const remove = mutation({
 })
 ```
 
-- [ ] **Step 5: `goals.get`, `goals.update`, and the cascade**
+- [x] **Step 5: `goals.get`, `goals.update`, and the cascade**
 
 In `convex/goals.ts`, after `listActive`:
 
@@ -1753,12 +1770,12 @@ const milestones = await ctx.db
 for (const m of milestones) await ctx.db.delete(m._id)
 ```
 
-- [ ] **Step 6: Run to pass**
+- [x] **Step 6: Run to pass**
 
 Run: `pnpm vitest run convex/milestones.test.ts convex/goals.test.ts && pnpm typecheck`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add convex/schema.ts convex/milestones.ts convex/milestones.test.ts convex/goals.ts convex/goals.test.ts

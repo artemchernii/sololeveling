@@ -86,6 +86,55 @@ export const listActive = query({
   },
 })
 
+/* Read by a URL-shaped id (a project page's goal, a goal anchor): a bad or
+   foreign id is null, which the page renders as nothing. */
+export const get = query({
+  args: { goalId: v.string() },
+  returns: v.union(schema.doc('goals'), v.null()),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const goalId = ctx.db.normalizeId('goals', args.goalId)
+    if (goalId === null) return null
+    const goal = await ctx.db.get(goalId)
+    return goal === null || goal.ownerId !== ownerId ? null : goal
+  },
+})
+
+/**
+ * Rename, refile, re-date. `null` clears a deadline or a target label;
+ * leaving a field out keeps it. The measurable target (targetValue + unit)
+ * is not edited here — it is set on a tile or at creation.
+ */
+export const update = mutation({
+  args: {
+    goalId: v.id('goals'),
+    title: v.optional(v.string()),
+    area: v.optional(areaValidator),
+    deadline: v.optional(v.union(v.string(), v.null())),
+    targetLabel: v.optional(v.union(v.string(), v.null())),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const goal = await ownedGoal(ctx, ownerId, args.goalId)
+    const title = args.title === undefined ? goal.title : args.title.trim()
+    if (title.length === 0) throw new Error('A goal needs a title')
+    await ctx.db.patch(args.goalId, {
+      title,
+      area: args.area ?? goal.area,
+      deadline:
+        args.deadline === undefined
+          ? goal.deadline
+          : (args.deadline ?? undefined),
+      targetLabel:
+        args.targetLabel === undefined
+          ? goal.targetLabel
+          : args.targetLabel?.trim() || undefined,
+    })
+    return null
+  },
+})
+
 /** Reached, or abandoned. Both are answers; neither deletes the record. */
 export const setStatus = mutation({
   args: { goalId: v.id('goals'), status: goalStatusValidator },
@@ -123,6 +172,15 @@ export const remove = mutation({
         `Delete its projects first: ${attached.map((p) => p.title).join(', ')}`,
       )
     }
+
+    /* Milestones are steps of this goal and mean nothing without it. */
+    const milestones = await ctx.db
+      .query('milestones')
+      .withIndex('by_owner_goal', (q) =>
+        q.eq('ownerId', ownerId).eq('goalId', args.goalId),
+      )
+      .take(MAX_ROWS)
+    for (const m of milestones) await ctx.db.delete(m._id)
 
     await ctx.db.delete(args.goalId)
     return null

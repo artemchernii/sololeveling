@@ -122,6 +122,19 @@ export default defineSchema({
       filterFields: ['ownerId'],
     }),
 
+  /* Steps on the way to a goal, in an order the person sets (R3, 16 Sep).
+     A sequence, not a denominator: "2 of 4 milestones" would be a progress
+     bar with an invented denominator, so nothing divides by these. Reaching
+     one is a claim the person makes with one tap, like ticking a task. */
+  milestones: defineTable({
+    ownerId: v.string(),
+    goalId: v.id('goals'),
+    title: v.string(),
+    dueDate: v.optional(v.string()), // ISO date
+    reachedAt: v.optional(v.number()),
+    sortOrder: v.number(),
+  }).index('by_owner_goal', ['ownerId', 'goalId', 'sortOrder']),
+
   /* A project always has a goal above it, so goalId is required: a project
      that answers to nothing is the thing this app exists to prevent. */
   projects: defineTable({

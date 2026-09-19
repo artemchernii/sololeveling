@@ -45,6 +45,23 @@ function signedInLocally(): { userId: string | null } | null {
 }
 
 export const Route = createFileRoute('/_app')({
+  /* The app's pages are not rendered on the server (20 Sep). The server does
+     not know what time it is where you are, and behind Clerk it does not know
+     who you are either: it rendered "Good evening, YOU." and SAT, SEP 19 while
+     the browser rendered "Good morning, ARTEM." and SUN, SEP 20. Three
+     mismatched strings and React throws the whole server tree away and builds
+     the page again — that is the blink on refresh, and it comes and goes with
+     the hour because it needs the two clocks to straddle a boundary.
+
+     'data-only' rather than false: beforeLoad still runs on the server, so the
+     Clerk guard below keeps deciding before a byte of shell is sent (PLAN.md
+     §1). Only the rendering moves to the browser. Nothing is lost by that —
+     every number on these pages arrives over a Convex socket that does not
+     exist during SSR, so the server could only ever paint skeletons. It now
+     sends the skeletons as the shell, and the client fills them exactly as it
+     always did. Child routes inherit this; a route may narrow it to false,
+     never widen it. */
+  ssr: 'data-only',
   beforeLoad: async () => {
     const { userId } = signedInLocally() ?? (await getAuthState())
     if (!userId) {

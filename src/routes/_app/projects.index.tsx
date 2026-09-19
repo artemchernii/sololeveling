@@ -5,7 +5,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc } from '../../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { AREAS } from '@/components/AreaBadge'
 import { ProjectCard } from '@/components/projects/ProjectCard'
 import { SaveLabel, useSave } from '@/components/Saving'
@@ -116,10 +116,14 @@ function Projects() {
 function NewProject() {
   const createGoal = useMutation(api.goals.create)
   const createProject = useMutation(api.projects.create)
+  const goals = useQuery(api.goals.listActive, {})
 
   const [open, setOpen] = useState(false)
-  const [goal, setGoal] = useState('')
   const [project, setProject] = useState('')
+  /* '' = not chosen yet, 'new' = name one here, otherwise a goal's id. A
+     project must answer to a goal, but it no longer has to invent one. */
+  const [goalId, setGoalId] = useState<string>('')
+  const [goal, setGoal] = useState('')
   const [area, setArea] = useState<Area>('business')
   const [deadline, setDeadline] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -127,15 +131,22 @@ function NewProject() {
 
   async function submit() {
     if (starting.busy) return
-    if (goal.trim().length === 0 || project.trim().length === 0) {
-      setError('A project needs a goal above it and a title.')
+    if (project.trim().length === 0) {
+      setError('A project needs a title.')
+      return
+    }
+    if (goalId === '' || (goalId === 'new' && goal.trim().length === 0)) {
+      setError('A project answers to a goal — pick one, or name a new one.')
       return
     }
     try {
       await starting.run(async () => {
-        const goalId = await createGoal({ title: goal.trim(), area })
+        const parent =
+          goalId === 'new'
+            ? await createGoal({ title: goal.trim(), area })
+            : (goalId as Id<'goals'>)
         await createProject({
-          goalId,
+          goalId: parent,
           title: project.trim(),
           deadline: deadline.length > 0 ? deadline : undefined,
         })
@@ -151,6 +162,7 @@ function NewProject() {
   function finish() {
     starting.settle()
     setGoal('')
+    setGoalId('')
     setProject('')
     setDeadline('')
     setOpen(false)
@@ -173,18 +185,9 @@ function NewProject() {
     <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
       <div className="label-caps">New project</div>
 
-      <Field label="Goal — what this is ultimately for">
+      <Field label="Project">
         <input
           autoFocus
-          value={goal}
-          onChange={(e) => setGoal(e.target.value)}
-          placeholder="A profitable business"
-          className="w-full bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
-        />
-      </Field>
-
-      <Field label="First project — the work that moves it">
-        <input
           value={project}
           onChange={(e) => setProject(e.target.value)}
           onKeyDown={(e) => {
@@ -195,22 +198,51 @@ function NewProject() {
         />
       </Field>
 
-      <div className="flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2">
-          <span className="label-caps">Area</span>
+      <Field label="For">
+        <div className="flex flex-wrap items-center gap-2">
           <select
-            value={area}
-            onChange={(e) => setArea(e.target.value as Area)}
+            value={goalId}
+            onChange={(e) => setGoalId(e.target.value)}
             className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
           >
-            {AREAS.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
+            <option value="">Which goal is this for?</option>
+            {/* A monthly tile target is not something a project hangs on. */}
+            {(goals ?? [])
+              .filter((g) => g.tile === undefined)
+              .map((g) => (
+                <option key={g._id} value={g._id}>
+                  {g.title}
+                </option>
+              ))}
+            <option value="new">A new goal…</option>
           </select>
-        </label>
+          {goalId === 'new' ? (
+            <>
+              <input
+                autoFocus
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                placeholder="A profitable business"
+                className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
+              />
+              <select
+                value={area}
+                onChange={(e) => setArea(e.target.value as Area)}
+                aria-label="Area of the new goal"
+                className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
+              >
+                {AREAS.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : null}
+        </div>
+      </Field>
 
+      <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2">
           <span className="label-caps">Ends</span>
           <input

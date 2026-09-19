@@ -7,6 +7,7 @@ import { ArrowLeft, Check, Plus, Trash2 } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { AreaBadge } from '@/components/AreaBadge'
+import { GoalTimeline } from '@/components/goals/GoalTimeline'
 import { SaveGlyph, useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
@@ -27,6 +28,9 @@ function Project() {
 
   const project = useHeld(useQuery(api.projects.get, { projectId }))
   const arrived = useArrived(project)
+  /* The goal above it, for the FOR card. An empty string normalizes to null
+     and comes back null, so there is nothing to draw until the project is. */
+  const goal = useQuery(api.goals.get, { goalId: project?.goalId ?? '' })
   const tasks = useQuery(api.tasks.listByProject, { projectId })
   const counts = useQuery(api.aggregate.entityCounts, {})
   /* Month bounds on the client, as the dashboard computes them: the server
@@ -179,6 +183,25 @@ function Project() {
           </Action>
         </div>
       </div>
+
+      {/* What this project answers to, and where that goal has got to. */}
+      {goal ? (
+        <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <div className="flex items-baseline gap-2">
+              <span className="label-caps">For</span>
+              <Link
+                to="/goals"
+                hash={`goal-${goal._id}`}
+                className="text-[14px] text-foreground transition-colors hover:text-lav-300"
+              >
+                {goal.title}
+              </Link>
+            </div>
+          </div>
+          <GoalTimeline goal={goal} />
+        </div>
+      ) : null}
 
       {/* What is left beside what was written down. */}
       <div className="grid items-start gap-[18px] md:grid-cols-2">

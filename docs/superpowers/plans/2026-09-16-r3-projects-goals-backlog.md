@@ -2006,7 +2006,7 @@ the live one, and nothing in it is a fraction.
 - Consumes: `api.milestones.*`, `api.goals.get`, `api.goals.update` (Task 6); `goalTimeline`, `TimelineNode` (Task 7); `shortDate`, `deadlineLabel` from `src/lib/format.ts`; `AREAS` from `@/components/AreaBadge`.
 - Produces: `<GoalTimeline goal={Doc<'goals'>} />` (loads its own milestones; tap toggles reached); `<MilestoneEditor goalId={Id<'goals'>} />`; `<NewGoal />`.
 
-- [ ] **Step 1: `GoalTimeline`**
+- [x] **Step 1: `GoalTimeline`**
 
 Create `src/components/goals/GoalTimeline.tsx`:
 
@@ -2151,7 +2151,7 @@ function Caption({ node }: { node: TimelineNode }) {
 
 Check `text-background` exists as a Tailwind colour from the `@theme` in `src/styles.css`; if not, use the token the app uses for text on a filled light surface (grep `bg-ink-300` for an existing pairing) — never `text-black`.
 
-- [ ] **Step 2: `MilestoneEditor`**
+- [x] **Step 2: `MilestoneEditor`**
 
 Create `src/components/goals/MilestoneEditor.tsx`:
 
@@ -2255,7 +2255,7 @@ export function MilestoneEditor({ goalId }: { goalId: Id<'goals'> }) {
 }
 ```
 
-- [ ] **Step 3: `NewGoal`**
+- [x] **Step 3: `NewGoal`**
 
 Create `src/components/goals/NewGoal.tsx`, following `NewProject` in `src/routes/_app/projects.index.tsx` (same closed button, same `Field`-style rows, `useSave` + `SaveLabel`):
 
@@ -2402,7 +2402,7 @@ export function NewGoal() {
 }
 ```
 
-- [ ] **Step 4: The Goals page**
+- [x] **Step 4: The Goals page**
 
 In `src/routes/_app/goals.tsx`:
 
@@ -2473,7 +2473,7 @@ and delete the now-unused `projectCount` function.
 }
 ```
 
-- [ ] **Step 5: The New project form, rebuilt (decision 10)**
+- [x] **Step 5: The New project form, rebuilt (decision 10)**
 
 Rewrite `NewProject` in `src/routes/_app/projects.index.tsx`. Keep the closed button, `useSave` + `SaveLabel`, `Field`, and the error line; change the rows and their order.
 
@@ -2598,7 +2598,7 @@ async function submit() {
 
 Check in the browser: the form opens with the cursor in **Project** and no ring round it; "For" lists his goals with "A new goal…" last; choosing it reveals the title and area; Start it with an existing goal creates only the project. Delete anything created.
 
-- [ ] **Step 6: The project page shows its goal**
+- [x] **Step 6: The project page shows its goal**
 
 In `src/routes/_app/projects.$id.tsx`:
 

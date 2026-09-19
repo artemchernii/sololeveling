@@ -2632,7 +2632,7 @@ In `src/routes/_app/projects.$id.tsx`:
 
 Run prettier on every touched file.
 
-- [ ] **Step 7: Verify in the browser**
+- [x] **Step 7: Verify in the browser**
 
 `pnpm typecheck && pnpm lint`, then:
 

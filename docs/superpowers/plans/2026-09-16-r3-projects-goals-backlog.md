@@ -1827,7 +1827,7 @@ export function goalTimeline(
 ): Array<TimelineNode>
 ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/goal-timeline.test.ts`:
 
@@ -1902,11 +1902,11 @@ describe('a goal’s timeline: 0 — 1 — 2 — 3 — goal', () => {
 })
 ```
 
-- [ ] **Step 2: Run to fail**
+- [x] **Step 2: Run to fail**
 
 Run: `pnpm vitest run src/lib/goal-timeline.test.ts` — Expected: FAIL (module not found).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/lib/goal-timeline.ts`:
 
@@ -1973,7 +1973,7 @@ export function goalTimeline(
 }
 ```
 
-- [ ] **Step 4: Run to pass, commit**
+- [x] **Step 4: Run to pass, commit**
 
 Run: `pnpm vitest run src/lib/goal-timeline.test.ts` — Expected: PASS.
 

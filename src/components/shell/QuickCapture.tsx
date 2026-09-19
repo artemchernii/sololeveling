@@ -877,7 +877,10 @@ export function QuickCapture({
               : last.type === 'noted'
                 ? areaVars('knowledge')
                 : last.type === 'tasked'
-                  ? ({ '--area': 'var(--color-saved)' } as React.CSSProperties)
+                  ? /* A task has no area when it is made (it starts unfiled),
+                       so its confirmation borrows the accent: this row is the
+                       live thing on screen for the moment it is there. */
+                    ({ '--area': 'var(--color-accent)' } as React.CSSProperties)
                   : areaVars(last.row.area)
           }
           /* Arrives, and — for something added — rings once in its colour

@@ -74,7 +74,7 @@
   --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0, 0, 0, 0.65);
 
   /* ==========================================================================
-     APP ADDITIONS — not Nocturne. Five, each with the reason it exists.
+     APP ADDITIONS — not Nocturne. Seven, each with the reason it exists.
      ======================================================================= */
 
   /* 1. Near-black ground. §3 Visual asks for a "near-black ground" with
@@ -186,15 +186,6 @@
         class names. */
   --lift: #fff;
   --sink: #000;
-
-  /* 8. Saved (17 Sep). The one green outside Finances: the row that says a
-        task was just written. Artem asked for it — Enter, a tick, green — and
-        it says "that landed", not "that was good", so it is not the
-        direction-of-a-number green §3 keeps for Finances. It shares body's
-        hue on purpose rather than adding a tenth; it is only ever drawn on
-        the confirmation row, never on a badge, so the two are not read
-        side by side. */
-  --color-saved: oklch(0.8 0.1 155);
 }
 
 /* ==========================================================================
@@ -250,8 +241,6 @@
   --area-knowledge: oklch(0.55 0.11 225);
   --area-career: oklch(0.55 0.11 250);
   --area-style: oklch(0.55 0.11 330);
-
-  --color-saved: oklch(0.55 0.11 155);
 }
 
 /* Milky glass — the ground, panels, ramps and glass. */

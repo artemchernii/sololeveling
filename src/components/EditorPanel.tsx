@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { AttachmentTray } from '@/components/attachments/Attachments'
@@ -71,13 +72,34 @@ export function EditorPanel({
   const att = useAttachments(parent)
   const canSave = dirty && title.trim().length > 0
 
+  /* Escape closes, but not over the top of something you wrote (20 Sep:
+     "ESC should close but with confirmation"). Nothing written, nothing to
+     ask about — it just shuts. With changes it arms instead, the same way
+     Delete on a project arms rather than firing on one press, and the second
+     Escape is the answer. Discard arms too: it is the same destruction by a
+     different button. */
+  const [confirming, setConfirming] = useState(false)
+
+  function requestCancel() {
+    if (!dirty) {
+      onCancel()
+      return
+    }
+    if (confirming) {
+      setConfirming(false)
+      onCancel()
+      return
+    }
+    setConfirming(true)
+  }
+
   return (
     <div
       {...att.zone}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation()
-          onCancel()
+          requestCancel()
         }
       }}
       style={area ? areaVars(area) : undefined}
@@ -165,15 +187,42 @@ export function EditorPanel({
             Save
           </SaveLabel>
         </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="motion-press rounded-[8px] px-3 py-1 text-[12px] text-ink-500 transition-colors hover:bg-lift/5 hover:text-ink-200"
-        >
-          {dirty ? 'Discard' : 'Close'}
-        </button>
+        {confirming ? (
+          <span className="motion-arrive flex items-center gap-1">
+            <span className="text-[12px] text-state-warn">
+              Throw away what you wrote?
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirming(false)
+                onCancel()
+              }}
+              className="motion-press rounded-[8px] px-2.5 py-1 text-[12px] text-state-danger transition-colors hover:bg-state-danger/10"
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              className="motion-press rounded-[8px] px-2.5 py-1 text-[12px] text-ink-300 transition-colors hover:bg-lift/5"
+            >
+              Keep writing
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={requestCancel}
+            className="motion-press rounded-[8px] px-3 py-1 text-[12px] text-ink-500 transition-colors hover:bg-lift/5 hover:text-ink-200"
+          >
+            {dirty ? 'Discard' : 'Close'}
+          </button>
+        )}
         <span className="ml-auto hidden font-mono text-[10.5px] text-ink-700 sm:block">
-          ⌘V a screenshot · esc to close
+          {confirming
+            ? 'esc again to discard'
+            : '⌘V a screenshot · esc to close'}
         </span>
       </div>
     </div>

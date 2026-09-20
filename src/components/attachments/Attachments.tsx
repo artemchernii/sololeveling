@@ -2,6 +2,7 @@ import { Paperclip, X } from 'lucide-react'
 
 import type { Id } from '../../../convex/_generated/dataModel'
 import { useAttachments } from './useAttachments'
+import type { usePendingAttachments } from './useAttachments'
 
 /* Files on a note or a task (20 Sep). Images show as images. Everything else
    is a named link — a PDF is opened, not previewed, and pretending otherwise
@@ -148,4 +149,73 @@ function sizeLabel(bytes: number): string {
   if (bytes < 1024) return `${bytes}b`
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}k`
   return `${(bytes / (1024 * 1024)).toFixed(1)}M`
+}
+
+/* The waiting room, drawn (20 Sep). Files pasted into a note that does not
+   exist yet, shown from object URLs so a screenshot looks like itself before
+   it has been anywhere near the server.
+
+   It says `will be attached` rather than nothing, because a thumbnail that
+   looks identical to a saved one would be a lie about where the bytes are —
+   nothing is uploaded until the note is saved. */
+export function PendingTray({
+  att,
+}: {
+  att: ReturnType<typeof usePendingAttachments>
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      {att.pending.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {att.pending.map((p) => (
+            <div key={p.id} className="group/att motion-pop relative">
+              {p.preview ? (
+                <img
+                  src={p.preview}
+                  alt={p.file.name}
+                  className="size-14 rounded-[8px] object-cover ring-1 ring-area-knowledge/30"
+                />
+              ) : (
+                <span className="flex size-14 flex-col items-center justify-center gap-1 rounded-[8px] px-1 text-center ring-1 ring-lift/15 ring-inset">
+                  <Paperclip className="size-3 text-ink-600" />
+                  <span className="w-full truncate text-[9px] text-ink-500">
+                    {p.file.name}
+                  </span>
+                </span>
+              )}
+              <Remove onClick={() => att.remove(p.id)} />
+            </div>
+          ))}
+          <span className="label-caps text-area-knowledge/70">
+            {att.busy > 0 ? `attaching ${att.busy}…` : 'will be attached'}
+          </span>
+        </div>
+      ) : null}
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={att.pick}
+          className="flex items-center gap-1.5 text-[11.5px] text-ink-700 transition-colors hover:text-ink-400"
+        >
+          <Paperclip className="size-3" />
+          Attach — or paste a screenshot, or drop a file
+        </button>
+        <input
+          ref={att.input}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            att.onPicked(e.target.files)
+            e.target.value = ''
+          }}
+        />
+      </div>
+
+      {att.error ? (
+        <p className="text-[12px] text-state-danger">{att.error}</p>
+      ) : null}
+    </div>
+  )
 }

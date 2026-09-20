@@ -131,6 +131,7 @@ export function TaskRow({
         <div className="pb-3 pl-[30px]">
           <EditorPanel
             parent={{ taskId: task._id }}
+            area={task.area}
             title={title}
             onTitle={setTitleDraft}
             titlePlaceholder="What the task is"

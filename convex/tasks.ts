@@ -75,19 +75,27 @@ export const create = mutation({
 
     /* The area comes down the chain rather than being asked for (20 Sep).
        Artem, at a task made on a project and badged `unfiled`: "we won't set
-       it, it should be by default either project or SoloLeveling."
+       it, it should be by default either project or SoloLeveling" — and then,
+       looking at one he had filed by hand: "lets add Projects in the list now
+       and by default tasks create from projects have type projects."
 
-       He is describing a rule the app already keeps one level up — a project
-       has no area of its own, it inherits the kind of the goal it answers to
-       (projects.ts). A task made under either of them was the one place that
-       chain broke, so every task born on a project page was unfiled until it
-       was fixed by hand.
+       So there are two rules, in this order:
 
-       A passed area still wins: ⌘K parses one out of what you typed, and a
-       word you chose beats one that was inherited. */
-    if (area === undefined && goalId !== undefined) {
-      const goal = await ctx.db.get(goalId)
-      if (goal !== null && goal.ownerId === ownerId) area = goal.area
+       1. A task on a project is `projects`. That is the tenth area, added the
+          same day and for this — see the note on `areaValidator`.
+       2. A task on a goal takes the goal's area, which is the rule the app
+          already keeps one level up: a project has no area of its own, it
+          inherits the kind of the goal it answers to (projects.ts).
+
+       A passed area beats both: ⌘K parses one out of what you typed, and a
+       word you chose is not a default. */
+    if (area === undefined) {
+      if (args.projectId !== undefined) {
+        area = 'projects'
+      } else if (goalId !== undefined) {
+        const goal = await ctx.db.get(goalId)
+        if (goal !== null && goal.ownerId === ownerId) area = goal.area
+      }
     }
 
     return await ctx.db.insert('tasks', {
@@ -425,7 +433,7 @@ export const setProject = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    await ownedTask(ctx, ownerId, args.taskId)
+    const task = await ownedTask(ctx, ownerId, args.taskId)
 
     if (args.projectId === null) {
       await ctx.db.patch(args.taskId, {
@@ -446,6 +454,14 @@ export const setProject = mutation({
     await ctx.db.patch(args.taskId, {
       projectId: args.projectId,
       goalId: project.goalId,
+      /* Filing a task under a project is the same act as creating it there,
+         so it files the same way (20 Sep). He added a task from the backlog,
+         gave it SoloLeveling, and watched it stay `unfiled` — `create` had
+         learned this rule an hour earlier and `setProject` had not.
+
+         Only when nothing is set: an area he chose is his answer, and moving
+         a task between projects must not quietly overwrite it. */
+      area: task.area ?? 'projects',
     })
     return null
   },

@@ -243,6 +243,25 @@ h6 {
   animation: arrive var(--motion-base) var(--motion-ease) both;
 }
 
+/* An edge that grows from where it is anchored — the area-coloured rail down
+   the side of an open task or note (20 Sep). A 3px bar is too thin for
+   `motion-arrive` to read: four pixels of travel on something three pixels
+   wide is a flicker, not an arrival. Growing along its long axis is the only
+   move it has, and it is the ninth utility rather than the eighth because
+   nothing here could do it. */
+@keyframes edge {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@utility motion-edge {
+  transform-origin: top;
+  animation: edge var(--motion-base) var(--motion-ease) both;
+}
+
 /* Something that has just become a different thing — the + in the Log field
    turning into the gym icon as the line names it. Scales up from a little
    smaller, so the change is seen rather than simply having happened. */

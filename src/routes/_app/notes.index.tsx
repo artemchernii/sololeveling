@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, PenLine } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
@@ -107,24 +107,49 @@ function Notes() {
         ))}
       </div>
 
+      {/* The way in (20 Sep). Artem: "in notes when we create new note its
+          bad. Like now our new note creation in project page is better than
+          in actually notes page."
+
+          He was right, and it was the fault he had already named once: this
+          was a line of placeholder text on a bare panel, which is the "two
+          stupid small input" that `AddField` was built to end — and then the
+          project page got `AddField` and this page did not. So it gets the
+          same shell: an edge, the full width it was given, a glyph, and the
+          knowledge colour when you are in it. What it is *not* is an
+          `AddField`, because a note is written here, not named: the sheet
+          still grows with what you type and ⌘↵ still saves it. */}
       <div
-        className={`glass rounded-[22px] px-5 py-4 transition-shadow duration-(--motion-base) ${
+        className={`glass rounded-[22px] transition-shadow duration-(--motion-base) ${
           writing ? 'ring-1 ring-area-knowledge/35' : ''
         }`}
       >
-        <NoteEditor
-          value={text}
-          onChange={(next) => {
-            setText(next)
-            setWriting(next.length > 0)
-            setProblem(null)
-          }}
-          onSubmit={() => void save()}
-          placeholder={'New note — the first line is its title'}
-          className={writing ? '' : 'max-h-[26px] overflow-hidden'}
-        />
+        <div
+          className={`flex items-start gap-2.5 rounded-[22px] border px-5 py-4 transition-colors ${
+            writing
+              ? 'border-transparent'
+              : 'border-lift/10 bg-sink/20 hover:border-lift/20 focus-within:border-area-knowledge/50 focus-within:bg-area-knowledge/[0.06]'
+          }`}
+        >
+          <PenLine
+            className={`mt-1 size-4 shrink-0 transition-colors ${
+              writing ? 'text-area-knowledge' : 'text-ink-600'
+            }`}
+          />
+          <NoteEditor
+            value={text}
+            onChange={(next) => {
+              setText(next)
+              setWriting(next.length > 0)
+              setProblem(null)
+            }}
+            onSubmit={() => void save()}
+            placeholder={'New note — the first line is its title'}
+            className={writing ? '' : 'max-h-[26px] overflow-hidden'}
+          />
+        </div>
         {writing ? (
-          <div className="motion-arrive mt-3 flex items-center gap-3 border-t border-lift/[0.06] pt-3 text-[11.5px] text-ink-500">
+          <div className="motion-arrive mx-5 mb-4 flex items-center gap-3 border-t border-lift/[0.06] pt-3 text-[11.5px] text-ink-500">
             <span className="flex items-center gap-[7px]">
               <Key>⌘↵</Key>
               save

@@ -6,10 +6,10 @@ import { ConvexError } from 'convex/values'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { attachmentArgs } from '@/lib/attachment-parent'
+import type { AttachmentParent } from '@/lib/attachment-parent'
 
-export type AttachmentParent =
-  | { noteId: Id<'notes'>; taskId?: undefined }
-  | { taskId: Id<'tasks'>; noteId?: undefined }
+export type { AttachmentParent }
 
 /* What `listFor` returns: a projection, not the row — the storage id and the
    owner never need to reach the client. */
@@ -55,9 +55,12 @@ export function useAttachments(parent: AttachmentParent): {
   input: RefObject<HTMLInputElement | null>
   onPicked: (list: FileList | null) => void
 } {
+  /* Narrowed, never passed through — see `attachmentArgs`. A props object
+     handed to Convex as args took the note page down on 20 Sep. */
+  const args = attachmentArgs(parent)
   const files: Array<Listed> | undefined = useQuery(
     api.attachments.listFor,
-    parent,
+    args,
   )
   const generateUploadUrl = useMutation(api.attachments.generateUploadUrl)
   const add = useMutation(api.attachments.add)
@@ -85,7 +88,7 @@ export function useAttachments(parent: AttachmentParent): {
           storageId: Id<'_storage'>
         }
         await add({
-          ...parent,
+          ...args,
           storageId,
           /* A pasted screenshot arrives as `image.png` every time, so the
              name is the one thing the clipboard cannot tell you. */

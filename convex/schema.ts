@@ -14,6 +14,11 @@ import type { Infer } from 'convex/values'
    its own lane. */
 
 export const areaValidator = v.union(
+  /* A task that belongs to a project (20 Sep, his call). It is the one
+     entry here that answers "what is this attached to" rather than "what part
+     of my life is this" — noted as the compromise it is, and R6's areas-as-
+     data is where it gets resolved properly. */
+  v.literal('projects'),
   v.literal('business'),
   v.literal('portuguese'),
   v.literal('body'),

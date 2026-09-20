@@ -133,6 +133,9 @@ function NoteRow({ note }: { note: Doc<'notes'> }) {
         <div className="pt-2 pl-[18px]">
           <EditorPanel
             parent={{ noteId: note._id }}
+            /* A note is knowledge — the colour NoteView and the Notes page
+               already use for one. */
+            area="knowledge"
             title={title}
             onTitle={setTitle}
             titlePlaceholder="What this note is called"

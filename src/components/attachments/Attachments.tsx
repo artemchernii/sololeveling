@@ -1,7 +1,7 @@
 import { Paperclip, X } from 'lucide-react'
 
+import type { Id } from '../../../convex/_generated/dataModel'
 import { useAttachments } from './useAttachments'
-import type { AttachmentParent } from './useAttachments'
 
 /* Files on a note or a task (20 Sep). Images show as images. Everything else
    is a named link — a PDF is opened, not previewed, and pretending otherwise
@@ -12,10 +12,22 @@ import type { AttachmentParent } from './useAttachments'
    panel, not only over this row. `Attachments` keeps the old shape for
    callers that are only a tray. */
 export function Attachments({
+  noteId,
+  taskId,
   compact = false,
-  ...parent
-}: AttachmentParent & { compact?: boolean }) {
-  const att = useAttachments(parent)
+}: {
+  noteId?: Id<'notes'>
+  taskId?: Id<'tasks'>
+  compact?: boolean
+}) {
+  /* Named one at a time rather than collected with a rest spread: the spread
+     swept up the `data-tsd-source` attribute the dev plugin writes onto every
+     JSX tag, and handed it to Convex as a query argument. */
+  const att = useAttachments(
+    noteId !== undefined
+      ? { noteId }
+      : { taskId: taskId as NonNullable<typeof taskId> },
+  )
   return (
     <div
       {...att.zone}

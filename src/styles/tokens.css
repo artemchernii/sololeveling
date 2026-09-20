@@ -155,7 +155,13 @@
         has been monochrome about kinds, and a badge you have to read is
         slower than one you can see.
 
-        One OKLCH lightness and chroma for all nine, so no area is louder than
+        A tenth, `projects`, was added on 20 Sep at 352° — the last real room
+        on the wheel, since 265–305° stays empty for the accent. It sits 22°
+        from style and 23° from social rather than the ~35° the other nine
+        keep, which is the honest cost of a tenth and part of why R6 makes
+        areas data.
+
+        One OKLCH lightness and chroma for all of them, so no area is louder than
         another — body is not more important than style because its green
         happens to be brighter. Hues are spaced round the wheel with a gap
         left at 265–305°, where the lavender accent lives: the accent still
@@ -172,6 +178,7 @@
   --area-knowledge: oklch(0.8 0.1 225);
   --area-career: oklch(0.8 0.1 250);
   --area-style: oklch(0.8 0.1 330);
+  --area-projects: oklch(0.8 0.1 352);
 
   /* 8. State (20 Sep). Artem: "entire platform is boring and bland… overdue
         we can make RED or warning and icon to HIGHLIGHT". Until today colour
@@ -258,6 +265,7 @@
   --area-knowledge: oklch(0.55 0.11 225);
   --area-career: oklch(0.55 0.11 250);
   --area-style: oklch(0.55 0.11 330);
+  --area-projects: oklch(0.55 0.11 352);
 
   /* Darker and a touch less saturated on a milky ground, where a bright
      red vibrates instead of alarming. */

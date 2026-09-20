@@ -102,6 +102,7 @@ function Project() {
         goal={goal}
         counts={count}
         logoUrl={project.logoUrl}
+        tasks={tasks}
       />
 
       {/* What is left beside what was written down. */}

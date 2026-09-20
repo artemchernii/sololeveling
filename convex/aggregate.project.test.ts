@@ -68,7 +68,48 @@ describe('time on a project (source 1: its session logs)', () => {
         start: SEP,
         end: OCT,
       }),
-    ).toEqual({ minutes: 135, sessions: 3 })
+    ).toEqual({ minutes: 135, sessions: 3, days: [] })
+  })
+
+  test('buckets minutes into the days it is asked for, and no others', async () => {
+    const t = convexTest(schema, modules)
+    const me = t.withIdentity({ tokenIdentifier: ME })
+    const oreum = await project(me, 'Oreum')
+
+    const log = (occurredAt: number, value: number) =>
+      me.mutation(api.logs.create, {
+        kind: 'session',
+        area: 'business',
+        occurredAt,
+        value,
+        unit: 'min',
+        projectId: oreum,
+      })
+
+    /* Two on the 15th, one on the 16th, one before the window opens. "Now"
+       is pinned to midday on the 16th and a log may not be in the future. */
+    await log(new Date(2026, 8, 15, 9).getTime(), 20)
+    await log(new Date(2026, 8, 15, 21).getTime(), 25)
+    await log(new Date(2026, 8, 16, 9).getTime(), 40)
+    await log(new Date(2026, 8, 14, 23, 59).getTime(), 99)
+
+    const dayStarts = [
+      new Date(2026, 8, 15).getTime(),
+      new Date(2026, 8, 16).getTime(),
+      new Date(2026, 8, 17).getTime(),
+    ]
+
+    const out = await me.query(api.aggregate.projectTime, {
+      projectId: oreum,
+      start: dayStarts[0],
+      end: new Date(2026, 8, 18).getTime(),
+      dayStarts,
+    })
+
+    /* The 14th's 99 is outside the range entirely; a day with nothing is a
+       zero, not a gap. */
+    expect(out.days).toEqual([45, 40, 0])
+    expect(out.minutes).toBe(85)
   })
 
   test('a ticked task on the project is not time spent on it', async () => {
@@ -85,7 +126,7 @@ describe('time on a project (source 1: its session logs)', () => {
         start: SEP,
         end: OCT,
       }),
-    ).toEqual({ minutes: 0, sessions: 0 })
+    ).toEqual({ minutes: 0, sessions: 0, days: [] })
   })
 
   test('another owner’s project reads as nothing, and a bad id does not throw', async () => {
@@ -108,13 +149,13 @@ describe('time on a project (source 1: its session logs)', () => {
         start: SEP,
         end: OCT,
       }),
-    ).toEqual({ minutes: 0, sessions: 0 })
+    ).toEqual({ minutes: 0, sessions: 0, days: [] })
     expect(
       await me.query(api.aggregate.projectTime, {
         projectId: 'not-an-id',
         start: SEP,
         end: OCT,
       }),
-    ).toEqual({ minutes: 0, sessions: 0 })
+    ).toEqual({ minutes: 0, sessions: 0, days: [] })
   })
 })

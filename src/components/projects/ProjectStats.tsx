@@ -15,9 +15,11 @@ import {
 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc } from '../../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { Ring } from '@/components/Ring'
-import { SaveLabel, useSave } from '@/components/Saving'
+import { CommitStrip } from '@/components/projects/CommitStrip'
+import { areaVars } from '@/lib/areas'
+import { SaveGlyph, SaveLabel, useSave } from '@/components/Saving'
 import type { Area } from '@/lib/capture-parser'
 import { durationLabel, whenLabel } from '@/lib/format'
 import { addDays, addWeeks, startOfWeek } from '@/lib/weeks'
@@ -51,28 +53,34 @@ export function ProjectStats({
   area,
   done,
   total,
+  tasks,
 }: {
   project: Doc<'projects'>
   area: Area | undefined
   done: number | undefined
   total: number | undefined
+  /* The project's own task rows, already loaded by the page — the strip
+     counts them rather than asking for a second reading of the same thing. */
+  tasks: Array<Doc<'tasks'>> | undefined
 }) {
   const projectId = project._id
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime()
   const [showLog, setShowLog] = useState(false)
+  const week0 = startOfWeek()
+  const dayStarts = Array.from({ length: 14 }, (_, i) =>
+    addDays(addWeeks(week0, -1), i).getTime(),
+  )
   const time = useQuery(api.aggregate.projectTime, {
     projectId,
     start: monthStart,
     end: monthEnd,
+    dayStarts,
   })
 
-  const week = startOfWeek()
+  const week = week0
   const lastWeekStart = addWeeks(week, -1)
-  const dayStarts = Array.from({ length: 14 }, (_, i) =>
-    addDays(lastWeekStart, i).getTime(),
-  )
   const commits = useQuery(api.aggregate.projectCommits, {
     projectId,
     lastWeekStart: lastWeekStart.getTime(),
@@ -88,11 +96,23 @@ export function ProjectStats({
     (total !== undefined && total > 0 ? total : undefined)
   const reached = denominator !== undefined && (done ?? 0) >= denominator
   const noneDone = total !== undefined && total > 0 && (done ?? 0) === 0
+  const taskDays = dayStarts.map((start, i) => {
+    const end = dayStarts[i + 1] ?? start + 24 * 60 * 60 * 1000
+    return (tasks ?? []).filter(
+      (t) =>
+        t.completedAt !== undefined &&
+        t.completedAt >= start &&
+        t.completedAt < end,
+    ).length
+  })
   const minutes = time?.minutes ?? 0
   const thisWeek = commits?.thisWeek ?? 0
 
   return (
-    <div className="flex flex-col gap-3">
+    <div
+      style={area ? areaVars(area) : undefined}
+      className="flex flex-col gap-3"
+    >
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Block
           delay={0}
@@ -117,7 +137,7 @@ export function ProjectStats({
             </>
           }
         >
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center justify-between gap-3.5">
             {/* Without a target the denominator is the live task count, a real
               entity count (§1 source 3) — which can only ever reach "all of
               the ones that exist". A target he sets is the size he reckons
@@ -144,6 +164,9 @@ export function ProjectStats({
                     : undefined
               }
             />
+            {/* The last fortnight, counted off the task rows the page already
+                holds — an entity count (§1 source 3), not a new reading. */}
+            <CommitStrip days={taskDays} />
           </div>
         </Block>
 
@@ -216,7 +239,7 @@ export function ProjectStats({
               </>
             }
           >
-            <div className="flex items-center gap-3.5">
+            <div className="flex items-center justify-between gap-3.5">
               <Puck
                 icon={<GitCommitHorizontal />}
                 value={thisWeek}
@@ -233,6 +256,7 @@ export function ProjectStats({
                 label="commits this week"
                 tone="plain"
               />
+              <CommitStrip days={commits.days} />
             </div>
           </Block>
         ) : null}
@@ -490,6 +514,7 @@ function LogTime({
         type="button"
         onClick={onHistory}
         aria-label="Entries logged this month"
+        title="Entries logged this month"
         className="motion-press grid size-[26px] place-items-center rounded-[7px] text-ink-600 transition-colors hover:bg-lift/5 hover:text-ink-300"
       >
         <History className="size-3.5" />
@@ -498,14 +523,14 @@ function LogTime({
   )
 }
 
-/* Every session logged against this project this month, so a mistyped one can
-   be put right (20 Sep).
+/* Every session logged against this project this month, and both ways to put
+   one right (20 Sep).
 
-   It is delete-and-log-again, not an edit field, and deliberately: PLAN.md
-   calls logs "append-only evidence", and logs.ts says a log is never edited
-   into a different truth. What was missing was not the ability to correct a
-   mistake — `remove` has always been there — but anywhere to see the row you
-   meant to correct. */
+   It shipped as delete-and-log-again, because a log was append-only evidence.
+   He asked twice — "I see logged time but i cant edit it" — and overruled the
+   rule; PLAN.md §2 records that, and `logs.setValue` still refuses a weight,
+   whose stateSnapshot would be left contradicting it. Press the duration to
+   change it; the cross still removes the row outright. */
 function TimeLog({
   projectId,
   start,
@@ -531,9 +556,7 @@ function TimeLog({
             key={row._id}
             className="group flex items-center gap-3 border-b border-lift/[0.05] py-1.5 last:border-b-0"
           >
-            <span className="font-mono text-[12.5px] text-ink-200">
-              {durationLabel(row.value ?? 0)}
-            </span>
+            <EditableMinutes logId={row._id} minutes={row.value ?? 0} />
             <span className="flex-1 truncate font-mono text-[11px] text-ink-600">
               {whenLabel(row.occurredAt)}
             </span>
@@ -549,8 +572,92 @@ function TimeLog({
         ))
       )}
       <p className="pt-1 text-[11px] text-ink-700">
-        A log is evidence, so it is removed and logged again rather than edited.
+        Press a duration to correct it. When it should not exist at all, remove
+        it.
       </p>
     </div>
+  )
+}
+
+/* The duration, which is now the control (20 Sep). Press it, type, ⏎ — the
+   same bargain every other field on this page makes, and there is a button
+   too because Enter alone has never been enough here. */
+function EditableMinutes({
+  logId,
+  minutes,
+}: {
+  logId: Id<'logs'>
+  minutes: number
+}) {
+  const setValue = useMutation(api.logs.setValue)
+  const [editing, setEditing] = useState(false)
+  const [text, setText] = useState(String(minutes))
+  const saving = useSave()
+
+  function save() {
+    const n = Number(text)
+    if (!Number.isFinite(n) || n <= 0) {
+      setText(String(minutes))
+      setEditing(false)
+      return
+    }
+    if (n === minutes) {
+      setEditing(false)
+      return
+    }
+    void saving
+      .run(() => setValue({ logId, value: n }))
+      .then(() => {
+        setEditing(false)
+      })
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setText(String(minutes))
+          setEditing(true)
+        }}
+        title="Press to correct"
+        className="motion-press rounded-[6px] px-1 font-mono text-[12.5px] text-ink-200 transition-colors hover:bg-lift/8 hover:text-foreground"
+      >
+        {durationLabel(minutes)}
+      </button>
+    )
+  }
+
+  return (
+    <span className="flex items-center gap-1.5">
+      <input
+        autoFocus
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') save()
+          if (e.key === 'Escape') {
+            setText(String(minutes))
+            setEditing(false)
+          }
+        }}
+        inputMode="numeric"
+        aria-label="Minutes"
+        className="w-12 rounded-[6px] border border-lav-500/60 bg-sink/20 px-1.5 py-0.5 text-center font-mono text-[12px] text-ink-100 outline-none"
+      />
+      <span className="font-mono text-[11px] text-ink-600">min</span>
+      <button
+        type="button"
+        onClick={save}
+        aria-label="Save"
+        className="motion-press grid size-5 place-items-center rounded-[6px] bg-lav-900/70 text-lav-300 ring-1 ring-lav-500/50 ring-inset"
+      >
+        <SaveGlyph
+          status={saving.status}
+          onSettled={saving.settle}
+          idle={<CornerDownLeft className="size-2.5" />}
+        />
+      </button>
+    </span>
   )
 }

@@ -127,7 +127,7 @@ tasks:     { ownerId, title, notes?, projectId?, goalId?, area?,
            .index('by_project', ['projectId']).index('by_owner_due', ['ownerId','dueDate'])
 events:    { ownerId, title, area?, projectId?, startsAt: number, endsAt: number, rrule?, notes? }
            .index('by_owner_start', ['ownerId','startsAt'])
-logs:      { ownerId, kind: logKind, area, occurredAt: number,   // quick capture. append-only evidence.
+logs:      { ownerId, kind: logKind, area, occurredAt: number,   // quick capture. append-only evidence, except `value`.
              value?: number, unit?,   // 60 (min), 48 (eur), 75.4 (kg)
              text?,                   // "push day", "groceries"
              taskId?, projectId?,
@@ -136,6 +136,16 @@ logs:      { ownerId, kind: logKind, area, occurredAt: number,   // quick captur
                                people: v.optional(v.number()) }) }
            .index('by_owner_time', ['ownerId','occurredAt']).index('by_owner_area_time', ['ownerId','area','occurredAt'])
            .index('by_owner_project_time', ['ownerId','projectId','occurredAt'])   // time on a project (R3)
+
+**`logs.value` became editable on 20 Sep, his call.** The rule was that a log
+is never edited into a different truth — a mistake was removed and logged
+again. He asked twice for a mistyped duration to be fixable where it is shown
+and overruled it. What survives of the reasoning is narrower and still binds:
+a correction may not leave two stored facts disagreeing. So `kind`,
+`occurredAt` and `text` stay immutable, and a **weight** is still refused —
+it writes a `stateSnapshots` row that `remove` deletes with it, and editing
+the log alone would leave the shown weight contradicting its own evidence.
+
 stateSnapshots: { ownerId, area, key, value?: number, textValue?, unit?, recordedAt: number }
            .index('by_owner_key_time', ['ownerId','key','recordedAt'])
            // keys: weight, bench, net_worth, cefr_level, protein_avg, savings …

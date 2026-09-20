@@ -475,12 +475,24 @@ export const projectTime = query({
     start: v.number(),
     /** Epoch ms, local midnight — exclusive. */
     end: v.number(),
+    /* Local midnights, for the tile's strip. Same shape as projectCommits,
+       for the same reason: a day boundary belongs to the caller. */
+    dayStarts: v.optional(v.array(v.number())),
   },
-  returns: v.object({ minutes: v.number(), sessions: v.number() }),
+  returns: v.object({
+    minutes: v.number(),
+    sessions: v.number(),
+    /** Minutes per day in dayStarts, same order; empty when none were asked
+        for. A day with nothing logged is a 0, not a gap. */
+    days: v.array(v.number()),
+  }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const projectId = ctx.db.normalizeId('projects', args.projectId)
-    if (projectId === null) return { minutes: 0, sessions: 0 }
+    const starts = args.dayStarts ?? []
+    if (projectId === null) {
+      return { minutes: 0, sessions: 0, days: starts.map(() => 0) }
+    }
 
     const rows = await ctx.db
       .query('logs')
@@ -495,12 +507,21 @@ export const projectTime = query({
 
     let minutes = 0
     let sessions = 0
+    const days = starts.map(() => 0)
     for (const row of rows) {
       if (row.kind !== 'session') continue
       sessions += 1
       minutes += row.value ?? 0
+      /* Last bucket whose midnight is at or before the row: the same walk
+         projectCommits does, over a list that is already short. */
+      for (let i = starts.length - 1; i >= 0; i -= 1) {
+        if (row.occurredAt >= starts[i]) {
+          days[i] += row.value ?? 0
+          break
+        }
+      }
     }
-    return { minutes, sessions }
+    return { minutes, sessions, days }
   },
 })
 

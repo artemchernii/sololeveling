@@ -39,11 +39,13 @@ export function ProjectHeader({
   goal,
   counts,
   logoUrl,
+  tasks,
 }: {
   project: Doc<'projects'>
   goal: Doc<'goals'> | null | undefined
   counts: { done: number; total: number } | undefined
   logoUrl: string | null
+  tasks: Array<Doc<'tasks'>> | undefined
 }) {
   const projectId = project._id
   const setFocus = useMutation(api.projects.setFocus)
@@ -139,6 +141,7 @@ export function ProjectHeader({
         area={goal?.area}
         done={counts?.done}
         total={counts?.total}
+        tasks={tasks}
       />
     </div>
   )

@@ -99,37 +99,49 @@ export function ProjectCommits({
         </span>
       </div>
 
-      <div className="flex gap-8">
-        <Count n={counts.thisWeek} label="this week" />
-        <Count n={counts.lastWeek} label="last week" />
-      </div>
+      {/* Two columns (20 Sep, second pass). Stacked, the grid used 686px of a
+          1108px card and left 447px empty beside it, while the commit list sat
+          underneath and pushed the card to 510px — the tallest thing on the
+          page, and the emptiest. The list moves into the space the grid was
+          not using, and the card loses a third of its height. */}
+      <div className="grid gap-x-8 gap-y-5 lg:grid-cols-[max-content_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex gap-8">
+            <Count n={counts.thisWeek} label="this week" />
+            <Count n={counts.lastWeek} label="last week" />
+          </div>
 
-      <CommitHeatmap projectId={projectId} area={area} />
-
-      {recent === undefined ? null : recent.length === 0 ? (
-        <p className="text-[13px] text-ink-500">
-          No commits in the last two weeks.
-        </p>
-      ) : (
-        <div className="flex flex-col">
-          {recent.map((c) => (
-            <a
-              key={c.sha}
-              href={c.url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-baseline gap-3 border-b border-lift/[0.05] py-2 last:border-b-0"
-            >
-              <span className="flex-1 truncate text-[12.5px] text-ink-300 transition-colors hover:text-foreground">
-                {c.message}
-              </span>
-              <span className="shrink-0 font-mono text-[11px] text-ink-600">
-                {whenLabel(c.authoredAt)}
-              </span>
-            </a>
-          ))}
+          <CommitHeatmap projectId={projectId} area={area} />
         </div>
-      )}
+
+        {recent === undefined ? null : recent.length === 0 ? (
+          <p className="text-[13px] text-ink-500">
+            No commits in the last two weeks.
+          </p>
+        ) : (
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <span className="label-caps">latest</span>
+            <div className="flex flex-col">
+              {recent.map((c) => (
+                <a
+                  key={c.sha}
+                  href={c.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group flex items-baseline gap-3 border-b border-lift/[0.05] py-2 last:border-b-0"
+                >
+                  <span className="flex-1 truncate text-[12.5px] text-ink-300 transition-colors group-hover:text-foreground">
+                    {c.message}
+                  </span>
+                  <span className="shrink-0 font-mono text-[11px] text-ink-600">
+                    {whenLabel(c.authoredAt)}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       <button
         type="button"

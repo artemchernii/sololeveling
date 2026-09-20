@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Plus } from 'lucide-react'
+import { CircleCheck, Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
@@ -14,6 +14,7 @@ import { ProjectHeader } from '@/components/projects/ProjectHeader'
 import { TaskRow } from '@/components/projects/TaskRow'
 import { ProjectNotes } from '@/components/projects/ProjectNotes'
 import { useArrived, useHeld } from '@/lib/loading'
+import { whenLabel } from '@/lib/format'
 
 export const Route = createFileRoute('/_app/projects/$id')({
   component: Project,
@@ -138,13 +139,35 @@ function Project() {
       <ProjectCommits projectId={projectId} area={goal?.area} />
 
       {closed.length > 0 ? (
+        /* What was finished, newest first (20 Sep, second pass). It was a
+           stack of identical grey lines with no tick and no date — the one
+           card on the page that is nothing but good news, rendered as the
+           dimmest thing on it. A tick in state-good, and when it was done. */
         <div className="glass flex flex-col gap-2 rounded-[22px] p-6">
-          <div className="label-caps">Done</div>
-          {closed.map((task) => (
-            <div key={task._id} className="text-[12.5px] text-ink-600">
-              {task.title}
-            </div>
-          ))}
+          <div className="flex items-baseline gap-2">
+            <div className="label-caps">Done</div>
+            <span className="font-mono text-[11px] text-state-good">
+              {closed.length}
+            </span>
+          </div>
+          {[...closed]
+            .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
+            .map((task) => (
+              <div
+                key={task._id}
+                className="flex items-baseline gap-2.5 border-b border-lift/[0.05] py-1.5 last:border-b-0"
+              >
+                <CircleCheck className="size-3.5 shrink-0 translate-y-0.5 text-state-good" />
+                <span className="flex-1 text-[12.5px] text-ink-300">
+                  {task.title}
+                </span>
+                {task.completedAt !== undefined ? (
+                  <span className="shrink-0 font-mono text-[11px] text-ink-600">
+                    {whenLabel(task.completedAt)}
+                  </span>
+                ) : null}
+              </div>
+            ))}
         </div>
       ) : null}
     </div>

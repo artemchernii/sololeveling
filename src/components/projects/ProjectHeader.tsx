@@ -119,6 +119,7 @@ export function ProjectHeader({
         </Action>
         <Action
           icon={CircleCheck}
+          tone="go"
           onClick={() => void setStatus({ projectId, status: 'completed' })}
         >
           Complete the project
@@ -129,7 +130,9 @@ export function ProjectHeader({
         >
           Archive
         </Action>
-        <DeleteAction projectId={projectId} />
+        <span className="sm:ml-auto">
+          <DeleteAction projectId={projectId} />
+        </span>
       </div>
     </div>
   )
@@ -345,36 +348,81 @@ function Deadline({ project }: { project: Doc<'projects'> }) {
   )
 }
 
+/* Delete asks first (20 Sep, second pass). It used to fire on the single
+   click of a button that looked exactly like Pause, and projects.remove takes
+   the logo file and every stored commit with it — the year the grid above is
+   drawn from. An inline arm, not a dialog: the question belongs where the
+   button was, and "Keep" is the easy one to hit. */
 function DeleteAction({ projectId }: { projectId: Id<'projects'> }) {
   const removeProject = useMutation(api.projects.remove)
   const navigate = useNavigate()
+  const [armed, setArmed] = useState(false)
+
+  if (!armed) {
+    return (
+      <Action icon={Trash2} tone="danger" onClick={() => setArmed(true)}>
+        Delete
+      </Action>
+    )
+  }
+
   return (
-    <Action
-      icon={Trash2}
-      onClick={async () => {
-        await removeProject({ projectId })
-        await navigate({ to: '/projects' })
-      }}
-    >
-      Delete
-    </Action>
+    <span className="motion-pop inline-flex items-center gap-2 rounded-[7px] border border-state-danger/45 bg-state-danger/10 px-2.5 py-1">
+      <span className="flex items-center gap-1.5 text-[11.5px] text-state-danger">
+        <TriangleAlert className="size-3" />
+        Delete this project and its commits?
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          void (async () => {
+            await removeProject({ projectId })
+            await navigate({ to: '/projects' })
+          })()
+        }}
+        className="motion-press rounded-[6px] bg-state-danger/25 px-2 py-0.5 text-[11.5px] text-state-danger transition-colors hover:bg-state-danger/40"
+      >
+        Delete
+      </button>
+      <button
+        type="button"
+        onClick={() => setArmed(false)}
+        className="text-[11.5px] text-ink-400 transition-colors hover:text-ink-200"
+      >
+        Keep
+      </button>
+    </span>
   )
 }
 
+/* Three tones, because five identical buttons is what the row was (20 Sep,
+   second pass). Measured: every one of them rendered transparent on
+   rgb(178,182,202) — "Delete" and "Pause" were the same object to the eye,
+   and Delete is the only one that cannot be undone. Colour marks the state a
+   press would put the project in, which is what colour is for here. */
 function Action({
   icon: Icon,
   onClick,
+  tone = 'quiet',
   children,
 }: {
   icon: LucideIcon
   onClick: () => void | Promise<void>
+  tone?: 'quiet' | 'go' | 'danger'
   children: React.ReactNode
 }) {
+  const skin =
+    tone === 'go'
+      ? 'border-state-good/30 bg-state-good/10 text-state-good hover:border-state-good/55 hover:bg-state-good/20'
+      : tone === 'danger'
+        ? 'border-state-danger/25 text-state-danger/75 hover:border-state-danger/55 hover:bg-state-danger/15 hover:text-state-danger'
+        : 'border-lift/10 text-ink-400 hover:border-lift/20 hover:text-ink-200'
+
   return (
     <button
       type="button"
       onClick={() => void onClick()}
-      className="flex items-center gap-1.5 rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lift/20 hover:text-ink-200"
+      className={`motion-press flex items-center gap-1.5 rounded-[7px] border px-2.5 py-1 text-[11.5px] transition-colors ${skin}`}
     >
       <Icon className="size-3" />
       {children}

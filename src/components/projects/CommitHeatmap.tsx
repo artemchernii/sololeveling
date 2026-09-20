@@ -7,6 +7,9 @@ import type { Area } from '@/lib/capture-parser'
 import { addDays, startOfWeek } from '@/lib/weeks'
 
 const WEEKS = 53
+/* Never shrink below a season: a grid that resized every time he pushed
+   would make the shape of the thing depend on the last commit. */
+const MIN_WEEKS = 14
 const MONTHS = [
   'Jan',
   'Feb',
@@ -32,7 +35,13 @@ const MONTHS = [
 
    Four steps, not a gradient: a gradient invites you to read a shade back as
    a number, and these are counts of stored rows — the tooltip says the real
-   figure, the square only says more or less. */
+   figure, the square only says more or less.
+
+   It starts at the first commit, not 53 weeks back (20 Sep, second pass).
+   A three-week-old repo drew 50 weeks of empty squares — 360 of 424 cells
+   said nothing, and "nothing stored" and "did not work" looked identical.
+   Weeks before the project existed are not a year of not working, so they
+   are not drawn. The window still grows to a full year as the repo ages. */
 export function CommitHeatmap({
   projectId,
   area,
@@ -72,10 +81,20 @@ export function CommitHeatmap({
     'bg-(--area)',
   ]
 
+  /* The first week that holds anything. Everything before it is time this
+     repo did not exist for, so it is not drawn. */
+  const firstDay = activity.days.findIndex((n) => n > 0)
+  const firstWeek =
+    firstDay === -1
+      ? WEEKS - MIN_WEEKS
+      : Math.min(Math.floor(firstDay / 7), WEEKS - MIN_WEEKS)
+  const weeks = WEEKS - firstWeek
+  const at = (w: number, d: number) => (firstWeek + w) * 7 + d
+
   /* A month's label sits over the first column that contains its 1st. */
-  const labels = Array.from({ length: WEEKS }, (_, w) => {
+  const labels = Array.from({ length: weeks }, (_, w) => {
     for (let d = 0; d < 7; d += 1) {
-      const date = new Date(dayStarts[w * 7 + d])
+      const date = new Date(dayStarts[at(w, d)])
       if (date.getDate() === 1) return MONTHS[date.getMonth()]
     }
     return ''
@@ -97,13 +116,17 @@ export function CommitHeatmap({
         ) : null}
       </div>
 
+      {/* 13px, not 10 and not stretched. Letting the columns flex to fill the
+          card made them 51px squares and the card 600px tall — worse than the
+          447px of dead space it was meant to cure. The grid takes the width it
+          needs and the commit list beside it absorbs the rest. */}
       <div className="overflow-x-auto">
         <div className="inline-flex flex-col gap-1">
           <div className="flex gap-[3px]">
             {labels.map((label, w) => (
               <span
                 key={w}
-                className="label-caps w-[10px] shrink-0 overflow-visible whitespace-nowrap"
+                className="label-caps w-[13px] shrink-0 overflow-visible whitespace-nowrap"
               >
                 {label}
               </span>
@@ -111,10 +134,10 @@ export function CommitHeatmap({
           </div>
 
           <div className="flex gap-[3px]">
-            {Array.from({ length: WEEKS }, (_, w) => (
+            {Array.from({ length: weeks }, (_, w) => (
               <div key={w} className="flex flex-col gap-[3px]">
                 {Array.from({ length: 7 }, (__, d) => {
-                  const i = w * 7 + d
+                  const i = at(w, d)
                   const n = activity.days[i] ?? 0
                   const date = new Date(dayStarts[i])
                   const future = dayStarts[i] > Date.now()
@@ -122,7 +145,7 @@ export function CommitHeatmap({
                     <span
                       key={d}
                       title={`${n} commit${n === 1 ? '' : 's'} · ${date.toDateString()}`}
-                      className={`size-[10px] rounded-[2px] ${
+                      className={`size-[13px] rounded-[3px] ${
                         future ? 'bg-transparent' : tone[step(n)]
                       }`}
                     />

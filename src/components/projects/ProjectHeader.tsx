@@ -5,6 +5,7 @@ import {
   Archive,
   ArrowLeft,
   CalendarClock,
+  ChevronDown,
   CircleCheck,
   CornerDownLeft,
   Pause,
@@ -94,44 +95,12 @@ export function ProjectHeader({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {/* Focus is one project at a time, and setFocus already demotes the
-            one that held it. What was missing was a way to simply stop —
-            pausing or completing a project you are still doing is a lie about
-            its status just to free the slot (20 Sep). */}
-          {isFocus ? (
-            <Action
-              icon={Target}
-              onClick={() => void setStatus({ projectId, status: 'active' })}
-            >
-              Stop focusing
-            </Action>
-          ) : (
-            <Action icon={Target} onClick={() => void setFocus({ projectId })}>
-              Make this the focus
-            </Action>
-          )}
-          <Action
-            icon={Pause}
-            onClick={() => void setStatus({ projectId, status: 'paused' })}
-          >
-            Pause
-          </Action>
-          <Action
-            icon={CircleCheck}
-            tone="go"
-            onClick={() => void setStatus({ projectId, status: 'completed' })}
-          >
-            Complete the project
-          </Action>
-          <Action
-            icon={Archive}
-            onClick={() => void setStatus({ projectId, status: 'archived' })}
-          >
-            Archive
-          </Action>
-          <DeleteAction projectId={projectId} />
-        </div>
+        <Actions
+          projectId={projectId}
+          isFocus={isFocus}
+          setFocus={() => void setFocus({ projectId })}
+          setStatus={(status) => void setStatus({ projectId, status })}
+        />
       </div>
 
       <Description project={project} />
@@ -143,6 +112,89 @@ export function ProjectHeader({
         total={counts?.total}
         tasks={tasks}
       />
+    </div>
+  )
+}
+
+/* What you do to a project (21 Sep, from his phone).
+
+   On a wide screen these are five buttons on one line beside the title, and
+   he has signed that off. At 375px they wrapped into three rows that each
+   began somewhere different — measured at 136px, 89px and 257px from the
+   left — because `justify-end` aligns the right edge and leaves the left as
+   rag. Three rows of rag is not a row of controls, it is five things that
+   happened to land near each other.
+
+   So on a phone one action is out and the rest are behind More. Which one is
+   out follows the project's state: the focus toggle, because that is the
+   thing you come to this page to change. Completing, pausing, archiving and
+   deleting a project are endings — rare, and two of them hard to undo, which
+   is the other reason they should not sit a thumb's width from everything
+   else on a screen you hold in one hand.
+
+   One set of markup, not two: the four fold into a column below `sm` and are
+   simply always shown above it, so there is no second copy to drift. */
+function Actions({
+  projectId,
+  isFocus,
+  setFocus,
+  setStatus,
+}: {
+  projectId: Id<'projects'>
+  isFocus: boolean
+  setFocus: () => void
+  setStatus: (status: Doc<'projects'>['status']) => void
+}) {
+  const [more, setMore] = useState(false)
+
+  return (
+    <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+      {/* Focus is one project at a time, and setFocus already demotes the one
+          that held it. What was missing was a way to simply stop — pausing or
+          completing a project you are still doing is a lie about its status
+          just to free the slot (20 Sep). */}
+      {isFocus ? (
+        <Action icon={Target} onClick={() => setStatus('active')}>
+          Stop focusing
+        </Action>
+      ) : (
+        <Action icon={Target} onClick={setFocus}>
+          Make this the focus
+        </Action>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setMore((v) => !v)}
+        aria-expanded={more}
+        className="motion-press flex items-center gap-1 self-start px-1 py-1 text-[11.5px] text-ink-500 transition-colors hover:text-ink-200 sm:hidden"
+      >
+        {more ? 'Fewer' : 'More'}
+        <ChevronDown
+          className={`size-3 transition-transform ${more ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      <div
+        className={`${
+          more ? 'motion-arrive flex' : 'hidden'
+        } flex-col items-stretch gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:gap-2`}
+      >
+        <Action icon={Pause} onClick={() => setStatus('paused')}>
+          Pause
+        </Action>
+        <Action
+          icon={CircleCheck}
+          tone="go"
+          onClick={() => setStatus('completed')}
+        >
+          Complete the project
+        </Action>
+        <Action icon={Archive} onClick={() => setStatus('archived')}>
+          Archive
+        </Action>
+        <DeleteAction projectId={projectId} />
+      </div>
     </div>
   )
 }
@@ -431,7 +483,7 @@ function Action({
     <button
       type="button"
       onClick={() => void onClick()}
-      className={`motion-press flex items-center gap-1.5 rounded-[7px] border px-2.5 py-1 text-[11.5px] transition-colors ${skin}`}
+      className={`motion-press flex w-full items-center justify-center gap-1.5 rounded-[7px] border px-2.5 py-1.5 text-[11.5px] transition-colors sm:w-auto sm:justify-start sm:py-1 ${skin}`}
     >
       <Icon className="size-3" />
       {children}

@@ -10,7 +10,6 @@ import {
   Pause,
   PenLine,
   Target,
-  Gauge,
   Infinity as InfinityIcon,
   Trash2,
   TriangleAlert,
@@ -20,10 +19,8 @@ import type { LucideIcon } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { LogoUpload } from '@/components/projects/LogoUpload'
-import { ProjectProgress } from '@/components/projects/ProjectProgress'
-import { ProjectVitals } from '@/components/projects/ProjectVitals'
-import { SaveGlyph, SaveLabel, useSave } from '@/components/Saving'
-import type { Area } from '@/lib/capture-parser'
+import { ProjectStats } from '@/components/projects/ProjectStats'
+import { SaveGlyph, useSave } from '@/components/Saving'
 import { daysUntil, deadlineLabel, isOverdue } from '@/lib/format'
 import { localToday } from '@/lib/today'
 
@@ -83,32 +80,19 @@ export function ProjectHeader({
               {project.title}
             </h1>
             <StatusBadge status={project.status} />
+            <Deadline project={project} />
           </div>
         </div>
       </div>
 
       <Description project={project} />
 
-      {/* Numbers left, where they were; the reading of them against a target
-          on the right, in the space a wide screen leaves empty (20 Sep). The
-          deadline and the log go up there too, so the row below is actions
-          and nothing else. */}
-      <div className="flex flex-wrap items-start justify-between gap-x-10 gap-y-5">
-        <ProjectVitals
-          projectId={projectId}
-          done={counts?.done}
-          total={counts?.total}
-        />
-
-        <div className="flex flex-col items-end gap-3">
-          <ProjectProgress project={project} />
-          <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-3">
-            <Deadline project={project} />
-            <LogTime projectId={projectId} area={goal?.area} />
-            <Targets project={project} />
-          </div>
-        </div>
-      </div>
+      <ProjectStats
+        project={project}
+        area={goal?.area}
+        done={counts?.done}
+        total={counts?.total}
+      />
 
       <div className="flex flex-wrap gap-2 border-t border-lift/[0.07] pt-3">
         {/* Focus is one project at a time, and setFocus already demotes the
@@ -358,156 +342,6 @@ function Deadline({ project }: { project: Doc<'projects'> }) {
       ) : null}
       {project.deadline ? deadlineLabel(project.deadline) : 'no end date'}
     </button>
-  )
-}
-
-/* Targets, which is the only thing that may put a ring round a number
-   (20 Sep). He asked for "progress spinner on the right side which is empty"
-   — and §1 allows a bar only where a real denominator exists, so the
-   denominator has to be a number he sets rather than one the app guesses
-   from a typical week. Empty means no ring, and the number stands alone. */
-function Targets({ project }: { project: Doc<'projects'> }) {
-  const setTargets = useMutation(api.projects.setTargets)
-  const [open, setOpen] = useState(false)
-  const [commits, setCommits] = useState(
-    project.commitTargetWeekly?.toString() ?? '',
-  )
-  const [minutes, setMinutes] = useState(
-    project.minutesTargetMonthly?.toString() ?? '',
-  )
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="motion-press inline-flex items-center gap-1.5 text-[11.5px] text-ink-700 transition-colors hover:text-ink-400"
-      >
-        <Gauge className="size-3" />
-        {project.commitTargetWeekly === undefined &&
-        project.minutesTargetMonthly === undefined
-          ? 'Set a target'
-          : 'Targets'}
-      </button>
-    )
-  }
-
-  function save() {
-    void setTargets({
-      projectId: project._id,
-      commitTargetWeekly: commits.trim() === '' ? null : Number(commits),
-      minutesTargetMonthly: minutes.trim() === '' ? null : Number(minutes),
-    })
-    setOpen(false)
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <label className="flex items-center gap-1.5">
-        <span className="label-caps">Commits/wk</span>
-        <input
-          value={commits}
-          onChange={(e) => setCommits(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') save()
-          }}
-          inputMode="numeric"
-          placeholder="—"
-          className="w-12 rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-center font-mono text-[12px] text-ink-300 outline-none"
-        />
-      </label>
-      <label className="flex items-center gap-1.5">
-        <span className="label-caps">Min/month</span>
-        <input
-          value={minutes}
-          onChange={(e) => setMinutes(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') save()
-          }}
-          inputMode="numeric"
-          placeholder="—"
-          className="w-14 rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-center font-mono text-[12px] text-ink-300 outline-none"
-        />
-      </label>
-      <button
-        type="button"
-        onClick={save}
-        className="motion-press grid size-6 place-items-center rounded-[7px] bg-lav-900/70 text-lav-300 ring-1 ring-lav-500/50 ring-inset transition-colors hover:bg-lav-800"
-        aria-label="Save targets"
-      >
-        <CornerDownLeft className="size-3" />
-      </button>
-      <button
-        type="button"
-        onClick={() => setOpen(false)}
-        className="text-[11.5px] text-ink-700 transition-colors hover:text-ink-400"
-      >
-        Cancel
-      </button>
-    </div>
-  )
-}
-
-/* Time on this project, logged where you are already standing (20 Sep). It
-   writes the same `session` log the ⌘K capture writes — one row, one kind,
-   no second way of recording the same thing. */
-function LogTime({
-  projectId,
-  area,
-}: {
-  projectId: Id<'projects'>
-  area: Area | undefined
-}) {
-  const createLog = useMutation(api.logs.create)
-  const [minutes, setMinutes] = useState('')
-  const saving = useSave()
-
-  async function log() {
-    const value = Number(minutes)
-    /* No area means the goal above this project has gone missing, which
-       should not happen — but defaulting one would file the session under an
-       area he never chose, and a log is evidence. Better to do nothing. */
-    if (area === undefined) return
-    if (!Number.isFinite(value) || value <= 0 || saving.busy) return
-    await saving.run(() =>
-      createLog({
-        kind: 'session',
-        area,
-        occurredAt: Date.now(),
-        value,
-        unit: 'min',
-        projectId,
-      }),
-    )
-    setMinutes('')
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <span className="label-caps">Log</span>
-      <input
-        value={minutes}
-        onChange={(e) => setMinutes(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') void log()
-        }}
-        inputMode="numeric"
-        placeholder="45"
-        aria-label="Minutes spent on this project"
-        className="w-12 rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-center font-mono text-[12px] text-ink-300 outline-none placeholder:text-ink-700"
-      />
-      <span className="font-mono text-[11.5px] text-ink-600">min</span>
-      <button
-        type="button"
-        disabled={saving.busy}
-        onClick={() => void log()}
-        className="rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300"
-      >
-        <SaveLabel status={saving.status} onSettled={saving.settle}>
-          Add
-        </SaveLabel>
-      </button>
-    </div>
   )
 }
 

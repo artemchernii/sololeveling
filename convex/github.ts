@@ -25,6 +25,12 @@ import type { Id } from './_generated/dataModel'
    403, set GITHUB_TOKEN (read-only) and it is used. */
 
 const LOOKBACK_MS = 14 * 86_400_000
+/* The one-off walk back when a repo is first connected (20 Sep), so the
+   heatmap has a year to draw instead of a fortnight. The hourly check stays
+   on the short window: re-reading a year every hour would spend the whole
+   unauthenticated budget on commits that have not changed. */
+const BACKFILL_MS = 366 * 86_400_000
+const BACKFILL_MAX_PAGES = 40
 const PER_PAGE = 100
 /* 500 commits in a fortnight is far past anything one person writes; the cap
    exists so a runaway repo cannot spin the action, not to trim a real week. */
@@ -67,8 +73,9 @@ export const setRepo = mutation({
       githubRepo: repo,
       githubCheckedAt: undefined,
     })
-    /* Look now, rather than leaving the card empty until the next hour. */
-    await ctx.scheduler.runAfter(0, internal.github.checkOne, {
+    /* Look now, rather than leaving the card empty until the next hour —
+       and walk back a year once, so the heatmap has something to draw. */
+    await ctx.scheduler.runAfter(0, internal.github.backfillOne, {
       projectId: args.projectId,
     })
     return null
@@ -100,15 +107,20 @@ export const listRecent = query({
       )
       .order('desc')
       .take(50)
-    return rows
-      .filter((r) => r.repo === project.githubRepo)
-      .slice(0, 5)
-      .map((r) => ({
-        sha: r.sha,
-        message: r.message,
-        url: r.url,
-        authoredAt: r.authoredAt,
-      }))
+    return (
+      rows
+        /* Merges are left out here too (20 Sep): showing one in "the latest
+         commits" while the count beside it refuses to count it is the app
+         disagreeing with itself on the same card. */
+        .filter((r) => r.repo === project.githubRepo && r.isMerge !== true)
+        .slice(0, 5)
+        .map((r) => ({
+          sha: r.sha,
+          message: r.message,
+          url: r.url,
+          authoredAt: r.authoredAt,
+        }))
+    )
   },
 })
 
@@ -140,6 +152,7 @@ const commitRow = v.object({
   message: v.string(),
   url: v.string(),
   authoredAt: v.number(),
+  isMerge: v.boolean(),
 })
 
 export const record = internalMutation({
@@ -163,7 +176,14 @@ export const record = internalMutation({
           q.eq('projectId', args.projectId).eq('sha', c.sha),
         )
         .first()
-      if (seen !== null) continue
+      if (seen !== null) {
+        /* Written before isMerge existed: classify it rather than leave a
+           row that counts as work because nothing ever looked. */
+        if (seen.isMerge === undefined) {
+          await ctx.db.patch(seen._id, { isMerge: c.isMerge })
+        }
+        continue
+      }
       await ctx.db.insert('commits', {
         ownerId: project.ownerId,
         projectId: args.projectId,
@@ -180,6 +200,7 @@ export const record = internalMutation({
 type GitHubCommit = {
   sha: string
   html_url: string
+  parents?: Array<{ sha: string }>
   commit: {
     message: string
     author: { date: string } | null
@@ -187,13 +208,19 @@ type GitHubCommit = {
   }
 }
 
-async function check(ctx: ActionCtx, projectId: Id<'projects'>): Promise<void> {
+async function check(
+  ctx: ActionCtx,
+  projectId: Id<'projects'>,
+  { full = false }: { full?: boolean } = {},
+): Promise<void> {
   const repo: string | null = await ctx.runQuery(internal.github.repoFor, {
     projectId,
   })
   if (repo === null) return
 
-  const since = new Date(Date.now() - LOOKBACK_MS).toISOString()
+  const window = full ? BACKFILL_MS : LOOKBACK_MS
+  const maxPages = full ? BACKFILL_MAX_PAGES : MAX_PAGES
+  const since = new Date(Date.now() - window).toISOString()
   const token = process.env.GITHUB_TOKEN
   const headers = {
     Accept: 'application/vnd.github+json',
@@ -208,7 +235,7 @@ async function check(ctx: ActionCtx, projectId: Id<'projects'>): Promise<void> {
      week" against a true 117 and 65: a capped number wearing a count's
      clothes, which is the one thing §1 exists to prevent. */
   const commits = []
-  for (let page = 1; page <= MAX_PAGES; page += 1) {
+  for (let page = 1; page <= maxPages; page += 1) {
     const res = await fetch(
       `https://api.github.com/repos/${repo}/commits?since=${since}&per_page=${PER_PAGE}&page=${page}`,
       { headers },
@@ -229,6 +256,7 @@ async function check(ctx: ActionCtx, projectId: Id<'projects'>): Promise<void> {
         message: c.commit.message.split('\n')[0].slice(0, 200),
         url: c.html_url,
         authoredAt: Date.parse(date),
+        isMerge: (c.parents?.length ?? 1) > 1,
       })
     }
     if (body.length < PER_PAGE) break
@@ -247,6 +275,16 @@ export const checkOne = internalAction({
   returns: v.null(),
   handler: async (ctx, args) => {
     await check(ctx, args.projectId)
+    return null
+  },
+})
+
+/** The one-off year, run when a repo is connected. */
+export const backfillOne = internalAction({
+  args: { projectId: v.id('projects') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await check(ctx, args.projectId, { full: true })
     return null
   },
 })

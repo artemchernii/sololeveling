@@ -6,14 +6,22 @@ import { ArrowUpRight } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { CommitHeatmap } from '@/components/projects/CommitHeatmap'
 import { SkeletonRows } from '@/components/Skeleton'
+import type { Area } from '@/lib/capture-parser'
 import { whenLabel } from '@/lib/format'
 import { addWeeks, startOfWeek } from '@/lib/weeks'
 
 /* GitHub on a project (R3c) — source 4, so it always says where the number
    came from (the repo, linked) and as of when (the last successful check).
    Two counts and the latest five commits. No graph, no streak, no rate. */
-export function ProjectCommits({ projectId }: { projectId: Id<'projects'> }) {
+export function ProjectCommits({
+  projectId,
+  area,
+}: {
+  projectId: Id<'projects'>
+  area: Area | undefined
+}) {
   const week = startOfWeek()
   const counts = useQuery(api.aggregate.projectCommits, {
     projectId,
@@ -95,6 +103,8 @@ export function ProjectCommits({ projectId }: { projectId: Id<'projects'> }) {
         <Count n={counts.thisWeek} label="this week" />
         <Count n={counts.lastWeek} label="last week" />
       </div>
+
+      <CommitHeatmap projectId={projectId} area={area} />
 
       {recent === undefined ? null : recent.length === 0 ? (
         <p className="text-[13px] text-ink-500">

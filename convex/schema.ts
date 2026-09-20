@@ -187,6 +187,13 @@ export default defineSchema({
     url: v.string(),
     authoredAt: v.number(),
     fetchedAt: v.number(),
+    /* More than one parent — "Merge pull request #51 from …". Stored as a
+       fact and excluded when counting (20 Sep), because a merge is
+       bookkeeping rather than work, and GitHub's own activity stats leave
+       them out: counting them made a week's number partly a measure of how
+       often he opened a PR. Optional because rows written before 20 Sep do
+       not carry it; a backfill fills them in. */
+    isMerge: v.optional(v.boolean()),
   })
     .index('by_owner_project_time', ['ownerId', 'projectId', 'authoredAt'])
     .index('by_project_sha', ['projectId', 'sha']),

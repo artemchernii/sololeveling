@@ -18,6 +18,8 @@ import { query } from './_generated/server'
    Returning a ratio here would make the wrong thing easy. */
 
 const MAX_ROWS = 500
+/* A year of commits on a busy repo. Read once for the heatmap. */
+const YEAR_ROWS = 4000
 
 /**
  * Rows in `tasks` matching a filter, per project. The projects grid's
@@ -571,6 +573,10 @@ export const projectCommits = query({
     let lastWeek = 0
     for (const row of rows) {
       if (row.repo !== project.githubRepo) continue
+      /* A merge is bookkeeping, not work (20 Sep). GitHub's own activity
+         stats leave them out, and counting them made a week's number partly
+         a measure of how often he opened a pull request. */
+      if (row.isMerge === true) continue
       if (row.authoredAt >= args.weekStart) thisWeek += 1
       else lastWeek += 1
 
@@ -590,6 +596,85 @@ export const projectCommits = query({
       thisWeek,
       lastWeek,
       days,
+    }
+  },
+})
+
+/**
+ * A year of a project's commits, one count per day — the heatmap (20 Sep).
+ *
+ * The same stored rows the counts come from, so the grid and the numbers
+ * beside it can never disagree; merges are left out of both. Day boundaries
+ * arrive as arguments, as week bounds do, because a day depends on where the
+ * person is. `complete` says whether the backfill actually reached the start
+ * of the window: a grid that quietly stops early would read as a year of not
+ * working, which is the truncation lesson §1 now carries.
+ */
+export const projectActivity = query({
+  args: {
+    projectId: v.string(),
+    dayStarts: v.array(v.number()),
+    end: v.number(),
+  },
+  returns: v.object({
+    repo: v.union(v.string(), v.null()),
+    checkedAt: v.union(v.number(), v.null()),
+    days: v.array(v.number()),
+    total: v.number(),
+    complete: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const empty = {
+      repo: null,
+      checkedAt: null,
+      days: args.dayStarts.map(() => 0),
+      total: 0,
+      complete: false,
+    }
+    const projectId = ctx.db.normalizeId('projects', args.projectId)
+    const project = projectId === null ? null : await ctx.db.get(projectId)
+    if (
+      project === null ||
+      project.ownerId !== ownerId ||
+      !project.githubRepo
+    ) {
+      return empty
+    }
+
+    const first = args.dayStarts[0] ?? args.end
+    const rows = await ctx.db
+      .query('commits')
+      .withIndex('by_owner_project_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('projectId', project._id)
+          .gte('authoredAt', first)
+          .lt('authoredAt', args.end),
+      )
+      .take(YEAR_ROWS)
+
+    const days = args.dayStarts.map(() => 0)
+    let total = 0
+    for (const row of rows) {
+      if (row.repo !== project.githubRepo) continue
+      if (row.isMerge === true) continue
+      total += 1
+      for (let i = args.dayStarts.length - 1; i >= 0; i -= 1) {
+        if (row.authoredAt >= args.dayStarts[i]) {
+          days[i] += 1
+          break
+        }
+      }
+    }
+
+    return {
+      repo: project.githubRepo,
+      checkedAt: project.githubCheckedAt ?? null,
+      days,
+      total,
+      /* Fewer rows than the cap means nothing was dropped on the floor. */
+      complete: rows.length < YEAR_ROWS,
     }
   },
 })

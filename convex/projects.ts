@@ -85,7 +85,9 @@ export const create = mutation({
     })
 
     if (githubRepo !== undefined) {
-      await ctx.scheduler.runAfter(0, internal.github.checkOne, { projectId })
+      await ctx.scheduler.runAfter(0, internal.github.backfillOne, {
+        projectId,
+      })
     }
 
     return projectId

@@ -347,6 +347,63 @@ describe('commits are stored readings (source 4)', () => {
     expect(counts.days).toEqual([])
   })
 
+  test('a merge is stored but not counted as work', async () => {
+    const t = convexTest(schema, modules)
+    const me = t.withIdentity({ tokenIdentifier: ME })
+    const projectId = await oreum(me)
+    await t.run((ctx) =>
+      ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }),
+    )
+
+    const merge = {
+      ...gh('m1', 'Merge pull request #51', '2026-09-15T12:00:00Z'),
+      parents: [{ sha: 'p1' }, { sha: 'p2' }],
+    }
+    const real = {
+      ...gh('r1', 'Real work', '2026-09-15T13:00:00Z'),
+      parents: [{ sha: 'p1' }],
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify([merge, real]), { status: 200 }),
+      ),
+    )
+    await t.action(internal.github.checkOne, { projectId })
+
+    /* Both rows are kept — the merge happened, and throwing it away would
+       mean re-fetching to ever change our mind about it. */
+    const rows = await t.run((ctx) => ctx.db.query('commits').collect())
+    expect(rows.map((r) => r.sha).sort()).toEqual(['m1', 'r1'])
+    /* And the list agrees with the count: no merge in "latest commits". */
+    expect(
+      (await me.query(api.github.listRecent, { projectId })).map(
+        (c) => c.message,
+      ),
+    ).toEqual(['Real work'])
+    expect(rows.find((r) => r.sha === 'm1')?.isMerge).toBe(true)
+    expect(rows.find((r) => r.sha === 'r1')?.isMerge).toBe(false)
+
+    const counts = await me.query(api.aggregate.projectCommits, {
+      projectId,
+      ...bounds,
+    })
+    expect(counts.thisWeek).toBe(1)
+
+    const dayStarts = Array.from({ length: 14 }, (_, i) =>
+      new Date(2026, 8, 7 + i).getTime(),
+    )
+    const year = await me.query(api.aggregate.projectActivity, {
+      projectId,
+      dayStarts,
+      end: new Date(2026, 8, 21).getTime(),
+    })
+    expect(year.total).toBe(1)
+    expect(year.days[8]).toBe(1) // 15 Sep, the real commit only
+    expect(year.complete).toBe(true)
+  })
+
   test('deleting a project deletes its commits', async () => {
     const t = convexTest(schema, modules)
     const me = t.withIdentity({ tokenIdentifier: ME })

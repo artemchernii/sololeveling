@@ -166,7 +166,7 @@ function Project() {
         <ProjectNotes projectId={projectId} />
       </div>
 
-      <ProjectCommits projectId={projectId} />
+      <ProjectCommits projectId={projectId} area={goal?.area} />
 
       {closed.length > 0 ? (
         <div className="glass flex flex-col gap-2 rounded-[22px] p-6">

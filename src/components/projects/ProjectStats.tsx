@@ -137,36 +137,43 @@ export function ProjectStats({
             </>
           }
         >
-          <div className="flex items-center justify-between gap-3.5">
-            {/* Without a target the denominator is the live task count, a real
-              entity count (§1 source 3) — which can only ever reach "all of
-              the ones that exist". A target he sets is the size he reckons
-              the project is, and it takes over the denominator (20 Sep). */}
-            <Puck
-              icon={reached ? <CircleCheckBig /> : <Circle />}
-              value={done ?? 0}
-              target={denominator}
-              tone={reached ? 'good' : 'accent'}
-            />
-            <Figure
-              n={
-                total === undefined
-                  ? undefined
-                  : `${done ?? 0}/${denominator ?? total}`
-              }
-              label="tasks done"
-              tone={reached ? 'good' : noneDone ? 'warn' : 'plain'}
-              note={
-                reached
-                  ? 'all clear'
-                  : noneDone
-                    ? 'nothing ticked yet'
-                    : undefined
-              }
-            />
+          {/* Ring and number are one group on the left, the fortnight is its
+              own block on the right, and both sit on the label's baseline
+              (20 Sep, his layout). */}
+          <div className="flex items-end justify-between gap-3.5">
+            <div className="flex min-w-0 items-center gap-3.5">
+              {/* Without a target the denominator is the live task count, a
+                  real entity count (§1 source 3) — which can only ever reach
+                  "all of the ones that exist". A target he sets is the size
+                  he reckons the project is (20 Sep). */}
+              <Puck
+                icon={reached ? <CircleCheckBig /> : <Circle />}
+                value={done ?? 0}
+                target={denominator}
+                tone={reached ? 'good' : 'accent'}
+              />
+              <Figure
+                n={
+                  total === undefined
+                    ? undefined
+                    : `${done ?? 0}/${denominator ?? total}`
+                }
+                label="tasks done"
+                tone={reached ? 'good' : noneDone ? 'warn' : 'plain'}
+                note={
+                  reached
+                    ? 'all clear'
+                    : noneDone
+                      ? 'nothing ticked yet'
+                      : undefined
+                }
+              />
+            </div>
             {/* The last fortnight, counted off the task rows the page already
-                holds — an entity count (§1 source 3), not a new reading. */}
-            <CommitStrip days={taskDays} />
+                holds — an entity count (§1 source 3), not a new reading. It
+                sits on the same baseline as the label rather than floating
+                halfway up the tile, which is what made it read as loose. */}
+            <CommitStrip days={taskDays} height={30} />
           </div>
         </Block>
 
@@ -193,24 +200,29 @@ export function ProjectStats({
             </>
           }
         >
-          <div className="flex items-center gap-3.5">
-            <Puck
-              icon={<Clock />}
-              value={minutes}
-              target={project.minutesTargetMonthly}
-              tone={
-                project.minutesTargetMonthly !== undefined &&
-                minutes >= project.minutesTargetMonthly
-                  ? 'good'
-                  : 'accent'
-              }
-            />
-            <Figure
-              n={time === undefined ? undefined : durationLabel(minutes)}
-              label="this month"
-              tone={minutes === 0 ? 'warn' : 'good'}
-              note={minutes === 0 ? 'log some time' : undefined}
-            />
+          <div className="flex items-end justify-between gap-3.5">
+            <div className="flex min-w-0 items-center gap-3.5">
+              <Puck
+                icon={<Clock />}
+                value={minutes}
+                target={project.minutesTargetMonthly}
+                tone={
+                  project.minutesTargetMonthly !== undefined &&
+                  minutes >= project.minutesTargetMonthly
+                    ? 'good'
+                    : 'accent'
+                }
+              />
+              <Figure
+                n={time === undefined ? undefined : durationLabel(minutes)}
+                label="this month"
+                tone={minutes === 0 ? 'warn' : 'good'}
+                note={minutes === 0 ? 'log some time' : undefined}
+              />
+            </div>
+            {/* This one was never wired up — the tile he said he liked was the
+                one without a chart. */}
+            <CommitStrip days={time?.days ?? []} height={30} />
           </div>
         </Block>
 
@@ -239,24 +251,26 @@ export function ProjectStats({
               </>
             }
           >
-            <div className="flex items-center justify-between gap-3.5">
-              <Puck
-                icon={<GitCommitHorizontal />}
-                value={thisWeek}
-                target={project.commitTargetWeekly}
-                tone={
-                  project.commitTargetWeekly !== undefined &&
-                  thisWeek >= project.commitTargetWeekly
-                    ? 'good'
-                    : 'accent'
-                }
-              />
-              <Figure
-                n={String(thisWeek)}
-                label="commits this week"
-                tone="plain"
-              />
-              <CommitStrip days={commits.days} />
+            <div className="flex items-end justify-between gap-3.5">
+              <div className="flex min-w-0 items-center gap-3.5">
+                <Puck
+                  icon={<GitCommitHorizontal />}
+                  value={thisWeek}
+                  target={project.commitTargetWeekly}
+                  tone={
+                    project.commitTargetWeekly !== undefined &&
+                    thisWeek >= project.commitTargetWeekly
+                      ? 'good'
+                      : 'accent'
+                  }
+                />
+                <Figure
+                  n={String(thisWeek)}
+                  label="commits this week"
+                  tone="plain"
+                />
+              </div>
+              <CommitStrip days={commits.days} height={30} />
             </div>
           </Block>
         ) : null}

@@ -173,6 +173,23 @@
   --area-career: oklch(0.8 0.1 250);
   --area-style: oklch(0.8 0.1 330);
 
+  /* 8. State (20 Sep). Artem: "entire platform is boring and bland… overdue
+        we can make RED or warning and icon to HIGHLIGHT". Until today colour
+        was rationed — lavender for live and focus, the nine area hues for
+        kinds, and §3d.3 held red and green back for money, where direction
+        is a fact. The cost of that rule was a screen where a deadline eight
+        days gone read exactly like no deadline at all.
+
+        Three states, and they mean a state of a thing rather than a
+        quantity: danger for what has already gone wrong (a passed deadline),
+        warn for what is about to (a deadline inside two days), good for a
+        thing that landed. They are still not a gradient and still grade
+        nothing — nothing is "37% red". Money keeps its own rule in §3d.3:
+        a rise is not "good". */
+  --state-danger: oklch(0.68 0.19 25);
+  --state-warn: oklch(0.79 0.15 75);
+  --state-good: oklch(0.75 0.15 155);
+
   /* 6. Lift and sink (14 Sep, the first step to a light theme). Components
         drew hairlines, hover fills and wells as `white/10` or `black/20` —
         135 of them — which is a colour that only means anything on a dark
@@ -241,6 +258,12 @@
   --area-knowledge: oklch(0.55 0.11 225);
   --area-career: oklch(0.55 0.11 250);
   --area-style: oklch(0.55 0.11 330);
+
+  /* Darker and a touch less saturated on a milky ground, where a bright
+     red vibrates instead of alarming. */
+  --state-danger: oklch(0.52 0.19 25);
+  --state-warn: oklch(0.58 0.15 70);
+  --state-good: oklch(0.5 0.14 155);
 }
 
 /* Milky glass — the ground, panels, ramps and glass. */

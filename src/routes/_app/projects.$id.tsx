@@ -6,9 +6,10 @@ import { Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { SaveGlyph, useSave } from '@/components/Saving'
+import { useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import { ProjectCommits } from '@/components/projects/ProjectCommits'
+import { AddField } from '@/components/AddField'
 import { ProjectHeader } from '@/components/projects/ProjectHeader'
 import { TaskRow } from '@/components/projects/TaskRow'
 import { ProjectNotes } from '@/components/projects/ProjectNotes'
@@ -120,23 +121,15 @@ function Project() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 border-t border-lift/[0.07] pt-3">
-            <SaveGlyph
-              status={adding.status}
-              onSettled={adding.settle}
-              idle={<Plus className="size-3.5" />}
-              className="text-ink-600"
-            />
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void add()
-              }}
-              placeholder="Another task for this project"
-              className="flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
-            />
-          </div>
+          <AddField
+            value={title}
+            onChange={setTitle}
+            onSubmit={() => void add()}
+            placeholder="Another task for this project"
+            status={adding.status}
+            onSettled={adding.settle}
+            idle={<Plus className="size-3.5" />}
+          />
         </div>
 
         <ProjectNotes projectId={projectId} />

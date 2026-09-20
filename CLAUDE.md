@@ -98,7 +98,13 @@ rhythm and component anatomy. Where it and `PLAN.md` §3 disagree, §3 wins — 
 glass with inline hex, which is what tokens replaced.
 
 Voice: dark ground, frosted panels, one lavender accent reserved for live and
-focus things, mono caps for labels, big light numerals, flat colour.
+focus things, mono caps for labels, big light numerals.
+
+**Not flat and not grey (20 Sep).** Artem: "everything is boring and
+depressing. No fun!" State has colour — `--state-danger/warn/good`, PLAN.md
+§3d.3 — and the eight motion utilities in `styles.css` are there to be used.
+A thing that arrives should arrive; a write that lands should be seen to land.
+What colour still may not do is grade: a state, never a quantity.
 
 ## Speed of daily use
 

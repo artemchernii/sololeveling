@@ -6,7 +6,8 @@ import { Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { SaveGlyph, useSave } from '@/components/Saving'
+import { AddField } from '@/components/AddField'
+import { useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import { agoLabel } from '@/lib/format'
 
@@ -59,23 +60,15 @@ export function ProjectNotes({ projectId }: { projectId: Id<'projects'> }) {
         </div>
       )}
 
-      <div className="flex items-center gap-2 border-t border-lift/[0.07] pt-3">
-        <SaveGlyph
-          status={writing.status}
-          onSettled={writing.settle}
-          idle={<Plus className="size-3.5" />}
-          className="text-ink-600"
-        />
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') void add()
-          }}
-          placeholder="A note on this project"
-          className="flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
-        />
-      </div>
+      <AddField
+        value={title}
+        onChange={setTitle}
+        onSubmit={() => void add()}
+        placeholder="A note on this project"
+        status={writing.status}
+        onSettled={writing.settle}
+        idle={<Plus className="size-3.5" />}
+      />
     </div>
   )
 }

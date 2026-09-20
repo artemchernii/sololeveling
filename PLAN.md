@@ -404,6 +404,27 @@ in visual form, and the distinction is the whole of it:
 Lavender remains reserved for live and focus things (§3 Visual). Colour added
 under this rule is additional vocabulary, not a licence to repaint that.
 
+**3. State has colour too (20 Sep, Artem's call, overriding the ration).**
+Artem, looking at a project whose deadline passed eight days ago and read
+exactly like a project with no deadline at all: "entire platform is boring and
+bland… overdue we can make RED or warning and icon to HIGHLIGHT". Until today
+red and green were held back for money, where direction is a fact (§3d.3
+below). That rule was written to stop colour grading things that cannot be
+graded, and it did — at the cost of a screen where nothing could ever look
+wrong.
+
+So: `--state-danger`, `--state-warn`, `--state-good` (`tokens.css` item 8).
+They mark the **state of a thing**, never a quantity: a passed deadline is
+danger, a deadline inside two days is warn, a write that landed is good.
+Nothing is "37% red", nothing grades, and §3d.3 still holds for money — a
+share price going up is not "good".
+
+Motion is part of the same complaint and the same answer. `styles.css` has
+carried eight motion utilities since R1 — `motion-arrive`, `motion-pop`,
+`motion-pulse`, `motion-press` and the rest — used by **five** elements in the
+whole app. The vocabulary was written and never spoken. A thing that arrives
+should arrive, and a write that lands should be seen to land.
+
 **4. Light as well as dark** (decided 14 Sep). The dark ground above stays the
 default and the design's voice. A light theme exists because Artem's day has
 daylight in it: the app follows the device's appearance — macOS and iOS "Auto"

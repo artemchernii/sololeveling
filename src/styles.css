@@ -107,6 +107,9 @@
      area is only known at runtime, set --area on the element with
      areaVars() and use bg-(--area)/14 instead — a class name assembled from
      a string is one Tailwind never sees and never generates. */
+  --color-state-danger: var(--state-danger);
+  --color-state-warn: var(--state-warn);
+  --color-state-good: var(--state-good);
   --color-area-social: var(--area-social);
   --color-area-business: var(--area-business);
   --color-area-money: var(--area-money);

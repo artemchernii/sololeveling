@@ -5,10 +5,13 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import {
   Archive,
   ArrowLeft,
+  CalendarClock,
   CircleCheck,
   Pause,
   Target,
+  FolderInput,
   Trash2,
+  TriangleAlert,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -18,7 +21,7 @@ import { LogoUpload } from '@/components/projects/LogoUpload'
 import { ProjectVitals } from '@/components/projects/ProjectVitals'
 import { SaveLabel, useSave } from '@/components/Saving'
 import type { Area } from '@/lib/capture-parser'
-import { deadlineLabel, isOverdue } from '@/lib/format'
+import { daysUntil, deadlineLabel, isOverdue } from '@/lib/format'
 import { localToday } from '@/lib/today'
 
 /* A project's header (20 Sep, rebuilt from his feedback). It used to be a
@@ -76,18 +79,8 @@ export function ProjectHeader({
             <h1 className="text-[26px] leading-none font-light text-foreground">
               {project.title}
             </h1>
-            {/* Beside the title, where he put it the first time. It went back
-                to the far right when this header was rebuilt — the thing he
-                had already told me was wrong. */}
-            <span
-              className={`label-caps rounded-[4px] px-1.5 py-0.5 ${
-                isFocus ? 'bg-lav-900/70 text-lav-300' : 'bg-lift/5'
-              }`}
-            >
-              {project.status}
-            </span>
+            <StatusBadge status={project.status} />
           </div>
-          {goal ? <GoalLine goal={goal} projectId={projectId} /> : null}
         </div>
       </div>
 
@@ -140,22 +133,46 @@ export function ProjectHeader({
         >
           Archive
         </Action>
+        {goal ? <MoveToGoal goal={goal} projectId={projectId} /> : null}
         <DeleteAction projectId={projectId} />
       </div>
     </div>
   )
 }
 
-/* The goal, as a line rather than a card (20 Sep). The FOR card carried the
-   goal's whole timeline and a labelled MOVE TO select, and he found both
-   confusing on a project page: a project is where you build a thing, and a
-   goal's shape in time belongs on the screen about goals.
+/* The focus badge, awake (20 Sep). It was grey mono caps in a rounded box —
+   he called it boring four times, and he was right: the one project that
+   matters this week looked like a field label.
 
-   Refiling survives, because losing it would mean a project under the wrong
-   goal could only be fixed by deleting it — the exact bug setGoal was added
-   to end. The line itself is the control: read it, or press change and pick
-   another. */
-function GoalLine({
+   Lavender, a live dot that breathes, and a glow. The accent is reserved for
+   live and focus things, and this is the most focus thing in the app. Every
+   other status stays quiet, because a paused project is not an event. */
+function StatusBadge({ status }: { status: Doc<'projects'>['status'] }) {
+  if (status !== 'focus') {
+    return (
+      <span className="label-caps rounded-full bg-lift/5 px-2 py-0.5 text-ink-500">
+        {status}
+      </span>
+    )
+  }
+
+  return (
+    <span className="motion-pop label-caps inline-flex items-center gap-1.5 rounded-full bg-lav-900/80 px-2.5 py-1 text-lav-200 shadow-[0_0_20px_-4px_var(--color-accent)] ring-1 ring-lav-500/50 ring-inset">
+      <span className="motion-breathe size-1.5 rounded-full bg-lav-300" />
+      focus
+    </span>
+  )
+}
+
+/* Refiling a project, as an action (20 Sep). First it was a card with the
+   goal's whole timeline; then one line under the title reading "for improve
+   solo leveling". He called both bad, and he is right that a project page is
+   about the thing being built, not the thing it answers to.
+
+   It cannot simply go: without it a project under the wrong goal can only be
+   fixed by deleting it, which is the exact bug setGoal was added to end. So
+   it sits with the other actions, saying nothing until pressed. */
+function MoveToGoal({
   goal,
   projectId,
 }: {
@@ -180,7 +197,7 @@ function GoalLine({
           setPicking(false)
         }}
         onBlur={() => setPicking(false)}
-        className="self-start rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
+        className="rounded-[7px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
       >
         {choices.map((g) => (
           <option key={g._id} value={g._id}>
@@ -192,24 +209,9 @@ function GoalLine({
   }
 
   return (
-    <span className="group/goal flex items-center gap-2">
-      <Link
-        to="/goals"
-        hash={`goal-${goal._id}`}
-        className="label-caps transition-colors hover:text-ink-300"
-      >
-        for {goal.title}
-      </Link>
-      {choices.length > 1 ? (
-        <button
-          type="button"
-          onClick={() => setPicking(true)}
-          className="label-caps text-ink-700 opacity-0 transition-opacity group-hover/goal:opacity-100 focus-visible:opacity-100"
-        >
-          change
-        </button>
-      ) : null}
-    </span>
+    <Action icon={FolderInput} onClick={() => setPicking(true)}>
+      Move to another goal
+    </Action>
   )
 }
 
@@ -291,14 +293,29 @@ function Deadline({ project }: { project: Doc<'projects'> }) {
     )
   }
 
+  /* A passed deadline is danger, one inside two days is warn, anything else
+     is quiet (20 Sep). Brighter ink was not enough — "ended Sep 12 · 8 days
+     ago" still read exactly like "no end date". */
+  const soon =
+    !late && project.deadline !== undefined && daysUntil(project.deadline) <= 2
+
   return (
     <button
       type="button"
       onClick={() => setOpen(true)}
-      className={`font-mono text-[11.5px] transition-colors hover:text-ink-200 ${
-        late ? 'text-ink-300' : 'text-ink-600'
+      className={`motion-press inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[11.5px] transition-colors ${
+        late
+          ? 'bg-state-danger/15 text-state-danger ring-1 ring-state-danger/35 ring-inset hover:bg-state-danger/25'
+          : soon
+            ? 'bg-state-warn/15 text-state-warn ring-1 ring-state-warn/30 ring-inset hover:bg-state-warn/25'
+            : 'text-ink-600 hover:text-ink-200'
       }`}
     >
+      {late ? (
+        <TriangleAlert className="size-3" />
+      ) : soon ? (
+        <CalendarClock className="size-3" />
+      ) : null}
       {project.deadline ? deadlineLabel(project.deadline) : 'no end date'}
     </button>
   )

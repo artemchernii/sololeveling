@@ -436,6 +436,15 @@ written earlier would describe ground the earlier row changes.
 | R7   | **Ask AI** — a ⌘-shortcut chat that reads your own rows through a Convex action                                                                                                                                                                         | "What did I actually do in August?" is answered from logs, and nothing on screen is derived from it    |
 | Late | Scheduled backups (`pnpm backup` daily, retention, a scheduled drill); Clerk production instance (needs a domain, an ownerId migration, and the dev-vs-prod data decision); notifications (the bell)                                                    | Deferred 14 Sep while the app is still being built                                                     |
 
+**The order changed on 20 Sep: R6's area rework comes before R4.** Artem hit the same wall twice
+in one day — a goal with nowhere to go but the wrong area, then a task on SoloLeveling badged
+`business` when it is a pet project and `life` when that means nothing. A fixed enum cannot be
+made to fit by choosing more carefully, and every screen that shows an area shows the wrong
+answer until it is data he edits. Notes as the knowledge base (R4) is still wanted — he has asked
+for prompts, screenshots and MD files twice — but it is a capability the app lacks, not a wrong
+answer the app keeps repeating. Wrong answers come first. R4 follows R6, and R5 and R7 keep their
+places.
+
 **R6 is not a rename (added 20 Sep).** The row above says "Languages (schema change)", which
 read as `portuguese` → `languages`. It is more than that. Artem tried to file a goal under
 **English** and found there was nowhere to put it: `area` is a fixed enum in

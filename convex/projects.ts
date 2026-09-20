@@ -272,6 +272,50 @@ export const setFocus = mutation({
  * decision, not
  * something to be inferred from whatever happens to be nearby.
  */
+/**
+ * Move a project's deadline (20 Sep).
+ *
+ * A date that has passed while you are still working is the normal case, not
+ * an error to be scolded about: the honest thing is to let it be pushed out
+ * where it is shown. `null` clears it — a project with no end date is a
+ * project you have not committed to a date, which is allowed.
+ */
+export const setDeadline = mutation({
+  args: {
+    projectId: v.id('projects'),
+    deadline: v.union(v.string(), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedProject(ctx, ownerId, args.projectId)
+    await ctx.db.patch(args.projectId, {
+      deadline: args.deadline ?? undefined,
+    })
+    return null
+  },
+})
+
+/**
+ * What this project actually is, in his own words (20 Sep).
+ *
+ * The field has existed since R1 and nothing ever wrote to it, so nothing
+ * showed it. It is the one thing a project page can say that no count can.
+ */
+export const setDescription = mutation({
+  args: { projectId: v.id('projects'), description: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedProject(ctx, ownerId, args.projectId)
+    const trimmed = args.description.trim()
+    await ctx.db.patch(args.projectId, {
+      description: trimmed.length === 0 ? undefined : trimmed,
+    })
+    return null
+  },
+})
+
 export const setStatus = mutation({
   args: { projectId: v.id('projects'), status: projectStatusValidator },
   returns: v.null(),

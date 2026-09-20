@@ -6,9 +6,10 @@ import { CommitStrip } from '@/components/projects/CommitStrip'
 import { durationLabel } from '@/lib/format'
 import { addDays, addWeeks, startOfWeek } from '@/lib/weeks'
 
-/* The focus project's vitals (20 Sep). Only the focus card gets these: §3c.2
-   keeps every other project to a title and a next action, and the whole point
-   of a focus project is that it does not look like the rest.
+/* A project's vitals (20 Sep). On the focus card, where §3c.2 keeps every
+   other project to a title and a next action — the whole point of a focus
+   project is that it does not look like the rest — and on a project's own
+   page, where every project deserves them.
 
    Its own component, not props on ProjectCard, because these are two queries
    and only one project needs them — mounting it once is cheaper than asking
@@ -17,7 +18,7 @@ import { addDays, addWeeks, startOfWeek } from '@/lib/weeks'
    Three of the four sanctioned sources, each read from aggregate.ts and none
    of them computed here: tasks are an entity count, hours are a log count,
    commits are a stored external reading. No percentage, no rate, no score. */
-export function FocusVitals({
+export function ProjectVitals({
   projectId,
   done,
   total,

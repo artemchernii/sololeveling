@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 
 import type { Doc } from '../../../convex/_generated/dataModel'
-import { FocusVitals } from '@/components/projects/FocusVitals'
+import { ProjectVitals } from '@/components/projects/ProjectVitals'
 import { ProjectLogo } from '@/components/projects/ProjectLogo'
 import type { Area } from '@/lib/capture-parser'
 import { areaVars } from '@/lib/areas'
@@ -27,7 +27,7 @@ import { deadlineLabel, isOverdue } from '@/lib/format'
    - Colour, from the goal's area (§3d: colour says what a thing is). A badge
      and a tinted left edge — not the whole surface, which would put nine
      possible hues against the lavender that means live and focus.
-   - Numbers, in FocusVitals: tasks, hours this month, commits this week. */
+   - Numbers, in ProjectVitals: tasks, hours this month, commits this week. */
 
 export type ProjectCounts = { done: number; total: number; open: number }
 
@@ -107,7 +107,7 @@ export function ProjectCard({
       {isFocus ? (
         <>
           <div className="pointer-events-none">
-            <FocusVitals
+            <ProjectVitals
               projectId={project._id}
               done={counts?.done}
               total={counts?.total}

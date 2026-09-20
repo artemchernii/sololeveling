@@ -22,6 +22,19 @@ export function shortDate(iso: string): string {
  * "ends 30 Sep · 23 days", or "ends 30 Sep · today", or "ended 30 Sep · 3 days
  * ago". Whole local days, so a deadline at midnight does not read as tomorrow.
  */
+/**
+ * Is this deadline in the past? A date that has gone by should not read the
+ * same as no date at all (20 Sep) — the card gives it weight, not a colour,
+ * so the palette stays: lavender for live and focus, area hues for kinds.
+ */
+export function isOverdue(iso: string, now: Date = new Date()): boolean {
+  const [y, m, d] = iso.split('-').map(Number)
+  return (
+    new Date(y, m - 1, d).setHours(0, 0, 0, 0) <
+    new Date(now).setHours(0, 0, 0, 0)
+  )
+}
+
 export function deadlineLabel(iso: string, now: Date = new Date()): string {
   const [y, m, d] = iso.split('-').map(Number)
   const due = new Date(y, m - 1, d).setHours(0, 0, 0, 0)

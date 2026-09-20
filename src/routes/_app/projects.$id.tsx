@@ -2,7 +2,17 @@ import { useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ArrowLeft, Check, Plus, Trash2 } from 'lucide-react'
+import {
+  Archive,
+  ArrowLeft,
+  Check,
+  CircleCheck,
+  Pause,
+  Plus,
+  Target,
+  Trash2,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
@@ -11,9 +21,10 @@ import { GoalTimeline } from '@/components/goals/GoalTimeline'
 import { SaveGlyph, useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
+import { LogoUpload } from '@/components/projects/LogoUpload'
 import { ProjectCommits } from '@/components/projects/ProjectCommits'
 import { ProjectNotes } from '@/components/projects/ProjectNotes'
-import { deadlineLabel, durationLabel } from '@/lib/format'
+import { deadlineLabel, durationLabel, isOverdue } from '@/lib/format'
 import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/projects/$id')({
@@ -44,7 +55,6 @@ function Project() {
   })
 
   const createTask = useMutation(api.tasks.create)
-  const setProject = useMutation(api.tasks.setProject)
   const setFocus = useMutation(api.projects.setFocus)
   const setStatus = useMutation(api.projects.setStatus)
   const complete = useMutation(api.tasks.complete)
@@ -104,10 +114,10 @@ function Project() {
   async function add() {
     const trimmed = title.trim()
     if (trimmed.length === 0 || adding.status === 'saving') return
-    await adding.run(async () => {
-      const taskId = await createTask({ title: trimmed })
-      await setProject({ taskId, projectId })
-    })
+    /* One write, not create-then-attach: tasks.create takes the project and
+       resolves the goal from it. The old pair left the task unattached for a
+       beat, which meant it flashed into the backlog on its way here. */
+    await adding.run(() => createTask({ title: trimmed, projectId }))
     setTitle('')
   }
 
@@ -122,11 +132,27 @@ function Project() {
           Projects
         </Link>
 
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
+        {/* The status sits with the title, not pinned to the far right of a
+            full-width card where it reads as a stray word (20 Sep). */}
+        <div className="flex flex-wrap items-center gap-3">
+          <LogoUpload
+            projectId={projectId}
+            url={project.logoUrl}
+            title={project.title}
+            area={goal?.area}
+          />
           <h1 className="text-[26px] font-light text-foreground">
             {project.title}
           </h1>
-          <span className="label-caps">{project.status}</span>
+          <span
+            className={`label-caps rounded-[4px] px-1.5 py-0.5 ${
+              project.status === 'focus'
+                ? 'bg-lav-900/70 text-lav-300'
+                : 'bg-lift/5'
+            }`}
+          >
+            {project.status}
+          </span>
         </div>
 
         <div className="flex flex-wrap items-baseline gap-x-3 font-mono text-[11px] text-ink-600">
@@ -143,43 +169,53 @@ function Project() {
               {time.sessions === 1 ? 'session' : 'sessions'}
             </span>
           )}
-          <span>
+          <span
+            className={
+              project.deadline !== undefined && isOverdue(project.deadline)
+                ? 'text-ink-300'
+                : undefined
+            }
+          >
             {project.deadline ? deadlineLabel(project.deadline) : 'no end date'}
           </span>
         </div>
 
         <div className="flex flex-wrap gap-2 border-t border-lift/[0.07] pt-3">
-          {project.status === 'focus' ? (
-            <span className="label-caps rounded-[6px] bg-lav-900/70 px-2 py-1 text-lav-300">
-              This is the focus
-            </span>
-          ) : (
-            <Action onClick={() => void setFocus({ projectId })}>
+          {/* Actions only. "This is the focus" used to sit here as a pill
+              among the buttons, which made a state look like something you
+              could press — and it said twice what the tag by the title
+              already says. Every button carries an icon, or none would
+              (20 Sep: Delete was the only one, which read as an accident). */}
+          {project.status === 'focus' ? null : (
+            <Action icon={Target} onClick={() => void setFocus({ projectId })}>
               Make this the focus
             </Action>
           )}
           <Action
+            icon={Pause}
             onClick={() => void setStatus({ projectId, status: 'paused' })}
           >
             Pause
           </Action>
           <Action
+            icon={CircleCheck}
             onClick={() => void setStatus({ projectId, status: 'completed' })}
           >
             Complete the project
           </Action>
           <Action
+            icon={Archive}
             onClick={() => void setStatus({ projectId, status: 'archived' })}
           >
             Archive
           </Action>
           <Action
+            icon={Trash2}
             onClick={async () => {
               await removeProject({ projectId })
               await navigate({ to: '/projects' })
             }}
           >
-            <Trash2 className="mr-1 inline size-3" />
             Delete
           </Action>
         </div>
@@ -324,9 +360,11 @@ function MoveToGoal({
 }
 
 function Action({
+  icon: Icon,
   onClick,
   children,
 }: {
+  icon: LucideIcon
   onClick: () => void
   children: React.ReactNode
 }) {
@@ -334,8 +372,9 @@ function Action({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lift/20 hover:text-ink-200"
+      className="flex items-center gap-1.5 rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lift/20 hover:text-ink-200"
     >
+      <Icon className="size-3" />
       {children}
     </button>
   )

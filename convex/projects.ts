@@ -6,7 +6,7 @@ import { internal } from './_generated/api'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
-import schema from './schema'
+import schema, { areaValidator } from './schema'
 
 /* A project is work under a goal. `goalId` is required by the schema, so a
    project that answers to nothing cannot exist. (They were called chains
@@ -120,7 +120,19 @@ export const setGoal = mutation({
 /** Everything not finished or filed away — what the projects grid renders. */
 export const listLive = query({
   args: {},
-  returns: v.array(schema.doc('projects')),
+  /* Each row carries its goal's `area` alongside the document. A project has
+     no area of its own — it inherits the kind of the goal it answers to, and
+     §3d says colour is how a kind is shown. Optional, not defaulted: a goal
+     cannot normally be deleted out from under a project, and if one ever is,
+     the card says "unfiled" rather than inventing a kind. */
+  returns: v.array(
+    v.object({
+      ...schema.doc('projects').fields,
+      area: v.optional(areaValidator),
+      goalTitle: v.optional(v.string()),
+      logoUrl: v.union(v.string(), v.null()),
+    }),
+  ),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
 
@@ -134,7 +146,66 @@ export const listLive = query({
         .take(MAX_ROWS)
       live.push(...rows)
     }
-    return live
+
+    /* One read per distinct goal, not one per project. */
+    const areas = new Map<string, Doc<'goals'> | null>()
+    const out = []
+    for (const project of live) {
+      let goal = areas.get(project.goalId)
+      if (goal === undefined) {
+        goal = await ctx.db.get(project.goalId)
+        areas.set(project.goalId, goal)
+      }
+      out.push({
+        ...project,
+        area: goal?.area,
+        /* The goal's name, not its area: a card that says KNOWLEDGE next to a
+           project reads as though the project were filed under it (20 Sep).
+           The area is already on the card as colour, which is what §3d asks
+           colour to do — the word was saying nothing the edge did not. */
+        goalTitle: goal?.title,
+        logoUrl:
+          project.logoId === undefined
+            ? null
+            : await ctx.storage.getUrl(project.logoId),
+      })
+    }
+    return out
+  },
+})
+
+/* A project's logo (20 Sep). Two steps, as Convex file storage works: the
+   client asks for a short-lived upload URL, POSTs the file straight to it, and
+   hands back the storageId it gets. Nothing about the image is interpreted
+   here — it is stored and shown, and that is all. */
+export const generateUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    await requireUser(ctx)
+    return await ctx.storage.generateUploadUrl()
+  },
+})
+
+export const setLogo = mutation({
+  args: {
+    projectId: v.id('projects'),
+    storageId: v.union(v.id('_storage'), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const project = await ownedProject(ctx, ownerId, args.projectId)
+
+    /* The old file goes with it: an image nothing points at is a bill with
+       no screen behind it. */
+    if (project.logoId !== undefined) {
+      await ctx.storage.delete(project.logoId)
+    }
+    await ctx.db.patch(args.projectId, {
+      logoId: args.storageId ?? undefined,
+    })
+    return null
   },
 })
 
@@ -143,13 +214,26 @@ export const listLive = query({
    error the page cannot tell apart from a real crash. */
 export const get = query({
   args: { projectId: v.string() },
-  returns: v.union(schema.doc('projects'), v.null()),
+  returns: v.union(
+    v.object({
+      ...schema.doc('projects').fields,
+      logoUrl: v.union(v.string(), v.null()),
+    }),
+    v.null(),
+  ),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const projectId = ctx.db.normalizeId('projects', args.projectId)
     if (projectId === null) return null
     const project = await ctx.db.get(projectId)
-    return project === null || project.ownerId !== ownerId ? null : project
+    if (project === null || project.ownerId !== ownerId) return null
+    return {
+      ...project,
+      logoUrl:
+        project.logoId === undefined
+          ? null
+          : await ctx.storage.getUrl(project.logoId),
+    }
   },
 })
 
@@ -228,6 +312,12 @@ export const remove = mutation({
 
     for (const task of tasks) {
       await ctx.db.patch(task._id, { projectId: undefined, goalId: undefined })
+    }
+
+    /* The logo goes with it, or it is a stored file nothing can reach. */
+    const project = await ctx.db.get(args.projectId)
+    if (project?.logoId !== undefined) {
+      await ctx.storage.delete(project.logoId)
     }
 
     /* Readings about this project mean nothing without it. */

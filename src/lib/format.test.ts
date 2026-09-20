@@ -5,6 +5,7 @@ import {
   aheadLabel,
   deadlineLabel,
   durationLabel,
+  isOverdue,
   localInputValue,
   whenLabel,
 } from './format'
@@ -23,6 +24,14 @@ describe('a deadline says how far off it is', () => {
 
   test('today is today, not "0 days"', () => {
     expect(deadlineLabel('2026-09-08', SEPT_8)).toContain('today')
+  })
+
+  test('overdue is yesterday and earlier, never today', () => {
+    expect(isOverdue('2026-09-05', SEPT_8)).toBe(true)
+    expect(isOverdue('2026-09-07', SEPT_8)).toBe(true)
+    /* Today is not late yet — the day is not over. */
+    expect(isOverdue('2026-09-08', SEPT_8)).toBe(false)
+    expect(isOverdue('2026-09-09', SEPT_8)).toBe(false)
   })
 
   test('a passed deadline says so rather than counting backwards', () => {

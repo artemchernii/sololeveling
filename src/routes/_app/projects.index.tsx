@@ -81,6 +81,7 @@ function Projects() {
           {focus ? (
             <ProjectCard
               project={focus}
+              area={focus.area}
               counts={counts?.tasksByProject[focus._id]}
               nextTask={tasksFor(focus)[0]}
               openTasks={tasksFor(focus)}
@@ -100,6 +101,7 @@ function Projects() {
                 <ProjectCard
                   key={project._id}
                   project={project}
+                  area={project.area}
                   counts={counts?.tasksByProject[project._id]}
                   nextTask={tasksFor(project)[0]}
                   openTasks={tasksFor(project)}

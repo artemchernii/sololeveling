@@ -6,7 +6,7 @@ import { internal } from './_generated/api'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
-import schema from './schema'
+import schema, { areaValidator } from './schema'
 
 /* A project is work under a goal. `goalId` is required by the schema, so a
    project that answers to nothing cannot exist. (They were called chains
@@ -120,7 +120,17 @@ export const setGoal = mutation({
 /** Everything not finished or filed away — what the projects grid renders. */
 export const listLive = query({
   args: {},
-  returns: v.array(schema.doc('projects')),
+  /* Each row carries its goal's `area` alongside the document. A project has
+     no area of its own — it inherits the kind of the goal it answers to, and
+     §3d says colour is how a kind is shown. Optional, not defaulted: a goal
+     cannot normally be deleted out from under a project, and if one ever is,
+     the card says "unfiled" rather than inventing a kind. */
+  returns: v.array(
+    v.object({
+      ...schema.doc('projects').fields,
+      area: v.optional(areaValidator),
+    }),
+  ),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
 
@@ -134,7 +144,19 @@ export const listLive = query({
         .take(MAX_ROWS)
       live.push(...rows)
     }
-    return live
+
+    /* One read per distinct goal, not one per project. */
+    const areas = new Map<string, Doc<'goals'> | null>()
+    const out = []
+    for (const project of live) {
+      let goal = areas.get(project.goalId)
+      if (goal === undefined) {
+        goal = await ctx.db.get(project.goalId)
+        areas.set(project.goalId, goal)
+      }
+      out.push({ ...project, area: goal?.area })
+    }
+    return out
   },
 })
 

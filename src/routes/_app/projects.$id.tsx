@@ -2,16 +2,15 @@ import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Check, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { AreaBadge } from '@/components/AreaBadge'
 import { SaveGlyph, useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
-import type { Area } from '@/lib/capture-parser'
 import { ProjectCommits } from '@/components/projects/ProjectCommits'
 import { ProjectHeader } from '@/components/projects/ProjectHeader'
+import { TaskRow } from '@/components/projects/TaskRow'
 import { ProjectNotes } from '@/components/projects/ProjectNotes'
 import { useArrived, useHeld } from '@/lib/loading'
 
@@ -35,8 +34,6 @@ function Project() {
   const tasks = useQuery(api.tasks.listByProject, { projectId })
   const counts = useQuery(api.aggregate.entityCounts, {})
   const createTask = useMutation(api.tasks.create)
-  const complete = useMutation(api.tasks.complete)
-  const setArea = useMutation(api.tasks.setArea)
 
   const [title, setTitle] = useState('')
   const adding = useSave()
@@ -118,28 +115,7 @@ function Project() {
           ) : (
             <div className="flex flex-col">
               {open.map((task) => (
-                <div
-                  key={task._id}
-                  className="flex items-center gap-3 border-b border-lift/[0.05] py-2.5 last:border-b-0"
-                >
-                  <button
-                    type="button"
-                    aria-label={`Complete ${task.title}`}
-                    onClick={() => void complete({ taskId: task._id })}
-                    className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-lift/15 text-transparent transition-colors hover:border-lav-500 hover:text-lav-300"
-                  >
-                    <Check className="size-3" />
-                  </button>
-                  <span className="flex-1 text-[13px] text-foreground">
-                    {task.title}
-                  </span>
-                  <AreaBadge
-                    area={task.area}
-                    onChange={(area: Area) =>
-                      void setArea({ taskId: task._id, area })
-                    }
-                  />
-                </div>
+                <TaskRow key={task._id} task={task} />
               ))}
             </div>
           )}

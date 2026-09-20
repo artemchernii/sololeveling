@@ -1,6 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { removeFor } from './attachments'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
@@ -340,12 +341,35 @@ export const setArea = mutation({
  * Any 'task_done' log a previous completion wrote is left alone — that log is
  * a record of a day, and deleting the task does not un-happen it.
  */
+/**
+ * What a task actually involves, beyond its title (20 Sep).
+ *
+ * The field has existed since R1 and nothing ever wrote to it — a task was a
+ * title and a checkbox, which he called out three times. Prompts and links
+ * live here as text; files are rows in `attachments`.
+ */
+export const setNotes = mutation({
+  args: { taskId: v.id('tasks'), notes: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedTask(ctx, ownerId, args.taskId)
+    const trimmed = args.notes.trim()
+    await ctx.db.patch(args.taskId, {
+      notes: trimmed.length === 0 ? undefined : trimmed,
+    })
+    return null
+  },
+})
+
 export const remove = mutation({
   args: { taskId: v.id('tasks') },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     await ownedTask(ctx, ownerId, args.taskId)
+    /* Its files go with it, or they become bytes nothing can reach. */
+    await removeFor(ctx, ownerId, { taskId: args.taskId })
     await ctx.db.delete(args.taskId)
     return null
   },

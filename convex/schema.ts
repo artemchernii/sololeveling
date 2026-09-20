@@ -198,6 +198,26 @@ export default defineSchema({
     .index('by_owner_project_time', ['ownerId', 'projectId', 'authoredAt'])
     .index('by_project_sha', ['projectId', 'sha']),
 
+  /* Files pinned to a note or a task (20 Sep): screenshots, PDFs, anything
+     he drops or pastes. One table with two possible parents rather than two
+     tables, because a screenshot means the same thing wherever it is pinned
+     and he asked for it in both places on the same day.
+
+     Exactly one of noteId/taskId is set — checked in convex/attachments.ts,
+     because a validator cannot say "one of these two". The bytes live in
+     Convex file storage; this row is the fact that they belong here. */
+  attachments: defineTable({
+    ownerId: v.string(),
+    noteId: v.optional(v.id('notes')),
+    taskId: v.optional(v.id('tasks')),
+    storageId: v.id('_storage'),
+    name: v.string(),
+    contentType: v.string(),
+    size: v.number(),
+  })
+    .index('by_owner_note', ['ownerId', 'noteId'])
+    .index('by_owner_task', ['ownerId', 'taskId']),
+
   tasks: defineTable({
     ownerId: v.string(),
     title: v.string(), // a task is creatable from this alone

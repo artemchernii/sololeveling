@@ -6,6 +6,7 @@ import { ArrowLeft, PenLine, Trash2 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { Attachments } from '@/components/attachments/Attachments'
 import { NoteEditor } from '@/components/notes/NoteEditor'
 import { NoteView } from '@/components/notes/NoteView'
 import { joinNote, splitNote } from '@/lib/note-text'
@@ -183,6 +184,12 @@ function NotePage() {
           </div>
         )}
       </article>
+
+      {/* Files on the note — pasted screenshots, dropped PDFs (20 Sep). */}
+      <div className="glass rounded-[22px] px-6 py-5">
+        <div className="label-caps mb-3">Files</div>
+        <Attachments noteId={noteId} />
+      </div>
     </div>
   )
 }

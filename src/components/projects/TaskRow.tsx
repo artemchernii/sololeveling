@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import {
+  CalendarArrowUp,
   CalendarClock,
   CalendarDays,
   Check,
@@ -59,6 +60,9 @@ export function TaskRow({
   const setTitle = useMutation(api.tasks.setTitle)
   const saveNotes = useMutation(api.tasks.setNotes)
   const setDueDate = useMutation(api.tasks.setDueDate)
+
+  const dueToday = localToday()
+  const isDueToday = task.dueDate === dueToday
 
   const [open, setOpen] = useState(false)
   const [title, setTitleDraft] = useState(task.title)
@@ -162,6 +166,26 @@ export function TaskRow({
                 }
                 className="rounded-[8px] border border-lift/10 bg-sink/20 px-2 py-1 font-mono text-[12px] text-ink-300 outline-none transition-colors focus:border-lav-500/60"
               />
+              {/* The date you pick most, in one press (20 Sep). A date
+                  picker asks for a year and a month to say a thing you
+                  already know the name of. `dueDate` is a calendar date, so
+                  "today" is today's local date — midnight to midnight is the
+                  whole of what the field can hold. */}
+              <button
+                type="button"
+                onClick={() =>
+                  void setDueDate({ taskId: task._id, dueDate: dueToday })
+                }
+                aria-pressed={isDueToday}
+                className={`motion-press flex items-center gap-1.5 rounded-[8px] px-2.5 py-1 text-[12px] ring-1 transition-colors ${
+                  isDueToday
+                    ? 'bg-lav-900/70 text-lav-200 ring-lav-500/40'
+                    : 'text-ink-400 ring-lift/10 hover:bg-lift/5 hover:text-foreground'
+                }`}
+              >
+                <CalendarArrowUp className="size-3.5" />
+                Today
+              </button>
               {task.dueDate !== undefined ? (
                 <button
                   type="button"

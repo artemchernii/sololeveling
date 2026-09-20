@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import {
   CalendarArrowUp,
+  CalendarArrowDown,
   CalendarClock,
   CalendarDays,
   Check,
@@ -23,7 +24,15 @@ import {
   shortDate,
   whenLabel,
 } from '@/lib/format'
-import { localToday } from '@/lib/today'
+import { localDateIn, localToday } from '@/lib/today'
+
+/* The due dates worth a button. Two, because a third would be a list and a
+   list is the picker again — the date input beside them is where every other
+   day is chosen. */
+const QUICK_DUE = [
+  { label: 'Today', days: 0, Icon: CalendarArrowUp },
+  { label: 'Tomorrow', days: 1, Icon: CalendarArrowDown },
+] as const
 
 /* A task, opened (20 Sep). It was a title and a checkbox, and he said so
    three times: "simple one string is bad".
@@ -60,9 +69,6 @@ export function TaskRow({
   const setTitle = useMutation(api.tasks.setTitle)
   const saveNotes = useMutation(api.tasks.setNotes)
   const setDueDate = useMutation(api.tasks.setDueDate)
-
-  const dueToday = localToday()
-  const isDueToday = task.dueDate === dueToday
 
   const [open, setOpen] = useState(false)
   const [title, setTitleDraft] = useState(task.title)
@@ -166,26 +172,34 @@ export function TaskRow({
                 }
                 className="rounded-[8px] border border-lift/10 bg-sink/20 px-2 py-1 font-mono text-[12px] text-ink-300 outline-none transition-colors focus:border-lav-500/60"
               />
-              {/* The date you pick most, in one press (20 Sep). A date
+              {/* The two dates you pick most, in one press (20 Sep). A date
                   picker asks for a year and a month to say a thing you
                   already know the name of. `dueDate` is a calendar date, so
                   "today" is today's local date — midnight to midnight is the
                   whole of what the field can hold. */}
-              <button
-                type="button"
-                onClick={() =>
-                  void setDueDate({ taskId: task._id, dueDate: dueToday })
-                }
-                aria-pressed={isDueToday}
-                className={`motion-press flex items-center gap-1.5 rounded-[8px] px-2.5 py-1 text-[12px] ring-1 transition-colors ${
-                  isDueToday
-                    ? 'bg-lav-900/70 text-lav-200 ring-lav-500/40'
-                    : 'text-ink-400 ring-lift/10 hover:bg-lift/5 hover:text-foreground'
-                }`}
-              >
-                <CalendarArrowUp className="size-3.5" />
-                Today
-              </button>
+              {QUICK_DUE.map(({ label, days, Icon }) => {
+                const date = localDateIn(days)
+                const on = task.dueDate === date
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() =>
+                      void setDueDate({ taskId: task._id, dueDate: date })
+                    }
+                    aria-pressed={on}
+                    title={shortDate(date)}
+                    className={`motion-press flex items-center gap-1.5 rounded-[8px] px-2.5 py-1 text-[12px] ring-1 transition-colors ${
+                      on
+                        ? 'bg-lav-900/70 text-lav-200 ring-lav-500/40'
+                        : 'text-ink-400 ring-lift/10 hover:bg-lift/5 hover:text-foreground'
+                    }`}
+                  >
+                    <Icon className="size-3.5" />
+                    {label}
+                  </button>
+                )
+              })}
               {task.dueDate !== undefined ? (
                 <button
                   type="button"

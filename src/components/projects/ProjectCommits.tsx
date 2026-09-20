@@ -103,7 +103,10 @@ export function ProjectCommits({
           1108px card and left 447px empty beside it, while the commit list sat
           underneath and pushed the card to 510px — the tallest thing on the
           page, and the emptiest. The list moves into the space the grid was
-          not using, and the card loses a third of its height. */}
+          not using, and the card loses a third of its height.
+
+          The list is capped at 44rem: at 1600px it ran 1015px wide and a
+          commit subject became a line you have to track back across. */}
       <div className="grid gap-x-8 gap-y-5 lg:grid-cols-[max-content_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-4">
           <div className="flex gap-8">
@@ -119,7 +122,7 @@ export function ProjectCommits({
             No commits in the last two weeks.
           </p>
         ) : (
-          <div className="flex min-w-0 flex-col gap-1.5">
+          <div className="flex min-w-0 max-w-[44rem] flex-col gap-1.5">
             <span className="label-caps">latest</span>
             <div className="flex flex-col">
               {recent.map((c) => (

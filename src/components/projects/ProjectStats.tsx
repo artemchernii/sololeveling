@@ -33,7 +33,17 @@ import { addDays, addWeeks, startOfWeek } from '@/lib/weeks'
    target for rather than in a separate column; and setting the target happens
    inside the block, which is what removed the stray "Targets" control. Log
    time is its own block, because logging is a thing you do, not a number you
-   read. */
+   read.
+
+   Fourth pass, 20 Sep: "a lot of dead space and spinner is not meaningful…
+   it looks a bit disconnected". Measured at 1600px, justify-between was
+   holding a 98-150px hole open between each number and its ring, and the
+   ring's own target sat in a chip at the other corner of the block — three
+   parts of one idea in three places. The ring is now the number's emblem: it
+   sits against it, and the icon lives in its hole, which is what Ring's
+   `children` was written for and no caller ever passed. Blocks with no target
+   get the same puck without the arc, so every block has one anatomy and none
+   of them look half-built. */
 export function ProjectStats({
   project,
   area,
@@ -74,9 +84,16 @@ export function ProjectStats({
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <Block>
-        <div className="flex items-start justify-between gap-3">
-          <Figure
+        <div className="flex items-center gap-3.5">
+          {/* This one needs no target: the denominator is the task count,
+              which is a real entity count (§1 source 3). */}
+          <Puck
             icon={allDone ? <CircleCheckBig /> : <Circle />}
+            value={done ?? 0}
+            target={total !== undefined && total > 0 ? total : undefined}
+            tone={allDone ? 'good' : 'accent'}
+          />
+          <Figure
             n={total === undefined ? undefined : `${done ?? 0}/${total}`}
             label="tasks done"
             tone={allDone ? 'good' : noneDone ? 'warn' : 'plain'}
@@ -88,38 +105,28 @@ export function ProjectStats({
                   : undefined
             }
           />
-          {/* This one needs no target: the denominator is the task count,
-              which is a real entity count (§1 source 3). */}
-          {total !== undefined && total > 0 ? (
-            <Ring
-              value={done ?? 0}
-              target={total}
-              tone={allDone ? 'good' : 'accent'}
-              size={52}
-              stroke={6}
-            />
-          ) : null}
         </div>
       </Block>
 
       <Block>
-        <div className="flex items-start justify-between gap-3">
-          <Figure
+        <div className="flex items-center gap-3.5">
+          <Puck
             icon={<Clock />}
+            value={minutes}
+            target={project.minutesTargetMonthly}
+            tone={
+              project.minutesTargetMonthly !== undefined &&
+              minutes >= project.minutesTargetMonthly
+                ? 'good'
+                : 'accent'
+            }
+          />
+          <Figure
             n={time === undefined ? undefined : durationLabel(minutes)}
             label="this month"
             tone={minutes === 0 ? 'warn' : 'good'}
             note={minutes === 0 ? 'log some time' : undefined}
           />
-          {project.minutesTargetMonthly !== undefined ? (
-            <Ring
-              value={minutes}
-              target={project.minutesTargetMonthly}
-              tone={minutes >= project.minutesTargetMonthly ? 'good' : 'accent'}
-              size={52}
-              stroke={6}
-            />
-          ) : null}
         </div>
         <Target
           projectId={projectId}
@@ -136,24 +143,23 @@ export function ProjectStats({
 
       {commits?.repo ? (
         <Block>
-          <div className="flex items-start justify-between gap-3">
-            <Figure
+          <div className="flex items-center gap-3.5">
+            <Puck
               icon={<GitCommitHorizontal />}
+              value={thisWeek}
+              target={project.commitTargetWeekly}
+              tone={
+                project.commitTargetWeekly !== undefined &&
+                thisWeek >= project.commitTargetWeekly
+                  ? 'good'
+                  : 'accent'
+              }
+            />
+            <Figure
               n={String(thisWeek)}
               label="commits this week"
               tone="plain"
             />
-            {project.commitTargetWeekly !== undefined ? (
-              <Ring
-                value={thisWeek}
-                target={project.commitTargetWeekly}
-                tone={
-                  thisWeek >= project.commitTargetWeekly ? 'good' : 'accent'
-                }
-                size={52}
-                stroke={6}
-              />
-            ) : null}
           </div>
           <Target
             projectId={projectId}
@@ -184,14 +190,56 @@ function Block({ children }: { children: ReactNode }) {
   )
 }
 
-function Figure({
+/* The emblem: the block's icon, wearing its own progress. With a target it
+   is the Ring with the icon in the hole; without one it is the same disc,
+   quiet, so a block that has no target still looks finished rather than
+   missing a piece. §1 is unchanged — no target, no arc, nothing inferred. */
+function Puck({
   icon,
+  value,
+  target,
+  tone,
+}: {
+  icon: ReactNode
+  value: number
+  target: number | undefined
+  tone: 'good' | 'warn' | 'accent'
+}) {
+  const glyph = (
+    <span
+      className={`[&>svg]:size-4 ${
+        target === undefined
+          ? 'text-ink-600'
+          : tone === 'good'
+            ? 'text-state-good'
+            : 'text-lav-300'
+      }`}
+    >
+      {icon}
+    </span>
+  )
+
+  if (target === undefined) {
+    return (
+      <div className="grid size-[52px] shrink-0 place-items-center rounded-full ring-1 ring-lift/10 ring-inset">
+        {glyph}
+      </div>
+    )
+  }
+
+  return (
+    <Ring value={value} target={target} tone={tone} size={52} stroke={5}>
+      {glyph}
+    </Ring>
+  )
+}
+
+function Figure({
   n,
   label,
   tone,
   note,
 }: {
-  icon: ReactNode
   n: string | undefined
   label: string
   tone: 'good' | 'warn' | 'plain'
@@ -206,14 +254,7 @@ function Figure({
 
   return (
     <div className="flex min-w-0 flex-col">
-      <span
-        className={`flex items-center gap-1.5 text-[26px] leading-none font-light ${text}`}
-      >
-        <span
-          className={`[&>svg]:size-3.5 ${tone === 'plain' ? 'text-ink-600' : ''}`}
-        >
-          {icon}
-        </span>
+      <span className={`text-[26px] leading-none font-light ${text}`}>
         {n ?? '—'}
       </span>
       <span className="label-caps truncate pt-2">{label}</span>
@@ -330,31 +371,38 @@ function LogBlock({
 
   return (
     <Block>
-      <span className="label-caps">Log time</span>
-      <div className="flex items-center gap-2">
-        <input
-          value={minutes}
-          onChange={(e) => setMinutes(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') void log()
-          }}
-          inputMode="numeric"
-          placeholder="45"
-          aria-label="Minutes spent on this project"
-          className="w-16 rounded-[8px] border border-lift/10 bg-sink/20 px-2 py-1.5 text-center font-mono text-[13px] text-ink-200 outline-none transition-colors focus:border-lav-500/60 placeholder:text-ink-700"
-        />
-        <span className="font-mono text-[11.5px] text-ink-600">min</span>
-        <button
-          type="button"
-          disabled={saving.busy}
-          onClick={() => void log()}
-          className="motion-press ml-auto flex items-center gap-1.5 rounded-[8px] bg-lav-900/70 px-3 py-1.5 text-[12px] text-lav-200 ring-1 ring-lav-500/50 ring-inset transition-colors hover:bg-lav-800"
-        >
-          <Plus className="size-3" />
-          <SaveLabel status={saving.status} onSettled={saving.settle}>
-            Add
-          </SaveLabel>
-        </button>
+      <div className="flex items-center gap-3.5">
+        <div className="grid size-[52px] shrink-0 place-items-center rounded-full ring-1 ring-lav-500/25 ring-inset">
+          <Clock className="size-4 text-lav-300/70" />
+        </div>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <span className="label-caps">Log time</span>
+          <div className="flex items-center gap-2">
+            <input
+              value={minutes}
+              onChange={(e) => setMinutes(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void log()
+              }}
+              inputMode="numeric"
+              placeholder="45"
+              aria-label="Minutes spent on this project"
+              className="w-14 rounded-[8px] border border-lift/10 bg-sink/20 px-2 py-1.5 text-center font-mono text-[13px] text-ink-200 outline-none transition-colors focus:border-lav-500/60 placeholder:text-ink-700"
+            />
+            <span className="font-mono text-[11.5px] text-ink-600">min</span>
+            <button
+              type="button"
+              disabled={saving.busy}
+              onClick={() => void log()}
+              className="motion-press flex items-center gap-1.5 rounded-[8px] bg-lav-900/70 px-3 py-1.5 text-[12px] text-lav-200 ring-1 ring-lav-500/50 ring-inset transition-colors hover:bg-lav-800"
+            >
+              <Plus className="size-3" />
+              <SaveLabel status={saving.status} onSettled={saving.settle}>
+                Add
+              </SaveLabel>
+            </button>
+          </div>
+        </div>
       </div>
     </Block>
   )

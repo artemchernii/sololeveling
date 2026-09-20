@@ -37,12 +37,13 @@ function event(over: Partial<Doc<'events'>> = {}) {
 
 describe('tasks and events meet only here (PLAN.md §3b.3)', () => {
   test('an undated task is not on the timeline', () => {
-    expect(buildTimeline([task()], [], day)).toHaveLength(0)
+    expect(buildTimeline([task()], [], [], day)).toHaveLength(0)
   })
 
   test('a scheduled task is', () => {
     const items = buildTimeline(
       [task({ scheduledAt: noon, durationMin: 90 })],
+      [],
       [],
       day,
     )
@@ -51,7 +52,7 @@ describe('tasks and events meet only here (PLAN.md §3b.3)', () => {
   })
 
   test('an event’s end becomes a length — the timeline speaks in lengths', () => {
-    const items = buildTimeline([], [event()], day)
+    const items = buildTimeline([], [event()], [], day)
     expect(items[0].durationMin).toBe(60)
     expect(items[0].source).toBe('event')
   })
@@ -60,6 +61,7 @@ describe('tasks and events meet only here (PLAN.md §3b.3)', () => {
     const items = buildTimeline(
       [task({ scheduledAt: noon + 7_200_000, durationMin: 60 })],
       [event()],
+      [],
       day,
     )
     expect(items.map((i) => i.source)).toEqual(['event', 'task'])
@@ -75,19 +77,20 @@ describe('the booked-hours line tells the truth', () => {
     const items = buildTimeline(
       [task({ scheduledAt: noon, durationMin: 120 })],
       [event()],
+      [],
       day,
     )
     expect(bookedHoursLine(items)).toContain('3 booked hours')
   })
 
   test('one hour is singular', () => {
-    expect(bookedHoursLine(buildTimeline([], [event()], day))).toContain(
+    expect(bookedHoursLine(buildTimeline([], [event()], [], day))).toContain(
       '1 booked hour.',
     )
   })
 
   test('booked but untimed does not claim zero hours', () => {
-    const items = buildTimeline([task({ scheduledAt: noon })], [], day)
+    const items = buildTimeline([task({ scheduledAt: noon })], [], [], day)
     expect(bookedHoursLine(items)).toContain('untimed')
   })
 })
@@ -104,7 +107,7 @@ describe('a timeline is of a period (PLAN.md §3b.6)', () => {
       endsAt: new Date(2026, 8, 7, 10).getTime(),
       rrule: 'FREQ=DAILY',
     })
-    const items = buildTimeline([], [gym], week)
+    const items = buildTimeline([], [gym], [], week)
     expect(items).toHaveLength(7)
     expect(new Set(items.map((i) => i.id)).size).toBe(7)
   })
@@ -114,7 +117,7 @@ describe('a timeline is of a period (PLAN.md §3b.6)', () => {
       startsAt: new Date(2026, 8, 1, 9).getTime(),
       endsAt: new Date(2026, 8, 1, 10).getTime(),
     })
-    expect(buildTimeline([], [past], week)).toHaveLength(0)
+    expect(buildTimeline([], [past], [], week)).toHaveLength(0)
   })
 
   test('a task scheduled outside the window is not on it either', () => {
@@ -122,7 +125,7 @@ describe('a timeline is of a period (PLAN.md §3b.6)', () => {
       scheduledAt: new Date(2026, 8, 20, 9).getTime(),
       durationMin: 60,
     })
-    expect(buildTimeline([later], [], week)).toHaveLength(0)
+    expect(buildTimeline([later], [], [], week)).toHaveLength(0)
   })
 
   test('each occurrence keeps the length of its series', () => {
@@ -131,8 +134,68 @@ describe('a timeline is of a period (PLAN.md §3b.6)', () => {
       endsAt: new Date(2026, 8, 8, 10, 30).getTime(),
       rrule: 'FREQ=DAILY',
     })
-    for (const item of buildTimeline([], [gym], week)) {
+    for (const item of buildTimeline([], [gym], [], week)) {
       expect(item.durationMin).toBe(90)
     }
+  })
+})
+
+/* R3b, 20 Sep: a milestone's due day is a thing in your day. It joins tasks
+   and events through this same mapper — a third `source`, not a third way of
+   reaching the calendar (§3b.3). */
+function milestone(over: Record<string, unknown> = {}) {
+  return {
+    _id: 'milestone1',
+    title: 'planning',
+    dueDate: '2026-09-08',
+    ...over,
+  } as Parameters<typeof buildTimeline>[2][number]
+}
+
+describe('a milestone is due somewhere in the day', () => {
+  test('an hour puts it at that hour; no hour puts it at the day’s start', () => {
+    const [timed] = buildTimeline(
+      [],
+      [],
+      [milestone({ dueTime: '14:30' })],
+      day,
+    )
+    const [allDay] = buildTimeline([], [], [milestone()], day)
+
+    expect(timed.startsAt).toBe(new Date(2026, 8, 8, 14, 30).getTime())
+    expect(allDay.startsAt).toBe(new Date(2026, 8, 8).getTime())
+  })
+
+  test('it is a marker, not a booking: no length, and its own source', () => {
+    const [item] = buildTimeline([], [], [milestone({ dueTime: '14:30' })], day)
+    expect(item.source).toBe('milestone')
+    expect(item.durationMin).toBeUndefined()
+  })
+
+  /* A day with one milestone and nothing else is still a free day. Counting
+     it as "booked, but untimed" would make a due date feel like an
+     appointment, which is the whole distinction being kept here. */
+  test('a milestone does not book the day', () => {
+    const items = buildTimeline([], [], [milestone()], day)
+    expect(bookedHoursLine(items)).toContain('whole day is yours')
+  })
+
+  test('one outside the window is not on it, and a milestone with no day never is', () => {
+    expect(
+      buildTimeline([], [], [milestone({ dueDate: '2026-09-20' })], day),
+    ).toHaveLength(0)
+    expect(
+      buildTimeline([], [], [milestone({ dueDate: undefined })], day),
+    ).toHaveLength(0)
+  })
+
+  test('it sorts into the day beside tasks and events', () => {
+    const items = buildTimeline(
+      [task({ scheduledAt: new Date(2026, 8, 8, 9).getTime() })],
+      [],
+      [milestone({ dueTime: '08:00' })],
+      day,
+    )
+    expect(items.map((i) => i.source)).toEqual(['milestone', 'task'])
   })
 })

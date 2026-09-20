@@ -89,6 +89,35 @@ export const listByGoal = query({
   },
 })
 
+/**
+ * Milestones due within a span of days, for the calendar (R3b, 20 Sep).
+ *
+ * The bounds are local calendar days as "YYYY-MM-DD", inclusive of `from` and
+ * exclusive of `to`, because that is how a due day is stored — and because
+ * the server does not know what day it is where you are, so the window has to
+ * be named by the caller, the same way month and week bounds already are
+ * (convex/aggregate.ts).
+ *
+ * A milestone with no day is not due anywhere and never appears: the index
+ * skips rows whose `dueDate` is undefined.
+ */
+export const dueInRange = query({
+  args: { from: v.string(), to: v.string() },
+  returns: v.array(schema.doc('milestones')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    return await ctx.db
+      .query('milestones')
+      .withIndex('by_owner_due', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .gte('dueDate', args.from)
+          .lt('dueDate', args.to),
+      )
+      .take(MAX_ROWS)
+  },
+})
+
 /* Reaching a milestone is not reaching the goal — closing a goal is its own
    act, on the goal itself. */
 export const setReached = mutation({

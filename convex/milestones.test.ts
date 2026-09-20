@@ -280,3 +280,48 @@ describe('a milestone can be due at a time of day', () => {
     ).rejects.toThrow('A time needs a day')
   })
 })
+
+describe('milestones due in a span of days', () => {
+  test('inside the window, and never the day it ends', async () => {
+    const me = as(ME)
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'G',
+      area: 'business',
+    })
+    for (const [title, dueDate] of [
+      ['before', '2026-09-06'],
+      ['first day', '2026-09-07'],
+      ['middle', '2026-09-09'],
+      ['the end day', '2026-09-14'],
+    ]) {
+      await me.mutation(api.milestones.create, { goalId, title, dueDate })
+    }
+    await me.mutation(api.milestones.create, { goalId, title: 'no day' })
+
+    const due = await me.query(api.milestones.dueInRange, {
+      from: '2026-09-07',
+      to: '2026-09-14',
+    })
+    expect(due.map((m) => m.title)).toEqual(['first day', 'middle'])
+  })
+
+  test('never another owner’s', async () => {
+    const { mine, theirs } = twoOwners()
+    const goalId = await mine.mutation(api.goals.create, {
+      title: 'Mine',
+      area: 'business',
+    })
+    await mine.mutation(api.milestones.create, {
+      goalId,
+      title: 'mine',
+      dueDate: '2026-09-09',
+    })
+
+    expect(
+      await theirs.query(api.milestones.dueInRange, {
+        from: '2026-09-01',
+        to: '2026-10-01',
+      }),
+    ).toEqual([])
+  })
+})

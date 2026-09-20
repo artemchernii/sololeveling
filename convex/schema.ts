@@ -139,7 +139,11 @@ export default defineSchema({
     dueTime: v.optional(v.string()),
     reachedAt: v.optional(v.number()),
     sortOrder: v.number(),
-  }).index('by_owner_goal', ['ownerId', 'goalId', 'sortOrder']),
+  })
+    .index('by_owner_goal', ['ownerId', 'goalId', 'sortOrder'])
+    /* Due days in a window, for the calendar. On the ISO string rather than
+       an epoch, because that is what is stored and it sorts the same. */
+    .index('by_owner_due', ['ownerId', 'dueDate']),
 
   /* A project always has a goal above it, so goalId is required: a project
      that answers to nothing is the thing this app exists to prevent. */

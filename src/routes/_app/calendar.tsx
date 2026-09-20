@@ -12,6 +12,7 @@ import { addDays, startOfWeek } from '@/lib/weeks'
 import { buildTimeline } from '@/lib/timeline'
 import type { TimelineItem } from '@/lib/timeline'
 import { useHeld } from '@/lib/loading'
+import { localToday } from '@/lib/today'
 
 export const Route = createFileRoute('/_app/calendar')({
   component: Calendar,
@@ -33,10 +34,29 @@ function Calendar() {
   const events = useHeld(useQuery(api.events.listInRange, range))
   const tasks = useHeld(useQuery(api.tasks.listScheduledInRange, range))
 
-  const items = buildTimeline(tasks ?? [], events ?? [], {
-    start: range.from,
-    end: range.to,
+  /* Milestones due this week (R3b). Their day is stored as a local calendar
+     date, so the window is named in those terms rather than in epochs. */
+  const dueMilestones = useQuery(api.milestones.dueInRange, {
+    from: localToday(weekStart),
+    to: localToday(weekEnd),
   })
+  /* A milestone has no area of its own — its goal does. The join happens
+     here so the mapper stays a mapper and the colour still means something. */
+  const goals = useQuery(api.goals.listActive, {})
+  const areaOfGoal = new Map((goals ?? []).map((g) => [g._id, g.area]))
+
+  const items = buildTimeline(
+    tasks ?? [],
+    events ?? [],
+    (dueMilestones ?? []).map((m) => ({
+      _id: m._id,
+      title: m.title,
+      dueDate: m.dueDate,
+      dueTime: m.dueTime,
+      area: areaOfGoal.get(m.goalId),
+    })),
+    { start: range.from, end: range.to },
+  )
 
   function openItem(item: TimelineItem) {
     /* Only events open the editor. A scheduled task is edited where tasks are

@@ -1,6 +1,12 @@
 import { Link } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
-import { CalendarDays, Target, TriangleAlert } from 'lucide-react'
+import { useQuery } from 'convex-helpers/react/cache/hooks'
+import {
+  CalendarDays,
+  GitCommitHorizontal,
+  Target,
+  TriangleAlert,
+} from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
@@ -10,7 +16,7 @@ import { ProjectVitals } from '@/components/projects/ProjectVitals'
 import { ProjectLogo } from '@/components/projects/ProjectLogo'
 import type { Area } from '@/lib/capture-parser'
 import { areaVars } from '@/lib/areas'
-import { daysUntil, isOverdue, shortDate } from '@/lib/format'
+import { daysUntil, isOverdue, shortDate, whenLabel } from '@/lib/format'
 
 /* PLAN.md §3 draws a full card: title, "11 of 17 tasks", "ends 30 Sep · 23
    days", three open tasks, NEXT →. §3c.2 then says non-focus projects render
@@ -35,9 +41,10 @@ import { daysUntil, isOverdue, shortDate } from '@/lib/format'
      even said they were the open ones.
    - The colour was the goal's. "I said already that this GOAL - PROJECT bind
      is canceled." A project has its own `area` now, set on the card itself.
-   - The width went unused. The card is two columns above `lg`: what the
-     project is on the left, what is open on the right. Both ends reached, and
-     the card is shorter rather than taller for it. */
+   - The width went unused. The card is three columns above `lg`: what the
+     project is, what he last did, and what is open. Both ends reached, and
+     the card is shorter rather than taller for it. The middle column came a
+     round later — see `LatestCommits`. */
 
 export type ProjectCounts = { done: number; total: number; open: number }
 
@@ -59,6 +66,13 @@ export function ProjectCard({
   const setArea = useMutation(api.projects.setArea)
   const isFocus = project.status === 'focus'
   const area = project.area
+
+  /* Asked here rather than inside the column, because the grid's shape
+     depends on the answer: with three tracks and two children the open block
+     lands in track two and leaves 340px empty on the right — the fault this
+     change exists to fix, reintroduced by the fix. */
+  const recent = useQuery(api.github.listRecent, { projectId: project._id })
+  const latest = (recent ?? []).slice(0, 2)
 
   return (
     <div
@@ -117,7 +131,13 @@ export function ProjectCard({
         /* Two columns above lg, because the card is 1300px wide and was
            using 600 of them. The numbers do not get wider from the room —
            the tasks come up beside them instead, and the card gets shorter. */
-        <div className="relative grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
+        <div
+          className={`relative grid items-start gap-4 ${
+            latest.length > 0
+              ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)_minmax(0,340px)]'
+              : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]'
+          }`}
+        >
           <div className="pointer-events-none">
             <ProjectVitals
               projectId={project._id}
@@ -125,6 +145,18 @@ export function ProjectCard({
               total={counts?.total}
             />
           </div>
+
+          {/* The middle column, and the reason the card is three (21 Sep).
+              Measured: content stopped at x=738 and the open block began at
+              1150, so 412px ran empty down the whole card. Artem: "I see a
+              lot of dead space. How we fill it and organize it?"
+
+              Filled with the one thing the card could not tell him — what he
+              last did here. Stored rows from `commits`, the same ones the
+              project page lists, not a new kind of number. It renders
+              nothing at all when there is no repo or no commit, because a
+              titled empty box is the graphic §3d says not to draw. */}
+          {latest.length > 0 ? <LatestCommits latest={latest} /> : null}
 
           <div className="pointer-events-none rounded-[14px] border border-lift/[0.07] bg-sink/20 p-3.5">
             <div className="label-caps mb-2 flex items-baseline justify-between gap-3">
@@ -173,6 +205,39 @@ export function ProjectCard({
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+/* What he last did here: the two most recent commits, from the rows the
+   hourly check already stores. Absent, not empty, when the project has no
+   repo — the column is not rendered and the grid drops to two. */
+function LatestCommits({
+  latest,
+}: {
+  latest: Array<{ sha: string; message: string; authoredAt: number }>
+}) {
+  return (
+    <div className="pointer-events-none rounded-[14px] border border-lift/[0.07] bg-sink/20 p-3.5">
+      <div className="label-caps mb-2 flex items-center gap-1.5">
+        <GitCommitHorizontal className="size-3.5" />
+        latest
+      </div>
+      <div className="flex flex-col">
+        {latest.map((c) => (
+          <div
+            key={c.sha}
+            className="flex flex-col gap-0.5 border-b border-lift/[0.05] py-1.5 last:border-b-0"
+          >
+            <span className="truncate text-[12.5px] text-ink-300">
+              {c.message}
+            </span>
+            <span className="font-mono text-[11px] text-ink-700">
+              {whenLabel(c.authoredAt)}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

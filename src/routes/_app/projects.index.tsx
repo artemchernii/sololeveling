@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
+import { ConvexError } from 'convex/values'
 import { Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
@@ -126,6 +127,7 @@ function NewProject() {
   const [goal, setGoal] = useState('')
   const [area, setArea] = useState<Area>('business')
   const [deadline, setDeadline] = useState('')
+  const [repo, setRepo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const starting = useSave()
 
@@ -149,11 +151,14 @@ function NewProject() {
           goalId: parent,
           title: project.trim(),
           deadline: deadline.length > 0 ? deadline : undefined,
+          githubRepo: repo.trim() || undefined,
         })
       })
       setError(null)
-    } catch {
-      setError('That did not work.')
+    } catch (e) {
+      /* A repo that is not owner/name refuses and says so; .data carries
+         that sentence, as it does on Goals. */
+      setError(e instanceof ConvexError ? String(e.data) : 'That did not work.')
     }
   }
 
@@ -165,6 +170,7 @@ function NewProject() {
     setGoalId('')
     setProject('')
     setDeadline('')
+    setRepo('')
     setOpen(false)
   }
 
@@ -240,6 +246,15 @@ function NewProject() {
             </>
           ) : null}
         </div>
+      </Field>
+
+      <Field label="Repo — optional">
+        <input
+          value={repo}
+          onChange={(e) => setRepo(e.target.value)}
+          placeholder="owner/name, or the repo's github.com link"
+          className="w-full bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
+        />
       </Field>
 
       <div className="flex flex-wrap items-center gap-4">

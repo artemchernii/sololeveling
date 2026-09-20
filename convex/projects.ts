@@ -1,6 +1,8 @@
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { parseRepo } from './github'
+import { internal } from './_generated/api'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
@@ -45,6 +47,7 @@ export const create = mutation({
     title: v.string(),
     description: v.optional(v.string()),
     deadline: v.optional(v.string()),
+    githubRepo: v.optional(v.string()),
   },
   returns: v.id('projects'),
   handler: async (ctx, args) => {
@@ -60,14 +63,32 @@ export const create = mutation({
       throw new Error('A project needs a title')
     }
 
-    return await ctx.db.insert('projects', {
+    /* A repo given at birth (R3c): rejected here rather than stored wrong,
+       so the card never shows a repo GitHub will 404 on. */
+    let githubRepo: string | undefined
+    if (args.githubRepo !== undefined && args.githubRepo.trim().length > 0) {
+      const repo = parseRepo(args.githubRepo)
+      if (repo === null) {
+        throw new ConvexError('That is not a GitHub repo: use owner/name.')
+      }
+      githubRepo = repo
+    }
+
+    const projectId = await ctx.db.insert('projects', {
       ownerId,
       goalId: args.goalId,
       title,
       description: args.description,
       status: 'active',
       deadline: args.deadline,
+      githubRepo,
     })
+
+    if (githubRepo !== undefined) {
+      await ctx.scheduler.runAfter(0, internal.github.checkOne, { projectId })
+    }
+
+    return projectId
   },
 })
 
@@ -208,6 +229,15 @@ export const remove = mutation({
     for (const task of tasks) {
       await ctx.db.patch(task._id, { projectId: undefined, goalId: undefined })
     }
+
+    /* Readings about this project mean nothing without it. */
+    const commits = await ctx.db
+      .query('commits')
+      .withIndex('by_owner_project_time', (q) =>
+        q.eq('ownerId', ownerId).eq('projectId', args.projectId),
+      )
+      .take(1000)
+    for (const commit of commits) await ctx.db.delete(commit._id)
 
     await ctx.db.delete(args.projectId)
     return null

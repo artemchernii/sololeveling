@@ -77,6 +77,16 @@ that fails any of them is not a source-4 number:
 The storage shape is decided when Money is built, not here. What is decided here is that an external
 number is allowed to exist, and what it must carry to be shown.
 
+**The first external reading is GitHub commits** (R3c, 20 Sep, `convex/github.ts`, which names where
+each condition is kept): an hourly internal action stores every commit on a project's public repo as
+a row, the row carries the repo it came from, the project carries when the check last succeeded, and
+`aggregate.projectCommits` only counts those rows per week. Prices arrive with Finances (R6).
+
+Building it taught the fourth condition's real shape: the check first read one page of 100 commits,
+and the card showed "100 this week · 0 last week" where the truth was 117 and 65. Nothing was
+derived and nothing was invented — a _truncated_ reading is simply not the reading, and it looks
+exactly like a real count. A source-4 number must be the whole reading or no reading at all.
+
 ---
 
 ## 2. Data model (`convex/schema.ts`)
@@ -100,8 +110,13 @@ goals:     { ownerId, title, description?, area, status: 'active'|'done'|'droppe
              tile?: 'projects'|'portuguese'|'body'|'money'|'style'|'social' }
                                       // a monthly target read against that §3 tile (R2)
            .index('by_owner_status', ['ownerId','status']).index('by_owner_tile', ['ownerId','tile'])
-projects:  { ownerId, goalId, title, description?, status: projectStatus, deadline? }
+projects:  { ownerId, goalId, title, description?, status: projectStatus, deadline?,
+             githubRepo?, githubCheckedAt?: number }   // source 4 (R3c): 'owner/name', and when last checked
            .index('by_owner_status', ['ownerId','status'])   // one 'focus' per owner — setFocus enforces
+           .index('by_github_repo', ['githubRepo'])          // internal cron only — the one index not led by ownerId
+commits:   { ownerId, projectId, repo, sha, message, url, authoredAt: number, fetchedAt: number }
+           .index('by_owner_project_time', ['ownerId','projectId','authoredAt']).index('by_project_sha', ['projectId','sha'])
+           // source 4's first reading (R3c): stored hourly by convex/github.ts, counted per week
 tasks:     { ownerId, title, notes?, projectId?, goalId?, area?,
              dueDate?, scheduledAt?: number, durationMin?,
              rrule?,                  // recurring template; instances expanded on client

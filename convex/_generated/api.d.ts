@@ -10,7 +10,9 @@
 
 import type * as aggregate from "../aggregate.js";
 import type * as auth from "../auth.js";
+import type * as crons from "../crons.js";
 import type * as events from "../events.js";
+import type * as github from "../github.js";
 import type * as goals from "../goals.js";
 import type * as logs from "../logs.js";
 import type * as milestones from "../milestones.js";
@@ -32,7 +34,9 @@ import type {
 declare const fullApi: ApiFromModules<{
   aggregate: typeof aggregate;
   auth: typeof auth;
+  crons: typeof crons;
   events: typeof events;
+  github: typeof github;
   goals: typeof goals;
   logs: typeof logs;
   milestones: typeof milestones;

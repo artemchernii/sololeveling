@@ -9,8 +9,8 @@ import { query } from './_generated/server'
 /* PLAN.md §1: every number on screen comes from exactly one of four sources —
    a log count over a period, the latest stateSnapshots row for a key, an entity
    count over projects/tasks, or a stored external reading. All four live here
-   and nowhere else; the fourth has no implementation yet, and arrives with
-   Money. Components read these numbers; they never compute them.
+   and nowhere else; the fourth's first reading is GitHub commits (R3c,
+   convex/github.ts); prices arrive with Finances. Components read these numbers; they never compute them.
  
    None of these can produce a score, an index or a percentage. `done` and
    `total` are handed over separately on purpose: a component may render
@@ -499,5 +499,69 @@ export const projectTime = query({
       minutes += row.value ?? 0
     }
     return { minutes, sessions }
+  },
+})
+
+/* ---------------------------------------------------------------------------
+   Source 4 — external readings. GitHub commits, stored by convex/github.ts.
+   ------------------------------------------------------------------------ */
+
+/**
+ * Commits on a project's repo this week and last week, with the repo they
+ * are attributed to and when they were last checked — "12 this week · 8
+ * last week · as of 14:02". Counts of stored rows and nothing else: no rate,
+ * no streak. Rows from a repo the project no longer points at are not
+ * counted. Week bounds arrive as arguments, as they do everywhere.
+ */
+export const projectCommits = query({
+  args: {
+    projectId: v.string(),
+    lastWeekStart: v.number(),
+    weekStart: v.number(),
+    nextWeekStart: v.number(),
+  },
+  returns: v.object({
+    repo: v.union(v.string(), v.null()),
+    checkedAt: v.union(v.number(), v.null()),
+    thisWeek: v.number(),
+    lastWeek: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const none = { repo: null, checkedAt: null, thisWeek: 0, lastWeek: 0 }
+    const projectId = ctx.db.normalizeId('projects', args.projectId)
+    const project = projectId === null ? null : await ctx.db.get(projectId)
+    if (
+      project === null ||
+      project.ownerId !== ownerId ||
+      !project.githubRepo
+    ) {
+      return none
+    }
+
+    const rows = await ctx.db
+      .query('commits')
+      .withIndex('by_owner_project_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('projectId', project._id)
+          .gte('authoredAt', args.lastWeekStart)
+          .lt('authoredAt', args.nextWeekStart),
+      )
+      .take(MAX_ROWS)
+
+    let thisWeek = 0
+    let lastWeek = 0
+    for (const row of rows) {
+      if (row.repo !== project.githubRepo) continue
+      if (row.authoredAt >= args.weekStart) thisWeek += 1
+      else lastWeek += 1
+    }
+    return {
+      repo: project.githubRepo,
+      checkedAt: project.githubCheckedAt ?? null,
+      thisWeek,
+      lastWeek,
+    }
   },
 })

@@ -58,7 +58,13 @@ export function ProjectHeader({
         Projects
       </Link>
 
-      <div className="flex flex-wrap items-center gap-3">
+      {/* The identity row spans the card, and the numbers row carries the
+          deadline and the log on its right (20 Sep). Everything used to stack
+          in one left-hand column with two thirds of the panel empty beside
+          it, which is what made a full-width card read as a narrow one —
+          but squeezing the title into a column of its own just wrapped the
+          badge onto a second line. Rows, not columns. */}
+      <div className="flex items-center gap-3">
         <LogoUpload
           projectId={projectId}
           url={logoUrl}
@@ -66,31 +72,37 @@ export function ProjectHeader({
           area={goal?.area}
         />
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-[26px] leading-none font-light text-foreground">
-            {project.title}
-          </h1>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-[26px] leading-none font-light text-foreground">
+              {project.title}
+            </h1>
+            {/* Beside the title, where he put it the first time. It went back
+                to the far right when this header was rebuilt — the thing he
+                had already told me was wrong. */}
+            <span
+              className={`label-caps rounded-[4px] px-1.5 py-0.5 ${
+                isFocus ? 'bg-lav-900/70 text-lav-300' : 'bg-lift/5'
+              }`}
+            >
+              {project.status}
+            </span>
+          </div>
           {goal ? <GoalLine goal={goal} projectId={projectId} /> : null}
         </div>
-        <span
-          className={`label-caps ml-auto rounded-[4px] px-1.5 py-0.5 ${
-            isFocus ? 'bg-lav-900/70 text-lav-300' : 'bg-lift/5'
-          }`}
-        >
-          {project.status}
-        </span>
       </div>
 
       <Description project={project} />
 
-      <ProjectVitals
-        projectId={projectId}
-        done={counts?.done}
-        total={counts?.total}
-      />
-
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <Deadline project={project} />
-        <LogTime projectId={projectId} area={goal?.area} />
+      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
+        <ProjectVitals
+          projectId={projectId}
+          done={counts?.done}
+          total={counts?.total}
+        />
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <Deadline project={project} />
+          <LogTime projectId={projectId} area={goal?.area} />
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 border-t border-lift/[0.07] pt-3">

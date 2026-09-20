@@ -155,6 +155,15 @@ export default defineSchema({
   projects: defineTable({
     ownerId: v.string(),
     goalId: v.id('goals'),
+    /* A project's own kind (21 Sep, his call). It used to wear its goal's
+       area — "I said already that this GOAL - PROJECT bind is canceled. We
+       dont give a fuck about it. It was a mistake."
+
+       So colour now has a source on the project itself: a field he sets,
+       defaulting to `projects` at birth. `goalId` stays because Goals still
+       lists what is being built under it, but it no longer decides what a
+       project *is*. */
+    area: v.optional(area),
     title: v.string(),
     description: v.optional(v.string()),
     status: projectStatus,

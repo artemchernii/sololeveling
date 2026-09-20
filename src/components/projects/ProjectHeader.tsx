@@ -4,7 +4,6 @@ import { useMutation } from 'convex/react'
 import {
   Archive,
   ArrowLeft,
-  CalendarClock,
   ChevronDown,
   CircleCheck,
   CornerDownLeft,
@@ -21,8 +20,10 @@ import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { LogoUpload } from '@/components/projects/LogoUpload'
 import { ProjectStats } from '@/components/projects/ProjectStats'
+import { AreaBadge } from '@/components/AreaBadge'
+import { deadlineTone, StatusBadge } from '@/components/projects/Chips'
 import { SaveGlyph, useSave } from '@/components/Saving'
-import { daysUntil, deadlineLabel, isOverdue } from '@/lib/format'
+import type { Area } from '@/lib/capture-parser'
 import { localToday } from '@/lib/today'
 
 /* A project's header (20 Sep, rebuilt from his feedback). It used to be a
@@ -37,13 +38,11 @@ import { localToday } from '@/lib/today'
    something. */
 export function ProjectHeader({
   project,
-  goal,
   counts,
   logoUrl,
   tasks,
 }: {
   project: Doc<'projects'>
-  goal: Doc<'goals'> | null | undefined
   counts: { done: number; total: number } | undefined
   logoUrl: string | null
   tasks: Array<Doc<'tasks'>> | undefined
@@ -51,6 +50,7 @@ export function ProjectHeader({
   const projectId = project._id
   const setFocus = useMutation(api.projects.setFocus)
   const setStatus = useMutation(api.projects.setStatus)
+  const setArea = useMutation(api.projects.setArea)
 
   const isFocus = project.status === 'focus'
 
@@ -82,7 +82,7 @@ export function ProjectHeader({
             projectId={projectId}
             url={logoUrl}
             title={project.title}
-            area={goal?.area}
+            area={project.area}
           />
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex flex-wrap items-center gap-2.5">
@@ -91,6 +91,14 @@ export function ProjectHeader({
               </h1>
               <StatusBadge status={project.status} />
               <Deadline project={project} />
+              {/* His to set, and nothing derives it — the goal above a
+                  project no longer says what the project is (21 Sep). */}
+              <AreaBadge
+                area={project.area}
+                onChange={(next: Area) =>
+                  void setArea({ projectId, area: next })
+                }
+              />
             </div>
           </div>
         </div>
@@ -107,7 +115,7 @@ export function ProjectHeader({
 
       <ProjectStats
         project={project}
-        area={goal?.area}
+        area={project.area}
         done={counts?.done}
         total={counts?.total}
         tasks={tasks}
@@ -196,30 +204,6 @@ function Actions({
         <DeleteAction projectId={projectId} />
       </div>
     </div>
-  )
-}
-
-/* The focus badge, awake (20 Sep). It was grey mono caps in a rounded box —
-   he called it boring four times, and he was right: the one project that
-   matters this week looked like a field label.
-
-   Lavender, a live dot that breathes, and a glow. The accent is reserved for
-   live and focus things, and this is the most focus thing in the app. Every
-   other status stays quiet, because a paused project is not an event. */
-function StatusBadge({ status }: { status: Doc<'projects'>['status'] }) {
-  if (status !== 'focus') {
-    return (
-      <span className="label-caps rounded-full bg-lift/5 px-2 py-0.5 text-ink-500">
-        {status}
-      </span>
-    )
-  }
-
-  return (
-    <span className="motion-pop label-caps inline-flex items-center gap-1.5 rounded-full bg-lav-900/80 px-2.5 py-1 text-lav-200 shadow-[0_0_20px_-4px_var(--color-accent)] ring-1 ring-lav-500/50 ring-inset">
-      <span className="motion-breathe size-1.5 rounded-full bg-lav-300" />
-      focus
-    </span>
   )
 }
 
@@ -326,9 +310,7 @@ function Deadline({ project }: { project: Doc<'projects'> }) {
   const setOngoing = useMutation(api.projects.setOngoing)
   const [open, setOpen] = useState(false)
 
-  const late = project.deadline !== undefined && isOverdue(project.deadline)
-  const soon =
-    !late && project.deadline !== undefined && daysUntil(project.deadline) <= 7
+  const tone = deadlineTone(project)
 
   if (open) {
     return (
@@ -391,20 +373,10 @@ function Deadline({ project }: { project: Doc<'projects'> }) {
     <button
       type="button"
       onClick={() => setOpen(true)}
-      className={`motion-press inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[11.5px] transition-colors ${
-        late
-          ? 'bg-state-danger/15 text-state-danger ring-1 ring-state-danger/35 ring-inset hover:bg-state-danger/25'
-          : soon
-            ? 'bg-state-warn/15 text-state-warn ring-1 ring-state-warn/30 ring-inset hover:bg-state-warn/25'
-            : 'text-ink-600 hover:text-ink-200'
-      }`}
+      className={`motion-press inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[11.5px] transition-colors ${tone.skin}`}
     >
-      {late ? (
-        <TriangleAlert className="size-3" />
-      ) : soon ? (
-        <CalendarClock className="size-3" />
-      ) : null}
-      {project.deadline ? deadlineLabel(project.deadline) : 'no end date'}
+      {tone.Icon ? <tone.Icon className="size-3" /> : null}
+      {tone.label}
     </button>
   )
 }

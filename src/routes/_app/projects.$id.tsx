@@ -29,10 +29,6 @@ function Project() {
 
   const project = useHeld(useQuery(api.projects.get, { projectId }))
   const arrived = useArrived(project)
-  /* The goal above it, for the header's goal line. An empty string
-     normalizes to null and comes back null, so there is nothing to draw
-     until the project is. */
-  const goal = useQuery(api.goals.get, { goalId: project?.goalId ?? '' })
   const tasks = useQuery(api.tasks.listByProject, { projectId })
   const counts = useQuery(api.aggregate.entityCounts, {})
   const createTask = useMutation(api.tasks.create)
@@ -99,7 +95,6 @@ function Project() {
     <div className={`flex flex-col gap-[18px] ${arrived}`}>
       <ProjectHeader
         project={project}
-        goal={goal}
         counts={count}
         logoUrl={project.logoUrl}
         tasks={tasks}
@@ -126,7 +121,7 @@ function Project() {
             <div className="flex flex-col">
               {open.map((task) => (
                 /* No area badge here: a task made on this project already
-                    carries the project's goal's area, so the badge could
+                    carries the project's own area, so the badge could
                     only be pressed to make the answer wrong (20 Sep). */
                 <TaskRow key={task._id} task={task} showArea={false} />
               ))}
@@ -153,7 +148,7 @@ function Project() {
           left a hole all the way across to the timestamp. Side by side, the
           width one does not need is the width the other uses. */}
       <div className="grid items-start gap-[18px] xl:grid-cols-[minmax(0,5fr)_minmax(0,2fr)]">
-        <ProjectCommits projectId={projectId} area={goal?.area} />
+        <ProjectCommits projectId={projectId} area={project.area} />
 
         {closed.length > 0 ? (
           /* What was finished, newest first (20 Sep). It was a stack of
@@ -178,11 +173,6 @@ function Project() {
     </div>
   )
 }
-
-/* Refile a project under a different goal. A select rather than a dialog:
-   there is one thing to choose and it is a list of goals you already have.
-   Monthly tile targets are left out — a project does not hang on "4 sessions
-   a month" any more than it hangs on a tally. */
 
 /* A finished task, and the two ways back (20 Sep). Ticking one is a claim, and
    a claim can be wrong: undo puts it back on the list, and the cross removes

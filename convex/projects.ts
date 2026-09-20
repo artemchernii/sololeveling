@@ -48,6 +48,7 @@ export const create = mutation({
     description: v.optional(v.string()),
     deadline: v.optional(v.string()),
     githubRepo: v.optional(v.string()),
+    area: v.optional(areaValidator),
   },
   returns: v.id('projects'),
   handler: async (ctx, args) => {
@@ -82,6 +83,10 @@ export const create = mutation({
       status: 'active',
       deadline: args.deadline,
       githubRepo,
+      /* `projects` unless he says otherwise — the tenth area exists for
+         exactly this, and a project born with no kind is a grey card he has
+         to go and fix (21 Sep). */
+      area: args.area ?? 'projects',
     })
 
     if (githubRepo !== undefined) {
@@ -91,6 +96,19 @@ export const create = mutation({
     }
 
     return projectId
+  },
+})
+
+/** What kind of thing this project is — his to set, and nothing derives it
+ * (21 Sep). It came from the goal above until he cancelled that bind. */
+export const setArea = mutation({
+  args: { projectId: v.id('projects'), area: areaValidator },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedProject(ctx, ownerId, args.projectId)
+    await ctx.db.patch(args.projectId, { area: args.area })
+    return null
   },
 })
 
@@ -122,16 +140,13 @@ export const setGoal = mutation({
 /** Everything not finished or filed away — what the projects grid renders. */
 export const listLive = query({
   args: {},
-  /* Each row carries its goal's `area` alongside the document. A project has
-     no area of its own — it inherits the kind of the goal it answers to, and
-     §3d says colour is how a kind is shown. Optional, not defaulted: a goal
-     cannot normally be deleted out from under a project, and if one ever is,
-     the card says "unfiled" rather than inventing a kind. */
+  /* The document as it is, plus its logo. It used to carry its goal's `area`
+     and `goalTitle` alongside — that is gone (21 Sep): a project has its own
+     area now, and the goal no longer decides what a project is. One fewer
+     read per goal, too. */
   returns: v.array(
     v.object({
       ...schema.doc('projects').fields,
-      area: v.optional(areaValidator),
-      goalTitle: v.optional(v.string()),
       logoUrl: v.union(v.string(), v.null()),
     }),
   ),
@@ -149,23 +164,10 @@ export const listLive = query({
       live.push(...rows)
     }
 
-    /* One read per distinct goal, not one per project. */
-    const areas = new Map<string, Doc<'goals'> | null>()
     const out = []
     for (const project of live) {
-      let goal = areas.get(project.goalId)
-      if (goal === undefined) {
-        goal = await ctx.db.get(project.goalId)
-        areas.set(project.goalId, goal)
-      }
       out.push({
         ...project,
-        area: goal?.area,
-        /* The goal's name, not its area: a card that says KNOWLEDGE next to a
-           project reads as though the project were filed under it (20 Sep).
-           The area is already on the card as colour, which is what §3d asks
-           colour to do — the word was saying nothing the edge did not. */
-        goalTitle: goal?.title,
         logoUrl:
           project.logoId === undefined
             ? null

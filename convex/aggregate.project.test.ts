@@ -26,11 +26,7 @@ const OCT = new Date(2026, 9, 1).getTime()
 type Caller = ReturnType<ReturnType<typeof convexTest>['withIdentity']>
 
 async function project(t: Caller, title: string) {
-  const goalId = await t.mutation(api.goals.create, {
-    title: `goal for ${title}`,
-    area: 'business',
-  })
-  return await t.mutation(api.projects.create, { goalId, title })
+  return await t.mutation(api.projects.create, { title })
 }
 
 describe('time on a project (source 1: its session logs)', () => {

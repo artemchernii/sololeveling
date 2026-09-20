@@ -150,19 +150,18 @@ export default defineSchema({
        an epoch, because that is what is stored and it sorts the same. */
     .index('by_owner_due', ['ownerId', 'dueDate']),
 
-  /* A project always has a goal above it, so goalId is required: a project
-     that answers to nothing is the thing this app exists to prevent. */
+  /* A project is a thing he is building, and it answers to nothing above it
+     (21 Sep). It carried a required `goalId` until then. */
   projects: defineTable({
     ownerId: v.string(),
-    goalId: v.id('goals'),
-    /* A project's own kind (21 Sep, his call). It used to wear its goal's
-       area — "I said already that this GOAL - PROJECT bind is canceled. We
-       dont give a fuck about it. It was a mistake."
+    /* A project's own kind, and the only thing that says what it is
+       (21 Sep, his call). It used to wear its goal's area, and before that
+       it carried a required `goalId`: "I said already that this GOAL -
+       PROJECT bind is canceled. We dont give a fuck about it. It was a
+       mistake."
 
-       So colour now has a source on the project itself: a field he sets,
-       defaulting to `projects` at birth. `goalId` stays because Goals still
-       lists what is being built under it, but it no longer decides what a
-       project *is*. */
+       So a project answers to nothing above it now. It is a thing he is
+       building, it has its own kind, and Goals is a separate list. */
     area: v.optional(area),
     title: v.string(),
     description: v.optional(v.string()),

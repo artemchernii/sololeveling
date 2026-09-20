@@ -54,19 +54,18 @@ export const create = mutation({
       throw new Error('A task needs a title')
     }
 
-    /* The same rules as setProject and setGoal, checked here too: an id is
-       only a claim until the row behind it is loaded and found to be yours.
-       A project is the authority on its goal, so a task created under one
-       carries that project's goal, whatever goalId was also passed. */
-    let goalId = args.goalId
+    /* An id is only a claim until the row behind it is loaded and found to
+       be yours. A project no longer carries a goal, so the two are checked
+       separately and a task may hold either, both or neither (21 Sep). */
+    const goalId = args.goalId
     let area = args.area
     if (args.projectId !== undefined) {
       const project = await ctx.db.get(args.projectId)
       if (project === null || project.ownerId !== ownerId) {
         throw new Error('No such project')
       }
-      goalId = project.goalId
-    } else if (args.goalId !== undefined) {
+    }
+    if (args.goalId !== undefined) {
       const goal = await ctx.db.get(args.goalId)
       if (goal === null || goal.ownerId !== ownerId) {
         throw new Error('No such goal')
@@ -436,10 +435,7 @@ export const setProject = mutation({
     const task = await ownedTask(ctx, ownerId, args.taskId)
 
     if (args.projectId === null) {
-      await ctx.db.patch(args.taskId, {
-        projectId: undefined,
-        goalId: undefined,
-      })
+      await ctx.db.patch(args.taskId, { projectId: undefined })
       return null
     }
 
@@ -448,12 +444,11 @@ export const setProject = mutation({
       throw new Error('No such project')
     }
 
-    /* goalId is denormalised from the project so a task can be filtered by goal
-       without walking through its project. The project is the authority; this
-       follows it, and is rewritten whenever the task moves. */
+    /* A project carries no goal any more (21 Sep), so filing a task under one
+       says nothing about which goal it serves — the task's own `goalId` is
+       left exactly as it was. */
     await ctx.db.patch(args.taskId, {
       projectId: args.projectId,
-      goalId: project.goalId,
       /* Filing a task under a project is the same act as creating it there,
          so it files the same way (20 Sep). He added a task from the backlog,
          gave it SoloLeveling, and watched it stay `unfiled` — `create` had

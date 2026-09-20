@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { ConvexError } from 'convex/values'
@@ -25,7 +25,6 @@ export const Route = createFileRoute('/_app/goals')({
 function Goals() {
   const goals = useHeld(useQuery(api.goals.listActive, {}))
   const arrived = useArrived(goals)
-  const projects = useQuery(api.projects.listLive, {})
   const setStatus = useMutation(api.goals.setStatus)
   const removeGoal = useMutation(api.goals.remove)
   const update = useMutation(api.goals.update)
@@ -76,18 +75,10 @@ function Goals() {
             <GoalNotes goal={goal} />
 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-ink-600">
-              {(projects ?? [])
-                .filter((p) => p.goalId === goal._id)
-                .map((p) => (
-                  <Link
-                    key={p._id}
-                    to="/projects/$id"
-                    params={{ id: p._id }}
-                    className="text-ink-400 transition-colors hover:text-lav-300"
-                  >
-                    {p.title}
-                  </Link>
-                ))}
+              {/* A goal listed the projects built under it until 21 Sep,
+                  when that bind was cut: a project answers to nothing now,
+                  and a list here would be a relationship the data no longer
+                  holds. */}
               <label className="flex items-center gap-1.5">
                 <span>
                   {goal.deadline ? deadlineLabel(goal.deadline) : 'no deadline'}

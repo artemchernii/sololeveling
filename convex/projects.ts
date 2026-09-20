@@ -8,9 +8,12 @@ import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import schema, { areaValidator } from './schema'
 
-/* A project is work under a goal. `goalId` is required by the schema, so a
-   project that answers to nothing cannot exist. (They were called chains
-   until 15 Sep; only the word changed.)
+/* A project is a thing he is building. It answered to a goal until 21 Sep —
+   "I said already that this GOAL - PROJECT bind is canceled. We dont give a
+   fuck about it. It was a mistake." — and now it answers to nothing: no
+   `goalId`, no `setGoal`, and a New project form that asks for a title.
+   Goals are still a list; they are simply not above this one.
+   (Projects were called chains until 15 Sep; only the word changed.)
 
    Exactly one project per owner is 'focus' (PLAN.md §3c.2). That is enforced
    here, in setFocus, because Convex has no triggers and a rule the UI merely
@@ -43,7 +46,6 @@ async function ownedProject(
 /** "New project" is one form: the goal and the project together (§3). */
 export const create = mutation({
   args: {
-    goalId: v.id('goals'),
     title: v.string(),
     description: v.optional(v.string()),
     deadline: v.optional(v.string()),
@@ -53,11 +55,6 @@ export const create = mutation({
   returns: v.id('projects'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-
-    const goal = await ctx.db.get(args.goalId)
-    if (goal === null || goal.ownerId !== ownerId) {
-      throw new Error('No such goal')
-    }
 
     const title = args.title.trim()
     if (title.length === 0) {
@@ -77,7 +74,6 @@ export const create = mutation({
 
     const projectId = await ctx.db.insert('projects', {
       ownerId,
-      goalId: args.goalId,
       title,
       description: args.description,
       status: 'active',
@@ -108,31 +104,6 @@ export const setArea = mutation({
     const ownerId = await requireUser(ctx)
     await ownedProject(ctx, ownerId, args.projectId)
     await ctx.db.patch(args.projectId, { area: args.area })
-    return null
-  },
-})
-
-/**
- * Move a project under a different goal (20 Sep).
- *
- * Until now `goalId` was written once and never again, so a project filed
- * under the wrong goal could only be fixed by deleting it — and its tasks,
- * notes and logged time went with it. The goal it leaves is not touched: a
- * goal with no projects is a goal you have not started, not a mistake.
- */
-export const setGoal = mutation({
-  args: { projectId: v.id('projects'), goalId: v.id('goals') },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const ownerId = await requireUser(ctx)
-    await ownedProject(ctx, ownerId, args.projectId)
-
-    const goal = await ctx.db.get(args.goalId)
-    if (goal === null || goal.ownerId !== ownerId) {
-      throw new Error('No such goal')
-    }
-
-    await ctx.db.patch(args.projectId, { goalId: args.goalId })
     return null
   },
 })

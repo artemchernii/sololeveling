@@ -47,11 +47,7 @@ afterEach(() => {
 async function oreum(
   t: ReturnType<ReturnType<typeof convexTest>['withIdentity']>,
 ) {
-  const goalId = await t.mutation(api.goals.create, {
-    title: 'A business',
-    area: 'business',
-  })
-  return await t.mutation(api.projects.create, { goalId, title: 'Oreum' })
+  return await t.mutation(api.projects.create, { title: 'Oreum' })
 }
 
 const bounds = {
@@ -234,12 +230,7 @@ describe('commits are stored readings (source 4)', () => {
     const t = convexTest(schema, modules)
     const me = t.withIdentity({ tokenIdentifier: ME })
     stubGitHub()
-    const goalId = await me.mutation(api.goals.create, {
-      title: 'A business',
-      area: 'business',
-    })
     const projectId = await me.mutation(api.projects.create, {
-      goalId,
       title: 'Oreum',
       githubRepo: 'github.com/artemchernii/oreum',
     })

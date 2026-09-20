@@ -6,7 +6,7 @@ import { ConvexError } from 'convex/values'
 import { Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import type { Doc } from '../../../convex/_generated/dataModel'
 import { AREAS } from '@/components/AreaBadge'
 import { ProjectCard } from '@/components/projects/ProjectCard'
 import { SaveLabel, useSave } from '@/components/Saving'
@@ -22,8 +22,9 @@ export const Route = createFileRoute('/_app/projects/')({
 /* The projects grid (PLAN.md §3). One focus project at the top with its full
    anatomy; the rest as title and next action (§3c.2).
 
-   "New project" is one form: a goal and the project together, because a
-   project without a goal above it is the thing this app exists to prevent.
+   "New project" is one field and a kind. It used to create a goal and the
+   project together, because a project without a goal above it could not
+   exist — that bind was cut on 21 Sep.
    They were called chains until 15 Sep; only the word changed. */
 function Projects() {
   const projects = useHeld(useQuery(api.projects.listLive, {}))
@@ -117,17 +118,14 @@ function Projects() {
 }
 
 function NewProject() {
-  const createGoal = useMutation(api.goals.create)
   const createProject = useMutation(api.projects.create)
-  const goals = useQuery(api.goals.listActive, {})
 
   const [open, setOpen] = useState(false)
   const [project, setProject] = useState('')
-  /* '' = not chosen yet, 'new' = name one here, otherwise a goal's id. A
-     project must answer to a goal, but it no longer has to invent one. */
-  const [goalId, setGoalId] = useState<string>('')
-  const [goal, setGoal] = useState('')
-  const [area, setArea] = useState<Area>('business')
+  /* What kind of thing it is, his to pick and nothing derives it (21 Sep).
+     This slot used to be "which goal is this for?" — a project answered to a
+     goal and could not exist without one. It answers to nothing now. */
+  const [area, setArea] = useState<Area>('projects')
   const [deadline, setDeadline] = useState('')
   const [repo, setRepo] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -139,18 +137,10 @@ function NewProject() {
       setError('A project needs a title.')
       return
     }
-    if (goalId === '' || (goalId === 'new' && goal.trim().length === 0)) {
-      setError('A project answers to a goal — pick one, or name a new one.')
-      return
-    }
     try {
       await starting.run(async () => {
-        const parent =
-          goalId === 'new'
-            ? await createGoal({ title: goal.trim(), area })
-            : (goalId as Id<'goals'>)
         await createProject({
-          goalId: parent,
+          area,
           title: project.trim(),
           deadline: deadline.length > 0 ? deadline : undefined,
           githubRepo: repo.trim() || undefined,
@@ -168,8 +158,7 @@ function NewProject() {
      project has already appeared below it by then. */
   function finish() {
     starting.settle()
-    setGoal('')
-    setGoalId('')
+    setArea('projects')
     setProject('')
     setDeadline('')
     setRepo('')
@@ -206,48 +195,19 @@ function NewProject() {
         />
       </Field>
 
-      <Field label="For">
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={goalId}
-            onChange={(e) => setGoalId(e.target.value)}
-            className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
-          >
-            <option value="">Which goal is this for?</option>
-            {/* A monthly tile target is not something a project hangs on. */}
-            {(goals ?? [])
-              .filter((g) => g.tile === undefined)
-              .map((g) => (
-                <option key={g._id} value={g._id}>
-                  {g.title}
-                </option>
-              ))}
-            <option value="new">A new goal…</option>
-          </select>
-          {goalId === 'new' ? (
-            <>
-              <input
-                autoFocus
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-                placeholder="A profitable business"
-                className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
-              />
-              <select
-                value={area}
-                onChange={(e) => setArea(e.target.value as Area)}
-                aria-label="Area of the new goal"
-                className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
-              >
-                {AREAS.map((a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </select>
-            </>
-          ) : null}
-        </div>
+      <Field label="Kind">
+        <select
+          value={area}
+          onChange={(e) => setArea(e.target.value as Area)}
+          aria-label="What kind of project this is"
+          className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
+        >
+          {AREAS.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+        </select>
       </Field>
 
       <Field label="Repo — optional">

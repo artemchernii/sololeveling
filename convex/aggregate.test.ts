@@ -411,18 +411,9 @@ describe('kindCount narrows by area and project', () => {
   test('Portuguese sessions, work sessions and time on a project are three counts', async () => {
     const db = convexTest(schema, modules)
     const t = db.withIdentity({ tokenIdentifier: ME })
-    const goalId = await t.run((ctx) =>
-      ctx.db.insert('goals', {
-        ownerId: ME,
-        title: 'g',
-        area: 'business',
-        status: 'active',
-      }),
-    )
     const projectId = await t.run((ctx) =>
       ctx.db.insert('projects', {
         ownerId: ME,
-        goalId,
         title: 'Oreum',
         status: 'active',
       }),

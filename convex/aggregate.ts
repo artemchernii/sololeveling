@@ -519,16 +519,30 @@ export const projectCommits = query({
     lastWeekStart: v.number(),
     weekStart: v.number(),
     nextWeekStart: v.number(),
+    /* Local midnights, oldest first, for the strip on the focus card (20 Sep).
+       Passed in rather than computed: a day boundary depends on where the
+       person is, and fixed 24h steps drift an hour across a DST change. */
+    dayStarts: v.optional(v.array(v.number())),
   },
   returns: v.object({
     repo: v.union(v.string(), v.null()),
     checkedAt: v.union(v.number(), v.null()),
     thisWeek: v.number(),
     lastWeek: v.number(),
+    /* One count per day in dayStarts, same order; empty when none were asked
+       for. Counts of stored rows and nothing else — not a rate, not a streak,
+       not a score. */
+    days: v.array(v.number()),
   }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    const none = { repo: null, checkedAt: null, thisWeek: 0, lastWeek: 0 }
+    const none = {
+      repo: null,
+      checkedAt: null,
+      thisWeek: 0,
+      lastWeek: 0,
+      days: (args.dayStarts ?? []).map(() => 0),
+    }
     const projectId = ctx.db.normalizeId('projects', args.projectId)
     const project = projectId === null ? null : await ctx.db.get(projectId)
     if (
@@ -550,18 +564,32 @@ export const projectCommits = query({
       )
       .take(MAX_ROWS)
 
+    const dayStarts = args.dayStarts ?? []
+    const days = dayStarts.map(() => 0)
+
     let thisWeek = 0
     let lastWeek = 0
     for (const row of rows) {
       if (row.repo !== project.githubRepo) continue
       if (row.authoredAt >= args.weekStart) thisWeek += 1
       else lastWeek += 1
+
+      /* The last boundary at or before this commit. Walked from the end, so a
+         commit before the first boundary falls into no bucket rather than the
+         first one. */
+      for (let i = dayStarts.length - 1; i >= 0; i -= 1) {
+        if (row.authoredAt >= dayStarts[i]) {
+          days[i] += 1
+          break
+        }
+      }
     }
     return {
       repo: project.githubRepo,
       checkedAt: project.githubCheckedAt ?? null,
       thisWeek,
       lastWeek,
+      days,
     }
   },
 })

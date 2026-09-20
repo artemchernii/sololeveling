@@ -1,8 +1,8 @@
 import { Link } from '@tanstack/react-router'
 
 import type { Doc } from '../../../convex/_generated/dataModel'
-import { AreaBadge } from '@/components/AreaBadge'
 import { FocusVitals } from '@/components/projects/FocusVitals'
+import { ProjectLogo } from '@/components/projects/ProjectLogo'
 import type { Area } from '@/lib/capture-parser'
 import { areaVars } from '@/lib/areas'
 import { deadlineLabel, isOverdue } from '@/lib/format'
@@ -34,6 +34,8 @@ export type ProjectCounts = { done: number; total: number; open: number }
 export function ProjectCard({
   project,
   area,
+  goalTitle,
+  logoUrl,
   counts,
   nextTask,
   openTasks,
@@ -41,6 +43,8 @@ export function ProjectCard({
 }: {
   project: Doc<'projects'>
   area: Area | undefined
+  goalTitle: string | undefined
+  logoUrl: string | null
   counts: ProjectCounts | undefined
   nextTask: Doc<'tasks'> | undefined
   openTasks: Array<Doc<'tasks'>>
@@ -82,11 +86,20 @@ export function ProjectCard({
       />
 
       <div className="pointer-events-none flex items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[15px] text-foreground transition-colors group-hover:text-lav-300">
-            {project.title}
-          </span>
-          {area ? <AreaBadge area={area} /> : null}
+        <div className="flex min-w-0 items-center gap-2.5">
+          <ProjectLogo url={logoUrl} title={project.title} area={area} />
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="truncate text-[15px] text-foreground transition-colors group-hover:text-lav-300">
+              {project.title}
+            </span>
+            {/* What it answers to, not what kind it is: the area badge said
+                KNOWLEDGE beside a project and read as a filing (20 Sep). The
+                area is still here — as the edge and the logo mark, which is
+                what §3d asks colour to do. */}
+            {goalTitle ? (
+              <span className="label-caps truncate">{goalTitle}</span>
+            ) : null}
+          </div>
         </div>
         <StatusTag status={project.status} />
       </div>

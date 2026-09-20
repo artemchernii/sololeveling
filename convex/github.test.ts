@@ -224,6 +224,7 @@ describe('commits are stored readings (source 4)', () => {
       checkedAt: null,
       thisWeek: 0,
       lastWeek: 0,
+      days: [],
     })
     expect(await them.query(api.github.listRecent, { projectId })).toEqual([])
   })
@@ -290,6 +291,60 @@ describe('commits are stored readings (source 4)', () => {
     })
     expect([counts.thisWeek, counts.lastWeek]).toEqual([100, 2])
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  test('the strip counts each commit into its own local day', async () => {
+    const t = convexTest(schema, modules)
+    const me = t.withIdentity({ tokenIdentifier: ME })
+    const projectId = await oreum(me)
+    await t.run((ctx) =>
+      ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }),
+    )
+
+    /* Two on the 15th, one on the 10th, and one on the 1st — which is before
+       the strip begins and must fall into no bucket rather than the first. */
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify([
+              gh('d1', 'One', '2026-09-15T09:00:00Z'),
+              gh('d2', 'Two', '2026-09-15T18:00:00Z'),
+              gh('d3', 'Three', '2026-09-10T09:00:00Z'),
+              gh('d4', 'Old', '2026-09-01T09:00:00Z'),
+            ]),
+            { status: 200 },
+          ),
+      ),
+    )
+    await t.action(internal.github.checkOne, { projectId })
+
+    /* 14 local midnights from Mon 7 Sep, oldest first. */
+    const dayStarts = Array.from({ length: 14 }, (_, i) =>
+      new Date(2026, 8, 7 + i).getTime(),
+    )
+    const counts = await me.query(api.aggregate.projectCommits, {
+      projectId,
+      ...bounds,
+      dayStarts,
+    })
+
+    expect(counts.days).toHaveLength(14)
+    expect(counts.days[8]).toBe(2) // 15 Sep
+    expect(counts.days[3]).toBe(1) // 10 Sep
+    expect(counts.days.reduce((a, b) => a + b, 0)).toBe(3) // the 1st is not in it
+  })
+
+  test('no dayStarts means no strip, not a strip of zeroes elsewhere', async () => {
+    const t = convexTest(schema, modules)
+    const me = t.withIdentity({ tokenIdentifier: ME })
+    const projectId = await oreum(me)
+    const counts = await me.query(api.aggregate.projectCommits, {
+      projectId,
+      ...bounds,
+    })
+    expect(counts.days).toEqual([])
   })
 
   test('deleting a project deletes its commits', async () => {

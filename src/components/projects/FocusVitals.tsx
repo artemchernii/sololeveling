@@ -2,8 +2,9 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { CommitStrip } from '@/components/projects/CommitStrip'
 import { durationLabel } from '@/lib/format'
-import { addWeeks, startOfWeek } from '@/lib/weeks'
+import { addDays, addWeeks, startOfWeek } from '@/lib/weeks'
 
 /* The focus project's vitals (20 Sep). Only the focus card gets these: §3c.2
    keeps every other project to a title and a next action, and the whole point
@@ -35,11 +36,18 @@ export function FocusVitals({
   })
 
   const week = startOfWeek()
+  const lastWeekStart = addWeeks(week, -1)
+  /* The fourteen local midnights the strip draws, oldest first — the same
+     span the counts already cover. */
+  const dayStarts = Array.from({ length: 14 }, (_, i) =>
+    addDays(lastWeekStart, i).getTime(),
+  )
   const commits = useQuery(api.aggregate.projectCommits, {
     projectId,
-    lastWeekStart: addWeeks(week, -1).getTime(),
+    lastWeekStart: lastWeekStart.getTime(),
     weekStart: week.getTime(),
     nextWeekStart: addWeeks(week, 1).getTime(),
+    dayStarts,
   })
 
   return (
@@ -54,7 +62,12 @@ export function FocusVitals({
       />
       {/* Only when a repo is connected. An absent repo is not a zero. */}
       {commits?.repo ? (
-        <Vital n={String(commits.thisWeek)} label="commits this week" />
+        <div className="flex items-end gap-3">
+          <Vital n={String(commits.thisWeek)} label="commits this week" />
+          <div className="pb-[18px]">
+            <CommitStrip days={commits.days} />
+          </div>
+        </div>
       ) : null}
     </div>
   )

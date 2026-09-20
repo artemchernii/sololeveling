@@ -21,6 +21,7 @@ import { GoalTimeline } from '@/components/goals/GoalTimeline'
 import { SaveGlyph, useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
+import { LogoUpload } from '@/components/projects/LogoUpload'
 import { ProjectCommits } from '@/components/projects/ProjectCommits'
 import { ProjectNotes } from '@/components/projects/ProjectNotes'
 import { deadlineLabel, durationLabel, isOverdue } from '@/lib/format'
@@ -135,6 +136,12 @@ function Project() {
         {/* The status sits with the title, not pinned to the far right of a
             full-width card where it reads as a stray word (20 Sep). */}
         <div className="flex flex-wrap items-center gap-3">
+          <LogoUpload
+            projectId={projectId}
+            url={project.logoUrl}
+            title={project.title}
+            area={goal?.area}
+          />
           <h1 className="text-[26px] font-light text-foreground">
             {project.title}
           </h1>

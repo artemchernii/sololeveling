@@ -159,6 +159,10 @@ export default defineSchema({
        succeeded — the "as of" every reading must carry (PLAN.md §1). */
     githubRepo: v.optional(v.string()),
     githubCheckedAt: v.optional(v.number()),
+    /* A project's own mark (20 Sep), uploaded by him — Convex file storage.
+       Not derived from the repo: a GitHub owner avatar is a face, not a
+       project logo. */
+    logoId: v.optional(v.id('_storage')),
   })
     .index('by_owner_status', ['ownerId', 'status']) // one 'focus' per owner — setFocus enforces
     /* Read only by the internal hourly check, which acts for every owner — the

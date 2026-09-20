@@ -129,6 +129,8 @@ export const listLive = query({
     v.object({
       ...schema.doc('projects').fields,
       area: v.optional(areaValidator),
+      goalTitle: v.optional(v.string()),
+      logoUrl: v.union(v.string(), v.null()),
     }),
   ),
   handler: async (ctx) => {
@@ -154,9 +156,56 @@ export const listLive = query({
         goal = await ctx.db.get(project.goalId)
         areas.set(project.goalId, goal)
       }
-      out.push({ ...project, area: goal?.area })
+      out.push({
+        ...project,
+        area: goal?.area,
+        /* The goal's name, not its area: a card that says KNOWLEDGE next to a
+           project reads as though the project were filed under it (20 Sep).
+           The area is already on the card as colour, which is what §3d asks
+           colour to do — the word was saying nothing the edge did not. */
+        goalTitle: goal?.title,
+        logoUrl:
+          project.logoId === undefined
+            ? null
+            : await ctx.storage.getUrl(project.logoId),
+      })
     }
     return out
+  },
+})
+
+/* A project's logo (20 Sep). Two steps, as Convex file storage works: the
+   client asks for a short-lived upload URL, POSTs the file straight to it, and
+   hands back the storageId it gets. Nothing about the image is interpreted
+   here — it is stored and shown, and that is all. */
+export const generateUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    await requireUser(ctx)
+    return await ctx.storage.generateUploadUrl()
+  },
+})
+
+export const setLogo = mutation({
+  args: {
+    projectId: v.id('projects'),
+    storageId: v.union(v.id('_storage'), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const project = await ownedProject(ctx, ownerId, args.projectId)
+
+    /* The old file goes with it: an image nothing points at is a bill with
+       no screen behind it. */
+    if (project.logoId !== undefined) {
+      await ctx.storage.delete(project.logoId)
+    }
+    await ctx.db.patch(args.projectId, {
+      logoId: args.storageId ?? undefined,
+    })
+    return null
   },
 })
 
@@ -165,13 +214,26 @@ export const listLive = query({
    error the page cannot tell apart from a real crash. */
 export const get = query({
   args: { projectId: v.string() },
-  returns: v.union(schema.doc('projects'), v.null()),
+  returns: v.union(
+    v.object({
+      ...schema.doc('projects').fields,
+      logoUrl: v.union(v.string(), v.null()),
+    }),
+    v.null(),
+  ),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const projectId = ctx.db.normalizeId('projects', args.projectId)
     if (projectId === null) return null
     const project = await ctx.db.get(projectId)
-    return project === null || project.ownerId !== ownerId ? null : project
+    if (project === null || project.ownerId !== ownerId) return null
+    return {
+      ...project,
+      logoUrl:
+        project.logoId === undefined
+          ? null
+          : await ctx.storage.getUrl(project.logoId),
+    }
   },
 })
 
@@ -250,6 +312,12 @@ export const remove = mutation({
 
     for (const task of tasks) {
       await ctx.db.patch(task._id, { projectId: undefined, goalId: undefined })
+    }
+
+    /* The logo goes with it, or it is a stored file nothing can reach. */
+    const project = await ctx.db.get(args.projectId)
+    if (project?.logoId !== undefined) {
+      await ctx.storage.delete(project.logoId)
     }
 
     /* Readings about this project mean nothing without it. */

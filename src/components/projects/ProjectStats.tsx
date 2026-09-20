@@ -9,11 +9,11 @@ import {
   CornerDownLeft,
   GitCommitHorizontal,
   Plus,
+  Target as TargetIcon,
 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
-import { CommitStrip } from '@/components/projects/CommitStrip'
 import { Ring } from '@/components/Ring'
 import { SaveLabel, useSave } from '@/components/Saving'
 import type { Area } from '@/lib/capture-parser'
@@ -74,15 +74,32 @@ export function ProjectStats({
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <Block>
-        <Figure
-          icon={allDone ? <CircleCheckBig /> : <Circle />}
-          n={total === undefined ? undefined : `${done ?? 0}/${total}`}
-          label="tasks done"
-          tone={allDone ? 'good' : noneDone ? 'warn' : 'plain'}
-          note={
-            allDone ? 'all clear' : noneDone ? 'nothing ticked yet' : undefined
-          }
-        />
+        <div className="flex items-start justify-between gap-3">
+          <Figure
+            icon={allDone ? <CircleCheckBig /> : <Circle />}
+            n={total === undefined ? undefined : `${done ?? 0}/${total}`}
+            label="tasks done"
+            tone={allDone ? 'good' : noneDone ? 'warn' : 'plain'}
+            note={
+              allDone
+                ? 'all clear'
+                : noneDone
+                  ? 'nothing ticked yet'
+                  : undefined
+            }
+          />
+          {/* This one needs no target: the denominator is the task count,
+              which is a real entity count (§1 source 3). */}
+          {total !== undefined && total > 0 ? (
+            <Ring
+              value={done ?? 0}
+              target={total}
+              tone={allDone ? 'good' : 'accent'}
+              size={52}
+              stroke={6}
+            />
+          ) : null}
+        </div>
       </Block>
 
       <Block>
@@ -137,9 +154,6 @@ export function ProjectStats({
                 stroke={6}
               />
             ) : null}
-          </div>
-          <div className="pt-1">
-            <CommitStrip days={commits.days} />
           </div>
           <Target
             projectId={projectId}
@@ -238,12 +252,17 @@ function Target({
   }
 
   if (!editing) {
+    /* A chip with an edge and an icon, not bare text (20 Sep). It was
+       styled as a label, so "OF 100" read as a caption and he could not
+       find where targets were set — the control was invisible because it
+       was dressed as a number. */
     return (
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="label-caps self-start text-ink-700 transition-colors hover:text-ink-400"
+        className="motion-press label-caps inline-flex items-center gap-1.5 self-start rounded-full border border-lift/12 px-2 py-1 text-ink-500 transition-colors hover:border-lav-500/50 hover:text-lav-300"
       >
+        <TargetIcon className="size-3" />
         {shown ?? 'set a target'}
       </button>
     )

@@ -1,3 +1,4 @@
+import { areaVars } from '@/lib/areas'
 import type { TimelineItem } from '@/lib/timeline'
 import { addDays } from '@/lib/weeks'
 
@@ -30,8 +31,15 @@ function placement(item: TimelineItem) {
   const fromTop = ((minutes - FIRST_HOUR * 60) / 60) * ROW_HEIGHT
 
   /* An untimed-but-dated item still has to be a readable size, and an item
-     earlier than the grid starts is pinned rather than drawn off the top. */
-  const height = Math.max(((item.durationMin ?? 30) / 60) * ROW_HEIGHT, 18)
+     earlier than the grid starts is pinned rather than drawn off the top.
+
+     A milestone is a marker, never a block: it is a day you promised
+     something by, not time you booked, and drawing it with a length would
+     make the two look like the same kind of thing (§3b.3). */
+  const height =
+    item.source === 'milestone'
+      ? 18
+      : Math.max(((item.durationMin ?? 30) / 60) * ROW_HEIGHT, 18)
   return { top: Math.max(fromTop, 0), height }
 }
 
@@ -123,7 +131,6 @@ export function WeekGrid({
                     key={item.id}
                     type="button"
                     onClick={() => onSelect(item)}
-                    style={{ top, height }}
                     className={[
                       'absolute inset-x-1 overflow-hidden rounded-[7px] px-2 py-1 text-left',
                       /* A quest is something you chose for today; an event is
@@ -131,18 +138,34 @@ export function WeekGrid({
                          the first, per the design voice. */
                       item.source === 'task'
                         ? 'bg-lav-300/15 ring-1 ring-lav-300/30'
-                        : 'bg-lift/[0.07] ring-1 ring-lift/10',
+                        : item.source === 'milestone'
+                          ? /* No fill and nothing to press: a due day is read,
+                               not opened. Its goal's colour if it has one. */
+                            'cursor-default border-l-2 border-(--area) bg-transparent'
+                          : 'bg-lift/[0.07] ring-1 ring-lift/10',
                     ].join(' ')}
+                    style={
+                      item.source === 'milestone'
+                        ? { top, height, ...areaVars(item.area ?? 'life') }
+                        : { top, height }
+                    }
                   >
                     <span className="block truncate text-[11.5px] text-foreground">
+                      {item.source === 'milestone' ? '◆ ' : ''}
                       {item.title}
                     </span>
-                    <span className="block font-mono text-[10px] text-ink-600">
-                      {new Date(item.startsAt).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
+                    {/* A milestone due at local midnight is an all-day due
+                        date, not a 00:00 appointment, so it says no time. */}
+                    {item.source === 'milestone' &&
+                    new Date(item.startsAt).getHours() === 0 &&
+                    new Date(item.startsAt).getMinutes() === 0 ? null : (
+                      <span className="block font-mono text-[10px] text-ink-600">
+                        {new Date(item.startsAt).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    )}
                   </button>
                 )
               })}

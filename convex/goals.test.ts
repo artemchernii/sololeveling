@@ -114,3 +114,102 @@ describe('a monthly target is a goal bound to its tile (PLAN.md §3 item 4)', ()
     expect(await mine.query(api.goals.listActive, {})).toHaveLength(0)
   })
 })
+
+describe('a goal stands on its own, and can be edited', () => {
+  test('get reads one goal by a URL-shaped id; foreign and bad ids are null', async () => {
+    const { mine, theirs } = twoOwners()
+    const goalId = await mine.mutation(api.goals.create, {
+      title: 'No fap for a month',
+      area: 'life',
+    })
+
+    expect((await mine.query(api.goals.get, { goalId }))?.title).toBe(
+      'No fap for a month',
+    )
+    expect(await theirs.query(api.goals.get, { goalId })).toBeNull()
+    expect(await mine.query(api.goals.get, { goalId: 'nope' })).toBeNull()
+  })
+
+  test('update sets and clears the deadline and the target label', async () => {
+    const me = as(ME)
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'Gain muscle',
+      area: 'body',
+    })
+
+    await me.mutation(api.goals.update, {
+      goalId,
+      deadline: '2027-03-01',
+      targetLabel: '+5 kg',
+      title: 'Gain 5 kg of muscle',
+    })
+    let goal = await me.query(api.goals.get, { goalId })
+    expect([goal?.title, goal?.deadline, goal?.targetLabel]).toEqual([
+      'Gain 5 kg of muscle',
+      '2027-03-01',
+      '+5 kg',
+    ])
+
+    await me.mutation(api.goals.update, {
+      goalId,
+      deadline: null,
+      targetLabel: null,
+    })
+    goal = await me.query(api.goals.get, { goalId })
+    expect(goal?.deadline).toBeUndefined()
+    expect(goal?.targetLabel).toBeUndefined()
+  })
+
+  /* Leaving a field out keeps it: the Goals page edits one line at a time. */
+  test('update refiles without touching what it was not given', async () => {
+    const me = as(ME)
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'Ship Oreum',
+      area: 'career',
+      description: 'the one that pays',
+    })
+    await me.mutation(api.goals.update, { goalId, area: 'business' })
+    const goal = await me.query(api.goals.get, { goalId })
+    expect([goal?.area, goal?.title, goal?.description]).toEqual([
+      'business',
+      'Ship Oreum',
+      'the one that pays',
+    ])
+  })
+
+  /* The field has existed since the schema was written and was never shown.
+     R3b puts a textarea on it — a pasted prompt, a longer note. */
+  test('update writes and clears the description', async () => {
+    const me = as(ME)
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'G',
+      area: 'business',
+    })
+    await me.mutation(api.goals.update, {
+      goalId,
+      description: '  Three paragraphs of context.  ',
+    })
+    expect((await me.query(api.goals.get, { goalId }))?.description).toBe(
+      'Three paragraphs of context.',
+    )
+
+    await me.mutation(api.goals.update, { goalId, description: null })
+    expect(
+      (await me.query(api.goals.get, { goalId }))?.description,
+    ).toBeUndefined()
+  })
+
+  test('update refuses an empty title and another owner', async () => {
+    const { mine, theirs } = twoOwners()
+    const goalId = await mine.mutation(api.goals.create, {
+      title: 'G',
+      area: 'life',
+    })
+    await expect(
+      mine.mutation(api.goals.update, { goalId, title: '  ' }),
+    ).rejects.toThrow('A goal needs a title')
+    await expect(
+      theirs.mutation(api.goals.update, { goalId, title: 'x' }),
+    ).rejects.toThrow('No such goal')
+  })
+})

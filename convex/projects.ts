@@ -71,6 +71,31 @@ export const create = mutation({
   },
 })
 
+/**
+ * Move a project under a different goal (20 Sep).
+ *
+ * Until now `goalId` was written once and never again, so a project filed
+ * under the wrong goal could only be fixed by deleting it — and its tasks,
+ * notes and logged time went with it. The goal it leaves is not touched: a
+ * goal with no projects is a goal you have not started, not a mistake.
+ */
+export const setGoal = mutation({
+  args: { projectId: v.id('projects'), goalId: v.id('goals') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedProject(ctx, ownerId, args.projectId)
+
+    const goal = await ctx.db.get(args.goalId)
+    if (goal === null || goal.ownerId !== ownerId) {
+      throw new Error('No such goal')
+    }
+
+    await ctx.db.patch(args.projectId, { goalId: args.goalId })
+    return null
+  },
+})
+
 /** Everything not finished or filed away — what the projects grid renders. */
 export const listLive = query({
   args: {},

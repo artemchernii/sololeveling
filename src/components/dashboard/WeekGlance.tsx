@@ -46,7 +46,12 @@ export function WeekGlance({ today }: { today: number }) {
   const booked =
     events && tasks
       ? itemsByDay(
-          buildTimeline(tasks, events, { start: range.from, end: range.to }),
+          /* Milestones are on the Calendar, not in the week strip — see
+             TodayCard. */
+          buildTimeline(tasks, events, [], {
+            start: range.from,
+            end: range.to,
+          }),
           days,
         )
       : []

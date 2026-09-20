@@ -421,6 +421,23 @@ written earlier would describe ground the earlier row changes.
 | R7   | **Ask AI** — a ⌘-shortcut chat that reads your own rows through a Convex action                                                                                                                                                                         | "What did I actually do in August?" is answered from logs, and nothing on screen is derived from it    |
 | Late | Scheduled backups (`pnpm backup` daily, retention, a scheduled drill); Clerk production instance (needs a domain, an ownerId migration, and the dev-vs-prod data decision); notifications (the bell)                                                    | Deferred 14 Sep while the app is still being built                                                     |
 
+**R6 is not a rename (added 20 Sep).** The row above says "Languages (schema change)", which
+read as `portuguese` → `languages`. It is more than that. Artem tried to file a goal under
+**English** and found there was nowhere to put it: `area` is a fixed enum in
+`convex/schema.ts`, so the set of areas is something only a deploy can change. R6 must make
+areas **data he edits** — add one, rename one, retire one — which reaches the seven area
+colour tokens (`--area-*` cannot be a static class per area), `src/lib/nav.ts`, the capture
+parser's area words, and every table carrying `area`. What it must **not** reach is
+`monthCounts()`: the six tiles are a fixed shape and are deliberately not derived from the
+area enum (§3 item 4), and that stays true however many areas exist.
+
+**A money target needs a fifth source, and does not have one (20 Sep).** Asked for a month
+tile target of "€100" rather than a count. A tile's number is the denominator of a real bar,
+counted from `logs` rows; a sum of logged amounts is none of the four sanctioned sources in
+§1. Until that question is answered — a new source with written conditions, or a
+`stateSnapshots` balance read against nothing — a tile keeps its count and may show the
+goal's free-text `targetLabel` beside it as words. It belongs with R6 Finances.
+
 **Rules that carry through every row:** every number from a sanctioned source (§1); three a
 day (§3c.1); the backlog never on Today (§3c.3); tasks and events two tables (§3b.3);
 nothing seeded (§3b.5); Nocturne tokens only (§3d).

@@ -1,11 +1,15 @@
 import { useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { ConvexError } from 'convex/values'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
+import { GoalTimeline } from '@/components/goals/GoalTimeline'
+import { MilestoneEditor } from '@/components/goals/MilestoneEditor'
+import { NewGoal } from '@/components/goals/NewGoal'
+import { SaveLabel, useSave } from '@/components/Saving'
 import { Skeleton } from '@/components/Skeleton'
 import { deadlineLabel } from '@/lib/format'
 import { useArrived, useHeld } from '@/lib/loading'
@@ -14,20 +18,22 @@ export const Route = createFileRoute('/_app/goals')({
   component: Goals,
 })
 
-/* Goals are what projects answer to. They are created on the Projects page, in
-   the same form as their first project — a goal with no work under it is a
-   wish, and this app is not for those. This page is where they are reviewed,
-   and where one is finally called done or dropped. */
+/* Goals are what work answers to. A goal can stand alone — "gain 5 kg of
+   muscle" has milestones, not a project — or carry projects, which always
+   have one above them (R3, 16 Sep). This page is where they are made,
+   dated, stepped through, and finally called done or dropped. */
 function Goals() {
   const goals = useHeld(useQuery(api.goals.listActive, {}))
   const arrived = useArrived(goals)
   const projects = useQuery(api.projects.listLive, {})
   const setStatus = useMutation(api.goals.setStatus)
   const removeGoal = useMutation(api.goals.remove)
+  const update = useMutation(api.goals.update)
   const [error, setError] = useState<string | null>(null)
 
   return (
     <div className="flex flex-col gap-[18px]">
+      <NewGoal />
       {goals === undefined ? (
         /* Two goal cards as shape: title, target, the meta line, the actions. */
         <div role="status" aria-label="Loading" className="contents">
@@ -49,15 +55,13 @@ function Goals() {
         </div>
       ) : goals.length === 0 ? (
         <div className={`glass rounded-[22px] p-6 ${arrived}`}>
-          <p className="text-[13px] text-ink-500">
-            No goals yet. They are created with their first project, on the
-            Projects page.
-          </p>
+          <p className="text-[13px] text-ink-500">No goals yet.</p>
         </div>
       ) : (
         goals.map((goal) => (
           <div
             key={goal._id}
+            id={`goal-${goal._id}`}
             className={`glass flex flex-col gap-3 rounded-[22px] p-6 ${arrived}`}
           >
             <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -69,12 +73,55 @@ function Goals() {
 
             <Target goal={goal} />
 
-            <div className="flex flex-wrap items-center gap-x-3 font-mono text-[11px] text-ink-600">
-              <span>{projectCount(projects, goal._id)}</span>
-              {goal.deadline ? (
-                <span>{deadlineLabel(goal.deadline)}</span>
-              ) : null}
+            <GoalNotes goal={goal} />
+
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-ink-600">
+              {(projects ?? [])
+                .filter((p) => p.goalId === goal._id)
+                .map((p) => (
+                  <Link
+                    key={p._id}
+                    to="/projects/$id"
+                    params={{ id: p._id }}
+                    className="text-ink-400 transition-colors hover:text-lav-300"
+                  >
+                    {p.title}
+                  </Link>
+                ))}
+              <label className="flex items-center gap-1.5">
+                <span>
+                  {goal.deadline ? deadlineLabel(goal.deadline) : 'no deadline'}
+                </span>
+                <input
+                  type="date"
+                  aria-label={`Deadline for ${goal.title}`}
+                  value={goal.deadline ?? ''}
+                  onChange={(e) =>
+                    void update({
+                      goalId: goal._id,
+                      deadline: e.target.value || null,
+                    })
+                  }
+                  className="w-[7.5rem] rounded-[6px] border border-lift/10 bg-sink/20 px-1.5 py-0.5 text-[11px] text-ink-400"
+                />
+              </label>
             </div>
+
+            {/* A monthly tile target is read against its tile's log count, not
+                walked through in steps — so it gets no timeline. */}
+            {goal.tile === undefined ? (
+              <div className="flex flex-col gap-3 border-t border-lift/[0.07] pt-3">
+                <GoalTimeline goal={goal} />
+                <details className="group">
+                  <summary className="label-caps cursor-pointer list-none transition-colors hover:text-ink-300">
+                    Milestones
+                  </summary>
+                  <div className="pt-2">
+                    <MilestoneEditor goalId={goal._id} />
+                  </div>
+                </details>
+              </div>
+            ) : null}
 
             <div className="flex gap-2 border-t border-lift/[0.07] pt-3">
               <button
@@ -128,12 +175,67 @@ function Goals() {
   )
 }
 
-function projectCount(
-  projects: Array<Doc<'projects'>> | undefined,
-  goalId: Doc<'goals'>['_id'],
-) {
-  const n = (projects ?? []).filter((p) => p.goalId === goalId).length
-  return `${n} ${n === 1 ? 'project' : 'projects'}`
+/* The description, written in place (20 Sep). It has been in the schema since
+   the beginning and was never shown, so everything a goal meant beyond its
+   title lived outside the app.
+
+   Saved by a button you can see, not by looking away. Blur-saving was the
+   first attempt and it is the same mistake as Enter-only capture: the write
+   happens, and nothing on screen says so. The button appears only once the
+   text differs from what is stored, so an untouched note offers nothing to
+   press, and it says "Saved" for a moment afterwards (§3d.2: a write you
+   started should be visible when it lands). */
+function GoalNotes({ goal }: { goal: Doc<'goals'> }) {
+  const update = useMutation(api.goals.update)
+  const [open, setOpen] = useState(goal.description !== undefined)
+  const [draft, setDraft] = useState(goal.description ?? '')
+  const saving = useSave()
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="self-start text-[12.5px] text-ink-600 transition-colors hover:text-ink-300"
+      >
+        + Notes
+      </button>
+    )
+  }
+
+  const dirty = draft.trim() !== (goal.description ?? '')
+
+  return (
+    <div className="flex flex-col gap-2">
+      <textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        rows={3}
+        aria-label={`Notes on ${goal.title}`}
+        placeholder="Why this, what it looks like when it is done, anything you pasted"
+        className="w-full resize-y rounded-[10px] border border-lift/[0.07] bg-sink/20 px-3 py-2 text-[12.5px] leading-relaxed text-ink-300 outline-none placeholder:text-ink-700"
+      />
+      {dirty || saving.status !== 'idle' ? (
+        <button
+          type="button"
+          disabled={saving.busy}
+          onClick={() =>
+            void saving.run(() =>
+              update({
+                goalId: goal._id,
+                description: draft.trim() || null,
+              }),
+            )
+          }
+          className="self-start rounded-[7px] border border-lav-500/60 px-3 py-1 text-[12px] text-lav-300 transition-colors hover:bg-lav-900/60"
+        >
+          <SaveLabel status={saving.status} onSettled={saving.settle}>
+            Save notes
+          </SaveLabel>
+        </button>
+      ) : null}
+    </div>
+  )
 }
 
 /* PLAN.md §1: a bar renders only where targetValue gives a real denominator.

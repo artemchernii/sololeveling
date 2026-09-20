@@ -122,6 +122,29 @@ export default defineSchema({
       filterFields: ['ownerId'],
     }),
 
+  /* Steps on the way to a goal, in an order the person sets (R3, 16 Sep).
+     A sequence, not a denominator: "2 of 4 milestones" would be a progress
+     bar with an invented denominator, so nothing divides by these. Reaching
+     one is a claim the person makes with one tap, like ticking a task. */
+  milestones: defineTable({
+    ownerId: v.string(),
+    goalId: v.id('goals'),
+    title: v.string(),
+    dueDate: v.optional(v.string()), // ISO date
+    /* An hour on the due day, "HH:MM", local (20 Sep). Never without
+       dueDate — a time with no day is not a due date and has nowhere to sit
+       on a calendar. Kept apart from the day rather than folded into one
+       epoch: "by Friday" and "by Friday at 14:00" are different promises,
+       and an epoch cannot tell them apart. */
+    dueTime: v.optional(v.string()),
+    reachedAt: v.optional(v.number()),
+    sortOrder: v.number(),
+  })
+    .index('by_owner_goal', ['ownerId', 'goalId', 'sortOrder'])
+    /* Due days in a window, for the calendar. On the ISO string rather than
+       an epoch, because that is what is stored and it sorts the same. */
+    .index('by_owner_due', ['ownerId', 'dueDate']),
+
   /* A project always has a goal above it, so goalId is required: a project
      that answers to nothing is the thing this app exists to prevent. */
   projects: defineTable({

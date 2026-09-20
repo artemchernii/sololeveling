@@ -1257,6 +1257,23 @@ Wait for CI, merge (`gh pr merge --merge`), `git switch master && git pull`. Tel
 
 Branch: `git switch -c rethink-r3b master` after R3a is merged.
 
+**What changed under this plan since it was written (17 Sep, PRs #38–#46).**
+This plan describes R3a's ground; nine polish PRs have moved it. Tasks 7–9
+should be read against these, not against the text above:
+
+- `tasks.listBacklog` now takes `{ today }` and returns open tasks that are
+  not on today's three — an unticked task returns to the backlog when its
+  day ends (#39/#41). Any call added here passes `today`.
+- A task created in quick capture starts **unfiled** — no area until one is
+  chosen (#42). A milestone editor must not assume a task or goal has an area
+  to borrow.
+- The backlog page has **Backlog** and **Done** tabs, with search, area,
+  project-or-goal and sort controls shared through
+  `src/components/backlog/ListControls.tsx` (#45). A Goals page list reuses
+  that component rather than growing its own.
+- `--color-saved` is gone; a confirmation with no area of its own borrows
+  `--color-accent` (#47).
+
 ### Task 6: Milestones, and goals that can be edited
 
 **Files:**
@@ -1278,7 +1295,7 @@ Branch: `git switch -c rethink-r3b master` after R3a is merged.
   - `api.goals.update({ goalId, title?: string, area?: Area, deadline?: string | null, targetLabel?: string | null }) → null`
   - `goals.remove` also deletes the goal's milestones.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `convex/milestones.test.ts`:
 
@@ -1508,12 +1525,12 @@ describe('a goal stands on its own, and can be edited', () => {
 
 (If `convex/goals.test.ts` names its constants differently, use its names.)
 
-- [ ] **Step 2: Run to fail**
+- [x] **Step 2: Run to fail**
 
 Run: `pnpm vitest run convex/milestones.test.ts convex/goals.test.ts`
 Expected: FAIL — `api.milestones` undefined.
 
-- [ ] **Step 3: Add the table**
+- [x] **Step 3: Add the table**
 
 In `convex/schema.ts`, after the `goals` table:
 
@@ -1532,7 +1549,7 @@ In `convex/schema.ts`, after the `goals` table:
   }).index('by_owner_goal', ['ownerId', 'goalId', 'sortOrder']),
 ```
 
-- [ ] **Step 4: Implement `convex/milestones.ts`**
+- [x] **Step 4: Implement `convex/milestones.ts`**
 
 ```ts
 import { v } from 'convex/values'
@@ -1685,7 +1702,7 @@ export const remove = mutation({
 })
 ```
 
-- [ ] **Step 5: `goals.get`, `goals.update`, and the cascade**
+- [x] **Step 5: `goals.get`, `goals.update`, and the cascade**
 
 In `convex/goals.ts`, after `listActive`:
 
@@ -1753,12 +1770,12 @@ const milestones = await ctx.db
 for (const m of milestones) await ctx.db.delete(m._id)
 ```
 
-- [ ] **Step 6: Run to pass**
+- [x] **Step 6: Run to pass**
 
 Run: `pnpm vitest run convex/milestones.test.ts convex/goals.test.ts && pnpm typecheck`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add convex/schema.ts convex/milestones.ts convex/milestones.test.ts convex/goals.ts convex/goals.test.ts
@@ -1810,7 +1827,7 @@ export function goalTimeline(
 ): Array<TimelineNode>
 ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/goal-timeline.test.ts`:
 
@@ -1885,11 +1902,11 @@ describe('a goal’s timeline: 0 — 1 — 2 — 3 — goal', () => {
 })
 ```
 
-- [ ] **Step 2: Run to fail**
+- [x] **Step 2: Run to fail**
 
 Run: `pnpm vitest run src/lib/goal-timeline.test.ts` — Expected: FAIL (module not found).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/lib/goal-timeline.ts`:
 
@@ -1956,7 +1973,7 @@ export function goalTimeline(
 }
 ```
 
-- [ ] **Step 4: Run to pass, commit**
+- [x] **Step 4: Run to pass, commit**
 
 Run: `pnpm vitest run src/lib/goal-timeline.test.ts` — Expected: PASS.
 
@@ -1989,7 +2006,7 @@ the live one, and nothing in it is a fraction.
 - Consumes: `api.milestones.*`, `api.goals.get`, `api.goals.update` (Task 6); `goalTimeline`, `TimelineNode` (Task 7); `shortDate`, `deadlineLabel` from `src/lib/format.ts`; `AREAS` from `@/components/AreaBadge`.
 - Produces: `<GoalTimeline goal={Doc<'goals'>} />` (loads its own milestones; tap toggles reached); `<MilestoneEditor goalId={Id<'goals'>} />`; `<NewGoal />`.
 
-- [ ] **Step 1: `GoalTimeline`**
+- [x] **Step 1: `GoalTimeline`**
 
 Create `src/components/goals/GoalTimeline.tsx`:
 
@@ -2134,7 +2151,7 @@ function Caption({ node }: { node: TimelineNode }) {
 
 Check `text-background` exists as a Tailwind colour from the `@theme` in `src/styles.css`; if not, use the token the app uses for text on a filled light surface (grep `bg-ink-300` for an existing pairing) — never `text-black`.
 
-- [ ] **Step 2: `MilestoneEditor`**
+- [x] **Step 2: `MilestoneEditor`**
 
 Create `src/components/goals/MilestoneEditor.tsx`:
 
@@ -2238,7 +2255,7 @@ export function MilestoneEditor({ goalId }: { goalId: Id<'goals'> }) {
 }
 ```
 
-- [ ] **Step 3: `NewGoal`**
+- [x] **Step 3: `NewGoal`**
 
 Create `src/components/goals/NewGoal.tsx`, following `NewProject` in `src/routes/_app/projects.index.tsx` (same closed button, same `Field`-style rows, `useSave` + `SaveLabel`):
 
@@ -2385,7 +2402,7 @@ export function NewGoal() {
 }
 ```
 
-- [ ] **Step 4: The Goals page**
+- [x] **Step 4: The Goals page**
 
 In `src/routes/_app/goals.tsx`:
 
@@ -2456,7 +2473,7 @@ and delete the now-unused `projectCount` function.
 }
 ```
 
-- [ ] **Step 5: The New project form, rebuilt (decision 10)**
+- [x] **Step 5: The New project form, rebuilt (decision 10)**
 
 Rewrite `NewProject` in `src/routes/_app/projects.index.tsx`. Keep the closed button, `useSave` + `SaveLabel`, `Field`, and the error line; change the rows and their order.
 
@@ -2581,7 +2598,7 @@ async function submit() {
 
 Check in the browser: the form opens with the cursor in **Project** and no ring round it; "For" lists his goals with "A new goal…" last; choosing it reveals the title and area; Start it with an existing goal creates only the project. Delete anything created.
 
-- [ ] **Step 6: The project page shows its goal**
+- [x] **Step 6: The project page shows its goal**
 
 In `src/routes/_app/projects.$id.tsx`:
 
@@ -2615,7 +2632,7 @@ In `src/routes/_app/projects.$id.tsx`:
 
 Run prettier on every touched file.
 
-- [ ] **Step 7: Verify in the browser**
+- [x] **Step 7: Verify in the browser**
 
 `pnpm typecheck && pnpm lint`, then:
 

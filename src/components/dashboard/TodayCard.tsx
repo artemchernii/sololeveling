@@ -28,7 +28,11 @@ export function TodayCard({
   const dayEnd = new Date(dayStart)
   dayEnd.setDate(dayEnd.getDate() + 1)
 
-  const items = buildTimeline(tasks ?? [], events, {
+  /* No milestones here yet (20 Sep). They reached the timeline for the
+     Calendar, which is where they were asked for; this card holds a measured
+     resting height so neither day card resizes as its read lands (16 Sep),
+     and a third read arriving late is exactly what would break that. */
+  const items = buildTimeline(tasks ?? [], events, [], {
     start: dayStart.getTime(),
     end: dayEnd.getTime(),
   })

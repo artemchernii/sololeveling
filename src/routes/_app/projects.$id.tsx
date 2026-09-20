@@ -7,6 +7,7 @@ import { ArrowLeft, Check, Plus, Trash2 } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { AreaBadge } from '@/components/AreaBadge'
+import { GoalTimeline } from '@/components/goals/GoalTimeline'
 import { SaveGlyph, useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
@@ -27,6 +28,9 @@ function Project() {
 
   const project = useHeld(useQuery(api.projects.get, { projectId }))
   const arrived = useArrived(project)
+  /* The goal above it, for the FOR card. An empty string normalizes to null
+     and comes back null, so there is nothing to draw until the project is. */
+  const goal = useQuery(api.goals.get, { goalId: project?.goalId ?? '' })
   const tasks = useQuery(api.tasks.listByProject, { projectId })
   const counts = useQuery(api.aggregate.entityCounts, {})
   /* Month bounds on the client, as the dashboard computes them: the server
@@ -180,6 +184,29 @@ function Project() {
         </div>
       </div>
 
+      {/* What this project answers to, and where that goal has got to. */}
+      {goal ? (
+        <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <div className="flex items-baseline gap-2">
+              <span className="label-caps">For</span>
+              <Link
+                to="/goals"
+                hash={`goal-${goal._id}`}
+                className="text-[14px] text-foreground transition-colors hover:text-lav-300"
+              >
+                {goal.title}
+              </Link>
+            </div>
+            {/* A project's goal used to be written once and never again: the
+                only way to refile one was to delete it, and its tasks, notes
+                and logged time went with it. */}
+            <MoveToGoal projectId={projectId} currentGoalId={goal._id} />
+          </div>
+          <GoalTimeline goal={goal} />
+        </div>
+      ) : null}
+
       {/* What is left beside what was written down. */}
       <div className="grid items-start gap-[18px] md:grid-cols-2">
         <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
@@ -252,6 +279,44 @@ function Project() {
         </div>
       ) : null}
     </div>
+  )
+}
+
+/* Refile a project under a different goal. A select rather than a dialog:
+   there is one thing to choose and it is a list of goals you already have.
+   Monthly tile targets are left out — a project does not hang on "4 sessions
+   a month" any more than it hangs on a tally. */
+function MoveToGoal({
+  projectId,
+  currentGoalId,
+}: {
+  projectId: Id<'projects'>
+  currentGoalId: Id<'goals'>
+}) {
+  const goals = useQuery(api.goals.listActive, {})
+  const setGoal = useMutation(api.projects.setGoal)
+
+  const choices = (goals ?? []).filter((g) => g.tile === undefined)
+  if (choices.length < 2) return null
+
+  return (
+    <label className="flex items-center gap-2">
+      <span className="label-caps">Move to</span>
+      <select
+        value={currentGoalId}
+        aria-label="Move this project to another goal"
+        onChange={(e) =>
+          void setGoal({ projectId, goalId: e.target.value as Id<'goals'> })
+        }
+        className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-400"
+      >
+        {choices.map((g) => (
+          <option key={g._id} value={g._id}>
+            {g.title}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
 

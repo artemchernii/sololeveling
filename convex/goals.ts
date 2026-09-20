@@ -86,6 +86,60 @@ export const listActive = query({
   },
 })
 
+/* Read by a URL-shaped id (a project page's goal, a goal anchor): a bad or
+   foreign id is null, which the page renders as nothing. */
+export const get = query({
+  args: { goalId: v.string() },
+  returns: v.union(schema.doc('goals'), v.null()),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const goalId = ctx.db.normalizeId('goals', args.goalId)
+    if (goalId === null) return null
+    const goal = await ctx.db.get(goalId)
+    return goal === null || goal.ownerId !== ownerId ? null : goal
+  },
+})
+
+/**
+ * Rename, refile, re-date. `null` clears a deadline or a target label;
+ * leaving a field out keeps it. The measurable target (targetValue + unit)
+ * is not edited here — it is set on a tile or at creation.
+ */
+export const update = mutation({
+  args: {
+    goalId: v.id('goals'),
+    title: v.optional(v.string()),
+    area: v.optional(areaValidator),
+    deadline: v.optional(v.union(v.string(), v.null())),
+    targetLabel: v.optional(v.union(v.string(), v.null())),
+    description: v.optional(v.union(v.string(), v.null())),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const goal = await ownedGoal(ctx, ownerId, args.goalId)
+    const title = args.title === undefined ? goal.title : args.title.trim()
+    if (title.length === 0) throw new Error('A goal needs a title')
+    await ctx.db.patch(args.goalId, {
+      title,
+      area: args.area ?? goal.area,
+      deadline:
+        args.deadline === undefined
+          ? goal.deadline
+          : (args.deadline ?? undefined),
+      targetLabel:
+        args.targetLabel === undefined
+          ? goal.targetLabel
+          : args.targetLabel?.trim() || undefined,
+      description:
+        args.description === undefined
+          ? goal.description
+          : args.description?.trim() || undefined,
+    })
+    return null
+  },
+})
+
 /** Reached, or abandoned. Both are answers; neither deletes the record. */
 export const setStatus = mutation({
   args: { goalId: v.id('goals'), status: goalStatusValidator },
@@ -123,6 +177,15 @@ export const remove = mutation({
         `Delete its projects first: ${attached.map((p) => p.title).join(', ')}`,
       )
     }
+
+    /* Milestones are steps of this goal and mean nothing without it. */
+    const milestones = await ctx.db
+      .query('milestones')
+      .withIndex('by_owner_goal', (q) =>
+        q.eq('ownerId', ownerId).eq('goalId', args.goalId),
+      )
+      .take(MAX_ROWS)
+    for (const m of milestones) await ctx.db.delete(m._id)
 
     await ctx.db.delete(args.goalId)
     return null
@@ -189,7 +252,14 @@ async function activeTileGoals(
  * stacking a second one.
  */
 export const setTileTarget = mutation({
-  args: { tile: tileValidator, targetValue: v.number() },
+  args: {
+    tile: tileValidator,
+    targetValue: v.number(),
+    /* Words beside the number (20 Sep) — "aiming at €100 a month". The
+       number is still what the bar divides by; this is only what it is for,
+       and nothing computes with it. null clears it. */
+    targetLabel: v.optional(v.union(v.string(), v.null())),
+  },
   returns: v.id('goals'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
@@ -202,9 +272,20 @@ export const setTileTarget = mutation({
 
     /* `.length`, not `[current]`: without noUncheckedIndexedAccess the
        destructured element is typed as always present. */
+    const label =
+      args.targetLabel === undefined
+        ? undefined
+        : args.targetLabel?.trim() || undefined
+
     const existing = await activeTileGoals(ctx, ownerId, args.tile)
     if (existing.length > 0) {
-      await ctx.db.patch(existing[0]._id, { targetValue: args.targetValue })
+      await ctx.db.patch(existing[0]._id, {
+        targetValue: args.targetValue,
+        /* Left out of the call, left alone: changing the number from the
+           tile must not silently wipe the words. */
+        targetLabel:
+          args.targetLabel === undefined ? existing[0].targetLabel : label,
+      })
       return existing[0]._id
     }
 
@@ -215,6 +296,7 @@ export const setTileTarget = mutation({
       area: shape.area,
       status: 'active',
       targetValue: args.targetValue,
+      targetLabel: label,
       unit: shape.unit,
       tile: args.tile,
     })

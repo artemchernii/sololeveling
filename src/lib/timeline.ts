@@ -12,10 +12,19 @@ import type { Area } from './capture-parser'
 
 export type TimelineItem = {
   id: string
-  source: 'task' | 'event'
+  source: 'task' | 'event' | 'milestone'
   title: string
   startsAt: number
   durationMin?: number
+  area?: Area
+}
+
+/** The shape a milestone reaches the timeline in (convex/schema.ts). */
+export type DueMilestone = {
+  _id: string
+  title: string
+  dueDate?: string
+  dueTime?: string
   area?: Area
 }
 
@@ -61,9 +70,39 @@ export function occurrenceToTimelineItem(
  * two ways to build a timeline, one of which quietly drops every repeat after
  * the first. That is the drift §3b.3 exists to prevent.
  */
+/**
+ * A milestone's due moment, in the reader's own clock (R3b, 20 Sep).
+ *
+ * `dueDate` is a local calendar day and `dueTime` an hour on it, so the
+ * instant is assembled here rather than stored: the server does not know what
+ * time it is where you are (lib/today.ts). A milestone with no day is not due
+ * anywhere and returns null — it is a step in a sequence, not a date.
+ *
+ * It carries no `durationMin`, and that is the point. A due date is not an
+ * appointment, and giving it a length would draw it as time you have booked.
+ */
+export function milestoneToTimelineItem(
+  milestone: DueMilestone,
+): TimelineItem | null {
+  if (milestone.dueDate === undefined) return null
+
+  const [y, m, d] = milestone.dueDate.split('-').map(Number)
+  const [hh, mm] = (milestone.dueTime ?? '00:00').split(':').map(Number)
+  if ([y, m, d, hh, mm].some((n) => !Number.isFinite(n))) return null
+
+  return {
+    id: milestone._id,
+    source: 'milestone',
+    title: milestone.title,
+    startsAt: new Date(y, m - 1, d, hh, mm).getTime(),
+    area: milestone.area,
+  }
+}
+
 export function buildTimeline(
   tasks: Array<Doc<'tasks'>>,
   events: Array<Doc<'events'>>,
+  milestones: Array<DueMilestone>,
   window: { start: number; end: number },
 ): Array<TimelineItem> {
   const byId = new Map(events.map((e) => [e._id, e]))
@@ -80,13 +119,24 @@ export function buildTimeline(
     .filter((i): i is TimelineItem => i !== null)
     .filter((i) => i.startsAt >= window.start && i.startsAt < window.end)
 
-  return [...fromTasks, ...fromEvents].sort((a, b) => a.startsAt - b.startsAt)
+  const fromMilestones = milestones
+    .map(milestoneToTimelineItem)
+    .filter((i): i is TimelineItem => i !== null)
+    .filter((i) => i.startsAt >= window.start && i.startsAt < window.end)
+
+  return [...fromTasks, ...fromEvents, ...fromMilestones].sort(
+    (a, b) => a.startsAt - b.startsAt,
+  )
 }
 
 /** "Three booked hours. The rest is yours." (§3) — or the truth if it isn't three. */
 export function bookedHoursLine(items: Array<TimelineItem>): string {
-  const minutes = items.reduce((sum, i) => sum + (i.durationMin ?? 0), 0)
-  if (items.length === 0) return 'Nothing booked. The whole day is yours.'
+  /* A milestone falling today is not something you booked — it is a date you
+     set. A day holding one and nothing else is still a free day, and saying
+     otherwise would turn every due date into an appointment. */
+  const booked = items.filter((i) => i.source !== 'milestone')
+  const minutes = booked.reduce((sum, i) => sum + (i.durationMin ?? 0), 0)
+  if (booked.length === 0) return 'Nothing booked. The whole day is yours.'
 
   const hours = minutes / 60
   const rounded = Number.isInteger(hours) ? String(hours) : hours.toFixed(1)

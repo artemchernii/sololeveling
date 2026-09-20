@@ -59,7 +59,9 @@ export function StateStrip({ today }: { today: number }) {
       trail: {
         text: ofTarget(
           counts?.portuguese.now,
-          targets?.portuguese ?? undefined,
+          /* The number only. The words a tile may carry belong on the tile,
+             not in a one-line "2 of 4 sessions". */
+          targets?.portuguese?.value,
           'sessions',
         ),
       },

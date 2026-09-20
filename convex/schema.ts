@@ -172,6 +172,11 @@ export default defineSchema({
        denominator exists). Absent means no ring — never a guessed one. */
     commitTargetWeekly: v.optional(v.number()),
     minutesTargetMonthly: v.optional(v.number()),
+    /* How many tasks he reckons this project is (20 Sep). Without it the
+       tasks ring divides by the live task count, which can only ever read
+       "all of the ones that exist" — 2/2 the moment both are ticked. With it
+       the denominator is the size he expects the project to be. */
+    taskTargetTotal: v.optional(v.number()),
   })
     .index('by_owner_status', ['ownerId', 'status']) // one 'focus' per owner — setFocus enforces
     /* Read only by the internal hourly check, which acts for every owner — the

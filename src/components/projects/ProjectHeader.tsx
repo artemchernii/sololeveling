@@ -67,21 +67,68 @@ export function ProjectHeader({
           it, which is what made a full-width card read as a narrow one —
           but squeezing the title into a column of its own just wrapped the
           badge onto a second line. Rows, not columns. */}
-      <div className="flex items-center gap-3">
-        <LogoUpload
-          projectId={projectId}
-          url={logoUrl}
-          title={project.title}
-          area={goal?.area}
-        />
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="text-[26px] leading-none font-light text-foreground">
-              {project.title}
-            </h1>
-            <StatusBadge status={project.status} />
-            <Deadline project={project} />
+      {/* The actions sit beside the title rather than in a row of their own
+          under the numbers (20 Sep, fourth pass). He boxed the empty right
+          half of this card: the identity row stopped at the deadline pill and
+          left roughly 600px of nothing beside it, while five buttons sat on a
+          line of their own below. They are what you do to this project, so
+          they belong next to its name, and the hole closes. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <LogoUpload
+            projectId={projectId}
+            url={logoUrl}
+            title={project.title}
+            area={goal?.area}
+          />
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-[26px] leading-none font-light text-foreground">
+                {project.title}
+              </h1>
+              <StatusBadge status={project.status} />
+              <Deadline project={project} />
+            </div>
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {/* Focus is one project at a time, and setFocus already demotes the
+            one that held it. What was missing was a way to simply stop —
+            pausing or completing a project you are still doing is a lie about
+            its status just to free the slot (20 Sep). */}
+          {isFocus ? (
+            <Action
+              icon={Target}
+              onClick={() => void setStatus({ projectId, status: 'active' })}
+            >
+              Stop focusing
+            </Action>
+          ) : (
+            <Action icon={Target} onClick={() => void setFocus({ projectId })}>
+              Make this the focus
+            </Action>
+          )}
+          <Action
+            icon={Pause}
+            onClick={() => void setStatus({ projectId, status: 'paused' })}
+          >
+            Pause
+          </Action>
+          <Action
+            icon={CircleCheck}
+            tone="go"
+            onClick={() => void setStatus({ projectId, status: 'completed' })}
+          >
+            Complete the project
+          </Action>
+          <Action
+            icon={Archive}
+            onClick={() => void setStatus({ projectId, status: 'archived' })}
+          >
+            Archive
+          </Action>
+          <DeleteAction projectId={projectId} />
         </div>
       </div>
 
@@ -93,47 +140,6 @@ export function ProjectHeader({
         done={counts?.done}
         total={counts?.total}
       />
-
-      <div className="flex flex-wrap gap-2 border-t border-lift/[0.07] pt-3">
-        {/* Focus is one project at a time, and setFocus already demotes the
-            one that held it. What was missing was a way to simply stop —
-            pausing or completing a project you are still doing is a lie about
-            its status just to free the slot (20 Sep). */}
-        {isFocus ? (
-          <Action
-            icon={Target}
-            onClick={() => void setStatus({ projectId, status: 'active' })}
-          >
-            Stop focusing
-          </Action>
-        ) : (
-          <Action icon={Target} onClick={() => void setFocus({ projectId })}>
-            Make this the focus
-          </Action>
-        )}
-        <Action
-          icon={Pause}
-          onClick={() => void setStatus({ projectId, status: 'paused' })}
-        >
-          Pause
-        </Action>
-        <Action
-          icon={CircleCheck}
-          tone="go"
-          onClick={() => void setStatus({ projectId, status: 'completed' })}
-        >
-          Complete the project
-        </Action>
-        <Action
-          icon={Archive}
-          onClick={() => void setStatus({ projectId, status: 'archived' })}
-        >
-          Archive
-        </Action>
-        <span className="sm:ml-auto">
-          <DeleteAction projectId={projectId} />
-        </span>
-      </div>
     </div>
   )
 }

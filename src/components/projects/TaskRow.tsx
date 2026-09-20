@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
-import { CalendarClock, Check, ChevronRight, FileText } from 'lucide-react'
+import {
+  CalendarClock,
+  CalendarDays,
+  Check,
+  ChevronRight,
+  FileText,
+  TriangleAlert,
+} from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
@@ -8,7 +15,13 @@ import { AreaBadge } from '@/components/AreaBadge'
 import { Attachments } from '@/components/attachments/Attachments'
 import { SaveLabel, useSave } from '@/components/Saving'
 import type { Area } from '@/lib/capture-parser'
-import { durationLabel, whenLabel } from '@/lib/format'
+import {
+  daysUntil,
+  durationLabel,
+  isOverdue,
+  shortDate,
+  whenLabel,
+} from '@/lib/format'
 import { localToday } from '@/lib/today'
 
 /* A task, opened (20 Sep). It was a title and a checkbox, and he said so
@@ -29,6 +42,7 @@ export function TaskRow({ task }: { task: Doc<'tasks'> }) {
   const complete = useMutation(api.tasks.complete)
   const setArea = useMutation(api.tasks.setArea)
   const saveNotes = useMutation(api.tasks.setNotes)
+  const setDueDate = useMutation(api.tasks.setDueDate)
   const [open, setOpen] = useState(false)
   const [notes, setNotes] = useState(task.notes ?? '')
   const saving = useSave()
@@ -95,6 +109,35 @@ export function TaskRow({ task }: { task: Doc<'tasks'> }) {
             </button>
           ) : null}
 
+          {/* Where a due date is actually set. `dueDate` and its index have
+              been in the schema since R1 with no mutation to write them, so
+              the field could be read and never filled (20 Sep). */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="label-caps">due</span>
+            <input
+              type="date"
+              value={task.dueDate ?? ''}
+              onChange={(e) =>
+                void setDueDate({
+                  taskId: task._id,
+                  dueDate: e.target.value === '' ? null : e.target.value,
+                })
+              }
+              className="rounded-[8px] border border-lift/10 bg-sink/20 px-2 py-1 font-mono text-[12px] text-ink-300 outline-none transition-colors focus:border-lav-500/60"
+            />
+            {task.dueDate !== undefined ? (
+              <button
+                type="button"
+                onClick={() =>
+                  void setDueDate({ taskId: task._id, dueDate: null })
+                }
+                className="text-[11.5px] text-ink-700 transition-colors hover:text-ink-400"
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
+
           <Attachments taskId={task._id} compact />
         </div>
       ) : null}
@@ -108,11 +151,35 @@ function Meta({ task }: { task: Doc<'tasks'> }) {
   const isToday = task.todayFor === localToday()
   const hasNotes = (task.notes ?? '').trim().length > 0
   const scheduled = task.scheduledAt !== undefined
+  const due = task.dueDate
 
-  if (!isToday && !hasNotes && !scheduled) return null
+  if (!isToday && !hasNotes && !scheduled && due === undefined) return null
+
+  /* A date that has gone is danger, one inside a week is warn — the same
+     three states the project deadline uses, for the same reason. */
+  const late = due !== undefined && isOverdue(due)
+  const soon = !late && due !== undefined && daysUntil(due) <= 7
 
   return (
     <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+      {due !== undefined ? (
+        <span
+          className={`inline-flex items-center gap-1 font-mono text-[11px] ${
+            late
+              ? 'text-state-danger'
+              : soon
+                ? 'text-state-warn'
+                : 'text-ink-600'
+          }`}
+        >
+          {late ? (
+            <TriangleAlert className="size-3" />
+          ) : (
+            <CalendarDays className="size-3" />
+          )}
+          due {shortDate(due)}
+        </span>
+      ) : null}
       {isToday ? (
         <span className="label-caps inline-flex items-center gap-1 rounded-full bg-lav-900/70 px-1.5 py-0.5 text-lav-200 ring-1 ring-lav-500/40 ring-inset">
           today

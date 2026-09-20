@@ -76,7 +76,12 @@ export function ProjectStats({
     dayStarts,
   })
 
-  const allDone = total !== undefined && total > 0 && done === total
+  /* A target he set beats the live count as the denominator; with neither
+     there is no ring, as §1 requires. */
+  const denominator =
+    project.taskTargetTotal ??
+    (total !== undefined && total > 0 ? total : undefined)
+  const reached = denominator !== undefined && (done ?? 0) >= denominator
   const noneDone = total !== undefined && total > 0 && (done ?? 0) === 0
   const minutes = time?.minutes ?? 0
   const thisWeek = commits?.thisWeek ?? 0
@@ -85,20 +90,26 @@ export function ProjectStats({
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <Block>
         <div className="flex items-center gap-3.5">
-          {/* This one needs no target: the denominator is the task count,
-              which is a real entity count (§1 source 3). */}
+          {/* Without a target the denominator is the live task count, a real
+              entity count (§1 source 3) — which can only ever reach "all of
+              the ones that exist". A target he sets is the size he reckons
+              the project is, and it takes over the denominator (20 Sep). */}
           <Puck
-            icon={allDone ? <CircleCheckBig /> : <Circle />}
+            icon={reached ? <CircleCheckBig /> : <Circle />}
             value={done ?? 0}
-            target={total !== undefined && total > 0 ? total : undefined}
-            tone={allDone ? 'good' : 'accent'}
+            target={denominator}
+            tone={reached ? 'good' : 'accent'}
           />
           <Figure
-            n={total === undefined ? undefined : `${done ?? 0}/${total}`}
+            n={
+              total === undefined
+                ? undefined
+                : `${done ?? 0}/${denominator ?? total}`
+            }
             label="tasks done"
-            tone={allDone ? 'good' : noneDone ? 'warn' : 'plain'}
+            tone={reached ? 'good' : noneDone ? 'warn' : 'plain'}
             note={
-              allDone
+              reached
                 ? 'all clear'
                 : noneDone
                   ? 'nothing ticked yet'
@@ -106,6 +117,17 @@ export function ProjectStats({
             }
           />
         </div>
+        <Target
+          projectId={projectId}
+          field="taskTargetTotal"
+          current={project.taskTargetTotal}
+          unit="tasks in all"
+          shown={
+            project.taskTargetTotal === undefined
+              ? undefined
+              : `of ${project.taskTargetTotal}`
+          }
+        />
       </Block>
 
       <Block>
@@ -275,7 +297,7 @@ function Target({
   shown,
 }: {
   projectId: Doc<'projects'>['_id']
-  field: 'minutesTargetMonthly' | 'commitTargetWeekly'
+  field: 'minutesTargetMonthly' | 'commitTargetWeekly' | 'taskTargetTotal'
   current: number | undefined
   unit: string
   shown: string | undefined
@@ -375,8 +397,7 @@ function LogBlock({
         <div className="grid size-[52px] shrink-0 place-items-center rounded-full ring-1 ring-lav-500/25 ring-inset">
           <Clock className="size-4 text-lav-300/70" />
         </div>
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <span className="label-caps">Log time</span>
+        <div className="flex min-w-0 flex-col">
           <div className="flex items-center gap-2">
             <input
               value={minutes}
@@ -402,6 +423,7 @@ function LogBlock({
               </SaveLabel>
             </button>
           </div>
+          <span className="label-caps pt-2">log time</span>
         </div>
       </div>
     </Block>

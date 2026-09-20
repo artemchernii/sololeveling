@@ -136,40 +136,50 @@ function Project() {
         <ProjectNotes projectId={projectId} />
       </div>
 
-      <ProjectCommits projectId={projectId} area={goal?.area} />
+      {/* GitHub and Done share a row (20 Sep, fourth pass). He boxed the
+          empty right-hand third of each: both were full-width cards holding
+          content that stopped well short of the edge, and Done's short titles
+          left a hole all the way across to the timestamp. Side by side, the
+          width one does not need is the width the other uses. */}
+      <div className="grid items-start gap-[18px] xl:grid-cols-[minmax(0,5fr)_minmax(0,2fr)]">
+        <ProjectCommits projectId={projectId} area={goal?.area} />
 
-      {closed.length > 0 ? (
-        /* What was finished, newest first (20 Sep, second pass). It was a
-           stack of identical grey lines with no tick and no date — the one
-           card on the page that is nothing but good news, rendered as the
-           dimmest thing on it. A tick in state-good, and when it was done. */
-        <div className="glass flex flex-col gap-2 rounded-[22px] p-6">
-          <div className="flex items-baseline gap-2">
-            <div className="label-caps">Done</div>
-            <span className="font-mono text-[11px] text-state-good">
-              {closed.length}
-            </span>
-          </div>
-          {[...closed]
-            .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
-            .map((task) => (
-              <div
-                key={task._id}
-                className="flex items-baseline gap-2.5 border-b border-lift/[0.05] py-1.5 last:border-b-0"
-              >
-                <CircleCheck className="size-3.5 shrink-0 translate-y-0.5 text-state-good" />
-                <span className="flex-1 text-[12.5px] text-ink-300">
-                  {task.title}
-                </span>
-                {task.completedAt !== undefined ? (
-                  <span className="shrink-0 font-mono text-[11px] text-ink-600">
-                    {whenLabel(task.completedAt)}
+        {closed.length > 0 ? (
+          /* What was finished, newest first (20 Sep). It was a stack of
+             identical grey lines with no tick and no date — the one card on
+             the page that is nothing but good news, rendered as the dimmest
+             thing on it. */
+          <div className="glass flex flex-col gap-2 rounded-[22px] p-6">
+            <div className="flex items-baseline gap-2">
+              <div className="label-caps">Done</div>
+              <span className="font-mono text-[11px] text-state-good">
+                {closed.length}
+              </span>
+            </div>
+            {[...closed]
+              .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
+              .map((task) => (
+                <div
+                  key={task._id}
+                  className="flex items-start gap-2.5 border-b border-lift/[0.05] py-1.5 last:border-b-0"
+                >
+                  <CircleCheck className="mt-0.5 size-3.5 shrink-0 text-state-good" />
+                  {/* The time runs on from the title rather than being pinned
+                      to the far edge: right-aligned, two short titles left a
+                      hole all the way across the card. */}
+                  <span className="min-w-0 text-[12.5px] text-ink-300">
+                    {task.title}
+                    {task.completedAt !== undefined ? (
+                      <span className="pl-2 font-mono text-[11px] text-ink-600">
+                        {whenLabel(task.completedAt)}
+                      </span>
+                    ) : null}
                   </span>
-                ) : null}
-              </div>
-            ))}
-        </div>
-      ) : null}
+                </div>
+              ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

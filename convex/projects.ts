@@ -341,6 +341,7 @@ export const setTargets = mutation({
     projectId: v.id('projects'),
     commitTargetWeekly: v.optional(v.union(v.number(), v.null())),
     minutesTargetMonthly: v.optional(v.union(v.number(), v.null())),
+    taskTargetTotal: v.optional(v.union(v.number(), v.null())),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -356,6 +357,9 @@ export const setTargets = mutation({
     }
     if (args.minutesTargetMonthly !== undefined) {
       patch.minutesTargetMonthly = clean(args.minutesTargetMonthly)
+    }
+    if (args.taskTargetTotal !== undefined) {
+      patch.taskTargetTotal = clean(args.taskTargetTotal)
     }
     await ctx.db.patch(args.projectId, patch)
     return null

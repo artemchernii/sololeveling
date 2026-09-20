@@ -474,6 +474,32 @@ export const listByProject = query({
  * timeline (§3b.3) — an undated task stays in the checklist, which is the
  * normal case, not an error.
  */
+/**
+ * A due date, as an ISO date string (20 Sep).
+ *
+ * `dueDate` and its `by_owner_due` index have been in the schema since R1 and
+ * no mutation ever wrote one, so the field could be read and indexed but never
+ * set — the task row had nothing to draw. Distinct from `scheduledAt`, which
+ * is a time the work sits in the week; a due date is when it is owed.
+ */
+export const setDueDate = mutation({
+  args: {
+    taskId: v.id('tasks'),
+    dueDate: v.union(v.string(), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedTask(ctx, ownerId, args.taskId)
+
+    await ctx.db.patch(args.taskId, {
+      dueDate:
+        args.dueDate === null || args.dueDate === '' ? undefined : args.dueDate,
+    })
+    return null
+  },
+})
+
 export const setSchedule = mutation({
   args: {
     taskId: v.id('tasks'),

@@ -108,7 +108,14 @@ function Project() {
       {/* What is left beside what was written down. */}
       <div className="grid items-start gap-[18px] md:grid-cols-2">
         <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
-          <div className="label-caps">Tasks</div>
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="label-caps">Tasks</div>
+            {open.length > 0 ? (
+              <span className="font-mono text-[11px] text-ink-700">
+                {open.length}
+              </span>
+            ) : null}
+          </div>
 
           {open.length === 0 ? (
             <p className="text-[13px] text-ink-500">
@@ -118,7 +125,10 @@ function Project() {
           ) : (
             <div className="flex flex-col">
               {open.map((task) => (
-                <TaskRow key={task._id} task={task} />
+                /* No area badge here: a task made on this project already
+                    carries the project's goal's area, so the badge could
+                    only be pressed to make the answer wrong (20 Sep). */
+                <TaskRow key={task._id} task={task} showArea={false} />
               ))}
             </div>
           )}

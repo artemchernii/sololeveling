@@ -59,6 +59,7 @@ export const create = mutation({
        A project is the authority on its goal, so a task created under one
        carries that project's goal, whatever goalId was also passed. */
     let goalId = args.goalId
+    let area = args.area
     if (args.projectId !== undefined) {
       const project = await ctx.db.get(args.projectId)
       if (project === null || project.ownerId !== ownerId) {
@@ -72,10 +73,27 @@ export const create = mutation({
       }
     }
 
+    /* The area comes down the chain rather than being asked for (20 Sep).
+       Artem, at a task made on a project and badged `unfiled`: "we won't set
+       it, it should be by default either project or SoloLeveling."
+
+       He is describing a rule the app already keeps one level up — a project
+       has no area of its own, it inherits the kind of the goal it answers to
+       (projects.ts). A task made under either of them was the one place that
+       chain broke, so every task born on a project page was unfiled until it
+       was fixed by hand.
+
+       A passed area still wins: ⌘K parses one out of what you typed, and a
+       word you chose beats one that was inherited. */
+    if (area === undefined && goalId !== undefined) {
+      const goal = await ctx.db.get(goalId)
+      if (goal !== null && goal.ownerId === ownerId) area = goal.area
+    }
+
     return await ctx.db.insert('tasks', {
       ownerId,
       title,
-      area: args.area,
+      area,
       notes: args.notes,
       projectId: args.projectId,
       goalId,
@@ -341,6 +359,25 @@ export const setArea = mutation({
  * Any 'task_done' log a previous completion wrote is left alone — that log is
  * a record of a day, and deleting the task does not un-happen it.
  */
+/** A title is a thing you get wrong the first time (20 Sep). Every other
+ * field on a task could be corrected and the title could not, so a typo meant
+ * deleting the task and writing it again — losing its notes, its files and
+ * its place in today's three. */
+export const setTitle = mutation({
+  args: { taskId: v.id('tasks'), title: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedTask(ctx, ownerId, args.taskId)
+    const title = args.title.trim()
+    if (title.length === 0) {
+      throw new Error('A task needs a title')
+    }
+    await ctx.db.patch(args.taskId, { title })
+    return null
+  },
+})
+
 /**
  * What a task actually involves, beyond its title (20 Sep).
  *

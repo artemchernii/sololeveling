@@ -12,8 +12,8 @@ import {
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { AreaBadge } from '@/components/AreaBadge'
-import { Attachments } from '@/components/attachments/Attachments'
-import { SaveLabel, useSave } from '@/components/Saving'
+import { EditorPanel } from '@/components/EditorPanel'
+import { useSave } from '@/components/Saving'
 import type { Area } from '@/lib/capture-parser'
 import {
   daysUntil,
@@ -35,18 +35,58 @@ import { localToday } from '@/lib/today'
    to be more complicated". So the shut row stopped being one line. Under the
    title it says what the task already knows and never showed — when it is
    scheduled and for how long, that it is one of today's three, that there are
-   notes under it. Only what is set is drawn, so a bare task is still a bare
-   line and the list does not turn into a wall. Nothing here is inferred: every
-   chip is a stored field. */
-export function TaskRow({ task }: { task: Doc<'tasks'> }) {
+   notes or files under it. Only what is set is drawn, so a bare task is still
+   a bare line and the list does not turn into a wall. Nothing here is
+   inferred: every chip is a stored field.
+
+   20 Sep, third time: the open panel had no edge, no way to change the title
+   and no way out but saving. All three now live in `EditorPanel`, shared with
+   a note — one panel, so the two blocks on this page stop being two
+   unrelated designs.
+
+   `showArea` is false wherever the page above already answers the question.
+   On a project, every task carries that project's goal's area, so a badge
+   there is a control that can only be pressed to make the answer wrong. */
+export function TaskRow({
+  task,
+  showArea = true,
+}: {
+  task: Doc<'tasks'>
+  showArea?: boolean
+}) {
   const complete = useMutation(api.tasks.complete)
   const setArea = useMutation(api.tasks.setArea)
+  const setTitle = useMutation(api.tasks.setTitle)
   const saveNotes = useMutation(api.tasks.setNotes)
   const setDueDate = useMutation(api.tasks.setDueDate)
+
   const [open, setOpen] = useState(false)
+  const [title, setTitleDraft] = useState(task.title)
   const [notes, setNotes] = useState(task.notes ?? '')
   const saving = useSave()
-  const dirty = notes.trim() !== (task.notes ?? '')
+
+  const dirty =
+    title.trim() !== task.title || notes.trim() !== (task.notes ?? '')
+
+  function shut() {
+    setTitleDraft(task.title)
+    setNotes(task.notes ?? '')
+    setOpen(false)
+  }
+
+  async function save() {
+    /* Two fields, two mutations, and only the one that changed is sent — a
+       write that does nothing still shows a tick, which would teach the tick
+       to mean nothing. */
+    await saving.run(async () => {
+      if (title.trim() !== task.title) {
+        await setTitle({ taskId: task._id, title })
+      }
+      if (notes.trim() !== (task.notes ?? '')) {
+        await saveNotes({ taskId: task._id, notes })
+      }
+    })
+  }
 
   return (
     <div className="border-b border-lift/[0.05] last:border-b-0">
@@ -62,7 +102,7 @@ export function TaskRow({ task }: { task: Doc<'tasks'> }) {
 
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => (open ? shut() : setOpen(true))}
           aria-expanded={open}
           className="flex min-w-0 flex-1 items-start gap-1.5 text-left"
         >
@@ -75,70 +115,65 @@ export function TaskRow({ task }: { task: Doc<'tasks'> }) {
             <span className="truncate text-[13px] text-foreground">
               {task.title}
             </span>
-            <Meta task={task} />
+            {open ? null : <Meta task={task} />}
           </span>
         </button>
 
-        <AreaBadge
-          area={task.area}
-          onChange={(area: Area) => void setArea({ taskId: task._id, area })}
-        />
+        {showArea ? (
+          <AreaBadge
+            area={task.area}
+            onChange={(area: Area) => void setArea({ taskId: task._id, area })}
+          />
+        ) : null}
       </div>
 
       {open ? (
-        <div className="flex flex-col gap-3 pt-1 pb-4 pl-[30px]">
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-            placeholder="Notes, a prompt, a link…"
-            className="w-full resize-y bg-transparent text-[13px] leading-relaxed whitespace-pre-wrap text-ink-200 outline-none placeholder:text-ink-700"
-          />
-          {dirty ? (
-            <button
-              type="button"
-              disabled={saving.busy}
-              onClick={() =>
-                void saving.run(() => saveNotes({ taskId: task._id, notes }))
-              }
-              className="self-start rounded-[7px] border border-lav-500/60 px-3 py-1 text-[12px] text-lav-300 transition-colors hover:bg-lav-900/60"
-            >
-              <SaveLabel status={saving.status} onSettled={saving.settle}>
-                Save
-              </SaveLabel>
-            </button>
-          ) : null}
-
-          {/* Where a due date is actually set. `dueDate` and its index have
-              been in the schema since R1 with no mutation to write them, so
-              the field could be read and never filled (20 Sep). */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="label-caps">due</span>
-            <input
-              type="date"
-              value={task.dueDate ?? ''}
-              onChange={(e) =>
-                void setDueDate({
-                  taskId: task._id,
-                  dueDate: e.target.value === '' ? null : e.target.value,
-                })
-              }
-              className="rounded-[8px] border border-lift/10 bg-sink/20 px-2 py-1 font-mono text-[12px] text-ink-300 outline-none transition-colors focus:border-lav-500/60"
-            />
-            {task.dueDate !== undefined ? (
-              <button
-                type="button"
-                onClick={() =>
-                  void setDueDate({ taskId: task._id, dueDate: null })
+        <div className="pb-3 pl-[30px]">
+          <EditorPanel
+            parent={{ taskId: task._id }}
+            title={title}
+            onTitle={setTitleDraft}
+            titlePlaceholder="What the task is"
+            body={notes}
+            onBody={setNotes}
+            bodyPlaceholder="Notes, a prompt, a link…"
+            dirty={dirty}
+            status={saving.status}
+            onSettled={saving.settle}
+            onSave={() => void save()}
+            onCancel={shut}
+          >
+            {/* Where a due date is actually set. `dueDate` and its index have
+                been in the schema since R1 with no mutation to write them, so
+                the field could be read and never filled (20 Sep). It writes
+                on change rather than on Save, because a date picker has
+                already asked you to confirm. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="label-caps">due</span>
+              <input
+                type="date"
+                value={task.dueDate ?? ''}
+                onChange={(e) =>
+                  void setDueDate({
+                    taskId: task._id,
+                    dueDate: e.target.value === '' ? null : e.target.value,
+                  })
                 }
-                className="text-[11.5px] text-ink-700 transition-colors hover:text-ink-400"
-              >
-                Clear
-              </button>
-            ) : null}
-          </div>
-
-          <Attachments taskId={task._id} compact />
+                className="rounded-[8px] border border-lift/10 bg-sink/20 px-2 py-1 font-mono text-[12px] text-ink-300 outline-none transition-colors focus:border-lav-500/60"
+              />
+              {task.dueDate !== undefined ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void setDueDate({ taskId: task._id, dueDate: null })
+                  }
+                  className="text-[11.5px] text-ink-700 transition-colors hover:text-ink-400"
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
+          </EditorPanel>
         </div>
       ) : null}
     </div>

@@ -109,7 +109,6 @@ export function ProjectCard({
           <div className="pointer-events-none">
             <ProjectVitals
               projectId={project._id}
-              project={project}
               done={counts?.done}
               total={counts?.total}
             />

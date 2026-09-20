@@ -20,6 +20,7 @@ import type { LucideIcon } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { LogoUpload } from '@/components/projects/LogoUpload'
+import { ProjectProgress } from '@/components/projects/ProjectProgress'
 import { ProjectVitals } from '@/components/projects/ProjectVitals'
 import { SaveGlyph, SaveLabel, useSave } from '@/components/Saving'
 import type { Area } from '@/lib/capture-parser'
@@ -88,17 +89,24 @@ export function ProjectHeader({
 
       <Description project={project} />
 
-      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
+      {/* Numbers left, where they were; the reading of them against a target
+          on the right, in the space a wide screen leaves empty (20 Sep). The
+          deadline and the log go up there too, so the row below is actions
+          and nothing else. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-10 gap-y-5">
         <ProjectVitals
           projectId={projectId}
-          project={project}
           done={counts?.done}
           total={counts?.total}
         />
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <Deadline project={project} />
-          <LogTime projectId={projectId} area={goal?.area} />
-          <Targets project={project} />
+
+        <div className="flex flex-col items-end gap-3">
+          <ProjectProgress project={project} />
+          <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-3">
+            <Deadline project={project} />
+            <LogTime projectId={projectId} area={goal?.area} />
+            <Targets project={project} />
+          </div>
         </div>
       </div>
 

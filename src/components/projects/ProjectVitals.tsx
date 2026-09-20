@@ -8,9 +8,8 @@ import {
 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import type { Id } from '../../../convex/_generated/dataModel'
 import { CommitStrip } from '@/components/projects/CommitStrip'
-import { Ring } from '@/components/Ring'
 import { durationLabel } from '@/lib/format'
 import { addDays, addWeeks, startOfWeek } from '@/lib/weeks'
 
@@ -26,16 +25,15 @@ import { addDays, addWeeks, startOfWeek } from '@/lib/weeks'
    - no time logged this month is a nudge; any time logged is good
    - commits are neutral unless he has set a target to read them against
 
-   The ring only exists where he set a target, because §1 allows a bar only
-   where a real denominator does. No target, no ring — never an invented one. */
+   The rings that read these against a target live in ProjectProgress, on the
+   right of the header where there was nothing: he asked for the numbers to
+   stay as they are and the spinners to fill the empty side. */
 export function ProjectVitals({
   projectId,
-  project,
   done,
   total,
 }: {
   projectId: Id<'projects'>
-  project?: Doc<'projects'>
   done: number | undefined
   total: number | undefined
 }) {
@@ -63,9 +61,6 @@ export function ProjectVitals({
   const noneDone = total !== undefined && total > 0 && (done ?? 0) === 0
   const minutes = time?.minutes ?? 0
 
-  const minutesTarget = project?.minutesTargetMonthly
-  const commitTarget = project?.commitTargetWeekly
-
   return (
     <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
       <Vital
@@ -84,15 +79,6 @@ export function ProjectVitals({
         label="this month"
         tone={minutes === 0 ? 'warn' : 'good'}
         note={minutes === 0 ? 'log some time' : undefined}
-        ring={
-          minutesTarget !== undefined
-            ? {
-                value: minutes,
-                target: minutesTarget,
-                label: `of ${durationLabel(minutesTarget)}`,
-              }
-            : undefined
-        }
       />
 
       {commits?.repo ? (
@@ -102,15 +88,6 @@ export function ProjectVitals({
             n={String(commits.thisWeek)}
             label="commits this week"
             tone="plain"
-            ring={
-              commitTarget !== undefined
-                ? {
-                    value: commits.thisWeek,
-                    target: commitTarget,
-                    label: `of ${commitTarget}`,
-                  }
-                : undefined
-            }
           />
           <div className="pb-[18px]">
             <CommitStrip days={commits.days} />
@@ -127,14 +104,12 @@ function Vital({
   label,
   tone,
   note,
-  ring,
 }: {
   icon: ReactNode
   n: string | undefined
   label: string
   tone: 'good' | 'warn' | 'plain'
   note?: string
-  ring?: { value: number; target: number; label: string }
 }) {
   const text =
     tone === 'good'
@@ -143,7 +118,7 @@ function Vital({
         ? 'text-state-warn'
         : 'text-foreground'
 
-  const body = (
+  return (
     <div className="flex flex-col">
       <span
         className={`flex items-center gap-1.5 text-[24px] leading-none font-light ${text}`}
@@ -159,24 +134,6 @@ function Vital({
       {note ? (
         <span className={`pt-0.5 text-[11px] ${text} opacity-80`}>{note}</span>
       ) : null}
-    </div>
-  )
-
-  if (ring === undefined) return body
-
-  return (
-    <div className="flex items-center gap-3">
-      <div className="relative grid place-items-center">
-        <Ring
-          value={ring.value}
-          target={ring.target}
-          tone={tone === 'plain' ? 'accent' : tone}
-        />
-      </div>
-      <div className="flex flex-col">
-        {body}
-        <span className="label-caps pt-0.5 text-ink-700">{ring.label}</span>
-      </div>
     </div>
   )
 }

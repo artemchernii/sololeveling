@@ -128,17 +128,24 @@ export function ProjectCard({
       </div>
 
       {isFocus ? (
-        /* Two columns above lg, because the card is 1300px wide and was
-           using 600 of them. The numbers do not get wider from the room —
-           the tasks come up beside them instead, and the card gets shorter. */
+        /* The left track is `max-content`, not `1fr` (21 Sep, second pass).
+           Measured: the tracks were 604 / 300 / 340, and the vitals used 459
+           of their 604 while standing 46px tall against neighbours of 155 —
+           an L-shaped hole, 145px of width beside the numbers and 109px of
+           height beneath them, with the two blocks beside it so narrow that
+           every commit message truncated.
+
+           Sizing the numbers to themselves gives both away at once: the slack
+           beside them disappears, and the two cards split what it was holding
+           instead of being capped at 300 and 340. */
         <div
           className={`relative grid items-start gap-4 ${
             latest.length > 0
-              ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)_minmax(0,340px)]'
-              : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]'
+              ? 'lg:grid-cols-[max-content_minmax(0,1fr)_minmax(0,1fr)]'
+              : 'lg:grid-cols-[max-content_minmax(0,1fr)]'
           }`}
         >
-          <div className="pointer-events-none">
+          <div className="pointer-events-none h-full">
             <ProjectVitals
               projectId={project._id}
               done={counts?.done}

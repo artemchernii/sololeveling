@@ -10,7 +10,7 @@ import {
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { CommitStrip } from '@/components/projects/CommitStrip'
-import { durationLabel } from '@/lib/format'
+import { durationLabel, whenLabel } from '@/lib/format'
 import { addDays, addWeeks, startOfWeek } from '@/lib/weeks'
 
 /* A project's vitals (20 Sep). On the focus card, where §3c.2 keeps every
@@ -62,36 +62,60 @@ export function ProjectVitals({
   const minutes = time?.minutes ?? 0
 
   return (
-    <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
-      <Vital
-        icon={allDone ? <CircleCheckBig /> : <Circle />}
-        n={total === undefined ? undefined : `${done ?? 0}/${total}`}
-        label="tasks done"
-        tone={allDone ? 'good' : noneDone ? 'warn' : 'plain'}
-        note={
-          allDone ? 'all clear' : noneDone ? 'nothing ticked yet' : undefined
-        }
-      />
+    /* Full height with the attribution pushed to the bottom (21 Sep). The
+       numbers are 46px tall and sit beside blocks of 155, so the column left
+       a 109px hole under them — "move it a bit better to reduce deadspace".
 
-      <Vital
-        icon={<Clock />}
-        n={time === undefined ? undefined : durationLabel(minutes)}
-        label="this month"
-        tone={minutes === 0 ? 'warn' : 'good'}
-        note={minutes === 0 ? 'log some time' : undefined}
-      />
+       What fills it is a line the card owed anyway: PLAN.md §1 says an
+       external reading is shown as of a time, and the commit counts here are
+       source 4. The project page carries its "as of"; this card showed the
+       same numbers with nothing saying when they were read. So the hole is
+       closed by a rule rather than by padding, and the column now has
+       content at both ends the way every other row on these pages does. */
+    <div className="flex h-full flex-col justify-between gap-4">
+      <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
+        <Vital
+          icon={allDone ? <CircleCheckBig /> : <Circle />}
+          n={total === undefined ? undefined : `${done ?? 0}/${total}`}
+          label="tasks done"
+          tone={allDone ? 'good' : noneDone ? 'warn' : 'plain'}
+          note={
+            allDone ? 'all clear' : noneDone ? 'nothing ticked yet' : undefined
+          }
+        />
+
+        <Vital
+          icon={<Clock />}
+          n={time === undefined ? undefined : durationLabel(minutes)}
+          label="this month"
+          tone={minutes === 0 ? 'warn' : 'good'}
+          note={minutes === 0 ? 'log some time' : undefined}
+        />
+
+        {commits?.repo ? (
+          <div className="flex items-end gap-3">
+            <Vital
+              icon={<GitCommitHorizontal />}
+              n={String(commits.thisWeek)}
+              label="commits this week"
+              tone="plain"
+            />
+            <div className="pb-[18px]">
+              <CommitStrip days={commits.days} />
+            </div>
+          </div>
+        ) : null}
+      </div>
 
       {commits?.repo ? (
-        <div className="flex items-end gap-3">
-          <Vital
-            icon={<GitCommitHorizontal />}
-            n={String(commits.thisWeek)}
-            label="commits this week"
-            tone="plain"
-          />
-          <div className="pb-[18px]">
-            <CommitStrip days={commits.days} />
-          </div>
+        <div className="flex flex-wrap items-baseline gap-x-2 font-mono text-[11px] text-ink-700">
+          <span className="truncate">{commits.repo}</span>
+          <span>·</span>
+          <span>
+            {commits.checkedAt === null
+              ? 'never checked'
+              : `as of ${whenLabel(commits.checkedAt)}`}
+          </span>
         </div>
       ) : null}
     </div>

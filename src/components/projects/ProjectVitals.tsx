@@ -62,17 +62,12 @@ export function ProjectVitals({
   const minutes = time?.minutes ?? 0
 
   return (
-    /* Full height with the attribution pushed to the bottom (21 Sep). The
-       numbers are 46px tall and sit beside blocks of 155, so the column left
-       a 109px hole under them — "move it a bit better to reduce deadspace".
-
-       What fills it is a line the card owed anyway: PLAN.md §1 says an
-       external reading is shown as of a time, and the commit counts here are
-       source 4. The project page carries its "as of"; this card showed the
-       same numbers with nothing saying when they were read. So the hole is
-       closed by a rule rather than by padding, and the column now has
-       content at both ends the way every other row on these pages does. */
-    <div className="flex h-full flex-col justify-between gap-4">
+    /* The numbers, then who they came from (21 Sep). The attribution is a
+       line the card owed anyway: PLAN.md §1 says an external reading is
+       shown as of a time, commit counts are source 4, and this card showed
+       the same numbers the project page does with nothing saying when they
+       were read. Its column places it; this only says what it is. */
+    <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
         <Vital
           icon={allDone ? <CircleCheckBig /> : <Circle />}

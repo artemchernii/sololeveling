@@ -106,26 +106,18 @@ export function ProjectCard({
         className="absolute inset-0"
       />
 
-      <div className="pointer-events-none relative flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <ProjectLogo url={logoUrl} title={project.title} area={area} />
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="truncate text-[15px] text-foreground transition-colors group-hover:text-lav-300">
-              {project.title}
-            </span>
-            <span className="pointer-events-auto relative z-10 flex items-center gap-2">
-              <AreaBadge
-                area={area}
-                onChange={(next: Area) =>
-                  void setArea({ projectId: project._id, area: next })
-                }
-              />
-              <DeadlineChip project={project} />
-            </span>
-          </div>
+      {isFocus ? null : (
+        <div className="pointer-events-none relative">
+          <Identity
+            project={project}
+            logoUrl={logoUrl}
+            area={area}
+            setArea={(next) =>
+              void setArea({ projectId: project._id, area: next })
+            }
+          />
         </div>
-        <StatusBadge status={project.status} />
-      </div>
+      )}
 
       {isFocus ? (
         /* The left track is `max-content`, not `1fr` (21 Sep, second pass).
@@ -139,13 +131,36 @@ export function ProjectCard({
            beside them disappears, and the two cards split what it was holding
            instead of being capped at 300 and 340. */
         <div
-          className={`relative grid items-start gap-4 ${
+          /* `grid-cols-1` is load-bearing below `lg`, not decoration: with no
+             base template the single track sizes to max-content, and
+             max-content ignores the wrapping of the vitals row — measured at
+             375px it came out 427px wide inside a 337px card, so every
+             commit message ran off the edge and was clipped by the card's
+             `overflow-hidden` rather than truncated. */
+          className={`relative grid grid-cols-1 items-stretch gap-4 ${
             latest.length > 0
               ? 'lg:grid-cols-[max-content_minmax(0,1fr)_minmax(0,1fr)]'
               : 'lg:grid-cols-[max-content_minmax(0,1fr)]'
           }`}
         >
-          <div className="pointer-events-none h-full">
+          {/* The name and the numbers are one column now (21 Sep): "move
+              focus next to title so on the right side we have 2 blocks with
+              tasks and latest."
+
+              Moving the badge alone would have opened a new hole where it
+              used to be — a header row reaching 1555 with nothing in it past
+              the title. So the whole identity came down into the first
+              column instead, the row above it is gone, and the right side is
+              exactly the two blocks he asked for. */}
+          <div className="pointer-events-none flex h-full flex-col justify-between gap-4">
+            <Identity
+              project={project}
+              logoUrl={logoUrl}
+              area={area}
+              setArea={(next) =>
+                void setArea({ projectId: project._id, area: next })
+              }
+            />
             <ProjectVitals
               projectId={project._id}
               done={counts?.done}
@@ -212,6 +227,39 @@ export function ProjectCard({
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+/* The project's name and what kind of thing it is. A row of its own on a
+   non-focus card; the head of the first column on the focus card, where the
+   badge sits beside the title rather than a thousand pixels away from it. */
+function Identity({
+  project,
+  logoUrl,
+  area,
+  setArea,
+}: {
+  project: Doc<'projects'>
+  logoUrl: string | null
+  area: Area | undefined
+  setArea: (next: Area) => void
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2.5">
+      <ProjectLogo url={logoUrl} title={project.title} area={area} />
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span className="truncate text-[15px] text-foreground transition-colors group-hover:text-lav-300">
+            {project.title}
+          </span>
+          <StatusBadge status={project.status} />
+        </span>
+        <span className="pointer-events-auto relative z-10 flex flex-wrap items-center gap-2">
+          <AreaBadge area={area} onChange={setArea} />
+          <DeadlineChip project={project} />
+        </span>
+      </div>
     </div>
   )
 }

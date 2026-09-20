@@ -159,7 +159,7 @@ export function ProjectCommits({
 
 function Count({ n, label }: { n: number; label: string }) {
   return (
-    <div className="flex flex-col">
+    <div className="motion-arrive flex flex-col">
       <span className="text-[28px] leading-none font-light text-foreground">
         {n}
       </span>

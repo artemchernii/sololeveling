@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { CircleCheck, Plus } from 'lucide-react'
+import { CircleCheck, Plus, RotateCcw, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import type { Id } from '../../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import { ProjectCommits } from '@/components/projects/ProjectCommits'
@@ -159,23 +159,7 @@ function Project() {
             {[...closed]
               .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
               .map((task) => (
-                <div
-                  key={task._id}
-                  className="flex items-start gap-2.5 border-b border-lift/[0.05] py-1.5 last:border-b-0"
-                >
-                  <CircleCheck className="mt-0.5 size-3.5 shrink-0 text-state-good" />
-                  {/* The time runs on from the title rather than being pinned
-                      to the far edge: right-aligned, two short titles left a
-                      hole all the way across the card. */}
-                  <span className="min-w-0 text-[12.5px] text-ink-300">
-                    {task.title}
-                    {task.completedAt !== undefined ? (
-                      <span className="pl-2 font-mono text-[11px] text-ink-600">
-                        {whenLabel(task.completedAt)}
-                      </span>
-                    ) : null}
-                  </span>
-                </div>
+                <DoneRow key={task._id} task={task} />
               ))}
           </div>
         ) : null}
@@ -188,3 +172,48 @@ function Project() {
    there is one thing to choose and it is a list of goals you already have.
    Monthly tile targets are left out — a project does not hang on "4 sessions
    a month" any more than it hangs on a tally. */
+
+/* A finished task, and the two ways back (20 Sep). Ticking one is a claim, and
+   a claim can be wrong: undo puts it back on the list, and the cross removes
+   it outright. Both were already mutations — `tasks.reopen` and `tasks.remove`
+   — with nothing on this page that reached them. The controls stay hidden
+   until the row is hovered or focused, so the card still reads as a quiet
+   list of things that went right. */
+function DoneRow({ task }: { task: Doc<'tasks'> }) {
+  const reopen = useMutation(api.tasks.reopen)
+  const removeTask = useMutation(api.tasks.remove)
+
+  return (
+    <div className="group flex items-start gap-2.5 border-b border-lift/[0.05] py-1.5 last:border-b-0">
+      <CircleCheck className="mt-0.5 size-3.5 shrink-0 text-state-good" />
+      <span className="min-w-0 flex-1 text-[12.5px] text-ink-300">
+        {task.title}
+        {task.completedAt !== undefined ? (
+          <span className="pl-2 font-mono text-[11px] text-ink-600">
+            {whenLabel(task.completedAt)}
+          </span>
+        ) : null}
+      </span>
+      <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        <button
+          type="button"
+          aria-label={`Put ${task.title} back on the list`}
+          title="Back to open"
+          onClick={() => void reopen({ taskId: task._id })}
+          className="motion-press grid size-5 place-items-center rounded-[6px] text-ink-700 transition-colors hover:bg-lift/8 hover:text-lav-300"
+        >
+          <RotateCcw className="size-3" />
+        </button>
+        <button
+          type="button"
+          aria-label={`Delete ${task.title}`}
+          title="Delete"
+          onClick={() => void removeTask({ taskId: task._id })}
+          className="motion-press grid size-5 place-items-center rounded-[6px] text-ink-700 transition-colors hover:bg-state-danger/15 hover:text-state-danger"
+        >
+          <X className="size-3" />
+        </button>
+      </span>
+    </div>
+  )
+}

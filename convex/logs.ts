@@ -142,6 +142,38 @@ export const recent = query({
 })
 
 /**
+ * A project's own session logs for a period, newest first (20 Sep).
+ *
+ * "What if I logged more time than I should" — the answer is the same one
+ * `remove` has always given: a log is not edited into a different truth, it is
+ * deleted and logged again. This is the list that makes that a two-second job
+ * rather than a hunt, so the correction path stays the append-only one.
+ */
+export const listForProject = query({
+  args: {
+    projectId: v.id('projects'),
+    start: v.number(),
+    end: v.number(),
+  },
+  returns: v.array(schema.doc('logs')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_project_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('projectId', args.projectId)
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .order('desc')
+      .take(RECENT_ROWS)
+    return rows.filter((row) => row.kind === 'session')
+  },
+})
+
+/**
  * The badge is the editor. `area` is filing, not evidence — a mis-filed note
  * gets corrected here, while kind, occurredAt, value and text stay immutable.
  * A wrong workout is deleted and re-logged, never edited into a different truth.

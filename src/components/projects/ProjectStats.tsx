@@ -8,8 +8,10 @@ import {
   Clock,
   CornerDownLeft,
   GitCommitHorizontal,
+  History,
   Plus,
   Target as TargetIcon,
+  X,
 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
@@ -17,7 +19,7 @@ import type { Doc } from '../../../convex/_generated/dataModel'
 import { Ring } from '@/components/Ring'
 import { SaveLabel, useSave } from '@/components/Saving'
 import type { Area } from '@/lib/capture-parser'
-import { durationLabel } from '@/lib/format'
+import { durationLabel, whenLabel } from '@/lib/format'
 import { addDays, addWeeks, startOfWeek } from '@/lib/weeks'
 
 /* The header's stats, as blocks (20 Sep, third pass).
@@ -57,10 +59,13 @@ export function ProjectStats({
 }) {
   const projectId = project._id
   const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime()
+  const [showLog, setShowLog] = useState(false)
   const time = useQuery(api.aggregate.projectTime, {
     projectId,
-    start: new Date(now.getFullYear(), now.getMonth(), 1).getTime(),
-    end: new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime(),
+    start: monthStart,
+    end: monthEnd,
   })
 
   const week = startOfWeek()
@@ -87,127 +92,186 @@ export function ProjectStats({
   const thisWeek = commits?.thisWeek ?? 0
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <Block>
-        <div className="flex items-center gap-3.5">
-          {/* Without a target the denominator is the live task count, a real
+    <div className="flex flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <Block
+          delay={0}
+          footer={
+            <>
+              <Target
+                projectId={projectId}
+                field="taskTargetTotal"
+                current={project.taskTargetTotal}
+                unit="tasks in all"
+                shown={
+                  project.taskTargetTotal === undefined
+                    ? undefined
+                    : `of ${project.taskTargetTotal}`
+                }
+              />
+              {/* The other half of done/total, which is the number you act on.
+                  An entity count either way (§1 source 3). */}
+              {total !== undefined ? (
+                <span className="label-caps">{total - (done ?? 0)} open</span>
+              ) : null}
+            </>
+          }
+        >
+          <div className="flex items-center gap-3.5">
+            {/* Without a target the denominator is the live task count, a real
               entity count (§1 source 3) — which can only ever reach "all of
               the ones that exist". A target he sets is the size he reckons
               the project is, and it takes over the denominator (20 Sep). */}
-          <Puck
-            icon={reached ? <CircleCheckBig /> : <Circle />}
-            value={done ?? 0}
-            target={denominator}
-            tone={reached ? 'good' : 'accent'}
-          />
-          <Figure
-            n={
-              total === undefined
-                ? undefined
-                : `${done ?? 0}/${denominator ?? total}`
-            }
-            label="tasks done"
-            tone={reached ? 'good' : noneDone ? 'warn' : 'plain'}
-            note={
-              reached
-                ? 'all clear'
-                : noneDone
-                  ? 'nothing ticked yet'
-                  : undefined
-            }
-          />
-        </div>
-        <Target
-          projectId={projectId}
-          field="taskTargetTotal"
-          current={project.taskTargetTotal}
-          unit="tasks in all"
-          shown={
-            project.taskTargetTotal === undefined
-              ? undefined
-              : `of ${project.taskTargetTotal}`
-          }
-        />
-      </Block>
+            <Puck
+              icon={reached ? <CircleCheckBig /> : <Circle />}
+              value={done ?? 0}
+              target={denominator}
+              tone={reached ? 'good' : 'accent'}
+            />
+            <Figure
+              n={
+                total === undefined
+                  ? undefined
+                  : `${done ?? 0}/${denominator ?? total}`
+              }
+              label="tasks done"
+              tone={reached ? 'good' : noneDone ? 'warn' : 'plain'}
+              note={
+                reached
+                  ? 'all clear'
+                  : noneDone
+                    ? 'nothing ticked yet'
+                    : undefined
+              }
+            />
+          </div>
+        </Block>
 
-      <Block>
-        <div className="flex items-center gap-3.5">
-          <Puck
-            icon={<Clock />}
-            value={minutes}
-            target={project.minutesTargetMonthly}
-            tone={
-              project.minutesTargetMonthly !== undefined &&
-              minutes >= project.minutesTargetMonthly
-                ? 'good'
-                : 'accent'
-            }
-          />
-          <Figure
-            n={time === undefined ? undefined : durationLabel(minutes)}
-            label="this month"
-            tone={minutes === 0 ? 'warn' : 'good'}
-            note={minutes === 0 ? 'log some time' : undefined}
-          />
-        </div>
-        <Target
-          projectId={projectId}
-          field="minutesTargetMonthly"
-          current={project.minutesTargetMonthly}
-          unit="min a month"
-          shown={
-            project.minutesTargetMonthly === undefined
-              ? undefined
-              : `of ${durationLabel(project.minutesTargetMonthly)}`
+        <Block
+          delay={60}
+          footer={
+            <>
+              <Target
+                projectId={projectId}
+                field="minutesTargetMonthly"
+                current={project.minutesTargetMonthly}
+                unit="min a month"
+                shown={
+                  project.minutesTargetMonthly === undefined
+                    ? undefined
+                    : `of ${durationLabel(project.minutesTargetMonthly)}`
+                }
+              />
+              <LogTime
+                projectId={projectId}
+                area={area}
+                onHistory={() => setShowLog((v) => !v)}
+              />
+            </>
           }
-        />
-      </Block>
-
-      {commits?.repo ? (
-        <Block>
+        >
           <div className="flex items-center gap-3.5">
             <Puck
-              icon={<GitCommitHorizontal />}
-              value={thisWeek}
-              target={project.commitTargetWeekly}
+              icon={<Clock />}
+              value={minutes}
+              target={project.minutesTargetMonthly}
               tone={
-                project.commitTargetWeekly !== undefined &&
-                thisWeek >= project.commitTargetWeekly
+                project.minutesTargetMonthly !== undefined &&
+                minutes >= project.minutesTargetMonthly
                   ? 'good'
                   : 'accent'
               }
             />
             <Figure
-              n={String(thisWeek)}
-              label="commits this week"
-              tone="plain"
+              n={time === undefined ? undefined : durationLabel(minutes)}
+              label="this month"
+              tone={minutes === 0 ? 'warn' : 'good'}
+              note={minutes === 0 ? 'log some time' : undefined}
             />
           </div>
-          <Target
-            projectId={projectId}
-            field="commitTargetWeekly"
-            current={project.commitTargetWeekly}
-            unit="a week"
-            shown={
-              project.commitTargetWeekly === undefined
-                ? undefined
-                : `of ${project.commitTargetWeekly}`
-            }
-          />
         </Block>
-      ) : null}
 
-      <LogBlock projectId={projectId} area={area} />
+        {commits?.repo ? (
+          <Block
+            delay={120}
+            footer={
+              <>
+                <Target
+                  projectId={projectId}
+                  field="commitTargetWeekly"
+                  current={project.commitTargetWeekly}
+                  unit="a week"
+                  shown={
+                    project.commitTargetWeekly === undefined
+                      ? undefined
+                      : `of ${project.commitTargetWeekly}`
+                  }
+                />
+                {/* A reading from outside says as of when (§1 source 4). */}
+                {commits.checkedAt !== null ? (
+                  <span className="font-mono text-[11px] text-ink-600">
+                    as of {whenLabel(commits.checkedAt)}
+                  </span>
+                ) : null}
+              </>
+            }
+          >
+            <div className="flex items-center gap-3.5">
+              <Puck
+                icon={<GitCommitHorizontal />}
+                value={thisWeek}
+                target={project.commitTargetWeekly}
+                tone={
+                  project.commitTargetWeekly !== undefined &&
+                  thisWeek >= project.commitTargetWeekly
+                    ? 'good'
+                    : 'accent'
+                }
+              />
+              <Figure
+                n={String(thisWeek)}
+                label="commits this week"
+                tone="plain"
+              />
+            </div>
+          </Block>
+        ) : null}
+      </div>
+
+      {showLog ? (
+        <TimeLog projectId={projectId} start={monthStart} end={monthEnd} />
+      ) : null}
     </div>
   )
 }
 
 /* A panel rather than a column of loose text: it has an edge, so the grid
-   reads as blocks that fill the card instead of items that ran out. */
-function Block({ children }: { children: ReactNode }) {
+   reads as blocks that fill the card instead of items that ran out.
+
+   Fifth pass, 20 Sep: the controls now sit on a footer rule that runs the
+   whole width of the block. He boxed the empty right-hand third of two tiles
+   — content that stops short reads as a block that ran out, and a line that
+   crosses the whole tile is what says it did not. */
+function Block({
+  children,
+  footer,
+  delay,
+}: {
+  children: ReactNode
+  footer?: ReactNode
+  delay: number
+}) {
   return (
-    <div className="flex min-w-0 flex-col justify-between gap-2 rounded-[14px] bg-lift/[0.03] px-4 py-3 ring-1 ring-lift/[0.06] ring-inset">
+    <div
+      style={{ animationDelay: `${delay}ms` }}
+      className="motion-arrive flex min-w-0 flex-col gap-2.5 rounded-[14px] bg-lift/[0.03] px-4 py-3.5 ring-1 ring-lift/[0.06] ring-inset"
+    >
       {children}
+      {footer !== undefined ? (
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-lift/[0.07] pt-2.5">
+          {footer}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -276,7 +340,7 @@ function Figure({
 
   return (
     <div className="flex min-w-0 flex-col">
-      <span className={`text-[26px] leading-none font-light ${text}`}>
+      <span className={`text-[30px] leading-none font-light ${text}`}>
         {n ?? '—'}
       </span>
       <span className="label-caps truncate pt-2">{label}</span>
@@ -360,12 +424,18 @@ function Target({
 
 /* Logging is a thing you do, so it is a block of its own rather than a field
    adrift in a row of readings (20 Sep). */
-function LogBlock({
+/* Logging time, in the tile whose number it changes (20 Sep, fifth pass).
+   It used to be a fourth block in a row of three readouts — "log cards looks
+   still all over the place" — a form wearing the costume of a statistic. The
+   number it moves is "this month", so it lives on that tile's footer. */
+function LogTime({
   projectId,
   area,
+  onHistory,
 }: {
   projectId: Doc<'projects'>['_id']
   area: Area | undefined
+  onHistory: () => void
 }) {
   const createLog = useMutation(api.logs.create)
   const [minutes, setMinutes] = useState('')
@@ -392,40 +462,95 @@ function LogBlock({
   }
 
   return (
-    <Block>
-      <div className="flex items-center gap-3.5">
-        <div className="grid size-[52px] shrink-0 place-items-center rounded-full ring-1 ring-lav-500/25 ring-inset">
-          <Clock className="size-4 text-lav-300/70" />
-        </div>
-        <div className="flex min-w-0 flex-col">
-          <div className="flex items-center gap-2">
-            <input
-              value={minutes}
-              onChange={(e) => setMinutes(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void log()
-              }}
-              inputMode="numeric"
-              placeholder="45"
-              aria-label="Minutes spent on this project"
-              className="w-14 rounded-[8px] border border-lift/10 bg-sink/20 px-2 py-1.5 text-center font-mono text-[13px] text-ink-200 outline-none transition-colors focus:border-lav-500/60 placeholder:text-ink-700"
-            />
-            <span className="font-mono text-[11.5px] text-ink-600">min</span>
+    <div className="flex items-center gap-1.5">
+      <input
+        value={minutes}
+        onChange={(e) => setMinutes(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') void log()
+        }}
+        inputMode="numeric"
+        placeholder="45"
+        aria-label="Minutes spent on this project"
+        className="w-11 rounded-[7px] border border-lift/10 bg-sink/20 px-1.5 py-1 text-center font-mono text-[12px] text-ink-200 outline-none transition-colors focus:border-lav-500/60 placeholder:text-ink-700"
+      />
+      <span className="font-mono text-[11px] text-ink-600">min</span>
+      <button
+        type="button"
+        disabled={saving.busy}
+        onClick={() => void log()}
+        className="motion-press flex items-center gap-1 rounded-[7px] bg-lav-900/70 px-2 py-1 text-[11.5px] text-lav-200 ring-1 ring-lav-500/50 ring-inset transition-colors hover:bg-lav-800"
+      >
+        <Plus className="size-3" />
+        <SaveLabel status={saving.status} onSettled={saving.settle}>
+          Add
+        </SaveLabel>
+      </button>
+      <button
+        type="button"
+        onClick={onHistory}
+        aria-label="Entries logged this month"
+        className="motion-press grid size-[26px] place-items-center rounded-[7px] text-ink-600 transition-colors hover:bg-lift/5 hover:text-ink-300"
+      >
+        <History className="size-3.5" />
+      </button>
+    </div>
+  )
+}
+
+/* Every session logged against this project this month, so a mistyped one can
+   be put right (20 Sep).
+
+   It is delete-and-log-again, not an edit field, and deliberately: PLAN.md
+   calls logs "append-only evidence", and logs.ts says a log is never edited
+   into a different truth. What was missing was not the ability to correct a
+   mistake — `remove` has always been there — but anywhere to see the row you
+   meant to correct. */
+function TimeLog({
+  projectId,
+  start,
+  end,
+}: {
+  projectId: Doc<'projects'>['_id']
+  start: number
+  end: number
+}) {
+  const rows = useQuery(api.logs.listForProject, { projectId, start, end })
+  const removeLog = useMutation(api.logs.remove)
+
+  return (
+    <div className="motion-arrive flex flex-col gap-1 rounded-[14px] bg-lift/[0.03] px-4 py-3 ring-1 ring-lift/[0.06] ring-inset">
+      <span className="label-caps">logged this month</span>
+      {rows === undefined ? null : rows.length === 0 ? (
+        <p className="py-1 text-[12.5px] text-ink-500">
+          Nothing logged against this project yet this month.
+        </p>
+      ) : (
+        rows.map((row) => (
+          <div
+            key={row._id}
+            className="group flex items-center gap-3 border-b border-lift/[0.05] py-1.5 last:border-b-0"
+          >
+            <span className="font-mono text-[12.5px] text-ink-200">
+              {durationLabel(row.value ?? 0)}
+            </span>
+            <span className="flex-1 truncate font-mono text-[11px] text-ink-600">
+              {whenLabel(row.occurredAt)}
+            </span>
             <button
               type="button"
-              disabled={saving.busy}
-              onClick={() => void log()}
-              className="motion-press flex items-center gap-1.5 rounded-[8px] bg-lav-900/70 px-3 py-1.5 text-[12px] text-lav-200 ring-1 ring-lav-500/50 ring-inset transition-colors hover:bg-lav-800"
+              aria-label={`Remove ${durationLabel(row.value ?? 0)} logged ${whenLabel(row.occurredAt)}`}
+              onClick={() => void removeLog({ logId: row._id })}
+              className="motion-press grid size-5 shrink-0 place-items-center rounded-[6px] text-ink-700 opacity-0 transition-colors group-hover:opacity-100 hover:bg-state-danger/15 hover:text-state-danger focus-visible:opacity-100"
             >
-              <Plus className="size-3" />
-              <SaveLabel status={saving.status} onSettled={saving.settle}>
-                Add
-              </SaveLabel>
+              <X className="size-3" />
             </button>
           </div>
-          <span className="label-caps pt-2">log time</span>
-        </div>
-      </div>
-    </Block>
+        ))
+      )}
+      <p className="pt-1 text-[11px] text-ink-700">
+        A log is evidence, so it is removed and logged again rather than edited.
+      </p>
+    </div>
   )
 }

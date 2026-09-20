@@ -135,7 +135,15 @@ export function CommitHeatmap({
 
           <div className="flex gap-[3px]">
             {Array.from({ length: weeks }, (_, w) => (
-              <div key={w} className="flex flex-col gap-[3px]">
+              /* The year draws itself in, a week at a time (20 Sep). Staggered
+                 per column rather than per cell: 98 separately animated
+                 squares is a lot of work for the same 400ms, and the eye reads
+                 the sweep, not the cell. */
+              <div
+                key={w}
+                style={{ animationDelay: `${Math.min(w * 14, 700)}ms` }}
+                className="motion-arrive flex flex-col gap-[3px]"
+              >
                 {Array.from({ length: 7 }, (__, d) => {
                   const i = at(w, d)
                   const n = activity.days[i] ?? 0

@@ -154,12 +154,38 @@ export default defineSchema({
     description: v.optional(v.string()),
     status: projectStatus,
     deadline: v.optional(v.string()), // ISO date
+    /* Source 4 (R3c): a public GitHub repo as `owner/name`. Its commits are
+       fetched hourly into `commits`; githubCheckedAt is when that last
+       succeeded — the "as of" every reading must carry (PLAN.md §1). */
+    githubRepo: v.optional(v.string()),
+    githubCheckedAt: v.optional(v.number()),
   })
     .index('by_owner_status', ['ownerId', 'status']) // one 'focus' per owner — setFocus enforces
+    /* Read only by the internal hourly check, which acts for every owner — the
+       one index here not led by ownerId. An absent repo sorts before every
+       string, so gte('') is exactly the connected projects. */
+    .index('by_github_repo', ['githubRepo'])
     .searchIndex('search_title', {
       searchField: 'title',
       filterFields: ['ownerId'],
     }),
+
+  /* The first external reading (PLAN.md §1 source 4, R3c): a commit as GitHub
+     reported it, stored — never fetched at render. `repo` is kept on each row
+     so a project whose repo changes stops counting the old one's commits
+     without deleting them. Counted per week; nothing is derived from them. */
+  commits: defineTable({
+    ownerId: v.string(),
+    projectId: v.id('projects'),
+    repo: v.string(),
+    sha: v.string(),
+    message: v.string(), // first line only
+    url: v.string(),
+    authoredAt: v.number(),
+    fetchedAt: v.number(),
+  })
+    .index('by_owner_project_time', ['ownerId', 'projectId', 'authoredAt'])
+    .index('by_project_sha', ['projectId', 'sha']),
 
   tasks: defineTable({
     ownerId: v.string(),

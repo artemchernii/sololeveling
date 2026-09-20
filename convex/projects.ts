@@ -209,6 +209,15 @@ export const remove = mutation({
       await ctx.db.patch(task._id, { projectId: undefined, goalId: undefined })
     }
 
+    /* Readings about this project mean nothing without it. */
+    const commits = await ctx.db
+      .query('commits')
+      .withIndex('by_owner_project_time', (q) =>
+        q.eq('ownerId', ownerId).eq('projectId', args.projectId),
+      )
+      .take(1000)
+    for (const commit of commits) await ctx.db.delete(commit._id)
+
     await ctx.db.delete(args.projectId)
     return null
   },

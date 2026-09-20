@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Plus } from 'lucide-react'
@@ -11,23 +11,23 @@ import { SkeletonRows } from '@/components/Skeleton'
 import { agoLabel } from '@/lib/format'
 
 /* The notes attached to a project (R3). Writing one here creates it already
-   attached and opens it, because a note is written on its own page. Files
-   arrive in R4, on notes — and so on the project through this card. */
+   attached, and stays here: it used to open the note's own page, which threw
+   you out of the project you were working in to look at an empty editor
+   (20 Sep). The glyph runs spinner → tick, the note appears in the list above
+   on its own — Convex reactivity, no refetch — and you open it when you want
+   to write in it. Files arrive in R4, on notes, and so on the project through
+   this card. */
 export function ProjectNotes({ projectId }: { projectId: Id<'projects'> }) {
   const notes = useQuery(api.notes.listByProject, { projectId })
   const create = useMutation(api.notes.create)
-  const navigate = useNavigate()
   const [title, setTitle] = useState('')
   const writing = useSave()
 
   async function add() {
     const trimmed = title.trim()
     if (trimmed.length === 0 || writing.busy) return
-    const noteId = await writing.run(() =>
-      create({ title: trimmed, projectId }),
-    )
+    await writing.run(() => create({ title: trimmed, projectId }))
     setTitle('')
-    await navigate({ to: '/notes/$id', params: { id: noteId } })
   }
 
   return (

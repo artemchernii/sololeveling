@@ -55,7 +55,6 @@ function Project() {
   })
 
   const createTask = useMutation(api.tasks.create)
-  const setProject = useMutation(api.tasks.setProject)
   const setFocus = useMutation(api.projects.setFocus)
   const setStatus = useMutation(api.projects.setStatus)
   const complete = useMutation(api.tasks.complete)
@@ -115,10 +114,10 @@ function Project() {
   async function add() {
     const trimmed = title.trim()
     if (trimmed.length === 0 || adding.status === 'saving') return
-    await adding.run(async () => {
-      const taskId = await createTask({ title: trimmed })
-      await setProject({ taskId, projectId })
-    })
+    /* One write, not create-then-attach: tasks.create takes the project and
+       resolves the goal from it. The old pair left the task unattached for a
+       beat, which meant it flashed into the backlog on its way here. */
+    await adding.run(() => createTask({ title: trimmed, projectId }))
     setTitle('')
   }
 

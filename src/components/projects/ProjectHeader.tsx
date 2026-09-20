@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
-import { useQuery } from 'convex-helpers/react/cache/hooks'
 import {
   Archive,
   ArrowLeft,
   CalendarClock,
   CircleCheck,
+  CornerDownLeft,
   Pause,
+  PenLine,
   Target,
-  FolderInput,
+  Gauge,
+  Infinity as InfinityIcon,
   Trash2,
   TriangleAlert,
 } from 'lucide-react'
@@ -19,7 +21,7 @@ import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { LogoUpload } from '@/components/projects/LogoUpload'
 import { ProjectVitals } from '@/components/projects/ProjectVitals'
-import { SaveLabel, useSave } from '@/components/Saving'
+import { SaveGlyph, SaveLabel, useSave } from '@/components/Saving'
 import type { Area } from '@/lib/capture-parser'
 import { daysUntil, deadlineLabel, isOverdue } from '@/lib/format'
 import { localToday } from '@/lib/today'
@@ -89,12 +91,14 @@ export function ProjectHeader({
       <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
         <ProjectVitals
           projectId={projectId}
+          project={project}
           done={counts?.done}
           total={counts?.total}
         />
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <Deadline project={project} />
           <LogTime projectId={projectId} area={goal?.area} />
+          <Targets project={project} />
         </div>
       </div>
 
@@ -133,7 +137,6 @@ export function ProjectHeader({
         >
           Archive
         </Action>
-        {goal ? <MoveToGoal goal={goal} projectId={projectId} /> : null}
         <DeleteAction projectId={projectId} />
       </div>
     </div>
@@ -164,106 +167,116 @@ function StatusBadge({ status }: { status: Doc<'projects'>['status'] }) {
   )
 }
 
-/* Refiling a project, as an action (20 Sep). First it was a card with the
-   goal's whole timeline; then one line under the title reading "for improve
-   solo leveling". He called both bad, and he is right that a project page is
-   about the thing being built, not the thing it answers to.
+/* What the project is, in his words (20 Sep, rebuilt the same evening).
 
-   It cannot simply go: without it a project under the wrong goal can only be
-   fixed by deleting it, which is the exact bug setGoal was added to end. So
-   it sits with the other actions, saying nothing until pressed. */
-function MoveToGoal({
-  goal,
-  projectId,
-}: {
-  goal: Doc<'goals'>
-  projectId: Id<'projects'>
-}) {
-  const goals = useQuery(api.goals.listActive, {})
-  const setGoal = useMutation(api.projects.setGoal)
-  const [picking, setPicking] = useState(false)
+   It was a bare textarea with a Save button that appeared out of nowhere and
+   no way back: "I clicked on it we show only save button no cancel… make it
+   visible borders and enter icon", like the task and note fields. So it is
+   the same object as those — an edge, the accent when you are in it, ⏎ to
+   save, Escape or Cancel to put it back. */
+function Description({ project }: { project: Doc<'projects'> }) {
+  const setDescription = useMutation(api.projects.setDescription)
+  const [text, setText] = useState(project.description ?? '')
+  const [editing, setEditing] = useState(false)
+  const saving = useSave()
+  const dirty = text.trim() !== (project.description ?? '')
 
-  /* A monthly tile target is not something a project hangs on. */
-  const choices = (goals ?? []).filter((g) => g.tile === undefined)
+  function save() {
+    if (!dirty) {
+      setEditing(false)
+      return
+    }
+    void saving
+      .run(() => setDescription({ projectId: project._id, description: text }))
+      .then(() => setEditing(false))
+  }
 
-  if (picking) {
+  function cancel() {
+    setText(project.description ?? '')
+    setEditing(false)
+  }
+
+  if (!editing) {
     return (
-      <select
-        autoFocus
-        value={goal._id}
-        aria-label="Move this project to another goal"
-        onChange={(e) => {
-          void setGoal({ projectId, goalId: e.target.value as Id<'goals'> })
-          setPicking(false)
-        }}
-        onBlur={() => setPicking(false)}
-        className="rounded-[7px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="motion-press self-start rounded-[10px] px-1 text-left text-[13px] leading-relaxed transition-colors hover:bg-lift/[0.04]"
       >
-        {choices.map((g) => (
-          <option key={g._id} value={g._id}>
-            {g.title}
-          </option>
-        ))}
-      </select>
+        {project.description ? (
+          <span className="text-ink-200">{project.description}</span>
+        ) : (
+          <span className="text-ink-700">What is this project?</span>
+        )}
+      </button>
     )
   }
 
   return (
-    <Action icon={FolderInput} onClick={() => setPicking(true)}>
-      Move to another goal
-    </Action>
-  )
-}
-
-/* What the project is, in his words. The field has existed since R1 and
-   nothing ever wrote to it. Saved by a visible button, as the goal's notes
-   are: a write must be something you pressed and saw land. */
-function Description({ project }: { project: Doc<'projects'> }) {
-  const setDescription = useMutation(api.projects.setDescription)
-  const [text, setText] = useState(project.description ?? '')
-  const saving = useSave()
-  const dirty = text.trim() !== (project.description ?? '')
-
-  return (
-    <div className="flex flex-col gap-2">
+    <div className="group/desc flex items-start gap-2.5 rounded-[12px] border border-lift/10 bg-sink/20 px-3 py-2.5 transition-colors focus-within:border-lav-500/60 focus-within:bg-lav-900/20">
+      <PenLine className="mt-1 size-3.5 shrink-0 text-ink-600 transition-colors group-focus-within/desc:text-lav-300" />
       <textarea
+        autoFocus
         value={text}
         onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          /* ⏎ saves, ⇧⏎ makes a line — the same bargain as everywhere else. */
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            save()
+          }
+          if (e.key === 'Escape') cancel()
+        }}
         rows={2}
         placeholder="What is this project?"
-        className="w-full resize-none bg-transparent text-[13px] leading-relaxed text-ink-200 outline-none placeholder:text-ink-700"
+        className="min-w-0 flex-1 resize-none bg-transparent text-[13px] leading-relaxed text-foreground outline-none placeholder:text-ink-700"
       />
-      {dirty ? (
+      <div className="flex shrink-0 items-center gap-1.5">
         <button
           type="button"
-          disabled={saving.busy}
-          onClick={() =>
-            void saving.run(() =>
-              setDescription({ projectId: project._id, description: text }),
-            )
-          }
-          className="self-start rounded-[7px] border border-lav-500/60 px-3 py-1 text-[12px] text-lav-300 transition-colors hover:bg-lav-900/60"
+          onClick={cancel}
+          className="text-[11.5px] text-ink-700 transition-colors hover:text-ink-400"
         >
-          <SaveLabel status={saving.status} onSettled={saving.settle}>
-            Save
-          </SaveLabel>
+          Cancel
         </button>
-      ) : null}
+        <button
+          type="button"
+          onClick={save}
+          aria-label="Save"
+          className="motion-press grid size-6 place-items-center rounded-[7px] bg-lav-900/70 text-lav-300 ring-1 ring-lav-500/50 ring-inset transition-colors hover:bg-lav-800"
+        >
+          <SaveGlyph
+            status={saving.status}
+            onSettled={saving.settle}
+            idle={<CornerDownLeft className="size-3" />}
+          />
+        </button>
+      </div>
     </div>
   )
 }
 
-/* A deadline you can move. "ended Sep 12 · 8 days ago" was a fact you could
-   only obey — but a date passing while you are still working is the normal
-   case, so it is editable where it is shown. */
+/* A deadline you can move — or refuse to set (20 Sep).
+
+   Three states, and each looks like what it is: a date that has passed is
+   danger, a date inside a week is warn, and "ongoing" is a project being
+   built with no date he is willing to promise, which reads as a band of
+   light walking across the pill for as long as that is true.
+
+   Ongoing is not the same as no end date. No end date is a project he has
+   not thought about; ongoing is an answer. */
 function Deadline({ project }: { project: Doc<'projects'> }) {
   const setDeadline = useMutation(api.projects.setDeadline)
+  const setOngoing = useMutation(api.projects.setOngoing)
   const [open, setOpen] = useState(false)
+
   const late = project.deadline !== undefined && isOverdue(project.deadline)
+  const soon =
+    !late && project.deadline !== undefined && daysUntil(project.deadline) <= 7
 
   if (open) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input
           type="date"
           autoFocus
@@ -275,13 +288,25 @@ function Deadline({ project }: { project: Doc<'projects'> }) {
               setOpen(false)
             }
           }}
-          className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 font-mono text-[12px] text-ink-300"
+          className="rounded-[8px] border border-lift/10 bg-sink/20 px-2 py-1 font-mono text-[12px] text-ink-300"
         />
-        {project.deadline ? (
+        <button
+          type="button"
+          onClick={() => {
+            void setOngoing({ projectId: project._id, ongoing: true })
+            setOpen(false)
+          }}
+          className="motion-press inline-flex items-center gap-1.5 rounded-full bg-lav-900/60 px-2.5 py-1 text-[11.5px] text-lav-300 ring-1 ring-lav-500/40 ring-inset transition-colors hover:bg-lav-800"
+        >
+          <InfinityIcon className="size-3" />
+          Ongoing
+        </button>
+        {project.deadline !== undefined || project.ongoing === true ? (
           <button
             type="button"
             onClick={() => {
               void setDeadline({ projectId: project._id, deadline: null })
+              void setOngoing({ projectId: project._id, ongoing: false })
               setOpen(false)
             }}
             className="text-[11.5px] text-ink-700 transition-colors hover:text-ink-400"
@@ -293,11 +318,18 @@ function Deadline({ project }: { project: Doc<'projects'> }) {
     )
   }
 
-  /* A passed deadline is danger, one inside two days is warn, anything else
-     is quiet (20 Sep). Brighter ink was not enough — "ended Sep 12 · 8 days
-     ago" still read exactly like "no end date". */
-  const soon =
-    !late && project.deadline !== undefined && daysUntil(project.deadline) <= 2
+  if (project.ongoing === true) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="motion-press motion-building inline-flex items-center gap-1.5 rounded-full bg-lav-900/40 px-2.5 py-1 font-mono text-[11.5px] text-lav-200 ring-1 ring-lav-500/30 ring-inset"
+      >
+        <InfinityIcon className="size-3" />
+        ongoing
+      </button>
+    )
+  }
 
   return (
     <button
@@ -318,6 +350,93 @@ function Deadline({ project }: { project: Doc<'projects'> }) {
       ) : null}
       {project.deadline ? deadlineLabel(project.deadline) : 'no end date'}
     </button>
+  )
+}
+
+/* Targets, which is the only thing that may put a ring round a number
+   (20 Sep). He asked for "progress spinner on the right side which is empty"
+   — and §1 allows a bar only where a real denominator exists, so the
+   denominator has to be a number he sets rather than one the app guesses
+   from a typical week. Empty means no ring, and the number stands alone. */
+function Targets({ project }: { project: Doc<'projects'> }) {
+  const setTargets = useMutation(api.projects.setTargets)
+  const [open, setOpen] = useState(false)
+  const [commits, setCommits] = useState(
+    project.commitTargetWeekly?.toString() ?? '',
+  )
+  const [minutes, setMinutes] = useState(
+    project.minutesTargetMonthly?.toString() ?? '',
+  )
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="motion-press inline-flex items-center gap-1.5 text-[11.5px] text-ink-700 transition-colors hover:text-ink-400"
+      >
+        <Gauge className="size-3" />
+        {project.commitTargetWeekly === undefined &&
+        project.minutesTargetMonthly === undefined
+          ? 'Set a target'
+          : 'Targets'}
+      </button>
+    )
+  }
+
+  function save() {
+    void setTargets({
+      projectId: project._id,
+      commitTargetWeekly: commits.trim() === '' ? null : Number(commits),
+      minutesTargetMonthly: minutes.trim() === '' ? null : Number(minutes),
+    })
+    setOpen(false)
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <label className="flex items-center gap-1.5">
+        <span className="label-caps">Commits/wk</span>
+        <input
+          value={commits}
+          onChange={(e) => setCommits(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') save()
+          }}
+          inputMode="numeric"
+          placeholder="—"
+          className="w-12 rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-center font-mono text-[12px] text-ink-300 outline-none"
+        />
+      </label>
+      <label className="flex items-center gap-1.5">
+        <span className="label-caps">Min/month</span>
+        <input
+          value={minutes}
+          onChange={(e) => setMinutes(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') save()
+          }}
+          inputMode="numeric"
+          placeholder="—"
+          className="w-14 rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-center font-mono text-[12px] text-ink-300 outline-none"
+        />
+      </label>
+      <button
+        type="button"
+        onClick={save}
+        className="motion-press grid size-6 place-items-center rounded-[7px] bg-lav-900/70 text-lav-300 ring-1 ring-lav-500/50 ring-inset transition-colors hover:bg-lav-800"
+        aria-label="Save targets"
+      >
+        <CornerDownLeft className="size-3" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="text-[11.5px] text-ink-700 transition-colors hover:text-ink-400"
+      >
+        Cancel
+      </button>
+    </div>
   )
 }
 

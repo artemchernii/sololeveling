@@ -163,6 +163,15 @@ export default defineSchema({
        Not derived from the repo: a GitHub owner avatar is a face, not a
        project logo. */
     logoId: v.optional(v.id('_storage')),
+    /* Deliberately open-ended (20 Sep): a project he is building with no date
+       he is willing to promise. Distinct from simply having no deadline —
+       that is a project he has not thought about, and it says nothing. */
+    ongoing: v.optional(v.boolean()),
+    /* Targets he sets, which is the only thing that may put a ring round a
+       number (PLAN.md §1: a progress bar renders only where a real
+       denominator exists). Absent means no ring — never a guessed one. */
+    commitTargetWeekly: v.optional(v.number()),
+    minutesTargetMonthly: v.optional(v.number()),
   })
     .index('by_owner_status', ['ownerId', 'status']) // one 'focus' per owner — setFocus enforces
     /* Read only by the internal hourly check, which acts for every owner — the

@@ -293,6 +293,9 @@ export const setDeadline = mutation({
     await ownedProject(ctx, ownerId, args.projectId)
     await ctx.db.patch(args.projectId, {
       deadline: args.deadline ?? undefined,
+      /* A date is an answer, so it replaces "ongoing" rather than sitting
+         beside it. */
+      ongoing: args.deadline === null ? undefined : undefined,
     })
     return null
   },
@@ -304,6 +307,61 @@ export const setDeadline = mutation({
  * The field has existed since R1 and nothing ever wrote to it, so nothing
  * showed it. It is the one thing a project page can say that no count can.
  */
+/**
+ * A project with no date he is willing to promise (20 Sep).
+ *
+ * Not the same as having no deadline: that is a project he has not thought
+ * about. Setting it ongoing clears the date, because "ongoing, ends Friday"
+ * is two answers to one question.
+ */
+export const setOngoing = mutation({
+  args: { projectId: v.id('projects'), ongoing: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedProject(ctx, ownerId, args.projectId)
+    await ctx.db.patch(args.projectId, {
+      ongoing: args.ongoing ? true : undefined,
+      deadline: args.ongoing ? undefined : undefined,
+    })
+    return null
+  },
+})
+
+/**
+ * Targets for commits a week and minutes a month (20 Sep).
+ *
+ * These exist so a ring round a number has something real to divide by —
+ * §1 allows a progress bar only where a target he set gives it a denominator.
+ * Zero or null clears one, and the ring goes with it rather than falling back
+ * to some invented "normal week".
+ */
+export const setTargets = mutation({
+  args: {
+    projectId: v.id('projects'),
+    commitTargetWeekly: v.optional(v.union(v.number(), v.null())),
+    minutesTargetMonthly: v.optional(v.union(v.number(), v.null())),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedProject(ctx, ownerId, args.projectId)
+
+    const clean = (n: number | null | undefined) =>
+      n === undefined ? undefined : n === null || n <= 0 ? undefined : n
+
+    const patch: Record<string, number | undefined> = {}
+    if (args.commitTargetWeekly !== undefined) {
+      patch.commitTargetWeekly = clean(args.commitTargetWeekly)
+    }
+    if (args.minutesTargetMonthly !== undefined) {
+      patch.minutesTargetMonthly = clean(args.minutesTargetMonthly)
+    }
+    await ctx.db.patch(args.projectId, patch)
+    return null
+  },
+})
+
 export const setDescription = mutation({
   args: { projectId: v.id('projects'), description: v.string() },
   returns: v.null(),

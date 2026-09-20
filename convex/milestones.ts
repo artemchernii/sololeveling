@@ -51,6 +51,7 @@ export const create = mutation({
     goalId: v.id('goals'),
     title: v.string(),
     dueDate: v.optional(v.string()),
+    dueTime: v.optional(v.string()),
   },
   returns: v.id('milestones'),
   handler: async (ctx, args) => {
@@ -58,6 +59,9 @@ export const create = mutation({
     await ownedGoal(ctx, ownerId, args.goalId)
     const title = args.title.trim()
     if (title.length === 0) throw new Error('A milestone needs a title')
+    if (args.dueTime !== undefined && args.dueDate === undefined) {
+      throw new Error('A time needs a day')
+    }
 
     const existing = await siblings(ctx, ownerId, args.goalId)
     const last =
@@ -67,6 +71,7 @@ export const create = mutation({
       goalId: args.goalId,
       title,
       dueDate: args.dueDate,
+      dueTime: args.dueTime,
       sortOrder: last + 1,
     })
   },
@@ -104,6 +109,7 @@ export const update = mutation({
     milestoneId: v.id('milestones'),
     title: v.optional(v.string()),
     dueDate: v.optional(v.union(v.string(), v.null())),
+    dueTime: v.optional(v.union(v.string(), v.null())),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -111,11 +117,25 @@ export const update = mutation({
     const m = await ownedMilestone(ctx, ownerId, args.milestoneId)
     const title = args.title === undefined ? m.title : args.title.trim()
     if (title.length === 0) throw new Error('A milestone needs a title')
-    await ctx.db.patch(args.milestoneId, {
-      title,
-      dueDate:
-        args.dueDate === undefined ? m.dueDate : (args.dueDate ?? undefined),
-    })
+
+    const dueDate =
+      args.dueDate === undefined ? m.dueDate : (args.dueDate ?? undefined)
+
+    /* Asking for an hour on a milestone that has no day is a mistake worth
+       saying out loud. Clearing the day is not — it silently takes the hour
+       with it, because "by Friday at 14:00" minus Friday is not a due date.
+       Clearing only the hour leaves the day: "by Friday" still holds. */
+    if (args.dueTime != null && dueDate === undefined) {
+      throw new Error('A time needs a day')
+    }
+    const dueTime =
+      dueDate === undefined
+        ? undefined
+        : args.dueTime === undefined
+          ? m.dueTime
+          : (args.dueTime ?? undefined)
+
+    await ctx.db.patch(args.milestoneId, { title, dueDate, dueTime })
     return null
   },
 })

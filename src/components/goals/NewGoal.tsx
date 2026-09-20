@@ -17,6 +17,7 @@ export function NewGoal() {
   const [area, setArea] = useState<Area>('life')
   const [deadline, setDeadline] = useState('')
   const [target, setTarget] = useState('')
+  const [description, setDescription] = useState('')
   const [error, setError] = useState<string | null>(null)
   const saving = useSave()
 
@@ -33,6 +34,7 @@ export function NewGoal() {
           area,
           deadline: deadline || undefined,
           targetLabel: target.trim() || undefined,
+          description: description.trim() || undefined,
         }),
       )
       setError(null)
@@ -48,6 +50,7 @@ export function NewGoal() {
     setTitle('')
     setDeadline('')
     setTarget('')
+    setDescription('')
     setOpen(false)
   }
 
@@ -81,6 +84,19 @@ export function NewGoal() {
           }}
           placeholder="Gain 5 kg of muscle"
           className="w-full bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
+        />
+      </div>
+      {/* Room for what the title cannot hold: the reasoning, a pasted prompt,
+          the paragraph you already wrote somewhere else. Enter is a newline
+          here, so the whole sheet's Enter-to-save stops at its edge. */}
+      <div className="flex flex-col gap-1 border-b border-lift/[0.07] pb-2">
+        <span className="label-caps">Notes</span>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+          placeholder="Why this, what it looks like when it is done, anything you pasted"
+          className="w-full resize-y bg-transparent text-[13px] leading-relaxed text-foreground outline-none placeholder:text-ink-700"
         />
       </div>
       <div className="flex flex-wrap items-center gap-4">

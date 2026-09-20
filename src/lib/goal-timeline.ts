@@ -17,6 +17,8 @@ export type TimelineNode =
       number: number
       title: string
       dueDate?: string
+      /** "HH:MM" on the due day, never without one (convex/schema.ts). */
+      dueTime?: string
       reachedAt?: number
       state: 'reached' | 'next' | 'ahead'
     }
@@ -28,6 +30,7 @@ export function goalTimeline(
     _id: string
     title: string
     dueDate?: string
+    dueTime?: string
     reachedAt?: number
     sortOrder: number
   }>,
@@ -43,6 +46,7 @@ export function goalTimeline(
     number: i + 1,
     title: x.title,
     ...(x.dueDate === undefined ? {} : { dueDate: x.dueDate }),
+    ...(x.dueTime === undefined ? {} : { dueTime: x.dueTime }),
     ...(x.reachedAt === undefined ? {} : { reachedAt: x.reachedAt }),
     state:
       x.reachedAt !== undefined

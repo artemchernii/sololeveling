@@ -276,7 +276,17 @@ export const weekCounts = query({
    make the wrong thing easy.
    ------------------------------------------------------------------------ */
 
-const tileTarget = v.union(v.number(), v.null())
+/* The number a tile's count may be read against, and — since 20 Sep — the
+   words the person put beside it. `value` is the only half that may be
+   divided by: it is the denominator of the bar (§1). `label` is free text
+   ("aiming at €100 a month") and nothing computes with it, which is the
+   point. Asked for a target of "€100"; a sum of logged amounts is not one of
+   the four sources, so the tile still counts rows and the ambition is
+   written in words next to it. See PLAN.md §4. */
+const tileTarget = v.union(
+  v.object({ value: v.number(), label: v.optional(v.string()) }),
+  v.null(),
+)
 
 export const tileTargets = query({
   args: {},
@@ -291,7 +301,7 @@ export const tileTargets = query({
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
 
-    const targets: Record<Tile, number | null> = {
+    const targets: Record<Tile, { value: number; label?: string } | null> = {
       projects: null,
       portuguese: null,
       body: null,
@@ -316,7 +326,12 @@ export const tileTargets = query({
         goal.targetValue !== undefined &&
         targets[goal.tile] === null
       ) {
-        targets[goal.tile] = goal.targetValue
+        targets[goal.tile] = {
+          value: goal.targetValue,
+          ...(goal.targetLabel === undefined
+            ? {}
+            : { label: goal.targetLabel }),
+        }
       }
     }
 

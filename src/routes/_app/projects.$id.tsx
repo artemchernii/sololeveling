@@ -198,6 +198,10 @@ function Project() {
                 {goal.title}
               </Link>
             </div>
+            {/* A project's goal used to be written once and never again: the
+                only way to refile one was to delete it, and its tasks, notes
+                and logged time went with it. */}
+            <MoveToGoal projectId={projectId} currentGoalId={goal._id} />
           </div>
           <GoalTimeline goal={goal} />
         </div>
@@ -275,6 +279,44 @@ function Project() {
         </div>
       ) : null}
     </div>
+  )
+}
+
+/* Refile a project under a different goal. A select rather than a dialog:
+   there is one thing to choose and it is a list of goals you already have.
+   Monthly tile targets are left out — a project does not hang on "4 sessions
+   a month" any more than it hangs on a tally. */
+function MoveToGoal({
+  projectId,
+  currentGoalId,
+}: {
+  projectId: Id<'projects'>
+  currentGoalId: Id<'goals'>
+}) {
+  const goals = useQuery(api.goals.listActive, {})
+  const setGoal = useMutation(api.projects.setGoal)
+
+  const choices = (goals ?? []).filter((g) => g.tile === undefined)
+  if (choices.length < 2) return null
+
+  return (
+    <label className="flex items-center gap-2">
+      <span className="label-caps">Move to</span>
+      <select
+        value={currentGoalId}
+        aria-label="Move this project to another goal"
+        onChange={(e) =>
+          void setGoal({ projectId, goalId: e.target.value as Id<'goals'> })
+        }
+        className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-400"
+      >
+        {choices.map((g) => (
+          <option key={g._id} value={g._id}>
+            {g.title}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
 

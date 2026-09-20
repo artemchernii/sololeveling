@@ -293,3 +293,74 @@ describe('a chain page read by a bad link', () => {
     expect(await mine.query(api.tasks.listByProject, { projectId })).toEqual([])
   })
 })
+
+/* A project's goal was fixed at creation until 20 Sep: the only way to move
+   one was to delete it and lose its tasks, notes and logged time. */
+describe('a project can be moved to another goal', () => {
+  test('setGoal rebinds it, and the goal it left keeps standing', async () => {
+    const t = as(ME)
+    const from = await t.mutation(api.goals.create, {
+      title: 'A profitable business',
+      area: 'business',
+    })
+    const to = await t.mutation(api.goals.create, {
+      title: 'Ship something people use',
+      area: 'career',
+    })
+    const projectId = await t.mutation(api.projects.create, {
+      goalId: from,
+      title: 'Oreum',
+    })
+
+    await t.mutation(api.projects.setGoal, { projectId, goalId: to })
+
+    expect((await t.query(api.projects.get, { projectId }))?.goalId).toBe(to)
+    expect(await t.query(api.goals.get, { goalId: from })).not.toBeNull()
+  })
+
+  test('the goal it left can now be deleted, and the new one cannot', async () => {
+    const t = as(ME)
+    const from = await t.mutation(api.goals.create, {
+      title: 'From',
+      area: 'business',
+    })
+    const to = await t.mutation(api.goals.create, {
+      title: 'To',
+      area: 'business',
+    })
+    const projectId = await t.mutation(api.projects.create, {
+      goalId: from,
+      title: 'Oreum',
+    })
+
+    await t.mutation(api.projects.setGoal, { projectId, goalId: to })
+
+    await t.mutation(api.goals.remove, { goalId: from })
+    await expect(t.mutation(api.goals.remove, { goalId: to })).rejects.toThrow(
+      'Oreum',
+    )
+  })
+
+  test('neither another owner’s project nor another owner’s goal', async () => {
+    const { mine, theirs } = twoOwners()
+    const myGoal = await mine.mutation(api.goals.create, {
+      title: 'Mine',
+      area: 'business',
+    })
+    const theirGoal = await theirs.mutation(api.goals.create, {
+      title: 'Theirs',
+      area: 'business',
+    })
+    const projectId = await mine.mutation(api.projects.create, {
+      goalId: myGoal,
+      title: 'Oreum',
+    })
+
+    await expect(
+      theirs.mutation(api.projects.setGoal, { projectId, goalId: theirGoal }),
+    ).rejects.toThrow('No such project')
+    await expect(
+      mine.mutation(api.projects.setGoal, { projectId, goalId: theirGoal }),
+    ).rejects.toThrow('No such goal')
+  })
+})

@@ -477,7 +477,7 @@ describe('tileTargets is a goal’s targetValue per tile (PLAN.md §1)', () => {
     const t = as(ME)
     await t.mutation(api.goals.setTileTarget, { tile: 'body', targetValue: 9 })
     const targets = await t.query(api.aggregate.tileTargets, {})
-    expect(targets.body).toBe(9)
+    expect(targets.body).toEqual({ value: 9 })
     expect(targets.social).toBeNull()
   })
 
@@ -499,6 +499,30 @@ describe('tileTargets is a goal’s targetValue per tile (PLAN.md §1)', () => {
     expect((await t.query(api.aggregate.tileTargets, {})).body).toBeNull()
   })
 
+  /* The count stays a count. The words are what the count is in aid of —
+     "aiming at €100 a month" — and nothing divides by them (PLAN.md §4). */
+  test('a tile carries the words set beside its number, and can drop them', async () => {
+    const t = as(ME)
+    await t.mutation(api.goals.setTileTarget, {
+      tile: 'money',
+      targetValue: 4,
+      targetLabel: 'aiming at €100 a month',
+    })
+    expect((await t.query(api.aggregate.tileTargets, {})).money).toEqual({
+      value: 4,
+      label: 'aiming at €100 a month',
+    })
+
+    await t.mutation(api.goals.setTileTarget, {
+      tile: 'money',
+      targetValue: 6,
+      targetLabel: null,
+    })
+    expect((await t.query(api.aggregate.tileTargets, {})).money).toEqual({
+      value: 6,
+    })
+  })
+
   test('never another owner’s', async () => {
     const { mine, theirs } = twoOwners()
     await theirs.mutation(api.goals.setTileTarget, {
@@ -506,6 +530,8 @@ describe('tileTargets is a goal’s targetValue per tile (PLAN.md §1)', () => {
       targetValue: 9,
     })
     expect((await mine.query(api.aggregate.tileTargets, {})).body).toBeNull()
-    expect((await theirs.query(api.aggregate.tileTargets, {})).body).toBe(9)
+    expect((await theirs.query(api.aggregate.tileTargets, {})).body).toEqual({
+      value: 9,
+    })
   })
 })

@@ -177,6 +177,28 @@ describe('a goal stands on its own, and can be edited', () => {
     ])
   })
 
+  /* The field has existed since the schema was written and was never shown.
+     R3b puts a textarea on it — a pasted prompt, a longer note. */
+  test('update writes and clears the description', async () => {
+    const me = as(ME)
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'G',
+      area: 'business',
+    })
+    await me.mutation(api.goals.update, {
+      goalId,
+      description: '  Three paragraphs of context.  ',
+    })
+    expect((await me.query(api.goals.get, { goalId }))?.description).toBe(
+      'Three paragraphs of context.',
+    )
+
+    await me.mutation(api.goals.update, { goalId, description: null })
+    expect(
+      (await me.query(api.goals.get, { goalId }))?.description,
+    ).toBeUndefined()
+  })
+
   test('update refuses an empty title and another owner', async () => {
     const { mine, theirs } = twoOwners()
     const goalId = await mine.mutation(api.goals.create, {

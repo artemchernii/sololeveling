@@ -206,3 +206,77 @@ describe('milestones belong to a goal', () => {
     expect(list.map((m) => m.title)).toEqual(['a', 'c'])
   })
 })
+
+describe('a milestone can be due at a time of day', () => {
+  test('a time is kept beside the date, and cleared on its own', async () => {
+    const me = as(ME)
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'G',
+      area: 'business',
+    })
+    const m = await me.mutation(api.milestones.create, {
+      goalId,
+      title: 'planning',
+      dueDate: '2026-09-21',
+      dueTime: '14:00',
+    })
+
+    let [row] = await me.query(api.milestones.listByGoal, { goalId })
+    expect([row.dueDate, row.dueTime]).toEqual(['2026-09-21', '14:00'])
+
+    /* The day survives losing the hour: "by the 21st" is still a due date. */
+    await me.mutation(api.milestones.update, { milestoneId: m, dueTime: null })
+    ;[row] = await me.query(api.milestones.listByGoal, { goalId })
+    expect(row.dueDate).toBe('2026-09-21')
+    expect(row.dueTime).toBeUndefined()
+  })
+
+  /* An hour with no day is not a due date, and would have nowhere to sit on
+     the calendar. Clearing the date takes the time with it. */
+  test('clearing the date clears the time too', async () => {
+    const me = as(ME)
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'G',
+      area: 'business',
+    })
+    const m = await me.mutation(api.milestones.create, {
+      goalId,
+      title: 'planning',
+      dueDate: '2026-09-21',
+      dueTime: '14:00',
+    })
+
+    await me.mutation(api.milestones.update, { milestoneId: m, dueDate: null })
+
+    const [row] = await me.query(api.milestones.listByGoal, { goalId })
+    expect(row.dueDate).toBeUndefined()
+    expect(row.dueTime).toBeUndefined()
+  })
+
+  test('a time without a date is refused on the way in', async () => {
+    const me = as(ME)
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'G',
+      area: 'business',
+    })
+    await expect(
+      me.mutation(api.milestones.create, {
+        goalId,
+        title: 'planning',
+        dueTime: '14:00',
+      }),
+    ).rejects.toThrow('A time needs a day')
+  })
+
+  test('and refused on the way through', async () => {
+    const me = as(ME)
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'G',
+      area: 'business',
+    })
+    const m = await me.mutation(api.milestones.create, { goalId, title: 'x' })
+    await expect(
+      me.mutation(api.milestones.update, { milestoneId: m, dueTime: '09:30' }),
+    ).rejects.toThrow('A time needs a day')
+  })
+})

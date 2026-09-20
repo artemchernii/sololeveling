@@ -11,12 +11,14 @@ const m = (
   sortOrder: number,
   reachedAt?: number,
   dueDate?: string,
+  dueTime?: string,
 ) => ({
   _id: id,
   title: id,
   sortOrder,
   reachedAt,
   dueDate,
+  dueTime,
 })
 
 describe('a goal’s timeline: 0 — 1 — 2 — 3 — goal', () => {
@@ -87,6 +89,16 @@ describe('a goal’s timeline: 0 — 1 — 2 — 3 — goal', () => {
       title: 'b',
       state: 'next',
     })
+  })
+
+  test('an hour on the due day is carried through; a bare day has none', () => {
+    const [, timed, allDay] = goalTimeline(goal, [
+      m('a', 0, undefined, '2026-11-01', '14:00'),
+      m('b', 1, undefined, '2026-11-02'),
+    ])
+    expect(timed).toMatchObject({ dueDate: '2026-11-01', dueTime: '14:00' })
+    expect(allDay).toMatchObject({ dueDate: '2026-11-02' })
+    expect(allDay).not.toHaveProperty('dueTime')
   })
 
   test('the start is the local day of creation, not a UTC one', () => {

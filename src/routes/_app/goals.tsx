@@ -9,6 +9,7 @@ import type { Doc } from '../../../convex/_generated/dataModel'
 import { GoalTimeline } from '@/components/goals/GoalTimeline'
 import { MilestoneEditor } from '@/components/goals/MilestoneEditor'
 import { NewGoal } from '@/components/goals/NewGoal'
+import { SaveLabel, useSave } from '@/components/Saving'
 import { Skeleton } from '@/components/Skeleton'
 import { deadlineLabel } from '@/lib/format'
 import { useArrived, useHeld } from '@/lib/loading'
@@ -71,6 +72,8 @@ function Goals() {
             </div>
 
             <Target goal={goal} />
+
+            <GoalNotes goal={goal} />
 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-ink-600">
               {(projects ?? [])
@@ -168,6 +171,69 @@ function Goals() {
           </div>
         ))
       )}
+    </div>
+  )
+}
+
+/* The description, written in place (20 Sep). It has been in the schema since
+   the beginning and was never shown, so everything a goal meant beyond its
+   title lived outside the app.
+
+   Saved by a button you can see, not by looking away. Blur-saving was the
+   first attempt and it is the same mistake as Enter-only capture: the write
+   happens, and nothing on screen says so. The button appears only once the
+   text differs from what is stored, so an untouched note offers nothing to
+   press, and it says "Saved" for a moment afterwards (§3d.2: a write you
+   started should be visible when it lands). */
+function GoalNotes({ goal }: { goal: Doc<'goals'> }) {
+  const update = useMutation(api.goals.update)
+  const [open, setOpen] = useState(goal.description !== undefined)
+  const [draft, setDraft] = useState(goal.description ?? '')
+  const saving = useSave()
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="self-start text-[12.5px] text-ink-600 transition-colors hover:text-ink-300"
+      >
+        + Notes
+      </button>
+    )
+  }
+
+  const dirty = draft.trim() !== (goal.description ?? '')
+
+  return (
+    <div className="flex flex-col gap-2">
+      <textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        rows={3}
+        aria-label={`Notes on ${goal.title}`}
+        placeholder="Why this, what it looks like when it is done, anything you pasted"
+        className="w-full resize-y rounded-[10px] border border-lift/[0.07] bg-sink/20 px-3 py-2 text-[12.5px] leading-relaxed text-ink-300 outline-none placeholder:text-ink-700"
+      />
+      {dirty || saving.status !== 'idle' ? (
+        <button
+          type="button"
+          disabled={saving.busy}
+          onClick={() =>
+            void saving.run(() =>
+              update({
+                goalId: goal._id,
+                description: draft.trim() || null,
+              }),
+            )
+          }
+          className="self-start rounded-[7px] border border-lav-500/60 px-3 py-1 text-[12px] text-lav-300 transition-colors hover:bg-lav-900/60"
+        >
+          <SaveLabel status={saving.status} onSettled={saving.settle}>
+            Save notes
+          </SaveLabel>
+        </button>
+      ) : null}
     </div>
   )
 }

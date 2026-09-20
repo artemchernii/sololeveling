@@ -131,6 +131,12 @@ export default defineSchema({
     goalId: v.id('goals'),
     title: v.string(),
     dueDate: v.optional(v.string()), // ISO date
+    /* An hour on the due day, "HH:MM", local (20 Sep). Never without
+       dueDate — a time with no day is not a due date and has nowhere to sit
+       on a calendar. Kept apart from the day rather than folded into one
+       epoch: "by Friday" and "by Friday at 14:00" are different promises,
+       and an epoch cannot tell them apart. */
+    dueTime: v.optional(v.string()),
     reachedAt: v.optional(v.number()),
     sortOrder: v.number(),
   }).index('by_owner_goal', ['ownerId', 'goalId', 'sortOrder']),

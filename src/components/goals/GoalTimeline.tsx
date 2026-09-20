@@ -128,7 +128,7 @@ function Caption({ node }: { node: TimelineNode }) {
         {node.reachedAt
           ? `reached ${shortDate(localToday(new Date(node.reachedAt)))}`
           : node.dueDate
-            ? `${node.dueDate < today ? 'was due' : 'by'} ${shortDate(node.dueDate)}`
+            ? `${node.dueDate < today ? 'was due' : 'by'} ${shortDate(node.dueDate)}${node.dueTime ? `, ${node.dueTime}` : ''}`
             : ''}
       </span>
     </div>

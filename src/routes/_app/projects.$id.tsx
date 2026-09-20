@@ -11,6 +11,7 @@ import { GoalTimeline } from '@/components/goals/GoalTimeline'
 import { SaveGlyph, useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
+import { ProjectCommits } from '@/components/projects/ProjectCommits'
 import { ProjectNotes } from '@/components/projects/ProjectNotes'
 import { deadlineLabel, durationLabel } from '@/lib/format'
 import { useArrived, useHeld } from '@/lib/loading'
@@ -267,6 +268,8 @@ function Project() {
 
         <ProjectNotes projectId={projectId} />
       </div>
+
+      <ProjectCommits projectId={projectId} />
 
       {closed.length > 0 ? (
         <div className="glass flex flex-col gap-2 rounded-[22px] p-6">

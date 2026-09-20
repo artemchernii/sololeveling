@@ -25,6 +25,10 @@ import type { Id } from './_generated/dataModel'
    403, set GITHUB_TOKEN (read-only) and it is used. */
 
 const LOOKBACK_MS = 14 * 86_400_000
+const PER_PAGE = 100
+/* 500 commits in a fortnight is far past anything one person writes; the cap
+   exists so a runaway repo cannot spin the action, not to trim a real week. */
+const MAX_PAGES = 5
 const REPO = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/
 
 /** `owner/name` from what a person pastes: the pair itself or a github.com URL. */
@@ -191,36 +195,44 @@ async function check(ctx: ActionCtx, projectId: Id<'projects'>): Promise<void> {
 
   const since = new Date(Date.now() - LOOKBACK_MS).toISOString()
   const token = process.env.GITHUB_TOKEN
-  const res = await fetch(
-    `https://api.github.com/repos/${repo}/commits?since=${since}&per_page=100`,
-    {
-      headers: {
-        Accept: 'application/vnd.github+json',
-        'User-Agent': 'solo-leveling',
-        'X-GitHub-Api-Version': '2022-11-28',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    },
-  )
-  if (!res.ok) {
-    /* No stamp: the card keeps its last "as of", which is the truth. */
-    console.error(`GitHub ${res.status} for ${repo}`)
-    return
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'solo-leveling',
+    'X-GitHub-Api-Version': '2022-11-28',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }
 
-  const body = (await res.json()) as Array<GitHubCommit>
-  const commits = body.flatMap((c) => {
-    const date = c.commit.author?.date ?? c.commit.committer?.date
-    if (!date) return []
-    return [
-      {
+  /* Paged, not one shot (20 Sep). GitHub returns the newest 100 first, so a
+     single page on a busy repo drops the older end for good — every later
+     check asks for the same newest 100. The card read "100 this week · 0 last
+     week" against a true 117 and 65: a capped number wearing a count's
+     clothes, which is the one thing §1 exists to prevent. */
+  const commits = []
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const res = await fetch(
+      `https://api.github.com/repos/${repo}/commits?since=${since}&per_page=${PER_PAGE}&page=${page}`,
+      { headers },
+    )
+    if (!res.ok) {
+      /* No stamp, and nothing stored — a half-read fortnight would count
+         wrong. The card keeps its last "as of", which is the truth. */
+      console.error(`GitHub ${res.status} for ${repo}`)
+      return
+    }
+
+    const body = (await res.json()) as Array<GitHubCommit>
+    for (const c of body) {
+      const date = c.commit.author?.date ?? c.commit.committer?.date
+      if (!date) continue
+      commits.push({
         sha: c.sha,
         message: c.commit.message.split('\n')[0].slice(0, 200),
         url: c.html_url,
         authoredAt: Date.parse(date),
-      },
-    ]
-  })
+      })
+    }
+    if (body.length < PER_PAGE) break
+  }
 
   await ctx.runMutation(internal.github.record, {
     projectId,

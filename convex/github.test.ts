@@ -228,6 +228,70 @@ describe('commits are stored readings (source 4)', () => {
     expect(await them.query(api.github.listRecent, { projectId })).toEqual([])
   })
 
+  test('a project made with a repo is connected from birth', async () => {
+    vi.useFakeTimers()
+    const t = convexTest(schema, modules)
+    const me = t.withIdentity({ tokenIdentifier: ME })
+    stubGitHub()
+    const goalId = await me.mutation(api.goals.create, {
+      title: 'A business',
+      area: 'business',
+    })
+    const projectId = await me.mutation(api.projects.create, {
+      goalId,
+      title: 'Oreum',
+      githubRepo: 'github.com/artemchernii/oreum',
+    })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    const counts = await me.query(api.aggregate.projectCommits, {
+      projectId,
+      ...bounds,
+    })
+    expect(counts.repo).toBe('artemchernii/oreum')
+    expect(counts.thisWeek).toBe(1)
+  })
+
+  test('a busy repo is paged, so last week is not silently zero', async () => {
+    const t = convexTest(schema, modules)
+    const me = t.withIdentity({ tokenIdentifier: ME })
+    const projectId = await oreum(me)
+    await t.run((ctx) =>
+      ctx.db.patch(projectId, { githubRepo: 'artemchernii/oreum' }),
+    )
+
+    /* The shape that broke it on 20 Sep: a full page of this week's commits,
+       so every one of last week's sits on page 2. One page read 100 and 0
+       against a true 117 and 65. */
+    const first = Array.from({ length: 100 }, (_, i) =>
+      gh(`a${i}`, `This week ${i}`, '2026-09-15T10:00:00Z'),
+    )
+    const second = [
+      gh('b1', 'Last week one', '2026-09-09T10:00:00Z'),
+      gh('b2', 'Last week two', '2026-09-10T10:00:00Z'),
+    ]
+    const fetchMock = vi.fn(
+      async (url: string | URL | Request, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify(
+            new URL(String(url)).searchParams.get('page') === '2'
+              ? second
+              : first,
+          ),
+          { status: 200 },
+        ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await t.action(internal.github.checkOne, { projectId })
+
+    const counts = await me.query(api.aggregate.projectCommits, {
+      projectId,
+      ...bounds,
+    })
+    expect([counts.thisWeek, counts.lastWeek]).toEqual([100, 2])
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   test('deleting a project deletes its commits', async () => {
     const t = convexTest(schema, modules)
     const me = t.withIdentity({ tokenIdentifier: ME })

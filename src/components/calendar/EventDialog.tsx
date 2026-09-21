@@ -231,7 +231,7 @@ export function EventDialog({
             <span className="label-caps">Area</span>
             <select
               value={area}
-              onChange={(e) => setArea(e.target.value as Area | '')}
+              onChange={(e) => setArea(e.target.value)}
               className="rounded-[7px] bg-lift/[0.05] px-3 py-2 text-[12.5px] text-foreground outline-none ring-1 ring-lift/10 focus:ring-lav-300/40"
             >
               <option value="">None</option>

@@ -1,10 +1,11 @@
 import { v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { requireLiveArea } from './areas'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
-import schema, { areaValidator } from './schema'
+import schema, { areaSlug } from './schema'
 
 /* PLAN.md §2 and §3b.3. An event is something that occupies time whether or not
    you do anything about it; a task is something you intend to do. They are two
@@ -42,7 +43,7 @@ export const create = mutation({
     title: v.string(),
     startsAt: v.number(),
     endsAt: v.number(),
-    area: v.optional(areaValidator),
+    area: v.optional(areaSlug),
     projectId: v.optional(v.id('projects')),
     rrule: v.optional(v.string()),
     notes: v.optional(v.string()),
@@ -50,6 +51,10 @@ export const create = mutation({
   returns: v.id('events'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+
+    if (args.area !== undefined) {
+      await requireLiveArea(ctx, ownerId, args.area)
+    }
 
     const title = args.title.trim()
     if (title.length === 0) {
@@ -81,7 +86,7 @@ export const update = mutation({
     title: v.optional(v.string()),
     startsAt: v.optional(v.number()),
     endsAt: v.optional(v.number()),
-    area: v.optional(areaValidator),
+    area: v.optional(areaSlug),
     projectId: v.optional(v.id('projects')),
     rrule: v.optional(v.string()),
     notes: v.optional(v.string()),
@@ -89,6 +94,10 @@ export const update = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+
+    if (args.area !== undefined) {
+      await requireLiveArea(ctx, ownerId, args.area)
+    }
     const existing = await ownedEvent(ctx, ownerId, args.eventId)
 
     const title = args.title?.trim() ?? existing.title

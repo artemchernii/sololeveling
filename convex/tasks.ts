@@ -1,11 +1,12 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { requireLiveArea } from './areas'
 import { removeFor } from './attachments'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
-import schema, { areaValidator } from './schema'
+import schema, { areaSlug } from './schema'
 
 /* PLAN.md §2 and §3c. Everything here opens with requireUser and reads through
    an owner-leading index.
@@ -38,7 +39,7 @@ async function ownedTask(
 export const create = mutation({
   args: {
     title: v.string(),
-    area: v.optional(areaValidator),
+    area: v.optional(areaSlug),
     notes: v.optional(v.string()),
     projectId: v.optional(v.id('projects')),
     goalId: v.optional(v.id('goals')),
@@ -48,6 +49,10 @@ export const create = mutation({
   returns: v.id('tasks'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+
+    if (args.area !== undefined) {
+      await requireLiveArea(ctx, ownerId, args.area)
+    }
 
     const title = args.title.trim()
     if (title.length === 0) {
@@ -81,7 +86,7 @@ export const create = mutation({
        So there are two rules, in this order:
 
        1. A task on a project is `projects`. That is the tenth area, added the
-          same day and for this — see the note on `areaValidator`.
+          same day and for this — see the note on `areaSlug`.
        2. A task on a goal takes the goal's area, which is the rule the app
           already keeps one level up: a project has no area of its own, it
           inherits the kind of the goal it answers to (projects.ts).
@@ -177,13 +182,17 @@ export const listDone = query({
   args: {
     since: v.optional(v.number()),
     search: v.optional(v.string()),
-    area: v.optional(areaValidator),
+    area: v.optional(areaSlug),
     projectId: v.optional(v.id('projects')),
     goalId: v.optional(v.id('goals')),
   },
   returns: v.array(schema.doc('tasks')),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+
+    /* No requireLiveArea here: `area` narrows a read, it does not write one.
+       Filtering by a slug that names nothing correctly returns nothing, and
+       guarding a filter would only turn an empty list into an error. */
     const words = args.search?.trim() ?? ''
 
     const base =
@@ -348,10 +357,12 @@ export const reopen = mutation({
 
 /** The badge is the editor: filing is a correction, not a rewrite. */
 export const setArea = mutation({
-  args: { taskId: v.id('tasks'), area: areaValidator },
+  args: { taskId: v.id('tasks'), area: areaSlug },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+
+    await requireLiveArea(ctx, ownerId, args.area)
     await ownedTask(ctx, ownerId, args.taskId)
     await ctx.db.patch(args.taskId, { area: args.area })
     return null

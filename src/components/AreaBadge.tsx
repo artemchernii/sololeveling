@@ -51,7 +51,7 @@ export function AreaBadge({
       <select
         aria-label={`Area — currently ${label}`}
         value={area ?? ''}
-        onChange={(e) => onChange(e.target.value as Area)}
+        onChange={(e) => onChange(e.target.value)}
         className="absolute inset-0 cursor-pointer opacity-0"
       >
         {area === undefined ? <option value="">unfiled</option> : null}

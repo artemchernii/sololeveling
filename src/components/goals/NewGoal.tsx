@@ -104,7 +104,7 @@ export function NewGoal() {
           <span className="label-caps">Area</span>
           <select
             value={area}
-            onChange={(e) => setArea(e.target.value as Area)}
+            onChange={(e) => setArea(e.target.value)}
             className={control}
           >
             {AREAS.map((a) => (

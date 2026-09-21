@@ -286,3 +286,72 @@ describe('order and colour', () => {
     expect(body.hue).toBe(200)
   })
 })
+
+describe('what may be written into an area field', () => {
+  test('a goal is filed under a word he invented — the done-when', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await t.mutation(api.areas.create, { label: 'English' })
+    const goalId = await t.mutation(api.goals.create, {
+      title: 'C1 English',
+      area: 'english',
+    })
+    expect((await t.query(api.goals.get, { goalId }))?.area).toBe('english')
+  })
+
+  test('a slug with no area row is refused', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await expect(
+      t.mutation(api.goals.create, { title: 'Nope', area: 'nonsense' }),
+    ).rejects.toThrow('NO_SUCH_AREA')
+  })
+
+  test("another owner's area is not an area I can file under", async () => {
+    const { mine, theirs } = twoOwners()
+    await theirs.mutation(api.areas.ensure, {})
+    await theirs.mutation(api.areas.create, { label: 'Secret' })
+    await mine.mutation(api.areas.ensure, {})
+    await expect(
+      mine.mutation(api.goals.create, { title: 'Nope', area: 'secret' }),
+    ).rejects.toThrow('NO_SUCH_AREA')
+  })
+
+  test('a retired area can still be written — it is where things already are', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await t.mutation(api.areas.create, { label: 'English' })
+    await t.mutation(api.areas.retire, { slug: 'english' })
+    /* Refusing here would mean a goal already filed under `english` could not
+       be edited and saved again. A picker will not offer it; the field takes
+       it. */
+    const goalId = await t.mutation(api.goals.create, {
+      title: 'Old',
+      area: 'english',
+    })
+    expect((await t.query(api.goals.get, { goalId }))?.area).toBe('english')
+  })
+
+  test('a task, an event and a log are guarded the same way', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await expect(
+      t.mutation(api.tasks.create, { title: 'Nope', area: 'nonsense' }),
+    ).rejects.toThrow('NO_SUCH_AREA')
+    await expect(
+      t.mutation(api.events.create, {
+        title: 'Nope',
+        area: 'nonsense',
+        startsAt: Date.now(),
+        endsAt: Date.now() + 3600_000,
+      }),
+    ).rejects.toThrow('NO_SUCH_AREA')
+    await expect(
+      t.mutation(api.logs.create, {
+        kind: 'workout',
+        area: 'nonsense',
+        occurredAt: Date.now(),
+      }),
+    ).rejects.toThrow('NO_SUCH_AREA')
+  })
+})

@@ -284,3 +284,37 @@ export const restore = mutation({
     return null
   },
 })
+
+const BUILTIN_SLUGS = new Set<string>(BUILTIN_AREAS.map((a) => a.slug))
+
+/**
+ * The guard the schema used to be.
+ *
+ * Returns the slug when it names an area this owner has — live **or
+ * retired**. A picker will not offer a retired area, but a goal already filed
+ * under one must still be editable and saveable, and refusing here would make
+ * it unsavable.
+ *
+ * Another owner's area is not an area you have, which is the whole reason
+ * this reads through `by_owner_slug` rather than checking a global list — and
+ * the one thing the union it replaced could never do.
+ *
+ * One of the ten built-ins passes whether or not `ensure` has run. They are
+ * the union this guard replaced, so they are legal by definition, and making
+ * them wait on a row would mean a deployment where the first `gym` throws
+ * because he had not opened Settings yet. That was a real hole: `ensure` runs
+ * when the areas editor mounts, and nothing makes him go there first.
+ */
+export async function requireLiveArea(
+  ctx: MutationCtx,
+  ownerId: string,
+  slug: string,
+): Promise<string> {
+  if (BUILTIN_SLUGS.has(slug)) {
+    return slug
+  }
+  if ((await bySlug(ctx, ownerId, slug)) === null) {
+    throw new Error('NO_SUCH_AREA')
+  }
+  return slug
+}

@@ -13,22 +13,27 @@ import type { Infer } from 'convex/values'
    a prefix scan, not a table scan. No function needs a `.filter()` to stay in
    its own lane. */
 
-export const areaValidator = v.union(
-  /* A task that belongs to a project (20 Sep, his call). It is the one
-     entry here that answers "what is this attached to" rather than "what part
-     of my life is this" — noted as the compromise it is, and R6's areas-as-
-     data is where it gets resolved properly. */
-  v.literal('projects'),
-  v.literal('business'),
-  v.literal('portuguese'),
-  v.literal('body'),
-  v.literal('money'),
-  v.literal('social'),
-  v.literal('career'),
-  v.literal('style'),
-  v.literal('knowledge'),
-  v.literal('life'),
-)
+/* An area is a slug now, not a member of a fixed set (R6, 21 Sep). Artem hit
+   the wall twice in one day — a goal with nowhere to go but the wrong area,
+   then a task on SoloLeveling badged `business` when it is a pet project —
+   and a fixed enum cannot be made to fit by choosing more carefully.
+
+   `v.string()` here, which is what lets a word he invented be written at all;
+   the guard moved to `requireLiveArea()` in areas.ts, which every mutation
+   taking an area calls. So the schema no longer knows the legal values,
+   because the legal values are rows — and the check is now per owner, which a
+   global union could never be: another owner's area is not one you may file
+   under.
+
+   What this change did *not* do is rewrite a row. The slug on every existing
+   goal, task, log, event, project and state snapshot is exactly the string it
+   already was, and `by_owner_area_time` was never rebuilt. Only the list of
+   legal values moved.
+
+   The ten built-in slugs live in `src/lib/area-slug.ts` as BUILTIN_AREAS —
+   still named literally by the capture verbs and by monthCounts' tile rules,
+   which is why they had to stay a typed list somewhere. */
+export const areaSlug = v.string()
 
 /* The six THIS MONTH tiles (PLAN.md §3 item 4) — the fixed shape monthCounts
    returns, deliberately not the area enum. A goal carrying one is a monthly
@@ -98,17 +103,13 @@ const reviewPeriod = v.union(
   v.literal('monthly'),
 )
 
-const area = areaValidator
+const area = areaSlug
 
 export default defineSchema({
-  /* R6, 21 Sep. The set of areas used to be the union above — so adding
-     "English" meant a deploy, which is how Artem found a goal with nowhere to
-     go. It is rows now.
-
-     What is *stored* on a goal, a task, a log, an event, a project or a state
-     snapshot is still the slug string, which is why none of those tables
-     changed shape and why `by_owner_area_time` never had to be rebuilt: only
-     the list of legal slugs moved out of the schema. */
+  /* R6, 21 Sep. The set of areas used to be a ten-literal union in this file
+     — so adding "English" meant a deploy, which is how Artem found a goal
+     with nowhere to go. It is rows now; `areaSlug` above is what is left of
+     the union, and the note there says why that is a string. */
   areas: defineTable({
     ownerId: v.string(),
     /* Permanent. Written into six tables; named literally by the capture

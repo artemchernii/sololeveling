@@ -1,12 +1,13 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { requireLiveArea } from './areas'
 import { parseRepo } from './github'
 import { internal } from './_generated/api'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
-import schema, { areaValidator } from './schema'
+import schema, { areaSlug } from './schema'
 
 /* A project is a thing he is building. It answered to a goal until 21 Sep —
    "I said already that this GOAL - PROJECT bind is canceled. We dont give a
@@ -50,11 +51,15 @@ export const create = mutation({
     description: v.optional(v.string()),
     deadline: v.optional(v.string()),
     githubRepo: v.optional(v.string()),
-    area: v.optional(areaValidator),
+    area: v.optional(areaSlug),
   },
   returns: v.id('projects'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+
+    if (args.area !== undefined) {
+      await requireLiveArea(ctx, ownerId, args.area)
+    }
 
     const title = args.title.trim()
     if (title.length === 0) {
@@ -98,10 +103,12 @@ export const create = mutation({
 /** What kind of thing this project is — his to set, and nothing derives it
  * (21 Sep). It came from the goal above until he cancelled that bind. */
 export const setArea = mutation({
-  args: { projectId: v.id('projects'), area: areaValidator },
+  args: { projectId: v.id('projects'), area: areaSlug },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+
+    await requireLiveArea(ctx, ownerId, args.area)
     await ownedProject(ctx, ownerId, args.projectId)
     await ctx.db.patch(args.projectId, { area: args.area })
     return null

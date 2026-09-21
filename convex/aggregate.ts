@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
-import { areaValidator } from './schema'
+import { areaSlug } from './schema'
 import type { Tile } from './schema'
 import { query } from './_generated/server'
 
@@ -427,7 +427,7 @@ export const kindCount = query({
     /** Narrows a kind written by more than one verb — a session filed under
         Portuguese is not a work session, and a count that mixed them would
         say "5 this month" about neither. */
-    area: v.optional(areaValidator),
+    area: v.optional(areaSlug),
     /** Narrows to time on one project. */
     projectId: v.optional(v.id('projects')),
     /** Epoch ms, local midnight — inclusive. */

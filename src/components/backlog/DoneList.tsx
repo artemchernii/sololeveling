@@ -7,7 +7,6 @@ import { AreaBadge } from '@/components/AreaBadge'
 import { isFiltered, ListControls, NO_FILTER } from './ListControls'
 import type { ListFilter } from './ListControls'
 import { SkeletonRows } from '@/components/Skeleton'
-import type { Area } from '@/lib/capture-parser'
 import { useArrived } from '@/lib/loading'
 import { startOfWeek } from '@/lib/weeks'
 
@@ -41,7 +40,7 @@ export function DoneList({
   const [period, setPeriod] = useState<Period>('month')
   const [sort, setSort] = useState<Sort>('done')
   const { search, bound } = filter
-  const area = filter.area as Area | ''
+  const area = filter.area
 
   /* Period boundaries are local calendar facts, worked out here and passed
      in (lib/weeks.ts). Computed once per period choice, so the query's

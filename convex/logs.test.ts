@@ -131,3 +131,48 @@ describe('a log carries the kind of thing it was', () => {
     expect(row.meta?.category).toBe('supplements')
   })
 })
+
+describe('the categories you have already used', () => {
+  test('distinct, sorted, and only for the kind asked for', async () => {
+    const t = as(ME)
+    const now = Date.now()
+    for (const category of ['gym', 'stretch', 'gym']) {
+      await t.mutation(api.logs.create, {
+        kind: 'workout',
+        area: 'body',
+        occurredAt: now,
+        category,
+      })
+    }
+    await t.mutation(api.logs.create, {
+      kind: 'intake',
+      area: 'body',
+      occurredAt: now,
+      category: 'supplements',
+    })
+
+    expect(await t.query(api.logs.categories, { kind: 'workout' })).toEqual([
+      'gym',
+      'stretch',
+    ])
+    expect(await t.query(api.logs.categories, { kind: 'intake' })).toEqual([
+      'supplements',
+    ])
+  })
+
+  test('another owner sees none of yours', async () => {
+    /* ONE backend, two identities. Two convexTest() calls are two databases
+       and would pass no matter what the query did. */
+    const backend = convexTest(schema, modules)
+    await backend.withIdentity({ tokenIdentifier: ME }).mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: Date.now(),
+      category: 'gym',
+    })
+    const theirs = await backend
+      .withIdentity({ tokenIdentifier: SOMEONE_ELSE })
+      .query(api.logs.categories, { kind: 'workout' })
+    expect(theirs).toEqual([])
+  })
+})

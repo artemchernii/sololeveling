@@ -159,6 +159,35 @@ export const recent = query({
 })
 
 /**
+ * The distinct categories already present in your own logs of one kind — the
+ * suggestions under the capture modal's category chip.
+ *
+ * Words, not numbers, which is why it lives here and not in aggregate.ts: it
+ * is a read of your own rows, the same shape as search.ts, and nothing on
+ * screen divides by it or counts it.
+ */
+export const categories = query({
+  args: { kind: logKindValidator },
+  returns: v.array(v.string()),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
+      .order('desc')
+      .take(MAX_ROWS)
+
+    const seen = new Set<string>()
+    for (const row of rows) {
+      if (row.kind !== args.kind) continue
+      const category = row.meta?.category
+      if (category !== undefined && category.length > 0) seen.add(category)
+    }
+    return [...seen].sort()
+  },
+})
+
+/**
  * A project's own session logs for a period, newest first (20 Sep).
  *
  * "What if I logged more time than I should" — the answer is the same one

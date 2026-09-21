@@ -136,11 +136,22 @@ export function ProjectCard({
              max-content ignores the wrapping of the vitals row — measured at
              375px it came out 427px wide inside a 337px card, so every
              commit message ran off the edge and was clipped by the card's
-             `overflow-hidden` rather than truncated. */
+             `overflow-hidden` rather than truncated.
+
+             Three columns wait for `2xl`, and that threshold was measured
+             rather than picked. At 1024 the left track took its full 459px
+             and left the blocks about 170 each, which truncated the task
+             titles away entirely — a row reading "⚠ Sep 20" and nothing
+             else. At 1300 they were 132px, which is the same fault more
+             politely. At 1536 and up the blocks get 380+ and a title reads.
+
+             Below that the card stacks: taller, but every title legible,
+             which is the trade worth making — a truncated row is a row that
+             tells you nothing, and the card exists to tell you something. */
           className={`relative grid grid-cols-1 items-stretch gap-4 ${
             latest.length > 0
-              ? 'lg:grid-cols-[max-content_minmax(0,1fr)_minmax(0,1fr)]'
-              : 'lg:grid-cols-[max-content_minmax(0,1fr)]'
+              ? '2xl:grid-cols-[minmax(0,max-content)_minmax(0,1fr)_minmax(0,1fr)]'
+              : 'lg:grid-cols-[minmax(0,max-content)_minmax(0,1fr)]'
           }`}
         >
           {/* The name and the numbers are one column now (21 Sep): "move
@@ -249,15 +260,23 @@ function Identity({
     <div className="flex min-w-0 items-center gap-2.5">
       <ProjectLogo url={logoUrl} title={project.title} area={area} />
       <div className="flex min-w-0 flex-col gap-1">
-        <span className="flex min-w-0 items-center gap-2.5">
+        {/* The deadline rides with the name and the focus pill sits under it
+            (21 Sep, his call: "move deadline next to project title, and focus
+            where is deadline").
+
+            It reads better than it sounds: the top line is what this project
+            is and when it is due — the two facts you scan a list of projects
+            for — and the line beneath is what kind of thing it is and how it
+            stands, which are both states rather than identity. */}
+        <span className="flex min-w-0 flex-wrap items-center gap-2.5">
           <span className="truncate text-[15px] text-foreground transition-colors group-hover:text-lav-300">
             {project.title}
           </span>
-          <StatusBadge status={project.status} />
+          <DeadlineChip project={project} />
         </span>
         <span className="pointer-events-auto relative z-10 flex flex-wrap items-center gap-2">
           <AreaBadge area={area} onChange={setArea} />
-          <DeadlineChip project={project} />
+          <StatusBadge status={project.status} />
         </span>
       </div>
     </div>

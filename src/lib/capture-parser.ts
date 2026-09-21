@@ -1,4 +1,5 @@
 import type { Doc, Id } from '../../convex/_generated/dataModel'
+import type { BuiltinArea } from './area-slug'
 
 /* PLAN.md §3: under three seconds, no form.
 
@@ -24,6 +25,12 @@ import type { Doc, Id } from '../../convex/_generated/dataModel'
    guesses a kind it was not given a verb for: an unrecognised line is refused,
    and offered as a note you choose, not filed as one. */
 
+/* `Doc<'tasks'>['area']` is `string | undefined` since R6 (21 Sep) — the
+   schema no longer holds the list of areas, because the list is rows. Kept as
+   a named type so every consumer still reads `Area` and the widening is one
+   line rather than twenty.
+
+   A *verb's* area is narrower: see BuiltinArea below. */
 export type Area = NonNullable<Doc<'tasks'>['area']>
 export type LogKind = Doc<'logs'>['kind']
 
@@ -48,7 +55,7 @@ export type VerbInfo = {
   /** The word to write back into the line — the verb's first spelling. */
   word: string
   kind: LogKind
-  area: Area
+  area: BuiltinArea
   unit?: string
   amount: Amount
   action: VerbAction
@@ -105,7 +112,12 @@ export type Verb = {
   /** Every spelling that means this verb. The first is the one written back. */
   words: Array<string>
   kind: LogKind
-  area: Area
+  /* One of the ten built-in slugs, not any area (R6 decision 3). A verb's
+     area stays in code, so `gym` files under `body` however that area is
+     named — and this type is what keeps the compiler checking the seventeen
+     of them while the field they write to is open to anything. Retiring an
+     area a verb names redirects it instead; see areas.retire. */
+  area: BuiltinArea
   unit?: string
   amount: Amount
   action?: VerbAction
@@ -485,7 +497,7 @@ export function verbFor(
 
 export type VerbChoice = {
   word: string
-  area: Area
+  area: BuiltinArea
   hint: string
   icon: VerbIcon
 }
@@ -516,12 +528,23 @@ export const CAPTURE_CHOICES = VERBS.map(choice)
 export function searchVerbs(
   query: string,
   extra: Array<Verb> = [],
+  /* Slug → label, passed by the palette, which already holds the areas. A
+     verb's area is a slug in code (R6 decision 3), so without this, typing
+     the word he renamed an area to would find nothing — and that is the word
+     he thinks in. A plain record, not a hook: this file stays free of React
+     and of any read the capture path would have to wait on. */
+  labels: Record<string, string> = {},
 ): Array<VerbChoice> {
   const q = query.trim().toLowerCase()
   const tier = (verb: Verb): number => {
     if (q.length === 0) return 0
     if (verb.words.some((w) => w.startsWith(q))) return 0
-    if (verb.area.startsWith(q) || verb.keywords.some((k) => k.startsWith(q))) {
+    const label = (labels[verb.area] ?? verb.area).toLowerCase()
+    if (
+      verb.area.startsWith(q) ||
+      label.startsWith(q) ||
+      verb.keywords.some((k) => k.startsWith(q))
+    ) {
       return 1
     }
     if (verb.hint.toLowerCase().includes(q)) return 2

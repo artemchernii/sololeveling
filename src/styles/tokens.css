@@ -155,30 +155,28 @@
         has been monochrome about kinds, and a badge you have to read is
         slower than one you can see.
 
-        A tenth, `projects`, was added on 20 Sep at 352° — the last real room
-        on the wheel, since 265–305° stays empty for the accent. It sits 22°
-        from style and 23° from social rather than the ~35° the other nine
-        keep, which is the honest cost of a tenth and part of why R6 makes
-        areas data.
+        The ten hues used to be ten declarations here, which is what made the
+        set closed: adding "English" meant editing a stylesheet and shipping
+        it, and a tenth area had already been squeezed in at 352°, 22° from
+        style where the others keep ~35°. Since R6 (21 Sep) an area is a row
+        and its hue is a number on it.
 
-        One OKLCH lightness and chroma for all of them, so no area is louder than
-        another — body is not more important than style because its green
-        happens to be brighter. Hues are spaced round the wheel with a gap
-        left at 265–305°, where the lavender accent lives: the accent still
-        means live and focus, and no area may be mistaken for it.
+        What stays here is the two values that must be identical for every
+        area, so that no area is louder than another — body is not more
+        important than style because its green happens to be brighter. A
+        theme owns lightness and chroma; an area owns only its hue.
 
-        One value per area. Fills and edges are this colour at an opacity
-        (`bg-(--area)/14`), not nine more tokens each. */
-  --area-social: oklch(0.8 0.1 15);
-  --area-business: oklch(0.8 0.1 50);
-  --area-money: oklch(0.8 0.1 88);
-  --area-life: oklch(0.8 0.1 122);
-  --area-body: oklch(0.8 0.1 155);
-  --area-portuguese: oklch(0.8 0.1 190);
-  --area-knowledge: oklch(0.8 0.1 225);
-  --area-career: oklch(0.8 0.1 250);
-  --area-style: oklch(0.8 0.1 330);
-  --area-projects: oklch(0.8 0.1 352);
+        `--area-<slug>: oklch(var(--area-l) var(--area-c) <hue>)` is written
+        by AreaStyles.tsx, one declaration per row, which is why `areaVars()`
+        and its twenty-odd call sites never had to learn any of this. The gap
+        at 265–305° where the lavender accent lives is enforced by
+        areas.setHue, which refuses a hue inside it, instead of by whoever is
+        editing this file.
+
+        Fills and edges are the colour at an opacity (`bg-(--area)/14`), not
+        more tokens each. */
+  --area-l: 0.8;
+  --area-c: 0.1;
 
   /* 8. State (20 Sep). Artem: "entire platform is boring and bland… overdue
         we can make RED or warning and icon to HIGHLIGHT". Until today colour
@@ -256,16 +254,10 @@
   --color-accent-800: oklch(0.88 0.05 285);
   --color-accent-900: oklch(0.94 0.025 285);
 
-  --area-social: oklch(0.55 0.11 15);
-  --area-business: oklch(0.55 0.11 50);
-  --area-money: oklch(0.55 0.11 88);
-  --area-life: oklch(0.55 0.11 122);
-  --area-body: oklch(0.55 0.11 155);
-  --area-portuguese: oklch(0.55 0.11 190);
-  --area-knowledge: oklch(0.55 0.11 225);
-  --area-career: oklch(0.55 0.11 250);
-  --area-style: oklch(0.55 0.11 330);
-  --area-projects: oklch(0.55 0.11 352);
+  /* Darker and slightly more saturated than the dark theme's, so the same
+     hue reads on a milky ground. The hues themselves are rows, not here. */
+  --area-l: 0.55;
+  --area-c: 0.11;
 
   /* Darker and a touch less saturated on a milky ground, where a bright
      red vibrates instead of alarming. */

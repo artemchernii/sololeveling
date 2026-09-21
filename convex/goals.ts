@@ -1,10 +1,11 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { requireLiveArea } from './areas'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
-import schema, { areaValidator, tileValidator } from './schema'
+import schema, { areaSlug, tileValidator } from './schema'
 import type { Tile } from './schema'
 
 /* PLAN.md §2. A goal is the thing a project answers to. It carries a target only
@@ -36,7 +37,7 @@ async function ownedGoal(
 export const create = mutation({
   args: {
     title: v.string(),
-    area: areaValidator,
+    area: areaSlug,
     description: v.optional(v.string()),
     targetLabel: v.optional(v.string()),
     targetValue: v.optional(v.number()),
@@ -46,6 +47,8 @@ export const create = mutation({
   returns: v.id('goals'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+
+    await requireLiveArea(ctx, ownerId, args.area)
 
     const title = args.title.trim()
     if (title.length === 0) {
@@ -109,7 +112,7 @@ export const update = mutation({
   args: {
     goalId: v.id('goals'),
     title: v.optional(v.string()),
-    area: v.optional(areaValidator),
+    area: v.optional(areaSlug),
     deadline: v.optional(v.union(v.string(), v.null())),
     targetLabel: v.optional(v.union(v.string(), v.null())),
     description: v.optional(v.union(v.string(), v.null())),
@@ -117,6 +120,10 @@ export const update = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+
+    if (args.area !== undefined) {
+      await requireLiveArea(ctx, ownerId, args.area)
+    }
     const goal = await ownedGoal(ctx, ownerId, args.goalId)
     const title = args.title === undefined ? goal.title : args.title.trim()
     if (title.length === 0) throw new Error('A goal needs a title')

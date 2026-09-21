@@ -1,7 +1,4 @@
-import { AREAS, areaVars } from '@/lib/areas'
-import type { Area } from '@/lib/capture-parser'
-
-export { AREAS }
+import { areaVars, useAreaLabel, useAreas } from '@/lib/areas'
 
 /* The badge is the editor (settled with Artem, 8 Sep). A wrong area is fixed
    where you notice it, rather than demanded up front in a dropdown at the
@@ -20,10 +17,13 @@ export function AreaBadge({
   area,
   onChange,
 }: {
-  area: Area | undefined
-  onChange?: (next: Area) => void
+  area: string | undefined
+  onChange?: (next: string) => void
 }) {
-  const label = area ?? 'unfiled'
+  const areas = useAreas()
+  /* The label, not the slug (R6). A badge that reads `body` after he renamed
+     the area to Gym & Health would be showing him the plumbing. */
+  const label = useAreaLabel()(area)
 
   const tone = area
     ? 'bg-(--area)/14 text-(--area) ring-1 ring-(--area)/25 ring-inset'
@@ -51,13 +51,13 @@ export function AreaBadge({
       <select
         aria-label={`Area — currently ${label}`}
         value={area ?? ''}
-        onChange={(e) => onChange(e.target.value as Area)}
+        onChange={(e) => onChange(e.target.value)}
         className="absolute inset-0 cursor-pointer opacity-0"
       >
         {area === undefined ? <option value="">unfiled</option> : null}
-        {AREAS.map((a) => (
-          <option key={a} value={a}>
-            {a}
+        {areas.map((a) => (
+          <option key={a.slug} value={a.slug}>
+            {a.label}
           </option>
         ))}
       </select>

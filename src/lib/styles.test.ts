@@ -25,3 +25,22 @@ describe('the glass survives the production build', () => {
     }
   })
 })
+
+describe('an area colour is a hue on a lightness the theme owns (R6)', () => {
+  const tokens = readFileSync(
+    new URL('../styles/tokens.css', import.meta.url),
+    'utf8',
+  )
+
+  test('no area declares its own oklch any more', () => {
+    /* The ten moved into rows. A `--area-body: oklch(...)` left behind here
+       would win in one theme and lose in the other depending on where the
+       generated block lands — which is exactly the bug to keep out. */
+    expect(tokens).not.toMatch(/--area-[a-z-]+\s*:\s*oklch/)
+  })
+
+  test('both themes declare a lightness and a chroma for areas', () => {
+    expect(tokens.match(/--area-l\s*:/g)).toHaveLength(2)
+    expect(tokens.match(/--area-c\s*:/g)).toHaveLength(2)
+  })
+})

@@ -7,12 +7,10 @@ import { Github, Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
-import { AREAS } from '@/components/AreaBadge'
-import { areaVars } from '@/lib/areas'
+import { areaVars, useAreas } from '@/lib/areas'
 import { ProjectCard } from '@/components/projects/ProjectCard'
 import { SaveLabel, useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
-import type { Area } from '@/lib/capture-parser'
 import { useArrived, useHeld } from '@/lib/loading'
 import { localToday } from '@/lib/today'
 import { parseRepo } from '../../../convex/repo'
@@ -127,7 +125,8 @@ function NewProject() {
   /* What kind of thing it is, his to pick and nothing derives it (21 Sep).
      This slot used to be "which goal is this for?" — a project answered to a
      goal and could not exist without one. It answers to nothing now. */
-  const [area, setArea] = useState<Area>('projects')
+  const areas = useAreas()
+  const [area, setArea] = useState<string>('projects')
   const [deadline, setDeadline] = useState('')
   const [repo, setRepo] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -236,22 +235,22 @@ function NewProject() {
 
         <Field label="Kind">
           <div className="flex flex-wrap gap-1.5">
-            {AREAS.map((a) => {
-              const on = a === area
+            {areas.map((a) => {
+              const on = a.slug === area
               return (
                 <button
-                  key={a}
+                  key={a.slug}
                   type="button"
-                  onClick={() => setArea(a)}
+                  onClick={() => setArea(a.slug)}
                   aria-pressed={on}
-                  style={areaVars(a)}
+                  style={areaVars(a.slug)}
                   className={`motion-press rounded-full px-2.5 py-1 font-mono text-[10px] tracking-[0.14em] uppercase ring-1 transition-colors ${
                     on
                       ? 'bg-(--area)/20 text-(--area) ring-(--area)/45'
                       : 'text-ink-600 ring-lift/10 hover:text-(--area) hover:ring-(--area)/30'
                   }`}
                 >
-                  {a}
+                  {a.label}
                 </button>
               )
             })}

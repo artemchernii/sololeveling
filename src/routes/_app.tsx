@@ -9,6 +9,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { auth } from '@clerk/tanstack-react-start/server'
 
 import { Ambient } from '@/components/shell/Ambient'
+import { AreaStyles } from '@/components/shell/AreaStyles'
 import { MobileActions } from '@/components/shell/MobileActions'
 import { MobileNav } from '@/components/shell/MobileNav'
 import { QuickCapture } from '@/components/shell/QuickCapture'
@@ -119,6 +120,9 @@ function AppShell() {
 
   return (
     <div className="flex min-h-dvh flex-col">
+      {/* Declares --area-<slug> for every area (R6). Everything below that
+          calls areaVars() reads one of them, so it goes first. */}
+      <AreaStyles />
       <Ambient />
       <TopBar
         onLog={() => openCapture()}

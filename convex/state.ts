@@ -1,8 +1,9 @@
 import { v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { requireLiveArea } from './areas'
 import { mutation } from './_generated/server'
-import { areaValidator } from './schema'
+import { areaSlug } from './schema'
 
 /* The only way a number reaches the CURRENT STATE strip. Nothing is seeded, so
    without this five of its six cells would be permanently empty (PLAN.md §3).
@@ -13,7 +14,7 @@ import { areaValidator } from './schema'
 
 export const record = mutation({
   args: {
-    area: areaValidator,
+    area: areaSlug,
     key: v.string(),
     value: v.optional(v.number()),
     textValue: v.optional(v.string()),
@@ -23,6 +24,8 @@ export const record = mutation({
   returns: v.id('stateSnapshots'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+
+    await requireLiveArea(ctx, ownerId, args.area)
 
     /* A snapshot that says nothing is not a state. Refusing here keeps the
        strip from rendering an empty cell that claims to hold a value. */

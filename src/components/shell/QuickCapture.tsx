@@ -25,7 +25,13 @@ import { VERB_ICONS, VerbTile } from './VerbIcon'
 import { api } from '../../../convex/_generated/api'
 import { NoteEditor } from '@/components/notes/NoteEditor'
 import { Skeleton } from '@/components/Skeleton'
-import { AREAS, areaVars } from '@/lib/areas'
+import {
+  areaVars,
+  useAreaLabel,
+  useAreaLabels,
+  useAreaRedirect,
+  useAreas,
+} from '@/lib/areas'
 import {
   CAPTURE_CHOICES,
   CAPTURE_HINTS,
@@ -163,6 +169,10 @@ export function QuickCapture({
      verb drops it without an effect racing the recent list that sets both at
      once — and by word rather than kind, since `pt` and `work` are both
      sessions and must not share an override. */
+  const areas = useAreas()
+  const areaLabel = useAreaLabel()
+  const areaLabels = useAreaLabels()
+  const redirect = useAreaRedirect()
   const [areaFor, setAreaFor] = useState<{ word: string; area: Area } | null>(
     null,
   )
@@ -307,12 +317,15 @@ export function QuickCapture({
   const typed = result.typed ?? {}
   /* A task starts unfiled, like one written anywhere else (17 Sep): the
      verb's own area was `life`, which quietly filed every `todo` there. */
+  /* A verb's area is a slug in code, so a retired one is redirected here
+     rather than at the write — the badge below has to show where the line is
+     actually going, before Enter. Nothing lands under a name he retired. */
   const area: Area | undefined = verb
     ? areaFor?.word === verb.word
       ? areaFor.area
       : verb.action === 'task'
         ? undefined
-        : verb.area
+        : redirect(verb.area)
     : undefined
 
   /* Entering note mode: whatever followed `note` on the line moves into the
@@ -363,11 +376,13 @@ export function QuickCapture({
   }, [isNote])
 
   const slashed = trimmed.startsWith('/')
-  const slashMatches = slashed ? searchVerbs(trimmed.slice(1), extra) : []
+  const slashMatches = slashed
+    ? searchVerbs(trimmed.slice(1), extra, areaLabels)
+    : []
   const [firstWord = '', ...restWords] = trimmed.split(/\s+/)
   const rest = restWords.join(' ')
   /** Verbs that mean the first word, when it is not one itself. */
-  const meant = verb || slashed ? [] : searchVerbs(firstWord, extra)
+  const meant = verb || slashed ? [] : searchVerbs(firstWord, extra, areaLabels)
 
   /* A log count, from aggregate.ts like every other number — for the month
      the line was logged into, which is not this month if it was back-dated. */
@@ -510,7 +525,7 @@ export function QuickCapture({
     if (!result.ok) {
       return
     }
-    const filed = area ?? result.log.area
+    const filed = area ?? redirect(result.log.area)
     const at = when ?? Date.now()
     try {
       const id = await createLog({
@@ -1065,7 +1080,10 @@ export function QuickCapture({
                     {choice.hint}
                   </span>
                   <span className="shrink-0 font-mono text-[10.5px] tracking-[0.12em] text-(--area) uppercase">
-                    {choice.area}
+                    {/* The label, not the slug (R6): the / list should say
+                        the word he named the area, which is the word he
+                        would have typed to find it. */}
+                    {areaLabel(choice.area)}
                   </span>
                 </Command.Item>
               ))}
@@ -1387,24 +1405,24 @@ export function QuickCapture({
                   unfiled
                 </button>
               ) : null}
-              {AREAS.map((choice) => (
+              {areas.map((choice) => (
                 <button
-                  key={choice}
+                  key={choice.slug}
                   type="button"
-                  style={areaVars(choice)}
+                  style={areaVars(choice.slug)}
                   onClick={() => {
-                    setAreaFor({ word: verb.word, area: choice })
+                    setAreaFor({ word: verb.word, area: choice.slug })
                     setPicker(null)
                     focusLine()
                   }}
                   className={`${CHIP} h-7 px-2.5 font-mono text-[10.5px] tracking-[0.12em] uppercase ${
-                    choice === area
+                    choice.slug === area
                       ? 'bg-(--area)/22 text-(--area) ring-1 ring-(--area)/50 ring-inset'
                       : 'text-ink-500 hover:bg-(--area)/12 hover:text-(--area)'
                   }`}
                 >
                   <span className="size-1.5 rounded-full bg-(--area)" />
-                  {choice}
+                  {choice.label}
                 </button>
               ))}
             </div>

@@ -411,3 +411,28 @@ describe('projectVerbs — a verb per project, from its title', () => {
     ).toBe('oreum 45')
   })
 })
+
+describe('the / list finds a verb by what its area is called (R6)', () => {
+  test('a verb is found by the name he gave its area', () => {
+    /* `gym` files under the `body` slug whatever that area is named. Without
+       the labels, typing the word he renamed it to finds nothing — and the
+       word he renamed it to is the word he thinks in. */
+    const labels = { body: 'Vigour' }
+    expect(searchVerbs('vigo', [], labels).map((c) => c.word)).toContain('gym')
+    expect(searchVerbs('vigo', []).map((c) => c.word)).not.toContain('gym')
+  })
+
+  test('the slug still matches, as it always did', () => {
+    expect(searchVerbs('body').map((c) => c.word)).toContain('gym')
+    expect(
+      searchVerbs('body', [], { body: 'Fitness' }).map((c) => c.word),
+    ).toContain('gym')
+  })
+
+  test('a label match ranks below a verb whose own name matches', () => {
+    /* `style` the verb and `style` the area both match "sty"; the verb's own
+       name wins, which is the three-tier order searchVerbs already had. */
+    const order = searchVerbs('sty', [], { style: 'Style' }).map((c) => c.word)
+    expect(order[0]).toBe('style')
+  })
+})

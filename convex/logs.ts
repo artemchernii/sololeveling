@@ -1,8 +1,9 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { requireLiveArea } from './areas'
 import { mutation, query } from './_generated/server'
-import schema, { areaValidator } from './schema'
+import schema, { areaSlug } from './schema'
 
 /* Quick capture lands here (PLAN.md §3). A log is evidence: something that
    happened, which the user confirmed. Never written as a side-effect of
@@ -34,7 +35,7 @@ export const logKindValidator = v.union(
 export const create = mutation({
   args: {
     kind: logKindValidator,
-    area: areaValidator,
+    area: areaSlug,
     occurredAt: v.number(),
     value: v.optional(v.number()),
     unit: v.optional(v.string()),
@@ -45,6 +46,8 @@ export const create = mutation({
   returns: v.id('logs'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+
+    await requireLiveArea(ctx, ownerId, args.area)
 
     /* 'task_done' is the one kind this function will not write. It means
        "a task was ticked", and only tasks.complete may say that (§3b.1) —
@@ -179,10 +182,12 @@ export const listForProject = query({
  * A wrong workout is deleted and re-logged, never edited into a different truth.
  */
 export const setArea = mutation({
-  args: { logId: v.id('logs'), area: areaValidator },
+  args: { logId: v.id('logs'), area: areaSlug },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+
+    await requireLiveArea(ctx, ownerId, args.area)
     const log = await ctx.db.get(args.logId)
     if (log === null || log.ownerId !== ownerId) {
       throw new Error('No such log')

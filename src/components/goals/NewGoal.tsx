@@ -3,9 +3,8 @@ import { useMutation } from 'convex/react'
 import { Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import { AREAS } from '@/components/AreaBadge'
+import { useAreas } from '@/lib/areas'
 import { SaveLabel, useSave } from '@/components/Saving'
-import type { Area } from '@/lib/capture-parser'
 
 /* A goal on its own (R3, 16 Sep). Projects are programming or business work;
    a goal can be "gain 5 kg of muscle" or "a month clean", with no project
@@ -14,7 +13,8 @@ export function NewGoal() {
   const createGoal = useMutation(api.goals.create)
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
-  const [area, setArea] = useState<Area>('life')
+  const areas = useAreas()
+  const [area, setArea] = useState<string>('life')
   const [deadline, setDeadline] = useState('')
   const [target, setTarget] = useState('')
   const [description, setDescription] = useState('')
@@ -104,12 +104,12 @@ export function NewGoal() {
           <span className="label-caps">Area</span>
           <select
             value={area}
-            onChange={(e) => setArea(e.target.value as Area)}
+            onChange={(e) => setArea(e.target.value)}
             className={control}
           >
-            {AREAS.map((a) => (
-              <option key={a} value={a}>
-                {a}
+            {areas.map((a) => (
+              <option key={a.slug} value={a.slug}>
+                {a.label}
               </option>
             ))}
           </select>

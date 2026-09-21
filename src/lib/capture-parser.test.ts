@@ -262,9 +262,7 @@ describe('searchVerbs — the / list, by name or by meaning', () => {
   })
 
   test('a forgotten verb is found by what it means', () => {
-    /* `practice`'s own hint says "not a class" — the word is really there, so
-       it is a real, if weak, hint match too (tier 2, after `pt`'s keyword). */
-    expect(words('class')).toEqual(['pt', 'practice'])
+    expect(words('class')).toEqual(['pt'])
     expect(words('lesson')).toEqual(['pt'])
     expect(words('sparring')).toEqual(['boxing'])
     expect(words('income')).toEqual(['earn', 'salary'])

@@ -293,7 +293,7 @@ const VERBS: Array<Verb> = [
     icon: 'languages',
     describe: (l) => joined('Practice', minutes(l), l.text),
     example: 'practice 40',
-    hint: 'studying on your own, not a class',
+    hint: 'studying on your own, with no teacher',
     keywords: ['study', 'self', 'homework', 'revision', 'solo', 'anki'],
   },
 

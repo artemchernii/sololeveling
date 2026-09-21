@@ -551,7 +551,7 @@ describe('categoryDays — how often, per kind of thing', () => {
       category: 'gym',
     })
 
-    const rows = await t.query(api.aggregate.categoryDays, {
+    const { rows, complete } = await t.query(api.aggregate.categoryDays, {
       area: 'body',
       kinds: ['workout'],
       dayStarts: days,
@@ -564,6 +564,7 @@ describe('categoryDays — how often, per kind of thing', () => {
     expect(rows[0].days).toEqual([0, 0, 0, 0, 1, 0, 0])
     expect(rows[0].total).toBe(1)
     expect(rows[0].activeRecent).toBe(1)
+    expect(complete).toBe(true)
   })
 
   test('two sessions in one day are one active day, and two rows', async () => {
@@ -579,13 +580,14 @@ describe('categoryDays — how often, per kind of thing', () => {
       })
     }
 
-    const [gym] = await t.query(api.aggregate.categoryDays, {
+    const { rows } = await t.query(api.aggregate.categoryDays, {
       area: 'body',
       kinds: ['workout'],
       dayStarts: days,
       end,
       recentDays: 7,
     })
+    const [gym] = rows
     expect(gym.days[6]).toBe(2)
     expect(gym.total).toBe(2)
     /* The count is "days with something on them", not rows — twice in one
@@ -608,7 +610,7 @@ describe('categoryDays — how often, per kind of thing', () => {
       kind: 'workout', area: 'body', occurredAt: days[2],
     })
 
-    const rows = await t.query(api.aggregate.categoryDays, {
+    const { rows } = await t.query(api.aggregate.categoryDays, {
       area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 3,
     })
     expect(rows.map((r) => r.category)).toEqual(['gym', 'stretch', null])
@@ -625,7 +627,7 @@ describe('categoryDays — how often, per kind of thing', () => {
       kind: 'workout', area: 'body', occurredAt: days[1], category: 'gym',
     })
 
-    const rows = await t.query(api.aggregate.categoryDays, {
+    const { rows } = await t.query(api.aggregate.categoryDays, {
       area: 'body', kinds: ['workout', 'intake'], dayStarts: days, end, recentDays: 2,
     })
     expect(rows.map((r) => [r.kind, r.category])).toEqual([
@@ -645,9 +647,10 @@ describe('categoryDays — how often, per kind of thing', () => {
       })
     }
 
-    const [gym] = await t.query(api.aggregate.categoryDays, {
+    const { rows } = await t.query(api.aggregate.categoryDays, {
       area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 3,
     })
+    const [gym] = rows
     expect(gym.total).toBe(2)
     expect(gym.activeRecent).toBe(1)
   })
@@ -666,13 +669,49 @@ describe('categoryDays — how often, per kind of thing', () => {
       .query(api.aggregate.categoryDays, {
         area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 2,
       })
-    expect(theirs).toEqual([])
+    expect(theirs.rows).toEqual([])
   })
 
   test('no days asked for is no days answered', async () => {
-    const rows = await as(ME).query(api.aggregate.categoryDays, {
+    const { rows, complete } = await as(ME).query(api.aggregate.categoryDays, {
       area: 'body', kinds: ['workout'], dayStarts: [], end: Date.now(), recentDays: 30,
     })
     expect(rows).toEqual([])
+    expect(complete).toBe(true)
+  })
+
+  test('a read that hits the row cap says so, and one that does not', async () => {
+    const days = dayStartsBack(3)
+    const end = days[2] + 86_400_000
+
+    /* One row over CATEGORY_DAYS_ROWS, written straight to the table —
+       CATEGORY_DAYS_ROWS is sized for twelve weeks of real capture, so
+       reaching it through logs.create would mean thousands of mutations for
+       a fact this shows just as well with direct inserts. */
+    const overflowing = as(ME)
+    await overflowing.run(async (ctx) => {
+      for (let i = 0; i < 1501; i += 1) {
+        await ctx.db.insert('logs', {
+          ownerId: ME,
+          kind: 'workout',
+          area: 'body',
+          occurredAt: days[1],
+          meta: { category: 'gym' },
+        })
+      }
+    })
+    const full = await overflowing.query(api.aggregate.categoryDays, {
+      area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 3,
+    })
+    expect(full.complete).toBe(false)
+
+    const under = as(ME)
+    await under.mutation(api.logs.create, {
+      kind: 'workout', area: 'body', occurredAt: days[1], category: 'gym',
+    })
+    const partial = await under.query(api.aggregate.categoryDays, {
+      area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 3,
+    })
+    expect(partial.complete).toBe(true)
   })
 })

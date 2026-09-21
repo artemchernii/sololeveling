@@ -21,6 +21,12 @@ import type { Doc } from './_generated/dataModel'
 const MAX_ROWS = 500
 /* A year of commits on a busy repo. Read once for the heatmap. */
 const YEAR_ROWS = 4000
+/* Twelve weeks of one area's logs, generously: the longest strip categoryDays
+   is asked to fill, at a ceiling well past what quick capture could fill it
+   with. Its own bound because it shares an area's whole log stream with
+   kinds `.take()` cannot filter out before this cap is checked — a `weight`
+   row costs the same slot as a `workout` row. */
+const CATEGORY_DAYS_ROWS = 1500
 
 /**
  * Rows in `tasks` matching a filter, per project. The projects grid's
@@ -474,6 +480,14 @@ export const kindCount = query({
  *
  * Day boundaries arrive as arguments, as they do everywhere else here: the
  * server does not know what day it is where you are.
+ *
+ * `complete` says whether the read reached the end of the window before
+ * hitting its row cap. It is one flag for the whole query, not per category:
+ * truncation is a property of the read, not of any one bucket. Silently
+ * dropping rows here would read as empty days rather than missing ones — the
+ * same failure PLAN.md §1 records from R3c's GitHub check, which once read
+ * one page of 100 commits and reported "100 this week · 0 last week" where
+ * the truth was 117 and 65. A truncated reading is not the reading.
  */
 export const categoryDays = query({
   args: {
@@ -486,20 +500,25 @@ export const categoryDays = query({
     /** How many trailing days `activeRecent` covers. */
     recentDays: v.number(),
   },
-  returns: v.array(
-    v.object({
-      kind: logKindValidator,
-      /* null: logged before a workout said what kind it was. Shown as OTHER,
-         and kept apart from a category someone literally typed. */
-      category: v.union(v.string(), v.null()),
-      days: v.array(v.number()),
-      activeRecent: v.number(),
-      total: v.number(),
-    }),
-  ),
+  returns: v.object({
+    rows: v.array(
+      v.object({
+        kind: logKindValidator,
+        /* null: this row was logged before a category was stored for its
+           kind. */
+        category: v.union(v.string(), v.null()),
+        days: v.array(v.number()),
+        activeRecent: v.number(),
+        total: v.number(),
+      }),
+    ),
+    /** False when the read hit CATEGORY_DAYS_ROWS before reaching `end` — the
+        newest days may be missing rows, not empty of them. */
+    complete: v.boolean(),
+  }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    if (args.dayStarts.length === 0) return []
+    if (args.dayStarts.length === 0) return { rows: [], complete: true }
 
     const rows = await ctx.db
       .query('logs')
@@ -510,7 +529,7 @@ export const categoryDays = query({
           .gte('occurredAt', args.dayStarts[0])
           .lt('occurredAt', args.end),
       )
-      .take(MAX_ROWS)
+      .take(CATEGORY_DAYS_ROWS)
 
     const wanted = new Set<string>(args.kinds)
     type Bucket = {
@@ -541,7 +560,7 @@ export const categoryDays = query({
     }
 
     const from = Math.max(0, args.dayStarts.length - args.recentDays)
-    return [...buckets.values()]
+    const result = [...buckets.values()]
       .map((bucket) => ({
         kind: bucket.kind,
         category: bucket.category,
@@ -559,6 +578,10 @@ export const categoryDays = query({
         if (b.category === null) return -1
         return a.category < b.category ? -1 : 1
       })
+
+    /* Fewer rows than the cap means nothing was dropped on the floor — the
+       same signal projectActivity gives for its own read. */
+    return { rows: result, complete: rows.length < CATEGORY_DAYS_ROWS }
   },
 })
 

@@ -473,7 +473,7 @@ written earlier would describe ground the earlier row changes.
 | R3   | **Projects deep, Goals with a timeline, Backlog bound** — tasks/notes/files/time on a project, GitHub commits as source 4, milestones and deadlines on goals. Shipped as three PRs: R3a project page + backlog, R3b goal milestones, R3c GitHub commits | Oreum's page shows its tasks, notes, hours this month and last week's commits, and its goal's timeline |
 | R4   | **Notes as the knowledge base** — kinds, expanded editor, images/PDFs by drag-and-drop, YouTube embeds, bind to a project                                                                                                                               | A PDF and a YouTube link pasted from Telegram live on a note attached to Oreum                         |
 | R5   | **Calendar** — drag, any duration, start–end, binding, reminders                                                                                                                                                                                        | A gym session is dragged from 8:00 to 9:15 and asks nothing                                            |
-| R6   | **Areas become data you edit** — add one, rename one, retire one, from the UI. Reaches the `--area-*` colour tokens, `src/lib/nav.ts`, the capture parser's area words and every table carrying `area`. Never `monthCounts()`                           | A goal is filed under a word he invented, with no deploy, and every screen that shows an area shows it |
+| R6   | **Areas become data you edit** (shipped) — add one, rename one, retire one, from the UI. Reaches the `--area-*` colour tokens, `src/lib/nav.ts`, the capture parser's area words and every table carrying `area`. Never `monthCounts()`                 | A goal is filed under a word he invented, with no deploy, and every screen that shows an area shows it |
 | R6b  | **The TRACK pages** — Finances (investments per the parked design, balances, spending), Body, Languages. Split out of R6 on 21 Sep: areas-as-data is a rework of six tables and every screen, and these are three pages built on top of it              | `invest → Revolut → TSLA → 300$` lands in a portfolio and Finances shows the position as of a time     |
 | R7   | **Ask AI** — a ⌘-shortcut chat that reads your own rows through a Convex action                                                                                                                                                                         | "What did I actually do in August?" is answered from logs, and nothing on screen is derived from it    |
 | Late | Scheduled backups (`pnpm backup` daily, retention, a scheduled drill); Clerk production instance (needs a domain, an ownerId migration, and the dev-vs-prod data decision); notifications (the bell)                                                    | Deferred 14 Sep while the app is still being built                                                     |
@@ -515,7 +515,23 @@ under, rather than a fixed three. The decisions the plan is written on:
   another, and it keeps the 265–305° gap round the accent enforceable as a check rather than a
   convention.
 - **A capture verb's area stays in code.** `gym` files under the `body` slug however that area
-  is named; retiring an area a verb needs is refused, and says which verbs.
+  is named. Retiring one it needs sends its verbs somewhere instead — see below.
+
+**What measuring changed while R6 was built (21 Sep).** Two of the three decisions survived
+untouched; the third did not, and two holes turned up that no amount of planning had found:
+
+- **Retiring by refusal would have been a dead feature.** The rule as written was "refuse the
+  retire and name the verbs". Counted against the parser, nine of the ten areas are named by a
+  verb — only `projects` is not — so the refusal would never not have fired. It became one
+  guard and one mechanism: an area one of the six tiles counts cannot be retired at all, and
+  any other retires with a `replacedBy` its verbs follow, resolved in one hop.
+- **A built-in slug has to be legal before its row exists.** `areas.ensure` runs when the
+  settings editor mounts, and nothing makes anyone go there first — so the guard as designed
+  threw `NO_SUCH_AREA` on the first `gym` of a fresh deployment. The ten are the union the
+  schema used to hold; they pass whether or not a row is there yet.
+- **`areas.remove` was missing.** Retiring says "I stopped tracking this" and keeps the row so
+  the rows under it keep a name and a colour. There was no way to say "I typed that wrong". It
+  refuses a built-in, and refuses any area something is filed under.
 
 **A money target needs a fifth source, and does not have one (20 Sep).** Asked for a month
 tile target of "€100" rather than a count. A tile's number is the denominator of a real bar,

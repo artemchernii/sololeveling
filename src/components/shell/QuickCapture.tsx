@@ -25,7 +25,13 @@ import { VERB_ICONS, VerbTile } from './VerbIcon'
 import { api } from '../../../convex/_generated/api'
 import { NoteEditor } from '@/components/notes/NoteEditor'
 import { Skeleton } from '@/components/Skeleton'
-import { areaVars, useAreaLabel, useAreas } from '@/lib/areas'
+import {
+  areaVars,
+  useAreaLabel,
+  useAreaLabels,
+  useAreaRedirect,
+  useAreas,
+} from '@/lib/areas'
 import {
   CAPTURE_CHOICES,
   CAPTURE_HINTS,
@@ -165,6 +171,8 @@ export function QuickCapture({
      sessions and must not share an override. */
   const areas = useAreas()
   const areaLabel = useAreaLabel()
+  const areaLabels = useAreaLabels()
+  const redirect = useAreaRedirect()
   const [areaFor, setAreaFor] = useState<{ word: string; area: Area } | null>(
     null,
   )
@@ -309,12 +317,15 @@ export function QuickCapture({
   const typed = result.typed ?? {}
   /* A task starts unfiled, like one written anywhere else (17 Sep): the
      verb's own area was `life`, which quietly filed every `todo` there. */
+  /* A verb's area is a slug in code, so a retired one is redirected here
+     rather than at the write — the badge below has to show where the line is
+     actually going, before Enter. Nothing lands under a name he retired. */
   const area: Area | undefined = verb
     ? areaFor?.word === verb.word
       ? areaFor.area
       : verb.action === 'task'
         ? undefined
-        : verb.area
+        : redirect(verb.area)
     : undefined
 
   /* Entering note mode: whatever followed `note` on the line moves into the
@@ -365,11 +376,13 @@ export function QuickCapture({
   }, [isNote])
 
   const slashed = trimmed.startsWith('/')
-  const slashMatches = slashed ? searchVerbs(trimmed.slice(1), extra) : []
+  const slashMatches = slashed
+    ? searchVerbs(trimmed.slice(1), extra, areaLabels)
+    : []
   const [firstWord = '', ...restWords] = trimmed.split(/\s+/)
   const rest = restWords.join(' ')
   /** Verbs that mean the first word, when it is not one itself. */
-  const meant = verb || slashed ? [] : searchVerbs(firstWord, extra)
+  const meant = verb || slashed ? [] : searchVerbs(firstWord, extra, areaLabels)
 
   /* A log count, from aggregate.ts like every other number — for the month
      the line was logged into, which is not this month if it was back-dated. */
@@ -512,7 +525,7 @@ export function QuickCapture({
     if (!result.ok) {
       return
     }
-    const filed = area ?? result.log.area
+    const filed = area ?? redirect(result.log.area)
     const at = when ?? Date.now()
     try {
       const id = await createLog({

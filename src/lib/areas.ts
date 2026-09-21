@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../convex/_generated/api'
-import { BUILTIN_AREAS } from './area-slug'
+import { BUILTIN_AREAS, resolveSlug } from './area-slug'
 
 export type AreaRow = { slug: string; label: string; hue: number }
 
@@ -61,4 +61,29 @@ export function useAreaLabel(): (slug: string | undefined) => string {
    `--area-<slug>` (AreaStyles.tsx, from a row) and how many there can be. */
 export function areaVars(area: string): CSSProperties {
   return { '--area': `var(--area-${area})` } as CSSProperties
+}
+
+/**
+ * Where a slug's new rows should be filed now — itself, unless it was retired
+ * with a replacement (R6 decision 5).
+ *
+ * A capture verb's area is a slug in code, so `note` names `knowledge`
+ * forever. When he retires `knowledge` and sends its capture words to `life`,
+ * this is what makes `note` actually land there. One hop: `areas.retire`
+ * refuses to point at a retired area, so no chain can form.
+ *
+ * The rows are already in the client's cache — the same query AreaStyles and
+ * every picker read — so this costs the capture path nothing, which matters
+ * because that path may never wait on anything.
+ */
+export function useAreaRedirect(): (slug: string) => string {
+  const areas = useQuery(api.areas.list, { includeRetired: true })
+  return useCallback((slug: string) => resolveSlug(slug, areas ?? []), [areas])
+}
+
+/** Slug → label, for searchVerbs: the `/` list should find a verb by the name
+    he gave its area, because that is the word he thinks in. */
+export function useAreaLabels(): Record<string, string> {
+  const areas = useAreas()
+  return Object.fromEntries(areas.map((a) => [a.slug, a.label]))
 }

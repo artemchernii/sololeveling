@@ -101,6 +101,35 @@ const reviewPeriod = v.union(
 const area = areaValidator
 
 export default defineSchema({
+  /* R6, 21 Sep. The set of areas used to be the union above — so adding
+     "English" meant a deploy, which is how Artem found a goal with nowhere to
+     go. It is rows now.
+
+     What is *stored* on a goal, a task, a log, an event, a project or a state
+     snapshot is still the slug string, which is why none of those tables
+     changed shape and why `by_owner_area_time` never had to be rebuilt: only
+     the list of legal slugs moved out of the schema. */
+  areas: defineTable({
+    ownerId: v.string(),
+    /* Permanent. Written into six tables; named literally by the capture
+       verbs and by monthCounts' tile rules. Renaming never touches it. */
+    slug: v.string(),
+    /* What you read. This is the one an editor changes. */
+    label: v.string(),
+    /* 0–359. The theme owns lightness and chroma (tokens.css item 5), so this
+       number is the whole of an area's colour. */
+    hue: v.number(),
+    order: v.number(),
+    /* Retired: gone from every picker, still painting the rows that carry it
+       — a log is evidence and does not stop having happened. */
+    retiredAt: v.optional(v.number()),
+    /* Where this area's capture verbs file now. Required when retiring an
+       area a verb names; always a live slug, so resolveSlug needs one hop. */
+    replacedBy: v.optional(v.string()),
+  })
+    .index('by_owner_order', ['ownerId', 'order'])
+    .index('by_owner_slug', ['ownerId', 'slug']),
+
   goals: defineTable({
     ownerId: v.string(),
     title: v.string(),

@@ -98,7 +98,18 @@ export function ProjectCard({
       ) : null}
 
       {/* The card is the link. Everything that is itself clickable sits above
-          it on z-10; everything else is just surface you can press. */}
+          it on z-10 and re-enables pointer events; everything else is just
+          surface you can press.
+
+          21 Sep — "One issue is hard to click on it lol." It was: measured at
+          1600px, six of seven sample points across the card hit the grid
+          `<div>` instead of this link, and only the bottom-right corner
+          outside the grid reached it. The grid is `relative` and comes after
+          this link in the DOM, so it paints above; its children carried
+          `pointer-events-none` but the container itself never did, and a
+          transparent box still swallows a click. The rule is that everything
+          between this overlay and the surface must be inert, containers
+          included. */}
       <Link
         to="/projects/$id"
         params={{ id: project._id }}
@@ -147,7 +158,7 @@ export function ProjectCard({
              but it is nowhere near as bad as taking away the layout he
              asked for. The track is `minmax(0,max-content)` so the numbers
              give ground rather than taking their width first. */
-          className={`relative grid grid-cols-1 items-stretch gap-4 ${
+          className={`pointer-events-none relative grid grid-cols-1 items-stretch gap-4 ${
             latest.length > 0
               ? 'lg:grid-cols-[minmax(0,max-content)_minmax(0,1fr)_minmax(0,1fr)]'
               : 'lg:grid-cols-[minmax(0,max-content)_minmax(0,1fr)]'
@@ -216,7 +227,7 @@ export function ProjectCard({
         </div>
       ) : (
         /* §3c.2: title and next action. Nothing else may compete. */
-        <div className="relative flex flex-wrap items-center gap-3">
+        <div className="pointer-events-none relative flex flex-wrap items-center gap-3">
           <div className="pointer-events-none min-w-0 flex-1 text-[12.5px] text-ink-500">
             {nextTask ? (
               <>
@@ -230,7 +241,7 @@ export function ProjectCard({
           <button
             type="button"
             onClick={onFocus}
-            className="motion-press relative z-10 flex shrink-0 items-center gap-1.5 rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300"
+            className="motion-press pointer-events-auto relative z-10 flex shrink-0 items-center gap-1.5 rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300"
           >
             <Target className="size-3" />
             Make this the focus

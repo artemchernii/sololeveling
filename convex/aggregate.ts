@@ -27,6 +27,12 @@ const YEAR_ROWS = 4000
    kinds `.take()` cannot filter out before this cap is checked — a `weight`
    row costs the same slot as a `workout` row. */
 const CATEGORY_DAYS_ROWS = 1500
+/* Twice a day for a year and a half, generously. `stateHistory`'s `key` is a
+   `v.string()` — it is general over any state key someone starts recording,
+   not only weight — so it does not get to assume one key's volume the way a
+   query narrowed to `weight` alone might. Its own bound for the same reason
+   categoryDays got CATEGORY_DAYS_ROWS rather than sharing MAX_ROWS. */
+const STATE_HISTORY_ROWS = 1000
 
 /**
  * Rows in `tasks` matching a filter, per project. The projects grid's
@@ -428,6 +434,12 @@ export const currentState = query({
  *
  * Ascending through by_owner_key_time, so it is a range read rather than a
  * scan of every weigh-in ever logged.
+ *
+ * `complete` says whether the read reached `end` before hitting
+ * STATE_HISTORY_ROWS. Ascending order means a truncated read keeps the
+ * oldest rows in the window and drops the newest — the one direction a
+ * chart cannot afford to be quietly wrong in, since a dropped recent reading
+ * would draw a line that simply stops, as if nothing more had been recorded.
  */
 export const stateHistory = query({
   args: {
@@ -437,14 +449,19 @@ export const stateHistory = query({
     /** Epoch ms, exclusive. */
     end: v.number(),
   },
-  returns: v.array(
-    v.object({
-      value: v.optional(v.number()),
-      textValue: v.optional(v.string()),
-      unit: v.optional(v.string()),
-      recordedAt: v.number(),
-    }),
-  ),
+  returns: v.object({
+    rows: v.array(
+      v.object({
+        value: v.optional(v.number()),
+        textValue: v.optional(v.string()),
+        unit: v.optional(v.string()),
+        recordedAt: v.number(),
+      }),
+    ),
+    /** False when the read hit STATE_HISTORY_ROWS before reaching `end` —
+        the newest readings may be missing, not simply never recorded. */
+    complete: v.boolean(),
+  }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const rows = await ctx.db
@@ -456,14 +473,20 @@ export const stateHistory = query({
           .gte('recordedAt', args.start)
           .lt('recordedAt', args.end),
       )
-      .take(MAX_ROWS)
+      .take(STATE_HISTORY_ROWS)
 
-    return rows.map((row) => ({
-      value: row.value,
-      textValue: row.textValue,
-      unit: row.unit,
-      recordedAt: row.recordedAt,
-    }))
+    return {
+      rows: rows.map((row) => ({
+        value: row.value,
+        textValue: row.textValue,
+        unit: row.unit,
+        recordedAt: row.recordedAt,
+      })),
+      /* Fewer rows than the cap means nothing was dropped on the floor —
+         the same signal categoryDays and projectActivity give for their own
+         reads. */
+      complete: rows.length < STATE_HISTORY_ROWS,
+    }
   },
 })
 

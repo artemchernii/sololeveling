@@ -721,17 +721,17 @@ describe('stateHistory — source 2 read as a series', () => {
     const t = as(ME)
     const now = Date.now()
     const week = 7 * 86_400_000
-    for (const [value, at] of [
+    for (const [value, ts] of [
       [77.2, now - 2 * week],
       [76.1, now - week],
       [75.4, now],
     ] as const) {
       await t.mutation(api.logs.create, {
-        kind: 'weight', area: 'body', occurredAt: at, value, unit: 'kg',
+        kind: 'weight', area: 'body', occurredAt: ts, value, unit: 'kg',
       })
     }
 
-    const history = await t.query(api.aggregate.stateHistory, {
+    const { rows: history } = await t.query(api.aggregate.stateHistory, {
       key: 'weight',
       start: now - 3 * week,
       end: now + 86_400_000,
@@ -751,7 +751,7 @@ describe('stateHistory — source 2 read as a series', () => {
       kind: 'weight', area: 'body', occurredAt: now - 90 * 86_400_000,
       value: 80, unit: 'kg',
     })
-    const history = await t.query(api.aggregate.stateHistory, {
+    const { rows: history } = await t.query(api.aggregate.stateHistory, {
       key: 'weight', start: now - 30 * 86_400_000, end: now + 86_400_000,
     })
     expect(history).toEqual([])
@@ -770,6 +770,41 @@ describe('stateHistory — source 2 read as a series', () => {
       .query(api.aggregate.stateHistory, {
         key: 'weight', start: now - 86_400_000, end: now + 86_400_000,
       })
-    expect(theirs).toEqual([])
+    expect(theirs.rows).toEqual([])
+  })
+
+  test('a read that hits the row cap says so, and one that does not', async () => {
+    const now = Date.now()
+
+    /* Rows over STATE_HISTORY_ROWS, written straight to the table —
+       STATE_HISTORY_ROWS is sized for a year and a half of twice-daily
+       readings, so reaching it through logs.create would mean thousands of
+       mutations for a fact this shows just as well with direct inserts. */
+    const overflowing = as(ME)
+    await overflowing.run(async (ctx) => {
+      for (let i = 0; i < 1001; i += 1) {
+        await ctx.db.insert('stateSnapshots', {
+          ownerId: ME,
+          area: 'body',
+          key: 'weight',
+          value: 75,
+          unit: 'kg',
+          recordedAt: now - i * 60_000,
+        })
+      }
+    })
+    const full = await overflowing.query(api.aggregate.stateHistory, {
+      key: 'weight', start: now - 70_000_000, end: now + 86_400_000,
+    })
+    expect(full.complete).toBe(false)
+
+    const under = as(ME)
+    await under.mutation(api.logs.create, {
+      kind: 'weight', area: 'body', occurredAt: now, value: 75.4, unit: 'kg',
+    })
+    const partial = await under.query(api.aggregate.stateHistory, {
+      key: 'weight', start: now - 86_400_000, end: now + 86_400_000,
+    })
+    expect(partial.complete).toBe(true)
   })
 })

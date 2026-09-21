@@ -33,6 +33,7 @@ describe('the verbs', () => {
       value: undefined,
       unit: 'min',
       text: undefined,
+      category: 'gym',
     })
   })
 
@@ -261,7 +262,9 @@ describe('searchVerbs — the / list, by name or by meaning', () => {
   })
 
   test('a forgotten verb is found by what it means', () => {
-    expect(words('class')).toEqual(['pt'])
+    /* `practice`'s own hint says "not a class" — the word is really there, so
+       it is a real, if weak, hint match too (tier 2, after `pt`'s keyword). */
+    expect(words('class')).toEqual(['pt', 'practice'])
     expect(words('lesson')).toEqual(['pt'])
     expect(words('sparring')).toEqual(['boxing'])
     expect(words('income')).toEqual(['earn', 'salary'])
@@ -434,5 +437,53 @@ describe('the / list finds a verb by what its area is called (R6)', () => {
        name wins, which is the three-tier order searchVerbs already had. */
     const order = searchVerbs('sty', [], { style: 'Style' }).map((c) => c.word)
     expect(order[0]).toBe('style')
+  })
+})
+
+describe('a body verb files the kind of thing it was', () => {
+  test('gym carries its category', () => {
+    expect(log('gym 60')).toMatchObject({ kind: 'workout', category: 'gym' })
+  })
+
+  test('run and boxing keep their own', () => {
+    expect(log('run 30').category).toBe('run')
+    expect(log('boxing').category).toBe('boxing')
+  })
+
+  test('stretch is a workout too', () => {
+    expect(log('stretch 15')).toMatchObject({
+      kind: 'workout',
+      area: 'body',
+      category: 'stretch',
+      value: 15,
+    })
+  })
+
+  test('supp is one tick — an intake, no amount', () => {
+    const result = parsed('supp')
+    expect(result.log.kind).toBe('intake')
+    expect(result.log.area).toBe('body')
+    expect(result.log.category).toBe('supplements')
+    expect(result.verb.amount).toBe('none')
+    expect(result.log.value).toBeUndefined()
+  })
+
+  test('supplements is the same verb spelled out', () => {
+    expect(log('supplements').category).toBe('supplements')
+  })
+})
+
+describe('a session says whether it was taught', () => {
+  test('pt is a class', () => {
+    expect(log('pt').category).toBe('class')
+  })
+
+  test('practice is the solo one', () => {
+    expect(log('practice 40')).toMatchObject({
+      kind: 'session',
+      area: 'portuguese',
+      category: 'practice',
+      value: 40,
+    })
   })
 })

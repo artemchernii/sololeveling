@@ -58,80 +58,116 @@ export function Areas() {
   const retired = all.filter((a) => a.retiredAt !== undefined)
 
   return (
-    <section className="glass motion-arrive flex flex-col gap-3 rounded-[22px] p-6">
-      <div className="label-caps">Areas</div>
-      <p className="text-[12.5px] text-ink-600">
-        What a thing is. Rename one and every badge follows — the word stored on
-        your rows never changes, so nothing has to be refiled.
-      </p>
+    /* Closed by default (21 Sep, his call — "it takes a lot of space").
+       Ten rows is most of a settings page, and this is a section you open to
+       change something and then leave alone for weeks, unlike Appearance
+       right above it.
 
-      <ul className="mt-1 flex flex-col gap-1">
-        {live.map((area, i) => (
-          <AreaRow
-            key={area._id}
-            area={area}
-            live={live}
-            first={i === 0}
-            last={i === live.length - 1}
-            onError={setError}
-          />
-        ))}
-      </ul>
+       <details> rather than a useState toggle, for the same reason the area
+       badge uses a native <select>: it brings its own keyboard behaviour, and
+       on a phone it is the control the platform already knows. The summary
+       carries every area's colour as a dot, so the row says what is inside
+       without being opened — a thing you can see beats a thing you read. */
+    <details className="glass motion-arrive group rounded-[22px] p-6 [&[open]]:pb-6">
+      <summary className="flex cursor-pointer list-none items-center gap-3 select-none">
+        <span className="label-caps transition-colors group-hover:text-ink-300">
+          Areas
+        </span>
+        <span
+          className="flex flex-1 flex-wrap items-center gap-1.5 group-open:hidden"
+          aria-hidden
+        >
+          {live.map((area) => (
+            <span
+              key={area._id}
+              style={areaVars(area.slug)}
+              className="size-2.5 rounded-full bg-(--area)"
+            />
+          ))}
+        </span>
+        <span className="flex-1 group-not-open:hidden" />
+        <ChevronDown
+          className="size-4 shrink-0 text-ink-600 transition-transform group-open:rotate-180"
+          aria-hidden
+        />
+      </summary>
 
-      <form
-        className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-          const label = adding.trim()
-          if (label.length === 0) return
-          setError(null)
-          void create({ label })
-            .then(() => setAdding(''))
-            .catch((reason: unknown) => setError(failureMessage(reason)))
-        }}
-      >
-        <input
-          value={adding}
-          onChange={(e) => setAdding(e.target.value)}
-          /* Enter submits explicitly. The browser's implicit-submission rule
+      <div className="mt-3 flex flex-col gap-3">
+        <p className="text-[12.5px] text-ink-600">
+          What a thing is. Rename one and every badge follows — the word stored
+          on your rows never changes, so nothing has to be refiled.
+        </p>
+
+        <ul className="mt-1 flex flex-col gap-1">
+          {live.map((area, i) => (
+            <AreaRow
+              key={area._id}
+              area={area}
+              live={live}
+              first={i === 0}
+              last={i === live.length - 1}
+              onError={setError}
+            />
+          ))}
+        </ul>
+
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const label = adding.trim()
+            if (label.length === 0) return
+            setError(null)
+            void create({ label })
+              .then(() => setAdding(''))
+              .catch((reason: unknown) => setError(failureMessage(reason)))
+          }}
+        >
+          <input
+            value={adding}
+            onChange={(e) => setAdding(e.target.value)}
+            /* Enter submits explicitly. The browser's implicit-submission rule
              should cover a form with one text field and a submit button, and
              it was measured not to here — four ways round: with the handler
              Enter adds the area, without it Enter does nothing at all. Typing
              a word and pressing Enter is the whole gesture, so it is wired
              rather than assumed. */
-          onKeyDown={(e) => {
-            if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
-            e.preventDefault()
-            e.currentTarget.form?.requestSubmit()
-          }}
-          placeholder="A new area — English, Music, Admin"
-          aria-label="Name of the new area"
-          className="flex-1 rounded-[7px] bg-lift/[0.05] px-3 py-2 text-[12.5px] text-foreground outline-none placeholder:text-ink-700"
-        />
-        <button
-          type="submit"
-          className="motion-press flex items-center gap-1.5 rounded-[7px] bg-lift/10 px-3 text-ink-300 hover:bg-lift/15"
-        >
-          <Plus className="size-3.5" aria-hidden />
-          <span className="label-caps">Add</span>
-        </button>
-      </form>
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
+              e.preventDefault()
+              e.currentTarget.form?.requestSubmit()
+            }}
+            placeholder="A new area — English, Music, Admin"
+            aria-label="Name of the new area"
+            className="flex-1 rounded-[7px] bg-lift/[0.05] px-3 py-2 text-[12.5px] text-foreground outline-none placeholder:text-ink-700"
+          />
+          <button
+            type="submit"
+            className="motion-press flex items-center gap-1.5 rounded-[7px] bg-lift/10 px-3 text-ink-300 hover:bg-lift/15"
+          >
+            <Plus className="size-3.5" aria-hidden />
+            <span className="label-caps">Add</span>
+          </button>
+        </form>
 
-      {error !== null ? (
-        <p className="motion-arrive text-[12.5px] text-state-danger">{error}</p>
-      ) : null}
+        {error !== null ? (
+          <p className="motion-arrive text-[12.5px] text-state-danger">
+            {error}
+          </p>
+        ) : null}
 
-      {retired.length > 0 ? (
-        <>
-          <div className="label-caps mt-3">Retired</div>
-          <ul className="flex flex-col gap-1 opacity-60">
-            {retired.map((area) => (
-              <RetiredRow key={area._id} area={area} onError={setError} />
-            ))}
-          </ul>
-        </>
-      ) : null}
-    </section>
+        {retired.length > 0 ? (
+          <>
+            <div className="label-caps mt-3">Retired</div>
+            <ul className="flex flex-col gap-1 opacity-60">
+              {retired.map((area) => (
+                <RetiredRow key={area._id} area={area} onError={setError} />
+              ))}
+            </ul>
+          </>
+        ) : null}
+      </div>
+    </details>
   )
 }
 

@@ -27,6 +27,11 @@ export const logKindValidator = v.union(
   v.literal('people_met'),
   v.literal('task_done'),
   v.literal('piece'),
+  /* Something taken rather than something done (R6b): protein, creatine,
+     a vitamin. Deliberately NOT a workout — the dashboard's Body tile counts
+     kind:'workout' (aggregate.ts TILE_KINDS), so a creatine filed as one
+     would make the morning screen read "30 workouts this month". */
+  v.literal('intake'),
   v.literal('note'),
   v.literal('idea'),
   v.literal('custom'),
@@ -40,6 +45,12 @@ export const create = mutation({
     value: v.optional(v.number()),
     unit: v.optional(v.string()),
     text: v.optional(v.string()),
+    /* What kind of thing this was, within its kind: 'gym' / 'stretch' for a
+       workout, 'supplements' for an intake, 'class' / 'practice' for a
+       session. A plain string, not an enum — R6 was a row spent learning what
+       a fixed set costs, and a new type here is a word typed into the capture
+       chip rather than a deploy. */
+    category: v.optional(v.string()),
     taskId: v.optional(v.id('tasks')),
     projectId: v.optional(v.id('projects')),
   },
@@ -83,6 +94,9 @@ export const create = mutation({
       text: args.text,
       taskId: args.taskId,
       projectId: args.projectId,
+      /* Absent rather than `{ category: undefined }`: an empty meta object on
+         every row is a stored fact that says nothing. */
+      meta: args.category === undefined ? undefined : { category: args.category },
     })
 
     /* §2's stated side-effect: a weight is both an event and a new current

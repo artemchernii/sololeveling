@@ -85,6 +85,11 @@ const logKind = v.union(
   v.literal('people_met'),
   v.literal('task_done'),
   v.literal('piece'),
+  /* Something taken rather than something done (R6b): protein, creatine,
+     a vitamin. Deliberately NOT a workout — the dashboard's Body tile counts
+     kind:'workout' (aggregate.ts TILE_KINDS), so a creatine filed as one
+     would make the morning screen read "30 workouts this month". */
+  v.literal('intake'),
   v.literal('note'),
   v.literal('idea'),
   v.literal('custom'),

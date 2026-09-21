@@ -93,3 +93,41 @@ describe('a note is not a log', () => {
     ).rejects.toThrow('written to notes')
   })
 })
+
+describe('a log carries the kind of thing it was', () => {
+  test('a category is stored on the row', async () => {
+    const t = as(ME)
+    await t.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: Date.now(),
+      category: 'gym',
+    })
+    const [row] = await t.query(api.logs.recent, {})
+    expect(row.meta?.category).toBe('gym')
+  })
+
+  test('a log without one stores no category, not an empty one', async () => {
+    const t = as(ME)
+    await t.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: Date.now(),
+    })
+    const [row] = await t.query(api.logs.recent, {})
+    expect(row.meta?.category).toBeUndefined()
+  })
+
+  test('supplements are an intake, not a workout', async () => {
+    const t = as(ME)
+    await t.mutation(api.logs.create, {
+      kind: 'intake',
+      area: 'body',
+      occurredAt: Date.now(),
+      category: 'supplements',
+    })
+    const [row] = await t.query(api.logs.recent, {})
+    expect(row.kind).toBe('intake')
+    expect(row.meta?.category).toBe('supplements')
+  })
+})

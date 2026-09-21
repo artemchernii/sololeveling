@@ -715,3 +715,61 @@ describe('categoryDays — how often, per kind of thing', () => {
     expect(partial.complete).toBe(true)
   })
 })
+
+describe('stateHistory — source 2 read as a series', () => {
+  test('the stored rows, oldest first, and nothing between them', async () => {
+    const t = as(ME)
+    const now = Date.now()
+    const week = 7 * 86_400_000
+    for (const [value, at] of [
+      [77.2, now - 2 * week],
+      [76.1, now - week],
+      [75.4, now],
+    ] as const) {
+      await t.mutation(api.logs.create, {
+        kind: 'weight', area: 'body', occurredAt: at, value, unit: 'kg',
+      })
+    }
+
+    const history = await t.query(api.aggregate.stateHistory, {
+      key: 'weight',
+      start: now - 3 * week,
+      end: now + 86_400_000,
+    })
+
+    expect(history.map((r) => r.value)).toEqual([77.2, 76.1, 75.4])
+    expect(history.map((r) => r.recordedAt)).toEqual([
+      now - 2 * week, now - week, now,
+    ])
+    expect(history[0].unit).toBe('kg')
+  })
+
+  test('a row outside the window is not in it', async () => {
+    const t = as(ME)
+    const now = Date.now()
+    await t.mutation(api.logs.create, {
+      kind: 'weight', area: 'body', occurredAt: now - 90 * 86_400_000,
+      value: 80, unit: 'kg',
+    })
+    const history = await t.query(api.aggregate.stateHistory, {
+      key: 'weight', start: now - 30 * 86_400_000, end: now + 86_400_000,
+    })
+    expect(history).toEqual([])
+  })
+
+  test('another owner has their own history', async () => {
+    const backend = convexTest(schema, modules)
+    const now = Date.now()
+    await backend
+      .withIdentity({ tokenIdentifier: ME })
+      .mutation(api.logs.create, {
+        kind: 'weight', area: 'body', occurredAt: now, value: 75.4, unit: 'kg',
+      })
+    const theirs = await backend
+      .withIdentity({ tokenIdentifier: SOMEONE_ELSE })
+      .query(api.aggregate.stateHistory, {
+        key: 'weight', start: now - 86_400_000, end: now + 86_400_000,
+      })
+    expect(theirs).toEqual([])
+  })
+})

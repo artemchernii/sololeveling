@@ -74,6 +74,16 @@ that fails any of them is not a source-4 number:
 - **Not a licence to derive.** `holding × price` is composition of two sanctioned values, the same
   shape as "2 of 4". A "portfolio health score" is still invented, and still forbidden.
 
+**A state read as a series (21 Sep, R6b).** Source 2 is the latest
+`stateSnapshots` row for a key; the weight line on Body plots all of them.
+That is the same source read as a series, not a fifth source, and it is
+allowed on one written condition: it plots the stored rows and nothing
+between them. No smoothing, no interpolation across a gap, no trend line, no
+projection. A dot where a value was recorded, a straight segment between
+consecutive dots, and a target drawn as a flat line. A curve through two
+weigh-ins three weeks apart claims a path that was never measured — the same
+lie as a price shown without the time it was read.
+
 The storage shape is decided when Money is built, not here. What is decided here is that an external
 number is allowed to exist, and what it must carry to be shown.
 

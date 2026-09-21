@@ -418,6 +418,56 @@ export const currentState = query({
 })
 
 /**
+ * The stored snapshots for one key, oldest first — the weight line.
+ *
+ * Source 2 read as a series rather than as a latest row, which §1 now allows
+ * on written terms: this returns the rows and nothing between them. No
+ * smoothing, no interpolation across a gap, no trend line, no projection. A
+ * curve drawn through two weigh-ins three weeks apart claims a path that was
+ * never measured, which is the same lie as a price shown without its time.
+ *
+ * Ascending through by_owner_key_time, so it is a range read rather than a
+ * scan of every weigh-in ever logged.
+ */
+export const stateHistory = query({
+  args: {
+    key: v.string(),
+    /** Epoch ms, inclusive. */
+    start: v.number(),
+    /** Epoch ms, exclusive. */
+    end: v.number(),
+  },
+  returns: v.array(
+    v.object({
+      value: v.optional(v.number()),
+      textValue: v.optional(v.string()),
+      unit: v.optional(v.string()),
+      recordedAt: v.number(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('stateSnapshots')
+      .withIndex('by_owner_key_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('key', args.key)
+          .gte('recordedAt', args.start)
+          .lt('recordedAt', args.end),
+      )
+      .take(MAX_ROWS)
+
+    return rows.map((row) => ({
+      value: row.value,
+      textValue: row.textValue,
+      unit: row.unit,
+      recordedAt: row.recordedAt,
+    }))
+  },
+})
+
+/**
  * Logs of one kind in a period: the "4 this month" beside a line you have just
  * logged, so Enter shows that it counted and not only that it saved.
  *

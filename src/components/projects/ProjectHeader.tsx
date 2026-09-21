@@ -10,7 +10,6 @@ import {
   Pause,
   PenLine,
   Target,
-  Infinity as InfinityIcon,
   Trash2,
   TriangleAlert,
 } from 'lucide-react'
@@ -21,10 +20,9 @@ import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { LogoUpload } from '@/components/projects/LogoUpload'
 import { ProjectStats } from '@/components/projects/ProjectStats'
 import { AreaBadge } from '@/components/AreaBadge'
-import { deadlineTone, StatusBadge } from '@/components/projects/Chips'
+import { DeadlineControl, StatusBadge } from '@/components/projects/Chips'
 import { SaveGlyph, useSave } from '@/components/Saving'
 import type { Area } from '@/lib/capture-parser'
-import { localToday } from '@/lib/today'
 
 /* A project's header (20 Sep, rebuilt from his feedback). It used to be a
    title, a stray status word pinned right, and one thin grey line — "0 of 2
@@ -90,7 +88,7 @@ export function ProjectHeader({
                 {project.title}
               </h1>
               <StatusBadge status={project.status} />
-              <Deadline project={project} />
+              <DeadlineControl project={project} />
               {/* His to set, and nothing derives it — the goal above a
                   project no longer says what the project is (21 Sep). */}
               <AreaBadge
@@ -293,91 +291,6 @@ function Description({ project }: { project: Doc<'projects'> }) {
         </button>
       </div>
     </div>
-  )
-}
-
-/* A deadline you can move — or refuse to set (20 Sep).
-
-   Three states, and each looks like what it is: a date that has passed is
-   danger, a date inside a week is warn, and "ongoing" is a project being
-   built with no date he is willing to promise, which reads as a band of
-   light walking across the pill for as long as that is true.
-
-   Ongoing is not the same as no end date. No end date is a project he has
-   not thought about; ongoing is an answer. */
-function Deadline({ project }: { project: Doc<'projects'> }) {
-  const setDeadline = useMutation(api.projects.setDeadline)
-  const setOngoing = useMutation(api.projects.setOngoing)
-  const [open, setOpen] = useState(false)
-
-  const tone = deadlineTone(project)
-
-  if (open) {
-    return (
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="date"
-          autoFocus
-          defaultValue={project.deadline ?? localToday()}
-          onChange={(e) => {
-            const value = e.target.value
-            if (value.length > 0) {
-              void setDeadline({ projectId: project._id, deadline: value })
-              setOpen(false)
-            }
-          }}
-          className="rounded-[8px] border border-lift/10 bg-sink/20 px-2 py-1 font-mono text-[12px] text-ink-300"
-        />
-        <button
-          type="button"
-          onClick={() => {
-            void setOngoing({ projectId: project._id, ongoing: true })
-            setOpen(false)
-          }}
-          className="motion-press inline-flex items-center gap-1.5 rounded-full bg-lav-900/60 px-2.5 py-1 text-[11.5px] text-lav-300 ring-1 ring-lav-500/40 ring-inset transition-colors hover:bg-lav-800"
-        >
-          <InfinityIcon className="size-3" />
-          Ongoing
-        </button>
-        {project.deadline !== undefined || project.ongoing === true ? (
-          <button
-            type="button"
-            onClick={() => {
-              void setDeadline({ projectId: project._id, deadline: null })
-              void setOngoing({ projectId: project._id, ongoing: false })
-              setOpen(false)
-            }}
-            className="text-[11.5px] text-ink-700 transition-colors hover:text-ink-400"
-          >
-            Clear
-          </button>
-        ) : null}
-      </div>
-    )
-  }
-
-  if (project.ongoing === true) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="motion-press motion-building inline-flex items-center gap-1.5 rounded-full bg-lav-900/40 px-2.5 py-1 font-mono text-[11.5px] text-lav-200 ring-1 ring-lav-500/30 ring-inset"
-      >
-        <InfinityIcon className="size-3" />
-        ongoing
-      </button>
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => setOpen(true)}
-      className={`motion-press inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[11.5px] transition-colors ${tone.skin}`}
-    >
-      {tone.Icon ? <tone.Icon className="size-3" /> : null}
-      {tone.label}
-    </button>
   )
 }
 

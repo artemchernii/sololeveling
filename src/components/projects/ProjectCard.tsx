@@ -11,7 +11,7 @@ import {
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { AreaBadge } from '@/components/AreaBadge'
-import { DeadlineChip, StatusBadge } from '@/components/projects/Chips'
+import { DeadlineControl, StatusBadge } from '@/components/projects/Chips'
 import { ProjectVitals } from '@/components/projects/ProjectVitals'
 import { ProjectLogo } from '@/components/projects/ProjectLogo'
 import type { Area } from '@/lib/capture-parser'
@@ -282,7 +282,12 @@ function Identity({
           <span className="truncate text-[15px] text-foreground transition-colors group-hover:text-lav-300">
             {project.title}
           </span>
-          <DeadlineChip project={project} />
+          {/* `pointer-events-auto` and a stacking context, so this takes its
+              own clicks instead of falling through to the card's link
+              overlay — the same treatment the area badge beside it gets. */}
+          <span className="pointer-events-auto relative z-10">
+            <DeadlineControl project={project} />
+          </span>
         </span>
         <span className="pointer-events-auto relative z-10 flex flex-wrap items-center gap-2">
           <AreaBadge area={area} onChange={setArea} />

@@ -154,14 +154,17 @@ export function ProjectCard({
              wrong call: his window is under 1536, so the card he had just
              approved turned into a tall stack. "NO NO NO. WTF IS THIS."
 
-             The truncation at narrow widths is real and stays on the list,
-             but it is nowhere near as bad as taking away the layout he
-             asked for. The track is `minmax(0,max-content)` so the numbers
-             give ground rather than taking their width first. */
+             The left track is capped at 22rem rather than sized to its
+             content (21 Sep, his call). At `max-content` the numbers took
+             459px whatever the window, so at 1280 the two blocks were left
+             233 each and "Improve projects list in projects page" cut to
+             "Improve projects lis…". The cap costs the three numbers a
+             second line at narrow widths and buys the blocks about 60px
+             each — his trade, made knowing both halves of it. */
           className={`pointer-events-none relative grid grid-cols-1 items-stretch gap-4 ${
             latest.length > 0
-              ? 'lg:grid-cols-[minmax(0,max-content)_minmax(0,1fr)_minmax(0,1fr)]'
-              : 'lg:grid-cols-[minmax(0,max-content)_minmax(0,1fr)]'
+              ? 'lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)_minmax(0,1fr)]'
+              : 'lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]'
           }`}
         >
           {/* The name and the numbers are one column now (21 Sep): "move

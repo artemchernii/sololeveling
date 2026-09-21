@@ -1,7 +1,7 @@
 import { Search } from 'lucide-react'
 
 import type { Doc } from '../../../convex/_generated/dataModel'
-import { AREAS } from '@/components/AreaBadge'
+import { useAreas } from '@/lib/areas'
 
 const SELECT =
   'rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[11.5px] text-ink-400'
@@ -50,6 +50,7 @@ export function ListControls<TSort extends string>({
   unfiled?: boolean
   extra?: React.ReactNode
 }) {
+  const areas = useAreas()
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-lift/[0.07] pb-3">
       <label className="flex min-w-[12rem] flex-1 items-center gap-2">
@@ -73,9 +74,9 @@ export function ListControls<TSort extends string>({
       >
         <option value="">any area</option>
         {unfiled ? <option value="unfiled">unfiled</option> : null}
-        {AREAS.map((a) => (
-          <option key={a} value={a}>
-            {a}
+        {areas.map((a) => (
+          <option key={a.slug} value={a.slug}>
+            {a.label}
           </option>
         ))}
       </select>

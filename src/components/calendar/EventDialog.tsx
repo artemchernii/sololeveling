@@ -4,7 +4,7 @@ import { useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { SaveLabel, useSave } from '@/components/Saving'
-import type { Area } from '@/lib/capture-parser'
+import { useAreas } from '@/lib/areas'
 
 /* Creating and editing an event. Series-level only, per PLAN §3b.6: an
    occurrence has an id but no row to write to, so "this Tuesday only" is not
@@ -13,18 +13,6 @@ import type { Area } from '@/lib/capture-parser'
    The repeat control is four choices, not an rrule field. The stored value is
    still an rrule string — anything expandable can be read back — but typing
    `FREQ=WEEKLY;BYDAY=TU` is not a thing to ask a person to do at 7am. */
-
-const AREAS: Array<Area> = [
-  'business',
-  'portuguese',
-  'body',
-  'money',
-  'social',
-  'career',
-  'style',
-  'knowledge',
-  'life',
-]
 
 const REPEATS = [
   { label: 'Once', rrule: undefined },
@@ -64,7 +52,8 @@ export function EventDialog({
   const [title, setTitle] = useState('')
   const [start, setStart] = useState('')
   const [durationMin, setDurationMin] = useState(60)
-  const [area, setArea] = useState<Area | ''>('')
+  const areas = useAreas()
+  const [area, setArea] = useState<string>('')
   const [rrule, setRrule] = useState<string | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const saving = useSave()
@@ -235,9 +224,9 @@ export function EventDialog({
               className="rounded-[7px] bg-lift/[0.05] px-3 py-2 text-[12.5px] text-foreground outline-none ring-1 ring-lift/10 focus:ring-lav-300/40"
             >
               <option value="">None</option>
-              {AREAS.map((a) => (
-                <option key={a} value={a}>
-                  {a}
+              {areas.map((a) => (
+                <option key={a.slug} value={a.slug}>
+                  {a.label}
                 </option>
               ))}
             </select>

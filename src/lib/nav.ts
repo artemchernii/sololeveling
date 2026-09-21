@@ -39,9 +39,11 @@ export type NavGroup = {
  * beneath, and the notes that feed them. TRACK is the three areas with numbers
  * of their own. Settings sits below the groups (SideNav.tsx).
  *
- * Languages still wears the `portuguese` colour and Finances the `money` one:
- * the area enum is renamed in R6, with the migration; only the label and the
- * route changed here.
+ * Languages wears the `portuguese` colour and Finances the `money` one. Those
+ * are slugs, not labels: since R6 (21 Sep) renaming an area changes what you
+ * read and never what is stored, so these two keep working however the areas
+ * are named — and a slug being permanent is what lets them be written here at
+ * all. There is no enum left to rename. R6b builds the pages themselves.
  */
 export const navGroups: Array<NavGroup> = [
   {

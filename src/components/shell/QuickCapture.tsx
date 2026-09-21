@@ -25,7 +25,7 @@ import { VERB_ICONS, VerbTile } from './VerbIcon'
 import { api } from '../../../convex/_generated/api'
 import { NoteEditor } from '@/components/notes/NoteEditor'
 import { Skeleton } from '@/components/Skeleton'
-import { AREAS, areaVars } from '@/lib/areas'
+import { areaVars, useAreaLabel, useAreas } from '@/lib/areas'
 import {
   CAPTURE_CHOICES,
   CAPTURE_HINTS,
@@ -163,6 +163,8 @@ export function QuickCapture({
      verb drops it without an effect racing the recent list that sets both at
      once — and by word rather than kind, since `pt` and `work` are both
      sessions and must not share an override. */
+  const areas = useAreas()
+  const areaLabel = useAreaLabel()
   const [areaFor, setAreaFor] = useState<{ word: string; area: Area } | null>(
     null,
   )
@@ -1065,7 +1067,10 @@ export function QuickCapture({
                     {choice.hint}
                   </span>
                   <span className="shrink-0 font-mono text-[10.5px] tracking-[0.12em] text-(--area) uppercase">
-                    {choice.area}
+                    {/* The label, not the slug (R6): the / list should say
+                        the word he named the area, which is the word he
+                        would have typed to find it. */}
+                    {areaLabel(choice.area)}
                   </span>
                 </Command.Item>
               ))}
@@ -1387,24 +1392,24 @@ export function QuickCapture({
                   unfiled
                 </button>
               ) : null}
-              {AREAS.map((choice) => (
+              {areas.map((choice) => (
                 <button
-                  key={choice}
+                  key={choice.slug}
                   type="button"
-                  style={areaVars(choice)}
+                  style={areaVars(choice.slug)}
                   onClick={() => {
-                    setAreaFor({ word: verb.word, area: choice })
+                    setAreaFor({ word: verb.word, area: choice.slug })
                     setPicker(null)
                     focusLine()
                   }}
                   className={`${CHIP} h-7 px-2.5 font-mono text-[10.5px] tracking-[0.12em] uppercase ${
-                    choice === area
+                    choice.slug === area
                       ? 'bg-(--area)/22 text-(--area) ring-1 ring-(--area)/50 ring-inset'
                       : 'text-ink-500 hover:bg-(--area)/12 hover:text-(--area)'
                   }`}
                 >
                   <span className="size-1.5 rounded-full bg-(--area)" />
-                  {choice}
+                  {choice.label}
                 </button>
               ))}
             </div>

@@ -12,8 +12,10 @@ export type MonthTile = {
 }
 
 /* PLAN.md §3 item 4: the six tiles, in monthCounts' order. Labels say
-   Languages and Finances since 15 Sep; the keys stay the area names until R6
-   migrates the enum. The first tile was "Projects" until 16 Sep, but it
+   Languages and Finances since 15 Sep. The keys are permanent: R6 (21 Sep)
+   made areas data by keeping the slug as the stored identity, so there is no
+   enum to migrate and these never move. The first tile was "Projects" until
+   16 Sep, but it
    counts every ticked task, on a project or not — so it says Tasks. Its key
    stays `projects` (the schema's tile enum). It has no area colour: it counts
    ticked tasks from every area, so no one colour is true of it. */

@@ -318,3 +318,77 @@ export async function requireLiveArea(
   }
   return slug
 }
+
+/**
+ * Gone entirely — the row deleted, not retired.
+ *
+ * Retiring says "I stopped tracking this" and keeps the area, so the rows that
+ * carry it still have a name and a colour. This says "it should never have
+ * existed": a label typed wrong, an area invented and thought better of. The
+ * two are not the same act and neither can stand in for the other.
+ *
+ * So it refuses when anything at all is filed under the slug — retire that
+ * instead — and it refuses a built-in outright, because the ten are the union
+ * the schema used to hold and `ensure` would put one back on the next mount.
+ */
+export const remove = mutation({
+  args: { slug: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    if (BUILTIN_SLUGS.has(args.slug)) {
+      throw new Error('AREA_IS_BUILT_IN')
+    }
+    const area = await bySlug(ctx, ownerId, args.slug)
+    if (area === null) {
+      throw new Error('NO_SUCH_AREA')
+    }
+
+    /* The six tables that carry an area (PLAN.md §2), written out rather than
+       looped: `ctx.db.query(table)` over a union of names cannot resolve which
+       indexes that table has, and the loop that reads nicely is the one that
+       loses every type. `logs` is the lucky one — `by_owner_area_time` indexes
+       the slug itself, so it is an exact hit. The other five are a prefix scan
+       of this owner's rows with a filter on top: bounded by ownerId, never a
+       table scan. */
+    const used =
+      (await ctx.db
+        .query('logs')
+        .withIndex('by_owner_area_time', (q) =>
+          q.eq('ownerId', ownerId).eq('area', args.slug),
+        )
+        .first()) !== null ||
+      (await ctx.db
+        .query('goals')
+        .withIndex('by_owner_status', (q) => q.eq('ownerId', ownerId))
+        .filter((q) => q.eq(q.field('area'), args.slug))
+        .first()) !== null ||
+      (await ctx.db
+        .query('projects')
+        .withIndex('by_owner_status', (q) => q.eq('ownerId', ownerId))
+        .filter((q) => q.eq(q.field('area'), args.slug))
+        .first()) !== null ||
+      (await ctx.db
+        .query('tasks')
+        .withIndex('by_owner_status', (q) => q.eq('ownerId', ownerId))
+        .filter((q) => q.eq(q.field('area'), args.slug))
+        .first()) !== null ||
+      (await ctx.db
+        .query('events')
+        .withIndex('by_owner_start', (q) => q.eq('ownerId', ownerId))
+        .filter((q) => q.eq(q.field('area'), args.slug))
+        .first()) !== null ||
+      (await ctx.db
+        .query('stateSnapshots')
+        .withIndex('by_owner_key_time', (q) => q.eq('ownerId', ownerId))
+        .filter((q) => q.eq(q.field('area'), args.slug))
+        .first()) !== null
+
+    if (used) {
+      throw new Error('AREA_IN_USE')
+    }
+
+    await ctx.db.delete(area._id)
+    return null
+  },
+})

@@ -355,3 +355,57 @@ describe('what may be written into an area field', () => {
     ).rejects.toThrow('NO_SUCH_AREA')
   })
 })
+
+describe('deleting an area he should never have made', () => {
+  test('an unused invented area is deleted outright', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await t.mutation(api.areas.create, { label: 'Englsh' })
+    await t.mutation(api.areas.remove, { slug: 'englsh' })
+    expect(
+      (await t.query(api.areas.list, { includeRetired: true })).map(
+        (a) => a.slug,
+      ),
+    ).not.toContain('englsh')
+  })
+
+  test('an area something is filed under is refused — retire it instead', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await t.mutation(api.areas.create, { label: 'English' })
+    await t.mutation(api.goals.create, { title: 'C1', area: 'english' })
+    await expect(
+      t.mutation(api.areas.remove, { slug: 'english' }),
+    ).rejects.toThrow('AREA_IN_USE')
+  })
+
+  test('a log filed under it counts as in use', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await t.mutation(api.areas.create, { label: 'English' })
+    await t.mutation(api.logs.create, {
+      kind: 'session',
+      area: 'english',
+      occurredAt: Date.now(),
+    })
+    await expect(
+      t.mutation(api.areas.remove, { slug: 'english' }),
+    ).rejects.toThrow('AREA_IN_USE')
+  })
+
+  test('a built-in cannot be deleted, however empty', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await expect(
+      t.mutation(api.areas.remove, { slug: 'knowledge' }),
+    ).rejects.toThrow('AREA_IS_BUILT_IN')
+  })
+
+  test("another owner's area cannot be deleted", async () => {
+    const { mine, theirs } = twoOwners()
+    await mine.mutation(api.areas.create, { label: 'English' })
+    await expect(
+      theirs.mutation(api.areas.remove, { slug: 'english' }),
+    ).rejects.toThrow('NO_SUCH_AREA')
+  })
+})

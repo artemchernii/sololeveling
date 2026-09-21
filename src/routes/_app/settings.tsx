@@ -3,6 +3,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import { PageTitle } from '@/components/PageTitle'
+import { Areas } from '@/components/settings/Areas'
 import { Skeleton } from '@/components/Skeleton'
 import { useTheme } from '@/integrations/theme/provider'
 import { PREFERENCES } from '@/lib/theme'
@@ -30,6 +31,8 @@ function Settings() {
       />
 
       <Appearance />
+
+      <Areas />
 
       <div className="glass flex flex-col gap-2 rounded-[22px] p-6">
         <div className="label-caps">Owner ID</div>

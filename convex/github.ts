@@ -1,6 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { parseRepo } from './repo'
 import { internal } from './_generated/api'
 import {
   internalAction,
@@ -35,17 +36,10 @@ const PER_PAGE = 100
 /* 500 commits in a fortnight is far past anything one person writes; the cap
    exists so a runaway repo cannot spin the action, not to trim a real week. */
 const MAX_PAGES = 5
-const REPO = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/
-
-/** `owner/name` from what a person pastes: the pair itself or a github.com URL. */
-export function parseRepo(input: string): string | null {
-  const trimmed = input.trim()
-  const url = trimmed.match(
-    /^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/\s]+)\/([^/\s]+)/i,
-  )
-  const candidate = url ? `${url[1]}/${url[2].replace(/\.git$/, '')}` : trimmed
-  return REPO.test(candidate) ? candidate : null
-}
+/* The rule itself lives in `convex/repo.ts`, with no Convex imports, so the
+   New project form can apply it while he types. Re-exported here because
+   everything server-side already imports it from this file. */
+export { parseRepo }
 
 export const setRepo = mutation({
   args: { projectId: v.id('projects'), repo: v.union(v.string(), v.null()) },

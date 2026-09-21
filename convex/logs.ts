@@ -1,4 +1,4 @@
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { mutation, query } from './_generated/server'
@@ -142,6 +142,38 @@ export const recent = query({
 })
 
 /**
+ * A project's own session logs for a period, newest first (20 Sep).
+ *
+ * "What if I logged more time than I should" — the answer is the same one
+ * `remove` has always given: a log is not edited into a different truth, it is
+ * deleted and logged again. This is the list that makes that a two-second job
+ * rather than a hunt, so the correction path stays the append-only one.
+ */
+export const listForProject = query({
+  args: {
+    projectId: v.id('projects'),
+    start: v.number(),
+    end: v.number(),
+  },
+  returns: v.array(schema.doc('logs')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_project_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('projectId', args.projectId)
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .order('desc')
+      .take(RECENT_ROWS)
+    return rows.filter((row) => row.kind === 'session')
+  },
+})
+
+/**
  * The badge is the editor. `area` is filing, not evidence — a mis-filed note
  * gets corrected here, while kind, occurredAt, value and text stay immutable.
  * A wrong workout is deleted and re-logged, never edited into a different truth.
@@ -156,6 +188,43 @@ export const setArea = mutation({
       throw new Error('No such log')
     }
     await ctx.db.patch(args.logId, { area: args.area })
+    return null
+  },
+})
+
+/**
+ * Correct a logged number in place (20 Sep, his call).
+ *
+ * Until today a log's value was immutable and the only correction was `remove`
+ * plus logging it again — "a log is never edited into a different truth". He
+ * asked twice for a mistyped duration to be fixable where it is shown, and
+ * overruled the rule; PLAN.md §2 records that. The reasoning that survives is
+ * narrower and still holds: a correction must not be able to make two stored
+ * facts disagree.
+ *
+ * So `weight` is refused here. A weight log writes a `stateSnapshots` row that
+ * `remove` deletes alongside it, and editing the log alone would leave the
+ * displayed weight contradicting its own evidence. Those still go through
+ * remove-and-log-again.
+ */
+export const setValue = mutation({
+  args: { logId: v.id('logs'), value: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const log = await ctx.db.get(args.logId)
+    if (log === null || log.ownerId !== ownerId) {
+      throw new Error('No such log')
+    }
+    if (log.kind === 'weight') {
+      throw new ConvexError(
+        'A weight is deleted and logged again, so its snapshot goes with it.',
+      )
+    }
+    if (!Number.isFinite(args.value) || args.value <= 0) {
+      throw new ConvexError('That is not a number of minutes.')
+    }
+    await ctx.db.patch(args.logId, { value: args.value })
     return null
   },
 })

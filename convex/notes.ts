@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { removeFor } from './attachments'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
@@ -98,6 +99,8 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     await ownedNote(ctx, ownerId, args.noteId)
+    /* Its files go with it, or they become bytes nothing can reach. */
+    await removeFor(ctx, ownerId, { noteId: args.noteId })
     await ctx.db.delete(args.noteId)
     return null
   },

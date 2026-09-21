@@ -8,9 +8,12 @@ import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import schema, { areaValidator } from './schema'
 
-/* A project is work under a goal. `goalId` is required by the schema, so a
-   project that answers to nothing cannot exist. (They were called chains
-   until 15 Sep; only the word changed.)
+/* A project is a thing he is building. It answered to a goal until 21 Sep —
+   "I said already that this GOAL - PROJECT bind is canceled. We dont give a
+   fuck about it. It was a mistake." — and now it answers to nothing: no
+   `goalId`, no `setGoal`, and a New project form that asks for a title.
+   Goals are still a list; they are simply not above this one.
+   (Projects were called chains until 15 Sep; only the word changed.)
 
    Exactly one project per owner is 'focus' (PLAN.md §3c.2). That is enforced
    here, in setFocus, because Convex has no triggers and a rule the UI merely
@@ -43,20 +46,15 @@ async function ownedProject(
 /** "New project" is one form: the goal and the project together (§3). */
 export const create = mutation({
   args: {
-    goalId: v.id('goals'),
     title: v.string(),
     description: v.optional(v.string()),
     deadline: v.optional(v.string()),
     githubRepo: v.optional(v.string()),
+    area: v.optional(areaValidator),
   },
   returns: v.id('projects'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-
-    const goal = await ctx.db.get(args.goalId)
-    if (goal === null || goal.ownerId !== ownerId) {
-      throw new Error('No such goal')
-    }
 
     const title = args.title.trim()
     if (title.length === 0) {
@@ -76,43 +74,36 @@ export const create = mutation({
 
     const projectId = await ctx.db.insert('projects', {
       ownerId,
-      goalId: args.goalId,
       title,
       description: args.description,
       status: 'active',
       deadline: args.deadline,
       githubRepo,
+      /* `projects` unless he says otherwise — the tenth area exists for
+         exactly this, and a project born with no kind is a grey card he has
+         to go and fix (21 Sep). */
+      area: args.area ?? 'projects',
     })
 
     if (githubRepo !== undefined) {
-      await ctx.scheduler.runAfter(0, internal.github.checkOne, { projectId })
+      await ctx.scheduler.runAfter(0, internal.github.backfillOne, {
+        projectId,
+      })
     }
 
     return projectId
   },
 })
 
-/**
- * Move a project under a different goal (20 Sep).
- *
- * Until now `goalId` was written once and never again, so a project filed
- * under the wrong goal could only be fixed by deleting it — and its tasks,
- * notes and logged time went with it. The goal it leaves is not touched: a
- * goal with no projects is a goal you have not started, not a mistake.
- */
-export const setGoal = mutation({
-  args: { projectId: v.id('projects'), goalId: v.id('goals') },
+/** What kind of thing this project is — his to set, and nothing derives it
+ * (21 Sep). It came from the goal above until he cancelled that bind. */
+export const setArea = mutation({
+  args: { projectId: v.id('projects'), area: areaValidator },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     await ownedProject(ctx, ownerId, args.projectId)
-
-    const goal = await ctx.db.get(args.goalId)
-    if (goal === null || goal.ownerId !== ownerId) {
-      throw new Error('No such goal')
-    }
-
-    await ctx.db.patch(args.projectId, { goalId: args.goalId })
+    await ctx.db.patch(args.projectId, { area: args.area })
     return null
   },
 })
@@ -120,16 +111,13 @@ export const setGoal = mutation({
 /** Everything not finished or filed away — what the projects grid renders. */
 export const listLive = query({
   args: {},
-  /* Each row carries its goal's `area` alongside the document. A project has
-     no area of its own — it inherits the kind of the goal it answers to, and
-     §3d says colour is how a kind is shown. Optional, not defaulted: a goal
-     cannot normally be deleted out from under a project, and if one ever is,
-     the card says "unfiled" rather than inventing a kind. */
+  /* The document as it is, plus its logo. It used to carry its goal's `area`
+     and `goalTitle` alongside — that is gone (21 Sep): a project has its own
+     area now, and the goal no longer decides what a project is. One fewer
+     read per goal, too. */
   returns: v.array(
     v.object({
       ...schema.doc('projects').fields,
-      area: v.optional(areaValidator),
-      goalTitle: v.optional(v.string()),
       logoUrl: v.union(v.string(), v.null()),
     }),
   ),
@@ -147,23 +135,10 @@ export const listLive = query({
       live.push(...rows)
     }
 
-    /* One read per distinct goal, not one per project. */
-    const areas = new Map<string, Doc<'goals'> | null>()
     const out = []
     for (const project of live) {
-      let goal = areas.get(project.goalId)
-      if (goal === undefined) {
-        goal = await ctx.db.get(project.goalId)
-        areas.set(project.goalId, goal)
-      }
       out.push({
         ...project,
-        area: goal?.area,
-        /* The goal's name, not its area: a card that says KNOWLEDGE next to a
-           project reads as though the project were filed under it (20 Sep).
-           The area is already on the card as colour, which is what §3d asks
-           colour to do — the word was saying nothing the edge did not. */
-        goalTitle: goal?.title,
         logoUrl:
           project.logoId === undefined
             ? null
@@ -272,6 +247,112 @@ export const setFocus = mutation({
  * decision, not
  * something to be inferred from whatever happens to be nearby.
  */
+/**
+ * Move a project's deadline (20 Sep).
+ *
+ * A date that has passed while you are still working is the normal case, not
+ * an error to be scolded about: the honest thing is to let it be pushed out
+ * where it is shown. `null` clears it — a project with no end date is a
+ * project you have not committed to a date, which is allowed.
+ */
+export const setDeadline = mutation({
+  args: {
+    projectId: v.id('projects'),
+    deadline: v.union(v.string(), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedProject(ctx, ownerId, args.projectId)
+    await ctx.db.patch(args.projectId, {
+      deadline: args.deadline ?? undefined,
+      /* A date is an answer, so it replaces "ongoing" rather than sitting
+         beside it. */
+      ongoing: args.deadline === null ? undefined : undefined,
+    })
+    return null
+  },
+})
+
+/**
+ * What this project actually is, in his own words (20 Sep).
+ *
+ * The field has existed since R1 and nothing ever wrote to it, so nothing
+ * showed it. It is the one thing a project page can say that no count can.
+ */
+/**
+ * A project with no date he is willing to promise (20 Sep).
+ *
+ * Not the same as having no deadline: that is a project he has not thought
+ * about. Setting it ongoing clears the date, because "ongoing, ends Friday"
+ * is two answers to one question.
+ */
+export const setOngoing = mutation({
+  args: { projectId: v.id('projects'), ongoing: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedProject(ctx, ownerId, args.projectId)
+    await ctx.db.patch(args.projectId, {
+      ongoing: args.ongoing ? true : undefined,
+      deadline: args.ongoing ? undefined : undefined,
+    })
+    return null
+  },
+})
+
+/**
+ * Targets for commits a week and minutes a month (20 Sep).
+ *
+ * These exist so a ring round a number has something real to divide by —
+ * §1 allows a progress bar only where a target he set gives it a denominator.
+ * Zero or null clears one, and the ring goes with it rather than falling back
+ * to some invented "normal week".
+ */
+export const setTargets = mutation({
+  args: {
+    projectId: v.id('projects'),
+    commitTargetWeekly: v.optional(v.union(v.number(), v.null())),
+    minutesTargetMonthly: v.optional(v.union(v.number(), v.null())),
+    taskTargetTotal: v.optional(v.union(v.number(), v.null())),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedProject(ctx, ownerId, args.projectId)
+
+    const clean = (n: number | null | undefined) =>
+      n === undefined ? undefined : n === null || n <= 0 ? undefined : n
+
+    const patch: Record<string, number | undefined> = {}
+    if (args.commitTargetWeekly !== undefined) {
+      patch.commitTargetWeekly = clean(args.commitTargetWeekly)
+    }
+    if (args.minutesTargetMonthly !== undefined) {
+      patch.minutesTargetMonthly = clean(args.minutesTargetMonthly)
+    }
+    if (args.taskTargetTotal !== undefined) {
+      patch.taskTargetTotal = clean(args.taskTargetTotal)
+    }
+    await ctx.db.patch(args.projectId, patch)
+    return null
+  },
+})
+
+export const setDescription = mutation({
+  args: { projectId: v.id('projects'), description: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedProject(ctx, ownerId, args.projectId)
+    const trimmed = args.description.trim()
+    await ctx.db.patch(args.projectId, {
+      description: trimmed.length === 0 ? undefined : trimmed,
+    })
+    return null
+  },
+})
+
 export const setStatus = mutation({
   args: { projectId: v.id('projects'), status: projectStatusValidator },
   returns: v.null(),

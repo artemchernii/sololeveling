@@ -1,0 +1,377 @@
+import { useState } from 'react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { useMutation } from 'convex/react'
+import {
+  Archive,
+  ArrowLeft,
+  ChevronDown,
+  CircleCheck,
+  CornerDownLeft,
+  Pause,
+  PenLine,
+  Target,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+
+import { api } from '../../../convex/_generated/api'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import { LogoUpload } from '@/components/projects/LogoUpload'
+import { ProjectStats } from '@/components/projects/ProjectStats'
+import { AreaBadge } from '@/components/AreaBadge'
+import { DeadlineControl, StatusBadge } from '@/components/projects/Chips'
+import { SaveGlyph, useSave } from '@/components/Saving'
+import type { Area } from '@/lib/capture-parser'
+
+/* A project's header (20 Sep, rebuilt from his feedback). It used to be a
+   title, a stray status word pinned right, and one thin grey line — "0 of 2
+   tasks · no time logged this month" — which said almost nothing about a
+   project you are actually building.
+
+   What it says now is what this project is and how it is going: his own
+   description, the three numbers, a deadline he can move, and the time he
+   just spent. What it no longer says is what the project answers to — the
+   goal is one quiet line, and its timeline lives on Goals where it means
+   something. */
+export function ProjectHeader({
+  project,
+  counts,
+  logoUrl,
+  tasks,
+}: {
+  project: Doc<'projects'>
+  counts: { done: number; total: number } | undefined
+  logoUrl: string | null
+  tasks: Array<Doc<'tasks'>> | undefined
+}) {
+  const projectId = project._id
+  const setFocus = useMutation(api.projects.setFocus)
+  const setStatus = useMutation(api.projects.setStatus)
+  const setArea = useMutation(api.projects.setArea)
+
+  const isFocus = project.status === 'focus'
+
+  return (
+    <div className="glass flex flex-col gap-4 rounded-[22px] p-6">
+      <Link
+        to="/projects"
+        className="label-caps flex items-center gap-1.5 self-start transition-colors hover:text-ink-300"
+      >
+        <ArrowLeft className="size-3" />
+        Projects
+      </Link>
+
+      {/* The identity row spans the card, and the numbers row carries the
+          deadline and the log on its right (20 Sep). Everything used to stack
+          in one left-hand column with two thirds of the panel empty beside
+          it, which is what made a full-width card read as a narrow one —
+          but squeezing the title into a column of its own just wrapped the
+          badge onto a second line. Rows, not columns. */}
+      {/* The actions sit beside the title rather than in a row of their own
+          under the numbers (20 Sep, fourth pass). He boxed the empty right
+          half of this card: the identity row stopped at the deadline pill and
+          left roughly 600px of nothing beside it, while five buttons sat on a
+          line of their own below. They are what you do to this project, so
+          they belong next to its name, and the hole closes. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <LogoUpload
+            projectId={projectId}
+            url={logoUrl}
+            title={project.title}
+            area={project.area}
+          />
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-[26px] leading-none font-light text-foreground">
+                {project.title}
+              </h1>
+              <StatusBadge status={project.status} />
+              <DeadlineControl project={project} />
+              {/* His to set, and nothing derives it — the goal above a
+                  project no longer says what the project is (21 Sep). */}
+              <AreaBadge
+                area={project.area}
+                onChange={(next: Area) =>
+                  void setArea({ projectId, area: next })
+                }
+              />
+            </div>
+          </div>
+        </div>
+
+        <Actions
+          projectId={projectId}
+          isFocus={isFocus}
+          setFocus={() => void setFocus({ projectId })}
+          setStatus={(status) => void setStatus({ projectId, status })}
+        />
+      </div>
+
+      <Description project={project} />
+
+      <ProjectStats
+        project={project}
+        area={project.area}
+        done={counts?.done}
+        total={counts?.total}
+        tasks={tasks}
+      />
+    </div>
+  )
+}
+
+/* What you do to a project (21 Sep, from his phone).
+
+   On a wide screen these are five buttons on one line beside the title, and
+   he has signed that off. At 375px they wrapped into three rows that each
+   began somewhere different — measured at 136px, 89px and 257px from the
+   left — because `justify-end` aligns the right edge and leaves the left as
+   rag. Three rows of rag is not a row of controls, it is five things that
+   happened to land near each other.
+
+   So on a phone one action is out and the rest are behind More. Which one is
+   out follows the project's state: the focus toggle, because that is the
+   thing you come to this page to change. Completing, pausing, archiving and
+   deleting a project are endings — rare, and two of them hard to undo, which
+   is the other reason they should not sit a thumb's width from everything
+   else on a screen you hold in one hand.
+
+   One set of markup, not two: the four fold into a column below `sm` and are
+   simply always shown above it, so there is no second copy to drift. */
+function Actions({
+  projectId,
+  isFocus,
+  setFocus,
+  setStatus,
+}: {
+  projectId: Id<'projects'>
+  isFocus: boolean
+  setFocus: () => void
+  setStatus: (status: Doc<'projects'>['status']) => void
+}) {
+  const [more, setMore] = useState(false)
+
+  return (
+    <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+      {/* Focus is one project at a time, and setFocus already demotes the one
+          that held it. What was missing was a way to simply stop — pausing or
+          completing a project you are still doing is a lie about its status
+          just to free the slot (20 Sep). */}
+      {isFocus ? (
+        <Action icon={Target} onClick={() => setStatus('active')}>
+          Stop focusing
+        </Action>
+      ) : (
+        <Action icon={Target} onClick={setFocus}>
+          Make this the focus
+        </Action>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setMore((v) => !v)}
+        aria-expanded={more}
+        className="motion-press flex items-center gap-1 self-start px-1 py-1 text-[11.5px] text-ink-500 transition-colors hover:text-ink-200 sm:hidden"
+      >
+        {more ? 'Fewer' : 'More'}
+        <ChevronDown
+          className={`size-3 transition-transform ${more ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      <div
+        className={`${
+          more ? 'motion-arrive flex' : 'hidden'
+        } flex-col items-stretch gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:gap-2`}
+      >
+        <Action icon={Pause} onClick={() => setStatus('paused')}>
+          Pause
+        </Action>
+        <Action
+          icon={CircleCheck}
+          tone="go"
+          onClick={() => setStatus('completed')}
+        >
+          Complete the project
+        </Action>
+        <Action icon={Archive} onClick={() => setStatus('archived')}>
+          Archive
+        </Action>
+        <DeleteAction projectId={projectId} />
+      </div>
+    </div>
+  )
+}
+
+/* What the project is, in his words (20 Sep, rebuilt the same evening).
+
+   It was a bare textarea with a Save button that appeared out of nowhere and
+   no way back: "I clicked on it we show only save button no cancel… make it
+   visible borders and enter icon", like the task and note fields. So it is
+   the same object as those — an edge, the accent when you are in it, ⏎ to
+   save, Escape or Cancel to put it back. */
+function Description({ project }: { project: Doc<'projects'> }) {
+  const setDescription = useMutation(api.projects.setDescription)
+  const [text, setText] = useState(project.description ?? '')
+  const [editing, setEditing] = useState(false)
+  const saving = useSave()
+  const dirty = text.trim() !== (project.description ?? '')
+
+  function save() {
+    if (!dirty) {
+      setEditing(false)
+      return
+    }
+    void saving
+      .run(() => setDescription({ projectId: project._id, description: text }))
+      .then(() => setEditing(false))
+  }
+
+  function cancel() {
+    setText(project.description ?? '')
+    setEditing(false)
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="motion-press self-start rounded-[10px] px-1 text-left text-[13px] leading-relaxed transition-colors hover:bg-lift/[0.04]"
+      >
+        {project.description ? (
+          <span className="text-ink-200">{project.description}</span>
+        ) : (
+          <span className="text-ink-700">What is this project?</span>
+        )}
+      </button>
+    )
+  }
+
+  return (
+    <div className="group/desc flex items-start gap-2.5 rounded-[12px] border border-lift/10 bg-sink/20 px-3 py-2.5 transition-colors focus-within:border-lav-500/60 focus-within:bg-lav-900/20">
+      <PenLine className="mt-1 size-3.5 shrink-0 text-ink-600 transition-colors group-focus-within/desc:text-lav-300" />
+      <textarea
+        autoFocus
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          /* ⏎ saves, ⇧⏎ makes a line — the same bargain as everywhere else. */
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            save()
+          }
+          if (e.key === 'Escape') cancel()
+        }}
+        rows={2}
+        placeholder="What is this project?"
+        className="min-w-0 flex-1 resize-none bg-transparent text-[13px] leading-relaxed text-foreground outline-none placeholder:text-ink-700"
+      />
+      <div className="flex shrink-0 items-center gap-1.5">
+        <button
+          type="button"
+          onClick={cancel}
+          className="text-[11.5px] text-ink-700 transition-colors hover:text-ink-400"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={save}
+          aria-label="Save"
+          className="motion-press grid size-6 place-items-center rounded-[7px] bg-lav-900/70 text-lav-300 ring-1 ring-lav-500/50 ring-inset transition-colors hover:bg-lav-800"
+        >
+          <SaveGlyph
+            status={saving.status}
+            onSettled={saving.settle}
+            idle={<CornerDownLeft className="size-3" />}
+          />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* Delete asks first (20 Sep, second pass). It used to fire on the single
+   click of a button that looked exactly like Pause, and projects.remove takes
+   the logo file and every stored commit with it — the year the grid above is
+   drawn from. An inline arm, not a dialog: the question belongs where the
+   button was, and "Keep" is the easy one to hit. */
+function DeleteAction({ projectId }: { projectId: Id<'projects'> }) {
+  const removeProject = useMutation(api.projects.remove)
+  const navigate = useNavigate()
+  const [armed, setArmed] = useState(false)
+
+  if (!armed) {
+    return (
+      <Action icon={Trash2} tone="danger" onClick={() => setArmed(true)}>
+        Delete
+      </Action>
+    )
+  }
+
+  return (
+    <span className="motion-pop inline-flex items-center gap-2 rounded-[7px] border border-state-danger/45 bg-state-danger/10 px-2.5 py-1">
+      <span className="flex items-center gap-1.5 text-[11.5px] text-state-danger">
+        <TriangleAlert className="size-3" />
+        Delete this project and its commits?
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          void (async () => {
+            await removeProject({ projectId })
+            await navigate({ to: '/projects' })
+          })()
+        }}
+        className="motion-press rounded-[6px] bg-state-danger/25 px-2 py-0.5 text-[11.5px] text-state-danger transition-colors hover:bg-state-danger/40"
+      >
+        Delete
+      </button>
+      <button
+        type="button"
+        onClick={() => setArmed(false)}
+        className="text-[11.5px] text-ink-400 transition-colors hover:text-ink-200"
+      >
+        Keep
+      </button>
+    </span>
+  )
+}
+
+/* Three tones, because five identical buttons is what the row was (20 Sep,
+   second pass). Measured: every one of them rendered transparent on
+   rgb(178,182,202) — "Delete" and "Pause" were the same object to the eye,
+   and Delete is the only one that cannot be undone. Colour marks the state a
+   press would put the project in, which is what colour is for here. */
+function Action({
+  icon: Icon,
+  onClick,
+  tone = 'quiet',
+  children,
+}: {
+  icon: LucideIcon
+  onClick: () => void | Promise<void>
+  tone?: 'quiet' | 'go' | 'danger'
+  children: React.ReactNode
+}) {
+  const skin =
+    tone === 'go'
+      ? 'border-state-good/30 bg-state-good/10 text-state-good hover:border-state-good/55 hover:bg-state-good/20'
+      : tone === 'danger'
+        ? 'border-state-danger/25 text-state-danger/75 hover:border-state-danger/55 hover:bg-state-danger/15 hover:text-state-danger'
+        : 'border-lift/10 text-ink-400 hover:border-lift/20 hover:text-ink-200'
+
+  return (
+    <button
+      type="button"
+      onClick={() => void onClick()}
+      className={`motion-press flex w-full items-center justify-center gap-1.5 rounded-[7px] border px-2.5 py-1.5 text-[11.5px] transition-colors sm:w-auto sm:justify-start sm:py-1 ${skin}`}
+    >
+      <Icon className="size-3" />
+      {children}
+    </button>
+  )
+}

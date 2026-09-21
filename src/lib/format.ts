@@ -35,6 +35,14 @@ export function isOverdue(iso: string, now: Date = new Date()): boolean {
   )
 }
 
+/** Whole local days from today to this date; negative once it has passed. */
+export function daysUntil(iso: string, now: Date = new Date()): number {
+  const [y, m, d] = iso.split('-').map(Number)
+  const due = new Date(y, m - 1, d).setHours(0, 0, 0, 0)
+  const today = new Date(now).setHours(0, 0, 0, 0)
+  return Math.round((due - today) / MS_PER_DAY)
+}
+
 export function deadlineLabel(iso: string, now: Date = new Date()): string {
   const [y, m, d] = iso.split('-').map(Number)
   const due = new Date(y, m - 1, d).setHours(0, 0, 0, 0)

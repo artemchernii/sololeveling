@@ -30,11 +30,7 @@ function twoOwners() {
 }
 
 async function chain(t: ReturnType<typeof as>, title: string) {
-  const goalId = await t.mutation(api.goals.create, {
-    title: `goal for ${title}`,
-    area: 'business',
-  })
-  return await t.mutation(api.projects.create, { goalId, title })
+  return await t.mutation(api.projects.create, { title })
 }
 
 describe('one focus chain (PLAN.md §3c.2)', () => {
@@ -87,27 +83,48 @@ describe('one focus chain (PLAN.md §3c.2)', () => {
   })
 })
 
-describe('a chain answers to a goal', () => {
-  test('a task attached to a chain inherits its goal', async () => {
+describe('a chain answers to nothing (21 Sep)', () => {
+  /* It answered to a goal until the bind was cut. A task filed under a
+     project used to be given that project's goal, which is how a goal ended
+     up on a task nobody had filed under one. */
+  test('a task attached to a chain is given no goal', async () => {
     const t = as(ME)
-    const goalId = await t.mutation(api.goals.create, {
-      title: 'Ship the business',
-      area: 'business',
-    })
-    const projectId = await t.mutation(api.projects.create, {
-      goalId,
-      title: 'Oreum',
-    })
+    const projectId = await t.mutation(api.projects.create, { title: 'Oreum' })
     const taskId = await t.mutation(api.tasks.create, { title: 'Invoice' })
 
     await t.mutation(api.tasks.setProject, { taskId, projectId })
 
     const tasks = await t.query(api.tasks.listByProject, { projectId })
     expect(tasks).toHaveLength(1)
-    expect(tasks[0].goalId).toBe(goalId)
+    expect(tasks[0].goalId).toBeUndefined()
   })
 
-  test('cutting a task loose clears the goal with the project', async () => {
+  /* A task's own goal is its own: filing it under a project must not reach
+     in and change it, in either direction. */
+  test('a goal set on the task itself survives being filed under a project', async () => {
+    const t = as(ME)
+    const goalId = await t.mutation(api.goals.create, {
+      title: 'Ship the business',
+      area: 'business',
+    })
+    const projectId = await t.mutation(api.projects.create, { title: 'Oreum' })
+    const taskId = await t.mutation(api.tasks.create, {
+      title: 'Invoice',
+      goalId,
+    })
+
+    await t.mutation(api.tasks.setProject, { taskId, projectId })
+
+    const [task] = await t.query(api.tasks.listByProject, { projectId })
+    expect(task.goalId).toBe(goalId)
+
+    await t.mutation(api.tasks.setProject, { taskId, projectId: null })
+    const loose = await t.run((ctx) => ctx.db.get(taskId))
+    expect(loose?.goalId).toBe(goalId)
+    expect(loose?.projectId).toBeUndefined()
+  })
+
+  test('cutting a task loose clears the project', async () => {
     const t = as(ME)
     const projectId = await chain(t, 'Oreum')
     const taskId = await t.mutation(api.tasks.create, { title: 'Invoice' })
@@ -116,19 +133,6 @@ describe('a chain answers to a goal', () => {
 
     const tasks = await t.query(api.tasks.listByProject, { projectId })
     expect(tasks).toHaveLength(0)
-  })
-
-  test('a chain cannot be hung on another owner’s goal', async () => {
-    const { mine, theirs } = twoOwners()
-    const goalId = await mine.mutation(api.goals.create, {
-      title: 'mine',
-      area: 'business',
-    })
-
-    await expect(
-      theirs.mutation(api.projects.create, { goalId, title: 'theirs' }),
-    ).rejects.toThrow('No such goal')
-    expect(await theirs.query(api.projects.listLive, {})).toEqual([])
   })
 
   test('a task cannot be attached to another owner’s chain', async () => {
@@ -222,17 +226,21 @@ describe('a chain is removable, and takes nothing down with it', () => {
     expect(loose[0].goalId).toBeUndefined()
   })
 
-  test('a goal refuses to go while chains still hang off it', async () => {
+  /* Projects used to block this — one could not exist without a goal above
+     it, so deleting the goal would have orphaned it. Nothing points at a
+     goal from a project any more, so nothing is in the way (21 Sep). */
+  test('a goal goes even while projects exist, because none hang off it', async () => {
     const t = as(ME)
     const goalId = await t.mutation(api.goals.create, {
       title: 'Ship it',
       area: 'business',
     })
-    await t.mutation(api.projects.create, { goalId, title: 'Oreum' })
+    const projectId = await t.mutation(api.projects.create, { title: 'Oreum' })
 
-    await expect(t.mutation(api.goals.remove, { goalId })).rejects.toThrow(
-      'Oreum',
-    )
+    await t.mutation(api.goals.remove, { goalId })
+
+    expect(await t.query(api.goals.listActive, {})).toHaveLength(0)
+    expect(await t.query(api.projects.get, { projectId })).not.toBeNull()
   })
 
   test('once the chains are gone the goal can be', async () => {
@@ -241,10 +249,7 @@ describe('a chain is removable, and takes nothing down with it', () => {
       title: 'Ship it',
       area: 'business',
     })
-    const projectId = await t.mutation(api.projects.create, {
-      goalId,
-      title: 'Oreum',
-    })
+    const projectId = await t.mutation(api.projects.create, { title: 'Oreum' })
 
     await t.mutation(api.projects.remove, { projectId })
     await t.mutation(api.goals.remove, { goalId })
@@ -296,71 +301,3 @@ describe('a chain page read by a bad link', () => {
 
 /* A project's goal was fixed at creation until 20 Sep: the only way to move
    one was to delete it and lose its tasks, notes and logged time. */
-describe('a project can be moved to another goal', () => {
-  test('setGoal rebinds it, and the goal it left keeps standing', async () => {
-    const t = as(ME)
-    const from = await t.mutation(api.goals.create, {
-      title: 'A profitable business',
-      area: 'business',
-    })
-    const to = await t.mutation(api.goals.create, {
-      title: 'Ship something people use',
-      area: 'career',
-    })
-    const projectId = await t.mutation(api.projects.create, {
-      goalId: from,
-      title: 'Oreum',
-    })
-
-    await t.mutation(api.projects.setGoal, { projectId, goalId: to })
-
-    expect((await t.query(api.projects.get, { projectId }))?.goalId).toBe(to)
-    expect(await t.query(api.goals.get, { goalId: from })).not.toBeNull()
-  })
-
-  test('the goal it left can now be deleted, and the new one cannot', async () => {
-    const t = as(ME)
-    const from = await t.mutation(api.goals.create, {
-      title: 'From',
-      area: 'business',
-    })
-    const to = await t.mutation(api.goals.create, {
-      title: 'To',
-      area: 'business',
-    })
-    const projectId = await t.mutation(api.projects.create, {
-      goalId: from,
-      title: 'Oreum',
-    })
-
-    await t.mutation(api.projects.setGoal, { projectId, goalId: to })
-
-    await t.mutation(api.goals.remove, { goalId: from })
-    await expect(t.mutation(api.goals.remove, { goalId: to })).rejects.toThrow(
-      'Oreum',
-    )
-  })
-
-  test('neither another owner’s project nor another owner’s goal', async () => {
-    const { mine, theirs } = twoOwners()
-    const myGoal = await mine.mutation(api.goals.create, {
-      title: 'Mine',
-      area: 'business',
-    })
-    const theirGoal = await theirs.mutation(api.goals.create, {
-      title: 'Theirs',
-      area: 'business',
-    })
-    const projectId = await mine.mutation(api.projects.create, {
-      goalId: myGoal,
-      title: 'Oreum',
-    })
-
-    await expect(
-      theirs.mutation(api.projects.setGoal, { projectId, goalId: theirGoal }),
-    ).rejects.toThrow('No such project')
-    await expect(
-      mine.mutation(api.projects.setGoal, { projectId, goalId: theirGoal }),
-    ).rejects.toThrow('No such goal')
-  })
-})

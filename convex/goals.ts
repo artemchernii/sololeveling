@@ -164,19 +164,9 @@ export const remove = mutation({
     const ownerId = await requireUser(ctx)
     await ownedGoal(ctx, ownerId, args.goalId)
 
-    const projects = await ctx.db
-      .query('projects')
-      .withIndex('by_owner_status', (q) => q.eq('ownerId', ownerId))
-      .take(MAX_ROWS)
-
-    const attached = projects.filter((p) => p.goalId === args.goalId)
-    if (attached.length > 0) {
-      /* ConvexError, not Error: a plain throw reaches the client wrapped in a
-         stack trace, and this sentence is written to be read by a person. */
-      throw new ConvexError(
-        `Delete its projects first: ${attached.map((p) => p.title).join(', ')}`,
-      )
-    }
+    /* Projects used to block this, because one could not exist without a
+       goal above it. That bind was cut on 21 Sep — no project points here
+       any more, so there is nothing to be in the way. */
 
     /* Milestones are steps of this goal and mean nothing without it. */
     const milestones = await ctx.db

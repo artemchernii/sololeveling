@@ -1,6 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { removeFor } from './attachments'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
@@ -53,28 +54,53 @@ export const create = mutation({
       throw new Error('A task needs a title')
     }
 
-    /* The same rules as setProject and setGoal, checked here too: an id is
-       only a claim until the row behind it is loaded and found to be yours.
-       A project is the authority on its goal, so a task created under one
-       carries that project's goal, whatever goalId was also passed. */
-    let goalId = args.goalId
+    /* An id is only a claim until the row behind it is loaded and found to
+       be yours. A project no longer carries a goal, so the two are checked
+       separately and a task may hold either, both or neither (21 Sep). */
+    const goalId = args.goalId
+    let area = args.area
     if (args.projectId !== undefined) {
       const project = await ctx.db.get(args.projectId)
       if (project === null || project.ownerId !== ownerId) {
         throw new Error('No such project')
       }
-      goalId = project.goalId
-    } else if (args.goalId !== undefined) {
+    }
+    if (args.goalId !== undefined) {
       const goal = await ctx.db.get(args.goalId)
       if (goal === null || goal.ownerId !== ownerId) {
         throw new Error('No such goal')
       }
     }
 
+    /* The area comes down the chain rather than being asked for (20 Sep).
+       Artem, at a task made on a project and badged `unfiled`: "we won't set
+       it, it should be by default either project or SoloLeveling" — and then,
+       looking at one he had filed by hand: "lets add Projects in the list now
+       and by default tasks create from projects have type projects."
+
+       So there are two rules, in this order:
+
+       1. A task on a project is `projects`. That is the tenth area, added the
+          same day and for this — see the note on `areaValidator`.
+       2. A task on a goal takes the goal's area, which is the rule the app
+          already keeps one level up: a project has no area of its own, it
+          inherits the kind of the goal it answers to (projects.ts).
+
+       A passed area beats both: ⌘K parses one out of what you typed, and a
+       word you chose is not a default. */
+    if (area === undefined) {
+      if (args.projectId !== undefined) {
+        area = 'projects'
+      } else if (goalId !== undefined) {
+        const goal = await ctx.db.get(goalId)
+        if (goal !== null && goal.ownerId === ownerId) area = goal.area
+      }
+    }
+
     return await ctx.db.insert('tasks', {
       ownerId,
       title,
-      area: args.area,
+      area,
       notes: args.notes,
       projectId: args.projectId,
       goalId,
@@ -340,12 +366,54 @@ export const setArea = mutation({
  * Any 'task_done' log a previous completion wrote is left alone — that log is
  * a record of a day, and deleting the task does not un-happen it.
  */
+/** A title is a thing you get wrong the first time (20 Sep). Every other
+ * field on a task could be corrected and the title could not, so a typo meant
+ * deleting the task and writing it again — losing its notes, its files and
+ * its place in today's three. */
+export const setTitle = mutation({
+  args: { taskId: v.id('tasks'), title: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedTask(ctx, ownerId, args.taskId)
+    const title = args.title.trim()
+    if (title.length === 0) {
+      throw new Error('A task needs a title')
+    }
+    await ctx.db.patch(args.taskId, { title })
+    return null
+  },
+})
+
+/**
+ * What a task actually involves, beyond its title (20 Sep).
+ *
+ * The field has existed since R1 and nothing ever wrote to it — a task was a
+ * title and a checkbox, which he called out three times. Prompts and links
+ * live here as text; files are rows in `attachments`.
+ */
+export const setNotes = mutation({
+  args: { taskId: v.id('tasks'), notes: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedTask(ctx, ownerId, args.taskId)
+    const trimmed = args.notes.trim()
+    await ctx.db.patch(args.taskId, {
+      notes: trimmed.length === 0 ? undefined : trimmed,
+    })
+    return null
+  },
+})
+
 export const remove = mutation({
   args: { taskId: v.id('tasks') },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     await ownedTask(ctx, ownerId, args.taskId)
+    /* Its files go with it, or they become bytes nothing can reach. */
+    await removeFor(ctx, ownerId, { taskId: args.taskId })
     await ctx.db.delete(args.taskId)
     return null
   },
@@ -364,13 +432,10 @@ export const setProject = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    await ownedTask(ctx, ownerId, args.taskId)
+    const task = await ownedTask(ctx, ownerId, args.taskId)
 
     if (args.projectId === null) {
-      await ctx.db.patch(args.taskId, {
-        projectId: undefined,
-        goalId: undefined,
-      })
+      await ctx.db.patch(args.taskId, { projectId: undefined })
       return null
     }
 
@@ -379,12 +444,19 @@ export const setProject = mutation({
       throw new Error('No such project')
     }
 
-    /* goalId is denormalised from the project so a task can be filtered by goal
-       without walking through its project. The project is the authority; this
-       follows it, and is rewritten whenever the task moves. */
+    /* A project carries no goal any more (21 Sep), so filing a task under one
+       says nothing about which goal it serves — the task's own `goalId` is
+       left exactly as it was. */
     await ctx.db.patch(args.taskId, {
       projectId: args.projectId,
-      goalId: project.goalId,
+      /* Filing a task under a project is the same act as creating it there,
+         so it files the same way (20 Sep). He added a task from the backlog,
+         gave it SoloLeveling, and watched it stay `unfiled` — `create` had
+         learned this rule an hour earlier and `setProject` had not.
+
+         Only when nothing is set: an area he chose is his answer, and moving
+         a task between projects must not quietly overwrite it. */
+      area: task.area ?? 'projects',
     })
     return null
   },
@@ -450,6 +522,32 @@ export const listByProject = query({
  * timeline (§3b.3) — an undated task stays in the checklist, which is the
  * normal case, not an error.
  */
+/**
+ * A due date, as an ISO date string (20 Sep).
+ *
+ * `dueDate` and its `by_owner_due` index have been in the schema since R1 and
+ * no mutation ever wrote one, so the field could be read and indexed but never
+ * set — the task row had nothing to draw. Distinct from `scheduledAt`, which
+ * is a time the work sits in the week; a due date is when it is owed.
+ */
+export const setDueDate = mutation({
+  args: {
+    taskId: v.id('tasks'),
+    dueDate: v.union(v.string(), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedTask(ctx, ownerId, args.taskId)
+
+    await ctx.db.patch(args.taskId, {
+      dueDate:
+        args.dueDate === null || args.dueDate === '' ? undefined : args.dueDate,
+    })
+    return null
+  },
+})
+
 export const setSchedule = mutation({
   args: {
     taskId: v.id('tasks'),

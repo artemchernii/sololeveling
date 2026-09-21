@@ -3,17 +3,19 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { ConvexError } from 'convex/values'
-import { Plus } from 'lucide-react'
+import { Github, Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import type { Doc } from '../../../convex/_generated/dataModel'
 import { AREAS } from '@/components/AreaBadge'
+import { areaVars } from '@/lib/areas'
 import { ProjectCard } from '@/components/projects/ProjectCard'
 import { SaveLabel, useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
 import type { Area } from '@/lib/capture-parser'
 import { useArrived, useHeld } from '@/lib/loading'
 import { localToday } from '@/lib/today'
+import { parseRepo } from '../../../convex/repo'
 
 export const Route = createFileRoute('/_app/projects/')({
   component: Projects,
@@ -22,8 +24,9 @@ export const Route = createFileRoute('/_app/projects/')({
 /* The projects grid (PLAN.md §3). One focus project at the top with its full
    anatomy; the rest as title and next action (§3c.2).
 
-   "New project" is one form: a goal and the project together, because a
-   project without a goal above it is the thing this app exists to prevent.
+   "New project" is one field and a kind. It used to create a goal and the
+   project together, because a project without a goal above it could not
+   exist — that bind was cut on 21 Sep.
    They were called chains until 15 Sep; only the word changed. */
 function Projects() {
   const projects = useHeld(useQuery(api.projects.listLive, {}))
@@ -81,8 +84,6 @@ function Projects() {
           {focus ? (
             <ProjectCard
               project={focus}
-              area={focus.area}
-              goalTitle={focus.goalTitle}
               logoUrl={focus.logoUrl}
               counts={counts?.tasksByProject[focus._id]}
               nextTask={tasksFor(focus)[0]}
@@ -103,8 +104,6 @@ function Projects() {
                 <ProjectCard
                   key={project._id}
                   project={project}
-                  area={project.area}
-                  goalTitle={project.goalTitle}
                   logoUrl={project.logoUrl}
                   counts={counts?.tasksByProject[project._id]}
                   nextTask={tasksFor(project)[0]}
@@ -121,17 +120,14 @@ function Projects() {
 }
 
 function NewProject() {
-  const createGoal = useMutation(api.goals.create)
   const createProject = useMutation(api.projects.create)
-  const goals = useQuery(api.goals.listActive, {})
 
   const [open, setOpen] = useState(false)
   const [project, setProject] = useState('')
-  /* '' = not chosen yet, 'new' = name one here, otherwise a goal's id. A
-     project must answer to a goal, but it no longer has to invent one. */
-  const [goalId, setGoalId] = useState<string>('')
-  const [goal, setGoal] = useState('')
-  const [area, setArea] = useState<Area>('business')
+  /* What kind of thing it is, his to pick and nothing derives it (21 Sep).
+     This slot used to be "which goal is this for?" — a project answered to a
+     goal and could not exist without one. It answers to nothing now. */
+  const [area, setArea] = useState<Area>('projects')
   const [deadline, setDeadline] = useState('')
   const [repo, setRepo] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -143,18 +139,10 @@ function NewProject() {
       setError('A project needs a title.')
       return
     }
-    if (goalId === '' || (goalId === 'new' && goal.trim().length === 0)) {
-      setError('A project answers to a goal — pick one, or name a new one.')
-      return
-    }
     try {
       await starting.run(async () => {
-        const parent =
-          goalId === 'new'
-            ? await createGoal({ title: goal.trim(), area })
-            : (goalId as Id<'goals'>)
         await createProject({
-          goalId: parent,
+          area,
           title: project.trim(),
           deadline: deadline.length > 0 ? deadline : undefined,
           githubRepo: repo.trim() || undefined,
@@ -172,8 +160,7 @@ function NewProject() {
      project has already appeared below it by then. */
   function finish() {
     starting.settle()
-    setGoal('')
-    setGoalId('')
+    setArea('projects')
     setProject('')
     setDeadline('')
     setRepo('')
@@ -182,122 +169,161 @@ function NewProject() {
 
   if (!open) {
     return (
+      /* No `.glass` here any more (21 Sep): "when I hover button it looks a
+         bit weird — the border is flickering."
+
+         It was, and the cause is specific. Measured, the button is
+         127.42 × 41.375px — fractional — and `.glass` puts
+         `backdrop-filter: blur(18px)` on it, which promotes it to its own
+         composited layer. Hovering repaints it, the backdrop re-samples, and
+         a 1px border on a half-pixel edge shimmers. Backdrop blur belongs on
+         panels, not on a control this size, so this one gets a real surface
+         instead — and the accent it always should have had. */
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="glass flex items-center gap-2 self-start rounded-[14px] px-4 py-2.5 text-[12.5px] text-ink-300 transition-colors hover:text-foreground"
+        className="motion-press group flex items-center gap-2 self-start rounded-full border border-lift/12 bg-lift/[0.04] px-4 py-2 text-[12.5px] text-ink-300 transition-colors hover:border-lav-500/50 hover:bg-lav-900/40 hover:text-lav-200"
       >
-        <Plus className="size-3.5" />
+        <Plus className="size-3.5 transition-transform duration-(--motion-base) group-hover:rotate-90" />
         New project
       </button>
     )
   }
 
+  const parsedRepo = parseRepo(repo)
+  const repoTyped = repo.trim().length > 0
+
   return (
-    <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
-      <div className="label-caps">New project</div>
+    /* Rebuilt 21 Sep: "New project looks a bit outdate, no colors no motion,
+       no fun… Kind I think by default is projects. select is kinda too wide,
+       ugly. Maybe we can make github link cooler."
 
-      <Field label="Project">
-        <input
-          autoFocus
-          value={project}
-          onChange={(e) => setProject(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') void submit()
-          }}
-          placeholder="Oreum"
-          className="w-full bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
-        />
-      </Field>
+       Three changes, each answering one of those. The kind is a row of the
+       area colours rather than a 1200px-wide select of the same ten words in
+       grey — picking one is now the one moment on this form where the app
+       shows you what colour the thing will be. The repo field reads what you
+       paste as you paste it, using the same `parseRepo` the server will use,
+       and says `owner/name` back. And the panel arrives rather than
+       appearing. */
+    <div
+      style={areaVars(area)}
+      className="glass motion-arrive relative flex flex-col gap-4 overflow-hidden rounded-[22px] p-6"
+    >
+      <span
+        aria-hidden
+        className="motion-edge pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-(--area)"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-linear-to-r from-(--area)/[0.06] to-transparent to-45%"
+      />
 
-      <Field label="For">
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={goalId}
-            onChange={(e) => setGoalId(e.target.value)}
-            className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
-          >
-            <option value="">Which goal is this for?</option>
-            {/* A monthly tile target is not something a project hangs on. */}
-            {(goals ?? [])
-              .filter((g) => g.tile === undefined)
-              .map((g) => (
-                <option key={g._id} value={g._id}>
-                  {g.title}
-                </option>
-              ))}
-            <option value="new">A new goal…</option>
-          </select>
-          {goalId === 'new' ? (
-            <>
-              <input
-                autoFocus
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-                placeholder="A profitable business"
-                className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
-              />
-              <select
-                value={area}
-                onChange={(e) => setArea(e.target.value as Area)}
-                aria-label="Area of the new goal"
-                className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-300"
-              >
-                {AREAS.map((a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </select>
-            </>
-          ) : null}
-        </div>
-      </Field>
+      <div className="label-caps relative">New project</div>
 
-      <Field label="Repo — optional">
-        <input
-          value={repo}
-          onChange={(e) => setRepo(e.target.value)}
-          placeholder="owner/name, or the repo's github.com link"
-          className="w-full bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
-        />
-      </Field>
-
-      <div className="flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2">
-          <span className="label-caps">Ends</span>
+      <div className="relative flex flex-col gap-4">
+        <Field label="Project">
           <input
-            type="date"
-            value={deadline}
-            onChange={(e) => setDeadline(e.target.value)}
-            className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 font-mono text-[12px] text-ink-300"
+            autoFocus
+            value={project}
+            onChange={(e) => setProject(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void submit()
+            }}
+            placeholder="Oreum"
+            className="w-full rounded-[10px] border border-lift/10 bg-sink/20 px-3 py-2 text-[14px] text-foreground outline-none transition-colors placeholder:text-ink-700 hover:border-lift/20 focus:border-lav-500/60 focus:bg-lav-900/20"
           />
-        </label>
+        </Field>
 
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={
-              starting.status === 'saved' ? finish : () => setOpen(false)
-            }
-            className="text-[12px] text-ink-600 transition-colors hover:text-ink-400"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={starting.busy}
-            onClick={() => void submit()}
-            className="rounded-[7px] border border-lav-500/60 px-3 py-1 text-[12px] text-lav-300 transition-colors hover:bg-lav-900/60"
-          >
-            <SaveLabel status={starting.status} onSettled={finish}>
-              Start it
-            </SaveLabel>
-          </button>
+        <Field label="Kind">
+          <div className="flex flex-wrap gap-1.5">
+            {AREAS.map((a) => {
+              const on = a === area
+              return (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => setArea(a)}
+                  aria-pressed={on}
+                  style={areaVars(a)}
+                  className={`motion-press rounded-full px-2.5 py-1 font-mono text-[10px] tracking-[0.14em] uppercase ring-1 transition-colors ${
+                    on
+                      ? 'bg-(--area)/20 text-(--area) ring-(--area)/45'
+                      : 'text-ink-600 ring-lift/10 hover:text-(--area) hover:ring-(--area)/30'
+                  }`}
+                >
+                  {a}
+                </button>
+              )
+            })}
+          </div>
+        </Field>
+
+        <Field label="Repo — optional">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              value={repo}
+              onChange={(e) => setRepo(e.target.value)}
+              placeholder="owner/name, or the repo's github.com link"
+              className="min-w-0 flex-1 rounded-[10px] border border-lift/10 bg-sink/20 px-3 py-2 text-[13px] text-foreground outline-none transition-colors placeholder:text-ink-700 hover:border-lift/20 focus:border-lav-500/60 focus:bg-lav-900/20"
+            />
+            {/* What the server will make of it, while you are still typing.
+                It used to refuse after you pressed Start it. */}
+            {repoTyped ? (
+              parsedRepo ? (
+                <span className="motion-pop inline-flex items-center gap-1.5 rounded-full bg-state-good/12 px-2.5 py-1 font-mono text-[11.5px] text-state-good ring-1 ring-state-good/30 ring-inset">
+                  <Github className="size-3" />
+                  {parsedRepo}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[11.5px] text-ink-600 ring-1 ring-lift/10 ring-inset">
+                  <Github className="size-3" />
+                  not a repo yet
+                </span>
+              )
+            ) : null}
+          </div>
+        </Field>
+
+        <div className="flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-2">
+            <span className="label-caps">Ends</span>
+            <input
+              type="date"
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
+              className="rounded-[10px] border border-lift/10 bg-sink/20 px-2.5 py-1.5 font-mono text-[12px] text-ink-300 outline-none transition-colors hover:border-lift/20 focus:border-lav-500/60"
+            />
+          </label>
+
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={
+                starting.status === 'saved' ? finish : () => setOpen(false)
+              }
+              className="motion-press rounded-[9px] px-3 py-1.5 text-[12px] text-ink-500 transition-colors hover:bg-lift/5 hover:text-ink-200"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={starting.busy}
+              onClick={() => void submit()}
+              className="motion-press rounded-[9px] bg-lav-900/70 px-4 py-1.5 text-[12.5px] text-lav-100 ring-1 ring-lav-500/60 ring-inset transition-colors hover:bg-lav-800"
+            >
+              <SaveLabel status={starting.status} onSettled={finish}>
+                Start it
+              </SaveLabel>
+            </button>
+          </div>
         </div>
-      </div>
 
-      {error ? <p className="text-[12.5px] text-ink-400">{error}</p> : null}
+        {error ? (
+          <p className="motion-arrive text-[12.5px] text-state-danger">
+            {error}
+          </p>
+        ) : null}
+      </div>
     </div>
   )
 }

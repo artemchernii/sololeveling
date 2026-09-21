@@ -6,14 +6,22 @@ import { ArrowUpRight } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { CommitHeatmap } from '@/components/projects/CommitHeatmap'
 import { SkeletonRows } from '@/components/Skeleton'
+import type { Area } from '@/lib/capture-parser'
 import { whenLabel } from '@/lib/format'
 import { addWeeks, startOfWeek } from '@/lib/weeks'
 
 /* GitHub on a project (R3c) — source 4, so it always says where the number
    came from (the repo, linked) and as of when (the last successful check).
    Two counts and the latest five commits. No graph, no streak, no rate. */
-export function ProjectCommits({ projectId }: { projectId: Id<'projects'> }) {
+export function ProjectCommits({
+  projectId,
+  area,
+}: {
+  projectId: Id<'projects'>
+  area: Area | undefined
+}) {
   const week = startOfWeek()
   const counts = useQuery(api.aggregate.projectCommits, {
     projectId,
@@ -91,35 +99,52 @@ export function ProjectCommits({ projectId }: { projectId: Id<'projects'> }) {
         </span>
       </div>
 
-      <div className="flex gap-8">
-        <Count n={counts.thisWeek} label="this week" />
-        <Count n={counts.lastWeek} label="last week" />
-      </div>
+      {/* Two columns (20 Sep, second pass). Stacked, the grid used 686px of a
+          1108px card and left 447px empty beside it, while the commit list sat
+          underneath and pushed the card to 510px — the tallest thing on the
+          page, and the emptiest. The list moves into the space the grid was
+          not using, and the card loses a third of its height.
 
-      {recent === undefined ? null : recent.length === 0 ? (
-        <p className="text-[13px] text-ink-500">
-          No commits in the last two weeks.
-        </p>
-      ) : (
-        <div className="flex flex-col">
-          {recent.map((c) => (
-            <a
-              key={c.sha}
-              href={c.url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-baseline gap-3 border-b border-lift/[0.05] py-2 last:border-b-0"
-            >
-              <span className="flex-1 truncate text-[12.5px] text-ink-300 transition-colors hover:text-foreground">
-                {c.message}
-              </span>
-              <span className="shrink-0 font-mono text-[11px] text-ink-600">
-                {whenLabel(c.authoredAt)}
-              </span>
-            </a>
-          ))}
+          The list is capped at 44rem: at 1600px it ran 1015px wide and a
+          commit subject became a line you have to track back across. */}
+      <div className="grid gap-x-8 gap-y-5 lg:grid-cols-[max-content_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex gap-8">
+            <Count n={counts.thisWeek} label="this week" />
+            <Count n={counts.lastWeek} label="last week" />
+          </div>
+
+          <CommitHeatmap projectId={projectId} area={area} />
         </div>
-      )}
+
+        {recent === undefined ? null : recent.length === 0 ? (
+          <p className="text-[13px] text-ink-500">
+            No commits in the last two weeks.
+          </p>
+        ) : (
+          <div className="flex min-w-0 max-w-[44rem] flex-col gap-1.5">
+            <span className="label-caps">latest</span>
+            <div className="flex flex-col">
+              {recent.map((c) => (
+                <a
+                  key={c.sha}
+                  href={c.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group flex items-baseline gap-3 border-b border-lift/[0.05] py-2 last:border-b-0"
+                >
+                  <span className="flex-1 truncate text-[12.5px] text-ink-300 transition-colors group-hover:text-foreground">
+                    {c.message}
+                  </span>
+                  <span className="shrink-0 font-mono text-[11px] text-ink-600">
+                    {whenLabel(c.authoredAt)}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       <button
         type="button"
@@ -134,7 +159,7 @@ export function ProjectCommits({ projectId }: { projectId: Id<'projects'> }) {
 
 function Count({ n, label }: { n: number; label: string }) {
   return (
-    <div className="flex flex-col">
+    <div className="motion-arrive flex flex-col">
       <span className="text-[28px] leading-none font-light text-foreground">
         {n}
       </span>

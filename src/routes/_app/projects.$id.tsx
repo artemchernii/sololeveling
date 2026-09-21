@@ -1,31 +1,20 @@
 import { useState } from 'react'
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import {
-  Archive,
-  ArrowLeft,
-  Check,
-  CircleCheck,
-  Pause,
-  Plus,
-  Target,
-  Trash2,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { CircleCheck, Plus, RotateCcw, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import type { Id } from '../../../convex/_generated/dataModel'
-import { AreaBadge } from '@/components/AreaBadge'
-import { GoalTimeline } from '@/components/goals/GoalTimeline'
-import { SaveGlyph, useSave } from '@/components/Saving'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import { useSave } from '@/components/Saving'
 import { Skeleton, SkeletonRows } from '@/components/Skeleton'
-import type { Area } from '@/lib/capture-parser'
-import { LogoUpload } from '@/components/projects/LogoUpload'
 import { ProjectCommits } from '@/components/projects/ProjectCommits'
+import { AddField } from '@/components/AddField'
+import { ProjectHeader } from '@/components/projects/ProjectHeader'
+import { TaskRow } from '@/components/projects/TaskRow'
 import { ProjectNotes } from '@/components/projects/ProjectNotes'
-import { deadlineLabel, durationLabel, isOverdue } from '@/lib/format'
 import { useArrived, useHeld } from '@/lib/loading'
+import { whenLabel } from '@/lib/format'
 
 export const Route = createFileRoute('/_app/projects/$id')({
   component: Project,
@@ -40,28 +29,9 @@ function Project() {
 
   const project = useHeld(useQuery(api.projects.get, { projectId }))
   const arrived = useArrived(project)
-  /* The goal above it, for the FOR card. An empty string normalizes to null
-     and comes back null, so there is nothing to draw until the project is. */
-  const goal = useQuery(api.goals.get, { goalId: project?.goalId ?? '' })
   const tasks = useQuery(api.tasks.listByProject, { projectId })
   const counts = useQuery(api.aggregate.entityCounts, {})
-  /* Month bounds on the client, as the dashboard computes them: the server
-     does not know what month it is where you are. */
-  const now = new Date()
-  const time = useQuery(api.aggregate.projectTime, {
-    projectId,
-    start: new Date(now.getFullYear(), now.getMonth(), 1).getTime(),
-    end: new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime(),
-  })
-
   const createTask = useMutation(api.tasks.create)
-  const setFocus = useMutation(api.projects.setFocus)
-  const setStatus = useMutation(api.projects.setStatus)
-  const complete = useMutation(api.tasks.complete)
-  const setArea = useMutation(api.tasks.setArea)
-
-  const removeProject = useMutation(api.projects.remove)
-  const navigate = useNavigate()
 
   const [title, setTitle] = useState('')
   const adding = useSave()
@@ -123,131 +93,24 @@ function Project() {
 
   return (
     <div className={`flex flex-col gap-[18px] ${arrived}`}>
-      <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
-        <Link
-          to="/projects"
-          className="label-caps flex items-center gap-1.5 self-start transition-colors hover:text-ink-300"
-        >
-          <ArrowLeft className="size-3" />
-          Projects
-        </Link>
-
-        {/* The status sits with the title, not pinned to the far right of a
-            full-width card where it reads as a stray word (20 Sep). */}
-        <div className="flex flex-wrap items-center gap-3">
-          <LogoUpload
-            projectId={projectId}
-            url={project.logoUrl}
-            title={project.title}
-            area={goal?.area}
-          />
-          <h1 className="text-[26px] font-light text-foreground">
-            {project.title}
-          </h1>
-          <span
-            className={`label-caps rounded-[4px] px-1.5 py-0.5 ${
-              project.status === 'focus'
-                ? 'bg-lav-900/70 text-lav-300'
-                : 'bg-lift/5'
-            }`}
-          >
-            {project.status}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-baseline gap-x-3 font-mono text-[11px] text-ink-600">
-          {count ? (
-            <span>
-              {count.done} of {count.total} tasks
-            </span>
-          ) : null}
-          {time === undefined ? null : time.sessions === 0 ? (
-            <span>no time logged this month</span>
-          ) : (
-            <span>
-              {durationLabel(time.minutes)} this month · {time.sessions}{' '}
-              {time.sessions === 1 ? 'session' : 'sessions'}
-            </span>
-          )}
-          <span
-            className={
-              project.deadline !== undefined && isOverdue(project.deadline)
-                ? 'text-ink-300'
-                : undefined
-            }
-          >
-            {project.deadline ? deadlineLabel(project.deadline) : 'no end date'}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap gap-2 border-t border-lift/[0.07] pt-3">
-          {/* Actions only. "This is the focus" used to sit here as a pill
-              among the buttons, which made a state look like something you
-              could press — and it said twice what the tag by the title
-              already says. Every button carries an icon, or none would
-              (20 Sep: Delete was the only one, which read as an accident). */}
-          {project.status === 'focus' ? null : (
-            <Action icon={Target} onClick={() => void setFocus({ projectId })}>
-              Make this the focus
-            </Action>
-          )}
-          <Action
-            icon={Pause}
-            onClick={() => void setStatus({ projectId, status: 'paused' })}
-          >
-            Pause
-          </Action>
-          <Action
-            icon={CircleCheck}
-            onClick={() => void setStatus({ projectId, status: 'completed' })}
-          >
-            Complete the project
-          </Action>
-          <Action
-            icon={Archive}
-            onClick={() => void setStatus({ projectId, status: 'archived' })}
-          >
-            Archive
-          </Action>
-          <Action
-            icon={Trash2}
-            onClick={async () => {
-              await removeProject({ projectId })
-              await navigate({ to: '/projects' })
-            }}
-          >
-            Delete
-          </Action>
-        </div>
-      </div>
-
-      {/* What this project answers to, and where that goal has got to. */}
-      {goal ? (
-        <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <div className="flex items-baseline gap-2">
-              <span className="label-caps">For</span>
-              <Link
-                to="/goals"
-                hash={`goal-${goal._id}`}
-                className="text-[14px] text-foreground transition-colors hover:text-lav-300"
-              >
-                {goal.title}
-              </Link>
-            </div>
-            {/* A project's goal used to be written once and never again: the
-                only way to refile one was to delete it, and its tasks, notes
-                and logged time went with it. */}
-            <MoveToGoal projectId={projectId} currentGoalId={goal._id} />
-          </div>
-          <GoalTimeline goal={goal} />
-        </div>
-      ) : null}
+      <ProjectHeader
+        project={project}
+        counts={count}
+        logoUrl={project.logoUrl}
+        tasks={tasks}
+      />
 
       {/* What is left beside what was written down. */}
       <div className="grid items-start gap-[18px] md:grid-cols-2">
         <div className="glass flex flex-col gap-3 rounded-[22px] p-6">
-          <div className="label-caps">Open</div>
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="label-caps">Tasks</div>
+            {open.length > 0 ? (
+              <span className="font-mono text-[11px] text-ink-700">
+                {open.length}
+              </span>
+            ) : null}
+          </div>
 
           {open.length === 0 ? (
             <p className="text-[13px] text-ink-500">
@@ -257,125 +120,101 @@ function Project() {
           ) : (
             <div className="flex flex-col">
               {open.map((task) => (
-                <div
-                  key={task._id}
-                  className="flex items-center gap-3 border-b border-lift/[0.05] py-2.5 last:border-b-0"
-                >
-                  <button
-                    type="button"
-                    aria-label={`Complete ${task.title}`}
-                    onClick={() => void complete({ taskId: task._id })}
-                    className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-lift/15 text-transparent transition-colors hover:border-lav-500 hover:text-lav-300"
-                  >
-                    <Check className="size-3" />
-                  </button>
-                  <span className="flex-1 text-[13px] text-foreground">
-                    {task.title}
-                  </span>
-                  <AreaBadge
-                    area={task.area}
-                    onChange={(area: Area) =>
-                      void setArea({ taskId: task._id, area })
-                    }
-                  />
-                </div>
+                /* No area badge here: a task made on this project already
+                    carries the project's own area, so the badge could
+                    only be pressed to make the answer wrong (20 Sep). */
+                <TaskRow key={task._id} task={task} showArea={false} />
               ))}
             </div>
           )}
 
-          <div className="flex items-center gap-2 border-t border-lift/[0.07] pt-3">
-            <SaveGlyph
-              status={adding.status}
-              onSettled={adding.settle}
-              idle={<Plus className="size-3.5" />}
-              className="text-ink-600"
-            />
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void add()
-              }}
-              placeholder="Another task for this project"
-              className="flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
-            />
-          </div>
+          <AddField
+            value={title}
+            onChange={setTitle}
+            onSubmit={() => void add()}
+            placeholder="Another task for this project"
+            status={adding.status}
+            onSettled={adding.settle}
+            idle={<Plus className="size-3.5" />}
+          />
         </div>
 
         <ProjectNotes projectId={projectId} />
       </div>
 
-      <ProjectCommits projectId={projectId} />
+      {/* GitHub and Done share a row (20 Sep, fourth pass). He boxed the
+          empty right-hand third of each: both were full-width cards holding
+          content that stopped well short of the edge, and Done's short titles
+          left a hole all the way across to the timestamp. Side by side, the
+          width one does not need is the width the other uses. */}
+      <div className="grid items-start gap-[18px] xl:grid-cols-[minmax(0,5fr)_minmax(0,2fr)]">
+        <ProjectCommits projectId={projectId} area={project.area} />
 
-      {closed.length > 0 ? (
-        <div className="glass flex flex-col gap-2 rounded-[22px] p-6">
-          <div className="label-caps">Done</div>
-          {closed.map((task) => (
-            <div key={task._id} className="text-[12.5px] text-ink-600">
-              {task.title}
+        {closed.length > 0 ? (
+          /* What was finished, newest first (20 Sep). It was a stack of
+             identical grey lines with no tick and no date — the one card on
+             the page that is nothing but good news, rendered as the dimmest
+             thing on it. */
+          <div className="glass flex flex-col gap-2 rounded-[22px] p-6">
+            <div className="flex items-baseline gap-2">
+              <div className="label-caps">Done</div>
+              <span className="font-mono text-[11px] text-state-good">
+                {closed.length}
+              </span>
             </div>
-          ))}
-        </div>
-      ) : null}
+            {[...closed]
+              .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
+              .map((task) => (
+                <DoneRow key={task._id} task={task} />
+              ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }
 
-/* Refile a project under a different goal. A select rather than a dialog:
-   there is one thing to choose and it is a list of goals you already have.
-   Monthly tile targets are left out — a project does not hang on "4 sessions
-   a month" any more than it hangs on a tally. */
-function MoveToGoal({
-  projectId,
-  currentGoalId,
-}: {
-  projectId: Id<'projects'>
-  currentGoalId: Id<'goals'>
-}) {
-  const goals = useQuery(api.goals.listActive, {})
-  const setGoal = useMutation(api.projects.setGoal)
-
-  const choices = (goals ?? []).filter((g) => g.tile === undefined)
-  if (choices.length < 2) return null
+/* A finished task, and the two ways back (20 Sep). Ticking one is a claim, and
+   a claim can be wrong: undo puts it back on the list, and the cross removes
+   it outright. Both were already mutations — `tasks.reopen` and `tasks.remove`
+   — with nothing on this page that reached them. The controls stay hidden
+   until the row is hovered or focused, so the card still reads as a quiet
+   list of things that went right. */
+function DoneRow({ task }: { task: Doc<'tasks'> }) {
+  const reopen = useMutation(api.tasks.reopen)
+  const removeTask = useMutation(api.tasks.remove)
 
   return (
-    <label className="flex items-center gap-2">
-      <span className="label-caps">Move to</span>
-      <select
-        value={currentGoalId}
-        aria-label="Move this project to another goal"
-        onChange={(e) =>
-          void setGoal({ projectId, goalId: e.target.value as Id<'goals'> })
-        }
-        className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[12px] text-ink-400"
-      >
-        {choices.map((g) => (
-          <option key={g._id} value={g._id}>
-            {g.title}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
-}
-
-function Action({
-  icon: Icon,
-  onClick,
-  children,
-}: {
-  icon: LucideIcon
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex items-center gap-1.5 rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lift/20 hover:text-ink-200"
-    >
-      <Icon className="size-3" />
-      {children}
-    </button>
+    <div className="group flex items-start gap-2.5 border-b border-lift/[0.05] py-1.5 last:border-b-0">
+      <CircleCheck className="mt-0.5 size-3.5 shrink-0 text-state-good" />
+      <span className="min-w-0 flex-1 text-[12.5px] text-ink-300">
+        {task.title}
+        {task.completedAt !== undefined ? (
+          <span className="pl-2 font-mono text-[11px] text-ink-600">
+            {whenLabel(task.completedAt)}
+          </span>
+        ) : null}
+      </span>
+      <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        <button
+          type="button"
+          aria-label={`Put ${task.title} back on the list`}
+          title="Back to open"
+          onClick={() => void reopen({ taskId: task._id })}
+          className="motion-press grid size-5 place-items-center rounded-[6px] text-ink-700 transition-colors hover:bg-lift/8 hover:text-lav-300"
+        >
+          <RotateCcw className="size-3" />
+        </button>
+        <button
+          type="button"
+          aria-label={`Delete ${task.title}`}
+          title="Delete"
+          onClick={() => void removeTask({ taskId: task._id })}
+          className="motion-press grid size-5 place-items-center rounded-[6px] text-ink-700 transition-colors hover:bg-state-danger/15 hover:text-state-danger"
+        >
+          <X className="size-3" />
+        </button>
+      </span>
+    </div>
   )
 }

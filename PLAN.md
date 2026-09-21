@@ -127,7 +127,7 @@ tasks:     { ownerId, title, notes?, projectId?, goalId?, area?,
            .index('by_project', ['projectId']).index('by_owner_due', ['ownerId','dueDate'])
 events:    { ownerId, title, area?, projectId?, startsAt: number, endsAt: number, rrule?, notes? }
            .index('by_owner_start', ['ownerId','startsAt'])
-logs:      { ownerId, kind: logKind, area, occurredAt: number,   // quick capture. append-only evidence.
+logs:      { ownerId, kind: logKind, area, occurredAt: number,   // quick capture. append-only evidence, except `value`.
              value?: number, unit?,   // 60 (min), 48 (eur), 75.4 (kg)
              text?,                   // "push day", "groceries"
              taskId?, projectId?,
@@ -136,6 +136,16 @@ logs:      { ownerId, kind: logKind, area, occurredAt: number,   // quick captur
                                people: v.optional(v.number()) }) }
            .index('by_owner_time', ['ownerId','occurredAt']).index('by_owner_area_time', ['ownerId','area','occurredAt'])
            .index('by_owner_project_time', ['ownerId','projectId','occurredAt'])   // time on a project (R3)
+
+**`logs.value` became editable on 20 Sep, his call.** The rule was that a log
+is never edited into a different truth — a mistake was removed and logged
+again. He asked twice for a mistyped duration to be fixable where it is shown
+and overruled it. What survives of the reasoning is narrower and still binds:
+a correction may not leave two stored facts disagreeing. So `kind`,
+`occurredAt` and `text` stay immutable, and a **weight** is still refused —
+it writes a `stateSnapshots` row that `remove` deletes with it, and editing
+the log alone would leave the shown weight contradicting its own evidence.
+
 stateSnapshots: { ownerId, area, key, value?: number, textValue?, unit?, recordedAt: number }
            .index('by_owner_key_time', ['ownerId','key','recordedAt'])
            // keys: weight, bench, net_worth, cefr_level, protein_avg, savings …
@@ -404,6 +414,27 @@ in visual form, and the distinction is the whole of it:
 Lavender remains reserved for live and focus things (§3 Visual). Colour added
 under this rule is additional vocabulary, not a licence to repaint that.
 
+**3. State has colour too (20 Sep, Artem's call, overriding the ration).**
+Artem, looking at a project whose deadline passed eight days ago and read
+exactly like a project with no deadline at all: "entire platform is boring and
+bland… overdue we can make RED or warning and icon to HIGHLIGHT". Until today
+red and green were held back for money, where direction is a fact (§3d.3
+below). That rule was written to stop colour grading things that cannot be
+graded, and it did — at the cost of a screen where nothing could ever look
+wrong.
+
+So: `--state-danger`, `--state-warn`, `--state-good` (`tokens.css` item 8).
+They mark the **state of a thing**, never a quantity: a passed deadline is
+danger, a deadline inside two days is warn, a write that landed is good.
+Nothing is "37% red", nothing grades, and §3d.3 still holds for money — a
+share price going up is not "good".
+
+Motion is part of the same complaint and the same answer. `styles.css` has
+carried eight motion utilities since R1 — `motion-arrive`, `motion-pop`,
+`motion-pulse`, `motion-press` and the rest — used by **five** elements in the
+whole app. The vocabulary was written and never spoken. A thing that arrives
+should arrive, and a write that lands should be seen to land.
+
 **4. Light as well as dark** (decided 14 Sep). The dark ground above stays the
 default and the design's voice. A light theme exists because Artem's day has
 daylight in it: the app follows the device's appearance — macOS and iOS "Auto"
@@ -435,6 +466,15 @@ written earlier would describe ground the earlier row changes.
 | R6   | **Areas** — Finances (investments per the parked design, balances, spending), Body, Languages (schema change)                                                                                                                                           | `invest → Revolut → TSLA → 300$` lands in a portfolio and Finances shows the position as of a time     |
 | R7   | **Ask AI** — a ⌘-shortcut chat that reads your own rows through a Convex action                                                                                                                                                                         | "What did I actually do in August?" is answered from logs, and nothing on screen is derived from it    |
 | Late | Scheduled backups (`pnpm backup` daily, retention, a scheduled drill); Clerk production instance (needs a domain, an ownerId migration, and the dev-vs-prod data decision); notifications (the bell)                                                    | Deferred 14 Sep while the app is still being built                                                     |
+
+**The order changed on 20 Sep: R6's area rework comes before R4.** Artem hit the same wall twice
+in one day — a goal with nowhere to go but the wrong area, then a task on SoloLeveling badged
+`business` when it is a pet project and `life` when that means nothing. A fixed enum cannot be
+made to fit by choosing more carefully, and every screen that shows an area shows the wrong
+answer until it is data he edits. Notes as the knowledge base (R4) is still wanted — he has asked
+for prompts, screenshots and MD files twice — but it is a capability the app lacks, not a wrong
+answer the app keeps repeating. Wrong answers come first. R4 follows R6, and R5 and R7 keep their
+places.
 
 **R6 is not a rename (added 20 Sep).** The row above says "Languages (schema change)", which
 read as `portuguese` → `languages`. It is more than that. Artem tried to file a goal under

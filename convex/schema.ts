@@ -14,6 +14,11 @@ import type { Infer } from 'convex/values'
    its own lane. */
 
 export const areaValidator = v.union(
+  /* A task that belongs to a project (20 Sep, his call). It is the one
+     entry here that answers "what is this attached to" rather than "what part
+     of my life is this" — noted as the compromise it is, and R6's areas-as-
+     data is where it gets resolved properly. */
+  v.literal('projects'),
   v.literal('business'),
   v.literal('portuguese'),
   v.literal('body'),
@@ -145,11 +150,19 @@ export default defineSchema({
        an epoch, because that is what is stored and it sorts the same. */
     .index('by_owner_due', ['ownerId', 'dueDate']),
 
-  /* A project always has a goal above it, so goalId is required: a project
-     that answers to nothing is the thing this app exists to prevent. */
+  /* A project is a thing he is building, and it answers to nothing above it
+     (21 Sep). It carried a required `goalId` until then. */
   projects: defineTable({
     ownerId: v.string(),
-    goalId: v.id('goals'),
+    /* A project's own kind, and the only thing that says what it is
+       (21 Sep, his call). It used to wear its goal's area, and before that
+       it carried a required `goalId`: "I said already that this GOAL -
+       PROJECT bind is canceled. We dont give a fuck about it. It was a
+       mistake."
+
+       So a project answers to nothing above it now. It is a thing he is
+       building, it has its own kind, and Goals is a separate list. */
+    area: v.optional(area),
     title: v.string(),
     description: v.optional(v.string()),
     status: projectStatus,
@@ -163,6 +176,20 @@ export default defineSchema({
        Not derived from the repo: a GitHub owner avatar is a face, not a
        project logo. */
     logoId: v.optional(v.id('_storage')),
+    /* Deliberately open-ended (20 Sep): a project he is building with no date
+       he is willing to promise. Distinct from simply having no deadline —
+       that is a project he has not thought about, and it says nothing. */
+    ongoing: v.optional(v.boolean()),
+    /* Targets he sets, which is the only thing that may put a ring round a
+       number (PLAN.md §1: a progress bar renders only where a real
+       denominator exists). Absent means no ring — never a guessed one. */
+    commitTargetWeekly: v.optional(v.number()),
+    minutesTargetMonthly: v.optional(v.number()),
+    /* How many tasks he reckons this project is (20 Sep). Without it the
+       tasks ring divides by the live task count, which can only ever read
+       "all of the ones that exist" — 2/2 the moment both are ticked. With it
+       the denominator is the size he expects the project to be. */
+    taskTargetTotal: v.optional(v.number()),
   })
     .index('by_owner_status', ['ownerId', 'status']) // one 'focus' per owner — setFocus enforces
     /* Read only by the internal hourly check, which acts for every owner — the
@@ -187,9 +214,36 @@ export default defineSchema({
     url: v.string(),
     authoredAt: v.number(),
     fetchedAt: v.number(),
+    /* More than one parent — "Merge pull request #51 from …". Stored as a
+       fact and excluded when counting (20 Sep), because a merge is
+       bookkeeping rather than work, and GitHub's own activity stats leave
+       them out: counting them made a week's number partly a measure of how
+       often he opened a PR. Optional because rows written before 20 Sep do
+       not carry it; a backfill fills them in. */
+    isMerge: v.optional(v.boolean()),
   })
     .index('by_owner_project_time', ['ownerId', 'projectId', 'authoredAt'])
     .index('by_project_sha', ['projectId', 'sha']),
+
+  /* Files pinned to a note or a task (20 Sep): screenshots, PDFs, anything
+     he drops or pastes. One table with two possible parents rather than two
+     tables, because a screenshot means the same thing wherever it is pinned
+     and he asked for it in both places on the same day.
+
+     Exactly one of noteId/taskId is set — checked in convex/attachments.ts,
+     because a validator cannot say "one of these two". The bytes live in
+     Convex file storage; this row is the fact that they belong here. */
+  attachments: defineTable({
+    ownerId: v.string(),
+    noteId: v.optional(v.id('notes')),
+    taskId: v.optional(v.id('tasks')),
+    storageId: v.id('_storage'),
+    name: v.string(),
+    contentType: v.string(),
+    size: v.number(),
+  })
+    .index('by_owner_note', ['ownerId', 'noteId'])
+    .index('by_owner_task', ['ownerId', 'taskId']),
 
   tasks: defineTable({
     ownerId: v.string(),

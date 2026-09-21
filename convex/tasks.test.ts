@@ -347,18 +347,11 @@ describe('what the week view reads (PLAN.md §4 phase 5)', () => {
 describe('a task bound to a goal without a project', () => {
   test('setGoal binds the goal and cuts the project loose', async () => {
     const t = as(ME)
-    const business = await t.mutation(api.goals.create, {
-      title: 'A business',
-      area: 'business',
-    })
     const muscle = await t.mutation(api.goals.create, {
       title: 'Gain 5 kg of muscle',
       area: 'body',
     })
-    const oreum = await t.mutation(api.projects.create, {
-      goalId: business,
-      title: 'Oreum',
-    })
+    const oreum = await t.mutation(api.projects.create, { title: 'Oreum' })
     const taskId = await t.mutation(api.tasks.create, { title: 'Buy protein' })
     await t.mutation(api.tasks.setProject, { taskId, projectId: oreum })
 
@@ -497,12 +490,7 @@ describe('the Done tab (17 Sep)', () => {
 describe('a task is created only under your own project or goal', () => {
   test("someone else's project is refused, and nothing is written", async () => {
     const { mine, theirs } = twoOwners()
-    const goalId = await mine.mutation(api.goals.create, {
-      title: 'Ship the business',
-      area: 'business',
-    })
     const projectId = await mine.mutation(api.projects.create, {
-      goalId,
       title: 'Oreum',
     })
 
@@ -532,14 +520,12 @@ describe('a task is created only under your own project or goal', () => {
     ).toHaveLength(0)
   })
 
-  test('your own project brings its goal', async () => {
+  /* A project brought its goal with it until 21 Sep. It brings its kind
+     instead: a task made on a project is `projects`, and carries no goal
+     unless one was asked for. */
+  test('your own project brings its kind, not a goal', async () => {
     const { mine } = twoOwners()
-    const goalId = await mine.mutation(api.goals.create, {
-      title: 'Ship the business',
-      area: 'business',
-    })
     const projectId = await mine.mutation(api.projects.create, {
-      goalId,
       title: 'Oreum',
     })
 
@@ -547,6 +533,7 @@ describe('a task is created only under your own project or goal', () => {
 
     const [task] = await mine.query(api.tasks.listBacklog, { today: TODAY })
     expect(task.projectId).toBe(projectId)
-    expect(task.goalId).toBe(goalId)
+    expect(task.goalId).toBeUndefined()
+    expect(task.area).toBe('projects')
   })
 })

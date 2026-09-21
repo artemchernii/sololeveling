@@ -137,18 +137,8 @@ describe('a note page read by a bad link', () => {
 describe('notes on a project', () => {
   test('lists the notes attached to one project, newest first', async () => {
     const t = as(ME)
-    const goalId = await t.mutation(api.goals.create, {
-      title: 'A business',
-      area: 'business',
-    })
-    const oreum = await t.mutation(api.projects.create, {
-      goalId,
-      title: 'Oreum',
-    })
-    const other = await t.mutation(api.projects.create, {
-      goalId,
-      title: 'Other',
-    })
+    const oreum = await t.mutation(api.projects.create, { title: 'Oreum' })
+    const other = await t.mutation(api.projects.create, { title: 'Other' })
 
     await t.mutation(api.notes.create, { title: 'Pricing', projectId: oreum })
     await t.mutation(api.notes.create, { title: 'Loose thought' })
@@ -167,14 +157,7 @@ describe('notes on a project', () => {
 
   test('another owner’s project has no notes for you, and a bad id is empty', async () => {
     const { mine, theirs } = twoOwners()
-    const goalId = await mine.mutation(api.goals.create, {
-      title: 'G',
-      area: 'business',
-    })
-    const oreum = await mine.mutation(api.projects.create, {
-      goalId,
-      title: 'Oreum',
-    })
+    const oreum = await mine.mutation(api.projects.create, { title: 'Oreum' })
     await mine.mutation(api.notes.create, {
       title: 'Pricing',
       projectId: oreum,

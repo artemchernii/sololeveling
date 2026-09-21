@@ -97,7 +97,10 @@ Every query and mutation filters by it. This is not for sharing — it is so tha
 accidentally return everything, and so a second user costs nothing later.
 
 ```ts
-const area = v.union(...literals('business','portuguese','body','money','social','career','style','knowledge','life'));
+const area = v.union(...literals('projects','business','portuguese','body','money','social','career',
+  'style','knowledge','life'));   // ten, not nine. 'projects' (20 Sep) answers "what is this attached
+  // to" rather than "what part of my life is this" — the one entry that does, noted as the compromise
+  // it is. R6 is where it gets resolved properly.
 const projectStatus = literals('focus','active','paused','completed','archived');
 const taskStatus = literals('open','done','skipped');
 const logKind = literals('workout','weight','expense','transfer','income','session','conversation',
@@ -110,8 +113,15 @@ goals:     { ownerId, title, description?, area, status: 'active'|'done'|'droppe
              tile?: 'projects'|'portuguese'|'body'|'money'|'style'|'social' }
                                       // a monthly target read against that §3 tile (R2)
            .index('by_owner_status', ['ownerId','status']).index('by_owner_tile', ['ownerId','tile'])
-projects:  { ownerId, goalId, title, description?, status: projectStatus, deadline?,
-             githubRepo?, githubCheckedAt?: number }   // source 4 (R3c): 'owner/name', and when last checked
+projects:  { ownerId, area?, title, description?, status: projectStatus, deadline?, ongoing?,
+             // `goalId` was deleted on 21 Sep, his call — twice, and the second time "it was a
+             // mistake". A project answers to nothing above it now: it has its own `area`
+             // (projects.setArea, the Kind chip on the New project form), and Goals is a separate
+             // list. Never reintroduce a project-derives-from-goal bind.
+             logoId?: Id<'_storage'>,                  // his own mark (20 Sep) — a repo avatar is a face
+             githubRepo?, githubCheckedAt?: number,    // source 4 (R3c): 'owner/name', and when last checked
+             commitTargetWeekly?, minutesTargetMonthly?, taskTargetTotal? }
+                                      // targets he sets — the only thing that may put a ring round a number
            .index('by_owner_status', ['ownerId','status'])   // one 'focus' per owner — setFocus enforces
            .index('by_github_repo', ['githubRepo'])          // internal cron only — the one index not led by ownerId
 commits:   { ownerId, projectId, repo, sha, message, url, authoredAt: number, fetchedAt: number }
@@ -463,7 +473,7 @@ written earlier would describe ground the earlier row changes.
 | R3   | **Projects deep, Goals with a timeline, Backlog bound** — tasks/notes/files/time on a project, GitHub commits as source 4, milestones and deadlines on goals. Shipped as three PRs: R3a project page + backlog, R3b goal milestones, R3c GitHub commits | Oreum's page shows its tasks, notes, hours this month and last week's commits, and its goal's timeline |
 | R4   | **Notes as the knowledge base** — kinds, expanded editor, images/PDFs by drag-and-drop, YouTube embeds, bind to a project                                                                                                                               | A PDF and a YouTube link pasted from Telegram live on a note attached to Oreum                         |
 | R5   | **Calendar** — drag, any duration, start–end, binding, reminders                                                                                                                                                                                        | A gym session is dragged from 8:00 to 9:15 and asks nothing                                            |
-| R6   | **Areas** — Finances (investments per the parked design, balances, spending), Body, Languages (schema change)                                                                                                                                           | `invest → Revolut → TSLA → 300$` lands in a portfolio and Finances shows the position as of a time     |
+| R6   | **Areas become data you edit** — add one, rename one, retire one, from the UI. Reaches the `--area-*` colour tokens, `src/lib/nav.ts`, the capture parser's area words and every table carrying `area`. Never `monthCounts()`                           | A goal is filed under a word he invented, with no deploy, and every screen that shows an area shows it |
 | R7   | **Ask AI** — a ⌘-shortcut chat that reads your own rows through a Convex action                                                                                                                                                                         | "What did I actually do in August?" is answered from logs, and nothing on screen is derived from it    |
 | Late | Scheduled backups (`pnpm backup` daily, retention, a scheduled drill); Clerk production instance (needs a domain, an ownerId migration, and the dev-vs-prod data decision); notifications (the bell)                                                    | Deferred 14 Sep while the app is still being built                                                     |
 

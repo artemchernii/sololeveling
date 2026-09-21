@@ -267,9 +267,9 @@ it is built in (R1–R7). Everything in §1–§2 and §3b–§3d still holds.
 | Goals     | as is                                                                     | R3: bound to projects and areas, a milestone timeline 0—1—2—3, deadlines, Reached/Drop/Delete kept                                                            |
 | Backlog   | as is                                                                     | R3: created-at, bind to project/goal, "put it on the calendar"                                                                                                |
 | Notes     | as is                                                                     | R4: the knowledge base — more kinds (`style` among them), expanded editor, drag-and-drop images/PDFs (Convex file storage), YouTube embeds, bind to a project |
-| Finances  | renamed; still a placeholder                                              | R6: Investments (portfolios, positions, prices as source 4), Balances, Spending                                                                               |
-| Body      | placeholder                                                               | R6: Gym · Stretch · Boxing · Other, weight progress against a target                                                                                          |
-| Languages | renamed; still a placeholder                                              | R6: Portuguese · English · German tabs; `area` gains `languages` with a language field, `portuguese` migrated                                                 |
+| Finances  | renamed; still a placeholder                                              | R6b: Investments (portfolios, positions, prices as source 4), Balances, Spending                                                                              |
+| Body      | placeholder                                                               | R6b: Gym · Stretch · Boxing · Other, weight progress against a target                                                                                         |
+| Languages | renamed; still a placeholder                                              | R6b: a tab per language you have filed something under — the areas R6 lets you invent, not a fixed Portuguese/English/German list                             |
 | Settings  | as is                                                                     | —                                                                                                                                                             |
 | Ask AI    | —                                                                         | R7: a ⌘-shortcut, not a page — a reader over your own rows, never a fifth source of numbers                                                                   |
 
@@ -474,6 +474,7 @@ written earlier would describe ground the earlier row changes.
 | R4   | **Notes as the knowledge base** — kinds, expanded editor, images/PDFs by drag-and-drop, YouTube embeds, bind to a project                                                                                                                               | A PDF and a YouTube link pasted from Telegram live on a note attached to Oreum                         |
 | R5   | **Calendar** — drag, any duration, start–end, binding, reminders                                                                                                                                                                                        | A gym session is dragged from 8:00 to 9:15 and asks nothing                                            |
 | R6   | **Areas become data you edit** — add one, rename one, retire one, from the UI. Reaches the `--area-*` colour tokens, `src/lib/nav.ts`, the capture parser's area words and every table carrying `area`. Never `monthCounts()`                           | A goal is filed under a word he invented, with no deploy, and every screen that shows an area shows it |
+| R6b  | **The TRACK pages** — Finances (investments per the parked design, balances, spending), Body, Languages. Split out of R6 on 21 Sep: areas-as-data is a rework of six tables and every screen, and these are three pages built on top of it              | `invest → Revolut → TSLA → 300$` lands in a portfolio and Finances shows the position as of a time     |
 | R7   | **Ask AI** — a ⌘-shortcut chat that reads your own rows through a Convex action                                                                                                                                                                         | "What did I actually do in August?" is answered from logs, and nothing on screen is derived from it    |
 | Late | Scheduled backups (`pnpm backup` daily, retention, a scheduled drill); Clerk production instance (needs a domain, an ownerId migration, and the dev-vs-prod data decision); notifications (the bell)                                                    | Deferred 14 Sep while the app is still being built                                                     |
 
@@ -486,8 +487,9 @@ for prompts, screenshots and MD files twice — but it is a capability the app l
 answer the app keeps repeating. Wrong answers come first. R4 follows R6, and R5 and R7 keep their
 places.
 
-**R6 is not a rename (added 20 Sep).** The row above says "Languages (schema change)", which
-read as `portuguese` → `languages`. It is more than that. Artem tried to file a goal under
+**R6 is not a rename (added 20 Sep; the row was finally rewritten to match on 21 Sep).** The
+row used to say "Languages (schema change)", which read as `portuguese` → `languages`. It is
+more than that. Artem tried to file a goal under
 **English** and found there was nowhere to put it: `area` is a fixed enum in
 `convex/schema.ts`, so the set of areas is something only a deploy can change. R6 must make
 areas **data he edits** — add one, rename one, retire one — which reaches the seven area
@@ -495,6 +497,25 @@ colour tokens (`--area-*` cannot be a static class per area), `src/lib/nav.ts`, 
 parser's area words, and every table carrying `area`. What it must **not** reach is
 `monthCounts()`: the six tiles are a fixed shape and are deliberately not derived from the
 area enum (§3 item 4), and that stays true however many areas exist.
+
+**R6 was split on 21 Sep, and three things were settled with it.** The three TRACK pages moved
+to their own row (R6b): the areas rework alone reaches six tables, the colour tokens, the nav,
+the capture parser and every screen that shows a badge, and Languages in particular is better
+built _after_ an area is something you can invent — a tab per language you have filed something
+under, rather than a fixed three. The decisions the plan is written on:
+
+- **An area's identity is a slug, and its name is data.** An `areas` row carries a permanent
+  `slug` ('body') and an editable `label`. Every table keeps `area` as that slug, so no row is
+  rewritten, `logs.by_owner_area_time` is untouched, the capture verbs keep naming their area
+  statically, and `monthCounts()`'s tile rules keep matching. Renaming changes what you read,
+  never what is stored.
+- **A theme owns lightness and chroma; an area owns its hue.** `--area-l` and `--area-c` are
+  declared once per theme, and an area's colour is `oklch(var(--area-l) var(--area-c) <hue>)`.
+  This is what lets the set be open-ended and still keeps the rule that no area is louder than
+  another, and it keeps the 265–305° gap round the accent enforceable as a check rather than a
+  convention.
+- **A capture verb's area stays in code.** `gym` files under the `body` slug however that area
+  is named; retiring an area a verb needs is refused, and says which verbs.
 
 **A money target needs a fifth source, and does not have one (20 Sep).** Asked for a month
 tile target of "€100" rather than a count. A tile's number is the denominator of a real bar,

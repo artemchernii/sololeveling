@@ -104,3 +104,185 @@ describe('the ten the schema used to name become ten rows', () => {
     )
   })
 })
+
+describe('inventing an area', () => {
+  test('a word he invented becomes an area', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    const slug = await t.mutation(api.areas.create, { label: 'English' })
+    expect(slug).toBe('english')
+
+    const english = (await t.query(api.areas.list, {})).find(
+      (a) => a.slug === 'english',
+    )
+    expect(english?.label).toBe('English')
+    expect(english?.order).toBe(10)
+  })
+
+  test('a new area lands outside the accent gap', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await t.mutation(api.areas.create, { label: 'English' })
+    const english = (await t.query(api.areas.list, {})).find(
+      (a) => a.slug === 'english',
+    )!
+    expect(english.hue >= 265 && english.hue <= 305).toBe(false)
+  })
+
+  test('a label that collides is refused', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await expect(
+      t.mutation(api.areas.create, { label: 'Body' }),
+    ).rejects.toThrow('AREA_EXISTS')
+  })
+
+  test('a label that makes no slug is refused', async () => {
+    const t = as(ME)
+    await expect(
+      t.mutation(api.areas.create, { label: '!!!' }),
+    ).rejects.toThrow('AREA_NEEDS_A_NAME')
+  })
+
+  test("my invented area is not in another owner's list", async () => {
+    const { mine, theirs } = twoOwners()
+    await mine.mutation(api.areas.create, { label: 'English' })
+    expect(await theirs.query(api.areas.list, {})).toEqual([])
+  })
+})
+
+describe('retiring (PLAN.md §4, R6 decision 5)', () => {
+  test('an area a tile counts cannot be retired', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    for (const slug of ['portuguese', 'body', 'money', 'style', 'social']) {
+      await expect(
+        t.mutation(api.areas.retire, { slug }),
+        slug,
+      ).rejects.toThrow('AREA_ON_A_TILE')
+    }
+  })
+
+  test('an area a verb names needs somewhere for those verbs to go', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await expect(
+      t.mutation(api.areas.retire, { slug: 'knowledge' }),
+    ).rejects.toThrow('AREA_NEEDS_A_REPLACEMENT')
+
+    await t.mutation(api.areas.retire, {
+      slug: 'knowledge',
+      replacedBy: 'life',
+    })
+    const live = await t.query(api.areas.list, {})
+    expect(live.map((a) => a.slug)).not.toContain('knowledge')
+
+    const all = await t.query(api.areas.list, { includeRetired: true })
+    const knowledge = all.find((a) => a.slug === 'knowledge')!
+    expect(knowledge.replacedBy).toBe('life')
+    expect(knowledge.retiredAt).toBeTypeOf('number')
+  })
+
+  test('a replacement must itself be live, so no chain can form', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await t.mutation(api.areas.retire, {
+      slug: 'knowledge',
+      replacedBy: 'life',
+    })
+    await expect(
+      t.mutation(api.areas.retire, { slug: 'career', replacedBy: 'knowledge' }),
+    ).rejects.toThrow('NO_SUCH_AREA')
+  })
+
+  test('an invented area retires with no replacement needed', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await t.mutation(api.areas.create, { label: 'English' })
+    await t.mutation(api.areas.retire, { slug: 'english' })
+    expect(
+      (await t.query(api.areas.list, {})).map((a) => a.slug),
+    ).not.toContain('english')
+  })
+
+  test('a retired area comes back, with its redirect gone', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await t.mutation(api.areas.retire, {
+      slug: 'knowledge',
+      replacedBy: 'life',
+    })
+    await t.mutation(api.areas.restore, { slug: 'knowledge' })
+    const knowledge = (await t.query(api.areas.list, {})).find(
+      (a) => a.slug === 'knowledge',
+    )!
+    expect(knowledge.retiredAt).toBeUndefined()
+    expect(knowledge.replacedBy).toBeUndefined()
+  })
+
+  test('the last live area cannot be retired', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.create, { label: 'Only' })
+    await expect(
+      t.mutation(api.areas.retire, { slug: 'only' }),
+    ).rejects.toThrow('LAST_AREA')
+  })
+
+  test('an area already retired cannot be retired twice', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await t.mutation(api.areas.create, { label: 'English' })
+    await t.mutation(api.areas.retire, { slug: 'english' })
+    await expect(
+      t.mutation(api.areas.retire, { slug: 'english' }),
+    ).rejects.toThrow('NO_SUCH_AREA')
+  })
+})
+
+describe('order and colour', () => {
+  test('reorder rewrites every order in one call', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    const reversed = (await t.query(api.areas.list, {}))
+      .map((a) => a.slug)
+      .reverse()
+    await t.mutation(api.areas.reorder, { slugs: reversed })
+    expect((await t.query(api.areas.list, {})).map((a) => a.slug)).toEqual(
+      reversed,
+    )
+  })
+
+  test('a reorder that is not the whole list is refused', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await expect(
+      t.mutation(api.areas.reorder, { slugs: ['body', 'life'] }),
+    ).rejects.toThrow('NOT_THE_WHOLE_LIST')
+  })
+
+  test('a hue inside the accent gap is refused', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await expect(
+      t.mutation(api.areas.setHue, { slug: 'body', hue: 280 }),
+    ).rejects.toThrow('HUE_IS_THE_ACCENT')
+  })
+
+  test('a hue outside 0-359 is refused', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await expect(
+      t.mutation(api.areas.setHue, { slug: 'body', hue: 400 }),
+    ).rejects.toThrow('BAD_HUE')
+  })
+
+  test('a hue he picks is kept', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await t.mutation(api.areas.setHue, { slug: 'body', hue: 200 })
+    const body = (await t.query(api.areas.list, {})).find(
+      (a) => a.slug === 'body',
+    )!
+    expect(body.hue).toBe(200)
+  })
+})

@@ -214,14 +214,15 @@ shown weight contradicting its own evidence).
 sections gets the screen Artem will actually see on day one. Nothing is seeded,
 and anything created while checking in the browser is deleted before the commit.
 
-**`DayGrid`** is generalised out of `src/components/projects/CommitHeatmap.tsx`
-(169 lines of hand-rolled CSS grid) into `src/components/track/DayGrid.tsx`, and
-`CommitHeatmap` is refactored onto it. Its existing rules carry over unchanged:
-four steps rather than a gradient, because a gradient invites reading a shade
-back as a number; colour from the area, not from a rank or a recency. If the
-refactor turns out to fight the commit-specific parts, the fallback is to leave
-`CommitHeatmap` alone and let `DayGrid` stand beside it — but duplication is the
-second choice, not the first.
+**`DayStrip`** is a new component (`src/components/track/DayStrip.tsx`), not an
+extraction. The spec first proposed generalising `CommitHeatmap`; reading it
+showed why that does not work — it is a 7×53-week year grid welded to the
+`projectActivity` query, and `CommitStrip` draws bar heights from counts, which
+says nothing about a supplement that is either taken or not. Body needs twelve
+weeks, one row per category, filled or empty. Both commit components are left
+untouched. Its rules are borrowed rather than its code: tones in steps rather
+than a gradient, because a gradient invites reading a shade back as a number;
+colour from the area, never from a rank or a recency.
 
 **No new dependency.** There is no chart library in `package.json` and this adds
 none: a polyline and some ticks.

@@ -526,3 +526,153 @@ describe('tileTargets is a goal’s targetValue per tile (PLAN.md §1)', () => {
     })
   })
 })
+
+describe('categoryDays — how often, per kind of thing', () => {
+  /* Local midnights, built by stepping days: the same rule weeks.ts keeps,
+     because an hour goes missing twice a year. */
+  function dayStartsBack(count: number, from = new Date()) {
+    const midnight = new Date(from)
+    midnight.setHours(0, 0, 0, 0)
+    return Array.from({ length: count }, (_, i) => {
+      const d = new Date(midnight)
+      d.setDate(d.getDate() - (count - 1 - i))
+      return d.getTime()
+    })
+  }
+
+  test('a row lands in the day it happened, and nowhere else', async () => {
+    const t = as(ME)
+    const days = dayStartsBack(7)
+    const end = days[6] + 86_400_000
+    await t.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[4] + 3_600_000,
+      category: 'gym',
+    })
+
+    const rows = await t.query(api.aggregate.categoryDays, {
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: days,
+      end,
+      recentDays: 7,
+    })
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0].category).toBe('gym')
+    expect(rows[0].days).toEqual([0, 0, 0, 0, 1, 0, 0])
+    expect(rows[0].total).toBe(1)
+    expect(rows[0].activeRecent).toBe(1)
+  })
+
+  test('two sessions in one day are one active day, and two rows', async () => {
+    const t = as(ME)
+    const days = dayStartsBack(7)
+    const end = days[6] + 86_400_000
+    for (const offset of [3_600_000, 7_200_000]) {
+      await t.mutation(api.logs.create, {
+        kind: 'workout',
+        area: 'body',
+        occurredAt: days[6] + offset,
+        category: 'gym',
+      })
+    }
+
+    const [gym] = await t.query(api.aggregate.categoryDays, {
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: days,
+      end,
+      recentDays: 7,
+    })
+    expect(gym.days[6]).toBe(2)
+    expect(gym.total).toBe(2)
+    /* The count is "days with something on them", not rows — twice in one
+       day is one day you went. */
+    expect(gym.activeRecent).toBe(1)
+  })
+
+  test('each category is its own row, sorted, uncategorised last', async () => {
+    const t = as(ME)
+    const days = dayStartsBack(3)
+    const end = days[2] + 86_400_000
+    await t.mutation(api.logs.create, {
+      kind: 'workout', area: 'body', occurredAt: days[0], category: 'stretch',
+    })
+    await t.mutation(api.logs.create, {
+      kind: 'workout', area: 'body', occurredAt: days[1], category: 'gym',
+    })
+    /* A workout from before this row shipped. */
+    await t.mutation(api.logs.create, {
+      kind: 'workout', area: 'body', occurredAt: days[2],
+    })
+
+    const rows = await t.query(api.aggregate.categoryDays, {
+      area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 3,
+    })
+    expect(rows.map((r) => r.category)).toEqual(['gym', 'stretch', null])
+  })
+
+  test('an intake and a workout are separate rows even with the same word', async () => {
+    const t = as(ME)
+    const days = dayStartsBack(2)
+    const end = days[1] + 86_400_000
+    await t.mutation(api.logs.create, {
+      kind: 'intake', area: 'body', occurredAt: days[1], category: 'supplements',
+    })
+    await t.mutation(api.logs.create, {
+      kind: 'workout', area: 'body', occurredAt: days[1], category: 'gym',
+    })
+
+    const rows = await t.query(api.aggregate.categoryDays, {
+      area: 'body', kinds: ['workout', 'intake'], dayStarts: days, end, recentDays: 2,
+    })
+    expect(rows.map((r) => [r.kind, r.category])).toEqual([
+      ['intake', 'supplements'],
+      ['workout', 'gym'],
+    ])
+  })
+
+  test('activeRecent covers only the trailing window asked for', async () => {
+    const t = as(ME)
+    const days = dayStartsBack(10)
+    const end = days[9] + 86_400_000
+    /* One long ago, one two days back. */
+    for (const i of [0, 8]) {
+      await t.mutation(api.logs.create, {
+        kind: 'workout', area: 'body', occurredAt: days[i], category: 'gym',
+      })
+    }
+
+    const [gym] = await t.query(api.aggregate.categoryDays, {
+      area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 3,
+    })
+    expect(gym.total).toBe(2)
+    expect(gym.activeRecent).toBe(1)
+  })
+
+  test('another owner is not in your strip', async () => {
+    const backend = convexTest(schema, modules)
+    const days = dayStartsBack(2)
+    const end = days[1] + 86_400_000
+    await backend
+      .withIdentity({ tokenIdentifier: ME })
+      .mutation(api.logs.create, {
+        kind: 'workout', area: 'body', occurredAt: days[1], category: 'gym',
+      })
+    const theirs = await backend
+      .withIdentity({ tokenIdentifier: SOMEONE_ELSE })
+      .query(api.aggregate.categoryDays, {
+        area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 2,
+      })
+    expect(theirs).toEqual([])
+  })
+
+  test('no days asked for is no days answered', async () => {
+    const rows = await as(ME).query(api.aggregate.categoryDays, {
+      area: 'body', kinds: ['workout'], dayStarts: [], end: Date.now(), recentDays: 30,
+    })
+    expect(rows).toEqual([])
+  })
+})

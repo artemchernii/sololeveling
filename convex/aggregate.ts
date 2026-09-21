@@ -5,6 +5,7 @@ import { logKindValidator } from './logs'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
 import { query } from './_generated/server'
+import type { Doc } from './_generated/dataModel'
 
 /* PLAN.md §1: every number on screen comes from exactly one of four sources —
    a log count over a period, the latest stateSnapshots row for a key, an entity
@@ -453,6 +454,111 @@ export const kindCount = query({
         (args.area === undefined || row.area === args.area) &&
         (args.projectId === undefined || row.projectId === args.projectId),
     ).length
+  },
+})
+
+/**
+ * How often, per kind of thing: one count per local day for every category
+ * present in an area's logs, plus how many of the last `recentDays` had
+ * something on them.
+ *
+ * Source 1 — log counts over a period, the same as the tiles, narrowed by the
+ * category the row stores. Counts of stored rows and nothing else: not a rate,
+ * not a streak, not a score. A streak was offered and declined (R6b spec §3.5)
+ * — it zeroes on a missed day, which punishes a fact rather than reporting it.
+ *
+ * `activeRecent` is days-with-something, not rows: going twice on Tuesday is
+ * one day you went. It is computed here rather than in the component because
+ * a component that counts an array it was handed is computing a number, and
+ * every number on screen comes from this file.
+ *
+ * Day boundaries arrive as arguments, as they do everywhere else here: the
+ * server does not know what day it is where you are.
+ */
+export const categoryDays = query({
+  args: {
+    area: areaSlug,
+    kinds: v.array(logKindValidator),
+    /** Local midnights, oldest first. */
+    dayStarts: v.array(v.number()),
+    /** Epoch ms, exclusive — the midnight after the last day asked for. */
+    end: v.number(),
+    /** How many trailing days `activeRecent` covers. */
+    recentDays: v.number(),
+  },
+  returns: v.array(
+    v.object({
+      kind: logKindValidator,
+      /* null: logged before a workout said what kind it was. Shown as OTHER,
+         and kept apart from a category someone literally typed. */
+      category: v.union(v.string(), v.null()),
+      days: v.array(v.number()),
+      activeRecent: v.number(),
+      total: v.number(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    if (args.dayStarts.length === 0) return []
+
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', args.area)
+          .gte('occurredAt', args.dayStarts[0])
+          .lt('occurredAt', args.end),
+      )
+      .take(MAX_ROWS)
+
+    const wanted = new Set<string>(args.kinds)
+    type Bucket = {
+      kind: Doc<'logs'>['kind']
+      category: string | null
+      days: Array<number>
+    }
+    const buckets = new Map<string, Bucket>()
+
+    for (const row of rows) {
+      if (!wanted.has(row.kind)) continue
+      const category = row.meta?.category ?? null
+      const key = `${row.kind}::${category ?? ''}`
+      let bucket = buckets.get(key)
+      if (bucket === undefined) {
+        bucket = { kind: row.kind, category, days: args.dayStarts.map(() => 0) }
+        buckets.set(key, bucket)
+      }
+      /* Last bucket whose midnight is at or before the row — the same walk
+         projectTime and projectCommits do, over a list that is already
+         short. */
+      for (let i = args.dayStarts.length - 1; i >= 0; i -= 1) {
+        if (row.occurredAt >= args.dayStarts[i]) {
+          bucket.days[i] += 1
+          break
+        }
+      }
+    }
+
+    const from = Math.max(0, args.dayStarts.length - args.recentDays)
+    return [...buckets.values()]
+      .map((bucket) => ({
+        kind: bucket.kind,
+        category: bucket.category,
+        days: bucket.days,
+        activeRecent: bucket.days
+          .slice(from)
+          .reduce((n, count) => n + (count > 0 ? 1 : 0), 0),
+        total: bucket.days.reduce((n, count) => n + count, 0),
+      }))
+      .sort((a, b) => {
+        if (a.kind !== b.kind) return a.kind < b.kind ? -1 : 1
+        /* Uncategorised last: it is the bucket you are emptying, not one of
+           the things you do. */
+        if (a.category === null) return 1
+        if (b.category === null) return -1
+        return a.category < b.category ? -1 : 1
+      })
   },
 })
 

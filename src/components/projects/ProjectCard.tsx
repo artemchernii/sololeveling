@@ -138,19 +138,18 @@ export function ProjectCard({
              commit message ran off the edge and was clipped by the card's
              `overflow-hidden` rather than truncated.
 
-             Three columns wait for `2xl`, and that threshold was measured
-             rather than picked. At 1024 the left track took its full 459px
-             and left the blocks about 170 each, which truncated the task
-             titles away entirely — a row reading "⚠ Sep 20" and nothing
-             else. At 1300 they were 132px, which is the same fault more
-             politely. At 1536 and up the blocks get 380+ and a title reads.
+             Three columns from `lg`. They were briefly moved to `2xl`
+             because the blocks truncate badly at 1024, and that was the
+             wrong call: his window is under 1536, so the card he had just
+             approved turned into a tall stack. "NO NO NO. WTF IS THIS."
 
-             Below that the card stacks: taller, but every title legible,
-             which is the trade worth making — a truncated row is a row that
-             tells you nothing, and the card exists to tell you something. */
+             The truncation at narrow widths is real and stays on the list,
+             but it is nowhere near as bad as taking away the layout he
+             asked for. The track is `minmax(0,max-content)` so the numbers
+             give ground rather than taking their width first. */
           className={`relative grid grid-cols-1 items-stretch gap-4 ${
             latest.length > 0
-              ? '2xl:grid-cols-[minmax(0,max-content)_minmax(0,1fr)_minmax(0,1fr)]'
+              ? 'lg:grid-cols-[minmax(0,max-content)_minmax(0,1fr)_minmax(0,1fr)]'
               : 'lg:grid-cols-[minmax(0,max-content)_minmax(0,1fr)]'
           }`}
         >

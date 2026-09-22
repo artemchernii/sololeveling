@@ -111,7 +111,13 @@ export function LevelEditor({
           title={`Record ${label}'s level`}
           className="-mx-1 flex flex-wrap items-baseline gap-x-2 rounded-[5px] px-1 text-left transition-colors hover:bg-lift/10"
         >
-          <span className="text-[28px] font-light text-foreground">
+          {/* 30px, not the 19px StateStrip's dashboard cell uses or the 34px
+              WeightLine's lone hero number uses (Task 6 review note): this
+              sits in Languages' own vitals row beside CLASSES and PRACTICE,
+              each drawn at ProjectStats.tsx's Figure size — the numeral for a
+              card stat with a label under it, which is what all three now
+              are. */}
+          <span className="text-[30px] leading-none font-light text-foreground">
             {textValue ?? '—'}
           </span>
           <span className="font-mono text-[11px] text-ink-600">

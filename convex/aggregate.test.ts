@@ -680,30 +680,40 @@ describe('categoryDays — how often, per kind of thing', () => {
     expect(complete).toBe(true)
   })
 
-  test('a read that hits the row cap says so, and one that does not', async () => {
+  test('a read that hits the row cap says so, keeping the newest day over the oldest', async () => {
     const days = dayStartsBack(3)
     const end = days[2] + 86_400_000
 
-    /* One row over CATEGORY_DAYS_ROWS, written straight to the table —
-       CATEGORY_DAYS_ROWS is sized for twelve weeks of real capture, so
-       reaching it through logs.create would mean thousands of mutations for
-       a fact this shows just as well with direct inserts. */
+    /* CATEGORY_DAYS_ROWS rows on the OLDEST day plus one more on the NEWEST,
+       written straight to the table — CATEGORY_DAYS_ROWS is sized for twelve
+       weeks of real capture, so reaching it through logs.create would mean
+       thousands of mutations for a fact this shows just as well with direct
+       inserts. One row over the cap: a `desc` read drops exactly one, and it
+       must be the oldest row, not the newest day's only row. */
     const overflowing = as(ME)
     await overflowing.run(async (ctx) => {
-      for (let i = 0; i < 1501; i += 1) {
+      for (let i = 0; i < 1500; i += 1) {
         await ctx.db.insert('logs', {
           ownerId: ME,
           kind: 'workout',
           area: 'body',
-          occurredAt: days[1],
+          occurredAt: days[0] + i,
           meta: { category: 'gym' },
         })
       }
+    })
+    await overflowing.mutation(api.logs.create, {
+      kind: 'workout', area: 'body', occurredAt: days[2], category: 'gym',
     })
     const full = await overflowing.query(api.aggregate.categoryDays, {
       area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 3,
     })
     expect(full.complete).toBe(false)
+    const gym = full.rows.find((r) => r.category === 'gym')
+    /* The newest day's row survived the cap; the oldest day lost exactly
+       one of its 1500. Backwards (ascending, pre-fix) this would read
+       [1500, 0, 0] — the newest day emptied instead. */
+    expect(gym?.days).toEqual([1499, 0, 1])
 
     const under = as(ME)
     await under.mutation(api.logs.create, {
@@ -773,13 +783,14 @@ describe('stateHistory — source 2 read as a series', () => {
     expect(theirs.rows).toEqual([])
   })
 
-  test('a read that hits the row cap says so, and one that does not', async () => {
+  test('a read that hits the row cap says so, keeping the newest readings over the oldest', async () => {
     const now = Date.now()
 
     /* Rows over STATE_HISTORY_ROWS, written straight to the table —
        STATE_HISTORY_ROWS is sized for a year and a half of twice-daily
        readings, so reaching it through logs.create would mean thousands of
-       mutations for a fact this shows just as well with direct inserts. */
+       mutations for a fact this shows just as well with direct inserts.
+       i = 0 is the newest (recordedAt = now), i = 1000 the oldest. */
     const overflowing = as(ME)
     await overflowing.run(async (ctx) => {
       for (let i = 0; i < 1001; i += 1) {
@@ -797,6 +808,12 @@ describe('stateHistory — source 2 read as a series', () => {
       key: 'weight', start: now - 70_000_000, end: now + 86_400_000,
     })
     expect(full.complete).toBe(false)
+    /* One row over the cap: the read drops exactly the oldest one (i = 1000)
+       and still returns oldest-first. Backwards (ascending, pre-fix) this
+       would keep i = 0..999 and the newest reading (`now`) would be the one
+       missing. */
+    expect(full.rows[0].recordedAt).toBe(now - 999 * 60_000)
+    expect(full.rows[full.rows.length - 1].recordedAt).toBe(now)
 
     const under = as(ME)
     await under.mutation(api.logs.create, {

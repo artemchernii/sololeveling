@@ -432,14 +432,16 @@ export const currentState = query({
  * curve drawn through two weigh-ins three weeks apart claims a path that was
  * never measured, which is the same lie as a price shown without its time.
  *
- * Ascending through by_owner_key_time, so it is a range read rather than a
- * scan of every weigh-in ever logged.
+ * Descending through by_owner_key_time so the cap keeps the newest rows in
+ * the window, then reversed before returning — the contract is oldest first,
+ * a chart drawn left to right, and callers do not see which end a
+ * truncation would have cost.
  *
- * `complete` says whether the read reached `end` before hitting
- * STATE_HISTORY_ROWS. Ascending order means a truncated read keeps the
- * oldest rows in the window and drops the newest — the one direction a
- * chart cannot afford to be quietly wrong in, since a dropped recent reading
- * would draw a line that simply stops, as if nothing more had been recorded.
+ * `complete` says whether the read reached `start` before hitting
+ * STATE_HISTORY_ROWS. Reading newest-first means a truncated read keeps the
+ * newest rows and drops the oldest — the direction a line can afford to be
+ * wrong in, since it draws one dot short at the far end rather than
+ * stopping short of today.
  */
 export const stateHistory = query({
   args: {
@@ -458,8 +460,8 @@ export const stateHistory = query({
         recordedAt: v.number(),
       }),
     ),
-    /** False when the read hit STATE_HISTORY_ROWS before reaching `end` —
-        the newest readings may be missing, not simply never recorded. */
+    /** False when the read hit STATE_HISTORY_ROWS before reaching `start` —
+        the oldest readings may be missing, not simply never recorded. */
     complete: v.boolean(),
   }),
   handler: async (ctx, args) => {
@@ -473,15 +475,20 @@ export const stateHistory = query({
           .gte('recordedAt', args.start)
           .lt('recordedAt', args.end),
       )
+      .order('desc')
       .take(STATE_HISTORY_ROWS)
 
     return {
-      rows: rows.map((row) => ({
-        value: row.value,
-        textValue: row.textValue,
-        unit: row.unit,
-        recordedAt: row.recordedAt,
-      })),
+      /* Reversed back to oldest-first: `.order('desc')` above picks which
+         rows survive a cap, not the order handed to callers. */
+      rows: rows
+        .map((row) => ({
+          value: row.value,
+          textValue: row.textValue,
+          unit: row.unit,
+          recordedAt: row.recordedAt,
+        }))
+        .reverse(),
       /* Fewer rows than the cap means nothing was dropped on the floor —
          the same signal categoryDays and projectActivity give for their own
          reads. */
@@ -554,13 +561,19 @@ export const kindCount = query({
  * Day boundaries arrive as arguments, as they do everywhere else here: the
  * server does not know what day it is where you are.
  *
- * `complete` says whether the read reached the end of the window before
+ * `complete` says whether the read reached the start of the window before
  * hitting its row cap. It is one flag for the whole query, not per category:
  * truncation is a property of the read, not of any one bucket. Silently
  * dropping rows here would read as empty days rather than missing ones — the
  * same failure PLAN.md §1 records from R3c's GitHub check, which once read
  * one page of 100 commits and reported "100 this week · 0 last week" where
  * the truth was 117 and 65. A truncated reading is not the reading.
+ *
+ * Read `desc` before the cap so a truncated read keeps the newest days and
+ * drops the oldest — bucketing by day below does not care which order rows
+ * arrive in, so this costs nothing and makes the strip's own truncation
+ * notice (Consistency.tsx: "older days not all stored") true rather than
+ * backwards.
  */
 export const categoryDays = query({
   args: {
@@ -585,8 +598,8 @@ export const categoryDays = query({
         total: v.number(),
       }),
     ),
-    /** False when the read hit CATEGORY_DAYS_ROWS before reaching `end` — the
-        newest days may be missing rows, not empty of them. */
+    /** False when the read hit CATEGORY_DAYS_ROWS before reaching `dayStarts[0]`
+        — the oldest days may be missing rows, not empty of them. */
     complete: v.boolean(),
   }),
   handler: async (ctx, args) => {
@@ -602,6 +615,7 @@ export const categoryDays = query({
           .gte('occurredAt', args.dayStarts[0])
           .lt('occurredAt', args.end),
       )
+      .order('desc')
       .take(CATEGORY_DAYS_ROWS)
 
     const wanted = new Set<string>(args.kinds)

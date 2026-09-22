@@ -86,7 +86,7 @@ export function Consistency() {
                 <DayStrip
                   dayStarts={dayStarts}
                   days={row.days}
-                  noun={row.kind === 'intake' ? 'day' : 'session'}
+                  noun={row.kind === 'intake' ? 'dose' : 'session'}
                 />
                 <span className="shrink-0 font-mono text-[11px] text-ink-500">
                   {row.activeRecent} of the last {RECENT_DAYS} days

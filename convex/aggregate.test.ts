@@ -600,18 +600,30 @@ describe('categoryDays — how often, per kind of thing', () => {
     const days = dayStartsBack(3)
     const end = days[2] + 86_400_000
     await t.mutation(api.logs.create, {
-      kind: 'workout', area: 'body', occurredAt: days[0], category: 'stretch',
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[0],
+      category: 'stretch',
     })
     await t.mutation(api.logs.create, {
-      kind: 'workout', area: 'body', occurredAt: days[1], category: 'gym',
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[1],
+      category: 'gym',
     })
     /* A workout from before this row shipped. */
     await t.mutation(api.logs.create, {
-      kind: 'workout', area: 'body', occurredAt: days[2],
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[2],
     })
 
     const { rows } = await t.query(api.aggregate.categoryDays, {
-      area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 3,
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: days,
+      end,
+      recentDays: 3,
     })
     expect(rows.map((r) => r.category)).toEqual(['gym', 'stretch', null])
   })
@@ -621,14 +633,24 @@ describe('categoryDays — how often, per kind of thing', () => {
     const days = dayStartsBack(2)
     const end = days[1] + 86_400_000
     await t.mutation(api.logs.create, {
-      kind: 'intake', area: 'body', occurredAt: days[1], category: 'supplements',
+      kind: 'intake',
+      area: 'body',
+      occurredAt: days[1],
+      category: 'supplements',
     })
     await t.mutation(api.logs.create, {
-      kind: 'workout', area: 'body', occurredAt: days[1], category: 'gym',
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[1],
+      category: 'gym',
     })
 
     const { rows } = await t.query(api.aggregate.categoryDays, {
-      area: 'body', kinds: ['workout', 'intake'], dayStarts: days, end, recentDays: 2,
+      area: 'body',
+      kinds: ['workout', 'intake'],
+      dayStarts: days,
+      end,
+      recentDays: 2,
     })
     expect(rows.map((r) => [r.kind, r.category])).toEqual([
       ['intake', 'supplements'],
@@ -643,12 +665,19 @@ describe('categoryDays — how often, per kind of thing', () => {
     /* One long ago, one two days back. */
     for (const i of [0, 8]) {
       await t.mutation(api.logs.create, {
-        kind: 'workout', area: 'body', occurredAt: days[i], category: 'gym',
+        kind: 'workout',
+        area: 'body',
+        occurredAt: days[i],
+        category: 'gym',
       })
     }
 
     const { rows } = await t.query(api.aggregate.categoryDays, {
-      area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 3,
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: days,
+      end,
+      recentDays: 3,
     })
     const [gym] = rows
     expect(gym.total).toBe(2)
@@ -662,19 +691,30 @@ describe('categoryDays — how often, per kind of thing', () => {
     await backend
       .withIdentity({ tokenIdentifier: ME })
       .mutation(api.logs.create, {
-        kind: 'workout', area: 'body', occurredAt: days[1], category: 'gym',
+        kind: 'workout',
+        area: 'body',
+        occurredAt: days[1],
+        category: 'gym',
       })
     const theirs = await backend
       .withIdentity({ tokenIdentifier: SOMEONE_ELSE })
       .query(api.aggregate.categoryDays, {
-        area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 2,
+        area: 'body',
+        kinds: ['workout'],
+        dayStarts: days,
+        end,
+        recentDays: 2,
       })
     expect(theirs.rows).toEqual([])
   })
 
   test('no days asked for is no days answered', async () => {
     const { rows, complete } = await as(ME).query(api.aggregate.categoryDays, {
-      area: 'body', kinds: ['workout'], dayStarts: [], end: Date.now(), recentDays: 30,
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: [],
+      end: Date.now(),
+      recentDays: 30,
     })
     expect(rows).toEqual([])
     expect(complete).toBe(true)
@@ -703,10 +743,17 @@ describe('categoryDays — how often, per kind of thing', () => {
       }
     })
     await overflowing.mutation(api.logs.create, {
-      kind: 'workout', area: 'body', occurredAt: days[2], category: 'gym',
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[2],
+      category: 'gym',
     })
     const full = await overflowing.query(api.aggregate.categoryDays, {
-      area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 3,
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: days,
+      end,
+      recentDays: 3,
     })
     expect(full.complete).toBe(false)
     const gym = full.rows.find((r) => r.category === 'gym')
@@ -717,10 +764,17 @@ describe('categoryDays — how often, per kind of thing', () => {
 
     const under = as(ME)
     await under.mutation(api.logs.create, {
-      kind: 'workout', area: 'body', occurredAt: days[1], category: 'gym',
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[1],
+      category: 'gym',
     })
     const partial = await under.query(api.aggregate.categoryDays, {
-      area: 'body', kinds: ['workout'], dayStarts: days, end, recentDays: 3,
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: days,
+      end,
+      recentDays: 3,
     })
     expect(partial.complete).toBe(true)
   })
@@ -737,7 +791,11 @@ describe('stateHistory — source 2 read as a series', () => {
       [75.4, now],
     ] as const) {
       await t.mutation(api.logs.create, {
-        kind: 'weight', area: 'body', occurredAt: ts, value, unit: 'kg',
+        kind: 'weight',
+        area: 'body',
+        occurredAt: ts,
+        value,
+        unit: 'kg',
       })
     }
 
@@ -749,7 +807,9 @@ describe('stateHistory — source 2 read as a series', () => {
 
     expect(history.map((r) => r.value)).toEqual([77.2, 76.1, 75.4])
     expect(history.map((r) => r.recordedAt)).toEqual([
-      now - 2 * week, now - week, now,
+      now - 2 * week,
+      now - week,
+      now,
     ])
     expect(history[0].unit).toBe('kg')
   })
@@ -758,11 +818,16 @@ describe('stateHistory — source 2 read as a series', () => {
     const t = as(ME)
     const now = Date.now()
     await t.mutation(api.logs.create, {
-      kind: 'weight', area: 'body', occurredAt: now - 90 * 86_400_000,
-      value: 80, unit: 'kg',
+      kind: 'weight',
+      area: 'body',
+      occurredAt: now - 90 * 86_400_000,
+      value: 80,
+      unit: 'kg',
     })
     const { rows: history } = await t.query(api.aggregate.stateHistory, {
-      key: 'weight', start: now - 30 * 86_400_000, end: now + 86_400_000,
+      key: 'weight',
+      start: now - 30 * 86_400_000,
+      end: now + 86_400_000,
     })
     expect(history).toEqual([])
   })
@@ -773,12 +838,18 @@ describe('stateHistory — source 2 read as a series', () => {
     await backend
       .withIdentity({ tokenIdentifier: ME })
       .mutation(api.logs.create, {
-        kind: 'weight', area: 'body', occurredAt: now, value: 75.4, unit: 'kg',
+        kind: 'weight',
+        area: 'body',
+        occurredAt: now,
+        value: 75.4,
+        unit: 'kg',
       })
     const theirs = await backend
       .withIdentity({ tokenIdentifier: SOMEONE_ELSE })
       .query(api.aggregate.stateHistory, {
-        key: 'weight', start: now - 86_400_000, end: now + 86_400_000,
+        key: 'weight',
+        start: now - 86_400_000,
+        end: now + 86_400_000,
       })
     expect(theirs.rows).toEqual([])
   })
@@ -805,7 +876,9 @@ describe('stateHistory — source 2 read as a series', () => {
       }
     })
     const full = await overflowing.query(api.aggregate.stateHistory, {
-      key: 'weight', start: now - 70_000_000, end: now + 86_400_000,
+      key: 'weight',
+      start: now - 70_000_000,
+      end: now + 86_400_000,
     })
     expect(full.complete).toBe(false)
     /* One row over the cap: the read drops exactly the oldest one (i = 1000)
@@ -817,10 +890,16 @@ describe('stateHistory — source 2 read as a series', () => {
 
     const under = as(ME)
     await under.mutation(api.logs.create, {
-      kind: 'weight', area: 'body', occurredAt: now, value: 75.4, unit: 'kg',
+      kind: 'weight',
+      area: 'body',
+      occurredAt: now,
+      value: 75.4,
+      unit: 'kg',
     })
     const partial = await under.query(api.aggregate.stateHistory, {
-      key: 'weight', start: now - 86_400_000, end: now + 86_400_000,
+      key: 'weight',
+      start: now - 86_400_000,
+      end: now + 86_400_000,
     })
     expect(partial.complete).toBe(true)
   })

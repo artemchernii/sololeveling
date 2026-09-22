@@ -164,12 +164,14 @@ describe('the categories you have already used', () => {
     /* ONE backend, two identities. Two convexTest() calls are two databases
        and would pass no matter what the query did. */
     const backend = convexTest(schema, modules)
-    await backend.withIdentity({ tokenIdentifier: ME }).mutation(api.logs.create, {
-      kind: 'workout',
-      area: 'body',
-      occurredAt: Date.now(),
-      category: 'gym',
-    })
+    await backend
+      .withIdentity({ tokenIdentifier: ME })
+      .mutation(api.logs.create, {
+        kind: 'workout',
+        area: 'body',
+        occurredAt: Date.now(),
+        category: 'gym',
+      })
     const theirs = await backend
       .withIdentity({ tokenIdentifier: SOMEONE_ELSE })
       .query(api.logs.categories, { kind: 'workout' })
@@ -232,11 +234,13 @@ describe('logs.listForArea — RecentBody reads through the index, not by filter
     /* ONE backend, two identities — two convexTest() calls are two databases
        and would pass no matter what the query did. */
     const backend = convexTest(schema, modules)
-    await backend.withIdentity({ tokenIdentifier: ME }).mutation(api.logs.create, {
-      kind: 'workout',
-      area: 'body',
-      occurredAt: Date.now(),
-    })
+    await backend
+      .withIdentity({ tokenIdentifier: ME })
+      .mutation(api.logs.create, {
+        kind: 'workout',
+        area: 'body',
+        occurredAt: Date.now(),
+      })
     const theirs = await backend
       .withIdentity({ tokenIdentifier: SOMEONE_ELSE })
       .query(api.logs.listForArea, { area: 'body', since: 0 })

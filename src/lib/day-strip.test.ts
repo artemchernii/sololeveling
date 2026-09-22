@@ -73,7 +73,9 @@ describe('blockLabels', () => {
   })
 
   test('a block containing no first is unlabelled', () => {
-    const labels = blockLabels(dayBlocks(dayStartsBack(1, new Date(2026, 8, 21))))
+    const labels = blockLabels(
+      dayBlocks(dayStartsBack(1, new Date(2026, 8, 21))),
+    )
     expect(labels).toEqual([''])
   })
 })

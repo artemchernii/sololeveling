@@ -59,7 +59,7 @@ separate matter because no log can describe the future.
 1. **A workout's type is stored, not inferred.** `logs.meta.category` — a field
    that has been in the schema since day one and is written by nothing — starts
    carrying it. Deriving the type from free text was rejected: `run 30 by the
-   river` and `gym push day` make the grouping a guess, and a guessed category
+river` and `gym push day` make the grouping a guess, and a guessed category
    is indistinguishable on screen from a stored one.
 2. **The category is a plain string, not an enum.** R6 existed because a fixed
    set of areas became the wrong answer repeated on every screen. Body would
@@ -75,7 +75,7 @@ separate matter because no log can describe the future.
    arranged to prevent.
 5. **No streaks.** A streak zeroes on a missed day, so it punishes a fact rather
    than reporting it, and it makes the number the thing you protect. `12 of the
-   last 30 days` is the same evidence without the lever, and the grid shows the
+last 30 days` is the same evidence without the lever, and the grid shows the
    gaps honestly. Artem was offered the streak explicitly and did not take it.
 6. **Weight gets a line, not a bar.** A bar needs a start, and the start is the
    number §1 forbids inventing. `goals.startValue` (option C in brainstorming)
@@ -98,13 +98,13 @@ separate matter because no log can describe the future.
 
 ## 4. Schema (`convex/schema.ts`)
 
-| change | detail |
-| ------ | ------ |
-| `logKind` | gains one literal: **`intake`** |
+| change               | detail                                                                                                                                                                              |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `logKind`            | gains one literal: **`intake`**                                                                                                                                                     |
 | `logs.meta.category` | **no schema change** — the field exists. It starts being written: workout type (`gym`, `run`, `boxing`, `stretch`), intake type (`supplements`), session type (`class`, `practice`) |
-| `logs.create` | gains a `category: v.optional(v.string())` argument. **The mutation does not accept `meta` at all today** — this is a real addition, not a pass-through |
-| `areas` | gains `track: v.optional(v.literal('language'))` |
-| `stateSnapshots` | **no change.** CEFR keys become `cefr_level:<slug>`, which leaves `by_owner_key_time` exactly as it is |
+| `logs.create`        | gains a `category: v.optional(v.string())` argument. **The mutation does not accept `meta` at all today** — this is a real addition, not a pass-through                             |
+| `areas`              | gains `track: v.optional(v.literal('language'))`                                                                                                                                    |
+| `stateSnapshots`     | **no change.** CEFR keys become `cefr_level:<slug>`, which leaves `by_owner_key_time` exactly as it is                                                                              |
 
 `meta.category` is kept nested rather than promoted to a top-level `logs.category`
 because it already exists and nothing reads it — promoting it would be a
@@ -124,11 +124,11 @@ Body" is one more literal rather than a second field.
 
 **Three new verbs:**
 
-| verb | writes | notes |
-| ---- | ------ | ----- |
-| `stretch` | `workout`, area `body`, category `stretch`, minutes optional | §3 promised it; it never existed |
-| `supp` / `supplements` | `intake`, area `body`, category `supplements`, **no amount** | one word + Enter |
-| `practice` | `session`, area `portuguese`, category `practice`, minutes optional | the solo counterpart to `pt` |
+| verb                   | writes                                                              | notes                            |
+| ---------------------- | ------------------------------------------------------------------- | -------------------------------- |
+| `stretch`              | `workout`, area `body`, category `stretch`, minutes optional        | §3 promised it; it never existed |
+| `supp` / `supplements` | `intake`, area `body`, category `supplements`, **no amount**        | one word + Enter                 |
+| `practice`             | `session`, area `portuguese`, category `practice`, minutes optional | the solo counterpart to `pt`     |
 
 **The confirm modal gains an editable category chip**, pre-filled by the verb,
 offering the categories already present in his own rows as he types. This is the
@@ -149,14 +149,14 @@ things after testing.
 
 Components read these; they never compute them (`CLAUDE.md`).
 
-| number on screen | source |
-| ---------------- | ------ |
-| `gym · 12 of the last 30 days` | 1 — log count, filtered by kind + category |
-| each square in the grid | 1 — the same rows, bucketed by local day |
-| `9 classes · 14 practices this month` | 1 |
-| minutes this month against a goal's `targetValue` | 1, over a real denominator |
-| `75.4 kg`, `B1` | 2 — latest snapshot for a key |
-| `3.4 to go` | target − latest: composition of two sanctioned values, the shape §1 already permits for `holding × price` |
+| number on screen                                  | source                                                                                                    |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `gym · 12 of the last 30 days`                    | 1 — log count, filtered by kind + category                                                                |
+| each square in the grid                           | 1 — the same rows, bucketed by local day                                                                  |
+| `9 classes · 14 practices this month`             | 1                                                                                                         |
+| minutes this month against a goal's `targetValue` | 1, over a real denominator                                                                                |
+| `75.4 kg`, `B1`                                   | 2 — latest snapshot for a key                                                                             |
+| `3.4 to go`                                       | target − latest: composition of two sanctioned values, the shape §1 already permits for `holding × price` |
 
 **Three additions, all inside `aggregate.ts`:**
 
@@ -167,8 +167,8 @@ Components read these; they never compute them (`CLAUDE.md`).
 - `stateHistory({ key, start, end })` → the stored snapshot rows for a key, in
   time order.
 
-**`stateHistory` and the limits of source 2.** §1 defines source 2 as *the
-latest* `stateSnapshots` row for a key; the weight line plots all of them. This
+**`stateHistory` and the limits of source 2.** §1 defines source 2 as _the
+latest_ `stateSnapshots` row for a key; the weight line plots all of them. This
 is the same source read as a series, not a fifth source, and it is allowed on
 these written terms — to be added to §1 beside the source-4 conditions:
 
@@ -281,7 +281,7 @@ Nothing else on the dashboard changes. The Body tile still counts
 - **Finances** — its own spec, with the source question first.
 - **Vocabulary, and notes filed under a language** — that is R4, where `notes`
   gains an `area`. A vocabulary store built here would be a second knowledge base
-  beside Notes, and R4 is the row that makes Notes *the* knowledge base. When R4
+  beside Notes, and R4 is the row that makes Notes _the_ knowledge base. When R4
   lands, a language tab picks it up as one query and no new table.
 - **Streaks**, a `habits` table, a weight bar, `goals.startValue`.
 - **Retro-categorising old workouts** beyond one tap out of Other.

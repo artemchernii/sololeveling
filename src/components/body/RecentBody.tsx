@@ -104,7 +104,11 @@ function EditableValue({
   const saving = useSave()
 
   if (value === undefined) {
-    return <span className="w-16 shrink-0 font-mono text-[11px] text-ink-700">—</span>
+    return (
+      <span className="w-16 shrink-0 font-mono text-[11px] text-ink-700">
+        —
+      </span>
+    )
   }
 
   /* Guarded and run the same way EditableMinutes does (ProjectStats.tsx): a
@@ -123,9 +127,11 @@ function EditableValue({
       setEditing(false)
       return
     }
-    void saving.run(() => setValue({ logId, value: n })).then(() => {
-      setEditing(false)
-    })
+    void saving
+      .run(() => setValue({ logId, value: n }))
+      .then(() => {
+        setEditing(false)
+      })
   }
 
   if (kind === 'weight' || !editing) {

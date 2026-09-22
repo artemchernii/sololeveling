@@ -101,7 +101,8 @@ export const create = mutation({
       projectId: args.projectId,
       /* Absent rather than `{ category: undefined }`: an empty meta object on
          every row is a stored fact that says nothing. */
-      meta: args.category === undefined ? undefined : { category: args.category },
+      meta:
+        args.category === undefined ? undefined : { category: args.category },
     })
 
     /* §2's stated side-effect: a weight is both an event and a new current

@@ -49,7 +49,10 @@ export function geometry(
   const points = readings.map((reading) => ({
     /* One reading, or several on the same instant: put it at the right-hand
        edge rather than dividing by a zero span. */
-    x: span === 0 ? opts.width : ((reading.recordedAt - first) / span) * opts.width,
+    x:
+      span === 0
+        ? opts.width
+        : ((reading.recordedAt - first) / span) * opts.width,
     y: y(reading.value),
   }))
 

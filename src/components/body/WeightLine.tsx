@@ -47,8 +47,7 @@ export function WeightLine() {
   )
   const target = goal?.targetValue
 
-  const latest =
-    readings.length > 0 ? readings[readings.length - 1] : undefined
+  const latest = readings.length > 0 ? readings[readings.length - 1] : undefined
   const state = drift(readings, target)
   const g = geometry(readings, { width: WIDTH, height: HEIGHT, target })
 
@@ -98,12 +97,11 @@ export function WeightLine() {
             </span>
           </div>
 
-          {g === null || g.points.length < 2 ? (
-            /* One dot is not a line, and a graphic whose only content is a
+          {g === null ||
+          g.points.length <
+            2 /* One dot is not a line, and a graphic whose only content is a
                single point reads as a broken element (the lesson CommitStrip
-               records). The number above already says it. */
-            null
-          ) : (
+               records). The number above already says it. */ ? null : (
             <svg
               viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
               className="motion-arrive h-24 w-full"

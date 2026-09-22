@@ -14,6 +14,11 @@ const FUTURE_GRACE_MS = 5 * 60_000
 /* Enough history to find five different lines in, when the last few days were
    the same gym session over and over. */
 const RECENT_ROWS = 40
+/* Twelve weeks of one area's whole log stream, generously — the same
+   headroom aggregate.ts's CATEGORY_DAYS_ROWS gives categoryDays over the same
+   window: an area's rows share one cap regardless of kind, so a weight costs
+   the same slot as a workout. */
+const AREA_ROWS = 1500
 
 export const logKindValidator = v.union(
   v.literal('workout'),
@@ -216,6 +221,50 @@ export const listForProject = query({
       .order('desc')
       .take(RECENT_ROWS)
     return rows.filter((row) => row.kind === 'session')
+  },
+})
+
+/**
+ * Everything filed under one area since a time, newest first — RecentBody's
+ * feed on Body, and Languages' after it (R6b-b reuses this the way it reuses
+ * DayStrip and categoryDays).
+ *
+ * Scoped through `by_owner_area_time` rather than read broad and filtered in
+ * the component: `listSince` reads the newest rows across every area, so a
+ * body-only list built by filtering its result afterward would truncate
+ * quietly whenever other areas crowded body rows out of the shared cap — the
+ * same class of bug `categoryDays` and `stateHistory` were fixed for.
+ * `complete` says the same thing their own row bounds say.
+ */
+export const listForArea = query({
+  args: {
+    area: areaSlug,
+    /** Epoch ms, inclusive. */
+    since: v.number(),
+  },
+  returns: v.object({
+    rows: v.array(schema.doc('logs')),
+    complete: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', args.area)
+          .gte('occurredAt', args.since),
+      )
+      .order('desc')
+      .take(AREA_ROWS)
+    return {
+      rows,
+      /* Newest first with a cap: hitting it drops the OLDEST rows in the
+         window, not the newest — the same "older … not all stored" a reader
+         sees from Consistency and WeightLine when their own reads truncate. */
+      complete: rows.length < AREA_ROWS,
+    }
   },
 })
 

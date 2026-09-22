@@ -193,6 +193,30 @@ export const setHue = mutation({
   },
 })
 
+/**
+ * Mark an area as a language, or stop. `null` clears the flag.
+ *
+ * The slug is looked up through by_owner_slug, so another owner's area is
+ * simply not found — there is no path from here to a row you do not own.
+ */
+export const setTrack = mutation({
+  args: {
+    slug: v.string(),
+    track: v.union(v.literal('language'), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const area = await bySlug(ctx, ownerId, args.slug)
+    if (area === null) throw new Error('NO_SUCH_AREA')
+
+    await ctx.db.patch(area._id, {
+      track: args.track === null ? undefined : args.track,
+    })
+    return null
+  },
+})
+
 /** His order, as the whole list. Every slug he owns, once. */
 export const reorder = mutation({
   args: { slugs: v.array(v.string()) },

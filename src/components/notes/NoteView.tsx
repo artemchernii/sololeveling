@@ -1,3 +1,5 @@
+import { PromptBlock } from './PromptBlock'
+import { VideoBlock } from './VideoBlock'
 import { parseBlocks } from '@/lib/note-text'
 
 /* A note body as it reads, not as it was typed: bullets instead of asterisks,
@@ -22,6 +24,10 @@ export function NoteView({ body }: { body: string }) {
         switch (block.type) {
           case 'gap':
             return <div key={i} className="h-3" />
+          case 'fence':
+            return <PromptBlock key={i} text={block.text} />
+          case 'video':
+            return <VideoBlock key={i} id={block.id} />
           case 'heading':
             return (
               <h3

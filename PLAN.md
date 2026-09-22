@@ -24,29 +24,18 @@ Why this fits: Convex queries are reactive → log a workout on the phone, dashb
 updates instantly, zero code. Start's SSR is not needed for the data (Convex is client-driven) but
 gives a fast first paint on mobile and a place for server functions later (cron digests, imports).
 
-**Structure**
+**Structure** (the shape; the repo is the detail)
 
 ```
-/src
-  routes/           TanStack file routes
-    __root.tsx  _app.tsx (authed shell, Clerk guard in beforeLoad)  _app/dashboard.tsx  _app/quests.tsx
-    _app/calendar.tsx  _app/goals.tsx  _app/projects.$id.tsx
-    _app/{money,body,social,portuguese,career,style,knowledge}.tsx   (phase 7+, empty)
-    _app/{notes,principles,reviews,settings}.tsx  login.tsx
-  components/
-    shell/      TopBar, SideNav, MobileNav, SearchPalette (⌘K), QuickCapture (⌘L)
-    dashboard/  TodayCard, ChainsCard, StateStrip, ActionsLogged, QuestList
-    ui/         shadcn
-  lib/          capture-parser.ts, recurrence.ts, format.ts
-/convex
-  schema.ts
-  tasks.ts projects.ts goals.ts logs.ts state.ts events.ts notes.ts reviews.ts
-  auth.ts        -- requireUser(ctx) -> ownerId; called first in every mutation and query
-  aggregate.ts   -- monthCounts(), currentState(), entityCounts()  (the only number sources)
-  search.ts      -- everything(): ⌘K over your own rows. A read, not an aggregation:
-                    it returns rows grouped by kind and never scores or ranks across them.
-  seed.ts        -- internal mutation: principles only. Nothing else is ever seeded.
-  auth.config.ts
+src/routes/_app/     one file per §3 page (dashboard = Today)
+src/components/      one folder per page, plus shell/ (TopBar, SideNav, ⌘K search, ⌘L log)
+src/lib/             capture-parser, recurrence, format, nav
+convex/              one file per table, plus:
+  auth.ts            requireUser(ctx) -> ownerId; first line of every query and mutation
+  aggregate.ts       the only place numbers come from (§1)
+  search.ts          ⌘K over your own rows — returns rows by kind, never scores them
+  github.ts, crons.ts  the hourly commit reading (source 4)
+  seed.ts            principles only
 ```
 
 **Key rule — every number on screen comes from exactly one of four sanctioned sources:**
@@ -90,7 +79,7 @@ number is allowed to exist, and what it must carry to be shown.
 **The first external reading is GitHub commits** (R3c, 20 Sep, `convex/github.ts`, which names where
 each condition is kept): an hourly internal action stores every commit on a project's public repo as
 a row, the row carries the repo it came from, the project carries when the check last succeeded, and
-`aggregate.projectCommits` only counts those rows per week. Prices arrive with Finances (R6).
+`aggregate.projectCommits` only counts those rows per week. Prices arrive with Finances (R6b).
 
 Building it taught the fourth condition's real shape: the check first read one page of 100 commits,
 and the card showed "100 this week · 0 last week" where the truth was 117 and 65. Nothing was
@@ -469,12 +458,9 @@ screen. Everything in 1–3 holds in both themes.
 
 ## 4. Phases
 
-**Phases 0–6b (8–14 Sep) are done**: scaffold, schema, capture and quests, goals and
-projects, dashboard, calendar, review/notes/principles/PWA, and the polish pass (motion,
-skeletons, light theme, robustness, backups). They are kept in git history; the table below
-is what is left, in the order agreed on 15 Sep. Each row is one branch, one PR, and one
-plan under `docs/superpowers/plans/`, written when the previous row has shipped — a plan
-written earlier would describe ground the earlier row changes.
+**Shipped:** phases 0–6b (8–14 Sep), then R1, R2, R3 (a/b/c), R6, R4, R6b-a, R6b-b.
+**Next:** R5, then R7. Finances waits (below). Each row is one branch and one PR, with a
+one-page spec under `docs/specs/` written when the previous row has shipped.
 
 | #    | Deliverable                                                                                                                                                                                                                                             | Done when                                                                                              |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
@@ -488,188 +474,21 @@ written earlier would describe ground the earlier row changes.
 | R7   | **Ask AI** — a ⌘-shortcut chat that reads your own rows through a Convex action                                                                                                                                                                         | "What did I actually do in August?" is answered from logs, and nothing on screen is derived from it    |
 | Late | Scheduled backups (`pnpm backup` daily, retention, a scheduled drill); Clerk production instance (needs a domain, an ownerId migration, and the dev-vs-prod data decision); notifications (the bell)                                                    | Deferred 14 Sep while the app is still being built                                                     |
 
-**The order changed on 20 Sep: R6's area rework comes before R4.** Artem hit the same wall twice
-in one day — a goal with nowhere to go but the wrong area, then a task on SoloLeveling badged
-`business` when it is a pet project and `life` when that means nothing. A fixed enum cannot be
-made to fit by choosing more carefully, and every screen that shows an area shows the wrong
-answer until it is data he edits. Notes as the knowledge base (R4) is still wanted — he has asked
-for prompts, screenshots and MD files twice — but it is a capability the app lacks, not a wrong
-answer the app keeps repeating. Wrong answers come first. R4 follows R6, and R5 and R7 keep their
-places.
+**Settled along the way, still binding** (the reasoning is in `docs/plan-history.md`):
 
-**R6 is not a rename (added 20 Sep; the row was finally rewritten to match on 21 Sep).** The
-row used to say "Languages (schema change)", which read as `portuguese` → `languages`. It is
-more than that. Artem tried to file a goal under
-**English** and found there was nowhere to put it: `area` is a fixed enum in
-`convex/schema.ts`, so the set of areas is something only a deploy can change. R6 must make
-areas **data he edits** — add one, rename one, retire one — which reaches the seven area
-colour tokens (`--area-*` cannot be a static class per area), `src/lib/nav.ts`, the capture
-parser's area words, and every table carrying `area`. What it must **not** reach is
-`monthCounts()`: the six tiles are a fixed shape and are deliberately not derived from the
-area enum (§3 item 4), and that stays true however many areas exist.
-
-**R6 was split on 21 Sep, and three things were settled with it.** The three TRACK pages moved
-to their own row (R6b): the areas rework alone reaches six tables, the colour tokens, the nav,
-the capture parser and every screen that shows a badge, and Languages in particular is better
-built _after_ an area is something you can invent — a tab per language you have filed something
-under, rather than a fixed three. The decisions the plan is written on:
-
-- **An area's identity is a slug, and its name is data.** An `areas` row carries a permanent
-  `slug` ('body') and an editable `label`. Every table keeps `area` as that slug, so no row is
-  rewritten, `logs.by_owner_area_time` is untouched, the capture verbs keep naming their area
-  statically, and `monthCounts()`'s tile rules keep matching. Renaming changes what you read,
-  never what is stored.
-- **A theme owns lightness and chroma; an area owns its hue.** `--area-l` and `--area-c` are
-  declared once per theme, and an area's colour is `oklch(var(--area-l) var(--area-c) <hue>)`.
-  This is what lets the set be open-ended and still keeps the rule that no area is louder than
-  another, and it keeps the 265–305° gap round the accent enforceable as a check rather than a
-  convention.
-- **A capture verb's area stays in code.** `gym` files under the `body` slug however that area
-  is named. Retiring one it needs sends its verbs somewhere instead — see below.
-
-**What measuring changed while R6 was built (21 Sep).** Two of the three decisions survived
-untouched; the third did not, and two holes turned up that no amount of planning had found:
-
-- **Retiring by refusal would have been a dead feature.** The rule as written was "refuse the
-  retire and name the verbs". Counted against the parser, nine of the ten areas are named by a
-  verb — only `projects` is not — so the refusal would never not have fired. It became one
-  guard and one mechanism: an area one of the six tiles counts cannot be retired at all, and
-  any other retires with a `replacedBy` its verbs follow, resolved in one hop.
-- **A built-in slug has to be legal before its row exists.** `areas.ensure` runs when the
-  settings editor mounts, and nothing makes anyone go there first — so the guard as designed
-  threw `NO_SUCH_AREA` on the first `gym` of a fresh deployment. The ten are the union the
-  schema used to hold; they pass whether or not a row is there yet.
-- **`areas.remove` was missing.** Retiring says "I stopped tracking this" and keeps the row so
-  the rows under it keep a name and a colour. There was no way to say "I typed that wrong". It
-  refuses a built-in, and refuses any area something is filed under.
-
-**A money target needs a fifth source, and does not have one (20 Sep).** Asked for a month
-tile target of "€100" rather than a count. A tile's number is the denominator of a real bar,
-counted from `logs` rows; a sum of logged amounts is none of the four sanctioned sources in
-§1. Until that question is answered — a new source with written conditions, or a
-`stateSnapshots` balance read against nothing — a tile keeps its count and may show the
-goal's free-text `targetLabel` beside it as words. It belongs with R6 Finances.
-
-**R6b was split again on 21 Sep, into R6b-a (Body) and R6b-b (Languages).**
-One spec covers both — `docs/superpowers/specs/2026-09-21-r6b-body-and-languages-design.md` —
-and Body shipped first because Languages reuses its `DayStrip`, its category
-chip and `aggregate.categoryDays`. Finances is excluded from that spec
-entirely: a sum of logged amounts is none of the four sanctioned sources, and
-that question gets its own spec rather than holding up two pages that do not
-need it answered.
-
-**What Body's design changed (21 Sep).** §3 promised "Gym · Stretch · Boxing ·
-Other, weight progress against a target". Two of those did not survive contact
-with what he actually wanted. Consistency is the page's spine, not weight —
-"what is most important is consistency" — so the first section is a strip per
-category and weight is the second. And the four kinds are a starting set
-rather than a list: the type lives in `logs.meta.category` as a plain string,
-set by the verb and editable in the capture chip, because a fixed set of words
-is the thing R6 was spent unlearning. `stretch` did not exist as a verb and
-now does; `run` existed and was not in the four.
-
-**R6b closed on 22 Sep.** R6b-a shipped Body (#54) and R6b-b shipped
-Languages. An area is a language because a `track` flag on its row says so —
-a flag rather than a derivation, because working it out from session logs
-needs an exclusion for `work`, which also writes a session, and that
-exclusion is the hardcoded list R6 was spent removing. CEFR keys became
-`cefr_level:<slug>`, migrated in place: the key was global while there was
-one language, and a second would have overwritten the first, because
-latest-row-wins is what makes the state strip true.
-
-**What Languages did not take on.** The Languages month tile still counts
-sessions filed under `portuguese` only — the six tiles are a fixed shape (§3
-item 4) and a second language joining one is a §3 decision, not a page's.
-And `practice` still files under `portuguese` in code (R6 decision 3), so a
-second language's practice needs one tap on the area chip. That was left
-deliberately unsolved to be felt before anything cleverer is designed.
-
-Finances is the only TRACK page still a placeholder, and it stays one until
-the money-source question has a written answer: a sum of logged amounts is
-none of the four sanctioned sources (§1), which blocks Spending, Balances and
-the €100 tile target alike.
+- **Areas (R6).** An `areas` row has a permanent `slug` and an editable `label`; every table
+  stores the slug. A theme owns `--area-l`/`--area-c`, an area owns its hue. A capture verb's
+  area stays in code. The ten built-in slugs are legal before their row exists. An area a tile
+  counts cannot be retired; any other retires with a `replacedBy` its verbs follow (one hop).
+  `areas.remove` refuses a built-in and anything with rows filed under it.
+- **Languages (R6b-b).** An area is a language because its `track` flag says so. CEFR keys are
+  `cefr_level:<slug>`. The Languages tile still counts `portuguese` only, and `practice` still
+  files under `portuguese` — left on purpose until it is felt.
+- **Body (R6b-a).** Consistency first, weight second. The kind lives in `logs.meta.category`, a
+  plain string the verb sets and the capture chip edits — not a fixed list.
+- **Finances waits.** A sum of logged amounts is none of the four sources (§1). Spending,
+  Balances and a money tile target (`€100`) all stay blocked until that has a written answer.
 
 **Rules that carry through every row:** every number from a sanctioned source (§1); three a
 day (§3c.1); the backlog never on Today (§3c.3); tasks and events two tables (§3b.3);
 nothing seeded (§3b.5); Nocturne tokens only (§3d).
-
----
-
-## 5. Prompt for Claude Code
-
-Save this file as `PLAN.md` in the repo root, `git init`, then paste the block below as the first message.
-
-```
-You are building SOLO LEVELING, a single-user personal operating system for me (Artem).
-Read PLAN.md fully before doing anything. It is the spec; this message is the operating agreement.
-
-FIRST, before Phase 0 code:
-Use the claude_design MCP (https://api.anthropic.com/v1/design/mcp, auth via /design-login) to import:
-https://claude.ai/design/p/f75af0ae-d7c3-464f-9d77-3eb77e604a19?file=Solo+Leveling+Wireframes.dc.html
-Read: `Solo Leveling Wireframes.dc.html`, `_ds/nocturne-688ea808-7cad-46e7-bf90-42a9c6bb4f3a/styles.css`,
-`_ds/nocturne-688ea808-7cad-46e7-bf90-42a9c6bb4f3a/_ds_bundle.js`, `support.js`.
-Extract the TOKEN LAYER ONLY from Nocturne (colors, radii, spacing, type scale, shadows) into
-src/styles/tokens.css as CSS custom properties, and map them in Tailwind v4's @theme block.
-Do NOT copy _ds_bundle.js components into the app — we use shadcn/ui restyled with these tokens.
-Treat the wireframe as visual reference for rhythm and component anatomy only; where it disagrees
-with PLAN.md §3, PLAN.md wins.
-
-Ground rules — copy these verbatim into CLAUDE.md so you re-read them every session:
-- Reality over gamification. Never render a 0-100 score, XP, streak, or arbitrary percentage.
-  Every number on screen comes from one of exactly three sources (PLAN.md §1): a log count over a
-  period, the latest stateSnapshots row for a key, or an entity count over projects/tasks. All three
-  live in convex/aggregate.ts; components never compute numbers. Progress bars only where an explicit
-  targetValue exists. If you catch yourself inventing a metric, stop and ask me.
-- monthCounts() returns the fixed six-tile shape in PLAN.md §3 item 4 — it is not derived from the
-  `area` enum. Nine areas, six tiles, deliberately.
-- Completing a task is not the same as doing the thing. `tasks.complete` writes only
-  logs{kind:'task_done'}. Real activity (workout, session, expense, weight) is a separate log the
-  user confirms with one tap. Never auto-derive one from the other.
-- Three quests a day is a hard limit enforced in tasks.pickForToday, not a UI hint. The backlog
-  never appears on the dashboard and no screen shows a total count of open tasks. If a design would
-  surface "N tasks remaining" on the morning screen, don't build it — ask me.
-- Tasks and events are two tables and stay that way. They merge only in the UI through a
-  TimelineItem mapper. A task must be creatable with a title and nothing else.
-- Nocturne tokens are the design source of truth. No hardcoded hex, no gradients, no emoji,
-  one lavender accent reserved for live/focus things, mono-caps for labels, big light numerals.
-- Speed of daily use beats completeness. Quick capture (Cmd-K) must log something in under three
-  seconds: `workout 60`, `spend 48 groceries`, `pt 30`, `weight 75.4`, `note ...`.
-- Stack is fixed (PLAN.md §1): TanStack Start, Convex, Clerk, Tailwind v4, shadcn/ui, deployed to
-  Cloudflare Workers. Adding any other dependency requires a one-line justification first.
-- Nothing is seeded except principles. Every goal, chain and task must be creatable through the UI;
-  creating them is the product. Never write fixture data to make a screen look populated — if a
-  screen has nothing to show, build its empty state.
-- Scope: phases 0-4 only for now, in that order (capture and creation before the dashboard).
-  Money/Body/Portuguese/Social/Career/Style get an empty route and nothing else. Do not build ahead.
-
-Data and auth conventions:
-- All data access through Convex useQuery/useMutation on the client. No TanStack Start server
-  functions for data — Convex reactivity is the point. Server functions only for things Convex
-  cannot do, and only when I ask.
-- convex/schema.ts validators are the single source of truth. Import Doc<'tasks'>, Id<'projects'>;
-  never hand-write DB types.
-- Every table has ownerId: v.string() and an owner-scoped index. Every mutation and query starts
-  with requireUser(ctx) from convex/auth.ts, which returns the Clerk identity.tokenIdentifier, and
-  filters by it using an index — never .filter() over a full table scan. There is no OWNER_ID env var.
-  A query that could return another user's row is a bug, even while there is only one user.
-- Aggregations live only in convex/aggregate.ts, exposing three shapes: monthCounts(),
-  currentState() and entityCounts(). Components never compute numbers themselves.
-- No v.any() anywhere in schema.ts. If a field's shape is unknown, ask me rather than reaching for it.
-
-Working style:
-- One phase at a time. Before each phase, list the files you will create or modify in 10 lines or
-  fewer, then wait for my OK. Do not start coding on the same turn.
-- After each phase: run typecheck and lint, summarize in 5 lines or fewer, and tell me the single
-  thing to verify manually. Commit with a real message; one commit per meaningful step.
-- Ask me instead of guessing when: PLAN.md is ambiguous, a UI element has no source in the data
-  model, or a design decision would add a metric that is not a count or a state value.
-
-Start with the Nocturne import, then give me your Phase 0 file plan and any questions.
-```
-
-**Before you paste, have ready:**
-
-- Convex project (`npx convex dev` creates it on first run)
-- Clerk app with a JWT template named `convex` — publishable key in `.env.local`, issuer URL in the
-  Convex dashboard as `CLERK_JWT_ISSUER_DOMAIN` (set per deployment: dev and prod separately)
-- Cloudflare account, `wrangler login`

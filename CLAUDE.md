@@ -56,7 +56,7 @@ on day one, and the one a demo row would hide.
 
 On 15 Sep the layout was rethought: fewer places, each one deep. `PLAN.md` §3
 is the map (eleven sidebar entries in three groups) and §4 the order (R1–R7).
-Each row is one branch and one plan under `docs/superpowers/plans/`, written
+Each row is one branch and one spec under `docs/specs/`, written
 only when the row before it has shipped. Do not build ahead of the current
 row, and do not add a sidebar entry §3 does not list — a section that is not
 used is the thing the rethink exists to remove.
@@ -138,18 +138,26 @@ reason before it goes in.
 
 ## Working style
 
-- One phase at a time. Open a phase by listing the files you will create or
-  modify in ten lines or fewer, then wait for the OK. The listing turn does no
-  coding.
-- Close a phase by running typecheck and lint, summarizing in five lines or
-  fewer, and naming the single thing to verify by hand. Commit per meaningful
-  step with a real message.
-- Ship phases 0–4 first, in that order: the ways in before the screen that
-  reads them back (`PLAN.md` §4). Each later route stays an empty destination
-  until its own phase.
-- Ask rather than guess when `PLAN.md` is ambiguous, when a UI element has no
-  source in the data model, or when a design decision would introduce a number
-  that is not one of the four sources.
+Light process, written 22 Sep after one session burned 13% of a week's
+tokens on helper agents re-reading the same files. Superpowers is off in
+this project; these are the parts of it worth keeping.
+
+- **A new row opens with a one-page spec** in `docs/specs/`: what gets built,
+  which files, the done-when from `PLAN.md` §4, and open questions. No code in
+  the spec. Artem reads it and says go before any code.
+- **Ask, don't guess.** Questions go in the spec or the reply, a few at a
+  time, each with my recommendation — when `PLAN.md` is ambiguous, a UI element
+  has no source in the data model, or a number is not one of the four sources.
+- **Tests with the code.** Every Convex function that writes or counts gets a
+  `convex-test` case in the same commit, including the refusal paths
+  (`TODAY_FULL`, another owner's row). Parsers and mappers in `src/lib` too.
+- **Work inline.** Helper agents only for a genuinely huge row, and few of them.
+- **Look at UI in the browser pane** whenever something visible changed —
+  precision matters here. Read text with `get_page_text`; screenshot for layout,
+  colour and motion.
+- **Close a row** with typecheck, lint and tests green, one review of the whole
+  branch, a PR based on `master`, and one thing for Artem to press by hand.
+  Commit per meaningful step with a real message.
 
 ## Where we are
 

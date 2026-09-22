@@ -930,3 +930,121 @@ describe('stateHistory — source 2 read as a series', () => {
     expect(partial.complete).toBe(true)
   })
 })
+
+describe('kindCount can narrow to a category', () => {
+  test('classes and practice are counted apart', async () => {
+    const t = as(ME)
+    const start = at('sep', 1)
+    const end = at('sep', 30)
+    await t.mutation(api.logs.create, {
+      kind: 'session',
+      area: 'portuguese',
+      occurredAt: at('sep', 2),
+      category: 'class',
+    })
+    await t.mutation(api.logs.create, {
+      kind: 'session',
+      area: 'portuguese',
+      occurredAt: at('sep', 3),
+      category: 'practice',
+    })
+    await t.mutation(api.logs.create, {
+      kind: 'session',
+      area: 'portuguese',
+      occurredAt: at('sep', 4),
+      category: 'practice',
+    })
+
+    expect(
+      await t.query(api.aggregate.kindCount, {
+        kind: 'session',
+        area: 'portuguese',
+        category: 'class',
+        start,
+        end,
+      }),
+    ).toBe(1)
+    expect(
+      await t.query(api.aggregate.kindCount, {
+        kind: 'session',
+        area: 'portuguese',
+        category: 'practice',
+        start,
+        end,
+      }),
+    ).toBe(2)
+    /* No category asked for is every session, as before. */
+    expect(
+      await t.query(api.aggregate.kindCount, {
+        kind: 'session',
+        area: 'portuguese',
+        start,
+        end,
+      }),
+    ).toBe(3)
+  })
+})
+
+describe('languageLevels', () => {
+  test('the latest level for each slug asked for', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await t.mutation(api.state.record, {
+      area: 'portuguese',
+      key: 'cefr_level:portuguese',
+      textValue: 'A2',
+      recordedAt: at('aug', 1),
+    })
+    await t.mutation(api.state.record, {
+      area: 'portuguese',
+      key: 'cefr_level:portuguese',
+      textValue: 'B1',
+      recordedAt: at('sep', 1),
+    })
+
+    const levels = await t.query(api.aggregate.languageLevels, {
+      slugs: ['portuguese'],
+    })
+    expect(levels).toEqual([
+      { slug: 'portuguese', textValue: 'B1', recordedAt: at('sep', 1) },
+    ])
+  })
+
+  test('a language with nothing recorded is an explicit null', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    const levels = await t.query(api.aggregate.languageLevels, {
+      slugs: ['portuguese'],
+    })
+    expect(levels).toEqual([
+      { slug: 'portuguese', textValue: null, recordedAt: null },
+    ])
+  })
+
+  test('the order asked for is the order returned', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    const levels = await t.query(api.aggregate.languageLevels, {
+      slugs: ['portuguese', 'body', 'money'],
+    })
+    expect(levels.map((l) => l.slug)).toEqual(['portuguese', 'body', 'money'])
+  })
+
+  test('another owner’s level is not yours', async () => {
+    const backend = convexTest(schema, modules)
+    const mine = backend.withIdentity({ tokenIdentifier: ME })
+    const theirs = backend.withIdentity({ tokenIdentifier: SOMEONE_ELSE })
+    await theirs.mutation(api.areas.ensure, {})
+    await theirs.mutation(api.state.record, {
+      area: 'portuguese',
+      key: 'cefr_level:portuguese',
+      textValue: 'C1',
+      recordedAt: at('sep', 1),
+    })
+
+    const levels = await mine.query(api.aggregate.languageLevels, {
+      slugs: ['portuguese'],
+    })
+    expect(levels[0].textValue).toBeNull()
+  })
+})

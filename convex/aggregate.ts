@@ -439,6 +439,59 @@ export const currentState = query({
 })
 
 /**
+ * The latest recorded level for each language asked for — source 2, one
+ * `stateSnapshots` row per slug, read through by_owner_key_time.
+ *
+ * The slugs arrive as an argument rather than being discovered here, for the
+ * same reason `currentState` has a fixed shape: a query whose result changes
+ * shape as a side effect of creating an area is one whose consumers cannot be
+ * typed. The caller knows which areas it is showing tabs for.
+ *
+ * A language with nothing recorded comes back as an explicit null rather than
+ * being missing. An absent entry would let a component render a gap that
+ * looks like a level of zero, and a level is words, not a number.
+ */
+export const languageLevels = query({
+  args: { slugs: v.array(v.string()) },
+  returns: v.array(
+    v.object({
+      slug: v.string(),
+      textValue: v.union(v.string(), v.null()),
+      recordedAt: v.union(v.number(), v.null()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+
+    const out: Array<{
+      slug: string
+      textValue: string | null
+      recordedAt: number | null
+    }> = []
+
+    for (const slug of args.slugs) {
+      /* Descending on [ownerId, key, recordedAt]: one document read per
+         language, not a scan of every level ever recorded. */
+      const row = await ctx.db
+        .query('stateSnapshots')
+        .withIndex('by_owner_key_time', (q) =>
+          q.eq('ownerId', ownerId).eq('key', `cefr_level:${slug}`),
+        )
+        .order('desc')
+        .first()
+
+      out.push({
+        slug,
+        textValue: row?.textValue ?? null,
+        recordedAt: row?.recordedAt ?? null,
+      })
+    }
+
+    return out
+  },
+})
+
+/**
  * The stored snapshots for one key, oldest first — the weight line.
  *
  * Source 2 read as a series rather than as a latest row, which §1 now allows
@@ -530,6 +583,10 @@ export const kindCount = query({
         Portuguese is not a work session, and a count that mixed them would
         say "5 this month" about neither. */
     area: v.optional(areaSlug),
+    /** Narrows a kind written by more than one verb within one area — a class
+        and an hour alone are both sessions filed under the same language, and
+        a count that mixed them would say "23 this month" about neither. */
+    category: v.optional(v.string()),
     /** Narrows to time on one project. */
     projectId: v.optional(v.id('projects')),
     /** Epoch ms, local midnight — inclusive. */
@@ -553,6 +610,7 @@ export const kindCount = query({
       (row) =>
         row.kind === args.kind &&
         (args.area === undefined || row.area === args.area) &&
+        (args.category === undefined || row.meta?.category === args.category) &&
         (args.projectId === undefined || row.projectId === args.projectId),
     ).length
   },

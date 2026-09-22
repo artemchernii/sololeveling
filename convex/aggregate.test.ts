@@ -526,3 +526,381 @@ describe('tileTargets is a goal’s targetValue per tile (PLAN.md §1)', () => {
     })
   })
 })
+
+describe('categoryDays — how often, per kind of thing', () => {
+  /* Local midnights, built by stepping days: the same rule weeks.ts keeps,
+     because an hour goes missing twice a year. */
+  function dayStartsBack(count: number, from = new Date()) {
+    const midnight = new Date(from)
+    midnight.setHours(0, 0, 0, 0)
+    return Array.from({ length: count }, (_, i) => {
+      const d = new Date(midnight)
+      d.setDate(d.getDate() - (count - 1 - i))
+      return d.getTime()
+    })
+  }
+
+  test('a row lands in the day it happened, and nowhere else', async () => {
+    const t = as(ME)
+    const days = dayStartsBack(7)
+    const end = days[6] + 86_400_000
+    await t.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[4] + 3_600_000,
+      category: 'gym',
+    })
+
+    const { rows, complete } = await t.query(api.aggregate.categoryDays, {
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: days,
+      end,
+      recentDays: 7,
+    })
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0].category).toBe('gym')
+    expect(rows[0].days).toEqual([0, 0, 0, 0, 1, 0, 0])
+    expect(rows[0].total).toBe(1)
+    expect(rows[0].activeRecent).toBe(1)
+    expect(complete).toBe(true)
+  })
+
+  test('two sessions in one day are one active day, and two rows', async () => {
+    const t = as(ME)
+    const days = dayStartsBack(7)
+    const end = days[6] + 86_400_000
+    for (const offset of [3_600_000, 7_200_000]) {
+      await t.mutation(api.logs.create, {
+        kind: 'workout',
+        area: 'body',
+        occurredAt: days[6] + offset,
+        category: 'gym',
+      })
+    }
+
+    const { rows } = await t.query(api.aggregate.categoryDays, {
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: days,
+      end,
+      recentDays: 7,
+    })
+    const [gym] = rows
+    expect(gym.days[6]).toBe(2)
+    expect(gym.total).toBe(2)
+    /* The count is "days with something on them", not rows — twice in one
+       day is one day you went. */
+    expect(gym.activeRecent).toBe(1)
+  })
+
+  test('each category is its own row, sorted, uncategorised last', async () => {
+    const t = as(ME)
+    const days = dayStartsBack(3)
+    const end = days[2] + 86_400_000
+    await t.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[0],
+      category: 'stretch',
+    })
+    await t.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[1],
+      category: 'gym',
+    })
+    /* A workout from before this row shipped. */
+    await t.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[2],
+    })
+
+    const { rows } = await t.query(api.aggregate.categoryDays, {
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: days,
+      end,
+      recentDays: 3,
+    })
+    expect(rows.map((r) => r.category)).toEqual(['gym', 'stretch', null])
+  })
+
+  test('an intake and a workout are separate rows even with the same word', async () => {
+    const t = as(ME)
+    const days = dayStartsBack(2)
+    const end = days[1] + 86_400_000
+    await t.mutation(api.logs.create, {
+      kind: 'intake',
+      area: 'body',
+      occurredAt: days[1],
+      category: 'supplements',
+    })
+    await t.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[1],
+      category: 'gym',
+    })
+
+    const { rows } = await t.query(api.aggregate.categoryDays, {
+      area: 'body',
+      kinds: ['workout', 'intake'],
+      dayStarts: days,
+      end,
+      recentDays: 2,
+    })
+    expect(rows.map((r) => [r.kind, r.category])).toEqual([
+      ['intake', 'supplements'],
+      ['workout', 'gym'],
+    ])
+  })
+
+  test('activeRecent covers only the trailing window asked for', async () => {
+    const t = as(ME)
+    const days = dayStartsBack(10)
+    const end = days[9] + 86_400_000
+    /* One long ago, one two days back. */
+    for (const i of [0, 8]) {
+      await t.mutation(api.logs.create, {
+        kind: 'workout',
+        area: 'body',
+        occurredAt: days[i],
+        category: 'gym',
+      })
+    }
+
+    const { rows } = await t.query(api.aggregate.categoryDays, {
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: days,
+      end,
+      recentDays: 3,
+    })
+    const [gym] = rows
+    expect(gym.total).toBe(2)
+    expect(gym.activeRecent).toBe(1)
+  })
+
+  test('another owner is not in your strip', async () => {
+    const backend = convexTest(schema, modules)
+    const days = dayStartsBack(2)
+    const end = days[1] + 86_400_000
+    await backend
+      .withIdentity({ tokenIdentifier: ME })
+      .mutation(api.logs.create, {
+        kind: 'workout',
+        area: 'body',
+        occurredAt: days[1],
+        category: 'gym',
+      })
+    const theirs = await backend
+      .withIdentity({ tokenIdentifier: SOMEONE_ELSE })
+      .query(api.aggregate.categoryDays, {
+        area: 'body',
+        kinds: ['workout'],
+        dayStarts: days,
+        end,
+        recentDays: 2,
+      })
+    expect(theirs.rows).toEqual([])
+  })
+
+  test('no days asked for is no days answered', async () => {
+    const { rows, complete } = await as(ME).query(api.aggregate.categoryDays, {
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: [],
+      end: Date.now(),
+      recentDays: 30,
+    })
+    expect(rows).toEqual([])
+    expect(complete).toBe(true)
+  })
+
+  test('a read that hits the row cap says so, keeping the newest day over the oldest', async () => {
+    const days = dayStartsBack(3)
+    const end = days[2] + 86_400_000
+
+    /* CATEGORY_DAYS_ROWS rows on the OLDEST day plus one more on the NEWEST,
+       written straight to the table — CATEGORY_DAYS_ROWS is sized for twelve
+       weeks of real capture, so reaching it through logs.create would mean
+       thousands of mutations for a fact this shows just as well with direct
+       inserts. One row over the cap: a `desc` read drops exactly one, and it
+       must be the oldest row, not the newest day's only row. */
+    const overflowing = as(ME)
+    await overflowing.run(async (ctx) => {
+      for (let i = 0; i < 1500; i += 1) {
+        await ctx.db.insert('logs', {
+          ownerId: ME,
+          kind: 'workout',
+          area: 'body',
+          occurredAt: days[0] + i,
+          meta: { category: 'gym' },
+        })
+      }
+    })
+    await overflowing.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[2],
+      category: 'gym',
+    })
+    const full = await overflowing.query(api.aggregate.categoryDays, {
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: days,
+      end,
+      recentDays: 3,
+    })
+    expect(full.complete).toBe(false)
+    const gym = full.rows.find((r) => r.category === 'gym')
+    /* The newest day's row survived the cap; the oldest day lost exactly
+       one of its 1500. Backwards (ascending, pre-fix) this would read
+       [1500, 0, 0] — the newest day emptied instead. */
+    expect(gym?.days).toEqual([1499, 0, 1])
+
+    const under = as(ME)
+    await under.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: days[1],
+      category: 'gym',
+    })
+    const partial = await under.query(api.aggregate.categoryDays, {
+      area: 'body',
+      kinds: ['workout'],
+      dayStarts: days,
+      end,
+      recentDays: 3,
+    })
+    expect(partial.complete).toBe(true)
+  })
+})
+
+describe('stateHistory — source 2 read as a series', () => {
+  test('the stored rows, oldest first, and nothing between them', async () => {
+    const t = as(ME)
+    const now = Date.now()
+    const week = 7 * 86_400_000
+    for (const [value, ts] of [
+      [77.2, now - 2 * week],
+      [76.1, now - week],
+      [75.4, now],
+    ] as const) {
+      await t.mutation(api.logs.create, {
+        kind: 'weight',
+        area: 'body',
+        occurredAt: ts,
+        value,
+        unit: 'kg',
+      })
+    }
+
+    const { rows: history } = await t.query(api.aggregate.stateHistory, {
+      key: 'weight',
+      start: now - 3 * week,
+      end: now + 86_400_000,
+    })
+
+    expect(history.map((r) => r.value)).toEqual([77.2, 76.1, 75.4])
+    expect(history.map((r) => r.recordedAt)).toEqual([
+      now - 2 * week,
+      now - week,
+      now,
+    ])
+    expect(history[0].unit).toBe('kg')
+  })
+
+  test('a row outside the window is not in it', async () => {
+    const t = as(ME)
+    const now = Date.now()
+    await t.mutation(api.logs.create, {
+      kind: 'weight',
+      area: 'body',
+      occurredAt: now - 90 * 86_400_000,
+      value: 80,
+      unit: 'kg',
+    })
+    const { rows: history } = await t.query(api.aggregate.stateHistory, {
+      key: 'weight',
+      start: now - 30 * 86_400_000,
+      end: now + 86_400_000,
+    })
+    expect(history).toEqual([])
+  })
+
+  test('another owner has their own history', async () => {
+    const backend = convexTest(schema, modules)
+    const now = Date.now()
+    await backend
+      .withIdentity({ tokenIdentifier: ME })
+      .mutation(api.logs.create, {
+        kind: 'weight',
+        area: 'body',
+        occurredAt: now,
+        value: 75.4,
+        unit: 'kg',
+      })
+    const theirs = await backend
+      .withIdentity({ tokenIdentifier: SOMEONE_ELSE })
+      .query(api.aggregate.stateHistory, {
+        key: 'weight',
+        start: now - 86_400_000,
+        end: now + 86_400_000,
+      })
+    expect(theirs.rows).toEqual([])
+  })
+
+  test('a read that hits the row cap says so, keeping the newest readings over the oldest', async () => {
+    const now = Date.now()
+
+    /* Rows over STATE_HISTORY_ROWS, written straight to the table —
+       STATE_HISTORY_ROWS is sized for a year and a half of twice-daily
+       readings, so reaching it through logs.create would mean thousands of
+       mutations for a fact this shows just as well with direct inserts.
+       i = 0 is the newest (recordedAt = now), i = 1000 the oldest. */
+    const overflowing = as(ME)
+    await overflowing.run(async (ctx) => {
+      for (let i = 0; i < 1001; i += 1) {
+        await ctx.db.insert('stateSnapshots', {
+          ownerId: ME,
+          area: 'body',
+          key: 'weight',
+          value: 75,
+          unit: 'kg',
+          recordedAt: now - i * 60_000,
+        })
+      }
+    })
+    const full = await overflowing.query(api.aggregate.stateHistory, {
+      key: 'weight',
+      start: now - 70_000_000,
+      end: now + 86_400_000,
+    })
+    expect(full.complete).toBe(false)
+    /* One row over the cap: the read drops exactly the oldest one (i = 1000)
+       and still returns oldest-first. Backwards (ascending, pre-fix) this
+       would keep i = 0..999 and the newest reading (`now`) would be the one
+       missing. */
+    expect(full.rows[0].recordedAt).toBe(now - 999 * 60_000)
+    expect(full.rows[full.rows.length - 1].recordedAt).toBe(now)
+
+    const under = as(ME)
+    await under.mutation(api.logs.create, {
+      kind: 'weight',
+      area: 'body',
+      occurredAt: now,
+      value: 75.4,
+      unit: 'kg',
+    })
+    const partial = await under.query(api.aggregate.stateHistory, {
+      key: 'weight',
+      start: now - 86_400_000,
+      end: now + 86_400_000,
+    })
+    expect(partial.complete).toBe(true)
+  })
+})

@@ -5,6 +5,7 @@ import { logKindValidator } from './logs'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
 import { query } from './_generated/server'
+import type { Doc } from './_generated/dataModel'
 
 /* PLAN.md §1: every number on screen comes from exactly one of four sources —
    a log count over a period, the latest stateSnapshots row for a key, an entity
@@ -20,6 +21,18 @@ import { query } from './_generated/server'
 const MAX_ROWS = 500
 /* A year of commits on a busy repo. Read once for the heatmap. */
 const YEAR_ROWS = 4000
+/* Twelve weeks of one area's logs, generously: the longest strip categoryDays
+   is asked to fill, at a ceiling well past what quick capture could fill it
+   with. Its own bound because it shares an area's whole log stream with
+   kinds `.take()` cannot filter out before this cap is checked — a `weight`
+   row costs the same slot as a `workout` row. */
+const CATEGORY_DAYS_ROWS = 1500
+/* Twice a day for a year and a half, generously. `stateHistory`'s `key` is a
+   `v.string()` — it is general over any state key someone starts recording,
+   not only weight — so it does not get to assume one key's volume the way a
+   query narrowed to `weight` alone might. Its own bound for the same reason
+   categoryDays got CATEGORY_DAYS_ROWS rather than sharing MAX_ROWS. */
+const STATE_HISTORY_ROWS = 1000
 
 /**
  * Rows in `tasks` matching a filter, per project. The projects grid's
@@ -411,6 +424,80 @@ export const currentState = query({
 })
 
 /**
+ * The stored snapshots for one key, oldest first — the weight line.
+ *
+ * Source 2 read as a series rather than as a latest row, which §1 now allows
+ * on written terms: this returns the rows and nothing between them. No
+ * smoothing, no interpolation across a gap, no trend line, no projection. A
+ * curve drawn through two weigh-ins three weeks apart claims a path that was
+ * never measured, which is the same lie as a price shown without its time.
+ *
+ * Descending through by_owner_key_time so the cap keeps the newest rows in
+ * the window, then reversed before returning — the contract is oldest first,
+ * a chart drawn left to right, and callers do not see which end a
+ * truncation would have cost.
+ *
+ * `complete` says whether the read reached `start` before hitting
+ * STATE_HISTORY_ROWS. Reading newest-first means a truncated read keeps the
+ * newest rows and drops the oldest — the direction a line can afford to be
+ * wrong in, since it draws one dot short at the far end rather than
+ * stopping short of today.
+ */
+export const stateHistory = query({
+  args: {
+    key: v.string(),
+    /** Epoch ms, inclusive. */
+    start: v.number(),
+    /** Epoch ms, exclusive. */
+    end: v.number(),
+  },
+  returns: v.object({
+    rows: v.array(
+      v.object({
+        value: v.optional(v.number()),
+        textValue: v.optional(v.string()),
+        unit: v.optional(v.string()),
+        recordedAt: v.number(),
+      }),
+    ),
+    /** False when the read hit STATE_HISTORY_ROWS before reaching `start` —
+        the oldest readings may be missing, not simply never recorded. */
+    complete: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('stateSnapshots')
+      .withIndex('by_owner_key_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('key', args.key)
+          .gte('recordedAt', args.start)
+          .lt('recordedAt', args.end),
+      )
+      .order('desc')
+      .take(STATE_HISTORY_ROWS)
+
+    return {
+      /* Reversed back to oldest-first: `.order('desc')` above picks which
+         rows survive a cap, not the order handed to callers. */
+      rows: rows
+        .map((row) => ({
+          value: row.value,
+          textValue: row.textValue,
+          unit: row.unit,
+          recordedAt: row.recordedAt,
+        }))
+        .reverse(),
+      /* Fewer rows than the cap means nothing was dropped on the floor —
+         the same signal categoryDays and projectActivity give for their own
+         reads. */
+      complete: rows.length < STATE_HISTORY_ROWS,
+    }
+  },
+})
+
+/**
  * Logs of one kind in a period: the "4 this month" beside a line you have just
  * logged, so Enter shows that it counted and not only that it saved.
  *
@@ -453,6 +540,135 @@ export const kindCount = query({
         (args.area === undefined || row.area === args.area) &&
         (args.projectId === undefined || row.projectId === args.projectId),
     ).length
+  },
+})
+
+/**
+ * How often, per kind of thing: one count per local day for every category
+ * present in an area's logs, plus how many of the last `recentDays` had
+ * something on them.
+ *
+ * Source 1 — log counts over a period, the same as the tiles, narrowed by the
+ * category the row stores. Counts of stored rows and nothing else: not a rate,
+ * not a streak, not a score. A streak was offered and declined (R6b spec §3.5)
+ * — it zeroes on a missed day, which punishes a fact rather than reporting it.
+ *
+ * `activeRecent` is days-with-something, not rows: going twice on Tuesday is
+ * one day you went. It is computed here rather than in the component because
+ * a component that counts an array it was handed is computing a number, and
+ * every number on screen comes from this file.
+ *
+ * Day boundaries arrive as arguments, as they do everywhere else here: the
+ * server does not know what day it is where you are.
+ *
+ * `complete` says whether the read reached the start of the window before
+ * hitting its row cap. It is one flag for the whole query, not per category:
+ * truncation is a property of the read, not of any one bucket. Silently
+ * dropping rows here would read as empty days rather than missing ones — the
+ * same failure PLAN.md §1 records from R3c's GitHub check, which once read
+ * one page of 100 commits and reported "100 this week · 0 last week" where
+ * the truth was 117 and 65. A truncated reading is not the reading.
+ *
+ * Read `desc` before the cap so a truncated read keeps the newest days and
+ * drops the oldest — bucketing by day below does not care which order rows
+ * arrive in, so this costs nothing and makes the strip's own truncation
+ * notice (Consistency.tsx: "older days not all stored") true rather than
+ * backwards.
+ */
+export const categoryDays = query({
+  args: {
+    area: areaSlug,
+    kinds: v.array(logKindValidator),
+    /** Local midnights, oldest first. */
+    dayStarts: v.array(v.number()),
+    /** Epoch ms, exclusive — the midnight after the last day asked for. */
+    end: v.number(),
+    /** How many trailing days `activeRecent` covers. */
+    recentDays: v.number(),
+  },
+  returns: v.object({
+    rows: v.array(
+      v.object({
+        kind: logKindValidator,
+        /* null: this row was logged before a category was stored for its
+           kind. */
+        category: v.union(v.string(), v.null()),
+        days: v.array(v.number()),
+        activeRecent: v.number(),
+        total: v.number(),
+      }),
+    ),
+    /** False when the read hit CATEGORY_DAYS_ROWS before reaching `dayStarts[0]`
+        — the oldest days may be missing rows, not empty of them. */
+    complete: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    if (args.dayStarts.length === 0) return { rows: [], complete: true }
+
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', args.area)
+          .gte('occurredAt', args.dayStarts[0])
+          .lt('occurredAt', args.end),
+      )
+      .order('desc')
+      .take(CATEGORY_DAYS_ROWS)
+
+    const wanted = new Set<string>(args.kinds)
+    type Bucket = {
+      kind: Doc<'logs'>['kind']
+      category: string | null
+      days: Array<number>
+    }
+    const buckets = new Map<string, Bucket>()
+
+    for (const row of rows) {
+      if (!wanted.has(row.kind)) continue
+      const category = row.meta?.category ?? null
+      const key = `${row.kind}::${category ?? ''}`
+      let bucket = buckets.get(key)
+      if (bucket === undefined) {
+        bucket = { kind: row.kind, category, days: args.dayStarts.map(() => 0) }
+        buckets.set(key, bucket)
+      }
+      /* Last bucket whose midnight is at or before the row — the same walk
+         projectTime and projectCommits do, over a list that is already
+         short. */
+      for (let i = args.dayStarts.length - 1; i >= 0; i -= 1) {
+        if (row.occurredAt >= args.dayStarts[i]) {
+          bucket.days[i] += 1
+          break
+        }
+      }
+    }
+
+    const from = Math.max(0, args.dayStarts.length - args.recentDays)
+    const result = [...buckets.values()]
+      .map((bucket) => ({
+        kind: bucket.kind,
+        category: bucket.category,
+        days: bucket.days,
+        activeRecent: bucket.days
+          .slice(from)
+          .reduce((n, count) => n + (count > 0 ? 1 : 0), 0),
+        total: bucket.days.reduce((n, count) => n + count, 0),
+      }))
+      .sort((a, b) => {
+        if (a.kind !== b.kind) return a.kind < b.kind ? -1 : 1
+        /* Uncategorised last: it is the bucket you are emptying, not one of
+           the things you do. */
+        if (a.category === null) return 1
+        if (b.category === null) return -1
+        return a.category < b.category ? -1 : 1
+      })
+
+    /* Fewer rows than the cap means nothing was dropped on the floor — the
+       same signal projectActivity gives for its own read. */
+    return { rows: result, complete: rows.length < CATEGORY_DAYS_ROWS }
   },
 })
 

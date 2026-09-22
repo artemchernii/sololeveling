@@ -14,6 +14,11 @@ const FUTURE_GRACE_MS = 5 * 60_000
 /* Enough history to find five different lines in, when the last few days were
    the same gym session over and over. */
 const RECENT_ROWS = 40
+/* Twelve weeks of one area's whole log stream, generously — the same
+   headroom aggregate.ts's CATEGORY_DAYS_ROWS gives categoryDays over the same
+   window: an area's rows share one cap regardless of kind, so a weight costs
+   the same slot as a workout. */
+const AREA_ROWS = 1500
 
 export const logKindValidator = v.union(
   v.literal('workout'),
@@ -27,6 +32,11 @@ export const logKindValidator = v.union(
   v.literal('people_met'),
   v.literal('task_done'),
   v.literal('piece'),
+  /* Something taken rather than something done (R6b): protein, creatine,
+     a vitamin. Deliberately NOT a workout — the dashboard's Body tile counts
+     kind:'workout' (aggregate.ts TILE_KINDS), so a creatine filed as one
+     would make the morning screen read "30 workouts this month". */
+  v.literal('intake'),
   v.literal('note'),
   v.literal('idea'),
   v.literal('custom'),
@@ -40,6 +50,12 @@ export const create = mutation({
     value: v.optional(v.number()),
     unit: v.optional(v.string()),
     text: v.optional(v.string()),
+    /* What kind of thing this was, within its kind: 'gym' / 'stretch' for a
+       workout, 'supplements' for an intake, 'class' / 'practice' for a
+       session. A plain string, not an enum — R6 was a row spent learning what
+       a fixed set costs, and a new type here is a word typed into the capture
+       chip rather than a deploy. */
+    category: v.optional(v.string()),
     taskId: v.optional(v.id('tasks')),
     projectId: v.optional(v.id('projects')),
   },
@@ -83,6 +99,10 @@ export const create = mutation({
       text: args.text,
       taskId: args.taskId,
       projectId: args.projectId,
+      /* Absent rather than `{ category: undefined }`: an empty meta object on
+         every row is a stored fact that says nothing. */
+      meta:
+        args.category === undefined ? undefined : { category: args.category },
     })
 
     /* §2's stated side-effect: a weight is both an event and a new current
@@ -145,6 +165,35 @@ export const recent = query({
 })
 
 /**
+ * The distinct categories already present in your own logs of one kind — the
+ * suggestions under the capture modal's category chip.
+ *
+ * Words, not numbers, which is why it lives here and not in aggregate.ts: it
+ * is a read of your own rows, the same shape as search.ts, and nothing on
+ * screen divides by it or counts it.
+ */
+export const categories = query({
+  args: { kind: logKindValidator },
+  returns: v.array(v.string()),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
+      .order('desc')
+      .take(MAX_ROWS)
+
+    const seen = new Set<string>()
+    for (const row of rows) {
+      if (row.kind !== args.kind) continue
+      const category = row.meta?.category
+      if (category !== undefined && category.length > 0) seen.add(category)
+    }
+    return [...seen].sort()
+  },
+})
+
+/**
  * A project's own session logs for a period, newest first (20 Sep).
  *
  * "What if I logged more time than I should" — the answer is the same one
@@ -173,6 +222,50 @@ export const listForProject = query({
       .order('desc')
       .take(RECENT_ROWS)
     return rows.filter((row) => row.kind === 'session')
+  },
+})
+
+/**
+ * Everything filed under one area since a time, newest first — RecentBody's
+ * feed on Body, and Languages' after it (R6b-b reuses this the way it reuses
+ * DayStrip and categoryDays).
+ *
+ * Scoped through `by_owner_area_time` rather than read broad and filtered in
+ * the component: `listSince` reads the newest rows across every area, so a
+ * body-only list built by filtering its result afterward would truncate
+ * quietly whenever other areas crowded body rows out of the shared cap — the
+ * same class of bug `categoryDays` and `stateHistory` were fixed for.
+ * `complete` says the same thing their own row bounds say.
+ */
+export const listForArea = query({
+  args: {
+    area: areaSlug,
+    /** Epoch ms, inclusive. */
+    since: v.number(),
+  },
+  returns: v.object({
+    rows: v.array(schema.doc('logs')),
+    complete: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', args.area)
+          .gte('occurredAt', args.since),
+      )
+      .order('desc')
+      .take(AREA_ROWS)
+    return {
+      rows,
+      /* Newest first with a cap: hitting it drops the OLDEST rows in the
+         window, not the newest — the same "older … not all stored" a reader
+         sees from Consistency and WeightLine when their own reads truncate. */
+      complete: rows.length < AREA_ROWS,
+    }
   },
 })
 

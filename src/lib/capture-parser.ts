@@ -41,6 +41,9 @@ export type ParsedLog = {
   unit?: string
   text?: string
   projectId?: Id<'projects'>
+  /** What kind of thing within its kind — 'gym', 'supplements', 'class'. A
+      plain string; the capture chip can set one the code has never seen. */
+  category?: string
 }
 
 /** What Enter does with a line: log it, write it as a note, or add a task. */
@@ -132,6 +135,8 @@ export type Verb = {
      that wrote it. */
   keepsWord?: boolean
   projectId?: Id<'projects'>
+  /** The category this verb files under, unless the chip changes it. */
+  category?: string
   /** The confirmation line under the chips: a sentence about what happened. */
   describe: (log: ParsedLog) => string
   /** How to type it. Lives beside the rule that has to accept it, so the hint
@@ -169,6 +174,7 @@ const VERBS: Array<Verb> = [
     words: ['gym', 'workout'],
     kind: 'workout',
     area: 'body',
+    category: 'gym',
     unit: 'min',
     amount: 'optional',
     icon: 'dumbbell',
@@ -181,6 +187,7 @@ const VERBS: Array<Verb> = [
     words: ['run'],
     kind: 'workout',
     area: 'body',
+    category: 'run',
     unit: 'min',
     amount: 'optional',
     icon: 'footprints',
@@ -194,6 +201,7 @@ const VERBS: Array<Verb> = [
     words: ['boxing'],
     kind: 'workout',
     area: 'body',
+    category: 'boxing',
     unit: 'min',
     amount: 'optional',
     icon: 'swords',
@@ -202,6 +210,41 @@ const VERBS: Array<Verb> = [
     example: 'boxing 60',
     hint: 'boxing — counts as a workout',
     keywords: ['box', 'sparring', 'fight', 'training', 'exercise'],
+  },
+  {
+    words: ['stretch'],
+    kind: 'workout',
+    area: 'body',
+    category: 'stretch',
+    unit: 'min',
+    amount: 'optional',
+    icon: 'dumbbell',
+    keepsWord: true,
+    describe: (l) => joined(capitalise(l.text ?? 'stretch'), minutes(l)),
+    example: 'stretch 15',
+    hint: 'a stretch — counts as a workout',
+    keywords: ['mobility', 'flexibility', 'yoga', 'warmup', 'cooldown'],
+  },
+  {
+    /* One tick, not two: protein and creatine are taken together, so
+       splitting them would record one habit twice (21 Sep, his call). A
+       second supplement later is another category, not another kind. */
+    words: ['supp', 'supplements'],
+    kind: 'intake',
+    area: 'body',
+    category: 'supplements',
+    amount: 'none',
+    /* Without this, a bare `supp` reads as an amount-none verb with nothing
+       after it — the same shape as a bare `event`, which the parser refuses
+       because there is nothing to describe. `supp` has nothing to describe
+       either; keeping the word is what lets it stand alone, the same way
+       `date` and `meeting` already do. */
+    keepsWord: true,
+    icon: 'dumbbell',
+    describe: () => 'Supplements',
+    example: 'supp',
+    hint: 'protein and creatine — one tick',
+    keywords: ['protein', 'creatine', 'shake', 'vitamins', 'supplement'],
   },
   {
     words: ['weight'],
@@ -225,6 +268,7 @@ const VERBS: Array<Verb> = [
     words: ['pt', 'portuguese'],
     kind: 'session',
     area: 'portuguese',
+    category: 'class',
     unit: 'min',
     amount: 'optional',
     icon: 'languages',
@@ -234,6 +278,23 @@ const VERBS: Array<Verb> = [
     example: 'pt',
     hint: 'a class, 50 min — or pt homework 20',
     keywords: ['class', 'lesson', 'homework', 'language', 'study', 'português'],
+  },
+  {
+    /* The solo counterpart to a class. Files under `portuguese` because a
+       verb's area is static in code (R6 decision 3) — with a second language
+       the area chip moves it, one tap, deliberately left to be felt before
+       anything cleverer is designed. */
+    words: ['practice'],
+    kind: 'session',
+    area: 'portuguese',
+    category: 'practice',
+    unit: 'min',
+    amount: 'optional',
+    icon: 'languages',
+    describe: (l) => joined('Practice', minutes(l), l.text),
+    example: 'practice 40',
+    hint: 'studying on your own, with no teacher',
+    keywords: ['study', 'self', 'homework', 'revision', 'solo', 'anki'],
   },
 
   /* — Work. Filed under career, and a session like pt — which is why the
@@ -611,6 +672,7 @@ export function parseCapture(
       area: verb.area,
       text: written,
       projectId: verb.projectId,
+      category: verb.category,
     }
     return {
       ok: true,
@@ -648,6 +710,7 @@ export function parseCapture(
     unit: verb.unit,
     text,
     projectId: verb.projectId,
+    category: verb.category,
   }
   return {
     ok: true,

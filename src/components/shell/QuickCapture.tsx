@@ -178,9 +178,15 @@ export function QuickCapture({
   )
   /** null is "now", resolved at the moment of logging, not of opening. */
   const [when, setWhen] = useState<number | null>(null)
-  const [picker, setPicker] = useState<'area' | 'when' | 'for' | 'time' | null>(
-    null,
-  )
+  const [picker, setPicker] = useState<
+    'area' | 'category' | 'when' | 'for' | 'time' | null
+  >(null)
+  /* Keyed by the verb's word, like areaFor: a category typed for `gym` must
+     not carry over to the next line's `spend`. */
+  const [categoryFor, setCategoryFor] = useState<{
+    word: string
+    category: string
+  } | null>(null)
   /* What a task is for, whether it goes straight onto today, and when it is
      planned. `for` is 'p:<id>', 'g:<id>' or '' — the backlog's BindSelect
      shape. Area and `for` survive a save, because a brain dump is usually
@@ -264,6 +270,7 @@ export function QuickCapture({
     if (open) {
       setInput(initialInput)
       setAreaFor(null)
+      setCategoryFor(null)
       setWhen(null)
       setPicker(null)
       setAttempted(false)
@@ -327,6 +334,23 @@ export function QuickCapture({
         ? undefined
         : redirect(verb.area)
     : undefined
+
+  /* The verb's category unless the chip changed it for this very line. */
+  const category: string | undefined = verb
+    ? categoryFor?.word === verb.word
+      ? categoryFor.category
+      : result.ok
+        ? result.log.category
+        : undefined
+    : undefined
+
+  /* Only while the picker is open: the chip is a rare path, and a standing
+     subscription for every capture would be a query per keystroke's worth of
+     re-render for a list almost nobody opens. */
+  const knownCategories = useQuery(
+    api.logs.categories,
+    picker === 'category' && verb ? { kind: verb.kind } : 'skip',
+  )
 
   /* Entering note mode: whatever followed `note` on the line moves into the
      sheet, and the line keeps only the word — so there is one place the note
@@ -531,6 +555,7 @@ export function QuickCapture({
       const id = await createLog({
         ...result.log,
         area: filed,
+        category,
         occurredAt: at,
       })
       /* Back to a blank line, ready for the next one. `when` goes back to now
@@ -547,6 +572,7 @@ export function QuickCapture({
       })
       setInput('')
       setAreaFor(null)
+      setCategoryFor(null)
       setWhen(null)
       setPicker(null)
       setAttempted(false)
@@ -638,6 +664,7 @@ export function QuickCapture({
          What was saved is the row at the top, with its undo. */
       setInput(`${trimmed.split(/\s+/)[0]} `)
       setAreaFor(null)
+      setCategoryFor(null)
       setTaskFor('')
       setTaskToday(false)
       setTaskTime(null)
@@ -776,6 +803,7 @@ export function QuickCapture({
       onClear={() => {
         setInput('')
         setAreaFor(null)
+        setCategoryFor(null)
         setWhen(null)
         setPicker(null)
         setAttempted(false)
@@ -1195,6 +1223,22 @@ export function QuickCapture({
               </span>
             </button>
 
+            {category !== undefined ? (
+              <button
+                type="button"
+                style={{ ...chipTone(area), ...beat(1) }}
+                className={`${NEUTRAL_CHIP} motion-arrive`}
+                aria-expanded={picker === 'category'}
+                onClick={() =>
+                  setPicker(picker === 'category' ? null : 'category')
+                }
+              >
+                <span className="font-mono text-[11px] tracking-[0.12em] uppercase">
+                  {category}
+                </span>
+              </button>
+            ) : null}
+
             {verb.amount !== 'none' ? (
               <label
                 style={{ ...chipTone(area), ...beat(1) }}
@@ -1425,6 +1469,44 @@ export function QuickCapture({
                   {choice.label}
                 </button>
               ))}
+            </div>
+          ) : null}
+
+          {picker === 'category' ? (
+            <div className="motion-arrive mt-3 flex flex-wrap items-center gap-1.5">
+              {(knownCategories ?? []).map((choice) => (
+                <button
+                  key={choice}
+                  type="button"
+                  onClick={() => {
+                    setCategoryFor({ word: verb.word, category: choice })
+                    setPicker(null)
+                    focusLine()
+                  }}
+                  className={`${CHIP} h-7 px-2.5 font-mono text-[10.5px] tracking-[0.12em] uppercase ${
+                    choice === category
+                      ? 'bg-(--area)/22 text-(--area) ring-1 ring-(--area)/50 ring-inset'
+                      : 'text-ink-500 hover:bg-(--area)/12 hover:text-(--area)'
+                  }`}
+                >
+                  {choice}
+                </button>
+              ))}
+              <input
+                type="text"
+                placeholder="new kind"
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const entered = e.currentTarget.value.trim().toLowerCase()
+                  if (entered.length === 0) return
+                  setCategoryFor({ word: verb.word, category: entered })
+                  setPicker(null)
+                  focusLine()
+                }}
+                className={`${CHIP} h-7 w-28 bg-lift/[0.06] px-2.5 font-mono text-[10.5px] tracking-[0.12em] text-ink-300 uppercase placeholder:text-ink-500 focus:outline-none`}
+              />
             </div>
           ) : null}
 

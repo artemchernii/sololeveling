@@ -369,6 +369,21 @@ export const tileTargets = query({
 
 export const STATE_KEYS = ['cefr_level', 'weight', 'net_worth'] as const
 
+/* The stateSnapshots key each field actually looks up. Since R6b-b a CEFR
+   level's key carries its language's slug (`cefr_level:<slug>`) — a second
+   language would otherwise share the bare `cefr_level` key with the first,
+   and latest-row-wins would let one shadow the other. Hard-coded to
+   Portuguese here because it is the only language recorded today; Task 7
+   replaces this with whichever language was most recently recorded, and the
+   field returned below stays named `cefr_level` regardless. `weight` and
+   `net_worth` have no such split — there is only one of each — so they stay
+   bare. */
+const STATE_LOOKUP_KEYS: Record<(typeof STATE_KEYS)[number], string> = {
+  cefr_level: 'cefr_level:portuguese',
+  weight: 'weight',
+  net_worth: 'net_worth',
+}
+
 const stateValue = v.union(
   v.object({
     value: v.optional(v.number()),
@@ -400,7 +415,7 @@ export const currentState = query({
       const row = await ctx.db
         .query('stateSnapshots')
         .withIndex('by_owner_key_time', (q) =>
-          q.eq('ownerId', ownerId).eq('key', key),
+          q.eq('ownerId', ownerId).eq('key', STATE_LOOKUP_KEYS[key]),
         )
         .order('desc')
         .first()

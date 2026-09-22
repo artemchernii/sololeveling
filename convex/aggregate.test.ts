@@ -158,9 +158,13 @@ describe('currentState is the latest row per key (PLAN.md §1)', () => {
 
   test('a text state works as well as a number — B1 is not a score', async () => {
     const t = as(ME)
+    /* Since R6b-b the key carries the language's slug (cefr_level:<slug>);
+       currentState() looks up cefr_level:portuguese for its cefr_level
+       field, hard-coded until Task 7 reads whichever language was most
+       recently recorded. */
     await t.mutation(api.state.record, {
       area: 'portuguese',
-      key: 'cefr_level',
+      key: 'cefr_level:portuguese',
       textValue: 'B1',
       recordedAt: at('sep', 1),
     })
@@ -168,6 +172,28 @@ describe('currentState is the latest row per key (PLAN.md §1)', () => {
     const state = await t.query(api.aggregate.currentState, {})
     expect(state.cefr_level?.textValue).toBe('B1')
     expect(state.cefr_level?.value).toBeUndefined()
+  })
+
+  test('the cefr_level field reads the per-language key, not the bare one (R6b-b)', async () => {
+    const t = as(ME)
+    /* A row still filed under the pre-migration bare key must not surface —
+       that key is dead now, which is exactly what the migration in
+       convex/state.ts exists to fix on real data. */
+    await t.mutation(api.state.record, {
+      area: 'portuguese',
+      key: 'cefr_level',
+      textValue: 'A2',
+      recordedAt: at('sep', 1),
+    })
+    await t.mutation(api.state.record, {
+      area: 'portuguese',
+      key: 'cefr_level:portuguese',
+      textValue: 'B1',
+      recordedAt: at('sep', 3),
+    })
+
+    const state = await t.query(api.aggregate.currentState, {})
+    expect(state.cefr_level?.textValue).toBe('B1')
   })
 
   test('targets are not state: they live on goals now (R2)', async () => {

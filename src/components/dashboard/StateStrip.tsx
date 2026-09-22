@@ -50,7 +50,11 @@ export function StateStrip({ today }: { today: number }) {
       lead: {
         text: state?.cefr_level?.textValue,
         slot: {
-          key: 'cefr_level',
+          /* Since R6b-b the key carries the language's slug, so the editor
+             writes where currentState() looks. Hard-coded to Portuguese
+             because it is the only language recorded today; Task 7 replaces
+             this with whichever language was most recently recorded. */
+          key: 'cefr_level:portuguese',
           area: 'portuguese',
           kind: 'text',
           placeholder: 'B1',

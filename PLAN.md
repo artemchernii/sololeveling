@@ -278,7 +278,7 @@ it is built in (R1–R7). Everything in §1–§2 and §3b–§3d still holds.
 | Backlog   | as is                                                                     | R3: created-at, bind to project/goal, "put it on the calendar"                                                                                                |
 | Notes     | as is                                                                     | R4: the knowledge base — more kinds (`style` among them), expanded editor, drag-and-drop images/PDFs (Convex file storage), YouTube embeds, bind to a project |
 | Finances  | renamed; still a placeholder                                              | R6b: Investments (portfolios, positions, prices as source 4), Balances, Spending                                                                              |
-| Body      | placeholder                                                               | R6b: Gym · Stretch · Boxing · Other, weight progress against a target                                                                                         |
+| Body      | placeholder                                                               | R6b-a (shipped): consistency first — a per-day strip per category, weight as a line against a goal's target, recent logs editable                            |
 | Languages | renamed; still a placeholder                                              | R6b: a tab per language you have filed something under — the areas R6 lets you invent, not a fixed Portuguese/English/German list                             |
 | Settings  | as is                                                                     | —                                                                                                                                                             |
 | Ask AI    | —                                                                         | R7: a ⌘-shortcut, not a page — a reader over your own rows, never a fifth source of numbers                                                                   |
@@ -549,6 +549,24 @@ counted from `logs` rows; a sum of logged amounts is none of the four sanctioned
 §1. Until that question is answered — a new source with written conditions, or a
 `stateSnapshots` balance read against nothing — a tile keeps its count and may show the
 goal's free-text `targetLabel` beside it as words. It belongs with R6 Finances.
+
+**R6b was split again on 21 Sep, into R6b-a (Body) and R6b-b (Languages).**
+One spec covers both — `docs/superpowers/specs/2026-09-21-r6b-body-and-languages-design.md` —
+and Body shipped first because Languages reuses its `DayStrip`, its category
+chip and `aggregate.categoryDays`. Finances is excluded from that spec
+entirely: a sum of logged amounts is none of the four sanctioned sources, and
+that question gets its own spec rather than holding up two pages that do not
+need it answered.
+
+**What Body's design changed (21 Sep).** §3 promised "Gym · Stretch · Boxing ·
+Other, weight progress against a target". Two of those did not survive contact
+with what he actually wanted. Consistency is the page's spine, not weight —
+"what is most important is consistency" — so the first section is a strip per
+category and weight is the second. And the four kinds are a starting set
+rather than a list: the type lives in `logs.meta.category` as a plain string,
+set by the verb and editable in the capture chip, because a fixed set of words
+is the thing R6 was spent unlearning. `stretch` did not exist as a verb and
+now does; `run` existed and was not in the four.
 
 **Rules that carry through every row:** every number from a sanctioned source (§1); three a
 day (§3c.1); the backlog never on Today (§3c.3); tasks and events two tables (§3b.3);

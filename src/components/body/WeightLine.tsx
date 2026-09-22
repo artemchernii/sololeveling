@@ -144,8 +144,15 @@ export function WeightLine() {
           )}
 
           {target === undefined ? (
+            /* Honest rather than aspirational (task 8, 21 Sep). The only
+               places `goals.targetValue` is written today are the month-tile
+               target in dashboard/ActionsLogged.tsx (a monthly count, not a
+               weight) and nowhere else — NewGoal.tsx writes `targetLabel`
+               only. There is no UI path to a weight target yet, so the line
+               says that rather than pointing at a form that cannot make one. */
             <p className="text-[11px] text-ink-700">
-              A body goal with a number puts a target line on this chart.
+              A weight target isn't settable yet — the goal form takes no
+              number.
             </p>
           ) : null}
         </>

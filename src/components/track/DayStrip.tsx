@@ -2,7 +2,7 @@ import { dayBlocks } from '@/lib/day-strip'
 
 /* One row of days, filled where something was logged (R6b).
 
-   Two tones and not a gradient: a supplement is taken or it is not, and a
+   Three tones and not a gradient: a supplement is taken or it is not, and a
    shade read back as a quantity would be a number nobody sanctioned. Where a
    day holds more than one row the square is stronger, and the title says the
    real figure — the square only says more or less, the same bargain the

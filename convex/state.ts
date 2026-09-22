@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { requireLiveArea } from './areas'
-import { mutation } from './_generated/server'
+import { internalMutation, mutation } from './_generated/server'
 import { areaSlug } from './schema'
 
 /* The only way a number reaches the CURRENT STATE strip. Nothing is seeded, so
@@ -61,5 +61,41 @@ export const remove = mutation({
     }
     await ctx.db.delete(args.snapshotId)
     return null
+  },
+})
+
+/**
+ * `cefr_level` becomes `cefr_level:portuguese` (R6b-b).
+ *
+ * The key was global while there was one language. A second one would have
+ * overwritten the first — "latest row wins" is what makes currentState true,
+ * and with one key that truth becomes a lie the moment two languages share
+ * it. The slug goes in the key rather than into a new index: the key is
+ * already a string and `by_owner_key_time` already leads with owner and key,
+ * so the composite reads as the same range scan.
+ *
+ * An internal mutation with no identity of its own — it migrates every
+ * owner's rows, each under the owner they already carry. Idempotent: a row
+ * already carrying a suffixed key is skipped, so running it twice is running
+ * it once.
+ *
+ * Run once against the deployment:
+ *   npx convex run state:migrateCefrKeys
+ */
+export const migrateCefrKeys = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    /* Every owner's rows, so this cannot be scoped by an owner index. It is
+       a one-off over a table holding one row per weigh-in and level, which is
+       small — and it is internal, so no client can reach it. */
+    const rows = await ctx.db.query('stateSnapshots').collect()
+    let moved = 0
+    for (const row of rows) {
+      if (row.key !== 'cefr_level') continue
+      await ctx.db.patch(row._id, { key: `cefr_level:${row.area}` })
+      moved += 1
+    }
+    return moved
   },
 })

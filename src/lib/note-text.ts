@@ -1,3 +1,5 @@
+import { videoId } from './youtube'
+
 /* A note is plain text that behaves like Apple Notes — PLAN option C, chosen
    13 Sep over a rich-text editor.
 
@@ -95,7 +97,38 @@ export type NoteBlock =
   | { type: 'heading'; text: string }
   | { type: 'item'; text: string; depth: number; ordered: string | null }
   | { type: 'paragraph'; text: string }
+  /* A pasted prompt, kept byte for byte (R4). Nothing inside it is parsed:
+     a `-` stays a hyphen and a `#` stays a hash, because a prompt copied back
+     out has to be the prompt that went in. */
+  | { type: 'fence'; text: string }
+  /* A line that is only a YouTube link. It carries the id, not the url, so
+     the view decides what to build from it and nothing else can be. */
+  | { type: 'video'; id: string }
   | { type: 'gap' }
+
+/** ``` on its own, optionally followed by a language nobody renders. */
+const FENCE = /^\s*```\s*\S*\s*$/
+
+/**
+ * A pasted chunk, wrapped in fences — or null when it should paste as it is.
+ *
+ * Three lines is the threshold. A prompt is several lines; a sentence that
+ * happens to wrap is one, and a line plus a trailing newline is still one, so
+ * trailing blanks are not counted. A link is never wrapped, because a link on
+ * its own line is a video.
+ *
+ * The wrap is written into the note's text rather than remembered somewhere,
+ * so what is stored is what is shown — and ⌘Z takes it back, because it is an
+ * ordinary edit like any other.
+ */
+export function fencePaste(text: string): string | null {
+  const body = text.replace(/\r\n?/g, '\n').replace(/\n+$/, '')
+  if (body.trim().length === 0) return null
+  if (FENCE.test(body.split('\n')[0])) return null
+  if (videoId(body) !== null) return null
+  if (body.split('\n').length < 3) return null
+  return `\`\`\`\n${body}\n\`\`\``
+}
 
 /**
  * The body as blocks for the reading view.
@@ -107,7 +140,25 @@ export type NoteBlock =
  */
 export function parseBlocks(body: string): Array<NoteBlock> {
   const blocks: Array<NoteBlock> = []
-  for (const raw of body.replace(/\r\n?/g, '\n').split('\n')) {
+  const lines = body.replace(/\r\n?/g, '\n').split('\n')
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const raw = lines[i]
+
+    /* A fence swallows lines until it closes, so everything below this point
+       — lists, headings, links — never sees them. An unclosed fence runs to
+       the end of the note: dropping the rest would lose what was written, and
+       rendering the ``` as a paragraph shows punctuation nobody typed. */
+    if (FENCE.test(raw)) {
+      const from = i + 1
+      let to = from
+      while (to < lines.length && !FENCE.test(lines[to])) to += 1
+      const text = lines.slice(from, to).join('\n')
+      if (text.trim().length > 0) blocks.push({ type: 'fence', text })
+      i = to
+      continue
+    }
+
     if (raw.trim().length === 0) {
       if (blocks.length > 0 && blocks.at(-1)!.type !== 'gap') {
         blocks.push({ type: 'gap' })
@@ -123,6 +174,13 @@ export function parseBlocks(body: string): Array<NoteBlock> {
         depth: Math.floor(indent.replace(/\t/g, '  ').length / 2),
         ordered: /\d/.test(marker) ? marker : null,
       })
+      continue
+    }
+    /* After the list check, so `- <link>` stays a bullet you can read, and
+       before the heading check, so a link is never mistaken for a title. */
+    const video = videoId(raw)
+    if (video !== null) {
+      blocks.push({ type: 'video', id: video })
       continue
     }
     const hashed = /^#{1,6}\s+(.*)$/.exec(raw.trim())

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import type { Ref } from 'react'
 
-import { continueList, indentLine } from '@/lib/note-text'
+import { continueList, fencePaste, indentLine } from '@/lib/note-text'
 
 /* Plain text that writes like Apple Notes: the first line is the title, a list
    carries itself on, Tab indents. The behaviour lives in lib/note-text.ts;
@@ -61,6 +61,22 @@ export function NoteEditor({
       spellCheck
       rows={6}
       onChange={(e) => onChange(e.target.value)}
+      onPaste={(e) => {
+        /* Files are the attachment zone's, not ours — it claims them on the
+           way past and this never sees them. */
+        if (e.clipboardData.files.length > 0) return
+        const wrapped = fencePaste(e.clipboardData.getData('text/plain'))
+        if (wrapped === null) return
+        e.preventDefault()
+        const el = e.currentTarget
+        const { selectionStart: from, selectionEnd: to } = el
+        const next = value.slice(0, from) + wrapped + value.slice(to)
+        const caret = from + wrapped.length
+        onChange(next)
+        requestAnimationFrame(() => {
+          own.current?.setSelectionRange(caret, caret)
+        })
+      }}
       onKeyDown={(e) => {
         const el = e.currentTarget
         if (e.key === 'Backspace' && value.length === 0 && onEmptyBackspace) {

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import {
   continueList,
+  fencePaste,
   indentLine,
   joinNote,
   parseBlocks,
@@ -141,5 +142,156 @@ describe('parseBlocks — the reading view', () => {
 
   test('a short capital like "OK" is not a heading', () => {
     expect(parseBlocks('OK then')[0].type).toBe('paragraph')
+  })
+})
+
+describe('parseBlocks — a fenced block is kept exactly as it was pasted', () => {
+  test('the lines between the fences become one block', () => {
+    const blocks = parseBlocks(
+      '```\nYou are a helpful assistant.\nBe terse.\n```',
+    )
+    expect(blocks).toEqual([
+      { type: 'fence', text: 'You are a helpful assistant.\nBe terse.' },
+    ])
+  })
+
+  test('every space and every blank line survives', () => {
+    /* The whole point: a prompt copied back out has to be the prompt that
+       went in. Indentation and blank lines are part of it. */
+    const body = '```\n  indented\n\n    more\n```'
+    const blocks = parseBlocks(body)
+    expect(blocks).toEqual([{ type: 'fence', text: '  indented\n\n    more' }])
+  })
+
+  test('a list inside a fence stays text, not bullets', () => {
+    const blocks = parseBlocks('```\n- one\n- two\n```')
+    expect(blocks).toEqual([{ type: 'fence', text: '- one\n- two' }])
+  })
+
+  test('a heading inside a fence stays text', () => {
+    const blocks = parseBlocks('```\n# Not a heading\nПОКУПКИ\n```')
+    expect(blocks).toEqual([
+      { type: 'fence', text: '# Not a heading\nПОКУПКИ' },
+    ])
+  })
+
+  test('text around a fence is parsed as usual', () => {
+    const blocks = parseBlocks('Before\n\n```\nprompt\n```\n\n- after')
+    expect(blocks).toEqual([
+      { type: 'paragraph', text: 'Before' },
+      { type: 'gap' },
+      { type: 'fence', text: 'prompt' },
+      { type: 'gap' },
+      { type: 'item', text: 'after', depth: 0, ordered: null },
+    ])
+  })
+
+  test('two fences are two blocks', () => {
+    const blocks = parseBlocks('```\none\n```\n```\ntwo\n```')
+    expect(blocks).toEqual([
+      { type: 'fence', text: 'one' },
+      { type: 'fence', text: 'two' },
+    ])
+  })
+
+  test('a fence that is never closed still ends the note', () => {
+    /* Half-typed, or pasted without its closing line. Swallowing the rest is
+       better than dropping it, and better than rendering ``` as a paragraph. */
+    const blocks = parseBlocks('```\nstill writing\nand more')
+    expect(blocks).toEqual([{ type: 'fence', text: 'still writing\nand more' }])
+  })
+
+  test('an empty fence is no block at all', () => {
+    expect(parseBlocks('```\n```')).toEqual([])
+  })
+
+  test('a fence with a language after the ticks is still a fence', () => {
+    const blocks = parseBlocks('```ts\nconst a = 1\n```')
+    expect(blocks).toEqual([{ type: 'fence', text: 'const a = 1' }])
+  })
+})
+
+describe('parseBlocks — a line that is only a YouTube link becomes a video', () => {
+  test('a link alone on its line', () => {
+    expect(parseBlocks('https://youtu.be/dQw4w9WgXcQ')).toEqual([
+      { type: 'video', id: 'dQw4w9WgXcQ' },
+    ])
+  })
+
+  test('a link with words around it stays a paragraph', () => {
+    const blocks = parseBlocks('watch https://youtu.be/dQw4w9WgXcQ later')
+    expect(blocks).toEqual([
+      { type: 'paragraph', text: 'watch https://youtu.be/dQw4w9WgXcQ later' },
+    ])
+  })
+
+  test('a link inside a fence is text, not a video', () => {
+    /* A fence is verbatim. A prompt that mentions a video must not sprout a
+       player in the middle of it. */
+    expect(parseBlocks('```\nhttps://youtu.be/dQw4w9WgXcQ\n```')).toEqual([
+      { type: 'fence', text: 'https://youtu.be/dQw4w9WgXcQ' },
+    ])
+  })
+
+  test('a link in a list item stays a list item', () => {
+    const blocks = parseBlocks('- https://youtu.be/dQw4w9WgXcQ')
+    expect(blocks).toEqual([
+      {
+        type: 'item',
+        text: 'https://youtu.be/dQw4w9WgXcQ',
+        depth: 0,
+        ordered: null,
+      },
+    ])
+  })
+
+  test('a link to something else stays a paragraph', () => {
+    expect(parseBlocks('https://example.com/watch?v=dQw4w9WgXcQ')).toEqual([
+      { type: 'paragraph', text: 'https://example.com/watch?v=dQw4w9WgXcQ' },
+    ])
+  })
+})
+
+describe('fencePaste — a long paste wraps itself so it can be copied back out', () => {
+  test('three or more lines are wrapped', () => {
+    expect(fencePaste('one\ntwo\nthree')).toBe('```\none\ntwo\nthree\n```')
+  })
+
+  test('two lines are left alone — that is a sentence that wrapped', () => {
+    expect(fencePaste('one\ntwo')).toBeNull()
+  })
+
+  test('one line is left alone however long it is', () => {
+    expect(fencePaste('x'.repeat(2000))).toBeNull()
+  })
+
+  test('a pasted link is never wrapped', () => {
+    /* It would stop being a video, which is the other half of this row. */
+    expect(fencePaste('https://youtu.be/dQw4w9WgXcQ')).toBeNull()
+  })
+
+  test('blank lines count as lines, and survive the wrapping', () => {
+    expect(fencePaste('one\n\ntwo')).toBe('```\none\n\ntwo\n```')
+  })
+
+  test('trailing blank lines do not make a two-line paste long', () => {
+    /* Copying a paragraph often brings a trailing newline. That is still one
+       line of text, and wrapping it would be the annoying case. */
+    expect(fencePaste('one\n\n')).toBeNull()
+    expect(fencePaste('one\ntwo\n')).toBeNull()
+  })
+
+  test('text already fenced is not fenced twice', () => {
+    const already = '```\none\ntwo\nthree\n```'
+    expect(fencePaste(already)).toBeNull()
+  })
+
+  test('nothing, and whitespace, are left alone', () => {
+    expect(fencePaste('')).toBeNull()
+    expect(fencePaste('\n\n\n')).toBeNull()
+  })
+
+  test('carriage returns do not change the count', () => {
+    expect(fencePaste('one\r\ntwo\r\nthree')).toBe('```\none\ntwo\nthree\n```')
   })
 })

@@ -16,7 +16,7 @@ progress bars only when an explicit target exists · **everything is created by 
 - **TanStack Start** (Vite, React 19, file-based routes, SSR + server functions) · TS · Tailwind v4 · shadcn/ui · lucide
 - **Convex** — DB + backend functions + realtime. Schema in TS, no migrations, no SQL.
 - **Clerk** — auth (Google one-tap), wired via `ConvexProviderWithClerk`. Multi-tenant from day one: every row carries `ownerId` (see §2).
-- `date-fns` + `rrule` (client-side expansion) · `cmdk` for ⌘K quick capture
+- `date-fns` + `rrule` (client-side expansion) · `cmdk` for ⌘K search / ⌘L quick capture
 - Deploy: Convex Cloud (backend) + **Cloudflare Workers** for the Start app via `@cloudflare/vite-plugin`
   (official TanStack partner, free tier, one `wrangler.jsonc`). Fallback: Netlify with `@netlify/vite-plugin-tanstack-start`. PWA manifest.
 
@@ -34,7 +34,7 @@ gives a fast first paint on mobile and a place for server functions later (cron 
     _app/{money,body,social,portuguese,career,style,knowledge}.tsx   (phase 7+, empty)
     _app/{notes,principles,reviews,settings}.tsx  login.tsx
   components/
-    shell/      TopBar, SideNav, MobileNav, QuickCapture (⌘K)
+    shell/      TopBar, SideNav, MobileNav, SearchPalette (⌘K), QuickCapture (⌘L)
     dashboard/  TodayCard, ChainsCard, StateStrip, ActionsLogged, QuestList
     ui/         shadcn
   lib/          capture-parser.ts, recurrence.ts, format.ts

@@ -5,6 +5,19 @@
    Being short reads as words, never as red (§3, 15 Sep): "4 to go" is what
    is true, and it needs no colour to be heard. */
 
+/** Local month boundaries, computed here because the server cannot know them.
+    Shared by StateStrip, ActionsLogged and LanguagePanel — every caller that
+    needs [prevStart, monthStart) and [monthStart, nextStart) for
+    `monthCounts`/`kindCount` builds them the same way, once. */
+export function monthRange(now: number) {
+  const d = new Date(now)
+  return {
+    prevStart: new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime(),
+    monthStart: new Date(d.getFullYear(), d.getMonth(), 1).getTime(),
+    nextStart: new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime(),
+  }
+}
+
 /** Days left in the month, counting today: 16 on 15 Sep, 1 on the 30th. */
 export function daysLeftInMonth(date: Date): number {
   const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()

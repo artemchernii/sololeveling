@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { daysLeftInMonth, targetLine } from './month'
+import { daysLeftInMonth, monthRange, targetLine } from './month'
 
 describe('days left in the month, counting today', () => {
   test('15 Sep has 16 left, today among them', () => {
@@ -33,5 +33,23 @@ describe('the words under a tile with a target', () => {
 
   test('the last day is named', () => {
     expect(targetLine(7, 9, 1)).toBe('2 to go · last day')
+  })
+})
+
+describe('monthRange', () => {
+  test('brackets this month and the one before it, at local midnight', () => {
+    const now = new Date(2026, 8, 15, 14, 30).getTime()
+    const range = monthRange(now)
+    expect(new Date(range.prevStart)).toEqual(new Date(2026, 7, 1))
+    expect(new Date(range.monthStart)).toEqual(new Date(2026, 8, 1))
+    expect(new Date(range.nextStart)).toEqual(new Date(2026, 9, 1))
+  })
+
+  test('crosses a year boundary in both directions', () => {
+    const now = new Date(2027, 0, 5).getTime()
+    const range = monthRange(now)
+    expect(new Date(range.prevStart)).toEqual(new Date(2026, 11, 1))
+    expect(new Date(range.monthStart)).toEqual(new Date(2027, 0, 1))
+    expect(new Date(range.nextStart)).toEqual(new Date(2027, 1, 1))
   })
 })

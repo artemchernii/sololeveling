@@ -6,7 +6,6 @@ import { X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import { AreaBadge } from '@/components/AreaBadge'
-import { monthRange } from '@/components/dashboard/StateStrip'
 import { LevelEditor } from '@/components/languages/LevelEditor'
 import { DayStrip } from '@/components/track/DayStrip'
 import { areaVars } from '@/lib/areas'
@@ -18,6 +17,7 @@ import {
   STRIP_WEEKS,
 } from '@/lib/day-strip'
 import { aheadLabel, whenLabel } from '@/lib/format'
+import { monthRange } from '@/lib/month'
 import { buildTimeline } from '@/lib/timeline'
 
 /* One language's panel (R6b-b). Every number here is a log count, the latest

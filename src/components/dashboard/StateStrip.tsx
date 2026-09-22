@@ -5,6 +5,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { api } from '../../../convex/_generated/api'
 import type { Area } from '@/lib/capture-parser'
 import { whenLabel } from '@/lib/format'
+import { monthRange } from '@/lib/month'
 
 /* PLAN.md §3 item 3. Four cells, each labelled with its source — Business and
    Career went on 15 Sep: projects were already counted on Projects, and
@@ -21,9 +22,20 @@ import { whenLabel } from '@/lib/format'
    `languageLevels()` across every area ticked as a language and shows
    whichever was recorded most recently, the same latest-row-wins rule
    `currentState()` already applies to one key. Languages' quieter half is
-   "2 of 4 sessions": the month's count against the target set on the
-   Languages month tile — a goal's targetValue, the same number the tile
+   "2 of 4 Portuguese sessions": the month's count against the target set on
+   the Languages month tile — a goal's targetValue, the same number the tile
    reads (R2). It is set there, not here, so there is one place to change it.
+
+   The lead and the trail can name different languages on purpose. The tile
+   the trail reads from is fixed to `portuguese` (PLAN.md §3 item 4 — six
+   tiles, not derived from the areas list), but the lead follows whichever
+   language was most recently recorded. So the trail spells out its own
+   noun — the `portuguese` area's *label*, read live off `areas.list()`, not
+   the word "Portuguese" hard-coded — so a reader is told, not left to
+   assume the two halves agree. If that area is ever renamed the noun
+   follows; if it is retired (areas.list() excludes retired rows) the trail
+   falls back to the bare "sessions" it had before naming existed, rather
+   than naming a language that no longer shows anywhere else.
 
    Nothing is seeded, so these editors are the only way any of this is ever
    filled. A cell with nothing recorded shows an em dash, never a zero: zero is
@@ -66,6 +78,14 @@ export function StateStrip({ today }: { today: number }) {
     api.aggregate.languageLevels,
     areas === undefined ? 'skip' : { slugs: languages.map((a) => a.slug) },
   )
+
+  /* The label of the area the trail's count actually comes from — read live
+     off `areas.list()`, not the word "Portuguese" written into the string.
+     `undefined` while areas is loading, and also once retired: a retired
+     area is left out of this list on purpose, and the trail falls back to a
+     bare noun rather than naming a language that appears nowhere else on
+     screen. */
+  const portugueseLabel = areas?.find((a) => a.slug === 'portuguese')?.label
 
   /* Latest row wins across every language ticked, exactly as it already does
      across every log under one key — this just widens the set of keys it
@@ -123,15 +143,18 @@ export function StateStrip({ today }: { today: number }) {
               },
       },
       trail: {
+        /* The count and the target are unchanged since R6b-b: the month tile
+           still counts Portuguese sessions only (PLAN.md §3), regardless of
+           which language the lead half is naming. What changed is the noun —
+           it now says "Portuguese" (the area's label, not a hard-coded word)
+           so the trail is honest about which language it counts even when
+           the lead is naming a different one. */
         text: ofTarget(
           counts?.portuguese.now,
-          /* The number only. The words a tile may carry belong on the tile,
-             not in a one-line "2 of 4 sessions". Unchanged since R6b-b: the
-             month tile still counts Portuguese sessions only (PLAN.md §3),
-             so this reads the same `portuguese` bucket regardless of which
-             language the lead half is naming. */
           targets?.portuguese?.value,
-          'sessions',
+          portugueseLabel === undefined
+            ? 'sessions'
+            : `${portugueseLabel} sessions`,
         ),
       },
     },
@@ -313,14 +336,4 @@ function ofTarget(
   return targetValue === undefined
     ? `${count} ${noun}`
     : `${count} of ${targetValue} ${noun}`
-}
-
-/** Local month boundaries, computed here because the server cannot know them. */
-export function monthRange(now: number) {
-  const d = new Date(now)
-  return {
-    prevStart: new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime(),
-    monthStart: new Date(d.getFullYear(), d.getMonth(), 1).getTime(),
-    nextStart: new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime(),
-  }
 }

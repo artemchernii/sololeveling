@@ -48,7 +48,7 @@ export function Consistency() {
       {result === undefined ? null : result.rows.length === 0 ? (
         <p className="text-[13px] text-ink-500">
           Nothing logged under Body yet. Press{' '}
-          <span className="font-mono text-ink-300">⌘K</span> and type{' '}
+          <span className="font-mono text-ink-300">⌘L</span> and type{' '}
           <span className="font-mono text-ink-300">gym</span>,{' '}
           <span className="font-mono text-ink-300">stretch</span> or{' '}
           <span className="font-mono text-ink-300">supp</span> — the strip

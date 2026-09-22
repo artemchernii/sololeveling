@@ -132,6 +132,12 @@ export default defineSchema({
     /* Where this area's capture verbs file now. Required when retiring an
        area a verb names; always a live slug, so resolveSlug needs one hop. */
     replacedBy: v.optional(v.string()),
+    /* Which TRACK page claims this area (R6b-b). Named generally and valued
+       narrowly: Body claiming areas the same way later is one more literal
+       here, not a second field. An area is a language because this says so —
+       deriving it from session logs would need an exclusion for `work`, which
+       is the hardcoded list R6 spent a row removing. */
+    track: v.optional(v.literal('language')),
   })
     .index('by_owner_order', ['ownerId', 'order'])
     .index('by_owner_slug', ['ownerId', 'slug']),

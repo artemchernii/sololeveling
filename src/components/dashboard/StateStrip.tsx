@@ -4,18 +4,38 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import type { Area } from '@/lib/capture-parser'
+import { whenLabel } from '@/lib/format'
+import { monthRange } from '@/lib/month'
 
 /* PLAN.md §3 item 3. Four cells, each labelled with its source — Business and
    Career went on 15 Sep: projects were already counted on Projects, and
    Career had nothing to count. Every number here comes from currentState(),
-   monthCounts() or tileTargets(); this component reads them and renders
-   them, and computes none of them.
+   monthCounts(), tileTargets() or (since Task 7) languageLevels(); areas.list()
+   supplies only the language's slug and label, never a number. This component
+   reads these and renders them, and computes none of them.
 
    The big value is state ("B1", "75.4 kg") and is recorded by clicking it.
-   Languages' quieter half is "2 of 4 sessions": the month's count against
-   the target set on the Languages month tile — a goal's targetValue, the
-   same number the tile reads (R2). It is set there, not here, so there is
-   one place to change it.
+   Since Task 7 the Languages cell names which language its level belongs to
+   — "B1 · Portuguese · today 14:05" — because currentState()'s bare
+   `cefr_level` key stopped being able to say once a second language could
+   exist (Task 3's migration to `cefr_level:<slug>`). It reads
+   `languageLevels()` across every area ticked as a language and shows
+   whichever was recorded most recently, the same latest-row-wins rule
+   `currentState()` already applies to one key. Languages' quieter half is
+   "2 of 4 Portuguese sessions": the month's count against the target set on
+   the Languages month tile — a goal's targetValue, the same number the tile
+   reads (R2). It is set there, not here, so there is one place to change it.
+
+   The lead and the trail can name different languages on purpose. The tile
+   the trail reads from is fixed to `portuguese` (PLAN.md §3 item 4 — six
+   tiles, not derived from the areas list), but the lead follows whichever
+   language was most recently recorded. So the trail spells out its own
+   noun — the `portuguese` area's *label*, read live off `areas.list()`, not
+   the word "Portuguese" hard-coded — so a reader is told, not left to
+   assume the two halves agree. If that area is ever renamed the noun
+   follows; if it is retired (areas.list() excludes retired rows) the trail
+   falls back to the bare "sessions" it had before naming existed, rather
+   than naming a language that no longer shows anywhere else.
 
    Nothing is seeded, so these editors are the only way any of this is ever
    filled. A cell with nothing recorded shows an em dash, never a zero: zero is
@@ -27,6 +47,11 @@ type Slot = {
   kind: 'number' | 'text'
   unit?: string
   placeholder: string
+  /** Read aloud in the editor's aria-label/title in place of the key. Needed
+      since Task 7: `cefr_level:portuguese`'s colon and slug are not words a
+      person should have read back to them, so a slot whose key carries one
+      says how to announce itself instead of leaving the label to guess. */
+  announce?: string
 }
 
 type Cell = {
@@ -42,27 +67,94 @@ export function StateStrip({ today }: { today: number }) {
   const state = useQuery(api.aggregate.currentState, {})
   const counts = useQuery(api.aggregate.monthCounts, monthRange(today))
   const targets = useQuery(api.aggregate.tileTargets, {})
+  const areas = useQuery(api.areas.list, {})
+
+  /* The areas ticked as a language, in `areas.order` — the same set and the
+     same order LanguageTabs draws its tabs from. `api.areas.list({})`
+     already excludes retired areas, so there is no `includeRetired` to pass
+     wrong here. */
+  const languages = areas?.filter((a) => a.track === 'language') ?? []
+  const levels = useQuery(
+    api.aggregate.languageLevels,
+    areas === undefined ? 'skip' : { slugs: languages.map((a) => a.slug) },
+  )
+
+  /* The label of the area the trail's count actually comes from — read live
+     off `areas.list()`, not the word "Portuguese" written into the string.
+     `undefined` while areas is loading, and also once retired: a retired
+     area is left out of this list on purpose, and the trail falls back to a
+     bare noun rather than naming a language that appears nowhere else on
+     screen. */
+  const portugueseLabel = areas?.find((a) => a.slug === 'portuguese')?.label
+
+  /* Latest row wins across every language ticked, exactly as it already does
+     across every log under one key — this just widens the set of keys it
+     wins across. `languageLevels` is itself sourced from `stateSnapshots`
+     (aggregate.ts); picking the greatest `recordedAt` among the rows it
+     already returned is a selection over a source, not a fifth one. */
+  let latestLanguage:
+    | { slug: string; label: string; textValue: string; recordedAt: number }
+    | undefined
+  for (const entry of levels ?? []) {
+    if (entry.textValue === null || entry.recordedAt === null) continue
+    if (
+      latestLanguage !== undefined &&
+      entry.recordedAt <= latestLanguage.recordedAt
+    ) {
+      continue
+    }
+    const area = languages.find((a) => a.slug === entry.slug)
+    if (area === undefined) continue
+    latestLanguage = {
+      slug: entry.slug,
+      label: area.label,
+      textValue: entry.textValue,
+      recordedAt: entry.recordedAt,
+    }
+  }
+
+  /* Where the editor writes when nothing is recorded yet: the first language
+     ticked, so there is always somewhere to type a first level as long as
+     one language exists. With none ticked there is nothing to record a level
+     for, and the cell shows an em dash with no editor at all. */
+  const editorArea = latestLanguage ?? languages.at(0)
 
   const cells: Array<Cell> = [
     {
       label: 'Languages',
       source: 'state · log count',
       lead: {
-        text: state?.cefr_level?.textValue,
-        slot: {
-          key: 'cefr_level',
-          area: 'portuguese',
-          kind: 'text',
-          placeholder: 'B1',
-        },
+        text:
+          latestLanguage === undefined
+            ? undefined
+            : `${latestLanguage.textValue} · ${latestLanguage.label} · ${whenLabel(latestLanguage.recordedAt)}`,
+        slot:
+          editorArea === undefined
+            ? undefined
+            : {
+                /* The key carries the language's slug (Task 3's migration),
+                   so the editor writes where `languageLevels` looks for that
+                   language, not a bare `cefr_level` nothing reads any more. */
+                key: `cefr_level:${editorArea.slug}`,
+                area: editorArea.slug,
+                kind: 'text',
+                placeholder: 'B1',
+                announce: `${editorArea.label} level`,
+              },
       },
       trail: {
+        /* The count and the target are unchanged since R6b-b: the month tile
+           still counts Portuguese sessions only (PLAN.md §3), regardless of
+           which language the lead half is naming. What changed is the noun —
+           it now says "Portuguese" (the area's label, not a hard-coded word)
+           so the trail is honest about which language it counts even when
+           the lead is naming a different one. */
         text: ofTarget(
           counts?.portuguese.now,
-          /* The number only. The words a tile may carry belong on the tile,
-             not in a one-line "2 of 4 sessions". */
           targets?.portuguese?.value,
-          'sessions',
+          portugueseLabel === undefined
+            ? 'sessions'
+            : `${portugueseLabel} sessions`,
         ),
       },
     },
@@ -201,7 +293,7 @@ function Editable({
           if (e.key === 'Escape') setEditing(false)
         }}
         placeholder={slot.placeholder}
-        aria-label={`Record ${slot.key.replace(/_/g, ' ')}`}
+        aria-label={`Record ${slot.announce ?? slot.key.replace(/_/g, ' ')}`}
         className="w-28 rounded-[6px] border border-lav-500/50 bg-sink/20 px-2 py-0.5 font-mono text-[13px] text-foreground outline-none"
       />
     )
@@ -211,7 +303,7 @@ function Editable({
     <button
       type="button"
       onClick={() => setEditing(true)}
-      title={`Record ${slot.key.replace(/_/g, ' ')}`}
+      title={`Record ${slot.announce ?? slot.key.replace(/_/g, ' ')}`}
       className={`-mx-1 rounded-[5px] px-1 transition-colors hover:bg-lift/10 ${className}`}
     >
       {children}
@@ -244,14 +336,4 @@ function ofTarget(
   return targetValue === undefined
     ? `${count} ${noun}`
     : `${count} of ${targetValue} ${noun}`
-}
-
-/** Local month boundaries, computed here because the server cannot know them. */
-export function monthRange(now: number) {
-  const d = new Date(now)
-  return {
-    prevStart: new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime(),
-    monthStart: new Date(d.getFullYear(), d.getMonth(), 1).getTime(),
-    nextStart: new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime(),
-  }
 }

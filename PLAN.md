@@ -16,7 +16,7 @@ progress bars only when an explicit target exists · **everything is created by 
 - **TanStack Start** (Vite, React 19, file-based routes, SSR + server functions) · TS · Tailwind v4 · shadcn/ui · lucide
 - **Convex** — DB + backend functions + realtime. Schema in TS, no migrations, no SQL.
 - **Clerk** — auth (Google one-tap), wired via `ConvexProviderWithClerk`. Multi-tenant from day one: every row carries `ownerId` (see §2).
-- `date-fns` + `rrule` (client-side expansion) · `cmdk` for ⌘K quick capture
+- `date-fns` + `rrule` (client-side expansion) · `cmdk` for ⌘K search / ⌘L quick capture
 - Deploy: Convex Cloud (backend) + **Cloudflare Workers** for the Start app via `@cloudflare/vite-plugin`
   (official TanStack partner, free tier, one `wrangler.jsonc`). Fallback: Netlify with `@netlify/vite-plugin-tanstack-start`. PWA manifest.
 
@@ -34,7 +34,7 @@ gives a fast first paint on mobile and a place for server functions later (cron 
     _app/{money,body,social,portuguese,career,style,knowledge}.tsx   (phase 7+, empty)
     _app/{notes,principles,reviews,settings}.tsx  login.tsx
   components/
-    shell/      TopBar, SideNav, MobileNav, QuickCapture (⌘K)
+    shell/      TopBar, SideNav, MobileNav, SearchPalette (⌘K), QuickCapture (⌘L)
     dashboard/  TodayCard, ChainsCard, StateStrip, ActionsLogged, QuestList
     ui/         shadcn
   lib/          capture-parser.ts, recurrence.ts, format.ts
@@ -279,7 +279,7 @@ it is built in (R1–R7). Everything in §1–§2 and §3b–§3d still holds.
 | Notes     | as is                                                                     | R4: the knowledge base — more kinds (`style` among them), expanded editor, drag-and-drop images/PDFs (Convex file storage), YouTube embeds, bind to a project |
 | Finances  | renamed; still a placeholder                                              | R6b: Investments (portfolios, positions, prices as source 4), Balances, Spending                                                                              |
 | Body      | placeholder                                                               | R6b-a (shipped): consistency first — a per-day strip per category, weight as a line against a goal's target, recent logs editable                             |
-| Languages | renamed; still a placeholder                                              | R6b: a tab per language you have filed something under — the areas R6 lets you invent, not a fixed Portuguese/English/German list                             |
+| Languages | renamed; still a placeholder                                              | R6b-b (shipped): a tab per area ticked as a language — classes apart from practice, the level, what is booked next, twelve weeks of days                      |
 | Settings  | as is                                                                     | —                                                                                                                                                             |
 | Ask AI    | —                                                                         | R7: a ⌘-shortcut, not a page — a reader over your own rows, never a fifth source of numbers                                                                   |
 
@@ -567,6 +567,27 @@ rather than a list: the type lives in `logs.meta.category` as a plain string,
 set by the verb and editable in the capture chip, because a fixed set of words
 is the thing R6 was spent unlearning. `stretch` did not exist as a verb and
 now does; `run` existed and was not in the four.
+
+**R6b closed on 22 Sep.** R6b-a shipped Body (#54) and R6b-b shipped
+Languages. An area is a language because a `track` flag on its row says so —
+a flag rather than a derivation, because working it out from session logs
+needs an exclusion for `work`, which also writes a session, and that
+exclusion is the hardcoded list R6 was spent removing. CEFR keys became
+`cefr_level:<slug>`, migrated in place: the key was global while there was
+one language, and a second would have overwritten the first, because
+latest-row-wins is what makes the state strip true.
+
+**What Languages did not take on.** The Languages month tile still counts
+sessions filed under `portuguese` only — the six tiles are a fixed shape (§3
+item 4) and a second language joining one is a §3 decision, not a page's.
+And `practice` still files under `portuguese` in code (R6 decision 3), so a
+second language's practice needs one tap on the area chip. That was left
+deliberately unsolved to be felt before anything cleverer is designed.
+
+Finances is the only TRACK page still a placeholder, and it stays one until
+the money-source question has a written answer: a sum of logged amounts is
+none of the four sanctioned sources (§1), which blocks Spending, Balances and
+the €100 tile target alike.
 
 **Rules that carry through every row:** every number from a sanctioned source (§1); three a
 day (§3c.1); the backlog never on Today (§3c.3); tasks and events two tables (§3b.3);

@@ -108,7 +108,7 @@ What colour still may not do is grade: a state, never a quantity.
 
 ## Speed of daily use
 
-Quick capture (⌘K) logs something in under three seconds: `workout 60`,
+Quick capture (⌘L) logs something in under three seconds: `workout 60`,
 `spend 48 groceries`, `pt 30`, `weight 75.4`, `note …`. When a feature would
 slow the daily loop to make a rarer screen better, the daily loop wins.
 

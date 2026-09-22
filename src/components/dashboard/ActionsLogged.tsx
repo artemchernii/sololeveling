@@ -5,10 +5,9 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { api } from '../../../convex/_generated/api'
 import { areaVars } from '@/lib/areas'
 import type { Area } from '@/lib/capture-parser'
-import { daysLeftInMonth, targetLine } from '@/lib/month'
+import { daysLeftInMonth, monthRange, targetLine } from '@/lib/month'
 import { MONTH_TILES } from '@/lib/tiles'
 import type { MonthTile, Tile } from '@/lib/tiles'
-import { monthRange } from './StateStrip'
 
 /* PLAN.md §3 item 4. Exactly these six tiles, in this order, each against
    last month — or, since R2, against a monthly target when one is set on the

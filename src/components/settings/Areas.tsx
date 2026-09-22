@@ -111,6 +111,10 @@ export function Areas() {
           ))}
         </ul>
 
+        <p className="text-[12.5px] text-ink-600">
+          Tick Language and the area gets its own tab on the Languages page.
+        </p>
+
         <form
           className="flex gap-2"
           onSubmit={(e) => {
@@ -186,6 +190,7 @@ function AreaRow({
 }) {
   const rename = useMutation(api.areas.rename)
   const setHue = useMutation(api.areas.setHue)
+  const setTrack = useMutation(api.areas.setTrack)
   const reorder = useMutation(api.areas.reorder)
   const retire = useMutation(api.areas.retire)
   const remove = useMutation(api.areas.remove)
@@ -249,6 +254,30 @@ function AreaRow({
         }}
         className="w-20 shrink-0 accent-(--area)"
       />
+      <button
+        type="button"
+        aria-pressed={area.track === 'language'}
+        aria-label={
+          area.track === 'language'
+            ? `${area.label} has its own tab on Languages — stop`
+            : `Give ${area.label} its own tab on Languages`
+        }
+        onClick={() =>
+          run(
+            setTrack({
+              slug: area.slug,
+              track: area.track === 'language' ? null : 'language',
+            }),
+          )
+        }
+        className={`label-caps motion-press shrink-0 transition-colors ${
+          area.track === 'language'
+            ? 'text-lav-300'
+            : 'text-ink-600 hover:text-ink-300'
+        }`}
+      >
+        Language
+      </button>
       <button
         type="button"
         disabled={first}

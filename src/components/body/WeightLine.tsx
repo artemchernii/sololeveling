@@ -69,7 +69,7 @@ export function WeightLine() {
       {latest === undefined ? (
         <p className="text-[13px] text-ink-500">
           No weight recorded in the last {STRIP_WEEKS} weeks. Press{' '}
-          <span className="font-mono text-ink-300">⌘K</span> and type{' '}
+          <span className="font-mono text-ink-300">⌘L</span> and type{' '}
           <span className="font-mono text-ink-300">weight 75.4</span>.
         </p>
       ) : (

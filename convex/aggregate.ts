@@ -372,12 +372,18 @@ export const STATE_KEYS = ['cefr_level', 'weight', 'net_worth'] as const
 /* The stateSnapshots key each field actually looks up. Since R6b-b a CEFR
    level's key carries its language's slug (`cefr_level:<slug>`) — a second
    language would otherwise share the bare `cefr_level` key with the first,
-   and latest-row-wins would let one shadow the other. Hard-coded to
-   Portuguese here because it is the only language recorded today; Task 7
-   replaces this with whichever language was most recently recorded, and the
-   field returned below stays named `cefr_level` regardless. `weight` and
-   `net_worth` have no such split — there is only one of each — so they stay
-   bare. */
+   and latest-row-wins would let one shadow the other. Still hard-coded to
+   Portuguese: Task 7 named which language the dashboard cell means, but did
+   it in StateStrip.tsx over `languageLevels()` (which takes the slugs to
+   look up as an argument) rather than here, because `currentState()` takes
+   none and a fixed shape driven by "whichever language was last recorded"
+   is the same failure its own comment warns against — a cell whose meaning
+   changes as a side effect of logging something elsewhere. So `cefr_level`
+   below is stale wherever a level is recorded for any language other than
+   Portuguese, and unread by any component since Task 7 — kept rather than
+   removed because the fixed three-field shape below is not this task's to
+   change. `weight` and `net_worth` have no such split — there is only one of
+   each — so they stay bare. */
 const STATE_LOOKUP_KEYS: Record<(typeof STATE_KEYS)[number], string> = {
   cefr_level: 'cefr_level:portuguese',
   weight: 'weight',

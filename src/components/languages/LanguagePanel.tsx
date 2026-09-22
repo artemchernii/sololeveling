@@ -214,7 +214,7 @@ function Sessions({ slug, label }: { slug: string; label: string }) {
       {result === undefined ? null : result.rows.length === 0 ? (
         <p className="text-[13px] text-ink-500">
           Nothing logged under {label} yet. Press{' '}
-          <span className="font-mono text-ink-300">⌘K</span> to log a class or a
+          <span className="font-mono text-ink-300">⌘L</span> to log a class or a
           practice session — the strip starts the day you do.
         </p>
       ) : (

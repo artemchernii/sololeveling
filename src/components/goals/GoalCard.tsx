@@ -248,57 +248,101 @@ function GoalTasks({ goal }: { goal: Doc<'goals'> }) {
   )
 }
 
-/* The description, written in place (20 Sep). Saved by a button you can
-   see, which appears only once the text differs from what is stored. */
+/* The description, written in place (20 Sep). Opened by "+ Notes", and
+   while it is open there is always a way out and a way to keep it: Cancel
+   and Save, like every other editor in the app (24 Sep — the Save button
+   used to appear only once the text changed, and there was no Cancel). */
 function GoalNotes({ goal }: { goal: Doc<'goals'> }) {
   const update = useMutation(api.goals.update)
-  const [open, setOpen] = useState(goal.description !== undefined)
-  const [draft, setDraft] = useState(goal.description ?? '')
+  const stored = goal.description ?? ''
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(stored)
   const saving = useSave()
 
-  if (!open) {
-    return (
+  if (!editing) {
+    return stored === '' ? (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setDraft('')
+          setEditing(true)
+        }}
         className="self-start text-[12.5px] text-ink-600 transition-colors hover:text-ink-300"
       >
         + Notes
       </button>
+    ) : (
+      /* Read, and a tap on the words edits them. */
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(stored)
+          setEditing(true)
+        }}
+        title="Edit notes"
+        className="self-start rounded-[10px] px-1 py-0.5 text-left text-[13px] leading-relaxed whitespace-pre-wrap text-ink-300 transition-colors hover:bg-lift/[0.04] hover:text-ink-100"
+      >
+        {stored}
+      </button>
     )
   }
 
-  const dirty = draft.trim() !== (goal.description ?? '')
+  const dirty = draft.trim() !== stored
 
+  function cancel() {
+    setDraft(stored)
+    setEditing(false)
+  }
+
+  async function save() {
+    await saving.run(() =>
+      update({ goalId: goal._id, description: draft.trim() || null }),
+    )
+  }
   return (
-    <div className="flex flex-col gap-2">
+    <div className="motion-arrive flex flex-col gap-2">
       <textarea
+        autoFocus
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') cancel()
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault()
+            if (dirty) void save()
+          }
+        }}
         rows={3}
         aria-label={`Notes on ${goal.title}`}
         placeholder="Why this, what it looks like when it is done, anything you pasted"
         className="w-full resize-y rounded-[12px] bg-lift/[0.04] px-3 py-2 text-[13px] leading-relaxed text-ink-200 ring-1 ring-lift/[0.08] outline-none placeholder:text-ink-700 focus:ring-(--area)/40"
       />
-      {dirty || saving.status !== 'idle' ? (
+      <div className="flex items-center gap-2">
         <button
           type="button"
-          disabled={saving.busy}
-          onClick={() =>
-            void saving.run(() =>
-              update({
-                goalId: goal._id,
-                description: draft.trim() || null,
-              }),
-            )
-          }
-          className="motion-press self-start rounded-full bg-lav-300/16 px-3 py-1 text-[12px] text-lav-200 ring-1 ring-lav-300/40 hover:bg-lav-300/24"
+          onClick={cancel}
+          className="motion-press rounded-full px-3 py-1 text-[12px] text-ink-500 hover:text-foreground"
         >
-          <SaveLabel status={saving.status} onSettled={saving.settle}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={saving.busy || !dirty}
+          onClick={() => void save()}
+          className="motion-press rounded-full bg-lav-300/16 px-3 py-1 text-[12px] text-lav-200 ring-1 ring-lav-300/40 hover:bg-lav-300/24 disabled:opacity-40 disabled:hover:bg-lav-300/16"
+        >
+          <SaveLabel
+            status={saving.status}
+            onSettled={() => {
+              saving.settle()
+              setEditing(false)
+            }}
+          >
             Save notes
           </SaveLabel>
         </button>
-      ) : null}
+        <span className="font-mono text-[10.5px] text-ink-700">⌘↵</span>
+      </div>
     </div>
   )
 }

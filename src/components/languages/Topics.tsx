@@ -78,7 +78,7 @@ export function Topics({ slug, delay = 0 }: { slug: string; delay?: number }) {
                     setGone(topic)
                     void retire({ drillId: topic._id })
                   }}
-                  className="motion-press grid size-6 shrink-0 place-items-center rounded-[6px] text-ink-700 opacity-0 transition-colors group-hover:opacity-100 hover:bg-state-danger/15 hover:text-state-danger focus-visible:opacity-100"
+                  className="motion-press grid size-6 shrink-0 place-items-center rounded-[6px] text-ink-700 opacity-0 transition-colors group-hover:opacity-100 [@media(hover:none)]:opacity-100 hover:bg-state-danger/15 hover:text-state-danger focus-visible:opacity-100"
                 >
                   <X className="size-3" />
                 </button>
@@ -87,7 +87,7 @@ export function Topics({ slug, delay = 0 }: { slug: string; delay?: number }) {
                   className="hidden shrink-0 font-mono text-[11px] text-ink-500 sm:inline"
                 >
                   {row === undefined
-                    ? 'not yet'
+                    ? 'none lately'
                     : `${row.total}× · ${agoLabel(row.lastAt)}`}
                 </span>
                 <DoTopic drill={topic} today={row?.days.at(-1) ?? 0} />

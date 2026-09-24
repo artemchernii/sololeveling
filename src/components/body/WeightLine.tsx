@@ -245,7 +245,7 @@ function TargetPill({ target }: { target: number | undefined }) {
         type="button"
         aria-label="Clear the weight target"
         onClick={() => void clear({})}
-        className="motion-press grid size-6 place-items-center rounded-[6px] text-ink-700 opacity-0 transition-colors group-hover:opacity-100 hover:bg-state-danger/15 hover:text-state-danger focus-visible:opacity-100"
+        className="motion-press grid size-6 place-items-center rounded-[6px] text-ink-700 opacity-0 transition-colors group-hover:opacity-100 [@media(hover:none)]:opacity-100 hover:bg-state-danger/15 hover:text-state-danger focus-visible:opacity-100"
       >
         <X className="size-3" />
       </button>

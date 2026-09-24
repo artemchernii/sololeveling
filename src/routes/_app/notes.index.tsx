@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { PenLine } from 'lucide-react'
+import { PenLine, Search, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
@@ -16,6 +16,8 @@ import { SaveLabel, useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Key } from '@/components/shell/Key'
 import { splitNote } from '@/lib/note-text'
+import { matchesQuery, sortNotes } from '@/lib/note-meta'
+import type { NoteSort } from '@/lib/note-meta'
 import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/notes/')({
@@ -61,12 +63,23 @@ function Notes() {
     useQuery(api.notes.list, archivedView ? { archived: true } : {}),
   )
   const arrived = useArrived(allNotes)
-  const notes =
+  /* Sort and search (24 Sep). The order is remembered on this device; the
+     words are not — a search is for now. */
+  const [sort, setSort] = useState<NoteSort>(readSort)
+  const [query, setQuery] = useState('')
+  const ofKind =
     allNotes === undefined
       ? undefined
       : kind === 'all'
         ? allNotes
         : allNotes.filter((note) => note.kind === kind)
+  const notes =
+    ofKind === undefined
+      ? undefined
+      : sortNotes(
+          ofKind.filter((n) => matchesQuery(n, query)),
+          sort,
+        )
   const create = useMutation(api.notes.create)
   const setArchived = useMutation(api.notes.setArchived)
   const removeMany = useMutation(api.notes.removeMany)
@@ -312,6 +325,59 @@ function Notes() {
         ) : null}
       </div>
 
+      {ofKind !== undefined && (ofKind.length > 0 || query !== '') ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex min-w-[200px] flex-1 items-center gap-2 rounded-full bg-lift/[0.04] px-3.5 py-1.5 ring-1 ring-lift/10 focus-within:ring-area-knowledge/45">
+            <Search className="size-3.5 shrink-0 text-ink-600" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setQuery('')
+              }}
+              placeholder="Find in these notes"
+              aria-label="Find in these notes"
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-600"
+            />
+            {query !== '' ? (
+              <button
+                type="button"
+                aria-label="Clear"
+                onClick={() => setQuery('')}
+                className="motion-press text-ink-600 hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : null}
+          </label>
+          <div
+            role="radiogroup"
+            aria-label="Sort"
+            className="flex items-center gap-0.5 rounded-full bg-lift/[0.04] p-0.5 ring-1 ring-lift/10"
+          >
+            {SORTS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={sort === option.value}
+                onClick={() => {
+                  setSort(option.value)
+                  saveSort(option.value)
+                }}
+                className={`motion-press rounded-full px-3 py-1 text-[12px] transition-colors ${
+                  sort === option.value
+                    ? 'bg-lift/[0.1] text-foreground'
+                    : 'text-ink-500 hover:text-ink-300'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {notes === undefined ? (
         /* Shape, never values (§3d.2). */
         <div className="glass rounded-[22px] p-2">
@@ -319,9 +385,11 @@ function Notes() {
         </div>
       ) : notes.length === 0 ? (
         <p className={`text-[13px] text-ink-500 ${arrived}`}>
-          {archivedView
-            ? 'Nothing archived. Archive a note from its row to put it here.'
-            : 'Nothing here yet. Write the first line above; the rest can wait.'}
+          {query !== ''
+            ? `No note here has “${query.trim()}”. Try fewer words, or ⌘K to search everything.`
+            : archivedView
+              ? 'Nothing archived. Archive a note from its row to put it here.'
+              : 'Nothing here yet. Write the first line above; the rest can wait.'}
         </p>
       ) : (
         /* A little air between rows (24 Sep): ticked rows are filled, and
@@ -400,4 +468,31 @@ function Notes() {
       ) : null}
     </div>
   )
+}
+
+const SORTS: Array<{ value: NoteSort; label: string }> = [
+  { value: 'new', label: 'Newest' },
+  { value: 'edited', label: 'Edited' },
+  { value: 'az', label: 'A–Z' },
+]
+
+const SORT_KEY = 'sl:notes-sort'
+
+/* A per-device convenience, so storage may be missing — a private window,
+   cleared site data — and Newest is the answer then. */
+function readSort(): NoteSort {
+  try {
+    const v = localStorage.getItem(SORT_KEY)
+    return v === 'edited' || v === 'az' ? v : 'new'
+  } catch {
+    return 'new'
+  }
+}
+
+function saveSort(sort: NoteSort) {
+  try {
+    localStorage.setItem(SORT_KEY, sort)
+  } catch {
+    /* Not remembered; still applied. */
+  }
 }

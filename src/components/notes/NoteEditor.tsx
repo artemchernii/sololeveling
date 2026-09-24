@@ -1,7 +1,9 @@
 import { useLayoutEffect, useRef } from 'react'
 import type { Ref } from 'react'
 
+import { applyFormat } from './NoteToolbar'
 import { continueList, fencePaste, indentLine } from '@/lib/note-text'
+import { toggleWrap } from '@/lib/note-format'
 
 /* Plain text that writes like Apple Notes: the first line is the title, a list
    carries itself on, Tab indents. The behaviour lives in lib/note-text.ts;
@@ -82,6 +84,20 @@ export function NoteEditor({
         if (e.key === 'Backspace' && value.length === 0 && onEmptyBackspace) {
           e.preventDefault()
           onEmptyBackspace()
+          return
+        }
+        /* ⌘B and ⌘I, as in every editor (24 Sep). */
+        if (
+          (e.metaKey || e.ctrlKey) &&
+          !e.shiftKey &&
+          !e.altKey &&
+          (e.key === 'b' || e.key === 'i')
+        ) {
+          e.preventDefault()
+          const mark = e.key === 'b' ? '**' : '*'
+          applyFormat(el, value, onChange, (v, f, t) =>
+            toggleWrap(v, f, t, mark),
+          )
           return
         }
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {

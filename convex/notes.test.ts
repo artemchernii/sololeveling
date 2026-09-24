@@ -171,3 +171,54 @@ describe('notes on a project', () => {
     ).toEqual([])
   })
 })
+
+/* 24 Sep: the list row says when a note was edited and what is attached. */
+describe('the list row', () => {
+  test('edited is set by a change to the words, not by filing', async () => {
+    const t = as(ME)
+    const noteId = await t.mutation(api.notes.create, { title: 'Razor' })
+    let [row] = await t.query(api.notes.list, {})
+    expect(row.updatedAt).toBeUndefined()
+
+    await t.mutation(api.notes.update, { noteId, kind: 'reference' })
+    ;[row] = await t.query(api.notes.list, {})
+    expect(row.updatedAt).toBeUndefined()
+
+    await t.mutation(api.notes.update, { noteId, body: 'T-shaped' })
+    ;[row] = await t.query(api.notes.list, {})
+    expect(row.updatedAt).toBeTypeOf('number')
+  })
+
+  test('counts its own images and files, and nobody else’s', async () => {
+    const { mine, theirs } = twoOwners()
+    const noteId = await mine.mutation(api.notes.create, { title: 'Shots' })
+    await theirs.mutation(api.notes.create, { title: 'Theirs' })
+
+    async function attach(name: string, contentType: string) {
+      const storageId = await mine.run((ctx) =>
+        ctx.storage.store(new Blob(['x'], { type: contentType })),
+      )
+      await mine.mutation(api.attachments.add, {
+        noteId,
+        storageId,
+        name,
+        contentType,
+        size: 1,
+      })
+    }
+    await attach('a.png', 'image/png')
+    await attach('b.jpg', 'image/jpeg')
+    await attach('c.pdf', 'application/pdf')
+
+    const [row] = await mine.query(api.notes.list, {})
+    expect({ images: row.images, files: row.files }).toEqual({
+      images: 2,
+      files: 1,
+    })
+    const [theirRow] = await theirs.query(api.notes.list, {})
+    expect({ images: theirRow.images, files: theirRow.files }).toEqual({
+      images: 0,
+      files: 0,
+    })
+  })
+})

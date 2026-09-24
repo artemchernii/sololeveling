@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Paperclip, X } from 'lucide-react'
 
 import type { Id } from '../../../convex/_generated/dataModel'
+import { Lightbox } from './Lightbox'
 import { useAttachments } from './useAttachments'
 import type { usePendingAttachments } from './useAttachments'
 
@@ -16,10 +18,13 @@ export function Attachments({
   noteId,
   taskId,
   compact = false,
+  large = false,
 }: {
   noteId?: Id<'notes'>
   taskId?: Id<'tasks'>
   compact?: boolean
+  /** A note's own page: screenshots big enough to read (24 Sep). */
+  large?: boolean
 }) {
   /* Named one at a time rather than collected with a rest spread: the spread
      swept up the `data-tsd-source` attribute the dev plugin writes onto every
@@ -36,7 +41,7 @@ export function Attachments({
         att.over ? 'bg-lav-900/30 ring-1 ring-lav-500/50 ring-inset' : ''
       }`}
     >
-      <AttachmentTray att={att} compact={compact} />
+      <AttachmentTray att={att} compact={compact} large={large} />
     </div>
   )
 }
@@ -48,29 +53,58 @@ export function Attachments({
 export function AttachmentTray({
   att,
   compact = false,
+  large = false,
 }: {
   att: ReturnType<typeof useAttachments>
   compact?: boolean
+  large?: boolean
 }) {
+  /* Which image is open over the page, if any (24 Sep). A click used to open
+     the file in a new tab, which is a download, not a look. */
+  const [open, setOpen] = useState<number | null>(null)
+
   return (
     <div className="flex flex-col gap-2">
       {att.images.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {att.images.map((f) => (
+        <div
+          className={
+            large
+              ? 'grid grid-cols-2 gap-2.5 sm:grid-cols-3'
+              : 'flex flex-wrap gap-2'
+          }
+        >
+          {att.images.map((f, i) => (
             <div key={f._id} className="group/att motion-pop relative">
-              <a href={f.url ?? undefined} target="_blank" rel="noreferrer">
+              <button
+                type="button"
+                aria-label={`View ${f.name}`}
+                onClick={() => setOpen(i)}
+                className="block w-full cursor-zoom-in"
+              >
                 <img
                   src={f.url ?? undefined}
                   alt={f.name}
-                  className={`rounded-[8px] object-cover ring-1 ring-lift/10 transition-transform hover:scale-[1.03] ${
-                    compact ? 'size-14' : 'size-20'
+                  className={`rounded-[8px] object-cover ring-1 ring-lift/10 transition-transform hover:scale-[1.02] ${
+                    large
+                      ? 'aspect-[4/3] w-full object-top'
+                      : compact
+                        ? 'size-14'
+                        : 'size-20'
                   }`}
                 />
-              </a>
+              </button>
               <Remove onClick={() => att.remove(f._id)} />
             </div>
           ))}
         </div>
+      ) : null}
+      {open !== null ? (
+        <Lightbox
+          images={att.images}
+          index={open}
+          onIndex={setOpen}
+          onClose={() => setOpen(null)}
+        />
       ) : null}
 
       {att.others.length > 0 ? (

@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ArrowLeft, PenLine, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, PenLine, Trash2 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import type { Id } from '../../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { Attachments } from '@/components/attachments/Attachments'
 import { NoteEditor } from '@/components/notes/NoteEditor'
+import { NoteToolbar } from '@/components/notes/NoteToolbar'
 import { NoteView } from '@/components/notes/NoteView'
+import { linksIn } from '@/lib/note-format'
 import { joinNote, splitNote } from '@/lib/note-text'
 
 export const Route = createFileRoute('/_app/notes/$id')({
@@ -16,6 +18,13 @@ export const Route = createFileRoute('/_app/notes/$id')({
 })
 
 const SAVE_AFTER_MS = 700
+
+const KINDS: Array<{ value: Doc<'notes'>['kind']; label: string }> = [
+  { value: 'note', label: 'Note' },
+  { value: 'idea', label: 'Idea' },
+  { value: 'book', label: 'Book' },
+  { value: 'reference', label: 'Reference' },
+]
 
 /* One note, readable. A note long enough to have sections — a purchase list, a
    technique — needs a page of its own, not a row that expands.
@@ -39,6 +48,7 @@ function NotePage() {
   )
   const [confirmDelete, setConfirmDelete] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const editorRef = useRef<HTMLTextAreaElement | null>(null)
   /* The save waiting for a pause in typing. Run, not dropped, when the pause
      never comes — Done, or leaving the page mid-sentence — so the last words
      typed are never the ones lost. */
@@ -165,10 +175,42 @@ function NotePage() {
           editing ? 'ring-1 ring-area-knowledge/35' : ''
         }`}
       >
+        {/* What this note is filed as — changeable here, since it was only
+            ever chosen by which tab you happened to be on (24 Sep). */}
+        <div
+          role="radiogroup"
+          aria-label="Type"
+          className="mb-4 flex flex-wrap gap-1"
+        >
+          {KINDS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={note.kind === option.value}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void update({ noteId, kind: option.value })}
+              className={[
+                'motion-press rounded-full px-2.5 py-0.5 text-[11.5px]',
+                note.kind === option.value
+                  ? 'bg-area-knowledge/16 text-area-knowledge ring-1 ring-area-knowledge/40'
+                  : 'text-ink-500 ring-1 ring-lift/10 hover:text-ink-300',
+              ].join(' ')}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        {editing ? (
+          <div className="mb-3 border-b border-lift/[0.06] pb-2">
+            <NoteToolbar editorRef={editorRef} value={text} onChange={change} />
+          </div>
+        ) : null}
         {editing ? (
           <NoteEditor
             value={text}
             onChange={change}
+            textareaRef={editorRef}
             autoFocus
             onSubmit={() => {
               flush()
@@ -185,10 +227,34 @@ function NotePage() {
         )}
       </article>
 
-      {/* Files on the note — pasted screenshots, dropped PDFs (20 Sep). */}
+      {/* Every address in the note, by its site, in one place (24 Sep) —
+          a note of links is mostly a note you open to leave. */}
+      {!editing && linksIn(note.body).length > 0 ? (
+        <div className="glass rounded-[22px] px-6 py-5">
+          <div className="label-caps mb-3">Links</div>
+          <div className="flex flex-wrap gap-2">
+            {linksIn(note.body).map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                target="_blank"
+                rel="noreferrer"
+                title={link.href}
+                className="motion-press flex max-w-full items-center gap-1.5 rounded-full bg-lift/[0.05] px-3 py-1 text-[12.5px] text-ink-300 ring-1 ring-lift/10 hover:text-area-knowledge hover:ring-area-knowledge/40"
+              >
+                <span className="truncate">{link.host}</span>
+                <ArrowUpRight className="size-3 shrink-0" />
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Files on the note — pasted screenshots, dropped PDFs (20 Sep).
+          Large here: this is the page you open to look at them. */}
       <div className="glass rounded-[22px] px-6 py-5">
         <div className="label-caps mb-3">Files</div>
-        <Attachments noteId={noteId} />
+        <Attachments noteId={noteId} large />
       </div>
     </div>
   )

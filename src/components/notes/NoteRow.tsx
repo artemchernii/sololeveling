@@ -36,8 +36,8 @@ export function kindVars(kind: Kind): CSSProperties {
    archive."
 
    So a row is the note's kind in its own colour, when it was written and
-   edited, what is attached — and, on hover (always, on a phone), archive and
-   delete. Delete asks once, in place, the way the note's own page does. In
+   edited, what is attached — and archive and delete, always shown (24 Sep:
+   hidden until hover, they were hard to find). Delete asks once, in place, the way the note's own page does. In
    Select mode the row is a checkbox and nothing else. */
 export function NoteRow({
   note,
@@ -121,7 +121,7 @@ export function NoteRow({
   }
 
   const action =
-    'motion-press grid size-8 shrink-0 place-items-center rounded-[9px] text-ink-600 transition-colors hover:bg-lift/[0.06] md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'
+    'motion-press grid size-8 shrink-0 place-items-center rounded-[9px] text-ink-600 transition-colors hover:bg-lift/[0.06]'
 
   return (
     <div

@@ -16,7 +16,9 @@ import { agoLabel, shortDate } from '@/lib/format'
    Now a row is the task: its area as a coloured edge, the title, and
    underneath only what is actually true of it — how long it has waited,
    what it is for, when it is on the calendar. Pickers for what is not set
-   yet appear on hover (always, on a phone). Done is a button on the right:
+   yet appear on hover (always, on a phone). Archive and Delete are always
+   there — hidden until hover, they were hard to find (24 Sep). Done is a
+   button on the right:
    a round tick on the left read as a checkbox for selecting (24 Sep). In
    Select mode a checkbox appears there, and that is the only one. */
 export function TaskRow({
@@ -66,7 +68,7 @@ export function TaskRow({
     : ({ '--area': 'var(--color-neutral-500)' } as CSSProperties)
 
   const action =
-    'motion-press grid size-8 shrink-0 place-items-center rounded-[9px] text-ink-600 transition-colors hover:bg-lift/[0.06] md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'
+    'motion-press grid size-8 shrink-0 place-items-center rounded-[9px] text-ink-600 transition-colors hover:bg-lift/[0.06]'
 
   return (
     <div

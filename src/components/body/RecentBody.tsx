@@ -1,19 +1,21 @@
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { useMutation } from 'convex/react'
-import { X } from 'lucide-react'
+import { CircleHelp, Scale, X } from 'lucide-react'
 import { useState } from 'react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { KindIcon, KIND_LABELS } from '@/components/body/kinds'
 import { useSave } from '@/components/Saving'
 import { CategoryChip } from '@/components/track/CategoryChip'
 import { TrackPanel } from '@/components/track/TrackPanel'
 import { dayStartsBack, STRIP_WEEKS } from '@/lib/day-strip'
-import { whenLabel } from '@/lib/format'
+import { groupByDay } from '@/lib/day-groups'
+import { clock, whenLabel } from '@/lib/format'
 
 /* The words a Body row can be filed under: capture's own verbs, then any
    routine he has made. */
-const BODY_CATEGORIES = ['gym', 'stretch', 'run', 'boxing', 'hiking']
+const BODY_CATEGORIES = ['stretch', 'gym', 'boxing', 'hiking', 'run']
 /* How many rows show before "show all" — a morning of ticked stretches is
    six rows, and the list should not push the page away. */
 const SHOWN = 12
@@ -52,7 +54,7 @@ export function RecentBody({ delay = 0 }: { delay?: number }) {
   return (
     <TrackPanel
       area="body"
-      title="recent"
+      title="done"
       delay={delay}
       aside={
         !complete ? (
@@ -63,49 +65,77 @@ export function RecentBody({ delay = 0 }: { delay?: number }) {
       }
     >
       {body.length === 0 ? (
-        <p className="text-[13px] text-ink-500">
-          Nothing under Body in the last {STRIP_WEEKS} weeks.
+        <p className="text-[13px] text-ink-400">
+          Nothing under Body in the last {STRIP_WEEKS} weeks. Every session,
+          exercise and weigh-in lands here, by day.
         </p>
       ) : (
-        <div className="flex flex-col">
-          {shown.map((row) => (
-            <div
-              key={row._id}
-              className="motion-arrive group flex min-h-9 items-center gap-3 border-b border-lift/[0.05] py-1.5 last:border-b-0"
-            >
-              {row.kind === 'weight' ? (
-                <span className="label-caps w-[92px] shrink-0 truncate">
-                  weight
-                </span>
-              ) : (
-                <CategoryChip
-                  category={row.meta?.category}
-                  options={row.kind === 'intake' ? ['supplements'] : options}
-                  onChange={(next) =>
-                    void setCategory({ logId: row._id, category: next })
-                  }
-                />
-              )}
-              <EditableValue
-                logId={row._id}
-                kind={row.kind}
-                value={row.value}
-                unit={row.unit}
-              />
-              <span className="flex-1 truncate text-[12.5px] text-ink-400">
-                {row.text ?? ''}
-              </span>
-              <span className="shrink-0 font-mono text-[11px] text-ink-600">
-                {whenLabel(row.occurredAt)}
-              </span>
-              <button
-                type="button"
-                aria-label={`Remove the ${row.meta?.category ?? row.kind} logged ${whenLabel(row.occurredAt)}`}
-                onClick={() => void removeLog({ logId: row._id })}
-                className="motion-press grid size-5 shrink-0 place-items-center rounded-[6px] text-ink-700 opacity-0 transition-colors group-hover:opacity-100 hover:bg-state-danger/15 hover:text-state-danger focus-visible:opacity-100"
-              >
-                <X className="size-3" />
-              </button>
+        <div className="flex flex-col gap-3">
+          {groupByDay(shown).map((day) => (
+            <div key={day.key} className="flex flex-col gap-1">
+              <span className="label-caps">{day.label}</span>
+              {day.rows.map((row) => {
+                const category =
+                  row.kind === 'weight' ? 'weight' : row.meta?.category
+                return (
+                  <div
+                    key={row._id}
+                    className="motion-arrive group flex min-h-10 items-center gap-2.5 rounded-[12px] px-1.5 py-1 transition-colors hover:bg-lift/[0.04]"
+                  >
+                    <span
+                      className={`grid size-7 shrink-0 place-items-center rounded-full ${
+                        category
+                          ? 'bg-(--area)/15 text-(--area)'
+                          : 'bg-state-warn/15 text-state-warn'
+                      }`}
+                    >
+                      {row.kind === 'weight' ? (
+                        <Scale className="size-3.5" />
+                      ) : category ? (
+                        <KindIcon kind={category} className="size-3.5" />
+                      ) : (
+                        <CircleHelp className="size-3.5" />
+                      )}
+                    </span>
+                    {row.kind === 'weight' ? (
+                      <span className="label-caps w-[92px] shrink-0 truncate">
+                        weight
+                      </span>
+                    ) : (
+                      <CategoryChip
+                        category={row.meta?.category}
+                        options={
+                          row.kind === 'intake' ? ['supplements'] : options
+                        }
+                        labels={KIND_LABELS}
+                        onChange={(next) =>
+                          void setCategory({ logId: row._id, category: next })
+                        }
+                      />
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-[13px] text-ink-200">
+                      {row.text ?? (row.kind === 'workout' ? 'session' : '')}
+                    </span>
+                    <EditableValue
+                      logId={row._id}
+                      kind={row.kind}
+                      value={row.value}
+                      unit={row.unit}
+                    />
+                    <span className="shrink-0 font-mono text-[11px] text-ink-600">
+                      {clock(new Date(row.occurredAt))}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Remove the ${row.meta?.category ?? row.kind} logged ${whenLabel(row.occurredAt)}`}
+                      onClick={() => void removeLog({ logId: row._id })}
+                      className="motion-press grid size-5 shrink-0 place-items-center rounded-[6px] text-ink-700 opacity-0 transition-colors group-hover:opacity-100 hover:bg-state-danger/15 hover:text-state-danger focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           ))}
           {body.length > SHOWN ? (
@@ -142,11 +172,7 @@ function EditableValue({
   const saving = useSave()
 
   if (value === undefined) {
-    return (
-      <span className="w-16 shrink-0 font-mono text-[11px] text-ink-700">
-        —
-      </span>
-    )
+    return <span aria-hidden className="w-16 shrink-0" />
   }
 
   /* Guarded and run the same way EditableMinutes does (ProjectStats.tsx): a

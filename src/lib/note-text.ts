@@ -94,7 +94,9 @@ export function indentLine(
 }
 
 export type NoteBlock =
-  | { type: 'heading'; text: string }
+  /* 1–3 from `#`, `##`, `###` (24 Sep). A line in capitals is a 3: it is
+     how a section is marked in a note that came from Notes, not a title. */
+  | { type: 'heading'; text: string; level: 1 | 2 | 3 }
   | { type: 'item'; text: string; depth: number; ordered: string | null }
   | { type: 'paragraph'; text: string }
   /* A pasted prompt, kept byte for byte (R4). Nothing inside it is parsed:
@@ -183,9 +185,10 @@ export function parseBlocks(body: string): Array<NoteBlock> {
       blocks.push({ type: 'video', id: video })
       continue
     }
-    const hashed = /^#{1,6}\s+(.*)$/.exec(raw.trim())
+    const hashed = /^(#{1,6})\s+(.*)$/.exec(raw.trim())
     if (hashed) {
-      blocks.push({ type: 'heading', text: hashed[1] })
+      const level = Math.min(hashed[1].length, 3) as 1 | 2 | 3
+      blocks.push({ type: 'heading', text: hashed[2], level })
       continue
     }
     const firstWord = raw
@@ -197,7 +200,7 @@ export function parseBlocks(body: string): Array<NoteBlock> {
       firstWord === firstWord.toUpperCase() &&
       firstWord !== firstWord.toLowerCase()
     ) {
-      blocks.push({ type: 'heading', text: raw.trim() })
+      blocks.push({ type: 'heading', text: raw.trim(), level: 3 })
       continue
     }
     blocks.push({ type: 'paragraph', text: raw.trim() })

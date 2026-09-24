@@ -1,8 +1,13 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ChevronRight, PenLine } from 'lucide-react'
+import {
+  ChevronRight,
+  Image as ImageIcon,
+  Paperclip,
+  PenLine,
+} from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
@@ -10,10 +15,12 @@ import { PendingTray } from '@/components/attachments/Attachments'
 import { usePendingAttachments } from '@/components/attachments/useAttachments'
 import { PageTitle } from '@/components/PageTitle'
 import { NoteEditor } from '@/components/notes/NoteEditor'
+import { NoteToolbar } from '@/components/notes/NoteToolbar'
 import { SaveLabel, useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Key } from '@/components/shell/Key'
 import { splitNote } from '@/lib/note-text'
+import { wasEdited, whenLabel } from '@/lib/note-meta'
 import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/notes/')({
@@ -30,13 +37,11 @@ const KINDS: Array<{ value: Kind | 'all'; label: string }> = [
   { value: 'reference', label: 'Reference' },
 ]
 
-/** The first line of the body worth showing under a title in the list. */
-function preview(body: string): string | null {
-  const line = body
-    .split('\n')
-    .map((l) => l.replace(/^\s*([*\-•]|\d+[.)])\s+/, '').trim())
-    .find((l) => l.length > 0)
-  return line ?? null
+const KIND_LABEL: Record<Kind, string> = {
+  note: 'Note',
+  idea: 'Idea',
+  book: 'Book',
+  reference: 'Reference',
 }
 
 /* PLAN.md §2. A note counts towards nothing — it appears in no tile and moves
@@ -51,6 +56,11 @@ function Notes() {
   const [text, setText] = useState('')
   const [writing, setWriting] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
+  /* What the note being written will be filed as (24 Sep): chosen in the
+     sheet, starting from the tab you are on — "All" starts it as a Note. */
+  const [newKind, setNewKind] = useState<Kind>('note')
+  const editorRef = useRef<HTMLTextAreaElement | null>(null)
+  const now = Date.now()
 
   /* Every note, once, filtered below. A query per tab meant every switch
      started a new subscription, and the list blinked to its skeleton and back
@@ -81,7 +91,7 @@ function Notes() {
       const noteId = await create({
         title,
         body,
-        kind: kind === 'all' ? 'note' : kind,
+        kind: newKind,
       })
       /* Inside the same tick, so the spinner covers the upload too and the
          note never appears in the list below without the screenshot that was
@@ -106,7 +116,10 @@ function Notes() {
           <button
             key={option.value}
             type="button"
-            onClick={() => setKind(option.value)}
+            onClick={() => {
+              setKind(option.value)
+              if (option.value !== 'all') setNewKind(option.value)
+            }}
             style={{ '--area': 'var(--area-knowledge)' } as React.CSSProperties}
             className={[
               'motion-press rounded-full px-3 py-1 text-[12px]',
@@ -160,10 +173,45 @@ function Notes() {
               setProblem(null)
             }}
             onSubmit={() => void save()}
+            textareaRef={editorRef}
             placeholder={'New note — the first line is its title'}
             className={writing ? '' : 'max-h-[26px] overflow-hidden'}
           />
         </div>
+        {writing ? (
+          <div className="motion-arrive mx-5 mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-lift/[0.06] pt-3">
+            <NoteToolbar
+              editorRef={editorRef}
+              value={text}
+              onChange={setText}
+            />
+            <div
+              role="radiogroup"
+              aria-label="Type"
+              className="ml-auto flex flex-wrap gap-1"
+            >
+              {KINDS.filter((k) => k.value !== 'all').map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={newKind === option.value}
+                  /* Keep the caret in the note while choosing its type. */
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setNewKind(option.value as Kind)}
+                  className={[
+                    'motion-press rounded-full px-2.5 py-0.5 text-[11.5px]',
+                    newKind === option.value
+                      ? 'bg-area-knowledge/16 text-area-knowledge ring-1 ring-area-knowledge/40'
+                      : 'text-ink-500 ring-1 ring-lift/10 hover:text-ink-300',
+                  ].join(' ')}
+                >
+                  {KIND_LABEL[option.value as Kind]}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {writing || files.pending.length > 0 ? (
           <div className="motion-arrive mx-5 mb-3 border-t border-lift/[0.06] pt-3">
             <PendingTray att={files} />
@@ -211,7 +259,9 @@ function Notes() {
       ) : (
         <div className={`glass flex flex-col rounded-[22px] p-2 ${arrived}`}>
           {notes.map((note) => {
-            const line = preview(note.body)
+            /* 24 Sep: the row says what the note is, not its first words —
+               the title already does that. Type, when, and what is on it. */
+            const edited = wasEdited(note._creationTime, note.updatedAt)
             return (
               <Link
                 key={note._id}
@@ -224,15 +274,32 @@ function Notes() {
                   <span className="block truncate text-[14px] text-foreground">
                     {note.title}
                   </span>
-                  {line ? (
-                    <span className="block truncate text-[12.5px] text-ink-500">
-                      {line}
+                  <span className="mt-0.5 flex min-w-0 items-center gap-2 truncate text-[11.5px] text-ink-500">
+                    <span className="text-area-knowledge/90">
+                      {KIND_LABEL[note.kind]}
                     </span>
-                  ) : null}
+                    <span className="text-ink-700">·</span>
+                    <span>{whenLabel(note._creationTime, now)}</span>
+                    {edited && note.updatedAt !== undefined ? (
+                      <>
+                        <span className="text-ink-700">·</span>
+                        <span>edited {whenLabel(note.updatedAt, now)}</span>
+                      </>
+                    ) : null}
+                    {note.images > 0 ? (
+                      <span className="flex items-center gap-1">
+                        <ImageIcon className="size-3 text-ink-600" />
+                        {note.images}
+                      </span>
+                    ) : null}
+                    {note.files > 0 ? (
+                      <span className="flex items-center gap-1">
+                        <Paperclip className="size-3 text-ink-600" />
+                        {note.files}
+                      </span>
+                    ) : null}
+                  </span>
                 </span>
-                {note.kind !== 'note' ? (
-                  <span className="label-caps">{note.kind}</span>
-                ) : null}
                 <ChevronRight className="size-4 shrink-0 text-ink-700 transition-transform duration-(--motion-fast) group-hover:translate-x-0.5 group-hover:text-ink-400" />
               </Link>
             )

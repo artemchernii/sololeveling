@@ -83,11 +83,17 @@ export const update = mutation({
       throw new Error('A note needs a title')
     }
 
+    const body = args.body ?? existing.body
+    /* Only a change to the words is an edit. Filing a note under Books is
+       not, and would otherwise make an untouched note read "edited today". */
+    const wordsChanged = title !== existing.title || body !== existing.body
+
     await ctx.db.patch(args.noteId, {
       title,
-      body: args.body ?? existing.body,
+      body,
       kind: args.kind ?? existing.kind,
       tags: args.tags ?? existing.tags,
+      ...(wordsChanged ? { updatedAt: Date.now() } : {}),
     })
     return null
   },
@@ -113,39 +119,68 @@ export const remove = mutation({
  * and `_creationTime` is the last column of every index, so this is the index
  * order reversed rather than a sort in JavaScript.
  */
+const listRow = v.object({
+  ...schema.doc('notes').fields,
+  /* What is attached, for the list row (24 Sep): "2 images · 1 file". A
+     fact about this one note, like its title — not a total of anything. */
+  images: v.number(),
+  files: v.number(),
+})
+
+/** A note's attachments, split the way the tray shows them. Capped: past a
+    dozen the row only needs to say "many". */
+async function withFiles(ctx: QueryCtx, ownerId: string, note: Doc<'notes'>) {
+  const rows = await ctx.db
+    .query('attachments')
+    .withIndex('by_owner_note', (q) =>
+      q.eq('ownerId', ownerId).eq('noteId', note._id),
+    )
+    .take(20)
+  const images = rows.filter((r) => r.contentType.startsWith('image/')).length
+  return { ...note, images, files: rows.length - images }
+}
+
 export const list = query({
   args: { kind: v.optional(noteKindValidator) },
-  returns: v.array(schema.doc('notes')),
+  returns: v.array(listRow),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+    const notes = await listNotes(ctx, ownerId, args.kind)
+    return await Promise.all(notes.map((n) => withFiles(ctx, ownerId, n)))
+  },
+})
 
-    if (args.kind === undefined) {
-      const all: Array<Doc<'notes'>> = []
-      for (const kind of ['note', 'idea', 'book', 'reference'] as const) {
-        const rows = await ctx.db
-          .query('notes')
-          .withIndex('by_owner_kind', (q) =>
-            q.eq('ownerId', ownerId).eq('kind', kind),
-          )
-          .order('desc')
-          .take(MAX_ROWS)
-        all.push(...rows)
-      }
-      /* Four index reads then one merge, rather than a filter over the table:
-         the index is on (owner, kind), so "all kinds" is genuinely four reads
-         and the sort is over what those returned, not over every row. */
-      return all.sort((a, b) => b._creationTime - a._creationTime)
-    }
-
+async function listNotes(
+  ctx: QueryCtx,
+  ownerId: string,
+  kind: Doc<'notes'>['kind'] | undefined,
+): Promise<Array<Doc<'notes'>>> {
+  if (kind !== undefined) {
     return await ctx.db
       .query('notes')
       .withIndex('by_owner_kind', (q) =>
-        q.eq('ownerId', ownerId).eq('kind', args.kind!),
+        q.eq('ownerId', ownerId).eq('kind', kind),
       )
       .order('desc')
       .take(MAX_ROWS)
-  },
-})
+  }
+
+  const all: Array<Doc<'notes'>> = []
+  for (const each of ['note', 'idea', 'book', 'reference'] as const) {
+    const rows = await ctx.db
+      .query('notes')
+      .withIndex('by_owner_kind', (q) =>
+        q.eq('ownerId', ownerId).eq('kind', each),
+      )
+      .order('desc')
+      .take(MAX_ROWS)
+    all.push(...rows)
+  }
+  /* Four index reads then one merge, rather than a filter over the table:
+     the index is on (owner, kind), so "all kinds" is genuinely four reads
+     and the sort is over what those returned, not over every row. */
+  return all.sort((a, b) => b._creationTime - a._creationTime)
+}
 
 /**
  * One note, for its own page. Null rather than an error when it is not yours

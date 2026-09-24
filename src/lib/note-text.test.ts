@@ -104,8 +104,8 @@ describe('parseBlocks — the reading view', () => {
 
   test('capital-led lines are headings, with or without lowercase after', () => {
     expect(blocks.filter((b) => b.type === 'heading')).toEqual([
-      { type: 'heading', text: 'ПОКУПКИ (~70-80€ на старті)' },
-      { type: 'heading', text: 'ТЕХНІКА' },
+      { type: 'heading', text: 'ПОКУПКИ (~70-80€ на старті)', level: 3 },
+      { type: 'heading', text: 'ТЕХНІКА', level: 3 },
     ])
   })
 
@@ -134,7 +134,7 @@ describe('parseBlocks — the reading view', () => {
 
   test('markdown headings and numbered items', () => {
     expect(parseBlocks('## Plan\n1. one\n  2. two')).toEqual([
-      { type: 'heading', text: 'Plan' },
+      { type: 'heading', text: 'Plan', level: 2 },
       { type: 'item', text: 'one', depth: 0, ordered: '1.' },
       { type: 'item', text: 'two', depth: 1, ordered: '2.' },
     ])

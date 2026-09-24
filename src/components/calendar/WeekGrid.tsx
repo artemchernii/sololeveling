@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { areaVars } from '@/lib/areas'
-import { dragResult } from '@/lib/calendarDrag'
+import { dragResult, snap } from '@/lib/calendarDrag'
 import type { DragMode } from '@/lib/calendarDrag'
 import type { TimelineItem } from '@/lib/timeline'
 import { addDays } from '@/lib/weeks'
@@ -63,6 +63,11 @@ function startOfDay(date: Date): Date {
 
 /* 24-hour, like the hour labels down the side — and "09:15–10:30" fits a
    column where "09:15 AM–10:30 AM" is cut off. */
+function minuteClock(min: number): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(Math.floor(min / 60))}:${pad(min % 60)}`
+}
+
 function clock(ms: number): string {
   return new Date(ms).toLocaleTimeString([], {
     hour: '2-digit',
@@ -101,7 +106,9 @@ export function WeekGrid({
   weekStart: Date
   items: Array<TimelineItem>
   onSelect: (item: TimelineItem) => void
-  onCreateAt: (startsAt: number) => void
+  /** A click on empty time, or a drag across it: the new event's start
+      and, when dragged, its end. */
+  onCreateAt: (startsAt: number, endsAt?: number) => void
   /** R5: a block was dragged somewhere new. Writes straight away. */
   onDrop: (item: TimelineItem, result: DropResult) => void
   projectName: (projectId: string) => string | undefined
@@ -130,6 +137,81 @@ export function WeekGrid({
     /** The write has come back: stop overriding, so an Undo shows at once. */
     arrived: boolean
   } | null>(null)
+
+  /* Drag down empty time to make an event that long (24 Sep: clicking only
+     ever gave a round hour and an hour's length). Minutes from midnight. */
+  const [creating, setCreating] = useState<{
+    dayIndex: number
+    from: number
+    to: number
+  } | null>(null)
+  const createDrag = useRef<{
+    dayIndex: number
+    top: number
+    from: number
+    y0: number
+    moved: boolean
+  } | null>(null)
+  /* A mouse click on empty time is handled by the pointer path below; the
+     hour buttons' own click is then only for a keyboard or a finger. */
+  const mouseCreate = useRef(false)
+
+  function minuteAt(top: number, y: number) {
+    return FIRST_HOUR * 60 + ((y - top) / ROW_HEIGHT) * 60
+  }
+
+  function onCreateMove(e: PointerEvent) {
+    const c = createDrag.current
+    if (!c) return
+    if (!c.moved && Math.abs(e.clientY - c.y0) < MOUSE_SLOP_PX) return
+    c.moved = true
+    const at = Math.min(Math.max(snap(minuteAt(c.top, e.clientY)), 0), 24 * 60)
+    setCreating({
+      dayIndex: c.dayIndex,
+      from: Math.min(c.from, at),
+      to: Math.max(c.from, at),
+    })
+  }
+
+  function onCreateUp(e: PointerEvent) {
+    const c = createDrag.current
+    createDrag.current = null
+    window.removeEventListener('pointermove', listeners.createMove)
+    window.removeEventListener('pointerup', listeners.createUp)
+    setCreating(null)
+    if (!c) return
+    const day = startOfDay(days[c.dayIndex])
+    const at = (min: number) => new Date(day).setHours(0, min, 0, 0)
+    if (!c.moved) {
+      /* A click: the quarter-hour it landed in, for the usual hour. */
+      const start = Math.floor(minuteAt(c.top, c.y0) / 15) * 15
+      onCreateAt(at(start))
+      return
+    }
+    const release = Math.min(
+      Math.max(snap(minuteAt(c.top, e.clientY)), 0),
+      24 * 60,
+    )
+    const from = Math.min(c.from, release)
+    const to = Math.max(c.from, release, from + 15)
+    onCreateAt(at(from), at(to))
+  }
+
+  function onColumnPointerDown(e: React.PointerEvent, dayIndex: number) {
+    mouseCreate.current = e.pointerType === 'mouse'
+    if (e.pointerType !== 'mouse' || e.button !== 0) return
+    if ((e.target as HTMLElement).closest('[data-block]')) return
+    const top = e.currentTarget.getBoundingClientRect().top
+    createDrag.current = {
+      dayIndex,
+      top,
+      from: Math.floor(minuteAt(top, e.clientY) / 15) * 15,
+      y0: e.clientY,
+      moved: false,
+    }
+    window.addEventListener('pointermove', listeners.createMove)
+    window.addEventListener('pointerup', listeners.createUp)
+  }
 
   useEffect(() => {
     if (landed === null || landed.arrived) return
@@ -260,12 +342,14 @@ export function WeekGrid({
   /* Window listeners must be the same functions on removal as on add, but
      the handlers close over this render's props. So the window gets stable
      wrappers that call whatever the latest render's handlers are. */
-  const latest = useRef({ onMove, onUp, onCancel })
-  latest.current = { onMove, onUp, onCancel }
+  const latest = useRef({ onMove, onUp, onCancel, onCreateMove, onCreateUp })
+  latest.current = { onMove, onUp, onCancel, onCreateMove, onCreateUp }
   const [listeners] = useState(() => ({
     move: (e: PointerEvent) => latest.current.onMove(e),
     up: (e: PointerEvent) => latest.current.onUp(e),
     cancel: () => latest.current.onCancel(),
+    createMove: (e: PointerEvent) => latest.current.onCreateMove(e),
+    createUp: (e: PointerEvent) => latest.current.onCreateUp(e),
     /* Once a block is picked up by a finger the page must not scroll under
        it. Only a non-passive touchmove can say so; pointer events cannot. */
     hold: (e: TouchEvent) => {
@@ -295,8 +379,21 @@ export function WeekGrid({
     return item
   })
 
+  /* A milestone due at midnight is due on a day, not at an hour. Drawn in a
+     strip under the day names rather than pinned to the 06:00 row, where it
+     looked like an appointment nobody made. */
+  const allDay = (i: TimelineItem) => {
+    if (i.source !== 'milestone') return false
+    const d = new Date(i.startsAt)
+    return d.getHours() === 0 && d.getMinutes() === 0
+  }
+  const timed = shown.filter((i) => !allDay(i))
+  const untimed = shown.filter(allDay)
+
   return (
-    <div className="glass overflow-hidden rounded-[22px]">
+    /* select-none: nothing on the grid is text to copy, and a double-click
+       selecting an hour label, then dragged, drew a grey ghost (24 Sep). */
+    <div className="glass overflow-hidden rounded-[22px] select-none">
       <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-lift/[0.06]">
         <div />
         {days.map((day) => {
@@ -322,6 +419,41 @@ export function WeekGrid({
         })}
       </div>
 
+      {untimed.length > 0 ? (
+        <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-lift/[0.06]">
+          <div className="flex items-center justify-end pr-2 font-mono text-[9px] tracking-[0.08em] text-ink-700 uppercase">
+            due
+          </div>
+          {days.map((day) => {
+            const dayStart = startOfDay(day).getTime()
+            const dayEnd = addDays(startOfDay(day), 1).getTime()
+            return (
+              <div
+                key={day.getTime()}
+                className="flex min-w-0 flex-col gap-1 border-l border-lift/[0.04] px-1 py-1.5"
+              >
+                {untimed
+                  .filter((i) => i.startsAt >= dayStart && i.startsAt < dayEnd)
+                  .map((item) => (
+                    <div
+                      key={item.id}
+                      title={
+                        item.detail
+                          ? `${item.title} — ${item.detail}`
+                          : item.title
+                      }
+                      style={areaVars(item.area ?? 'life')}
+                      className="truncate rounded-[5px] border-l-2 border-(--area) bg-(--area)/10 px-1.5 py-0.5 text-[11px] text-foreground"
+                    >
+                      ◆ {item.title}
+                    </div>
+                  ))}
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
+
       <div ref={gridRef} className="grid grid-cols-[52px_repeat(7,1fr)]">
         <div>
           {HOURS.map((hour) => (
@@ -340,13 +472,14 @@ export function WeekGrid({
         {days.map((day, dayIndex) => {
           const dayStart = startOfDay(day).getTime()
           const dayEnd = addDays(startOfDay(day), 1).getTime()
-          const ofDay = shown.filter(
+          const ofDay = timed.filter(
             (i) => i.startsAt >= dayStart && i.startsAt < dayEnd,
           )
 
           return (
             <div
               key={day.getTime()}
+              onPointerDown={(e) => onColumnPointerDown(e, dayIndex)}
               className="relative border-l border-lift/[0.04]"
             >
               {HOURS.map((hour) => (
@@ -354,13 +487,36 @@ export function WeekGrid({
                   key={hour}
                   type="button"
                   aria-label={`Add an event at ${String(hour).padStart(2, '0')}:00 on ${day.toDateString()}`}
-                  onClick={() =>
+                  onClick={(e) => {
+                    /* detail 0 is a keyboard press, which always counts. */
+                    if (e.detail !== 0 && mouseCreate.current) return
                     onCreateAt(new Date(day).setHours(hour, 0, 0, 0))
-                  }
+                  }}
                   className="block w-full border-b border-lift/[0.04] transition-colors hover:bg-lift/[0.03]"
                   style={{ height: ROW_HEIGHT }}
                 />
               ))}
+
+              {creating?.dayIndex === dayIndex ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-1 z-10 rounded-[7px] border border-dashed border-lav-300/60 bg-lav-300/10 px-2 py-1"
+                  style={{
+                    top: Math.max(
+                      ((creating.from - FIRST_HOUR * 60) / 60) * ROW_HEIGHT,
+                      0,
+                    ),
+                    height: Math.max(
+                      ((creating.to - creating.from) / 60) * ROW_HEIGHT,
+                      ROW_HEIGHT / 4,
+                    ),
+                  }}
+                >
+                  <span className="font-mono text-[10px] text-lav-300">
+                    {minuteClock(creating.from)}–{minuteClock(creating.to)}
+                  </span>
+                </div>
+              ) : null}
 
               {ofDay.map((item) => {
                 const { top, height } = placement(item)
@@ -379,6 +535,12 @@ export function WeekGrid({
                   <button
                     key={item.id}
                     type="button"
+                    data-block
+                    title={
+                      item.source === 'milestone' && item.detail
+                        ? `${item.title} — ${item.detail}`
+                        : undefined
+                    }
                     onPointerDown={(e) =>
                       onPointerDown(e, item, dayIndex, 'move')
                     }
@@ -389,7 +551,9 @@ export function WeekGrid({
                     /* The browser's own drag-a-button ghost would fight ours. */
                     onDragStart={(e) => e.preventDefault()}
                     className={[
-                      'absolute inset-x-1 overflow-hidden rounded-[7px] px-2 py-1 text-left select-none',
+                      /* flex-col from the top: a button centres its
+                         content, and a four-hour block read as empty. */
+                      'absolute inset-x-1 flex flex-col justify-start overflow-hidden rounded-[7px] px-2 py-1 text-left',
                       movable ? 'cursor-grab touch-pan-y' : '',
                       dragging
                         ? 'z-20 cursor-grabbing shadow-[0_8px_24px_-6px_var(--color-sink)] ring-2 ring-lav-300/60'

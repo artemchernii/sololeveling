@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest'
 
-import { bookedHoursLine, buildTimeline } from './timeline'
+import {
+  bookedHoursLine,
+  buildTimeline,
+  milestoneToTimelineItem,
+} from './timeline'
 import type { Doc } from '../../convex/_generated/dataModel'
 
 const noon = new Date(2026, 8, 8, 12).getTime()
@@ -197,5 +201,17 @@ describe('a milestone is due somewhere in the day', () => {
       day,
     )
     expect(items.map((i) => i.source)).toEqual(['milestone', 'task'])
+  })
+})
+
+describe('a milestone says whose it is (24 Sep)', () => {
+  test('its goal becomes the detail', () => {
+    const item = milestoneToTimelineItem({
+      _id: 'm1',
+      title: 'testing',
+      dueDate: '2026-09-21',
+      goalTitle: 'Ship R5',
+    })
+    expect(item?.detail).toBe('milestone of Ship R5')
   })
 })

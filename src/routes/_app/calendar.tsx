@@ -29,7 +29,10 @@ export const Route = createFileRoute('/_app/calendar')({
 function Calendar() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [editing, setEditing] = useState<Doc<'events'> | undefined>(undefined)
-  const [creatingAt, setCreatingAt] = useState<number | null>(null)
+  const [creatingAt, setCreatingAt] = useState<{
+    startsAt: number
+    endsAt?: number
+  } | null>(null)
   const [undoable, setUndoable] = useState<Undoable | null>(null)
   const clearUndo = useCallback(() => setUndoable(null), [])
   const updateEvent = useMutation(api.events.update)
@@ -55,6 +58,7 @@ function Calendar() {
   const projects = useQuery(api.projects.listLive, {})
   const projectTitles = new Map((projects ?? []).map((p) => [p._id, p.title]))
   const areaOfGoal = new Map((goals ?? []).map((g) => [g._id, g.area]))
+  const titleOfGoal = new Map((goals ?? []).map((g) => [g._id, g.title]))
 
   const items = buildTimeline(
     tasks ?? [],
@@ -65,6 +69,7 @@ function Calendar() {
       dueDate: m.dueDate,
       dueTime: m.dueTime,
       area: areaOfGoal.get(m.goalId),
+      goalTitle: titleOfGoal.get(m.goalId),
     })),
     { start: range.from, end: range.to },
   )
@@ -205,9 +210,9 @@ function Calendar() {
           onSelect={openItem}
           onDrop={drop}
           projectName={(id) => projectTitles.get(id as Doc<'projects'>['_id'])}
-          onCreateAt={(startsAt) => {
+          onCreateAt={(startsAt, endsAt) => {
             setEditing(undefined)
-            setCreatingAt(startsAt)
+            setCreatingAt({ startsAt, endsAt })
           }}
         />
       </>
@@ -217,7 +222,8 @@ function Calendar() {
       <EventDialog
         open={editing !== undefined || creatingAt !== null}
         event={editing}
-        startsAt={creatingAt ?? Date.now()}
+        startsAt={creatingAt?.startsAt ?? Date.now()}
+        endsAt={creatingAt?.endsAt}
         onClose={() => {
           setEditing(undefined)
           setCreatingAt(null)

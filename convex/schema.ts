@@ -143,6 +143,10 @@ export default defineSchema({
        deriving it from session logs would need an exclusion for `work`, which
        is the hardcoded list R6 spent a row removing. */
     track: v.optional(v.literal('language')),
+    /* Which language a language area is (25 Sep): 'pt-PT', 'en'. Gives the
+       Languages page its flag, its name and its built-in path. A code from
+       src/lib/languages/catalog.ts; absent until he says which. */
+    lang: v.optional(v.string()),
   })
     .index('by_owner_order', ['ownerId', 'order'])
     .index('by_owner_slug', ['ownerId', 'slug']),
@@ -387,6 +391,9 @@ export default defineSchema({
     /* A topic's standing, in words (25 Sep, his call): still learning it, or
        solid. Not a score and never counted into one. */
     mark: v.optional(v.union(v.literal('learning'), v.literal('solid'))),
+    /* The built-in path topic this drill tracks (25 Sep), e.g.
+       'b1-conjuntivo-presente'. Absent for a drill he typed himself. */
+    ref: v.optional(v.string()),
     sortOrder: v.number(),
     /* Retired, not deleted: its exercise logs are evidence and stay. */
     retiredAt: v.optional(v.number()),

@@ -4,7 +4,7 @@ import { requireUser } from './auth'
 import { requireLiveArea } from './areas'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
-import type { Id } from './_generated/dataModel'
+import type { Doc, Id } from './_generated/dataModel'
 import schema, { areaSlug } from './schema'
 
 /* Routines (25 Sep): the exercises under Stretch and Gym on Body, the topics
@@ -49,6 +49,37 @@ function cleanGroup(raw: string): string {
     throw new ConvexError('That routine name is too long.')
   }
   return group
+}
+
+/* A path topic's drill, made the first time he touches the topic. The path
+   is reference content in the client; this is where it becomes his row. */
+async function drillForRef(
+  ctx: MutationCtx,
+  ownerId: string,
+  area: string,
+  ref: string,
+  title: string,
+): Promise<Doc<'drills'>> {
+  if (!/^[a-z0-9-]{1,64}$/.test(ref)) throw new Error('Bad topic')
+  const rows = await ctx.db
+    .query('drills')
+    .withIndex('by_owner_area', (q) =>
+      q.eq('ownerId', ownerId).eq('area', area),
+    )
+    .take(MAX_DRILLS)
+  const found = rows.find((d) => d.ref === ref)
+  if (found !== undefined) return found
+  await requireLiveArea(ctx, ownerId, area)
+  const last = rows.reduce((n, d) => Math.max(n, d.sortOrder), 0)
+  const id = await ctx.db.insert('drills', {
+    ownerId,
+    area,
+    group: 'topic',
+    title: cleanTitle(title),
+    ref,
+    sortOrder: last + 1,
+  })
+  return (await ctx.db.get(id)) as Doc<'drills'>
 }
 
 /** One area's live drills, in the order they were added. */
@@ -171,5 +202,61 @@ export const did = mutation({
       text: drill.title,
       meta: { category: drill.group, drillId: drill._id },
     })
+  },
+})
+
+/**
+ * PRACTISED on a built-in path topic: finds or makes his drill for it, then
+ * writes the exercise log exactly as `did` does. Returns the log for Undo.
+ */
+export const practiseTopic = mutation({
+  args: { area: areaSlug, ref: v.string(), title: v.string() },
+  returns: v.id('logs'),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const drill = await drillForRef(
+      ctx,
+      ownerId,
+      args.area,
+      args.ref,
+      args.title,
+    )
+    if (drill.retiredAt !== undefined) {
+      await ctx.db.patch(drill._id, { retiredAt: undefined })
+    }
+    return await ctx.db.insert('logs', {
+      ownerId,
+      kind: 'exercise',
+      area: drill.area,
+      occurredAt: Date.now(),
+      text: drill.title,
+      meta: { category: drill.group, drillId: drill._id },
+    })
+  },
+})
+
+/** SOLID (or not) on a built-in path topic, making his drill if needed. */
+export const markTopic = mutation({
+  args: {
+    area: areaSlug,
+    ref: v.string(),
+    title: v.string(),
+    mark: v.union(v.literal('learning'), v.literal('solid'), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const drill = await drillForRef(
+      ctx,
+      ownerId,
+      args.area,
+      args.ref,
+      args.title,
+    )
+    await ctx.db.patch(drill._id, {
+      mark: args.mark ?? undefined,
+      retiredAt: undefined,
+    })
+    return null
   },
 })

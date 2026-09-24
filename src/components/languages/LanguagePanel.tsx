@@ -188,7 +188,7 @@ function Header({
           </span>
         ) : null}
         <span className="flex min-w-0 flex-col gap-1.5">
-          <span className="truncate text-[40px] leading-none font-light tracking-tight text-foreground sm:text-[48px]">
+          <span className="truncate pb-[0.12em] text-[40px] leading-[1.1] font-light tracking-tight text-foreground sm:text-[48px]">
             {language?.native ?? label}
           </span>
           {level ? (

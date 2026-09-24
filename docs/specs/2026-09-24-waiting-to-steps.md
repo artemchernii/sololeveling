@@ -18,9 +18,10 @@ even add it as a milestone … drag and insert between milestones". He chose
    open tasks anywhere (CLAUDE.md).
 2. **Drag a row onto the line (md+).** Grab the grip; a small glass chip of
    the title follows the pointer. Every + on the line lights as a drop
-   target and the one under the pointer grows and turns its ring. Drop on a
-   + → the task becomes a step there. Drop anywhere else → nothing happens,
-   the chip flies back. Pointer events in a hook, no library (as R5 did).
+   target and the one under the pointer grows and turns its ring. Dropped
+   on a +, the task becomes a step there. Drop anywhere else → nothing
+   happens, the chip flies back. Pointer events in a hook, no library (as R5
+   did).
 3. **"Make it a step" without dragging (phone, keyboard).** A row's
    ⋯ → Make it a step puts the timeline into pick-a-gap mode: every + nods,
    a line under the timeline says "Tap where it goes · Cancel". Tap a + →

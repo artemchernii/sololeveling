@@ -40,18 +40,17 @@ export function Topics({ slug, delay = 0 }: { slug: string; delay?: number }) {
   const [gone, setGone] = useState<Doc<'drills'> | null>(null)
 
   if (drills === undefined) return null
-  const topics = drills.filter((d) => d.group === GROUP)
+  /* Path topics live in THE PATH; this is only what he typed himself. */
+  const topics = drills.filter((d) => d.group === GROUP && d.ref === undefined)
   const byDrill = new Map(days?.rows.map((r) => [r.drillId, r]) ?? [])
 
   return (
-    <TrackPanel area={slug} title="topics & tenses" delay={delay}>
+    <TrackPanel area={slug} title="your own topics" delay={delay}>
       {topics.length === 0 ? (
         <p className="text-[13px] text-ink-400">
-          The rules and tenses that matter most — pretérito perfeito, ser vs
-          estar — one per line. Each gets a{' '}
-          <span className="font-mono text-ink-200">PRACTISED</span> button, and
-          you mark it <span className="font-mono text-ink-200">SOLID</span> when
-          it is.
+          Anything the path does not cover — a rule from class, words you keep
+          missing. Each gets a{' '}
+          <span className="font-mono text-ink-200">PRACTISED</span> button.
         </p>
       ) : (
         <ul className="flex flex-col">

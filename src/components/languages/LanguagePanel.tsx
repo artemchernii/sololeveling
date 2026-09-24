@@ -7,7 +7,8 @@ import type { ReactNode } from 'react'
 
 import { api } from '../../../convex/_generated/api'
 import { AreaBadge } from '@/components/AreaBadge'
-import { LevelEditor } from '@/components/languages/LevelEditor'
+import { Level } from '@/components/languages/Level'
+import { NextUp, Path } from '@/components/languages/Path'
 import { Topics } from '@/components/languages/Topics'
 import { CategoryChip } from '@/components/track/CategoryChip'
 import { DayStrips } from '@/components/track/DayStrip'
@@ -61,21 +62,27 @@ const CATEGORIES = KINDS.map((k) => k.category)
 export function LanguagePanel({
   slug,
   label,
+  lang,
 }: {
   slug: string
   label: string
+  lang: string | undefined
 }) {
+  /* 25 Sep order: log today; where you are and what to do next; the whole
+     path; then the record of how often. */
   return (
     <div className="flex flex-col gap-[18px]">
       <LogToday slug={slug} />
-      <div className="grid gap-[18px] lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <Topics slug={slug} delay={120} />
-        <div className="flex flex-col gap-[18px]">
-          <Level slug={slug} label={label} />
-          <Next slug={slug} />
-        </div>
+      <div className="grid gap-[18px] lg:grid-cols-2">
+        <Level slug={slug} delay={80} />
+        <NextUp slug={slug} lang={lang} delay={140} />
       </div>
+      <Path slug={slug} lang={lang} delay={200} />
       <Sessions slug={slug} label={label} />
+      <div className="grid gap-[18px] lg:grid-cols-2">
+        <Topics slug={slug} delay={260} />
+        <Next slug={slug} />
+      </div>
       <Recent slug={slug} label={label} />
     </div>
   )
@@ -164,42 +171,6 @@ function KindButton({
         <span className="label-caps whitespace-nowrap">this month</span>
       </span>
     </div>
-  )
-}
-
-/* The level, and the target a goal gives it in words. */
-function Level({ slug, label }: { slug: string; label: string }) {
-  const levels = useQuery(api.aggregate.languageLevels, { slugs: [slug] })
-  const goals = useQuery(api.goals.listActive, {})
-  const level = levels?.[0]
-  /* A CEFR level is not a scale anything divides by, so this reads
-     `targetLabel` ("B2") and never `targetValue`. */
-  const target = goals?.find(
-    (g) => g.area === slug && g.targetLabel !== undefined,
-  )?.targetLabel
-
-  return (
-    <TrackPanel
-      area={slug}
-      title="level"
-      delay={160}
-      aside={
-        target !== undefined ? (
-          <span className="rounded-full bg-(--area)/12 px-2.5 py-0.5 font-mono text-[11px] text-(--area) ring-1 ring-(--area)/30 ring-inset">
-            aiming at {target}
-          </span>
-        ) : null
-      }
-    >
-      {level === undefined ? null : (
-        <LevelEditor
-          slug={slug}
-          label={label}
-          textValue={level.textValue}
-          recordedAt={level.recordedAt}
-        />
-      )}
-    </TrackPanel>
   )
 }
 

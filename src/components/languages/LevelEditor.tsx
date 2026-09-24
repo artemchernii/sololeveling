@@ -69,8 +69,6 @@ export function LevelEditor({
 
   return (
     <div style={areaVars(slug)} className="flex flex-col gap-1">
-      <span className="label-caps">{label}</span>
-
       {editing ? (
         <span className="flex items-center gap-1.5">
           <input
@@ -86,7 +84,7 @@ export function LevelEditor({
             }}
             placeholder="B1"
             aria-label={`Record ${label}'s level`}
-            className="w-16 rounded-[6px] border border-(--area)/50 bg-sink/20 px-2 py-0.5 font-mono text-[19px] font-light text-foreground outline-none"
+            className="w-20 rounded-[8px] border border-(--area)/50 bg-sink/20 px-2 py-1 font-mono text-[26px] font-light text-foreground outline-none"
           />
           <button
             type="button"
@@ -111,13 +109,14 @@ export function LevelEditor({
           title={`Record ${label}'s level`}
           className="-mx-1 flex flex-wrap items-baseline gap-x-2 rounded-[5px] px-1 text-left transition-colors hover:bg-lift/10"
         >
-          {/* 30px, not the 19px StateStrip's dashboard cell uses or the 34px
-              WeightLine's lone hero number uses (Task 6 review note): this
-              sits in Languages' own vitals row beside CLASSES and PRACTICE,
-              each drawn at ProjectStats.tsx's Figure size — the numeral for a
-              card stat with a label under it, which is what all three now
-              are. */}
-          <span className="text-[30px] leading-none font-light text-foreground">
+          {/* 44px, the hero size WeightLine's number uses: since 25 Sep
+              the level has its own card rather than a slot in a row of
+              three. The language's colour, because a level is a state of
+              that language — never a grade (A2 is earlier, not worse). */}
+          <span
+            key={textValue}
+            className="motion-pop text-[44px] leading-none font-light text-(--area)"
+          >
             {textValue ?? '—'}
           </span>
           <span className="font-mono text-[11px] text-ink-600">

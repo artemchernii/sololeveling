@@ -45,7 +45,11 @@ export function LanguageTabs() {
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <div className="flex flex-wrap gap-1.5">
+      {/* One language needs no tabs (25 Sep): a single pill over the page
+          was a control with nothing to switch to. */}
+      <div
+        className={`flex flex-wrap gap-1.5 ${languages.length < 2 ? 'hidden' : ''}`}
+      >
         {languages.map((a) => {
           const on = a.slug === active.slug
           return (

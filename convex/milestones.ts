@@ -232,6 +232,11 @@ export const fromTask = mutation({
     dueDate: v.optional(v.string()),
     /* The caller's local day, to know whether the task is on today. */
     today: v.string(),
+    /* The goal to move it onto, when that is not the goal it is filed
+       under — the new-goal composer pulls any backlog task (24 Sep). The
+       task is refiled under it, so Undo finds the pair. Absent: the task's
+       own goal. */
+    goalId: v.optional(v.id('goals')),
   },
   returns: v.id('milestones'),
   handler: async (ctx, args) => {
@@ -240,7 +245,8 @@ export const fromTask = mutation({
     if (task === null || task.ownerId !== ownerId) {
       throw new Error('No such task')
     }
-    if (task.goalId === undefined) {
+    const goalId = args.goalId ?? task.goalId
+    if (goalId === undefined) {
       throw new ConvexError('That task is not filed under a goal.')
     }
     if (task.status !== 'open' || task.archivedAt !== undefined) {
@@ -251,17 +257,17 @@ export const fromTask = mutation({
         "That one is on today's three. Drop it from today first.",
       )
     }
-    await ownedGoal(ctx, ownerId, task.goalId)
+    await ownedGoal(ctx, ownerId, goalId)
 
-    const existing = await siblings(ctx, ownerId, task.goalId)
+    const existing = await siblings(ctx, ownerId, goalId)
     const milestoneId = await ctx.db.insert('milestones', {
       ownerId,
-      goalId: task.goalId,
+      goalId,
       title: task.title,
       dueDate: task.dueDate ?? args.dueDate,
       sortOrder: sortOrderAt(existing, args.after),
     })
-    await ctx.db.patch(args.taskId, { archivedAt: Date.now() })
+    await ctx.db.patch(args.taskId, { archivedAt: Date.now(), goalId })
     return milestoneId
   },
 })

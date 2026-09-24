@@ -558,3 +558,48 @@ describe('a waiting task becomes a step (fromTask)', () => {
     ).rejects.toThrow(/No such milestone/)
   })
 })
+
+describe('the composer pulls any backlog task onto a new goal (fromTask with goalId)', () => {
+  const TODAY = '2026-09-24'
+
+  test('an unfiled task becomes a step of the named goal, refiled under it', async () => {
+    const { t, mine } = twoOwners()
+    const goalId = await mine.mutation(api.goals.create, {
+      title: 'New',
+      area: 'body',
+    })
+    const taskId = await mine.mutation(api.tasks.create, { title: 'Loose' })
+    const id = await mine.mutation(api.milestones.fromTask, {
+      taskId,
+      after: null,
+      today: TODAY,
+      goalId,
+    })
+    const list = await mine.query(api.milestones.listByGoal, { goalId })
+    expect(list.map((m) => m._id)).toEqual([id])
+    const task = await t.run((ctx) => ctx.db.get(taskId))
+    expect(task?.goalId).toBe(goalId)
+    expect(task?.archivedAt).toBeTypeOf('number')
+
+    /* Undo still finds the pair. */
+    await mine.mutation(api.milestones.backToTask, { milestoneId: id, taskId })
+    expect(await mine.query(api.milestones.listByGoal, { goalId })).toEqual([])
+  })
+
+  test("refuses to move my task onto someone else's goal", async () => {
+    const { mine, theirs } = twoOwners()
+    const theirGoal = await theirs.mutation(api.goals.create, {
+      title: 'Theirs',
+      area: 'body',
+    })
+    const taskId = await mine.mutation(api.tasks.create, { title: 'Mine' })
+    await expect(
+      mine.mutation(api.milestones.fromTask, {
+        taskId,
+        after: null,
+        today: TODAY,
+        goalId: theirGoal,
+      }),
+    ).rejects.toThrow(/No such goal/)
+  })
+})

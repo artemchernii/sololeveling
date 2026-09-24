@@ -334,6 +334,67 @@ export const setTileTarget = mutation({
   },
 })
 
+/* The weight goal is the first active body goal measured in kg — the same
+   rule WeightLine reads it by. */
+async function activeWeightGoals(ctx: MutationCtx, ownerId: string) {
+  const rows = await ctx.db
+    .query('goals')
+    .withIndex('by_owner_status', (q) =>
+      q.eq('ownerId', ownerId).eq('status', 'active'),
+    )
+    .take(MAX_ROWS)
+  return rows.filter(
+    (g) => g.area === 'body' && g.unit === 'kg' && g.targetValue !== undefined,
+  )
+}
+
+/**
+ * A weight to aim at, set from the Weight card (25 Sep). A goal, because a
+ * goal's targetValue is what §1 lets the dashed line on the chart be. Setting
+ * it again moves the number on the same goal.
+ */
+export const setWeightTarget = mutation({
+  args: { targetValue: v.number() },
+  returns: v.id('goals'),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    if (
+      !Number.isFinite(args.targetValue) ||
+      args.targetValue < 20 ||
+      args.targetValue > 400
+    ) {
+      throw new ConvexError('That is not a weight in kg.')
+    }
+    const targetValue = Math.round(args.targetValue * 10) / 10
+    const existing = await activeWeightGoals(ctx, ownerId)
+    if (existing.length > 0) {
+      await ctx.db.patch(existing[0]._id, { targetValue })
+      return existing[0]._id
+    }
+    return await ctx.db.insert('goals', {
+      ownerId,
+      title: `Weigh ${targetValue} kg`,
+      area: 'body',
+      status: 'active',
+      targetValue,
+      unit: 'kg',
+    })
+  },
+})
+
+/** No weight target any more. Dropped, not deleted. */
+export const clearWeightTarget = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    for (const goal of await activeWeightGoals(ctx, ownerId)) {
+      await ctx.db.patch(goal._id, { status: 'dropped' })
+    }
+    return null
+  },
+})
+
 /** No target on this tile any more. Dropped, not deleted. */
 export const clearTileTarget = mutation({
   args: { tile: tileValidator },

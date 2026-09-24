@@ -368,7 +368,8 @@ export const remove = mutation({
       throw new Error('NO_SUCH_AREA')
     }
 
-    /* The six tables that carry an area (PLAN.md §2), written out rather than
+    /* The seven tables that carry an area (PLAN.md §2, plus drills on 25
+       Sep), written out rather than
        looped: `ctx.db.query(table)` over a union of names cannot resolve which
        indexes that table has, and the loop that reads nicely is the one that
        loses every type. `logs` is the lucky one — `by_owner_area_time` indexes
@@ -406,6 +407,12 @@ export const remove = mutation({
         .query('stateSnapshots')
         .withIndex('by_owner_key_time', (q) => q.eq('ownerId', ownerId))
         .filter((q) => q.eq(q.field('area'), args.slug))
+        .first()) !== null ||
+      (await ctx.db
+        .query('drills')
+        .withIndex('by_owner_area', (q) =>
+          q.eq('ownerId', ownerId).eq('area', args.slug),
+        )
         .first()) !== null
 
     if (used) {

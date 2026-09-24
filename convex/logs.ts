@@ -37,6 +37,8 @@ export const logKindValidator = v.union(
      kind:'workout' (aggregate.ts TILE_KINDS), so a creatine filed as one
      would make the morning screen read "30 workouts this month". */
   v.literal('intake'),
+  /* One routine item ticked (drills.did) — see schema.ts. */
+  v.literal('exercise'),
   v.literal('note'),
   v.literal('idea'),
   v.literal('custom'),
@@ -286,6 +288,34 @@ export const setArea = mutation({
       throw new Error('No such log')
     }
     await ctx.db.patch(args.logId, { area: args.area })
+    return null
+  },
+})
+
+/**
+ * Refile a log's category (25 Sep): a session logged before capture stored
+ * one reads OTHER on Body and Languages, and counted as neither class nor
+ * practice. Filing, like `setArea` — the thing that happened is unchanged.
+ * `null` clears it back to uncategorised.
+ */
+export const setCategory = mutation({
+  args: { logId: v.id('logs'), category: v.union(v.string(), v.null()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const log = await ctx.db.get(args.logId)
+    if (log === null || log.ownerId !== ownerId) {
+      throw new Error('No such log')
+    }
+    const category = args.category?.trim().toLowerCase() || undefined
+    if (category !== undefined && category.length > 24) {
+      throw new ConvexError('That category is too long.')
+    }
+    const { category: _old, ...rest } = log.meta ?? {}
+    const meta = category === undefined ? rest : { ...rest, category }
+    await ctx.db.patch(args.logId, {
+      meta: Object.keys(meta).length === 0 ? undefined : meta,
+    })
     return null
   },
 })

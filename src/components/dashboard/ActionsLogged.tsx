@@ -184,7 +184,7 @@ export function TargetBar({
    clears the target outright, words and all: words with no count have
    nothing to sit beside. Moving from one field to the other is not leaving,
    so the blur that saves is the one that lands outside both. */
-function TargetInput({
+export function TargetInput({
   tile,
   current,
   onClose,

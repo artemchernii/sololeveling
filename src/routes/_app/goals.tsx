@@ -53,46 +53,54 @@ function Goals() {
             </div>
           ))}
         </div>
-      ) : goals.length === 0 ? (
-        <div className={`glass rounded-[22px] p-6 ${arrived}`}>
-          <p className="text-[13px] text-ink-500">
-            No goals yet. Name one above — a thing to walk towards, or a number
-            to hit each month.
-          </p>
-        </div>
       ) : (
         <>
-          {monthly.length > 0 ? (
-            <section className="flex flex-col gap-3">
-              <h2 className="label-caps px-1">This month</h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {monthly.map((goal) => (
-                  <div key={goal._id} id={`goal-${goal._id}`}>
+          {/* Targets and goals are different things (24 Sep): a target is
+              a number this month, one of the six tiles, and resets; a goal
+              is something walked towards in steps, with no number. All six
+              tiles are here, set or not, so this is where targets are set. */}
+          <section className="flex flex-col gap-3">
+            <h2 className="label-caps px-1">
+              Targets <span className="text-ink-700">· this month</span>
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {MONTH_TILES.map((tile) => {
+                const goal = monthly.find((g) => g.tile === tile.key)
+                return (
+                  <div
+                    key={tile.key}
+                    id={goal ? `goal-${goal._id}` : undefined}
+                  >
                     <MonthTarget
                       goal={goal}
-                      tile={MONTH_TILES.find((t) => t.key === goal.tile)}
-                      count={
-                        counts && goal.tile ? counts[goal.tile].now : undefined
-                      }
+                      tile={tile}
+                      count={counts ? counts[tile.key].now : undefined}
                       daysLeft={daysLeft}
                     />
                   </div>
-                ))}
-              </div>
-            </section>
-          ) : null}
+                )
+              })}
+            </div>
+          </section>
 
-          {longTerm.length > 0 ? (
-            <section className="flex flex-col gap-3">
-              <h2 className="label-caps px-1">Goals</h2>
-              {longTerm.map((goal) => (
+          <section className="flex flex-col gap-3">
+            <h2 className="label-caps px-1">Goals</h2>
+            {longTerm.length === 0 ? (
+              <div className={`glass rounded-[22px] p-6 ${arrived}`}>
+                <p className="text-[13px] text-ink-500">
+                  No goal yet — something to walk towards, in steps. Start one
+                  above.
+                </p>
+              </div>
+            ) : (
+              longTerm.map((goal) => (
                 /* The id is what a milestone on the calendar links to. */
                 <div key={goal._id} id={`goal-${goal._id}`}>
                   <GoalCard goal={goal} />
                 </div>
-              ))}
-            </section>
-          ) : null}
+              ))
+            )}
+          </section>
         </>
       )}
       {goals === undefined ? null : <GoalShelf />}

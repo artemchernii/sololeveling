@@ -656,3 +656,33 @@ describe('several tasks at once', () => {
     expect(row.durationMin).toBe(60)
   })
 })
+
+describe("a goal's own tasks (24 Sep)", () => {
+  test('open, not archived, mine, and says when there are more', async () => {
+    const { mine, theirs } = twoOwners()
+    const goalId = await mine.mutation(api.goals.create, {
+      title: 'Ship it',
+      area: 'career',
+    })
+    const ids = []
+    for (const title of ['a', 'b', 'c', 'd']) {
+      ids.push(await mine.mutation(api.tasks.create, { title, goalId }))
+    }
+    await mine.mutation(api.tasks.complete, { taskId: ids[0] })
+    await mine.mutation(api.tasks.setArchivedMany, {
+      taskIds: [ids[1]],
+      archived: true,
+    })
+
+    const two = await mine.query(api.tasks.listByGoal, { goalId, limit: 2 })
+    expect(two.tasks.map((t) => t.title).sort()).toEqual(['c', 'd'])
+    expect(two.more).toBe(false)
+
+    const one = await mine.query(api.tasks.listByGoal, { goalId, limit: 1 })
+    expect(one.tasks).toHaveLength(1)
+    expect(one.more).toBe(true)
+
+    const peek = await theirs.query(api.tasks.listByGoal, { goalId, limit: 5 })
+    expect(peek.tasks).toHaveLength(0)
+  })
+})

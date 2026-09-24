@@ -641,6 +641,36 @@ export const listByProject = query({
 })
 
 /**
+ * The open tasks filed under a goal, for its card (24 Sep): "a goal doesn't
+ * show which tasks belong to it". Titles, not a count — the card lists what
+ * is waiting, and says only whether there is more than it shows.
+ */
+export const listByGoal = query({
+  args: { goalId: v.id('goals'), limit: v.number() },
+  returns: v.object({
+    tasks: v.array(schema.doc('tasks')),
+    more: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const limit = Math.max(1, Math.min(args.limit, 20))
+    const open = await ctx.db
+      .query('tasks')
+      .withIndex('by_owner_goal', (q) =>
+        q.eq('ownerId', ownerId).eq('goalId', args.goalId),
+      )
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('status'), 'open'),
+          q.eq(q.field('archivedAt'), undefined),
+        ),
+      )
+      .take(limit + 1)
+    return { tasks: open.slice(0, limit), more: open.length > limit }
+  },
+})
+
+/**
  * Give a quest a time, or take it away. This is what puts a task on the TODAY
  * timeline (§3b.3) — an undated task stays in the checklist, which is the
  * normal case, not an error.

@@ -318,6 +318,8 @@ export default defineSchema({
     .index('by_owner_status_completed', ['ownerId', 'status', 'completedAt'])
     .index('by_owner_today', ['ownerId', 'todayFor'])
     .index('by_project', ['projectId'])
+    /* A goal's own tasks, on its card (24 Sep). */
+    .index('by_owner_goal', ['ownerId', 'goalId'])
     .index('by_owner_due', ['ownerId', 'dueDate'])
     /* The week view asks "what is scheduled between these two instants", and
        status cannot answer it. An absent `scheduledAt` sorts before every

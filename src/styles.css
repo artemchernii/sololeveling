@@ -416,20 +416,17 @@ h6 {
 }
 
 /* A + saying it is there, once, when the phone list appears — the phone
-   has no hover to find it with. Staggered by the caller. */
+   has no hover to find it with. Staggered by the caller. It brightens rather
+   than drawing a shadow, and holds nothing after (fill backwards): a held
+   end frame would sit on top of the + button's own glow for good. */
 @keyframes hint {
-  0%,
-  100% {
-    transform: none;
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--area) 0%, transparent);
-  }
   40% {
     transform: scale(1.3);
-    box-shadow: 0 0 0 4px color-mix(in oklab, var(--area) 30%, transparent);
+    filter: brightness(1.7);
   }
 }
 @utility motion-hint {
-  animation: hint var(--motion-linger) var(--motion-ease) both;
+  animation: hint var(--motion-linger) var(--motion-ease) backwards;
 }
 
 /* The ring that turns round a + while a pointer is on it: a comet of the

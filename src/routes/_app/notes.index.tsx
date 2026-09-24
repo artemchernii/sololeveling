@@ -2,7 +2,12 @@ import { useRef, useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ChevronRight, Image, Paperclip, PenLine } from 'lucide-react'
+import {
+  ChevronRight,
+  Image as ImageIcon,
+  Paperclip,
+  PenLine,
+} from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
@@ -283,7 +288,7 @@ function Notes() {
                     ) : null}
                     {note.images > 0 ? (
                       <span className="flex items-center gap-1">
-                        <Image className="size-3 text-ink-600" />
+                        <ImageIcon className="size-3 text-ink-600" />
                         {note.images}
                       </span>
                     ) : null}

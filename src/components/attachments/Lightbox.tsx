@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { ArrowUpRight, ChevronLeft, ChevronRight, X } from 'lucide-react'
 
 /* 24 Sep. A pasted screenshot is read, not downloaded: it opens over the
@@ -35,7 +36,9 @@ export function Lightbox({
   const nav =
     'motion-press grid size-10 place-items-center rounded-full bg-sink/60 text-ink-200 ring-1 ring-lift/15 hover:text-foreground'
 
-  return (
+  /* Portalled to <body>: the tray sits in a frosted panel, and a
+     backdrop-filter makes `fixed` mean "fixed to the panel", not the screen. */
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -103,6 +106,7 @@ export function Lightbox({
           </span>
         </>
       ) : null}
-    </div>
+    </div>,
+    document.body,
   )
 }

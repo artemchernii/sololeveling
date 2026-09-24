@@ -1,4 +1,4 @@
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { mutation, query } from './_generated/server'
@@ -207,6 +207,87 @@ export const move = mutation({
     if (j < 0 || j >= list.length) return null
     await ctx.db.patch(list[i]._id, { sortOrder: list[j].sortOrder })
     await ctx.db.patch(list[j]._id, { sortOrder: list[i].sortOrder })
+    return null
+  },
+})
+
+/* A waiting task, moved onto the line (24 Sep). Artem: "maybe even add it
+   as a milestone … drag and insert between milestones" — and moved, not
+   linked: the task becomes the step.
+
+   The task is archived rather than deleted. It may carry notes and files a
+   step cannot hold; archived, nothing is lost, and backToTask (the Undo)
+   has something to bring back. Its due date becomes the step's; without
+   one the caller's guess for the gap is used. A scheduled time is not
+   carried — a step's hour is a deadline, a task's is a booking.
+
+   A task on today's three is refused: moving it would free a slot, and
+   only dropFromToday may do that (CLAUDE.md). */
+export const fromTask = mutation({
+  args: {
+    taskId: v.id('tasks'),
+    /* As in create: a step id, or null for first. */
+    after: v.union(v.id('milestones'), v.null()),
+    /* The gap's date, used only when the task has none. */
+    dueDate: v.optional(v.string()),
+    /* The caller's local day, to know whether the task is on today. */
+    today: v.string(),
+    /* The goal to move it onto, when that is not the goal it is filed
+       under — the new-goal composer pulls any backlog task (24 Sep). The
+       task is refiled under it, so Undo finds the pair. Absent: the task's
+       own goal. */
+    goalId: v.optional(v.id('goals')),
+  },
+  returns: v.id('milestones'),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const task = await ctx.db.get(args.taskId)
+    if (task === null || task.ownerId !== ownerId) {
+      throw new Error('No such task')
+    }
+    const goalId = args.goalId ?? task.goalId
+    if (goalId === undefined) {
+      throw new ConvexError('That task is not filed under a goal.')
+    }
+    if (task.status !== 'open' || task.archivedAt !== undefined) {
+      throw new ConvexError('Only a waiting task can become a step.')
+    }
+    if (task.todayFor === args.today) {
+      throw new ConvexError(
+        "That one is on today's three. Drop it from today first.",
+      )
+    }
+    await ownedGoal(ctx, ownerId, goalId)
+
+    const existing = await siblings(ctx, ownerId, goalId)
+    const milestoneId = await ctx.db.insert('milestones', {
+      ownerId,
+      goalId,
+      title: task.title,
+      dueDate: task.dueDate ?? args.dueDate,
+      sortOrder: sortOrderAt(existing, args.after),
+    })
+    await ctx.db.patch(args.taskId, { archivedAt: Date.now(), goalId })
+    return milestoneId
+  },
+})
+
+/* The Undo of fromTask: the step goes and the task is back where it was.
+   Both must be his, and the step must sit under the task's own goal — it
+   will not delete an unrelated step. */
+export const backToTask = mutation({
+  args: { milestoneId: v.id('milestones'), taskId: v.id('tasks') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const m = await ownedMilestone(ctx, ownerId, args.milestoneId)
+    const task = await ctx.db.get(args.taskId)
+    if (task === null || task.ownerId !== ownerId) {
+      throw new Error('No such task')
+    }
+    if (task.goalId !== m.goalId) throw new Error('No such milestone')
+    await ctx.db.delete(args.milestoneId)
+    await ctx.db.patch(args.taskId, { archivedAt: undefined })
     return null
   },
 })

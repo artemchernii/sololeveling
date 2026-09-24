@@ -154,8 +154,42 @@ export const setStatus = mutation({
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     await ownedGoal(ctx, ownerId, args.goalId)
-    await ctx.db.patch(args.goalId, { status: args.status })
+    await ctx.db.patch(args.goalId, {
+      status: args.status,
+      closedAt: args.status === 'active' ? undefined : Date.now(),
+    })
     return null
+  },
+})
+
+/* The shelf at the bottom of Goals (24 Sep). Artem reached a goal and it
+   "simply disappeared" — nothing listed a goal once it stopped being
+   active. Reached and dropped, newest first; a goal closed before
+   `closedAt` existed sorts last.
+
+   Monthly targets are left out: clearing one is taking a number off a
+   tile, not ending something, and it is set again from the tile. */
+export const listClosed = query({
+  args: {},
+  returns: v.object({
+    reached: v.array(schema.doc('goals')),
+    dropped: v.array(schema.doc('goals')),
+  }),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    async function closed(status: 'done' | 'dropped') {
+      const rows = await ctx.db
+        .query('goals')
+        .withIndex('by_owner_status', (q) =>
+          q.eq('ownerId', ownerId).eq('status', status),
+        )
+        .order('desc')
+        .take(MAX_ROWS)
+      return rows
+        .filter((g) => g.tile === undefined)
+        .sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0))
+    }
+    return { reached: await closed('done'), dropped: await closed('dropped') }
   },
 })
 

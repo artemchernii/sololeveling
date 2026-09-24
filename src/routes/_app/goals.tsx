@@ -3,11 +3,9 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import { GoalCard } from '@/components/goals/GoalCard'
-import { MonthTarget } from '@/components/goals/MonthTarget'
+import { GoalShelf } from '@/components/goals/GoalShelf'
 import { NewGoal } from '@/components/goals/NewGoal'
 import { Skeleton } from '@/components/Skeleton'
-import { daysLeftInMonth, monthRange } from '@/lib/month'
-import { MONTH_TILES } from '@/lib/tiles'
 import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/goals')({
@@ -22,15 +20,9 @@ function Goals() {
   const goals = useHeld(useQuery(api.goals.listActive, {}))
   const arrived = useArrived(goals)
 
-  /* 24 Sep: monthly targets and long-term goals were one list of identical
-     cards. They are different things — a number that resets each month, and
-     a thing you are walking towards — so they are two sections. */
-  const monthly = (goals ?? []).filter((g) => g.tile !== undefined)
+  /* A monthly target is a goal row too (goals.setTileTarget), but it is a
+     number on a Today tile, not a thing walked towards: it stays there. */
   const longTerm = (goals ?? []).filter((g) => g.tile === undefined)
-
-  const now = new Date()
-  const counts = useQuery(api.aggregate.monthCounts, monthRange(now.getTime()))
-  const daysLeft = daysLeftInMonth(now)
 
   return (
     <div className="flex flex-col gap-[18px]">
@@ -52,48 +44,33 @@ function Goals() {
             </div>
           ))}
         </div>
-      ) : goals.length === 0 ? (
-        <div className={`glass rounded-[22px] p-6 ${arrived}`}>
-          <p className="text-[13px] text-ink-500">
-            No goals yet. Name one above — a thing to walk towards, or a number
-            to hit each month.
-          </p>
-        </div>
       ) : (
         <>
-          {monthly.length > 0 ? (
-            <section className="flex flex-col gap-3">
-              <h2 className="label-caps px-1">This month</h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {monthly.map((goal) => (
-                  <div key={goal._id} id={`goal-${goal._id}`}>
-                    <MonthTarget
-                      goal={goal}
-                      tile={MONTH_TILES.find((t) => t.key === goal.tile)}
-                      count={
-                        counts && goal.tile ? counts[goal.tile].now : undefined
-                      }
-                      daysLeft={daysLeft}
-                    />
-                  </div>
-                ))}
+          {/* Goals only (24 Sep). Monthly targets were shown here too, as
+              a copy of the six Today tiles — the same numbers in two places.
+              They live on Today, where they are seen every morning; this
+              page is for things walked towards in steps. */}
+          <section className="flex flex-col gap-3">
+            <h2 className="label-caps px-1">Goals</h2>
+            {longTerm.length === 0 ? (
+              <div className={`glass rounded-[22px] p-6 ${arrived}`}>
+                <p className="text-[13px] text-ink-500">
+                  No goal yet — something to walk towards, in steps. Start one
+                  above.
+                </p>
               </div>
-            </section>
-          ) : null}
-
-          {longTerm.length > 0 ? (
-            <section className="flex flex-col gap-3">
-              <h2 className="label-caps px-1">Goals</h2>
-              {longTerm.map((goal) => (
+            ) : (
+              longTerm.map((goal) => (
                 /* The id is what a milestone on the calendar links to. */
                 <div key={goal._id} id={`goal-${goal._id}`}>
                   <GoalCard goal={goal} />
                 </div>
-              ))}
-            </section>
-          ) : null}
+              ))
+            )}
+          </section>
         </>
       )}
+      {goals === undefined ? null : <GoalShelf />}
     </div>
   )
 }

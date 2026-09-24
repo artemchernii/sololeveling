@@ -1,17 +1,21 @@
-import { useRef, useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation } from 'convex/react'
-import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { ConvexError } from 'convex/values'
-import { CalendarPlus, CircleOff, ListPlus, Trash2, Trophy } from 'lucide-react'
+import { CalendarPlus, CircleOff, Trash2, Trophy } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc } from '../../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { AreaBadge } from '@/components/AreaBadge'
 import { deadlineTone } from '@/components/projects/Chips'
 import { SaveLabel, useSave } from '@/components/Saving'
 import { GoalTimeline } from './GoalTimeline'
-import { MilestoneEditor } from './MilestoneEditor'
+import { announceClosed } from './GoalShelf'
+import { WaitingList } from './WaitingList'
+import type { CarryTask } from './WaitingList'
+import { UndoLine } from '@/components/calendar/UndoLine'
+import type { Undoable } from '@/components/calendar/UndoLine'
+import { failureMessage } from '@/lib/convex-errors'
+import { localToday } from '@/lib/today'
 import { areaVars } from '@/lib/areas'
 
 /* One long-term goal (24 Sep). Artem asked what I thought of the page, and
@@ -28,7 +32,90 @@ export function GoalCard({ goal }: { goal: Doc<'goals'> }) {
   const removeGoal = useMutation(api.goals.remove)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [editingSteps, setEditingSteps] = useState(false)
+  /* Closing the goal, as a sequence the card plays before the write:
+     reaching — the line runs into the goal, it bursts, REACHED is stamped
+     on; leaving — the card drops away towards the shelf; dropping — it
+     greys and slides aside. The write comes last, so the card is still
+     here to be watched, and the shelf catches it (GoalShelf). */
+  const [closing, setClosing] = useState<
+    null | 'reaching' | 'leaving' | 'dropping'
+  >(null)
+  /* A waiting task on its way onto the line (WaitingList → GoalTimeline),
+     the row leaving once it lands, and the five seconds to take it back. */
+  const [carry, setCarry] = useState<CarryTask | null>(null)
+  const [leaving, setLeaving] = useState<Id<'tasks'> | null>(null)
+  const [undoable, setUndoable] = useState<Undoable | null>(null)
+  const fromTask = useMutation(api.milestones.fromTask)
+  const backToTask = useMutation(api.milestones.backToTask)
+  const complete = useMutation(api.tasks.complete)
+  /* Stable, or every render of the card would restart the Undo's clock. */
+  const clearUndo = useCallback(() => setUndoable(null), [])
+
+  useEffect(() => {
+    if (carry === null) return
+    function key(e: KeyboardEvent) {
+      if (e.key === 'Escape') setCarry(null)
+    }
+    document.addEventListener('keydown', key)
+    return () => document.removeEventListener('keydown', key)
+  }, [carry])
+
+  /* The row slides out first, then the write: a row that vanished the
+     instant the query changed would be a row you never saw go. */
+  async function leave(taskId: Id<'tasks'>, write: () => Promise<unknown>) {
+    setLeaving(taskId)
+    await new Promise((r) => window.setTimeout(r, 200))
+    try {
+      await write()
+    } catch (e) {
+      setError(failureMessage(e) ?? 'That did not work.')
+    } finally {
+      setLeaving(null)
+    }
+  }
+
+  async function close(status: 'done' | 'dropped') {
+    setError(null)
+    setCarry(null)
+    if (status === 'done') {
+      setClosing('reaching')
+      await wait(1400)
+      setClosing('leaving')
+      await wait(520)
+    } else {
+      setClosing('dropping')
+      await wait(240)
+    }
+    try {
+      await setStatus({ goalId: goal._id, status })
+      announceClosed({ goalId: goal._id, status })
+    } catch (e) {
+      setClosing(null)
+      setError(failureMessage(e) ?? 'That did not work.')
+    }
+  }
+
+  function place(
+    taskId: Id<'tasks'>,
+    after: Id<'milestones'> | null,
+    dueDate?: string,
+  ) {
+    setCarry(null)
+    setError(null)
+    void leave(taskId, async () => {
+      const milestoneId = await fromTask({
+        taskId,
+        after,
+        dueDate,
+        today: localToday(),
+      })
+      setUndoable({
+        text: 'Moved to the timeline',
+        at: Date.now(),
+        undo: () => backToTask({ milestoneId, taskId }),
+      })
+    })
+  }
 
   const icon =
     'motion-press grid size-8 place-items-center rounded-[9px] text-ink-500 transition-colors hover:bg-lift/[0.06]'
@@ -36,8 +123,26 @@ export function GoalCard({ goal }: { goal: Doc<'goals'> }) {
   return (
     <article
       style={areaVars(goal.area)}
-      className="glass motion-arrive relative flex flex-col gap-4 overflow-hidden rounded-[22px] p-6 pl-7"
+      className={`glass relative flex flex-col gap-4 overflow-hidden rounded-[22px] p-6 pl-7 transition-shadow duration-(--motion-linger) ${
+        closing === 'leaving'
+          ? 'motion-goal-away pointer-events-none'
+          : closing === 'dropping'
+            ? 'motion-leave pointer-events-none grayscale'
+            : 'motion-arrive'
+      } ${
+        closing === 'reaching' || closing === 'leaving'
+          ? 'shadow-[0_0_48px_-10px_var(--color-state-good)] ring-1 ring-state-good/50'
+          : ''
+      }`}
     >
+      {closing === 'reaching' || closing === 'leaving' ? (
+        <span
+          aria-hidden
+          className="motion-stamp pointer-events-none absolute top-5 right-[120px] z-10 rounded-[8px] bg-state-good/12 px-3 py-1 font-mono text-[15px] tracking-[0.3em] text-state-good ring-2 ring-state-good/70 backdrop-blur-sm"
+        >
+          REACHED
+        </span>
+      ) : null}
       {/* The goal's area, as an edge. */}
       <span className="absolute top-5 bottom-5 left-0 w-[3px] rounded-r-full bg-(--area)" />
 
@@ -79,24 +184,17 @@ export function GoalCard({ goal }: { goal: Doc<'goals'> }) {
             </button>
           ) : (
             <>
-              <button
-                type="button"
-                title="Reached it"
-                aria-label={`Reached: ${goal.title}`}
-                onClick={() =>
-                  void setStatus({ goalId: goal._id, status: 'done' })
-                }
-                className={`${icon} hover:text-state-good`}
-              >
-                <Trophy className="size-4" />
-              </button>
+              <HoldToReach
+                title={goal.title}
+                disabled={closing !== null}
+                onReached={() => void close('done')}
+              />
               <button
                 type="button"
                 title="Drop it"
                 aria-label={`Drop: ${goal.title}`}
-                onClick={() =>
-                  void setStatus({ goalId: goal._id, status: 'dropped' })
-                }
+                disabled={closing !== null}
+                onClick={() => void close('dropped')}
                 className={`${icon} hover:text-ink-200`}
               >
                 <CircleOff className="size-4" />
@@ -123,23 +221,26 @@ export function GoalCard({ goal }: { goal: Doc<'goals'> }) {
       <GoalNotes goal={goal} />
 
       <section className="flex flex-col gap-3 border-t border-lift/[0.07] pt-4">
-        <GoalTimeline goal={goal} />
-        <button
-          type="button"
-          onClick={() => setEditingSteps((v) => !v)}
-          className="motion-press flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-[11.5px] text-ink-500 ring-1 ring-lift/10 hover:text-ink-200"
-        >
-          <ListPlus className="size-3.5" />
-          {editingSteps ? 'Done editing steps' : 'Edit steps'}
-        </button>
-        {editingSteps ? (
-          <div className="motion-arrive">
-            <MilestoneEditor goalId={goal._id} />
-          </div>
-        ) : null}
+        <GoalTimeline
+          goal={goal}
+          carry={carry}
+          onPlace={(after, dueDate) => {
+            if (carry) place(carry.taskId, after, dueDate)
+          }}
+          onCancelCarry={() => setCarry(null)}
+          finale={closing === 'reaching' || closing === 'leaving'}
+        />
       </section>
 
-      <GoalTasks goal={goal} />
+      <WaitingList
+        goal={goal}
+        carry={carry}
+        setCarry={setCarry}
+        leaving={leaving}
+        onPlace={place}
+        onDone={(taskId) => void leave(taskId, () => complete({ taskId }))}
+      />
+      <UndoLine undoable={undoable} onDone={clearUndo} />
     </article>
   )
 }
@@ -208,43 +309,6 @@ function TargetText({ goal }: { goal: Doc<'goals'> }) {
     <span className="rounded-full bg-lift/[0.05] px-2.5 py-1 font-mono text-[11.5px] text-ink-300">
       target {text}
     </span>
-  )
-}
-
-/* What is waiting under this goal: open tasks filed to it, by title, linked
-   to the backlog where they are worked. No count — "and more" is enough. */
-function GoalTasks({ goal }: { goal: Doc<'goals'> }) {
-  const result = useQuery(api.tasks.listByGoal, { goalId: goal._id, limit: 4 })
-  if (result === undefined || result.tasks.length === 0) return null
-
-  return (
-    <section className="flex flex-col gap-1.5 border-t border-lift/[0.07] pt-4">
-      <span className="label-caps">Waiting</span>
-      <ul className="flex flex-col">
-        {result.tasks.map((task) => (
-          <li key={task._id}>
-            <Link
-              to="/backlog"
-              className="motion-press flex items-center gap-2.5 rounded-[8px] px-1.5 py-1 text-[13px] text-ink-200 hover:bg-lift/[0.04] hover:text-foreground"
-            >
-              <span
-                style={task.area ? areaVars(task.area) : undefined}
-                className={`size-1.5 shrink-0 rounded-full ${task.area ? 'bg-(--area)' : 'bg-ink-600'}`}
-              />
-              <span className="truncate">{task.title}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {result.more ? (
-        <Link
-          to="/backlog"
-          className="self-start px-1.5 text-[12px] text-ink-500 hover:text-ink-200"
-        >
-          and more in the backlog →
-        </Link>
-      ) : null}
-    </section>
   )
 }
 
@@ -344,5 +408,116 @@ function GoalNotes({ goal }: { goal: Doc<'goals'> }) {
         <span className="font-mono text-[10.5px] text-ink-700">⌘↵</span>
       </div>
     </div>
+  )
+}
+
+function wait(ms: number) {
+  return new Promise((r) => window.setTimeout(r, ms))
+}
+
+const HOLD_MS = 800
+
+/* Reaching a goal is a hold, not a tap (24 Sep): one tap on the trophy is
+   how a goal was reached by accident and vanished. Press and hold; a ring
+   fills round the trophy in the colour of a thing that went well, and at
+   full it is reached. Let go early and nothing happens — a short tap says
+   "hold" instead. Space and Enter hold too. */
+function HoldToReach({
+  title,
+  disabled,
+  onReached,
+}: {
+  title: string
+  disabled: boolean
+  onReached: () => void
+}) {
+  const [holding, setHolding] = useState(false)
+  const [hint, setHint] = useState(false)
+  const timer = useRef<number | undefined>(undefined)
+  const started = useRef(0)
+
+  function start() {
+    if (disabled || timer.current !== undefined) return
+    started.current = Date.now()
+    setHint(false)
+    setHolding(true)
+    timer.current = window.setTimeout(() => {
+      timer.current = undefined
+      setHolding(false)
+      onReached()
+    }, HOLD_MS)
+  }
+  function stop() {
+    if (timer.current === undefined) return
+    window.clearTimeout(timer.current)
+    timer.current = undefined
+    setHolding(false)
+    if (Date.now() - started.current < HOLD_MS / 2) setHint(true)
+  }
+
+  useEffect(() => {
+    if (!hint) return
+    const t = window.setTimeout(() => setHint(false), 1600)
+    return () => window.clearTimeout(t)
+  }, [hint])
+
+  useEffect(() => () => window.clearTimeout(timer.current), [])
+
+  return (
+    <span className="relative inline-flex">
+      {hint ? (
+        <span className="motion-arrive pointer-events-none absolute top-1/2 right-full mr-1 -translate-y-1/2 rounded-full bg-state-good/12 px-2 py-0.5 font-mono text-[10.5px] whitespace-nowrap text-state-good ring-1 ring-state-good/30">
+          hold to reach
+        </span>
+      ) : null}
+      <button
+        type="button"
+        title="Hold to reach"
+        aria-label={`Hold to reach: ${title}`}
+        disabled={disabled}
+        onPointerDown={start}
+        onPointerUp={stop}
+        onPointerLeave={stop}
+        onPointerCancel={stop}
+        onContextMenu={(e) => e.preventDefault()}
+        onKeyDown={(e) => {
+          if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
+            e.preventDefault()
+            start()
+          }
+        }}
+        onKeyUp={(e) => {
+          if (e.key === ' ' || e.key === 'Enter') stop()
+        }}
+        className={`motion-press relative grid size-8 touch-none place-items-center rounded-[9px] transition-[color,scale] select-none hover:bg-lift/[0.06] hover:text-state-good ${
+          holding ? 'scale-110 text-state-good' : 'text-ink-500'
+        }`}
+      >
+        <svg
+          viewBox="0 0 32 32"
+          aria-hidden
+          className="pointer-events-none absolute inset-0 size-full -rotate-90"
+        >
+          <circle
+            cx="16"
+            cy="16"
+            r="14"
+            fill="none"
+            stroke="var(--color-state-good)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            pathLength={1}
+            strokeDasharray={1}
+            strokeDashoffset={holding ? 0 : 1}
+            style={{
+              transition: holding
+                ? `stroke-dashoffset ${HOLD_MS}ms linear`
+                : 'stroke-dashoffset 150ms ease-out',
+            }}
+          />
+        </svg>
+        <Trophy className="size-4" />
+      </button>
+    </span>
   )
 }

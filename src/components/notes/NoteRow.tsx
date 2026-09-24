@@ -102,15 +102,21 @@ export function NoteRow({
         aria-checked={checked}
         onClick={onToggle}
         style={kindVars(note.kind)}
-        className={`motion-press flex w-full items-center gap-3 rounded-[14px] px-3.5 py-3 text-left transition-colors ${
+        /* The row itself never moves (24 Sep). It used to carry
+           motion-press, which shrank the whole 900px row to 97% under the
+           pointer — and transition-colors overrode its easing, so it
+           snapped: a jolt of ~14px at each edge on every tick, with the
+           checkbox sliding out from under the finger. The press now lives
+           on the box, which is the thing being ticked. */
+        className={`group/check flex w-full items-center gap-3 rounded-[14px] px-3.5 py-3 text-left transition-colors ${
           checked ? 'bg-(--kind)/10' : 'hover:bg-lift/[0.04]'
         }`}
       >
         <span
-          className={`grid size-[18px] shrink-0 place-items-center rounded-[5px] ring-1 transition-colors ${
+          className={`grid size-[18px] shrink-0 place-items-center rounded-[5px] ring-1 transition-[background-color,box-shadow,scale] duration-(--motion-fast) group-active/check:scale-90 ${
             checked
               ? 'bg-(--kind) text-background ring-(--kind)'
-              : 'ring-lift/25'
+              : 'ring-lift/25 group-hover/check:ring-lift/40'
           }`}
         >
           {checked ? <Check className="motion-pop size-3" /> : null}

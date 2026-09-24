@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { areaVars } from '@/lib/areas'
 import { dragResult, snap } from '@/lib/calendarDrag'
 import type { DragMode } from '@/lib/calendarDrag'
+import { parseOccurrenceId } from '@/lib/recurrence'
 import type { TimelineItem } from '@/lib/timeline'
 import { addDays } from '@/lib/weeks'
 
@@ -103,6 +104,7 @@ export function WeekGrid({
   onSelect,
   onCreateAt,
   onDrop,
+  fresh = null,
   projectName,
 }: {
   /** The first day drawn. */
@@ -116,6 +118,9 @@ export function WeekGrid({
   onCreateAt: (startsAt: number, endsAt?: number) => void
   /** R5: a block was dragged somewhere new. Writes straight away. */
   onDrop: (item: TimelineItem, result: DropResult) => void
+  /** An event just made in the dialog: held back while the dialog shows
+      its tick, then poured into its slot once it closes. */
+  fresh?: { eventId: string; phase: 'waiting' | 'landed' } | null
   projectName: (projectId: string) => string | undefined
 }) {
   const days = Array.from({ length: dayCount }, (_, i) => addDays(weekStart, i))
@@ -604,6 +609,10 @@ export function WeekGrid({
                   rowKey(item) === landed.row &&
                   item.startsAt === landed.startsAt
                 const movable = item.source !== 'milestone'
+                const isFresh =
+                  fresh !== null &&
+                  item.source === 'event' &&
+                  parseOccurrenceId(item.id)?.eventId === fresh.eventId
                 const project =
                   item.projectId !== undefined
                     ? projectName(item.projectId)
@@ -639,6 +648,15 @@ export function WeekGrid({
                         ? 'z-20 cursor-grabbing shadow-[0_8px_24px_-6px_var(--color-sink)] ring-2 ring-lav-300/60'
                         : '',
                       justLanded ? 'motion-pop' : '',
+                      /* A new event arrives (24 Sep: "add animation and
+                         make it cool"): hidden behind the dialog until it
+                         closes, then poured down into its slot from the top
+                         edge, with a ring of its colour and a band of light
+                         across it. A repeating one cascades, a day apart. */
+                      isFresh && fresh.phase === 'waiting' ? 'opacity-0' : '',
+                      isFresh && fresh.phase === 'landed'
+                        ? 'motion-event-born z-10'
+                        : '',
                       /* A quest is something you chose for today; an event is
                          something the day already contained. The accent marks
                          the first, per the design voice. */
@@ -656,6 +674,9 @@ export function WeekGrid({
                     style={{
                       top,
                       height,
+                      ...(isFresh
+                        ? { animationDelay: `${dayIndex * 70}ms` }
+                        : {}),
                       /* No area: the neutral grey, so it is still a block. */
                       ...(item.area
                         ? areaVars(item.area)
@@ -690,6 +711,13 @@ export function WeekGrid({
                         {project ? ` · ${project}` : ''}
                       </span>
                     )}
+                    {isFresh && fresh.phase === 'landed' ? (
+                      <span
+                        aria-hidden
+                        style={{ animationDelay: `${dayIndex * 70 + 260}ms` }}
+                        className="motion-sweep pointer-events-none absolute inset-y-0 left-0 w-1/2"
+                      />
+                    ) : null}
                     {movable ? (
                       /* The bottom edge is the length. Its own pointerdown,
                          so a grab there resizes instead of moving. */

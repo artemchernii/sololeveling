@@ -386,3 +386,220 @@ describe('adding a step in between', () => {
     ).rejects.toThrow('No such milestone')
   })
 })
+
+describe('a waiting task becomes a step (fromTask)', () => {
+  const TODAY = '2026-09-24'
+
+  async function setup() {
+    const { t, mine, theirs } = twoOwners()
+    const goalId = await mine.mutation(api.goals.create, {
+      title: 'Ship it',
+      area: 'business',
+    })
+    const one = await mine.mutation(api.milestones.create, {
+      goalId,
+      title: 'One',
+    })
+    await mine.mutation(api.milestones.create, { goalId, title: 'Two' })
+    const taskId = await mine.mutation(api.tasks.create, {
+      title: 'Write the docs',
+      goalId,
+    })
+    return { t, mine, theirs, goalId, one, taskId }
+  }
+
+  test('lands where it is dropped, and the task is archived, not gone', async () => {
+    const { t, mine, goalId, one, taskId } = await setup()
+    const id = await mine.mutation(api.milestones.fromTask, {
+      taskId,
+      after: one,
+      dueDate: '2026-10-01',
+      today: TODAY,
+    })
+
+    const list = await mine.query(api.milestones.listByGoal, { goalId })
+    expect(list.map((m) => m.title)).toEqual(['One', 'Write the docs', 'Two'])
+    expect(list[1]._id).toBe(id)
+    /* No due date on the task: the gap's guess is used. */
+    expect(list[1].dueDate).toBe('2026-10-01')
+
+    const task = await t.run((ctx) => ctx.db.get(taskId))
+    expect(task?.archivedAt).toBeTypeOf('number')
+    expect(task?.status).toBe('open')
+    const waiting = await mine.query(api.tasks.listByGoal, {
+      goalId,
+      limit: 4,
+    })
+    expect(waiting.tasks).toHaveLength(0)
+  })
+
+  test("the task's own due date wins over the gap's guess", async () => {
+    const { mine, goalId, taskId } = await setup()
+    await mine.mutation(api.tasks.setDueDate, {
+      taskId,
+      dueDate: '2026-09-30',
+    })
+    await mine.mutation(api.milestones.fromTask, {
+      taskId,
+      after: null,
+      dueDate: '2026-10-15',
+      today: TODAY,
+    })
+    const list = await mine.query(api.milestones.listByGoal, { goalId })
+    expect(list[0].title).toBe('Write the docs')
+    expect(list[0].dueDate).toBe('2026-09-30')
+  })
+
+  test('Undo takes the step away and puts the task back', async () => {
+    const { t, mine, goalId, taskId } = await setup()
+    const id = await mine.mutation(api.milestones.fromTask, {
+      taskId,
+      after: null,
+      today: TODAY,
+    })
+    await mine.mutation(api.milestones.backToTask, {
+      milestoneId: id,
+      taskId,
+    })
+    const list = await mine.query(api.milestones.listByGoal, { goalId })
+    expect(list.map((m) => m.title)).toEqual(['One', 'Two'])
+    const task = await t.run((ctx) => ctx.db.get(taskId))
+    expect(task?.archivedAt).toBeUndefined()
+  })
+
+  test("refuses a task on today's three", async () => {
+    const { mine, taskId } = await setup()
+    await mine.mutation(api.tasks.pickForToday, { taskId, today: TODAY })
+    await expect(
+      mine.mutation(api.milestones.fromTask, {
+        taskId,
+        after: null,
+        today: TODAY,
+      }),
+    ).rejects.toThrow(/today's three/)
+  })
+
+  test('refuses a done task and one with no goal', async () => {
+    const { mine, taskId } = await setup()
+    await mine.mutation(api.tasks.complete, { taskId })
+    await expect(
+      mine.mutation(api.milestones.fromTask, {
+        taskId,
+        after: null,
+        today: TODAY,
+      }),
+    ).rejects.toThrow(/waiting task/)
+
+    const loose = await mine.mutation(api.tasks.create, { title: 'Loose' })
+    await expect(
+      mine.mutation(api.milestones.fromTask, {
+        taskId: loose,
+        after: null,
+        today: TODAY,
+      }),
+    ).rejects.toThrow(/not filed under a goal/)
+  })
+
+  test('refuses a step from another goal as the place to land', async () => {
+    const { mine, taskId } = await setup()
+    const other = await mine.mutation(api.goals.create, {
+      title: 'Other',
+      area: 'body',
+    })
+    const elsewhere = await mine.mutation(api.milestones.create, {
+      goalId: other,
+      title: 'Elsewhere',
+    })
+    await expect(
+      mine.mutation(api.milestones.fromTask, {
+        taskId,
+        after: elsewhere,
+        today: TODAY,
+      }),
+    ).rejects.toThrow(/No such milestone/)
+  })
+
+  test('another owner can neither move my task nor undo into it', async () => {
+    const { t, mine, theirs, taskId } = await setup()
+    await expect(
+      theirs.mutation(api.milestones.fromTask, {
+        taskId,
+        after: null,
+        today: TODAY,
+      }),
+    ).rejects.toThrow(/No such task/)
+
+    const id = await mine.mutation(api.milestones.fromTask, {
+      taskId,
+      after: null,
+      today: TODAY,
+    })
+    await expect(
+      theirs.mutation(api.milestones.backToTask, { milestoneId: id, taskId }),
+    ).rejects.toThrow(/No such milestone/)
+    expect(await t.run((ctx) => ctx.db.get(id))).not.toBeNull()
+  })
+
+  test('Undo will not delete a step from a different goal', async () => {
+    const { mine, taskId } = await setup()
+    const other = await mine.mutation(api.goals.create, {
+      title: 'Other',
+      area: 'body',
+    })
+    const unrelated = await mine.mutation(api.milestones.create, {
+      goalId: other,
+      title: 'Keep me',
+    })
+    await expect(
+      mine.mutation(api.milestones.backToTask, {
+        milestoneId: unrelated,
+        taskId,
+      }),
+    ).rejects.toThrow(/No such milestone/)
+  })
+})
+
+describe('the composer pulls any backlog task onto a new goal (fromTask with goalId)', () => {
+  const TODAY = '2026-09-24'
+
+  test('an unfiled task becomes a step of the named goal, refiled under it', async () => {
+    const { t, mine } = twoOwners()
+    const goalId = await mine.mutation(api.goals.create, {
+      title: 'New',
+      area: 'body',
+    })
+    const taskId = await mine.mutation(api.tasks.create, { title: 'Loose' })
+    const id = await mine.mutation(api.milestones.fromTask, {
+      taskId,
+      after: null,
+      today: TODAY,
+      goalId,
+    })
+    const list = await mine.query(api.milestones.listByGoal, { goalId })
+    expect(list.map((m) => m._id)).toEqual([id])
+    const task = await t.run((ctx) => ctx.db.get(taskId))
+    expect(task?.goalId).toBe(goalId)
+    expect(task?.archivedAt).toBeTypeOf('number')
+
+    /* Undo still finds the pair. */
+    await mine.mutation(api.milestones.backToTask, { milestoneId: id, taskId })
+    expect(await mine.query(api.milestones.listByGoal, { goalId })).toEqual([])
+  })
+
+  test("refuses to move my task onto someone else's goal", async () => {
+    const { mine, theirs } = twoOwners()
+    const theirGoal = await theirs.mutation(api.goals.create, {
+      title: 'Theirs',
+      area: 'body',
+    })
+    const taskId = await mine.mutation(api.tasks.create, { title: 'Mine' })
+    await expect(
+      mine.mutation(api.milestones.fromTask, {
+        taskId,
+        after: null,
+        today: TODAY,
+        goalId: theirGoal,
+      }),
+    ).rejects.toThrow(/No such goal/)
+  })
+})

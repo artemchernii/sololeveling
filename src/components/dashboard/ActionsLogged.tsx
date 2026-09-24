@@ -152,7 +152,7 @@ function MonthTileCard({
 /* A bar only because a goal gives it a denominator (§1). Full at the target
    and no further: past it, the words say so. The same colour either side of
    the target — the tile's area is what it is, not how well it went. */
-function TargetBar({
+export function TargetBar({
   count,
   target,
   area,

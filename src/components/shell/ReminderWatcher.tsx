@@ -86,8 +86,11 @@ export function ReminderWatcher() {
 
   if (shown.length === 0) return null
 
+  /* Under the top bar and beside the bell on a desktop — never over Log,
+     which is the one control that must always be reachable. */
+
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-[calc(12px+env(safe-area-inset-top))] z-[60] flex flex-col items-center gap-2 px-[18px]">
+    <div className="pointer-events-none fixed inset-x-0 top-[calc(12px+env(safe-area-inset-top))] z-[60] flex flex-col items-center gap-2 px-[18px] md:top-[64px] md:items-end md:px-6">
       {shown.map((line) => (
         <div
           key={line.key}

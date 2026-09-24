@@ -227,9 +227,12 @@ function Calendar() {
   )
 }
 
+/* 24-hour, like the hour labels down the side — and "09:15–10:30" fits a
+   column where "09:15 AM–10:30 AM" is cut off. */
 function clock(ms: number): string {
   return new Date(ms).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
+    hourCycle: 'h23',
   })
 }

@@ -61,10 +61,13 @@ function startOfDay(date: Date): Date {
   return d
 }
 
+/* 24-hour, like the hour labels down the side — and "09:15–10:30" fits a
+   column where "09:15 AM–10:30 AM" is cut off. */
 function clock(ms: number): string {
   return new Date(ms).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
+    hourCycle: 'h23',
   })
 }
 
@@ -124,13 +127,26 @@ export function WeekGrid({
     startsAt: number
     durationMin: number
     fromId: string
+    /** The write has come back: stop overriding, so an Undo shows at once. */
+    arrived: boolean
   } | null>(null)
+
+  useEffect(() => {
+    if (landed === null || landed.arrived) return
+    if (
+      items.some(
+        (i) => rowKey(i) === landed.row && i.startsAt === landed.startsAt,
+      )
+    ) {
+      setLanded({ ...landed, arrived: true })
+    }
+  }, [items, landed])
 
   useEffect(() => {
     if (landed === null) return
     const t = window.setTimeout(() => setLanded(null), 1500)
     return () => window.clearTimeout(t)
-  }, [landed])
+  }, [landed?.fromId, landed?.startsAt])
 
   function resultFor(d: Drag, x: number, y: number) {
     const grid = gridRef.current
@@ -193,7 +209,7 @@ export function WeekGrid({
       r.startsAt === d.item.startsAt &&
       r.durationMin === (d.item.durationMin ?? r.durationMin)
     if (unchanged) return
-    setLanded({ row: rowKey(d.item), fromId: d.item.id, ...r })
+    setLanded({ row: rowKey(d.item), fromId: d.item.id, arrived: false, ...r })
     onDrop(d.item, { mode: d.mode, ...r })
   }
 
@@ -269,7 +285,7 @@ export function WeekGrid({
         durationMin: preview.durationMin,
       }
     }
-    if (landed && landed.fromId === item.id) {
+    if (landed && !landed.arrived && landed.fromId === item.id) {
       return {
         ...item,
         startsAt: landed.startsAt,

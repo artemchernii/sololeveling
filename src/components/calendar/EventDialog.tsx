@@ -3,7 +3,7 @@ import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc } from '../../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { SaveLabel, useSave } from '@/components/Saving'
 import { useAreas } from '@/lib/areas'
 import { endFromTime, toTimeInput } from '@/lib/eventTimes'
@@ -137,8 +137,11 @@ export function EventDialog({
       return
     }
 
-    const project = projects?.find((p) => p._id === projectId)?._id
-    const goal = goals?.find((g) => g._id === goalId)?._id
+    /* The pickers list live projects and active goals only, so a binding to
+       one that has since been finished is not in them — and must survive an
+       edit rather than be cleared by it. The server checks it is yours. */
+    const project = projectId === '' ? undefined : (projectId as Id<'projects'>)
+    const goal = goalId === '' ? undefined : (goalId as Id<'goals'>)
     try {
       /* The dialog closes when the tick has been seen (onSettled below), not
          the instant the write lands — the event is already on the grid
@@ -305,6 +308,11 @@ export function EventDialog({
                 className="rounded-[7px] bg-lift/[0.05] px-3 py-2 text-[12.5px] text-foreground outline-none ring-1 ring-lift/10 focus:ring-lav-300/40"
               >
                 <option value="">None</option>
+                {projectId !== '' &&
+                projects !== undefined &&
+                !projects.some((p) => p._id === projectId) ? (
+                  <option value={projectId}>A finished project</option>
+                ) : null}
                 {(projects ?? []).map((p) => (
                   <option key={p._id} value={p._id}>
                     {p.title}
@@ -320,6 +328,11 @@ export function EventDialog({
                 className="rounded-[7px] bg-lift/[0.05] px-3 py-2 text-[12.5px] text-foreground outline-none ring-1 ring-lift/10 focus:ring-lav-300/40"
               >
                 <option value="">None</option>
+                {goalId !== '' &&
+                goals !== undefined &&
+                !goals.some((g) => g._id === goalId) ? (
+                  <option value={goalId}>A finished goal</option>
+                ) : null}
                 {(goals ?? []).map((g) => (
                   <option key={g._id} value={g._id}>
                     {g.title}

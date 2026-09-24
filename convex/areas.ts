@@ -7,6 +7,7 @@ import {
   nextHue,
   slugify,
 } from '../src/lib/area-slug'
+import { areaLabelFor, languageByCode } from '../src/lib/languages/catalog'
 import type { Doc } from './_generated/dataModel'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
@@ -217,6 +218,68 @@ export const setTrack = mutation({
   },
 })
 
+/**
+ * Say which language a language area is (25 Sep) — the flag, the name, the
+ * built-in path. `null` clears it. Only codes the catalogue knows.
+ */
+export const setLang = mutation({
+  args: { slug: v.string(), lang: v.union(v.string(), v.null()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const area = await bySlug(ctx, ownerId, args.slug)
+    if (area === null) throw new Error('NO_SUCH_AREA')
+    if (args.lang !== null && languageByCode(args.lang) === undefined) {
+      throw new Error('NO_SUCH_LANGUAGE')
+    }
+    await ctx.db.patch(area._id, { lang: args.lang ?? undefined })
+    return null
+  },
+})
+
+/**
+ * + Add language on the Languages page (25 Sep): one tap, no trip to
+ * Settings. Reuses an area that already is this language, or one with its
+ * name (restoring it if retired); otherwise makes a new area. Either way it
+ * comes back ticked as a language and carrying the code. Returns the slug.
+ */
+export const addLanguage = mutation({
+  args: { lang: v.string() },
+  returns: v.string(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const language = languageByCode(args.lang)
+    if (language === undefined) throw new Error('NO_SUCH_LANGUAGE')
+
+    const areas = await ownedAreas(ctx, ownerId)
+    const label = areaLabelFor(language)
+    const slug = slugify(label)
+    if (slug === null) throw new Error('AREA_NEEDS_A_NAME')
+    const existing =
+      areas.find((a) => a.lang === language.code) ??
+      areas.find((a) => a.slug === slug)
+    if (existing !== undefined) {
+      await ctx.db.patch(existing._id, {
+        track: 'language',
+        lang: language.code,
+        retiredAt: undefined,
+        replacedBy: undefined,
+      })
+      return existing.slug
+    }
+    await ctx.db.insert('areas', {
+      ownerId,
+      slug,
+      label,
+      hue: nextHue(areas.map((a) => a.hue)),
+      order: areas.length,
+      track: 'language',
+      lang: language.code,
+    })
+    return slug
+  },
+})
+
 /** His order, as the whole list. Every slug he owns, once. */
 export const reorder = mutation({
   args: { slugs: v.array(v.string()) },
@@ -368,7 +431,8 @@ export const remove = mutation({
       throw new Error('NO_SUCH_AREA')
     }
 
-    /* The six tables that carry an area (PLAN.md §2), written out rather than
+    /* The seven tables that carry an area (PLAN.md §2, plus drills on 25
+       Sep), written out rather than
        looped: `ctx.db.query(table)` over a union of names cannot resolve which
        indexes that table has, and the loop that reads nicely is the one that
        loses every type. `logs` is the lucky one — `by_owner_area_time` indexes
@@ -406,6 +470,12 @@ export const remove = mutation({
         .query('stateSnapshots')
         .withIndex('by_owner_key_time', (q) => q.eq('ownerId', ownerId))
         .filter((q) => q.eq(q.field('area'), args.slug))
+        .first()) !== null ||
+      (await ctx.db
+        .query('drills')
+        .withIndex('by_owner_area', (q) =>
+          q.eq('ownerId', ownerId).eq('area', args.slug),
+        )
         .first()) !== null
 
     if (used) {

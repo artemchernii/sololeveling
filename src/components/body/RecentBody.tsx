@@ -6,8 +6,17 @@ import { useState } from 'react'
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { useSave } from '@/components/Saving'
-import { areaVars } from '@/lib/areas'
+import { CategoryChip } from '@/components/track/CategoryChip'
+import { TrackPanel } from '@/components/track/TrackPanel'
 import { dayStartsBack, STRIP_WEEKS } from '@/lib/day-strip'
+import { whenLabel } from '@/lib/format'
+
+/* The words a Body row can be filed under: capture's own verbs, then any
+   routine he has made. */
+const BODY_CATEGORIES = ['gym', 'stretch', 'run', 'boxing', 'hiking']
+/* How many rows show before "show all" — a morning of ticked stretches is
+   six rows, and the list should not push the page away. */
+const SHOWN = 12
 
 /* Everything filed under Body lately, and both ways to put one right — the
    same bargain the project page makes (20 Sep): press the value to correct
@@ -19,59 +28,79 @@ import { dayStartsBack, STRIP_WEEKS } from '@/lib/day-strip'
 
    `logs.setValue` still refuses a weight, whose stateSnapshot would be left
    contradicting it; a wrong weight is removed and logged again. */
-export function RecentBody() {
+export function RecentBody({ delay = 0 }: { delay?: number }) {
   const dayStarts = dayStartsBack(STRIP_WEEKS)
   const result = useQuery(api.logs.listForArea, {
     area: 'body',
     since: dayStarts[0],
   })
+  const drills = useQuery(api.drills.list, { area: 'body' })
   const removeLog = useMutation(api.logs.remove)
+  const setCategory = useMutation(api.logs.setCategory)
+  const [all, setAll] = useState(false)
 
   if (result === undefined) return null
-  const { rows: body, complete } = result
+  /* A ticked task is intent, not evidence (CLAUDE.md): "Play Diablo" filed
+     under Body is not something the body did, so it is not listed here. */
+  const body = result.rows.filter((row) => row.kind !== 'task_done')
+  const { complete } = result
+  const options = [
+    ...new Set([...BODY_CATEGORIES, ...(drills ?? []).map((d) => d.group)]),
+  ]
+  const shown = all ? body : body.slice(0, SHOWN)
 
   return (
-    <section style={areaVars('body')} className="flex flex-col gap-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="label-caps">recent</h2>
-        {!complete ? (
-          /* Said out loud rather than silently dropped: the same signal
-             Consistency and WeightLine give when their own reads truncate. */
+    <TrackPanel
+      area="body"
+      title="recent"
+      delay={delay}
+      aside={
+        !complete ? (
           <span className="font-mono text-[11px] text-ink-500">
             older logs not all stored
           </span>
-        ) : null}
-      </div>
-
+        ) : null
+      }
+    >
       {body.length === 0 ? (
         <p className="text-[13px] text-ink-500">
           Nothing under Body in the last {STRIP_WEEKS} weeks.
         </p>
       ) : (
         <div className="flex flex-col">
-          {body.map((row) => (
+          {shown.map((row) => (
             <div
               key={row._id}
-              className="group flex items-center gap-3 border-b border-lift/[0.05] py-1.5 last:border-b-0"
+              className="motion-arrive group flex min-h-9 items-center gap-3 border-b border-lift/[0.05] py-1.5 last:border-b-0"
             >
-              <span className="label-caps w-[92px] shrink-0 truncate">
-                {row.meta?.category ?? row.kind}
-              </span>
+              {row.kind === 'weight' ? (
+                <span className="label-caps w-[92px] shrink-0 truncate">
+                  weight
+                </span>
+              ) : (
+                <CategoryChip
+                  category={row.meta?.category}
+                  options={row.kind === 'intake' ? ['supplements'] : options}
+                  onChange={(next) =>
+                    void setCategory({ logId: row._id, category: next })
+                  }
+                />
+              )}
               <EditableValue
                 logId={row._id}
                 kind={row.kind}
                 value={row.value}
                 unit={row.unit}
               />
-              <span className="flex-1 truncate text-[12.5px] text-ink-500">
+              <span className="flex-1 truncate text-[12.5px] text-ink-400">
                 {row.text ?? ''}
               </span>
               <span className="shrink-0 font-mono text-[11px] text-ink-600">
-                {new Date(row.occurredAt).toDateString()}
+                {whenLabel(row.occurredAt)}
               </span>
               <button
                 type="button"
-                aria-label={`Remove the ${row.meta?.category ?? row.kind} logged ${new Date(row.occurredAt).toDateString()}`}
+                aria-label={`Remove the ${row.meta?.category ?? row.kind} logged ${whenLabel(row.occurredAt)}`}
                 onClick={() => void removeLog({ logId: row._id })}
                 className="motion-press grid size-5 shrink-0 place-items-center rounded-[6px] text-ink-700 opacity-0 transition-colors group-hover:opacity-100 hover:bg-state-danger/15 hover:text-state-danger focus-visible:opacity-100"
               >
@@ -79,9 +108,18 @@ export function RecentBody() {
               </button>
             </div>
           ))}
+          {body.length > SHOWN ? (
+            <button
+              type="button"
+              onClick={() => setAll((a) => !a)}
+              className="motion-press mt-2 self-start font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase transition-colors hover:text-(--area)"
+            >
+              {all ? 'show fewer' : 'show all'}
+            </button>
+          ) : null}
         </div>
       )}
-    </section>
+    </TrackPanel>
   )
 }
 

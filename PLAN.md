@@ -103,7 +103,9 @@ const area = v.union(...literals('projects','business','portuguese','body','mone
 const projectStatus = literals('focus','active','paused','completed','archived');
 const taskStatus = literals('open','done','skipped');
 const logKind = literals('workout','weight','expense','transfer','income','session','conversation',
-  'event','people_met','task_done','piece','note','idea','custom');
+  'event','people_met','task_done','piece','intake','exercise','note','idea','custom');
+  // 'exercise' (25 Sep): one routine item ticked (drills.did). Not a workout — the session is its
+  // own tap, so six stretches never read as six workouts on the Today tile.
 
 goals:     { ownerId, title, description?, area, status: 'active'|'done'|'dropped',
              targetLabel?,            // "B2", "€80,000", "profitable business"
@@ -158,6 +160,11 @@ the log alone would leave the shown weight contradicting its own evidence.
 stateSnapshots: { ownerId, area, key, value?: number, textValue?, unit?, recordedAt: number }
            .index('by_owner_key_time', ['ownerId','key','recordedAt'])
            // keys: weight, bench, net_worth, cefr_level, protein_avg, savings …
+drills:    { ownerId, area, group, title, mark?: 'learning'|'solid', ref?, sortOrder, retiredAt? }
+           .index('by_owner_area', ['ownerId','area'])   // 25 Sep: a routine's exercises, a language's
+                                      // topics. Intent; DID writes the evidence. Typed in, never seeded.
+                                      // `ref` = a built-in path topic id (src/lib/languages/paths), made on
+                                      // first touch. areas.lang (25 Sep) = 'pt-PT' etc.: flag, name, path.
 notes:     { ownerId, title, body, tags: string[], projectId?, goalId?, kind: 'note'|'idea'|'book'|'reference' }
            .index('by_owner_kind', ['ownerId','kind']).index('by_owner_project', ['ownerId','projectId'])
 principles:{ ownerId, text, sortOrder: number }
@@ -257,20 +264,20 @@ it is built in (R1–R7). Everything in §1–§2 and §3b–§3d still holds.
 
 **Pages, and what each becomes**
 
-| page      | R1 (prune)                                                                | later                                                                                                                                                         |
-| --------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Today     | quests merged in; chains card, Business/Career cells gone; principle line | R2: year bar, targets on tiles, week glance, more colour by kind                                                                                              |
-| Calendar  | as is                                                                     | R5: drag to move, any duration, start–end instead of minutes, binding to project/goal, reminders                                                              |
-| Review    | in the sidebar at last; label "Review"                                    | —                                                                                                                                                             |
-| Projects  | "chain" → "project" everywhere; the goal+project form stays               | R3: the deep page — tasks from backlog, notes, files, time spent (project verb logs), GitHub commits (source 4), milestones                                   |
-| Goals     | as is                                                                     | R3: bound to projects and areas, a milestone timeline 0—1—2—3, deadlines, Reached/Drop/Delete kept                                                            |
-| Backlog   | as is                                                                     | R3: created-at, bind to project/goal, "put it on the calendar"                                                                                                |
-| Notes     | as is                                                                     | R4: the knowledge base — more kinds (`style` among them), expanded editor, drag-and-drop images/PDFs (Convex file storage), YouTube embeds, bind to a project |
-| Finances  | renamed; still a placeholder                                              | R6b: Investments (portfolios, positions, prices as source 4), Balances, Spending                                                                              |
-| Body      | placeholder                                                               | R6b-a (shipped): consistency first — a per-day strip per category, weight as a line against a goal's target, recent logs editable                             |
-| Languages | renamed; still a placeholder                                              | R6b-b (shipped): a tab per area ticked as a language — classes apart from practice, the level, what is booked next, twelve weeks of days                      |
-| Settings  | as is                                                                     | —                                                                                                                                                             |
-| Ask AI    | —                                                                         | R7: a ⌘-shortcut, not a page — a reader over your own rows, never a fifth source of numbers                                                                   |
+| page      | R1 (prune)                                                                | later                                                                                                                                                                                                                                                       |
+| --------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Today     | quests merged in; chains card, Business/Career cells gone; principle line | R2: year bar, targets on tiles, week glance, more colour by kind                                                                                                                                                                                            |
+| Calendar  | as is                                                                     | R5: drag to move, any duration, start–end instead of minutes, binding to project/goal, reminders                                                                                                                                                            |
+| Review    | in the sidebar at last; label "Review"                                    | —                                                                                                                                                                                                                                                           |
+| Projects  | "chain" → "project" everywhere; the goal+project form stays               | R3: the deep page — tasks from backlog, notes, files, time spent (project verb logs), GitHub commits (source 4), milestones                                                                                                                                 |
+| Goals     | as is                                                                     | R3: bound to projects and areas, a milestone timeline 0—1—2—3, deadlines, Reached/Drop/Delete kept                                                                                                                                                          |
+| Backlog   | as is                                                                     | R3: created-at, bind to project/goal, "put it on the calendar"                                                                                                                                                                                              |
+| Notes     | as is                                                                     | R4: the knowledge base — more kinds (`style` among them), expanded editor, drag-and-drop images/PDFs (Convex file storage), YouTube embeds, bind to a project                                                                                               |
+| Finances  | renamed; still a placeholder                                              | R6b: Investments (portfolios, positions, prices as source 4), Balances, Spending                                                                                                                                                                            |
+| Body      | placeholder                                                               | R6b-a (shipped): consistency first — a per-day strip per category, weight as a line against a goal's target, recent logs editable. 25 Sep: a tracking page — routines (Stretch, Gym) with DID per exercise and a SESSION tap, weight target set on the card |
+| Languages | renamed; still a placeholder                                              | R6b-b (shipped): a tab per area ticked as a language — classes apart from practice, the level, what is booked next, twelve weeks of days. 25 Sep: Class / Homework / At home in one tap each, a topics & tenses list with PRACTISED and LEARNING/SOLID      |
+| Settings  | as is                                                                     | —                                                                                                                                                                                                                                                           |
+| Ask AI    | —                                                                         | R7: a ⌘-shortcut, not a page — a reader over your own rows, never a fifth source of numbers                                                                                                                                                                 |
 
 **Mobile (<768)**: greeting+principle → Today's three → Today timeline → This
 month → sticky "+ Log" pill → bottom nav. Rows 48–56px.

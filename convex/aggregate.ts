@@ -5,7 +5,7 @@ import { logKindValidator } from './logs'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
 import { query } from './_generated/server'
-import type { Doc } from './_generated/dataModel'
+import type { Doc, Id } from './_generated/dataModel'
 
 /* PLAN.md §1: every number on screen comes from exactly one of four sources —
    a log count over a period, the latest stateSnapshots row for a key, an entity
@@ -708,11 +708,18 @@ export const categoryDays = query({
     for (const row of rows) {
       if (!wanted.has(row.kind)) continue
       const category = row.meta?.category ?? null
-      const key = `${row.kind}::${category ?? ''}`
+      /* One row per category, whatever kind wrote it (25 Sep): a stretch
+         session and the stretches ticked from its routine are one habit, and
+         two STRETCH rows would read as two. Uncategorised rows stay apart
+         per kind. The row wears the session's kind when it has one, the
+         exercise's only when nothing else was logged under that word. */
+      const key = category ?? `::${row.kind}`
       let bucket = buckets.get(key)
       if (bucket === undefined) {
         bucket = { kind: row.kind, category, days: args.dayStarts.map(() => 0) }
         buckets.set(key, bucket)
+      } else if (bucket.kind === 'exercise' && row.kind !== 'exercise') {
+        bucket.kind = row.kind
       }
       /* Last bucket whose midnight is at or before the row — the same walk
          projectTime and projectCommits do, over a list that is already
@@ -748,6 +755,88 @@ export const categoryDays = query({
     /* Fewer rows than the cap means nothing was dropped on the floor — the
        same signal projectActivity gives for its own read. */
     return { rows: result, complete: rows.length < CATEGORY_DAYS_ROWS }
+  },
+})
+
+/**
+ * Each routine item's days (25 Sep): how many times DID was pressed on it per
+ * day over the window, how many times in all, and when last. The DID button's
+ * "×2 today", the row's week of dots, a topic's "3× · Sep 20".
+ *
+ * Source 1 — exercise logs counted per day, keyed by the drill they were
+ * ticked from. Only rows carrying a drillId count: an exercise is evidence
+ * about the drill it names, and a row without one names none. Same read
+ * shape, cap and `complete` flag as categoryDays.
+ */
+export const drillDays = query({
+  args: {
+    area: areaSlug,
+    /** Local midnights, oldest first. */
+    dayStarts: v.array(v.number()),
+    /** Epoch ms, exclusive. */
+    end: v.number(),
+  },
+  returns: v.object({
+    rows: v.array(
+      v.object({
+        drillId: v.id('drills'),
+        days: v.array(v.number()),
+        total: v.number(),
+        lastAt: v.number(),
+      }),
+    ),
+    complete: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    if (args.dayStarts.length === 0) return { rows: [], complete: true }
+
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', args.area)
+          .gte('occurredAt', args.dayStarts[0])
+          .lt('occurredAt', args.end),
+      )
+      .order('desc')
+      .take(CATEGORY_DAYS_ROWS)
+
+    type Bucket = {
+      drillId: Id<'drills'>
+      days: Array<number>
+      total: number
+      lastAt: number
+    }
+    const buckets = new Map<string, Bucket>()
+    for (const row of rows) {
+      const drillId = row.meta?.drillId
+      if (row.kind !== 'exercise' || drillId === undefined) continue
+      let bucket = buckets.get(drillId)
+      if (bucket === undefined) {
+        bucket = {
+          drillId,
+          days: args.dayStarts.map(() => 0),
+          total: 0,
+          lastAt: row.occurredAt,
+        }
+        buckets.set(drillId, bucket)
+      }
+      bucket.total += 1
+      bucket.lastAt = Math.max(bucket.lastAt, row.occurredAt)
+      for (let i = args.dayStarts.length - 1; i >= 0; i -= 1) {
+        if (row.occurredAt >= args.dayStarts[i]) {
+          bucket.days[i] += 1
+          break
+        }
+      }
+    }
+
+    return {
+      rows: [...buckets.values()],
+      complete: rows.length < CATEGORY_DAYS_ROWS,
+    }
   },
 })
 

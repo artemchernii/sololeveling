@@ -1,8 +1,13 @@
+import { useState } from 'react'
+import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
+import { CornerDownLeft, Target, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import { areaVars } from '@/lib/areas'
+import { SaveGlyph, useSave } from '@/components/Saving'
+import { TrackPanel } from '@/components/track/TrackPanel'
 import { dayStartsBack, STRIP_WEEKS } from '@/lib/day-strip'
+import { whenLabel } from '@/lib/format'
 import { drift, geometry } from '@/lib/weight-line'
 
 const WIDTH = 520
@@ -18,7 +23,7 @@ const HEIGHT = 96
 
    `3.4 to go` is the target less the latest reading: a subtraction of two
    sanctioned values, the same composition §1 allows for holding x price. */
-export function WeightLine() {
+export function WeightLine({ delay = 0 }: { delay?: number }) {
   const dayStarts = dayStartsBack(STRIP_WEEKS)
   const start = dayStarts[0]
   const end = dayStarts[dayStarts.length - 1] + 86_400_000
@@ -52,20 +57,22 @@ export function WeightLine() {
   const g = geometry(readings, { width: WIDTH, height: HEIGHT, target })
 
   return (
-    <section style={areaVars('body')} className="flex flex-col gap-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="label-caps">weight</h2>
-        {!history.complete ? (
+    <TrackPanel
+      area="body"
+      title="weight"
+      delay={delay}
+      aside={
+        !history.complete ? (
           /* Said out loud rather than drawn as a line that simply stops: a
-             read that hit its row bound is missing its NEWEST readings, not
-             its oldest — the same failure CommitHeatmap and Consistency guard
-             against, said the same way. */
+             read that hit its row bound is missing its NEWEST readings. */
           <span className="font-mono text-[11px] text-ink-500">
             older weigh-ins not all stored
           </span>
-        ) : null}
-      </div>
-
+        ) : (
+          <TargetPill target={target} />
+        )
+      }
+    >
       {latest === undefined ? (
         <p className="text-[13px] text-ink-500">
           No weight recorded in the last {STRIP_WEEKS} weeks. Press{' '}
@@ -76,7 +83,8 @@ export function WeightLine() {
         <>
           <div className="flex items-baseline gap-3">
             <span
-              className={`text-[34px] leading-none font-light ${
+              key={latest.recordedAt}
+              className={`motion-pop text-[44px] leading-none font-light ${
                 state === 'good'
                   ? 'text-state-good'
                   : state === 'warn'
@@ -88,12 +96,12 @@ export function WeightLine() {
               <span className="ml-1 text-[15px] text-ink-500">kg</span>
             </span>
             {target !== undefined ? (
-              <span className="font-mono text-[12px] text-ink-500">
+              <span className="rounded-full bg-(--area)/12 px-2 py-0.5 font-mono text-[11px] text-(--area)">
                 {Math.round(Math.abs(latest.value - target) * 10) / 10} to go
               </span>
             ) : null}
             <span className="font-mono text-[11px] text-ink-600">
-              {new Date(latest.recordedAt).toDateString()}
+              {whenLabel(latest.recordedAt)}
             </span>
           </div>
 
@@ -141,20 +149,106 @@ export function WeightLine() {
             </svg>
           )}
 
-          {target === undefined ? (
-            /* Honest rather than aspirational (task 8, 21 Sep). The only
-               places `goals.targetValue` is written today are the month-tile
-               target in dashboard/ActionsLogged.tsx (a monthly count, not a
-               weight) and nowhere else — NewGoal.tsx writes `targetLabel`
-               only. There is no UI path to a weight target yet, so the line
-               says that rather than pointing at a form that cannot make one. */
-            <p className="text-[11px] text-ink-700">
-              A weight target isn't settable yet — the goal form takes no
-              number.
+          {g === null || g.points.length < 2 ? (
+            <p className="text-[12px] text-ink-600">
+              One weigh-in so far — the line starts with the next.{' '}
+              <span className="font-mono text-ink-400">⌘L weight 75.4</span>
             </p>
           ) : null}
         </>
       )}
-    </section>
+    </TrackPanel>
+  )
+}
+
+/* The target, set where it is drawn (25 Sep). A body goal in kg is what the
+   dashed line reads; goals.setWeightTarget makes or moves it. */
+function TargetPill({ target }: { target: number | undefined }) {
+  const set = useMutation(api.goals.setWeightTarget)
+  const clear = useMutation(api.goals.clearWeightTarget)
+  const [editing, setEditing] = useState(false)
+  const [text, setText] = useState('')
+  const saving = useSave()
+
+  function save() {
+    const n = Number(text.replace(',', '.'))
+    if (!Number.isFinite(n) || n < 20 || n > 400) {
+      setEditing(false)
+      return
+    }
+    void saving.run(() => set({ targetValue: n })).then(() => setEditing(false))
+  }
+
+  if (editing) {
+    return (
+      <span className="motion-arrive flex items-center gap-1.5">
+        <input
+          autoFocus
+          inputMode="decimal"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') save()
+            if (e.key === 'Escape') setEditing(false)
+          }}
+          placeholder="72"
+          aria-label="Target weight in kg"
+          className="w-16 rounded-[8px] border border-(--area)/50 bg-sink/20 px-2 py-0.5 font-mono text-[13px] text-foreground outline-none"
+        />
+        <span className="font-mono text-[11px] text-ink-500">kg</span>
+        <button
+          type="button"
+          onClick={save}
+          aria-label="Save target"
+          className="motion-press grid size-6 place-items-center rounded-[6px] bg-(--area)/15 text-(--area) ring-1 ring-(--area)/50 ring-inset"
+        >
+          <SaveGlyph
+            status={saving.status}
+            onSettled={saving.settle}
+            idle={<CornerDownLeft className="size-3" />}
+          />
+        </button>
+      </span>
+    )
+  }
+
+  if (target === undefined) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setText('')
+          setEditing(true)
+        }}
+        className="motion-press inline-flex items-center gap-1.5 rounded-full bg-(--area)/12 px-3 py-1 font-mono text-[10.5px] tracking-[0.12em] text-(--area) uppercase ring-1 ring-(--area)/35 transition-colors ring-inset hover:bg-(--area)/20"
+      >
+        <Target className="size-3" />
+        set a target
+      </button>
+    )
+  }
+
+  return (
+    <span className="group flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => {
+          setText(String(target))
+          setEditing(true)
+        }}
+        className="motion-press inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[11px] text-ink-300 ring-1 ring-lift/15 transition-colors hover:text-(--area) hover:ring-(--area)/40"
+      >
+        <Target className="size-3 text-(--area)" />
+        target {target} kg
+      </button>
+      <button
+        type="button"
+        aria-label="Clear the weight target"
+        onClick={() => void clear({})}
+        className="motion-press grid size-6 place-items-center rounded-[6px] text-ink-700 opacity-0 transition-colors group-hover:opacity-100 [@media(hover:none)]:opacity-100 hover:bg-state-danger/15 hover:text-state-danger focus-visible:opacity-100"
+      >
+        <X className="size-3" />
+      </button>
+    </span>
   )
 }

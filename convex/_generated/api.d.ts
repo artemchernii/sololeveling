@@ -13,6 +13,7 @@ import type * as areas from "../areas.js";
 import type * as attachments from "../attachments.js";
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
+import type * as drills from "../drills.js";
 import type * as events from "../events.js";
 import type * as github from "../github.js";
 import type * as goals from "../goals.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   attachments: typeof attachments;
   auth: typeof auth;
   crons: typeof crons;
+  drills: typeof drills;
   events: typeof events;
   github: typeof github;
   goals: typeof goals;

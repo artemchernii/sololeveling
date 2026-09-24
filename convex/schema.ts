@@ -90,6 +90,11 @@ const logKind = v.union(
      kind:'workout' (aggregate.ts TILE_KINDS), so a creatine filed as one
      would make the morning screen read "30 workouts this month". */
   v.literal('intake'),
+  /* One movement or one topic, ticked from a routine list (25 Sep): Cat-cow
+     under Stretch, Ser vs estar under Portuguese. Deliberately NOT a workout
+     or a session — six stretches are one stretch session, and the Today tile
+     counts sessions. The session is its own tap ("STRETCH DONE"). */
+  v.literal('exercise'),
   v.literal('note'),
   v.literal('idea'),
   v.literal('custom'),
@@ -138,6 +143,10 @@ export default defineSchema({
        deriving it from session logs would need an exclusion for `work`, which
        is the hardcoded list R6 spent a row removing. */
     track: v.optional(v.literal('language')),
+    /* Which language a language area is (25 Sep): 'pt-PT', 'en'. Gives the
+       Languages page its flag, its name and its built-in path. A code from
+       src/lib/languages/catalog.ts; absent until he says which. */
+    lang: v.optional(v.string()),
   })
     .index('by_owner_order', ['ownerId', 'order'])
     .index('by_owner_slug', ['ownerId', 'slug']),
@@ -369,6 +378,27 @@ export default defineSchema({
 
   /* Quick capture lands here. Append-only: a log is a record of something that
      happened, so it is never edited into a different truth. */
+  /* A routine's items (25 Sep): the exercises under Stretch or Gym, the
+     topics and tenses under a language. Intent, not evidence — a drill is a
+     thing he means to do; pressing DID writes the `exercise` log that says he
+     did. `group` is the category that log files under, a plain word like
+     logs.meta.category. Created in the UI, never seeded. */
+  drills: defineTable({
+    ownerId: v.string(),
+    area: areaSlug,
+    group: v.string(),
+    title: v.string(),
+    /* A topic's standing, in words (25 Sep, his call): still learning it, or
+       solid. Not a score and never counted into one. */
+    mark: v.optional(v.union(v.literal('learning'), v.literal('solid'))),
+    /* The built-in path topic this drill tracks (25 Sep), e.g.
+       'b1-conjuntivo-presente'. Absent for a drill he typed himself. */
+    ref: v.optional(v.string()),
+    sortOrder: v.number(),
+    /* Retired, not deleted: its exercise logs are evidence and stay. */
+    retiredAt: v.optional(v.number()),
+  }).index('by_owner_area', ['ownerId', 'area']),
+
   logs: defineTable({
     ownerId: v.string(),
     kind: logKind,
@@ -386,6 +416,9 @@ export default defineSchema({
         weightKg: v.optional(v.number()),
         category: v.optional(v.string()),
         people: v.optional(v.number()),
+        /* The routine item an `exercise` row was ticked from. The row keeps
+           its own text and category, so retiring the drill loses nothing. */
+        drillId: v.optional(v.id('drills')),
       }),
     ),
   })

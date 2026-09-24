@@ -72,7 +72,7 @@ export function TaskRow({
     <div
       style={tone}
       onMouseLeave={() => setConfirming(false)}
-      className={`group relative flex items-start gap-3 rounded-[12px] py-2.5 pr-2 pl-4 transition-colors duration-(--motion-base) ${
+      className={`group relative flex items-center gap-3 rounded-[12px] py-2.5 pr-2 pl-4 transition-colors duration-(--motion-base) ${
         finishing
           ? 'bg-state-good/[0.08]'
           : checked
@@ -90,7 +90,7 @@ export function TaskRow({
           aria-checked={checked}
           aria-label={`Select ${task.title}`}
           onClick={onToggle}
-          className={`mt-0.5 grid size-[18px] shrink-0 place-items-center rounded-[5px] ring-1 transition-colors ${
+          className={`grid size-[18px] shrink-0 place-items-center rounded-[5px] ring-1 transition-colors ${
             checked
               ? 'bg-(--area) text-background ring-(--area)'
               : 'ring-lift/25 hover:ring-lift/40'
@@ -152,6 +152,22 @@ export function TaskRow({
         ) : (
           <>
             {archivedView ? null : (
+              <button
+                type="button"
+                disabled={full}
+                onClick={onPick}
+                title={
+                  full
+                    ? 'Today is full. Finish one or drop one.'
+                    : 'Put it on today'
+                }
+                className="motion-press flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] text-ink-400 ring-1 ring-lift/10 transition-colors hover:bg-lav-300/12 hover:text-lav-200 hover:ring-lav-300/40 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-400 disabled:hover:ring-lift/10"
+              >
+                <ArrowUp className="size-3" />
+                Today
+              </button>
+            )}
+            {archivedView ? null : (
               /* Done, as on Today: a task_done log and nothing more (§3b.1).
                  Always visible — it is what a task is for. */
               <button
@@ -166,22 +182,6 @@ export function TaskRow({
                 }`}
               >
                 <Check className={`size-4 ${finishing ? 'motion-pop' : ''}`} />
-              </button>
-            )}
-            {archivedView ? null : (
-              <button
-                type="button"
-                disabled={full}
-                onClick={onPick}
-                title={
-                  full
-                    ? 'Today is full. Finish one or drop one.'
-                    : 'Put it on today'
-                }
-                className="motion-press flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] text-ink-400 ring-1 ring-lift/10 transition-colors hover:bg-lav-300/12 hover:text-lav-200 hover:ring-lav-300/40 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-400 disabled:hover:ring-lift/10"
-              >
-                <ArrowUp className="size-3" />
-                Today
               </button>
             )}
             <button

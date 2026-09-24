@@ -22,8 +22,8 @@ describe('parseCefr', () => {
   })
 })
 
-describe('the European Portuguese path', () => {
-  const path = pathFor('pt-PT')
+describe.each(['pt-PT', 'en', 'de'])('the %s path', (code) => {
+  const path = pathFor(code)
 
   test('covers A1 to C1, in order, with unique permanent ids', () => {
     expect(pathLevels(path)).toEqual(['A1', 'A2', 'B1', 'B2', 'C1'])
@@ -33,11 +33,14 @@ describe('the European Portuguese path', () => {
       expect(t.examples.length).toBeGreaterThan(0)
     }
   })
+})
 
-  test('a language with no built-in path has none', () => {
-    expect(pathFor('de')).toEqual([])
+describe('the catalogue', () => {
+  test('three languages, and none without a path', () => {
+    expect(pathFor('fr')).toEqual([])
     expect(pathFor(undefined)).toEqual([])
     expect(languageByCode('pt-PT')?.flag).toBe('🇵🇹')
+    expect(languageByCode('pt-BR')).toBeUndefined()
   })
 })
 

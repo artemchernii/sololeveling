@@ -314,9 +314,9 @@ function TopicBody({ topic }: { topic: PathTopic }) {
       </p>
       <ul className="flex flex-col gap-1.5 border-l-2 border-(--area)/40 pl-3">
         {topic.examples.map((ex) => (
-          <li key={ex.pt} className="flex flex-col">
-            <span className="text-[14px] text-foreground">{ex.pt}</span>
-            <span className="text-[12px] text-ink-500 italic">{ex.en}</span>
+          <li key={ex.text} className="flex flex-col">
+            <span className="text-[14px] text-foreground">{ex.text}</span>
+            <span className="text-[12px] text-ink-500 italic">{ex.gloss}</span>
           </li>
         ))}
       </ul>

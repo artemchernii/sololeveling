@@ -1,5 +1,7 @@
 import type { Cefr, LanguageCode } from './catalog'
 import { CEFR, nextCefr } from './catalog'
+import { DE } from './paths/de'
+import { EN } from './paths/en'
 import { PT_PT } from './paths/pt-PT'
 
 /* A built-in learning path: the grammar each CEFR level asks for, as topics
@@ -15,11 +17,14 @@ export type PathTopic = {
   /** A gloss in English — what it is, in a few words. */
   en: string
   explain: string
-  examples: ReadonlyArray<{ pt: string; en: string }>
+  /** A sentence in the language, and what it means or notes. */
+  examples: ReadonlyArray<{ text: string; gloss: string }>
 }
 
 const PATHS: Partial<Record<LanguageCode, ReadonlyArray<PathTopic>>> = {
   'pt-PT': PT_PT,
+  en: EN,
+  de: DE,
 }
 
 export function pathFor(code: string | undefined): ReadonlyArray<PathTopic> {

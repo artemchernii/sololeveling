@@ -8,8 +8,7 @@
 
    No React and no Convex: `convex/areas.ts` imports it to check a code. */
 
-export type LanguageCode =
-  'pt-PT' | 'pt-BR' | 'en' | 'de' | 'es' | 'fr' | 'it' | 'nl' | 'pl' | 'uk'
+export type LanguageCode = 'pt-PT' | 'en' | 'de'
 
 export type Language = {
   code: LanguageCode
@@ -17,45 +16,24 @@ export type Language = {
   name: string
   /** What it calls itself. */
   native: string
-  /** The variant, where one language has two ways of being spoken. */
-  variant?: string
   flag: string
 }
 
+/* Three, his call (25 Sep): "for now Portuguese, English and German … we
+   don't care about Brazil". Adding one is a line here and a path file. */
 export const LANGUAGES: ReadonlyArray<Language> = [
-  {
-    code: 'pt-PT',
-    name: 'Portuguese',
-    native: 'Português',
-    variant: 'European',
-    flag: '🇵🇹',
-  },
-  {
-    code: 'pt-BR',
-    name: 'Portuguese',
-    native: 'Português',
-    variant: 'Brazilian',
-    flag: '🇧🇷',
-  },
+  { code: 'pt-PT', name: 'Portuguese', native: 'Português', flag: '🇵🇹' },
   { code: 'en', name: 'English', native: 'English', flag: '🇬🇧' },
   { code: 'de', name: 'German', native: 'Deutsch', flag: '🇩🇪' },
-  { code: 'es', name: 'Spanish', native: 'Español', flag: '🇪🇸' },
-  { code: 'fr', name: 'French', native: 'Français', flag: '🇫🇷' },
-  { code: 'it', name: 'Italian', native: 'Italiano', flag: '🇮🇹' },
-  { code: 'nl', name: 'Dutch', native: 'Nederlands', flag: '🇳🇱' },
-  { code: 'pl', name: 'Polish', native: 'Polski', flag: '🇵🇱' },
-  { code: 'uk', name: 'Ukrainian', native: 'Українська', flag: '🇺🇦' },
 ]
 
 export function languageByCode(code: string | undefined): Language | undefined {
   return LANGUAGES.find((l) => l.code === code)
 }
 
-/** The area label a new language gets: "English", "Portuguese (Brazilian)". */
+/** The area label a new language gets: "English". */
 export function areaLabelFor(language: Language): string {
-  return language.code === 'pt-BR'
-    ? `${language.name} (${language.variant})`
-    : language.name
+  return language.name
 }
 
 /* ---------------------------------------------------------------------------

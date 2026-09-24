@@ -44,6 +44,9 @@ export const create = mutation({
     projectId: v.optional(v.id('projects')),
     goalId: v.optional(v.id('goals')),
     dueDate: v.optional(v.string()),
+    /* A time in the week, chosen as it is written (24 Sep: the backlog's
+       add line could take a title and nothing else). */
+    scheduledAt: v.optional(v.number()),
     durationMin: v.optional(v.number()),
   },
   returns: v.id('tasks'),
@@ -110,6 +113,7 @@ export const create = mutation({
       projectId: args.projectId,
       goalId,
       dueDate: args.dueDate,
+      scheduledAt: args.scheduledAt,
       durationMin: args.durationMin,
       priority: 0,
       status: 'open',
@@ -162,8 +166,114 @@ export const listBacklog = query({
       .withIndex('by_owner_status', (q) =>
         q.eq('ownerId', ownerId).eq('status', 'open'),
       )
-      .filter((q) => q.neq(q.field('todayFor'), args.today))
+      .filter((q) =>
+        q.and(
+          q.neq(q.field('todayFor'), args.today),
+          q.eq(q.field('archivedAt'), undefined),
+        ),
+      )
       .take(MAX_ROWS)
+  },
+})
+
+/** What was archived from the backlog, most recently put away first. */
+export const listArchived = query({
+  args: {},
+  returns: v.array(schema.doc('tasks')),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    const open = await ctx.db
+      .query('tasks')
+      .withIndex('by_owner_status', (q) =>
+        q.eq('ownerId', ownerId).eq('status', 'open'),
+      )
+      .filter((q) => q.neq(q.field('archivedAt'), undefined))
+      .take(MAX_ROWS)
+    return open.sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0))
+  },
+})
+
+/* Several at once, from the backlog's Select mode (24 Sep): "we can't
+   delete in bulk, done in bulk, archive doesn't exist". Capped, and every id
+   is checked before anything is written — one task that is not yours
+   refuses the whole batch. */
+const MAX_BATCH = 100
+
+async function ownedBatch(
+  ctx: MutationCtx,
+  ownerId: string,
+  taskIds: Array<Id<'tasks'>>,
+): Promise<Array<Doc<'tasks'>>> {
+  if (taskIds.length > MAX_BATCH) {
+    throw new Error(`At most ${MAX_BATCH} tasks at once`)
+  }
+  const tasks: Array<Doc<'tasks'>> = []
+  for (const taskId of taskIds)
+    tasks.push(await ownedTask(ctx, ownerId, taskId))
+  return tasks
+}
+
+/**
+ * Ticks several. Each writes its own `task_done` log, exactly as one tick
+ * does — a batch is a faster way to say the same thing, not a different
+ * thing (§3b.1). Already-done ones are left as they are.
+ */
+export const completeMany = mutation({
+  args: { taskIds: v.array(v.id('tasks')) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const tasks = await ownedBatch(ctx, ownerId, args.taskIds)
+    const completedAt = Date.now()
+    for (const task of tasks) {
+      if (task.status === 'done') continue
+      await ctx.db.patch(task._id, { status: 'done', completedAt })
+      await ctx.db.insert('logs', {
+        ownerId,
+        kind: 'task_done',
+        area: task.area ?? 'life',
+        occurredAt: completedAt,
+        text: task.title,
+        taskId: task._id,
+        projectId: task.projectId,
+      })
+    }
+    return null
+  },
+})
+
+/** Archive or bring back several. Archiving also lets go of today's slot. */
+export const setArchivedMany = mutation({
+  args: { taskIds: v.array(v.id('tasks')), archived: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedBatch(ctx, ownerId, args.taskIds)
+    const at = Date.now()
+    for (const taskId of args.taskIds) {
+      await ctx.db.patch(
+        taskId,
+        args.archived
+          ? { archivedAt: at, todayFor: undefined, pickedAt: undefined }
+          : { archivedAt: undefined },
+      )
+    }
+    return null
+  },
+})
+
+export const removeMany = mutation({
+  args: { taskIds: v.array(v.id('tasks')) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedBatch(ctx, ownerId, args.taskIds)
+    for (const taskId of args.taskIds) {
+      /* Its files go with it, as with one (remove, below). */
+      await removeFor(ctx, ownerId, { taskId })
+      await ctx.db.delete(taskId)
+    }
+    return null
   },
 })
 
@@ -524,6 +634,8 @@ export const listByProject = query({
     return await ctx.db
       .query('tasks')
       .withIndex('by_project', (q) => q.eq('projectId', project._id))
+      /* Archived is put away everywhere a list is shown. */
+      .filter((q) => q.eq(q.field('archivedAt'), undefined))
       .take(MAX_ROWS)
   },
 })
@@ -600,6 +712,8 @@ export const listScheduledInRange = query({
           .gte('scheduledAt', args.from)
           .lt('scheduledAt', args.to),
       )
+      /* An archived task was put away; it does not keep its hour. */
+      .filter((q) => q.eq(q.field('archivedAt'), undefined))
       .take(MAX_ROWS)
   },
 })

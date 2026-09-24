@@ -307,6 +307,10 @@ export default defineSchema({
        wherever its creation date sorts it (16 Sep). */
     todayFor: v.optional(v.string()),
     pickedAt: v.optional(v.number()),
+    /* Put away without being done or deleted (24 Sep): out of the backlog
+       and the calendar, back from the Archived tab. Not a status — it is
+       still open, and undoing it should not have to guess which it was. */
+    archivedAt: v.optional(v.number()),
   })
     .index('by_owner_status', ['ownerId', 'status'])
     /* The Done tab (17 Sep): what was ticked, newest first, within a period.

@@ -537,3 +537,122 @@ describe('a task is created only under your own project or goal', () => {
     expect(task.area).toBe('projects')
   })
 })
+
+/* 24 Sep: the backlog's Select mode — done, archive and delete, several at
+   once. */
+describe('several tasks at once', () => {
+  async function three(t: ReturnType<typeof as>) {
+    return [
+      await t.mutation(api.tasks.create, { title: 'One', area: 'body' }),
+      await t.mutation(api.tasks.create, { title: 'Two' }),
+      await t.mutation(api.tasks.create, { title: 'Three' }),
+    ]
+  }
+  const titles = (xs: Array<{ title: string }>) => xs.map((x) => x.title).sort()
+
+  test('done in bulk writes one task_done log per task, and only that', async () => {
+    const t = as(ME)
+    const [one, two] = await three(t)
+    await t.mutation(api.tasks.completeMany, { taskIds: [one, two] })
+
+    expect(
+      titles(await t.query(api.tasks.listBacklog, { today: TODAY })),
+    ).toEqual(['Three'])
+    const logs = await t.run((ctx) => ctx.db.query('logs').collect())
+    expect(logs.map((l) => l.kind)).toEqual(['task_done', 'task_done'])
+    expect(logs.find((l) => l.text === 'One')?.area).toBe('body')
+  })
+
+  test('a task already done is not logged twice', async () => {
+    const t = as(ME)
+    const [one] = await three(t)
+    await t.mutation(api.tasks.complete, { taskId: one })
+    await t.mutation(api.tasks.completeMany, { taskIds: [one] })
+    const logs = await t.run((ctx) => ctx.db.query('logs').collect())
+    expect(logs).toHaveLength(1)
+  })
+
+  test('archive leaves the backlog and the calendar, frees today, and comes back', async () => {
+    const t = as(ME)
+    const [one] = await three(t)
+    await t.mutation(api.tasks.setSchedule, {
+      taskId: one,
+      scheduledAt: new Date(2026, 8, 8, 9).getTime(),
+      durationMin: 30,
+    })
+    await t.mutation(api.tasks.pickForToday, { taskId: one, today: TODAY })
+
+    await t.mutation(api.tasks.setArchivedMany, {
+      taskIds: [one],
+      archived: true,
+    })
+    expect(
+      titles(await t.query(api.tasks.listBacklog, { today: TODAY })),
+    ).toEqual(['Three', 'Two'])
+    expect(await t.query(api.tasks.listToday, { today: TODAY })).toHaveLength(0)
+    expect(
+      await t.query(api.tasks.listScheduledInRange, {
+        from: new Date(2026, 8, 8).getTime(),
+        to: new Date(2026, 8, 9).getTime(),
+      }),
+    ).toHaveLength(0)
+    expect(titles(await t.query(api.tasks.listArchived, {}))).toEqual(['One'])
+
+    await t.mutation(api.tasks.setArchivedMany, {
+      taskIds: [one],
+      archived: false,
+    })
+    expect(await t.query(api.tasks.listArchived, {})).toHaveLength(0)
+    expect(await t.query(api.tasks.listBacklog, { today: TODAY })).toHaveLength(
+      3,
+    )
+  })
+
+  test('deletes several', async () => {
+    const t = as(ME)
+    const [one, two] = await three(t)
+    await t.mutation(api.tasks.removeMany, { taskIds: [one, two] })
+    expect(
+      titles(await t.query(api.tasks.listBacklog, { today: TODAY })),
+    ).toEqual(['Three'])
+  })
+
+  test("one task of someone else's refuses the whole batch", async () => {
+    const { mine, theirs } = twoOwners()
+    const my = await mine.mutation(api.tasks.create, { title: 'Mine' })
+    const their = await theirs.mutation(api.tasks.create, { title: 'Theirs' })
+
+    for (const call of [
+      () => mine.mutation(api.tasks.completeMany, { taskIds: [my, their] }),
+      () => mine.mutation(api.tasks.removeMany, { taskIds: [my, their] }),
+      () =>
+        mine.mutation(api.tasks.setArchivedMany, {
+          taskIds: [my, their],
+          archived: true,
+        }),
+    ]) {
+      await expect(call()).rejects.toThrow()
+    }
+    expect(
+      await mine.query(api.tasks.listBacklog, { today: TODAY }),
+    ).toHaveLength(1)
+    const logs = await mine.run((ctx) => ctx.db.query('logs').collect())
+    expect(logs).toHaveLength(0)
+  })
+
+  test('a task can be created with its time', async () => {
+    const t = as(ME)
+    const at = new Date(2026, 8, 8, 18).getTime()
+    await t.mutation(api.tasks.create, {
+      title: 'Gym',
+      scheduledAt: at,
+      durationMin: 60,
+    })
+    const [row] = await t.query(api.tasks.listScheduledInRange, {
+      from: new Date(2026, 8, 8).getTime(),
+      to: new Date(2026, 8, 9).getTime(),
+    })
+    expect(row.scheduledAt).toBe(at)
+    expect(row.durationMin).toBe(60)
+  })
+})

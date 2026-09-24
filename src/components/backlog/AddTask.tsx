@@ -122,7 +122,25 @@ export function AddTask({
           className="flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-ink-600"
         />
         {open ? (
-          <span className="font-mono text-[10.5px] text-ink-600">↵ add</span>
+          /* A way out that is not "delete what I typed" (24 Sep). Esc does
+             the same. */
+          <div className="motion-arrive flex items-center gap-1">
+            <button
+              type="button"
+              onClick={reset}
+              className="motion-press rounded-full px-2.5 py-1 text-[12px] text-ink-500 hover:text-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void add()}
+              className="motion-press flex items-center gap-1.5 rounded-full bg-lav-300/16 px-3 py-1 text-[12px] text-lav-200 ring-1 ring-lav-300/40 hover:bg-lav-300/24"
+            >
+              Add
+              <span className="font-mono text-[10.5px] text-lav-300/80">↵</span>
+            </button>
+          </div>
         ) : null}
       </div>
 

@@ -13,11 +13,12 @@ import { agoLabel, shortDate } from '@/lib/format'
    bland" — every row was a title over a grey form: a bordered "unbound"
    select, a bordered "Calendar" button, a trash can, the same on every line.
 
-   Now a row is the task: its area as a coloured edge, a tick to finish it,
-   the title, and underneath only what is actually true of it — how long it
-   has waited, what it is for, when it is on the calendar. Pickers for what
-   is not set yet appear on hover (always, on a phone). In Select mode the
-   tick becomes a checkbox and the row does nothing else. */
+   Now a row is the task: its area as a coloured edge, the title, and
+   underneath only what is actually true of it — how long it has waited,
+   what it is for, when it is on the calendar. Pickers for what is not set
+   yet appear on hover (always, on a phone). Done is a button on the right:
+   a round tick on the left read as a checkbox for selecting (24 Sep). In
+   Select mode a checkbox appears there, and that is the only one. */
 export function TaskRow({
   task,
   projects,
@@ -49,7 +50,17 @@ export function TaskRow({
   onDelete: () => void
 }) {
   const [confirming, setConfirming] = useState(false)
-  const [ticked, setTicked] = useState(false)
+  /* Finishing plays before the row goes: the title is struck through in
+     green, then the row slides out, then the write is sent — so the list
+     does not jump from under the animation. */
+  const [finishing, setFinishing] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+  function finish() {
+    if (finishing) return
+    setFinishing(true)
+    window.setTimeout(() => setLeaving(true), 420)
+    window.setTimeout(onComplete, 700)
+  }
   const tone: CSSProperties = task.area
     ? areaVars(task.area)
     : ({ '--area': 'var(--color-neutral-500)' } as CSSProperties)
@@ -61,9 +72,13 @@ export function TaskRow({
     <div
       style={tone}
       onMouseLeave={() => setConfirming(false)}
-      className={`group relative flex items-start gap-3 rounded-[12px] py-2.5 pr-2 pl-4 transition-colors ${
-        checked ? 'bg-(--area)/10' : 'hover:bg-lift/[0.035]'
-      } ${ticked ? 'motion-leave' : ''}`}
+      className={`group relative flex items-start gap-3 rounded-[12px] py-2.5 pr-2 pl-4 transition-colors duration-(--motion-base) ${
+        finishing
+          ? 'bg-state-good/[0.08]'
+          : checked
+            ? 'bg-(--area)/10'
+            : 'hover:bg-lift/[0.035]'
+      } ${leaving ? 'motion-leave' : ''}`}
     >
       {/* The area, as an edge. Unfiled is a quiet grey, not a colour. */}
       <span className="absolute top-2.5 bottom-2.5 left-1 w-[3px] rounded-full bg-(--area)/70" />
@@ -83,36 +98,25 @@ export function TaskRow({
         >
           {checked ? <Check className="motion-pop size-3" /> : null}
         </button>
-      ) : archivedView ? (
-        <span className="mt-0.5 size-[18px] shrink-0" />
-      ) : (
-        /* Ticking here is the same tick as on Today: a task_done log and
-           nothing more (§3b.1). */
-        <button
-          type="button"
-          aria-label={`Done: ${task.title}`}
-          onClick={() => {
-            setTicked(true)
-            onComplete()
-          }}
-          className="motion-press group/tick mt-0.5 grid size-[18px] shrink-0 place-items-center rounded-full ring-1 ring-lift/25 transition-colors hover:bg-state-good/15 hover:ring-state-good/60"
-        >
-          <Check
-            className={`size-3 text-state-good transition-opacity ${
-              ticked
-                ? 'motion-draw opacity-100'
-                : 'opacity-0 group-hover/tick:opacity-60'
-            }`}
-          />
-        </button>
-      )}
+      ) : null}
 
       <div
         className={`flex min-w-0 flex-1 flex-col gap-1 ${selecting ? 'cursor-pointer' : ''}`}
         onClick={selecting ? onToggle : undefined}
       >
-        <span className="text-[14px] leading-[20px] text-foreground">
+        <span
+          className={`relative self-start text-[14px] leading-[20px] transition-colors duration-(--motion-base) ${
+            finishing ? 'text-ink-400' : 'text-foreground'
+          }`}
+        >
           {task.title}
+          {/* The strike, drawn left to right in green. */}
+          <span
+            aria-hidden
+            className={`absolute top-1/2 left-0 h-[1.5px] w-full origin-left rounded-full bg-state-good transition-transform duration-[380ms] ease-out ${
+              finishing ? 'scale-x-100' : 'scale-x-0'
+            }`}
+          />
         </span>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-mono text-[10.5px] text-ink-600">
@@ -147,6 +151,23 @@ export function TaskRow({
           </button>
         ) : (
           <>
+            {archivedView ? null : (
+              /* Done, as on Today: a task_done log and nothing more (§3b.1).
+                 Always visible — it is what a task is for. */
+              <button
+                type="button"
+                aria-label={`Done: ${task.title}`}
+                title="Done"
+                onClick={finish}
+                className={`motion-press grid size-8 shrink-0 place-items-center rounded-[9px] transition-colors ${
+                  finishing
+                    ? 'bg-state-good/20 text-state-good'
+                    : 'text-ink-500 hover:bg-state-good/12 hover:text-state-good'
+                }`}
+              >
+                <Check className={`size-4 ${finishing ? 'motion-pop' : ''}`} />
+              </button>
+            )}
             {archivedView ? null : (
               <button
                 type="button"

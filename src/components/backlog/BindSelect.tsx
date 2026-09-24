@@ -49,7 +49,9 @@ export function BindSelect({
       : undefined
 
   /* Said when bound, a faint "project" on hover when not: an empty picker
-     on every row was the grey that made the list look like a form. */
+     on every row was the grey that made the list look like a form. Unset,
+     it goes last in the line, so while it is hidden it leaves no gap
+     between the chips that are there. */
   return (
     <ChipSelect
       label={`What ${task.title} is for`}
@@ -60,7 +62,7 @@ export function BindSelect({
       className={
         chosen
           ? 'bg-lift/[0.06] text-ink-300 hover:text-foreground'
-          : 'text-ink-600 hover:text-ink-300 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100'
+          : 'order-last text-ink-600 hover:text-ink-300 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100'
       }
     >
       <BindOptions projects={projects} goals={goals} />

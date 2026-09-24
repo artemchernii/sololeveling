@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
@@ -7,6 +7,8 @@ import { Check } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import { AddTask } from '@/components/backlog/AddTask'
+import { UndoLine } from '@/components/calendar/UndoLine'
+import type { Undoable } from '@/components/calendar/UndoLine'
 import { DoneList } from '@/components/backlog/DoneList'
 import {
   isFiltered,
@@ -56,10 +58,27 @@ function Backlog() {
 
   const pickForToday = useMutation(api.tasks.pickForToday)
   const setArea = useMutation(api.tasks.setArea)
-  const complete = useMutation(api.tasks.complete)
   const completeMany = useMutation(api.tasks.completeMany)
   const setArchivedMany = useMutation(api.tasks.setArchivedMany)
   const removeMany = useMutation(api.tasks.removeMany)
+  const reopen = useMutation(api.tasks.reopen)
+
+  /* A tick is one tap, so taking it back is one tap too: reopen deletes the
+     task_done log the tick wrote (tasks.reopen). */
+  const [undoable, setUndoable] = useState<Undoable | null>(null)
+  const clearUndo = useCallback(() => setUndoable(null), [])
+  function done(finished: Array<Doc<'tasks'>>) {
+    if (finished.length === 0) return
+    void completeMany({ taskIds: finished.map((t) => t._id) })
+    setUndoable({
+      text:
+        finished.length === 1
+          ? `Done: ${finished[0].title}`
+          : `${finished.length} done`,
+      at: Date.now(),
+      undo: () => Promise.all(finished.map((t) => reopen({ taskId: t._id }))),
+    })
+  }
 
   /* Filtered and sorted here, not on the server: the backlog is one
      person's list, already capped at 200 by listBacklog, and every row is
@@ -216,7 +235,7 @@ function Backlog() {
                   selecting={selecting}
                   checked={selected.has(task._id)}
                   onToggle={() => toggle(task._id)}
-                  onComplete={() => void complete({ taskId: task._id })}
+                  onComplete={() => done([task])}
                   onPick={() => void pick(task._id)}
                   onArea={(area) => void setArea({ taskId: task._id, area })}
                   onArchive={() =>
@@ -240,6 +259,8 @@ function Backlog() {
           ) : null}
         </>
       )}
+
+      <UndoLine undoable={undoable} onDone={clearUndo} />
 
       {selecting ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-[calc(150px+env(safe-area-inset-bottom))] z-40 flex justify-center px-[18px] md:bottom-6">
@@ -265,7 +286,7 @@ function Backlog() {
                 type="button"
                 disabled={ids.length === 0}
                 onClick={() => {
-                  void completeMany({ taskIds: ids })
+                  done(chosen)
                   stopSelecting()
                 }}
                 className="motion-press flex items-center gap-1 rounded-full bg-state-good/12 px-3 py-1 text-[12px] text-state-good ring-1 ring-state-good/35 hover:bg-state-good/20 disabled:opacity-40"

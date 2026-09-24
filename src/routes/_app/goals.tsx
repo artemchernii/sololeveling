@@ -1,17 +1,13 @@
-import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ConvexError } from 'convex/values'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc } from '../../../convex/_generated/dataModel'
-import { GoalTimeline } from '@/components/goals/GoalTimeline'
-import { MilestoneEditor } from '@/components/goals/MilestoneEditor'
+import { GoalCard } from '@/components/goals/GoalCard'
+import { MonthTarget } from '@/components/goals/MonthTarget'
 import { NewGoal } from '@/components/goals/NewGoal'
-import { SaveLabel, useSave } from '@/components/Saving'
 import { Skeleton } from '@/components/Skeleton'
-import { deadlineLabel } from '@/lib/format'
+import { daysLeftInMonth, monthRange } from '@/lib/month'
+import { MONTH_TILES } from '@/lib/tiles'
 import { useArrived, useHeld } from '@/lib/loading'
 
 export const Route = createFileRoute('/_app/goals')({
@@ -25,234 +21,79 @@ export const Route = createFileRoute('/_app/goals')({
 function Goals() {
   const goals = useHeld(useQuery(api.goals.listActive, {}))
   const arrived = useArrived(goals)
-  const setStatus = useMutation(api.goals.setStatus)
-  const removeGoal = useMutation(api.goals.remove)
-  const update = useMutation(api.goals.update)
-  const [error, setError] = useState<string | null>(null)
+
+  /* 24 Sep: monthly targets and long-term goals were one list of identical
+     cards. They are different things — a number that resets each month, and
+     a thing you are walking towards — so they are two sections. */
+  const monthly = (goals ?? []).filter((g) => g.tile !== undefined)
+  const longTerm = (goals ?? []).filter((g) => g.tile === undefined)
+
+  const now = new Date()
+  const counts = useQuery(api.aggregate.monthCounts, monthRange(now.getTime()))
+  const daysLeft = daysLeftInMonth(now)
 
   return (
     <div className="flex flex-col gap-[18px]">
       <NewGoal />
       {goals === undefined ? (
-        /* Two goal cards as shape: title, target, the meta line, the actions. */
+        /* Two goal cards as shape: title, chips, the steps. */
         <div role="status" aria-label="Loading" className="contents">
           {[0, 1].map((i) => (
             <div
               key={i}
               className="glass flex flex-col gap-3 rounded-[22px] p-6"
             >
-              <div className="flex h-5 items-center">
-                <Skeleton className={i === 0 ? 'h-4 w-2/5' : 'h-4 w-1/3'} />
+              <Skeleton className={i === 0 ? 'h-5 w-2/5' : 'h-5 w-1/3'} />
+              <div className="flex gap-2">
+                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-6 w-28 rounded-full" />
               </div>
-              <Skeleton className="w-1/5" />
-              <Skeleton className="h-2.5 w-16" />
-              <div className="flex h-[38px] items-end border-t border-lift/[0.07]">
-                <Skeleton className="h-[26px] w-48 rounded-[7px]" />
-              </div>
+              <Skeleton className="mt-3 h-[52px] w-full" />
             </div>
           ))}
         </div>
       ) : goals.length === 0 ? (
         <div className={`glass rounded-[22px] p-6 ${arrived}`}>
-          <p className="text-[13px] text-ink-500">No goals yet.</p>
+          <p className="text-[13px] text-ink-500">
+            No goals yet. Name one above — a thing to walk towards, or a number
+            to hit each month.
+          </p>
         </div>
       ) : (
-        goals.map((goal) => (
-          <div
-            key={goal._id}
-            id={`goal-${goal._id}`}
-            className={`glass flex flex-col gap-3 rounded-[22px] p-6 ${arrived}`}
-          >
-            <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <h2 className="text-[18px] font-light text-foreground">
-                {goal.title}
-              </h2>
-              <span className="label-caps">{goal.area}</span>
-            </div>
-
-            <Target goal={goal} />
-
-            <GoalNotes goal={goal} />
-
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-ink-600">
-              {/* A goal listed the projects built under it until 21 Sep,
-                  when that bind was cut: a project answers to nothing now,
-                  and a list here would be a relationship the data no longer
-                  holds. */}
-              <label className="flex items-center gap-1.5">
-                <span>
-                  {goal.deadline ? deadlineLabel(goal.deadline) : 'no deadline'}
-                </span>
-                <input
-                  type="date"
-                  aria-label={`Deadline for ${goal.title}`}
-                  value={goal.deadline ?? ''}
-                  onChange={(e) =>
-                    void update({
-                      goalId: goal._id,
-                      deadline: e.target.value || null,
-                    })
-                  }
-                  className="w-[7.5rem] rounded-[6px] border border-lift/10 bg-sink/20 px-1.5 py-0.5 text-[11px] text-ink-400"
-                />
-              </label>
-            </div>
-
-            {/* A monthly tile target is read against its tile's log count, not
-                walked through in steps — so it gets no timeline. */}
-            {goal.tile === undefined ? (
-              <div className="flex flex-col gap-3 border-t border-lift/[0.07] pt-3">
-                <GoalTimeline goal={goal} />
-                <details className="group">
-                  <summary className="label-caps cursor-pointer list-none transition-colors hover:text-ink-300">
-                    Milestones
-                  </summary>
-                  <div className="pt-2">
-                    <MilestoneEditor goalId={goal._id} />
+        <>
+          {monthly.length > 0 ? (
+            <section className="flex flex-col gap-3">
+              <h2 className="label-caps px-1">This month</h2>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {monthly.map((goal) => (
+                  <div key={goal._id} id={`goal-${goal._id}`}>
+                    <MonthTarget
+                      goal={goal}
+                      tile={MONTH_TILES.find((t) => t.key === goal.tile)}
+                      count={
+                        counts && goal.tile ? counts[goal.tile].now : undefined
+                      }
+                      daysLeft={daysLeft}
+                    />
                   </div>
-                </details>
+                ))}
               </div>
-            ) : null}
+            </section>
+          ) : null}
 
-            <div className="flex gap-2 border-t border-lift/[0.07] pt-3">
-              <button
-                type="button"
-                onClick={() =>
-                  void setStatus({ goalId: goal._id, status: 'done' })
-                }
-                className="rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300"
-              >
-                Reached it
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  void setStatus({ goalId: goal._id, status: 'dropped' })
-                }
-                className="rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lift/20 hover:text-ink-200"
-              >
-                Drop it
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await removeGoal({ goalId: goal._id })
-                    setError(null)
-                  } catch (e) {
-                    /* A goal with projects under it refuses, and names them.
-                       ConvexError carries that sentence in .data; a plain
-                       Error would arrive wrapped in a stack trace. */
-                    setError(
-                      e instanceof ConvexError
-                        ? String(e.data)
-                        : 'That did not work.',
-                    )
-                  }
-                }}
-                className="rounded-[7px] border border-lift/10 px-2.5 py-1 text-[11.5px] text-ink-600 transition-colors hover:border-lift/20 hover:text-ink-300"
-              >
-                Delete
-              </button>
-            </div>
-
-            {error ? (
-              <p className="text-[12.5px] text-ink-400">{error}</p>
-            ) : null}
-          </div>
-        ))
+          {longTerm.length > 0 ? (
+            <section className="flex flex-col gap-3">
+              <h2 className="label-caps px-1">Goals</h2>
+              {longTerm.map((goal) => (
+                /* The id is what a milestone on the calendar links to. */
+                <div key={goal._id} id={`goal-${goal._id}`}>
+                  <GoalCard goal={goal} />
+                </div>
+              ))}
+            </section>
+          ) : null}
+        </>
       )}
     </div>
-  )
-}
-
-/* The description, written in place (20 Sep). It has been in the schema since
-   the beginning and was never shown, so everything a goal meant beyond its
-   title lived outside the app.
-
-   Saved by a button you can see, not by looking away. Blur-saving was the
-   first attempt and it is the same mistake as Enter-only capture: the write
-   happens, and nothing on screen says so. The button appears only once the
-   text differs from what is stored, so an untouched note offers nothing to
-   press, and it says "Saved" for a moment afterwards (§3d.2: a write you
-   started should be visible when it lands). */
-function GoalNotes({ goal }: { goal: Doc<'goals'> }) {
-  const update = useMutation(api.goals.update)
-  const [open, setOpen] = useState(goal.description !== undefined)
-  const [draft, setDraft] = useState(goal.description ?? '')
-  const saving = useSave()
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="self-start text-[12.5px] text-ink-600 transition-colors hover:text-ink-300"
-      >
-        + Notes
-      </button>
-    )
-  }
-
-  const dirty = draft.trim() !== (goal.description ?? '')
-
-  return (
-    <div className="flex flex-col gap-2">
-      <textarea
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        rows={3}
-        aria-label={`Notes on ${goal.title}`}
-        placeholder="Why this, what it looks like when it is done, anything you pasted"
-        className="w-full resize-y rounded-[10px] border border-lift/[0.07] bg-sink/20 px-3 py-2 text-[12.5px] leading-relaxed text-ink-300 outline-none placeholder:text-ink-700"
-      />
-      {dirty || saving.status !== 'idle' ? (
-        <button
-          type="button"
-          disabled={saving.busy}
-          onClick={() =>
-            void saving.run(() =>
-              update({
-                goalId: goal._id,
-                description: draft.trim() || null,
-              }),
-            )
-          }
-          className="self-start rounded-[7px] border border-lav-500/60 px-3 py-1 text-[12px] text-lav-300 transition-colors hover:bg-lav-900/60"
-        >
-          <SaveLabel status={saving.status} onSettled={saving.settle}>
-            Save notes
-          </SaveLabel>
-        </button>
-      ) : null}
-    </div>
-  )
-}
-
-/* PLAN.md §1: a bar renders only where targetValue gives a real denominator.
-   A label with no number is shown as text, and a goal with neither shows
-   nothing at all rather than a bar at zero. */
-function Target({ goal }: { goal: Doc<'goals'> }) {
-  if (goal.targetValue !== undefined && goal.unit) {
-    return (
-      <div className="font-mono text-[12px] text-ink-300">
-        target {goal.targetValue} {goal.unit}
-        {goal.tile ? ' a month' : ''}
-      </div>
-    )
-  }
-
-  if (goal.targetLabel) {
-    return (
-      <div className="font-mono text-[12px] text-ink-300">
-        target {goal.targetLabel}
-      </div>
-    )
-  }
-
-  return (
-    <p className="text-[12.5px] text-ink-600">
-      No target. Not everything worth doing has a number.
-    </p>
   )
 }

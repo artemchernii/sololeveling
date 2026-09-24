@@ -141,12 +141,69 @@ async function withFiles(ctx: QueryCtx, ownerId: string, note: Doc<'notes'>) {
 }
 
 export const list = query({
-  args: { kind: v.optional(noteKindValidator) },
+  args: {
+    kind: v.optional(noteKindValidator),
+    /** true: only the archived ones. Otherwise only the ones not archived. */
+    archived: v.optional(v.boolean()),
+  },
   returns: v.array(listRow),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    const notes = await listNotes(ctx, ownerId, args.kind)
+    const wanted = args.archived === true
+    /* Read through the owner's index, then split — a personal list of notes
+       is a few hundred rows, and an archive flag is not worth an index of
+       its own until it is. */
+    const notes = (await listNotes(ctx, ownerId, args.kind)).filter(
+      (n) => (n.archivedAt !== undefined) === wanted,
+    )
     return await Promise.all(notes.map((n) => withFiles(ctx, ownerId, n)))
+  },
+})
+
+/* Several at once, from the list's Select mode (24 Sep). Capped, and every
+   id checked before anything is written: one note that is not yours refuses
+   the whole batch, and nothing is half-done. */
+const MAX_BATCH = 100
+
+async function ownedBatch(
+  ctx: MutationCtx,
+  ownerId: string,
+  noteIds: Array<Id<'notes'>>,
+) {
+  if (noteIds.length > MAX_BATCH) {
+    throw new Error(`At most ${MAX_BATCH} notes at once`)
+  }
+  for (const noteId of noteIds) await ownedNote(ctx, ownerId, noteId)
+}
+
+export const setArchived = mutation({
+  args: { noteIds: v.array(v.id('notes')), archived: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedBatch(ctx, ownerId, args.noteIds)
+    const at = Date.now()
+    for (const noteId of args.noteIds) {
+      await ctx.db.patch(noteId, {
+        archivedAt: args.archived ? at : undefined,
+      })
+    }
+    return null
+  },
+})
+
+export const removeMany = mutation({
+  args: { noteIds: v.array(v.id('notes')) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedBatch(ctx, ownerId, args.noteIds)
+    for (const noteId of args.noteIds) {
+      /* Its files go with it, as with one (remove, above). */
+      await removeFor(ctx, ownerId, { noteId })
+      await ctx.db.delete(noteId)
+    }
+    return null
   },
 })
 
@@ -213,12 +270,14 @@ export const listByProject = query({
     const ownerId = await requireUser(ctx)
     const projectId = ctx.db.normalizeId('projects', args.projectId)
     if (projectId === null) return []
-    return await ctx.db
+    const notes = await ctx.db
       .query('notes')
       .withIndex('by_owner_project', (q) =>
         q.eq('ownerId', ownerId).eq('projectId', projectId),
       )
       .order('desc')
       .take(50)
+    /* Archived is put away everywhere a list is shown, not only on Notes. */
+    return notes.filter((n) => n.archivedAt === undefined)
   },
 })

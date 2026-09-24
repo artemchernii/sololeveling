@@ -74,7 +74,7 @@
   --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0, 0, 0, 0.65);
 
   /* ==========================================================================
-     APP ADDITIONS — not Nocturne. Seven, each with the reason it exists.
+     APP ADDITIONS — not Nocturne. Nine groups, each with the reason it exists.
      ======================================================================= */
 
   /* 1. Near-black ground. §3 Visual asks for a "near-black ground" with
@@ -177,6 +177,18 @@
         more tokens each. */
   --area-l: 0.8;
   --area-c: 0.1;
+
+  /* 9. Note kinds (24 Sep). Artem: "hard to distinguish notes type by
+        color. I would love to have diff types diff color." A kind is a
+        category, like an area, so it is built the same way: a hue at the
+        theme's area lightness and chroma, so no kind is louder than another
+        and the light theme needs nothing extra. Hues sit clear of the
+        lavender accent (265–305°). Note keeps knowledge's 225°, which is
+        what every note was drawn in until now. */
+  --kind-note: oklch(var(--area-l) var(--area-c) 225);
+  --kind-idea: oklch(var(--area-l) var(--area-c) 80);
+  --kind-book: oklch(var(--area-l) var(--area-c) 150);
+  --kind-reference: oklch(var(--area-l) var(--area-c) 20);
 
   /* 8. State (20 Sep). Artem: "entire platform is boring and bland… overdue
         we can make RED or warning and icon to HIGHLIGHT". Until today colour

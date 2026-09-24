@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { wasEdited, whenLabel } from './note-meta'
+import { matchesQuery, sortNotes, wasEdited, whenLabel } from './note-meta'
 
 const now = new Date(2026, 8, 24, 15, 0).getTime() // Thursday
 
@@ -24,5 +24,64 @@ describe('wasEdited', () => {
     expect(wasEdited(now, now + 60_000)).toBe(false)
     expect(wasEdited(now, now + 60 * 60_000)).toBe(true)
     expect(wasEdited(now, undefined)).toBe(false)
+  })
+})
+
+describe('sortNotes', () => {
+  const notes = [
+    { title: 'banana', _creationTime: 1, updatedAt: 50 },
+    { title: 'Apple', _creationTime: 3 },
+    { title: 'cherry', _creationTime: 2, updatedAt: 10 },
+  ]
+  const titles = (xs: Array<{ title: string }>) => xs.map((n) => n.title)
+
+  test('newest first by creation', () => {
+    expect(titles(sortNotes(notes, 'new'))).toEqual([
+      'Apple',
+      'cherry',
+      'banana',
+    ])
+  })
+
+  test('recently edited, or created when never edited', () => {
+    expect(titles(sortNotes(notes, 'edited'))).toEqual([
+      'banana',
+      'cherry',
+      'Apple',
+    ])
+  })
+
+  test('A–Z ignoring case', () => {
+    expect(titles(sortNotes(notes, 'az'))).toEqual([
+      'Apple',
+      'banana',
+      'cherry',
+    ])
+  })
+
+  test('leaves the list it was given alone', () => {
+    sortNotes(notes, 'az')
+    expect(titles(notes)).toEqual(['banana', 'Apple', 'cherry'])
+  })
+})
+
+describe('matchesQuery', () => {
+  const note = {
+    title: 'Гоління — перехід на T-подібну бритву',
+    body: 'ПОКУПКИ (~70-80€ на старті)\nCafé Merkur razor',
+  }
+
+  test('empty matches everything', () => {
+    expect(matchesQuery(note, '  ')).toBe(true)
+  })
+
+  test('every word, anywhere, any order, any case', () => {
+    expect(matchesQuery(note, 'бритву покупки')).toBe(true)
+    expect(matchesQuery(note, 'RAZOR merkur')).toBe(true)
+    expect(matchesQuery(note, 'razor gillette')).toBe(false)
+  })
+
+  test('accents do not matter', () => {
+    expect(matchesQuery(note, 'cafe')).toBe(true)
   })
 })

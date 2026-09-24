@@ -80,7 +80,8 @@ function Dot({
     node.state === 'reached'
       ? 'bg-ink-300 text-background'
       : node.state === 'next'
-        ? 'border border-lav-500 text-lav-300'
+        ? /* The one live step: lit, not just outlined (24 Sep). */
+          'border border-lav-300 bg-lav-300/15 text-lav-200 shadow-[0_0_14px_-3px_var(--color-accent)]'
         : 'border border-lift/15 text-ink-500'
   return (
     <button
@@ -117,14 +118,28 @@ function Caption({ node }: { node: TimelineNode }) {
       </div>
     )
   }
+  /* A step not yet reached is late once its day has passed and close from
+     the day before — the same two states a deadline has, in the same colours
+     (tokens.css item 8). A reached step is neither. */
+  const due = node.reachedAt === undefined ? node.dueDate : undefined
+  const tomorrow = localToday(new Date(Date.now() + 24 * 60 * 60 * 1000))
+  const dateTone =
+    due === undefined
+      ? 'text-ink-600'
+      : due < today
+        ? 'text-state-danger'
+        : due <= tomorrow
+          ? 'text-state-warn'
+          : 'text-ink-600'
+
   return (
     <div className="flex min-w-0 flex-col md:pr-3">
       <span
-        className={`truncate text-[12.5px] ${node.state === 'next' ? 'text-lav-300' : node.state === 'reached' ? 'text-ink-400' : 'text-foreground'}`}
+        className={`truncate text-[12.5px] ${node.state === 'next' ? 'text-lav-200' : node.state === 'reached' ? 'text-ink-400' : 'text-foreground'}`}
       >
         {node.title}
       </span>
-      <span className="font-mono text-[11px] text-ink-600">
+      <span className={`font-mono text-[11px] ${dateTone}`}>
         {node.reachedAt
           ? `reached ${shortDate(localToday(new Date(node.reachedAt)))}`
           : node.dueDate

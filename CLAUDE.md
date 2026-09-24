@@ -88,9 +88,9 @@ Nocturne is the design source of truth. Its tokens live in
 `src/styles/tokens.css` and reach components through Tailwind's `@theme` in
 `src/styles.css`. Take every colour, radius, space and shadow from a token.
 
-The tokens under that file's `APP ADDITIONS` rule (seven groups, as of 15
-Sep: ground, mono face, glass, motion, area colours, lift/sink, and the light
-theme) are the only values not from Nocturne, and each carries the reason it
+The tokens under that file's `APP ADDITIONS` rule (nine groups, as of 24
+Sep: ground, mono face, glass, motion, area colours, lift/sink, the light
+theme, state, and note kinds) are the only values not from Nocturne, and each carries the reason it
 exists. Adding another means writing that reason too.
 
 `design/wireframes-v2/Solo Leveling Wireframes.dc.html` is visual reference for
@@ -158,6 +158,12 @@ this project; these are the parts of it worth keeping.
 - **Close a row** with typecheck, lint and tests green, one review of the whole
   branch, a PR based on `master`, and one thing for Artem to press by hand.
   Commit per meaningful step with a real message.
+- **Conventional commits, never squashed** (24 Sep). Every commit is
+  `type(scope): what changed` — `feat`, `fix`, `docs`, `test`, `refactor`,
+  `chore` — with the why in the body. A PR lands as a merge commit; squash
+  and rebase merging are switched off on GitHub. Artem: one commit for a lot
+  of work "looks like I don't do work". The history is the record of the
+  work, so it stays whole.
 
 ## Where we are
 

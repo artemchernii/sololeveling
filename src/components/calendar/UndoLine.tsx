@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 /* R5. A drag writes without asking — that is the done-when — so a mis-drop
    needs one tap back. Five seconds, then it goes: unlike a failed save, there
@@ -27,7 +28,9 @@ export function UndoLine({
 
   if (undoable === null) return null
 
-  return (
+  /* Portalled: a caller inside a frosted panel would otherwise pin this to
+     the panel, not the screen (backdrop-filter makes `fixed` local). */
+  return createPortal(
     <div className="pointer-events-none fixed inset-x-0 bottom-[calc(150px+env(safe-area-inset-bottom))] z-[55] flex justify-center px-[18px] md:bottom-6">
       <div
         key={undoable.at}
@@ -46,6 +49,7 @@ export function UndoLine({
           Undo
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

@@ -27,7 +27,7 @@ import { daysUntil, deadlineLabel, isOverdue } from '@/lib/format'
 
 /** The three states a date can be in. Shared so a colour cannot mean two
     things in two places. */
-export function deadlineTone(project: Doc<'projects'>): {
+export function deadlineTone(project: { deadline?: string }): {
   skin: string
   Icon: LucideIcon | null
   label: string

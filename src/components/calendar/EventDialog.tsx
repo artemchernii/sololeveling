@@ -49,6 +49,7 @@ export function EventDialog({
   open,
   event,
   startsAt,
+  endsAt,
   onClose,
 }: {
   open: boolean
@@ -56,6 +57,8 @@ export function EventDialog({
   event: Doc<'events'> | undefined
   /** Where a click on empty grid landed, used only when creating. */
   startsAt: number
+  /** Where a drag across empty time ended; an hour after the start if not. */
+  endsAt?: number
   onClose: () => void
 }) {
   const create = useMutation(api.events.create)
@@ -98,7 +101,7 @@ export function EventDialog({
     } else {
       setTitle('')
       setStart(toLocalInput(startsAt))
-      setEnd(toTimeInput(startsAt + 60 * 60_000))
+      setEnd(toTimeInput(endsAt ?? startsAt + 60 * 60_000))
       setArea('')
       setRrule(undefined)
       setProjectId('')
@@ -106,7 +109,7 @@ export function EventDialog({
       setRemindMin(undefined)
     }
     setNotifyNote(null)
-  }, [open, event, startsAt, saving.settle])
+  }, [open, event, startsAt, endsAt, saving.settle])
 
   useEffect(() => {
     if (!open) return

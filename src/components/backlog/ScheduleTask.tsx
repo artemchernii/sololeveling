@@ -42,13 +42,25 @@ export function ScheduleTask({ task }: { task: Doc<'tasks'> }) {
 
   if (!open) {
     return (
+      /* Scheduled: the time, in lavender — it is on the calendar, a live
+         thing. Not: a faint "schedule" that shows on hover (24 Sep: a
+         bordered "Calendar" button on every row read as cheap). */
       <button
         type="button"
         onClick={begin}
-        className="flex items-center gap-1.5 rounded-[7px] border border-lift/10 px-2 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lift/20 hover:text-ink-200"
+        className={`motion-press flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11.5px] whitespace-nowrap transition-colors ${
+          task.scheduledAt
+            ? 'bg-lav-300/12 text-lav-200 hover:bg-lav-300/20'
+            : 'order-last text-ink-600 hover:text-ink-300 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'
+        }`}
       >
         <CalendarPlus className="size-3" />
-        {task.scheduledAt ? whenLabel(task.scheduledAt) : 'Calendar'}
+        {task.scheduledAt ? (
+          whenLabel(task.scheduledAt)
+        ) : (
+          /* A prompt: on a phone the icon alone says it. */
+          <span className="hidden md:inline">schedule</span>
+        )}
       </button>
     )
   }
@@ -59,7 +71,7 @@ export function ScheduleTask({ task }: { task: Doc<'tasks'> }) {
         type="datetime-local"
         value={at}
         onChange={(e) => setAt(e.target.value)}
-        className="rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 font-mono text-[11.5px] text-ink-300"
+        className="rounded-full bg-lift/[0.05] px-3 py-1 font-mono text-[11.5px] text-ink-200 ring-1 ring-lift/10 outline-none focus:ring-lav-300/40"
       />
       <input
         type="number"
@@ -68,13 +80,13 @@ export function ScheduleTask({ task }: { task: Doc<'tasks'> }) {
         value={minutes}
         onChange={(e) => setMinutes(e.target.value)}
         aria-label="Minutes"
-        className="w-16 rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 font-mono text-[11.5px] text-ink-300"
+        className="w-16 rounded-full bg-lift/[0.05] px-3 py-1 font-mono text-[11.5px] text-ink-200 ring-1 ring-lift/10 outline-none focus:ring-lav-300/40"
       />
       <span className="font-mono text-[11px] text-ink-600">min</span>
       <button
         type="button"
         onClick={() => void save()}
-        className="rounded-[7px] border border-lav-500/60 px-2 py-1 text-[11.5px] text-lav-300 transition-colors hover:bg-lav-900/60"
+        className="motion-press rounded-full bg-lav-300/16 px-3 py-1 text-[11.5px] text-lav-200 ring-1 ring-lav-300/40 transition-colors hover:bg-lav-300/24"
       >
         Put it there
       </button>

@@ -19,6 +19,10 @@ export type TimelineItem = {
   area?: Area
   /** R5: the project a block belongs to, so the grid can name it. */
   projectId?: string
+  /** What a milestone belongs to — "Goal: Ship Oreum" — for its tooltip. */
+  detail?: string
+  /** A milestone's goal, so pressing it opens that goal (24 Sep). */
+  goalId?: string
 }
 
 /** The shape a milestone reaches the timeline in (convex/schema.ts). */
@@ -28,6 +32,8 @@ export type DueMilestone = {
   dueDate?: string
   dueTime?: string
   area?: Area
+  goalId?: string
+  goalTitle?: string
 }
 
 export function taskToTimelineItem(task: Doc<'tasks'>): TimelineItem | null {
@@ -100,6 +106,10 @@ export function milestoneToTimelineItem(
     title: milestone.title,
     startsAt: new Date(y, m - 1, d, hh, mm).getTime(),
     area: milestone.area,
+    detail: milestone.goalTitle
+      ? `milestone of ${milestone.goalTitle}`
+      : undefined,
+    goalId: milestone.goalId,
   }
 }
 

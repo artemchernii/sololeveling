@@ -1,7 +1,9 @@
 import { useMutation } from 'convex/react'
+import { Target } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import { ChipSelect } from './ChipSelect'
 
 /* One picker for what a backlog task answers to: a project (which brings its
    goal), a goal on its own, or nothing. A native select, because this is
@@ -40,14 +42,46 @@ export function BindSelect({
     }
   }
 
+  const chosen = task.projectId
+    ? projects.find((p) => p._id === task.projectId)?.title
+    : task.goalId
+      ? goals.find((g) => g._id === task.goalId)?.title
+      : undefined
+
+  /* Said when bound, a faint "project" on hover when not: an empty picker
+     on every row was the grey that made the list look like a form. Unset,
+     it goes last in the line, so while it is hidden it leaves no gap
+     between the chips that are there. */
   return (
-    <select
-      aria-label={`What ${task.title} is for`}
+    <ChipSelect
+      label={`What ${task.title} is for`}
       value={value}
-      onChange={(e) => change(e.target.value)}
-      className="w-[10rem] truncate rounded-[6px] border border-lift/10 bg-sink/20 px-2 py-1 text-[11.5px] text-ink-400"
+      text={chosen ?? 'project'}
+      onChange={change}
+      icon={<Target className="size-3 shrink-0" />}
+      iconOnlyOnPhone={!chosen}
+      className={
+        chosen
+          ? 'bg-lift/[0.06] text-ink-300 hover:text-foreground'
+          : 'order-last text-ink-600 hover:text-ink-300 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100'
+      }
     >
-      <option value="">unbound</option>
+      <BindOptions projects={projects} goals={goals} />
+    </ChipSelect>
+  )
+}
+
+/** The options every "what is this for" picker offers. */
+export function BindOptions({
+  projects,
+  goals,
+}: {
+  projects: Array<Doc<'projects'>>
+  goals: Array<Doc<'goals'>>
+}) {
+  return (
+    <>
+      <option value="">No project or goal</option>
       {projects.length > 0 ? (
         <optgroup label="Projects">
           {projects.map((p) => (
@@ -66,6 +100,6 @@ export function BindSelect({
           ))}
         </optgroup>
       ) : null}
-    </select>
+    </>
   )
 }

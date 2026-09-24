@@ -3,6 +3,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import { GoalCard } from '@/components/goals/GoalCard'
+import { GoalShelf } from '@/components/goals/GoalShelf'
 import { MonthTarget } from '@/components/goals/MonthTarget'
 import { NewGoal } from '@/components/goals/NewGoal'
 import { Skeleton } from '@/components/Skeleton'
@@ -94,6 +95,7 @@ function Goals() {
           ) : null}
         </>
       )}
+      {goals === undefined ? null : <GoalShelf />}
     </div>
   )
 }

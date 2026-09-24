@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Consistency } from '@/components/body/Consistency'
 import { RecentBody } from '@/components/body/RecentBody'
+import { Routines } from '@/components/body/Routines'
 import { WeightLine } from '@/components/body/WeightLine'
 
 /* Body (R6b-a). Consistency first and weight second, which is his ordering
@@ -13,11 +14,16 @@ import { WeightLine } from '@/components/body/WeightLine'
    pads the page, and that file adds no heading and no padding of its own —
    so neither does this one. */
 function Body() {
+  /* 25 Sep: a tracking page. What he does today first — the routines with
+     their DID buttons — then how often, then the weight and the record. */
   return (
     <div className="flex flex-col gap-[18px]">
-      <Consistency />
-      <WeightLine />
-      <RecentBody />
+      <Routines />
+      <Consistency delay={120} />
+      <div className="grid gap-[18px] xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <WeightLine delay={180} />
+        <RecentBody delay={240} />
+      </div>
     </div>
   )
 }

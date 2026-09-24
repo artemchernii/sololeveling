@@ -160,9 +160,11 @@ the log alone would leave the shown weight contradicting its own evidence.
 stateSnapshots: { ownerId, area, key, value?: number, textValue?, unit?, recordedAt: number }
            .index('by_owner_key_time', ['ownerId','key','recordedAt'])
            // keys: weight, bench, net_worth, cefr_level, protein_avg, savings …
-drills:    { ownerId, area, group, title, mark?: 'learning'|'solid', sortOrder, retiredAt? }
+drills:    { ownerId, area, group, title, mark?: 'learning'|'solid', ref?, sortOrder, retiredAt? }
            .index('by_owner_area', ['ownerId','area'])   // 25 Sep: a routine's exercises, a language's
                                       // topics. Intent; DID writes the evidence. Typed in, never seeded.
+                                      // `ref` = a built-in path topic id (src/lib/languages/paths), made on
+                                      // first touch. areas.lang (25 Sep) = 'pt-PT' etc.: flag, name, path.
 notes:     { ownerId, title, body, tags: string[], projectId?, goalId?, kind: 'note'|'idea'|'book'|'reference' }
            .index('by_owner_kind', ['ownerId','kind']).index('by_owner_project', ['ownerId','projectId'])
 principles:{ ownerId, text, sortOrder: number }

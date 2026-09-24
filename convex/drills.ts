@@ -6,6 +6,7 @@ import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import schema, { areaSlug } from './schema'
+import { programById, programRefs, refFor } from '../src/lib/body/library'
 
 /* Routines (25 Sep): the exercises under Stretch and Gym on Body, the topics
    and tenses under a language. A drill is a thing he means to do. Pressing
@@ -257,6 +258,82 @@ export const markTopic = mutation({
       mark: args.mark ?? undefined,
       retiredAt: undefined,
     })
+    return null
+  },
+})
+
+/* ------------------------------------------------------------ programs */
+
+/* A built-in Body program (25 Sep): "Use this program" makes his drills for
+   every exercise in it, filed under the program's kind so the logs land on
+   the same row as a capture of that word. Found again by ref — adding twice
+   makes nothing new, and adding after a drop brings the same rows back, so
+   their history is still theirs. */
+
+async function bodyDrills(ctx: MutationCtx, ownerId: string) {
+  return await ctx.db
+    .query('drills')
+    .withIndex('by_owner_area', (q) =>
+      q.eq('ownerId', ownerId).eq('area', 'body'),
+    )
+    .take(MAX_DRILLS)
+}
+
+export const addProgram = mutation({
+  args: { programId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const program = programById(args.programId)
+    if (program === undefined) throw new Error('No such program')
+    await requireLiveArea(ctx, ownerId, 'body')
+    const rows = await bodyDrills(ctx, ownerId)
+    const byRef = new Map(rows.filter((d) => d.ref).map((d) => [d.ref, d]))
+    let last = rows.reduce((n, d) => Math.max(n, d.sortOrder), 0)
+    let count = rows.length
+    for (const day of program.days) {
+      for (const exercise of day.exercises) {
+        const ref = refFor(day.id, exercise.id)
+        const found = byRef.get(ref)
+        if (found !== undefined) {
+          if (found.retiredAt !== undefined) {
+            await ctx.db.patch(found._id, { retiredAt: undefined })
+          }
+          continue
+        }
+        if (count >= MAX_DRILLS) {
+          throw new ConvexError('That is a long list already.')
+        }
+        await ctx.db.insert('drills', {
+          ownerId,
+          area: 'body',
+          group: program.kind,
+          title: exercise.name,
+          ref,
+          sortOrder: ++last,
+        })
+        count++
+      }
+    }
+    return null
+  },
+})
+
+/** Out of Today. Retired, not deleted: the logs against it happened. */
+export const dropProgram = mutation({
+  args: { programId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const program = programById(args.programId)
+    if (program === undefined) throw new Error('No such program')
+    const refs = new Set(programRefs(program))
+    const now = Date.now()
+    for (const drill of await bodyDrills(ctx, ownerId)) {
+      if (drill.ref && refs.has(drill.ref) && drill.retiredAt === undefined) {
+        await ctx.db.patch(drill._id, { retiredAt: now })
+      }
+    }
     return null
   },
 })

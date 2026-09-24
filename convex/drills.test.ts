@@ -343,3 +343,85 @@ describe('goals.setWeightTarget — the dashed line on the Weight card', () => {
     expect(goals.find((g) => g.unit === 'kg')?.targetValue).toBe(72)
   })
 })
+
+describe('drills — built-in Body programs', () => {
+  test('adding a program makes a drill per exercise, filed under its kind', async () => {
+    const { me } = world()
+    await me.mutation(api.drills.addProgram, { programId: 'gym-ab' })
+    const rows = await me.query(api.drills.list, { area: 'body' })
+    expect(rows.length).toBe(12)
+    expect(new Set(rows.map((d) => d.group))).toEqual(new Set(['gym']))
+    expect(rows[0]).toMatchObject({
+      ref: 'gym-a--goblet-squat',
+      title: 'Goblet squat',
+    })
+  })
+
+  test('adding twice makes nothing new', async () => {
+    const { me } = world()
+    await me.mutation(api.drills.addProgram, { programId: 'back' })
+    await me.mutation(api.drills.addProgram, { programId: 'back' })
+    const rows = await me.query(api.drills.list, { area: 'body' })
+    expect(rows.length).toBe(9)
+  })
+
+  test('an unknown program is refused', async () => {
+    const { me } = world()
+    await expect(
+      me.mutation(api.drills.addProgram, { programId: 'nope' }),
+    ).rejects.toThrow('No such program')
+    await expect(
+      me.mutation(api.drills.dropProgram, { programId: 'nope' }),
+    ).rejects.toThrow('No such program')
+  })
+
+  test('drop retires, keeps the logs, and adding again brings the same rows back', async () => {
+    const { t, me } = world()
+    await me.mutation(api.drills.addProgram, { programId: 'back' })
+    const [first] = await me.query(api.drills.list, { area: 'body' })
+    const logId = await me.mutation(api.drills.did, { drillId: first._id })
+
+    await me.mutation(api.drills.dropProgram, { programId: 'back' })
+    expect(await me.query(api.drills.list, { area: 'body' })).toEqual([])
+    expect(await t.run((ctx) => ctx.db.get(logId))).not.toBeNull()
+
+    await me.mutation(api.drills.addProgram, { programId: 'back' })
+    const again = await me.query(api.drills.list, { area: 'body' })
+    expect(again.length).toBe(9)
+    expect(again[0]._id).toBe(first._id)
+  })
+
+  test('drop leaves his own drills and other programs alone', async () => {
+    const { me } = world()
+    await me.mutation(api.drills.create, {
+      area: 'body',
+      group: 'stretch',
+      title: 'Wall angels',
+    })
+    await me.mutation(api.drills.addProgram, { programId: 'back' })
+    await me.mutation(api.drills.addProgram, { programId: 'hips' })
+    await me.mutation(api.drills.dropProgram, { programId: 'back' })
+    const rows = await me.query(api.drills.list, { area: 'body' })
+    expect(rows.map((d) => d.title)).toContain('Wall angels')
+    expect(rows.filter((d) => d.ref?.startsWith('hips--')).length).toBe(7)
+    expect(rows.some((d) => d.ref?.startsWith('back--'))).toBe(false)
+  })
+
+  test("another owner's program rows are neither reused nor dropped", async () => {
+    const { me, them } = world()
+    await them.mutation(api.drills.addProgram, { programId: 'back' })
+    await me.mutation(api.drills.addProgram, { programId: 'back' })
+    await me.mutation(api.drills.dropProgram, { programId: 'back' })
+    expect(await me.query(api.drills.list, { area: 'body' })).toEqual([])
+    expect(
+      (await them.query(api.drills.list, { area: 'body' })).length,
+    ).toBe(9)
+  })
+
+  test('signed out is refused', async () => {
+    const { t } = world()
+    await expect(
+      t.mutation(api.drills.addProgram, { programId: 'back' }),
+    ).rejects.toThrow()
+  })
+})

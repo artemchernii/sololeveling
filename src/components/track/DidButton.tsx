@@ -77,8 +77,15 @@ export function DidButton({
           }`}
         >
           <span className="flex w-full items-center justify-between gap-2">
-            <span className="grid size-8 place-items-center rounded-full bg-(--area)/15 text-(--area)">
-              {done ? <Check className="motion-draw size-4" /> : icon}
+            {/* The icon stays once it is done (25 Sep: "after I log once we
+                never see the icons again") — the tick joins it as a badge. */}
+            <span className="relative grid size-8 place-items-center rounded-full bg-(--area)/15 text-(--area)">
+              {icon}
+              {done ? (
+                <span className="motion-pop absolute -right-1 -bottom-1 grid size-4 place-items-center rounded-full bg-(--area) text-background ring-2 ring-background">
+                  <Check className="size-2.5" strokeWidth={3} />
+                </span>
+              ) : null}
             </span>
             {done ? (
               <span

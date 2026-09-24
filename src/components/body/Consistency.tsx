@@ -55,7 +55,7 @@ export function Consistency({ delay = 0 }: { delay?: number }) {
           dayStarts={dayStarts}
           rows={result.rows.map((row) => ({
             key: `${row.kind}-${row.category ?? 'other'}`,
-            label: row.category ?? 'other',
+            label: row.category ?? 'unsorted',
             days: row.days,
             aside: `${row.activeRecent} of the last ${RECENT_DAYS} days`,
             noun: row.kind === 'intake' ? 'dose' : 'log',

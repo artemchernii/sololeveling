@@ -69,7 +69,9 @@ export function LanguageTabs() {
         </p>
       ) : (
         <>
-          <Hero area={active} />
+          {languageByCode(active.lang) === undefined ? (
+            <WhichLanguage area={active} />
+          ) : null}
           {/* Keyed on the slug so switching tabs mounts a fresh panel with
               only the new language's queries open. */}
           <LanguagePanel
@@ -84,67 +86,35 @@ export function LanguageTabs() {
   )
 }
 
-/* The language, said big: 🇵🇹 Português · European. Until the area knows
-   which language it is, it asks — one tap, with the likely ones first. */
-function Hero({ area }: { area: Doc<'areas'> }) {
+/* Until an area knows which language it is, it asks — one tap, the likely
+   one first. Once it knows, the panel's own header says it big. */
+function WhichLanguage({ area }: { area: Doc<'areas'> }) {
   const setLang = useMutation(api.areas.setLang)
-  const lang = languageByCode(area.lang)
-
-  if (lang === undefined) {
-    const guess = LANGUAGES.filter((l) =>
-      area.label.toLowerCase().includes(l.name.toLowerCase()),
-    )
-    const offer = guess.length > 0 ? guess : LANGUAGES
-    return (
-      <section
-        style={areaVars(area.slug)}
-        className="glass motion-arrive flex flex-col gap-3 rounded-[22px] p-5 sm:p-6"
-      >
-        <h2 className="text-[18px] font-light text-foreground">
-          Which language is <span className="text-(--area)">{area.label}</span>?
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          {offer.map((l) => (
-            <button
-              key={l.code}
-              type="button"
-              onClick={() => void setLang({ slug: area.slug, lang: l.code })}
-              className="motion-press inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[13.5px] text-ink-200 ring-1 ring-lift/15 transition-colors hover:bg-(--area)/12 hover:text-foreground hover:ring-(--area)/45"
-            >
-              <span className="text-[20px] leading-none">{l.flag}</span>
-              {l.native}
-              {l.variant ? (
-                <span className="text-ink-500">· {l.variant}</span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-      </section>
-    )
-  }
-
+  const guess = LANGUAGES.filter((l) =>
+    area.label.toLowerCase().includes(l.name.toLowerCase()),
+  )
+  const offer = guess.length > 0 ? guess : LANGUAGES
   return (
     <section
-      key={area.slug}
       style={areaVars(area.slug)}
-      className="motion-arrive relative flex items-center gap-4 overflow-hidden rounded-[22px] px-5 py-4 sm:gap-5 sm:px-6"
+      className="glass motion-arrive flex flex-col gap-3 rounded-[22px] p-5 sm:p-6"
     >
-      {/* The language's colour, pooled behind the flag. */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute -top-16 -left-10 size-56 rounded-full bg-(--area)/25 blur-3xl"
-      />
-      <span className="motion-pop relative text-[56px] leading-none drop-shadow-[0_6px_18px_rgba(0,0,0,0.35)] sm:text-[64px]">
-        {lang.flag}
-      </span>
-      <span className="relative flex min-w-0 flex-col">
-        <span className="truncate text-[34px] leading-tight font-light text-foreground sm:text-[40px]">
-          {lang.native}
-        </span>
-        <span className="label-caps text-(--area)">
-          {lang.variant ? `${lang.variant} ${lang.name}` : lang.name}
-        </span>
-      </span>
+      <h2 className="text-[18px] font-light text-foreground">
+        Which language is <span className="text-(--area)">{area.label}</span>?
+      </h2>
+      <div className="flex flex-wrap gap-2">
+        {offer.map((l) => (
+          <button
+            key={l.code}
+            type="button"
+            onClick={() => void setLang({ slug: area.slug, lang: l.code })}
+            className="motion-press inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[13.5px] text-ink-200 ring-1 ring-lift/15 transition-colors hover:bg-(--area)/12 hover:text-foreground hover:ring-(--area)/45"
+          >
+            <span className="text-[20px] leading-none">{l.flag}</span>
+            {l.native}
+          </button>
+        ))}
+      </div>
     </section>
   )
 }
@@ -202,7 +172,7 @@ function AddLanguage({
               <span className="text-[20px] leading-none">{l.flag}</span>
               <span className="flex-1">{l.native}</span>
               <span className="font-mono text-[10px] text-ink-500">
-                {l.variant ?? l.name}
+                {l.name}
               </span>
             </button>
           ))}

@@ -1,5 +1,5 @@
 /* A log's category, and the way to change it (25 Sep). Older sessions were
-   stored with none and read OTHER — counted as neither class nor practice.
+   stored with none and read OTHER (UNSORTED since 25 Sep) — counted as neither class nor practice.
    Same shape as AreaBadge: a native select laid over the chip, so a phone
    gets its own picker. OTHER wears the warning colour: it is a row asking
    to be filed. */
@@ -19,7 +19,7 @@ export function CategoryChip({
 }) {
   const all =
     category && !options.includes(category) ? [category, ...options] : options
-  const label = category ? (labels[category] ?? category) : 'other'
+  const label = category ? (labels[category] ?? category) : 'unsorted'
   return (
     <span
       className={`motion-press relative inline-flex w-[92px] shrink-0 items-center rounded-[4px] px-1.5 py-0.5 hover:brightness-125 ${
@@ -37,7 +37,7 @@ export function CategoryChip({
         }
         className="absolute inset-0 cursor-pointer opacity-0"
       >
-        <option value="">other</option>
+        <option value="">unsorted</option>
         {all.map((c) => (
           <option key={c} value={c}>
             {labels[c] ?? c}

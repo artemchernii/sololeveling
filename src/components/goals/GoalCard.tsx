@@ -1,16 +1,20 @@
-import { useRef, useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation } from 'convex/react'
-import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { ConvexError } from 'convex/values'
 import { CalendarPlus, CircleOff, Trash2, Trophy } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc } from '../../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { AreaBadge } from '@/components/AreaBadge'
 import { deadlineTone } from '@/components/projects/Chips'
 import { SaveLabel, useSave } from '@/components/Saving'
 import { GoalTimeline } from './GoalTimeline'
+import { WaitingList } from './WaitingList'
+import type { CarryTask } from './WaitingList'
+import { UndoLine } from '@/components/calendar/UndoLine'
+import type { Undoable } from '@/components/calendar/UndoLine'
+import { failureMessage } from '@/lib/convex-errors'
+import { localToday } from '@/lib/today'
 import { areaVars } from '@/lib/areas'
 
 /* One long-term goal (24 Sep). Artem asked what I thought of the page, and
@@ -27,6 +31,61 @@ export function GoalCard({ goal }: { goal: Doc<'goals'> }) {
   const removeGoal = useMutation(api.goals.remove)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /* A waiting task on its way onto the line (WaitingList → GoalTimeline),
+     the row leaving once it lands, and the five seconds to take it back. */
+  const [carry, setCarry] = useState<CarryTask | null>(null)
+  const [leaving, setLeaving] = useState<Id<'tasks'> | null>(null)
+  const [undoable, setUndoable] = useState<Undoable | null>(null)
+  const fromTask = useMutation(api.milestones.fromTask)
+  const backToTask = useMutation(api.milestones.backToTask)
+  const complete = useMutation(api.tasks.complete)
+  /* Stable, or every render of the card would restart the Undo's clock. */
+  const clearUndo = useCallback(() => setUndoable(null), [])
+
+  useEffect(() => {
+    if (carry === null) return
+    function key(e: KeyboardEvent) {
+      if (e.key === 'Escape') setCarry(null)
+    }
+    document.addEventListener('keydown', key)
+    return () => document.removeEventListener('keydown', key)
+  }, [carry])
+
+  /* The row slides out first, then the write: a row that vanished the
+     instant the query changed would be a row you never saw go. */
+  async function leave(taskId: Id<'tasks'>, write: () => Promise<unknown>) {
+    setLeaving(taskId)
+    await new Promise((r) => window.setTimeout(r, 200))
+    try {
+      await write()
+    } catch (e) {
+      setError(failureMessage(e) ?? 'That did not work.')
+    } finally {
+      setLeaving(null)
+    }
+  }
+
+  function place(
+    taskId: Id<'tasks'>,
+    after: Id<'milestones'> | null,
+    dueDate?: string,
+  ) {
+    setCarry(null)
+    setError(null)
+    void leave(taskId, async () => {
+      const milestoneId = await fromTask({
+        taskId,
+        after,
+        dueDate,
+        today: localToday(),
+      })
+      setUndoable({
+        text: 'Moved to the timeline',
+        at: Date.now(),
+        undo: () => backToTask({ milestoneId, taskId }),
+      })
+    })
+  }
 
   const icon =
     'motion-press grid size-8 place-items-center rounded-[9px] text-ink-500 transition-colors hover:bg-lift/[0.06]'
@@ -121,10 +180,25 @@ export function GoalCard({ goal }: { goal: Doc<'goals'> }) {
       <GoalNotes goal={goal} />
 
       <section className="flex flex-col gap-3 border-t border-lift/[0.07] pt-4">
-        <GoalTimeline goal={goal} />
+        <GoalTimeline
+          goal={goal}
+          carry={carry}
+          onPlace={(after, dueDate) => {
+            if (carry) place(carry.taskId, after, dueDate)
+          }}
+          onCancelCarry={() => setCarry(null)}
+        />
       </section>
 
-      <GoalTasks goal={goal} />
+      <WaitingList
+        goal={goal}
+        carry={carry}
+        setCarry={setCarry}
+        leaving={leaving}
+        onPlace={place}
+        onDone={(taskId) => void leave(taskId, () => complete({ taskId }))}
+      />
+      <UndoLine undoable={undoable} onDone={clearUndo} />
     </article>
   )
 }
@@ -193,43 +267,6 @@ function TargetText({ goal }: { goal: Doc<'goals'> }) {
     <span className="rounded-full bg-lift/[0.05] px-2.5 py-1 font-mono text-[11.5px] text-ink-300">
       target {text}
     </span>
-  )
-}
-
-/* What is waiting under this goal: open tasks filed to it, by title, linked
-   to the backlog where they are worked. No count — "and more" is enough. */
-function GoalTasks({ goal }: { goal: Doc<'goals'> }) {
-  const result = useQuery(api.tasks.listByGoal, { goalId: goal._id, limit: 4 })
-  if (result === undefined || result.tasks.length === 0) return null
-
-  return (
-    <section className="flex flex-col gap-1.5 border-t border-lift/[0.07] pt-4">
-      <span className="label-caps">Waiting</span>
-      <ul className="flex flex-col">
-        {result.tasks.map((task) => (
-          <li key={task._id}>
-            <Link
-              to="/backlog"
-              className="motion-press flex items-center gap-2.5 rounded-[8px] px-1.5 py-1 text-[13px] text-ink-200 hover:bg-lift/[0.04] hover:text-foreground"
-            >
-              <span
-                style={task.area ? areaVars(task.area) : undefined}
-                className={`size-1.5 shrink-0 rounded-full ${task.area ? 'bg-(--area)' : 'bg-ink-600'}`}
-              />
-              <span className="truncate">{task.title}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {result.more ? (
-        <Link
-          to="/backlog"
-          className="self-start px-1.5 text-[12px] text-ink-500 hover:text-ink-200"
-        >
-          and more in the backlog →
-        </Link>
-      ) : null}
-    </section>
   )
 }
 

@@ -46,7 +46,27 @@ type Milestone = Extract<TimelineNode, { kind: 'milestone' }>
 
 type Moment = { id: string; kind: 'born' | 'reach' | 'finale' }
 
-export function GoalTimeline({ goal }: { goal: Doc<'goals'> }) {
+/** A waiting task in hand, on its way onto the line (GoalCard): dragged on
+    a desktop, or picked with "make it a step" and placed with a tap. */
+export type Carry = {
+  title: string
+  mode: 'drag' | 'pick'
+  /** The + a drag is over, by its data-gap key. */
+  hotKey: string | null
+}
+
+export function GoalTimeline({
+  goal,
+  carry = null,
+  onPlace,
+  onCancelCarry,
+}: {
+  goal: Doc<'goals'>
+  carry?: Carry | null
+  /** A + was chosen for the task in hand: after that step, on that date. */
+  onPlace?: (after: Id<'milestones'> | null, dueDate?: string) => void
+  onCancelCarry?: () => void
+}) {
   const milestones = useQuery(api.milestones.listByGoal, { goalId: goal._id })
   const setReached = useMutation(api.milestones.setReached)
   const [open, setOpen] = useState<Open | null>(null)
@@ -114,8 +134,22 @@ export function GoalTimeline({ goal }: { goal: Doc<'goals'> }) {
     born: born.current,
     moment,
     onToggle: toggle,
-    onAdd: (gap: number, anchor: HTMLElement) =>
-      setOpen({ kind: 'add', gap, anchor }),
+    onAdd: (gap: number, anchor: HTMLElement) => {
+      if (carry && onPlace) onPlace(afterFor(nodes, gap), gapDate(nodes, gap))
+      else setOpen({ kind: 'add', gap, anchor })
+    },
+    gapAttrs: (gap: number) => {
+      const key = `${goal._id}:${gap}`
+      const after = afterFor(nodes, gap)
+      const date = gapDate(nodes, gap)
+      return {
+        'data-gap': key,
+        'data-after': after ?? '',
+        ...(date ? { 'data-date': date } : {}),
+        ...(carry ? { 'data-lit': '' } : {}),
+        ...(carry?.hotKey === key ? { 'data-hot': '' } : {}),
+      }
+    },
     onEdit: (id: string, anchor: HTMLElement) =>
       setOpen({ kind: 'edit', id, anchor }),
   }
@@ -131,6 +165,22 @@ export function GoalTimeline({ goal }: { goal: Doc<'goals'> }) {
     <>
       <Line {...shared} />
       <List {...shared} />
+
+      {carry?.mode === 'pick' ? (
+        <p className="motion-arrive mt-2 flex items-center gap-2 text-[12.5px] text-ink-300">
+          <span className="min-w-0 truncate">
+            Tap a <span className="text-(--area)">+</span> to place “
+            {carry.title}”
+          </span>
+          <button
+            type="button"
+            onClick={onCancelCarry}
+            className="motion-press shrink-0 rounded-full px-2 py-0.5 text-[12px] text-ink-500 ring-1 ring-lift/12 hover:text-foreground"
+          >
+            Cancel
+          </button>
+        </p>
+      ) : null}
 
       {open?.kind === 'add' ? (
         <Popover
@@ -192,6 +242,7 @@ type Shared = {
   moment: Moment | null
   onToggle: (node: Milestone) => void
   onAdd: (gap: number, anchor: HTMLElement) => void
+  gapAttrs: (gap: number) => Record<string, string>
   onEdit: (id: string, anchor: HTMLElement) => void
 }
 
@@ -209,7 +260,16 @@ function segmentFilled(nodes: Array<TimelineNode>, gap: number): boolean {
 
 /* ---------- md and up: the line ---------- */
 
-function Line({ nodes, today, born, moment, onToggle, onAdd, onEdit }: Shared) {
+function Line({
+  nodes,
+  today,
+  born,
+  moment,
+  onToggle,
+  onAdd,
+  onEdit,
+  gapAttrs,
+}: Shared) {
   const scroller = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
   const [fade, setFade] = useState({ left: false, right: false })
@@ -323,6 +383,7 @@ function Line({ nodes, today, born, moment, onToggle, onAdd, onEdit }: Shared) {
               aria-label={addLabel(nodes, i)}
               title="Add a step here"
               onClick={(e) => onAdd(i, e.currentTarget)}
+              {...gapAttrs(i)}
               className={`${addButton} absolute -translate-1/2`}
               style={{
                 top: LINE_Y,
@@ -392,14 +453,16 @@ function Line({ nodes, today, born, moment, onToggle, onAdd, onEdit }: Shared) {
   )
 }
 
-/* The + in a gap (24 Sep): the sign in the goal's colour on a ground-dark
-   disc that breaks the line around it. Colour on the sign, not the disc — a
-   solid disc in the goal's colour is what a reached step looks like, and a
-   line of them would read as twice the steps. Pressing it gives the disc a
-   wash of that colour, mixed into the ground so the line never shows
-   through. */
+/* The + in a gap (24 Sep). Dressed like the FOCUS badge (Chips.tsx), which
+   Artem pointed at: a dark disc tinted with the goal's colour, a thin inset
+   ring of it, and a soft glow — in the goal's colour, not lavender. The disc
+   stays dark: a solid disc in the goal's colour is what a reached step looks
+   like, and a line of them would read as twice the steps. The disc is opaque
+   (tint mixed into the ground) so the line breaks around it. Hover and a
+   press deepen the tint; a task in hand lights every + brighter, and the
+   one under it grows. */
 const addButton =
-  'group motion-press grid size-[20px] place-items-center rounded-full bg-background text-(--area) hover:bg-[color-mix(in_oklab,var(--area)_22%,var(--background))] active:bg-[color-mix(in_oklab,var(--area)_22%,var(--background))] focus-visible:ring-1 focus-visible:ring-(--area)/60'
+  'group motion-press grid size-[20px] place-items-center rounded-full bg-[color-mix(in_oklab,var(--area)_14%,var(--background))] text-(--area) shadow-[0_0_14px_-4px_var(--area)] ring-1 ring-(--area)/45 ring-inset transition-[scale,box-shadow,background-color] hover:bg-[color-mix(in_oklab,var(--area)_26%,var(--background))] hover:shadow-[0_0_18px_-3px_var(--area)] active:bg-[color-mix(in_oklab,var(--area)_26%,var(--background))] focus-visible:ring-(--area) data-lit:shadow-[0_0_0_2px_color-mix(in_oklab,var(--area)_45%,transparent),0_0_18px_-2px_var(--area)] data-hot:scale-150'
 
 /* The + and, while a pointer is on it, a comet of the goal's colour turning
    round it (styles.css add-ring) as the sign turns a quarter. Hover only:
@@ -409,7 +472,7 @@ function AddGlyph() {
     <>
       <span
         aria-hidden
-        className="add-ring pointer-events-none absolute -inset-[4px] rounded-full opacity-0 transition-opacity group-hover:animate-[spin_1.1s_linear_infinite] group-hover:opacity-100 group-focus-visible:animate-[spin_1.1s_linear_infinite] group-focus-visible:opacity-100"
+        className="add-ring pointer-events-none absolute -inset-[4px] rounded-full opacity-0 transition-opacity group-hover:animate-[spin_1.1s_linear_infinite] group-hover:opacity-100 group-focus-visible:animate-[spin_1.1s_linear_infinite] group-focus-visible:opacity-100 group-data-lit:animate-[spin_2.2s_linear_infinite] group-data-lit:opacity-70 group-data-hot:animate-[spin_0.8s_linear_infinite] group-data-hot:opacity-100"
       />
       <Plus
         className="size-3.5 transition-transform duration-(--motion-base) group-hover:rotate-90"
@@ -428,7 +491,16 @@ function addLabel(nodes: Array<TimelineNode>, gap: number): string {
 
 /* ---------- a phone: the list ---------- */
 
-function List({ nodes, today, born, moment, onToggle, onAdd, onEdit }: Shared) {
+function List({
+  nodes,
+  today,
+  born,
+  moment,
+  onToggle,
+  onAdd,
+  onEdit,
+  gapAttrs,
+}: Shared) {
   const todayAt = todayBefore(nodes, today)
 
   return (
@@ -465,6 +537,7 @@ function List({ nodes, today, born, moment, onToggle, onAdd, onEdit }: Shared) {
                   type="button"
                   aria-label={addLabel(nodes, i)}
                   onClick={(e) => onAdd(i, e.currentTarget)}
+                  {...gapAttrs(i)}
                   /* The phone has no hover to find a + by, so each one
                      nods once, in turn, when the list appears. */
                   className={`${addButton} motion-hint relative`}

@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { ConvexError } from 'convex/values'
-import { CalendarPlus, CircleOff, ListPlus, Trash2, Trophy } from 'lucide-react'
+import { CalendarPlus, CircleOff, Trash2, Trophy } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
@@ -11,7 +11,6 @@ import { AreaBadge } from '@/components/AreaBadge'
 import { deadlineTone } from '@/components/projects/Chips'
 import { SaveLabel, useSave } from '@/components/Saving'
 import { GoalTimeline } from './GoalTimeline'
-import { MilestoneEditor } from './MilestoneEditor'
 import { areaVars } from '@/lib/areas'
 
 /* One long-term goal (24 Sep). Artem asked what I thought of the page, and
@@ -28,7 +27,6 @@ export function GoalCard({ goal }: { goal: Doc<'goals'> }) {
   const removeGoal = useMutation(api.goals.remove)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [editingSteps, setEditingSteps] = useState(false)
 
   const icon =
     'motion-press grid size-8 place-items-center rounded-[9px] text-ink-500 transition-colors hover:bg-lift/[0.06]'
@@ -124,19 +122,6 @@ export function GoalCard({ goal }: { goal: Doc<'goals'> }) {
 
       <section className="flex flex-col gap-3 border-t border-lift/[0.07] pt-4">
         <GoalTimeline goal={goal} />
-        <button
-          type="button"
-          onClick={() => setEditingSteps((v) => !v)}
-          className="motion-press flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-[11.5px] text-ink-500 ring-1 ring-lift/10 hover:text-ink-200"
-        >
-          <ListPlus className="size-3.5" />
-          {editingSteps ? 'Done editing steps' : 'Edit steps'}
-        </button>
-        {editingSteps ? (
-          <div className="motion-arrive">
-            <MilestoneEditor goalId={goal._id} />
-          </div>
-        ) : null}
       </section>
 
       <GoalTasks goal={goal} />

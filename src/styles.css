@@ -119,6 +119,10 @@
   --color-area-knowledge: var(--area-knowledge);
   --color-area-career: var(--area-career);
   --color-area-style: var(--area-style);
+  --color-kind-note: var(--kind-note);
+  --color-kind-idea: var(--kind-idea);
+  --color-kind-book: var(--kind-book);
+  --color-kind-reference: var(--kind-reference);
 
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);

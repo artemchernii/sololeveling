@@ -9,6 +9,7 @@ import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { Attachments } from '@/components/attachments/Attachments'
 import { NoteEditor } from '@/components/notes/NoteEditor'
 import { NoteToolbar } from '@/components/notes/NoteToolbar'
+import { kindVars } from '@/components/notes/NoteRow'
 import { NoteView } from '@/components/notes/NoteView'
 import { linksIn } from '@/lib/note-format'
 import { joinNote, splitNote } from '@/lib/note-text'
@@ -190,10 +191,11 @@ function NotePage() {
               aria-checked={note.kind === option.value}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => void update({ noteId, kind: option.value })}
+              style={kindVars(option.value)}
               className={[
                 'motion-press rounded-full px-2.5 py-0.5 text-[11.5px]',
                 note.kind === option.value
-                  ? 'bg-area-knowledge/16 text-area-knowledge ring-1 ring-area-knowledge/40'
+                  ? 'bg-(--kind)/16 text-(--kind) ring-1 ring-(--kind)/40'
                   : 'text-ink-500 ring-1 ring-lift/10 hover:text-ink-300',
               ].join(' ')}
             >

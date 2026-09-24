@@ -88,9 +88,9 @@ Nocturne is the design source of truth. Its tokens live in
 `src/styles/tokens.css` and reach components through Tailwind's `@theme` in
 `src/styles.css`. Take every colour, radius, space and shadow from a token.
 
-The tokens under that file's `APP ADDITIONS` rule (seven groups, as of 15
-Sep: ground, mono face, glass, motion, area colours, lift/sink, and the light
-theme) are the only values not from Nocturne, and each carries the reason it
+The tokens under that file's `APP ADDITIONS` rule (nine groups, as of 24
+Sep: ground, mono face, glass, motion, area colours, lift/sink, the light
+theme, state, and note kinds) are the only values not from Nocturne, and each carries the reason it
 exists. Adding another means writing that reason too.
 
 `design/wireframes-v2/Solo Leveling Wireframes.dc.html` is visual reference for

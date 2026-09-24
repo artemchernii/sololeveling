@@ -491,6 +491,16 @@ h6 {
   box-shadow: var(--glass-shadow);
 }
 
+/* A panel of the same material with no backdrop blur (24 Sep). For a
+   panel taller than the screen — the calendar — where Chrome drew a stray
+   pale band inside the blur. The ambient field behind is blurred already,
+   so what the filter added could not be seen; what it broke could. */
+@utility glass-still {
+  background-image: var(--glass-fill);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+}
+
 /* The material behind a dialog, not a panel of its own. Its job is the page:
    remove the detail while leaving the layout readable as shape, so the panel
    above it has structure to frost rather than a flat sheet to sit on.

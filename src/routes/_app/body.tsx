@@ -1,29 +1,31 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { Consistency } from '@/components/body/Consistency'
+import { BodyHero, LogSession } from '@/components/body/BodyHero'
+import { MyRoutines, NextUp, ProgramLibrary } from '@/components/body/Programs'
 import { RecentBody } from '@/components/body/RecentBody'
-import { Routines } from '@/components/body/Routines'
+import { useBodyProgress } from '@/components/body/useBodyProgress'
 import { WeightLine } from '@/components/body/WeightLine'
 
-/* Body (R6b-a). Consistency first and weight second, which is his ordering
-   rather than PLAN.md §3's: "what is most important is consistency" (21 Sep).
-   The four kinds §3 promised are a starting set, not a fixed list — a kind is
-   a word typed into the capture chip.
+/* Body (R6b-a; rebuilt 25 Sep in the Languages style). His order:
+   consistency first — "the main thing" — in one card with the body's
+   identity; a session in one tap; what to do today and the weight; his
+   routines with DID per exercise; the library they come from; then what
+   was done, by day.
 
-   Frame matches projects.index.tsx (task 8): the shell's own grid already
-   pads the page, and that file adds no heading and no padding of its own —
-   so neither does this one. */
+   Frame matches projects.index.tsx: the shell's grid pads the page. */
 function Body() {
-  /* 25 Sep: a tracking page. What he does today first — the routines with
-     their DID buttons — then how often, then the weight and the record. */
+  const progress = useBodyProgress()
   return (
     <div className="flex flex-col gap-[18px]">
-      <Routines />
-      <Consistency delay={120} />
-      <div className="grid gap-[18px] xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <WeightLine delay={180} />
-        <RecentBody delay={240} />
+      <BodyHero featured={progress.pick?.program.kind ?? 'stretch'} />
+      <LogSession />
+      <div className="grid gap-[18px] lg:grid-cols-2">
+        <NextUp progress={progress} delay={80} />
+        <WeightLine delay={140} />
       </div>
+      <MyRoutines progress={progress} delay={180} />
+      <ProgramLibrary progress={progress} delay={220} />
+      <RecentBody delay={260} />
     </div>
   )
 }

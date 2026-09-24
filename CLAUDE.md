@@ -158,6 +158,12 @@ this project; these are the parts of it worth keeping.
 - **Close a row** with typecheck, lint and tests green, one review of the whole
   branch, a PR based on `master`, and one thing for Artem to press by hand.
   Commit per meaningful step with a real message.
+- **Conventional commits, never squashed** (24 Sep). Every commit is
+  `type(scope): what changed` — `feat`, `fix`, `docs`, `test`, `refactor`,
+  `chore` — with the why in the body. A PR lands as a merge commit; squash
+  and rebase merging are switched off on GitHub. Artem: one commit for a lot
+  of work "looks like I don't do work". The history is the record of the
+  work, so it stays whole.
 
 ## Where we are
 

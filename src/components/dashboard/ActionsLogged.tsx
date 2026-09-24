@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
+import { CircleOff, Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import { areaVars } from '@/lib/areas'
@@ -75,14 +76,33 @@ function MonthTileCard({
   lastMonthName: string
 }) {
   const [editing, setEditing] = useState(false)
+  const clearTarget = useMutation(api.goals.clearTileTarget)
 
   return (
     <div
       style={tile.area ? areaVars(tile.area) : undefined}
       className="flex flex-col rounded-[16px] border border-lift/[0.06] bg-lift/[0.02] p-4"
     >
-      <div className={`label-caps ${tile.area ? 'text-(--area)' : ''}`}>
-        {tile.label}
+      <div className="flex min-h-6 items-center gap-2">
+        <div
+          className={`label-caps flex-1 truncate ${tile.area ? 'text-(--area)' : ''}`}
+        >
+          {tile.label}
+        </div>
+        {/* Clearing said out loud (24 Sep, from the Goals page's version of
+            this card): it used to be only "empty the number and leave",
+            which nobody finds. The count and the log are untouched. */}
+        {target && !editing ? (
+          <button
+            type="button"
+            title="Clear the target — what you logged stays"
+            aria-label={`Clear the ${tile.label} target`}
+            onClick={() => void clearTarget({ tile: tile.key })}
+            className="motion-press grid size-6 place-items-center rounded-[7px] text-ink-700 transition-colors hover:bg-lift/[0.06] hover:text-ink-300"
+          >
+            <CircleOff className="size-3.5" />
+          </button>
+        ) : null}
       </div>
 
       <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
@@ -115,7 +135,7 @@ function MonthTileCard({
         <TargetBar count={count.now} target={target.value} area={tile.area} />
       ) : null}
 
-      <div className="mt-1.5 flex items-baseline justify-between gap-2 font-mono text-[11px]">
+      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 font-mono text-[11px]">
         {editing ? (
           <TargetInput
             tile={tile.key}
@@ -130,16 +150,23 @@ function MonthTileCard({
           <>
             {/* Last month, flat — no arrow, no percentage change, no verdict
                 about whether the difference is good (§1). */}
-            <span className="text-ink-700">
+            <span className="whitespace-nowrap text-ink-700">
               {count ? `${count.prev} in ${lastMonthName}` : ''}
             </span>
+            {/* Set one in the tile's own colour (24 Sep) — it was a grey
+                "+ target" at the edge of sight. */}
             {target === null ? (
               <button
                 type="button"
                 onClick={() => setEditing(true)}
-                className="text-ink-700 transition-colors hover:text-ink-300"
+                className={`motion-press inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-sans text-[11.5px] ring-1 transition-colors ${
+                  tile.area
+                    ? 'text-(--area) ring-(--area)/35 hover:bg-(--area)/10'
+                    : 'text-ink-300 ring-lift/15 hover:bg-lift/[0.05]'
+                }`}
               >
-                + target
+                <Plus className="size-3" />
+                Set a target
               </button>
             ) : null}
           </>
@@ -184,7 +211,7 @@ export function TargetBar({
    clears the target outright, words and all: words with no count have
    nothing to sit beside. Moving from one field to the other is not leaving,
    so the blur that saves is the one that lands outside both. */
-export function TargetInput({
+function TargetInput({
   tile,
   current,
   onClose,

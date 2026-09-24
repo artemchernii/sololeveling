@@ -22,7 +22,7 @@ const goalStatusValidator = v.union(
   v.literal('dropped'),
 )
 
-async function ownedGoal(
+export async function ownedGoal(
   ctx: QueryCtx | MutationCtx,
   ownerId: string,
   goalId: Id<'goals'>,

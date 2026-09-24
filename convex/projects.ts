@@ -32,7 +32,7 @@ const projectStatusValidator = v.union(
 
 const LIVE_STATUSES = ['focus', 'active', 'paused'] as const
 
-async function ownedProject(
+export async function ownedProject(
   ctx: QueryCtx | MutationCtx,
   ownerId: string,
   projectId: Id<'projects'>,

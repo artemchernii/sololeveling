@@ -330,10 +330,18 @@ export default defineSchema({
     title: v.string(),
     area: v.optional(area),
     projectId: v.optional(v.id('projects')),
+    /* R5 (24 Sep). Which goal this time is spent towards. Beside `projectId`,
+       not instead of it: a gym session serves a goal and belongs to no
+       project, a client call belongs to a project whose goal is elsewhere. */
+    goalId: v.optional(v.id('goals')),
     startsAt: v.number(),
     endsAt: v.number(),
     rrule: v.optional(v.string()),
     notes: v.optional(v.string()),
+    /* R5. Minutes before the start to remind, 0 = at the start. Delivered by
+       an open tab only (src/lib/reminders.ts): push to a closed app waits for
+       the bell (PLAN §4 Late). */
+    remindMin: v.optional(v.number()),
   })
     .index('by_owner_start', ['ownerId', 'startsAt'])
     /* A series that began in March still has occurrences in June, so a window

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation } from 'convex/react'
@@ -44,17 +44,22 @@ type Open =
 
 type Milestone = Extract<TimelineNode, { kind: 'milestone' }>
 
+type Moment = { id: string; kind: 'born' | 'reach' | 'finale' }
+
 export function GoalTimeline({ goal }: { goal: Doc<'goals'> }) {
   const milestones = useQuery(api.milestones.listByGoal, { goalId: goal._id })
   const setReached = useMutation(api.milestones.setReached)
   const [open, setOpen] = useState<Open | null>(null)
-  /* The step just reached by a tap, for as long as its pop and ring last. */
-  const [justReached, setJustReached] = useState<string | null>(null)
+  /* The step something just happened to, for as long as its animation
+     lasts: born (added here), reached, or the finale — the reach that left
+     nothing unreached, which gets the bigger burst. */
+  const [moment, setMoment] = useState<Moment | null>(null)
 
   /* Steps that arrived while the card was on screen pop in; the ones that
      were there when it loaded simply are (styles.css §3d.1). */
   const known = useRef<Set<string> | null>(null)
   const born = useRef(new Set<string>())
+  const fresh = useRef<Array<string>>([])
   if (milestones !== undefined) {
     if (known.current === null) {
       known.current = new Set(milestones.map((m) => m._id))
@@ -63,16 +68,24 @@ export function GoalTimeline({ goal }: { goal: Doc<'goals'> }) {
         if (!known.current.has(m._id)) {
           known.current.add(m._id)
           born.current.add(m._id)
+          fresh.current.push(m._id)
         }
       }
     }
   }
 
+  /* Before paint, so a new step's first frame is already its entrance. */
+  useLayoutEffect(() => {
+    const id = fresh.current.pop()
+    fresh.current = []
+    if (id !== undefined) setMoment({ id, kind: 'born' })
+  }, [milestones])
+
   useEffect(() => {
-    if (justReached === null) return
-    const t = window.setTimeout(() => setJustReached(null), 700)
+    if (moment === null) return
+    const t = window.setTimeout(() => setMoment(null), 900)
     return () => window.clearTimeout(t)
-  }, [justReached])
+  }, [moment])
 
   if (milestones === undefined) {
     return <Skeleton className="h-[96px] w-full" />
@@ -81,9 +94,14 @@ export function GoalTimeline({ goal }: { goal: Doc<'goals'> }) {
   const nodes = goalTimeline(goal, milestones)
   const today = localToday()
 
+  function celebrateReach(id: string) {
+    const last = milestones!.every((m) => m._id === id || m.reachedAt)
+    setMoment({ id, kind: last ? 'finale' : 'reach' })
+  }
+
   function toggle(node: Milestone) {
     const reached = node.state !== 'reached'
-    if (reached) setJustReached(node.id)
+    if (reached) celebrateReach(node.id)
     void setReached({
       milestoneId: node.id as Id<'milestones'>,
       reached,
@@ -94,7 +112,7 @@ export function GoalTimeline({ goal }: { goal: Doc<'goals'> }) {
     nodes,
     today,
     born: born.current,
-    justReached,
+    moment,
     onToggle: toggle,
     onAdd: (gap: number, anchor: HTMLElement) =>
       setOpen({ kind: 'add', gap, anchor }),
@@ -142,7 +160,7 @@ export function GoalTimeline({ goal }: { goal: Doc<'goals'> }) {
             node={editing}
             isFirst={editing.number === 1}
             isLast={editing.number === milestones.length}
-            onReached={() => setJustReached(editing.id)}
+            onReached={() => celebrateReach(editing.id)}
             onDone={() => setOpen(null)}
           />
         </Popover>
@@ -171,7 +189,7 @@ type Shared = {
   nodes: Array<TimelineNode>
   today: string
   born: Set<string>
-  justReached: string | null
+  moment: Moment | null
   onToggle: (node: Milestone) => void
   onAdd: (gap: number, anchor: HTMLElement) => void
   onEdit: (id: string, anchor: HTMLElement) => void
@@ -191,15 +209,7 @@ function segmentFilled(nodes: Array<TimelineNode>, gap: number): boolean {
 
 /* ---------- md and up: the line ---------- */
 
-function Line({
-  nodes,
-  today,
-  born,
-  justReached,
-  onToggle,
-  onAdd,
-  onEdit,
-}: Shared) {
+function Line({ nodes, today, born, moment, onToggle, onAdd, onEdit }: Shared) {
   const scroller = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
   const [fade, setFade] = useState({ left: false, right: false })
@@ -321,9 +331,41 @@ function Line({
                   'left var(--motion-base) var(--motion-ease), background-color var(--motion-fast)',
               }}
             >
-              <Plus className="size-3.5" strokeWidth={3} />
+              <AddGlyph />
             </button>
           ))}
+
+          {/* A new step's line, drawn out from it to both neighbours. */}
+          {moment?.kind === 'born'
+            ? (() => {
+                const k = nodes.findIndex(
+                  (n) => n.kind === 'milestone' && n.id === moment.id,
+                )
+                if (k <= 0) return null
+                return (
+                  <Fragment key={`draw-${moment.id}`}>
+                    <span
+                      aria-hidden
+                      className="motion-line-draw absolute h-[2px] origin-right rounded-full bg-(--area) shadow-[0_0_10px_var(--area)]"
+                      style={{
+                        top: LINE_Y - 0.5,
+                        left: layout.xs[k - 1],
+                        width: layout.xs[k] - layout.xs[k - 1],
+                      }}
+                    />
+                    <span
+                      aria-hidden
+                      className="motion-line-draw absolute h-[2px] origin-left rounded-full bg-(--area) shadow-[0_0_10px_var(--area)]"
+                      style={{
+                        top: LINE_Y - 0.5,
+                        left: layout.xs[k],
+                        width: layout.xs[k + 1] - layout.xs[k],
+                      }}
+                    />
+                  </Fragment>
+                )
+              })()
+            : null}
 
           {nodes.map((node, i) => (
             <div
@@ -334,17 +376,13 @@ function Line({
                 transition: 'left var(--motion-base) var(--motion-ease)',
               }}
             >
-              <div
-                className={`mt-[24px] ${node.kind === 'milestone' && born.has(node.id) ? 'motion-pop' : ''}`}
-              >
-                <Dot
-                  node={node}
-                  reaching={
-                    node.kind === 'milestone' && justReached === node.id
-                  }
-                  onToggle={onToggle}
-                />
-              </div>
+              <DotSlot
+                node={node}
+                born={born}
+                moment={moment}
+                onToggle={onToggle}
+                className="mt-[24px]"
+              />
               <Caption node={node} today={today} onEdit={onEdit} centred />
             </div>
           ))}
@@ -361,7 +399,25 @@ function Line({
    wash of that colour, mixed into the ground so the line never shows
    through. */
 const addButton =
-  'motion-press grid size-[20px] place-items-center rounded-full bg-background text-(--area) hover:bg-[color-mix(in_oklab,var(--area)_22%,var(--background))] active:bg-[color-mix(in_oklab,var(--area)_22%,var(--background))] focus-visible:ring-1 focus-visible:ring-(--area)/60'
+  'group motion-press grid size-[20px] place-items-center rounded-full bg-background text-(--area) hover:bg-[color-mix(in_oklab,var(--area)_22%,var(--background))] active:bg-[color-mix(in_oklab,var(--area)_22%,var(--background))] focus-visible:ring-1 focus-visible:ring-(--area)/60'
+
+/* The + and, while a pointer is on it, a comet of the goal's colour turning
+   round it (styles.css add-ring) as the sign turns a quarter. Hover only:
+   five rings always spinning would be a card that never sits still. */
+function AddGlyph() {
+  return (
+    <>
+      <span
+        aria-hidden
+        className="add-ring pointer-events-none absolute -inset-[4px] rounded-full opacity-0 transition-opacity group-hover:animate-[spin_1.1s_linear_infinite] group-hover:opacity-100 group-focus-visible:animate-[spin_1.1s_linear_infinite] group-focus-visible:opacity-100"
+      />
+      <Plus
+        className="size-3.5 transition-transform duration-(--motion-base) group-hover:rotate-90"
+        strokeWidth={3}
+      />
+    </>
+  )
+}
 
 function addLabel(nodes: Array<TimelineNode>, gap: number): string {
   const left = nodes[gap]
@@ -372,15 +428,7 @@ function addLabel(nodes: Array<TimelineNode>, gap: number): string {
 
 /* ---------- a phone: the list ---------- */
 
-function List({
-  nodes,
-  today,
-  born,
-  justReached,
-  onToggle,
-  onAdd,
-  onEdit,
-}: Shared) {
+function List({ nodes, today, born, moment, onToggle, onAdd, onEdit }: Shared) {
   const todayAt = todayBefore(nodes, today)
 
   return (
@@ -392,21 +440,12 @@ function List({
           >
             {/* The dot, and the rail carried on under its caption. */}
             <div className="flex w-[24px] shrink-0 flex-col items-center">
-              <div
-                className={
-                  node.kind === 'milestone' && born.has(node.id)
-                    ? 'motion-pop'
-                    : ''
-                }
-              >
-                <Dot
-                  node={node}
-                  reaching={
-                    node.kind === 'milestone' && justReached === node.id
-                  }
-                  onToggle={onToggle}
-                />
-              </div>
+              <DotSlot
+                node={node}
+                born={born}
+                moment={moment}
+                onToggle={onToggle}
+              />
               {i < nodes.length - 1 ? (
                 <Rail filled={segmentFilled(nodes, i)} />
               ) : null}
@@ -426,9 +465,12 @@ function List({
                   type="button"
                   aria-label={addLabel(nodes, i)}
                   onClick={(e) => onAdd(i, e.currentTarget)}
-                  className={`${addButton} relative`}
+                  /* The phone has no hover to find a + by, so each one
+                     nods once, in turn, when the list appears. */
+                  className={`${addButton} motion-hint relative`}
+                  style={{ animationDelay: `${i * 90}ms` }}
                 >
-                  <Plus className="size-3.5" strokeWidth={3} />
+                  <AddGlyph />
                 </button>
               </div>
               {todayAt === i + 1 ? <TodayRule /> : null}
@@ -474,6 +516,65 @@ function TodayRule() {
 }
 
 /* ---------- a node ---------- */
+
+/* A dot and whatever is happening to it: a new step spins in from the +
+   (motion-step-born); a reach, or a new step, throws sparks. */
+function DotSlot({
+  node,
+  born,
+  moment,
+  onToggle,
+  className = '',
+}: {
+  node: TimelineNode
+  born: Set<string>
+  moment: Moment | null
+  onToggle: (node: Milestone) => void
+  className?: string
+}) {
+  const id = node.kind === 'milestone' ? node.id : null
+  const now = id !== null && moment?.id === id ? moment.kind : null
+  return (
+    <div
+      className={`relative ${className} ${id !== null && born.has(id) ? 'motion-step-born' : ''}`}
+    >
+      <Dot
+        node={node}
+        reaching={now === 'reach' || now === 'finale'}
+        onToggle={onToggle}
+      />
+      {now ? <Burst key={now} kind={now} /> : null}
+    </div>
+  )
+}
+
+/* Sparks out of a dot. The finale — the reach that leaves nothing
+   unreached — throws twice as many, twice as far, in the goal's colour and
+   lavender both. */
+function Burst({ kind }: { kind: Moment['kind'] }) {
+  const finale = kind === 'finale'
+  const count = finale ? 16 : kind === 'born' ? 10 : 8
+  const reach = finale ? 44 : kind === 'born' ? 26 : 22
+  return (
+    <span aria-hidden className="pointer-events-none absolute inset-0">
+      {Array.from({ length: count }, (_, i) => (
+        <span
+          key={i}
+          className={`motion-spark absolute top-1/2 left-1/2 rounded-full ${
+            finale && i % 2 === 1 ? 'bg-lav-200' : 'bg-(--area)'
+          } ${i % 3 === 0 ? 'size-[5px]' : 'size-[3px]'}`}
+          style={
+            {
+              '--a': `${(360 / count) * i}deg`,
+              '--d': `${reach - (i % 3) * 5}px`,
+              animationDelay: `${(i % 4) * 25}ms`,
+            } as CSSProperties
+          }
+        />
+      ))}
+    </span>
+  )
+}
 
 function Dot({
   node,

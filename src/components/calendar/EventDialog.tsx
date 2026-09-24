@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
@@ -195,13 +196,18 @@ export function EventDialog({
     }
   }
 
-  return (
+  /* Portalled, and in the modal material (24 Sep: "this modal is
+     transparent which looks broken"). It was drawn in .glass — the card
+     material, a see-through fill made to sit over the ground — so the week
+     grid read straight through it, and it was mounted inside the calendar,
+     where a frosted ancestor keeps a blur from reaching the page. */
+  return createPortal(
     <>
       <button
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="fixed inset-0 z-40 cursor-default bg-sink/60"
+        className="fixed inset-0 z-40 cursor-default bg-sink/60 backdrop-blur-[2px]"
       />
       <div
         role="dialog"
@@ -209,7 +215,7 @@ export function EventDialog({
         aria-label={event ? 'Edit event' : 'New event'}
         className="fixed left-1/2 top-[14vh] z-50 w-[min(460px,92vw)] -translate-x-1/2"
       >
-        <div className="glass flex flex-col gap-3 rounded-[18px] p-4">
+        <div className="glass-modal motion-arrive flex flex-col gap-3 rounded-[18px] p-4">
           <div className="label-caps">{event ? 'Edit event' : 'New event'}</div>
 
           <input
@@ -423,6 +429,7 @@ export function EventDialog({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   )
 }

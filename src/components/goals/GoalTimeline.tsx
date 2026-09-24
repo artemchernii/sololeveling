@@ -313,15 +313,15 @@ function Line({
               aria-label={addLabel(nodes, i)}
               title="Add a step here"
               onClick={(e) => onAdd(i, e.currentTarget)}
-              className="motion-press absolute grid size-[20px] -translate-1/2 place-items-center rounded-full bg-background text-ink-600 opacity-70 ring-1 ring-lift/15 hover:text-lav-200 hover:opacity-100 hover:ring-lav-300/60 focus-visible:opacity-100"
+              className={`${addButton} absolute -translate-1/2`}
               style={{
                 top: LINE_Y,
                 left: (layout.xs[i] + layout.xs[i + 1]) / 2,
                 transition:
-                  'left var(--motion-base) var(--motion-ease), opacity var(--motion-fast)',
+                  'left var(--motion-base) var(--motion-ease), background-color var(--motion-fast)',
               }}
             >
-              <Plus className="size-3" />
+              <Plus className="size-3.5" strokeWidth={3} />
             </button>
           ))}
 
@@ -353,6 +353,15 @@ function Line({
     </div>
   )
 }
+
+/* The + in a gap (24 Sep): the sign in the goal's colour on a ground-dark
+   disc that breaks the line around it. Colour on the sign, not the disc — a
+   solid disc in the goal's colour is what a reached step looks like, and a
+   line of them would read as twice the steps. Pressing it gives the disc a
+   wash of that colour, mixed into the ground so the line never shows
+   through. */
+const addButton =
+  'motion-press grid size-[20px] place-items-center rounded-full bg-background text-(--area) hover:bg-[color-mix(in_oklab,var(--area)_22%,var(--background))] active:bg-[color-mix(in_oklab,var(--area)_22%,var(--background))] focus-visible:ring-1 focus-visible:ring-(--area)/60'
 
 function addLabel(nodes: Array<TimelineNode>, gap: number): string {
   const left = nodes[gap]
@@ -417,9 +426,9 @@ function List({
                   type="button"
                   aria-label={addLabel(nodes, i)}
                   onClick={(e) => onAdd(i, e.currentTarget)}
-                  className="motion-press relative grid size-[20px] place-items-center rounded-full bg-background text-ink-600 ring-1 ring-lift/15 active:text-lav-200"
+                  className={`${addButton} relative`}
                 >
-                  <Plus className="size-3" />
+                  <Plus className="size-3.5" strokeWidth={3} />
                 </button>
               </div>
               {todayAt === i + 1 ? <TodayRule /> : null}

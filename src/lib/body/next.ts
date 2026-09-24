@@ -60,9 +60,9 @@ export function nextRoutine(
     }
   }
 
-  const rest = oldestFirst(
-    notToday.filter((d) => d.program.kind !== 'gym'),
-  )[0]
+  const rest = oldestFirst(notToday.filter((d) => d.program.kind !== 'gym')).at(
+    0,
+  )
   if (rest) {
     return {
       program: rest.program,

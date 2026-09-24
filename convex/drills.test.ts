@@ -413,9 +413,7 @@ describe('drills — built-in Body programs', () => {
     await me.mutation(api.drills.addProgram, { programId: 'back' })
     await me.mutation(api.drills.dropProgram, { programId: 'back' })
     expect(await me.query(api.drills.list, { area: 'body' })).toEqual([])
-    expect(
-      (await them.query(api.drills.list, { area: 'body' })).length,
-    ).toBe(9)
+    expect((await them.query(api.drills.list, { area: 'body' })).length).toBe(9)
   })
 
   test('signed out is refused', async () => {

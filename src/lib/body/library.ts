@@ -191,7 +191,8 @@ export const PROGRAMS: ReadonlyArray<Program> = [
               'Sit back toward your heels and walk your hands forward.',
               'Rest the forehead down and breathe into the back.',
             ],
-            avoid: 'Forcing the hips to the heels — go as far as is comfortable.',
+            avoid:
+              'Forcing the hips to the heels — go as far as is comfortable.',
           },
         ],
       },
@@ -321,7 +322,8 @@ export const PROGRAMS: ReadonlyArray<Program> = [
               'Sit down between your heels, chest tall, knees tracking the toes.',
               'Stand by pushing the floor away.',
             ],
-            avoid: 'Rounding the lower back at the bottom — squat only as deep as you stay flat.',
+            avoid:
+              'Rounding the lower back at the bottom — squat only as deep as you stay flat.',
           },
           {
             id: 'rdl',
@@ -661,7 +663,5 @@ export function lookupRef(ref: string | undefined): RefHit | undefined {
 
 /** Every ref a program makes. */
 export function programRefs(program: Program): Array<string> {
-  return program.days.flatMap((d) =>
-    d.exercises.map((e) => refFor(d.id, e.id)),
-  )
+  return program.days.flatMap((d) => d.exercises.map((e) => refFor(d.id, e.id)))
 }

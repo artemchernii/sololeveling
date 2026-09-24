@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
+import { Check } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
-import { SaveLabel, useSave } from '@/components/Saving'
+import { useSave } from '@/components/Saving'
+import type { SaveStatus } from '@/components/Saving'
 import { useAreas } from '@/lib/areas'
 import { endFromTime, toTimeInput } from '@/lib/eventTimes'
 import { askToNotify } from '@/lib/reminders'
@@ -420,10 +422,11 @@ export function EventDialog({
                 type="button"
                 onClick={save}
                 disabled={saving.busy || deleting}
-                className="rounded-[7px] bg-lav-300/20 px-3 py-1.5 text-[12.5px] text-foreground ring-1 ring-lav-300/40 disabled:cursor-default"
+                className="disabled:cursor-default"
               >
-                <SaveLabel
+                <SaveMoment
                   status={saving.status}
+                  what={event ? 'Event saved' : 'Event added'}
                   onSettled={() => {
                     saving.settle()
                     onClose()
@@ -432,9 +435,7 @@ export function EventDialog({
                       created.current = null
                     }
                   }}
-                >
-                  Save
-                </SaveLabel>
+                />
               </button>
             </div>
           </div>
@@ -442,5 +443,82 @@ export function EventDialog({
       </div>
     </>,
     document.body,
+  )
+}
+
+/* The Save button, as a moment (24 Sep: "some cool spinner into checked and
+   some EVENT ADDED"). The shared SaveLabel holds its spinner back for fast
+   writes, and a calendar write is fast — so the press was never seen to do
+   anything. Here the spinner always shows for a beat, then the button turns
+   the colour of a thing that went well, a tick draws, and it says what
+   happened. Then the dialog closes and the block pours into its slot. */
+const SPIN_AT_LEAST = 450
+const DONE_FOR = 950
+
+function SaveMoment({
+  status,
+  what,
+  onSettled,
+}: {
+  status: SaveStatus
+  what: string
+  onSettled: () => void
+}) {
+  const [shown, setShown] = useState<'idle' | 'spin' | 'done'>('idle')
+  const since = useRef(0)
+  const settled = useRef(onSettled)
+  useEffect(() => {
+    settled.current = onSettled
+  })
+
+  useEffect(() => {
+    if (status === 'idle') {
+      setShown('idle')
+      return
+    }
+    if (status === 'saving') {
+      since.current = Date.now()
+      setShown('spin')
+      return
+    }
+    const wait = Math.max(0, SPIN_AT_LEAST - (Date.now() - since.current))
+    const toDone = window.setTimeout(() => setShown('done'), wait)
+    const toClose = window.setTimeout(() => settled.current(), wait + DONE_FOR)
+    return () => {
+      window.clearTimeout(toDone)
+      window.clearTimeout(toClose)
+    }
+  }, [status])
+
+  return (
+    <span
+      className={`relative inline-flex h-[30px] items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-[12.5px] ring-1 transition-[background-color,box-shadow,color] duration-(--motion-base) ${
+        shown === 'done'
+          ? 'bg-state-good/15 text-state-good shadow-[0_0_22px_-6px_var(--color-state-good)] ring-state-good/50'
+          : 'bg-lav-300/20 text-foreground ring-lav-300/40 hover:bg-lav-300/28'
+      }`}
+    >
+      {shown === 'idle' ? (
+        'Save'
+      ) : shown === 'spin' ? (
+        <span
+          role="status"
+          aria-label="Saving"
+          className="save-spinner block size-4 rounded-full border-2 border-lav-200 border-t-transparent"
+        />
+      ) : (
+        <>
+          <span className="motion-pop grid size-4 place-items-center rounded-full bg-state-good text-background">
+            <Check className="motion-draw size-3" strokeWidth={3} />
+          </span>
+          <span
+            role="status"
+            className="motion-arrive font-mono text-[11px] tracking-[0.16em] uppercase"
+          >
+            {what}
+          </span>
+        </>
+      )}
+    </span>
   )
 }

@@ -44,7 +44,12 @@ export function kindName(kind: string | null | undefined): string {
 /* Labels for CategoryChip: the stored word stays, the name shows. */
 export const KIND_LABELS: Record<string, string> = { stretch: 'mobility' }
 
-/* His photos, one per kind, in public/body (asked for 25 Sep). A kind with
-   none shows its icon, large and faded, in the photo's place. */
-export const PHOTOS: Partial<Record<BodyKind, { src: string; focus: string }>> =
-  {}
+/* The picture behind the hero (25 Sep, his pick): Ronaldo, eyes closed,
+   head up — portrait, so the crop sits on the face. One for every kind
+   until he sends one per kind; a kind's own photo would go in PHOTOS. */
+export type HeroPhoto = { src: string; focus: string }
+export const HERO_PHOTO: HeroPhoto = {
+  src: '/body/body.jpg',
+  focus: '50% 66%',
+}
+export const PHOTOS: Partial<Record<BodyKind, HeroPhoto>> = {}

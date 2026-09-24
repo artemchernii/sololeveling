@@ -4,7 +4,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { CircleHelp, PersonStanding, Scale } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import { KindIcon, kindName, PHOTOS } from '@/components/body/kinds'
+import { HERO_PHOTO, KindIcon, kindName, PHOTOS } from '@/components/body/kinds'
 import { DayStrips } from '@/components/track/DayStrip'
 import { DidButton } from '@/components/track/DidButton'
 import { TrackPanel } from '@/components/track/TrackPanel'
@@ -19,9 +19,9 @@ import { monthRange } from '@/lib/month'
    Languages header, for the body: "consistency is the main thing".
 
    The latest weigh-in (state), each kind as the days it happened in the
-   last 30 (aggregate.categoryDays), and twelve weeks of days. The picture
-   on the right is the kind NEXT UP suggests — his photo when there is one,
-   its icon large and faded until then. */
+   last 30 (aggregate.categoryDays), and twelve weeks of days. His photo
+   holds the top right, beside the name, and fades out before the strip —
+   a portrait, so it is cropped to the face rather than filling the card. */
 export function BodyHero({ featured }: { featured: BodyKind }) {
   const [dayStarts] = useState(() => dayStartsBack(STRIP_WEEKS))
   const result = useQuery(api.aggregate.categoryDays, {
@@ -37,47 +37,29 @@ export function BodyHero({ featured }: { featured: BodyKind }) {
      (categoryDays keys by category); a kind shows once. */
   const rows = result?.rows ?? []
   const unsorted = rows.some((r) => r.category === null)
-  const photo = PHOTOS[featured]
+  const photo = PHOTOS[featured] ?? HERO_PHOTO
 
   return (
     <section
       style={areaVars('body')}
       className="glass motion-arrive relative flex flex-col gap-6 overflow-hidden rounded-[26px] p-5 sm:p-7"
     >
-      {photo ? (
-        <img
-          src={photo.src}
-          alt=""
-          aria-hidden
-          decoding="async"
-          style={{
-            objectPosition: photo.focus,
-            maskImage:
-              'linear-gradient(to left, black 35%, transparent 95%), linear-gradient(to bottom, black 45%, transparent 85%)',
-            WebkitMaskImage:
-              'linear-gradient(to left, black 35%, transparent 95%), linear-gradient(to bottom, black 45%, transparent 85%)',
-            maskComposite: 'intersect',
-            WebkitMaskComposite: 'source-in',
-          }}
-          className="motion-fade pointer-events-none absolute inset-y-0 right-0 h-full w-full object-cover opacity-45 select-none sm:w-[64%] sm:opacity-80"
-        />
-      ) : (
-        <span
-          key={featured}
-          aria-hidden
-          style={{
-            maskImage: 'linear-gradient(to bottom, black 30%, transparent 90%)',
-            WebkitMaskImage:
-              'linear-gradient(to bottom, black 30%, transparent 90%)',
-          }}
-          className="motion-fade pointer-events-none absolute -top-6 right-2 text-(--area)/15 sm:right-10"
-        >
-          <KindIcon
-            kind={featured}
-            className="size-[220px] stroke-[1.1] sm:size-[280px]"
-          />
-        </span>
-      )}
+      <img
+        src={photo.src}
+        alt=""
+        aria-hidden
+        decoding="async"
+        style={{
+          objectPosition: photo.focus,
+          maskImage:
+            'linear-gradient(to left, black 45%, transparent 100%), linear-gradient(to bottom, black 55%, transparent 100%)',
+          WebkitMaskImage:
+            'linear-gradient(to left, black 45%, transparent 100%), linear-gradient(to bottom, black 55%, transparent 100%)',
+          maskComposite: 'intersect',
+          WebkitMaskComposite: 'source-in',
+        }}
+        className="motion-fade pointer-events-none absolute top-0 right-0 h-[62%] w-full object-cover opacity-45 select-none sm:w-[46%] sm:opacity-85"
+      />
       <span
         aria-hidden
         className="pointer-events-none absolute -top-24 -left-16 size-80 rounded-full bg-(--area)/25 blur-3xl"

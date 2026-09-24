@@ -130,6 +130,11 @@ export default defineSchema({
     /* 0–359. The theme owns lightness and chroma (tokens.css item 5), so this
        number is the whole of an area's colour. */
     hue: v.number(),
+    /* Bold (25 Sep): the hue at the theme's deep, saturated pair
+       (--area-bold-l/-c) instead of the soft one every area shares. Artem
+       wanted Body "more brutal"; one area may be louder because he said so,
+       not because its hue happens to be brighter. */
+    bold: v.optional(v.boolean()),
     order: v.number(),
     /* Retired: gone from every picker, still painting the rows that carry it
        — a log is evidence and does not stop having happened. */

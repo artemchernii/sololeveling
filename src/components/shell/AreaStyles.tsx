@@ -27,13 +27,19 @@ import { BUILTIN_AREAS } from '@/lib/area-slug'
 export function AreaStyles() {
   const areas = useQuery(api.areas.list, { includeRetired: true })
   const rows = [
-    ...BUILTIN_AREAS.map((a) => ({ slug: a.slug, hue: a.hue })),
-    ...(areas ?? []).map((a) => ({ slug: a.slug, hue: a.hue })),
+    ...BUILTIN_AREAS.map((a) => ({ slug: a.slug, hue: a.hue, bold: false })),
+    ...(areas ?? []).map((a) => ({
+      slug: a.slug,
+      hue: a.hue,
+      bold: a.bold === true,
+    })),
   ]
+  /* A bold area takes the theme's deep pair (tokens.css item 5). */
   const css = rows
-    .map(
-      ({ slug, hue }) =>
-        `--area-${slug}:oklch(var(--area-l) var(--area-c) ${hue});`,
+    .map(({ slug, hue, bold }) =>
+      bold
+        ? `--area-${slug}:oklch(var(--area-bold-l) var(--area-bold-c) ${hue});`
+        : `--area-${slug}:oklch(var(--area-l) var(--area-c) ${hue});`,
     )
     .join('')
   return <style>{`:root{${css}}`}</style>

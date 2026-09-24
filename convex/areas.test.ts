@@ -285,6 +285,33 @@ describe('order and colour', () => {
     )!
     expect(body.hue).toBe(200)
   })
+
+  test('bold is kept, and cleared', async () => {
+    const t = as(ME)
+    await t.mutation(api.areas.ensure, {})
+    await t.mutation(api.areas.setBold, { slug: 'body', bold: true })
+    const bodyOf = async () =>
+      (await t.query(api.areas.list, {})).find((a) => a.slug === 'body')!
+    expect((await bodyOf()).bold).toBe(true)
+    await t.mutation(api.areas.setBold, { slug: 'body', bold: false })
+    expect((await bodyOf()).bold).toBeUndefined()
+  })
+
+  test("another owner's area cannot be made bold", async () => {
+    const { mine: me, theirs } = twoOwners()
+    await me.mutation(api.areas.ensure, {})
+    await me.mutation(api.areas.create, { label: 'Chess' })
+    await expect(
+      theirs.mutation(api.areas.setBold, {
+        slug: 'chess',
+        bold: true,
+      }),
+    ).rejects.toThrow('NO_SUCH_AREA')
+    const chess = (await me.query(api.areas.list, {})).find(
+      (a) => a.slug === 'chess',
+    )!
+    expect(chess.bold).toBeUndefined()
+  })
 })
 
 describe('what may be written into an area field', () => {

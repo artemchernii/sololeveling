@@ -194,6 +194,21 @@ export const setHue = mutation({
   },
 })
 
+/** Bold or soft. Another owner's slug is not found. */
+export const setBold = mutation({
+  args: { slug: v.string(), bold: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const area = await bySlug(ctx, ownerId, args.slug)
+    if (area === null) {
+      throw new Error('NO_SUCH_AREA')
+    }
+    await ctx.db.patch(area._id, { bold: args.bold || undefined })
+    return null
+  },
+})
+
 /**
  * Mark an area as a language, or stop. `null` clears the flag.
  *

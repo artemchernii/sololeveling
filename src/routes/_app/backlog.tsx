@@ -3,11 +3,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { ConvexError } from 'convex/values'
-import { ArrowUp, Plus, Trash2 } from 'lucide-react'
+import { Check } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import { AreaBadge } from '@/components/AreaBadge'
-import { BindSelect } from '@/components/backlog/BindSelect'
+import { AddTask } from '@/components/backlog/AddTask'
 import { DoneList } from '@/components/backlog/DoneList'
 import {
   isFiltered,
@@ -15,12 +14,9 @@ import {
   NO_FILTER,
 } from '@/components/backlog/ListControls'
 import type { ListFilter } from '@/components/backlog/ListControls'
-import { ScheduleTask } from '@/components/backlog/ScheduleTask'
-import { SaveGlyph, useSave } from '@/components/Saving'
+import { TaskRow } from '@/components/backlog/TaskRow'
 import { SkeletonRows } from '@/components/Skeleton'
-import type { Area } from '@/lib/capture-parser'
-import type { Doc } from '../../../convex/_generated/dataModel'
-import { agoLabel, shortDate } from '@/lib/format'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { localToday } from '@/lib/today'
 import { useArrived, useHeld } from '@/lib/loading'
 
@@ -44,19 +40,26 @@ export const Route = createFileRoute('/_app/backlog')({
    Two tabs since 17 Sep: Open, what is waiting; Done, what was ticked — so a
    finished task has a place once its day on Today ends. */
 function Backlog() {
-  const [view, setView] = useState<'open' | 'done'>('open')
+  const [view, setView] = useState<'open' | 'done' | 'archived'>('open')
   const today = localToday()
-  const tasks = useHeld(useQuery(api.tasks.listBacklog, { today }))
+  const open = useHeld(useQuery(api.tasks.listBacklog, { today }))
+  const archived = useQuery(
+    api.tasks.listArchived,
+    view === 'archived' ? {} : 'skip',
+  )
+  const tasks = view === 'archived' ? archived : open
   const arrived = useArrived(tasks)
   const picked = useQuery(api.tasks.listToday, { today })
   const projects = useQuery(api.projects.listLive, {})
   const goals = useQuery(api.goals.listActive, {})
   const goalsToBind = (goals ?? []).filter((g) => g.tile === undefined)
 
-  const createTask = useMutation(api.tasks.create)
   const pickForToday = useMutation(api.tasks.pickForToday)
   const setArea = useMutation(api.tasks.setArea)
-  const removeTask = useMutation(api.tasks.remove)
+  const complete = useMutation(api.tasks.complete)
+  const completeMany = useMutation(api.tasks.completeMany)
+  const setArchivedMany = useMutation(api.tasks.setArchivedMany)
+  const removeMany = useMutation(api.tasks.removeMany)
 
   /* Filtered and sorted here, not on the server: the backlog is one
      person's list, already capped at 200 by listBacklog, and every row is
@@ -66,20 +69,32 @@ function Backlog() {
   const [sort, setSort] = useState<BacklogSort>('newest')
   const shown = tasks === undefined ? undefined : arrange(tasks, filter, sort)
 
-  const [title, setTitle] = useState('')
   const [refusal, setRefusal] = useState<string | null>(null)
-  const adding = useSave()
-
   const full = (picked?.length ?? 0) >= 3
 
-  async function add() {
-    const trimmed = title.trim()
-    if (trimmed.length === 0 || adding.status === 'saving') return
-    await adding.run(() => createTask({ title: trimmed }))
-    setTitle('')
+  /* Select mode (24 Sep): "we can't delete in bulk, done in bulk, archive
+     doesn't exist". Tick several, then act on them from the bar. */
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(() => new Set())
+  const [confirmBulk, setConfirmBulk] = useState(false)
+  function stopSelecting() {
+    setSelecting(false)
+    setSelected(new Set())
+    setConfirmBulk(false)
   }
+  function toggle(id: string) {
+    setConfirmBulk(false)
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  const chosen = (shown ?? []).filter((t) => selected.has(t._id))
+  const ids = chosen.map((t) => t._id)
 
-  async function pick(taskId: Parameters<typeof pickForToday>[0]['taskId']) {
+  async function pick(taskId: Id<'tasks'>) {
     try {
       await pickForToday({ taskId, today })
       setRefusal(null)
@@ -95,29 +110,53 @@ function Backlog() {
     }
   }
 
+  const TABS = [
+    { value: 'open', label: 'Backlog' },
+    { value: 'done', label: 'Done' },
+    { value: 'archived', label: 'Archived' },
+  ] as const
+
   return (
-    <div className="glass flex flex-col gap-4 rounded-[22px] p-6">
-      <div className="flex items-baseline justify-between">
+    <div
+      className={`glass flex flex-col gap-4 rounded-[22px] p-6 ${
+        selecting ? 'mb-20' : ''
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
         <div role="tablist" aria-label="Backlog" className="flex gap-4">
-          {(['open', 'done'] as const).map((v) => (
+          {TABS.map((tab) => (
             <button
-              key={v}
+              key={tab.value}
               type="button"
               role="tab"
-              aria-selected={view === v}
-              onClick={() => setView(v)}
+              aria-selected={view === tab.value}
+              onClick={() => {
+                setView(tab.value)
+                stopSelecting()
+              }}
               className={`label-caps transition-colors ${
-                view === v ? 'text-foreground' : 'hover:text-ink-300'
+                view === tab.value ? 'text-foreground' : 'hover:text-ink-300'
               }`}
             >
-              {v === 'open' ? 'Backlog' : 'Done'}
+              {tab.label}
             </button>
           ))}
         </div>
-        <div className="label-caps">
-          {view === 'done' || tasks === undefined
-            ? ''
-            : `${tasks.length} waiting`}
+        <div className="flex items-center gap-3">
+          <span className="label-caps">
+            {view === 'open' && open !== undefined
+              ? `${open.length} waiting`
+              : ''}
+          </span>
+          {view !== 'done' && shown !== undefined && shown.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+              className="motion-press rounded-full px-3 py-1 text-[12px] text-ink-400 ring-1 ring-lift/10 hover:text-foreground"
+            >
+              {selecting ? 'Done selecting' : 'Select'}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -125,23 +164,14 @@ function Backlog() {
         <DoneList projects={projects ?? []} goals={goalsToBind} />
       ) : (
         <>
-          <div className="flex items-center gap-2 border-b border-lift/[0.07] pb-3">
-            <SaveGlyph
-              status={adding.status}
-              onSettled={adding.settle}
-              idle={<Plus className="size-3.5" />}
-              className="text-ink-600"
+          {view === 'open' ? (
+            <AddTask
+              projects={projects ?? []}
+              goals={goalsToBind}
+              today={today}
+              full={full}
             />
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void add()
-              }}
-              placeholder="Something to do, eventually"
-              className="flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-ink-700"
-            />
-          </div>
+          ) : null}
 
           {tasks !== undefined && tasks.length > 0 ? (
             <ListControls
@@ -152,7 +182,11 @@ function Backlog() {
               onSort={setSort}
               projects={projects ?? []}
               goals={goalsToBind}
-              placeholder="Search the backlog"
+              placeholder={
+                view === 'archived'
+                  ? 'Search the archive'
+                  : 'Search the backlog'
+              }
               unfiled
             />
           ) : null}
@@ -161,90 +195,121 @@ function Backlog() {
             <SkeletonRows rows={4} line="h-[61px]" />
           ) : tasks.length === 0 ? (
             <p className={`text-[13px] text-ink-500 ${arrived}`}>
-              Empty. Everything you have written down is either done or on
-              today.
+              {view === 'archived'
+                ? 'Nothing archived. Archive a task from its row to put it here.'
+                : 'Empty. Everything you have written down is either done or on today.'}
             </p>
           ) : shown.length === 0 ? (
             <p className="text-[13px] text-ink-500">
-              Nothing waiting matches that.
+              Nothing here matches that.
             </p>
           ) : (
-            <div className={`flex flex-col ${arrived}`}>
+            <div className={`flex flex-col gap-1 ${arrived}`}>
               {shown.map((task) => (
-                <div
+                <TaskRow
                   key={task._id}
-                  className="flex flex-col gap-1.5 border-b border-lift/[0.05] py-2.5 last:border-b-0"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="flex-1 text-[13px] text-foreground">
-                      {task.title}
-                    </span>
-
-                    <AreaBadge
-                      area={task.area}
-                      onChange={(area: Area) =>
-                        void setArea({ taskId: task._id, area })
-                      }
-                    />
-
-                    <button
-                      type="button"
-                      disabled={full}
-                      onClick={() => void pick(task._id)}
-                      title={
-                        full
-                          ? 'Today is full. Finish one or drop one.'
-                          : undefined
-                      }
-                      className="flex items-center gap-1.5 rounded-[7px] border border-lift/10 px-2 py-1 text-[11.5px] text-ink-400 transition-colors hover:border-lav-500/60 hover:text-lav-300 disabled:cursor-default disabled:border-lift/[0.06] disabled:text-ink-700 disabled:hover:text-ink-700"
-                    >
-                      <ArrowUp className="size-3" />
-                      Today
-                    </button>
-
-                    <button
-                      type="button"
-                      aria-label={`Delete ${task.title}`}
-                      onClick={() => void removeTask({ taskId: task._id })}
-                      className="text-ink-700 transition-colors hover:text-ink-400"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
-
-                  {/* What is known about it: how long it has waited, what it is
-                  for, and when — if anyone has said. */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-[11px] text-ink-600">
-                      added {agoLabel(task._creationTime)}
-                    </span>
-                    {/* Chosen for a day that ended without it being ticked. */}
-                    {task.todayFor ? (
-                      <span className="font-mono text-[11px] text-ink-500">
-                        · picked {shortDate(task.todayFor)}, not done
-                      </span>
-                    ) : null}
-                    <BindSelect
-                      task={task}
-                      projects={projects ?? []}
-                      goals={goalsToBind}
-                    />
-                    <ScheduleTask task={task} />
-                  </div>
-                </div>
+                  task={task}
+                  projects={projects ?? []}
+                  goals={goalsToBind}
+                  full={full}
+                  archivedView={view === 'archived'}
+                  selecting={selecting}
+                  checked={selected.has(task._id)}
+                  onToggle={() => toggle(task._id)}
+                  onComplete={() => void complete({ taskId: task._id })}
+                  onPick={() => void pick(task._id)}
+                  onArea={(area) => void setArea({ taskId: task._id, area })}
+                  onArchive={() =>
+                    void setArchivedMany({
+                      taskIds: [task._id],
+                      archived: view !== 'archived',
+                    })
+                  }
+                  onDelete={() => void removeMany({ taskIds: [task._id] })}
+                />
               ))}
             </div>
           )}
 
           {refusal ? (
             <p className="text-[13px] text-ink-400">{refusal}</p>
-          ) : full ? (
+          ) : full && view === 'open' ? (
             <p className="text-[13px] text-ink-500">
               Today is full. Finish one or drop one.
             </p>
           ) : null}
         </>
       )}
+
+      {selecting ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(150px+env(safe-area-inset-bottom))] z-40 flex justify-center px-[18px] md:bottom-6">
+          <div className="glass-modal motion-arrive pointer-events-auto flex flex-wrap items-center justify-center gap-1.5 rounded-[22px] py-1.5 pr-1.5 pl-4 md:rounded-full">
+            <span className="text-[12.5px] text-ink-300">
+              {chosen.length === 0 ? 'Tick tasks' : `${chosen.length} selected`}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setSelected(
+                  chosen.length === shown?.length
+                    ? new Set()
+                    : new Set((shown ?? []).map((t) => t._id)),
+                )
+              }
+              className="motion-press rounded-full px-2.5 py-1 text-[12px] text-ink-400 hover:text-foreground"
+            >
+              {chosen.length === shown?.length ? 'None' : 'All'}
+            </button>
+            {view === 'open' ? (
+              <button
+                type="button"
+                disabled={ids.length === 0}
+                onClick={() => {
+                  void completeMany({ taskIds: ids })
+                  stopSelecting()
+                }}
+                className="motion-press flex items-center gap-1 rounded-full bg-state-good/12 px-3 py-1 text-[12px] text-state-good ring-1 ring-state-good/35 hover:bg-state-good/20 disabled:opacity-40"
+              >
+                <Check className="size-3" />
+                Done
+              </button>
+            ) : null}
+            <button
+              type="button"
+              disabled={ids.length === 0}
+              onClick={() => {
+                void setArchivedMany({
+                  taskIds: ids,
+                  archived: view !== 'archived',
+                })
+                stopSelecting()
+              }}
+              className="motion-press rounded-full px-3 py-1 text-[12px] text-foreground ring-1 ring-lift/15 hover:bg-lift/[0.06] disabled:opacity-40"
+            >
+              {view === 'archived' ? 'Unarchive' : 'Archive'}
+            </button>
+            <button
+              type="button"
+              disabled={ids.length === 0}
+              onClick={() => {
+                if (!confirmBulk) {
+                  setConfirmBulk(true)
+                  return
+                }
+                void removeMany({ taskIds: ids })
+                stopSelecting()
+              }}
+              className={`motion-press rounded-full px-3 py-1 text-[12px] ring-1 disabled:opacity-40 ${
+                confirmBulk
+                  ? 'bg-state-danger/15 text-state-danger ring-state-danger/40'
+                  : 'text-ink-300 ring-lift/15 hover:text-state-danger'
+              }`}
+            >
+              {confirmBulk ? `Delete ${ids.length} for good?` : 'Delete'}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

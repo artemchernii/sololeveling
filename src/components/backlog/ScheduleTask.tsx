@@ -48,14 +48,19 @@ export function ScheduleTask({ task }: { task: Doc<'tasks'> }) {
       <button
         type="button"
         onClick={begin}
-        className={`motion-press flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11.5px] transition-colors ${
+        className={`motion-press flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11.5px] whitespace-nowrap transition-colors ${
           task.scheduledAt
             ? 'bg-lav-300/12 text-lav-200 hover:bg-lav-300/20'
             : 'order-last text-ink-600 hover:text-ink-300 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'
         }`}
       >
         <CalendarPlus className="size-3" />
-        {task.scheduledAt ? whenLabel(task.scheduledAt) : 'schedule'}
+        {task.scheduledAt ? (
+          whenLabel(task.scheduledAt)
+        ) : (
+          /* A prompt: on a phone the icon alone says it. */
+          <span className="hidden md:inline">schedule</span>
+        )}
       </button>
     )
   }

@@ -14,6 +14,7 @@ export function ChipSelect({
   icon,
   style,
   className = '',
+  iconOnlyOnPhone = false,
 }: {
   /** For screen readers: what this picks. */
   label: string
@@ -26,14 +27,20 @@ export function ChipSelect({
   icon?: ReactNode
   style?: CSSProperties
   className?: string
+  /** A prompt, not a value: on a phone the icon says it in less room. */
+  iconOnlyOnPhone?: boolean
 }) {
   return (
     <span
       style={style}
-      className={`motion-press relative inline-flex max-w-[14rem] items-center gap-1.5 rounded-full px-2 py-0.5 text-[11.5px] transition-colors ${className}`}
+      className={`motion-press relative inline-flex max-w-[14rem] items-center gap-1.5 rounded-full px-2 py-0.5 text-[11.5px] whitespace-nowrap transition-colors ${className}`}
     >
       {icon}
-      <span className="pointer-events-none truncate">{text}</span>
+      <span
+        className={`pointer-events-none truncate ${iconOnlyOnPhone ? 'hidden md:inline' : ''}`}
+      >
+        {text}
+      </span>
       <select
         aria-label={label}
         value={value}

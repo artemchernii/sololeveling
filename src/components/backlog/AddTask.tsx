@@ -119,7 +119,7 @@ export function AddTask({
           }}
           placeholder="Something to do, eventually"
           aria-label="New task"
-          className="flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-ink-600"
+          className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-ink-600"
         />
         {open ? (
           /* A way out that is not "delete what I typed" (24 Sep). Esc does
@@ -138,7 +138,9 @@ export function AddTask({
               className="motion-press flex items-center gap-1.5 rounded-full bg-lav-300/16 px-3 py-1 text-[12px] text-lav-200 ring-1 ring-lav-300/40 hover:bg-lav-300/24"
             >
               Add
-              <span className="font-mono text-[10.5px] text-lav-300/80">↵</span>
+              <span className="hidden font-mono text-[10.5px] text-lav-300/80 md:inline">
+                ↵
+              </span>
             </button>
           </div>
         ) : null}

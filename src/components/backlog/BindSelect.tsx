@@ -59,6 +59,7 @@ export function BindSelect({
       text={chosen ?? 'project'}
       onChange={change}
       icon={<Target className="size-3 shrink-0" />}
+      iconOnlyOnPhone={!chosen}
       className={
         chosen
           ? 'bg-lift/[0.06] text-ink-300 hover:text-foreground'

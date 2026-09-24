@@ -74,7 +74,10 @@ export function TaskRow({
     <div
       style={tone}
       onMouseLeave={() => setConfirming(false)}
-      className={`group relative flex items-center gap-3 rounded-[12px] py-2.5 pr-2 pl-4 transition-colors duration-(--motion-base) ${
+      /* Wraps on a phone: the title keeps the full width and the actions
+         drop to a line of their own (24 Sep: "on mobile it looks awful" —
+         the action cluster had squeezed titles to one word per line). */
+      className={`group relative flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[12px] py-2.5 pr-2 pl-4 transition-colors duration-(--motion-base) ${
         finishing
           ? 'bg-state-good/[0.08]'
           : checked
@@ -103,7 +106,7 @@ export function TaskRow({
       ) : null}
 
       <div
-        className={`flex min-w-0 flex-1 flex-col gap-1 ${selecting ? 'cursor-pointer' : ''}`}
+        className={`flex min-w-[60%] flex-1 flex-col gap-1 ${selecting ? 'cursor-pointer' : ''}`}
         onClick={selecting ? onToggle : undefined}
       >
         <span
@@ -139,7 +142,7 @@ export function TaskRow({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex w-full items-center gap-1 md:w-auto md:shrink-0">
         <AreaBadge area={task.area} onChange={selecting ? undefined : onArea} />
         {selecting ? null : confirming ? (
           <button
@@ -163,7 +166,7 @@ export function TaskRow({
                     ? 'Today is full. Finish one or drop one.'
                     : 'Put it on today'
                 }
-                className="motion-press flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] text-ink-400 ring-1 ring-lift/10 transition-colors hover:bg-lav-300/12 hover:text-lav-200 hover:ring-lav-300/40 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-400 disabled:hover:ring-lift/10"
+                className="motion-press ml-auto flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] text-ink-400 ring-1 ring-lift/10 md:ml-0 transition-colors hover:bg-lav-300/12 hover:text-lav-200 hover:ring-lav-300/40 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-400 disabled:hover:ring-lift/10"
               >
                 <ArrowUp className="size-3" />
                 Today

@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
@@ -137,11 +138,11 @@ function Backlog() {
 
   return (
     <div
-      className={`glass flex flex-col gap-4 rounded-[22px] p-6 ${
+      className={`glass flex flex-col gap-4 rounded-[22px] p-4 md:p-6 ${
         selecting ? 'mb-20' : ''
       }`}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div role="tablist" aria-label="Backlog" className="flex gap-4">
           {TABS.map((tab) => (
             <button
@@ -162,7 +163,7 @@ function Backlog() {
           ))}
         </div>
         <div className="flex items-center gap-3">
-          <span className="label-caps">
+          <span className="label-caps whitespace-nowrap">
             {view === 'open' && open !== undefined
               ? `${open.length} waiting`
               : ''}
@@ -262,75 +263,83 @@ function Backlog() {
 
       <UndoLine undoable={undoable} onDone={clearUndo} />
 
-      {selecting ? (
-        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(150px+env(safe-area-inset-bottom))] z-40 flex justify-center px-[18px] md:bottom-6">
-          <div className="glass-modal motion-arrive pointer-events-auto flex flex-wrap items-center justify-center gap-1.5 rounded-[22px] py-1.5 pr-1.5 pl-4 md:rounded-full">
-            <span className="text-[12.5px] text-ink-300">
-              {chosen.length === 0 ? 'Tick tasks' : `${chosen.length} selected`}
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                setSelected(
-                  chosen.length === shown?.length
-                    ? new Set()
-                    : new Set((shown ?? []).map((t) => t._id)),
-                )
-              }
-              className="motion-press rounded-full px-2.5 py-1 text-[12px] text-ink-400 hover:text-foreground"
-            >
-              {chosen.length === shown?.length ? 'None' : 'All'}
-            </button>
-            {view === 'open' ? (
-              <button
-                type="button"
-                disabled={ids.length === 0}
-                onClick={() => {
-                  done(chosen)
-                  stopSelecting()
-                }}
-                className="motion-press flex items-center gap-1 rounded-full bg-state-good/12 px-3 py-1 text-[12px] text-state-good ring-1 ring-state-good/35 hover:bg-state-good/20 disabled:opacity-40"
-              >
-                <Check className="size-3" />
-                Done
-              </button>
-            ) : null}
-            <button
-              type="button"
-              disabled={ids.length === 0}
-              onClick={() => {
-                void setArchivedMany({
-                  taskIds: ids,
-                  archived: view !== 'archived',
-                })
-                stopSelecting()
-              }}
-              className="motion-press rounded-full px-3 py-1 text-[12px] text-foreground ring-1 ring-lift/15 hover:bg-lift/[0.06] disabled:opacity-40"
-            >
-              {view === 'archived' ? 'Unarchive' : 'Archive'}
-            </button>
-            <button
-              type="button"
-              disabled={ids.length === 0}
-              onClick={() => {
-                if (!confirmBulk) {
-                  setConfirmBulk(true)
-                  return
-                }
-                void removeMany({ taskIds: ids })
-                stopSelecting()
-              }}
-              className={`motion-press rounded-full px-3 py-1 text-[12px] ring-1 disabled:opacity-40 ${
-                confirmBulk
-                  ? 'bg-state-danger/15 text-state-danger ring-state-danger/40'
-                  : 'text-ink-300 ring-lift/15 hover:text-state-danger'
-              }`}
-            >
-              {confirmBulk ? `Delete ${ids.length} for good?` : 'Delete'}
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {/* Portalled: this page is one frosted panel, and a backdrop-filter
+          pins a `fixed` child to the panel — on a phone the bar was drawn
+          far below the screen (24 Sep). */}
+      {selecting
+        ? createPortal(
+            <div className="pointer-events-none fixed inset-x-0 bottom-[calc(150px+env(safe-area-inset-bottom))] z-40 flex justify-center px-[18px] md:bottom-6">
+              <div className="glass-modal motion-arrive pointer-events-auto flex flex-wrap items-center justify-center gap-1.5 rounded-[22px] py-1.5 pr-1.5 pl-4 md:rounded-full">
+                <span className="text-[12.5px] text-ink-300">
+                  {chosen.length === 0
+                    ? 'Tick tasks'
+                    : `${chosen.length} selected`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelected(
+                      chosen.length === shown?.length
+                        ? new Set()
+                        : new Set((shown ?? []).map((t) => t._id)),
+                    )
+                  }
+                  className="motion-press rounded-full px-2.5 py-1 text-[12px] text-ink-400 hover:text-foreground"
+                >
+                  {chosen.length === shown?.length ? 'None' : 'All'}
+                </button>
+                {view === 'open' ? (
+                  <button
+                    type="button"
+                    disabled={ids.length === 0}
+                    onClick={() => {
+                      done(chosen)
+                      stopSelecting()
+                    }}
+                    className="motion-press flex items-center gap-1 rounded-full bg-state-good/12 px-3 py-1 text-[12px] text-state-good ring-1 ring-state-good/35 hover:bg-state-good/20 disabled:opacity-40"
+                  >
+                    <Check className="size-3" />
+                    Done
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={ids.length === 0}
+                  onClick={() => {
+                    void setArchivedMany({
+                      taskIds: ids,
+                      archived: view !== 'archived',
+                    })
+                    stopSelecting()
+                  }}
+                  className="motion-press rounded-full px-3 py-1 text-[12px] text-foreground ring-1 ring-lift/15 hover:bg-lift/[0.06] disabled:opacity-40"
+                >
+                  {view === 'archived' ? 'Unarchive' : 'Archive'}
+                </button>
+                <button
+                  type="button"
+                  disabled={ids.length === 0}
+                  onClick={() => {
+                    if (!confirmBulk) {
+                      setConfirmBulk(true)
+                      return
+                    }
+                    void removeMany({ taskIds: ids })
+                    stopSelecting()
+                  }}
+                  className={`motion-press rounded-full px-3 py-1 text-[12px] ring-1 disabled:opacity-40 ${
+                    confirmBulk
+                      ? 'bg-state-danger/15 text-state-danger ring-state-danger/40'
+                      : 'text-ink-300 ring-lift/15 hover:text-state-danger'
+                  }`}
+                >
+                  {confirmBulk ? `Delete ${ids.length} for good?` : 'Delete'}
+                </button>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

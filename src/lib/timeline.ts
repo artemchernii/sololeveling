@@ -21,6 +21,8 @@ export type TimelineItem = {
   projectId?: string
   /** What a milestone belongs to — "Goal: Ship Oreum" — for its tooltip. */
   detail?: string
+  /** A milestone's goal, so pressing it opens that goal (24 Sep). */
+  goalId?: string
 }
 
 /** The shape a milestone reaches the timeline in (convex/schema.ts). */
@@ -30,6 +32,7 @@ export type DueMilestone = {
   dueDate?: string
   dueTime?: string
   area?: Area
+  goalId?: string
   goalTitle?: string
 }
 
@@ -106,6 +109,7 @@ export function milestoneToTimelineItem(
     detail: milestone.goalTitle
       ? `milestone of ${milestone.goalTitle}`
       : undefined,
+    goalId: milestone.goalId,
   }
 }
 

@@ -435,18 +435,20 @@ export function WeekGrid({
                 {untimed
                   .filter((i) => i.startsAt >= dayStart && i.startsAt < dayEnd)
                   .map((item) => (
-                    <div
+                    <button
                       key={item.id}
+                      type="button"
+                      onClick={() => onSelect(item)}
                       title={
                         item.detail
                           ? `${item.title} — ${item.detail}`
                           : item.title
                       }
                       style={areaVars(item.area ?? 'life')}
-                      className="truncate rounded-[5px] border-l-2 border-(--area) bg-(--area)/10 px-1.5 py-0.5 text-[11px] text-foreground"
+                      className="motion-press truncate rounded-[5px] text-left transition-colors hover:bg-(--area)/20 border-l-2 border-(--area) bg-(--area)/10 px-1.5 py-0.5 text-[11px] text-foreground"
                     >
                       ◆ {item.title}
-                    </div>
+                    </button>
                   ))}
               </div>
             )
@@ -462,7 +464,13 @@ export function WeekGrid({
               className="relative border-b border-lift/[0.04]"
               style={{ height: ROW_HEIGHT }}
             >
-              <span className="absolute -top-[7px] right-2 font-mono text-[10px] text-ink-700">
+              <span
+                /* The first label sits inside its row: above it is the DUE
+                   strip or the day names, and it overlapped them. */
+                className={`absolute right-2 font-mono text-[10px] text-ink-700 ${
+                  hour === FIRST_HOUR ? 'top-0.5' : '-top-[7px]'
+                }`}
+              >
                 {String(hour).padStart(2, '0')}
               </span>
             </div>
@@ -565,9 +573,9 @@ export function WeekGrid({
                       item.source === 'task'
                         ? 'bg-lav-300/15 ring-1 ring-lav-300/30'
                         : item.source === 'milestone'
-                          ? /* No fill and nothing to press: a due day is read,
-                               not opened. Its goal's colour if it has one. */
-                            'cursor-default border-l-2 border-(--area) bg-transparent'
+                          ? /* A marker, not a block: no fill, its goal's
+                               colour. Pressing it opens the goal (24 Sep). */
+                            'cursor-pointer border-l-2 border-(--area) bg-transparent hover:bg-(--area)/10'
                           : 'bg-lift/[0.07] ring-1 ring-lift/10',
                     ].join(' ')}
                     style={
@@ -576,22 +584,23 @@ export function WeekGrid({
                         : { top, height }
                     }
                   >
-                    <span className="block truncate text-[11.5px] text-foreground">
+                    <span className="block truncate text-[11.5px] leading-[16px] text-foreground">
                       {item.source === 'milestone' ? '◆ ' : ''}
                       {item.title}
+                      {/* One line: a milestone is 18px tall, and its time on
+                          a second line was cut in half (24 Sep). */}
+                      {item.source === 'milestone' ? (
+                        <span className="ml-1.5 font-mono text-[10px] text-ink-600">
+                          {clock(item.startsAt)}
+                        </span>
+                      ) : null}
                     </span>
-                    {/* A milestone due at local midnight is an all-day due
-                        date, not a 00:00 appointment, so it says no time. */}
-                    {item.source === 'milestone' &&
-                    new Date(item.startsAt).getHours() === 0 &&
-                    new Date(item.startsAt).getMinutes() === 0 ? null : (
+                    {item.source === 'milestone' ? null : (
                       <span className="block truncate font-mono text-[10px] text-ink-600">
                         {clock(item.startsAt)}
                         {/* Start–end, not start and minutes (R5): while
                             dragging, the end is the thing being decided. */}
-                        {item.source !== 'milestone'
-                          ? `–${clock(item.startsAt + (item.durationMin ?? 30) * 60_000)}`
-                          : ''}
+                        {`–${clock(item.startsAt + (item.durationMin ?? 30) * 60_000)}`}
                         {project ? ` · ${project}` : ''}
                       </span>
                     )}

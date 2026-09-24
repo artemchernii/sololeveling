@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
@@ -34,6 +34,7 @@ function Calendar() {
     endsAt?: number
   } | null>(null)
   const [undoable, setUndoable] = useState<Undoable | null>(null)
+  const navigate = useNavigate()
   const clearUndo = useCallback(() => setUndoable(null), [])
   const updateEvent = useMutation(api.events.update)
   const setSchedule = useMutation(api.tasks.setSchedule)
@@ -69,6 +70,7 @@ function Calendar() {
       dueDate: m.dueDate,
       dueTime: m.dueTime,
       area: areaOfGoal.get(m.goalId),
+      goalId: m.goalId,
       goalTitle: titleOfGoal.get(m.goalId),
     })),
     { start: range.from, end: range.to },
@@ -78,6 +80,14 @@ function Calendar() {
     /* Only events open the editor. A scheduled task is edited where tasks are
        edited — showing it here and letting it be changed two ways is how the
        two tables start to blur (§3b.3). */
+    /* A milestone opens its goal: that is where its date, and the steps
+       around it, can be changed (24 Sep — it could not be pressed at all). */
+    if (item.source === 'milestone') {
+      if (item.goalId) {
+        void navigate({ to: '/goals', hash: `goal-${item.goalId}` })
+      }
+      return
+    }
     if (item.source !== 'event') return
     const parsed = parseOccurrenceId(item.id)
     const row = events?.find((e) => e._id === parsed?.eventId)

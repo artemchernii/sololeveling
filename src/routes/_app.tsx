@@ -18,6 +18,7 @@ import { SessionGuard } from '@/components/shell/SessionGuard'
 import { SideNav } from '@/components/shell/SideNav'
 import { TopBar } from '@/components/shell/TopBar'
 import { WriteFailureNotice } from '@/components/shell/WriteFailureNotice'
+import { ReminderWatcher } from '@/components/shell/ReminderWatcher'
 
 /* Guard runs on the server (PLAN.md §1: "Clerk guard in beforeLoad"), so an
    unauthenticated request never renders the shell at all. This checks only
@@ -158,6 +159,7 @@ function AppShell() {
         initialInput={capturePrefill}
       />
       <WriteFailureNotice />
+      <ReminderWatcher />
       <SessionGuard />
     </div>
   )

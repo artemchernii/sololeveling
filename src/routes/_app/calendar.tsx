@@ -1,12 +1,17 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { PageTitle } from '@/components/PageTitle'
 import { EventDialog } from '@/components/calendar/EventDialog'
+import { UndoLine } from '@/components/calendar/UndoLine'
+import type { Undoable } from '@/components/calendar/UndoLine'
 import { WeekGrid } from '@/components/calendar/WeekGrid'
+import type { DropResult } from '@/components/calendar/WeekGrid'
+import { seriesPhrase, shiftSeries } from '@/lib/calendarDrag'
 import { parseOccurrenceId } from '@/lib/recurrence'
 import { addDays, startOfWeek } from '@/lib/weeks'
 import { buildTimeline } from '@/lib/timeline'
@@ -25,6 +30,10 @@ function Calendar() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [editing, setEditing] = useState<Doc<'events'> | undefined>(undefined)
   const [creatingAt, setCreatingAt] = useState<number | null>(null)
+  const [undoable, setUndoable] = useState<Undoable | null>(null)
+  const clearUndo = useCallback(() => setUndoable(null), [])
+  const updateEvent = useMutation(api.events.update)
+  const setSchedule = useMutation(api.tasks.setSchedule)
 
   const weekEnd = addDays(weekStart, 7)
   const range = { from: weekStart.getTime(), to: weekEnd.getTime() }
@@ -43,6 +52,8 @@ function Calendar() {
   /* A milestone has no area of its own — its goal does. The join happens
      here so the mapper stays a mapper and the colour still means something. */
   const goals = useQuery(api.goals.listActive, {})
+  const projects = useQuery(api.projects.listLive, {})
+  const projectTitles = new Map((projects ?? []).map((p) => [p._id, p.title]))
   const areaOfGoal = new Map((goals ?? []).map((g) => [g._id, g.area]))
 
   const items = buildTimeline(
@@ -69,6 +80,63 @@ function Calendar() {
       setCreatingAt(null)
       setEditing(row)
     }
+  }
+
+  /* R5: a drop writes at once and asks nothing (the done-when). What it
+     says afterwards is where the thing went, and how to put it back. */
+  function drop(item: TimelineItem, result: DropResult) {
+    const at = new Date(result.startsAt)
+    const when =
+      result.mode === 'resize'
+        ? `ends ${clock(result.startsAt + result.durationMin * 60_000)}`
+        : `${at.toLocaleDateString(undefined, { weekday: 'short' })} ${clock(result.startsAt)}`
+
+    if (item.source === 'task') {
+      const row = tasks?.find((t) => t._id === item.id)
+      if (!row) return
+      void setSchedule({
+        taskId: row._id,
+        scheduledAt: result.startsAt,
+        durationMin: result.durationMin,
+      })
+      setUndoable({
+        text: `${row.title} · ${when}`,
+        at: Date.now(),
+        undo: () =>
+          setSchedule({
+            taskId: row._id,
+            scheduledAt: row.scheduledAt ?? null,
+            durationMin: row.durationMin,
+          }),
+      })
+      return
+    }
+
+    const parsed = parseOccurrenceId(item.id)
+    const row = events?.find((e) => e._id === parsed?.eventId)
+    if (!row || !parsed) return
+    /* One row per series (§3b.6): moving a Tuesday moves every Tuesday, and
+       the line says so rather than letting it be found out next week. */
+    const startsAt = row.rrule
+      ? shiftSeries(row.startsAt, parsed.startsAt, result.startsAt)
+      : result.startsAt
+    void updateEvent({
+      eventId: row._id,
+      startsAt,
+      endsAt: startsAt + result.durationMin * 60_000,
+    })
+    setUndoable({
+      text: row.rrule
+        ? `${row.title} · ${when}, ${seriesPhrase(row.rrule, startsAt)}`
+        : `${row.title} · ${when}`,
+      at: Date.now(),
+      undo: () =>
+        updateEvent({
+          eventId: row._id,
+          startsAt: row.startsAt,
+          endsAt: row.endsAt,
+        }),
+    })
   }
 
   const loading = events === undefined || tasks === undefined
@@ -135,12 +203,16 @@ function Calendar() {
           weekStart={weekStart}
           items={items}
           onSelect={openItem}
+          onDrop={drop}
+          projectName={(id) => projectTitles.get(id as Doc<'projects'>['_id'])}
           onCreateAt={(startsAt) => {
             setEditing(undefined)
             setCreatingAt(startsAt)
           }}
         />
       </>
+
+      <UndoLine undoable={undoable} onDone={clearUndo} />
 
       <EventDialog
         open={editing !== undefined || creatingAt !== null}
@@ -153,4 +225,11 @@ function Calendar() {
       />
     </div>
   )
+}
+
+function clock(ms: number): string {
+  return new Date(ms).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }

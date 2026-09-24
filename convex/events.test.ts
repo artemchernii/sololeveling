@@ -277,9 +277,7 @@ describe('binding, reminders and clearing (R5)', () => {
   test('refuses a reminder after the start or beyond a day', async () => {
     const t = as(ME)
     await expect(eventWith(t, { remindMin: -5 })).rejects.toThrow('reminder')
-    await expect(eventWith(t, { remindMin: 2000 })).rejects.toThrow(
-      'reminder',
-    )
+    await expect(eventWith(t, { remindMin: 2000 })).rejects.toThrow('reminder')
   })
 
   test('null clears a field; absent leaves it alone', async () => {

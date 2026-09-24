@@ -325,3 +325,64 @@ describe('milestones due in a span of days', () => {
     ).toEqual([])
   })
 })
+
+/* 24 Sep: a + between any two steps on the timeline. */
+describe('adding a step in between', () => {
+  async function goalWith(t: ReturnType<typeof as>, titles: Array<string>) {
+    const goalId = await t.mutation(api.goals.create, {
+      title: 'Ship',
+      area: 'career',
+    })
+    const ids = []
+    for (const title of titles) {
+      ids.push(await t.mutation(api.milestones.create, { goalId, title }))
+    }
+    return { goalId, ids }
+  }
+  async function order(t: ReturnType<typeof as>, goalId: string) {
+    const list = await t.query(api.milestones.listByGoal, { goalId })
+    return list.map((m) => m.title)
+  }
+
+  test('after a step lands right after it', async () => {
+    const t = as(ME)
+    const { goalId, ids } = await goalWith(t, ['a', 'c'])
+    await t.mutation(api.milestones.create, {
+      goalId,
+      title: 'b',
+      after: ids[0],
+    })
+    expect(await order(t, goalId)).toEqual(['a', 'b', 'c'])
+  })
+
+  test('null puts it first; absent puts it last', async () => {
+    const t = as(ME)
+    const { goalId } = await goalWith(t, ['b'])
+    await t.mutation(api.milestones.create, { goalId, title: 'a', after: null })
+    await t.mutation(api.milestones.create, { goalId, title: 'c' })
+    expect(await order(t, goalId)).toEqual(['a', 'b', 'c'])
+  })
+
+  test('in between, again and again, keeps the order', async () => {
+    const t = as(ME)
+    const { goalId, ids } = await goalWith(t, ['a', 'z'])
+    let after = ids[0]
+    for (const title of ['b', 'c', 'd', 'e']) {
+      after = await t.mutation(api.milestones.create, { goalId, title, after })
+    }
+    expect(await order(t, goalId)).toEqual(['a', 'b', 'c', 'd', 'e', 'z'])
+  })
+
+  test("refuses someone else's step as the anchor", async () => {
+    const { mine, theirs } = twoOwners()
+    const { ids } = await goalWith(theirs, ['theirs'])
+    const { goalId } = await goalWith(mine, ['mine'])
+    await expect(
+      mine.mutation(api.milestones.create, {
+        goalId,
+        title: 'x',
+        after: ids[0],
+      }),
+    ).rejects.toThrow('No such milestone')
+  })
+})

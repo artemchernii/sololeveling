@@ -46,12 +46,36 @@ async function siblings(
     .take(MAX_ROWS)
 }
 
+/**
+ * A sortOrder that lands between two neighbours without renumbering the
+ * rest: halfway between them, or one past either end. Siblings arrive in
+ * index order, which is sortOrder order.
+ */
+function sortOrderAt(
+  existing: Array<Doc<'milestones'>>,
+  after: Id<'milestones'> | null | undefined,
+): number {
+  if (existing.length === 0) return 0
+  if (after === undefined) return existing[existing.length - 1].sortOrder + 1
+  if (after === null) return existing[0].sortOrder - 1
+  const i = existing.findIndex((m) => m._id === after)
+  if (i === -1) throw new Error('No such milestone')
+  const next = existing.at(i + 1)
+  return next === undefined
+    ? existing[i].sortOrder + 1
+    : (existing[i].sortOrder + next.sortOrder) / 2
+}
+
 export const create = mutation({
   args: {
     goalId: v.id('goals'),
     title: v.string(),
     dueDate: v.optional(v.string()),
     dueTime: v.optional(v.string()),
+    /* Where on the line (24 Sep: a + between any two steps). A milestone
+       id puts it right after that step; null puts it first; absent puts it
+       last, which is what adding always did. */
+    after: v.optional(v.union(v.id('milestones'), v.null())),
   },
   returns: v.id('milestones'),
   handler: async (ctx, args) => {
@@ -64,15 +88,13 @@ export const create = mutation({
     }
 
     const existing = await siblings(ctx, ownerId, args.goalId)
-    const last =
-      existing.length === 0 ? -1 : existing[existing.length - 1].sortOrder
     return await ctx.db.insert('milestones', {
       ownerId,
       goalId: args.goalId,
       title,
       dueDate: args.dueDate,
       dueTime: args.dueTime,
-      sortOrder: last + 1,
+      sortOrder: sortOrderAt(existing, args.after),
     })
   },
 })

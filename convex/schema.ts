@@ -409,6 +409,9 @@ export default defineSchema({
     /* When the words last changed (24 Sep), for the list's "edited" line.
        Absent on a note never edited since — its creation time says it all. */
     updatedAt: v.optional(v.number()),
+    /* Put away, not deleted (24 Sep): out of the list, still found by
+       search, back with one tap from the Archived tab. */
+    archivedAt: v.optional(v.number()),
   })
     .index('by_owner_kind', ['ownerId', 'kind'])
     /* The notes on one project's page (R3). _creationTime is the implicit last

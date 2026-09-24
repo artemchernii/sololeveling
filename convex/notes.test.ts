@@ -222,3 +222,72 @@ describe('the list row', () => {
     })
   })
 })
+
+/* 24 Sep: archive and bulk delete from the list. */
+describe('archive and delete several', () => {
+  test('archived leaves the list and appears under Archived, and back', async () => {
+    const t = as(ME)
+    await t.mutation(api.notes.create, { title: 'Keep' })
+    const b = await t.mutation(api.notes.create, { title: 'Put away' })
+
+    await t.mutation(api.notes.setArchived, { noteIds: [b], archived: true })
+    expect((await t.query(api.notes.list, {})).map((n) => n.title)).toEqual([
+      'Keep',
+    ])
+    expect(
+      (await t.query(api.notes.list, { archived: true })).map((n) => n.title),
+    ).toEqual(['Put away'])
+
+    await t.mutation(api.notes.setArchived, { noteIds: [b], archived: false })
+    expect(await t.query(api.notes.list, {})).toHaveLength(2)
+    expect(await t.query(api.notes.list, { archived: true })).toHaveLength(0)
+  })
+
+  test('an archived note leaves its project page too', async () => {
+    const t = as(ME)
+    const projectId = await t.mutation(api.projects.create, { title: 'Oreum' })
+    const noteId = await t.mutation(api.notes.create, {
+      title: 'Old',
+      projectId,
+    })
+    await t.mutation(api.notes.setArchived, {
+      noteIds: [noteId],
+      archived: true,
+    })
+    expect(await t.query(api.notes.listByProject, { projectId })).toHaveLength(
+      0,
+    )
+  })
+
+  test('deletes several at once', async () => {
+    const t = as(ME)
+    const ids = [
+      await t.mutation(api.notes.create, { title: 'One' }),
+      await t.mutation(api.notes.create, { title: 'Two' }),
+      await t.mutation(api.notes.create, { title: 'Three' }),
+    ]
+    await t.mutation(api.notes.removeMany, { noteIds: ids.slice(0, 2) })
+    expect((await t.query(api.notes.list, {})).map((n) => n.title)).toEqual([
+      'Three',
+    ])
+  })
+
+  test("one note of someone else's refuses the whole batch", async () => {
+    const { mine, theirs } = twoOwners()
+    const my = await mine.mutation(api.notes.create, { title: 'Mine' })
+    const their = await theirs.mutation(api.notes.create, { title: 'Theirs' })
+
+    await expect(
+      mine.mutation(api.notes.removeMany, { noteIds: [my, their] }),
+    ).rejects.toThrow('No such note')
+    await expect(
+      mine.mutation(api.notes.setArchived, {
+        noteIds: [my, their],
+        archived: true,
+      }),
+    ).rejects.toThrow('No such note')
+    /* Nothing half-done: mine is still here and not archived. */
+    expect(await mine.query(api.notes.list, {})).toHaveLength(1)
+    expect(await theirs.query(api.notes.list, {})).toHaveLength(1)
+  })
+})

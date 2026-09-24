@@ -60,8 +60,12 @@ export function GoalTimeline({
   carry = null,
   onPlace,
   onCancelCarry,
+  finale = false,
 }: {
   goal: Doc<'goals'>
+  /** The goal is being reached (GoalCard's hold): the line runs into the
+      goal and it bursts. */
+  finale?: boolean
   carry?: Carry | null
   /** A + was chosen for the task in hand: after that step, on that date. */
   onPlace?: (after: Id<'milestones'> | null, dueDate?: string) => void
@@ -133,6 +137,7 @@ export function GoalTimeline({
     today,
     born: born.current,
     moment,
+    finale,
     onToggle: toggle,
     onAdd: (gap: number, anchor: HTMLElement) => {
       if (carry && onPlace) onPlace(afterFor(nodes, gap), gapDate(nodes, gap))
@@ -240,6 +245,7 @@ type Shared = {
   today: string
   born: Set<string>
   moment: Moment | null
+  finale: boolean
   onToggle: (node: Milestone) => void
   onAdd: (gap: number, anchor: HTMLElement) => void
   gapAttrs: (gap: number) => Record<string, string>
@@ -250,11 +256,17 @@ function keyOf(node: TimelineNode): string {
   return node.kind === 'milestone' ? node.id : node.kind
 }
 
-/* The segment into a node is filled once that node is a reached step. The
-   segment into the goal never fills here — reaching the goal is its own act,
-   on the card. */
-function segmentFilled(nodes: Array<TimelineNode>, gap: number): boolean {
+/* The segment into a node is filled once that node is a reached step.
+   The segment into the goal fills only as the goal itself is reached — on
+   the card, with a hold — and steps never reached stay hollow even then:
+   the line shows what happened, not a flourish. */
+function segmentFilled(
+  nodes: Array<TimelineNode>,
+  gap: number,
+  finale: boolean,
+): boolean {
   const right = nodes[gap + 1]
+  if (right.kind === 'end') return finale
   return right.kind === 'milestone' && right.state === 'reached'
 }
 
@@ -265,6 +277,7 @@ function Line({
   today,
   born,
   moment,
+  finale,
   onToggle,
   onAdd,
   onEdit,
@@ -352,7 +365,7 @@ function Line({
                 top: LINE_Y - 0.5,
                 left: layout.xs[i],
                 width: layout.xs[i + 1] - layout.xs[i],
-                transform: `scaleX(${segmentFilled(nodes, i) ? 1 : 0})`,
+                transform: `scaleX(${segmentFilled(nodes, i, finale) ? 1 : 0})`,
                 transition: `transform var(--motion-linger) var(--motion-ease), left var(--motion-base) var(--motion-ease), width var(--motion-base) var(--motion-ease)`,
                 boxShadow: '0 0 10px -1px var(--area)',
               }}
@@ -441,6 +454,7 @@ function Line({
                 node={node}
                 born={born}
                 moment={moment}
+                finale={finale}
                 onToggle={onToggle}
                 className="mt-[24px]"
               />
@@ -496,6 +510,7 @@ function List({
   today,
   born,
   moment,
+  finale,
   onToggle,
   onAdd,
   onEdit,
@@ -516,10 +531,11 @@ function List({
                 node={node}
                 born={born}
                 moment={moment}
+                finale={finale}
                 onToggle={onToggle}
               />
               {i < nodes.length - 1 ? (
-                <Rail filled={segmentFilled(nodes, i)} />
+                <Rail filled={segmentFilled(nodes, i, finale)} />
               ) : null}
             </div>
             <div className="min-w-0 flex-1 pb-2">
@@ -531,7 +547,7 @@ function List({
             <div className="flex min-h-9 items-stretch gap-3">
               <div className="relative grid w-[24px] shrink-0 place-items-center">
                 <span className="absolute inset-y-0 flex">
-                  <Rail filled={segmentFilled(nodes, i)} late />
+                  <Rail filled={segmentFilled(nodes, i, finale)} late />
                 </span>
                 <button
                   type="button"
@@ -596,45 +612,102 @@ function DotSlot({
   node,
   born,
   moment,
+  finale,
   onToggle,
   className = '',
 }: {
   node: TimelineNode
   born: Set<string>
   moment: Moment | null
+  finale: boolean
   onToggle: (node: Milestone) => void
   className?: string
 }) {
   const id = node.kind === 'milestone' ? node.id : null
-  const now = id !== null && moment?.id === id ? moment.kind : null
+  const now =
+    node.kind === 'end' && finale
+      ? 'goal'
+      : id !== null && moment?.id === id
+        ? moment.kind
+        : null
   return (
     <div
       className={`relative ${className} ${id !== null && born.has(id) ? 'motion-step-born' : ''}`}
     >
       <Dot
         node={node}
-        reaching={now === 'reach' || now === 'finale'}
+        reaching={now === 'reach' || now === 'finale' || now === 'goal'}
         onToggle={onToggle}
       />
-      {now ? <Burst key={now} kind={now} /> : null}
+      {now === 'goal' ? (
+        <GoalBurst />
+      ) : now ? (
+        <Burst key={now} kind={now} />
+      ) : null}
     </div>
+  )
+}
+
+/* The goal's own burst is wider than the strip the line scrolls in, which
+   would clip it — so it is drawn over the page, at the ◆, in a portal that
+   carries the goal's colour with it. */
+function GoalBurst() {
+  const probe = useRef<HTMLSpanElement>(null)
+  const [at, setAt] = useState<CSSProperties | null>(null)
+  useLayoutEffect(() => {
+    const dot = probe.current?.parentElement
+    if (!dot) return
+    const r = dot.getBoundingClientRect()
+    /* The line and the phone list both draw a ◆; the hidden one has no
+       box, and a burst from it would go off in the page's corner. */
+    if (r.width === 0) return
+    setAt({
+      left: r.left,
+      top: r.top,
+      width: r.width,
+      height: r.height,
+      ['--area' as string]: getComputedStyle(dot).getPropertyValue('--area'),
+    })
+  }, [])
+  return (
+    <span ref={probe} aria-hidden>
+      {at
+        ? createPortal(
+            <span
+              style={at}
+              className="pointer-events-none fixed z-50"
+              aria-hidden
+            >
+              <Burst kind="goal" />
+            </span>,
+            document.body,
+          )
+        : null}
+    </span>
   )
 }
 
 /* Sparks out of a dot. The finale — the reach that leaves nothing
    unreached — throws twice as many, twice as far, in the goal's colour and
    lavender both. */
-function Burst({ kind }: { kind: Moment['kind'] }) {
-  const finale = kind === 'finale'
-  const count = finale ? 16 : kind === 'born' ? 10 : 8
-  const reach = finale ? 44 : kind === 'born' ? 26 : 22
+function Burst({ kind }: { kind: Moment['kind'] | 'goal' }) {
+  /* The goal itself: the biggest there is, in three colours — the goal's,
+     lavender, and the state colour for a thing that went well. */
+  const goal = kind === 'goal'
+  const finale = kind === 'finale' || goal
+  const count = goal ? 28 : kind === 'finale' ? 16 : kind === 'born' ? 10 : 8
+  const reach = goal ? 70 : kind === 'finale' ? 44 : kind === 'born' ? 26 : 22
   return (
     <span aria-hidden className="pointer-events-none absolute inset-0">
       {Array.from({ length: count }, (_, i) => (
         <span
           key={i}
           className={`motion-spark absolute top-1/2 left-1/2 rounded-full ${
-            finale && i % 2 === 1 ? 'bg-lav-200' : 'bg-(--area)'
+            goal && i % 3 === 2
+              ? 'bg-state-good'
+              : finale && i % 2 === 1
+                ? 'bg-lav-200'
+                : 'bg-(--area)'
           } ${i % 3 === 0 ? 'size-[5px]' : 'size-[3px]'}`}
           style={
             {
@@ -672,7 +745,19 @@ function Dot({
   if (node.kind === 'end') {
     return (
       <span
-        className={`${base} bg-background text-(--area) ring-1 ring-(--area)/50`}
+        style={
+          reaching
+            ? {
+                animation:
+                  'pop var(--motion-base) var(--motion-ease) both, pulse-once var(--motion-linger) var(--motion-ease) both',
+              }
+            : undefined
+        }
+        className={`${base} transition-colors ${
+          reaching
+            ? 'bg-(--area) text-background shadow-[0_0_18px_var(--area)]'
+            : 'bg-background text-(--area) ring-1 ring-(--area)/50'
+        }`}
       >
         ◆
       </span>

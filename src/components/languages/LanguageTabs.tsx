@@ -31,7 +31,7 @@ export function LanguageTabs() {
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="relative z-30 flex flex-wrap items-center gap-2">
         {languages.map((a) => {
           const on = a.slug === active?.slug
           const lang = languageByCode(a.lang)
@@ -187,8 +187,11 @@ function AddLanguage({
         <Plus className="size-3.5" />
         Add language
       </button>
+      {/* glass-modal, not glass-menu: the menu drops over the hero's 40px
+          name, and glass-menu's 55% ground let "Português" read straight
+          through it (25 Sep) — the same fix EventDialog got. */}
       {open ? (
-        <div className="glass-menu motion-arrive absolute top-full left-0 z-30 mt-2 grid w-64 grid-cols-1 gap-0.5 rounded-[16px] p-1.5">
+        <div className="glass-modal motion-arrive absolute top-full left-0 z-40 mt-2 grid w-64 grid-cols-1 gap-0.5 rounded-[16px] p-1.5">
           {offer.map((l) => (
             <button
               key={l.code}

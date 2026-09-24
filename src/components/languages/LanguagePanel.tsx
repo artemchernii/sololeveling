@@ -110,8 +110,8 @@ export function LanguagePanel({
    and Portuguese title. I wanted to combine it with consistency. Make it
    cool — I'm a big hater of boring slop."
 
-   🇵🇹 Português, big, over a huge faded flag and a glow of the language's
-   colour, with a sweep of light on arrival. Beside the name, the level. Then
+   🇵🇹 Português, big, over a photo of the place fading in from the right and
+   a glow of the language's colour, with a sweep of light on arrival. Beside the name, the level. Then
    each kind of session as the number of days it happened in the last 30 —
    `activeRecent` from aggregate.categoryDays, the figure the strip row
    already carried — and the twelve weeks of days under them. */
@@ -144,14 +144,29 @@ function Header({
       style={areaVars(slug)}
       className="glass motion-arrive relative flex flex-col gap-6 overflow-hidden rounded-[26px] p-5 sm:p-7"
     >
-      {/* The flag again, huge and faint, off the right edge. */}
+      {/* The place itself (25 Sep, his photos): filling the right of the
+          card and fading into the glass, so the name and the numbers stay
+          on the ground and the picture sits behind them. */}
       {language ? (
-        <span
+        <img
+          src={language.photo}
+          alt=""
           aria-hidden
-          className="pointer-events-none absolute -top-14 -right-10 rotate-[-12deg] text-[260px] leading-none opacity-[0.13] blur-[1px] select-none"
-        >
-          {language.flag}
-        </span>
+          decoding="async"
+          style={{
+            objectPosition: language.focus,
+            /* Faded to the left (under the name) and to the bottom (under
+               the strip), both at once — so the picture owns the top right
+               and every number sits on plain glass. */
+            maskImage:
+              'linear-gradient(to left, black 35%, transparent 95%), linear-gradient(to bottom, black 45%, transparent 85%)',
+            WebkitMaskImage:
+              'linear-gradient(to left, black 35%, transparent 95%), linear-gradient(to bottom, black 45%, transparent 85%)',
+            maskComposite: 'intersect',
+            WebkitMaskComposite: 'source-in',
+          }}
+          className="motion-fade pointer-events-none absolute inset-y-0 right-0 h-full w-full object-cover opacity-45 select-none sm:w-[64%] sm:opacity-80"
+        />
       ) : null}
       <span
         aria-hidden

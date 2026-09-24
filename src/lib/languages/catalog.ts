@@ -17,14 +17,43 @@ export type Language = {
   /** What it calls itself. */
   native: string
   flag: string
+  /** A photo of the place, in public/languages (25 Sep, his pictures). */
+  photo: string
+  /** Where the photo's subject sits — the CSS object-position that keeps
+      it in view when the card crops it. */
+  focus: string
 }
 
 /* Three, his call (25 Sep): "for now Portuguese, English and German … we
    don't care about Brazil". Adding one is a line here and a path file. */
 export const LANGUAGES: ReadonlyArray<Language> = [
-  { code: 'pt-PT', name: 'Portuguese', native: 'Português', flag: '🇵🇹' },
-  { code: 'en', name: 'English', native: 'English', flag: '🇬🇧' },
-  { code: 'de', name: 'German', native: 'Deutsch', flag: '🇩🇪' },
+  {
+    code: 'pt-PT',
+    name: 'Portuguese',
+    native: 'Português',
+    flag: '🇵🇹',
+    /* The yellow elevador climbing to the Tejo. */
+    photo: '/languages/pt-PT.jpg',
+    focus: '50% 92%',
+  },
+  {
+    code: 'en',
+    name: 'English',
+    native: 'English',
+    flag: '🇬🇧',
+    /* Big Ben's clock face. */
+    photo: '/languages/en.jpg',
+    focus: '50% 66%',
+  },
+  {
+    code: 'de',
+    name: 'German',
+    native: 'Deutsch',
+    flag: '🇩🇪',
+    /* The flag over the Reichstag. */
+    photo: '/languages/de.jpg',
+    focus: '30% 40%',
+  },
 ]
 
 export function languageByCode(code: string | undefined): Language | undefined {

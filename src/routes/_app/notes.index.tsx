@@ -131,7 +131,9 @@ function Notes() {
   }
 
   return (
-    <div className="flex flex-col gap-[18px]">
+    /* In Select mode the bar sits over the bottom of the list; the extra
+       room lets the last row scroll clear of it. */
+    <div className={`flex flex-col gap-[18px] ${selecting ? 'pb-20' : ''}`}>
       <PageTitle
         title="Notes"
         subtitle="Written down, and counted towards nothing."
@@ -322,7 +324,11 @@ function Notes() {
             : 'Nothing here yet. Write the first line above; the rest can wait.'}
         </p>
       ) : (
-        <div className={`glass flex flex-col rounded-[22px] p-2 ${arrived}`}>
+        /* A little air between rows (24 Sep): ticked rows are filled, and
+           touching fills read as one block. */
+        <div
+          className={`glass flex flex-col gap-1 rounded-[22px] p-2 ${arrived}`}
+        >
           {notes.map((note) => (
             <NoteRow
               key={note._id}

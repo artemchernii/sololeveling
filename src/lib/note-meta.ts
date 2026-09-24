@@ -51,3 +51,50 @@ export function whenLabel(ms: number, now: number): string {
 export function wasEdited(created: number, updated: number | undefined) {
   return updated !== undefined && updated - created > 5 * MIN
 }
+
+export type NoteSort = 'new' | 'edited' | 'az'
+
+type Sortable = {
+  title: string
+  _creationTime: number
+  updatedAt?: number
+}
+
+/**
+ * The list in the order asked for (24 Sep). Newest is creation time;
+ * Edited is the last change to the words, or creation if never edited; A–Z
+ * ignores case and accents, so "Голiння" and "гоління" sit together.
+ */
+export function sortNotes<T extends Sortable>(
+  notes: Array<T>,
+  sort: NoteSort,
+): Array<T> {
+  const copy = [...notes]
+  if (sort === 'az') {
+    return copy.sort((a, b) =>
+      a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }),
+    )
+  }
+  const at = (n: T) =>
+    sort === 'edited' ? (n.updatedAt ?? n._creationTime) : n._creationTime
+  return copy.sort((a, b) => at(b) - at(a))
+}
+
+function fold(text: string): string {
+  return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+}
+
+/**
+ * Whether a note matches what is typed in the list's search box: every word
+ * appears somewhere in its title or body, in any order, ignoring case and
+ * accents. An empty box matches everything.
+ */
+export function matchesQuery(
+  note: { title: string; body: string },
+  query: string,
+): boolean {
+  const words = fold(query).split(/\s+/).filter(Boolean)
+  if (words.length === 0) return true
+  const haystack = fold(`${note.title}\n${note.body}`)
+  return words.every((w) => haystack.includes(w))
+}

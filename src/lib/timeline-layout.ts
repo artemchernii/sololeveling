@@ -146,3 +146,37 @@ export function midDate(a?: string, b?: string): string | undefined {
   const day = Math.round((dayNumber(a) + dayNumber(b)) / 2)
   return new Date(day * DAY).toISOString().slice(0, 10)
 }
+
+/** The first-guess date for a step added in gap `i` — between node i and
+    node i+1 — taken from the nearest dated node on each side, so a gap next
+    to an undated step still gets a sensible day. Undefined when one side has
+    nothing dated. */
+export function gapDate(
+  nodes: Array<TimelineNode>,
+  i: number,
+): string | undefined {
+  let a: string | undefined
+  for (let j = i; j >= 0 && a === undefined; j -= 1) a = dateOf(nodes[j])
+  let b: string | undefined
+  for (let j = i + 1; j < nodes.length && b === undefined; j += 1)
+    b = dateOf(nodes[j])
+  return midDate(a, b)
+}
+
+/** Which gap today falls in on the phone's list: the index of the node it
+    sits just before, so the "today" line is drawn above that node. Null in
+    the same cases the line has no today mark — no deadline, or the goal has
+    not begun; `nodes.length` once the deadline has passed. */
+export function todayBefore(
+  nodes: Array<TimelineNode>,
+  today: string,
+): number | null {
+  const start = dateOf(nodes[0])!
+  const deadline = dateOf(nodes[nodes.length - 1])
+  if (deadline === undefined || today < start) return null
+  for (let i = 1; i < nodes.length; i += 1) {
+    const iso = dateOf(nodes[i])
+    if (iso !== undefined && iso > today) return i
+  }
+  return nodes.length
+}

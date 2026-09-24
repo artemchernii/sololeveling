@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest'
 
-import { layoutTimeline, midDate } from './timeline-layout'
+import {
+  gapDate,
+  layoutTimeline,
+  midDate,
+  todayBefore,
+} from './timeline-layout'
 import type { TimelineNode } from './goal-timeline'
 
 const opts = { width: 1000, minStep: 100, pad: 50, today: '2026-09-10' }
@@ -85,5 +90,49 @@ describe('midDate', () => {
   test('halfway, or nothing when a side has no date', () => {
     expect(midDate('2026-09-01', '2026-09-11')).toBe('2026-09-06')
     expect(midDate('2026-09-01', undefined)).toBeUndefined()
+  })
+})
+
+describe('gapDate', () => {
+  test('halfway between the two sides of the gap', () => {
+    expect(gapDate([start, end('2026-09-21')], 0)).toBe('2026-09-11')
+  })
+
+  test('reaches past an undated step to the nearest date', () => {
+    const nodes = [start, step(), step('2026-09-11'), end('2026-10-01')]
+    /* Gap 1 sits between the undated step and 11 Sep: 1 Sep .. 11 Sep. */
+    expect(gapDate(nodes, 1)).toBe('2026-09-06')
+  })
+
+  test('no deadline and nothing dated after: no guess', () => {
+    expect(gapDate([start, step(), end()], 1)).toBeUndefined()
+  })
+})
+
+describe('todayBefore', () => {
+  test('above the first step still ahead of today', () => {
+    const nodes = [
+      start,
+      step('2026-09-05'),
+      step('2026-09-20'),
+      end('2026-10-01'),
+    ]
+    expect(todayBefore(nodes, '2026-09-10')).toBe(2)
+  })
+
+  test('a step due today is not ahead of it', () => {
+    const nodes = [start, step('2026-09-10'), end('2026-10-01')]
+    expect(todayBefore(nodes, '2026-09-10')).toBe(2)
+  })
+
+  test('past the deadline: after the goal', () => {
+    expect(todayBefore([start, end('2026-09-05')], '2026-09-10')).toBe(2)
+  })
+
+  test('no deadline, or not begun: no line', () => {
+    expect(
+      todayBefore([start, step('2026-09-20'), end()], '2026-09-10'),
+    ).toBeNull()
+    expect(todayBefore([start, end('2026-10-01')], '2026-08-01')).toBeNull()
   })
 })

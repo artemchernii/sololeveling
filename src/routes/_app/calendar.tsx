@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
@@ -27,7 +27,13 @@ export const Route = createFileRoute('/_app/calendar')({
    row becomes however many occurrences fall inside these seven days (§3b.6),
    so paging forward a year costs the same read as paging forward a day. */
 function Calendar() {
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
+  /* Any day in the period on screen. A phone shows that one day, since
+     seven columns at 375px left "O…" for "Office work" (24 Sep); anything
+     wider shows its week. */
+  const [focus, setFocus] = useState(() => new Date())
+  const narrow = useNarrow()
+  const span = narrow ? 1 : 7
+  const weekStart = narrow ? dayStart(focus) : startOfWeek(focus)
   const [editing, setEditing] = useState<Doc<'events'> | undefined>(undefined)
   const [creatingAt, setCreatingAt] = useState<{
     startsAt: number
@@ -39,7 +45,7 @@ function Calendar() {
   const updateEvent = useMutation(api.events.update)
   const setSchedule = useMutation(api.tasks.setSchedule)
 
-  const weekEnd = addDays(weekStart, 7)
+  const weekEnd = addDays(weekStart, span)
   const range = { from: weekStart.getTime(), to: weekEnd.getTime() }
 
   /* Held only on the first load: paging to another week keeps the grid on
@@ -162,39 +168,49 @@ function Calendar() {
         <PageTitle
           title="Calendar"
           subtitle={
-            <>
-              {weekStart.toLocaleDateString(undefined, {
+            narrow ? (
+              weekStart.toLocaleDateString(undefined, {
+                weekday: 'long',
                 day: 'numeric',
                 month: 'short',
-              })}
-              {' — '}
-              {addDays(weekStart, 6).toLocaleDateString(undefined, {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              })}
-            </>
+              })
+            ) : (
+              <>
+                {weekStart.toLocaleDateString(undefined, {
+                  day: 'numeric',
+                  month: 'short',
+                })}
+                {' — '}
+                {addDays(weekStart, 6).toLocaleDateString(undefined, {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </>
+            )
           }
         />
 
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setWeekStart(addDays(weekStart, -7))}
+            aria-label={narrow ? 'Previous day' : 'Previous week'}
+            onClick={() => setFocus(addDays(weekStart, -span))}
             className="rounded-[7px] bg-lift/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-lift/10"
           >
             ←
           </button>
           <button
             type="button"
-            onClick={() => setWeekStart(startOfWeek(new Date()))}
+            onClick={() => setFocus(new Date())}
             className="rounded-[7px] bg-lift/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-lift/10"
           >
-            This week
+            {narrow ? 'Today' : 'This week'}
           </button>
           <button
             type="button"
-            onClick={() => setWeekStart(addDays(weekStart, 7))}
+            aria-label={narrow ? 'Next day' : 'Next week'}
+            onClick={() => setFocus(addDays(weekStart, span))}
             className="rounded-[7px] bg-lift/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-lift/10"
           >
             →
@@ -211,11 +227,14 @@ function Calendar() {
           /* The empty state is the screen this app opens on for a while, so
                it says what to do rather than that there is nothing. */
           <p className="text-[13px] text-ink-500">
-            Nothing this week. Click an hour to put something in it.
+            {narrow
+              ? 'Nothing on this day. Tap an hour to put something in it.'
+              : 'Nothing this week. Click an hour, or drag across one, to put something in it.'}
           </p>
         ) : null}
         <WeekGrid
           weekStart={weekStart}
+          dayCount={span}
           items={items}
           onSelect={openItem}
           onDrop={drop}
@@ -251,4 +270,25 @@ function clock(ms: number): string {
     minute: '2-digit',
     hourCycle: 'h23',
   })
+}
+
+function dayStart(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+/* Below Tailwind's md, where the sidebar turns into the bottom nav. Read
+   from the browser, and false on the server so the first paint is the week. */
+const NARROW = '(max-width: 767px)'
+function useNarrow(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(NARROW)
+      mq.addEventListener('change', onChange)
+      return () => mq.removeEventListener('change', onChange)
+    },
+    () => window.matchMedia(NARROW).matches,
+    () => false,
+  )
 }

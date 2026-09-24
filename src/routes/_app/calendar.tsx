@@ -1,4 +1,4 @@
-import { useCallback, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
@@ -42,6 +42,16 @@ function Calendar() {
   const [undoable, setUndoable] = useState<Undoable | null>(null)
   const navigate = useNavigate()
   const clearUndo = useCallback(() => setUndoable(null), [])
+  /* The event just made in the dialog, while it arrives on the grid. */
+  const [fresh, setFresh] = useState<{
+    eventId: string
+    phase: 'waiting' | 'landed'
+  } | null>(null)
+  useEffect(() => {
+    if (fresh?.phase !== 'landed') return
+    const t = window.setTimeout(() => setFresh(null), 1600)
+    return () => window.clearTimeout(t)
+  }, [fresh])
   const updateEvent = useMutation(api.events.update)
   const setSchedule = useMutation(api.tasks.setSchedule)
 
@@ -238,6 +248,7 @@ function Calendar() {
           items={items}
           onSelect={openItem}
           onDrop={drop}
+          fresh={fresh}
           projectName={(id) => projectTitles.get(id as Doc<'projects'>['_id'])}
           onCreateAt={(startsAt, endsAt) => {
             setEditing(undefined)
@@ -257,6 +268,7 @@ function Calendar() {
           setEditing(undefined)
           setCreatingAt(null)
         }}
+        onCreated={(eventId, phase) => setFresh({ eventId, phase })}
       />
     </div>
   )

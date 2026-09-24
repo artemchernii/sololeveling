@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
@@ -52,6 +52,7 @@ export function EventDialog({
   startsAt,
   endsAt,
   onClose,
+  onCreated,
 }: {
   open: boolean
   /** The series being edited, or undefined when creating. */
@@ -61,8 +62,13 @@ export function EventDialog({
   /** Where a drag across empty time ended; an hour after the start if not. */
   endsAt?: number
   onClose: () => void
+  /** A new event was written ('waiting': the dialog is still showing its
+      tick) and then seen ('landed': the dialog has closed) — so the grid
+      can hold the block back and then play its arrival in the open. */
+  onCreated?: (eventId: string, phase: 'waiting' | 'landed') => void
 }) {
   const create = useMutation(api.events.create)
+  const created = useRef<string | null>(null)
   const update = useMutation(api.events.update)
   const remove = useMutation(api.events.remove)
 
@@ -166,7 +172,7 @@ export function EventDialog({
             remindMin: remindMin ?? null,
           })
         } else {
-          await create({
+          created.current = await create({
             title: trimmed,
             startsAt: startsMs,
             endsAt: endsMs,
@@ -176,6 +182,7 @@ export function EventDialog({
             goalId: goal,
             remindMin,
           })
+          onCreated?.(created.current, 'waiting')
         }
       })
     } catch (e) {
@@ -420,6 +427,10 @@ export function EventDialog({
                   onSettled={() => {
                     saving.settle()
                     onClose()
+                    if (created.current) {
+                      onCreated?.(created.current, 'landed')
+                      created.current = null
+                    }
                   }}
                 >
                   Save

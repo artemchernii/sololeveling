@@ -17,6 +17,8 @@ export type TimelineItem = {
   startsAt: number
   durationMin?: number
   area?: Area
+  /** R5: the project a block belongs to, so the grid can name it. */
+  projectId?: string
 }
 
 /** The shape a milestone reaches the timeline in (convex/schema.ts). */
@@ -40,6 +42,7 @@ export function taskToTimelineItem(task: Doc<'tasks'>): TimelineItem | null {
     startsAt: task.scheduledAt,
     durationMin: task.durationMin,
     area: task.area,
+    projectId: task.projectId,
   }
 }
 
@@ -58,6 +61,7 @@ export function occurrenceToTimelineItem(
        lengths, so this is where the two vocabularies meet. */
     durationMin: Math.round((occurrence.endsAt - occurrence.startsAt) / 60_000),
     area: event.area,
+    projectId: event.projectId,
   }
 }
 

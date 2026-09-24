@@ -2,6 +2,8 @@ import { v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { requireLiveArea } from './areas'
+import { ownedGoal } from './goals'
+import { ownedProject } from './projects'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
@@ -38,6 +40,28 @@ function assertSaneTimes(startsAt: number, endsAt: number) {
   }
 }
 
+/* A reminder is minutes before the start. Negative would be "after it began",
+   which is not a reminder; a day is the most anything here needs. */
+function assertSaneReminder(remindMin: number | undefined) {
+  if (remindMin === undefined) return
+  if (!Number.isInteger(remindMin) || remindMin < 0 || remindMin > 24 * 60) {
+    throw new Error('A reminder is 0 to 1440 minutes before the start')
+  }
+}
+
+/** A binding is only to a project or goal of your own (R5). */
+async function assertOwnBindings(
+  ctx: MutationCtx,
+  ownerId: string,
+  bindings: {
+    projectId?: Id<'projects'> | null
+    goalId?: Id<'goals'> | null
+  },
+) {
+  if (bindings.projectId) await ownedProject(ctx, ownerId, bindings.projectId)
+  if (bindings.goalId) await ownedGoal(ctx, ownerId, bindings.goalId)
+}
+
 export const create = mutation({
   args: {
     title: v.string(),
@@ -45,8 +69,10 @@ export const create = mutation({
     endsAt: v.number(),
     area: v.optional(areaSlug),
     projectId: v.optional(v.id('projects')),
+    goalId: v.optional(v.id('goals')),
     rrule: v.optional(v.string()),
     notes: v.optional(v.string()),
+    remindMin: v.optional(v.number()),
   },
   returns: v.id('events'),
   handler: async (ctx, args) => {
@@ -55,12 +81,14 @@ export const create = mutation({
     if (args.area !== undefined) {
       await requireLiveArea(ctx, ownerId, args.area)
     }
+    await assertOwnBindings(ctx, ownerId, args)
 
     const title = args.title.trim()
     if (title.length === 0) {
       throw new Error('An event needs a title')
     }
     assertSaneTimes(args.startsAt, args.endsAt)
+    assertSaneReminder(args.remindMin)
 
     return await ctx.db.insert('events', {
       ownerId,
@@ -69,8 +97,10 @@ export const create = mutation({
       endsAt: args.endsAt,
       area: args.area,
       projectId: args.projectId,
+      goalId: args.goalId,
       rrule: args.rrule,
       notes: args.notes,
+      remindMin: args.remindMin,
     })
   },
 })
@@ -79,6 +109,10 @@ export const create = mutation({
  * Edits the whole series, which is the only granularity this phase has
  * (PLAN §3b.6). Moving one occurrence of a recurring event is deliberately not
  * possible yet: an occurrence has an id but no row to write to.
+ *
+ * An absent field is left alone; `null` clears it. Before R5 there was no way
+ * to say "none" — picking Once or no area in the dialog sent `undefined`, and
+ * the old rrule and area quietly stayed.
  */
 export const update = mutation({
   args: {
@@ -86,19 +120,22 @@ export const update = mutation({
     title: v.optional(v.string()),
     startsAt: v.optional(v.number()),
     endsAt: v.optional(v.number()),
-    area: v.optional(areaSlug),
-    projectId: v.optional(v.id('projects')),
-    rrule: v.optional(v.string()),
+    area: v.optional(v.union(areaSlug, v.null())),
+    projectId: v.optional(v.union(v.id('projects'), v.null())),
+    goalId: v.optional(v.union(v.id('goals'), v.null())),
+    rrule: v.optional(v.union(v.string(), v.null())),
     notes: v.optional(v.string()),
+    remindMin: v.optional(v.union(v.number(), v.null())),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
 
-    if (args.area !== undefined) {
+    if (args.area) {
       await requireLiveArea(ctx, ownerId, args.area)
     }
     const existing = await ownedEvent(ctx, ownerId, args.eventId)
+    await assertOwnBindings(ctx, ownerId, args)
 
     const title = args.title?.trim() ?? existing.title
     if (title.length === 0) {
@@ -108,15 +145,23 @@ export const update = mutation({
       args.startsAt ?? existing.startsAt,
       args.endsAt ?? existing.endsAt,
     )
+    assertSaneReminder(args.remindMin ?? undefined)
+
+    /* undefined → keep, null → clear, value → set. */
+    function pick<T>(next: T | null | undefined, kept: T | undefined) {
+      return next === undefined ? kept : (next ?? undefined)
+    }
 
     await ctx.db.patch(args.eventId, {
       title,
       startsAt: args.startsAt ?? existing.startsAt,
       endsAt: args.endsAt ?? existing.endsAt,
-      area: args.area ?? existing.area,
-      projectId: args.projectId ?? existing.projectId,
-      rrule: args.rrule ?? existing.rrule,
+      area: pick(args.area, existing.area),
+      projectId: pick(args.projectId, existing.projectId),
+      goalId: pick(args.goalId, existing.goalId),
+      rrule: pick(args.rrule, existing.rrule),
       notes: args.notes ?? existing.notes,
+      remindMin: pick(args.remindMin, existing.remindMin),
     })
     return null
   },

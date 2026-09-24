@@ -458,8 +458,8 @@ screen. Everything in 1–3 holds in both themes.
 
 ## 4. Phases
 
-**Shipped:** phases 0–6b (8–14 Sep), then R1, R2, R3 (a/b/c), R6, R4, R6b-a, R6b-b.
-**Next:** R5, then R7. Finances waits (below). Each row is one branch and one PR, with a
+**Shipped:** phases 0–6b (8–14 Sep), then R1, R2, R3 (a/b/c), R6, R4, R6b-a, R6b-b, R5.
+**Next:** R7. Finances waits (below). Each row is one branch and one PR, with a
 one-page spec under `docs/specs/` written when the previous row has shipped.
 
 | #    | Deliverable                                                                                                                                                                                                                                             | Done when                                                                                              |

@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useMutation } from 'convex/react'
+import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc } from '../../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { SaveLabel, useSave } from '@/components/Saving'
 import { useAreas } from '@/lib/areas'
+import { endFromTime, toTimeInput } from '@/lib/eventTimes'
+import { askToNotify } from '@/lib/reminders'
 
 /* Creating and editing an event. Series-level only, per PLAN §3b.6: an
    occurrence has an id but no row to write to, so "this Tuesday only" is not
@@ -19,6 +22,16 @@ const REPEATS = [
   { label: 'Every day', rrule: 'FREQ=DAILY' },
   { label: 'Weekdays', rrule: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR' },
   { label: 'Every week', rrule: 'FREQ=WEEKLY' },
+] as const
+
+/* R5. Minutes before the start; 0 is "at the start". A handful of choices,
+   like Repeats, because nobody wants a reminder 17 minutes early. */
+const REMINDERS = [
+  { label: 'None', min: undefined },
+  { label: 'At start', min: 0 },
+  { label: '10 min', min: 10 },
+  { label: '30 min', min: 30 },
+  { label: '1 hour', min: 60 },
 ] as const
 
 /** `2026-03-03T09:00` — what a datetime-local input speaks, in local time. */
@@ -51,7 +64,13 @@ export function EventDialog({
 
   const [title, setTitle] = useState('')
   const [start, setStart] = useState('')
-  const [durationMin, setDurationMin] = useState(60)
+  const [end, setEnd] = useState('')
+  const [projectId, setProjectId] = useState('')
+  const [goalId, setGoalId] = useState('')
+  const [remindMin, setRemindMin] = useState<number | undefined>(undefined)
+  const [notifyNote, setNotifyNote] = useState<string | null>(null)
+  const projects = useQuery(api.projects.listLive, {})
+  const goals = useQuery(api.goals.listActive, {})
   const areas = useAreas()
   const [area, setArea] = useState<string>('')
   const [rrule, setRrule] = useState<string | undefined>(undefined)
@@ -70,16 +89,23 @@ export function EventDialog({
     if (event) {
       setTitle(event.title)
       setStart(toLocalInput(event.startsAt))
-      setDurationMin(Math.round((event.endsAt - event.startsAt) / 60_000))
+      setEnd(toTimeInput(event.endsAt))
       setArea(event.area ?? '')
       setRrule(event.rrule)
+      setProjectId(event.projectId ?? '')
+      setGoalId(event.goalId ?? '')
+      setRemindMin(event.remindMin)
     } else {
       setTitle('')
       setStart(toLocalInput(startsAt))
-      setDurationMin(60)
+      setEnd(toTimeInput(startsAt + 60 * 60_000))
       setArea('')
       setRrule(undefined)
+      setProjectId('')
+      setGoalId('')
+      setRemindMin(undefined)
     }
+    setNotifyNote(null)
   }, [open, event, startsAt, saving.settle])
 
   useEffect(() => {
@@ -105,22 +131,47 @@ export function EventDialog({
       return
     }
 
-    const fields = {
-      title: trimmed,
-      startsAt: startsMs,
-      endsAt: startsMs + durationMin * 60_000,
-      area: area === '' ? undefined : area,
-      rrule,
+    const endsMs = endFromTime(startsMs, end)
+    if (endsMs === null) {
+      setError('That end time is not a time')
+      return
     }
+
+    /* The pickers list live projects and active goals only, so a binding to
+       one that has since been finished is not in them — and must survive an
+       edit rather than be cleared by it. The server checks it is yours. */
+    const project = projectId === '' ? undefined : (projectId as Id<'projects'>)
+    const goal = goalId === '' ? undefined : (goalId as Id<'goals'>)
     try {
       /* The dialog closes when the tick has been seen (onSettled below), not
          the instant the write lands — the event is already on the grid
          behind it by then. */
       await saving.run(async () => {
         if (event) {
-          await update({ eventId: event._id, ...fields })
+          /* null, not undefined, for "none": undefined means leave alone,
+             and picking Once used to keep the old repeat that way. */
+          await update({
+            eventId: event._id,
+            title: trimmed,
+            startsAt: startsMs,
+            endsAt: endsMs,
+            area: area === '' ? null : area,
+            rrule: rrule ?? null,
+            projectId: project ?? null,
+            goalId: goal ?? null,
+            remindMin: remindMin ?? null,
+          })
         } else {
-          await create(fields)
+          await create({
+            title: trimmed,
+            startsAt: startsMs,
+            endsAt: endsMs,
+            area: area === '' ? undefined : area,
+            rrule,
+            projectId: project,
+            goalId: goal,
+            remindMin,
+          })
         }
       })
     } catch (e) {
@@ -177,17 +228,33 @@ export function EventDialog({
               />
             </label>
             <label className="flex w-[110px] flex-col gap-1">
-              <span className="label-caps">Minutes</span>
+              <span className="label-caps">Ends</span>
               <input
-                type="number"
-                min={0}
-                step={5}
-                value={durationMin}
-                onChange={(e) => setDurationMin(Number(e.target.value))}
+                type="time"
+                step={300}
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
                 className="rounded-[7px] bg-lift/[0.05] px-3 py-2 font-mono text-[12px] text-foreground outline-none ring-1 ring-lift/10 focus:ring-lav-300/40"
               />
             </label>
           </div>
+          {(() => {
+            /* An end earlier than the start is the small hours of the next
+               day — a late session, not a mistake. Said, so it is not a
+               surprise on the grid. */
+            const s0 = fromLocalInput(start)
+            const e0 = Number.isFinite(s0) ? endFromTime(s0, end) : null
+            if (e0 === null || !Number.isFinite(s0)) return null
+            const mins = Math.round((e0 - s0) / 60_000)
+            const next = new Date(e0).getDate() !== new Date(s0).getDate()
+            return (
+              <p className="-mt-1 font-mono text-[11px] text-ink-600">
+                {Math.floor(mins / 60) > 0 ? `${Math.floor(mins / 60)}h ` : ''}
+                {mins % 60 > 0 || mins === 0 ? `${mins % 60}m` : ''}
+                {next ? ' · ends next day' : ''}
+              </p>
+            )
+          })()}
 
           <div className="flex flex-col gap-1">
             <span className="label-caps">Repeats</span>
@@ -231,6 +298,82 @@ export function EventDialog({
               ))}
             </select>
           </label>
+
+          <div className="flex gap-2">
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="label-caps">Project</span>
+              <select
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+                className="rounded-[7px] bg-lift/[0.05] px-3 py-2 text-[12.5px] text-foreground outline-none ring-1 ring-lift/10 focus:ring-lav-300/40"
+              >
+                <option value="">None</option>
+                {projectId !== '' &&
+                projects !== undefined &&
+                !projects.some((p) => p._id === projectId) ? (
+                  <option value={projectId}>A finished project</option>
+                ) : null}
+                {(projects ?? []).map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="label-caps">Goal</span>
+              <select
+                value={goalId}
+                onChange={(e) => setGoalId(e.target.value)}
+                className="rounded-[7px] bg-lift/[0.05] px-3 py-2 text-[12.5px] text-foreground outline-none ring-1 ring-lift/10 focus:ring-lav-300/40"
+              >
+                <option value="">None</option>
+                {goalId !== '' &&
+                goals !== undefined &&
+                !goals.some((g) => g._id === goalId) ? (
+                  <option value={goalId}>A finished goal</option>
+                ) : null}
+                {(goals ?? []).map((g) => (
+                  <option key={g._id} value={g._id}>
+                    {g.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="label-caps">Remind me</span>
+            <div className="flex flex-wrap gap-1.5">
+              {REMINDERS.map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => {
+                    setRemindMin(option.min)
+                    /* Asked here, on a tap, because browsers only let a page
+                       ask from one — and only once a reminder is wanted. */
+                    if (option.min !== undefined) {
+                      void askToNotify().then(setNotifyNote)
+                    } else {
+                      setNotifyNote(null)
+                    }
+                  }}
+                  className={[
+                    'rounded-[6px] px-2.5 py-1 text-[11.5px] transition-colors',
+                    remindMin === option.min
+                      ? 'bg-lav-300/20 text-foreground ring-1 ring-lav-300/40'
+                      : 'bg-lift/[0.05] text-ink-500 ring-1 ring-lift/10',
+                  ].join(' ')}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {notifyNote ? (
+              <p className="text-[11.5px] text-ink-600">{notifyNote}</p>
+            ) : null}
+          </div>
 
           {error ? (
             <p className="text-[12px] text-destructive">{error}</p>

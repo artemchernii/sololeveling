@@ -204,3 +204,123 @@ describe('what an event refuses', () => {
     ).resolves.toBeDefined()
   })
 })
+
+/* R5 — an event bound to a project and a goal, with a reminder, and fields
+   that can be cleared again. */
+describe('binding, reminders and clearing (R5)', () => {
+  async function eventWith(
+    t: ReturnType<typeof as>,
+    extra: Record<string, unknown> = {},
+  ) {
+    return await t.mutation(api.events.create, {
+      title: 'Gym',
+      startsAt: MARCH_3,
+      endsAt: MARCH_3 + HOUR,
+      ...extra,
+    })
+  }
+
+  async function read(t: ReturnType<typeof as>) {
+    const [row] = await t.query(api.events.listInRange, {
+      from: at(2026, 3, 2, 0),
+      to: at(2026, 3, 9, 0),
+    })
+    return row
+  }
+
+  test('binds to my project and my goal, and keeps a reminder', async () => {
+    const t = as(ME)
+    const projectId = await t.mutation(api.projects.create, { title: 'Oreum' })
+    const goalId = await t.mutation(api.goals.create, {
+      title: 'Strong',
+      area: 'body',
+    })
+    await eventWith(t, { projectId, goalId, remindMin: 10 })
+
+    const row = await read(t)
+    expect(row.projectId).toBe(projectId)
+    expect(row.goalId).toBe(goalId)
+    expect(row.remindMin).toBe(10)
+  })
+
+  test("refuses someone else's project", async () => {
+    const { mine, theirs } = twoOwners()
+    const theirProject = await theirs.mutation(api.projects.create, {
+      title: 'Theirs',
+    })
+    await expect(
+      mine.mutation(api.events.create, {
+        title: 'Gym',
+        startsAt: MARCH_3,
+        endsAt: MARCH_3 + HOUR,
+        projectId: theirProject,
+      }),
+    ).rejects.toThrow('No such project')
+  })
+
+  test("refuses someone else's goal, on update too", async () => {
+    const { mine, theirs } = twoOwners()
+    const theirGoal = await theirs.mutation(api.goals.create, {
+      title: 'Theirs',
+      area: 'body',
+    })
+    const eventId = await mine.mutation(api.events.create, {
+      title: 'Gym',
+      startsAt: MARCH_3,
+      endsAt: MARCH_3 + HOUR,
+    })
+    await expect(
+      mine.mutation(api.events.update, { eventId, goalId: theirGoal }),
+    ).rejects.toThrow('No such goal')
+  })
+
+  test('refuses a reminder after the start or beyond a day', async () => {
+    const t = as(ME)
+    await expect(eventWith(t, { remindMin: -5 })).rejects.toThrow('reminder')
+    await expect(eventWith(t, { remindMin: 2000 })).rejects.toThrow('reminder')
+  })
+
+  test('null clears a field; absent leaves it alone', async () => {
+    const t = as(ME)
+    const projectId = await t.mutation(api.projects.create, { title: 'Oreum' })
+    const eventId = await eventWith(t, {
+      projectId,
+      area: 'body',
+      rrule: 'FREQ=WEEKLY',
+      remindMin: 10,
+    })
+
+    await t.mutation(api.events.update, { eventId, title: 'Gym, legs' })
+    let row = await read(t)
+    expect(row.projectId).toBe(projectId)
+    expect(row.rrule).toBe('FREQ=WEEKLY')
+
+    await t.mutation(api.events.update, {
+      eventId,
+      projectId: null,
+      area: null,
+      rrule: null,
+      remindMin: null,
+    })
+    row = await read(t)
+    expect(row.projectId).toBeUndefined()
+    expect(row.area).toBeUndefined()
+    expect(row.rrule).toBeUndefined()
+    expect(row.remindMin).toBeUndefined()
+  })
+
+  test('a drag is a time-only update and touches nothing else', async () => {
+    const t = as(ME)
+    const eventId = await eventWith(t, { area: 'body', remindMin: 10 })
+    const nineFifteen = MARCH_3 + HOUR / 4
+    await t.mutation(api.events.update, {
+      eventId,
+      startsAt: nineFifteen,
+      endsAt: nineFifteen + HOUR,
+    })
+    const row = await read(t)
+    expect(row.startsAt).toBe(nineFifteen)
+    expect(row.area).toBe('body')
+    expect(row.remindMin).toBe(10)
+  })
+})

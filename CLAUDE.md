@@ -161,19 +161,31 @@ this project; these are the parts of it worth keeping.
 
 ## Where we are
 
-Every reply ends with a **Where we are** block. Artem is steering a seven-phase
-build across many sessions; without it he has to reconstruct the state of play
-from the middle of a technical answer.
+Every reply ends with this block. Artem is steering a long build across many
+sessions; without it he has to reconstruct the state of play from the middle
+of a technical answer. He chose the headings and the emojis (22 Sep) so the end
+of a turn is findable when he scrolls back — **🫪 is Artem, 🤖 is me.**
 
-The block is three lines, after the substance of the reply:
+After the substance of the reply, exactly this shape:
 
 ```
-**Where we are**
-- Just did — what changed, in one line
-- You — what needs Artem next: a decision, an account, a credential, a look at
-  a screen. Write "nothing" when the ball is entirely in my court.
-- Me — what I do next, once he says go
+### 📋 Summary
+<one or two plain sentences>
+
+### ✅ Just did
+<what changed, in one line>
+
+### 🫪 You
+<what Artem does next — a decision, an account, a look at a screen — ending
+with the exact short words to say, e.g. say "go". "Nothing" when the ball is
+entirely in my court.>
+
+### 🤖 Me
+<what I do next, once he says go>
 ```
+
+The phrase to say lives inside the 🫪 line. No separate closing paragraph or
+"do this now" line after the block — he called that bother.
 
 Keep it concrete: "create the Clerk JWT template named convex" rather than "set
 up auth". Where a step is blocked, name what it is waiting on.

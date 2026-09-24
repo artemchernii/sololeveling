@@ -160,6 +160,10 @@ export default defineSchema({
        read against. One active goal per tile — goals.setTileTarget keeps
        it that way. */
     tile: v.optional(tileValidator),
+    /* When it was called reached or dropped (24 Sep), so the shelf at the
+       bottom of Goals can say "reached Sep 24". Cleared on reopening. A
+       goal closed before this field existed has none, and says so. */
+    closedAt: v.optional(v.number()),
   })
     .index('by_owner_status', ['ownerId', 'status'])
     .index('by_owner_tile', ['ownerId', 'tile'])

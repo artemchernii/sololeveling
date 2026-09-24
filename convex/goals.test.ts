@@ -213,3 +213,68 @@ describe('a goal stands on its own, and can be edited', () => {
     ).rejects.toThrow('No such goal')
   })
 })
+
+describe('a closed goal is kept, dated, and can come back (24 Sep)', () => {
+  test('reaching stamps closedAt; reopening clears it', async () => {
+    const { t, mine } = twoOwners()
+    const goalId = await mine.mutation(api.goals.create, {
+      title: 'Run 10k',
+      area: 'body',
+    })
+    await mine.mutation(api.goals.setStatus, { goalId, status: 'done' })
+    let goal = await t.run((ctx) => ctx.db.get(goalId))
+    expect(goal?.closedAt).toBeTypeOf('number')
+
+    await mine.mutation(api.goals.setStatus, { goalId, status: 'active' })
+    goal = await t.run((ctx) => ctx.db.get(goalId))
+    expect(goal?.status).toBe('active')
+    expect(goal?.closedAt).toBeUndefined()
+  })
+
+  test('listClosed splits reached from dropped, newest first, without monthly targets', async () => {
+    const { mine } = twoOwners()
+    const a = await mine.mutation(api.goals.create, {
+      title: 'A',
+      area: 'body',
+    })
+    const b = await mine.mutation(api.goals.create, {
+      title: 'B',
+      area: 'body',
+    })
+    const c = await mine.mutation(api.goals.create, {
+      title: 'C',
+      area: 'body',
+    })
+    await mine.mutation(api.goals.create, {
+      title: 'Still going',
+      area: 'body',
+    })
+    await mine.mutation(api.goals.setStatus, { goalId: a, status: 'done' })
+    await new Promise((r) => setTimeout(r, 5))
+    await mine.mutation(api.goals.setStatus, { goalId: b, status: 'done' })
+    await mine.mutation(api.goals.setStatus, { goalId: c, status: 'dropped' })
+    await mine.mutation(api.goals.setTileTarget, {
+      tile: 'body',
+      targetValue: 12,
+    })
+    await mine.mutation(api.goals.clearTileTarget, { tile: 'body' })
+
+    const shelf = await mine.query(api.goals.listClosed, {})
+    expect(shelf.reached.map((g) => g.title)).toEqual(['B', 'A'])
+    expect(shelf.dropped.map((g) => g.title)).toEqual(['C'])
+  })
+
+  test("another owner's closed goals are not on my shelf", async () => {
+    const { mine, theirs } = twoOwners()
+    const goalId = await theirs.mutation(api.goals.create, {
+      title: 'Theirs',
+      area: 'body',
+    })
+    await theirs.mutation(api.goals.setStatus, { goalId, status: 'done' })
+    const shelf = await mine.query(api.goals.listClosed, {})
+    expect(shelf.reached).toHaveLength(0)
+    await expect(
+      mine.mutation(api.goals.setStatus, { goalId, status: 'active' }),
+    ).rejects.toThrow(/No such goal/)
+  })
+})

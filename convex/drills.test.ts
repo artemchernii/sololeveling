@@ -52,7 +52,11 @@ describe('drills — a routine is typed in, in order', () => {
   test('an empty name is refused', async () => {
     const { me } = world()
     await expect(
-      me.mutation(api.drills.create, { area: 'body', group: 'gym', title: ' ' }),
+      me.mutation(api.drills.create, {
+        area: 'body',
+        group: 'gym',
+        title: ' ',
+      }),
     ).rejects.toThrow('Give it a name')
   })
 
@@ -157,9 +161,9 @@ describe('drills.did — one tap, one exercise log, never a workout', () => {
       group: 'gym',
       title: 'Squat',
     })
-    await expect(them.mutation(api.drills.did, { drillId: id })).rejects.toThrow(
-      'No such drill',
-    )
+    await expect(
+      them.mutation(api.drills.did, { drillId: id }),
+    ).rejects.toThrow('No such drill')
     await me.mutation(api.drills.retire, { drillId: id })
     await expect(me.mutation(api.drills.did, { drillId: id })).rejects.toThrow(
       'off the list',
@@ -328,7 +332,10 @@ describe('goals.setWeightTarget — the dashed line on the Weight card', () => {
 
   test("a workouts target is not the weight goal, and another owner's is not mine", async () => {
     const { me, them } = world()
-    await me.mutation(api.goals.setTileTarget, { tile: 'body', targetValue: 12 })
+    await me.mutation(api.goals.setTileTarget, {
+      tile: 'body',
+      targetValue: 12,
+    })
     await them.mutation(api.goals.setWeightTarget, { targetValue: 90 })
     await me.mutation(api.goals.setWeightTarget, { targetValue: 72 })
     const goals = await me.query(api.goals.listActive, {})

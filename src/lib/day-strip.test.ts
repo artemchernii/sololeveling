@@ -1,12 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import {
-  blockLabels,
-  dayBlocks,
-  dayStartsBack,
-  isWeekend,
-  STRIP_WEEKS,
-} from './day-strip'
+import { blockLabels, dayBlocks, dayStartsBack, STRIP_WEEKS } from './day-strip'
 
 describe('dayStartsBack', () => {
   test('twelve weeks of local midnights, oldest first, ending today', () => {
@@ -46,32 +40,23 @@ describe('dayStartsBack', () => {
 })
 
 describe('dayBlocks', () => {
-  test('calendar weeks, Monday first, every day kept', () => {
-    /* 21 Sep 2026 is a Monday: twelve weeks back from it start on a Tuesday. */
+  test('groups of seven, oldest first, the last one whole', () => {
     const days = dayStartsBack(STRIP_WEEKS, new Date(2026, 8, 21))
     const blocks = dayBlocks(days)
-    expect(blocks.flat()).toEqual(days)
-    expect(blocks).toHaveLength(13)
-    expect(blocks[0]).toHaveLength(6)
-    for (const block of blocks.slice(1, -1)) {
-      expect(block).toHaveLength(7)
-      expect(new Date(block[0]).getDay()).toBe(1)
-    }
-    /* Today, a Monday, opens a week of its own. */
-    expect(blocks[12]).toEqual([days[83]])
+    expect(blocks).toHaveLength(12)
+    for (const block of blocks) expect(block).toHaveLength(7)
+    expect(blocks[11][6]).toBe(days[83])
+  })
+
+  test('a length that is not a multiple of seven keeps every day', () => {
+    const blocks = dayBlocks([1, 2, 3, 4, 5, 6, 7, 8, 9])
+    expect(blocks).toHaveLength(2)
+    expect(blocks[1]).toEqual([8, 9])
+    expect(blocks.flat()).toHaveLength(9)
   })
 
   test('no days is no blocks', () => {
     expect(dayBlocks([])).toEqual([])
-  })
-})
-
-describe('isWeekend', () => {
-  test('Saturday and Sunday only', () => {
-    expect(isWeekend(new Date(2026, 8, 26).getTime())).toBe(true) // Sat
-    expect(isWeekend(new Date(2026, 8, 27).getTime())).toBe(true) // Sun
-    expect(isWeekend(new Date(2026, 8, 28).getTime())).toBe(false) // Mon
-    expect(isWeekend(new Date(2026, 8, 25).getTime())).toBe(false) // Fri
   })
 })
 
@@ -80,7 +65,7 @@ describe('blockLabels', () => {
     const days = dayStartsBack(STRIP_WEEKS, new Date(2026, 8, 21))
     const labels = blockLabels(dayBlocks(days))
 
-    expect(labels).toHaveLength(13)
+    expect(labels).toHaveLength(12)
     /* Twelve weeks back from 21 Sep reaches into July, so July, August and
        September each have a first in view — and no block is labelled twice. */
     const named = labels.filter((label) => label.length > 0)
@@ -91,7 +76,6 @@ describe('blockLabels', () => {
     const labels = blockLabels(
       dayBlocks(dayStartsBack(1, new Date(2026, 8, 21))),
     )
-    /* 15–21 Sep: a Tuesday-to-Sunday week and a lone Monday, no first. */
-    expect(labels).toEqual(['', ''])
+    expect(labels).toEqual([''])
   })
 })

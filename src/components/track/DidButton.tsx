@@ -13,7 +13,9 @@ import { Sparks } from '@/components/track/Sparks'
    back from aggregate.ts, never a number this button keeps itself.
 
    A mis-tap is undone for a few seconds right where it happened. After that
-   the row is in Recent, with its own ×. */
+   the row is in Recent, with its own ×. Every tap in that window can be
+   taken back, newest first (26 Sep: three quick taps offered to undo only
+   the last); the ×N beside it counts down as they go, read back as ever. */
 
 const UNDO_MS = 5000
 
@@ -36,7 +38,8 @@ export function DidButton({
 }) {
   const remove = useMutation(api.logs.remove)
   const [burst, setBurst] = useState(0)
-  const [undo, setUndo] = useState<Id<'logs'> | null>(null)
+  /* This button's own writes still in the undo window, oldest first. */
+  const [undo, setUndo] = useState<Array<Id<'logs'>>>([])
   const [failed, setFailed] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
@@ -46,19 +49,23 @@ export function DidButton({
     setFailed(false)
     onDid().then(
       (logId) => {
-        setUndo(logId)
-        clearTimeout(timer.current)
-        timer.current = setTimeout(() => setUndo(null), UNDO_MS)
+        setUndo((ids) => [...ids, logId])
+        restartWindow()
       },
       () => setFailed(true),
     )
   }
 
-  function takeBack() {
-    if (undo === null) return
-    const logId = undo
-    setUndo(null)
+  function restartWindow() {
     clearTimeout(timer.current)
+    timer.current = setTimeout(() => setUndo([]), UNDO_MS)
+  }
+
+  function takeBack() {
+    const logId = undo.at(-1)
+    if (logId === undefined) return
+    setUndo(undo.slice(0, -1))
+    restartWindow()
     void remove({ logId })
   }
 
@@ -111,7 +118,11 @@ export function DidButton({
         {/* Over the button's corner rather than under it, so the row below
             does not jump while the undo is offered. */}
         <span className="absolute right-3 bottom-3">
-          <UndoOrError undo={undo !== null} failed={failed} onUndo={takeBack} />
+          <UndoOrError
+            undo={undo.length > 0}
+            failed={failed}
+            onUndo={takeBack}
+          />
         </span>
       </div>
     )
@@ -119,7 +130,7 @@ export function DidButton({
 
   return (
     <span className="flex shrink-0 items-center gap-1.5">
-      <UndoOrError undo={undo !== null} failed={failed} onUndo={takeBack} />
+      <UndoOrError undo={undo.length > 0} failed={failed} onUndo={takeBack} />
       <button
         type="button"
         onClick={press}

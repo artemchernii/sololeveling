@@ -285,3 +285,54 @@ describe('logs.listForArea — RecentBody reads through the index, not by filter
     expect(partial.complete).toBe(true)
   })
 })
+
+describe('logs.removeMany — History and DID ALL take back several at once', () => {
+  const log = (t: ReturnType<typeof as>, text: string) =>
+    t.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: Date.now(),
+      text,
+    })
+
+  test('removes every row asked for, and a weight takes its state', async () => {
+    const t = as(ME)
+    const a = await log(t, 'a')
+    const b = await log(t, 'b')
+    const keep = await log(t, 'keep')
+    const weight = await t.mutation(api.logs.create, {
+      kind: 'weight',
+      area: 'body',
+      occurredAt: 1_700_000_000_000,
+      value: 80,
+    })
+    await t.mutation(api.logs.removeMany, { logIds: [a, b, weight, a] })
+
+    const left = await t.query(api.logs.listSince, { since: 0 })
+    expect(left.map((r) => r._id)).toEqual([keep])
+    const state = await t.run((ctx) => ctx.db.query('stateSnapshots').collect())
+    expect(state).toHaveLength(0)
+  })
+
+  test('one row that is not mine refuses the whole call', async () => {
+    const t = convexTest(schema, modules)
+    const mine = t.withIdentity({ tokenIdentifier: ME })
+    const theirs = t.withIdentity({ tokenIdentifier: SOMEONE_ELSE })
+    const myLog = await mine.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: Date.now(),
+    })
+    const theirLog = await theirs.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: Date.now(),
+    })
+    await expect(
+      mine.mutation(api.logs.removeMany, { logIds: [myLog, theirLog] }),
+    ).rejects.toThrow('No such log')
+    /* All or nothing: mine is still there too. */
+    expect(await mine.query(api.logs.listSince, { since: 0 })).toHaveLength(1)
+    expect(await theirs.query(api.logs.listSince, { since: 0 })).toHaveLength(1)
+  })
+})

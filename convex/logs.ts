@@ -3,6 +3,8 @@ import { ConvexError, v } from 'convex/values'
 import { requireUser } from './auth'
 import { requireLiveArea } from './areas'
 import { mutation, query } from './_generated/server'
+import type { MutationCtx } from './_generated/server'
+import type { Id } from './_generated/dataModel'
 import schema, { areaSlug } from './schema'
 
 /* Quick capture lands here (PLAN.md §3). A log is evidence: something that
@@ -371,27 +373,60 @@ export const remove = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    const log = await ctx.db.get(args.logId)
-    if (log === null || log.ownerId !== ownerId) {
-      throw new Error('No such log')
-    }
-
-    if (log.kind === 'weight') {
-      const snapshots = await ctx.db
-        .query('stateSnapshots')
-        .withIndex('by_owner_key_time', (q) =>
-          q
-            .eq('ownerId', ownerId)
-            .eq('key', 'weight')
-            .eq('recordedAt', log.occurredAt),
-        )
-        .take(10)
-      for (const snapshot of snapshots) {
-        await ctx.db.delete(snapshot._id)
-      }
-    }
-
-    await ctx.db.delete(args.logId)
+    await removeOwnedLog(ctx, ownerId, args.logId)
     return null
   },
 })
+
+/* A bulk remove, generously: a busy week's Body logs. */
+const MAX_REMOVE = 200
+
+/**
+ * Several at once — History's Remove selected, and Undo after DID ALL
+ * (26 Sep: "in DONE we want to bulk undo"). All or nothing: one row that is
+ * not his refuses the whole call, and the transaction takes none.
+ */
+export const removeMany = mutation({
+  args: { logIds: v.array(v.id('logs')) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    if (args.logIds.length > MAX_REMOVE) {
+      throw new ConvexError('That is too many at once.')
+    }
+    for (const logId of new Set(args.logIds)) {
+      await removeOwnedLog(ctx, ownerId, logId)
+    }
+    return null
+  },
+})
+
+/* A weight row takes its stateSnapshot with it, or the hero would keep
+   showing a weigh-in that no longer exists. */
+async function removeOwnedLog(
+  ctx: MutationCtx,
+  ownerId: string,
+  logId: Id<'logs'>,
+) {
+  const log = await ctx.db.get(logId)
+  if (log === null || log.ownerId !== ownerId) {
+    throw new Error('No such log')
+  }
+
+  if (log.kind === 'weight') {
+    const snapshots = await ctx.db
+      .query('stateSnapshots')
+      .withIndex('by_owner_key_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('key', 'weight')
+          .eq('recordedAt', log.occurredAt),
+      )
+      .take(10)
+    for (const snapshot of snapshots) {
+      await ctx.db.delete(snapshot._id)
+    }
+  }
+
+  await ctx.db.delete(logId)
+}

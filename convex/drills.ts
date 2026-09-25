@@ -6,7 +6,14 @@ import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import schema, { areaSlug } from './schema'
-import { programById, programRefs, refFor } from '../src/lib/body/library'
+import {
+  dayById,
+  PROGRAMS,
+  programById,
+  programRefs,
+  refFor,
+  SESSION_LABEL,
+} from '../src/lib/body/library'
 
 /* Routines (25 Sep): the exercises under Stretch and Gym on Body, the topics
    and tenses under a language. A drill is a thing he means to do. Pressing
@@ -316,6 +323,84 @@ export const addProgram = mutation({
       }
     }
     return null
+  },
+})
+
+/* A day's worth of Body logs, generously: nine exercises ticked a few
+   times over, sessions, shakes, a weigh-in. */
+const DAY_ROWS = 500
+
+/**
+ * DID ALL on one routine day (26 Sep: "we want to bulk DID"). Writes an
+ * `exercise` log for each of his exercises in that day not yet logged
+ * today, and one `workout` for the session unless that kind already has one
+ * today — the button says it logs the session, so the session is his claim.
+ * Returns what it wrote, for Undo; nothing when all of it was done.
+ *
+ * `todayStart` is his local midnight: the server does not know his day.
+ */
+export const didDay = mutation({
+  args: { dayId: v.string(), todayStart: v.number() },
+  returns: v.array(v.id('logs')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const day = dayById(args.dayId)
+    const program = PROGRAMS.find((p) =>
+      p.days.some((d) => d.id === args.dayId),
+    )
+    if (day === undefined || program === undefined) {
+      throw new Error('No such routine')
+    }
+    const refs = new Set(day.exercises.map((e) => refFor(day.id, e.id)))
+    const drills = (await bodyDrills(ctx, ownerId)).filter(
+      (d) => d.ref && refs.has(d.ref) && d.retiredAt === undefined,
+    )
+    if (drills.length === 0) throw new ConvexError('Add this routine first.')
+    await requireLiveArea(ctx, ownerId, 'body')
+
+    const today = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', 'body')
+          .gte('occurredAt', args.todayStart),
+      )
+      .take(DAY_ROWS)
+    const ticked = new Set(today.map((l) => l.meta?.drillId))
+    const hasSession = today.some(
+      (l) => l.kind === 'workout' && l.meta?.category === program.kind,
+    )
+
+    const now = Date.now()
+    const written: Array<Id<'logs'>> = []
+    for (const drill of drills) {
+      if (ticked.has(drill._id)) continue
+      written.push(
+        await ctx.db.insert('logs', {
+          ownerId,
+          kind: 'exercise',
+          area: 'body',
+          occurredAt: now,
+          text: drill.title,
+          meta: { category: drill.group, drillId: drill._id },
+        }),
+      )
+    }
+    if (!hasSession) {
+      const label = SESSION_LABEL[program.kind]
+      written.push(
+        await ctx.db.insert('logs', {
+          ownerId,
+          kind: 'workout',
+          area: 'body',
+          occurredAt: now,
+          text: `${label.toLowerCase()} session`,
+          meta: { category: program.kind },
+        }),
+      )
+    }
+    return written
   },
 })
 

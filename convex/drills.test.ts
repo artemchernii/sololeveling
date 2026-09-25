@@ -423,3 +423,110 @@ describe('drills — built-in Body programs', () => {
     ).rejects.toThrow()
   })
 })
+
+describe('drills.didDay — DID ALL on a routine day', () => {
+  const todayStart = () => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d.getTime()
+  }
+  const bodyLogs = (t: ReturnType<typeof world>['t']) =>
+    t.run((ctx) => ctx.db.query('logs').collect())
+
+  test('ticks every exercise and logs one session', async () => {
+    const { t, me } = world()
+    await me.mutation(api.drills.addProgram, { programId: 'back' })
+    const ids = await me.mutation(api.drills.didDay, {
+      dayId: 'back',
+      todayStart: todayStart(),
+    })
+    expect(ids).toHaveLength(10)
+    const rows = await bodyLogs(t)
+    expect(rows.filter((r) => r.kind === 'exercise')).toHaveLength(9)
+    expect(rows.filter((r) => r.kind === 'workout')).toMatchObject([
+      { area: 'body', text: 'mobility session', meta: { category: 'stretch' } },
+    ])
+  })
+
+  test('skips what is already ticked today, and a session already logged', async () => {
+    const { t, me } = world()
+    await me.mutation(api.drills.addProgram, { programId: 'back' })
+    const [first] = await me.query(api.drills.list, { area: 'body' })
+    await me.mutation(api.drills.did, { drillId: first._id })
+    await me.mutation(api.logs.create, {
+      kind: 'workout',
+      area: 'body',
+      occurredAt: Date.now(),
+      category: 'stretch',
+    })
+    const ids = await me.mutation(api.drills.didDay, {
+      dayId: 'back',
+      todayStart: todayStart(),
+    })
+    expect(ids).toHaveLength(8)
+    const rows = await bodyLogs(t)
+    expect(rows.filter((r) => r.kind === 'workout')).toHaveLength(1)
+    /* Pressed again: nothing left to write. */
+    expect(
+      await me.mutation(api.drills.didDay, {
+        dayId: 'back',
+        todayStart: todayStart(),
+      }),
+    ).toEqual([])
+  })
+
+  test('yesterday does not count as done today', async () => {
+    const { t, me } = world()
+    await me.mutation(api.drills.addProgram, { programId: 'back' })
+    const [first] = await me.query(api.drills.list, { area: 'body' })
+    await t.run((ctx) =>
+      ctx.db.insert('logs', {
+        ownerId: ME,
+        kind: 'exercise',
+        area: 'body',
+        occurredAt: todayStart() - 3_600_000,
+        meta: { category: 'stretch', drillId: first._id },
+      }),
+    )
+    const ids = await me.mutation(api.drills.didDay, {
+      dayId: 'back',
+      todayStart: todayStart(),
+    })
+    expect(ids).toHaveLength(10)
+  })
+
+  test('only the day asked for — Gym A, not Gym B', async () => {
+    const { t, me } = world()
+    await me.mutation(api.drills.addProgram, { programId: 'gym-ab' })
+    await me.mutation(api.drills.didDay, {
+      dayId: 'gym-a',
+      todayStart: todayStart(),
+    })
+    const drills = await me.query(api.drills.list, { area: 'body' })
+    const gymA = new Set(
+      drills.filter((d) => d.ref?.startsWith('gym-a--')).map((d) => d._id),
+    )
+    const exercises = (await bodyLogs(t)).filter((r) => r.kind === 'exercise')
+    expect(exercises).toHaveLength(6)
+    for (const r of exercises) expect(gymA.has(r.meta!.drillId!)).toBe(true)
+  })
+
+  test('refused: an unknown day, a routine not added, another owner', async () => {
+    const { t, me, them } = world()
+    await expect(
+      me.mutation(api.drills.didDay, { dayId: 'nope', todayStart: 0 }),
+    ).rejects.toThrow('No such routine')
+    await expect(
+      me.mutation(api.drills.didDay, { dayId: 'back', todayStart: 0 }),
+    ).rejects.toThrow('Add this routine first.')
+    await me.mutation(api.drills.addProgram, { programId: 'back' })
+    /* My routine is not theirs to tick. */
+    await expect(
+      them.mutation(api.drills.didDay, {
+        dayId: 'back',
+        todayStart: todayStart(),
+      }),
+    ).rejects.toThrow('Add this routine first.')
+    expect(await bodyLogs(t)).toEqual([])
+  })
+})

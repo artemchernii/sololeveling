@@ -9,7 +9,7 @@ import { DayStrips } from '@/components/track/DayStrip'
 import { DidButton } from '@/components/track/DidButton'
 import { TrackPanel } from '@/components/track/TrackPanel'
 import { areaVars } from '@/lib/areas'
-import { KINDS } from '@/lib/body/library'
+import { KINDS, SESSION_LABEL } from '@/lib/body/library'
 import type { BodyKind } from '@/lib/body/library'
 import { RECENT_DAYS } from '@/lib/day-strip'
 import { whenLabel } from '@/lib/format'
@@ -173,12 +173,6 @@ export function BodyHero({ featured }: { featured: BodyKind }) {
 /* A session per kind, big — the tap the Today tile counts as a workout.
    Ticking exercises is evidence of each exercise; saying the session
    happened is its own claim (25 Sep). */
-const SESSION_LABEL: Record<BodyKind, string> = {
-  stretch: 'Mobility',
-  gym: 'Gym',
-  boxing: 'Boxing',
-  hiking: 'Hike',
-}
 
 export function LogSession() {
   const today = useDayStarts(1).at(-1) as number

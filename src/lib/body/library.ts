@@ -60,6 +60,14 @@ export const KIND_LABEL: Record<BodyKind, string> = {
   hiking: 'Hiking',
 }
 
+/** A session's name, on its button and in the log DID ALL writes. */
+export const SESSION_LABEL: Record<BodyKind, string> = {
+  stretch: 'Mobility',
+  gym: 'Gym',
+  boxing: 'Boxing',
+  hiking: 'Hike',
+}
+
 export const KINDS: ReadonlyArray<BodyKind> = [
   'stretch',
   'gym',

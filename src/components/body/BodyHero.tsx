@@ -183,54 +183,80 @@ const SESSION_LABEL: Record<BodyKind, string> = {
 export function LogSession() {
   const [today] = useState(() => dayStartsBack(1).at(-1) as number)
   const range = monthRange(Date.now())
+  const span = {
+    today,
+    monthStart: range.monthStart,
+    monthEnd: range.nextStart,
+  }
   return (
     <TrackPanel
       area="body"
-      title="log a session"
+      title="log today"
       aside={
         <span className="hidden font-mono text-[10.5px] text-ink-500 sm:inline">
-          one tap = one workout on Today
+          a session = one workout on Today
         </span>
       }
     >
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5 sm:gap-3">
         {KINDS.map((kind) => (
-          <SessionButton
+          <LogButton
             key={kind}
-            kind={kind}
-            today={today}
-            monthStart={range.monthStart}
-            monthEnd={range.nextStart}
+            kind="workout"
+            category={kind}
+            label={SESSION_LABEL[kind]}
+            sub="session"
+            text={`${SESSION_LABEL[kind].toLowerCase()} session`}
+            {...span}
           />
         ))}
+        {/* The shake (25 Sep): protein and creatine together, one tick —
+            the same row `supp` / `shake` writes from quick capture. An
+            intake, not a workout: it never counts on the Today tile. */}
+        <LogButton
+          kind="intake"
+          category="supplements"
+          label="Shake"
+          sub="protein + creatine"
+          text="protein + creatine shake"
+          {...span}
+        />
       </div>
     </TrackPanel>
   )
 }
 
-function SessionButton({
+function LogButton({
   kind,
+  category,
+  label,
+  sub,
+  text,
   today,
   monthStart,
   monthEnd,
 }: {
-  kind: BodyKind
+  kind: 'workout' | 'intake'
+  category: string
+  label: string
+  sub: string
+  text: string
   today: number
   monthStart: number
   monthEnd: number
 }) {
   const create = useMutation(api.logs.create)
   const todayCount = useQuery(api.aggregate.kindCount, {
-    kind: 'workout',
+    kind,
     area: 'body',
-    category: kind,
+    category,
     start: today,
     end: today + 86_400_000,
   })
   const month = useQuery(api.aggregate.kindCount, {
-    kind: 'workout',
+    kind,
     area: 'body',
-    category: kind,
+    category,
     start: monthStart,
     end: monthEnd,
   })
@@ -239,16 +265,16 @@ function SessionButton({
       <DidButton
         size="lg"
         today={todayCount}
-        label={SESSION_LABEL[kind]}
-        sub="session"
-        icon={<KindIcon kind={kind} />}
+        label={label}
+        sub={sub}
+        icon={<KindIcon kind={category} />}
         onDid={() =>
           create({
-            kind: 'workout',
+            kind,
             area: 'body',
             occurredAt: Date.now(),
-            category: kind,
-            text: `${SESSION_LABEL[kind].toLowerCase()} session`,
+            category,
+            text,
           })
         }
       />

@@ -1,9 +1,9 @@
 import {
+  CupSoda,
   Dumbbell,
   Footprints,
   Mountain,
   PersonStanding,
-  Pill,
   Sparkles,
   Swords,
 } from 'lucide-react'
@@ -22,7 +22,7 @@ const ICONS: Record<string, LucideIcon> = {
   boxing: Swords,
   hiking: Mountain,
   run: Footprints,
-  supplements: Pill,
+  supplements: CupSoda,
 }
 
 export function KindIcon({
@@ -38,11 +38,15 @@ export function KindIcon({
 
 export function kindName(kind: string | null | undefined): string {
   if (!kind) return 'unsorted'
+  if (kind === 'supplements') return 'Shake'
   return kind in KIND_LABEL ? KIND_LABEL[kind as BodyKind] : kind
 }
 
 /* Labels for CategoryChip: the stored word stays, the name shows. */
-export const KIND_LABELS: Record<string, string> = { stretch: 'mobility' }
+export const KIND_LABELS: Record<string, string> = {
+  stretch: 'mobility',
+  supplements: 'shake',
+}
 
 /* The picture behind the hero (25 Sep, his pick): Ronaldo, eyes closed,
    head up — portrait, so the crop sits on the face. One for every kind

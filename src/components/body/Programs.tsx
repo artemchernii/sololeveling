@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import {
-  ArrowDown,
   Check,
   ChevronDown,
   Clock,
@@ -16,12 +15,12 @@ import {
 import { api } from '../../../convex/_generated/api'
 import { KindIcon, kindName } from '@/components/body/kinds'
 import type { BodyProgress, DrillRow } from '@/components/body/useBodyProgress'
-import { AddDrill } from '@/components/track/AddDrill'
 import { DidButton } from '@/components/track/DidButton'
 import { TrackPanel } from '@/components/track/TrackPanel'
 import { WeekDots } from '@/components/track/WeekDots'
 import { PROGRAMS, programById, SAFETY } from '@/lib/body/library'
 import type { Exercise, Program } from '@/lib/body/library'
+import { areaVars } from '@/lib/areas'
 import { agoLabel } from '@/lib/format'
 
 /* The routines (rebuilt 25 Sep): "where are some programs, a knowledge
@@ -32,98 +31,12 @@ import { agoLabel } from '@/lib/format'
 
 const todayOf = (row: DrillRow) => row.days[row.days.length - 1] ?? 0
 
-/* ------------------------------------------------------------ NEXT UP */
+/* ------------------------------------------------------------ TODAY */
 
-export function NextUp({
-  progress,
-  delay = 0,
-}: {
-  progress: BodyProgress
-  delay?: number
-}) {
-  const add = useMutation(api.drills.addProgram)
-  if (!progress.ready) return null
-  const { pick } = progress
-  const starter = programById('back') as Program
-
-  return (
-    <TrackPanel
-      area="body"
-      delay={delay}
-      title={
-        <span className="flex items-center gap-1.5">
-          <Sparkles className="size-3.5" />
-          next up
-        </span>
-      }
-    >
-      {progress.pickedDays.size === 0 ? (
-        <div className="motion-arrive flex flex-col gap-3">
-          <span className="text-[24px] leading-tight font-light text-foreground">
-            {starter.name}
-          </span>
-          <p className="text-[13.5px] leading-relaxed text-ink-300">
-            Start with this one — {starter.rhythm}, nine gentle exercises for
-            the lower back. Add it and each exercise gets a DID button with how
-            to do it.
-          </p>
-          <button
-            type="button"
-            onClick={() => void add({ programId: starter.id })}
-            className="motion-press inline-flex items-center gap-2 self-start rounded-full bg-(--area) px-4 py-2 text-[13px] font-medium text-background"
-          >
-            <Plus className="size-4" />
-            Add to my routines
-          </button>
-        </div>
-      ) : pick === null ? (
-        <p className="motion-arrive text-[15px] text-ink-200">
-          Everything in your routines is done for today. Rest well.
-        </p>
-      ) : (
-        <div key={pick.day.id} className="motion-arrive flex flex-col gap-3">
-          <span className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-full bg-(--area)/18 text-(--area)">
-              <KindIcon kind={pick.program.kind} className="size-5" />
-            </span>
-            <span className="flex flex-col">
-              <span className="text-[24px] leading-tight font-light text-foreground">
-                {pick.day.name}
-              </span>
-              <span className="font-mono text-[11px] text-ink-500">
-                {pick.program.rhythm}
-              </span>
-            </span>
-          </span>
-          <p className="text-[13.5px] text-ink-300">{pick.reason}</p>
-          <ol className="flex flex-col gap-1 border-l-2 border-(--area)/40 pl-3">
-            {pick.day.exercises.map((ex) => (
-              <li
-                key={ex.id}
-                className="flex items-baseline justify-between gap-3 text-[13px]"
-              >
-                <span className="truncate text-ink-100">{ex.name}</span>
-                <span className="shrink-0 font-mono text-[11px] text-ink-500">
-                  {ex.dose}
-                </span>
-              </li>
-            ))}
-          </ol>
-          <a
-            href={`#day-${pick.day.id}`}
-            className="motion-press inline-flex items-center gap-1.5 self-start rounded-full bg-(--area)/15 px-3.5 py-1.5 text-[12.5px] text-(--area) ring-1 ring-(--area)/40 ring-inset hover:bg-(--area)/25"
-          >
-            <ArrowDown className="size-3.5" />
-            Go to it
-          </a>
-        </div>
-      )}
-    </TrackPanel>
-  )
-}
-
-/* ------------------------------------------------------------ MY ROUTINES */
-
+/* His routines, the one to do today first (25 Sep, second pass: "hard to
+   read and navigate"). NEXT UP is no longer its own card repeating the
+   routine below it — the suggested routine opens at the top with the reason
+   on it, and the others wait folded, one line each, until pressed. */
 export function MyRoutines({
   progress,
   delay = 0,
@@ -131,134 +44,216 @@ export function MyRoutines({
   progress: BodyProgress
   delay?: number
 }) {
+  const add = useMutation(api.drills.addProgram)
+  const [openDays, setOpenDays] = useState<Array<string>>([])
   if (!progress.ready) return null
+  const { pick } = progress
   const days = PROGRAMS.flatMap((program) =>
     program.days
       .filter((d) => progress.pickedDays.has(d.id))
       .map((day) => ({ program, day })),
+  ).sort(
+    (x, y) =>
+      Number(y.day.id === pick?.day.id) - Number(x.day.id === pick?.day.id),
   )
-  const own = new Map<string, Array<DrillRow>>()
-  for (const row of progress.own) {
-    own.set(row.drill.group, [...(own.get(row.drill.group) ?? []), row])
-  }
-  if (days.length === 0 && own.size === 0) return null
+  const starter = programById('back') as Program
+  const toggle = (id: string) =>
+    setOpenDays((o) =>
+      o.includes(id) ? o.filter((x) => x !== id) : [...o, id],
+    )
 
   return (
-    <div className="flex flex-col gap-[18px]">
-      {days.map(({ program, day }, i) => (
-        <RoutineCard
-          key={day.id}
-          id={`day-${day.id}`}
-          program={program}
-          title={day.name}
-          suggested={progress.pick?.day.id === day.id}
-          delay={delay + i * 60}
-          rows={day.exercises.map((ex) => ({
-            ex,
-            row: progress.rows.find(
-              (r) => r.hit?.day.id === day.id && r.hit.exercise.id === ex.id,
-            ),
-          }))}
+    <div className="flex flex-col gap-3">
+      {days.length === 0 ? (
+        <TrackPanel
+          area="body"
+          delay={delay}
+          title={
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="size-3.5" />
+              start here
+            </span>
+          }
+        >
+          <div className="flex flex-col gap-3">
+            <span className="text-[24px] leading-tight font-light text-foreground">
+              {starter.name}
+            </span>
+            <p className="text-[13.5px] leading-relaxed text-ink-300">
+              {starter.rhythm} — nine gentle exercises for the lower back. Add
+              it and each exercise gets a DID button and how to do it. More
+              programs are in the library below.
+            </p>
+            <button
+              type="button"
+              onClick={() => void add({ programId: starter.id })}
+              className="motion-press inline-flex items-center gap-2 self-start rounded-full bg-(--area) px-4 py-2 text-[13px] font-medium text-background"
+            >
+              <Plus className="size-4" />
+              Add to my routines
+            </button>
+          </div>
+        </TrackPanel>
+      ) : pick === null ? (
+        <p className="motion-arrive flex items-center gap-2 rounded-[16px] bg-state-good/10 px-4 py-3 text-[14px] text-state-good ring-1 ring-state-good/30 ring-inset">
+          <Check className="size-4" />
+          Everything in your routines is done for today. Rest well.
+        </p>
+      ) : null}
+      {days.map(({ program, day }, i) => {
+        const suggested = pick?.day.id === day.id
+        return (
+          <RoutineCard
+            key={day.id}
+            program={program}
+            title={day.name}
+            reason={suggested ? pick.reason : null}
+            open={suggested || openDays.includes(day.id)}
+            onToggle={suggested ? undefined : () => toggle(day.id)}
+            delay={delay + i * 60}
+            rows={day.exercises.map((ex) => ({
+              ex,
+              row: progress.rows.find(
+                (r) => r.hit?.day.id === day.id && r.hit.exercise.id === ex.id,
+              ),
+            }))}
+            dayStarts={progress.dayStarts}
+          />
+        )
+      })}
+      {progress.own.length > 0 ? (
+        <OwnList
+          rows={progress.own}
           dayStarts={progress.dayStarts}
+          delay={delay + days.length * 60}
         />
-      ))}
-      {own.size > 0 ? (
-        <div className="grid gap-[18px] lg:grid-cols-2">
-          {[...own.entries()].map(([group, rows], i) => (
-            <OwnCard
-              key={group}
-              group={group}
-              rows={rows}
-              dayStarts={progress.dayStarts}
-              delay={delay + (days.length + i) * 60}
-            />
-          ))}
-        </div>
       ) : null}
     </div>
   )
 }
 
 function RoutineCard({
-  id,
   program,
   title,
-  suggested,
+  reason,
+  open,
+  onToggle,
   rows,
   dayStarts,
   delay,
 }: {
-  id: string
   program: Program
   title: string
-  suggested: boolean
+  /** Set on the routine NEXT UP picked. */
+  reason: string | null
+  open: boolean
+  /** Absent on the suggested one, which stays open. */
+  onToggle: (() => void) | undefined
   rows: Array<{ ex: Exercise; row: DrillRow | undefined }>
   dayStarts: Array<number>
   delay: number
 }) {
   const drop = useMutation(api.drills.dropProgram)
-  const [open, setOpen] = useState<string | null>(null)
+  const [openEx, setOpenEx] = useState<string | null>(null)
   const allDone = rows.every((r) => r.row && todayOf(r.row) > 0)
 
   return (
-    <div id={id} className="scroll-mt-6">
-      <TrackPanel
-        area="body"
-        delay={delay}
-        className={suggested ? 'ring-1 ring-(--area)/45' : ''}
-        title={
-          <span className="flex items-center gap-2">
-            <span className="grid size-7 place-items-center rounded-full bg-(--area)/15 text-(--area)">
-              <KindIcon kind={program.kind} />
-            </span>
-            <span className="text-[12px]">{title}</span>
-            {suggested ? (
-              <span className="rounded-full bg-(--area) px-2 py-0.5 text-[9.5px] text-background">
+    <section
+      style={{ ...areaVars('body'), animationDelay: `${delay}ms` }}
+      className={`glass motion-arrive relative flex flex-col overflow-hidden rounded-[22px] ${
+        reason !== null ? 'ring-1 ring-(--area)/50' : ''
+      }`}
+    >
+      {reason !== null ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-linear-to-r from-(--area) via-(--area)/40 to-transparent"
+        />
+      ) : null}
+      <div className="flex items-center gap-3 px-5 pt-4 pb-3 sm:px-6">
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={onToggle === undefined}
+          aria-expanded={open}
+          className="group flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-default"
+        >
+          <span
+            className={`grid shrink-0 place-items-center rounded-full bg-(--area)/15 text-(--area) ${
+              reason !== null ? 'size-11' : 'size-9'
+            }`}
+          >
+            <KindIcon
+              kind={program.kind}
+              className={reason !== null ? 'size-5' : 'size-4'}
+            />
+          </span>
+          <span className="flex min-w-0 flex-col gap-0.5">
+            {reason !== null ? (
+              <span className="flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.14em] text-(--area) uppercase">
+                <Sparkles className="size-3" />
                 next up
               </span>
             ) : null}
-          </span>
-        }
-        aside={
-          <span className="flex items-center gap-3">
-            {allDone ? (
-              <span className="motion-pop inline-flex items-center gap-1 rounded-full bg-state-good/15 px-2 py-0.5 font-mono text-[10px] tracking-[0.1em] text-state-good uppercase">
-                <Check className="size-3" />
-                all done today
-              </span>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => void drop({ programId: program.id })}
-              title={`Remove ${program.name} from my routines — history stays`}
-              aria-label={`Remove ${program.name} from my routines`}
-              className="motion-press grid size-6 place-items-center rounded-[6px] text-ink-600 transition-colors hover:bg-state-danger/15 hover:text-state-danger"
+            <span
+              className={`truncate font-light text-foreground ${
+                reason !== null ? 'text-[24px] leading-tight' : 'text-[17px]'
+              }`}
             >
-              <X className="size-3.5" />
-            </button>
+              {title}
+            </span>
+            <span className="flex items-center gap-1.5 font-mono text-[10.5px] text-ink-500">
+              <Clock className="size-3" />
+              {program.rhythm} · {rows.length} exercises
+            </span>
           </span>
-        }
-      >
-        <p className="-mt-2 flex items-center gap-1.5 font-mono text-[10.5px] text-ink-500">
-          <Clock className="size-3" />
-          {program.rhythm}
+        </button>
+        {allDone ? (
+          <span className="motion-pop inline-flex shrink-0 items-center gap-1 rounded-full bg-state-good/15 px-2 py-0.5 font-mono text-[10px] tracking-[0.1em] text-state-good uppercase">
+            <Check className="size-3" />
+            done today
+          </span>
+        ) : null}
+        {onToggle ? (
+          <ChevronDown
+            aria-hidden
+            className={`size-4 shrink-0 text-ink-500 transition-transform ${open ? 'rotate-180' : ''}`}
+          />
+        ) : null}
+        <button
+          type="button"
+          onClick={() => void drop({ programId: program.id })}
+          title={`Remove ${program.name} from my routines — history stays`}
+          aria-label={`Remove ${program.name} from my routines`}
+          className="motion-press grid size-6 shrink-0 place-items-center rounded-[6px] text-ink-600 transition-colors hover:bg-state-danger/15 hover:text-state-danger"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
+      {reason !== null ? (
+        <p className="-mt-1 px-5 pb-2 text-[13px] text-ink-300 sm:px-6">
+          {reason}
         </p>
-        <ul className="flex flex-col">
-          {rows.map(({ ex, row }, i) => (
-            <ExerciseRow
-              key={ex.id}
-              ex={ex}
-              row={row}
-              dayStarts={dayStarts}
-              open={open === ex.id}
-              onToggle={() => setOpen((o) => (o === ex.id ? null : ex.id))}
-              delay={delay + 80 + i * 35}
-            />
-          ))}
-        </ul>
-        {program.kind === 'stretch' ? <Safety compact /> : null}
-      </TrackPanel>
-    </div>
+      ) : null}
+      {open ? (
+        <div className="motion-arrive flex flex-col gap-3 px-5 pb-5 sm:px-6">
+          <ul className="flex flex-col">
+            {rows.map(({ ex, row }, i) => (
+              <ExerciseRow
+                key={ex.id}
+                ex={ex}
+                row={row}
+                dayStarts={dayStarts}
+                open={openEx === ex.id}
+                onToggle={() => setOpenEx((o) => (o === ex.id ? null : ex.id))}
+                delay={i * 30}
+              />
+            ))}
+          </ul>
+          {program.kind === 'stretch' ? <Safety compact /> : null}
+        </div>
+      ) : null}
+    </section>
   )
 }
 
@@ -382,15 +377,13 @@ function Safety({ compact = false }: { compact?: boolean }) {
   )
 }
 
-/* Exercises he typed himself, in their own card per group — still one tap
-   each. Anything the library lacks is a line here. */
-function OwnCard({
-  group,
+/* Exercises he typed himself before the library existed — one quiet list,
+   each still one tap, each with a visible × to take it off. */
+function OwnList({
   rows,
   dayStarts,
   delay,
 }: {
-  group: string
   rows: Array<DrillRow>
   dayStarts: Array<number>
   delay: number
@@ -398,45 +391,40 @@ function OwnCard({
   const did = useMutation(api.drills.did)
   const retire = useMutation(api.drills.retire)
   return (
-    <TrackPanel
-      area="body"
-      delay={delay}
-      title={
-        <span className="flex items-center gap-2">
-          <span className="grid size-7 place-items-center rounded-full bg-(--area)/15 text-(--area)">
-            <KindIcon kind={group} />
-          </span>
-          <span className="text-[12px]">{kindName(group)} · your own</span>
-        </span>
-      }
-    >
-      <ul className="flex flex-col">
+    <TrackPanel area="body" delay={delay} title="added by you">
+      <ul className="-mt-1 flex flex-col">
         {rows.map((row) => (
           <li
             key={row.drill._id}
-            className="group flex min-h-11 items-center gap-3 border-b border-lift/[0.06] py-1.5 last:border-b-0"
+            className="flex min-h-11 items-center gap-3 border-b border-lift/[0.06] py-1.5 last:border-b-0"
           >
+            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-(--area)/15 text-(--area)">
+              <KindIcon kind={row.drill.group} className="size-3.5" />
+            </span>
             <span className="min-w-0 flex-1 truncate text-[14px] text-ink-200">
               {row.drill.title}
+              <span className="ml-2 font-mono text-[10px] tracking-[0.12em] text-ink-500 uppercase">
+                {kindName(row.drill.group)}
+              </span>
             </span>
-            <button
-              type="button"
-              aria-label={`Take ${row.drill.title} off the list`}
-              onClick={() => void retire({ drillId: row.drill._id })}
-              className="motion-press grid size-6 shrink-0 place-items-center rounded-[6px] text-ink-700 opacity-0 transition-colors group-hover:opacity-100 hover:bg-state-danger/15 hover:text-state-danger focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
-            >
-              <X className="size-3" />
-            </button>
             <WeekDots days={row.days} dayStarts={dayStarts} noun="time" />
             <DidButton
               today={todayOf(row)}
               label="did"
               onDid={() => did({ drillId: row.drill._id })}
             />
+            <button
+              type="button"
+              aria-label={`Take ${row.drill.title} off the list`}
+              title="Take it off the list — its history stays"
+              onClick={() => void retire({ drillId: row.drill._id })}
+              className="motion-press grid size-6 shrink-0 place-items-center rounded-[6px] text-ink-600 transition-colors hover:bg-state-danger/15 hover:text-state-danger"
+            >
+              <X className="size-3.5" />
+            </button>
           </li>
         ))}
       </ul>
-      <AddDrill group={group} />
     </TrackPanel>
   )
 }

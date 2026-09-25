@@ -1,3 +1,4 @@
+import { useDayStarts } from '@/components/track/useDayStarts'
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
@@ -8,7 +9,7 @@ import type { Doc } from '../../../convex/_generated/dataModel'
 import { AddDrill } from '@/components/track/AddDrill'
 import { DidButton } from '@/components/track/DidButton'
 import { TrackPanel } from '@/components/track/TrackPanel'
-import { dayStartsBack, STRIP_WEEKS } from '@/lib/day-strip'
+import { STRIP_WEEKS } from '@/lib/day-strip'
 import { agoLabel } from '@/lib/format'
 
 /* Topics (25 Sep): "a list of most important topics / tenses, and next to
@@ -29,7 +30,7 @@ const NEXT_MARK = {
 
 export function Topics({ slug, delay = 0 }: { slug: string; delay?: number }) {
   const drills = useQuery(api.drills.list, { area: slug })
-  const dayStarts = dayStartsBack(STRIP_WEEKS)
+  const dayStarts = useDayStarts()
   const days = useQuery(api.aggregate.drillDays, {
     area: slug,
     dayStarts,

@@ -1,3 +1,4 @@
+import { useDayStarts } from '@/components/track/useDayStarts'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { useMutation } from 'convex/react'
 import { CircleHelp, Scale, X } from 'lucide-react'
@@ -9,7 +10,7 @@ import { KindIcon, KIND_LABELS } from '@/components/body/kinds'
 import { useSave } from '@/components/Saving'
 import { CategoryChip } from '@/components/track/CategoryChip'
 import { TrackPanel } from '@/components/track/TrackPanel'
-import { dayStartsBack, STRIP_WEEKS } from '@/lib/day-strip'
+import { STRIP_WEEKS } from '@/lib/day-strip'
 import { groupByDay } from '@/lib/day-groups'
 import { clock, whenLabel } from '@/lib/format'
 
@@ -31,7 +32,7 @@ const SHOWN = 12
    `logs.setValue` still refuses a weight, whose stateSnapshot would be left
    contradicting it; a wrong weight is removed and logged again. */
 export function RecentBody({ delay = 0 }: { delay?: number }) {
-  const dayStarts = dayStartsBack(STRIP_WEEKS)
+  const dayStarts = useDayStarts()
   const result = useQuery(api.logs.listForArea, {
     area: 'body',
     since: dayStarts[0],

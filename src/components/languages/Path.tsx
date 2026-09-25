@@ -1,3 +1,4 @@
+import { useDayStarts } from '@/components/track/useDayStarts'
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
@@ -7,7 +8,6 @@ import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { DidButton } from '@/components/track/DidButton'
 import { TrackPanel } from '@/components/track/TrackPanel'
-import { dayStartsBack, STRIP_WEEKS } from '@/lib/day-strip'
 import { agoLabel } from '@/lib/format'
 import { nextCefr, parseCefr } from '@/lib/languages/catalog'
 import type { Cefr } from '@/lib/languages/catalog'
@@ -30,7 +30,7 @@ type Progress = {
 
 function useProgress(slug: string): Progress {
   const drills = useQuery(api.drills.list, { area: slug })
-  const dayStarts = dayStartsBack(STRIP_WEEKS)
+  const dayStarts = useDayStarts()
   const days = useQuery(api.aggregate.drillDays, {
     area: slug,
     dayStarts,

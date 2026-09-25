@@ -1,3 +1,4 @@
+import { useDayStarts } from '@/components/track/useDayStarts'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
@@ -25,7 +26,7 @@ import { DidButton } from '@/components/track/DidButton'
 import { TrackPanel } from '@/components/track/TrackPanel'
 import { areaVars } from '@/lib/areas'
 import { groupByDay } from '@/lib/day-groups'
-import { dayStartsBack, RECENT_DAYS, STRIP_WEEKS } from '@/lib/day-strip'
+import { RECENT_DAYS, STRIP_WEEKS } from '@/lib/day-strip'
 import { clock } from '@/lib/format'
 import {
   CEFR_MEANING,
@@ -125,7 +126,7 @@ function Header({
   lang: string | undefined
 }) {
   const language = languageByCode(lang)
-  const dayStarts = dayStartsBack(STRIP_WEEKS)
+  const dayStarts = useDayStarts()
   const result = useQuery(api.aggregate.categoryDays, {
     area: slug,
     kinds: ['session', 'exercise'],
@@ -282,7 +283,7 @@ function Header({
 
 /* The three buttons, and this month's count of each. */
 function LogToday({ slug }: { slug: string }) {
-  const [today] = useState(() => dayStartsBack(1).at(-1) as number)
+  const today = useDayStarts(1).at(-1) as number
   const range = monthRange(Date.now())
   return (
     <TrackPanel area={slug} title="log today">
@@ -454,7 +455,7 @@ function Next({ slug }: { slug: string }) {
    (and let an unsorted one be marked); the flag moves a session logged
    under the wrong language. */
 function Recent({ slug }: { slug: string }) {
-  const dayStarts = dayStartsBack(STRIP_WEEKS)
+  const dayStarts = useDayStarts()
   const result = useQuery(api.logs.listForArea, {
     area: slug,
     since: dayStarts[0],

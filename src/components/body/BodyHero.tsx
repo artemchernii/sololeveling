@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useDayStarts } from '@/components/track/useDayStarts'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { CircleHelp, PersonStanding, Scale } from 'lucide-react'
@@ -11,7 +11,7 @@ import { TrackPanel } from '@/components/track/TrackPanel'
 import { areaVars } from '@/lib/areas'
 import { KINDS } from '@/lib/body/library'
 import type { BodyKind } from '@/lib/body/library'
-import { dayStartsBack, RECENT_DAYS, STRIP_WEEKS } from '@/lib/day-strip'
+import { RECENT_DAYS } from '@/lib/day-strip'
 import { whenLabel } from '@/lib/format'
 import { monthRange } from '@/lib/month'
 
@@ -23,7 +23,7 @@ import { monthRange } from '@/lib/month'
    holds the top right, beside the name, and fades out before the strip —
    a portrait, so it is cropped to the face rather than filling the card. */
 export function BodyHero({ featured }: { featured: BodyKind }) {
-  const [dayStarts] = useState(() => dayStartsBack(STRIP_WEEKS))
+  const dayStarts = useDayStarts()
   const result = useQuery(api.aggregate.categoryDays, {
     area: 'body',
     kinds: ['workout', 'exercise', 'intake'],
@@ -181,7 +181,7 @@ const SESSION_LABEL: Record<BodyKind, string> = {
 }
 
 export function LogSession() {
-  const [today] = useState(() => dayStartsBack(1).at(-1) as number)
+  const today = useDayStarts(1).at(-1) as number
   const range = monthRange(Date.now())
   const span = {
     today,

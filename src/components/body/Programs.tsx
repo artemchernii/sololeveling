@@ -279,17 +279,9 @@ function ExerciseRow({
       style={{ animationDelay: `${delay}ms` }}
       className="motion-arrive border-b border-lift/[0.06] last:border-b-0"
     >
+      {/* No tick circle before the name (26 Sep: "those circles are
+          useless") — DID is the one control, and it wears the tick. */}
       <div className="flex min-h-12 items-center gap-3 py-1.5">
-        <span
-          aria-label={today > 0 ? 'done today' : 'not yet today'}
-          className={`grid size-5 shrink-0 place-items-center rounded-full transition-colors ${
-            today > 0 ? 'bg-(--area) text-background' : 'ring-1 ring-lift/20'
-          }`}
-        >
-          {today > 0 ? (
-            <Check className="motion-draw size-3" strokeWidth={3} />
-          ) : null}
-        </span>
         <button
           type="button"
           onClick={onToggle}

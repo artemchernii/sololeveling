@@ -7,7 +7,12 @@ import type { Program, RoutineDay } from './library'
 
    The order is his: mobility first (his back, daily), then the gym when a
    day's rest has passed, alternating A and B by whichever was done longest
-   ago, then anything else not done today. */
+   ago, then anything else not done today.
+
+   A routine is done today when every exercise in it is (26 Sep). It used to
+   be done the moment any one was, so a single DID on Cat-cow moved NEXT UP
+   to the gym and folded the routine he was halfway through. One he has
+   started today stays the pick until it is finished. */
 
 const DAY_MS = 86_400_000
 
@@ -17,20 +22,31 @@ export type NextPick = { program: Program; day: RoutineDay; reason: string }
  * @param picked   day ids he has in Today (from his drills' refs)
  * @param lastDone when any exercise of that day was last logged, or null
  * @param todayStart local midnight today
+ * @param finishedToday whether every exercise of that day is logged today
  */
 export function nextRoutine(
   picked: ReadonlySet<string>,
   lastDone: (dayId: string) => number | null,
   todayStart: number,
+  finishedToday: (dayId: string) => boolean,
 ): NextPick | null {
   const days = PROGRAMS.flatMap((program) =>
     program.days
       .filter((day) => picked.has(day.id))
       .map((day) => ({ program, day, at: lastDone(day.id) })),
   )
-  const notToday = days.filter((d) => d.at === null || d.at < todayStart)
+  const notToday = days.filter((d) => !finishedToday(d.day.id))
   const oldestFirst = (list: typeof days) =>
     [...list].sort((a, b) => (a.at ?? -Infinity) - (b.at ?? -Infinity))
+
+  const started = notToday.find((d) => d.at !== null && d.at >= todayStart)
+  if (started) {
+    return {
+      program: started.program,
+      day: started.day,
+      reason: 'Started today — finish the rest.',
+    }
+  }
 
   const mobility = notToday.find((d) => d.program.kind === 'stretch')
   if (mobility) {

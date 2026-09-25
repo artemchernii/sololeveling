@@ -644,6 +644,10 @@ export function programById(id: string): Program | undefined {
   return PROGRAMS.find((p) => p.id === id)
 }
 
+export function dayById(id: string): RoutineDay | undefined {
+  return PROGRAMS.flatMap((p) => p.days).find((d) => d.id === id)
+}
+
 export type RefHit = { program: Program; day: RoutineDay; exercise: Exercise }
 
 /** What a drill's ref points at, or undefined for one he typed himself. */

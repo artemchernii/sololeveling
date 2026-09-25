@@ -6,8 +6,19 @@ import { nextRoutine } from './next'
 const DAY = 86_400_000
 const TODAY = new Date(2026, 8, 25).getTime()
 
-function run(picked: Array<string>, last: Record<string, number>) {
-  return nextRoutine(new Set(picked), (id) => last[id] ?? null, TODAY)
+/* `finished` defaults to "anything logged today is finished", which is
+   what every case below assumed before a routine could be half done. */
+function run(
+  picked: Array<string>,
+  last: Record<string, number>,
+  finished: Array<string> = Object.keys(last).filter((id) => last[id] >= TODAY),
+) {
+  return nextRoutine(
+    new Set(picked),
+    (id) => last[id] ?? null,
+    TODAY,
+    (id) => finished.includes(id),
+  )
 }
 
 describe('nextRoutine — one routine for today', () => {
@@ -41,6 +52,34 @@ describe('nextRoutine — one routine for today', () => {
 
   test('a never-done gym day is first', () => {
     const pick = run(['gym-a', 'gym-b'], { 'gym-a': TODAY - 3 * DAY })
+    expect(pick?.day.id).toBe('gym-b')
+  })
+
+  test('a routine started today stays the pick until it is finished', () => {
+    const pick = run(
+      ['back', 'gym-a', 'gym-b'],
+      { back: TODAY + 1000, 'gym-a': TODAY - 3 * DAY },
+      [],
+    )
+    expect(pick?.day.id).toBe('back')
+    expect(pick?.reason).toMatch(/started today/i)
+  })
+
+  test('a gym day started today is not dropped for mobility', () => {
+    const pick = run(
+      ['back', 'gym-a'],
+      { back: TODAY - DAY, 'gym-a': TODAY + 1000 },
+      [],
+    )
+    expect(pick?.day.id).toBe('gym-a')
+  })
+
+  test('once finished, the next one comes up', () => {
+    const pick = run(
+      ['back', 'gym-a', 'gym-b'],
+      { back: TODAY + 1000, 'gym-a': TODAY - 3 * DAY },
+      ['back'],
+    )
     expect(pick?.day.id).toBe('gym-b')
   })
 

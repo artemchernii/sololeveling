@@ -36,37 +36,12 @@ export function DidButton({
   /** A second line under a big button's label — "50 min". */
   sub?: string
 }) {
-  const remove = useMutation(api.logs.remove)
   const [burst, setBurst] = useState(0)
-  /* This button's own writes still in the undo window, oldest first. */
-  const [undo, setUndo] = useState<Array<Id<'logs'>>>([])
-  const [failed, setFailed] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  useEffect(() => () => clearTimeout(timer.current), [])
+  const { press: write, takeBack, canUndo, failed } = useUndoWindow()
 
   function press() {
     setBurst((n) => n + 1)
-    setFailed(false)
-    onDid().then(
-      (logId) => {
-        setUndo((ids) => [...ids, logId])
-        restartWindow()
-      },
-      () => setFailed(true),
-    )
-  }
-
-  function restartWindow() {
-    clearTimeout(timer.current)
-    timer.current = setTimeout(() => setUndo([]), UNDO_MS)
-  }
-
-  function takeBack() {
-    const logId = undo.at(-1)
-    if (logId === undefined) return
-    setUndo(undo.slice(0, -1))
-    restartWindow()
-    void remove({ logId })
+    write(onDid)
   }
 
   const done = (today ?? 0) > 0
@@ -118,11 +93,7 @@ export function DidButton({
         {/* Over the button's corner rather than under it, so the row below
             does not jump while the undo is offered. */}
         <span className="absolute right-3 bottom-3">
-          <UndoOrError
-            undo={undo.length > 0}
-            failed={failed}
-            onUndo={takeBack}
-          />
+          <UndoOrError undo={canUndo} failed={failed} onUndo={takeBack} />
         </span>
       </div>
     )
@@ -130,7 +101,7 @@ export function DidButton({
 
   return (
     <span className="flex shrink-0 items-center gap-1.5">
-      <UndoOrError undo={undo.length > 0} failed={failed} onUndo={takeBack} />
+      <UndoOrError undo={canUndo} failed={failed} onUndo={takeBack} />
       <button
         type="button"
         onClick={press}
@@ -157,7 +128,49 @@ export function DidButton({
   )
 }
 
-function UndoOrError({
+/**
+ * The few seconds after a one-tap write when it can be taken back. Every
+ * write in the window stacks, and Undo takes them back newest first — a
+ * group (DID ALL) as one step, in one `removeMany`.
+ */
+export function useUndoWindow() {
+  const removeMany = useMutation(api.logs.removeMany)
+  /* This control's own writes still in the window, oldest first. */
+  const [stack, setStack] = useState<Array<Array<Id<'logs'>>>>([])
+  const [failed, setFailed] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(timer.current), [])
+
+  function restartWindow() {
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => setStack([]), UNDO_MS)
+  }
+
+  function press(write: () => Promise<Id<'logs'> | Array<Id<'logs'>>>) {
+    setFailed(false)
+    write().then(
+      (written) => {
+        const group = Array.isArray(written) ? written : [written]
+        if (group.length === 0) return
+        setStack((s) => [...s, group])
+        restartWindow()
+      },
+      () => setFailed(true),
+    )
+  }
+
+  function takeBack() {
+    const group = stack.at(-1)
+    if (group === undefined) return
+    setStack(stack.slice(0, -1))
+    restartWindow()
+    void removeMany({ logIds: group })
+  }
+
+  return { press, takeBack, canUndo: stack.length > 0, failed }
+}
+
+export function UndoOrError({
   undo,
   failed,
   onUndo,

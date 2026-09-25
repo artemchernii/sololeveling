@@ -156,7 +156,7 @@ export function BodyHero({ featured }: { featured: BodyKind }) {
             <p className="flex items-center gap-1.5 text-[12px] text-state-warn">
               <CircleHelp className="size-3.5 shrink-0" />
               Unsorted = logs saved before they had a type. Pick one for each in
-              Done below.
+              History.
             </p>
           ) : null}
           {!result.complete ? (

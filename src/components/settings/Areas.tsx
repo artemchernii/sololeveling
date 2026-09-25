@@ -112,7 +112,8 @@ export function Areas() {
         </ul>
 
         <p className="text-[12.5px] text-ink-600">
-          Tick Language and the area gets its own tab on the Languages page.
+          Press an area&rsquo;s dot to change its colour, make it bold, or mark
+          it as a language you&rsquo;re learning.
         </p>
 
         <form
@@ -249,30 +250,14 @@ function AreaRow({
         {area.bold ? (
           <span className="label-caps shrink-0 text-(--area)">bold</span>
         ) : null}
-        <button
-          type="button"
-          aria-pressed={area.track === 'language'}
-          aria-label={
-            area.track === 'language'
-              ? `${area.label} has its own tab on Languages — stop`
-              : `Give ${area.label} its own tab on Languages`
-          }
-          onClick={() =>
-            run(
-              setTrack({
-                slug: area.slug,
-                track: area.track === 'language' ? null : 'language',
-              }),
-            )
-          }
-          className={`label-caps motion-press shrink-0 transition-colors ${
-            area.track === 'language'
-              ? 'text-lav-300'
-              : 'text-ink-600 hover:text-ink-300'
-          }`}
-        >
-          Language
-        </button>
+        {area.track === 'language' ? (
+          <span
+            title="Has its own tab on the Languages page"
+            className="label-caps shrink-0 text-lav-300"
+          >
+            language tab
+          </span>
+        ) : null}
         <button
           type="button"
           disabled={first}
@@ -321,6 +306,10 @@ function AreaRow({
           bold={area.bold === true}
           onHue={pickHue}
           onBold={(bold) => run(setBold({ slug: area.slug, bold }))}
+          language={area.track === 'language'}
+          onLanguage={(on) =>
+            run(setTrack({ slug: area.slug, track: on ? 'language' : null }))
+          }
           onSlide={setLocalHue}
           onRelease={() => {
             if (hue >= ACCENT_FROM && hue <= ACCENT_TO) {
@@ -353,6 +342,8 @@ function ColourPicker({
   onBold,
   onSlide,
   onRelease,
+  language,
+  onLanguage,
 }: {
   hue: number
   bold: boolean
@@ -360,6 +351,8 @@ function ColourPicker({
   onBold: (bold: boolean) => void
   onSlide: (hue: number) => void
   onRelease: () => void
+  language: boolean
+  onLanguage: (on: boolean) => void
 }) {
   const pair = bold
     ? 'var(--area-bold-l) var(--area-bold-c)'
@@ -417,6 +410,16 @@ function ColourPicker({
       <span className="font-mono text-[10.5px] text-ink-500">
         Bold = deep and saturated. Soft = the calm tone every area shares.
       </span>
+      <label className="flex cursor-pointer items-center gap-2.5 border-t border-lift/[0.08] pt-3 text-[12.5px] text-ink-300">
+        <input
+          type="checkbox"
+          checked={language}
+          onChange={(e) => onLanguage(e.target.checked)}
+          className="size-4 accent-(--area)"
+        />
+        This is a language I&rsquo;m learning — give it its own tab on the
+        Languages page
+      </label>
     </div>
   )
 }

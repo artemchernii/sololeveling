@@ -15,7 +15,13 @@ import { UndoOrError, useUndoWindow } from '@/components/track/DidButton'
 import { Sparks } from '@/components/track/Sparks'
 import { TrackPanel } from '@/components/track/TrackPanel'
 import { areaVars } from '@/lib/areas'
-import { howToLink, SAFETY, SESSION_LABEL, WORKOUTS } from '@/lib/body/library'
+import {
+  howToLink,
+  SAFETY,
+  sessionText,
+  SESSION_LABEL,
+  WORKOUTS,
+} from '@/lib/body/library'
 import type { Exercise, Workout } from '@/lib/body/library'
 import { readTicks, toggleTick, writeTicks } from '@/lib/body/ticks'
 import type { Ticks } from '@/lib/body/ticks'
@@ -60,6 +66,12 @@ export function WorkoutPanel({
 
   function tick(exerciseId: string) {
     const next = toggleTick(ticks, workout.id, exerciseId)
+    setTicks(next)
+    saveTicks(next)
+  }
+
+  function setDone(ids: ReadonlyArray<string>) {
+    const next = { ...ticks, [workout.id]: ids }
     setTicks(next)
     saveTicks(next)
   }
@@ -123,7 +135,12 @@ export function WorkoutPanel({
           ))}
         </ul>
 
-        <Finish workout={workout} />
+        <Finish
+          workout={workout}
+          ticked={done}
+          onSaved={() => setDone([])}
+          onUndone={setDone}
+        />
 
         <p className="flex items-start gap-1.5 text-[11px] text-ink-500">
           <TriangleAlert className="mt-0.5 size-3 shrink-0" />
@@ -245,12 +262,25 @@ function HowTo({ ex }: { ex: Exercise }) {
 }
 
 /* The one thing this card saves: a session of the workout's kind, the same
-   row the session button above writes. Pressing it is the claim; ticks or
-   none, it is his to make. */
-function Finish({ workout }: { workout: Workout }) {
+   row the session button above writes, with the moves ticked written into
+   it (sessionText). Pressing it is the claim; ticks or none, it is his to
+   make. The ticks clear once saved, so a second press is not the same
+   moves twice, and come back if it is undone. */
+function Finish({
+  workout,
+  ticked,
+  onSaved,
+  onUndone,
+}: {
+  workout: Workout
+  ticked: ReadonlyArray<string>
+  onSaved: () => void
+  onUndone: (ticked: ReadonlyArray<string>) => void
+}) {
   const create = useMutation(api.logs.create)
   const { press, takeBack, canUndo, failed } = useUndoWindow()
   const [burst, setBurst] = useState(0)
+  const [saved, setSaved] = useState<ReadonlyArray<string>>([])
   const session = SESSION_LABEL[workout.kind].toLowerCase()
   return (
     <div
@@ -261,23 +291,35 @@ function Finish({ workout }: { workout: Workout }) {
         type="button"
         onClick={() => {
           setBurst((n) => n + 1)
+          setSaved(ticked)
+          onSaved()
           press(() =>
             create({
               kind: 'workout',
               area: 'body',
               occurredAt: Date.now(),
               category: workout.kind,
-              text: workout.name.toLowerCase(),
+              text: sessionText(workout, ticked),
             }),
           )
         }}
         className="motion-press relative inline-flex items-center gap-2 rounded-full bg-(--area) px-5 py-2.5 text-[13.5px] font-medium text-background"
       >
         <Flag className="size-4" />
-        Finish · log a {session} session
+        Finish {workout.name}
         {burst > 0 ? <Sparks key={burst} count={16} reach={48} /> : null}
       </button>
-      <UndoOrError undo={canUndo} failed={failed} onUndo={takeBack} />
+      <span className="font-mono text-[10.5px] text-ink-500">
+        saves one {session} session with the moves you ticked
+      </span>
+      <UndoOrError
+        undo={canUndo}
+        failed={failed}
+        onUndo={() => {
+          takeBack()
+          onUndone(saved)
+        }}
+      />
     </div>
   )
 }

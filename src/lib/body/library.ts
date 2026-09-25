@@ -521,3 +521,21 @@ export function howToLink(exercise: Pick<Exercise, 'name'>): string {
     `${exercise.name} exercise how to`,
   )}`
 }
+
+/**
+ * The text of the one session Finish saves: the workout, then the moves
+ * ticked, in the workout's order — "Back day — Lat pulldown, Face pull".
+ * One row still, but it says what was done (26 Sep: "0 exercises
+ * registered?"). Nothing ticked is just the workout's name.
+ */
+export function sessionText(
+  workout: Workout,
+  ticked: ReadonlyArray<string>,
+): string {
+  const moves = workout.exercises
+    .filter((e) => ticked.includes(e.id))
+    .map((e) => e.name)
+  return moves.length === 0
+    ? workout.name
+    : `${workout.name} — ${moves.join(', ')}`
+}

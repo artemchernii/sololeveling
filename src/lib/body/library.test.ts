@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { howToLink, KINDS, workoutById, WORKOUTS } from './library'
+import { howToLink, KINDS, sessionText, workoutById, WORKOUTS } from './library'
 import { readTicks, toggleTick, writeTicks } from './ticks'
 
 describe('workouts', () => {
@@ -30,6 +30,14 @@ describe('workouts', () => {
     expect(workoutById('gym-legs')?.name).toBe('Leg day')
     expect(workoutById('nope')).toBeUndefined()
     expect(workoutById(null)).toBeUndefined()
+  })
+
+  test('a session names what was ticked, in the workout order', () => {
+    const back = workoutById('gym-back')!
+    expect(sessionText(back, ['face-pull', 'lat-pulldown', 'nope'])).toBe(
+      'Back day — Lat pulldown, Face pull',
+    )
+    expect(sessionText(back, [])).toBe('Back day')
   })
 
   test('watch how is a video search for the move', () => {

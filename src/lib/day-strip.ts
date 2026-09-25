@@ -45,18 +45,31 @@ export function dayStartsBack(
 }
 
 /**
- * The days in groups of seven, oldest first — the visual gap every week.
+ * The days in calendar weeks, Monday to Sunday, oldest first — the gap in
+ * the strip falls where a week does (26 Sep: "distinguish weekend, and
+ * weeks one from another"). They used to be groups of seven counted back
+ * from today, so a gap could land mid-week and meant nothing.
  *
- * These are groups of seven days, not calendar weeks: the strip ends today,
- * so a group boundary falls wherever counting back seven at a time puts it.
- * That is a reading aid, and nothing reads a group back as a week.
+ * The strip starts and ends where it does, so the first and last weeks are
+ * usually partial; the component sizes each block by its days.
  */
 export function dayBlocks(dayStarts: Array<number>): Array<Array<number>> {
   const blocks: Array<Array<number>> = []
-  for (let i = 0; i < dayStarts.length; i += 7) {
-    blocks.push(dayStarts.slice(i, i + 7))
+  for (const day of dayStarts) {
+    const current = blocks.at(-1)
+    if (current === undefined || new Date(day).getDay() === 1) {
+      blocks.push([day])
+    } else {
+      current.push(day)
+    }
   }
   return blocks
+}
+
+/** Saturday or Sunday, local. */
+export function isWeekend(day: number): boolean {
+  const weekday = new Date(day).getDay()
+  return weekday === 0 || weekday === 6
 }
 
 /** A month's short name over the first block that contains its 1st. */

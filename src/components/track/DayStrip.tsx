@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 
-import { blockLabels, dayBlocks } from '@/lib/day-strip'
+import { blockLabels, dayBlocks, isWeekend } from '@/lib/day-strip'
 
 /* Rows of days, filled where something was logged (R6b; one grid since
    25 Sep).
@@ -13,8 +13,13 @@ import { blockLabels, dayBlocks } from '@/lib/day-strip'
 
    One grid for the month labels and every row, so the squares stretch to fill
    the card on a desktop and the labels stay over their weeks. Below the
-   strip's minimum width the grid scrolls sideways inside its own box — one
+   strip's minimum width (wide enough for a square you can see, ~8px) the grid scrolls sideways inside its own box — one
    scrollbar, where there used to be one per row plus one round them all.
+
+   Blocks are calendar weeks, Monday first, with a wider gap between them,
+   and a weekend day's empty square is sunk a shade darker with a hairline
+   — so the week reads without a label (26 Sep). A week's width follows its
+   days, so a partial first or last week is not stretched.
 
    Purely presentational: it counts nothing. Every number beside it comes from
    aggregate.categoryDays. */
@@ -46,13 +51,14 @@ export function DayStrips({
 
   return (
     <div ref={box} className="overflow-x-auto">
-      <div className="grid min-w-[620px] grid-cols-[88px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5">
+      <div className="grid min-w-[880px] grid-cols-[88px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5">
         <span />
-        <div className="flex gap-[5px]">
+        <div className="flex gap-[9px]">
           {labels.map((label, b) => (
             <span
               key={b}
-              className="label-caps flex-1 overflow-visible whitespace-nowrap"
+              style={{ flex: blocks[b].length }}
+              className="label-caps min-w-0 overflow-visible whitespace-nowrap"
             >
               {label}
             </span>
@@ -74,12 +80,15 @@ function Row({ row, blocks }: { row: StripRow; blocks: Array<Array<number>> }) {
   return (
     <>
       <span className="label-caps truncate text-ink-300">{row.label}</span>
-      <div className="flex gap-[5px]">
+      <div className="flex gap-[9px]">
         {blocks.map((block, b) => (
           <div
             key={b}
-            style={{ animationDelay: `${Math.min(b * 30, 400)}ms` }}
-            className="motion-arrive flex flex-1 gap-[2px]"
+            style={{
+              flex: block.length,
+              animationDelay: `${Math.min(b * 30, 400)}ms`,
+            }}
+            className="motion-arrive flex min-w-0 gap-[2px]"
           >
             {block.map((day, d) => {
               index += 1
@@ -91,7 +100,9 @@ function Row({ row, blocks }: { row: StripRow; blocks: Array<Array<number>> }) {
                   title={`${count} ${row.noun}${count === 1 ? '' : 's'} · ${new Date(day).toDateString()}`}
                   className={`aspect-square flex-1 rounded-[3px] ${
                     count === 0
-                      ? 'bg-lift/[0.06]'
+                      ? isWeekend(day)
+                        ? 'bg-sink/40 ring-1 ring-lift/[0.07] ring-inset'
+                        : 'bg-lift/[0.07]'
                       : count === 1
                         ? 'bg-(--area)/60'
                         : 'bg-(--area) shadow-[0_0_8px_-2px_var(--area)]'

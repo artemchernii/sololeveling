@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import {
   Check,
+  CheckCheck,
   ChevronDown,
   Clock,
   Info,
@@ -15,7 +16,12 @@ import {
 import { api } from '../../../convex/_generated/api'
 import { KindIcon, kindName } from '@/components/body/kinds'
 import type { BodyProgress, DrillRow } from '@/components/body/useBodyProgress'
-import { DidButton } from '@/components/track/DidButton'
+import {
+  DidButton,
+  UndoOrError,
+  useUndoWindow,
+} from '@/components/track/DidButton'
+import { Sparks } from '@/components/track/Sparks'
 import { TrackPanel } from '@/components/track/TrackPanel'
 import { WeekDots } from '@/components/track/WeekDots'
 import { PROGRAMS, programById, SAFETY } from '@/lib/body/library'
@@ -82,7 +88,7 @@ export function MyRoutines({
             <p className="text-[13.5px] leading-relaxed text-ink-300">
               {starter.rhythm} — nine gentle exercises for the lower back. Add
               it and each exercise gets a DID button and how to do it. More
-              programs are in the library below.
+              programs are under Programs.
             </p>
             <button
               type="button"
@@ -105,11 +111,17 @@ export function MyRoutines({
         return (
           <RoutineCard
             key={day.id}
+            dayId={day.id}
             program={program}
             title={day.name}
             reason={suggested ? pick.reason : null}
             open={suggested || openDays.includes(day.id)}
             onToggle={suggested ? undefined : () => toggle(day.id)}
+            /* A card pressed in stays open once it is finished and NEXT UP
+               moves on — or its Undo would fold away with it (26 Sep). */
+            onUsed={() =>
+              setOpenDays((o) => (o.includes(day.id) ? o : [...o, day.id]))
+            }
             delay={delay + i * 60}
             rows={day.exercises.map((ex) => ({
               ex,
@@ -133,15 +145,18 @@ export function MyRoutines({
 }
 
 function RoutineCard({
+  dayId,
   program,
   title,
   reason,
   open,
   onToggle,
+  onUsed,
   rows,
   dayStarts,
   delay,
 }: {
+  dayId: string
   program: Program
   title: string
   /** Set on the routine NEXT UP picked. */
@@ -149,6 +164,7 @@ function RoutineCard({
   open: boolean
   /** Absent on the suggested one, which stays open. */
   onToggle: (() => void) | undefined
+  onUsed: () => void
   rows: Array<{ ex: Exercise; row: DrillRow | undefined }>
   dayStarts: Array<number>
   delay: number
@@ -237,6 +253,12 @@ function RoutineCard({
       ) : null}
       {open ? (
         <div className="motion-arrive flex flex-col gap-3 px-5 pb-5 sm:px-6">
+          <DidAll
+            dayId={dayId}
+            todayStart={dayStarts.at(-1) as number}
+            done={allDone}
+            onUsed={onUsed}
+          />
           <ul className="flex flex-col">
             {rows.map(({ ex, row }, i) => (
               <ExerciseRow
@@ -246,6 +268,7 @@ function RoutineCard({
                 dayStarts={dayStarts}
                 open={openEx === ex.id}
                 onToggle={() => setOpenEx((o) => (o === ex.id ? null : ex.id))}
+                onUsed={onUsed}
                 delay={i * 30}
               />
             ))}
@@ -263,6 +286,7 @@ function ExerciseRow({
   dayStarts,
   open,
   onToggle,
+  onUsed,
   delay,
 }: {
   ex: Exercise
@@ -270,6 +294,7 @@ function ExerciseRow({
   dayStarts: Array<number>
   open: boolean
   onToggle: () => void
+  onUsed: () => void
   delay: number
 }) {
   const did = useMutation(api.drills.did)
@@ -313,7 +338,10 @@ function ExerciseRow({
           <DidButton
             today={today}
             label="did"
-            onDid={() => did({ drillId: row.drill._id })}
+            onDid={() => {
+              onUsed()
+              return did({ drillId: row.drill._id })
+            }}
           />
         ) : null}
       </div>
@@ -323,6 +351,56 @@ function ExerciseRow({
         </div>
       ) : null}
     </li>
+  )
+}
+
+/* DID ALL (26 Sep: "we want to bulk DID"): every exercise of the day not
+   ticked yet, and the session — the line under it says so, because the
+   session is what the Today tile counts and he should know he is claiming
+   it. Undo takes the whole press back in one step. */
+function DidAll({
+  dayId,
+  todayStart,
+  done,
+  onUsed,
+}: {
+  dayId: string
+  todayStart: number
+  /** Everything ticked today: the button goes, a pending Undo stays. */
+  done: boolean
+  onUsed: () => void
+}) {
+  const didDay = useMutation(api.drills.didDay)
+  const { press, takeBack, canUndo, failed } = useUndoWindow()
+  const [burst, setBurst] = useState(0)
+  if (done && !canUndo && !failed) return null
+  if (done) {
+    return (
+      <div className="flex items-center gap-3">
+        <UndoOrError undo={canUndo} failed={failed} onUndo={takeBack} />
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <button
+        type="button"
+        onClick={() => {
+          setBurst((n) => n + 1)
+          onUsed()
+          press(() => didDay({ dayId, todayStart }))
+        }}
+        className="motion-press relative inline-flex items-center gap-2 rounded-full bg-(--area) px-4 py-2 font-mono text-[11.5px] tracking-[0.14em] text-background uppercase shadow-[0_0_24px_-6px_var(--area)]"
+      >
+        <CheckCheck className="size-4" />
+        did all
+        {burst > 0 ? <Sparks key={burst} count={16} reach={48} /> : null}
+      </button>
+      <span className="font-mono text-[10.5px] text-ink-500">
+        ticks the rest + logs the session
+      </span>
+      <UndoOrError undo={canUndo} failed={failed} onUndo={takeBack} />
+    </div>
   )
 }
 
@@ -446,7 +524,7 @@ export function ProgramLibrary({
     >
       <p className="-mt-1 text-[13px] text-ink-400">
         Built-in routines, each exercise with how to do it. Add one and it joins
-        your routines above with a DID button per exercise.
+        your routines on Today, with a DID button per exercise.
       </p>
       <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
         {PROGRAMS.map((program, i) => {

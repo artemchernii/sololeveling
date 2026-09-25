@@ -45,3 +45,18 @@ listed or counted. His Body drills rows stay too, unused.
 Pick Leg day, tap two rows, refresh — still ticked. Open Squat, watch how
 opens a video search. Finish — Gym shows one more, Undo takes it back. In
 History, Select, tap a row's text — it ticks.
+
+## Same day, after pressing it (26 Sep, "go with both")
+
+- **Finish saves the moves in the session.** Still one `workout` row, but
+  its text names what was ticked, in the workout's order — "Back day — Lat
+  pulldown, Face pull" (`sessionText`). The ticks clear once saved and come
+  back on Undo. He asked "0 exercises registered?"; now the record says.
+- **A month calendar replaces the strip on Body** (`BodyCalendar`,
+  `src/lib/month-grid.ts`): Monday-first, an icon per kind logged each day
+  from `aggregate.categoryDays` over the month, ‹ › between months (none
+  past this one), tap a day to list its rows. Languages keeps the old
+  strip — the calendar-week strip was reverted ("even worse").
+- **Weight in the hero**: tap it, type, Enter. A new weigh-in is a new
+  log; if today already has one, the new one is written and today's old
+  one removed, snapshot and all. 20–400 kg.

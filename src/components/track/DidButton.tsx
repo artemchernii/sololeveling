@@ -54,7 +54,7 @@ export function DidButton({
           onClick={press}
           className={`motion-press group relative flex min-h-[92px] flex-col items-start justify-between gap-2 overflow-visible rounded-[18px] p-3 text-left sm:p-4 ring-1 transition-colors ring-inset ${
             done
-              ? 'bg-(--area)/18 text-(--area) ring-(--area)/55 shadow-[0_0_24px_-6px_var(--area)]'
+              ? 'bg-(--area)/10 text-(--area) ring-(--area)/45'
               : 'bg-lift/[0.04] text-ink-200 ring-lift/12 hover:bg-(--area)/10 hover:text-(--area) hover:ring-(--area)/40'
           }`}
         >

@@ -26,15 +26,15 @@ export function BodyHero({ featured }: { featured: BodyKind }) {
   const dayStarts = useDayStarts()
   const result = useQuery(api.aggregate.categoryDays, {
     area: 'body',
-    kinds: ['workout', 'exercise', 'intake'],
+    kinds: ['workout', 'intake'],
     dayStarts,
     end: dayStarts[dayStarts.length - 1] + 86_400_000,
     recentDays: RECENT_DAYS,
   })
   const state = useQuery(api.aggregate.currentState, {})
   const weight = state?.weight
-  /* Exercises and the session of the same kind share a row since 25 Sep
-     (categoryDays keys by category); a kind shows once. */
+  /* Sessions and shakes only since 26 Sep — what History lists. Exercise
+     rows ticked before then are still stored, and no longer counted here. */
   const rows = result?.rows ?? []
   const unsorted = rows.some((r) => r.category === null)
   const photo = PHOTOS[featured] ?? HERO_PHOTO
@@ -101,7 +101,7 @@ export function BodyHero({ featured }: { featured: BodyKind }) {
 
       {result === undefined ? null : rows.length === 0 ? (
         <p className="relative text-[13.5px] text-ink-300">
-          Nothing logged yet. Press a session below or DID on an exercise — the
+          Nothing logged yet. Press a session below or Finish a workout — the
           strip lights up the day you do.
         </p>
       ) : (

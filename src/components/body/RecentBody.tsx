@@ -1,7 +1,7 @@
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { useMutation } from 'convex/react'
-import { CircleHelp, ListChecks, Scale, Trash2, X } from 'lucide-react'
+import { Check, CircleHelp, ListChecks, Scale, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 
 import { api } from '../../../convex/_generated/api'
@@ -37,7 +37,6 @@ export function RecentBody({ delay = 0 }: { delay?: number }) {
     area: 'body',
     since: dayStarts[0],
   })
-  const drills = useQuery(api.drills.list, { area: 'body' })
   const removeLog = useMutation(api.logs.remove)
   const removeMany = useMutation(api.logs.removeMany)
   const setCategory = useMutation(api.logs.setCategory)
@@ -71,11 +70,13 @@ export function RecentBody({ delay = 0 }: { delay?: number }) {
   if (result === undefined) return null
   /* A ticked task is intent, not evidence (CLAUDE.md): "Play Diablo" filed
      under Body is not something the body did, so it is not listed here. */
-  const body = result.rows.filter((row) => row.kind !== 'task_done')
+  const body = result.rows.filter(
+    /* Sessions, shakes and weigh-ins (26 Sep): Body saves sessions now, and
+       the exercise rows ticked before that were a record nobody read. */
+    (row) => row.kind !== 'task_done' && row.kind !== 'exercise',
+  )
   const { complete } = result
-  const options = [
-    ...new Set([...BODY_CATEGORIES, ...(drills ?? []).map((d) => d.group)]),
-  ]
+  const options = BODY_CATEGORIES
   const shown = all ? body : body.slice(0, SHOWN)
 
   return (
@@ -147,22 +148,53 @@ export function RecentBody({ delay = 0 }: { delay?: number }) {
                   row.kind === 'weight' ? 'weight' : row.meta?.category
                 const on = picked.has(row._id)
                 return (
+                  /* In select mode the whole row is the tick (26 Sep: "I
+                     click on item and select it, not only checkbox"), so
+                     the chip and the value turn to plain text there. */
                   <div
                     key={row._id}
-                    className={`motion-arrive group flex min-h-10 items-center gap-2.5 rounded-[12px] px-1.5 py-1 transition-colors ${
+                    role={selecting ? 'checkbox' : undefined}
+                    aria-checked={selecting ? on : undefined}
+                    aria-label={
+                      selecting
+                        ? `Select the ${row.meta?.category ?? row.kind} logged ${whenLabel(row.occurredAt)}`
+                        : undefined
+                    }
+                    tabIndex={selecting ? 0 : undefined}
+                    onClick={
+                      selecting ? () => toggle([row._id], !on) : undefined
+                    }
+                    onKeyDown={
+                      selecting
+                        ? (e) => {
+                            if (e.key === ' ' || e.key === 'Enter') {
+                              e.preventDefault()
+                              toggle([row._id], !on)
+                            }
+                          }
+                        : undefined
+                    }
+                    className={`motion-arrive group flex min-h-11 items-center gap-2.5 rounded-[12px] px-1.5 py-1 transition-colors ${
+                      selecting ? 'cursor-pointer select-none' : ''
+                    } ${
                       on
                         ? 'bg-state-danger/10 ring-1 ring-state-danger/30 ring-inset'
                         : 'hover:bg-lift/[0.04]'
                     }`}
                   >
                     {selecting ? (
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={(e) => toggle([row._id], e.target.checked)}
-                        aria-label={`Select the ${row.meta?.category ?? row.kind} logged ${whenLabel(row.occurredAt)}`}
-                        className="size-4 shrink-0 accent-(--area)"
-                      />
+                      <span
+                        aria-hidden
+                        className={`grid size-5 shrink-0 place-items-center rounded-[6px] transition-colors ${
+                          on
+                            ? 'bg-state-danger text-background'
+                            : 'ring-1 ring-lift/25'
+                        }`}
+                      >
+                        {on ? (
+                          <Check className="size-3" strokeWidth={3} />
+                        ) : null}
+                      </span>
                     ) : null}
                     <span
                       className={`grid size-7 shrink-0 place-items-center rounded-full ${
@@ -179,9 +211,15 @@ export function RecentBody({ delay = 0 }: { delay?: number }) {
                         <CircleHelp className="size-3.5" />
                       )}
                     </span>
-                    {row.kind === 'weight' ? (
+                    {row.kind === 'weight' || selecting ? (
                       <span className="label-caps w-[92px] shrink-0 truncate">
-                        weight
+                        {row.kind === 'weight'
+                          ? 'weight'
+                          : category === undefined
+                            ? 'unsorted'
+                            : category in KIND_LABELS
+                              ? KIND_LABELS[category]
+                              : category}
                       </span>
                     ) : (
                       <CategoryChip
@@ -199,6 +237,7 @@ export function RecentBody({ delay = 0 }: { delay?: number }) {
                       {row.text ?? (row.kind === 'workout' ? 'session' : '')}
                     </span>
                     <EditableValue
+                      readOnly={selecting}
                       logId={row._id}
                       kind={row.kind}
                       value={row.value}
@@ -260,11 +299,13 @@ function DayToggle({
 /* A weight is not editable here and says so: logs.setValue refuses one,
    because the stateSnapshot it wrote would be left contradicting the log. */
 function EditableValue({
+  readOnly,
   logId,
   kind,
   value,
   unit,
 }: {
+  readOnly: boolean
   logId: Id<'logs'>
   kind: string
   value: number | undefined
@@ -302,6 +343,17 @@ function EditableValue({
       })
   }
 
+  const shown = `${value}${unit === 'min' ? 'm' : unit === 'kg' ? 'kg' : ''}`
+  /* Plain text while selecting: a disabled button would swallow the click
+     meant for the row. */
+  if (readOnly) {
+    return (
+      <span className="w-16 shrink-0 font-mono text-[12px] text-ink-300">
+        {shown}
+      </span>
+    )
+  }
+
   if (kind === 'weight' || !editing) {
     return (
       <button
@@ -315,8 +367,7 @@ function EditableValue({
         }
         className="w-16 shrink-0 text-left font-mono text-[12px] text-ink-300 disabled:text-ink-500"
       >
-        {value}
-        {unit === 'min' ? 'm' : unit === 'kg' ? 'kg' : ''}
+        {shown}
       </button>
     )
   }

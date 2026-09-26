@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -132,7 +132,7 @@ export function MonthCalendar({
             {w}
           </span>
         ))}
-        {monthWeeks(shown)
+        {sixWeeks(monthWeeks(shown))
           .flat()
           .map((day, i) =>
             day === null ? (
@@ -154,7 +154,9 @@ export function MonthCalendar({
           )}
       </div>
 
-      {picked !== null ? <div key={picked}>{dayList(picked)}</div> : null}
+      <GrowOnly>
+        {picked !== null ? <div key={picked}>{dayList(picked)}</div> : null}
+      </GrowOnly>
     </div>
   )
 }
@@ -231,5 +233,45 @@ function Day({
         ))}
       </span>
     </button>
+  )
+}
+
+/* Six rows, always (26 Sep, "when I click on different days everything is
+   jumping"): a month is four to six weeks, and a calendar that changed
+   height between months moved everything under it. Blank weeks pad the
+   end. */
+function sixWeeks(
+  weeks: Array<Array<number | null>>,
+): Array<Array<number | null>> {
+  const out = [...weeks]
+  while (out.length < 6) out.push(Array<number | null>(7).fill(null))
+  return out
+}
+
+/* The day's list under the calendar keeps the tallest height it has had
+   (26 Sep, same complaint): picking a quiet day after a busy one made the
+   page shorter than where it was scrolled, the browser pulled the page up
+   to fit, and the calendar jumped under his thumb. A little empty room is
+   the price of it staying put. */
+function GrowOnly({ children }: { children: ReactNode }) {
+  const box = useRef<HTMLDivElement>(null)
+  const [floor, setFloor] = useState(0)
+  useLayoutEffect(() => {
+    const el = box.current
+    if (!el) return
+    const inner = el.firstElementChild as HTMLElement | null
+    const measure = () => {
+      const h = inner?.offsetHeight ?? 0
+      setFloor((f) => (h > f ? h : f))
+    }
+    measure()
+    const watch = new ResizeObserver(measure)
+    if (inner) watch.observe(inner)
+    return () => watch.disconnect()
+  }, [])
+  return (
+    <div ref={box} style={{ minHeight: floor }}>
+      <div>{children}</div>
+    </div>
   )
 }

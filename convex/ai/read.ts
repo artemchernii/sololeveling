@@ -39,13 +39,33 @@ export const readDocument = internalAction({
       await fail('No reader is set up yet (ANTHROPIC_API_KEY is missing).')
       return null
     }
-    const kind = readableKind(job.contentType)
-    const blob = await ctx.storage.get(job.storageId)
-    if (kind === null || blob === null) {
-      await fail('The file could not be opened.')
+    /* Every page, in order, as one message: the reader sees the whole
+       sheet at once (26 Sep, "2-3 sheets to one ANALYZE"). */
+    const blocks: Array<Anthropic.ContentBlockParam> = []
+    for (const page of job.pages) {
+      const kind = readableKind(page.contentType)
+      const blob = await ctx.storage.get(page.storageId)
+      if (kind === null || blob === null) {
+        await fail('A page could not be opened.')
+        return null
+      }
+      const data = Buffer.from(await blob.arrayBuffer()).toString('base64')
+      blocks.push(
+        kind.block === 'document'
+          ? {
+              type: 'document',
+              source: { type: 'base64', media_type: kind.mediaType, data },
+            }
+          : {
+              type: 'image',
+              source: { type: 'base64', media_type: kind.mediaType, data },
+            },
+      )
+    }
+    if (blocks.length === 0) {
+      await fail('The sheet has no pages.')
       return null
     }
-    const data = Buffer.from(await blob.arrayBuffer()).toString('base64')
 
     try {
       const client = new Anthropic()
@@ -59,31 +79,20 @@ export const readDocument = internalAction({
           {
             role: 'user',
             content: [
-              kind.block === 'document'
-                ? {
-                    type: 'document',
-                    source: {
-                      type: 'base64',
-                      media_type: kind.mediaType,
-                      data,
-                    },
-                  }
-                : {
-                    type: 'image',
-                    source: {
-                      type: 'base64',
-                      media_type: kind.mediaType,
-                      data,
-                    },
-                  },
-              { type: 'text', text: readingPrompt(job.language) },
+              ...blocks,
+              {
+                type: 'text',
+                text: readingPrompt(job.language, blocks.length),
+              },
             ],
           },
         ],
       })
 
       if (response.stop_reason === 'max_tokens') {
-        await fail('The sheet had more on it than one reading can hold.')
+        await fail(
+          'The sheet had more on it than one reading can hold — try fewer pages.',
+        )
         return null
       }
       if (response.stop_reason === 'refusal') {

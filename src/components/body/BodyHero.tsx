@@ -31,11 +31,22 @@ export function BodyHero() {
   return (
     <section
       style={areaVars('body')}
-      className="glass motion-arrive relative flex flex-col gap-3.5 overflow-hidden rounded-[22px] p-4 sm:p-5"
+      className="glass motion-arrive relative flex flex-col gap-3.5 overflow-hidden rounded-[22px] p-4 ring-1 ring-(--area)/25 ring-inset sm:p-5"
     >
+      {/* Glass lit by the area's colour (26 Sep: "more like glass
+          gradient"): a wash from the top-left corner, a soft glow behind
+          it, and a sheen along the top edge. */}
       <span
         aria-hidden
-        className="pointer-events-none absolute -top-24 -left-16 size-64 rounded-full bg-(--area)/20 blur-3xl"
+        className="pointer-events-none absolute inset-0 bg-linear-135 from-(--area)/40 via-(--area)/10 to-transparent"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -top-24 -left-16 size-72 rounded-full bg-(--area)/30 blur-3xl"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-lift/30 to-transparent"
       />
       {/* His photo on the right, where a wide card is otherwise empty (26
           Sep: "on web right side is a bit empty. Maybe add that photo

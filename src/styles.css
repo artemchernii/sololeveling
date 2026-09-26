@@ -757,6 +757,36 @@ h6 {
   }
 }
 
+/* A sheet being read (26 Sep: "better highlight of READING DOCUMENT"): a
+   lit line sweeps down the page and back, the way the System scans. Placed
+   inside a positioned, clipped box; it draws nothing when motion is
+   reduced to a single pass. */
+@utility system-beam {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 22%;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in oklch, var(--color-accent-400) 28%, transparent) 70%,
+    var(--color-accent-400) 96%,
+    transparent
+  );
+  filter: drop-shadow(0 0 8px var(--system-shine));
+  animation: system-beam var(--motion-glow) ease-in-out infinite alternate;
+}
+
+@keyframes system-beam {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(460%);
+  }
+}
+
 /* A System window opening: it unfolds from its middle line, the way the
    anime's windows do. Something arriving because you did a thing — base. */
 @utility system-open {

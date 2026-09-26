@@ -529,6 +529,9 @@ export default defineSchema({
         /* The routine item an `exercise` row was ticked from. The row keeps
            its own text and category, so retiring the drill loses nothing. */
         drillId: v.optional(v.id('drills')),
+        /* The bill this payment was the tap on (Finances F3). The row is
+           the evidence; the bill is only what it was for. */
+        recurringId: v.optional(v.id('recurring')),
       }),
     ),
   })
@@ -581,6 +584,136 @@ export default defineSchema({
       searchField: 'body',
       filterFields: ['ownerId'],
     }),
+
+  /* Where his money sits (Finances F2, 26 Sep): Revolut, BPI, a broker.
+     Typed in by him — nothing is seeded. A balance is not stored here: it
+     is a state, `stateSnapshots` keyed `balance:<accountId>`, so the latest
+     reading wins and every earlier one stays as history. */
+  accounts: defineTable({
+    ownerId: v.string(),
+    name: v.string(),
+    kind: v.union(v.literal('bank'), v.literal('broker')),
+    order: v.number(),
+    /* Gone from the lists; its readings and trades stay, because they
+       happened. */
+    retiredAt: v.optional(v.number()),
+  }).index('by_owner_order', ['ownerId', 'order']),
+
+  /* A bill or a salary that comes round (Finances F3): the plan, not the
+     payment. Tapping "paid" writes the expense log that is the evidence
+     (`logs.meta.recurringId`) — nothing is logged by itself (CLAUDE.md,
+     intent is not evidence). */
+  recurring: defineTable({
+    ownerId: v.string(),
+    name: v.string(),
+    kind: v.union(v.literal('expense'), v.literal('income')),
+    amount: v.number(), // euros
+    category: v.optional(v.string()),
+    accountId: v.optional(v.id('accounts')),
+    cadence: v.union(v.literal('monthly'), v.literal('yearly')),
+    /* 1–31, or 0 for the last day of the month; a 31 in a 30-day month
+       falls on the 30th. */
+    day: v.number(),
+    /* Yearly only: 0–11. */
+    month: v.optional(v.number()),
+    endedAt: v.optional(v.number()),
+  }).index('by_owner', ['ownerId']),
+
+  /* A ticker he holds or held (Finances F4), found by search and never
+     typed as a code: Yahoo Finance's symbol (`TSLA`, `VWCE.DE`), with the
+     exchange and currency it quotes in. One row per owner and symbol. */
+  instruments: defineTable({
+    ownerId: v.string(),
+    symbol: v.string(),
+    name: v.string(),
+    exchange: v.string(),
+    currency: v.string(),
+    type: v.string(), // 'EQUITY', 'ETF'
+    isin: v.optional(v.string()),
+  })
+    .index('by_owner_symbol', ['ownerId', 'symbol'])
+    /* Read only by the daily price check, which acts for every owner —
+       like projects.by_github_repo. */
+    .index('by_symbol', ['symbol']),
+
+  /* A buy or a sell (Finances F4): shares and the price per share he paid,
+     in euros, as the broker confirmed. A position is the sum of its
+     trades' shares — PLAN.md §1's sum rule, over trade rows. */
+  trades: defineTable({
+    ownerId: v.string(),
+    accountId: v.id('accounts'),
+    instrumentId: v.id('instruments'),
+    side: v.union(v.literal('buy'), v.literal('sell')),
+    shares: v.number(),
+    priceEur: v.number(),
+    occurredAt: v.number(),
+    /* Brought in from a screenshot rather than typed: what he held on the
+       day of the import, at his average price. */
+    importId: v.optional(v.id('portfolioImports')),
+  })
+    .index('by_owner_time', ['ownerId', 'occurredAt'])
+    .index('by_owner_instrument', ['ownerId', 'instrumentId']),
+
+  /* Source 4 (Finances F4): a closing price as Yahoo Finance reported it,
+     stored by the daily check — never fetched at render. */
+  prices: defineTable({
+    ownerId: v.string(),
+    instrumentId: v.id('instruments'),
+    price: v.number(),
+    currency: v.string(),
+    /** The market time the price is for. */
+    asOf: v.number(),
+    fetchedAt: v.number(),
+    source: v.string(),
+  }).index('by_owner_instrument_time', ['ownerId', 'instrumentId', 'asOf']),
+
+  /* Source 4: an exchange rate, one currency into euros, as the ECB
+     published it (via Frankfurter). What lets a US share be shown in
+     euros without inventing the conversion. */
+  fxRates: defineTable({
+    ownerId: v.string(),
+    currency: v.string(), // 'USD' — euros per one of these
+    rate: v.number(),
+    asOf: v.number(),
+    fetchedAt: v.number(),
+    source: v.string(),
+  }).index('by_owner_currency_time', ['ownerId', 'currency', 'asOf']),
+
+  /* A broker screenshot read once by Claude Haiku 4.5 into rows he
+     confirms (Finances F4). The rows are a proposal: nothing is a trade
+     until he confirms it. */
+  portfolioImports: defineTable({
+    ownerId: v.string(),
+    accountId: v.id('accounts'),
+    storageIds: v.array(v.id('_storage')),
+    status: v.union(
+      v.literal('reading'),
+      v.literal('ready'),
+      v.literal('failed'),
+      v.literal('done'),
+    ),
+    rows: v.array(
+      v.object({
+        name: v.string(),
+        isin: v.optional(v.string()),
+        shares: v.optional(v.number()),
+        priceEur: v.optional(v.number()),
+        valueEur: v.optional(v.number()),
+        /* Yahoo's best matches for the name or ISIN, best first. */
+        candidates: v.array(
+          v.object({
+            symbol: v.string(),
+            name: v.string(),
+            exchange: v.string(),
+            type: v.string(),
+          }),
+        ),
+      }),
+    ),
+    error: v.optional(v.string()),
+    model: v.optional(v.string()),
+    readAt: v.optional(v.number()),
+  }).index('by_owner', ['ownerId']),
 
   principles: defineTable({
     ownerId: v.string(),

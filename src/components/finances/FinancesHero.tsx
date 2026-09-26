@@ -1,13 +1,23 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ArrowDownRight, ArrowUpRight, Check, Pencil, X } from 'lucide-react'
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  CalendarClock,
+  Check,
+  Pencil,
+  X,
+} from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 
 import { api } from '../../../convex/_generated/api'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { areaVars } from '@/lib/areas'
 import { daysLeftInMonth, monthRange } from '@/lib/month'
 import { euros } from '@/lib/money'
+import { dayLabel } from '@/lib/bills'
+import { agoLabel } from '@/lib/format'
 
 const MONTH = new Intl.DateTimeFormat(undefined, { month: 'long' })
 
@@ -44,6 +54,8 @@ export function FinancesHero() {
         </span>
       </div>
 
+      <AccountsTotal />
+
       <div className="relative grid grid-cols-2 gap-3">
         <Total
           label="out"
@@ -60,6 +72,8 @@ export function FinancesHero() {
           delay={120}
         />
       </div>
+
+      <NextBill today={today} />
 
       {limit !== undefined && sums !== undefined ? (
         <Limit limit={limit} out={sums.out.sum} today={today} />
@@ -250,5 +264,76 @@ function Limit({
         />
       </span>
     </button>
+  )
+}
+
+/* What his accounts hold, added (aggregate.balances): the big number, and
+   never without the oldest reading in it. Not called net worth — the
+   mortgage it owes is not in it. */
+function AccountsTotal() {
+  const data = useQuery(api.aggregate.balances, {})
+  if (data === undefined) return <div className="h-[62px]" />
+  if (data.accounts.length === 0) {
+    return (
+      <Link
+        to="/finances"
+        search={{ tab: 'balances' }}
+        className="relative w-fit font-mono text-[11.5px] tracking-[0.12em] text-ink-400 uppercase hover:text-foreground"
+      >
+        + add your accounts to see what they hold
+      </Link>
+    )
+  }
+  return (
+    <div className="relative flex flex-col gap-1">
+      <span className="label-caps">in your accounts</span>
+      <span className="flex flex-wrap items-baseline gap-x-3">
+        <span
+          key={data.total}
+          className="motion-pop text-[40px] leading-none font-light tracking-tight text-foreground sm:text-[52px]"
+        >
+          {euros(data.total)}
+        </span>
+        <span className="font-mono text-[11px] text-ink-500">
+          {data.oldestAt === null
+            ? 'no readings yet'
+            : `oldest read ${agoLabel(data.oldestAt)}`}
+          {data.unread > 0 ? ` · ${data.unread} not read` : ''}
+        </span>
+      </span>
+    </div>
+  )
+}
+
+/* The next bill not yet paid this month, so the hero says what is coming. */
+function NextBill({ today }: { today: number }) {
+  const now = new Date(today)
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  const rows = useQuery(api.recurring.month, {
+    year,
+    month,
+    start: new Date(year, month, 1).getTime(),
+    end: new Date(year, month + 1, 1).getTime(),
+  })
+  const next = rows?.find(
+    (r) => r.paid === null && r.item.endedAt === undefined,
+  )
+  if (!next) return null
+  const late = next.day < now.getDate()
+  return (
+    <Link
+      to="/finances"
+      search={{ tab: 'bills' }}
+      className={`motion-arrive relative inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 font-mono text-[11.5px] ring-1 ring-inset ${
+        late
+          ? 'text-state-warn ring-state-warn/35'
+          : 'text-ink-200 ring-lav-400/25 hover:ring-lav-400/50'
+      }`}
+    >
+      <CalendarClock className="size-3.5 text-area" />
+      {late ? 'waiting' : 'next'}: {next.item.name} · {euros(next.item.amount)}{' '}
+      · {next.day === now.getDate() ? 'today' : dayLabel(next.day)}
+    </Link>
   )
 }

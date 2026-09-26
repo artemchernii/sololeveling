@@ -11,28 +11,22 @@ import {
 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import { HERO_PHOTO, KindIcon, kindName, PHOTOS } from '@/components/body/kinds'
-import { BodyCalendar } from '@/components/body/BodyCalendar'
+import { KindIcon, kindName } from '@/components/body/kinds'
 import { DidButton } from '@/components/track/DidButton'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { TrackPanel } from '@/components/track/TrackPanel'
 import { areaVars } from '@/lib/areas'
 import { KINDS, SESSION_LABEL } from '@/lib/body/library'
-import type { BodyKind } from '@/lib/body/library'
 import { RECENT_DAYS } from '@/lib/day-strip'
 import { whenLabel } from '@/lib/format'
 import { monthRange } from '@/lib/month'
 
-/* Body and how consistent you have been, in one card (25 Sep) — the
-   Languages header, for the body: "consistency is the main thing".
-
-   The latest weigh-in (state), which he can log or correct right here
-   (26 Sep); each kind as the days it happened in the last 30
-   (aggregate.categoryDays); and a month calendar under them (BodyCalendar,
-   26 Sep — it replaced twelve weeks of squares). His photo holds the top
-   right, beside the name, and fades out before the chips — a portrait, so
-   it is cropped to the face rather than filling the card. */
-export function BodyHero({ featured }: { featured: BodyKind }) {
+/* Body's header (slimmed 26 Sep: "again we need to scroll and find some
+   shit"). One short card: the name, the latest weigh-in (state) he can log
+   or correct right here, and how many of the last 30 days each kind
+   happened (aggregate.categoryDays) as small pills. The calendar lives in
+   History now, and the photo went with the height it needed. */
+export function BodyHero() {
   /* Five weeks: enough behind "of the last 30 days". */
   const dayStarts = useDayStarts(5)
   const result = useQuery(api.aggregate.categoryDays, {
@@ -44,52 +38,24 @@ export function BodyHero({ featured }: { featured: BodyKind }) {
   })
   const state = useQuery(api.aggregate.currentState, {})
   const weight = state?.weight
-  /* Sessions and shakes only since 26 Sep — what History lists. Exercise
-     rows ticked before then are still stored, and no longer counted here. */
+  /* Sessions and shakes only since 26 Sep — what History lists. */
   const rows = result?.rows ?? []
-  const unsorted = rows.some((r) => r.category === null)
-  const photo = PHOTOS[featured] ?? HERO_PHOTO
 
   return (
     <section
       style={areaVars('body')}
-      className="glass motion-arrive relative flex flex-col gap-6 overflow-hidden rounded-[26px] p-5 sm:p-7"
+      className="glass motion-arrive relative flex flex-col gap-3.5 overflow-hidden rounded-[22px] p-4 sm:p-5"
     >
-      <img
-        src={photo.src}
-        alt=""
-        aria-hidden
-        decoding="async"
-        style={{
-          objectPosition: photo.focus,
-          maskImage:
-            'linear-gradient(to left, black 45%, transparent 100%), linear-gradient(to bottom, black 55%, transparent 100%)',
-          WebkitMaskImage:
-            'linear-gradient(to left, black 45%, transparent 100%), linear-gradient(to bottom, black 55%, transparent 100%)',
-          maskComposite: 'intersect',
-          WebkitMaskComposite: 'source-in',
-        }}
-        className="motion-fade pointer-events-none absolute top-0 right-0 h-[260px] w-full object-cover opacity-45 select-none sm:w-[46%] sm:opacity-85"
-      />
       <span
         aria-hidden
-        className="pointer-events-none absolute -top-24 -left-16 size-80 rounded-full bg-(--area)/25 blur-3xl"
+        className="pointer-events-none absolute -top-24 -left-16 size-64 rounded-full bg-(--area)/20 blur-3xl"
       />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute -right-20 -bottom-28 size-72 rounded-full bg-lav-400/10 blur-3xl"
-      />
-      <span
-        aria-hidden
-        className="motion-sweep pointer-events-none absolute inset-y-0 left-0 w-1/2"
-      />
-
-      <div className="relative flex flex-wrap items-center gap-x-5 gap-y-3">
-        <span className="motion-pop grid size-[76px] place-items-center rounded-[22px] bg-(--area)/15 text-(--area) shadow-[0_0_40px_-8px_var(--area)] ring-1 ring-(--area)/35">
-          <PersonStanding className="size-10" strokeWidth={1.5} />
+      <div className="relative flex items-center gap-3.5">
+        <span className="motion-pop grid size-12 shrink-0 place-items-center rounded-[15px] bg-(--area)/15 text-area ring-1 ring-(--area)/35">
+          <PersonStanding className="size-6" strokeWidth={1.6} />
         </span>
-        <span className="flex min-w-0 flex-col gap-1.5">
-          <span className="pb-[0.12em] text-[40px] leading-[1.1] font-light tracking-tight text-foreground sm:text-[48px]">
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-[26px] leading-tight font-light tracking-tight text-foreground">
             Body
           </span>
           <WeightLine
@@ -103,63 +69,39 @@ export function BodyHero({ featured }: { featured: BodyKind }) {
       </div>
 
       {result === undefined ? null : rows.length === 0 ? (
-        <p className="relative text-[13.5px] text-ink-300">
-          Nothing logged in the last {RECENT_DAYS} days. Press a session below
-          or Finish a workout — the calendar marks the day you do.
+        <p className="relative text-[13px] text-ink-400">
+          Nothing in the last {RECENT_DAYS} days yet — log a session below.
         </p>
       ) : (
-        <div className="relative flex flex-col gap-4">
-          <div className="flex flex-wrap gap-2.5">
-            {rows.map((row, i) => (
-              <span
-                key={`${row.kind}-${row.category ?? 'unsorted'}`}
-                style={{ animationDelay: `${120 + i * 70}ms` }}
-                className={`motion-land flex items-center gap-3 rounded-[16px] py-2 pr-4 pl-2 ring-1 ring-inset ${
-                  row.category === null
-                    ? 'bg-state-warn/10 ring-state-warn/30'
-                    : 'bg-background/35 ring-(--area)/25'
-                }`}
-              >
-                <span
-                  className={`grid size-8 place-items-center rounded-full ${
-                    row.category === null
-                      ? 'bg-state-warn/15 text-state-warn'
-                      : 'bg-(--area)/18 text-(--area)'
-                  }`}
-                >
-                  {row.category === null ? (
-                    <CircleHelp className="size-4" />
-                  ) : (
-                    <KindIcon kind={row.category} />
-                  )}
-                </span>
-                <span className="flex flex-col">
-                  <span className="text-[24px] leading-none font-light text-foreground">
-                    {row.activeRecent}
-                    <span className="ml-1 text-[12px] text-ink-500">
-                      / {RECENT_DAYS} days
-                    </span>
-                  </span>
-                  <span className="label-caps">{kindName(row.category)}</span>
-                </span>
+        <div className="relative flex flex-wrap gap-1.5">
+          {rows.map((row, i) => (
+            <span
+              key={`${row.kind}-${row.category ?? 'unsorted'}`}
+              title={`${kindName(row.category)}: ${row.activeRecent} of the last ${RECENT_DAYS} days`}
+              aria-label={`${kindName(row.category)}: ${row.activeRecent} of the last ${RECENT_DAYS} days`}
+              style={{ animationDelay: `${80 + i * 50}ms` }}
+              className={`motion-land inline-flex items-center gap-1.5 rounded-full py-1 pr-2.5 pl-1.5 ring-1 ring-inset ${
+                row.category === null
+                  ? 'text-state-warn ring-state-warn/35'
+                  : 'text-area ring-lift/12'
+              }`}
+            >
+              {row.category === null ? (
+                <CircleHelp className="size-3.5" />
+              ) : (
+                <KindIcon kind={row.category} className="size-3.5" />
+              )}
+              <span className="font-mono text-[12px] text-foreground">
+                {row.activeRecent}
+                <span className="text-ink-500">/{RECENT_DAYS}</span>
               </span>
-            ))}
-          </div>
-          {unsorted ? (
-            <p className="flex items-center gap-1.5 text-[12px] text-state-warn">
-              <CircleHelp className="size-3.5 shrink-0" />
-              Unsorted = logs saved before they had a type. Pick one for each in
-              History.
-            </p>
-          ) : null}
-          {!result.complete ? (
-            <span className="font-mono text-[11px] text-ink-500">
-              older days not all stored
+              <span className="label-caps hidden sm:inline">
+                {kindName(row.category)}
+              </span>
             </span>
-          ) : null}
+          ))}
         </div>
       )}
-      <BodyCalendar />
     </section>
   )
 }
@@ -227,7 +169,7 @@ function WeightLine({
         }}
         className="motion-arrive flex flex-wrap items-center gap-2 text-[13px]"
       >
-        <Scale className="size-3.5 text-(--area)" />
+        <Scale className="size-3.5 text-area" />
         <input
           autoFocus
           inputMode="decimal"
@@ -277,7 +219,7 @@ function WeightLine({
       onClick={open}
       className="group flex items-center gap-2 self-start rounded-full py-0.5 text-[13px] text-ink-300"
     >
-      <Scale className="size-3.5 text-(--area)" />
+      <Scale className="size-3.5 text-area" />
       {weight !== null ? (
         <>
           <span className="text-foreground">{weight.value} kg</span>

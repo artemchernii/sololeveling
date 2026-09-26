@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { History, Sun } from 'lucide-react'
 
 import { BodyHero, LogSession } from '@/components/body/BodyHero'
-import { RecentBody } from '@/components/body/RecentBody'
+import { BodyCalendar } from '@/components/body/BodyCalendar'
 import { WorkoutPanel } from '@/components/body/Workout'
 import { areaVars } from '@/lib/areas'
 import { workoutById, WORKOUTS } from '@/lib/body/library'
@@ -53,7 +53,7 @@ function Body() {
   const [workout, pick] = usePickedWorkout()
   return (
     <div className="flex flex-col gap-[18px]">
-      <BodyHero featured={workout.kind} />
+      <BodyHero />
       <nav
         style={areaVars('body')}
         aria-label="Body tabs"
@@ -74,7 +74,7 @@ function Body() {
                   : 'text-ink-400 ring-lift/12 hover:text-foreground hover:ring-lift/25'
               }`}
             >
-              <Icon className={`size-4 ${on ? 'text-(--area)' : ''}`} />
+              <Icon className={`size-4 ${on ? 'text-area' : ''}`} />
               {label}
             </Link>
           )
@@ -89,7 +89,13 @@ function Body() {
             <WorkoutPanel workout={workout} onPick={pick} delay={80} />
           </>
         ) : (
-          <RecentBody />
+          /* No panel title: the tab above already says History. */
+          <section
+            style={areaVars('body')}
+            className="glass rounded-[22px] p-4 sm:p-5"
+          >
+            <BodyCalendar />
+          </section>
         )}
       </div>
     </div>

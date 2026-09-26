@@ -103,7 +103,7 @@ export function WorkoutPanel({
             >
               <KindIcon
                 kind={w.kind}
-                className={`size-3.5 ${on ? 'text-(--area)' : ''}`}
+                className={`size-3.5 ${on ? 'text-area' : ''}`}
               />
               {w.name}
             </button>

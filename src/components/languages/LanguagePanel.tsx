@@ -183,23 +183,39 @@ function Header({
       />
 
       <div className="relative flex flex-wrap items-center gap-x-5 gap-y-3">
+        {/* A monogram, not the flag (26 Sep: the big flag "looks a bit
+            cheap … I like it as a chip"): the language's code in the app's
+            mono caps, like a passport's. The flag stays, small, by the
+            level. */}
         {language ? (
-          <span className="motion-pop grid size-[76px] place-items-center rounded-[22px] bg-(--area)/15 text-[54px] leading-none shadow-[0_0_40px_-8px_var(--area)] ring-1 ring-(--area)/35">
-            {language.flag}
+          <span
+            aria-hidden
+            className="motion-pop grid size-[76px] place-items-center rounded-[22px] bg-(--area)/15 font-mono text-[28px] font-light tracking-[0.08em] text-area shadow-[0_0_40px_-8px_var(--area)] ring-1 ring-(--area)/35"
+          >
+            {language.code.split('-')[0].toUpperCase()}
           </span>
         ) : null}
         <span className="flex min-w-0 flex-col gap-1.5">
           <span className="truncate pb-[0.12em] text-[40px] leading-[1.1] font-light tracking-tight text-foreground sm:text-[48px]">
             {language?.native ?? label}
           </span>
-          {level ? (
+          {level || language ? (
             <span className="flex items-center gap-2">
-              <span className="rounded-full bg-(--area) px-2.5 py-0.5 font-mono text-[11px] font-medium text-background">
-                {level}
-              </span>
-              <span className="text-[13px] text-area">
-                {CEFR_MEANING[level].name}
-              </span>
+              {language ? (
+                <span className="text-[17px] leading-none">
+                  {language.flag}
+                </span>
+              ) : null}
+              {level ? (
+                <>
+                  <span className="rounded-full bg-(--area) px-2.5 py-0.5 font-mono text-[11px] font-medium text-background">
+                    {level}
+                  </span>
+                  <span className="text-[13px] text-area">
+                    {CEFR_MEANING[level].name}
+                  </span>
+                </>
+              ) : null}
             </span>
           ) : null}
         </span>

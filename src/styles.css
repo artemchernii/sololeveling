@@ -686,6 +686,112 @@ h6 {
   box-shadow: var(--glass-shadow);
 }
 
+/* The System window (tokens item 10): the frosted panel with a lavender
+   tint from the top, a lit edge, and four corner brackets. Its own material
+   rather than a modifier on .glass — two utilities both writing
+   background-image would be decided by build order. Sharp corners: the
+   window is a HUD, not a card. The element must be positioned; the
+   brackets and the scan lines are drawn on it, not in it. */
+@utility system-frame {
+  background-image: var(--system-tint), var(--glass-fill);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--system-edge);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--glass-shadow), var(--system-glow);
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg,
+      var(--system-scan) 0 1px,
+      transparent 1px 3px
+    );
+  }
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    pointer-events: none;
+    --c: var(--system-corner);
+    background:
+      linear-gradient(var(--c), var(--c)) top left / 16px 2px,
+      linear-gradient(var(--c), var(--c)) top left / 2px 16px,
+      linear-gradient(var(--c), var(--c)) top right / 16px 2px,
+      linear-gradient(var(--c), var(--c)) top right / 2px 16px,
+      linear-gradient(var(--c), var(--c)) bottom left / 16px 2px,
+      linear-gradient(var(--c), var(--c)) bottom left / 2px 16px,
+      linear-gradient(var(--c), var(--c)) bottom right / 16px 2px,
+      linear-gradient(var(--c), var(--c)) bottom right / 2px 16px;
+    background-repeat: no-repeat;
+    filter: drop-shadow(0 0 5px var(--system-shine));
+  }
+}
+
+/* A System title: `[ LANGUAGE ]`, spaced mono caps in the accent, lit. */
+@utility system-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--color-lav-400);
+  text-shadow: 0 0 10px var(--system-shine);
+}
+
+/* The glow breathing (26 Sep: "this lavender color and if it's going to
+   pulse = NICE"). For the live things only — the rank, the popup — because
+   if everything breathes nothing does. The reduced-motion rule below stops
+   it after one breath. */
+@utility system-pulse {
+  animation: system-breathe var(--motion-glow) ease-in-out infinite;
+}
+
+@keyframes system-breathe {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px var(--system-shine));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px var(--system-shine));
+  }
+}
+
+/* A System window opening: it unfolds from its middle line, the way the
+   anime's windows do. Something arriving because you did a thing — base. */
+@utility system-open {
+  animation: system-open var(--motion-base) var(--motion-ease) both;
+}
+
+@keyframes system-open {
+  from {
+    clip-path: inset(50% 0 50% 0);
+    opacity: 0.4;
+  }
+  /* Past the edges, not at them: a clip left at inset(0) would cut the
+     window's own glow off for good. */
+  to {
+    clip-path: inset(-80px);
+    opacity: 1;
+  }
+}
+
+/* And folding shut, back to its middle line. */
+@utility system-close {
+  animation: system-close var(--motion-base) var(--motion-ease) both;
+}
+
+@keyframes system-close {
+  from {
+    clip-path: inset(-80px);
+    opacity: 1;
+  }
+  to {
+    clip-path: inset(50% 0 50% 0);
+    opacity: 0;
+  }
+}
+
 /* A panel of the same material with no backdrop blur (24 Sep). For a
    panel taller than the screen — the calendar — where Chrome drew a stray
    pale band inside the blur. The ambient field behind is blurred already,

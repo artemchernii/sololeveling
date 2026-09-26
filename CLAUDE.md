@@ -88,17 +88,23 @@ Nocturne is the design source of truth. Its tokens live in
 `src/styles/tokens.css` and reach components through Tailwind's `@theme` in
 `src/styles.css`. Take every colour, radius, space and shadow from a token.
 
-The tokens under that file's `APP ADDITIONS` rule (nine groups, as of 24
+The tokens under that file's `APP ADDITIONS` rule (ten groups, as of 26
 Sep: ground, mono face, glass, motion, area colours, lift/sink, the light
-theme, state, and note kinds) are the only values not from Nocturne, and each carries the reason it
+theme, state, note kinds, and the System) are the only values not from Nocturne, and each carries the reason it
 exists. Adding another means writing that reason too.
 
 `design/wireframes-v2/Solo Leveling Wireframes.dc.html` is visual reference for
 rhythm and component anatomy. Where it and `PLAN.md` §3 disagree, §3 wins — the wireframe paints its
 glass with inline hex, which is what tokens replaced.
 
-Voice: dark ground, frosted panels, one lavender accent reserved for live and
-focus things, mono caps for labels, big light numerals.
+Voice: dark ground, frosted panels, one lavender accent for live and focus
+things and for the System window, mono caps for labels, big light numerals.
+
+**Lavender is the app, an area's colour is the room (26 Sep).** The System
+window — lit lavender edge, corner brackets, `[ BRACKETED ]` caps titles
+(`system-frame`, `system-title`, `system-pulse` in `styles.css`) — frames the
+tracking pages and the sidebar's hover. An area's colour marks which page:
+its icon, its photo's light, a thin accent, never a whole panel.
 
 **Not flat and not grey (20 Sep).** Artem: "everything is boring and
 depressing. No fun!" State has colour — `--state-danger/warn/good`, PLAN.md

@@ -29,6 +29,7 @@ import { IMPORT_MODEL_NAME, MAX_IMPORT_IMAGES } from '@/lib/market'
 import type { Candidate } from '@/lib/market'
 import { euros } from '@/lib/money'
 import { Veiled, VeilToggle } from '@/components/finances/Veil'
+import { SkeletonRows } from '@/components/Skeleton'
 
 const DATE = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
@@ -93,7 +94,9 @@ export function Invest() {
           <AddTrade accounts={pickable} onDone={() => setMode(null)} />
         ) : null}
 
-        {data === undefined ? null : data.rows.length === 0 ? (
+        {data === undefined ? (
+          <SkeletonRows rows={3} twoLine rowClassName="py-3" />
+        ) : data.rows.length === 0 ? (
           mode === null && (accounts?.length ?? 0) > 0 ? (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <CandlestickChart className="size-6 text-area" />

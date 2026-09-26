@@ -21,6 +21,7 @@ import { useDayStarts } from '@/components/track/useDayStarts'
 import { dayLabel } from '@/lib/bills'
 import { categoriesFor, euros } from '@/lib/money'
 import type { MoneyKind } from '@/lib/money'
+import { SkeletonRows } from '@/components/Skeleton'
 
 const MONTHS = Array.from({ length: 12 }, (_, m) =>
   new Date(2026, m, 1).toLocaleDateString(undefined, { month: 'short' }),
@@ -79,7 +80,9 @@ export function Bills() {
         />
       ) : null}
 
-      {rows === undefined ? null : rows.length === 0 && editing === null ? (
+      {rows === undefined ? (
+        <SkeletonRows rows={3} twoLine rowClassName="py-3" />
+      ) : rows.length === 0 && editing === null ? (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <Repeat className="size-6 text-area" />
           <p className="max-w-sm text-[13.5px] text-ink-400">

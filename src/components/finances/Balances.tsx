@@ -18,6 +18,7 @@ import { useDayStarts } from '@/components/track/useDayStarts'
 import { agoLabel } from '@/lib/format'
 import { euros } from '@/lib/money'
 import { Veiled, VeilToggle } from '@/components/finances/Veil'
+import { SkeletonRows } from '@/components/Skeleton'
 
 /* Balances (Finances F2, 26 Sep): his sheet, in the app. One card per
    account — what it holds, when he last read it off the bank's app, and a
@@ -46,7 +47,9 @@ export function Balances() {
       }
     >
       {adding ? <AddAccount onDone={() => setAdding(false)} /> : null}
-      {data === undefined ? null : data.accounts.length === 0 && !adding ? (
+      {data === undefined ? (
+        <SkeletonRows rows={2} twoLine rowClassName="py-4" />
+      ) : data.accounts.length === 0 && !adding ? (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <Landmark className="size-6 text-area" />
           <p className="max-w-sm text-[13.5px] text-ink-400">

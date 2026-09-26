@@ -16,6 +16,7 @@ import { euros } from '@/lib/money'
 import { dayLabel } from '@/lib/bills'
 import { agoLabel } from '@/lib/format'
 import { Veiled, VeilToggle } from '@/components/finances/Veil'
+import { Skeleton } from '@/components/Skeleton'
 
 const MONTH = new Intl.DateTimeFormat(undefined, { month: 'long' })
 
@@ -108,7 +109,11 @@ function Total({
         key={sum}
         className="motion-pop truncate text-[30px] leading-none font-light tracking-tight text-foreground sm:text-[38px]"
       >
-        {sum === undefined ? '—' : euros(sum)}
+        {sum === undefined ? (
+          <Skeleton className="inline-block h-6 w-20 align-middle" />
+        ) : (
+          euros(sum)
+        )}
       </span>
       <span className="font-mono text-[11px] text-ink-500">
         {count === undefined
@@ -128,55 +133,67 @@ function Total({
    Not called net worth — the mortgage it owes is not in it. */
 function AccountsTotal() {
   const data = useQuery(api.aggregate.worth, {})
-  if (data === undefined) return <div className="h-[104px]" />
-  if (data.byAccount.length === 0) {
-    return (
-      <Link
-        to="/finances"
-        search={{ tab: 'balances' }}
-        className="relative w-fit font-mono text-[11.5px] tracking-[0.12em] text-ink-400 uppercase hover:text-foreground"
-      >
-        + add your accounts to see what they hold
-      </Link>
-    )
-  }
+  /* One shape from the first frame (26 Sep: "when we load the page … it
+     jumps. Looks cheap"): loading, empty and filled all draw the same
+     block, and only what is inside it changes. */
+  const empty = data !== undefined && data.byAccount.length === 0
   return (
     <div className="relative flex flex-col gap-2.5">
       <div className="flex flex-col gap-1">
         <span className="label-caps">cash + investments</span>
-        <span
-          key={data.total}
-          className="motion-pop text-[40px] leading-none font-light tracking-tight text-foreground sm:text-[52px]"
-        >
-          <Veiled>{euros(data.total)}</Veiled>
+        <span className="flex h-[40px] items-center sm:h-[52px]">
+          {data === undefined ? (
+            <Skeleton className="h-8 w-48 sm:h-10" />
+          ) : empty ? (
+            <span className="text-[40px] leading-none font-light text-ink-600 sm:text-[52px]">
+              —
+            </span>
+          ) : (
+            <span
+              key={data.total}
+              className="motion-pop text-[40px] leading-none font-light tracking-tight text-foreground sm:text-[52px]"
+            >
+              <Veiled>{euros(data.total)}</Veiled>
+            </span>
+          )}
         </span>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <Half
           label="free cash"
           Icon={Wallet}
-          value={data.cash.total}
+          value={data?.cash.total}
+          empty={empty}
           note={
-            data.cash.oldestAt === null
-              ? 'nothing typed yet'
-              : `oldest read ${agoLabel(data.cash.oldestAt)}${
-                  data.cash.unread > 0 ? ` · ${data.cash.unread} not read` : ''
-                }`
+            data === undefined
+              ? undefined
+              : empty
+                ? 'add an account'
+                : data.cash.oldestAt === null
+                  ? 'nothing typed yet'
+                  : `oldest read ${agoLabel(data.cash.oldestAt)}${
+                      data.cash.unread > 0
+                        ? ` · ${data.cash.unread} not read`
+                        : ''
+                    }`
           }
           tab="balances"
         />
         <Half
           label="invested"
           Icon={CandlestickChart}
-          value={data.invested.total}
+          value={data?.invested.total}
+          empty={empty || data?.invested.oldestAt === null}
           note={
-            data.invested.oldestAt === null
-              ? 'no positions yet'
-              : `closes as of ${agoLabel(data.invested.oldestAt)}${
-                  data.invested.unvalued > 0
-                    ? ` · ${data.invested.unvalued} unpriced`
-                    : ''
-                }`
+            data === undefined
+              ? undefined
+              : data.invested.oldestAt === null
+                ? 'no positions yet'
+                : `closes as of ${agoLabel(data.invested.oldestAt)}${
+                    data.invested.unvalued > 0
+                      ? ` · ${data.invested.unvalued} unpriced`
+                      : ''
+                  }`
           }
           tab="invest"
         />
@@ -189,13 +206,15 @@ function Half({
   label,
   Icon,
   value,
+  empty,
   note,
   tab,
 }: {
   label: string
   Icon: typeof Wallet
-  value: number
-  note: string
+  value: number | undefined
+  empty: boolean
+  note: string | undefined
   tab: 'balances' | 'invest'
 }) {
   return (
@@ -208,11 +227,17 @@ function Half({
         <Icon className="size-3.5 text-area" />
         {label}
       </span>
-      <span className="truncate text-[20px] leading-tight font-light text-foreground">
-        <Veiled>{euros(value)}</Veiled>
+      <span className="flex h-[25px] items-center truncate text-[20px] leading-tight font-light text-foreground">
+        {value === undefined ? (
+          <Skeleton className="h-4 w-20" />
+        ) : empty ? (
+          <span className="text-ink-600">—</span>
+        ) : (
+          <Veiled>{euros(value)}</Veiled>
+        )}
       </span>
-      <span className="truncate font-mono text-[10.5px] text-ink-500">
-        {note}
+      <span className="flex h-[15px] items-center truncate font-mono text-[10.5px] text-ink-500">
+        {note ?? <Skeleton className="h-2 w-24" />}
       </span>
     </Link>
   )
@@ -232,13 +257,31 @@ function NextBill({ today }: { today: number }) {
   const next = rows?.find(
     (r) => r.paid === null && r.item.endedAt === undefined,
   )
-  if (!next) return null
+  /* The row is always there, so nothing under it moves when the bills
+     arrive: a quiet line while loading or when none is due. */
+  if (rows === undefined) {
+    return <span className="h-[30px]" aria-hidden />
+  }
+  if (!next) {
+    return (
+      <Link
+        to="/finances"
+        search={{ tab: 'bills' }}
+        className="relative inline-flex h-[30px] w-fit items-center gap-2 rounded-full px-3 font-mono text-[11.5px] text-ink-500 ring-1 ring-lift/12 ring-inset hover:text-ink-200"
+      >
+        <CalendarClock className="size-3.5 text-area" />
+        {rows.length === 0
+          ? 'no bills set up'
+          : 'every bill this month is done'}
+      </Link>
+    )
+  }
   const late = next.day < now.getDate()
   return (
     <Link
       to="/finances"
       search={{ tab: 'bills' }}
-      className={`motion-arrive relative inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 font-mono text-[11.5px] ring-1 ring-inset ${
+      className={`motion-arrive relative inline-flex h-[30px] w-fit items-center gap-2 rounded-full px-3 font-mono text-[11.5px] ring-1 ring-inset ${
         late
           ? 'text-state-warn ring-state-warn/35'
           : 'text-ink-200 ring-lav-400/25 hover:ring-lav-400/50'

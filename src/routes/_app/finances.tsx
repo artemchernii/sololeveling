@@ -41,7 +41,7 @@ function Finances() {
       <nav
         style={areaVars('money')}
         aria-label="Finances tabs"
-        className="flex flex-wrap gap-2"
+        className="flex gap-1.5 sm:flex-wrap sm:gap-2"
       >
         {TABS.map(({ id, label, Icon }) => {
           const on = id === tab
@@ -52,7 +52,9 @@ function Finances() {
               search={id === 'spending' ? {} : { tab: id }}
               replace
               aria-current={on ? 'page' : undefined}
-              className={`motion-press inline-flex items-center gap-2 rounded-full px-4 py-2 font-mono text-[11.5px] tracking-[0.14em] uppercase ring-1 transition-colors ring-inset ${
+              className={`motion-press inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full font-mono text-[11.5px] tracking-[0.14em] uppercase ring-1 transition-colors ring-inset sm:w-auto sm:px-4 ${
+                on ? 'px-3.5' : 'w-10'
+              } ${
                 on
                   ? 'bg-lav-400/12 text-foreground ring-lav-400/45 shadow-[0_0_18px_-6px_var(--system-shine)]'
                   : 'text-ink-400 ring-lift/12 hover:text-foreground hover:ring-lift/25'

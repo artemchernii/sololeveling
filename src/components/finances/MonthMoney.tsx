@@ -14,6 +14,7 @@ import { useDayStarts } from '@/components/track/useDayStarts'
 import { compareMonths, monthOf, shiftMonth } from '@/lib/month-grid'
 import type { YearMonth } from '@/lib/month-grid'
 import { categoryLabel, euros } from '@/lib/money'
+import { SkeletonRows } from '@/components/Skeleton'
 
 const MONTH_NAME = new Intl.DateTimeFormat(undefined, {
   month: 'long',
@@ -73,7 +74,9 @@ export function MonthMoney() {
         </button>
       </div>
 
-      {sums === undefined ? null : sums.out.count + sums.in.count === 0 ? (
+      {sums === undefined ? (
+        <SkeletonRows rows={3} twoLine rowClassName="py-2" />
+      ) : sums.out.count + sums.in.count === 0 ? (
         <p className="py-4 text-center text-[13.5px] text-ink-500">
           Nothing logged in {MONTH_NAME.format(new Date(start))}.
         </p>

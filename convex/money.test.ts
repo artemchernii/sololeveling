@@ -182,3 +182,11 @@ describe('the monthly spending limit', () => {
     expect(await me.query(api.goals.spendLimit, {})).toBeNull()
   })
 })
+
+test('a cleared limit stays off the Goals shelf', async () => {
+  const { me } = setup()
+  await me.mutation(api.goals.setSpendLimit, { targetValue: 800 })
+  await me.mutation(api.goals.clearSpendLimit, {})
+  const closed = await me.query(api.goals.listClosed, {})
+  expect(closed.dropped).toEqual([])
+})

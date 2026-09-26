@@ -16,6 +16,12 @@ import type { Tile } from './schema'
 
 const MAX_ROWS = 200
 
+/* The monthly spending limit (Finances F1, 26 Sep) is the active money goal
+   measured in euros a month — the same kind of rule the weight goal is
+   found by. Its own unit, so a tile target on Money (counted in transfers)
+   is never mistaken for it. */
+const SPEND_LIMIT_UNIT = 'eur/month'
+
 const goalStatusValidator = v.union(
   v.literal('active'),
   v.literal('done'),
@@ -185,9 +191,18 @@ export const listClosed = query({
         )
         .order('desc')
         .take(MAX_ROWS)
-      return rows
-        .filter((g) => g.tile === undefined && g.weekly === undefined)
-        .sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0))
+      return (
+        rows
+          /* Targets set from a page, not goals he wrote — they stay off the
+           shelf when dropped. */
+          .filter(
+            (g) =>
+              g.tile === undefined &&
+              g.weekly === undefined &&
+              g.unit !== SPEND_LIMIT_UNIT,
+          )
+          .sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0))
+      )
     }
     return { reached: await closed('done'), dropped: await closed('dropped') }
   },
@@ -566,12 +581,6 @@ export const weeklyTargets = query({
   },
 })
 
-/* The monthly spending limit (Finances F1, 26 Sep) is the active money goal
-   measured in euros a month — the same kind of rule the weight goal is
-   found by. Its own unit, so a tile target on Money (counted in transfers)
-   is never mistaken for it. */
-const SPEND_LIMIT_UNIT = 'eur/month'
-
 async function activeSpendLimits(ctx: QueryCtx | MutationCtx, ownerId: string) {
   const rows = await ctx.db
     .query('goals')
@@ -641,7 +650,7 @@ export const spendLimit = query({
   returns: v.union(v.number(), v.null()),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
-    const [goal] = await activeSpendLimits(ctx, ownerId)
-    return goal?.targetValue ?? null
+    const goals = await activeSpendLimits(ctx, ownerId)
+    return goals.length > 0 ? (goals[0].targetValue ?? null) : null
   },
 })

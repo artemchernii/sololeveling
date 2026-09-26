@@ -249,7 +249,9 @@ function Header({
             {others.map((row) => (
               <OtherLine
                 key={`${row.kind}-${row.category ?? 'unsorted'}`}
-                label={row.kind === 'exercise' ? 'topics' : nameOf(row.category)}
+                label={
+                  row.kind === 'exercise' ? 'topics' : nameOf(row.category)
+                }
                 recent={row.activeRecent}
                 warn={row.category === null}
               />
@@ -419,9 +421,7 @@ function OtherLine({
     <>
       <span
         className={`grid size-7 place-items-center rounded-full ${
-          warn
-            ? 'bg-state-warn/15 text-state-warn'
-            : 'bg-(--area)/15 text-area'
+          warn ? 'bg-state-warn/15 text-state-warn' : 'bg-(--area)/15 text-area'
         }`}
       >
         {warn ? (

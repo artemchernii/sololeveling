@@ -230,7 +230,9 @@ function WeightLine({
           }}
           aria-label="Weight in kg"
           className={`w-20 rounded-[8px] bg-sink/30 px-2 py-1 font-mono text-[14px] text-foreground ring-1 ring-inset focus:outline-none ${
-            error ? 'ring-state-danger/60' : 'ring-lav-400/30 focus:ring-lav-400/60'
+            error
+              ? 'ring-state-danger/60'
+              : 'ring-lav-400/30 focus:ring-lav-400/60'
           }`}
         />
         <span className="text-ink-400">kg</span>

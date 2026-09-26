@@ -469,15 +469,13 @@ export const setWeeklyTarget = mutation({
     let shape: { title: string; unit: string }
     if (area === BODY) {
       const body = WEEKLY_CATEGORIES[args.category] as
-        | (typeof WEEKLY_CATEGORIES)[string]
-        | undefined
+        (typeof WEEKLY_CATEGORIES)[string] | undefined
       if (body === undefined) throw new Error('No such Body kind')
       shape = body
     } else {
       const language = await requireLanguageArea(ctx, ownerId, area)
       const kind = LANGUAGE_CATEGORIES[args.category] as
-        | (typeof LANGUAGE_CATEGORIES)[string]
-        | undefined
+        (typeof LANGUAGE_CATEGORIES)[string] | undefined
       if (kind === undefined) throw new Error('No such language kind')
       shape = { title: `${language.label} ${kind.title}`, unit: kind.unit }
     }

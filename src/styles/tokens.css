@@ -244,7 +244,8 @@
   );
   --system-glow:
     0 0 38px -10px color-mix(in oklch, var(--color-accent) 55%, transparent),
-    inset 0 0 42px -16px color-mix(in oklch, var(--color-accent) 45%, transparent);
+    inset 0 0 42px -16px
+      color-mix(in oklch, var(--color-accent) 45%, transparent);
   --system-shine: color-mix(in oklch, var(--color-accent-400) 75%, transparent);
   /* Faint horizontal lines: the screen the window is drawn on. */
   --system-scan: rgba(233, 233, 237, 0.022);

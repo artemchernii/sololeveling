@@ -437,6 +437,22 @@ export async function requireLiveArea(
 }
 
 /**
+ * The area, when it is one the Languages page claims (`track: 'language'`).
+ * A weekly Class target filed under Body would be a bar nothing fills.
+ */
+export async function requireLanguageArea(
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string,
+  slug: string,
+): Promise<Doc<'areas'>> {
+  const area = await bySlug(ctx, ownerId, slug)
+  if (area === null || area.track !== 'language') {
+    throw new Error('Not a language area')
+  }
+  return area
+}
+
+/**
  * Gone entirely — the row deleted, not retired.
  *
  * Retiring says "I stopped tracking this" and keeps the area, so the rows that

@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
-import { requireLiveArea } from './areas'
+import { requireLanguageArea, requireLiveArea } from './areas'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
@@ -420,9 +420,23 @@ const WEEKLY_CATEGORIES: Record<string, { title: string; unit: string }> = {
   supplements: { title: 'Shakes each week', unit: 'shakes' },
 }
 
+/* The three a language area files its sessions under (26 Sep: "target for
+   weekly lessons 2, we log 2 and see the popover"). The title names the
+   language, so the Goals page can tell Portuguese classes from English. */
+const LANGUAGE_CATEGORIES: Record<string, { title: string; unit: string }> = {
+  class: { title: 'classes each week', unit: 'classes' },
+  homework: { title: 'homework sessions each week', unit: 'sessions' },
+  practice: { title: 'sessions at home each week', unit: 'sessions' },
+}
+
+/* Body is the default, so every weekly goal written before Languages had
+   targets — area 'body', no area argument — still matches. */
+const BODY = 'body'
+
 async function activeWeeklyGoals(
   ctx: QueryCtx | MutationCtx,
   ownerId: string,
+  area: string,
   category: string,
 ): Promise<Array<Doc<'goals'>>> {
   const rows = await ctx.db
@@ -432,23 +446,41 @@ async function activeWeeklyGoals(
     )
     .order('desc')
     .take(MAX_ROWS)
-  return rows.filter((goal) => goal.status === 'active')
+  return rows.filter((goal) => goal.status === 'active' && goal.area === area)
 }
 
 /**
- * How many a week he means to do one Body kind, set from the hero. A goal,
+ * How many a week he means to do one kind — a Body kind from the Body hero,
+ * or a language's class / homework / at home from its header. A goal,
  * because a goal's targetValue is the one thing §1 lets a count be read
- * against — this week's logs of that category are the other side of the
- * bar. Setting it again changes the number on the same goal.
+ * against — this week's logs of that area and category are the other side
+ * of the bar. Setting it again changes the number on the same goal.
  */
 export const setWeeklyTarget = mutation({
-  args: { category: v.string(), targetValue: v.number() },
+  args: {
+    area: v.optional(areaSlug),
+    category: v.string(),
+    targetValue: v.number(),
+  },
   returns: v.id('goals'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    const shape = WEEKLY_CATEGORIES[args.category] as
-      (typeof WEEKLY_CATEGORIES)[string] | undefined
-    if (shape === undefined) throw new Error('No such Body kind')
+    const area = args.area ?? BODY
+    let shape: { title: string; unit: string }
+    if (area === BODY) {
+      const body = WEEKLY_CATEGORIES[args.category] as
+        | (typeof WEEKLY_CATEGORIES)[string]
+        | undefined
+      if (body === undefined) throw new Error('No such Body kind')
+      shape = body
+    } else {
+      const language = await requireLanguageArea(ctx, ownerId, area)
+      const kind = LANGUAGE_CATEGORIES[args.category] as
+        | (typeof LANGUAGE_CATEGORIES)[string]
+        | undefined
+      if (kind === undefined) throw new Error('No such language kind')
+      shape = { title: `${language.label} ${kind.title}`, unit: kind.unit }
+    }
     if (
       !Number.isInteger(args.targetValue) ||
       args.targetValue < 1 ||
@@ -456,7 +488,7 @@ export const setWeeklyTarget = mutation({
     ) {
       throw new ConvexError('A weekly target is a whole number from 1 to 14.')
     }
-    const existing = await activeWeeklyGoals(ctx, ownerId, args.category)
+    const existing = await activeWeeklyGoals(ctx, ownerId, area, args.category)
     if (existing.length > 0) {
       await ctx.db.patch(existing[0]._id, { targetValue: args.targetValue })
       return existing[0]._id
@@ -464,7 +496,7 @@ export const setWeeklyTarget = mutation({
     return await ctx.db.insert('goals', {
       ownerId,
       title: shape.title,
-      area: 'body',
+      area,
       status: 'active',
       targetValue: args.targetValue,
       unit: shape.unit,
@@ -475,23 +507,30 @@ export const setWeeklyTarget = mutation({
 
 /** No weekly target for this kind any more. Dropped, not deleted. */
 export const clearWeeklyTarget = mutation({
-  args: { category: v.string() },
+  args: { area: v.optional(areaSlug), category: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    for (const goal of await activeWeeklyGoals(ctx, ownerId, args.category)) {
+    const area = args.area ?? BODY
+    for (const goal of await activeWeeklyGoals(
+      ctx,
+      ownerId,
+      area,
+      args.category,
+    )) {
       await ctx.db.patch(goal._id, { status: 'dropped' })
     }
     return null
   },
 })
 
-/** His weekly targets, one per Body kind that has one. */
+/** His weekly targets, one per area and kind that has one. */
 export const weeklyTargets = query({
   args: {},
   returns: v.array(
     v.object({
       goalId: v.id('goals'),
+      area: v.string(),
       category: v.string(),
       targetValue: v.number(),
     }),
@@ -507,16 +546,20 @@ export const weeklyTargets = query({
     const seen = new Set<string>()
     const out: Array<{
       goalId: Id<'goals'>
+      area: string
       category: string
       targetValue: number
     }> = []
     /* Newest first, so a second active one for a kind loses. */
     for (const goal of rows.reverse()) {
       if (goal.weekly === undefined || goal.targetValue === undefined) continue
-      if (seen.has(goal.weekly)) continue
-      seen.add(goal.weekly)
+      const area = goal.area
+      const key = `${area}:${goal.weekly}`
+      if (seen.has(key)) continue
+      seen.add(key)
       out.push({
         goalId: goal._id,
+        area,
         category: goal.weekly,
         targetValue: goal.targetValue,
       })

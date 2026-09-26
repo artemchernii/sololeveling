@@ -178,11 +178,12 @@ export default defineSchema({
        read against. One active goal per tile — goals.setTileTarget keeps
        it that way. */
     tile: v.optional(tileValidator),
-    /* Set only on a weekly target written from Body (26 Sep: "we lack a bit
-       of emotion or motivation"): the category it counts — `gym`,
-       `stretch`, `supplements` … — and `targetValue` is per Monday-to-
-       Sunday week, read against that category's Body logs. One active goal
-       per category — goals.setWeeklyTarget keeps it that way. */
+    /* Set only on a weekly target (26 Sep: "we lack a bit of emotion or
+       motivation"): the category it counts — `gym`, `stretch`,
+       `supplements` on Body; `class`, `homework`, `practice` on a language
+       — and `targetValue` is per Monday-to-Sunday week, read against that
+       area's logs of that category. One active goal per area and category
+       — goals.setWeeklyTarget keeps it that way. */
     weekly: v.optional(v.string()),
     /* When it was called reached or dropped (24 Sep), so the shelf at the
        bottom of Goals can say "reached Sep 24". Cleared on reopening. A

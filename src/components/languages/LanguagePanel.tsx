@@ -6,6 +6,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import {
   BookOpen,
   CalendarPlus,
+  Check,
   CircleHelp,
   GraduationCap,
   House,
@@ -23,7 +24,9 @@ import { Verbs } from '@/components/languages/Verbs'
 import { CategoryChip } from '@/components/track/CategoryChip'
 import { DayStrips } from '@/components/track/DayStrip'
 import { DidButton } from '@/components/track/DidButton'
+import { useQuestOnReach } from '@/components/track/QuestComplete'
 import { TrackPanel } from '@/components/track/TrackPanel'
+import { TargetEditor, useWeeklyProgress } from '@/components/track/Weekly'
 import { areaVars } from '@/lib/areas'
 import { groupByDay } from '@/lib/day-groups'
 import { RECENT_DAYS, STRIP_WEEKS } from '@/lib/day-strip'
@@ -107,15 +110,18 @@ export function LanguagePanel({
   )
 }
 
-/* The language and how often, in one card (25 Sep): "I liked that big flag
-   and Portuguese title. I wanted to combine it with consistency. Make it
-   cool — I'm a big hater of boring slop."
+/* The language and how often, in one window (25 Sep; the System look 26
+   Sep). "I liked that big flag and Portuguese title. I wanted to combine it
+   with consistency. Make it cool — I'm a big hater of boring slop." Then,
+   on the icon-in-a-box header: it looked like every starter app. So it is
+   the anime's System window: `[ LANGUAGE ]`, the name in spaced caps, the
+   level as a RANK that breathes, and a status sheet.
 
-   🇵🇹 Português, big, over a photo of the place fading in from the right and
-   a glow of the language's colour, with a sweep of light on arrival. Beside the name, the level. Then
-   each kind of session as the number of days it happened in the last 30 —
-   `activeRecent` from aggregate.categoryDays, the figure the strip row
-   already carried — and the twelve weeks of days under them. */
+   Each line of the sheet is one kind of session: the days it happened in
+   the last 30 — `activeRecent` from aggregate.categoryDays — and this
+   week's count against the weekly target he set, if he set one
+   (goals.setWeeklyTarget; tap to set). Crossing it pops the quest. The
+   twelve weeks of days sit under them. */
 function Header({
   slug,
   label,
@@ -139,15 +145,28 @@ function Header({
   const unsorted = result?.rows.some((r) => r.category === null) ?? false
   const nameOf = (category: string | null) =>
     category === null ? 'unsorted' : (LABELS[category] ?? category)
+  const name = language?.native ?? label
+  /* The three kinds always have a line, logged or not — a target can be set
+     before the first class. Anything else the strip holds (a topic, an
+     unsorted session) gets a line without a week. */
+  const recentOf = (category: string) =>
+    result?.rows.find((r) => r.kind === 'session' && r.category === category)
+      ?.activeRecent
+  const others = (result?.rows ?? []).filter(
+    (r) =>
+      r.kind !== 'session' ||
+      r.category === null ||
+      !CATEGORIES.includes(r.category),
+  )
 
   return (
     <section
       style={areaVars(slug)}
-      className="glass motion-arrive relative flex flex-col gap-6 overflow-hidden rounded-[26px] p-5 sm:p-7"
+      className="system-frame system-open relative flex flex-col gap-5 overflow-clip p-5 sm:p-7"
     >
       {/* The place itself (25 Sep, his photos): filling the right of the
-          card and fading into the glass, so the name and the numbers stay
-          on the ground and the picture sits behind them. */}
+          window and fading into it, so the name and the numbers stay on the
+          ground and the picture sits behind them. */}
       {language ? (
         <img
           src={language.photo}
@@ -166,101 +185,94 @@ function Header({
             maskComposite: 'intersect',
             WebkitMaskComposite: 'source-in',
           }}
-          className="motion-fade pointer-events-none absolute inset-y-0 right-0 h-full w-full object-cover opacity-45 select-none sm:w-[64%] sm:opacity-80"
+          className="motion-fade pointer-events-none absolute inset-y-0 right-0 h-full w-full object-cover opacity-30 select-none sm:w-[46%] sm:opacity-60"
         />
       ) : null}
+      {/* The language's own colour, kept to a low light behind the name:
+          which room this is, not the colour of the whole window. */}
       <span
         aria-hidden
-        className="pointer-events-none absolute -top-24 -left-16 size-80 rounded-full bg-(--area)/25 blur-3xl"
-      />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute -right-20 -bottom-28 size-72 rounded-full bg-lav-400/10 blur-3xl"
+        className="pointer-events-none absolute -top-24 -left-16 size-72 rounded-full bg-(--area)/12 blur-3xl"
       />
       <span
         aria-hidden
         className="motion-sweep pointer-events-none absolute inset-y-0 left-0 w-1/2"
       />
 
-      <div className="relative flex flex-wrap items-center gap-x-5 gap-y-3">
+      <div className="relative flex items-center justify-between gap-3 border-b border-lav-400/20 pb-3">
+        <span className="system-title">[ language ]</span>
         {language ? (
-          <span className="motion-pop grid size-[76px] place-items-center rounded-[22px] bg-(--area)/15 text-[54px] leading-none shadow-[0_0_40px_-8px_var(--area)] ring-1 ring-(--area)/35">
+          <span className="text-[18px] leading-none" aria-hidden>
             {language.flag}
           </span>
         ) : null}
-        <span className="flex min-w-0 flex-col gap-1.5">
-          <span className="truncate pb-[0.12em] text-[40px] leading-[1.1] font-light tracking-tight text-foreground sm:text-[48px]">
-            {language?.native ?? label}
-          </span>
-          {level ? (
-            <span className="flex items-center gap-2">
-              <span className="rounded-full bg-(--area) px-2.5 py-0.5 font-mono text-[11px] font-medium text-background">
-                {level}
-              </span>
-              <span className="text-[13px] text-area">
-                {CEFR_MEANING[level].name}
-              </span>
-            </span>
-          ) : null}
-        </span>
       </div>
 
-      {result === undefined ? null : result.rows.length === 0 ? (
-        <p className="relative text-[13.5px] text-ink-300">
-          Nothing logged yet. Press Class, Homework or At home below — the strip
-          lights up the day you do.
-        </p>
-      ) : (
+      <div className="relative flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <span className="min-w-0 truncate pb-[0.12em] text-[30px] leading-[1.1] font-light tracking-[0.12em] text-foreground uppercase sm:text-[44px]">
+          {name}
+        </span>
+        {level ? (
+          <span className="flex flex-col items-start sm:items-end">
+            <span className="label-caps text-ink-300">rank</span>
+            <span className="system-pulse font-mono text-[52px] leading-none text-lav-300 sm:text-[64px]">
+              {level}
+            </span>
+            <span className="label-caps text-ink-300">
+              {CEFR_MEANING[level].name}
+            </span>
+          </span>
+        ) : null}
+      </div>
+
+      {result === undefined ? null : (
         <div className="relative flex flex-col gap-4">
-          <div className="flex flex-wrap gap-2.5">
-            {result.rows.map((row, i) => (
-              <span
+          <div className="grid max-w-[500px] grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1.5">
+            <span />
+            <span />
+            <span className="label-caps text-right text-ink-500">
+              {RECENT_DAYS} days
+            </span>
+            <span className="label-caps text-center text-ink-500">
+              this week
+            </span>
+            {KINDS.map((k, i) => (
+              <StatusLine
+                key={k.category}
+                slug={slug}
+                kind={k}
+                language={name}
+                recent={recentOf(k.category) ?? 0}
+                delay={120 + i * 70}
+              />
+            ))}
+            {others.map((row) => (
+              <OtherLine
                 key={`${row.kind}-${row.category ?? 'unsorted'}`}
-                style={{ animationDelay: `${120 + i * 70}ms` }}
-                className={`motion-land flex items-center gap-3 rounded-[16px] py-2 pr-4 pl-2 ring-1 ring-inset ${
-                  row.category === null
-                    ? 'bg-state-warn/10 ring-state-warn/30'
-                    : 'bg-background/35 ring-(--area)/25'
-                }`}
-              >
-                <span
-                  className={`grid size-8 place-items-center rounded-full ${
-                    row.category === null
-                      ? 'bg-state-warn/15 text-state-warn'
-                      : 'bg-(--area)/18 text-area'
-                  }`}
-                >
-                  {row.category === null ? (
-                    <CircleHelp className="size-4" />
-                  ) : row.kind === 'exercise' ? (
-                    <Sparkles className="size-4" />
-                  ) : (
-                    (ICON[row.category] ?? <Sparkles className="size-4" />)
-                  )}
-                </span>
-                <span className="flex flex-col">
-                  <span className="text-[24px] leading-none font-light text-foreground">
-                    {row.activeRecent}
-                    <span className="ml-1 text-[12px] text-ink-500">
-                      / {RECENT_DAYS} days
-                    </span>
-                  </span>
-                  <span className="label-caps">{nameOf(row.category)}</span>
-                </span>
-              </span>
+                label={row.kind === 'exercise' ? 'topics' : nameOf(row.category)}
+                recent={row.activeRecent}
+                warn={row.category === null}
+              />
             ))}
           </div>
 
-          <DayStrips
-            dayStarts={dayStarts}
-            rows={result.rows.map((row) => ({
-              key: `${row.kind}-${row.category ?? 'unsorted'}`,
-              label: nameOf(row.category),
-              days: row.days,
-              aside: `${row.activeRecent} of ${RECENT_DAYS}`,
-              noun: row.kind === 'exercise' ? 'topic' : 'session',
-            }))}
-          />
+          {result.rows.length === 0 ? (
+            <p className="text-[13.5px] text-ink-300">
+              Nothing logged yet. Press Class, Homework or At home below — the
+              strip lights up the day you do.
+            </p>
+          ) : (
+            <DayStrips
+              dayStarts={dayStarts}
+              rows={result.rows.map((row) => ({
+                key: `${row.kind}-${row.category ?? 'unsorted'}`,
+                label: nameOf(row.category),
+                days: row.days,
+                aside: `${row.activeRecent} of ${RECENT_DAYS}`,
+                noun: row.kind === 'exercise' ? 'topic' : 'session',
+              }))}
+            />
+          )}
           {unsorted ? (
             /* OTHER was a session logged before sessions carried a kind.
                Said plainly, with where to fix it. */
@@ -278,6 +290,162 @@ function Header({
         </div>
       )}
     </section>
+  )
+}
+
+/* One line of the status sheet: CLASS ····· 4 /30 · 1/2 this week. The
+   week is a button — tap it to set how many a week, the way Body's chips
+   do. The line that reaches its target pops the quest. */
+function StatusLine({
+  slug,
+  kind,
+  language,
+  recent,
+  delay,
+}: {
+  slug: string
+  kind: Kind
+  language: string
+  recent: number
+  delay: number
+}) {
+  const { count, target } = useWeeklyProgress(slug, 'session', kind.category)
+  const [editing, setEditing] = useState(false)
+  const met = target !== undefined && count !== undefined && count >= target
+  useQuestOnReach(count, target, () => ({
+    title: `${kind.label} · ${language}`,
+    line: `${count} of ${target} this week`,
+    area: slug,
+    icon: kind.icon,
+  }))
+
+  if (editing) {
+    return (
+      <TargetEditor
+        area={slug}
+        category={kind.category}
+        name={kind.label}
+        icon={kind.icon}
+        current={target}
+        suggested={kind.category === 'class' ? 2 : 3}
+        onDone={() => setEditing(false)}
+        className="col-span-4 my-1"
+      />
+    )
+  }
+
+  return (
+    <>
+      <span
+        style={{ animationDelay: `${delay}ms` }}
+        className="motion-land grid size-7 place-items-center rounded-full bg-(--area)/15 text-area"
+      >
+        {kind.icon}
+      </span>
+      <span
+        style={{ animationDelay: `${delay}ms` }}
+        className="motion-land flex min-w-0 items-baseline gap-2"
+      >
+        <span className="font-mono text-[12px] tracking-[0.18em] whitespace-nowrap text-ink-200 uppercase">
+          {kind.label}
+        </span>
+        <span className="h-px flex-1 -translate-y-1 border-b border-dotted border-ink-700" />
+      </span>
+      <span className="text-right font-mono text-[20px] leading-none font-light text-foreground">
+        {recent}
+        <span className="text-[11px] text-ink-500">/{RECENT_DAYS}</span>
+      </span>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        aria-label={`${kind.label}: ${count ?? 0} this week${
+          target === undefined ? ', no target — set one' : ` of ${target}`
+        }`}
+        className={`motion-press flex min-w-[88px] flex-col items-center gap-1 rounded-[6px] px-2 py-1.5 ring-1 transition-colors ring-inset ${
+          met
+            ? 'bg-state-good/10 ring-state-good/40'
+            : 'bg-background/40 ring-lav-400/20 hover:bg-lav-400/10 hover:ring-lav-400/45'
+        }`}
+      >
+        <span className="flex items-center gap-1 font-mono text-[15px] leading-none text-foreground">
+          <span key={count} className="motion-pop inline-block">
+            {count ?? '—'}
+          </span>
+          {target !== undefined ? (
+            <span className="text-[11px] text-ink-500">/{target}</span>
+          ) : null}
+          {met ? (
+            <Check
+              className="motion-draw size-3.5 text-state-good"
+              strokeWidth={3}
+            />
+          ) : null}
+        </span>
+        {target !== undefined ? (
+          <span className="h-1 w-full overflow-hidden rounded-full bg-lift/[0.08]">
+            <span
+              className={`block h-full rounded-full transition-[width] duration-500 ${
+                met
+                  ? 'bg-state-good'
+                  : 'bg-lav-400 shadow-[0_0_6px_var(--system-shine)]'
+              }`}
+              style={{
+                width: `${Math.min(1, (count ?? 0) / target) * 100}%`,
+              }}
+            />
+          </span>
+        ) : (
+          <span className="font-mono text-[9.5px] tracking-[0.08em] whitespace-nowrap text-ink-500 uppercase">
+            + target
+          </span>
+        )}
+      </button>
+    </>
+  )
+}
+
+/* A line for what the strip holds beyond the three kinds — no week, since
+   no target can be set on it. */
+function OtherLine({
+  label,
+  recent,
+  warn,
+}: {
+  label: string
+  recent: number
+  warn: boolean
+}) {
+  return (
+    <>
+      <span
+        className={`grid size-7 place-items-center rounded-full ${
+          warn
+            ? 'bg-state-warn/15 text-state-warn'
+            : 'bg-(--area)/15 text-area'
+        }`}
+      >
+        {warn ? (
+          <CircleHelp className="size-4" />
+        ) : (
+          <Sparkles className="size-4" />
+        )}
+      </span>
+      <span className="flex min-w-0 items-baseline gap-2">
+        <span
+          className={`font-mono text-[12px] tracking-[0.18em] whitespace-nowrap uppercase ${
+            warn ? 'text-state-warn' : 'text-ink-200'
+          }`}
+        >
+          {label}
+        </span>
+        <span className="h-px flex-1 -translate-y-1 border-b border-dotted border-ink-700" />
+      </span>
+      <span className="text-right font-mono text-[20px] leading-none font-light text-foreground">
+        {recent}
+        <span className="text-[11px] text-ink-500">/{RECENT_DAYS}</span>
+      </span>
+      <span />
+    </>
   )
 }
 

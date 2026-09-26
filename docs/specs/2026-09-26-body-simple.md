@@ -60,3 +60,17 @@ History, Select, tap a row's text — it ticks.
 - **Weight in the hero**: tap it, type, Enter. A new weigh-in is a new
   log; if today already has one, the new one is written and today's old
   one removed, snapshot and all. 20–400 kg.
+
+## Motivation (26 Sep, "all three")
+
+- **Weekly target per kind** — a goal row with `weekly: <category>`
+  (`goals.setWeeklyTarget` / `clearWeeklyTarget` / `weeklyTargets`), 1–14
+  per Monday-to-Sunday week. The hero's THIS WEEK chips read this week's
+  `aggregate.kindCount` per kind over it; the bar exists only where a
+  target does, and a reached one turns to `--state-good`. Tap a chip to set
+  or clear. Weekly goals stay off the Goals page, like tile targets.
+- **Finish moment** — after Finish, the card becomes "Back day done", the
+  moves, and "Gym this week: 2 of 3" with its bar; Undo lasts 30 s there.
+- **His quote** — the line from the photo he chose, under the chips.
+- The 30-day counts moved to the top of History.
+- Streaks: not built — he was offered them and took the weekly target.

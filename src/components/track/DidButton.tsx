@@ -133,7 +133,7 @@ export function DidButton({
  * write in the window stacks, and Undo takes them back newest first — a
  * group (DID ALL) as one step, in one `removeMany`.
  */
-export function useUndoWindow() {
+export function useUndoWindow(ms: number = UNDO_MS) {
   const removeMany = useMutation(api.logs.removeMany)
   /* This control's own writes still in the window, oldest first. */
   const [stack, setStack] = useState<Array<Array<Id<'logs'>>>>([])
@@ -143,7 +143,7 @@ export function useUndoWindow() {
 
   function restartWindow() {
     clearTimeout(timer.current)
-    timer.current = setTimeout(() => setStack([]), UNDO_MS)
+    timer.current = setTimeout(() => setStack([]), ms)
   }
 
   function press(write: () => Promise<Id<'logs'> | Array<Id<'logs'>>>) {

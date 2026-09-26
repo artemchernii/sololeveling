@@ -3,14 +3,17 @@ import { useMutation } from 'convex/react'
 import {
   Check,
   ChevronDown,
+  CircleCheck,
   ExternalLink,
   Flag,
   Info,
   TriangleAlert,
+  Undo2,
 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import { KindIcon } from '@/components/body/kinds'
+import { WeekLine } from '@/components/body/Week'
 import { UndoOrError, useUndoWindow } from '@/components/track/DidButton'
 import { Sparks } from '@/components/track/Sparks'
 import { TrackPanel } from '@/components/track/TrackPanel'
@@ -278,10 +281,68 @@ function Finish({
   onUndone: (ticked: ReadonlyArray<string>) => void
 }) {
   const create = useMutation(api.logs.create)
-  const { press, takeBack, canUndo, failed } = useUndoWindow()
+  /* Thirty seconds, not five: the done card is read before it is closed,
+     and its Undo should not vanish mid-read. */
+  const { press, takeBack, canUndo, failed } = useUndoWindow(30_000)
   const [burst, setBurst] = useState(0)
   const [saved, setSaved] = useState<ReadonlyArray<string>>([])
+  /* The moment after Finish (26 Sep: "we lack a bit of emotion"): what was
+     done, and where it leaves this week against his target. Stays until
+     closed; Undo inside it takes the session back. */
+  const [done, setDone] = useState(false)
   const session = SESSION_LABEL[workout.kind].toLowerCase()
+
+  if (done && !failed) {
+    const moves = workout.exercises
+      .filter((e) => saved.includes(e.id))
+      .map((e) => e.name)
+      .join(', ')
+    return (
+      <div
+        style={areaVars('body')}
+        className="motion-pop relative flex flex-col gap-3 rounded-[18px] bg-state-good/10 p-4 ring-1 ring-state-good/35 ring-inset sm:p-5"
+      >
+        <Sparks key={burst} count={24} reach={72} />
+        <span className="flex items-center gap-2.5">
+          <CircleCheck
+            className="motion-draw size-7 text-state-good"
+            strokeWidth={1.8}
+          />
+          <span className="text-[20px] leading-tight font-light text-foreground">
+            {workout.name} done
+          </span>
+        </span>
+        {moves.length > 0 ? (
+          <p className="text-[13px] text-ink-300">{moves}</p>
+        ) : null}
+        <WeekLine category={workout.kind} />
+        <span className="flex items-center gap-2">
+          {canUndo ? (
+            <button
+              type="button"
+              onClick={() => {
+                takeBack()
+                onUndone(saved)
+                setDone(false)
+              }}
+              className="motion-press inline-flex items-center gap-1 rounded-full px-3 py-1 text-[12.5px] text-ink-300 ring-1 ring-lift/15 ring-inset hover:text-foreground"
+            >
+              <Undo2 className="size-3.5" />
+              Undo
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setDone(false)}
+            className="motion-press rounded-full px-3 py-1 text-[12.5px] text-ink-400 hover:text-foreground"
+          >
+            Close
+          </button>
+        </span>
+      </div>
+    )
+  }
+
   return (
     <div
       style={areaVars('body')}
@@ -292,6 +353,7 @@ function Finish({
         onClick={() => {
           setBurst((n) => n + 1)
           setSaved(ticked)
+          setDone(true)
           onSaved()
           press(() =>
             create({

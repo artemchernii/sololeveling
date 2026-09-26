@@ -2,7 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { History, Sun } from 'lucide-react'
 
-import { BodyHero, LogSession } from '@/components/body/BodyHero'
+import { BodyHero, LastThirty, LogSession } from '@/components/body/BodyHero'
 import { BodyCalendar } from '@/components/body/BodyCalendar'
 import { WorkoutPanel } from '@/components/body/Workout'
 import { areaVars } from '@/lib/areas'
@@ -92,8 +92,9 @@ function Body() {
           /* No panel title: the tab above already says History. */
           <section
             style={areaVars('body')}
-            className="glass rounded-[22px] p-4 sm:p-5"
+            className="glass flex flex-col gap-5 rounded-[22px] p-4 sm:p-5"
           >
+            <LastThirty />
             <BodyCalendar />
           </section>
         )}

@@ -7,6 +7,7 @@ import { api } from '../../../convex/_generated/api'
 import { KindIcon, kindName } from '@/components/body/kinds'
 import { DidButton } from '@/components/track/DidButton'
 import { useDayStarts } from '@/components/track/useDayStarts'
+import { WeekChips } from '@/components/body/Week'
 import { TrackPanel } from '@/components/track/TrackPanel'
 import { areaVars } from '@/lib/areas'
 import { KINDS, SESSION_LABEL } from '@/lib/body/library'
@@ -14,25 +15,17 @@ import { RECENT_DAYS } from '@/lib/day-strip'
 import { whenLabel } from '@/lib/format'
 import { monthRange } from '@/lib/month'
 
+/* The line from the photo he chose for Body. */
+const QUOTE = 'One bad chapter doesn’t mean your story is over.'
+
 /* Body's header (slimmed 26 Sep: "again we need to scroll and find some
    shit"). One short card: the name, the latest weigh-in (state) he can log
    or correct right here, and how many of the last 30 days each kind
    happened (aggregate.categoryDays) as small pills. The calendar lives in
    History now, and the photo went with the height it needed. */
 export function BodyHero() {
-  /* Five weeks: enough behind "of the last 30 days". */
-  const dayStarts = useDayStarts(5)
-  const result = useQuery(api.aggregate.categoryDays, {
-    area: 'body',
-    kinds: ['workout', 'intake'],
-    dayStarts,
-    end: dayStarts[dayStarts.length - 1] + 86_400_000,
-    recentDays: RECENT_DAYS,
-  })
   const state = useQuery(api.aggregate.currentState, {})
   const weight = state?.weight
-  /* Sessions and shakes only since 26 Sep — what History lists. */
-  const rows = result?.rows ?? []
 
   return (
     <section
@@ -79,12 +72,42 @@ export function BodyHero() {
         </span>
       </div>
 
+      <div className="relative flex flex-col gap-2 sm:w-[60%]">
+        <span className="label-caps">this week</span>
+        <WeekChips />
+      </div>
+      {/* His line — it came with the photo he chose (26 Sep). */}
+      <p className="relative text-[13px] text-ink-400 italic sm:w-[60%]">
+        “{QUOTE}”
+      </p>
+    </section>
+  )
+}
+
+/* How many of the last 30 days each kind happened
+   (aggregate.categoryDays) — the long view, on History since the hero took
+   this week (26 Sep). */
+export function LastThirty() {
+  /* Five weeks: enough behind "of the last 30 days". */
+  const dayStarts = useDayStarts(5)
+  const result = useQuery(api.aggregate.categoryDays, {
+    area: 'body',
+    kinds: ['workout', 'intake'],
+    dayStarts,
+    end: dayStarts[dayStarts.length - 1] + 86_400_000,
+    recentDays: RECENT_DAYS,
+  })
+  /* Sessions and shakes only since 26 Sep — what History lists. */
+  const rows = result?.rows ?? []
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="label-caps">last {RECENT_DAYS} days</span>
       {result === undefined ? null : rows.length === 0 ? (
-        <p className="relative text-[13px] text-ink-400">
-          Nothing in the last {RECENT_DAYS} days yet — log a session below.
+        <p className="text-[13px] text-ink-400">
+          Nothing in the last {RECENT_DAYS} days yet.
         </p>
       ) : (
-        <div className="relative flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {rows.map((row, i) => (
             <span
               key={`${row.kind}-${row.category ?? 'unsorted'}`}
@@ -113,7 +136,7 @@ export function BodyHero() {
           ))}
         </div>
       )}
-    </section>
+    </div>
   )
 }
 

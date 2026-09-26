@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
+import { Link } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { CandlestickChart, Check, Landmark, Plus, X } from 'lucide-react'
 
@@ -24,6 +25,7 @@ import { Veiled, VeilToggle } from '@/components/finances/Veil'
    (a same-day one replaces that day's). The total sits in the hero. */
 export function Balances() {
   const data = useQuery(api.aggregate.balances, {})
+  const worth = useQuery(api.aggregate.worth, {})
   const [adding, setAdding] = useState(false)
 
   return (
@@ -63,7 +65,12 @@ export function Balances() {
       ) : (
         <div className="grid gap-2.5 sm:grid-cols-2">
           {data.accounts.map((a, i) => (
-            <AccountCard key={a.accountId} account={a} delay={i * 50} />
+            <AccountCard
+              key={a.accountId}
+              account={a}
+              held={worth?.byAccount.find((w) => w.accountId === a.accountId)}
+              delay={i * 50}
+            />
           ))}
         </div>
       )}
@@ -142,7 +149,15 @@ type Account = {
   recordedAt: number | null
 }
 
-function AccountCard({ account, delay }: { account: Account; delay: number }) {
+function AccountCard({
+  account,
+  held,
+  delay,
+}: {
+  account: Account
+  held: { invested: number | null; positions: number } | undefined
+  delay: number
+}) {
   const today = useDayStarts(1).at(-1) as number
   const setBalance = useMutation(api.accounts.setBalance)
   const retire = useMutation(api.accounts.retire)
@@ -278,11 +293,31 @@ function AccountCard({ account, delay }: { account: Account; delay: number }) {
         className={`font-mono text-[11px] ${stale ? 'text-state-warn' : 'text-ink-500'}`}
       >
         {account.recordedAt === null
-          ? account.kind === 'broker'
-            ? 'the total the broker shows'
-            : 'what the bank shows'
-          : `read ${agoLabel(account.recordedAt)}${stale ? ' — worth a fresh look' : ''}`}
+          ? 'free cash — the money not in shares'
+          : `free cash · read ${agoLabel(account.recordedAt)}${stale ? ' — worth a fresh look' : ''}`}
       </span>
+      {/* Its investments, apart from its cash (26 Sep): Revolut holds
+          both. Tap through to the positions. */}
+      {held && held.positions > 0 ? (
+        <Link
+          to="/finances"
+          search={{ tab: 'invest' }}
+          className="motion-arrive flex items-center gap-2 border-t border-lift/10 pt-2 text-[13px] text-ink-300 hover:text-foreground"
+        >
+          <CandlestickChart className="size-3.5 text-area" />
+          <span className="flex-1">
+            invested · {held.positions}{' '}
+            {held.positions === 1 ? 'position' : 'positions'}
+          </span>
+          <span className="font-mono text-[14px] text-foreground">
+            {held.invested === null ? (
+              '—'
+            ) : (
+              <Veiled>{euros(held.invested)}</Veiled>
+            )}
+          </span>
+        </Link>
+      ) : null}
     </div>
   )
 }

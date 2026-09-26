@@ -5,8 +5,10 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   CalendarClock,
+  CandlestickChart,
   Check,
   Pencil,
+  Wallet,
   X,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
@@ -269,13 +271,15 @@ function Limit({
   )
 }
 
-/* What his accounts hold, added (aggregate.balances): the big number, and
-   never without the oldest reading in it. Not called net worth — the
-   mortgage it owes is not in it. */
+/* What is his, in two halves (26 Sep: "distinguish free cash and
+   investments"): FREE CASH — the balances he types, money not in shares —
+   and INVESTED — his positions at stored closes (aggregate.worth). The big
+   number is the two added; each half says how old its oldest reading is.
+   Not called net worth — the mortgage it owes is not in it. */
 function AccountsTotal() {
-  const data = useQuery(api.aggregate.balances, {})
-  if (data === undefined) return <div className="h-[62px]" />
-  if (data.accounts.length === 0) {
+  const data = useQuery(api.aggregate.worth, {})
+  if (data === undefined) return <div className="h-[104px]" />
+  if (data.byAccount.length === 0) {
     return (
       <Link
         to="/finances"
@@ -287,23 +291,80 @@ function AccountsTotal() {
     )
   }
   return (
-    <div className="relative flex flex-col gap-1">
-      <span className="label-caps">in your accounts</span>
-      <span className="flex flex-wrap items-baseline gap-x-3">
+    <div className="relative flex flex-col gap-2.5">
+      <div className="flex flex-col gap-1">
+        <span className="label-caps">cash + investments</span>
         <span
           key={data.total}
           className="motion-pop text-[40px] leading-none font-light tracking-tight text-foreground sm:text-[52px]"
         >
           <Veiled>{euros(data.total)}</Veiled>
         </span>
-        <span className="font-mono text-[11px] text-ink-500">
-          {data.oldestAt === null
-            ? 'no readings yet'
-            : `oldest read ${agoLabel(data.oldestAt)}`}
-          {data.unread > 0 ? ` · ${data.unread} not read` : ''}
-        </span>
-      </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Half
+          label="free cash"
+          Icon={Wallet}
+          value={data.cash.total}
+          note={
+            data.cash.oldestAt === null
+              ? 'nothing typed yet'
+              : `oldest read ${agoLabel(data.cash.oldestAt)}${
+                  data.cash.unread > 0 ? ` · ${data.cash.unread} not read` : ''
+                }`
+          }
+          tab="balances"
+        />
+        <Half
+          label="invested"
+          Icon={CandlestickChart}
+          value={data.invested.total}
+          note={
+            data.invested.oldestAt === null
+              ? 'no positions yet'
+              : `closes as of ${agoLabel(data.invested.oldestAt)}${
+                  data.invested.unvalued > 0
+                    ? ` · ${data.invested.unvalued} unpriced`
+                    : ''
+                }`
+          }
+          tab="invest"
+        />
+      </div>
     </div>
+  )
+}
+
+function Half({
+  label,
+  Icon,
+  value,
+  note,
+  tab,
+}: {
+  label: string
+  Icon: typeof Wallet
+  value: number
+  note: string
+  tab: 'balances' | 'invest'
+}) {
+  return (
+    <Link
+      to="/finances"
+      search={{ tab }}
+      className="motion-press flex min-w-0 flex-col gap-0.5 rounded-[12px] px-2.5 py-2 ring-1 ring-lav-400/20 transition-colors ring-inset hover:bg-lav-400/8 hover:ring-lav-400/45"
+    >
+      <span className="label-caps flex items-center gap-1.5">
+        <Icon className="size-3.5 text-area" />
+        {label}
+      </span>
+      <span className="truncate text-[20px] leading-tight font-light text-foreground">
+        <Veiled>{euros(value)}</Veiled>
+      </span>
+      <span className="truncate font-mono text-[10.5px] text-ink-500">
+        {note}
+      </span>
+    </Link>
   )
 }
 

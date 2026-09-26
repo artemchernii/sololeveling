@@ -47,8 +47,11 @@ export function Invest() {
   const accounts = useQuery(api.accounts.list, {})
   const imports = useQuery(api.invest.openImports, {})
   const [mode, setMode] = useState<'trade' | 'import' | null>(null)
-  const brokers = (accounts ?? []).filter((a) => a.kind === 'broker')
-  const pickable = brokers.length > 0 ? brokers : (accounts ?? [])
+  /* Any account can hold shares — Revolut is a bank with a broker inside
+     (26 Sep). Brokers first, since that is where most trades go. */
+  const pickable = [...(accounts ?? [])].sort(
+    (a, b) => Number(b.kind === 'broker') - Number(a.kind === 'broker'),
+  )
 
   return (
     <div className="flex flex-col gap-3">

@@ -68,6 +68,10 @@ Files: `convex/aggregate.ts`, `convex/logs.ts`, `src/lib/capture-parser.ts`
 `MonthCalendar` reused. Tests: every sum refuses another owner's rows, and
 a period boundary is exact.
 
+## Decided (26 Sep: "go with your picks")
+
+All five picks below were taken as written.
+
 ## Open questions (my pick first)
 
 1. **The sum rule above.** _Pick: yes, with those five conditions._

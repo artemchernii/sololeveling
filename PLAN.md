@@ -472,8 +472,11 @@ screen. Everything in 1–3 holds in both themes.
 
 ## 4. Phases
 
-**Shipped:** phases 0–6b (8–14 Sep), then R1, R2, R3 (a/b/c), R6, R4, R6b-a, R6b-b, R5.
-**Next:** R7a (the Vault), then R7. Finances waits (below). Each row is one branch and one PR, with a
+**Shipped:** phases 0–6b (8–14 Sep), then R1, R2, R3 (a/b/c), R6, R4, R6b-a, R6b-b, R5, R7a.
+**Order from here (26 Sep, Artem's):** Finances (R6b-c, rows F1–F3,
+`docs/specs/2026-09-26-r6b-finances.md`) → Review → Today → Sharing
+(`docs/specs/2026-09-26-later-sharing.md`) → polish. Where R7 (Ask AI) falls
+in it is his call; its DeepSeek path is what Finances' analysis will use. Each row is one branch and one PR, with a
 one-page spec under `docs/specs/` written when the previous row has shipped.
 
 | #    | Deliverable                                                                                                                                                                                                                                                                                     | Done when                                                                                                                                       |
@@ -487,6 +490,7 @@ one-page spec under `docs/specs/` written when the previous row has shipped.
 | R6b  | **The TRACK pages** — Finances (investments per the parked design, balances, spending), Body, Languages. Split out of R6 on 21 Sep: areas-as-data is a rework of six tables and every screen, and these are three pages built on top of it                                                      | `invest → Revolut → TSLA → 300$` lands in a portfolio and Finances shows the position as of a time                                              |
 | R7a  | **The Vault** — a Languages tab of class and homework sheets, each on its session, read once by Claude Haiku 4.5 (scans included) into a stored text, summary, conclusion and words; 30 readings in 30 days. The first slice of R7's one path to a model (`docs/specs/2026-09-26-r7a-vault.md`) | A scanned class sheet attached to today's class shows its text, summary, conclusion and words within a minute, labelled with the model and time |
 | R7   | **Ask AI** — a ⌘-shortcut chat that reads your own rows through a Convex action                                                                                                                                                                                                                 | "What did I actually do in August?" is answered from logs, and nothing on screen is derived from it                                             |
+| R8   | **Sharing** — Clerk production on a domain, a three-step first run instead of his defaults, whose AI key (his, capped per person — or each their own, encrypted), "delete my account and data". The plan is written: `docs/specs/2026-09-26-later-sharing.md`                                   | A friend signs up, logs a workout and reads a class sheet, sees none of his rows, and can delete everything they made; his data is unchanged    |
 | Late | Scheduled backups (`pnpm backup` daily, retention, a scheduled drill); Clerk production instance (needs a domain, an ownerId migration, and the dev-vs-prod data decision); notifications (the bell)                                                                                            | Deferred 14 Sep while the app is still being built                                                                                              |
 
 **Settled along the way, still binding** (the reasoning is in `docs/plan-history.md`):

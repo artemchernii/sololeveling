@@ -18,6 +18,7 @@ import {
   Plus,
   RotateCcw,
   Search,
+  Target,
   X,
 } from 'lucide-react'
 
@@ -137,6 +138,15 @@ export function Vault({ slug }: { slug: string }) {
   const [order, setOrder] = useState<Order>('newest')
   const [open, setOpen] = useState<string | null>(null)
   const [now] = useState(() => Date.now())
+
+  /* Esc folds the open sheet back into its row (26 Sep). */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen('')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   if (sheets === undefined) return <AddSheet slug={slug} />
 
@@ -672,58 +682,76 @@ function SheetCard({
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <Part label="summary" delay={0}>
-              {reading.summary}
-            </Part>
-            <Part label="conclusion" delay={80}>
-              {reading.conclusion}
-            </Part>
-            {reading.examples && reading.examples.length > 0 ? (
-              <div
-                style={{ animationDelay: '160ms' }}
-                className="motion-land flex flex-col gap-2"
-              >
-                <span className="label-caps">examples</span>
-                <ul className="flex flex-col gap-2">
-                  {reading.examples.map((e) => (
-                    <li
-                      key={e.sentence}
-                      className="flex flex-col gap-0.5 border-l-2 border-lav-400/50 py-0.5 pl-3"
-                    >
-                      <span className="text-[14px] text-foreground">
-                        {e.sentence}
-                      </span>
-                      <span className="text-[12.5px] text-ink-400 italic">
-                        {e.meaning}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {reading.summary ? (
+              <p className="motion-land text-[15px] leading-relaxed text-ink-100">
+                {reading.summary}
+              </p>
             ) : null}
-            {reading.words && reading.words.length > 0 ? (
-              <div
-                style={{ animationDelay: '240ms' }}
-                className="motion-land flex flex-col gap-2"
-              >
-                <span className="label-caps">words</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {reading.words.map((w) => (
-                    <span
-                      key={w.term}
-                      className="inline-flex items-baseline gap-1.5 rounded-[6px] bg-lift/[0.04] px-2 py-1 ring-1 ring-lift/10 ring-inset"
-                    >
-                      <span className="text-[13px] text-foreground">
-                        {w.term}
-                      </span>
-                      <span className="text-[12px] text-ink-400">
-                        {w.meaning}
-                      </span>
-                    </span>
+
+            {reading.rules && reading.rules.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                <span className="label-caps">rules</span>
+                <div className="grid gap-2.5 lg:grid-cols-2">
+                  {reading.rules.map((rule, i) => (
+                    <RuleCard key={rule.name} rule={rule} delay={60 + i * 70} />
                   ))}
                 </div>
               </div>
             ) : null}
+
+            {reading.conclusion ? (
+              <div
+                style={{ animationDelay: '200ms' }}
+                className="motion-land flex gap-3 rounded-[10px] bg-lav-400/8 px-3.5 py-3 ring-1 ring-lav-400/25 ring-inset"
+              >
+                <Target className="mt-0.5 size-4 shrink-0 text-lav-400" />
+                <span className="flex flex-col gap-1">
+                  <span className="label-caps text-lav-400">practise next</span>
+                  <span className="text-[14px] leading-relaxed text-ink-100">
+                    {reading.conclusion}
+                  </span>
+                </span>
+              </div>
+            ) : null}
+
+            {reading.words && reading.words.length > 0 ? (
+              <div
+                style={{ animationDelay: '260ms' }}
+                className="motion-land flex flex-col gap-2"
+              >
+                <span className="label-caps">words</span>
+                <dl className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
+                  {reading.words.map((w) => (
+                    <div
+                      key={w.term}
+                      className="flex min-w-0 items-baseline gap-2 border-b border-lift/[0.06] pb-1.5"
+                    >
+                      <dt className="shrink-0 text-[14px] font-medium text-foreground">
+                        {w.term}
+                      </dt>
+                      <dd className="min-w-0 truncate text-[13px] text-ink-400">
+                        {w.meaning}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ) : null}
+
+            {reading.examples && reading.examples.length > 0 ? (
+              <div
+                style={{ animationDelay: '320ms' }}
+                className="motion-land flex flex-col gap-2"
+              >
+                <span className="label-caps">
+                  {reading.rules && reading.rules.length > 0
+                    ? 'more examples'
+                    : 'examples'}
+                </span>
+                <Examples items={reading.examples} />
+              </div>
+            ) : null}
+
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <button
@@ -800,6 +828,64 @@ function SheetCard({
   )
 }
 
+/* One rule the sheet teaches (26 Sep: "we need to give as well rule +
+   examples"): its name, the pattern as a formula, when to use it, and
+   sentences that use it. */
+function RuleCard({
+  rule,
+  delay,
+}: {
+  rule: {
+    name: string
+    pattern: string
+    explanation: string
+    examples: Array<{ sentence: string; meaning: string }>
+  }
+  delay: number
+}) {
+  return (
+    <div
+      style={{ animationDelay: `${delay}ms` }}
+      className="motion-land flex min-w-0 flex-col gap-2.5 rounded-[10px] bg-lift/[0.03] p-3.5 ring-1 ring-lift/10 ring-inset"
+    >
+      <span className="text-[14.5px] font-medium text-foreground">
+        {rule.name}
+      </span>
+      {rule.pattern ? (
+        <code className="rounded-[6px] bg-lav-400/10 px-2.5 py-1.5 font-mono text-[12.5px] leading-relaxed break-words text-lav-300 ring-1 ring-lav-400/25 ring-inset">
+          {rule.pattern}
+        </code>
+      ) : null}
+      {rule.explanation ? (
+        <p className="text-[13.5px] leading-relaxed text-ink-300">
+          {rule.explanation}
+        </p>
+      ) : null}
+      {rule.examples.length > 0 ? <Examples items={rule.examples} /> : null}
+    </div>
+  )
+}
+
+function Examples({
+  items,
+}: {
+  items: Array<{ sentence: string; meaning: string }>
+}) {
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {items.map((e) => (
+        <li
+          key={e.sentence}
+          className="flex flex-col border-l-2 border-lav-400/50 pl-3"
+        >
+          <span className="text-[14px] text-foreground">{e.sentence}</span>
+          <span className="text-[12.5px] text-ink-400 italic">{e.meaning}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 /* The sheet itself, small, at the side of its card (26 Sep: "we want
    better preview of doc"). A photo as a photo; a PDF in the browser's own
    viewer, its first page showing. Tapping opens it whole. While it is
@@ -812,7 +898,7 @@ function Preview({ sheet, reading }: { sheet: Sheet; reading: boolean }) {
       target="_blank"
       rel="noreferrer"
       aria-label={`Open ${sheet.name}`}
-      className={`group relative block h-52 overflow-hidden rounded-[6px] bg-sink/20 ring-1 transition-shadow sm:h-auto sm:min-h-56 ${
+      className={`group relative block aspect-[210/297] max-h-72 self-start overflow-hidden rounded-[10px] bg-sink/20 ring-1 transition-shadow sm:max-h-none ${
         reading
           ? 'ring-lav-400/70 shadow-[0_0_28px_-6px_var(--system-shine)]'
           : 'ring-lift/15 hover:ring-lav-400/50'
@@ -830,7 +916,9 @@ function Preview({ sheet, reading }: { sheet: Sheet; reading: boolean }) {
           src={`${sheet.url}#toolbar=0&navpanes=0&view=FitH`}
           title={sheet.name}
           tabIndex={-1}
-          className="pointer-events-none absolute inset-0 size-full"
+          /* Wider than its box, so the viewer's scrollbar sits
+             outside it — the page, not the viewer, is what shows. */
+          className="pointer-events-none absolute inset-y-0 left-0 h-full w-[calc(100%+18px)]"
         />
       )}
       {reading ? (
@@ -870,27 +958,6 @@ function ReadingNow({ since }: { since: number | undefined }) {
           {READING_MODEL_NAME} is reading every line · {seconds}s
         </span>
       </span>
-    </div>
-  )
-}
-
-function Part({
-  label,
-  delay,
-  children,
-}: {
-  label: string
-  delay: number
-  children: string | undefined
-}) {
-  if (!children) return null
-  return (
-    <div
-      style={{ animationDelay: `${delay}ms` }}
-      className="motion-land flex flex-col gap-1.5"
-    >
-      <span className="label-caps">{label}</span>
-      <p className="text-[14px] leading-relaxed text-ink-100">{children}</p>
     </div>
   )
 }

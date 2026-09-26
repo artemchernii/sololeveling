@@ -125,6 +125,8 @@ export const readScreenshots = internalAction({
     await ctx.runMutation(internal.invest.finishImport, {
       importId: args.importId,
       rows,
+      cashEur: parsed.cashEur,
+      totalEur: parsed.totalEur,
     })
     return null
   },

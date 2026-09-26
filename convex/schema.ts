@@ -711,6 +711,11 @@ export default defineSchema({
         ),
       }),
     ),
+    /* Read off the same screen, when shown: the account's free cash and
+       the total the broker states. The cash becomes the balance if he
+       keeps it; the total is only a check beside the sum of the rows. */
+    cashEur: v.optional(v.number()),
+    totalEur: v.optional(v.number()),
     error: v.optional(v.string()),
     model: v.optional(v.string()),
     readAt: v.optional(v.number()),

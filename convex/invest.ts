@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
-import { ownedAccount } from './accounts'
+import { ownedAccount, writeBalance } from './accounts'
 import { internal } from './_generated/api'
 import {
   internalMutation,
@@ -275,14 +275,23 @@ export const openImports = query({
 })
 
 /**
- * He checked the rows: each confirmed one becomes a buy in the import's
- * account — what he held on that day, at his average price. The screenshots
- * go; the rows he kept are the record.
+ * He checked the rows. A screenshot is what the account held at that
+ * moment (26 Sep, "like its going to be smart"): so confirming it REPLACES
+ * the account's holdings up to now — every earlier trade in that account
+ * goes, and each confirmed row becomes one buy at his average price. A
+ * position missing from the new screenshot is gone because it is gone from
+ * the broker. Trades typed after the screenshot still count on top.
+ *
+ * The free cash read off the same screen, if he kept it, becomes the
+ * account's balance — so one screenshot of 212 updates both halves.
+ * The screenshots go; the rows he kept are the record.
  */
 export const confirmImport = mutation({
   args: {
     importId: v.id('portfolioImports'),
     occurredAt: v.number(),
+    /** Local midnight today, for the cash reading (accounts.writeBalance). */
+    dayStart: v.number(),
     rows: v.array(
       v.object({
         candidate,
@@ -291,8 +300,9 @@ export const confirmImport = mutation({
         priceEur: v.number(),
       }),
     ),
+    cashEur: v.optional(v.number()),
   },
-  returns: v.number(),
+  returns: v.object({ positions: v.number(), replaced: v.number() }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const imp = await ctx.db.get(args.importId)
@@ -302,11 +312,32 @@ export const confirmImport = mutation({
     if (imp.status !== 'ready') {
       throw new ConvexError('That screenshot is not ready to confirm.')
     }
-    if (args.rows.length === 0) throw new ConvexError('Keep at least one row.')
+    if (args.rows.length === 0 && args.cashEur === undefined) {
+      throw new ConvexError('Keep at least one row, or the cash.')
+    }
     if (args.occurredAt > Date.now() + 5 * 60_000) {
       throw new ConvexError('A trade is something that happened.')
     }
     for (const row of args.rows) checkTrade(row.shares, row.priceEur)
+    const symbols = args.rows.map((r) => r.candidate.symbol)
+    if (new Set(symbols).size !== symbols.length) {
+      throw new ConvexError('Two rows are the same ticker — keep one.')
+    }
+
+    const before = await ctx.db
+      .query('trades')
+      .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', ownerId).eq('accountId', imp.accountId),
+      )
+      .take(MAX_TRADES)
+    let replaced = 0
+    for (const t of before) {
+      if (t.occurredAt <= args.occurredAt) {
+        await ctx.db.delete(t._id)
+        replaced++
+      }
+    }
+
     for (const row of args.rows) {
       const instrumentId = await upsertInstrument(
         ctx,
@@ -325,9 +356,18 @@ export const confirmImport = mutation({
         importId: imp._id,
       })
     }
+    if (args.cashEur !== undefined) {
+      await writeBalance(
+        ctx,
+        ownerId,
+        imp.accountId,
+        args.cashEur,
+        args.dayStart,
+      )
+    }
     for (const id of imp.storageIds) await ctx.storage.delete(id)
     await ctx.db.patch(imp._id, { status: 'done', storageIds: [] })
-    return args.rows.length
+    return { positions: args.rows.length, replaced }
   },
 })
 
@@ -376,6 +416,8 @@ export const finishImport = internalMutation({
         candidates: v.array(candidate),
       }),
     ),
+    cashEur: v.optional(v.number()),
+    totalEur: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -384,6 +426,8 @@ export const finishImport = internalMutation({
     await ctx.db.patch(args.importId, {
       status: 'ready',
       rows: args.rows,
+      cashEur: args.cashEur,
+      totalEur: args.totalEur,
       model: IMPORT_MODEL_NAME,
       readAt: Date.now(),
     })

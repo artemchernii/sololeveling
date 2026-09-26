@@ -119,6 +119,8 @@ describe('parseImport', () => {
     })
     expect(parseImport(text)).toEqual({
       ok: true,
+      cashEur: undefined,
+      totalEur: undefined,
       rows: [
         {
           name: 'Tesla',
@@ -137,6 +139,13 @@ describe('parseImport', () => {
       ],
     })
   })
+  test('the cash and the total, when printed — cash may be zero', () => {
+    const r = parseImport(
+      JSON.stringify({ rows: [], cash_eur: 0, total_eur: 15000.5 }),
+    )
+    expect(r).toEqual({ ok: true, rows: [], cashEur: 0, totalEur: 15000.5 })
+  })
+
   test('refuses what is not a reading', () => {
     expect(parseImport('nope').ok).toBe(false)
     expect(parseImport('{"rows":[]}').ok).toBe(false)

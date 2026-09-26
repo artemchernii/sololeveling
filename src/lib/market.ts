@@ -139,8 +139,10 @@ export const IMPORT_SCHEMA = {
         additionalProperties: false,
       },
     },
+    cash_eur: { type: ['number', 'null'] },
+    total_eur: { type: ['number', 'null'] },
   },
-  required: ['rows'],
+  required: ['rows', 'cash_eur', 'total_eur'],
   additionalProperties: false,
 } as const
 
@@ -150,7 +152,8 @@ export function importPrompt(images: number): string {
     'List every position you can see, once, in the order shown.',
     'For each: the name exactly as shown; the ISIN if one is visible (else null); the number of shares if shown (else null); the average buy price per share in euros if shown (else null); the current value in euros if shown (else null).',
     'Read numbers exactly as printed. A European comma decimal (1.234,56) is the number 1234.56. Never compute or estimate a number that is not printed — use null.',
-    'Ignore cash balances, totals, charts and anything that is not a position.',
+    'Also read, if shown: the free cash in the account — uninvested money, often labelled cash, available, buying power or free funds — as cash_eur; and the total the app states for the whole account or portfolio as total_eur. Use null for either if it is not printed.',
+    'Ignore charts, news and anything that is not a position, the cash or the total.',
   ].join('\n')
 }
 
@@ -160,16 +163,27 @@ function num(value: unknown): number | undefined {
     : undefined
 }
 
+export type ImportReading = {
+  rows: Array<ImportRow>
+  cashEur?: number
+  totalEur?: number
+}
+
 export function parseImport(
   text: string,
-): { ok: true; rows: Array<ImportRow> } | { ok: false; error: string } {
+): ({ ok: true } & ImportReading) | { ok: false; error: string } {
   let json: unknown
   try {
     json = JSON.parse(text)
   } catch {
     return { ok: false, error: 'The reader answered in a shape it should not.' }
   }
-  const rows = (json as { rows?: unknown } | null)?.rows
+  const j = json as {
+    rows?: unknown
+    cash_eur?: unknown
+    total_eur?: unknown
+  } | null
+  const rows = j?.rows
   if (!Array.isArray(rows)) {
     return { ok: false, error: 'The reader found no positions.' }
   }
@@ -189,8 +203,19 @@ export function parseImport(
       valueEur: num(r.value_eur),
     })
   }
-  if (out.length === 0) {
-    return { ok: false, error: 'No positions were found on that screenshot.' }
+  /* Cash can be zero and still be a reading: "€0.00 available". */
+  const cash =
+    typeof j?.cash_eur === 'number' &&
+    Number.isFinite(j.cash_eur) &&
+    j.cash_eur >= 0
+      ? j.cash_eur
+      : undefined
+  const total = num(j?.total_eur)
+  if (out.length === 0 && cash === undefined) {
+    return {
+      ok: false,
+      error: 'No positions or cash were found on that screenshot.',
+    }
   }
-  return { ok: true, rows: out.slice(0, 60) }
+  return { ok: true, rows: out.slice(0, 60), cashEur: cash, totalEur: total }
 }

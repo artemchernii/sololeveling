@@ -114,6 +114,39 @@ export const retire = mutation({
 })
 
 /**
+ * One balance reading — shared by setBalance and a confirmed screenshot
+ * import, which reads the cash off the same screen as the positions. A
+ * reading already written today is replaced, like a weigh-in.
+ */
+export async function writeBalance(
+  ctx: MutationCtx,
+  ownerId: string,
+  accountId: Id<'accounts'>,
+  value: number,
+  dayStart: number,
+) {
+  if (!Number.isFinite(value) || Math.abs(value) > 1e10) {
+    throw new ConvexError('That is not an amount in euros.')
+  }
+  const key = balanceKey(accountId)
+  const today = await ctx.db
+    .query('stateSnapshots')
+    .withIndex('by_owner_key_time', (q) =>
+      q.eq('ownerId', ownerId).eq('key', key).gte('recordedAt', dayStart),
+    )
+    .take(20)
+  for (const row of today) await ctx.db.delete(row._id)
+  await ctx.db.insert('stateSnapshots', {
+    ownerId,
+    area: 'money',
+    key,
+    value: Math.round(value * 100) / 100,
+    unit: 'eur',
+    recordedAt: Date.now(),
+  })
+}
+
+/**
  * What the account holds now, as he read it off the bank's app — a new
  * state row, so the old one stays as history. A second reading on the same
  * day replaces that day's (like a weigh-in), so correcting a typo does not
@@ -131,28 +164,7 @@ export const setBalance = mutation({
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     await ownedAccount(ctx, ownerId, args.accountId)
-    if (!Number.isFinite(args.value) || Math.abs(args.value) > 1e10) {
-      throw new ConvexError('That is not an amount in euros.')
-    }
-    const key = balanceKey(args.accountId)
-    const today = await ctx.db
-      .query('stateSnapshots')
-      .withIndex('by_owner_key_time', (q) =>
-        q
-          .eq('ownerId', ownerId)
-          .eq('key', key)
-          .gte('recordedAt', args.dayStart),
-      )
-      .take(20)
-    for (const row of today) await ctx.db.delete(row._id)
-    await ctx.db.insert('stateSnapshots', {
-      ownerId,
-      area: 'money',
-      key,
-      value: Math.round(args.value * 100) / 100,
-      unit: 'eur',
-      recordedAt: Date.now(),
-    })
+    await writeBalance(ctx, ownerId, args.accountId, args.value, args.dayStart)
     return null
   },
 })

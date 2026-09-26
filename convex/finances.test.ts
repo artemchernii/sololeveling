@@ -632,6 +632,96 @@ describe('screenshot import', () => {
     return { tr, importId, storageId }
   }
 
+  async function secondImport(
+    t: ReturnType<typeof setup>['t'],
+    me: ReturnType<typeof setup>['me'],
+    accountId: Id<'accounts'>,
+  ) {
+    const storageId = await t.run(async (ctx) =>
+      ctx.storage.store(new Blob(['png'], { type: 'image/png' })),
+    )
+    const started = await me.mutation(api.invest.startImport, {
+      accountId,
+      files: [{ storageId, contentType: 'image/png', size: 3 }],
+    })
+    if (!started.ok) throw new Error(started.error)
+    await t.mutation(internal.invest.finishImport, {
+      importId: started.importId,
+      rows: [],
+      cashEur: 11000,
+      totalEur: 15000,
+    })
+    return started.importId
+  }
+
+  test('a later screenshot replaces the account: gone is gone, cash is set', async () => {
+    const { t, me } = setup()
+    const { tr, importId } = await readyImport(t, me)
+    await me.mutation(api.invest.confirmImport, {
+      importId,
+      occurredAt: Date.now(),
+      dayStart: TODAY,
+      rows: [
+        { candidate: TSLA, shares: 2, priceEur: 250 },
+        { candidate: VWCE, shares: 10, priceEur: 120 },
+      ],
+    })
+    vi.advanceTimersByTime(3_600_000)
+    const next = await secondImport(t, me, tr)
+    const done = await me.mutation(api.invest.confirmImport, {
+      importId: next,
+      occurredAt: Date.now(),
+      dayStart: TODAY,
+      rows: [{ candidate: VWCE, shares: 12, priceEur: 125 }],
+      cashEur: 11000,
+    })
+    expect(done).toEqual({ positions: 1, replaced: 2 })
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows.map((r) => [r.symbol, r.shares, r.putIn])).toEqual([
+      ['VWCE.DE', 12, 1500],
+    ])
+    const w = await me.query(api.aggregate.worth, {})
+    expect(w.cash.total).toBe(11000)
+  })
+
+  test('a trade typed after the screenshot still counts on top', async () => {
+    const { t, me } = setup()
+    const { tr, importId } = await readyImport(t, me)
+    const at = Date.now()
+    await me.mutation(api.invest.confirmImport, {
+      importId,
+      occurredAt: at,
+      dayStart: TODAY,
+      rows: [{ candidate: TSLA, shares: 2, priceEur: 250 }],
+    })
+    await me.mutation(api.invest.addTrade, {
+      accountId: tr,
+      candidate: TSLA,
+      side: 'buy',
+      shares: 1,
+      priceEur: 300,
+      occurredAt: at + 1000,
+    })
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows[0].shares).toBe(3)
+  })
+
+  test('the same ticker twice is refused', async () => {
+    const { t, me } = setup()
+    const { importId } = await readyImport(t, me)
+    await expect(
+      me.mutation(api.invest.confirmImport, {
+        importId,
+        occurredAt: Date.now(),
+        dayStart: TODAY,
+        rows: [
+          { candidate: TSLA, shares: 1, priceEur: 1 },
+          { candidate: TSLA, shares: 1, priceEur: 1 },
+        ],
+      }),
+    ).rejects.toThrow('same ticker')
+  })
+
   test('confirmed rows become buys in its account, and the screenshot goes', async () => {
     const { t, me } = setup()
     const { importId, storageId } = await readyImport(t, me)
@@ -639,6 +729,7 @@ describe('screenshot import', () => {
     await me.mutation(api.invest.confirmImport, {
       importId,
       occurredAt: Date.now(),
+      dayStart: TODAY,
       rows: [{ candidate: TSLA, shares: 2, priceEur: 250 }],
     })
     const p = await me.query(api.aggregate.positions, {})
@@ -657,18 +748,21 @@ describe('screenshot import', () => {
       them.mutation(api.invest.confirmImport, {
         importId,
         occurredAt: Date.now(),
+        dayStart: TODAY,
         rows,
       }),
     ).rejects.toThrow('No such import')
     await me.mutation(api.invest.confirmImport, {
       importId,
       occurredAt: Date.now(),
+      dayStart: TODAY,
       rows,
     })
     await expect(
       me.mutation(api.invest.confirmImport, {
         importId,
         occurredAt: Date.now(),
+        dayStart: TODAY,
         rows,
       }),
     ).rejects.toThrow('not ready')

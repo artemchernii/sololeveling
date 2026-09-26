@@ -50,6 +50,24 @@ export function BodyHero() {
         aria-hidden
         className="pointer-events-none absolute -top-24 -left-16 size-64 rounded-full bg-(--area)/20 blur-3xl"
       />
+      {/* His photo on the right, where a wide card is otherwise empty (26
+          Sep: "on web right side is a bit empty. Maybe add that photo
+          there"). Not on a phone: there it would sit under the pills, and
+          the hero is kept short on purpose. A portrait, cropped to the face
+          and faded into the card from the left. */}
+      <img
+        src="/body/body.jpg"
+        alt=""
+        aria-hidden
+        decoding="async"
+        style={{
+          objectPosition: '50% 68%',
+          maskImage: 'linear-gradient(to left, black 40%, transparent 100%)',
+          WebkitMaskImage:
+            'linear-gradient(to left, black 40%, transparent 100%)',
+        }}
+        className="motion-fade pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[42%] object-cover opacity-75 select-none sm:block"
+      />
       <div className="relative flex items-center gap-3.5">
         <span className="motion-pop grid size-12 shrink-0 place-items-center rounded-[15px] bg-(--area)/15 text-area ring-1 ring-(--area)/35">
           <PersonStanding className="size-6" strokeWidth={1.6} />

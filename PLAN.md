@@ -287,7 +287,8 @@ month → sticky "+ Log" pill → bottom nav. Rows 48–56px.
 and anatomy; where it disagrees with this section, this section wins.
 
 **Visual:** dark ground or milky glass, frosted panels, one lavender accent
-used only for live things, mono caps for labels, big light numerals. No bars
+for live things and for the System window (§3d.2), mono caps for labels, big
+light numerals. No bars
 without a target. No emoji.
 
 ---
@@ -427,8 +428,14 @@ in visual form, and the distinction is the whole of it:
   grey are six lines nobody reads. Anything else borrowing the area hues this
   way says so here first.
 
-Lavender remains reserved for live and focus things (§3 Visual). Colour added
-under this rule is additional vocabulary, not a licence to repaint that.
+Lavender is for live and focus things, and — since 26 Sep — for the System
+window: the frame of a tracking page, the sidebar's hover and active pill, the
+popup when a weekly target is reached (tokens item 10). Artem: jumping between
+a red Body and a green Languages "feels disconnected from the main theme".
+Lavender is the app; an area's colour is the hint of which room you are in —
+its icon, its photo's light, a thin accent — never a whole panel. The frame
+still grades nothing. Colour added under this rule is additional vocabulary,
+not a licence to repaint that.
 
 **3. State has colour too (20 Sep, Artem's call, overriding the ration).**
 Artem, looking at a project whose deadline passed eight days ago and read

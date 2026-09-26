@@ -44,8 +44,8 @@ export function LanguageTabs() {
               style={areaVars(a.slug)}
               className={`motion-press inline-flex items-center gap-2 rounded-full py-1.5 pr-3.5 pl-2 text-[13px] ring-1 transition-colors ${
                 on
-                  ? 'bg-(--area)/20 text-foreground ring-(--area)/50 shadow-[0_0_18px_-6px_var(--area)]'
-                  : 'text-ink-400 ring-lift/12 hover:text-foreground hover:ring-(--area)/35'
+                  ? 'bg-lav-400/12 text-foreground ring-lav-400/45 shadow-[0_0_18px_-6px_var(--system-shine)]'
+                  : 'text-ink-400 ring-lift/12 hover:bg-lav-400/8 hover:text-foreground hover:ring-lav-400/35'
               }`}
             >
               <span className="text-[18px] leading-none">
@@ -108,7 +108,7 @@ function WhichLanguage({ area }: { area: Doc<'areas'> }) {
             key={l.code}
             type="button"
             onClick={() => void setLang({ slug: area.slug, lang: l.code })}
-            className="motion-press inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[13.5px] text-ink-200 ring-1 ring-lift/15 transition-colors hover:bg-(--area)/12 hover:text-foreground hover:ring-(--area)/45"
+            className="motion-press inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[13.5px] text-ink-200 ring-1 ring-lift/15 transition-colors hover:bg-lav-400/8 hover:text-foreground hover:ring-lav-400/40"
           >
             <span className="text-[20px] leading-none">{l.flag}</span>
             {l.native}

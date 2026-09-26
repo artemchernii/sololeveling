@@ -338,3 +338,97 @@ describe('goals — a weekly target per Body kind', () => {
     expect(await mine.query(api.goals.weeklyTargets, {})).toHaveLength(1)
   })
 })
+
+describe('goals — a weekly target per language kind', () => {
+  test('a language keeps its own targets, apart from Body and each other', async () => {
+    const t = as(ME)
+    const pt = await t.mutation(api.areas.addLanguage, { lang: 'pt-PT' })
+    const en = await t.mutation(api.areas.addLanguage, { lang: 'en' })
+    const id = await t.mutation(api.goals.setWeeklyTarget, {
+      area: pt,
+      category: 'class',
+      targetValue: 2,
+    })
+    await t.mutation(api.goals.setWeeklyTarget, {
+      area: en,
+      category: 'class',
+      targetValue: 1,
+    })
+    await t.mutation(api.goals.setWeeklyTarget, {
+      category: 'gym',
+      targetValue: 3,
+    })
+    /* Setting it again is the same goal, not a second one. */
+    expect(
+      await t.mutation(api.goals.setWeeklyTarget, {
+        area: pt,
+        category: 'class',
+        targetValue: 3,
+      }),
+    ).toBe(id)
+
+    const targets = await t.query(api.goals.weeklyTargets, {})
+    expect(
+      targets.map((r) => [r.area, r.category, r.targetValue]).sort(),
+    ).toEqual([
+      ['body', 'gym', 3],
+      [en, 'class', 1],
+      [pt, 'class', 3],
+    ])
+    const goal = (await t.query(api.goals.listActive, {})).find(
+      (g) => g._id === id,
+    )
+    expect(goal).toMatchObject({ area: pt, unit: 'classes' })
+    expect(goal?.title).toMatch(/classes each week$/)
+
+    /* Clearing Portuguese leaves English's class target alone. */
+    await t.mutation(api.goals.clearWeeklyTarget, {
+      area: pt,
+      category: 'class',
+    })
+    expect(
+      (await t.query(api.goals.weeklyTargets, {})).map((r) => r.area).sort(),
+    ).toEqual(['body', en])
+  })
+
+  test('refused: a kind a language does not file, an area that is not a language', async () => {
+    const t = as(ME)
+    const pt = await t.mutation(api.areas.addLanguage, { lang: 'pt-PT' })
+    await expect(
+      t.mutation(api.goals.setWeeklyTarget, {
+        area: pt,
+        category: 'gym',
+        targetValue: 2,
+      }),
+    ).rejects.toThrow('No such language kind')
+    await expect(
+      t.mutation(api.goals.setWeeklyTarget, {
+        area: 'work',
+        category: 'class',
+        targetValue: 2,
+      }),
+    ).rejects.toThrow('Not a language area')
+  })
+
+  test("another owner's language is not mine to set a target on", async () => {
+    const { mine, theirs } = twoOwners()
+    const pt = await mine.mutation(api.areas.addLanguage, { lang: 'pt-PT' })
+    await expect(
+      theirs.mutation(api.goals.setWeeklyTarget, {
+        area: pt,
+        category: 'class',
+        targetValue: 2,
+      }),
+    ).rejects.toThrow('Not a language area')
+    await mine.mutation(api.goals.setWeeklyTarget, {
+      area: pt,
+      category: 'class',
+      targetValue: 2,
+    })
+    await theirs.mutation(api.goals.clearWeeklyTarget, {
+      area: pt,
+      category: 'class',
+    })
+    expect(await mine.query(api.goals.weeklyTargets, {})).toHaveLength(1)
+  })
+})

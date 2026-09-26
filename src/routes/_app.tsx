@@ -19,6 +19,7 @@ import { SideNav } from '@/components/shell/SideNav'
 import { TopBar } from '@/components/shell/TopBar'
 import { WriteFailureNotice } from '@/components/shell/WriteFailureNotice'
 import { ReminderWatcher } from '@/components/shell/ReminderWatcher'
+import { QuestHost } from '@/components/track/QuestComplete'
 
 /* Guard runs on the server (PLAN.md §1: "Clerk guard in beforeLoad"), so an
    unauthenticated request never renders the shell at all. This checks only
@@ -160,6 +161,7 @@ function AppShell() {
       />
       <WriteFailureNotice />
       <ReminderWatcher />
+      <QuestHost />
       <SessionGuard />
     </div>
   )

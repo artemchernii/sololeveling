@@ -20,10 +20,11 @@ import { monthRange } from '@/lib/month'
 const QUOTE = 'One bad chapter doesn’t mean your story is over.'
 
 /* Body's header (slimmed 26 Sep: "again we need to scroll and find some
-   shit"). One short card: the name, the latest weigh-in (state) he can log
-   or correct right here, and how many of the last 30 days each kind
-   happened (aggregate.categoryDays) as small pills. The calendar lives in
-   History now, and the photo went with the height it needed. */
+   shit"; a System window the same day). One short window: the name, the
+   latest weigh-in (state) he can log or correct right here, and this week
+   against his targets. The calendar lives in History, and the crimson wash
+   went with the rethink — Body's colour is its icon now, the frame is the
+   app's lavender, so Body and Languages read as one app. */
 export function BodyHero() {
   const state = useQuery(api.aggregate.currentState, {})
   const weight = state?.weight
@@ -31,22 +32,12 @@ export function BodyHero() {
   return (
     <section
       style={areaVars('body')}
-      className="glass motion-arrive relative flex flex-col gap-3.5 overflow-hidden rounded-[22px] p-4 ring-1 ring-(--area)/25 ring-inset sm:p-5"
+      className="system-frame system-open relative flex flex-col gap-3.5 overflow-clip p-4 sm:p-5"
     >
-      {/* Glass lit by the area's colour (26 Sep: "more like glass
-          gradient"): a wash from the top-left corner, a soft glow behind
-          it, and a sheen along the top edge. */}
+      {/* The area's colour as a low light behind the name: which room. */}
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-linear-135 from-(--area)/40 via-(--area)/10 to-transparent"
-      />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute -top-24 -left-16 size-72 rounded-full bg-(--area)/30 blur-3xl"
-      />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-lift/30 to-transparent"
+        className="pointer-events-none absolute -top-24 -left-16 size-72 rounded-full bg-(--area)/14 blur-3xl"
       />
       {/* His photo on the right, where a wide card is otherwise empty (26
           Sep: "on web right side is a bit empty. Maybe add that photo
@@ -64,24 +55,23 @@ export function BodyHero() {
           WebkitMaskImage:
             'linear-gradient(to left, black 40%, transparent 100%)',
         }}
-        className="motion-fade pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[42%] object-cover opacity-75 select-none sm:block"
+        className="motion-fade pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[40%] object-cover opacity-60 select-none sm:block"
       />
-      <div className="relative flex items-center gap-3.5">
-        <span className="motion-pop grid size-12 shrink-0 place-items-center rounded-[15px] bg-(--area)/15 text-area ring-1 ring-(--area)/35">
-          <BicepsFlexed className="size-6" strokeWidth={1.6} />
+      <div className="relative flex items-center justify-between gap-3 border-b border-lav-400/20 pb-3 sm:w-[60%]">
+        <span className="system-title">[ body ]</span>
+        <BicepsFlexed className="size-4 text-area" strokeWidth={1.8} />
+      </div>
+      <div className="relative flex min-w-0 flex-col gap-1">
+        <span className="text-[28px] leading-tight font-light tracking-[0.14em] text-foreground uppercase sm:text-[34px]">
+          Body
         </span>
-        <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-[26px] leading-tight font-light tracking-tight text-foreground">
-            Body
-          </span>
-          <WeightLine
-            weight={
-              weight && weight.value !== undefined
-                ? { value: weight.value, recordedAt: weight.recordedAt }
-                : null
-            }
-          />
-        </span>
+        <WeightLine
+          weight={
+            weight && weight.value !== undefined
+              ? { value: weight.value, recordedAt: weight.recordedAt }
+              : null
+          }
+        />
       </div>
 
       <div className="relative flex flex-col gap-2 sm:w-[60%]">
@@ -240,14 +230,16 @@ function WeightLine({
           }}
           aria-label="Weight in kg"
           className={`w-20 rounded-[8px] bg-sink/30 px-2 py-1 font-mono text-[14px] text-foreground ring-1 ring-inset focus:outline-none ${
-            error ? 'ring-state-danger/60' : 'ring-lift/20 focus:ring-lift/40'
+            error
+              ? 'ring-state-danger/60'
+              : 'ring-lav-400/30 focus:ring-lav-400/60'
           }`}
         />
         <span className="text-ink-400">kg</span>
         <button
           type="submit"
           aria-label="Save weight"
-          className="motion-press grid size-7 place-items-center rounded-full bg-(--area) text-background"
+          className="motion-press grid size-7 place-items-center rounded-full bg-lav-400 text-background"
         >
           <Check className="size-3.5" strokeWidth={3} />
         </button>

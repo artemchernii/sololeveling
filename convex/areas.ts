@@ -305,6 +305,11 @@ export const addLanguage = mutation({
       order: areas.length,
       track: 'language',
       lang: language.code,
+      /* Silver (26 Sep): a language's colour is its flag and its photo.
+         A hue of its own sat beside the lavender frame and the green that
+         means "done" and read as a mess ("not organic"). A hue is still
+         one tap away in Settings. */
+      silver: true,
     })
     return slug
   },
@@ -434,6 +439,22 @@ export async function requireLiveArea(
     throw new Error('NO_SUCH_AREA')
   }
   return slug
+}
+
+/**
+ * The area, when it is one the Languages page claims (`track: 'language'`).
+ * A weekly Class target filed under Body would be a bar nothing fills.
+ */
+export async function requireLanguageArea(
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string,
+  slug: string,
+): Promise<Doc<'areas'>> {
+  const area = await bySlug(ctx, ownerId, slug)
+  if (area === null || area.track !== 'language') {
+    throw new Error('Not a language area')
+  }
+  return area
 }
 
 /**

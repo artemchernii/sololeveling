@@ -74,7 +74,7 @@
   --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0, 0, 0, 0.65);
 
   /* ==========================================================================
-     APP ADDITIONS — not Nocturne. Nine groups, each with the reason it exists.
+     APP ADDITIONS — not Nocturne. Ten groups, each with the reason it exists.
      ======================================================================= */
 
   /* 1. Near-black ground. §3 Visual asks for a "near-black ground" with
@@ -221,6 +221,40 @@
   --state-warn: oklch(0.79 0.15 75);
   --state-good: oklch(0.75 0.15 155);
 
+  /* 10. The System (26 Sep). Artem, on Body and Languages: they felt like a
+         starter app, and jumping between a red page and a green one felt
+         "disconnected from the main theme". The app is Solo Leveling, and
+         the anime's System window is its look: a thin lit edge, corner
+         brackets, bracketed caps titles, a glow that breathes. Lavender is
+         that window — the frame of every tracking page and the popup when a
+         weekly target is reached — and an area's colour shrinks to what it
+         is: the icon, the photo's light, the thing that says which page.
+
+         This widens the lavender rule on purpose: until today lavender meant
+         only live and focus. It still never grades — a frame is not a score.
+         The corners and the glow are the accent itself, so the light theme's
+         deeper accent carries over; the light block swaps glow for shadow,
+         because light does not glow on a milky ground. */
+  --system-edge: color-mix(in oklch, var(--color-accent-400) 34%, transparent);
+  --system-corner: var(--color-accent-400);
+  --system-tint: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--color-accent) 13%, transparent),
+    transparent 55%
+  );
+  --system-glow:
+    0 0 38px -10px color-mix(in oklch, var(--color-accent) 55%, transparent),
+    inset 0 0 42px -16px
+      color-mix(in oklch, var(--color-accent) 45%, transparent);
+  --system-shine: color-mix(in oklch, var(--color-accent-400) 75%, transparent);
+  /* Faint horizontal lines: the screen the window is drawn on. */
+  --system-scan: rgba(233, 233, 237, 0.022);
+  /* A period, like --motion-breathe: one breath of the System's glow. Slower
+     than a skeleton's, because this one is meant to be looked at — the rank,
+     the popup — and faster would read as an alarm. Only a System glow may
+     use it. */
+  --motion-glow: 2400ms;
+
   /* 6. Lift and sink (14 Sep, the first step to a light theme). Components
         drew hairlines, hover fills and wells as `white/10` or `black/20` —
         135 of them — which is a colour that only means anything on a dark
@@ -296,6 +330,20 @@
   --state-danger: oklch(0.52 0.19 25);
   --state-warn: oklch(0.58 0.15 70);
   --state-good: oklch(0.5 0.14 155);
+
+  /* The System in daylight: a glow on a milky ground reads as a smudge, so
+     the lit edge becomes a lavender line and a soft lavender shadow, and
+     the screen's scan lines go. */
+  --system-edge: color-mix(in oklch, var(--color-accent-400) 40%, transparent);
+  --system-tint: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--color-accent) 7%, transparent),
+    transparent 55%
+  );
+  --system-glow: 0 14px 34px -18px
+    color-mix(in oklch, var(--color-accent) 55%, transparent);
+  --system-shine: color-mix(in oklch, var(--color-accent) 35%, transparent);
+  --system-scan: transparent;
 }
 
 /* Milky glass — the ground, panels, ramps and glass. */

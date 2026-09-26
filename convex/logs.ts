@@ -1,5 +1,6 @@
 import { ConvexError, v } from 'convex/values'
 
+import { moveSheets, unlinkSheets } from './vault'
 import { requireUser } from './auth'
 import { requireLiveArea } from './areas'
 import { mutation, query } from './_generated/server'
@@ -290,6 +291,7 @@ export const setArea = mutation({
       throw new Error('No such log')
     }
     await ctx.db.patch(args.logId, { area: args.area })
+    await moveSheets(ctx, ownerId, args.logId, args.area)
     return null
   },
 })
@@ -428,5 +430,7 @@ async function removeOwnedLog(
     }
   }
 
+  /* A Vault sheet outlives its session, "not linked" (R7a). */
+  await unlinkSheets(ctx, ownerId, logId)
   await ctx.db.delete(logId)
 }

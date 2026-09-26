@@ -251,8 +251,8 @@
   --system-scan: rgba(233, 233, 237, 0.022);
   /* A period, like --motion-breathe: one breath of the System's glow. Slower
      than a skeleton's, because this one is meant to be looked at — the rank,
-     the popup — and faster would read as an alarm. Only a System glow may
-     use it. */
+     the popup — and faster would read as an alarm. Only a System glow, or
+     the System's scan line over a sheet being read (26 Sep), may use it. */
   --motion-glow: 2400ms;
 
   /* 6. Lift and sink (14 Sep, the first step to a light theme). Components

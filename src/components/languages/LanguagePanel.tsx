@@ -12,6 +12,7 @@ import {
   House,
   Sparkles,
   Sun,
+  Vault as VaultIcon,
   X,
 } from 'lucide-react'
 
@@ -20,6 +21,7 @@ import type { Doc } from '../../../convex/_generated/dataModel'
 import { Level } from '@/components/languages/Level'
 import { NextUp, Path } from '@/components/languages/Path'
 import { Topics } from '@/components/languages/Topics'
+import { SessionSheets, Vault } from '@/components/languages/Vault'
 import { Verbs } from '@/components/languages/Verbs'
 import { CategoryChip } from '@/components/track/CategoryChip'
 import { DidButton } from '@/components/track/DidButton'
@@ -90,6 +92,8 @@ const TABS = [
   { id: 'today', label: 'Today', Icon: Sun },
   { id: 'learn', label: 'Learn', Icon: GraduationCap },
   { id: 'history', label: 'History', Icon: History },
+  /* The sheets from class, read once (R7a, 26 Sep). */
+  { id: 'vault', label: 'Vault', Icon: VaultIcon },
 ] as const
 
 export type LanguageTab = (typeof TABS)[number]['id']
@@ -150,8 +154,10 @@ export function LanguagePanel({
             <Verbs lang={lang} area={slug} delay={140} />
             <Topics slug={slug} delay={200} />
           </>
-        ) : (
+        ) : tab === 'history' ? (
           <LanguageHistory slug={slug} />
+        ) : (
+          <Vault slug={slug} />
         )}
       </div>
     </div>
@@ -558,10 +564,12 @@ function DayRows({ slug, day }: { slug: string; day: number }) {
   const setArea = useMutation(api.logs.setArea)
   const setCategory = useMutation(api.logs.setCategory)
 
-  if (result === undefined) return null
-  const rows = result.rows.filter(
+  const rows = (result?.rows ?? []).filter(
     (row) => row.kind !== 'task_done' && row.occurredAt < day + 86_400_000,
   )
+  const sessionIds = rows.filter((r) => r.kind === 'session').map((r) => r._id)
+  const sheets = useQuery(api.vault.countsForLogs, { logIds: sessionIds })
+  if (result === undefined) return null
   const languages = (areas ?? []).filter((a) => a.track === 'language')
 
   return (
@@ -579,6 +587,15 @@ function DayRows({ slug, day }: { slug: string; day: number }) {
             }
             onArea={(next) => void setArea({ logId: row._id, area: next })}
             onRemove={() => void removeLog({ logId: row._id })}
+            sheets={
+              row.kind === 'session' ? (
+                <SessionSheets
+                  slug={slug}
+                  logId={row._id}
+                  count={sheets?.find((c) => c.logId === row._id)?.count ?? 0}
+                />
+              ) : null
+            }
           />
         ))
       )}
@@ -611,12 +628,15 @@ function DoneRow({
   onCategory,
   onArea,
   onRemove,
+  sheets,
 }: {
   row: Doc<'logs'>
   languages: Array<Doc<'areas'>>
   onCategory: (next: string | null) => void
   onArea: (next: string) => void
   onRemove: () => void
+  /** The session's paperclip — its Vault sheets (R7a). */
+  sheets?: ReactNode
 }) {
   const category =
     row.kind === 'exercise' ? 'topic' : (row.meta?.category ?? null)
@@ -660,6 +680,7 @@ function DoneRow({
       <span className="shrink-0 font-mono text-[11px] text-ink-600">
         {clock(new Date(row.occurredAt))}
       </span>
+      {sheets}
       {languages.length > 1 ? (
         /* Move to another language — a flag over a native select. */
         <span className="relative shrink-0 text-[15px] leading-none">

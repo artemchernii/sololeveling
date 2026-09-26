@@ -9,6 +9,7 @@
  */
 
 import type * as aggregate from "../aggregate.js";
+import type * as ai_read from "../ai/read.js";
 import type * as areas from "../areas.js";
 import type * as attachments from "../attachments.js";
 import type * as auth from "../auth.js";
@@ -28,6 +29,7 @@ import type * as search from "../search.js";
 import type * as seed from "../seed.js";
 import type * as state from "../state.js";
 import type * as tasks from "../tasks.js";
+import type * as vault from "../vault.js";
 
 import type {
   ApiFromModules,
@@ -37,6 +39,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   aggregate: typeof aggregate;
+  "ai/read": typeof ai_read;
   areas: typeof areas;
   attachments: typeof attachments;
   auth: typeof auth;
@@ -56,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   state: typeof state;
   tasks: typeof tasks;
+  vault: typeof vault;
 }>;
 
 /**

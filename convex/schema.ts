@@ -308,16 +308,17 @@ export default defineSchema({
     ownerId: v.string(),
     noteId: v.optional(v.id('notes')),
     taskId: v.optional(v.id('tasks')),
-    /* The Vault (R7a, 26 Sep): a class sheet belongs to a language — `area`,
-       always set on one — and, when he says which, to the session it came
-       from. A note/task attachment has neither; a Vault one has no note or
-       task. vault.ts keeps the two kinds apart. */
+    /* A page of a Vault sheet (26 Sep, "2-3 sheets to one ANALYZE"): the
+       sheet — language, session, revisits — is a `vaultSheets` row, and
+       each file is a page pointing at it. A note/task attachment has no
+       sheet; a page has no note or task. vault.ts keeps them apart. */
+    sheetId: v.optional(v.id('vaultSheets')),
+    /* Legacy, from R7a's first day, when a sheet was one file: the page
+       carried the language, the session and the revisit itself.
+       vault.migrateSheets moves them onto a sheet and clears them; drop
+       these three once every deployment has run it. */
     area: v.optional(areaSlug),
     logId: v.optional(v.id('logs')),
-    /* When he last went over a Vault sheet — tapped "Revised" (26 Sep:
-       "place where easy navigate and learn, remind"). The Revisit strip
-       brings back the ones longest untouched. Not a log: going over a
-       sheet is not a session. */
     revisedAt: v.optional(v.number()),
     storageId: v.id('_storage'),
     name: v.string(),
@@ -326,6 +327,22 @@ export default defineSchema({
   })
     .index('by_owner_note', ['ownerId', 'noteId'])
     .index('by_owner_task', ['ownerId', 'taskId'])
+    .index('by_owner_area', ['ownerId', 'area'])
+    .index('by_owner_log', ['ownerId', 'logId'])
+    .index('by_owner_sheet', ['ownerId', 'sheetId']),
+
+  /* A Vault sheet (26 Sep): one or more pages from class or homework, read
+     together as one. It belongs to a language and, when he says which, to
+     the session it came from; a removed session leaves it "not linked". */
+  vaultSheets: defineTable({
+    ownerId: v.string(),
+    area: areaSlug,
+    logId: v.optional(v.id('logs')),
+    /* When he last went over it — tapped "Revised". The Revisit strip
+       brings back the ones longest untouched. Not a log: going over a
+       sheet is not a session. */
+    revisedAt: v.optional(v.number()),
+  })
     .index('by_owner_area', ['ownerId', 'area'])
     .index('by_owner_log', ['ownerId', 'logId']),
 
@@ -337,7 +354,11 @@ export default defineSchema({
      the provider's own, kept to see what the Vault costs, not to show. */
   readings: defineTable({
     ownerId: v.string(),
-    attachmentId: v.id('attachments'),
+    /* The sheet it read, every page at once (26 Sep). A reading from R7a's
+       first day names a single page instead, until vault.migrateSheets
+       moves it onto that page's sheet. */
+    sheetId: v.optional(v.id('vaultSheets')),
+    attachmentId: v.optional(v.id('attachments')),
     status: v.union(
       v.literal('reading'),
       v.literal('done'),
@@ -385,6 +406,7 @@ export default defineSchema({
     error: v.optional(v.string()),
   })
     .index('by_owner_attachment', ['ownerId', 'attachmentId'])
+    .index('by_owner_sheet', ['ownerId', 'sheetId'])
     .index('by_owner_time', ['ownerId', 'requestedAt']),
 
   tasks: defineTable({

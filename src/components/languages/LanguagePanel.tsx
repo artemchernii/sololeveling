@@ -25,6 +25,8 @@ import { SessionSheets, Vault } from '@/components/languages/Vault'
 import { Verbs } from '@/components/languages/Verbs'
 import { CategoryChip } from '@/components/track/CategoryChip'
 import { DidButton } from '@/components/track/DidButton'
+import { LogPastDay } from '@/components/track/LogPastDay'
+import type { PastKind } from '@/components/track/LogPastDay'
 import { MonthCalendar } from '@/components/track/MonthCalendar'
 import { TrackPanel } from '@/components/track/TrackPanel'
 import { useDayStarts } from '@/components/track/useDayStarts'
@@ -439,6 +441,25 @@ function Next({ slug }: { slug: string }) {
    language, or gone. The 12-week strip it replaces made the page start
    with scrolling. */
 function LanguageHistory({ slug }: { slug: string }) {
+  const today = useDayStarts(1).at(-1) as number
+  const create = useMutation(api.logs.create)
+  /* A day that has gone (26 Sep: "we can't log past events"): the same
+     rows Today's buttons write, dated that day — a class still 50 min. */
+  const past: Array<PastKind> = KINDS.map((k) => ({
+    key: k.category,
+    label: k.label,
+    icon: <KindGlyph category={k.category} className="size-3.5" />,
+    log: (occurredAt: number) =>
+      create({
+        kind: 'session',
+        area: slug,
+        occurredAt,
+        category: k.category,
+        ...(k.category === 'class'
+          ? { value: 50, unit: 'min', text: 'class' }
+          : {}),
+      }),
+  }))
   return (
     <section
       style={areaVars(slug)}
@@ -464,7 +485,12 @@ function LanguageHistory({ slug }: { slug: string }) {
               ? 'unsorted'
               : (LABELS[row.category] ?? row.category)
         }
-        day={(day) => <DayRows slug={slug} day={day} />}
+        day={(day) => (
+          <div className="flex flex-col gap-3">
+            {day < today ? <LogPastDay day={day} kinds={past} /> : null}
+            <DayRows slug={slug} day={day} />
+          </div>
+        )}
       />
     </section>
   )

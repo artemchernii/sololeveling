@@ -28,9 +28,10 @@ import { TrackPanel } from '@/components/track/TrackPanel'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { clock } from '@/lib/format'
 import {
-  MAX_READ_BYTES,
+  MAX_PAGES,
   READING_MODEL_NAME,
   isReadingKind,
+  pagesRefusal,
   readableKind,
 } from '@/lib/reading'
 import type { ReadingKind } from '@/lib/reading'
@@ -74,57 +75,78 @@ function sessionLabel(category: string | null, at: number): string {
   return `${KIND_LABEL[category ?? ''] ?? 'Session'} · ${DATE.format(new Date(at))}`
 }
 
+/* Each file to storage, in the order picked; the storage ids come back
+   for the mutation that makes them a sheet (or adds them to one). */
+async function store(
+  files: ReadonlyArray<File>,
+  generateUploadUrl: () => Promise<string>,
+) {
+  const out = []
+  for (const file of files) {
+    const url = await generateUploadUrl()
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    })
+    if (!res.ok) throw new Error(String(res.status))
+    const { storageId } = (await res.json()) as { storageId: Id<'_storage'> }
+    out.push({
+      storageId,
+      name: file.name || 'page',
+      contentType: file.type,
+      size: file.size,
+    })
+  }
+  return out
+}
+
 /**
- * Bytes to storage, then `vault.add`. Checked here first so a file the
- * reader cannot see is never uploaded; the server checks again and says
- * why when it refuses.
+ * The pages to storage, then one sheet of them (`vault.add`) — or, given a
+ * sheet, more pages on it (`vault.addPages`). Checked here first so files
+ * that cannot be a sheet are never uploaded; the server checks again and
+ * says why when it refuses.
  */
 export function useSheetUpload(area: string, onAdded?: (id: string) => void) {
   const generateUploadUrl = useMutation(api.attachments.generateUploadUrl)
   const add = useMutation(api.vault.add)
+  const addPages = useMutation(api.vault.addPages)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const upload = useCallback(
-    async (file: File, logId: Id<'logs'> | undefined) => {
+    async (
+      files: ReadonlyArray<File>,
+      target:
+        { logId?: Id<'logs'> } | { sheetId: Id<'vaultSheets'>; pages: number },
+    ) => {
       setError(null)
-      if (readableKind(file.type) === null) {
-        setError('The Vault reads PDFs and photos (JPG, PNG, WebP).')
-        return
-      }
-      if (file.size > MAX_READ_BYTES) {
-        setError('That file is larger than 10 MB.')
+      const meta = files.map((f) => ({ contentType: f.type, size: f.size }))
+      const already =
+        'sheetId' in target ? Array(target.pages).fill({ size: 0 }) : []
+      const refused = pagesRefusal(meta, already)
+      if (refused !== null) {
+        setError(refused)
         return
       }
       setBusy(true)
       try {
-        const url = await generateUploadUrl()
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': file.type },
-          body: file,
-        })
-        if (!res.ok) throw new Error(String(res.status))
-        const { storageId } = (await res.json()) as {
-          storageId: Id<'_storage'>
+        const stored = await store(files, generateUploadUrl)
+        if ('sheetId' in target) {
+          const out = await addPages({ sheetId: target.sheetId, files: stored })
+          if (!out.ok) setError(out.error)
+        } else {
+          const out = await add({ area, logId: target.logId, files: stored })
+          if (!out.ok) setError(out.error)
+          else onAdded?.(out.sheetId)
         }
-        const out = await add({
-          area,
-          logId,
-          storageId,
-          name: file.name || 'sheet',
-          contentType: file.type,
-          size: file.size,
-        })
-        if (!out.ok) setError(out.error)
-        else onAdded?.(out.attachmentId)
       } catch {
-        setError(`${file.name || 'The file'} did not upload — try again.`)
+        setError('The pages did not upload — try again.')
       } finally {
         setBusy(false)
       }
     },
-    [add, area, generateUploadUrl, onAdded],
+    [add, addPages, area, generateUploadUrl, onAdded],
   )
 
   return { upload, busy, error }
@@ -212,7 +234,7 @@ export function Vault({ slug }: { slug: string }) {
                   type="button"
                   onClick={() =>
                     void markRevised({
-                      attachmentId: byId.get(d.id)!._id,
+                      sheetId: byId.get(d.id)!._id,
                     })
                   }
                   className="motion-press inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] text-ink-200 ring-1 ring-lav-400/35 ring-inset hover:bg-lav-400/10 hover:text-foreground"
@@ -302,6 +324,7 @@ export function Vault({ slug }: { slug: string }) {
                         className="scroll-mt-24"
                       >
                         <SheetCard
+                          slug={slug}
                           sheet={sheet}
                           delay={0}
                           onClose={() => setOpen('')}
@@ -336,11 +359,17 @@ const KIND_NAME: Record<ReadingKind, string> = {
   other: 'Other',
 }
 
+/* What a sheet is called before the reader names it: its first page's
+   file name, without the extension. */
+function sheetName(sheet: Sheet): string {
+  return (sheet.pages.at(0)?.name ?? 'Sheet').replace(/\.[a-z0-9]+$/i, '')
+}
+
 function toLibrary(sheet: Sheet): LibrarySheet {
   const r = sheet.reading
   return {
     id: sheet._id,
-    title: r?.title || sheet.name.replace(/\.[a-z0-9]+$/i, ''),
+    title: r?.title || sheetName(sheet),
     kind: isReadingKind(r?.kind) ? r.kind : 'other',
     tags: r?.tags ?? [],
     at: sheet.session?.occurredAt ?? sheet._creationTime,
@@ -407,7 +436,8 @@ function LibraryRow({
   onOpen: () => void
 }) {
   const status = sheet.reading?.status ?? 'reading'
-  const image = readableKind(sheet.contentType)?.block === 'image'
+  const first = sheet.pages.at(0)
+  const image = readableKind(first?.contentType ?? '')?.block === 'image'
   return (
     <button
       type="button"
@@ -415,9 +445,9 @@ function LibraryRow({
       className="motion-arrive group flex min-w-0 items-center gap-3 rounded-[8px] px-2 py-2 text-left ring-1 ring-transparent transition-colors ring-inset hover:bg-lav-400/6 hover:ring-lav-400/25"
     >
       <span className="relative grid h-12 w-9 shrink-0 place-items-center overflow-hidden rounded-[3px] bg-lift/[0.08] ring-1 ring-lift/15">
-        {image && sheet.url ? (
+        {image && first?.url ? (
           <img
-            src={sheet.url}
+            src={first.url}
             alt=""
             decoding="async"
             className="size-full object-cover object-top"
@@ -541,8 +571,11 @@ function AddSheet({
             ) : (
               <Plus className="size-4" />
             )}
-            {busy ? 'Uploading…' : 'Choose a PDF or photo'}
+            {busy ? 'Uploading…' : 'Choose pages'}
           </button>
+          <span className="font-mono text-[10.5px] text-ink-500">
+            PDFs or photos · up to {MAX_PAGES}, read together
+          </span>
           {error ? (
             <span className="text-[12.5px] text-state-danger">{error}</span>
           ) : null}
@@ -551,12 +584,15 @@ function AddSheet({
           ref={input}
           type="file"
           accept={ACCEPT}
+          multiple
           className="hidden"
           onChange={(e) => {
-            const file = e.target.files?.[0]
+            const files = [...(e.target.files ?? [])]
             e.target.value = ''
-            if (file) {
-              void upload(file, logId === 'none' ? undefined : logId)
+            if (files.length > 0) {
+              void upload(files, {
+                logId: logId === 'none' ? undefined : logId,
+              })
             }
           }}
         />
@@ -570,10 +606,12 @@ type Sheet = NonNullable<
 >[number]
 
 function SheetCard({
+  slug,
   sheet,
   delay,
   onClose,
 }: {
+  slug: string
   sheet: Sheet
   delay: number
   onClose?: () => void
@@ -586,19 +624,43 @@ function SheetCard({
   const [copied, setCopied] = useState(false)
   const reading = sheet.reading
   const busy = reading === null || reading.status === 'reading'
+  const pageInput = useRef<HTMLInputElement>(null)
+  const pagesUpload = useSheetUpload(slug)
+  /* Pages added after the last reading are not in it yet. */
+  const unread = busy
+    ? 0
+    : sheet.pages.filter((p) => p._creationTime > reading.requestedAt).length
 
   return (
     <section
       style={{ animationDelay: `${delay}ms` }}
       className="system-frame motion-arrive relative grid min-w-0 gap-4 p-4 sm:grid-cols-[168px_minmax(0,1fr)] sm:p-5"
     >
-      <Preview sheet={sheet} reading={busy} />
+      <div className="flex min-w-0 flex-col gap-2 self-start">
+        <Preview sheet={sheet} reading={busy} />
+        {sheet.pages.length > 1 ? (
+          <div className="flex flex-wrap gap-1">
+            {sheet.pages.map((p, i) => (
+              <a
+                key={p._id}
+                href={p.url ?? undefined}
+                target="_blank"
+                rel="noreferrer"
+                title={p.name}
+                className="motion-press grid h-7 min-w-7 place-items-center rounded-[6px] px-1.5 font-mono text-[11px] text-ink-300 ring-1 ring-lift/12 ring-inset hover:text-foreground hover:ring-lav-400/45"
+              >
+                {i + 1}
+              </a>
+            ))}
+          </div>
+        ) : null}
+      </div>
 
       <div className="flex min-w-0 flex-col gap-4">
         <header className="flex min-w-0 items-start gap-3">
           <span className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="text-[15px] leading-snug text-foreground">
-              {sheet.reading?.title || sheet.name}
+              {sheet.reading?.title || sheetName(sheet)}
             </span>
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10.5px] tracking-[0.1em] text-ink-400 uppercase">
               {sheet.session ? (
@@ -638,7 +700,7 @@ function SheetCard({
             <span className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
-                onClick={() => void remove({ attachmentId: sheet._id })}
+                onClick={() => void remove({ sheetId: sheet._id })}
                 className="motion-press rounded-full bg-state-danger/15 px-2.5 py-1 text-[12px] text-state-danger ring-1 ring-state-danger/40 ring-inset"
               >
                 Remove
@@ -673,7 +735,7 @@ function SheetCard({
             </span>
             <button
               type="button"
-              onClick={() => void retry({ attachmentId: sheet._id })}
+              onClick={() => void retry({ sheetId: sheet._id })}
               className="motion-press inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] text-ink-200 ring-1 ring-lav-400/35 ring-inset hover:bg-lav-400/10"
             >
               <RotateCcw className="size-3.5" />
@@ -682,6 +744,22 @@ function SheetCard({
           </div>
         ) : (
           <div className="flex flex-col gap-4">
+            {unread > 0 ? (
+              <div className="motion-arrive flex flex-wrap items-center gap-3 rounded-[10px] bg-lav-400/8 px-3.5 py-2.5 ring-1 ring-lav-400/30 ring-inset">
+                <span className="text-[13px] text-ink-100">
+                  {unread === 1 ? 'A new page' : `${unread} new pages`} — not in
+                  this reading yet.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void retry({ sheetId: sheet._id })}
+                  className="motion-press inline-flex items-center gap-1.5 rounded-full bg-lav-400 px-3 py-1 text-[12.5px] font-medium text-background"
+                >
+                  <RotateCcw className="size-3.5" />
+                  Read all pages again
+                </button>
+              </div>
+            ) : null}
             {reading.summary ? (
               <p className="motion-land text-[15px] leading-relaxed text-ink-100">
                 {reading.summary}
@@ -802,7 +880,7 @@ function SheetCard({
               </span>
               <button
                 type="button"
-                onClick={() => void markRevised({ attachmentId: sheet._id })}
+                onClick={() => void markRevised({ sheetId: sheet._id })}
                 className="motion-press inline-flex items-center gap-1 text-ink-400 transition-colors hover:text-lav-400"
               >
                 <Check className="size-3" />
@@ -810,11 +888,46 @@ function SheetCard({
                   ? `gone over ${DATE.format(new Date(sheet.revisedAt))}`
                   : 'mark revised'}
               </button>
+              {sheet.pages.length < MAX_PAGES ? (
+                <button
+                  type="button"
+                  disabled={pagesUpload.busy}
+                  onClick={() => pageInput.current?.click()}
+                  className="motion-press inline-flex items-center gap-1 text-ink-400 transition-colors hover:text-lav-400 disabled:opacity-60"
+                >
+                  {pagesUpload.busy ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <Plus className="size-3" />
+                  )}
+                  add page
+                </button>
+              ) : null}
+              {pagesUpload.error ? (
+                <span className="text-state-danger">{pagesUpload.error}</span>
+              ) : null}
+              <input
+                ref={pageInput}
+                type="file"
+                accept={ACCEPT}
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = [...(e.target.files ?? [])]
+                  e.target.value = ''
+                  if (files.length > 0) {
+                    void pagesUpload.upload(files, {
+                      sheetId: sheet._id,
+                      pages: sheet.pages.length,
+                    })
+                  }
+                }}
+              />
               {/* Another call, so it counts toward the 30 — for a sheet
                   read before examples existed, or a reading that missed. */}
               <button
                 type="button"
-                onClick={() => void retry({ attachmentId: sheet._id })}
+                onClick={() => void retry({ sheetId: sheet._id })}
                 className="motion-press inline-flex items-center gap-1 text-ink-500 transition-colors hover:text-lav-400"
               >
                 <RotateCcw className="size-3" />
@@ -891,36 +1004,42 @@ function Examples({
    viewer, its first page showing. Tapping opens it whole. While it is
    being read, the System's scan line sweeps over it. */
 function Preview({ sheet, reading }: { sheet: Sheet; reading: boolean }) {
-  const kind = readableKind(sheet.contentType)
+  const page = sheet.pages.at(0)
+  const kind = readableKind(page?.contentType ?? '')
   return (
     <a
-      href={sheet.url ?? undefined}
+      href={page?.url ?? undefined}
       target="_blank"
       rel="noreferrer"
-      aria-label={`Open ${sheet.name}`}
-      className={`group relative block aspect-[210/297] max-h-72 self-start overflow-hidden rounded-[10px] bg-sink/20 ring-1 transition-shadow sm:max-h-none ${
+      aria-label={`Open ${page?.name ?? 'the sheet'}`}
+      className={`group relative block aspect-[210/297] max-h-72 w-full overflow-hidden rounded-[10px] bg-sink/20 ring-1 transition-shadow sm:max-h-none ${
         reading
           ? 'ring-lav-400/70 shadow-[0_0_28px_-6px_var(--system-shine)]'
           : 'ring-lift/15 hover:ring-lav-400/50'
       }`}
     >
-      {sheet.url === null ? null : kind?.block === 'image' ? (
+      {!page?.url ? null : kind?.block === 'image' ? (
         <img
-          src={sheet.url}
+          src={page.url}
           alt=""
           decoding="async"
           className="absolute inset-0 size-full object-cover object-top"
         />
       ) : (
         <iframe
-          src={`${sheet.url}#toolbar=0&navpanes=0&view=FitH`}
-          title={sheet.name}
+          src={`${page.url}#toolbar=0&navpanes=0&view=FitH`}
+          title={page.name}
           tabIndex={-1}
           /* Wider than its box, so the viewer's scrollbar sits
              outside it — the page, not the viewer, is what shows. */
           className="pointer-events-none absolute inset-y-0 left-0 h-full w-[calc(100%+18px)]"
         />
       )}
+      {sheet.pages.length > 1 ? (
+        <span className="absolute top-2 right-2 rounded-full bg-background/85 px-2 py-0.5 font-mono text-[10px] tracking-[0.1em] text-foreground uppercase ring-1 ring-lav-400/40">
+          {sheet.pages.length} pages
+        </span>
+      ) : null}
       {reading ? (
         <>
           <span className="absolute inset-0 bg-lav-400/10" />
@@ -1006,11 +1125,12 @@ export function SessionSheets({
         ref={input}
         type="file"
         accept={ACCEPT}
+        multiple
         className="hidden"
         onChange={(e) => {
-          const file = e.target.files?.[0]
+          const files = [...(e.target.files ?? [])]
           e.target.value = ''
-          if (file) void upload(file, logId)
+          if (files.length > 0) void upload(files, { logId })
         }}
       />
     </span>

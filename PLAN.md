@@ -74,8 +74,7 @@ conditions. A sum that fails any of them is not a source-1 number:
 - **Only logged rows.** No estimates, no averages, no projections, no "on track to spend".
 - **Every sum opens its rows.** Tap €612 and see the logs it is made of.
 - **Not a licence to derive.** In and out are shown side by side. A "saved" difference, a savings
-  rate or a budget score each need their own yes. A limit he sets is a goal with a `targetValue`,
-  so a bar against it is the ordinary §1 division.
+  rate or a budget score each need their own yes.
 
 **Two more sums, same conditions (26 Sep, Finances F2/F4).** An account's balance is its free cash (money not in shares), so cash and investments are two halves and nothing is counted twice. The free-cash total is a sum of each
 account's latest balance (source 2), euros only, always shown with the oldest reading in it — a
@@ -293,7 +292,7 @@ it is built in (R1–R7). Everything in §1–§2 and §3b–§3d still holds.
 | Goals     | as is                                                                     | R3: bound to projects and areas, a milestone timeline 0—1—2—3, deadlines, Reached/Drop/Delete kept                                                                                                                                                          |
 | Backlog   | as is                                                                     | R3: created-at, bind to project/goal, "put it on the calendar"                                                                                                                                                                                              |
 | Notes     | as is                                                                     | R4: the knowledge base — more kinds (`style` among them), expanded editor, drag-and-drop images/PDFs (Convex file storage), YouTube embeds, bind to a project                                                                                               |
-| Finances  | renamed; still a placeholder                                              | R6b-c F1 (26 Sep): Spending — this month's out and in by category, each opening its rows, an optional monthly limit, History calendar. Then F2 Balances, F3 Investments (prices as source 4)                                                                |
+| Finances  | renamed; still a placeholder                                              | R6b-c F1 (26 Sep): Spending — this month's out and in by category, each opening its rows History calendar (a monthly limit was built and removed the same day, his call). Then F2 Balances, F3 Investments (prices as source 4)                             |
 | Body      | placeholder                                                               | R6b-a (shipped): consistency first — a per-day strip per category, weight as a line against a goal's target, recent logs editable. 25 Sep: a tracking page — routines (Stretch, Gym) with DID per exercise and a SESSION tap, weight target set on the card |
 | Languages | renamed; still a placeholder                                              | R6b-b (shipped): a tab per area ticked as a language — classes apart from practice, the level, what is booked next, twelve weeks of days. 25 Sep: Class / Homework / At home in one tap each, a topics & tenses list with PRACTISED and LEARNING/SOLID      |
 | Settings  | as is                                                                     | —                                                                                                                                                                                                                                                           |
@@ -526,7 +525,7 @@ one-page spec under `docs/specs/` written when the previous row has shipped.
 - **Body (R6b-a).** Consistency first, weight second. The kind lives in `logs.meta.category`, a
   plain string the verb sets and the capture chip edits — not a fixed list.
 - **Finances (R6b-c).** Unblocked 26 Sep by the sum rule in §1. Three rows: F1 Spending (a
-  month's out and in by category, `logs.meta.category`, an optional monthly limit), F2 Balances,
+  month's out and in by category, `logs.meta.category`), F2 Balances,
   F3 Investments — each its own spec when the one before ships.
 
 **Rules that carry through every row:** every number from a sanctioned source (§1); three a

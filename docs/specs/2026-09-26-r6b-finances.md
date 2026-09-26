@@ -80,7 +80,7 @@ All five picks below were taken as written.
    writes `spend`), and F2/F3 need their own storage decisions.
 3. **The category list.** _Pick: the nine above._ Name any you'd add or
    drop.
-4. **A monthly limit?** A goal with a `targetValue` ("€800 a month") would
+4. **A monthly limit?** _(Built, then removed 26 Sep: "monthly limit i dont need".)_ A goal with a `targetValue` ("€800 a month") would
    give "out" a real bar, like Body's weekly targets. _Pick: yes, in F1,
    optional, set from the hero._
 5. **In − out ("saved this month")?** _Pick: not yet._ It is a derivation

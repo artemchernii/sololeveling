@@ -79,7 +79,7 @@ import { splitNote } from '@/lib/note-text'
 const CHIP =
   'motion-press chip-focus inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px]'
 const NEUTRAL_CHIP = `${CHIP} bg-lift/[0.06] text-ink-300 ring-1 ring-lift/10 ring-inset hover:bg-lift/10`
-const AREA_CHIP = `${CHIP} bg-(--area)/14 text-(--area) ring-1 ring-(--area)/30 ring-inset hover:bg-(--area)/22`
+const AREA_CHIP = `${CHIP} bg-(--area)/14 text-area ring-1 ring-(--area)/30 ring-inset hover:bg-(--area)/22`
 
 /** What a count after logging is a count of, so "4" is never a bare number
     beside a word it does not count: `boxing` says "4 workouts", because
@@ -123,7 +123,7 @@ const NOTE_KINDS: Array<NoteKind> = ['note', 'idea', 'book', 'reference']
 function ChipIcon({ icon }: { icon: VerbInfo['icon'] | undefined }) {
   if (!icon) return null
   const Icon = VERB_ICONS[icon]
-  return <Icon className="size-3.5 shrink-0 text-(--area)" />
+  return <Icon className="size-3.5 shrink-0 text-area" />
 }
 
 /* 35ms per chip: short enough that four chips are all in within a base
@@ -137,7 +137,10 @@ function beat(index: number): React.CSSProperties {
 function chipTone(area: Area | undefined): React.CSSProperties {
   return area
     ? areaVars(area)
-    : ({ '--area': 'var(--color-neutral-400)' } as React.CSSProperties)
+    : ({
+        '--area': 'var(--color-neutral-400)',
+        '--area-ink': 'var(--color-neutral-400)',
+      } as React.CSSProperties)
 }
 
 /** The top of the next hour — where a plan's time picker opens. */
@@ -793,7 +796,7 @@ export function QuickCapture({
             }
           : undefined
       }
-      iconClassName={area ? 'text-(--area)' : 'text-ink-500'}
+      iconClassName={area ? 'text-area' : 'text-ink-500'}
       fieldClassName={area ? 'bg-(--area)/[0.07]' : ''}
       onValueChange={(next) => {
         setInput(badged ? `${verbWord} ${next}` : next)
@@ -923,7 +926,10 @@ export function QuickCapture({
                   ? /* A task has no area when it is made (it starts unfiled),
                        so its confirmation borrows the accent: this row is the
                        live thing on screen for the moment it is there. */
-                    ({ '--area': 'var(--color-accent)' } as React.CSSProperties)
+                    ({
+                      '--area': 'var(--color-accent)',
+                      '--area-ink': 'var(--color-accent)',
+                    } as React.CSSProperties)
                   : areaVars(last.row.area)
           }
           /* Arrives, and — for something added — rings once in its colour
@@ -941,7 +947,7 @@ export function QuickCapture({
           ) : null}
           {last.type !== 'removed' ? (
             <Check
-              className="motion-draw size-3.5 shrink-0 text-(--area)"
+              className="motion-draw size-3.5 shrink-0 text-area"
               strokeWidth={2.5}
             />
           ) : (
@@ -969,7 +975,7 @@ export function QuickCapture({
                 onOpenChange(false)
                 void navigate({ to: '/notes/$id', params: { id: last.id } })
               }}
-              className="motion-press flex shrink-0 items-center gap-1 text-[12px] text-(--area) hover:underline"
+              className="motion-press flex shrink-0 items-center gap-1 text-[12px] text-area hover:underline"
             >
               saved to notes
               <ArrowUpRight className="size-3" />
@@ -985,7 +991,7 @@ export function QuickCapture({
                   to: last.to === 'today' ? '/dashboard' : '/backlog',
                 })
               }}
-              className="motion-press flex shrink-0 items-center gap-1 text-[12px] text-(--area) hover:underline"
+              className="motion-press flex shrink-0 items-center gap-1 text-[12px] text-area hover:underline"
             >
               {last.to === 'today' ? 'Added to today' : 'Added to backlog'}
               {last.forTitle ? (
@@ -994,7 +1000,7 @@ export function QuickCapture({
               <ArrowUpRight className="size-3" />
             </button>
           ) : last.type === 'logged' ? (
-            <span className="text-[12px] text-(--area)">
+            <span className="text-[12px] text-area">
               logged
               {/* Nothing until the count has answered: a placeholder number
                   would be a fixture (§3d.2). */}
@@ -1107,7 +1113,7 @@ export function QuickCapture({
                   <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink-500">
                     {choice.hint}
                   </span>
-                  <span className="shrink-0 font-mono text-[10.5px] tracking-[0.12em] text-(--area) uppercase">
+                  <span className="shrink-0 font-mono text-[10.5px] tracking-[0.12em] text-area uppercase">
                     {/* The label, not the slug (R6): the / list should say
                         the word he named the area, which is the word he
                         would have typed to find it. */}
@@ -1160,8 +1166,8 @@ export function QuickCapture({
                 }}
                 className={`${CHIP} h-7 px-2.5 font-mono text-[10.5px] tracking-[0.12em] uppercase ${
                   noteKind === option
-                    ? 'bg-(--area)/16 text-(--area) ring-1 ring-(--area)/40 ring-inset'
-                    : 'text-ink-500 hover:bg-(--area)/10 hover:text-(--area)'
+                    ? 'bg-(--area)/16 text-area ring-1 ring-(--area)/40 ring-inset'
+                    : 'text-ink-500 hover:bg-(--area)/10 hover:text-area'
                 }`}
               >
                 {option}
@@ -1248,11 +1254,11 @@ export function QuickCapture({
                     one — the time chip already did, and a row where some
                     chips have a lead and some do not never lines up. */}
                 {verb.unit === 'eur' ? (
-                  <Euro className="size-3.5 shrink-0 text-(--area)" />
+                  <Euro className="size-3.5 shrink-0 text-area" />
                 ) : verb.unit === 'kg' ? (
-                  <Scale className="size-3.5 shrink-0 text-(--area)" />
+                  <Scale className="size-3.5 shrink-0 text-area" />
                 ) : (
-                  <Timer className="size-3.5 shrink-0 text-(--area)" />
+                  <Timer className="size-3.5 shrink-0 text-area" />
                 )}
                 {/* Sized by an invisible copy of its own text (or its
                     placeholder) in the same grid cell, so the chip is exactly
@@ -1306,7 +1312,7 @@ export function QuickCapture({
                         : 'text-foreground'
                     } ${
                       attempted && !result.ok && verb.amount === 'required'
-                        ? 'placeholder:text-(--area)'
+                        ? 'placeholder:text-area'
                         : ''
                     }`}
                     style={chipTone(area)}
@@ -1324,7 +1330,7 @@ export function QuickCapture({
               style={{ ...chipTone(area), ...beat(2) }}
               className={`${NEUTRAL_CHIP} motion-arrive cursor-text focus-within:bg-(--area)/10 focus-within:ring-(--area)/55`}
             >
-              <PenLine className="size-3.5 shrink-0 text-(--area)" />
+              <PenLine className="size-3.5 shrink-0 text-area" />
               <span className="inline-grid">
                 <span
                   aria-hidden
@@ -1461,8 +1467,8 @@ export function QuickCapture({
                   }}
                   className={`${CHIP} h-7 px-2.5 font-mono text-[10.5px] tracking-[0.12em] uppercase ${
                     choice.slug === area
-                      ? 'bg-(--area)/22 text-(--area) ring-1 ring-(--area)/50 ring-inset'
-                      : 'text-ink-500 hover:bg-(--area)/12 hover:text-(--area)'
+                      ? 'bg-(--area)/22 text-area ring-1 ring-(--area)/50 ring-inset'
+                      : 'text-ink-500 hover:bg-(--area)/12 hover:text-area'
                   }`}
                 >
                   <span className="size-1.5 rounded-full bg-(--area)" />
@@ -1485,8 +1491,8 @@ export function QuickCapture({
                   }}
                   className={`${CHIP} h-7 px-2.5 font-mono text-[10.5px] tracking-[0.12em] uppercase ${
                     choice === category
-                      ? 'bg-(--area)/22 text-(--area) ring-1 ring-(--area)/50 ring-inset'
-                      : 'text-ink-500 hover:bg-(--area)/12 hover:text-(--area)'
+                      ? 'bg-(--area)/22 text-area ring-1 ring-(--area)/50 ring-inset'
+                      : 'text-ink-500 hover:bg-(--area)/12 hover:text-area'
                   }`}
                 >
                   {choice}
@@ -1735,7 +1741,7 @@ export function QuickCapture({
                         type="button"
                         style={areaVars(tone)}
                         onClick={() => takeLine(`${word} ${rest}`.trim())}
-                        className={`${NEUTRAL_CHIP} font-mono text-[12.5px] hover:text-(--area)`}
+                        className={`${NEUTRAL_CHIP} font-mono text-[12.5px] hover:text-area`}
                       >
                         <ChipIcon icon={icon} />
                         {word}

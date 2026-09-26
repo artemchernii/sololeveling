@@ -65,7 +65,10 @@ export function TaskRow({
   }
   const tone: CSSProperties = task.area
     ? areaVars(task.area)
-    : ({ '--area': 'var(--color-neutral-500)' } as CSSProperties)
+    : ({
+        '--area': 'var(--color-neutral-500)',
+        '--area-ink': 'var(--color-neutral-500)',
+      } as CSSProperties)
 
   const action =
     'motion-press grid size-8 shrink-0 place-items-center rounded-[9px] text-ink-600 transition-colors hover:bg-lift/[0.06]'

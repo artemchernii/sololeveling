@@ -246,8 +246,8 @@ function NewProject() {
                   style={areaVars(a.slug)}
                   className={`motion-press rounded-full px-2.5 py-1 font-mono text-[10px] tracking-[0.14em] uppercase ring-1 transition-colors ${
                     on
-                      ? 'bg-(--area)/20 text-(--area) ring-(--area)/45'
-                      : 'text-ink-600 ring-lift/10 hover:text-(--area) hover:ring-(--area)/30'
+                      ? 'bg-(--area)/20 text-area ring-(--area)/45'
+                      : 'text-ink-600 ring-lift/10 hover:text-area hover:ring-(--area)/30'
                   }`}
                 >
                   {a.label}

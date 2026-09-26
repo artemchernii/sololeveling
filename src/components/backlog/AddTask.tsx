@@ -158,7 +158,7 @@ export function AddTask({
             className={
               area === ''
                 ? 'text-ink-500 ring-1 ring-lift/10 hover:text-ink-200'
-                : 'bg-(--area)/14 text-(--area) ring-1 ring-(--area)/35'
+                : 'bg-(--area)/14 text-area ring-1 ring-(--area)/35'
             }
           >
             <option value="">No area</option>

@@ -79,13 +79,17 @@ export function AreaStyles() {
     ...BUILTIN_AREAS.map((a) => ({ slug: a.slug, hue: a.hue, bold: false })),
     ...(fromRows ?? remembered),
   ]
-  /* A bold area takes the theme's deep pair (tokens.css item 5). */
+  /* A bold area takes the theme's deep pair (tokens.css item 5) for its
+     fills. Its words keep the normal pair: a deep colour is a fine fill
+     and hard to read as text on the dark ground (26 Sep, Body in bold
+     crimson: "kinda hard to read"). `text-area` reads the `-ink` twin. */
   const css = rows
-    .map(({ slug, hue, bold }) =>
-      bold
-        ? `--area-${slug}:oklch(var(--area-bold-l) var(--area-bold-c) ${hue});`
-        : `--area-${slug}:oklch(var(--area-l) var(--area-c) ${hue});`,
-    )
+    .map(({ slug, hue, bold }) => {
+      const ink = `oklch(var(--area-l) var(--area-c) ${hue})`
+      return bold
+        ? `--area-${slug}:oklch(var(--area-bold-l) var(--area-bold-c) ${hue});--area-${slug}-ink:${ink};`
+        : `--area-${slug}:${ink};--area-${slug}-ink:${ink};`
+    })
     .join('')
   return <style>{`:root{${css}}`}</style>
 }

@@ -37,7 +37,7 @@ export function ProjectLogo({
       aria-hidden
       style={{ ...style, ...(area ? areaVars(area) : undefined) }}
       className={`flex shrink-0 items-center justify-center rounded-[8px] text-[14px] font-light ${
-        area ? 'bg-(--area)/16 text-(--area)' : 'bg-lift/8 text-ink-500'
+        area ? 'bg-(--area)/16 text-area' : 'bg-lift/8 text-ink-500'
       }`}
     >
       {title.trim().charAt(0).toUpperCase() || '·'}

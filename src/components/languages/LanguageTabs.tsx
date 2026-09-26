@@ -100,7 +100,7 @@ function WhichLanguage({ area }: { area: Doc<'areas'> }) {
       className="glass motion-arrive flex flex-col gap-3 rounded-[22px] p-5 sm:p-6"
     >
       <h2 className="text-[18px] font-light text-foreground">
-        Which language is <span className="text-(--area)">{area.label}</span>?
+        Which language is <span className="text-area">{area.label}</span>?
       </h2>
       <div className="flex flex-wrap gap-2">
         {offer.map((l) => (

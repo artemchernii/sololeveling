@@ -51,7 +51,7 @@ export function useAreaLabel(): (slug: string | undefined) => string {
 }
 
 /* An area's colour, handed to an element as a custom property so one static
-   set of classes — `bg-(--area)/14 text-(--area)` — can paint any of them.
+   set of classes — `bg-(--area)/14 text-area` — can paint any of them.
    Assembling `bg-area-${area}` from a string would compile to nothing:
    Tailwind generates the classes it can read in source, and it cannot read a
    template literal.
@@ -60,7 +60,12 @@ export function useAreaLabel(): (slug: string | undefined) => string {
    get back `--area`, exactly as before; what changed is only who declares
    `--area-<slug>` (AreaStyles.tsx, from a row) and how many there can be. */
 export function areaVars(area: string): CSSProperties {
-  return { '--area': `var(--area-${area})` } as CSSProperties
+  return {
+    '--area': `var(--area-${area})`,
+    /* Its readable twin for text — the same colour unless the area is
+       bold (AreaStyles.tsx). Read through the `text-area` utility. */
+    '--area-ink': `var(--area-${area}-ink)`,
+  } as CSSProperties
 }
 
 /**

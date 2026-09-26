@@ -67,7 +67,7 @@ export function Verbs({
               aria-pressed={onlyIrregular}
               className={`motion-press hidden rounded-full px-2.5 py-1 font-mono text-[10px] tracking-[0.12em] uppercase ring-1 transition-colors ring-inset sm:inline ${
                 onlyIrregular
-                  ? 'bg-(--area)/18 text-(--area) ring-(--area)/45'
+                  ? 'bg-(--area)/18 text-area ring-(--area)/45'
                   : 'text-ink-500 ring-lift/12 hover:text-ink-200'
               }`}
             >
@@ -101,7 +101,7 @@ export function Verbs({
               >
                 <span className="flex items-center gap-1.5">
                   <span
-                    className={`text-[14.5px] ${on ? 'text-(--area)' : 'text-foreground'}`}
+                    className={`text-[14.5px] ${on ? 'text-area' : 'text-foreground'}`}
                   >
                     {v.verb}
                   </span>
@@ -125,7 +125,7 @@ export function Verbs({
         <button
           type="button"
           onClick={() => setAll((a) => !a)}
-          className="motion-press self-start font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase transition-colors hover:text-(--area)"
+          className="motion-press self-start font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase transition-colors hover:text-area"
         >
           {all ? 'show fewer' : `show all ${matching.length}`}
         </button>
@@ -142,7 +142,7 @@ function Tables({ verb, onClose }: { verb: Verb; onClose: () => void }) {
     >
       <div className="flex items-start justify-between gap-3">
         <span className="flex flex-col">
-          <span className="motion-pop text-[30px] leading-tight font-light text-(--area)">
+          <span className="motion-pop text-[30px] leading-tight font-light text-area">
             {verb.verb}
           </span>
           <span className="text-[13px] text-ink-300">{verb.meaning}</span>
@@ -173,7 +173,7 @@ function Tables({ verb, onClose }: { verb: Verb; onClose: () => void }) {
             className="motion-arrive flex flex-col gap-1.5 rounded-[14px] bg-background/40 p-3"
           >
             <span className="flex flex-col">
-              <span className="font-mono text-[10.5px] tracking-[0.12em] text-(--area) uppercase">
+              <span className="font-mono text-[10.5px] tracking-[0.12em] text-area uppercase">
                 {t.name}
               </span>
               <span className="text-[11px] text-ink-500">{t.en}</span>

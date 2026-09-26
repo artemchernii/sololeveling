@@ -63,7 +63,7 @@ export function Level({ slug, delay = 0 }: { slug: string; delay?: number }) {
           <button
             type="button"
             onClick={() => setEditing((e) => !e)}
-            className="motion-press font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase transition-colors hover:text-(--area)"
+            className="motion-press font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase transition-colors hover:text-area"
           >
             {choosing ? 'cancel' : 'change'}
           </button>
@@ -98,7 +98,7 @@ export function Level({ slug, delay = 0 }: { slug: string; delay?: number }) {
                   here
                     ? 'motion-pop size-12 bg-(--area) text-[15px] font-medium text-background shadow-[0_0_24px_-4px_var(--area)]'
                     : passed
-                      ? 'size-8 bg-(--area)/25 text-[11px] text-(--area)'
+                      ? 'size-8 bg-(--area)/25 text-[11px] text-area'
                       : 'size-8 bg-lift/[0.05] text-[11px] text-ink-500'
                 } ${aim && !here ? 'ring-2 ring-(--area) ring-offset-2 ring-offset-transparent' : ''} ${
                   choosing
@@ -121,7 +121,7 @@ export function Level({ slug, delay = 0 }: { slug: string; delay?: number }) {
         <div className="motion-arrive flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <span className="flex items-baseline gap-2">
-              <span className="text-[22px] font-light text-(--area)">
+              <span className="text-[22px] font-light text-area">
                 {level} · {meaning.name}
               </span>
               {row.recordedAt !== null ? (
@@ -136,9 +136,9 @@ export function Level({ slug, delay = 0 }: { slug: string; delay?: number }) {
           </div>
           {next ? (
             <div className="flex gap-2.5 rounded-[14px] bg-(--area)/8 p-3 ring-1 ring-(--area)/20 ring-inset">
-              <ArrowUpRight className="mt-0.5 size-4 shrink-0 text-(--area)" />
+              <ArrowUpRight className="mt-0.5 size-4 shrink-0 text-area" />
               <p className="text-[13px] leading-relaxed text-ink-300">
-                <span className="font-mono text-[11px] tracking-[0.12em] text-(--area) uppercase">
+                <span className="font-mono text-[11px] tracking-[0.12em] text-area uppercase">
                   to reach {next}
                   {target === next ? ' · your target' : ''}
                 </span>

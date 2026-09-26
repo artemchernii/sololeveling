@@ -229,6 +229,14 @@ h6 {
   color: var(--color-accent-100);
 }
 
+/* An area's colour as text (26 Sep). Where `areaVars` set it, the `-ink`
+   twin — the normal lightness even for a bold area, whose deep fill is hard
+   to read as words; elsewhere (`--area` set by hand to a neutral), `--area`
+   itself. */
+@utility text-area {
+  color: var(--area-ink, var(--area));
+}
+
 /* §3d.1 — a state change you caused animates; the app moving on its own does
    not. `motion-arrive` is for the first kind only: a block that appears
    because of what you typed, a picker you opened. Never put it on something

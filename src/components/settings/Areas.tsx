@@ -248,7 +248,7 @@ function AreaRow({
           className="min-w-0 flex-1 bg-transparent text-[12.5px] text-foreground outline-none"
         />
         {area.bold ? (
-          <span className="label-caps shrink-0 text-(--area)">bold</span>
+          <span className="label-caps shrink-0 text-area">bold</span>
         ) : null}
         {area.track === 'language' ? (
           <span

@@ -108,7 +108,7 @@ export function NextUp({
           <button
             type="button"
             onClick={() => setSkipped((s) => [...s, pick.id])}
-            className="motion-press inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase transition-colors hover:text-(--area)"
+            className="motion-press inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase transition-colors hover:text-area"
           >
             <Shuffle className="size-3" />
             another
@@ -128,7 +128,7 @@ export function NextUp({
               <span className="text-[24px] leading-tight font-light text-foreground">
                 {pick.title}
               </span>
-              <span className="rounded-[4px] bg-(--area)/15 px-1.5 py-0.5 font-mono text-[10px] text-(--area)">
+              <span className="rounded-[4px] bg-(--area)/15 px-1.5 py-0.5 font-mono text-[10px] text-area">
                 {pick.level}
               </span>
             </span>

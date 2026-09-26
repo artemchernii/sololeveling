@@ -183,8 +183,8 @@ export function NewGoal() {
               style={areaVars(a.slug)}
               className={`${chip} inline-flex items-center gap-1.5 ${
                 on
-                  ? 'bg-(--area)/15 text-(--area) ring-(--area)/55'
-                  : 'text-ink-500 ring-lift/10 hover:text-(--area) hover:ring-(--area)/30'
+                  ? 'bg-(--area)/15 text-area ring-(--area)/55'
+                  : 'text-ink-500 ring-lift/10 hover:text-area hover:ring-(--area)/30'
               }`}
             >
               {/* Every area shows its colour, picked or not. */}
@@ -215,7 +215,7 @@ export function NewGoal() {
               }}
               className={`${chip} ${
                 on
-                  ? 'bg-(--area)/15 text-(--area) ring-(--area)/55'
+                  ? 'bg-(--area)/15 text-area ring-(--area)/55'
                   : 'text-ink-400 ring-lift/10 hover:text-ink-200'
               }`}
             >
@@ -238,7 +238,7 @@ export function NewGoal() {
             }}
             className={`${chip} inline-flex items-center gap-1.5 ${
               quick === 'picked'
-                ? 'bg-(--area)/15 text-(--area) ring-(--area)/55'
+                ? 'bg-(--area)/15 text-area ring-(--area)/55'
                 : 'text-ink-400 ring-lift/10 hover:text-ink-200'
             }`}
           >
@@ -303,7 +303,7 @@ export function NewGoal() {
           type="button"
           disabled={saving.busy}
           onClick={() => void submit()}
-          className="motion-press rounded-full bg-(--area)/15 px-4 py-1.5 text-[12.5px] text-(--area) ring-1 ring-(--area)/50 transition-colors hover:bg-(--area)/25 disabled:opacity-50"
+          className="motion-press rounded-full bg-(--area)/15 px-4 py-1.5 text-[12.5px] text-area ring-1 ring-(--area)/50 transition-colors hover:bg-(--area)/25 disabled:opacity-50"
         >
           <SaveLabel status={saving.status} onSettled={finish}>
             Set it
@@ -347,7 +347,7 @@ function Preview({
           key={deadline ?? 'none'}
           className={`grid size-5 shrink-0 place-items-center rounded-full bg-background text-[10px] ring-1 ${
             deadline
-              ? 'motion-pop text-(--area) ring-(--area)/60 shadow-[0_0_12px_-3px_var(--area)]'
+              ? 'motion-pop text-area ring-(--area)/60 shadow-[0_0_12px_-3px_var(--area)]'
               : 'text-ink-600 ring-lift/15'
           }`}
         >
@@ -356,7 +356,7 @@ function Preview({
       </div>
       <div className="flex justify-between font-mono text-[10.5px] text-ink-600">
         <span>today</span>
-        <span className={deadline ? 'text-(--area)' : ''}>
+        <span className={deadline ? 'text-area' : ''}>
           {deadline ? `by ${shortDate(deadline)}` : 'no deadline yet'}
         </span>
       </div>
@@ -409,7 +409,7 @@ function Steps({
           key={d.key}
           className="motion-land group/step flex items-center gap-2.5 py-0.5"
         >
-          <span className="motion-step-born grid size-5 shrink-0 place-items-center rounded-full font-mono text-[10px] text-(--area) ring-1 ring-(--area)/45">
+          <span className="motion-step-born grid size-5 shrink-0 place-items-center rounded-full font-mono text-[10px] text-area ring-1 ring-(--area)/45">
             {i + 1}
           </span>
           <span className="min-w-0 flex-1 truncate text-[13px] text-ink-200">
@@ -438,7 +438,7 @@ function Steps({
       ))}
 
       <div className="flex items-center gap-2.5">
-        <span className="grid size-5 shrink-0 place-items-center rounded-full text-(--area) ring-1 ring-(--area)/40">
+        <span className="grid size-5 shrink-0 place-items-center rounded-full text-area ring-1 ring-(--area)/40">
           <Plus className="size-3" strokeWidth={2.5} />
         </span>
         <input
@@ -462,7 +462,7 @@ function Steps({
           onClick={() => setPicking((p) => !p)}
           className={`motion-press inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] ring-1 transition-colors ${
             picking
-              ? 'bg-(--area)/15 text-(--area) ring-(--area)/55'
+              ? 'bg-(--area)/15 text-area ring-(--area)/55'
               : 'text-ink-400 ring-lift/10 hover:text-ink-200'
           }`}
         >
@@ -677,7 +677,7 @@ function Notes({
           type="button"
           disabled={draft.trim() === notes}
           onClick={onAdd}
-          className="motion-press rounded-full bg-(--area)/15 px-3 py-1 text-[12px] text-(--area) ring-1 ring-(--area)/45 hover:bg-(--area)/25 disabled:opacity-40"
+          className="motion-press rounded-full bg-(--area)/15 px-3 py-1 text-[12px] text-area ring-1 ring-(--area)/45 hover:bg-(--area)/25 disabled:opacity-40"
         >
           {notes ? 'Save notes' : 'Add notes'}
         </button>

@@ -32,7 +32,7 @@ export function TrackPanel({
         className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-linear-to-r from-(--area) via-(--area)/35 to-transparent"
       />
       <header className="flex min-w-0 items-baseline justify-between gap-3">
-        <h2 className="label-caps truncate text-(--area)">{title}</h2>
+        <h2 className="label-caps truncate text-area">{title}</h2>
         {aside}
       </header>
       {children}

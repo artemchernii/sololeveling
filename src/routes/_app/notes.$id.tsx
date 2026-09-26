@@ -11,6 +11,7 @@ import { NoteEditor } from '@/components/notes/NoteEditor'
 import { NoteToolbar } from '@/components/notes/NoteToolbar'
 import { kindVars } from '@/components/notes/NoteRow'
 import { NoteView } from '@/components/notes/NoteView'
+import { areaVars } from '@/lib/areas'
 import { linksIn } from '@/lib/note-format'
 import { joinNote, splitNote } from '@/lib/note-text'
 
@@ -139,10 +140,10 @@ function NotePage() {
               setEditing(true)
             }
           }}
-          style={{ '--area': 'var(--area-knowledge)' } as React.CSSProperties}
+          style={areaVars('knowledge')}
           className={`motion-press flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] ring-1 ${
             editing
-              ? 'bg-(--area)/16 text-(--area) ring-(--area)/40'
+              ? 'bg-(--area)/16 text-area ring-(--area)/40'
               : 'text-ink-400 ring-lift/10 hover:text-foreground'
           }`}
         >

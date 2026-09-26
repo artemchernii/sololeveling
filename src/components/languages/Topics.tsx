@@ -143,7 +143,7 @@ function MarkChip({ drill }: { drill: Doc<'drills'> }) {
         mark === 'solid'
           ? 'bg-state-good/15 text-state-good ring-state-good/35'
           : mark === 'learning'
-            ? 'bg-(--area)/12 text-(--area) ring-(--area)/30'
+            ? 'bg-(--area)/12 text-area ring-(--area)/30'
             : 'text-ink-600 ring-lift/12 hover:text-ink-300'
       }`}
     >

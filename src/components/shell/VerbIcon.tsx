@@ -54,7 +54,7 @@ export function VerbTile({
   const Icon = VERB_ICONS[icon]
   return (
     <span
-      className={`grid shrink-0 place-items-center rounded-[8px] bg-(--area)/16 text-(--area) ring-1 ring-(--area)/25 ring-inset ${
+      className={`grid shrink-0 place-items-center rounded-[8px] bg-(--area)/16 text-area ring-1 ring-(--area)/25 ring-inset ${
         size === 'sm' ? 'size-6' : 'size-7'
       }`}
     >

@@ -54,14 +54,14 @@ export function DidButton({
           onClick={press}
           className={`motion-press group relative flex min-h-[92px] flex-col items-start justify-between gap-2 overflow-visible rounded-[18px] p-3 text-left sm:p-4 ring-1 transition-colors ring-inset ${
             done
-              ? 'bg-(--area)/10 text-(--area) ring-(--area)/45'
-              : 'bg-lift/[0.04] text-ink-200 ring-lift/12 hover:bg-(--area)/10 hover:text-(--area) hover:ring-(--area)/40'
+              ? 'bg-(--area)/10 text-area ring-(--area)/45'
+              : 'bg-lift/[0.04] text-ink-200 ring-lift/12 hover:bg-(--area)/10 hover:text-area hover:ring-(--area)/40'
           }`}
         >
           <span className="flex w-full items-center justify-between gap-2">
             {/* The icon stays once it is done (25 Sep: "after I log once we
                 never see the icons again") — the tick joins it as a badge. */}
-            <span className="relative grid size-8 place-items-center rounded-full bg-(--area)/15 text-(--area)">
+            <span className="relative grid size-8 place-items-center rounded-full bg-(--area)/15 text-area">
               {icon}
               {done ? (
                 <span className="motion-pop absolute -right-1 -bottom-1 grid size-4 place-items-center rounded-full bg-(--area) text-background ring-2 ring-background">
@@ -108,8 +108,8 @@ export function DidButton({
         aria-label={`${label}${done ? ` — ${today} today` : ''}`}
         className={`motion-press relative inline-flex h-7 min-w-[64px] items-center justify-center gap-1 rounded-full px-3 font-mono text-[10.5px] tracking-[0.12em] uppercase ring-1 transition-colors ring-inset ${
           done
-            ? 'bg-(--area)/20 text-(--area) ring-(--area)/55'
-            : 'text-ink-400 ring-lift/15 hover:bg-(--area)/10 hover:text-(--area) hover:ring-(--area)/40'
+            ? 'bg-(--area)/20 text-area ring-(--area)/55'
+            : 'text-ink-400 ring-lift/15 hover:bg-(--area)/10 hover:text-area hover:ring-(--area)/40'
         }`}
       >
         {done ? (

@@ -197,7 +197,7 @@ function Header({
               <span className="rounded-full bg-(--area) px-2.5 py-0.5 font-mono text-[11px] font-medium text-background">
                 {level}
               </span>
-              <span className="text-[13px] text-(--area)">
+              <span className="text-[13px] text-area">
                 {CEFR_MEANING[level].name}
               </span>
             </span>
@@ -227,7 +227,7 @@ function Header({
                   className={`grid size-8 place-items-center rounded-full ${
                     row.category === null
                       ? 'bg-state-warn/15 text-state-warn'
-                      : 'bg-(--area)/18 text-(--area)'
+                      : 'bg-(--area)/18 text-area'
                   }`}
                 >
                   {row.category === null ? (
@@ -391,7 +391,7 @@ function Next({ slug }: { slug: string }) {
           </p>
           <Link
             to="/calendar"
-            className="motion-press inline-flex items-center gap-2 rounded-full bg-(--area)/15 px-4 py-2 text-[13px] text-(--area) ring-1 ring-(--area)/40 transition-colors ring-inset hover:bg-(--area)/25"
+            className="motion-press inline-flex items-center gap-2 rounded-full bg-(--area)/15 px-4 py-2 text-[13px] text-area ring-1 ring-(--area)/40 transition-colors ring-inset hover:bg-(--area)/25"
           >
             <CalendarPlus className="size-4" />
             Book a class
@@ -502,7 +502,7 @@ function Recent({ slug }: { slug: string }) {
             <button
               type="button"
               onClick={() => setAll((a) => !a)}
-              className="motion-press self-start font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase transition-colors hover:text-(--area)"
+              className="motion-press self-start font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase transition-colors hover:text-area"
             >
               {all ? 'show fewer' : 'show all'}
             </button>
@@ -535,7 +535,7 @@ function DoneRow({
         className={`grid size-7 shrink-0 place-items-center rounded-full ${
           category === null
             ? 'bg-state-warn/15 text-state-warn'
-            : 'bg-(--area)/15 text-(--area)'
+            : 'bg-(--area)/15 text-area'
         }`}
       >
         {category === null ? (

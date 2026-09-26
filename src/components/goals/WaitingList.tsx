@@ -206,7 +206,7 @@ export function WaitingList({
                   }
                   className={`motion-press grid size-7 shrink-0 place-items-center rounded-[8px] transition-colors ${
                     picked
-                      ? 'bg-(--area)/15 text-(--area)'
+                      ? 'bg-(--area)/15 text-area'
                       : 'text-ink-600 hover:bg-lift/[0.06] hover:text-ink-200'
                   }`}
                 >

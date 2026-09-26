@@ -152,8 +152,8 @@ function NavLink({
         className={`size-4 shrink-0 transition-[color,transform] duration-(--motion-fast) ease-(--motion-ease) group-hover:translate-x-0.5 ${
           item.area
             ? active
-              ? 'text-(--area)'
-              : 'text-(--area)/70 group-hover:text-(--area)'
+              ? 'text-area'
+              : 'text-area/70 group-hover:text-area'
             : active
               ? 'text-foreground'
               : 'text-ink-500 group-hover:text-ink-300'

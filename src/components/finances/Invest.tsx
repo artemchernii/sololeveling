@@ -27,6 +27,7 @@ import { agoLabel } from '@/lib/format'
 import { IMPORT_MODEL_NAME, MAX_IMPORT_IMAGES } from '@/lib/market'
 import type { Candidate } from '@/lib/market'
 import { euros } from '@/lib/money'
+import { Veiled, VeilToggle } from '@/components/finances/Veil'
 
 const DATE = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
@@ -55,6 +56,7 @@ export function Invest() {
         title="investments"
         aside={
           <>
+            <VeilToggle />
             <button
               type="button"
               onClick={() => setMode(mode === 'import' ? null : 'import')}
@@ -113,7 +115,7 @@ export function Invest() {
                 key={data.totalEur}
                 className="motion-pop text-[34px] leading-none font-light text-foreground"
               >
-                {euros(data.totalEur)}
+                <Veiled>{euros(data.totalEur)}</Veiled>
               </span>
               <span className="font-mono text-[11px] text-ink-500">
                 {data.oldestPriceAsOf === null
@@ -200,7 +202,9 @@ function PositionRow({ row, delay }: { row: Position; delay: number }) {
             {row.name}
           </span>
           <span className="truncate font-mono text-[11px] text-ink-500">
-            {row.shares} sh · put in {euros(row.putIn)}
+            <Veiled>
+              {row.shares} sh · put in {euros(row.putIn)}
+            </Veiled>
           </span>
         </span>
         <Sparkline
@@ -209,7 +213,11 @@ function PositionRow({ row, delay }: { row: Position; delay: number }) {
         />
         <span className="flex flex-col items-end">
           <span className="font-mono text-[15px] font-light text-foreground">
-            {row.valueEur === null ? '—' : euros(row.valueEur)}
+            {row.valueEur === null ? (
+              '—'
+            ) : (
+              <Veiled>{euros(row.valueEur)}</Veiled>
+            )}
           </span>
           <span className="font-mono text-[10.5px] text-ink-500">
             {row.price === null || row.priceAsOf === null
@@ -249,7 +257,9 @@ function Trades({
             {t.side}
           </span>
           <span className="flex-1 text-ink-200">
-            {t.shares} × {euros(t.priceEur)}
+            <Veiled>
+              {t.shares} × {euros(t.priceEur)}
+            </Veiled>
             {t.importId ? (
               <span className="ml-2 font-mono text-[10px] text-ink-600">
                 from screenshot

@@ -18,6 +18,7 @@ import { daysLeftInMonth, monthRange } from '@/lib/month'
 import { euros } from '@/lib/money'
 import { dayLabel } from '@/lib/bills'
 import { agoLabel } from '@/lib/format'
+import { Veiled, VeilToggle } from '@/components/finances/Veil'
 
 const MONTH = new Intl.DateTimeFormat(undefined, { month: 'long' })
 
@@ -48,10 +49,11 @@ export function FinancesHero() {
         className="pointer-events-none absolute -top-24 -left-16 size-72 rounded-full bg-(--area)/14 blur-3xl"
       />
       <div className="relative flex items-center justify-between gap-3 border-b border-lav-400/20 pb-3">
-        <span className="system-title">[ finances ]</span>
+        <span className="system-title flex-1">[ finances ]</span>
         <span className="label-caps text-ink-300">
           {MONTH.format(new Date(today))}
         </span>
+        <VeilToggle hideOnLeave />
       </div>
 
       <AccountsTotal />
@@ -292,7 +294,7 @@ function AccountsTotal() {
           key={data.total}
           className="motion-pop text-[40px] leading-none font-light tracking-tight text-foreground sm:text-[52px]"
         >
-          {euros(data.total)}
+          <Veiled>{euros(data.total)}</Veiled>
         </span>
         <span className="font-mono text-[11px] text-ink-500">
           {data.oldestAt === null

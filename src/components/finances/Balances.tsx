@@ -16,6 +16,7 @@ import { Sparks } from '@/components/track/Sparks'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { agoLabel } from '@/lib/format'
 import { euros } from '@/lib/money'
+import { Veiled, VeilToggle } from '@/components/finances/Veil'
 
 /* Balances (Finances F2, 26 Sep): his sheet, in the app. One card per
    account — what it holds, when he last read it off the bank's app, and a
@@ -29,14 +30,17 @@ export function Balances() {
     <Panel
       title="accounts"
       aside={
-        <button
-          type="button"
-          onClick={() => setAdding((a) => !a)}
-          className={PILL_QUIET}
-        >
-          {adding ? <X className="size-3" /> : <Plus className="size-3" />}
-          {adding ? 'cancel' : 'account'}
-        </button>
+        <>
+          <VeilToggle />
+          <button
+            type="button"
+            onClick={() => setAdding((a) => !a)}
+            className={PILL_QUIET}
+          >
+            {adding ? <X className="size-3" /> : <Plus className="size-3" />}
+            {adding ? 'cancel' : 'account'}
+          </button>
+        </>
       }
     >
       {adding ? <AddAccount onDone={() => setAdding(false)} /> : null}
@@ -255,7 +259,11 @@ function AccountCard({ account, delay }: { account: Account; delay: number }) {
                 account.value === null ? 'text-ink-500' : 'text-foreground'
               }`}
             >
-              {account.value === null ? 'tap to add' : euros(account.value)}
+              {account.value === null ? (
+                'tap to add'
+              ) : (
+                <Veiled>{euros(account.value)}</Veiled>
+              )}
             </span>
             {burst > 0 ? <Sparks key={burst} count={12} reach={40} /> : null}
           </button>

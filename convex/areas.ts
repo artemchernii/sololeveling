@@ -527,6 +527,13 @@ export const remove = mutation({
         .withIndex('by_owner_area', (q) =>
           q.eq('ownerId', ownerId).eq('area', args.slug),
         )
+        .first()) !== null ||
+      /* A Vault sheet (R7a) is filed under its language too. */
+      (await ctx.db
+        .query('attachments')
+        .withIndex('by_owner_area', (q) =>
+          q.eq('ownerId', ownerId).eq('area', args.slug),
+        )
         .first()) !== null
 
     if (used) {

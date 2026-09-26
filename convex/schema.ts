@@ -308,13 +308,52 @@ export default defineSchema({
     ownerId: v.string(),
     noteId: v.optional(v.id('notes')),
     taskId: v.optional(v.id('tasks')),
+    /* The Vault (R7a, 26 Sep): a class sheet belongs to a language — `area`,
+       always set on one — and, when he says which, to the session it came
+       from. A note/task attachment has neither; a Vault one has no note or
+       task. vault.ts keeps the two kinds apart. */
+    area: v.optional(areaSlug),
+    logId: v.optional(v.id('logs')),
     storageId: v.id('_storage'),
     name: v.string(),
     contentType: v.string(),
     size: v.number(),
   })
     .index('by_owner_note', ['ownerId', 'noteId'])
-    .index('by_owner_task', ['ownerId', 'taskId']),
+    .index('by_owner_task', ['ownerId', 'taskId'])
+    .index('by_owner_area', ['ownerId', 'area'])
+    .index('by_owner_log', ['ownerId', 'logId']),
+
+  /* What a model read in a Vault document (R7a, 26 Sep): written once, when
+     it was attached, and never sent again. Text, never a number on screen —
+     and stored, attributed to the model that wrote it, and timestamped, the
+     conditions PLAN.md §1 sets for anything from outside. It proves nothing:
+     it never marks a topic learned or a session done. The token counts are
+     the provider's own, kept to see what the Vault costs, not to show. */
+  readings: defineTable({
+    ownerId: v.string(),
+    attachmentId: v.id('attachments'),
+    status: v.union(
+      v.literal('reading'),
+      v.literal('done'),
+      v.literal('failed'),
+    ),
+    text: v.optional(v.string()),
+    summary: v.optional(v.string()),
+    conclusion: v.optional(v.string()),
+    words: v.optional(
+      v.array(v.object({ term: v.string(), meaning: v.string() })),
+    ),
+    model: v.string(),
+    /** When it was asked for — the 30-a-month cap counts these. */
+    requestedAt: v.number(),
+    readAt: v.optional(v.number()),
+    inputTokens: v.optional(v.number()),
+    outputTokens: v.optional(v.number()),
+    error: v.optional(v.string()),
+  })
+    .index('by_owner_attachment', ['ownerId', 'attachmentId'])
+    .index('by_owner_time', ['ownerId', 'requestedAt']),
 
   tasks: defineTable({
     ownerId: v.string(),

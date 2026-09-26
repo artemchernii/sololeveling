@@ -22,7 +22,8 @@ function Goals() {
 
   /* A monthly target is a goal row too (goals.setTileTarget), but it is a
      number on a Today tile, not a thing walked towards: it stays there. So
-     does a weekly Body target (goals.setWeeklyTarget), on the Body hero. */
+     does a weekly target (goals.setWeeklyTarget), on the Body hero or a
+     language's header. */
   const longTerm = (goals ?? []).filter(
     (g) => g.tile === undefined && g.weekly === undefined,
   )

@@ -135,6 +135,10 @@ export default defineSchema({
        wanted Body "more brutal"; one area may be louder because he said so,
        not because its hue happens to be brighter. */
     bold: v.optional(v.boolean()),
+    /* Silver (26 Sep): no hue at all — the theme's near-colourless pair
+       (--area-silver-l/-c/-h). Artem, on Body in bold crimson: "lets try
+       silver instead". Wins over bold when both are set. */
+    silver: v.optional(v.boolean()),
     order: v.number(),
     /* Retired: gone from every picker, still painting the rows that carry it
        — a log is evidence and does not stop having happened. */

@@ -203,6 +203,7 @@ function AreaRow({
   const [retiring, setRetiring] = useState(false)
   const [picking, setPicking] = useState(false)
   const setBold = useMutation(api.areas.setBold)
+  const setSilver = useMutation(api.areas.setSilver)
 
   function run(work: Promise<unknown>) {
     onError(null)
@@ -247,7 +248,9 @@ function AreaRow({
           aria-label={`Name of the ${area.label} area`}
           className="min-w-0 flex-1 bg-transparent text-[12.5px] text-foreground outline-none"
         />
-        {area.bold ? (
+        {area.silver ? (
+          <span className="label-caps shrink-0 text-area">silver</span>
+        ) : area.bold ? (
           <span className="label-caps shrink-0 text-area">bold</span>
         ) : null}
         {area.track === 'language' ? (
@@ -304,8 +307,10 @@ function AreaRow({
         <ColourPicker
           hue={hue}
           bold={area.bold === true}
+          silver={area.silver === true}
           onHue={pickHue}
           onBold={(bold) => run(setBold({ slug: area.slug, bold }))}
+          onSilver={(silver) => run(setSilver({ slug: area.slug, silver }))}
           language={area.track === 'language'}
           onLanguage={(on) =>
             run(setTrack({ slug: area.slug, track: on ? 'language' : null }))
@@ -338,8 +343,10 @@ const SWATCHES = [0, 20, 45, 70, 95, 125, 150, 180, 205, 230, 250, 320, 345]
 function ColourPicker({
   hue,
   bold,
+  silver,
   onHue,
   onBold,
+  onSilver,
   onSlide,
   onRelease,
   language,
@@ -347,8 +354,10 @@ function ColourPicker({
 }: {
   hue: number
   bold: boolean
+  silver: boolean
   onHue: (hue: number) => void
   onBold: (bold: boolean) => void
+  onSilver: (silver: boolean) => void
   onSlide: (hue: number) => void
   onRelease: () => void
   language: boolean
@@ -406,9 +415,22 @@ function ColourPicker({
         >
           Bold
         </button>
+        <button
+          type="button"
+          onClick={() => onSilver(!silver)}
+          aria-pressed={silver}
+          className={`motion-press rounded-full px-3 py-1 font-mono text-[11px] font-semibold tracking-[0.14em] uppercase ring-1 transition-colors ring-inset ${
+            silver
+              ? 'bg-[oklch(var(--area-silver-l)_var(--area-silver-c)_var(--area-silver-h))] text-background ring-transparent'
+              : 'text-ink-400 ring-lift/20 hover:text-foreground'
+          }`}
+        >
+          Silver
+        </button>
       </div>
       <span className="font-mono text-[10.5px] text-ink-500">
         Bold = deep and saturated. Soft = the calm tone every area shares.
+        Silver = no hue, a cool light grey (wins over the rest).
       </span>
       <label className="flex cursor-pointer items-center gap-2.5 border-t border-lift/[0.08] pt-3 text-[12.5px] text-ink-300">
         <input

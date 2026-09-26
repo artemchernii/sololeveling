@@ -31,7 +31,7 @@ import { BUILTIN_AREAS } from '@/lib/area-slug'
  * `[a-z0-9-]` starting with a letter (slugify) and a hue is an integer 0–359
  * (areas.setHue), so neither can close the element or add a declaration.
  */
-type StyleRow = { slug: string; hue: number; bold: boolean }
+type StyleRow = { slug: string; hue: number; bold: boolean; silver?: boolean }
 
 const REMEMBERED_KEY = 'sl-area-styles'
 
@@ -65,6 +65,7 @@ export function AreaStyles() {
     slug: a.slug,
     hue: a.hue,
     bold: a.bold === true,
+    silver: a.silver === true,
   }))
   const saved = fromRows === undefined ? null : JSON.stringify(fromRows)
   useEffect(() => {
@@ -76,7 +77,11 @@ export function AreaStyles() {
     }
   }, [saved])
   const rows = [
-    ...BUILTIN_AREAS.map((a) => ({ slug: a.slug, hue: a.hue, bold: false })),
+    ...BUILTIN_AREAS.map((a): StyleRow => ({
+      slug: a.slug,
+      hue: a.hue,
+      bold: false,
+    })),
     ...(fromRows ?? remembered),
   ]
   /* A bold area takes the theme's deep pair (tokens.css item 5) for its
@@ -84,7 +89,12 @@ export function AreaStyles() {
      and hard to read as text on the dark ground (26 Sep, Body in bold
      crimson: "kinda hard to read"). `text-area` reads the `-ink` twin. */
   const css = rows
-    .map(({ slug, hue, bold }) => {
+    .map(({ slug, hue, bold, silver }) => {
+      if (silver === true) {
+        const grey =
+          'oklch(var(--area-silver-l) var(--area-silver-c) var(--area-silver-h))'
+        return `--area-${slug}:${grey};--area-${slug}-ink:${grey};`
+      }
       const ink = `oklch(var(--area-l) var(--area-c) ${hue})`
       return bold
         ? `--area-${slug}:oklch(var(--area-bold-l) var(--area-bold-c) ${hue});--area-${slug}-ink:${ink};`

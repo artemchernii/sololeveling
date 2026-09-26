@@ -209,6 +209,21 @@ export const setBold = mutation({
   },
 })
 
+/** Silver or its hue. Another owner's slug is not found. */
+export const setSilver = mutation({
+  args: { slug: v.string(), silver: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const area = await bySlug(ctx, ownerId, args.slug)
+    if (area === null) {
+      throw new Error('NO_SUCH_AREA')
+    }
+    await ctx.db.patch(area._id, { silver: args.silver || undefined })
+    return null
+  },
+})
+
 /**
  * Mark an area as a language, or stop. `null` clears the flag.
  *

@@ -13,4 +13,14 @@ crons.interval(
   {},
 )
 
+/* Source 4's market readings (Finances F4). Daily, after New York closes
+   (22:30 UTC), so the stored price is the day's close for every ticker he
+   holds, US and European. */
+crons.daily(
+  'read market prices',
+  { hourUTC: 22, minuteUTC: 30 },
+  internal.market.readAll,
+  {},
+)
+
 export default crons

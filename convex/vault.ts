@@ -36,6 +36,12 @@ const MAX_ROWS = 200
 
 const wordValidator = v.object({ term: v.string(), meaning: v.string() })
 const exampleValidator = v.object({ sentence: v.string(), meaning: v.string() })
+const ruleValidator = v.object({
+  name: v.string(),
+  pattern: v.string(),
+  explanation: v.string(),
+  examples: v.array(exampleValidator),
+})
 
 /* A reading may be asked for only while fewer than READINGS_PER_WINDOW were
    asked for in the last 30 days — a count of `readings` rows, the only
@@ -213,6 +219,7 @@ const sheetValidator = v.object({
       conclusion: v.optional(v.string()),
       words: v.optional(v.array(wordValidator)),
       examples: v.optional(v.array(exampleValidator)),
+      rules: v.optional(v.array(ruleValidator)),
       model: v.string(),
       requestedAt: v.number(),
       readAt: v.optional(v.number()),
@@ -272,6 +279,7 @@ export const list = query({
                 conclusion: reading.conclusion,
                 words: reading.words,
                 examples: reading.examples,
+                rules: reading.rules,
                 model: reading.model,
                 requestedAt: reading.requestedAt,
                 readAt: reading.readAt,
@@ -433,6 +441,7 @@ export const finish = internalMutation({
     conclusion: v.string(),
     words: v.array(wordValidator),
     examples: v.array(exampleValidator),
+    rules: v.array(ruleValidator),
     inputTokens: v.number(),
     outputTokens: v.number(),
   },
@@ -451,6 +460,7 @@ export const finish = internalMutation({
       conclusion: args.conclusion,
       words: args.words,
       examples: args.examples,
+      rules: args.rules,
       inputTokens: args.inputTokens,
       outputTokens: args.outputTokens,
       readAt: Date.now(),

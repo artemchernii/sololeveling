@@ -69,7 +69,23 @@ export type Reading = {
   conclusion: string
   words: Array<{ term: string; meaning: string }>
   examples: Array<{ sentence: string; meaning: string }>
+  rules: Array<{
+    name: string
+    pattern: string
+    explanation: string
+    examples: Array<{ sentence: string; meaning: string }>
+  }>
 }
+
+const EXAMPLE_SCHEMA = {
+  type: 'object',
+  properties: {
+    sentence: { type: 'string' },
+    meaning: { type: 'string' },
+  },
+  required: ['sentence', 'meaning'],
+  additionalProperties: false,
+} as const
 
 /* The shape the model must answer in (structured outputs). Every object
    closed, every field required — the API's own rules for a schema. */
@@ -94,15 +110,18 @@ export const READING_SCHEMA = {
         additionalProperties: false,
       },
     },
-    examples: {
+    examples: { type: 'array', items: EXAMPLE_SCHEMA },
+    rules: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
-          sentence: { type: 'string' },
-          meaning: { type: 'string' },
+          name: { type: 'string' },
+          pattern: { type: 'string' },
+          explanation: { type: 'string' },
+          examples: { type: 'array', items: EXAMPLE_SCHEMA },
         },
-        required: ['sentence', 'meaning'],
+        required: ['name', 'pattern', 'explanation', 'examples'],
         additionalProperties: false,
       },
     },
@@ -116,6 +135,7 @@ export const READING_SCHEMA = {
     'conclusion',
     'words',
     'examples',
+    'rules',
   ],
   additionalProperties: false,
 } as const
@@ -129,10 +149,11 @@ export function readingPrompt(language: string): string {
     `- kind: the one that fits best — grammar, vocabulary, reading, writing, conversation, exam, or other.`,
     '- tags: 2 to 5 short topic tags (the grammar points or themes), lowercase.',
     `- text: everything written on it, transcribed faithfully in the original language, keeping its lines and numbering. Where something cannot be read, write [unreadable].`,
-    '- summary: in English, 3 to 6 sentences — what the class covered: the grammar, the topic, the kind of exercises.',
-    '- conclusion: in English, 1 to 3 sentences — what to take away and what to practise next.',
+    '- summary: in English, 1 or 2 short sentences — what the class covered. The rules below carry the detail.',
+    `- rules: each rule or pattern the sheet teaches (up to 6), for someone revising it later. name: a short English name. pattern: the formula in ${language} with its parts, e.g. "É + adjetivo + que + presente do conjuntivo". explanation: one or two plain English sentences — when to use it and how it differs from what it is confused with. examples: 2 or 3 new ${language} sentences that use it, each with its English meaning. Empty if the sheet teaches no rule.`,
+    '- conclusion: in English, one or two short sentences — what to practise next.',
     `- words: up to 20 ${language} words or phrases worth learning from it, each with its English meaning. Empty if there are none.`,
-    `- examples: 3 to 5 new ${language} sentences of your own that use what the sheet teaches (its grammar or its topic) the way a native speaker would — not copied from the sheet — each with its English meaning. Simple, everyday situations.`,
+    `- examples: 3 new ${language} sentences of your own that use what the sheet teaches (its grammar or its topic) the way a native speaker would — not copied from the sheet — each with its English meaning. Simple, everyday situations.`,
   ].join('\n')
 }
 
@@ -197,6 +218,38 @@ export function parseReading(
       examples.push({ sentence: sentence.trim(), meaning: meaning.trim() })
     }
   }
+  const pairs = (value: unknown): Reading['examples'] => {
+    const out: Reading['examples'] = []
+    for (const e of Array.isArray(value) ? (value as Array<unknown>) : []) {
+      if (typeof e !== 'object' || e === null) continue
+      const { sentence, meaning } = e as Record<string, unknown>
+      if (
+        typeof sentence === 'string' &&
+        typeof meaning === 'string' &&
+        sentence.trim()
+      ) {
+        out.push({ sentence: sentence.trim(), meaning: meaning.trim() })
+      }
+    }
+    return out
+  }
+  const rules: Reading['rules'] = []
+  for (const x of Array.isArray(v.rules) ? (v.rules as Array<unknown>) : []) {
+    if (typeof x !== 'object' || x === null) continue
+    const {
+      name,
+      pattern,
+      explanation,
+      examples: ex,
+    } = x as Record<string, unknown>
+    if (typeof name !== 'string' || !name.trim()) continue
+    rules.push({
+      name: name.trim(),
+      pattern: typeof pattern === 'string' ? pattern.trim() : '',
+      explanation: typeof explanation === 'string' ? explanation.trim() : '',
+      examples: pairs(ex).slice(0, 3),
+    })
+  }
   return {
     ok: true,
     reading: {
@@ -208,6 +261,7 @@ export function parseReading(
       conclusion: (v.conclusion as string).trim(),
       words: words.slice(0, 20),
       examples: examples.slice(0, 5),
+      rules: rules.slice(0, 6),
     },
   }
 }

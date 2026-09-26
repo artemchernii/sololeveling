@@ -62,6 +62,7 @@ describe('parseReading — a bad answer is a failed reading, not a crash', () =>
             meaning: 'It is important that I study.',
           },
         ],
+        rules: [],
       },
     })
   })
@@ -73,6 +74,32 @@ describe('parseReading — a bad answer is a failed reading, not a crash', () =>
     expect(out.ok && [out.reading.kind, out.reading.title]).toEqual([
       'other',
       '',
+    ])
+  })
+
+  test('rules keep their pattern and at most three examples; a nameless one is dropped', () => {
+    const ex = { sentence: 'É bom que venhas.', meaning: "It's good you come." }
+    const out = parseReading(
+      JSON.stringify({
+        ...good,
+        rules: [
+          {
+            name: ' É + adj + que ',
+            pattern: 'É + adjetivo + que + conjuntivo',
+            explanation: 'Value judgements.',
+            examples: [ex, ex, ex, ex],
+          },
+          { name: '', pattern: 'x', explanation: 'y', examples: [] },
+        ],
+      }),
+    )
+    expect(out.ok && out.reading.rules).toEqual([
+      {
+        name: 'É + adj + que',
+        pattern: 'É + adjetivo + que + conjuntivo',
+        explanation: 'Value judgements.',
+        examples: [ex, ex, ex],
+      },
     ])
   })
 

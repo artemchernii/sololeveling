@@ -200,6 +200,14 @@ describe('reading, retry, remove', () => {
       examples: [
         { sentence: 'Eu fui ao mercado.', meaning: 'I went to the market.' },
       ],
+      rules: [
+        {
+          name: 'Past of ir',
+          pattern: 'fui, foste, foi',
+          explanation: 'Finished actions.',
+          examples: [{ sentence: 'Ela foi.', meaning: 'She went.' }],
+        },
+      ],
       inputTokens: 3000,
       outputTokens: 400,
     })

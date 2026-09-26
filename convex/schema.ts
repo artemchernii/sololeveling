@@ -361,6 +361,21 @@ export default defineSchema({
     examples: v.optional(
       v.array(v.object({ sentence: v.string(), meaning: v.string() })),
     ),
+    /* The rules the sheet teaches, each with its pattern and examples (26
+       Sep: "this shit is just text, we need to give as well rule +
+       examples"). Absent on readings made before they existed. */
+    rules: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          pattern: v.string(),
+          explanation: v.string(),
+          examples: v.array(
+            v.object({ sentence: v.string(), meaning: v.string() }),
+          ),
+        }),
+      ),
+    ),
     model: v.string(),
     /** When it was asked for — the 30-a-month cap counts these. */
     requestedAt: v.number(),

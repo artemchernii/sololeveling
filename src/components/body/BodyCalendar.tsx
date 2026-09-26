@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CircleHelp, Scale } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import { DayLog } from '@/components/body/DayLog'
-import { kindName } from '@/components/body/kinds'
+import { KindIcon, kindName } from '@/components/body/kinds'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import {
   compareMonths,
@@ -164,7 +164,7 @@ function Day({
       aria-label={`${DAY_NAME.format(new Date(day))}${
         any ? `: ${logged.map(rowName).join(', ')}` : ''
       }`}
-      className={`motion-press flex h-10 flex-col items-center justify-center gap-[3px] rounded-[9px] ring-1 transition-colors ring-inset sm:h-11 ${
+      className={`motion-press flex min-h-11 flex-col items-center justify-center gap-1 rounded-[9px] py-1.5 ring-1 transition-colors ring-inset sm:min-h-12 ${
         picked
           ? 'bg-lift/[0.09]'
           : weekend
@@ -191,10 +191,17 @@ function Day({
       >
         {new Date(day).getDate()}
       </span>
+      {/* An icon per kind logged (26 Sep: "add back icons instead of red
+          dot") — which thing, at a glance. A reserved line when empty, so
+          every cell in a row is one height. */}
       <span
         aria-hidden
-        className={`size-[5px] rounded-full ${any ? 'bg-(--area)' : 'bg-transparent'}`}
-      />
+        className="flex min-h-3 flex-wrap justify-center gap-[3px] px-0.5 text-area sm:min-h-3.5"
+      >
+        {logged.map((row) => (
+          <RowIcon key={`${row.kind}-${row.category ?? ''}`} row={row} />
+        ))}
+      </span>
     </button>
   )
 }
@@ -202,4 +209,13 @@ function Day({
 function rowName(row: LoggedRow): string {
   if (row.kind === 'weight') return 'weight'
   return kindName(row.category)
+}
+
+function RowIcon({ row }: { row: LoggedRow }) {
+  const cls = 'size-3 sm:size-3.5'
+  if (row.kind === 'weight') return <Scale className={cls} />
+  if (row.category === null) {
+    return <CircleHelp className={`${cls} text-state-warn`} />
+  }
+  return <KindIcon kind={row.category} className={cls} />
 }

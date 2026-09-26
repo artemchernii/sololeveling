@@ -190,33 +190,63 @@ describe('reading, retry, remove', () => {
     )
     await w.t.mutation(internal.vault.finish, {
       readingId,
+      title: 'Past tense of ir and ser',
+      kind: 'grammar',
+      tags: ['pretérito perfeito'],
       text: 'Pretérito perfeito',
       summary: 'Past tense.',
       conclusion: 'Practise ir.',
       words: [{ term: 'fui', meaning: 'I went' }],
+      examples: [
+        { sentence: 'Eu fui ao mercado.', meaning: 'I went to the market.' },
+      ],
       inputTokens: 3000,
       outputTokens: 400,
     })
     const [row] = await w.me.query(api.vault.list, { area: pt })
     expect(row.reading).toMatchObject({
       status: 'done',
+      title: 'Past tense of ir and ser',
+      kind: 'grammar',
+      tags: ['pretérito perfeito'],
       summary: 'Past tense.',
       words: [{ term: 'fui', meaning: 'I went' }],
+      examples: [
+        { sentence: 'Eu fui ao mercado.', meaning: 'I went to the market.' },
+      ],
     })
     expect(row.reading?.readAt).toBeTypeOf('number')
   })
 
-  test('retry only after a failure', async () => {
+  test('read again: after a failure or a finished reading, never while reading', async () => {
     const w = world()
     const { pt } = await setUp(w)
     const id = await sheet(w, pt)
     await expect(
       w.me.mutation(api.vault.retry, { attachmentId: id }),
-    ).rejects.toThrow('read already, or being read')
+    ).rejects.toThrow('being read right now')
     await w.t.finishAllScheduledFunctions(vi.runAllTimers)
     await w.me.mutation(api.vault.retry, { attachmentId: id })
     const [row] = await w.me.query(api.vault.list, { area: pt })
     expect(row.reading?.status).toBe('reading')
+    /* Each reading is its own row: the cap counts both. */
+    expect(
+      await w.t.run(
+        async (ctx) => (await ctx.db.query('readings').collect()).length,
+      ),
+    ).toBe(2)
+  })
+
+  test('Revised is remembered on the sheet, and only on mine', async () => {
+    const w = world()
+    const { pt } = await setUp(w)
+    const id = await sheet(w, pt)
+    await w.me.mutation(api.vault.markRevised, { attachmentId: id })
+    const [row] = await w.me.query(api.vault.list, { area: pt })
+    expect(row.revisedAt).toBeTypeOf('number')
+    await expect(
+      w.them.mutation(api.vault.markRevised, { attachmentId: id }),
+    ).rejects.toThrow('No such sheet')
   })
 
   test('remove takes the file and what was read in it', async () => {

@@ -314,6 +314,11 @@ export default defineSchema({
        task. vault.ts keeps the two kinds apart. */
     area: v.optional(areaSlug),
     logId: v.optional(v.id('logs')),
+    /* When he last went over a Vault sheet — tapped "Revised" (26 Sep:
+       "place where easy navigate and learn, remind"). The Revisit strip
+       brings back the ones longest untouched. Not a log: going over a
+       sheet is not a session. */
+    revisedAt: v.optional(v.number()),
     storageId: v.id('_storage'),
     name: v.string(),
     contentType: v.string(),
@@ -338,11 +343,23 @@ export default defineSchema({
       v.literal('done'),
       v.literal('failed'),
     ),
+    /* How the Vault sorts it (26 Sep: "we want classification"): a short
+       title in the model's words, one kind from READING_KINDS, and a few
+       topic tags. Absent on readings made before they existed. */
+    title: v.optional(v.string()),
+    kind: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
     text: v.optional(v.string()),
     summary: v.optional(v.string()),
     conclusion: v.optional(v.string()),
     words: v.optional(
       v.array(v.object({ term: v.string(), meaning: v.string() })),
+    ),
+    /* New sentences in the sheet's grammar, each with its meaning (26 Sep:
+       "in response maybe generate example"). Written by the model, not
+       copied from the sheet. Absent on readings made before they existed. */
+    examples: v.optional(
+      v.array(v.object({ sentence: v.string(), meaning: v.string() })),
     ),
     model: v.string(),
     /** When it was asked for — the 30-a-month cap counts these. */

@@ -43,11 +43,32 @@ export function readableKind(contentType: string): ReadableKind | null {
   return null
 }
 
+/* What kind of sheet it is — one, picked by the reader. The Vault's
+   filter chips, in this order. */
+export const READING_KINDS = [
+  'grammar',
+  'vocabulary',
+  'reading',
+  'writing',
+  'conversation',
+  'exam',
+  'other',
+] as const
+export type ReadingKind = (typeof READING_KINDS)[number]
+
+export function isReadingKind(value: unknown): value is ReadingKind {
+  return (READING_KINDS as ReadonlyArray<unknown>).includes(value)
+}
+
 export type Reading = {
+  title: string
+  kind: ReadingKind
+  tags: Array<string>
   text: string
   summary: string
   conclusion: string
   words: Array<{ term: string; meaning: string }>
+  examples: Array<{ sentence: string; meaning: string }>
 }
 
 /* The shape the model must answer in (structured outputs). Every object
@@ -55,6 +76,9 @@ export type Reading = {
 export const READING_SCHEMA = {
   type: 'object',
   properties: {
+    title: { type: 'string' },
+    kind: { type: 'string', enum: [...READING_KINDS] },
+    tags: { type: 'array', items: { type: 'string' } },
     text: { type: 'string' },
     summary: { type: 'string' },
     conclusion: { type: 'string' },
@@ -70,8 +94,29 @@ export const READING_SCHEMA = {
         additionalProperties: false,
       },
     },
+    examples: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          sentence: { type: 'string' },
+          meaning: { type: 'string' },
+        },
+        required: ['sentence', 'meaning'],
+        additionalProperties: false,
+      },
+    },
   },
-  required: ['text', 'summary', 'conclusion', 'words'],
+  required: [
+    'title',
+    'kind',
+    'tags',
+    'text',
+    'summary',
+    'conclusion',
+    'words',
+    'examples',
+  ],
   additionalProperties: false,
 } as const
 
@@ -80,10 +125,14 @@ export function readingPrompt(language: string): string {
   return [
     `This is a page (or pages) from my ${language} class or homework — often a scan or a photo.`,
     'Fill in each field:',
+    `- title: a short name for what it teaches, 3 to 8 words, in English with the ${language} term where it is the point — e.g. "Present subjunctive after impersonal expressions".`,
+    `- kind: the one that fits best — grammar, vocabulary, reading, writing, conversation, exam, or other.`,
+    '- tags: 2 to 5 short topic tags (the grammar points or themes), lowercase.',
     `- text: everything written on it, transcribed faithfully in the original language, keeping its lines and numbering. Where something cannot be read, write [unreadable].`,
     '- summary: in English, 3 to 6 sentences — what the class covered: the grammar, the topic, the kind of exercises.',
     '- conclusion: in English, 1 to 3 sentences — what to take away and what to practise next.',
     `- words: up to 20 ${language} words or phrases worth learning from it, each with its English meaning. Empty if there are none.`,
+    `- examples: 3 to 5 new ${language} sentences of your own that use what the sheet teaches (its grammar or its topic) the way a native speaker would — not copied from the sheet — each with its English meaning. Simple, everyday situations.`,
   ].join('\n')
 }
 
@@ -125,13 +174,40 @@ export function parseReading(
       words.push({ term: term.trim(), meaning: meaning.trim() })
     }
   }
+  /* Examples, title, kind and tags came later (26 Sep); an answer without
+     them is still a reading — it falls back rather than fails. */
+  const title =
+    typeof v.title === 'string' && v.title.trim() ? v.title.trim() : ''
+  const kind: ReadingKind = isReadingKind(v.kind) ? v.kind : 'other'
+  const tags = (Array.isArray(v.tags) ? (v.tags as Array<unknown>) : [])
+    .filter((t): t is string => typeof t === 'string' && t.trim() !== '')
+    .map((t) => t.trim().toLowerCase())
+    .slice(0, 5)
+  const examples: Reading['examples'] = []
+  for (const e of Array.isArray(v.examples)
+    ? (v.examples as Array<unknown>)
+    : []) {
+    if (typeof e !== 'object' || e === null) continue
+    const { sentence, meaning } = e as Record<string, unknown>
+    if (
+      typeof sentence === 'string' &&
+      typeof meaning === 'string' &&
+      sentence.trim()
+    ) {
+      examples.push({ sentence: sentence.trim(), meaning: meaning.trim() })
+    }
+  }
   return {
     ok: true,
     reading: {
+      title: title.slice(0, 120),
+      kind,
+      tags,
       text: (v.text as string).trim(),
       summary: (v.summary as string).trim(),
       conclusion: (v.conclusion as string).trim(),
       words: words.slice(0, 20),
+      examples: examples.slice(0, 5),
     },
   }
 }

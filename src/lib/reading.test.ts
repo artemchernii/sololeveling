@@ -24,6 +24,9 @@ describe('readableKind — what the reader can be shown', () => {
 
 describe('parseReading — a bad answer is a failed reading, not a crash', () => {
   const good = {
+    title: ' Past tense of ir ',
+    kind: 'grammar',
+    tags: ['Pretérito', '', 42, 'ir'],
     text: ' Pretérito perfeito \n1. Eu fui ',
     summary: 'The class covered the past tense.',
     conclusion: 'Practise irregular verbs.',
@@ -32,6 +35,13 @@ describe('parseReading — a bad answer is a failed reading, not a crash', () =>
       { term: '  ', meaning: 'blank terms are dropped' },
       'not an object',
     ],
+    examples: [
+      {
+        sentence: ' É importante que eu estude. ',
+        meaning: 'It is important that I study.',
+      },
+      { sentence: '', meaning: 'blank sentences are dropped' },
+    ],
   }
 
   test('a good answer, trimmed, blank and broken words dropped', () => {
@@ -39,12 +49,36 @@ describe('parseReading — a bad answer is a failed reading, not a crash', () =>
     expect(out).toEqual({
       ok: true,
       reading: {
+        title: 'Past tense of ir',
+        kind: 'grammar',
+        tags: ['pretérito', 'ir'],
         text: 'Pretérito perfeito \n1. Eu fui',
         summary: 'The class covered the past tense.',
         conclusion: 'Practise irregular verbs.',
         words: [{ term: 'fui', meaning: 'I went / I was' }],
+        examples: [
+          {
+            sentence: 'É importante que eu estude.',
+            meaning: 'It is important that I study.',
+          },
+        ],
       },
     })
+  })
+
+  test('an unknown kind is other, a missing title is empty — not a failure', () => {
+    const out = parseReading(
+      JSON.stringify({ ...good, kind: 'poetry', title: undefined }),
+    )
+    expect(out.ok && [out.reading.kind, out.reading.title]).toEqual([
+      'other',
+      '',
+    ])
+  })
+
+  test('an answer without examples is still a reading', () => {
+    const out = parseReading(JSON.stringify({ ...good, examples: undefined }))
+    expect(out.ok && out.reading.examples).toEqual([])
   })
 
   test('not JSON, not an object, a field missing', () => {

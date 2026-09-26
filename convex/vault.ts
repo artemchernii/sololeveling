@@ -35,6 +35,7 @@ import { languageByCode } from '../src/lib/languages/catalog'
 const MAX_ROWS = 200
 
 const wordValidator = v.object({ term: v.string(), meaning: v.string() })
+const exampleValidator = v.object({ sentence: v.string(), meaning: v.string() })
 
 /* A reading may be asked for only while fewer than READINGS_PER_WINDOW were
    asked for in the last 30 days — a count of `readings` rows, the only
@@ -187,6 +188,7 @@ const sheetValidator = v.object({
   name: v.string(),
   contentType: v.string(),
   url: v.union(v.string(), v.null()),
+  revisedAt: v.optional(v.number()),
   session: v.union(
     v.null(),
     v.object({
@@ -203,11 +205,16 @@ const sheetValidator = v.object({
         v.literal('done'),
         v.literal('failed'),
       ),
+      title: v.optional(v.string()),
+      kind: v.optional(v.string()),
+      tags: v.optional(v.array(v.string())),
       text: v.optional(v.string()),
       summary: v.optional(v.string()),
       conclusion: v.optional(v.string()),
       words: v.optional(v.array(wordValidator)),
+      examples: v.optional(v.array(exampleValidator)),
       model: v.string(),
+      requestedAt: v.number(),
       readAt: v.optional(v.number()),
       error: v.optional(v.string()),
     }),
@@ -243,6 +250,7 @@ export const list = query({
         name: row.name,
         contentType: row.contentType,
         url: await ctx.storage.getUrl(row.storageId),
+        revisedAt: row.revisedAt,
         session:
           log === null || log.ownerId !== ownerId
             ? null
@@ -256,11 +264,16 @@ export const list = query({
             ? null
             : {
                 status: reading.status,
+                title: reading.title,
+                kind: reading.kind,
+                tags: reading.tags,
                 text: reading.text,
                 summary: reading.summary,
                 conclusion: reading.conclusion,
                 words: reading.words,
+                examples: reading.examples,
                 model: reading.model,
+                requestedAt: reading.requestedAt,
                 readAt: reading.readAt,
                 error: reading.error,
               },
@@ -290,7 +303,11 @@ export const countsForLogs = query({
   },
 })
 
-/** Read it again — only after a failed reading. Counts toward the cap. */
+/**
+ * Read it again — after a failure, or to get what a newer reading gives
+ * (26 Sep: examples came after his first sheet). Not while it is being
+ * read. Counts toward the cap: it is another call.
+ */
 export const retry = mutation({
   args: { attachmentId: v.id('attachments') },
   returns: v.null(),
@@ -298,10 +315,22 @@ export const retry = mutation({
     const ownerId = await requireUser(ctx)
     await ownedSheet(ctx, ownerId, args.attachmentId)
     const reading = await readingOf(ctx, ownerId, args.attachmentId)
-    if (reading !== null && reading.status !== 'failed') {
-      throw new ConvexError('That sheet is read already, or being read.')
+    if (reading !== null && reading.status === 'reading') {
+      throw new ConvexError('That sheet is being read right now.')
     }
     await askForReading(ctx, ownerId, args.attachmentId)
+    return null
+  },
+})
+
+/** He went over it: the Revisit strip lets it rest for a while. */
+export const markRevised = mutation({
+  args: { attachmentId: v.id('attachments') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedSheet(ctx, ownerId, args.attachmentId)
+    await ctx.db.patch(args.attachmentId, { revisedAt: Date.now() })
     return null
   },
 })
@@ -396,10 +425,14 @@ export const forReading = internalQuery({
 export const finish = internalMutation({
   args: {
     readingId: v.id('readings'),
+    title: v.string(),
+    kind: v.string(),
+    tags: v.array(v.string()),
     text: v.string(),
     summary: v.string(),
     conclusion: v.string(),
     words: v.array(wordValidator),
+    examples: v.array(exampleValidator),
     inputTokens: v.number(),
     outputTokens: v.number(),
   },
@@ -410,10 +443,14 @@ export const finish = internalMutation({
     if (reading === null) return null
     await ctx.db.patch(args.readingId, {
       status: 'done',
+      title: args.title || undefined,
+      kind: args.kind,
+      tags: args.tags,
       text: args.text,
       summary: args.summary,
       conclusion: args.conclusion,
       words: args.words,
+      examples: args.examples,
       inputTokens: args.inputTokens,
       outputTokens: args.outputTokens,
       readAt: Date.now(),

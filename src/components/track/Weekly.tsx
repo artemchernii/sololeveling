@@ -2,9 +2,10 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Minus, Plus, X } from 'lucide-react'
+import { Check, Minus, Plus, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
+import { useQuestOnReach } from '@/components/track/QuestComplete'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { addDays, startOfWeek } from '@/lib/weeks'
 
@@ -131,5 +132,118 @@ export function TargetEditor({
         </button>
       </span>
     </div>
+  )
+}
+
+/* One kind this week, as a small chip (Body's since 26 Sep; Languages'
+   too the same day, so the two heroes read alike). With a target it gets a
+   bar — this week's logs over the target — and turns to the good state when
+   met: the only thing the colour says is "done". Without one it shows its
+   count and "+ goal". Tap it to set or change the target. The chip that
+   reaches its target pops [ QUEST COMPLETE ]. */
+export function WeekChip({
+  area,
+  kind,
+  category,
+  name,
+  icon,
+  questIcon,
+  questTitle = name,
+  suggested,
+  editSpan,
+  delay,
+}: {
+  area: string
+  kind: 'workout' | 'intake' | 'session'
+  category: string
+  name: string
+  icon: ReactNode
+  /** The same icon, drawn big for the popup. */
+  questIcon: ReactNode
+  /** What the popup calls it — "Class · Português". */
+  questTitle?: string
+  suggested: number
+  /** The grid span the editor takes when it opens — the whole row. */
+  editSpan: string
+  delay: number
+}) {
+  const { count, target } = useWeeklyProgress(area, kind, category)
+  const [editing, setEditing] = useState(false)
+  const met = target !== undefined && count !== undefined && count >= target
+  useQuestOnReach(count, target, () => ({
+    title: questTitle,
+    line: `${count} of ${target} this week`,
+    area,
+    icon: questIcon,
+  }))
+
+  if (editing) {
+    return (
+      <TargetEditor
+        area={area}
+        category={category}
+        name={name}
+        icon={icon}
+        current={target}
+        suggested={suggested}
+        onDone={() => setEditing(false)}
+        className={editSpan}
+      />
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      style={{ animationDelay: `${delay}ms` }}
+      aria-label={`${name}: ${count ?? 0} this week${
+        target === undefined ? ', no target — set one' : ` of ${target}`
+      }`}
+      className={`motion-land flex min-w-0 flex-col gap-1.5 rounded-[14px] px-1.5 py-2 text-left ring-1 transition-colors ring-inset sm:p-2.5 ${
+        met
+          ? 'bg-state-good/10 ring-state-good/40'
+          : 'bg-background/30 ring-lav-400/15 hover:bg-lav-400/8 hover:ring-lav-400/40'
+      }`}
+    >
+      <span className="flex items-center justify-between gap-1">
+        <span className={met ? 'text-state-good' : 'text-area'}>{icon}</span>
+        {met ? (
+          <Check
+            className="motion-draw size-3.5 text-state-good"
+            strokeWidth={3}
+          />
+        ) : null}
+      </span>
+      <span className="font-mono text-[15px] leading-none text-foreground sm:text-[17px]">
+        <span key={count} className="motion-pop inline-block">
+          {count ?? '—'}
+        </span>
+        {target !== undefined ? (
+          <span className="text-[12px] text-ink-500">/{target}</span>
+        ) : null}
+      </span>
+      {target !== undefined ? (
+        <span className="h-1 w-full overflow-hidden rounded-full bg-lift/[0.08]">
+          <span
+            className={`block h-full rounded-full transition-[width] duration-500 ${
+              met
+                ? 'bg-state-good'
+                : 'bg-lav-400 shadow-[0_0_6px_var(--system-shine)]'
+            }`}
+            style={{
+              width: `${Math.min(1, (count ?? 0) / target) * 100}%`,
+            }}
+          />
+        </span>
+      ) : (
+        <span className="font-mono text-[9.5px] tracking-[0.06em] whitespace-nowrap text-ink-600 uppercase">
+          + goal
+        </span>
+      )}
+      <span className="label-caps truncate text-[9.5px] tracking-[0.04em] sm:text-[10.5px] sm:tracking-[0.14em]">
+        {name}
+      </span>
+    </button>
   )
 }

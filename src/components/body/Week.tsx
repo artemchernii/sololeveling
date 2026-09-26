@@ -1,9 +1,5 @@
-import { useState } from 'react'
-import { Check } from 'lucide-react'
-
 import { KindIcon, kindName } from '@/components/body/kinds'
-import { useQuestOnReach } from '@/components/track/QuestComplete'
-import { TargetEditor, useWeeklyProgress } from '@/components/track/Weekly'
+import { useWeeklyProgress, WeekChip } from '@/components/track/Weekly'
 import { BODY_ORDER } from '@/lib/body/log-groups'
 
 /* This week against what he means to do (26 Sep: "we lack a bit of emotion
@@ -37,92 +33,20 @@ export function WeekChips() {
   return (
     <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
       {WEEK_KINDS.map((k, i) => (
-        <WeekChip key={k.category} category={k.category} delay={80 + i * 50} />
+        <WeekChip
+          key={k.category}
+          area="body"
+          kind={k.kind}
+          category={k.category}
+          name={kindName(k.category)}
+          icon={<KindIcon kind={k.category} className="size-4" />}
+          questIcon={<KindIcon kind={k.category} className="size-6" />}
+          suggested={k.category === 'stretch' ? 7 : 3}
+          editSpan="col-span-5"
+          delay={80 + i * 50}
+        />
       ))}
     </div>
-  )
-}
-
-function WeekChip({ category, delay }: { category: string; delay: number }) {
-  const { count, target } = useWeekProgress(category)
-  const [editing, setEditing] = useState(false)
-  const met = target !== undefined && count !== undefined && count >= target
-  const name = kindName(category)
-  useQuestOnReach(count, target, () => ({
-    title: name,
-    line: `${count} of ${target} this week`,
-    area: 'body',
-    icon: <KindIcon kind={category} className="size-6" />,
-  }))
-
-  if (editing) {
-    return (
-      <TargetEditor
-        area="body"
-        category={category}
-        name={name}
-        icon={<KindIcon kind={category} className="size-4" />}
-        current={target}
-        suggested={category === 'stretch' ? 7 : 3}
-        onDone={() => setEditing(false)}
-        className="col-span-5"
-      />
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
-      style={{ animationDelay: `${delay}ms` }}
-      aria-label={`${name}: ${count ?? 0} this week${
-        target === undefined ? ', no target — set one' : ` of ${target}`
-      }`}
-      className={`motion-land flex min-w-0 flex-col gap-1.5 rounded-[14px] px-1.5 py-2 text-left ring-1 transition-colors ring-inset sm:p-2.5 ${
-        met
-          ? 'bg-state-good/10 ring-state-good/40'
-          : 'bg-background/30 ring-lav-400/15 hover:bg-lav-400/8 hover:ring-lav-400/40'
-      }`}
-    >
-      <span className="flex items-center justify-between gap-1">
-        <span className={met ? 'text-state-good' : 'text-area'}>
-          <KindIcon kind={category} className="size-4" />
-        </span>
-        {met ? (
-          <Check
-            className="motion-draw size-3.5 text-state-good"
-            strokeWidth={3}
-          />
-        ) : null}
-      </span>
-      <span className="font-mono text-[15px] leading-none text-foreground sm:text-[17px]">
-        <span key={count} className="motion-pop inline-block">
-          {count ?? '—'}
-        </span>
-        {target !== undefined ? (
-          <span className="text-[12px] text-ink-500">/{target}</span>
-        ) : null}
-      </span>
-      {target !== undefined ? (
-        <span className="h-1 w-full overflow-hidden rounded-full bg-lift/[0.08]">
-          <span
-            className={`block h-full rounded-full transition-[width] duration-500 ${
-              met ? 'bg-state-good' : 'bg-lav-400'
-            }`}
-            style={{
-              width: `${Math.min(1, (count ?? 0) / target) * 100}%`,
-            }}
-          />
-        </span>
-      ) : (
-        <span className="font-mono text-[9.5px] tracking-[0.06em] whitespace-nowrap text-ink-600 uppercase">
-          + goal
-        </span>
-      )}
-      <span className="label-caps truncate text-[9.5px] tracking-[0.04em] sm:text-[10.5px] sm:tracking-[0.14em]">
-        {name}
-      </span>
-    </button>
   )
 }
 

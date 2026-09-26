@@ -55,7 +55,9 @@ function Backlog() {
   const picked = useQuery(api.tasks.listToday, { today })
   const projects = useQuery(api.projects.listLive, {})
   const goals = useQuery(api.goals.listActive, {})
-  const goalsToBind = (goals ?? []).filter((g) => g.tile === undefined)
+  const goalsToBind = (goals ?? []).filter(
+    (g) => g.tile === undefined && g.weekly === undefined,
+  )
 
   const pickForToday = useMutation(api.tasks.pickForToday)
   const setArea = useMutation(api.tasks.setArea)

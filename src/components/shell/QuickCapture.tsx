@@ -378,7 +378,9 @@ export function QuickCapture({
   )
   const todayFull = (todays?.length ?? 0) >= 3
   const goals = useQuery(api.goals.listActive, isTask ? {} : 'skip')
-  const goalsToBind = (goals ?? []).filter((g) => g.tile === undefined)
+  const goalsToBind = (goals ?? []).filter(
+    (g) => g.tile === undefined && g.weekly === undefined,
+  )
   const forLabel = taskFor.startsWith('p:')
     ? projects?.find((x) => x._id === taskFor.slice(2))?.title
     : taskFor.startsWith('g:')

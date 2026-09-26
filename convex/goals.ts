@@ -186,7 +186,7 @@ export const listClosed = query({
         .order('desc')
         .take(MAX_ROWS)
       return rows
-        .filter((g) => g.tile === undefined)
+        .filter((g) => g.tile === undefined && g.weekly === undefined)
         .sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0))
     }
     return { reached: await closed('done'), dropped: await closed('dropped') }
@@ -405,5 +405,122 @@ export const clearTileTarget = mutation({
       await ctx.db.patch(goal._id, { status: 'dropped' })
     }
     return null
+  },
+})
+
+/* ------------------------------------------------------------ weekly */
+
+/* The categories Body counts sessions and shakes under. A weekly target is
+   only for these: any other word would be a bar nothing ever fills. */
+const WEEKLY_CATEGORIES: Record<string, { title: string; unit: string }> = {
+  stretch: { title: 'Mobility sessions each week', unit: 'sessions' },
+  gym: { title: 'Gym sessions each week', unit: 'sessions' },
+  boxing: { title: 'Boxing sessions each week', unit: 'sessions' },
+  hiking: { title: 'Hikes each week', unit: 'hikes' },
+  supplements: { title: 'Shakes each week', unit: 'shakes' },
+}
+
+async function activeWeeklyGoals(
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string,
+  category: string,
+): Promise<Array<Doc<'goals'>>> {
+  const rows = await ctx.db
+    .query('goals')
+    .withIndex('by_owner_weekly', (q) =>
+      q.eq('ownerId', ownerId).eq('weekly', category),
+    )
+    .order('desc')
+    .take(MAX_ROWS)
+  return rows.filter((goal) => goal.status === 'active')
+}
+
+/**
+ * How many a week he means to do one Body kind, set from the hero. A goal,
+ * because a goal's targetValue is the one thing §1 lets a count be read
+ * against — this week's logs of that category are the other side of the
+ * bar. Setting it again changes the number on the same goal.
+ */
+export const setWeeklyTarget = mutation({
+  args: { category: v.string(), targetValue: v.number() },
+  returns: v.id('goals'),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const shape = WEEKLY_CATEGORIES[args.category] as
+      (typeof WEEKLY_CATEGORIES)[string] | undefined
+    if (shape === undefined) throw new Error('No such Body kind')
+    if (
+      !Number.isInteger(args.targetValue) ||
+      args.targetValue < 1 ||
+      args.targetValue > 14
+    ) {
+      throw new ConvexError('A weekly target is a whole number from 1 to 14.')
+    }
+    const existing = await activeWeeklyGoals(ctx, ownerId, args.category)
+    if (existing.length > 0) {
+      await ctx.db.patch(existing[0]._id, { targetValue: args.targetValue })
+      return existing[0]._id
+    }
+    return await ctx.db.insert('goals', {
+      ownerId,
+      title: shape.title,
+      area: 'body',
+      status: 'active',
+      targetValue: args.targetValue,
+      unit: shape.unit,
+      weekly: args.category,
+    })
+  },
+})
+
+/** No weekly target for this kind any more. Dropped, not deleted. */
+export const clearWeeklyTarget = mutation({
+  args: { category: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    for (const goal of await activeWeeklyGoals(ctx, ownerId, args.category)) {
+      await ctx.db.patch(goal._id, { status: 'dropped' })
+    }
+    return null
+  },
+})
+
+/** His weekly targets, one per Body kind that has one. */
+export const weeklyTargets = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      goalId: v.id('goals'),
+      category: v.string(),
+      targetValue: v.number(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('goals')
+      .withIndex('by_owner_status', (q) =>
+        q.eq('ownerId', ownerId).eq('status', 'active'),
+      )
+      .take(MAX_ROWS)
+    const seen = new Set<string>()
+    const out: Array<{
+      goalId: Id<'goals'>
+      category: string
+      targetValue: number
+    }> = []
+    /* Newest first, so a second active one for a kind loses. */
+    for (const goal of rows.reverse()) {
+      if (goal.weekly === undefined || goal.targetValue === undefined) continue
+      if (seen.has(goal.weekly)) continue
+      seen.add(goal.weekly)
+      out.push({
+        goalId: goal._id,
+        category: goal.weekly,
+        targetValue: goal.targetValue,
+      })
+    }
+    return out
   },
 })

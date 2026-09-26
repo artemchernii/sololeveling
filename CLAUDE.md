@@ -13,7 +13,9 @@ number came from.
 Every number on screen comes from one of **four sanctioned sources**, all of
 them in `convex/aggregate.ts`:
 
-1. **log count** — rows in `logs` over a period
+1. **log count or sum** — rows in `logs` over a period, or the sum of their
+   amounts on the five conditions in `PLAN.md` §1 (one currency, a stated
+   period, only logged rows, every sum opens its rows, no derived "saved")
 2. **state** — the latest `stateSnapshots` row for a key
 3. **entity count** — rows in `projects` / `tasks` matching a filter
 4. **external reading** — a stored, attributed, timestamped value from a named
@@ -26,6 +28,7 @@ only where `goals.targetValue` gives it a real denominator. When you reach for a
 fifth source, or find yourself deriving a score, an index, or a percentage out
 of thin air — stop and ask.
 
+Sums were allowed on 2026-09-26 for Finances, the same way.
 The fourth was added deliberately, on 2026-09-09, because money cannot be
 tracked without prices that come from outside. That is the bar for adding
 another: a real thing the app must show, and a written set of conditions that

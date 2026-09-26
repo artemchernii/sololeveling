@@ -20,7 +20,9 @@ import type { MutationCtx, QueryCtx } from './_generated/server'
  * assembled by hand from an issuer and a subject.
  */
 export async function requireUser(
-  ctx: QueryCtx | MutationCtx,
+  /* Only the auth half is read, so an action can call it too (the ticker
+     search, Finances F4). */
+  ctx: Pick<QueryCtx | MutationCtx, 'auth'>,
 ): Promise<string> {
   const identity = await ctx.auth.getUserIdentity()
   if (identity === null) {

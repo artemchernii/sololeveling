@@ -1,0 +1,295 @@
+import { useQuery } from 'convex-helpers/react/cache/hooks'
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  CalendarClock,
+  CandlestickChart,
+  Wallet,
+} from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+
+import { api } from '../../../convex/_generated/api'
+import { useDayStarts } from '@/components/track/useDayStarts'
+import { areaVars } from '@/lib/areas'
+import { monthRange } from '@/lib/month'
+import { euros } from '@/lib/money'
+import { dayLabel } from '@/lib/bills'
+import { agoLabel } from '@/lib/format'
+import { Veiled, VeilToggle } from '@/components/finances/Veil'
+import { Skeleton } from '@/components/Skeleton'
+
+const MONTH = new Intl.DateTimeFormat(undefined, { month: 'long' })
+
+/* Finances' header (F1, 26 Sep), Body's shape: a System window with this
+   month's money out and in, side by side and never subtracted (PLAN.md §1,
+   the sum rule's fifth condition — "saved" needs its own yes). Direction is
+   the word and the arrow, not red and green (§3d.3: colour is a state,
+   never a quantity). The monthly limit that sat here went on 26 Sep, his
+   call: "monthly limit i dont need". */
+export function FinancesHero() {
+  const today = useDayStarts(1).at(-1) as number
+  const { monthStart, nextStart } = monthRange(today)
+  const sums = useQuery(api.aggregate.moneySums, {
+    start: monthStart,
+    end: nextStart,
+  })
+
+  return (
+    <section
+      style={areaVars('money')}
+      className="system-frame system-open relative flex flex-col gap-4 overflow-clip p-4 sm:p-5"
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -top-24 -left-16 size-72 rounded-full bg-(--area)/14 blur-3xl"
+      />
+      <div className="relative flex items-center justify-between gap-3 border-b border-lav-400/20 pb-3">
+        <span className="system-title flex-1">[ finances ]</span>
+        <span className="label-caps text-ink-300">
+          {MONTH.format(new Date(today))}
+        </span>
+        <VeilToggle hideOnLeave />
+      </div>
+
+      <AccountsTotal />
+
+      <div className="relative grid grid-cols-2 gap-3">
+        <Total
+          label="out"
+          Icon={ArrowDownRight}
+          sum={sums?.out.sum}
+          count={sums?.out.count}
+          delay={60}
+        />
+        <Total
+          label="in"
+          Icon={ArrowUpRight}
+          sum={sums?.in.sum}
+          count={sums?.in.count}
+          delay={120}
+        />
+      </div>
+
+      <NextBill today={today} />
+
+      {sums && (sums.skipped > 0 || !sums.complete) ? (
+        <p className="relative font-mono text-[11px] text-state-warn">
+          {!sums.complete
+            ? 'Too many rows this month to add them all — this is not the whole month.'
+            : `${sums.skipped} not in euros — not added, and not converted.`}
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
+function Total({
+  label,
+  Icon,
+  sum,
+  count,
+  delay,
+}: {
+  label: string
+  Icon: typeof ArrowUpRight
+  sum: number | undefined
+  count: number | undefined
+  delay: number
+}) {
+  return (
+    <div
+      style={{ animationDelay: `${delay}ms` }}
+      className="motion-land flex min-w-0 flex-col gap-1 rounded-[14px] bg-lift/[0.035] p-3 ring-1 ring-lift/10 ring-inset"
+    >
+      <span className="label-caps flex items-center gap-1.5">
+        <Icon className="size-3.5 text-area" />
+        {label}
+      </span>
+      <span
+        key={sum}
+        className="motion-pop truncate text-[30px] leading-none font-light tracking-tight text-foreground sm:text-[38px]"
+      >
+        {sum === undefined ? (
+          <Skeleton className="inline-block h-6 w-20 align-middle" />
+        ) : (
+          euros(sum)
+        )}
+      </span>
+      <span className="font-mono text-[11px] text-ink-500">
+        {count === undefined
+          ? ' '
+          : count === 0
+            ? 'nothing logged'
+            : `${count} ${count === 1 ? 'log' : 'logs'}`}
+      </span>
+    </div>
+  )
+}
+
+/* What is his, in two halves (26 Sep: "distinguish free cash and
+   investments"): FREE CASH — the balances he types, money not in shares —
+   and INVESTED — his positions at stored closes (aggregate.worth). The big
+   number is the two added; each half says how old its oldest reading is.
+   Not called net worth — the mortgage it owes is not in it. */
+function AccountsTotal() {
+  const data = useQuery(api.aggregate.worth, {})
+  /* One shape from the first frame (26 Sep: "when we load the page … it
+     jumps. Looks cheap"): loading, empty and filled all draw the same
+     block, and only what is inside it changes. */
+  const empty = data !== undefined && data.byAccount.length === 0
+  return (
+    <div className="relative flex flex-col gap-2.5">
+      <div className="flex flex-col gap-1">
+        <span className="label-caps">cash + investments</span>
+        <span className="flex h-[40px] items-center sm:h-[52px]">
+          {data === undefined ? (
+            <Skeleton className="h-8 w-48 sm:h-10" />
+          ) : empty ? (
+            <span className="text-[40px] leading-none font-light text-ink-600 sm:text-[52px]">
+              —
+            </span>
+          ) : (
+            <span
+              key={data.total}
+              className="motion-pop text-[40px] leading-none font-light tracking-tight text-foreground sm:text-[52px]"
+            >
+              <Veiled>{euros(data.total)}</Veiled>
+            </span>
+          )}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Half
+          label="free cash"
+          Icon={Wallet}
+          value={data?.cash.total}
+          empty={empty}
+          note={
+            data === undefined
+              ? undefined
+              : empty
+                ? 'add an account'
+                : data.cash.oldestAt === null
+                  ? 'nothing typed yet'
+                  : `oldest read ${agoLabel(data.cash.oldestAt)}${
+                      data.cash.unread > 0
+                        ? ` · ${data.cash.unread} not read`
+                        : ''
+                    }`
+          }
+          tab="balances"
+        />
+        <Half
+          label="invested"
+          Icon={CandlestickChart}
+          value={data?.invested.total}
+          empty={empty || data?.invested.oldestAt === null}
+          note={
+            data === undefined
+              ? undefined
+              : data.invested.oldestAt === null
+                ? 'no positions yet'
+                : `closes as of ${agoLabel(data.invested.oldestAt)}${
+                    data.invested.unvalued > 0
+                      ? ` · ${data.invested.unvalued} unpriced`
+                      : ''
+                  }`
+          }
+          tab="invest"
+        />
+      </div>
+    </div>
+  )
+}
+
+function Half({
+  label,
+  Icon,
+  value,
+  empty,
+  note,
+  tab,
+}: {
+  label: string
+  Icon: typeof Wallet
+  value: number | undefined
+  empty: boolean
+  note: string | undefined
+  tab: 'balances' | 'invest'
+}) {
+  return (
+    <Link
+      to="/finances"
+      search={{ tab }}
+      className="motion-press flex min-w-0 flex-col gap-0.5 rounded-[12px] px-2.5 py-2 ring-1 ring-lav-400/20 transition-colors ring-inset hover:bg-lav-400/8 hover:ring-lav-400/45"
+    >
+      <span className="label-caps flex items-center gap-1.5">
+        <Icon className="size-3.5 text-area" />
+        {label}
+      </span>
+      <span className="flex h-[25px] items-center truncate text-[20px] leading-tight font-light text-foreground">
+        {value === undefined ? (
+          <Skeleton className="h-4 w-20" />
+        ) : empty ? (
+          <span className="text-ink-600">—</span>
+        ) : (
+          <Veiled>{euros(value)}</Veiled>
+        )}
+      </span>
+      <span className="flex h-[15px] items-center truncate font-mono text-[10.5px] text-ink-500">
+        {note ?? <Skeleton className="h-2 w-24" />}
+      </span>
+    </Link>
+  )
+}
+
+/* The next bill not yet paid this month, so the hero says what is coming. */
+function NextBill({ today }: { today: number }) {
+  const now = new Date(today)
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  const rows = useQuery(api.recurring.month, {
+    year,
+    month,
+    start: new Date(year, month, 1).getTime(),
+    end: new Date(year, month + 1, 1).getTime(),
+  })
+  const next = rows?.find(
+    (r) => r.paid === null && r.item.endedAt === undefined,
+  )
+  /* The row is always there, so nothing under it moves when the bills
+     arrive: a quiet line while loading or when none is due. */
+  if (rows === undefined) {
+    return <span className="h-[30px]" aria-hidden />
+  }
+  if (!next) {
+    return (
+      <Link
+        to="/finances"
+        search={{ tab: 'bills' }}
+        className="relative inline-flex h-[30px] w-fit items-center gap-2 rounded-full px-3 font-mono text-[11.5px] text-ink-500 ring-1 ring-lift/12 ring-inset hover:text-ink-200"
+      >
+        <CalendarClock className="size-3.5 text-area" />
+        {rows.length === 0
+          ? 'no bills set up'
+          : 'every bill this month is done'}
+      </Link>
+    )
+  }
+  const late = next.day < now.getDate()
+  return (
+    <Link
+      to="/finances"
+      search={{ tab: 'bills' }}
+      className={`motion-arrive relative inline-flex h-[30px] w-fit items-center gap-2 rounded-full px-3 font-mono text-[11.5px] ring-1 ring-inset ${
+        late
+          ? 'text-state-warn ring-state-warn/35'
+          : 'text-ink-200 ring-lav-400/25 hover:ring-lav-400/50'
+      }`}
+    >
+      <CalendarClock className="size-3.5 text-area" />
+      {late ? 'waiting' : 'next'}: {next.item.name} · {euros(next.item.amount)}{' '}
+      · {next.day === now.getDate() ? 'today' : dayLabel(next.day)}
+    </Link>
+  )
+}

@@ -40,7 +40,8 @@ convex/              one file per table, plus:
 
 **Key rule — every number on screen comes from exactly one of four sanctioned sources:**
 
-1. **log count** — aggregate over `logs` for a period (12 workouts this month, 2 events this month)
+1. **log count or sum** — aggregate over `logs` for a period (12 workouts this month, 2 events this
+   month, €612 out in September — a sum only on the conditions below)
 2. **state** — latest `stateSnapshots` row for a key (weight 75.4 kg, net worth €42,100, CEFR B1)
 3. **entity count** — rows in `projects` / `tasks` matching a filter (2 active projects, 11 of 17 tasks)
 4. **external reading** — a value fetched from a named outside source, stored as a row with that
@@ -62,6 +63,24 @@ that fails any of them is not a source-4 number:
   minutes old is a lie told by omission, and it is the exact failure §1 exists to prevent.
 - **Not a licence to derive.** `holding × price` is composition of two sanctioned values, the same
   shape as "2 of 4". A "portfolio health score" is still invented, and still forbidden.
+
+**A sum of logged amounts (26 Sep, R6b-c).** Money cannot be tracked by counting rows — "23
+expenses" says nothing — so source 1 widened from a count to a count or a sum, on five written
+conditions. A sum that fails any of them is not a source-1 number:
+
+- **One currency per sum.** Euros add to euros. Nothing is converted until an exchange rate is a
+  stored reading (source 4, Finances F3).
+- **A stated period.** "September", "Sep 1–26". Never an all-time "total".
+- **Only logged rows.** No estimates, no averages, no projections, no "on track to spend".
+- **Every sum opens its rows.** Tap €612 and see the logs it is made of.
+- **Not a licence to derive.** In and out are shown side by side. A "saved" difference, a savings
+  rate or a budget score each need their own yes.
+
+**Two more sums, same conditions (26 Sep, Finances F2/F4).** An account's balance is its free cash (money not in shares), so cash and investments are two halves and nothing is counted twice. The free-cash total is a sum of each
+account's latest balance (source 2), euros only, always shown with the oldest reading in it — a
+total made partly of a month-old number must say so. A position's shares and what it cost are sums
+of its trade rows. A position's worth is shares × a stored price × a stored rate (source 4,
+composition). A gain, loss or return is still not shown: it needs its own yes.
 
 **A state read as a series (21 Sep, R6b).** Source 2 is the latest
 `stateSnapshots` row for a key; the weight line on Body plots all of them.
@@ -273,7 +292,7 @@ it is built in (R1–R7). Everything in §1–§2 and §3b–§3d still holds.
 | Goals     | as is                                                                     | R3: bound to projects and areas, a milestone timeline 0—1—2—3, deadlines, Reached/Drop/Delete kept                                                                                                                                                          |
 | Backlog   | as is                                                                     | R3: created-at, bind to project/goal, "put it on the calendar"                                                                                                                                                                                              |
 | Notes     | as is                                                                     | R4: the knowledge base — more kinds (`style` among them), expanded editor, drag-and-drop images/PDFs (Convex file storage), YouTube embeds, bind to a project                                                                                               |
-| Finances  | renamed; still a placeholder                                              | R6b: Investments (portfolios, positions, prices as source 4), Balances, Spending                                                                                                                                                                            |
+| Finances  | renamed; still a placeholder                                              | R6b-c F1 (26 Sep): Spending — this month's out and in by category, each opening its rows History calendar (a monthly limit was built and removed the same day, his call). Then F2 Balances, F3 Investments (prices as source 4)                             |
 | Body      | placeholder                                                               | R6b-a (shipped): consistency first — a per-day strip per category, weight as a line against a goal's target, recent logs editable. 25 Sep: a tracking page — routines (Stretch, Gym) with DID per exercise and a SESSION tap, weight target set on the card |
 | Languages | renamed; still a placeholder                                              | R6b-b (shipped): a tab per area ticked as a language — classes apart from practice, the level, what is booked next, twelve weeks of days. 25 Sep: Class / Homework / At home in one tap each, a topics & tenses list with PRACTISED and LEARNING/SOLID      |
 | Settings  | as is                                                                     | —                                                                                                                                                                                                                                                           |
@@ -505,8 +524,9 @@ one-page spec under `docs/specs/` written when the previous row has shipped.
   files under `portuguese` — left on purpose until it is felt.
 - **Body (R6b-a).** Consistency first, weight second. The kind lives in `logs.meta.category`, a
   plain string the verb sets and the capture chip edits — not a fixed list.
-- **Finances waits.** A sum of logged amounts is none of the four sources (§1). Spending,
-  Balances and a money tile target (`€100`) all stay blocked until that has a written answer.
+- **Finances (R6b-c).** Unblocked 26 Sep by the sum rule in §1. Three rows: F1 Spending (a
+  month's out and in by category, `logs.meta.category`), F2 Balances,
+  F3 Investments — each its own spec when the one before ships.
 
 **Rules that carry through every row:** every number from a sanctioned source (§1); three a
 day (§3c.1); the backlog never on Today (§3c.3); tasks and events two tables (§3b.3);

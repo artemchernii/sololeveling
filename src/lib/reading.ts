@@ -218,9 +218,9 @@ export function parseReading(
       examples.push({ sentence: sentence.trim(), meaning: meaning.trim() })
     }
   }
-  const pairs = (value: unknown): Reading['examples'] => {
+  const pairs = (list: unknown): Reading['examples'] => {
     const out: Reading['examples'] = []
-    for (const e of Array.isArray(value) ? (value as Array<unknown>) : []) {
+    for (const e of Array.isArray(list) ? (list as Array<unknown>) : []) {
       if (typeof e !== 'object' || e === null) continue
       const { sentence, meaning } = e as Record<string, unknown>
       if (

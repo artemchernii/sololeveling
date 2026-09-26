@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest'
 
-import { parseReading, readableKind, readingPrompt } from './reading'
+import {
+  MAX_PAGES,
+  pagesRefusal,
+  parseReading,
+  readableKind,
+  readingPrompt,
+} from './reading'
 
 describe('readableKind — what the reader can be shown', () => {
   test('a PDF is a document, a photo an image', () => {
@@ -134,4 +140,36 @@ describe('parseReading — a bad answer is a failed reading, not a crash', () =>
 
 test('the prompt names the language it is reading', () => {
   expect(readingPrompt('Portuguese')).toContain('my Portuguese class')
+})
+
+describe('pagesRefusal — what can be one sheet', () => {
+  const pdf = (mb: number) => ({
+    contentType: 'application/pdf',
+    size: mb * 1024 * 1024,
+  })
+
+  test('one to five readable pages, under the limits', () => {
+    expect(pagesRefusal([pdf(1)])).toBeNull()
+    expect(pagesRefusal([pdf(4), pdf(4), pdf(4)])).toBeNull()
+  })
+
+  test('refused: none, too many (counting pages already there), wrong type, too big', () => {
+    expect(pagesRefusal([])).toBe('Choose at least one page.')
+    expect(
+      pagesRefusal([pdf(1), pdf(1)], Array(MAX_PAGES - 1).fill(pdf(1))),
+    ).toBe('A sheet is at most 5 pages.')
+    expect(pagesRefusal([{ contentType: 'image/heic', size: 1 }])).toMatch(
+      'PDFs and photos',
+    )
+    expect(pagesRefusal([pdf(11)])).toBe('A page is at most 10 MB.')
+    expect(pagesRefusal([pdf(8), pdf(8)], [pdf(8)])).toBe(
+      'A sheet is at most 20 MB in all.',
+    )
+  })
+})
+
+test('several pages are read as one sheet, each marked in the text', () => {
+  const p = readingPrompt('Portuguese', 3)
+  expect(p).toContain('These 3 files are one set of pages')
+  expect(p).toContain('— page N —')
 })

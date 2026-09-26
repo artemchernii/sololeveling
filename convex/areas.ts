@@ -528,7 +528,14 @@ export const remove = mutation({
           q.eq('ownerId', ownerId).eq('area', args.slug),
         )
         .first()) !== null ||
-      /* A Vault sheet (R7a) is filed under its language too. */
+      /* A Vault sheet (R7a) is filed under its language too — and, until
+         vault.migrateSheets has run, a first-day page carries it itself. */
+      (await ctx.db
+        .query('vaultSheets')
+        .withIndex('by_owner_area', (q) =>
+          q.eq('ownerId', ownerId).eq('area', args.slug),
+        )
+        .first()) !== null ||
       (await ctx.db
         .query('attachments')
         .withIndex('by_owner_area', (q) =>

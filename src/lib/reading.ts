@@ -12,8 +12,37 @@ export const READING_MODEL = 'claude-haiku-4-5'
 /** On screen, beside every reading — who wrote it. */
 export const READING_MODEL_NAME = 'Claude Haiku 4.5'
 
-/** A sheet, not a textbook: 10 MB is a long scanned handout. */
+/** A page, not a textbook: 10 MB is a long scanned handout. */
 export const MAX_READ_BYTES = 10 * 1024 * 1024
+
+/* A sheet is up to five pages, read together (26 Sep: "2-3 sheets to one
+   ANALYZE"), and at most 20 MB of them: sent as base64, that stays well
+   inside the reader's 32 MB request. */
+export const MAX_PAGES = 5
+export const MAX_SHEET_BYTES = 20 * 1024 * 1024
+
+/**
+ * Why these files cannot be one sheet, or null when they can. `pages` is
+ * what the sheet has already, when pages are being added to it.
+ */
+export function pagesRefusal(
+  files: ReadonlyArray<{ contentType: string; size: number }>,
+  already: ReadonlyArray<{ size: number }> = [],
+): string | null {
+  if (files.length === 0) return 'Choose at least one page.'
+  if (files.length + already.length > MAX_PAGES) {
+    return `A sheet is at most ${MAX_PAGES} pages.`
+  }
+  if (files.some((f) => readableKind(f.contentType) === null)) {
+    return 'The Vault reads PDFs and photos (JPG, PNG, WebP).'
+  }
+  if (files.some((f) => f.size > MAX_READ_BYTES)) {
+    return 'A page is at most 10 MB.'
+  }
+  const total = [...files, ...already].reduce((n, f) => n + f.size, 0)
+  if (total > MAX_SHEET_BYTES) return 'A sheet is at most 20 MB in all.'
+  return null
+}
 
 /* At most this many readings in any 30 days (his pick, 26 Sep: about 60¢
    at the most). Counted from `readings` rows, so a retry counts too — it
@@ -141,14 +170,16 @@ export const READING_SCHEMA = {
 } as const
 
 /** What the reader is asked, for a sheet from a class in `language`. */
-export function readingPrompt(language: string): string {
+export function readingPrompt(language: string, pages = 1): string {
   return [
-    `This is a page (or pages) from my ${language} class or homework — often a scan or a photo.`,
+    pages > 1
+      ? `These ${pages} files are one set of pages from my ${language} class or homework — often scans or photos. Read them together as one sheet: one title, one set of rules, no rule repeated.`
+      : `This is a page (or pages) from my ${language} class or homework — often a scan or a photo.`,
     'Fill in each field:',
     `- title: a short name for what it teaches, 3 to 8 words, in English with the ${language} term where it is the point — e.g. "Present subjunctive after impersonal expressions".`,
     `- kind: the one that fits best — grammar, vocabulary, reading, writing, conversation, exam, or other.`,
     '- tags: 2 to 5 short topic tags (the grammar points or themes), lowercase.',
-    `- text: everything written on it, transcribed faithfully in the original language, keeping its lines and numbering. Where something cannot be read, write [unreadable].`,
+    `- text: everything written on it, transcribed faithfully in the original language, keeping its lines and numbering${pages > 1 ? ', each file under a line "— page N —"' : ''}. Where something cannot be read, write [unreadable].`,
     '- summary: in English, 1 or 2 short sentences — what the class covered. The rules below carry the detail.',
     `- rules: each rule or pattern the sheet teaches (up to 6), for someone revising it later. name: a short English name. pattern: the formula in ${language} with its parts, e.g. "É + adjetivo + que + presente do conjuntivo". explanation: one or two plain English sentences — when to use it and how it differs from what it is confused with. examples: 2 or 3 new ${language} sentences that use it, each with its English meaning. Empty if the sheet teaches no rule.`,
     '- conclusion: in English, one or two short sentences — what to practise next.',

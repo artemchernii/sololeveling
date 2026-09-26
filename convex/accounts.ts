@@ -156,3 +156,42 @@ export const setBalance = mutation({
     return null
   },
 })
+
+/**
+ * Gone for good — only an account nothing hangs off yet: no trades, no
+ * bills. A typo'd "Revoult" should not linger as a retired row. Its
+ * balance readings go with it; they were readings of an account that is
+ * not his.
+ */
+export const remove = mutation({
+  args: { accountId: v.id('accounts') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedAccount(ctx, ownerId, args.accountId)
+    const trade = await ctx.db
+      .query('trades')
+      .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', ownerId).eq('accountId', args.accountId),
+      )
+      .first()
+    const bills = await ctx.db
+      .query('recurring')
+      .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
+      .take(100)
+    if (trade !== null || bills.some((b) => b.accountId === args.accountId)) {
+      throw new ConvexError(
+        'Trades or bills use this account — retire it instead.',
+      )
+    }
+    const readings = await ctx.db
+      .query('stateSnapshots')
+      .withIndex('by_owner_key_time', (q) =>
+        q.eq('ownerId', ownerId).eq('key', balanceKey(args.accountId)),
+      )
+      .take(1000)
+    for (const r of readings) await ctx.db.delete(r._id)
+    await ctx.db.delete(args.accountId)
+    return null
+  },
+})

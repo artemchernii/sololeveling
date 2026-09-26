@@ -73,8 +73,7 @@ export function parseChart(json: unknown): Chart | null {
     : []
   const quote = (
     result.indicators as
-      | { quote?: Array<{ close?: Array<unknown> } | undefined> }
-      | undefined
+      { quote?: Array<{ close?: Array<unknown> } | undefined> } | undefined
   )?.quote?.[0]?.close
   const closes: Chart['closes'] = []
   stamps.forEach((t, i) => {

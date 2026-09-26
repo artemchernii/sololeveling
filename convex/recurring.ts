@@ -236,3 +236,28 @@ export const month = query({
     return out
   },
 })
+
+/**
+ * Gone for good — only a bill never paid (a typo, a trial). Once a payment
+ * points at it, it is ended instead, so the payment keeps what it was for.
+ */
+export const remove = mutation({
+  args: { id: v.id('recurring') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const item = await ownedItem(ctx, ownerId, args.id)
+    const logs = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q.eq('ownerId', ownerId).eq('area', 'money'),
+      )
+      .order('desc')
+      .take(5000)
+    if (logs.some((l) => l.meta?.recurringId === item._id)) {
+      throw new ConvexError('It has been paid before — end it instead.')
+    }
+    await ctx.db.delete(item._id)
+    return null
+  },
+})

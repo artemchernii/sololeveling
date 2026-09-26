@@ -652,7 +652,8 @@ export default defineSchema({
     importId: v.optional(v.id('portfolioImports')),
   })
     .index('by_owner_time', ['ownerId', 'occurredAt'])
-    .index('by_owner_instrument', ['ownerId', 'instrumentId']),
+    .index('by_owner_instrument', ['ownerId', 'instrumentId'])
+    .index('by_owner_account', ['ownerId', 'accountId']),
 
   /* Source 4 (Finances F4): a closing price as Yahoo Finance reported it,
      stored by the daily check — never fetched at render. */

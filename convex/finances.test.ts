@@ -150,6 +150,39 @@ describe('balances', () => {
     ).rejects.toThrow('No such account')
   })
 
+  test('remove: only an account nothing hangs off, and its readings go too', async () => {
+    const { t, me } = setup()
+    const typo = await me.mutation(api.accounts.create, {
+      name: 'Revoult',
+      kind: 'bank',
+    })
+    await me.mutation(api.accounts.setBalance, {
+      accountId: typo,
+      value: 5,
+      dayStart: TODAY,
+    })
+    await me.mutation(api.accounts.remove, { accountId: typo })
+    expect(
+      await t.run(async (ctx) => ctx.db.query('stateSnapshots').collect()),
+    ).toEqual([])
+
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kind: 'broker',
+    })
+    await me.mutation(api.invest.addTrade, {
+      accountId: tr,
+      candidate: TSLA,
+      side: 'buy',
+      shares: 1,
+      priceEur: 1,
+      occurredAt: Date.now(),
+    })
+    await expect(
+      me.mutation(api.accounts.remove, { accountId: tr }),
+    ).rejects.toThrow('retire')
+  })
+
   test('a duplicate name is refused', async () => {
     const { me } = setup()
     await me.mutation(api.accounts.create, { name: 'Revolut', kind: 'bank' })
@@ -217,6 +250,33 @@ describe('bills', () => {
     await me.mutation(api.logs.remove, { logId })
     month = await me.query(api.recurring.month, SEP)
     expect(month[1].paid).toBeNull()
+  })
+
+  test('remove: only a bill never paid', async () => {
+    const { me } = setup()
+    const trial = await me.mutation(api.recurring.create, {
+      name: 'Trial',
+      kind: 'expense',
+      amount: 5,
+      cadence: 'monthly',
+      day: 3,
+    })
+    await me.mutation(api.recurring.remove, { id: trial })
+    expect(await me.query(api.recurring.month, SEP)).toEqual([])
+    const gym = await me.mutation(api.recurring.create, {
+      name: 'Gym',
+      kind: 'expense',
+      amount: 30,
+      cadence: 'monthly',
+      day: 1,
+    })
+    await me.mutation(api.recurring.markPaid, {
+      id: gym,
+      occurredAt: Date.now(),
+    })
+    await expect(
+      me.mutation(api.recurring.remove, { id: gym }),
+    ).rejects.toThrow('end it')
   })
 
   test('nothing is logged until he taps', async () => {
@@ -344,10 +404,14 @@ describe('investments', () => {
     expect(p.rows[0].shares).toBe(2.5)
     expect(p.rows[0].putIn).toBe(755)
     expect(p.rows[0].valueEur).toBeNull()
+    expect(p.totalEur).toBe(0)
+    expect(p.unvalued).toBe(1)
 
     await withPrices(t, ME)
     p = await me.query(api.aggregate.positions, {})
     expect(p.rows[0].valueEur).toBe(900)
+    expect(p.totalEur).toBe(900)
+    expect(p.unvalued).toBe(0)
     expect(p.rows[0].priceAsOf).not.toBeNull()
     expect(p.rows[0].rateAsOf).not.toBeNull()
   })

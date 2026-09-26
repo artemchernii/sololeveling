@@ -1312,6 +1312,12 @@ export const positions = query({
         valueEur: v.union(v.number(), v.null()),
       }),
     ),
+    /** The sum of the valued positions, in euros, and the oldest price in
+        it — the balances rule again: never a total without its as-of.
+        A position with no price yet is counted in `unvalued`, not added. */
+    totalEur: v.number(),
+    oldestPriceAsOf: v.union(v.number(), v.null()),
+    unvalued: v.number(),
     complete: v.boolean(),
   }),
   handler: async (ctx) => {
@@ -1403,6 +1409,26 @@ export const positions = query({
       })
     }
     rows.sort((a, b) => (b.valueEur ?? b.putIn) - (a.valueEur ?? a.putIn))
-    return { rows, complete: trades.length < TRADE_ROWS }
+    let cents = 0
+    let oldestPriceAsOf: number | null = null
+    let unvalued = 0
+    for (const r of rows) {
+      if (r.valueEur === null || r.priceAsOf === null) {
+        unvalued++
+        continue
+      }
+      cents += Math.round(r.valueEur * 100)
+      oldestPriceAsOf =
+        oldestPriceAsOf === null
+          ? r.priceAsOf
+          : Math.min(oldestPriceAsOf, r.priceAsOf)
+    }
+    return {
+      rows,
+      totalEur: cents / 100,
+      oldestPriceAsOf,
+      unvalued,
+      complete: trades.length < TRADE_ROWS,
+    }
   },
 })

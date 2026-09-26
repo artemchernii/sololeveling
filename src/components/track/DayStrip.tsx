@@ -89,13 +89,13 @@ function Row({ row, blocks }: { row: StripRow; blocks: Array<Array<number>> }) {
                 <span
                   key={day}
                   title={`${count} ${row.noun}${count === 1 ? '' : 's'} · ${new Date(day).toDateString()}`}
-                  className={`aspect-square flex-1 rounded-[3px] ${
+                  className={`aspect-square flex-1 rounded-[1px] ${
                     count === 0
                       ? 'bg-lift/[0.06]'
                       : count === 1
-                        ? 'bg-(--area)/60'
-                        : 'bg-(--area) shadow-[0_0_8px_-2px_var(--area)]'
-                  } ${today ? 'ring-1 ring-(--area)/70' : ''}`}
+                        ? 'bg-lav-400/55'
+                        : 'bg-lav-400 shadow-[0_0_8px_-1px_var(--system-shine)]'
+                  } ${today ? 'system-pulse ring-1 ring-lav-400/80' : ''}`}
                 />
               )
             })}

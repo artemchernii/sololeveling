@@ -1,13 +1,10 @@
 import { useState } from 'react'
-import { useMutation } from 'convex/react'
-import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Check, Minus, Plus, X } from 'lucide-react'
+import { Check } from 'lucide-react'
 
-import { api } from '../../../convex/_generated/api'
 import { KindIcon, kindName } from '@/components/body/kinds'
-import { useDayStarts } from '@/components/track/useDayStarts'
+import { useQuestOnReach } from '@/components/track/QuestComplete'
+import { TargetEditor, useWeeklyProgress } from '@/components/track/Weekly'
 import { BODY_ORDER } from '@/lib/body/log-groups'
-import { addDays, startOfWeek } from '@/lib/weeks'
 
 /* This week against what he means to do (26 Sep: "we lack a bit of emotion
    or motivation"). A kind with a weekly target — a goal row,
@@ -30,27 +27,10 @@ export const WEEK_KINDS: ReadonlyArray<WeekKind> = BODY_ORDER.map(
   }),
 )
 
-/** Monday this week to Monday next, local — moving on at midnight. */
-export function useWeekRange(): { start: number; end: number } {
-  const today = useDayStarts(1).at(-1) as number
-  const start = startOfWeek(new Date(today))
-  return { start: start.getTime(), end: addDays(start, 7).getTime() }
-}
-
-/** This week's count of one kind and its target, if it has one. */
+/** This week's count of one Body kind and its target, if it has one. */
 export function useWeekProgress(category: string) {
-  const { start, end } = useWeekRange()
   const shape = WEEK_KINDS.find((k) => k.category === category)
-  const count = useQuery(api.aggregate.kindCount, {
-    kind: shape?.kind ?? 'workout',
-    area: 'body',
-    category,
-    start,
-    end,
-  })
-  const targets = useQuery(api.goals.weeklyTargets, {})
-  const target = targets?.find((t) => t.category === category)?.targetValue
-  return { count, target }
+  return useWeeklyProgress('body', shape?.kind ?? 'workout', category)
 }
 
 export function WeekChips() {
@@ -68,13 +48,24 @@ function WeekChip({ category, delay }: { category: string; delay: number }) {
   const [editing, setEditing] = useState(false)
   const met = target !== undefined && count !== undefined && count >= target
   const name = kindName(category)
+  useQuestOnReach(count, target, () => ({
+    title: name,
+    line: `${count} of ${target} this week`,
+    area: 'body',
+    icon: <KindIcon kind={category} className="size-6" />,
+  }))
 
   if (editing) {
     return (
       <TargetEditor
+        area="body"
         category={category}
+        name={name}
+        icon={<KindIcon kind={category} className="size-4" />}
         current={target}
+        suggested={category === 'stretch' ? 7 : 3}
         onDone={() => setEditing(false)}
+        className="col-span-5"
       />
     )
   }
@@ -90,7 +81,7 @@ function WeekChip({ category, delay }: { category: string; delay: number }) {
       className={`motion-land flex min-w-0 flex-col gap-1.5 rounded-[14px] px-1.5 py-2 text-left ring-1 transition-colors ring-inset sm:p-2.5 ${
         met
           ? 'bg-state-good/10 ring-state-good/40'
-          : 'bg-background/30 ring-lift/10 hover:ring-lift/25'
+          : 'bg-background/30 ring-lav-400/15 hover:bg-lav-400/8 hover:ring-lav-400/40'
       }`}
     >
       <span className="flex items-center justify-between gap-1">
@@ -132,82 +123,6 @@ function WeekChip({ category, delay }: { category: string; delay: number }) {
         {name}
       </span>
     </button>
-  )
-}
-
-/* One number, stepped: how many a week. Clear drops the goal. */
-function TargetEditor({
-  category,
-  current,
-  onDone,
-}: {
-  category: string
-  current: number | undefined
-  onDone: () => void
-}) {
-  const set = useMutation(api.goals.setWeeklyTarget)
-  const clear = useMutation(api.goals.clearWeeklyTarget)
-  const [n, setN] = useState(current ?? (category === 'stretch' ? 7 : 3))
-  const step =
-    'motion-press grid size-6 place-items-center rounded-full text-ink-300 ring-1 ring-lift/15 ring-inset hover:text-foreground'
-  return (
-    <div className="motion-pop col-span-5 flex flex-wrap items-center gap-2 rounded-[14px] bg-background/40 p-2.5 ring-1 ring-lift/20 ring-inset">
-      <span className="text-area">
-        <KindIcon kind={category} className="size-4" />
-      </span>
-      <span className="text-[13px] text-ink-200">
-        {kindName(category)} a week
-      </span>
-      <span className="ml-auto flex items-center gap-2">
-        <button
-          type="button"
-          aria-label="One fewer"
-          onClick={() => setN((v) => Math.max(1, v - 1))}
-          className={step}
-        >
-          <Minus className="size-3" />
-        </button>
-        <span className="w-5 text-center font-mono text-[16px] text-foreground">
-          {n}
-        </span>
-        <button
-          type="button"
-          aria-label="One more"
-          onClick={() => setN((v) => Math.min(14, v + 1))}
-          className={step}
-        >
-          <Plus className="size-3" />
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            void set({ category, targetValue: n }).then(onDone)
-          }}
-          className="motion-press rounded-full bg-(--area) px-3 py-1 text-[12.5px] font-medium text-background"
-        >
-          Set
-        </button>
-        {current !== undefined ? (
-          <button
-            type="button"
-            onClick={() => {
-              void clear({ category }).then(onDone)
-            }}
-            className="motion-press rounded-full px-2 py-1 text-[12px] text-ink-400 hover:text-state-danger"
-          >
-            Clear
-          </button>
-        ) : null}
-        <button
-          type="button"
-          aria-label="Cancel"
-          onClick={onDone}
-          className="motion-press grid size-6 place-items-center rounded-full text-ink-500 hover:text-foreground"
-        >
-          <X className="size-3.5" />
-        </button>
-      </span>
-    </div>
   )
 }
 

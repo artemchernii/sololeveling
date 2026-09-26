@@ -54,8 +54,8 @@ export function DidButton({
           onClick={press}
           className={`motion-press group relative flex min-h-[92px] flex-col items-start justify-between gap-2 overflow-visible rounded-[18px] p-3 text-left sm:p-4 ring-1 transition-colors ring-inset ${
             done
-              ? 'bg-(--area)/10 text-area ring-(--area)/45'
-              : 'bg-lift/[0.04] text-ink-200 ring-lift/12 hover:bg-(--area)/10 hover:text-area hover:ring-(--area)/40'
+              ? 'bg-lav-400/10 text-foreground ring-lav-400/45 shadow-[0_0_22px_-10px_var(--system-shine)]'
+              : 'bg-lift/[0.04] text-ink-200 ring-lav-400/15 hover:bg-lav-400/8 hover:text-foreground hover:ring-lav-400/45'
           }`}
         >
           <span className="flex w-full items-center justify-between gap-2">
@@ -72,7 +72,7 @@ export function DidButton({
             {done ? (
               <span
                 key={today}
-                className="motion-pop font-mono text-[20px] leading-none font-light"
+                className="motion-pop font-mono text-[20px] leading-none font-light text-lav-400"
               >
                 ×{today}
               </span>
@@ -108,8 +108,8 @@ export function DidButton({
         aria-label={`${label}${done ? ` — ${today} today` : ''}`}
         className={`motion-press relative inline-flex h-7 min-w-[64px] items-center justify-center gap-1 rounded-full px-3 font-mono text-[10.5px] tracking-[0.12em] uppercase ring-1 transition-colors ring-inset ${
           done
-            ? 'bg-(--area)/20 text-area ring-(--area)/55'
-            : 'text-ink-400 ring-lift/15 hover:bg-(--area)/10 hover:text-area hover:ring-(--area)/40'
+            ? 'bg-lav-400/15 text-lav-400 ring-lav-400/50'
+            : 'text-ink-400 ring-lift/15 hover:bg-lav-400/8 hover:text-lav-400 hover:ring-lav-400/40'
         }`}
       >
         {done ? (

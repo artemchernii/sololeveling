@@ -112,7 +112,8 @@ export function Areas() {
         </ul>
 
         <p className="text-[12.5px] text-ink-600">
-          Tick Language and the area gets its own tab on the Languages page.
+          Press an area&rsquo;s dot to change its colour, make it bold, or mark
+          it as a language you&rsquo;re learning.
         </p>
 
         <form
@@ -200,6 +201,9 @@ function AreaRow({
      storm for a value nobody reads until you let go. */
   const [hue, setLocalHue] = useState(area.hue)
   const [retiring, setRetiring] = useState(false)
+  const [picking, setPicking] = useState(false)
+  const setBold = useMutation(api.areas.setBold)
+  const setSilver = useMutation(api.areas.setSilver)
 
   function run(work: Promise<unknown>) {
     onError(null)
@@ -213,113 +217,232 @@ function AreaRow({
     run(reorder({ slugs }))
   }
 
+  function pickHue(next: number) {
+    setLocalHue(next)
+    if (next !== area.hue) run(setHue({ slug: area.slug, hue: next }))
+  }
+
   return (
     <li
       style={areaVars(area.slug)}
-      className="flex items-center gap-3 rounded-[10px] bg-lift/[0.04] px-3 py-2"
+      className="flex flex-col gap-2 rounded-[10px] bg-lift/[0.04] px-3 py-2"
     >
-      <span
-        className="size-2.5 shrink-0 rounded-full bg-(--area)"
-        aria-hidden
-      />
-      <input
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        onBlur={() => {
-          if (label.trim() === area.label) return
-          run(rename({ slug: area.slug, label }))
-        }}
-        aria-label={`Name of the ${area.label} area`}
-        className="min-w-0 flex-1 bg-transparent text-[12.5px] text-foreground outline-none"
-      />
-      <input
-        type="range"
-        min={0}
-        max={359}
-        value={hue}
-        aria-label={`Colour of the ${area.label} area`}
-        onChange={(e) => setLocalHue(Number(e.target.value))}
-        onPointerUp={() => {
-          if (hue === area.hue) return
-          /* The accent's band is not a colour an area may have. Snap back and
-             say so, rather than send a hue the mutation will refuse. */
-          if (hue >= ACCENT_FROM && hue <= ACCENT_TO) {
-            setLocalHue(area.hue)
-            onError(
-              'That colour is the one reserved for live and focus. Pick another.',
-            )
-            return
-          }
-          run(setHue({ slug: area.slug, hue }))
-        }}
-        className="w-20 shrink-0 accent-(--area)"
-      />
-      <button
-        type="button"
-        aria-pressed={area.track === 'language'}
-        aria-label={
-          area.track === 'language'
-            ? `${area.label} has its own tab on Languages — stop`
-            : `Give ${area.label} its own tab on Languages`
-        }
-        onClick={() =>
-          run(
-            setTrack({
-              slug: area.slug,
-              track: area.track === 'language' ? null : 'language',
-            }),
-          )
-        }
-        className={`label-caps motion-press shrink-0 transition-colors ${
-          area.track === 'language'
-            ? 'text-lav-300'
-            : 'text-ink-600 hover:text-ink-300'
-        }`}
-      >
-        Language
-      </button>
-      <button
-        type="button"
-        disabled={first}
-        onClick={() => move(-1)}
-        className="motion-press text-ink-600 hover:text-ink-300 disabled:opacity-25"
-      >
-        <ChevronUp className="size-4" aria-hidden />
-        <span className="sr-only">Move {area.label} up</span>
-      </button>
-      <button
-        type="button"
-        disabled={last}
-        onClick={() => move(1)}
-        className="motion-press text-ink-600 hover:text-ink-300 disabled:opacity-25"
-      >
-        <ChevronDown className="size-4" aria-hidden />
-        <span className="sr-only">Move {area.label} down</span>
-      </button>
-      {retiring ? (
-        <Retiring
-          area={area}
-          live={live}
-          onCancel={() => setRetiring(false)}
-          onRetire={(replacedBy) => {
-            setRetiring(false)
-            run(retire({ slug: area.slug, replacedBy }))
-          }}
-          onDelete={() => {
-            setRetiring(false)
-            run(remove({ slug: area.slug }))
-          }}
-        />
-      ) : (
+      <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => setRetiring(true)}
-          className="label-caps motion-press shrink-0 text-ink-600 hover:text-ink-300"
+          onClick={() => setPicking((p) => !p)}
+          aria-expanded={picking}
+          aria-label={`Colour of the ${area.label} area`}
+          title="Change colour"
+          className={`motion-press size-5 shrink-0 rounded-full bg-(--area) ring-offset-2 ring-offset-background transition-shadow hover:ring-2 hover:ring-(--area)/60 ${
+            picking ? 'ring-2 ring-(--area)' : ''
+          }`}
+        />
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onBlur={() => {
+            if (label.trim() === area.label) return
+            run(rename({ slug: area.slug, label }))
+          }}
+          aria-label={`Name of the ${area.label} area`}
+          className="min-w-0 flex-1 bg-transparent text-[12.5px] text-foreground outline-none"
+        />
+        {area.silver ? (
+          <span className="label-caps shrink-0 text-area">silver</span>
+        ) : area.bold ? (
+          <span className="label-caps shrink-0 text-area">bold</span>
+        ) : null}
+        {area.track === 'language' ? (
+          <span
+            title="Has its own tab on the Languages page"
+            className="label-caps shrink-0 text-lav-300"
+          >
+            language tab
+          </span>
+        ) : null}
+        <button
+          type="button"
+          disabled={first}
+          onClick={() => move(-1)}
+          className="motion-press text-ink-600 hover:text-ink-300 disabled:opacity-25"
         >
-          Retire
+          <ChevronUp className="size-4" aria-hidden />
+          <span className="sr-only">Move {area.label} up</span>
         </button>
-      )}
+        <button
+          type="button"
+          disabled={last}
+          onClick={() => move(1)}
+          className="motion-press text-ink-600 hover:text-ink-300 disabled:opacity-25"
+        >
+          <ChevronDown className="size-4" aria-hidden />
+          <span className="sr-only">Move {area.label} down</span>
+        </button>
+        {retiring ? (
+          <Retiring
+            area={area}
+            live={live}
+            onCancel={() => setRetiring(false)}
+            onRetire={(replacedBy) => {
+              setRetiring(false)
+              run(retire({ slug: area.slug, replacedBy }))
+            }}
+            onDelete={() => {
+              setRetiring(false)
+              run(remove({ slug: area.slug }))
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setRetiring(true)}
+            className="label-caps motion-press shrink-0 text-ink-600 hover:text-ink-300"
+          >
+            Retire
+          </button>
+        )}
+      </div>
+      {picking ? (
+        <ColourPicker
+          hue={hue}
+          bold={area.bold === true}
+          silver={area.silver === true}
+          onHue={pickHue}
+          onBold={(bold) => run(setBold({ slug: area.slug, bold }))}
+          onSilver={(silver) => run(setSilver({ slug: area.slug, silver }))}
+          language={area.track === 'language'}
+          onLanguage={(on) =>
+            run(setTrack({ slug: area.slug, track: on ? 'language' : null }))
+          }
+          onSlide={setLocalHue}
+          onRelease={() => {
+            if (hue >= ACCENT_FROM && hue <= ACCENT_TO) {
+              setLocalHue(area.hue)
+              onError(
+                'That colour is the one reserved for live and focus. Pick another.',
+              )
+              return
+            }
+            pickHue(hue)
+          }}
+        />
+      ) : null}
     </li>
+  )
+}
+
+/* Colour, as colours (25 Sep): "color picker is not that good". A row of
+   real swatches drawn in the area's own lightness and chroma — soft or
+   bold — so what you press is what you get, then a slider for anything in
+   between, then BOLD: the deep, saturated pair instead of the shared soft
+   one. The accent's band (live and focus) has no swatch and is refused on
+   the slider. */
+const SWATCHES = [0, 20, 45, 70, 95, 125, 150, 180, 205, 230, 250, 320, 345]
+
+function ColourPicker({
+  hue,
+  bold,
+  silver,
+  onHue,
+  onBold,
+  onSilver,
+  onSlide,
+  onRelease,
+  language,
+  onLanguage,
+}: {
+  hue: number
+  bold: boolean
+  silver: boolean
+  onHue: (hue: number) => void
+  onBold: (bold: boolean) => void
+  onSilver: (silver: boolean) => void
+  onSlide: (hue: number) => void
+  onRelease: () => void
+  language: boolean
+  onLanguage: (on: boolean) => void
+}) {
+  const pair = bold
+    ? 'var(--area-bold-l) var(--area-bold-c)'
+    : 'var(--area-l) var(--area-c)'
+  return (
+    <div className="motion-arrive flex flex-col gap-3 rounded-[10px] bg-background/40 p-3 ring-1 ring-lift/10 ring-inset">
+      <div className="flex flex-wrap gap-2">
+        {SWATCHES.map((h) => (
+          <button
+            key={h}
+            type="button"
+            onClick={() => onHue(h)}
+            aria-label={`Hue ${h}`}
+            aria-pressed={h === hue}
+            style={{ background: `oklch(${pair} ${h})` }}
+            className={`motion-press size-8 rounded-[10px] transition-transform hover:scale-110 ${
+              h === hue
+                ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background'
+                : ''
+            }`}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          type="range"
+          min={0}
+          max={359}
+          value={hue}
+          aria-label="Fine-tune the hue"
+          onChange={(e) => onSlide(Number(e.target.value))}
+          onPointerUp={onRelease}
+          onKeyUp={onRelease}
+          style={{
+            background: `linear-gradient(to right, ${Array.from(
+              { length: 13 },
+              (_, i) => `oklch(${pair} ${i * 30})`,
+            ).join(', ')})`,
+          }}
+          className="h-2 min-w-40 flex-1 cursor-pointer appearance-none rounded-full accent-(--area)"
+        />
+        <button
+          type="button"
+          onClick={() => onBold(!bold)}
+          aria-pressed={bold}
+          className={`motion-press rounded-full px-3 py-1 font-mono text-[11px] font-semibold tracking-[0.14em] uppercase ring-1 transition-colors ring-inset ${
+            bold
+              ? 'bg-(--area) text-background ring-(--area)'
+              : 'text-ink-400 ring-lift/20 hover:text-foreground'
+          }`}
+        >
+          Bold
+        </button>
+        <button
+          type="button"
+          onClick={() => onSilver(!silver)}
+          aria-pressed={silver}
+          className={`motion-press rounded-full px-3 py-1 font-mono text-[11px] font-semibold tracking-[0.14em] uppercase ring-1 transition-colors ring-inset ${
+            silver
+              ? 'bg-[oklch(var(--area-silver-l)_var(--area-silver-c)_var(--area-silver-h))] text-background ring-transparent'
+              : 'text-ink-400 ring-lift/20 hover:text-foreground'
+          }`}
+        >
+          Silver
+        </button>
+      </div>
+      <span className="font-mono text-[10.5px] text-ink-500">
+        Bold = deep and saturated. Soft = the calm tone every area shares.
+        Silver = no hue, a cool light grey (wins over the rest).
+      </span>
+      <label className="flex cursor-pointer items-center gap-2.5 border-t border-lift/[0.08] pt-3 text-[12.5px] text-ink-300">
+        <input
+          type="checkbox"
+          checked={language}
+          onChange={(e) => onLanguage(e.target.checked)}
+          className="size-4 accent-(--area)"
+        />
+        This is a language I&rsquo;m learning — give it its own tab on the
+        Languages page
+      </label>
+    </div>
   )
 }
 

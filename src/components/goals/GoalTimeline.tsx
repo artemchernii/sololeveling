@@ -174,8 +174,7 @@ export function GoalTimeline({
       {carry?.mode === 'pick' ? (
         <p className="motion-arrive mt-2 flex items-center gap-2 text-[12.5px] text-ink-300">
           <span className="min-w-0 truncate">
-            Tap a <span className="text-(--area)">+</span> to place “
-            {carry.title}”
+            Tap a <span className="text-area">+</span> to place “{carry.title}”
           </span>
           <button
             type="button"
@@ -476,7 +475,7 @@ function Line({
    press deepen the tint; a task in hand lights every + brighter, and the
    one under it grows. */
 const addButton =
-  'group motion-press grid size-[20px] place-items-center rounded-full bg-[color-mix(in_oklab,var(--area)_14%,var(--background))] text-(--area) shadow-[0_0_14px_-4px_var(--area)] ring-1 ring-(--area)/45 ring-inset transition-[scale,box-shadow,background-color] hover:bg-[color-mix(in_oklab,var(--area)_26%,var(--background))] hover:shadow-[0_0_18px_-3px_var(--area)] active:bg-[color-mix(in_oklab,var(--area)_26%,var(--background))] focus-visible:ring-(--area) data-lit:shadow-[0_0_0_2px_color-mix(in_oklab,var(--area)_45%,transparent),0_0_18px_-2px_var(--area)] data-hot:scale-150'
+  'group motion-press grid size-[20px] place-items-center rounded-full bg-[color-mix(in_oklab,var(--area)_14%,var(--background))] text-area shadow-[0_0_14px_-4px_var(--area)] ring-1 ring-(--area)/45 ring-inset transition-[scale,box-shadow,background-color] hover:bg-[color-mix(in_oklab,var(--area)_26%,var(--background))] hover:shadow-[0_0_18px_-3px_var(--area)] active:bg-[color-mix(in_oklab,var(--area)_26%,var(--background))] focus-visible:ring-(--area) data-lit:shadow-[0_0_0_2px_color-mix(in_oklab,var(--area)_45%,transparent),0_0_18px_-2px_var(--area)] data-hot:scale-150'
 
 /* The + and, while a pointer is on it, a comet of the goal's colour turning
    round it (styles.css add-ring) as the sign turns a quarter. Hover only:
@@ -667,6 +666,8 @@ function GoalBurst() {
       width: r.width,
       height: r.height,
       ['--area' as string]: getComputedStyle(dot).getPropertyValue('--area'),
+      ['--area-ink' as string]:
+        getComputedStyle(dot).getPropertyValue('--area-ink'),
     })
   }, [])
   return (
@@ -756,7 +757,7 @@ function Dot({
         className={`${base} transition-colors ${
           reaching
             ? 'bg-(--area) text-background shadow-[0_0_18px_var(--area)]'
-            : 'bg-background text-(--area) ring-1 ring-(--area)/50'
+            : 'bg-background text-area ring-1 ring-(--area)/50'
         }`}
       >
         ◆
@@ -1173,7 +1174,7 @@ function EditStep({
         onClick={() => setReachedDraft((r) => !r)}
         className={`motion-press flex items-center gap-2 self-start rounded-full px-2.5 py-1 text-[12px] ring-1 ${
           reached
-            ? 'bg-(--area)/15 text-(--area) ring-(--area)/45'
+            ? 'bg-(--area)/15 text-area ring-(--area)/45'
             : 'text-ink-500 ring-lift/12 hover:text-ink-200'
         }`}
       >

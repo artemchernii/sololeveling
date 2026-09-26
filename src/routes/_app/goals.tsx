@@ -21,8 +21,11 @@ function Goals() {
   const arrived = useArrived(goals)
 
   /* A monthly target is a goal row too (goals.setTileTarget), but it is a
-     number on a Today tile, not a thing walked towards: it stays there. */
-  const longTerm = (goals ?? []).filter((g) => g.tile === undefined)
+     number on a Today tile, not a thing walked towards: it stays there. So
+     does a weekly Body target (goals.setWeeklyTarget), on the Body hero. */
+  const longTerm = (goals ?? []).filter(
+    (g) => g.tile === undefined && g.weekly === undefined,
+  )
 
   return (
     <div className="flex flex-col gap-[18px]">

@@ -682,6 +682,7 @@ export function WeekGrid({
                         ? areaVars(item.area)
                         : ({
                             '--area': 'var(--color-neutral-400)',
+                            '--area-ink': 'var(--color-neutral-400)',
                           } as React.CSSProperties)),
                     }}
                   >

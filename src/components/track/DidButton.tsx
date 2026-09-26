@@ -13,7 +13,9 @@ import { Sparks } from '@/components/track/Sparks'
    back from aggregate.ts, never a number this button keeps itself.
 
    A mis-tap is undone for a few seconds right where it happened. After that
-   the row is in Recent, with its own ×. */
+   the row is in Recent, with its own ×. Every tap in that window can be
+   taken back, newest first (26 Sep: three quick taps offered to undo only
+   the last); the ×N beside it counts down as they go, read back as ever. */
 
 const UNDO_MS = 5000
 
@@ -34,32 +36,12 @@ export function DidButton({
   /** A second line under a big button's label — "50 min". */
   sub?: string
 }) {
-  const remove = useMutation(api.logs.remove)
   const [burst, setBurst] = useState(0)
-  const [undo, setUndo] = useState<Id<'logs'> | null>(null)
-  const [failed, setFailed] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  useEffect(() => () => clearTimeout(timer.current), [])
+  const { press: write, takeBack, canUndo, failed } = useUndoWindow()
 
   function press() {
     setBurst((n) => n + 1)
-    setFailed(false)
-    onDid().then(
-      (logId) => {
-        setUndo(logId)
-        clearTimeout(timer.current)
-        timer.current = setTimeout(() => setUndo(null), UNDO_MS)
-      },
-      () => setFailed(true),
-    )
-  }
-
-  function takeBack() {
-    if (undo === null) return
-    const logId = undo
-    setUndo(null)
-    clearTimeout(timer.current)
-    void remove({ logId })
+    write(onDid)
   }
 
   const done = (today ?? 0) > 0
@@ -72,14 +54,14 @@ export function DidButton({
           onClick={press}
           className={`motion-press group relative flex min-h-[92px] flex-col items-start justify-between gap-2 overflow-visible rounded-[18px] p-3 text-left sm:p-4 ring-1 transition-colors ring-inset ${
             done
-              ? 'bg-(--area)/18 text-(--area) ring-(--area)/55 shadow-[0_0_24px_-6px_var(--area)]'
-              : 'bg-lift/[0.04] text-ink-200 ring-lift/12 hover:bg-(--area)/10 hover:text-(--area) hover:ring-(--area)/40'
+              ? 'bg-(--area)/10 text-area ring-(--area)/45'
+              : 'bg-lift/[0.04] text-ink-200 ring-lift/12 hover:bg-(--area)/10 hover:text-area hover:ring-(--area)/40'
           }`}
         >
           <span className="flex w-full items-center justify-between gap-2">
             {/* The icon stays once it is done (25 Sep: "after I log once we
                 never see the icons again") — the tick joins it as a badge. */}
-            <span className="relative grid size-8 place-items-center rounded-full bg-(--area)/15 text-(--area)">
+            <span className="relative grid size-8 place-items-center rounded-full bg-(--area)/15 text-area">
               {icon}
               {done ? (
                 <span className="motion-pop absolute -right-1 -bottom-1 grid size-4 place-items-center rounded-full bg-(--area) text-background ring-2 ring-background">
@@ -111,7 +93,7 @@ export function DidButton({
         {/* Over the button's corner rather than under it, so the row below
             does not jump while the undo is offered. */}
         <span className="absolute right-3 bottom-3">
-          <UndoOrError undo={undo !== null} failed={failed} onUndo={takeBack} />
+          <UndoOrError undo={canUndo} failed={failed} onUndo={takeBack} />
         </span>
       </div>
     )
@@ -119,15 +101,15 @@ export function DidButton({
 
   return (
     <span className="flex shrink-0 items-center gap-1.5">
-      <UndoOrError undo={undo !== null} failed={failed} onUndo={takeBack} />
+      <UndoOrError undo={canUndo} failed={failed} onUndo={takeBack} />
       <button
         type="button"
         onClick={press}
         aria-label={`${label}${done ? ` — ${today} today` : ''}`}
         className={`motion-press relative inline-flex h-7 min-w-[64px] items-center justify-center gap-1 rounded-full px-3 font-mono text-[10.5px] tracking-[0.12em] uppercase ring-1 transition-colors ring-inset ${
           done
-            ? 'bg-(--area)/20 text-(--area) ring-(--area)/55'
-            : 'text-ink-400 ring-lift/15 hover:bg-(--area)/10 hover:text-(--area) hover:ring-(--area)/40'
+            ? 'bg-(--area)/20 text-area ring-(--area)/55'
+            : 'text-ink-400 ring-lift/15 hover:bg-(--area)/10 hover:text-area hover:ring-(--area)/40'
         }`}
       >
         {done ? (
@@ -146,7 +128,49 @@ export function DidButton({
   )
 }
 
-function UndoOrError({
+/**
+ * The few seconds after a one-tap write when it can be taken back. Every
+ * write in the window stacks, and Undo takes them back newest first — a
+ * group (DID ALL) as one step, in one `removeMany`.
+ */
+export function useUndoWindow(ms: number = UNDO_MS) {
+  const removeMany = useMutation(api.logs.removeMany)
+  /* This control's own writes still in the window, oldest first. */
+  const [stack, setStack] = useState<Array<Array<Id<'logs'>>>>([])
+  const [failed, setFailed] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(timer.current), [])
+
+  function restartWindow() {
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => setStack([]), ms)
+  }
+
+  function press(write: () => Promise<Id<'logs'> | Array<Id<'logs'>>>) {
+    setFailed(false)
+    write().then(
+      (written) => {
+        const group = Array.isArray(written) ? written : [written]
+        if (group.length === 0) return
+        setStack((s) => [...s, group])
+        restartWindow()
+      },
+      () => setFailed(true),
+    )
+  }
+
+  function takeBack() {
+    const group = stack.at(-1)
+    if (group === undefined) return
+    setStack(stack.slice(0, -1))
+    restartWindow()
+    void removeMany({ logIds: group })
+  }
+
+  return { press, takeBack, canUndo: stack.length > 0, failed }
+}
+
+export function UndoOrError({
   undo,
   failed,
   onUndo,

@@ -28,7 +28,7 @@ export function AddDrill({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="motion-press inline-flex items-center gap-1.5 self-start rounded-full px-2 py-1 font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase transition-colors hover:bg-(--area)/10 hover:text-(--area)"
+        className="motion-press inline-flex items-center gap-1.5 self-start rounded-full px-2 py-1 font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase transition-colors hover:bg-(--area)/10 hover:text-area"
       >
         <Plus className="size-3" />
         {placeholder}
@@ -69,7 +69,7 @@ export function AddDrill({
       <button
         type="submit"
         aria-label="Add"
-        className="motion-press grid size-8 shrink-0 place-items-center rounded-[10px] bg-(--area)/15 text-(--area) ring-1 ring-(--area)/45 ring-inset"
+        className="motion-press grid size-8 shrink-0 place-items-center rounded-[10px] bg-(--area)/15 text-area ring-1 ring-(--area)/45 ring-inset"
       >
         <Plus className="size-4" />
       </button>

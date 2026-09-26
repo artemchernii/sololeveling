@@ -130,6 +130,15 @@ export default defineSchema({
     /* 0–359. The theme owns lightness and chroma (tokens.css item 5), so this
        number is the whole of an area's colour. */
     hue: v.number(),
+    /* Bold (25 Sep): the hue at the theme's deep, saturated pair
+       (--area-bold-l/-c) instead of the soft one every area shares. Artem
+       wanted Body "more brutal"; one area may be louder because he said so,
+       not because its hue happens to be brighter. */
+    bold: v.optional(v.boolean()),
+    /* Silver (26 Sep): no hue at all — the theme's near-colourless pair
+       (--area-silver-l/-c/-h). Artem, on Body in bold crimson: "lets try
+       silver instead". Wins over bold when both are set. */
+    silver: v.optional(v.boolean()),
     order: v.number(),
     /* Retired: gone from every picker, still painting the rows that carry it
        — a log is evidence and does not stop having happened. */
@@ -169,6 +178,12 @@ export default defineSchema({
        read against. One active goal per tile — goals.setTileTarget keeps
        it that way. */
     tile: v.optional(tileValidator),
+    /* Set only on a weekly target written from Body (26 Sep: "we lack a bit
+       of emotion or motivation"): the category it counts — `gym`,
+       `stretch`, `supplements` … — and `targetValue` is per Monday-to-
+       Sunday week, read against that category's Body logs. One active goal
+       per category — goals.setWeeklyTarget keeps it that way. */
+    weekly: v.optional(v.string()),
     /* When it was called reached or dropped (24 Sep), so the shelf at the
        bottom of Goals can say "reached Sep 24". Cleared on reopening. A
        goal closed before this field existed has none, and says so. */
@@ -176,6 +191,7 @@ export default defineSchema({
   })
     .index('by_owner_status', ['ownerId', 'status'])
     .index('by_owner_tile', ['ownerId', 'tile'])
+    .index('by_owner_weekly', ['ownerId', 'weekly'])
     .searchIndex('search_title', {
       searchField: 'title',
       filterFields: ['ownerId'],

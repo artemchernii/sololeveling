@@ -85,7 +85,7 @@ function MonthTileCard({
     >
       <div className="flex min-h-6 items-center gap-2">
         <div
-          className={`label-caps flex-1 truncate ${tile.area ? 'text-(--area)' : ''}`}
+          className={`label-caps flex-1 truncate ${tile.area ? 'text-area' : ''}`}
         >
           {tile.label}
         </div>
@@ -161,7 +161,7 @@ function MonthTileCard({
                 onClick={() => setEditing(true)}
                 className={`motion-press inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-sans text-[11.5px] ring-1 transition-colors ${
                   tile.area
-                    ? 'text-(--area) ring-(--area)/35 hover:bg-(--area)/10'
+                    ? 'text-area ring-(--area)/35 hover:bg-(--area)/10'
                     : 'text-ink-300 ring-lift/15 hover:bg-lift/[0.05]'
                 }`}
               >

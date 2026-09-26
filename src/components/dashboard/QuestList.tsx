@@ -453,7 +453,7 @@ function Slot({
   const tone = done
     ? 'text-ink-700'
     : area
-      ? 'text-(--area)'
+      ? 'text-area'
       : children
         ? 'text-ink-500'
         : 'text-ink-800'

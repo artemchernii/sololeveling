@@ -24,7 +24,7 @@ export function CategoryChip({
     <span
       className={`motion-press relative inline-flex w-[92px] shrink-0 items-center rounded-[4px] px-1.5 py-0.5 hover:brightness-125 ${
         category
-          ? 'bg-(--area)/12 text-(--area) ring-1 ring-(--area)/25 ring-inset'
+          ? 'bg-(--area)/12 text-area ring-1 ring-(--area)/25 ring-inset'
           : 'bg-state-warn/12 text-state-warn ring-1 ring-state-warn/30 ring-inset'
       }`}
     >

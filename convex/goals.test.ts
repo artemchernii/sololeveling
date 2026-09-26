@@ -278,3 +278,63 @@ describe('a closed goal is kept, dated, and can come back (24 Sep)', () => {
     ).rejects.toThrow(/No such goal/)
   })
 })
+
+describe('goals — a weekly target per Body kind', () => {
+  test('set, change on the same goal, read back, clear', async () => {
+    const t = as(ME)
+    const id = await t.mutation(api.goals.setWeeklyTarget, {
+      category: 'gym',
+      targetValue: 3,
+    })
+    const again = await t.mutation(api.goals.setWeeklyTarget, {
+      category: 'gym',
+      targetValue: 4,
+    })
+    expect(again).toBe(id)
+    await t.mutation(api.goals.setWeeklyTarget, {
+      category: 'stretch',
+      targetValue: 7,
+    })
+    const targets = await t.query(api.goals.weeklyTargets, {})
+    expect(targets.map((r) => [r.category, r.targetValue]).sort()).toEqual([
+      ['gym', 4],
+      ['stretch', 7],
+    ])
+    /* A real goal, so the Goals page shows it too. */
+    const goal = (await t.query(api.goals.listActive, {})).find(
+      (g) => g._id === id,
+    )
+    expect(goal).toMatchObject({ area: 'body', unit: 'sessions' })
+
+    await t.mutation(api.goals.clearWeeklyTarget, { category: 'gym' })
+    expect(
+      (await t.query(api.goals.weeklyTargets, {})).map((r) => r.category),
+    ).toEqual(['stretch'])
+  })
+
+  test('refused: a number out of range, a kind Body does not count', async () => {
+    const t = as(ME)
+    for (const targetValue of [0, 15, 2.5]) {
+      await expect(
+        t.mutation(api.goals.setWeeklyTarget, { category: 'gym', targetValue }),
+      ).rejects.toThrow('A weekly target is a whole number from 1 to 14.')
+    }
+    await expect(
+      t.mutation(api.goals.setWeeklyTarget, {
+        category: 'poker',
+        targetValue: 2,
+      }),
+    ).rejects.toThrow('No such Body kind')
+  })
+
+  test("another owner's target is not mine to read or clear", async () => {
+    const { mine, theirs } = twoOwners()
+    await mine.mutation(api.goals.setWeeklyTarget, {
+      category: 'gym',
+      targetValue: 3,
+    })
+    expect(await theirs.query(api.goals.weeklyTargets, {})).toEqual([])
+    await theirs.mutation(api.goals.clearWeeklyTarget, { category: 'gym' })
+    expect(await mine.query(api.goals.weeklyTargets, {})).toHaveLength(1)
+  })
+})

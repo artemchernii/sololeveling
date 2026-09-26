@@ -229,7 +229,7 @@ const VERBS: Array<Verb> = [
     /* One tick, not two: protein and creatine are taken together, so
        splitting them would record one habit twice (21 Sep, his call). A
        second supplement later is another category, not another kind. */
-    words: ['supp', 'supplements'],
+    words: ['supp', 'supplements', 'shake'],
     kind: 'intake',
     area: 'body',
     category: 'supplements',

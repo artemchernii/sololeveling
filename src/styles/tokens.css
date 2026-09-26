@@ -177,6 +177,20 @@
         more tokens each. */
   --area-l: 0.8;
   --area-c: 0.1;
+  /* Bold (25 Sep): the one exception to "no area louder than another",
+     his call — "I want to make [Body] more brutal". An area with `bold`
+     set takes this deep, saturated pair instead; its hue is still its own.
+     Deeper rather than brighter, so a bold red reads as blood, not as the
+     brighter --state-danger. */
+  --area-bold-l: 0.6;
+  --area-bold-c: 0.22;
+  /* Silver (26 Sep): the other way out of "no area louder than another" —
+     quieter, not louder. Artem found the bold crimson "hard to read" and
+     asked to try silver. A cool, near-colourless light grey, the same for
+     any area that takes it: its hue is set aside, so it is one colour. */
+  --area-silver-l: 0.86;
+  --area-silver-c: 0.014;
+  --area-silver-h: 250;
 
   /* 9. Note kinds (24 Sep). Artem: "hard to distinguish notes type by
         color. I would love to have diff types diff color." A kind is a
@@ -270,6 +284,12 @@
      hue reads on a milky ground. The hues themselves are rows, not here. */
   --area-l: 0.55;
   --area-c: 0.11;
+  --area-bold-l: 0.48;
+  --area-bold-c: 0.2;
+  /* Silver on a milky ground has to be darker to be seen at all. */
+  --area-silver-l: 0.5;
+  --area-silver-c: 0.014;
+  --area-silver-h: 250;
 
   /* Darker and a touch less saturated on a milky ground, where a bright
      red vibrates instead of alarming. */

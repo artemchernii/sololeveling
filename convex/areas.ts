@@ -305,6 +305,11 @@ export const addLanguage = mutation({
       order: areas.length,
       track: 'language',
       lang: language.code,
+      /* Silver (26 Sep): a language's colour is its flag and its photo.
+         A hue of its own sat beside the lavender frame and the green that
+         means "done" and read as a mess ("not organic"). A hue is still
+         one tap away in Settings. */
+      silver: true,
     })
     return slug
   },

@@ -29,6 +29,7 @@ describe('areas.addLanguage — + Add language, one tap', () => {
       label: 'German',
       track: 'language',
       lang: 'de',
+      silver: true,
     })
   })
 

@@ -6,6 +6,7 @@ import { Check, Minus, Plus, X } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import { KindIcon, kindName } from '@/components/body/kinds'
 import { useDayStarts } from '@/components/track/useDayStarts'
+import { BODY_ORDER } from '@/lib/body/log-groups'
 import { addDays, startOfWeek } from '@/lib/weeks'
 
 /* This week against what he means to do (26 Sep: "we lack a bit of emotion
@@ -21,13 +22,13 @@ type WeekKind = {
   kind: 'workout' | 'intake'
 }
 
-export const WEEK_KINDS: ReadonlyArray<WeekKind> = [
-  { category: 'stretch', kind: 'workout' },
-  { category: 'gym', kind: 'workout' },
-  { category: 'boxing', kind: 'workout' },
-  { category: 'hiking', kind: 'workout' },
-  { category: 'supplements', kind: 'intake' },
-]
+/* The same order History uses (BODY_ORDER). */
+export const WEEK_KINDS: ReadonlyArray<WeekKind> = BODY_ORDER.map(
+  (category) => ({
+    category,
+    kind: category === 'supplements' ? 'intake' : 'workout',
+  }),
+)
 
 /** Monday this week to Monday next, local — moving on at midnight. */
 export function useWeekRange(): { start: number; end: number } {

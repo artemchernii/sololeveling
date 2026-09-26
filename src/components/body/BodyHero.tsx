@@ -8,6 +8,7 @@ import { KindIcon, kindName } from '@/components/body/kinds'
 import { DidButton } from '@/components/track/DidButton'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { WeekChips } from '@/components/body/Week'
+import { BODY_ORDER } from '@/lib/body/log-groups'
 import { TrackPanel } from '@/components/track/TrackPanel'
 import { areaVars } from '@/lib/areas'
 import { KINDS, SESSION_LABEL } from '@/lib/body/library'
@@ -97,16 +98,27 @@ export function LastThirty() {
     end: dayStarts[dayStarts.length - 1] + 86_400_000,
     recentDays: RECENT_DAYS,
   })
-  /* Sessions and shakes only since 26 Sep — what History lists. */
-  const rows = result?.rows ?? []
+  /* Sessions and shakes only since 26 Sep — what History lists. Every
+     kind the hero shows, in its order (26 Sep: "make history same order"),
+     a kind with no rows at 0 — then any other word, and unsorted, after. */
+  const found = result?.rows ?? []
+  const rows = [
+    ...BODY_ORDER.map(
+      (category) =>
+        found.find((r) => r.category === category) ?? {
+          kind: category === 'supplements' ? 'intake' : 'workout',
+          category,
+          activeRecent: 0,
+        },
+    ),
+    ...found.filter(
+      (r) => r.category === null || !BODY_ORDER.includes(r.category),
+    ),
+  ]
   return (
     <div className="flex flex-col gap-2">
       <span className="label-caps">last {RECENT_DAYS} days</span>
-      {result === undefined ? null : rows.length === 0 ? (
-        <p className="text-[13px] text-ink-400">
-          Nothing in the last {RECENT_DAYS} days yet.
-        </p>
-      ) : (
+      {result === undefined ? null : (
         <div className="flex flex-wrap gap-1.5">
           {rows.map((row, i) => (
             <span

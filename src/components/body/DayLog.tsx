@@ -5,7 +5,8 @@ import { useState } from 'react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { KindIcon, KIND_LABELS } from '@/components/body/kinds'
+import { KindIcon, KIND_LABELS, kindName } from '@/components/body/kinds'
+import { groupByKind, splitSession } from '@/lib/body/log-groups'
 import { useSave } from '@/components/Saving'
 import { CategoryChip } from '@/components/track/CategoryChip'
 import { clock, whenLabel } from '@/lib/format'
@@ -108,116 +109,142 @@ export function DayLog({ day }: { day: number }) {
       {rows.length === 0 ? (
         <p className="text-[13px] text-ink-500">Nothing logged this day.</p>
       ) : (
-        <div className="flex flex-col">
-          {rows.map((row) => {
-            const category =
-              row.kind === 'weight' ? 'weight' : row.meta?.category
-            const on = picked.has(row._id)
-            return (
-              /* In select mode the whole row is the tick (26 Sep: "I
-                     click on item and select it, not only checkbox"), so
-                     the chip and the value turn to plain text there. */
-              <div
-                key={row._id}
-                role={selecting ? 'checkbox' : undefined}
-                aria-checked={selecting ? on : undefined}
-                aria-label={
-                  selecting
-                    ? `Select the ${row.meta?.category ?? row.kind} logged ${whenLabel(row.occurredAt)}`
-                    : undefined
-                }
-                tabIndex={selecting ? 0 : undefined}
-                onClick={selecting ? () => toggle([row._id], !on) : undefined}
-                onKeyDown={
-                  selecting
-                    ? (e) => {
-                        if (e.key === ' ' || e.key === 'Enter') {
-                          e.preventDefault()
-                          toggle([row._id], !on)
-                        }
-                      }
-                    : undefined
-                }
-                className={`motion-arrive group flex min-h-11 items-center gap-2.5 rounded-[12px] px-1.5 py-1 transition-colors ${
-                  selecting ? 'cursor-pointer select-none' : ''
-                } ${
-                  on
-                    ? 'bg-state-danger/10 ring-1 ring-state-danger/30 ring-inset'
-                    : 'hover:bg-lift/[0.04]'
-                }`}
-              >
-                {selecting ? (
-                  <span
-                    aria-hidden
-                    className={`grid size-5 shrink-0 place-items-center rounded-[6px] transition-colors ${
-                      on
-                        ? 'bg-state-danger text-background'
-                        : 'ring-1 ring-lift/25'
-                    }`}
-                  >
-                    {on ? <Check className="size-3" strokeWidth={3} /> : null}
-                  </span>
-                ) : null}
+        /* Grouped by kind, in the hero's order, each under its icon and
+           name (26 Sep: "hard to distinguish different types"); a
+           session's moves sit under its workout instead of after a dash. */
+        <div className="flex flex-col gap-3">
+          {groupByKind(rows).map((group) => (
+            <div key={group.key ?? 'unsorted'} className="flex flex-col gap-1">
+              <span className="flex items-center gap-2">
                 <span
-                  className={`grid size-7 shrink-0 place-items-center rounded-full ${
-                    category
-                      ? 'bg-(--area)/15 text-area'
-                      : 'bg-state-warn/15 text-state-warn'
+                  className={`grid size-6 shrink-0 place-items-center rounded-full ${
+                    group.key === null
+                      ? 'bg-state-warn/15 text-state-warn'
+                      : 'bg-(--area)/15 text-area'
                   }`}
                 >
-                  {row.kind === 'weight' ? (
+                  {group.key === 'weight' ? (
                     <Scale className="size-3.5" />
-                  ) : category ? (
-                    <KindIcon kind={category} className="size-3.5" />
-                  ) : (
+                  ) : group.key === null ? (
                     <CircleHelp className="size-3.5" />
+                  ) : (
+                    <KindIcon kind={group.key} className="size-3.5" />
                   )}
                 </span>
-                {row.kind === 'weight' || selecting ? (
-                  <span className="label-caps w-[92px] shrink-0 truncate">
-                    {row.kind === 'weight'
-                      ? 'weight'
-                      : category === undefined
-                        ? 'unsorted'
-                        : category in KIND_LABELS
-                          ? KIND_LABELS[category]
-                          : category}
-                  </span>
-                ) : (
-                  <CategoryChip
-                    category={row.meta?.category}
-                    options={row.kind === 'intake' ? ['supplements'] : options}
-                    labels={KIND_LABELS}
-                    onChange={(next) =>
-                      void setCategory({ logId: row._id, category: next })
-                    }
-                  />
-                )}
-                <span className="min-w-0 flex-1 truncate text-[13px] text-ink-200">
-                  {row.text ?? (row.kind === 'workout' ? 'session' : '')}
+                <span className="label-caps text-ink-300">
+                  {group.key === 'weight'
+                    ? 'weigh-in'
+                    : group.key === null
+                      ? 'unsorted — pick a type'
+                      : kindName(group.key)}
                 </span>
-                <EditableValue
-                  readOnly={selecting}
-                  logId={row._id}
-                  kind={row.kind}
-                  value={row.value}
-                  unit={row.unit}
-                />
-                <span className="shrink-0 font-mono text-[11px] text-ink-600">
-                  {clock(new Date(row.occurredAt))}
-                </span>
-                <button
-                  type="button"
-                  hidden={selecting}
-                  aria-label={`Remove the ${row.meta?.category ?? row.kind} logged ${whenLabel(row.occurredAt)}`}
-                  onClick={() => void removeLog({ logId: row._id })}
-                  className="motion-press grid size-5 shrink-0 place-items-center rounded-[6px] text-ink-700 opacity-0 transition-colors group-hover:opacity-100 hover:bg-state-danger/15 hover:text-state-danger focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
-                >
-                  <X className="size-3" />
-                </button>
+              </span>
+              <div className="ml-3 flex flex-col border-l border-lift/10 pl-2.5">
+                {group.rows.map((row) => {
+                  const on = picked.has(row._id)
+                  const { title, moves } = splitSession(
+                    row.text ??
+                      (row.kind === 'workout'
+                        ? 'session'
+                        : row.kind === 'weight'
+                          ? 'weight'
+                          : ''),
+                  )
+                  return (
+                    /* In select mode the whole row is the tick (26 Sep: "I
+                       click on item and select it, not only checkbox"). */
+                    <div
+                      key={row._id}
+                      role={selecting ? 'checkbox' : undefined}
+                      aria-checked={selecting ? on : undefined}
+                      aria-label={
+                        selecting
+                          ? `Select ${title} logged ${whenLabel(row.occurredAt)}`
+                          : undefined
+                      }
+                      tabIndex={selecting ? 0 : undefined}
+                      onClick={
+                        selecting ? () => toggle([row._id], !on) : undefined
+                      }
+                      onKeyDown={
+                        selecting
+                          ? (e) => {
+                              if (e.key === ' ' || e.key === 'Enter') {
+                                e.preventDefault()
+                                toggle([row._id], !on)
+                              }
+                            }
+                          : undefined
+                      }
+                      className={`motion-arrive group flex min-h-10 items-center gap-2.5 rounded-[10px] px-1.5 py-1.5 transition-colors ${
+                        selecting ? 'cursor-pointer select-none' : ''
+                      } ${
+                        on
+                          ? 'bg-state-danger/10 ring-1 ring-state-danger/30 ring-inset'
+                          : 'hover:bg-lift/[0.04]'
+                      }`}
+                    >
+                      {selecting ? (
+                        <span
+                          aria-hidden
+                          className={`grid size-5 shrink-0 place-items-center rounded-[6px] transition-colors ${
+                            on
+                              ? 'bg-state-danger text-background'
+                              : 'ring-1 ring-lift/25'
+                          }`}
+                        >
+                          {on ? (
+                            <Check className="size-3" strokeWidth={3} />
+                          ) : null}
+                        </span>
+                      ) : null}
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="text-[14px] leading-snug text-foreground first-letter:uppercase">
+                          {title}
+                        </span>
+                        {moves.length > 0 ? (
+                          <span className="text-[12.5px] leading-snug text-ink-400">
+                            {moves.join(' · ')}
+                          </span>
+                        ) : null}
+                      </span>
+                      {group.key === null && !selecting ? (
+                        <CategoryChip
+                          category={undefined}
+                          options={
+                            row.kind === 'intake' ? ['supplements'] : options
+                          }
+                          labels={KIND_LABELS}
+                          onChange={(next) =>
+                            void setCategory({ logId: row._id, category: next })
+                          }
+                        />
+                      ) : null}
+                      <EditableValue
+                        readOnly={selecting}
+                        logId={row._id}
+                        kind={row.kind}
+                        value={row.value}
+                        unit={row.unit}
+                      />
+                      <span className="shrink-0 font-mono text-[11px] text-ink-600">
+                        {clock(new Date(row.occurredAt))}
+                      </span>
+                      <button
+                        type="button"
+                        hidden={selecting}
+                        aria-label={`Remove ${title} logged ${whenLabel(row.occurredAt)}`}
+                        onClick={() => void removeLog({ logId: row._id })}
+                        className="motion-press grid size-5 shrink-0 place-items-center rounded-[6px] text-ink-700 opacity-0 transition-colors group-hover:opacity-100 hover:bg-state-danger/15 hover:text-state-danger focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
-            )
-          })}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -265,9 +292,9 @@ function EditableValue({
   const [text, setText] = useState(value === undefined ? '' : String(value))
   const saving = useSave()
 
-  if (value === undefined) {
-    return <span aria-hidden className="w-16 shrink-0" />
-  }
+  /* Nothing to show, nothing held open: the rows are grouped now, and an
+     empty column only squeezed the moves (26 Sep). */
+  if (value === undefined) return null
 
   /* Guarded and run the same way EditableMinutes does (ProjectStats.tsx): a
      non-finite or non-positive number is silently reset rather than sent —

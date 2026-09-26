@@ -9,6 +9,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Wallet,
   X,
 } from 'lucide-react'
 
@@ -636,11 +637,16 @@ function ImportReview({
   const [searching, setSearching] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [cash, setCash] = useState('')
+  const [keepCash, setKeepCash] = useState(true)
+  const today = useDayStarts(1).at(-1) as number
 
   /* The rows arrive once, when the reading lands; from then they are his
      to edit here. */
   useEffect(() => {
     if (imp.status !== 'ready') return
+    setCash(imp.cashEur === undefined ? '' : String(imp.cashEur))
+    setKeepCash(imp.cashEur !== undefined)
     setDrafts(
       imp.rows.map((r) => ({
         keep: true,
@@ -650,7 +656,7 @@ function ImportReview({
         price: r.priceEur === undefined ? '' : String(r.priceEur),
       })),
     )
-  }, [imp.status, imp.rows])
+  }, [imp.status, imp.rows, imp.cashEur])
 
   const set = (i: number, patch: Partial<Draft>) =>
     setDrafts((d) => d.map((x, j) => (j === i ? { ...x, ...patch } : x)))
@@ -659,7 +665,9 @@ function ImportReview({
   const num = (s: string) => Number(s.replace(',', '.'))
   const complete = (d: Draft) =>
     d.candidate !== null && num(d.shares) > 0 && num(d.price) > 0
-  const ready = kept.length > 0 && kept.every(complete)
+  const cashValue = num(cash)
+  const cashOk = !keepCash || (cash.trim() !== '' && cashValue >= 0)
+  const ready = (kept.length > 0 || keepCash) && kept.every(complete) && cashOk
 
   async function save() {
     setSaving(true)
@@ -668,6 +676,8 @@ function ImportReview({
       await confirm({
         importId: imp._id,
         occurredAt: Date.now(),
+        dayStart: today,
+        cashEur: keepCash ? cashValue : undefined,
         rows: kept.map((d) => ({
           candidate: d.candidate as Candidate,
           isin: d.isin,
@@ -710,9 +720,60 @@ function ImportReview({
           <p className="text-[12.5px] text-ink-400">
             Read by {imp.model ?? IMPORT_MODEL_NAME}
             {imp.readAt ? ` ${agoLabel(imp.readAt)}` : ''}. Check each ticker,
-            the shares and your average price — nothing is saved until you
-            confirm.
+            the shares and your average price. Confirming makes this what{' '}
+            <span className="text-ink-200">{accountName}</span> holds now — it
+            replaces what was there, so a position you sold simply goes.
           </p>
+          {/* The account's other half, off the same screen (26 Sep: "in
+              212 4k invested and 11k cash"). Kept, it becomes the free-cash
+              balance. The total the app states is shown beside it, read
+              off the screen and not added up here. */}
+          <div className="flex flex-wrap items-center gap-2 rounded-[14px] p-2.5 ring-1 ring-lav-400/25 ring-inset">
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={keepCash}
+              aria-label="Keep the free cash"
+              onClick={() => setKeepCash((k) => !k)}
+              className={`grid size-5 shrink-0 place-items-center rounded-[6px] ${
+                keepCash ? 'bg-lav-400 text-background' : 'ring-1 ring-lift/25'
+              }`}
+            >
+              {keepCash ? <Check className="size-3" strokeWidth={3} /> : null}
+            </button>
+            <Wallet className="size-4 text-area" />
+            <span className="flex-1 text-[13.5px] text-foreground">
+              free cash in {accountName}
+              {imp.cashEur === undefined ? (
+                <span className="ml-2 font-mono text-[10.5px] text-ink-500">
+                  not on the screenshot — type it
+                </span>
+              ) : null}
+            </span>
+            <label
+              className={`${FIELD} inline-flex w-36 items-center gap-1 ${
+                cashOk ? '' : 'ring-state-warn/50'
+              }`}
+            >
+              <span className="text-ink-400">€</span>
+              <input
+                inputMode="decimal"
+                value={cash}
+                onChange={(e) => {
+                  setCash(e.target.value)
+                  setKeepCash(true)
+                }}
+                placeholder="11000"
+                aria-label={`Free cash in ${accountName}`}
+                className="w-full bg-transparent focus:outline-none"
+              />
+            </label>
+            {imp.totalEur !== undefined ? (
+              <span className="w-full pl-7 font-mono text-[11px] text-ink-500">
+                the app states {euros(imp.totalEur)} in all
+              </span>
+            ) : null}
+          </div>
           <div className="flex flex-col gap-2">
             {imp.rows.map((row, i) => {
               const d = drafts[i] as Draft | undefined
@@ -846,10 +907,12 @@ function ImportReview({
               <Check className="size-3" />
               confirm {kept.length}{' '}
               {kept.length === 1 ? 'position' : 'positions'}
+              {keepCash ? ' + cash' : ''}
             </button>
-            {!ready && kept.length > 0 ? (
+            {!ready && (kept.length > 0 || keepCash) ? (
               <span className="font-mono text-[11px] text-state-warn">
                 each kept row needs a ticker, shares and a price
+                {keepCash ? ', and the cash an amount' : ''}
               </span>
             ) : null}
             {error ? (

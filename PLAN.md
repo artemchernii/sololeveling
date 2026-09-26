@@ -77,6 +77,12 @@ conditions. A sum that fails any of them is not a source-1 number:
   rate or a budget score each need their own yes. A limit he sets is a goal with a `targetValue`,
   so a bar against it is the ordinary §1 division.
 
+**Two more sums, same conditions (26 Sep, Finances F2/F4).** The balances total is a sum of each
+account's latest balance (source 2), euros only, always shown with the oldest reading in it — a
+total made partly of a month-old number must say so. A position's shares and what it cost are sums
+of its trade rows. A position's worth is shares × a stored price × a stored rate (source 4,
+composition). A gain, loss or return is still not shown: it needs its own yes.
+
 **A state read as a series (21 Sep, R6b).** Source 2 is the latest
 `stateSnapshots` row for a key; the weight line on Body plots all of them.
 That is the same source read as a series, not a fifth source, and it is

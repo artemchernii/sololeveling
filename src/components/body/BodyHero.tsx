@@ -1,14 +1,7 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import {
-  Check,
-  CircleHelp,
-  Pencil,
-  PersonStanding,
-  Scale,
-  X,
-} from 'lucide-react'
+import { BicepsFlexed, Check, CircleHelp, Pencil, Scale, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import { KindIcon, kindName } from '@/components/body/kinds'
@@ -70,7 +63,7 @@ export function BodyHero() {
       />
       <div className="relative flex items-center gap-3.5">
         <span className="motion-pop grid size-12 shrink-0 place-items-center rounded-[15px] bg-(--area)/15 text-area ring-1 ring-(--area)/35">
-          <PersonStanding className="size-6" strokeWidth={1.6} />
+          <BicepsFlexed className="size-6" strokeWidth={1.6} />
         </span>
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="text-[26px] leading-tight font-light tracking-tight text-foreground">

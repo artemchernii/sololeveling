@@ -3,9 +3,9 @@ import {
   Dumbbell,
   Footprints,
   Mountain,
-  PersonStanding,
   Sparkles,
   Swords,
+  Waves,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -17,7 +17,9 @@ import type { BodyKind } from '@/lib/body/library'
    because that is what the routines are for. */
 
 const ICONS: Record<string, LucideIcon> = {
-  stretch: PersonStanding,
+  /* Waves, not a stick figure (26 Sep: "a bit weird"): mobility is
+     smooth movement. */
+  stretch: Waves,
   gym: Dumbbell,
   boxing: Swords,
   hiking: Mountain,

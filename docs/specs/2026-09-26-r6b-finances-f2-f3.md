@@ -11,8 +11,12 @@ and PRs are never stacked.
   Activo, TR, 212 are typed in by him (nothing is seeded).
 - A balance is a **state** (source 2): a `stateSnapshots` row keyed
   `balance:<accountId>`, typed like a weigh-in; latest wins, history kept.
-- Broker balances are the **total the broker shows** (pick 1), so
-  investments are never added a second time.
+- ~~Broker balances are the total the broker shows (pick 1).~~ **Changed
+  26 Sep** ("we need to distinguish free cash and investments … in revolut
+  i have some cash and broker account with investments"): a balance is an
+  account's **free cash**, the money not in shares. Its investments are its
+  positions at stored prices. One account can hold both, and the hero shows
+  cash + investments with each half apart (`aggregate.worth`).
 - The total is a **sum of latest balances** (pick 2): euros only, shown
   with the oldest "as of" in it. Written into PLAN.md §1 beside the sum
   rule.

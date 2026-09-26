@@ -6,6 +6,7 @@ import { isEuroAmount } from '../src/lib/money'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
 import { query } from './_generated/server'
+import type { QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 
 /* PLAN.md §1: every number on screen comes from exactly one of four sources —
@@ -1202,7 +1203,8 @@ const ACCOUNT_ROWS = 50
 const TRADE_ROWS = 2000
 
 /**
- * What each live account holds, and the total (Finances F2).
+ * Each live account's FREE CASH, and the total (Finances F2) — money not
+ * in shares; what its positions are worth is `worth`'s other half.
  *
  * Each balance is source 2, the latest `balance:<id>` state. The total is
  * a sum of those latest states, allowed on 26 Sep on the sum rule's
@@ -1227,47 +1229,7 @@ export const balances = query({
     oldestAt: v.union(v.number(), v.null()),
     unread: v.number(),
   }),
-  handler: async (ctx) => {
-    const ownerId = await requireUser(ctx)
-    const accounts = (
-      await ctx.db
-        .query('accounts')
-        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
-        .take(ACCOUNT_ROWS)
-    ).filter((a) => a.retiredAt === undefined)
-
-    let cents = 0
-    let oldestAt: number | null = null
-    let unread = 0
-    const out = []
-    for (const account of accounts) {
-      const row = await ctx.db
-        .query('stateSnapshots')
-        .withIndex('by_owner_key_time', (q) =>
-          q.eq('ownerId', ownerId).eq('key', `balance:${account._id}`),
-        )
-        .order('desc')
-        .first()
-      const value = row?.value ?? null
-      if (row === null || value === null || row.unit !== 'eur') {
-        unread++
-      } else {
-        cents += Math.round(value * 100)
-        oldestAt =
-          oldestAt === null
-            ? row.recordedAt
-            : Math.min(oldestAt, row.recordedAt)
-      }
-      out.push({
-        accountId: account._id,
-        name: account.name,
-        kind: account.kind,
-        value,
-        recordedAt: row?.recordedAt ?? null,
-      })
-    }
-    return { accounts: out, total: cents / 100, oldestAt, unread }
-  },
+  handler: async (ctx) => await readBalances(ctx, await requireUser(ctx)),
 })
 
 /* Pence: London quotes in GBp, a hundredth of the pound the rate is for. */
@@ -1320,115 +1282,218 @@ export const positions = query({
     unvalued: v.number(),
     complete: v.boolean(),
   }),
-  handler: async (ctx) => {
-    const ownerId = await requireUser(ctx)
-    const trades = await ctx.db
-      .query('trades')
-      .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
-      .take(TRADE_ROWS)
+  handler: async (ctx) => await readPositions(ctx, await requireUser(ctx)),
+})
 
-    const held = new Map<
-      string,
-      {
-        accountId: Id<'accounts'>
-        instrumentId: Id<'instruments'>
-        shares: number
-        cents: number
-      }
-    >()
-    for (const t of trades) {
-      const key = `${t.accountId}:${t.instrumentId}`
-      const p = held.get(key) ?? {
-        accountId: t.accountId,
-        instrumentId: t.instrumentId,
-        shares: 0,
-        cents: 0,
-      }
-      const sign = t.side === 'buy' ? 1 : -1
-      p.shares += sign * t.shares
-      p.cents += sign * Math.round(t.shares * t.priceEur * 100)
-      held.set(key, p)
+async function readBalances(ctx: QueryCtx, ownerId: string) {
+  const accounts = (
+    await ctx.db
+      .query('accounts')
+      .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+      .take(ACCOUNT_ROWS)
+  ).filter((a) => a.retiredAt === undefined)
+
+  let cents = 0
+  let oldestAt: number | null = null
+  let unread = 0
+  const out = []
+  for (const account of accounts) {
+    const row = await ctx.db
+      .query('stateSnapshots')
+      .withIndex('by_owner_key_time', (q) =>
+        q.eq('ownerId', ownerId).eq('key', `balance:${account._id}`),
+      )
+      .order('desc')
+      .first()
+    const value = row?.value ?? null
+    if (row === null || value === null || row.unit !== 'eur') {
+      unread++
+    } else {
+      cents += Math.round(value * 100)
+      oldestAt =
+        oldestAt === null ? row.recordedAt : Math.min(oldestAt, row.recordedAt)
     }
+    out.push({
+      accountId: account._id,
+      name: account.name,
+      kind: account.kind,
+      value,
+      recordedAt: row?.recordedAt ?? null,
+    })
+  }
+  return { accounts: out, total: cents / 100, oldestAt, unread }
+}
 
-    const rates = new Map<string, { rate: number; asOf: number } | null>()
-    async function rateFor(base: string) {
-      if (base === 'EUR') return { rate: 1, asOf: null }
-      if (!rates.has(base)) {
-        const row = await ctx.db
-          .query('fxRates')
-          .withIndex('by_owner_currency_time', (q) =>
-            q.eq('ownerId', ownerId).eq('currency', base),
-          )
-          .order('desc')
-          .first()
-        rates.set(
-          base,
-          row === null ? null : { rate: row.rate, asOf: row.asOf },
-        )
-      }
-      const r = rates.get(base) ?? null
-      return r === null ? null : { rate: r.rate, asOf: r.asOf as number | null }
+async function readPositions(ctx: QueryCtx, ownerId: string) {
+  const trades = await ctx.db
+    .query('trades')
+    .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
+    .take(TRADE_ROWS)
+
+  const held = new Map<
+    string,
+    {
+      accountId: Id<'accounts'>
+      instrumentId: Id<'instruments'>
+      shares: number
+      cents: number
     }
+  >()
+  for (const t of trades) {
+    const key = `${t.accountId}:${t.instrumentId}`
+    const p = held.get(key) ?? {
+      accountId: t.accountId,
+      instrumentId: t.instrumentId,
+      shares: 0,
+      cents: 0,
+    }
+    const sign = t.side === 'buy' ? 1 : -1
+    p.shares += sign * t.shares
+    p.cents += sign * Math.round(t.shares * t.priceEur * 100)
+    held.set(key, p)
+  }
 
-    const rows = []
-    for (const p of held.values()) {
-      /* Rounded to kill float dust from a buy and a sell of the same
-         fraction; a position sold out is not shown. */
-      const shares = Math.round(p.shares * 1e6) / 1e6
-      if (shares <= 0) continue
-      const instrument = await ctx.db.get(p.instrumentId)
-      if (instrument === null || instrument.ownerId !== ownerId) continue
-      const price = await ctx.db
-        .query('prices')
-        .withIndex('by_owner_instrument_time', (q) =>
-          q.eq('ownerId', ownerId).eq('instrumentId', p.instrumentId),
+  const rates = new Map<string, { rate: number; asOf: number } | null>()
+  async function rateFor(base: string) {
+    if (base === 'EUR') return { rate: 1, asOf: null }
+    if (!rates.has(base)) {
+      const row = await ctx.db
+        .query('fxRates')
+        .withIndex('by_owner_currency_time', (q) =>
+          q.eq('ownerId', ownerId).eq('currency', base),
         )
         .order('desc')
         .first()
-      const { base, divide } = quoteToRate(instrument.currency)
-      const rate = await rateFor(base)
-      const valueEur =
-        price === null || rate === null
-          ? null
-          : Math.round(((shares * price.price) / divide) * rate.rate * 100) /
-            100
-      rows.push({
-        accountId: p.accountId,
-        instrumentId: p.instrumentId,
-        symbol: instrument.symbol,
-        name: instrument.name,
-        type: instrument.type,
-        currency: instrument.currency,
-        shares,
-        putIn: p.cents / 100,
-        price: price?.price ?? null,
-        priceAsOf: price?.asOf ?? null,
-        rate: rate?.rate ?? null,
-        rateAsOf: rate?.asOf ?? null,
-        valueEur,
-      })
+      rates.set(base, row === null ? null : { rate: row.rate, asOf: row.asOf })
     }
-    rows.sort((a, b) => (b.valueEur ?? b.putIn) - (a.valueEur ?? a.putIn))
-    let cents = 0
-    let oldestPriceAsOf: number | null = null
-    let unvalued = 0
-    for (const r of rows) {
-      if (r.valueEur === null || r.priceAsOf === null) {
-        unvalued++
-        continue
+    const r = rates.get(base) ?? null
+    return r === null ? null : { rate: r.rate, asOf: r.asOf as number | null }
+  }
+
+  const rows = []
+  for (const p of held.values()) {
+    /* Rounded to kill float dust from a buy and a sell of the same
+       fraction; a position sold out is not shown. */
+    const shares = Math.round(p.shares * 1e6) / 1e6
+    if (shares <= 0) continue
+    const instrument = await ctx.db.get(p.instrumentId)
+    if (instrument === null || instrument.ownerId !== ownerId) continue
+    const price = await ctx.db
+      .query('prices')
+      .withIndex('by_owner_instrument_time', (q) =>
+        q.eq('ownerId', ownerId).eq('instrumentId', p.instrumentId),
+      )
+      .order('desc')
+      .first()
+    const { base, divide } = quoteToRate(instrument.currency)
+    const rate = await rateFor(base)
+    const valueEur =
+      price === null || rate === null
+        ? null
+        : Math.round(((shares * price.price) / divide) * rate.rate * 100) / 100
+    rows.push({
+      accountId: p.accountId,
+      instrumentId: p.instrumentId,
+      symbol: instrument.symbol,
+      name: instrument.name,
+      type: instrument.type,
+      currency: instrument.currency,
+      shares,
+      putIn: p.cents / 100,
+      price: price?.price ?? null,
+      priceAsOf: price?.asOf ?? null,
+      rate: rate?.rate ?? null,
+      rateAsOf: rate?.asOf ?? null,
+      valueEur,
+    })
+  }
+  rows.sort((a, b) => (b.valueEur ?? b.putIn) - (a.valueEur ?? a.putIn))
+  let cents = 0
+  let oldestPriceAsOf: number | null = null
+  let unvalued = 0
+  for (const r of rows) {
+    if (r.valueEur === null || r.priceAsOf === null) {
+      unvalued++
+      continue
+    }
+    cents += Math.round(r.valueEur * 100)
+    oldestPriceAsOf =
+      oldestPriceAsOf === null
+        ? r.priceAsOf
+        : Math.min(oldestPriceAsOf, r.priceAsOf)
+  }
+  return {
+    rows,
+    totalEur: cents / 100,
+    oldestPriceAsOf,
+    unvalued,
+    complete: trades.length < TRADE_ROWS,
+  }
+}
+
+/**
+ * What is his, split the way he thinks of it (26 Sep: "we need to
+ * distinguish free cash and investments. And in revolut i have some cash
+ * and broker account with investments").
+ *
+ * An account's balance is its FREE CASH — the money not in shares, typed
+ * off the app. Its INVESTED is the value of the positions held in it
+ * (readPositions). So one account can hold both, and nothing is counted
+ * twice: a broker's typed balance is the cash it holds, never its total.
+ *
+ * Both totals, and the two added, are sums on PLAN.md §1's conditions:
+ * euros, each shown with the oldest reading in it — the cash's oldest
+ * typed balance, the investments' oldest close.
+ */
+export const worth = query({
+  args: {},
+  returns: v.object({
+    cash: v.object({
+      total: v.number(),
+      oldestAt: v.union(v.number(), v.null()),
+      unread: v.number(),
+    }),
+    invested: v.object({
+      total: v.number(),
+      oldestAt: v.union(v.number(), v.null()),
+      unvalued: v.number(),
+    }),
+    total: v.number(),
+    byAccount: v.array(
+      v.object({
+        accountId: v.id('accounts'),
+        cash: v.union(v.number(), v.null()),
+        invested: v.union(v.number(), v.null()),
+        positions: v.number(),
+      }),
+    ),
+  }),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    const b = await readBalances(ctx, ownerId)
+    const p = await readPositions(ctx, ownerId)
+    const byAccount = b.accounts.map((a) => {
+      const held = p.rows.filter((r) => r.accountId === a.accountId)
+      const cents = held.reduce(
+        (n, r) => n + (r.valueEur === null ? 0 : Math.round(r.valueEur * 100)),
+        0,
+      )
+      return {
+        accountId: a.accountId,
+        cash: a.value,
+        invested: held.length === 0 ? null : cents / 100,
+        positions: held.length,
       }
-      cents += Math.round(r.valueEur * 100)
-      oldestPriceAsOf =
-        oldestPriceAsOf === null
-          ? r.priceAsOf
-          : Math.min(oldestPriceAsOf, r.priceAsOf)
-    }
+    })
     return {
-      rows,
-      totalEur: cents / 100,
-      oldestPriceAsOf,
-      unvalued,
-      complete: trades.length < TRADE_ROWS,
+      cash: { total: b.total, oldestAt: b.oldestAt, unread: b.unread },
+      invested: {
+        total: p.totalEur,
+        oldestAt: p.oldestPriceAsOf,
+        unvalued: p.unvalued,
+      },
+      total: (Math.round(b.total * 100) + Math.round(p.totalEur * 100)) / 100,
+      byAccount,
     }
   },
 })

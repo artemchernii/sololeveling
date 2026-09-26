@@ -77,7 +77,7 @@ conditions. A sum that fails any of them is not a source-1 number:
   rate or a budget score each need their own yes. A limit he sets is a goal with a `targetValue`,
   so a bar against it is the ordinary §1 division.
 
-**Two more sums, same conditions (26 Sep, Finances F2/F4).** The balances total is a sum of each
+**Two more sums, same conditions (26 Sep, Finances F2/F4).** An account's balance is its free cash (money not in shares), so cash and investments are two halves and nothing is counted twice. The free-cash total is a sum of each
 account's latest balance (source 2), euros only, always shown with the oldest reading in it — a
 total made partly of a month-old number must say so. A position's shares and what it cost are sums
 of its trade rows. A position's worth is shares × a stored price × a stored rate (source 4,

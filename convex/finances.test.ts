@@ -541,6 +541,72 @@ describe('investments', () => {
   })
 })
 
+describe('worth: free cash and investments, apart', () => {
+  test('one account can hold both, and nothing is counted twice', async () => {
+    const { t, me } = setup()
+    const revolut = await me.mutation(api.accounts.create, {
+      name: 'Revolut',
+      kind: 'bank',
+    })
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kind: 'broker',
+    })
+    await me.mutation(api.accounts.setBalance, {
+      accountId: revolut,
+      value: 2000,
+      dayStart: TODAY,
+    })
+    await me.mutation(api.accounts.setBalance, {
+      accountId: tr,
+      value: 150,
+      dayStart: TODAY,
+    })
+    await me.mutation(api.invest.addTrade, {
+      accountId: revolut,
+      candidate: VWCE,
+      side: 'buy',
+      shares: 10,
+      priceEur: 120,
+      occurredAt: Date.now(),
+    })
+    const [inst] = await t.run(async (ctx) =>
+      ctx.db.query('instruments').collect(),
+    )
+    await t.mutation(internal.market.storePrices, {
+      ownerId: ME,
+      instrumentId: inst._id,
+      currency: 'EUR',
+      rows: [{ asOf: Date.now() - 1000, price: 170 }],
+      fetchedAt: Date.now(),
+    })
+
+    const w = await me.query(api.aggregate.worth, {})
+    expect(w.cash.total).toBe(2150)
+    expect(w.invested.total).toBe(1700)
+    expect(w.total).toBe(3850)
+    expect(w.byAccount).toEqual([
+      { accountId: revolut, cash: 2000, invested: 1700, positions: 1 },
+      { accountId: tr, cash: 150, invested: null, positions: 0 },
+    ])
+  })
+
+  test("another owner's money is in neither half", async () => {
+    const { me, them } = setup()
+    const theirs = await them.mutation(api.accounts.create, {
+      name: 'X',
+      kind: 'bank',
+    })
+    await them.mutation(api.accounts.setBalance, {
+      accountId: theirs,
+      value: 9,
+      dayStart: TODAY,
+    })
+    const w = await me.query(api.aggregate.worth, {})
+    expect([w.total, w.byAccount.length]).toEqual([0, 0])
+  })
+})
+
 describe('screenshot import', () => {
   async function readyImport(
     t: ReturnType<typeof setup>['t'],

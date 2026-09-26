@@ -2,6 +2,7 @@ import { v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
+import { isEuroAmount } from '../src/lib/money'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
 import { query } from './_generated/server'
@@ -619,6 +620,114 @@ export const kindCount = query({
         (args.category === undefined || row.meta?.category === args.category) &&
         (args.projectId === undefined || row.projectId === args.projectId),
     ).length
+  },
+})
+
+/* A month of money rows, generously: ten a day is more than capture is
+   ever used for. Its own bound because a sum that silently dropped rows
+   would read as a smaller month, not a missing one. */
+const MONEY_ROWS = 1000
+
+const moneyBucket = v.object({
+  kind: v.union(v.literal('expense'), v.literal('income')),
+  /** null — logged with no category: unsorted. */
+  category: v.union(v.string(), v.null()),
+  sum: v.number(),
+  count: v.number(),
+})
+
+/**
+ * Money out and in over a period, per category (Finances F1, 26 Sep).
+ *
+ * Source 1 as widened on 26 Sep — a sum of logged amounts, on the five
+ * conditions in PLAN.md §1, each kept here or said where:
+ *
+ * - One currency: only rows in euros are added (`unit` 'eur', which every
+ *   money verb writes). A row in anything else is counted in `skipped` and
+ *   added to nothing — shown, never converted.
+ * - A stated period: `start`/`end` are required; there is no all-time call.
+ * - Only logged rows: sums of `value`, nothing estimated or projected.
+ * - Every sum opens its rows: `logs.moneyRows` over the same period and
+ *   the same rule lists exactly the rows behind each bucket.
+ * - Not a licence to derive: out and in come back apart. No difference,
+ *   no rate, no score.
+ *
+ * Added in whole cents, so €0.10 + €0.20 is €0.30 and not float noise.
+ * `complete` is false if the read hit its cap — a truncated sum is not the
+ * sum (§1, the R3c lesson).
+ */
+export const moneySums = query({
+  args: {
+    /** Epoch ms, local midnight — inclusive. */
+    start: v.number(),
+    /** Epoch ms, local midnight — exclusive. */
+    end: v.number(),
+  },
+  returns: v.object({
+    out: v.object({ sum: v.number(), count: v.number() }),
+    in: v.object({ sum: v.number(), count: v.number() }),
+    buckets: v.array(moneyBucket),
+    skipped: v.number(),
+    complete: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', 'money')
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .take(MONEY_ROWS)
+
+    const cents = new Map<
+      string,
+      {
+        kind: 'expense' | 'income'
+        category: string | null
+        c: number
+        n: number
+      }
+    >()
+    const total = { expense: { c: 0, n: 0 }, income: { c: 0, n: 0 } }
+    let skipped = 0
+    for (const row of rows) {
+      if (row.kind !== 'expense' && row.kind !== 'income') continue
+      if (!isEuroAmount(row)) {
+        skipped++
+        continue
+      }
+      const c = Math.round(row.value * 100)
+      const category = row.meta?.category ?? null
+      const key = `${row.kind}:${category ?? ''}`
+      const bucket = cents.get(key) ?? { kind: row.kind, category, c: 0, n: 0 }
+      bucket.c += c
+      bucket.n++
+      cents.set(key, bucket)
+      total[row.kind].c += c
+      total[row.kind].n++
+    }
+
+    return {
+      out: { sum: total.expense.c / 100, count: total.expense.n },
+      in: { sum: total.income.c / 100, count: total.income.n },
+      /* Biggest first within each kind: where the month went reads down. */
+      buckets: [...cents.values()]
+        .sort((a, b) =>
+          a.kind === b.kind ? b.c - a.c : a.kind === 'expense' ? -1 : 1,
+        )
+        .map((b) => ({
+          kind: b.kind,
+          category: b.category,
+          sum: b.c / 100,
+          count: b.n,
+        })),
+      skipped,
+      complete: rows.length < MONEY_ROWS,
+    }
   },
 })
 

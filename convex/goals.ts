@@ -565,3 +565,83 @@ export const weeklyTargets = query({
     return out
   },
 })
+
+/* The monthly spending limit (Finances F1, 26 Sep) is the active money goal
+   measured in euros a month — the same kind of rule the weight goal is
+   found by. Its own unit, so a tile target on Money (counted in transfers)
+   is never mistaken for it. */
+const SPEND_LIMIT_UNIT = 'eur/month'
+
+async function activeSpendLimits(ctx: QueryCtx | MutationCtx, ownerId: string) {
+  const rows = await ctx.db
+    .query('goals')
+    .withIndex('by_owner_status', (q) =>
+      q.eq('ownerId', ownerId).eq('status', 'active'),
+    )
+    .order('desc')
+    .take(MAX_ROWS)
+  return rows.filter(
+    (g) =>
+      g.area === 'money' &&
+      g.unit === SPEND_LIMIT_UNIT &&
+      g.targetValue !== undefined,
+  )
+}
+
+/**
+ * How much he means to spend in a month, at most, set from the Finances
+ * hero. A goal, because a goal's targetValue is what §1 lets a bar divide
+ * by — this month's sum out (aggregate.moneySums) is the other side.
+ * Setting it again moves the number on the same goal.
+ */
+export const setSpendLimit = mutation({
+  args: { targetValue: v.number() },
+  returns: v.id('goals'),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    if (
+      !Number.isInteger(args.targetValue) ||
+      args.targetValue < 1 ||
+      args.targetValue > 1_000_000
+    ) {
+      throw new ConvexError('A monthly limit is a whole number of euros.')
+    }
+    const existing = await activeSpendLimits(ctx, ownerId)
+    if (existing.length > 0) {
+      await ctx.db.patch(existing[0]._id, { targetValue: args.targetValue })
+      return existing[0]._id
+    }
+    return await ctx.db.insert('goals', {
+      ownerId,
+      title: 'Spend at most this a month',
+      area: 'money',
+      status: 'active',
+      targetValue: args.targetValue,
+      unit: SPEND_LIMIT_UNIT,
+    })
+  },
+})
+
+/** No monthly limit any more. Dropped, not deleted. */
+export const clearSpendLimit = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    for (const goal of await activeSpendLimits(ctx, ownerId)) {
+      await ctx.db.patch(goal._id, { status: 'dropped' })
+    }
+    return null
+  },
+})
+
+/** The monthly limit in euros, or null when he has not set one. */
+export const spendLimit = query({
+  args: {},
+  returns: v.union(v.number(), v.null()),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    const [goal] = await activeSpendLimits(ctx, ownerId)
+    return goal?.targetValue ?? null
+  },
+})

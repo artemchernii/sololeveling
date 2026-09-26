@@ -49,6 +49,13 @@ import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { aheadLabel, whenLabel } from '@/lib/format'
 import { localToday } from '@/lib/today'
 import { splitNote } from '@/lib/note-text'
+import { categoriesFor, categoryLabel } from '@/lib/money'
+import type { MoneyKind } from '@/lib/money'
+
+/* Spend and earn file under a fixed list (Finances F1). */
+function isMoney(kind: LogKind): kind is MoneyKind {
+  return kind === 'expense' || kind === 'income'
+}
 
 /* PLAN.md §3: three seconds. `gym` ⏎ is still the whole of it.
 
@@ -352,8 +359,17 @@ export function QuickCapture({
      re-render for a list almost nobody opens. */
   const knownCategories = useQuery(
     api.logs.categories,
-    picker === 'category' && verb ? { kind: verb.kind } : 'skip',
+    picker === 'category' && verb && !isMoney(verb.kind)
+      ? { kind: verb.kind }
+      : 'skip',
   )
+  /* Money files under a fixed list (Finances F1), so its chip offers that
+     list, and shows even when the line named none: an unsorted spend is
+     one tap from filed. */
+  const moneyKind = verb && isMoney(verb.kind) ? verb.kind : null
+  const categoryChoices = moneyKind
+    ? categoriesFor(moneyKind).map((c) => c.id)
+    : (knownCategories ?? [])
 
   /* Entering note mode: whatever followed `note` on the line moves into the
      sheet, and the line keeps only the word — so there is one place the note
@@ -1231,7 +1247,7 @@ export function QuickCapture({
               </span>
             </button>
 
-            {category !== undefined ? (
+            {category !== undefined || moneyKind ? (
               <button
                 type="button"
                 style={{ ...chipTone(area), ...beat(1) }}
@@ -1242,7 +1258,9 @@ export function QuickCapture({
                 }
               >
                 <span className="font-mono text-[11px] tracking-[0.12em] uppercase">
-                  {category}
+                  {moneyKind
+                    ? categoryLabel(moneyKind, category ?? null)
+                    : category}
                 </span>
               </button>
             ) : null}
@@ -1482,7 +1500,7 @@ export function QuickCapture({
 
           {picker === 'category' ? (
             <div className="motion-arrive mt-3 flex flex-wrap items-center gap-1.5">
-              {(knownCategories ?? []).map((choice) => (
+              {categoryChoices.map((choice) => (
                 <button
                   key={choice}
                   type="button"
@@ -1497,24 +1515,26 @@ export function QuickCapture({
                       : 'text-ink-500 hover:bg-(--area)/12 hover:text-area'
                   }`}
                 >
-                  {choice}
+                  {moneyKind ? categoryLabel(moneyKind, choice) : choice}
                 </button>
               ))}
-              <input
-                type="text"
-                placeholder="new kind"
-                onKeyDown={(e) => {
-                  if (e.key !== 'Enter') return
-                  e.preventDefault()
-                  e.stopPropagation()
-                  const entered = e.currentTarget.value.trim().toLowerCase()
-                  if (entered.length === 0) return
-                  setCategoryFor({ word: verb.word, category: entered })
-                  setPicker(null)
-                  focusLine()
-                }}
-                className={`${CHIP} h-7 w-28 bg-lift/[0.06] px-2.5 font-mono text-[10.5px] tracking-[0.12em] text-ink-300 uppercase placeholder:text-ink-500 focus:outline-none`}
-              />
+              {moneyKind ? null : (
+                <input
+                  type="text"
+                  placeholder="new kind"
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter') return
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const entered = e.currentTarget.value.trim().toLowerCase()
+                    if (entered.length === 0) return
+                    setCategoryFor({ word: verb.word, category: entered })
+                    setPicker(null)
+                    focusLine()
+                  }}
+                  className={`${CHIP} h-7 w-28 bg-lift/[0.06] px-2.5 font-mono text-[10.5px] tracking-[0.12em] text-ink-300 uppercase placeholder:text-ink-500 focus:outline-none`}
+                />
+              )}
             </div>
           ) : null}
 

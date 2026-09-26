@@ -69,6 +69,26 @@ describe('the verbs', () => {
     })
   })
 
+  test('money files itself from the first word after the amount', () => {
+    expect(log('spend 48 groceries').category).toBe('groceries')
+    expect(log('spend 12 coffee with Ana')).toMatchObject({
+      category: 'eating out',
+      text: 'coffee with Ana',
+    })
+    expect(log('spend 30 uber home').category).toBe('transport')
+    expect(log('earn 1200 client invoice').category).toBe('freelance')
+    expect(log('salary 3000').category).toBe('salary')
+  })
+
+  test('a word the list does not know leaves a spend unsorted', () => {
+    expect(log('spend 9 zzz').category).toBeUndefined()
+    expect(log('spend 23').category).toBeUndefined()
+  })
+
+  test('invest has no category — it is not spending', () => {
+    expect(log('invest 500 groceries').category).toBeUndefined()
+  })
+
   test('invest 500 is a transfer, filed under money', () => {
     expect(log('invest 500')).toMatchObject({
       kind: 'transfer',

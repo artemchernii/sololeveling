@@ -1,5 +1,6 @@
 import { ConvexError, v } from 'convex/values'
 
+import { isEuroAmount } from '../src/lib/money'
 import { moveSheets, unlinkSheets } from './vault'
 import { requireUser } from './auth'
 import { requireLiveArea } from './areas'
@@ -274,6 +275,40 @@ export const listForArea = query({
   },
 })
 
+/* The cap moneySums reads a period under; the same here, so the rows a sum
+   opens are the rows it added. */
+const MONEY_ROWS = 1000
+
+/**
+ * The rows behind a money sum (Finances F1): every expense and income in
+ * euros over the period, newest first. PLAN.md §1's fourth sum condition —
+ * tap €612 and see what it is made of — so it reads by the same index and
+ * the same `isEuroAmount` rule as `aggregate.moneySums`, and the page
+ * narrows by kind and category in the list it is handed, never re-adding.
+ */
+export const moneyRows = query({
+  args: { start: v.number(), end: v.number() },
+  returns: v.array(schema.doc('logs')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', 'money')
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .order('desc')
+      .take(MONEY_ROWS)
+    return rows.filter(
+      (row) =>
+        (row.kind === 'expense' || row.kind === 'income') && isEuroAmount(row),
+    )
+  },
+})
+
 /**
  * The badge is the editor. `area` is filing, not evidence — a mis-filed note
  * gets corrected here, while kind, occurredAt, value and text stay immutable.
@@ -354,9 +389,17 @@ export const setValue = mutation({
       )
     }
     if (!Number.isFinite(args.value) || args.value <= 0) {
-      throw new ConvexError('That is not a number of minutes.')
+      throw new ConvexError(
+        log.unit === 'eur'
+          ? 'That is not an amount in euros.'
+          : 'That is not a number of minutes.',
+      )
     }
-    await ctx.db.patch(args.logId, { value: args.value })
+    /* Money is kept to the cent (Finances F1): 12.499 is not an amount
+       anyone paid, and the sums add in whole cents. */
+    const value =
+      log.unit === 'eur' ? Math.round(args.value * 100) / 100 : args.value
+    await ctx.db.patch(args.logId, { value })
     return null
   },
 })

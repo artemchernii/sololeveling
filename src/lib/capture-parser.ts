@@ -1,5 +1,6 @@
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import type { BuiltinArea } from './area-slug'
+import { categoryFromText } from './money'
 
 /* PLAN.md §3: under three seconds, no form.
 
@@ -436,6 +437,7 @@ const VERBS: Array<Verb> = [
     amount: 'required',
     icon: 'wallet',
     keepsWord: true,
+    category: 'salary',
     describe: (l) => `Earned €${l.value} · ${l.text ?? 'salary'}`,
     example: 'salary 3000',
     hint: 'your salary — money in',
@@ -710,7 +712,7 @@ export function parseCapture(
     unit: verb.unit,
     text,
     projectId: verb.projectId,
-    category: verb.category,
+    category: verb.category ?? moneyCategory(verb.kind, typedText),
   }
   return {
     ok: true,
@@ -723,6 +725,15 @@ export function parseCapture(
     },
     typed,
   }
+}
+
+/* Money files itself from the first word after the amount (Finances F1):
+   `spend 12 coffee` is eating out. A word the list does not know leaves it
+   unsorted — never guessed. */
+function moneyCategory(kind: LogKind, text: string | undefined) {
+  return kind === 'expense' || kind === 'income'
+    ? categoryFromText(kind, text)
+    : undefined
 }
 
 /**

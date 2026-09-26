@@ -107,7 +107,7 @@ function WeekChip({ category, delay }: { category: string; delay: number }) {
         <span className="h-1 w-full overflow-hidden rounded-full bg-lift/[0.08]">
           <span
             className={`block h-full rounded-full transition-[width] duration-500 ${
-              met ? 'bg-state-good' : 'bg-(--area)'
+              met ? 'bg-state-good' : 'bg-lav-400'
             }`}
             style={{
               width: `${Math.min(1, (count ?? 0) / target) * 100}%`,
@@ -151,7 +151,7 @@ export function WeekLine({ category }: { category: string }) {
         <span className="h-1.5 w-full max-w-72 overflow-hidden rounded-full bg-lift/[0.08]">
           <span
             className={`block h-full rounded-full transition-[width] duration-700 ${
-              met ? 'bg-state-good' : 'bg-(--area)'
+              met ? 'bg-state-good' : 'bg-lav-400'
             }`}
             style={{ width: `${Math.min(1, count / target) * 100}%` }}
           />

@@ -100,7 +100,7 @@ export function WorkoutPanel({
               }}
               className={`motion-press inline-flex items-center gap-1.5 rounded-full py-1.5 pr-3.5 pl-2.5 text-[13px] ring-1 transition-colors ring-inset ${
                 on
-                  ? 'bg-lift/[0.06] text-foreground ring-(--area)/55'
+                  ? 'bg-lav-400/12 text-foreground ring-lav-400/45 shadow-[0_0_18px_-6px_var(--system-shine)]'
                   : 'text-ink-400 ring-lift/12 hover:text-foreground hover:ring-lift/25'
               }`}
             >
@@ -186,8 +186,8 @@ function MoveRow({
             aria-hidden
             className={`grid size-6 shrink-0 place-items-center rounded-full transition-colors ${
               ticked
-                ? 'bg-(--area) text-background'
-                : 'ring-1 ring-lift/25 group-hover:ring-lift/40'
+                ? 'bg-lav-400 text-background shadow-[0_0_10px_-2px_var(--system-shine)]'
+                : 'ring-1 ring-lav-400/30 group-hover:ring-lav-400/60'
             }`}
           >
             {ticked ? (
@@ -365,7 +365,7 @@ function Finish({
             }),
           )
         }}
-        className="motion-press relative inline-flex items-center gap-2 rounded-full bg-(--area) px-5 py-2.5 text-[13.5px] font-medium text-background"
+        className="motion-press relative inline-flex items-center gap-2 rounded-full bg-lav-400 px-5 py-2.5 text-[13.5px] font-medium text-background shadow-[0_0_22px_-6px_var(--system-shine)]"
       >
         <Flag className="size-4" />
         Finish {workout.name}

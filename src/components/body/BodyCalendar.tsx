@@ -172,7 +172,7 @@ function Day({
             : 'bg-lift/[0.035]'
       } ${
         isToday
-          ? 'ring-(--area)/70'
+          ? 'ring-lav-400/70'
           : picked
             ? 'ring-lift/30'
             : 'ring-transparent hover:ring-lift/20'

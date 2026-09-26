@@ -70,7 +70,7 @@ function Body() {
               aria-current={on ? 'page' : undefined}
               className={`motion-press inline-flex items-center gap-2 rounded-full px-4 py-2 font-mono text-[11.5px] tracking-[0.14em] uppercase ring-1 transition-colors ring-inset ${
                 on
-                  ? 'bg-lift/[0.06] text-foreground ring-(--area)/55'
+                  ? 'bg-lav-400/12 text-foreground ring-lav-400/45 shadow-[0_0_18px_-6px_var(--system-shine)]'
                   : 'text-ink-400 ring-lift/12 hover:text-foreground hover:ring-lift/25'
               }`}
             >

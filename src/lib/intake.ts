@@ -18,6 +18,9 @@ export const MAX_INTAKE_FILES = 6
 export const MAX_INTAKE_BYTES = 10 * 1024 * 1024
 export const INTAKES_PER_WINDOW = 40
 export const INTAKE_WINDOW_MS = 30 * 86_400_000
+/* A reading silent this long has died with its action (the platform stops
+   one at ten minutes): shown as stopped, and it can be tried again. */
+export const READING_DEAD_MS = 11 * 60_000
 
 export type ReadableFile =
   | { block: 'document'; mediaType: 'application/pdf' }

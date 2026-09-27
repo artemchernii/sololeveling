@@ -18,6 +18,7 @@ import type { Id } from '../../../convex/_generated/dataModel'
 import { FIELD, PILL_QUIET } from '@/components/finances/bits'
 import { DropFiles, useIntakeUpload } from '@/components/finances/Add'
 import { IntakeFlow } from '@/components/finances/Intake'
+import { IntakeStrip } from '@/components/finances/Reading'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Sheet } from '@/components/finances/Sheet'
 import { useDayStarts } from '@/components/track/useDayStarts'
@@ -157,7 +158,6 @@ function Found({
 }) {
   const open = useQuery(api.intake.open, {})
   const balances = useQuery(api.aggregate.balances, {})
-  const discard = useMutation(api.intake.discard)
   const pending = reads.filter((id) => open?.some((i) => i._id === id))
   const readyCount = pending.filter(
     (id) => open?.find((i) => i._id === id)?.status === 'ready',
@@ -200,63 +200,11 @@ function Found({
         </span>
       </div>
       <div className="flex flex-col gap-2">
-        {pending.map((id, i) => {
+        {pending.map((id) => {
           const intake = open?.find((x) => x._id === id)
-          if (!intake) return null
-          return (
-            <div
-              key={id}
-              style={{ animationDelay: `${i * 60}ms` }}
-              className="motion-land flex items-center gap-3 rounded-[12px] bg-lift/[0.035] p-3 ring-1 ring-lift/10 ring-inset"
-            >
-              {intake.status === 'reading' ? (
-                <Loader2 className="size-5 shrink-0 animate-spin text-lav-400" />
-              ) : intake.status === 'failed' ? (
-                <X className="size-5 shrink-0 text-state-warn" />
-              ) : (
-                <AccountLogo
-                  name={intake.institution ?? '?'}
-                  domain={null}
-                  size={28}
-                />
-              )}
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-[14px] text-foreground">
-                  {intake.status === 'reading'
-                    ? 'Reading…'
-                    : (intake.title ?? 'A file')}
-                </span>
-                <span className="truncate font-mono text-[10.5px] text-ink-400">
-                  {intake.status === 'failed'
-                    ? intake.error
-                    : intake.status === 'reading'
-                      ? 'what it is, every row, the balance'
-                      : intake.kind === 'holdings'
-                        ? `${intake.positions?.length ?? 0} positions`
-                        : intake.kind === 'trades'
-                          ? `${intake.trades?.length ?? 0} trades`
-                          : `${intake.transactions?.length ?? 0} movements${intake.balance ? ` · balance ${money(intake.balance.value, intake.balance.currency)}` : ''}`}
-                </span>
-              </span>
-              {intake.status === 'ready' ? (
-                <button
-                  type="button"
-                  onClick={() => onCheck(id)}
-                  className={`${PILL_QUIET} text-foreground`}
-                >
-                  check
-                </button>
-              ) : intake.status === 'failed' ? (
-                <button
-                  type="button"
-                  onClick={() => void discard({ intakeId: id })}
-                  className={PILL_QUIET}
-                >
-                  remove
-                </button>
-              ) : null}
-            </div>
-          )
+          return intake ? (
+            <IntakeStrip key={id} intake={intake} onOpen={() => onCheck(id)} />
+          ) : null
         })}
         {accounts.map((a) => (
           <div

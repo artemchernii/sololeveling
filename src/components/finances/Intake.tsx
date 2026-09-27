@@ -1,23 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAction, useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Check, Loader2, Search, X } from 'lucide-react'
+import { Check, Loader2, Search } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { MoneyIcon } from '@/components/finances/icons'
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
+import {
+  HistoryReview,
+  IntakeStrip,
+  ReadBy,
+  ReadingSheet,
+} from '@/components/finances/Reading'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { money } from '@/lib/currency'
 import { dayLabel } from '@/lib/bills'
-import { agoLabel } from '@/lib/format'
-import {
-  INTAKE_MODEL_NAME,
-  completePosition,
-  diffHoldings,
-  merchantKey,
-} from '@/lib/intake'
+import { completePosition, diffHoldings, merchantKey } from '@/lib/intake'
 import type { HoldingChange } from '@/lib/intake'
 import { productById } from '@/lib/institutions'
 import type { Candidate } from '@/lib/market'
@@ -49,7 +49,9 @@ export function IntakeFlow({
   const intake = open?.find((i) => i._id === intakeId)
   const throwAway = () => void discard({ intakeId }).then(onBack)
 
-  if (open === undefined) return <Reading since={Date.now()} />
+  /* Loading holds the space quietly: a flash of "reading" for a few
+     milliseconds is the flicker he kept seeing. */
+  if (open === undefined) return <div className="min-h-[240px]" />
   if (intake === undefined) {
     return (
       <p className="py-6 text-center text-[13.5px] text-ink-400">
@@ -57,22 +59,10 @@ export function IntakeFlow({
       </p>
     )
   }
-  if (intake.status === 'reading')
-    return <Reading since={intake._creationTime} />
-  if (intake.status === 'failed') {
-    return (
-      <>
-        <p className="text-[14px] text-state-warn">{intake.error}</p>
-        <button
-          type="button"
-          onClick={throwAway}
-          className={`${PILL_QUIET} justify-center py-3`}
-        >
-          back — try another file
-        </button>
-      </>
-    )
-  }
+  if (intake.status === 'reading' || intake.status === 'failed')
+    return <ReadingSheet intake={intake} onBack={onBack} />
+  if (intake.kind === 'trades' && intake.historyTrades !== undefined)
+    return <HistoryReview intake={intake} onDiscard={throwAway} />
   return intake.kind === 'holdings' ? (
     <HoldingsReview intake={intake} onDiscard={throwAway} onDone={onDone} />
   ) : intake.kind === 'trades' ? (
@@ -93,57 +83,8 @@ export function OpenIntakes({
   return (
     <div className="flex flex-col gap-2">
       {open.map((i) => (
-        <button
-          key={i._id}
-          type="button"
-          onClick={() => onOpen(i._id)}
-          className="motion-land system-frame relative flex items-center gap-3 p-3 text-left"
-        >
-          {i.status === 'reading' ? (
-            <Loader2 className="size-4 animate-spin text-lav-400" />
-          ) : i.status === 'failed' ? (
-            <X className="size-4 text-state-warn" />
-          ) : (
-            <Check className="size-4 text-lav-400" />
-          )}
-          <span className="flex-1 truncate text-[14px] text-foreground">
-            {i.status === 'failed'
-              ? (i.error ?? 'The file could not be read.')
-              : (i.title ?? 'Reading your file…')}
-          </span>
-          <span
-            className={`font-mono text-[10.5px] tracking-[0.12em] uppercase ${i.status === 'failed' ? 'text-state-warn' : 'text-lav-300'}`}
-          >
-            {i.status === 'reading'
-              ? 'reading'
-              : i.status === 'failed'
-                ? 'failed'
-                : 'check it'}
-          </span>
-        </button>
+        <IntakeStrip key={i._id} intake={i} onOpen={() => onOpen(i._id)} />
       ))}
-    </div>
-  )
-}
-
-function Reading({ since }: { since: number }) {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(t)
-  }, [])
-  return (
-    <div className="relative flex flex-col gap-3 overflow-hidden rounded-[14px] bg-lav-400/6 p-4 ring-1 ring-lav-400/30 ring-inset">
-      <span className="motion-sweep pointer-events-none absolute inset-y-0 left-0 w-1/2" />
-      <span className="system-title system-pulse">[ reading ]</span>
-      <span className="text-[13px] text-ink-300">
-        Finding what it is, every row, what is pending, the balance — and
-        matching it against what you have.
-      </span>
-      <span className="font-mono text-[11px] text-ink-500">
-        {INTAKE_MODEL_NAME} · {Math.max(0, Math.round((now - since) / 1000))}s ·
-        nothing saved until you confirm
-      </span>
     </div>
   )
 }
@@ -278,8 +219,7 @@ function TransactionsReview({
   const accountId = review?.accountId ?? review?.guessedAccountId ?? null
   const account = accounts.find((a) => a._id === accountId)
 
-  if (review === undefined)
-    return <Reading since={intake.readAt ?? Date.now()} />
+  if (review === undefined) return <div className="min-h-[240px]" />
   if (review === null) return null
 
   const rows = review.rows
@@ -367,8 +307,7 @@ function TransactionsReview({
           {intake.title}
         </span>
         <span className="font-mono text-[10.5px] text-ink-500">
-          read by {intake.model} {intake.readAt ? agoLabel(intake.readAt) : ''}{' '}
-          · {rows.length} rows
+          <ReadBy intake={intake} /> · {rows.length} rows
         </span>
       </div>
 
@@ -1472,7 +1411,7 @@ function TradesReview({
           {intake.title}
         </span>
         <span className="font-mono text-[10.5px] text-ink-500">
-          read by {intake.model} · {trades.length} trades
+          <ReadBy intake={intake} /> · {trades.length} trades
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">

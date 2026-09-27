@@ -21,6 +21,7 @@ import {
   INTAKES_PER_WINDOW,
   MAX_INTAKE_BYTES,
   MAX_INTAKE_FILES,
+  READING_DEAD_MS,
   findDuplicates,
   findRecurring,
   matchAccount,
@@ -190,10 +191,6 @@ export const start = mutation({
   },
 })
 
-/* A reading that has not answered in this long has died with its action
-   (the platform stops one at ten minutes) — it is shown as stopped, and
-   can be tried again. */
-export const READING_DEAD_MS = 11 * 60_000
 const HISTORY_TRADES = 8000
 
 async function fingerprintOf(
@@ -241,6 +238,21 @@ export const retry = mutation({
       intakeId: intake._id,
     })
     return null
+  },
+})
+
+/** The screenshot being read, to show while it is read. */
+export const preview = query({
+  args: { intakeId: v.id('intakes') },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const intake = await ownedIntake(ctx, ownerId, args.intakeId)
+    const i = (intake.files ?? []).findIndex((f) =>
+      f.contentType.startsWith('image/'),
+    )
+    const id = i >= 0 ? intake.storageIds[i] : undefined
+    return id ? await ctx.storage.getUrl(id) : null
   },
 })
 
@@ -1164,6 +1176,7 @@ export const progress = internalMutation({
     const next = {
       ...p,
       stage: args.stage ?? p.stage,
+      kind: args.kind ?? p.kind,
       institution: args.institution ?? p.institution,
       title: args.title ?? p.title,
       accountTail: args.accountTail ?? p.accountTail,

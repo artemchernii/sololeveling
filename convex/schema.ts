@@ -873,6 +873,13 @@ export default defineSchema({
           v.literal('rows'),
           v.literal('tickers'),
         ),
+        kind: v.optional(
+          v.union(
+            v.literal('transactions'),
+            v.literal('holdings'),
+            v.literal('trades'),
+          ),
+        ),
         institution: v.optional(v.string()),
         title: v.optional(v.string()),
         accountTail: v.optional(v.string()),

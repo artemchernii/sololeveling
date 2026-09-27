@@ -1,0 +1,125 @@
+/* One broker position, worked out from every file that spoke of it
+   (R6c, 27 Sep: "I dont want to overlap, I want to update data").
+
+   Trades — a statement's or a CSV's dated buys and sells — are the ledger.
+   A holdings screen is an observation: the shares seen on one day, and
+   what was paid when the screen printed a % since buy. It is never turned
+   into a buy, so a statement dropped later explains it instead of adding
+   to it, and the answer is the same whatever order the files came in.
+
+   Nothing here is a new number: shares are the sum of trade rows or a
+   stored observation plus the trades after it; paid is the sum of what
+   those rows cost, or what the screen printed. When neither says, paid is
+   unknown (null) — and a profit is never shown against it. */
+
+export type LedgerTrade = {
+  side: 'buy' | 'sell'
+  shares: number
+  priceEur: number
+  occurredAt: number
+}
+
+export type Observation = {
+  shares: number
+  /** What the screen said was paid for these shares, if it said. */
+  paidEur?: number
+  asOf: number
+}
+
+/**
+ * - `trades` — no screen, the trades alone
+ * - `match`  — a screen and the trades up to it agree
+ * - `screen` — only a screen knows it; no trades up to that day
+ * - `gap`    — the screen shows more than the trades (buys not dropped yet)
+ * - `over`   — the trades show more than the screen (a sell not dropped)
+ */
+export type HoldingStatus = 'trades' | 'match' | 'screen' | 'gap' | 'over'
+
+export type Reconciled = {
+  shares: number
+  /** Net euros put in for these shares; null when no file says. */
+  paid: number | null
+  status: HoldingStatus
+  /** The latest screen's day, or null when none has shown it. */
+  seenAt: number | null
+  /** Screen shares minus trade shares on the screen's day (0 on a match). */
+  gap: number
+}
+
+/** Screen shares are often worked out as value ÷ price: 1.5% slack. */
+export const MATCH_TOLERANCE = 0.015
+
+const round6 = (n: number) => Math.round(n * 1e6) / 1e6
+
+function sum(trades: ReadonlyArray<LedgerTrade>) {
+  let shares = 0
+  let cents = 0
+  for (const t of trades) {
+    const sign = t.side === 'buy' ? 1 : -1
+    shares += sign * t.shares
+    cents += sign * Math.round(t.shares * t.priceEur * 100)
+  }
+  return { shares, cents }
+}
+
+export function reconcile(
+  trades: ReadonlyArray<LedgerTrade>,
+  observations: ReadonlyArray<Observation>,
+): Reconciled {
+  /* The latest screen; on a tie, the one given last (stored last). */
+  let seen: Observation | undefined
+  for (const o of observations) if (!seen || o.asOf >= seen.asOf) seen = o
+
+  if (seen === undefined) {
+    const all = sum(trades)
+    return {
+      shares: round6(all.shares),
+      paid: all.cents / 100,
+      status: 'trades',
+      seenAt: null,
+      gap: 0,
+    }
+  }
+
+  const at = seen.asOf
+  const before = sum(trades.filter((t) => t.occurredAt <= at))
+  const after = sum(trades.filter((t) => t.occurredAt > at))
+  const gap = seen.shares - before.shares
+  const slack = Math.max(1e-6, seen.shares * MATCH_TOLERANCE)
+
+  if (Math.abs(gap) <= slack) {
+    /* The trades are exact where a screen may be rounded: they win. */
+    return {
+      shares: round6(before.shares + after.shares),
+      paid: (before.cents + after.cents) / 100,
+      status: 'match',
+      seenAt: at,
+      gap: 0,
+    }
+  }
+  return {
+    shares: round6(seen.shares + after.shares),
+    paid:
+      seen.paidEur === undefined
+        ? null
+        : Math.round(seen.paidEur * 100 + after.cents) / 100,
+    status:
+      gap < 0 ? 'over' : Math.abs(before.shares) <= 1e-6 ? 'screen' : 'gap',
+    seenAt: at,
+    gap: round6(gap),
+  }
+}
+
+/** A later screen of the same account left this ticker out: flagged, not
+    zeroed — two half-screenshots of one list must not sell anything.
+    Screens on the same day count as one look. */
+export function notSeenSince(
+  seenAt: number | null,
+  accountSeenAt: number | null,
+): boolean {
+  return (
+    seenAt !== null &&
+    accountSeenAt !== null &&
+    accountSeenAt - seenAt > 20 * 3_600_000
+  )
+}

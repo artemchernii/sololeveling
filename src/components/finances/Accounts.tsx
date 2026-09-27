@@ -280,9 +280,7 @@ function AccountForm({
 }) {
   const [picked, setPicked] = useState<Product | 'other' | null>(
     account
-      ? (PRODUCTS.find(
-          (p) => p.institution === account.institution,
-        ) ??
+      ? (PRODUCTS.find((p) => p.institution === account.institution) ??
           productIn(account.name) ??
           'other')
       : null,

@@ -205,7 +205,11 @@ function guessAccount(
 function suggestFor(intake: Doc<'intakes'>) {
   const p = productIn(intake.institution)
   if (!p) return null
-  return { product: p.id, name: p.name, accountTail: intake.accountTail ?? null }
+  return {
+    product: p.id,
+    name: p.name,
+    accountTail: intake.accountTail ?? null,
+  }
 }
 
 /** For a holdings or trades read: which account, and what to add if none. */

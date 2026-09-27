@@ -1,28 +1,21 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
-import { ownedAccount } from './accounts'
 import { internal } from './_generated/api'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import schema from './schema'
 
-/* Investments (Finances F4, 26 Sep): tickers and trades. A broker
-   screenshot turned into trades is the intake now (intake.ts, 27 Sep). The value of what he holds is
-   read in aggregate.positions; the prices it uses are stored by market.ts.
+/* Investments (Finances F4, 26 Sep): tickers and trades. Trades come in
+   from a holdings screenshot or a trade history (intake.ts), or a typed
+   line (money.record, 27 Sep). The value of what he holds is read in
+   aggregate.positions; the prices it uses are stored by market.ts.
 
    A trade is what the broker confirmed: shares and the price per share in
    euros. Nothing here computes a return. */
 
 const MAX_TRADES = 2000
-
-const candidate = v.object({
-  symbol: v.string(),
-  name: v.string(),
-  exchange: v.string(),
-  type: v.string(),
-})
 
 /* One row per owner and symbol; a new one is read at once, so a position
    has its price the moment it exists. */
@@ -82,45 +75,6 @@ export async function heldShares(
     .filter((t) => t.accountId === accountId)
     .reduce((n, t) => n + (t.side === 'buy' ? t.shares : -t.shares), 0)
 }
-
-/** A buy or a sell, as the broker confirmed it. */
-export const addTrade = mutation({
-  args: {
-    accountId: v.id('accounts'),
-    candidate,
-    side: v.union(v.literal('buy'), v.literal('sell')),
-    shares: v.number(),
-    priceEur: v.number(),
-    occurredAt: v.number(),
-  },
-  returns: v.id('trades'),
-  handler: async (ctx, args) => {
-    const ownerId = await requireUser(ctx)
-    await ownedAccount(ctx, ownerId, args.accountId)
-    checkTrade(args.shares, args.priceEur)
-    if (args.occurredAt > Date.now() + 5 * 60_000) {
-      throw new ConvexError('A trade is something that happened.')
-    }
-    const instrumentId = await upsertInstrument(ctx, ownerId, args.candidate)
-    if (args.side === 'sell') {
-      const held = await heldShares(ctx, ownerId, args.accountId, instrumentId)
-      if (args.shares > held + 1e-9) {
-        throw new ConvexError(
-          `There are only ${Math.round(held * 1e6) / 1e6} shares of that here to sell.`,
-        )
-      }
-    }
-    return await ctx.db.insert('trades', {
-      ownerId,
-      accountId: args.accountId,
-      instrumentId,
-      side: args.side,
-      shares: args.shares,
-      priceEur: Math.round(args.priceEur * 10000) / 10000,
-      occurredAt: args.occurredAt,
-    })
-  },
-})
 
 export const removeTrade = mutation({
   args: { tradeId: v.id('trades') },

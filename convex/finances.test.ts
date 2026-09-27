@@ -29,6 +29,34 @@ function setup() {
   }
 }
 
+/* A buy or a sell as he types it (money.record), in the old addTrade's
+   words so the investment tests read as they did. */
+function trade(
+  who: ReturnType<typeof setup>['me'],
+  a: {
+    accountId: Id<'accounts'>
+    candidate: typeof TSLA
+    side: 'buy' | 'sell'
+    shares: number
+    priceEur: number
+    occurredAt: number
+  },
+) {
+  return who.mutation(api.money.record, {
+    lines: [
+      {
+        kind: a.side,
+        accountId: a.accountId,
+        candidate: a.candidate,
+        shares: a.shares,
+        price: a.priceEur,
+        priceCurrency: 'EUR',
+        occurredAt: a.occurredAt,
+      },
+    ],
+  })
+}
+
 function stored(t: ReturnType<typeof setup>['t'], storageId: Id<'_storage'>) {
   return t.run(async (ctx) => (await ctx.db.system.get(storageId)) !== null)
 }
@@ -373,19 +401,19 @@ describe('investments', () => {
       currencies: ['EUR'],
     })
     const base = { accountId: tr, candidate: TSLA, occurredAt: Date.now() }
-    await me.mutation(api.invest.addTrade, {
+    await trade(me, {
       ...base,
       side: 'buy',
       shares: 2,
       priceEur: 300,
     })
-    await me.mutation(api.invest.addTrade, {
+    await trade(me, {
       ...base,
       side: 'buy',
       shares: 1,
       priceEur: 330,
     })
-    await me.mutation(api.invest.addTrade, {
+    await trade(me, {
       ...base,
       side: 'sell',
       shares: 0.5,
@@ -416,7 +444,7 @@ describe('investments', () => {
       kinds: ['broker'],
       currencies: ['EUR'],
     })
-    await me.mutation(api.invest.addTrade, {
+    await trade(me, {
       accountId: tr,
       candidate: VWCE,
       side: 'buy',
@@ -450,7 +478,7 @@ describe('investments', () => {
       kinds: ['broker'],
       currencies: ['EUR'],
     })
-    await me.mutation(api.invest.addTrade, {
+    await trade(me, {
       accountId: tr,
       candidate: TSLA,
       side: 'buy',
@@ -459,7 +487,7 @@ describe('investments', () => {
       occurredAt: Date.now(),
     })
     await expect(
-      me.mutation(api.invest.addTrade, {
+      trade(me, {
         accountId: t212,
         candidate: TSLA,
         side: 'sell',
@@ -467,7 +495,7 @@ describe('investments', () => {
         priceEur: 300,
         occurredAt: Date.now(),
       }),
-    ).rejects.toThrow('only 0 shares')
+    ).rejects.toThrow('holds only 0')
   })
 
   test('storing the same close twice adds one row; a later same-day price replaces it', async () => {
@@ -477,7 +505,7 @@ describe('investments', () => {
       kinds: ['broker'],
       currencies: ['EUR'],
     })
-    await me.mutation(api.invest.addTrade, {
+    await trade(me, {
       accountId: tr,
       candidate: VWCE,
       side: 'buy',
@@ -508,13 +536,13 @@ describe('investments', () => {
   })
 
   test("another owner's trades and positions are never read", async () => {
-    const { me, them } = setup()
+    const { t, me, them } = setup()
     const theirs = await them.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
       currencies: ['EUR'],
     })
-    const tradeId = await them.mutation(api.invest.addTrade, {
+    await trade(them, {
       accountId: theirs,
       candidate: TSLA,
       side: 'buy',
@@ -522,12 +550,15 @@ describe('investments', () => {
       priceEur: 1,
       occurredAt: Date.now(),
     })
+    const tradeId = await t.run(
+      async (ctx) => (await ctx.db.query('trades').first())!._id,
+    )
     expect((await me.query(api.aggregate.positions, {})).rows).toEqual([])
     await expect(
       me.mutation(api.invest.removeTrade, { tradeId }),
     ).rejects.toThrow('No such trade')
     await expect(
-      me.mutation(api.invest.addTrade, {
+      trade(me, {
         accountId: theirs,
         candidate: TSLA,
         side: 'buy',
@@ -544,7 +575,7 @@ describe('worth: free cash and investments, apart', () => {
     const { t, me } = setup()
     const revolut = await me.mutation(api.accounts.create, {
       name: 'Revolut',
-      kinds: ['bank'],
+      kinds: ['bank', 'broker'],
       currencies: ['EUR'],
     })
     const tr = await me.mutation(api.accounts.create, {
@@ -564,13 +595,14 @@ describe('worth: free cash and investments, apart', () => {
       value: 150,
       dayStart: TODAY,
     })
-    await me.mutation(api.invest.addTrade, {
+    /* Bought before the balance was read, so already out of that cash. */
+    await trade(me, {
       accountId: revolut,
       candidate: VWCE,
       side: 'buy',
       shares: 10,
       priceEur: 120,
-      occurredAt: Date.now(),
+      occurredAt: Date.now() - 86_400_000,
     })
     const [inst] = await t.run(async (ctx) =>
       ctx.db.query('instruments').collect(),
@@ -709,7 +741,7 @@ describe('accounts: kinds, currencies, delete', () => {
       kinds: ['broker'],
       currencies: ['EUR'],
     })
-    await me.mutation(api.invest.addTrade, {
+    await trade(me, {
       accountId: tr,
       candidate: TSLA,
       side: 'buy',
@@ -1075,7 +1107,7 @@ describe('intake: holdings', () => {
       kinds: ['broker'],
       currencies: ['EUR'],
     })
-    await me.mutation(api.invest.addTrade, {
+    await trade(me, {
       accountId: tr,
       candidate: TSLA,
       side: 'buy',

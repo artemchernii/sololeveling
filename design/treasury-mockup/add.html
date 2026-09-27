@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury add</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150); --bad: oklch(0.68 0.2 22); --warn: oklch(0.79 0.15 75);
+    --buy: oklch(0.78 0.12 220); --sell: oklch(0.8 0.13 60);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .ctl { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .sheet { position: relative; border-radius: 18px; padding: 18px; border: 1px solid var(--sys-edge);
+    background: linear-gradient(160deg, rgba(181,171,252,.10), rgba(181,171,252,.02) 40%), #1b1a2c; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine);
+    display: flex; flex-direction: column; gap: 14px }
+  .shead { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid rgba(181,171,252,.2) }
+  .title { font-family: var(--mono); font-size: 12px; letter-spacing: .38em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 12px var(--shine) }
+  .close { width: 30px; height: 30px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: none; color: var(--ink-300); font-size: 15px }
+
+  .drop { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1.5px dashed color-mix(in oklch, var(--lav-400) 45%, transparent); background: rgba(181,171,252,.05); cursor: pointer }
+  .drop .i { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(181,171,252,.14); color: var(--lav-300); font-size: 16px }
+  .drop b { font-weight: 400 }
+  .drop small { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); margin-top: 2px }
+
+  .starters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .start { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 7px 12px; border-radius: 999px; cursor: pointer; background: color-mix(in oklch, var(--c) 10%, transparent); color: var(--c); border: 1px solid color-mix(in oklch, var(--c) 45%, transparent); transition: transform .12s, background .15s }
+  .start:hover { background: color-mix(in oklch, var(--c) 18%, transparent) }
+  .start:active { transform: scale(.96) }
+
+  .rows { display: flex; flex-direction: column; gap: 8px }
+  .row { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 10px 10px 14px; border-radius: 14px;
+    background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08); animation: in .32s cubic-bezier(.2,.8,.2,1) both }
+  .row::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--c) }
+  .row.leave { animation: out .22s ease both }
+  @keyframes in { from { opacity: 0; transform: translateY(-8px) scale(.98) } }
+  @keyframes out { to { opacity: 0; transform: translateX(16px); height: 0; padding: 0; margin: 0 } }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 5px 9px; border-radius: 8px; min-width: 96px;
+    color: var(--c); background: color-mix(in oklch, var(--c) 12%, transparent); border: 1px solid color-mix(in oklch, var(--c) 40%, transparent) }
+  .f { position: relative; font-family: var(--mono); font-size: 12.5px; color: var(--ink-100); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 9px; padding: 7px 10px; outline: none }
+  .f:focus { border-color: color-mix(in oklch, var(--lav-400) 60%, transparent); box-shadow: 0 0 0 3px rgba(181,171,252,.12) }
+  .f.need { border-color: color-mix(in oklch, var(--warn) 55%, transparent) }
+  select.f { appearance: none; padding-right: 24px; background-image: linear-gradient(45deg, transparent 50%, var(--ink-400) 50%), linear-gradient(135deg, var(--ink-400) 50%, transparent 50%); background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%; background-size: 4px 4px; background-repeat: no-repeat; cursor: pointer }
+  .amt { width: 110px; text-align: right; font-size: 14px }
+  .amt.in { color: var(--good) } .amt.out { color: var(--bad) }
+  .cur { width: 72px } .when { width: 112px } .qty { width: 80px; text-align: right }
+  .arrow { color: var(--ink-500) }
+  .x { margin-left: auto; width: 26px; height: 26px; border-radius: 999px; border: 0; background: none; color: var(--ink-500); cursor: pointer; font-size: 14px }
+  .x:hover { color: var(--bad); background: rgba(255,255,255,.05) }
+  .hint { width: 100%; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); padding-left: 104px }
+  .hint .src { color: var(--lav-300) }
+  @media (max-width: 640px) { .hint { padding-left: 0 } .badge { min-width: 0 } }
+
+  .empty { text-align: center; padding: 18px; font-size: 13px; color: var(--ink-500); border-radius: 14px; border: 1px dashed rgba(255,255,255,.1) }
+  .foot { display: flex; align-items: center; gap: 10px; padding-top: 12px; border-top: 1px solid rgba(181,171,252,.14) }
+  .sum { flex: 1; font-family: var(--mono); font-size: 12px; color: var(--ink-400) }
+  .sum .g { color: var(--good) } .sum .r { color: var(--bad) }
+  .save { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; padding: 11px 20px; border-radius: 999px; border: 0; cursor: pointer; color: #1a1830; background: linear-gradient(180deg, #c9c1fe, var(--lav-400)); box-shadow: 0 0 24px -8px var(--shine) }
+  .save:disabled { opacity: .4; cursor: default; box-shadow: none }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); font-family: var(--mono); font-size: 12px; padding: 10px 16px; border-radius: 12px; background: #24223a; border: 1px solid var(--sys-edge); opacity: 0; transition: opacity .2s }
+  .toast.on { opacity: 1 }
+  .notes { color: var(--ink-400); font-size: 13px; line-height: 1.6 }
+  .notes h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--lav-300); margin: 14px 0 6px }
+  .notes li { margin-left: 18px }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup · click the coloured buttons to add rows · pick "+ new…" in a dropdown to make your own</div>
+  <section class="sheet">
+    <div class="shead"><span class="title">[ add ]</span><button class="close">✕</button></div>
+
+    <div class="drop"><span class="i">⇪</span><span><b>Drop statements or screenshots</b><small>PDF · CSV · PNG — it becomes rows below, guessed for you to check</small></span></div>
+
+    <div class="starters">
+      <span class="caps" style="margin-right:4px">or add a row</span>
+      <button class="start" data-kind="in" style="--c:var(--good)">↗ money in</button>
+      <button class="start" data-kind="out" style="--c:var(--bad)">↘ money out</button>
+      <button class="start" data-kind="move" style="--c:var(--lav-400)">⇄ transfer</button>
+      <button class="start" data-kind="buy" style="--c:var(--buy)">▲ buy</button>
+      <button class="start" data-kind="sell" style="--c:var(--sell)">▼ sell</button>
+    </div>
+
+    <div class="rows" id="rows"></div>
+
+    <div class="foot">
+      <span class="sum" id="sum"></span>
+      <button class="save" id="save">add</button>
+    </div>
+  </section>
+
+  <div class="notes">
+    <h3>How it behaves</h3>
+    <ul>
+      <li>Each button adds a row of its kind, coloured by kind — in green, out red, transfer lavender, buy blue, sell amber. Add as many as you want, of any kinds; ✕ removes one.</li>
+      <li>Everything is prefilled: your only account (or the one you used last), its currency, today. The amount is focused; Enter adds another row of the same kind.</li>
+      <li>Where it came from / what it was: a dropdown of what you already use, with <b>+ new…</b> to make your own — kept for next time.</li>
+      <li>This is the same row a statement or screenshot becomes after reading — same badge, same dropdowns, prefilled by the reader instead of by you.</li>
+      <li>Only what is missing is marked, and the button says what will be added: "add 3 · +€2,140 −€48".</li>
+    </ul>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const ACCOUNTS = ['Revolut', 'BPI', 'Trade Republic']
+const LISTS = {
+  in: ['salary', 'freelance', 'refund', 'gift', 'other'],
+  out: ['groceries', 'eating out', 'transport', 'car', 'home', 'health', 'fun', 'clothes', 'shopping', 'subscriptions', 'travel', 'other'],
+}
+const LABEL = { in: '↗ money in', out: '↘ money out', move: '⇄ transfer', buy: '▲ buy', sell: '▼ sell' }
+const COLOR = { in: 'var(--good)', out: 'var(--bad)', move: 'var(--lav-400)', buy: 'var(--buy)', sell: 'var(--sell)' }
+const TICKERS = ['NFLX · Netflix', 'AMZN · Amazon', 'VUAA · S&P 500 ETF', 'BTC · Bitcoin', 'gold · per gram']
+const $ = (id) => document.getElementById(id)
+const opts = (list, sel, extra = '') => list.map((o) => `<option ${o === sel ? 'selected' : ''}>${o}</option>`).join('') + extra
+const today = new Date().toISOString().slice(0, 10)
+
+function row(kind) {
+  const el = document.createElement('div')
+  el.className = 'row'
+  el.style.setProperty('--c', COLOR[kind])
+  el.dataset.kind = kind
+  const acct = (name, lab) => `<select class="f" data-f="${name}" title="${lab}">${opts(ACCOUNTS, 'Revolut')}</select>`
+  const amount = `<input class="f amt ${kind === 'in' ? 'in' : kind === 'out' ? 'out' : ''}" data-f="amount" placeholder="0.00" inputmode="decimal">`
+  const cur = `<select class="f cur">${opts(['EUR', 'USD', 'UAH'], 'EUR')}</select>`
+  const when = `<input class="f when" type="date" value="${today}">`
+  let mid = ''
+  if (kind === 'in' || kind === 'out')
+    mid = `${acct('acct', 'account')}<select class="f" data-f="cat">${opts(LISTS[kind], kind === 'in' ? 'salary' : 'groceries', '<option value="__new">+ new…</option>')}</select>${amount}${cur}${when}`
+  else if (kind === 'move')
+    mid = `${acct('from', 'from')}<span class="arrow">→</span><select class="f">${opts(ACCOUNTS, 'Trade Republic')}</select>${amount}${cur}${when}`
+  else
+    mid = `${acct('acct', 'at')}<select class="f" style="min-width:150px">${opts(TICKERS, TICKERS[0], '<option value="__new">search…</option>')}</select><input class="f qty" placeholder="shares" inputmode="decimal"><span class="arrow">×</span><input class="f amt" data-f="amount" placeholder="price" inputmode="decimal">${cur}${when}`
+  el.innerHTML = `<span class="badge">${LABEL[kind]}</span>${mid}<button class="x" title="remove">✕</button>
+    <span class="hint">${kind === 'in' ? 'into Revolut · EUR — its currency' : kind === 'out' ? 'from Revolut · the category you used last for this kind' : kind === 'move' ? 'both sides written: out of one, into the other — not spending' : 'price in the ticker’s currency; euros worked out from the day’s ECB rate'}</span>`
+  el.querySelector('.x').onclick = () => { el.classList.add('leave'); setTimeout(() => { el.remove(); sum() }, 220) }
+  el.querySelectorAll('select').forEach((s) => s.onchange = () => {
+    if (s.value === '__new') {
+      const name = prompt(kind === 'buy' || kind === 'sell' ? 'Search a ticker, fund, gold, crypto' : 'Name it — kept for next time')
+      if (name) { const o = new Option(name, name, true, true); s.add(o, s.options.length - 1); if (LISTS[kind]) LISTS[kind].push(name); toast(`“${name}” kept for next time`) }
+      else s.selectedIndex = 0
+    }
+  })
+  el.querySelectorAll('input').forEach((i) => {
+    i.oninput = () => { i.classList.remove('need'); sum() }
+    i.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); add(kind) } }
+  })
+  return el
+}
+function add(kind) {
+  $('rows').querySelector('.empty')?.remove()
+  const el = row(kind)
+  $('rows').append(el)
+  el.querySelector('[data-f=amount]').focus()
+  sum()
+}
+function sum() {
+  const rows = [...$('rows').querySelectorAll('.row:not(.leave)')]
+  if (!rows.length) { $('rows').innerHTML = '<div class="empty">Nothing yet — drop a file, or add a row above.</div>'; $('sum').textContent = ''; $('save').disabled = true; $('save').textContent = 'add'; return }
+  let inn = 0, out = 0, missing = 0
+  for (const r of rows) {
+    const v = parseFloat((r.querySelector('[data-f=amount]').value || '').replace(',', '.'))
+    if (!v) { missing++; continue }
+    if (r.dataset.kind === 'in' || r.dataset.kind === 'sell') inn += v
+    if (r.dataset.kind === 'out' || r.dataset.kind === 'buy') out += v
+  }
+  $('sum').innerHTML = `${rows.length} row${rows.length > 1 ? 's' : ''}${inn ? ` · <span class="g">+€${inn.toFixed(2)}</span>` : ''}${out ? ` · <span class="r">−€${out.toFixed(2)}</span>` : ''}${missing ? ` · <span style="color:var(--warn)">${missing} without an amount</span>` : ''}`
+  $('save').disabled = false
+  $('save').textContent = `add ${rows.length}`
+}
+$('save').onclick = () => {
+  const empty = [...$('rows').querySelectorAll('.row [data-f=amount]')].filter((i) => !i.value)
+  if (empty.length) { empty.forEach((i) => i.classList.add('need')); empty[0].focus(); return }
+  toast('Added — the hero moves'); $('rows').innerHTML = ''; sum()
+}
+function toast(t) { $('toast').textContent = t; $('toast').classList.add('on'); setTimeout(() => $('toast').classList.remove('on'), 1600) }
+document.querySelectorAll('.start').forEach((b) => b.onclick = () => add(b.dataset.kind))
+add('in'); $('rows').querySelector('[data-f=amount]').value = '2140'; add('out'); $('rows').querySelectorAll('[data-f=amount]')[1].value = '48.20'; sum()
+</script>
+</body>
+</html>

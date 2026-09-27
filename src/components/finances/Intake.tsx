@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAction, useMutation } from 'convex/react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Check, Loader2, Plus, Search, X } from 'lucide-react'
+import { Check, ChevronRight, Loader2, Plus, Search, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
@@ -19,8 +19,7 @@ import { useDayStarts } from '@/components/track/useDayStarts'
 import { failureMessage } from '@/lib/convex-errors'
 import { money } from '@/lib/currency'
 import { dayLabel } from '@/lib/bills'
-import { completePosition, diffHoldings, merchantKey } from '@/lib/intake'
-import type { HoldingChange } from '@/lib/intake'
+import { completePosition, merchantKey } from '@/lib/intake'
 import { productById, searchProducts } from '@/lib/institutions'
 import type { Candidate } from '@/lib/market'
 import { SPEND_CATEGORIES, categoryLabel } from '@/lib/money'
@@ -770,14 +769,23 @@ function Row({
 
 /* ---- Holdings ---------------------------------------------------------- */
 
+/* A broker screen, checked (R6c, 27 Sep; mock design/treasury-mockup/
+   holdings.html). He asked what the boxes meant and why it wanted 15
+   prices he did not have. Now: what is in the account on top — total,
+   invested, free cash — what he paid only where the screen said it, one
+   line per position with the fix behind a tap, and one save with nothing
+   typed. What it shows is stored as a look (convex/intake.confirmHoldings);
+   a statement before or after fills it in, never adds to it. */
+
 type PosDraft = {
   keep: boolean
   candidate: Candidate | null
   shares: string
-  price: string
   sharesCalc: boolean
-  priceCalc: boolean
 }
+
+const shareText = (n: number) =>
+  n >= 100 ? n.toFixed(2) : n.toFixed(4).replace(/\.?0+$/, '')
 
 function HoldingsReview({
   intake,
@@ -797,19 +805,19 @@ function HoldingsReview({
     intake.accountId ?? null,
   )
   const target = accountId ?? whose?.guessedAccountId ?? null
+  const targetName = accounts.find((a) => a._id === target)?.name
   const [drafts, setDrafts] = useState<Array<PosDraft>>([])
+  const [open, setOpen] = useState<number | null>(null)
   const [searching, setSearching] = useState<number | null>(null)
   const [cash, setCash] = useState(
     intake.cashEur === undefined ? '' : String(intake.cashEur),
   )
+  const [editCash, setEditCash] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  /* What the account already holds: a first screenshot sets it, a later
-     one is compared with it and becomes buys and sells. */
+  /* What the account holds already, to say what this screen changes. */
   const held = useQuery(api.aggregate.positions, {})
   const heldHere = (held?.rows ?? []).filter((r) => r.accountId === target)
-  const mode = heldHere.length > 0 ? 'changes' : 'opening'
-  const [untick, setUntick] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     setDrafts(
@@ -822,75 +830,64 @@ function HoldingsReview({
               ? (p.candidates[p.preferred] ?? null)
               : (p.candidates[0] ?? null),
           shares: c.shares === undefined ? '' : String(c.shares),
-          price: c.priceEur === undefined ? '' : String(c.priceEur),
           sharesCalc: c.sharesCalculated,
-          priceCalc: c.priceCalculated,
         }
       }),
     )
   }, [positions])
 
   const num = (s: string) => Number(s.replace(',', '.'))
-  const changes: Array<HoldingChange> =
-    mode === 'changes'
-      ? diffHoldings(
-          heldHere.map((r) => ({
-            symbol: r.symbol,
-            shares: r.shares,
-            putIn: r.putIn,
-            priceEur:
-              r.valueEur !== null && r.shares > 0
-                ? r.valueEur / r.shares
-                : undefined,
-          })),
-          drafts.flatMap((d, i) => {
-            const p = positions[i] as (typeof positions)[number] | undefined
-            if (!d.keep || !d.candidate || !p) return []
-            return [
-              {
-                symbol: d.candidate.symbol,
-                shares: num(d.shares) || undefined,
-                sharesCalculated: d.sharesCalc,
-                paidEur:
-                  p.valueEur !== undefined &&
-                  p.changePct !== undefined &&
-                  p.changePct > -100
-                    ? p.valueEur / (1 + p.changePct / 100)
-                    : num(d.shares) * num(d.price) || undefined,
-                priceEurToday: p.todayPriceEur,
-              },
-            ]
-          }),
-        )
-      : []
-  const moving = changes.filter((c) => c.side !== undefined)
-  const ticked = moving.filter(
-    (c) => c.shares && c.priceEur && !untick.has(c.symbol),
-  )
-  const candidateFor = (symbol: string): Candidate | null => {
-    const d = drafts.find((x) => x.candidate?.symbol === symbol)
-    if (d?.candidate) return d.candidate
-    const h = heldHere.find((r) => r.symbol === symbol)
-    return h
-      ? { symbol: h.symbol, name: h.name, exchange: '', type: h.type }
-      : null
-  }
   const set = (i: number, patch: Partial<PosDraft>) =>
     setDrafts((d) => d.map((x, j) => (j === i ? { ...x, ...patch } : x)))
-  const kept = drafts.filter((d) => d.keep)
+  /* What the screen printed as paid: value ÷ (1 + % since buy). */
+  const paidOf = (p: (typeof positions)[number]) =>
+    p.valueEur !== undefined && p.changePct !== undefined && p.changePct > -100
+      ? Math.round((p.valueEur / (1 + p.changePct / 100)) * 100) / 100
+      : undefined
+  const rows = positions.flatMap((p, i) => {
+    const d = drafts[i] as PosDraft | undefined
+    return d ? [{ p, d, i, paid: paidOf(p) }] : []
+  })
+  const kept = rows.filter((r) => r.d.keep)
+  const cashNum = cash.trim() === '' ? null : num(cash)
+  const invested = kept.reduce((t, r) => t + (r.p.valueEur ?? 0), 0)
+  const total = intake.totalEur ?? invested + (cashNum ?? 0)
+  const known = kept.filter((r) => r.paid !== undefined)
+  const paid = known.reduce((t, r) => t + (r.paid ?? 0), 0)
+  const gain = known.reduce(
+    (t, r) => t + (r.p.valueEur ?? 0) - (r.paid ?? 0),
+    0,
+  )
   const ready =
     target !== null &&
-    (mode === 'changes'
-      ? ticked.length > 0 || cash.trim() !== ''
-      : kept.every((d) => d.candidate && num(d.shares) > 0 && num(d.price) > 0))
-  const worth = positions.reduce(
-    (t, p, i) => t + (drafts[i]?.keep ? (p.valueEur ?? 0) : 0),
-    0,
-  )
-  const paid = drafts.reduce(
-    (t, d) => t + (d.keep ? num(d.shares) * num(d.price) || 0 : 0),
-    0,
-  )
+    !saving &&
+    (kept.length > 0 || cashNum !== null) &&
+    kept.every((r) => r.d.candidate && num(r.d.shares) > 0)
+
+  /* Against what is saved: new, more, fewer, or not on this screen. */
+  const changes =
+    heldHere.length === 0
+      ? null
+      : (() => {
+          const out: Array<string> = []
+          let same = 0
+          for (const r of kept) {
+            const sym = r.d.candidate?.symbol
+            const h = heldHere.find((x) => x.symbol === sym)
+            const n = num(r.d.shares)
+            if (!sym) continue
+            if (!h) out.push(`${sym} new`)
+            else if (Math.abs(n - h.shares) <= h.shares * 0.015) same++
+            else
+              out.push(
+                `${sym} ${n > h.shares ? '+' : '−'}${shareText(Math.abs(n - h.shares))} sh`,
+              )
+          }
+          const gone = heldHere.filter(
+            (h) => !kept.some((r) => r.d.candidate?.symbol === h.symbol),
+          )
+          return { out, same, gone }
+        })()
 
   async function save() {
     if (!target) return
@@ -900,45 +897,39 @@ function HoldingsReview({
       await confirm({
         intakeId: intake._id,
         accountId: target,
-        mode,
-        occurredAt: Date.now(),
+        asOf: Date.now(),
         dayStart: today,
-        cashEur: cash.trim() === '' ? undefined : num(cash),
-        rows:
-          mode === 'changes'
-            ? ticked.map((c) => ({
-                candidate: candidateFor(c.symbol) as Candidate,
-                side: c.side as 'buy' | 'sell',
-                shares: c.shares as number,
-                priceEur: c.priceEur as number,
-              }))
-            : kept.map((d, i) => ({
-                candidate: d.candidate as Candidate,
-                isin: positions[drafts.indexOf(d)]?.isin ?? positions[i]?.isin,
-                side: 'buy' as const,
-                shares: num(d.shares),
-                priceEur: num(d.price),
-              })),
+        cashEur: cashNum ?? undefined,
+        rows: kept.map((r) => ({
+          candidate: r.d.candidate as Candidate,
+          isin: r.p.isin,
+          shares: num(r.d.shares),
+          paidEur: r.paid,
+          sharesCalculated: r.d.sharesCalc || undefined,
+        })),
       })
       onDone()
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message.replace(/^.*?ConvexError: /, '').split('\n')[0]
-          : 'Not saved',
-      )
+      setError(failureMessage(e) ?? 'Not saved')
       setSaving(false)
     }
   }
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="flex-1 text-[15px] text-foreground">
+      <div className="flex flex-wrap items-center gap-3">
+        {targetName ? (
+          <AccountLogo
+            name={targetName}
+            domain={accounts.find((a) => a._id === target)?.domain}
+            size={30}
+          />
+        ) : null}
+        <span className="flex-1 text-[16px] text-foreground">
           {intake.title}
         </span>
         <span className="font-mono text-[10.5px] text-ink-500">
-          {positions.length} positions · prices Yahoo Finance · ECB rate
+          <ReadBy intake={intake} /> · prices Yahoo Finance · ECB rate
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -951,9 +942,13 @@ function HoldingsReview({
               type="button"
               aria-pressed={target === a._id}
               onClick={() => setAccountId(a._id)}
-              className={target === a._id ? PILL_LOUD : PILL_QUIET}
+              className={`${target === a._id ? PILL_LOUD : PILL_QUIET} inline-flex items-center gap-2 py-1 pl-1`}
             >
+              <AccountLogo name={a.name} domain={a.domain} size={20} />
               {a.name}
+              {target === a._id ? (
+                <Check className="size-3" strokeWidth={3} />
+              ) : null}
             </button>
           ))}
         {!target && whose?.suggest ? (
@@ -965,165 +960,223 @@ function HoldingsReview({
           onCreated={setAccountId}
         />
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Kpi label="worth now" value={money(Math.round(worth * 100) / 100)} />
-        <Kpi
-          label="you paid · calculated"
-          value={money(Math.round(paid * 100) / 100)}
-        />
-        <Kpi
-          label="profit"
-          value={`${worth - paid >= 0 ? '+' : '−'}${money(Math.abs(Math.round((worth - paid) * 100) / 100))}`}
-          tone={worth - paid < 0 ? 'bad' : 'good'}
-        />
-        {mode === 'changes' ? (
-          <Kpi
-            label="changed since last time"
-            value={`${moving.length} of ${changes.length}`}
-            note={`${changes.length - moving.length} the same`}
-          />
-        ) : (
-          <Kpi
-            label="first read of"
-            value={accounts.find((a) => a._id === target)?.name ?? '—'}
-            note="held before — not out of its cash"
-          />
-        )}
-      </div>
-      {mode === 'changes' ? (
-        <Section
-          title="⇄ what changed — buys and sells"
-          aside="told by what you paid, not by the price"
-        >
-          {moving.length === 0 ? (
-            <span className="py-2 text-[13px] text-ink-400">
-              Nothing bought or sold since the last screenshot — only prices
-              moved.
+
+      <div className="motion-arrive flex flex-col gap-3 rounded-[16px] bg-lift/[0.03] p-4 ring-1 ring-lift/[0.08] ring-inset">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1.2fr_1fr_1fr]">
+          <div className="col-span-2 flex flex-col gap-1 sm:col-span-1">
+            <span className="label-caps">
+              total{targetName ? ` in ${targetName}` : ''}
             </span>
+            <span className="text-[30px] leading-none font-light tabular-nums">
+              {money(Math.round(total * 100) / 100)}
+            </span>
+            <span className="font-mono text-[10.5px] text-ink-500">
+              {intake.totalEur !== undefined
+                ? 'what the screen shows'
+                : 'invested + free cash'}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="label-caps flex items-center gap-1.5">
+              <span className="size-[7px] rounded-full bg-lav-400" />
+              invested
+            </span>
+            <span className="pt-2 text-[22px] leading-none font-light tabular-nums">
+              {money(Math.round(invested * 100) / 100)}
+            </span>
+            <span className="font-mono text-[10.5px] text-ink-500">
+              {kept.length} positions · worth now
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="label-caps flex items-center gap-1.5">
+              <span className="size-[7px] rounded-full bg-money-cash" />
+              free cash
+            </span>
+            {editCash ? (
+              <input
+                autoFocus
+                inputMode="decimal"
+                value={cash}
+                onChange={(e) => setCash(e.target.value)}
+                onBlur={() => setEditCash(false)}
+                aria-label="Free cash in the account"
+                className={`${FIELD} mt-1 w-32 py-1 text-[16px]`}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditCash(true)}
+                className="pt-2 text-left text-[22px] leading-none font-light tabular-nums"
+              >
+                {cashNum === null ? (
+                  <span className="text-[14px] text-ink-500">
+                    not on the screen
+                  </span>
+                ) : (
+                  money(cashNum)
+                )}
+              </button>
+            )}
+            <span className="font-mono text-[10.5px] text-ink-500">
+              not invested · tap to change
+            </span>
+          </div>
+        </div>
+        {invested + (cashNum ?? 0) > 0 ? (
+          <div className="flex h-1.5 gap-0.5">
+            <span
+              style={{ flex: invested }}
+              className="rounded-full bg-lav-400"
+            />
+            {cashNum ? (
+              <span
+                style={{ flex: cashNum }}
+                className="rounded-full bg-money-cash"
+              />
+            ) : null}
+          </div>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2 border-t border-lift/[0.06] pt-3 text-[13px] text-ink-300">
+          {known.length === 0 ? (
+            <>
+              <span className="rounded-[6px] bg-lift/[0.06] px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] text-ink-400 uppercase">
+                what you paid · unknown
+              </span>
+              <span>
+                A screenshot doesn&apos;t say it. Drop a{' '}
+                {targetName ?? 'broker'} statement later and it fills in.
+              </span>
+            </>
           ) : (
-            moving.map((c) => {
-              const on = ticked.some((x) => x.symbol === c.symbol)
-              const can = Boolean(c.shares && c.priceEur)
-              return (
-                <div
-                  key={c.symbol}
-                  className={`flex items-center gap-3 border-t border-lift/[0.04] py-2 ${on ? '' : 'opacity-55'}`}
-                >
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={on}
-                    disabled={!can}
-                    aria-label={`Keep ${c.symbol}`}
-                    onClick={() =>
-                      setUntick((u) => {
-                        const n = new Set(u)
-                        if (n.has(c.symbol)) n.delete(c.symbol)
-                        else n.add(c.symbol)
-                        return n
-                      })
-                    }
-                    className={`grid size-5 shrink-0 place-items-center rounded-[6px] ${on ? 'bg-lav-400 text-background' : 'ring-1 ring-lift/25'}`}
-                  >
-                    {on ? <Check className="size-3" strokeWidth={3} /> : null}
-                  </button>
-                  <TickerLogo symbol={c.symbol} size={26} />
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="text-[13.5px] text-foreground">
-                      <b className="font-mono text-lav-300">{c.symbol}</b>{' '}
-                      {c.change === 'new'
-                        ? 'new — bought'
-                        : c.change === 'more'
-                          ? 'bought more'
-                          : c.change === 'less'
-                            ? 'sold some'
-                            : 'not on this screenshot — sold?'}
-                    </span>
-                    <span className="font-mono text-[10.5px] text-ink-500">
-                      {c.shares ? `${c.shares} sh` : '? sh'} ×{' '}
-                      {c.priceEur ? money(c.priceEur) : '?'}
-                      {c.by === 'paid' ? ' · calc from what you paid' : ''}
-                      {c.change === 'gone'
-                        ? ' · the list may just be cut off'
-                        : ''}
-                    </span>
-                  </span>
-                  <span
-                    className={`shrink-0 font-mono text-[13px] ${c.side === 'sell' ? 'text-state-good' : 'text-ink-100'}`}
-                  >
-                    {c.side === 'sell' ? '+' : '−'}
-                    {c.shares && c.priceEur
-                      ? money(Math.round(c.shares * c.priceEur * 100) / 100)
-                      : '—'}
-                  </span>
-                </div>
-              )
-            })
+            <>
+              <span className="rounded-[6px] bg-lift/[0.06] px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] text-ink-400 uppercase">
+                you paid {money(Math.round(paid * 100) / 100)}
+              </span>
+              <span
+                className={`rounded-[6px] px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${gain >= 0 ? 'bg-state-good/14 text-state-good' : 'bg-state-danger/14 text-state-danger'}`}
+              >
+                {gain >= 0 ? '+' : '−'}
+                {money(Math.abs(Math.round(gain * 100) / 100))} ·{' '}
+                {paid > 0 ? `${((gain / paid) * 100).toFixed(1)}%` : ''}
+              </span>
+              <span>
+                {known.length === kept.length
+                  ? 'as the screen printed it'
+                  : `on the ${known.length} of ${kept.length} the screen gave a % for`}
+              </span>
+            </>
           )}
-          <span className="text-[12px] text-ink-500">
-            A buy comes out of the account&apos;s free cash; a sell goes back
-            into it.
+        </div>
+      </div>
+
+      {changes ? (
+        <div className="motion-arrive flex flex-col gap-1.5 rounded-[14px] bg-lav-400/[0.05] p-3 ring-1 ring-lav-400/22 ring-inset">
+          <span className="text-[13.5px] text-foreground">
+            {changes.out.length === 0 && changes.gone.length === 0
+              ? `Same shares as ${targetName} already has — only prices moved.`
+              : `Against what ${targetName} has: ${changes.out.length} changed · ${changes.same} the same`}
           </span>
-        </Section>
+          {changes.out.length > 0 ? (
+            <span className="flex items-baseline gap-2 text-[12.5px] text-ink-300">
+              <Check className="size-3.5 translate-y-0.5 text-state-good" />
+              {changes.out.join(' · ')}
+            </span>
+          ) : null}
+          {changes.gone.length > 0 ? (
+            <span className="flex items-baseline gap-2 text-[12.5px] text-ink-300">
+              <span className="text-state-warn">!</span>
+              {changes.gone.map((g) => g.symbol).join(', ')} not on this screen
+              — kept, and marked, in case the list was cut off
+            </span>
+          ) : null}
+          <span className="text-[12px] text-ink-500">
+            Saved as today&apos;s look. What you paid is never changed by a
+            screenshot.
+          </span>
+        </div>
       ) : null}
-      <Section
-        title="positions — check the ticker"
-        aside="calc = worked out, not on the screen"
-      >
-        {positions.map((p, i) => {
-          const d = drafts[i] as PosDraft | undefined
-          if (!d) return null
+
+      <div className="overflow-hidden rounded-[16px] bg-lift/[0.02] ring-1 ring-lift/[0.07] ring-inset">
+        <div className="flex justify-between px-3.5 pt-3 pb-2">
+          <span className="label-caps">{rows.length} positions</span>
+          <span className="font-mono text-[10.5px] text-ink-500">
+            shares · profit · worth now
+          </span>
+        </div>
+        {rows.map(({ p, d, i, paid: rowPaid }, k) => {
+          const isOpen = open === i
+          const n = num(d.shares)
+          const profit =
+            rowPaid !== undefined && p.valueEur !== undefined
+              ? p.valueEur - rowPaid
+              : null
           return (
             <div
               key={i}
-              className={`flex flex-col gap-2 border-t border-lift/[0.04] py-2.5 ${d.keep ? '' : 'opacity-45'}`}
+              style={{ animationDelay: `${k * 25}ms` }}
+              className="motion-land flex flex-col border-t border-lift/[0.05]"
             >
-              <div className="flex items-center gap-3">
+              <div
+                role="button"
+                tabIndex={0}
+                aria-expanded={isOpen}
+                onClick={() => setOpen(isOpen ? null : i)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setOpen(isOpen ? null : i)
+                  }
+                }}
+                className="flex cursor-pointer items-center gap-3 px-3.5 py-2.5 hover:bg-lift/[0.025]"
+              >
                 <button
                   type="button"
                   role="checkbox"
                   aria-checked={d.keep}
                   aria-label={`Keep ${p.name}`}
-                  onClick={() => set(i, { keep: !d.keep })}
-                  className={`grid size-5 shrink-0 place-items-center rounded-[6px] ${d.keep ? 'bg-lav-400 text-background' : 'ring-1 ring-lift/25'}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    set(i, { keep: !d.keep })
+                  }}
+                  className={`grid size-[18px] shrink-0 place-items-center rounded-[5px] ${d.keep ? 'bg-lav-400 text-background' : 'ring-[1.5px] ring-lift/25'}`}
                 >
                   {d.keep ? <Check className="size-3" strokeWidth={3} /> : null}
                 </button>
-                {d.candidate ? (
-                  <TickerLogo symbol={d.candidate.symbol} size={30} />
-                ) : (
-                  <span className="size-[30px]" />
-                )}
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-[13.5px]">
-                    <span className="text-ink-400">{p.name} →</span>{' '}
-                    <b className="font-mono text-lav-300">
-                      {d.candidate?.symbol ?? '?'}
-                    </b>{' '}
-                    <span className="font-mono text-[10px] text-ink-500">
-                      {d.candidate?.exchange}
-                    </span>
+                <span
+                  className={`flex min-w-0 flex-1 items-center gap-3 ${d.keep ? '' : 'opacity-40'}`}
+                >
+                  {d.candidate ? (
+                    <TickerLogo symbol={d.candidate.symbol} size={28} />
+                  ) : (
+                    <span className="size-7 shrink-0 rounded-[8px] bg-state-warn/15" />
+                  )}
+                  <span className="min-w-[52px] text-[14px] font-medium text-foreground">
+                    {d.candidate?.symbol ?? '?'}
                   </span>
-                  {/\((?:class\s*)?[ABC]\)/i.test(p.name) && d.candidate ? (
-                    <span className="font-mono text-[10.5px] text-ink-500">
-                      share class read from the name
-                    </span>
-                  ) : null}
+                  <span className="hidden min-w-0 flex-1 truncate text-[12.5px] text-ink-400 sm:block">
+                    {p.name}
+                  </span>
+                  <span className="ml-auto hidden w-24 text-right font-mono text-[11.5px] text-ink-400 sm:block">
+                    {n > 0 ? `${shareText(n)} sh` : '? sh'}
+                  </span>
+                  <span
+                    className={`w-24 text-right font-mono text-[11.5px] ${profit === null ? 'text-ink-500' : profit >= 0 ? 'text-state-good' : 'text-state-danger'}`}
+                  >
+                    {profit === null
+                      ? '—'
+                      : `${profit >= 0 ? '+' : '−'}${money(Math.abs(Math.round(profit * 100) / 100))}`}
+                  </span>
+                  <span className="w-24 text-right font-mono text-[13px] text-foreground">
+                    {p.valueEur !== undefined ? money(p.valueEur) : '—'}
+                  </span>
                 </span>
-                <span className="text-right font-mono text-[12.5px]">
-                  {p.valueEur !== undefined ? money(p.valueEur) : '—'}
-                  {p.changePct !== undefined ? (
-                    <span
-                      className={`block text-[11px] ${p.changePct >= 0 ? 'text-state-good' : 'text-state-danger'}`}
-                    >
-                      {p.changePct >= 0 ? '▲' : '▼'}{' '}
-                      {Math.abs(p.changePct).toFixed(2)}%
-                    </span>
-                  ) : null}
-                </span>
+                <ChevronRight
+                  className={`size-4 shrink-0 transition-transform ${isOpen ? 'rotate-90 text-ink-300' : 'text-ink-600'}`}
+                />
               </div>
-              {d.keep ? (
-                <div className="flex flex-wrap items-center gap-2 pl-8">
+              {isOpen ? (
+                <div className="motion-arrive flex flex-wrap items-center gap-2 px-3.5 pb-3.5 sm:pl-[72px]">
                   {searching === i ? (
                     <div className="w-full">
                       <TickerSearch
@@ -1135,42 +1188,37 @@ function HoldingsReview({
                       />
                     </div>
                   ) : (
-                    <select
-                      value={d.candidate?.symbol ?? ''}
-                      onChange={(e) => {
-                        if (e.target.value === '__search') setSearching(i)
-                        else
-                          set(i, {
-                            candidate:
-                              p.candidates.find(
-                                (c) => c.symbol === e.target.value,
-                              ) ?? d.candidate,
-                          })
-                      }}
-                      aria-label={`Ticker for ${p.name}`}
-                      className={`${FIELD} max-w-full py-1.5 font-mono text-[12px]`}
-                    >
-                      {d.candidate === null ? (
-                        <option value="">pick a ticker</option>
-                      ) : null}
-                      {d.candidate &&
-                      !p.candidates.some(
-                        (c) => c.symbol === d.candidate?.symbol,
-                      ) ? (
-                        <option value={d.candidate.symbol}>
-                          {d.candidate.symbol} · {d.candidate.name}
-                        </option>
-                      ) : null}
-                      {p.candidates.map((c) => (
-                        <option key={c.symbol} value={c.symbol}>
-                          {c.symbol} · {c.exchange} · {c.name}
-                        </option>
+                    <div className="flex w-full flex-wrap gap-1.5">
+                      {[
+                        ...(d.candidate &&
+                        !p.candidates.some(
+                          (c) => c.symbol === d.candidate?.symbol,
+                        )
+                          ? [d.candidate]
+                          : []),
+                        ...p.candidates,
+                      ].map((c) => (
+                        <button
+                          key={c.symbol}
+                          type="button"
+                          aria-pressed={d.candidate?.symbol === c.symbol}
+                          onClick={() => set(i, { candidate: c })}
+                          className={`${d.candidate?.symbol === c.symbol ? PILL_LOUD : PILL_QUIET} py-1 normal-case`}
+                        >
+                          {c.symbol} · {c.exchange || c.type}
+                        </button>
                       ))}
-                      <option value="__search">search another…</option>
-                    </select>
+                      <button
+                        type="button"
+                        onClick={() => setSearching(i)}
+                        className={`${PILL_QUIET} inline-flex items-center gap-1.5 border-dashed py-1`}
+                      >
+                        <Search className="size-3" /> another ticker
+                      </button>
+                    </div>
                   )}
                   <label
-                    className={`${FIELD} inline-flex w-36 items-center gap-1.5 py-1.5`}
+                    className={`${FIELD} inline-flex w-40 items-center gap-1.5 py-1.5`}
                   >
                     <input
                       inputMode="decimal"
@@ -1182,69 +1230,24 @@ function HoldingsReview({
                       className="w-full bg-transparent font-mono text-[12.5px] focus:outline-none"
                     />
                     <span className="font-mono text-[10px] text-ink-500">
-                      sh
+                      shares
                     </span>
-                    {d.sharesCalc ? (
-                      <span className="rounded-[4px] bg-lav-400/14 px-1 font-mono text-[9.5px] text-lav-300">
-                        calc
-                      </span>
-                    ) : null}
                   </label>
-                  <label
-                    className={`${FIELD} inline-flex w-40 items-center gap-1.5 py-1.5`}
-                  >
-                    <span className="font-mono text-[11px] text-ink-500">
-                      €
-                    </span>
-                    <input
-                      inputMode="decimal"
-                      value={d.price}
-                      onChange={(e) =>
-                        set(i, { price: e.target.value, priceCalc: false })
-                      }
-                      aria-label={`What you paid per share of ${p.name}`}
-                      className="w-full bg-transparent font-mono text-[12.5px] focus:outline-none"
-                    />
-                    <span className="font-mono text-[10px] text-ink-500">
-                      /sh
-                    </span>
-                    {d.priceCalc ? (
-                      <span className="rounded-[4px] bg-lav-400/14 px-1 font-mono text-[9.5px] text-lav-300">
-                        calc
-                      </span>
-                    ) : null}
-                  </label>
+                  <span className="font-mono text-[10.5px] text-ink-500">
+                    {p.name}
+                    {d.sharesCalc
+                      ? ' · shares worked out as worth ÷ today’s price'
+                      : ' · shares read from the screen'}
+                    {rowPaid !== undefined
+                      ? ` · paid ${money(rowPaid)} (from its %)`
+                      : ''}
+                  </span>
                 </div>
               ) : null}
             </div>
           )
         })}
-      </Section>
-      <label className={`${FIELD} flex items-center gap-2`}>
-        <span className="shrink-0 font-mono text-[10.5px] text-ink-500">
-          free cash in the account €
-        </span>
-        <input
-          inputMode="decimal"
-          value={cash}
-          onChange={(e) => setCash(e.target.value)}
-          placeholder={
-            intake.cashEur === undefined
-              ? 'not on the screen — type it or leave it'
-              : ''
-          }
-          className="w-full bg-transparent focus:outline-none"
-        />
-      </label>
-      {intake.totalEur !== undefined ? (
-        <span className="font-mono text-[11px] text-ink-500">
-          the app states {money(intake.totalEur)} in all
-        </span>
-      ) : null}
-      <span className="text-[12px] text-ink-500">
-        Want exact shares instead of calc? Tap a position in the broker&apos;s
-        app and drop that screen too.
-      </span>
+      </div>
       {error ? (
         <span className="font-mono text-[11.5px] text-state-warn">{error}</span>
       ) : null}
@@ -1258,14 +1261,13 @@ function HoldingsReview({
         </button>
         <button
           type="button"
-          disabled={!ready || saving}
+          disabled={!ready}
           onClick={() => void save()}
           className={`${PILL_LOUD} flex-[2] justify-center py-3 disabled:opacity-40`}
         >
-          {mode === 'changes'
-            ? `confirm · ${ticked.length} ${ticked.length === 1 ? 'trade' : 'trades'}`
-            : `confirm · ${kept.length} positions`}
-          {cash.trim() ? ' · cash' : ''}
+          {target === null
+            ? 'pick the account above'
+            : `save ${targetName ?? ''} · ${kept.length}${cashNum !== null ? ' + cash' : ''}`}
         </button>
       </div>
     </>

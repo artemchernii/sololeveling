@@ -1254,6 +1254,28 @@ describe('intake: holdings', () => {
     })
   })
 
+  test('looks: a position’s screens, newest first, only his', async () => {
+    const { t, me, them } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    await me.mutation(api.intake.confirmHoldings, {
+      intakeId: await ready(t, me),
+      accountId: tr,
+      asOf: Date.now(),
+      dayStart: TODAY,
+      rows: [{ candidate: MSFT_C, shares: 1, paidEur: 250 }],
+    })
+    const p = await me.query(api.aggregate.positions, {})
+    const at = { accountId: tr, instrumentId: p.rows[0].instrumentId }
+    expect(await me.query(api.invest.looks, at)).toMatchObject([
+      { shares: 1, paidEur: 250 },
+    ])
+    expect(await them.query(api.invest.looks, at)).toEqual([])
+  })
+
   test('a ticker a later day’s screen left out is flagged, not sold', async () => {
     const { t, me } = setup()
     const tr = await me.mutation(api.accounts.create, {

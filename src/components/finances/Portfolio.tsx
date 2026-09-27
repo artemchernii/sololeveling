@@ -25,10 +25,11 @@ const DATE = new Intl.DateTimeFormat(undefined, {
 /* The Portfolio room (Treasury, 27 Sep). A card per account that holds
    shares — its logo, what it holds in all, the shares at the last stored
    close with their profit in green or red, what he paid for them, and its
-   free cash — then every position with its line. Positions come in by the
-   batch from a broker screenshot (+ → drop files); a single buy or sell
-   is a typed line on + ("bought 3 msft 402 tr"). Profit is value against what he paid: allowed
-   in Finances since 26 Sep (pick D). */
+   free cash — then every position with its line. Positions are worked out
+   from every file dropped on the account (R6c): statements are the
+   trades, screenshots what was seen; each row says whether they agree.
+   Profit is value against what he paid (pick D, 26 Sep) — only where
+   paid is known, never against zero. */
 export function Portfolio() {
   const data = useQuery(api.aggregate.positions, {})
   const worth = useQuery(api.aggregate.worth, {})
@@ -48,8 +49,7 @@ export function Portfolio() {
   const rows = data.rows.filter(
     (r) => filter === 'all' || r.accountId === filter,
   )
-  const totalPaid = data.rows.reduce((t, r) => t + r.putIn, 0)
-  const profit = data.totalEur - totalPaid
+  const sums = paidSums(data.rows)
 
   return (
     <div className="flex flex-col gap-3">
@@ -68,10 +68,29 @@ export function Portfolio() {
                 <Veiled>{euros(data.totalEur)}</Veiled>
               </span>
             </div>
-            <ProfitPill profit={profit} base={totalPaid} label="since bought" />
+            {sums.known > 0 ? (
+              <ProfitPill
+                profit={sums.value - sums.paid}
+                base={sums.paid}
+                label={
+                  sums.known === data.rows.length
+                    ? 'since bought'
+                    : `on ${sums.known} of ${data.rows.length}`
+                }
+              />
+            ) : null}
             <span className="font-mono text-[11px] text-ink-500">
-              you paid{' '}
-              <Veiled>{euros(Math.round(totalPaid * 100) / 100)}</Veiled>
+              {sums.known === 0 ? (
+                'what you paid: unknown until a statement comes'
+              ) : (
+                <>
+                  you paid{' '}
+                  <Veiled>{euros(Math.round(sums.paid * 100) / 100)}</Veiled>
+                  {sums.known < data.rows.length
+                    ? ` for ${sums.known} of ${data.rows.length}`
+                    : ''}
+                </>
+              )}
               {data.oldestPriceAsOf !== null
                 ? ` · closes as of ${DATE.format(new Date(data.oldestPriceAsOf))} · Yahoo Finance`
                 : ''}
@@ -88,7 +107,7 @@ export function Portfolio() {
           {holders.map((a) => {
             const held = data.rows.filter((r) => r.accountId === a._id)
             const value = held.reduce((t, r) => t + (r.valueEur ?? 0), 0)
-            const paid = held.reduce((t, r) => t + r.putIn, 0)
+            const known = paidSums(held)
             const cash =
               worth.byAccount.find((w) => w.accountId === a._id)?.cash ?? null
             return (
@@ -118,12 +137,32 @@ export function Portfolio() {
                     <span className="text-ink-500">investments</span>
                     <span className="flex items-center gap-2">
                       <Veiled>{euros(Math.round(value * 100) / 100)}</Veiled>
-                      <ProfitPill profit={value - paid} base={paid} small />
+                      {known.known > 0 ? (
+                        <ProfitPill
+                          profit={known.value - known.paid}
+                          base={known.paid}
+                          small
+                        />
+                      ) : null}
                     </span>
                   </span>
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-ink-500">you paid for them</span>
-                    <Veiled>{euros(Math.round(paid * 100) / 100)}</Veiled>
+                    {known.known === 0 ? (
+                      <span className="text-ink-600">unknown</span>
+                    ) : (
+                      <span>
+                        <Veiled>
+                          {euros(Math.round(known.paid * 100) / 100)}
+                        </Veiled>
+                        {known.known < held.length ? (
+                          <span className="text-ink-600">
+                            {' '}
+                            · {known.known} of {held.length}
+                          </span>
+                        ) : null}
+                      </span>
+                    )}
                   </span>
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-ink-500">free cash</span>
@@ -187,6 +226,23 @@ export function Portfolio() {
   )
 }
 
+/* What was paid and what it is worth, over the rows where both are known
+   — a profit is never shown against a cost no file gave. */
+function paidSums(
+  rows: ReadonlyArray<{ paid: number | null; valueEur: number | null }>,
+) {
+  let paid = 0
+  let value = 0
+  let known = 0
+  for (const r of rows) {
+    if (r.paid === null || r.valueEur === null) continue
+    paid += r.paid
+    value += r.valueEur
+    known++
+  }
+  return { paid, value, known }
+}
+
 /* Profit in green, loss in red — the one place colour means a quantity's
    direction, allowed for P&L in Finances (26 Sep). */
 function ProfitPill({
@@ -221,7 +277,11 @@ type Position = {
   type: string
   currency: string
   shares: number
-  putIn: number
+  paid: number | null
+  status: 'trades' | 'match' | 'screen' | 'gap' | 'over'
+  seenAt: number | null
+  gap: number
+  notSeen: boolean
   price: number | null
   priceAsOf: number | null
   valueEur: number | null
@@ -242,8 +302,10 @@ function PositionRow({
     since: today - 90 * 86_400_000,
   })
   const [open, setOpen] = useState(false)
-  const profit = row.valueEur === null ? null : row.valueEur - row.putIn
+  const profit =
+    row.valueEur === null || row.paid === null ? null : row.valueEur - row.paid
   const up = (profit ?? 0) >= 0
+  const said = standing(row)
   return (
     <div className="flex flex-col">
       <button
@@ -265,6 +327,12 @@ function PositionRow({
           <span className="truncate font-mono text-[11px] text-ink-500">
             {row.symbol} · {account} · <Veiled>{`${row.shares} sh`}</Veiled>
           </span>
+          <span
+            className={`truncate font-mono text-[10.5px] ${said.warn ? 'text-state-warn' : 'text-ink-500'}`}
+          >
+            {said.warn ? '⚠ ' : said.ok ? '✓ ' : ''}
+            {said.text}
+          </span>
         </span>
         <Sparkline
           className="hidden h-8 w-24 sm:block"
@@ -280,16 +348,16 @@ function PositionRow({
           </span>
           {profit === null ? (
             <span className="font-mono text-[10.5px] text-ink-500">
-              price on its way
+              {row.valueEur === null ? 'price on its way' : 'paid unknown'}
             </span>
           ) : (
             <span
               className={`font-mono text-[11.5px] ${up ? 'text-state-good' : 'text-state-danger'}`}
             >
               {up ? '▲' : '▼'}{' '}
-              {Math.abs(row.putIn > 0 ? (profit / row.putIn) * 100 : 0).toFixed(
-                2,
-              )}
+              {Math.abs(
+                row.paid && row.paid > 0 ? (profit / row.paid) * 100 : 0,
+              ).toFixed(2)}
               %
             </span>
           )}
@@ -302,6 +370,52 @@ function PositionRow({
   )
 }
 
+/* Where the row's number came from, in a line: which files agree. */
+function standing(row: Position): {
+  text: string
+  warn: boolean
+  ok: boolean
+} {
+  const day = row.seenAt === null ? '' : DATE.format(new Date(row.seenAt))
+  if (row.notSeen)
+    return {
+      text: `not on the latest screenshot — last seen ${day}`,
+      warn: true,
+      ok: false,
+    }
+  switch (row.status) {
+    case 'match':
+      return {
+        text: `statement and ${day} screen agree`,
+        warn: false,
+        ok: true,
+      }
+    case 'trades':
+      return { text: 'from statements', warn: false, ok: false }
+    case 'screen':
+      return {
+        text:
+          row.paid === null
+            ? `${day} screen · drop a statement for what you paid`
+            : `${day} screen`,
+        warn: false,
+        ok: false,
+      }
+    case 'gap':
+      return {
+        text: `${day} screen shows ${row.gap} sh more than the statements — one is missing`,
+        warn: true,
+        ok: false,
+      }
+    case 'over':
+      return {
+        text: `statements show ${-row.gap} sh more than the ${day} screen — a sell is missing`,
+        warn: true,
+        ok: false,
+      }
+  }
+}
+
 function Trades({
   accountId,
   instrumentId,
@@ -310,9 +424,38 @@ function Trades({
   instrumentId: Id<'instruments'>
 }) {
   const rows = useQuery(api.invest.trades, { accountId, instrumentId })
+  const looks = useQuery(api.invest.looks, { accountId, instrumentId })
   const remove = useMutation(api.invest.removeTrade)
   return (
     <div className="motion-arrive ml-6 flex flex-col border-l border-lav-400/20 py-1 pl-2.5">
+      {(looks ?? []).map((h) => (
+        <div
+          key={h._id}
+          className="flex min-h-9 items-center gap-2.5 text-[13px]"
+        >
+          <span className="w-10 font-mono text-[10.5px] tracking-[0.12em] text-lav-300 uppercase">
+            seen
+          </span>
+          <span className="flex-1 text-ink-200">
+            <Veiled>{`${h.shares} sh`}</Veiled>
+            {h.paidEur !== undefined ? (
+              <span className="text-ink-400">
+                {' '}
+                · paid <Veiled>{euros(h.paidEur)}</Veiled>
+              </span>
+            ) : null}
+            <span className="ml-2 font-mono text-[10px] text-ink-600">
+              {h.sharesCalculated
+                ? 'screenshot · shares worked out'
+                : 'screenshot'}
+            </span>
+          </span>
+          <span className="font-mono text-[11px] text-ink-500">
+            {DATE.format(new Date(h.asOf))}
+          </span>
+          <span className="size-5" />
+        </div>
+      ))}
       {(rows ?? []).map((t) => (
         <div
           key={t._id}
@@ -331,7 +474,7 @@ function Trades({
             </Veiled>
             {t.importId ? (
               <span className="ml-2 font-mono text-[10px] text-ink-600">
-                {t.opening ? 'held when first read' : 'from screenshot'}
+                {t.opening ? 'held when first read' : 'from a statement'}
               </span>
             ) : null}
           </span>

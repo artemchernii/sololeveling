@@ -45,7 +45,8 @@ files came in (`src/lib/holdings.ts`, pure, tested):
   of the same ticker on the same day replaces the first) and the cash; no
   more "opening" buys, no 15 prices asked. `confirmTrades` stops refusing
   a statement's sell of shares only a screenshot knew.
-- `convex/migrations.ts` — each old `opening` trade becomes an observation.
+- No migration: his dev deployment had no trades when this landed (27 Sep);
+  the old `opening` flag stays readable for rows that never existed.
 - `Intake.tsx` HoldingsReview — the mock: total / invested / free cash,
   "what you paid", one line per position, fix behind a tap, one save.
 - `Portfolio.tsx` — paid "unknown", profit only when known, ✓ / ⚠ per row.

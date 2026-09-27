@@ -122,6 +122,24 @@ export const trades = query({
   },
 })
 
+/** One position's looks — what each screen showed — newest first. */
+export const looks = query({
+  args: { accountId: v.id('accounts'), instrumentId: v.id('instruments') },
+  returns: v.array(schema.doc('holdings')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('holdings')
+      .withIndex('by_owner_instrument', (q) =>
+        q.eq('ownerId', ownerId).eq('instrumentId', args.instrumentId),
+      )
+      .take(MAX_TRADES)
+    return rows
+      .filter((h) => h.accountId === args.accountId)
+      .sort((a, b) => b.asOf - a.asOf)
+  },
+})
+
 /**
  * A ticker's stored closes over a period, oldest first, with where they
  * came from — source 4 read as a series, on the same condition as the

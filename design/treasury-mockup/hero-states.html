@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Treasury hero states</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150);
+    --bad: oklch(0.68 0.2 22);
+    --warn: oklch(0.79 0.15 75);
+    --money: oklch(0.8 0.1 85);
+    --glass: linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
+    --edge: rgba(233,233,237,.09);
+    --shadow: inset 0 1px 0 rgba(233,233,237,.08), 0 24px 48px -28px rgba(0,0,0,.9);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 16px; }
+  .mono { font-family: var(--mono); }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400); }
+  .good { color: var(--good) } .bad { color: var(--bad) } .dim { color: var(--ink-500) } .warn { color: var(--warn) }
+  .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+  .between { justify-content: space-between }
+  .veil .money { filter: blur(9px); user-select: none; }
+  .money { transition: filter .25s ease; }
+
+  /* Mockup controls — not part of the design */
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  /* The System window */
+  .sys { position: relative; border-radius: 14px; border: 1px solid var(--sys-edge); padding: 20px;
+    background: linear-gradient(160deg, rgba(181,171,252,.10), rgba(181,171,252,.02) 40%), var(--glass);
+    box-shadow: var(--shadow), 0 0 40px -18px var(--shine); overflow: hidden; }
+  .sys::before { content:''; position:absolute; inset:0; pointer-events:none; z-index: 1; background: repeating-linear-gradient(0deg, rgba(233,233,237,.022) 0 1px, transparent 1px 3px); }
+  .sys::after { content:''; position:absolute; inset:-1px; border:2px solid var(--lav-400); border-radius:15px; pointer-events:none; z-index: 3;
+    --r: 22px; mask: linear-gradient(#000 0 0) top left/var(--r) var(--r), linear-gradient(#000 0 0) top right/var(--r) var(--r), linear-gradient(#000 0 0) bottom left/var(--r) var(--r), linear-gradient(#000 0 0) bottom right/var(--r) var(--r); mask-repeat:no-repeat; filter: drop-shadow(0 0 5px var(--shine)); }
+  .sys > * { position: relative; z-index: 2 }
+  .sys-title { font-family: var(--mono); font-size: 12px; letter-spacing: .38em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 12px var(--shine); }
+
+  /* His photo: the right half's ground, darkened so numbers read over it */
+  .photo { position:absolute !important; z-index: 0 !important; inset: 0 0 0 38%;
+    background: url(dollar.jpg) center / cover no-repeat;
+    mask-image: linear-gradient(to left, #000 55%, transparent);
+    opacity: .75; filter: saturate(.95) }
+  .photo::after { content:''; position:absolute; inset:0; background: linear-gradient(to left, rgba(18,17,32,.55), rgba(18,17,32,.2)) }
+
+  .top { border-bottom:1px solid rgba(181,171,252,.2); padding-bottom:12px }
+  .checkin { display:inline-flex; align-items:center; gap:8px; font-family: var(--mono); font-size: 10.5px; letter-spacing:.1em; text-transform: uppercase; padding: 4px 6px 4px 10px; border-radius: 999px; cursor:pointer;
+    color: var(--warn); border:1px solid color-mix(in oklch, var(--warn) 45%, transparent); background: color-mix(in oklch, var(--warn) 10%, transparent) }
+  .checkin .who { display:flex }
+  .checkin .who img, .checkin .who span { width: 18px; height: 18px; border-radius: 6px; margin-left: -4px; border: 1.5px solid #2a2436; background:#fff; object-fit: contain; padding: 1px }
+  .checkin .who span { display:grid; place-items:center; background: #3a3348; color: var(--warn); font-size: 9px }
+  .checkin.fresh { color: var(--good); border-color: color-mix(in oklch, var(--good) 35%, transparent); background: color-mix(in oklch, var(--good) 8%, transparent); padding-right: 10px }
+  .eye { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; border: 1px solid color-mix(in oklch, var(--lav-400) 45%, transparent); background: rgba(181,171,252,.12); color: var(--ink-100); cursor: pointer }
+  /* + add: solid, a light that runs round its edge, a slow breath, and a
+     + that turns when you reach for it. */
+  @property --a { syntax: '<angle>'; initial-value: 0deg; inherits: false }
+  .add { position: relative; isolation: isolate; overflow: hidden; display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; padding: 8px 17px 8px 14px; border-radius: 999px; border: 0; cursor: pointer;
+    color: #1a1830; background: transparent; animation: breathe 3.2s ease-in-out infinite }
+  .add::before { content:''; position:absolute; inset:-40%; z-index:-2;
+    background: conic-gradient(from var(--a), var(--lav-400) 0 62%, #fff 74%, #e9e5ff 78%, var(--lav-400) 88%); animation: spin 2.6s linear infinite }
+  .add::after { content:''; position:absolute; inset:1.5px; border-radius:999px; z-index:-1;
+    background: linear-gradient(180deg, #c9c1fe, var(--lav-400)) }
+  .add .shine { position:absolute; inset:0; z-index:-1; border-radius:999px; pointer-events:none;
+    background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.55) 50%, transparent 65%); background-size: 250% 100%; animation: sweep 4.2s ease-in-out infinite }
+  .add .plus { display:inline-block; font-size: 14px; line-height: 1; transition: transform .45s cubic-bezier(.3,1.7,.5,1) }
+  .add:hover .plus { transform: rotate(180deg) scale(1.25) }
+  .add:hover { animation-duration: 1.6s }
+  .add:active { transform: scale(.96) }
+  @keyframes spin { to { --a: 360deg } }
+  @keyframes breathe { 0%,100% { box-shadow: 0 0 14px -6px var(--shine) } 50% { box-shadow: 0 0 30px -2px var(--shine), 0 0 0 1px rgba(255,255,255,.08) } }
+  @keyframes sweep { 0%, 55% { background-position: 150% 0 } 85%, 100% { background-position: -60% 0 } }
+  .solid { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; padding: 9px 18px; border-radius: 999px; border: 0; cursor: pointer; background: var(--lav-400); color: #1a1830 }
+  .ghost { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 8px 14px; border-radius: 999px; cursor: pointer; background: none; color: var(--ink-200); border: 1px solid rgba(255,255,255,.16) }
+  .ghost:hover { border-color: color-mix(in oklch, var(--lav-400) 55%, transparent) }
+
+  /* Day one */
+  .drop { display:flex; flex-direction:column; align-items:center; gap: 8px; padding: 26px 18px; border-radius: 16px; cursor:pointer; text-align:center;
+    border: 1.5px dashed color-mix(in oklch, var(--lav-400) 50%, transparent); background: rgba(181,171,252,.05); transition: background .2s }
+  .drop:hover { background: rgba(181,171,252,.1) }
+  .drop .ico { font-size: 22px; color: var(--lav-400) }
+  .found { display:flex; flex-direction:column; gap: 6px }
+  .frow { display:grid; grid-template-columns: 20px 28px 1fr auto; align-items:center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08); animation: arrive .35s cubic-bezier(.2,.8,.2,1) both }
+  .frow img, .frow .ini { width: 28px; height: 28px; border-radius: 8px; background:#fff; object-fit: contain; padding: 2px }
+  .frow .ini { display:grid; place-items:center; background: rgba(159,217,180,.14); color: #9fd9b4; font-family: var(--mono); padding:0 }
+  .frow .t { display:flex; flex-direction:column; gap: 3px; min-width: 0 }
+  .frow .t b { font-weight: 400; font-size: 14px }
+  .frow .t span { font-family: var(--mono); font-size: 10.5px; color: var(--ink-400) }
+  .tick { width: 18px; height: 18px; border-radius: 6px; display:grid; place-items:center; font-size: 11px; background: var(--lav-400); color: #1a1830; cursor:pointer }
+  .tick.off { background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); color: transparent }
+  .reading { display:flex; align-items:center; gap: 10px; font-family: var(--mono); font-size: 12px; color: var(--ink-300); padding: 8px 12px; border-radius: 10px; background: rgba(181,171,252,.06) }
+  .spin { width: 12px; height: 12px; border-radius: 999px; border: 2px solid var(--lav-400); border-right-color: transparent; animation: turn .8s linear infinite }
+  @keyframes turn { to { transform: rotate(360deg) } }
+  @keyframes arrive { from { opacity:0; transform: translateY(6px) } to { opacity:1; transform:none } }
+  .hand { display:grid; grid-template-columns: 28px 1fr 130px 130px; align-items:center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08); animation: arrive .3s both }
+  .hand img, .hand .ini { width: 28px; height: 28px; border-radius: 8px; background:#fff; object-fit: contain; padding: 2px }
+  .hand .ini { display:grid; place-items:center; background: rgba(159,217,180,.14); color: #9fd9b4; font-family: var(--mono); padding:0 }
+  .field { font-family: var(--mono); font-size: 12.5px; color: var(--ink-100); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 9px; padding: 7px 9px; width: 100% }
+  @media (max-width: 640px) { .hand { grid-template-columns: 28px 1fr; } .hand .field { grid-column: 2 } }
+
+  .body { display:grid; grid-template-columns: 1fr; gap: 22px; margin-top: 18px }
+  @media (min-width: 860px) { .body { grid-template-columns: 1.1fr 1fr; gap: 28px } }
+  .big { font-size: 56px; font-weight: 300; letter-spacing: -.02em; line-height: 1; }
+  @media (max-width: 520px) { .big { font-size: 42px } }
+  .pill { display:inline-flex; align-items:center; gap:10px; padding: 7px 12px; border-radius: 10px; background: rgba(255,255,255,.06); font-family: var(--mono); font-size: 15px; font-weight:500 }
+  .split { display:flex; height: 10px; border-radius: 999px; overflow: hidden; gap: 3px }
+  .split > div { border-radius: 999px }
+  .asof { font-family: var(--mono); font-size: 11px; color: var(--ink-500) }
+
+  /* Right: where it is */
+  .where { display:flex; flex-direction:column; gap: 14px; padding: 14px; border-radius: 14px;
+    background: rgba(16,15,28,.34); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(3px) }
+  .group { display:flex; flex-direction:column; gap: 4px }
+  .ghead { display:flex; align-items:baseline; justify-content: space-between; gap: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.06) }
+  .ghead .caps { display:flex; align-items:center; gap: 6px }
+  .ghead .tot { font-family: var(--mono); font-size: 12.5px; color: var(--ink-200) }
+  .acct { display:grid; grid-template-columns: 22px 1fr auto; align-items:center; gap: 9px; padding: 5px 4px; border-radius: 8px; cursor: pointer; font-size: 13px }
+  .acct:hover { background: rgba(255,255,255,.04) }
+  .acct img, .acct .ini { width: 22px; height: 22px; border-radius: 7px; background: #fff; object-fit: contain; padding: 2px }
+  .acct .ini { display:grid; place-items:center; background: rgba(159,217,180,.14); color: #9fd9b4; font-family: var(--mono); font-size: 11px; padding: 0 }
+  .acct .name { display:flex; align-items:center; gap: 6px; min-width: 0 }
+  .acct .name b { font-weight: 400; white-space: nowrap; overflow:hidden; text-overflow: ellipsis }
+  .stale { font-family: var(--mono); font-size: 9.5px; color: var(--warn); padding: 1px 5px; border-radius: 5px; background: color-mix(in oklch, var(--warn) 12%, transparent) }
+  .amt { font-family: var(--mono); font-size: 12.5px; text-align: right; white-space: nowrap }
+  .amt small { display:block; font-size: 10px; color: var(--ink-500) }
+  .inv { display:grid; grid-template-columns: 22px 1fr 150px; align-items:center; gap: 9px; padding: 5px 4px; border-radius: 8px; cursor:pointer; font-size: 13px }
+  .inv:hover { background: rgba(255,255,255,.04) }
+  .inv img { width: 22px; height: 22px; border-radius: 7px; background: #fff; object-fit: contain; padding: 2px }
+  .minis { display:flex; flex-direction:column; gap: 4px }
+  .mini { display:flex; height: 5px; border-radius: 999px; overflow:hidden; gap: 2px; background: rgba(255,255,255,.05) }
+  .mini > div { border-radius: 999px }
+  .mininum { display:flex; justify-content: space-between; font-family: var(--mono); font-size: 11px }
+  .legend { display:flex; gap: 12px; font-family: var(--mono); font-size: 10px; color: var(--ink-500); letter-spacing: .06em }
+
+  /* Day one */
+  .start { display:flex; flex-direction:column; gap: 16px; max-width: 560px }
+  .start h2 { font-size: 30px; font-weight: 300; letter-spacing: -.01em }
+  .banks { display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px }
+  .bank { display:flex; align-items:center; gap: 9px; padding: 9px 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.035); cursor:pointer; font-size: 13.5px; color: var(--ink-100); text-align:left }
+  .bank img, .bank .ini { width: 24px; height: 24px; border-radius: 7px; background:#fff; object-fit: contain; padding: 2px }
+  .bank .ini { display:grid; place-items:center; background: rgba(159,217,180,.14); color: #9fd9b4; font-family: var(--mono); font-size: 11px; padding:0 }
+  .bank.on { border-color: color-mix(in oklch, var(--lav-400) 60%, transparent); background: rgba(181,171,252,.14); box-shadow: 0 0 18px -8px var(--shine) }
+
+  /* One account, set up */
+  .steps { display:flex; flex-direction:column; gap: 14px }
+  .step { display:flex; flex-direction:column; gap: 8px; padding: 14px; border-radius: 14px; background: rgba(16,15,28,.45); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(4px); animation: arrive .3s both }
+  .step .n { font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--lav-300) }
+  .opts { display:flex; gap: 8px; flex-wrap: wrap }
+  .opt { display:flex; align-items:center; gap: 8px; padding: 9px 13px; border-radius: 12px; cursor:pointer; font-size: 13.5px; color: var(--ink-200); background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.1) }
+  .opt .i { font-size: 15px; width: 18px; text-align:center }
+  .opt small { font-family: var(--mono); font-size: 10px; color: var(--ink-500) }
+  .opt.on { color: var(--ink-100); border-color: color-mix(in oklch, var(--lav-400) 60%, transparent); background: rgba(181,171,252,.14); box-shadow: 0 0 18px -8px var(--shine) }
+  .part { display:flex; flex-direction:column; gap: 8px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07) }
+  .part .h { display:flex; align-items:center; gap: 8px; font-size: 13.5px }
+  .part .h .src { margin-left:auto; font-family: var(--mono); font-size: 10px; color: var(--ink-500) }
+  .line { display:grid; grid-template-columns: 74px 1fr 28px; gap: 8px; align-items:center }
+  .cur { font-family: var(--mono); font-size: 12px; text-align:center; padding: 7px 0; border-radius: 9px; background: rgba(255,255,255,.06); color: var(--ink-200) }
+  .x { color: var(--ink-500); background:none; border:0; cursor:pointer; font-size: 14px }
+  .add-chips { display:flex; gap: 6px; flex-wrap: wrap }
+  .mini-chip { font-family: var(--mono); font-size: 10.5px; padding: 4px 9px; border-radius: 999px; border: 1px dashed rgba(255,255,255,.2); color: var(--ink-300); background:none; cursor:pointer }
+  .mini-drop { display:flex; align-items:center; gap: 10px; padding: 12px; border-radius: 10px; border: 1.5px dashed color-mix(in oklch, var(--lav-400) 45%, transparent); color: var(--ink-300); font-size: 13px; cursor:pointer }
+  .mini-drop.done { border-style: solid; border-color: color-mix(in oklch, var(--good) 40%, transparent); color: var(--ink-100) }
+  .acard { display:grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items:center; padding: 11px 13px; border-radius: 12px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08); animation: arrive .3s both }
+  .acard img, .acard .ini { width: 30px; height: 30px; border-radius: 9px; background:#fff; object-fit: contain; padding: 2px }
+  .acard .ini { display:grid; place-items:center; background: rgba(159,217,180,.14); color: #9fd9b4; font-family: var(--mono); padding:0 }
+  .acard .t { display:flex; flex-direction:column; gap: 3px; min-width:0 }
+  .acard .t span { font-family: var(--mono); font-size: 10.5px; color: var(--ink-400); white-space: nowrap; overflow:hidden; text-overflow: ellipsis }
+
+  /* The right half: three rows of fixed height, however many accounts */
+  .where2 { display:flex; flex-direction:column; gap: 8px; align-self: stretch; justify-content: center }
+  .grp { display:flex; flex-direction:column; gap: 7px; padding: 11px 13px; border-radius: 13px; cursor:pointer;
+    background: rgba(16,15,28,.38); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(3px); transition: border-color .15s, transform .15s }
+  .grp:hover { border-color: color-mix(in oklch, var(--lav-400) 45%, transparent); transform: translateX(-2px) }
+  .gtop { display:flex; align-items:center; gap: 10px }
+  .gtop .caps { flex: 1 }
+  .gtot { font-family: var(--mono); font-size: 13.5px; color: var(--ink-100) }
+  .chev { color: var(--ink-500); font-size: 16px; line-height: 1 }
+  .gmid { display:flex; align-items:center; gap: 10px }
+  .stack { display:flex; padding-left: 5px }
+  .stack img, .stack span { width: 20px; height: 20px; border-radius: 6px; margin-left: -5px; border: 1.5px solid #221f33; background:#fff; object-fit: contain; padding: 1px; position: relative }
+  .stack span { display:grid; place-items:center; background:#3a3348; color: var(--ink-200); font-family: var(--mono); font-size: 9px; padding: 0 }
+  .stack .late { box-shadow: 0 0 0 1.5px var(--warn) }
+  .segs { flex: 1; display:flex; gap: 2px; height: 6px }
+  .segs > div { border-radius: 999px; min-width: 4px }
+  .gsub { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); white-space: nowrap }
+
+  /* Modal */
+  .scrim { position: fixed; inset: 0; z-index: 20; display:none; align-items:center; justify-content:center; padding: 16px;
+    background: rgba(8,8,16,.62); backdrop-filter: blur(5px) }
+  .scrim.on { display:flex; animation: fade .2s both }
+  .sheet { width: min(760px, 100%); max-height: 88vh; overflow:auto; border-radius: 18px; padding: 20px;
+    background: linear-gradient(160deg, rgba(181,171,252,.10), rgba(181,171,252,.02) 40%), #1b1a2c; border: 1px solid var(--sys-edge);
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine); animation: rise .28s cubic-bezier(.2,.8,.2,1) both }
+  .sheet .shead { display:flex; align-items:center; justify-content: space-between; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid rgba(181,171,252,.2) }
+  .sheet .close { width: 30px; height: 30px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: none; color: var(--ink-300); cursor: pointer; font-size: 15px }
+  .sheet .body { margin-top: 0 }
+  @keyframes fade { from { opacity: 0 } }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.985) } }
+  .empty { display:flex; flex-direction:column; gap: 12px; max-width: 460px }
+  .empty .big { color: var(--ink-600) }
+
+  .notes { max-width: 1120px; margin: 0 auto; padding: 0 16px 60px; color: var(--ink-400); font-size: 13px; line-height: 1.6 }
+  .notes h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--lav-300); margin: 14px 0 6px }
+  .notes li { margin-left: 18px }
+
+  /* ---- hero-states: the right half fits what he has ---- */
+  .top { flex-wrap: nowrap }
+  .sys-title { white-space: nowrap }
+  @media (max-width: 560px) { .top { flex-wrap: wrap; row-gap: 10px } .top > .row:last-child { width: 100%; justify-content: flex-start } }
+  .label { text-align:center; font-family: var(--mono); font-size: 10.5px; letter-spacing:.14em; color: var(--ink-400); text-transform: uppercase; margin-top: 18px }
+  .label b { color: var(--lav-300); font-weight: 400 }
+  .panel { display:flex; flex-direction:column; gap: 12px; padding: 14px 15px; border-radius: 14px; background: rgba(16,15,28,.42); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(4px) }
+  .phead { display:flex; align-items:center; gap: 10px }
+  .phead img { width: 34px; height: 34px; border-radius: 9px; background:#fff; object-fit: contain; padding: 3px }
+  .phead .nm { display:flex; flex-direction:column; gap: 3px; flex: 1; min-width: 0 }
+  .phead .nm b { font-weight: 400; font-size: 16px }
+  .badge { font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; padding: 2px 6px; border-radius: 6px; border: 1px solid }
+  .badge.bank { color: oklch(0.8 0.1 85); border-color: color-mix(in oklch, oklch(0.8 0.1 85) 40%, transparent) }
+  .badge.broker { color: var(--lav-300); border-color: color-mix(in oklch, var(--lav-400) 40%, transparent) }
+  .badge.cash { color: #9fd9b4; border-color: rgba(159,217,180,.4) }
+  .bal { font-size: 30px; font-weight: 300; line-height: 1 }
+  .io { display:grid; grid-template-columns: 34px 1fr 90px; gap: 8px; align-items:center; font-family: var(--mono); font-size: 11.5px }
+  .io .bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,.05); overflow:hidden }
+  .io .bar > div { height: 100%; border-radius: 999px }
+  .io .v { text-align:right }
+  .where-went { display:flex; flex-direction:column; gap: 5px }
+  .ww { display:grid; grid-template-columns: 1fr 70px 76px; gap: 8px; align-items:center; font-size: 13px }
+  .ww .b { height: 4px; border-radius: 999px; background: color-mix(in oklch, var(--bad) 70%, transparent) }
+  .ww .v { font-family: var(--mono); font-size: 12px; text-align: right; color: var(--ink-200) }
+  .foot { display:flex; align-items:center; justify-content: space-between; gap: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.06); font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .ghostrow { display:flex; align-items:center; gap: 10px; padding: 11px 13px; border-radius: 13px; border: 1.5px dashed color-mix(in oklch, var(--lav-400) 40%, transparent); background: rgba(181,171,252,.04); color: var(--ink-300); font-size: 13px; cursor: pointer }
+  .ghostrow .i { width: 22px; height: 22px; border-radius: 7px; display:grid; place-items:center; color: var(--lav-300); background: rgba(181,171,252,.12); font-size: 14px }
+  .ghostrow small { display:block; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .arow { display:grid; grid-template-columns: 24px 1fr auto; gap: 10px; align-items:center; padding: 7px 4px; font-size: 13.5px }
+  .arow img, .arow .ini { width: 24px; height: 24px; border-radius: 7px; background:#fff; object-fit: contain; padding: 2px }
+  .arow .ini { display:grid; place-items:center; background: rgba(159,217,180,.14); color: #9fd9b4; font-family: var(--mono); font-size: 12px; padding: 0 }
+  .arow .mid { display:flex; flex-direction:column; gap: 5px; min-width: 0 }
+  .arow .share { height: 4px; border-radius: 999px; background: rgba(255,255,255,.05); overflow: hidden }
+  .arow .share > div { height: 100%; border-radius: 999px }
+  .arow .r { text-align:right; font-family: var(--mono); font-size: 12.5px }
+  .arow .r small { display:block; font-size: 10px }
+  .pnl { display:flex; align-items: baseline; gap: 12px; flex-wrap: wrap }
+  .pos { display:grid; grid-template-columns: 22px 64px 1fr 84px 70px; gap: 9px; align-items:center; padding: 5px 2px; font-size: 13px }
+  .pos img { width: 22px; height: 22px; border-radius: 6px; background:#fff; object-fit: contain; padding: 2px }
+  .pos .t { font-family: var(--mono); font-size: 12px; color: var(--ink-100) }
+  .pos .w { height: 5px; border-radius: 999px; background: color-mix(in oklch, var(--lav-400) 70%, transparent) }
+  .pos .v { font-family: var(--mono); font-size: 12px; text-align: right }
+  @media (max-width: 520px) { .pos { grid-template-columns: 22px 56px 1fr 70px } .pos .w { display:none } }
+</style></head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup · sample numbers · the right half fits what you have</div>
+  <div class="label">1 · <b>one bank</b> — you today: Revolut, cash only. The account itself, big: in and out, where it went, and the invitation for investments.</div>
+  
+  <section class="sys veil-target">
+    <div class="photo"></div>
+    <div class="row between top">
+      <span class="sys-title">[ treasury ]</span>
+      <div class="row"><span class="checkin fresh" style="background:color-mix(in oklch,var(--good) 16%,transparent);border-color:color-mix(in oklch,var(--good) 60%,transparent);box-shadow:0 0 18px -4px var(--good);font-weight:500">✓ up to date</span><button class="eye">show</button><button class="add"><span class="shine"></span><span class="plus">+</span> add</button></div>
+    </div>
+    <div class="body">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <span class="caps">capital · cash · investments</span>
+        <span class="big money">€799.47</span>
+        <div class="row">
+          <span class="pill"><span class="money bad">−€316.64</span><span class="dim" style="font-size:12px">this month</span></span>
+          <span class="pill"><span class="money good">+€0</span><span class="money bad">−€316.64</span><span class="dim" style="font-size:12px">in · out</span></span>
+        </div>
+        <div class="split"><div style="flex:799;background:var(--money)"></div><div style="flex:0;background:var(--lav-400)"></div></div>
+        <div class="row between mono" style="font-size:13px"><span>● free cash <span class="money">€799</span></span><span style="color:var(--lav-300)">● invested <span class="money">—</span></span></div>
+        <span class="asof">balances as of today</span>
+      </div>
+      <div class="where2">
+<div class="panel">
+  <div class="phead"><img src="https://www.google.com/s2/favicons?domain=revolut.com&sz=128"><span class="nm"><b>Revolut</b><span class="row" style="gap:5px"><span class="badge bank">bank</span><span class="badge broker">broker</span></span></span><span class="bal money">€799.47</span></div>
+  <div class="io"><span class="dim">in</span><div class="bar"><div style="width:0%;background:var(--good)"></div></div><span class="v good money">+€0</span></div>
+  <div class="io"><span class="dim">out</span><div class="bar"><div style="width:100%;background:var(--bad)"></div></div><span class="v bad money">−€316.64</span></div>
+  <div class="where-went">
+    <span class="caps" style="font-size:9.5px">where it went this month</span>
+    <div class="ww"><span>groceries</span><div class="b" style="width:100%"></div><span class="v money">€142.10</span></div>
+    <div class="ww"><span>eating out</span><div class="b" style="width:58%"></div><span class="v money">€83.40</span></div>
+    <div class="ww"><span>transport</span><div class="b" style="width:31%"></div><span class="v money">€44.20</span></div>
+  </div>
+  <div class="foot"><span>statement read today · 41 rows</span><button class="ghost" style="padding:5px 10px">update</button></div>
+</div>
+<div class="ghostrow"><span class="i">+</span><span>Your investments<small>drop your trading CSV or a holdings screenshot</small></span></div></div>
+    </div>
+  </section>
+  <div class="label">2 · <b>banks and cash, no investments</b> — every account on its own line: its share of your cash, what it did this month, how fresh it is.</div>
+  
+  <section class="sys veil-target">
+    <div class="photo"></div>
+    <div class="row between top">
+      <span class="sys-title">[ treasury ]</span>
+      <div class="row"><span class="checkin">check-in · 2 to update</span><button class="eye">show</button><button class="add"><span class="shine"></span><span class="plus">+</span> add</button></div>
+    </div>
+    <div class="body">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <span class="caps">capital · cash · investments</span>
+        <span class="big money">€7,599</span>
+        <div class="row">
+          <span class="pill"><span class="money bad">−€724</span><span class="dim" style="font-size:12px">this month</span></span>
+          <span class="pill"><span class="money good">+€2,140</span><span class="money bad">−€2,864</span><span class="dim" style="font-size:12px">in · out</span></span>
+        </div>
+        <div class="split"><div style="flex:7599;background:var(--money)"></div><div style="flex:0;background:var(--lav-400)"></div></div>
+        <div class="row between mono" style="font-size:13px"><span>● free cash <span class="money">€7,599</span></span><span style="color:var(--lav-300)">● invested <span class="money">—</span></span></div>
+        <span class="asof">cash oldest read 21d ago</span>
+      </div>
+      <div class="where2">
+<div class="panel" style="gap:4px">
+  <div class="row between"><span class="caps">where your cash is</span><span class="mono money" style="font-size:13px">€7,599</span></div>
+  <div class="arow"><img src="https://www.google.com/s2/favicons?domain=revolut.com&sz=128"><span class="mid"><span>Revolut</span><span class="share"><div style="width:52%;background:var(--money)"></div></span></span><span class="r money">€3,950<small class="bad">−€316 this month</small></span></div>
+  <div class="arow"><img src="https://www.google.com/s2/favicons?domain=bancobpi.pt&sz=128"><span class="mid"><span>BPI <span class="stale">12d</span></span><span class="share"><div style="width:26%;background:var(--money)"></div></span></span><span class="r money">€1,950<small class="bad">−€420</small></span></div>
+  <div class="arow"><img src="https://www.google.com/s2/favicons?domain=activobank.pt&sz=128"><span class="mid"><span>Activo</span><span class="share"><div style="width:15%;background:var(--money)"></div></span></span><span class="r money">€1,149<small class="good">+€12</small></span></div>
+  <div class="arow"><span class="ini">€</span><span class="mid"><span>Notes</span><span class="share"><div style="width:7%;background:#9fd9b4"></div></span></span><span class="r money">€550<small class="dim">counted 21d ago</small></span></div>
+</div>
+<div class="ghostrow"><span class="i">+</span><span>Your investments<small>drop your trading CSV or a holdings screenshot</small></span></div></div>
+    </div>
+  </section>
+  <div class="label">3 · <b>only investments</b> — how they are doing: worth, profit against what you put in, the biggest holdings with theirs.</div>
+  
+  <section class="sys veil-target">
+    <div class="photo"></div>
+    <div class="row between top">
+      <span class="sys-title">[ treasury ]</span>
+      <div class="row"><span class="checkin fresh" style="background:color-mix(in oklch,var(--good) 16%,transparent);border-color:color-mix(in oklch,var(--good) 60%,transparent);box-shadow:0 0 18px -4px var(--good);font-weight:500">✓ up to date</span><button class="eye">show</button><button class="add"><span class="shine"></span><span class="plus">+</span> add</button></div>
+    </div>
+    <div class="body">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <span class="caps">capital · cash · investments</span>
+        <span class="big money">€12,792</span>
+        <div class="row">
+          <span class="pill"><span class="money good">+€1,180</span><span class="dim" style="font-size:12px">this month</span></span>
+          <span class="pill"><span class="money good">+€1,180</span><span class="money bad">−€0</span><span class="dim" style="font-size:12px">in · out</span></span>
+        </div>
+        <div class="split"><div style="flex:312;background:var(--money)"></div><div style="flex:12480;background:var(--lav-400)"></div></div>
+        <div class="row between mono" style="font-size:13px"><span>● free cash <span class="money">€312</span></span><span style="color:var(--lav-300)">● invested <span class="money">€12,480</span></span></div>
+        <span class="asof">closes as of Sep 25 · Yahoo Finance</span>
+      </div>
+      <div class="where2">
+<div class="panel">
+  <div class="row between"><span class="caps">your investments</span><span class="asof">closes Sep 25 · Yahoo</span></div>
+  <div class="pnl"><span class="bal money">€12,480</span><span class="mono good money" style="font-size:14px">+€1,906 · +18.0%</span><span class="dim mono" style="font-size:11px">on €10,574 put in</span></div>
+  <div>
+    <div class="pos"><img src="https://www.google.com/s2/favicons?domain=netflix.com&sz=128"><span class="t">NFLX</span><div class="w" style="width:100%"></div><span class="v money">€3,720</span><span class="v good">+41%</span></div>
+    <div class="pos"><img src="https://www.google.com/s2/favicons?domain=amazon.com&sz=128"><span class="t">AMZN</span><div class="w" style="width:52%"></div><span class="v money">€1,930</span><span class="v good">+12%</span></div>
+    <div class="pos"><img src="https://www.google.com/s2/favicons?domain=uber.com&sz=128"><span class="t">UBER</span><div class="w" style="width:43%"></div><span class="v money">€1,610</span><span class="v bad">−4%</span></div>
+    <div class="pos"><img src="https://www.google.com/s2/favicons?domain=vanguard.com&sz=128"><span class="t">VUAA</span><div class="w" style="width:38%"></div><span class="v money">€1,420</span><span class="v good">+9%</span></div>
+  </div>
+  <div class="foot"><span>+18 more · Revolut · free cash €312</span><button class="ghost" style="padding:5px 10px">portfolio →</button></div>
+</div>
+<div class="ghostrow"><span class="i">+</span><span>Your banks and cash<small>drop a statement, or count your notes</small></span></div></div>
+    </div>
+  </section>
+  <div class="label">4 · <b>all three</b> — as approved: three rows, one bar each.</div>
+  
+  <section class="sys veil-target">
+    <div class="photo"></div>
+    <div class="row between top">
+      <span class="sys-title">[ treasury ]</span>
+      <div class="row"><span class="checkin">check-in · 2 to update</span><button class="eye">show</button><button class="add"><span class="shine"></span><span class="plus">+</span> add</button></div>
+    </div>
+    <div class="body">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <span class="caps">capital · cash · investments</span>
+        <span class="big money">€50,962</span>
+        <div class="row">
+          <span class="pill"><span class="money good">+€1,240</span><span class="dim" style="font-size:12px">this month</span></span>
+          <span class="pill"><span class="money good">+€3,150</span><span class="money bad">−€1,910</span><span class="dim" style="font-size:12px">in · out</span></span>
+        </div>
+        <div class="split"><div style="flex:25568;background:var(--money)"></div><div style="flex:25394;background:var(--lav-400)"></div></div>
+        <div class="row between mono" style="font-size:13px"><span>● free cash <span class="money">€25,568</span></span><span style="color:var(--lav-300)">● invested <span class="money">€25,394</span></span></div>
+        <span class="asof">cash oldest read 2d ago · closes as of Sep 25 · Yahoo Finance</span>
+      </div>
+      <div class="where2"><div class="grp"><div class="gtop"><span class="caps">investments</span><span class="gtot money">€25,394 · <span class="good">+€6,714</span></span><span class="chev">›</span></div><div class="gmid"><span class="stack"><img src="https://www.google.com/s2/favicons?domain=traderepublic.com&sz=128"><img src="https://www.google.com/s2/favicons?domain=trading212.com&sz=128"><img src="https://www.google.com/s2/favicons?domain=revolut.com&sz=128"></span><div class="segs"><div style="flex:12800;background:var(--lav-400)"></div><div style="flex:7600;background:var(--lav-300)"></div><div style="flex:4180;background:#7e70e0"></div></div><span class="gsub">3 accounts</span></div></div><div class="grp"><div class="gtop"><span class="caps">banks</span><span class="gtot money">€21,318</span><span class="chev">›</span></div><div class="gmid"><span class="stack"><img src="https://www.google.com/s2/favicons?domain=revolut.com&sz=128"><img src="https://www.google.com/s2/favicons?domain=bancobpi.pt&sz=128"><img src="https://www.google.com/s2/favicons?domain=activobank.pt&sz=128"></span><div class="segs"><div style="flex:15802;background:var(--money)"></div><div style="flex:3400;background:oklch(.72 .09 85)"></div><div style="flex:1950;background:oklch(.64 .08 85)"></div></div><span class="gsub">3 accounts</span></div></div><div class="grp"><div class="gtop"><span class="caps">cash</span><span class="gtot money">€4,250</span><span class="chev">›</span></div><div class="gmid"><span class="stack"></span><div class="segs"><div style="flex:1;background:#9fd9b4"></div></div><span class="gsub">notes · counted 21d ago</span></div></div></div>
+    </div>
+  </section>
+  <div class="notes">
+    <h3>Rules</h3>
+    <ul>
+      <li>No row for what you do not have — a €0 · €0 line is gone. In its place, a dashed invitation that says what to drop.</li>
+      <li>One account: the account itself, big. A few: one line each. Many or all kinds: the three rows.</li>
+      <li>Every number here is from your rows: balances read, this month's logged in and out, categories you confirmed, prices stored with their date.</li>
+      <li>On a phone, [ TREASURY ] stays on one line; the buttons go under it.</li>
+    </ul>
+  </div>
+</div>
+<script>document.querySelectorAll('.eye').forEach(b=>b.onclick=()=>document.body.classList.toggle('veil'))</script>
+</body></html>

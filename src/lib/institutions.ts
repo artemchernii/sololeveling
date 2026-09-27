@@ -5,18 +5,19 @@
    + Account, the review (a move to a bank he has not added), and the
    reader's guess of which account a statement is.
 
-   A product is one account at an institution: Revolut is two — the current
-   account and Invest — because cash into Invest is a transfer between them. */
+   A product is one account as he thinks of it. Revolut is ONE account,
+   bank and broker (27 Sep: "REVOLUT IS BANK AND BROKER") — its cash and
+   its shares side by side; cash into its stocks stays inside it. */
 
 import type { AccountKind } from './currency'
 
 export type Product = {
-  /** Unique: 'revolut', 'revolut-invest'. */
+  /** Unique: 'revolut', 'trade-republic'. */
   id: string
   /** The institution it belongs to — accounts of one are shown together. */
   institution: string
   name: string
-  kind: AccountKind
+  kinds: Array<AccountKind>
   domain?: string
   currencies: Array<string>
   /** How it is written on statements and screenshots. */
@@ -28,25 +29,16 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'revolut',
     institution: 'revolut',
     name: 'Revolut',
-    kind: 'bank',
+    kinds: ['bank', 'broker'],
     domain: 'revolut.com',
     currencies: ['EUR', 'USD'],
     match: /revolut/i,
   },
   {
-    id: 'revolut-invest',
-    institution: 'revolut',
-    name: 'Revolut Invest',
-    kind: 'broker',
-    domain: 'revolut.com',
-    currencies: ['EUR'],
-    match: /revolut\s*(invest|trading|securities|stocks)/i,
-  },
-  {
     id: 'trade-republic',
     institution: 'trade-republic',
     name: 'Trade Republic',
-    kind: 'broker',
+    kinds: ['broker'],
     domain: 'traderepublic.com',
     currencies: ['EUR'],
     match: /trade\s*republic/i,
@@ -55,7 +47,7 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'trading-212',
     institution: 'trading-212',
     name: 'Trading 212',
-    kind: 'broker',
+    kinds: ['broker'],
     domain: 'trading212.com',
     currencies: ['EUR'],
     match: /trading\s*212|\bt212\b/i,
@@ -64,7 +56,7 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'bpi',
     institution: 'bpi',
     name: 'BPI',
-    kind: 'bank',
+    kinds: ['bank'],
     domain: 'bancobpi.pt',
     currencies: ['EUR'],
     match: /\bbpi\b|banco\s*bpi/i,
@@ -73,7 +65,7 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'activo',
     institution: 'activo',
     name: 'ActivoBank',
-    kind: 'bank',
+    kinds: ['bank'],
     domain: 'activobank.pt',
     currencies: ['EUR'],
     match: /activo/i,
@@ -82,7 +74,7 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'millennium',
     institution: 'millennium',
     name: 'Millennium bcp',
-    kind: 'bank',
+    kinds: ['bank'],
     domain: 'millenniumbcp.pt',
     currencies: ['EUR'],
     match: /millennium|\bbcp\b/i,
@@ -91,7 +83,7 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'cgd',
     institution: 'cgd',
     name: 'Caixa Geral',
-    kind: 'bank',
+    kinds: ['bank'],
     domain: 'cgd.pt',
     currencies: ['EUR'],
     match: /caixa\s*geral|\bcgd\b/i,
@@ -100,7 +92,7 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'novobanco',
     institution: 'novobanco',
     name: 'Novo Banco',
-    kind: 'bank',
+    kinds: ['bank'],
     domain: 'novobanco.pt',
     currencies: ['EUR'],
     match: /novo\s*banco/i,
@@ -109,7 +101,7 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'santander',
     institution: 'santander',
     name: 'Santander',
-    kind: 'bank',
+    kinds: ['bank'],
     domain: 'santander.pt',
     currencies: ['EUR'],
     match: /santander/i,
@@ -118,7 +110,7 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'wise',
     institution: 'wise',
     name: 'Wise',
-    kind: 'bank',
+    kinds: ['bank'],
     domain: 'wise.com',
     currencies: ['EUR', 'USD'],
     match: /\bwise\b|transferwise/i,
@@ -127,7 +119,7 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'n26',
     institution: 'n26',
     name: 'N26',
-    kind: 'bank',
+    kinds: ['bank'],
     domain: 'n26.com',
     currencies: ['EUR'],
     match: /\bn26\b/i,
@@ -136,7 +128,7 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'ibkr',
     institution: 'ibkr',
     name: 'Interactive Brokers',
-    kind: 'broker',
+    kinds: ['broker'],
     domain: 'interactivebrokers.com',
     currencies: ['EUR', 'USD'],
     match: /interactive\s*brokers|\bibkr\b/i,
@@ -145,7 +137,7 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'xtb',
     institution: 'xtb',
     name: 'XTB',
-    kind: 'broker',
+    kinds: ['broker'],
     domain: 'xtb.com',
     currencies: ['EUR'],
     match: /\bxtb\b/i,
@@ -154,7 +146,7 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'degiro',
     institution: 'degiro',
     name: 'DEGIRO',
-    kind: 'broker',
+    kinds: ['broker'],
     domain: 'degiro.com',
     currencies: ['EUR'],
     match: /degiro/i,
@@ -163,7 +155,7 @@ export const PRODUCTS: ReadonlyArray<Product> = [
     id: 'cash',
     institution: 'cash',
     name: 'Cash',
-    kind: 'cash',
+    kinds: ['cash'],
     currencies: ['EUR'],
     match: /^cash$|\bnotes\b|wallet/i,
   },
@@ -174,9 +166,9 @@ export function productById(id: string | undefined): Product | undefined {
 }
 
 /**
- * The product a piece of text names — "Trade Republic Bank GmbH", "To
- * investment account" is not one. The most specific match wins, so
- * "Revolut Invest" is Invest and not the current account.
+ * The product a piece of text names — "Trade Republic Bank GmbH", "Revolut
+ * Securities"; "To investment account" is not one. The most specific
+ * match wins.
  */
 export function productIn(text: string | undefined): Product | undefined {
   if (!text) return undefined

@@ -4,8 +4,8 @@ import { productIn, searchProducts, tail, tailsIn } from './institutions'
 
 test('productIn: the most specific product a text names', () => {
   expect(productIn('Trade Republic Bank GmbH')?.id).toBe('trade-republic')
-  expect(productIn('Revolut Securities Europe UAB')?.id).toBe('revolut-invest')
-  expect(productIn('Revolut Bank UAB')?.id).toBe('revolut')
+  expect(productIn('Revolut Securities Europe UAB')?.id).toBe('revolut')
+  expect(productIn('Revolut Bank UAB')?.kinds).toEqual(['bank', 'broker'])
   expect(productIn('Trading212')?.id).toBe('trading-212')
   expect(productIn('Banco BPI, S.A.')?.id).toBe('bpi')
   expect(productIn('To investment account')).toBeUndefined()

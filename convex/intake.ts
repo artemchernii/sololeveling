@@ -28,7 +28,7 @@ import {
   readableFile,
 } from '../src/lib/intake'
 import { dueDay } from '../src/lib/bills'
-import { PRODUCTS, productIn, tailsIn } from '../src/lib/institutions'
+import { productIn, tailsIn } from '../src/lib/institutions'
 
 /* The intake (Treasury, 27 Sep): what he drops on + becomes a list he
    checks. `start` stores the files and asks the reader (ai/intake.ts);
@@ -188,13 +188,10 @@ function guessAccount(
   }
   const product = productIn(intake.institution)
   if (product) {
-    const wantBroker = intake.kind !== 'transactions'
-    const same = accounts.filter((a) => a.institution === product.institution)
     /* Holdings and trades are a broker's, whatever the bank is called. */
-    const fit =
-      same.find((a) => a.kinds.includes(wantBroker ? 'broker' : 'bank')) ??
-      same.find((a) => a.kinds.includes(product.kind)) ??
-      same.at(0)
+    const want = intake.kind === 'transactions' ? 'bank' : 'broker'
+    const same = accounts.filter((a) => a.institution === product.institution)
+    const fit = same.find((a) => a.kinds.includes(want)) ?? same.at(0)
     if (fit) return fit._id
   }
   if (!intake.institution) return null
@@ -206,19 +203,9 @@ function guessAccount(
 
 /* A bank the app knows and he has not added: "Create Revolut?" */
 function suggestFor(intake: Doc<'intakes'>) {
-  const product = productIn(intake.institution)
-  if (!product) return null
-  const p =
-    intake.kind !== 'transactions' && product.kind === 'bank'
-      ? (PRODUCTS.find(
-          (x) => x.institution === product.institution && x.kind === 'broker',
-        ) ?? product)
-      : product
-  return {
-    product: p.id,
-    name: p.name,
-    accountTail: intake.accountTail ?? null,
-  }
+  const p = productIn(intake.institution)
+  if (!p) return null
+  return { product: p.id, name: p.name, accountTail: intake.accountTail ?? null }
 }
 
 /** For a holdings or trades read: which account, and what to add if none. */

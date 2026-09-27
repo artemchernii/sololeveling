@@ -1353,7 +1353,7 @@ function TickerSearch({
   )
 }
 
-/* "Create Revolut Invest?" — a file from a bank the app knows and he has
+/* "Create Revolut?" — a file from a bank the app knows and he has
    not added: one tap makes it, with its logo, kind and the ending the file
    printed, and the review carries on into it. */
 function CreateSuggested({
@@ -1375,7 +1375,7 @@ function CreateSuggested({
         setBusy(true)
         void create({
           name: product.name,
-          kinds: [product.kind],
+          kinds: product.kinds,
           currencies: product.currencies,
           domain: product.domain,
           product: product.id,

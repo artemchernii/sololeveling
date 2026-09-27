@@ -281,9 +281,7 @@ function AccountForm({
   const [picked, setPicked] = useState<Product | 'other' | null>(
     account
       ? (PRODUCTS.find(
-          (p) =>
-            p.institution === account.institution &&
-            account.kinds.includes(p.kind),
+          (p) => p.institution === account.institution,
         ) ??
           productIn(account.name) ??
           'other')
@@ -334,7 +332,11 @@ function PickBank({ onPick }: { onPick: (p: Product | 'other') => void }) {
               <span className="truncate text-[13.5px] text-foreground">
                 {p.name}
               </span>
-              <KindBadge kind={p.kind} />
+              <span className="flex gap-1">
+                {p.kinds.map((k) => (
+                  <KindBadge key={k} kind={k} />
+                ))}
+              </span>
             </span>
           </button>
         ))}
@@ -372,7 +374,7 @@ function AccountDetails({
   const setBalance = useMutation(api.accounts.setBalance)
   const [name, setName] = useState(account?.name ?? product?.name ?? '')
   const [kinds, setKinds] = useState<Array<AccountKind>>(
-    account?.kinds ?? (product ? [product.kind] : ['bank']),
+    account?.kinds ?? (product ? product.kinds : ['bank']),
   )
   const [currencies, setCurrencies] = useState<Array<string>>(
     account?.currencies ?? product?.currencies ?? ['EUR'],
@@ -457,12 +459,16 @@ function AccountDetails({
       </div>
       {product ? (
         <span className="flex items-center gap-2 text-[12.5px] text-ink-400">
-          <KindBadge kind={product.kind} />
-          {product.kind === 'broker'
-            ? 'Its free cash, and the shares it holds from a screenshot.'
-            : product.kind === 'cash'
-              ? 'The notes in your wallet — counted, not read.'
-              : 'Its statements fill it; transfers to your other accounts are matched.'}
+          {product.kinds.map((k) => (
+            <KindBadge key={k} kind={k} />
+          ))}
+          {product.kinds.length > 1
+            ? 'Its cash and its shares, in one account.'
+            : product.kinds[0] === 'broker'
+              ? 'Its free cash, and the shares it holds from a screenshot.'
+              : product.kinds[0] === 'cash'
+                ? 'The notes in your wallet — counted, not read.'
+                : 'Its statements fill it; transfers to your other accounts are matched.'}
         </span>
       ) : (
         <>

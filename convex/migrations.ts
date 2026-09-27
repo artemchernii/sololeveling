@@ -9,9 +9,11 @@ import { productIn } from '../src/lib/institutions'
    run again — each step looks before it writes.
 
    1. An account learns its institution from its name or its logo's site.
-   2. An account that was bank AND broker (Revolut) becomes two: the bank,
-      and "<name> Invest" holding its trades — so cash into Invest is a
-      transfer. Moves that pointed at the account itself point at Invest.
+   2. A "<bank> Invest" account (split off by this migration's first
+      version, reversed the same day: "REVOLUT IS BANK AND BROKER") is
+      joined back into its bank — its trades and rows move over, the
+      Invest side of a bank → Invest transfer goes, and the bank is a
+      broker too.
    3. Positions read off a first screenshot are marked `opening`: they
       were held before the app saw the account, and their cost never left
       its cash.
@@ -22,12 +24,12 @@ export const addingMoney = internalMutation({
   args: { ownerId: v.string() },
   returns: v.object({
     institutions: v.number(),
-    split: v.number(),
+    joined: v.number(),
     opening: v.number(),
     paired: v.number(),
   }),
   handler: async (ctx, { ownerId }) => {
-    const done = { institutions: 0, split: 0, opening: 0, paired: 0 }
+    const done = { institutions: 0, joined: 0, opening: 0, paired: 0 }
     const accounts = await ctx.db
       .query('accounts')
       .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
@@ -42,42 +44,85 @@ export const addingMoney = internalMutation({
       }
     }
 
-    for (const a of accounts) {
-      if (!(a.kinds.includes('bank') && a.kinds.includes('broker'))) continue
-      const fresh = await ctx.db.get(a._id)
-      const investId = await ctx.db.insert('accounts', {
-        ownerId,
-        name: `${a.name} Invest`,
-        kinds: ['broker'],
-        currencies: ['EUR'],
-        domain: a.domain,
-        institution: fresh?.institution,
-        order: a.order + 0.5,
-      })
-      await ctx.db.patch(a._id, {
-        kinds: a.kinds.filter((k) => k !== 'broker'),
-      })
+    /* "<bank> Invest" back into its bank: one account, bank and broker.
+       Read again — step 1 just taught them their institutions. */
+    const known = await ctx.db
+      .query('accounts')
+      .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+      .take(50)
+    for (const inv of known) {
+      if (!inv.name.endsWith(' Invest')) continue
+      const bank = known.find(
+        (x) =>
+          x._id !== inv._id &&
+          (x.institution === undefined
+            ? false
+            : x.institution === inv.institution) &&
+          x.kinds.includes('bank'),
+      )
+      if (bank === undefined) continue
       const trades = await ctx.db
         .query('trades')
         .withIndex('by_owner_account', (q) =>
-          q.eq('ownerId', ownerId).eq('accountId', a._id),
+          q.eq('ownerId', ownerId).eq('accountId', inv._id),
         )
         .take(2000)
-      for (const t of trades) await ctx.db.patch(t._id, { accountId: investId })
+      for (const t of trades) await ctx.db.patch(t._id, { accountId: bank._id })
       const logs = await ctx.db
         .query('logs')
         .withIndex('by_owner_account_time', (q) =>
-          q.eq('ownerId', ownerId).eq('accountId', a._id),
+          q.eq('ownerId', ownerId).eq('accountId', inv._id),
         )
         .take(5000)
       for (const l of logs) {
-        if (l.kind === 'move' && l.meta?.otherAccountId === a._id) {
+        /* The Invest side of a bank → Invest transfer goes; the bank side
+           stays as money into its own stocks. */
+        if (l.kind === 'move' && l.meta?.otherAccountId === bank._id) {
+          const pair = await transferPair(ctx, ownerId, l)
+          if (pair !== null) {
+            await ctx.db.patch(pair._id, {
+              meta: {
+                ...pair.meta,
+                otherAccountId: bank._id,
+                pairOf: undefined,
+              },
+            })
+          }
+          await ctx.db.delete(l._id)
+          continue
+        }
+        await ctx.db.patch(l._id, { accountId: bank._id })
+      }
+      const pointing = await ctx.db
+        .query('logs')
+        .withIndex('by_owner_area_time', (q) =>
+          q.eq('ownerId', ownerId).eq('area', 'money'),
+        )
+        .take(5000)
+      for (const l of pointing) {
+        if (l.meta?.otherAccountId === inv._id) {
           await ctx.db.patch(l._id, {
-            meta: { ...l.meta, otherAccountId: investId },
+            meta: { ...l.meta, otherAccountId: bank._id },
           })
         }
       }
-      done.split++
+      for (const currency of inv.currencies) {
+        const readings = await ctx.db
+          .query('stateSnapshots')
+          .withIndex('by_owner_key_time', (q) =>
+            q
+              .eq('ownerId', ownerId)
+              .eq('key', `balance:${inv._id}:${currency}`),
+          )
+          .take(1000)
+        for (const r of readings) await ctx.db.delete(r._id)
+      }
+      const fresh = await ctx.db.get(bank._id)
+      if (fresh && !fresh.kinds.includes('broker')) {
+        await ctx.db.patch(bank._id, { kinds: [...fresh.kinds, 'broker'] })
+      }
+      await ctx.db.delete(inv._id)
+      done.joined++
     }
 
     const trades = await ctx.db

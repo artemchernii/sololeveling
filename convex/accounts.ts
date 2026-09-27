@@ -148,7 +148,7 @@ const fields = {
   kinds: v.array(kind),
   currencies: v.array(v.string()),
   domain: v.optional(v.string()),
-  /** A product id from src/lib/institutions.ts ('revolut-invest'). */
+  /** A product id from src/lib/institutions.ts ('trade-republic'). */
   product: v.optional(v.string()),
   ibanTails: v.optional(v.array(v.string())),
   cardTails: v.optional(v.array(v.string())),

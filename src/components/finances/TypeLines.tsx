@@ -542,7 +542,7 @@ function TickerPick({
     )
   }
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex max-w-full min-w-0 items-center gap-1.5">
       {value ? <TickerLogo symbol={value.symbol} size={20} /> : null}
       <select
         value={value?.symbol ?? ''}
@@ -550,7 +550,7 @@ function TickerPick({
           onChange(found.find((c) => c.symbol === e.target.value) ?? null)
         }
         aria-label={`Ticker for ${symbol}`}
-        className={chip(!!value)}
+        className={`${chip(!!value)} max-w-full min-w-0 truncate`}
       >
         {found.map((c) => (
           <option key={c.symbol} value={c.symbol}>

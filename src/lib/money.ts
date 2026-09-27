@@ -88,6 +88,23 @@ export const SPEND_CATEGORIES: ReadonlyArray<MoneyCategory> = [
     label: 'Travel',
     words: ['flight', 'hotel', 'airbnb', 'trip'],
   },
+  /* Three more the statement reader files into (27 Sep, his real Revolut
+     statement: Norauto, Amazon, the Claude subscription). */
+  {
+    id: 'car',
+    label: 'Car',
+    words: ['norauto', 'parking', 'toll', 'via verde'],
+  },
+  {
+    id: 'shopping',
+    label: 'Shopping',
+    words: ['amazon', 'fnac', 'worten', 'ikea'],
+  },
+  {
+    id: 'subscriptions',
+    label: 'Subscriptions',
+    words: ['netflix', 'spotify', 'claude', 'icloud', 'youtube'],
+  },
   { id: 'other', label: 'Other', words: [] },
 ]
 

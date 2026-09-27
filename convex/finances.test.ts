@@ -798,7 +798,7 @@ describe('intake: transactions', () => {
       kind: 'transactions',
       title: 'Revolut statement · EUR',
       institution: 'Revolut',
-      transactions: rows as never,
+      transactions: rows,
       positions: undefined,
       balance:
         balance === undefined
@@ -1160,5 +1160,102 @@ describe('intake: holdings', () => {
     const intakeId = await ready(t, me)
     await me.mutation(api.intake.discard, { intakeId })
     expect(await me.query(api.intake.open, {})).toEqual([])
+  })
+})
+
+describe('log something that matters', () => {
+  test('a transfer is a move, never spending or income; money out and in are', async () => {
+    const { me } = setup()
+    const bpi = await me.mutation(api.accounts.create, {
+      name: 'BPI',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const rev = await me.mutation(api.accounts.create, {
+      name: 'Revolut',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const now = Date.now()
+    await me.mutation(api.money.logMove, {
+      fromAccountId: bpi,
+      toAccountId: rev,
+      amount: 4400,
+      currency: 'EUR',
+      occurredAt: now,
+    })
+    await me.mutation(api.money.logOut, {
+      accountId: rev,
+      amount: 1200,
+      currency: 'EUR',
+      category: 'Tech',
+      occurredAt: now,
+      note: 'laptop',
+    })
+    await me.mutation(api.money.logIn, {
+      accountId: bpi,
+      amount: 350,
+      currency: 'EUR',
+      category: 'IRS return',
+      occurredAt: now,
+    })
+    const sums = await me.query(api.aggregate.moneySums, {
+      start: TODAY,
+      end: TODAY + 86_400_000,
+    })
+    expect([sums.out, sums.in]).toEqual([
+      { sum: 1200, count: 1 },
+      { sum: 350, count: 1 },
+    ])
+  })
+
+  test('refuses the same account twice, a currency it does not hold, the future, another owner', async () => {
+    const { me, them } = setup()
+    const a = await me.mutation(api.accounts.create, {
+      name: 'A',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const b = await me.mutation(api.accounts.create, {
+      name: 'B',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const theirs = await them.mutation(api.accounts.create, {
+      name: 'X',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const base = { amount: 1, currency: 'EUR', occurredAt: Date.now() }
+    await expect(
+      me.mutation(api.money.logMove, {
+        ...base,
+        fromAccountId: a,
+        toAccountId: a,
+      }),
+    ).rejects.toThrow('same account')
+    await expect(
+      me.mutation(api.money.logMove, {
+        ...base,
+        currency: 'USD',
+        fromAccountId: a,
+        toAccountId: b,
+      }),
+    ).rejects.toThrow('does not hold USD')
+    await expect(
+      me.mutation(api.money.logOut, {
+        ...base,
+        accountId: a,
+        category: 'x',
+        occurredAt: Date.now() + 86_400_000,
+      }),
+    ).rejects.toThrow('happened')
+    await expect(
+      me.mutation(api.money.logIn, {
+        ...base,
+        accountId: theirs,
+        category: 'gift',
+      }),
+    ).rejects.toThrow('No such account')
   })
 })

@@ -25,6 +25,7 @@ import type * as invest from "../invest.js";
 import type * as logs from "../logs.js";
 import type * as market from "../market.js";
 import type * as milestones from "../milestones.js";
+import type * as money from "../money.js";
 import type * as notes from "../notes.js";
 import type * as principles from "../principles.js";
 import type * as projects from "../projects.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   logs: typeof logs;
   market: typeof market;
   milestones: typeof milestones;
+  money: typeof money;
   notes: typeof notes;
   principles: typeof principles;
   projects: typeof projects;

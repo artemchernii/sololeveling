@@ -54,6 +54,38 @@ export function AccountLogo({
   )
 }
 
+/* Some marks come as white drawn on nothing (Uber's does): on the white
+   square they vanish (27 Sep: "icons sometimes are just white"). Once
+   loaded, the picture is looked at: white on clear sits on the dark
+   square instead, and one with nothing drawn falls back to letters. */
+type Ink = 'dark' | 'light' | 'blank'
+
+function inkOf(img: HTMLImageElement): Ink {
+  try {
+    const n = 24
+    const c = document.createElement('canvas')
+    c.width = n
+    c.height = n
+    const g = c.getContext('2d')
+    if (!g) return 'dark'
+    g.drawImage(img, 0, 0, n, n)
+    const d = g.getImageData(0, 0, n, n).data
+    let seen = 0
+    let light = 0
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 40) continue
+      seen++
+      if (Math.min(d[i], d[i + 1], d[i + 2]) > 225) light++
+    }
+    if (seen < n * n * 0.02) return 'blank'
+    /* Opaque white ground with a mark on it is an ordinary logo. */
+    if (seen > n * n * 0.9) return light === seen ? 'blank' : 'dark'
+    return light / seen > 0.9 ? 'light' : 'dark'
+  } catch {
+    return 'dark'
+  }
+}
+
 export function TickerLogo({
   symbol,
   size = 32,
@@ -62,9 +94,10 @@ export function TickerLogo({
   size?: number
 }) {
   const [failed, setFailed] = useState(false)
+  const [ink, setInk] = useState<Ink>('dark')
   const base = symbol.split('.')[0]
   const box = { width: size, height: size, borderRadius: size / 3.6 }
-  if (failed) {
+  if (failed || ink === 'blank') {
     return (
       <span
         aria-hidden
@@ -80,10 +113,12 @@ export function TickerLogo({
       src={`https://financialmodelingprep.com/image-stock/${encodeURIComponent(base)}.png`}
       alt=""
       aria-hidden
+      crossOrigin="anonymous"
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
+      onLoad={(e) => setInk(inkOf(e.currentTarget))}
       style={{ ...box, padding: size / 10 }}
-      className="shrink-0 bg-mark-ground object-contain"
+      className={`shrink-0 object-contain ${ink === 'light' ? 'bg-mark-ink' : 'bg-mark-ground'}`}
     />
   )
 }

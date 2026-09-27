@@ -65,11 +65,15 @@ Sep 27 screen agree", paid €3,796.40, +€290.83 (+7.7%).
 4. **Every account opens its rows.** Tapping an account card lists every
    row in it, newest first, moves included — nothing stored is invisible
    (27 Sep: "I can't see those movements anywhere which is very bad").
+   Beside the rows, **the files read into it**: each statement or
+   screenshot with its date, what it covered, what it added — and it
+   opens again (27 Sep: "list of transactions for bank, and files that
+   was read … now its just doesnt exist").
 5. **Banks get the brokers' engine.** A balance is an observation, rows
    are the ledger: balance then + rows between = balance now. When it
    does not add up, say where: "€100 missing between Sep 3 and Sep 10 —
    a row was cut off the screenshot?", with one tap to add it on its
-   day. (His ActivoBank case, 27 Sep: one row cut from a screenshot.)
+   day. A row typed on a day a balance already covers says so. (His ActivoBank case, 27 Sep: one row cut from a screenshot.)
    A row added on its real day never moves a later balance — only rows
    after the latest reading do (aggregate.movedSince), so the total
    stays true.

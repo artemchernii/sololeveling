@@ -733,6 +733,69 @@ export const moneySums = query({
 })
 
 /**
+ * What moved in each account over a period (27 Sep, the Treasury hero's
+ * account rows): money in, money out and both sides of transfers, signed,
+ * in euros — the sum rule over logs that carry an account. A row in
+ * another currency is not added and not converted; `skipped` says how
+ * many. Nothing here is a return: a broker's shares moving in price are
+ * not in it.
+ */
+export const accountMonth = query({
+  args: { start: v.number(), end: v.number() },
+  returns: v.object({
+    accounts: v.array(
+      v.object({
+        accountId: v.id('accounts'),
+        net: v.number(),
+        rows: v.number(),
+      }),
+    ),
+    skipped: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', 'money')
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .take(MONEY_ROWS)
+    const by = new Map<Id<'accounts'>, { cents: number; rows: number }>()
+    let skipped = 0
+    for (const row of rows) {
+      if (row.accountId === undefined) continue
+      if (
+        row.kind !== 'expense' &&
+        row.kind !== 'income' &&
+        row.kind !== 'move'
+      )
+        continue
+      if (!isEuroAmount(row)) {
+        skipped++
+        continue
+      }
+      const signed = row.kind === 'expense' ? -row.value : row.value
+      const a = by.get(row.accountId) ?? { cents: 0, rows: 0 }
+      a.cents += Math.round(signed * 100)
+      a.rows++
+      by.set(row.accountId, a)
+    }
+    return {
+      accounts: [...by].map(([accountId, a]) => ({
+        accountId,
+        net: a.cents / 100,
+        rows: a.rows,
+      })),
+      skipped,
+    }
+  },
+})
+
+/**
  * How often, per kind of thing: one count per local day for every category
  * present in an area's logs, plus how many of the last `recentDays` had
  * something on them.

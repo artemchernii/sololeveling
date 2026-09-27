@@ -1,11 +1,12 @@
 import { ConvexError, v } from 'convex/values'
 
+import { isEuroAmount } from '../src/lib/money'
 import { moveSheets, unlinkSheets } from './vault'
 import { requireUser } from './auth'
 import { requireLiveArea } from './areas'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
-import type { Id } from './_generated/dataModel'
+import type { Doc, Id } from './_generated/dataModel'
 import schema, { areaSlug } from './schema'
 
 /* Quick capture lands here (PLAN.md §3). A log is evidence: something that
@@ -42,6 +43,8 @@ export const logKindValidator = v.union(
   v.literal('intake'),
   /* One routine item ticked (drills.did) — see schema.ts. */
   v.literal('exercise'),
+  /* Between his own accounts — see schema.ts. */
+  v.literal('move'),
   v.literal('note'),
   v.literal('idea'),
   v.literal('custom'),
@@ -274,6 +277,40 @@ export const listForArea = query({
   },
 })
 
+/* The cap moneySums reads a period under; the same here, so the rows a sum
+   opens are the rows it added. */
+const MONEY_ROWS = 1000
+
+/**
+ * The rows behind a money sum (Finances F1): every expense and income in
+ * euros over the period, newest first. PLAN.md §1's fourth sum condition —
+ * tap €612 and see what it is made of — so it reads by the same index and
+ * the same `isEuroAmount` rule as `aggregate.moneySums`, and the page
+ * narrows by kind and category in the list it is handed, never re-adding.
+ */
+export const moneyRows = query({
+  args: { start: v.number(), end: v.number() },
+  returns: v.array(schema.doc('logs')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', 'money')
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .order('desc')
+      .take(MONEY_ROWS)
+    return rows.filter(
+      (row) =>
+        (row.kind === 'expense' || row.kind === 'income') && isEuroAmount(row),
+    )
+  },
+})
+
 /**
  * The badge is the editor. `area` is filing, not evidence — a mis-filed note
  * gets corrected here, while kind, occurredAt, value and text stay immutable.
@@ -354,9 +391,17 @@ export const setValue = mutation({
       )
     }
     if (!Number.isFinite(args.value) || args.value <= 0) {
-      throw new ConvexError('That is not a number of minutes.')
+      throw new ConvexError(
+        log.unit === 'eur'
+          ? 'That is not an amount in euros.'
+          : 'That is not a number of minutes.',
+      )
     }
-    await ctx.db.patch(args.logId, { value: args.value })
+    /* Money is kept to the cent (Finances F1): 12.499 is not an amount
+       anyone paid, and the sums add in whole cents. */
+    const value =
+      log.unit === 'eur' ? Math.round(args.value * 100) / 100 : args.value
+    await ctx.db.patch(args.logId, { value })
     return null
   },
 })
@@ -430,7 +475,39 @@ async function removeOwnedLog(
     }
   }
 
+  /* A transfer is two rows, one per account (27 Sep): removing either
+     side removes the pair, or a balance keeps half a transfer. */
+  if (log.kind === 'move') {
+    const other = await transferPair(ctx, ownerId, log)
+    if (other !== null) await ctx.db.delete(other._id)
+  }
+
   /* A Vault sheet outlives its session, "not linked" (R7a). */
   await unlinkSheets(ctx, ownerId, logId)
   await ctx.db.delete(logId)
+}
+
+/** The other side of a transfer — written at the same moment, in the
+    other account, one naming the other through `pairOf`. */
+export async function transferPair(
+  ctx: MutationCtx,
+  ownerId: string,
+  log: Doc<'logs'>,
+): Promise<Doc<'logs'> | null> {
+  if (log.meta?.pairOf !== undefined) {
+    const first = await ctx.db.get(log.meta.pairOf)
+    return first !== null && first.ownerId === ownerId ? first : null
+  }
+  const otherId = log.meta?.otherAccountId
+  if (otherId === undefined) return null
+  const same = await ctx.db
+    .query('logs')
+    .withIndex('by_owner_account_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('accountId', otherId)
+        .eq('occurredAt', log.occurredAt),
+    )
+    .take(20)
+  return same.find((l) => l.meta?.pairOf === log._id) ?? null
 }

@@ -4,6 +4,29 @@ Single-user personal operating system for Artem. `PLAN.md` is the spec: read it
 before starting a phase. This file is the standing agreement, and it wins over
 habit — where it and `PLAN.md` disagree, say so rather than picking one.
 
+## Stop producing slop: journey, then mockup, then code (27 Sep)
+
+Artem, after a day of Finances screens he did not recognise: "STOP
+PRODUCE SLOP SHIT." The screens were built from specs in words, each
+step reasonable, and together not what he pictured. A form, a raw list,
+a number with no question behind it — that is slop, however well coded.
+
+1. **Journey first.** Before any new or reworked screen, write down the
+   moment he opens it: what he wants to know or do, what he does next, how
+   often. In his words — read his earlier messages before asking again.
+   He says yes before anything else happens.
+2. **Then something he can click.** A mockup on real proportions (the
+   Treasury mockup on :3950 is the bar). He marks it up; it changes
+   until he says go.
+3. **Build what it shows.** Match the approved mockup — its layout,
+   density, charts, states — not a reinterpretation of it. Before calling
+   a screen done, put both side by side in the browser pane and look.
+4. **The app does the work.** Detect, prefill, remember; ask him only
+   what cannot be known. Never a form where a file, a guess or a default
+   would do.
+5. **A recommendation is not a decision.** Say what it changes in the
+   thing he sees ("Revolut becomes two cards") before he agrees to it.
+
 ## Reality over gamification
 
 This is the rule the whole product exists to keep. It is invisible in a diff:
@@ -13,7 +36,9 @@ number came from.
 Every number on screen comes from one of **four sanctioned sources**, all of
 them in `convex/aggregate.ts`:
 
-1. **log count** — rows in `logs` over a period
+1. **log count or sum** — rows in `logs` over a period, or the sum of their
+   amounts on the five conditions in `PLAN.md` §1 (one currency, a stated
+   period, only logged rows, every sum opens its rows, no derived "saved")
 2. **state** — the latest `stateSnapshots` row for a key
 3. **entity count** — rows in `projects` / `tasks` matching a filter
 4. **external reading** — a stored, attributed, timestamped value from a named
@@ -26,6 +51,7 @@ only where `goals.targetValue` gives it a real denominator. When you reach for a
 fifth source, or find yourself deriving a score, an index, or a percentage out
 of thin air — stop and ask.
 
+Sums were allowed on 2026-09-26 for Finances, the same way.
 The fourth was added deliberately, on 2026-09-09, because money cannot be
 tracked without prices that come from outside. That is the bar for adding
 another: a real thing the app must show, and a written set of conditions that
@@ -88,9 +114,10 @@ Nocturne is the design source of truth. Its tokens live in
 `src/styles/tokens.css` and reach components through Tailwind's `@theme` in
 `src/styles.css`. Take every colour, radius, space and shadow from a token.
 
-The tokens under that file's `APP ADDITIONS` rule (ten groups, as of 26
+The tokens under that file's `APP ADDITIONS` rule (eleven groups, as of 27
 Sep: ground, mono face, glass, motion, area colours, lift/sink, the light
-theme, state, note kinds, and the System) are the only values not from Nocturne, and each carries the reason it
+theme, state, note kinds, the System, and the Treasury's marks and money
+colours) are the only values not from Nocturne, and each carries the reason it
 exists. Adding another means writing that reason too.
 
 `design/wireframes-v2/Solo Leveling Wireframes.dc.html` is visual reference for

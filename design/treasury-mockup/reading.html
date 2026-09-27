@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury reading</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150); --bad: oklch(0.68 0.2 22); --warn: oklch(0.79 0.15 75);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 16px }
+  .mono { font-family: var(--mono) }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .good { color: var(--good) } .bad { color: var(--bad) } .dim { color: var(--ink-500) } .warn { color: var(--warn) }
+  .row { display: flex; align-items: center; gap: 10px }
+  .ctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+  .label { text-align: center; font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; color: var(--ink-500); text-transform: uppercase; margin-top: 10px }
+
+  /* The System frame */
+  .sys { position: relative; border-radius: 14px; border: 1px solid var(--sys-edge);
+    background: linear-gradient(160deg, rgba(181,171,252,.10), rgba(181,171,252,.02) 40%), #1b1a2c;
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine); overflow: hidden }
+  .sys::after { content: ''; position: absolute; inset: -1px; border: 2px solid var(--lav-400); border-radius: 15px; pointer-events: none; z-index: 3;
+    --r: 22px; mask: linear-gradient(#000 0 0) top left/var(--r) var(--r), linear-gradient(#000 0 0) top right/var(--r) var(--r), linear-gradient(#000 0 0) bottom left/var(--r) var(--r), linear-gradient(#000 0 0) bottom right/var(--r) var(--r); mask-repeat: no-repeat; filter: drop-shadow(0 0 5px var(--shine)) }
+  .sys-title { font-family: var(--mono); font-size: 12px; letter-spacing: .38em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 12px var(--shine) }
+
+  /* ---------- the sheet ---------- */
+  .sheet { padding: 20px; max-width: 900px; width: 100%; margin: 0 auto }
+  .shead { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; margin-bottom: 16px; border-bottom: 1px solid rgba(181,171,252,.2) }
+  .close { width: 30px; height: 30px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: none; color: var(--ink-300); font-size: 15px }
+  .grid { display: grid; grid-template-columns: 230px 1fr; gap: 20px }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr } .paper { height: 180px !important } }
+
+  /* the file itself, being read */
+  .paper { position: relative; height: 320px; border-radius: 10px; background: #efeef4; overflow: hidden; box-shadow: 0 18px 40px -18px rgba(0,0,0,.9) }
+  .paper .ph { padding: 14px 14px 8px; display: flex; align-items: center; gap: 7px }
+  .paper .ph i { width: 16px; height: 16px; border-radius: 4px; background: #111 }
+  .paper .ph b { height: 6px; width: 70px; border-radius: 3px; background: #b9b8c6 }
+  .paper .ln { height: 5px; margin: 7px 14px; border-radius: 3px; background: #d1d0db; transition: background .3s }
+  .paper .ln.hit { background: #b5abfc }
+  .paper .ln.done { background: #c9c3f5 }
+  .scan { position: absolute; left: 0; right: 0; height: 36px; top: 0; pointer-events: none;
+    background: linear-gradient(to bottom, transparent, rgba(181,171,252,.35) 70%, #b5abfc 72%, transparent 74%); transition: top .3s linear }
+  .fname { margin-top: 10px; font-family: var(--mono); font-size: 11px; color: var(--ink-400); word-break: break-all }
+  .fname span { color: var(--ink-600) }
+
+  /* what it has found so far */
+  .finds { display: flex; flex-direction: column; gap: 10px }
+  .find { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(233,233,237,.035); border: 1px solid rgba(233,233,237,.07); opacity: .35; transition: opacity .3s }
+  .find.on { opacity: 1; animation: land .45s cubic-bezier(.2,.8,.2,1) both }
+  .find .k { width: 92px; flex: none }
+  .find .v { flex: 1; min-width: 0 }
+  .find .tick { color: var(--good); font-family: var(--mono); font-size: 12px; opacity: 0 }
+  .find.on .tick { opacity: 1 }
+  .find .wait { font-family: var(--mono); font-size: 11px; color: var(--ink-600) }
+  .logo { width: 26px; height: 26px; border-radius: 7px; background: #fff; padding: 2px; object-fit: contain; animation: pop .5s cubic-bezier(.3,1.6,.5,1) both }
+  @keyframes land { from { opacity: 0; transform: translateY(8px) } }
+  @keyframes pop { from { transform: scale(.3); opacity: 0 } }
+
+  .count { display: flex; align-items: baseline; gap: 10px }
+  .count .n { font-size: 30px; font-weight: 300; font-variant-numeric: tabular-nums; line-height: 1 }
+  .split { display: flex; gap: 6px; margin-top: 8px; height: 5px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.05) }
+  .split .old { background: var(--ink-600); transition: flex-grow .3s }
+  .split .new { background: var(--lav-400); transition: flex-grow .3s; box-shadow: 0 0 10px var(--shine) }
+
+  .feed { display: flex; flex-direction: column; gap: 2px; min-height: 150px; margin-top: 4px }
+  .it { display: grid; grid-template-columns: 56px 1fr auto 64px; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 8px; font-size: 13px; animation: slide .35s cubic-bezier(.2,.8,.2,1) both }
+  .it .d { font-family: var(--mono); font-size: 11px; color: var(--ink-500) }
+  .it .amt { font-family: var(--mono); font-size: 12.5px; text-align: right }
+  .it .tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; text-align: right }
+  .it.old { color: var(--ink-500) } .it.old .amt { color: var(--ink-500) } .it.old .tag { color: var(--ink-600) }
+  .it.new { background: rgba(181,171,252,.06) } .it.new .tag { color: var(--lav-300) }
+  @keyframes slide { from { opacity: 0; transform: translateY(-10px) } }
+
+  .foot { margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(181,171,252,.14); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap }
+  .foot .who { font-family: var(--mono); font-size: 11px; color: var(--ink-500) }
+  .go { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; padding: 10px 18px; border-radius: 999px; border: 0; color: #1a1830;
+    background: linear-gradient(180deg, #c9c1fe, var(--lav-400)); box-shadow: 0 0 24px -6px var(--shine); animation: breathe 2.4s ease-in-out infinite; cursor: pointer }
+  .go[hidden] { display: none }
+  @keyframes breathe { 50% { box-shadow: 0 0 34px -2px var(--shine) } }
+
+  /* ---------- the strip, when the sheet is closed ---------- */
+  .strip { padding: 12px 16px; display: flex; align-items: center; gap: 14px }
+  .strip .file { width: 30px; height: 38px; border-radius: 5px; background: #efeef4; position: relative; overflow: hidden; flex: none }
+  .strip .file::before { content: ''; position: absolute; inset: 7px 5px auto; height: 22px; background: repeating-linear-gradient(#cfcedb 0 3px, transparent 3px 6px) }
+  .strip .file::after { content: ''; position: absolute; left: 0; right: 0; height: 8px; background: linear-gradient(transparent, #b5abfc); animation: sweep 1.6s linear infinite }
+  @keyframes sweep { from { top: -8px } to { top: 38px } }
+  .strip .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px }
+  .strip .t { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .strip .s { font-family: var(--mono); font-size: 11px; color: var(--ink-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .strip .s b { font-weight: 400; color: var(--lav-300) }
+  .strip .mini { display: flex; gap: 3px; height: 4px }
+  .strip .mini i { flex: 1; max-width: 8px; border-radius: 2px; background: rgba(255,255,255,.08); transition: background .2s }
+  .strip .mini i.o { background: var(--ink-600) } .strip .mini i.n { background: var(--lav-400) }
+  .strip.done .file::after { display: none }
+  .ghost { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-300); padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: none }
+
+  .notes { max-width: 900px; margin: 10px auto 0; color: var(--ink-400); font-size: 13px; line-height: 1.6 }
+  .notes h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--lav-300); margin: 14px 0 6px }
+  .notes li { margin-left: 18px }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup controls: <button id="replay" class="on">replay</button> <button id="fast">skip to done</button></div>
+
+  <div class="label">1 · the sheet, open — you watch it read</div>
+  <section class="sys sheet">
+    <div class="shead"><span class="sys-title">[ reading ]</span><button class="close">✕</button></div>
+    <div class="grid">
+      <div>
+        <div class="paper" id="paper"><div class="ph"><i></i><b></b></div><div id="lines"></div><div class="scan" id="scan"></div></div>
+        <div class="fname">account-statement_2026-08-01_2026-09-27.pdf<br><span>3 pages · 212 KB</span></div>
+      </div>
+      <div class="finds">
+        <div class="find" id="f-bank"><span class="caps k">bank</span><span class="v row" id="v-bank"><span class="wait">looking…</span></span><span class="tick">✓</span></div>
+        <div class="find" id="f-what"><span class="caps k">what it is</span><span class="v" id="v-what"><span class="wait">…</span></span><span class="tick">✓</span></div>
+        <div class="find" id="f-rows" style="flex-direction:column;align-items:stretch">
+          <div class="row" style="justify-content:space-between">
+            <span class="caps">rows</span>
+            <span class="count"><span class="n" id="n">0</span><span class="mono dim" style="font-size:11px" id="nsplit"></span></span>
+          </div>
+          <div class="split"><div class="old" id="s-old" style="flex-grow:0"></div><div class="new" id="s-new" style="flex-grow:0"></div></div>
+          <div class="feed" id="feed"></div>
+        </div>
+        <div class="find" id="f-bal"><span class="caps k">balance</span><span class="v" id="v-bal"><span class="wait">at the end of the file</span></span><span class="tick">✓</span></div>
+      </div>
+    </div>
+    <div class="foot">
+      <span class="who" id="who">Claude Haiku 4.5 · 0s · nothing saved until you confirm</span>
+      <button class="go" id="go" hidden>check 12 new rows →</button>
+    </div>
+  </section>
+
+  <div class="label" style="margin-top:22px">2 · the sheet closed — the strip on the page keeps telling you</div>
+  <section class="sys strip" id="strip">
+    <div class="file"></div>
+    <span id="st-logo"></span>
+    <div class="body">
+      <span class="t" id="st-t">Reading account-statement_2026-08-01…pdf</span>
+      <span class="s" id="st-s">opening the file · 0s</span>
+      <div class="mini" id="mini"></div>
+    </div>
+    <button class="ghost" id="st-btn">watch</button>
+  </section>
+
+  <div class="notes">
+    <h3>What is real here</h3>
+    <ul>
+      <li>Every line is what the reader has actually found so far — the reader streams, and each find is written as it arrives. No fake percentage, no timer pretending to know the end.</li>
+      <li><b>Bank</b> lands first (the IBAN ending matches your Revolut), then what the file is, then rows one by one: grey = already in Revolut, lavender = new. The balance lands last.</li>
+      <li>The page itself lights up line by line as rows are found. For a screenshot, it is your screenshot here instead of a paper.</li>
+      <li>Closing the sheet never stops it: the strip shows the same finds, and turns into "12 new rows ready · check" when done.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const ROWS = [
+ ['Aug 1','Salary · Acme Lda',2140,1],['Aug 2','Pingo Doce',-23.4],['Aug 3','Uber',-8.9],['Aug 4','Rent · Sr. Almeida',-850],['Aug 5','Vodafone',-19.99],['Aug 6','Continente',-41.2],['Aug 7','Spotify',-6.99],
+ ['Aug 9','Bolt Food',-14.5],['Aug 11','EDP',-48.3],['Aug 12','Pingo Doce',-18.75],['Aug 14','To BPI',-300],['Aug 15','Galp',-52.0],['Aug 17','Zara',-39.95],['Aug 18','Pingo Doce',-27.1],
+ ['Aug 20','Netflix',-13.99],['Aug 21','Uber',-11.2],['Aug 23','Continente',-36.4],['Aug 24','Fnac',-89.9],['Aug 26','Farmácia',-12.3],['Aug 27','Bolt',-7.8],['Aug 28','Pingo Doce',-22.6],
+ ['Aug 30','Ginásio',-35],['Sep 1','Salary · Acme Lda',2140,1],['Sep 2','Pingo Doce',-19.8],['Sep 3','Rent · Sr. Almeida',-850],['Sep 4','Vodafone',-19.99],['Sep 5','Continente',-44.1],['Sep 7','Spotify',-6.99],['Sep 9','Uber',-9.4],
+ ['Sep 12','EDP',-51.2],['Sep 14','Pingo Doce',-25.3],['Sep 15','Galp',-49.0],['Sep 17','Bolt Food',-16.9],['Sep 19','Netflix',-13.99],['Sep 20','Continente',-38.6],['Sep 21','IKEA',-64.0],
+ ['Sep 22','Uber',-12.1],['Sep 23','Pingo Doce',-21.45],['Sep 24','To Trade Republic',-200],['Sep 26','Farmácia',-9.8],['Sep 27','Café Nicola',-4.2]]
+const OLD = 29, TOTAL = ROWS.length
+const eur = (v) => (v < 0 ? '−' : '+') + '€' + Math.abs(v).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const $ = (id) => document.getElementById(id)
+const LINES = 34
+let timers = [], t0 = 0, tick
+
+function reset() {
+  timers.forEach(clearTimeout); clearInterval(tick); timers = []
+  $('lines').innerHTML = Array.from({ length: LINES }, (_, i) => `<div class="ln" style="width:${55 + ((i * 37) % 40)}%"></div>`).join('')
+  $('mini').innerHTML = Array.from({ length: TOTAL }, () => '<i></i>').join('')
+  ;['f-bank','f-what','f-rows','f-bal'].forEach((id) => $(id).classList.remove('on'))
+  $('v-bank').innerHTML = '<span class="wait">looking…</span>'; $('v-what').innerHTML = '<span class="wait">…</span>'; $('v-bal').innerHTML = '<span class="wait">at the end of the file</span>'
+  $('feed').innerHTML = ''; $('n').textContent = '0'; $('nsplit').textContent = ''
+  $('s-old').style.flexGrow = 0; $('s-new').style.flexGrow = 0; $('go').hidden = true
+  $('scan').style.top = '0px'; $('strip').classList.remove('done'); $('st-logo').innerHTML = ''
+  $('st-t').textContent = 'Reading account-statement_2026-08-01…pdf'; $('st-s').textContent = 'opening the file · 0s'; $('st-btn').textContent = 'watch'; $('st-btn').className = 'ghost'
+  t0 = Date.now()
+  tick = setInterval(() => { const s = Math.round((Date.now() - t0) / 1000); $('who').textContent = `Claude Haiku 4.5 · ${s}s · nothing saved until you confirm`; state.s = s; strip() }, 250)
+}
+const state = { s: 0, bank: false, what: false, n: 0, bal: false, done: false }
+const at = (ms, fn) => timers.push(setTimeout(fn, ms))
+
+function strip() {
+  const st = state
+  if (st.done) return
+  const parts = []
+  if (st.what) parts.push('EUR · Aug 1 → Sep 27')
+  if (st.n) { const nw = Math.max(0, st.n - OLD); parts.push(`${st.n} rows`); parts.push(`<b>${nw} new</b>`) }
+  else parts.push(st.bank ? 'finding rows' : 'opening the file')
+  parts.push(st.s + 's')
+  $('st-s').innerHTML = parts.join(' · ')
+}
+
+function run(speed = 1) {
+  reset(); Object.assign(state, { s: 0, bank: false, what: false, n: 0, bal: false, done: false })
+  const k = (ms) => ms / speed
+  at(k(1400), () => {
+    state.bank = true; $('f-bank').classList.add('on')
+    $('v-bank').innerHTML = `<img class="logo" src="https://www.google.com/s2/favicons?domain=revolut.com&sz=128"><span>Revolut <span class="dim mono" style="font-size:11px">· IBAN …4055 → your Revolut</span></span>`
+    $('st-logo').innerHTML = `<img class="logo" src="https://www.google.com/s2/favicons?domain=revolut.com&sz=128">`
+    $('st-t').textContent = 'Revolut statement'
+  })
+  at(k(2800), () => { state.what = true; $('f-what').classList.add('on'); $('v-what').innerHTML = 'Statement · EUR · <span class="mono">Aug 1 → Sep 27</span>'; $('f-rows').classList.add('on') })
+  ROWS.forEach((r, i) => at(k(3600 + i * 290), () => {
+    state.n = i + 1
+    const mv = r[1].startsWith('To '), old = i < OLD, nw = Math.max(0, i + 1 - OLD), od = Math.min(i + 1, OLD)
+    $('n').textContent = i + 1
+    $('nsplit').textContent = `${od} already here · ${nw} new`
+    $('s-old').style.flexGrow = od; $('s-new').style.flexGrow = nw
+    const el = document.createElement('div')
+    el.className = 'it ' + (old ? 'old' : 'new')
+    el.innerHTML = `<span class="d">${r[0]}</span><span>${r[1]}</span><span class="amt ${mv ? '' : r[2] > 0 ? 'good' : old ? '' : 'bad'}">${eur(r[2])}</span><span class="tag">${old ? 'have it' : mv ? 'new · move' : 'new'}</span>`
+    $('feed').prepend(el); while ($('feed').children.length > 5) $('feed').lastChild.remove()
+    const line = Math.floor((i / TOTAL) * LINES), lines = $('lines').children
+    for (let j = 0; j < LINES; j++) lines[j].className = 'ln' + (j < line ? ' done' : j === line ? ' hit' : '')
+    $('scan').style.top = (32 + line * 12 - 26) + 'px'
+    $('mini').children[i].className = old ? 'o' : 'n'
+    strip()
+  }))
+  const end = 3600 + TOTAL * 290
+  at(k(end + 500), () => { state.bal = true; $('f-bal').classList.add('on'); $('v-bal').innerHTML = '<span style="font-size:20px;font-weight:300">€799.47</span> <span class="dim mono" style="font-size:11px">closing, Sep 27</span>'; $('scan').style.top = '-40px'; [...$('lines').children].forEach((l) => l.className = 'ln done') })
+  at(k(end + 1200), () => {
+    state.done = true; clearInterval(tick); $('go').hidden = false
+    $('who').textContent = `Claude Haiku 4.5 · read in ${state.s}s · nothing saved until you confirm`
+    $('strip').classList.add('done'); $('st-t').textContent = 'Revolut statement · 12 new rows ready'
+    $('st-s').innerHTML = '29 already in Revolut, skipped · balance €799.47 on Sep 27'
+    $('st-btn').textContent = 'check →'; $('st-btn').className = 'go'
+  })
+}
+$('replay').onclick = () => run(1)
+$('fast').onclick = () => run(40)
+run(1)
+</script>
+</body>
+</html>

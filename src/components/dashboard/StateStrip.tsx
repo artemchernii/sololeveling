@@ -6,6 +6,7 @@ import { api } from '../../../convex/_generated/api'
 import type { Area } from '@/lib/capture-parser'
 import { whenLabel } from '@/lib/format'
 import { monthRange } from '@/lib/month'
+import { Veiled, VeilToggle } from '@/components/finances/Veil'
 
 /* PLAN.md §3 item 3. Four cells, each labelled with its source — Business and
    Career went on 15 Sep: projects were already counted on Projects, and
@@ -57,6 +58,8 @@ type Slot = {
 type Cell = {
   label: string
   source: string
+  /** Money he holds: blurred until shown (26 Sep, src/lib/veil.ts). */
+  veiled?: boolean
   /** The big value. */
   lead: { text?: string; slot?: Slot }
   /** The quieter half — a count, or a count against a target. */
@@ -176,6 +179,7 @@ export function StateStrip({ today }: { today: number }) {
     {
       label: 'Finances',
       source: 'state',
+      veiled: true,
       lead: {
         text: money(state?.net_worth?.value),
         slot: {
@@ -215,6 +219,9 @@ function StateCell({ cell }: { cell: Cell }) {
         <span className="font-mono text-[9px] tracking-[0.1em] text-ink-800 uppercase">
           {cell.source}
         </span>
+        {cell.veiled ? (
+          <VeilToggle hideOnLeave className="ml-auto scale-90" />
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-baseline gap-x-2">
@@ -222,7 +229,11 @@ function StateCell({ cell }: { cell: Cell }) {
           slot={cell.lead.slot}
           className="text-[19px] font-light text-foreground"
         >
-          {cell.lead.text ?? '—'}
+          {cell.veiled && cell.lead.text !== undefined ? (
+            <Veiled>{cell.lead.text}</Veiled>
+          ) : (
+            (cell.lead.text ?? '—')
+          )}
         </Editable>
 
         {cell.trail ? (

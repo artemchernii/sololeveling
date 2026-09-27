@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury add, opened</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* The + sheet as it opens, before any row (27 Sep). Artem: "looks a bit
+     empty — some information how it works, and animation with colour."
+     Agreed shape: a four-step strip in the drop zone, his own accounts with
+     what each is read from, one "last read" line, a breathing lavender edge.
+     The app's own tokens (src/styles/tokens.css), not new colours. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  svg.i { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .ctl { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+
+  /* Scenario switcher — our own pills. */
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400); cursor: pointer }
+  .scen button.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+
+  .sheet { position: relative; border-radius: 22px; padding: 20px; border: 1px solid var(--sys-edge);
+    background: linear-gradient(160deg, rgba(181,171,252,.08), rgba(181,171,252,.015) 40%), #1d1c2d; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine);
+    display: flex; flex-direction: column; gap: 16px; animation: rise .35s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.99) } }
+  .shead { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid rgba(181,171,252,.16) }
+  .title { font-family: var(--mono); font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .close { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300); display: grid; place-items: center; cursor: pointer }
+
+  /* The drop zone. Its dashed edge breathes lavender (the System's pulse);
+     a file dragged over lights the whole zone and lifts the icon. */
+  .drop { position: relative; border-radius: 18px; padding: 22px 20px 18px; display: flex; flex-direction: column; align-items: center; gap: 16px; cursor: pointer; overflow: hidden;
+    background: radial-gradient(420px 140px at 50% 0%, rgba(181,171,252,.07), transparent 70%) }
+  .drop::before { content: ''; position: absolute; inset: 0; border-radius: inherit; border: 1.5px dashed color-mix(in oklch, var(--lav-400) 30%, transparent); animation: breathe 3.2s ease-in-out infinite; pointer-events: none }
+  @keyframes breathe { 50% { border-color: color-mix(in oklch, var(--lav-400) 62%, transparent); box-shadow: inset 0 0 26px -12px var(--shine) } }
+  .drop .head { display: flex; align-items: center; gap: 12px; font-size: 16px; color: var(--ink-100) }
+  .drop .up { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--lav-300); background: rgba(181,171,252,.1); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 35%, transparent); transition: transform .25s cubic-bezier(.2,.8,.2,1) }
+  .drop .up svg { width: 19px; height: 19px }
+  .drop .head small { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); margin-top: 3px; letter-spacing: .02em }
+  .drop.over { background: radial-gradient(520px 200px at 50% 20%, rgba(181,171,252,.2), rgba(181,171,252,.05) 70%) }
+  .drop.over::before { border-style: solid; border-color: var(--lav-400); animation: none; box-shadow: inset 0 0 40px -10px var(--shine), 0 0 30px -10px var(--shine) }
+  .drop.over .up { transform: translateY(-4px) scale(1.08); background: rgba(181,171,252,.25); color: #fff }
+
+  /* How it works — four steps, one line. The live step glows while reading. */
+  .steps { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center }
+  .step { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-400); padding: 6px 10px; border-radius: 999px; background: rgba(var(--lift),.035); opacity: 0; animation: land .4s cubic-bezier(.2,.8,.2,1) forwards }
+  .step .i { color: var(--c, var(--ink-300)) }
+  .arrow { color: var(--ink-600); font-family: var(--mono); font-size: 11px; opacity: 0; animation: land .4s forwards }
+  .step.live { color: var(--ink-100); background: rgba(181,171,252,.14); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 45%, transparent), 0 0 18px -6px var(--shine) }
+  .step.done { color: var(--ink-200) } .step.done .i { color: var(--good) }
+  @keyframes land { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: none } }
+
+  /* His accounts, and what each is read from. Fade in one after another. */
+  .knows { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center }
+  .acct { display: inline-flex; align-items: center; gap: 8px; padding: 5px 11px 5px 5px; border-radius: 999px; background: rgba(var(--lift),.04); box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); font-size: 12.5px; color: var(--ink-200); opacity: 0; animation: land .4s cubic-bezier(.2,.8,.2,1) forwards }
+  .acct .how { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500) }
+  .acct.stale .how { color: var(--warn) }
+  .logo { width: 24px; height: 24px; border-radius: 999px; background: #fff; object-fit: contain; padding: 2px; flex: none }
+  .tick { width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; background: #3a3348; color: var(--ink-200); font-family: var(--mono); font-size: 9px; flex: none }
+  .acct.kind { padding-left: 11px }
+
+  /* The reading state, inside the zone. */
+  .reading { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 8px }
+  .file { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-200) }
+  .file .meta { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .bar { height: 3px; border-radius: 99px; background: rgba(var(--lift),.07); overflow: hidden }
+  .bar i { display: block; height: 100%; width: 40%; border-radius: inherit; background: linear-gradient(90deg, transparent, var(--lav-400), transparent); animation: sweep 1.2s linear infinite }
+  @keyframes sweep { from { transform: translateX(-100%) } to { transform: translateX(250%) } }
+
+  /* The last read — a real row from intakes. Warn when a month has passed. */
+  .last { display: flex; align-items: center; gap: 8px; justify-content: center; font-family: var(--mono); font-size: 11px; color: var(--ink-500); letter-spacing: .02em }
+  .last b { font-weight: 400; color: var(--ink-300) }
+  .last .dot { width: 6px; height: 6px; border-radius: 99px; background: var(--good); box-shadow: 0 0 8px var(--good) }
+  .last.warn .dot { background: var(--warn); box-shadow: 0 0 8px var(--warn) } .last.warn b { color: var(--warn) }
+  .last a { color: var(--lav-400); text-decoration: none; cursor: pointer } .last a:hover { text-decoration: underline }
+
+  /* The by-hand starters — each tints in its own kind's colour on hover. */
+  .starters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .start { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; padding: 8px 14px; border-radius: 999px; cursor: pointer; color: var(--ink-100); background: none; border: 1px solid rgba(var(--lift),.16); transition: border-color .2s, background .2s, box-shadow .2s, transform .1s }
+  .start:hover { border-color: color-mix(in oklch, var(--k) 55%, transparent); background: color-mix(in oklch, var(--k) 10%, transparent); box-shadow: 0 0 18px -8px var(--k) }
+  .start:active { transform: scale(.97) }
+  .start .i { color: var(--k) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 720px; margin: 0 auto; text-align: center }
+  .note b { color: var(--ink-200); font-weight: 400 }
+  @media (max-width: 560px) { .drop { padding: 18px 12px 14px } .drop .head { font-size: 14.5px } .arrow { display: none } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup · the + sheet as it opens · pick a situation · hover the zone to see a file dragged over</div>
+  <div class="scen" id="scen"></div>
+  <div id="stage"></div>
+  <p class="note" id="note"></p>
+</div>
+
+<script>
+const I = {
+  up: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/>',
+  drop: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
+  read: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  land: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/>',
+  in: '<path d="M7 17 17 7"/><path d="M7 7h10v10"/>',
+  out: '<path d="M7 7l10 10"/><path d="M17 7v10H7"/>',
+  move: '<path d="M4 8h14"/><path d="m15 5 3 3-3 3"/><path d="M20 16H6"/><path d="m9 13-3 3 3 3"/>',
+  buy: '<path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
+  sell: '<path d="m3 7 6 6 4-4 8 8"/><path d="M14 17h7v-7"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+}
+const svg = (k) => `<svg class="i" viewBox="0 0 24 24">${I[k]}</svg>`
+const logo = (d) => `<img class="logo" src="https://www.google.com/s2/favicons?domain=${d}&sz=128">`
+
+/* Sample accounts, not his data: what the app would take from accounts +
+   each one's last intake. "how" is what that account is read from. */
+const MINE = [
+  { name: 'Revolut', d: 'revolut.com', how: 'csv · free' },
+  { name: 'ActivoBank', d: 'activobank.pt', how: 'pdf' },
+  { name: 'Trade Republic', d: 'traderepublic.com', how: 'screenshot' },
+  { name: 'Cash', tick: 'CA', how: 'typed' },
+]
+
+const SCEN = {
+  usual: {
+    label: 'usual',
+    note: 'He opens + with his accounts set up. The strip says how it works in one line; his accounts say what each is read from (a CSV is read in code, free); the line under says what came in last — the question he has when he opens it.',
+    accounts: MINE,
+    last: { cls: '', html: 'last read <b>Revolut CSV</b> · 2 days ago · 214 rows' },
+  },
+  stale: {
+    label: 'a month behind',
+    note: 'ActivoBank\'s last statement is August\'s. That account turns amber here and the line says so — state colour, not a grade. Tapping it opens the file picker already told which account.',
+    accounts: MINE.map((a) => a.name === 'ActivoBank' ? { ...a, stale: true, how: 'pdf · aug' } : a),
+    last: { cls: 'warn', html: '<b>ActivoBank</b> last read 31 Aug — September not in yet · <a>drop it</a>' },
+  },
+  dayone: {
+    label: 'day one',
+    note: 'No accounts yet. The same zone, but it names kinds of file instead of his banks — and says a file makes the account for him (Setup already does this).',
+    accounts: [
+      { kind: true, name: 'bank statement', how: 'csv · pdf' },
+      { kind: true, name: 'broker screenshot', how: 'png · jpg' },
+      { kind: true, name: 'trades export', how: 'csv' },
+    ],
+    last: { cls: '', html: 'nothing read yet — the first file makes its account' },
+  },
+  over: {
+    label: 'file dragged over',
+    note: 'A file held over the sheet: the whole zone lights, the edge goes solid, the icon lifts. Dropping it starts the read.',
+    accounts: MINE, over: true,
+    last: { cls: '', html: 'last read <b>Revolut CSV</b> · 2 days ago · 214 rows' },
+  },
+}
+
+const STEPS = [['drop', 'drop'], ['read', 'read'], ['check', 'you check'], ['land', 'lands on the account']]
+
+function sheet(s) {
+  const live = s.reading ? 1 : -1
+  const steps = STEPS.map(([k, l], i) =>
+    (i ? `<span class="arrow" style="animation-delay:${80 + i * 90}ms">→</span>` : '') +
+    `<span class="step ${i === live ? 'live' : i < live ? 'done' : ''}" style="animation-delay:${60 + i * 90}ms">${svg(i < live ? 'check' : k)}${l}</span>`).join('')
+  const accts = s.accounts.map((a, i) =>
+    `<span class="acct ${a.stale ? 'stale' : ''} ${a.kind ? 'kind' : ''}" style="animation-delay:${360 + i * 70}ms">${a.kind ? '' : a.d ? logo(a.d) : `<span class="tick">${a.tick}</span>`}${a.name}<span class="how">${a.how}</span></span>`).join('')
+  const body = s.reading
+    ? `<div class="reading"><div class="file">${svg('file')} trading-account-statement.csv <span class="meta">Revolut · 3,595 rows · free</span></div><div class="bar"><i></i></div></div>`
+    : `<div class="head"><span class="up">${svg('up')}</span><span>Drop statements or screenshots<small>or click to pick files · several at once is fine</small></span></div>`
+  return `
+  <div class="sheet">
+    <div class="shead"><span class="title">[ add ]</span><button class="close">${svg('x')}</button></div>
+    <div class="drop ${s.over ? 'over' : ''}" id="drop">
+      ${body}
+      <div class="steps">${steps}</div>
+      <div class="knows">${accts}</div>
+    </div>
+    <div class="last ${s.last.cls}"><span class="dot"></span><span>${s.last.html}</span></div>
+    <div class="starters">
+      <span class="caps">or add</span>
+      <button class="start" style="--k:var(--good)">${svg('in')}money in</button>
+      <button class="start" style="--k:var(--danger)">${svg('out')}money out</button>
+      <button class="start" style="--k:var(--lav-400)">${svg('move')}transfer</button>
+      <button class="start" style="--k:var(--good)">${svg('buy')}buy</button>
+      <button class="start" style="--k:var(--danger)">${svg('sell')}sell</button>
+    </div>
+  </div>`
+}
+
+let cur = 'usual'
+function render() {
+  document.getElementById('scen').innerHTML = Object.entries(SCEN).map(([k, s]) => `<button class="${k === cur ? 'on' : ''}" data-s="${k}">${s.label}</button>`).join('')
+  document.getElementById('stage').innerHTML = sheet(SCEN[cur])
+  document.getElementById('note').innerHTML = SCEN[cur].note
+  const d = document.getElementById('drop')
+  if (!SCEN[cur].over && !SCEN[cur].reading) {
+    d.onmouseenter = () => d.classList.add('over')
+    d.onmouseleave = () => d.classList.remove('over')
+  }
+}
+document.getElementById('scen').onclick = (e) => { const b = e.target.closest('[data-s]'); if (b) { cur = b.dataset.s; render() } }
+render()
+</script>
+</body>
+</html>

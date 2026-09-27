@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150);
+    --bad: oklch(0.68 0.2 22);
+    --warn: oklch(0.79 0.15 75);
+    --money: oklch(0.8 0.1 85);
+    --glass: linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
+    --edge: rgba(233,233,237,.09);
+    --shadow: inset 0 1px 0 rgba(233,233,237,.08), 0 24px 48px -28px rgba(0,0,0,.9);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 16px; }
+  .mono { font-family: var(--mono); }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400); }
+  .good { color: var(--good) } .bad { color: var(--bad) } .dim { color: var(--ink-500) } .warn { color: var(--warn) }
+  .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+  .between { justify-content: space-between }
+  .veil .money { filter: blur(9px); user-select: none; }
+  .money { transition: filter .25s ease; }
+
+  /* Mockup controls — not part of the design */
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  /* The System window */
+  .sys { position: relative; border-radius: 14px; border: 1px solid var(--sys-edge); padding: 20px;
+    background: linear-gradient(160deg, rgba(181,171,252,.10), rgba(181,171,252,.02) 40%), var(--glass);
+    box-shadow: var(--shadow), 0 0 40px -18px var(--shine); overflow: hidden; }
+  .sys::before { content:''; position:absolute; inset:0; pointer-events:none; z-index: 1; background: repeating-linear-gradient(0deg, rgba(233,233,237,.022) 0 1px, transparent 1px 3px); }
+  .sys::after { content:''; position:absolute; inset:-1px; border:2px solid var(--lav-400); border-radius:15px; pointer-events:none; z-index: 3;
+    --r: 22px; mask: linear-gradient(#000 0 0) top left/var(--r) var(--r), linear-gradient(#000 0 0) top right/var(--r) var(--r), linear-gradient(#000 0 0) bottom left/var(--r) var(--r), linear-gradient(#000 0 0) bottom right/var(--r) var(--r); mask-repeat:no-repeat; filter: drop-shadow(0 0 5px var(--shine)); }
+  .sys > * { position: relative; z-index: 2 }
+  .sys-title { font-family: var(--mono); font-size: 12px; letter-spacing: .38em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 12px var(--shine); }
+
+  /* His photo: the right half's ground, darkened so numbers read over it */
+  .photo { position:absolute !important; z-index: 0 !important; inset: 0 0 0 38%;
+    background: url(dollar.jpg) center / cover no-repeat;
+    mask-image: linear-gradient(to left, #000 55%, transparent);
+    opacity: .75; filter: saturate(.95) }
+  .photo::after { content:''; position:absolute; inset:0; background: linear-gradient(to left, rgba(18,17,32,.55), rgba(18,17,32,.2)) }
+
+  .top { border-bottom:1px solid rgba(181,171,252,.2); padding-bottom:12px }
+  .checkin { display:inline-flex; align-items:center; gap:8px; font-family: var(--mono); font-size: 10.5px; letter-spacing:.1em; text-transform: uppercase; padding: 4px 6px 4px 10px; border-radius: 999px; cursor:pointer;
+    color: var(--warn); border:1px solid color-mix(in oklch, var(--warn) 45%, transparent); background: color-mix(in oklch, var(--warn) 10%, transparent) }
+  .checkin .who { display:flex }
+  .checkin .who img, .checkin .who span { width: 18px; height: 18px; border-radius: 6px; margin-left: -4px; border: 1.5px solid #2a2436; background:#fff; object-fit: contain; padding: 1px }
+  .checkin .who span { display:grid; place-items:center; background: #3a3348; color: var(--warn); font-size: 9px }
+  .checkin.fresh { color: var(--good); border-color: color-mix(in oklch, var(--good) 35%, transparent); background: color-mix(in oklch, var(--good) 8%, transparent); padding-right: 10px }
+  .eye { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; border: 1px solid color-mix(in oklch, var(--lav-400) 45%, transparent); background: rgba(181,171,252,.12); color: var(--ink-100); cursor: pointer }
+  /* + add: solid, a light that runs round its edge, a slow breath, and a
+     + that turns when you reach for it. */
+  @property --a { syntax: '<angle>'; initial-value: 0deg; inherits: false }
+  .add { position: relative; isolation: isolate; overflow: hidden; display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; padding: 8px 17px 8px 14px; border-radius: 999px; border: 0; cursor: pointer;
+    color: #1a1830; background: transparent; animation: breathe 3.2s ease-in-out infinite }
+  .add::before { content:''; position:absolute; inset:-40%; z-index:-2;
+    background: conic-gradient(from var(--a), var(--lav-400) 0 62%, #fff 74%, #e9e5ff 78%, var(--lav-400) 88%); animation: spin 2.6s linear infinite }
+  .add::after { content:''; position:absolute; inset:1.5px; border-radius:999px; z-index:-1;
+    background: linear-gradient(180deg, #c9c1fe, var(--lav-400)) }
+  .add .shine { position:absolute; inset:0; z-index:-1; border-radius:999px; pointer-events:none;
+    background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.55) 50%, transparent 65%); background-size: 250% 100%; animation: sweep 4.2s ease-in-out infinite }
+  .add .plus { display:inline-block; font-size: 14px; line-height: 1; transition: transform .45s cubic-bezier(.3,1.7,.5,1) }
+  .add:hover .plus { transform: rotate(180deg) scale(1.25) }
+  .add:hover { animation-duration: 1.6s }
+  .add:active { transform: scale(.96) }
+  @keyframes spin { to { --a: 360deg } }
+  @keyframes breathe { 0%,100% { box-shadow: 0 0 14px -6px var(--shine) } 50% { box-shadow: 0 0 30px -2px var(--shine), 0 0 0 1px rgba(255,255,255,.08) } }
+  @keyframes sweep { 0%, 55% { background-position: 150% 0 } 85%, 100% { background-position: -60% 0 } }
+  .solid { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; padding: 9px 18px; border-radius: 999px; border: 0; cursor: pointer; background: var(--lav-400); color: #1a1830 }
+  .ghost { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 8px 14px; border-radius: 999px; cursor: pointer; background: none; color: var(--ink-200); border: 1px solid rgba(255,255,255,.16) }
+  .ghost:hover { border-color: color-mix(in oklch, var(--lav-400) 55%, transparent) }
+
+  /* Day one */
+  .drop { display:flex; flex-direction:column; align-items:center; gap: 8px; padding: 26px 18px; border-radius: 16px; cursor:pointer; text-align:center;
+    border: 1.5px dashed color-mix(in oklch, var(--lav-400) 50%, transparent); background: rgba(181,171,252,.05); transition: background .2s }
+  .drop:hover { background: rgba(181,171,252,.1) }
+  .drop .ico { font-size: 22px; color: var(--lav-400) }
+  .found { display:flex; flex-direction:column; gap: 6px }
+  .frow { display:grid; grid-template-columns: 20px 28px 1fr auto; align-items:center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08); animation: arrive .35s cubic-bezier(.2,.8,.2,1) both }
+  .frow img, .frow .ini { width: 28px; height: 28px; border-radius: 8px; background:#fff; object-fit: contain; padding: 2px }
+  .frow .ini { display:grid; place-items:center; background: rgba(159,217,180,.14); color: #9fd9b4; font-family: var(--mono); padding:0 }
+  .frow .t { display:flex; flex-direction:column; gap: 3px; min-width: 0 }
+  .frow .t b { font-weight: 400; font-size: 14px }
+  .frow .t span { font-family: var(--mono); font-size: 10.5px; color: var(--ink-400) }
+  .tick { width: 18px; height: 18px; border-radius: 6px; display:grid; place-items:center; font-size: 11px; background: var(--lav-400); color: #1a1830; cursor:pointer }
+  .tick.off { background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); color: transparent }
+  .reading { display:flex; align-items:center; gap: 10px; font-family: var(--mono); font-size: 12px; color: var(--ink-300); padding: 8px 12px; border-radius: 10px; background: rgba(181,171,252,.06) }
+  .spin { width: 12px; height: 12px; border-radius: 999px; border: 2px solid var(--lav-400); border-right-color: transparent; animation: turn .8s linear infinite }
+  @keyframes turn { to { transform: rotate(360deg) } }
+  @keyframes arrive { from { opacity:0; transform: translateY(6px) } to { opacity:1; transform:none } }
+  .hand { display:grid; grid-template-columns: 28px 1fr 130px 130px; align-items:center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08); animation: arrive .3s both }
+  .hand img, .hand .ini { width: 28px; height: 28px; border-radius: 8px; background:#fff; object-fit: contain; padding: 2px }
+  .hand .ini { display:grid; place-items:center; background: rgba(159,217,180,.14); color: #9fd9b4; font-family: var(--mono); padding:0 }
+  .field { font-family: var(--mono); font-size: 12.5px; color: var(--ink-100); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 9px; padding: 7px 9px; width: 100% }
+  @media (max-width: 640px) { .hand { grid-template-columns: 28px 1fr; } .hand .field { grid-column: 2 } }
+
+  .body { display:grid; grid-template-columns: 1fr; gap: 22px; margin-top: 18px }
+  @media (min-width: 860px) { .body { grid-template-columns: 1.1fr 1fr; gap: 28px } }
+  .big { font-size: 56px; font-weight: 300; letter-spacing: -.02em; line-height: 1; }
+  @media (max-width: 520px) { .big { font-size: 42px } }
+  .pill { display:inline-flex; align-items:center; gap:10px; padding: 7px 12px; border-radius: 10px; background: rgba(255,255,255,.06); font-family: var(--mono); font-size: 15px; font-weight:500 }
+  .split { display:flex; height: 10px; border-radius: 999px; overflow: hidden; gap: 3px }
+  .split > div { border-radius: 999px }
+  .asof { font-family: var(--mono); font-size: 11px; color: var(--ink-500) }
+
+  /* Right: where it is */
+  .where { display:flex; flex-direction:column; gap: 14px; padding: 14px; border-radius: 14px;
+    background: rgba(16,15,28,.34); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(3px) }
+  .group { display:flex; flex-direction:column; gap: 4px }
+  .ghead { display:flex; align-items:baseline; justify-content: space-between; gap: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.06) }
+  .ghead .caps { display:flex; align-items:center; gap: 6px }
+  .ghead .tot { font-family: var(--mono); font-size: 12.5px; color: var(--ink-200) }
+  .acct { display:grid; grid-template-columns: 22px 1fr auto; align-items:center; gap: 9px; padding: 5px 4px; border-radius: 8px; cursor: pointer; font-size: 13px }
+  .acct:hover { background: rgba(255,255,255,.04) }
+  .acct img, .acct .ini { width: 22px; height: 22px; border-radius: 7px; background: #fff; object-fit: contain; padding: 2px }
+  .acct .ini { display:grid; place-items:center; background: rgba(159,217,180,.14); color: #9fd9b4; font-family: var(--mono); font-size: 11px; padding: 0 }
+  .acct .name { display:flex; align-items:center; gap: 6px; min-width: 0 }
+  .acct .name b { font-weight: 400; white-space: nowrap; overflow:hidden; text-overflow: ellipsis }
+  .stale { font-family: var(--mono); font-size: 9.5px; color: var(--warn); padding: 1px 5px; border-radius: 5px; background: color-mix(in oklch, var(--warn) 12%, transparent) }
+  .amt { font-family: var(--mono); font-size: 12.5px; text-align: right; white-space: nowrap }
+  .amt small { display:block; font-size: 10px; color: var(--ink-500) }
+  .inv { display:grid; grid-template-columns: 22px 1fr 150px; align-items:center; gap: 9px; padding: 5px 4px; border-radius: 8px; cursor:pointer; font-size: 13px }
+  .inv:hover { background: rgba(255,255,255,.04) }
+  .inv img { width: 22px; height: 22px; border-radius: 7px; background: #fff; object-fit: contain; padding: 2px }
+  .minis { display:flex; flex-direction:column; gap: 4px }
+  .mini { display:flex; height: 5px; border-radius: 999px; overflow:hidden; gap: 2px; background: rgba(255,255,255,.05) }
+  .mini > div { border-radius: 999px }
+  .mininum { display:flex; justify-content: space-between; font-family: var(--mono); font-size: 11px }
+  .legend { display:flex; gap: 12px; font-family: var(--mono); font-size: 10px; color: var(--ink-500); letter-spacing: .06em }
+
+  /* Day one */
+  .start { display:flex; flex-direction:column; gap: 16px; max-width: 560px }
+  .start h2 { font-size: 30px; font-weight: 300; letter-spacing: -.01em }
+  .banks { display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px }
+  .bank { display:flex; align-items:center; gap: 9px; padding: 9px 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.035); cursor:pointer; font-size: 13.5px; color: var(--ink-100); text-align:left }
+  .bank img, .bank .ini { width: 24px; height: 24px; border-radius: 7px; background:#fff; object-fit: contain; padding: 2px }
+  .bank .ini { display:grid; place-items:center; background: rgba(159,217,180,.14); color: #9fd9b4; font-family: var(--mono); font-size: 11px; padding:0 }
+  .bank.on { border-color: color-mix(in oklch, var(--lav-400) 60%, transparent); background: rgba(181,171,252,.14); box-shadow: 0 0 18px -8px var(--shine) }
+
+  /* One account, set up */
+  .steps { display:flex; flex-direction:column; gap: 14px }
+  .step { display:flex; flex-direction:column; gap: 8px; padding: 14px; border-radius: 14px; background: rgba(16,15,28,.45); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(4px); animation: arrive .3s both }
+  .step .n { font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--lav-300) }
+  .opts { display:flex; gap: 8px; flex-wrap: wrap }
+  .opt { display:flex; align-items:center; gap: 8px; padding: 9px 13px; border-radius: 12px; cursor:pointer; font-size: 13.5px; color: var(--ink-200); background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.1) }
+  .opt .i { font-size: 15px; width: 18px; text-align:center }
+  .opt small { font-family: var(--mono); font-size: 10px; color: var(--ink-500) }
+  .opt.on { color: var(--ink-100); border-color: color-mix(in oklch, var(--lav-400) 60%, transparent); background: rgba(181,171,252,.14); box-shadow: 0 0 18px -8px var(--shine) }
+  .part { display:flex; flex-direction:column; gap: 8px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07) }
+  .part .h { display:flex; align-items:center; gap: 8px; font-size: 13.5px }
+  .part .h .src { margin-left:auto; font-family: var(--mono); font-size: 10px; color: var(--ink-500) }
+  .line { display:grid; grid-template-columns: 74px 1fr 28px; gap: 8px; align-items:center }
+  .cur { font-family: var(--mono); font-size: 12px; text-align:center; padding: 7px 0; border-radius: 9px; background: rgba(255,255,255,.06); color: var(--ink-200) }
+  .x { color: var(--ink-500); background:none; border:0; cursor:pointer; font-size: 14px }
+  .add-chips { display:flex; gap: 6px; flex-wrap: wrap }
+  .mini-chip { font-family: var(--mono); font-size: 10.5px; padding: 4px 9px; border-radius: 999px; border: 1px dashed rgba(255,255,255,.2); color: var(--ink-300); background:none; cursor:pointer }
+  .mini-drop { display:flex; align-items:center; gap: 10px; padding: 12px; border-radius: 10px; border: 1.5px dashed color-mix(in oklch, var(--lav-400) 45%, transparent); color: var(--ink-300); font-size: 13px; cursor:pointer }
+  .mini-drop.done { border-style: solid; border-color: color-mix(in oklch, var(--good) 40%, transparent); color: var(--ink-100) }
+  .acard { display:grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items:center; padding: 11px 13px; border-radius: 12px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08); animation: arrive .3s both }
+  .acard img, .acard .ini { width: 30px; height: 30px; border-radius: 9px; background:#fff; object-fit: contain; padding: 2px }
+  .acard .ini { display:grid; place-items:center; background: rgba(159,217,180,.14); color: #9fd9b4; font-family: var(--mono); padding:0 }
+  .acard .t { display:flex; flex-direction:column; gap: 3px; min-width:0 }
+  .acard .t span { font-family: var(--mono); font-size: 10.5px; color: var(--ink-400); white-space: nowrap; overflow:hidden; text-overflow: ellipsis }
+
+  /* The right half: three rows of fixed height, however many accounts */
+  .where2 { display:flex; flex-direction:column; gap: 8px; align-self: stretch; justify-content: center }
+  .grp { display:flex; flex-direction:column; gap: 7px; padding: 11px 13px; border-radius: 13px; cursor:pointer;
+    background: rgba(16,15,28,.38); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(3px); transition: border-color .15s, transform .15s }
+  .grp:hover { border-color: color-mix(in oklch, var(--lav-400) 45%, transparent); transform: translateX(-2px) }
+  .gtop { display:flex; align-items:center; gap: 10px }
+  .gtop .caps { flex: 1 }
+  .gtot { font-family: var(--mono); font-size: 13.5px; color: var(--ink-100) }
+  .chev { color: var(--ink-500); font-size: 16px; line-height: 1 }
+  .gmid { display:flex; align-items:center; gap: 10px }
+  .stack { display:flex; padding-left: 5px }
+  .stack img, .stack span { width: 20px; height: 20px; border-radius: 6px; margin-left: -5px; border: 1.5px solid #221f33; background:#fff; object-fit: contain; padding: 1px; position: relative }
+  .stack span { display:grid; place-items:center; background:#3a3348; color: var(--ink-200); font-family: var(--mono); font-size: 9px; padding: 0 }
+  .stack .late { box-shadow: 0 0 0 1.5px var(--warn) }
+  .segs { flex: 1; display:flex; gap: 2px; height: 6px }
+  .segs > div { border-radius: 999px; min-width: 4px }
+  .gsub { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); white-space: nowrap }
+
+  /* Modal */
+  .scrim { position: fixed; inset: 0; z-index: 20; display:none; align-items:center; justify-content:center; padding: 16px;
+    background: rgba(8,8,16,.62); backdrop-filter: blur(5px) }
+  .scrim.on { display:flex; animation: fade .2s both }
+  .sheet { width: min(760px, 100%); max-height: 88vh; overflow:auto; border-radius: 18px; padding: 20px;
+    background: linear-gradient(160deg, rgba(181,171,252,.10), rgba(181,171,252,.02) 40%), #1b1a2c; border: 1px solid var(--sys-edge);
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine); animation: rise .28s cubic-bezier(.2,.8,.2,1) both }
+  .sheet .shead { display:flex; align-items:center; justify-content: space-between; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid rgba(181,171,252,.2) }
+  .sheet .close { width: 30px; height: 30px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: none; color: var(--ink-300); cursor: pointer; font-size: 15px }
+  .sheet .body { margin-top: 0 }
+  @keyframes fade { from { opacity: 0 } }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.985) } }
+  .empty { display:flex; flex-direction:column; gap: 12px; max-width: 460px }
+  .empty .big { color: var(--ink-600) }
+
+  .notes { max-width: 1120px; margin: 0 auto; padding: 0 16px 60px; color: var(--ink-400); font-size: 13px; line-height: 1.6 }
+  .notes h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--lav-300); margin: 14px 0 6px }
+  .notes li { margin-left: 18px }
+</style>
+</head>
+<body class="veil">
+<div class="wrap">
+  <div class="ctl">
+    mockup controls:
+    <button data-stale="0">all fresh</button>
+    <button data-stale="2" class="on">2 out of date</button>
+    <button data-stale="3">3 out of date</button>
+    <button id="dayone">day one (empty)</button>
+  </div>
+
+  <section class="sys" id="hero">
+    <div class="photo"></div>
+    <div class="row between top">
+      <span class="sys-title">[ treasury ]</span>
+      <div class="row" id="actions"></div>
+    </div>
+    <div id="content"></div>
+  </section>
+  <div class="scrim" id="scrim"><div class="sheet" id="sheet"></div></div>
+</div>
+
+<div class="notes">
+  <h3>What changed from the first mockup</h3>
+  <ul>
+    <li><b>+ add</b>: solid, a light running round its edge, a slow glow, a shine every few seconds; the + spins when you hover.</li>
+    <li><b>Check-in</b> shows the accounts' logos when one or two are out of date; from three on, just the count. When nothing is, it turns into a quiet green "up to date".</li>
+    <li><b>capital · cash · investments</b> — dots only.</li>
+    <li>The bottom line says it in words: when the balances are from and which close the share prices are.</li>
+    <li>Your photo is the right half's ground; over it, <b>where the money is</b>: investment accounts (invested | cash in the broker, as a small bar each), banks, notes. The three group totals add up to the numbers on the left.</li>
+  </ul>
+  <h3>My suggestions (tell me which to keep)</h3>
+  <ul>
+    <li>Every row opens its account: tap TR → drop its screenshot or type its cash. An out-of-date row carries its age in orange ("12d").</li>
+    <li>"this month" per bank row, in small green/red, so you see where the month's change came from.</li>
+    <li>Tap "invested" or "free cash" on the left → the room behind it (Portfolio, Flow).</li>
+    <li>Day one (control above): drop statements and screenshots — several banks at once — and each becomes an account with its balance and movements; or add one by hand.</li>
+    <li>On a phone the right half moves under the total.</li>
+  </ul>
+</div>
+
+<script>
+  const logo = (d) => `https://www.google.com/s2/favicons?domain=${d}&sz=128`
+  const A = {
+    revolut: { name: 'Revolut', d: 'revolut.com' },
+    tr: { name: 'Trade Republic', d: 'traderepublic.com' },
+    t212: { name: 'Trading 212', d: 'trading212.com' },
+    bpi: { name: 'BPI', d: 'bancobpi.pt' },
+    activo: { name: 'ActivoBank', d: 'activobank.pt' },
+  }
+  const eur = (n) => '€' + Math.round(n).toLocaleString('en')
+  const signed = (n) => `<span class="${n >= 0 ? 'good' : 'bad'}">${n >= 0 ? '+' : '−'}${Math.abs(n).toLocaleString('en')}</span>`
+
+  const brokers = [
+    { k: 'revolut', inv: 7600, cash: 0, month: 180 },
+    { k: 'tr', inv: 4180, cash: 1000, month: 96 },
+    { k: 't212', inv: 4020, cash: 11000, month: 410 },
+  ]
+  const banks = [
+    { k: 'revolut', cash: 8202, note: '€7,150 · $1,200', month: 130 },
+    { k: 'bpi', cash: 1950, month: -420 },
+    { k: 'activo', cash: 3400, month: 12 },
+  ]
+  const notesCash = 4250
+
+  let stale = 2
+  let veil = true
+  let dayOne = false
+  let setup = 'start' // start | reading | found | hand | acct
+  let current = null
+  let modal = null // 'setup' | 'investments' | 'banks' | 'cash'
+  /* What each institution usually is and offers — the app's knowledge,
+     so the first answers are already right. */
+  const KNOW = {
+    revolut: { is: ['bank', 'broker'], offers: ['cash', 'stocks', 'gold', 'crypto'], on: ['cash', 'stocks'] },
+    tr: { is: ['broker'], offers: ['cash', 'stocks', 'crypto'], on: ['cash', 'stocks'] },
+    t212: { is: ['broker'], offers: ['cash', 'stocks'], on: ['cash', 'stocks'] },
+    bpi: { is: ['bank'], offers: ['cash'], on: ['cash'] },
+    activo: { is: ['bank'], offers: ['cash', 'stocks'], on: ['cash'] },
+    cash: { is: ['cash'], offers: ['cash'], on: ['cash'] },
+  }
+  const PARTS = {
+    cash: { i: '€', label: 'Cash', hint: 'any currencies' },
+    stocks: { i: '▲', label: 'Stocks & ETFs', hint: 'from a screenshot' },
+    gold: { i: '◆', label: 'Gold', hint: 'ounces or grams' },
+    crypto: { i: '₿', label: 'Crypto', hint: 'coins' },
+  }
+  const done = {} // key -> config once set up
+  const cfg = {} // key -> working config
+  const picked = new Set()
+  const keep = new Set(['revolut', 'tr', 'bpi'])
+
+  function staleList() {
+    return [
+      { k: 'tr', age: '12d' },
+      { k: 't212', age: '9d' },
+      { k: 'notes', age: '21d' },
+    ].slice(0, stale)
+  }
+
+  function actions() {
+    const s = staleList()
+    let check
+    if (dayOne) check = ''
+    else if (s.length === 0) check = `<span class="checkin fresh">✓ up to date</span>`
+    else if (s.length <= 2)
+      check = `<button class="checkin">check-in <span class="who">${s
+        .map((x) => (x.k === 'notes' ? `<span>€</span>` : `<img src="${logo(A[x.k].d)}" alt="">`))
+        .join('')}</span></button>`
+    else check = `<button class="checkin" style="padding-right:10px">check-in · ${s.length} to update</button>`
+    return `${check}<button class="eye" id="eye">${veil ? 'show' : 'hide'}</button><button class="add"><span class="shine"></span><span class="plus">+</span>add</button>`
+  }
+
+  function ageOf(k) {
+    return staleList().find((x) => x.k === k)?.age
+  }
+
+  const SHADES = ['var(--lav-400)', 'color-mix(in oklch, var(--lav-400) 70%, #fff)', 'color-mix(in oklch, var(--lav-400) 55%, #000)', 'var(--lav-300)']
+  function groupRow(id, label, total, parts, tot, sub) {
+    const n = parts.length
+    return `<div class="grp" data-group="${id}">
+      <div class="gtop"><span class="caps">${label}</span><span class="gtot">${tot}</span><span class="chev">›</span></div>
+      <div class="gmid">
+        <span class="stack">${parts.slice(0, 4).map((p) => (A[p.k] ? `<img class="${ageOf(p.k) ? 'late' : ''}" src="${logo(A[p.k].d)}" alt="">` : `<span class="${ageOf('notes') ? 'late' : ''}">€</span>`)).join('')}${n > 4 ? `<span>+${n - 4}</span>` : ''}</span>
+        <span class="segs">${parts.map((p, i) => `<div style="flex:${p.v};background:${id === 'cash' ? 'var(--money)' : SHADES[i % SHADES.length]}"></div>`).join('')}</span>
+        <span class="gsub">${n === 1 && id === 'cash' ? sub : `${n} ${n === 1 ? 'account' : 'accounts'}`}</span>
+      </div>
+    </div>`
+  }
+
+  function groupModal(id) {
+    const age = (k) => (ageOf(k) ? `<span class="stale">${ageOf(k)}</span>` : '')
+    if (id === 'investments') {
+      return `<span class="caps">investments · invested and cash in each broker</span><div class="found" style="margin-top:10px">${brokers
+        .map((b) => `<div class="acard">${icon(b.k)}<span class="t"><b style="font-weight:400">${nameOf(b.k)} ${age(b.k)}</b><span><span style="color:var(--lav-300)">invested ${eur(b.inv)}</span> · <span style="color:var(--money)">cash ${b.cash ? eur(b.cash) : '—'}</span> · ${signed(b.month)} this month</span></span><button class="ghost" style="padding:5px 10px;font-size:10px">update</button></div>`)
+        .join('')}</div>`
+    }
+    if (id === 'banks') {
+      return `<span class="caps">banks</span><div class="found" style="margin-top:10px">${banks
+        .map((b) => `<div class="acard">${icon(b.k)}<span class="t"><b style="font-weight:400">${nameOf(b.k)} ${age(b.k)}</b><span>${b.note ?? eur(b.cash)} · ${signed(b.month)} this month</span></span><button class="ghost" style="padding:5px 10px;font-size:10px">update</button></div>`)
+        .join('')}</div>`
+    }
+    return `<span class="caps">cash</span><div class="found" style="margin-top:10px"><div class="acard">${icon('cash')}<span class="t"><b style="font-weight:400">Cash ${age('notes')}</b><span>€3,800 · $300 · ₴2,000 — counted 21 days ago</span></span><button class="ghost" style="padding:5px 10px;font-size:10px">count again</button></div></div>`
+  }
+
+  function modalView() {
+    const title = modal === 'setup' ? 'accounts' : modal
+    const body = modal === 'setup' ? dayOneView() : groupModal(modal)
+    return `<div class="shead"><span class="sys-title">[ ${title} ]</span><button class="close" id="closemodal">×</button></div>${body}`
+  }
+
+  function content() {
+    if (dayOne) {
+      return `<div class="body"><div class="empty">
+        <span class="caps">capital · cash · investments</span>
+        <span class="big">€0</span>
+        <span class="dim" style="font-size:13.5px">No accounts yet. Drop a statement or a screenshot from each bank and broker — each one becomes an account with its balance and history.</span>
+        <div class="row"><button class="solid" id="opensetup">bring in your accounts</button></div>
+      </div></div>`
+    }
+    const inv = brokers.reduce((t, b) => t + b.inv, 0)
+    const brokerCash = brokers.reduce((t, b) => t + b.cash, 0)
+    const bankCash = banks.reduce((t, b) => t + b.cash, 0)
+    const free = brokerCash + bankCash + notesCash
+    const total = inv + free
+    const age = (k) => (ageOf(k) ? `<span class="stale">${ageOf(k)}</span>` : '')
+    return `<div class="body">
+      <div style="display:flex; flex-direction:column; gap:12px">
+        <span class="caps">capital · cash · investments</span>
+        <span class="big money">${eur(total)}</span>
+        <div class="row">
+          <span class="pill"><span class="money">${signed(1240)}</span><span class="dim" style="font-size:12px">this month</span></span>
+          <span class="pill"><span class="money">${signed(3150)}</span><span class="money">${signed(-1910)}</span><span class="dim" style="font-size:12px">in · out</span></span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; max-width: 460px">
+          <div class="split"><div style="flex:${free}; background: var(--money)"></div><div style="flex:${inv}; background: var(--lav-400)"></div></div>
+          <div class="row between mono" style="font-size:12px">
+            <span><span style="color:var(--money)">●</span> free cash <span class="money">${eur(free)}</span></span>
+            <span><span style="color:var(--lav-400)">●</span> invested <span class="money">${eur(inv)}</span></span>
+          </div>
+        </div>
+        <span class="asof">balances as of today · share prices: Friday's close</span>
+      </div>
+
+      <div class="where2">
+        ${groupRow('investments', 'investments', inv, brokers.map((b) => ({ k: b.k, v: b.inv + b.cash })), `<span class="money">${eur(inv)}</span> <span class="dim">·</span> <span class="money" style="color:var(--money)">${eur(brokerCash)}</span>`, 'invested · cash in the brokers')}
+        ${groupRow('banks', 'banks', bankCash, banks.map((b) => ({ k: b.k, v: b.cash })), `<span class="money">${eur(bankCash)}</span>`, 'EUR · USD')}
+        ${groupRow('cash', 'cash', notesCash, [{ k: 'cash', v: notesCash }], `<span class="money">${eur(notesCash)}</span>`, 'EUR · USD · UAH')}
+      </div>
+    </div>`
+  }
+
+  function dayOneView() {
+    const head = `<span class="caps">set up</span>
+      <h2>Bring in your accounts</h2>
+      <span class="dim" style="font-size:13.5px; max-width:540px">Drop a statement or a screenshot from each bank and broker — several at once. Each one becomes an account: its balance, and every movement from that day on.</span>`
+    if (setup === 'start') {
+      return `<div class="body" style="grid-template-columns:1fr"><div class="start" style="max-width:640px">${head}
+        <div class="drop" id="drop"><span class="ico">⇪</span><span style="font-size:15px">Drop statements or screenshots</span><span class="mono dim" style="font-size:11px">Revolut PDF · BPI CSV · Trade Republic screenshot · … any bank, any broker</span></div>
+        <div class="row"><span class="dim" style="font-size:13px">No file at hand?</span><button class="ghost" id="byhand">add an account by hand</button></div>
+      </div></div>`
+    }
+    if (setup === 'reading') {
+      const files = ['account-statement_2026-08-01_2026-09-27.pdf', 'Screenshot 2026-09-27 at 00.41.png', 'extrato_bpi_setembro.csv']
+      return `<div class="body" style="grid-template-columns:1fr"><div class="start" style="max-width:640px">${head}
+        <div class="found">${files.map((f) => `<div class="reading"><span class="spin"></span>${f}<span class="dim" style="margin-left:auto">reading…</span></div>`).join('')}</div>
+      </div></div>`
+    }
+    if (setup === 'found') {
+      const rows = [
+        { k: 'revolut', what: 'bank · broker', from: 'statement · Aug 1 → Sep 27', detail: '41 movements · balance €799.47 on Sep 27' },
+        { k: 'tr', what: 'broker', from: 'screenshot · today', detail: '10 positions · €4,180 invested · €1,000 cash' },
+        { k: 'bpi', what: 'bank', from: 'statement · Sep 1 → Sep 26', detail: '23 movements · balance €1,950 on Sep 26' },
+      ]
+      const n = rows.filter((r) => keep.has(r.k)).length
+      return `<div class="body" style="grid-template-columns:1fr"><div class="start" style="max-width:680px">
+        <span class="caps">set up · 3 files read</span>
+        <h2>Found 3 accounts</h2>
+        <div class="found">${rows
+          .map((r, i) => `<div class="frow" style="animation-delay:${i * 70}ms"><span class="tick ${keep.has(r.k) ? '' : 'off'}" data-keep="${r.k}">✓</span><img src="${logo(A[r.k].d)}" alt="">
+            <span class="t"><b>${A[r.k].name} <span class="dim mono" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase">· ${r.what}</span></b><span>${r.from}</span><span style="color:var(--ink-200)">${r.detail}</span></span>
+            <button class="ghost" style="padding:5px 10px;font-size:10px">check</button></div>`)
+          .join('')}
+          <div class="drop" id="drop" style="padding:12px;flex-direction:row;justify-content:center"><span class="ico" style="font-size:16px">⇪</span><span style="font-size:13px">drop more — another bank, another month</span></div>
+        </div>
+        <div class="row"><button class="solid" id="create">create ${n} ${n === 1 ? 'account' : 'accounts'}</button><button class="ghost" id="byhand">add one by hand</button></div>
+        <span class="mono dim" style="font-size:11px">From each file's last day on, the balance moves with every file and line you add.</span>
+      </div></div>`
+    }
+    if (setup === 'acct') return accountFlow(current)
+    // by hand: pick an account to set up; the ones done show what they hold
+    const all = [...Object.entries(A), ['cash', { name: 'Cash' }]]
+    const doneKeys = Object.keys(done)
+    return `<div class="body" style="grid-template-columns:1fr"><div class="start" style="max-width:720px">
+      <span class="caps">set up · by hand</span>
+      <h2>${doneKeys.length ? 'Another one?' : 'Which account first?'}</h2>
+      ${doneKeys.length ? `<div class="found">${doneKeys.map((k) => summaryCard(k)).join('')}</div>` : ''}
+      <div class="banks">${all
+        .filter(([k]) => !done[k])
+        .map(([k, a]) => `<button class="bank" data-setup="${k}">${a.d ? `<img src="${logo(a.d)}" alt="">` : `<span class="ini">€</span>`}${a.name}</button>`)
+        .join('')}<button class="bank" style="border-style:dashed;color:var(--ink-400)">+ another</button></div>
+      <div class="row">${doneKeys.length ? `<button class="solid" id="finish">done · ${doneKeys.length} ${doneKeys.length === 1 ? 'account' : 'accounts'}</button>` : ''}<button class="ghost" id="back">back to files</button></div>
+    </div></div>`
+  }
+
+  function icon(k) {
+    return A[k] ? `<img src="${logo(A[k].d)}" alt="">` : `<span class="ini">€</span>`
+  }
+  function nameOf(k) {
+    return A[k]?.name ?? 'Cash'
+  }
+
+  function summaryCard(k) {
+    const c = done[k]
+    const bits = []
+    if (c.parts.includes('cash')) bits.push(c.cash.filter((x) => x.v).map((x) => `${x.c} ${x.v}`).join(' · ') || 'cash later')
+    if (c.parts.includes('stocks')) bits.push(c.stocksRead ? 'stocks · 10 positions' : 'stocks later')
+    if (c.parts.includes('gold')) bits.push(c.gold ? `gold ${c.gold} oz` : 'gold later')
+    if (c.parts.includes('crypto')) bits.push(c.crypto.filter((x) => x.v).map((x) => `${x.c} ${x.v}`).join(' · ') || 'crypto later')
+    return `<div class="acard">${icon(k)}<span class="t"><b style="font-weight:400">${nameOf(k)} <span class="dim mono" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase">· ${c.is.join(' · ')}</span></b><span>${bits.join('  ·  ')}</span></span><button class="ghost" style="padding:5px 10px;font-size:10px" data-setup="${k}">edit</button></div>`
+  }
+
+  function accountFlow(k) {
+    const know = KNOW[k]
+    const c = (cfg[k] ??= {
+      is: [...know.is],
+      parts: [...know.on],
+      cash: k === 'cash' ? [{ c: 'EUR', v: '' }, { c: 'USD', v: '' }, { c: 'UAH', v: '' }] : k === 'revolut' ? [{ c: 'EUR', v: '' }, { c: 'USD', v: '' }] : [{ c: 'EUR', v: '' }],
+      gold: '',
+      crypto: [{ c: 'BTC', v: '' }],
+      stocksRead: false,
+    })
+    const isOpts = [
+      ['bank', '⌂', 'Bank'],
+      ['broker', '▲', 'Broker'],
+      ['cash', '€', 'Cash in hand'],
+    ]
+    const partsOffered = k === 'cash' ? ['cash'] : ['cash', 'stocks', 'gold', 'crypto']
+    const cashPart = `<div class="part"><div class="h"><span>€</span>Cash<span class="src">${k === 'cash' ? 'counted' : 'or drop a statement — it reads every currency'}</span></div>
+      ${c.cash.map((x, i) => `<div class="line"><span class="cur">${x.c}</span><input class="field" data-cash="${i}" value="${x.v}" placeholder="${x.c === 'EUR' ? '€' : x.c === 'USD' ? '$' : ''} how much"><button class="x" data-rmcash="${i}">×</button></div>`).join('')}
+      <div class="add-chips">${['EUR', 'USD', 'GBP', 'UAH', 'PLN', 'CHF'].filter((x) => !c.cash.some((y) => y.c === x)).map((x) => `<button class="mini-chip" data-addcash="${x}">+ ${x}</button>`).join('')}</div></div>`
+    const stocksPart = `<div class="part"><div class="h"><span>▲</span>Stocks & ETFs<span class="src">each position matched to its ticker</span></div>
+      <div class="mini-drop ${c.stocksRead ? 'done' : ''}" id="stocksdrop">${c.stocksRead ? '✓ 10 positions read · €4,180 · check them' : '⇪ drop a screenshot of the portfolio'}</div></div>`
+    const goldPart = `<div class="part"><div class="h"><span>◆</span>Gold<span class="src">valued at the day's gold price</span></div>
+      <div class="line"><span class="cur">oz</span><input class="field" id="gold" value="${c.gold}" placeholder="how much, in troy ounces"><span></span></div></div>`
+    const cryptoPart = `<div class="part"><div class="h"><span>₿</span>Crypto<span class="src">valued at the day's price</span></div>
+      ${c.crypto.map((x, i) => `<div class="line"><span class="cur">${x.c}</span><input class="field" data-crypto="${i}" value="${x.v}" placeholder="how many"><button class="x" data-rmcrypto="${i}">×</button></div>`).join('')}
+      <div class="add-chips">${['BTC', 'ETH', 'SOL', 'XRP', 'USDC'].filter((x) => !c.crypto.some((y) => y.c === x)).map((x) => `<button class="mini-chip" data-addcrypto="${x}">+ ${x}</button>`).join('')}</div></div>`
+    const parts = { cash: cashPart, stocks: stocksPart, gold: goldPart, crypto: cryptoPart }
+    return `<div class="body" style="grid-template-columns:1fr"><div class="start" style="max-width:720px">
+      <div class="row">${icon(k).replace('<img', '<img style="width:34px;height:34px;border-radius:10px;background:#fff;padding:2px"').replace('class="ini"', 'class="ini" style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(159,217,180,.14);color:#9fd9b4"')}<h2 style="font-size:26px">${nameOf(k)}</h2></div>
+      <div class="steps">
+        <div class="step"><span class="n">1 · what it is</span>
+          <div class="opts">${isOpts.map(([id, i, l]) => `<button class="opt ${c.is.includes(id) ? 'on' : ''}" data-is="${id}"><span class="i">${i}</span>${l}</button>`).join('')}</div>
+          ${k === 'revolut' ? '<span class="mono dim" style="font-size:10.5px">Revolut is both — its cash and its investments, one account.</span>' : ''}
+        </div>
+        <div class="step"><span class="n">2 · what's in it</span>
+          <div class="opts">${partsOffered.map((id) => `<button class="opt ${c.parts.includes(id) ? 'on' : ''}" data-part="${id}"><span class="i">${PARTS[id].i}</span>${PARTS[id].label}<small>${PARTS[id].hint}</small></button>`).join('')}</div>
+        </div>
+        <div class="step"><span class="n">3 · how much</span>
+          ${c.parts.map((id) => parts[id]).join('')}
+          <span class="mono dim" style="font-size:10.5px">As of now. Anything left empty fills from the next file you drop.</span>
+        </div>
+      </div>
+      <div class="row"><button class="solid" id="saveacct">save ${nameOf(k)}</button><button class="ghost" id="cancelacct">back</button></div>
+    </div></div>`
+  }
+
+  function render() {
+    document.getElementById('actions').innerHTML = actions()
+    document.getElementById('content').innerHTML = content()
+    const scrim = document.getElementById('scrim')
+    scrim.classList.toggle('on', modal !== null)
+    document.getElementById('sheet').innerHTML = modal ? modalView() : ''
+    scrim.onclick = (e) => { if (e.target === scrim) { modal = null; render() } }
+    document.querySelectorAll('[data-group]').forEach((g) => (g.onclick = () => { modal = g.dataset.group; render() }))
+    document.querySelectorAll('.add').forEach((b) => (b.onclick = () => { modal = 'setup'; setup = 'start'; render() }))
+    document.body.classList.toggle('veil', veil && !dayOne)
+    document.getElementById('eye').onclick = () => { veil = !veil; render() }
+    document.querySelectorAll('.bank[data-k]').forEach((b) => (b.onclick = () => { const k = b.dataset.k; picked.has(k) ? picked.delete(k) : picked.add(k); render() }))
+    const on = (id, f) => { const el = document.getElementById(id); if (el) el.onclick = f }
+    on('drop', () => { setup = 'reading'; render(); setTimeout(() => { setup = 'found'; render() }, 1600) })
+    on('byhand', () => { setup = 'hand'; render() })
+    on('back', () => { setup = 'start'; render() })
+    on('opensetup', () => { modal = 'setup'; setup = 'start'; render() })
+    on('closemodal', () => { modal = null; render() })
+    on('create', () => { dayOne = false; modal = null; setup = 'start'; render() })
+    on('finish', () => { dayOne = false; modal = null; setup = 'start'; render() })
+    document.querySelectorAll('[data-setup]').forEach((b) => (b.onclick = () => { current = b.dataset.setup; if (done[current]) cfg[current] = done[current]; setup = 'acct'; render() }))
+    const c = current && cfg[current]
+    if (setup === 'acct' && c) {
+      const tog = (list, x) => (list.includes(x) ? list.splice(list.indexOf(x), 1) : list.push(x))
+      document.querySelectorAll('[data-is]').forEach((b) => (b.onclick = () => { tog(c.is, b.dataset.is); render() }))
+      document.querySelectorAll('[data-part]').forEach((b) => (b.onclick = () => { tog(c.parts, b.dataset.part); render() }))
+      document.querySelectorAll('[data-addcash]').forEach((b) => (b.onclick = () => { c.cash.push({ c: b.dataset.addcash, v: '' }); render() }))
+      document.querySelectorAll('[data-rmcash]').forEach((b) => (b.onclick = () => { c.cash.splice(+b.dataset.rmcash, 1); render() }))
+      document.querySelectorAll('[data-addcrypto]').forEach((b) => (b.onclick = () => { c.crypto.push({ c: b.dataset.addcrypto, v: '' }); render() }))
+      document.querySelectorAll('[data-rmcrypto]').forEach((b) => (b.onclick = () => { c.crypto.splice(+b.dataset.rmcrypto, 1); render() }))
+      document.querySelectorAll('[data-cash]').forEach((i) => (i.oninput = () => (c.cash[+i.dataset.cash].v = i.value)))
+      document.querySelectorAll('[data-crypto]').forEach((i) => (i.oninput = () => (c.crypto[+i.dataset.crypto].v = i.value)))
+      const g = document.getElementById('gold'); if (g) g.oninput = () => (c.gold = g.value)
+      on('stocksdrop', () => { c.stocksRead = true; render() })
+      on('saveacct', () => { done[current] = c; setup = 'hand'; render() })
+      on('cancelacct', () => { setup = 'hand'; render() })
+    }
+    document.querySelectorAll('[data-keep]').forEach((t) => (t.onclick = () => { const k = t.dataset.keep; keep.has(k) ? keep.delete(k) : keep.add(k); render() }))
+    document.querySelectorAll('[data-stale]').forEach((b) => b.classList.toggle('on', !dayOne && +b.dataset.stale === stale))
+    document.getElementById('dayone').classList.toggle('on', dayOne)
+  }
+  document.querySelectorAll('[data-stale]').forEach((b) => (b.onclick = () => { stale = +b.dataset.stale; dayOne = false; render() }))
+  document.getElementById('dayone').onclick = () => { dayOne = !dayOne; modal = null; setup = 'start'; render() }
+  render()
+</script>
+</body>
+</html>

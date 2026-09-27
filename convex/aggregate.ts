@@ -2,9 +2,12 @@ import { v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
+import { isEuroAmount } from '../src/lib/money'
+import { balanceSeries } from '../src/lib/cashHistory'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
 import { query } from './_generated/server'
+import type { QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 
 /* PLAN.md §1: every number on screen comes from exactly one of four sources —
@@ -622,6 +625,177 @@ export const kindCount = query({
   },
 })
 
+/* A month of money rows, generously: ten a day is more than capture is
+   ever used for. Its own bound because a sum that silently dropped rows
+   would read as a smaller month, not a missing one. */
+const MONEY_ROWS = 1000
+
+const moneyBucket = v.object({
+  kind: v.union(v.literal('expense'), v.literal('income')),
+  /** null — logged with no category: unsorted. */
+  category: v.union(v.string(), v.null()),
+  sum: v.number(),
+  count: v.number(),
+})
+
+/**
+ * Money out and in over a period, per category (Finances F1, 26 Sep).
+ *
+ * Source 1 as widened on 26 Sep — a sum of logged amounts, on the five
+ * conditions in PLAN.md §1, each kept here or said where:
+ *
+ * - One currency: only rows in euros are added (`unit` 'eur', which every
+ *   money verb writes). A row in anything else is counted in `skipped` and
+ *   added to nothing — shown, never converted.
+ * - A stated period: `start`/`end` are required; there is no all-time call.
+ * - Only logged rows: sums of `value`, nothing estimated or projected.
+ * - Every sum opens its rows: `logs.moneyRows` over the same period and
+ *   the same rule lists exactly the rows behind each bucket.
+ * - Not a licence to derive: out and in come back apart. No difference,
+ *   no rate, no score.
+ *
+ * Added in whole cents, so €0.10 + €0.20 is €0.30 and not float noise.
+ * `complete` is false if the read hit its cap — a truncated sum is not the
+ * sum (§1, the R3c lesson).
+ */
+export const moneySums = query({
+  args: {
+    /** Epoch ms, local midnight — inclusive. */
+    start: v.number(),
+    /** Epoch ms, local midnight — exclusive. */
+    end: v.number(),
+  },
+  returns: v.object({
+    out: v.object({ sum: v.number(), count: v.number() }),
+    in: v.object({ sum: v.number(), count: v.number() }),
+    buckets: v.array(moneyBucket),
+    skipped: v.number(),
+    complete: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', 'money')
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .take(MONEY_ROWS)
+
+    const cents = new Map<
+      string,
+      {
+        kind: 'expense' | 'income'
+        category: string | null
+        c: number
+        n: number
+      }
+    >()
+    const total = { expense: { c: 0, n: 0 }, income: { c: 0, n: 0 } }
+    let skipped = 0
+    for (const row of rows) {
+      if (row.kind !== 'expense' && row.kind !== 'income') continue
+      if (!isEuroAmount(row)) {
+        skipped++
+        continue
+      }
+      const c = Math.round(row.value * 100)
+      const category = row.meta?.category ?? null
+      const key = `${row.kind}:${category ?? ''}`
+      const bucket = cents.get(key) ?? { kind: row.kind, category, c: 0, n: 0 }
+      bucket.c += c
+      bucket.n++
+      cents.set(key, bucket)
+      total[row.kind].c += c
+      total[row.kind].n++
+    }
+
+    return {
+      out: { sum: total.expense.c / 100, count: total.expense.n },
+      in: { sum: total.income.c / 100, count: total.income.n },
+      /* Biggest first within each kind: where the month went reads down. */
+      buckets: [...cents.values()]
+        .sort((a, b) =>
+          a.kind === b.kind ? b.c - a.c : a.kind === 'expense' ? -1 : 1,
+        )
+        .map((b) => ({
+          kind: b.kind,
+          category: b.category,
+          sum: b.c / 100,
+          count: b.n,
+        })),
+      skipped,
+      complete: rows.length < MONEY_ROWS,
+    }
+  },
+})
+
+/**
+ * What moved in each account over a period (27 Sep, the Treasury hero's
+ * account rows): money in, money out and both sides of transfers, signed,
+ * in euros — the sum rule over logs that carry an account. A row in
+ * another currency is not added and not converted; `skipped` says how
+ * many. Nothing here is a return: a broker's shares moving in price are
+ * not in it.
+ */
+export const accountMonth = query({
+  args: { start: v.number(), end: v.number() },
+  returns: v.object({
+    accounts: v.array(
+      v.object({
+        accountId: v.id('accounts'),
+        net: v.number(),
+        rows: v.number(),
+      }),
+    ),
+    skipped: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', 'money')
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .take(MONEY_ROWS)
+    const by = new Map<Id<'accounts'>, { cents: number; rows: number }>()
+    let skipped = 0
+    for (const row of rows) {
+      if (row.accountId === undefined) continue
+      if (
+        row.kind !== 'expense' &&
+        row.kind !== 'income' &&
+        row.kind !== 'move'
+      )
+        continue
+      if (!isEuroAmount(row)) {
+        skipped++
+        continue
+      }
+      const signed = row.kind === 'expense' ? -row.value : row.value
+      const a = by.get(row.accountId) ?? { cents: 0, rows: 0 }
+      a.cents += Math.round(signed * 100)
+      a.rows++
+      by.set(row.accountId, a)
+    }
+    return {
+      accounts: [...by].map(([accountId, a]) => ({
+        accountId,
+        net: a.cents / 100,
+        rows: a.rows,
+      })),
+      skipped,
+    }
+  },
+})
+
 /**
  * How often, per kind of thing: one count per local day for every category
  * present in an area's logs, plus how many of the last `recentDays` had
@@ -1080,6 +1254,599 @@ export const projectActivity = query({
       total,
       /* Fewer rows than the cap means nothing was dropped on the floor. */
       complete: rows.length < YEAR_ROWS,
+    }
+  },
+})
+
+/* ---------------------------------------------------------------------------
+   Finances F2 and F4 (26 Sep).
+   ------------------------------------------------------------------------ */
+
+/* Accounts and holdings are few; these bound the reads generously. */
+const ACCOUNT_ROWS = 50
+const TRADE_ROWS = 2000
+
+/**
+ * Each live account's FREE CASH, and the total (Finances F2) — money not
+ * in shares; what its positions are worth is `worth`'s other half.
+ *
+ * Each balance is source 2, the latest `balance:<id>` state. The total is
+ * a sum of those latest states, allowed on 26 Sep on the sum rule's
+ * conditions (PLAN.md §1): euros only, and never shown without
+ * `oldestAt`, the reading furthest back in it, so a total made partly of a
+ * month-old number cannot look fresh. An account with no reading yet is
+ * counted in `unread` and added to nothing.
+ *
+ * Since 27 Sep ("adding money"), a pocket is its latest reading PLUS the
+ * money that moved in it after that reading — its logs (spending, money
+ * in, both sides of a transfer) and, in a broker's euro pocket, what its
+ * buys cost and its sells brought (`trades`, never an `opening` one). That
+ * is source 2 plus a source-1 sum over rows that open: `moved` and
+ * `movedRows` say how much and how many, so the number is never a bare
+ * one. The reading always wins over what came before it — a statement
+ * that disagrees resets the pocket.
+ */
+const pocket = v.object({
+  currency: v.string(),
+  /** As read plus what moved since, in its own currency. */
+  value: v.union(v.number(), v.null()),
+  recordedAt: v.union(v.number(), v.null()),
+  /** The reading alone, and what moved in the pocket after it. */
+  read: v.union(v.number(), v.null()),
+  moved: v.number(),
+  movedRows: v.number(),
+  /** In euros at the latest stored ECB rate; null without a reading or a
+      rate — never guessed. */
+  eur: v.union(v.number(), v.null()),
+  rateAsOf: v.union(v.number(), v.null()),
+  /** Where the reading came from, and when he gave it — which may be long
+      after the day it is true for (an August statement read today). */
+  source: v.union(
+    v.literal('typed'),
+    v.literal('statement'),
+    v.literal('screenshot'),
+    v.literal('sync'),
+    v.null(),
+  ),
+  writtenAt: v.union(v.number(), v.null()),
+})
+
+export const balances = query({
+  args: {},
+  returns: v.object({
+    accounts: v.array(
+      v.object({
+        accountId: v.id('accounts'),
+        name: v.string(),
+        kinds: v.array(
+          v.union(v.literal('bank'), v.literal('broker'), v.literal('cash')),
+        ),
+        domain: v.union(v.string(), v.null()),
+        pockets: v.array(pocket),
+        /** Its free cash in euros — the pockets that could be valued. */
+        cashEur: v.number(),
+      }),
+    ),
+    total: v.number(),
+    oldestAt: v.union(v.number(), v.null()),
+    /** Pockets with no reading, or no rate to show them in euros. */
+    unread: v.number(),
+  }),
+  handler: async (ctx) => await readBalances(ctx, await requireUser(ctx)),
+})
+
+/* Pence: London quotes in GBp, a hundredth of the pound the rate is for. */
+function quoteToRate(currency: string): { base: string; divide: number } {
+  return currency === 'GBp' || currency === 'GBX'
+    ? { base: 'GBP', divide: 100 }
+    : { base: currency, divide: 1 }
+}
+
+/**
+ * What he holds, per account and ticker (Finances F4).
+ *
+ * `shares` is the sum of the position's trade rows, buys less sells — the
+ * sum rule over trades. `putIn` is the sum of what the buys cost, sells
+ * taking back their share at the price they went at; both are sums of
+ * stored rows and nothing else.
+ *
+ * `valueEur` is shares × the latest stored price × the latest stored rate
+ * into euros: composition of source-4 readings (PLAN.md §1), and null when
+ * either reading is missing — never guessed. Every value carries the
+ * `priceAsOf` and `rateAsOf` it was made from. There is deliberately no
+ * gain, loss or return here: the difference of the two was held back
+ * (26 Sep) and needs its own yes.
+ */
+export const positions = query({
+  args: {},
+  returns: v.object({
+    rows: v.array(
+      v.object({
+        accountId: v.id('accounts'),
+        instrumentId: v.id('instruments'),
+        symbol: v.string(),
+        name: v.string(),
+        type: v.string(),
+        currency: v.string(),
+        shares: v.number(),
+        putIn: v.number(),
+        price: v.union(v.number(), v.null()),
+        priceAsOf: v.union(v.number(), v.null()),
+        rate: v.union(v.number(), v.null()),
+        rateAsOf: v.union(v.number(), v.null()),
+        valueEur: v.union(v.number(), v.null()),
+      }),
+    ),
+    /** The sum of the valued positions, in euros, and the oldest price in
+        it — the balances rule again: never a total without its as-of.
+        A position with no price yet is counted in `unvalued`, not added. */
+    totalEur: v.number(),
+    oldestPriceAsOf: v.union(v.number(), v.null()),
+    unvalued: v.number(),
+    complete: v.boolean(),
+  }),
+  handler: async (ctx) => await readPositions(ctx, await requireUser(ctx)),
+})
+
+async function readBalances(ctx: QueryCtx, ownerId: string) {
+  const accounts = (
+    await ctx.db
+      .query('accounts')
+      .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+      .take(ACCOUNT_ROWS)
+  ).filter((a) => a.retiredAt === undefined)
+
+  const rates = new Map<string, { rate: number; asOf: number } | null>()
+  async function rateFor(currency: string) {
+    if (currency === 'EUR') return { rate: 1, asOf: null as number | null }
+    if (!rates.has(currency)) {
+      const row = await ctx.db
+        .query('fxRates')
+        .withIndex('by_owner_currency_time', (q) =>
+          q.eq('ownerId', ownerId).eq('currency', currency),
+        )
+        .order('desc')
+        .first()
+      rates.set(
+        currency,
+        row === null ? null : { rate: row.rate, asOf: row.asOf },
+      )
+    }
+    const r = rates.get(currency) ?? null
+    return r === null ? null : { rate: r.rate, asOf: r.asOf as number | null }
+  }
+
+  let cents = 0
+  let oldestAt: number | null = null
+  let unread = 0
+  const out = []
+  for (const account of accounts) {
+    const pockets = []
+    let accountCents = 0
+    for (const currency of account.currencies) {
+      const row = await ctx.db
+        .query('stateSnapshots')
+        .withIndex('by_owner_key_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('key', `balance:${account._id}:${currency}`),
+        )
+        .order('desc')
+        .first()
+      const read = row?.value ?? null
+      const since =
+        row === null
+          ? { cents: 0, rows: 0 }
+          : await movedSince(ctx, ownerId, account, currency, row.recordedAt)
+      const value =
+        read === null ? null : (Math.round(read * 100) + since.cents) / 100
+      const rate = await rateFor(currency)
+      const eur =
+        value === null || rate === null
+          ? null
+          : Math.round(value * rate.rate * 100) / 100
+      if (eur === null || row === null) {
+        unread++
+      } else {
+        accountCents += Math.round(eur * 100)
+        oldestAt =
+          oldestAt === null
+            ? row.recordedAt
+            : Math.min(oldestAt, row.recordedAt)
+      }
+      pockets.push({
+        currency,
+        value,
+        recordedAt: row?.recordedAt ?? null,
+        read,
+        moved: since.cents / 100,
+        movedRows: since.rows,
+        eur,
+        rateAsOf: rate?.asOf ?? null,
+        source: row?.source ?? null,
+        writtenAt: row?._creationTime ?? null,
+      })
+    }
+    cents += accountCents
+    out.push({
+      accountId: account._id,
+      name: account.name,
+      kinds: account.kinds,
+      domain: account.domain ?? null,
+      pockets,
+      cashEur: accountCents / 100,
+    })
+  }
+  return { accounts: out, total: cents / 100, oldestAt, unread }
+}
+
+/**
+ * Free cash at the end of each day he asks for (27 Sep — the Overview
+ * chart and the account cards' lines): per account, each pocket's nearest
+ * reading plus or minus what moved in between (src/lib/cashHistory), in
+ * euros at the latest stored rate. Sources 1 and 2 only — his readings and
+ * his rows; a day before anything he told the app is null. Investments are
+ * not in it: their worth on a past day needs that day's close, which is
+ * not stored yet.
+ */
+export const cashHistory = query({
+  args: { dayEnds: v.array(v.number()) },
+  returns: v.object({
+    total: v.array(v.union(v.number(), v.null())),
+    accounts: v.array(
+      v.object({
+        accountId: v.id('accounts'),
+        values: v.array(v.union(v.number(), v.null())),
+      }),
+    ),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const dayEnds = args.dayEnds.slice(0, 400)
+    const accounts = (
+      await ctx.db
+        .query('accounts')
+        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+        .take(ACCOUNT_ROWS)
+    ).filter((a) => a.retiredAt === undefined)
+    const out = []
+    const total: Array<number | null> = dayEnds.map(() => null)
+    for (const account of accounts) {
+      const logs = await ctx.db
+        .query('logs')
+        .withIndex('by_owner_account_time', (q) =>
+          q.eq('ownerId', ownerId).eq('accountId', account._id),
+        )
+        .take(HISTORY_ROWS)
+      const trades = account.kinds.includes('broker')
+        ? await ctx.db
+            .query('trades')
+            .withIndex('by_owner_account', (q) =>
+              q.eq('ownerId', ownerId).eq('accountId', account._id),
+            )
+            .take(TRADE_ROWS)
+        : []
+      const values: Array<number | null> = dayEnds.map(() => null)
+      for (const currency of account.currencies) {
+        const unit = currency.toLowerCase()
+        const readings = await ctx.db
+          .query('stateSnapshots')
+          .withIndex('by_owner_key_time', (q) =>
+            q
+              .eq('ownerId', ownerId)
+              .eq('key', `balance:${account._id}:${currency}`),
+          )
+          .take(500)
+        if (readings.length === 0) continue
+        const rate =
+          currency === 'EUR'
+            ? 1
+            : ((
+                await ctx.db
+                  .query('fxRates')
+                  .withIndex('by_owner_currency_time', (q) =>
+                    q.eq('ownerId', ownerId).eq('currency', currency),
+                  )
+                  .order('desc')
+                  .first()
+              )?.rate ?? null)
+        if (rate === null) continue
+        const moves = []
+        for (const l of logs) {
+          if (l.area !== 'money' || l.unit !== unit || l.value === undefined)
+            continue
+          const signed =
+            l.kind === 'expense'
+              ? -l.value
+              : l.kind === 'income' || l.kind === 'move'
+                ? l.value
+                : 0
+          if (signed !== 0)
+            moves.push({
+              at: l.occurredAt,
+              cents: Math.round(signed * 100),
+              fromFile: l.meta?.intakeId !== undefined,
+            })
+        }
+        if (currency === 'EUR')
+          for (const t of trades) {
+            if (t.opening === true) continue
+            const cost = Math.round(t.shares * t.priceEur * 100)
+            moves.push({
+              at: t.occurredAt,
+              cents: t.side === 'buy' ? -cost : cost,
+              fromFile: false,
+            })
+          }
+        const series = balanceSeries(
+          dayEnds,
+          readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
+          moves,
+        )
+        for (const [i, x] of series.entries()) {
+          if (x === null) continue
+          values[i] = Math.round(((values[i] ?? 0) + x * rate) * 100) / 100
+        }
+      }
+      for (const [i, x] of values.entries())
+        if (x !== null) total[i] = Math.round(((total[i] ?? 0) + x) * 100) / 100
+      out.push({ accountId: account._id, values })
+    }
+    return { total, accounts: out }
+  },
+})
+
+const HISTORY_ROWS = 5000
+
+/* A statement's rows are stamped at noon of their day, and a statement's
+   closing balance can be confirmed at 2 am on its own closing day; a row
+   read off a file counts after a reading only from the next day on. */
+const FILE_ROW_GRACE_MS = 12 * 3_600_000
+const MOVED_ROWS = 2000
+
+/**
+ * What moved in one pocket after its reading: signed, in cents of the
+ * pocket's currency. Spending out, money in, a transfer's own side; in the
+ * euro pocket of an account with trades, buys out and sells in.
+ */
+async function movedSince(
+  ctx: QueryCtx,
+  ownerId: string,
+  account: Doc<'accounts'>,
+  currency: string,
+  readAt: number,
+): Promise<{ cents: number; rows: number }> {
+  const unit = currency.toLowerCase()
+  const logs = await ctx.db
+    .query('logs')
+    .withIndex('by_owner_account_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('accountId', account._id)
+        .gt('occurredAt', readAt),
+    )
+    .take(MOVED_ROWS)
+  let cents = 0
+  let rows = 0
+  for (const l of logs) {
+    if (l.area !== 'money' || l.unit !== unit || l.value === undefined) continue
+    if (
+      l.meta?.intakeId !== undefined &&
+      l.occurredAt <= readAt + FILE_ROW_GRACE_MS
+    )
+      continue
+    const signed =
+      l.kind === 'expense'
+        ? -l.value
+        : l.kind === 'income' || l.kind === 'move'
+          ? l.value
+          : 0
+    if (signed === 0) continue
+    cents += Math.round(signed * 100)
+    rows++
+  }
+  if (currency === 'EUR' && account.kinds.includes('broker')) {
+    const trades = await ctx.db
+      .query('trades')
+      .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', ownerId).eq('accountId', account._id),
+      )
+      .take(TRADE_ROWS)
+    for (const t of trades) {
+      if (t.opening === true || t.occurredAt <= readAt) continue
+      const cost = Math.round(t.shares * t.priceEur * 100)
+      cents += t.side === 'buy' ? -cost : cost
+      rows++
+    }
+  }
+  return { cents, rows }
+}
+
+async function readPositions(ctx: QueryCtx, ownerId: string) {
+  /* A deleted account with history is retired, not erased — and what it
+     held leaves every total with it (27 Sep: his deleted test accounts
+     still counted in the hero). */
+  const live = new Set(
+    (
+      await ctx.db
+        .query('accounts')
+        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+        .take(ACCOUNT_ROWS)
+    )
+      .filter((a) => a.retiredAt === undefined)
+      .map((a) => a._id),
+  )
+  const trades = (
+    await ctx.db
+      .query('trades')
+      .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
+      .take(TRADE_ROWS)
+  ).filter((t) => live.has(t.accountId))
+
+  const held = new Map<
+    string,
+    {
+      accountId: Id<'accounts'>
+      instrumentId: Id<'instruments'>
+      shares: number
+      cents: number
+    }
+  >()
+  for (const t of trades) {
+    const key = `${t.accountId}:${t.instrumentId}`
+    const p = held.get(key) ?? {
+      accountId: t.accountId,
+      instrumentId: t.instrumentId,
+      shares: 0,
+      cents: 0,
+    }
+    const sign = t.side === 'buy' ? 1 : -1
+    p.shares += sign * t.shares
+    p.cents += sign * Math.round(t.shares * t.priceEur * 100)
+    held.set(key, p)
+  }
+
+  const rates = new Map<string, { rate: number; asOf: number } | null>()
+  async function rateFor(base: string) {
+    if (base === 'EUR') return { rate: 1, asOf: null }
+    if (!rates.has(base)) {
+      const row = await ctx.db
+        .query('fxRates')
+        .withIndex('by_owner_currency_time', (q) =>
+          q.eq('ownerId', ownerId).eq('currency', base),
+        )
+        .order('desc')
+        .first()
+      rates.set(base, row === null ? null : { rate: row.rate, asOf: row.asOf })
+    }
+    const r = rates.get(base) ?? null
+    return r === null ? null : { rate: r.rate, asOf: r.asOf as number | null }
+  }
+
+  const rows = []
+  for (const p of held.values()) {
+    /* Rounded to kill float dust from a buy and a sell of the same
+       fraction; a position sold out is not shown. */
+    const shares = Math.round(p.shares * 1e6) / 1e6
+    if (shares <= 0) continue
+    const instrument = await ctx.db.get(p.instrumentId)
+    if (instrument === null || instrument.ownerId !== ownerId) continue
+    const price = await ctx.db
+      .query('prices')
+      .withIndex('by_owner_instrument_time', (q) =>
+        q.eq('ownerId', ownerId).eq('instrumentId', p.instrumentId),
+      )
+      .order('desc')
+      .first()
+    const { base, divide } = quoteToRate(instrument.currency)
+    const rate = await rateFor(base)
+    const valueEur =
+      price === null || rate === null
+        ? null
+        : Math.round(((shares * price.price) / divide) * rate.rate * 100) / 100
+    rows.push({
+      accountId: p.accountId,
+      instrumentId: p.instrumentId,
+      symbol: instrument.symbol,
+      name: instrument.name,
+      type: instrument.type,
+      currency: instrument.currency,
+      shares,
+      putIn: p.cents / 100,
+      price: price?.price ?? null,
+      priceAsOf: price?.asOf ?? null,
+      rate: rate?.rate ?? null,
+      rateAsOf: rate?.asOf ?? null,
+      valueEur,
+    })
+  }
+  rows.sort((a, b) => (b.valueEur ?? b.putIn) - (a.valueEur ?? a.putIn))
+  let cents = 0
+  let oldestPriceAsOf: number | null = null
+  let unvalued = 0
+  for (const r of rows) {
+    if (r.valueEur === null || r.priceAsOf === null) {
+      unvalued++
+      continue
+    }
+    cents += Math.round(r.valueEur * 100)
+    oldestPriceAsOf =
+      oldestPriceAsOf === null
+        ? r.priceAsOf
+        : Math.min(oldestPriceAsOf, r.priceAsOf)
+  }
+  return {
+    rows,
+    totalEur: cents / 100,
+    oldestPriceAsOf,
+    unvalued,
+    complete: trades.length < TRADE_ROWS,
+  }
+}
+
+/**
+ * What is his, split the way he thinks of it (26 Sep: "we need to
+ * distinguish free cash and investments. And in revolut i have some cash
+ * and broker account with investments").
+ *
+ * An account's balance is its FREE CASH — the money not in shares, typed
+ * off the app. Its INVESTED is the value of the positions held in it
+ * (readPositions). So one account can hold both, and nothing is counted
+ * twice: a broker's typed balance is the cash it holds, never its total.
+ *
+ * Both totals, and the two added, are sums on PLAN.md §1's conditions:
+ * euros, each shown with the oldest reading in it — the cash's oldest
+ * typed balance, the investments' oldest close.
+ */
+export const worth = query({
+  args: {},
+  returns: v.object({
+    cash: v.object({
+      total: v.number(),
+      oldestAt: v.union(v.number(), v.null()),
+      unread: v.number(),
+    }),
+    invested: v.object({
+      total: v.number(),
+      oldestAt: v.union(v.number(), v.null()),
+      unvalued: v.number(),
+    }),
+    total: v.number(),
+    byAccount: v.array(
+      v.object({
+        accountId: v.id('accounts'),
+        cash: v.union(v.number(), v.null()),
+        invested: v.union(v.number(), v.null()),
+        positions: v.number(),
+      }),
+    ),
+  }),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    const b = await readBalances(ctx, ownerId)
+    const p = await readPositions(ctx, ownerId)
+    const byAccount = b.accounts.map((a) => {
+      const held = p.rows.filter((r) => r.accountId === a.accountId)
+      const cents = held.reduce(
+        (n, r) => n + (r.valueEur === null ? 0 : Math.round(r.valueEur * 100)),
+        0,
+      )
+      return {
+        accountId: a.accountId,
+        cash: a.pockets.some((pk) => pk.eur !== null) ? a.cashEur : null,
+        invested: held.length === 0 ? null : cents / 100,
+        positions: held.length,
+      }
+    })
+    return {
+      cash: { total: b.total, oldestAt: b.oldestAt, unread: b.unread },
+      invested: {
+        total: p.totalEur,
+        oldestAt: p.oldestPriceAsOf,
+        unvalued: p.unvalued,
+      },
+      total: (Math.round(b.total * 100) + Math.round(p.totalEur * 100)) / 100,
+      byAccount,
     }
   },
 })

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { getRouteApi, Link } from '@tanstack/react-router'
+import { RoomTabLabel, RoomTabs, roomTabClass } from '@/components/RoomTabs'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import {
@@ -116,7 +117,7 @@ export function LanguagePanel({
   return (
     <div className="flex flex-col gap-[18px]">
       <Header slug={slug} label={label} lang={lang} />
-      <nav aria-label="Language tabs" className="flex flex-wrap gap-2">
+      <RoomTabs label="Language tabs">
         {TABS.map(({ id, label: name, Icon }) => {
           const on = id === tab
           return (
@@ -126,18 +127,13 @@ export function LanguagePanel({
               search={id === 'today' ? {} : { tab: id }}
               replace
               aria-current={on ? 'page' : undefined}
-              className={`motion-press inline-flex items-center gap-2 rounded-full px-4 py-2 font-mono text-[11.5px] tracking-[0.14em] uppercase ring-1 transition-colors ring-inset ${
-                on
-                  ? 'bg-lav-400/12 text-foreground ring-lav-400/45 shadow-[0_0_18px_-6px_var(--system-shine)]'
-                  : 'text-ink-400 ring-lift/12 hover:bg-lav-400/8 hover:text-foreground hover:ring-lav-400/35'
-              }`}
+              className={roomTabClass(on)}
             >
-              <Icon className={`size-4 ${on ? 'text-lav-400' : ''}`} />
-              {name}
+              <RoomTabLabel on={on} Icon={Icon} label={name} />
             </Link>
           )
         })}
-      </nav>
+      </RoomTabs>
 
       {/* Keyed so a tab arrives rather than swapping in place. */}
       <div key={tab} className="motion-arrive flex flex-col gap-[18px]">

@@ -33,7 +33,10 @@ export function Sparkline({
       aria-hidden
       className={`motion-draw overflow-visible ${className}`}
     >
+      {/* pathLength matches motion-draw's 24-unit dash, so the whole line is
+          one dash: without it a long line stays dashed after the draw. */}
       <polyline
+        pathLength={24}
         points={d.join(' ')}
         fill="none"
         stroke="var(--color-lav-400)"

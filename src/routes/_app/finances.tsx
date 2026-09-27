@@ -8,6 +8,7 @@ import { IntakeFlow, OpenIntakes } from '@/components/finances/Intake'
 import { MoneyCalendar } from '@/components/finances/MoneyCalendar'
 import { MonthMoney } from '@/components/finances/MonthMoney'
 import { Portfolio } from '@/components/finances/Portfolio'
+import { RoomTabLabel, RoomTabs, roomTabClass } from '@/components/RoomTabs'
 import { Sheet } from '@/components/finances/Sheet'
 import { TreasuryHero } from '@/components/finances/TreasuryHero'
 import { WorthChart } from '@/components/finances/WorthChart'
@@ -36,11 +37,7 @@ function Treasury() {
   return (
     <div className="flex flex-col gap-[18px]">
       <TreasuryHero />
-      <nav
-        style={areaVars('money')}
-        aria-label="Treasury rooms"
-        className="flex gap-1.5 sm:gap-2"
-      >
+      <RoomTabs label="Treasury rooms" style={areaVars('money')}>
         {ROOMS.map(({ id, label, Icon }) => {
           const on = id === room
           return (
@@ -50,23 +47,13 @@ function Treasury() {
               search={id === 'overview' ? {} : { room: id }}
               replace
               aria-current={on ? 'page' : undefined}
-              className={`motion-press inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full font-mono text-[11.5px] tracking-[0.14em] uppercase ring-1 transition-colors ring-inset ${
-                on ? 'px-4' : 'w-10 sm:w-auto sm:px-4'
-              } ${
-                on
-                  ? 'bg-lav-400/12 text-foreground ring-lav-400/45 shadow-[0_0_18px_-6px_var(--system-shine)]'
-                  : 'text-ink-400 ring-lift/12 hover:text-foreground hover:ring-lift/25'
-              }`}
+              className={roomTabClass(on)}
             >
-              <Icon className={`size-4 ${on ? 'text-area' : ''}`} />
-              {/* On a phone the rooms not open are their icons. */}
-              <span className={on ? '' : 'sr-only sm:not-sr-only'}>
-                {label}
-              </span>
+              <RoomTabLabel on={on} Icon={Icon} label={label} />
             </Link>
           )
         })}
-      </nav>
+      </RoomTabs>
 
       {/* All three rooms stay mounted; a tab only shows one (27 Sep: every
           switch rebuilt the room — its queries reloaded, skeletons

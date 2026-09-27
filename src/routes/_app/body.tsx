@@ -6,6 +6,7 @@ import { BodyHero, LastThirty, LogSession } from '@/components/body/BodyHero'
 import { BodyCalendar } from '@/components/body/BodyCalendar'
 import { WorkoutPanel } from '@/components/body/Workout'
 import { areaVars } from '@/lib/areas'
+import { RoomTabLabel, RoomTabs, roomTabClass } from '@/components/RoomTabs'
 import { workoutById, WORKOUTS } from '@/lib/body/library'
 import type { Workout } from '@/lib/body/library'
 
@@ -54,11 +55,7 @@ function Body() {
   return (
     <div className="flex flex-col gap-[18px]">
       <BodyHero />
-      <nav
-        style={areaVars('body')}
-        aria-label="Body tabs"
-        className="flex flex-wrap gap-2"
-      >
+      <RoomTabs label="Body tabs" style={areaVars('body')}>
         {TABS.map(({ id, label, Icon }) => {
           const on = id === tab
           return (
@@ -68,18 +65,13 @@ function Body() {
               search={id === 'today' ? {} : { tab: id }}
               replace
               aria-current={on ? 'page' : undefined}
-              className={`motion-press inline-flex items-center gap-2 rounded-full px-4 py-2 font-mono text-[11.5px] tracking-[0.14em] uppercase ring-1 transition-colors ring-inset ${
-                on
-                  ? 'bg-lav-400/12 text-foreground ring-lav-400/45 shadow-[0_0_18px_-6px_var(--system-shine)]'
-                  : 'text-ink-400 ring-lift/12 hover:text-foreground hover:ring-lift/25'
-              }`}
+              className={roomTabClass(on)}
             >
-              <Icon className={`size-4 ${on ? 'text-area' : ''}`} />
-              {label}
+              <RoomTabLabel on={on} Icon={Icon} label={label} />
             </Link>
           )
         })}
-      </nav>
+      </RoomTabs>
 
       {/* Keyed so a tab arrives rather than swapping in place. */}
       <div key={tab} className="motion-arrive flex flex-col gap-3">

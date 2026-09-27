@@ -341,7 +341,10 @@ export function TreasuryHero() {
             monthOf={monthOf}
             onUpdate={(id) => {
               const doc = docOf(id)
-              if (doc) setUpdating(doc)
+              if (doc) {
+                setOpen(null)
+                setUpdating(doc)
+              }
             }}
           />
         )}

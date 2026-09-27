@@ -47,7 +47,15 @@ export function IntakeFlow({
 }) {
   const open = useQuery(api.intake.open, {})
   const discard = useMutation(api.intake.discard)
-  const intake = open?.find((i) => i._id === intakeId)
+  const found = open?.find((i) => i._id === intakeId)
+  /* A confirmed one leaves the open list the moment it lands — keep
+     showing it, so its review can say what landed (27 Sep: he got "done
+     or gone" instead). */
+  const [last, setLast] = useState<Doc<'intakes'> | null>(null)
+  useEffect(() => {
+    if (found) setLast(found)
+  }, [found])
+  const intake = found ?? (last?._id === intakeId ? last : undefined)
   const throwAway = () => void discard({ intakeId }).then(onBack)
 
   /* Loading holds the space quietly: a flash of "reading" for a few
@@ -178,6 +186,7 @@ function TransactionsReview({
   const [landed, setLanded] = useState<{
     count: number
     months: Array<string>
+    orders?: { written: number; skipped: number; noTicker: number }
   } | null>(null)
   const confirm = useMutation(api.intake.confirmTransactions)
   const addBill = useMutation(api.recurring.create)
@@ -278,7 +287,7 @@ function TransactionsReview({
     setSaving(true)
     setError(null)
     try {
-      await confirm({
+      const done = await confirm({
         intakeId: intake._id,
         accountId,
         dayStart: today,
@@ -305,12 +314,16 @@ function TransactionsReview({
       const months = [
         ...new Set(kept.map((r) => key(new Date(r.occurredAt)))),
       ].sort()
+      const orders =
+        done.trades.written + done.trades.skipped + done.trades.noTicker > 0
+          ? done.trades
+          : undefined
       if (
-        months.length === 0 ||
-        (months.length === 1 && months[0] === key(now))
+        !orders &&
+        (months.length === 0 || (months.length === 1 && months[0] === key(now)))
       )
         onDone()
-      else setLanded({ count: kept.length, months })
+      else setLanded({ count: kept.length, months, orders })
     } catch (e) {
       setError(
         e instanceof Error
@@ -934,6 +947,7 @@ function HoldingsReview({
   )
   const [editCash, setEditCash] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   /* What the account holds already, to say what this screen changes. */
   const held = useQuery(api.aggregate.positions, {})
@@ -1028,12 +1042,52 @@ function HoldingsReview({
           sharesCalculated: r.d.sharesCalc || undefined,
         })),
       })
-      onDone()
+      setSaved(true)
     } catch (e) {
       setError(failureMessage(e) ?? 'Not saved')
       setSaving(false)
     }
   }
+
+  if (saved)
+    return (
+      <div className="motion-land flex flex-col items-center gap-3 py-6 text-center">
+        <span className="motion-pop grid size-11 place-items-center rounded-full bg-state-good/16 text-state-good">
+          <Check className="size-5" strokeWidth={2.5} />
+        </span>
+        <span className="text-[16px] text-foreground">
+          {targetName} is in — {money(Math.round(total * 100) / 100)}
+        </span>
+        <span className="font-mono text-[11px] text-ink-400">
+          {kept.length} positions {money(Math.round(invested * 100) / 100)}
+          {cashNum !== null ? ` · free cash ${money(cashNum)}` : ''} · what you
+          paid: {known.length === 0 ? 'unknown' : `${known.length} known`}
+        </span>
+        {known.length < kept.length ? (
+          <span className="max-w-md text-[12.5px] text-ink-400">
+            Drop a {targetName} statement any time and what you paid fills in —
+            nothing is added twice.
+          </span>
+        ) : null}
+        <div className="flex flex-wrap justify-center gap-2 pt-1">
+          <Link
+            to="/finances"
+            search={{ room: 'portfolio' }}
+            onClick={onDone}
+            className={`${PILL_LOUD} justify-center py-2.5`}
+          >
+            see Portfolio →
+          </Link>
+          <button
+            type="button"
+            onClick={onDone}
+            className={`${PILL_QUIET} justify-center py-2.5`}
+          >
+            done
+          </button>
+        </div>
+      </div>
+    )
 
   return (
     <>
@@ -1809,11 +1863,13 @@ const MONTH_LONG = new Intl.DateTimeFormat(undefined, {
 function Landed({
   count,
   months,
+  orders,
   account,
   onDone,
 }: {
   count: number
   months: Array<string>
+  orders?: { written: number; skipped: number; noTicker: number }
   account?: string
   onDone: () => void
 }) {
@@ -1821,26 +1877,55 @@ function Landed({
     const [y, mo] = m.split('-').map(Number)
     return MONTH_LONG.format(new Date(y, mo - 1, 1))
   }
-  const last = months[months.length - 1]
+  const last = months.at(-1)
   return (
-    <div className="motion-land flex flex-col gap-4">
-      <span className="flex items-center gap-2 text-[16px] text-foreground">
-        <Check className="size-4 text-state-good" />
-        Added {count} rows{account ? ` to ${account}` : ''}
+    <div className="motion-land flex flex-col items-center gap-3 py-6 text-center">
+      <span className="motion-pop grid size-11 place-items-center rounded-full bg-state-good/16 text-state-good">
+        <Check className="size-5" strokeWidth={2.5} />
       </span>
-      <p className="text-[13.5px] text-ink-300">
-        They are in {months.map(name).join(', ')} — Flow shows one month at a
-        time, and opens on this one.
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <Link
-          to="/finances"
-          search={{ room: 'flow', month: last }}
-          onClick={onDone}
-          className={`${PILL_LOUD} justify-center py-2.5`}
-        >
-          see {name(last)} in Flow →
-        </Link>
+      <span className="text-[16px] text-foreground">
+        {account ? `${account} is up to date` : 'Saved'}
+      </span>
+      <div className="flex max-w-md flex-col gap-1 text-[13px] text-ink-300">
+        {count > 0 ? (
+          <span>
+            {count} {count === 1 ? 'row' : 'rows'} added
+            {months.length > 0 ? ` — ${months.map(name).join(', ')}` : ''}
+          </span>
+        ) : null}
+        {orders ? (
+          <span>
+            {orders.written} {orders.written === 1 ? 'order' : 'orders'} filed
+            as trades
+            {orders.skipped > 0 ? `, ${orders.skipped} already there` : ''}
+            {orders.noTicker > 0
+              ? `, ${orders.noTicker} left out (no ticker found)`
+              : ''}{' '}
+            — what you paid is filled in
+          </span>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap justify-center gap-2 pt-1">
+        {orders ? (
+          <Link
+            to="/finances"
+            search={{ room: 'portfolio' }}
+            onClick={onDone}
+            className={`${PILL_LOUD} justify-center py-2.5`}
+          >
+            see Portfolio →
+          </Link>
+        ) : null}
+        {last ? (
+          <Link
+            to="/finances"
+            search={{ room: 'flow', month: last }}
+            onClick={onDone}
+            className={`${orders ? PILL_QUIET : PILL_LOUD} justify-center py-2.5`}
+          >
+            see {name(last)} in Flow →
+          </Link>
+        ) : null}
         <button
           type="button"
           onClick={onDone}

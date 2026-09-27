@@ -14,6 +14,10 @@ built to. Served by `.claude/launch.json` config "treasury" on :3950.
   and built as AddDrop.tsx): a four-step strip, his accounts with what each is read
   from, a "last read" line, a breathing lavender edge. Four situations; after a drop the
   existing reading screen takes over.
+- `holdings.html` — the check-it screen for a broker screenshot (27 Sep, in
+  review): total / invested / free cash on top, saved in one press with
+  nothing typed, "what you paid" unknown until a statement fills it in
+  (never doubles shares), rows fixed behind a tap. Five situations.
 - `dollar.jpg` — his header photo (also public/finances/dollar.jpg).
 
 Rule (CLAUDE.md, 27 Sep): journey, then a mockup here he marks up, then

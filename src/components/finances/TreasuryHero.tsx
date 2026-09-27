@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, CircleCheck } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import type { FunctionReturnType } from 'convex/server'
 
@@ -149,6 +149,7 @@ export function TreasuryHero() {
         {!loading && !empty ? (
           <CheckIn
             stale={stale}
+            all={rows}
             onOpen={() => (stale.length > 0 ? setOpen('checkin') : undefined)}
           />
         ) : null}
@@ -371,13 +372,33 @@ export function TreasuryHero() {
   )
 }
 
-/* Out of date: its logos when one or two, a count from three, a quiet
-   green when nothing is. */
-function CheckIn({ stale, onOpen }: { stale: Array<Row>; onOpen: () => void }) {
+/* Out of date: its logos when one or two, a count from three. Up to date
+   is said as loudly (27 Sep: "looks weak and faded"): lit green, a check
+   drawn, and every account it covers. */
+function CheckIn({
+  stale,
+  all,
+  onOpen,
+}: {
+  stale: Array<Row>
+  all: Array<Row>
+  onOpen: () => void
+}) {
   if (stale.length === 0) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-state-good/8 px-2.5 py-1 font-mono text-[10.5px] tracking-[0.1em] text-state-good uppercase ring-1 ring-state-good/35 ring-inset">
-        ✓ up to date
+      <span className="motion-pop inline-flex items-center gap-2 rounded-full bg-state-good/[0.16] py-1 pr-1.5 pl-2 font-mono text-[10.5px] font-medium tracking-[0.12em] text-state-good uppercase shadow-[0_0_18px_-4px_var(--color-state-good)] ring-1 ring-state-good/60 ring-inset">
+        <CircleCheck className="motion-draw size-3.5" strokeWidth={2.4} />
+        up to date
+        <span className="flex pl-1">
+          {all.slice(0, 4).map((a) => (
+            <span
+              key={a.accountId}
+              className="-ml-1 rounded-[6px] ring-[1.5px] ring-state-good/70"
+            >
+              <AccountLogo name={a.name} domain={a.domain} size={18} />
+            </span>
+          ))}
+        </span>
       </span>
     )
   }

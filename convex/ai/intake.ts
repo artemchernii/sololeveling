@@ -18,9 +18,9 @@ import {
 import type { Candidate } from '../../src/lib/market'
 
 /* The reader (Treasury, 27 Sep). One call to Claude Haiku 4.5 reads every
-   file he dropped — a PDF statement, a CSV, screenshots — says what it is,
-   and returns its rows in INTAKE_SCHEMA's shape. For holdings, each
-   position is then matched to a ticker (the right share class — Alphabet
+   file he dropped — a PDF statement, a CSV, screenshots — says what it is
+   (cash moving, what is held, or trades), and returns its rows in
+   INTAKE_SCHEMA's shape. For holdings and trades, each name is then matched to a ticker (the right share class — Alphabet
    (A) is GOOGL) and priced in euros today, so shares and cost can be
    worked out where the screen did not print them. Nothing is stored as a
    trade or a log here; intake.review and the confirms do that. The same
@@ -138,19 +138,42 @@ export const read = internalAction({
       return null
     }
 
-    const positions = []
-    for (const p of parsed.positions) {
+    /* A name as the broker prints it → ticker candidates, and which one is
+       the right share class. Once per name: a trade history repeats them. */
+    const found = new Map<
+      string,
+      { candidates: Array<Candidate>; preferred?: number }
+    >()
+    async function tickerFor(name: string, isin?: string) {
+      const key = isin ?? name
+      const known = found.get(key)
+      if (known) return known
       let candidates: Array<Candidate> = []
       try {
-        if (p.isin) candidates = await searchYahoo(p.isin)
+        if (isin) candidates = await searchYahoo(isin)
         if (candidates.length === 0)
-          candidates = await searchYahoo(searchableName(p.name))
+          candidates = await searchYahoo(searchableName(name))
       } catch {
         candidates = []
       }
       candidates = candidates.slice(0, 6)
-      const preferred =
-        candidates.length > 0 ? preferClass(p.name, candidates) : undefined
+      const result = {
+        candidates,
+        preferred:
+          candidates.length > 0 ? preferClass(name, candidates) : undefined,
+      }
+      found.set(key, result)
+      return result
+    }
+
+    const trades = []
+    for (const t of parsed.trades) {
+      trades.push({ ...t, ...(await tickerFor(t.name, t.isin)) })
+    }
+
+    const positions = []
+    for (const p of parsed.positions) {
+      const { candidates, preferred } = await tickerFor(p.name, p.isin)
       let today: { priceEur: number; asOf: number } | null = null
       if (preferred !== undefined && preferred >= 0) {
         try {
@@ -173,9 +196,11 @@ export const read = internalAction({
       kind: parsed.kind,
       title: parsed.title,
       institution: parsed.institution,
+      accountTail: parsed.accountTail,
       transactions:
         parsed.kind === 'transactions' ? parsed.transactions : undefined,
       positions: parsed.kind === 'holdings' ? positions : undefined,
+      trades: parsed.kind === 'trades' ? trades : undefined,
       balance: parsed.balance
         ? {
             currency: parsed.currency ?? 'EUR',

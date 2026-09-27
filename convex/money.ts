@@ -105,7 +105,7 @@ export async function writeTransfer(
 
 /* Euros per one of `currency`, from the latest stored ECB rate — how a
    price typed in dollars becomes the euros a trade is kept in. */
-async function euroRate(
+export async function euroRate(
   ctx: MutationCtx,
   ownerId: string,
   currency: string,

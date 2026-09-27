@@ -746,11 +746,22 @@ export default defineSchema({
       v.literal('failed'),
       v.literal('done'),
     ),
-    kind: v.optional(v.union(v.literal('transactions'), v.literal('holdings'))),
+    /* TRADES (27 Sep, "adding money"): a broker's order history or a trade
+       confirmation — buys and sells with their own dates and prices. */
+    kind: v.optional(
+      v.union(
+        v.literal('transactions'),
+        v.literal('holdings'),
+        v.literal('trades'),
+      ),
+    ),
     /* What the reader says it is: "Revolut statement · EUR · Aug 1 →
        Sep 27". Words for the review's title, nothing computes with it. */
     title: v.optional(v.string()),
     institution: v.optional(v.string()),
+    /* The last four digits of the IBAN or card the file is about, when it
+       prints them — how it finds which of his accounts it is. */
+    accountTail: v.optional(v.string()),
     transactions: v.optional(
       v.array(
         v.object({
@@ -785,6 +796,31 @@ export default defineSchema({
           preferred: v.optional(v.number()),
           todayPriceEur: v.optional(v.number()),
           todayAsOf: v.optional(v.number()),
+          candidates: v.array(
+            v.object({
+              symbol: v.string(),
+              name: v.string(),
+              exchange: v.string(),
+              type: v.string(),
+            }),
+          ),
+        }),
+      ),
+    ),
+    trades: v.optional(
+      v.array(
+        v.object({
+          occurredAt: v.number(),
+          name: v.string(),
+          isin: v.optional(v.string()),
+          side: v.union(v.literal('buy'), v.literal('sell')),
+          shares: v.number(),
+          /* Per share, in `currency` as printed. */
+          price: v.number(),
+          currency: v.string(),
+          /* The same ticker search as holdings: candidates and which one
+             the right share class is. */
+          preferred: v.optional(v.number()),
           candidates: v.array(
             v.object({
               symbol: v.string(),

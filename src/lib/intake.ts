@@ -48,8 +48,12 @@ export function readableFile(
 export const INTAKE_SCHEMA = {
   type: 'object',
   properties: {
-    kind: { type: 'string', enum: ['transactions', 'holdings', 'unknown'] },
+    kind: {
+      type: 'string',
+      enum: ['transactions', 'holdings', 'trades', 'unknown'],
+    },
     institution: { type: ['string', 'null'] },
+    account_tail: { type: ['string', 'null'] },
     holder_name: { type: ['string', 'null'] },
     title: { type: 'string' },
     currency: { type: ['string', 'null'] },
@@ -105,6 +109,31 @@ export const INTAKE_SCHEMA = {
         additionalProperties: false,
       },
     },
+    trades: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          date: { type: 'string' },
+          name: { type: 'string' },
+          isin: { type: ['string', 'null'] },
+          side: { type: 'string', enum: ['buy', 'sell'] },
+          shares: { type: 'number' },
+          price: { type: 'number' },
+          currency: { type: 'string' },
+        },
+        required: [
+          'date',
+          'name',
+          'isin',
+          'side',
+          'shares',
+          'price',
+          'currency',
+        ],
+        additionalProperties: false,
+      },
+    },
     closing_balance: { type: ['number', 'null'] },
     closing_balance_date: { type: ['string', 'null'] },
     cash_eur: { type: ['number', 'null'] },
@@ -113,11 +142,13 @@ export const INTAKE_SCHEMA = {
   required: [
     'kind',
     'institution',
+    'account_tail',
     'holder_name',
     'title',
     'currency',
     'transactions',
     'positions',
+    'trades',
     'closing_balance',
     'closing_balance_date',
     'cash_eur',
@@ -148,16 +179,21 @@ export function intakePrompt(opts: {
 }): string {
   return [
     `${opts.files === 1 ? 'This is one file' : `These are ${opts.files} files`} a person dropped into their personal finance app. Today is ${opts.today}.`,
-    'Decide what it is. kind = "transactions" for a bank or card statement (PDF or CSV) or a screenshot of a transaction history; kind = "holdings" for a broker screen listing investment positions; otherwise "unknown".',
-    'title: a short human label, e.g. "Revolut statement · EUR · Aug 1 → Sep 27" or "Trade Republic · holdings". institution: the bank or broker. holder_name: the account holder\'s name if printed.',
+    'Decide what it is — what happened to money, or what is held:',
+    '  kind = "transactions" — cash moving: a bank or card statement (PDF or CSV), or a screenshot of a transaction history (payments, transfers, top-ups, salary).',
+    '  kind = "holdings" — a snapshot of what is held: a broker or investing screen listing positions with their value (Trade Republic, Trading 212, Revolut Invest portfolio).',
+    '  kind = "trades" — buying and selling shares: a broker\'s order or trade history, or a trade confirmation, with a date, shares and a price per trade.',
+    '  otherwise "unknown". A screen of positions is holdings even when it shows a daily change; a list of orders is trades even when it shows a total.',
+    'title: a short human label, e.g. "Revolut statement · EUR · Aug 1 → Sep 27", "Trade Republic · holdings", "Trading 212 · orders". institution: the bank or broker the file is FROM, e.g. "Revolut" or "Revolut Invest". account_tail: the last four digits of the IBAN or card number the file is about, if printed (e.g. "0120" for PT50 … 0120), else null. holder_name: the account holder\'s name if printed.',
     'For transactions: every row, once, including rows under a "pending" heading (pending = true). date as YYYY-MM-DD (for "Yesterday" or a weekday, resolve against today). amount is signed: money out negative, money in positive, in the row\'s own currency. merchant: a clean human name ("Bolt", not "Bolt.euo2609161656"; "Claude subscription" for "Anthropic* Claude Sub"). raw: the description as printed, one line.',
-    "counterparty: for transfers, who is on the other side. self_transfer = true when money goes to or comes from the holder's own name, another of their own accounts, a card top-up, a savings or investment account inside the same bank, or a known broker the person uses (their accounts: " +
+    'counterparty: for transfers, who is on the other side — keep any IBAN or card digits printed for it ("PT50…0120", "card ••2789"). self_transfer = true when money goes to or comes from the holder\'s own name, another of their own accounts, a card top-up, a savings or investment account inside the same bank, or a known broker the person uses (their accounts: ' +
       (opts.accounts.join(', ') || 'unknown') +
       '). A card payment to a broker such as Trade Republic or Trading 212 is a deposit to that broker — self_transfer = true.',
     `category (spending only, else null): one of ${SPEND_CATEGORY_IDS.join(', ')}.`,
     'closing_balance: the final balance printed for the account (completed transactions only) and closing_balance_date; else null.',
     'For holdings: every position, once. value_eur: its current value as printed. change_pct: the % gain or loss since buying if printed (negative for a loss). shares and average_price_eur only if printed. cash_eur: uninvested cash if shown; total_eur: the account total if shown.',
-    'Read numbers exactly: a European comma decimal (1.234,56) is 1234.56. Never invent a number that is not printed — use null. Leave the array that does not apply empty.',
+    'For trades: every buy and sell, once — date as YYYY-MM-DD, name as printed, isin if printed, side, shares, price per share and its currency. Skip cancelled or rejected orders.',
+    'Read numbers exactly: a European comma decimal (1.234,56) is 1234.56. Never invent a number that is not printed — use null. Leave the arrays that do not apply empty.',
   ].join('\n')
 }
 
@@ -184,10 +220,22 @@ export type ReadPosition = {
   changePct?: number
 }
 
+export type ReadTrade = {
+  occurredAt: number
+  name: string
+  isin?: string
+  side: 'buy' | 'sell'
+  shares: number
+  price: number
+  currency: string
+}
+
 export type Reading = {
-  kind: 'transactions' | 'holdings'
+  kind: 'transactions' | 'holdings' | 'trades'
   title: string
   institution?: string
+  accountTail?: string
+  trades: Array<ReadTrade>
   holderName?: string
   currency?: string
   transactions: Array<ReadTransaction>
@@ -225,11 +273,15 @@ export function parseReading(
   } catch {
     return { ok: false, error: 'The reader answered in a shape it should not.' }
   }
-  if (j.kind !== 'transactions' && j.kind !== 'holdings') {
+  if (
+    j.kind !== 'transactions' &&
+    j.kind !== 'holdings' &&
+    j.kind !== 'trades'
+  ) {
     return {
       ok: false,
       error:
-        'That does not look like a statement, a history or a broker screen.',
+        'That does not look like a statement, a history, a broker screen or a list of trades.',
     }
   }
   const transactions: Array<ReadTransaction> = []
@@ -286,6 +338,40 @@ export function parseReading(
       changePct: num(r.change_pct),
     })
   }
+  const trades: Array<ReadTrade> = []
+  for (const r of Array.isArray(j.trades)
+    ? (j.trades as Array<Record<string, unknown>>)
+    : []) {
+    const at = typeof r.date === 'string' ? dayToMs(r.date) : undefined
+    const name = str(r.name)
+    const shares = pos(r.shares)
+    const price = pos(r.price)
+    if (
+      at === undefined ||
+      name === undefined ||
+      shares === undefined ||
+      price === undefined ||
+      (r.side !== 'buy' && r.side !== 'sell')
+    )
+      continue
+    trades.push({
+      occurredAt: at,
+      name,
+      isin:
+        typeof r.isin === 'string' && /^[A-Z]{2}[A-Z0-9]{10}$/.test(r.isin)
+          ? r.isin
+          : undefined,
+      side: r.side,
+      shares,
+      price,
+      currency: str(r.currency, 3)?.toUpperCase() ?? 'EUR',
+    })
+  }
+  if (j.kind === 'trades' && trades.length === 0) {
+    return { ok: false, error: 'No buys or sells were found in it.' }
+  }
+  const tailRaw = typeof j.account_tail === 'string' ? j.account_tail : ''
+  const accountTail = /\d{4}$/.exec(tailRaw.replace(/\D/g, ''))?.[0]
   if (j.kind === 'transactions' && transactions.length === 0) {
     return { ok: false, error: 'No transactions were found in it.' }
   }
@@ -302,12 +388,19 @@ export function parseReading(
     ok: true,
     kind: j.kind,
     title:
-      str(j.title, 80) ?? (j.kind === 'holdings' ? 'Holdings' : 'Transactions'),
+      str(j.title, 80) ??
+      (j.kind === 'holdings'
+        ? 'Holdings'
+        : j.kind === 'trades'
+          ? 'Trades'
+          : 'Transactions'),
     institution: str(j.institution, 60),
+    accountTail,
     holderName: str(j.holder_name, 80),
     currency: str(j.currency, 3)?.toUpperCase(),
     transactions: transactions.slice(0, 1000),
     positions: positions.slice(0, 100),
+    trades: trades.slice(0, 500),
     balance:
       balanceValue !== undefined
         ? { value: balanceValue, asOf: balanceAt ?? Date.now() }

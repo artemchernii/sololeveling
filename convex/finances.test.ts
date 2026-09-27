@@ -1620,3 +1620,270 @@ describe('migrations.addingMoney', () => {
     ])
   })
 })
+
+describe('the reader says what it is — trades, and whose account', () => {
+  async function read(
+    t: ReturnType<typeof setup>['t'],
+    me: ReturnType<typeof setup>['me'],
+    finish: Record<string, unknown>,
+  ) {
+    const storageId = await t.run(async (ctx) =>
+      ctx.storage.store(new Blob(['x'], { type: 'image/png' })),
+    )
+    const started = await me.mutation(api.intake.start, {
+      files: [{ storageId, contentType: 'image/png', name: 'x.png', size: 1 }],
+    })
+    if (!started.ok) throw new Error(started.error)
+    await t.mutation(internal.intake.finish, {
+      intakeId: started.intakeId,
+      transactions: undefined,
+      positions: undefined,
+      trades: undefined,
+      ...finish,
+    } as never)
+    return started.intakeId
+  }
+  const MSFT = {
+    symbol: 'MSFT',
+    name: 'Microsoft',
+    exchange: 'NASDAQ',
+    type: 'EQUITY',
+  }
+
+  test('a trade history lands with its own dates and prices, once', async () => {
+    const { t, me } = setup()
+    const t212 = await me.mutation(api.accounts.create, {
+      name: 'Trading 212',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+      product: 'trading-212',
+    })
+    await t.run((ctx) =>
+      ctx.db.insert('fxRates', {
+        ownerId: ME,
+        currency: 'USD',
+        rate: 0.9,
+        asOf: Date.now(),
+        fetchedAt: Date.now(),
+        source: 'test',
+      }),
+    )
+    const history = {
+      kind: 'trades',
+      title: 'Trading 212 · orders',
+      institution: 'Trading 212',
+      trades: [
+        {
+          occurredAt: TODAY - 5 * 86_400_000,
+          name: 'Microsoft',
+          side: 'buy',
+          shares: 2,
+          price: 400,
+          currency: 'USD',
+          candidates: [MSFT],
+          preferred: 0,
+        },
+        {
+          occurredAt: TODAY - 2 * 86_400_000,
+          name: 'Microsoft',
+          side: 'sell',
+          shares: 1,
+          price: 420,
+          currency: 'USD',
+          candidates: [MSFT],
+          preferred: 0,
+        },
+      ],
+    }
+    const first = await read(t, me, history)
+    expect(await me.query(api.intake.whose, { intakeId: first })).toEqual({
+      guessedAccountId: t212,
+      suggest: null,
+    })
+    expect(
+      await me.mutation(api.intake.confirmTrades, {
+        intakeId: first,
+        accountId: t212,
+        rows: [
+          { index: 1, candidate: MSFT },
+          { index: 0, candidate: MSFT },
+        ],
+      }),
+    ).toEqual({ written: 2, skipped: 0 })
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows[0]).toMatchObject({ shares: 1, putIn: 720 - 378 })
+    /* The same export dropped again adds nothing. */
+    const again = await read(t, me, history)
+    expect(
+      await me.mutation(api.intake.confirmTrades, {
+        intakeId: again,
+        accountId: t212,
+        rows: [{ index: 0, candidate: MSFT }],
+      }),
+    ).toEqual({ written: 0, skipped: 1 })
+  })
+
+  test('refuses a bank as the broker, and another owner’s account', async () => {
+    const { t, me, them } = setup()
+    const bpi = await me.mutation(api.accounts.create, {
+      name: 'BPI',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const theirs = await them.mutation(api.accounts.create, {
+      name: 'X',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    const intakeId = await read(t, me, {
+      kind: 'trades',
+      title: 'orders',
+      trades: [
+        {
+          occurredAt: TODAY,
+          name: 'Microsoft',
+          side: 'buy',
+          shares: 1,
+          price: 1,
+          currency: 'EUR',
+          candidates: [MSFT],
+        },
+      ],
+    })
+    const rows = [{ index: 0, candidate: MSFT }]
+    await expect(
+      me.mutation(api.intake.confirmTrades, { intakeId, accountId: bpi, rows }),
+    ).rejects.toThrow('not a broker')
+    await expect(
+      me.mutation(api.intake.confirmTrades, {
+        intakeId,
+        accountId: theirs,
+        rows,
+      }),
+    ).rejects.toThrow('No such account')
+  })
+
+  test('a statement finds its account by IBAN ending, pairs a transfer by ending, and learns the endings it is told', async () => {
+    const { t, me } = setup()
+    const rev = await me.mutation(api.accounts.create, {
+      name: 'Revolut',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+      ibanTails: ['4455'],
+    })
+    const bpi = await me.mutation(api.accounts.create, {
+      name: 'BPI',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+      ibanTails: ['0120'],
+    })
+    const intakeId = await read(t, me, {
+      kind: 'transactions',
+      title: 'statement',
+      institution: 'Some Bank',
+      accountTail: '4455',
+      transactions: [
+        {
+          occurredAt: TODAY,
+          merchant: 'Transfer from Artem',
+          raw: 'From PT50…0120',
+          amount: 4400,
+          currency: 'EUR',
+          pending: false,
+          self: true,
+        },
+        {
+          occurredAt: TODAY,
+          merchant: 'Top-up',
+          raw: 'Top-up by card ••2789',
+          amount: 100,
+          currency: 'EUR',
+          pending: false,
+          self: true,
+        },
+      ],
+    })
+    const review = await me.query(api.intake.review, { intakeId })
+    expect(review?.guessedAccountId).toBe(rev)
+    expect(review?.rows.map((r) => r.otherAccountId)).toEqual([bpi, null])
+    await me.mutation(api.intake.confirmTransactions, {
+      intakeId,
+      accountId: rev,
+      dayStart: TODAY,
+      keepBalance: false,
+      rows: [
+        { index: 0, kind: 'move', otherAccountId: bpi },
+        { index: 1, kind: 'move', otherAccountId: bpi },
+      ],
+    })
+    const accounts = await me.query(api.accounts.list, {})
+    expect(accounts.find((a) => a._id === bpi)?.ibanTails).toEqual([
+      '0120',
+      '2789',
+    ])
+  })
+
+  test('a Revolut holdings screen is Revolut Invest, a Revolut statement is Revolut', async () => {
+    const { t, me } = setup()
+    const rev = await me.mutation(api.accounts.create, {
+      name: 'Revolut',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+      product: 'revolut',
+    })
+    const inv = await me.mutation(api.accounts.create, {
+      name: 'Revolut Invest',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+      product: 'revolut-invest',
+    })
+    const screen = await read(t, me, {
+      kind: 'holdings',
+      title: 'Revolut · portfolio',
+      institution: 'Revolut',
+      positions: [{ name: 'Microsoft', candidates: [MSFT], preferred: 0 }],
+    })
+    expect(
+      (await me.query(api.intake.whose, { intakeId: screen })).guessedAccountId,
+    ).toBe(inv)
+    const statement = await read(t, me, {
+      kind: 'transactions',
+      title: 'Revolut statement',
+      institution: 'Revolut',
+      transactions: [
+        {
+          occurredAt: TODAY,
+          merchant: 'Bolt',
+          raw: 'Bolt',
+          amount: -5,
+          currency: 'EUR',
+          pending: false,
+          self: false,
+        },
+      ],
+    })
+    expect(
+      (await me.query(api.intake.review, { intakeId: statement }))
+        ?.guessedAccountId,
+    ).toBe(rev)
+  })
+
+  test('a file from a bank he has not added suggests it', async () => {
+    const { t, me } = setup()
+    const intakeId = await read(t, me, {
+      kind: 'holdings',
+      title: 'Revolut · portfolio',
+      institution: 'Revolut',
+      accountTail: '9911',
+      positions: [{ name: 'Microsoft', candidates: [MSFT], preferred: 0 }],
+    })
+    expect(await me.query(api.intake.whose, { intakeId })).toEqual({
+      guessedAccountId: null,
+      suggest: {
+        product: 'revolut-invest',
+        name: 'Revolut Invest',
+        accountTail: '9911',
+      },
+    })
+  })
+})

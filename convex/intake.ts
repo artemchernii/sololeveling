@@ -4,7 +4,7 @@ import { requireUser } from './auth'
 import { ownedAccount, writeBalance } from './accounts'
 import { checkTrade, heldShares, upsertInstrument } from './invest'
 import { transferPair } from './logs'
-import { writeTransfer } from './money'
+import { euroRate, writeTransfer } from './money'
 import { internal } from './_generated/api'
 import {
   internalMutation,
@@ -28,6 +28,7 @@ import {
   readableFile,
 } from '../src/lib/intake'
 import { dueDay } from '../src/lib/bills'
+import { PRODUCTS, productIn, tailsIn } from '../src/lib/institutions'
 
 /* The intake (Treasury, 27 Sep): what he drops on + becomes a list he
    checks. `start` stores the files and asks the reader (ai/intake.ts);
@@ -149,6 +150,101 @@ export const setAccount = mutation({
   },
 })
 
+const suggestion = v.union(
+  v.null(),
+  v.object({
+    product: v.string(),
+    name: v.string(),
+    accountTail: v.union(v.string(), v.null()),
+  }),
+)
+
+/* His account a set of four-digit endings points at — IBAN or card. */
+function byTail(
+  accounts: ReadonlyArray<Doc<'accounts'>>,
+  tails: ReadonlyArray<string>,
+): Id<'accounts'> | null {
+  for (const t of tails) {
+    const a = accounts.find(
+      (x) => x.ibanTails?.includes(t) || x.cardTails?.includes(t),
+    )
+    if (a) return a._id
+  }
+  return null
+}
+
+/**
+ * Which of his accounts a file is about: by the IBAN or card ending it
+ * prints, then by the bank's name — the most specific product first, so a
+ * Revolut Invest screen is Revolut Invest, not Revolut.
+ */
+function guessAccount(
+  intake: Doc<'intakes'>,
+  accounts: ReadonlyArray<Doc<'accounts'>>,
+): Id<'accounts'> | null {
+  if (intake.accountTail) {
+    const hit = byTail(accounts, [intake.accountTail])
+    if (hit) return hit
+  }
+  const product = productIn(intake.institution)
+  if (product) {
+    const wantBroker = intake.kind !== 'transactions'
+    const same = accounts.filter((a) => a.institution === product.institution)
+    /* Holdings and trades are a broker's, whatever the bank is called. */
+    const fit =
+      same.find((a) => a.kinds.includes(wantBroker ? 'broker' : 'bank')) ??
+      same.find((a) => a.kinds.includes(product.kind)) ??
+      same.at(0)
+    if (fit) return fit._id
+  }
+  if (!intake.institution) return null
+  return matchAccount(
+    intake.institution,
+    accounts.map((a) => ({ id: a._id, name: a.name, domain: a.domain })),
+  ) as Id<'accounts'> | null
+}
+
+/* A bank the app knows and he has not added: "Create Revolut?" */
+function suggestFor(intake: Doc<'intakes'>) {
+  const product = productIn(intake.institution)
+  if (!product) return null
+  const p =
+    intake.kind !== 'transactions' && product.kind === 'bank'
+      ? (PRODUCTS.find(
+          (x) => x.institution === product.institution && x.kind === 'broker',
+        ) ?? product)
+      : product
+  return {
+    product: p.id,
+    name: p.name,
+    accountTail: intake.accountTail ?? null,
+  }
+}
+
+/** For a holdings or trades read: which account, and what to add if none. */
+export const whose = query({
+  args: { intakeId: v.id('intakes') },
+  returns: v.object({
+    guessedAccountId: v.union(v.id('accounts'), v.null()),
+    suggest: suggestion,
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const intake = await ownedIntake(ctx, ownerId, args.intakeId)
+    const accounts = (
+      await ctx.db
+        .query('accounts')
+        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+        .take(50)
+    ).filter((a) => a.retiredAt === undefined)
+    const guessed = intake.accountId ?? guessAccount(intake, accounts)
+    return {
+      guessedAccountId: guessed,
+      suggest: guessed === null ? suggestFor(intake) : null,
+    }
+  },
+})
+
 const reviewRow = v.object({
   index: v.number(),
   occurredAt: v.number(),
@@ -184,6 +280,8 @@ export const review = query({
       accountId: v.union(v.id('accounts'), v.null()),
       /** The account the reader's institution matched, when he has not picked. */
       guessedAccountId: v.union(v.id('accounts'), v.null()),
+      /** None of his accounts, but a bank the app knows: offer to add it. */
+      suggest: suggestion,
       rows: v.array(reviewRow),
       recurring: v.array(
         v.object({
@@ -208,18 +306,7 @@ export const review = query({
         .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
         .take(50)
     ).filter((a) => a.retiredAt === undefined)
-    const guessed =
-      intake.accountId ??
-      (intake.institution
-        ? (matchAccount(
-            intake.institution,
-            accounts.map((a) => ({
-              id: a._id,
-              name: a.name,
-              domain: a.domain,
-            })),
-          ) as Id<'accounts'> | null)
-        : null)
+    const guessed = intake.accountId ?? guessAccount(intake, accounts)
     const accountId = intake.accountId ?? null
     const here = accountId ?? guessed
 
@@ -341,11 +428,15 @@ export const review = query({
                 ? ('reader' as const)
                 : null,
         otherAccountId: move
-          ? (matchAccount(
+          ? (byTail(
+              accounts.filter((a) => a._id !== here),
+              tailsIn(`${r.counterparty ?? ''} ${r.raw}`),
+            ) ??
+            (matchAccount(
               r.counterparty ?? r.merchant,
               others,
               here ?? undefined,
-            ) as Id<'accounts'> | null)
+            ) as Id<'accounts'> | null))
           : null,
         counterparty: r.counterparty ?? null,
         duplicateOf: dups[index] === null ? null : existing[dups[index]]._id,
@@ -394,9 +485,32 @@ export const review = query({
       ),
     }))
 
-    return { accountId, guessedAccountId: guessed, rows, recurring }
+    return {
+      accountId,
+      guessedAccountId: guessed,
+      suggest: here === null ? suggestFor(intake) : null,
+      rows,
+      recurring,
+    }
   },
 })
+
+/* Endings not yet known anywhere are kept on the account (four at most):
+   the next file that prints one is matched without asking. */
+async function learnTails(
+  ctx: MutationCtx,
+  account: Doc<'accounts'>,
+  tails: ReadonlyArray<string>,
+) {
+  const fresh = await ctx.db.get(account._id)
+  if (fresh === null) return
+  const known = [...(fresh.ibanTails ?? []), ...(fresh.cardTails ?? [])]
+  const add = tails.filter((t) => !known.includes(t))
+  if (add.length === 0) return
+  await ctx.db.patch(account._id, {
+    ibanTails: [...(fresh.ibanTails ?? []), ...add].slice(-4),
+  })
+}
 
 /**
  * A transfer already in another of his accounts that this row is the other
@@ -494,6 +608,15 @@ export const confirmTransactions = mutation({
         const other = row.otherAccountId
           ? await ownedAccount(ctx, ownerId, row.otherAccountId)
           : null
+        /* Answer once: the ending printed for the other side is his
+           account's now, so the next statement lands it by itself. */
+        if (other !== null && other._id !== account._id) {
+          await learnTails(
+            ctx,
+            other,
+            tailsIn(`${r.counterparty ?? ''} ${r.raw}`),
+          )
+        }
         /* Both sides, unless the other account already has this transfer
            (its own statement came first) — then only this side, paired to
            it. An account that does not hold the currency gets no side. */
@@ -579,6 +702,7 @@ export const confirmTransactions = mutation({
         intake.balance.asOf + 12 * 3_600_000 - 1,
       )
     }
+    if (intake.accountTail) await learnTails(ctx, account, [intake.accountTail])
     for (const id of intake.storageIds) await ctx.storage.delete(id)
     await ctx.db.patch(intake._id, {
       status: 'done',
@@ -703,6 +827,99 @@ export const confirmHoldings = mutation({
   },
 })
 
+/**
+ * A broker's trade history he checked: each kept buy or sell is written
+ * with its own date and price (in euros at the stored rate), and moves the
+ * broker's cash like a typed one. A trade already there — same ticker,
+ * side and shares within two days — is skipped, so an overlapping export
+ * dropped twice adds nothing.
+ */
+export const confirmTrades = mutation({
+  args: {
+    intakeId: v.id('intakes'),
+    accountId: v.id('accounts'),
+    rows: v.array(v.object({ index: v.number(), candidate })),
+  },
+  returns: v.object({ written: v.number(), skipped: v.number() }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const intake = await ownedIntake(ctx, ownerId, args.intakeId)
+    if (intake.status !== 'ready' || intake.kind !== 'trades') {
+      throw new ConvexError('That is not ready to confirm.')
+    }
+    const account = await ownedAccount(ctx, ownerId, args.accountId)
+    if (!account.kinds.includes('broker')) {
+      throw new ConvexError(`${account.name} is not a broker.`)
+    }
+    const read = intake.trades ?? []
+    const rows = [...args.rows].sort(
+      (a, b) =>
+        (read[a.index]?.occurredAt ?? 0) - (read[b.index]?.occurredAt ?? 0),
+    )
+    let written = 0
+    let skipped = 0
+    const seen = new Set<number>()
+    for (const row of rows) {
+      const t = read[row.index] as (typeof read)[number] | undefined
+      if (t === undefined || seen.has(row.index)) continue
+      seen.add(row.index)
+      const priceEur = t.price * (await euroRate(ctx, ownerId, t.currency))
+      checkTrade(t.shares, priceEur)
+      const instrumentId = await upsertInstrument(
+        ctx,
+        ownerId,
+        row.candidate,
+        t.isin,
+      )
+      const near = await ctx.db
+        .query('trades')
+        .withIndex('by_owner_instrument', (q) =>
+          q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+        )
+        .take(MAX_TRADES)
+      if (
+        near.some(
+          (x) =>
+            x.accountId === account._id &&
+            x.side === t.side &&
+            Math.abs(x.shares - t.shares) < 1e-6 &&
+            Math.abs(x.occurredAt - t.occurredAt) <= 2 * DAY_MS + 3_600_000,
+        )
+      ) {
+        skipped++
+        continue
+      }
+      if (t.side === 'sell') {
+        const held = await heldShares(ctx, ownerId, account._id, instrumentId)
+        if (t.shares > held + 1e-6) {
+          throw new ConvexError(
+            `${account.name} holds only ${Math.round(held * 1e6) / 1e6} ${row.candidate.symbol} to sell on ${new Date(t.occurredAt).toDateString()}.`,
+          )
+        }
+      }
+      await ctx.db.insert('trades', {
+        ownerId,
+        accountId: account._id,
+        instrumentId,
+        side: t.side,
+        shares: t.shares,
+        priceEur: Math.round(priceEur * 10000) / 10000,
+        occurredAt: t.occurredAt,
+        importId: intake._id,
+      })
+      written++
+    }
+    if (intake.accountTail) await learnTails(ctx, account, [intake.accountTail])
+    for (const id of intake.storageIds) await ctx.storage.delete(id)
+    await ctx.db.patch(intake._id, {
+      status: 'done',
+      storageIds: [],
+      accountId: account._id,
+    })
+    return { written, skipped }
+  },
+})
+
 /** Throw it away, files and all. */
 export const discard = mutation({
   args: { intakeId: v.id('intakes') },
@@ -743,16 +960,23 @@ export const forReading = internalQuery({
 
 const txValidator = schema.tables.intakes.validator.fields.transactions
 const posValidator = schema.tables.intakes.validator.fields.positions
+const tradesValidator = schema.tables.intakes.validator.fields.trades
 const balanceValidator = schema.tables.intakes.validator.fields.balance
 
 export const finish = internalMutation({
   args: {
     intakeId: v.id('intakes'),
-    kind: v.union(v.literal('transactions'), v.literal('holdings')),
+    kind: v.union(
+      v.literal('transactions'),
+      v.literal('holdings'),
+      v.literal('trades'),
+    ),
     title: v.string(),
     institution: v.optional(v.string()),
+    accountTail: v.optional(v.string()),
     transactions: txValidator,
     positions: posValidator,
+    trades: tradesValidator,
     balance: balanceValidator,
     cashEur: v.optional(v.number()),
     totalEur: v.optional(v.number()),

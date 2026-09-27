@@ -29,6 +29,7 @@ import {
   matchAccount,
   merchantKey,
   readableFile,
+  sameCompany,
 } from '../src/lib/intake'
 import { dueDay } from '../src/lib/bills'
 import { productIn, tailsIn } from '../src/lib/institutions'
@@ -1021,6 +1022,7 @@ async function writeTrades(
     index: number
     trade: {
       occurredAt: number
+      name: string
       isin?: string
       side: 'buy' | 'sell'
       shares: number
@@ -1033,6 +1035,29 @@ async function writeTrades(
   const rows = [...items].sort(
     (a, b) => a.trade.occurredAt - b.trade.occurredAt,
   )
+  /* What the account already holds — a screenshot's tickers — so a
+     statement's "ALPHABET INC.CL.A DL-,001" lands on the same GOOGL, not
+     on whatever a search returned (sameCompany). */
+  const heldIds = new Set<Id<'instruments'>>()
+  for (const h of await ctx.db
+    .query('holdings')
+    .withIndex('by_owner_account', (q) =>
+      q.eq('ownerId', ownerId).eq('accountId', account._id),
+    )
+    .take(MAX_TRADES))
+    heldIds.add(h.instrumentId)
+  for (const x of await ctx.db
+    .query('trades')
+    .withIndex('by_owner_account', (q) =>
+      q.eq('ownerId', ownerId).eq('accountId', account._id),
+    )
+    .take(MAX_TRADES))
+    heldIds.add(x.instrumentId)
+  const held: Array<Doc<'instruments'>> = []
+  for (const id of heldIds) {
+    const doc = await ctx.db.get(id)
+    if (doc !== null && doc.ownerId === ownerId) held.push(doc)
+  }
   let written = 0
   let skipped = 0
   const seen = new Set<number>()
@@ -1042,7 +1067,11 @@ async function writeTrades(
     seen.add(index)
     const priceEur = t.price * (await euroRate(ctx, ownerId, t.currency))
     checkTrade(t.shares, priceEur)
-    const instrumentId = await upsertInstrument(ctx, ownerId, c, t.isin)
+    const same = sameCompany({ name: t.name, isin: t.isin }, held)
+    const instrumentId =
+      same >= 0
+        ? held[same]._id
+        : await upsertInstrument(ctx, ownerId, c, t.isin)
     const near = await ctx.db
       .query('trades')
       .withIndex('by_owner_instrument', (q) =>
@@ -1527,6 +1556,49 @@ export const fail = internalMutation({
         args.costUsd === undefined
           ? intake.costUsd
           : (intake.costUsd ?? 0) + args.costUsd,
+    })
+    return null
+  },
+})
+
+/* A statement read before its orders were split out (27 Sep): the rows,
+   for ai/intake.resplit to split in place — no second reading. */
+export const unsplit = internalQuery({
+  args: { intakeId: v.id('intakes') },
+  returns: v.union(v.array(txValidator.element), v.null()),
+  handler: async (ctx, args) => {
+    const intake = await ctx.db.get(args.intakeId)
+    if (
+      intake === null ||
+      intake.status !== 'ready' ||
+      intake.kind !== 'transactions' ||
+      (intake.trades ?? []).length > 0 ||
+      !hasTradeRows(intake.transactions ?? [])
+    )
+      return null
+    return intake.transactions ?? null
+  },
+})
+
+export const applySplit = internalMutation({
+  args: {
+    intakeId: v.id('intakes'),
+    transactions: txValidator,
+    trades: tradesValidator,
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const intake = await ctx.db.get(args.intakeId)
+    if (
+      intake === null ||
+      intake.status !== 'ready' ||
+      intake.kind !== 'transactions' ||
+      (intake.trades ?? []).length > 0
+    )
+      return null
+    await ctx.db.patch(args.intakeId, {
+      transactions: args.transactions,
+      trades: args.trades,
     })
     return null
   },

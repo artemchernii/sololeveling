@@ -19,7 +19,7 @@ import { useDayStarts } from '@/components/track/useDayStarts'
 import { failureMessage } from '@/lib/convex-errors'
 import { money } from '@/lib/currency'
 import { dayLabel } from '@/lib/bills'
-import { completePosition, merchantKey } from '@/lib/intake'
+import { completePosition, merchantKey, sameCompany } from '@/lib/intake'
 import { productById, searchProducts } from '@/lib/institutions'
 import type { Candidate } from '@/lib/market'
 import { SPEND_CATEGORIES, categoryLabel } from '@/lib/money'
@@ -682,6 +682,10 @@ function OrdersFound({
   orders: NonNullable<Doc<'intakes'>['trades']>
   account: Doc<'accounts'> | null
 }) {
+  const positions = useQuery(api.aggregate.positions, {})
+  const heldHere = (positions?.rows ?? []).filter(
+    (r) => r.accountId === account?._id,
+  )
   const by = new Map<
     string,
     {
@@ -694,9 +698,15 @@ function OrdersFound({
     }
   >()
   for (const o of orders) {
-    const c = o.candidates.at(
-      o.preferred !== undefined && o.preferred >= 0 ? o.preferred : 0,
-    )
+    /* As confirm will file it: under a ticker the account already holds
+       when it is the same company (sameCompany), else the search's. */
+    const same = sameCompany({ name: o.name, isin: o.isin }, heldHere)
+    const c =
+      same >= 0
+        ? heldHere[same]
+        : o.candidates.at(
+            o.preferred !== undefined && o.preferred >= 0 ? o.preferred : 0,
+          )
     const key = c?.symbol ?? o.isin ?? o.name
     const g = by.get(key) ?? {
       symbol: c?.symbol ?? null,

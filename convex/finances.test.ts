@@ -2050,6 +2050,78 @@ describe('the reader says what it is — trades, and whose account', () => {
     )
   })
 
+  test('a statement’s order lands on the ticker the screenshot saved, whatever the search said', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    const GOOGL = {
+      symbol: 'GOOGL',
+      name: 'Alphabet Inc.',
+      exchange: 'NASDAQ',
+      type: 'EQUITY',
+    }
+    await me.mutation(api.intake.confirmHoldings, {
+      intakeId: await read(t, me, {
+        kind: 'holdings',
+        title: 'TR · holdings',
+        positions: [{ name: 'Alphabet (A)', candidates: [GOOGL] }],
+      }),
+      accountId: tr,
+      asOf: TODAY,
+      dayStart: TODAY,
+      rows: [{ candidate: GOOGL, shares: 1 }],
+    })
+    await me.mutation(api.intake.confirmTrades, {
+      intakeId: await read(t, me, {
+        kind: 'trades',
+        title: 'TR · statement',
+        trades: [
+          {
+            occurredAt: TODAY - 86_400_000,
+            name: 'ALPHABET INC.CL.A DL-,001',
+            isin: 'US02079K3059',
+            side: 'buy',
+            shares: 1,
+            price: 150,
+            currency: 'EUR',
+            candidates: [
+              {
+                symbol: 'NOW-USD.SW',
+                name: 'x',
+                exchange: 'EBS',
+                type: 'EQUITY',
+              },
+            ],
+            preferred: 0,
+          },
+        ],
+      }),
+      accountId: tr,
+      rows: [
+        {
+          index: 0,
+          candidate: {
+            symbol: 'NOW-USD.SW',
+            name: 'x',
+            exchange: 'EBS',
+            type: 'EQUITY',
+          },
+        },
+      ],
+    })
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows).toHaveLength(1)
+    expect(p.rows[0]).toMatchObject({
+      symbol: 'GOOGL',
+      shares: 1,
+      paid: 150,
+      status: 'match',
+    })
+  })
+
   test('a statement’s sell of shares only a screenshot knew is taken, not refused', async () => {
     const { t, me } = setup()
     const tr = await me.mutation(api.accounts.create, {

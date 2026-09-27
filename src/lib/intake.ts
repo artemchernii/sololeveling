@@ -792,7 +792,7 @@ export function preferClass(
 
 /** "Alphabet (A)" → "Alphabet": what a ticker search can find. */
 export function searchableName(name: string): string {
-  return name
+  return brokerName(name)
     .replace(/\((?:class\s*)?[ABC]\)/gi, '')
     .replace(/\b(inc|corp|corporation|plc|ag|sa|nv|ltd|holdings?)\b\.?/gi, '')
     .replace(/\.com\b/gi, '')
@@ -852,4 +852,52 @@ export function splitStatement(rows: ReadonlyArray<ReadTransaction>): {
 /** A reading kept from before this split: its trades are still rows. */
 export function hasTradeRows(rows: ReadonlyArray<ReadTransaction>): boolean {
   return rows.some((r) => tradeInRow(r) !== null)
+}
+
+/* ---- A broker's own spelling of a company ------------------------------ */
+
+/** Trade Republic's "ALPHABET INC.CL.A DL-,001" → "ALPHABET INC. (Class A)":
+    the par value and currency tail gone, a share class said the way
+    preferClass reads it. */
+export function brokerName(name: string): string {
+  return name
+    .replace(/\s+(DL|EO|DK|SF|LS|SK|NK|YN|HD)\s*[-,.\d]+\s*$/i, '')
+    .replace(/\s+[-,.\d]+\s*$/, '')
+    .replace(/\s*ADR(\/\d+)?\b/i, '')
+    .replace(/\s*\bCL\.?\s*([ABC])\b/i, ' (Class $1)')
+    .replace(/\s+([ABC])$/i, ' (Class $1)')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const WORD = (name: string) =>
+  searchableName(name)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .find((w) => w.length >= 3)
+
+/**
+ * The instrument an account already holds that a broker's row means: the
+ * same ISIN, or the same first word of the name ("META PLATF. A" is Meta
+ * Platforms) and, when the row names a class, the same class. A statement
+ * and a screenshot of one account must land on one ticker, or they never
+ * meet. Returns the index, or -1.
+ */
+export function sameCompany(
+  row: { name: string; isin?: string },
+  held: ReadonlyArray<{ symbol: string; name: string; isin?: string }>,
+): number {
+  if (row.isin) {
+    const i = held.findIndex((h) => h.isin === row.isin)
+    if (i >= 0) return i
+  }
+  const word = WORD(row.name)
+  if (!word) return -1
+  const hits = held.flatMap((h, i) => (WORD(h.name) === word ? [i] : []))
+  if (hits.length <= 1) return hits[0] ?? -1
+  const pick = preferClass(
+    brokerName(row.name),
+    hits.map((i) => ({ ...held[i], exchange: '', type: 'EQUITY' })),
+  )
+  return pick >= 0 ? hits[pick] : -1
 }

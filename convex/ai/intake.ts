@@ -645,6 +645,28 @@ function ownMoney(
   return own ? { ...t, self: true, counterparty: t.raw.slice(0, 80) } : t
 }
 
+/** Split an already-read statement's orders out in place, tickers and all
+    — for readings kept from before splitStatement (27 Sep). */
+export const resplit = internalAction({
+  args: { intakeId: v.id('intakes') },
+  returns: v.object({ trades: v.number() }),
+  handler: async (ctx, args) => {
+    const rows = await ctx.runQuery(internal.intake.unsplit, args)
+    if (rows === null) return { trades: 0 }
+    const split = splitStatement(rows)
+    const tickers = new Tickers()
+    const trades = []
+    for (const t of split.trades)
+      trades.push({ ...t, ...(await tickers.find(t.name, t.isin)) })
+    await ctx.runMutation(internal.intake.applySplit, {
+      intakeId: args.intakeId,
+      transactions: split.transactions,
+      trades,
+    })
+    return { trades: trades.length }
+  },
+})
+
 /* A name as the broker prints it → ticker candidates, and which one is the
    right share class. Once per name: a trade history repeats them. */
 class Tickers {
@@ -657,8 +679,12 @@ class Tickers {
     const known = this.found.get(key)
     if (known) return known
     let candidates: Array<Candidate> = []
+    /* A share or a fund: an ISIN search can come back with a coin or a
+       future ("NOW-USD.SW" for Alphabet, 27 Sep) — then ask by name. */
+    const listed = (c: Array<Candidate>) =>
+      c.filter((x) => x.type === 'EQUITY' || x.type === 'ETF')
     try {
-      if (isin) candidates = await searchYahoo(isin)
+      if (isin) candidates = listed(await searchYahoo(isin))
       if (candidates.length === 0)
         candidates = await searchYahoo(searchableName(name))
     } catch {

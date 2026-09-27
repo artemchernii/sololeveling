@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest'
 
 import {
+  brokerName,
+  sameCompany,
   hasTradeRows,
   splitStatement,
   tradeInRow,
@@ -488,5 +490,33 @@ describe('a broker statement’s trades', () => {
       ['Apple Pay Top up', true],
     ])
     expect(hasTradeRows([row('Apple Pay Top up', 25)])).toBe(false)
+  })
+})
+
+describe('a broker’s own spelling', () => {
+  test('brokerName drops the par value and says the class', () => {
+    expect(brokerName('ALPHABET INC.CL.A DL-,001')).toBe(
+      'ALPHABET INC. (Class A)',
+    )
+    expect(brokerName('NVIDIA CORP. DL-,001')).toBe('NVIDIA CORP.')
+    expect(brokerName('ASML HOLDING EO -,09')).toBe('ASML HOLDING')
+    expect(brokerName('TAIWAN SEMICON.MANU.ADR/5')).toBe('TAIWAN SEMICON.MANU.')
+    expect(brokerName('META PLATF. A DL-,000006')).toBe('META PLATF. (Class A)')
+  })
+
+  const held = [
+    { symbol: 'GOOG', name: 'Alphabet Inc.' },
+    { symbol: 'GOOGL', name: 'Alphabet Inc.' },
+    { symbol: 'META', name: 'Meta Platforms, Inc.' },
+    { symbol: 'NVDA', name: 'NVIDIA Corporation', isin: 'US67066G1040' },
+    { symbol: 'UBER', name: 'Uber Technologies, Inc.' },
+  ]
+
+  test('sameCompany finds what the account already holds', () => {
+    expect(sameCompany({ name: 'ALPHABET INC.CL.A DL-,001' }, held)).toBe(1)
+    expect(sameCompany({ name: 'META PLATF. A DL-,000006' }, held)).toBe(2)
+    expect(sameCompany({ name: 'NVIDIA', isin: 'US67066G1040' }, held)).toBe(3)
+    expect(sameCompany({ name: 'UBER TECH. DL-,00001' }, held)).toBe(4)
+    expect(sameCompany({ name: 'APPLE INC.' }, held)).toBe(-1)
   })
 })

@@ -2,7 +2,7 @@ import {
   Activity,
   CalendarDays,
   Compass,
-  Euro,
+  ChartNoAxesCombined,
   Inbox,
   Languages,
   Layers,
@@ -66,7 +66,12 @@ export const navGroups: Array<NavGroup> = [
   {
     heading: 'TRACK',
     items: [
-      { to: '/finances', label: 'Finances', icon: Euro, area: 'money' },
+      {
+        to: '/finances',
+        label: 'Finances',
+        icon: ChartNoAxesCombined,
+        area: 'money',
+      },
       { to: '/body', label: 'Body', icon: Activity, area: 'body' },
       {
         to: '/languages',

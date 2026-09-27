@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@5/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-200: #e7e5fe; --lav-300: #d2cefd; --lav-400: #b5abfc; --lav-600: #796cbf;
+    --good: oklch(0.78 0.17 150);
+    --bad: oklch(0.68 0.2 22);
+    --warn: oklch(0.79 0.15 75);
+    --money: oklch(0.8 0.1 85);
+    --glass: linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
+    --edge: rgba(233,233,237,.09);
+    --shadow: inset 0 1px 0 rgba(233,233,237,.08), 0 24px 48px -28px rgba(0,0,0,.9);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 20px 16px 120px; display: flex; flex-direction: column; gap: 16px; }
+  .note { font-family: var(--mono); font-size: 11px; color: var(--warn); letter-spacing: .08em; text-transform: uppercase; text-align: center; opacity: .8 }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400); }
+  .mono { font-family: var(--mono); }
+  .glass { background: var(--glass); border: 1px solid var(--edge); border-radius: 22px; box-shadow: var(--shadow); backdrop-filter: blur(18px); padding: 18px; }
+  .good { color: var(--good) } .bad { color: var(--bad) } .dim { color: var(--ink-500) }
+  .veil .money { filter: blur(9px); user-select: none; }
+  .money { transition: filter .25s ease; }
+
+  /* The System window */
+  .sys { position: relative; border-radius: 14px; border: 1px solid var(--sys-edge); padding: 20px;
+    background: linear-gradient(160deg, rgba(181,171,252,.10), rgba(181,171,252,.02) 40%), var(--glass);
+    box-shadow: var(--shadow), 0 0 40px -18px var(--shine); overflow: hidden; }
+  .sys::before { content:''; position:absolute; inset:0; pointer-events:none; background: repeating-linear-gradient(0deg, rgba(233,233,237,.022) 0 1px, transparent 1px 3px); }
+  .sys::after { content:''; position:absolute; inset:-1px; border:2px solid var(--lav-400); border-radius:15px; pointer-events:none;
+    --r: 22px; mask: linear-gradient(#000 0 0) top left/var(--r) var(--r), linear-gradient(#000 0 0) top right/var(--r) var(--r), linear-gradient(#000 0 0) bottom left/var(--r) var(--r), linear-gradient(#000 0 0) bottom right/var(--r) var(--r); mask-repeat:no-repeat; filter: drop-shadow(0 0 5px var(--shine)); }
+  .sys-title { font-family: var(--mono); font-size: 12px; letter-spacing: .38em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 12px var(--shine); }
+
+  .hero { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 820px) { .hero { grid-template-columns: 1.35fr 1fr; } }
+  .photo { position:absolute; inset:0 0 0 auto; width:42%; background:
+      radial-gradient(closest-side at 70% 45%, rgba(255,214,120,.22), transparent 70%),
+      linear-gradient(135deg, rgba(90,70,160,.25), rgba(20,20,40,0));
+    mask-image: linear-gradient(to left, #000 40%, transparent); display:none; }
+  .photo span { position:absolute; right:16px; bottom:14px; font-family:var(--mono); font-size:10px; color:var(--ink-500); letter-spacing:.12em; text-transform:uppercase }
+  @media (min-width: 820px) { .photo { display:block } }
+  .big { font-size: 56px; font-weight: 300; letter-spacing: -.02em; line-height: 1; }
+  @media (max-width: 520px) { .big { font-size: 42px } }
+  .pill { display:inline-flex; align-items:center; gap:10px; padding: 7px 12px; border-radius: 10px; background: rgba(255,255,255,.06); font-family: var(--mono); font-size: 15px; font-weight:500 }
+  .chip { display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-300); border:1px solid rgba(255,255,255,.12); background:transparent; cursor:pointer }
+  .chip.on { color: var(--ink-100); border-color: color-mix(in oklch, var(--lav-400) 50%, transparent); background: rgba(181,171,252,.14); box-shadow: 0 0 18px -6px var(--shine) }
+  .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+  .between { justify-content: space-between }
+
+  .rooms { position: sticky; top: 8px; z-index: 5; display:flex; gap:6px; padding:6px; border-radius: 999px; background: rgba(22,24,38,.72); backdrop-filter: blur(14px); border:1px solid var(--edge); width: fit-content; margin: 0 auto; }
+  .rooms button { font-family: var(--mono); font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-400); background: none; border: 0; padding: 9px 16px; border-radius: 999px; cursor: pointer; }
+  @media (max-width: 520px) { .rooms { gap: 2px; padding: 4px } .rooms button { padding: 8px 10px; font-size: 10.5px; letter-spacing: .08em } }
+  .rooms button.on { color: var(--ink-100); background: rgba(181,171,252,.16); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 45%, transparent), 0 0 18px -6px var(--shine) }
+  .room { display:none; flex-direction:column; gap:16px; animation: arrive .35s cubic-bezier(.2,.8,.2,1) }
+  .room.on { display:flex }
+  @keyframes arrive { from { opacity:0; transform: translateY(6px) } to { opacity:1; transform:none } }
+
+  .split { display:flex; height: 10px; border-radius: 999px; overflow: hidden; gap: 3px }
+  .split > div { border-radius: 999px }
+  .grid { display:grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+  .card { background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.07); border-radius: 16px; padding: 14px; display:flex; flex-direction:column; gap:8px; transition: border-color .15s, transform .15s; }
+  .card:hover { border-color: color-mix(in oklch, var(--lav-400) 40%, transparent); transform: translateY(-1px) }
+  .kind { font-family: var(--mono); font-size: 9.5px; letter-spacing:.14em; text-transform:uppercase; padding:2px 7px; border-radius: 6px; background: rgba(255,255,255,.06); color: var(--ink-400) }
+  .num { font-size: 22px; font-weight: 300 }
+  .chart { width: 100%; height: 280px; }
+  .chart.sm { height: 220px }
+  .logo { width: 34px; height: 34px; border-radius: 10px; display:grid; place-items:center; font-family: var(--mono); font-size: 11px; font-weight:500; color:#fff; flex-shrink:0 }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: right; font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500); font-weight: 400; padding: 8px 8px; }
+  th:first-child, td:first-child { text-align: left }
+  td { text-align: right; padding: 10px 8px; border-top: 1px solid rgba(255,255,255,.05); font-family: var(--mono); font-size: 13px; white-space: nowrap }
+  tr.pos { cursor: pointer } tr.pos:hover td { background: rgba(255,255,255,.025) }
+  .hide-sm { } @media (max-width: 700px) { .hide-sm { display:none } }
+  .scroll-x { overflow-x: auto }
+
+  .river { position: relative; height: 150px; margin-top: 8px }
+  .river .axis { position:absolute; left:0; right:0; top: 74px; height: 2px; background: rgba(255,255,255,.08); border-radius: 2px }
+  .river .today { position:absolute; top: 20px; bottom: 20px; width: 2px; background: var(--lav-400); box-shadow: 0 0 12px var(--shine) }
+  .river .ev { position:absolute; transform: translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:4px; font-family: var(--mono); font-size: 10.5px; cursor:pointer; white-space: nowrap }
+  .river .dot { width: 12px; height: 12px; border-radius: 999px; border: 2px solid currentColor; background: var(--bg) }
+  .river .ev.paid .dot { background: currentColor }
+  .bar-h { height: 8px; border-radius: 999px; background: rgba(255,255,255,.06); overflow: hidden }
+  .bar-h > div { height: 100%; border-radius: 999px }
+  .fab { position: fixed; right: 22px; bottom: 22px; width: 56px; height: 56px; border-radius: 18px; border: 0; background: var(--lav-400); color: #1a1830; font-size: 28px; cursor: pointer; box-shadow: 0 10px 30px -8px var(--shine) }
+  .insight { border-left: 2px solid var(--lav-400); padding: 4px 0 4px 14px; display:flex; flex-direction:column; gap:6px }
+  .drop { border: 1.5px dashed color-mix(in oklch, var(--lav-400) 45%, transparent); border-radius: 16px; padding: 22px; text-align:center; color: var(--ink-300) }
+  .eye { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; border: 1px solid color-mix(in oklch, var(--lav-400) 45%, transparent); background: rgba(181,171,252,.12); color: var(--ink-100); cursor: pointer }
+  .spark { width: 90px; height: 28px }
+
+  .badge { font-family: var(--mono); font-size: 9.5px; letter-spacing:.14em; text-transform:uppercase; padding:3px 8px; border-radius: 6px; border:1px solid }
+  .b-bank { color: #e3c77a; border-color: rgba(227,199,122,.35); background: rgba(227,199,122,.08) }
+  .b-broker { color: var(--lav-300); border-color: rgba(181,171,252,.4); background: rgba(181,171,252,.1) }
+  .b-cash { color: #9fd9b4; border-color: rgba(159,217,180,.35); background: rgba(159,217,180,.08) }
+  .b-api { color: var(--good); border-color: color-mix(in oklch, var(--good) 40%, transparent); background: color-mix(in oklch, var(--good) 10%, transparent) }
+  .upd { font-family: var(--mono); font-size: 10.5px; letter-spacing:.1em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; border:1px solid rgba(255,255,255,.14); background: none; color: var(--ink-300); cursor:pointer }
+  .upd.late { color: var(--warn); border-color: color-mix(in oklch, var(--warn) 45%, transparent); background: color-mix(in oklch, var(--warn) 10%, transparent) }
+  .bill { display:grid; grid-template-columns: 58px 1fr auto 96px; align-items:center; gap: 10px; padding: 10px 8px; border-top: 1px solid rgba(255,255,255,.05); font-size: 14px }
+  .bill .d { font-family: var(--mono); font-size: 11px; color: var(--ink-400) }
+  .bill .mono { white-space: nowrap }
+  @media (max-width: 520px) { .bill { grid-template-columns: 50px 1fr auto 84px; gap: 8px } }
+  .btn { font-family: var(--mono); font-size: 10.5px; letter-spacing:.12em; text-transform: uppercase; padding: 7px 10px; border-radius: 999px; border:1px solid color-mix(in oklch, var(--lav-400) 45%, transparent); background: rgba(181,171,252,.14); color: var(--ink-100); cursor: pointer; text-align:center }
+  .btn.done { background: none; border-color: transparent; color: var(--lav-300) }
+  .btn.late { border-color: color-mix(in oklch, var(--warn) 50%, transparent); background: color-mix(in oklch, var(--warn) 12%, transparent); color: var(--warn) }
+  .scrim { position: fixed; inset: 0; background: rgba(8,8,16,.6); backdrop-filter: blur(4px); display:none; align-items:flex-end; justify-content:center; z-index: 20 }
+  .scrim.on { display:flex }
+  @media (min-width: 700px) { .scrim { align-items:center } }
+  .sheet { width: min(560px, 100%); max-height: 88vh; overflow:auto; background: #1c1e2e; border:1px solid var(--edge); border-radius: 22px 22px 0 0; padding: 18px; display:flex; flex-direction:column; gap:14px; animation: arrive .3s cubic-bezier(.2,.8,.2,1) }
+  @media (min-width: 700px) { .sheet { border-radius: 22px } }
+  .acts { display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px }
+  @media (min-width: 520px) { .acts { grid-template-columns: repeat(3, 1fr) } }
+  .act { display:flex; flex-direction:column; gap:6px; align-items:flex-start; text-align:left; padding: 14px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); color: var(--ink-100); cursor:pointer; font: inherit }
+  .act:hover { border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .act .i { font-size: 20px } .act small { color: var(--ink-500); font-family: var(--mono); font-size: 10.5px }
+  .field { display:flex; align-items:center; gap:8px; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); font-size: 16px }
+  .field input { background: none; border: 0; color: var(--ink-100); font: inherit; outline: none; width: 100% }
+  .opts { display:flex; flex-wrap:wrap; gap:6px }
+  .step { font-family: var(--mono); font-size: 11px; color: var(--ink-500); letter-spacing:.12em; text-transform: uppercase }
+
+  .card { height: 100% }
+  .card .foot { margin-top: auto; border-top: 1px solid rgba(255,255,255,.06); padding-top: 10px; display:flex; align-items:center; justify-content:space-between; gap:8px }
+  .menu-dot { width: 28px; height: 28px; border-radius: 8px; border: 0; background: none; color: var(--ink-400); cursor: pointer; font-size: 18px; line-height: 1 }
+  .menu-dot:hover { background: rgba(255,255,255,.06); color: var(--ink-100) }
+  .cur { font-family: var(--mono); font-size: 10px; padding: 2px 6px; border-radius: 5px; background: rgba(255,255,255,.06); color: var(--ink-300) }
+  .tabs3 { display:flex; gap:4px; padding:4px; border-radius: 12px; background: rgba(255,255,255,.04) }
+  .tabs3 button { flex:1; font-family: var(--mono); font-size: 11px; letter-spacing:.12em; text-transform: uppercase; padding: 9px; border-radius: 9px; border:0; background: none; color: var(--ink-400); cursor:pointer }
+  .tabs3 button.on { background: rgba(181,171,252,.16); color: var(--ink-100); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 40%, transparent) }
+  .read { display:flex; flex-direction:column; gap:10px; padding: 14px; border-radius: 14px; background: rgba(181,171,252,.06); border: 1px solid color-mix(in oklch, var(--lav-400) 30%, transparent) }
+  .found { display:grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: start; font-size: 13.5px }
+  .found .ic { font-family: var(--mono); color: var(--lav-400) }
+  .beam { height: 3px; border-radius: 3px; background: linear-gradient(90deg, transparent, var(--lav-400), transparent); background-size: 200% 100%; animation: beam 1.1s linear infinite }
+  @keyframes beam { from { background-position: 200% 0 } to { background-position: -200% 0 } }
+
+  .cats { display:grid; grid-template-columns: repeat(3, 1fr); gap: 6px }
+  @media (min-width: 520px) { .cats { grid-template-columns: repeat(5, 1fr) } }
+  .cat { display:flex; flex-direction:column; align-items:center; gap:4px; padding: 10px 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); color: var(--ink-200); font-size: 12px; cursor: pointer }
+  .cat span { font-size: 18px }
+  .cat.on { border-color: color-mix(in oklch, var(--lav-400) 55%, transparent); background: rgba(181,171,252,.14); color: var(--ink-100); box-shadow: 0 0 16px -8px var(--shine) }
+  .big-amount { display:flex; align-items:baseline; gap:6px; padding: 6px 2px }
+  .big-amount span { font-size: 30px; color: var(--ink-500); font-weight: 300 }
+  .big-amount input { background:none; border:0; outline:none; color: var(--ink-100); font: 300 44px Inter, sans-serif; width: 100% }
+  .recent { display:flex; gap:6px; overflow-x:auto; padding-bottom: 2px }
+  .recent button { flex-shrink:0; font-size: 12.5px; padding: 7px 11px; border-radius: 999px; border: 1px dashed rgba(255,255,255,.16); background: none; color: var(--ink-200); cursor:pointer; white-space:nowrap }
+  .recent button:hover { border-style: solid; border-color: color-mix(in oklch, var(--lav-400) 50%, transparent) }
+  .arrow-row { display:grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items:center }
+
+  .review { width: min(980px, 100%); max-height: 92vh }
+  .src { display:flex; align-items:center; gap:12px; padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.03); cursor:pointer; text-align:left; color: var(--ink-100); font: inherit; width:100% }
+  .src:hover { border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .src .ft { width: 38px; height: 46px; border-radius: 6px; display:grid; place-items:center; font-family: var(--mono); font-size: 10px; flex-shrink:0 }
+  .kpi { display:flex; flex-direction:column; gap:2px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.07); min-width: 120px; flex:1 }
+  .kpi b { font-size: 20px; font-weight: 300 }
+  .sec { display:flex; flex-direction:column; gap:6px; padding: 12px; border-radius: 14px; border:1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.02) }
+  .sec h4 { font-family: var(--mono); font-size: 10.5px; letter-spacing:.16em; text-transform: uppercase; color: var(--ink-400); font-weight: 400; display:flex; justify-content:space-between; gap:8px; align-items:center }
+  .tx { display:grid; grid-template-columns: 62px 1fr auto auto; gap: 10px; align-items:center; padding: 7px 4px; border-top: 1px solid rgba(255,255,255,.04); font-size: 13.5px }
+  .tx .raw { font-family: var(--mono); font-size: 10.5px; color: var(--ink-600) }
+  .tx .d { font-family: var(--mono); font-size: 11px; color: var(--ink-500) }
+  .conf { font-family: var(--mono); font-size: 10px; letter-spacing:.1em; text-transform:uppercase; padding: 2px 6px; border-radius: 5px }
+  .conf.hi { color: var(--good); background: color-mix(in oklch, var(--good) 10%, transparent) }
+  .conf.lo { color: var(--warn); background: color-mix(in oklch, var(--warn) 12%, transparent) }
+  .conf.calc { color: var(--lav-300); background: rgba(181,171,252,.12) }
+  .conf.dup { color: var(--ink-400); background: rgba(255,255,255,.06) }
+  select.cat-sel { background: rgba(255,255,255,.05); color: var(--ink-100); border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 4px 6px; font: 12px 'JetBrains Mono' }
+  .hold { display:grid; grid-template-columns: 34px 1.4fr 1fr .8fr .8fr .9fr; gap: 10px; align-items:center; padding: 8px 4px; border-top: 1px solid rgba(255,255,255,.04); font-size: 13px }
+  @media (max-width: 700px) { .hold { grid-template-columns: 30px 1fr auto; } .hold .opt { display:none } }
+  .tlogo { width: 30px; height: 30px; border-radius: 8px; background:#fff; object-fit: contain; padding: 3px }
+  .tip { font-size: 12.5px; color: var(--ink-300); display:flex; gap:8px; align-items:flex-start }
+  .tip b { color: var(--ink-100) }
+</style>
+</head>
+<body class="veil">
+<div class="wrap">
+  <div class="note">mockup · sample numbers · nothing here is your data</div>
+
+  <!-- HERO -->
+  <section class="sys">
+    <div class="photo"><span>photo — your pick</span></div>
+    <div class="row between" style="border-bottom:1px solid rgba(181,171,252,.2); padding-bottom:12px; position:relative">
+      <span class="sys-title">[ treasury ]</span>
+      <div class="row"><button class="upd late" id="checkinBtn">check-in · 3 to update</button><button class="eye" id="eye">show</button></div>
+    </div>
+    <div class="hero" style="margin-top:16px; position:relative">
+      <div style="display:flex; flex-direction:column; gap:12px">
+        <span class="caps">capital · cash + investments</span>
+        <span class="big money" id="heroTotal">€54,380</span>
+        <div class="row">
+          <span class="pill"><span class="good money">+1,240</span><span class="dim" style="font-size:12px">this month</span></span>
+          <span class="pill"><span class="good money">+3,150</span><span class="bad money">−1,910</span><span class="dim" style="font-size:12px">in · out</span></span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; max-width: 460px">
+          <div class="split"><div id="splitCash" style="flex:29.8; background: var(--money)"></div><div id="splitInv" style="flex:24.6; background: var(--lav-400)"></div></div>
+          <div class="row between mono" style="font-size:12px">
+            <span><span style="color:var(--money)">●</span> free cash <span class="money" id="heroCash">€29,800</span></span>
+            <span><span style="color:var(--lav-400)">●</span> invested <span class="money" id="heroInv">€24,580</span></span>
+          </div>
+        </div>
+        <span class="mono dim" style="font-size:11px">cash oldest read 2d ago · closes as of Sep 25 · Yahoo Finance</span>
+      </div>
+    </div>
+  </section>
+
+  <nav class="rooms" id="rooms">
+    <button class="on" data-room="overview">Overview</button>
+    <button data-room="flow">Flow</button>
+    <button data-room="portfolio">Portfolio</button>
+    <button data-room="insights">Insights</button>
+  </nav>
+
+  <!-- OVERVIEW -->
+  <section class="room on" id="overview">
+    <div class="glass">
+      <div class="row between">
+        <div class="row" id="seriesPick">
+          <button class="chip on" data-s="total">total</button>
+          <button class="chip" data-s="cash">free cash</button>
+          <button class="chip" data-s="invested">invested</button>
+        </div>
+        <div class="row" id="rangePick">
+          <button class="chip" data-r="30">1M</button>
+          <button class="chip" data-r="90">3M</button>
+          <button class="chip" data-r="180">6M</button>
+          <button class="chip on" data-r="365">1Y</button>
+        </div>
+      </div>
+      <div class="chart" id="worthChart" style="margin-top:12px"></div>
+    </div>
+    <div class="glass">
+      <div class="row between" style="margin-bottom:12px">
+        <div class="row" id="accFilter"><button class="chip on" data-k="all">all</button><button class="chip" data-k="bank">bank</button><button class="chip" data-k="broker">broker</button><button class="chip" data-k="cash">cash</button></div>
+        <button class="upd" data-open="account">+ account</button>
+      </div>
+      <div class="grid" id="accounts"></div>
+    </div>
+  </section>
+
+  <!-- FLOW -->
+  <section class="room" id="flow">
+    <div class="glass">
+      <div class="row between">
+        <span class="caps">this pay month · Aug 28 → Sep 27</span>
+        <span class="caps">today Sep 26</span>
+      </div>
+      <p style="color:var(--ink-400); font-size:13px; margin-top:8px; max-width:640px">
+        The line starts at your salary and <b style="color:var(--ink-200)">steps down on each bill's day</b>. The shaded part under it is what your spending took on top, up to today. Where the line ends is what's left after bills.
+      </p>
+      <div class="scroll-x" style="margin-top:10px"><svg id="month" viewBox="0 0 1000 240" style="width:100%; min-width:760px; height:auto; overflow:visible"></svg></div>
+      <div class="row between" style="margin-top:6px">
+        <div style="display:flex; flex-direction:column; gap:2px"><span class="caps">left after bills</span><span class="num money" id="leftAfter" style="font-size:30px">€0</span></div>
+        <div style="display:flex; flex-direction:column; gap:2px"><span class="caps">spent on top</span><span class="num money" style="font-size:30px">€612 <span class="bad mono" style="font-size:13px">▲ 8% vs Aug</span></span></div>
+        <div style="display:flex; flex-direction:column; gap:2px; text-align:right"><span class="caps">left today</span><span class="num money good" id="leftToday" style="font-size:30px">€0</span></div>
+      </div>
+    </div>
+    <div class="glass">
+      <div class="row between" style="margin-bottom:4px"><span class="caps">bills and salary · tap a name to edit</span><button class="upd" data-open="bill">+ bill or salary</button></div>
+      <div id="bills"></div>
+    </div>
+    <div style="display:grid; gap:16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr))">
+      <div class="glass">
+        <div class="row between" style="margin-bottom:10px"><span class="caps">in vs out · 6 months · what stayed</span><span class="mono" style="font-size:11px"><span class="good">■ in</span> &nbsp;<span class="bad">■ out</span></span></div>
+        <svg id="flowBars" viewBox="0 0 600 240" style="width:100%; height:auto"></svg>
+      </div>
+      <div class="glass">
+        <div class="row between" style="margin-bottom:12px"><span class="caps">spending by category · September</span><span class="caps">vs August</span></div>
+        <div id="cats" style="display:flex; flex-direction:column; gap:12px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PORTFOLIO -->
+  <section class="room" id="portfolio">
+    <div class="glass">
+      <div class="row between" style="align-items:flex-end">
+        <div style="display:flex; flex-direction:column; gap:6px">
+          <span class="caps">shares worth · all brokers</span>
+          <span class="big money" style="font-size:44px" id="pfValue">€24,580</span>
+          <div class="row">
+            <span class="pill"><span class="good money">+2,680</span><span class="good">+12.2%</span><span class="dim" style="font-size:12px">all time</span></span>
+            <span class="pill"><span class="good money">+84</span><span class="good">+0.34%</span><span class="dim" style="font-size:12px">today</span></span>
+          </div>
+        </div>
+        <span class="mono dim" style="font-size:11px">you paid <span class="money">€21,900</span> for these · closes Sep 25</span>
+      </div>
+      <div class="chart" id="pfChart" style="margin-top:14px"></div>
+      <div class="mono" style="font-size:11px; margin-top:6px"><span style="color:var(--lav-400)">━ value</span> &nbsp; <span class="dim">┅ what you paid</span> &nbsp; <span class="dim">the gap between them is your profit</span></div>
+    </div>
+    <div class="grid" id="brokers" style="grid-template-columns: repeat(auto-fit, minmax(280px,1fr))"></div>
+    <div class="glass">
+      <div class="row between" style="margin-bottom:6px"><span class="row"><span class="caps">positions</span><button class="upd" data-open="trade">+ buy / sell</button></span>
+        <div class="row" id="brokerPick"><button class="chip on" data-b="all">all</button><button class="chip" data-b="Revolut">Revolut</button><button class="chip" data-b="Trade Republic">Trade Republic</button><button class="chip" data-b="Trading 212">Trading 212</button></div>
+      </div>
+      <div class="scroll-x"><table>
+        <thead><tr><th>ticker</th><th class="hide-sm">shares</th><th class="hide-sm">you paid / sh</th><th>price</th><th>value</th><th>P&amp;L</th><th class="hide-sm">3M</th></tr></thead>
+        <tbody id="positions"></tbody>
+      </table></div>
+      <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px">
+        <span class="caps">allocation</span>
+        <div class="split" id="alloc" style="height:14px"></div>
+        <div class="row mono" id="allocKey" style="font-size:11px; gap:14px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSIGHTS -->
+  <section class="room" id="insights">
+    <div class="sys">
+      <div class="row between" style="border-bottom:1px solid rgba(181,171,252,.2); padding-bottom:12px; position:relative">
+        <span class="sys-title">[ analysis ]</span>
+        <span class="mono dim" style="font-size:11px">Claude · read your rows Sep 26 · analysis, not advice</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:18px; margin-top:16px; position:relative">
+        <div class="insight"><span class="caps" style="color:var(--warn)">idle cash</span><span>€11,000 has sat uninvested in <b>212</b> for 4 months. At Portugal's 2.4% inflation (Eurostat, Aug) that is about <b class="bad money">€88</b> of buying power so far.</span></div>
+        <div class="insight"><span class="caps">spending</span><span>Eating out is <b class="bad">+38%</b> on August — 9 visits vs 6. Groceries are down <b class="good">−12%</b>.</span></div>
+        <div class="insight"><span class="caps">bills</span><span>Fixed bills take <b>€1,716</b> of a <b>€2,900</b> salary — 59%. The mortgage is 44% of it on its own.</span></div>
+        <div class="insight"><span class="caps">portfolio</span><span>One ETF (VWCE) is 48% of what you hold; the rest is four US stocks. Everything you own is in two currencies — EUR and USD.</span></div>
+        <div class="row"><button class="chip on">ask about my money…</button><span class="mono dim" style="font-size:11px">R7 · later</span></div>
+      </div>
+    </div>
+    <div style="display:grid; gap:16px; grid-template-columns: repeat(auto-fit, minmax(300px,1fr))">
+      <div class="glass">
+        <span class="caps">inflation · Portugal · HICP</span>
+        <div class="row" style="margin-top:10px; align-items:flex-end; gap:16px">
+          <span class="num" style="font-size:34px">2.4%</span><span class="mono dim" style="font-size:11px">Aug 2026 · Eurostat<br/>euro area 2.1%</span>
+        </div>
+        <div class="chart sm" id="inflChart" style="height:140px; margin-top:8px"></div>
+      </div>
+      <div class="glass" style="display:flex; flex-direction:column; gap:12px">
+        <span class="caps">statements vault</span>
+        <div class="drop">Drop a bank statement — PDF or CSV<br/><span class="mono dim" style="font-size:11px">Revolut · BPI · Activo · TR · 212</span></div>
+        <div class="mono" style="font-size:12px; display:flex; flex-direction:column; gap:8px">
+          <div class="row between"><span>Revolut · August.pdf</span><span class="good">✓ 84 rows · 12 unsorted</span></div>
+          <div class="row between"><span>BPI · August.csv</span><span class="good">✓ 31 rows</span></div>
+          <div class="row between"><span>212 · Q3 export.csv</span><span class="dim">reading…</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<button class="fab" id="fab" title="add · drop files or log">+</button>
+<div class="scrim" id="scrim"><div class="sheet" id="sheet"></div></div>
+
+<script>
+  /* ---- sample data (seeded, so it looks the same every load) ---- */
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const DAY = 86400; const now = Math.floor(new Date(2026, 8, 26).getTime() / 1000);
+  const days = [...Array(365)].map((_, i) => now - (364 - i) * DAY);
+  let cash = 24000, inv = 16500;
+  const S = { total: [], cash: [], invested: [], putIn: [] }; let put = 15200;
+  days.forEach((t, i) => {
+    const d = new Date(t * 1000);
+    if (d.getDate() === 28) cash += 2900;
+    if (d.getDate() === 30) cash -= 750;
+    cash -= 30 + rnd() * 35;
+    if (i % 30 === 5) { cash -= 600; put += 600; inv += 600; }
+    inv *= 1 + (rnd() - 0.47) * 0.012;
+    S.cash.push({ time: t, value: Math.round(cash) });
+    S.invested.push({ time: t, value: Math.round(inv) });
+    S.total.push({ time: t, value: Math.round(cash + inv) });
+    S.putIn.push({ time: t, value: put });
+  });
+
+  const LC = LightweightCharts;
+  const base = (el) => LC.createChart(el, {
+    autoSize: true, layout: { background: { color: 'transparent' }, textColor: '#8e8ea3', fontFamily: 'JetBrains Mono', fontSize: 11, attributionLogo: false },
+    grid: { vertLines: { visible: false }, horzLines: { color: 'rgba(255,255,255,.05)' } },
+    rightPriceScale: { borderVisible: false }, timeScale: { borderVisible: false },
+    crosshair: { vertLine: { color: 'rgba(181,171,252,.5)', labelBackgroundColor: '#5d5294' }, horzLine: { color: 'rgba(181,171,252,.3)', labelBackgroundColor: '#5d5294' } },
+    handleScroll: false, handleScale: false,
+  });
+  const fmt = { priceFormat: { type: 'custom', formatter: (v) => '€' + Math.round(v).toLocaleString('en') } };
+
+  /* Overview chart */
+  const wc = base(document.getElementById('worthChart'));
+  const COLORS = { total: '#b5abfc', cash: 'oklch(0.8 0.1 85)', invested: '#b5abfc' };
+  const area = wc.addSeries(LC.AreaSeries, { lineColor: '#b5abfc', topColor: 'rgba(181,171,252,.35)', bottomColor: 'rgba(181,171,252,0)', lineWidth: 2, ...fmt });
+  let series = 'total', range = 365;
+  function drawWorth() {
+    const c = series === 'cash' ? '#e3c77a' : '#b5abfc';
+    area.applyOptions({ lineColor: c, topColor: c === '#b5abfc' ? 'rgba(181,171,252,.35)' : 'rgba(227,199,122,.3)' });
+    area.setData(S[series].slice(-range)); wc.timeScale().fitContent();
+  }
+  drawWorth();
+  document.getElementById('seriesPick').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; series = b.dataset.s; [...e.currentTarget.children].forEach(x => x.classList.toggle('on', x === b)); drawWorth(); };
+  document.getElementById('rangePick').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; range = +b.dataset.r; [...e.currentTarget.children].forEach(x => x.classList.toggle('on', x === b)); drawWorth(); };
+
+  /* Real marks, from each company's own site icon. */
+  const DOMAIN = { Revolut: 'revolut.com', BPI: 'bancobpi.pt', Activo: 'activobank.pt', TR: 'traderepublic.com', 'Trade Republic': 'traderepublic.com', '212': 'trading212.com', 'Trading 212': 'trading212.com' };
+  const logo = (n, size = 30) => DOMAIN[n]
+    ? `<img src="https://www.google.com/s2/favicons?domain=${DOMAIN[n]}&sz=128" alt="" style="width:${size}px; height:${size}px; border-radius:${size / 3.4}px; background:#fff; object-fit:contain; padding:${size / 10}px; flex-shrink:0">`
+    : `<span style="width:${size}px; height:${size}px; border-radius:${size / 3.4}px; display:grid; place-items:center; background:rgba(159,217,180,.14); color:#9fd9b4; font-size:${size / 2}px; flex-shrink:0">€</span>`;
+
+  /* Accounts: yours to add, edit and remove — nothing hard-coded. Each
+     holds one or more currencies; a non-euro pocket shows its own amount and
+     the euros it is worth at the stored ECB rate. */
+  const ACC = [
+    { n: 'Revolut', kinds: ['bank', 'broker'], cash: [['EUR', 7150], ['USD', 1200]], inv: 7600, d: +310, how: 'statement read 2d ago', late: false },
+    { n: 'BPI', kinds: ['bank'], cash: [['EUR', 1950]], inv: 0, d: -420, how: 'typed 3d ago', late: false },
+    { n: 'Activo', kinds: ['bank'], cash: [['EUR', 3400]], inv: 0, d: +12, how: 'typed 3d ago', late: false },
+    { n: 'TR', kinds: ['broker'], cash: [['EUR', 1000]], inv: 4180, d: +96, how: 'screenshot 12d ago', late: true },
+    { n: '212', kinds: ['broker'], cash: [['EUR', 11000]], inv: 12800, d: +1180, how: 'synced 4 min ago', late: 'api' },
+    { n: 'Notes', kinds: ['cash'], cash: [['EUR', 4250]], inv: 0, d: -60, how: 'counted 21d ago', late: true },
+  ];
+  const USD = 0.877; const toEur = ([c, v]) => c === 'USD' ? v * USD : v;
+  const spark = (up) => { let y = 14, p = []; for (let i = 0; i < 20; i++) { y += (rnd() - (up ? .58 : .42)) * 4; y = Math.max(3, Math.min(25, y)); p.push(`${i * 4.7},${y.toFixed(1)}`) } return `<svg class="spark" viewBox="0 0 90 28"><polyline fill="none" stroke="${up ? 'var(--good)' : 'var(--bad)'}" stroke-width="1.6" points="${p.join(' ')}"/></svg>` };
+  const sym = (c) => c === 'USD' ? '$' : c === 'GBP' ? '£' : '€';
+  let accKind = 'all';
+  function drawAccounts() {
+    document.getElementById('accounts').innerHTML = ACC.filter(a => accKind === 'all' || a.kinds.includes(accKind)).map((a, i) => {
+      const cashEur = a.cash.reduce((s, c) => s + toEur(c), 0), total = cashEur + a.inv, up = a.d >= 0;
+      return `<div class="card">
+        <div class="row between" style="flex-wrap:nowrap"><span class="row" style="gap:10px; flex-wrap:nowrap">${logo(a.n)}<span style="display:flex; flex-direction:column; gap:3px"><span style="font-size:15px">${a.n}</span><span class="row" style="gap:4px">${a.kinds.map(k => `<span class="badge b-${k}">${k}</span>`).join('')}</span></span></span>
+          <button class="upd" data-open="account" data-acc="${ACC.indexOf(a)}" aria-label="Edit or delete ${a.n}">✎ edit</button></div>
+        <div class="row between"><span class="num money">€${Math.round(total).toLocaleString('en')}</span>${spark(up)}</div>
+        <div class="mono" style="font-size:11.5px; display:flex; flex-direction:column; gap:4px">
+          ${a.cash.map(c => `<span class="row between"><span class="dim">free cash <span class="cur">${c[0]}</span></span><span class="money">${sym(c[0])}${c[1].toLocaleString('en')}${c[0] !== 'EUR' ? ` <span class="dim">≈ €${Math.round(toEur(c)).toLocaleString('en')}</span>` : ''}</span></span>`).join('')}
+          ${a.inv ? `<span class="row between"><span class="dim">shares worth</span><span class="money">€${a.inv.toLocaleString('en')}</span></span>` : ''}
+          <span class="row between"><span class="dim">this month</span><span class="${up ? 'good' : 'bad'} money">${up ? '+' : '−'}€${Math.abs(a.d).toLocaleString('en')}</span></span>
+        </div>
+        <div class="foot">
+          <span class="mono" style="font-size:10.5px; color:${a.late === true ? 'var(--warn)' : 'var(--ink-500)'}">${a.late === 'api' ? '<span class="badge b-api">api</span> ' : ''}${a.how}</span>
+          ${a.late === 'api' ? '' : `<button class="upd ${a.late ? 'late' : ''}" data-open="update" data-acc="${ACC.indexOf(a)}">update</button>`}
+        </div></div>`;
+    }).join('');
+  }
+  drawAccounts();
+  document.getElementById('accFilter').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; accKind = b.dataset.k; [...e.currentTarget.children].forEach(x => x.classList.toggle('on', x === b)); drawAccounts(); };
+
+  /* Flow: the pay month as a line — salary in, a step down on each bill's
+     day; spending shaded under it up to today. */
+  const BILLS = [
+    ['Aug 28', 0, 'Salary', +2900, true], ['Aug 30', 2, 'Mortgage', -750, true], ['Sep 1', 4, 'Gym', -35, true],
+    ['Sep 3', 6, 'Spotify', -11.99, true], ['Sep 5', 8, 'Netflix', -13.99, true], ['Sep 12', 15, 'Phone', -20, true],
+    ['Sep 24', 27, 'Electricity', -64, false], ['Sep 27', 30, 'Insurance', -41, false],
+  ];
+  const TODAY = 29; const SPAN = 31;
+  function drawMonth() {
+    const svg = document.getElementById('month');
+    const W = 1000, top = 44, bot = 210, L = 20, R = W - 20;
+    const x = (d) => L + d / SPAN * (R - L);
+    const y = (v) => bot - v / 3000 * (bot - top);
+    /* The bills' line: flat, then a straight drop on each bill's day. */
+    let bal = 0; const pts = [[x(0), y(0)]]; const marks = [];
+    BILLS.forEach(([date, d, name, amt, paid]) => {
+      pts.push([x(d), y(bal)]); bal += amt; pts.push([x(d), y(bal)]);
+      marks.push({ d, name, amt, paid, cx: x(d), cy: y(bal) });
+    });
+    pts.push([x(SPAN), y(bal)]);
+    const left = bal;
+    /* Spending on top, stepping on the same bill days so the two shapes
+       agree; it only runs to today. */
+    let spent = 0, bi = 0, b2 = 0; const area = [];
+    for (let d = 0; d <= TODAY; d++) {
+      const before = b2;
+      while (bi < BILLS.length && BILLS[bi][1] <= d) { b2 += BILLS[bi][3]; bi++; }
+      if (b2 !== before) area.push([x(d), y(Math.max(0, before - spent))]);
+      if (d > 0) spent += 14 + ((d * 7) % 11) * 1.6;
+      area.push([x(d), y(Math.max(0, b2 - spent))]);
+    }
+    const path = (ps) => ps.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    const shade = path(area) + ` L${x(TODAY).toFixed(1)} ${bot} L${x(0)} ${bot} Z`;
+
+    /* Labels that never collide: each goes in the lowest row above its dot
+       where it does not overlap one already placed; near the right edge it
+       reads leftwards. A label lifted off its dot gets a thin leader. */
+    const ROW = 17; const placed = []; let labels = '';
+    /* Measured as drawn, not guessed from a character count. */
+    const probe = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    probe.setAttribute('font-family', 'JetBrains Mono'); probe.setAttribute('font-size', '12');
+    svg.appendChild(probe);
+    const measure = (t) => { probe.textContent = t; return probe.getComputedTextLength() || t.length * 7.8; };
+    marks.forEach((m, i) => {
+      const up = m.amt > 0, late = !m.paid && m.d < TODAY;
+      const col = up ? 'var(--good)' : late ? 'var(--warn)' : m.paid ? 'var(--ink-400)' : 'var(--bad)';
+      const text = `${m.name} ${up ? '+' : '−'}€${Math.abs(m.amt).toLocaleString('en')}${late ? ' · late' : ''}`;
+      const w = measure(text);
+      const rightward = m.cx + 8 + w < R;
+      const x0 = rightward ? m.cx + 8 : m.cx - 8 - w, x1 = x0 + w;
+      /* Lift it a row at a time until its box, with a margin, touches no
+         label already placed. */
+      const base = Math.min(m.cy, 150) - 12;
+      const hits = (ty) => placed.some(p => !(x1 + 12 < p.x0 || x0 - 12 > p.x1 || ty + 4 < p.y0 || ty - 14 > p.y1));
+      let row = 0;
+      while (hits(base - row * ROW) && row < 8) row++;
+      const ty = base - row * ROW;
+      placed.push({ x0, x1, y0: ty - 14, y1: ty + 4 });
+      labels += `<g style="cursor:pointer" data-bill="${i}">
+        ${row > 0 ? `<line x1="${m.cx}" y1="${m.cy - 6}" x2="${m.cx}" y2="${ty + 4}" stroke="${col}" stroke-opacity=".35"/>` : ''}
+        <circle cx="${m.cx}" cy="${m.cy}" r="5.5" fill="${m.paid ? col : 'var(--bg)'}" stroke="${col}" stroke-width="2"/>
+        <text x="${rightward ? x0 : x1}" y="${ty}" text-anchor="${rightward ? 'start' : 'end'}" fill="${col}" font-family="JetBrains Mono" font-size="12">${text}</text>
+        <title>${m.paid ? 'paid' : late ? 'late — tap to mark paid' : 'due — tap to mark paid'}</title></g>`;
+    });
+    probe.remove();
+    svg.setAttribute('viewBox', `0 -52 ${W} ${bot + 82}`);
+    svg.innerHTML = `
+      <line x1="${L}" x2="${R}" y1="${bot}" y2="${bot}" stroke="rgba(255,255,255,.08)"/>
+      <path d="${shade}" fill="rgba(227,199,122,.13)" stroke="rgba(227,199,122,.5)" stroke-width="1.2"/>
+      <path d="${path(pts)}" fill="none" stroke="#b5abfc" stroke-width="2.2" stroke-linejoin="round"/>
+      <line x1="${x(TODAY)}" x2="${x(TODAY)}" y1="-30" y2="${bot}" stroke="#b5abfc" stroke-dasharray="3 4" opacity=".7"/>
+      <text x="${x(TODAY)}" y="-34" text-anchor="middle" fill="#b5abfc" font-family="JetBrains Mono" font-size="11" letter-spacing="1.5">TODAY</text>
+      <text x="${L}" y="${bot + 22}" fill="#6e6e84" font-family="JetBrains Mono" font-size="11" letter-spacing="1.2">AUG 28 · PAYDAY</text>
+      <text x="${R}" y="${bot + 22}" text-anchor="end" fill="#6e6e84" font-family="JetBrains Mono" font-size="11" letter-spacing="1.2">SEP 27</text>
+      ${labels}`;
+    svg.querySelectorAll('[data-bill]').forEach(g => g.onclick = () => { const b = BILLS[+g.dataset.bill]; b[4] = !b[4]; drawMonth(); });
+    document.getElementById('leftAfter').textContent = '€' + Math.round(left).toLocaleString('en');
+    document.getElementById('leftToday').textContent = '€' + Math.round(Math.max(0, b2 - spent)).toLocaleString('en');
+    document.getElementById('bills').innerHTML = BILLS.map(([date, d, name, amt, paid], i) => {
+      const up = amt > 0, late = !paid && d < TODAY;
+      return `<div class="bill"><span class="d">${date}</span><span data-open="bill" data-acc="${i}" style="cursor:pointer">${name}${late ? ' <span class="mono" style="font-size:10.5px; color:var(--warn)">· 2 days late</span>' : ''}</span>
+        <span class="mono money ${up ? 'good' : ''}">${up ? '+' : '−'}€${Math.abs(amt).toLocaleString('en')}</span>
+        <button class="btn ${paid ? 'done' : late ? 'late' : ''}" data-b="${i}">${paid ? '✓ ' + (up ? 'arrived' : 'paid') : up ? 'arrived' : 'paid'}</button></div>`;
+    }).join('');
+    document.querySelectorAll('#bills [data-b]').forEach(bt => bt.onclick = () => { const b = BILLS[+bt.dataset.b]; b[4] = !b[4]; drawMonth(); });
+  }
+  drawMonth();
+
+  /* Flow: in vs out, six months, side by side */
+  (function () {
+    const M = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
+    const IN = [2900, 2900, 4300, 2900, 3520, 2900], OUT = [2140, 1980, 2610, 2230, 2380, 1910];
+    const W = 600, H = 240, bot = 205, top = 20, max = 4500;
+    const y = (v) => bot - v / max * (bot - top);
+    let g = `<line x1="0" x2="${W}" y1="${bot}" y2="${bot}" stroke="rgba(255,255,255,.08)"/>`;
+    [1000, 2000, 3000, 4000].forEach(v => g += `<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(255,255,255,.04)"/><text x="${W}" y="${y(v) - 4}" text-anchor="end" fill="#52526a" font-family="JetBrains Mono" font-size="10" class="axis">€${v / 1000}k</text>`);
+    M.forEach((m, i) => {
+      const cx = 30 + i * 92, bw = 26;
+      g += `<rect x="${cx}" y="${y(IN[i])}" width="${bw}" height="${bot - y(IN[i])}" rx="5" fill="oklch(0.78 0.17 150)" opacity=".9"><title>in €${IN[i]}</title></rect>
+            <rect x="${cx + bw + 4}" y="${y(OUT[i])}" width="${bw}" height="${bot - y(OUT[i])}" rx="5" fill="oklch(0.68 0.2 22)" opacity=".9"><title>out €${OUT[i]}</title></rect>
+            <text x="${cx + bw + 2}" y="${bot + 18}" text-anchor="middle" fill="#8e8ea3" font-family="JetBrains Mono" font-size="11">${m}</text>
+            <text x="${cx + bw + 2}" y="${Math.min(y(IN[i]), y(OUT[i])) - 8}" text-anchor="middle" fill="${IN[i] - OUT[i] >= 0 ? 'oklch(0.78 0.17 150)' : 'oklch(0.68 0.2 22)'}" font-family="JetBrains Mono" font-size="11" class="money">${IN[i] - OUT[i] >= 0 ? '+' : '−'}${Math.abs(IN[i] - OUT[i]).toLocaleString('en')}</text>`;
+    });
+    document.getElementById('flowBars').innerHTML = g;
+  })();
+
+  /* Flow: categories */
+  const CATS = [['Groceries', 212, -12], ['Eating out', 164, 38], ['Transport', 58, -4], ['Fun', 96, 22], ['Health', 41, 0], ['Clothes', 41, -60]];
+  document.getElementById('cats').innerHTML = CATS.map(([n, v, d]) => `
+    <div style="display:flex; flex-direction:column; gap:5px"><div class="row between"><span>${n}</span><span class="mono"><span class="money">€${v}</span> <span class="${d > 0 ? 'bad' : d < 0 ? 'good' : 'dim'}" style="display:inline-block; width:54px; text-align:right">${d > 0 ? '▲' : d < 0 ? '▼' : '·'} ${Math.abs(d)}%</span></span></div>
+    <div class="bar-h"><div style="width:${v / 2.2}%; background: color-mix(in oklch, var(--lav-400) 70%, transparent)"></div></div></div>`).join('');
+
+  /* Portfolio chart: value vs put in */
+  const pc = base(document.getElementById('pfChart'));
+  const val = pc.addSeries(LC.AreaSeries, { lineColor: '#b5abfc', topColor: 'rgba(181,171,252,.3)', bottomColor: 'rgba(181,171,252,0)', lineWidth: 2, ...fmt });
+  const put2 = pc.addSeries(LC.LineSeries, { color: 'rgba(233,233,237,.45)', lineWidth: 1, lineStyle: 2, lineType: 1, ...fmt, lastValueVisible: false, priceLineVisible: false });
+  val.setData(S.invested); put2.setData(S.putIn); pc.timeScale().fitContent();
+
+  /* Brokers: what the account holds in all, then its two halves — the
+     shares at today's price and the cash — and what the shares cost you.
+     The pill is the shares' profit or loss against that cost. */
+  const BR = [['Revolut', 7600, 7100, 8200], ['Trade Republic', 4180, 3900, 1000], ['Trading 212', 12800, 10900, 11000]];
+  document.getElementById('brokers').innerHTML = BR.map(([n, v, p, c]) => { const pl = v - p, pct = (pl / p * 100).toFixed(1), up = pl >= 0; return `
+    <div class="glass" style="padding:16px; display:flex; flex-direction:column; gap:12px">
+      <div class="row between" style="flex-wrap:nowrap"><span class="row" style="gap:10px; flex-wrap:nowrap">${logo(n, 34)}<span style="font-size:16px">${n}</span></span>${spark(up)}</div>
+      <div style="display:flex; flex-direction:column; gap:2px"><span class="caps">total</span><span class="num money" style="font-size:30px">€${(v + c).toLocaleString('en')}</span></div>
+      <div class="mono" style="font-size:12px; display:flex; flex-direction:column; gap:6px">
+        <span class="row between"><span class="dim">shares worth</span><span><span class="money">€${v.toLocaleString('en')}</span> <span class="${up ? 'good' : 'bad'}" style="margin-left:6px"><span class="money">${up ? '+' : '−'}€${Math.abs(pl).toLocaleString('en')}</span> ${up ? '+' : ''}${pct}%</span></span></span>
+        <span class="row between"><span class="dim">you paid for them</span><span class="money">€${p.toLocaleString('en')}</span></span>
+        <span class="row between"><span class="dim">free cash</span><span class="money">€${c.toLocaleString('en')}</span></span>
+      </div></div>` }).join('');
+
+  /* Positions */
+  const POS = [
+    ['VWCE', 'Vanguard FTSE All-World', 'Trading 212', 70, 150.1, 169.74, '#1f6f5c'], ['TSLA', 'Tesla', 'Revolut', 9, 262.5, 326.33, '#b3302f'],
+    ['NVDA', 'NVIDIA', 'Trade Republic', 14, 118.2, 152.9, '#4f8a2b'], ['AAPL', 'Apple', 'Revolut', 11, 198.4, 208.1, '#6b6b76'],
+    ['MSFT', 'Microsoft', 'Trading 212', 3, 402.0, 381.6, '#2a6fb3'], ['VUAA', 'Vanguard S&P 500', 'Trade Republic', 20, 96.3, 104.2, '#7a2f8f'],
+  ];
+  function drawPositions(b) {
+    const rows = POS.filter(p => b === 'all' || p[2] === b);
+    document.getElementById('positions').innerHTML = rows.map(([t, n, br, sh, avg, px, col]) => {
+      const v = sh * px, pl = sh * (px - avg), pct = (px / avg - 1) * 100, up = pl >= 0;
+      return `<tr class="pos"><td><div class="row" style="gap:10px; flex-wrap:nowrap"><span class="logo" style="background:${col}">${t.slice(0, 4)}</span><span style="display:flex; flex-direction:column"><span>${t}</span><span class="dim" style="font-size:11px; font-family:Inter">${n} · ${br}</span></span></div></td>
+        <td class="hide-sm money">${sh}</td><td class="hide-sm money">€${avg.toFixed(2)}</td><td>€${px.toFixed(2)}</td><td class="money">€${Math.round(v).toLocaleString('en')}</td>
+        <td><span class="${up ? 'good' : 'bad'} money">${up ? '+' : '−'}€${Math.abs(Math.round(pl)).toLocaleString('en')}</span><br/><span class="${up ? 'good' : 'bad'}" style="font-size:11px">${up ? '+' : ''}${pct.toFixed(1)}%</span></td>
+        <td class="hide-sm">${spark(up)}</td></tr>` }).join('');
+  }
+  drawPositions('all');
+  document.getElementById('brokerPick').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; [...e.currentTarget.children].forEach(x => x.classList.toggle('on', x === b)); drawPositions(b.dataset.b); };
+  const tot = POS.reduce((s, p) => s + p[3] * p[5], 0);
+  document.getElementById('alloc').innerHTML = POS.map(p => `<div style="flex:${p[3] * p[5]}; background:${p[6]}"></div>`).join('');
+  document.getElementById('allocKey').innerHTML = POS.map(p => `<span><span style="color:${p[6]}">●</span> ${p[0]} <span class="dim">${Math.round(p[3] * p[5] / tot * 100)}%</span></span>`).join('');
+
+  /* Inflation */
+  const ic = base(document.getElementById('inflChart'));
+  const infl = ic.addSeries(LC.LineSeries, { color: '#e3c77a', lineWidth: 2, priceFormat: { type: 'custom', formatter: v => v.toFixed(1) + '%' } });
+  infl.setData([...Array(24)].map((_, i) => ({ time: Math.floor(new Date(2024, 8 + i, 1).getTime() / 1000), value: 2.1 + Math.sin(i / 3) * .6 + rnd() * .3 })));
+  ic.timeScale().fitContent();
+
+  /* The hero reads the same series the chart draws. */
+  const last = (a) => a[a.length - 1].value;
+  const eur = (v) => '€' + Math.round(v).toLocaleString('en');
+  document.getElementById('heroTotal').textContent = eur(last(S.total));
+  document.getElementById('heroCash').textContent = eur(last(S.cash));
+  document.getElementById('heroInv').textContent = eur(last(S.invested));
+  document.getElementById('pfValue').textContent = eur(last(S.invested));
+  document.getElementById('splitCash').style.flex = last(S.cash);
+  document.getElementById('splitInv').style.flex = last(S.invested);
+
+  /* The logging layer: one + for everything, an update on each account,
+     and a check-in that walks through what is out of date. */
+  const scrim = document.getElementById('scrim'), sheet = document.getElementById('sheet');
+  const closeSheet = () => { scrim.classList.remove('on'); sheet.classList.remove('review'); };
+  scrim.onclick = (e) => { if (e.target === scrim) closeSheet(); };
+  /* Where a form was opened from: the + menu gives it a way back. */
+  let fromMenu = false;
+  const head = (t, sub) => `<div class="row between"><span class="row" style="gap:12px">${fromMenu && t !== 'log' ? '<button class="upd" data-back aria-label="Back to all actions">‹ back</button>' : ''}<span class="sys-title" style="letter-spacing:.24em">[ ${t} ]</span></span><button class="upd" data-close>close</button></div>${sub ? `<p style="color:var(--ink-400); font-size:13px">${sub}</p>` : ''}`;
+  const chips = (arr, on) => `<div class="opts">${arr.map((a, i) => `<button class="chip ${i === on ? 'on' : ''}" data-chip>${a}</button>`).join('')}</div>`;
+  const amount = (ph) => `<label class="field"><span style="color:var(--ink-400)">€</span><input inputmode="decimal" placeholder="${ph}" data-amount autofocus></label>`;
+  /* The save button says what will be saved — the amount as typed. */
+  const save = (t, sign) => `<button class="btn" style="padding:12px" data-close ${sign !== undefined ? `data-save="${sign}" data-label="${t}"` : ''}>${t}</button>`;
+  const FORMS = {
+    /* + is three verbs, by how often you reach for them: OUT (almost
+       always — so it opens here, amount first), IN, and MOVE between your
+       own accounts, which is not spending. Everything rarer lives next to
+       what it changes. */
+    log: (tab = 'out', pre = {}) => {
+      const tabs = `<div class="tabs3">${[['out', '↘ out'], ['in', '↗ in'], ['move', '⇄ move']].map(([k, l]) => `<button class="${k === tab ? 'on' : ''}" data-logtab="${k}">${l}</button>`).join('')}</div>`;
+      const big = (v) => `<label class="big-amount"><span>€</span><input inputmode="decimal" placeholder="0" value="${v ?? ''}" data-amount autofocus></label>`;
+      const accts = (label, on, list = ['Revolut', 'BPI', 'Activo', 'Notes']) => `<span class="step">${label}</span><div class="opts">${list.map(a => `<button class="chip ${a === on ? 'on' : ''}" data-chip>${a}</button>`).join('')}</div>`;
+      let body = '';
+      if (tab === 'out') {
+        const CATS = [['🛒', 'Groceries'], ['🍽', 'Eating out'], ['🚌', 'Transport'], ['🏠', 'Home'], ['💊', 'Health'], ['🎮', 'Fun'], ['👕', 'Clothes'], ['✈', 'Travel'], ['·', 'Other']];
+        body = big(pre.amt) +
+          `<div class="recent">${[['☕ coffee', 2.5, 'Eating out'], ['🛒 Pingo Doce', 48, 'Groceries'], ['🚕 Bolt', 12, 'Transport'], ['🍔 lunch', 11, 'Eating out']].map(([t, v, c]) => `<button data-recent="${v}|${c}|${t.slice(2).trim()}">${t} · €${Number.isInteger(v) ? v : v.toFixed(2)}</button>`).join('')}</div>` +
+          `<div class="cats">${CATS.map(([i, n]) => `<button class="cat ${n === (pre.cat || 'Groceries') ? 'on' : ''}" data-chip><span>${i}</span>${n}</button>`).join('')}</div>` +
+          `<label class="field"><input placeholder="what on (optional)" value="${pre.note ?? ''}"></label>` +
+          accts('paid from · last used', 'Revolut') + save('save', '−');
+      } else if (tab === 'in') {
+        body = big() + `<span class="step">what came in — salary arrives through Bills</span>` + chips(['Bonus', 'IRS return', 'Gift', 'Sold something', 'Other'], 0) +
+          accts('into', 'Revolut') + save('save', '+');
+      } else {
+        body = big() + `<p class="dim" style="font-size:12.5px">Between your own accounts. Not spending, not income — your total does not change; only where it sits.</p>` +
+          `<div class="arrow-row"><div>${accts('from', 'Revolut', ['Revolut', 'BPI', 'Activo', 'TR', '212', 'Notes'])}</div><span style="font-size:20px; color:var(--lav-400)">→</span><div>${accts('to', 'TR', ['Revolut', 'BPI', 'Activo', 'TR', '212', 'Notes'])}</div></div>` +
+          `<span class="step">cash from an ATM? move it to Notes</span>` + save('move', '');
+      }
+      return `<div class="row between"><span class="sys-title" style="letter-spacing:.24em">[ log ]</span><button class="upd" data-close>close</button></div>` + tabs + body +
+        `<span class="mono dim" style="font-size:10.5px; text-align:center">⌘L from anywhere · <span class="mono">spend 48 groceries</span></span>`;
+    },
+    spend: () => head('spend') + amount('48') + chips(['Groceries', 'Eating out', 'Transport', 'Home & bills', 'Health', 'Fun', 'Clothes', 'Travel', 'Other'], 0) + `<label class="field"><input placeholder="what on (optional)"></label><span class="step">paid from</span>` + chips(['Revolut', 'BPI', 'Activo', 'Notes'], 0) + save('save', '−'),
+    in: () => head('money in', 'Salary arrives through Bills with one tap — this is for the rest.') + amount('1,200') + chips(['Bonus', 'IRS return', 'Gift', 'Sold something', 'Other'], 0) + `<span class="step">into</span>` + chips(['Revolut', 'BPI', 'Activo', 'Notes'], 0) + save('save', '+'),
+    /* An account of his own: name, what kind it is, which currencies it
+       holds, and how it is kept up to date. */
+    account: (i) => {
+      const a = i === undefined ? null : ACC[+i];
+      const multi = (arr, on) => `<div class="opts">${arr.map(x => `<button class="chip ${on.includes(x) ? 'on' : ''}" data-multi>${x}</button>`).join('')}</div>`;
+      return head(a ? 'edit · ' + a.n : 'new account') +
+        `<label class="field"><input placeholder="Revolut, Millennium, Wise…" value="${a ? a.n : ''}"></label>` +
+        `<span class="step">what it is — pick any</span>` + multi(['bank', 'broker', 'cash'], a ? a.kinds : ['bank']) +
+        `<span class="step">currencies it holds</span>` + multi(['EUR', 'USD', 'GBP', 'CHF', 'PLN'], a ? a.cash.map(c => c[0]) : ['EUR']) +
+        `<span class="step">kept up to date by</span>` + chips(['Typing it', 'Statements', 'Screenshots', 'API sync'], a && a.late === 'api' ? 3 : a && a.how.startsWith('statement') ? 1 : a && a.how.startsWith('screenshot') ? 2 : 0) +
+        `<label class="field" style="font-size:13px"><span class="dim mono" style="font-size:11px">logo from</span><input placeholder="revolut.com" value="${a && DOMAIN[a.n] ? DOMAIN[a.n] : ''}"></label>` +
+        save(a ? 'save' : 'add account') +
+        (a ? `<div data-danger style="border-top:1px solid rgba(255,255,255,.07); padding-top:14px; display:flex; flex-direction:column; gap:8px">
+            <button class="btn" data-ask-delete style="border-color:color-mix(in oklch, var(--bad) 45%, transparent); background:color-mix(in oklch, var(--bad) 10%, transparent); color:var(--bad)">delete ${a.n}</button>
+          </div>` : '');
+    },
+    /* Update, properly: type each currency, or hand it a statement or a
+       screenshot and let it read — then check what it found. */
+    update: (i) => {
+      const a = ACC[+i || 0];
+      return head('update · ' + a.n) +
+        `<div class="tabs3" data-tabs><button class="on" data-tab="type">type</button><button data-tab="statement">statement</button><button data-tab="shot">screenshot</button></div>
+        <div data-pane="type" style="display:flex; flex-direction:column; gap:10px">
+          ${a.cash.map(c => `<label class="field"><span class="cur">${c[0]}</span><span style="color:var(--ink-400)">${sym(c[0])}</span><input inputmode="decimal" value="${c[1]}"></label>`).join('')}
+          <button class="upd" style="align-self:flex-start">+ another currency</button>
+          <span class="step">${a.cash.some(c => c[0] !== 'EUR') ? `USD → EUR at ${USD} · ECB · Sep 25` : 'the free cash the app shows now'}</span>
+          ${save('save')}
+        </div>
+        <div data-pane="statement" style="display:none; flex-direction:column; gap:10px">
+          <div class="drop" data-read="statement">Drop ${a.n}'s statement — PDF or CSV<br/><span class="mono dim" style="font-size:11px">it reads the balance, every transaction, and what looks like a bill</span></div>
+        </div>
+        <div data-pane="shot" style="display:none; flex-direction:column; gap:10px">
+          <div class="drop" data-read="shot">Drop a screenshot of ${a.n}<br/><span class="mono dim" style="font-size:11px">balances, positions and cash — in any currency</span></div>
+        </div>`;
+    },
+    readResult: (kind) => kind === 'statement' ? `
+      <div class="read"><div class="row between"><span class="sys-title" style="font-size:11px; letter-spacing:.2em">[ read · Revolut · August ]</span><span class="mono dim" style="font-size:10.5px">Claude · 6s</span></div>
+        <div class="found"><span class="ic">◎</span><span>Balance on Aug 31<br/><span class="dim mono" style="font-size:11px">was €7,150 typed Sep 24</span></span><span class="mono money">€7,162.40 · $1,204</span></div>
+        <div class="found"><span class="ic">☰</span><span>84 transactions → spending<br/><span class="dim mono" style="font-size:11px">72 filed · 12 need a category</span></span><span class="mono">−€1,286</span></div>
+        <div class="found"><span class="ic">↻</span><span>Looks like a bill you have not set up: <b>Spotify</b> €11.99 on the 3rd, three months running</span><button class="upd">add to bills</button></div>
+        <div class="found"><span class="ic">!</span><span>Eating out was <b class="bad">€164</b> — twice your usual month. 9 of it at the same place.</span><span></span></div>
+        <div class="found"><span class="ic">$</span><span>You hold $1,204 doing nothing — at today's rate that's €1,056.</span><span></span></div>
+      </div>
+      <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1; background:none" data-close>discard</button><button class="btn" style="flex:2; padding:12px" data-close>use all of it</button></div>` : `
+      <div class="read"><div class="row between"><span class="sys-title" style="font-size:11px; letter-spacing:.2em">[ read · screenshot ]</span><span class="mono dim" style="font-size:10.5px">Claude · 4s</span></div>
+        <div class="found"><span class="ic">◎</span><span>Free cash</span><span class="mono money">€1,000.00</span></div>
+        <div class="found"><span class="ic">⇅</span><span>4 positions — NVDA, VUAA, AMD, ASML<br/><span class="dim mono" style="font-size:11px">tickers matched · check shares and your price</span></span><span class="mono money">€4,184</span></div>
+        <div class="found"><span class="ic">+</span><span><b>AMD</b> is new since the last screenshot — you bought 5 shares</span><span></span></div>
+        <div class="found"><span class="ic">−</span><span><b>TSLA</b> is gone — sold, or moved?</span><button class="upd">sold</button></div>
+      </div>
+      <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1; background:none" data-close>discard</button><button class="btn" style="flex:2; padding:12px" data-close>check rows · confirm</button></div>`,
+    balance: (acc) => head('update · ' + (acc || 'TR'), 'Type the free cash the app shows now. Shares are not in it — they come from a screenshot, or 212\'s API.') + amount('1,000') + `<span class="step">last: €1,000 · 12 days ago</span>` + save('save balance'),
+    trade: () => head('buy / sell') + chips(['Buy', 'Sell'], 0) + `<label class="field">⌕<input placeholder="tsla, vwce, an ISIN…" value="vwce"></label><div class="mono" style="font-size:12px"><span class="row between"><span style="color:var(--lav-300)">VWCE.DE</span><span class="dim">Vanguard FTSE All-World · XETRA</span></span></div><span class="step">in</span>` + chips(['Revolut', 'TR', '212'], 1) + `<div class="row" style="flex-wrap:nowrap">${amount('shares')}${amount('price per share')}</div>` + save('save trade'),
+    shot: () => head('screenshot', 'Drop a screen of your portfolio. It is read once; you check each ticker, the shares, your price and the cash — then it becomes what that account holds.') + chips(['Revolut', 'TR'], 1) + `<div class="drop">Drop or choose up to 6 screenshots</div><span class="step">212 needs none — it syncs through its API</span>`,
+    /* What comes round: set once, then it waits on its day for one tap. */
+    bill: (i, dir) => {
+      const b = i === undefined || i === '' ? null : BILLS[+i];
+      const name = b ? b[2] : '', amt = b ? Math.abs(b[3]) : '';
+      const up = dir !== undefined ? dir === 'in' : b ? b[3] > 0 : false;
+      const dayNum = b ? +b[0].split(' ')[1] : 1;
+      return head(b ? 'edit · ' + name : 'bill or salary', b ? '' : 'Set it once. On its day it shows in Flow, waiting for one tap — paid, or arrived.') +
+        `<div class="opts"><button class="chip ${up ? '' : 'on'}" data-billdir="out" data-bill-i="${i ?? ''}">Money out · a bill</button><button class="chip ${up ? 'on' : ''}" data-billdir="in" data-bill-i="${i ?? ''}">Money in · salary</button></div>` +
+        `<label class="field"><input placeholder="${up ? 'Salary' : 'Mortgage, Netflix, gym…'}" value="${name}"></label>` + amount(up ? '2,900' : '750').replace('placeholder=', `value="${amt}" placeholder=`) +
+        `<span class="step">comes round</span>` + chips(['Every month', 'Every year'], 0) +
+        `<div class="row" style="gap:8px"><span class="step">on the</span><select class="field" style="padding:8px 10px; font-size:14px; color:var(--ink-100); background:rgba(255,255,255,.05)">${[...Array(31)].map((_, k) => `<option ${k + 1 === dayNum ? 'selected' : ''}>${k + 1}</option>`).join('')}<option>last day</option></select><span class="dim mono" style="font-size:11px">a 31st falls on the 30th in short months</span></div>` +
+        `<span class="step">${up ? 'arrives in' : 'paid from'}</span>` + chips(['Revolut', 'BPI', 'Activo'], 0) +
+        (up ? '' : `<span class="step">category</span>` + chips(['Home & bills', 'Health', 'Fun', 'Transport', 'Other'], 0)) +
+        save(b ? 'save' : 'add') + (b ? `<button class="upd" data-close style="align-self:flex-start; color:var(--bad)">stop — it no longer comes round</button>` : '');
+    },
+    statement: () => head('statement', 'A month of transactions from a bank. Each is filed as spending or money in; you fix the few it cannot place.') + chips(['Revolut', 'BPI', 'Activo'], 0) + `<div class="drop">Drop a PDF or CSV statement</div>`,
+    checkin: (i) => {
+      i = +i || 0;
+      const steps = [['TR · free cash', '12 days old', 'balance'], ['Notes · the cash you hold', '21 days old — count it', 'balance'], ['Revolut · stocks', '9 days since the last screenshot', 'shot']];
+      if (i >= steps.length) return head('check-in') + `<div style="text-align:center; padding:24px 0"><div class="sys-title" style="font-size:14px">[ all up to date ]</div><p class="dim" style="margin-top:8px">Next check-in: Sunday.</p></div>` + save('done');
+      const [t, why, kind] = steps[i];
+      return head('check-in', 'Once a week, what has gone stale — one at a time.') + `<span class="step">${i + 1} of ${steps.length}</span><div style="font-size:18px">${t}</div><span class="mono" style="color:var(--warn); font-size:12px">${why}</span>` +
+        (kind === 'balance' ? amount('type it') : `<div class="drop" data-read="shot">Drop the screenshot</div>`) +
+        `<div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1; background:none" data-next="${i + 1}">skip</button><button class="btn" style="flex:2; padding:12px" data-next="${i + 1}">save · next</button></div>`;
+    },
+  };
+  function openSheet(kind, arg, viaMenu = false) {
+    fromMenu = viaMenu; sheet.classList.remove('review');
+    sheet.innerHTML = FORMS[kind](arg);
+    scrim.classList.add('on');
+    sheet.querySelector('[data-amount]')?.focus();
+  }
+  sheet.addEventListener('input', (e) => {
+    if (!e.target.matches('[data-amount]')) return;
+    const b = sheet.querySelector('[data-save]'); if (!b) return;
+    const v = e.target.value.trim();
+    const n = Number(v.replace(',', '.'));
+    const shown = Number.isFinite(n) && v ? (Number.isInteger(n) ? n.toLocaleString('en') : n.toFixed(2)) : v;
+    b.textContent = v ? `${b.dataset.label} · ${b.dataset.save}€${shown}` : b.dataset.label;
+  });
+  document.getElementById('fab').onclick = () => openSheet('add');
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !scrim.classList.contains('on')) return;
+    closeSheet();
+  });
+  document.getElementById('checkinBtn').onclick = () => openSheet('checkin', 0);
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-back]')) { openSheet('log', 'out'); return; }
+    const o = e.target.closest('[data-open]'); if (o) { openSheet(o.dataset.open, o.dataset.acc, !!o.closest('.acts')); return; }
+    const n = e.target.closest('[data-next]'); if (n) { openSheet('checkin', n.dataset.next); return; }
+    const c = e.target.closest('[data-chip]'); if (c) { [...c.parentNode.children].forEach(x => x.classList.toggle('on', x === c)); return; }
+    const m = e.target.closest('[data-multi]'); if (m) { m.classList.toggle('on'); return; }
+    /* Out or in changes the form itself: a salary arrives into an account
+       and has no category. */
+    const lt = e.target.closest('[data-logtab]'); if (lt) { sheet.innerHTML = FORMS.log(lt.dataset.logtab); sheet.querySelector('[data-amount]')?.focus(); return; }
+    const rc = e.target.closest('[data-recent]'); if (rc) {
+      const [amt, cat, note] = rc.dataset.recent.split('|');
+      sheet.innerHTML = FORMS.log('out', { amt, cat, note });
+      sheet.querySelector('[data-amount]').dispatchEvent(new Event('input', { bubbles: true }));
+      sheet.querySelector('[data-save]')?.classList.add('ready'); return; }
+    const bd = e.target.closest('[data-billdir]'); if (bd) { sheet.innerHTML = FORMS.bill(bd.dataset.billI, bd.dataset.billdir); return; }
+    const del = e.target.closest('[data-ask-delete]'); if (del) {
+      const box = del.parentNode; const name = del.textContent.replace('delete ', '');
+      box.innerHTML = `<span style="font-size:14px">Delete <b>${name}</b>?</span>
+        <span class="dim" style="font-size:12.5px">It leaves every list and total. What it paid and earned stays in your history — those things happened. If it only has a typo in its name, edit it instead.</span>
+        <div class="row" style="flex-wrap:nowrap"><button class="btn" style="flex:1; background:none" data-close>keep it</button>
+        <button class="btn" style="flex:1; border-color:color-mix(in oklch, var(--bad) 45%, transparent); background:color-mix(in oklch, var(--bad) 14%, transparent); color:var(--bad)" data-close>delete</button></div>`;
+      return; }
+    const t = e.target.closest('[data-tab]'); if (t) {
+      [...t.parentNode.children].forEach(x => x.classList.toggle('on', x === t));
+      sheet.querySelectorAll('[data-pane]').forEach(p => p.style.display = p.dataset.pane === t.dataset.tab ? 'flex' : 'none'); return; }
+    const r = e.target.closest('[data-read]'); if (r) {
+      const pane = r.parentNode, kind = r.dataset.read;
+      pane.innerHTML = `<div class="read"><span class="sys-title system-pulse" style="font-size:11px; letter-spacing:.2em">[ reading ${kind === 'statement' ? 'statement' : 'screenshot'} ]</span><div class="beam"></div><span class="mono dim" style="font-size:11px">Claude Haiku 4.5 · reading once, nothing saved yet</span></div>`;
+      setTimeout(() => { pane.innerHTML = FORMS.readResult(kind); }, 1600); return; }
+    if (e.target.closest('[data-close]')) closeSheet();
+  });
+
+
+  /* A ticker logo that will not load becomes its letters. */
+  window.tfail = (img) => { const t = document.createElement('span'); t.className = 'tlogo'; t.style.cssText = 'display:grid;place-items:center;font:500 10px JetBrains Mono;color:#1a1830'; t.textContent = img.dataset.s; img.replaceWith(t); };
+
+  /* ======================= INTAKE =======================
+     Two doors: DROP FILES (the AI reads, you check a list) and LOG
+     SOMETHING (the few things that matter). The shapes below are his real
+     examples: a Revolut PDF statement, a Revolut history screenshot, a
+     Trade Republic holdings screenshot. */
+  const own = { 'Trade Republic': 'TR', 'Trading 212': '212', 'To investment account': 'Revolut · invest' };
+  const STMT = [
+    ['Aug 2', 'Copenhagen Coffee Lab', 'Ccl Estrela, Lisboa', -3.90, 'Eating out', 'hi'],
+    ['Aug 2', 'Tourigalo Porto', 'Soya Amoreiras, Lisboa', -14.90, 'Eating out', 'hi'],
+    ['Aug 5', 'Anthropic', 'Anthropic* Claude Sub, Dublin', -22.14, 'Subscriptions', 'hi'],
+    ['Aug 9', 'Amazon', 'Www.amazon*jn0dg0fq5, Luxembourg', -59.77, 'Shopping', 'lo'],
+    ['Aug 9', 'Cinemas NOS', 'Nos Cinemas Odiv Pq, Odivelas', -16.05, 'Fun', 'hi'],
+    ['Aug 10', 'Copenhagen Coffee Lab', 'Ccl Estrela, Lisboa', -3.90, 'Eating out', 'hi'],
+    ['Aug 10', 'Intimissimi', 'Intimissimi Uomo Sc, Lisboa', -15.25, 'Clothes', 'hi'],
+    ['Aug 10', 'Sanjugo', 'Sanjugo Amoreiras Sho, Lisboa', -11.00, 'Eating out', 'lo'],
+    ['Aug 15', 'Bnp Toc', 'Bnp Toc, Lisboa', -6.70, 'Eating out', 'lo'],
+    ['Aug 18', 'Norauto', 'Norauto, Lisboa', -13.99, 'Car', 'hi'],
+    ['Aug 20', 'Bnp Toc', 'Bnp Toc, Lisboa', -6.70, 'Eating out', 'lo'],
+    ['Aug 24', 'Metro de Lisboa', 'Metropolitano De Lisbo', -3.84, 'Transport', 'hi'],
+    ['Aug 24', 'Yang Guo Fu', 'Rest Yang Guo Fu, Lisboa', -17.74, 'Eating out', 'hi'],
+    ['Aug 26', 'Lidl', 'Lidl Agradece, Lisboa', -23.41, 'Groceries', 'hi'],
+    ['Aug 29', 'Bnp Toc', 'Bnp Toc, Lisboa', -3.58, 'Eating out', 'lo'],
+    ['Aug 31', 'Copenhagen Coffee Lab', 'Ccl Estrela, Lisboa', -3.90, 'Eating out', 'hi'],
+    ['Aug 31', 'C Rapidos Amoreiras', 'C Rapidos Amoreiras, Lisboa', -17.90, 'Other', 'lo'],
+    ['Sep 1', 'Metro — monthly pass', 'Campo Grande, Lisboa', -40.00, 'Transport', 'hi'],
+    ['Sep 3', 'Anthropic API', 'Anthropic, San Francisco · $6.15', -5.34, 'Subscriptions', 'hi'],
+    ['Sep 5', 'GANT', 'Gant Store, Lisbon', -108.00, 'Clothes', 'hi'],
+    ['Sep 5', 'Anthropic', 'Anthropic* Claude Sub, Dublin 4', -22.14, 'Subscriptions', 'hi'],
+    ['Sep 5', 'A Padaria Portuguesa', 'Pad Port Amoreira, Lisboa', -2.55, 'Eating out', 'hi'],
+    ['Sep 5', 'Bnp Toc', 'Bnp Toc, Lisboa', -6.70, 'Eating out', 'lo'],
+    ['Sep 8', 'Galeto', 'Restaurante O Galeto, Lisboa', -23.00, 'Eating out', 'hi'],
+    ['Sep 15', 'Bnp Toc', 'Bnp Toc, Lisboa', -6.70, 'Eating out', 'lo'],
+    ['Sep 17', 'Bolt', 'Bolt.euo2609161656, Tallinn', -5.97, 'Transport', 'hi'],
+    ['Sep 17', 'Bolt', 'Bolt.euo2609161932, Tallinn', -7.90, 'Transport', 'hi'],
+    ['Sep 18', 'Bnp Toc', 'Bnp Toc, Lisboa', -6.70, 'Eating out', 'lo'],
+    ['Sep 19', 'Ori Asian Food', 'Ori Asian Food, Lisboa', -14.30, 'Eating out', 'hi'],
+    ['Sep 20', 'Mango', 'Mango Amadora Ubbo Sc', -34.72, 'Clothes', 'hi'],
+    ['Sep 22', 'Bnp Toc', 'Bnp Toc, Lisboa', -0.63, 'Eating out', 'lo'],
+    ['Sep 24', 'Sinal Mais', 'Sinal Mais, Carnaxide', -0.38, 'Other', 'lo'],
+    ['Sep 24', 'Bnp Toc', 'Bnp Toc, Lisboa', -6.70, 'Eating out', 'lo'],
+    ['Sep 24', 'Bullguer Saldanha', 'Bullguer Saldanha, Lisboa', -14.10, 'Eating out', 'hi'],
+    ['Sep 26', 'Li Yuan', 'Li Yuan, Lisboa', -10.81, 'Eating out', 'hi'],
+  ];
+  const MOVES = [
+    ['Aug 18', 'Payment from you', 'from PT50 ••• 0120', +4400, 'which account is this?', 'ask'],
+    ['Aug 18', 'Trade Republic', 'card payment → TR', -2424.96, 'Revolut → TR · deposit', 'hi'],
+    ['Aug 18', 'Trading 212', 'card payment → 212', -2114.70, 'Revolut → 212 · deposit', 'hi'],
+    ['Aug 23', 'To investment account', 'internal', -1500, 'Revolut → Revolut stocks', 'hi'],
+    ['Sep 1', 'Top-up by card ••2789', 'card top-up', +1000, 'which card is ••2789?', 'ask'],
+  ];
+  const CATS2 = ['Eating out', 'Groceries', 'Transport', 'Car', 'Clothes', 'Shopping', 'Subscriptions', 'Fun', 'Health', 'Home', 'Other'];
+  const eur2 = (v) => (v < 0 ? '−' : '+') + '€' + Math.abs(v).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  /* TR "Wealth" list: name, value, % since buy — no shares, no price paid.
+     Tickers matched by search; what you paid and shares are CALCULATED
+     from today's price (Yahoo, Sep 25 close) and the ECB USD→EUR rate. */
+  const FX = 0.87696;
+  const TRH = [
+    ['Alphabet (A)', 'GOOGL', 'NASDAQ', 375.70, -0.62, 343.92, 'Class A → GOOGL, not GOOG (search lists GOOG first)', 'Tech'],
+    ['Amazon.com', 'AMZN', 'NASDAQ', 357.73, 1.93, 249.67, '', 'Consumer'],
+    ['Microsoft', 'MSFT', 'NASDAQ', 336.52, 34.07, 516.17, '', 'Tech'],
+    ['Meta Platforms (A)', 'META', 'NASDAQ', 323.74, 28.99, 751.66, 'Class A is the only listed class', 'Tech'],
+    ['Broadcom', 'AVGO', 'NASDAQ', 302.72, -7.99, 352.81, '', 'Tech'],
+    ['NVIDIA', 'NVDA', 'NASDAQ', 280.15, 9.00, 225.07, '', 'Tech'],
+    ['Palantir Technologies', 'PLTR', 'NASDAQ', 277.97, 11.20, 189.67, 'skipped PLTR.TO — a Toronto receipt, not the share', 'Tech'],
+    ['MasterCard', 'MA', 'NYSE', 262.16, 4.43, 567.65, '', 'Financials'],
+    ['Visa', 'V', 'NYSE', 259.40, 2.98, 367.38, 'value partly hidden on the screenshot — check it', 'Financials'],
+    ['GE Vernova', 'GEV', 'NYSE', 256.54, 2.62, 957.63, '', 'Industrials'],
+  ];
+
+  const FILES = [
+    ['PDF', '#e0655a', 'account-statement_2026-08-01_2026-09-27.pdf', 'Revolut · statement · EUR', 'stmt'],
+    ['IMG', '#6aa5ff', 'IMG_4412.png', 'Revolut · spending history', 'hist'],
+    ['IMG', '#6aa5ff', 'IMG_4413.png', 'Trade Republic · holdings', 'hold'],
+  ];
+
+  Object.assign(FORMS, {
+    add: () => `<div class="row between"><span class="sys-title" style="letter-spacing:.24em">[ add ]</span><button class="upd" data-close>close</button></div>
+      <div class="drop" data-drop style="padding:26px; cursor:pointer">
+        <div style="font-size:16px; color:var(--ink-100)">Drop statements or screenshots</div>
+        <div class="mono dim" style="font-size:11px; margin-top:6px">PDF · CSV · PNG — any bank, any broker, several at once. It works out what each one is.</div>
+      </div>
+      <span class="step">try with your examples</span>
+      ${FILES.map(([t, c, n, what, k]) => `<button class="src" data-sample="${k}"><span class="ft" style="background:${c}22; color:${c}; border:1px solid ${c}55">${t}</span><span style="display:flex; flex-direction:column; gap:2px; min-width:0"><span style="font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${n}</span><span class="mono dim" style="font-size:10.5px">${what}</span></span></button>`).join('')}
+      <div style="border-top:1px solid rgba(255,255,255,.07); padding-top:12px; display:flex; flex-direction:column; gap:8px">
+        <span class="step">or log something that matters</span>
+        <div class="opts">
+          <button class="chip" data-open="logbig" data-acc="transfer">⇄ transfer</button>
+          <button class="chip" data-open="logbig" data-acc="purchase">↘ big purchase</button>
+          <button class="chip" data-open="logbig" data-acc="income">↗ money in</button>
+        </div>
+      </div>`,
+    logbig: (kind = 'transfer') => {
+      const title = { transfer: 'transfer', purchase: 'big purchase', income: 'money in' }[kind];
+      const accts = (label, on) => `<span class="step">${label}</span><div class="opts">${['Revolut', 'BPI', 'Activo', 'TR', '212', 'Notes'].map(a => `<button class="chip ${a === on ? 'on' : ''}" data-chip>${a}</button>`).join('')}</div>`;
+      const body = kind === 'transfer'
+        ? `<label class="big-amount"><span>€</span><input inputmode="decimal" placeholder="0" data-amount autofocus></label>` + accts('from', 'BPI') + accts('to', 'Revolut') + `<p class="dim" style="font-size:12.5px">Not spending, not income. When the statement shows it later, it is matched to this — not counted twice.</p>`
+        : kind === 'purchase'
+          ? `<label class="big-amount"><span>€</span><input inputmode="decimal" placeholder="0" data-amount autofocus></label><label class="field"><input placeholder="what — laptop, flight, a plot of land…"></label>` + chips(['Home', 'Travel', 'Tech', 'Car', 'Land', 'Other'], 0) + accts('paid from', 'Revolut') + `<div class="drop" style="padding:14px">attach the receipt or contract (optional)</div>`
+          : `<label class="big-amount"><span>€</span><input inputmode="decimal" placeholder="0" data-amount autofocus></label>` + chips(['Bonus', 'IRS return', 'Gift', 'Sold something', 'Other'], 0) + accts('into', 'BPI');
+      return `<div class="row between"><span class="row" style="gap:12px"><button class="upd" data-open="add">‹ back</button><span class="sys-title" style="letter-spacing:.24em">[ ${title} ]</span></span><button class="upd" data-close>close</button></div>` + body + save('save', kind === 'purchase' ? '−' : kind === 'income' ? '+' : '');
+    },
+    reading: (k) => `<div class="row between"><span class="sys-title system-pulse" style="letter-spacing:.24em">[ reading ]</span><button class="upd" data-close>close</button></div>
+      <div class="read"><span class="mono" style="font-size:12px">${FILES.find(f => f[4] === k)[2]}</span><div class="beam"></div>
+      <span class="mono dim" style="font-size:11px">${{ stmt: 'finding the bank, the period, every row, the pending ones, the balance…', hist: 'reading rows · matching them against what you already have…', hold: 'reading positions · searching each ticker · pulling today’s prices…' }[k]}</span></div>`,
+  });
+
+  function reviewStatement() {
+    const spent = STMT.reduce((t, r) => t + r[3], 0);
+    const byCat = {}; STMT.forEach(r => byCat[r[4]] = (byCat[r[4]] || 0) + r[3]);
+    const unsure = STMT.filter(r => r[5] === 'lo').length;
+    return `<div class="row between"><span class="sys-title" style="letter-spacing:.24em">[ revolut · aug 1 → sep 27 ]</span><button class="upd" data-close>close</button></div>
+    <span class="mono dim" style="font-size:11px">read by Claude Haiku 4.5 · 41 rows · 3 pages · nothing saved until you confirm</span>
+    <div class="row" style="gap:8px">
+      <div class="kpi"><span class="caps">money out on paper</span><b class="money">€6,600.97</b></div>
+      <div class="kpi"><span class="caps">actually spent</span><b class="money bad">${eur2(spent)}</b><span class="mono dim" style="font-size:10.5px">${STMT.length} rows</span></div>
+      <div class="kpi"><span class="caps">your money moving</span><b class="money">5 moves</b><span class="mono dim" style="font-size:10.5px">not spending</span></div>
+      <div class="kpi"><span class="caps">balance · Sep 26</span><b class="money">€799.47</b><span class="mono dim" style="font-size:10.5px">→ Revolut free cash</span></div>
+    </div>
+
+    <div class="sec"><h4><span>⇄ your money moving — not counted as spending</span><span>2 need you</span></h4>
+      ${MOVES.map(([d, n, raw, v, what, c]) => `<div class="tx"><span class="d">${d}</span><span>${n}<br/><span class="raw">${raw}</span></span>
+        ${c === 'ask' ? `<select class="cat-sel" style="border-color:color-mix(in oklch, var(--warn) 50%, transparent)"><option>${what}</option><option>BPI</option><option>Activo</option><option>someone else — it's income</option></select>` : `<span class="mono" style="font-size:11.5px; color:var(--lav-300)">${what}</span>`}
+        <span class="mono money">${eur2(v)}</span></div>`).join('')}
+      <div class="tip">↳ <span>Answer once and it's remembered: every future <b>PT50 ••• 0120</b> is your BPI.</span></div>
+    </div>
+
+    <div class="sec"><h4><span>↻ found things that come round</span><span>add as bills?</span></h4>
+      <div class="tx"><span class="d">5th</span><span>Claude subscription<br/><span class="raw">Anthropic* Claude Sub · Aug 5, Sep 5 · same amount</span></span><span class="mono money">−€22.14</span><button class="upd">add bill</button></div>
+      <div class="tx"><span class="d">1st</span><span>Metro monthly pass<br/><span class="raw">Metropolitano · Campo Grande · €40 exactly</span></span><span class="mono money">−€40.00</span><button class="upd">add bill</button></div>
+    </div>
+
+    <div class="sec"><h4><span>◷ pending — held back</span><span></span></h4>
+      <div class="tx"><span class="d">Sep 26</span><span>Cinemas NOS<br/><span class="raw">not completed yet · will match when the next statement shows it done</span></span><span class="mono money">−€8.75</span><span class="conf dup">pending</span></div>
+    </div>
+
+    <div class="sec"><h4><span>↘ spending · ${STMT.length} rows · ${unsure} to check</span><span class="row" style="gap:6px"><button class="chip on" data-sfilter="lo">to check</button><button class="chip" data-sfilter="all">all</button></span></h4>
+      <div id="stmtRows"></div>
+      <div class="tip">↳ <span>Change <b>Bnp Toc</b> once and all 8 follow — and every Bnp Toc next month files itself.</span></div>
+    </div>
+
+    <div class="sec"><h4><span>✦ what stands out</span><span></span></h4>
+      <div class="tip">• <span><b>Bnp Toc ${STMT.filter(r => r[1] === 'Bnp Toc').length} times, ${eur2(STMT.filter(r => r[1] === 'Bnp Toc').reduce((t, r) => t + r[3], 0)).slice(1)}</b> — your most frequent place, mostly €6.70 at lunch.</span></div>
+      <div class="tip">• <span><b>Clothes €158</b> in 3 buys — GANT €108 is the biggest single spend of the period.</span></div>
+      <div class="tip">• <span>${STMT.filter(r => -r[3] < 10).length} of ${STMT.length} spends are under €10 — ${eur2(STMT.filter(r => -r[3] < 10).reduce((t, r) => t + r[3], 0)).slice(1)} in all. None of them worth typing.</span></div>
+      <div class="tip">• <span>€4,539 left Revolut for TR and 212 on Aug 18 — logged as moves; your brokers' cash should show it.</span></div>
+    </div>
+
+    <div class="row" style="flex-wrap:nowrap; position:sticky; bottom:-18px; background:#1c1e2e; padding:10px 0 0"><button class="btn" style="flex:1; background:none" data-close>discard</button><button class="btn" style="flex:2; padding:12px" data-close>confirm · ${STMT.length} spends · 5 moves · balance</button></div>`;
+  }
+  function drawStmtRows(filter) {
+    const rows = STMT.map((r, i) => [r, i]).filter(([r]) => filter === 'all' || r[5] === 'lo');
+    document.getElementById('stmtRows').innerHTML = rows.map(([[d, n, raw, v, c, conf], i]) => `<div class="tx"><span class="d">${d}</span>
+      <span>${n}<br/><span class="raw">${raw}</span></span>
+      <span class="row" style="gap:6px; flex-wrap:nowrap"><span class="conf ${conf}">${conf === 'hi' ? 'sure' : 'guess'}</span><select class="cat-sel" data-fixall="${n}">${CATS2.map(x => `<option ${x === c ? 'selected' : ''}>${x}</option>`).join('')}</select></span>
+      <span class="mono money">${eur2(v)}</span></div>`).join('');
+  }
+
+  function reviewHistory() {
+    const H = [['Yesterday', 'Cinemas NOS', -8.75, 'pending in the statement — same one'], ['Sep 25', 'Li Yuan', -10.81, 'in the statement · Sep 26 there'], ['Sep 23', 'Bullguer Saldanha', -14.10, 'in the statement · Sep 24'], ['Sep 23', 'Bnp Toc', -6.70, 'in the statement · Sep 24'], ['Sep 23', 'Sinal Mais', -0.38, 'in the statement · Sep 24'], ['Sep 21', 'Bnp Toc', -0.63, 'in the statement · Sep 22']];
+    return `<div class="row between"><span class="sys-title" style="letter-spacing:.24em">[ revolut · history screenshot ]</span><button class="upd" data-close>close</button></div>
+      <span class="mono dim" style="font-size:11px">6 rows read · balance shown €790.72 (includes pending)</span>
+      <div class="kpi" style="flex:none"><span class="caps">new</span><b>0 of 6</b><span class="mono dim" style="font-size:10.5px">you already have all of them</span></div>
+      <div class="sec"><h4><span>already have these</span><span>matched by amount · place · ±2 days</span></h4>
+        ${H.map(([d, n, v, why]) => `<div class="tx"><span class="d">${d}</span><span>${n}<br/><span class="raw">${why}</span></span><span class="conf dup">duplicate</span><span class="mono money">${eur2(v)}</span></div>`).join('')}
+      </div>
+      <div class="tip">↳ <span>The app shows the <b>posting</b> day, the screenshot the <b>spending</b> day — so they differ by a day and still match. Nothing here is counted twice.</span></div>
+      <div class="tip">↳ <span>Balance: the screenshot's €790.72 is €799.47 minus the pending €8.75 — consistent. Revolut free cash stays <b>€799.47</b> until the cinema completes.</span></div>
+      <button class="btn" style="padding:12px" data-close>nothing to add · close</button>`;
+  }
+
+  function reviewHoldings() {
+    const rows = TRH.map(([name, sym, ex, val, pct, px, note, sector]) => {
+      const pxE = px * FX, sh = val / pxE, paid = val / (1 + pct / 100), pl = val - paid;
+      return { name, sym, ex, val, pct, pxE, sh, paid, pl, note, sector };
+    });
+    const tot = rows.reduce((t, r) => t + r.val, 0), paid = rows.reduce((t, r) => t + r.paid, 0);
+    const bySector = {}; rows.forEach(r => bySector[r.sector] = (bySector[r.sector] || 0) + r.val);
+    const top = Object.entries(bySector).sort((a, b) => b[1] - a[1]);
+    return `<div class="row between"><span class="sys-title" style="letter-spacing:.24em">[ trade republic · holdings ]</span><button class="upd" data-close>close</button></div>
+      <span class="mono dim" style="font-size:11px">10 positions read · tickers searched · prices Yahoo Finance Sep 25 close · USD→EUR ${FX} ECB</span>
+      <div class="row" style="gap:8px">
+        <div class="kpi"><span class="caps">worth now</span><b class="money">€${tot.toLocaleString('en', { maximumFractionDigits: 0 })}</b></div>
+        <div class="kpi"><span class="caps">you paid · calculated</span><b class="money">€${paid.toLocaleString('en', { maximumFractionDigits: 0 })}</b></div>
+        <div class="kpi"><span class="caps">profit</span><b class="good money">+€${(tot - paid).toFixed(0)} · +${((tot / paid - 1) * 100).toFixed(1)}%</b></div>
+        <div class="kpi"><span class="caps">vs what TR had here</span><b>10 new</b><span class="mono dim" style="font-size:10.5px">first import</span></div>
+      </div>
+      <div class="sec"><h4><span>positions · check the ticker</span><span class="calcnote"><span class="conf calc">calc</span> = worked out, not on the screen</span></h4>
+        <div class="hold mono dim" style="font-size:10px; letter-spacing:.1em; text-transform:uppercase; border-top:0"><span></span><span>TR says → ticker</span><span class="opt">worth · since buy</span><span class="opt">shares</span><span class="opt">you paid</span><span>profit</span></div>
+        ${rows.map(r => `<div class="hold">
+          <img class="tlogo" src="https://financialmodelingprep.com/image-stock/${r.sym}.png" alt="" referrerpolicy="no-referrer" data-s="${r.sym.slice(0, 4)}" onerror="tfail(this)">
+          <span style="display:flex; flex-direction:column; gap:2px; min-width:0"><span><span class="dim">${r.name} →</span> <b style="color:var(--lav-300); font-family:var(--mono)">${r.sym}</b> <span class="mono dim" style="font-size:10px">${r.ex}</span></span>${r.note ? `<span class="mono" style="font-size:10.5px; color:${r.note.includes('check') ? 'var(--warn)' : 'var(--ink-500)'}">${r.note}</span>` : ''}</span>
+          <span class="opt mono money">€${r.val.toFixed(2)} <span class="${r.pct >= 0 ? 'good' : 'bad'}">${r.pct >= 0 ? '+' : ''}${r.pct.toFixed(2)}%</span></span>
+          <span class="opt mono money">${r.sh.toFixed(4)} <span class="conf calc">calc</span></span>
+          <span class="opt mono money">€${r.paid.toFixed(2)} <span class="conf calc">calc</span></span>
+          <span class="mono money ${r.pl >= 0 ? 'good' : 'bad'}">${r.pl >= 0 ? '+' : '−'}€${Math.abs(r.pl).toFixed(2)}</span></div>`).join('')}
+      </div>
+      <div class="sec"><h4><span>✦ what this portfolio is</span><span></span></h4>
+        <div class="tip">• <span><b>All 10 are US shares priced in dollars</b> — 100% of TR moves with USD/EUR as well as with the market.</span></div>
+        <div class="tip">• <span>By sector: ${top.map(([k, v]) => `<b>${k}</b> ${Math.round(v / tot * 100)}%`).join(' · ')}. Tech is ${Math.round(bySector.Tech / tot * 100)}% — seven of ten names.</span></div>
+        <div class="tip">• <span>Microsoft carries the result: +€${rows[2].pl.toFixed(0)} of the +€${(tot - paid).toFixed(0)}. Broadcom is the one in the red.</span></div>
+        <div class="tip">• <span>Nearly equal sizes (€256–€376) — looks like a steady monthly buy across the same ten. <b>Is it a savings plan?</b> Then each month's buys can be expected, not guessed.</span></div>
+      </div>
+      <div class="tip">↳ <span>Want exact shares instead of <span class="conf calc">calc</span>? Tap a position in TR and drop that screen too — it shows shares and your average price.</span></div>
+      <div class="tip">↳ <span>TR's <b>free cash</b> is on its Cash tab — drop that screenshot and it's set too.</span></div>
+      <div class="row" style="flex-wrap:nowrap; position:sticky; bottom:-18px; background:#1c1e2e; padding:10px 0 0"><button class="btn" style="flex:1; background:none" data-close>discard</button><button class="btn" style="flex:2; padding:12px" data-close>add 10 positions to Trade Republic</button></div>`;
+  }
+
+  document.addEventListener('click', (e) => {
+    const smp = e.target.closest('[data-sample]'); if (smp) {
+      const k = smp.dataset.sample; sheet.classList.add('review'); sheet.innerHTML = FORMS.reading(k);
+      setTimeout(() => {
+        sheet.innerHTML = k === 'stmt' ? reviewStatement() : k === 'hist' ? reviewHistory() : reviewHoldings();
+        if (k === 'stmt') drawStmtRows('lo');
+        sheet.scrollTop = 0;
+      }, 1500); return; }
+    const sf = e.target.closest('[data-sfilter]'); if (sf) { [...sf.parentNode.children].forEach(x => x.classList.toggle('on', x === sf)); drawStmtRows(sf.dataset.sfilter); return; }
+    const dz = e.target.closest('[data-drop]'); if (dz) { dz.querySelector('div').textContent = 'In the real app this opens your files — try the examples below'; return; }
+  });
+  document.addEventListener('change', (e) => {
+    const fx = e.target.closest('[data-fixall]'); if (!fx) return;
+    const name = fx.dataset.fixall, val = fx.value;
+    STMT.forEach(r => { if (r[1] === name) { r[4] = val; r[5] = 'hi'; } });
+    const active = document.querySelector('[data-sfilter].on')?.dataset.sfilter || 'lo';
+    drawStmtRows(active);
+    const n = STMT.filter(r => r[1] === name).length;
+    const t = document.createElement('div'); t.className = 'tip'; t.style.color = 'var(--good)'; t.innerHTML = `✓ <span>${name} → ${val} · ${n} row${n > 1 ? 's' : ''} · remembered for next time</span>`;
+    document.getElementById('stmtRows').prepend(t);
+  });
+  /* Rooms + blur: a chart's price labels are amounts too, so they hide
+     with the rest. */
+  const charts = [wc, pc];
+  const veilCharts = (v) => charts.forEach(c => c.applyOptions({ rightPriceScale: { visible: !v }, crosshair: { horzLine: { labelVisible: !v } } }));
+  veilCharts(true);
+  document.getElementById('rooms').onclick = (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    [...e.currentTarget.children].forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.room').forEach(r => r.classList.toggle('on', r.id === b.dataset.room));
+    /* A chart drawn while its room was hidden measured zero wide. */
+    requestAnimationFrame(() => { [wc, pc, ic].forEach(c => c.timeScale().fitContent()); if (b.dataset.room === 'flow') drawMonth(); });
+  };
+  document.getElementById('eye').onclick = (e) => { const v = document.body.classList.toggle('veil'); e.target.textContent = v ? 'show' : 'hide'; veilCharts(v); };
+</script>
+</body>
+</html>

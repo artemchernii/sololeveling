@@ -2010,3 +2010,27 @@ describe('aggregate.accountMonth', () => {
     void t
   })
 })
+
+test('a deleted account with history is retired, and what it held leaves every total', async () => {
+  const { me } = setup()
+  const tr = await me.mutation(api.accounts.create, {
+    name: 'TR',
+    kinds: ['broker'],
+    currencies: ['EUR'],
+  })
+  await trade(me, {
+    accountId: tr,
+    candidate: TSLA,
+    side: 'buy',
+    shares: 2,
+    priceEur: 100,
+    occurredAt: Date.now(),
+  })
+  expect((await me.query(api.aggregate.positions, {})).rows).toHaveLength(1)
+  expect(await me.mutation(api.accounts.remove, { accountId: tr })).toBe(
+    'retired',
+  )
+  expect((await me.query(api.aggregate.positions, {})).rows).toEqual([])
+  const w = await me.query(api.aggregate.worth, {})
+  expect([w.invested.total, w.total]).toEqual([0, 0])
+})

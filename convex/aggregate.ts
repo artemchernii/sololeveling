@@ -1532,10 +1532,25 @@ async function movedSince(
 }
 
 async function readPositions(ctx: QueryCtx, ownerId: string) {
-  const trades = await ctx.db
-    .query('trades')
-    .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
-    .take(TRADE_ROWS)
+  /* A deleted account with history is retired, not erased — and what it
+     held leaves every total with it (27 Sep: his deleted test accounts
+     still counted in the hero). */
+  const live = new Set(
+    (
+      await ctx.db
+        .query('accounts')
+        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+        .take(ACCOUNT_ROWS)
+    )
+      .filter((a) => a.retiredAt === undefined)
+      .map((a) => a._id),
+  )
+  const trades = (
+    await ctx.db
+      .query('trades')
+      .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
+      .take(TRADE_ROWS)
+  ).filter((t) => live.has(t.accountId))
 
   const held = new Map<
     string,

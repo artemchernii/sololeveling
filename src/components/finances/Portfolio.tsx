@@ -115,7 +115,7 @@ export function Portfolio() {
                 </div>
                 <div className="flex flex-col gap-1.5 font-mono text-[12px]">
                   <span className="flex items-center justify-between gap-2">
-                    <span className="text-ink-500">shares worth</span>
+                    <span className="text-ink-500">investments</span>
                     <span className="flex items-center gap-2">
                       <Veiled>{euros(Math.round(value * 100) / 100)}</Veiled>
                       <ProfitPill profit={value - paid} base={paid} small />

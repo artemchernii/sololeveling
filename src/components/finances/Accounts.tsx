@@ -22,7 +22,7 @@ import { euros } from '@/lib/money'
 /* Accounts, in the Overview room (Treasury, 27 Sep). His, not hard-coded:
    filter by what they are, add one, edit or delete one, update one. Each
    card shows what the account holds in all, a line per currency pocket
-   (a USD pocket with the euros it is worth), what its shares are worth
+   (a USD pocket with the euros it is worth), what its investments are worth
    when it holds any, and how fresh it is. */
 
 const KIND_STYLE: Record<AccountKind, string> = {
@@ -207,7 +207,7 @@ export function Accounts() {
                   ))}
                   {invested !== null ? (
                     <span className="flex items-center justify-between gap-2">
-                      <span className="text-ink-500">shares worth</span>
+                      <span className="text-ink-500">investments</span>
                       <Veiled>{euros(invested)}</Veiled>
                     </span>
                   ) : null}
@@ -461,9 +461,9 @@ function AccountDetails({
             <KindBadge key={k} kind={k} />
           ))}
           {product.kinds.length > 1
-            ? 'Its cash and its shares, in one account.'
+            ? 'Its cash and its investments, in one account.'
             : product.kinds[0] === 'broker'
-              ? 'Its free cash, and the shares it holds from a screenshot.'
+              ? 'Its free cash, and its investments from a screenshot.'
               : product.kinds[0] === 'cash'
                 ? 'The notes in your wallet — counted, not read.'
                 : 'Its statements fill it; transfers to your other accounts are matched.'}
@@ -573,7 +573,7 @@ function AccountDetails({
                   setOpening({ ...opening, [c]: e.target.value })
                 }
                 placeholder={
-                  kinds.includes('broker') ? 'free cash, not shares' : '0'
+                  kinds.includes('broker') ? 'free cash, not investments' : '0'
                 }
                 aria-label={`${name} ${c} now`}
                 className="w-full bg-transparent text-[16px] focus:outline-none"
@@ -739,7 +739,7 @@ function TypeBalances({
   return (
     <>
       <span className="text-[12.5px] text-ink-400">
-        The free cash the app shows now — shares are not in it.
+        The free cash in it now — its investments are not in this number.
       </span>
       {account.currencies.map((c) => {
         const p = pockets.find((x) => x.currency === c)

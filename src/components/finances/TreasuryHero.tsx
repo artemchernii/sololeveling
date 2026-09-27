@@ -57,7 +57,7 @@ function ageLabel(at: number | null, now: number): string {
 const WEEKDAY = new Intl.DateTimeFormat('en', { weekday: 'long' })
 const SHORT = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
 
-/* "balances as of today · share prices: Friday's close" */
+/* "balances as of today · market prices: Friday's close" */
 function freshness(
   oldestCash: number | null,
   oldestPrice: number | null,
@@ -74,7 +74,7 @@ function freshness(
   const parts: Array<string> = []
   if (oldestCash !== null) parts.push(`balances as of ${day(oldestCash)}`)
   if (oldestPrice !== null) {
-    parts.push(`share prices: ${day(oldestPrice)}'s close`)
+    parts.push(`market prices: ${day(oldestPrice)}'s close`)
   }
   return parts.join(' · ')
 }

@@ -41,7 +41,23 @@ export function TreasuryHero() {
         aria-hidden
         className="pointer-events-none absolute -top-24 -left-16 size-72 rounded-full bg-(--area)/14 blur-3xl"
       />
-      <div className="relative flex flex-wrap items-center gap-2 border-b border-lav-400/20 pb-3">
+      {/* His photo (27 Sep), Body's way: on the right of a wide card, faded
+          in from the left, the engraved eye in frame. Not on a phone, where
+          the numbers need the width. */}
+      <img
+        src="/finances/dollar.jpg"
+        alt=""
+        aria-hidden
+        decoding="async"
+        style={{
+          objectPosition: '55% 42%',
+          maskImage: 'linear-gradient(to left, black 45%, transparent 100%)',
+          WebkitMaskImage:
+            'linear-gradient(to left, black 45%, transparent 100%)',
+        }}
+        className="motion-fade pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[42%] object-cover opacity-60 select-none sm:block"
+      />
+      <div className="relative flex flex-wrap items-center gap-2 border-b border-lav-400/20 pb-3 sm:w-[58%]">
         <span className="system-title flex-1">[ treasury ]</span>
         <span className="label-caps hidden text-ink-300 sm:inline">
           {MONTH.format(new Date(today))}
@@ -50,7 +66,7 @@ export function TreasuryHero() {
         <AddButton />
       </div>
 
-      <div className="relative flex flex-col gap-1">
+      <div className="relative flex flex-col gap-1 sm:w-[58%]">
         <span className="label-caps">capital · cash + investments</span>
         <span className="flex h-[46px] items-center sm:h-[58px]">
           {worth === undefined ? (
@@ -70,7 +86,7 @@ export function TreasuryHero() {
         </span>
       </div>
 
-      <div className="relative flex flex-wrap items-center gap-2">
+      <div className="relative flex flex-wrap items-center gap-2 sm:w-[58%]">
         <span className="inline-flex h-9 items-center gap-2.5 rounded-[10px] bg-lift/[0.06] px-3 font-mono text-[14.5px]">
           {sums === undefined ? (
             <Skeleton className="h-3 w-32" />
@@ -91,7 +107,7 @@ export function TreasuryHero() {
         <NextBill today={today} />
       </div>
 
-      <div className="relative flex max-w-xl flex-col gap-1.5">
+      <div className="relative flex max-w-xl flex-col gap-1.5 sm:w-[58%]">
         <div className="flex h-2.5 gap-[3px] overflow-hidden rounded-full bg-lift/[0.06]">
           {cash + invested > 0 ? (
             <>

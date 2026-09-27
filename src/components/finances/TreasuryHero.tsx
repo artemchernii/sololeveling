@@ -9,6 +9,7 @@ import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { AddButton } from '@/components/finances/Add'
 import { UpdateSheet } from '@/components/finances/Accounts'
 import { AccountLogo } from '@/components/finances/Logo'
+import { SetupSheet } from '@/components/finances/Setup'
 import { Sheet } from '@/components/finances/Sheet'
 import { Veiled, VeilToggle } from '@/components/finances/Veil'
 import { Skeleton } from '@/components/Skeleton'
@@ -95,6 +96,7 @@ export function TreasuryHero() {
   })
   const [open, setOpen] = useState<Group | 'checkin' | null>(null)
   const [updating, setUpdating] = useState<Doc<'accounts'> | null>(null)
+  const [setup, setSetup] = useState(false)
 
   const loading = worth === undefined || balances === undefined
   const empty = !loading && balances.accounts.length === 0
@@ -151,7 +153,9 @@ export function TreasuryHero() {
           />
         ) : null}
         <VeilToggle hideOnLeave />
-        <AddButton />
+        {/* No account yet: + brings accounts in — there is nothing to add
+            money to. */}
+        <AddButton onOpen={empty ? () => setSetup(true) : undefined} />
       </div>
 
       {loading ? (
@@ -174,6 +178,7 @@ export function TreasuryHero() {
             cta
             label="bring in your accounts"
             className="self-start"
+            onOpen={() => setSetup(true)}
           />
         </div>
       ) : (
@@ -361,6 +366,7 @@ export function TreasuryHero() {
         )}
       </Sheet>
       <UpdateSheet account={updating} onClose={() => setUpdating(null)} />
+      <SetupSheet open={setup} onClose={() => setSetup(false)} />
     </section>
   )
 }

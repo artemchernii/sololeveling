@@ -25,11 +25,15 @@ export function AddButton({
   className = '',
   label = 'add',
   cta = false,
+  onOpen,
 }: {
   className?: string
   label?: string
   /** The day-one call to action: solid, still, words instead of +. */
   cta?: boolean
+  /** Opens something else instead of the + sheet — setup, before there is
+      an account to add money to. */
+  onOpen?: () => void
 }) {
   const [step, setStep] = useState<Step | null>(null)
   const home = () => setStep({ at: 'home' })
@@ -45,7 +49,7 @@ export function AddButton({
     <>
       <button
         type="button"
-        onClick={home}
+        onClick={onOpen ?? home}
         className={
           cta
             ? `motion-press inline-flex items-center justify-center gap-1.5 rounded-full bg-lav-400 px-4 py-2.5 font-mono text-[11px] font-medium tracking-[0.14em] text-background uppercase ${className}`
@@ -93,17 +97,78 @@ export function AddButton({
   )
 }
 
+/**
+ * Files up to storage and handed to the reader. One read for all of them
+ * (a statement split over files), or `oneEach` — a read per file, so each
+ * bank's statement becomes its own account in setup. Returns the reads
+ * started, or throws a sentence for him.
+ */
+export function useIntakeUpload() {
+  const uploadUrl = useMutation(api.attachments.generateUploadUrl)
+  const start = useMutation(api.intake.start)
+  return async function send(
+    files: Array<File>,
+    opts: { accountId?: Id<'accounts'>; oneEach?: boolean } = {},
+  ): Promise<Array<Id<'intakes'>>> {
+    if (files.length === 0) return []
+    if (files.length > MAX_INTAKE_FILES) {
+      throw new Error(`At most ${MAX_INTAKE_FILES} files at once.`)
+    }
+    const bad = files.find((f) => readableFile(f.type, f.name) === null)
+    if (bad) throw new Error(`${bad.name} is not a PDF, a CSV or a screenshot.`)
+    const stored = []
+    for (const file of files) {
+      const url = await uploadUrl({})
+      const type =
+        file.type ||
+        (file.name.toLowerCase().endsWith('.csv')
+          ? 'text/csv'
+          : 'application/octet-stream')
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': type },
+        body: file,
+      })
+      if (!res.ok) throw new Error('It did not upload — try again.')
+      const { storageId } = (await res.json()) as {
+        storageId: Id<'_storage'>
+      }
+      stored.push({
+        storageId,
+        contentType: type,
+        name: file.name,
+        size: file.size,
+      })
+    }
+    const groups = opts.oneEach ? stored.map((f) => [f]) : [stored]
+    const ids: Array<Id<'intakes'>> = []
+    for (const g of groups) {
+      const result = await start({ accountId: opts.accountId, files: g })
+      if (!result.ok) throw new Error(result.error)
+      ids.push(result.intakeId)
+    }
+    return ids
+  }
+}
+
 /** Files in: uploaded, then handed to the reader. The account is optional
     — the reader names the bank, the review matches it. */
 export function DropFiles({
   accountId,
   onStarted,
+  oneEach = false,
+  title = 'Drop statements or screenshots',
+  hint = `PDF · CSV · PNG — any bank, any broker, up to ${MAX_INTAKE_FILES} at once. It works out what each one is.`,
+  small = false,
 }: {
   accountId?: Id<'accounts'>
   onStarted: (intakeId: Id<'intakes'>) => void
+  oneEach?: boolean
+  title?: string
+  hint?: string
+  small?: boolean
 }) {
-  const uploadUrl = useMutation(api.attachments.generateUploadUrl)
-  const start = useMutation(api.intake.start)
+  const upload = useIntakeUpload()
   const [busy, setBusy] = useState(false)
   const [over, setOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -111,46 +176,15 @@ export function DropFiles({
 
   async function send(files: Array<File>) {
     if (files.length === 0) return
-    if (files.length > MAX_INTAKE_FILES) {
-      setError(`At most ${MAX_INTAKE_FILES} files at once.`)
-      return
-    }
-    const bad = files.find((f) => readableFile(f.type, f.name) === null)
-    if (bad) {
-      setError(`${bad.name} is not a PDF, a CSV or a screenshot.`)
-      return
-    }
     setBusy(true)
     setError(null)
     try {
-      const stored = []
-      for (const file of files) {
-        const url = await uploadUrl({})
-        const type =
-          file.type ||
-          (file.name.toLowerCase().endsWith('.csv')
-            ? 'text/csv'
-            : 'application/octet-stream')
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': type },
-          body: file,
-        })
-        const { storageId } = (await res.json()) as {
-          storageId: Id<'_storage'>
-        }
-        stored.push({
-          storageId,
-          contentType: type,
-          name: file.name,
-          size: file.size,
-        })
-      }
-      const result = await start({ accountId, files: stored })
-      if (!result.ok) setError(result.error)
-      else onStarted(result.intakeId)
-    } catch {
-      setError('It did not upload — try again.')
+      for (const id of await upload(files, { accountId, oneEach }))
+        onStarted(id)
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : 'It did not upload — try again.',
+      )
     } finally {
       setBusy(false)
     }
@@ -172,7 +206,7 @@ export function DropFiles({
           setOver(false)
           void send([...e.dataTransfer.files])
         }}
-        className={`motion-press flex min-h-36 flex-col items-center justify-center gap-2 rounded-[16px] border border-dashed px-4 text-center transition-colors ${
+        className={`motion-press flex flex-col items-center justify-center gap-2 rounded-[16px] border border-dashed px-4 text-center transition-colors ${small ? 'min-h-14 flex-row py-3' : 'min-h-36'} ${
           over
             ? 'border-lav-400 bg-lav-400/10'
             : 'border-lav-400/40 hover:bg-lav-400/6'
@@ -183,13 +217,16 @@ export function DropFiles({
         ) : (
           <FileUp className="size-6 text-area" />
         )}
-        <span className="text-[15px] text-foreground">
-          {busy ? 'Uploading…' : 'Drop statements or screenshots'}
+        <span
+          className={
+            small ? 'text-[13.5px] text-ink-200' : 'text-[15px] text-foreground'
+          }
+        >
+          {busy ? 'Uploading…' : title}
         </span>
-        <span className="font-mono text-[11px] text-ink-500">
-          PDF · CSV · PNG — any bank, any broker, up to {MAX_INTAKE_FILES} at
-          once. It works out what each one is.
-        </span>
+        {small ? null : (
+          <span className="font-mono text-[11px] text-ink-500">{hint}</span>
+        )}
       </button>
       <input
         ref={input}

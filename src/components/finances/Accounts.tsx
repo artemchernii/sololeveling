@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Pencil, Plus } from 'lucide-react'
+import { Pencil, Plus, Search } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
@@ -15,6 +15,8 @@ import { useDayStarts } from '@/components/track/useDayStarts'
 import { ACCOUNT_KINDS, CURRENCIES, money } from '@/lib/currency'
 import type { AccountKind } from '@/lib/currency'
 import { agoLabel } from '@/lib/format'
+import { PRODUCTS, productIn, searchProducts } from '@/lib/institutions'
+import type { Product } from '@/lib/institutions'
 import { euros } from '@/lib/money'
 
 /* Accounts, in the Overview room (Treasury, 27 Sep). His, not hard-coded:
@@ -157,31 +159,50 @@ export function Accounts() {
                 </span>
                 <div className="flex flex-col gap-1 font-mono text-[11.5px]">
                   {a.pockets.map((p) => (
-                    <span
-                      key={p.currency}
-                      className="flex items-center justify-between gap-2"
-                    >
-                      <span className="text-ink-500">
-                        free cash{' '}
-                        <span className="rounded-[4px] bg-lift/[0.06] px-1 text-[10px] text-ink-300">
-                          {p.currency}
+                    <span key={p.currency} className="flex flex-col gap-0.5">
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-ink-500">
+                          free cash{' '}
+                          <span className="rounded-[4px] bg-lift/[0.06] px-1 text-[10px] text-ink-300">
+                            {p.currency}
+                          </span>
+                        </span>
+                        <span className="text-ink-100">
+                          {p.value === null ? (
+                            <span className="text-ink-600">not typed</span>
+                          ) : (
+                            <Veiled>
+                              {money(p.value, p.currency)}
+                              {p.currency !== 'EUR' && p.eur !== null ? (
+                                <span className="text-ink-500">
+                                  {' '}
+                                  ≈ {euros(p.eur)}
+                                </span>
+                              ) : null}
+                            </Veiled>
+                          )}
                         </span>
                       </span>
-                      <span className="text-ink-100">
-                        {p.value === null ? (
-                          <span className="text-ink-600">not typed</span>
-                        ) : (
+                      {p.movedRows > 0 && p.read !== null ? (
+                        /* The number opens: what was read, and what moved
+                         after it — never a bare balance. */
+                        <span className="text-right text-[10.5px] text-ink-500">
                           <Veiled>
-                            {money(p.value, p.currency)}
-                            {p.currency !== 'EUR' && p.eur !== null ? (
-                              <span className="text-ink-500">
-                                {' '}
-                                ≈ {euros(p.eur)}
-                              </span>
-                            ) : null}
+                            read {money(p.read, p.currency)} ·{' '}
+                            <span
+                              className={
+                                p.moved >= 0
+                                  ? 'text-state-good'
+                                  : 'text-state-danger'
+                              }
+                            >
+                              {p.moved >= 0 ? '+' : ''}
+                              {money(p.moved, p.currency)}
+                            </span>{' '}
+                            since, {p.movedRows} row{p.movedRows > 1 ? 's' : ''}
                           </Veiled>
-                        )}
-                      </span>
+                        </span>
+                      ) : null}
                     </span>
                   ))}
                   {invested !== null ? (
@@ -257,24 +278,124 @@ function AccountForm({
   account: Doc<'accounts'> | null
   onDone: () => void
 }) {
+  const [picked, setPicked] = useState<Product | 'other' | null>(
+    account
+      ? (PRODUCTS.find(
+          (p) =>
+            p.institution === account.institution &&
+            account.kinds.includes(p.kind),
+        ) ??
+          productIn(account.name) ??
+          'other')
+      : null,
+  )
+  if (picked === null) {
+    return <PickBank onPick={setPicked} />
+  }
+  return (
+    <AccountDetails
+      account={account}
+      product={picked === 'other' ? null : picked}
+      onChangeBank={account ? undefined : () => setPicked(null)}
+      onDone={onDone}
+    />
+  )
+}
+
+/* Step one: which bank. The ones he is likely to have, with their marks;
+   a search for the rest; "other" for anything the app does not know. */
+function PickBank({ onPick }: { onPick: (p: Product | 'other') => void }) {
+  const [q, setQ] = useState('')
+  const list = searchProducts(q)
+  return (
+    <>
+      <label className={`${FIELD} flex items-center gap-2`}>
+        <Search className="size-4 text-ink-500" />
+        <input
+          autoFocus
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Which bank or broker?"
+          aria-label="Find a bank or broker"
+          className="w-full bg-transparent focus:outline-none"
+        />
+      </label>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {list.map((p, i) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onPick(p)}
+            style={{ animationDelay: `${i * 20}ms` }}
+            className="motion-land motion-press flex items-center gap-2.5 rounded-[14px] bg-lift/[0.035] p-2.5 text-left ring-1 ring-lift/10 ring-inset hover:ring-lav-400/45"
+          >
+            <AccountLogo name={p.name} domain={p.domain ?? null} size={30} />
+            <span className="flex min-w-0 flex-col gap-1">
+              <span className="truncate text-[13.5px] text-foreground">
+                {p.name}
+              </span>
+              <KindBadge kind={p.kind} />
+            </span>
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => onPick('other')}
+          className="motion-press flex items-center gap-2.5 rounded-[14px] border border-dashed border-lift/20 p-2.5 text-left text-[13.5px] text-ink-300 hover:border-lav-400/45"
+        >
+          <Plus className="size-4" />
+          {q.trim() ? `“${q.trim()}” — not listed` : 'another one'}
+        </button>
+      </div>
+    </>
+  )
+}
+
+/* Step two: what the bank did not already say — the name he calls it,
+   currencies, the endings that let a statement find it, and what it holds
+   today (or on the day he knows). */
+function AccountDetails({
+  account,
+  product,
+  onChangeBank,
+  onDone,
+}: {
+  account: Doc<'accounts'> | null
+  product: Product | null
+  onChangeBank?: () => void
+  onDone: () => void
+}) {
+  const today = useDayStarts(1).at(-1) as number
   const create = useMutation(api.accounts.create)
   const update = useMutation(api.accounts.update)
   const remove = useMutation(api.accounts.remove)
-  const [name, setName] = useState(account?.name ?? '')
+  const setBalance = useMutation(api.accounts.setBalance)
+  const [name, setName] = useState(account?.name ?? product?.name ?? '')
   const [kinds, setKinds] = useState<Array<AccountKind>>(
-    account?.kinds ?? ['bank'],
+    account?.kinds ?? (product ? [product.kind] : ['bank']),
   )
   const [currencies, setCurrencies] = useState<Array<string>>(
-    account?.currencies ?? ['EUR'],
+    account?.currencies ?? product?.currencies ?? ['EUR'],
   )
-  const [domain, setDomain] = useState(account?.domain ?? '')
+  const [domain, setDomain] = useState(account?.domain ?? product?.domain ?? '')
+  const [iban, setIban] = useState((account?.ibanTails ?? []).join(', '))
+  const [cards, setCards] = useState((account?.cardTails ?? []).join(', '))
+  const [opening, setOpening] = useState<Record<string, string>>({})
+  const [asOf, setAsOf] = useState(() => new Date().toISOString().slice(0, 10))
   const [more, setMore] = useState(false)
   const [asking, setAsking] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const toggle = <T,>(list: Array<T>, x: T) =>
     list.includes(x) ? list.filter((y) => y !== x) : [...list, x]
-  const shown = more ? CURRENCIES : CURRENCIES.slice(0, 6)
+  const shown = more
+    ? CURRENCIES
+    : [...new Set([...CURRENCIES.slice(0, 6), ...currencies])]
+  const tails = (s: string) =>
+    s
+      .split(/[,\s]+/)
+      .map((x) => x.trim())
+      .filter(Boolean)
 
   async function save() {
     setError(null)
@@ -284,9 +405,28 @@ function AccountForm({
         kinds,
         currencies,
         domain: domain.trim() || undefined,
+        product: product?.id,
+        ibanTails: tails(iban),
+        cardTails: tails(cards),
       }
+      let id = account?._id
       if (account) await update({ accountId: account._id, ...args })
-      else await create(args)
+      else id = await create(args)
+      /* A day in the past is true at its end; today is true now. */
+      const day = new Date(`${asOf}T23:59:59`).getTime()
+      for (const c of currencies) {
+        const raw = (opening[c] as string | undefined)?.trim()
+        if (!raw || !id) continue
+        const n = Number(raw.replace(/\s/g, '').replace(',', '.'))
+        if (!Number.isFinite(n)) throw new Error(`${c}: not a number`)
+        await setBalance({
+          accountId: id,
+          currency: c,
+          value: n,
+          dayStart: today,
+          asOf: day >= Date.now() ? undefined : day,
+        })
+      }
       onDone()
     } catch (e) {
       setError(
@@ -302,28 +442,58 @@ function AccountForm({
       <div className="flex items-center gap-3">
         <AccountLogo name={name || '?'} domain={domain || null} size={40} />
         <input
-          autoFocus
+          autoFocus={!product}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Revolut, BPI, Notes…"
+          placeholder="What you call it"
           aria-label="Name"
           className={`${FIELD} min-w-0 flex-1`}
         />
-      </div>
-      <span className="label-caps">what it is — pick any</span>
-      <div className="flex flex-wrap gap-1.5">
-        {ACCOUNT_KINDS.map((k) => (
-          <button
-            key={k}
-            type="button"
-            aria-pressed={kinds.includes(k)}
-            onClick={() => setKinds((ks) => toggle(ks, k))}
-            className={kinds.includes(k) ? PILL_LOUD : PILL_QUIET}
-          >
-            {k}
+        {onChangeBank ? (
+          <button type="button" onClick={onChangeBank} className={PILL_QUIET}>
+            change
           </button>
-        ))}
+        ) : null}
       </div>
+      {product ? (
+        <span className="flex items-center gap-2 text-[12.5px] text-ink-400">
+          <KindBadge kind={product.kind} />
+          {product.kind === 'broker'
+            ? 'Its free cash, and the shares it holds from a screenshot.'
+            : product.kind === 'cash'
+              ? 'The notes in your wallet — counted, not read.'
+              : 'Its statements fill it; transfers to your other accounts are matched.'}
+        </span>
+      ) : (
+        <>
+          <span className="label-caps">what it is</span>
+          <div className="flex flex-wrap gap-1.5">
+            {ACCOUNT_KINDS.map((k) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={kinds.includes(k)}
+                onClick={() => setKinds((ks) => toggle(ks, k))}
+                className={kinds.includes(k) ? PILL_LOUD : PILL_QUIET}
+              >
+                {k}
+              </button>
+            ))}
+          </div>
+          <label className={`${FIELD} flex items-center gap-2`}>
+            <span className="shrink-0 font-mono text-[10.5px] text-ink-500">
+              logo from
+            </span>
+            <input
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              placeholder="mybank.com"
+              aria-label="Website for the logo"
+              className="w-full bg-transparent focus:outline-none"
+            />
+          </label>
+        </>
+      )}
       <span className="label-caps">currencies it holds</span>
       <div className="flex flex-wrap gap-1.5">
         {shown.map((c) => (
@@ -347,18 +517,83 @@ function AccountForm({
           </button>
         ) : null}
       </div>
-      <label className={`${FIELD} flex items-center gap-2`}>
-        <span className="shrink-0 font-mono text-[10.5px] text-ink-500">
-          logo from
-        </span>
-        <input
-          value={domain}
-          onChange={(e) => setDomain(e.target.value)}
-          placeholder="revolut.com"
-          aria-label="Website for the logo"
-          className="w-full bg-transparent focus:outline-none"
-        />
-      </label>
+      {kinds.includes('cash') && kinds.length === 1 ? null : (
+        <>
+          <span className="label-caps">how statements show it · optional</span>
+          <div className="grid grid-cols-2 gap-2">
+            <label className={`${FIELD} flex items-center gap-2`}>
+              <span className="shrink-0 font-mono text-[10.5px] text-ink-500">
+                IBAN …
+              </span>
+              <input
+                inputMode="numeric"
+                value={iban}
+                onChange={(e) => setIban(e.target.value)}
+                placeholder="0120"
+                aria-label="Last four digits of the IBAN"
+                className="w-full bg-transparent font-mono focus:outline-none"
+              />
+            </label>
+            <label className={`${FIELD} flex items-center gap-2`}>
+              <span className="shrink-0 font-mono text-[10.5px] text-ink-500">
+                card ••
+              </span>
+              <input
+                inputMode="numeric"
+                value={cards}
+                onChange={(e) => setCards(e.target.value)}
+                placeholder="2789"
+                aria-label="Last four digits of its cards"
+                className="w-full bg-transparent font-mono focus:outline-none"
+              />
+            </label>
+          </div>
+          <span className="text-[12px] text-ink-500">
+            The last four digits. A transfer from PT50…0120 then lands on this
+            account by itself.
+          </span>
+        </>
+      )}
+      {account ? null : (
+        <>
+          <span className="label-caps">what it holds · optional</span>
+          {currencies.map((c) => (
+            <label key={c} className={`${FIELD} flex items-center gap-2`}>
+              <span className="rounded-[4px] bg-lift/[0.06] px-1.5 font-mono text-[10.5px] text-ink-300">
+                {c}
+              </span>
+              <input
+                inputMode="decimal"
+                value={opening[c] ?? ''}
+                onChange={(e) =>
+                  setOpening({ ...opening, [c]: e.target.value })
+                }
+                placeholder={
+                  kinds.includes('broker') ? 'free cash, not shares' : '0'
+                }
+                aria-label={`${name} ${c} now`}
+                className="w-full bg-transparent text-[16px] focus:outline-none"
+              />
+            </label>
+          ))}
+          <label className={`${FIELD} flex items-center gap-2`}>
+            <span className="shrink-0 font-mono text-[10.5px] text-ink-500">
+              as of
+            </span>
+            <input
+              type="date"
+              value={asOf}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setAsOf(e.target.value)}
+              className="w-full bg-transparent focus:outline-none"
+            />
+          </label>
+          <span className="text-[12px] text-ink-500">
+            Or leave it — drop a statement or a screenshot on + and it is read
+            from there, with the day it is true.
+          </span>
+        </>
+      )}
       {error ? (
         <span className="font-mono text-[11px] text-state-warn">{error}</span>
       ) : null}
@@ -367,7 +602,7 @@ function AccountForm({
         onClick={() => void save()}
         className={`${PILL_LOUD} justify-center py-3`}
       >
-        {account ? 'save' : 'add account'}
+        {account ? 'save' : `add ${name || 'account'}`}
       </button>
       {account ? (
         <div className="flex flex-col gap-2 border-t border-lift/[0.07] pt-4">

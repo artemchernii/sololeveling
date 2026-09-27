@@ -20,6 +20,7 @@ import {
   readableFile,
   readingCost,
   searchableName,
+  splitStatement,
 } from '../../src/lib/intake'
 import type { ReadTrade, ReadTransaction } from '../../src/lib/intake'
 import { headerKey, parseCsv } from '../../src/lib/csv'
@@ -293,14 +294,21 @@ async function readWithModel(
   if (!parsed.ok)
     throw new ReadFailure(parsed.error, parsed.error.includes('shape'))
 
-  if (parsed.trades.length > 0 || parsed.positions.length > 0)
+  /* A broker's cash statement prints its orders as rows: they are
+     trades inside the account, not money leaving it. */
+  const split =
+    parsed.kind === 'transactions'
+      ? splitStatement(parsed.transactions)
+      : { transactions: parsed.transactions, trades: parsed.trades }
+  const readTrades = parsed.kind === 'holdings' ? [] : split.trades
+  if (readTrades.length > 0 || parsed.positions.length > 0)
     await ctx.runMutation(internal.intake.progress, {
       intakeId,
       stage: 'tickers',
     })
   const tickers = new Tickers()
   const trades = []
-  for (const t of parsed.trades)
+  for (const t of readTrades)
     trades.push({ ...t, ...(await tickers.find(t.name, t.isin)) })
 
   const positions = []
@@ -330,9 +338,13 @@ async function readWithModel(
     institution: parsed.institution,
     accountTail: parsed.accountTail,
     transactions:
-      parsed.kind === 'transactions' ? parsed.transactions : undefined,
+      parsed.kind === 'transactions' ? split.transactions : undefined,
     positions: parsed.kind === 'holdings' ? positions : undefined,
-    trades: parsed.kind === 'trades' ? trades : undefined,
+    trades:
+      parsed.kind === 'trades' ||
+      (parsed.kind === 'transactions' && trades.length > 0)
+        ? trades
+        : undefined,
     balance: parsed.balance
       ? {
           currency: parsed.currency ?? 'EUR',

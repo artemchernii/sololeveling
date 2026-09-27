@@ -799,3 +799,57 @@ export function searchableName(name: string): string {
     .replace(/\s+/g, ' ')
     .trim()
 }
+
+/* ---- A broker's cash statement: its trades ----------------------------- */
+
+/* Trade Republic's statement prints each order as a cash row: "Buy trade
+   US67066G1040 NVIDIA CORP. DL-,001, quantity: 0.186115" (27 Sep: 57 of
+   his 113 rows, each asking "to which account?"). They are shares bought
+   inside the account, not money leaving it — split out as trades, which
+   fill in what he paid. The amount is what the order cost, fee and all. */
+const TRADE_ROW =
+  /^(buy trade|sell trade|savings plan execution|saveback execution|round ?up execution)\s+([A-Z]{2}[A-Z0-9]{9}\d)\s+(.+?),\s*quantity:\s*([\d.,]+)\s*$/i
+
+export function tradeInRow(t: ReadTransaction): ReadTrade | null {
+  const m = TRADE_ROW.exec(t.raw.trim())
+  if (!m || t.pending) return null
+  const q = m[4].includes('.') ? m[4].replace(/,/g, '') : m[4].replace(',', '.')
+  const shares = Number(q)
+  if (!Number.isFinite(shares) || shares <= 0 || Math.abs(t.amount) < 0.005)
+    return null
+  return {
+    occurredAt: t.occurredAt,
+    name: m[3].trim().slice(0, 120),
+    isin: m[2].toUpperCase(),
+    side: /^sell/i.test(m[1]) ? 'sell' : 'buy',
+    shares,
+    price: Math.round((Math.abs(t.amount) / shares) * 1e6) / 1e6,
+    currency: t.currency,
+  }
+}
+
+/* A dividend or interest paid into the account is money in, not his own
+   money moving. */
+const EARNED_ROW = /^(cash dividend|dividend\b|interest payment|interest\b)/i
+
+/** A statement's rows, with its trades taken out and its earnings marked. */
+export function splitStatement(rows: ReadonlyArray<ReadTransaction>): {
+  transactions: Array<ReadTransaction>
+  trades: Array<ReadTrade>
+} {
+  const transactions: Array<ReadTransaction> = []
+  const trades: Array<ReadTrade> = []
+  for (const r of rows) {
+    const t = tradeInRow(r)
+    if (t) trades.push(t)
+    else if (r.amount > 0 && EARNED_ROW.test(r.raw.trim()))
+      transactions.push({ ...r, self: false, counterparty: undefined })
+    else transactions.push(r)
+  }
+  return { transactions, trades }
+}
+
+/** A reading kept from before this split: its trades are still rows. */
+export function hasTradeRows(rows: ReadonlyArray<ReadTransaction>): boolean {
+  return rows.some((r) => tradeInRow(r) !== null)
+}

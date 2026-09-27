@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest'
 
 import {
+  hasTradeRows,
+  splitStatement,
+  tradeInRow,
   partialReading,
   readingCost,
   usd,
@@ -408,5 +411,82 @@ describe('intakePrompt', () => {
     expect(p.split('\n')[0]).toBe(
       'The person says what it is: "Trade Republic \'portfolio\'". Trust it for what the file is and whose it is (institution, kind); it never gives you numbers.',
     )
+  })
+})
+
+describe('a broker statement’s trades', () => {
+  const row = (raw: string, amount: number) => ({
+    occurredAt: 1,
+    merchant: raw.slice(0, 20),
+    raw,
+    amount,
+    currency: 'EUR',
+    pending: false,
+    self: true,
+  })
+
+  test('reads a buy: shares, ISIN, and the price per share it cost', () => {
+    expect(
+      tradeInRow(
+        row(
+          'Buy trade US67066G1040 NVIDIA CORP. DL-,001, quantity: 0.186115',
+          -21,
+        ),
+      ),
+    ).toEqual({
+      occurredAt: 1,
+      name: 'NVIDIA CORP. DL-,001',
+      isin: 'US67066G1040',
+      side: 'buy',
+      shares: 0.186115,
+      price: 112.833463,
+      currency: 'EUR',
+    })
+  })
+
+  test('reads a sell, and a whole-share quantity', () => {
+    expect(
+      tradeInRow(
+        row(
+          'Sell trade IE00BD8PGZ49 iShares IV plc - iShares $ Treasury Bond 20+yr UCITS ETF EUR Hedged (Dist), quantity: 16',
+          44.95,
+        ),
+      ),
+    ).toMatchObject({ side: 'sell', shares: 16, isin: 'IE00BD8PGZ49' })
+  })
+
+  test('a savings plan is a buy', () => {
+    expect(
+      tradeInRow(
+        row(
+          'Savings plan execution IE00B4L5Y983 iShares Core MSCI World, quantity: 0.5',
+          -50,
+        ),
+      ),
+    ).toMatchObject({ side: 'buy', shares: 0.5, price: 100 })
+  })
+
+  test('anything else is not a trade', () => {
+    expect(tradeInRow(row('Apple Pay Top up', 25))).toBeNull()
+    expect(
+      tradeInRow(row('Cash Dividend for ISIN IE00BD8PGZ49', 0.92)),
+    ).toBeNull()
+  })
+
+  test('splits trades out, and a dividend becomes money in', () => {
+    const { transactions, trades } = splitStatement([
+      row(
+        'Buy trade US0231351067 AMAZON.COM INC. DL-,01, quantity: 0.140386',
+        -26,
+      ),
+      row('Cash Dividend for ISIN IE00BD8PGZ49', 0.92),
+      row('Apple Pay Top up', 25),
+    ])
+    expect(trades).toHaveLength(1)
+    expect(transactions.map((t) => [t.raw, t.self])).toEqual([
+      ['Cash Dividend for ISIN IE00BD8PGZ49', false],
+      ['Apple Pay Top up', true],
+    ])
+    expect(hasTradeRows([row('Apple Pay Top up', 25)])).toBe(false)
   })
 })

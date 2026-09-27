@@ -984,7 +984,10 @@ describe('intake: transactions', () => {
         { index: 3, kind: 'spend', category: 'fun' },
       ],
     })
-    expect(done).toEqual({ written: 3 })
+    expect(done).toEqual({
+      written: 3,
+      trades: { written: 0, skipped: 0, noTicker: 0 },
+    })
     const sums = await me.query(api.aggregate.moneySums, {
       start: day(8, 1),
       end: day(9, 27) + 86_400_000,
@@ -994,6 +997,113 @@ describe('intake: transactions', () => {
     expect(b.accounts[0].pockets[0].value).toBe(799.47)
     expect(await stored(t, storageId)).toBe(false)
     expect(await me.query(api.intake.open, {})).toEqual([])
+  })
+
+  test('a broker statement’s orders land as trades, not moves — once, and not into a bank', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    const bank = await me.mutation(api.accounts.create, {
+      name: 'BPI',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const NVDA = {
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      exchange: 'NASDAQ',
+      type: 'EQUITY',
+    }
+    const orders = [
+      {
+        occurredAt: day(3, 13),
+        name: 'NVIDIA CORP.',
+        isin: 'US67066G1040',
+        side: 'buy' as const,
+        shares: 0.2,
+        price: 100,
+        currency: 'EUR',
+        candidates: [NVDA],
+        preferred: 0,
+      },
+      {
+        occurredAt: day(3, 14),
+        name: 'NVIDIA CORP.',
+        isin: 'US67066G1040',
+        side: 'buy' as const,
+        shares: 0.2,
+        price: 100,
+        currency: 'EUR',
+        candidates: [NVDA],
+        preferred: 0,
+      },
+      {
+        occurredAt: day(3, 15),
+        name: 'Unknown fund',
+        side: 'buy' as const,
+        shares: 1,
+        price: 10,
+        currency: 'EUR',
+        candidates: [],
+      },
+    ]
+    const statement = async () => {
+      const { intakeId } = await ready(
+        t,
+        me,
+        [tx(9, 5, 'Apple Pay Top up', 25, { self: true })],
+        1042.46,
+      )
+      await t.run((ctx) => ctx.db.patch(intakeId, { trades: orders }))
+      return intakeId
+    }
+    const first = await statement()
+    await expect(
+      me.mutation(api.intake.confirmTransactions, {
+        intakeId: first,
+        accountId: bank,
+        dayStart: TODAY,
+        keepBalance: false,
+        rows: [],
+      }),
+    ).rejects.toThrow('not a broker')
+    expect(
+      await me.mutation(api.intake.confirmTransactions, {
+        intakeId: first,
+        accountId: tr,
+        dayStart: TODAY,
+        keepBalance: true,
+        rows: [{ index: 0, kind: 'move' }],
+      }),
+    ).toEqual({
+      written: 1,
+      trades: { written: 2, skipped: 0, noTicker: 1 },
+    })
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows[0]).toMatchObject({
+      symbol: 'NVDA',
+      shares: 0.4,
+      paid: 40,
+      status: 'trades',
+    })
+    /* The orders and the top-up were before the balance: the cash is
+       what the statement said, nothing moved it twice. */
+    const b = await me.query(api.aggregate.balances, {})
+    expect(b.accounts.find((a) => a.accountId === tr)?.pockets[0].value).toBe(
+      1042.46,
+    )
+    /* The same statement again adds no shares. */
+    const again = await me.mutation(api.intake.confirmTransactions, {
+      intakeId: await statement(),
+      accountId: tr,
+      dayStart: TODAY,
+      keepBalance: false,
+      rows: [],
+    })
+    expect(again.trades).toEqual({ written: 0, skipped: 2, noTicker: 1 })
   })
 
   test('a merchant taught once files itself next time; a second read of the same rows is all duplicates', async () => {

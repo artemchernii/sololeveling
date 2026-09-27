@@ -406,6 +406,10 @@ function TransactionsReview({
         ) : null}
       </div>
 
+      {(intake.trades ?? []).length > 0 ? (
+        <OrdersFound orders={intake.trades ?? []} account={account ?? null} />
+      ) : null}
+
       {moves.length > 0 ? (
         <Section
           title="⇄ your money moving — not spending"
@@ -657,10 +661,116 @@ function TransactionsReview({
           className={`${PILL_LOUD} flex-[2] justify-center py-3 disabled:opacity-40`}
         >
           confirm · {kept.length} rows
+          {(intake.trades ?? []).length > 0
+            ? ` and ${(intake.trades ?? []).length} orders`
+            : ''}
           {intake.balance && keepBalance ? ' · balance' : ''}
         </button>
       </div>
     </>
+  )
+}
+
+/* The orders a broker's cash statement printed as rows (splitStatement,
+   27 Sep): shares bought and sold inside the account — never "to which
+   account?". Grouped by ticker; they fill in what he paid, and the cash
+   they used is in the statement's balance already. */
+function OrdersFound({
+  orders,
+  account,
+}: {
+  orders: NonNullable<Doc<'intakes'>['trades']>
+  account: Doc<'accounts'> | null
+}) {
+  const by = new Map<
+    string,
+    {
+      symbol: string | null
+      name: string
+      buys: number
+      sells: number
+      shares: number
+      paid: number
+    }
+  >()
+  for (const o of orders) {
+    const c = o.candidates.at(
+      o.preferred !== undefined && o.preferred >= 0 ? o.preferred : 0,
+    )
+    const key = c?.symbol ?? o.isin ?? o.name
+    const g = by.get(key) ?? {
+      symbol: c?.symbol ?? null,
+      name: o.name,
+      buys: 0,
+      sells: 0,
+      shares: 0,
+      paid: 0,
+    }
+    const sign = o.side === 'buy' ? 1 : -1
+    if (o.side === 'buy') g.buys++
+    else g.sells++
+    g.shares += sign * o.shares
+    g.paid += sign * o.shares * o.price
+    by.set(key, g)
+  }
+  const groups = [...by.values()].sort(
+    (a, b) => b.buys + b.sells - (a.buys + a.sells),
+  )
+  const buys = orders.filter((o) => o.side === 'buy').length
+  const broker = account?.kinds.includes('broker') ?? true
+  return (
+    <Section
+      title={`↔ shares bought and sold${account ? ` in ${account.name}` : ''}`}
+      aside={`${buys} buys · ${orders.length - buys} sells`}
+    >
+      <span className="pb-1 text-[12.5px] text-ink-400">
+        Not money leaving — these fill in what you paid for each position. The
+        cash they used is in the balance already.
+      </span>
+      {groups.map((g, i) => (
+        <div
+          key={g.symbol ?? g.name}
+          style={{ animationDelay: `${i * 30}ms` }}
+          className="motion-land flex items-center gap-3 border-t border-lift/[0.04] py-2"
+        >
+          {g.symbol ? (
+            <TickerLogo symbol={g.symbol} size={26} />
+          ) : (
+            <span className="size-[26px] shrink-0 rounded-[7px] bg-state-warn/15" />
+          )}
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="text-[13.5px] text-foreground">
+              {g.symbol ?? 'no ticker found'}{' '}
+              <span className="text-ink-400">{g.name}</span>
+            </span>
+            <span className="font-mono text-[10.5px] text-ink-500">
+              {[
+                g.buys ? `${g.buys} ${g.buys === 1 ? 'buy' : 'buys'}` : null,
+                g.sells
+                  ? `${g.sells} ${g.sells === 1 ? 'sell' : 'sells'}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+              {g.symbol ? '' : ' · left out'}
+            </span>
+          </span>
+          <span className="text-right font-mono text-[12px] text-ink-300">
+            {Math.abs(g.shares) < 1e-6
+              ? 'sold out'
+              : `${g.shares > 0 ? '' : '−'}${Math.abs(g.shares)
+                  .toFixed(4)
+                  .replace(/\.?0+$/, '')} sh`}
+          </span>
+        </div>
+      ))}
+      {!broker ? (
+        <span className="font-mono text-[11px] text-state-warn">
+          {account?.name} is not a broker — pick the broker these were bought
+          in.
+        </span>
+      ) : null}
+    </Section>
   )
 }
 

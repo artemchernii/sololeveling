@@ -14,6 +14,7 @@ import {
 } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
+import type { Candidate } from '../src/lib/market'
 import schema from './schema'
 import {
   INTAKE_MODEL_NAME,
@@ -24,6 +25,7 @@ import {
   READING_DEAD_MS,
   findDuplicates,
   findRecurring,
+  hasTradeRows,
   matchAccount,
   merchantKey,
   readableFile,
@@ -151,7 +153,10 @@ export const start = mutation({
           ).find(
             (i) =>
               (i.status === 'ready' || i.status === 'done') &&
-              i.kind !== undefined,
+              i.kind !== undefined &&
+              /* Read before a statement's orders were split out as
+                 trades (27 Sep): read it again, once. */
+              !hasTradeRows(i.transactions ?? []),
           )
         : undefined
     if (before) {
@@ -705,7 +710,14 @@ export const confirmTransactions = mutation({
     ),
     keepBalance: v.boolean(),
   },
-  returns: v.object({ written: v.number() }),
+  returns: v.object({
+    written: v.number(),
+    trades: v.object({
+      written: v.number(),
+      skipped: v.number(),
+      noTicker: v.number(),
+    }),
+  }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const intake = await ownedIntake(ctx, ownerId, args.intakeId)
@@ -825,6 +837,28 @@ export const confirmTransactions = mutation({
       }
       written++
     }
+    /* The orders a broker's cash statement printed (splitStatement):
+       into its ledger, on the ticker the reader matched. One with no
+       ticker found is left out and said. */
+    let trades = { written: 0, skipped: 0, noTicker: 0 }
+    const orders = intake.trades ?? []
+    if (orders.length > 0) {
+      if (!account.kinds.includes('broker')) {
+        throw new ConvexError(
+          `${account.name} is not a broker — these shares were bought in one.`,
+        )
+      }
+      const items = orders.flatMap((t, index) => {
+        const c = t.candidates.at(
+          t.preferred !== undefined && t.preferred >= 0 ? t.preferred : 0,
+        )
+        return c ? [{ index, trade: t, candidate: c }] : []
+      })
+      trades = {
+        ...(await writeTrades(ctx, ownerId, account, intake._id, items)),
+        noTicker: orders.length - items.length,
+      }
+    }
     if (args.keepBalance && intake.balance) {
       /* A statement's balance is true at the end of its closing day. Its
          day is noon UTC; 18:00 UTC is still that day from Lisbon to New
@@ -847,7 +881,7 @@ export const confirmTransactions = mutation({
       storageIds: [],
       accountId: account._id,
     })
-    return { written }
+    return { written, trades }
   },
 })
 
@@ -973,6 +1007,86 @@ export const confirmHoldings = mutation({
 const SAME_LOOK_MS = 20 * 3_600_000
 
 /**
+ * Buys and sells into the broker's ledger, oldest first, each with its own
+ * date and price in euros at the stored rate — a trade history's, or the
+ * orders a broker's cash statement printed as rows. One already stored
+ * from another file is skipped, so overlapping statements add nothing.
+ */
+async function writeTrades(
+  ctx: MutationCtx,
+  ownerId: string,
+  account: Doc<'accounts'>,
+  intakeId: Id<'intakes'>,
+  items: Array<{
+    index: number
+    trade: {
+      occurredAt: number
+      isin?: string
+      side: 'buy' | 'sell'
+      shares: number
+      price: number
+      currency: string
+    }
+    candidate: Candidate
+  }>,
+): Promise<{ written: number; skipped: number }> {
+  const rows = [...items].sort(
+    (a, b) => a.trade.occurredAt - b.trade.occurredAt,
+  )
+  let written = 0
+  let skipped = 0
+  const seen = new Set<number>()
+  const claimed = new Set<Id<'trades'>>()
+  for (const { index, trade: t, candidate: c } of rows) {
+    if (seen.has(index)) continue
+    seen.add(index)
+    const priceEur = t.price * (await euroRate(ctx, ownerId, t.currency))
+    checkTrade(t.shares, priceEur)
+    const instrumentId = await upsertInstrument(ctx, ownerId, c, t.isin)
+    const near = await ctx.db
+      .query('trades')
+      .withIndex('by_owner_instrument', (q) =>
+        q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+      )
+      .take(MAX_TRADES)
+    /* Already stored from another file: same side and shares, about the
+       same price (5%: a dollar trade read again months later meets a
+       newer rate), within two days. Each stored trade answers for one
+       row only, and never for a row of this same file — two equal buys
+       two days apart are two buys. */
+    const twin = near.find(
+      (x) =>
+        !claimed.has(x._id) &&
+        x.importId !== intakeId &&
+        x.accountId === account._id &&
+        x.side === t.side &&
+        Math.abs(x.shares - t.shares) < 1e-6 &&
+        Math.abs(x.priceEur - priceEur) <= priceEur * 0.05 + 0.01 &&
+        Math.abs(x.occurredAt - t.occurredAt) <= 2 * DAY_MS + 3_600_000,
+    )
+    if (twin) {
+      claimed.add(twin._id)
+      skipped++
+      continue
+    }
+    /* A statement's sell is the broker's word: it is never refused for
+       shares an earlier statement, not dropped yet, would have bought. */
+    await ctx.db.insert('trades', {
+      ownerId,
+      accountId: account._id,
+      instrumentId,
+      side: t.side,
+      shares: t.shares,
+      priceEur: Math.round(priceEur * 10000) / 10000,
+      occurredAt: t.occurredAt,
+      importId: intakeId,
+    })
+    written++
+  }
+  return { written, skipped }
+}
+
+/**
  * A broker's trade history he checked: each kept buy or sell is written
  * with its own date and price (in euros at the stored rate), and moves the
  * broker's cash like a typed one. A trade already there — same ticker,
@@ -997,66 +1111,18 @@ export const confirmTrades = mutation({
       throw new ConvexError(`${account.name} is not a broker.`)
     }
     const read = intake.trades ?? []
-    const rows = [...args.rows].sort(
-      (a, b) =>
-        (read[a.index]?.occurredAt ?? 0) - (read[b.index]?.occurredAt ?? 0),
+    const { written, skipped } = await writeTrades(
+      ctx,
+      ownerId,
+      account,
+      intake._id,
+      args.rows.flatMap((row) => {
+        const t = read[row.index] as (typeof read)[number] | undefined
+        return t
+          ? [{ index: row.index, trade: t, candidate: row.candidate }]
+          : []
+      }),
     )
-    let written = 0
-    let skipped = 0
-    const seen = new Set<number>()
-    const claimed = new Set<Id<'trades'>>()
-    for (const row of rows) {
-      const t = read[row.index] as (typeof read)[number] | undefined
-      if (t === undefined || seen.has(row.index)) continue
-      seen.add(row.index)
-      const priceEur = t.price * (await euroRate(ctx, ownerId, t.currency))
-      checkTrade(t.shares, priceEur)
-      const instrumentId = await upsertInstrument(
-        ctx,
-        ownerId,
-        row.candidate,
-        t.isin,
-      )
-      const near = await ctx.db
-        .query('trades')
-        .withIndex('by_owner_instrument', (q) =>
-          q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
-        )
-        .take(MAX_TRADES)
-      /* Already stored from another file: same side and shares, about the
-         same price (5%: a dollar trade read again months later meets a
-         newer rate), within two days. Each stored trade answers for one
-         row only, and never for a row of this same file — two equal buys
-         two days apart are two buys. */
-      const twin = near.find(
-        (x) =>
-          !claimed.has(x._id) &&
-          x.importId !== intake._id &&
-          x.accountId === account._id &&
-          x.side === t.side &&
-          Math.abs(x.shares - t.shares) < 1e-6 &&
-          Math.abs(x.priceEur - priceEur) <= priceEur * 0.05 + 0.01 &&
-          Math.abs(x.occurredAt - t.occurredAt) <= 2 * DAY_MS + 3_600_000,
-      )
-      if (twin) {
-        claimed.add(twin._id)
-        skipped++
-        continue
-      }
-      /* A statement's sell is the broker's word: it is never refused for
-         shares an earlier statement, not dropped yet, would have bought. */
-      await ctx.db.insert('trades', {
-        ownerId,
-        accountId: account._id,
-        instrumentId,
-        side: t.side,
-        shares: t.shares,
-        priceEur: Math.round(priceEur * 10000) / 10000,
-        occurredAt: t.occurredAt,
-        importId: intake._id,
-      })
-      written++
-    }
     if (intake.accountTail) await learnTails(ctx, account, [intake.accountTail])
     for (const id of intake.storageIds) await ctx.storage.delete(id)
     await ctx.db.patch(intake._id, {

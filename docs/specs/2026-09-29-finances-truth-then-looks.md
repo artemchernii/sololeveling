@@ -62,7 +62,18 @@ Sep 27 screen agree", paid €3,796.40, +€290.83 (+7.7%).
 3. Hero: one "this month" (in − out, moves excluded); TR cash labeled or
    gone from the Investments row; no zero-currency lines; broker
    sparkline shows total, not cash.
-4. Done when: a written table of every Overview number → its rows, on
+4. **Every account opens its rows.** Tapping an account card lists every
+   row in it, newest first, moves included — nothing stored is invisible
+   (27 Sep: "I can't see those movements anywhere which is very bad").
+5. **Banks get the brokers' engine.** A balance is an observation, rows
+   are the ledger: balance then + rows between = balance now. When it
+   does not add up, say where: "€100 missing between Sep 3 and Sep 10 —
+   a row was cut off the screenshot?", with one tap to add it on its
+   day. (His ActivoBank case, 27 Sep: one row cut from a screenshot.)
+   A row added on its real day never moves a later balance — only rows
+   after the latest reading do (aggregate.movedSince), so the total
+   stays true.
+6. Done when: a written table of every Overview number → its rows, on
    his data, and he agrees with each.
 
 **B. The chart as on :3950.** TOTAL / FREE CASH / INVESTED, 1M–1Y.

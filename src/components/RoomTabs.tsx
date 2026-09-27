@@ -3,8 +3,10 @@ import type { LucideIcon } from 'lucide-react'
 
 /* The tabs under a page's hero — Finances' rooms, Body's and a language's
    tabs (27 Sep). Artem wanted them as in the Treasury mockup: one frosted
-   capsule, centred, riding under the top bar (58px) as the page scrolls, the open tab lit
-   lavender inside it. The icons stay; the area colour marks the open one. */
+   capsule, riding under the top bar (58px) as the page scrolls, the open tab lit
+   lavender inside it. The icons stay; the area colour marks the open one.
+   Left, not centred as the mockup had it: it lines up with the titles and
+   cards on each page (27 Sep). */
 export function RoomTabs({
   label,
   style,
@@ -18,7 +20,7 @@ export function RoomTabs({
     <nav
       aria-label={label}
       style={style}
-      className="glass sticky top-[66px] z-10 bg-background/70 mx-auto flex w-fit max-w-full gap-0.5 rounded-full p-1 sm:gap-1.5 sm:p-1.5"
+      className="glass sticky top-[66px] z-10 bg-background/70 flex w-fit max-w-full self-start gap-0.5 rounded-full p-1 sm:gap-1.5 sm:p-1.5"
     >
       {children}
     </nav>

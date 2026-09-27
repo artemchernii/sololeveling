@@ -648,9 +648,11 @@ h6 {
   }
 }
 @utility motion-breathe {
+  /* Invisible for --loading-wait, so a quick load never shows it. */
   animation:
-    save-appear var(--motion-base) var(--motion-ease) both,
-    breathe var(--motion-breathe) ease-in-out var(--motion-base) infinite;
+    save-appear var(--motion-base) var(--motion-ease) var(--loading-wait) both,
+    breathe var(--motion-breathe) ease-in-out
+      calc(var(--loading-wait) + var(--motion-base)) infinite;
 }
 
 /* + add, the Treasury's one loud control (27 Sep, "I want cooler animation

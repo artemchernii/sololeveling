@@ -14,19 +14,29 @@ import { useEffect, useRef, useState } from 'react'
    delay. Nothing here slows a page that is already there. */
 
 const FALLBACK_HOLD_MS = 800
+const FALLBACK_WAIT_MS = 300
 
-/** --loading-hold from tokens.css, so the number lives in one place. */
-function holdMs(): number {
-  if (typeof window === 'undefined') return FALLBACK_HOLD_MS
+function cssMs(name: string, fallback: number): number {
+  if (typeof window === 'undefined') return fallback
   const raw = getComputedStyle(document.documentElement)
-    .getPropertyValue('--loading-hold')
+    .getPropertyValue(name)
     .trim()
   const ms = raw.endsWith('ms')
     ? parseFloat(raw)
     : raw.endsWith('s')
       ? parseFloat(raw) * 1000
       : NaN
-  return Number.isFinite(ms) ? ms : FALLBACK_HOLD_MS
+  return Number.isFinite(ms) ? ms : fallback
+}
+
+/** --loading-wait: how long a skeleton stays invisible before it shows. */
+function waitMs(): number {
+  return cssMs('--loading-wait', FALLBACK_WAIT_MS)
+}
+
+/** --loading-hold from tokens.css, so the number lives in one place. */
+function holdMs(): number {
+  return cssMs('--loading-hold', FALLBACK_HOLD_MS)
 }
 
 /**
@@ -41,24 +51,41 @@ function holdMs(): number {
  * The key must be a primitive; an array made during render is new every time.
  */
 export function useHeld<T>(value: T | undefined, key?: unknown): T | undefined {
-  const [holding, setHolding] = useState(() => value === undefined)
+  /* quiet — loading, and the skeleton not yet visible (it waits
+     --loading-wait before it shows, in CSS); shown — the skeleton is on
+     screen, so it stays at least --loading-hold; free — the value passes.
+     27 Sep, "FUCKING FLICK AGAIN": a load that lands inside the wait now
+     shows its content straight away, with no skeleton at all. */
+  const [phase, setPhase] = useState<'quiet' | 'shown' | 'free'>(() =>
+    value === undefined ? 'quiet' : 'free',
+  )
   const [heldKey, setHeldKey] = useState(key)
+  const shownAt = useRef(0)
 
-  /* Adjusting state while rendering, the React-sanctioned way to reset on a
-     prop change: this render already sees the new hold, so there is no frame
-     of stale content between the old key and the new skeleton. */
   if (key !== heldKey) {
     setHeldKey(key)
-    setHolding(value === undefined)
+    setPhase(value === undefined ? 'quiet' : 'free')
   }
+  /* Landed while nothing was visible yet: through, this render. */
+  if (phase === 'quiet' && value !== undefined) setPhase('free')
 
   useEffect(() => {
-    if (!holding) return
-    const timer = setTimeout(() => setHolding(false), holdMs())
+    if (phase !== 'quiet') return
+    const timer = setTimeout(() => {
+      shownAt.current = Date.now()
+      setPhase('shown')
+    }, waitMs())
     return () => clearTimeout(timer)
-  }, [holding, heldKey])
+  }, [phase, heldKey])
 
-  return holding ? undefined : value
+  useEffect(() => {
+    if (phase !== 'shown' || value === undefined) return
+    const left = shownAt.current + holdMs() - Date.now()
+    const timer = setTimeout(() => setPhase('free'), Math.max(0, left))
+    return () => clearTimeout(timer)
+  }, [phase, value])
+
+  return phase === 'free' ? value : undefined
 }
 
 /**

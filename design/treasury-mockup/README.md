@@ -10,6 +10,9 @@ built to. Served by `.claude/launch.json` config "treasury" on :3950.
   check-in, animated + add, three fixed rows (Investments / Banks / Cash)
   that open sheets, and the day-one setup (files first, or by hand in
   three steps). Built in the app as TreasuryHero.tsx and Setup.tsx.
+- `add-empty.html` — the + sheet as it opens, before any row (27 Sep, not
+  yet approved): a four-step strip, his accounts with what each is read
+  from, a "last read" line, a breathing lavender edge. Five situations.
 - `dollar.jpg` — his header photo (also public/finances/dollar.jpg).
 
 Rule (CLAUDE.md, 27 Sep): journey, then a mockup here he marks up, then

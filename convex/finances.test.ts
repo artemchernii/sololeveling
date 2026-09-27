@@ -427,7 +427,8 @@ describe('investments', () => {
     let p = await me.query(api.aggregate.positions, {})
     expect(p.rows).toHaveLength(1)
     expect(p.rows[0].shares).toBe(2.5)
-    expect(p.rows[0].putIn).toBe(755)
+    expect(p.rows[0].paid).toBe(755)
+    expect(p.rows[0].status).toBe('trades')
     expect(p.rows[0].valueEur).toBeNull()
     expect(p.totalEur).toBe(0)
     expect(p.unvalued).toBe(1)
@@ -1167,149 +1168,166 @@ describe('intake: holdings', () => {
     return started.intakeId
   }
 
-  test('a screenshot replaces what the account held; the cash becomes its balance', async () => {
+  const MSFT_C = {
+    symbol: 'MSFT',
+    name: 'Microsoft',
+    exchange: 'NASDAQ',
+    type: 'EQUITY',
+  }
+
+  test('a screenshot is saved as it was seen: no prices asked, no buys, cash kept', async () => {
     const { t, me } = setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
       currencies: ['EUR'],
     })
-    await trade(me, {
-      accountId: tr,
-      candidate: TSLA,
-      side: 'buy',
-      shares: 1,
-      priceEur: 300,
-      occurredAt: Date.now() - 86_400_000,
-    })
-    const intakeId = await ready(t, me)
     const done = await me.mutation(api.intake.confirmHoldings, {
-      intakeId,
+      intakeId: await ready(t, me),
       accountId: tr,
-      mode: 'opening',
-      occurredAt: Date.now(),
+      asOf: Date.now(),
       dayStart: TODAY,
       cashEur: 1000,
-      rows: [
-        {
-          candidate: {
-            symbol: 'MSFT',
-            name: 'Microsoft',
-            exchange: 'NASDAQ',
-            type: 'EQUITY',
-          },
-          side: 'buy',
-          shares: 0.743427,
-          priceEur: 337.63,
-        },
-      ],
+      rows: [{ candidate: MSFT_C, shares: 0.743427, sharesCalculated: true }],
     })
-    expect(done).toEqual({ positions: 1, replaced: 1 })
+    expect(done).toEqual({ positions: 1, replaced: 0 })
     const p = await me.query(api.aggregate.positions, {})
-    expect(p.rows.map((r) => r.symbol)).toEqual(['MSFT'])
-    const w = await me.query(api.aggregate.worth, {})
-    expect(w.cash.total).toBe(1000)
-  })
-
-  test('cannot be confirmed twice; the same ticker twice is refused', async () => {
-    const { t, me } = setup()
-    const tr = await me.mutation(api.accounts.create, {
-      name: 'TR',
-      kinds: ['broker'],
-      currencies: ['EUR'],
-    })
-    const intakeId = await ready(t, me)
-    const row = {
-      candidate: {
-        symbol: 'MSFT',
-        name: 'Microsoft',
-        exchange: 'NASDAQ',
-        type: 'EQUITY',
-      },
-      side: 'buy' as const,
-      shares: 1,
-      priceEur: 1,
-    }
-    await expect(
-      me.mutation(api.intake.confirmHoldings, {
-        intakeId,
-        accountId: tr,
-        mode: 'opening',
-        occurredAt: Date.now(),
-        dayStart: TODAY,
-        rows: [row, row],
-      }),
-    ).rejects.toThrow('same ticker')
-    await me.mutation(api.intake.confirmHoldings, {
-      intakeId,
-      accountId: tr,
-      mode: 'opening',
-      occurredAt: Date.now(),
-      dayStart: TODAY,
-      rows: [row],
-    })
-    await expect(
-      me.mutation(api.intake.confirmHoldings, {
-        intakeId,
-        accountId: tr,
-        mode: 'opening',
-        occurredAt: Date.now(),
-        dayStart: TODAY,
-        rows: [row],
-      }),
-    ).rejects.toThrow('not ready')
-  })
-
-  test('a later screenshot adds the buys and sells he ticked, and they move the cash', async () => {
-    const { t, me } = setup()
-    const tr = await me.mutation(api.accounts.create, {
-      name: 'TR',
-      kinds: ['broker'],
-      currencies: ['EUR'],
-    })
-    const msft = {
+    expect(p.rows[0]).toMatchObject({
       symbol: 'MSFT',
-      name: 'Microsoft',
-      exchange: 'NASDAQ',
-      type: 'EQUITY',
-    }
+      shares: 0.743427,
+      paid: null,
+      status: 'screen',
+      notSeen: false,
+    })
+    await t.run(async (ctx) => {
+      expect(await ctx.db.query('trades').collect()).toEqual([])
+    })
+    /* The cash is the reading; nothing moved it. */
+    const b = await me.query(api.aggregate.balances, {})
+    expect(b.accounts[0].pockets[0]).toMatchObject({
+      value: 1000,
+      movedRows: 0,
+    })
+  })
+
+  test('what the screen printed as paid is kept', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
     await me.mutation(api.intake.confirmHoldings, {
       intakeId: await ready(t, me),
       accountId: tr,
-      mode: 'opening',
-      occurredAt: Date.now(),
+      asOf: Date.now(),
       dayStart: TODAY,
-      cashEur: 1000,
-      rows: [{ candidate: msft, side: 'buy', shares: 2, priceEur: 300 }],
+      rows: [{ candidate: MSFT_C, shares: 1, paidEur: 251.0 }],
     })
-    /* The opening positions did not touch the cash. */
-    let b = await me.query(api.aggregate.balances, {})
-    expect(b.accounts[0].pockets[0].value).toBe(1000)
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows[0]).toMatchObject({ shares: 1, paid: 251, status: 'screen' })
+  })
 
-    vi.setSystemTime(Date.now() + 60_000)
-    const second = await ready(t, me)
+  test('a second look the same day replaces the first; a later day adds a look', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    const look = async (shares: number) =>
+      me.mutation(api.intake.confirmHoldings, {
+        intakeId: await ready(t, me),
+        accountId: tr,
+        asOf: Date.now(),
+        dayStart: TODAY,
+        rows: [{ candidate: MSFT_C, shares }],
+      })
+    await look(1)
+    expect(await look(2)).toEqual({ positions: 1, replaced: 1 })
+    vi.setSystemTime(Date.now() + 2 * 86_400_000)
+    expect(await look(3)).toEqual({ positions: 1, replaced: 0 })
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows[0].shares).toBe(3)
+    await t.run(async (ctx) => {
+      expect(await ctx.db.query('holdings').collect()).toHaveLength(2)
+    })
+  })
+
+  test('a ticker a later day’s screen left out is flagged, not sold', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    const AAPL = { ...MSFT_C, symbol: 'AAPL', name: 'Apple' }
+    await me.mutation(api.intake.confirmHoldings, {
+      intakeId: await ready(t, me),
+      accountId: tr,
+      asOf: Date.now(),
+      dayStart: TODAY,
+      rows: [
+        { candidate: MSFT_C, shares: 1 },
+        { candidate: AAPL, shares: 2 },
+      ],
+    })
+    vi.setSystemTime(Date.now() + 2 * 86_400_000)
+    await me.mutation(api.intake.confirmHoldings, {
+      intakeId: await ready(t, me),
+      accountId: tr,
+      asOf: Date.now(),
+      dayStart: TODAY,
+      rows: [{ candidate: MSFT_C, shares: 1 }],
+    })
+    const p = await me.query(api.aggregate.positions, {})
+    const apple = p.rows.find((r) => r.symbol === 'AAPL')
+    expect(apple).toMatchObject({ shares: 2, notSeen: true })
+    expect(p.rows.find((r) => r.symbol === 'MSFT')?.notSeen).toBe(false)
+  })
+
+  test('refusals: twice, the same ticker twice, no shares, a bank, the future', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    const bpi = await me.mutation(api.accounts.create, {
+      name: 'BPI',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const intakeId = await ready(t, me)
+    const row = { candidate: MSFT_C, shares: 1 }
+    const base = { intakeId, accountId: tr, asOf: Date.now(), dayStart: TODAY }
+    await expect(
+      me.mutation(api.intake.confirmHoldings, { ...base, rows: [row, row] }),
+    ).rejects.toThrow('same ticker')
     await expect(
       me.mutation(api.intake.confirmHoldings, {
-        intakeId: second,
-        accountId: tr,
-        mode: 'changes',
-        occurredAt: Date.now(),
-        dayStart: TODAY,
-        rows: [{ candidate: msft, side: 'sell', shares: 5, priceEur: 400 }],
+        ...base,
+        rows: [{ ...row, shares: 0 }],
       }),
-    ).rejects.toThrow('holds only 2')
-    await me.mutation(api.intake.confirmHoldings, {
-      intakeId: second,
-      accountId: tr,
-      mode: 'changes',
-      occurredAt: Date.now(),
-      dayStart: TODAY,
-      rows: [{ candidate: msft, side: 'buy', shares: 1, priceEur: 400 }],
-    })
-    b = await me.query(api.aggregate.balances, {})
-    expect(b.accounts[0].pockets[0]).toMatchObject({ value: 600, movedRows: 1 })
-    const p = await me.query(api.aggregate.positions, {})
-    expect(p.rows[0]).toMatchObject({ shares: 3, putIn: 1000 })
+    ).rejects.toThrow('number of shares')
+    await expect(
+      me.mutation(api.intake.confirmHoldings, {
+        ...base,
+        accountId: bpi,
+        rows: [row],
+      }),
+    ).rejects.toThrow('not a broker')
+    await expect(
+      me.mutation(api.intake.confirmHoldings, {
+        ...base,
+        asOf: Date.now() + 86_400_000,
+        rows: [row],
+      }),
+    ).rejects.toThrow('already is')
+    await me.mutation(api.intake.confirmHoldings, { ...base, rows: [row] })
+    await expect(
+      me.mutation(api.intake.confirmHoldings, { ...base, rows: [row] }),
+    ).rejects.toThrow('not ready')
   })
 
   test('discard throws it away, files and all', async () => {
@@ -1822,7 +1840,7 @@ describe('the reader says what it is — trades, and whose account', () => {
       }),
     ).toEqual({ written: 2, skipped: 0 })
     const p = await me.query(api.aggregate.positions, {})
-    expect(p.rows[0]).toMatchObject({ shares: 1, putIn: 720 - 378 })
+    expect(p.rows[0]).toMatchObject({ shares: 1, paid: 720 - 378 })
     /* The same export dropped again adds nothing. */
     const again = await read(t, me, history)
     expect(
@@ -1832,6 +1850,113 @@ describe('the reader says what it is — trades, and whose account', () => {
         rows: [{ index: 0, candidate: MSFT }],
       }),
     ).toEqual({ written: 0, skipped: 1 })
+  })
+
+  test('a statement after a screenshot fills in what was paid, and adds no shares — in any order, and once', async () => {
+    const run = async (screenFirst: boolean) => {
+      const { t, me } = setup()
+      const tr = await me.mutation(api.accounts.create, {
+        name: 'TR',
+        kinds: ['broker'],
+        currencies: ['EUR'],
+      })
+      const statement = {
+        kind: 'trades',
+        title: 'TR · statement',
+        trades: [3, 2].map((daysAgo, i) => ({
+          occurredAt: TODAY - daysAgo * 86_400_000,
+          name: 'Microsoft',
+          side: 'buy',
+          shares: 1,
+          price: 100 + i * 10,
+          currency: 'EUR',
+          candidates: [MSFT],
+          preferred: 0,
+        })),
+      }
+      const all = [
+        { index: 0, candidate: MSFT },
+        { index: 1, candidate: MSFT },
+      ]
+      const screen = async () =>
+        me.mutation(api.intake.confirmHoldings, {
+          intakeId: await read(t, me, {
+            kind: 'holdings',
+            title: 'TR · holdings',
+            positions: [{ name: 'Microsoft', candidates: [MSFT] }],
+          }),
+          accountId: tr,
+          asOf: TODAY,
+          dayStart: TODAY,
+          rows: [{ candidate: MSFT, shares: 2.01, sharesCalculated: true }],
+        })
+      if (screenFirst) await screen()
+      expect(
+        await me.mutation(api.intake.confirmTrades, {
+          intakeId: await read(t, me, statement),
+          accountId: tr,
+          rows: all,
+        }),
+      ).toEqual({ written: 2, skipped: 0 })
+      if (!screenFirst) await screen()
+      /* The same statement again adds nothing. */
+      expect(
+        await me.mutation(api.intake.confirmTrades, {
+          intakeId: await read(t, me, statement),
+          accountId: tr,
+          rows: all,
+        }),
+      ).toEqual({ written: 0, skipped: 2 })
+      return (await me.query(api.aggregate.positions, {})).rows
+    }
+    const a = await run(true)
+    const b = await run(false)
+    expect(a).toHaveLength(1)
+    expect(a[0]).toMatchObject({ shares: 2, paid: 210, status: 'match' })
+    expect(b.map(({ accountId, instrumentId, ...r }) => r)).toEqual(
+      a.map(({ accountId, instrumentId, ...r }) => r),
+    )
+  })
+
+  test('a statement’s sell of shares only a screenshot knew is taken, not refused', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    await me.mutation(api.intake.confirmHoldings, {
+      intakeId: await read(t, me, {
+        kind: 'holdings',
+        title: 'TR · holdings',
+        positions: [{ name: 'Microsoft', candidates: [MSFT] }],
+      }),
+      accountId: tr,
+      asOf: TODAY - 5 * 86_400_000,
+      dayStart: TODAY,
+      rows: [{ candidate: MSFT, shares: 3 }],
+    })
+    await me.mutation(api.intake.confirmTrades, {
+      intakeId: await read(t, me, {
+        kind: 'trades',
+        title: 'TR · statement',
+        trades: [
+          {
+            occurredAt: TODAY - 86_400_000,
+            name: 'Microsoft',
+            side: 'sell',
+            shares: 1,
+            price: 120,
+            currency: 'EUR',
+            candidates: [MSFT],
+          },
+        ],
+      }),
+      accountId: tr,
+      rows: [{ index: 0, candidate: MSFT }],
+    })
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows[0]).toMatchObject({ shares: 2, status: 'screen', paid: null })
   })
 
   test('refuses a bank as the broker, and another owner’s account', async () => {

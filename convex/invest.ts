@@ -6,10 +6,12 @@ import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import schema from './schema'
+import { reconcile } from '../src/lib/holdings'
 
 /* Investments (Finances F4, 26 Sep): tickers and trades. Trades come in
-   from a holdings screenshot or a trade history (intake.ts), or a typed
-   line (money.record, 27 Sep). The value of what he holds is read in
+   from a trade history or statement (intake.ts), or a typed line
+   (money.record, 27 Sep); a holdings screenshot is stored as what it
+   showed (the holdings table, R6c) and never becomes a trade. The value of what he holds is read in
    aggregate.positions; the prices it uses are stored by market.ts.
 
    A trade is what the broker confirmed: shares and the price per share in
@@ -59,6 +61,9 @@ export function checkTrade(shares: number, priceEur: number) {
   }
 }
 
+/** What an account holds of a ticker now: its trades and its screens,
+    merged (src/lib/holdings.ts) — so a sell of shares only a screenshot
+    knew is still a sell of shares he has. */
 export async function heldShares(
   ctx: MutationCtx,
   ownerId: string,
@@ -71,9 +76,18 @@ export async function heldShares(
       q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
     )
     .take(MAX_TRADES)
-  return rows
-    .filter((t) => t.accountId === accountId)
-    .reduce((n, t) => n + (t.side === 'buy' ? t.shares : -t.shares), 0)
+  const looks = await ctx.db
+    .query('holdings')
+    .withIndex('by_owner_instrument', (q) =>
+      q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+    )
+    .take(MAX_TRADES)
+  return reconcile(
+    rows.filter((t) => t.accountId === accountId),
+    looks
+      .filter((h) => h.accountId === accountId)
+      .map((h) => ({ shares: h.shares, paidEur: h.paidEur, asOf: h.asOf })),
+  ).shares
 }
 
 export const removeTrade = mutation({

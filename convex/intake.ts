@@ -2,7 +2,7 @@ import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { ownedAccount, writeBalance } from './accounts'
-import { checkTrade, heldShares, upsertInstrument } from './invest'
+import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
 import { euroRate, writeTransfer } from './money'
 import { internal } from './_generated/api'
@@ -852,28 +852,27 @@ export const confirmTransactions = mutation({
 })
 
 /**
- * A broker screen he checked. The first one an account gets is what it
- * held when the app first saw it (`opening`): it replaces the account's
- * trades up to now, and none of it touches the cash — that money left long
- * ago. Every later one is a list of changes he ticked (src/lib/intake.ts,
- * diffHoldings): each a buy or a sell that moves the broker's cash like a
- * typed one. The free cash, if he kept it, becomes the balance — read
- * after the trades, so it already has them in it.
+ * A broker screen he checked (a screenshot or a net-worth PDF): what it
+ * showed is stored as it was seen — shares per ticker on the day, and what
+ * was paid where the screen printed a % since buy (R6c, 27 Sep). Nothing
+ * is typed and nothing becomes a buy: a statement dropped before or after
+ * explains these shares instead of adding to them (src/lib/holdings.ts).
+ * A second look at a ticker the same day replaces the first. The free
+ * cash, if he kept it, becomes the balance.
  */
 export const confirmHoldings = mutation({
   args: {
     intakeId: v.id('intakes'),
     accountId: v.id('accounts'),
-    mode: v.union(v.literal('opening'), v.literal('changes')),
-    occurredAt: v.number(),
+    asOf: v.number(),
     dayStart: v.number(),
     rows: v.array(
       v.object({
         candidate,
         isin: v.optional(v.string()),
-        side: v.union(v.literal('buy'), v.literal('sell')),
         shares: v.number(),
-        priceEur: v.number(),
+        paidEur: v.optional(v.number()),
+        sharesCalculated: v.optional(v.boolean()),
       }),
     ),
     cashEur: v.optional(v.number()),
@@ -886,35 +885,29 @@ export const confirmHoldings = mutation({
       throw new ConvexError('That is not ready to confirm.')
     }
     const account = await ownedAccount(ctx, ownerId, args.accountId)
+    if (!account.kinds.includes('broker')) {
+      throw new ConvexError(`${account.name} is not a broker.`)
+    }
     if (args.rows.length === 0 && args.cashEur === undefined) {
       throw new ConvexError('Keep at least one row, or the cash.')
     }
-    if (args.occurredAt > Date.now() + 5 * 60_000) {
-      throw new ConvexError('A trade is something that happened.')
+    if (args.asOf > Date.now() + 5 * 60_000) {
+      throw new ConvexError('A screen shows what already is.')
     }
-    for (const row of args.rows) checkTrade(row.shares, row.priceEur)
+    for (const row of args.rows) {
+      if (!Number.isFinite(row.shares) || row.shares <= 0 || row.shares > 1e9)
+        throw new ConvexError('That is not a number of shares.')
+      if (
+        row.paidEur !== undefined &&
+        (!Number.isFinite(row.paidEur) || row.paidEur <= 0 || row.paidEur > 1e9)
+      )
+        throw new ConvexError('That is not what was paid.')
+    }
     const symbols = args.rows.map((r) => r.candidate.symbol)
     if (new Set(symbols).size !== symbols.length) {
       throw new ConvexError('Two rows are the same ticker — keep one.')
     }
     let replaced = 0
-    if (args.mode === 'opening') {
-      if (args.rows.some((r) => r.side === 'sell')) {
-        throw new ConvexError('What an account holds has nothing to sell.')
-      }
-      const before = await ctx.db
-        .query('trades')
-        .withIndex('by_owner_account', (q) =>
-          q.eq('ownerId', ownerId).eq('accountId', account._id),
-        )
-        .take(MAX_TRADES)
-      for (const t of before) {
-        if (t.occurredAt <= args.occurredAt) {
-          await ctx.db.delete(t._id)
-          replaced++
-        }
-      }
-    }
     for (const row of args.rows) {
       const instrumentId = await upsertInstrument(
         ctx,
@@ -922,24 +915,33 @@ export const confirmHoldings = mutation({
         row.candidate,
         row.isin,
       )
-      if (row.side === 'sell') {
-        const held = await heldShares(ctx, ownerId, account._id, instrumentId)
-        if (row.shares > held + 1e-6) {
-          throw new ConvexError(
-            `${account.name} holds only ${Math.round(held * 1e6) / 1e6} ${row.candidate.symbol}.`,
-          )
+      const before = await ctx.db
+        .query('holdings')
+        .withIndex('by_owner_instrument', (q) =>
+          q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+        )
+        .take(MAX_TRADES)
+      for (const h of before) {
+        if (
+          h.accountId === account._id &&
+          Math.abs(h.asOf - args.asOf) < SAME_LOOK_MS
+        ) {
+          await ctx.db.delete(h._id)
+          replaced++
         }
       }
-      await ctx.db.insert('trades', {
+      await ctx.db.insert('holdings', {
         ownerId,
         accountId: account._id,
         instrumentId,
-        side: row.side,
-        shares: row.shares,
-        priceEur: Math.round(row.priceEur * 10000) / 10000,
-        occurredAt: args.occurredAt,
+        shares: Math.round(row.shares * 1e6) / 1e6,
+        paidEur:
+          row.paidEur === undefined
+            ? undefined
+            : Math.round(row.paidEur * 100) / 100,
+        sharesCalculated: row.sharesCalculated ? true : undefined,
+        asOf: args.asOf,
         importId: intake._id,
-        opening: args.mode === 'opening' ? true : undefined,
       })
     }
     if (args.cashEur !== undefined) {
@@ -966,6 +968,9 @@ export const confirmHoldings = mutation({
     return { positions: args.rows.length, replaced }
   },
 })
+
+/* Two looks at one ticker within this are the same look. */
+const SAME_LOOK_MS = 20 * 3_600_000
 
 /**
  * A broker's trade history he checked: each kept buy or sell is written
@@ -999,6 +1004,7 @@ export const confirmTrades = mutation({
     let written = 0
     let skipped = 0
     const seen = new Set<number>()
+    const claimed = new Set<Id<'trades'>>()
     for (const row of rows) {
       const t = read[row.index] as (typeof read)[number] | undefined
       if (t === undefined || seen.has(row.index)) continue
@@ -1017,26 +1023,28 @@ export const confirmTrades = mutation({
           q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
         )
         .take(MAX_TRADES)
-      if (
-        near.some(
-          (x) =>
-            x.accountId === account._id &&
-            x.side === t.side &&
-            Math.abs(x.shares - t.shares) < 1e-6 &&
-            Math.abs(x.occurredAt - t.occurredAt) <= 2 * DAY_MS + 3_600_000,
-        )
-      ) {
+      /* Already stored from another file: same side and shares, about the
+         same price (5%: a dollar trade read again months later meets a
+         newer rate), within two days. Each stored trade answers for one
+         row only, and never for a row of this same file — two equal buys
+         two days apart are two buys. */
+      const twin = near.find(
+        (x) =>
+          !claimed.has(x._id) &&
+          x.importId !== intake._id &&
+          x.accountId === account._id &&
+          x.side === t.side &&
+          Math.abs(x.shares - t.shares) < 1e-6 &&
+          Math.abs(x.priceEur - priceEur) <= priceEur * 0.05 + 0.01 &&
+          Math.abs(x.occurredAt - t.occurredAt) <= 2 * DAY_MS + 3_600_000,
+      )
+      if (twin) {
+        claimed.add(twin._id)
         skipped++
         continue
       }
-      if (t.side === 'sell') {
-        const held = await heldShares(ctx, ownerId, account._id, instrumentId)
-        if (t.shares > held + 1e-6) {
-          throw new ConvexError(
-            `${account.name} holds only ${Math.round(held * 1e6) / 1e6} ${row.candidate.symbol} to sell on ${new Date(t.occurredAt).toDateString()}.`,
-          )
-        }
-      }
+      /* A statement's sell is the broker's word: it is never refused for
+         shares an earlier statement, not dropped yet, would have bought. */
       await ctx.db.insert('trades', {
         ownerId,
         accountId: account._id,

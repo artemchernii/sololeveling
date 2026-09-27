@@ -4,6 +4,8 @@ import { requireUser } from './auth'
 import { logKindValidator } from './logs'
 import { isEuroAmount } from '../src/lib/money'
 import { balanceSeries } from '../src/lib/cashHistory'
+import { notSeenSince, reconcile } from '../src/lib/holdings'
+import type { LedgerTrade, Observation } from '../src/lib/holdings'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
 import { query } from './_generated/server'
@@ -1264,7 +1266,10 @@ export const projectActivity = query({
 
 /* Accounts and holdings are few; these bound the reads generously. */
 const ACCOUNT_ROWS = 50
-const TRADE_ROWS = 2000
+/* His Revolut export alone is 3,595 trades since 2020 (27 Sep). */
+const TRADE_ROWS = 6000
+/* A screen of 15 positions a month for years. */
+const HOLDING_ROWS = 3000
 
 /**
  * Each live account's FREE CASH, and the total (Finances F2) — money not
@@ -1343,19 +1348,20 @@ function quoteToRate(currency: string): { base: string; divide: number } {
 }
 
 /**
- * What he holds, per account and ticker (Finances F4).
+ * What he holds, per account and ticker (Finances F4; R6c, 27 Sep).
  *
- * `shares` is the sum of the position's trade rows, buys less sells — the
- * sum rule over trades. `putIn` is the sum of what the buys cost, sells
- * taking back their share at the price they went at; both are sums of
- * stored rows and nothing else.
+ * Worked out from every file that spoke of it (src/lib/holdings.ts,
+ * reconcile): the trade rows are the ledger, a holdings screen a dated
+ * observation. `shares` is the latest screen plus the trades after it, or
+ * the trades alone; `paid` is what those rows cost (buys less what sells
+ * took back), or what the screen printed — null when no file says, and
+ * then no profit is shown against it. `status` says whether the trades
+ * and the screen agree.
  *
  * `valueEur` is shares × the latest stored price × the latest stored rate
  * into euros: composition of source-4 readings (PLAN.md §1), and null when
  * either reading is missing — never guessed. Every value carries the
- * `priceAsOf` and `rateAsOf` it was made from. There is deliberately no
- * gain, loss or return here: the difference of the two was held back
- * (26 Sep) and needs its own yes.
+ * `priceAsOf` and `rateAsOf` it was made from.
  */
 export const positions = query({
   args: {},
@@ -1369,7 +1375,18 @@ export const positions = query({
         type: v.string(),
         currency: v.string(),
         shares: v.number(),
-        putIn: v.number(),
+        paid: v.union(v.number(), v.null()),
+        status: v.union(
+          v.literal('trades'),
+          v.literal('match'),
+          v.literal('screen'),
+          v.literal('gap'),
+          v.literal('over'),
+        ),
+        seenAt: v.union(v.number(), v.null()),
+        gap: v.number(),
+        /** A later screen of the account left it out. */
+        notSeen: v.boolean(),
         price: v.union(v.number(), v.null()),
         priceAsOf: v.union(v.number(), v.null()),
         rate: v.union(v.number(), v.null()),
@@ -1683,27 +1700,41 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
       .take(TRADE_ROWS)
   ).filter((t) => live.has(t.accountId))
 
+  const looks = (
+    await ctx.db
+      .query('holdings')
+      .withIndex('by_owner_account', (q) => q.eq('ownerId', ownerId))
+      .take(HOLDING_ROWS)
+  ).filter((h) => live.has(h.accountId))
+
   const held = new Map<
     string,
     {
       accountId: Id<'accounts'>
       instrumentId: Id<'instruments'>
-      shares: number
-      cents: number
+      trades: Array<LedgerTrade>
+      looks: Array<Observation>
     }
   >()
-  for (const t of trades) {
-    const key = `${t.accountId}:${t.instrumentId}`
-    const p = held.get(key) ?? {
-      accountId: t.accountId,
-      instrumentId: t.instrumentId,
-      shares: 0,
-      cents: 0,
+  const slot = (accountId: Id<'accounts'>, instrumentId: Id<'instruments'>) => {
+    const key = `${accountId}:${instrumentId}`
+    let p = held.get(key)
+    if (p === undefined) {
+      p = { accountId, instrumentId, trades: [], looks: [] }
+      held.set(key, p)
     }
-    const sign = t.side === 'buy' ? 1 : -1
-    p.shares += sign * t.shares
-    p.cents += sign * Math.round(t.shares * t.priceEur * 100)
-    held.set(key, p)
+    return p
+  }
+  for (const t of trades) slot(t.accountId, t.instrumentId).trades.push(t)
+  /* Stored oldest first, so on a tie the later look wins. */
+  const lastLook = new Map<Id<'accounts'>, number>()
+  for (const h of looks) {
+    slot(h.accountId, h.instrumentId).looks.push({
+      shares: h.shares,
+      paidEur: h.paidEur,
+      asOf: h.asOf,
+    })
+    lastLook.set(h.accountId, Math.max(lastLook.get(h.accountId) ?? 0, h.asOf))
   }
 
   const rates = new Map<string, { rate: number; asOf: number } | null>()
@@ -1725,9 +1756,9 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
 
   const rows = []
   for (const p of held.values()) {
-    /* Rounded to kill float dust from a buy and a sell of the same
-       fraction; a position sold out is not shown. */
-    const shares = Math.round(p.shares * 1e6) / 1e6
+    /* A position sold out is not shown. */
+    const r = reconcile(p.trades, p.looks)
+    const shares = r.shares
     if (shares <= 0) continue
     const instrument = await ctx.db.get(p.instrumentId)
     if (instrument === null || instrument.ownerId !== ownerId) continue
@@ -1752,7 +1783,11 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
       type: instrument.type,
       currency: instrument.currency,
       shares,
-      putIn: p.cents / 100,
+      paid: r.paid,
+      status: r.status,
+      seenAt: r.seenAt,
+      gap: r.gap,
+      notSeen: notSeenSince(r.seenAt, lastLook.get(p.accountId) ?? null),
       price: price?.price ?? null,
       priceAsOf: price?.asOf ?? null,
       rate: rate?.rate ?? null,
@@ -1760,7 +1795,7 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
       valueEur,
     })
   }
-  rows.sort((a, b) => (b.valueEur ?? b.putIn) - (a.valueEur ?? a.putIn))
+  rows.sort((a, b) => (b.valueEur ?? b.paid ?? 0) - (a.valueEur ?? a.paid ?? 0))
   let cents = 0
   let oldestPriceAsOf: number | null = null
   let unvalued = 0
@@ -1780,7 +1815,7 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
     totalEur: cents / 100,
     oldestPriceAsOf,
     unvalued,
-    complete: trades.length < TRADE_ROWS,
+    complete: trades.length < TRADE_ROWS && looks.length < HOLDING_ROWS,
   }
 }
 

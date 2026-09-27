@@ -2,7 +2,7 @@ import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { ownedAccount, writeBalance } from './accounts'
-import { checkTrade, upsertInstrument } from './invest'
+import { checkTrade, heldShares, upsertInstrument } from './invest'
 import { transferPair } from './logs'
 import { writeTransfer } from './money'
 import { internal } from './_generated/api'
@@ -590,21 +590,26 @@ export const confirmTransactions = mutation({
 })
 
 /**
- * A broker screen he checked. It is what the account held at that moment:
- * confirming REPLACES the account's trades up to now — a position missing
- * from it is gone because it is gone from the broker; trades typed after
- * still count on top. The free cash, if he kept it, becomes the balance.
+ * A broker screen he checked. The first one an account gets is what it
+ * held when the app first saw it (`opening`): it replaces the account's
+ * trades up to now, and none of it touches the cash — that money left long
+ * ago. Every later one is a list of changes he ticked (src/lib/intake.ts,
+ * diffHoldings): each a buy or a sell that moves the broker's cash like a
+ * typed one. The free cash, if he kept it, becomes the balance — read
+ * after the trades, so it already has them in it.
  */
 export const confirmHoldings = mutation({
   args: {
     intakeId: v.id('intakes'),
     accountId: v.id('accounts'),
+    mode: v.union(v.literal('opening'), v.literal('changes')),
     occurredAt: v.number(),
     dayStart: v.number(),
     rows: v.array(
       v.object({
         candidate,
         isin: v.optional(v.string()),
+        side: v.union(v.literal('buy'), v.literal('sell')),
         shares: v.number(),
         priceEur: v.number(),
       }),
@@ -630,17 +635,22 @@ export const confirmHoldings = mutation({
     if (new Set(symbols).size !== symbols.length) {
       throw new ConvexError('Two rows are the same ticker — keep one.')
     }
-    const before = await ctx.db
-      .query('trades')
-      .withIndex('by_owner_account', (q) =>
-        q.eq('ownerId', ownerId).eq('accountId', account._id),
-      )
-      .take(MAX_TRADES)
     let replaced = 0
-    for (const t of before) {
-      if (t.occurredAt <= args.occurredAt) {
-        await ctx.db.delete(t._id)
-        replaced++
+    if (args.mode === 'opening') {
+      if (args.rows.some((r) => r.side === 'sell')) {
+        throw new ConvexError('What an account holds has nothing to sell.')
+      }
+      const before = await ctx.db
+        .query('trades')
+        .withIndex('by_owner_account', (q) =>
+          q.eq('ownerId', ownerId).eq('accountId', account._id),
+        )
+        .take(MAX_TRADES)
+      for (const t of before) {
+        if (t.occurredAt <= args.occurredAt) {
+          await ctx.db.delete(t._id)
+          replaced++
+        }
       }
     }
     for (const row of args.rows) {
@@ -650,15 +660,24 @@ export const confirmHoldings = mutation({
         row.candidate,
         row.isin,
       )
+      if (row.side === 'sell') {
+        const held = await heldShares(ctx, ownerId, account._id, instrumentId)
+        if (row.shares > held + 1e-6) {
+          throw new ConvexError(
+            `${account.name} holds only ${Math.round(held * 1e6) / 1e6} ${row.candidate.symbol}.`,
+          )
+        }
+      }
       await ctx.db.insert('trades', {
         ownerId,
         accountId: account._id,
         instrumentId,
-        side: 'buy',
+        side: row.side,
         shares: row.shares,
         priceEur: Math.round(row.priceEur * 10000) / 10000,
         occurredAt: args.occurredAt,
         importId: intake._id,
+        opening: args.mode === 'opening' ? true : undefined,
       })
     }
     if (args.cashEur !== undefined) {

@@ -12,7 +12,13 @@ import { useDayStarts } from '@/components/track/useDayStarts'
 import { money } from '@/lib/currency'
 import { dayLabel } from '@/lib/bills'
 import { agoLabel } from '@/lib/format'
-import { INTAKE_MODEL_NAME, completePosition, merchantKey } from '@/lib/intake'
+import {
+  INTAKE_MODEL_NAME,
+  completePosition,
+  diffHoldings,
+  merchantKey,
+} from '@/lib/intake'
+import type { HoldingChange } from '@/lib/intake'
 import type { Candidate } from '@/lib/market'
 import { SPEND_CATEGORIES, categoryLabel } from '@/lib/money'
 
@@ -824,6 +830,12 @@ function HoldingsReview({
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /* What the account already holds: a first screenshot sets it, a later
+     one is compared with it and becomes buys and sells. */
+  const held = useQuery(api.aggregate.positions, {})
+  const heldHere = (held?.rows ?? []).filter((r) => r.accountId === target)
+  const mode = heldHere.length > 0 ? 'changes' : 'opening'
+  const [untick, setUntick] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     setDrafts(
@@ -845,12 +857,58 @@ function HoldingsReview({
   }, [positions])
 
   const num = (s: string) => Number(s.replace(',', '.'))
+  const changes: Array<HoldingChange> =
+    mode === 'changes'
+      ? diffHoldings(
+          heldHere.map((r) => ({
+            symbol: r.symbol,
+            shares: r.shares,
+            putIn: r.putIn,
+            priceEur:
+              r.valueEur !== null && r.shares > 0
+                ? r.valueEur / r.shares
+                : undefined,
+          })),
+          drafts.flatMap((d, i) => {
+            const p = positions[i] as (typeof positions)[number] | undefined
+            if (!d.keep || !d.candidate || !p) return []
+            return [
+              {
+                symbol: d.candidate.symbol,
+                shares: num(d.shares) || undefined,
+                sharesCalculated: d.sharesCalc,
+                paidEur:
+                  p.valueEur !== undefined &&
+                  p.changePct !== undefined &&
+                  p.changePct > -100
+                    ? p.valueEur / (1 + p.changePct / 100)
+                    : num(d.shares) * num(d.price) || undefined,
+                priceEurToday: p.todayPriceEur,
+              },
+            ]
+          }),
+        )
+      : []
+  const moving = changes.filter((c) => c.side !== undefined)
+  const ticked = moving.filter(
+    (c) => c.shares && c.priceEur && !untick.has(c.symbol),
+  )
+  const candidateFor = (symbol: string): Candidate | null => {
+    const d = drafts.find((x) => x.candidate?.symbol === symbol)
+    if (d?.candidate) return d.candidate
+    const h = heldHere.find((r) => r.symbol === symbol)
+    return h
+      ? { symbol: h.symbol, name: h.name, exchange: '', type: h.type }
+      : null
+  }
   const set = (i: number, patch: Partial<PosDraft>) =>
     setDrafts((d) => d.map((x, j) => (j === i ? { ...x, ...patch } : x)))
   const kept = drafts.filter((d) => d.keep)
   const ready =
     target !== null &&
-    kept.every((d) => d.candidate && num(d.shares) > 0 && num(d.price) > 0)
+    (mode === 'changes'
+      ? ticked.length > 0 || cash.trim() !== ''
+      : kept.every((d) => d.candidate && num(d.shares) > 0 && num(d.price) > 0))
   const worth = positions.reduce(
     (t, p, i) => t + (drafts[i]?.keep ? (p.valueEur ?? 0) : 0),
     0,
@@ -868,15 +926,25 @@ function HoldingsReview({
       await confirm({
         intakeId: intake._id,
         accountId: target,
+        mode,
         occurredAt: Date.now(),
         dayStart: today,
         cashEur: cash.trim() === '' ? undefined : num(cash),
-        rows: kept.map((d, i) => ({
-          candidate: d.candidate as Candidate,
-          isin: positions[drafts.indexOf(d)]?.isin ?? positions[i]?.isin,
-          shares: num(d.shares),
-          priceEur: num(d.price),
-        })),
+        rows:
+          mode === 'changes'
+            ? ticked.map((c) => ({
+                candidate: candidateFor(c.symbol) as Candidate,
+                side: c.side as 'buy' | 'sell',
+                shares: c.shares as number,
+                priceEur: c.priceEur as number,
+              }))
+            : kept.map((d, i) => ({
+                candidate: d.candidate as Candidate,
+                isin: positions[drafts.indexOf(d)]?.isin ?? positions[i]?.isin,
+                side: 'buy' as const,
+                shares: num(d.shares),
+                priceEur: num(d.price),
+              })),
       })
       onDone()
     } catch (e) {
@@ -924,12 +992,96 @@ function HoldingsReview({
           value={`${worth - paid >= 0 ? '+' : '−'}${money(Math.abs(Math.round((worth - paid) * 100) / 100))}`}
           tone={worth - paid < 0 ? 'bad' : 'good'}
         />
-        <Kpi
-          label="replaces"
-          value={accounts.find((a) => a._id === target)?.name ?? '—'}
-          note="what it held up to now"
-        />
+        {mode === 'changes' ? (
+          <Kpi
+            label="changed since last time"
+            value={`${moving.length} of ${changes.length}`}
+            note={`${changes.length - moving.length} the same`}
+          />
+        ) : (
+          <Kpi
+            label="first read of"
+            value={accounts.find((a) => a._id === target)?.name ?? '—'}
+            note="held before — not out of its cash"
+          />
+        )}
       </div>
+      {mode === 'changes' ? (
+        <Section
+          title="⇄ what changed — buys and sells"
+          aside="told by what you paid, not by the price"
+        >
+          {moving.length === 0 ? (
+            <span className="py-2 text-[13px] text-ink-400">
+              Nothing bought or sold since the last screenshot — only prices
+              moved.
+            </span>
+          ) : (
+            moving.map((c) => {
+              const on = ticked.some((x) => x.symbol === c.symbol)
+              const can = Boolean(c.shares && c.priceEur)
+              return (
+                <div
+                  key={c.symbol}
+                  className={`flex items-center gap-3 border-t border-lift/[0.04] py-2 ${on ? '' : 'opacity-55'}`}
+                >
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={on}
+                    disabled={!can}
+                    aria-label={`Keep ${c.symbol}`}
+                    onClick={() =>
+                      setUntick((u) => {
+                        const n = new Set(u)
+                        if (n.has(c.symbol)) n.delete(c.symbol)
+                        else n.add(c.symbol)
+                        return n
+                      })
+                    }
+                    className={`grid size-5 shrink-0 place-items-center rounded-[6px] ${on ? 'bg-lav-400 text-background' : 'ring-1 ring-lift/25'}`}
+                  >
+                    {on ? <Check className="size-3" strokeWidth={3} /> : null}
+                  </button>
+                  <TickerLogo symbol={c.symbol} size={26} />
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="text-[13.5px] text-foreground">
+                      <b className="font-mono text-lav-300">{c.symbol}</b>{' '}
+                      {c.change === 'new'
+                        ? 'new — bought'
+                        : c.change === 'more'
+                          ? 'bought more'
+                          : c.change === 'less'
+                            ? 'sold some'
+                            : 'not on this screenshot — sold?'}
+                    </span>
+                    <span className="font-mono text-[10.5px] text-ink-500">
+                      {c.shares ? `${c.shares} sh` : '? sh'} ×{' '}
+                      {c.priceEur ? money(c.priceEur) : '?'}
+                      {c.by === 'paid' ? ' · calc from what you paid' : ''}
+                      {c.change === 'gone'
+                        ? ' · the list may just be cut off'
+                        : ''}
+                    </span>
+                  </span>
+                  <span
+                    className={`shrink-0 font-mono text-[13px] ${c.side === 'sell' ? 'text-state-good' : 'text-ink-100'}`}
+                  >
+                    {c.side === 'sell' ? '+' : '−'}
+                    {c.shares && c.priceEur
+                      ? money(Math.round(c.shares * c.priceEur * 100) / 100)
+                      : '—'}
+                  </span>
+                </div>
+              )
+            })
+          )}
+          <span className="text-[12px] text-ink-500">
+            A buy comes out of the account&apos;s free cash; a sell goes back
+            into it.
+          </span>
+        </Section>
+      ) : null}
       <Section
         title="positions — check the ticker"
         aside="calc = worked out, not on the screen"
@@ -1126,7 +1278,10 @@ function HoldingsReview({
           onClick={() => void save()}
           className={`${PILL_LOUD} flex-[2] justify-center py-3 disabled:opacity-40`}
         >
-          confirm · {kept.length} positions{cash.trim() ? ' · cash' : ''}
+          {mode === 'changes'
+            ? `confirm · ${ticked.length} ${ticked.length === 1 ? 'trade' : 'trades'}`
+            : `confirm · ${kept.length} positions`}
+          {cash.trim() ? ' · cash' : ''}
         </button>
       </div>
     </>

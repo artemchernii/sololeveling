@@ -1087,6 +1087,7 @@ describe('intake: holdings', () => {
     const done = await me.mutation(api.intake.confirmHoldings, {
       intakeId,
       accountId: tr,
+      mode: 'opening',
       occurredAt: Date.now(),
       dayStart: TODAY,
       cashEur: 1000,
@@ -1098,6 +1099,7 @@ describe('intake: holdings', () => {
             exchange: 'NASDAQ',
             type: 'EQUITY',
           },
+          side: 'buy',
           shares: 0.743427,
           priceEur: 337.63,
         },
@@ -1125,6 +1127,7 @@ describe('intake: holdings', () => {
         exchange: 'NASDAQ',
         type: 'EQUITY',
       },
+      side: 'buy' as const,
       shares: 1,
       priceEur: 1,
     }
@@ -1132,6 +1135,7 @@ describe('intake: holdings', () => {
       me.mutation(api.intake.confirmHoldings, {
         intakeId,
         accountId: tr,
+        mode: 'opening',
         occurredAt: Date.now(),
         dayStart: TODAY,
         rows: [row, row],
@@ -1140,6 +1144,7 @@ describe('intake: holdings', () => {
     await me.mutation(api.intake.confirmHoldings, {
       intakeId,
       accountId: tr,
+      mode: 'opening',
       occurredAt: Date.now(),
       dayStart: TODAY,
       rows: [row],
@@ -1148,11 +1153,64 @@ describe('intake: holdings', () => {
       me.mutation(api.intake.confirmHoldings, {
         intakeId,
         accountId: tr,
+        mode: 'opening',
         occurredAt: Date.now(),
         dayStart: TODAY,
         rows: [row],
       }),
     ).rejects.toThrow('not ready')
+  })
+
+  test('a later screenshot adds the buys and sells he ticked, and they move the cash', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    const msft = {
+      symbol: 'MSFT',
+      name: 'Microsoft',
+      exchange: 'NASDAQ',
+      type: 'EQUITY',
+    }
+    await me.mutation(api.intake.confirmHoldings, {
+      intakeId: await ready(t, me),
+      accountId: tr,
+      mode: 'opening',
+      occurredAt: Date.now(),
+      dayStart: TODAY,
+      cashEur: 1000,
+      rows: [{ candidate: msft, side: 'buy', shares: 2, priceEur: 300 }],
+    })
+    /* The opening positions did not touch the cash. */
+    let b = await me.query(api.aggregate.balances, {})
+    expect(b.accounts[0].pockets[0].value).toBe(1000)
+
+    vi.setSystemTime(Date.now() + 60_000)
+    const second = await ready(t, me)
+    await expect(
+      me.mutation(api.intake.confirmHoldings, {
+        intakeId: second,
+        accountId: tr,
+        mode: 'changes',
+        occurredAt: Date.now(),
+        dayStart: TODAY,
+        rows: [{ candidate: msft, side: 'sell', shares: 5, priceEur: 400 }],
+      }),
+    ).rejects.toThrow('holds only 2')
+    await me.mutation(api.intake.confirmHoldings, {
+      intakeId: second,
+      accountId: tr,
+      mode: 'changes',
+      occurredAt: Date.now(),
+      dayStart: TODAY,
+      rows: [{ candidate: msft, side: 'buy', shares: 1, priceEur: 400 }],
+    })
+    b = await me.query(api.aggregate.balances, {})
+    expect(b.accounts[0].pockets[0]).toMatchObject({ value: 600, movedRows: 1 })
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows[0]).toMatchObject({ shares: 3, putIn: 1000 })
   })
 
   test('discard throws it away, files and all', async () => {

@@ -4,22 +4,19 @@ import { FileUp, Loader2, Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { PILL_QUIET } from '@/components/finances/bits'
-import { AccountForm } from '@/components/finances/Accounts'
 import { IntakeFlow } from '@/components/finances/Intake'
 import { Sheet } from '@/components/finances/Sheet'
-import { TypeLines } from '@/components/finances/TypeLines'
+import { AddRows } from '@/components/finances/AddRows'
 import { MAX_INTAKE_FILES, readableFile } from '@/lib/intake'
 
 /* + (Treasury, 27 Sep; reworked the same day as "adding money"): two
    doors. DROP FILES — statements and screenshots, any bank or broker,
    several at once; the reader works out what each is and returns a list
-   to check. TYPE IT — money in, money out, a transfer, a buy or a sell, a
-   line each, read back as rows to check (TypeLines). Every step has a way
-   back; nothing closes the whole sheet but close. */
+   to check. BY HAND — a row per thing, of any kind, prefilled (AddRows,
+   27 Sep: the text box is gone). Every step has a way back; nothing closes
+   the whole sheet but close. */
 
-type Step =
-  { at: 'home' } | { at: 'account' } | { at: 'intake'; id: Id<'intakes'> }
+type Step = { at: 'home' } | { at: 'intake'; id: Id<'intakes'> }
 
 export function AddButton({
   className = '',
@@ -37,14 +34,7 @@ export function AddButton({
 }) {
   const [step, setStep] = useState<Step | null>(null)
   const home = () => setStep({ at: 'home' })
-  const title =
-    step === null
-      ? ''
-      : step.at === 'home'
-        ? 'add'
-        : step.at === 'account'
-          ? 'new account'
-          : 'check it'
+  const title = step === null ? '' : step.at === 'home' ? 'add' : 'check it'
   return (
     <>
       <button
@@ -64,27 +54,17 @@ export function AddButton({
         title={title}
         onClose={() => setStep(null)}
         onBack={step !== null && step.at !== 'home' ? home : undefined}
-        wide={step?.at === 'intake'}
+        wide
       >
         {step?.at === 'home' ? (
           <>
-            <DropFiles onStarted={(id) => setStep({ at: 'intake', id })} />
-            <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-400">
-              No file at hand?
-              <button
-                type="button"
-                onClick={() => setStep({ at: 'account' })}
-                className={PILL_QUIET}
-              >
-                add an account by hand
-              </button>
-            </div>
-            <div className="border-t border-lift/[0.07] pt-4">
-              <TypeLines />
-            </div>
+            <DropFiles
+              small
+              title="Drop statements or screenshots — they become rows to check"
+              onStarted={(id) => setStep({ at: 'intake', id })}
+            />
+            <AddRows />
           </>
-        ) : step?.at === 'account' ? (
-          <AccountForm account={null} onDone={home} />
         ) : step?.at === 'intake' ? (
           <IntakeFlow
             intakeId={step.id}

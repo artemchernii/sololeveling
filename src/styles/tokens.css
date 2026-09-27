@@ -74,7 +74,7 @@
   --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0, 0, 0, 0.65);
 
   /* ==========================================================================
-     APP ADDITIONS — not Nocturne. Ten groups, each with the reason it exists.
+     APP ADDITIONS — not Nocturne. Eleven groups, each with the reason it exists.
      ======================================================================= */
 
   /* 1. Near-black ground. §3 Visual asks for a "near-black ground" with
@@ -255,6 +255,25 @@
      the System's scan line over a sheet being read (26 Sep), may use it. */
   --motion-glow: 2400ms;
 
+  /* 11. Treasury (27 Sep). Artem wanted brokers and banks by their real
+         marks ("in portfolio i want icons of broker") and a page that tells
+         cash from investments at a glance.
+         - mark-ground/-ink: the square a third-party logo sits on. Brand
+           marks are drawn for white — on the dark glass half of them
+           vanish — and the letters that stand in for a missing one need a
+           dark ink on it. The same in both themes, because the marks are.
+         - money-cash: free cash, the warm half of the cash/invested bar;
+           invested is the lavender accent it sits beside. Not a grade: it
+           says which half, like an area's hue.
+         - acct-bank / acct-cash: what an account is, on its badge (a
+           broker wears the accent). Hues clear of the state colours so a
+           badge never reads as a warning. */
+  --mark-ground: oklch(0.99 0 0);
+  --mark-ink: oklch(0.24 0.03 285);
+  --money-cash: oklch(0.83 0.1 85);
+  --acct-bank: oklch(0.83 0.1 85);
+  --acct-cash: oklch(0.84 0.07 160);
+
   /* 6. Lift and sink (14 Sep, the first step to a light theme). Components
         drew hairlines, hover fills and wells as `white/10` or `black/20` —
         135 of them — which is a colour that only means anything on a dark
@@ -330,6 +349,12 @@
   --state-danger: oklch(0.52 0.19 25);
   --state-warn: oklch(0.58 0.15 70);
   --state-good: oklch(0.5 0.14 155);
+
+  /* Treasury on a milky ground: the warm half and the badges darken so
+     they still read as colour, not as a stain. */
+  --money-cash: oklch(0.66 0.12 80);
+  --acct-bank: oklch(0.58 0.12 75);
+  --acct-cash: oklch(0.55 0.1 160);
 
   /* The System in daylight: a glow on a milky ground reads as a smudge, so
      the lit edge becomes a lavender line and a soft lavender shadow, and

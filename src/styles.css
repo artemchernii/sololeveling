@@ -110,6 +110,11 @@
   --color-state-danger: var(--state-danger);
   --color-state-warn: var(--state-warn);
   --color-state-good: var(--state-good);
+  --color-mark-ground: var(--mark-ground);
+  --color-mark-ink: var(--mark-ink);
+  --color-money-cash: var(--money-cash);
+  --color-acct-bank: var(--acct-bank);
+  --color-acct-cash: var(--acct-cash);
   --color-area-social: var(--area-social);
   --color-area-business: var(--area-business);
   --color-area-money: var(--area-money);

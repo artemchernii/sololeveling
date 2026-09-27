@@ -20,7 +20,7 @@ export function RoomTabs({
     <nav
       aria-label={label}
       style={style}
-      className="glass sticky top-[66px] z-10 bg-background/92 flex w-fit max-w-full self-start gap-0.5 rounded-full p-1 sm:gap-1.5 sm:p-1.5"
+      className="glass sticky top-[66px] z-10 bg-lav-400/10 [backdrop-filter:blur(28px)_saturate(160%)] flex w-fit max-w-full self-start gap-0.5 rounded-full p-1 sm:gap-1.5 sm:p-1.5"
     >
       {children}
     </nav>

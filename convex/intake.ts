@@ -816,7 +816,9 @@ export const confirmTransactions = mutation({
       written++
     }
     if (args.keepBalance && intake.balance) {
-      /* A statement's balance is true at the end of its closing day. */
+      /* A statement's balance is true at the end of its closing day. Its
+         day is noon UTC; 18:00 UTC is still that day from Lisbon to New
+         York (27 Sep: +12h put Aug 31 into Sep 1 in Lisbon). */
       await writeBalance(
         ctx,
         ownerId,
@@ -824,7 +826,8 @@ export const confirmTransactions = mutation({
         intake.balance.currency,
         intake.balance.value,
         args.dayStart,
-        intake.balance.asOf + 12 * 3_600_000 - 1,
+        intake.balance.asOf + 6 * 3_600_000,
+        sourceOf(intake),
       )
     }
     if (intake.accountTail) await learnTails(ctx, account, [intake.accountTail])
@@ -940,6 +943,8 @@ export const confirmHoldings = mutation({
         'EUR',
         args.cashEur,
         args.dayStart,
+        undefined,
+        sourceOf(intake),
       )
     }
     for (const id of intake.storageIds) await ctx.storage.delete(id)
@@ -1058,6 +1063,14 @@ export const discard = mutation({
     return null
   },
 })
+
+/* A balance read off a picture is a screenshot's; off a PDF or CSV, a
+   statement's. */
+function sourceOf(intake: Doc<'intakes'>): 'statement' | 'screenshot' {
+  return (intake.files ?? []).some((f) => f.contentType.startsWith('image/'))
+    ? 'screenshot'
+    : 'statement'
+}
 
 async function dropHistory(ctx: MutationCtx, intakeId: Id<'intakes'>) {
   const rows = await ctx.db

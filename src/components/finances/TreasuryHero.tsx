@@ -13,6 +13,7 @@ import { SetupSheet } from '@/components/finances/Setup'
 import { Sheet } from '@/components/finances/Sheet'
 import { Veiled, VeilToggle } from '@/components/finances/Veil'
 import { Skeleton } from '@/components/Skeleton'
+import { freshness as balanceFreshness } from '@/lib/freshness'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { areaVars } from '@/lib/areas'
 import { money } from '@/lib/currency'
@@ -31,28 +32,10 @@ import { euros } from '@/lib/money'
    `balances` (readings plus what moved since), this month from `moneySums`
    and `accountMonth` (sums of his rows). Nothing is estimated. */
 
-const STALE_MS = 7 * 86_400_000
 const DAY_MS = 86_400_000
 
 type Row = FunctionReturnType<typeof api.aggregate.balances>['accounts'][number]
 type Group = 'investments' | 'banks' | 'cash'
-
-/* When an account was last read: its oldest pocket's reading. Null when a
-   pocket has never been read. */
-function readAt(a: Row): number | null {
-  let oldest: number | null = null
-  for (const p of a.pockets) {
-    if (p.recordedAt === null) return null
-    oldest = oldest === null ? p.recordedAt : Math.min(oldest, p.recordedAt)
-  }
-  return oldest
-}
-
-function ageLabel(at: number | null, now: number): string {
-  if (at === null) return 'not read'
-  const days = Math.floor((now - at) / DAY_MS)
-  return days <= 0 ? 'today' : `${days}d`
-}
 
 const WEEKDAY = new Intl.DateTimeFormat('en', { weekday: 'long' })
 const SHORT = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
@@ -116,10 +99,7 @@ export function TreasuryHero() {
   /* A broker that is only a broker keeps its cash with its investments; a
      bank that is also a broker (Revolut) shows its cash under Banks. */
   const brokerOnly = (a: Row) => !a.kinds.includes('bank')
-  const stale = rows.filter((a) => {
-    const at = readAt(a)
-    return at === null || now - at > STALE_MS
-  })
+  const stale = rows.filter((a) => balanceFreshness(a.pockets, now).stale)
 
   const docOf = (id: Id<'accounts'>) => accounts?.find((a) => a._id === id)
   const net = sums ? sums.in.sum - sums.out.sum : null
@@ -517,14 +497,14 @@ function AccountList({
     <div className="flex flex-col gap-2">
       {group === 'checkin' ? (
         <span className="text-[13px] text-ink-400">
-          Not read for a week or more — drop a statement or a screenshot, or
-          type what it holds now.
+          These balances are more than a week old. Update means: drop a newer
+          statement or screenshot, or type what the account holds today.
         </span>
       ) : null}
       {rows.map((a, i) => {
-        const at = readAt(a)
-        const age = ageLabel(at, now)
-        const late = at === null || now - at > STALE_MS
+        const f = balanceFreshness(a.pockets, now)
+        const age = f.label
+        const late = f.stale
         const m = monthOf(a.accountId)
         const inv = investedBy(a.accountId)
         const showInvested =
@@ -567,6 +547,9 @@ function AccountList({
                     .join(' · ')}
                 </Veiled>
               </span>
+              {group === 'checkin' && f.todo ? (
+                <span className="text-[12px] text-state-warn">{f.todo}</span>
+              ) : null}
             </span>
             <button
               type="button"

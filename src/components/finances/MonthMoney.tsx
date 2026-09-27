@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import {
   ArrowDownRight,
@@ -26,10 +26,16 @@ const MONTH_NAME = new Intl.DateTimeFormat(undefined, {
    Tap one and its rows open under it (logs.moneyRows over the same month,
    narrowed to that kind and category — listed, never re-added). ‹ › steps
    back through months; there is none after this one. */
-export function MonthMoney() {
+export function MonthMoney({ open: asked }: { open?: string } = {}) {
   const today = useDayStarts(1).at(-1) as number
   const current = monthOf(new Date(today))
   const [shown, setShown] = useState<YearMonth>(current)
+  /* A month asked for in the URL ("see August in Flow"). */
+  useEffect(() => {
+    if (!asked) return
+    const [y, m] = asked.split('-').map(Number)
+    setShown({ year: y, month: m - 1 })
+  }, [asked])
   const [open, setOpen] = useState<string | null>(null)
   const start = new Date(shown.year, shown.month, 1).getTime()
   const end = new Date(shown.year, shown.month + 1, 1).getTime()

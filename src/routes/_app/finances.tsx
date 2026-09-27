@@ -10,6 +10,7 @@ import { MonthMoney } from '@/components/finances/MonthMoney'
 import { Portfolio } from '@/components/finances/Portfolio'
 import { Sheet } from '@/components/finances/Sheet'
 import { TreasuryHero } from '@/components/finances/TreasuryHero'
+import { WorthChart } from '@/components/finances/WorthChart'
 import { areaVars } from '@/lib/areas'
 import type { Id } from '../../../convex/_generated/dataModel'
 
@@ -29,7 +30,7 @@ const ROOMS = [
 type Room = (typeof ROOMS)[number]['id']
 
 function Treasury() {
-  const { room = 'overview' } = Route.useSearch()
+  const { room = 'overview', month } = Route.useSearch()
   const [reviewing, setReviewing] = useState<Id<'intakes'> | null>(null)
   useEffect(() => setReviewing(null), [room])
   return (
@@ -67,27 +68,35 @@ function Treasury() {
         })}
       </nav>
 
+      {/* All three rooms stay mounted; a tab only shows one (27 Sep: every
+          switch rebuilt the room — its queries reloaded, skeletons
+          flashed, it slid in again. "IT JUMPS FLICK"). */}
       <div
-        key={room}
         style={areaVars('money')}
-        className="motion-arrive flex flex-col gap-3"
+        hidden={room !== 'overview'}
+        className="flex flex-col gap-3"
       >
-        {room === 'overview' ? (
-          <>
-            <OpenIntakes onOpen={setReviewing} />
-            <Accounts />
-          </>
-        ) : room === 'flow' ? (
-          <>
-            <Bills />
-            <MonthMoney />
-            <section className="glass flex flex-col gap-5 rounded-[22px] p-4 sm:p-5">
-              <MoneyCalendar />
-            </section>
-          </>
-        ) : (
-          <Portfolio />
-        )}
+        <OpenIntakes onOpen={setReviewing} />
+        <WorthChart />
+        <Accounts />
+      </div>
+      <div
+        style={areaVars('money')}
+        hidden={room !== 'flow'}
+        className="flex flex-col gap-3"
+      >
+        <Bills />
+        <MonthMoney open={month} />
+        <section className="glass flex flex-col gap-5 rounded-[22px] p-4 sm:p-5">
+          <MoneyCalendar />
+        </section>
+      </div>
+      <div
+        style={areaVars('money')}
+        hidden={room !== 'portfolio'}
+        className="flex flex-col gap-3"
+      >
+        <Portfolio />
       </div>
 
       <Sheet
@@ -109,9 +118,15 @@ function Treasury() {
 }
 
 export const Route = createFileRoute('/_app/finances')({
-  validateSearch: (search: Record<string, unknown>): { room?: Room } =>
-    ROOMS.some((r) => r.id === search.room) && search.room !== 'overview'
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { room?: Room; month?: string } => ({
+    ...(ROOMS.some((r) => r.id === search.room) && search.room !== 'overview'
       ? { room: search.room as Room }
-      : {},
+      : {}),
+    ...(typeof search.month === 'string' && /^\d{4}-\d{2}$/.test(search.month)
+      ? { month: search.month }
+      : {}),
+  }),
   component: Treasury,
 })

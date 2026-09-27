@@ -258,6 +258,7 @@ export async function writeBalance(
   value: number,
   dayStart: number,
   asOf?: number,
+  source: BalanceSource = 'typed',
 ) {
   if (!account.currencies.includes(currency)) {
     throw new ConvexError(`${account.name} does not hold ${currency}.`)
@@ -289,8 +290,11 @@ export async function writeBalance(
     value: Math.round(value * 100) / 100,
     unit: currency.toLowerCase(),
     recordedAt: at,
+    source,
   })
 }
+
+export type BalanceSource = 'typed' | 'statement' | 'screenshot' | 'sync'
 
 /* Local midnight of an earlier moment, from today's local midnight: whole
    days back, so it holds across the server's own time zone. */

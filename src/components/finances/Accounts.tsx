@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Pencil, Plus, Search } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import type { FunctionReturnType } from 'convex/server'
 import { FIELD, PILL_LOUD, PILL_QUIET, Panel } from '@/components/finances/bits'
 import { DropFiles } from '@/components/finances/Add'
 import { AccountLogo } from '@/components/finances/Logo'
+import { dayEndsBack } from '@/components/finances/WorthChart'
 import { Sheet } from '@/components/finances/Sheet'
 import { Veiled } from '@/components/finances/Veil'
 import { SkeletonRows } from '@/components/Skeleton'
@@ -15,6 +17,8 @@ import { useDayStarts } from '@/components/track/useDayStarts'
 import { ACCOUNT_KINDS, CURRENCIES, money } from '@/lib/currency'
 import type { AccountKind } from '@/lib/currency'
 import { agoLabel } from '@/lib/format'
+import { freshness } from '@/lib/freshness'
+import { monthRange } from '@/lib/month'
 import { PRODUCTS, productIn, searchProducts } from '@/lib/institutions'
 import type { Product } from '@/lib/institutions'
 import { euros } from '@/lib/money'
@@ -45,6 +49,14 @@ export function Accounts() {
   const data = useQuery(api.aggregate.balances, {})
   const worth = useQuery(api.aggregate.worth, {})
   const accounts = useQuery(api.accounts.list, {})
+  const today = useDayStarts(1).at(-1) as number
+  const dayEnds = useMemo(() => dayEndsBack(today, 365), [today])
+  const history = useQuery(api.aggregate.cashHistory, { dayEnds })
+  const { monthStart, nextStart } = monthRange(today)
+  const month = useQuery(api.aggregate.accountMonth, {
+    start: monthStart,
+    end: nextStart,
+  })
   const [kind, setKind] = useState<AccountKind | 'all'>('all')
   const [editing, setEditing] = useState<Doc<'accounts'> | 'new' | null>(null)
   const [updating, setUpdating] = useState<Doc<'accounts'> | null>(null)
@@ -105,136 +117,34 @@ export function Accounts() {
         </p>
       ) : (
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-          {list.map((a, i) => {
-            const doc = accounts.find((x) => x._id === a.accountId)
-            const w = worth?.byAccount.find((x) => x.accountId === a.accountId)
-            const invested = w?.invested ?? null
-            const readAt = a.pockets.reduce<number | null>(
-              (m, p) =>
-                p.recordedAt === null
-                  ? m
-                  : m === null
-                    ? p.recordedAt
-                    : Math.min(m, p.recordedAt),
-              null,
-            )
-            const stale =
-              readAt !== null && Date.now() - readAt > 14 * 86_400_000
-            return (
-              <div
-                key={a.accountId}
-                style={{ animationDelay: `${i * 40}ms` }}
-                className="motion-land flex h-full flex-col gap-3 rounded-[16px] bg-lift/[0.035] p-3.5 ring-1 ring-lift/10 ring-inset"
-              >
-                <div className="flex items-center gap-2.5">
-                  <AccountLogo name={a.name} domain={a.domain} />
-                  <span className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className="truncate text-[15px] text-foreground">
-                      {a.name}
-                    </span>
-                    <span className="flex gap-1">
-                      {a.kinds.map((k) => (
-                        <KindBadge key={k} kind={k} />
-                      ))}
-                    </span>
-                  </span>
-                  {doc ? (
-                    <button
-                      type="button"
-                      onClick={() => setEditing(doc)}
-                      aria-label={`Edit or delete ${a.name}`}
-                      className={PILL_QUIET}
-                    >
-                      <Pencil className="size-3" />
-                      edit
-                    </button>
-                  ) : null}
-                </div>
-                <span className="text-[26px] leading-none font-light text-foreground">
-                  <Veiled>
-                    {euros(
-                      Math.round((a.cashEur + (invested ?? 0)) * 100) / 100,
-                    )}
-                  </Veiled>
-                </span>
-                <div className="flex flex-col gap-1 font-mono text-[11.5px]">
-                  {a.pockets.map((p) => (
-                    <span key={p.currency} className="flex flex-col gap-0.5">
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="text-ink-500">
-                          free cash{' '}
-                          <span className="rounded-[4px] bg-lift/[0.06] px-1 text-[10px] text-ink-300">
-                            {p.currency}
-                          </span>
-                        </span>
-                        <span className="text-ink-100">
-                          {p.value === null ? (
-                            <span className="text-ink-600">not typed</span>
-                          ) : (
-                            <Veiled>
-                              {money(p.value, p.currency)}
-                              {p.currency !== 'EUR' && p.eur !== null ? (
-                                <span className="text-ink-500">
-                                  {' '}
-                                  ≈ {euros(p.eur)}
-                                </span>
-                              ) : null}
-                            </Veiled>
-                          )}
-                        </span>
-                      </span>
-                      {p.movedRows > 0 && p.read !== null ? (
-                        /* The number opens: what was read, and what moved
-                         after it — never a bare balance. */
-                        <span className="text-right text-[10.5px] text-ink-500">
-                          <Veiled>
-                            read {money(p.read, p.currency)} ·{' '}
-                            <span
-                              className={
-                                p.moved >= 0
-                                  ? 'text-state-good'
-                                  : 'text-state-danger'
-                              }
-                            >
-                              {p.moved >= 0 ? '+' : ''}
-                              {money(p.moved, p.currency)}
-                            </span>{' '}
-                            since, {p.movedRows} row{p.movedRows > 1 ? 's' : ''}
-                          </Veiled>
-                        </span>
-                      ) : null}
-                    </span>
-                  ))}
-                  {invested !== null ? (
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="text-ink-500">investments</span>
-                      <Veiled>{euros(invested)}</Veiled>
-                    </span>
-                  ) : null}
-                </div>
-                <div className="mt-auto flex items-center justify-between gap-2 border-t border-lift/[0.06] pt-2.5">
-                  <span
-                    className={`font-mono text-[10.5px] ${stale ? 'text-state-warn' : 'text-ink-500'}`}
-                  >
-                    {readAt === null
-                      ? 'nothing read yet'
-                      : `read ${agoLabel(readAt)}`}
-                  </span>
-                  {doc ? (
-                    <button
-                      type="button"
-                      onClick={() => setUpdating(doc)}
-                      className={
-                        stale || readAt === null ? PILL_LOUD : PILL_QUIET
-                      }
-                    >
-                      update
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            )
-          })}
+          {list.map((a, i) => (
+            <AccountCard
+              key={a.accountId}
+              row={a}
+              index={i}
+              invested={
+                worth?.byAccount.find((x) => x.accountId === a.accountId)
+                  ?.invested ?? null
+              }
+              month={
+                month?.accounts.find((m) => m.accountId === a.accountId)?.net ??
+                null
+              }
+              line={
+                history?.accounts
+                  .find((h) => h.accountId === a.accountId)
+                  ?.values.slice(-30) ?? []
+              }
+              onEdit={() => {
+                const doc = accounts.find((x) => x._id === a.accountId)
+                if (doc) setEditing(doc)
+              }}
+              onUpdate={() => {
+                const doc = accounts.find((x) => x._id === a.accountId)
+                if (doc) setUpdating(doc)
+              }}
+            />
+          ))}
         </div>
       )}
 
@@ -242,6 +152,185 @@ export function Accounts() {
       <AccountSheet account={editing} onClose={() => setEditing(null)} />
       <UpdateSheet account={updating} onClose={() => setUpdating(null)} />
     </Panel>
+  )
+}
+
+type BalanceRow = FunctionReturnType<
+  typeof api.aggregate.balances
+>['accounts'][number]
+
+/* One account (27 Sep, as mocked on :3950 — "our current in app are faded
+   and weak"): lit panel, bright badges, the balance big with its last 30
+   days beside it, each pocket, its investments, this month, and a footer
+   that says where the balance came from and what to do when it is old. */
+function AccountCard({
+  row: a,
+  index,
+  invested,
+  month,
+  line,
+  onEdit,
+  onUpdate,
+}: {
+  row: BalanceRow
+  index: number
+  invested: number | null
+  month: number | null
+  line: Array<number | null>
+  onEdit: () => void
+  onUpdate: () => void
+}) {
+  const f = freshness(a.pockets, Date.now())
+  return (
+    <div
+      style={{ animationDelay: `${index * 40}ms` }}
+      className="motion-arrive flex h-full flex-col gap-3.5 rounded-[18px] bg-lift/[0.055] p-4 ring-1 ring-lift/[0.12] ring-inset"
+    >
+      <div className="flex items-start gap-3">
+        <AccountLogo name={a.name} domain={a.domain} size={40} />
+        <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <span className="truncate text-[17px] leading-none text-foreground">
+            {a.name}
+          </span>
+          <span className="flex flex-wrap gap-1">
+            {a.kinds.map((k) => (
+              <KindBadge key={k} kind={k} />
+            ))}
+          </span>
+        </span>
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`Edit or delete ${a.name}`}
+          className={PILL_QUIET}
+        >
+          <Pencil className="size-3" />
+          edit
+        </button>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-[30px] leading-none font-light text-foreground">
+          <Veiled>
+            {euros(Math.round((a.cashEur + (invested ?? 0)) * 100) / 100)}
+          </Veiled>
+        </span>
+        <Sparkline values={line} />
+      </div>
+      <div className="flex flex-col gap-1.5 font-mono text-[12.5px]">
+        {a.pockets
+          .filter((p) => p.value !== null || a.pockets.length === 1)
+          .map((p) => (
+            <span
+              key={p.currency}
+              className="flex items-center justify-between gap-2"
+            >
+              <span className="text-ink-400">
+                free cash{' '}
+                <span className="rounded-[5px] bg-lift/[0.08] px-1.5 py-0.5 text-[10.5px] text-ink-200">
+                  {p.currency}
+                </span>
+              </span>
+              <span className="text-ink-100">
+                {p.value === null ? (
+                  <span className="text-ink-500">not read</span>
+                ) : (
+                  <Veiled>
+                    {money(p.value, p.currency)}
+                    {p.currency !== 'EUR' && p.eur !== null ? (
+                      <span className="text-ink-500"> ≈ {euros(p.eur)}</span>
+                    ) : null}
+                  </Veiled>
+                )}
+              </span>
+            </span>
+          ))}
+        {invested !== null && invested > 0 ? (
+          <span className="flex items-center justify-between gap-2">
+            <span className="text-ink-400">investments</span>
+            <span className="text-ink-100">
+              <Veiled>{euros(invested)}</Veiled>
+            </span>
+          </span>
+        ) : null}
+        {month !== null && month !== 0 ? (
+          <span className="flex items-center justify-between gap-2">
+            <span className="text-ink-400">this month</span>
+            <span
+              className={month > 0 ? 'text-state-good' : 'text-state-danger'}
+            >
+              <Veiled>
+                {month > 0 ? '+' : '−'}
+                {euros(Math.abs(month))}
+              </Veiled>
+            </span>
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-lift/[0.08] pt-3">
+        <span
+          title={f.todo ?? undefined}
+          className={`min-w-0 font-mono text-[11px] ${f.stale ? 'text-state-warn' : 'text-ink-400'}`}
+        >
+          {f.label}
+        </span>
+        <button
+          type="button"
+          onClick={onUpdate}
+          className={
+            f.stale
+              ? 'motion-press shrink-0 rounded-full bg-state-warn/12 px-3 py-1.5 font-mono text-[10.5px] tracking-[0.12em] text-state-warn uppercase ring-1 ring-state-warn/50 ring-inset'
+              : PILL_QUIET
+          }
+        >
+          update
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* The last 30 days of an account's cash, green when it ended higher than
+   it began, red when lower — a direction, never a grade. */
+function Sparkline({ values }: { values: Array<number | null> }) {
+  const pts = values
+    .map((v, i) => (v === null ? null : { i, v }))
+    .filter((p): p is { i: number; v: number } => p !== null)
+  if (pts.length < 2) return <span className="flex-1" />
+  const min = Math.min(...pts.map((p) => p.v))
+  const max = Math.max(...pts.map((p) => p.v))
+  const span = max - min || 1
+  const w = 120
+  const h = 32
+  const first = pts[0] as { v: number }
+  const last = pts[pts.length - 1] as { v: number }
+  const tone =
+    last.v > first.v
+      ? 'text-state-good'
+      : last.v < first.v
+        ? 'text-state-danger'
+        : 'text-ink-500'
+  const d = pts
+    .map(
+      (p, n) =>
+        `${n === 0 ? 'M' : 'L'}${((p.i / (values.length - 1)) * w).toFixed(1)},${(h - 3 - ((p.v - min) / span) * (h - 6)).toFixed(1)}`,
+    )
+    .join(' ')
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      className={`ml-auto h-8 w-full max-w-[140px] ${tone}`}
+      aria-hidden
+    >
+      <path
+        d={d}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        vectorEffect="non-scaling-stroke"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }
 

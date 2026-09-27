@@ -2375,3 +2375,59 @@ describe('intake: reuse, progress, failures, cost', () => {
     ).toBeNull()
   })
 })
+
+describe('cash history', () => {
+  test('a balance per day from his reading and rows; nothing of anyone else', async () => {
+    const { me, them } = setup()
+    const a = await me.mutation(api.accounts.create, {
+      name: 'Activo',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const day = (d: number) => new Date(2026, 8, d, 12).getTime()
+    const end = (d: number) => new Date(2026, 8, d, 23, 59, 59).getTime()
+    await me.mutation(api.accounts.setBalance, {
+      accountId: a,
+      currency: 'EUR',
+      value: 100,
+      dayStart: new Date(2026, 8, 26).getTime(),
+      asOf: end(20),
+    })
+    await me.mutation(api.money.record, {
+      lines: [
+        {
+          kind: 'out',
+          accountId: a,
+          amount: 30,
+          currency: 'EUR',
+          category: 'groceries',
+          occurredAt: day(22),
+        },
+        {
+          kind: 'in',
+          accountId: a,
+          amount: 50,
+          currency: 'EUR',
+          category: 'salary',
+          occurredAt: day(10),
+        },
+      ],
+    })
+    const theirs = await them.mutation(api.accounts.create, {
+      name: 'Theirs',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    await them.mutation(api.accounts.setBalance, {
+      accountId: theirs,
+      currency: 'EUR',
+      value: 9999,
+      dayStart: new Date(2026, 8, 26).getTime(),
+    })
+    const h = await me.query(api.aggregate.cashHistory, {
+      dayEnds: [end(5), end(10), end(21), end(23)],
+    })
+    expect(h.total).toEqual([null, 100, 100, 70])
+    expect(h.accounts).toEqual([{ accountId: a, values: [null, 100, 100, 70] }])
+  })
+})

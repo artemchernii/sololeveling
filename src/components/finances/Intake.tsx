@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAction, useMutation } from 'convex/react'
+import { Link } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Check, Loader2, Search } from 'lucide-react'
 
@@ -174,6 +175,10 @@ function TransactionsReview({
   const review = useQuery(api.intake.review, { intakeId: intake._id })
   const accounts = useQuery(api.accounts.list, {}) ?? []
   const setAccount = useMutation(api.intake.setAccount)
+  const [landed, setLanded] = useState<{
+    count: number
+    months: Array<string>
+  } | null>(null)
   const confirm = useMutation(api.intake.confirmTransactions)
   const addBill = useMutation(api.recurring.create)
   const createAccount = useMutation(api.accounts.create)
@@ -221,6 +226,8 @@ function TransactionsReview({
 
   if (review === undefined) return <div className="min-h-[240px]" />
   if (review === null) return null
+  if (landed)
+    return <Landed {...landed} account={account?.name} onDone={onDone} />
 
   const rows = review.rows
   const pending = rows.filter((r) => r.pending)
@@ -289,7 +296,21 @@ function TransactionsReview({
           }
         }),
       })
-      onDone()
+      /* Rows that went into another month than this one: say where, and
+         open that month in Flow (27 Sep: "Flow is not updated at all" —
+         his August statement had gone into August). */
+      const now = new Date(today)
+      const key = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      const months = [
+        ...new Set(kept.map((r) => key(new Date(r.occurredAt)))),
+      ].sort()
+      if (
+        months.length === 0 ||
+        (months.length === 1 && months[0] === key(now))
+      )
+        onDone()
+      else setLanded({ count: kept.length, months })
     } catch (e) {
       setError(
         e instanceof Error
@@ -1517,5 +1538,59 @@ function TradesReview({
         </button>
       </div>
     </>
+  )
+}
+
+const MONTH_LONG = new Intl.DateTimeFormat(undefined, {
+  month: 'long',
+  year: 'numeric',
+})
+
+/* After a statement from another month: where its rows went, and a way
+   there. */
+function Landed({
+  count,
+  months,
+  account,
+  onDone,
+}: {
+  count: number
+  months: Array<string>
+  account?: string
+  onDone: () => void
+}) {
+  const name = (m: string) => {
+    const [y, mo] = m.split('-').map(Number)
+    return MONTH_LONG.format(new Date(y, mo - 1, 1))
+  }
+  const last = months[months.length - 1]
+  return (
+    <div className="motion-land flex flex-col gap-4">
+      <span className="flex items-center gap-2 text-[16px] text-foreground">
+        <Check className="size-4 text-state-good" />
+        Added {count} rows{account ? ` to ${account}` : ''}
+      </span>
+      <p className="text-[13.5px] text-ink-300">
+        They are in {months.map(name).join(', ')} — Flow shows one month at a
+        time, and opens on this one.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Link
+          to="/finances"
+          search={{ room: 'flow', month: last }}
+          onClick={onDone}
+          className={`${PILL_LOUD} justify-center py-2.5`}
+        >
+          see {name(last)} in Flow →
+        </Link>
+        <button
+          type="button"
+          onClick={onDone}
+          className={`${PILL_QUIET} justify-center py-2.5`}
+        >
+          done
+        </button>
+      </div>
+    </div>
   )
 }

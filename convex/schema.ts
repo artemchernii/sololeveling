@@ -573,6 +573,16 @@ export default defineSchema({
     textValue: v.optional(v.string()),
     unit: v.optional(v.string()),
     recordedAt: v.number(),
+    /* Where a balance came from (27 Sep): the card says "statement read
+       today · balance of Aug 31", not "26d". Absent on older rows. */
+    source: v.optional(
+      v.union(
+        v.literal('typed'),
+        v.literal('statement'),
+        v.literal('screenshot'),
+        v.literal('sync'),
+      ),
+    ),
   }).index('by_owner_key_time', ['ownerId', 'key', 'recordedAt']),
 
   notes: defineTable({

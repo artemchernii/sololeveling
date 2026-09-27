@@ -3,6 +3,7 @@ import { v } from 'convex/values'
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
 import { isEuroAmount } from '../src/lib/money'
+import { balanceSeries } from '../src/lib/cashHistory'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
 import { query } from './_generated/server'
@@ -1298,6 +1299,16 @@ const pocket = v.object({
       rate — never guessed. */
   eur: v.union(v.number(), v.null()),
   rateAsOf: v.union(v.number(), v.null()),
+  /** Where the reading came from, and when he gave it — which may be long
+      after the day it is true for (an August statement read today). */
+  source: v.union(
+    v.literal('typed'),
+    v.literal('statement'),
+    v.literal('screenshot'),
+    v.literal('sync'),
+    v.null(),
+  ),
+  writtenAt: v.union(v.number(), v.null()),
 })
 
 export const balances = query({
@@ -1452,6 +1463,8 @@ async function readBalances(ctx: QueryCtx, ownerId: string) {
         movedRows: since.rows,
         eur,
         rateAsOf: rate?.asOf ?? null,
+        source: row?.source ?? null,
+        writtenAt: row?._creationTime ?? null,
       })
     }
     cents += accountCents
@@ -1466,6 +1479,124 @@ async function readBalances(ctx: QueryCtx, ownerId: string) {
   }
   return { accounts: out, total: cents / 100, oldestAt, unread }
 }
+
+/**
+ * Free cash at the end of each day he asks for (27 Sep — the Overview
+ * chart and the account cards' lines): per account, each pocket's nearest
+ * reading plus or minus what moved in between (src/lib/cashHistory), in
+ * euros at the latest stored rate. Sources 1 and 2 only — his readings and
+ * his rows; a day before anything he told the app is null. Investments are
+ * not in it: their worth on a past day needs that day's close, which is
+ * not stored yet.
+ */
+export const cashHistory = query({
+  args: { dayEnds: v.array(v.number()) },
+  returns: v.object({
+    total: v.array(v.union(v.number(), v.null())),
+    accounts: v.array(
+      v.object({
+        accountId: v.id('accounts'),
+        values: v.array(v.union(v.number(), v.null())),
+      }),
+    ),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const dayEnds = args.dayEnds.slice(0, 400)
+    const accounts = (
+      await ctx.db
+        .query('accounts')
+        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+        .take(ACCOUNT_ROWS)
+    ).filter((a) => a.retiredAt === undefined)
+    const out = []
+    const total: Array<number | null> = dayEnds.map(() => null)
+    for (const account of accounts) {
+      const logs = await ctx.db
+        .query('logs')
+        .withIndex('by_owner_account_time', (q) =>
+          q.eq('ownerId', ownerId).eq('accountId', account._id),
+        )
+        .take(HISTORY_ROWS)
+      const trades = account.kinds.includes('broker')
+        ? await ctx.db
+            .query('trades')
+            .withIndex('by_owner_account', (q) =>
+              q.eq('ownerId', ownerId).eq('accountId', account._id),
+            )
+            .take(TRADE_ROWS)
+        : []
+      const values: Array<number | null> = dayEnds.map(() => null)
+      for (const currency of account.currencies) {
+        const unit = currency.toLowerCase()
+        const readings = await ctx.db
+          .query('stateSnapshots')
+          .withIndex('by_owner_key_time', (q) =>
+            q
+              .eq('ownerId', ownerId)
+              .eq('key', `balance:${account._id}:${currency}`),
+          )
+          .take(500)
+        if (readings.length === 0) continue
+        const rate =
+          currency === 'EUR'
+            ? 1
+            : ((
+                await ctx.db
+                  .query('fxRates')
+                  .withIndex('by_owner_currency_time', (q) =>
+                    q.eq('ownerId', ownerId).eq('currency', currency),
+                  )
+                  .order('desc')
+                  .first()
+              )?.rate ?? null)
+        if (rate === null) continue
+        const moves = []
+        for (const l of logs) {
+          if (l.area !== 'money' || l.unit !== unit || l.value === undefined)
+            continue
+          const signed =
+            l.kind === 'expense'
+              ? -l.value
+              : l.kind === 'income' || l.kind === 'move'
+                ? l.value
+                : 0
+          if (signed !== 0)
+            moves.push({
+              at: l.occurredAt,
+              cents: Math.round(signed * 100),
+              fromFile: l.meta?.intakeId !== undefined,
+            })
+        }
+        if (currency === 'EUR')
+          for (const t of trades) {
+            if (t.opening === true) continue
+            const cost = Math.round(t.shares * t.priceEur * 100)
+            moves.push({
+              at: t.occurredAt,
+              cents: t.side === 'buy' ? -cost : cost,
+              fromFile: false,
+            })
+          }
+        const series = balanceSeries(
+          dayEnds,
+          readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
+          moves,
+        )
+        for (const [i, x] of series.entries()) {
+          if (x === null) continue
+          values[i] = Math.round(((values[i] ?? 0) + x * rate) * 100) / 100
+        }
+      }
+      for (const [i, x] of values.entries())
+        if (x !== null) total[i] = Math.round(((total[i] ?? 0) + x) * 100) / 100
+      out.push({ accountId: account._id, values })
+    }
+    return { total, accounts: out }
+  },
+})
+
+const HISTORY_ROWS = 5000
 
 /* A statement's rows are stamped at noon of their day, and a statement's
    closing balance can be confirmed at 2 am on its own closing day; a row

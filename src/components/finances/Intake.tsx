@@ -1267,7 +1267,7 @@ function HoldingsReview({
         >
           {target === null
             ? 'pick the account above'
-            : `save ${targetName ?? ''} · ${kept.length}${cashNum !== null ? ' + cash' : ''}`}
+            : `save ${kept.length} ${kept.length === 1 ? 'position' : 'positions'}${cashNum !== null ? ' and the cash' : ''}`}
         </button>
       </div>
     </>

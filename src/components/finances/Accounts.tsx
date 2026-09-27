@@ -271,7 +271,7 @@ function AccountSheet({
   )
 }
 
-function AccountForm({
+export function AccountForm({
   account,
   onDone,
 }: {
@@ -656,7 +656,7 @@ function AccountDetails({
 
 /* Update: type each currency, or drop a statement or screenshot of this
    account — the same reader as +, told which account it is. */
-function UpdateSheet({
+export function UpdateSheet({
   account,
   onClose,
 }: {

@@ -4,7 +4,8 @@ import { FileUp, Loader2, Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { PILL_LOUD } from '@/components/finances/bits'
+import { PILL_QUIET } from '@/components/finances/bits'
+import { AccountForm } from '@/components/finances/Accounts'
 import { IntakeFlow } from '@/components/finances/Intake'
 import { Sheet } from '@/components/finances/Sheet'
 import { TypeLines } from '@/components/finances/TypeLines'
@@ -17,21 +18,42 @@ import { MAX_INTAKE_FILES, readableFile } from '@/lib/intake'
    line each, read back as rows to check (TypeLines). Every step has a way
    back; nothing closes the whole sheet but close. */
 
-type Step = { at: 'home' } | { at: 'intake'; id: Id<'intakes'> }
+type Step =
+  { at: 'home' } | { at: 'account' } | { at: 'intake'; id: Id<'intakes'> }
 
-export function AddButton({ className = '' }: { className?: string }) {
+export function AddButton({
+  className = '',
+  label = 'add',
+  cta = false,
+}: {
+  className?: string
+  label?: string
+  /** The day-one call to action: solid, still, words instead of +. */
+  cta?: boolean
+}) {
   const [step, setStep] = useState<Step | null>(null)
   const home = () => setStep({ at: 'home' })
-  const title = step === null ? '' : step.at === 'home' ? 'add' : 'check it'
+  const title =
+    step === null
+      ? ''
+      : step.at === 'home'
+        ? 'add'
+        : step.at === 'account'
+          ? 'new account'
+          : 'check it'
   return (
     <>
       <button
         type="button"
         onClick={home}
-        className={`${PILL_LOUD} ${className}`}
+        className={
+          cta
+            ? `motion-press inline-flex items-center justify-center gap-1.5 rounded-full bg-lav-400 px-4 py-2.5 font-mono text-[11px] font-medium tracking-[0.14em] text-background uppercase ${className}`
+            : `add-live motion-press inline-flex items-center gap-1.5 rounded-full py-1.5 pr-4 pl-3 font-mono text-[11px] font-medium tracking-[0.14em] text-background uppercase ${className}`
+        }
       >
-        <Plus className="size-3.5" />
-        add
+        {cta ? null : <Plus className="add-plus size-3.5" strokeWidth={2.5} />}
+        {label}
       </button>
       <Sheet
         open={step !== null}
@@ -43,10 +65,22 @@ export function AddButton({ className = '' }: { className?: string }) {
         {step?.at === 'home' ? (
           <>
             <DropFiles onStarted={(id) => setStep({ at: 'intake', id })} />
+            <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-400">
+              No file at hand?
+              <button
+                type="button"
+                onClick={() => setStep({ at: 'account' })}
+                className={PILL_QUIET}
+              >
+                add an account by hand
+              </button>
+            </div>
             <div className="border-t border-lift/[0.07] pt-4">
               <TypeLines />
             </div>
           </>
+        ) : step?.at === 'account' ? (
+          <AccountForm account={null} onDone={home} />
         ) : step?.at === 'intake' ? (
           <IntakeFlow
             intakeId={step.id}

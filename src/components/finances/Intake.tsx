@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAction, useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Check, Loader2, Search } from 'lucide-react'
+import { Check, Loader2, Search, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
@@ -101,11 +101,15 @@ export function OpenIntakes({
         >
           {i.status === 'reading' ? (
             <Loader2 className="size-4 animate-spin text-lav-400" />
+          ) : i.status === 'failed' ? (
+            <X className="size-4 text-state-warn" />
           ) : (
             <Check className="size-4 text-lav-400" />
           )}
           <span className="flex-1 truncate text-[14px] text-foreground">
-            {i.title ?? 'Reading your file…'}
+            {i.status === 'failed'
+              ? (i.error ?? 'The file could not be read.')
+              : (i.title ?? 'Reading your file…')}
           </span>
           <span
             className={`font-mono text-[10.5px] tracking-[0.12em] uppercase ${i.status === 'failed' ? 'text-state-warn' : 'text-lav-300'}`}

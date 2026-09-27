@@ -95,6 +95,11 @@ const logKind = v.union(
      or a session — six stretches are one stretch session, and the Today tile
      counts sessions. The session is its own tap ("STRETCH DONE"). */
   v.literal('exercise'),
+  /* Money moving between his own accounts (Treasury, 27 Sep): Revolut →
+     Trade Republic, a withdrawal into notes. Not spending and not income —
+     his statement read €6,601 out on paper, €561 of it spent. Deliberately
+     NOT `transfer`, which the Money tile counts as money put aside. */
+  v.literal('move'),
   v.literal('note'),
   v.literal('idea'),
   v.literal('custom'),
@@ -519,6 +524,10 @@ export default defineSchema({
     text: v.optional(v.string()), // "push day", "groceries"
     taskId: v.optional(v.id('tasks')),
     projectId: v.optional(v.id('projects')),
+    /* Which of his accounts it happened in (Treasury, 27 Sep) — money rows
+       only. What makes a statement's rows matchable against what he has,
+       and a balance explainable. */
+    accountId: v.optional(v.id('accounts')),
     meta: v.optional(
       v.object({
         reps: v.optional(v.number()),
@@ -532,6 +541,13 @@ export default defineSchema({
         /* The bill this payment was the tap on (Finances F3). The row is
            the evidence; the bill is only what it was for. */
         recurringId: v.optional(v.id('recurring')),
+        /* Money rows read off a statement or screenshot (Treasury): the
+           clean merchant name, the line as the bank printed it, the
+           intake it came from, and — for a move — the other account. */
+        merchant: v.optional(v.string()),
+        raw: v.optional(v.string()),
+        intakeId: v.optional(v.id('intakes')),
+        otherAccountId: v.optional(v.id('accounts')),
       }),
     ),
   })
@@ -540,7 +556,8 @@ export default defineSchema({
     /* Time on one project (R3): a range over one project's logs, rather than
        every log this month filtered in JavaScript. A log with no project has
        an absent projectId and never matches an eq(). */
-    .index('by_owner_project_time', ['ownerId', 'projectId', 'occurredAt']),
+    .index('by_owner_project_time', ['ownerId', 'projectId', 'occurredAt'])
+    .index('by_owner_account_time', ['ownerId', 'accountId', 'occurredAt']),
 
   /* The second number source: latest row for a key wins. Keys in use so far —
      weight, bench, net_worth, cefr_level, protein_avg, savings. */
@@ -592,7 +609,18 @@ export default defineSchema({
   accounts: defineTable({
     ownerId: v.string(),
     name: v.string(),
-    kind: v.union(v.literal('bank'), v.literal('broker')),
+    /* What it is — any of these, at least one (27 Sep: Revolut is a bank
+       and a broker; the notes in his wallet are cash). */
+    kinds: v.array(
+      v.union(v.literal('bank'), v.literal('broker'), v.literal('cash')),
+    ),
+    /* The currencies it holds, EUR first by default. Each has its own
+       balance reading (`balance:<accountId>:<CUR>`), shown in euros at the
+       stored ECB rate. */
+    currencies: v.array(v.string()),
+    /* The site its logo comes from ("revolut.com"). Optional: an account
+       without one shows its initial. */
+    domain: v.optional(v.string()),
     order: v.number(),
     /* Gone from the lists; its readings and trades stay, because they
        happened. */
@@ -649,7 +677,7 @@ export default defineSchema({
     occurredAt: v.number(),
     /* Brought in from a screenshot rather than typed: what he held on the
        day of the import, at his average price. */
-    importId: v.optional(v.id('portfolioImports')),
+    importId: v.optional(v.id('intakes')),
   })
     .index('by_owner_time', ['ownerId', 'occurredAt'])
     .index('by_owner_instrument', ['ownerId', 'instrumentId'])
@@ -680,12 +708,17 @@ export default defineSchema({
     source: v.string(),
   }).index('by_owner_currency_time', ['ownerId', 'currency', 'asOf']),
 
-  /* A broker screenshot read once by Claude Haiku 4.5 into rows he
-     confirms (Finances F4). The rows are a proposal: nothing is a trade
-     until he confirms it. */
-  portfolioImports: defineTable({
+  /* Anything he drops on + (Treasury, 27 Sep): statements (PDF/CSV) and
+     screenshots, any bank or broker, read once by Claude Haiku 4.5. The
+     reader says what it is — TRANSACTIONS (a statement, a history screen)
+     or HOLDINGS (a broker's positions) — and returns rows he checks. Rows
+     are a proposal: nothing becomes a log, a trade or a balance until he
+     confirms. */
+  intakes: defineTable({
     ownerId: v.string(),
-    accountId: v.id('accounts'),
+    /* The account it is about — his pick, or the reader's guess matched to
+       one of his accounts by name; he can change it in the review. */
+    accountId: v.optional(v.id('accounts')),
     storageIds: v.array(v.id('_storage')),
     status: v.union(
       v.literal('reading'),
@@ -693,33 +726,80 @@ export default defineSchema({
       v.literal('failed'),
       v.literal('done'),
     ),
-    rows: v.array(
+    kind: v.optional(v.union(v.literal('transactions'), v.literal('holdings'))),
+    /* What the reader says it is: "Revolut statement · EUR · Aug 1 →
+       Sep 27". Words for the review's title, nothing computes with it. */
+    title: v.optional(v.string()),
+    institution: v.optional(v.string()),
+    transactions: v.optional(
+      v.array(
+        v.object({
+          occurredAt: v.number(),
+          merchant: v.string(),
+          raw: v.string(),
+          /* Signed, in `currency`: −6.70 is money out. */
+          amount: v.number(),
+          currency: v.string(),
+          pending: v.boolean(),
+          /* The reader's read of what it is. `self` — to or from his own
+             name, or one of his accounts: a move, not spending. */
+          counterparty: v.optional(v.string()),
+          self: v.boolean(),
+          category: v.optional(v.string()),
+        }),
+      ),
+    ),
+    positions: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          isin: v.optional(v.string()),
+          shares: v.optional(v.number()),
+          priceEur: v.optional(v.number()),
+          valueEur: v.optional(v.number()),
+          /* % since buy, as printed — TR's list shows this and no shares. */
+          changePct: v.optional(v.number()),
+          /* Which candidate the right share class is (Alphabet (A) →
+             GOOGL), and that ticker's price in euros when it was read —
+             what shares and cost are worked out from. */
+          preferred: v.optional(v.number()),
+          todayPriceEur: v.optional(v.number()),
+          todayAsOf: v.optional(v.number()),
+          candidates: v.array(
+            v.object({
+              symbol: v.string(),
+              name: v.string(),
+              exchange: v.string(),
+              type: v.string(),
+            }),
+          ),
+        }),
+      ),
+    ),
+    /* A closing balance printed on it, if any. */
+    balance: v.optional(
       v.object({
-        name: v.string(),
-        isin: v.optional(v.string()),
-        shares: v.optional(v.number()),
-        priceEur: v.optional(v.number()),
-        valueEur: v.optional(v.number()),
-        /* Yahoo's best matches for the name or ISIN, best first. */
-        candidates: v.array(
-          v.object({
-            symbol: v.string(),
-            name: v.string(),
-            exchange: v.string(),
-            type: v.string(),
-          }),
-        ),
+        currency: v.string(),
+        value: v.number(),
+        asOf: v.number(),
       }),
     ),
-    /* Read off the same screen, when shown: the account's free cash and
-       the total the broker states. The cash becomes the balance if he
-       keeps it; the total is only a check beside the sum of the rows. */
     cashEur: v.optional(v.number()),
     totalEur: v.optional(v.number()),
     error: v.optional(v.string()),
     model: v.optional(v.string()),
     readAt: v.optional(v.number()),
   }).index('by_owner', ['ownerId']),
+
+  /* What a merchant is, as he taught it (Treasury, 27 Sep): change "Bnp
+     Toc" to eating out once and every row of it — this statement and the
+     next — files itself. Keyed by the merchant's cleaned name. */
+  merchantRules: defineTable({
+    ownerId: v.string(),
+    key: v.string(),
+    category: v.string(),
+    updatedAt: v.number(),
+  }).index('by_owner_key', ['ownerId', 'key']),
 
   principles: defineTable({
     ownerId: v.string(),

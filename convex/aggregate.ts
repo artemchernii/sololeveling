@@ -1213,6 +1213,17 @@ const TRADE_ROWS = 2000
  * month-old number cannot look fresh. An account with no reading yet is
  * counted in `unread` and added to nothing.
  */
+const pocket = v.object({
+  currency: v.string(),
+  /** As read, in its own currency. */
+  value: v.union(v.number(), v.null()),
+  recordedAt: v.union(v.number(), v.null()),
+  /** In euros at the latest stored ECB rate; null without a reading or a
+      rate — never guessed. */
+  eur: v.union(v.number(), v.null()),
+  rateAsOf: v.union(v.number(), v.null()),
+})
+
 export const balances = query({
   args: {},
   returns: v.object({
@@ -1220,13 +1231,18 @@ export const balances = query({
       v.object({
         accountId: v.id('accounts'),
         name: v.string(),
-        kind: v.union(v.literal('bank'), v.literal('broker')),
-        value: v.union(v.number(), v.null()),
-        recordedAt: v.union(v.number(), v.null()),
+        kinds: v.array(
+          v.union(v.literal('bank'), v.literal('broker'), v.literal('cash')),
+        ),
+        domain: v.union(v.string(), v.null()),
+        pockets: v.array(pocket),
+        /** Its free cash in euros — the pockets that could be valued. */
+        cashEur: v.number(),
       }),
     ),
     total: v.number(),
     oldestAt: v.union(v.number(), v.null()),
+    /** Pockets with no reading, or no rate to show them in euros. */
     unread: v.number(),
   }),
   handler: async (ctx) => await readBalances(ctx, await requireUser(ctx)),
@@ -1293,32 +1309,74 @@ async function readBalances(ctx: QueryCtx, ownerId: string) {
       .take(ACCOUNT_ROWS)
   ).filter((a) => a.retiredAt === undefined)
 
+  const rates = new Map<string, { rate: number; asOf: number } | null>()
+  async function rateFor(currency: string) {
+    if (currency === 'EUR') return { rate: 1, asOf: null as number | null }
+    if (!rates.has(currency)) {
+      const row = await ctx.db
+        .query('fxRates')
+        .withIndex('by_owner_currency_time', (q) =>
+          q.eq('ownerId', ownerId).eq('currency', currency),
+        )
+        .order('desc')
+        .first()
+      rates.set(
+        currency,
+        row === null ? null : { rate: row.rate, asOf: row.asOf },
+      )
+    }
+    const r = rates.get(currency) ?? null
+    return r === null ? null : { rate: r.rate, asOf: r.asOf as number | null }
+  }
+
   let cents = 0
   let oldestAt: number | null = null
   let unread = 0
   const out = []
   for (const account of accounts) {
-    const row = await ctx.db
-      .query('stateSnapshots')
-      .withIndex('by_owner_key_time', (q) =>
-        q.eq('ownerId', ownerId).eq('key', `balance:${account._id}`),
-      )
-      .order('desc')
-      .first()
-    const value = row?.value ?? null
-    if (row === null || value === null || row.unit !== 'eur') {
-      unread++
-    } else {
-      cents += Math.round(value * 100)
-      oldestAt =
-        oldestAt === null ? row.recordedAt : Math.min(oldestAt, row.recordedAt)
+    const pockets = []
+    let accountCents = 0
+    for (const currency of account.currencies) {
+      const row = await ctx.db
+        .query('stateSnapshots')
+        .withIndex('by_owner_key_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('key', `balance:${account._id}:${currency}`),
+        )
+        .order('desc')
+        .first()
+      const value = row?.value ?? null
+      const rate = await rateFor(currency)
+      const eur =
+        value === null || rate === null
+          ? null
+          : Math.round(value * rate.rate * 100) / 100
+      if (eur === null || row === null) {
+        unread++
+      } else {
+        accountCents += Math.round(eur * 100)
+        oldestAt =
+          oldestAt === null
+            ? row.recordedAt
+            : Math.min(oldestAt, row.recordedAt)
+      }
+      pockets.push({
+        currency,
+        value,
+        recordedAt: row?.recordedAt ?? null,
+        eur,
+        rateAsOf: rate?.asOf ?? null,
+      })
     }
+    cents += accountCents
     out.push({
       accountId: account._id,
       name: account.name,
-      kind: account.kind,
-      value,
-      recordedAt: row?.recordedAt ?? null,
+      kinds: account.kinds,
+      domain: account.domain ?? null,
+      pockets,
+      cashEur: accountCents / 100,
     })
   }
   return { accounts: out, total: cents / 100, oldestAt, unread }
@@ -1480,7 +1538,7 @@ export const worth = query({
       )
       return {
         accountId: a.accountId,
-        cash: a.value,
+        cash: a.pockets.some((p) => p.eur !== null) ? a.cashEur : null,
         invested: held.length === 0 ? null : cents / 100,
         positions: held.length,
       }

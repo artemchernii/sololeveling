@@ -43,6 +43,8 @@ export const logKindValidator = v.union(
   v.literal('intake'),
   /* One routine item ticked (drills.did) — see schema.ts. */
   v.literal('exercise'),
+  /* Between his own accounts — see schema.ts. */
+  v.literal('move'),
   v.literal('note'),
   v.literal('idea'),
   v.literal('custom'),

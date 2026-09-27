@@ -1,22 +1,32 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { internal } from './_generated/api'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import schema from './schema'
+import { isCurrency } from '../src/lib/currency'
 
-/* Where his money sits (Finances F2, 26 Sep). A balance is a state — see
-   `balanceKey` — typed like a weigh-in; this file owns the accounts and
-   the one write that records a reading. The numbers are read in
-   aggregate.ts (`balances`). */
+/* Where his money sits (Finances F2, 26 Sep; reworked 27 Sep for the
+   Treasury). An account is his — added, edited, deleted from the page —
+   and is any of bank, broker, cash. It holds one or more currencies, and
+   each currency's balance is its own state (`balanceKey`), typed like a
+   weigh-in or read off a statement. The numbers are read in aggregate.ts
+   (`balances`, `worth`). */
 
 const MAX_ACCOUNTS = 50
 const MAX_NAME = 40
+const MAX_CURRENCIES = 8
 
-/** The stateSnapshots key a balance is stored under. */
-export function balanceKey(accountId: Id<'accounts'>): string {
-  return `balance:${accountId}`
+const kind = v.union(v.literal('bank'), v.literal('broker'), v.literal('cash'))
+
+/** The stateSnapshots key one currency of one account is stored under. */
+export function balanceKey(
+  accountId: Id<'accounts'>,
+  currency: string,
+): string {
+  return `balance:${accountId}:${currency}`
 }
 
 export async function ownedAccount(
@@ -40,11 +50,64 @@ function cleanName(name: string): string {
   return trimmed
 }
 
+function cleanKinds(kinds: Array<Doc<'accounts'>['kinds'][number]>) {
+  const out = [...new Set(kinds)]
+  if (out.length === 0) {
+    throw new ConvexError('Say what it is — a bank, a broker, or cash.')
+  }
+  return out
+}
+
+function cleanCurrencies(currencies: Array<string>): Array<string> {
+  const out = [...new Set(currencies.map((c) => c.trim().toUpperCase()))]
+  if (out.length === 0) throw new ConvexError('It holds at least one currency.')
+  if (out.length > MAX_CURRENCIES) {
+    throw new ConvexError('That is a lot of currencies.')
+  }
+  for (const c of out) {
+    if (!isCurrency(c)) {
+      throw new ConvexError(`${c} has no daily euro rate to show it by.`)
+    }
+  }
+  return out
+}
+
+/* "revolut.com" from whatever he typed — a URL, a name with a dot. */
+function cleanDomain(domain: string | undefined): string | undefined {
+  const d = domain
+    ?.trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .split('/')[0]
+  if (!d) return undefined
+  if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d) || d.length > 80) {
+    throw new ConvexError('That is not a website — like revolut.com.')
+  }
+  return d
+}
+
 async function ownAccounts(ctx: QueryCtx | MutationCtx, ownerId: string) {
   return await ctx.db
     .query('accounts')
     .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
     .take(MAX_ACCOUNTS)
+}
+
+/* A currency other than the euro needs its rate stored before a total can
+   include it; ask for it now rather than at the next nightly read. */
+async function readRatesFor(
+  ctx: MutationCtx,
+  ownerId: string,
+  currencies: Array<string>,
+) {
+  for (const currency of currencies) {
+    if (currency === 'EUR') continue
+    await ctx.scheduler.runAfter(0, internal.market.readRateFor, {
+      ownerId,
+      currency,
+    })
+  }
 }
 
 /** His live accounts, in his order. */
@@ -58,18 +121,22 @@ export const list = query({
   },
 })
 
+const fields = {
+  name: v.string(),
+  kinds: v.array(kind),
+  currencies: v.array(v.string()),
+  domain: v.optional(v.string()),
+}
+
 export const create = mutation({
-  args: {
-    name: v.string(),
-    kind: v.union(v.literal('bank'), v.literal('broker')),
-  },
+  args: fields,
   returns: v.id('accounts'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const name = cleanName(args.name)
     const rows = await ownAccounts(ctx, ownerId)
     if (rows.length >= MAX_ACCOUNTS) {
-      throw new ConvexError('That is a lot of accounts — retire one first.')
+      throw new ConvexError('That is a lot of accounts — delete one first.')
     }
     if (
       rows.some(
@@ -80,55 +147,77 @@ export const create = mutation({
     ) {
       throw new ConvexError(`There is already an account called ${name}.`)
     }
+    const currencies = cleanCurrencies(args.currencies)
     const order = rows.reduce((max, a) => Math.max(max, a.order), -1) + 1
-    return await ctx.db.insert('accounts', {
+    const id = await ctx.db.insert('accounts', {
       ownerId,
       name,
-      kind: args.kind,
+      kinds: cleanKinds(args.kinds),
+      currencies,
+      domain: cleanDomain(args.domain),
       order,
     })
+    await readRatesFor(ctx, ownerId, currencies)
+    return id
   },
 })
 
-export const rename = mutation({
-  args: { accountId: v.id('accounts'), name: v.string() },
+/** Name, what it is, currencies, logo. A currency taken off keeps its old
+    readings (they happened) but stops being shown or added. */
+export const update = mutation({
+  args: { accountId: v.id('accounts'), ...fields },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    await ownedAccount(ctx, ownerId, args.accountId)
-    await ctx.db.patch(args.accountId, { name: cleanName(args.name) })
-    return null
-  },
-})
-
-/** Off the lists; its readings and trades stay, because they happened. */
-export const retire = mutation({
-  args: { accountId: v.id('accounts') },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const ownerId = await requireUser(ctx)
-    await ownedAccount(ctx, ownerId, args.accountId)
-    await ctx.db.patch(args.accountId, { retiredAt: Date.now() })
+    const account = await ownedAccount(ctx, ownerId, args.accountId)
+    const name = cleanName(args.name)
+    const rows = await ownAccounts(ctx, ownerId)
+    if (
+      rows.some(
+        (a) =>
+          a._id !== account._id &&
+          a.retiredAt === undefined &&
+          a.name.toLowerCase() === name.toLowerCase(),
+      )
+    ) {
+      throw new ConvexError(`There is already an account called ${name}.`)
+    }
+    const currencies = cleanCurrencies(args.currencies)
+    await ctx.db.patch(args.accountId, {
+      name,
+      kinds: cleanKinds(args.kinds),
+      currencies,
+      domain: cleanDomain(args.domain),
+    })
+    await readRatesFor(
+      ctx,
+      ownerId,
+      currencies.filter((c) => !account.currencies.includes(c)),
+    )
     return null
   },
 })
 
 /**
- * One balance reading — shared by setBalance and a confirmed screenshot
- * import, which reads the cash off the same screen as the positions. A
- * reading already written today is replaced, like a weigh-in.
+ * One balance reading — typed, or read off a statement or a screenshot. A
+ * reading already written today for the same currency is replaced, like a
+ * weigh-in, so a corrected typo leaves no false point on the line.
  */
 export async function writeBalance(
   ctx: MutationCtx,
   ownerId: string,
-  accountId: Id<'accounts'>,
+  account: Doc<'accounts'>,
+  currency: string,
   value: number,
   dayStart: number,
 ) {
-  if (!Number.isFinite(value) || Math.abs(value) > 1e10) {
-    throw new ConvexError('That is not an amount in euros.')
+  if (!account.currencies.includes(currency)) {
+    throw new ConvexError(`${account.name} does not hold ${currency}.`)
   }
-  const key = balanceKey(accountId)
+  if (!Number.isFinite(value) || Math.abs(value) > 1e10) {
+    throw new ConvexError('That is not an amount.')
+  }
+  const key = balanceKey(account._id, currency)
   const today = await ctx.db
     .query('stateSnapshots')
     .withIndex('by_owner_key_time', (q) =>
@@ -141,20 +230,16 @@ export async function writeBalance(
     area: 'money',
     key,
     value: Math.round(value * 100) / 100,
-    unit: 'eur',
+    unit: currency.toLowerCase(),
     recordedAt: Date.now(),
   })
 }
 
-/**
- * What the account holds now, as he read it off the bank's app — a new
- * state row, so the old one stays as history. A second reading on the same
- * day replaces that day's (like a weigh-in), so correcting a typo does not
- * leave a false point on the line.
- */
+/** What one currency of the account holds now, as he read it. */
 export const setBalance = mutation({
   args: {
     accountId: v.id('accounts'),
+    currency: v.string(),
     value: v.number(),
     /** Local midnight today, from the client — the server does not know
         where "today" starts for him. */
@@ -163,27 +248,41 @@ export const setBalance = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    await ownedAccount(ctx, ownerId, args.accountId)
-    await writeBalance(ctx, ownerId, args.accountId, args.value, args.dayStart)
+    const account = await ownedAccount(ctx, ownerId, args.accountId)
+    await writeBalance(
+      ctx,
+      ownerId,
+      account,
+      args.currency,
+      args.value,
+      args.dayStart,
+    )
     return null
   },
 })
 
 /**
- * Gone for good — only an account nothing hangs off yet: no trades, no
- * bills. A typo'd "Revoult" should not linger as a retired row. Its
- * balance readings go with it; they were readings of an account that is
- * not his.
+ * Delete, as he means it (27 Sep): the account leaves every list and
+ * total. If nothing hangs off it — no trades, bills or transactions — it
+ * goes for good with its readings (a typo'd "Revoult"). Otherwise it is
+ * retired: gone from view, while what it paid and earned stays in his
+ * history, because that happened.
  */
 export const remove = mutation({
   args: { accountId: v.id('accounts') },
-  returns: v.null(),
+  returns: v.union(v.literal('deleted'), v.literal('retired')),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    await ownedAccount(ctx, ownerId, args.accountId)
+    const account = await ownedAccount(ctx, ownerId, args.accountId)
     const trade = await ctx.db
       .query('trades')
       .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', ownerId).eq('accountId', args.accountId),
+      )
+      .first()
+    const log = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_account_time', (q) =>
         q.eq('ownerId', ownerId).eq('accountId', args.accountId),
       )
       .first()
@@ -191,19 +290,26 @@ export const remove = mutation({
       .query('recurring')
       .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
       .take(100)
-    if (trade !== null || bills.some((b) => b.accountId === args.accountId)) {
-      throw new ConvexError(
-        'Trades or bills use this account — retire it instead.',
-      )
+    if (
+      trade !== null ||
+      log !== null ||
+      bills.some((b) => b.accountId === args.accountId)
+    ) {
+      await ctx.db.patch(args.accountId, { retiredAt: Date.now() })
+      return 'retired'
     }
-    const readings = await ctx.db
-      .query('stateSnapshots')
-      .withIndex('by_owner_key_time', (q) =>
-        q.eq('ownerId', ownerId).eq('key', balanceKey(args.accountId)),
-      )
-      .take(1000)
-    for (const r of readings) await ctx.db.delete(r._id)
+    for (const currency of account.currencies) {
+      const readings = await ctx.db
+        .query('stateSnapshots')
+        .withIndex('by_owner_key_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('key', balanceKey(args.accountId, currency)),
+        )
+        .take(1000)
+      for (const r of readings) await ctx.db.delete(r._id)
+    }
     await ctx.db.delete(args.accountId)
-    return null
+    return 'deleted'
   },
 })

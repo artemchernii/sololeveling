@@ -10,7 +10,7 @@
 
 import type * as accounts from "../accounts.js";
 import type * as aggregate from "../aggregate.js";
-import type * as ai_portfolio from "../ai/portfolio.js";
+import type * as ai_intake from "../ai/intake.js";
 import type * as ai_read from "../ai/read.js";
 import type * as areas from "../areas.js";
 import type * as attachments from "../attachments.js";
@@ -20,6 +20,7 @@ import type * as drills from "../drills.js";
 import type * as events from "../events.js";
 import type * as github from "../github.js";
 import type * as goals from "../goals.js";
+import type * as intake from "../intake.js";
 import type * as invest from "../invest.js";
 import type * as logs from "../logs.js";
 import type * as market from "../market.js";
@@ -45,7 +46,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   accounts: typeof accounts;
   aggregate: typeof aggregate;
-  "ai/portfolio": typeof ai_portfolio;
+  "ai/intake": typeof ai_intake;
   "ai/read": typeof ai_read;
   areas: typeof areas;
   attachments: typeof attachments;
@@ -55,6 +56,7 @@ declare const fullApi: ApiFromModules<{
   events: typeof events;
   github: typeof github;
   goals: typeof goals;
+  intake: typeof intake;
   invest: typeof invest;
   logs: typeof logs;
   market: typeof market;

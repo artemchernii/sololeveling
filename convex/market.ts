@@ -155,6 +155,18 @@ export const readAll = internalAction({
         }
       }
     }
+    /* And every currency an account holds, so a USD pocket is shown in
+       euros at a rate from today, not from the day it was added. */
+    for (const a of await ctx.runQuery(
+      internal.market.allAccountCurrencies,
+      {},
+    )) {
+      if (a.currency === 'EUR') continue
+      currencies.set(
+        a.currency,
+        (currencies.get(a.currency) ?? new Set()).add(a.ownerId),
+      )
+    }
     for (const [cur, owners] of currencies) {
       const r = await rate(cur)
       if (r === null) continue
@@ -168,6 +180,56 @@ export const readAll = internalAction({
     return null
   },
 })
+
+/** One owner's rate for one currency, now — asked for when an account
+    starts holding it. */
+export const readRateFor = internalAction({
+  args: { ownerId: v.string(), currency: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const r = await rate(args.currency)
+    if (r === null) return null
+    await ctx.runMutation(internal.market.storeRate, {
+      ownerIds: [args.ownerId],
+      currency: args.currency,
+      ...r,
+      fetchedAt: Date.now(),
+    })
+    return null
+  },
+})
+
+/* Read only by the daily job, which acts for every owner. */
+export const allAccountCurrencies = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query('accounts')
+      .withIndex('by_owner_order')
+      .take(2000)
+    return rows
+      .filter((a) => a.retiredAt === undefined)
+      .flatMap((a) =>
+        a.currencies.map((currency) => ({ ownerId: a.ownerId, currency })),
+      )
+  },
+})
+
+/** Today's price of a symbol in euros, for completing a screenshot's
+    positions before they are stored — the reading itself is kept only once
+    he confirms and the ticker becomes his (readOne). */
+export async function priceEurNow(
+  symbol: string,
+): Promise<{ priceEur: number; asOf: number } | null> {
+  const c = await chart(symbol, '5d')
+  if (c === null) return null
+  const cur = rateCurrency(c.currency)
+  const divide = c.currency === 'GBp' || c.currency === 'GBX' ? 100 : 1
+  if (cur === null) return { priceEur: c.price / divide, asOf: c.asOf }
+  const r = await rate(cur)
+  if (r === null) return null
+  return { priceEur: (c.price / divide) * r.rate, asOf: c.asOf }
+}
 
 export const instrument = internalQuery({
   args: { instrumentId: v.id('instruments') },

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Banknote } from 'lucide-react'
 
 /* Real marks (27 Sep: "in portfolio i want icons of broker"). An account's
    logo comes from its own site's icon, by the domain he gave it; a ticker's
@@ -16,6 +17,19 @@ export function AccountLogo({
 }) {
   const [failed, setFailed] = useState(false)
   const box = { width: size, height: size, borderRadius: size / 3.2 }
+  /* Cash has no site to take a mark from: a banknote on the cash colour,
+     not the letters "CA" (27 Sep: "looks weird"). */
+  if (!domain && /^cash$|\bnotes\b|wallet/i.test(name.trim())) {
+    return (
+      <span
+        aria-hidden
+        style={box}
+        className="grid shrink-0 place-items-center bg-money-cash text-background"
+      >
+        <Banknote style={{ width: size * 0.58, height: size * 0.58 }} />
+      </span>
+    )
+  }
   if (!domain || failed) {
     return (
       <span

@@ -22,6 +22,7 @@ import { monthRange } from '@/lib/month'
 import { PRODUCTS, productIn, searchProducts } from '@/lib/institutions'
 import type { Product } from '@/lib/institutions'
 import { euros } from '@/lib/money'
+import { failureMessage } from '@/lib/convex-errors'
 
 /* Accounts, in the Overview room (Treasury, 27 Sep). His, not hard-coded:
    filter by what they are, add one, edit or delete one, update one. Each
@@ -539,6 +540,12 @@ function AccountDetails({
   const [more, setMore] = useState(false)
   const [asking, setAsking] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /* Adding "Cash" when there is a Cash already means more notes in the same
+     wallet, not a second wallet: the new currencies join the one he has. */
+  const others = useQuery(api.accounts.list, account ? 'skip' : {})
+  const twin = account
+    ? undefined
+    : others?.find((a) => a.name.toLowerCase() === name.trim().toLowerCase())
 
   const toggle = <T,>(list: Array<T>, x: T) =>
     list.includes(x) ? list.filter((y) => y !== x) : [...list, x]
@@ -563,9 +570,17 @@ function AccountDetails({
         ibanTails: tails(iban),
         cardTails: tails(cards),
       }
-      let id = account?._id
+      let id = account?._id ?? twin?._id
       if (account) await update({ accountId: account._id, ...args })
-      else id = await create(args)
+      else if (twin) {
+        await update({
+          accountId: twin._id,
+          name: twin.name,
+          kinds: twin.kinds,
+          currencies: [...new Set([...twin.currencies, ...currencies])],
+          domain: twin.domain,
+        })
+      } else id = await create(args)
       /* A day in the past is true at its end; today is true now. */
       const day = new Date(`${asOf}T23:59:59`).getTime()
       for (const c of currencies) {
@@ -584,9 +599,7 @@ function AccountDetails({
       onDone()
     } catch (e) {
       setError(
-        e instanceof Error
-          ? e.message.replace(/^.*?Uncaught ConvexError: /, '').split('\n')[0]
-          : 'Not saved',
+        failureMessage(e) ?? (e instanceof Error ? e.message : 'Not saved'),
       )
     }
   }
@@ -752,6 +765,12 @@ function AccountDetails({
           </span>
         </>
       )}
+      {twin ? (
+        <span className="text-[12.5px] text-ink-300">
+          You already have {twin.name} ({twin.currencies.join(', ')}). This adds
+          to it — a currency left blank keeps what it holds.
+        </span>
+      ) : null}
       {error ? (
         <span className="font-mono text-[11px] text-state-warn">{error}</span>
       ) : null}
@@ -760,7 +779,11 @@ function AccountDetails({
         onClick={() => void save()}
         className={`${PILL_LOUD} justify-center py-3`}
       >
-        {account ? 'save' : `add ${name || 'account'}`}
+        {account
+          ? 'save'
+          : twin
+            ? `add to ${twin.name}`
+            : `add ${name || 'account'}`}
       </button>
       {account ? (
         <div className="flex flex-col gap-2 border-t border-lift/[0.07] pt-4">
@@ -895,7 +918,9 @@ function TypeBalances({
       }
       onDone()
     } catch (e) {
-      setError(e instanceof Error ? e.message.split('\n')[0] : 'Not saved')
+      setError(
+        failureMessage(e) ?? (e instanceof Error ? e.message : 'Not saved'),
+      )
     }
   }
 

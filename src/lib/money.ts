@@ -98,7 +98,19 @@ export const SPEND_CATEGORIES: ReadonlyArray<MoneyCategory> = [
   {
     id: 'shopping',
     label: 'Shopping',
-    words: ['amazon', 'fnac', 'worten', 'ikea'],
+    words: [
+      'amazon',
+      'fnac',
+      'worten',
+      'ikea',
+      'laptop',
+      'computer',
+      'macbook',
+      'iphone',
+      'headphones',
+      'tv',
+      'furniture',
+    ],
   },
   {
     id: 'subscriptions',

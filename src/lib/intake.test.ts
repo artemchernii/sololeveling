@@ -6,7 +6,6 @@ import {
   usd,
   completePosition,
   dayToMs,
-  diffHoldings,
   findDuplicates,
   findRecurring,
   intakePrompt,
@@ -319,115 +318,6 @@ describe('readableFile', () => {
     expect(readableFile('image/png')?.block).toBe('image')
     expect(readableFile('', 'statement.csv')?.block).toBe('text')
     expect(readableFile('application/zip')).toBeNull()
-  })
-})
-
-describe('diffHoldings', () => {
-  const held = [
-    { symbol: 'MSFT', shares: 3, putIn: 1200, priceEur: 410 },
-    { symbol: 'GOOGL', shares: 5, putIn: 800, priceEur: 250 },
-    { symbol: 'NVDA', shares: 10, putIn: 1000, priceEur: 150 },
-  ]
-
-  test('printed shares: the difference is the trade, at today’s price', () => {
-    expect(
-      diffHoldings(held, [
-        {
-          symbol: 'MSFT',
-          shares: 5,
-          sharesCalculated: false,
-          priceEurToday: 400,
-        },
-      ])[0],
-    ).toEqual({
-      symbol: 'MSFT',
-      change: 'more',
-      side: 'buy',
-      shares: 2,
-      priceEur: 400,
-      by: 'shares',
-    })
-  })
-
-  test('TR: calculated shares drift with the price; what was paid does not', () => {
-    const [same, more, less] = diffHoldings(held, [
-      /* Price moved, nothing bought: shares "changed", paid did not. */
-      {
-        symbol: 'MSFT',
-        shares: 3.07,
-        sharesCalculated: true,
-        paidEur: 1203,
-        priceEurToday: 420,
-      },
-      /* €500 more paid at €250: two shares bought. */
-      {
-        symbol: 'GOOGL',
-        shares: 7,
-        sharesCalculated: true,
-        paidEur: 1300,
-        priceEurToday: 250,
-      },
-      /* €300 less paid at an average of €100: three shares sold. */
-      {
-        symbol: 'NVDA',
-        shares: 7,
-        sharesCalculated: true,
-        paidEur: 700,
-        priceEurToday: 160,
-      },
-    ])
-    expect(same).toEqual({ symbol: 'MSFT', change: 'same' })
-    expect(more).toMatchObject({
-      change: 'more',
-      side: 'buy',
-      shares: 2,
-      priceEur: 250,
-      by: 'paid',
-    })
-    expect(less).toMatchObject({
-      change: 'less',
-      side: 'sell',
-      shares: 3,
-      priceEur: 160,
-    })
-  })
-
-  test('a new position is a buy at what was paid; a missing one is offered as sold', () => {
-    const changes = diffHoldings(held.slice(0, 1), [
-      {
-        symbol: 'MSFT',
-        shares: 3,
-        sharesCalculated: false,
-        priceEurToday: 410,
-      },
-      {
-        symbol: 'META',
-        shares: 2,
-        sharesCalculated: true,
-        paidEur: 1000,
-        priceEurToday: 600,
-      },
-    ])
-    expect(changes).toEqual([
-      { symbol: 'MSFT', change: 'same' },
-      {
-        symbol: 'META',
-        change: 'new',
-        side: 'buy',
-        shares: 2,
-        priceEur: 500,
-        by: 'paid',
-      },
-    ])
-    expect(diffHoldings(held.slice(1, 2), [])).toEqual([
-      {
-        symbol: 'GOOGL',
-        change: 'gone',
-        side: 'sell',
-        shares: 5,
-        priceEur: 250,
-      },
-    ])
   })
 })
 

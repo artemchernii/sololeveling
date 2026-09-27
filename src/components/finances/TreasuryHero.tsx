@@ -109,7 +109,8 @@ export function TreasuryHero() {
       style={areaVars('money')}
       className="system-frame system-open relative overflow-clip p-4 sm:p-5"
     >
-      {/* His photo: the right half's ground, darkened where the rows sit. */}
+      {/* His photo: the right half's ground, darkened where the rows sit,
+          a little frosted (27 Sep: "slightly blur… make it glass"). */}
       <img
         src="/finances/dollar.jpg"
         alt=""
@@ -121,7 +122,7 @@ export function TreasuryHero() {
           WebkitMaskImage:
             'linear-gradient(to left, black 55%, transparent 100%)',
         }}
-        className="motion-fade pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[62%] object-cover opacity-70 select-none sm:block"
+        className="motion-fade pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[62%] scale-[1.04] object-cover opacity-70 blur-[2.5px] select-none sm:block"
       />
 
       <div className="relative flex flex-wrap items-center gap-2 border-b border-lav-400/20 pb-3">

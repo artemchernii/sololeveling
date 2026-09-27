@@ -4,7 +4,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Pencil, Plus, Search } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc } from '../../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { FIELD, PILL_LOUD, PILL_QUIET, Panel } from '@/components/finances/bits'
 import { DropFiles } from '@/components/finances/Add'
 import { AccountLogo } from '@/components/finances/Logo'
@@ -238,9 +238,73 @@ export function Accounts() {
         </div>
       )}
 
+      <StillCounted />
       <AccountSheet account={editing} onClose={() => setEditing(null)} />
       <UpdateSheet account={updating} onClose={() => setUpdating(null)} />
     </Panel>
+  )
+}
+
+/* Deleted accounts whose rows still count (27 Sep: a test account holding
+   the same statement as his Revolut made "this month" count twice). One
+   line each, and an erase that asks first. */
+function StillCounted() {
+  const gone = useQuery(api.accounts.retired, {})
+  const erase = useMutation(api.accounts.erase)
+  const [asking, setAsking] = useState<Id<'accounts'> | null>(null)
+  const counted = (gone ?? []).filter((g) => g.rows + g.trades > 0)
+  if (counted.length === 0) return null
+  return (
+    <div className="mt-3 flex flex-col gap-1.5 border-t border-lift/[0.06] pt-3">
+      {counted.map((g) => (
+        <div
+          key={g.accountId}
+          className="motion-land flex flex-wrap items-center gap-2 font-mono text-[11px] text-ink-500"
+        >
+          <span className="min-w-0 flex-1">
+            Deleted, still counted:{' '}
+            <span className="text-ink-300">{g.name}</span> · {g.rows} row
+            {g.rows === 1 ? '' : 's'}
+            {g.trades > 0
+              ? ` · ${g.trades} trade${g.trades === 1 ? '' : 's'}`
+              : ''}
+          </span>
+          {asking === g.accountId ? (
+            <>
+              <span className="text-state-warn">
+                Erase them? Transfers to your other accounts keep their side.
+              </span>
+              <button
+                type="button"
+                onClick={() => setAsking(null)}
+                className={PILL_QUIET}
+              >
+                keep
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  void erase({ accountId: g.accountId }).then(() =>
+                    setAsking(null),
+                  )
+                }
+                className="motion-press inline-flex items-center rounded-full bg-state-danger/14 px-3 py-1 text-[10.5px] tracking-[0.12em] text-state-danger uppercase ring-1 ring-state-danger/45 ring-inset"
+              >
+                erase
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAsking(g.accountId)}
+              className={PILL_QUIET}
+            >
+              erase
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -369,6 +433,7 @@ function AccountDetails({
   const create = useMutation(api.accounts.create)
   const update = useMutation(api.accounts.update)
   const remove = useMutation(api.accounts.remove)
+  const erase = useMutation(api.accounts.erase)
   const setBalance = useMutation(api.accounts.setBalance)
   const [name, setName] = useState(account?.name ?? product?.name ?? '')
   const [kinds, setKinds] = useState<Array<AccountKind>>(
@@ -638,6 +703,15 @@ function AccountDetails({
                   delete
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={() =>
+                  void erase({ accountId: account._id }).then(onDone)
+                }
+                className="self-center font-mono text-[10.5px] tracking-[0.1em] text-ink-500 uppercase underline-offset-4 hover:text-state-danger hover:underline"
+              >
+                a test, or read twice? erase it with its history
+              </button>
             </>
           ) : (
             <button

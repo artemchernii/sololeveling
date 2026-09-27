@@ -1,6 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { transferPair } from './logs'
 import { internal } from './_generated/api'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
@@ -378,5 +379,131 @@ export const remove = mutation({
     }
     await ctx.db.delete(args.accountId)
     return 'deleted'
+  },
+})
+
+const ERASE_ROWS = 4000
+
+/** Deleted accounts whose history still counts, with how much of it there
+    is — what an erase would take away. */
+export const retired = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      accountId: v.id('accounts'),
+      name: v.string(),
+      domain: v.optional(v.string()),
+      rows: v.number(),
+      trades: v.number(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    const gone = (await ownAccounts(ctx, ownerId)).filter(
+      (a) => a.retiredAt !== undefined,
+    )
+    return Promise.all(
+      gone.map(async (a) => ({
+        accountId: a._id,
+        name: a.name,
+        domain: a.domain,
+        rows: (
+          await ctx.db
+            .query('logs')
+            .withIndex('by_owner_account_time', (q) =>
+              q.eq('ownerId', ownerId).eq('accountId', a._id),
+            )
+            .take(ERASE_ROWS)
+        ).length,
+        trades: (
+          await ctx.db
+            .query('trades')
+            .withIndex('by_owner_account', (q) =>
+              q.eq('ownerId', ownerId).eq('accountId', a._id),
+            )
+            .take(ERASE_ROWS)
+        ).length,
+      })),
+    )
+  },
+})
+
+/**
+ * Delete with its history (27 Sep): for an account that should never have
+ * existed — a test, or a statement read into the wrong place, which then
+ * counts twice. Its rows, trades and readings go. What happened elsewhere
+ * stays: a transfer's other side is still money that left or reached his
+ * other account, so it keeps its row and loses only the link; a bill paid
+ * from it stays a bill, from no account.
+ */
+export const erase = mutation({
+  args: { accountId: v.id('accounts') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const account = await ownedAccount(ctx, ownerId, args.accountId)
+    const logs = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_account_time', (q) =>
+        q.eq('ownerId', ownerId).eq('accountId', args.accountId),
+      )
+      .take(ERASE_ROWS)
+    if (logs.length === ERASE_ROWS) {
+      throw new ConvexError('Too much history to erase at once.')
+    }
+    const erased = new Set(logs.map((l) => l._id))
+    for (const log of logs) {
+      if (log.kind === 'move') {
+        const other = await transferPair(ctx, ownerId, log)
+        if (other !== null && !erased.has(other._id) && other.meta) {
+          await ctx.db.patch(other._id, {
+            meta: {
+              ...other.meta,
+              pairOf: undefined,
+              otherAccountId: undefined,
+            },
+          })
+        }
+      }
+    }
+    for (const log of logs) await ctx.db.delete(log._id)
+
+    const trades = await ctx.db
+      .query('trades')
+      .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', ownerId).eq('accountId', args.accountId),
+      )
+      .take(ERASE_ROWS)
+    for (const t of trades) await ctx.db.delete(t._id)
+
+    const bills = await ctx.db
+      .query('recurring')
+      .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
+      .take(100)
+    for (const b of bills)
+      if (b.accountId === args.accountId)
+        await ctx.db.patch(b._id, { accountId: undefined })
+
+    const intakes = await ctx.db
+      .query('intakes')
+      .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
+      .take(200)
+    for (const i of intakes)
+      if (i.accountId === args.accountId)
+        await ctx.db.patch(i._id, { accountId: undefined })
+
+    for (const currency of account.currencies) {
+      const readings = await ctx.db
+        .query('stateSnapshots')
+        .withIndex('by_owner_key_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('key', balanceKey(args.accountId, currency)),
+        )
+        .take(1000)
+      for (const r of readings) await ctx.db.delete(r._id)
+    }
+    await ctx.db.delete(args.accountId)
+    return null
   },
 })

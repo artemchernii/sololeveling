@@ -755,6 +755,67 @@ describe('accounts: kinds, currencies, delete', () => {
     expect(await me.query(api.accounts.list, {})).toEqual([])
   })
 
+  test('erase: a deleted account’s history goes, the other side of a transfer stays', async () => {
+    const { t, me, them } = setup()
+    const bpi = await me.mutation(api.accounts.create, {
+      name: 'BPI',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const junk = await me.mutation(api.accounts.create, {
+      name: 'SHIT',
+      kinds: ['bank', 'broker'],
+      currencies: ['EUR'],
+    })
+    const now = Date.now()
+    await me.mutation(api.money.record, {
+      lines: [
+        {
+          kind: 'out',
+          accountId: junk,
+          amount: 633,
+          currency: 'EUR',
+          category: 'groceries',
+          occurredAt: now,
+        },
+        {
+          kind: 'transfer',
+          fromAccountId: bpi,
+          toAccountId: junk,
+          amount: 50,
+          currency: 'EUR',
+          occurredAt: now,
+        },
+      ],
+    })
+    await trade(me, {
+      accountId: junk,
+      candidate: TSLA,
+      side: 'buy',
+      shares: 1,
+      priceEur: 1,
+      occurredAt: now,
+    })
+    expect(await me.mutation(api.accounts.remove, { accountId: junk })).toBe(
+      'retired',
+    )
+    expect(await me.query(api.accounts.retired, {})).toEqual([
+      expect.objectContaining({ name: 'SHIT', rows: 2, trades: 1 }),
+    ])
+
+    await expect(
+      them.mutation(api.accounts.erase, { accountId: junk }),
+    ).rejects.toThrow('No such account')
+
+    await me.mutation(api.accounts.erase, { accountId: junk })
+    expect(await me.query(api.accounts.retired, {})).toEqual([])
+    const left = await t.run((ctx) => ctx.db.query('logs').collect())
+    expect(left).toHaveLength(1)
+    expect(left[0]).toMatchObject({ accountId: bpi, kind: 'move', value: -50 })
+    expect(left[0]?.meta?.otherAccountId).toBeUndefined()
+    expect(await t.run((ctx) => ctx.db.query('trades').collect())).toEqual([])
+  })
+
   test('update: rename, add a currency, not onto another account’s name', async () => {
     const { me } = setup()
     const a = await me.mutation(api.accounts.create, {

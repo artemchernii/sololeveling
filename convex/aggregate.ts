@@ -1538,7 +1538,7 @@ export const worth = query({
       )
       return {
         accountId: a.accountId,
-        cash: a.pockets.some((p) => p.eur !== null) ? a.cashEur : null,
+        cash: a.pockets.some((pk) => pk.eur !== null) ? a.cashEur : null,
         invested: held.length === 0 ? null : cents / 100,
         positions: held.length,
       }

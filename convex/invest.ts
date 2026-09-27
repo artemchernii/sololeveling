@@ -1,27 +1,15 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
-import { ownedAccount, writeBalance } from './accounts'
+import { ownedAccount } from './accounts'
 import { internal } from './_generated/api'
-import {
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-} from './_generated/server'
+import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import schema from './schema'
-import {
-  IMPORT_MODEL_NAME,
-  IMPORT_WINDOW_MS,
-  IMPORTS_PER_WINDOW,
-  MAX_IMPORT_BYTES,
-  MAX_IMPORT_IMAGES,
-} from '../src/lib/market'
 
-/* Investments (Finances F4, 26 Sep): tickers, trades, and a broker
-   screenshot turned into trades he confirms. The value of what he holds is
+/* Investments (Finances F4, 26 Sep): tickers and trades. A broker
+   screenshot turned into trades is the intake now (intake.ts, 27 Sep). The value of what he holds is
    read in aggregate.positions; the prices it uses are stored by market.ts.
 
    A trade is what the broker confirmed: shares and the price per share in

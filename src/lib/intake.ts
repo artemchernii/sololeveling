@@ -361,16 +361,16 @@ export function findDuplicates(
     const key = merchantKey(r.merchant)
     let best: number | null = null
     let bestGap = Infinity
-    existing.forEach((e, i) => {
-      if (used.has(i)) return
-      if (Math.abs(e.amount - r.amount) > 0.005) return
-      if (merchantKey(e.merchant) !== key) return
+    for (const [i, e] of existing.entries()) {
+      if (used.has(i)) continue
+      if (Math.abs(e.amount - r.amount) > 0.005) continue
+      if (merchantKey(e.merchant) !== key) continue
       const gap = Math.abs(e.occurredAt - r.occurredAt)
       if (gap <= 2 * DAY + 3_600_000 && gap < bestGap) {
         best = i
         bestGap = gap
       }
-    })
+    }
     if (best !== null) used.add(best)
     return best
   })
@@ -406,7 +406,8 @@ export function findRecurring(
     const groups: Array<Array<(typeof rows)[number]>> = []
     for (const r of list) {
       const g = groups.find(
-        (g) => Math.abs(g[0].amount - r.amount) <= Math.abs(g[0].amount) * 0.05,
+        (grp) =>
+          Math.abs(grp[0].amount - r.amount) <= Math.abs(grp[0].amount) * 0.05,
       )
       if (g) g.push(r)
       else groups.push([r])

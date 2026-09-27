@@ -48,10 +48,10 @@ refactor and improve."
    memory; the statement/screenshot reader returns transactions.
 3. The review list: moves, pending, duplicates, recurring, fix-all,
    confirm → logs + balance.
-4. + as Add: drop files, log something (transfer / money out / money in).
+4. The **+** button, as Add: drop files, log something (transfer / money out / money in).
 5. Treasury page: hero, rooms, Flow (bills, month, categories),
    Portfolio (brokers with logos, positions with P&L).
-6. Charts (lightweight-charts) and nightly worth history.
+6. Charts (lightweight-charts) and nightly worth history — next session.
 
 **Later, not in this pass:** Buy/sell rethink ("shit, looks like slop" —
 27 Sep, redo properly), Insights/AI analysis, sector and earnings data

@@ -1,59 +1,56 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import {
-  CandlestickChart,
-  History,
-  Landmark,
-  Receipt,
-  Repeat,
-} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CandlestickChart, LayoutGrid, Waves } from 'lucide-react'
 
-import { AddMoney } from '@/components/finances/AddMoney'
-import { Balances } from '@/components/finances/Balances'
+import { Accounts } from '@/components/finances/Accounts'
 import { Bills } from '@/components/finances/Bills'
-import { Invest } from '@/components/finances/Invest'
-import { FinancesHero } from '@/components/finances/FinancesHero'
+import { IntakeFlow, OpenIntakes } from '@/components/finances/Intake'
 import { MoneyCalendar } from '@/components/finances/MoneyCalendar'
 import { MonthMoney } from '@/components/finances/MonthMoney'
+import { Portfolio } from '@/components/finances/Portfolio'
+import { Sheet } from '@/components/finances/Sheet'
+import { TreasuryHero } from '@/components/finances/TreasuryHero'
 import { areaVars } from '@/lib/areas'
+import type { Id } from '../../../convex/_generated/dataModel'
 
-/* Finances (R6b-c, F1 Spending, 26 Sep). Body's shape: the hero with this
-   month's out and in over two tabs. SPENDING — log an amount in two taps,
-   then where the month went, by category, each opening its rows. HISTORY
-   — the month calendar and the tapped day's rows. BILLS, BALANCES and
-   INVEST are F2–F4 (same day): what comes round, what each account holds,
-   and what he owns at stored prices. The sums are source 1 as widened on
-   26 Sep (PLAN.md §1). */
-const TABS = [
-  { id: 'spending', label: 'Spending', Icon: Receipt },
-  { id: 'bills', label: 'Bills', Icon: Repeat },
-  { id: 'balances', label: 'Balances', Icon: Landmark },
-  { id: 'invest', label: 'Invest', Icon: CandlestickChart },
-  { id: 'history', label: 'History', Icon: History },
+/* The Treasury (R6b-c, 27 Sep; docs/specs/2026-09-27-r6b-treasury.md).
+   Artem: "log + track + invest but not slop but bigboy approach." The hero
+   over three rooms — OVERVIEW (his accounts, and anything still being
+   read), FLOW (bills and salary, where the month went, the calendar),
+   PORTFOLIO (brokers and positions with their profit). Everything comes in
+   through + in the hero: files dropped and read, or the few things worth
+   typing. The room is in the URL. */
+const ROOMS = [
+  { id: 'overview', label: 'Overview', Icon: LayoutGrid },
+  { id: 'flow', label: 'Flow', Icon: Waves },
+  { id: 'portfolio', label: 'Portfolio', Icon: CandlestickChart },
 ] as const
 
-type Tab = (typeof TABS)[number]['id']
+type Room = (typeof ROOMS)[number]['id']
 
-function Finances() {
-  const { tab = 'spending' } = Route.useSearch()
+function Treasury() {
+  const { room = 'overview' } = Route.useSearch()
+  const [reviewing, setReviewing] = useState<Id<'intakes'> | null>(null)
+  useEffect(() => setReviewing(null), [room])
   return (
     <div className="flex flex-col gap-[18px]">
-      <FinancesHero />
+      <TreasuryHero />
       <nav
         style={areaVars('money')}
-        aria-label="Finances tabs"
-        className="flex gap-1.5 sm:flex-wrap sm:gap-2"
+        aria-label="Treasury rooms"
+        className="flex gap-1.5 sm:gap-2"
       >
-        {TABS.map(({ id, label, Icon }) => {
-          const on = id === tab
+        {ROOMS.map(({ id, label, Icon }) => {
+          const on = id === room
           return (
             <Link
               key={id}
               to="/finances"
-              search={id === 'spending' ? {} : { tab: id }}
+              search={id === 'overview' ? {} : { room: id }}
               replace
               aria-current={on ? 'page' : undefined}
-              className={`motion-press inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full font-mono text-[11.5px] tracking-[0.14em] uppercase ring-1 transition-colors ring-inset sm:w-auto sm:px-4 ${
-                on ? 'px-3.5' : 'w-10'
+              className={`motion-press inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full font-mono text-[11.5px] tracking-[0.14em] uppercase ring-1 transition-colors ring-inset ${
+                on ? 'px-4' : 'w-10 sm:w-auto sm:px-4'
               } ${
                 on
                   ? 'bg-lav-400/12 text-foreground ring-lav-400/45 shadow-[0_0_18px_-6px_var(--system-shine)]'
@@ -61,8 +58,7 @@ function Finances() {
               }`}
             >
               <Icon className={`size-4 ${on ? 'text-area' : ''}`} />
-              {/* Five tabs do not fit a phone's row with words: there the
-                  others are their icons, named for a screen reader. */}
+              {/* On a phone the rooms not open are their icons. */}
               <span className={on ? '' : 'sr-only sm:not-sr-only'}>
                 {label}
               </span>
@@ -72,35 +68,50 @@ function Finances() {
       </nav>
 
       <div
-        key={tab}
+        key={room}
         style={areaVars('money')}
         className="motion-arrive flex flex-col gap-3"
       >
-        {tab === 'spending' ? (
+        {room === 'overview' ? (
           <>
-            <AddMoney />
-            <MonthMoney />
+            <OpenIntakes onOpen={setReviewing} />
+            <Accounts />
           </>
-        ) : tab === 'bills' ? (
-          <Bills />
-        ) : tab === 'balances' ? (
-          <Balances />
-        ) : tab === 'invest' ? (
-          <Invest />
+        ) : room === 'flow' ? (
+          <>
+            <Bills />
+            <MonthMoney />
+            <section className="glass flex flex-col gap-5 rounded-[22px] p-4 sm:p-5">
+              <MoneyCalendar />
+            </section>
+          </>
         ) : (
-          <section className="glass flex flex-col gap-5 rounded-[22px] p-4 sm:p-5">
-            <MoneyCalendar />
-          </section>
+          <Portfolio />
         )}
       </div>
+
+      <Sheet
+        open={reviewing !== null}
+        title="check it"
+        wide
+        onClose={() => setReviewing(null)}
+      >
+        {reviewing ? (
+          <IntakeFlow
+            intakeId={reviewing}
+            onBack={() => setReviewing(null)}
+            onDone={() => setReviewing(null)}
+          />
+        ) : null}
+      </Sheet>
     </div>
   )
 }
 
 export const Route = createFileRoute('/_app/finances')({
-  validateSearch: (search: Record<string, unknown>): { tab?: Tab } =>
-    TABS.some((t) => t.id === search.tab) && search.tab !== 'spending'
-      ? { tab: search.tab as Tab }
+  validateSearch: (search: Record<string, unknown>): { room?: Room } =>
+    ROOMS.some((r) => r.id === search.room) && search.room !== 'overview'
+      ? { room: search.room as Room }
       : {},
-  component: Finances,
+  component: Treasury,
 })

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { parseChart, parseImport, parseRate, parseSearch } from './market'
+import { parseChart, parseRate, parseSearch } from './market'
 
 describe('parseSearch', () => {
   test('keeps shares and funds, names them, drops the rest', () => {
@@ -93,61 +93,5 @@ describe('parseRate', () => {
   test('nothing from a broken answer', () => {
     expect(parseRate({ rates: {} })).toBeNull()
     expect(parseRate({ rates: { EUR: 0.9 } })).toBeNull()
-  })
-})
-
-describe('parseImport', () => {
-  test('rows as read, nulls left out, never guessed', () => {
-    const text = JSON.stringify({
-      rows: [
-        {
-          name: ' Tesla ',
-          isin: 'US88160R1014',
-          shares: 2.5,
-          average_price_eur: 250.1,
-          value_eur: null,
-        },
-        {
-          name: 'Vanguard FTSE All-World',
-          isin: 'not an isin',
-          shares: null,
-          average_price_eur: null,
-          value_eur: 1697.4,
-        },
-        { name: '', isin: null, shares: 1, average_price_eur: 1, value_eur: 1 },
-      ],
-    })
-    expect(parseImport(text)).toEqual({
-      ok: true,
-      cashEur: undefined,
-      totalEur: undefined,
-      rows: [
-        {
-          name: 'Tesla',
-          isin: 'US88160R1014',
-          shares: 2.5,
-          priceEur: 250.1,
-          valueEur: undefined,
-        },
-        {
-          name: 'Vanguard FTSE All-World',
-          isin: undefined,
-          shares: undefined,
-          priceEur: undefined,
-          valueEur: 1697.4,
-        },
-      ],
-    })
-  })
-  test('the cash and the total, when printed — cash may be zero', () => {
-    const r = parseImport(
-      JSON.stringify({ rows: [], cash_eur: 0, total_eur: 15000.5 }),
-    )
-    expect(r).toEqual({ ok: true, rows: [], cashEur: 0, totalEur: 15000.5 })
-  })
-
-  test('refuses what is not a reading', () => {
-    expect(parseImport('nope').ok).toBe(false)
-    expect(parseImport('{"rows":[]}').ok).toBe(false)
   })
 })

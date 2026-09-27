@@ -1,6 +1,9 @@
 import {
   Briefcase,
   Bus,
+  Car,
+  Repeat,
+  ShoppingBag,
   CircleHelp,
   Coins,
   Ellipsis,
@@ -29,6 +32,9 @@ const SPEND: Record<string, LucideIcon> = {
   fun: Gamepad2,
   clothes: Shirt,
   travel: Plane,
+  car: Car,
+  shopping: ShoppingBag,
+  subscriptions: Repeat,
   other: Ellipsis,
 }
 

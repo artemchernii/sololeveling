@@ -98,7 +98,6 @@ export function SetupSheet({
       ) : step.at === 'found' ? (
         <Found
           reads={reads}
-          made={made}
           onCheck={(id) => setStep({ at: 'intake', id })}
           onMore={(id) => setReads((r) => [...r, id])}
           onByHand={() => setStep({ at: 'pick' })}
@@ -145,14 +144,12 @@ function Intro() {
    made by hand. A read that is done has become its account. */
 function Found({
   reads,
-  made,
   onCheck,
   onMore,
   onByHand,
   onDone,
 }: {
   reads: Array<Id<'intakes'>>
-  made: Array<Id<'accounts'>>
   onCheck: (id: Id<'intakes'>) => void
   onMore: (id: Id<'intakes'>) => void
   onByHand: () => void
@@ -167,18 +164,35 @@ function Found({
   ).length
   /* Everything he has: in setup, every account is one just brought in. */
   const accounts = balances?.accounts ?? []
-  const doneReads = reads.length - pending.length
+  /* Nothing on its way and nothing made (a failed file removed): back to
+     the start, not an empty list under a heading. */
+  if (balances !== undefined && pending.length === 0 && accounts.length === 0) {
+    return (
+      <>
+        <Intro />
+        <DropFiles oneEach onStarted={onMore} />
+        <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-400">
+          No file at hand?
+          <button type="button" onClick={onByHand} className={PILL_QUIET}>
+            add an account by hand
+          </button>
+        </div>
+      </>
+    )
+  }
+  const reading = pending.some(
+    (id) => open?.find((i) => i._id === id)?.status === 'reading',
+  )
   return (
     <>
       <div className="flex flex-col gap-1">
         <span className="label-caps">
-          set up · {reads.length} {reads.length === 1 ? 'file' : 'files'} ·{' '}
-          {made.length + doneReads} done
+          set up · {accounts.length}{' '}
+          {accounts.length === 1 ? 'account' : 'accounts'}
+          {pending.length > 0 ? ` · ${pending.length} on the way` : ''}
         </span>
         <span className="text-[26px] leading-tight font-light text-foreground">
-          {pending.some(
-            (id) => open?.find((i) => i._id === id)?.status === 'reading',
-          )
+          {reading
             ? 'Reading your files…'
             : readyCount > 0
               ? `${readyCount} to check`

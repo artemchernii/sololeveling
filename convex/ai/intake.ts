@@ -79,29 +79,34 @@ export const read = internalAction({
     let text: string
     try {
       const client = new Anthropic()
-      const response = await client.messages.create({
-        model: INTAKE_MODEL,
-        max_tokens: 32000,
-        output_config: {
-          format: { type: 'json_schema', schema: INTAKE_SCHEMA },
-        },
-        messages: [
-          {
-            role: 'user',
-            content: [
-              ...blocks,
-              {
-                type: 'text',
-                text: intakePrompt({
-                  files: blocks.length,
-                  today: new Date().toISOString().slice(0, 10),
-                  accounts: job.accounts,
-                }),
-              },
-            ],
+      /* Streamed: a long statement can take minutes, and the SDK refuses a
+         plain request that could run past ten (32k tokens would) — it threw
+         before anything was sent, on his first real read (27 Sep). */
+      const response = await client.messages
+        .stream({
+          model: INTAKE_MODEL,
+          max_tokens: 32000,
+          output_config: {
+            format: { type: 'json_schema', schema: INTAKE_SCHEMA },
           },
-        ],
-      })
+          messages: [
+            {
+              role: 'user',
+              content: [
+                ...blocks,
+                {
+                  type: 'text',
+                  text: intakePrompt({
+                    files: blocks.length,
+                    today: new Date().toISOString().slice(0, 10),
+                    accounts: job.accounts,
+                  }),
+                },
+              ],
+            },
+          ],
+        })
+        .finalMessage()
       if (response.stop_reason === 'refusal') {
         await fail('The reader declined this file.')
         return null
@@ -127,7 +132,10 @@ export const read = internalAction({
       } else if (error instanceof Anthropic.APIError) {
         await fail(`The reader had a problem (${error.status}) — try again.`)
       } else {
-        await fail('The reader could not be reached — try again.')
+        console.error('intake read failed', error)
+        await fail(
+          `The reader could not be reached — try again.${error instanceof Error ? ` (${error.message.slice(0, 120)})` : ''}`,
+        )
       }
       return null
     }

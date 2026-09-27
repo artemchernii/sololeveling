@@ -40,6 +40,8 @@ import { productIn, tailsIn } from '../src/lib/institutions'
    a balance before that. */
 
 const MAX_TRADES = 2000
+/* How far back lastRead looks for one that reached done. */
+const LAST_READ_LOOK = 20
 const HISTORY_ROWS = 3000
 const DAY_MS = 86_400_000
 
@@ -1081,6 +1083,38 @@ async function dropHistory(ctx: MutationCtx, intakeId: Id<'intakes'>) {
 }
 
 /** A long history's trades, oldest first — for its review. */
+/**
+ * The last file he had read to the end, for the + sheet (27 Sep): "did I
+ * already drop this month's?" Newest of his recent reads that reached
+ * done; a failed or unconfirmed one is not "read".
+ */
+export const lastRead = query({
+  args: {},
+  returns: v.union(
+    v.object({
+      name: v.string(),
+      institution: v.union(v.string(), v.null()),
+      readAt: v.number(),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    const recent = await ctx.db
+      .query('intakes')
+      .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
+      .order('desc')
+      .take(LAST_READ_LOOK)
+    const done = recent.find((i) => i.status === 'done')
+    if (!done) return null
+    return {
+      name: done.files?.[0]?.name ?? done.title ?? 'a file',
+      institution: done.institution ?? null,
+      readAt: done.readAt ?? done._creationTime,
+    }
+  },
+})
+
 export const history = query({
   args: { intakeId: v.id('intakes') },
   returns: v.array(schema.doc('intakeTrades')),

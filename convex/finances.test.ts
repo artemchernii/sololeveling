@@ -2431,3 +2431,51 @@ describe('cash history', () => {
     expect(h.accounts).toEqual([{ accountId: a, values: [null, 100, 100, 70] }])
   })
 })
+
+describe('intake.lastRead — the + sheet’s "last read" line', () => {
+  test('null before anything is read; then the newest done, not a failed one', async () => {
+    const { t, me } = setup()
+    expect(await me.query(api.intake.lastRead, {})).toBeNull()
+    await t.run(async (ctx) => {
+      await ctx.db.insert('intakes', {
+        ownerId: ME,
+        storageIds: [],
+        status: 'done',
+        institution: 'Revolut',
+        readAt: 1000,
+        files: [{ name: 'august.csv', size: 1, contentType: 'text/csv' }],
+      })
+      await ctx.db.insert('intakes', {
+        ownerId: ME,
+        storageIds: [],
+        status: 'failed',
+        files: [
+          { name: 'broken.pdf', size: 1, contentType: 'application/pdf' },
+        ],
+      })
+    })
+    expect(await me.query(api.intake.lastRead, {})).toEqual({
+      name: 'august.csv',
+      institution: 'Revolut',
+      readAt: 1000,
+    })
+  })
+
+  test('another owner’s reads are not his', async () => {
+    const { t, them } = setup()
+    await t.run(async (ctx) => {
+      await ctx.db.insert('intakes', {
+        ownerId: ME,
+        storageIds: [],
+        status: 'done',
+        readAt: 1000,
+      })
+    })
+    expect(await them.query(api.intake.lastRead, {})).toBeNull()
+  })
+
+  test('signed out is refused', async () => {
+    const { t } = setup()
+    await expect(t.query(api.intake.lastRead, {})).rejects.toThrow()
+  })
+})

@@ -20,6 +20,10 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+/* Each stored test file its own bytes: the same bytes twice are the same
+   file, and the intake reuses its first reading. */
+let files = 0
+
 function setup() {
   const t = convexTest(schema, modules)
   return {
@@ -873,7 +877,9 @@ describe('intake: transactions', () => {
     balance?: number,
   ) {
     const storageId = await t.run(async (ctx) =>
-      ctx.storage.store(new Blob(['pdf'], { type: 'application/pdf' })),
+      ctx.storage.store(
+        new Blob([`pdf ${++files}`], { type: 'application/pdf' }),
+      ),
     )
     const started = await me.mutation(api.intake.start, {
       files: [
@@ -1135,7 +1141,7 @@ describe('intake: holdings', () => {
     me: ReturnType<typeof setup>['me'],
   ) {
     const storageId = await t.run(async (ctx) =>
-      ctx.storage.store(new Blob(['png'], { type: 'image/png' })),
+      ctx.storage.store(new Blob([`png ${++files}`], { type: 'image/png' })),
     )
     const started = await me.mutation(api.intake.start, {
       files: [{ storageId, contentType: 'image/png', name: 'tr.png', size: 3 }],
@@ -1733,7 +1739,7 @@ describe('the reader says what it is — trades, and whose account', () => {
     finish: Record<string, unknown>,
   ) {
     const storageId = await t.run(async (ctx) =>
-      ctx.storage.store(new Blob(['x'], { type: 'image/png' })),
+      ctx.storage.store(new Blob([`x ${++files}`], { type: 'image/png' })),
     )
     const started = await me.mutation(api.intake.start, {
       files: [{ storageId, contentType: 'image/png', name: 'x.png', size: 1 }],
@@ -2094,4 +2100,278 @@ test('a deleted account with history is retired, and what it held leaves every t
   expect((await me.query(api.aggregate.positions, {})).rows).toEqual([])
   const w = await me.query(api.aggregate.worth, {})
   expect([w.invested.total, w.total]).toEqual([0, 0])
+})
+
+/* The reading, made visible and made cheap (27 Sep). */
+describe('intake: reuse, progress, failures, cost', () => {
+  const store = (t: ReturnType<typeof setup>['t'], bytes: string) =>
+    t.run(async (ctx) =>
+      ctx.storage.store(new Blob([bytes], { type: 'application/pdf' })),
+    )
+  const drop = (
+    who: ReturnType<typeof setup>['me'],
+    storageId: Id<'_storage'>,
+  ) =>
+    who.mutation(api.intake.start, {
+      files: [
+        { storageId, contentType: 'application/pdf', name: 'aug.pdf', size: 9 },
+      ],
+    })
+  const row = {
+    occurredAt: new Date(2026, 8, 15, 12).getTime(),
+    merchant: 'Bolt',
+    raw: 'Bolt.euo1',
+    amount: -6.7,
+    currency: 'EUR',
+    pending: false,
+    self: false,
+  }
+
+  test('the same file again reuses its reading, at no cost; a failed one is read again', async () => {
+    const { t, me } = setup()
+    const first = await drop(me, await store(t, 'same statement'))
+    if (!first.ok) throw new Error(first.error)
+    await t.mutation(internal.intake.finish, {
+      intakeId: first.intakeId,
+      kind: 'transactions',
+      title: 'Revolut statement',
+      transactions: [row],
+      positions: undefined,
+      costUsd: 0.04,
+    })
+    const again = await drop(me, await store(t, 'same statement'))
+    if (!again.ok) throw new Error(again.error)
+    const open = await me.query(api.intake.open, {})
+    const copy = open.find((i) => i._id === again.intakeId)
+    expect(copy).toMatchObject({
+      status: 'ready',
+      reusedFrom: first.intakeId,
+      costUsd: 0,
+      title: 'Revolut statement',
+      files: [{ name: 'aug.pdf', size: 9, contentType: 'application/pdf' }],
+    })
+    expect(copy?.transactions).toHaveLength(1)
+
+    const broken = await drop(me, await store(t, 'a bad one'))
+    if (!broken.ok) throw new Error(broken.error)
+    await t.mutation(internal.intake.fail, {
+      intakeId: broken.intakeId,
+      error: 'The reader is busy',
+      retryable: true,
+    })
+    const twice = await drop(me, await store(t, 'a bad one'))
+    if (!twice.ok) throw new Error(twice.error)
+    expect(
+      (await me.query(api.intake.open, {})).find(
+        (i) => i._id === twice.intakeId,
+      )?.status,
+    ).toBe('reading')
+  })
+
+  test('someone else’s identical file is not reused', async () => {
+    const { t, me, them } = setup()
+    const theirs = await drop(them, await store(t, 'shared bytes'))
+    if (!theirs.ok) throw new Error(theirs.error)
+    await t.mutation(internal.intake.finish, {
+      intakeId: theirs.intakeId,
+      kind: 'transactions',
+      title: 'Theirs',
+      transactions: [row],
+      positions: undefined,
+    })
+    const mine = await drop(me, await store(t, 'shared bytes'))
+    if (!mine.ok) throw new Error(mine.error)
+    const open = await me.query(api.intake.open, {})
+    expect(open.find((i) => i._id === mine.intakeId)?.status).toBe('reading')
+  })
+
+  test('progress: rows counted as they come, the ones he has marked', async () => {
+    const { t, me } = setup()
+    const rev = await me.mutation(api.accounts.create, {
+      name: 'Revolut',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    await me.mutation(api.money.record, {
+      lines: [
+        {
+          kind: 'out',
+          accountId: rev,
+          amount: 6.7,
+          currency: 'EUR',
+          category: 'transport',
+          note: 'Bolt',
+          occurredAt: row.occurredAt,
+        },
+      ],
+    })
+    const s = await drop(me, await store(t, 'progress'))
+    if (!s.ok) throw new Error(s.error)
+    await t.mutation(internal.intake.progress, {
+      intakeId: s.intakeId,
+      stage: 'rows',
+      institution: 'Revolut',
+      title: 'Revolut statement',
+      rows: [
+        {
+          occurredAt: row.occurredAt,
+          merchant: 'Bolt',
+          amount: -6.7,
+          currency: 'EUR',
+          self: false,
+        },
+        {
+          occurredAt: row.occurredAt,
+          merchant: 'Pingo Doce',
+          amount: -12.4,
+          currency: 'EUR',
+          self: false,
+        },
+      ],
+    })
+    await t.mutation(internal.intake.progress, {
+      intakeId: s.intakeId,
+      balance: { value: 799.47, currency: 'EUR', asOf: row.occurredAt },
+    })
+    const p = (await me.query(api.intake.open, {})).find(
+      (i) => i._id === s.intakeId,
+    )?.progress
+    expect(p).toMatchObject({
+      stage: 'rows',
+      institution: 'Revolut',
+      rows: 2,
+      have: 1,
+      balance: { value: 799.47 },
+    })
+    expect(p?.recent.map((r) => [r.label, r.have])).toEqual([
+      ['Bolt', true],
+      ['Pingo Doce', false],
+    ])
+  })
+
+  test('failures: the cost is kept, a retry adds to it; retry refuses what is not stuck and what is not his', async () => {
+    const { t, me, them } = setup()
+    const s = await drop(me, await store(t, 'retry me'))
+    if (!s.ok) throw new Error(s.error)
+    await expect(
+      me.mutation(api.intake.retry, { intakeId: s.intakeId }),
+    ).rejects.toThrow('not stuck')
+    await t.mutation(internal.intake.fail, {
+      intakeId: s.intakeId,
+      error: 'There was more in it than one reading can hold.',
+      retryable: false,
+      costUsd: 0.23,
+    })
+    await expect(
+      them.mutation(api.intake.retry, { intakeId: s.intakeId }),
+    ).rejects.toThrow('No such intake')
+    await me.mutation(api.intake.retry, { intakeId: s.intakeId })
+    await t.mutation(internal.intake.finish, {
+      intakeId: s.intakeId,
+      kind: 'transactions',
+      title: 'Revolut statement',
+      transactions: [row],
+      positions: undefined,
+      costUsd: 0.01,
+    })
+    const done = (await me.query(api.intake.open, {})).find(
+      (i) => i._id === s.intakeId,
+    )
+    expect(done?.status).toBe('ready')
+    expect(done?.costUsd).toBeCloseTo(0.24, 5)
+  })
+
+  test('a reading that stopped answering can be tried again', async () => {
+    const { t, me } = setup()
+    const s = await drop(me, await store(t, 'stuck'))
+    if (!s.ok) throw new Error(s.error)
+    vi.setSystemTime(Date.now() + 12 * 60_000)
+    await me.mutation(api.intake.retry, { intakeId: s.intakeId })
+    const again = (await me.query(api.intake.open, {})).find(
+      (i) => i._id === s.intakeId,
+    )
+    expect(again?.status).toBe('reading')
+    expect(again?.readingSince).toBe(Date.now())
+  })
+
+  test('a long history is kept row by row, and goes with a discard', async () => {
+    const { t, me } = setup()
+    const s = await drop(me, await store(t, 'history'))
+    if (!s.ok) throw new Error(s.error)
+    await t.mutation(internal.intake.storeHistory, {
+      intakeId: s.intakeId,
+      trades: [
+        {
+          occurredAt: 1,
+          name: 'AAPL',
+          side: 'buy',
+          shares: 1,
+          price: 100,
+          currency: 'USD',
+        },
+        {
+          occurredAt: 2,
+          name: 'AAPL',
+          side: 'split',
+          shares: 3,
+          price: 0,
+          currency: 'EUR',
+        },
+      ],
+    })
+    await t.mutation(internal.intake.finish, {
+      intakeId: s.intakeId,
+      kind: 'trades',
+      title: 'Revolut · trades',
+      trades: [],
+      positions: undefined,
+      historyTrades: 2,
+      historyTickers: 1,
+    })
+    expect(
+      (await me.query(api.intake.history, { intakeId: s.intakeId })).map(
+        (r) => r.side,
+      ),
+    ).toEqual(['buy', 'split'])
+    await me.mutation(api.intake.discard, { intakeId: s.intakeId })
+    expect(
+      await t.run((ctx) => ctx.db.query('intakeTrades').collect()),
+    ).toEqual([])
+  })
+
+  test('a column map is remembered by its header, per owner', async () => {
+    const { t } = setup()
+    const layout = {
+      kind: 'trades' as const,
+      dateColumn: 0,
+      dateOrder: 'ymd' as const,
+      decimal: '.' as const,
+      pendingValues: [],
+      skipValues: [],
+      buyPrefixes: ['BUY'],
+      sellPrefixes: ['SELL'],
+      splitPrefixes: [],
+      tickerColumn: 1,
+      typeColumn: 2,
+      quantityColumn: 3,
+      priceColumn: 4,
+    }
+    await t.mutation(internal.intake.rememberLayout, {
+      ownerId: ME,
+      headerKey: 'date|ticker',
+      layout,
+    })
+    expect(
+      await t.query(internal.intake.layoutFor, {
+        ownerId: ME,
+        headerKey: 'date|ticker',
+      }),
+    ).toEqual(layout)
+    expect(
+      await t.query(internal.intake.layoutFor, {
+        ownerId: SOMEONE_ELSE,
+        headerKey: 'date|ticker',
+      }),
+    ).toBeNull()
+  })
 })

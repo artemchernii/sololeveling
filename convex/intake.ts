@@ -111,14 +111,136 @@ export const start = mutation({
         `That's ${INTAKES_PER_WINDOW} files read in 30 days — the most this reads.`,
       )
     }
-    const intakeId = await ctx.db.insert('intakes', {
+    const files = args.files.map((f) => ({
+      name: f.name.slice(0, 160),
+      size: f.size,
+      contentType: f.contentType,
+    }))
+    const fingerprint = await fingerprintOf(
+      ctx,
+      args.files.map((f) => f.storageId),
+    )
+    const base = {
       ownerId,
       accountId: args.accountId,
       storageIds: args.files.map((f) => f.storageId),
+      files,
+      fingerprint,
+    }
+
+    /* The same file again: the first reading, at no cost (27 Sep — every
+       test drop of his statement was paying for a second read). */
+    const before = fingerprint
+      ? (
+          await ctx.db
+            .query('intakes')
+            .withIndex('by_owner_fingerprint', (q) =>
+              q.eq('ownerId', ownerId).eq('fingerprint', fingerprint),
+            )
+            .order('desc')
+            .take(10)
+        ).find(
+          (i) =>
+            (i.status === 'ready' || i.status === 'done') &&
+            i.kind !== undefined,
+        )
+      : undefined
+    if (before) {
+      const intakeId = await ctx.db.insert('intakes', {
+        ...base,
+        accountId: args.accountId ?? before.accountId,
+        status: 'ready',
+        kind: before.kind,
+        title: before.title,
+        institution: before.institution,
+        accountTail: before.accountTail,
+        transactions: before.transactions,
+        positions: before.positions,
+        trades: before.trades,
+        balance: before.balance,
+        cashEur: before.cashEur,
+        totalEur: before.totalEur,
+        model: before.model,
+        readAt: now,
+        reusedFrom: before._id,
+        costUsd: 0,
+        note: before.note,
+        historyTrades: before.historyTrades,
+        historyTickers: before.historyTickers,
+      })
+      if (before.historyTrades !== undefined) {
+        const rows = await ctx.db
+          .query('intakeTrades')
+          .withIndex('by_intake', (q) => q.eq('intakeId', before._id))
+          .take(HISTORY_TRADES)
+        for (const { _id, _creationTime, ...r } of rows)
+          await ctx.db.insert('intakeTrades', { ...r, intakeId })
+      }
+      return { ok: true as const, intakeId }
+    }
+
+    const intakeId = await ctx.db.insert('intakes', {
+      ...base,
       status: 'reading',
+      readingSince: now,
+      progress: { stage: 'opening', rows: 0, have: 0, recent: [] },
     })
     await ctx.scheduler.runAfter(0, internal.ai.intake.read, { intakeId })
     return { ok: true as const, intakeId }
+  },
+})
+
+/* A reading that has not answered in this long has died with its action
+   (the platform stops one at ten minutes) — it is shown as stopped, and
+   can be tried again. */
+export const READING_DEAD_MS = 11 * 60_000
+const HISTORY_TRADES = 8000
+
+async function fingerprintOf(
+  ctx: MutationCtx,
+  storageIds: ReadonlyArray<Id<'_storage'>>,
+): Promise<string | undefined> {
+  const hashes = []
+  for (const id of storageIds) {
+    const meta = await ctx.db.system.get(id)
+    if (!meta?.sha256) return undefined
+    hashes.push(meta.sha256)
+  }
+  return hashes.sort().join('|')
+}
+
+/**
+ * Once more: after a failure a second try could fix, or a reading that
+ * stopped without answering. The files are still there until he throws
+ * them away.
+ */
+export const retry = mutation({
+  args: { intakeId: v.id('intakes') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const intake = await ownedIntake(ctx, ownerId, args.intakeId)
+    const dead =
+      intake.status === 'reading' &&
+      Date.now() - (intake.readingSince ?? intake._creationTime) >
+        READING_DEAD_MS
+    if (intake.status !== 'failed' && !dead) {
+      throw new ConvexError('That one is not stuck.')
+    }
+    if (intake.storageIds.length === 0) {
+      throw new ConvexError('Its files are gone — drop it again.')
+    }
+    await ctx.db.patch(intake._id, {
+      status: 'reading',
+      error: undefined,
+      retryable: undefined,
+      readingSince: Date.now(),
+      progress: { stage: 'opening', rows: 0, have: 0, recent: [] },
+    })
+    await ctx.scheduler.runAfter(0, internal.ai.intake.read, {
+      intakeId: intake._id,
+    })
+    return null
   },
 })
 
@@ -919,8 +1041,31 @@ export const discard = mutation({
     const ownerId = await requireUser(ctx)
     const intake = await ownedIntake(ctx, ownerId, args.intakeId)
     for (const id of intake.storageIds) await ctx.storage.delete(id)
+    await dropHistory(ctx, intake._id)
     await ctx.db.delete(intake._id)
     return null
+  },
+})
+
+async function dropHistory(ctx: MutationCtx, intakeId: Id<'intakes'>) {
+  const rows = await ctx.db
+    .query('intakeTrades')
+    .withIndex('by_intake', (q) => q.eq('intakeId', intakeId))
+    .take(HISTORY_TRADES)
+  for (const r of rows) await ctx.db.delete(r._id)
+}
+
+/** A long history's trades, oldest first — for its review. */
+export const history = query({
+  args: { intakeId: v.id('intakes') },
+  returns: v.array(schema.doc('intakeTrades')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedIntake(ctx, ownerId, args.intakeId)
+    return await ctx.db
+      .query('intakeTrades')
+      .withIndex('by_intake', (q) => q.eq('intakeId', args.intakeId))
+      .take(HISTORY_TRADES)
   },
 })
 
@@ -944,8 +1089,229 @@ export const forReading = internalQuery({
         .take(50)
     )
       .filter((a) => a.retiredAt === undefined)
-      .map((a) => a.name)
-    return { files, accounts }
+      .map((a) => ({ name: a.name, domain: a.domain }))
+    return {
+      ownerId: intake.ownerId,
+      files,
+      names: (intake.files ?? []).map((f) => f.name),
+      accounts,
+    }
+  },
+})
+
+const readRow = v.object({
+  occurredAt: v.number(),
+  merchant: v.string(),
+  amount: v.number(),
+  currency: v.string(),
+  self: v.boolean(),
+})
+
+/**
+ * What the reader has found so far, as it streams (27 Sep: "Reading
+ * what?"). Rows arrive in batches; each is laid against the account's
+ * history, so "29 already here · 12 new" is counted as they come. The
+ * review counts again when the reading is done — this is the view, not the
+ * decision.
+ */
+export const progress = internalMutation({
+  args: {
+    intakeId: v.id('intakes'),
+    stage: v.optional(
+      v.union(
+        v.literal('opening'),
+        v.literal('columns'),
+        v.literal('rows'),
+        v.literal('tickers'),
+      ),
+    ),
+    kind: v.optional(
+      v.union(
+        v.literal('transactions'),
+        v.literal('holdings'),
+        v.literal('trades'),
+      ),
+    ),
+    institution: v.optional(v.string()),
+    title: v.optional(v.string()),
+    accountTail: v.optional(v.string()),
+    balance: v.optional(
+      v.object({ value: v.number(), currency: v.string(), asOf: v.number() }),
+    ),
+    rows: v.optional(v.array(readRow)),
+    /* Trades or positions: counted and shown, never "already here". */
+    items: v.optional(
+      v.array(
+        v.object({
+          occurredAt: v.number(),
+          label: v.string(),
+          amount: v.number(),
+          currency: v.string(),
+        }),
+      ),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const intake = await ctx.db.get(args.intakeId)
+    if (intake === null || intake.status !== 'reading') return null
+    const p = intake.progress ?? {
+      stage: 'opening',
+      rows: 0,
+      have: 0,
+      recent: [],
+    }
+    const next = {
+      ...p,
+      stage: args.stage ?? p.stage,
+      institution: args.institution ?? p.institution,
+      title: args.title ?? p.title,
+      accountTail: args.accountTail ?? p.accountTail,
+      balance: args.balance ?? p.balance,
+    }
+    const fresh: typeof p.recent = []
+    const rows = args.rows ?? []
+    if (rows.length > 0) {
+      const accounts = (
+        await ctx.db
+          .query('accounts')
+          .withIndex('by_owner_order', (q) => q.eq('ownerId', intake.ownerId))
+          .take(50)
+      ).filter((a) => a.retiredAt === undefined)
+      const here =
+        intake.accountId ??
+        guessAccount(
+          {
+            ...intake,
+            kind: 'transactions',
+            institution: next.institution,
+            accountTail: next.accountTail,
+          },
+          accounts,
+        )
+      let dups: Array<number | null> = rows.map(() => null)
+      if (here) {
+        const times = rows.map((r) => r.occurredAt)
+        const existing = await ctx.db
+          .query('logs')
+          .withIndex('by_owner_account_time', (q) =>
+            q
+              .eq('ownerId', intake.ownerId)
+              .eq('accountId', here)
+              .gte('occurredAt', Math.min(...times) - 3 * DAY_MS)
+              .lte('occurredAt', Math.max(...times) + 3 * DAY_MS),
+          )
+          .take(HISTORY_ROWS)
+        dups = findDuplicates(
+          rows,
+          existing.map((l) => ({
+            occurredAt: l.occurredAt,
+            amount: l.kind === 'expense' ? -(l.value ?? 0) : (l.value ?? 0),
+            merchant: l.meta?.merchant ?? l.text ?? '',
+          })),
+        )
+      }
+      for (const [i, r] of rows.entries()) {
+        fresh.push({
+          occurredAt: r.occurredAt,
+          label: r.merchant.slice(0, 60),
+          amount: r.amount,
+          currency: r.currency,
+          have: dups[i] !== null,
+          move: r.self,
+        })
+      }
+    }
+    for (const it of args.items ?? [])
+      fresh.push({
+        ...it,
+        label: it.label.slice(0, 60),
+        have: false,
+        move: false,
+      })
+    next.rows = p.rows + fresh.length
+    next.have = p.have + fresh.filter((r) => r.have).length
+    next.recent = [...p.recent, ...fresh].slice(-5)
+    await ctx.db.patch(intake._id, { progress: next })
+    return null
+  },
+})
+
+export const layoutFor = internalQuery({
+  args: { ownerId: v.string(), headerKey: v.string() },
+  returns: v.union(schema.tables.csvLayouts.validator.fields.layout, v.null()),
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query('csvLayouts')
+      .withIndex('by_owner_header', (q) =>
+        q.eq('ownerId', args.ownerId).eq('headerKey', args.headerKey),
+      )
+      .unique()
+    return row?.layout ?? null
+  },
+})
+
+export const rememberLayout = internalMutation({
+  args: {
+    ownerId: v.string(),
+    headerKey: v.string(),
+    layout: schema.tables.csvLayouts.validator.fields.layout,
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query('csvLayouts')
+      .withIndex('by_owner_header', (q) =>
+        q.eq('ownerId', args.ownerId).eq('headerKey', args.headerKey),
+      )
+      .unique()
+    if (row)
+      await ctx.db.patch(row._id, {
+        layout: args.layout,
+        updatedAt: Date.now(),
+      })
+    else await ctx.db.insert('csvLayouts', { ...args, updatedAt: Date.now() })
+    return null
+  },
+})
+
+/** A long history's rows, a batch at a time, while it is still reading. */
+export const storeHistory = internalMutation({
+  args: {
+    intakeId: v.id('intakes'),
+    trades: v.array(
+      v.object({
+        occurredAt: v.number(),
+        name: v.string(),
+        isin: v.optional(v.string()),
+        side: v.union(v.literal('buy'), v.literal('sell'), v.literal('split')),
+        shares: v.number(),
+        price: v.number(),
+        currency: v.string(),
+      }),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const intake = await ctx.db.get(args.intakeId)
+    if (intake === null || intake.status !== 'reading') return null
+    for (const t of args.trades)
+      await ctx.db.insert('intakeTrades', {
+        ...t,
+        ownerId: intake.ownerId,
+        intakeId: intake._id,
+      })
+    return null
+  },
+})
+
+/** A retry starts clean: rows a failed reading stored go first. */
+export const clearHistory = internalMutation({
+  args: { intakeId: v.id('intakes') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await dropHistory(ctx, args.intakeId)
+    return null
   },
 })
 
@@ -971,6 +1337,12 @@ export const finish = internalMutation({
     balance: balanceValidator,
     cashEur: v.optional(v.number()),
     totalEur: v.optional(v.number()),
+    costUsd: v.optional(v.number()),
+    note: v.optional(v.string()),
+    historyTrades: v.optional(v.number()),
+    historyTickers: v.optional(v.number()),
+    /* Read in code from a remembered column map: no model this time. */
+    model: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -980,20 +1352,39 @@ export const finish = internalMutation({
     await ctx.db.patch(args.intakeId, {
       ...rest,
       status: 'ready',
-      model: INTAKE_MODEL_NAME,
+      model: args.model ?? INTAKE_MODEL_NAME,
       readAt: Date.now(),
+      /* A retry's reading costs what every try cost. */
+      costUsd:
+        args.costUsd === undefined
+          ? intake.costUsd
+          : (intake.costUsd ?? 0) + args.costUsd,
     })
     return null
   },
 })
 
 export const fail = internalMutation({
-  args: { intakeId: v.id('intakes'), error: v.string() },
+  args: {
+    intakeId: v.id('intakes'),
+    error: v.string(),
+    retryable: v.optional(v.boolean()),
+    costUsd: v.optional(v.number()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const intake = await ctx.db.get(args.intakeId)
     if (intake === null || intake.status !== 'reading') return null
-    await ctx.db.patch(args.intakeId, { status: 'failed', error: args.error })
+    await dropHistory(ctx, intake._id)
+    await ctx.db.patch(args.intakeId, {
+      status: 'failed',
+      error: args.error,
+      retryable: args.retryable ?? false,
+      costUsd:
+        args.costUsd === undefined
+          ? intake.costUsd
+          : (intake.costUsd ?? 0) + args.costUsd,
+    })
     return null
   },
 })

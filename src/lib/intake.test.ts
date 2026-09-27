@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest'
 
 import {
+  partialReading,
+  readingCost,
+  usd,
   completePosition,
   dayToMs,
   diffHoldings,
@@ -424,5 +427,80 @@ describe('diffHoldings', () => {
         priceEur: 250,
       },
     ])
+  })
+})
+
+describe('a reading in progress', () => {
+  const full = JSON.stringify({
+    kind: 'transactions',
+    institution: 'Revolut Bank UAB',
+    account_tail: 'LT12 …4055',
+    holder_name: null,
+    title: 'Revolut statement · EUR · Aug 1 → Sep 27',
+    currency: 'EUR',
+    transactions: [
+      {
+        date: '2026-09-01',
+        merchant: 'Bolt',
+        raw: 'Bolt.euo1',
+        amount: -6.7,
+        currency: 'EUR',
+        pending: false,
+        counterparty: null,
+        self_transfer: false,
+        category: 'transport',
+      },
+      {
+        date: '2026-09-03',
+        merchant: 'To "TR"',
+        raw: 'To TR',
+        amount: -200,
+        currency: 'EUR',
+        pending: false,
+        counterparty: 'Trade Republic',
+        self_transfer: true,
+        category: null,
+      },
+    ],
+    positions: [],
+    trades: [],
+    closing_balance: 799.47,
+    closing_balance_date: '2026-09-27',
+    cash_eur: null,
+    total_eur: null,
+  })
+
+  test('the bank, the title and whole rows only, as the text arrives', () => {
+    const cut = full.slice(0, full.indexOf('To \\"TR\\"'))
+    const p = partialReading(cut)
+    expect(p.kind).toBe('transactions')
+    expect(p.institution).toBe('Revolut Bank UAB')
+    expect(p.accountTail).toBe('4055')
+    expect(p.title).toBe('Revolut statement · EUR · Aug 1 → Sep 27')
+    expect(p.transactions.map((t) => t.merchant)).toEqual(['Bolt'])
+    expect(p.balance).toBeUndefined()
+  })
+
+  test('everything once it is all there, quotes inside strings included', () => {
+    const p = partialReading(full)
+    expect(p.transactions.map((t) => t.merchant)).toEqual(['Bolt', 'To "TR"'])
+    expect(p.balance?.value).toBe(799.47)
+  })
+
+  test('nothing yet is nothing', () => {
+    expect(partialReading('').transactions).toEqual([])
+    expect(partialReading('{"kind": "tra').kind).toBeUndefined()
+  })
+})
+
+describe('what a reading costs', () => {
+  test('his failed CSV: ~65k in, 32k out ≈ $0.23', () => {
+    expect(
+      readingCost({ input_tokens: 65_000, output_tokens: 32_000 }),
+    ).toBeCloseTo(0.225, 3)
+    expect(usd(0.225)).toBe('$0.23')
+    expect(usd(0.0031)).toBe('$0.003')
+    expect(usd(0.0004)).toBe('under $0.001')
+    expect(usd(0)).toBe('$0')
   })
 })

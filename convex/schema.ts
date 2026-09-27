@@ -845,7 +845,125 @@ export default defineSchema({
     error: v.optional(v.string()),
     model: v.optional(v.string()),
     readAt: v.optional(v.number()),
-  }).index('by_owner', ['ownerId']),
+    /* The reading, made visible (27 Sep): what he dropped, by name. */
+    files: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          size: v.number(),
+          contentType: v.string(),
+        }),
+      ),
+    ),
+    /* The files' SHA-256s, sorted and joined: the same file dropped again
+       reuses the first reading instead of paying for a second. */
+    fingerprint: v.optional(v.string()),
+    reusedFrom: v.optional(v.id('intakes')),
+    /* When this read began — a retry starts the clock again. */
+    readingSince: v.optional(v.number()),
+    /* What the reader has found so far, written as it streams: the bank,
+       what the file is, how many rows (and how many he already has), the
+       latest few, and the balance when it lands. Nothing here is saved as
+       money; it is the view of a reading in progress. */
+    progress: v.optional(
+      v.object({
+        stage: v.union(
+          v.literal('opening'),
+          v.literal('columns'),
+          v.literal('rows'),
+          v.literal('tickers'),
+        ),
+        institution: v.optional(v.string()),
+        title: v.optional(v.string()),
+        accountTail: v.optional(v.string()),
+        rows: v.number(),
+        have: v.number(),
+        recent: v.array(
+          v.object({
+            occurredAt: v.number(),
+            label: v.string(),
+            amount: v.number(),
+            currency: v.string(),
+            have: v.boolean(),
+            move: v.boolean(),
+          }),
+        ),
+        balance: v.optional(
+          v.object({
+            value: v.number(),
+            currency: v.string(),
+            asOf: v.number(),
+          }),
+        ),
+      }),
+    ),
+    /* What the reading cost, in US dollars, from the API's own token
+       counts — shown on the reading so a test never surprises him. */
+    costUsd: v.optional(v.number()),
+    /* A failure a second try could fix (busy, unreachable), or not. */
+    retryable: v.optional(v.boolean()),
+    /* What the file had that this does not bring in, in its own words:
+       "Left out: 184 dividend, 126 cash top-up." */
+    note: v.optional(v.string()),
+    /* A trade history too long for this row (his Revolut export: 3,595
+       trades since 2020) lives in intakeTrades; this says how many. */
+    historyTrades: v.optional(v.number()),
+    historyTickers: v.optional(v.number()),
+  })
+    .index('by_owner', ['ownerId'])
+    .index('by_owner_fingerprint', ['ownerId', 'fingerprint']),
+
+  /* A long trade history read from a CSV, one row per trade or split, until
+     he confirms it. Kept apart from intakes because a row there holds at
+     most a megabyte. */
+  intakeTrades: defineTable({
+    ownerId: v.string(),
+    intakeId: v.id('intakes'),
+    occurredAt: v.number(),
+    name: v.string(),
+    isin: v.optional(v.string()),
+    side: v.union(v.literal('buy'), v.literal('sell'), v.literal('split')),
+    shares: v.number(),
+    /* Per share, in `currency`; 0 for a split. */
+    price: v.number(),
+    currency: v.string(),
+  }).index('by_intake', ['intakeId', 'occurredAt']),
+
+  /* A CSV's column map, remembered by its header (27 Sep): the second
+     export from the same bank is read with no model at all. */
+  csvLayouts: defineTable({
+    ownerId: v.string(),
+    headerKey: v.string(),
+    layout: v.object({
+      kind: v.union(v.literal('transactions'), v.literal('trades')),
+      institution: v.optional(v.string()),
+      accountTail: v.optional(v.string()),
+      currency: v.optional(v.string()),
+      dateColumn: v.number(),
+      dateOrder: v.union(v.literal('ymd'), v.literal('dmy'), v.literal('mdy')),
+      decimal: v.union(v.literal('.'), v.literal(',')),
+      descriptionColumn: v.optional(v.number()),
+      amountColumn: v.optional(v.number()),
+      outColumn: v.optional(v.number()),
+      inColumn: v.optional(v.number()),
+      feeColumn: v.optional(v.number()),
+      currencyColumn: v.optional(v.number()),
+      balanceColumn: v.optional(v.number()),
+      stateColumn: v.optional(v.number()),
+      pendingValues: v.array(v.string()),
+      skipValues: v.array(v.string()),
+      tickerColumn: v.optional(v.number()),
+      nameColumn: v.optional(v.number()),
+      isinColumn: v.optional(v.number()),
+      typeColumn: v.optional(v.number()),
+      buyPrefixes: v.array(v.string()),
+      sellPrefixes: v.array(v.string()),
+      splitPrefixes: v.array(v.string()),
+      quantityColumn: v.optional(v.number()),
+      priceColumn: v.optional(v.number()),
+    }),
+    updatedAt: v.number(),
+  }).index('by_owner_header', ['ownerId', 'headerKey']),
 
   /* What a merchant is, as he taught it (Treasury, 27 Sep): change "Bnp
      Toc" to eating out once and every row of it — this statement and the

@@ -284,89 +284,9 @@ export function parseReading(
         'That does not look like a statement, a history, a broker screen or a list of trades.',
     }
   }
-  const transactions: Array<ReadTransaction> = []
-  for (const r of Array.isArray(j.transactions)
-    ? (j.transactions as Array<Record<string, unknown>>)
-    : []) {
-    const at = typeof r.date === 'string' ? dayToMs(r.date) : undefined
-    const amount = num(r.amount)
-    const merchant = str(r.merchant, 80)
-    if (
-      at === undefined ||
-      amount === undefined ||
-      amount === 0 ||
-      merchant === undefined
-    )
-      continue
-    const currency =
-      str(r.currency, 3)?.toUpperCase() ??
-      str(j.currency, 3)?.toUpperCase() ??
-      'EUR'
-    const category = str(r.category, 24)?.toLowerCase()
-    transactions.push({
-      occurredAt: at,
-      merchant,
-      raw: str(r.raw, 160) ?? merchant,
-      amount: Math.round(amount * 100) / 100,
-      currency,
-      pending: r.pending === true,
-      counterparty: str(r.counterparty, 80),
-      self: r.self_transfer === true,
-      category:
-        category &&
-        (SPEND_CATEGORY_IDS as ReadonlyArray<string>).includes(category)
-          ? category
-          : undefined,
-    })
-  }
-  const positions: Array<ReadPosition> = []
-  for (const r of Array.isArray(j.positions)
-    ? (j.positions as Array<Record<string, unknown>>)
-    : []) {
-    const name = str(r.name)
-    if (name === undefined) continue
-    const isin =
-      typeof r.isin === 'string' && /^[A-Z]{2}[A-Z0-9]{10}$/.test(r.isin)
-        ? r.isin
-        : undefined
-    positions.push({
-      name,
-      isin,
-      shares: pos(r.shares),
-      priceEur: pos(r.average_price_eur),
-      valueEur: pos(r.value_eur),
-      changePct: num(r.change_pct),
-    })
-  }
-  const trades: Array<ReadTrade> = []
-  for (const r of Array.isArray(j.trades)
-    ? (j.trades as Array<Record<string, unknown>>)
-    : []) {
-    const at = typeof r.date === 'string' ? dayToMs(r.date) : undefined
-    const name = str(r.name)
-    const shares = pos(r.shares)
-    const price = pos(r.price)
-    if (
-      at === undefined ||
-      name === undefined ||
-      shares === undefined ||
-      price === undefined ||
-      (r.side !== 'buy' && r.side !== 'sell')
-    )
-      continue
-    trades.push({
-      occurredAt: at,
-      name,
-      isin:
-        typeof r.isin === 'string' && /^[A-Z]{2}[A-Z0-9]{10}$/.test(r.isin)
-          ? r.isin
-          : undefined,
-      side: r.side,
-      shares,
-      price,
-      currency: str(r.currency, 3)?.toUpperCase() ?? 'EUR',
-    })
-  }
+  const transactions = txRows(j)
+  const positions = positionRows(j)
+  const trades = tradeRows(j)
   if (j.kind === 'trades' && trades.length === 0) {
     return { ok: false, error: 'No buys or sells were found in it.' }
   }
@@ -408,6 +328,222 @@ export function parseReading(
     cashEur: cash !== undefined && cash >= 0 ? cash : undefined,
     totalEur: pos(j.total_eur),
   }
+}
+
+function txRows(j: Record<string, unknown>): Array<ReadTransaction> {
+  const transactions: Array<ReadTransaction> = []
+  for (const r of Array.isArray(j.transactions)
+    ? (j.transactions as Array<Record<string, unknown>>)
+    : []) {
+    const at = typeof r.date === 'string' ? dayToMs(r.date) : undefined
+    const amount = num(r.amount)
+    const merchant = str(r.merchant, 80)
+    if (
+      at === undefined ||
+      amount === undefined ||
+      amount === 0 ||
+      merchant === undefined
+    )
+      continue
+    const currency =
+      str(r.currency, 3)?.toUpperCase() ??
+      str(j.currency, 3)?.toUpperCase() ??
+      'EUR'
+    const category = str(r.category, 24)?.toLowerCase()
+    transactions.push({
+      occurredAt: at,
+      merchant,
+      raw: str(r.raw, 160) ?? merchant,
+      amount: Math.round(amount * 100) / 100,
+      currency,
+      pending: r.pending === true,
+      counterparty: str(r.counterparty, 80),
+      self: r.self_transfer === true,
+      category:
+        category &&
+        (SPEND_CATEGORY_IDS as ReadonlyArray<string>).includes(category)
+          ? category
+          : undefined,
+    })
+  }
+  return transactions
+}
+
+function positionRows(j: Record<string, unknown>): Array<ReadPosition> {
+  const positions: Array<ReadPosition> = []
+  for (const r of Array.isArray(j.positions)
+    ? (j.positions as Array<Record<string, unknown>>)
+    : []) {
+    const name = str(r.name)
+    if (name === undefined) continue
+    const isin =
+      typeof r.isin === 'string' && /^[A-Z]{2}[A-Z0-9]{10}$/.test(r.isin)
+        ? r.isin
+        : undefined
+    positions.push({
+      name,
+      isin,
+      shares: pos(r.shares),
+      priceEur: pos(r.average_price_eur),
+      valueEur: pos(r.value_eur),
+      changePct: num(r.change_pct),
+    })
+  }
+  return positions
+}
+
+function tradeRows(j: Record<string, unknown>): Array<ReadTrade> {
+  const trades: Array<ReadTrade> = []
+  for (const r of Array.isArray(j.trades)
+    ? (j.trades as Array<Record<string, unknown>>)
+    : []) {
+    const at = typeof r.date === 'string' ? dayToMs(r.date) : undefined
+    const name = str(r.name)
+    const shares = pos(r.shares)
+    const price = pos(r.price)
+    if (
+      at === undefined ||
+      name === undefined ||
+      shares === undefined ||
+      price === undefined ||
+      (r.side !== 'buy' && r.side !== 'sell')
+    )
+      continue
+    trades.push({
+      occurredAt: at,
+      name,
+      isin:
+        typeof r.isin === 'string' && /^[A-Z]{2}[A-Z0-9]{10}$/.test(r.isin)
+          ? r.isin
+          : undefined,
+      side: r.side,
+      shares,
+      price,
+      currency: str(r.currency, 3)?.toUpperCase() ?? 'EUR',
+    })
+  }
+  return trades
+}
+
+/* ---- A reading in progress --------------------------------------------- */
+
+/** The objects of a JSON array that are complete so far, in text the
+    model is still writing. */
+function completeObjects(
+  text: string,
+  key: string,
+): Array<Record<string, unknown>> {
+  const m = new RegExp(`"${key}"\\s*:\\s*\\[`).exec(text)
+  if (!m) return []
+  const out: Array<Record<string, unknown>> = []
+  let depth = 0
+  let inString = false
+  let start = -1
+  for (let i = m.index + m[0].length; i < text.length; i++) {
+    const c = text[i]
+    if (inString) {
+      if (c === '\\') i++
+      else if (c === '"') inString = false
+      continue
+    }
+    if (c === '"') inString = true
+    else if (c === '{') {
+      if (depth === 0) start = i
+      depth++
+    } else if (c === '}') {
+      depth--
+      if (depth === 0 && start >= 0) {
+        try {
+          out.push(
+            JSON.parse(text.slice(start, i + 1)) as Record<string, unknown>,
+          )
+        } catch {
+          /* a row it wrote badly: the final parse decides */
+        }
+        start = -1
+      }
+    } else if (c === ']' && depth === 0) break
+  }
+  return out
+}
+
+function scalar(text: string, key: string): string | undefined {
+  const m = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`).exec(text)
+  if (!m) return undefined
+  try {
+    return JSON.parse(`"${m[1]}"`) as string
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * What can be known from the reader's answer so far — it streams, in the
+ * schema's order: what it is, the bank, the title, then the rows one by
+ * one, the balance last. Rows go through the same checks as the final
+ * parse; anything unfinished is left for later.
+ */
+const READING_KINDS: ReadonlyArray<Reading['kind']> = [
+  'transactions',
+  'holdings',
+  'trades',
+]
+
+export function partialReading(text: string) {
+  const j: Record<string, unknown> = {
+    currency: scalar(text, 'currency'),
+    transactions: completeObjects(text, 'transactions'),
+    positions: completeObjects(text, 'positions'),
+    trades: completeObjects(text, 'trades'),
+  }
+  const kind = scalar(text, 'kind')
+  const tail = /\d{4}$/.exec(
+    (scalar(text, 'account_tail') ?? '').replace(/\D/g, ''),
+  )?.[0]
+  const balance = /"closing_balance"\s*:\s*(-?\d+(?:\.\d+)?)/.exec(text)
+  const balanceDate = scalar(text, 'closing_balance_date')
+  return {
+    kind: READING_KINDS.find((k) => k === kind),
+    institution: str(scalar(text, 'institution'), 60),
+    title: str(scalar(text, 'title'), 80),
+    accountTail: tail,
+    transactions: txRows(j),
+    positions: positionRows(j),
+    trades: tradeRows(j),
+    balance:
+      balance && balanceDate && dayToMs(balanceDate) !== undefined
+        ? { value: Number(balance[1]), asOf: dayToMs(balanceDate) as number }
+        : undefined,
+    currency: str(j.currency, 3)?.toUpperCase(),
+  }
+}
+
+/* What a reading costs (Claude Haiku 4.5: $1 in, $5 out per million
+   tokens), from the API's own counts. */
+export const INTAKE_USD_PER_TOKEN = { input: 1 / 1e6, output: 5 / 1e6 }
+
+export function readingCost(usage: {
+  input_tokens: number
+  output_tokens: number
+  cache_creation_input_tokens?: number | null
+  cache_read_input_tokens?: number | null
+}): number {
+  const input =
+    usage.input_tokens +
+    (usage.cache_creation_input_tokens ?? 0) * 1.25 +
+    (usage.cache_read_input_tokens ?? 0) * 0.1
+  return (
+    input * INTAKE_USD_PER_TOKEN.input +
+    usage.output_tokens * INTAKE_USD_PER_TOKEN.output
+  )
+}
+
+/** "$0.23", "$0.004", "under $0.001", "$0". */
+export function usd(n: number): string {
+  if (n === 0) return '$0'
+  if (n < 0.001) return 'under $0.001'
+  if (n < 0.01) return `$${n.toFixed(3)}`
+  return `$${n.toFixed(2)}`
 }
 
 /* ---- Rules --------------------------------------------------------- */

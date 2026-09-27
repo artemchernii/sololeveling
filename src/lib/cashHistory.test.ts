@@ -38,7 +38,11 @@ describe('balanceSeries', () => {
 
   test('no reading, no line', () => {
     expect(
-      balanceSeries([end(1)], [], [{ at: noon(1), cents: 100, fromFile: false }]),
+      balanceSeries(
+        [end(1)],
+        [],
+        [{ at: noon(1), cents: 100, fromFile: false }],
+      ),
     ).toEqual([null])
   })
 

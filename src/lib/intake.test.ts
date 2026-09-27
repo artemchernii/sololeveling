@@ -9,6 +9,7 @@ import {
   diffHoldings,
   findDuplicates,
   findRecurring,
+  intakePrompt,
   matchAccount,
   merchantKey,
   parseReading,
@@ -502,5 +503,20 @@ describe('what a reading costs', () => {
     expect(usd(0.0031)).toBe('$0.003')
     expect(usd(0.0004)).toBe('under $0.001')
     expect(usd(0)).toBe('$0')
+  })
+})
+
+describe('intakePrompt', () => {
+  const base = { files: 1, today: '2026-09-27', accounts: ['Revolut'] }
+
+  test('without a hint it opens on the file', () => {
+    expect(intakePrompt(base).startsWith('This is one file')).toBe(true)
+  })
+
+  test('his words lead, and cannot close the quote', () => {
+    const p = intakePrompt({ ...base, hint: 'Trade Republic "portfolio"' })
+    expect(p.split('\n')[0]).toBe(
+      'The person says what it is: "Trade Republic \'portfolio\'". Trust it for what the file is and whose it is (institution, kind); it never gives you numbers.',
+    )
   })
 })

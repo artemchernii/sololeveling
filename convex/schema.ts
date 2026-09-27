@@ -919,6 +919,10 @@ export default defineSchema({
     costUsd: v.optional(v.number()),
     /* A failure a second try could fix (busy, unreachable), or not. */
     retryable: v.optional(v.boolean()),
+    /* His words about a screenshot, typed as he dropped it (27 Sep: a
+       Trade Republic screen said only "Wealth"): "Trade Republic
+       portfolio". Handed to the reader; never a number. */
+    hint: v.optional(v.string()),
     /* What the file had that this does not bring in, in its own words:
        "Left out: 184 dividend, 126 cash top-up." */
     note: v.optional(v.string()),

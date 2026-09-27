@@ -55,6 +55,7 @@ type Job = {
   files: Array<{ storageId: Id<'_storage'>; contentType: string }>
   names: Array<string>
   accounts: Array<{ name: string; domain?: string }>
+  hint: string | null
 }
 
 class ReadFailure extends Error {
@@ -262,6 +263,7 @@ async function readWithModel(
               files: blocks.length,
               today: new Date().toISOString().slice(0, 10),
               accounts: job.accounts.map((a) => a.name),
+              hint: job.hint,
             }),
           },
         ],

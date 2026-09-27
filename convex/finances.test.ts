@@ -2479,3 +2479,69 @@ describe('intake.lastRead — the + sheet’s "last read" line', () => {
     await expect(t.query(api.intake.lastRead, {})).rejects.toThrow()
   })
 })
+
+describe('intake.start — his words about a screenshot', () => {
+  const shot = (t: ReturnType<typeof setup>['t'], bytes: string) =>
+    t.run(async (ctx) =>
+      ctx.storage.store(new Blob([bytes], { type: 'image/png' })),
+    )
+  const drop = (
+    who: ReturnType<typeof setup>['me'],
+    storageId: Id<'_storage'>,
+    hint?: string,
+  ) =>
+    who.mutation(api.intake.start, {
+      hint,
+      files: [
+        { storageId, contentType: 'image/png', name: 'IMG_9219.PNG', size: 9 },
+      ],
+    })
+
+  test('the hint is kept, trimmed, and handed to the reader', async () => {
+    const { t, me } = setup()
+    const started = await drop(
+      me,
+      await shot(t, 'tr screen'),
+      '  Trade Republic portfolio  ',
+    )
+    if (!started.ok) throw new Error(started.error)
+    const job = await t.query(internal.intake.forReading, {
+      intakeId: started.intakeId,
+    })
+    expect(job?.hint).toBe('Trade Republic portfolio')
+  })
+
+  test('a blank hint is none', async () => {
+    const { t, me } = setup()
+    const started = await drop(me, await shot(t, 'blank'), '   ')
+    if (!started.ok) throw new Error(started.error)
+    const job = await t.query(internal.intake.forReading, {
+      intakeId: started.intakeId,
+    })
+    expect(job?.hint).toBeNull()
+  })
+
+  test('the same screenshot with a hint is read again, not reused', async () => {
+    const { t, me } = setup()
+    const first = await drop(me, await shot(t, 'same screen'))
+    if (!first.ok) throw new Error(first.error)
+    await t.mutation(internal.intake.finish, {
+      intakeId: first.intakeId,
+      kind: 'holdings',
+      title: 'Wealth · Holdings',
+      transactions: undefined,
+      positions: [],
+      costUsd: 0.006,
+    })
+    const again = await drop(
+      me,
+      await shot(t, 'same screen'),
+      'Trade Republic portfolio',
+    )
+    if (!again.ok) throw new Error(again.error)
+    const open = await me.query(api.intake.open, {})
+    expect(open.find((i) => i._id === again.intakeId)).toMatchObject({
+      status: 'reading',
+    })
+  })
+})

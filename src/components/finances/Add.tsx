@@ -85,7 +85,12 @@ export function useIntakeUpload() {
   const start = useMutation(api.intake.start)
   return async function send(
     files: Array<File>,
-    opts: { accountId?: Id<'accounts'>; oneEach?: boolean } = {},
+    opts: {
+      accountId?: Id<'accounts'>
+      oneEach?: boolean
+      /** His words about a screenshot, for the reader. */
+      hint?: string
+    } = {},
   ): Promise<Array<Id<'intakes'>>> {
     if (files.length === 0) return []
     if (files.length > MAX_INTAKE_FILES) {
@@ -120,7 +125,11 @@ export function useIntakeUpload() {
     const groups = opts.oneEach ? stored.map((f) => [f]) : [stored]
     const ids: Array<Id<'intakes'>> = []
     for (const g of groups) {
-      const result = await start({ accountId: opts.accountId, files: g })
+      const result = await start({
+        accountId: opts.accountId,
+        hint: opts.hint,
+        files: g,
+      })
       if (!result.ok) throw new Error(result.error)
       ids.push(result.intakeId)
     }

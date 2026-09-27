@@ -71,6 +71,8 @@ async function ownedIntake(
 export const start = mutation({
   args: {
     accountId: v.optional(v.id('accounts')),
+    /** What he says it is — optional, offered for screenshots. */
+    hint: v.optional(v.string()),
     files: v.array(
       v.object({
         storageId: v.id('_storage'),
@@ -123,9 +125,11 @@ export const start = mutation({
       ctx,
       args.files.map((f) => f.storageId),
     )
+    const hint = args.hint?.trim().slice(0, MAX_HINT) || undefined
     const base = {
       ownerId,
       accountId: args.accountId,
+      hint,
       storageIds: args.files.map((f) => f.storageId),
       files,
       fingerprint,
@@ -133,21 +137,23 @@ export const start = mutation({
 
     /* The same file again: the first reading, at no cost (27 Sep — every
        test drop of his statement was paying for a second read). */
-    const before = fingerprint
-      ? (
-          await ctx.db
-            .query('intakes')
-            .withIndex('by_owner_fingerprint', (q) =>
-              q.eq('ownerId', ownerId).eq('fingerprint', fingerprint),
-            )
-            .order('desc')
-            .take(10)
-        ).find(
-          (i) =>
-            (i.status === 'ready' || i.status === 'done') &&
-            i.kind !== undefined,
-        )
-      : undefined
+    /* Unless he said what it is: a hint is a request to read it again. */
+    const before =
+      fingerprint && !hint
+        ? (
+            await ctx.db
+              .query('intakes')
+              .withIndex('by_owner_fingerprint', (q) =>
+                q.eq('ownerId', ownerId).eq('fingerprint', fingerprint),
+              )
+              .order('desc')
+              .take(10)
+          ).find(
+            (i) =>
+              (i.status === 'ready' || i.status === 'done') &&
+              i.kind !== undefined,
+          )
+        : undefined
     if (before) {
       const intakeId = await ctx.db.insert('intakes', {
         ...base,
@@ -194,6 +200,8 @@ export const start = mutation({
 })
 
 const HISTORY_TRADES = 8000
+/* A hint is a sentence, not a document. */
+const MAX_HINT = 200
 
 async function fingerprintOf(
   ctx: MutationCtx,
@@ -1154,6 +1162,7 @@ export const forReading = internalQuery({
       files,
       names: (intake.files ?? []).map((f) => f.name),
       accounts,
+      hint: intake.hint ?? null,
     }
   },
 })

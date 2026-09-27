@@ -179,8 +179,15 @@ export function intakePrompt(opts: {
   files: number
   today: string
   accounts: ReadonlyArray<string>
+  /** What the person typed about it, if anything. */
+  hint?: string | null
 }): string {
   return [
+    ...(opts.hint
+      ? [
+          `The person says what it is: "${opts.hint.replace(/"/g, "'")}". Trust it for what the file is and whose it is (institution, kind); it never gives you numbers.`,
+        ]
+      : []),
     `${opts.files === 1 ? 'This is one file' : `These are ${opts.files} files`} a person dropped into their personal finance app. Today is ${opts.today}.`,
     'Decide what it is — what happened to money, or what is held:',
     '  kind = "transactions" — cash moving: a bank or card statement (PDF or CSV), or a screenshot of a transaction history (payments, transfers, top-ups, salary).',

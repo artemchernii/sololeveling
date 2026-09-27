@@ -227,7 +227,7 @@
   .month { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 16px; background: rgba(14,13,26,.62); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(6px) }
   .mhead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap }
   .mhead .caps { flex: 1 }
-  .chart { position: relative; height: 150px; display: grid; grid-template-columns: repeat(30, 1fr); gap: 3px; align-items: stretch }
+  .chart { position: relative; height: 150px; margin-top: 14px; display: grid; grid-template-columns: repeat(30, 1fr); gap: 3px; align-items: stretch }
   .day { position: relative; display: flex; flex-direction: column; cursor: default }
   .day .up, .day .dn { display: flex; } .day .up { flex: var(--up, 1) } .day .dn { flex: var(--dn, 1) }
   .day .up { align-items: flex-end } .day .dn { align-items: flex-start }
@@ -246,58 +246,109 @@
   .chip b { font-weight: 400; color: var(--bad) }
   .chip.inv { border-style: dashed; border-color: color-mix(in oklch, var(--lav-400) 50%, transparent); color: var(--lav-300); background: rgba(181,171,252,.06); cursor: pointer; margin-left: auto }
   .okchip { display:inline-flex; align-items:center; gap:7px; font-family: var(--mono); font-size: 10.5px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; padding: 5px 11px; border-radius: 999px; color: var(--good); background: color-mix(in oklch, var(--good) 16%, transparent); border: 1px solid color-mix(in oklch, var(--good) 60%, transparent); box-shadow: 0 0 18px -4px var(--good) }
+
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+  .day .up i.cap { position: relative; background: repeating-linear-gradient(0deg, var(--good) 0 6px, transparent 6px 8px) }
+  .day .up i.cap::after { content: attr(data-l); position: absolute; left: 50%; bottom: calc(100% + 3px); transform: translateX(-50%); font-family: var(--mono); font-size: 10px; color: var(--good); white-space: nowrap }
+  .quiet { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--mono); font-size: 12px; color: var(--ink-400); text-align: center; pointer-events: none }
+  .invline { position: absolute; inset: 0; pointer-events: none }
+  .accts { display: flex; flex-direction: column; gap: 6px }
+  .acc { display: grid; grid-template-columns: 22px 1fr auto; gap: 9px; align-items: center; font-size: 13px }
+  .acc img, .acc .ini { width: 22px; height: 22px; border-radius: 6px; background: #fff; padding: 2px; object-fit: contain }
+  .acc .ini { display: grid; place-items: center; background: rgba(159,217,180,.14); color: #9fd9b4; font-family: var(--mono); font-size: 11px; padding: 0 }
+  .acc .mono { font-size: 12px; text-align: right }
+  .acc .mono small { display: block; font-size: 10px; color: var(--ink-500) }
+  .chip .g { color: var(--good) } .chip .r { color: var(--bad) }
+  .chip img { width: 16px; height: 16px; border-radius: 4px; background: #fff; padding: 1px }
+  .legend2 { display: flex; gap: 14px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .legend2 i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: middle }
 </style></head>
 <body>
 <div class="wrap">
-  <div class="ctl">mockup · your case today: one account, cash only · sample days summing to your −€316.64</div>
+  <div class="ctl">mockup · sample numbers · pick a situation:
+    <button data-s="quiet">quiet month</button><button data-s="out" class="on">only out (you now)</button><button data-s="salary">salary came in</button><button data-s="invest">with investments</button><button data-s="many">several accounts</button>
+  </div>
   <section class="sys">
     <div class="photo"></div>
     <div class="row between top">
       <span class="sys-title">[ treasury ]</span>
-      <div class="row"><span class="okchip">✓ up to date</span><button class="eye" id="eye">show</button><button class="add"><span class="shine"></span><span class="plus">+</span> add</button></div>
+      <div class="row" id="chipbox"></div>
     </div>
     <div class="one">
-      <div class="lead">
-        <span class="caps">capital · cash · investments</span>
-        <span class="big money">€799.47</span>
-        <div class="row">
-          <span class="pill"><span class="money bad">−€316.64</span><span class="dim" style="font-size:12px">this month</span></span>
-          <span class="pill"><span class="money good">+€0</span><span class="money bad">−€316.64</span><span class="dim" style="font-size:12px">in · out</span></span>
-        </div>
-        <div class="who"><img src="https://www.google.com/s2/favicons?domain=revolut.com&sz=128"><span>Revolut <span class="mono">· statement read today</span></span><button class="upd">update</button></div>
-      </div>
-      <div class="month">
-        <div class="mhead"><span class="caps">september, day by day</span><span class="mono dim" style="font-size:11px">nothing in yet · out, day by day · 3 days left</span></div>
-        <div class="chart" id="chart" style="--up:0;--dn:1"><div class="axis"></div><div class="day" data-d="1" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day" data-d="2" data-v="23.48"><div class="up"></div><div class="dn"><i style="height:45%;animation-delay:18ms"></i></div></div><div class="day" data-d="3" data-v="8.93"><div class="up"></div><div class="dn"><i style="height:17%;animation-delay:36ms"></i></div></div><div class="day" data-d="4" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day" data-d="5" data-v="20.06"><div class="up"></div><div class="dn"><i style="height:38%;animation-delay:72ms"></i></div></div><div class="day" data-d="6" data-v="41.35"><div class="up"></div><div class="dn"><i style="height:79%;animation-delay:90ms"></i></div></div><div class="day" data-d="7" data-v="7.01"><div class="up"></div><div class="dn"><i style="height:13%;animation-delay:108ms"></i></div></div><div class="day" data-d="8" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day" data-d="9" data-v="14.55"><div class="up"></div><div class="dn"><i style="height:28%;animation-delay:144ms"></i></div></div><div class="day" data-d="10" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day" data-d="11" data-v="48.47"><div class="up"></div><div class="dn"><i style="height:93%;animation-delay:180ms"></i></div></div><div class="day" data-d="12" data-v="18.82"><div class="up"></div><div class="dn"><i style="height:36%;animation-delay:198ms"></i></div></div><div class="day" data-d="13" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day" data-d="14" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day" data-d="15" data-v="52.18"><div class="up"></div><div class="dn"><i style="height:100%;animation-delay:252ms"></i></div></div><div class="day" data-d="16" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day" data-d="17" data-v="9.43"><div class="up"></div><div class="dn"><i style="height:18%;animation-delay:288ms"></i></div></div><div class="day" data-d="18" data-v="27.2"><div class="up"></div><div class="dn"><i style="height:52%;animation-delay:306ms"></i></div></div><div class="day" data-d="19" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day" data-d="20" data-v="14.04"><div class="up"></div><div class="dn"><i style="height:27%;animation-delay:342ms"></i></div></div><div class="day" data-d="21" data-v="11.24"><div class="up"></div><div class="dn"><i style="height:22%;animation-delay:360ms"></i></div></div><div class="day" data-d="22" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day" data-d="23" data-v="19.87"><div class="up"></div><div class="dn"><i style="height:38%;animation-delay:396ms"></i></div></div><div class="day" data-d="24" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day" data-d="25" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day" data-d="26" data-v="0.0"><div class="up"></div><div class="dn"></div></div><div class="day today" data-d="27" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day future" data-d="28" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day future" data-d="29" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="day future" data-d="30" data-v="0"><div class="up"></div><div class="dn"></div></div><div class="tip" id="tip"></div></div>
-        <div class="ticks"><span>1</span><span></span><span></span><span></span><span></span><span></span><span></span><span>8</span><span></span><span></span><span></span><span></span><span></span><span></span><span>15</span><span></span><span></span><span></span><span></span><span></span><span></span><span>22</span><span></span><span></span><span></span><span></span><span>27</span><span></span><span></span><span>30</span></div>
-        <div class="went">
-          <span class="chip">groceries <b class="money">€142.10</b></span>
-          <span class="chip">eating out <b class="money">€83.40</b></span>
-          <span class="chip">transport <b class="money">€44.20</b></span>
-          <span class="chip">+4 more</span>
-          <span class="chip inv">+ investments</span>
-        </div>
-      </div>
+      <div class="lead" id="lead"></div>
+      <div class="month" id="month"></div>
     </div>
   </section>
-  <div class="notes">
-    <h3>What changed, and why</h3>
-    <ul>
-      <li>No right-hand column with nothing in it. With one account the hero is one piece: the number on the left, the month drawn across all the rest of the width.</li>
-      <li>The free cash / invested bar is gone while nothing is invested — at 100% it says nothing. It comes back when there are investments to split against.</li>
-      <li>Every day of the month has a slot: red below the line for money out, green above for money in — the line sits where your month needs it (at the top while nothing has come in, so no half-empty chart), the days to come faint, today outlined. Hover a day for its total. From your logged rows only.</li>
-      <li>Where it went: your confirmed categories this month, biggest first. Tap one for its rows.</li>
-      <li>"Up to date" is a word, no logo. Logos appear only on check-in, for what needs updating.</li>
-      <li>Investments are a small "+ investments" at the end, not half the hero saying €0.</li>
-    </ul>
-  </div>
+  <div class="notes" id="notes"></div>
 </div>
 <script>
-document.getElementById('eye').onclick = () => document.body.classList.toggle('veil')
-const tip = document.getElementById('tip'), chart = document.getElementById('chart')
-chart.querySelectorAll('.day').forEach((d) => {
-  d.onmouseenter = () => { const v = +d.dataset.v; tip.textContent = `Sep ${d.dataset.d} · ${v ? '−€' + v.toFixed(2) : d.classList.contains('future') ? 'to come' : 'nothing moved'}`; tip.style.left = (d.offsetLeft + d.offsetWidth / 2) + 'px'; tip.style.top = '0px'; tip.style.opacity = 1 }
-  d.onmouseleave = () => tip.style.opacity = 0
-})
+const L = (d) => `https://www.google.com/s2/favicons?domain=${d}&sz=128`
+const T = (s) => `https://financialmodelingprep.com/image-stock/${s}.png`
+const eur = (n, sign) => (sign && n > 0 ? '+' : n < 0 ? '−' : '') + '€' + Math.abs(n).toLocaleString('en', { minimumFractionDigits: Math.abs(n) < 1000 ? 2 : 0, maximumFractionDigits: Math.abs(n) < 1000 ? 2 : 0 })
+const OUT = { 2: 23.4, 3: 8.9, 5: 19.99, 6: 41.2, 7: 6.99, 9: 14.5, 11: 48.3, 12: 18.75, 15: 52, 17: 9.4, 18: 27.1, 20: 13.99, 21: 11.2, 23: 19.8 }
+const k = 316.64 / Object.values(OUT).reduce((a, b) => a + b); for (const d in OUT) OUT[d] = +(OUT[d] * k).toFixed(2)
+const S = {
+  quiet: { total: 799.47, cash: 799.47, inv: 0, ins: {}, outs: {}, last: -412.3, accounts: 1,
+    went: [], note: 'Nothing moved yet this month. The chart keeps every day’s slot and says so in words — with last month’s total to compare, from your rows.' },
+  out: { total: 799.47, cash: 799.47, inv: 0, ins: {}, outs: OUT, accounts: 1,
+    went: [['groceries', 142.1], ['eating out', 83.4], ['transport', 44.2]], note: 'Only money out: the line sits at the top, bars hang down using the whole height.' },
+  salary: { total: 2939.47, cash: 2939.47, inv: 0, ins: { 1: 2140 }, outs: OUT, accounts: 1,
+    went: [['groceries', 142.1], ['eating out', 83.4], ['transport', 44.2]], note: 'Salary is 7× a big spending day. One scale would flatten every other bar, so it is drawn to the top and broken, with its amount on it — the rest keep their shape. Both halves share one scale below the break.' },
+  invest: { total: 13279.47, cash: 799.47, inv: 12480, pnl: 1906, put: 10574, ins: { 1: 2140 }, outs: OUT, accounts: 2, worth: true,
+    went: [['groceries', 142.1], ['eating out', 83.4]], holds: [['NFLX', 41], ['AMZN', 12], ['UBER', -4]], note: 'With investments: the split bar comes back (it now compares something), profit against what you put in sits by the total, and a lavender line on the month shows what they were worth each night — stored closes, never fetched at render.' },
+  many: { total: 50962, cash: 25568, inv: 25394, pnl: 6714, put: 18680, ins: { 1: 3150 }, outs: Object.fromEntries(Object.entries(OUT).map(([d, v]) => [d, +(v * 6).toFixed(2)])), accounts: 6, worth: true,
+    went: [['rent', 850], ['groceries', 412], ['eating out', 233]], holds: [['NFLX', 41], ['AMZN', 12], ['VUAA', 9]], note: 'Several accounts: the left grows a short list — each account, its balance, how fresh — instead of one line. The month stays the same size: it is the same question.' },
+}
+let cur = 'out'
+function render() {
+  const s = S[cur]
+  const month = Object.values(s.ins).reduce((a, b) => a + b, 0) - Object.values(s.outs).reduce((a, b) => a + b, 0)
+  const inSum = Object.values(s.ins).reduce((a, b) => a + b, 0), outSum = Object.values(s.outs).reduce((a, b) => a + b, 0)
+  document.getElementById('chipbox').innerHTML = `${s.accounts > 3 ? '<span class="checkin">check-in · 2 to update</span>' : '<span class="okchip">✓ up to date</span>'}<button class="eye">show</button><button class="add"><span class="shine"></span><span class="plus">+</span> add</button>`
+  const who = s.accounts > 3
+    ? `<div class="accts">${[['revolut.com', 'Revolut', 15802, 'read 2d ago'], ['bancobpi.pt', 'BPI', 1950, 'typed 3d ago'], ['traderepublic.com', 'Trade Republic', 5180, '<span class="warn">12d ago</span>'], ['trading212.com', 'Trading 212', 23800, 'synced 4 min ago']].map(([d, n, v, f]) => `<div class="acc"><img src="${L(d)}"><span>${n}</span><span class="mono money">€${v.toLocaleString()}<small>${f}</small></span></div>`).join('')}<div class="acc"><span class="ini">€</span><span>Notes</span><span class="mono money">€4,250<small>counted 21d ago</small></span></div></div>`
+    : `<div class="who"><img src="${L('revolut.com')}"><span>Revolut <span class="mono">· ${s.accounts === 2 ? 'bank + broker · ' : ''}read today</span></span><button class="upd">update</button></div>`
+  document.getElementById('lead').innerHTML = `
+    <span class="caps">capital · cash · investments</span>
+    <span class="big money">${eur(s.total)}</span>
+    ${s.pnl ? `<span class="mono" style="font-size:13px"><span class="good money">${eur(s.pnl, true)} · +${(s.pnl / s.put * 100).toFixed(1)}%</span> <span class="dim">on ${eur(s.put)} invested</span></span>` : ''}
+    <div class="row">
+      <span class="pill"><span class="money ${month > 0 ? 'good' : month < 0 ? 'bad' : ''}">${month ? eur(month, true) : '€0'}</span><span class="dim" style="font-size:12px">this month</span></span>
+      ${inSum || outSum ? `<span class="pill"><span class="money good">+${eur(inSum)}</span><span class="money bad">−${eur(outSum)}</span><span class="dim" style="font-size:12px">in · out</span></span>` : ''}
+    </div>
+    ${s.inv ? `<div class="split"><div style="flex:${s.cash};background:var(--money)"></div><div style="flex:${s.inv};background:var(--lav-400)"></div></div><div class="row between mono" style="font-size:12px"><span>● free cash <span class="money">${eur(s.cash)}</span></span><span style="color:var(--lav-300)">● invested <span class="money">${eur(s.inv)}</span></span></div>` : ''}
+    ${who}`
+  const maxOut = Math.max(0, ...Object.values(s.outs)), maxIn = Math.max(0, ...Object.values(s.ins))
+  const capAt = maxOut * 1.6
+  const upScale = maxIn ? Math.min(maxIn, capAt) : 0
+  const days = Array.from({ length: 30 }, (_, i) => {
+    const d = i + 1, o = s.outs[d] || 0, n = s.ins[d] || 0
+    const cls = 'day' + (d > 27 ? ' future' : '') + (d === 27 ? ' today' : '')
+    const up = n ? `<i class="${n > capAt ? 'cap' : ''}" data-l="+${eur(n)}" style="height:${Math.min(n, capAt) / upScale * 100}%;animation-delay:${i * 18}ms"></i>` : ''
+    const dn = o ? `<i style="height:${o / maxOut * 100}%;animation-delay:${i * 18}ms"></i>` : ''
+    return `<div class="${cls}" data-d="${d}" data-o="${o}" data-n="${n}"><div class="up">${up}</div><div class="dn">${dn}</div></div>`
+  }).join('')
+  const upF = upScale ? upScale : 0, dnF = maxOut ? maxOut : (upF ? 0 : 1)
+  const worth = s.worth ? (() => { const pts = Array.from({ length: 27 }, (_, i) => 30 + Math.sin(i / 3) * 8 + i * 0.9 + (i % 5 === 0 ? -4 : 0)); return `<svg class="invline" viewBox="0 0 300 100" preserveAspectRatio="none"><polyline fill="none" stroke="var(--lav-400)" stroke-width="1.6" vector-effect="non-scaling-stroke" points="${pts.map((v, i) => `${(i + 0.5) * 10},${100 - v}`).join(' ')}"/></svg>` })() : ''
+  const ticks = Array.from({ length: 30 }, (_, i) => `<span>${[1, 8, 15, 22, 27, 30].includes(i + 1) ? i + 1 : ''}</span>`).join('')
+  const went = s.went.map(([c, v]) => `<span class="chip">${c} <b class="money">${eur(v)}</b></span>`).join('') + (s.went.length ? '<span class="chip">+4 more</span>' : '')
+  const holds = s.holds ? s.holds.map(([t, p]) => `<span class="chip"><img src="${T(t)}">${t} <span class="${p >= 0 ? 'g' : 'r'}">${p >= 0 ? '+' : '−'}${Math.abs(p)}%</span></span>`).join('') : ''
+  document.getElementById('month').innerHTML = `
+    <div class="mhead"><span class="caps">september, day by day</span>
+      <span class="legend2">${inSum ? '<span><i style="background:var(--good)"></i>in</span>' : ''}${outSum ? '<span><i style="background:var(--bad)"></i>out</span>' : ''}${s.worth ? '<span><i style="background:var(--lav-400)"></i>investments, each night</span>' : ''}<span>3 days left</span></span></div>
+    <div class="chart" id="chart" style="--up:${upF};--dn:${dnF}">${outSum || inSum ? '<div class="axis"></div>' : ''}${days}${worth}${!outSum && !inSum ? `<div class="quiet">nothing moved yet this month<br><span class="dim">August: ${eur(s.last)}</span></div>` : ''}<div class="tip" id="tip"></div></div>
+    <div class="ticks">${ticks}</div>
+    <div class="went">${went}${holds ? `<span class="chip" style="border:0;background:none;padding:0 2px;color:var(--ink-500)">·</span>${holds}` : ''}${s.inv ? '' : `<span class="chip inv">+ investments</span>`}</div>`
+  document.getElementById('notes').innerHTML = `<h3>${document.querySelector(`.ctl button[data-s=${cur}]`).textContent}</h3><p>${s.note}</p>`
+  const tip = document.getElementById('tip')
+  document.querySelectorAll('.day').forEach((d) => {
+    d.onmouseenter = () => { const o = +d.dataset.o, n = +d.dataset.n; tip.textContent = `Sep ${d.dataset.d} · ${[n ? '+' + eur(n) : '', o ? '−' + eur(o) : ''].filter(Boolean).join(' ') || (d.classList.contains('future') ? 'to come' : 'nothing moved')}`; tip.style.left = (d.offsetLeft + d.offsetWidth / 2) + 'px'; tip.style.top = '0px'; tip.style.opacity = 1 }
+    d.onmouseleave = () => tip.style.opacity = 0
+  })
+}
+document.querySelectorAll('.ctl button').forEach((b) => b.onclick = () => { cur = b.dataset.s; document.querySelectorAll('.ctl button').forEach((x) => x.classList.toggle('on', x === b)); render() })
+document.addEventListener('click', (e) => { if (e.target.classList.contains('eye')) document.body.classList.toggle('veil') })
+render()
 </script>
 </body></html>

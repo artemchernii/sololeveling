@@ -548,6 +548,10 @@ export default defineSchema({
         raw: v.optional(v.string()),
         intakeId: v.optional(v.id('intakes')),
         otherAccountId: v.optional(v.id('accounts')),
+        /* A transfer is two rows, one in each of his accounts (27 Sep): the
+           arriving side names the leaving side here, so the pair is seen,
+           matched and removed as one. */
+        pairOf: v.optional(v.id('logs')),
       }),
     ),
   })
@@ -621,6 +625,17 @@ export default defineSchema({
     /* The site its logo comes from ("revolut.com"). Optional: an account
        without one shows its initial. */
     domain: v.optional(v.string()),
+    /* Which bank or broker it is at, from the catalogue in
+       src/lib/institutions.ts ("revolut"). Revolut's current account and its
+       Invest account are two accounts of one institution (27 Sep), so cash
+       into Invest is an ordinary transfer. Absent on one he named himself. */
+    institution: v.optional(v.string()),
+    /* The last four digits of its IBAN and of its cards, as printed on a
+       statement — how a transfer's other side is recognised as his own
+       account ("PT50…0120" is BPI) and how a dropped statement finds which
+       account it is. */
+    ibanTails: v.optional(v.array(v.string())),
+    cardTails: v.optional(v.array(v.string())),
     order: v.number(),
     /* Gone from the lists; its readings and trades stay, because they
        happened. */
@@ -678,6 +693,11 @@ export default defineSchema({
     /* Brought in from a screenshot rather than typed: what he held on the
        day of the import, at his average price. */
     importId: v.optional(v.id('intakes')),
+    /* What he already held when the app first saw the account — a first
+       holdings screenshot. It has no cash side: the money left long before.
+       Every other buy takes its cost out of the broker's cash, and every
+       sell puts it back (aggregate.ts, readBalances). */
+    opening: v.optional(v.boolean()),
   })
     .index('by_owner_time', ['ownerId', 'occurredAt'])
     .index('by_owner_instrument', ['ownerId', 'instrumentId'])

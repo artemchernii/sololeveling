@@ -7,6 +7,7 @@ import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import schema from './schema'
 import { isCurrency } from '../src/lib/currency'
+import { productById } from '../src/lib/institutions'
 
 /* Where his money sits (Finances F2, 26 Sep; reworked 27 Sep for the
    Treasury). An account is his — added, edited, deleted from the page —
@@ -87,6 +88,27 @@ function cleanDomain(domain: string | undefined): string | undefined {
   return d
 }
 
+/* "0120", "•• 2789" → "0120": four digits, at most four of each. */
+function cleanTails(tails: Array<string> | undefined): Array<string> {
+  const out = [
+    ...new Set((tails ?? []).map((t) => t.replace(/\D/g, '')).filter(Boolean)),
+  ]
+  for (const t of out) {
+    if (t.length !== 4) {
+      throw new ConvexError('An ending is the last four digits — like 0120.')
+    }
+  }
+  if (out.length > 4) throw new ConvexError('Four endings is plenty.')
+  return out
+}
+
+function cleanInstitution(id: string | undefined): string | undefined {
+  if (id === undefined) return undefined
+  const product = productById(id)
+  if (!product) throw new ConvexError('That bank is not one the app knows.')
+  return product.institution
+}
+
 async function ownAccounts(ctx: QueryCtx | MutationCtx, ownerId: string) {
   return await ctx.db
     .query('accounts')
@@ -126,6 +148,10 @@ const fields = {
   kinds: v.array(kind),
   currencies: v.array(v.string()),
   domain: v.optional(v.string()),
+  /** A product id from src/lib/institutions.ts ('revolut-invest'). */
+  product: v.optional(v.string()),
+  ibanTails: v.optional(v.array(v.string())),
+  cardTails: v.optional(v.array(v.string())),
 }
 
 export const create = mutation({
@@ -155,6 +181,9 @@ export const create = mutation({
       kinds: cleanKinds(args.kinds),
       currencies,
       domain: cleanDomain(args.domain),
+      institution: cleanInstitution(args.product),
+      ibanTails: cleanTails(args.ibanTails),
+      cardTails: cleanTails(args.cardTails),
       order,
     })
     await readRatesFor(ctx, ownerId, currencies)
@@ -188,6 +217,18 @@ export const update = mutation({
       kinds: cleanKinds(args.kinds),
       currencies,
       domain: cleanDomain(args.domain),
+      institution:
+        args.product === undefined
+          ? account.institution
+          : cleanInstitution(args.product),
+      ibanTails:
+        args.ibanTails === undefined
+          ? account.ibanTails
+          : cleanTails(args.ibanTails),
+      cardTails:
+        args.cardTails === undefined
+          ? account.cardTails
+          : cleanTails(args.cardTails),
     })
     await readRatesFor(
       ctx,
@@ -202,6 +243,11 @@ export const update = mutation({
  * One balance reading — typed, or read off a statement or a screenshot. A
  * reading already written today for the same currency is replaced, like a
  * weigh-in, so a corrected typo leaves no false point on the line.
+ *
+ * `asOf` is the moment the number is true at: now for one he typed, the
+ * end of the closing day for a statement. Money that moved after it is
+ * added on top (aggregate.ts, readBalances); money before it is already in
+ * it. A reading as of an earlier day replaces only that day's readings.
  */
 export async function writeBalance(
   ctx: MutationCtx,
@@ -210,6 +256,7 @@ export async function writeBalance(
   currency: string,
   value: number,
   dayStart: number,
+  asOf?: number,
 ) {
   if (!account.currencies.includes(currency)) {
     throw new ConvexError(`${account.name} does not hold ${currency}.`)
@@ -217,22 +264,39 @@ export async function writeBalance(
   if (!Number.isFinite(value) || Math.abs(value) > 1e10) {
     throw new ConvexError('That is not an amount.')
   }
+  const now = Date.now()
+  const at = asOf === undefined ? now : Math.min(asOf, now)
+  /* The day the reading is for: today's local midnight from the client, or
+     the midnight before an earlier as-of (a day is at most 25 hours). */
+  const from = at >= dayStart ? dayStart : startOfDayNear(at, dayStart)
   const key = balanceKey(account._id, currency)
-  const today = await ctx.db
+  const sameDay = await ctx.db
     .query('stateSnapshots')
     .withIndex('by_owner_key_time', (q) =>
-      q.eq('ownerId', ownerId).eq('key', key).gte('recordedAt', dayStart),
+      q
+        .eq('ownerId', ownerId)
+        .eq('key', key)
+        .gte('recordedAt', from)
+        .lt('recordedAt', from + 86_400_000),
     )
     .take(20)
-  for (const row of today) await ctx.db.delete(row._id)
+  for (const row of sameDay) await ctx.db.delete(row._id)
   await ctx.db.insert('stateSnapshots', {
     ownerId,
     area: 'money',
     key,
     value: Math.round(value * 100) / 100,
     unit: currency.toLowerCase(),
-    recordedAt: Date.now(),
+    recordedAt: at,
   })
+}
+
+/* Local midnight of an earlier moment, from today's local midnight: whole
+   days back, so it holds across the server's own time zone. */
+function startOfDayNear(at: number, dayStart: number): number {
+  const days = Math.ceil((dayStart - at) / 86_400_000)
+  const guess = dayStart - days * 86_400_000
+  return guess > at ? guess - 86_400_000 : guess
 }
 
 /** What one currency of the account holds now, as he read it. */
@@ -244,6 +308,8 @@ export const setBalance = mutation({
     /** Local midnight today, from the client — the server does not know
         where "today" starts for him. */
     dayStart: v.number(),
+    /** When it was true, if not now — "as of Sep 25". */
+    asOf: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -256,6 +322,7 @@ export const setBalance = mutation({
       args.currency,
       args.value,
       args.dayStart,
+      args.asOf,
     )
     return null
   },

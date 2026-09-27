@@ -3,6 +3,8 @@ import { ConvexError, v } from 'convex/values'
 import { requireUser } from './auth'
 import { ownedAccount, writeBalance } from './accounts'
 import { checkTrade, upsertInstrument } from './invest'
+import { transferPair } from './logs'
+import { writeTransfer } from './money'
 import { internal } from './_generated/api'
 import {
   internalMutation,
@@ -10,6 +12,7 @@ import {
   mutation,
   query,
 } from './_generated/server'
+import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import schema from './schema'
 import {
@@ -36,6 +39,7 @@ import { dueDay } from '../src/lib/bills'
 
 const MAX_TRADES = 2000
 const HISTORY_ROWS = 3000
+const DAY_MS = 86_400_000
 
 const candidate = v.object({
   symbol: v.string(),
@@ -246,6 +250,24 @@ export const review = query({
       merchant: l.meta?.merchant ?? l.text ?? '',
     }))
     const dups = findDuplicates(read, existingRows)
+    /* A transfer is the same transfer whatever each bank calls it — "To
+       Trade Republic" here, "Revolut → TR" typed, "Top up" on the other
+       side: its own money moving is matched by amount and days alone. */
+    const taken = new Set(dups.filter((d): d is number => d !== null))
+    for (const [i, r] of read.entries()) {
+      if (dups[i] !== null || !r.self) continue
+      const j = existing.findIndex(
+        (l, k) =>
+          !taken.has(k) &&
+          l.kind === 'move' &&
+          Math.abs((l.value ?? 0) - r.amount) < 0.005 &&
+          Math.abs(l.occurredAt - r.occurredAt) <= 2 * DAY_MS + 3_600_000,
+      )
+      if (j >= 0) {
+        dups[i] = j
+        taken.add(j)
+      }
+    }
 
     const rules = new Map<string, string>()
     for (const key of new Set(read.map((r) => merchantKey(r.merchant)))) {
@@ -377,6 +399,37 @@ export const review = query({
 })
 
 /**
+ * A transfer already in another of his accounts that this row is the other
+ * side of: a move of `amount` (signed as that account sees it) within two
+ * days, with no side paired to it yet.
+ */
+async function openSide(
+  ctx: MutationCtx,
+  ownerId: string,
+  accountId: Id<'accounts'>,
+  amount: number,
+  occurredAt: number,
+): Promise<Doc<'logs'> | null> {
+  const near = await ctx.db
+    .query('logs')
+    .withIndex('by_owner_account_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('accountId', accountId)
+        .gte('occurredAt', occurredAt - 2 * DAY_MS - 3_600_000)
+        .lte('occurredAt', occurredAt + 2 * DAY_MS + 3_600_000),
+    )
+    .take(200)
+  for (const l of near) {
+    if (l.kind !== 'move' || Math.abs((l.value ?? 0) - amount) > 0.005) continue
+    if (l.meta?.pairOf !== undefined) continue
+    if ((await transferPair(ctx, ownerId, l)) !== null) continue
+    return l
+  }
+  return null
+}
+
+/**
  * He checked the list. Each kept row becomes one log in the account: a
  * spend (expense), money in (income), or a move to or from another of his
  * accounts (never counted as either). Pending and duplicate rows are not
@@ -438,18 +491,47 @@ export const confirmTransactions = mutation({
         accountId: account._id,
       }
       if (row.kind === 'move') {
-        /* Signed: out of this account is negative. */
-        await ctx.db.insert('logs', {
-          ...base,
-          kind: 'move',
-          value: r.amount,
-          meta: {
-            merchant: r.merchant,
+        const other = row.otherAccountId
+          ? await ownedAccount(ctx, ownerId, row.otherAccountId)
+          : null
+        /* Both sides, unless the other account already has this transfer
+           (its own statement came first) — then only this side, paired to
+           it. An account that does not hold the currency gets no side. */
+        const waiting =
+          other === null || other._id === account._id
+            ? null
+            : await openSide(ctx, ownerId, other._id, -r.amount, r.occurredAt)
+        if (
+          other !== null &&
+          other._id !== account._id &&
+          waiting === null &&
+          other.currencies.includes(r.currency)
+        ) {
+          await writeTransfer(ctx, ownerId, {
+            from: r.amount < 0 ? account : other,
+            to: r.amount < 0 ? other : account,
+            amount: Math.abs(r.amount),
+            currency: r.currency,
+            occurredAt: r.occurredAt,
+            text: r.merchant,
             raw: r.raw,
             intakeId: intake._id,
-            otherAccountId: row.otherAccountId,
-          },
-        })
+          })
+        } else {
+          /* Signed: out of this account is negative. */
+          await ctx.db.insert('logs', {
+            ...base,
+            kind: 'move',
+            value: r.amount,
+            meta: {
+              merchant: r.merchant,
+              raw: r.raw,
+              intakeId: intake._id,
+              otherAccountId: row.otherAccountId,
+              pairOf: waiting?._id,
+            },
+          })
+        }
       } else {
         await ctx.db.insert('logs', {
           ...base,
@@ -486,6 +568,7 @@ export const confirmTransactions = mutation({
       written++
     }
     if (args.keepBalance && intake.balance) {
+      /* A statement's balance is true at the end of its closing day. */
       await writeBalance(
         ctx,
         ownerId,
@@ -493,6 +576,7 @@ export const confirmTransactions = mutation({
         intake.balance.currency,
         intake.balance.value,
         args.dayStart,
+        intake.balance.asOf + 12 * 3_600_000 - 1,
       )
     }
     for (const id of intake.storageIds) await ctx.storage.delete(id)

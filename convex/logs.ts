@@ -6,7 +6,7 @@ import { requireUser } from './auth'
 import { requireLiveArea } from './areas'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
-import type { Id } from './_generated/dataModel'
+import type { Doc, Id } from './_generated/dataModel'
 import schema, { areaSlug } from './schema'
 
 /* Quick capture lands here (PLAN.md §3). A log is evidence: something that
@@ -475,7 +475,39 @@ async function removeOwnedLog(
     }
   }
 
+  /* A transfer is two rows, one per account (27 Sep): removing either
+     side removes the pair, or a balance keeps half a transfer. */
+  if (log.kind === 'move') {
+    const other = await transferPair(ctx, ownerId, log)
+    if (other !== null) await ctx.db.delete(other._id)
+  }
+
   /* A Vault sheet outlives its session, "not linked" (R7a). */
   await unlinkSheets(ctx, ownerId, logId)
   await ctx.db.delete(logId)
+}
+
+/** The other side of a transfer — written at the same moment, in the
+    other account, one naming the other through `pairOf`. */
+export async function transferPair(
+  ctx: MutationCtx,
+  ownerId: string,
+  log: Doc<'logs'>,
+): Promise<Doc<'logs'> | null> {
+  if (log.meta?.pairOf !== undefined) {
+    const first = await ctx.db.get(log.meta.pairOf)
+    return first !== null && first.ownerId === ownerId ? first : null
+  }
+  const otherId = log.meta?.otherAccountId
+  if (otherId === undefined) return null
+  const same = await ctx.db
+    .query('logs')
+    .withIndex('by_owner_account_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('accountId', otherId)
+        .eq('occurredAt', log.occurredAt),
+    )
+    .take(20)
+  return same.find((l) => l.meta?.pairOf === log._id) ?? null
 }

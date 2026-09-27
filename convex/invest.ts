@@ -66,7 +66,7 @@ export function checkTrade(shares: number, priceEur: number) {
   }
 }
 
-async function heldShares(
+export async function heldShares(
   ctx: MutationCtx,
   ownerId: string,
   accountId: Id<'accounts'>,

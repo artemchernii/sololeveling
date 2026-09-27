@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
-import { useAction, useMutation } from 'convex/react'
+import { useState } from 'react'
+import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Check, Loader2, Plus, Search, X } from 'lucide-react'
+import { X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import type { Id } from '../../../convex/_generated/dataModel'
 import {
-  FIELD,
   PILL_LOUD,
   PILL_QUIET,
   Panel,
@@ -14,9 +13,7 @@ import {
 } from '@/components/finances/bits'
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
-import { Sparks } from '@/components/track/Sparks'
 import { useDayStarts } from '@/components/track/useDayStarts'
-import type { Candidate } from '@/lib/market'
 import { euros } from '@/lib/money'
 import { SkeletonRows } from '@/components/Skeleton'
 
@@ -30,13 +27,12 @@ const DATE = new Intl.DateTimeFormat(undefined, {
    close with their profit in green or red, what he paid for them, and its
    free cash — then every position with its line. Positions come in by the
    batch from a broker screenshot (+ → drop files); a single buy or sell
-   can still be typed here. Profit is value against what he paid: allowed
+   is a typed line on + ("bought 3 msft 402 tr"). Profit is value against what he paid: allowed
    in Finances since 26 Sep (pick D). */
 export function Portfolio() {
   const data = useQuery(api.aggregate.positions, {})
   const worth = useQuery(api.aggregate.worth, {})
   const accounts = useQuery(api.accounts.list, {})
-  const [adding, setAdding] = useState(false)
   const [filter, setFilter] = useState<Id<'accounts'> | 'all'>('all')
 
   if (data === undefined || accounts === undefined || worth === undefined) {
@@ -57,22 +53,7 @@ export function Portfolio() {
 
   return (
     <div className="flex flex-col gap-3">
-      <Panel
-        title="shares · all brokers"
-        aside={
-          <button
-            type="button"
-            onClick={() => setAdding((a) => !a)}
-            className={adding ? PILL_LOUD : PILL_QUIET}
-          >
-            {adding ? <X className="size-3" /> : <Plus className="size-3" />}
-            buy / sell
-          </button>
-        }
-      >
-        {adding && accounts.length > 0 ? (
-          <AddTrade accounts={accounts} onDone={() => setAdding(false)} />
-        ) : null}
+      <Panel title="shares · all brokers">
         {data.rows.length === 0 ? (
           <p className="py-4 text-center text-[13.5px] text-ink-400">
             No positions yet. Press + and drop a screenshot of your
@@ -350,7 +331,7 @@ function Trades({
             </Veiled>
             {t.importId ? (
               <span className="ml-2 font-mono text-[10px] text-ink-600">
-                from screenshot
+                {t.opening ? 'held when first read' : 'from screenshot'}
               </span>
             ) : null}
           </span>
@@ -367,241 +348,6 @@ function Trades({
           </button>
         </div>
       ))}
-    </div>
-  )
-}
-
-/* Type "tsla" or an ISIN; pick what the market calls it. */
-function TickerSearch({
-  initial = '',
-  onPick,
-}: {
-  initial?: string
-  onPick: (c: Candidate) => void
-}) {
-  const search = useAction(api.market.search)
-  const [q, setQ] = useState(initial)
-  const [results, setResults] = useState<Array<Candidate> | null>(null)
-  const [busy, setBusy] = useState(false)
-  const seq = useRef(0)
-
-  useEffect(() => {
-    const term = q.trim()
-    if (term.length < 2) {
-      setResults(null)
-      return
-    }
-    const mine = ++seq.current
-    setBusy(true)
-    const timer = setTimeout(() => {
-      search({ q: term })
-        .then((r) => {
-          if (mine === seq.current) setResults(r)
-        })
-        .catch(() => {
-          if (mine === seq.current) setResults([])
-        })
-        .finally(() => {
-          if (mine === seq.current) setBusy(false)
-        })
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [q, search])
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className={`${FIELD} flex items-center gap-2`}>
-        {busy ? (
-          <Loader2 className="size-4 animate-spin text-lav-400" />
-        ) : (
-          <Search className="size-4 text-ink-500" />
-        )}
-        <input
-          autoFocus
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="tsla, vwce, an ISIN…"
-          aria-label="Find a ticker"
-          className="w-full bg-transparent focus:outline-none"
-        />
-      </label>
-      {results !== null ? (
-        results.length === 0 ? (
-          <span className="px-1 font-mono text-[11px] text-ink-500">
-            nothing found
-          </span>
-        ) : (
-          <div className="flex flex-col">
-            {results.map((c) => (
-              <button
-                key={c.symbol}
-                type="button"
-                onClick={() => onPick(c)}
-                className="motion-press flex items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left hover:bg-lav-400/10"
-              >
-                <span className="w-20 shrink-0 font-mono text-[12px] text-area">
-                  {c.symbol}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[13px] text-ink-100">
-                  {c.name}
-                </span>
-                <span className="font-mono text-[10.5px] text-ink-500">
-                  {c.exchange} · {c.type.toLowerCase()}
-                </span>
-              </button>
-            ))}
-          </div>
-        )
-      ) : null}
-    </div>
-  )
-}
-
-function AccountPick({
-  accounts,
-  value,
-  onChange,
-}: {
-  accounts: Array<Doc<'accounts'>>
-  value: Id<'accounts'>
-  onChange: (id: Id<'accounts'>) => void
-}) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {accounts.map((a) => (
-        <button
-          key={a._id}
-          type="button"
-          aria-pressed={value === a._id}
-          onClick={() => onChange(a._id)}
-          className={value === a._id ? PILL_LOUD : PILL_QUIET}
-        >
-          {a.name}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function AddTrade({
-  accounts,
-  onDone,
-}: {
-  accounts: Array<Doc<'accounts'>>
-  onDone: () => void
-}) {
-  const add = useMutation(api.invest.addTrade)
-  const [accountId, setAccountId] = useState(accounts[0]._id)
-  const [ticker, setTicker] = useState<Candidate | null>(null)
-  const [side, setSide] = useState<'buy' | 'sell'>('buy')
-  const [shares, setShares] = useState('')
-  const [price, setPrice] = useState('')
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [error, setError] = useState<string | null>(null)
-  const [burst, setBurst] = useState(0)
-
-  async function save() {
-    if (ticker === null) return
-    const at = new Date(`${date}T12:00:00`).getTime()
-    try {
-      await add({
-        accountId,
-        candidate: ticker,
-        side,
-        shares: Number(shares.replace(',', '.')),
-        priceEur: Number(price.replace(',', '.')),
-        occurredAt: Math.min(at, Date.now()),
-      })
-      setBurst((b) => b + 1)
-      setTimeout(onDone, 500)
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message.replace(/^.*: /, '').split('\n')[0]
-          : 'Not saved',
-      )
-    }
-  }
-
-  return (
-    <div className="motion-arrive flex flex-col gap-2.5 rounded-[14px] bg-lav-400/6 p-3 ring-1 ring-lav-400/25 ring-inset">
-      <AccountPick
-        accounts={accounts}
-        value={accountId}
-        onChange={setAccountId}
-      />
-      {ticker === null ? (
-        <TickerSearch onPick={setTicker} />
-      ) : (
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[13px] text-area">
-            {ticker.symbol}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-[13px] text-ink-200">
-            {ticker.name}
-          </span>
-          <button
-            type="button"
-            onClick={() => setTicker(null)}
-            className={PILL_QUIET}
-          >
-            change
-          </button>
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        {(['buy', 'sell'] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            aria-pressed={side === s}
-            onClick={() => setSide(s)}
-            className={side === s ? PILL_LOUD : PILL_QUIET}
-          >
-            {s}
-          </button>
-        ))}
-        <input
-          inputMode="decimal"
-          value={shares}
-          onChange={(e) => setShares(e.target.value)}
-          placeholder="shares"
-          aria-label="Shares"
-          className={`${FIELD} w-24`}
-        />
-        <label className={`${FIELD} inline-flex w-36 items-center gap-1`}>
-          <span className="text-ink-400">€</span>
-          <input
-            inputMode="decimal"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="per share"
-            aria-label="Price per share in euros"
-            className="w-full bg-transparent focus:outline-none"
-          />
-        </label>
-        <input
-          type="date"
-          value={date}
-          max={new Date().toISOString().slice(0, 10)}
-          onChange={(e) => setDate(e.target.value)}
-          aria-label="Date"
-          className={FIELD}
-        />
-        <button
-          type="button"
-          disabled={ticker === null}
-          onClick={() => void save()}
-          className={`relative ${PILL_LOUD} disabled:opacity-40`}
-        >
-          <Check className="size-3" />
-          save
-          {burst > 0 ? <Sparks key={burst} count={12} reach={34} /> : null}
-        </button>
-      </div>
-      {error ? (
-        <span className="font-mono text-[11px] text-state-warn">{error}</span>
-      ) : null}
     </div>
   )
 }

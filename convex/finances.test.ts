@@ -1163,99 +1163,402 @@ describe('intake: holdings', () => {
   })
 })
 
-describe('log something that matters', () => {
-  test('a transfer is a move, never spending or income; money out and in are', async () => {
-    const { me } = setup()
+describe('adding money — typed lines', () => {
+  async function two(me: ReturnType<typeof setup>['me']) {
     const bpi = await me.mutation(api.accounts.create, {
       name: 'BPI',
       kinds: ['bank'],
       currencies: ['EUR'],
     })
-    const rev = await me.mutation(api.accounts.create, {
-      name: 'Revolut',
-      kinds: ['bank'],
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'Trade Republic',
+      kinds: ['broker'],
       currencies: ['EUR'],
     })
-    const now = Date.now()
-    await me.mutation(api.money.logMove, {
-      fromAccountId: bpi,
-      toAccountId: rev,
-      amount: 4400,
-      currency: 'EUR',
-      occurredAt: now,
+    for (const id of [bpi, tr]) {
+      await me.mutation(api.accounts.setBalance, {
+        accountId: id,
+        currency: 'EUR',
+        value: 1000,
+        dayStart: TODAY,
+      })
+    }
+    return { bpi, tr }
+  }
+  const later = () => Date.now() + 60_000
+
+  test('a transfer moves both balances and is neither spending nor income', async () => {
+    const { t, me } = setup()
+    const { bpi, tr } = await two(me)
+    vi.setSystemTime(later())
+    await me.mutation(api.money.record, {
+      lines: [
+        {
+          kind: 'transfer',
+          fromAccountId: bpi,
+          toAccountId: tr,
+          amount: 400,
+          currency: 'EUR',
+          occurredAt: Date.now(),
+        },
+        {
+          kind: 'out',
+          accountId: bpi,
+          amount: 120,
+          currency: 'EUR',
+          category: 'shopping',
+          note: 'boots',
+          occurredAt: Date.now(),
+        },
+        {
+          kind: 'in',
+          accountId: bpi,
+          amount: 350,
+          currency: 'EUR',
+          category: 'irs return',
+          occurredAt: Date.now(),
+        },
+      ],
     })
-    await me.mutation(api.money.logOut, {
-      accountId: rev,
-      amount: 1200,
-      currency: 'EUR',
-      category: 'Tech',
-      occurredAt: now,
-      note: 'laptop',
+    const b = await me.query(api.aggregate.balances, {})
+    const pocket = (id: Id<'accounts'>) =>
+      b.accounts.find((a) => a.accountId === id)?.pockets[0]
+    expect(pocket(bpi)).toMatchObject({
+      read: 1000,
+      value: 830,
+      moved: -170,
+      movedRows: 3,
     })
-    await me.mutation(api.money.logIn, {
-      accountId: bpi,
-      amount: 350,
-      currency: 'EUR',
-      category: 'IRS return',
-      occurredAt: now,
-    })
+    expect(pocket(tr)).toMatchObject({ read: 1000, value: 1400, movedRows: 1 })
     const sums = await me.query(api.aggregate.moneySums, {
       start: TODAY,
       end: TODAY + 86_400_000,
     })
     expect([sums.out, sums.in]).toEqual([
-      { sum: 1200, count: 1 },
+      { sum: 120, count: 1 },
       { sum: 350, count: 1 },
     ])
+    /* Removing one side removes the pair. */
+    const moves = await t.run((ctx) =>
+      ctx.db
+        .query('logs')
+        .filter((q) => q.eq(q.field('kind'), 'move'))
+        .collect(),
+    )
+    expect(moves).toHaveLength(2)
+    await me.mutation(api.logs.remove, { logId: moves[1]._id })
+    const after = await me.query(api.aggregate.balances, {})
+    expect(after.accounts.map((a) => a.pockets[0].value)).toEqual([1230, 1000])
   })
 
-  test('refuses the same account twice, a currency it does not hold, the future, another owner', async () => {
+  test('a buy takes its cost out of the broker cash; a sell puts it back', async () => {
+    const { me } = setup()
+    const { tr } = await two(me)
+    vi.setSystemTime(later())
+    await me.mutation(api.money.record, {
+      lines: [
+        {
+          kind: 'buy',
+          accountId: tr,
+          candidate: TSLA,
+          shares: 2,
+          price: 300,
+          priceCurrency: 'EUR',
+          occurredAt: Date.now(),
+        },
+      ],
+    })
+    await me.mutation(api.money.record, {
+      lines: [
+        {
+          kind: 'sell',
+          accountId: tr,
+          candidate: TSLA,
+          shares: 1,
+          price: 350,
+          priceCurrency: 'EUR',
+          occurredAt: Date.now(),
+        },
+      ],
+    })
+    const b = await me.query(api.aggregate.balances, {})
+    expect(b.accounts[1].pockets[0]).toMatchObject({ value: 750, movedRows: 2 })
+  })
+
+  test('a reading after the movements resets the pocket — the reading wins', async () => {
+    const { me } = setup()
+    const { bpi, tr } = await two(me)
+    vi.setSystemTime(later())
+    await me.mutation(api.money.record, {
+      lines: [
+        {
+          kind: 'transfer',
+          fromAccountId: bpi,
+          toAccountId: tr,
+          amount: 400,
+          currency: 'EUR',
+          occurredAt: Date.now(),
+        },
+      ],
+    })
+    vi.setSystemTime(later())
+    await me.mutation(api.accounts.setBalance, {
+      accountId: bpi,
+      currency: 'EUR',
+      value: 555,
+      dayStart: TODAY,
+    })
+    const b = await me.query(api.aggregate.balances, {})
+    expect(b.accounts[0].pockets[0]).toMatchObject({ value: 555, moved: 0 })
+  })
+
+  test('refuses the same account twice, a currency it does not hold, selling what is not held, the future, another owner', async () => {
     const { me, them } = setup()
-    const a = await me.mutation(api.accounts.create, {
-      name: 'A',
-      kinds: ['bank'],
-      currencies: ['EUR'],
-    })
-    const b = await me.mutation(api.accounts.create, {
-      name: 'B',
-      kinds: ['bank'],
-      currencies: ['EUR'],
-    })
+    const { bpi, tr } = await two(me)
     const theirs = await them.mutation(api.accounts.create, {
       name: 'X',
       kinds: ['bank'],
       currencies: ['EUR'],
     })
-    const base = { amount: 1, currency: 'EUR', occurredAt: Date.now() }
+    const move = {
+      kind: 'transfer' as const,
+      amount: 1,
+      currency: 'EUR',
+      occurredAt: Date.now(),
+    }
     await expect(
-      me.mutation(api.money.logMove, {
-        ...base,
-        fromAccountId: a,
-        toAccountId: a,
+      me.mutation(api.money.record, {
+        lines: [{ ...move, fromAccountId: bpi, toAccountId: bpi }],
       }),
     ).rejects.toThrow('same account')
     await expect(
-      me.mutation(api.money.logMove, {
-        ...base,
-        currency: 'USD',
-        fromAccountId: a,
-        toAccountId: b,
+      me.mutation(api.money.record, {
+        lines: [
+          { ...move, currency: 'USD', fromAccountId: bpi, toAccountId: tr },
+        ],
       }),
     ).rejects.toThrow('does not hold USD')
     await expect(
-      me.mutation(api.money.logOut, {
-        ...base,
-        accountId: a,
-        category: 'x',
-        occurredAt: Date.now() + 86_400_000,
+      me.mutation(api.money.record, {
+        lines: [
+          {
+            kind: 'sell',
+            accountId: tr,
+            candidate: TSLA,
+            shares: 1,
+            price: 1,
+            priceCurrency: 'EUR',
+            occurredAt: Date.now(),
+          },
+        ],
+      }),
+    ).rejects.toThrow('holds only 0')
+    await expect(
+      me.mutation(api.money.record, {
+        lines: [
+          {
+            kind: 'buy',
+            accountId: bpi,
+            candidate: TSLA,
+            shares: 1,
+            price: 1,
+            priceCurrency: 'EUR',
+            occurredAt: Date.now(),
+          },
+        ],
+      }),
+    ).rejects.toThrow('not a broker')
+    await expect(
+      me.mutation(api.money.record, {
+        lines: [
+          {
+            kind: 'out',
+            accountId: bpi,
+            amount: 1,
+            currency: 'EUR',
+            category: 'x',
+            occurredAt: Date.now() + 86_400_000,
+          },
+        ],
       }),
     ).rejects.toThrow('happened')
     await expect(
-      me.mutation(api.money.logIn, {
-        ...base,
-        accountId: theirs,
-        category: 'gift',
+      me.mutation(api.money.record, {
+        lines: [
+          {
+            kind: 'in',
+            accountId: theirs,
+            amount: 1,
+            currency: 'EUR',
+            category: 'gift',
+            occurredAt: Date.now(),
+          },
+        ],
       }),
     ).rejects.toThrow('No such account')
+    /* All or nothing: the refused call wrote no half of itself. */
+    const b = await me.query(api.aggregate.balances, {})
+    expect(b.accounts.map((a) => a.pockets[0].movedRows)).toEqual([0, 0])
+  })
+
+  test('an account knows its bank and its IBAN and card endings', async () => {
+    const { me } = setup()
+    const id = await me.mutation(api.accounts.create, {
+      name: 'Revolut Invest',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+      product: 'revolut-invest',
+      ibanTails: ['0120'],
+      cardTails: ['•• 2789'],
+    })
+    const [a] = await me.query(api.accounts.list, {})
+    expect(a).toMatchObject({
+      _id: id,
+      institution: 'revolut',
+      ibanTails: ['0120'],
+      cardTails: ['2789'],
+    })
+    await expect(
+      me.mutation(api.accounts.create, {
+        name: 'Y',
+        kinds: ['bank'],
+        currencies: ['EUR'],
+        ibanTails: ['12'],
+      }),
+    ).rejects.toThrow('last four digits')
+    await expect(
+      me.mutation(api.accounts.create, {
+        name: 'Z',
+        kinds: ['bank'],
+        currencies: ['EUR'],
+        product: 'nope',
+      }),
+    ).rejects.toThrow('not one the app knows')
+  })
+
+  test('a balance typed as of an earlier day counts what moved after it', async () => {
+    const { me } = setup()
+    const { bpi } = await two(me)
+    vi.setSystemTime(later())
+    await me.mutation(api.money.record, {
+      lines: [
+        {
+          kind: 'out',
+          accountId: bpi,
+          amount: 50,
+          currency: 'EUR',
+          category: 'home',
+          occurredAt: TODAY - 86_400_000 + 3_600_000 * 15,
+        },
+      ],
+    })
+    await me.mutation(api.accounts.setBalance, {
+      accountId: bpi,
+      currency: 'EUR',
+      value: 900,
+      dayStart: TODAY,
+      asOf: TODAY - 2 * 86_400_000 + 3_600_000 * 20,
+    })
+    /* Today's reading of 1000 still wins — it is the latest. */
+    const b = await me.query(api.aggregate.balances, {})
+    expect(b.accounts[0].pockets[0].value).toBe(1000)
+  })
+})
+
+describe('migrations.addingMoney', () => {
+  test('splits bank+broker, learns institutions, marks opening positions, pairs transfers — and twice changes nothing', async () => {
+    const { t, me } = setup()
+    const rev = await me.mutation(api.accounts.create, {
+      name: 'Revolut',
+      kinds: ['bank', 'broker'],
+      currencies: ['EUR'],
+      domain: 'revolut.com',
+    })
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'Trade Republic',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    await t.run(async (ctx) => {
+      const instrumentId = await ctx.db.insert('instruments', {
+        ownerId: ME,
+        symbol: 'TSLA',
+        name: 'Tesla',
+        exchange: 'NASDAQ',
+        currency: 'USD',
+        type: 'EQUITY',
+      })
+      const intakeId = await ctx.db.insert('intakes', {
+        ownerId: ME,
+        storageIds: [],
+        status: 'done',
+      })
+      await ctx.db.insert('trades', {
+        ownerId: ME,
+        accountId: rev,
+        instrumentId,
+        side: 'buy',
+        shares: 1,
+        priceEur: 100,
+        occurredAt: Date.now(),
+        importId: intakeId,
+      })
+      const base = {
+        ownerId: ME,
+        kind: 'move' as const,
+        area: 'money',
+        occurredAt: Date.now() - 86_400_000,
+        unit: 'eur',
+        accountId: rev,
+      }
+      await ctx.db.insert('logs', {
+        ...base,
+        value: -300,
+        text: 'To investment account',
+        meta: { otherAccountId: rev },
+      })
+      await ctx.db.insert('logs', {
+        ...base,
+        value: -4400,
+        text: 'To Trade Republic',
+        meta: { otherAccountId: tr },
+      })
+    })
+    const first = await t.mutation(internal.migrations.addingMoney, {
+      ownerId: ME,
+    })
+    expect(first).toEqual({ institutions: 2, split: 1, opening: 1, paired: 2 })
+    const accounts = await me.query(api.accounts.list, {})
+    expect(
+      accounts.map((a) => [a.name, a.kinds.join('+'), a.institution]),
+    ).toEqual([
+      ['Revolut', 'bank', 'revolut'],
+      ['Revolut Invest', 'broker', 'revolut'],
+      ['Trade Republic', 'broker', 'trade-republic'],
+    ])
+    const invest = accounts[1]._id
+    const positions = await me.query(api.aggregate.positions, {})
+    expect(positions.rows.map((r) => r.accountId)).toEqual([invest])
+    const again = await t.mutation(internal.migrations.addingMoney, {
+      ownerId: ME,
+    })
+    expect(again).toEqual({ institutions: 0, split: 0, opening: 0, paired: 0 })
+    const sides = await t.run((ctx) =>
+      ctx.db
+        .query('logs')
+        .filter((q) => q.eq(q.field('kind'), 'move'))
+        .collect(),
+    )
+    expect(
+      sides.map((l) => [
+        l.accountId === rev ? 'rev' : l.accountId === tr ? 'tr' : 'inv',
+        l.value,
+      ]),
+    ).toEqual([
+      ['rev', -300],
+      ['rev', -4400],
+      ['inv', 300],
+      ['tr', 4400],
+    ])
   })
 })

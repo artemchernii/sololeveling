@@ -1212,12 +1212,25 @@ const TRADE_ROWS = 2000
  * `oldestAt`, the reading furthest back in it, so a total made partly of a
  * month-old number cannot look fresh. An account with no reading yet is
  * counted in `unread` and added to nothing.
+ *
+ * Since 27 Sep ("adding money"), a pocket is its latest reading PLUS the
+ * money that moved in it after that reading — its logs (spending, money
+ * in, both sides of a transfer) and, in a broker's euro pocket, what its
+ * buys cost and its sells brought (`trades`, never an `opening` one). That
+ * is source 2 plus a source-1 sum over rows that open: `moved` and
+ * `movedRows` say how much and how many, so the number is never a bare
+ * one. The reading always wins over what came before it — a statement
+ * that disagrees resets the pocket.
  */
 const pocket = v.object({
   currency: v.string(),
-  /** As read, in its own currency. */
+  /** As read plus what moved since, in its own currency. */
   value: v.union(v.number(), v.null()),
   recordedAt: v.union(v.number(), v.null()),
+  /** The reading alone, and what moved in the pocket after it. */
+  read: v.union(v.number(), v.null()),
+  moved: v.number(),
+  movedRows: v.number(),
   /** In euros at the latest stored ECB rate; null without a reading or a
       rate — never guessed. */
   eur: v.union(v.number(), v.null()),
@@ -1346,7 +1359,13 @@ async function readBalances(ctx: QueryCtx, ownerId: string) {
         )
         .order('desc')
         .first()
-      const value = row?.value ?? null
+      const read = row?.value ?? null
+      const since =
+        row === null
+          ? { cents: 0, rows: 0 }
+          : await movedSince(ctx, ownerId, account, currency, row.recordedAt)
+      const value =
+        read === null ? null : (Math.round(read * 100) + since.cents) / 100
       const rate = await rateFor(currency)
       const eur =
         value === null || rate === null
@@ -1365,6 +1384,9 @@ async function readBalances(ctx: QueryCtx, ownerId: string) {
         currency,
         value,
         recordedAt: row?.recordedAt ?? null,
+        read,
+        moved: since.cents / 100,
+        movedRows: since.rows,
         eur,
         rateAsOf: rate?.asOf ?? null,
       })
@@ -1380,6 +1402,70 @@ async function readBalances(ctx: QueryCtx, ownerId: string) {
     })
   }
   return { accounts: out, total: cents / 100, oldestAt, unread }
+}
+
+/* A statement's rows are stamped at noon of their day, and a statement's
+   closing balance can be confirmed at 2 am on its own closing day; a row
+   read off a file counts after a reading only from the next day on. */
+const FILE_ROW_GRACE_MS = 12 * 3_600_000
+const MOVED_ROWS = 2000
+
+/**
+ * What moved in one pocket after its reading: signed, in cents of the
+ * pocket's currency. Spending out, money in, a transfer's own side; in the
+ * euro pocket of an account with trades, buys out and sells in.
+ */
+async function movedSince(
+  ctx: QueryCtx,
+  ownerId: string,
+  account: Doc<'accounts'>,
+  currency: string,
+  readAt: number,
+): Promise<{ cents: number; rows: number }> {
+  const unit = currency.toLowerCase()
+  const logs = await ctx.db
+    .query('logs')
+    .withIndex('by_owner_account_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('accountId', account._id)
+        .gt('occurredAt', readAt),
+    )
+    .take(MOVED_ROWS)
+  let cents = 0
+  let rows = 0
+  for (const l of logs) {
+    if (l.area !== 'money' || l.unit !== unit || l.value === undefined) continue
+    if (
+      l.meta?.intakeId !== undefined &&
+      l.occurredAt <= readAt + FILE_ROW_GRACE_MS
+    )
+      continue
+    const signed =
+      l.kind === 'expense'
+        ? -l.value
+        : l.kind === 'income' || l.kind === 'move'
+          ? l.value
+          : 0
+    if (signed === 0) continue
+    cents += Math.round(signed * 100)
+    rows++
+  }
+  if (currency === 'EUR' && account.kinds.includes('broker')) {
+    const trades = await ctx.db
+      .query('trades')
+      .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', ownerId).eq('accountId', account._id),
+      )
+      .take(TRADE_ROWS)
+    for (const t of trades) {
+      if (t.opening === true || t.occurredAt <= readAt) continue
+      const cost = Math.round(t.shares * t.priceEur * 100)
+      cents += t.side === 'buy' ? -cost : cost
+      rows++
+    }
+  }
+  return { cents, rows }
 }
 
 async function readPositions(ctx: QueryCtx, ownerId: string) {

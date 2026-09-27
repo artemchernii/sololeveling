@@ -861,6 +861,23 @@ h6 {
   }
 }
 
+/* The + sheet's drop zone (27 Sep, mocked as add-empty.html): its dashed
+   edge breathes lavender while it waits for a file, the System's pulse on
+   a border. A file held over it stops the breath and lights it solid. */
+@keyframes drop-breathe {
+  0%,
+  100% {
+    border-color: color-mix(in oklch, var(--color-lav-400) 30%, transparent);
+  }
+  50% {
+    border-color: color-mix(in oklch, var(--color-lav-400) 62%, transparent);
+    box-shadow: inset 0 0 26px -12px var(--system-shine);
+  }
+}
+@utility drop-breathe {
+  animation: drop-breathe var(--motion-glow) ease-in-out infinite;
+}
+
 /* A sheet being read (26 Sep: "better highlight of READING DOCUMENT"): a
    lit line sweeps down the page and back, the way the System scans. Placed
    inside a positioned, clipped box; it draws nothing when motion is

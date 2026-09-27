@@ -47,37 +47,54 @@ type Kind = 'in' | 'out' | 'transfer' | 'buy' | 'sell'
 
 const KINDS: Record<
   Kind,
-  { label: string; Icon: LucideIcon; tone: string; icon: string }
+  {
+    label: string
+    Icon: LucideIcon
+    tone: string
+    icon: string
+    /* Its starter lights in its own colour when reached for (27 Sep). */
+    hover: string
+  }
 > = {
   in: {
     label: 'money in',
     Icon: ArrowUpRight,
     tone: 'text-state-good bg-state-good/10 ring-state-good/30',
     icon: 'text-state-good',
+    hover:
+      'hover:bg-state-good/10 hover:ring-state-good/50 hover:shadow-[0_0_18px_-8px_var(--color-state-good)]',
   },
   out: {
     label: 'money out',
     Icon: ArrowDownRight,
     tone: 'text-state-danger bg-state-danger/10 ring-state-danger/30',
     icon: 'text-state-danger',
+    hover:
+      'hover:bg-state-danger/10 hover:ring-state-danger/50 hover:shadow-[0_0_18px_-8px_var(--color-state-danger)]',
   },
   transfer: {
     label: 'transfer',
     Icon: ArrowLeftRight,
     tone: 'text-lav-300 bg-lav-400/10 ring-lav-400/30',
     icon: 'text-lav-300',
+    hover:
+      'hover:bg-lav-400/10 hover:ring-lav-400/50 hover:shadow-[0_0_18px_-8px_var(--color-lav-400)]',
   },
   buy: {
     label: 'buy',
     Icon: TrendingUp,
     tone: 'text-lav-300 bg-lav-400/10 ring-lav-400/30',
     icon: 'text-lav-300',
+    hover:
+      'hover:bg-lav-400/10 hover:ring-lav-400/50 hover:shadow-[0_0_18px_-8px_var(--color-lav-400)]',
   },
   sell: {
     label: 'sell',
     Icon: TrendingDown,
     tone: 'text-lav-300 bg-lav-400/10 ring-lav-400/30',
     icon: 'text-lav-300',
+    hover:
+      'hover:bg-lav-400/10 hover:ring-lav-400/50 hover:shadow-[0_0_18px_-8px_var(--color-lav-400)]',
   },
 }
 const ORDER: Array<Kind> = ['in', 'out', 'transfer', 'buy', 'sell']
@@ -288,13 +305,13 @@ export function AddRows() {
       <div className="flex flex-wrap items-center gap-2">
         <span className="label-caps mr-1">or add</span>
         {ORDER.map((k) => {
-          const { Icon, label, icon } = KINDS[k]
+          const { Icon, label, icon, hover } = KINDS[k]
           return (
             <button
               key={k}
               type="button"
               onClick={() => add(k)}
-              className={`${PILL} text-foreground ring-lift/15 hover:bg-lift/[0.04] hover:ring-lift/30`}
+              className={`${PILL} text-foreground ring-lift/15 ${hover}`}
             >
               <Icon className={`size-3.5 ${icon}`} />
               {label}

@@ -6,6 +6,7 @@ import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { IntakeFlow } from '@/components/finances/Intake'
 import { Sheet } from '@/components/finances/Sheet'
+import { AddDrop } from '@/components/finances/AddDrop'
 import { AddRows } from '@/components/finances/AddRows'
 import { MAX_INTAKE_FILES, readableFile } from '@/lib/intake'
 
@@ -58,11 +59,7 @@ export function AddButton({
       >
         {step?.at === 'home' ? (
           <>
-            <DropFiles
-              small
-              title="Drop statements or screenshots — they become rows to check"
-              onStarted={(id) => setStep({ at: 'intake', id })}
-            />
+            <AddDrop onStarted={(id) => setStep({ at: 'intake', id })} />
             <AddRows />
           </>
         ) : step?.at === 'intake' ? (

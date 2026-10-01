@@ -3081,10 +3081,10 @@ describe('a year of rates (Finances B)', () => {
       ...args,
       rows: [...rows, { rate: 0.87635, asOf: day(23) }],
     })
-    const stored = await t.run((ctx) => ctx.db.query('fxRates').collect())
-    expect(stored.filter((r) => r.ownerId === ME).map((r) => r.rate)).toEqual([
+    const rates = await t.run((ctx) => ctx.db.query('fxRates').collect())
+    expect(rates.filter((r) => r.ownerId === ME).map((r) => r.rate)).toEqual([
       0.87032, 0.87237, 0.87635,
     ])
-    expect(stored.filter((r) => r.ownerId === SOMEONE_ELSE)).toHaveLength(3)
+    expect(rates.filter((r) => r.ownerId === SOMEONE_ELSE)).toHaveLength(3)
   })
 })

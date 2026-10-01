@@ -3061,3 +3061,30 @@ describe('does it add up (1 Oct)', () => {
     )
   })
 })
+
+describe('a year of rates (Finances B)', () => {
+  test('one row per currency and ECB day, for each owner, never twice', async () => {
+    const { t } = setup()
+    const day = (d: number) => Date.parse(`2026-09-${d}T16:00:00Z`)
+    const rows = [
+      { rate: 0.87032, asOf: day(21) },
+      { rate: 0.87237, asOf: day(22) },
+    ]
+    const args = {
+      ownerIds: [ME, SOMEONE_ELSE, ME],
+      currency: 'USD',
+      rows,
+      fetchedAt: day(30),
+    }
+    await t.mutation(internal.market.storeRates, args)
+    await t.mutation(internal.market.storeRates, {
+      ...args,
+      rows: [...rows, { rate: 0.87635, asOf: day(23) }],
+    })
+    const stored = await t.run((ctx) => ctx.db.query('fxRates').collect())
+    expect(stored.filter((r) => r.ownerId === ME).map((r) => r.rate)).toEqual([
+      0.87032, 0.87237, 0.87635,
+    ])
+    expect(stored.filter((r) => r.ownerId === SOMEONE_ELSE)).toHaveLength(3)
+  })
+})

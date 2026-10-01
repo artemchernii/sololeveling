@@ -13,6 +13,7 @@ import {
   RATE_SOURCE,
   parseChart,
   parseRate,
+  parseRateSeries,
   parseSearch,
 } from '../src/lib/market'
 import type { Candidate } from '../src/lib/market'
@@ -27,8 +28,10 @@ import type { Candidate } from '../src/lib/market'
 
 const YAHOO = 'https://query1.finance.yahoo.com'
 const HEADERS = { 'User-Agent': 'Mozilla/5.0 (SoloLeveling personal app)' }
-/* How far back a new ticker's closes are read, for the line on it. */
-const HISTORY_RANGE = '3mo'
+/* How far back a new ticker's closes are read: a year, so the worth chart
+   can draw invested on its 1Y view (Finances B, 1 Oct; was 3 months). */
+const HISTORY_RANGE = '1y'
+const YEAR_MS = 366 * 86_400_000
 const MAX_INSTRUMENTS = 500
 
 const candidate = v.object({
@@ -64,6 +67,18 @@ async function chart(symbol: string, range: string) {
   )
   if (!res.ok) return null
   return parseChart(await res.json())
+}
+
+/* A year of the ECB's daily rates, for what a share was worth in euros on
+   a past day — that day's rate, not today's. */
+async function rateYear(currency: string) {
+  const from = new Date(Date.now() - YEAR_MS).toISOString().slice(0, 10)
+  const res = await fetch(
+    `https://api.frankfurter.app/${from}..?from=${encodeURIComponent(currency)}&to=EUR`,
+    { redirect: 'follow' },
+  )
+  if (!res.ok) return []
+  return parseRateSeries(await res.json())
 }
 
 async function rate(currency: string) {
@@ -116,8 +131,69 @@ export const readOne = internalAction({
           fetchedAt,
         })
       }
+      await ctx.runMutation(internal.market.storeRates, {
+        ownerIds: [inst.ownerId],
+        currency: cur,
+        rows: await rateYear(cur),
+        fetchedAt,
+      })
     }
     return null
+  },
+})
+
+/**
+ * A year back for everything already held (Finances B, 1 Oct): a ticker
+ * added before closes were read a year deep has three months. Run once
+ * (`npx convex run market:backfillYear`); safe to run again — storePrices
+ * and storeRates keep one row per market day.
+ */
+export const backfillYear = internalAction({
+  args: {},
+  returns: v.object({ symbols: v.number(), currencies: v.number() }),
+  handler: async (ctx) => {
+    const all = await ctx.runQuery(internal.market.allInstruments, {})
+    const bySymbol = new Map<string, typeof all>()
+    for (const i of all)
+      bySymbol.set(i.symbol, [...(bySymbol.get(i.symbol) ?? []), i])
+    const currencies = new Map<string, Set<string>>()
+    const fetchedAt = Date.now()
+    let symbols = 0
+    for (const [symbol, held] of bySymbol) {
+      const c = await chart(symbol, HISTORY_RANGE)
+      if (c === null) continue
+      symbols++
+      for (const i of held) {
+        await ctx.runMutation(internal.market.storePrices, {
+          ownerId: i.ownerId,
+          instrumentId: i._id,
+          currency: c.currency,
+          rows: c.closes,
+          fetchedAt,
+        })
+        const cur = rateCurrency(c.currency)
+        if (cur !== null)
+          currencies.set(cur, (currencies.get(cur) ?? new Set()).add(i.ownerId))
+      }
+    }
+    for (const a of await ctx.runQuery(
+      internal.market.allAccountCurrencies,
+      {},
+    )) {
+      if (a.currency === 'EUR') continue
+      currencies.set(
+        a.currency,
+        (currencies.get(a.currency) ?? new Set()).add(a.ownerId),
+      )
+    }
+    for (const [cur, owners] of currencies)
+      await ctx.runMutation(internal.market.storeRates, {
+        ownerIds: [...owners],
+        currency: cur,
+        rows: await rateYear(cur),
+        fetchedAt,
+      })
+    return { symbols, currencies: currencies.size }
   },
 })
 
@@ -275,7 +351,7 @@ export const storePrices = internalMutation({
           .eq('instrumentId', args.instrumentId)
           .gte('asOf', from - 86_400_000),
       )
-      .take(200)
+      .take(400)
     const dayOf = (t: number) => new Date(t).toISOString().slice(0, 10)
     /* What is stored per day as this runs; a row replaced is dropped here
        too, so a second reading of the same day never deletes it twice. */
@@ -331,6 +407,49 @@ export const storeRate = internalMutation({
         fetchedAt: args.fetchedAt,
         source: RATE_SOURCE,
       })
+    }
+    return null
+  },
+})
+
+/** A run of daily rates (a year's backfill): one row per currency and ECB
+    day, never a second. */
+export const storeRates = internalMutation({
+  args: {
+    ownerIds: v.array(v.string()),
+    currency: v.string(),
+    rows: v.array(v.object({ rate: v.number(), asOf: v.number() })),
+    fetchedAt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    if (args.rows.length === 0) return null
+    const from = Math.min(...args.rows.map((r) => r.asOf))
+    for (const ownerId of new Set(args.ownerIds)) {
+      const have = new Set(
+        (
+          await ctx.db
+            .query('fxRates')
+            .withIndex('by_owner_currency_time', (q) =>
+              q
+                .eq('ownerId', ownerId)
+                .eq('currency', args.currency)
+                .gte('asOf', from),
+            )
+            .take(1000)
+        ).map((r) => r.asOf),
+      )
+      for (const r of args.rows) {
+        if (have.has(r.asOf)) continue
+        await ctx.db.insert('fxRates', {
+          ownerId,
+          currency: args.currency,
+          rate: r.rate,
+          asOf: r.asOf,
+          fetchedAt: args.fetchedAt,
+          source: RATE_SOURCE,
+        })
+      }
     }
     return null
   },

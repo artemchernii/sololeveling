@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { parseChart, parseRate, parseSearch } from './market'
+import { parseChart, parseRate, parseRateSeries, parseSearch } from './market'
 
 describe('parseSearch', () => {
   test('keeps shares and funds, names them, drops the rest', () => {
@@ -93,5 +93,28 @@ describe('parseRate', () => {
   test('nothing from a broken answer', () => {
     expect(parseRate({ rates: {} })).toBeNull()
     expect(parseRate({ rates: { EUR: 0.9 } })).toBeNull()
+  })
+})
+
+describe('parseRateSeries', () => {
+  test('a year of ECB days, oldest first, a bad day dropped', () => {
+    expect(
+      parseRateSeries({
+        base: 'USD',
+        rates: {
+          '2026-09-22': { EUR: 0.87237 },
+          '2026-09-21': { EUR: 0.87032 },
+          '2026-09-23': { EUR: 'x' },
+        },
+      }),
+    ).toEqual([
+      { rate: 0.87032, asOf: Date.parse('2026-09-21T16:00:00Z') },
+      { rate: 0.87237, asOf: Date.parse('2026-09-22T16:00:00Z') },
+    ])
+  })
+
+  test('nothing usable: an empty list', () => {
+    expect(parseRateSeries(null)).toEqual([])
+    expect(parseRateSeries({ rates: 'no' })).toEqual([])
   })
 })

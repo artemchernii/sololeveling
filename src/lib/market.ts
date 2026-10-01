@@ -98,3 +98,21 @@ export function parseRate(
   const asOf = Date.parse(`${date}T16:00:00Z`)
   return Number.isFinite(asOf) ? { rate, asOf } : null
 }
+
+/** Frankfurter's time series: euros per one of `from` on each ECB working
+    day, stamped like a single day's rate (16:00 UTC, when the ECB
+    publishes). A day it did not publish is simply absent. */
+export function parseRateSeries(
+  json: unknown,
+): Array<{ rate: number; asOf: number }> {
+  const rates = (json as { rates?: Record<string, unknown> } | null)?.rates
+  if (!rates || typeof rates !== 'object') return []
+  const out: Array<{ rate: number; asOf: number }> = []
+  for (const [date, v] of Object.entries(rates)) {
+    const rate = (v as { EUR?: unknown } | null)?.EUR
+    const asOf = Date.parse(`${date}T16:00:00Z`)
+    if (typeof rate === 'number' && rate > 0 && Number.isFinite(asOf))
+      out.push({ rate, asOf })
+  }
+  return out.sort((a, b) => a.asOf - b.asOf)
+}

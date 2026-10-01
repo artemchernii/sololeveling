@@ -216,11 +216,18 @@ function AccountCard({
             {euros(Math.round((a.cashEur + (invested ?? 0)) * 100) / 100)}
           </Veiled>
         </span>
-        <Sparkline values={line} />
+        {/* The line is cash only. Where shares are held, cash spent on them
+            would draw as a loss (27 Sep, TR's red line), so it waits for
+            stored closes to draw the whole account. */}
+        {invested !== null && invested > 0 ? null : <Sparkline values={line} />}
       </div>
       <div className="flex flex-col gap-1.5 font-mono text-[12.5px]">
         {a.pockets
-          .filter((p) => p.value !== null || a.pockets.length === 1)
+          /* "$0 ≈ €0" is noise beside a pocket that holds something. */
+          .filter(
+            (p) =>
+              (p.value !== null && p.value !== 0) || a.pockets.length === 1,
+          )
           .map((p) => (
             <span
               key={p.currency}

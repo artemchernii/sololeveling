@@ -3007,3 +3007,57 @@ describe('intake.start — his words about a screenshot', () => {
     })
   })
 })
+
+describe('does it add up (1 Oct)', () => {
+  const at = (d: number) => new Date(2026, 8, d, 12).getTime()
+
+  test('a bank’s balances and rows: the row cut off a screenshot is found', async () => {
+    const { t, me, them } = setup()
+    const bank = await me.mutation(api.accounts.create, {
+      name: 'ActivoBank',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    await t.run(async (ctx) => {
+      const key = `balance:${bank}:EUR`
+      for (const [d, value] of [
+        [3, 800],
+        [10, 575.36],
+      ] as const)
+        await ctx.db.insert('stateSnapshots', {
+          ownerId: ME,
+          area: 'money',
+          key,
+          value,
+          recordedAt: at(d),
+        })
+      for (const [d, value] of [
+        [5, 84.64],
+        [7, 40],
+      ] as const)
+        await ctx.db.insert('logs', {
+          ownerId: ME,
+          kind: 'expense',
+          area: 'money',
+          occurredAt: at(d),
+          value,
+          unit: 'eur',
+          accountId: bank,
+        })
+    })
+    expect(await me.query(api.aggregate.gaps, { accountId: bank })).toEqual([
+      {
+        currency: 'EUR',
+        from: at(3),
+        to: at(10),
+        expected: 675.36,
+        read: 575.36,
+        missing: -100,
+      },
+    ])
+    /* Another owner sees nothing of it. */
+    expect(await them.query(api.aggregate.gaps, { accountId: bank })).toEqual(
+      [],
+    )
+  })
+})

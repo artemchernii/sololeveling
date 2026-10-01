@@ -3,7 +3,8 @@ import { v } from 'convex/values'
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
 import { isEuroAmount } from '../src/lib/money'
-import { balanceSeries } from '../src/lib/cashHistory'
+import { balanceGaps, balanceSeries } from '../src/lib/cashHistory'
+import type { Move } from '../src/lib/cashHistory'
 import { notSeenSince, reconcile } from '../src/lib/holdings'
 import type { LedgerTrade, Observation } from '../src/lib/holdings'
 import { areaSlug } from './schema'
@@ -1545,7 +1546,6 @@ export const cashHistory = query({
         : []
       const values: Array<number | null> = dayEnds.map(() => null)
       for (const currency of account.currencies) {
-        const unit = currency.toLowerCase()
         const readings = await ctx.db
           .query('stateSnapshots')
           .withIndex('by_owner_key_time', (q) =>
@@ -1568,33 +1568,7 @@ export const cashHistory = query({
                   .first()
               )?.rate ?? null)
         if (rate === null) continue
-        const moves = []
-        for (const l of logs) {
-          if (l.area !== 'money' || l.unit !== unit || l.value === undefined)
-            continue
-          const signed =
-            l.kind === 'expense'
-              ? -l.value
-              : l.kind === 'income' || l.kind === 'move'
-                ? l.value
-                : 0
-          if (signed !== 0)
-            moves.push({
-              at: l.occurredAt,
-              cents: Math.round(signed * 100),
-              fromFile: l.meta?.intakeId !== undefined,
-            })
-        }
-        if (currency === 'EUR')
-          for (const t of trades) {
-            if (t.opening === true) continue
-            const cost = Math.round(t.shares * t.priceEur * 100)
-            moves.push({
-              at: t.occurredAt,
-              cents: t.side === 'buy' ? -cost : cost,
-              fromFile: false,
-            })
-          }
+        const moves = pocketMoves(logs, trades, currency)
         const series = balanceSeries(
           dayEnds,
           readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
@@ -1614,6 +1588,99 @@ export const cashHistory = query({
 })
 
 const HISTORY_ROWS = 5000
+
+/* One pocket's rows as signed cents: spending out, money in, a move's own
+   side; in a broker's euro pocket, buys out and sells in. */
+function pocketMoves(
+  logs: ReadonlyArray<Doc<'logs'>>,
+  trades: ReadonlyArray<Doc<'trades'>>,
+  currency: string,
+): Array<Move> {
+  const unit = currency.toLowerCase()
+  const moves: Array<Move> = []
+  for (const l of logs) {
+    if (l.area !== 'money' || l.unit !== unit || l.value === undefined) continue
+    const signed =
+      l.kind === 'expense'
+        ? -l.value
+        : l.kind === 'income' || l.kind === 'move'
+          ? l.value
+          : 0
+    if (signed !== 0)
+      moves.push({
+        at: l.occurredAt,
+        cents: Math.round(signed * 100),
+        fromFile: l.meta?.intakeId !== undefined,
+      })
+  }
+  if (currency === 'EUR')
+    for (const t of trades) {
+      if (t.opening === true) continue
+      const cost = Math.round(t.shares * t.priceEur * 100)
+      moves.push({
+        at: t.occurredAt,
+        cents: t.side === 'buy' ? -cost : cost,
+        fromFile: false,
+      })
+    }
+  return moves
+}
+
+/**
+ * Where an account's balances and rows disagree (1 Oct, PLAN A.5): for
+ * each pocket, every pair of readings whose rows between do not explain
+ * the change — "€100 missing between Sep 3 and Sep 10". Sources 1 and 2:
+ * his rows and his readings, nothing estimated.
+ */
+export const gaps = query({
+  args: { accountId: v.id('accounts') },
+  returns: v.array(
+    v.object({
+      currency: v.string(),
+      from: v.number(),
+      to: v.number(),
+      expected: v.number(),
+      read: v.number(),
+      missing: v.number(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const account = await ctx.db.get(args.accountId)
+    if (account === null || account.ownerId !== ownerId) return []
+    const logs = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_account_time', (q) =>
+        q.eq('ownerId', ownerId).eq('accountId', account._id),
+      )
+      .take(HISTORY_ROWS)
+    const trades = account.kinds.includes('broker')
+      ? await ctx.db
+          .query('trades')
+          .withIndex('by_owner_account', (q) =>
+            q.eq('ownerId', ownerId).eq('accountId', account._id),
+          )
+          .take(TRADE_ROWS)
+      : []
+    const out = []
+    for (const currency of account.currencies) {
+      const readings = await ctx.db
+        .query('stateSnapshots')
+        .withIndex('by_owner_key_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('key', `balance:${account._id}:${currency}`),
+        )
+        .take(500)
+      for (const g of balanceGaps(
+        readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
+        pocketMoves(logs, trades, currency),
+      ))
+        out.push({ currency, ...g })
+    }
+    return out
+  },
+})
 
 /* A statement's rows are stamped at noon of their day, and a statement's
    closing balance can be confirmed at 2 am on its own closing day; a row

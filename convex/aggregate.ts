@@ -5,6 +5,8 @@ import { logKindValidator } from './logs'
 import { isEuroAmount } from '../src/lib/money'
 import { balanceGaps, balanceSeries } from '../src/lib/cashHistory'
 import type { Move } from '../src/lib/cashHistory'
+import { addSeries, investedSeries } from '../src/lib/worthHistory'
+import type { Close, Holding, Rate } from '../src/lib/worthHistory'
 import { notSeenSince, reconcile } from '../src/lib/holdings'
 import type { LedgerTrade, Observation } from '../src/lib/holdings'
 import { areaSlug } from './schema'
@@ -1507,84 +1509,224 @@ async function readBalances(ctx: QueryCtx, ownerId: string) {
  * not in it: their worth on a past day needs that day's close, which is
  * not stored yet.
  */
+const daySeries = v.array(v.union(v.number(), v.null()))
+const accountSeries = v.array(
+  v.object({ accountId: v.id('accounts'), values: daySeries }),
+)
+
 export const cashHistory = query({
   args: { dayEnds: v.array(v.number()) },
-  returns: v.object({
-    total: v.array(v.union(v.number(), v.null())),
-    accounts: v.array(
-      v.object({
-        accountId: v.id('accounts'),
-        values: v.array(v.union(v.number(), v.null())),
-      }),
+  returns: v.object({ total: daySeries, accounts: accountSeries }),
+  handler: async (ctx, args) =>
+    await readCashHistory(
+      ctx,
+      await requireUser(ctx),
+      args.dayEnds.slice(0, 400),
     ),
+})
+
+async function readCashHistory(
+  ctx: QueryCtx,
+  ownerId: string,
+  dayEnds: ReadonlyArray<number>,
+) {
+  const accounts = (
+    await ctx.db
+      .query('accounts')
+      .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+      .take(ACCOUNT_ROWS)
+  ).filter((a) => a.retiredAt === undefined)
+  const out = []
+  const total: Array<number | null> = dayEnds.map(() => null)
+  for (const account of accounts) {
+    const logs = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_account_time', (q) =>
+        q.eq('ownerId', ownerId).eq('accountId', account._id),
+      )
+      .take(HISTORY_ROWS)
+    const trades = account.kinds.includes('broker')
+      ? await ctx.db
+          .query('trades')
+          .withIndex('by_owner_account', (q) =>
+            q.eq('ownerId', ownerId).eq('accountId', account._id),
+          )
+          .take(TRADE_ROWS)
+      : []
+    const values: Array<number | null> = dayEnds.map(() => null)
+    for (const currency of account.currencies) {
+      const readings = await ctx.db
+        .query('stateSnapshots')
+        .withIndex('by_owner_key_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('key', `balance:${account._id}:${currency}`),
+        )
+        .take(500)
+      if (readings.length === 0) continue
+      const rate =
+        currency === 'EUR'
+          ? 1
+          : ((
+              await ctx.db
+                .query('fxRates')
+                .withIndex('by_owner_currency_time', (q) =>
+                  q.eq('ownerId', ownerId).eq('currency', currency),
+                )
+                .order('desc')
+                .first()
+            )?.rate ?? null)
+      if (rate === null) continue
+      const moves = pocketMoves(logs, trades, currency)
+      const series = balanceSeries(
+        dayEnds,
+        readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
+        moves,
+        account.kinds.includes('cash') && !account.kinds.includes('bank'),
+      )
+      for (const [i, x] of series.entries()) {
+        if (x === null) continue
+        values[i] = Math.round(((values[i] ?? 0) + x * rate) * 100) / 100
+      }
+    }
+    for (const [i, x] of values.entries())
+      if (x !== null) total[i] = Math.round(((total[i] ?? 0) + x) * 100) / 100
+    out.push({ accountId: account._id, values })
+  }
+  return { total, accounts: out }
+}
+
+/**
+ * The worth chart as on :3950 (Finances B, 1 Oct): free cash, invested and
+ * their total at the end of each day. Cash is cashHistory's; invested is
+ * src/lib/worthHistory's — shares the files say he held that day × that
+ * day's stored close × that day's stored ECB rate. Sources 1, 2 and 4;
+ * `unpriced` counts, per day, what was held with no close to value it.
+ */
+export const worthHistory = query({
+  args: { dayEnds: v.array(v.number()) },
+  returns: v.object({
+    total: daySeries,
+    cash: daySeries,
+    invested: daySeries,
+    cashAccounts: accountSeries,
+    investedAccounts: accountSeries,
+    unpriced: v.array(v.number()),
   }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const dayEnds = args.dayEnds.slice(0, 400)
-    const accounts = (
+    const cash = await readCashHistory(ctx, ownerId, dayEnds)
+    const from = (dayEnds[0] ?? 0) - 14 * 86_400_000
+
+    const live = new Set(
+      (
+        await ctx.db
+          .query('accounts')
+          .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+          .take(ACCOUNT_ROWS)
+      )
+        .filter((a) => a.retiredAt === undefined)
+        .map((a) => a._id),
+    )
+    const trades = (
       await ctx.db
-        .query('accounts')
-        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
-        .take(ACCOUNT_ROWS)
-    ).filter((a) => a.retiredAt === undefined)
-    const out = []
-    const total: Array<number | null> = dayEnds.map(() => null)
-    for (const account of accounts) {
-      const logs = await ctx.db
-        .query('logs')
-        .withIndex('by_owner_account_time', (q) =>
-          q.eq('ownerId', ownerId).eq('accountId', account._id),
-        )
-        .take(HISTORY_ROWS)
-      const trades = account.kinds.includes('broker')
-        ? await ctx.db
-            .query('trades')
-            .withIndex('by_owner_account', (q) =>
-              q.eq('ownerId', ownerId).eq('accountId', account._id),
+        .query('trades')
+        .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
+        .take(TRADE_ROWS)
+    ).filter((t) => live.has(t.accountId))
+    const looks = (
+      await ctx.db
+        .query('holdings')
+        .withIndex('by_owner_account', (q) => q.eq('ownerId', ownerId))
+        .take(HOLDING_ROWS)
+    ).filter((h) => live.has(h.accountId))
+
+    const slots = new Map<
+      string,
+      {
+        accountId: Id<'accounts'>
+        instrumentId: Id<'instruments'>
+        trades: Array<LedgerTrade>
+        looks: Array<Observation>
+      }
+    >()
+    const slot = (
+      accountId: Id<'accounts'>,
+      instrumentId: Id<'instruments'>,
+    ) => {
+      const key = `${accountId}:${instrumentId}`
+      let p = slots.get(key)
+      if (p === undefined) {
+        p = { accountId, instrumentId, trades: [], looks: [] }
+        slots.set(key, p)
+      }
+      return p
+    }
+    for (const t of trades) slot(t.accountId, t.instrumentId).trades.push(t)
+    for (const h of looks)
+      slot(h.accountId, h.instrumentId).looks.push({
+        shares: h.shares,
+        paidEur: h.paidEur,
+        asOf: h.asOf,
+      })
+
+    const closesOf = new Map<Id<'instruments'>, Array<Close>>()
+    const ratesOf = new Map<string, Array<Rate>>()
+    const holdings: Array<Holding<Id<'accounts'>>> = []
+    for (const p of slots.values()) {
+      const instrument = await ctx.db.get(p.instrumentId)
+      if (instrument === null || instrument.ownerId !== ownerId) continue
+      let closes = closesOf.get(p.instrumentId)
+      if (closes === undefined) {
+        closes = (
+          await ctx.db
+            .query('prices')
+            .withIndex('by_owner_instrument_time', (q) =>
+              q
+                .eq('ownerId', ownerId)
+                .eq('instrumentId', p.instrumentId)
+                .gte('asOf', from),
             )
-            .take(TRADE_ROWS)
-        : []
-      const values: Array<number | null> = dayEnds.map(() => null)
-      for (const currency of account.currencies) {
-        const readings = await ctx.db
-          .query('stateSnapshots')
-          .withIndex('by_owner_key_time', (q) =>
-            q
-              .eq('ownerId', ownerId)
-              .eq('key', `balance:${account._id}:${currency}`),
-          )
-          .take(500)
-        if (readings.length === 0) continue
-        const rate =
-          currency === 'EUR'
-            ? 1
-            : ((
-                await ctx.db
-                  .query('fxRates')
-                  .withIndex('by_owner_currency_time', (q) =>
-                    q.eq('ownerId', ownerId).eq('currency', currency),
-                  )
-                  .order('desc')
-                  .first()
-              )?.rate ?? null)
-        if (rate === null) continue
-        const moves = pocketMoves(logs, trades, currency)
-        const series = balanceSeries(
-          dayEnds,
-          readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
-          moves,
-          account.kinds.includes('cash') && !account.kinds.includes('bank'),
-        )
-        for (const [i, x] of series.entries()) {
-          if (x === null) continue
-          values[i] = Math.round(((values[i] ?? 0) + x * rate) * 100) / 100
+            .take(450)
+        ).map((r) => ({ asOf: r.asOf, price: r.price }))
+        closesOf.set(p.instrumentId, closes)
+      }
+      const { base, divide } = quoteToRate(instrument.currency)
+      let rates: Array<Rate> | null = null
+      if (base !== 'EUR') {
+        rates = ratesOf.get(base) ?? null
+        if (rates === null) {
+          rates = (
+            await ctx.db
+              .query('fxRates')
+              .withIndex('by_owner_currency_time', (q) =>
+                q.eq('ownerId', ownerId).eq('currency', base).gte('asOf', from),
+              )
+              .take(450)
+          ).map((r) => ({ asOf: r.asOf, rate: r.rate }))
+          ratesOf.set(base, rates)
         }
       }
-      for (const [i, x] of values.entries())
-        if (x !== null) total[i] = Math.round(((total[i] ?? 0) + x) * 100) / 100
-      out.push({ accountId: account._id, values })
+      holdings.push({
+        accountId: p.accountId,
+        trades: p.trades,
+        looks: p.looks,
+        closes,
+        divide,
+        rates,
+      })
     }
-    return { total, accounts: out }
+
+    const invested = investedSeries(dayEnds, holdings)
+    return {
+      total: addSeries(cash.total, invested.total),
+      cash: cash.total,
+      invested: invested.total,
+      cashAccounts: cash.accounts,
+      investedAccounts: invested.accounts,
+      unpriced: invested.unpriced,
+    }
   },
 })
 

@@ -3088,3 +3088,75 @@ describe('a year of rates (Finances B)', () => {
     expect(rates.filter((r) => r.ownerId === SOMEONE_ELSE)).toHaveLength(3)
   })
 })
+
+describe('worth, day by day (Finances B)', () => {
+  test('cash, invested at that day’s close and rate, total; only his', async () => {
+    const { t, me, them } = setup()
+    const end = (d: number) => new Date(2026, 8, d, 23, 59, 59, 999).getTime()
+    const noon = (d: number) => new Date(2026, 8, d, 12).getTime()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    await t.run(async (ctx) => {
+      const tsla = await ctx.db.insert('instruments', {
+        ownerId: ME,
+        symbol: 'TSLA',
+        name: 'Tesla',
+        exchange: 'NASDAQ',
+        currency: 'USD',
+        type: 'EQUITY',
+      })
+      await ctx.db.insert('stateSnapshots', {
+        ownerId: ME,
+        area: 'money',
+        key: `balance:${tr}:EUR`,
+        value: 100,
+        recordedAt: noon(1),
+      })
+      await ctx.db.insert('trades', {
+        ownerId: ME,
+        accountId: tr,
+        instrumentId: tsla,
+        side: 'buy',
+        shares: 2,
+        priceEur: 50,
+        occurredAt: noon(2),
+        opening: true,
+      })
+      for (const [d, price] of [
+        [1, 60],
+        [2, 70],
+      ] as const)
+        await ctx.db.insert('prices', {
+          ownerId: ME,
+          instrumentId: tsla,
+          price,
+          currency: 'USD',
+          asOf: noon(d) + 8 * 3_600_000,
+          fetchedAt: noon(d),
+          source: 'Yahoo Finance',
+        })
+      await ctx.db.insert('fxRates', {
+        ownerId: ME,
+        currency: 'USD',
+        rate: 0.5,
+        asOf: noon(1),
+        fetchedAt: noon(1),
+        source: 'ECB',
+      })
+    })
+    const dayEnds = [end(1), end(2)]
+    const w = await me.query(api.aggregate.worthHistory, { dayEnds })
+    expect(w.cash).toEqual([100, 100])
+    expect(w.invested).toEqual([null, 70])
+    expect(w.total).toEqual([100, 170])
+    expect(w.investedAccounts).toEqual([{ accountId: tr, values: [null, 70] }])
+    expect(w.unpriced).toEqual([0, 0])
+
+    const theirs = await them.query(api.aggregate.worthHistory, { dayEnds })
+    expect(theirs.total).toEqual([null, null])
+    expect(theirs.investedAccounts).toEqual([])
+  })
+})

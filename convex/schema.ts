@@ -792,6 +792,9 @@ export default defineSchema({
     /* The last four digits of the IBAN or card the file is about, when it
        prints them — how it finds which of his accounts it is. */
     accountTail: v.optional(v.string()),
+    /* Whose account it is, as printed (1 Oct): a transfer from that name
+       is his own money moving, not income (src/lib/intake.ts, ownMoney). */
+    holderName: v.optional(v.string()),
     transactions: v.optional(
       v.array(
         v.object({

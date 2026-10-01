@@ -28,6 +28,7 @@ import {
   hasTradeRows,
   matchAccount,
   merchantKey,
+  ownMoney,
   readableFile,
   sameCompany,
 } from '../src/lib/intake'
@@ -54,6 +55,18 @@ const candidate = v.object({
   exchange: v.string(),
   type: v.string(),
 })
+
+/* Whose money is his: the name the statement printed, and the name he
+   signed in with. A transfer from either is a move, never income. */
+async function hisNames(
+  ctx: Pick<MutationCtx, 'auth'>,
+  intake: Doc<'intakes'>,
+): Promise<Array<string>> {
+  const identity = await ctx.auth.getUserIdentity()
+  return [intake.holderName, identity?.name].filter(
+    (n): n is string => typeof n === 'string' && n.trim() !== '',
+  )
+}
 
 async function ownedIntake(
   ctx: { db: { get: (id: Id<'intakes'>) => Promise<Doc<'intakes'> | null> } },
@@ -169,6 +182,7 @@ export const start = mutation({
         title: before.title,
         institution: before.institution,
         accountTail: before.accountTail,
+        holderName: before.holderName,
         transactions: before.transactions,
         positions: before.positions,
         trades: before.trades,
@@ -481,9 +495,11 @@ export const review = query({
     /* A transfer is the same transfer whatever each bank calls it — "To
        Trade Republic" here, "Revolut → TR" typed, "Top up" on the other
        side: its own money moving is matched by amount and days alone. */
+    const names = await hisNames(ctx, intake)
+    const own = read.map((r) => r.self || ownMoney(r, names))
     const taken = new Set(dups.filter((d): d is number => d !== null))
     for (const [i, r] of read.entries()) {
-      if (dups[i] !== null || !r.self) continue
+      if (dups[i] !== null || !own[i]) continue
       const j = existing.findIndex(
         (l, k) =>
           !taken.has(k) &&
@@ -520,7 +536,7 @@ export const review = query({
       .map((a) => ({ id: a._id, name: a.name, domain: a.domain }))
 
     const rows = read.map((r, index) => {
-      const move = r.self
+      const move = own[index]
       const kind = move
         ? ('move' as const)
         : r.amount > 0
@@ -1390,7 +1406,7 @@ export const progress = internalMutation({
           amount: r.amount,
           currency: r.currency,
           have: dups[i] !== null,
-          move: r.self,
+          move: r.self || ownMoney(r, []),
         })
       }
     }
@@ -1503,6 +1519,7 @@ export const finish = internalMutation({
     title: v.string(),
     institution: v.optional(v.string()),
     accountTail: v.optional(v.string()),
+    holderName: v.optional(v.string()),
     transactions: txValidator,
     positions: posValidator,
     trades: tradesValidator,

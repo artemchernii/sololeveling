@@ -337,6 +337,7 @@ async function readWithModel(
     title: parsed.title,
     institution: parsed.institution,
     accountTail: parsed.accountTail,
+    holderName: parsed.holderName,
     transactions:
       parsed.kind === 'transactions' ? split.transactions : undefined,
     positions: parsed.kind === 'holdings' ? positions : undefined,

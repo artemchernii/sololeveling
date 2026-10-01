@@ -876,6 +876,7 @@ describe('intake: transactions', () => {
     me: ReturnType<typeof setup>['me'],
     rows: Array<ReturnType<typeof tx>>,
     balance?: number,
+    holderName?: string,
   ) {
     const storageId = await t.run(async (ctx) =>
       ctx.storage.store(
@@ -898,6 +899,7 @@ describe('intake: transactions', () => {
       kind: 'transactions',
       title: 'Revolut statement · EUR',
       institution: 'Revolut',
+      holderName,
       transactions: rows,
       positions: undefined,
       balance:
@@ -947,6 +949,137 @@ describe('intake: transactions', () => {
       ['GANT', 'spend', null],
       ['Cinemas NOS', 'spend', null],
     ])
+  })
+
+  test('his own money is never income, whatever the reader said (1 Oct)', async () => {
+    const { t, me } = setup()
+    await me.mutation(api.accounts.create, {
+      name: 'ActivoBank',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const { intakeId } = await ready(
+      t,
+      me,
+      [
+        tx(9, 3, 'TRF. P/O ARTEM CHERNII', 400),
+        tx(9, 4, 'LEVANTAMENTO MB', -60),
+        tx(9, 5, 'PAYPAL EUROPE S.A.R.L.', 139.5),
+      ],
+      undefined,
+      'ARTEM CHERNII',
+    )
+    const r = await me.query(api.intake.review, { intakeId })
+    if (r === null) throw new Error('no review')
+    expect(r.rows.map((x) => [x.merchant, x.kind])).toEqual([
+      ['TRF. P/O ARTEM CHERNII', 'move'],
+      ['LEVANTAMENTO MB', 'move'],
+      ['PAYPAL EUROPE S.A.R.L.', 'income'],
+    ])
+  })
+
+  test('his sign-in name counts when the statement printed none', async () => {
+    const { t } = setup()
+    const named = t.withIdentity({ tokenIdentifier: ME, name: 'Artem Chernii' })
+    await named.mutation(api.accounts.create, {
+      name: 'ActivoBank',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const { intakeId } = await ready(t, named, [
+      tx(9, 3, 'TRF. P/O ARTEM CHERNII', 1100),
+    ])
+    const r = await named.query(api.intake.review, { intakeId })
+    expect(r?.rows[0].kind).toBe('move')
+  })
+
+  test('a typed withdraw into Cash is a move, not income', async () => {
+    const { t, me } = setup()
+    const cash = await me.mutation(api.accounts.create, {
+      name: 'Cash',
+      kinds: ['cash'],
+      currencies: ['EUR'],
+    })
+    await me.mutation(api.money.record, {
+      lines: [
+        {
+          kind: 'in',
+          accountId: cash,
+          amount: 20,
+          currency: 'EUR',
+          category: 'other',
+          note: 'withdraw',
+          occurredAt: day(9, 20),
+        },
+      ],
+    })
+    const rows = await t.run((ctx) => ctx.db.query('logs').collect())
+    expect(rows.map((l) => [l.kind, l.value])).toEqual([['move', 20]])
+  })
+
+  test('re-filing stored rows: own name and withdrawals become moves, only his', async () => {
+    const { t, me } = setup()
+    const bank = await me.mutation(api.accounts.create, {
+      name: 'ActivoBank',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const base = {
+      area: 'money',
+      occurredAt: day(9, 3),
+      unit: 'eur',
+      accountId: bank,
+    }
+    await t.run(async (ctx) => {
+      await ctx.db.insert('logs', {
+        ...base,
+        ownerId: ME,
+        kind: 'income',
+        value: 400,
+        text: 'TRF. P/O ARTEM CHERNII',
+        meta: { merchant: 'TRF. P/O ARTEM CHERNII' },
+      })
+      await ctx.db.insert('logs', {
+        ...base,
+        ownerId: ME,
+        kind: 'expense',
+        value: 60,
+        text: 'ATM',
+        meta: { merchant: 'ATM', category: 'other' },
+      })
+      await ctx.db.insert('logs', {
+        ...base,
+        ownerId: ME,
+        kind: 'income',
+        value: 139.5,
+        text: 'PayPal Europe',
+      })
+      await ctx.db.insert('logs', {
+        ...base,
+        ownerId: SOMEONE_ELSE,
+        kind: 'income',
+        value: 400,
+        text: 'TRF. P/O ARTEM CHERNII',
+      })
+    })
+    const done = await t.mutation(internal.migrations.ownMoneyMoves, {
+      ownerId: ME,
+      names: ['Artem Chernii'],
+    })
+    expect(done).toEqual({ income: 1, spending: 1 })
+    const again = await t.mutation(internal.migrations.ownMoneyMoves, {
+      ownerId: ME,
+      names: ['Artem Chernii'],
+    })
+    expect(again).toEqual({ income: 0, spending: 0 })
+    const rows = await t.run((ctx) => ctx.db.query('logs').collect())
+    expect(rows.map((l) => [l.ownerId === ME, l.kind, l.value])).toEqual([
+      [true, 'move', 400],
+      [true, 'move', -60],
+      [true, 'income', 139.5],
+      [false, 'income', 400],
+    ])
+    expect(rows[1].meta?.category).toBeUndefined()
   })
 
   test('confirm: spends, a move, the balance; pending never written; spending sums only spending', async () => {

@@ -6,6 +6,7 @@ import { checkTrade, heldShares, upsertInstrument } from './invest'
 import { mutation } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
+import { ownMoney } from '../src/lib/intake'
 
 /* Money he types (27 Sep, "adding money"): one line or several —
    `in 2900 salary`, `out 1200 laptop revolut`, `bpi → tr 2000`,
@@ -186,12 +187,30 @@ export const record = mutation({
         const category = cleanCategory(l.category)
         const note = cleanNote(l.note)
         const text = note ?? (l.kind === 'out' ? 'Purchase' : category)
+        const amount = checkAmount(l.amount)
+        /* "withdraw 20" into Cash is his own money arriving from a bank,
+           not income (1 Oct): a move, signed as this account sees it. */
+        const signed = l.kind === 'out' ? -amount : amount
+        if (ownMoney({ amount: signed, merchant: `${text} ${category}` }, [])) {
+          await ctx.db.insert('logs', {
+            ownerId,
+            kind: 'move',
+            area: 'money',
+            occurredAt: l.occurredAt,
+            value: signed,
+            unit: l.currency.toLowerCase(),
+            text,
+            accountId: account._id,
+            meta: { merchant: text },
+          })
+          continue
+        }
         await ctx.db.insert('logs', {
           ownerId,
           kind: l.kind === 'out' ? 'expense' : 'income',
           area: 'money',
           occurredAt: l.occurredAt,
-          value: checkAmount(l.amount),
+          value: amount,
           unit: l.currency.toLowerCase(),
           text,
           accountId: account._id,

@@ -854,6 +854,53 @@ export function hasTradeRows(rows: ReadonlyArray<ReadTransaction>): boolean {
   return rows.some((r) => tradeInRow(r) !== null)
 }
 
+/* ---- His own money ------------------------------------------------------ */
+
+/* Cash out of a machine, or into his wallet from one (1 Oct: a typed
+   "withdraw +€20" in Cash was counted as income). */
+const WITHDRAWAL = /\b(atm|withdraw(al)?|levantamento|cash out)\b/i
+/* Money arriving on a top-up is his own card's. A top-up going OUT is a
+   phone bill ("Vodafone carregamento"), so only money in counts. */
+const TOP_UP = /\b(top[- ]?up|carregamento)\b/i
+
+const plain = (s: string) =>
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+/**
+ * His own money, whatever the reader thought (1 Oct: ActivoBank's "TRF.
+ * P/O ARTEM CHERNII" +€400 was filed as income). True for a transfer from
+ * or to his own name, cash out of an ATM, money arriving on a top-up.
+ * `names` are his — the statement's holder, his sign-in — and a name
+ * counts only whole, every word of it, in either order.
+ */
+export function ownMoney(
+  row: {
+    amount: number
+    merchant: string
+    raw?: string
+    counterparty?: string
+  },
+  names: ReadonlyArray<string>,
+): boolean {
+  const said = `${row.merchant} ${row.raw ?? ''}`
+  if (WITHDRAWAL.test(said)) return true
+  if (row.amount > 0 && TOP_UP.test(said)) return true
+  /* Going out, a name printed after "From:" is the sender — him — so only
+     who it went to counts. */
+  const where = plain(
+    row.amount > 0
+      ? `${said} ${row.counterparty ?? ''}`
+      : `${row.merchant} ${row.counterparty ?? ''}`,
+  )
+  const words = new Set(where.split(/[^a-z]+/).filter(Boolean))
+  return names.some((n) => {
+    const parts = plain(n)
+      .split(/[^a-z]+/)
+      .filter((w) => w.length > 1)
+    return parts.length >= 2 && parts.every((w) => words.has(w))
+  })
+}
+
 /* ---- A broker's own spelling of a company ------------------------------ */
 
 /** Trade Republic's "ALPHABET INC.CL.A DL-,001" → "ALPHABET INC. (Class A)":

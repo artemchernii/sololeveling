@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import {
   brokerName,
+  ownMoney,
   sameCompany,
   hasTradeRows,
   splitStatement,
@@ -518,5 +519,53 @@ describe('a broker’s own spelling', () => {
     expect(sameCompany({ name: 'NVIDIA', isin: 'US67066G1040' }, held)).toBe(3)
     expect(sameCompany({ name: 'UBER TECH. DL-,00001' }, held)).toBe(4)
     expect(sameCompany({ name: 'APPLE INC.' }, held)).toBe(-1)
+  })
+})
+
+describe('his own money', () => {
+  const me = ['Artem Chernii']
+  const row = (amount: number, merchant: string, raw?: string) => ({
+    amount,
+    merchant,
+    raw,
+  })
+
+  test('a transfer from his own name is his money (ActivoBank, 1 Oct)', () => {
+    expect(ownMoney(row(400, 'TRF. P/O ARTEM CHERNII'), me)).toBe(true)
+    expect(
+      ownMoney(
+        row(4400, 'Payment from ARTEM CHERNII', 'From: ARTEM CHERNII'),
+        me,
+      ),
+    ).toBe(true)
+  })
+
+  test('a name counts only whole', () => {
+    expect(ownMoney(row(50, 'TRF. P/O ARTEM SILVA'), me)).toBe(false)
+    expect(ownMoney(row(50, 'TRF. P/O ARTEM CHERNII'), ['Artem'])).toBe(false)
+    expect(ownMoney(row(50, 'CHERNII ARTEM'), me)).toBe(true)
+  })
+
+  test('going out, the sender printed on the line is not where it went', () => {
+    expect(
+      ownMoney(row(-30, 'Pingo Doce', 'Pingo Doce From: ARTEM CHERNII'), me),
+    ).toBe(false)
+    expect(ownMoney(row(-300, 'To ARTEM CHERNII'), me)).toBe(true)
+  })
+
+  test('an ATM withdrawal, either side of it', () => {
+    expect(ownMoney(row(20, 'withdraw'), [])).toBe(true)
+    expect(ownMoney(row(-60, 'LEVANTAMENTO MB'), [])).toBe(true)
+  })
+
+  test('a top-up arriving is his card; a phone top-up going out is spending', () => {
+    expect(ownMoney(row(500, 'Apple Pay Top up'), [])).toBe(true)
+    expect(ownMoney(row(1000, 'Top-up by *2789'), [])).toBe(true)
+    expect(ownMoney(row(-10, 'Vodafone carregamento'), [])).toBe(false)
+  })
+
+  test('income stays income', () => {
+    expect(ownMoney(row(139.5, 'PAYPAL EUROPE S.A.R.L.'), me)).toBe(false)
+    expect(ownMoney(row(0.14, 'Cash Dividend US02079K3059'), me)).toBe(false)
   })
 })

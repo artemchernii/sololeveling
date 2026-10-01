@@ -1991,7 +1991,10 @@ export const accountSheet = query({
     for (const t of trades) {
       if (!symbols.has(t.instrumentId)) {
         const i = await ctx.db.get(t.instrumentId)
-        symbols.set(t.instrumentId, i?.symbol ?? 'A share')
+        symbols.set(
+          t.instrumentId,
+          i !== null && i.ownerId === ownerId ? i.symbol : 'A share',
+        )
       }
       const cost = Math.round(t.shares * t.priceEur * 100) / 100
       out.push({

@@ -591,8 +591,10 @@ function RowLine({
             </span>
           ) : null}
           {inside !== null ? (
-            <span className="rounded-[5px] px-1.5 text-[9.5px] tracking-[0.08em] text-state-warn uppercase ring-1 ring-state-warn/40 ring-inset">
-              inside the {short(inside)} balance — it changed no balance
+            /* Information, not a warning (2 Oct: in amber it read as one,
+               on the very row that made the balance add up). */
+            <span className="rounded-[5px] px-1.5 text-[9.5px] tracking-[0.08em] text-ink-400 uppercase ring-1 ring-lift/10 ring-inset">
+              in the {short(inside)} balance
             </span>
           ) : null}
         </span>

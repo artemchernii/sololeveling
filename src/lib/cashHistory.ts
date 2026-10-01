@@ -78,28 +78,60 @@ export type Gap = {
   missing: number
 }
 
-export function balanceGaps(
+/** One pair of readings checked: the earlier balance, the rows between
+    and their sum, and what the later one read. `missing` is 0 when it
+    adds up. */
+export type Check = Gap & {
+  fromValue: number
+  rows: number
+  sum: number
+}
+
+export function balanceChecks(
   readingsIn: ReadonlyArray<Reading>,
   moves: ReadonlyArray<Move>,
-): Array<Gap> {
+): Array<Check> {
   const readings = [...readingsIn].sort((a, b) => a.at - b.at)
-  const gaps: Array<Gap> = []
+  const checks: Array<Check> = []
   for (let i = 1; i < readings.length; i++) {
     const a = readings[i - 1]
     const b = readings[i]
-    let cents = Math.round(a.value * 100)
-    for (const m of moves) if (after(m, a) && !after(m, b)) cents += m.cents
+    let sum = 0
+    let rows = 0
+    for (const m of moves)
+      if (after(m, a) && !after(m, b)) {
+        sum += m.cents
+        rows++
+      }
+    const cents = Math.round(a.value * 100) + sum
     const read = Math.round(b.value * 100)
-    if (read !== cents)
-      gaps.push({
-        from: a.at,
-        to: b.at,
-        expected: cents / 100,
-        read: read / 100,
-        missing: (read - cents) / 100,
-      })
+    checks.push({
+      from: a.at,
+      to: b.at,
+      fromValue: a.value,
+      rows,
+      sum: sum / 100,
+      expected: cents / 100,
+      read: read / 100,
+      missing: (read - cents) / 100,
+    })
   }
-  return gaps
+  return checks
+}
+
+export function balanceGaps(
+  readings: ReadonlyArray<Reading>,
+  moves: ReadonlyArray<Move>,
+): Array<Gap> {
+  return balanceChecks(readings, moves)
+    .filter((c) => c.missing !== 0)
+    .map(({ from, to, expected, read, missing }) => ({
+      from,
+      to,
+      expected,
+      read,
+      missing,
+    }))
 }
 
 /** The reading a row on `at` sits inside: a row typed there changes no

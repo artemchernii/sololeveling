@@ -112,7 +112,6 @@ describe('rangeChange', () => {
 })
 
 describe('balanceGaps', () => {
-  const D = 86_400_000
   const t0 = new Date(2026, 8, 3, 12).getTime()
 
   test('his ActivoBank case: one −€100 row cut off the screenshot', () => {

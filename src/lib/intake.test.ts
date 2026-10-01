@@ -564,6 +564,15 @@ describe('his own money', () => {
     expect(ownMoney(row(-10, 'Vodafone carregamento'), [])).toBe(false)
   })
 
+  test('a salary printing him as its receiver stays income', () => {
+    expect(
+      ownMoney(
+        row(1800, 'ACME LDA', 'SALARIO SET ACME LDA To: ARTEM CHERNII'),
+        me,
+      ),
+    ).toBe(false)
+  })
+
   test('income stays income', () => {
     expect(ownMoney(row(139.5, 'PAYPAL EUROPE S.A.R.L.'), me)).toBe(false)
     expect(ownMoney(row(0.14, 'Cash Dividend US02079K3059'), me)).toBe(false)

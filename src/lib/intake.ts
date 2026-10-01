@@ -885,13 +885,11 @@ export function ownMoney(
   const said = `${row.merchant} ${row.raw ?? ''}`
   if (WITHDRAWAL.test(said)) return true
   if (row.amount > 0 && TOP_UP.test(said)) return true
-  /* Going out, a name printed after "From:" is the sender — him — so only
-     who it went to counts. */
-  const where = plain(
-    row.amount > 0
-      ? `${said} ${row.counterparty ?? ''}`
-      : `${row.merchant} ${row.counterparty ?? ''}`,
-  )
+  /* Only who is on the other side counts — the merchant or counterparty
+     the reader named — never the whole printed line: going out, "From:
+     ARTEM" is the sender, him; coming in, a salary can print "To: ARTEM"
+     as its receiver (1 Oct review). */
+  const where = plain(`${row.merchant} ${row.counterparty ?? ''}`)
   const words = new Set(where.split(/[^a-z]+/).filter(Boolean))
   return names.some((n) => {
     const parts = plain(n)

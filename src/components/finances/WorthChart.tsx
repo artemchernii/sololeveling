@@ -1,17 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import {
-  AreaSeries,
-  LineStyle,
-  createChart,
-  createSeriesMarkers,
-} from 'lightweight-charts'
-import type {
-  IChartApi,
-  ISeriesApi,
-  ISeriesMarkersPluginApi,
-  Time,
-} from 'lightweight-charts'
+import { AreaSeries, LineStyle, createChart } from 'lightweight-charts'
+import type { IChartApi, ISeriesApi } from 'lightweight-charts'
 
 import { api } from '../../../convex/_generated/api'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
@@ -74,12 +64,10 @@ export function WorthChart() {
      to draw, so switching never reloads. */
   const dayEnds = useMemo(() => dayEndsBack(today, 365), [today])
   const history = useQuery(api.aggregate.cashHistory, { dayEnds })
-  const accounts = useQuery(api.accounts.list, {})
   const { shown } = useVeil()
   const box = useRef<HTMLDivElement>(null)
   const chart = useRef<IChartApi | null>(null)
   const series = useRef<ISeriesApi<'Area'> | null>(null)
-  const markers = useRef<ISeriesMarkersPluginApi<Time> | null>(null)
 
   const points = useMemo(() => {
     if (!history) return []
@@ -90,8 +78,8 @@ export function WorthChart() {
       .map((p) => ({ time: iso(p.t), value: p.v }))
   }, [history, dayEnds, days])
 
-  /* An account joining is marked on its day and kept out of the change. */
-  const { change, joins } = useMemo(
+  /* An account joining is not money made: kept out of the change. */
+  const { change } = useMemo(
     () =>
       history
         ? rangeChange(history.total, history.accounts, dayEnds.length - days)
@@ -144,13 +132,11 @@ export function WorthChart() {
       priceLineVisible: false,
       lastValueVisible: false,
     })
-    markers.current = createSeriesMarkers(series.current, [])
     chart.current = c
     return () => {
       c.remove()
       chart.current = null
       series.current = null
-      markers.current = null
     }
   }, [])
 
@@ -170,26 +156,6 @@ export function WorthChart() {
       })
     chart.current?.timeScale().fitContent()
   }, [points])
-
-  /* A dot on the line where an account joined; its name goes under the
-     chart, where a label cannot collide with the next or run off the edge. */
-  useEffect(() => {
-    markers.current?.setMarkers(
-      joins.map((j) => ({
-        time: iso(dayEnds[j.index]),
-        position: 'aboveBar' as const,
-        shape: 'circle' as const,
-        color: css('--color-ink-400', '#9a9ab0'),
-        size: 0.6,
-      })),
-    )
-  }, [joins, dayEnds, points])
-
-  const joined = joins.map((j) => {
-    const name = accounts?.find((a) => a._id === j.accountId)?.name
-    const d = new Date(dayEnds[j.index])
-    return `${name ?? 'an account'} ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
-  })
 
   return (
     <section className="glass flex flex-col gap-3 rounded-[22px] p-4 sm:p-5">
@@ -228,13 +194,6 @@ export function WorthChart() {
           </p>
         ) : null}
       </div>
-      {joined.length > 0 ? (
-        <span className="flex items-baseline gap-1.5 font-mono text-[11px] text-ink-400">
-          <span className="size-1.5 shrink-0 -translate-y-px rounded-full bg-ink-400" />
-          joined: {joined.join(' · ')} — their balance that day is not counted
-          as a change
-        </span>
-      ) : null}
       <span className="font-mono text-[10.5px] text-ink-500">
         from your balances and rows · in euros at today’s rates · investments
         join the line once their closes are stored each night

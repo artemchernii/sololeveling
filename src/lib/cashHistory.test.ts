@@ -5,7 +5,6 @@ import {
   balanceGaps,
   balanceSeries,
   coveredBy,
-  rangeChange,
 } from './cashHistory'
 
 const D = 86_400_000
@@ -62,52 +61,6 @@ describe('balanceSeries', () => {
       [{ at: noon(2), cents: 500, fromFile: false }],
     )
     expect(s).toEqual([15, 50])
-  })
-})
-
-describe('rangeChange', () => {
-  test('an account joining is marked, not counted as gain (Cash, 27 Sep)', () => {
-    const bank = [100, 110, 90, 95]
-    const cash = [null, null, 5000, 5000]
-    const total = [100, 110, 5090, 5095]
-    const r = rangeChange(
-      total,
-      [
-        { accountId: 'bank', values: bank },
-        { accountId: 'cash', values: cash },
-      ],
-      0,
-    )
-    expect(r.joins).toEqual([{ index: 2, accountId: 'cash', value: 5000 }])
-    expect(r.change).toBe(-5)
-  })
-
-  test('an account there from the range’s first day is not a join', () => {
-    const r = rangeChange(
-      [null, 5100, 5200],
-      [
-        { accountId: 'a', values: [null, 100, 200] },
-        { accountId: 'b', values: [null, 5000, 5000] },
-      ],
-      0,
-    )
-    expect(r).toEqual({ change: 100, joins: [] })
-  })
-
-  test('the range starts later: only what joins inside it', () => {
-    const r = rangeChange(
-      [100, 100, 600, 700],
-      [
-        { accountId: 'a', values: [100, 100, 100, 200] },
-        { accountId: 'b', values: [null, null, 500, 500] },
-      ],
-      2,
-    )
-    expect(r).toEqual({ change: 100, joins: [] })
-  })
-
-  test('fewer than two drawn days: no change', () => {
-    expect(rangeChange([null, 5], [], 0).change).toBeNull()
   })
 })
 

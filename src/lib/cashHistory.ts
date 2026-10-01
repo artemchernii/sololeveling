@@ -60,43 +60,6 @@ function known(
   })
 }
 
-/* An account joining is not money made (1 Oct: Cash typed as €5,000 and
-   Trade Republic's cash read on Sep 27 drew "+€5,417 in 3M"). Within a
-   range, an account whose line starts after the range's first day joins
-   on that day; its balance then is taken out of the change and the day is
-   marked instead. */
-
-export type Join<TId> = { index: number; accountId: TId; value: number }
-
-export function rangeChange<TId>(
-  total: ReadonlyArray<number | null>,
-  accounts: ReadonlyArray<{
-    accountId: TId
-    values: ReadonlyArray<number | null>
-  }>,
-  from: number,
-): { change: number | null; joins: Array<Join<TId>> } {
-  const drawn: Array<number> = []
-  for (let i = Math.max(0, from); i < total.length; i++)
-    if (total[i] !== null) drawn.push(i)
-  const joins: Array<Join<TId>> = []
-  if (drawn.length < 2) return { change: null, joins }
-  const start = drawn[0]
-  for (const a of accounts) {
-    const i = a.values.findIndex((x, k) => k >= start && x !== null)
-    if (i > start)
-      joins.push({ index: i, accountId: a.accountId, value: a.values[i] ?? 0 })
-  }
-  joins.sort((x, y) => x.index - y.index)
-  const end = drawn[drawn.length - 1]
-  const joined = joins.reduce((s, j) => s + Math.round(j.value * 100), 0)
-  const cents =
-    Math.round((total[end] ?? 0) * 100) -
-    Math.round((total[start] ?? 0) * 100) -
-    joined
-  return { change: cents / 100, joins }
-}
-
 /* ---- Does it add up? -------------------------------------------------- */
 
 /* A bank's balance is an observation and its rows are the ledger (1 Oct,

@@ -11,6 +11,7 @@ import { DropFiles } from '@/components/finances/Add'
 import { IntakeFlow } from '@/components/finances/Intake'
 import { AccountLogo } from '@/components/finances/Logo'
 import { dayEndsBack } from '@/components/finances/WorthChart'
+import { OpenAccount } from '@/components/finances/OpenAccount'
 import { Sheet } from '@/components/finances/Sheet'
 import { Veiled } from '@/components/finances/Veil'
 import { SkeletonRows } from '@/components/Skeleton'
@@ -62,6 +63,11 @@ export function Accounts() {
   const [kind, setKind] = useState<AccountKind | 'all'>('all')
   const [editing, setEditing] = useState<Doc<'accounts'> | 'new' | null>(null)
   const [updating, setUpdating] = useState<Doc<'accounts'> | null>(null)
+  const [opened, setOpened] = useState<Id<'accounts'> | null>(null)
+  const openRow = data?.accounts.find((a) => a.accountId === opened)
+  const openDoc = accounts?.find((a) => a._id === opened) ?? null
+  const investedOf = (id: Id<'accounts'>) =>
+    worth?.byAccount.find((x) => x.accountId === id)?.invested ?? null
 
   const list = (data?.accounts ?? []).filter(
     (a) => kind === 'all' || a.kinds.includes(kind),
@@ -124,10 +130,8 @@ export function Accounts() {
               key={a.accountId}
               row={a}
               index={i}
-              invested={
-                worth?.byAccount.find((x) => x.accountId === a.accountId)
-                  ?.invested ?? null
-              }
+              invested={investedOf(a.accountId)}
+              onOpen={() => setOpened(a.accountId)}
               month={
                 month?.accounts.find((m) => m.accountId === a.accountId)?.net ??
                 null
@@ -152,6 +156,19 @@ export function Accounts() {
 
       <StillCounted />
       <AccountSheet account={editing} onClose={() => setEditing(null)} />
+      <OpenAccount
+        account={openDoc}
+        total={
+          openRow
+            ? Math.round(
+                (openRow.cashEur + (investedOf(openRow.accountId) ?? 0)) * 100,
+              ) / 100
+            : 0
+        }
+        meta={openRow ? freshness(openRow.pockets, Date.now()).label : ''}
+        onClose={() => setOpened(null)}
+        onUpdate={() => openDoc && setUpdating(openDoc)}
+      />
       <UpdateSheet account={updating} onClose={() => setUpdating(null)} />
     </Panel>
   )
@@ -173,6 +190,7 @@ function AccountCard({
   line,
   onEdit,
   onUpdate,
+  onOpen,
 }: {
   row: BalanceRow
   index: number
@@ -181,12 +199,27 @@ function AccountCard({
   line: Array<number | null>
   onEdit: () => void
   onUpdate: () => void
+  /** The account, opened: its rows, balances and files (A.4). */
+  onOpen: () => void
 }) {
   const f = freshness(a.pockets, Date.now())
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${a.name}`}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (
+          e.target === e.currentTarget &&
+          (e.key === 'Enter' || e.key === ' ')
+        ) {
+          e.preventDefault()
+          onOpen()
+        }
+      }}
       style={{ animationDelay: `${index * 40}ms` }}
-      className="motion-arrive flex h-full flex-col gap-3.5 rounded-[18px] bg-lift/[0.055] p-4 ring-1 ring-lift/[0.12] ring-inset"
+      className="motion-arrive flex h-full cursor-pointer flex-col gap-3.5 rounded-[18px] bg-lift/[0.055] p-4 ring-1 ring-lift/[0.12] transition-shadow ring-inset hover:ring-lav-400/40"
     >
       <div className="flex items-start gap-3">
         <AccountLogo name={a.name} domain={a.domain} size={40} />
@@ -202,7 +235,10 @@ function AccountCard({
         </span>
         <button
           type="button"
-          onClick={onEdit}
+          onClick={(e) => {
+            e.stopPropagation()
+            onEdit()
+          }}
           aria-label={`Edit or delete ${a.name}`}
           className={PILL_QUIET}
         >
@@ -284,7 +320,10 @@ function AccountCard({
         </span>
         <button
           type="button"
-          onClick={onUpdate}
+          onClick={(e) => {
+            e.stopPropagation()
+            onUpdate()
+          }}
           className={
             f.stale
               ? 'motion-press shrink-0 rounded-full bg-state-warn/12 px-3 py-1.5 font-mono text-[10.5px] tracking-[0.12em] text-state-warn uppercase ring-1 ring-state-warn/50 ring-inset'

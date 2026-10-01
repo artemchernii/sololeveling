@@ -77,7 +77,7 @@ export function Sheet({
             <X className="size-4" />
           </button>
         </div>
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-5">
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-5 [&>*]:shrink-0">
           {children}
         </div>
         {footer ? (

@@ -3,6 +3,7 @@ import { v } from 'convex/values'
 import { transferPair } from './logs'
 import { internalMutation } from './_generated/server'
 import { productIn } from '../src/lib/institutions'
+import { ownMoney } from '../src/lib/intake'
 
 /* One owner's money rows, moved into the "adding money" shape (27 Sep):
    run once per owner (`npx convex run migrations:addingMoney`), safe to
@@ -175,6 +176,40 @@ export const addingMoney = internalMutation({
         },
       })
       done.paired++
+    }
+    return done
+  },
+})
+
+/* His own money, re-filed (1 Oct): rows stored as income or spending
+   before `ownMoney` existed — "TRF. P/O ARTEM CHERNII" +€400 counted as
+   money in, a typed "withdraw" +€20 in Cash. Each becomes a move, signed
+   as its account sees it. `names` are his, as statements print them.
+   Run once per owner; safe to run again — a move is never touched. */
+export const ownMoneyMoves = internalMutation({
+  args: { ownerId: v.string(), names: v.array(v.string()) },
+  returns: v.object({ income: v.number(), spending: v.number() }),
+  handler: async (ctx, { ownerId, names }) => {
+    const done = { income: 0, spending: 0 }
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q.eq('ownerId', ownerId).eq('area', 'money'),
+      )
+      .take(8000)
+    for (const l of rows) {
+      if (l.kind !== 'income' && l.kind !== 'expense') continue
+      const amount = l.kind === 'income' ? (l.value ?? 0) : -(l.value ?? 0)
+      const said = {
+        amount,
+        merchant: l.meta?.merchant ?? l.text ?? '',
+        raw: l.meta?.raw,
+      }
+      if (!ownMoney(said, names)) continue
+      const { category: _c, recurringId: _r, ...meta } = l.meta ?? {}
+      await ctx.db.patch(l._id, { kind: 'move', value: amount, meta })
+      if (l.kind === 'income') done.income++
+      else done.spending++
     }
     return done
   },

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ChevronRight, CircleCheck } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import type { FunctionReturnType } from 'convex/server'
 
@@ -100,6 +100,9 @@ export function TreasuryHero() {
      bank that is also a broker (Revolut) shows its cash under Banks. */
   const brokerOnly = (a: Row) => !a.kinds.includes('bank')
   const stale = rows.filter((a) => balanceFreshness(a.pockets, now).stale)
+  const brokerCash = brokers
+    .filter(brokerOnly)
+    .reduce((t, a) => t + a.cashEur, 0)
 
   const docOf = (id: Id<'accounts'>) => accounts?.find((a) => a._id === id)
   const net = sums ? sums.in.sum - sums.out.sum : null
@@ -109,7 +112,8 @@ export function TreasuryHero() {
       style={areaVars('money')}
       className="system-frame system-open relative overflow-clip p-4 sm:p-5"
     >
-      {/* His photo: the right half's ground, darkened where the rows sit. */}
+      {/* His photo: the right half's ground, darkened where the rows sit,
+          a little frosted (27 Sep: "slightly blur… make it glass"). */}
       <img
         src="/finances/dollar.jpg"
         alt=""
@@ -121,7 +125,7 @@ export function TreasuryHero() {
           WebkitMaskImage:
             'linear-gradient(to left, black 55%, transparent 100%)',
         }}
-        className="motion-fade pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[62%] object-cover opacity-70 select-none sm:block"
+        className="motion-fade pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[62%] scale-[1.04] object-cover opacity-70 blur-[2.5px] select-none sm:block"
       />
 
       <div className="relative flex flex-wrap items-center gap-2 border-b border-lav-400/20 pb-3">
@@ -129,7 +133,6 @@ export function TreasuryHero() {
         {!loading && !empty ? (
           <CheckIn
             stale={stale}
-            all={rows}
             onOpen={() => (stale.length > 0 ? setOpen('checkin') : undefined)}
           />
         ) : null}
@@ -172,11 +175,17 @@ export function TreasuryHero() {
             >
               <Veiled>{euros(worth.total)}</Veiled>
             </span>
-            <div className="flex flex-wrap gap-2">
-              <span className="inline-flex h-9 items-center gap-2.5 rounded-[10px] bg-lift/[0.06] px-3 font-mono text-[14.5px] font-medium">
-                {net === null ? (
-                  <Skeleton className="h-3 w-16" />
-                ) : (
+            {/* One "this month" (1 Oct: two pills said the same thing):
+                in − out, his own money moving left out of both. */}
+            <span className="inline-flex min-h-9 flex-wrap items-center gap-x-2.5 gap-y-1 self-start rounded-[10px] bg-lift/[0.06] px-3 py-1.5 font-mono text-[14.5px] font-medium">
+              {sums === undefined || net === null ? (
+                <Skeleton className="h-3 w-40" />
+              ) : sums.in.sum === 0 && sums.out.sum === 0 ? (
+                <span className="text-[12px] font-normal text-ink-400">
+                  nothing in or out yet this month
+                </span>
+              ) : (
+                <>
                   <span
                     className={
                       net >= 0 ? 'text-state-good' : 'text-state-danger'
@@ -184,29 +193,13 @@ export function TreasuryHero() {
                   >
                     <Veiled>{`${net >= 0 ? '+' : '−'}${euros(Math.abs(net))}`}</Veiled>
                   </span>
-                )}
-                <span className="text-[12px] font-normal text-ink-500">
-                  this month
-                </span>
-              </span>
-              <span className="inline-flex h-9 items-center gap-2.5 rounded-[10px] bg-lift/[0.06] px-3 font-mono text-[14.5px] font-medium">
-                {sums === undefined ? (
-                  <Skeleton className="h-3 w-24" />
-                ) : (
-                  <>
-                    <span className="text-state-good">
-                      <Veiled>{`+${euros(sums.in.sum)}`}</Veiled>
-                    </span>
-                    <span className="text-state-danger">
-                      <Veiled>{`−${euros(sums.out.sum)}`}</Veiled>
-                    </span>
-                  </>
-                )}
-                <span className="text-[12px] font-normal text-ink-500">
-                  in · out
-                </span>
-              </span>
-            </div>
+                  <span className="text-[12px] font-normal text-ink-500">
+                    this month ·{' '}
+                    <Veiled>{`in ${euros(sums.in.sum)} · out ${euros(sums.out.sum)}`}</Veiled>
+                  </span>
+                </>
+              )}
+            </span>
             <div className="flex max-w-[460px] flex-col gap-1.5">
               <div className="flex h-2.5 gap-[3px] overflow-hidden rounded-full bg-lift/[0.06]">
                 {cash + invested > 0 ? (
@@ -254,26 +247,20 @@ export function TreasuryHero() {
               <GroupRow
                 label="investments"
                 total={
-                  <>
-                    <Veiled>
-                      {euros(
-                        brokers.reduce(
-                          (t, a) => t + investedBy(a.accountId),
-                          0,
-                        ),
-                      )}
-                    </Veiled>
-                    <span className="text-ink-500"> · </span>
-                    <span className="text-money-cash">
-                      <Veiled>
-                        {euros(
-                          brokers
-                            .filter(brokerOnly)
-                            .reduce((t, a) => t + a.cashEur, 0),
-                        )}
-                      </Veiled>
-                    </span>
-                  </>
+                  <Veiled>
+                    {euros(
+                      brokers.reduce((t, a) => t + investedBy(a.accountId), 0),
+                    )}
+                  </Veiled>
+                }
+                /* A broker's own cash, said as cash (27 Sep: an unlabeled gold
+                   second number beside the total read like a profit). */
+                note={
+                  brokerCash > 0 ? (
+                    <>
+                      cash <Veiled>{euros(brokerCash)}</Veiled>
+                    </>
+                  ) : undefined
                 }
                 parts={brokers.map((a) => ({
                   a,
@@ -341,7 +328,10 @@ export function TreasuryHero() {
             monthOf={monthOf}
             onUpdate={(id) => {
               const doc = docOf(id)
-              if (doc) setUpdating(doc)
+              if (doc) {
+                setOpen(null)
+                setUpdating(doc)
+              }
             }}
           />
         )}
@@ -353,32 +343,14 @@ export function TreasuryHero() {
 }
 
 /* Out of date: its logos when one or two, a count from three. Up to date
-   is said as loudly (27 Sep: "looks weak and faded"): lit green, a check
-   drawn, and every account it covers. */
-function CheckIn({
-  stale,
-  all,
-  onOpen,
-}: {
-  stale: Array<Row>
-  all: Array<Row>
-  onOpen: () => void
-}) {
+   is quiet (27 Sep: the lit green pill with every logo "looks a bit weird
+   and cheap"): the same pill as hide beside it, with a green light. */
+function CheckIn({ stale, onOpen }: { stale: Array<Row>; onOpen: () => void }) {
   if (stale.length === 0) {
     return (
-      <span className="motion-pop inline-flex items-center gap-2 rounded-full bg-state-good/[0.16] py-1 pr-1.5 pl-2 font-mono text-[10.5px] font-medium tracking-[0.12em] text-state-good uppercase shadow-[0_0_18px_-4px_var(--color-state-good)] ring-1 ring-state-good/60 ring-inset">
-        <CircleCheck className="motion-draw size-3.5" strokeWidth={2.4} />
+      <span className="motion-arrive inline-flex items-center gap-2 rounded-full px-2.5 py-1 font-mono text-[10.5px] tracking-[0.12em] text-ink-300 uppercase ring-1 ring-lift/15 ring-inset">
+        <span className="size-1.5 rounded-full bg-state-good shadow-[0_0_8px_var(--color-state-good)]" />
         up to date
-        <span className="flex pl-1">
-          {all.slice(0, 4).map((a) => (
-            <span
-              key={a.accountId}
-              className="-ml-1 rounded-[6px] ring-[1.5px] ring-state-good/70"
-            >
-              <AccountLogo name={a.name} domain={a.domain} size={18} />
-            </span>
-          ))}
-        </span>
       </span>
     )
   }
@@ -427,7 +399,7 @@ function GroupRow({
   parts: Array<{ a: Row; v: number }>
   stale: Array<Row>
   cash?: boolean
-  note?: string
+  note?: React.ReactNode
   onOpen: () => void
 }) {
   const late = (a: Row) => stale.some((s) => s.accountId === a.accountId)
@@ -532,6 +504,9 @@ function AccountList({
                     showInvested ? `invested ${euros(inv)}` : null,
                     showCash
                       ? a.pockets
+                          .filter(
+                            (p) => p.value !== 0 || a.pockets.length === 1,
+                          )
                           .map((p) =>
                             p.value === null
                               ? `${p.currency} not read`

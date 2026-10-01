@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest'
 
-import { HISTORY_GRACE_MS, balanceSeries } from './cashHistory'
+import {
+  HISTORY_GRACE_MS,
+  balanceGaps,
+  balanceSeries,
+  coveredBy,
+} from './cashHistory'
 
 const D = 86_400_000
 const day = (n: number) => n * D
@@ -56,5 +61,88 @@ describe('balanceSeries', () => {
       [{ at: noon(2), cents: 500, fromFile: false }],
     )
     expect(s).toEqual([15, 50])
+  })
+})
+
+describe('balanceGaps', () => {
+  const t0 = new Date(2026, 8, 3, 12).getTime()
+
+  test('his ActivoBank case: one −€100 row cut off the screenshot', () => {
+    const gaps = balanceGaps(
+      [
+        { at: t0, value: 800 },
+        { at: t0 + 7 * D, value: 575.36 },
+      ],
+      [
+        { at: t0 + 2 * D, cents: -8464, fromFile: true },
+        { at: t0 + 4 * D, cents: -4000, fromFile: false },
+      ],
+    )
+    expect(gaps).toEqual([
+      {
+        from: t0,
+        to: t0 + 7 * D,
+        expected: 675.36,
+        read: 575.36,
+        missing: -100,
+      },
+    ])
+  })
+
+  test('rows that explain the change: no gap', () => {
+    expect(
+      balanceGaps(
+        [
+          { at: t0, value: 100 },
+          { at: t0 + D, value: 50 },
+        ],
+        [{ at: t0 + 3_600_000, cents: -5000, fromFile: false }],
+      ),
+    ).toEqual([])
+  })
+
+  test('a statement’s own rows sit inside its closing reading', () => {
+    /* Read at 2 am on its closing day; its last row stamped noon. */
+    const close = t0 + 7 * D - 10 * 3_600_000
+    expect(
+      balanceGaps(
+        [
+          { at: t0, value: 100 },
+          { at: close, value: 80 },
+        ],
+        [{ at: t0 + 7 * D, cents: -2000, fromFile: true }],
+      ),
+    ).toEqual([])
+  })
+
+  test('one reading has nothing to check against', () => {
+    expect(balanceGaps([{ at: t0, value: 100 }], [])).toEqual([])
+  })
+})
+
+describe('coveredBy', () => {
+  const r1 = { at: 100, value: 1 }
+  const r2 = { at: 200, value: 2 }
+  test('the first reading on or after the row', () => {
+    expect(coveredBy(150, [r2, r1])).toBe(r2)
+    expect(coveredBy(100, [r1, r2])).toBe(r1)
+  })
+  test('after the latest reading: nothing covers it', () => {
+    expect(coveredBy(250, [r1, r2])).toBeNull()
+  })
+})
+
+describe('a wallet carried back (1 Oct)', () => {
+  const ends = [1, 2, 3, 4].map((d) => new Date(2026, 8, d, 23, 59).getTime())
+  const typed = { at: new Date(2026, 8, 3, 12).getTime(), value: 5000 }
+
+  test('its earliest balance is drawn flat before it', () => {
+    expect(balanceSeries(ends, [typed], [], true)).toEqual([
+      5000, 5000, 5000, 5000,
+    ])
+  })
+
+  test('anything else still starts where it is known', () => {
+    expect(balanceSeries(ends, [typed], [])).toEqual([null, null, 5000, 5000])
   })
 })

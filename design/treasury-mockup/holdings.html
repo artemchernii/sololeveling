@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury holdings review</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* The review of a broker screenshot (27 Sep). Artem on the first build:
+     "you paid" asked for 15 prices he does not have, "profit +€4,086" was
+     worth minus zero, "first read of" meant nothing, the free cash sat at
+     the bottom. Agreed shape: total / invested / free cash on top, save in
+     one press with nothing typed, what he paid comes from a statement
+     later and fills in — never doubles. Sample numbers, not his. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --cash: oklch(0.83 0.1 85);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  svg.i { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .ctl { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400); cursor: pointer }
+  .scen button.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+
+  .sheet { position: relative; border-radius: 22px; padding: 20px; border: 1px solid var(--sys-edge);
+    background: linear-gradient(160deg, rgba(181,171,252,.08), rgba(181,171,252,.015) 40%), #1d1c2d; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine);
+    display: flex; flex-direction: column; gap: 16px; animation: rise .35s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.99) } }
+  @keyframes land { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: none } }
+  .shead { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid rgba(181,171,252,.16) }
+  .title { flex: 1; font-family: var(--mono); font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .back, .close { height: 34px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300); display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase }
+  .back { padding: 0 12px } .close { width: 34px }
+
+  /* What it is, and where it goes — one line each. */
+  .what { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+  .what .name { font-size: 16px; color: var(--ink-100) }
+  .what .src { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .logo { border-radius: 9px; background: #fff; object-fit: contain; padding: 3px; flex: none }
+  .into { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .pill { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; padding: 6px 12px 6px 6px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); color: var(--ink-300); background: none; cursor: pointer }
+  .pill.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .pill.plain { padding-left: 12px; border-style: dashed }
+
+  /* The three numbers: total, then what it is made of. The split bar is
+     the same one as the hero's rows. */
+  .money { border-radius: 16px; padding: 16px 18px; background: rgba(var(--lift),.03); box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); display: flex; flex-direction: column; gap: 12px; animation: land .4s both }
+  .nums { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px }
+  .num { display: flex; flex-direction: column; gap: 4px }
+  .num b { font-weight: 300; font-size: 30px; letter-spacing: -.01em; font-variant-numeric: tabular-nums }
+  .num.small b { font-size: 22px; padding-top: 8px }
+  .num .sub { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .num .dot { display: inline-block; width: 7px; height: 7px; border-radius: 99px; margin-right: 6px; vertical-align: 1px }
+  .split { display: flex; gap: 3px; height: 6px }
+  .split i { border-radius: 99px }
+  .paid { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid rgba(var(--lift),.06); font-size: 13px; color: var(--ink-300) }
+  .paid .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px }
+  .paid .tag.unk { background: rgba(var(--lift),.06); color: var(--ink-400) }
+  .paid .tag.good { background: color-mix(in oklch, var(--good) 14%, transparent); color: var(--good) }
+  .paid .tag.bad { background: color-mix(in oklch, var(--danger) 14%, transparent); color: var(--danger) }
+  .paid a { color: var(--lav-400); cursor: pointer; text-decoration: none; margin-left: auto; font-family: var(--mono); font-size: 11px }
+  .paid a:hover { text-decoration: underline }
+
+  /* What a statement / a later screenshot changes — told before the rows. */
+  .change { border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; background: rgba(181,171,252,.05); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 22%, transparent); animation: land .4s .05s both }
+  .change .h { font-size: 13.5px; color: var(--ink-100) }
+  .change .l { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; color: var(--ink-300) }
+  .change .l svg { color: var(--good); translate: 0 2px }
+  .change .l.warn svg { color: var(--warn) }
+
+  /* Positions: one line each, fix behind a tap. */
+  .list { border-radius: 16px; background: rgba(var(--lift),.02); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); overflow: hidden }
+  .lhead { display: flex; justify-content: space-between; padding: 12px 14px 8px; }
+  .pos { display: flex; flex-direction: column; border-top: 1px solid rgba(var(--lift),.05); opacity: 0; animation: land .35s forwards }
+  .pos .line { display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer }
+  .pos .line:hover { background: rgba(var(--lift),.025) }
+  .pos .tk { font-weight: 500; font-size: 14px; color: var(--ink-100); min-width: 52px }
+  .pos .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; color: var(--ink-400) }
+  .pos .sh { font-family: var(--mono); font-size: 11.5px; color: var(--ink-400); width: 86px; text-align: right }
+  .pos .pl { font-family: var(--mono); font-size: 11.5px; width: 92px; text-align: right; color: var(--ink-500) }
+  .pos .pl.up { color: var(--good) } .pos .pl.dn { color: var(--danger) }
+  .pos .val { font-family: var(--mono); font-size: 13px; color: var(--ink-100); width: 86px; text-align: right }
+  .pos .chev { color: var(--ink-600); transition: transform .2s }
+  .pos.open .chev { transform: rotate(90deg); color: var(--ink-300) }
+  .pos.off .line > *:not(.box) { opacity: .4 }
+  .pos.new .tk::after { content: 'new'; margin-left: 6px; font-family: var(--mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--good); vertical-align: 2px }
+  .box { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; background: var(--lav-400); color: #1d1c2d; flex: none; cursor: pointer }
+  .off .box { background: none; box-shadow: inset 0 0 0 1.5px rgba(var(--lift),.25) }
+  .tile { width: 28px; height: 28px; border-radius: 8px; flex: none; display: grid; place-items: center; font-family: var(--mono); font-size: 9.5px; font-weight: 500; background: #fff; color: #23222f; overflow: hidden }
+  .tile img { width: 100%; height: 100%; object-fit: contain; padding: 3px }
+  .edit { display: none; gap: 8px; flex-wrap: wrap; padding: 2px 14px 14px 72px; animation: land .25s both }
+  .open .edit { display: flex }
+  .field { display: flex; align-items: center; gap: 8px; border-radius: 12px; padding: 9px 12px; background: rgba(var(--lift),.04); box-shadow: inset 0 0 0 1px rgba(var(--lift),.1); font-family: var(--mono); font-size: 12px; color: var(--ink-200) }
+  .field small { color: var(--ink-500); font-size: 10.5px }
+  .field.grow { flex: 1; min-width: 220px }
+  .hint { width: 100%; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+
+  .foot { display: flex; gap: 10px }
+  .btn { flex: 1; padding: 14px; border-radius: 999px; font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300) }
+  .btn.go { flex: 2; background: var(--lav-400); color: #1d1c2d; border: none; font-weight: 500; box-shadow: 0 0 30px -8px var(--shine) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 720px; margin: 0 auto; text-align: center }
+  .note b { color: var(--ink-200); font-weight: 400 }
+  .done { text-align: center; padding: 30px 10px; display: flex; flex-direction: column; gap: 8px; align-items: center; animation: land .4s both }
+  .done .ok { width: 44px; height: 44px; border-radius: 99px; display: grid; place-items: center; background: color-mix(in oklch, var(--good) 16%, transparent); color: var(--good) }
+  .done .ok svg { width: 22px; height: 22px }
+  @media (max-width: 620px) {
+    .nums { grid-template-columns: 1fr 1fr } .num.total { grid-column: 1 / -1 }
+    .pos .nm, .pos .sh { display: none } .edit { padding-left: 14px }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup · the check-it screen for a broker screenshot · pick a situation · tap a row to open it</div>
+  <div class="scen" id="scen"></div>
+  <div id="stage"></div>
+  <p class="note" id="note"></p>
+</div>
+
+<script>
+const I = {
+  back: '<path d="m15 18-6-6 6-6"/>', x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>', chev: '<path d="m9 18 6-6-6-6"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>', warn: '<path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/>',
+}
+const svg = (k, s = 14) => `<svg class="i" viewBox="0 0 24 24" style="width:${s}px;height:${s}px">${I[k]}</svg>`
+const eur = (n) => '€' + n.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const TR = 'https://www.google.com/s2/favicons?domain=traderepublic.com&sz=128'
+const LOGO = (t) => `https://financialmodelingprep.com/image-stock/${t}.png`
+
+/* Sample positions (not his): ticker, name, shares, worth, what he paid
+   once a statement said so. */
+const BASE = [
+  ['GEV', 'GE Vernova Inc.', 0.3057, 248.1, 181.4],
+  ['DASH', 'DoorDash, Inc.', 1, 171.3, 139.0],
+  ['MA', 'Mastercard Incorporated', 0.5277, 255.9, 240.2],
+  ['AMZN', 'Amazon.com, Inc.', 1.6331, 309.8, 262.5],
+  ['NVDA', 'NVIDIA Corporation', 2.4105, 352.6, 198.3],
+  ['MSFT', 'Microsoft Corporation', 0.6012, 262.4, 251.7],
+  ['ASML', 'ASML Holding N.V.', 0.2311, 181.2, 196.9],
+  ['VWCE', 'Vanguard FTSE All-World', 6.8844, 918.4, 820.0],
+  ['META', 'Meta Platforms, Inc.', 0.3302, 205.7, 150.1],
+  ['UBER', 'Uber Technologies, Inc.', 3.1022, 238.3, 211.0],
+  ['COST', 'Costco Wholesale', 0.1541, 132.6, 128.9],
+  ['AVGO', 'Broadcom Inc.', 0.8413, 247.5, 139.6],
+  ['NFLX', 'Netflix, Inc.', 0.1988, 181.0, 170.2],
+  ['V', 'Visa Inc.', 0.4411, 129.4, 118.8],
+  ['PLTR', 'Palantir Technologies', 1.9001, 170.3, 71.1],
+]
+const CASH = 1038.2
+
+const S = {
+  first: {
+    label: 'first screenshot',
+    note: '<b>First time this account is read.</b> Nothing to type: it saves shares and worth. What you paid is unknown, so there is no profit anywhere — not a fake +€4,086. Tap a row only to fix a wrong ticker.',
+  },
+  statement: {
+    label: 'statement after',
+    note: '<b>You drop a TR statement later.</b> It does not add shares on top — it fills in what you paid for the positions you already have. 13 of 15 get their cost; the 2 it has no buys for stay unknown. Profit appears only where the cost is known.',
+  },
+  later: {
+    label: 'next screenshot',
+    note: '<b>A month later, another screenshot.</b> It is compared with what is saved: 2 bought, 1 sold, the rest only moved in price. Only the changes are saved. Known costs stay.',
+  },
+  blank: {
+    label: 'blank icon',
+    note: 'The logo service sometimes sends a <b>blank white picture</b> instead of an error. The app checks the picture and shows the ticker letters instead (PLTR and COST here), like a broken image does.',
+  },
+  saved: {
+    label: 'after save',
+    note: 'Saved. The hero\'s Investments row and Portfolio show Trade Republic with its worth and its free cash. "What you paid" says unknown until a statement comes.',
+  },
+}
+
+let scen = 'first'
+let open = null
+let off = new Set()
+
+function tile(t, blank) {
+  if (blank) return `<span class="tile" style="background:#2e2c40;color:var(--ink-200)">${t.slice(0, 4)}</span>`
+  return `<span class="tile"><img src="${LOGO(t)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.textContent='${t.slice(0, 4)}'"></span>`
+}
+
+function rows() {
+  let list = BASE.map(([t, n, sh, v, p]) => ({ t, n, sh, v, p, state: '' }))
+  if (scen === 'first' || scen === 'blank' || scen === 'saved') list.forEach((r) => (r.p = null))
+  if (scen === 'statement') list.forEach((r) => { if (r.t === 'PLTR' || r.t === 'V') r.p = null })
+  if (scen === 'later') {
+    list = list.filter((r) => r.t !== 'NFLX')
+    list.find((r) => r.t === 'NVDA').state = 'more'
+    list.push({ t: 'GOOGL', n: 'Alphabet Inc.', sh: 1.1021, v: 176.9, p: 170.0, state: 'new' })
+    list.push({ t: 'NFLX', n: 'Netflix, Inc.', sh: 0, v: 0, p: null, state: 'gone' })
+  }
+  return list
+}
+
+function render() {
+  document.getElementById('scen').innerHTML = Object.entries(S)
+    .map(([k, s]) => `<button class="${k === scen ? 'on' : ''}" onclick="go('${k}')">${s.label}</button>`).join('')
+  document.getElementById('note').innerHTML = S[scen].note
+  const list = rows()
+  const kept = list.filter((r) => !off.has(r.t) && r.state !== 'gone')
+  const invested = kept.reduce((a, r) => a + r.v, 0)
+  const total = invested + CASH
+  const known = kept.filter((r) => r.p !== null)
+  const paid = known.reduce((a, r) => a + r.p, 0)
+  const gain = known.reduce((a, r) => a + r.v - r.p, 0)
+
+  if (scen === 'saved') {
+    document.getElementById('stage').innerHTML = `
+    <div class="sheet"><div class="shead"><span class="title">[ saved ]</span><button class="close">${svg('x')}</button></div>
+      <div class="done"><span class="ok">${svg('check')}</span>
+        <span style="font-size:16px">Trade Republic is in — ${eur(total)}</span>
+        <span class="caps" style="letter-spacing:.08em;text-transform:none">15 positions ${eur(invested)} · free cash ${eur(CASH)} · what you paid: unknown</span>
+        <span style="font-size:12.5px;color:var(--ink-400);max-width:440px;line-height:1.5;margin-top:6px">Drop a Trade Republic statement any time and what you paid fills in — nothing is added twice.</span>
+      </div></div>`
+    return
+  }
+
+  const paidLine = known.length === 0
+    ? `<span class="tag unk">what you paid · unknown</span><span>A screenshot doesn't say it. Drop a TR statement later and it fills in.</span>`
+    : `<span class="tag unk">you paid ${eur(paid)}</span><span class="tag ${gain >= 0 ? 'good' : 'bad'}">${gain >= 0 ? '+' : '−'}${eur(Math.abs(gain))} · ${gain >= 0 ? '+' : '−'}${Math.abs(gain / paid * 100).toFixed(1)}%</span><span>on the ${known.length} of ${kept.length} with a known cost</span>`
+
+  const change = scen === 'statement' ? `
+    <div class="change"><span class="h">This statement fills in what you paid — it adds no shares.</span>
+      <span class="l">${svg('check')}<span>13 positions get their cost from 212 buys, Mar 2024 → Sep 2026</span></span>
+      <span class="l warn">${svg('warn')}<span>PLTR and V: no buys in this statement — cost stays unknown</span></span>
+      <span class="l">${svg('check')}<span>shares match the screenshot — nothing to fix</span></span></div>`
+    : scen === 'later' ? `
+    <div class="change"><span class="h">Since the last screenshot (Aug 29): 2 bought · 1 sold · 13 only moved in price</span>
+      <span class="l">${svg('check')}<span>GOOGL new · NVDA +0.4 sh · NFLX sold out</span></span>
+      <span class="l">${svg('check')}<span>only these three are saved; known costs stay as they are</span></span></div>` : ''
+
+  const pos = list.map((r, i) => {
+    const pl = r.p === null ? '<span class="pl">—</span>'
+      : `<span class="pl ${r.v >= r.p ? 'up' : 'dn'}">${r.v >= r.p ? '+' : '−'}${eur(Math.abs(r.v - r.p))}</span>`
+    const blank = scen === 'blank' && (r.t === 'PLTR' || r.t === 'COST')
+    const cls = [open === r.t ? 'open' : '', off.has(r.t) || r.state === 'gone' ? 'off' : '', r.state === 'new' ? 'new' : ''].join(' ')
+    const sh = r.state === 'gone' ? 'sold out' : r.state === 'more' ? `${r.sh.toFixed(4)} <span style="color:var(--good)">+0.4</span>` : r.sh.toFixed(4) + ' sh'
+    return `<div class="pos ${cls}" style="animation-delay:${i * 25}ms">
+      <div class="line" onclick="toggle('${r.t}')">
+        <span class="box" onclick="event.stopPropagation();keep('${r.t}')">${off.has(r.t) ? '' : svg('check', 12)}</span>
+        ${tile(r.t, blank)}
+        <span class="tk">${r.t}</span><span class="nm">${r.n}</span>
+        <span class="sh">${sh}</span>${pl}
+        <span class="val">${r.state === 'gone' ? '—' : eur(r.v)}</span>
+        <span class="chev">${svg('chev')}</span>
+      </div>
+      <div class="edit">
+        <span class="field grow">${r.t} · NASDAQ · ${r.n} <small style="margin-left:auto">change ▾</small></span>
+        <span class="field">${r.sh} <small>shares</small></span>
+        <span class="field">${r.p === null ? '<small>unknown</small>' : eur(r.p / r.sh)} <small>paid / sh</small></span>
+        <span class="hint">read from the screenshot · ticker matched by name · open only to fix it</span>
+      </div></div>`
+  }).join('')
+
+  const kind = scen === 'statement' ? 'statement · Mar 2024 → Sep 2026' : 'holdings · Sep 27'
+  const save = scen === 'statement' ? `fill in what you paid · 13 positions`
+    : scen === 'later' ? `save 3 changes · cash` : `save Trade Republic · ${kept.length} + cash`
+
+  document.getElementById('stage').innerHTML = `
+  <div class="sheet">
+    <div class="shead"><button class="back">${svg('back')} back</button><span class="title">[ check it ]</span><button class="close">${svg('x')}</button></div>
+    <div class="what"><img class="logo" src="${TR}" width="30" height="30" alt=""><span class="name">Trade Republic · ${kind}</span>
+      <span class="src" style="margin-left:auto">prices Yahoo Finance · ECB rate · as of 14:02</span></div>
+    <div class="into"><span class="caps">into</span>
+      <button class="pill on"><img class="logo" src="${TR}" width="20" height="20" style="border-radius:99px;padding:2px" alt="">Trade Republic ${svg('check', 12)}</button>
+      <button class="pill"><img class="logo" src="https://www.google.com/s2/favicons?domain=revolut.com&sz=128" width="20" height="20" style="border-radius:99px;padding:2px" alt="">Revolut</button>
+      <button class="pill plain">${svg('plus', 12)} another</button></div>
+    ${scen === 'statement' ? '' : `
+    <div class="money">
+      <div class="nums">
+        <div class="num total"><span class="caps">total in Trade Republic</span><b>${eur(total)}</b><span class="sub">what the screenshot shows</span></div>
+        <div class="num small"><span class="caps"><span class="dot" style="background:var(--lav-400)"></span>invested</span><b>${eur(invested)}</b><span class="sub">${kept.length} positions · worth now</span></div>
+        <div class="num small"><span class="caps"><span class="dot" style="background:var(--cash)"></span>free cash</span><b>${eur(CASH)}</b><span class="sub">not invested</span></div>
+      </div>
+      <div class="split"><i style="flex:${invested};background:var(--lav-400)"></i><i style="flex:${CASH};background:var(--cash)"></i></div>
+      <div class="paid">${paidLine}</div>
+    </div>`}
+    ${change}
+    ${scen === 'statement' ? `<div class="money"><div class="paid" style="border:0;padding:0">${paidLine}</div></div>` : ''}
+    <div class="list"><div class="lhead"><span class="caps">${list.length} positions</span><span class="caps" style="letter-spacing:.06em;text-transform:none">shares · profit · worth now</span></div>${pos}</div>
+    <div class="foot"><button class="btn">discard</button><button class="btn go" onclick="go('saved')">${save}</button></div>
+  </div>`
+}
+function go(k) { scen = k; open = null; off = new Set(); render() }
+function toggle(t) { open = open === t ? null : t; render() }
+function keep(t) { off.has(t) ? off.delete(t) : off.add(t); render() }
+render()
+</script>
+</body>
+</html>

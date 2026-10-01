@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { AreaSeries, LineStyle, createChart } from 'lightweight-charts'
-import type { IChartApi, ISeriesApi } from 'lightweight-charts'
+import type { AutoscaleInfo, IChartApi, ISeriesApi } from 'lightweight-charts'
 
 import { api } from '../../../convex/_generated/api'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
@@ -9,11 +9,21 @@ import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
 import { useVeil } from '@/lib/veil'
 
-/* The Overview chart (27 Sep, as mocked on :3950 and asked for): his free
-   cash, day by day — aggregate.cashHistory, from his readings and rows
-   only, in euros at today's rates. A day before anything he told the app is
-   not drawn. Investments join the line once a close is stored each night;
-   until then this is cash, and it says so. */
+/* The Overview chart, as on :3950 (Finances B, 1 Oct — "do we have divided
+   cash / investments in graph like in 3950?"): TOTAL · FREE CASH ·
+   INVESTED on the left, 1M–1Y on the right, opening on TOTAL · 1Y. TOTAL
+   is stacked (his pick from three sketches, 1 Oct): a gold cash band under
+   a lavender invested band, the top edge the total, from €0 so each band
+   reads at its size; the line under it says the day's three numbers.
+   aggregate.worthHistory draws it — his readings and rows for cash, his
+   trades × stored closes × stored ECB rates for invested. A day before
+   anything he told the app is not drawn. */
+
+const SERIES = [
+  { id: 'total', label: 'total' },
+  { id: 'cash', label: 'free cash' },
+  { id: 'invested', label: 'invested' },
+] as const
 
 const RANGES = [
   { id: '1M', days: 30 },
@@ -22,12 +32,44 @@ const RANGES = [
   { id: '1Y', days: 365 },
 ] as const
 
-const css = (name: string, fallback: string) => {
+type SeriesId = (typeof SERIES)[number]['id']
+
+/* A token's colour as rgb(): the chart cannot parse oklch() (1 Oct: the
+   gold token, `oklch(0.83 0.1 85)`, threw and drew nothing), so the
+   browser converts it by painting one pixel. */
+const token = (name: string, fallback: string) => {
   if (typeof window === 'undefined') return fallback
   const v = getComputedStyle(document.documentElement)
     .getPropertyValue(name)
     .trim()
   return v || fallback
+}
+
+const css = (name: string, fallback: string) => {
+  const v = token(name, '')
+  if (!v) return fallback
+  const ctx = document.createElement('canvas').getContext('2d')
+  if (!ctx) return fallback
+  ctx.fillStyle = v
+  ctx.fillRect(0, 0, 1, 1)
+  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+/* The mock's two inks: free cash gold, total and invested lavender. */
+const tint = (s: SeriesId) =>
+  s === 'cash'
+    ? {
+        line: css('--color-money-cash', '#e3c77a'),
+        top: 'rgba(227,199,122,0.3)',
+      }
+    : { line: css('--color-lav-400', '#b5abfc'), top: 'rgba(181,171,252,0.35)' }
+
+/* A stacked chart's bands only read true from €0. */
+const fromZero = (original: () => AutoscaleInfo | null) => {
+  const r = original()
+  if (r?.priceRange) r.priceRange.minValue = 0
+  return r
 }
 
 const iso = (t: number) => {
@@ -57,25 +99,55 @@ export function dayEndsBack(today: number, days: number): Array<number> {
 
 export function WorthChart() {
   const today = useDayStarts(1).at(-1) as number
-  const [range, setRange] = useState<(typeof RANGES)[number]['id']>('3M')
-  const days = RANGES.find((r) => r.id === range)?.days ?? 91
-  /* One subscription for the year; the range only chooses how much of it
-     to draw, so switching never reloads. */
+  const [which, setWhich] = useState<SeriesId>('total')
+  const [range, setRange] = useState<(typeof RANGES)[number]['id']>('1Y')
+  const days = RANGES.find((r) => r.id === range)?.days ?? 365
+  /* One subscription for the year; the switches only choose what of it to
+     draw, so pressing them never reloads. */
   const dayEnds = useMemo(() => dayEndsBack(today, 365), [today])
-  const history = useQuery(api.aggregate.cashHistory, { dayEnds })
+  const history = useQuery(api.aggregate.worthHistory, { dayEnds })
   const { shown } = useVeil()
   const box = useRef<HTMLDivElement>(null)
   const chart = useRef<IChartApi | null>(null)
   const series = useRef<ISeriesApi<'Area'> | null>(null)
+  /* TOTAL only: the cash band drawn over the total's area, so what is left
+     showing of the lavender is invested. */
+  const band = useRef<ISeriesApi<'Area'> | null>(null)
+  const [hover, setHover] = useState<string | null>(null)
 
-  const points = useMemo(() => {
-    if (!history) return []
-    const all = dayEnds.map((t, i) => ({ t, v: history.total[i] }))
-    return all
+  const line = (values: ReadonlyArray<number | null>) =>
+    dayEnds
+      .map((t, i) => ({ t, v: values[i] }))
       .slice(-days)
       .filter((p): p is { t: number; v: number } => p.v !== null)
       .map((p) => ({ time: iso(p.t), value: p.v }))
-  }, [history, dayEnds, days])
+  const points = useMemo(
+    () => (history ? line(history[which]) : []),
+    [history, which, dayEnds, days],
+  )
+  const cashBand = useMemo(
+    () => (history && which === 'total' ? line(history.cash) : []),
+    [history, which, dayEnds, days],
+  )
+
+  /* The day under the cursor, or the last one: its date and numbers. */
+  const day = useMemo(() => {
+    if (!history) return null
+    let i = hover === null ? -1 : dayEnds.findIndex((t) => iso(t) === hover)
+    if (i < 0)
+      for (let k = history.total.length - 1; k >= 0 && i < 0; k--)
+        if (history.total[k] !== null) i = k
+    if (i < 0) return null
+    return {
+      at: dayEnds[i],
+      total: history.total[i],
+      cash: history.cash[i],
+      invested: history.invested[i],
+    }
+  }, [history, hover, dayEnds])
+
+  /* Held but not valued on the last day: said, never guessed. */
+  const unpriced = history?.unpriced.at(-1) ?? 0
 
   useEffect(() => {
     if (!box.current) return
@@ -86,7 +158,7 @@ export function WorthChart() {
       layout: {
         background: { color: 'transparent' },
         textColor: ink,
-        fontFamily: css('--font-mono', 'ui-monospace, monospace'),
+        fontFamily: token('--font-mono', 'ui-monospace, monospace'),
         fontSize: 11,
         attributionLogo: false,
       },
@@ -102,11 +174,11 @@ export function WorthChart() {
       },
       crosshair: {
         vertLine: {
-          color: 'rgba(181,171,252,0.35)',
+          color: 'rgba(181,171,252,0.5)',
           labelBackgroundColor: lav,
         },
         horzLine: {
-          color: 'rgba(181,171,252,0.35)',
+          color: 'rgba(181,171,252,0.3)',
           labelBackgroundColor: lav,
         },
       },
@@ -115,55 +187,81 @@ export function WorthChart() {
       localization: { priceFormatter: (p: number) => euros(Math.round(p)) },
     })
     series.current = c.addSeries(AreaSeries, {
-      lineColor: lav,
       lineWidth: 2,
-      topColor: 'rgba(181,171,252,0.28)',
-      bottomColor: 'rgba(181,171,252,0.02)',
+      bottomColor: 'rgba(181,171,252,0)',
       priceLineVisible: false,
       lastValueVisible: false,
     })
+    band.current = c.addSeries(AreaSeries, {
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      autoscaleInfoProvider: fromZero,
+    })
+    c.subscribeCrosshairMove((p) =>
+      setHover(typeof p.time === 'string' ? p.time : null),
+    )
     chart.current = c
     return () => {
       c.remove()
       chart.current = null
       series.current = null
+      band.current = null
     }
   }, [])
 
   useEffect(() => {
     const s = series.current
-    if (!s) return
+    const b = band.current
+    if (!s || !b) return
+    const stacked = which === 'total'
+    const t = tint(which)
+    const gold = tint('cash')
+    s.applyOptions({
+      lineColor: t.line,
+      topColor: stacked ? 'rgba(181,171,252,0.4)' : t.top,
+      bottomColor: stacked ? 'rgba(181,171,252,0.3)' : 'rgba(181,171,252,0)',
+      autoscaleInfoProvider: stacked ? fromZero : undefined,
+    })
     s.setData(points)
-    for (const l of s.priceLines()) s.removePriceLine(l)
-    const last = points.at(-1)
-    if (last)
-      s.createPriceLine({
-        price: last.value,
-        color: css('--color-lav-400', '#b5abfc'),
+    b.applyOptions({
+      lineColor: gold.line,
+      topColor: 'rgba(227,199,122,0.62)',
+      bottomColor: 'rgba(227,199,122,0.5)',
+    })
+    b.setData(cashBand)
+    for (const x of [s, b]) for (const l of x.priceLines()) x.removePriceLine(l)
+    const mark = (x: ISeriesApi<'Area'>, value: number, color: string) =>
+      x.createPriceLine({
+        price: value,
+        color,
         lineStyle: LineStyle.Dotted,
         lineWidth: 1,
         axisLabelVisible: true,
       })
+    const last = points.at(-1)
+    if (last) mark(s, last.value, t.line)
+    const lastCash = cashBand.at(-1)
+    if (lastCash) mark(b, lastCash.value, gold.line)
     chart.current?.timeScale().fitContent()
-  }, [points])
-
-  const first = points.at(0)
-  const last = points.at(-1)
-  const change = first && last ? last.value - first.value : null
+  }, [points, cashBand, which])
 
   return (
     <section className="glass flex flex-col gap-3 rounded-[22px] p-4 sm:p-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="label-caps">free cash, day by day</span>
-        {change !== null && points.length > 1 ? (
-          <span
-            className={`font-mono text-[12px] ${change > 0 ? 'text-state-good' : change < 0 ? 'text-state-danger' : 'text-ink-400'} ${shown ? '' : 'blur-[6px]'}`}
-          >
-            {change > 0 ? '+' : change < 0 ? '−' : ''}
-            {euros(Math.abs(Math.round(change)))} in {range}
-          </span>
-        ) : null}
-        <span className="ml-auto flex gap-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="flex gap-1.5">
+          {SERIES.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setWhich(s.id)}
+              className={which === s.id ? PILL_LOUD : PILL_QUIET}
+            >
+              {s.label}
+            </button>
+          ))}
+        </span>
+        <span className="flex gap-1.5">
           {RANGES.map((r) => (
             <button
               key={r.id}
@@ -176,22 +274,54 @@ export function WorthChart() {
           ))}
         </span>
       </div>
-      <div className="relative h-[240px]">
+      <div className="relative h-[280px]">
         <div
           ref={box}
           className={`absolute inset-0 transition-[filter] ${shown ? '' : 'blur-[8px]'}`}
         />
         {history !== undefined && points.length < 2 ? (
           <p className="absolute inset-0 grid place-items-center px-6 text-center text-[13px] text-ink-400">
-            The line starts with your first statement or balance. Drop an older
-            statement to see further back.
+            {which === 'invested'
+              ? 'The line starts with your first trade or holdings screenshot.'
+              : 'The line starts with your first statement or balance. Drop an older statement to see further back.'}
           </p>
         ) : null}
       </div>
-      <span className="font-mono text-[10.5px] text-ink-500">
-        from your balances and rows · in euros at today’s rates · investments
-        join the line once their closes are stored each night
-      </span>
+      {day ? (
+        <span
+          className={`flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[12px] text-ink-300 ${shown ? '' : 'blur-[6px]'}`}
+        >
+          <span>
+            {new Date(day.at).toLocaleDateString('en-GB', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })}
+          </span>
+          {which === 'total' && day.total !== null ? (
+            <span className="text-foreground">total {euros(day.total)}</span>
+          ) : null}
+          {which !== 'invested' && day.cash !== null ? (
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-money-cash" />
+              cash {euros(day.cash)}
+            </span>
+          ) : null}
+          {which !== 'cash' && day.invested !== null ? (
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-lav-400" />
+              invested {euros(day.invested)}
+            </span>
+          ) : null}
+        </span>
+      ) : null}
+      {unpriced > 0 && which !== 'cash' ? (
+        <span className="font-mono text-[11px] text-state-warn">
+          {unpriced === 1
+            ? '1 position has no closing price yet and is not in the line'
+            : `${unpriced} positions have no closing price yet and are not in the line`}
+        </span>
+      ) : null}
     </section>
   )
 }

@@ -8,6 +8,7 @@ import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import type { FunctionReturnType } from 'convex/server'
 import { FIELD, PILL_LOUD, PILL_QUIET, Panel } from '@/components/finances/bits'
 import { DropFiles } from '@/components/finances/Add'
+import { IntakeFlow } from '@/components/finances/Intake'
 import { AccountLogo } from '@/components/finances/Logo'
 import { dayEndsBack } from '@/components/finances/WorthChart'
 import { Sheet } from '@/components/finances/Sheet'
@@ -215,11 +216,18 @@ function AccountCard({
             {euros(Math.round((a.cashEur + (invested ?? 0)) * 100) / 100)}
           </Veiled>
         </span>
-        <Sparkline values={line} />
+        {/* The line is cash only. Where shares are held, cash spent on them
+            would draw as a loss (27 Sep, TR's red line), so it waits for
+            stored closes to draw the whole account. */}
+        {invested !== null && invested > 0 ? null : <Sparkline values={line} />}
       </div>
       <div className="flex flex-col gap-1.5 font-mono text-[12.5px]">
         {a.pockets
-          .filter((p) => p.value !== null || a.pockets.length === 1)
+          /* "$0 ≈ €0" is noise beside a pocket that holds something. */
+          .filter(
+            (p) =>
+              (p.value !== null && p.value !== 0) || a.pockets.length === 1,
+          )
           .map((p) => (
             <span
               key={p.currency}
@@ -841,7 +849,9 @@ function AccountDetails({
 }
 
 /* Update: type each currency, or drop a statement or screenshot of this
-   account — the same reader as +, told which account it is. */
+   account — the same reader as +, told which account it is. A drop turns
+   this sheet into the reading and its review, as + does (27 Sep: it used
+   to close and leave him where he started, the read out of sight). */
 export function UpdateSheet({
   account,
   onClose,
@@ -850,13 +860,28 @@ export function UpdateSheet({
   onClose: () => void
 }) {
   const [tab, setTab] = useState<'type' | 'file'>('type')
+  const [intakeId, setIntakeId] = useState<Id<'intakes'> | null>(null)
+  const close = () => {
+    setIntakeId(null)
+    onClose()
+  }
   return (
     <Sheet
       open={account !== null}
-      title={account ? `update · ${account.name}` : 'update'}
-      onClose={onClose}
+      title={
+        intakeId ? 'check it' : account ? `update · ${account.name}` : 'update'
+      }
+      onClose={close}
+      onBack={intakeId ? () => setIntakeId(null) : undefined}
+      wide={intakeId !== null}
     >
-      {account ? (
+      {account && intakeId ? (
+        <IntakeFlow
+          intakeId={intakeId}
+          onBack={() => setIntakeId(null)}
+          onDone={close}
+        />
+      ) : account ? (
         <>
           <div className="flex gap-1 rounded-[12px] bg-lift/[0.04] p-1">
             {(['type', 'file'] as const).map((t) => (
@@ -871,13 +896,9 @@ export function UpdateSheet({
             ))}
           </div>
           {tab === 'type' ? (
-            <TypeBalances
-              key={account._id}
-              account={account}
-              onDone={onClose}
-            />
+            <TypeBalances key={account._id} account={account} onDone={close} />
           ) : (
-            <DropFiles accountId={account._id} onStarted={onClose} />
+            <DropFiles accountId={account._id} onStarted={setIntakeId} />
           )}
         </>
       ) : null}

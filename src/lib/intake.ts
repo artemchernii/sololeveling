@@ -792,7 +792,7 @@ export function preferClass(
 
 /** "Alphabet (A)" → "Alphabet": what a ticker search can find. */
 export function searchableName(name: string): string {
-  return name
+  return brokerName(name)
     .replace(/\((?:class\s*)?[ABC]\)/gi, '')
     .replace(/\b(inc|corp|corporation|plc|ag|sa|nv|ltd|holdings?)\b\.?/gi, '')
     .replace(/\.com\b/gi, '')
@@ -800,132 +800,149 @@ export function searchableName(name: string): string {
     .trim()
 }
 
-/* ---- A second screenshot: what changed ------------------------------- */
+/* ---- A broker's cash statement: its trades ----------------------------- */
 
-export type HeldPosition = {
-  symbol: string
-  shares: number
-  /** What the shares cost in all, in euros. */
-  putIn: number
-  /** Today's price in euros, from the stored close, when there is one. */
-  priceEur?: number
+/* Trade Republic's statement prints each order as a cash row: "Buy trade
+   US67066G1040 NVIDIA CORP. DL-,001, quantity: 0.186115" (27 Sep: 57 of
+   his 113 rows, each asking "to which account?"). They are shares bought
+   inside the account, not money leaving it — split out as trades, which
+   fill in what he paid. The amount is what the order cost, fee and all. */
+const TRADE_ROW =
+  /^(buy trade|sell trade|savings plan execution|saveback execution|round ?up execution)\s+([A-Z]{2}[A-Z0-9]{9}\d)\s+(.+?),\s*quantity:\s*([\d.,]+)\s*$/i
+
+export function tradeInRow(t: ReadTransaction): ReadTrade | null {
+  const m = TRADE_ROW.exec(t.raw.trim())
+  if (!m || t.pending) return null
+  const q = m[4].includes('.') ? m[4].replace(/,/g, '') : m[4].replace(',', '.')
+  const shares = Number(q)
+  if (!Number.isFinite(shares) || shares <= 0 || Math.abs(t.amount) < 0.005)
+    return null
+  return {
+    occurredAt: t.occurredAt,
+    name: m[3].trim().slice(0, 120),
+    isin: m[2].toUpperCase(),
+    side: /^sell/i.test(m[1]) ? 'sell' : 'buy',
+    shares,
+    price: Math.round((Math.abs(t.amount) / shares) * 1e6) / 1e6,
+    currency: t.currency,
+  }
 }
 
-export type SeenPosition = {
-  symbol: string
-  shares?: number
-  /** Shares worked out from value ÷ price, not printed. */
-  sharesCalculated: boolean
-  /** What the broker says was paid in all (value ÷ (1 + %)), if it says. */
-  paidEur?: number
-  priceEurToday?: number
+/* A dividend or interest paid into the account is money in, not his own
+   money moving. */
+const EARNED_ROW = /^(cash dividend|dividend\b|interest payment|interest\b)/i
+
+/** A statement's rows, with its trades taken out and its earnings marked. */
+export function splitStatement(rows: ReadonlyArray<ReadTransaction>): {
+  transactions: Array<ReadTransaction>
+  trades: Array<ReadTrade>
+} {
+  const transactions: Array<ReadTransaction> = []
+  const trades: Array<ReadTrade> = []
+  for (const r of rows) {
+    const t = tradeInRow(r)
+    if (t) trades.push(t)
+    else if (r.amount > 0 && EARNED_ROW.test(r.raw.trim()))
+      transactions.push({ ...r, self: false, counterparty: undefined })
+    else transactions.push(r)
+  }
+  return { transactions, trades }
 }
 
-export type HoldingChange = {
-  symbol: string
-  change: 'new' | 'more' | 'less' | 'gone' | 'same'
-  side?: 'buy' | 'sell'
-  shares?: number
-  priceEur?: number
-  /** How it was told: the shares printed, or what was paid moving. */
-  by?: 'shares' | 'paid'
+/** A reading kept from before this split: its trades are still rows. */
+export function hasTradeRows(rows: ReadonlyArray<ReadTransaction>): boolean {
+  return rows.some((r) => tradeInRow(r) !== null)
 }
 
-const round6 = (n: number) => Math.round(n * 1e6) / 1e6
-const round4 = (n: number) => Math.round(n * 1e4) / 1e4
+/* ---- His own money ------------------------------------------------------ */
+
+/* Cash out of a machine, or into his wallet from one (1 Oct: a typed
+   "withdraw +€20" in Cash was counted as income). */
+const WITHDRAWAL = /\b(atm|withdraw(al)?|levantamento|cash out)\b/i
+/* Money arriving on a top-up is his own card's. A top-up going OUT is a
+   phone bill ("Vodafone carregamento"), so only money in counts. */
+const TOP_UP = /\b(top[- ]?up|carregamento)\b/i
+
+const plain = (s: string) =>
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 /**
- * A holdings screenshot laid against what the account already holds
- * (27 Sep, "adding money"): each difference is a buy or a sell to offer.
- *
- * Trade Republic prints value and % since buy, not shares, so shares from
- * it are value ÷ today's price — they drift with every price tick. What he
- * PAID does not drift: value ÷ (1 + %) only moves when he buys or sells.
- * So printed shares are compared when there are some; otherwise what was
- * paid, with a euro or half a percent of slack for the rounding of the %.
- * A position missing from the screenshot is offered as sold, never assumed
- * — a list can be cut off by the screen.
+ * His own money, whatever the reader thought (1 Oct: ActivoBank's "TRF.
+ * P/O ARTEM CHERNII" +€400 was filed as income). True for a transfer from
+ * or to his own name, cash out of an ATM, money arriving on a top-up.
+ * `names` are his — the statement's holder, his sign-in — and a name
+ * counts only whole, every word of it, in either order.
  */
-export function diffHoldings(
-  held: ReadonlyArray<HeldPosition>,
-  seen: ReadonlyArray<SeenPosition>,
-): Array<HoldingChange> {
-  const out: Array<HoldingChange> = []
-  for (const s of seen) {
-    const h = held.find((x) => x.symbol === s.symbol)
-    const price = s.priceEurToday ?? h?.priceEur
-    if (h === undefined) {
-      const shares = s.shares
-      const priceEur =
-        shares && s.paidEur !== undefined ? s.paidEur / shares : price
-      out.push(
-        shares && priceEur
-          ? {
-              symbol: s.symbol,
-              change: 'new',
-              side: 'buy',
-              shares: round6(shares),
-              priceEur: round4(priceEur),
-              by: s.sharesCalculated ? 'paid' : 'shares',
-            }
-          : { symbol: s.symbol, change: 'new' },
-      )
-      continue
-    }
-    if (!s.sharesCalculated && s.shares !== undefined) {
-      const delta = s.shares - h.shares
-      if (Math.abs(delta) < 1e-6 || !price) {
-        out.push({ symbol: s.symbol, change: 'same' })
-      } else {
-        out.push({
-          symbol: s.symbol,
-          change: delta > 0 ? 'more' : 'less',
-          side: delta > 0 ? 'buy' : 'sell',
-          shares: round6(Math.abs(delta)),
-          priceEur: round4(price),
-          by: 'shares',
-        })
-      }
-      continue
-    }
-    if (s.paidEur !== undefined && price) {
-      const delta = s.paidEur - h.putIn
-      if (Math.abs(delta) <= Math.max(1, h.putIn * 0.005)) {
-        out.push({ symbol: s.symbol, change: 'same' })
-      } else if (delta > 0) {
-        out.push({
-          symbol: s.symbol,
-          change: 'more',
-          side: 'buy',
-          shares: round6(delta / price),
-          priceEur: round4(price),
-          by: 'paid',
-        })
-      } else {
-        /* A sale takes out its share of what was paid, at the average. */
-        const average = h.shares > 0 ? h.putIn / h.shares : price
-        out.push({
-          symbol: s.symbol,
-          change: 'less',
-          side: 'sell',
-          shares: round6(Math.min(h.shares, -delta / average)),
-          priceEur: round4(price),
-          by: 'paid',
-        })
-      }
-      continue
-    }
-    out.push({ symbol: s.symbol, change: 'same' })
+export function ownMoney(
+  row: {
+    amount: number
+    merchant: string
+    raw?: string
+    counterparty?: string
+  },
+  names: ReadonlyArray<string>,
+): boolean {
+  const said = `${row.merchant} ${row.raw ?? ''}`
+  if (WITHDRAWAL.test(said)) return true
+  if (row.amount > 0 && TOP_UP.test(said)) return true
+  /* Only who is on the other side counts — the merchant or counterparty
+     the reader named — never the whole printed line: going out, "From:
+     ARTEM" is the sender, him; coming in, a salary can print "To: ARTEM"
+     as its receiver (1 Oct review). */
+  const where = plain(`${row.merchant} ${row.counterparty ?? ''}`)
+  const words = new Set(where.split(/[^a-z]+/).filter(Boolean))
+  return names.some((n) => {
+    const parts = plain(n)
+      .split(/[^a-z]+/)
+      .filter((w) => w.length > 1)
+    return parts.length >= 2 && parts.every((w) => words.has(w))
+  })
+}
+
+/* ---- A broker's own spelling of a company ------------------------------ */
+
+/** Trade Republic's "ALPHABET INC.CL.A DL-,001" → "ALPHABET INC. (Class A)":
+    the par value and currency tail gone, a share class said the way
+    preferClass reads it. */
+export function brokerName(name: string): string {
+  return name
+    .replace(/\s+(DL|EO|DK|SF|LS|SK|NK|YN|HD)\s*[-,.\d]+\s*$/i, '')
+    .replace(/\s+[-,.\d]+\s*$/, '')
+    .replace(/\s*ADR(\/\d+)?\b/i, '')
+    .replace(/\s*\bCL\.?\s*([ABC])\b/i, ' (Class $1)')
+    .replace(/\s+([ABC])$/i, ' (Class $1)')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const WORD = (name: string) =>
+  searchableName(name)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .find((w) => w.length >= 3)
+
+/**
+ * The instrument an account already holds that a broker's row means: the
+ * same ISIN, or the same first word of the name ("META PLATF. A" is Meta
+ * Platforms) and, when the row names a class, the same class. A statement
+ * and a screenshot of one account must land on one ticker, or they never
+ * meet. Returns the index, or -1.
+ */
+export function sameCompany(
+  row: { name: string; isin?: string },
+  held: ReadonlyArray<{ symbol: string; name: string; isin?: string }>,
+): number {
+  if (row.isin) {
+    const i = held.findIndex((h) => h.isin === row.isin)
+    if (i >= 0) return i
   }
-  for (const h of held) {
-    if (seen.some((s) => s.symbol === h.symbol)) continue
-    out.push({
-      symbol: h.symbol,
-      change: 'gone',
-      side: 'sell',
-      shares: h.shares,
-      priceEur: h.priceEur === undefined ? undefined : round4(h.priceEur),
-    })
-  }
-  return out
+  const word = WORD(row.name)
+  if (!word) return -1
+  const hits = held.flatMap((h, i) => (WORD(h.name) === word ? [i] : []))
+  if (hits.length <= 1) return hits[0] ?? -1
+  const pick = preferClass(
+    brokerName(row.name),
+    hits.map((i) => ({ ...held[i], exchange: '', type: 'EQUITY' })),
+  )
+  return pick >= 0 ? hits[pick] : -1
 }

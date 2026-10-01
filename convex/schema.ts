@@ -713,6 +713,26 @@ export default defineSchema({
     .index('by_owner_instrument', ['ownerId', 'instrumentId'])
     .index('by_owner_account', ['ownerId', 'accountId']),
 
+  /* What a holdings screen showed (R6c, 27 Sep): the shares of one ticker
+     in one account on one day, and what was paid when the screen printed a
+     % since buy. An observation, never a buy — a statement dropped later
+     explains it instead of adding to it (src/lib/holdings.ts, reconcile).
+     One per account, ticker and day: a second look the same day replaces
+     the first. */
+  holdings: defineTable({
+    ownerId: v.string(),
+    accountId: v.id('accounts'),
+    instrumentId: v.id('instruments'),
+    shares: v.number(),
+    paidEur: v.optional(v.number()),
+    /* Worked out as value ÷ price, not read off the screen. */
+    sharesCalculated: v.optional(v.boolean()),
+    asOf: v.number(),
+    importId: v.optional(v.id('intakes')),
+  })
+    .index('by_owner_account', ['ownerId', 'accountId'])
+    .index('by_owner_instrument', ['ownerId', 'instrumentId']),
+
   /* Source 4 (Finances F4): a closing price as Yahoo Finance reported it,
      stored by the daily check — never fetched at render. */
   prices: defineTable({
@@ -772,6 +792,9 @@ export default defineSchema({
     /* The last four digits of the IBAN or card the file is about, when it
        prints them — how it finds which of his accounts it is. */
     accountTail: v.optional(v.string()),
+    /* Whose account it is, as printed (1 Oct): a transfer from that name
+       is his own money moving, not income (src/lib/intake.ts, ownMoney). */
+    holderName: v.optional(v.string()),
     transactions: v.optional(
       v.array(
         v.object({

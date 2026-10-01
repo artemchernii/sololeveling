@@ -427,7 +427,8 @@ describe('investments', () => {
     let p = await me.query(api.aggregate.positions, {})
     expect(p.rows).toHaveLength(1)
     expect(p.rows[0].shares).toBe(2.5)
-    expect(p.rows[0].putIn).toBe(755)
+    expect(p.rows[0].paid).toBe(755)
+    expect(p.rows[0].status).toBe('trades')
     expect(p.rows[0].valueEur).toBeNull()
     expect(p.totalEur).toBe(0)
     expect(p.unvalued).toBe(1)
@@ -875,6 +876,7 @@ describe('intake: transactions', () => {
     me: ReturnType<typeof setup>['me'],
     rows: Array<ReturnType<typeof tx>>,
     balance?: number,
+    holderName?: string,
   ) {
     const storageId = await t.run(async (ctx) =>
       ctx.storage.store(
@@ -897,6 +899,7 @@ describe('intake: transactions', () => {
       kind: 'transactions',
       title: 'Revolut statement · EUR',
       institution: 'Revolut',
+      holderName,
       transactions: rows,
       positions: undefined,
       balance:
@@ -948,6 +951,137 @@ describe('intake: transactions', () => {
     ])
   })
 
+  test('his own money is never income, whatever the reader said (1 Oct)', async () => {
+    const { t, me } = setup()
+    await me.mutation(api.accounts.create, {
+      name: 'ActivoBank',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const { intakeId } = await ready(
+      t,
+      me,
+      [
+        tx(9, 3, 'TRF. P/O ARTEM CHERNII', 400),
+        tx(9, 4, 'LEVANTAMENTO MB', -60),
+        tx(9, 5, 'PAYPAL EUROPE S.A.R.L.', 139.5),
+      ],
+      undefined,
+      'ARTEM CHERNII',
+    )
+    const r = await me.query(api.intake.review, { intakeId })
+    if (r === null) throw new Error('no review')
+    expect(r.rows.map((x) => [x.merchant, x.kind])).toEqual([
+      ['TRF. P/O ARTEM CHERNII', 'move'],
+      ['LEVANTAMENTO MB', 'move'],
+      ['PAYPAL EUROPE S.A.R.L.', 'income'],
+    ])
+  })
+
+  test('his sign-in name counts when the statement printed none', async () => {
+    const { t } = setup()
+    const named = t.withIdentity({ tokenIdentifier: ME, name: 'Artem Chernii' })
+    await named.mutation(api.accounts.create, {
+      name: 'ActivoBank',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const { intakeId } = await ready(t, named, [
+      tx(9, 3, 'TRF. P/O ARTEM CHERNII', 1100),
+    ])
+    const r = await named.query(api.intake.review, { intakeId })
+    expect(r?.rows[0].kind).toBe('move')
+  })
+
+  test('a typed withdraw into Cash is a move, not income', async () => {
+    const { t, me } = setup()
+    const cash = await me.mutation(api.accounts.create, {
+      name: 'Cash',
+      kinds: ['cash'],
+      currencies: ['EUR'],
+    })
+    await me.mutation(api.money.record, {
+      lines: [
+        {
+          kind: 'in',
+          accountId: cash,
+          amount: 20,
+          currency: 'EUR',
+          category: 'other',
+          note: 'withdraw',
+          occurredAt: day(9, 20),
+        },
+      ],
+    })
+    const rows = await t.run((ctx) => ctx.db.query('logs').collect())
+    expect(rows.map((l) => [l.kind, l.value])).toEqual([['move', 20]])
+  })
+
+  test('re-filing stored rows: own name and withdrawals become moves, only his', async () => {
+    const { t, me } = setup()
+    const bank = await me.mutation(api.accounts.create, {
+      name: 'ActivoBank',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const base = {
+      area: 'money',
+      occurredAt: day(9, 3),
+      unit: 'eur',
+      accountId: bank,
+    }
+    await t.run(async (ctx) => {
+      await ctx.db.insert('logs', {
+        ...base,
+        ownerId: ME,
+        kind: 'income',
+        value: 400,
+        text: 'TRF. P/O ARTEM CHERNII',
+        meta: { merchant: 'TRF. P/O ARTEM CHERNII' },
+      })
+      await ctx.db.insert('logs', {
+        ...base,
+        ownerId: ME,
+        kind: 'expense',
+        value: 60,
+        text: 'ATM',
+        meta: { merchant: 'ATM', category: 'other' },
+      })
+      await ctx.db.insert('logs', {
+        ...base,
+        ownerId: ME,
+        kind: 'income',
+        value: 139.5,
+        text: 'PayPal Europe',
+      })
+      await ctx.db.insert('logs', {
+        ...base,
+        ownerId: SOMEONE_ELSE,
+        kind: 'income',
+        value: 400,
+        text: 'TRF. P/O ARTEM CHERNII',
+      })
+    })
+    const done = await t.mutation(internal.migrations.ownMoneyMoves, {
+      ownerId: ME,
+      names: ['Artem Chernii'],
+    })
+    expect(done).toEqual({ income: 1, spending: 1 })
+    const again = await t.mutation(internal.migrations.ownMoneyMoves, {
+      ownerId: ME,
+      names: ['Artem Chernii'],
+    })
+    expect(again).toEqual({ income: 0, spending: 0 })
+    const rows = await t.run((ctx) => ctx.db.query('logs').collect())
+    expect(rows.map((l) => [l.ownerId === ME, l.kind, l.value])).toEqual([
+      [true, 'move', 400],
+      [true, 'move', -60],
+      [true, 'income', 139.5],
+      [false, 'income', 400],
+    ])
+    expect(rows[1].meta?.category).toBeUndefined()
+  })
+
   test('confirm: spends, a move, the balance; pending never written; spending sums only spending', async () => {
     const { t, me } = setup()
     const rev = await me.mutation(api.accounts.create, {
@@ -983,7 +1117,10 @@ describe('intake: transactions', () => {
         { index: 3, kind: 'spend', category: 'fun' },
       ],
     })
-    expect(done).toEqual({ written: 3 })
+    expect(done).toEqual({
+      written: 3,
+      trades: { written: 0, skipped: 0, noTicker: 0 },
+    })
     const sums = await me.query(api.aggregate.moneySums, {
       start: day(8, 1),
       end: day(9, 27) + 86_400_000,
@@ -993,6 +1130,113 @@ describe('intake: transactions', () => {
     expect(b.accounts[0].pockets[0].value).toBe(799.47)
     expect(await stored(t, storageId)).toBe(false)
     expect(await me.query(api.intake.open, {})).toEqual([])
+  })
+
+  test('a broker statement’s orders land as trades, not moves — once, and not into a bank', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    const bank = await me.mutation(api.accounts.create, {
+      name: 'BPI',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const NVDA = {
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      exchange: 'NASDAQ',
+      type: 'EQUITY',
+    }
+    const orders = [
+      {
+        occurredAt: day(3, 13),
+        name: 'NVIDIA CORP.',
+        isin: 'US67066G1040',
+        side: 'buy' as const,
+        shares: 0.2,
+        price: 100,
+        currency: 'EUR',
+        candidates: [NVDA],
+        preferred: 0,
+      },
+      {
+        occurredAt: day(3, 14),
+        name: 'NVIDIA CORP.',
+        isin: 'US67066G1040',
+        side: 'buy' as const,
+        shares: 0.2,
+        price: 100,
+        currency: 'EUR',
+        candidates: [NVDA],
+        preferred: 0,
+      },
+      {
+        occurredAt: day(3, 15),
+        name: 'Unknown fund',
+        side: 'buy' as const,
+        shares: 1,
+        price: 10,
+        currency: 'EUR',
+        candidates: [],
+      },
+    ]
+    const statement = async () => {
+      const { intakeId } = await ready(
+        t,
+        me,
+        [tx(9, 5, 'Apple Pay Top up', 25, { self: true })],
+        1042.46,
+      )
+      await t.run((ctx) => ctx.db.patch(intakeId, { trades: orders }))
+      return intakeId
+    }
+    const first = await statement()
+    await expect(
+      me.mutation(api.intake.confirmTransactions, {
+        intakeId: first,
+        accountId: bank,
+        dayStart: TODAY,
+        keepBalance: false,
+        rows: [],
+      }),
+    ).rejects.toThrow('not a broker')
+    expect(
+      await me.mutation(api.intake.confirmTransactions, {
+        intakeId: first,
+        accountId: tr,
+        dayStart: TODAY,
+        keepBalance: true,
+        rows: [{ index: 0, kind: 'move' }],
+      }),
+    ).toEqual({
+      written: 1,
+      trades: { written: 2, skipped: 0, noTicker: 1 },
+    })
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows[0]).toMatchObject({
+      symbol: 'NVDA',
+      shares: 0.4,
+      paid: 40,
+      status: 'trades',
+    })
+    /* The orders and the top-up were before the balance: the cash is
+       what the statement said, nothing moved it twice. */
+    const b = await me.query(api.aggregate.balances, {})
+    expect(b.accounts.find((a) => a.accountId === tr)?.pockets[0].value).toBe(
+      1042.46,
+    )
+    /* The same statement again adds no shares. */
+    const again = await me.mutation(api.intake.confirmTransactions, {
+      intakeId: await statement(),
+      accountId: tr,
+      dayStart: TODAY,
+      keepBalance: false,
+      rows: [],
+    })
+    expect(again.trades).toEqual({ written: 0, skipped: 2, noTicker: 1 })
   })
 
   test('a merchant taught once files itself next time; a second read of the same rows is all duplicates', async () => {
@@ -1167,149 +1411,188 @@ describe('intake: holdings', () => {
     return started.intakeId
   }
 
-  test('a screenshot replaces what the account held; the cash becomes its balance', async () => {
+  const MSFT_C = {
+    symbol: 'MSFT',
+    name: 'Microsoft',
+    exchange: 'NASDAQ',
+    type: 'EQUITY',
+  }
+
+  test('a screenshot is saved as it was seen: no prices asked, no buys, cash kept', async () => {
     const { t, me } = setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
       currencies: ['EUR'],
     })
-    await trade(me, {
-      accountId: tr,
-      candidate: TSLA,
-      side: 'buy',
-      shares: 1,
-      priceEur: 300,
-      occurredAt: Date.now() - 86_400_000,
-    })
-    const intakeId = await ready(t, me)
     const done = await me.mutation(api.intake.confirmHoldings, {
-      intakeId,
+      intakeId: await ready(t, me),
       accountId: tr,
-      mode: 'opening',
-      occurredAt: Date.now(),
+      asOf: Date.now(),
       dayStart: TODAY,
       cashEur: 1000,
-      rows: [
-        {
-          candidate: {
-            symbol: 'MSFT',
-            name: 'Microsoft',
-            exchange: 'NASDAQ',
-            type: 'EQUITY',
-          },
-          side: 'buy',
-          shares: 0.743427,
-          priceEur: 337.63,
-        },
-      ],
+      rows: [{ candidate: MSFT_C, shares: 0.743427, sharesCalculated: true }],
     })
-    expect(done).toEqual({ positions: 1, replaced: 1 })
+    expect(done).toEqual({ positions: 1, replaced: 0 })
     const p = await me.query(api.aggregate.positions, {})
-    expect(p.rows.map((r) => r.symbol)).toEqual(['MSFT'])
-    const w = await me.query(api.aggregate.worth, {})
-    expect(w.cash.total).toBe(1000)
-  })
-
-  test('cannot be confirmed twice; the same ticker twice is refused', async () => {
-    const { t, me } = setup()
-    const tr = await me.mutation(api.accounts.create, {
-      name: 'TR',
-      kinds: ['broker'],
-      currencies: ['EUR'],
-    })
-    const intakeId = await ready(t, me)
-    const row = {
-      candidate: {
-        symbol: 'MSFT',
-        name: 'Microsoft',
-        exchange: 'NASDAQ',
-        type: 'EQUITY',
-      },
-      side: 'buy' as const,
-      shares: 1,
-      priceEur: 1,
-    }
-    await expect(
-      me.mutation(api.intake.confirmHoldings, {
-        intakeId,
-        accountId: tr,
-        mode: 'opening',
-        occurredAt: Date.now(),
-        dayStart: TODAY,
-        rows: [row, row],
-      }),
-    ).rejects.toThrow('same ticker')
-    await me.mutation(api.intake.confirmHoldings, {
-      intakeId,
-      accountId: tr,
-      mode: 'opening',
-      occurredAt: Date.now(),
-      dayStart: TODAY,
-      rows: [row],
-    })
-    await expect(
-      me.mutation(api.intake.confirmHoldings, {
-        intakeId,
-        accountId: tr,
-        mode: 'opening',
-        occurredAt: Date.now(),
-        dayStart: TODAY,
-        rows: [row],
-      }),
-    ).rejects.toThrow('not ready')
-  })
-
-  test('a later screenshot adds the buys and sells he ticked, and they move the cash', async () => {
-    const { t, me } = setup()
-    const tr = await me.mutation(api.accounts.create, {
-      name: 'TR',
-      kinds: ['broker'],
-      currencies: ['EUR'],
-    })
-    const msft = {
+    expect(p.rows[0]).toMatchObject({
       symbol: 'MSFT',
-      name: 'Microsoft',
-      exchange: 'NASDAQ',
-      type: 'EQUITY',
-    }
+      shares: 0.743427,
+      paid: null,
+      status: 'screen',
+      notSeen: false,
+    })
+    await t.run(async (ctx) => {
+      expect(await ctx.db.query('trades').collect()).toEqual([])
+    })
+    /* The cash is the reading; nothing moved it. */
+    const b = await me.query(api.aggregate.balances, {})
+    expect(b.accounts[0].pockets[0]).toMatchObject({
+      value: 1000,
+      movedRows: 0,
+    })
+  })
+
+  test('what the screen printed as paid is kept', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
     await me.mutation(api.intake.confirmHoldings, {
       intakeId: await ready(t, me),
       accountId: tr,
-      mode: 'opening',
-      occurredAt: Date.now(),
+      asOf: Date.now(),
       dayStart: TODAY,
-      cashEur: 1000,
-      rows: [{ candidate: msft, side: 'buy', shares: 2, priceEur: 300 }],
+      rows: [{ candidate: MSFT_C, shares: 1, paidEur: 251.0 }],
     })
-    /* The opening positions did not touch the cash. */
-    let b = await me.query(api.aggregate.balances, {})
-    expect(b.accounts[0].pockets[0].value).toBe(1000)
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows[0]).toMatchObject({ shares: 1, paid: 251, status: 'screen' })
+  })
 
-    vi.setSystemTime(Date.now() + 60_000)
-    const second = await ready(t, me)
+  test('a second look the same day replaces the first; a later day adds a look', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    const look = async (shares: number) =>
+      me.mutation(api.intake.confirmHoldings, {
+        intakeId: await ready(t, me),
+        accountId: tr,
+        asOf: Date.now(),
+        dayStart: TODAY,
+        rows: [{ candidate: MSFT_C, shares }],
+      })
+    await look(1)
+    expect(await look(2)).toEqual({ positions: 1, replaced: 1 })
+    vi.setSystemTime(Date.now() + 2 * 86_400_000)
+    expect(await look(3)).toEqual({ positions: 1, replaced: 0 })
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows[0].shares).toBe(3)
+    await t.run(async (ctx) => {
+      expect(await ctx.db.query('holdings').collect()).toHaveLength(2)
+    })
+  })
+
+  test('looks: a position’s screens, newest first, only his', async () => {
+    const { t, me, them } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    await me.mutation(api.intake.confirmHoldings, {
+      intakeId: await ready(t, me),
+      accountId: tr,
+      asOf: Date.now(),
+      dayStart: TODAY,
+      rows: [{ candidate: MSFT_C, shares: 1, paidEur: 250 }],
+    })
+    const p = await me.query(api.aggregate.positions, {})
+    const at = { accountId: tr, instrumentId: p.rows[0].instrumentId }
+    expect(await me.query(api.invest.looks, at)).toMatchObject([
+      { shares: 1, paidEur: 250 },
+    ])
+    expect(await them.query(api.invest.looks, at)).toEqual([])
+  })
+
+  test('a ticker a later day’s screen left out is flagged, not sold', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    const AAPL = { ...MSFT_C, symbol: 'AAPL', name: 'Apple' }
+    await me.mutation(api.intake.confirmHoldings, {
+      intakeId: await ready(t, me),
+      accountId: tr,
+      asOf: Date.now(),
+      dayStart: TODAY,
+      rows: [
+        { candidate: MSFT_C, shares: 1 },
+        { candidate: AAPL, shares: 2 },
+      ],
+    })
+    vi.setSystemTime(Date.now() + 2 * 86_400_000)
+    await me.mutation(api.intake.confirmHoldings, {
+      intakeId: await ready(t, me),
+      accountId: tr,
+      asOf: Date.now(),
+      dayStart: TODAY,
+      rows: [{ candidate: MSFT_C, shares: 1 }],
+    })
+    const p = await me.query(api.aggregate.positions, {})
+    const apple = p.rows.find((r) => r.symbol === 'AAPL')
+    expect(apple).toMatchObject({ shares: 2, notSeen: true })
+    expect(p.rows.find((r) => r.symbol === 'MSFT')?.notSeen).toBe(false)
+  })
+
+  test('refusals: twice, the same ticker twice, no shares, a bank, the future', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    const bpi = await me.mutation(api.accounts.create, {
+      name: 'BPI',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    const intakeId = await ready(t, me)
+    const row = { candidate: MSFT_C, shares: 1 }
+    const base = { intakeId, accountId: tr, asOf: Date.now(), dayStart: TODAY }
+    await expect(
+      me.mutation(api.intake.confirmHoldings, { ...base, rows: [row, row] }),
+    ).rejects.toThrow('same ticker')
     await expect(
       me.mutation(api.intake.confirmHoldings, {
-        intakeId: second,
-        accountId: tr,
-        mode: 'changes',
-        occurredAt: Date.now(),
-        dayStart: TODAY,
-        rows: [{ candidate: msft, side: 'sell', shares: 5, priceEur: 400 }],
+        ...base,
+        rows: [{ ...row, shares: 0 }],
       }),
-    ).rejects.toThrow('holds only 2')
-    await me.mutation(api.intake.confirmHoldings, {
-      intakeId: second,
-      accountId: tr,
-      mode: 'changes',
-      occurredAt: Date.now(),
-      dayStart: TODAY,
-      rows: [{ candidate: msft, side: 'buy', shares: 1, priceEur: 400 }],
-    })
-    b = await me.query(api.aggregate.balances, {})
-    expect(b.accounts[0].pockets[0]).toMatchObject({ value: 600, movedRows: 1 })
-    const p = await me.query(api.aggregate.positions, {})
-    expect(p.rows[0]).toMatchObject({ shares: 3, putIn: 1000 })
+    ).rejects.toThrow('number of shares')
+    await expect(
+      me.mutation(api.intake.confirmHoldings, {
+        ...base,
+        accountId: bpi,
+        rows: [row],
+      }),
+    ).rejects.toThrow('not a broker')
+    await expect(
+      me.mutation(api.intake.confirmHoldings, {
+        ...base,
+        asOf: Date.now() + 86_400_000,
+        rows: [row],
+      }),
+    ).rejects.toThrow('already is')
+    await me.mutation(api.intake.confirmHoldings, { ...base, rows: [row] })
+    await expect(
+      me.mutation(api.intake.confirmHoldings, { ...base, rows: [row] }),
+    ).rejects.toThrow('not ready')
   })
 
   test('discard throws it away, files and all', async () => {
@@ -1822,7 +2105,7 @@ describe('the reader says what it is — trades, and whose account', () => {
       }),
     ).toEqual({ written: 2, skipped: 0 })
     const p = await me.query(api.aggregate.positions, {})
-    expect(p.rows[0]).toMatchObject({ shares: 1, putIn: 720 - 378 })
+    expect(p.rows[0]).toMatchObject({ shares: 1, paid: 720 - 378 })
     /* The same export dropped again adds nothing. */
     const again = await read(t, me, history)
     expect(
@@ -1832,6 +2115,185 @@ describe('the reader says what it is — trades, and whose account', () => {
         rows: [{ index: 0, candidate: MSFT }],
       }),
     ).toEqual({ written: 0, skipped: 1 })
+  })
+
+  test('a statement after a screenshot fills in what was paid, and adds no shares — in any order, and once', async () => {
+    const run = async (screenFirst: boolean) => {
+      const { t, me } = setup()
+      const tr = await me.mutation(api.accounts.create, {
+        name: 'TR',
+        kinds: ['broker'],
+        currencies: ['EUR'],
+      })
+      const statement = {
+        kind: 'trades',
+        title: 'TR · statement',
+        trades: [3, 2].map((daysAgo, i) => ({
+          occurredAt: TODAY - daysAgo * 86_400_000,
+          name: 'Microsoft',
+          side: 'buy',
+          shares: 1,
+          price: 100 + i * 10,
+          currency: 'EUR',
+          candidates: [MSFT],
+          preferred: 0,
+        })),
+      }
+      const all = [
+        { index: 0, candidate: MSFT },
+        { index: 1, candidate: MSFT },
+      ]
+      const screen = async () =>
+        me.mutation(api.intake.confirmHoldings, {
+          intakeId: await read(t, me, {
+            kind: 'holdings',
+            title: 'TR · holdings',
+            positions: [{ name: 'Microsoft', candidates: [MSFT] }],
+          }),
+          accountId: tr,
+          asOf: TODAY,
+          dayStart: TODAY,
+          rows: [{ candidate: MSFT, shares: 2.01, sharesCalculated: true }],
+        })
+      if (screenFirst) await screen()
+      expect(
+        await me.mutation(api.intake.confirmTrades, {
+          intakeId: await read(t, me, statement),
+          accountId: tr,
+          rows: all,
+        }),
+      ).toEqual({ written: 2, skipped: 0 })
+      if (!screenFirst) await screen()
+      /* The same statement again adds nothing. */
+      expect(
+        await me.mutation(api.intake.confirmTrades, {
+          intakeId: await read(t, me, statement),
+          accountId: tr,
+          rows: all,
+        }),
+      ).toEqual({ written: 0, skipped: 2 })
+      return (await me.query(api.aggregate.positions, {})).rows
+    }
+    const a = await run(true)
+    const b = await run(false)
+    expect(a).toHaveLength(1)
+    expect(a[0]).toMatchObject({ shares: 2, paid: 210, status: 'match' })
+    expect(b.map(({ accountId, instrumentId, ...r }) => r)).toEqual(
+      a.map(({ accountId, instrumentId, ...r }) => r),
+    )
+  })
+
+  test('a statement’s order lands on the ticker the screenshot saved, whatever the search said', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    const GOOGL = {
+      symbol: 'GOOGL',
+      name: 'Alphabet Inc.',
+      exchange: 'NASDAQ',
+      type: 'EQUITY',
+    }
+    await me.mutation(api.intake.confirmHoldings, {
+      intakeId: await read(t, me, {
+        kind: 'holdings',
+        title: 'TR · holdings',
+        positions: [{ name: 'Alphabet (A)', candidates: [GOOGL] }],
+      }),
+      accountId: tr,
+      asOf: TODAY,
+      dayStart: TODAY,
+      rows: [{ candidate: GOOGL, shares: 1 }],
+    })
+    await me.mutation(api.intake.confirmTrades, {
+      intakeId: await read(t, me, {
+        kind: 'trades',
+        title: 'TR · statement',
+        trades: [
+          {
+            occurredAt: TODAY - 86_400_000,
+            name: 'ALPHABET INC.CL.A DL-,001',
+            isin: 'US02079K3059',
+            side: 'buy',
+            shares: 1,
+            price: 150,
+            currency: 'EUR',
+            candidates: [
+              {
+                symbol: 'NOW-USD.SW',
+                name: 'x',
+                exchange: 'EBS',
+                type: 'EQUITY',
+              },
+            ],
+            preferred: 0,
+          },
+        ],
+      }),
+      accountId: tr,
+      rows: [
+        {
+          index: 0,
+          candidate: {
+            symbol: 'NOW-USD.SW',
+            name: 'x',
+            exchange: 'EBS',
+            type: 'EQUITY',
+          },
+        },
+      ],
+    })
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows).toHaveLength(1)
+    expect(p.rows[0]).toMatchObject({
+      symbol: 'GOOGL',
+      shares: 1,
+      paid: 150,
+      status: 'match',
+    })
+  })
+
+  test('a statement’s sell of shares only a screenshot knew is taken, not refused', async () => {
+    const { t, me } = setup()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    await me.mutation(api.intake.confirmHoldings, {
+      intakeId: await read(t, me, {
+        kind: 'holdings',
+        title: 'TR · holdings',
+        positions: [{ name: 'Microsoft', candidates: [MSFT] }],
+      }),
+      accountId: tr,
+      asOf: TODAY - 5 * 86_400_000,
+      dayStart: TODAY,
+      rows: [{ candidate: MSFT, shares: 3 }],
+    })
+    await me.mutation(api.intake.confirmTrades, {
+      intakeId: await read(t, me, {
+        kind: 'trades',
+        title: 'TR · statement',
+        trades: [
+          {
+            occurredAt: TODAY - 86_400_000,
+            name: 'Microsoft',
+            side: 'sell',
+            shares: 1,
+            price: 120,
+            currency: 'EUR',
+            candidates: [MSFT],
+          },
+        ],
+      }),
+      accountId: tr,
+      rows: [{ index: 0, candidate: MSFT }],
+    })
+    const p = await me.query(api.aggregate.positions, {})
+    expect(p.rows[0]).toMatchObject({ shares: 2, status: 'screen', paid: null })
   })
 
   test('refuses a bank as the broker, and another owner’s account', async () => {
@@ -2543,5 +3005,158 @@ describe('intake.start — his words about a screenshot', () => {
     expect(open.find((i) => i._id === again.intakeId)).toMatchObject({
       status: 'reading',
     })
+  })
+})
+
+describe('does it add up (1 Oct)', () => {
+  const at = (d: number) => new Date(2026, 8, d, 12).getTime()
+
+  test('a bank’s balances and rows: the row cut off a screenshot is found', async () => {
+    const { t, me, them } = setup()
+    const bank = await me.mutation(api.accounts.create, {
+      name: 'ActivoBank',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+    await t.run(async (ctx) => {
+      const key = `balance:${bank}:EUR`
+      for (const [d, value] of [
+        [3, 800],
+        [10, 575.36],
+      ] as const)
+        await ctx.db.insert('stateSnapshots', {
+          ownerId: ME,
+          area: 'money',
+          key,
+          value,
+          recordedAt: at(d),
+        })
+      for (const [d, value] of [
+        [5, 84.64],
+        [7, 40],
+      ] as const)
+        await ctx.db.insert('logs', {
+          ownerId: ME,
+          kind: 'expense',
+          area: 'money',
+          occurredAt: at(d),
+          value,
+          unit: 'eur',
+          accountId: bank,
+        })
+    })
+    expect(await me.query(api.aggregate.gaps, { accountId: bank })).toEqual([
+      {
+        currency: 'EUR',
+        from: at(3),
+        to: at(10),
+        expected: 675.36,
+        read: 575.36,
+        missing: -100,
+      },
+    ])
+    /* Another owner sees nothing of it. */
+    expect(await them.query(api.aggregate.gaps, { accountId: bank })).toEqual(
+      [],
+    )
+  })
+})
+
+describe('a year of rates (Finances B)', () => {
+  test('one row per currency and ECB day, for each owner, never twice', async () => {
+    const { t } = setup()
+    const day = (d: number) => Date.parse(`2026-09-${d}T16:00:00Z`)
+    const rows = [
+      { rate: 0.87032, asOf: day(21) },
+      { rate: 0.87237, asOf: day(22) },
+    ]
+    const args = {
+      ownerIds: [ME, SOMEONE_ELSE, ME],
+      currency: 'USD',
+      rows,
+      fetchedAt: day(30),
+    }
+    await t.mutation(internal.market.storeRates, args)
+    await t.mutation(internal.market.storeRates, {
+      ...args,
+      rows: [...rows, { rate: 0.87635, asOf: day(23) }],
+    })
+    const rates = await t.run((ctx) => ctx.db.query('fxRates').collect())
+    expect(rates.filter((r) => r.ownerId === ME).map((r) => r.rate)).toEqual([
+      0.87032, 0.87237, 0.87635,
+    ])
+    expect(rates.filter((r) => r.ownerId === SOMEONE_ELSE)).toHaveLength(3)
+  })
+})
+
+describe('worth, day by day (Finances B)', () => {
+  test('cash, invested at that day’s close and rate, total; only his', async () => {
+    const { t, me, them } = setup()
+    const end = (d: number) => new Date(2026, 8, d, 23, 59, 59, 999).getTime()
+    const noon = (d: number) => new Date(2026, 8, d, 12).getTime()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    await t.run(async (ctx) => {
+      const tsla = await ctx.db.insert('instruments', {
+        ownerId: ME,
+        symbol: 'TSLA',
+        name: 'Tesla',
+        exchange: 'NASDAQ',
+        currency: 'USD',
+        type: 'EQUITY',
+      })
+      await ctx.db.insert('stateSnapshots', {
+        ownerId: ME,
+        area: 'money',
+        key: `balance:${tr}:EUR`,
+        value: 100,
+        recordedAt: noon(1),
+      })
+      await ctx.db.insert('trades', {
+        ownerId: ME,
+        accountId: tr,
+        instrumentId: tsla,
+        side: 'buy',
+        shares: 2,
+        priceEur: 50,
+        occurredAt: noon(2),
+        opening: true,
+      })
+      for (const [d, price] of [
+        [1, 60],
+        [2, 70],
+      ] as const)
+        await ctx.db.insert('prices', {
+          ownerId: ME,
+          instrumentId: tsla,
+          price,
+          currency: 'USD',
+          asOf: noon(d) + 8 * 3_600_000,
+          fetchedAt: noon(d),
+          source: 'Yahoo Finance',
+        })
+      await ctx.db.insert('fxRates', {
+        ownerId: ME,
+        currency: 'USD',
+        rate: 0.5,
+        asOf: noon(1),
+        fetchedAt: noon(1),
+        source: 'ECB',
+      })
+    })
+    const dayEnds = [end(1), end(2)]
+    const w = await me.query(api.aggregate.worthHistory, { dayEnds })
+    expect(w.cash).toEqual([100, 100])
+    expect(w.invested).toEqual([null, 70])
+    expect(w.total).toEqual([100, 170])
+    expect(w.investedAccounts).toEqual([{ accountId: tr, values: [null, 70] }])
+    expect(w.unpriced).toEqual([0, 0])
+
+    const theirs = await them.query(api.aggregate.worthHistory, { dayEnds })
+    expect(theirs.total).toEqual([null, null])
+    expect(theirs.investedAccounts).toEqual([])
   })
 })

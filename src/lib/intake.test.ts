@@ -1,12 +1,17 @@
 import { describe, expect, test } from 'vitest'
 
 import {
+  brokerName,
+  ownMoney,
+  sameCompany,
+  hasTradeRows,
+  splitStatement,
+  tradeInRow,
   partialReading,
   readingCost,
   usd,
   completePosition,
   dayToMs,
-  diffHoldings,
   findDuplicates,
   findRecurring,
   intakePrompt,
@@ -322,115 +327,6 @@ describe('readableFile', () => {
   })
 })
 
-describe('diffHoldings', () => {
-  const held = [
-    { symbol: 'MSFT', shares: 3, putIn: 1200, priceEur: 410 },
-    { symbol: 'GOOGL', shares: 5, putIn: 800, priceEur: 250 },
-    { symbol: 'NVDA', shares: 10, putIn: 1000, priceEur: 150 },
-  ]
-
-  test('printed shares: the difference is the trade, at today’s price', () => {
-    expect(
-      diffHoldings(held, [
-        {
-          symbol: 'MSFT',
-          shares: 5,
-          sharesCalculated: false,
-          priceEurToday: 400,
-        },
-      ])[0],
-    ).toEqual({
-      symbol: 'MSFT',
-      change: 'more',
-      side: 'buy',
-      shares: 2,
-      priceEur: 400,
-      by: 'shares',
-    })
-  })
-
-  test('TR: calculated shares drift with the price; what was paid does not', () => {
-    const [same, more, less] = diffHoldings(held, [
-      /* Price moved, nothing bought: shares "changed", paid did not. */
-      {
-        symbol: 'MSFT',
-        shares: 3.07,
-        sharesCalculated: true,
-        paidEur: 1203,
-        priceEurToday: 420,
-      },
-      /* €500 more paid at €250: two shares bought. */
-      {
-        symbol: 'GOOGL',
-        shares: 7,
-        sharesCalculated: true,
-        paidEur: 1300,
-        priceEurToday: 250,
-      },
-      /* €300 less paid at an average of €100: three shares sold. */
-      {
-        symbol: 'NVDA',
-        shares: 7,
-        sharesCalculated: true,
-        paidEur: 700,
-        priceEurToday: 160,
-      },
-    ])
-    expect(same).toEqual({ symbol: 'MSFT', change: 'same' })
-    expect(more).toMatchObject({
-      change: 'more',
-      side: 'buy',
-      shares: 2,
-      priceEur: 250,
-      by: 'paid',
-    })
-    expect(less).toMatchObject({
-      change: 'less',
-      side: 'sell',
-      shares: 3,
-      priceEur: 160,
-    })
-  })
-
-  test('a new position is a buy at what was paid; a missing one is offered as sold', () => {
-    const changes = diffHoldings(held.slice(0, 1), [
-      {
-        symbol: 'MSFT',
-        shares: 3,
-        sharesCalculated: false,
-        priceEurToday: 410,
-      },
-      {
-        symbol: 'META',
-        shares: 2,
-        sharesCalculated: true,
-        paidEur: 1000,
-        priceEurToday: 600,
-      },
-    ])
-    expect(changes).toEqual([
-      { symbol: 'MSFT', change: 'same' },
-      {
-        symbol: 'META',
-        change: 'new',
-        side: 'buy',
-        shares: 2,
-        priceEur: 500,
-        by: 'paid',
-      },
-    ])
-    expect(diffHoldings(held.slice(1, 2), [])).toEqual([
-      {
-        symbol: 'GOOGL',
-        change: 'gone',
-        side: 'sell',
-        shares: 5,
-        priceEur: 250,
-      },
-    ])
-  })
-})
-
 describe('a reading in progress', () => {
   const full = JSON.stringify({
     kind: 'transactions',
@@ -518,5 +414,167 @@ describe('intakePrompt', () => {
     expect(p.split('\n')[0]).toBe(
       'The person says what it is: "Trade Republic \'portfolio\'". Trust it for what the file is and whose it is (institution, kind); it never gives you numbers.',
     )
+  })
+})
+
+describe('a broker statement’s trades', () => {
+  const row = (raw: string, amount: number) => ({
+    occurredAt: 1,
+    merchant: raw.slice(0, 20),
+    raw,
+    amount,
+    currency: 'EUR',
+    pending: false,
+    self: true,
+  })
+
+  test('reads a buy: shares, ISIN, and the price per share it cost', () => {
+    expect(
+      tradeInRow(
+        row(
+          'Buy trade US67066G1040 NVIDIA CORP. DL-,001, quantity: 0.186115',
+          -21,
+        ),
+      ),
+    ).toEqual({
+      occurredAt: 1,
+      name: 'NVIDIA CORP. DL-,001',
+      isin: 'US67066G1040',
+      side: 'buy',
+      shares: 0.186115,
+      price: 112.833463,
+      currency: 'EUR',
+    })
+  })
+
+  test('reads a sell, and a whole-share quantity', () => {
+    expect(
+      tradeInRow(
+        row(
+          'Sell trade IE00BD8PGZ49 iShares IV plc - iShares $ Treasury Bond 20+yr UCITS ETF EUR Hedged (Dist), quantity: 16',
+          44.95,
+        ),
+      ),
+    ).toMatchObject({ side: 'sell', shares: 16, isin: 'IE00BD8PGZ49' })
+  })
+
+  test('a savings plan is a buy', () => {
+    expect(
+      tradeInRow(
+        row(
+          'Savings plan execution IE00B4L5Y983 iShares Core MSCI World, quantity: 0.5',
+          -50,
+        ),
+      ),
+    ).toMatchObject({ side: 'buy', shares: 0.5, price: 100 })
+  })
+
+  test('anything else is not a trade', () => {
+    expect(tradeInRow(row('Apple Pay Top up', 25))).toBeNull()
+    expect(
+      tradeInRow(row('Cash Dividend for ISIN IE00BD8PGZ49', 0.92)),
+    ).toBeNull()
+  })
+
+  test('splits trades out, and a dividend becomes money in', () => {
+    const { transactions, trades } = splitStatement([
+      row(
+        'Buy trade US0231351067 AMAZON.COM INC. DL-,01, quantity: 0.140386',
+        -26,
+      ),
+      row('Cash Dividend for ISIN IE00BD8PGZ49', 0.92),
+      row('Apple Pay Top up', 25),
+    ])
+    expect(trades).toHaveLength(1)
+    expect(transactions.map((t) => [t.raw, t.self])).toEqual([
+      ['Cash Dividend for ISIN IE00BD8PGZ49', false],
+      ['Apple Pay Top up', true],
+    ])
+    expect(hasTradeRows([row('Apple Pay Top up', 25)])).toBe(false)
+  })
+})
+
+describe('a broker’s own spelling', () => {
+  test('brokerName drops the par value and says the class', () => {
+    expect(brokerName('ALPHABET INC.CL.A DL-,001')).toBe(
+      'ALPHABET INC. (Class A)',
+    )
+    expect(brokerName('NVIDIA CORP. DL-,001')).toBe('NVIDIA CORP.')
+    expect(brokerName('ASML HOLDING EO -,09')).toBe('ASML HOLDING')
+    expect(brokerName('TAIWAN SEMICON.MANU.ADR/5')).toBe('TAIWAN SEMICON.MANU.')
+    expect(brokerName('META PLATF. A DL-,000006')).toBe('META PLATF. (Class A)')
+  })
+
+  const held = [
+    { symbol: 'GOOG', name: 'Alphabet Inc.' },
+    { symbol: 'GOOGL', name: 'Alphabet Inc.' },
+    { symbol: 'META', name: 'Meta Platforms, Inc.' },
+    { symbol: 'NVDA', name: 'NVIDIA Corporation', isin: 'US67066G1040' },
+    { symbol: 'UBER', name: 'Uber Technologies, Inc.' },
+  ]
+
+  test('sameCompany finds what the account already holds', () => {
+    expect(sameCompany({ name: 'ALPHABET INC.CL.A DL-,001' }, held)).toBe(1)
+    expect(sameCompany({ name: 'META PLATF. A DL-,000006' }, held)).toBe(2)
+    expect(sameCompany({ name: 'NVIDIA', isin: 'US67066G1040' }, held)).toBe(3)
+    expect(sameCompany({ name: 'UBER TECH. DL-,00001' }, held)).toBe(4)
+    expect(sameCompany({ name: 'APPLE INC.' }, held)).toBe(-1)
+  })
+})
+
+describe('his own money', () => {
+  const me = ['Artem Chernii']
+  const row = (amount: number, merchant: string, raw?: string) => ({
+    amount,
+    merchant,
+    raw,
+  })
+
+  test('a transfer from his own name is his money (ActivoBank, 1 Oct)', () => {
+    expect(ownMoney(row(400, 'TRF. P/O ARTEM CHERNII'), me)).toBe(true)
+    expect(
+      ownMoney(
+        row(4400, 'Payment from ARTEM CHERNII', 'From: ARTEM CHERNII'),
+        me,
+      ),
+    ).toBe(true)
+  })
+
+  test('a name counts only whole', () => {
+    expect(ownMoney(row(50, 'TRF. P/O ARTEM SILVA'), me)).toBe(false)
+    expect(ownMoney(row(50, 'TRF. P/O ARTEM CHERNII'), ['Artem'])).toBe(false)
+    expect(ownMoney(row(50, 'CHERNII ARTEM'), me)).toBe(true)
+  })
+
+  test('going out, the sender printed on the line is not where it went', () => {
+    expect(
+      ownMoney(row(-30, 'Pingo Doce', 'Pingo Doce From: ARTEM CHERNII'), me),
+    ).toBe(false)
+    expect(ownMoney(row(-300, 'To ARTEM CHERNII'), me)).toBe(true)
+  })
+
+  test('an ATM withdrawal, either side of it', () => {
+    expect(ownMoney(row(20, 'withdraw'), [])).toBe(true)
+    expect(ownMoney(row(-60, 'LEVANTAMENTO MB'), [])).toBe(true)
+  })
+
+  test('a top-up arriving is his card; a phone top-up going out is spending', () => {
+    expect(ownMoney(row(500, 'Apple Pay Top up'), [])).toBe(true)
+    expect(ownMoney(row(1000, 'Top-up by *2789'), [])).toBe(true)
+    expect(ownMoney(row(-10, 'Vodafone carregamento'), [])).toBe(false)
+  })
+
+  test('a salary printing him as its receiver stays income', () => {
+    expect(
+      ownMoney(
+        row(1800, 'ACME LDA', 'SALARIO SET ACME LDA To: ARTEM CHERNII'),
+        me,
+      ),
+    ).toBe(false)
+  })
+
+  test('income stays income', () => {
+    expect(ownMoney(row(139.5, 'PAYPAL EUROPE S.A.R.L.'), me)).toBe(false)
+    expect(ownMoney(row(0.14, 'Cash Dividend US02079K3059'), me)).toBe(false)
   })
 })

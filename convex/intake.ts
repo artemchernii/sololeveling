@@ -2,7 +2,7 @@ import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { ownedAccount, writeBalance } from './accounts'
-import { checkTrade, heldShares, upsertInstrument } from './invest'
+import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
 import { euroRate, writeTransfer } from './money'
 import { internal } from './_generated/api'
@@ -14,6 +14,7 @@ import {
 } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
+import type { Candidate } from '../src/lib/market'
 import schema from './schema'
 import {
   INTAKE_MODEL_NAME,
@@ -24,9 +25,12 @@ import {
   READING_DEAD_MS,
   findDuplicates,
   findRecurring,
+  hasTradeRows,
   matchAccount,
   merchantKey,
+  ownMoney,
   readableFile,
+  sameCompany,
 } from '../src/lib/intake'
 import { dueDay } from '../src/lib/bills'
 import { productIn, tailsIn } from '../src/lib/institutions'
@@ -51,6 +55,18 @@ const candidate = v.object({
   exchange: v.string(),
   type: v.string(),
 })
+
+/* Whose money is his: the name the statement printed, and the name he
+   signed in with. A transfer from either is a move, never income. */
+async function hisNames(
+  ctx: Pick<MutationCtx, 'auth'>,
+  intake: Doc<'intakes'>,
+): Promise<Array<string>> {
+  const identity = await ctx.auth.getUserIdentity()
+  return [intake.holderName, identity?.name].filter(
+    (n): n is string => typeof n === 'string' && n.trim() !== '',
+  )
+}
 
 async function ownedIntake(
   ctx: { db: { get: (id: Id<'intakes'>) => Promise<Doc<'intakes'> | null> } },
@@ -151,7 +167,10 @@ export const start = mutation({
           ).find(
             (i) =>
               (i.status === 'ready' || i.status === 'done') &&
-              i.kind !== undefined,
+              i.kind !== undefined &&
+              /* Read before a statement's orders were split out as
+                 trades (27 Sep): read it again, once. */
+              !hasTradeRows(i.transactions ?? []),
           )
         : undefined
     if (before) {
@@ -163,6 +182,7 @@ export const start = mutation({
         title: before.title,
         institution: before.institution,
         accountTail: before.accountTail,
+        holderName: before.holderName,
         transactions: before.transactions,
         positions: before.positions,
         trades: before.trades,
@@ -475,9 +495,11 @@ export const review = query({
     /* A transfer is the same transfer whatever each bank calls it — "To
        Trade Republic" here, "Revolut → TR" typed, "Top up" on the other
        side: its own money moving is matched by amount and days alone. */
+    const names = await hisNames(ctx, intake)
+    const own = read.map((r) => r.self || ownMoney(r, names))
     const taken = new Set(dups.filter((d): d is number => d !== null))
     for (const [i, r] of read.entries()) {
-      if (dups[i] !== null || !r.self) continue
+      if (dups[i] !== null || !own[i]) continue
       const j = existing.findIndex(
         (l, k) =>
           !taken.has(k) &&
@@ -514,7 +536,7 @@ export const review = query({
       .map((a) => ({ id: a._id, name: a.name, domain: a.domain }))
 
     const rows = read.map((r, index) => {
-      const move = r.self
+      const move = own[index]
       const kind = move
         ? ('move' as const)
         : r.amount > 0
@@ -705,7 +727,14 @@ export const confirmTransactions = mutation({
     ),
     keepBalance: v.boolean(),
   },
-  returns: v.object({ written: v.number() }),
+  returns: v.object({
+    written: v.number(),
+    trades: v.object({
+      written: v.number(),
+      skipped: v.number(),
+      noTicker: v.number(),
+    }),
+  }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const intake = await ownedIntake(ctx, ownerId, args.intakeId)
@@ -825,6 +854,28 @@ export const confirmTransactions = mutation({
       }
       written++
     }
+    /* The orders a broker's cash statement printed (splitStatement):
+       into its ledger, on the ticker the reader matched. One with no
+       ticker found is left out and said. */
+    let trades = { written: 0, skipped: 0, noTicker: 0 }
+    const orders = intake.trades ?? []
+    if (orders.length > 0) {
+      if (!account.kinds.includes('broker')) {
+        throw new ConvexError(
+          `${account.name} is not a broker — these shares were bought in one.`,
+        )
+      }
+      const items = orders.flatMap((t, index) => {
+        const c = t.candidates.at(
+          t.preferred !== undefined && t.preferred >= 0 ? t.preferred : 0,
+        )
+        return c ? [{ index, trade: t, candidate: c }] : []
+      })
+      trades = {
+        ...(await writeTrades(ctx, ownerId, account, intake._id, items)),
+        noTicker: orders.length - items.length,
+      }
+    }
     if (args.keepBalance && intake.balance) {
       /* A statement's balance is true at the end of its closing day. Its
          day is noon UTC; 18:00 UTC is still that day from Lisbon to New
@@ -847,33 +898,32 @@ export const confirmTransactions = mutation({
       storageIds: [],
       accountId: account._id,
     })
-    return { written }
+    return { written, trades }
   },
 })
 
 /**
- * A broker screen he checked. The first one an account gets is what it
- * held when the app first saw it (`opening`): it replaces the account's
- * trades up to now, and none of it touches the cash — that money left long
- * ago. Every later one is a list of changes he ticked (src/lib/intake.ts,
- * diffHoldings): each a buy or a sell that moves the broker's cash like a
- * typed one. The free cash, if he kept it, becomes the balance — read
- * after the trades, so it already has them in it.
+ * A broker screen he checked (a screenshot or a net-worth PDF): what it
+ * showed is stored as it was seen — shares per ticker on the day, and what
+ * was paid where the screen printed a % since buy (R6c, 27 Sep). Nothing
+ * is typed and nothing becomes a buy: a statement dropped before or after
+ * explains these shares instead of adding to them (src/lib/holdings.ts).
+ * A second look at a ticker the same day replaces the first. The free
+ * cash, if he kept it, becomes the balance.
  */
 export const confirmHoldings = mutation({
   args: {
     intakeId: v.id('intakes'),
     accountId: v.id('accounts'),
-    mode: v.union(v.literal('opening'), v.literal('changes')),
-    occurredAt: v.number(),
+    asOf: v.number(),
     dayStart: v.number(),
     rows: v.array(
       v.object({
         candidate,
         isin: v.optional(v.string()),
-        side: v.union(v.literal('buy'), v.literal('sell')),
         shares: v.number(),
-        priceEur: v.number(),
+        paidEur: v.optional(v.number()),
+        sharesCalculated: v.optional(v.boolean()),
       }),
     ),
     cashEur: v.optional(v.number()),
@@ -886,35 +936,29 @@ export const confirmHoldings = mutation({
       throw new ConvexError('That is not ready to confirm.')
     }
     const account = await ownedAccount(ctx, ownerId, args.accountId)
+    if (!account.kinds.includes('broker')) {
+      throw new ConvexError(`${account.name} is not a broker.`)
+    }
     if (args.rows.length === 0 && args.cashEur === undefined) {
       throw new ConvexError('Keep at least one row, or the cash.')
     }
-    if (args.occurredAt > Date.now() + 5 * 60_000) {
-      throw new ConvexError('A trade is something that happened.')
+    if (args.asOf > Date.now() + 5 * 60_000) {
+      throw new ConvexError('A screen shows what already is.')
     }
-    for (const row of args.rows) checkTrade(row.shares, row.priceEur)
+    for (const row of args.rows) {
+      if (!Number.isFinite(row.shares) || row.shares <= 0 || row.shares > 1e9)
+        throw new ConvexError('That is not a number of shares.')
+      if (
+        row.paidEur !== undefined &&
+        (!Number.isFinite(row.paidEur) || row.paidEur <= 0 || row.paidEur > 1e9)
+      )
+        throw new ConvexError('That is not what was paid.')
+    }
     const symbols = args.rows.map((r) => r.candidate.symbol)
     if (new Set(symbols).size !== symbols.length) {
       throw new ConvexError('Two rows are the same ticker — keep one.')
     }
     let replaced = 0
-    if (args.mode === 'opening') {
-      if (args.rows.some((r) => r.side === 'sell')) {
-        throw new ConvexError('What an account holds has nothing to sell.')
-      }
-      const before = await ctx.db
-        .query('trades')
-        .withIndex('by_owner_account', (q) =>
-          q.eq('ownerId', ownerId).eq('accountId', account._id),
-        )
-        .take(MAX_TRADES)
-      for (const t of before) {
-        if (t.occurredAt <= args.occurredAt) {
-          await ctx.db.delete(t._id)
-          replaced++
-        }
-      }
-    }
     for (const row of args.rows) {
       const instrumentId = await upsertInstrument(
         ctx,
@@ -922,24 +966,33 @@ export const confirmHoldings = mutation({
         row.candidate,
         row.isin,
       )
-      if (row.side === 'sell') {
-        const held = await heldShares(ctx, ownerId, account._id, instrumentId)
-        if (row.shares > held + 1e-6) {
-          throw new ConvexError(
-            `${account.name} holds only ${Math.round(held * 1e6) / 1e6} ${row.candidate.symbol}.`,
-          )
+      const before = await ctx.db
+        .query('holdings')
+        .withIndex('by_owner_instrument', (q) =>
+          q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+        )
+        .take(MAX_TRADES)
+      for (const h of before) {
+        if (
+          h.accountId === account._id &&
+          Math.abs(h.asOf - args.asOf) < SAME_LOOK_MS
+        ) {
+          await ctx.db.delete(h._id)
+          replaced++
         }
       }
-      await ctx.db.insert('trades', {
+      await ctx.db.insert('holdings', {
         ownerId,
         accountId: account._id,
         instrumentId,
-        side: row.side,
-        shares: row.shares,
-        priceEur: Math.round(row.priceEur * 10000) / 10000,
-        occurredAt: args.occurredAt,
+        shares: Math.round(row.shares * 1e6) / 1e6,
+        paidEur:
+          row.paidEur === undefined
+            ? undefined
+            : Math.round(row.paidEur * 100) / 100,
+        sharesCalculated: row.sharesCalculated ? true : undefined,
+        asOf: args.asOf,
         importId: intake._id,
-        opening: args.mode === 'opening' ? true : undefined,
       })
     }
     if (args.cashEur !== undefined) {
@@ -967,6 +1020,117 @@ export const confirmHoldings = mutation({
   },
 })
 
+/* Two looks at one ticker within this are the same look. */
+const SAME_LOOK_MS = 20 * 3_600_000
+
+/**
+ * Buys and sells into the broker's ledger, oldest first, each with its own
+ * date and price in euros at the stored rate — a trade history's, or the
+ * orders a broker's cash statement printed as rows. One already stored
+ * from another file is skipped, so overlapping statements add nothing.
+ */
+async function writeTrades(
+  ctx: MutationCtx,
+  ownerId: string,
+  account: Doc<'accounts'>,
+  intakeId: Id<'intakes'>,
+  items: Array<{
+    index: number
+    trade: {
+      occurredAt: number
+      name: string
+      isin?: string
+      side: 'buy' | 'sell'
+      shares: number
+      price: number
+      currency: string
+    }
+    candidate: Candidate
+  }>,
+): Promise<{ written: number; skipped: number }> {
+  const rows = [...items].sort(
+    (a, b) => a.trade.occurredAt - b.trade.occurredAt,
+  )
+  /* What the account already holds — a screenshot's tickers — so a
+     statement's "ALPHABET INC.CL.A DL-,001" lands on the same GOOGL, not
+     on whatever a search returned (sameCompany). */
+  const heldIds = new Set<Id<'instruments'>>()
+  for (const h of await ctx.db
+    .query('holdings')
+    .withIndex('by_owner_account', (q) =>
+      q.eq('ownerId', ownerId).eq('accountId', account._id),
+    )
+    .take(MAX_TRADES))
+    heldIds.add(h.instrumentId)
+  for (const x of await ctx.db
+    .query('trades')
+    .withIndex('by_owner_account', (q) =>
+      q.eq('ownerId', ownerId).eq('accountId', account._id),
+    )
+    .take(MAX_TRADES))
+    heldIds.add(x.instrumentId)
+  const held: Array<Doc<'instruments'>> = []
+  for (const id of heldIds) {
+    const doc = await ctx.db.get(id)
+    if (doc !== null && doc.ownerId === ownerId) held.push(doc)
+  }
+  let written = 0
+  let skipped = 0
+  const seen = new Set<number>()
+  const claimed = new Set<Id<'trades'>>()
+  for (const { index, trade: t, candidate: c } of rows) {
+    if (seen.has(index)) continue
+    seen.add(index)
+    const priceEur = t.price * (await euroRate(ctx, ownerId, t.currency))
+    checkTrade(t.shares, priceEur)
+    const same = sameCompany({ name: t.name, isin: t.isin }, held)
+    const instrumentId =
+      same >= 0
+        ? held[same]._id
+        : await upsertInstrument(ctx, ownerId, c, t.isin)
+    const near = await ctx.db
+      .query('trades')
+      .withIndex('by_owner_instrument', (q) =>
+        q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+      )
+      .take(MAX_TRADES)
+    /* Already stored from another file: same side and shares, about the
+       same price (5%: a dollar trade read again months later meets a
+       newer rate), within two days. Each stored trade answers for one
+       row only, and never for a row of this same file — two equal buys
+       two days apart are two buys. */
+    const twin = near.find(
+      (x) =>
+        !claimed.has(x._id) &&
+        x.importId !== intakeId &&
+        x.accountId === account._id &&
+        x.side === t.side &&
+        Math.abs(x.shares - t.shares) < 1e-6 &&
+        Math.abs(x.priceEur - priceEur) <= priceEur * 0.05 + 0.01 &&
+        Math.abs(x.occurredAt - t.occurredAt) <= 2 * DAY_MS + 3_600_000,
+    )
+    if (twin) {
+      claimed.add(twin._id)
+      skipped++
+      continue
+    }
+    /* A statement's sell is the broker's word: it is never refused for
+       shares an earlier statement, not dropped yet, would have bought. */
+    await ctx.db.insert('trades', {
+      ownerId,
+      accountId: account._id,
+      instrumentId,
+      side: t.side,
+      shares: t.shares,
+      priceEur: Math.round(priceEur * 10000) / 10000,
+      occurredAt: t.occurredAt,
+      importId: intakeId,
+    })
+    written++
+  }
+  return { written, skipped }
+}
+
 /**
  * A broker's trade history he checked: each kept buy or sell is written
  * with its own date and price (in euros at the stored rate), and moves the
@@ -992,63 +1156,18 @@ export const confirmTrades = mutation({
       throw new ConvexError(`${account.name} is not a broker.`)
     }
     const read = intake.trades ?? []
-    const rows = [...args.rows].sort(
-      (a, b) =>
-        (read[a.index]?.occurredAt ?? 0) - (read[b.index]?.occurredAt ?? 0),
+    const { written, skipped } = await writeTrades(
+      ctx,
+      ownerId,
+      account,
+      intake._id,
+      args.rows.flatMap((row) => {
+        const t = read[row.index] as (typeof read)[number] | undefined
+        return t
+          ? [{ index: row.index, trade: t, candidate: row.candidate }]
+          : []
+      }),
     )
-    let written = 0
-    let skipped = 0
-    const seen = new Set<number>()
-    for (const row of rows) {
-      const t = read[row.index] as (typeof read)[number] | undefined
-      if (t === undefined || seen.has(row.index)) continue
-      seen.add(row.index)
-      const priceEur = t.price * (await euroRate(ctx, ownerId, t.currency))
-      checkTrade(t.shares, priceEur)
-      const instrumentId = await upsertInstrument(
-        ctx,
-        ownerId,
-        row.candidate,
-        t.isin,
-      )
-      const near = await ctx.db
-        .query('trades')
-        .withIndex('by_owner_instrument', (q) =>
-          q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
-        )
-        .take(MAX_TRADES)
-      if (
-        near.some(
-          (x) =>
-            x.accountId === account._id &&
-            x.side === t.side &&
-            Math.abs(x.shares - t.shares) < 1e-6 &&
-            Math.abs(x.occurredAt - t.occurredAt) <= 2 * DAY_MS + 3_600_000,
-        )
-      ) {
-        skipped++
-        continue
-      }
-      if (t.side === 'sell') {
-        const held = await heldShares(ctx, ownerId, account._id, instrumentId)
-        if (t.shares > held + 1e-6) {
-          throw new ConvexError(
-            `${account.name} holds only ${Math.round(held * 1e6) / 1e6} ${row.candidate.symbol} to sell on ${new Date(t.occurredAt).toDateString()}.`,
-          )
-        }
-      }
-      await ctx.db.insert('trades', {
-        ownerId,
-        accountId: account._id,
-        instrumentId,
-        side: t.side,
-        shares: t.shares,
-        priceEur: Math.round(priceEur * 10000) / 10000,
-        occurredAt: t.occurredAt,
-        importId: intake._id,
-      })
-      written++
-    }
     if (intake.accountTail) await learnTails(ctx, account, [intake.accountTail])
     for (const id of intake.storageIds) await ctx.storage.delete(id)
     await ctx.db.patch(intake._id, {
@@ -1287,7 +1406,7 @@ export const progress = internalMutation({
           amount: r.amount,
           currency: r.currency,
           have: dups[i] !== null,
-          move: r.self,
+          move: r.self || ownMoney(r, []),
         })
       }
     }
@@ -1400,6 +1519,7 @@ export const finish = internalMutation({
     title: v.string(),
     institution: v.optional(v.string()),
     accountTail: v.optional(v.string()),
+    holderName: v.optional(v.string()),
     transactions: txValidator,
     positions: posValidator,
     trades: tradesValidator,
@@ -1453,6 +1573,49 @@ export const fail = internalMutation({
         args.costUsd === undefined
           ? intake.costUsd
           : (intake.costUsd ?? 0) + args.costUsd,
+    })
+    return null
+  },
+})
+
+/* A statement read before its orders were split out (27 Sep): the rows,
+   for ai/intake.resplit to split in place — no second reading. */
+export const unsplit = internalQuery({
+  args: { intakeId: v.id('intakes') },
+  returns: v.union(v.array(txValidator.element), v.null()),
+  handler: async (ctx, args) => {
+    const intake = await ctx.db.get(args.intakeId)
+    if (
+      intake === null ||
+      intake.status !== 'ready' ||
+      intake.kind !== 'transactions' ||
+      (intake.trades ?? []).length > 0 ||
+      !hasTradeRows(intake.transactions ?? [])
+    )
+      return null
+    return intake.transactions ?? null
+  },
+})
+
+export const applySplit = internalMutation({
+  args: {
+    intakeId: v.id('intakes'),
+    transactions: txValidator,
+    trades: tradesValidator,
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const intake = await ctx.db.get(args.intakeId)
+    if (
+      intake === null ||
+      intake.status !== 'ready' ||
+      intake.kind !== 'transactions' ||
+      (intake.trades ?? []).length > 0
+    )
+      return null
+    await ctx.db.patch(args.intakeId, {
+      transactions: args.transactions,
+      trades: args.trades,
     })
     return null
   },

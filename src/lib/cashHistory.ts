@@ -21,11 +21,28 @@ export function balanceSeries(
   dayEnds: ReadonlyArray<number>,
   readingsIn: ReadonlyArray<Reading>,
   movesIn: ReadonlyArray<Move>,
+  /* A wallet of notes (1 Oct, his pick): no statement will ever take it
+     further back, so its earliest balance is drawn flat before it rather
+     than the line jumping on the day he first typed it. */
+  carryBack = false,
 ): Array<number | null> {
   const readings = [...readingsIn].sort((a, b) => a.at - b.at)
   const moves = [...movesIn].sort((a, b) => a.at - b.at)
   if (readings.length === 0) return dayEnds.map(() => null)
   const start = Math.min(readings[0].at, moves.at(0)?.at ?? Infinity)
+  const series = known(dayEnds, readings, moves, start)
+  const first = series.find((x) => x !== null)
+  return carryBack && first !== undefined
+    ? series.map((x) => x ?? first)
+    : series
+}
+
+function known(
+  dayEnds: ReadonlyArray<number>,
+  readings: ReadonlyArray<Reading>,
+  moves: ReadonlyArray<Move>,
+  start: number,
+): Array<number | null> {
   return dayEnds.map((end) => {
     if (end < start) return null
     let anchor: Reading | undefined

@@ -178,3 +178,18 @@ describe('coveredBy', () => {
     expect(coveredBy(250, [r1, r2])).toBeNull()
   })
 })
+
+describe('a wallet carried back (1 Oct)', () => {
+  const ends = [1, 2, 3, 4].map((d) => new Date(2026, 8, d, 23, 59).getTime())
+  const typed = { at: new Date(2026, 8, 3, 12).getTime(), value: 5000 }
+
+  test('its earliest balance is drawn flat before it', () => {
+    expect(balanceSeries(ends, [typed], [], true)).toEqual([
+      5000, 5000, 5000, 5000,
+    ])
+  })
+
+  test('anything else still starts where it is known', () => {
+    expect(balanceSeries(ends, [typed], [])).toEqual([null, null, 5000, 5000])
+  })
+})

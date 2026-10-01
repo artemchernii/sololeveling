@@ -1573,6 +1573,7 @@ export const cashHistory = query({
           dayEnds,
           readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
           moves,
+          account.kinds.includes('cash') && !account.kinds.includes('bank'),
         )
         for (const [i, x] of series.entries()) {
           if (x === null) continue

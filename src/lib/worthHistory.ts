@@ -57,7 +57,12 @@ export function investedSeries<TAccount>(
   for (const h of holdings) {
     const values =
       byAccount.get(h.accountId) ??
-      byAccount.set(h.accountId, dayEnds.map(() => null)).get(h.accountId)!
+      byAccount
+        .set(
+          h.accountId,
+          dayEnds.map(() => null),
+        )
+        .get(h.accountId)!
     for (const [i, end] of dayEnds.entries()) {
       const shares = reconcile(
         h.trades.filter((t) => t.occurredAt <= end),
@@ -79,11 +84,18 @@ export function investedSeries<TAccount>(
       total[i] = Math.round((total[i] ?? 0) * 100 + cents) / 100
     }
   }
+  /* Once shares were first held, a day holding none is €0, not a gap (1
+     Oct: he sold everything on 7 May and bought again in June — the chart
+     drew a straight line across the 46 days instead). */
+  const fromFirst = (xs: Array<number | null>) => {
+    const first = xs.findIndex((x) => x !== null)
+    return first < 0 ? xs : xs.map((x, i) => (i > first ? (x ?? 0) : x))
+  }
   return {
-    total,
+    total: fromFirst(total),
     accounts: [...byAccount].map(([accountId, values]) => ({
       accountId,
-      values,
+      values: fromFirst(values),
     })),
     unpriced,
   }

@@ -100,3 +100,23 @@ describe('addSeries', () => {
     ])
   })
 })
+
+describe('sold out and bought again', () => {
+  test('the days holding nothing are €0, not a gap', () => {
+    const r = investedSeries(ends, [
+      {
+        accountId: 'tr',
+        trades: [
+          { side: 'buy', shares: 1, priceEur: 10, occurredAt: at(1, 9) },
+          { side: 'sell', shares: 1, priceEur: 10, occurredAt: at(2, 9) },
+          { side: 'buy', shares: 1, priceEur: 10, occurredAt: at(4, 9) },
+        ],
+        looks: [],
+        closes: [{ asOf: at(1, 17), price: 10 }],
+        divide: 1,
+        rates: null,
+      },
+    ])
+    expect(r.total).toEqual([10, 0, 0, 10])
+  })
+})

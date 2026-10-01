@@ -129,8 +129,15 @@ function Ledger({
             {tails}
           </span>
         </span>
-        <span className="text-right text-[30px] leading-none font-light tracking-tight text-foreground">
-          <Veiled>{fmt(total)}</Veiled>
+        <span className="flex flex-col items-end gap-1">
+          <span className="text-[30px] leading-none font-light tracking-tight text-foreground">
+            <Veiled>{fmt(total)}</Veiled>
+          </span>
+          <span className="font-mono text-[11px] text-ink-400">
+            {account.kinds.includes('broker')
+              ? 'cash and shares'
+              : `free cash · ${account.currencies.join(' · ')}`}
+          </span>
         </span>
       </div>
 
@@ -169,7 +176,14 @@ function CheckLine({
   const gap = data.checks.find((c) => c.missing !== 0)
   const last = data.checks.at(-1)
   if (gap)
-    return <GapLine gap={gap} accountId={accountId} onUpdate={onUpdate} />
+    return (
+      <GapLine
+        gap={gap}
+        data={data}
+        accountId={accountId}
+        onUpdate={onUpdate}
+      />
+    )
   if (!last)
     return (
       <div className="flex gap-2.5 rounded-[14px] bg-lift/[0.035] px-3.5 py-3 text-[13.5px] text-ink-300 ring-1 ring-lift/10 ring-inset">
@@ -192,17 +206,21 @@ function CheckLine({
         <span>
           It adds up. Every balance is explained by the rows before it.
         </span>
-        <Sum check={last} />
+        <Sum check={last} data={data} />
       </span>
     </div>
   )
 }
 
-function Sum({ check: c }: { check: Check }) {
+/* A balance is dated by the day it is for (aggregate.accountSheet). */
+const dayOf = (data: SheetData, at: number) =>
+  data.readings.find((r) => r.at === at)?.asOf ?? at
+
+function Sum({ check: c, data }: { check: Check; data: SheetData }) {
   return (
     <span className="font-mono text-[12px] text-ink-300">
       <Veiled>
-        {short(c.from)}{' '}
+        {short(dayOf(data, c.from))}{' '}
         <b className="font-medium text-foreground">
           {fmt(c.fromValue, c.currency)}
         </b>{' '}
@@ -217,7 +235,7 @@ function Sum({ check: c }: { check: Check }) {
         {c.missing === 0 ? (
           <>
             {' '}
-            · read {short(c.to)}{' '}
+            · read {short(dayOf(data, c.to))}{' '}
             <b className="font-medium text-foreground">
               {fmt(c.read, c.currency)}
             </b>
@@ -233,10 +251,12 @@ function Sum({ check: c }: { check: Check }) {
    The app cannot know the day; it never asks him to type one. */
 function GapLine({
   gap,
+  data,
   accountId,
   onUpdate,
 }: {
   gap: Check
+  data: SheetData
   accountId: Id<'accounts'>
   onUpdate: () => void
 }) {
@@ -280,11 +300,12 @@ function GapLine({
             <Veiled>{fmt(Math.abs(gap.missing), gap.currency)}</Veiled>{' '}
             {gap.missing < 0 ? 'left' : 'came in'} that no row shows
           </b>{' '}
-          between {short(gap.from)} and {short(gap.to)} — a row cut off a file?
+          between {short(dayOf(data, gap.from))} and{' '}
+          {short(dayOf(data, gap.to))} — a row cut off a file?
         </span>
-        <Sum check={gap} />
+        <Sum check={gap} data={data} />
         <span className="font-mono text-[12px] text-ink-300">
-          but {short(gap.to)} read{' '}
+          but {short(dayOf(data, gap.to))} read{' '}
           <b className="font-medium text-foreground">
             <Veiled>{fmt(gap.read, gap.currency)}</Veiled>
           </b>
@@ -389,7 +410,7 @@ function Timeline({
             >
               {it.t === 'bal' ? (
                 <Divider
-                  label={`balance · ${short(it.at)}`}
+                  label={`balance · ${short(it.bal.asOf)}`}
                   value={fmt(it.bal.value, it.bal.currency)}
                   file={fileOf(it.bal.fileId)}
                   typed={it.bal.source === 'typed'}
@@ -425,6 +446,7 @@ function Timeline({
             ) : null}
             <RowLine
               row={r}
+              inside={r.inside === null ? null : dayOf(data, r.inside)}
               index={i++}
               onDelete={
                 r.logId
@@ -511,10 +533,13 @@ function Divider({
 
 function RowLine({
   row: r,
+  inside,
   index,
   onDelete,
 }: {
   row: Row
+  /** The day of the balance that already covers this typed row. */
+  inside: number | null
   index: number
   onDelete?: () => void
 }) {
@@ -565,9 +590,9 @@ function RowLine({
               typed
             </span>
           ) : null}
-          {r.inside !== null ? (
+          {inside !== null ? (
             <span className="rounded-[5px] px-1.5 text-[9.5px] tracking-[0.08em] text-state-warn uppercase ring-1 ring-state-warn/40 ring-inset">
-              inside the {short(r.inside)} balance — it changed no balance
+              inside the {short(inside)} balance — it changed no balance
             </span>
           ) : null}
         </span>
@@ -589,7 +614,8 @@ function RowLine({
 }
 
 /* A confirmed file, opened again: what it read, as it read it, and which
-   rows landed. */
+   rows landed. Amounts are plain: a file's row is not yet a spend, income
+   or move, so its sign is not coloured as one. */
 function FileView({ intakeId }: { intakeId: Id<'intakes'> }) {
   const f = useQuery(api.intake.fileRows, { intakeId })
   if (f === undefined) return <SkeletonRows rows={6} />
@@ -619,7 +645,7 @@ function FileView({ intakeId }: { intakeId: Id<'intakes'> }) {
               {r.pending ? 'pending' : r.landed ? '' : 'left out'}
             </span>
             <span
-              className={`font-mono text-[13px] whitespace-nowrap ${r.landed ? (r.amount > 0 ? 'text-state-good' : 'text-foreground') : 'text-ink-500 line-through'}`}
+              className={`font-mono text-[13px] whitespace-nowrap ${r.landed ? 'text-foreground' : 'text-ink-500 line-through'}`}
             >
               <Veiled>{fmt(r.amount, r.currency, true)}</Veiled>
             </span>

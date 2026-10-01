@@ -1816,6 +1816,10 @@ export const accountSheet = query({
       readings: v.array(
         v.object({
           at: v.number(),
+          /** The day it is a balance of — the file's printed date when a
+              file set it (a statement's "balance of 31 Aug" is stored when
+              he confirms, at 00:59 on 1 Sep), else when it was stored. */
+          asOf: v.number(),
           value: v.number(),
           currency: v.string(),
           source: v.union(v.string(), v.null()),
@@ -1942,6 +1946,7 @@ export const accountSheet = query({
         )
         readings.push({
           at: r.recordedAt,
+          asOf: file?.balance?.asOf ?? r.recordedAt,
           value: r.value ?? 0,
           currency,
           source: r.source ?? null,

@@ -3008,57 +3008,189 @@ describe('intake.start — his words about a screenshot', () => {
   })
 })
 
-describe('does it add up (1 Oct)', () => {
-  const at = (d: number) => new Date(2026, 8, d, 12).getTime()
+describe('an account, opened (A.4)', () => {
+  const at = (d: number, h = 12) => new Date(2026, 8, d, h).getTime()
 
-  test('a bank’s balances and rows: the row cut off a screenshot is found', async () => {
+  async function bank() {
     const { t, me, them } = setup()
-    const bank = await me.mutation(api.accounts.create, {
+    const bankId = await me.mutation(api.accounts.create, {
       name: 'ActivoBank',
       kinds: ['bank'],
       currencies: ['EUR'],
     })
-    await t.run(async (ctx) => {
-      const key = `balance:${bank}:EUR`
-      for (const [d, value] of [
-        [3, 800],
-        [10, 575.36],
-      ] as const)
-        await ctx.db.insert('stateSnapshots', {
-          ownerId: ME,
-          area: 'money',
-          key,
-          value,
-          recordedAt: at(d),
-        })
-      for (const [d, value] of [
-        [5, 84.64],
-        [7, 40],
-      ] as const)
-        await ctx.db.insert('logs', {
-          ownerId: ME,
-          kind: 'expense',
-          area: 'money',
-          occurredAt: at(d),
-          value,
-          unit: 'eur',
-          accountId: bank,
-        })
+    const revolut = await me.mutation(api.accounts.create, {
+      name: 'Revolut',
+      kinds: ['bank'],
+      currencies: ['EUR'],
     })
-    expect(await me.query(api.aggregate.gaps, { accountId: bank })).toEqual([
+    const fileId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert('intakes', {
+        ownerId: ME,
+        status: 'done',
+        storageIds: [],
+        kind: 'transactions',
+        title: 'ActivoBank · Sep',
+        accountId: bankId,
+        files: [{ name: 'IMG_9227.PNG', size: 1, contentType: 'image/png' }],
+        transactions: [
+          {
+            occurredAt: at(5),
+            merchant: 'Vodafone',
+            raw: 'Vodafone',
+            amount: -84.64,
+            currency: 'EUR',
+            pending: false,
+            self: false,
+          },
+          {
+            occurredAt: at(7),
+            merchant: 'Revolut',
+            raw: 'Revolut',
+            amount: -40,
+            currency: 'EUR',
+            pending: false,
+            self: true,
+          },
+        ],
+        balance: { value: 575.36, currency: 'EUR', asOf: at(10, 1) },
+        readAt: at(10, 22),
+      })
+      const key = `balance:${bankId}:EUR`
+      await ctx.db.insert('stateSnapshots', {
+        ownerId: ME,
+        area: 'money',
+        key,
+        value: 800,
+        recordedAt: at(3),
+        source: 'typed',
+      })
+      await ctx.db.insert('stateSnapshots', {
+        ownerId: ME,
+        area: 'money',
+        key,
+        value: 575.36,
+        recordedAt: at(10, 19),
+        source: 'screenshot',
+      })
+      const base = {
+        ownerId: ME,
+        area: 'money',
+        unit: 'eur',
+        accountId: bankId,
+      }
+      await ctx.db.insert('logs', {
+        ...base,
+        kind: 'expense',
+        occurredAt: at(5),
+        value: 84.64,
+        text: 'Vodafone',
+        meta: { intakeId: id, category: 'subscriptions' },
+      })
+      await ctx.db.insert('logs', {
+        ...base,
+        kind: 'move',
+        occurredAt: at(7),
+        value: -40,
+        text: 'Revolut',
+        meta: { intakeId: id, otherAccountId: revolut },
+      })
+      return id
+    })
+    return { t, me, them, bankId, fileId }
+  }
+
+  test('a row cut off a screenshot: the check says €100 and where', async () => {
+    const { me, them, bankId, fileId } = await bank()
+    const s = await me.query(api.aggregate.accountSheet, { accountId: bankId })
+    if (s === null) throw new Error('no sheet')
+    expect(s.checks).toEqual([
       {
         currency: 'EUR',
         from: at(3),
-        to: at(10),
+        to: at(10, 19),
+        fromValue: 800,
+        rows: 2,
+        sum: -124.64,
         expected: 675.36,
         read: 575.36,
         missing: -100,
       },
     ])
+    expect(s.readings.map((r) => [r.value, r.fileId])).toEqual([
+      [800, null],
+      [575.36, fileId],
+    ])
+    expect(s.files).toMatchObject([
+      {
+        id: fileId,
+        names: ['IMG_9227.PNG'],
+        images: true,
+        added: 2,
+        from: at(5),
+        to: at(7),
+      },
+    ])
+    expect(s.rows.map((r) => [r.kind, r.amount, r.other, r.logId])).toEqual([
+      ['move', -40, 'Revolut', null],
+      ['spend', -84.64, null, null],
+    ])
     /* Another owner sees nothing of it. */
-    expect(await them.query(api.aggregate.gaps, { accountId: bank })).toEqual(
-      [],
-    )
+    expect(
+      await them.query(api.aggregate.accountSheet, { accountId: bankId }),
+    ).toBeNull()
+  })
+
+  test('a confirmed file opens again: its rows, and which landed', async () => {
+    const { t, me, them, fileId } = await bank()
+    await t.run(async (ctx) => {
+      const i = await ctx.db.get(fileId)
+      await ctx.db.patch(fileId, {
+        transactions: [
+          ...(i?.transactions ?? []),
+          {
+            occurredAt: at(8),
+            merchant: 'Cinema',
+            raw: 'Cinema',
+            amount: -8.75,
+            currency: 'EUR',
+            pending: true,
+            self: false,
+          },
+        ],
+      })
+    })
+    const f = await me.query(api.intake.fileRows, { intakeId: fileId })
+    expect(f.names).toEqual(['IMG_9227.PNG'])
+    expect(f.rows.map((r) => [r.text, r.landed, r.pending])).toEqual([
+      ['Cinema', false, true],
+      ['Revolut', true, false],
+      ['Vodafone', true, false],
+    ])
+    await expect(
+      them.query(api.intake.fileRows, { intakeId: fileId }),
+    ).rejects.toThrow()
+  })
+
+  test('typed on its day, the missing row closes the gap and says it sits inside the balance', async () => {
+    const { me, bankId } = await bank()
+    await me.mutation(api.money.record, {
+      lines: [
+        {
+          kind: 'out',
+          accountId: bankId,
+          amount: 100,
+          currency: 'EUR',
+          category: 'other',
+          note: 'Not on the screenshot',
+          occurredAt: at(9),
+        },
+      ],
+    })
+    const s = await me.query(api.aggregate.accountSheet, { accountId: bankId })
+    if (s === null) throw new Error('no sheet')
+    expect(s.checks[0].missing).toBe(0)
+    const typed = s.rows.find((r) => r.logId !== null)
+    expect(typed).toMatchObject({ amount: -100, inside: at(10, 19) })
   })
 })
 

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import {
   HISTORY_GRACE_MS,
+  balanceChecks,
   balanceGaps,
   balanceSeries,
   coveredBy,
@@ -144,5 +145,36 @@ describe('a wallet carried back (1 Oct)', () => {
 
   test('anything else still starts where it is known', () => {
     expect(balanceSeries(ends, [typed], [])).toEqual([null, null, 5000, 5000])
+  })
+})
+
+describe('balanceChecks', () => {
+  test('every pair, with its rows and their sum — his ActivoBank today', () => {
+    const t0 = new Date(2026, 7, 31, 12).getTime()
+    const t1 = new Date(2026, 8, 27, 19).getTime()
+    expect(
+      balanceChecks(
+        [
+          { at: t1, value: 575.36 },
+          { at: t0, value: 308.82 },
+        ],
+        [
+          { at: t0 + D, cents: 110000, fromFile: true },
+          { at: t1 - D, cents: -10000, fromFile: false },
+          { at: t1 - 2 * D, cents: -73346, fromFile: true },
+        ],
+      ),
+    ).toEqual([
+      {
+        from: t0,
+        to: t1,
+        fromValue: 308.82,
+        rows: 3,
+        sum: 266.54,
+        expected: 575.36,
+        read: 575.36,
+        missing: 0,
+      },
+    ])
   })
 })

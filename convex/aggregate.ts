@@ -3,8 +3,8 @@ import { v } from 'convex/values'
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
 import { isEuroAmount } from '../src/lib/money'
-import { balanceGaps, balanceSeries } from '../src/lib/cashHistory'
-import type { Move } from '../src/lib/cashHistory'
+import { balanceChecks, balanceSeries, coveredBy } from '../src/lib/cashHistory'
+import type { Move, Reading } from '../src/lib/cashHistory'
 import { addSeries, investedSeries } from '../src/lib/worthHistory'
 import type { Close, Holding, Rate } from '../src/lib/worthHistory'
 import { notSeenSince, reconcile } from '../src/lib/holdings'
@@ -1769,34 +1769,98 @@ function pocketMoves(
   return moves
 }
 
+/* How close a file's printed balance and a stored reading must be, in
+   time, to be the same reading (a statement's "balance of Aug 31" is
+   stored when he confirms, often a day or more later). */
+const FILE_READING_MS = 3 * 86_400_000
+const SHEET_ROWS = 2000
+const SHEET_FILES = 200
+
+const sheetRow = v.object({
+  id: v.string(),
+  at: v.number(),
+  kind: v.union(
+    v.literal('spend'),
+    v.literal('income'),
+    v.literal('move'),
+    v.literal('buy'),
+    v.literal('sell'),
+  ),
+  /** Signed, in `currency`, as this account sees it. */
+  amount: v.number(),
+  currency: v.string(),
+  text: v.string(),
+  category: v.union(v.string(), v.null()),
+  /** A move's other account, when known. */
+  other: v.union(v.string(), v.null()),
+  /** Typed by him (no file): the only rows the sheet can delete. */
+  logId: v.union(v.id('logs'), v.null()),
+  fileId: v.union(v.id('intakes'), v.null()),
+  /** A typed row on a day a balance already covers: that balance's time —
+      the row changed no balance after it. */
+  inside: v.union(v.number(), v.null()),
+})
+
 /**
- * Where an account's balances and rows disagree (1 Oct, PLAN A.5): for
- * each pocket, every pair of readings whose rows between do not explain
- * the change — "€100 missing between Sep 3 and Sep 10". Sources 1 and 2:
- * his rows and his readings, nothing estimated.
+ * One account, opened (A.4, 2 Oct — mocked and agreed): every row in it,
+ * newest first, moves and trades included; every balance read, with the
+ * file it came from; every file read into it; and for each pair of
+ * balances, whether the rows between explain the change (src/lib/
+ * cashHistory, balanceChecks). Sources 1 and 2; nothing estimated.
  */
-export const gaps = query({
+export const accountSheet = query({
   args: { accountId: v.id('accounts') },
-  returns: v.array(
+  returns: v.union(
+    v.null(),
     v.object({
-      currency: v.string(),
-      from: v.number(),
-      to: v.number(),
-      expected: v.number(),
-      read: v.number(),
-      missing: v.number(),
+      readings: v.array(
+        v.object({
+          at: v.number(),
+          value: v.number(),
+          currency: v.string(),
+          source: v.union(v.string(), v.null()),
+          fileId: v.union(v.id('intakes'), v.null()),
+        }),
+      ),
+      files: v.array(
+        v.object({
+          id: v.id('intakes'),
+          title: v.string(),
+          names: v.array(v.string()),
+          images: v.boolean(),
+          from: v.union(v.number(), v.null()),
+          to: v.union(v.number(), v.null()),
+          added: v.number(),
+          readAt: v.number(),
+        }),
+      ),
+      rows: v.array(sheetRow),
+      checks: v.array(
+        v.object({
+          currency: v.string(),
+          from: v.number(),
+          to: v.number(),
+          fromValue: v.number(),
+          rows: v.number(),
+          sum: v.number(),
+          expected: v.number(),
+          read: v.number(),
+          missing: v.number(),
+        }),
+      ),
     }),
   ),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const account = await ctx.db.get(args.accountId)
-    if (account === null || account.ownerId !== ownerId) return []
+    if (account === null || account.ownerId !== ownerId) return null
     const logs = await ctx.db
       .query('logs')
       .withIndex('by_owner_account_time', (q) =>
         q.eq('ownerId', ownerId).eq('accountId', account._id),
       )
-      .take(HISTORY_ROWS)
+      .order('desc')
+      .take(SHEET_ROWS)
     const trades = account.kinds.includes('broker')
       ? await ctx.db
           .query('trades')
@@ -1805,9 +1869,59 @@ export const gaps = query({
           )
           .take(TRADE_ROWS)
       : []
-    const out = []
+
+    /* The files: any that named this account, or that wrote a row here. */
+    const added = new Map<Id<'intakes'>, number>()
+    for (const l of logs)
+      if (l.meta?.intakeId)
+        added.set(l.meta.intakeId, (added.get(l.meta.intakeId) ?? 0) + 1)
+    for (const t of trades)
+      if (t.importId) added.set(t.importId, (added.get(t.importId) ?? 0) + 1)
+    const intakes = (
+      await ctx.db
+        .query('intakes')
+        .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
+        .order('desc')
+        .take(SHEET_FILES)
+    ).filter(
+      (i) =>
+        i.status === 'done' &&
+        (i.accountId === account._id || added.has(i._id)),
+    )
+    const files = intakes.map((i) => {
+      const times = [
+        ...(i.transactions ?? []).map((t) => t.occurredAt),
+        ...(i.trades ?? []).map((t) => t.occurredAt),
+      ]
+      return {
+        id: i._id,
+        title: i.title ?? 'A file',
+        names: (i.files ?? []).map((f) => f.name),
+        images: (i.files ?? []).every((f) =>
+          f.contentType.startsWith('image/'),
+        ),
+        from: times.length ? Math.min(...times) : null,
+        to: times.length ? Math.max(...times) : null,
+        added: added.get(i._id) ?? 0,
+        readAt: i.readAt ?? i._creationTime,
+      }
+    })
+
+    const others = new Map<Id<'accounts'>, string>()
+    const otherName = async (id: Id<'accounts'> | undefined) => {
+      if (id === undefined) return null
+      if (!others.has(id)) {
+        const o = await ctx.db.get(id)
+        others.set(id, o !== null && o.ownerId === ownerId ? o.name : '')
+      }
+      return others.get(id) || null
+    }
+
+    const readings = []
+    const checks = []
+    const coverOf = new Map<string, Array<Reading>>()
     for (const currency of account.currencies) {
-      const readings = await ctx.db
+      const rows = await ctx.db
         .query('stateSnapshots')
         .withIndex('by_owner_key_time', (q) =>
           q
@@ -1815,13 +1929,82 @@ export const gaps = query({
             .eq('key', `balance:${account._id}:${currency}`),
         )
         .take(500)
-      for (const g of balanceGaps(
-        readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
-        pocketMoves(logs, trades, currency),
-      ))
-        out.push({ currency, ...g })
+      const read = rows.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 }))
+      coverOf.set(currency.toLowerCase(), read)
+      for (const r of rows) {
+        const file = intakes.find(
+          (i) =>
+            i.balance !== undefined &&
+            i.balance.currency === currency &&
+            Math.round(i.balance.value * 100) ===
+              Math.round((r.value ?? 0) * 100) &&
+            Math.abs(i.balance.asOf - r.recordedAt) <= FILE_READING_MS,
+        )
+        readings.push({
+          at: r.recordedAt,
+          value: r.value ?? 0,
+          currency,
+          source: r.source ?? null,
+          fileId: file?._id ?? null,
+        })
+      }
+      for (const c of balanceChecks(read, pocketMoves(logs, trades, currency)))
+        checks.push({ currency, ...c })
     }
-    return out
+
+    const out = []
+    for (const l of logs) {
+      if (l.area !== 'money' || l.value === undefined) continue
+      const kind =
+        l.kind === 'expense'
+          ? ('spend' as const)
+          : l.kind === 'income'
+            ? ('income' as const)
+            : l.kind === 'move'
+              ? ('move' as const)
+              : null
+      if (kind === null) continue
+      const typed = l.meta?.intakeId === undefined
+      const cover = typed
+        ? coveredBy(l.occurredAt, coverOf.get(l.unit ?? '') ?? [])
+        : null
+      out.push({
+        id: l._id,
+        at: l.occurredAt,
+        kind,
+        amount: kind === 'spend' ? -l.value : l.value,
+        currency: (l.unit ?? 'eur').toUpperCase(),
+        text: l.meta?.merchant ?? l.text ?? '',
+        category: l.meta?.category ?? null,
+        other: await otherName(l.meta?.otherAccountId),
+        logId: typed ? l._id : null,
+        fileId: l.meta?.intakeId ?? null,
+        inside: cover?.at ?? null,
+      })
+    }
+    const symbols = new Map<Id<'instruments'>, string>()
+    for (const t of trades) {
+      if (!symbols.has(t.instrumentId)) {
+        const i = await ctx.db.get(t.instrumentId)
+        symbols.set(t.instrumentId, i?.symbol ?? 'A share')
+      }
+      const cost = Math.round(t.shares * t.priceEur * 100) / 100
+      out.push({
+        id: t._id,
+        at: t.occurredAt,
+        kind: t.side,
+        amount: t.side === 'buy' ? -cost : cost,
+        currency: 'EUR',
+        text: `${symbols.get(t.instrumentId)} · ${Math.round(t.shares * 1e6) / 1e6} sh`,
+        category: null,
+        other: null,
+        logId: null,
+        fileId: t.importId ?? null,
+        inside: null,
+      })
+    }
+    out.sort((a, b) => b.at - a.at)
+    return { readings, files, rows: out, checks }
   },
 })
 

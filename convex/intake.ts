@@ -1620,3 +1620,67 @@ export const applySplit = internalMutation({
     return null
   },
 })
+
+/**
+ * A file already confirmed, opened again from its account (A.4, 2 Oct):
+ * the rows it read, as it read them, and whether each one landed — left
+ * out as pending, as one he already had, or by him.
+ */
+export const fileRows = query({
+  args: { intakeId: v.id('intakes') },
+  returns: v.object({
+    title: v.string(),
+    names: v.array(v.string()),
+    readAt: v.number(),
+    rows: v.array(
+      v.object({
+        at: v.number(),
+        text: v.string(),
+        amount: v.number(),
+        currency: v.string(),
+        pending: v.boolean(),
+        landed: v.boolean(),
+      }),
+    ),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const intake = await ownedIntake(ctx, ownerId, args.intakeId)
+    const written = new Set<string>()
+    if (intake.accountId !== undefined) {
+      const read = intake.transactions ?? []
+      if (read.length > 0) {
+        const times = read.map((r) => r.occurredAt)
+        for (const l of await ctx.db
+          .query('logs')
+          .withIndex('by_owner_account_time', (q) =>
+            q
+              .eq('ownerId', ownerId)
+              .eq('accountId', intake.accountId)
+              .gte('occurredAt', Math.min(...times))
+              .lte('occurredAt', Math.max(...times)),
+          )
+          .take(HISTORY_ROWS))
+          if (l.meta?.intakeId === intake._id)
+            written.add(`${l.occurredAt}:${Math.abs(l.value ?? 0).toFixed(2)}`)
+      }
+    }
+    return {
+      title: intake.title ?? 'A file',
+      names: (intake.files ?? []).map((f) => f.name),
+      readAt: intake.readAt ?? intake._creationTime,
+      rows: (intake.transactions ?? [])
+        .map((r) => ({
+          at: r.occurredAt,
+          text: r.merchant,
+          amount: r.amount,
+          currency: r.currency,
+          pending: r.pending,
+          landed: written.has(
+            `${r.occurredAt}:${Math.abs(r.amount).toFixed(2)}`,
+          ),
+        }))
+        .sort((a, b) => b.at - a.at),
+    }
+  },
+})

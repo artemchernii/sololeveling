@@ -109,8 +109,8 @@ export function balanceGaps(
   return out
 }
 
-export type OwnRow<K> = {
-  key: K
+export type OwnRow<TKey> = {
+  key: TKey
   accountId: string
   amount: number
   occurredAt: number
@@ -125,12 +125,12 @@ export type OwnRow<K> = {
  * it could not name pairs with any of his others. What is left with no
  * other account named is a move with one side: he is asked where it went.
  */
-export function pairAcross<K>(rows: ReadonlyArray<OwnRow<K>>): {
-  pairs: Array<[K, K]>
-  oneSide: Array<K>
+export function pairAcross<TKey>(rows: ReadonlyArray<OwnRow<TKey>>): {
+  pairs: Array<[TKey, TKey]>
+  oneSide: Array<TKey>
 } {
   const used = new Set<number>()
-  const pairs: Array<[K, K]> = []
+  const pairs: Array<[TKey, TKey]> = []
   const order = rows
     .map((r, i) => ({ r, i }))
     .sort((a, b) => a.r.occurredAt - b.r.occurredAt)

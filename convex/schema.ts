@@ -986,6 +986,17 @@ export default defineSchema({
         otherAccountId: v.union(v.id('accounts'), v.null()),
       }),
     ),
+    /* A row he added where balances and rows disagree ("€100 missing
+       between 3 and 10 Sep" → add it): written with the rest. */
+    extras: v.array(
+      v.object({
+        accountId: v.id('accounts'),
+        occurredAt: v.number(),
+        amount: v.number(),
+      }),
+    ),
+    /* Asks he answered "leave it" to, by key ("gap:<account>:<from>"). */
+    dismissed: v.array(v.string()),
     /* While applying, how far it got; once done, what it wrote. */
     applied: v.optional(
       v.object({

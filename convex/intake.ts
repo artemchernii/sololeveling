@@ -34,6 +34,14 @@ import {
   sameCompany,
 } from '../src/lib/intake'
 import { dueDay } from '../src/lib/bills'
+import {
+  applyOrder,
+  balanceGaps,
+  coverage,
+  pairAcross,
+  reviewMonths,
+} from '../src/lib/bulk'
+import type { OwnRow } from '../src/lib/bulk'
 import { productIn, tailsIn } from '../src/lib/institutions'
 
 /* The intake (Treasury, 27 Sep): what he drops on + becomes a list he
@@ -210,6 +218,8 @@ export const startBatch = mutation({
       leftOut: [],
       quietMonths: [],
       moves: [],
+      extras: [],
+      dismissed: [],
     })
     let paid = 0
     for (const f of args.files) {
@@ -720,6 +730,8 @@ async function buildReview(
   ctx: QueryCtx,
   ownerId: string,
   intake: Doc<'intakes'>,
+  /* A scheduled apply has no sign-in: it passes the names it was given. */
+  given?: ReadonlyArray<string>,
 ) {
   const read = intake.transactions ?? []
 
@@ -763,7 +775,11 @@ async function buildReview(
   /* A transfer is the same transfer whatever each bank calls it — "To
      Trade Republic" here, "Revolut → TR" typed, "Top up" on the other
      side: its own money moving is matched by amount and days alone. */
-  const names = await hisNames(ctx, intake)
+  const names = given
+    ? [intake.holderName, ...given].filter(
+        (n): n is string => typeof n === 'string' && n.trim() !== '',
+      )
+    : await hisNames(ctx, intake)
   const own = read.map((r) => r.self || ownMoney(r, names))
   const taken = new Set(dups.filter((d): d is number => d !== null))
   for (const [i, r] of read.entries()) {
@@ -1976,3 +1992,767 @@ export const fileRows = query({
     }
   },
 })
+
+/* ---- UPDATE ALL: the review of a whole batch, per account ------------ */
+
+const MAX_ACCOUNT_ROWS = 300
+const MISSING_TEXT = 'Missing from the file'
+
+const monthState = v.union(
+  v.literal('none'),
+  v.literal('had'),
+  v.literal('add'),
+  v.literal('hole'),
+)
+const reading = v.object({ asOf: v.number(), value: v.number() })
+
+const batchAsk = v.union(
+  /* Read, but no bank name or ending to place it by. */
+  v.object({
+    kind: v.literal('whose'),
+    intakeId: v.id('intakes'),
+    name: v.string(),
+    rows: v.number(),
+    from: v.union(v.number(), v.null()),
+    to: v.union(v.number(), v.null()),
+  }),
+  /* A bank the app knows and he has not added — one tap keeps it. */
+  v.object({
+    kind: v.literal('new'),
+    product: v.string(),
+    name: v.string(),
+    accountTail: v.union(v.string(), v.null()),
+    intakeIds: v.array(v.id('intakes')),
+    rows: v.number(),
+  }),
+  v.object({
+    kind: v.literal('hole'),
+    accountId: v.id('accounts'),
+    month: v.string(),
+  }),
+  v.object({
+    kind: v.literal('oneSide'),
+    intakeId: v.id('intakes'),
+    index: v.number(),
+    accountId: v.id('accounts'),
+    amount: v.number(),
+    occurredAt: v.number(),
+    merchant: v.string(),
+  }),
+  v.object({
+    kind: v.literal('gap'),
+    key: v.string(),
+    accountId: v.id('accounts'),
+    from: v.number(),
+    to: v.number(),
+    gap: v.number(),
+  }),
+  /* A broker screen: checked on its own screen, as today. */
+  v.object({
+    kind: v.literal('holdings'),
+    intakeId: v.id('intakes'),
+    name: v.string(),
+  }),
+  v.object({
+    kind: v.literal('failed'),
+    intakeId: v.id('intakes'),
+    name: v.string(),
+    error: v.string(),
+    retryable: v.boolean(),
+  }),
+)
+
+const batchAccount = v.object({
+  accountId: v.id('accounts'),
+  leftOut: v.boolean(),
+  files: v.array(
+    v.object({
+      intakeId: v.id('intakes'),
+      name: v.string(),
+      kind: v.union(
+        v.literal('transactions'),
+        v.literal('holdings'),
+        v.literal('trades'),
+      ),
+    }),
+  ),
+  fresh: v.number(),
+  had: v.number(),
+  trades: v.number(),
+  first: v.union(reading, v.null()),
+  last: v.union(reading, v.null()),
+  months: v.array(monthState),
+  gaps: v.number(),
+  /* The rows behind ROWS, newest first: new ones and ones it already had. */
+  rows: v.array(
+    v.object({
+      occurredAt: v.number(),
+      merchant: v.string(),
+      amount: v.number(),
+      kind: v.union(v.literal('spend'), v.literal('income'), v.literal('move')),
+      category: v.union(v.string(), v.null()),
+      had: v.boolean(),
+    }),
+  ),
+})
+
+/** Signed as the account sees it: money out is negative. */
+function signedLog(l: Doc<'logs'>): number {
+  const value = l.value ?? 0
+  return l.kind === 'expense' ? -value : value
+}
+
+/**
+ * The whole drop, gathered per account (mockup "all clear"): months
+ * covered against what each account had, new vs already-had rows, first
+ * and last balance and whether the rows between agree, transfers paired
+ * across files — and the few asks only he can answer. Computed from his
+ * rows every time, like the single review; nothing is saved by it.
+ */
+export const batchReview = query({
+  args: { batchId: v.id('batches') },
+  returns: v.object({
+    status: v.union(
+      v.literal('open'),
+      v.literal('applying'),
+      v.literal('done'),
+    ),
+    /* Every file read (or failed): the review is whole. */
+    ready: v.boolean(),
+    months: v.array(v.string()),
+    accounts: v.array(batchAccount),
+    asks: v.array(batchAsk),
+    moves: v.array(
+      v.object({
+        fromAccountId: v.id('accounts'),
+        toAccountId: v.id('accounts'),
+        amount: v.number(),
+        occurredAt: v.number(),
+        days: v.number(),
+      }),
+    ),
+    files: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const b = await ownedBatch(ctx, ownerId, args.batchId)
+    const {
+      pairs: _pairs,
+      ownInfo: _info,
+      accountOf: _of,
+      ...view
+    } = await gatherBatch(ctx, ownerId, b)
+    return view
+  },
+})
+
+/* The batch gathered per account — what the review shows, and what an
+   apply needs to resolve its transfers before writing. */
+async function gatherBatch(
+  ctx: QueryCtx,
+  ownerId: string,
+  b: Doc<'batches'>,
+  names?: ReadonlyArray<string>,
+) {
+  const intakes = await batchIntakes(ctx, ownerId, b._id)
+  const accounts = await liveAccounts(ctx, ownerId)
+  const ready = intakes.every((i) => i.status !== 'reading')
+  const live = intakes.filter((i) => i.status === 'ready')
+
+  const asks: Array<typeof batchAsk.type> = []
+  for (const i of intakes.filter((x) => x.status === 'failed'))
+    asks.push({
+      kind: 'failed',
+      intakeId: i._id,
+      name: i.files?.[0]?.name ?? 'file',
+      error: i.error ?? 'It could not be read.',
+      retryable: i.retryable ?? false,
+    })
+
+  /* Where each read file goes; the ones it cannot place are asked. */
+  const placed = new Map<Id<'accounts'>, Array<Doc<'intakes'>>>()
+  const fresh = new Map<string, { ask: typeof batchAsk.type; rows: number }>()
+  for (const i of live) {
+    const here = headingFor(i, accounts)
+    const size = (i.transactions?.length ?? 0) + (i.trades?.length ?? 0)
+    if (here !== null) {
+      placed.set(here, [...(placed.get(here) ?? []), i])
+      continue
+    }
+    const s = suggestFor(i)
+    if (s) {
+      const was = fresh.get(s.product)
+      if (was && was.ask.kind === 'new') {
+        was.ask.intakeIds.push(i._id)
+        was.ask.rows += size
+      } else
+        fresh.set(s.product, {
+          ask: { kind: 'new', ...s, intakeIds: [i._id], rows: size },
+          rows: size,
+        })
+      continue
+    }
+    const times = (i.transactions ?? []).map((r) => r.occurredAt)
+    asks.push({
+      kind: 'whose',
+      intakeId: i._id,
+      name: i.files?.[0]?.name ?? 'file',
+      rows: size,
+      from: times.length ? Math.min(...times) : null,
+      to: times.length ? Math.max(...times) : null,
+    })
+  }
+  for (const { ask } of fresh.values()) asks.push(ask)
+
+  /* Every file's own review, the same one a single file gets. */
+  const reviews = new Map<
+    Id<'intakes'>,
+    Awaited<ReturnType<typeof buildReview>>
+  >()
+  for (const list of placed.values())
+    for (const i of list)
+      if (i.kind === 'transactions')
+        reviews.set(i._id, await buildReview(ctx, ownerId, i, names))
+
+  const allTimes = [...placed.values()].flatMap((list) =>
+    list.flatMap((i) => [
+      ...(i.transactions ?? []).map((r) => r.occurredAt),
+      ...(i.trades ?? []).map((r) => r.occurredAt),
+    ]),
+  )
+  const months = reviewMonths(allTimes)
+  const span = months.length
+    ? {
+        from: monthStart(months[0]),
+        to: monthStart(months[months.length - 1], 1),
+      }
+    : null
+
+  const answered = new Map(
+    b.moves.map((m) => [`${m.intakeId}:${m.index}`, m.otherAccountId]),
+  )
+  const own: Array<OwnRow<string>> = []
+  const ownInfo = new Map<
+    string,
+    { intakeId: Id<'intakes'>; index: number; merchant: string }
+  >()
+  const out: Array<typeof batchAccount.type> = []
+
+  for (const [accountId, list] of placed) {
+    const leftOut = b.leftOut.includes(accountId)
+    const had = span
+      ? await ctx.db
+          .query('logs')
+          .withIndex('by_owner_account_time', (q) =>
+            q
+              .eq('ownerId', ownerId)
+              .eq('accountId', accountId)
+              .gte('occurredAt', span.from)
+              .lt('occurredAt', span.to),
+          )
+          .take(HISTORY_ROWS)
+      : []
+    let newRows = 0
+    let hadRows = 0
+    let trades = 0
+    const adds: Array<number> = []
+    const ledger: Array<{ occurredAt: number; amount: number }> = had.map(
+      (l) => ({ occurredAt: l.occurredAt, amount: signedLog(l) }),
+    )
+    const balances: Array<{ asOf: number; value: number }> = []
+    const rows: Array<(typeof batchAccount.type)['rows'][number]> = []
+    for (const i of list) {
+      if (i.balance)
+        balances.push({ asOf: i.balance.asOf, value: i.balance.value })
+      trades += (i.trades?.length ?? 0) + (i.historyTrades ?? 0)
+      for (const t of i.trades ?? []) adds.push(t.occurredAt)
+      if (i.kind === 'holdings')
+        asks.push({
+          kind: 'holdings',
+          intakeId: i._id,
+          name: i.files?.[0]?.name ?? 'file',
+        })
+      const r = reviews.get(i._id)
+      if (!r) continue
+      for (const row of r.rows) {
+        if (row.pending) continue
+        const dup = row.duplicateOf !== null
+        if (dup) hadRows++
+        else {
+          newRows++
+          adds.push(row.occurredAt)
+          ledger.push({ occurredAt: row.occurredAt, amount: row.amount })
+        }
+        rows.push({
+          occurredAt: row.occurredAt,
+          merchant: row.merchant,
+          amount: row.amount,
+          kind: row.kind,
+          category: row.category,
+          had: dup,
+        })
+        if (row.kind === 'move' && !dup && !leftOut) {
+          const key = `${i._id}:${row.index}`
+          const answer = answered.get(key)
+          own.push({
+            key,
+            accountId,
+            amount: row.amount,
+            occurredAt: row.occurredAt,
+            otherAccountId:
+              answer === undefined ? row.otherAccountId : (answer ?? 'outside'),
+          })
+          ownInfo.set(key, {
+            intakeId: i._id,
+            index: row.index,
+            merchant: row.merchant,
+          })
+        }
+      }
+    }
+    for (const e of b.extras.filter((x) => x.accountId === accountId))
+      ledger.push({ occurredAt: e.occurredAt, amount: e.amount })
+    balances.sort((x, y) => x.asOf - y.asOf)
+    const quiet = b.quietMonths
+      .filter((q) => q.accountId === accountId)
+      .map((q) => q.month)
+    const cover = coverage(
+      months,
+      had.map((l) => l.occurredAt),
+      adds,
+      quiet,
+    )
+    const gaps = balanceGaps(balances, ledger).filter(
+      (g) => !b.dismissed.includes(`gap:${accountId}:${g.from}`),
+    )
+    if (!leftOut) {
+      for (const c of cover)
+        if (c.state === 'hole')
+          asks.push({ kind: 'hole', accountId, month: c.month })
+      for (const g of gaps)
+        asks.push({
+          kind: 'gap',
+          key: `gap:${accountId}:${g.from}`,
+          accountId,
+          ...g,
+        })
+    }
+    rows.sort((x, y) => y.occurredAt - x.occurredAt)
+    out.push({
+      accountId,
+      leftOut,
+      files: list.map((i) => ({
+        intakeId: i._id,
+        name: i.files?.[0]?.name ?? 'file',
+        kind: i.kind ?? 'transactions',
+      })),
+      fresh: newRows,
+      had: hadRows,
+      trades,
+      first: balances.at(0) ?? null,
+      last: balances.at(-1) ?? null,
+      months: cover.map((c) => c.state),
+      gaps: gaps.length,
+      rows: rows.slice(0, MAX_ACCOUNT_ROWS),
+    })
+  }
+
+  const { pairs, oneSide } = pairAcross(own)
+  const byKey = new Map(own.map((r) => [r.key, r]))
+  for (const key of oneSide) {
+    const r = byKey.get(key)
+    const info = ownInfo.get(key)
+    if (!r || !info) continue
+    asks.push({
+      kind: 'oneSide',
+      intakeId: info.intakeId,
+      index: info.index,
+      accountId: r.accountId as Id<'accounts'>,
+      amount: r.amount,
+      occurredAt: r.occurredAt,
+      merchant: info.merchant,
+    })
+  }
+  const moves = pairs.flatMap(([a, c]) => {
+    const x = byKey.get(a)
+    const y = byKey.get(c)
+    if (!x || !y) return []
+    return [
+      {
+        fromAccountId: x.accountId as Id<'accounts'>,
+        toAccountId: y.accountId as Id<'accounts'>,
+        amount: Math.abs(x.amount),
+        occurredAt: Math.min(x.occurredAt, y.occurredAt),
+        days: Math.round(Math.abs(x.occurredAt - y.occurredAt) / DAY_MS),
+      },
+    ]
+  })
+
+  const order = new Map(accounts.map((a, i) => [a._id, i]))
+  out.sort(
+    (x, y) => (order.get(x.accountId) ?? 0) - (order.get(y.accountId) ?? 0),
+  )
+  return {
+    status: b.status,
+    ready,
+    months,
+    accounts: out,
+    asks,
+    moves: moves.sort((x, y) => y.occurredAt - x.occurredAt),
+    files: intakes.length,
+    pairs,
+    ownInfo,
+    accountOf: new Map(own.map((r) => [r.key, r.accountId as Id<'accounts'>])),
+  }
+}
+
+/* The first moment of a "2026-03" month, or `plus` months after it. */
+function monthStart(key: string, plus = 0): number {
+  const [y, m] = key.split('-').map(Number)
+  return new Date(y, m - 1 + plus, 1).getTime()
+}
+
+async function openBatchFor(
+  ctx: MutationCtx,
+  ownerId: string,
+  batchId: Id<'batches'>,
+): Promise<Doc<'batches'>> {
+  const b = await ownedBatch(ctx, ownerId, batchId)
+  if (b.status !== 'open')
+    throw new ConvexError('That update is being applied.')
+  return b
+}
+
+/**
+ * What he answered in the bulk review — one ask at a time. Nothing is a
+ * log until he applies; these only change what the apply will write.
+ */
+export const batchAnswer = mutation({
+  args: {
+    batchId: v.id('batches'),
+    answer: v.union(
+      /* "Whose is this?" / "New account: BPI — keep it". */
+      v.object({
+        kind: v.literal('place'),
+        intakeIds: v.array(v.id('intakes')),
+        accountId: v.id('accounts'),
+      }),
+      /* "There was nothing that month." */
+      v.object({
+        kind: v.literal('quiet'),
+        accountId: v.id('accounts'),
+        month: v.string(),
+      }),
+      /* A move with one side: where it went, or null — outside the app. */
+      v.object({
+        kind: v.literal('move'),
+        intakeId: v.id('intakes'),
+        index: v.number(),
+        otherAccountId: v.union(v.id('accounts'), v.null()),
+      }),
+      /* "Add €100 between 3 and 10 Sep." */
+      v.object({
+        kind: v.literal('extra'),
+        key: v.string(),
+        accountId: v.id('accounts'),
+        occurredAt: v.number(),
+        amount: v.number(),
+      }),
+      v.object({ kind: v.literal('dismiss'), key: v.string() }),
+      v.object({
+        kind: v.literal('leaveOut'),
+        accountId: v.id('accounts'),
+        out: v.boolean(),
+      }),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, { batchId, answer }) => {
+    const ownerId = await requireUser(ctx)
+    const b = await openBatchFor(ctx, ownerId, batchId)
+    const inBatch = async (id: Id<'intakes'>) => {
+      const i = await ownedIntake(ctx, ownerId, id)
+      if (i.batchId !== b._id) throw new Error('No such intake')
+      return i
+    }
+    switch (answer.kind) {
+      case 'place': {
+        await ownedAccount(ctx, ownerId, answer.accountId)
+        for (const id of answer.intakeIds) {
+          await inBatch(id)
+          await ctx.db.patch(id, { accountId: answer.accountId })
+        }
+        return null
+      }
+      case 'quiet': {
+        await ownedAccount(ctx, ownerId, answer.accountId)
+        if (!/^\d{4}-\d{2}$/.test(answer.month))
+          throw new ConvexError('That is not a month.')
+        await ctx.db.patch(b._id, {
+          quietMonths: [
+            ...b.quietMonths,
+            { accountId: answer.accountId, month: answer.month },
+          ],
+        })
+        return null
+      }
+      case 'move': {
+        const i = await inBatch(answer.intakeId)
+        const rows = i.transactions ?? []
+        if (answer.index < 0 || answer.index >= rows.length)
+          throw new Error('No such row')
+        if (answer.otherAccountId)
+          await ownedAccount(ctx, ownerId, answer.otherAccountId)
+        await ctx.db.patch(b._id, {
+          moves: [
+            ...b.moves.filter(
+              (m) => m.intakeId !== answer.intakeId || m.index !== answer.index,
+            ),
+            {
+              intakeId: answer.intakeId,
+              index: answer.index,
+              otherAccountId: answer.otherAccountId,
+            },
+          ],
+        })
+        return null
+      }
+      case 'extra': {
+        await ownedAccount(ctx, ownerId, answer.accountId)
+        if (
+          !Number.isFinite(answer.amount) ||
+          answer.amount === 0 ||
+          Math.abs(answer.amount) > 1e7
+        )
+          throw new ConvexError('That is not an amount.')
+        await ctx.db.patch(b._id, {
+          extras: [
+            ...b.extras,
+            {
+              accountId: answer.accountId,
+              occurredAt: answer.occurredAt,
+              amount: Math.round(answer.amount * 100) / 100,
+            },
+          ],
+          dismissed: [...b.dismissed, answer.key],
+        })
+        return null
+      }
+      case 'dismiss': {
+        await ctx.db.patch(b._id, {
+          dismissed: [...b.dismissed, answer.key.slice(0, 120)],
+        })
+        return null
+      }
+      case 'leaveOut': {
+        await ownedAccount(ctx, ownerId, answer.accountId)
+        const rest = b.leftOut.filter((a) => a !== answer.accountId)
+        await ctx.db.patch(b._id, {
+          leftOut: answer.out ? [...rest, answer.accountId] : rest,
+        })
+        return null
+      }
+    }
+  },
+})
+
+/**
+ * APPLY: every placed statement, oldest first, one per step so a year of
+ * files never meets a transaction's limits. Transfers paired across files
+ * are fixed first — the earlier statement writes both sides, and the
+ * later one's row is then found already there. Left-out accounts, files
+ * it could not place, broker screens and failed reads stay in the batch,
+ * waiting.
+ */
+export const applyBatch = mutation({
+  args: { batchId: v.id('batches'), dayStart: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const b = await openBatchFor(ctx, ownerId, args.batchId)
+    const identity = await ctx.auth.getUserIdentity()
+    const names = identity?.name ? [identity.name] : []
+    const g = await gatherBatch(ctx, ownerId, b, names)
+    if (!g.ready) throw new ConvexError('Some files are still being read.')
+    const moves = [...b.moves]
+    const has = (key: string) =>
+      moves.some((m) => `${m.intakeId}:${m.index}` === key)
+    for (const [outKey, inKey] of g.pairs) {
+      const a = g.ownInfo.get(outKey)
+      const c = g.ownInfo.get(inKey)
+      const accA = g.accountOf.get(outKey)
+      const accC = g.accountOf.get(inKey)
+      if (!a || !c || !accA || !accC) continue
+      if (!has(outKey))
+        moves.push({
+          intakeId: a.intakeId,
+          index: a.index,
+          otherAccountId: accC,
+        })
+      if (!has(inKey))
+        moves.push({
+          intakeId: c.intakeId,
+          index: c.index,
+          otherAccountId: accA,
+        })
+    }
+    await ctx.db.patch(b._id, {
+      status: 'applying',
+      moves,
+      applied: {
+        intakes: 0,
+        rows: 0,
+        accounts: g.accounts.filter((x) => !x.leftOut).length,
+      },
+    })
+    await ctx.scheduler.runAfter(0, internal.intake.applyStep, {
+      batchId: b._id,
+      dayStart: args.dayStart,
+      names,
+    })
+    return null
+  },
+})
+
+export const applyStep = internalMutation({
+  args: {
+    batchId: v.id('batches'),
+    dayStart: v.number(),
+    names: v.array(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const b = await ctx.db.get(args.batchId)
+    if (b === null || b.status !== 'applying') return null
+    const ownerId = b.ownerId
+    const accounts = await liveAccounts(ctx, ownerId)
+    const waiting = (await batchIntakes(ctx, ownerId, b._id)).filter(
+      (i) =>
+        i.status === 'ready' &&
+        (i.kind === 'transactions' ||
+          (i.kind === 'trades' && i.historyTrades === undefined)),
+    )
+    const next = applyOrder(
+      waiting
+        .map((i) => {
+          const accountId = headingFor(i, accounts)
+          const times = [
+            ...(i.transactions ?? []).map((r) => r.occurredAt),
+            ...(i.trades ?? []).map((r) => r.occurredAt),
+          ]
+          return {
+            i,
+            accountId,
+            to: i.balance?.asOf ?? (times.length ? Math.max(...times) : null),
+          }
+        })
+        .filter(
+          (x) =>
+            x.accountId !== null &&
+            !b.leftOut.includes(x.accountId) &&
+            !(
+              x.i.kind === 'trades' &&
+              !accounts
+                .find((a) => a._id === x.accountId)
+                ?.kinds.includes('broker')
+            ),
+        ),
+    ).at(0)
+
+    const applied = b.applied ?? { intakes: 0, rows: 0, accounts: 0 }
+    if (next === undefined || next.accountId === null) {
+      await finishBatch(ctx, b, applied)
+      return null
+    }
+    const account = await ownedAccount(ctx, ownerId, next.accountId)
+    let rows = 0
+    if (next.i.kind === 'transactions') {
+      const read = await buildReview(ctx, ownerId, next.i, args.names)
+      const answered = new Map(
+        b.moves.map((m) => [`${m.intakeId}:${m.index}`, m.otherAccountId]),
+      )
+      const keep: Array<ConfirmRow> = read.rows
+        .filter((r) => !r.pending && r.duplicateOf === null)
+        .map((r) => {
+          const answer = answered.get(`${next.i._id}:${r.index}`)
+          const other = answer === undefined ? r.otherAccountId : answer
+          return {
+            index: r.index,
+            kind: r.kind,
+            category: r.category ?? undefined,
+            otherAccountId:
+              r.kind === 'move' ? (other ?? undefined) : undefined,
+            recurringId: r.recurringId ?? undefined,
+          }
+        })
+      const done = await writeTransactions(ctx, ownerId, next.i, account, {
+        rows: keep,
+        keepBalance: true,
+        dayStart: args.dayStart,
+      })
+      rows = done.written + done.trades.written
+    } else {
+      const items = (next.i.trades ?? []).flatMap((t, index) => {
+        const c = t.candidates.at(
+          t.preferred !== undefined && t.preferred >= 0 ? t.preferred : 0,
+        )
+        return c ? [{ index, trade: t, candidate: c }] : []
+      })
+      const done = await writeTrades(ctx, ownerId, account, next.i._id, items)
+      if (next.i.accountTail)
+        await learnTails(ctx, account, [next.i.accountTail])
+      for (const id of next.i.storageIds) await ctx.storage.delete(id)
+      await ctx.db.patch(next.i._id, {
+        status: 'done',
+        storageIds: [],
+        accountId: account._id,
+      })
+      rows = done.written
+    }
+    await ctx.db.patch(b._id, {
+      applied: {
+        ...applied,
+        intakes: applied.intakes + 1,
+        rows: applied.rows + rows,
+      },
+    })
+    await ctx.scheduler.runAfter(0, internal.intake.applyStep, args)
+    return null
+  },
+})
+
+/* The rows he added where balances disagreed, then done — or open again
+   when something in it is still waiting for him. */
+async function finishBatch(
+  ctx: MutationCtx,
+  b: Doc<'batches'>,
+  applied: { intakes: number; rows: number; accounts: number },
+) {
+  let extra = 0
+  for (const e of b.extras) {
+    if (b.leftOut.includes(e.accountId)) continue
+    const account = await ctx.db.get(e.accountId)
+    if (account === null || account.ownerId !== b.ownerId) continue
+    await ctx.db.insert('logs', {
+      ownerId: b.ownerId,
+      area: 'money',
+      kind: e.amount < 0 ? 'expense' : 'income',
+      occurredAt: e.occurredAt,
+      value: Math.abs(e.amount),
+      unit: 'eur',
+      text: MISSING_TEXT,
+      accountId: e.accountId,
+      meta: { merchant: MISSING_TEXT, category: 'other' },
+    })
+    extra++
+  }
+  const left = (await batchIntakes(ctx, b.ownerId, b._id)).some(
+    (i) => i.status !== 'done',
+  )
+  await ctx.db.patch(b._id, {
+    status: left ? 'open' : 'done',
+    extras: [],
+    applied: { ...applied, rows: applied.rows + extra },
+    appliedAt: Date.now(),
+  })
+}

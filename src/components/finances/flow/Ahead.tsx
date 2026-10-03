@@ -18,7 +18,7 @@ type AheadData = FunctionReturnType<typeof api.aggregate.ahead>
 type Event = AheadData['events'][number]
 type Done = AheadData['done'][number]
 
-export type Notice = { text: string; undo: () => void } | null
+export type Notice = { text: string; undo: (() => void) | null } | null
 
 /* AHEAD (journey step 3 and 8; his words: "important thing is to show
    future spendings, especially reoccurring"). The line first, then every
@@ -123,16 +123,18 @@ export function Ahead({
             done
           </span>
           {notice.text}
-          <button
-            type="button"
-            onClick={() => {
-              notice.undo()
-              setNotice(null)
-            }}
-            className="font-mono text-[11px] tracking-[0.1em] text-lav-300 uppercase hover:text-foreground"
-          >
-            undo
-          </button>
+          {notice.undo ? (
+            <button
+              type="button"
+              onClick={() => {
+                notice.undo?.()
+                setNotice(null)
+              }}
+              className="font-mono text-[11px] tracking-[0.1em] text-lav-300 uppercase hover:text-foreground"
+            >
+              undo
+            </button>
+          ) : null}
         </p>
       ) : null}
       {fresh.length ? (

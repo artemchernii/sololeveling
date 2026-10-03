@@ -187,10 +187,11 @@ describe('recurring.fromRow and likely', () => {
   test('makes a yearly bill from a payment, everything from the row', async () => {
     const { t, me } = setup()
     const { bank, ids } = await world(t)
-    const id = await me.mutation(api.recurring.fromRow, {
+    const { id, created } = await me.mutation(api.recurring.fromRow, {
       logId: ids.insurance,
       cadence: 'yearly',
     })
+    expect(created).toBe(true)
     const bill = await t.run((ctx) => ctx.db.get(id))
     expect(bill).toMatchObject({
       amount: 220,
@@ -206,7 +207,7 @@ describe('recurring.fromRow and likely', () => {
         logId: ids.insurance,
         cadence: 'monthly',
       }),
-    ).toBe(id)
+    ).toEqual({ id, created: false })
   })
 
   test('offers likely bills from statements, not everyday spending', async () => {

@@ -73,8 +73,9 @@ export function Movements({
   const d0 = new Date(today)
   const monthEnd = new Date(d0.getFullYear(), d0.getMonth() + 1, 0).getTime()
   const cells = []
+  /* Snapped to his midnights: 24-hour steps slip an hour at a clock change. */
   for (
-    let c = today - 29 * DAY;
+    let c = startOf(today - 29 * DAY + 12 * 3_600_000);
     c <= monthEnd;
     c = startOf(c + DAY + 3_600_000)
   )
@@ -384,11 +385,11 @@ function RowSheet({
   const d = new Date(row.occurredAt)
   async function make(cadence: 'monthly' | 'yearly') {
     try {
-      const id = await fromRow({ logId: row._id, cadence })
+      const made = await fromRow({ logId: row._id, cadence })
       const name = row.meta?.merchant ?? row.text ?? 'Bill'
       onDone({
-        text: `${name} — ${whenSaid(cadence, d.getUTCDate(), d.getUTCMonth())}.`,
-        undo: () => void remove({ id }),
+        text: `${name} — ${made.created ? whenSaid(cadence, d.getUTCDate(), d.getUTCMonth()) : 'a bill already'}.`,
+        undo: made.created ? () => void remove({ id: made.id }) : null,
       })
     } catch (e) {
       setError(failureMessage(e) ?? 'It did not go in.')

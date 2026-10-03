@@ -418,7 +418,9 @@ export const unrefuse = mutation({
  */
 export const fromRow = mutation({
   args: { logId: v.id('logs'), cadence },
-  returns: v.id('recurring'),
+  /** `created` false: it was a bill already, and that one comes back —
+      so an undo never removes a bill he had before. */
+  returns: v.object({ id: v.id('recurring'), created: v.boolean() }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const log = await ctx.db.get(args.logId)
@@ -436,7 +438,7 @@ export const fromRow = mutation({
         i.refusedAt === undefined &&
         isKnown(knownOf([i]), { key, amount: log.value }),
     )
-    if (same) return same._id
+    if (same) return { id: same._id, created: false }
     if (items.length >= MAX_ITEMS) {
       throw new ConvexError('That is a lot of bills — end one first.')
     }
@@ -444,7 +446,7 @@ export const fromRow = mutation({
     const [name] = billNames([
       { key, name: log.meta?.merchant ?? log.text ?? '', kind: log.kind },
     ])
-    return await ctx.db.insert('recurring', {
+    const id = await ctx.db.insert('recurring', {
       ownerId,
       name: name.slice(0, MAX_NAME) || 'Bill',
       kind: log.kind,
@@ -456,6 +458,7 @@ export const fromRow = mutation({
       month: args.cadence === 'yearly' ? d.getUTCMonth() : undefined,
       matchKey: key || undefined,
     })
+    return { id, created: true }
   },
 })
 

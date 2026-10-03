@@ -64,8 +64,15 @@ export function AddBill({
       l.key.toLowerCase().includes(q.split(' ')[0]),
   )
 
-  function done(id: Id<'recurring'>, name: string, said: string) {
-    onAdded({ text: `${name} — ${said}.`, undo: () => void remove({ id }) })
+  function done(
+    made: { id: Id<'recurring'>; created: boolean },
+    name: string,
+    said: string,
+  ) {
+    onAdded({
+      text: `${name} — ${said}.`,
+      undo: made.created ? () => void remove({ id: made.id }) : null,
+    })
     setText('')
     setError(null)
     onClose()
@@ -76,9 +83,9 @@ export function AddBill({
     cadence: 'monthly' | 'yearly',
   ) {
     try {
-      const id = await fromRow({ logId: l.rowId, cadence })
+      const made = await fromRow({ logId: l.rowId, cadence })
       const d = new Date(l.t)
-      done(id, l.name, whenSaid(cadence, d.getUTCDate(), d.getUTCMonth()))
+      done(made, l.name, whenSaid(cadence, d.getUTCDate(), d.getUTCMonth()))
     } catch (e) {
       setError(failureMessage(e) ?? 'It did not go in.')
     }
@@ -96,7 +103,11 @@ export function AddBill({
         month: line.month ?? undefined,
         accountId: from ?? undefined,
       })
-      done(id, line.name, whenSaid(line.cadence, line.day, line.month))
+      done(
+        { id, created: true },
+        line.name,
+        whenSaid(line.cadence, line.day, line.month),
+      )
     } catch (e) {
       setError(failureMessage(e) ?? 'It did not go in.')
     }

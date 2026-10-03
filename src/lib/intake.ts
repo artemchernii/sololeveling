@@ -667,8 +667,16 @@ export function findDuplicates(
   existing: ReadonlyArray<ExistingRow>,
 ): Array<number | null> {
   const used = new Set<number>()
+  /* A row this file holds more than once (a coffee bought every few
+     days) never gets the week-long window: a week apart, it is another. */
+  const repeats = new Map<string, number>()
+  for (const r of incoming) {
+    const k = `${merchantKey(r.merchant)}:${Math.round(r.amount * 100)}`
+    repeats.set(k, (repeats.get(k) ?? 0) + 1)
+  }
   return incoming.map((r) => {
     const key = merchantKey(r.merchant)
+    const often = (repeats.get(`${key}:${Math.round(r.amount * 100)}`) ?? 0) > 1
     /* The same row read twice can come back named twice ("Seguro Allianz"
        from the statement, "Insurance" from a screenshot — 3 Oct): the
        bank's own line, shared, says it is the same. */
@@ -691,7 +699,7 @@ export function findDuplicates(
         [...lineWords(`${e.merchant} ${e.raw ?? ''}`)].filter((w) =>
           words.has(w),
         ).length >= 2
-      const window = close ? 7 * DAY + 3_600_000 : 2 * DAY + 3_600_000
+      const window = close && !often ? 7 * DAY + 3_600_000 : 2 * DAY + 3_600_000
       if (gap <= window && gap < bestGap) {
         best = i
         bestGap = gap
@@ -715,15 +723,25 @@ export function storedDuplicates(
     amount: number
     merchant: string
     raw?: string
+    /** The file it came from: two rows of one file are two rows. */
+    file?: string
   }>,
 ): Array<string> {
-  const byAge = [...rows].sort((a, b) => a.written - b.written)
-  const kept: Array<ExistingRow & { id: string }> = []
+  /* File by file, oldest first, each laid against what came before it —
+     the same comparison a new file gets. A typed row is its own file. */
+  const groups = new Map<string, Array<(typeof rows)[number]>>()
+  for (const r of [...rows].sort((x, y) => x.written - y.written)) {
+    const k = r.file ?? `typed:${r.id}`
+    groups.set(k, [...(groups.get(k) ?? []), r])
+  }
+  const kept: Array<ExistingRow> = []
   const out: Array<string> = []
-  for (const r of byAge) {
-    const [hit] = findDuplicates([r], kept)
-    if (hit === null) kept.push(r)
-    else out.push(r.id)
+  for (const group of groups.values()) {
+    const hits = findDuplicates(group, kept)
+    for (const [i, r] of group.entries()) {
+      if (hits[i] === null) kept.push(r)
+      else out.push(r.id)
+    }
   }
   return out
 }

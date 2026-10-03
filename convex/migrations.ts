@@ -264,6 +264,7 @@ export const dedupeMoney = internalMutation({
             amount: l.kind === 'expense' ? -(l.value ?? 0) : (l.value ?? 0),
             merchant: l.meta?.merchant ?? l.text ?? '',
             raw: l.meta?.raw,
+            file: l.meta?.intakeId,
           })),
         ),
       )

@@ -366,6 +366,7 @@ function Timeline({
   onFile: (id: Id<'intakes'>) => void
 }) {
   const remove = useMutation(api.logs.remove)
+  const removeSide = useMutation(api.logs.removeSide)
   const fileOf = (id: Id<'intakes'> | null) =>
     id === null ? undefined : data.files.find((f) => f.id === id)
   type Item =
@@ -453,6 +454,11 @@ function Timeline({
                   ? () => void remove({ logId: r.logId as Id<'logs'> })
                   : undefined
               }
+              onNotHere={
+                r.sideLogId
+                  ? () => void removeSide({ logId: r.sideLogId })
+                  : undefined
+              }
             />
           </Fragment>
         )
@@ -536,12 +542,15 @@ function RowLine({
   inside,
   index,
   onDelete,
+  onNotHere,
 }: {
   row: Row
   /** The day of the balance that already covers this typed row. */
   inside: number | null
   index: number
   onDelete?: () => void
+  /** The other side of another account's transfer: "not from here". */
+  onNotHere?: () => void
 }) {
   const moved = r.kind === 'move'
   const traded = r.kind === 'buy' || r.kind === 'sell'
@@ -599,6 +608,16 @@ function RowLine({
           ) : null}
         </span>
       </span>
+      {onNotHere ? (
+        <button
+          type="button"
+          onClick={onNotHere}
+          title={`Written because ${r.sideOf ?? 'another account'}'s file said it came from here. Remove only this side; ${r.sideOf ?? 'that account'} keeps its row.`}
+          className="px-1 font-mono text-[10px] tracking-[0.1em] text-state-warn uppercase opacity-0 group-hover:opacity-100 focus:opacity-100"
+        >
+          not from here
+        </button>
+      ) : null}
       {onDelete ? (
         <button
           type="button"

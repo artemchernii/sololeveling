@@ -425,6 +425,35 @@ export const remove = mutation({
   },
 })
 
+/**
+ * "It did not come from here" (3 Oct): one side of a transfer, written
+ * into this account because another account's file named it, removed on
+ * its own — the side that file read stays, as money from an account
+ * outside the app. Refused for a row that is not a move.
+ */
+export const removeSide = mutation({
+  args: { logId: v.id('logs') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const log = await ctx.db.get(args.logId)
+    if (log === null || log.ownerId !== ownerId) throw new Error('No such log')
+    if (log.kind !== 'move') throw new ConvexError('That is not a transfer.')
+    const other = await transferPair(ctx, ownerId, log)
+    if (other !== null) {
+      const {
+        pairOf: _pair,
+        otherAccountId: _other,
+        ...meta
+      } = other.meta ?? {}
+      await ctx.db.patch(other._id, { meta })
+    }
+    await unlinkSheets(ctx, ownerId, log._id)
+    await ctx.db.delete(log._id)
+    return null
+  },
+})
+
 /* A bulk remove, generously: a busy week's Body logs. */
 const MAX_REMOVE = 200
 

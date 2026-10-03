@@ -926,3 +926,42 @@ test("BPI's transfer pairs with ActivoBank's side already in the app — by the 
     [act, 1000, expect.anything()],
   ])
 })
+
+test("'not from here': BPI's side goes, ActivoBank's +€1,000 stays — from outside (3 Oct)", async () => {
+  const { t, me, them } = setup()
+  const { bpi, act } = await accountsOf(me)
+  const batchId = await emptyBatch(t)
+  const screen = await readFile(t, batchId, {
+    name: 'IMG_9238.PNG',
+    institution: 'ActivoBank',
+    accountTail: '3402',
+    rows: [self(row(10, 2, 'TRF. P/O ARTEM CHERNII', 1000))],
+  })
+  await me.mutation(api.intake.batchAnswer, {
+    batchId,
+    answer: { kind: 'move', intakeId: screen, index: 0, otherAccountId: bpi },
+  })
+  await me.mutation(api.intake.applyBatch, { batchId, dayStart: day(10, 3) })
+  await t.finishAllScheduledFunctions(vi.runAllTimers)
+  const sheet = await me.query(api.aggregate.accountSheet, { accountId: bpi })
+  const side = sheet?.rows.find((r) => r.kind === 'move')
+  expect(side).toMatchObject({ sideOf: 'ActivoBank', amount: -1000 })
+  if (!side?.sideLogId) throw new Error('no side')
+  await expect(
+    them.mutation(api.logs.removeSide, { logId: side.sideLogId }),
+  ).rejects.toThrow('No such log')
+  await me.mutation(api.logs.removeSide, { logId: side.sideLogId })
+  const logs = await t.run((ctx) => ctx.db.query('logs').collect())
+  expect(
+    logs.map((l) => [
+      l.accountId,
+      l.value,
+      l.meta?.otherAccountId ?? null,
+      l.meta?.pairOf ?? null,
+    ]),
+  ).toEqual([[act, 1000, null, null]])
+  const actSheet = await me.query(api.aggregate.accountSheet, {
+    accountId: act,
+  })
+  expect(actSheet?.rows[0].sideOf).toBeNull()
+})

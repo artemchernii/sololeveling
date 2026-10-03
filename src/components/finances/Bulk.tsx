@@ -1049,9 +1049,17 @@ function AskCard({
           {DAY.format(ask.occurredAt)} — "{ask.merchant}".
         </>
       )
-      sub = into
-        ? 'Your own money arriving — but no account in this drop sent it. Which one did it leave?'
-        : 'Your own money leaving — but no account in this drop received it. Where did it go?'
+      /* A hint, not an answer (3 Oct: "likely BPI", pressed, was wrong —
+         BPI's statement ended before the day). Said with its reason. */
+      sub = `${
+        into
+          ? 'Your own money arriving — but no file in this drop shows it leaving anywhere. Which account did it leave?'
+          : 'Your own money leaving — but no file in this drop shows it arriving anywhere. Where did it go?'
+      }${
+        ask.likely
+          ? ` ${name(ask.likely)} is where ${name(ask.accountId)}'s other transfers ${into ? 'came from' : 'went'}, but nothing in this drop covers ${DAY.format(ask.occurredAt)} for it — answer only if you know.`
+          : ''
+      }`
       const pick = (otherAccountId: Id<'accounts'> | null, text: string) =>
         act(
           () =>
@@ -1078,7 +1086,6 @@ function AskCard({
             .map((a) => (
               <Opt
                 key={a._id}
-                loud={a._id === ask.likely}
                 disabled={busy}
                 onClick={() => pick(a._id, `${signed(ask.amount)}: ${a.name}.`)}
               >

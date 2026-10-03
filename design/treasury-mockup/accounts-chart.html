@@ -51,7 +51,7 @@
 
   .stage { position: relative; display: grid; grid-template-columns: 1fr 250px; gap: 18px; margin-top: 14px }
   @media (max-width: 860px) { .stage { grid-template-columns: 1fr } }
-  svg.chart { width: 100%; height: 330px; display: block; overflow: visible }
+  svg.chart { width: 100%; height: 360px; display: block; overflow: visible }
   .grid line { stroke: rgba(var(--lift),.05) }
   .axis text { fill: var(--ink-500); font-family: var(--mono); font-size: 10.5px }
   .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; transition: opacity .25s }
@@ -114,7 +114,6 @@
     <div class="stage">
       <div>
         <div id="plot"></div>
-        <div class="read" id="read"></div>
       </div>
       <div class="legend" id="legend"></div>
     </div>
@@ -130,10 +129,10 @@ const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v
 /* Six accounts, sample balances at his scale. `from` is the day the app
    first knows it — no line before. */
 const ACCOUNTS = [
-  { id: '212', name: 'Trading 212', kind: 'broker · cash + shares', c: '--acc-212', from: TODAY },
-  { id: 'tr', name: 'Trade Republic', kind: 'broker · cash + shares', c: '--acc-tr', from: TODAY - 365 * DAY },
+  { id: '212', name: 'Trading 212', kind: 'broker', c: '--acc-212', from: TODAY },
+  { id: 'tr', name: 'Trade Republic', kind: 'broker', c: '--acc-tr', from: TODAY - 365 * DAY },
   { id: 'bpi', name: 'BPI', kind: 'bank', c: '--acc-bpi', from: Date.UTC(2026, 7, 1) },
-  { id: 'revolut', name: 'Revolut', kind: 'bank + broker', c: '--acc-revolut', from: Date.UTC(2026, 7, 2) },
+  { id: 'revolut', name: 'Revolut', kind: 'bank · broker', c: '--acc-revolut', from: Date.UTC(2026, 7, 2) },
   { id: 'cash', name: 'Cash', kind: 'notes', c: '--acc-cash', from: TODAY - 365 * DAY },
   { id: 'activo', name: 'ActivoBank', kind: 'bank', c: '--acc-activo', from: Date.UTC(2026, 7, 3) },
 ]
@@ -183,7 +182,7 @@ function series(id) {
 const DATA = Object.fromEntries(ACCOUNTS.map((a) => [a.id, series(a.id)]))
 
 const SCENARIOS = {
-  all: { label: 'all six', note: '<b>One line per account</b>, same € axis. Trading 212 starts today with a "joined" tag instead of a cliff. The dashed marks are your own moves (BPI → ActivoBank). Hover for the day; tap a point for its rows; tap a name to hide it.' },
+  all: { label: 'all six', note: '<b>One line per account</b>, same € axis. Trading 212 is new today: a pin on the right, not a cliff, and it does not set the scale. Who joined and what moved sit in the strip under the chart. Hover: the list shows that day. Tap a point for its rows; tap a name to hide it.' },
   hide212: { label: '212 hidden', hidden: ['212'], note: '<b>Trading 212 off</b>: the axis rescales to the banks, so BPI\'s payday saw-tooth and the ActivoBank moves become readable.' },
   tapped: { label: 'tapped a point', hidden: ['212'], tap: { id: 'bpi', t: Date.UTC(2026, 8, 1) }, note: '<b>Tapped BPI on 1 Sep</b>: the rows behind the drop — €1,100 was a move to ActivoBank, not money gone.' },
   one: { label: 'first account', only: ['bpi'], note: '<b>Day one with one account</b>: a single line; the legend says the others appear as accounts are added.' },
@@ -219,80 +218,93 @@ function render() {
   if (S.view !== 'accounts') {
     plot.innerHTML = `<div class="empty"><div><b>${S.view.toUpperCase()} — as today</b>This view stays exactly as it is on Overview now.<br/>Pick ACCOUNTS to see the new one.</div></div>`
     document.getElementById('legend').innerHTML = ''
-    document.getElementById('read').innerHTML = ''
     document.getElementById('day').classList.remove('on')
     return
   }
   if (accounts.length === 0) {
     plot.innerHTML = `<div class="empty"><div><b>No accounts yet</b>Each account you add draws its own line here.<br/>Press ADD on the hero, or drop a statement.</div></div>`
     document.getElementById('legend').innerHTML = ''
-    document.getElementById('read').innerHTML = ''
     return
   }
   const from = TODAY - RANGES[S.range] * DAY
   const shown = accounts.filter((a) => !S.hidden.has(a.id))
   const pts = (id) => DATA[id].filter((p) => p.t >= from)
-  const max = Math.max(1, ...shown.flatMap((a) => pts(a.id).map((p) => p.v)))
-  const nice = (() => { const m = Math.pow(10, Math.floor(Math.log10(max))); return Math.ceil(max / m * 2) / 2 * m })()
-  const W = 860, H = 330, L = 6, R = 62, T = 12, B = 26
+  /* An account the app has known for a day has no line yet: it is a pin
+     on the right edge and does not set the scale (3 Oct: Trading 212's
+     one €15k point pressed five real lines into the floor). */
+  const lined = shown.filter((a) => pts(a.id).length > 1)
+  const pinned = shown.filter((a) => pts(a.id).length === 1)
+  const max = Math.max(1, ...lined.flatMap((a) => pts(a.id).map((p) => p.v)), ...(lined.length ? [] : pinned.map((a) => pts(a.id)[0].v)))
+  const step = (() => { const raw = max / 4, m = Math.pow(10, Math.floor(Math.log10(raw))); return [1, 2, 2.5, 5, 10].map((k) => k * m).find((k) => k * 4 >= max) })()
+  const nice = step * 4
+  const W = 860, H = 360, L = 6, R = 70, T = 14, LANE = 44, B = 22
+  const PB = H - B - LANE
   const x = (t) => L + (t - from) / (TODAY - from) * (W - L - R)
-  const y = (v) => T + (1 - v / nice) * (H - T - B)
+  const y = (v) => T + (1 - Math.min(v, nice) / nice) * (PB - T)
 
   let g = `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" id="svg">`
   g += '<g class="grid axis">'
   for (let i = 0; i <= 4; i++) {
-    const v = nice * i / 4
+    const v = step * i
     g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${W - R + 8}" y="${y(v) + 4}">${money(v)}</text>`
   }
   const ticks = S.range === '1Y' ? 6 : 4
   for (let i = 0; i <= ticks; i++) {
     const t = from + (TODAY - from) * i / ticks
-    g += `<text x="${x(t)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === ticks ? 'end' : 'middle'}">${short(t)}</text>`
+    g += `<text x="${x(t)}" y="${H - 5}" text-anchor="${i === 0 ? 'start' : i === ticks ? 'end' : 'middle'}">${short(t)}</text>`
   }
+  g += `<line x1="${L}" x2="${W - R}" y1="${PB + 4}" y2="${PB + 4}" style="stroke:rgba(255,255,255,.07)"/>`
   g += '</g>'
-  for (const a of accounts) {
+  for (const a of lined) {
     const p = pts(a.id)
-    if (p.length === 0) continue
     const d = p.map((q, i) => `${i ? 'L' : 'M'}${x(q.t).toFixed(1)},${y(q.v).toFixed(1)}`).join('')
-    const off = S.hidden.has(a.id)
-    if (off) continue
     const dim = S.tap && S.tap.id !== a.id ? 'dim' : ''
     g += `<path class="glow" d="${d}" stroke="${css(a.c)}"/>`
     g += `<path class="line drawn ${dim}" d="${d}" stroke="${css(a.c)}" style="--len:3000"/>`
     const last = p.at(-1)
-    g += `<circle class="dotnow" cx="${x(last.t)}" cy="${y(last.v)}" r="${p.length === 1 ? 5 : 3.5}" fill="${css(a.c)}"/>`
+    g += `<circle class="dotnow" cx="${x(last.t)}" cy="${y(last.v)}" r="3.5" fill="${css(a.c)}"/>`
+    if (a.from >= from) g += `<circle cx="${x(p[0].t)}" cy="${y(p[0].v)}" r="3" fill="#1a1a28" stroke="${css(a.c)}" stroke-width="1.5"/>`
   }
-  /* Accounts that joined within a week of each other share one tag. */
-  const joins = accounts.filter((a) => a.from >= from && !S.hidden.has(a.id) && DATA[a.id].length).sort((a, b) => a.from - b.from)
-  const groups = []
-  for (const a of joins) {
-    const g0 = groups.at(-1)
-    if (g0 && a.from - g0.at(-1).from <= 7 * DAY) g0.push(a)
-    else groups.push([a])
-  }
-  for (const grp of groups) {
-    const t0 = grp[0].from, t1 = grp.at(-1).from
-    const top = Math.min(...grp.map((a) => y(DATA[a.id][0].v)))
-    const end = x(t0) > (W - R) * 0.7
-    g += `<g class="join">`
-    for (const a of grp) g += `<circle cx="${x(a.from)}" cy="${y(DATA[a.id][0].v)}" r="3" fill="none" stroke="${css(a.c)}"/>`
-    g += `<line x1="${x(t0)}" x2="${x(t0)}" y1="${top - 4}" y2="${top - 16}" stroke="${css('--ink-500')}" stroke-dasharray="2 2"/>`
-    g += `<text x="${x(t0) + (end ? -6 : 0)}" y="${top - 20}" text-anchor="${end ? 'end' : 'start'}" fill="${css('--ink-300')}">${grp.map((a) => `<tspan fill="${css(a.c)}">${a.name}</tspan>`).join(', ')} joined · ${short(t0)}${t1 !== t0 ? '–' + short(t1) : ''}</text></g>`
-  }
+  /* Pins: today's value of an account with no line yet. Above the
+     scale, it sits at the top with an arrow and its value. */
+  pinned.forEach((a, i) => {
+    const v = pts(a.id)[0].v, over = v > nice
+    const py = over ? T + 2 + i * 16 : y(v)
+    g += `<g class="join"><circle cx="${W - R}" cy="${py}" r="4.5" fill="${css(a.c)}" stroke="#1a1a28" stroke-width="2"/>`
+    g += `<text x="${W - R - 10}" y="${py + 3.5}" text-anchor="end" fill="${css(a.c)}">${over ? '▲ ' : ''}${a.name} ${money(v)} · new today</text></g>`
+  })
+  /* Own moves: a quiet link between the two lines, no text on the plot. */
   for (const m of MOVES) {
     if (m.t < from || S.hidden.has(m.from) || S.hidden.has(m.to)) continue
-    if (!accounts.some((a) => a.id === m.from) || !accounts.some((a) => a.id === m.to)) continue
+    if (!lined.some((a) => a.id === m.from) || !lined.some((a) => a.id === m.to)) continue
     const a = DATA[m.from].find((p) => p.t === m.t), b = DATA[m.to].find((p) => p.t === m.t)
-    if (!a || !b) continue
-    g += `<g class="move"><line x1="${x(m.t)}" x2="${x(m.t)}" y1="${y(a.v)}" y2="${y(b.v)}"/>`
-    g += `<text x="${x(m.t) + 6}" y="${Math.min(y(a.v), y(b.v)) - 8}">move €${m.amount.toLocaleString('en-GB')} BPI → ActivoBank</text></g>`
+    if (a && b) g += `<g class="move"><line x1="${x(m.t)}" x2="${x(m.t)}" y1="${y(a.v)}" y2="${y(b.v)}"/></g>`
   }
-  if (S.hover !== null) g += `<line class="hair" x1="${x(S.hover)}" x2="${x(S.hover)}" y1="${T}" y2="${H - B}"/>`
+  /* The event lane under the plot: who joined, what moved — two rows so
+     close days don't collide. */
+  const events = []
+  const joins = shown.filter((a) => a.from >= from && pts(a.id).length > 1).sort((a, b) => a.from - b.from)
+  const groups = []
+  for (const a of joins) { const g0 = groups.at(-1); if (g0 && a.from - g0.at(-1).from <= 7 * DAY) g0.push(a); else groups.push([a]) }
+  for (const grp of groups) events.push({ t: grp[0].from, kind: 'join', html: grp.length === 1 ? `${grp[0].name} joined` : `${grp.length} accounts joined`, colours: grp.map((a) => css(a.c)) })
+  for (const m of MOVES) if (m.t >= from && lined.some((a) => a.id === m.from) && lined.some((a) => a.id === m.to)) events.push({ t: m.t, kind: 'move', html: `€${m.amount.toLocaleString('en-GB')} BPI → Activo`, colours: [css('--ink-300')] })
+  events.sort((a, b) => a.t - b.t)
+  let lastX = [-1e9, -1e9]
+  for (const e of events) {
+    const ex = x(e.t), est = e.html.length * 5.9 + 22
+    const row = ex - lastX[0] > est ? 0 : 1
+    lastX[row] = ex
+    const ey = PB + 18 + row * 16
+    g += `<g class="join"><line x1="${ex}" x2="${ex}" y1="${PB + 5}" y2="${ey - 4}" stroke="rgba(255,255,255,.18)"/>`
+    e.colours.forEach((c, i) => { g += `<circle cx="${ex + 4 + i * 7}" cy="${ey}" r="3" fill="${e.kind === 'move' ? 'none' : c}" stroke="${c}" stroke-width="1.3"/>` })
+    g += `<text x="${ex + 6 + e.colours.length * 7}" y="${ey + 3.5}" fill="${css('--ink-300')}">${e.html}</text></g>`
+  }
+  if (S.hover !== null) g += `<line class="hair" x1="${x(S.hover)}" x2="${x(S.hover)}" y1="${T}" y2="${PB}"/>`
   if (S.tap) {
     const p = DATA[S.tap.id].find((q) => q.t === S.tap.t)
     if (p) g += `<circle cx="${x(p.t)}" cy="${y(p.v)}" r="6" fill="none" stroke="${css(ACCOUNTS.find((a) => a.id === S.tap.id).c)}" stroke-width="2"/>`
   }
-  g += `<rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent" id="hit"/></svg>`
+  g += `<rect x="${L}" y="${T}" width="${W - L - R}" height="${PB - T}" fill="transparent" id="hit"/></svg>`
   plot.innerHTML = g
 
   const svg = document.getElementById('svg')
@@ -301,43 +313,44 @@ function render() {
     const px = (ev.clientX - r.left) / r.width * W
     return Math.max(from, Math.min(TODAY, Math.round((from + (px - L) / (W - L - R) * (TODAY - from)) / DAY) * DAY))
   }
-  svg.onmousemove = (ev) => { S.hover = tAt(ev); readout(); const h = svg.querySelector('.hair'); if (h) { h.setAttribute('x1', x(S.hover)); h.setAttribute('x2', x(S.hover)) } else render() }
-  svg.onmouseleave = () => { S.hover = null; render() }
+  svg.onmousemove = (ev) => {
+    S.hover = tAt(ev)
+    let h = svg.querySelector('.hair')
+    if (!h) { h = document.createElementNS('http://www.w3.org/2000/svg', 'line'); h.setAttribute('class', 'hair'); h.setAttribute('y1', T); h.setAttribute('y2', PB); svg.insertBefore(h, svg.lastChild) }
+    h.setAttribute('x1', x(S.hover)); h.setAttribute('x2', x(S.hover))
+    legend(accounts, from)
+  }
+  svg.onmouseleave = () => { S.hover = null; svg.querySelector('.hair')?.remove(); legend(accounts, from) }
   svg.onclick = (ev) => {
     const t = tAt(ev), r = svg.getBoundingClientRect(), py = (ev.clientY - r.top) / r.height * H
     let best = null
-    for (const a of shown) { const p = DATA[a.id].find((q) => q.t === t); if (p && (!best || Math.abs(y(p.v) - py) < best.d)) best = { id: a.id, d: Math.abs(y(p.v) - py) } }
+    for (const a of lined) { const p = DATA[a.id].find((q) => q.t === t); if (p && (!best || Math.abs(y(p.v) - py) < best.d)) best = { id: a.id, d: Math.abs(y(p.v) - py) } }
     S.tap = best ? { id: best.id, t } : null
     render()
   }
-
-  /* Legend */
-  let total = 0
-  document.getElementById('legend').innerHTML = '<div class="caps" style="padding:0 10px 6px">accounts · ' + S.range + '</div>' + accounts.map((a) => {
-    const p = DATA[a.id], now = p.at(-1).v, start = p.find((q) => q.t >= from)
-    total += now
-    const joined = a.from >= from
-    const ch = joined ? null : now - start.v
-    const cls = ch === null ? 'flat' : ch > 0.5 ? 'up' : ch < -0.5 ? 'down' : 'flat'
-    const chText = ch === null ? `joined ${short(a.from)}` : `${ch > 0 ? '▲' : ch < 0 ? '▼' : ''} ${money(Math.abs(ch))}`
-    return `<button class="acc ${S.hidden.has(a.id) ? 'off' : ''}" style="--c:${css(a.c)}" onclick="S.hidden.has('${a.id}')?S.hidden.delete('${a.id}'):S.hidden.add('${a.id}');S.tap=null;render()">
-      <span class="sw"></span><span class="nm">${a.name}<small>${a.kind}</small></span>
-      <span class="v"><b>${money(now)}</b><span class="${cls}">${chText}</span></span></button>`
-  }).join('') + `<div class="sum"><span>all accounts</span><span>${money2(total)}</span></div>` +
-    (accounts.length === 1 ? '<div class="caps" style="padding:10px;line-height:1.6">the others draw here as you add them</div>' : '')
-
-  readout()
+  legend(accounts, from)
   dayPanel()
 }
 
-function readout() {
-  const t = S.hover ?? (S.tap ? S.tap.t : TODAY)
-  const only = SCENARIOS[S.scen].only
-  const parts = ACCOUNTS.filter((a) => (!only || only.includes(a.id)) && !S.hidden.has(a.id)).flatMap((a) => {
-    const p = DATA[a.id].find((q) => q.t === t)
-    return p ? [`<span><i style="background:${css(a.c)}"></i>${a.name} ${money2(p.v)}</span>`] : []
-  })
-  document.getElementById('read').innerHTML = `<span style="color:var(--ink-200)">${short(t)} 2026</span>` + parts.join('')
+/* The list beside the chart: each account now and its change over the
+   range — or, while hovering, on that day. Tap a name to hide its line. */
+function legend(accounts, from) {
+  const at = S.hover
+  let total = 0
+  document.getElementById('legend').innerHTML = `<div class="caps" style="padding:0 10px 6px">${at === null ? 'accounts · ' + S.range : short(at) + ' 2026'}</div>` + accounts.map((a) => {
+    const p = DATA[a.id]
+    const here = at === null ? p.at(-1) : p.find((q) => q.t === at)
+    const start = p.find((q) => q.t >= from)
+    if (here) total += here.v
+    let text, cls = 'flat'
+    if (!here) text = `from ${short(a.from)}`
+    else if (a.from >= from) text = a.from === TODAY ? 'new today' : `joined ${short(a.from)}`
+    else { const ch = here.v - start.v; cls = ch > 0.5 ? 'up' : ch < -0.5 ? 'down' : 'flat'; text = `${ch > 0 ? '▲' : ch < 0 ? '▼' : ''} ${money(Math.abs(ch))}` }
+    return `<button class="acc ${S.hidden.has(a.id) ? 'off' : ''}" style="--c:${css(a.c)}" onclick="S.hidden.has('${a.id}')?S.hidden.delete('${a.id}'):S.hidden.add('${a.id}');S.tap=null;render()">
+      <span class="sw"></span><span class="nm">${a.name}<small>${a.kind}</small></span>
+      <span class="v"><b>${here ? money(here.v) : '—'}</b><span class="${cls}">${text}</span></span></button>`
+  }).join('') + `<div class="sum"><span>all accounts</span><span>${money2(total)}</span></div>` +
+    (accounts.length === 1 ? '<div class="caps" style="padding:10px;line-height:1.6">the others draw here as you add them</div>' : '')
 }
 
 function dayPanel() {

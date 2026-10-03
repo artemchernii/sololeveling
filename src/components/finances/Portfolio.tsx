@@ -15,6 +15,7 @@ import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
+import { UNPRICED } from '@/lib/market'
 import { SkeletonRows } from '@/components/Skeleton'
 
 const DATE = new Intl.DateTimeFormat(undefined, {
@@ -377,6 +378,13 @@ function standing(row: Position): {
   ok: boolean
 } {
   const day = row.seenAt === null ? '' : DATE.format(new Date(row.seenAt))
+  /* Frozen: no market prices it, the broker's screen does. */
+  if (row.type === UNPRICED && !row.notSeen)
+    return {
+      text: `no market price · the ${row.priceAsOf === null ? day : DATE.format(new Date(row.priceAsOf))} screen's value`,
+      warn: false,
+      ok: false,
+    }
   if (row.notSeen)
     return {
       text: `not on the latest screenshot — last seen ${day}`,

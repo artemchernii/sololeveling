@@ -14,6 +14,7 @@ import {
 } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
+import { UNPRICED, screenSource } from '../src/lib/market'
 import type { Candidate } from '../src/lib/market'
 import schema from './schema'
 import {
@@ -1565,6 +1566,58 @@ type HoldingRow = {
   sharesCalculated?: boolean
 }
 
+/* What one share of a ticker no market prices was worth on the screen:
+   its printed value ÷ its shares (UNPRICED). */
+function screenPriceEur(
+  positions: ReadonlyArray<NonNullable<Doc<'intakes'>['positions']>[number]>,
+  symbol: string,
+): number | undefined {
+  for (const p of positions) {
+    const c = p.preferred !== undefined ? p.candidates[p.preferred] : undefined
+    if (c?.type !== UNPRICED || c.symbol !== symbol) continue
+    if (p.valueEur !== undefined && p.shares !== undefined && p.shares > 0)
+      return p.valueEur / p.shares
+  }
+  return undefined
+}
+
+/* The broker's value of a share no market prices, as a stored reading:
+   attributed to its screen, as of the look. A second look the same day
+   replaces it, as storePrices does a close. */
+async function writeScreenPrice(
+  ctx: MutationCtx,
+  ownerId: string,
+  instrumentId: Id<'instruments'>,
+  account: Doc<'accounts'>,
+  read: { priceEur: number; asOf: number },
+) {
+  const inst = await ctx.db.get(instrumentId)
+  if (inst !== null && inst.currency !== 'EUR')
+    await ctx.db.patch(instrumentId, { currency: 'EUR' })
+  const day = new Date(read.asOf).toISOString().slice(0, 10)
+  const same = await ctx.db
+    .query('prices')
+    .withIndex('by_owner_instrument_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('instrumentId', instrumentId)
+        .gte('asOf', read.asOf - 86_400_000),
+    )
+    .take(10)
+  for (const p of same)
+    if (new Date(p.asOf).toISOString().slice(0, 10) === day)
+      await ctx.db.delete(p._id)
+  await ctx.db.insert('prices', {
+    ownerId,
+    instrumentId,
+    price: Math.round(read.priceEur * 10000) / 10000,
+    currency: 'EUR',
+    asOf: read.asOf,
+    fetchedAt: Date.now(),
+    source: screenSource(account.name),
+  })
+}
+
 /* A broker screen written as it was seen — shared by the check screen and
    a batch's apply. */
 async function writeHoldings(
@@ -1577,6 +1630,8 @@ async function writeHoldings(
     dayStart: number
     rows: ReadonlyArray<HoldingRow>
     cashEur?: number
+    /* Every screen of the look, when more than one went in together. */
+    screens?: ReadonlyArray<Doc<'intakes'>>
   },
 ) {
   if (!account.kinds.includes('broker')) {
@@ -1609,6 +1664,20 @@ async function writeHoldings(
       row.candidate,
       row.isin,
     )
+    if (row.candidate.type === UNPRICED) {
+      const price = screenPriceEur(
+        (look.screens ?? [intake]).flatMap((i) => i.positions ?? []),
+        row.candidate.symbol,
+      )
+      if (price === undefined)
+        throw new ConvexError(
+          `${row.candidate.symbol} has no price — not on the market, not on the screen.`,
+        )
+      await writeScreenPrice(ctx, ownerId, instrumentId, account, {
+        priceEur: price,
+        asOf: look.asOf,
+      })
+    }
     const before = await ctx.db
       .query('holdings')
       .withIndex('by_owner_instrument', (q) =>
@@ -3195,6 +3264,7 @@ export const applyOne = internalMutation({
         dayStart: args.dayStart,
         rows: merged.rows.filter((r) => r !== null),
         cashEur: merged.cashEur ?? undefined,
+        screens,
       })
       for (const other of screens.filter((i) => i._id !== intake._id)) {
         for (const id of other.storageIds) await ctx.storage.delete(id)

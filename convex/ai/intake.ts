@@ -35,6 +35,7 @@ import {
 } from '../../src/lib/csvLayout'
 import type { CsvLayout, CsvReading } from '../../src/lib/csvLayout'
 import { productIn } from '../../src/lib/institutions'
+import { UNPRICED } from '../../src/lib/market'
 import type { Candidate } from '../../src/lib/market'
 
 /* The reader (Treasury, 27 Sep). What he dropped becomes rows he checks.
@@ -342,6 +343,19 @@ async function readWithModel(
         candidates = found.list
         preferred = found.i
         today = found.today
+      } else if (symbol && !(await tickers.listed(symbol, candidates))) {
+        /* The printed ticker has no price anywhere — frozen, not
+           mistaken: the broker's own value is the only one there is. */
+        candidates = [
+          {
+            symbol,
+            name: p.name,
+            exchange: parsed.institution ?? 'Broker',
+            type: UNPRICED,
+          },
+        ]
+        preferred = 0
+        today = { priceEur: printedEur, asOf: Date.now() }
       } else {
         /* No listing fits: asked, not filed under a stranger. */
         preferred = -1
@@ -750,6 +764,18 @@ class Tickers {
       .filter((c) => c.type === 'EQUITY' || c.type === 'ETF')
       .filter((c) => !seen.has(c.symbol))
       .slice(0, 6)
+  }
+
+  /** Whether any of the ticker's own lines has a price at all. */
+  async listed(symbol: string, had: ReadonlyArray<Candidate>) {
+    const base = symbol.split('.')[0].toUpperCase()
+    for (const c of had)
+      if (
+        c.symbol.split('.')[0].toUpperCase() === base &&
+        (await this.price(c.symbol)) !== null
+      )
+        return true
+    return (await this.price(symbol)) !== null
   }
 
   private prices = new Map<string, { priceEur: number; asOf: number } | null>()

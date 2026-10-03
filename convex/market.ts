@@ -11,6 +11,7 @@ import {
 import {
   PRICE_SOURCE,
   RATE_SOURCE,
+  UNPRICED,
   parseChart,
   parseRate,
   parseRateSeries,
@@ -109,7 +110,7 @@ export const readOne = internalAction({
     const inst = await ctx.runQuery(internal.market.instrument, {
       instrumentId: args.instrumentId,
     })
-    if (inst === null) return null
+    if (inst === null || inst.type === UNPRICED) return null
     const c = await chart(inst.symbol, HISTORY_RANGE)
     if (c === null) return null
     const fetchedAt = Date.now()
@@ -312,13 +313,17 @@ export const instrument = internalQuery({
   handler: async (ctx, args) => await ctx.db.get(args.instrumentId),
 })
 
+/* What the market is asked about — not a frozen share, whose only
+   price is its broker's screen (UNPRICED). */
 export const allInstruments = internalQuery({
   args: {},
   handler: async (ctx) =>
-    await ctx.db
-      .query('instruments')
-      .withIndex('by_symbol')
-      .take(MAX_INSTRUMENTS),
+    (
+      await ctx.db
+        .query('instruments')
+        .withIndex('by_symbol')
+        .take(MAX_INSTRUMENTS)
+    ).filter((i) => i.type !== UNPRICED),
 })
 
 /**

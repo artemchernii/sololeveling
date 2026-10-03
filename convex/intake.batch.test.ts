@@ -1210,3 +1210,60 @@ test('relist: SHLD moves to SHLD.L — lists first, writes only with apply, only
     [false, 'SHLD'],
   ])
 })
+
+test("a frozen share is valued as 212's screen shows it, attributed to the screen (LUKOIL, 3 Oct)", async () => {
+  const { t, me } = setup()
+  const t212 = await me.mutation(api.accounts.create, {
+    name: 'Trading 212',
+    kinds: ['broker'],
+    currencies: ['EUR'],
+  })
+  const batchId = await emptyBatch(t)
+  await t.run((ctx) =>
+    ctx.db.insert('intakes', {
+      ownerId: ME,
+      batchId,
+      accountId: t212,
+      storageIds: [],
+      status: 'ready',
+      kind: 'holdings',
+      title: 'Invest',
+      files: [{ name: 'IMG_9241.PNG', size: 1, contentType: 'image/png' }],
+      positions: [
+        {
+          name: 'LUKOIL',
+          shares: 1.775508,
+          valueEur: 11.14,
+          changePct: -55.37,
+          preferred: 0,
+          candidates: [
+            {
+              symbol: 'LUKOY',
+              name: 'LUKOIL',
+              exchange: 'Trading 212',
+              type: 'UNPRICED',
+            },
+          ],
+        },
+      ],
+    }),
+  )
+  const r = await me.query(api.intake.batchReview, { batchId })
+  expect(r.asks).toEqual([])
+  await me.mutation(api.intake.applyBatch, { batchId, dayStart: day(10, 3) })
+  for (let i = 0; i < 4; i++)
+    await t.mutation(internal.intake.applyStep, {
+      batchId,
+      dayStart: day(10, 3),
+      names: [],
+    })
+  const prices = await t.run((ctx) => ctx.db.query('prices').collect())
+  expect(prices.map((p) => [p.currency, p.source])).toEqual([
+    ['EUR', 'Trading 212 screen'],
+  ])
+  const pos = await me.query(api.aggregate.positions, {})
+  expect(pos.rows.map((p) => [p.symbol, p.type, p.valueEur])).toEqual([
+    ['LUKOY', 'UNPRICED', 11.14],
+  ])
+  expect(pos.totalEur).toBe(11.14)
+})

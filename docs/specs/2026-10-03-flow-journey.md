@@ -130,17 +130,17 @@ New, for steps 7 and 8:
    a twelve-month view of bills only ("what I pay this year") one tap
    away.
 
-1. **Which month — calendar or payday to payday?** Calendar month: it is
+9. **Which month — calendar or payday to payday?** Calendar month: it is
    what statements and Overview's "this month" use. Payday is a mark on
    it, not the edge.
-2. **The list: everything, or behind a tap?** Everything, on the page,
-   under the three answers — it is the thing he asked for. Shows the
-   last 30 days, then "earlier" loads more.
-3. **Where-it-went groups: from where?** The category the reader already
-   gives each statement row; he can correct one once and the payee
-   remembers it. No category picker on every row.
-4. **The current calendar and Bills cards:** replaced by steps 3 and 6,
-   not kept beside them. One page, not three half-ones.
-5. **Bills found: how sure before adding?** Same payee in at least
-   two of the last three months, amounts within 10%. Fewer false adds;
-   a missed bill can still be added by hand.
+10. **The list: everything, or behind a tap?** Everything, on the page,
+    under the three answers — it is the thing he asked for. Shows the
+    last 30 days, then "earlier" loads more.
+11. **Where-it-went groups: from where?** The category the reader already
+    gives each statement row; he can correct one once and the payee
+    remembers it. No category picker on every row.
+12. **The current calendar and Bills cards:** replaced by steps 3 and 6,
+    not kept beside them. One page, not three half-ones.
+13. **Bills found: how sure before adding?** Same payee in at least
+    two of the last three months, amounts within 10%. Fewer false adds;
+    a missed bill can still be added by hand.

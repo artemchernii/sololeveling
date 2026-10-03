@@ -1029,3 +1029,61 @@ test("BPI's screenshots (3 Oct): own transfers by his name on other files and Ac
     ['spend', null, true],
   ])
 })
+
+test('dedupeMoney: lists first, removes only with apply, only his', async () => {
+  const { t, me } = setup()
+  const { act } = await accountsOf(me)
+  const theirs = await t.run((ctx) =>
+    ctx.db.insert('accounts', {
+      ownerId: SOMEONE_ELSE,
+      name: 'Theirs',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+      order: 0,
+    } as never),
+  )
+  const log = (
+    owner: string,
+    accountId: Id<'accounts'>,
+    merchant: string,
+    raw: string,
+  ) =>
+    t.run((ctx) =>
+      ctx.db.insert('logs', {
+        ownerId: owner,
+        area: 'money',
+        kind: 'expense',
+        value: 10,
+        occurredAt: day(9, 1),
+        unit: 'eur',
+        text: merchant,
+        accountId,
+        meta: { merchant, raw },
+      }),
+    )
+  await log(ME, act, 'Vodafone', 'Vodafone')
+  const second = await log(
+    ME,
+    act,
+    'PAG. 919703708 - VODAFONE',
+    'PAG. 919703708 - VODAFONE',
+  )
+  await log(SOMEONE_ELSE, theirs, 'Vodafone', 'Vodafone')
+  await log(SOMEONE_ELSE, theirs, 'PAG. VODAFONE', 'PAG. VODAFONE')
+  const dry = await t.mutation(internal.migrations.dedupeMoney, {
+    ownerId: ME,
+    apply: false,
+  })
+  expect(dry.map((x) => x.id)).toEqual([second])
+  expect(await t.run((ctx) => ctx.db.query('logs').collect())).toHaveLength(4)
+  await t.mutation(internal.migrations.dedupeMoney, {
+    ownerId: ME,
+    apply: true,
+  })
+  const left = await t.run((ctx) => ctx.db.query('logs').collect())
+  expect(left.map((l) => [l.ownerId === ME, l.text])).toEqual([
+    [true, 'Vodafone'],
+    [false, 'Vodafone'],
+    [false, 'PAG. VODAFONE'],
+  ])
+})

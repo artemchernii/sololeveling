@@ -21,6 +21,7 @@ import {
   MAX_NULLABLE_FIELDS,
   parseReading,
   printedAmount,
+  storedDuplicates,
   preferClass,
   readableFile,
   searchableName,
@@ -277,6 +278,62 @@ test("the same row named twice is one row, by the bank's own line (3 Oct)", () =
       ],
     ),
   ).toEqual([0, null])
+})
+
+test('storedDuplicates: his ActivoBank rows written twice, the later goes (3 Oct)', () => {
+  const d = (m: number, day: number) => new Date(2026, m - 1, day, 13).getTime()
+  const rows = [
+    {
+      id: 'a',
+      written: 1,
+      occurredAt: d(9, 1),
+      amount: -121.47,
+      merchant: 'PayPal Europe',
+      raw: 'PayPal Europe',
+    },
+    {
+      id: 'b',
+      written: 2,
+      occurredAt: d(9, 1),
+      amount: -121.47,
+      merchant: 'DD PAYPAL EUROPE 5D4J2254EVNWL',
+      raw: 'DD PAYPAL EUROPE 5D4J2254EVNWL LU96',
+    },
+    {
+      id: 'c',
+      written: 1,
+      occurredAt: d(9, 9),
+      amount: -57.47,
+      merchant: 'COMPRA 2789 EST SERVICO VEIGA E SEABRA SA',
+      raw: 'COMPRA 2789 EST SERVICO VEIGA E SEABRA SA CAS',
+    },
+    {
+      id: 'd',
+      written: 2,
+      occurredAt: d(9, 14),
+      amount: -57.47,
+      merchant: 'Est Servico Veiga e Seabra SA',
+      raw: 'Est Servico Veiga e Seabra SA',
+    },
+    /* Two real coffees of the same price, a day apart, stay. */
+    {
+      id: 'e',
+      written: 1,
+      occurredAt: d(9, 15),
+      amount: -6.7,
+      merchant: 'Bnp Toc',
+      raw: 'Bnp Toc',
+    },
+    {
+      id: 'f',
+      written: 1,
+      occurredAt: d(9, 16),
+      amount: -6.7,
+      merchant: 'Cinema',
+      raw: 'Cinemas NOS',
+    },
+  ]
+  expect(storedDuplicates(rows)).toEqual(['b', 'd'])
 })
 
 describe('parseReading', () => {

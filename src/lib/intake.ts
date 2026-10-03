@@ -684,7 +684,15 @@ export function findDuplicates(
       )
       if (!named && !said) continue
       const gap = Math.abs(e.occurredAt - r.occurredAt)
-      if (gap <= 2 * DAY + 3_600_000 && gap < bestGap) {
+      /* A statement can date a row by its value day, the app by the day it
+         moved — Est Servico on 9 Sep here, 14 Sep there (3 Oct). The
+         bank's own line, closely shared, stretches the window to a week. */
+      const close =
+        [...lineWords(`${e.merchant} ${e.raw ?? ''}`)].filter((w) =>
+          words.has(w),
+        ).length >= 2
+      const window = close ? 7 * DAY + 3_600_000 : 2 * DAY + 3_600_000
+      if (gap <= window && gap < bestGap) {
         best = i
         bestGap = gap
       }
@@ -692,6 +700,32 @@ export function findDuplicates(
     if (best !== null) used.add(best)
     return best
   })
+}
+
+/**
+ * Rows of one account that are the same row twice — two files that named
+ * it differently, before duplicates were matched by the bank's own line
+ * (3 Oct). The later-written of each pair is returned, to remove.
+ */
+export function storedDuplicates(
+  rows: ReadonlyArray<{
+    id: string
+    written: number
+    occurredAt: number
+    amount: number
+    merchant: string
+    raw?: string
+  }>,
+): Array<string> {
+  const byAge = [...rows].sort((a, b) => a.written - b.written)
+  const kept: Array<ExistingRow & { id: string }> = []
+  const out: Array<string> = []
+  for (const r of byAge) {
+    const [hit] = findDuplicates([r], kept)
+    if (hit === null) kept.push(r)
+    else out.push(r.id)
+  }
+  return out
 }
 
 export type Recurring = {

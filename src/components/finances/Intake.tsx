@@ -187,6 +187,8 @@ function TransactionsReview({
     count: number
     months: Array<string>
     orders?: { written: number; skipped: number; noTicker: number }
+    /* Kept from before: once done, the review that named it is gone. */
+    accountName?: string
   } | null>(null)
   const confirm = useMutation(api.intake.confirmTransactions)
   const addBill = useMutation(api.recurring.create)
@@ -233,10 +235,18 @@ function TransactionsReview({
   const accountId = review?.accountId ?? review?.guessedAccountId ?? null
   const account = accounts.find((a) => a._id === accountId)
 
+  /* What landed comes first: once confirmed, the file is done and its
+     review is gone (3 Oct: he confirmed and got an empty sheet). */
+  if (landed)
+    return (
+      <Landed
+        {...landed}
+        account={landed.accountName ?? account?.name}
+        onDone={onDone}
+      />
+    )
   if (review === undefined) return <div className="min-h-[240px]" />
   if (review === null) return null
-  if (landed)
-    return <Landed {...landed} account={account?.name} onDone={onDone} />
 
   const rows = review.rows
   const pending = rows.filter((r) => r.pending)
@@ -326,7 +336,13 @@ function TransactionsReview({
         (months.length === 0 || (months.length === 1 && months[0] === key(now)))
       )
         onDone()
-      else setLanded({ count: kept.length, months, orders })
+      else
+        setLanded({
+          count: kept.length,
+          months,
+          orders,
+          accountName: account?.name,
+        })
     } catch (e) {
       setError(
         e instanceof Error

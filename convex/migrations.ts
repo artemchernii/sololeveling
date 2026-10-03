@@ -3,7 +3,7 @@ import { v } from 'convex/values'
 import { transferPair } from './logs'
 import { internalMutation } from './_generated/server'
 import { productIn } from '../src/lib/institutions'
-import { ownMoney } from '../src/lib/intake'
+import { ownMoney, storedDuplicates } from '../src/lib/intake'
 
 /* One owner's money rows, moved into the "adding money" shape (27 Sep):
    run once per owner (`npx convex run migrations:addingMoney`), safe to
@@ -212,5 +212,75 @@ export const ownMoneyMoves = internalMutation({
       else done.spending++
     }
     return done
+  },
+})
+
+/**
+ * One-off (3 Oct): his first bulk drop wrote some rows twice — the
+ * September statement named them "DD PAYPAL EUROPE…", last week's file
+ * "PayPal Europe" — before duplicates were matched by the bank's own line.
+ * Per account, spending and money in only (a transfer is a pair, handled
+ * apart), the later-written of each duplicate goes. `remove` names rows
+ * no rule can find (an invented row; one he typed that a file now
+ * brings). Dry run by default: it lists, and writes only with apply.
+ */
+export const dedupeMoney = internalMutation({
+  args: {
+    ownerId: v.string(),
+    apply: v.boolean(),
+    remove: v.optional(v.array(v.id('logs'))),
+  },
+  returns: v.array(
+    v.object({
+      id: v.id('logs'),
+      account: v.string(),
+      day: v.string(),
+      amount: v.number(),
+      text: v.string(),
+      why: v.string(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const accounts = await ctx.db
+      .query('accounts')
+      .withIndex('by_owner_order', (q) => q.eq('ownerId', args.ownerId))
+      .take(50)
+    const out = []
+    for (const a of accounts) {
+      const logs = (
+        await ctx.db
+          .query('logs')
+          .withIndex('by_owner_account_time', (q) =>
+            q.eq('ownerId', args.ownerId).eq('accountId', a._id),
+          )
+          .take(5000)
+      ).filter((l) => l.kind === 'expense' || l.kind === 'income')
+      const twice = new Set(
+        storedDuplicates(
+          logs.map((l) => ({
+            id: l._id,
+            written: l._creationTime,
+            occurredAt: l.occurredAt,
+            amount: l.kind === 'expense' ? -(l.value ?? 0) : (l.value ?? 0),
+            merchant: l.meta?.merchant ?? l.text ?? '',
+            raw: l.meta?.raw,
+          })),
+        ),
+      )
+      for (const l of logs) {
+        const named = (args.remove ?? []).includes(l._id)
+        if (!twice.has(l._id) && !named) continue
+        out.push({
+          id: l._id,
+          account: a.name,
+          day: new Date(l.occurredAt).toISOString().slice(0, 10),
+          amount: l.kind === 'expense' ? -(l.value ?? 0) : (l.value ?? 0),
+          text: l.meta?.merchant ?? l.text ?? '',
+          why: named ? 'named' : 'written twice',
+        })
+        if (args.apply) await ctx.db.delete(l._id)
+      }
+    }
+    return out
   },
 })

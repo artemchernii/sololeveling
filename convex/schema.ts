@@ -670,6 +670,16 @@ export default defineSchema({
     /* Yearly only: 0–11. */
     month: v.optional(v.number()),
     endedAt: v.optional(v.number()),
+    /* Flow (3 Oct): the payee as the bank printed it (src/lib/payee), so a
+       statement row is known as this bill's payment without anything
+       written onto the row. Absent on a bill typed before Flow. */
+    matchKey: v.optional(v.string()),
+    /* When the app found it in his statements by itself — NEW for a week.
+       Absent on one he added. */
+    foundAt: v.optional(v.number()),
+    /* "× not a bill": out of every view, and never found again. Kept, not
+       deleted, because the key is what stops it coming back. */
+    refusedAt: v.optional(v.number()),
   }).index('by_owner', ['ownerId']),
 
   /* A ticker he holds or held (Finances F4), found by search and never

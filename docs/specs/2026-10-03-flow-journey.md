@@ -41,9 +41,12 @@ the rows behind it, goes back. He types nothing.
    groceries, subscriptions, … — as bars, biggest first. Tap one: its
    rows.
 3. **"What's still coming."** Bills found in his statements, not typed:
-   the app sees the same payee each month at a similar amount and asks
-   once — "Netflix, about €13, monthly — a bill?" Yes or no. After that
-   each bill sits on its day: ✓ paid (matched to the statement row by
+   the app sees the same payee each month at a similar amount and puts
+   it on its day by itself, tagged NEW for a week — no question (3 Oct:
+   asking about a €5.99 Uber One is "a lot of hustle"; the mortgage,
+   Vodafone, the gym are what he means by bills). A wrong one gets
+   × not a bill on its row and is never found again. Each bill sits on
+   its day: ✓ paid (matched to the statement row by
    itself) or still to come before payday. Salary the same way.
 4. **"One view of movements of all sources."** Every row from every
    account, newest first, grouped by day, each with its bank's logo:
@@ -88,7 +91,7 @@ the rows behind it, goes back. He types nothing.
   sums allowed 26 Sep).
 - Moves: the rows already filed as his own money (`ownMoneyMoves`), paired
   by the two accounts.
-- Bills: `recurring` rows he said yes to; "paid" is the statement row
+- Bills: `recurring` rows the app found (minus the ones he struck out); "paid" is the statement row
   linked to it (`meta.recurringId`) — the row is the evidence.
 - Changing: the same monthly sums per group, six months of them.
 - Months ahead: today's balances (state) plus the bills and salary he
@@ -127,6 +130,6 @@ New, for steps 7 and 8:
    remembers it. No category picker on every row.
 4. **The current calendar and Bills cards:** replaced by steps 3 and 6,
    not kept beside them. One page, not three half-ones.
-5. **Bill suggestions: how sure before asking?** Same payee in at least
-   two of the last three months, amounts within 10%. Fewer false asks;
+5. **Bills found: how sure before adding?** Same payee in at least
+   two of the last three months, amounts within 10%. Fewer false adds;
    a missed bill can still be added by hand.

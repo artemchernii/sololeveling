@@ -86,14 +86,6 @@
   /* Ahead */
   .ahead { display: grid; grid-template-columns: 1fr 260px; gap: 20px }
   @media (max-width: 900px) { .ahead { grid-template-columns: 1fr } }
-  .ask { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px }
-  .q { display: grid; grid-template-columns: 30px 1fr auto; gap: 12px; align-items: center; padding: 11px 12px; border-radius: 14px; border: 1px dashed color-mix(in oklch, var(--lav-400) 40%, transparent); background: rgba(181,171,252,.05); transition: opacity .3s, transform .3s }
-  .q.gone { opacity: 0; transform: translateX(14px) }
-  @media (max-width: 620px) { .q { grid-template-columns: 30px 1fr } .q .btns { grid-column: 2 } }
-  .q p { font-size: 13.5px; line-height: 1.45 } .q p small { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); margin-top: 2px }
-  .q .btns { display: flex; gap: 6px }
-  .yes { background: rgba(181,171,252,.18); border: 1px solid color-mix(in oklch, var(--lav-400) 45%, transparent); color: var(--ink-100); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .1em }
-  .no { background: none; border: 1px solid rgba(var(--lift),.12); color: var(--ink-400); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .1em }
 
   .bills { display: flex; flex-direction: column }
   .mhead { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 4px 6px; border-bottom: 1px solid rgba(var(--lift),.07) }
@@ -109,6 +101,9 @@
   .bill .amt { font-family: var(--mono); font-size: 14px; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 3px }
   .bill .amt small { font-size: 10px; letter-spacing: .06em }
   .bill.paid { opacity: .55 }
+  .bill.gone { opacity: 0; transform: translateX(14px); transition: opacity .28s, transform .28s }
+  .nab { background: none; border: none; padding: 0; cursor: pointer; font-family: var(--mono); font-size: 10px; letter-spacing: .06em; color: var(--ink-500) }
+  .nab:hover { color: var(--danger) }
   .bill.short { background: color-mix(in oklch, var(--warn) 7%, transparent) }
   .tag { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; color: var(--ink-400); background: rgba(var(--lift),.05); white-space: nowrap }
   .tag.y { color: var(--lav-300); background: rgba(181,171,252,.12) }
@@ -302,7 +297,7 @@ function balances(today, over = {}) {
 const SCEN = {
   early: { label: '3 Oct · early month', today: D(9, 3), note: '<b>3 days into October.</b> The month line is honest about it (September beside it, closed). AHEAD leads: every recurring payment until the end of December, the yearly car insurance inside it, and the line of free cash moved only by those.' },
   salary: { label: '28 Oct · salary in', today: D(9, 28), note: '<b>Salary landed yesterday.</b> October almost closed: in, out, what is left. Ahead starts the next pay month — the mortgage on the 8th is the first big step down.' },
-  found: { label: 'bills found', today: D(9, 3), ask: true, note: '<b>The reader found two payments that repeat.</b> Asked once, on top of AHEAD. YES puts it on its day (watch it land); NOT A BILL never asks again.' },
+  found: { label: 'bills found', today: D(9, 3), found: true, note: '<b>The reader found two payments that repeat.</b> No question: they go straight onto their day, tagged NEW for a week. Wrong one? × NOT A BILL on its row and it is never found again. Same for the mortgage, Vodafone, the gym — found, placed, never asked.' },
   short: { label: 'short on the day', today: D(9, 3), over: { revolut: 31.2, activo: 12.4 }, note: '<b>An account will not hold enough on the day.</b> Revolut has €31.20: ChatGPT on the 11th leaves €8.21, Netflix on the 14th is €12.99 — marked before it happens, with the top-up on the 26th in sight.' },
   jump: { label: 'spending jumped', today: D(9, 3), went: 8, tab: 'went', note: '<b>September, eating out up.</b> Opens on SPENDING here only to show it — Flow always opens on AHEAD. WHERE IT WENT says the one thing that grew most in a sentence, then every group with its six months. Tap a group: its rows, this month and last.' },
   none: { label: 'nothing yet', today: D(9, 3), empty: true, note: '<b>Day one, no statements.</b> Each card says what will appear and what feeds it — no form to fill.' },
@@ -327,10 +322,10 @@ function subTabs() {
   if (!sc.empty) {
     const up = upcoming(today, today + 89 * DAY), k = mkey(today)
     const next = up.find((e) => !e.r.in)
-    const asks = sc.ask ? FOUND.filter((f) => !S.ans[f.id]).length : 0
+    const fresh = foundIn().length
     const shorts = S.shorts ?? 0 /* the AHEAD card's own count, never a second sum */
-    if (asks) { ahead = `${asks} found to answer`; aheadDot = '--lav-400' }
-    else if (shorts) { ahead = `${shorts} not covered on the day`; aheadDot = '--warn' }
+    if (shorts) { ahead = `${shorts} not covered on the day`; aheadDot = '--warn' }
+    else if (fresh) { ahead = `${fresh} new found · added`; aheadDot = '--lav-400' }
     else if (next) ahead = `next: ${next.r.name} −${eur(next.r.amt)} · ${short(next.t)}`
     const rows = rowsTo(today), wk = dt(today).getUTCDate() < 10 ? k - 1 : k
     const g = {}
@@ -389,11 +384,13 @@ function monthCard() {
 }
 
 /* ── Ahead: recurring payments first, then the line ─────────────── */
+/* Found bills are in unless he said "not a bill" — the app decides, he corrects. */
+const foundIn = () => SCEN[S.scen].found ? FOUND.filter((f) => S.ans[f.id] !== 'no') : []
 function upcoming(today, until) {
   const list = []
   for (let t = today + DAY; t <= until; t += DAY) {
     const d = dt(t)
-    for (const r of [...RECUR, ...FOUND.filter((f) => S.ans[f.id] === 'yes')]) {
+    for (const r of [...RECUR, ...foundIn()]) {
       const len = lastDay(d.getUTCFullYear(), d.getUTCMonth())
       const day = Math.min(r.day, len)
       if (d.getUTCDate() === day && (!r.yearly || r.month === d.getUTCMonth())) list.push({ t, r })
@@ -427,11 +424,10 @@ function aheadCard() {
   const k = mkey(today)
   const paid = ROWS.filter((r) => r.rec && r.t <= today && mkey(r.t) === k && !RECUR.find((x) => x.id === r.rec).in)
 
-  const ask = sc.ask ? FOUND.filter((f) => !S.ans[f.id]) : []
+  const fresh = foundIn()
   let html = `<div class="head"><span class="title">[ AHEAD · next 3 months ]</span>
     <span class="caps">${up.filter((e) => !e.r.in).length} payments · −${eur(out)} &nbsp;·&nbsp; salary +${eur(inn)}${shorts.length ? ` &nbsp;·&nbsp; <span class="warn">${shorts.length} not covered on the day</span>` : ''}</span></div>`
-  if (ask.length) html += `<div class="ask">${ask.map((f) => `<div class="q" id="q-${f.id}">${logo(f.acc)}<p>Found in your statements: <b style="font-weight:400">${f.name}, ${eur2(f.amt)} on the ${f.day}${f.day === 2 ? 'nd' : 'th'}</b> — a bill?<small>${f.what} · ${ACC[f.acc].name}</small></p>
-      <span class="btns"><button class="yes" onclick="answer('${f.id}','yes')">YES</button><button class="no" onclick="answer('${f.id}','no')">NOT A BILL</button></span></div>`).join('')}</div>`
+  if (fresh.length) html += `<p class="say" style="margin:0 0 12px"><span class="tag y">new</span>&nbsp; Found in your statements and put on their days: ${fresh.map((f) => `<b>${f.name}</b> ${eur2(f.amt)}`).join(', ')}. Nothing to answer — × on a row if it is not a bill.</p>`
   const rows0 = rowsTo(today)
   const rest0 = [k - 3, k - 2, k - 1].map((m) => inMonth(rows0, m).filter((r) => !r.move && r.amt < 0 && !r.rec).reduce((n, r) => n - r.amt, 0))
   html += `<div class="ahead"><div>${lineChart(today, until, free, up, S.band ? [Math.min(...rest0), Math.max(...rest0)] : null)}<div class="bills" style="margin-top:14px">`
@@ -456,7 +452,7 @@ function aheadCard() {
   const rows = rowsTo(today)
   const rest = [k - 3, k - 2, k - 1].map((m) => ({ m, v: inMonth(rows, m).filter((r) => !r.move && r.amt < 0 && !r.rec).reduce((n, r) => n - r.amt, 0) }))
   const lo = Math.min(...rest.map((x) => x.v)), hi = Math.max(...rest.map((x) => x.v))
-  const subs = RECUR.filter((r) => r.sub).concat(FOUND.filter((f) => S.ans[f.id] === 'yes' && f.sub))
+  const subs = RECUR.filter((r) => r.sub).concat(foundIn().filter((f) => f.sub))
   const subYear = subs.reduce((n, r) => n + (r.yearly ? r.amt : r.amt * 12), 0)
   html += `<div class="side">
     <div class="box"><span class="caps">free cash today</span><span class="big">${eur(free)}</span>
@@ -482,9 +478,10 @@ function billRow(e) {
   const amt = paid ? e.paidAmt : r.amt
   return `<div class="bill l-${r.id} ${paid ? 'paid' : ''} ${e.short ? 'short' : ''}" onclick="openBill('${r.id}')">
     <span class="date"><b>${d.getUTCDate()}</b><small>${WD[d.getUTCDay()]}</small></span>${logo(r.acc)}
-    <span class="nm">${r.name}<small>${r.what} · ${ACC[r.acc].name} ${r.yearly ? '<span class="tag y">yearly</span>' : ''}${e.short ? ' <span class="tag w">not enough on the day</span>' : ''}</small></span>
-    <span class="amt"><span class="${r.in ? 'up' : ''}">${r.about && !paid ? '≈ ' : ''}${r.in ? '+' : '−'}${eur2(amt)}</span>${status}</span></div>`
+    <span class="nm">${r.name}<small>${r.what} · ${ACC[r.acc].name} ${r.yearly ? '<span class="tag y">yearly</span>' : ''}${isNew(r) ? '<span class="tag y">new</span>' : ''}${e.short ? ' <span class="tag w">not enough on the day</span>' : ''}</small></span>
+    <span class="amt"><span class="${r.in ? 'up' : ''}">${r.about && !paid ? '≈ ' : ''}${r.in ? '+' : '−'}${eur2(amt)}</span>${isNew(r) ? `<button class="nab" onclick="event.stopPropagation();notBill('${r.id}')">× not a bill</button>` : status}</span></div>`
 }
+const isNew = (r) => FOUND.some((f) => f.id === r.id)
 function lineChart(today, until, free, up, band) {
   const W = 760, H = 190, L = 4, R = 64, T = 12, B = 22
   const pts = [{ t: today, v: free }]
@@ -542,9 +539,9 @@ function lineChart(today, until, free, up, band) {
   return `<p class="say" style="margin:0 0 8px">Free cash ${eur(free)} now. Lowest before the next salary: <b>${eur(low.v)}</b>${low.e ? ` on ${short(low.t)}` : ''}${nextSal ? ` — salary ${short(nextSal.t)}` : ''}. ${band ? `With everything else at last three months' rates, it lands between the dashed edge and the band's floor.` : `Only bills and salary move this line — everything else (groceries, eating out …) is beside it, not in it.`}</p>
     <div style="display:flex;justify-content:flex-end;margin:-2px 0 6px"><button class="tog ${band ? 'on' : ''}" onclick="S.band=!S.band;aheadCard()"><i></i>with everything else · option</button></div>${g}`
 }
-function answer(id, a) {
-  const n = document.getElementById('q-' + id); n.classList.add('gone')
-  setTimeout(() => { S.ans[id] = a; if (a === 'yes') S.landed = id; aheadCard(); subTabs(); document.querySelector('.bill.l-' + id)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, 280)
+function notBill(id) {
+  document.querySelectorAll('.bill.l-' + id).forEach((n) => n.classList.add('gone'))
+  setTimeout(() => { S.ans[id] = 'no'; aheadCard(); subTabs() }, 280)
 }
 
 /* ── Where it went ──────────────────────────────────────────────── */

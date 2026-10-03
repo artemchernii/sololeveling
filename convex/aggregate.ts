@@ -1855,6 +1855,13 @@ export const accountSheet = query({
           expected: v.number(),
           read: v.number(),
           missing: v.number(),
+          /** Already in this balance, booked by the bank after it. */
+          bookedLater: v.union(
+            v.object({ amount: v.number(), at: v.number() }),
+            v.null(),
+          ),
+          /** Pending at the bank with this balance, not itemised yet. */
+          pendingPart: v.union(v.number(), v.null()),
         }),
       ),
     }),
@@ -1938,8 +1945,7 @@ export const accountSheet = query({
             .eq('key', `balance:${account._id}:${currency}`),
         )
         .take(500)
-      const read = rows.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 }))
-      coverOf.set(currency.toLowerCase(), read)
+      const read: Array<Reading> = []
       for (const r of rows) {
         const file = intakes.find(
           (i) =>
@@ -1949,6 +1955,15 @@ export const accountSheet = query({
               Math.round((r.value ?? 0) * 100) &&
             Math.abs(i.balance.asOf - r.recordedAt) <= FILE_READING_MS,
         )
+        /* What the same screen showed as pending: the balance has it off. */
+        const pending = (file?.transactions ?? [])
+          .filter((t) => t.pending && t.currency === currency)
+          .reduce((n, t) => n + Math.round(t.amount * 100), 0)
+        read.push({
+          at: r.recordedAt,
+          value: r.value ?? 0,
+          ...(pending !== 0 ? { pending: pending / 100 } : {}),
+        })
         readings.push({
           at: r.recordedAt,
           asOf: file?.balance?.asOf ?? r.recordedAt,
@@ -1958,6 +1973,7 @@ export const accountSheet = query({
           fileId: file?._id ?? null,
         })
       }
+      coverOf.set(currency.toLowerCase(), read)
       for (const c of balanceChecks(read, pocketMoves(logs, trades, currency)))
         checks.push({ currency, ...c })
     }

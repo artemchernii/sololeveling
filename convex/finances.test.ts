@@ -3115,6 +3115,8 @@ describe('an account, opened (A.4)', () => {
         expected: 675.36,
         read: 575.36,
         missing: -100,
+        bookedLater: null,
+        pendingPart: null,
       },
     ])
     expect(s.readings.map((r) => [r.value, r.fileId])).toEqual([

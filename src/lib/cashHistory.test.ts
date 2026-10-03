@@ -174,7 +174,77 @@ describe('balanceChecks', () => {
         expected: 575.36,
         read: 575.36,
         missing: 0,
+        bookedLater: null,
+        pendingPart: null,
       },
     ])
+  })
+
+  test('a balance that already had a row the bank books the next day adds up — and the row is not counted twice (ActivoBank, 27 Sep)', () => {
+    const aug31 = new Date(2026, 7, 31, 23).getTime()
+    const sep27 = new Date(2026, 8, 27, 18).getTime()
+    const sep30 = new Date(2026, 8, 30, 18).getTime()
+    const at = (d: number) => new Date(2026, 8, d, 12).getTime()
+    const rows = [
+      { at: at(1), cents: 110000, fromFile: true },
+      { at: at(3), cents: -113346, fromFile: true },
+      { at: at(26), cents: 40000, fromFile: true },
+      // MB WAY to Oleksandr: in the app's balance on the 27th, booked the 28th
+      { at: at(28), cents: -10000, fromFile: true },
+      { at: at(29), cents: -13372, fromFile: true },
+      { at: at(30), cents: -598, fromFile: true },
+    ]
+    const checks = balanceChecks(
+      [
+        { at: aug31, value: 308.82 },
+        { at: sep27, value: 575.36 },
+        { at: sep30, value: 435.66 },
+      ],
+      rows,
+    )
+    expect(checks.map((c) => [c.missing, c.bookedLater])).toEqual([
+      [0, { amount: -100, at: at(28) }],
+      [0, null],
+    ])
+  })
+
+  test('a gap no row after it explains is still a gap', () => {
+    const a = new Date(2026, 8, 3, 18).getTime()
+    const b = new Date(2026, 8, 10, 18).getTime()
+    const [c] = balanceChecks(
+      [
+        { at: a, value: 742.36 },
+        { at: b, value: 521.36 },
+      ],
+      [{ at: b + 5 * D, cents: -10000, fromFile: true }],
+    )
+    expect(c.missing).toBe(-221)
+  })
+
+  test('money the screen showed pending explains a balance below its rows (3 Oct)', () => {
+    const a = new Date(2026, 8, 30, 18).getTime()
+    const b = new Date(2026, 9, 3, 14).getTime()
+    const [c] = balanceChecks(
+      [
+        { at: a, value: 435.66 },
+        { at: b, value: 153.21, pending: -1205.2 },
+      ],
+      [
+        // 1–2 Oct: +100, −2.25, +1,000, −175
+        { at: a + D, cents: 92275, fromFile: true },
+        // the Revolut top-up, from Revolut's file
+        { at: b - D, cents: -70000, fromFile: false },
+      ],
+    )
+    expect([c.missing, c.pendingPart]).toEqual([0, -505.2])
+    // More than was pending is not explained by it.
+    const [d] = balanceChecks(
+      [
+        { at: a, value: 435.66 },
+        { at: b, value: 153.21, pending: -100 },
+      ],
+      [{ at: a + D, cents: 22275, fromFile: true }],
+    )
+    expect(d.pendingPart).toBe(null)
   })
 })

@@ -5,11 +5,14 @@
    which transfers in one file are the other side of a transfer in
    another. Spec: docs/specs/2026-10-03-bulk-update.md. */
 
+import { BOOKED_LATER_MS, bookedLater } from './cashHistory'
+
 const DAY_MS = 86_400_000
 /* The same window the single-file review pairs a transfer in. */
 const PAIR_WINDOW_MS = 2 * DAY_MS + 3_600_000
 
 /** "2026-03" for a time, in local months. */
+
 export function monthKey(t: number): string {
   const d = new Date(t)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -100,6 +103,9 @@ export function balanceGaps(
 ): Array<Gap> {
   const sorted = [...balances].sort((a, b) => a.asOf - b.asOf)
   const out: Array<Gap> = []
+  /* Rows a balance already counted though the bank dates them after it
+     (bookedLater): not counted again after it. */
+  const counted = new Set<(typeof rows)[number]>()
   for (let i = 1; i < sorted.length; i++) {
     const a = sorted[i - 1]
     const b = sorted[i]
@@ -109,10 +115,28 @@ export function balanceGaps(
     let cents = Math.round(a.value * 100)
     for (const r of rows) {
       const k = dayKey(r.occurredAt)
-      if (k > from && k <= to) cents += Math.round(r.amount * 100)
+      if (k > from && k <= to && !counted.has(r))
+        cents += Math.round(r.amount * 100)
     }
     const gap = Math.round(b.value * 100) - cents
-    if (gap !== 0) out.push({ from: a.asOf, to: b.asOf, gap: gap / 100 })
+    if (gap === 0) continue
+    const found = bookedLater(
+      gap,
+      rows
+        .filter(
+          (r) =>
+            dayKey(r.occurredAt) > to &&
+            r.occurredAt <= b.asOf + BOOKED_LATER_MS &&
+            !counted.has(r),
+        )
+        .map((r) => ({
+          at: r.occurredAt,
+          cents: Math.round(r.amount * 100),
+          r,
+        })),
+    )
+    if (found) for (const f of found) counted.add(f.r)
+    else out.push({ from: a.asOf, to: b.asOf, gap: gap / 100 })
   }
   return out
 }

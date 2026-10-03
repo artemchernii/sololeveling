@@ -212,6 +212,32 @@ function CheckLine({
   )
 }
 
+/* Why a balance adds up although its rows alone do not: said, in grey,
+   never asked (3 Oct: ActivoBank's 27 Sep screenshot already had the
+   −€100 its statement books on the 28th; €505.20 pending on 3 Oct). */
+function Said({ check: c }: { check: Check }) {
+  return (
+    <div className="my-2 flex items-start gap-2.5 rounded-[12px] bg-lift/[0.035] px-3 py-2.5 text-[12.5px] text-ink-300 ring-1 ring-lift/10 ring-inset">
+      <span className="mt-px font-mono text-[11px] text-ink-500">i</span>
+      <span>
+        {c.bookedLater !== null ? (
+          <>
+            <Veiled>{fmt(c.bookedLater.amount, c.currency, true)}</Veiled> was
+            already in this balance — the bank booked it on{' '}
+            {short(c.bookedLater.at)}.
+          </>
+        ) : null}
+        {c.pendingPart !== null ? (
+          <>
+            <Veiled>{fmt(c.pendingPart, c.currency, true)}</Veiled> was still
+            pending here — the next statement itemises it.
+          </>
+        ) : null}
+      </span>
+    </div>
+  )
+}
+
 /* A balance is dated by the day it is for (aggregate.accountSheet). */
 const dayOf = (data: SheetData, at: number) =>
   data.readings.find((r) => r.at === at)?.asOf ?? at
@@ -405,6 +431,15 @@ function Timeline({
                   (g) => g.to === it.bal.at && g.currency === it.bal.currency,
                 )
               : undefined
+          const said =
+            it.t === 'bal'
+              ? data.checks.find(
+                  (c) =>
+                    c.to === it.bal.at &&
+                    c.currency === it.bal.currency &&
+                    (c.bookedLater !== null || c.pendingPart !== null),
+                )
+              : undefined
           return (
             <Fragment
               key={`${it.t}-${it.at}-${it.t === 'bal' ? it.bal.currency : it.file.id}`}
@@ -424,6 +459,7 @@ function Timeline({
                   onFile={onFile}
                 />
               )}
+              {said ? <Said check={said} /> : null}
               {gap ? (
                 <div className="my-2 flex items-center gap-2.5 rounded-[12px] border border-dashed border-state-warn/55 bg-state-warn/[0.06] px-3 py-2.5 text-[13px] text-ink-200">
                   Somewhere below this balance: a row the files do not show

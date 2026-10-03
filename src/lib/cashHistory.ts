@@ -11,7 +11,13 @@
 
 export const HISTORY_GRACE_MS = 12 * 3_600_000
 
-export type Reading = { at: number; value: number }
+export type Reading = {
+  at: number
+  value: number
+  /** Money the bank showed as pending with this balance, signed — the
+      balance has it taken off, no row itemises it yet. */
+  pending?: number
+}
 export type Move = { at: number; cents: number; fromFile: boolean }
 
 const after = (m: Move, r: Reading) =>
@@ -80,11 +86,38 @@ export type Gap = {
 
 /** One pair of readings checked: the earlier balance, the rows between
     and their sum, and what the later one read. `missing` is 0 when it
-    adds up. */
+    adds up — or when the difference is explained: `bookedLater`, rows
+    the balance already had that the bank dates after it; `pendingPart`,
+    money the bank showed pending with the balance. */
 export type Check = Gap & {
   fromValue: number
   rows: number
   sum: number
+  bookedLater: { amount: number; at: number } | null
+  pendingPart: number | null
+}
+
+/* An app's balance moves the instant money does; its statement books
+   the row a day or two later (3 Oct: the €575.36 screenshot of 27 Sep
+   already had MB WAY's −€100, dated 28 Sep). */
+export const BOOKED_LATER_MS = 3 * 86_400_000
+
+/** The rows just after a balance that it already counted: one row of
+    exactly the gap, else the first rows in date order that add up to it. */
+export function bookedLater<TRow extends { at: number; cents: number }>(
+  gapCents: number,
+  rows: ReadonlyArray<TRow>,
+): Array<TRow> | null {
+  if (gapCents === 0) return null
+  const sorted = [...rows].sort((a, b) => a.at - b.at)
+  const one = sorted.find((m) => m.cents === gapCents)
+  if (one) return [one]
+  let sum = 0
+  for (let i = 0; i < sorted.length; i++) {
+    sum += sorted[i].cents
+    if (sum === gapCents) return sorted.slice(0, i + 1)
+  }
+  return null
 }
 
 export function balanceChecks(
@@ -93,18 +126,47 @@ export function balanceChecks(
 ): Array<Check> {
   const readings = [...readingsIn].sort((a, b) => a.at - b.at)
   const checks: Array<Check> = []
+  /* Rows a balance already counted: not counted again after it. */
+  const counted = new Set<Move>()
   for (let i = 1; i < readings.length; i++) {
     const a = readings[i - 1]
     const b = readings[i]
     let sum = 0
     let rows = 0
     for (const m of moves)
-      if (after(m, a) && !after(m, b)) {
+      if (after(m, a) && !after(m, b) && !counted.has(m)) {
         sum += m.cents
         rows++
       }
     const cents = Math.round(a.value * 100) + sum
     const read = Math.round(b.value * 100)
+    let gap = read - cents
+    let later: Check['bookedLater'] = null
+    let pendingPart: number | null = null
+    if (gap !== 0) {
+      const found = bookedLater(
+        gap,
+        moves.filter(
+          (m) =>
+            after(m, b) && m.at <= b.at + BOOKED_LATER_MS && !counted.has(m),
+        ),
+      )
+      if (found) {
+        for (const m of found) counted.add(m)
+        later = { amount: gap / 100, at: found[0].at }
+        gap = 0
+      }
+    }
+    const pend = Math.round((b.pending ?? 0) * 100)
+    if (
+      gap !== 0 &&
+      pend !== 0 &&
+      Math.sign(pend) === Math.sign(gap) &&
+      Math.abs(gap) <= Math.abs(pend)
+    ) {
+      pendingPart = gap / 100
+      gap = 0
+    }
     checks.push({
       from: a.at,
       to: b.at,
@@ -113,7 +175,9 @@ export function balanceChecks(
       sum: sum / 100,
       expected: cents / 100,
       read: read / 100,
-      missing: (read - cents) / 100,
+      missing: gap / 100,
+      bookedLater: later,
+      pendingPart,
     })
   }
   return checks

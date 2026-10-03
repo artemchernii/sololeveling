@@ -177,13 +177,19 @@ describe('billNames', () => {
         },
         { key: 'BNP PARIBAS', name: 'Receitas', kind: 'income' },
         { key: 'ANTHROPIC', name: 'Anthropic', kind: 'expense' },
+        {
+          key: 'EDP COMERCIAL COMERCIALIZACAO',
+          name: 'Energia e Água',
+          kind: 'expense',
+        },
       ]),
     ).toEqual([
       'Juros Emprestimo',
       'Amortizacao Capital',
-      'Est Servico Veiga',
+      'Est Servico',
       'Bnp Paribas',
       'Anthropic',
+      'Edp Comercial',
     ])
   })
 })

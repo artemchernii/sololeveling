@@ -125,7 +125,7 @@ describe('recurring.find', () => {
       items.map((i) => [i.name, i.kind, i.amount, i.day, i.matchKey]).sort(),
     ).toEqual([
       ['Acme', 'income', 2000, 25, 'ACME'],
-      ['Energia e Água', 'expense', 31, 25, 'EDP COMERCIAL'],
+      ['Edp Comercial', 'expense', 31, 25, 'EDP COMERCIAL'],
     ])
     expect(items.every((i) => i.foundAt === at(9, 4))).toBe(true)
   })
@@ -309,9 +309,9 @@ describe('aggregate.ahead', () => {
     expect(a.free.map((f) => f.name)).toEqual(['Bank'])
     expect(a.events.map((e) => [new Date(e.t).getDate(), e.name])).toEqual([
       [25, 'Acme'],
-      [25, 'Energia e Água'],
+      [25, 'Edp Comercial'],
       [25, 'Acme'],
-      [25, 'Energia e Água'],
+      [25, 'Edp Comercial'],
     ])
     /* July had no rows (not read): left out. August and September's rest
        is the money out that is no bill's payment. */
@@ -374,6 +374,41 @@ describe('aggregate.flowMonths and logs.movements', () => {
     })
     const moves = m.items.filter((i) => i.type === 'move')
     expect(moves).toEqual([
+      expect.objectContaining({ amount: 400, from: bank, to: broker }),
+    ])
+  })
+
+  test('folds a pair linked from either side, from the leaving account to the arriving one', async () => {
+    const { t, me } = setup()
+    const { bank, broker } = await world(t)
+    await t.run(async (ctx) => {
+      const arrive = await ctx.db.insert('logs', {
+        ownerId: ME,
+        area: 'money',
+        kind: 'move',
+        occurredAt: at(8, 27),
+        value: 400,
+        unit: 'eur',
+        text: 'TRF. P/O ME',
+        accountId: broker,
+      })
+      await ctx.db.insert('logs', {
+        ownerId: ME,
+        area: 'money',
+        kind: 'move',
+        occurredAt: at(8, 28),
+        value: -400,
+        unit: 'eur',
+        text: 'TRF SEPA+ INST',
+        accountId: bank,
+        meta: { otherAccountId: broker, pairOf: arrive },
+      })
+    })
+    const m = await me.query(api.logs.movements, {
+      start: local(8, 1),
+      end: local(9, 1),
+    })
+    expect(m.items.filter((i) => i.type === 'move')).toEqual([
       expect.objectContaining({ amount: 400, from: bank, to: broker }),
     ])
   })

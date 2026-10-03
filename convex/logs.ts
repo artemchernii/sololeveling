@@ -343,24 +343,51 @@ export const movements = query({
         month: b.month,
         key: b.matchKey ?? payeeKey(b.name),
       }))
-    const ids = new Set(rows.map((r) => r._id))
+    /* A move is two rows, one per account, linked by `pairOf` on one of
+       them — either side, as the readers wrote it. The pair is one item,
+       its direction from the signs: the leaving row's account → the
+       arriving row's. (4 Oct: keeping only the row without the link showed
+       his BPI → ActivoBank transfers as "elsewhere → ActivoBank".) */
+    const byId = new Map(rows.map((r) => [r._id, r]))
+    const partnerOf = new Map<Id<'logs'>, Doc<'logs'>>()
+    for (const r of rows) {
+      const p = r.meta?.pairOf ? byId.get(r.meta.pairOf) : undefined
+      if (p) {
+        partnerOf.set(r._id, p)
+        partnerOf.set(p._id, r)
+      }
+    }
+    const shown = new Set<Id<'logs'>>()
     const items = []
     for (const r of rows) {
       if (!isEuroAmount(r)) continue
       if (r.kind === 'move' || r.kind === 'transfer') {
-        /* The arriving side of a pair whose leaving side is here too. */
-        if (r.meta?.pairOf && ids.has(r.meta.pairOf)) continue
-        const other = r.meta?.otherAccountId ?? null
-        const here = r.accountId ?? null
-        const out = r.value < 0
+        if (shown.has(r._id)) continue
+        const partner = partnerOf.get(r._id)
+        shown.add(r._id)
+        let from: Id<'accounts'> | null
+        let to: Id<'accounts'> | null
+        const leaving = r.value < 0 ? r : partner
+        if (partner) {
+          shown.add(partner._id)
+          const [out, arrive] = r.value < 0 ? [r, partner] : [partner, r]
+          from = out.accountId ?? null
+          to = arrive.accountId ?? null
+        } else {
+          const other = r.meta?.otherAccountId ?? null
+          const here = r.accountId ?? null
+          from = r.value < 0 ? here : other
+          to = r.value < 0 ? other : here
+        }
+        const said = leaving ?? r
         items.push({
           type: 'move' as const,
           id: r._id,
           t: r.occurredAt,
           amount: Math.abs(r.value),
-          from: out ? here : other,
-          to: out ? other : here,
-          text: r.meta?.merchant ?? r.text ?? '',
+          from,
+          to,
+          text: said.meta?.merchant ?? said.text ?? '',
         })
         continue
       }

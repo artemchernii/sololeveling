@@ -1,3 +1,5 @@
+import { payeeKey } from './payee'
+
 /* Bills found in his statements (Flow, 3 Oct). He: asking about a €5.99
    Uber One is "a lot of hustle"; the mortgage, Vodafone, the gym are what
    he means by bills. So the app decides and he corrects: what passes these
@@ -162,8 +164,13 @@ export function billNames(
   return found.map((b) => {
     const shared = found.some((o) => o !== b && o.name === b.name)
     const raw = /\d{3,}/.test(b.name) || b.name === b.name.toUpperCase()
-    return shared || raw || b.kind === 'income' || b.name.trim() === ''
-      ? title(b.key)
+    /* "Energia e Água" over "DD EDP COMERCIAL…" (4 Oct): a name sharing no
+       word with what the bank printed is the bank's own label. */
+    const label = !payeeKey(b.name)
+      .split(' ')
+      .some((w) => w.length > 2 && b.key.split(' ').includes(w))
+    return shared || raw || label || b.kind === 'income' || b.name.trim() === ''
+      ? title(b.key.split(' ').slice(0, 2).join(' '))
       : b.name
   })
 }

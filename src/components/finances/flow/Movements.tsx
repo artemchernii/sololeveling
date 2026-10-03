@@ -354,7 +354,11 @@ function MoveRow({
       </span>
       <span className="min-w-0">
         <span className="block truncate">
-          {from?.name ?? 'elsewhere'} → {to?.name ?? 'elsewhere'}
+          {!from && !to
+            ? `Put aside · ${i.text}`
+            : from && to && from._id === to._id
+              ? `${from.name} · within the account`
+              : `${from?.name ?? 'another account'} → ${to?.name ?? 'another account'}`}
         </span>
         <span className="block font-mono text-[10px] text-ink-500">
           your move · {i.text.toLowerCase()} · not in or out

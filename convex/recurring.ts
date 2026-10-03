@@ -375,6 +375,17 @@ export async function findFor(ctx: MutationCtx, ownerId: string) {
       await ctx.db.delete(i._id)
     }
   }
+  /* Names the app gave are renamed by today's rule (4 Oct: BPI's
+     "Energia e Água" was the bill's name, and it is only electricity). */
+  const mine = (await itemsOf(ctx, ownerId)).filter(
+    (i) => i.foundAt !== undefined && i.matchKey,
+  )
+  const better = billNames(
+    mine.map((i) => ({ key: i.matchKey ?? '', name: i.name, kind: i.kind })),
+  )
+  for (const [n, i] of mine.entries()) {
+    if (better[n] !== i.name) await ctx.db.patch(i._id, { name: better[n] })
+  }
   const items = await itemsOf(ctx, ownerId)
   const logs = await moneySince(ctx, ownerId, now - 100 * DAY)
   const rows = billRows(logs, await ownedAccounts(ctx, ownerId))

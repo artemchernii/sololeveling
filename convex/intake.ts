@@ -173,7 +173,11 @@ const BATCH_STAGGER_MS = 1500
  * the same rule as `start`, counting only files the model reads.
  */
 export const startBatch = mutation({
-  args: { files: v.array(fileArg) },
+  args: {
+    files: v.array(fileArg),
+    /* More files for an update still open — "drop March". */
+    batchId: v.optional(v.id('batches')),
+  },
   returns: v.union(
     v.object({ ok: v.literal(true), batchId: v.id('batches') }),
     v.object({ ok: v.literal(false), error: v.string() }),
@@ -183,6 +187,11 @@ export const startBatch = mutation({
     const refuse = async (error: string) => {
       for (const f of args.files) await ctx.storage.delete(f.storageId)
       return { ok: false as const, error }
+    }
+    if (args.batchId) {
+      const b = await ctx.db.get(args.batchId)
+      if (b === null || b.ownerId !== ownerId || b.status !== 'open')
+        return await refuse('That update is closed — start a new one.')
     }
     if (args.files.length === 0) return await refuse('Choose some files.')
     if (args.files.length > MAX_BATCH_FILES) {
@@ -212,15 +221,17 @@ export const startBatch = mutation({
         `That's ${wanted} files to read and ${left} reads left this month (${INTAKES_PER_WINDOW} in 30 days).`,
       )
     }
-    const batchId = await ctx.db.insert('batches', {
-      ownerId,
-      status: 'open',
-      leftOut: [],
-      quietMonths: [],
-      moves: [],
-      extras: [],
-      dismissed: [],
-    })
+    const batchId =
+      args.batchId ??
+      (await ctx.db.insert('batches', {
+        ownerId,
+        status: 'open',
+        leftOut: [],
+        quietMonths: [],
+        moves: [],
+        extras: [],
+        dismissed: [],
+      }))
     let paid = 0
     for (const f of args.files) {
       await beginIntake(ctx, ownerId, {
@@ -422,8 +433,22 @@ export const open = query({
       .query('intakes')
       .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
       .order('desc')
-      .take(20)
-    return rows.filter((r) => r.status !== 'done')
+      .take(20 + MAX_BATCH_FILES)
+    /* A batch's files live on its own sheet (UPDATE ALL), not here. */
+    return rows
+      .filter((r) => r.status !== 'done' && r.batchId === undefined)
+      .slice(0, 20)
+  },
+})
+
+/** One intake, his — the check screen's own, wherever it was dropped. */
+export const one = query({
+  args: { intakeId: v.id('intakes') },
+  returns: v.union(schema.doc('intakes'), v.null()),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const row = await ctx.db.get(args.intakeId)
+    return row !== null && row.ownerId === ownerId ? row : null
   },
 })
 

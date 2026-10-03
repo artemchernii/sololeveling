@@ -45,9 +45,9 @@ export function IntakeFlow({
   onBack: () => void
   onDone: () => void
 }) {
-  const open = useQuery(api.intake.open, {})
+  const row = useQuery(api.intake.one, { intakeId })
   const discard = useMutation(api.intake.discard)
-  const found = open?.find((i) => i._id === intakeId)
+  const found = row && row.status !== 'done' ? row : undefined
   /* A confirmed one leaves the open list the moment it lands — keep
      showing it, so its review can say what landed (27 Sep: he got "done
      or gone" instead). */
@@ -60,7 +60,7 @@ export function IntakeFlow({
 
   /* Loading holds the space quietly: a flash of "reading" for a few
      milliseconds is the flicker he kept seeing. */
-  if (open === undefined) return <div className="min-h-[240px]" />
+  if (row === undefined) return <div className="min-h-[240px]" />
   if (intake === undefined) {
     return (
       <p className="py-6 text-center text-[13.5px] text-ink-400">

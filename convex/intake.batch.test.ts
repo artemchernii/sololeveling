@@ -514,3 +514,46 @@ describe('batchReview and apply', () => {
     expect(again.accounts.map((a) => a.accountId)).toEqual([bpi])
   })
 })
+
+describe('around a batch', () => {
+  test('more files join an open update; not another owner’s', async () => {
+    const { t, me, them } = setup()
+    const first = await me.mutation(api.intake.startBatch, {
+      files: [await stored(t, 'feb.pdf')],
+    })
+    if (!first.ok) throw new Error(first.error)
+    const more = await me.mutation(api.intake.startBatch, {
+      files: [await stored(t, 'mar.pdf')],
+      batchId: first.batchId,
+    })
+    expect(more).toEqual({ ok: true, batchId: first.batchId })
+    const view = await me.query(api.intake.batch, { batchId: first.batchId })
+    expect(view.files.map((f) => f.name)).toEqual(['feb.pdf', 'mar.pdf'])
+    const theirs = await them.mutation(api.intake.startBatch, {
+      files: [await stored(t, 'x.pdf')],
+      batchId: first.batchId,
+    })
+    expect(theirs).toEqual({
+      ok: false,
+      error: 'That update is closed — start a new one.',
+    })
+  })
+
+  test("a batch's files stay off Overview's open list; one opens by id, only mine", async () => {
+    const { t, me, them } = setup()
+    const started = await me.mutation(api.intake.startBatch, {
+      files: [await stored(t, 'a.pdf')],
+    })
+    if (!started.ok) throw new Error(started.error)
+    expect(await me.query(api.intake.open, {})).toEqual([])
+    const [file] = (
+      await me.query(api.intake.batch, { batchId: started.batchId })
+    ).files
+    expect(
+      (await me.query(api.intake.one, { intakeId: file.intakeId }))?._id,
+    ).toBe(file.intakeId)
+    expect(
+      await them.query(api.intake.one, { intakeId: file.intakeId }),
+    ).toBeNull()
+  })
+})

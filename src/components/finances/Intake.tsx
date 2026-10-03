@@ -21,6 +21,7 @@ import { money } from '@/lib/currency'
 import { dayLabel } from '@/lib/bills'
 import { completePosition, merchantKey, sameCompany } from '@/lib/intake'
 import { productById, searchProducts } from '@/lib/institutions'
+import { tickerBase } from '@/lib/market'
 import type { Candidate } from '@/lib/market'
 import { SPEND_CATEGORIES, categoryLabel } from '@/lib/money'
 
@@ -978,10 +979,14 @@ function HoldingsReview({
         const c = completePosition(p, p.todayPriceEur)
         return {
           keep: true,
+          /* -1: no listing's price fits the screen — he picks one, the
+             first search hit is not filled in (3 Oct: the US SHLD). */
           candidate:
-            p.preferred !== undefined && p.preferred >= 0
-              ? (p.candidates[p.preferred] ?? null)
-              : (p.candidates[0] ?? null),
+            p.preferred === undefined
+              ? (p.candidates[0] ?? null)
+              : p.preferred >= 0
+                ? (p.candidates[p.preferred] ?? null)
+                : null,
           shares: c.shares === undefined ? '' : String(c.shares),
           sharesCalc: c.sharesCalculated,
         }
@@ -1026,7 +1031,9 @@ function HoldingsReview({
           let same = 0
           for (const r of kept) {
             const sym = r.d.candidate?.symbol
-            const h = heldHere.find((x) => x.symbol === sym)
+            const h = heldHere.find(
+              (x) => tickerBase(x.symbol) === tickerBase(sym ?? ''),
+            )
             const n = num(r.d.shares)
             if (!sym) continue
             if (!h) out.push(`${sym} new`)
@@ -1037,7 +1044,12 @@ function HoldingsReview({
               )
           }
           const gone = heldHere.filter(
-            (h) => !kept.some((r) => r.d.candidate?.symbol === h.symbol),
+            (h) =>
+              !kept.some(
+                (r) =>
+                  tickerBase(r.d.candidate?.symbol ?? '') ===
+                  tickerBase(h.symbol),
+              ),
           )
           return { out, same, gone }
         })()

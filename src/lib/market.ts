@@ -17,6 +17,9 @@ export const RATE_SOURCE = 'ECB via Frankfurter'
 export const UNPRICED = 'UNPRICED'
 export const screenSource = (broker: string) => `${broker} screen`
 
+/** "VUAA.MI" → "VUAA": one fund, whichever exchange lists it. */
+export const tickerBase = (symbol: string) => symbol.split('.')[0].toUpperCase()
+
 export type Candidate = {
   symbol: string
   name: string

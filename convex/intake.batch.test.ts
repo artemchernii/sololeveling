@@ -1326,3 +1326,52 @@ test('a confirmed file is kept 90 days to open again, only by him, then erased â
   const bal = await me.query(api.aggregate.balances, {})
   expect(bal.accounts.find((a) => a.accountId === t212)?.cashEur).toBe(12994.22)
 })
+
+test('the same account screenshotted again lands on what it holds, whichever listing the search found (VUAA.L then VUAA.MI, 3 Oct)', async () => {
+  const { t, me } = setup()
+  const t212 = await me.mutation(api.accounts.create, {
+    name: 'Trading 212',
+    kinds: ['broker'],
+    currencies: ['EUR'],
+  })
+  const screen = () =>
+    t.run((ctx) =>
+      ctx.db.insert('intakes', {
+        ownerId: ME,
+        accountId: t212,
+        storageIds: [],
+        status: 'ready',
+        kind: 'holdings',
+        title: 'Invest',
+        files: [{ name: 'IMG.PNG', size: 1, contentType: 'image/png' }],
+        positions: [],
+      }),
+    )
+  const look = (symbol: string, shares: number) => ({
+    candidate: { symbol, name: 'Vanguard S&P 500', exchange: 'X', type: 'ETF' },
+    shares,
+  })
+  await me.mutation(api.intake.confirmHoldings, {
+    intakeId: await screen(),
+    accountId: t212,
+    asOf: Date.now() - 4 * 3_600_000,
+    dayStart: day(10, 3),
+    rows: [look('VUAA.L', 1.972174), look('SHLD.L', 21.867878)],
+  })
+  await me.mutation(api.intake.confirmHoldings, {
+    intakeId: await screen(),
+    accountId: t212,
+    asOf: Date.now(),
+    dayStart: day(10, 3),
+    rows: [look('VUAA.MI', 1.972174), look('SHLD', 21.867878)],
+  })
+  const instruments = await t.run((ctx) =>
+    ctx.db.query('instruments').collect(),
+  )
+  expect(instruments.map((i) => i.symbol).sort()).toEqual(['SHLD.L', 'VUAA.L'])
+  const pos = await me.query(api.aggregate.positions, {})
+  expect(pos.rows.map((r) => [r.symbol, r.shares]).sort()).toEqual([
+    ['SHLD.L', 21.867878],
+    ['VUAA.L', 1.972174],
+  ])
+})

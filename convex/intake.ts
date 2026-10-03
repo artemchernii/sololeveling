@@ -14,7 +14,7 @@ import {
 } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
-import { UNPRICED, screenSource } from '../src/lib/market'
+import { UNPRICED, screenSource, tickerBase } from '../src/lib/market'
 import type { Candidate } from '../src/lib/market'
 import schema from './schema'
 import {
@@ -1709,18 +1709,29 @@ async function writeHoldings(
     )
       throw new ConvexError('That is not what was paid.')
   }
-  const symbols = look.rows.map((r) => r.candidate.symbol)
+  /* What the account holds already, by the ticker before its exchange:
+     a second screen of the same fund lands on the same holding, whatever
+     listing its search found this time (3 Oct: VUAA.L then VUAA.MI, SHLD.L
+     then the US SHLD — each a second copy of one position). */
+  const heldByBase = new Map<string, Id<'instruments'>>()
+  for (const h of await ctx.db
+    .query('holdings')
+    .withIndex('by_owner_account', (q) =>
+      q.eq('ownerId', ownerId).eq('accountId', account._id),
+    )
+    .take(MAX_TRADES)) {
+    const inst = await ctx.db.get(h.instrumentId)
+    if (inst !== null) heldByBase.set(tickerBase(inst.symbol), inst._id)
+  }
+  const symbols = look.rows.map((r) => tickerBase(r.candidate.symbol))
   if (new Set(symbols).size !== symbols.length) {
     throw new ConvexError('Two rows are the same ticker — keep one.')
   }
   let replaced = 0
   for (const row of look.rows) {
-    const instrumentId = await upsertInstrument(
-      ctx,
-      ownerId,
-      row.candidate,
-      row.isin,
-    )
+    const instrumentId =
+      heldByBase.get(tickerBase(row.candidate.symbol)) ??
+      (await upsertInstrument(ctx, ownerId, row.candidate, row.isin))
     if (row.candidate.type === UNPRICED) {
       const price = screenPriceEur(
         (look.screens ?? [intake]).flatMap((i) => i.positions ?? []),

@@ -953,6 +953,9 @@ export default defineSchema({
        trades since 2020) lives in intakeTrades; this says how many. */
     historyTrades: v.optional(v.number()),
     historyTickers: v.optional(v.number()),
+    /* Which version of the reader's instructions read it (READER_VERSION):
+       a reading is reused for the same file only from the same version. */
+    reader: v.optional(v.number()),
     /* The bulk drop it came in (3 Oct): one intake per file, gathered. */
     batchId: v.optional(v.id('batches')),
   })

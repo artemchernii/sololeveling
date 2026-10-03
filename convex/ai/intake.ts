@@ -312,8 +312,8 @@ async function readWithModel(
     trades.push({ ...t, ...(await tickers.find(t.name, t.isin)) })
 
   const positions = []
-  for (const p of parsed.positions) {
-    const { candidates, preferred } = await tickers.find(p.name, p.isin)
+  for (const { symbol, ...p } of parsed.positions) {
+    const { candidates, preferred } = await tickers.find(p.name, p.isin, symbol)
     let today: { priceEur: number; asOf: number } | null = null
     if (preferred !== undefined && preferred >= 0) {
       try {
@@ -675,8 +675,8 @@ class Tickers {
     string,
     { candidates: Array<Candidate>; preferred?: number }
   >()
-  async find(name: string, isin?: string) {
-    const key = isin ?? name
+  async find(name: string, isin?: string, symbol?: string) {
+    const key = isin ?? symbol ?? name
     const known = this.found.get(key)
     if (known) return known
     let candidates: Array<Candidate> = []
@@ -686,6 +686,15 @@ class Tickers {
       c.filter((x) => x.type === 'EQUITY' || x.type === 'ETF')
     try {
       if (isin) candidates = listed(await searchYahoo(isin))
+      /* The ticker the screen printed (Trading 212's "7.36 IGLN"): its own
+         listings first — a name search for "iShares Physical Gold" found
+         an American OTC line (3 Oct). */
+      if (candidates.length === 0 && symbol) {
+        const base = symbol.split('.')[0]
+        candidates = listed(await searchYahoo(symbol)).filter(
+          (c) => c.symbol.split('.')[0] === base,
+        )
+      }
       if (candidates.length === 0)
         candidates = await searchYahoo(searchableName(name))
     } catch {

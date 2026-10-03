@@ -593,3 +593,38 @@ test('a file that cannot go in fails alone; the rest is written and the batch op
   expect(r.asks).toMatchObject([{ kind: 'failed', intakeId: usd }])
   expect(bpi).toBeDefined()
 })
+
+test('a file read by an older reader is read again, not reused', async () => {
+  const { t, me } = setup()
+  const first = await stored(t, 'extrato.pdf')
+  const a = await me.mutation(api.intake.start, { files: [first] })
+  if (!a.ok) throw new Error(a.error)
+  await t.mutation(internal.intake.finish, {
+    intakeId: a.intakeId,
+    kind: 'transactions',
+    title: 'ActivoBank',
+    transactions: [row(9, 1, 'TRF. P/O ARTEM CHERNII', 100)],
+    positions: undefined,
+    balance: undefined,
+  })
+  /* The same bytes again: reused while the reader is the same… */
+  const same = await t.run((ctx) =>
+    ctx.storage.store(new Blob([`file ${bytes}`], { type: 'application/pdf' })),
+  )
+  const b = await me.mutation(api.intake.start, {
+    files: [{ ...first, storageId: same }],
+  })
+  if (!b.ok) throw new Error(b.error)
+  expect((await t.run((ctx) => ctx.db.get(b.intakeId)))?.status).toBe('ready')
+  /* …and read again once the reading came from an older one. */
+  await t.run((ctx) => ctx.db.patch(a.intakeId, { reader: 1 }))
+  await t.run((ctx) => ctx.db.patch(b.intakeId, { reader: 1 }))
+  const again = await t.run((ctx) =>
+    ctx.storage.store(new Blob([`file ${bytes}`], { type: 'application/pdf' })),
+  )
+  const c = await me.mutation(api.intake.start, {
+    files: [{ ...first, storageId: again }],
+  })
+  if (!c.ok) throw new Error(c.error)
+  expect((await t.run((ctx) => ctx.db.get(c.intakeId)))?.status).toBe('reading')
+})

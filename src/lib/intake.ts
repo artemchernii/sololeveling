@@ -13,6 +13,10 @@
    (value and % since buy, no shares). */
 
 export const INTAKE_MODEL = 'claude-haiku-4-5'
+/* Bumped whenever what the reader is asked changes: a file read by an
+   older reader is read again rather than its reading reused (3 Oct — a
+   reused reading kept "1 100.00" as 100 after the prompt was fixed). */
+export const READER_VERSION = 2
 export const INTAKE_MODEL_NAME = 'Claude Haiku 4.5'
 export const MAX_INTAKE_FILES = 6
 /* UPDATE ALL (3 Oct): a year of four banks' monthly statements. */
@@ -98,6 +102,7 @@ export const INTAKE_SCHEMA = {
         properties: {
           name: { type: 'string' },
           isin: { type: ['string', 'null'] },
+          symbol: { type: ['string', 'null'] },
           shares: { type: ['number', 'null'] },
           average_price_eur: { type: ['number', 'null'] },
           value_eur: { type: ['number', 'null'] },
@@ -106,6 +111,7 @@ export const INTAKE_SCHEMA = {
         required: [
           'name',
           'isin',
+          'symbol',
           'shares',
           'average_price_eur',
           'value_eur',
@@ -197,15 +203,15 @@ export function intakePrompt(opts: {
     '  kind = "trades" — buying and selling shares: a broker\'s order or trade history, or a trade confirmation, with a date, shares and a price per trade.',
     '  otherwise "unknown". A screen of positions is holdings even when it shows a daily change; a list of orders is trades even when it shows a total.',
     'title: a short human label, e.g. "Revolut statement · EUR · Aug 1 → Sep 27", "Trade Republic · holdings", "Trading 212 · orders". institution: the bank or broker the file is FROM, e.g. "Revolut" or "Revolut Invest". account_tail: the last four digits of the IBAN or card number the file is about, if printed (e.g. "0120" for PT50 … 0120), else null. holder_name: the account holder\'s name if printed.',
-    'For transactions: every row, once, including rows under a "pending" heading (pending = true). date as YYYY-MM-DD (for "Yesterday" or a weekday, resolve against today). amount is signed: money out negative, money in positive, in the row\'s own currency. merchant: a clean human name ("Bolt", not "Bolt.euo2609161656"; "Claude subscription" for "Anthropic* Claude Sub"). raw: the description as printed, one line.',
+    'For transactions: every row, once, including rows under a "pending" heading (pending = true). A pending heading shown only as a total, its lines folded away ("Pending  -1.205,20"), is one row: merchant "Pending", that total as the amount, pending = true. date as YYYY-MM-DD (for "Yesterday" or a weekday, resolve against today). amount is signed: money out negative, money in positive, in the row\'s own currency. merchant: a clean human name ("Bolt", not "Bolt.euo2609161656"; "Claude subscription" for "Anthropic* Claude Sub"). raw: the description as printed, one line.',
     'counterparty: for transfers, who is on the other side — keep any IBAN or card digits printed for it ("PT50…0120", "card ••2789"). self_transfer = true when money goes to or comes from the holder\'s own name, another of their own accounts, a card top-up, a savings or investment account inside the same bank, or a known broker the person uses (their accounts: ' +
       (opts.accounts.join(', ') || 'unknown') +
       '). A card payment to a broker such as Trade Republic or Trading 212 is a deposit to that broker — self_transfer = true.',
     `category (spending only, else null): one of ${SPEND_CATEGORY_IDS.join(', ')}.`,
     'closing_balance: the final balance printed for the account (completed transactions only) and closing_balance_date; else null.',
-    'For holdings: every position, once. value_eur: its current value as printed. change_pct: the % gain or loss since buying if printed (negative for a loss). shares and average_price_eur only if printed. cash_eur: uninvested cash if shown; total_eur: the account total if shown.',
+    'For holdings: every position, once. value_eur: its current value as printed. change_pct: the % gain or loss since buying if printed (negative for a loss). shares and average_price_eur only if printed — a number printed under or beside the name together with a ticker ("7.36542714 IGLN" on Trading 212) is the shares, and the ticker is symbol (else null). cash_eur: uninvested cash if shown; total_eur: the account total if shown. An account summary screen with a total and cash but no list of positions (Trading 212\'s "Account value … Cash") is holdings with no positions.',
     'For trades: every buy and sell, once — date as YYYY-MM-DD, name as printed, isin if printed, side, shares, price per share and its currency. Skip cancelled or rejected orders.',
-    'Read numbers exactly: a European comma decimal (1.234,56) is 1234.56. Never invent a number that is not printed — use null. Leave the arrays that do not apply empty.',
+    'Read numbers exactly: a European comma decimal (1.234,56) is 1234.56; thousands set apart by a space ("1 100.00", "1 277,35") are one number — 1100.00, never 100.00. Never invent a number that is not printed — use null. Leave the arrays that do not apply empty.',
   ].join('\n')
 }
 
@@ -226,6 +232,8 @@ export type ReadTransaction = {
 export type ReadPosition = {
   name: string
   isin?: string
+  /** The ticker printed beside it, when the screen prints one. */
+  symbol?: string
   shares?: number
   priceEur?: number
   valueEur?: number
@@ -307,7 +315,14 @@ export function parseReading(
   if (j.kind === 'transactions' && transactions.length === 0) {
     return { ok: false, error: 'No transactions were found in it.' }
   }
-  if (j.kind === 'holdings' && positions.length === 0) {
+  /* An account summary — total and cash, the positions on another screen
+     (Trading 212, 3 Oct) — is a holdings read with no rows. */
+  if (
+    j.kind === 'holdings' &&
+    positions.length === 0 &&
+    num(j.cash_eur) === undefined &&
+    num(j.total_eur) === undefined
+  ) {
     return { ok: false, error: 'No positions were found on it.' }
   }
   const balanceValue = num(j.closing_balance)
@@ -392,9 +407,14 @@ function positionRows(j: Record<string, unknown>): Array<ReadPosition> {
       typeof r.isin === 'string' && /^[A-Z]{2}[A-Z0-9]{10}$/.test(r.isin)
         ? r.isin
         : undefined
+    const symbol =
+      typeof r.symbol === 'string' && /^[A-Z0-9.]{1,12}$/.test(r.symbol.trim())
+        ? r.symbol.trim()
+        : undefined
     positions.push({
       name,
       isin,
+      symbol,
       shares: pos(r.shares),
       priceEur: pos(r.average_price_eur),
       valueEur: pos(r.value_eur),

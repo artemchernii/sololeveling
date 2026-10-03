@@ -308,6 +308,61 @@ describe('parseReading', () => {
       },
     ])
   })
+  test("Trading 212's screens (3 Oct): shares and ticker under the name; a summary with no positions", () => {
+    const base = {
+      kind: 'holdings',
+      institution: null,
+      holder_name: null,
+      title: 'Invest',
+      currency: 'EUR',
+      transactions: [],
+      closing_balance: null,
+      closing_balance_date: null,
+    }
+    const list = parseReading(
+      JSON.stringify({
+        ...base,
+        positions: [
+          {
+            name: 'iShares Physical Gold',
+            isin: null,
+            symbol: 'IGLN',
+            shares: 7.36542714,
+            average_price_eur: null,
+            value_eur: 526.21,
+            change_pct: -4.01,
+          },
+        ],
+        cash_eur: null,
+        total_eur: null,
+      }),
+    )
+    if (!list.ok) throw new Error(list.error)
+    expect(list.positions[0]).toMatchObject({
+      symbol: 'IGLN',
+      shares: 7.36542714,
+    })
+    const summary = parseReading(
+      JSON.stringify({
+        ...base,
+        positions: [],
+        cash_eur: 12994.22,
+        total_eur: 15008.26,
+      }),
+    )
+    if (!summary.ok) throw new Error(summary.error)
+    expect(summary.positions).toEqual([])
+    expect(
+      parseReading(
+        JSON.stringify({
+          ...base,
+          positions: [],
+          cash_eur: null,
+          total_eur: null,
+        }),
+      ).ok,
+    ).toBe(false)
+  })
   test('refuses what it cannot use', () => {
     expect(parseReading('nope').ok).toBe(false)
     expect(parseReading(JSON.stringify({ kind: 'unknown' })).ok).toBe(false)

@@ -23,6 +23,7 @@ import {
   MAX_INTAKE_BYTES,
   MAX_BATCH_FILES,
   MAX_INTAKE_FILES,
+  READER_VERSION,
   READING_DEAD_MS,
   findDuplicates,
   findRecurring,
@@ -304,6 +305,7 @@ async function beginIntake(
           (i) =>
             (i.status === 'ready' || i.status === 'done') &&
             i.kind !== undefined &&
+            i.reader === READER_VERSION &&
             /* Read before a statement's orders were split out as
                trades (27 Sep): read it again, once. */
             !hasTradeRows(i.transactions ?? []),
@@ -328,6 +330,7 @@ async function beginIntake(
       model: before.model,
       readAt: now,
       reusedFrom: before._id,
+      reader: before.reader,
       costUsd: 0,
       note: before.note,
       historyTrades: before.historyTrades,
@@ -1873,6 +1876,7 @@ export const finish = internalMutation({
     const { intakeId: _id, ...rest } = args
     await ctx.db.patch(args.intakeId, {
       ...rest,
+      reader: READER_VERSION,
       status: 'ready',
       model: args.model ?? INTAKE_MODEL_NAME,
       readAt: Date.now(),

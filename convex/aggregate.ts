@@ -2504,6 +2504,8 @@ export const ahead = query({
     series: v.array(point),
     low: point,
     salaryAt: v.union(v.number(), v.null()),
+    /** Bills filed as subscriptions: how many, and a year of them. */
+    subscriptions: v.object({ count: v.number(), year: v.number() }),
     year: v.object({
       total: v.number(),
       months: v.array(v.object({ month: v.number(), sum: v.number() })),
@@ -2577,6 +2579,17 @@ export const ahead = query({
       series: built.series,
       low: built.low,
       salaryAt: built.salaryAt,
+      subscriptions: (() => {
+        const subs = items.filter(
+          (b) => b.kind === 'expense' && b.category === 'subscriptions',
+        )
+        const c = subs.reduce(
+          (n, b) =>
+            n + Math.round(b.amount * 100) * (b.cadence === 'yearly' ? 1 : 12),
+          0,
+        )
+        return { count: subs.length, year: c / 100 }
+      })(),
       year: yearAhead(bills, args.today),
     }
   },

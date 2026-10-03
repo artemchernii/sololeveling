@@ -3439,7 +3439,7 @@ async function finishBatch(
     extras: [],
     applied: { ...applied, rows: applied.rows + extra },
     appliedAt: Date.now(),
-  })  /* Flow (3 Oct): new statements can show a bill coming round — it goes
+  }) /* Flow (3 Oct): new statements can show a bill coming round — it goes
      onto its day with no question. */
   await findFor(ctx, b.ownerId)
 }

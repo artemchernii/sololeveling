@@ -48,8 +48,10 @@ the rows behind it, goes back. He types nothing.
    × not a bill on its row and is never found again. A bill it cannot
    know (paid once: a yearly insurance, a club just joined) he adds
    from the payment itself — tap it in movements → repeats every month /
-   every year, nothing typed. One not paid yet: + bill, one line
-   ("Médis 41.50 monthly 10"), read as he types (3 Oct, "add bills yes"). Each bill sits on
+   every year, nothing typed. + bill opens with the likely bills already
+   in his statements (payees outside everyday spending, not yet a bill)
+   — pick monthly or yearly (3 Oct: "most likely those bills are in
+   statements"). Typing one line is only for a bill not paid yet. Each bill sits on
    its day: ✓ paid (matched to the statement row by
    itself) or still to come before payday. Salary the same way.
 4. **"One view of movements of all sources."** Every row from every
@@ -119,10 +121,11 @@ New, for steps 7 and 8:
 7. **Ahead: spending in the line, or beside it?** Beside it, as last
    three months' range. Folding an average into the line makes a number
    that never happened ("not simple average cheap slop").
-   **Band, 3 Oct ("band yes"):** the line stays bills and salary only;
-   under it, on by default, a faint band from the lowest to the highest
-   of those three real months — where free cash lands after everything
-   else. A range, never an average. One tap hides it.
+   **Changed 3 Oct, his call:** everything is IN by default — bills,
+   salary and the rest of his spending as a range: top edge spent like
+   the cheapest of the last three real months, bottom like the dearest.
+   A range, never an average. A toggle, "only bills and salary", shows
+   the old step line.
 8. **How far ahead?** Three months, with yearly bills inside it marked;
    a twelve-month view of bills only ("what I pay this year") one tap
    away.

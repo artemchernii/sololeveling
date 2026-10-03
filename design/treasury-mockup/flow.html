@@ -293,6 +293,8 @@ function gen() {
     /* Paid once so far: a yearly insurance and a club he just joined. */
     if (t === D(8, 22)) add({ name: 'Allianz', acc: 'bpi', amt: -218.4, group: 'home' })
     if (t === D(8, 28)) add({ name: 'Padel Lisboa', acc: 'bpi', amt: -40, group: 'health' })
+    if (t === D(3, 15)) add({ name: 'Ordem dos Engenheiros', acc: 'bpi', amt: -75, group: 'fees' })
+    if (t === D(6, 4)) add({ name: 'Médis', acc: 'bpi', amt: -41.5, group: 'health' })
   }
 }
 gen()
@@ -315,7 +317,7 @@ const SCEN = {
   found: { label: 'bills found', today: D(9, 3), found: true, note: '<b>The reader found two payments that repeat.</b> No question: they go straight onto their day, tagged NEW for a week. Wrong one? × NOT A BILL on its row and it is never found again. Same for the mortgage, Vodafone, the gym — found, placed, never asked.' },
   short: { label: 'short on the day', today: D(9, 3), over: { revolut: 31.2, activo: 12.4 }, note: '<b>An account will not hold enough on the day.</b> Revolut has €31.20: ChatGPT on the 11th leaves €8.21, Netflix on the 14th is €12.99 — marked before it happens, with the top-up on the 26th in sight.' },
   jump: { label: 'spending jumped', today: D(9, 3), went: 8, tab: 'went', note: '<b>September, eating out up.</b> Opens on SPENDING here only to show it — Flow always opens on AHEAD. WHERE IT WENT says the one thing that grew most in a sentence, then every group with its six months. Tap a group: its rows, this month and last.' },
-  add: { label: 'add a bill', today: D(9, 3), note: '<b>Two bills the app cannot know yet:</b> Allianz home insurance (once a year, paid 22 Sep) and Padel Lisboa (joined 28 Sep, paid once). In MOVEMENTS tap the row → REPEATS. Or + BILL on AHEAD: type it in one line, or pick a past payment as you type.' },
+  add: { label: 'add a bill', today: D(9, 3), note: '<b>Bills the app cannot know repeat — paid once so far:</b> Allianz home insurance (yearly), Padel Lisboa (just joined), Médis, the Ordem fee. + BILL on AHEAD opens with them, straight from your statements: MONTHLY or YEARLY and it is on its day. Or tap any row in MOVEMENTS → REPEATS. Typing is only for a bill not paid yet.' },
   none: { label: 'nothing yet', today: D(9, 3), empty: true, note: '<b>Day one, no statements.</b> Each card says what will appear and what feeds it — no form to fill.' },
 }
 let S = { scen: 'early', tab: 'ahead', band: true, went: null, acc: null, q: '', limit: 30, ans: {}, added: [], notice: null, landed: null, day: null, open: {} }
@@ -475,7 +477,7 @@ function aheadCard() {
     <div class="box"><span class="caps">free cash today</span><span class="big">${eur(free)}</span>
       ${Object.entries(bal).filter(([a]) => ACC[a].free).map(([a, v]) => `<div class="kv"><span>${ACC[a].name}</span><span class="${v < 40 ? 'warn' : ''}">${eur2(v)}</span></div>`).join('')}
       <span class="caps" style="line-height:1.6;margin-top:4px">banks and cash · broker cash not counted</span></div>
-    <div class="box"><span class="caps">everything else · not in the line</span>
+    <div class="box"><span class="caps">everything else · ${S.band ? 'the range in the line' : 'left out of the line'}</span>
       <span class="big">${eur(lo)}–${eur(hi)}</span><span class="caps" style="line-height:1.5">a month, last three months</span>
       ${rest.map((x) => `<div class="kv"><span>${mname(x.m)}</span><span>−${eur2(x.v)}</span></div>`).join('')}
       <span class="caps" style="line-height:1.6">groceries, eating out, transport … · real sums, not a guess</span></div>
@@ -500,62 +502,70 @@ function billRow(e) {
 }
 const isBill = (r) => r.rec || S.added.some((a) => a.from === r.name)
 const isNew = (r) => FOUND.some((f) => f.id === r.id) || S.added.some((a) => a.id === r.id)
+/* Default (his call, 3 Oct): everything is in — bills, salary and the
+   rest of his spending, as a range from the lowest to the highest of the
+   last three real months. Never an average. The toggle shows the bills
+   and salary line alone. */
 function lineChart(today, until, free, up, band) {
   const W = 760, H = 190, L = 4, R = 64, T = 12, B = 22
   const pts = [{ t: today, v: free }]
   let v = free
   for (const e of up) { v += e.r.in ? e.r.amt : -e.r.amt; pts.push({ t: e.t, v, e }) }
-  /* On by default ("band yes", 3 Oct): a faint band under the line — where it lands
-     if everything else runs at last three months' low and high rates. */
   const days = (t) => (t - today) / DAY
-  const bandLo = band ? pts.map((p) => p.v - band[1] / 30 * days(p.t)) : []
-  const endHi = band ? pts.at(-1).v - band[1] / 30 * days(until) : Infinity
-  const lo = Math.min(...pts.map((p) => p.v), ...bandLo, endHi) * 0.9, hi = Math.max(...pts.map((p) => p.v)) * 1.04
+  const at = (t) => { let v = free; for (const p of pts.slice(1)) if (p.t <= t) v = p.v; return v }
+  /* Upper edge: everything else at the cheapest month; lower: the dearest. */
+  const upE = (t) => band ? at(t) - band[0] / 30 * days(t) : at(t)
+  const loE = (t) => band ? at(t) - band[1] / 30 * days(t) : at(t)
+  const ts = []; for (let t = today; t <= until; t += DAY) ts.push(t)
+  const lo0 = Math.min(...ts.map(loE)), hi0 = Math.max(...ts.map(upE))
+  const lo = lo0 - (hi0 - lo0) * 0.08, hi = hi0 + (hi0 - lo0) * 0.06
   const x = (t) => L + (t - today) / (until - today) * (W - L - R)
   const y = (val) => T + (1 - (val - lo) / (hi - lo)) * (H - T - B)
-  let d = `M${x(today)},${y(free)}`, prev = free
-  for (const p of pts.slice(1)) { d += `H${x(p.t).toFixed(1)}V${y(p.v).toFixed(1)}`; prev = p.v }
-  d += `H${x(until)}`
   let g = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto"><g class="axis">`
   for (let i = 0; i <= 3; i++) { const val = lo + (hi - lo) * i / 3; g += `<line x1="${L}" x2="${W - R}" y1="${y(val)}" y2="${y(val)}" stroke="rgba(255,255,255,.05)"/><text x="${W - R + 8}" y="${y(val) + 4}">${eur(Math.round(val / 100) * 100)}</text>` }
   for (let mo = 0; mo < 4; mo++) {
     const td = dt(today), t = Date.UTC(td.getUTCFullYear(), td.getUTCMonth() + mo + 1, 1)
     if (t < until) g += `<line x1="${x(t)}" x2="${x(t)}" y1="${T}" y2="${H - B}" stroke="rgba(255,255,255,.07)" stroke-dasharray="2 4"/><text x="${x(t) + 4}" y="${H - 6}">${MON[dt(t).getUTCMonth()]}</text>`
   }
+  if (lo < 0 && hi > 0) g += `<line x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}" stroke="${css('--danger')}" stroke-opacity=".5" stroke-dasharray="4 4"/><text x="${W - R + 8}" y="${y(0) + 4}" fill="${css('--danger')}">€0</text>`
   g += `<text x="${L}" y="${H - 6}" fill="${css('--lav-300')}">today</text></g>`
-  g += `<path d="${d} V${H - B} H${x(today)} Z" fill="url(#fill)" opacity=".5"/>`
   g += `<defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${css('--lav-400')}" stop-opacity=".22"/><stop offset="1" stop-color="${css('--lav-400')}" stop-opacity="0"/></linearGradient></defs>`
+  const P = (f) => ts.map((t) => `${x(t).toFixed(1)},${y(f(t)).toFixed(1)}`)
+  const glow = `style="filter:drop-shadow(0 0 6px ${css('--shine')})"`
   if (band) {
-    /* Steps of the line, minus a straight daily rate: sample every 2 days. */
-    const at = (t) => { let v = free; for (const p of pts.slice(1)) if (p.t <= t) v = p.v; return v }
-    const ts = []; for (let t = today; t <= until; t += 2 * DAY) ts.push(t); ts.push(until)
-    const top = ts.map((t) => `${x(t).toFixed(1)},${y(at(t) - band[0] / 30 * days(t)).toFixed(1)}`)
-    const bot = ts.map((t) => `${x(t).toFixed(1)},${y(at(t) - band[1] / 30 * days(t)).toFixed(1)}`).reverse()
-    g += `<polygon points="${top.join(' ')} ${bot.join(' ')}" fill="${css('--lav-400')}" opacity=".12"/>`
-    g += `<polyline points="${top.join(' ')}" fill="none" stroke="${css('--lav-400')}" stroke-opacity=".45" stroke-dasharray="3 4"/>`
-    const eLo = at(until) - band[1] / 30 * days(until), eHi = at(until) - band[0] / 30 * days(until)
-    g += `<text x="${x(until) - 6}" y="${y(eLo) + 14}" text-anchor="end" fill="${css('--lav-300')}" style="font-family:var(--mono);font-size:9.5px">after everything else ${eur(eLo)}–${eur(eHi)}</text>`
+    g += `<polygon points="${P(upE).join(' ')} ${P(loE).reverse().join(' ')}" fill="${css('--lav-400')}" opacity=".22"/>`
+    g += `<polyline points="${P(upE).join(' ')}" fill="none" stroke="${css('--lav-400')}" stroke-width="2" stroke-linejoin="round" ${glow}/>`
+    g += `<polyline points="${P(loE).join(' ')}" fill="none" stroke="${css('--lav-400')}" stroke-width="1.4" stroke-opacity=".7" stroke-linejoin="round"/>`
+  } else {
+    let d = `M${x(today)},${y(free)}`
+    for (const p of pts.slice(1)) d += `H${x(p.t).toFixed(1)}V${y(p.v).toFixed(1)}`
+    d += `H${x(until)}`
+    g += `<path d="${d} V${H - B} H${x(today)} Z" fill="url(#fill)" opacity=".5"/>`
+    g += `<path d="${d}" fill="none" stroke="${css('--lav-400')}" stroke-width="2" stroke-linejoin="round" ${glow}/>`
   }
-  g += `<path d="${d}" fill="none" stroke="${css('--lav-400')}" stroke-width="2" stroke-linejoin="round" style="filter:drop-shadow(0 0 6px ${css('--shine')})"/>`
   let lastLab = -1e9
   for (const p of pts.slice(1)) {
     if (p.e.r.amt < 100 && !p.e.short) continue
-    const c = p.e.short ? css('--warn') : p.e.r.in ? css('--good') : css('--ink-300')
-    g += `<circle cx="${x(p.t)}" cy="${y(p.v)}" r="3.2" fill="#1a1a28" stroke="${c}" stroke-width="1.6"><title>${short(p.t)} · ${p.e.r.name} ${p.e.r.in ? '+' : '−'}${eur2(p.e.r.amt)} → ${eur(p.v)}</title></circle>`
+    const c = p.e.short ? css('--warn') : p.e.r.in ? css('--good') : css('--ink-300'), py = y(upE(p.t))
+    g += `<circle cx="${x(p.t)}" cy="${py}" r="3.2" fill="#1a1a28" stroke="${c}" stroke-width="1.6"><title>${short(p.t)} · ${p.e.r.name} ${p.e.r.in ? '+' : '−'}${eur2(p.e.r.amt)}</title></circle>`
     if (p.e.r.amt >= 300) {
       const near = x(p.t) > W - R - 90, close = x(p.t) - lastLab < 80
       lastLab = x(p.t)
-      g += `<text x="${x(p.t) + (near ? -6 : 5)}" y="${y(p.v) + (p.e.r.in ? -7 : close ? 25 : 13)}" text-anchor="${near ? 'end' : 'start'}" style="font-family:var(--mono);font-size:9.5px" fill="${c}">${p.e.r.name === 'BNP Paribas' ? 'salary' : p.e.r.name.toLowerCase()} ${p.e.r.in ? '+' : '−'}${eur(p.e.r.amt)}</text>`
+      g += `<text x="${x(p.t) + (near ? -6 : 5)}" y="${py + (p.e.r.in ? -7 : close ? 25 : 13)}" text-anchor="${near ? 'end' : 'start'}" style="font-family:var(--mono);font-size:9.5px" fill="${c}">${p.e.r.name === 'BNP Paribas' ? 'salary' : p.e.r.name.toLowerCase()} ${p.e.r.in ? '+' : '−'}${eur(p.e.r.amt)}</text>`
     }
   }
-  const end = pts.at(-1)
-  g += `<circle cx="${x(until)}" cy="${y(end.v)}" r="4" fill="${css('--lav-400')}"/></svg>`
+  const eL = loE(until), eU = upE(until)
+  g += band ? `<text x="${x(until) - 6}" y="${Math.min(y(eL) + 14, H - B - 4)}" text-anchor="end" fill="${css('--lav-300')}" style="font-family:var(--mono);font-size:9.5px">${eur(eL)}–${eur(eU)}</text>` : `<circle cx="${x(until)}" cy="${y(eU)}" r="4" fill="${css('--lav-400')}"/>`
+  g += '</svg>'
   /* One sentence: the lowest point before the next salary. */
   const nextSal = up.find((e) => e.r.in)
-  const before = pts.filter((p) => !nextSal || p.t < nextSal.t)
-  const low = before.reduce((a, b) => (b.v < a.v ? b : a), before[0])
-  return `<p class="say" style="margin:0 0 8px">Free cash ${eur(free)} now. Lowest before the next salary: <b>${eur(low.v)}</b>${low.e ? ` on ${short(low.t)}` : ''}${nextSal ? ` — salary ${short(nextSal.t)}` : ''}. ${band ? `With everything else at last three months' rates, it lands between the dashed edge and the band's floor.` : `Only bills and salary move this line — everything else (groceries, eating out …) is beside it, not in it.`}</p>
-    <div style="display:flex;justify-content:flex-end;margin:-2px 0 6px"><button class="tog ${band ? 'on' : ''}" onclick="S.band=!S.band;aheadCard()"><i></i>with everything else</button></div>${g}`
+  const before = ts.filter((t) => !nextSal || t < nextSal.t)
+  const lowT = before.reduce((a, t) => (loE(t) < loE(a) ? t : a), before[0])
+  const lowS = band ? `${eur(loE(lowT))}–${eur(upE(lowT))}` : eur(at(lowT))
+  return `<p class="say" style="margin:0 0 8px">Free cash ${eur(free)} now. Lowest before the next salary: <b>${lowS}</b>${lowT > today ? ` on ${short(lowT)}` : ''}${nextSal ? ` — salary ${short(nextSal.t)}` : ''}. ${band
+      ? `Everything is in: bills, salary, and the rest of your spending as a range — the top edge if you spend like your cheapest of the last three months, the bottom like your dearest.`
+      : `Only bills and salary move this line — the rest of your spending is left out.`}</p>
+    <div style="display:flex;justify-content:flex-end;margin:-2px 0 6px"><button class="tog ${band ? '' : 'on'}" onclick="S.band=!S.band;aheadCard()"><i></i>only bills and salary</button></div>${g}`
 }
 function notBill(id) {
   document.querySelectorAll('.bill.l-' + id).forEach((n) => n.classList.add('gone'))
@@ -705,29 +715,32 @@ function readLine(txt) {
   return { name, amt, day, month, yearly }
 }
 let addAcc = 'bpi'
+const EVERYDAY = ['groceries', 'eating out', 'coffee & small', 'transport', 'shopping']
 function openAdd() {
   addAcc = 'bpi'
-  sheet(sheetHead('+ bill') + `<p class="say" style="margin:0">Type it as you would say it. Or start with the name — if you paid it before, pick that payment and nothing else is needed.</p>
-    <input class="line" id="addLine" placeholder="Médis 41.50 monthly 10  ·  Allianz 218.40 yearly 22 Sep" oninput="addPreview()" autocomplete="off" />
-    <div class="read" id="addRead"></div>
-    <div id="addPast"></div>`)
-  setTimeout(() => document.getElementById('addLine').focus(), 50)
+  sheet(sheetHead('+ bill') + `<p class="say" style="margin:0">Most bills are already in your statements — pick one below. Not paid yet? Type it in one line.</p>
+    <div id="addPast"></div>
+    <div class="caps" style="margin-top:6px">not in your statements yet · or search them</div>
+    <input class="line" id="addLine" placeholder="Name, or a new one: Holmes Place 49 monthly 1" oninput="addPreview()" autocomplete="off" />
+    <div class="read" id="addRead"></div>`)
   addPreview()
 }
 function addPreview() {
   const txt = document.getElementById('addLine').value, b = readLine(txt)
   const ok = b.name && b.amt && b.day && (!b.yearly || b.month !== undefined)
   const miss = !txt ? '' : [!b.name && 'a name', !b.amt && 'the amount', !b.day && 'the day', b.yearly && b.month === undefined && 'the month'].filter(Boolean)
-  document.getElementById('addRead').innerHTML = !txt ? '<span class="caps">name · amount · how often · day</span>' :
+  document.getElementById('addRead').innerHTML = !txt ? '' :
     `${b.name ? `<span class="tag">${b.name}</span>` : ''}${b.amt ? `<span class="tag">−${eur2(b.amt)}</span>` : ''}<span class="tag y">${b.yearly ? 'every year' : 'every month'}</span>${b.day ? `<span class="tag">${b.yearly && b.month !== undefined ? b.day + ' ' + MON[b.month] : 'on the ' + b.day}</span>` : ''}
      <span class="tag">from</span>${['bpi', 'revolut', 'activo'].map((a) => `<button class="chip ${addAcc === a ? 'on' : ''}" style="padding:3px 9px 3px 3px" onclick="addAcc='${a}';addPreview()">${logo(a)}${ACC[a].name}</button>`).join('')}
      ${ok ? `<button class="yes" style="margin-left:auto" onclick="addTyped()">ADD</button>` : `<span class="caps" style="margin-left:auto">still need ${miss.join(', ')}</span>`}`
   const q = b.name.toLowerCase().split(' ')[0]
-  const past = q.length < 2 ? [] : ROWS.filter((r) => !r.move && r.amt < 0 && r.t <= SCEN[S.scen].today && r.name.toLowerCase().includes(q))
+  const outs = ROWS.filter((r) => !r.move && r.amt < 0 && r.t <= SCEN[S.scen].today && !isBill(r) && !S.ans[r.name])
+  /* Likely bills: payees outside everyday spending, not already a bill. */
+  const past = q.length >= 2 ? outs.filter((r) => r.name.toLowerCase().includes(q)) : outs.filter((r) => !EVERYDAY.includes(r.group) && !FOUND.some((f) => f.name === r.name))
   const byName = {}
   for (const r of past) byName[r.name] = r
-  const list = Object.values(byName).slice(0, 4)
-  document.getElementById('addPast').innerHTML = list.length ? `<div class="caps" style="margin:4px 0 4px">paid before — pick it</div>` + list.map((r) => {
+  const list = Object.values(byName).sort((a, b) => b.t - a.t).slice(0, 6)
+  document.getElementById('addPast').innerHTML = list.length ? `<div class="caps" style="margin:4px 0 4px">${q.length >= 2 ? 'paid before — pick it' : 'from your statements · likely bills'}</div>` + list.map((r) => {
     const n = past.filter((x) => x.name === r.name).length
     return `<div class="mv">${logo(r.acc)}<span>${r.name}<small>last ${short(r.t)} · ${n === 1 ? 'once' : n + ' times'} · ${ACC[r.acc].name}</small></span><span class="choose"><span class="a" style="align-self:center;margin-right:6px">−${eur2(r.amt)}</span><button class="no" onclick="fromRow(${r.i},false)">MONTHLY</button><button class="no" onclick="fromRow(${r.i},true)">YEARLY</button></span></div>`
   }).join('') : ''

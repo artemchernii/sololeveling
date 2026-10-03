@@ -1023,3 +1023,14 @@ h6 {
   text-transform: uppercase;
   color: var(--color-neutral-500);
 }
+
+/* A month with no statement, in UPDATE ALL's month strip (3 Oct): the
+   warn state as a hatch, so a missing month reads as a hole, not a
+   quantity. */
+@utility hatch-warn {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--color-state-warn) 55%, transparent) 0 3px,
+    transparent 3px 6px
+  );
+}

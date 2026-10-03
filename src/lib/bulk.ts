@@ -41,9 +41,12 @@ export type MonthState = 'none' | 'had' | 'add' | 'hole'
 
 /**
  * Each month of one account: rows this drop brings (`add`), rows it
- * already had (`had`), or — between the first and last month that has
- * anything — nothing at all (`hole`: a statement is missing), unless he
- * said that month was quiet.
+ * already had (`had`), or a `hole` — a month with nothing, inside what
+ * this drop covers: between its first and last month, or between the
+ * last month the account already had and the drop's first. A gap that is
+ * only in old history is not this drop's to ask about (3 Oct: Trade
+ * Republic's December was asked for by a drop of one October screen).
+ * A month he said was quiet is not a hole.
  */
 export function coverage(
   months: ReadonlyArray<string>,
@@ -53,19 +56,24 @@ export function coverage(
 ): Array<{ month: string; state: MonthState }> {
   const hadM = new Set(had.map(monthKey))
   const addM = new Set(adds.map(monthKey))
-  const known = months.filter((m) => hadM.has(m) || addM.has(m))
-  const first = known.at(0)
-  const last = known.at(-1)
+  const added = months.filter((m) => addM.has(m))
+  const lastAdd = added.at(-1)
+  const firstAdd = added.at(0)
+  const before =
+    firstAdd === undefined
+      ? undefined
+      : months.filter((m) => hadM.has(m) && m < firstAdd).at(-1)
+  const from = before ?? firstAdd
   return months.map((month) => ({
     month,
     state: addM.has(month)
       ? 'add'
       : hadM.has(month)
         ? 'had'
-        : first !== undefined &&
-            last !== undefined &&
-            month > first &&
-            month < last &&
+        : from !== undefined &&
+            lastAdd !== undefined &&
+            month > from &&
+            month < lastAdd &&
             !quiet.includes(month)
           ? 'hole'
           : 'none',

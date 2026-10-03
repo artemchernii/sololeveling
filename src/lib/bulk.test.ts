@@ -53,6 +53,25 @@ describe('coverage', () => {
     )
   })
 
+  test('a gap only in old history is not asked (3 Oct)', () => {
+    const had = [day(2026, 1, 10), day(2026, 3, 10)]
+    const adds = [day(2026, 5, 2)]
+    expect(coverage(months, had, adds).map((m) => m.state)).toEqual([
+      'had',
+      'none',
+      'had',
+      'hole',
+      'add',
+    ])
+    expect(coverage(months, had, []).map((m) => m.state)).toEqual([
+      'had',
+      'none',
+      'had',
+      'none',
+      'none',
+    ])
+  })
+
   test('the drop wins a month both had and brought', () => {
     const t = day(2026, 2, 3)
     expect(coverage(months, [t], [t])[1].state).toBe('add')

@@ -25,6 +25,7 @@ import {
   MAX_INTAKE_FILES,
   READER_VERSION,
   READING_DEAD_MS,
+  completePosition,
   findDuplicates,
   findRecurring,
   hasTradeRows,
@@ -444,6 +445,60 @@ export const open = query({
   },
 })
 
+/**
+ * Read it again — a file read wrong (3 Oct: "1 100.00" read as 100), or a
+ * screenshot now that he said whose it is. Costs one more read; refused
+ * once its files are gone.
+ */
+export const readAgain = mutation({
+  args: { intakeId: v.id('intakes') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const intake = await ownedIntake(ctx, ownerId, args.intakeId)
+    if (intake.status === 'done' || intake.status === 'reading')
+      throw new ConvexError('That one is not waiting to be checked.')
+    if (intake.storageIds.length === 0)
+      throw new ConvexError('Its files are gone — drop it again.')
+    const account = intake.accountId ? await ctx.db.get(intake.accountId) : null
+    await ctx.db.patch(intake._id, {
+      status: 'reading',
+      error: undefined,
+      retryable: undefined,
+      reusedFrom: undefined,
+      /* Whose it is, said by him: the reader is told. */
+      hint:
+        intake.hint ??
+        (account && account.ownerId === ownerId ? account.name : undefined),
+      readingSince: Date.now(),
+      progress: { stage: 'opening', rows: 0, have: 0, recent: [] },
+    })
+    await dropHistory(ctx, intake._id)
+    await ctx.scheduler.runAfter(0, internal.ai.intake.read, {
+      intakeId: intake._id,
+    })
+    return null
+  },
+})
+
+/** Throw a whole update away — every file in it, unread or read. */
+export const discardBatch = mutation({
+  args: { batchId: v.id('batches') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const b = await openBatchFor(ctx, ownerId, args.batchId)
+    for (const i of await batchIntakes(ctx, ownerId, b._id)) {
+      if (i.status === 'done') continue
+      for (const id of i.storageIds) await ctx.storage.delete(id)
+      await dropHistory(ctx, i._id)
+      await ctx.db.delete(i._id)
+    }
+    await ctx.db.patch(b._id, { status: 'done' })
+    return null
+  },
+})
+
 /** One intake, his — the check screen's own, wherever it was dropped. */
 export const one = query({
   args: { intakeId: v.id('intakes') },
@@ -628,6 +683,16 @@ const batchFile = v.object({
   error: v.union(v.string(), v.null()),
   retryable: v.boolean(),
   readingSince: v.union(v.number(), v.null()),
+  /* While it is read: how far the reader is, and what it has found so far
+     — so a long read is seen moving, not stuck (3 Oct). */
+  stage: v.union(
+    v.literal('opening'),
+    v.literal('columns'),
+    v.literal('rows'),
+    v.literal('tickers'),
+    v.null(),
+  ),
+  image: v.boolean(),
 })
 
 /** A batch while it is read: every file, where it is heading, how far. */
@@ -674,6 +739,15 @@ export const batch = query({
         error: i.error ?? null,
         retryable: i.retryable ?? false,
         readingSince: i.readingSince ?? null,
+        stage:
+          i.status !== 'reading'
+            ? null
+            : (i.progress?.rows ?? 0) === 0 &&
+                i.progress?.stage === 'opening' &&
+                i.progress.institution === undefined
+              ? ('opening' as const)
+              : (i.progress?.stage ?? null),
+        image: isImage(i),
       }
     })
     return { status: b.status, applied: b.applied ?? null, files }
@@ -1272,87 +1346,7 @@ export const confirmHoldings = mutation({
       throw new ConvexError('That is not ready to confirm.')
     }
     const account = await ownedAccount(ctx, ownerId, args.accountId)
-    if (!account.kinds.includes('broker')) {
-      throw new ConvexError(`${account.name} is not a broker.`)
-    }
-    if (args.rows.length === 0 && args.cashEur === undefined) {
-      throw new ConvexError('Keep at least one row, or the cash.')
-    }
-    if (args.asOf > Date.now() + 5 * 60_000) {
-      throw new ConvexError('A screen shows what already is.')
-    }
-    for (const row of args.rows) {
-      if (!Number.isFinite(row.shares) || row.shares <= 0 || row.shares > 1e9)
-        throw new ConvexError('That is not a number of shares.')
-      if (
-        row.paidEur !== undefined &&
-        (!Number.isFinite(row.paidEur) || row.paidEur <= 0 || row.paidEur > 1e9)
-      )
-        throw new ConvexError('That is not what was paid.')
-    }
-    const symbols = args.rows.map((r) => r.candidate.symbol)
-    if (new Set(symbols).size !== symbols.length) {
-      throw new ConvexError('Two rows are the same ticker — keep one.')
-    }
-    let replaced = 0
-    for (const row of args.rows) {
-      const instrumentId = await upsertInstrument(
-        ctx,
-        ownerId,
-        row.candidate,
-        row.isin,
-      )
-      const before = await ctx.db
-        .query('holdings')
-        .withIndex('by_owner_instrument', (q) =>
-          q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
-        )
-        .take(MAX_TRADES)
-      for (const h of before) {
-        if (
-          h.accountId === account._id &&
-          Math.abs(h.asOf - args.asOf) < SAME_LOOK_MS
-        ) {
-          await ctx.db.delete(h._id)
-          replaced++
-        }
-      }
-      await ctx.db.insert('holdings', {
-        ownerId,
-        accountId: account._id,
-        instrumentId,
-        shares: Math.round(row.shares * 1e6) / 1e6,
-        paidEur:
-          row.paidEur === undefined
-            ? undefined
-            : Math.round(row.paidEur * 100) / 100,
-        sharesCalculated: row.sharesCalculated ? true : undefined,
-        asOf: args.asOf,
-        importId: intake._id,
-      })
-    }
-    if (args.cashEur !== undefined) {
-      if (!account.currencies.includes('EUR')) {
-        throw new ConvexError(`${account.name} does not hold euros.`)
-      }
-      await writeBalance(
-        ctx,
-        ownerId,
-        account,
-        'EUR',
-        args.cashEur,
-        args.dayStart,
-        undefined,
-        sourceOf(intake),
-      )
-    }
-    for (const id of intake.storageIds) await ctx.storage.delete(id)
-    await ctx.db.patch(intake._id, {
-      status: 'done',
-      storageIds: [],
-      accountId: account._id,
-    })
-    return { positions: args.rows.length, replaced }
+    return await writeHoldings(ctx, ownerId, intake, account, args)
   },
 })
 
@@ -1528,6 +1522,111 @@ export const discard = mutation({
     return null
   },
 })
+
+type HoldingRow = {
+  candidate: Candidate
+  isin?: string
+  shares: number
+  paidEur?: number
+  sharesCalculated?: boolean
+}
+
+/* A broker screen written as it was seen — shared by the check screen and
+   a batch's apply. */
+async function writeHoldings(
+  ctx: MutationCtx,
+  ownerId: string,
+  intake: Doc<'intakes'>,
+  account: Doc<'accounts'>,
+  look: {
+    asOf: number
+    dayStart: number
+    rows: ReadonlyArray<HoldingRow>
+    cashEur?: number
+  },
+) {
+  if (!account.kinds.includes('broker')) {
+    throw new ConvexError(`${account.name} is not a broker.`)
+  }
+  if (look.rows.length === 0 && look.cashEur === undefined) {
+    throw new ConvexError('Keep at least one row, or the cash.')
+  }
+  if (look.asOf > Date.now() + 5 * 60_000) {
+    throw new ConvexError('A screen shows what already is.')
+  }
+  for (const row of look.rows) {
+    if (!Number.isFinite(row.shares) || row.shares <= 0 || row.shares > 1e9)
+      throw new ConvexError('That is not a number of shares.')
+    if (
+      row.paidEur !== undefined &&
+      (!Number.isFinite(row.paidEur) || row.paidEur <= 0 || row.paidEur > 1e9)
+    )
+      throw new ConvexError('That is not what was paid.')
+  }
+  const symbols = look.rows.map((r) => r.candidate.symbol)
+  if (new Set(symbols).size !== symbols.length) {
+    throw new ConvexError('Two rows are the same ticker — keep one.')
+  }
+  let replaced = 0
+  for (const row of look.rows) {
+    const instrumentId = await upsertInstrument(
+      ctx,
+      ownerId,
+      row.candidate,
+      row.isin,
+    )
+    const before = await ctx.db
+      .query('holdings')
+      .withIndex('by_owner_instrument', (q) =>
+        q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+      )
+      .take(MAX_TRADES)
+    for (const h of before) {
+      if (
+        h.accountId === account._id &&
+        Math.abs(h.asOf - look.asOf) < SAME_LOOK_MS
+      ) {
+        await ctx.db.delete(h._id)
+        replaced++
+      }
+    }
+    await ctx.db.insert('holdings', {
+      ownerId,
+      accountId: account._id,
+      instrumentId,
+      shares: Math.round(row.shares * 1e6) / 1e6,
+      paidEur:
+        row.paidEur === undefined
+          ? undefined
+          : Math.round(row.paidEur * 100) / 100,
+      sharesCalculated: row.sharesCalculated ? true : undefined,
+      asOf: look.asOf,
+      importId: intake._id,
+    })
+  }
+  if (look.cashEur !== undefined) {
+    if (!account.currencies.includes('EUR')) {
+      throw new ConvexError(`${account.name} does not hold euros.`)
+    }
+    await writeBalance(
+      ctx,
+      ownerId,
+      account,
+      'EUR',
+      look.cashEur,
+      look.dayStart,
+      undefined,
+      sourceOf(intake),
+    )
+  }
+  for (const id of intake.storageIds) await ctx.storage.delete(id)
+  await ctx.db.patch(intake._id, {
+    status: 'done',
+    storageIds: [],
+    accountId: account._id,
+  })
+  return { positions: look.rows.length, replaced }
+}
 
 /* A balance read off a picture is a screenshot's; off a PDF or CSV, a
    statement's. */
@@ -2036,23 +2135,24 @@ const monthState = v.union(
 const reading = v.object({ asOf: v.number(), value: v.number() })
 
 const batchAsk = v.union(
-  /* Read, but no bank name or ending to place it by. */
+  /* Read, but nothing on it says whose — a screenshot, mostly. */
   v.object({
     kind: v.literal('whose'),
     intakeId: v.id('intakes'),
     name: v.string(),
+    image: v.boolean(),
+    /* What it found, so he can tell which it is. */
+    what: v.union(
+      v.literal('transactions'),
+      v.literal('holdings'),
+      v.literal('trades'),
+    ),
     rows: v.number(),
     from: v.union(v.number(), v.null()),
     to: v.union(v.number(), v.null()),
-  }),
-  /* A bank the app knows and he has not added — one tap keeps it. */
-  v.object({
-    kind: v.literal('new'),
-    product: v.string(),
-    name: v.string(),
-    accountTail: v.union(v.string(), v.null()),
-    intakeIds: v.array(v.id('intakes')),
-    rows: v.number(),
+    investedEur: v.union(v.number(), v.null()),
+    cashEur: v.union(v.number(), v.null()),
+    seen: v.union(v.string(), v.null()),
   }),
   v.object({
     kind: v.literal('hole'),
@@ -2076,23 +2176,39 @@ const batchAsk = v.union(
     to: v.number(),
     gap: v.number(),
   }),
-  /* A broker screen: checked on its own screen, as today. */
+  /* A broker screen with positions the app cannot complete on its own —
+     checked on the screen that can. */
   v.object({
     kind: v.literal('holdings'),
     intakeId: v.id('intakes'),
     name: v.string(),
+    accountId: v.id('accounts'),
+    missing: v.number(),
+    positions: v.number(),
   }),
   v.object({
     kind: v.literal('failed'),
     intakeId: v.id('intakes'),
     name: v.string(),
+    image: v.boolean(),
     error: v.string(),
     retryable: v.boolean(),
   }),
 )
 
 const batchAccount = v.object({
-  accountId: v.id('accounts'),
+  /* His account — or null for a bank the app knows that he has not added:
+     the block shows what the files say, and one tap keeps it. */
+  accountId: v.union(v.id('accounts'), v.null()),
+  product: v.union(
+    v.object({
+      id: v.string(),
+      name: v.string(),
+      accountTail: v.union(v.string(), v.null()),
+      holder: v.union(v.string(), v.null()),
+    }),
+    v.null(),
+  ),
   leftOut: v.boolean(),
   files: v.array(
     v.object({
@@ -2103,16 +2219,29 @@ const batchAccount = v.object({
         v.literal('holdings'),
         v.literal('trades'),
       ),
+      image: v.boolean(),
     }),
   ),
   fresh: v.number(),
   had: v.number(),
   trades: v.number(),
+  holdings: v.union(
+    v.object({
+      positions: v.number(),
+      investedEur: v.number(),
+      cashEur: v.union(v.number(), v.null()),
+      totalEur: v.union(v.number(), v.null()),
+      complete: v.boolean(),
+    }),
+    v.null(),
+  ),
   first: v.union(reading, v.null()),
   last: v.union(reading, v.null()),
   months: v.array(monthState),
   gaps: v.number(),
-  /* The rows behind ROWS, newest first: new ones and ones it already had. */
+  /* Pending rows that explain the last balance (an app's "Pending −1,205"
+     already taken off what it shows). */
+  pending: v.number(),
   rows: v.array(
     v.object({
       occurredAt: v.number(),
@@ -2121,6 +2250,7 @@ const batchAccount = v.object({
       kind: v.union(v.literal('spend'), v.literal('income'), v.literal('move')),
       category: v.union(v.string(), v.null()),
       had: v.boolean(),
+      pending: v.boolean(),
     }),
   ),
 })
@@ -2131,13 +2261,51 @@ function signedLog(l: Doc<'logs'>): number {
   return l.kind === 'expense' ? -value : value
 }
 
-/**
- * The whole drop, gathered per account (mockup "all clear"): months
- * covered against what each account had, new vs already-had rows, first
- * and last balance and whether the rows between agree, transfers paired
- * across files — and the few asks only he can answer. Computed from his
- * rows every time, like the single review; nothing is saved by it.
- */
+const isImage = (i: Doc<'intakes'>) =>
+  (i.files ?? []).some((f) => f.contentType.startsWith('image/'))
+
+/* What a broker's screens in one drop show together: Trading 212 puts
+   the positions on one screen and the cash on another (3 Oct). */
+function mergedHoldings(list: ReadonlyArray<Doc<'intakes'>>) {
+  const screens = list.filter((i) => i.kind === 'holdings')
+  if (screens.length === 0) return null
+  const positions = screens.flatMap((i) => i.positions ?? [])
+  const rows = positions.map((p) => {
+    const c = completePosition(p, p.todayPriceEur)
+    const candidate =
+      p.preferred !== undefined && p.preferred >= 0
+        ? p.candidates[p.preferred]
+        : p.candidates.at(0)
+    const paid =
+      p.valueEur !== undefined &&
+      p.changePct !== undefined &&
+      p.changePct > -100
+        ? Math.round((p.valueEur / (1 + p.changePct / 100)) * 100) / 100
+        : undefined
+    return candidate !== undefined && c.shares !== undefined && c.shares > 0
+      ? {
+          candidate,
+          isin: p.isin,
+          shares: c.shares,
+          paidEur: paid,
+          sharesCalculated: c.sharesCalculated || undefined,
+        }
+      : null
+  })
+  const cash = screens.find((i) => i.cashEur !== undefined)?.cashEur
+  const total = screens.find((i) => i.totalEur !== undefined)?.totalEur
+  return {
+    screens,
+    rows,
+    cashEur: cash ?? null,
+    totalEur: total ?? null,
+    investedEur:
+      Math.round(positions.reduce((t, p) => t + (p.valueEur ?? 0), 0) * 100) /
+      100,
+    missing: rows.filter((r) => r === null).length,
+  }
+}
+
 export const batchReview = query({
   args: { batchId: v.id('batches') },
   returns: v.object({
@@ -2194,57 +2362,78 @@ async function gatherBatch(
       kind: 'failed',
       intakeId: i._id,
       name: i.files?.[0]?.name ?? 'file',
+      image: isImage(i),
       error: i.error ?? 'It could not be read.',
       retryable: i.retryable ?? false,
     })
 
-  /* Where each read file goes; the ones it cannot place are asked. */
-  const placed = new Map<Id<'accounts'>, Array<Doc<'intakes'>>>()
-  const fresh = new Map<string, { ask: typeof batchAsk.type; rows: number }>()
+  /* Where each read file goes: one of his accounts, a bank he has not
+     added (a block of its own), or — nothing says — asked. */
+  type Group = {
+    key: string
+    accountId: Id<'accounts'> | null
+    product: (typeof batchAccount.type)['product']
+    list: Array<Doc<'intakes'>>
+  }
+  const groups = new Map<string, Group>()
   for (const i of live) {
     const here = headingFor(i, accounts)
-    const size = (i.transactions?.length ?? 0) + (i.trades?.length ?? 0)
-    if (here !== null) {
-      placed.set(here, [...(placed.get(here) ?? []), i])
+    const s = here === null ? suggestFor(i) : null
+    if (here === null && s === null) {
+      const times = [
+        ...(i.transactions ?? []).map((r) => r.occurredAt),
+        ...(i.trades ?? []).map((r) => r.occurredAt),
+      ]
+      const held = mergedHoldings([i])
+      asks.push({
+        kind: 'whose',
+        intakeId: i._id,
+        name: i.files?.[0]?.name ?? 'file',
+        image: isImage(i),
+        what: i.kind ?? 'transactions',
+        rows:
+          (i.transactions?.length ?? 0) +
+          (i.trades?.length ?? 0) +
+          (i.positions?.length ?? 0),
+        from: times.length ? Math.min(...times) : null,
+        to: times.length ? Math.max(...times) : null,
+        investedEur: held?.investedEur ?? null,
+        cashEur: held?.cashEur ?? null,
+        seen: i.institution ?? null,
+      })
       continue
     }
-    const s = suggestFor(i)
-    if (s) {
-      const was = fresh.get(s.product)
-      if (was && was.ask.kind === 'new') {
-        was.ask.intakeIds.push(i._id)
-        was.ask.rows += size
-      } else
-        fresh.set(s.product, {
-          ask: { kind: 'new', ...s, intakeIds: [i._id], rows: size },
-          rows: size,
-        })
-      continue
-    }
-    const times = (i.transactions ?? []).map((r) => r.occurredAt)
-    asks.push({
-      kind: 'whose',
-      intakeId: i._id,
-      name: i.files?.[0]?.name ?? 'file',
-      rows: size,
-      from: times.length ? Math.min(...times) : null,
-      to: times.length ? Math.max(...times) : null,
-    })
+    const key = here ?? `new:${s?.product}`
+    const g = groups.get(key)
+    if (g) g.list.push(i)
+    else
+      groups.set(key, {
+        key,
+        accountId: here,
+        product: s
+          ? {
+              id: s.product,
+              name: s.name,
+              accountTail: s.accountTail,
+              holder: i.holderName ?? null,
+            }
+          : null,
+        list: [i],
+      })
   }
-  for (const { ask } of fresh.values()) asks.push(ask)
 
   /* Every file's own review, the same one a single file gets. */
   const reviews = new Map<
     Id<'intakes'>,
     Awaited<ReturnType<typeof buildReview>>
   >()
-  for (const list of placed.values())
-    for (const i of list)
+  for (const g of groups.values())
+    for (const i of g.list)
       if (i.kind === 'transactions')
         reviews.set(i._id, await buildReview(ctx, ownerId, i, names))
 
-  const allTimes = [...placed.values()].flatMap((list) =>
-    list.flatMap((i) => [
+  const allTimes = [...groups.values()].flatMap((g) =>
+    g.list.flatMap((i) => [
       ...(i.transactions ?? []).map((r) => r.occurredAt),
       ...(i.trades ?? []).map((r) => r.occurredAt),
     ]),
@@ -2267,20 +2456,22 @@ async function gatherBatch(
   >()
   const out: Array<typeof batchAccount.type> = []
 
-  for (const [accountId, list] of placed) {
-    const leftOut = b.leftOut.includes(accountId)
-    const had = span
-      ? await ctx.db
-          .query('logs')
-          .withIndex('by_owner_account_time', (q) =>
-            q
-              .eq('ownerId', ownerId)
-              .eq('accountId', accountId)
-              .gte('occurredAt', span.from)
-              .lt('occurredAt', span.to),
-          )
-          .take(HISTORY_ROWS)
-      : []
+  for (const g of groups.values()) {
+    const accountId = g.accountId
+    const leftOut = accountId !== null && b.leftOut.includes(accountId)
+    const had =
+      span && accountId
+        ? await ctx.db
+            .query('logs')
+            .withIndex('by_owner_account_time', (q) =>
+              q
+                .eq('ownerId', ownerId)
+                .eq('accountId', accountId)
+                .gte('occurredAt', span.from)
+                .lt('occurredAt', span.to),
+            )
+            .take(HISTORY_ROWS)
+        : []
     let newRows = 0
     let hadRows = 0
     let trades = 0
@@ -2288,30 +2479,18 @@ async function gatherBatch(
     const ledger: Array<{ occurredAt: number; amount: number }> = had.map(
       (l) => ({ occurredAt: l.occurredAt, amount: signedLog(l) }),
     )
+    const pendingRows: Array<{ occurredAt: number; amount: number }> = []
     const balances: Array<{ asOf: number; value: number }> = []
     const rows: Array<(typeof batchAccount.type)['rows'][number]> = []
-    for (const i of list) {
+    for (const i of g.list) {
       if (i.balance)
         balances.push({ asOf: i.balance.asOf, value: i.balance.value })
       trades += (i.trades?.length ?? 0) + (i.historyTrades ?? 0)
       for (const t of i.trades ?? []) adds.push(t.occurredAt)
-      if (i.kind === 'holdings')
-        asks.push({
-          kind: 'holdings',
-          intakeId: i._id,
-          name: i.files?.[0]?.name ?? 'file',
-        })
       const r = reviews.get(i._id)
       if (!r) continue
       for (const row of r.rows) {
-        if (row.pending) continue
         const dup = row.duplicateOf !== null
-        if (dup) hadRows++
-        else {
-          newRows++
-          adds.push(row.occurredAt)
-          ledger.push({ occurredAt: row.occurredAt, amount: row.amount })
-        }
         rows.push({
           occurredAt: row.occurredAt,
           merchant: row.merchant,
@@ -2319,13 +2498,24 @@ async function gatherBatch(
           kind: row.kind,
           category: row.category,
           had: dup,
+          pending: row.pending,
         })
+        if (row.pending) {
+          pendingRows.push({ occurredAt: row.occurredAt, amount: row.amount })
+          continue
+        }
+        if (dup) hadRows++
+        else {
+          newRows++
+          adds.push(row.occurredAt)
+          ledger.push({ occurredAt: row.occurredAt, amount: row.amount })
+        }
         if (row.kind === 'move' && !dup && !leftOut) {
           const key = `${i._id}:${row.index}`
           const answer = answered.get(key)
           own.push({
             key,
-            accountId,
+            accountId: accountId ?? g.key,
             amount: row.amount,
             occurredAt: row.occurredAt,
             otherAccountId:
@@ -2339,64 +2529,105 @@ async function gatherBatch(
         }
       }
     }
-    for (const e of b.extras.filter((x) => x.accountId === accountId))
-      ledger.push({ occurredAt: e.occurredAt, amount: e.amount })
+    if (accountId)
+      for (const e of b.extras.filter((x) => x.accountId === accountId))
+        ledger.push({ occurredAt: e.occurredAt, amount: e.amount })
     balances.sort((x, y) => x.asOf - y.asOf)
-    const quiet = b.quietMonths
-      .filter((q) => q.accountId === accountId)
-      .map((q) => q.month)
+    const quiet = accountId
+      ? b.quietMonths
+          .filter((q) => q.accountId === accountId)
+          .map((q) => q.month)
+      : []
     const cover = coverage(
       months,
       had.map((l) => l.occurredAt),
       adds,
       quiet,
     )
-    const gaps = balanceGaps(balances, ledger).filter(
-      (g) => !b.dismissed.includes(`gap:${accountId}:${g.from}`),
-    )
-    if (!leftOut) {
+    /* A gap the pending rows account for is not one: the app showed the
+       balance with them already taken off. */
+    let pending = 0
+    const gaps = balanceGaps(balances, ledger).filter((gap) => {
+      if (accountId && b.dismissed.includes(`gap:${accountId}:${gap.from}`))
+        return false
+      const inside = pendingRows
+        .filter(
+          (p) =>
+            p.occurredAt > gap.from - DAY_MS && p.occurredAt <= gap.to + DAY_MS,
+        )
+        .reduce((t, p) => t + Math.round(p.amount * 100), 0)
+      if (inside !== 0 && inside === Math.round(gap.gap * 100)) {
+        pending += inside / 100
+        return false
+      }
+      return true
+    })
+    const held = mergedHoldings(g.list)
+    if (accountId && !leftOut) {
       for (const c of cover)
         if (c.state === 'hole')
           asks.push({ kind: 'hole', accountId, month: c.month })
-      for (const g of gaps)
+      for (const gap of gaps)
         asks.push({
           kind: 'gap',
-          key: `gap:${accountId}:${g.from}`,
+          key: `gap:${accountId}:${gap.from}`,
           accountId,
-          ...g,
+          ...gap,
+        })
+      if (held && held.missing > 0)
+        asks.push({
+          kind: 'holdings',
+          intakeId: held.screens[0]._id,
+          name: held.screens[0].files?.[0]?.name ?? 'file',
+          accountId,
+          missing: held.missing,
+          positions: held.rows.length,
         })
     }
     rows.sort((x, y) => y.occurredAt - x.occurredAt)
     out.push({
       accountId,
+      product: accountId ? null : g.product,
       leftOut,
-      files: list.map((i) => ({
+      files: g.list.map((i) => ({
         intakeId: i._id,
         name: i.files?.[0]?.name ?? 'file',
         kind: i.kind ?? 'transactions',
+        image: isImage(i),
       })),
       fresh: newRows,
       had: hadRows,
       trades,
+      holdings: held
+        ? {
+            positions: held.rows.length,
+            investedEur: held.investedEur,
+            cashEur: held.cashEur,
+            totalEur: held.totalEur,
+            complete: held.missing === 0,
+          }
+        : null,
       first: balances.at(0) ?? null,
       last: balances.at(-1) ?? null,
       months: cover.map((c) => c.state),
       gaps: gaps.length,
+      pending: Math.round(pending * 100) / 100,
       rows: rows.slice(0, MAX_ACCOUNT_ROWS),
     })
   }
 
   const { pairs, oneSide } = pairAcross(own)
   const byKey = new Map(own.map((r) => [r.key, r]))
+  const real = (id: string): id is Id<'accounts'> => !id.startsWith('new:')
   for (const key of oneSide) {
     const r = byKey.get(key)
     const info = ownInfo.get(key)
-    if (!r || !info) continue
+    if (!r || !info || !real(r.accountId)) continue
     asks.push({
       kind: 'oneSide',
       intakeId: info.intakeId,
       index: info.index,
-      accountId: r.accountId as Id<'accounts'>,
+      accountId: r.accountId,
       amount: r.amount,
       occurredAt: r.occurredAt,
       merchant: info.merchant,
@@ -2405,11 +2636,11 @@ async function gatherBatch(
   const moves = pairs.flatMap(([a, c]) => {
     const x = byKey.get(a)
     const y = byKey.get(c)
-    if (!x || !y) return []
+    if (!x || !y || !real(x.accountId) || !real(y.accountId)) return []
     return [
       {
-        fromAccountId: x.accountId as Id<'accounts'>,
-        toAccountId: y.accountId as Id<'accounts'>,
+        fromAccountId: x.accountId,
+        toAccountId: y.accountId,
         amount: Math.abs(x.amount),
         occurredAt: Math.min(x.occurredAt, y.occurredAt),
         days: Math.round(Math.abs(x.occurredAt - y.occurredAt) / DAY_MS),
@@ -2419,7 +2650,9 @@ async function gatherBatch(
 
   const order = new Map(accounts.map((a, i) => [a._id, i]))
   out.sort(
-    (x, y) => (order.get(x.accountId) ?? 0) - (order.get(y.accountId) ?? 0),
+    (x, y) =>
+      (x.accountId === null ? 1e6 : (order.get(x.accountId) ?? 0)) -
+      (y.accountId === null ? 1e6 : (order.get(y.accountId) ?? 0)),
   )
   return {
     status: b.status,
@@ -2429,9 +2662,17 @@ async function gatherBatch(
     asks,
     moves: moves.sort((x, y) => y.occurredAt - x.occurredAt),
     files: intakes.length,
-    pairs,
+    pairs: pairs.filter(([a, c]) => {
+      const x = byKey.get(a)
+      const y = byKey.get(c)
+      return x && y && real(x.accountId) && real(y.accountId)
+    }),
     ownInfo,
-    accountOf: new Map(own.map((r) => [r.key, r.accountId as Id<'accounts'>])),
+    accountOf: new Map(
+      own
+        .filter((r) => real(r.accountId))
+        .map((r) => [r.key, r.accountId as Id<'accounts'>]),
+    ),
   }
 }
 
@@ -2655,11 +2896,23 @@ export const applyStep = internalMutation({
     if (b === null || b.status !== 'applying') return null
     const ownerId = b.ownerId
     const accounts = await liveAccounts(ctx, ownerId)
-    const waiting = (await batchIntakes(ctx, ownerId, b._id)).filter(
+    const all = await batchIntakes(ctx, ownerId, b._id)
+    /* A broker's screens go in together, and only once every position
+       can be completed — else they wait for the check screen. */
+    const screensOf = (accountId: Id<'accounts'> | null) =>
+      all.filter(
+        (i) =>
+          i.status === 'ready' &&
+          i.kind === 'holdings' &&
+          headingFor(i, accounts) === accountId,
+      )
+    const waiting = all.filter(
       (i) =>
         i.status === 'ready' &&
         (i.kind === 'transactions' ||
-          (i.kind === 'trades' && i.historyTrades === undefined)),
+          (i.kind === 'trades' && i.historyTrades === undefined) ||
+          (i.kind === 'holdings' &&
+            mergedHoldings(screensOf(headingFor(i, accounts)))?.missing === 0)),
     )
     const next = applyOrder(
       waiting
@@ -2680,7 +2933,7 @@ export const applyStep = internalMutation({
             x.accountId !== null &&
             !b.leftOut.includes(x.accountId) &&
             !(
-              x.i.kind === 'trades' &&
+              x.i.kind !== 'transactions' &&
               !accounts
                 .find((a) => a._id === x.accountId)
                 ?.kinds.includes('broker')
@@ -2767,6 +3020,31 @@ export const applyOne = internalMutation({
         dayStart: args.dayStart,
       })
       rows = done.written + done.trades.written
+    } else if (intake.kind === 'holdings') {
+      const accounts = await liveAccounts(ctx, ownerId)
+      const screens = (await batchIntakes(ctx, ownerId, b._id)).filter(
+        (i) =>
+          i.status === 'ready' &&
+          i.kind === 'holdings' &&
+          headingFor(i, accounts) === account._id,
+      )
+      const merged = mergedHoldings(screens)
+      if (merged === null || merged.missing > 0) return 0
+      const done = await writeHoldings(ctx, ownerId, intake, account, {
+        asOf: Date.now(),
+        dayStart: args.dayStart,
+        rows: merged.rows.filter((r) => r !== null),
+        cashEur: merged.cashEur ?? undefined,
+      })
+      for (const other of screens.filter((i) => i._id !== intake._id)) {
+        for (const id of other.storageIds) await ctx.storage.delete(id)
+        await ctx.db.patch(other._id, {
+          status: 'done',
+          storageIds: [],
+          accountId: account._id,
+        })
+      }
+      return done.positions
     } else {
       const items = (intake.trades ?? []).flatMap((t, index) => {
         const c = t.candidates.at(

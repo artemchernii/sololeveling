@@ -628,3 +628,222 @@ test('a file read by an older reader is read again, not reused', async () => {
   if (!c.ok) throw new Error(c.error)
   expect((await t.run((ctx) => ctx.db.get(c.intakeId)))?.status).toBe('reading')
 })
+
+describe('his first real drop (3 Oct)', () => {
+  test('a bank he has not added is its own block, kept with one tap', async () => {
+    const { t, me } = setup()
+    await accountsOf(me)
+    await t.run(async (ctx) => {
+      const all = await ctx.db.query('accounts').collect()
+      for (const a of all.filter((x) => x.name === 'BPI'))
+        await ctx.db.delete(a._id)
+    })
+    const batchId = await emptyBatch(t)
+    const intakeId = await readFile(t, batchId, {
+      name: 'attachment.pdf',
+      institution: 'BPI',
+      accountTail: '0120',
+      rows: [row(8, 25, 'BNP PARIBAS', 2638.36), row(8, 25, 'EDP', -29.11)],
+      balance: { m: 9, d: 23, value: 5084.68 },
+    })
+    const r = await me.query(api.intake.batchReview, { batchId })
+    expect(r.asks).toEqual([])
+    expect(r.accounts).toMatchObject([
+      {
+        accountId: null,
+        product: { id: 'bpi', name: 'BPI', accountTail: '0120' },
+        fresh: 2,
+        last: { value: 5084.68 },
+      },
+    ])
+    const bpi = await me.mutation(api.accounts.create, {
+      name: 'BPI',
+      kinds: ['bank'],
+      currencies: ['EUR'],
+      product: 'bpi',
+      ibanTails: ['0120'],
+    })
+    await me.mutation(api.intake.batchAnswer, {
+      batchId,
+      answer: { kind: 'place', intakeIds: [intakeId], accountId: bpi },
+    })
+    const kept = await me.query(api.intake.batchReview, { batchId })
+    expect(kept.accounts.map((a) => [a.accountId, a.product])).toEqual([
+      [bpi, null],
+    ])
+  })
+
+  test('a gap the pending rows explain is not asked; it is said', async () => {
+    const { t, me } = setup()
+    const { act } = await accountsOf(me)
+    const batchId = await emptyBatch(t)
+    await readFile(t, batchId, {
+      name: 'extrato.pdf',
+      institution: 'ActivoBank',
+      accountTail: '3402',
+      rows: [row(9, 28, 'Vodafone', -10)],
+      balance: { m: 9, d: 30, value: 435.66 },
+    })
+    await readFile(t, batchId, {
+      name: 'IMG_9238.PNG',
+      institution: 'ActivoBank',
+      accountTail: '3402',
+      rows: [
+        row(10, 1, 'TRF P/O OLEKSANDR SAKHNO', 100),
+        row(10, 1, 'VIAVERDE', -2.25),
+        row(10, 2, 'TRF P/O FRIEND', 1000),
+        row(10, 2, 'TRF P/ COND', -175),
+        { ...row(10, 3, 'Pending', -1205.2), pending: true },
+      ],
+      balance: { m: 10, d: 3, value: 153.21 },
+    })
+    const r = await me.query(api.intake.batchReview, { batchId })
+    expect(r.asks).toEqual([])
+    const block = r.accounts.find((a) => a.accountId === act)
+    expect(block).toMatchObject({ gaps: 0, pending: -1205.2, fresh: 5 })
+  })
+
+  test("212's two screens go in as one: positions from one, cash from the other", async () => {
+    const { t, me } = setup()
+    const t212 = await me.mutation(api.accounts.create, {
+      name: 'Trading 212',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+      product: 'trading-212',
+    })
+    const batchId = await emptyBatch(t)
+    const screen = (name: string, extra: Record<string, unknown>) =>
+      t.run((ctx) =>
+        ctx.db.insert('intakes', {
+          ownerId: ME,
+          batchId,
+          accountId: t212,
+          storageIds: [],
+          status: 'ready',
+          kind: 'holdings',
+          title: 'Invest',
+          files: [{ name, size: 1, contentType: 'image/png' }],
+          ...extra,
+        }),
+      )
+    await screen('IMG_9239.PNG', {
+      positions: [
+        {
+          name: 'iShares Physical Gold',
+          shares: 7.36542714,
+          valueEur: 526.21,
+          changePct: -4.01,
+          preferred: 0,
+          candidates: [
+            {
+              symbol: 'IGLN.L',
+              name: 'iShares Physical Gold ETC',
+              exchange: 'LSE',
+              type: 'ETF',
+            },
+          ],
+        },
+      ],
+      totalEur: 2014.04,
+    })
+    await screen('IMG_9240.PNG', {
+      positions: [],
+      cashEur: 12994.22,
+      totalEur: 15008.26,
+    })
+    const r = await me.query(api.intake.batchReview, { batchId })
+    expect(r.asks).toEqual([])
+    expect(r.accounts[0].holdings).toEqual({
+      positions: 1,
+      investedEur: 526.21,
+      cashEur: 12994.22,
+      totalEur: 2014.04,
+      complete: true,
+    })
+    await me.mutation(api.intake.applyBatch, { batchId, dayStart: day(10, 3) })
+    for (let i = 0; i < 4; i++)
+      await t.mutation(internal.intake.applyStep, {
+        batchId,
+        dayStart: day(10, 3),
+        names: [],
+      })
+    const holdings = await t.run((ctx) => ctx.db.query('holdings').collect())
+    expect(holdings.map((h) => [h.accountId, h.shares, h.paidEur])).toEqual([
+      [t212, 7.365427, 548.19],
+    ])
+    const bal = await me.query(api.aggregate.balances, {})
+    expect(bal.accounts.find((a) => a.accountId === t212)?.cashEur).toBe(
+      12994.22,
+    )
+    const left = await t.run((ctx) => ctx.db.query('intakes').collect())
+    expect(left.map((i) => i.status)).toEqual(['done', 'done'])
+  })
+
+  test('a broker screen it cannot complete waits for the check screen', async () => {
+    const { t, me } = setup()
+    const t212 = await me.mutation(api.accounts.create, {
+      name: 'Trading 212',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    const batchId = await emptyBatch(t)
+    const intakeId = await t.run((ctx) =>
+      ctx.db.insert('intakes', {
+        ownerId: ME,
+        batchId,
+        accountId: t212,
+        storageIds: [],
+        status: 'ready',
+        kind: 'holdings',
+        title: 'Invest',
+        files: [{ name: 'IMG.PNG', size: 1, contentType: 'image/png' }],
+        positions: [
+          { name: 'Vanguard S&P 500 (Acc)', valueEur: 261.53, candidates: [] },
+        ],
+      }),
+    )
+    const r = await me.query(api.intake.batchReview, { batchId })
+    expect(r.asks).toEqual([
+      {
+        kind: 'holdings',
+        intakeId,
+        name: 'IMG.PNG',
+        accountId: t212,
+        missing: 1,
+        positions: 1,
+      },
+    ])
+  })
+})
+
+test('read again: his account named to the reader; another owner refused; start over throws the drop away', async () => {
+  const { t, me, them } = setup()
+  const { act } = await accountsOf(me)
+  const started = await me.mutation(api.intake.startBatch, {
+    files: [
+      await stored(t, 'IMG_9238.PNG', 'image/png'),
+      await stored(t, 'b.pdf'),
+    ],
+  })
+  if (!started.ok) throw new Error(started.error)
+  const [img, pdf] = (
+    await me.query(api.intake.batch, { batchId: started.batchId })
+  ).files
+  expect(img.image).toBe(true)
+  await t.run((ctx) =>
+    ctx.db.patch(img.intakeId, { status: 'ready', accountId: act }),
+  )
+  await expect(
+    them.mutation(api.intake.readAgain, { intakeId: img.intakeId }),
+  ).rejects.toThrow('No such intake')
+  await me.mutation(api.intake.readAgain, { intakeId: img.intakeId })
+  const again = await t.run((ctx) => ctx.db.get(img.intakeId))
+  expect(again).toMatchObject({ status: 'reading', hint: 'ActivoBank' })
+  await expect(
+    them.mutation(api.intake.discardBatch, { batchId: started.batchId }),
+  ).rejects.toThrow('No such batch')
+  await me.mutation(api.intake.discardBatch, { batchId: started.batchId })
+  expect(await t.run((ctx) => ctx.db.query('intakes').collect())).toEqual([])
+  expect(pdf.image).toBe(false)
+  expect(await me.query(api.intake.openBatch, {})).toBeNull()
+})

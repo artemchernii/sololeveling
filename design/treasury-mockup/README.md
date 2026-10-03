@@ -18,6 +18,11 @@ built to. Served by `.claude/launch.json` config "treasury" on :3950.
   review): total / invested / free cash on top, saved in one press with
   nothing typed, "what you paid" unknown until a statement fills it in
   (never doubles shares), rows fixed behind a tap. Five situations.
+- `bulk.html` — bulk update (3 Oct, in review): many statements dropped
+  at once, read and sorted into accounts, one review per account (the
+  year month by month, new vs already-had rows, does it add up), moves
+  paired across files, only-you-know questions, one APPLY. Nine
+  situations. Journey: docs/specs/2026-10-03-bulk-update-journey.md.
 - `dollar.jpg` — his header photo (also public/finances/dollar.jpg).
 
 Rule (CLAUDE.md, 27 Sep): journey, then a mockup here he marks up, then

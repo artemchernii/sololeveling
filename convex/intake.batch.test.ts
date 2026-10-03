@@ -406,6 +406,7 @@ describe('batchReview and apply', () => {
         amount: 250,
         occurredAt: day(9, 27),
         merchant: 'TRF. P/O A. CHERNII',
+        likely: null,
       },
     ])
     await me.mutation(api.intake.batchAnswer, {
@@ -758,7 +759,7 @@ describe('his first real drop (3 Oct)', () => {
       positions: 1,
       investedEur: 526.21,
       cashEur: 12994.22,
-      totalEur: 2014.04,
+      totalEur: 15008.26,
       complete: true,
     })
     await me.mutation(api.intake.applyBatch, { batchId, dayStart: day(10, 3) })
@@ -885,8 +886,22 @@ test("BPI's transfer pairs with ActivoBank's side already in the app — by the 
       row(8, 25, 'EDP COMERCIAL', -29.11),
     ],
   })
+  /* And ActivoBank's +€1,000 on 2 Oct, after BPI's statement ends: it
+     cannot be known — but BPI is offered first. */
+  const screen = await readFile(t, batchId, {
+    name: 'IMG_9238.PNG',
+    institution: 'ActivoBank',
+    accountTail: '0989',
+    rows: [self(row(10, 2, 'TRF. P/O ARTEM CHERNII', 1000))],
+  })
   const r = await me.query(api.intake.batchReview, { batchId })
-  expect(r.asks).toEqual([])
+  expect(r.asks.filter((a) => a.kind === 'oneSide')).toMatchObject([
+    { kind: 'oneSide', intakeId: screen, accountId: act, likely: bpi },
+  ])
+  await me.mutation(api.intake.batchAnswer, {
+    batchId,
+    answer: { kind: 'move', intakeId: screen, index: 0, otherAccountId: bpi },
+  })
   expect(r.moves).toEqual([
     {
       fromAccountId: bpi,
@@ -907,5 +922,7 @@ test("BPI's transfer pairs with ActivoBank's side already in the app — by the 
   ).toEqual([
     [act, 300, null],
     [bpi, -300, kept],
+    [bpi, -1000, null],
+    [act, 1000, expect.anything()],
   ])
 })

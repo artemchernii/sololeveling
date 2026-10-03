@@ -1068,10 +1068,29 @@ function AskCard({
         )
       opts = (
         <>
-          {chips(
-            accounts.filter((a) => a._id !== ask.accountId),
-            (a) => pick(a._id, `${signed(ask.amount)}: ${a.name}.`),
-          )}
+          {/* The account it trades money with most, first (3 Oct: BPI is
+              where ActivoBank's money comes from). */}
+          {[...accounts]
+            .filter((a) => a._id !== ask.accountId)
+            .sort((a, b) =>
+              a._id === ask.likely ? -1 : b._id === ask.likely ? 1 : 0,
+            )
+            .map((a) => (
+              <Opt
+                key={a._id}
+                loud={a._id === ask.likely}
+                disabled={busy}
+                onClick={() => pick(a._id, `${signed(ask.amount)}: ${a.name}.`)}
+              >
+                <AccountLogo name={a.name} domain={a.domain} size={18} />
+                {a.name}
+                {a._id === ask.likely ? (
+                  <span className="font-mono text-[9.5px] tracking-[0.12em] text-lav-300 uppercase">
+                    likely
+                  </span>
+                ) : null}
+              </Opt>
+            ))}
           <Opt
             disabled={busy}
             onClick={() =>
@@ -1337,6 +1356,12 @@ function AccountBlock({
             {block.files.length === 1 ? 'file' : 'files'}
           </span>
         </div>
+        {last === null && holdings?.totalEur != null ? (
+          <div className="flex items-baseline gap-2 font-mono text-[15px] text-foreground">
+            <Veiled>{euros(holdings.totalEur)}</Veiled>
+            <small className="text-[10px] text-ink-500">account total</small>
+          </div>
+        ) : null}
         {last !== null ? (
           <div className="flex flex-wrap items-center justify-end gap-2 font-mono text-[13px] text-ink-300">
             {nowEur !== null && change !== null && change !== 0 ? (

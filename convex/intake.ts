@@ -2167,6 +2167,8 @@ const batchAsk = v.union(
     amount: v.number(),
     occurredAt: v.number(),
     merchant: v.string(),
+    /* The account it trades money with most — offered first. */
+    likely: v.union(v.id('accounts'), v.null()),
   }),
   v.object({
     kind: v.literal('gap'),
@@ -2293,7 +2295,13 @@ function mergedHoldings(list: ReadonlyArray<Doc<'intakes'>>) {
       : null
   })
   const cash = screens.find((i) => i.cashEur !== undefined)?.cashEur
-  const total = screens.find((i) => i.totalEur !== undefined)?.totalEur
+  /* One screen's total may be the positions alone (212's list: €2,014),
+     another the whole account (its summary: €15,008): the account's is
+     the larger. */
+  const totals = screens.flatMap((i) =>
+    i.totalEur === undefined ? [] : [i.totalEur],
+  )
+  const total = totals.length ? Math.max(...totals) : undefined
   return {
     screens,
     rows,
@@ -2458,6 +2466,14 @@ async function gatherBatch(
     { intakeId: Id<'intakes'>; index: number; merchant: string }
   >()
   const out: Array<typeof batchAccount.type> = []
+  /* Which of his accounts each one trades money with, most often — the
+     likely other side of a move nothing in the drop explains. */
+  const partners = new Map<string, Map<Id<'accounts'>, number>>()
+  const tally = (from: string, to: Id<'accounts'>) => {
+    const m = partners.get(from) ?? new Map<Id<'accounts'>, number>()
+    m.set(to, (m.get(to) ?? 0) + 1)
+    partners.set(from, m)
+  }
 
   for (const g of groups.values()) {
     const accountId = g.accountId
@@ -2475,6 +2491,10 @@ async function gatherBatch(
             )
             .take(HISTORY_ROWS)
         : []
+    if (accountId)
+      for (const l of had)
+        if (l.kind === 'move' && l.meta?.otherAccountId)
+          tally(accountId, l.meta.otherAccountId)
     let newRows = 0
     let hadRows = 0
     let trades = 0
@@ -2486,7 +2506,9 @@ async function gatherBatch(
     const balances: Array<{ asOf: number; value: number }> = []
     const rows: Array<(typeof batchAccount.type)['rows'][number]> = []
     for (const i of g.list) {
-      if (i.balance)
+      /* A broker screen's total is not a bank balance (3 Oct: Trading
+         212's two screens drew "€15,008.26 → €2,014.04"). */
+      if (i.balance && i.kind === 'transactions')
         balances.push({ asOf: i.balance.asOf, value: i.balance.value })
       trades += (i.trades?.length ?? 0) + (i.historyTrades ?? 0)
       for (const t of i.trades ?? []) adds.push(t.occurredAt)
@@ -2672,6 +2694,26 @@ async function gatherBatch(
     }
   }
   const storedKeys = new Set(stored.map((x) => x.key))
+  for (const x of stored) {
+    const r = byKey.get(x.key)
+    if (r && real(r.accountId)) {
+      tally(r.accountId, x.otherAccountId)
+      tally(x.otherAccountId, r.accountId)
+    }
+  }
+  for (const [a, c] of pairs) {
+    const x = byKey.get(a)
+    const y = byKey.get(c)
+    if (x && y && real(x.accountId) && real(y.accountId)) {
+      tally(x.accountId, y.accountId)
+      tally(y.accountId, x.accountId)
+    }
+  }
+  const likelyFor = (id: Id<'accounts'>) =>
+    [...(partners.get(id) ?? new Map<Id<'accounts'>, number>())]
+      .filter(([other]) => other !== id)
+      .sort((p, q) => q[1] - p[1])
+      .at(0)?.[0] ?? null
 
   for (const key of oneSide) {
     const r = byKey.get(key)
@@ -2685,6 +2727,7 @@ async function gatherBatch(
       amount: r.amount,
       occurredAt: r.occurredAt,
       merchant: info.merchant,
+      likely: likelyFor(r.accountId),
     })
   }
   const moves = pairs.flatMap(([a, c]) => {

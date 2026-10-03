@@ -16,7 +16,7 @@ export const INTAKE_MODEL = 'claude-haiku-4-5'
 /* Bumped whenever what the reader is asked changes: a file read by an
    older reader is read again rather than its reading reused (3 Oct — a
    reused reading kept "1 100.00" as 100 after the prompt was fixed). */
-export const READER_VERSION = 2
+export const READER_VERSION = 3
 export const INTAKE_MODEL_NAME = 'Claude Haiku 4.5'
 export const MAX_INTAKE_FILES = 6
 /* UPDATE ALL (3 Oct): a year of four banks' monthly statements. */
@@ -80,6 +80,7 @@ export const INTAKE_SCHEMA = {
           merchant: { type: 'string' },
           raw: { type: 'string' },
           amount: { type: 'number' },
+          amount_text: { type: 'string' },
           currency: { type: 'string' },
           pending: { type: 'boolean' },
           counterparty: { type: ['string', 'null'] },
@@ -91,6 +92,7 @@ export const INTAKE_SCHEMA = {
           'merchant',
           'raw',
           'amount',
+          'amount_text',
           'currency',
           'pending',
           'counterparty',
@@ -208,7 +210,7 @@ export function intakePrompt(opts: {
     '  kind = "trades" — buying and selling shares: a broker\'s order or trade history, or a trade confirmation, with a date, shares and a price per trade.',
     '  otherwise "unknown". A screen of positions is holdings even when it shows a daily change; a list of orders is trades even when it shows a total.',
     'title: a short human label, e.g. "Revolut statement · EUR · Aug 1 → Sep 27", "Trade Republic · holdings", "Trading 212 · orders". institution: the bank or broker the file is FROM, e.g. "Revolut" or "Revolut Invest". account_tail: the last four digits of the IBAN or card number the file is about, if printed (e.g. "0120" for PT50 … 0120), else null. holder_name: the account holder\'s name if printed.',
-    'For transactions: every row, once, including rows under a "pending" heading (pending = true). A pending heading shown only as a total, its lines folded away ("Pending  -1.205,20"), is one row: merchant "Pending", that total as the amount, pending = true. date as YYYY-MM-DD (for "Yesterday" or a weekday, resolve against today). amount is signed: money out negative, money in positive, in the row\'s own currency. merchant: a clean human name ("Bolt", not "Bolt.euo2609161656"; "Claude subscription" for "Anthropic* Claude Sub"). raw: the description as printed, one line.',
+    'For transactions: every row, once, including rows under a "pending" heading (pending = true). A pending heading shown only as a total, its lines folded away ("Pending  -1.205,20"), is one row: merchant "Pending", that total as the amount, pending = true. date as YYYY-MM-DD (for "Yesterday" or a weekday, resolve against today). amount is signed: money out negative, money in positive, in the row\'s own currency. amount_text: the amount exactly as it is printed, every character kept ("1 100.00", "-1.205,20"). merchant: a clean human name ("Bolt", not "Bolt.euo2609161656"; "Claude subscription" for "Anthropic* Claude Sub"). raw: the description as printed, one line.',
     'counterparty: for transfers, who is on the other side — keep any IBAN or card digits printed for it ("PT50…0120", "card ••2789"). self_transfer = true when money goes to or comes from the holder\'s own name, another of their own accounts, a card top-up, a savings or investment account inside the same bank, or a known broker the person uses (their accounts: ' +
       (opts.accounts.join(', ') || 'unknown') +
       '). A card payment to a broker such as Trade Republic or Trading 212 is a deposit to that broker — self_transfer = true.',
@@ -362,13 +364,41 @@ export function parseReading(
   }
 }
 
+/**
+ * An amount as a bank prints it → its size: "1 100.00", "1.100,00",
+ * "1,100.00", "−1.205,20", "1 100" → 1100 / 1205.2. The last separator
+ * with one or two digits after it is the decimal point; every other
+ * separator — dot, comma, space, apostrophe — only groups thousands.
+ * Undefined when there is no number in it.
+ */
+export function printedAmount(text: string): number | undefined {
+  const t = text.replace(/[^\d.,'\s]/g, '').trim()
+  if (!/\d/.test(t)) return undefined
+  const m = /[.,](\d{1,2})$/.exec(t)
+  const whole = (m ? t.slice(0, m.index) : t).replace(/\D/g, '')
+  const cents = m ? m[1].padEnd(2, '0') : '00'
+  const n = Number(`${whole || '0'}.${cents}`)
+  return Number.isFinite(n) ? n : undefined
+}
+
 function txRows(j: Record<string, unknown>): Array<ReadTransaction> {
   const transactions: Array<ReadTransaction> = []
   for (const r of Array.isArray(j.transactions)
     ? (j.transactions as Array<Record<string, unknown>>)
     : []) {
     const at = typeof r.date === 'string' ? dayToMs(r.date) : undefined
-    const amount = num(r.amount)
+    /* The number as printed, worked out here rather than trusted to the
+       model: it read ActivoBank's "1 100.00" as 100 twice, rule or no rule
+       (3 Oct). Its own number keeps the sign. */
+    const read = num(r.amount)
+    const printed =
+      typeof r.amount_text === 'string'
+        ? printedAmount(r.amount_text)
+        : undefined
+    const amount =
+      read !== undefined && printed !== undefined && printed > 0
+        ? Math.sign(read || 1) * printed
+        : read
     const merchant = str(r.merchant, 80)
     if (
       at === undefined ||

@@ -20,6 +20,7 @@ import {
   INTAKE_SCHEMA,
   MAX_NULLABLE_FIELDS,
   parseReading,
+  printedAmount,
   preferClass,
   readableFile,
   searchableName,
@@ -208,6 +209,19 @@ test("the reader's schema stays inside the API's limit on nullable fields", () =
   expect(n).toBeLessThanOrEqual(MAX_NULLABLE_FIELDS)
 })
 
+test('printedAmount: what a bank prints, whatever the grouping (3 Oct)', () => {
+  expect(printedAmount('1 100.00')).toBe(1100)
+  expect(printedAmount('1.100,00')).toBe(1100)
+  expect(printedAmount('1,100.00')).toBe(1100)
+  expect(printedAmount('-1.205,20')).toBe(1205.2)
+  expect(printedAmount('€ 1 277,35')).toBe(1277.35)
+  expect(printedAmount('1 100')).toBe(1100)
+  expect(printedAmount('1.100')).toBe(1100)
+  expect(printedAmount('12,5')).toBe(12.5)
+  expect(printedAmount('100.00')).toBe(100)
+  expect(printedAmount('—')).toBeUndefined()
+})
+
 describe('parseReading', () => {
   test('a statement: signed rows, pending kept apart, the closing balance', () => {
     const r = parseReading(
@@ -378,6 +392,52 @@ describe('parseReading', () => {
         }),
       ).ok,
     ).toBe(false)
+  })
+  test("the printed amount wins over the model's number; its sign stays", () => {
+    const r = parseReading(
+      JSON.stringify({
+        kind: 'transactions',
+        institution: 'ActivoBank',
+        account_tail: null,
+        holder_name: 'ARTEM CHERNII',
+        title: 'ActivoBank · Sep',
+        currency: 'EUR',
+        transactions: [
+          {
+            date: '2026-09-01',
+            merchant: 'ARTEM CHERNII',
+            raw: 'TRF. P/O ARTEM CHERNII',
+            amount: 100,
+            amount_text: '1 100.00',
+            currency: 'EUR',
+            pending: false,
+            counterparty: 'ARTEM CHERNII',
+            self_transfer: true,
+            category: null,
+          },
+          {
+            date: '2026-09-03',
+            merchant: 'Revolut',
+            raw: 'COMPRA 2789 Revolut',
+            amount: -1000,
+            amount_text: '1 000.00',
+            currency: 'EUR',
+            pending: false,
+            counterparty: null,
+            self_transfer: true,
+            category: null,
+          },
+        ],
+        positions: [],
+        trades: [],
+        closing_balance: 435.66,
+        closing_balance_date: '2026-09-30',
+        cash_eur: null,
+        total_eur: null,
+      }),
+    )
+    if (!r.ok) throw new Error(r.error)
+    expect(r.transactions.map((x) => x.amount)).toEqual([1100, -1000])
   })
   test('refuses what it cannot use', () => {
     expect(parseReading('nope').ok).toBe(false)

@@ -958,10 +958,18 @@ export default defineSchema({
     reader: v.optional(v.number()),
     /* The bulk drop it came in (3 Oct): one intake per file, gathered. */
     batchId: v.optional(v.id('batches')),
+    /* The file itself is kept until then, to open next to what was read
+       (3 Oct: "I can't open those png now to check") — 90 days from when
+       it went in, then erased by the daily job (intake.eraseOld). What
+       was read from it stays. */
+    keptUntil: v.optional(v.number()),
   })
     .index('by_owner', ['ownerId'])
     .index('by_owner_fingerprint', ['ownerId', 'fingerprint'])
-    .index('by_owner_batch', ['ownerId', 'batchId']),
+    .index('by_owner_batch', ['ownerId', 'batchId'])
+    /* Read only by the daily eraser, which acts for every owner — like
+       instruments.by_symbol. */
+    .index('by_keptUntil', ['keptUntil']),
 
   /* A bulk update (3 Oct, "UPDATE ALL"): many statements dropped at once,
      each its own intake, reviewed together per account and applied in one

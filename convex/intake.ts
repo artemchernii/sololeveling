@@ -443,6 +443,65 @@ export const retry = mutation({
   },
 })
 
+/* How long a confirmed file is kept to open again (3 Oct): a quarter,
+   long enough to check a month against its statement twice over. */
+export const KEEP_FILES_MS = 90 * 86_400_000
+const keepUntil = () => Date.now() + KEEP_FILES_MS
+
+/** The files a confirmed reading came from, while they are kept: each
+    with a link to open it, or null once erased. */
+export const originals = query({
+  args: { intakeId: v.id('intakes') },
+  returns: v.object({
+    files: v.array(
+      v.object({
+        name: v.string(),
+        contentType: v.string(),
+        url: v.union(v.string(), v.null()),
+      }),
+    ),
+    keptUntil: v.union(v.number(), v.null()),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const intake = await ownedIntake(ctx, ownerId, args.intakeId)
+    const files = []
+    for (const [i, f] of (intake.files ?? []).entries()) {
+      const id = intake.storageIds.at(i)
+      files.push({
+        name: f.name,
+        contentType: f.contentType,
+        url: id ? await ctx.storage.getUrl(id) : null,
+      })
+    }
+    return { files, keptUntil: intake.keptUntil ?? null }
+  },
+})
+
+/** Erases the files whose 90 days are over — what was read stays. Daily,
+    for every owner, a page at a time. */
+export const eraseOld = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    /* The last month of due dates: an erased file keeps its date (its
+       line says when it went), so the range moves on past it. */
+    const now = Date.now()
+    let erased = 0
+    for await (const i of ctx.db
+      .query('intakes')
+      .withIndex('by_keptUntil', (q) =>
+        q.gt('keptUntil', now - 30 * 86_400_000).lte('keptUntil', now),
+      )) {
+      if (i.storageIds.length === 0) continue
+      for (const id of i.storageIds) await ctx.storage.delete(id)
+      await ctx.db.patch(i._id, { storageIds: [] })
+      if (++erased >= 100) break
+    }
+    return erased
+  },
+})
+
 /** The screenshot being read, to show while it is read. */
 export const preview = query({
   args: { intakeId: v.id('intakes') },
@@ -1338,10 +1397,9 @@ async function writeTransactions(
     )
   }
   if (intake.accountTail) await learnTails(ctx, account, [intake.accountTail])
-  for (const id of intake.storageIds) await ctx.storage.delete(id)
   await ctx.db.patch(intake._id, {
     status: 'done',
-    storageIds: [],
+    keptUntil: keepUntil(),
     accountId: account._id,
   })
   return { written, trades }
@@ -1534,10 +1592,9 @@ export const confirmTrades = mutation({
       }),
     )
     if (intake.accountTail) await learnTails(ctx, account, [intake.accountTail])
-    for (const id of intake.storageIds) await ctx.storage.delete(id)
     await ctx.db.patch(intake._id, {
       status: 'done',
-      storageIds: [],
+      keptUntil: keepUntil(),
       accountId: account._id,
     })
     return { written, skipped }
@@ -1722,10 +1779,9 @@ async function writeHoldings(
       sourceOf(intake),
     )
   }
-  for (const id of intake.storageIds) await ctx.storage.delete(id)
   await ctx.db.patch(intake._id, {
     status: 'done',
-    storageIds: [],
+    keptUntil: keepUntil(),
     accountId: account._id,
   })
   return { positions: look.rows.length, replaced }
@@ -3267,10 +3323,9 @@ export const applyOne = internalMutation({
         screens,
       })
       for (const other of screens.filter((i) => i._id !== intake._id)) {
-        for (const id of other.storageIds) await ctx.storage.delete(id)
         await ctx.db.patch(other._id, {
           status: 'done',
-          storageIds: [],
+          keptUntil: keepUntil(),
           accountId: account._id,
         })
       }
@@ -3285,10 +3340,9 @@ export const applyOne = internalMutation({
       const done = await writeTrades(ctx, ownerId, account, intake._id, items)
       if (intake.accountTail)
         await learnTails(ctx, account, [intake.accountTail])
-      for (const id of intake.storageIds) await ctx.storage.delete(id)
       await ctx.db.patch(intake._id, {
         status: 'done',
-        storageIds: [],
+        keptUntil: keepUntil(),
         accountId: account._id,
       })
       rows = done.written

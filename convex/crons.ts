@@ -23,4 +23,13 @@ crons.daily(
   {},
 )
 
+/* Dropped files are kept 90 days to open again, then erased (3 Oct).
+   What was read from them stays. */
+crons.daily(
+  'erase files past 90 days',
+  { hourUTC: 3, minuteUTC: 0 },
+  internal.intake.eraseOld,
+  {},
+)
+
 export default crons

@@ -1267,3 +1267,62 @@ test("a frozen share is valued as 212's screen shows it, attributed to the scree
   ])
   expect(pos.totalEur).toBe(11.14)
 })
+
+test('a confirmed file is kept 90 days to open again, only by him, then erased — what was read stays', async () => {
+  const { t, me, them } = setup()
+  const t212 = await me.mutation(api.accounts.create, {
+    name: 'Trading 212',
+    kinds: ['broker'],
+    currencies: ['EUR'],
+  })
+  const batchId = await emptyBatch(t)
+  const intakeId = await t.run(async (ctx) => {
+    const file = await ctx.storage.store(
+      new Blob(['png'], { type: 'image/png' }),
+    )
+    return ctx.db.insert('intakes', {
+      ownerId: ME,
+      batchId,
+      accountId: t212,
+      storageIds: [file],
+      status: 'ready',
+      kind: 'holdings',
+      title: 'Invest',
+      files: [{ name: 'IMG_9240.PNG', size: 3, contentType: 'image/png' }],
+      positions: [],
+      cashEur: 12994.22,
+      totalEur: 15008.26,
+    })
+  })
+  await me.mutation(api.intake.applyBatch, { batchId, dayStart: day(10, 3) })
+  for (let i = 0; i < 4; i++)
+    await t.mutation(internal.intake.applyStep, {
+      batchId,
+      dayStart: day(10, 3),
+      names: [],
+    })
+  const done = await t.run((ctx) => ctx.db.get(intakeId))
+  expect(done?.status).toBe('done')
+  expect(done?.storageIds).toHaveLength(1)
+  expect((done?.keptUntil ?? 0) - Date.now()).toBeGreaterThan(89 * 86_400_000)
+
+  const o = await me.query(api.intake.originals, { intakeId })
+  expect(o.files).toEqual([
+    { name: 'IMG_9240.PNG', contentType: 'image/png', url: expect.any(String) },
+  ])
+  await expect(them.query(api.intake.originals, { intakeId })).rejects.toThrow()
+
+  // Not due yet: nothing goes.
+  expect(await t.mutation(internal.intake.eraseOld, {})).toBe(0)
+  await t.run((ctx) => ctx.db.patch(intakeId, { keptUntil: Date.now() - 1000 }))
+  expect(await t.mutation(internal.intake.eraseOld, {})).toBe(1)
+  const after = await me.query(api.intake.originals, { intakeId })
+  expect(after.files.map((f) => f.url)).toEqual([null])
+  expect(
+    await t.run((ctx) => ctx.db.system.query('_storage').collect()),
+  ).toEqual([])
+  // Erased once: the next day finds nothing to do.
+  expect(await t.mutation(internal.intake.eraseOld, {})).toBe(0)
+  const bal = await me.query(api.aggregate.balances, {})
+  expect(bal.accounts.find((a) => a.accountId === t212)?.cashEur).toBe(12994.22)
+})

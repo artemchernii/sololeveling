@@ -107,6 +107,22 @@ describe('balanceGaps', () => {
     ])
   })
 
+  test("a row the bank dates the day after the balance that already had it: no gap, and not counted again (ActivoBank's MB WAY)", () => {
+    expect(
+      balanceGaps(
+        [bal(8, 31, 308.82), bal(9, 27, 575.36), bal(9, 30, 435.66)],
+        [
+          r(9, 1, 1100),
+          r(9, 3, -1133.46),
+          r(9, 26, 400),
+          r(9, 28, -100),
+          r(9, 29, -133.72),
+          r(9, 30, -5.98),
+        ],
+      ),
+    ).toEqual([])
+  })
+
   test('a row on the closing day belongs to that balance, not the next', () => {
     expect(
       balanceGaps([bal(9, 3, 100), bal(9, 4, 90)], [r(9, 4, -10)]),

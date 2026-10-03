@@ -3115,6 +3115,8 @@ describe('an account, opened (A.4)', () => {
         expected: 675.36,
         read: 575.36,
         missing: -100,
+        bookedLater: null,
+        pendingPart: null,
       },
     ])
     expect(s.readings.map((r) => [r.value, r.fileId])).toEqual([
@@ -3292,4 +3294,45 @@ describe('worth, day by day (Finances B)', () => {
     expect(theirs.total).toEqual([null, null])
     expect(theirs.investedAccounts).toEqual([])
   })
+})
+
+test("the chart's lane: his own moves once each, whichever side names the other account; only his", async () => {
+  const { t, me, them } = setup()
+  const bank = (name: string) =>
+    me.mutation(api.accounts.create, {
+      name,
+      kinds: ['bank'],
+      currencies: ['EUR'],
+    })
+  const bpi = await bank('BPI')
+  const activo = await bank('ActivoBank')
+  const end = (d: number) => new Date(2026, 8, d, 23, 59, 59, 999).getTime()
+  const noon = (d: number) => new Date(2026, 8, d, 12).getTime()
+  await t.run(async (ctx) => {
+    const move = (
+      accountId: typeof bpi,
+      value: number,
+      otherAccountId?: typeof bpi,
+    ) =>
+      ctx.db.insert('logs', {
+        ownerId: ME,
+        area: 'money',
+        kind: 'move',
+        value,
+        unit: 'eur',
+        occurredAt: noon(2),
+        accountId,
+        meta: { otherAccountId },
+      })
+    await move(bpi, -1100, activo)
+    await move(activo, 1100)
+    await move(activo, -51)
+  })
+  const dayEnds = [end(1), end(2)]
+  const w = await me.query(api.aggregate.worthHistory, { dayEnds })
+  expect(w.moves).toEqual([
+    { at: noon(2), from: bpi, to: activo, amount: 1100 },
+  ])
+  const theirs = await them.query(api.aggregate.worthHistory, { dayEnds })
+  expect(theirs.moves).toEqual([])
 })

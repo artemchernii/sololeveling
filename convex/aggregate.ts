@@ -6,6 +6,7 @@ import { isEuroAmount } from '../src/lib/money'
 import { balanceChecks, balanceSeries, coveredBy } from '../src/lib/cashHistory'
 import type { Move, Reading } from '../src/lib/cashHistory'
 import { addSeries, investedSeries } from '../src/lib/worthHistory'
+import { ownMoves } from '../src/lib/accountLines'
 import type { Close, Holding, Rate } from '../src/lib/worthHistory'
 import { notSeenSince, reconcile } from '../src/lib/holdings'
 import type { LedgerTrade, Observation } from '../src/lib/holdings'
@@ -1517,12 +1518,14 @@ const accountSeries = v.array(
 export const cashHistory = query({
   args: { dayEnds: v.array(v.number()) },
   returns: v.object({ total: daySeries, accounts: accountSeries }),
-  handler: async (ctx, args) =>
-    await readCashHistory(
+  handler: async (ctx, args) => {
+    const { total, accounts } = await readCashHistory(
       ctx,
       await requireUser(ctx),
       args.dayEnds.slice(0, 400),
-    ),
+    )
+    return { total, accounts }
+  },
 })
 
 async function readCashHistory(
@@ -1538,6 +1541,15 @@ async function readCashHistory(
   ).filter((a) => a.retiredAt === undefined)
   const out = []
   const total: Array<number | null> = dayEnds.map(() => null)
+  const live = new Set(accounts.map((a) => a._id))
+  /* Rows of money moving between his own accounts, for the chart's lane
+     (src/lib/accountLines, ownMoves). */
+  const moveRows: Array<{
+    at: number
+    accountId: Id<'accounts'>
+    value: number
+    otherAccountId: Id<'accounts'> | null
+  }> = []
   for (const account of accounts) {
     const logs = await ctx.db
       .query('logs')
@@ -1545,6 +1557,18 @@ async function readCashHistory(
         q.eq('ownerId', ownerId).eq('accountId', account._id),
       )
       .take(HISTORY_ROWS)
+    for (const l of logs) {
+      const other = l.meta?.otherAccountId
+      if (l.kind !== 'move' || l.value === undefined || other === undefined)
+        continue
+      if (!live.has(other)) continue
+      moveRows.push({
+        at: l.occurredAt,
+        accountId: account._id,
+        value: l.value,
+        otherAccountId: other,
+      })
+    }
     const trades = account.kinds.includes('broker')
       ? await ctx.db
           .query('trades')
@@ -1593,7 +1617,11 @@ async function readCashHistory(
       if (x !== null) total[i] = Math.round(((total[i] ?? 0) + x) * 100) / 100
     out.push({ accountId: account._id, values })
   }
-  return { total, accounts: out }
+  const first = dayEnds[0] ?? 0
+  const moves = ownMoves(moveRows).filter(
+    (m) => m.at > first - 86_400_000 && m.at <= (dayEnds.at(-1) ?? 0),
+  )
+  return { total, accounts: out, moves }
 }
 
 /**
@@ -1612,6 +1640,15 @@ export const worthHistory = query({
     cashAccounts: accountSeries,
     investedAccounts: accountSeries,
     unpriced: v.array(v.number()),
+    /** His moves between his own accounts in the range, once each. */
+    moves: v.array(
+      v.object({
+        at: v.number(),
+        from: v.id('accounts'),
+        to: v.id('accounts'),
+        amount: v.number(),
+      }),
+    ),
   }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
@@ -1726,6 +1763,7 @@ export const worthHistory = query({
       cashAccounts: cash.accounts,
       investedAccounts: invested.accounts,
       unpriced: invested.unpriced,
+      moves: cash.moves,
     }
   },
 })
@@ -1855,6 +1893,13 @@ export const accountSheet = query({
           expected: v.number(),
           read: v.number(),
           missing: v.number(),
+          /** Already in this balance, booked by the bank after it. */
+          bookedLater: v.union(
+            v.object({ amount: v.number(), at: v.number() }),
+            v.null(),
+          ),
+          /** Pending at the bank with this balance, not itemised yet. */
+          pendingPart: v.union(v.number(), v.null()),
         }),
       ),
     }),
@@ -1938,8 +1983,7 @@ export const accountSheet = query({
             .eq('key', `balance:${account._id}:${currency}`),
         )
         .take(500)
-      const read = rows.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 }))
-      coverOf.set(currency.toLowerCase(), read)
+      const read: Array<Reading> = []
       for (const r of rows) {
         const file = intakes.find(
           (i) =>
@@ -1949,6 +1993,15 @@ export const accountSheet = query({
               Math.round((r.value ?? 0) * 100) &&
             Math.abs(i.balance.asOf - r.recordedAt) <= FILE_READING_MS,
         )
+        /* What the same screen showed as pending: the balance has it off. */
+        const pending = (file?.transactions ?? [])
+          .filter((t) => t.pending && t.currency === currency)
+          .reduce((n, t) => n + Math.round(t.amount * 100), 0)
+        read.push({
+          at: r.recordedAt,
+          value: r.value ?? 0,
+          ...(pending !== 0 ? { pending: pending / 100 } : {}),
+        })
         readings.push({
           at: r.recordedAt,
           asOf: file?.balance?.asOf ?? r.recordedAt,
@@ -1958,6 +2011,7 @@ export const accountSheet = query({
           fileId: file?._id ?? null,
         })
       }
+      coverOf.set(currency.toLowerCase(), read)
       for (const c of balanceChecks(read, pocketMoves(logs, trades, currency)))
         checks.push({ currency, ...c })
     }

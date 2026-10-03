@@ -270,12 +270,29 @@
            says which half, like an area's hue.
          - acct-bank / acct-cash: what an account is, on its badge (a
            broker wears the accent). Hues clear of the state colours so a
-           badge never reads as a warning. */
+           badge never reads as a warning.
+         - line-*: one line per account on the chart (3 Oct, "graph with
+           sources and different lines"). Six lines must be told apart, so
+           each bank takes its own brand hue where it has one; cash keeps
+           money-cash; line-1…4 for a bank the catalogue does not know. An
+           account's colour, never a grade. */
   --mark-ground: oklch(0.99 0 0);
   --mark-ink: oklch(0.24 0.03 285);
   --money-cash: oklch(0.83 0.1 85);
   --acct-bank: oklch(0.83 0.1 85);
   --acct-cash: oklch(0.84 0.07 160);
+  --line-l: 0.74;
+  --line-c: 0.14;
+  --line-bpi: oklch(var(--line-l) var(--line-c) 50);
+  --line-revolut: oklch(var(--line-l) var(--line-c) 350);
+  --line-activo: oklch(var(--line-l) var(--line-c) 160);
+  --line-trade-republic: oklch(0.88 0.01 280);
+  --line-trading-212: oklch(var(--line-l) var(--line-c) 225);
+  --line-cash: var(--money-cash);
+  --line-1: oklch(var(--line-l) var(--line-c) 115);
+  --line-2: oklch(var(--line-l) var(--line-c) 300);
+  --line-3: oklch(var(--line-l) var(--line-c) 190);
+  --line-4: oklch(var(--line-l) var(--line-c) 20);
 
   /* 6. Lift and sink (14 Sep, the first step to a light theme). Components
         drew hairlines, hover fills and wells as `white/10` or `black/20` —
@@ -358,6 +375,9 @@
   --money-cash: oklch(0.66 0.12 80);
   --acct-bank: oklch(0.58 0.12 75);
   --acct-cash: oklch(0.55 0.1 160);
+  --line-l: 0.58;
+  --line-c: 0.15;
+  --line-trade-republic: oklch(0.5 0.02 280);
 
   /* The System in daylight: a glow on a milky ground reads as a smudge, so
      the lit edge becomes a lavender line and a soft lavender shadow, and

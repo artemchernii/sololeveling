@@ -557,3 +557,39 @@ describe('around a batch', () => {
     ).toBeNull()
   })
 })
+
+test('a file that cannot go in fails alone; the rest is written and the batch opens again', async () => {
+  const { t, me } = setup()
+  const { bpi, act } = await accountsOf(me)
+  const batchId = await emptyBatch(t)
+  const usd = await readFile(t, batchId, {
+    name: 'bpi-usd.pdf',
+    institution: 'Banco BPI',
+    accountTail: '4410',
+    rows: [row(9, 2, 'EDP', -50)],
+  })
+  await t.run((ctx) =>
+    ctx.db.patch(usd, {
+      balance: { currency: 'USD', value: 10, asOf: day(9, 30) },
+    }),
+  )
+  await readFile(t, batchId, {
+    name: 'act.pdf',
+    institution: 'ActivoBank',
+    accountTail: '3402',
+    rows: [row(9, 2, 'Vodafone', -10)],
+  })
+  await me.mutation(api.intake.applyBatch, { batchId, dayStart: day(10, 3) })
+  await t.finishAllScheduledFunctions(vi.runAllTimers)
+  const logs = await t.run((ctx) => ctx.db.query('logs').collect())
+  expect(logs.map((l) => [l.text, l.accountId])).toEqual([['Vodafone', act]])
+  const failed = await t.run((ctx) => ctx.db.get(usd))
+  expect(failed).toMatchObject({
+    status: 'failed',
+    error: 'Not applied: BPI does not hold USD.',
+  })
+  const r = await me.query(api.intake.batchReview, { batchId })
+  expect(r.status).toBe('open')
+  expect(r.asks).toMatchObject([{ kind: 'failed', intakeId: usd }])
+  expect(bpi).toBeDefined()
+})

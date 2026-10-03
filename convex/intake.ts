@@ -2689,50 +2689,24 @@ export const applyStep = internalMutation({
       await finishBatch(ctx, b, applied)
       return null
     }
-    const account = await ownedAccount(ctx, ownerId, next.accountId)
     let rows = 0
-    if (next.i.kind === 'transactions') {
-      const read = await buildReview(ctx, ownerId, next.i, args.names)
-      const answered = new Map(
-        b.moves.map((m) => [`${m.intakeId}:${m.index}`, m.otherAccountId]),
-      )
-      const keep: Array<ConfirmRow> = read.rows
-        .filter((r) => !r.pending && r.duplicateOf === null)
-        .map((r) => {
-          const answer = answered.get(`${next.i._id}:${r.index}`)
-          const other = answer === undefined ? r.otherAccountId : answer
-          return {
-            index: r.index,
-            kind: r.kind,
-            category: r.category ?? undefined,
-            otherAccountId:
-              r.kind === 'move' ? (other ?? undefined) : undefined,
-            recurringId: r.recurringId ?? undefined,
-          }
-        })
-      const done = await writeTransactions(ctx, ownerId, next.i, account, {
-        rows: keep,
-        keepBalance: true,
+    try {
+      /* Its own subtransaction: a file that cannot go in (a currency the
+         account does not hold, shares for an account that is no broker)
+         rolls back alone, and the rest of the batch carries on. */
+      rows = await ctx.runMutation(internal.intake.applyOne, {
+        intakeId: next.i._id,
+        accountId: next.accountId,
+        batchId: b._id,
         dayStart: args.dayStart,
+        names: args.names,
       })
-      rows = done.written + done.trades.written
-    } else {
-      const items = (next.i.trades ?? []).flatMap((t, index) => {
-        const c = t.candidates.at(
-          t.preferred !== undefined && t.preferred >= 0 ? t.preferred : 0,
-        )
-        return c ? [{ index, trade: t, candidate: c }] : []
-      })
-      const done = await writeTrades(ctx, ownerId, account, next.i._id, items)
-      if (next.i.accountTail)
-        await learnTails(ctx, account, [next.i.accountTail])
-      for (const id of next.i.storageIds) await ctx.storage.delete(id)
+    } catch (e) {
       await ctx.db.patch(next.i._id, {
-        status: 'done',
-        storageIds: [],
-        accountId: account._id,
+        status: 'failed',
+        error: `Not applied: ${e instanceof ConvexError ? String(e.data) : 'it could not be written.'}`,
+        retryable: false,
       })
-      rows = done.written
     }
     await ctx.db.patch(b._id, {
       applied: {
@@ -2743,6 +2717,71 @@ export const applyStep = internalMutation({
     })
     await ctx.scheduler.runAfter(0, internal.intake.applyStep, args)
     return null
+  },
+})
+
+/* One statement of a batch, written as its own review says — called by
+   applyStep in a subtransaction. */
+export const applyOne = internalMutation({
+  args: {
+    intakeId: v.id('intakes'),
+    accountId: v.id('accounts'),
+    batchId: v.id('batches'),
+    dayStart: v.number(),
+    names: v.array(v.string()),
+  },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const b = await ctx.db.get(args.batchId)
+    const intake = await ctx.db.get(args.intakeId)
+    if (b === null || intake === null || intake.batchId !== b._id) return 0
+    const ownerId = b.ownerId
+    const account = await ownedAccount(ctx, ownerId, args.accountId)
+    let rows = 0
+    if (intake.kind === 'transactions') {
+      const read = await buildReview(ctx, ownerId, intake, args.names)
+      const answered = new Map(
+        b.moves.map((m) => [`${m.intakeId}:${m.index}`, m.otherAccountId]),
+      )
+      const keep: Array<ConfirmRow> = read.rows
+        .filter((r) => !r.pending && r.duplicateOf === null)
+        .map((r) => {
+          const answer = answered.get(`${intake._id}:${r.index}`)
+          const other = answer === undefined ? r.otherAccountId : answer
+          return {
+            index: r.index,
+            kind: r.kind,
+            category: r.category ?? undefined,
+            otherAccountId:
+              r.kind === 'move' ? (other ?? undefined) : undefined,
+            recurringId: r.recurringId ?? undefined,
+          }
+        })
+      const done = await writeTransactions(ctx, ownerId, intake, account, {
+        rows: keep,
+        keepBalance: true,
+        dayStart: args.dayStart,
+      })
+      rows = done.written + done.trades.written
+    } else {
+      const items = (intake.trades ?? []).flatMap((t, index) => {
+        const c = t.candidates.at(
+          t.preferred !== undefined && t.preferred >= 0 ? t.preferred : 0,
+        )
+        return c ? [{ index, trade: t, candidate: c }] : []
+      })
+      const done = await writeTrades(ctx, ownerId, account, intake._id, items)
+      if (intake.accountTail)
+        await learnTails(ctx, account, [intake.accountTail])
+      for (const id of intake.storageIds) await ctx.storage.delete(id)
+      await ctx.db.patch(intake._id, {
+        status: 'done',
+        storageIds: [],
+        accountId: account._id,
+      })
+      rows = done.written
+    }
+    return rows
   },
 })
 

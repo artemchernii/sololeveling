@@ -151,6 +151,9 @@ function BulkUpdate({
       onApplied={() => {
         setBefore(worth ? worthOf(worth) : null)
         setPressed(true)
+        /* Once applied it is no longer the one waiting — hold on to it
+           here, so its applied screen still has it. */
+        setMine(batchId)
       }}
     />
   )
@@ -992,7 +995,7 @@ function AskCard({
     case 'failed': {
       q = (
         <>
-          <b className="font-medium">{ask.name}</b> could not be read.
+          <b className="font-medium">{ask.name}</b> didn't go in.
         </>
       )
       sub = ask.error

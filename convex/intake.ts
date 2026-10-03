@@ -2272,7 +2272,7 @@ function mergedHoldings(list: ReadonlyArray<Doc<'intakes'>>) {
   const positions = screens.flatMap((i) => i.positions ?? [])
   const rows = positions.map((p) => {
     const c = completePosition(p, p.todayPriceEur)
-    const candidate =
+    const pick =
       p.preferred !== undefined && p.preferred >= 0
         ? p.candidates[p.preferred]
         : p.candidates.at(0)
@@ -2282,9 +2282,9 @@ function mergedHoldings(list: ReadonlyArray<Doc<'intakes'>>) {
       p.changePct > -100
         ? Math.round((p.valueEur / (1 + p.changePct / 100)) * 100) / 100
         : undefined
-    return candidate !== undefined && c.shares !== undefined && c.shares > 0
+    return pick !== undefined && c.shares !== undefined && c.shares > 0
       ? {
-          candidate,
+          candidate: pick,
           isin: p.isin,
           shares: c.shares,
           paidEur: paid,

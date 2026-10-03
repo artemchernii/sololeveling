@@ -56,6 +56,17 @@ export function sameAmount(a: number, b: number): boolean {
   return Math.abs(a - b) <= SAME_AMOUNT * Math.max(a, b)
 }
 
+/** Spending that is everyday, not a bill: never offered as a likely bill. */
+export const EVERYDAY = new Set([
+  'groceries',
+  'eating out',
+  'transport',
+  'shopping',
+  'clothes',
+  'fun',
+  'other',
+])
+
 /** A bill he has, or one he said is not: a payee at an amount. One payee
     can be two bills (interest and capital), so the key alone is not it. */
 export type Known = { key: string; amount: number }
@@ -81,6 +92,9 @@ export function findBills(
     (r) =>
       r.key !== '' &&
       r.amount >= MIN_BILL &&
+      /* A petrol station paid on the 9th twice is not a bill (his rows,
+         3 Oct): everyday groups are offered under + BILL, never found. */
+      !(r.category !== undefined && EVERYDAY.has(r.category)) &&
       monthOf(r.t) > thisMonth - 3 &&
       r.t <= now,
   )
@@ -153,17 +167,6 @@ export function billNames(
       : b.name
   })
 }
-
-/** Spending that is everyday, not a bill: never offered as a likely bill. */
-export const EVERYDAY = new Set([
-  'groceries',
-  'eating out',
-  'transport',
-  'shopping',
-  'clothes',
-  'fun',
-  'other',
-])
 
 export type Likely = {
   key: string

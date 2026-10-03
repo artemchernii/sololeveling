@@ -95,6 +95,16 @@ describe('findBills', () => {
       findBills([out('TOLL', 0.5, 7, 17), out('TOLL', 0.5, 8, 15)], [], NOW),
     ).toEqual([])
     expect(findBills([out('ONCE', 90, 8, 5)], [], NOW)).toEqual([])
+    expect(
+      findBills(
+        [
+          out('FUEL', 57, 7, 9, { category: 'shopping' }),
+          out('FUEL', 58, 8, 9, { category: 'shopping' }),
+        ],
+        [],
+        NOW,
+      ),
+    ).toEqual([])
     /* Last paid in June: three months old, gone. */
     expect(
       findBills([out('OLD', 9, 4, 3), out('OLD', 9, 5, 3)], [], NOW),

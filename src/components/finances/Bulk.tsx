@@ -661,7 +661,7 @@ function BulkReview({
               <b className="font-normal text-foreground">
                 {review.moves.length}
               </b>{' '}
-              paired · both sides found in this drop
+              paired — each written once, never as income or spending
             </span>
           </div>
           {review.moves.map((m) => (
@@ -679,7 +679,9 @@ function BulkReview({
                 <Veiled>{euros(m.amount)}</Veiled>
               </span>
               <span className="hidden sm:inline">
-                {m.days > 0 ? (
+                {m.had ? (
+                  <Tag>other side already in the app</Tag>
+                ) : m.days > 0 ? (
                   <Tag>
                     {m.days === 1 ? '1 day apart' : `${m.days} days apart`}
                   </Tag>

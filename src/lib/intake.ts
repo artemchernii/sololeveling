@@ -54,6 +54,11 @@ export function readableFile(
 
 /* ---- What the reader is asked for ------------------------------------- */
 
+/* The API takes at most 16 fields that may be null (3 Oct: a seventeenth
+   — the ticker — made every reading fail with a 400). A field that is
+   only text says "none" with an empty string instead; a test counts. */
+export const MAX_NULLABLE_FIELDS = 16
+
 export const INTAKE_SCHEMA = {
   type: 'object',
   properties: {
@@ -65,7 +70,7 @@ export const INTAKE_SCHEMA = {
     account_tail: { type: ['string', 'null'] },
     holder_name: { type: ['string', 'null'] },
     title: { type: 'string' },
-    currency: { type: ['string', 'null'] },
+    currency: { type: 'string' },
     transactions: {
       type: 'array',
       items: {
@@ -102,7 +107,7 @@ export const INTAKE_SCHEMA = {
         properties: {
           name: { type: 'string' },
           isin: { type: ['string', 'null'] },
-          symbol: { type: ['string', 'null'] },
+          symbol: { type: 'string' },
           shares: { type: ['number', 'null'] },
           average_price_eur: { type: ['number', 'null'] },
           value_eur: { type: ['number', 'null'] },
@@ -209,7 +214,7 @@ export function intakePrompt(opts: {
       '). A card payment to a broker such as Trade Republic or Trading 212 is a deposit to that broker — self_transfer = true.',
     `category (spending only, else null): one of ${SPEND_CATEGORY_IDS.join(', ')}.`,
     'closing_balance: the final balance printed for the account (completed transactions only) and closing_balance_date; else null.',
-    'For holdings: every position, once. value_eur: its current value as printed. change_pct: the % gain or loss since buying if printed (negative for a loss). shares and average_price_eur only if printed — a number printed under or beside the name together with a ticker ("7.36542714 IGLN" on Trading 212) is the shares, and the ticker is symbol (else null). cash_eur: uninvested cash if shown; total_eur: the account total if shown. An account summary screen with a total and cash but no list of positions (Trading 212\'s "Account value … Cash") is holdings with no positions.',
+    'For holdings: every position, once. value_eur: its current value as printed. change_pct: the % gain or loss since buying if printed (negative for a loss). shares and average_price_eur only if printed — a number printed under or beside the name together with a ticker ("7.36542714 IGLN" on Trading 212) is the shares, and the ticker is symbol (else an empty string). cash_eur: uninvested cash if shown; total_eur: the account total if shown. An account summary screen with a total and cash but no list of positions (Trading 212\'s "Account value … Cash") is holdings with no positions.',
     'For trades: every buy and sell, once — date as YYYY-MM-DD, name as printed, isin if printed, side, shares, price per share and its currency. Skip cancelled or rejected orders.',
     'Read numbers exactly: a European comma decimal (1.234,56) is 1234.56; thousands set apart by a space ("1 100.00", "1 277,35") are one number — 1100.00, never 100.00. Never invent a number that is not printed — use null. Leave the arrays that do not apply empty.',
   ].join('\n')

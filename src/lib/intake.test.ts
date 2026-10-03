@@ -17,6 +17,8 @@ import {
   intakePrompt,
   matchAccount,
   merchantKey,
+  INTAKE_SCHEMA,
+  MAX_NULLABLE_FIELDS,
   parseReading,
   preferClass,
   readableFile,
@@ -190,6 +192,20 @@ describe('share class and search', () => {
     expect(searchableName('Meta Platforms (A)')).toBe('Meta Platforms')
     expect(searchableName('Amazon.com')).toBe('Amazon')
   })
+})
+
+test("the reader's schema stays inside the API's limit on nullable fields", () => {
+  let n = 0
+  const walk = (x: unknown) => {
+    if (Array.isArray(x)) return x.forEach(walk)
+    if (x && typeof x === 'object') {
+      const o = x as Record<string, unknown>
+      if (Array.isArray(o.type) && o.type.includes('null')) n++
+      Object.values(o).forEach(walk)
+    }
+  }
+  walk(INTAKE_SCHEMA)
+  expect(n).toBeLessThanOrEqual(MAX_NULLABLE_FIELDS)
 })
 
 describe('parseReading', () => {

@@ -23,3 +23,10 @@ test('tail and tailsIn: the last four digits that name an account', () => {
   expect(tailsIn('Top-up by card ••2789')).toEqual(['2789'])
   expect(tailsIn('Bolt ride')).toEqual([])
 })
+
+test('a Portuguese IBAN names the account before its check digits (3 Oct)', () => {
+  expect(
+    tailsIn('TRF SEPA+ INST 19 P/ PT50002300004547874109894 ARTEM'),
+  ).toEqual(expect.arrayContaining(['9894', '0989']))
+  expect(tailsIn('PT50 0023 0000 4547 8741 0989 4')).toContain('0989')
+})

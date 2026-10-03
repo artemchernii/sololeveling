@@ -202,5 +202,14 @@ export function tailsIn(text: string): Array<string> {
     const t = tail(m[0])
     if (t) out.add(t)
   }
+  /* An IBAN is printed in groups of four, and a statement names its own
+     account by the last full group: PT50 0023 0000 4547 8741 0989 4 is
+     …0989 on his ActivoBank statement, while the digits run on to …9894
+     (3 Oct: his BPI → ActivoBank transfers went unmatched). */
+  for (const m of text.matchAll(/\b[A-Z]{2}\d{2}((?:\s?\d){12,30})/g)) {
+    const digits = m[1].replace(/\D/g, '')
+    const end = digits.length - (digits.length % 4)
+    if (end >= 4) out.add(digits.slice(end - 4, end))
+  }
   return [...out]
 }

@@ -293,6 +293,7 @@ describe('batchReview and apply', () => {
         amount: 500,
         occurredAt: day(9, 3),
         days: 1,
+        had: false,
       },
     ])
     expect(r.asks).toEqual([])
@@ -846,4 +847,65 @@ test('read again: his account named to the reader; another owner refused; start 
   expect(await t.run((ctx) => ctx.db.query('intakes').collect())).toEqual([])
   expect(pdf.image).toBe(false)
   expect(await me.query(api.intake.openBatch, {})).toBeNull()
+})
+
+test("BPI's transfer pairs with ActivoBank's side already in the app — by the IBAN's last group (3 Oct)", async () => {
+  const { t, me } = setup()
+  const bpi = await me.mutation(api.accounts.create, {
+    name: 'BPI',
+    kinds: ['bank'],
+    currencies: ['EUR'],
+    ibanTails: ['0120'],
+  })
+  const act = await me.mutation(api.accounts.create, {
+    name: 'ActivoBank',
+    kinds: ['bank'],
+    currencies: ['EUR'],
+    ibanTails: ['0989'],
+  })
+  const kept = await t.run((ctx) =>
+    ctx.db.insert('logs', {
+      ownerId: ME,
+      area: 'money',
+      kind: 'move',
+      value: 300,
+      occurredAt: day(8, 27),
+      unit: 'eur',
+      text: 'Artem Chernii',
+      accountId: act,
+    }),
+  )
+  const batchId = await emptyBatch(t)
+  await readFile(t, batchId, {
+    name: 'attachment.pdf',
+    institution: 'BPI',
+    accountTail: '0120',
+    rows: [
+      self(row(8, 27, 'ARTEM CHERNII', -300), 'PT50002300004547874109894'),
+      row(8, 25, 'EDP COMERCIAL', -29.11),
+    ],
+  })
+  const r = await me.query(api.intake.batchReview, { batchId })
+  expect(r.asks).toEqual([])
+  expect(r.moves).toEqual([
+    {
+      fromAccountId: bpi,
+      toAccountId: act,
+      amount: 300,
+      occurredAt: day(8, 27),
+      days: 0,
+      had: true,
+    },
+  ])
+  await me.mutation(api.intake.applyBatch, { batchId, dayStart: day(10, 3) })
+  await t.finishAllScheduledFunctions(vi.runAllTimers)
+  const moves = (await t.run((ctx) => ctx.db.query('logs').collect())).filter(
+    (l) => l.kind === 'move',
+  )
+  expect(
+    moves.map((l) => [l.accountId, l.value, l.meta?.pairOf ?? null]),
+  ).toEqual([
+    [act, 300, null],
+    [bpi, -300, kept],
+  ])
 })

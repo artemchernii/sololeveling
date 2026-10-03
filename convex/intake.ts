@@ -2326,6 +2326,8 @@ export const batchReview = query({
         amount: v.number(),
         occurredAt: v.number(),
         days: v.number(),
+        /* The other side was already in the app, not in this drop. */
+        had: v.boolean(),
       }),
     ),
     files: v.number(),
@@ -2336,6 +2338,7 @@ export const batchReview = query({
     const {
       pairs: _pairs,
       ownInfo: _info,
+      stored: _stored,
       accountOf: _of,
       ...view
     } = await gatherBatch(ctx, ownerId, b)
@@ -2618,11 +2621,62 @@ async function gatherBatch(
 
   const { pairs, oneSide } = pairAcross(own)
   const byKey = new Map(own.map((r) => [r.key, r]))
-  const real = (id: string): id is Id<'accounts'> => !id.startsWith('new:')
+  const real = (id: string): id is Id<'accounts'> =>
+    !id.startsWith('new:') && id !== 'outside'
+
+  /* The other side may be in the app already, not in this drop: BPI's
+     €300 to ActivoBank on 27 Aug, when ActivoBank's +€300 was read last
+     week (3 Oct). Matched by amount and days in the account the row
+     names — or, naming none, in any of his others. */
+  const inDrop = new Set(pairs.flat())
+  const stored: Array<{
+    key: string
+    otherAccountId: Id<'accounts'>
+    occurredAt: number
+  }> = []
+  const taken = new Set<Id<'logs'>>()
+  for (const r of own) {
+    if (inDrop.has(r.key) || !real(r.accountId)) continue
+    if (r.otherAccountId === 'outside') continue
+    const others =
+      r.otherAccountId !== null && real(r.otherAccountId)
+        ? [r.otherAccountId]
+        : accounts.map((a) => a._id).filter((id) => id !== r.accountId)
+    for (const other of others) {
+      const near = await ctx.db
+        .query('logs')
+        .withIndex('by_owner_account_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('accountId', other)
+            .gte('occurredAt', r.occurredAt - 2 * DAY_MS - 3_600_000)
+            .lte('occurredAt', r.occurredAt + 2 * DAY_MS + 3_600_000),
+        )
+        .take(200)
+      const hit = near.find(
+        (l) =>
+          l.kind === 'move' &&
+          !taken.has(l._id) &&
+          l.meta?.pairOf === undefined &&
+          Math.round(((l.value ?? 0) + r.amount) * 100) === 0,
+      )
+      if (hit) {
+        taken.add(hit._id)
+        stored.push({
+          key: r.key,
+          otherAccountId: other,
+          occurredAt: hit.occurredAt,
+        })
+        break
+      }
+    }
+  }
+  const storedKeys = new Set(stored.map((x) => x.key))
+
   for (const key of oneSide) {
     const r = byKey.get(key)
     const info = ownInfo.get(key)
-    if (!r || !info || !real(r.accountId)) continue
+    if (!r || !info || !real(r.accountId) || storedKeys.has(key)) continue
     asks.push({
       kind: 'oneSide',
       intakeId: info.intakeId,
@@ -2644,9 +2698,23 @@ async function gatherBatch(
         amount: Math.abs(x.amount),
         occurredAt: Math.min(x.occurredAt, y.occurredAt),
         days: Math.round(Math.abs(x.occurredAt - y.occurredAt) / DAY_MS),
+        had: false,
       },
     ]
   })
+  for (const x of stored) {
+    const r = byKey.get(x.key)
+    if (!r || !real(r.accountId)) continue
+    const leaving = r.amount < 0
+    moves.push({
+      fromAccountId: leaving ? r.accountId : x.otherAccountId,
+      toAccountId: leaving ? x.otherAccountId : r.accountId,
+      amount: Math.abs(r.amount),
+      occurredAt: Math.min(r.occurredAt, x.occurredAt),
+      days: Math.round(Math.abs(r.occurredAt - x.occurredAt) / DAY_MS),
+      had: true,
+    })
+  }
 
   const order = new Map(accounts.map((a, i) => [a._id, i]))
   out.sort(
@@ -2668,6 +2736,7 @@ async function gatherBatch(
       return x && y && real(x.accountId) && real(y.accountId)
     }),
     ownInfo,
+    stored,
     accountOf: new Map(
       own
         .filter((r) => real(r.accountId))
@@ -2864,6 +2933,15 @@ export const applyBatch = mutation({
           intakeId: c.intakeId,
           index: c.index,
           otherAccountId: accA,
+        })
+    }
+    for (const x of g.stored) {
+      const info = g.ownInfo.get(x.key)
+      if (info && !has(x.key))
+        moves.push({
+          intakeId: info.intakeId,
+          index: info.index,
+          otherAccountId: x.otherAccountId,
         })
     }
     await ctx.db.patch(b._id, {

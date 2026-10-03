@@ -4,6 +4,7 @@ import { AreaSeries, LineStyle, createChart } from 'lightweight-charts'
 import type { AutoscaleInfo, IChartApi, ISeriesApi } from 'lightweight-charts'
 
 import { api } from '../../../convex/_generated/api'
+import { AccountsChart } from '@/components/finances/AccountsChart'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
@@ -23,6 +24,8 @@ const SERIES = [
   { id: 'total', label: 'total' },
   { id: 'cash', label: 'free cash' },
   { id: 'invested', label: 'invested' },
+  /* One line per account (3 Oct) — AccountsChart. */
+  { id: 'accounts', label: 'accounts' },
 ] as const
 
 const RANGES = [
@@ -33,6 +36,7 @@ const RANGES = [
 ] as const
 
 type SeriesId = (typeof SERIES)[number]['id']
+type Summed = Exclude<SeriesId, 'accounts'>
 
 /* A token's colour as rgb(): the chart cannot parse oklch() (1 Oct: the
    gold token, `oklch(0.83 0.1 85)`, threw and drew nothing), so the
@@ -57,7 +61,7 @@ const css = (name: string, fallback: string) => {
 }
 
 /* The mock's two inks: free cash gold, total and invested lavender. */
-const tint = (s: SeriesId) =>
+const tint = (s: Summed) =>
   s === 'cash'
     ? {
         line: css('--color-money-cash', '#e3c77a'),
@@ -121,9 +125,10 @@ export function WorthChart() {
       .slice(-days)
       .filter((p): p is { t: number; v: number } => p.v !== null)
       .map((p) => ({ time: iso(p.t), value: p.v }))
+  const summed: Summed = which === 'accounts' ? 'total' : which
   const points = useMemo(
-    () => (history ? line(history[which]) : []),
-    [history, which, dayEnds, days],
+    () => (history ? line(history[summed]) : []),
+    [history, summed, dayEnds, days],
   )
   const cashBand = useMemo(
     () => (history && which === 'total' ? line(history.cash) : []),
@@ -214,8 +219,8 @@ export function WorthChart() {
     const s = series.current
     const b = band.current
     if (!s || !b) return
-    const stacked = which === 'total'
-    const t = tint(which)
+    const stacked = summed === 'total'
+    const t = tint(summed)
     const gold = tint('cash')
     s.applyOptions({
       lineColor: t.line,
@@ -244,7 +249,7 @@ export function WorthChart() {
     const lastCash = cashBand.at(-1)
     if (lastCash) mark(b, lastCash.value, gold.line)
     chart.current?.timeScale().fitContent()
-  }, [points, cashBand, which])
+  }, [points, cashBand, summed])
 
   return (
     <section className="glass flex flex-col gap-3 rounded-[22px] p-4 sm:p-5">
@@ -274,7 +279,18 @@ export function WorthChart() {
           ))}
         </span>
       </div>
-      <div className="relative h-[280px]">
+      {which === 'accounts' && history ? (
+        <AccountsChart
+          history={history}
+          dayEnds={dayEnds}
+          days={days}
+          rangeLabel={range}
+        />
+      ) : null}
+      {/* Kept mounted under ACCOUNTS: the chart is made once. */}
+      <div
+        className={`relative h-[280px] ${which === 'accounts' ? 'hidden' : ''}`}
+      >
         <div
           ref={box}
           className={`absolute inset-0 transition-[filter] ${shown ? '' : 'blur-[8px]'}`}
@@ -287,7 +303,7 @@ export function WorthChart() {
           </p>
         ) : null}
       </div>
-      {day ? (
+      {day && which !== 'accounts' ? (
         <span
           className={`flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[12px] text-ink-300 ${shown ? '' : 'blur-[6px]'}`}
         >
@@ -315,7 +331,7 @@ export function WorthChart() {
           ) : null}
         </span>
       ) : null}
-      {unpriced > 0 && which !== 'cash' ? (
+      {unpriced > 0 && which !== 'cash' && which !== 'accounts' ? (
         <span className="font-mono text-[11px] text-state-warn">
           {unpriced === 1
             ? '1 position has no closing price yet and is not in the line'

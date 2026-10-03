@@ -45,7 +45,11 @@ the rows behind it, goes back. He types nothing.
    it on its day by itself, tagged NEW for a week — no question (3 Oct:
    asking about a €5.99 Uber One is "a lot of hustle"; the mortgage,
    Vodafone, the gym are what he means by bills). A wrong one gets
-   × not a bill on its row and is never found again. Each bill sits on
+   × not a bill on its row and is never found again. A bill it cannot
+   know (paid once: a yearly insurance, a club just joined) he adds
+   from the payment itself — tap it in movements → repeats every month /
+   every year, nothing typed. One not paid yet: + bill, one line
+   ("Médis 41.50 monthly 10"), read as he types (3 Oct, "add bills yes"). Each bill sits on
    its day: ✓ paid (matched to the statement row by
    itself) or still to come before payday. Salary the same way.
 4. **"One view of movements of all sources."** Every row from every
@@ -115,6 +119,10 @@ New, for steps 7 and 8:
 7. **Ahead: spending in the line, or beside it?** Beside it, as last
    three months' range. Folding an average into the line makes a number
    that never happened ("not simple average cheap slop").
+   **Band, 3 Oct ("band yes"):** the line stays bills and salary only;
+   under it, on by default, a faint band from the lowest to the highest
+   of those three real months — where free cash lands after everything
+   else. A range, never an average. One tap hides it.
 8. **How far ahead?** Three months, with yearly bills inside it marked;
    a twelve-month view of bills only ("what I pay this year") one tap
    away.

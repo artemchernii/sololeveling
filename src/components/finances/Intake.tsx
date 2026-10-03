@@ -21,6 +21,7 @@ import { money } from '@/lib/currency'
 import { dayLabel } from '@/lib/bills'
 import { completePosition, merchantKey, sameCompany } from '@/lib/intake'
 import { productById, searchProducts } from '@/lib/institutions'
+import { tickerBase } from '@/lib/market'
 import type { Candidate } from '@/lib/market'
 import { SPEND_CATEGORIES, categoryLabel } from '@/lib/money'
 
@@ -45,9 +46,9 @@ export function IntakeFlow({
   onBack: () => void
   onDone: () => void
 }) {
-  const open = useQuery(api.intake.open, {})
+  const row = useQuery(api.intake.one, { intakeId })
   const discard = useMutation(api.intake.discard)
-  const found = open?.find((i) => i._id === intakeId)
+  const found = row && row.status !== 'done' ? row : undefined
   /* A confirmed one leaves the open list the moment it lands — keep
      showing it, so its review can say what landed (27 Sep: he got "done
      or gone" instead). */
@@ -60,7 +61,7 @@ export function IntakeFlow({
 
   /* Loading holds the space quietly: a flash of "reading" for a few
      milliseconds is the flicker he kept seeing. */
-  if (open === undefined) return <div className="min-h-[240px]" />
+  if (row === undefined) return <div className="min-h-[240px]" />
   if (intake === undefined) {
     return (
       <p className="py-6 text-center text-[13.5px] text-ink-400">
@@ -187,6 +188,8 @@ function TransactionsReview({
     count: number
     months: Array<string>
     orders?: { written: number; skipped: number; noTicker: number }
+    /* Kept from before: once done, the review that named it is gone. */
+    accountName?: string
   } | null>(null)
   const confirm = useMutation(api.intake.confirmTransactions)
   const addBill = useMutation(api.recurring.create)
@@ -233,10 +236,18 @@ function TransactionsReview({
   const accountId = review?.accountId ?? review?.guessedAccountId ?? null
   const account = accounts.find((a) => a._id === accountId)
 
+  /* What landed comes first: once confirmed, the file is done and its
+     review is gone (3 Oct: he confirmed and got an empty sheet). */
+  if (landed)
+    return (
+      <Landed
+        {...landed}
+        account={landed.accountName ?? account?.name}
+        onDone={onDone}
+      />
+    )
   if (review === undefined) return <div className="min-h-[240px]" />
   if (review === null) return null
-  if (landed)
-    return <Landed {...landed} account={account?.name} onDone={onDone} />
 
   const rows = review.rows
   const pending = rows.filter((r) => r.pending)
@@ -252,8 +263,11 @@ function TransactionsReview({
   )
   const shown = filter === 'check' ? unsure : money_
   const cur = rows[0]?.currency ?? 'EUR'
-  const outOnPaper = rows
-    .filter((r) => r.amount < 0 && !r.pending)
+  /* Only what is new (3 Oct: three overlapping screenshots counted the
+     rows the statement had already brought in — "what do you mean
+     spent?"). What it already had is said under the list. */
+  const outOnPaper = live
+    .filter((r) => r.amount < 0)
     .reduce((t, r) => t + r.amount, 0)
   const spent = money_
     .filter((r) => ch(r.index)?.keep && ch(r.index)?.kind === 'spend')
@@ -323,7 +337,13 @@ function TransactionsReview({
         (months.length === 0 || (months.length === 1 && months[0] === key(now)))
       )
         onDone()
-      else setLanded({ count: kept.length, months, orders })
+      else
+        setLanded({
+          count: kept.length,
+          months,
+          orders,
+          accountName: account?.name,
+        })
     } catch (e) {
       setError(
         e instanceof Error
@@ -383,11 +403,11 @@ function TransactionsReview({
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Kpi
-          label="money out on paper"
+          label="new money out"
           value={money(Math.round(outOnPaper * 100) / 100, cur)}
         />
         <Kpi
-          label="actually spent"
+          label="of it, spent"
           value={money(Math.round(spent * 100) / 100, cur)}
           tone="bad"
           note={`${money_.filter((r) => ch(r.index)?.kind === 'spend' && ch(r.index)?.keep).length} rows`}
@@ -959,10 +979,14 @@ function HoldingsReview({
         const c = completePosition(p, p.todayPriceEur)
         return {
           keep: true,
+          /* -1: no listing's price fits the screen — he picks one, the
+             first search hit is not filled in (3 Oct: the US SHLD). */
           candidate:
-            p.preferred !== undefined && p.preferred >= 0
-              ? (p.candidates[p.preferred] ?? null)
-              : (p.candidates[0] ?? null),
+            p.preferred === undefined
+              ? (p.candidates[0] ?? null)
+              : p.preferred >= 0
+                ? (p.candidates[p.preferred] ?? null)
+                : null,
           shares: c.shares === undefined ? '' : String(c.shares),
           sharesCalc: c.sharesCalculated,
         }
@@ -1007,7 +1031,9 @@ function HoldingsReview({
           let same = 0
           for (const r of kept) {
             const sym = r.d.candidate?.symbol
-            const h = heldHere.find((x) => x.symbol === sym)
+            const h = heldHere.find(
+              (x) => tickerBase(x.symbol) === tickerBase(sym ?? ''),
+            )
             const n = num(r.d.shares)
             if (!sym) continue
             if (!h) out.push(`${sym} new`)
@@ -1018,7 +1044,12 @@ function HoldingsReview({
               )
           }
           const gone = heldHere.filter(
-            (h) => !kept.some((r) => r.d.candidate?.symbol === h.symbol),
+            (h) =>
+              !kept.some(
+                (r) =>
+                  tickerBase(r.d.candidate?.symbol ?? '') ===
+                  tickerBase(h.symbol),
+              ),
           )
           return { out, same, gone }
         })()

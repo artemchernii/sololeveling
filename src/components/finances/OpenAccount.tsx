@@ -366,6 +366,7 @@ function Timeline({
   onFile: (id: Id<'intakes'>) => void
 }) {
   const remove = useMutation(api.logs.remove)
+  const removeSide = useMutation(api.logs.removeSide)
   const fileOf = (id: Id<'intakes'> | null) =>
     id === null ? undefined : data.files.find((f) => f.id === id)
   type Item =
@@ -453,6 +454,11 @@ function Timeline({
                   ? () => void remove({ logId: r.logId as Id<'logs'> })
                   : undefined
               }
+              onNotHere={
+                r.sideLogId
+                  ? () => void removeSide({ logId: r.sideLogId })
+                  : undefined
+              }
             />
           </Fragment>
         )
@@ -536,12 +542,15 @@ function RowLine({
   inside,
   index,
   onDelete,
+  onNotHere,
 }: {
   row: Row
   /** The day of the balance that already covers this typed row. */
   inside: number | null
   index: number
   onDelete?: () => void
+  /** The other side of another account's transfer: "not from here". */
+  onNotHere?: () => void
 }) {
   const moved = r.kind === 'move'
   const traded = r.kind === 'buy' || r.kind === 'sell'
@@ -599,6 +608,16 @@ function RowLine({
           ) : null}
         </span>
       </span>
+      {onNotHere ? (
+        <button
+          type="button"
+          onClick={onNotHere}
+          title={`Written because ${r.sideOf ?? 'another account'}'s file said it came from here. Remove only this side; ${r.sideOf ?? 'that account'} keeps its row.`}
+          className="px-1 font-mono text-[10px] tracking-[0.1em] text-state-warn uppercase opacity-0 group-hover:opacity-100 focus:opacity-100"
+        >
+          not from here
+        </button>
+      ) : null}
       {onDelete ? (
         <button
           type="button"
@@ -631,6 +650,7 @@ function FileView({ intakeId }: { intakeId: Id<'intakes'> }) {
           read, {landed} landed
         </span>
       </span>
+      <Originals intakeId={intakeId} />
       <div className="flex flex-col">
         {f.rows.map((r, i) => (
           <div
@@ -654,6 +674,53 @@ function FileView({ intakeId }: { intakeId: Id<'intakes'> }) {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+/* The file itself, next to what was read from it — kept 90 days
+   (intake.KEEP_FILES_MS), then erased; the rows stay. */
+function Originals({ intakeId }: { intakeId: Id<'intakes'> }) {
+  const o = useQuery(api.intake.originals, { intakeId })
+  if (o === undefined) return null
+  const kept = o.files.some((f) => f.url !== null)
+  const note = kept
+    ? `file kept until ${short(o.keptUntil ?? Date.now())}`
+    : o.keptUntil !== null && o.keptUntil <= Date.now()
+      ? `file erased · ${short(o.keptUntil)}`
+      : 'file not kept — it went in before files were'
+  return (
+    <div className="flex flex-col gap-2">
+      {o.files.map((f, i) =>
+        f.url === null ? null : f.contentType.startsWith('image/') ? (
+          <a
+            key={i}
+            href={f.url}
+            target="_blank"
+            rel="noreferrer"
+            className="motion-press self-start overflow-hidden rounded-[12px] ring-1 ring-lift/12"
+          >
+            <img
+              src={f.url}
+              alt={f.name}
+              className="max-h-[420px] w-auto object-contain"
+            />
+          </a>
+        ) : (
+          <a
+            key={i}
+            href={f.url}
+            target="_blank"
+            rel="noreferrer"
+            className={`${PILL_QUIET} self-start`}
+          >
+            open {f.name} ↗
+          </a>
+        ),
+      )}
+      <span className="font-mono text-[10.5px] tracking-[0.08em] text-ink-500 uppercase">
+        {note}
+      </span>
     </div>
   )
 }

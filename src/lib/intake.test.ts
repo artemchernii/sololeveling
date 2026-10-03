@@ -17,7 +17,13 @@ import {
   intakePrompt,
   matchAccount,
   merchantKey,
+  INTAKE_SCHEMA,
+  MAX_NULLABLE_FIELDS,
   parseReading,
+  printedAmount,
+  storedDuplicates,
+  fitByPrice,
+  settleFrozen,
   preferClass,
   readableFile,
   searchableName,
@@ -185,11 +191,188 @@ describe('share class and search', () => {
     ]
     expect(pltr[preferClass('Palantir Technologies', pltr)].symbol).toBe('PLTR')
   })
+  test("212's SHLD is iShares Digital Security, not the US defence ETF", () => {
+    // 21.868 shares printed at €284.01: €12.99 a share.
+    const printed = 284.01 / 21.86787796
+    const bySymbol = [{ symbol: 'SHLD' }, { symbol: 'SHLD.TO' }]
+    expect(fitByPrice(printed, bySymbol, [53.66, 40.1], 'SHLD')).toBe(-1)
+    const byName = [{ symbol: 'LOCK.L' }, { symbol: 'SHLD.L' }]
+    expect(fitByPrice(printed, byName, [11.88, 13.02], 'SHLD')).toBe(1)
+  })
+  test('frozen only when the market answered for the rest of the screen', () => {
+    const lukoy = {
+      symbol: 'LUKOY',
+      name: 'LUKOIL',
+      exchange: 'Trading 212',
+      type: 'UNPRICED',
+    }
+    const igln = { symbol: 'IGLN.L', name: 'Gold', exchange: 'L', type: 'ETF' }
+    const screen = () => [
+      { candidates: [igln], preferred: 0, todayPriceEur: 71.4 },
+      { candidates: [] as Array<typeof igln>, preferred: -1 },
+    ]
+    const live = screen()
+    settleFrozen(live, [{ at: 1, candidate: lukoy, priceEur: 6.27 }], 1)
+    expect(live[1]).toMatchObject({
+      candidates: [lukoy],
+      preferred: 0,
+      todayPriceEur: 6.27,
+    })
+    // Yahoo down: nothing priced, so nothing is frozen — it is asked.
+    const down = screen().map((p) => ({ ...p, todayPriceEur: undefined }))
+    settleFrozen(down, [{ at: 1, candidate: lukoy, priceEur: 6.27 }], 1)
+    expect(down[1]).toMatchObject({ candidates: [], preferred: -1 })
+  })
+  test('without a printed ticker the closest price wins; none, -1', () => {
+    const list = [{ symbol: 'A' }, { symbol: 'B' }, { symbol: 'C' }]
+    expect(fitByPrice(100, list, [110, 97, undefined])).toBe(1)
+    expect(fitByPrice(100, list, [undefined, 300, 0])).toBe(-1)
+  })
   test('names a search can find', () => {
     expect(searchableName('Alphabet (A)')).toBe('Alphabet')
     expect(searchableName('Meta Platforms (A)')).toBe('Meta Platforms')
     expect(searchableName('Amazon.com')).toBe('Amazon')
   })
+})
+
+test("the reader's schema stays inside the API's limit on nullable fields", () => {
+  let n = 0
+  const walk = (x: unknown) => {
+    if (Array.isArray(x)) return x.forEach(walk)
+    if (x && typeof x === 'object') {
+      const o = x as Record<string, unknown>
+      if (Array.isArray(o.type) && o.type.includes('null')) n++
+      Object.values(o).forEach(walk)
+    }
+  }
+  walk(INTAKE_SCHEMA)
+  expect(n).toBeLessThanOrEqual(MAX_NULLABLE_FIELDS)
+})
+
+test('printedAmount: what a bank prints, whatever the grouping (3 Oct)', () => {
+  expect(printedAmount('1 100.00')).toBe(1100)
+  expect(printedAmount('1.100,00')).toBe(1100)
+  expect(printedAmount('1,100.00')).toBe(1100)
+  expect(printedAmount('-1.205,20')).toBe(1205.2)
+  expect(printedAmount('€ 1 277,35')).toBe(1277.35)
+  expect(printedAmount('1 100')).toBe(1100)
+  expect(printedAmount('1.100')).toBe(1100)
+  expect(printedAmount('12,5')).toBe(12.5)
+  expect(printedAmount('100.00')).toBe(100)
+  expect(printedAmount('—')).toBeUndefined()
+})
+
+test("BPI's screens (3 Oct): 'P/ <IBAN> ARTEM CHERNII' is to him; 'P/O' by him", () => {
+  const names = ['ARTEM CHERNII']
+  expect(
+    ownMoney(
+      {
+        amount: -1100,
+        merchant: 'SEPA Transfer',
+        raw: 'TRF SEPA+ INST 20 P/ PT50002300004547874109 8894 ARTEM CHERNII',
+        counterparty: 'PT50002300004547874109',
+      },
+      names,
+    ),
+  ).toBe(true)
+  expect(
+    ownMoney(
+      { amount: 1000, merchant: 'Transfer', raw: 'TRF. P/O ARTEM CHERNII' },
+      names,
+    ),
+  ).toBe(true)
+  /* A payment to someone else with his name elsewhere is not his. */
+  expect(
+    ownMoney(
+      {
+        amount: -50,
+        merchant: 'MB WAY',
+        raw: 'TRF MB WAY P/ OLEKSANDR SAKHNO',
+      },
+      names,
+    ),
+  ).toBe(false)
+})
+
+test("the same row named twice is one row, by the bank's own line (3 Oct)", () => {
+  const day = new Date(2026, 8, 1, 12).getTime()
+  expect(
+    findDuplicates(
+      [
+        {
+          occurredAt: day,
+          amount: -24.95,
+          merchant: 'Insurance',
+          raw: 'SEGURO ALLIANZ - MULTI-RISCOS-HABITACAO',
+        },
+        { occurredAt: day, amount: -24.95, merchant: 'Gym', raw: 'SOLINCA' },
+      ],
+      [
+        {
+          occurredAt: day,
+          amount: -24.95,
+          merchant: 'Seguro Allianz',
+          raw: 'SEGURO ALLIANZ MULTI-RISCOS',
+        },
+      ],
+    ),
+  ).toEqual([0, null])
+})
+
+test('storedDuplicates: his ActivoBank rows written twice, the later goes (3 Oct)', () => {
+  const d = (m: number, day: number) => new Date(2026, m - 1, day, 13).getTime()
+  const rows = [
+    {
+      id: 'a',
+      written: 1,
+      occurredAt: d(9, 1),
+      amount: -121.47,
+      merchant: 'PayPal Europe',
+      raw: 'PayPal Europe',
+    },
+    {
+      id: 'b',
+      written: 2,
+      occurredAt: d(9, 1),
+      amount: -121.47,
+      merchant: 'DD PAYPAL EUROPE 5D4J2254EVNWL',
+      raw: 'DD PAYPAL EUROPE 5D4J2254EVNWL LU96',
+    },
+    {
+      id: 'c',
+      written: 1,
+      occurredAt: d(9, 9),
+      amount: -57.47,
+      merchant: 'COMPRA 2789 EST SERVICO VEIGA E SEABRA SA',
+      raw: 'COMPRA 2789 EST SERVICO VEIGA E SEABRA SA CAS',
+    },
+    {
+      id: 'd',
+      written: 2,
+      occurredAt: d(9, 14),
+      amount: -57.47,
+      merchant: 'Est Servico Veiga e Seabra SA',
+      raw: 'Est Servico Veiga e Seabra SA',
+    },
+    /* Two real coffees of the same price, a day apart, stay. */
+    {
+      id: 'e',
+      written: 1,
+      occurredAt: d(9, 15),
+      amount: -6.7,
+      merchant: 'Bnp Toc',
+      raw: 'Bnp Toc',
+    },
+    {
+      id: 'f',
+      written: 1,
+      occurredAt: d(9, 16),
+      amount: -6.7,
+      merchant: 'Cinema',
+      raw: 'Cinemas NOS',
+    },
+  ]
+  expect(storedDuplicates(rows)).toEqual(['b', 'd'])
 })
 
 describe('parseReading', () => {
@@ -307,6 +490,107 @@ describe('parseReading', () => {
         changePct: -0.62,
       },
     ])
+  })
+  test("Trading 212's screens (3 Oct): shares and ticker under the name; a summary with no positions", () => {
+    const base = {
+      kind: 'holdings',
+      institution: null,
+      holder_name: null,
+      title: 'Invest',
+      currency: 'EUR',
+      transactions: [],
+      closing_balance: null,
+      closing_balance_date: null,
+    }
+    const list = parseReading(
+      JSON.stringify({
+        ...base,
+        positions: [
+          {
+            name: 'iShares Physical Gold',
+            isin: null,
+            symbol: 'IGLN',
+            shares: 7.36542714,
+            average_price_eur: null,
+            value_eur: 526.21,
+            change_pct: -4.01,
+          },
+        ],
+        cash_eur: null,
+        total_eur: null,
+      }),
+    )
+    if (!list.ok) throw new Error(list.error)
+    expect(list.positions[0]).toMatchObject({
+      symbol: 'IGLN',
+      shares: 7.36542714,
+    })
+    const summary = parseReading(
+      JSON.stringify({
+        ...base,
+        positions: [],
+        cash_eur: 12994.22,
+        total_eur: 15008.26,
+      }),
+    )
+    if (!summary.ok) throw new Error(summary.error)
+    expect(summary.positions).toEqual([])
+    expect(
+      parseReading(
+        JSON.stringify({
+          ...base,
+          positions: [],
+          cash_eur: null,
+          total_eur: null,
+        }),
+      ).ok,
+    ).toBe(false)
+  })
+  test("the printed amount wins over the model's number; its sign stays", () => {
+    const r = parseReading(
+      JSON.stringify({
+        kind: 'transactions',
+        institution: 'ActivoBank',
+        account_tail: null,
+        holder_name: 'ARTEM CHERNII',
+        title: 'ActivoBank · Sep',
+        currency: 'EUR',
+        transactions: [
+          {
+            date: '2026-09-01',
+            merchant: 'ARTEM CHERNII',
+            raw: 'TRF. P/O ARTEM CHERNII',
+            amount: 100,
+            amount_text: '1 100.00',
+            currency: 'EUR',
+            pending: false,
+            counterparty: 'ARTEM CHERNII',
+            self_transfer: true,
+            category: null,
+          },
+          {
+            date: '2026-09-03',
+            merchant: 'Revolut',
+            raw: 'COMPRA 2789 Revolut',
+            amount: -1000,
+            amount_text: '1 000.00',
+            currency: 'EUR',
+            pending: false,
+            counterparty: null,
+            self_transfer: true,
+            category: null,
+          },
+        ],
+        positions: [],
+        trades: [],
+        closing_balance: 435.66,
+        closing_balance_date: '2026-09-30',
+        cash_eur: null,
+        total_eur: null,
+      }),
+    )
+    if (!r.ok) throw new Error(r.error)
+    expect(r.transactions.map((x) => x.amount)).toEqual([1100, -1000])
   })
   test('refuses what it cannot use', () => {
     expect(parseReading('nope').ok).toBe(false)

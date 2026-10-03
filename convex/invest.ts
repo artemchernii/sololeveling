@@ -7,6 +7,7 @@ import type { MutationCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import schema from './schema'
 import { reconcile } from '../src/lib/holdings'
+import { UNPRICED } from '../src/lib/market'
 
 /* Investments (Finances F4, 26 Sep): tickers and trades. Trades come in
    from a trade history or statement (intake.ts), or a typed line
@@ -48,7 +49,11 @@ export async function upsertInstrument(
     type: c.type,
     isin,
   })
-  await ctx.scheduler.runAfter(0, internal.market.readOne, { instrumentId: id })
+  /* A frozen share has no market to ask (UNPRICED). */
+  if (c.type !== UNPRICED)
+    await ctx.scheduler.runAfter(0, internal.market.readOne, {
+      instrumentId: id,
+    })
   return id
 }
 

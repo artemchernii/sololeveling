@@ -1128,7 +1128,8 @@ describe('intake: transactions', () => {
     expect(sums.out).toEqual({ sum: 114.7, count: 2 })
     const b = await me.query(api.aggregate.balances, {})
     expect(b.accounts[0].pockets[0].value).toBe(799.47)
-    expect(await stored(t, storageId)).toBe(false)
+    // Kept 90 days to open again (3 Oct), erased by intake.eraseOld.
+    expect(await stored(t, storageId)).toBe(true)
     expect(await me.query(api.intake.open, {})).toEqual([])
   })
 

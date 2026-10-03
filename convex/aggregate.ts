@@ -1795,6 +1795,11 @@ const sheetRow = v.object({
   other: v.union(v.string(), v.null()),
   /** Typed by him (no file): the only rows the sheet can delete. */
   logId: v.union(v.id('logs'), v.null()),
+  /** A move written here because another account's file named this one
+      as its other side — that account's name. He can say it did not come
+      from here (3 Oct: BPI got a −€1,000 that left from elsewhere). */
+  sideOf: v.union(v.string(), v.null()),
+  sideLogId: v.union(v.id('logs'), v.null()),
   fileId: v.union(v.id('intakes'), v.null()),
   /** A typed row on a day a balance already covers: that balance's time —
       the row changed no balance after it. */
@@ -1957,6 +1962,19 @@ export const accountSheet = query({
         checks.push({ currency, ...c })
     }
 
+    /* Whose file wrote a move into this account: another account's, when
+       this row is only the other side of what that file read. */
+    const fileAccount = new Map<Id<'intakes'>, Id<'accounts'> | null>()
+    const sideOf = async (l: Doc<'logs'>) => {
+      const none = { sideOf: null, sideLogId: null }
+      if (l.kind !== 'move' || l.meta?.intakeId === undefined) return none
+      const id = l.meta.intakeId
+      if (!fileAccount.has(id))
+        fileAccount.set(id, (await ctx.db.get(id))?.accountId ?? null)
+      const from = fileAccount.get(id) ?? null
+      if (from === null || from === account._id) return none
+      return { sideOf: await otherName(from), sideLogId: l._id }
+    }
     const out = []
     for (const l of logs) {
       if (l.area !== 'money' || l.value === undefined) continue
@@ -1983,6 +2001,7 @@ export const accountSheet = query({
         category: l.meta?.category ?? null,
         other: await otherName(l.meta?.otherAccountId),
         logId: typed ? l._id : null,
+        ...(await sideOf(l)),
         fileId: l.meta?.intakeId ?? null,
         inside: cover?.at ?? null,
       })
@@ -2007,6 +2026,8 @@ export const accountSheet = query({
         category: null,
         other: null,
         logId: null,
+        sideOf: null,
+        sideLogId: null,
         fileId: t.importId ?? null,
         inside: null,
       })

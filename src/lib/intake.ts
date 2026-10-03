@@ -13,8 +13,14 @@
    (value and % since buy, no shares). */
 
 export const INTAKE_MODEL = 'claude-haiku-4-5'
+/* Bumped whenever what the reader is asked changes: a file read by an
+   older reader is read again rather than its reading reused (3 Oct — a
+   reused reading kept "1 100.00" as 100 after the prompt was fixed). */
+export const READER_VERSION = 4
 export const INTAKE_MODEL_NAME = 'Claude Haiku 4.5'
 export const MAX_INTAKE_FILES = 6
+/* UPDATE ALL (3 Oct): a year of four banks' monthly statements. */
+export const MAX_BATCH_FILES = 60
 export const MAX_INTAKE_BYTES = 10 * 1024 * 1024
 export const INTAKES_PER_WINDOW = 40
 export const INTAKE_WINDOW_MS = 30 * 86_400_000
@@ -48,6 +54,11 @@ export function readableFile(
 
 /* ---- What the reader is asked for ------------------------------------- */
 
+/* The API takes at most 16 fields that may be null (3 Oct: a seventeenth
+   — the ticker — made every reading fail with a 400). A field that is
+   only text says "none" with an empty string instead; a test counts. */
+export const MAX_NULLABLE_FIELDS = 16
+
 export const INTAKE_SCHEMA = {
   type: 'object',
   properties: {
@@ -59,7 +70,7 @@ export const INTAKE_SCHEMA = {
     account_tail: { type: ['string', 'null'] },
     holder_name: { type: ['string', 'null'] },
     title: { type: 'string' },
-    currency: { type: ['string', 'null'] },
+    currency: { type: 'string' },
     transactions: {
       type: 'array',
       items: {
@@ -69,6 +80,7 @@ export const INTAKE_SCHEMA = {
           merchant: { type: 'string' },
           raw: { type: 'string' },
           amount: { type: 'number' },
+          amount_text: { type: 'string' },
           currency: { type: 'string' },
           pending: { type: 'boolean' },
           counterparty: { type: ['string', 'null'] },
@@ -80,6 +92,7 @@ export const INTAKE_SCHEMA = {
           'merchant',
           'raw',
           'amount',
+          'amount_text',
           'currency',
           'pending',
           'counterparty',
@@ -96,6 +109,7 @@ export const INTAKE_SCHEMA = {
         properties: {
           name: { type: 'string' },
           isin: { type: ['string', 'null'] },
+          symbol: { type: 'string' },
           shares: { type: ['number', 'null'] },
           average_price_eur: { type: ['number', 'null'] },
           value_eur: { type: ['number', 'null'] },
@@ -104,6 +118,7 @@ export const INTAKE_SCHEMA = {
         required: [
           'name',
           'isin',
+          'symbol',
           'shares',
           'average_price_eur',
           'value_eur',
@@ -195,15 +210,15 @@ export function intakePrompt(opts: {
     '  kind = "trades" — buying and selling shares: a broker\'s order or trade history, or a trade confirmation, with a date, shares and a price per trade.',
     '  otherwise "unknown". A screen of positions is holdings even when it shows a daily change; a list of orders is trades even when it shows a total.',
     'title: a short human label, e.g. "Revolut statement · EUR · Aug 1 → Sep 27", "Trade Republic · holdings", "Trading 212 · orders". institution: the bank or broker the file is FROM, e.g. "Revolut" or "Revolut Invest". account_tail: the last four digits of the IBAN or card number the file is about, if printed (e.g. "0120" for PT50 … 0120), else null. holder_name: the account holder\'s name if printed.',
-    'For transactions: every row, once, including rows under a "pending" heading (pending = true). date as YYYY-MM-DD (for "Yesterday" or a weekday, resolve against today). amount is signed: money out negative, money in positive, in the row\'s own currency. merchant: a clean human name ("Bolt", not "Bolt.euo2609161656"; "Claude subscription" for "Anthropic* Claude Sub"). raw: the description as printed, one line.',
-    'counterparty: for transfers, who is on the other side — keep any IBAN or card digits printed for it ("PT50…0120", "card ••2789"). self_transfer = true when money goes to or comes from the holder\'s own name, another of their own accounts, a card top-up, a savings or investment account inside the same bank, or a known broker the person uses (their accounts: ' +
+    'For transactions: every row, once, including rows under a "pending" heading (pending = true). Several screenshots of one history overlap: a row on two of them is still one row. A number printed under or beside a row\'s amount, smaller, is the balance after it — never the amount. A row cut off at the edge of a screenshot, its amount not shown, is left out (it is whole on another). A pending heading shown only as a total, its lines folded away ("Pending  -1.205,20"), is one row: merchant "Pending", that total as the amount, pending = true. date as YYYY-MM-DD (for "Yesterday" or a weekday, resolve against today). amount is signed: money out negative, money in positive, in the row\'s own currency. amount_text: the amount exactly as it is printed, every character kept ("1 100.00", "-1.205,20"). merchant: a clean human name ("Bolt", not "Bolt.euo2609161656"; "Claude subscription" for "Anthropic* Claude Sub"). raw: the description as printed, one line.',
+    'counterparty: for transfers, who is on the other side — the name and any IBAN or card digits printed for it ("ARTEM CHERNII, PT50…0120", "card ••2789"). self_transfer = true when money goes to or comes from the holder\'s own name, another of their own accounts, a card top-up, a savings or investment account inside the same bank, or a known broker the person uses (their accounts: ' +
       (opts.accounts.join(', ') || 'unknown') +
       '). A card payment to a broker such as Trade Republic or Trading 212 is a deposit to that broker — self_transfer = true.',
     `category (spending only, else null): one of ${SPEND_CATEGORY_IDS.join(', ')}.`,
     'closing_balance: the final balance printed for the account (completed transactions only) and closing_balance_date; else null.',
-    'For holdings: every position, once. value_eur: its current value as printed. change_pct: the % gain or loss since buying if printed (negative for a loss). shares and average_price_eur only if printed. cash_eur: uninvested cash if shown; total_eur: the account total if shown.',
+    'For holdings: every position, once. value_eur: its current value as printed. change_pct: the % gain or loss since buying if printed (negative for a loss). shares and average_price_eur only if printed — a number printed under or beside the name together with a ticker ("7.36542714 IGLN" on Trading 212) is the shares, and the ticker is symbol (else an empty string). cash_eur: uninvested cash if shown; total_eur: the account total if shown. An account summary screen with a total and cash but no list of positions (Trading 212\'s "Account value … Cash") is holdings with no positions.',
     'For trades: every buy and sell, once — date as YYYY-MM-DD, name as printed, isin if printed, side, shares, price per share and its currency. Skip cancelled or rejected orders.',
-    'Read numbers exactly: a European comma decimal (1.234,56) is 1234.56. Never invent a number that is not printed — use null. Leave the arrays that do not apply empty.',
+    'Read numbers exactly: a European comma decimal (1.234,56) is 1234.56; thousands set apart by a space ("1 100.00", "1 277,35") are one number — 1100.00, never 100.00. Never invent a number that is not printed — use null. Leave the arrays that do not apply empty.',
   ].join('\n')
 }
 
@@ -224,6 +239,8 @@ export type ReadTransaction = {
 export type ReadPosition = {
   name: string
   isin?: string
+  /** The ticker printed beside it, when the screen prints one. */
+  symbol?: string
   shares?: number
   priceEur?: number
   valueEur?: number
@@ -305,7 +322,14 @@ export function parseReading(
   if (j.kind === 'transactions' && transactions.length === 0) {
     return { ok: false, error: 'No transactions were found in it.' }
   }
-  if (j.kind === 'holdings' && positions.length === 0) {
+  /* An account summary — total and cash, the positions on another screen
+     (Trading 212, 3 Oct) — is a holdings read with no rows. */
+  if (
+    j.kind === 'holdings' &&
+    positions.length === 0 &&
+    num(j.cash_eur) === undefined &&
+    num(j.total_eur) === undefined
+  ) {
     return { ok: false, error: 'No positions were found on it.' }
   }
   const balanceValue = num(j.closing_balance)
@@ -340,13 +364,41 @@ export function parseReading(
   }
 }
 
+/**
+ * An amount as a bank prints it → its size: "1 100.00", "1.100,00",
+ * "1,100.00", "−1.205,20", "1 100" → 1100 / 1205.2. The last separator
+ * with one or two digits after it is the decimal point; every other
+ * separator — dot, comma, space, apostrophe — only groups thousands.
+ * Undefined when there is no number in it.
+ */
+export function printedAmount(text: string): number | undefined {
+  const t = text.replace(/[^\d.,'\s]/g, '').trim()
+  if (!/\d/.test(t)) return undefined
+  const m = /[.,](\d{1,2})$/.exec(t)
+  const whole = (m ? t.slice(0, m.index) : t).replace(/\D/g, '')
+  const cents = m ? m[1].padEnd(2, '0') : '00'
+  const n = Number(`${whole || '0'}.${cents}`)
+  return Number.isFinite(n) ? n : undefined
+}
+
 function txRows(j: Record<string, unknown>): Array<ReadTransaction> {
   const transactions: Array<ReadTransaction> = []
   for (const r of Array.isArray(j.transactions)
     ? (j.transactions as Array<Record<string, unknown>>)
     : []) {
     const at = typeof r.date === 'string' ? dayToMs(r.date) : undefined
-    const amount = num(r.amount)
+    /* The number as printed, worked out here rather than trusted to the
+       model: it read ActivoBank's "1 100.00" as 100 twice, rule or no rule
+       (3 Oct). Its own number keeps the sign. */
+    const read = num(r.amount)
+    const printed =
+      typeof r.amount_text === 'string'
+        ? printedAmount(r.amount_text)
+        : undefined
+    const amount =
+      read !== undefined && printed !== undefined && printed > 0
+        ? Math.sign(read || 1) * printed
+        : read
     const merchant = str(r.merchant, 80)
     if (
       at === undefined ||
@@ -390,9 +442,14 @@ function positionRows(j: Record<string, unknown>): Array<ReadPosition> {
       typeof r.isin === 'string' && /^[A-Z]{2}[A-Z0-9]{10}$/.test(r.isin)
         ? r.isin
         : undefined
+    const symbol =
+      typeof r.symbol === 'string' && /^[A-Z0-9.]{1,12}$/.test(r.symbol.trim())
+        ? r.symbol.trim()
+        : undefined
     positions.push({
       name,
       isin,
+      symbol,
       shares: pos(r.shares),
       priceEur: pos(r.average_price_eur),
       valueEur: pos(r.value_eur),
@@ -578,6 +635,18 @@ export type ExistingRow = {
   occurredAt: number
   amount: number // signed, same convention as a read row
   merchant: string
+  /** The line as the bank printed it, when the row came from a file. */
+  raw?: string
+}
+
+/* The words a bank's own line is told apart by: "SEGURO", "ALLIANZ",
+   "EMPRESTIMO" — not "TRF", dates or numbers. */
+function lineWords(text: string): Set<string> {
+  return new Set(
+    plain(text)
+      .split(/[^a-z]+/)
+      .filter((w) => w.length >= 4),
+  )
 }
 
 const DAY = 86_400_000
@@ -591,21 +660,47 @@ const DAY = 86_400_000
  */
 export function findDuplicates(
   incoming: ReadonlyArray<
-    Pick<ReadTransaction, 'occurredAt' | 'amount' | 'merchant'>
+    Pick<ReadTransaction, 'occurredAt' | 'amount' | 'merchant'> & {
+      raw?: string
+    }
   >,
   existing: ReadonlyArray<ExistingRow>,
 ): Array<number | null> {
   const used = new Set<number>()
+  /* A row this file holds more than once (a coffee bought every few
+     days) never gets the week-long window: a week apart, it is another. */
+  const repeats = new Map<string, number>()
+  for (const r of incoming) {
+    const k = `${merchantKey(r.merchant)}:${Math.round(r.amount * 100)}`
+    repeats.set(k, (repeats.get(k) ?? 0) + 1)
+  }
   return incoming.map((r) => {
     const key = merchantKey(r.merchant)
+    const often = (repeats.get(`${key}:${Math.round(r.amount * 100)}`) ?? 0) > 1
+    /* The same row read twice can come back named twice ("Seguro Allianz"
+       from the statement, "Insurance" from a screenshot — 3 Oct): the
+       bank's own line, shared, says it is the same. */
+    const words = lineWords(`${r.merchant} ${r.raw ?? ''}`)
     let best: number | null = null
     let bestGap = Infinity
     for (const [i, e] of existing.entries()) {
       if (used.has(i)) continue
       if (Math.abs(e.amount - r.amount) > 0.005) continue
-      if (merchantKey(e.merchant) !== key) continue
+      const named = merchantKey(e.merchant) === key
+      const said = [...lineWords(`${e.merchant} ${e.raw ?? ''}`)].some((w) =>
+        words.has(w),
+      )
+      if (!named && !said) continue
       const gap = Math.abs(e.occurredAt - r.occurredAt)
-      if (gap <= 2 * DAY + 3_600_000 && gap < bestGap) {
+      /* A statement can date a row by its value day, the app by the day it
+         moved — Est Servico on 9 Sep here, 14 Sep there (3 Oct). The
+         bank's own line, closely shared, stretches the window to a week. */
+      const close =
+        [...lineWords(`${e.merchant} ${e.raw ?? ''}`)].filter((w) =>
+          words.has(w),
+        ).length >= 2
+      const window = close && !often ? 7 * DAY + 3_600_000 : 2 * DAY + 3_600_000
+      if (gap <= window && gap < bestGap) {
         best = i
         bestGap = gap
       }
@@ -613,6 +708,42 @@ export function findDuplicates(
     if (best !== null) used.add(best)
     return best
   })
+}
+
+/**
+ * Rows of one account that are the same row twice — two files that named
+ * it differently, before duplicates were matched by the bank's own line
+ * (3 Oct). The later-written of each pair is returned, to remove.
+ */
+export function storedDuplicates(
+  rows: ReadonlyArray<{
+    id: string
+    written: number
+    occurredAt: number
+    amount: number
+    merchant: string
+    raw?: string
+    /** The file it came from: two rows of one file are two rows. */
+    file?: string
+  }>,
+): Array<string> {
+  /* File by file, oldest first, each laid against what came before it —
+     the same comparison a new file gets. A typed row is its own file. */
+  const groups = new Map<string, Array<(typeof rows)[number]>>()
+  for (const r of [...rows].sort((x, y) => x.written - y.written)) {
+    const k = r.file ?? `typed:${r.id}`
+    groups.set(k, [...(groups.get(k) ?? []), r])
+  }
+  const kept: Array<ExistingRow> = []
+  const out: Array<string> = []
+  for (const group of groups.values()) {
+    const hits = findDuplicates(group, kept)
+    for (const [i, r] of group.entries()) {
+      if (hits[i] === null) kept.push(r)
+      else out.push(r.id)
+    }
+  }
+  return out
 }
 
 export type Recurring = {
@@ -790,6 +921,91 @@ export function preferClass(
   return scored.length > 0 ? scored[0].i : -1
 }
 
+/* How far a listing's price today may sit from the one a screen implies
+   and still be the same fund: a day's move, not a different share. */
+const PRICE_FIT = 0.15
+
+/**
+ * The listing a holdings screen showed, by its price. When the screen
+ * printed both value and shares, value ÷ shares is the price per share —
+ * a listing whose price today is far from it is another fund. Trading 212
+ * prints "SHLD" for iShares Digital Security; Yahoo's top "SHLD" is a US
+ * defence ETF at four times the price (3 Oct: €2,885 shown, €2,014 held).
+ * Among listings that fit, the printed ticker's own line, then the
+ * closest. Returns -1 when none fits.
+ */
+export function fitByPrice(
+  printedEur: number,
+  candidates: ReadonlyArray<{ symbol: string }>,
+  pricesEur: ReadonlyArray<number | undefined>,
+  symbol?: string,
+): number {
+  const base = symbol ? symbol.split('.')[0].toUpperCase() : undefined
+  let best = -1
+  let bestKey: [number, number] = [Infinity, Infinity]
+  candidates.forEach((c, i) => {
+    const p = pricesEur[i]
+    if (p === undefined || !(p > 0) || !(printedEur > 0)) return
+    const off = Math.abs(p - printedEur) / printedEur
+    if (off > PRICE_FIT) return
+    const key: [number, number] = [
+      base !== undefined && c.symbol.split('.')[0].toUpperCase() === base
+        ? 0
+        : 1,
+      off,
+    ]
+    if (key[0] < bestKey[0] || (key[0] === bestKey[0] && key[1] < bestKey[1])) {
+      best = i
+      bestKey = key
+    }
+  })
+  return best
+}
+
+/**
+ * Files the screen's unpriced tickers as frozen (UNPRICED) — only when
+ * the market priced another position of the same screen. With no answer
+ * at all Yahoo may be down, and a live fund filed as frozen would never
+ * be priced again: then each stays asked (preferred -1). In place.
+ */
+export function settleFrozen<
+  TPosition extends {
+    candidates: Array<{
+      symbol: string
+      name: string
+      exchange: string
+      type: string
+    }>
+    preferred?: number
+    todayPriceEur?: number
+    todayAsOf?: number
+  },
+>(
+  positions: Array<TPosition>,
+  frozen: ReadonlyArray<{
+    at: number
+    candidate: { symbol: string; name: string; exchange: string; type: string }
+    priceEur: number
+  }>,
+  now: number,
+): void {
+  const answered = positions.some(
+    (p) =>
+      p.todayPriceEur !== undefined &&
+      p.preferred !== undefined &&
+      p.preferred >= 0,
+  )
+  if (!answered) return
+  for (const f of frozen)
+    positions[f.at] = {
+      ...positions[f.at],
+      candidates: [f.candidate],
+      preferred: 0,
+      todayPriceEur: f.priceEur,
+      todayAsOf: now,
+    }
+}
+
 /** "Alphabet (A)" → "Alphabet": what a ticker search can find. */
 export function searchableName(name: string): string {
   return brokerName(name)
@@ -891,6 +1107,13 @@ export function ownMoney(
      as its receiver (1 Oct review). */
   const where = plain(`${row.merchant} ${row.counterparty ?? ''}`)
   const words = new Set(where.split(/[^a-z]+/).filter(Boolean))
+  /* A Portuguese bank prints who is on the other side in the line itself:
+     "TRF … P/ <IBAN> ARTEM CHERNII" — to him; "TRF. P/O ARTEM CHERNII" — by
+     his order (3 Oct: BPI's screens, merchant "SEPA Transfer"). */
+  const line = plain(row.raw ?? '')
+  const after = row.amount < 0 ? /\bp\/\s(.*)$/ : /\bp\/o\s(.*)$/
+  for (const w of after.exec(line)?.[1]?.split(/[^a-z]+/) ?? [])
+    if (w) words.add(w)
   return names.some((n) => {
     const parts = plain(n)
       .split(/[^a-z]+/)

@@ -10,6 +10,16 @@
 export const PRICE_SOURCE = 'Yahoo Finance'
 export const RATE_SOURCE = 'ECB via Frankfurter'
 
+/* A position no market prices any more — LUKOIL and Norilsk Nickel,
+   bought before the war and frozen since (3 Oct). He still holds them and
+   the broker still values them, so its screen is the reading: stored with
+   the broker's name and the screen's day, never fetched from Yahoo. */
+export const UNPRICED = 'UNPRICED'
+export const screenSource = (broker: string) => `${broker} screen`
+
+/** "VUAA.MI" → "VUAA": one fund, whichever exchange lists it. */
+export const tickerBase = (symbol: string) => symbol.split('.')[0].toUpperCase()
+
 export type Candidate = {
   symbol: string
   name: string

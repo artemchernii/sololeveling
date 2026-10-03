@@ -953,9 +953,71 @@ export default defineSchema({
        trades since 2020) lives in intakeTrades; this says how many. */
     historyTrades: v.optional(v.number()),
     historyTickers: v.optional(v.number()),
+    /* Which version of the reader's instructions read it (READER_VERSION):
+       a reading is reused for the same file only from the same version. */
+    reader: v.optional(v.number()),
+    /* The bulk drop it came in (3 Oct): one intake per file, gathered. */
+    batchId: v.optional(v.id('batches')),
+    /* The file itself is kept until then, to open next to what was read
+       (3 Oct: "I can't open those png now to check") — 90 days from when
+       it went in, then erased by the daily job (intake.eraseOld). What
+       was read from it stays. */
+    keptUntil: v.optional(v.number()),
   })
     .index('by_owner', ['ownerId'])
-    .index('by_owner_fingerprint', ['ownerId', 'fingerprint']),
+    .index('by_owner_fingerprint', ['ownerId', 'fingerprint'])
+    .index('by_owner_batch', ['ownerId', 'batchId'])
+    /* Read only by the daily eraser, which acts for every owner — like
+       instruments.by_symbol. */
+    .index('by_keptUntil', ['keptUntil']),
+
+  /* A bulk update (3 Oct, "UPDATE ALL"): many statements dropped at once,
+     each its own intake, reviewed together per account and applied in one
+     go, oldest first. What he answered in the review lives here until it
+     is applied; nothing is a log before that. */
+  batches: defineTable({
+    ownerId: v.string(),
+    status: v.union(
+      v.literal('open'),
+      v.literal('applying'),
+      v.literal('done'),
+    ),
+    /* Accounts he left out of this apply: their files keep waiting. */
+    leftOut: v.array(v.id('accounts')),
+    /* A month with no statement that he said was quiet: "2026-03". */
+    quietMonths: v.array(
+      v.object({ accountId: v.id('accounts'), month: v.string() }),
+    ),
+    /* A move with no other side in the drop: the account it left or
+       reached, or null — an account outside the app. */
+    moves: v.array(
+      v.object({
+        intakeId: v.id('intakes'),
+        index: v.number(),
+        otherAccountId: v.union(v.id('accounts'), v.null()),
+      }),
+    ),
+    /* A row he added where balances and rows disagree ("€100 missing
+       between 3 and 10 Sep" → add it): written with the rest. */
+    extras: v.array(
+      v.object({
+        accountId: v.id('accounts'),
+        occurredAt: v.number(),
+        amount: v.number(),
+      }),
+    ),
+    /* Asks he answered "leave it" to, by key ("gap:<account>:<from>"). */
+    dismissed: v.array(v.string()),
+    /* While applying, how far it got; once done, what it wrote. */
+    applied: v.optional(
+      v.object({
+        intakes: v.number(),
+        rows: v.number(),
+        accounts: v.number(),
+      }),
+    ),
+    appliedAt: v.optional(v.number()),
+  }).index('by_owner', ['ownerId']),
 
   /* A long trade history read from a CSV, one row per trade or split, until
      he confirms it. Kept apart from intakes because a row there holds at

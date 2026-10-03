@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury bulk update</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Bulk update (3 Oct). Artem: "When I simply drag and drop multiple
+     csv/pdf files, you read and analyze which bank, what to update, I can
+     review it and update state of finances." Journey:
+     docs/specs/2026-10-03-bulk-update-journey.md. Sample numbers, not his.
+     Same sheet and tokens as add-empty.html — what opens after a drop. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --money: oklch(0.8 0.1 85);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit }
+  svg.i { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .ctl { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400); cursor: pointer }
+  .scen button.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 720px; margin: 0 auto; text-align: center }
+  .note b { color: var(--ink-200); font-weight: 400 }
+
+  .sheet { position: relative; border-radius: 22px; padding: 20px; border: 1px solid var(--sys-edge);
+    background: linear-gradient(160deg, rgba(181,171,252,.08), rgba(181,171,252,.015) 40%), #1d1c2d; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine);
+    display: flex; flex-direction: column; gap: 16px; animation: rise .35s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.99) } }
+  @keyframes land { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+  .shead { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid rgba(181,171,252,.16) }
+  .title { flex: 1; font-family: var(--mono); font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .close { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300); display: grid; place-items: center; cursor: pointer }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .mono { font-family: var(--mono) }
+  .logo { width: 30px; height: 30px; border-radius: 10px; background: #fff; object-fit: contain; padding: 3px; flex: none }
+  .logo.sm { width: 20px; height: 20px; border-radius: 7px; padding: 2px }
+  .tag { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; color: var(--ink-400); background: rgba(var(--lift),.05); white-space: nowrap }
+  .tag.good { color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent) }
+  .tag.warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 12%, transparent) }
+  .tag.new { color: var(--lav-300); background: rgba(181,171,252,.14); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 35%, transparent) }
+
+  /* ---- Reading: files sort themselves into accounts as they are read ---- */
+  .overall { display: flex; flex-direction: column; gap: 8px }
+  .overall .line { display: flex; align-items: baseline; gap: 10px }
+  .overall .big { font-size: 34px; font-weight: 300; letter-spacing: -.02em }
+  .overall .sub { color: var(--ink-400); font-size: 13px }
+  .track { height: 4px; border-radius: 99px; background: rgba(var(--lift),.07); overflow: hidden }
+  .track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--lav-400), var(--lav-300)); box-shadow: 0 0 12px var(--shine); transition: width .35s ease }
+  .bins { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px }
+  .bin { border-radius: 16px; padding: 12px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); display: flex; flex-direction: column; gap: 9px; animation: land .4s cubic-bezier(.2,.8,.2,1) both }
+  .bin.live { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 40%, transparent), 0 0 22px -12px var(--shine) }
+  .bin .top { display: flex; align-items: center; gap: 10px }
+  .bin .top b { font-weight: 500; flex: 1 }
+  .bin .cnt { font-family: var(--mono); font-size: 12px; color: var(--ink-300) }
+  .pips { display: flex; flex-wrap: wrap; gap: 4px }
+  .pip { width: 14px; height: 18px; border-radius: 4px; background: rgba(var(--lift),.06); position: relative; overflow: hidden }
+  .pip.done { background: color-mix(in oklch, var(--lav-400) 55%, transparent); animation: pop .3s cubic-bezier(.2,.8,.2,1) }
+  .pip.now::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, transparent, var(--lav-300), transparent); animation: scan 1s linear infinite }
+  @keyframes scan { from { transform: translateY(-100%) } to { transform: translateY(100%) } }
+  @keyframes pop { 50% { transform: scale(1.25) } }
+  .bin .what { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .bin.unplaced { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 35%, transparent) }
+  .unk { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; background: color-mix(in oklch, var(--warn) 14%, transparent); color: var(--warn) }
+  .nowfile { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--ink-400); min-height: 16px }
+  .nowfile .dot { width: 6px; height: 6px; border-radius: 99px; background: var(--lav-400); box-shadow: 0 0 8px var(--shine); animation: blink 1s infinite }
+  @keyframes blink { 50% { opacity: .3 } }
+
+  /* ---- Review ---- */
+  .summary { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline }
+  .summary .n { font-size: 26px; font-weight: 300; letter-spacing: -.01em }
+  .summary .l { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500); margin-left: 6px }
+  .summary .stat { white-space: nowrap }
+
+  /* Only-you-know: the few things the app could not decide. Amber edge = state. */
+  .asks { display: flex; flex-direction: column; gap: 8px }
+  .ask { border-radius: 16px; padding: 13px 14px; background: color-mix(in oklch, var(--warn) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 30%, transparent); display: flex; flex-direction: column; gap: 10px; animation: land .4s cubic-bezier(.2,.8,.2,1) both; transition: background .3s, box-shadow .3s }
+  .ask .q { display: flex; gap: 10px; align-items: flex-start; line-height: 1.45 }
+  .ask .q .ic { color: var(--warn); margin-top: 2px }
+  .ask .q small { display: block; color: var(--ink-400); font-size: 12px; margin-top: 2px }
+  .ask .opts { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 24px }
+  .opt { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px 5px 5px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: rgba(var(--lift),.03); font-size: 12.5px; color: var(--ink-200); cursor: pointer; transition: border-color .2s, background .2s, transform .1s }
+  .opt.plain { padding-left: 11px }
+  .opt:hover { border-color: color-mix(in oklch, var(--lav-400) 55%, transparent); background: rgba(181,171,252,.1) }
+  .opt:active { transform: scale(.97) }
+  .ask.solved { background: color-mix(in oklch, var(--good) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 30%, transparent) }
+  .ask.solved .q .ic { color: var(--good) }
+
+  .acc { border-radius: 18px; padding: 14px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); display: flex; flex-direction: column; gap: 12px; animation: land .45s cubic-bezier(.2,.8,.2,1) both; transition: opacity .25s }
+  .acc.out { opacity: .4 }
+  .acc .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+  .acc .name { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 140px }
+  .acc .name b { font-weight: 500; font-size: 15px }
+  .acc .name span { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); letter-spacing: .02em }
+  .bal { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 13px; color: var(--ink-300); flex-wrap: wrap; justify-content: flex-end }
+  .bal .to { color: var(--ink-100); font-size: 15px }
+  .bal small { color: var(--ink-500); font-size: 10px }
+
+  /* The year, month by month: what the app already had, what this drop
+     adds, and a hole. A picture of coverage instead of a file list. */
+  .months { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px }
+  .m { display: flex; flex-direction: column; gap: 4px; align-items: stretch }
+  .m i { height: 10px; border-radius: 4px; background: rgba(var(--lift),.05) }
+  .m.had i { background: color-mix(in oklch, var(--lav-400) 26%, transparent) }
+  .m.add i { background: var(--lav-400); box-shadow: 0 0 10px -2px var(--shine); animation: fill .5s cubic-bezier(.2,.8,.2,1) both }
+  .m.hole i { background: repeating-linear-gradient(135deg, color-mix(in oklch, var(--warn) 55%, transparent) 0 3px, transparent 3px 6px); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 50%, transparent) }
+  .m span { font-family: var(--mono); font-size: 9px; color: var(--ink-600); text-align: center; letter-spacing: .04em }
+  @keyframes fill { from { transform: scaleX(0); transform-origin: left } }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--ink-400); align-items: center }
+  .facts b { color: var(--ink-100); font-weight: 400 }
+  .facts .sp { flex: 1 }
+  .link { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--lav-400); background: none; border: 0; cursor: pointer; padding: 2px 0 }
+  .link:hover { text-shadow: 0 0 10px var(--shine) }
+  .rows { display: none; flex-direction: column; border-top: 1px solid rgba(var(--lift),.06); padding-top: 8px }
+  .acc.open .rows { display: flex }
+  .row { display: grid; grid-template-columns: 54px 1fr auto auto 20px; gap: 10px; align-items: center; font-size: 12.5px; padding: 5px 0; color: var(--ink-200) }
+  .row .d { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .row .v { font-family: var(--mono) }
+  .row .v.in { color: var(--good) }
+  .row.had { opacity: .45 }
+  .row .t { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+  .row .t em { font-style: normal; font-size: 11.5px; color: var(--lav-300); display: inline-flex; gap: 5px; align-items: center }
+  .row .pen { background: none; border: 0; color: var(--ink-600); cursor: pointer; padding: 2px; opacity: 0; transition: opacity .15s, color .15s }
+  .row:hover .pen { opacity: 1 } .row .pen:hover { color: var(--lav-400) }
+  .row .t input { background: rgba(var(--lift),.05); border: 1px solid color-mix(in oklch, var(--lav-400) 40%, transparent); border-radius: 8px; color: var(--ink-100); font: inherit; font-size: 12px; padding: 4px 8px; outline: none; width: 100%; max-width: 280px }
+  .remember { display: inline-flex; align-items: center; gap: 7px; padding-left: 24px; font-size: 12px; color: var(--ink-400); cursor: pointer }
+  .remember i { width: 14px; height: 14px; border-radius: 4px; background: var(--lav-400); display: grid; place-items: center; color: #17152a }
+  .remember i svg { width: 10px; height: 10px; stroke-width: 3 }
+  .ask .typed { display: flex; gap: 6px; padding-left: 24px }
+  .ask .typed input { flex: 1; max-width: 320px; background: rgba(var(--lift),.05); border: 1px solid rgba(var(--lift),.14); border-radius: 999px; color: var(--ink-100); font: inherit; font-size: 12.5px; padding: 6px 12px; outline: none }
+  .ask .typed input:focus { border-color: color-mix(in oklch, var(--lav-400) 55%, transparent) }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-family: var(--mono); font-size: 10px; color: var(--ink-500); letter-spacing: .06em }
+  .legend i { display: inline-block; width: 14px; height: 8px; border-radius: 3px; vertical-align: middle; margin-right: 6px }
+
+  /* Between his accounts — both sides found in the same drop. */
+  .moves { border-radius: 18px; padding: 14px; background: rgba(181,171,252,.05); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 22%, transparent); display: flex; flex-direction: column; gap: 10px; animation: land .45s cubic-bezier(.2,.8,.2,1) both }
+  .mv { display: grid; grid-template-columns: 54px auto 18px auto 1fr auto; gap: 8px; align-items: center; font-size: 12.5px; color: var(--ink-200) }
+  .mv .d { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .mv .arr { color: var(--lav-400) }
+  .mv .v { font-family: var(--mono); text-align: right }
+  .mv .who { display: inline-flex; align-items: center; gap: 6px }
+
+  .foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid rgba(181,171,252,.12) }
+  .foot .left { flex: 1; font-size: 12.5px; color: var(--ink-400); min-width: 200px }
+  .apply { display: inline-flex; align-items: center; gap: 9px; padding: 11px 20px; border-radius: 999px; border: 0; cursor: pointer; font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #17152a; background: linear-gradient(135deg, var(--lav-300), var(--lav-400)); box-shadow: 0 0 26px -6px var(--shine); transition: transform .1s, box-shadow .2s }
+  .apply:hover { box-shadow: 0 0 34px -4px var(--shine) }
+  .apply:active { transform: scale(.97) }
+  .ghost { padding: 10px 16px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-300) }
+  .leave { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500); background: none; border: 1px solid rgba(var(--lift),.1); border-radius: 999px; padding: 4px 9px; cursor: pointer }
+  .acc.out .leave { color: var(--lav-300); border-color: color-mix(in oklch, var(--lav-400) 40%, transparent) }
+
+  /* ---- Applied ---- */
+  .done { display: flex; flex-direction: column; gap: 16px; align-items: center; text-align: center; padding: 10px 0 4px }
+  .done .ring { width: 58px; height: 58px; border-radius: 999px; display: grid; place-items: center; color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent); box-shadow: 0 0 0 0 color-mix(in oklch, var(--good) 40%, transparent); animation: ping 1.4s ease-out 1 }
+  .done .ring svg { width: 26px; height: 26px }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--good) 45%, transparent) } 100% { box-shadow: 0 0 0 26px transparent } }
+  .done h2 { font-weight: 300; font-size: 22px }
+  .ba { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; width: 100% }
+  .ba > div { border-radius: 16px; padding: 12px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); text-align: left; display: flex; flex-direction: column; gap: 6px; animation: land .45s cubic-bezier(.2,.8,.2,1) both }
+  .ba .k { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500) }
+  .ba .was { font-family: var(--mono); font-size: 12px; color: var(--ink-500); text-decoration: line-through }
+  .ba .now { font-size: 22px; font-weight: 300 }
+  .spark { width: 100%; height: 90px }
+  @media (max-width: 560px) {
+    .sheet { padding: 14px }
+    .mv { grid-template-columns: 44px auto 14px auto 1fr; } .mv .tagcell { display: none }
+    .row { grid-template-columns: 44px 1fr auto 20px }
+    .row .tagcell { display: none }
+    .m span { font-size: 8px }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup · bulk update · what opens after a drop · pick a situation</div>
+  <div class="scen" id="scen"></div>
+  <div id="stage"></div>
+  <p class="note" id="note"></p>
+</div>
+
+<script>
+const I = {
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  q: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  img: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+  gap: '<path d="M3 12h4"/><path d="M17 12h4"/><path d="M10 9v6"/><path d="M14 9v6"/>',
+  move: '<path d="M4 8h14"/><path d="m15 5 3 3-3 3"/><path d="M20 16H6"/><path d="m9 13-3 3 3 3"/>',
+  arrow: '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
+  plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
+  file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+  sum: '<path d="M18 7V4H6l6 8-6 8h12v-3"/>',
+  back: '<path d="m15 18-6-6 6-6"/>',
+  pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  coin: '<circle cx="12" cy="12" r="9"/><path d="M15 9.5a3 3 0 0 0-3-1.5c-1.7 0-3 1-3 2.2s1.3 1.8 3 2.1 3 .9 3 2.2-1.3 2.3-3 2.3a3 3 0 0 1-3-1.6"/><path d="M12 6v2"/><path d="M12 16v2"/>',
+}
+const svg = (k) => `<svg class="i" viewBox="0 0 24 24">${I[k]}</svg>`
+const logo = (d, sm) => `<img class="logo ${sm ? 'sm' : ''}" src="https://www.google.com/s2/favicons?domain=${d}&sz=128" alt="">`
+const MONTHS = ['O', 'N', 'D', 'J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S']
+const MONTH_FULL = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep']
+const D = { bpi: 'bancobpi.pt', rev: 'revolut.com', act: 'activobank.pt', tr: 'traderepublic.com', t212: 'trading212.com' }
+
+/* Sample accounts (not his numbers). cover: 0 nothing · 1 had already ·
+   2 this drop adds · 3 a hole between statements. */
+const A = {
+  bpi: { id: 'bpi', name: 'BPI', d: D.bpi, kind: 'bank', isNew: true, from: 'IBAN …4410 on page 1 of every statement',
+    files: '12 pdf', cover: [2,2,2,2,2,2,2,2,2,2,2,2], fresh: 186, had: 0, start: ['1 Oct 2025', '€2,140.18'], end: ['30 Sep', '€3,412.60'], adds: true },
+  rev: { id: 'rev', name: 'Revolut', d: D.rev, kind: 'bank · broker', files: '1 csv', cover: [2,2,2,2,2,2,2,2,2,2,1,1], fresh: 241, had: 38, start: ['1 Oct 2025', '€1,204.10'], end: ['30 Sep', '€846.22'], adds: true },
+  act: { id: 'act', name: 'ActivoBank', d: D.act, kind: 'bank', files: '11 pdf', cover: [2,2,2,2,2,2,2,2,2,2,1,1], fresh: 132, had: 31, start: ['1 Oct 2025', '€612.90'], end: ['30 Sep', '€521.36'], adds: true },
+  tr: { id: 'tr', name: 'Trade Republic', d: D.tr, kind: 'broker', files: '1 pdf', cover: [1,1,1,1,1,1,1,1,1,1,1,2], fresh: 4, had: 64, start: ['1 Sep', '€1,020.10'], end: ['30 Sep', '€1,002.46'], adds: true, broker: '1 buy · 3 dividends' },
+  t212: { id: 't212', name: 'Trading 212', d: D.t212, kind: 'broker', isNew: true, from: 'the export\'s own header', files: '1 csv', cover: [0,0,0,0,0,0,0,0,0,0,2,2], fresh: 22, had: 0, start: ['18 Aug', '€0'], end: ['30 Sep', '€41.20'], adds: true, broker: '22 buys · 6 positions' },
+}
+const ORDER = ['bpi', 'rev', 'act', 'tr', 't212']
+
+const SAMPLE_ROWS = {
+  bpi: [['30 Sep', 'ACME LDA', '+€2,450.00', 'salary', true, false, 'salary · known since Oct'], ['12 Sep', 'ACME LDA', '+€40.00', 'income', true, false, null, 'income'], ['28 Sep', 'EDP Comercial', '−€48.20', 'bill'], ['26 Sep', 'Pingo Doce', '−€31.74', 'groceries'], ['3 Sep', 'TRF → ActivoBank', '−€500.00', 'move']],
+  rev: [['20 Sep', 'To João P.', '−€50.00', 'lent', false, false, null, 'lent'], ['29 Sep', 'Bnp Toc', '−€6.70', 'eating out'], ['18 Aug', 'To Trading 212', '−€2,000.00', 'move'], ['4 Feb', 'Top-up from BPI', '+€1,000.00', 'move', true], ['12 Sep', 'Anthropic', '−€22.14', 'subscription', false, true]],
+  act: [['14 Sep', 'MB WAY · Maria S.', '+€30.00', 'paid back', false, false, null, 'friend'], ['3 Sep', 'TRF from BPI', '+€500.00', 'move', true], ['1 Sep', 'Vodafone', '−€10.00', 'subscription', false, true], ['14 Jul', 'PayPal Europe', '−€64.10', 'other']],
+  tr: [['29 Sep', 'Buy · MSFT 0.21', '−€100.00', 'trade'], ['10 Sep', 'Dividend · MSFT', '+€0.33', 'income', true]],
+  t212: [['18 Aug', 'Deposit from Revolut', '+€2,000.00', 'move', true], ['19 Aug', 'Buy · VWCE 8', '−€1,048.80', 'trade'], ['19 Aug', 'Buy · NVDA 2', '−€372.40', 'trade']],
+}
+
+const MOVES = [
+  ['4 Feb', 'bpi', 'rev', '€1,000.00'],
+  ['18 Aug', 'rev', 't212', '€2,000.00'],
+  ['21 Jul', 'rev', 'tr', '€350.00'],
+  ['3 Sep', 'bpi', 'act', '€500.00'],
+  ['1 Sep', 'act', 'rev', '€1,000.00', '2 days apart'],
+]
+
+const SCEN = {
+  reading: { label: 'reading a year', note: 'He dropped <b>27 files</b> at once. Nothing to pick first. Each file is placed in its account as soon as it is read: a pip per file, a lit pip while it reads, so a big drop never looks stuck. A file it cannot place waits apart. Press a situation to jump to the review.' },
+  clean: { label: 'all clear', note: 'Everything placed, everything adds up. <b>Per account, not per file</b>: the year month by month (dim = already had, lit = this drop), new vs already-had rows, balance start → end and whether the rows add up. Moves between his accounts are paired across files. Rows only behind ROWS. One button.' },
+  monthly: { label: 'monthly', note: 'The usual case: four statements for September. Same screen, smaller — and no new accounts, no questions. Two taps total: drop, apply.' },
+  unplaced: { label: 'can\'t place', note: 'A screenshot with no bank name on it. It says what it saw and asks one question: <b>whose is this?</b> — with his accounts to tap. Tap one: it moves into that account and the ask turns green.' },
+  newbank: { label: 'new banks', note: 'BPI and Trading 212 are not in the app. Each file made its account: name, logo, kind, and <b>where it found that</b>. One tap keeps it; or "it\'s one I have" if it guessed a duplicate.' },
+  hole: { label: 'missing statement', note: 'BPI has no statement for March. The month strip shows the hole (amber hatch — a state, not a grade), and the ask says where. Drop it now, or say there was nothing that month.' },
+  noside: { label: 'move, one side', note: '€250 arrived in ActivoBank "from you", and no account in the drop sent it. It cannot be income (his money) and is not yet a pair. <b>Which account sent it?</b> — or one outside the app.' },
+  income: { label: 'money in & people', note: 'Four kinds of money in, told apart. <b>Salary</b> is known (same payer, monthly) and never asked. <b>Compensation</b> from the same payer: asked once, a note. <b>A friend paying back</b> (Maria): not money in — his own money coming home, offered against the dinner it was for. <b>Lent</b> (to João): not spending; his repayment will pair with it. Each person or payer is asked once and remembered. Answer, then open ROWS in BPI, Revolut and ActivoBank: the rows take the answer.' },
+  gap: { label: 'doesn\'t add up', note: 'ActivoBank\'s balances say €100 more left between 3 and 10 Sep than the rows show (the A.5 check). Where, and one tap to add it on its day.' },
+  applied: { label: 'applied', note: 'After APPLY: what changed, said once — the total before and after, the year line now starting in October 2025, counts. Then back to Overview, where the numbers land.' },
+}
+
+const ASKS = {
+  unplaced: () => ({ id: 'unplaced', icon: 'img', q: '<b>IMG_4412.PNG</b> — 14 rows, 2–15 Sep, no bank name on it. Whose is it?', sub: 'It looks like a phone banking app. Rows were matched against each account: 9 of them are already in Revolut.', opts: ORDER.filter((k) => !A[k].broker).map((k) => ({ k, label: A[k].name, logo: A[k].d, hint: k === 'rev' ? ' · likely' : '' })) }),
+  newbank: (k) => ({ id: 'new-' + k, icon: 'plus', q: `New account: <b>${A[k].name}</b> · ${A[k].kind}`, sub: `Found from ${A[k].from}. ${A[k].files} · ${A[k].fresh} rows.`, opts: [{ label: 'keep it', plain: true, good: true }, { label: 'it\'s one I have…', plain: true }] }),
+  hole: () => ({ id: 'hole', icon: 'gap', q: '<b>BPI</b>: nothing between 1 and 31 March — a statement is missing.', sub: 'February ends at €2,890.14, April opens at €2,431.02. €459.12 moved that month with no rows to show it.', opts: [{ label: 'drop March', plain: true }, { label: 'there was nothing that month', plain: true }] }),
+  noside: () => ({ id: 'noside', icon: 'move', q: '<b>+€250.00</b> into ActivoBank, 27 Sep — "TRF. P/O A. CHERNII". From you, but no account in this drop sent it.', sub: 'Not income: it is your own money. Which account did it leave?', opts: [...['bpi', 'rev'].map((k) => ({ k, label: A[k].name, logo: A[k].d })), { label: 'an account outside the app', plain: true }] }),
+  income: () => ({ id: 'income', icon: 'coin', q: '<b>+€40.00</b> into BPI, 12 Sep — from <b>ACME LDA</b>, who pays your salary. Not the salary. What is it?', sub: 'Money in either way; the note says what it was, and shows on the row.', opts: [{ label: 'transport compensation', plain: true, kind: 'income' }, { label: 'expenses paid back', plain: true, kind: 'paid back' }, { label: 'bonus', plain: true, kind: 'income' }], typed: true, typedKind: 'income', remember: 'next time ACME sends €40, call it the same' }),
+  friend: () => ({ id: 'friend', icon: 'coin', q: '<b>+€30.00</b> into ActivoBank, 14 Sep — MB WAY from <b>Maria S.</b> A person, not you and not a company. Maria paying you back?', sub: 'Paid back is your own money coming home: not counted as money in. On 8 Sep you paid €60 at Galeto — half of it?', opts: [{ label: 'paid back · for Galeto', plain: true, kind: 'paid back', note: 'for Galeto · €60, 8 Sep' }, { label: 'paid back', plain: true, kind: 'paid back', note: 'paid back' }, { label: 'a gift', plain: true, kind: 'income', note: 'gift' }], remember: 'money from Maria is paid back' }),
+  lent: () => ({ id: 'lent', icon: 'move', q: '<b>−€50.00</b> from Revolut, 20 Sep — to <b>João P.</b> Spent, or lent?', sub: 'Lent is not spending: when João sends it back, the two pair up and the €50 is settled.', opts: [{ label: 'lent — he pays it back', plain: true, kind: 'lent', note: 'João pays it back' }, { label: 'spent · shared bill', plain: true, kind: 'eating out', note: 'shared bill' }, { label: 'a gift', plain: true, kind: 'gift', note: 'gift' }], remember: 'money to João is lent' }),
+  gap: () => ({ id: 'gap', icon: 'sum', q: '<b>ActivoBank</b>: €100.00 missing between 3 and 10 Sep.', sub: 'Balance 3 Sep €742.36 · rows after it −€121.00 · balance 10 Sep €521.36 says −€221.00. A row cut off a screenshot?', opts: [{ label: 'add €100 on 3–10 Sep', plain: true }, { label: 'leave it', plain: true }] }),
+}
+
+function accounts(s) {
+  const pick = s === 'monthly'
+    ? ['bpi', 'rev', 'act', 'tr'].map((k) => ({ ...A[k], isNew: false, cover: [1,1,1,1,1,1,1,1,1,1,1,2], fresh: { bpi: 17, rev: 24, act: 12, tr: 4 }[k], had: { bpi: 0, rev: 3, act: 2, tr: 1 }[k], files: k === 'rev' ? '1 csv' : '1 pdf', start: ['1 Sep', A[k].start[1]] }))
+    : ORDER.map((k) => ({ ...A[k] }))
+  if (s === 'hole') { const b = pick.find((a) => a.id === 'bpi'); b.cover = [...b.cover]; b.cover[5] = 3; b.adds = false; b.files = '11 pdf'; b.note = 'March missing' }
+  if (s === 'gap') { const a = pick.find((a) => a.id === 'act'); a.adds = false; a.note = '€100 short, 3–10 Sep' }
+  if (s === 'noside') { const a = pick.find((a) => a.id === 'act'); a.note = '1 move, one side' }
+  return pick
+}
+
+function askHtml(a, i) {
+  const opts = a.opts.map((o, j) => `<button class="opt ${o.plain ? 'plain' : ''}" data-ask="${a.id}" data-o="${j}" data-kind="${o.kind || ''}" data-note-text="${o.note || o.label}">${o.logo ? logo(o.logo, true) : ''}${o.label}${o.hint ? `<span class="caps" style="color:var(--lav-400)">${o.hint}</span>` : ''}</button>`).join('')
+  const typed = a.typed ? `<div class="typed"><input placeholder="or say it in your words…" data-typed="${a.id}"></div>` : ''
+  const remember = a.remember ? `<label class="remember" data-remember><i>${svg('check')}</i>${a.remember}</label>` : ''
+  return `<div class="ask" id="ask-${a.id}" style="animation-delay:${i * 70}ms"><div class="q"><span class="ic">${svg(a.icon)}</span><div>${a.q}<small>${a.sub}</small></div></div><div class="opts">${opts}</div>${typed}${remember}</div>`
+}
+
+const ASK_DEFAULT = { income: 'transport compensation', friend: 'for Galeto · €60, 8 Sep', lent: 'João pays it back' }
+let askIds = []
+function accHtml(a, i, s) {
+  const months = a.cover.map((c, j) => `<div class="m ${['', 'had', 'add', 'hole'][c]}" title="${MONTH_FULL[j]}"><i style="animation-delay:${200 + j * 35}ms"></i><span>${MONTHS[j]}</span></div>`).join('')
+  const adds = a.adds ? `<span class="tag good">${svg('check')}adds up</span>` : `<span class="tag warn">${a.note}</span>`
+  const extra = !a.adds || !a.note ? '' : `<span class="tag warn">${a.note}</span>`
+  const asked = new Set(askIds)
+  const rows = (SAMPLE_ROWS[a.id] || []).map(([d, t, v, c, inn, had, note, ask]) => {
+    const pending = ask && asked.has(ask)
+    const kind = pending ? 'asked above' : c
+    const vcls = c === 'income' || c === 'salary' ? 'in' : ''
+    return `<div class="row ${had ? 'had' : ''}"><span class="d">${d}</span><span class="t"><span>${t}</span>${note && !pending ? `<em>${svg('pen')}${note}</em>` : ask ? `<em id="note-${ask}" style="display:${pending ? 'none' : ''}">${svg('pen')}${ASK_DEFAULT[ask] || ''}</em>` : ''}</span><span class="tagcell"><span class="tag ${pending ? 'warn' : ''}" ${ask ? `id="tag-${ask}"` : ''}>${had ? 'already had' : kind}</span></span><span class="v ${pending ? '' : vcls}" ${ask ? `id="val-${ask}"` : ''}>${v}</span><button class="pen" data-note title="add a note">${svg('pen')}</button></div>`
+  }).join('')
+  const newTag = a.isNew && s !== 'newbank' ? '<span class="tag new">new · kept</span>' : a.isNew ? '<span class="tag new">new</span>' : ''
+  return `
+  <div class="acc" id="acc-${a.id}" style="animation-delay:${120 + i * 80}ms">
+    <div class="top">
+      ${logo(a.d)}
+      <div class="name"><b>${a.name} ${newTag}</b><span>${a.kind} · ${a.files}</span></div>
+      <div class="bal"><small>${a.start[0]}</small>${a.start[1]}<span style="color:var(--ink-600)">→</span><span class="to">${a.end[1]}</span><small>${a.end[0]}</small></div>
+    </div>
+    ${s === 'monthly' ? '' : `<div class="months">${months}</div>`}
+    <div class="facts">
+      <span><b>${a.fresh}</b> new ${a.broker ? '' : 'rows'}${a.broker ? `<span style="color:var(--ink-500)"> · ${a.broker}</span>` : ''}</span>
+      ${a.had ? `<span><b>${a.had}</b> already had</span>` : ''}
+      ${adds}${extra}
+      <span class="sp"></span>
+      <button class="link" data-rows="${a.id}">rows</button>
+      <button class="leave" data-leave="${a.id}">leave out</button>
+    </div>
+    <div class="rows">${rows}<div class="row"><span></span><span class="caps" style="grid-column:span 3">… and ${a.fresh + a.had - (SAMPLE_ROWS[a.id] || []).length} more</span></div></div>
+  </div>`
+}
+
+function movesHtml(s, delay) {
+  const list = s === 'monthly' ? MOVES.slice(3) : MOVES
+  const n = s === 'monthly' ? 2 : 9
+  return `<div class="moves" style="animation-delay:${delay}ms">
+    <div class="facts"><span class="caps" style="color:var(--lav-400)">between your accounts</span><span><b>${n}</b> paired · both sides found in this drop</span><span class="sp"></span>${n > list.length ? `<button class="link">all ${n}</button>` : ''}</div>
+    ${list.map(([d, f, t, v, tag]) => `<div class="mv"><span class="d">${d}</span><span class="who">${logo(A[f].d, true)}${A[f].name}</span><span class="arr">${svg('arrow')}</span><span class="who">${logo(A[t].d, true)}${A[t].name}</span><span class="v">${v}</span><span class="tagcell">${tag ? `<span class="tag">${tag}</span>` : '<span class="tag good">' + svg('check') + 'pair</span>'}</span></div>`).join('')}
+  </div>`
+}
+
+function review(s) {
+  const accs = accounts(s)
+  const asks = s === 'unplaced' ? [ASKS.unplaced()]
+    : s === 'newbank' ? [ASKS.newbank('bpi'), ASKS.newbank('t212')]
+    : s === 'hole' ? [ASKS.hole()]
+    : s === 'noside' ? [ASKS.noside()]
+    : s === 'gap' ? [ASKS.gap()]
+    : s === 'income' ? [ASKS.income(), ASKS.friend(), ASKS.lent()] : []
+  askIds = asks.map((a) => a.id)
+  const files = s === 'monthly' ? 4 : s === 'unplaced' ? 27 : 26
+  const fresh = accs.reduce((t, a) => t + a.fresh, 0)
+  const summary = `<div class="summary">
+    <span class="stat"><span class="n">${files}</span><span class="l">files</span></span>
+    <span class="stat"><span class="n">${accs.length}</span><span class="l">accounts</span></span>
+    <span class="stat"><span class="n">${fresh}</span><span class="l">new rows</span></span>
+    <span class="stat"><span class="n">${s === 'monthly' ? 2 : 9}</span><span class="l">moves paired</span></span>
+    ${asks.length ? `<span class="stat"><span class="n" style="color:var(--warn)" id="askN">${asks.length}</span><span class="l">only you know</span></span>` : ''}
+  </div>`
+  const legend = s === 'monthly' ? '' : `<div class="legend"><span><i style="background:color-mix(in oklch, var(--lav-400) 26%, transparent)"></i>already had</span><span><i style="background:var(--lav-400)"></i>this drop</span><span><i style="background:repeating-linear-gradient(135deg, color-mix(in oklch, var(--warn) 55%, transparent) 0 3px, transparent 3px 6px)"></i>missing</span><span style="margin-left:auto">Oct 2025 → Sep 2026</span></div>`
+  return `
+  <div class="sheet">
+    <div class="shead"><span class="title">[ update · ${s === 'monthly' ? 'september' : 'oct 2025 – sep 2026'} ]</span><button class="close">${svg('x')}</button></div>
+    ${summary}
+    ${asks.length ? `<div class="asks">${asks.map(askHtml).join('')}</div>` : ''}
+    ${legend}
+    ${accs.map((a, i) => accHtml(a, i, s)).join('')}
+    ${movesHtml(s, 120 + accs.length * 80)}
+    <div class="foot">
+      <span class="left" id="footNote">${asks.length ? `${asks.length === 1 ? 'One question' : asks.length + ' questions'} left — APPLY saves the rest; ${asks.length === 1 ? 'it waits' : 'they wait'} in the drop.` : 'Oldest statement first, so every balance lands on its day. Nothing is saved until you press it.'}</span>
+      <button class="ghost">later</button>
+      <button class="apply" data-apply>${svg('check')}apply ${accs.length} accounts</button>
+    </div>
+  </div>`
+}
+
+/* ---- Reading: an animated run through 26 files ---- */
+const BINS = [
+  { k: 'bpi', n: 12, what: 'statements · Oct–Sep' }, { k: 'rev', n: 1, what: 'csv · whole year' },
+  { k: 'act', n: 11, what: 'statements · Oct–Jul' }, { k: 'tr', n: 1, what: 'statement · Sep' }, { k: 't212', n: 1, what: 'export · Aug–Sep' },
+]
+const FILES = [
+  ...Array.from({ length: 12 }, (_, i) => ['bpi', `extrato_BPI_${['2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04','2026-05','2026-06','2026-07','2026-08','2026-09'][i]}.pdf`]),
+  ['rev', 'account-statement_2025-10-01_2026-09-30.csv'],
+  ...Array.from({ length: 11 }, (_, i) => ['act', `Extrato_ActivoBank_${MONTH_FULL[i]}.pdf`]),
+  ['tr', 'Kontoauszug_Sep_2026.pdf'], ['t212', 'from_2025-08-01_to_2026-09-30.csv'], ['?', 'IMG_4412.PNG'],
+]
+let timer = null
+function reading() {
+  return `
+  <div class="sheet">
+    <div class="shead"><span class="title">[ reading ]</span><button class="close">${svg('x')}</button></div>
+    <div class="overall">
+      <div class="line"><span class="big" id="rN">0</span><span class="sub">of ${FILES.length} files read</span><span class="caps" style="margin-left:auto" id="rT">about 2 min left</span></div>
+      <div class="track"><i id="rBar" style="width:0%"></i></div>
+      <div class="nowfile" id="rNow"><span class="dot"></span><span></span></div>
+    </div>
+    <div class="bins" id="bins"></div>
+    <div class="foot"><span class="left">You can close this — reading goes on, and the review waits on + when it is done.</span><button class="ghost">close</button></div>
+  </div>`
+}
+function runReading() {
+  const seen = {}, done = {}, shown = {}
+  let i = 0
+  const bins = document.getElementById('bins')
+  function draw(cur) {
+    bins.innerHTML = BINS.filter((b) => seen[b.k]).map((b) => {
+      const a = A[b.k], d = done[b.k] || 0
+      const pips = Array.from({ length: b.n }, (_, j) => `<span class="pip ${j < d ? 'done' : ''} ${j === d && cur === b.k ? 'now' : ''}"></span>`).join('')
+      const first = !shown[b.k]; shown[b.k] = true
+      return `<div class="bin ${cur === b.k ? 'live' : ''}" style="${first ? '' : 'animation:none'}"><div class="top">${logo(a.d)}<b>${a.name}${a.isNew ? ' <span class="tag new">new</span>' : ''}</b><span class="cnt">${d}/${b.n}</span></div><div class="pips">${pips}</div><div class="what">${b.what}</div></div>`
+    }).join('') + (seen['?'] ? `<div class="bin unplaced" style="${shown['?'] ? 'animation:none' : ''}"><div class="top"><span class="unk">${svg('q')}</span><b>Not placed yet</b><span class="cnt">1</span></div><div class="what">IMG_4412.PNG — no bank name on it. You'll be asked.</div></div>` : '')
+    if (seen['?']) shown['?'] = true
+  }
+  function step() {
+    if (i >= FILES.length) {
+      document.getElementById('rNow').innerHTML = `<span style="color:var(--good)">${svg('check')}</span><span>all read — opening the review</span>`
+      document.getElementById('rT').textContent = 'done'
+      timer = setTimeout(() => { cur = 'unplaced'; render() }, 1400)
+      return
+    }
+    const [k, name] = FILES[i]
+    seen[k] = true
+    draw(k)
+    document.querySelector('#rNow span:last-child').textContent = name
+    timer = setTimeout(() => {
+      done[k] = (done[k] || 0) + 1
+      i++
+      document.getElementById('rN').textContent = i
+      document.getElementById('rBar').style.width = `${(i / FILES.length) * 100}%`
+      document.getElementById('rT').textContent = i < FILES.length ? `about ${Math.max(1, Math.round((FILES.length - i) * 4.5))} s left` : 'done'
+      draw(null)
+      timer = setTimeout(step, 120)
+    }, k === 'rev' || k === 't212' ? 700 : 260)
+  }
+  step()
+}
+
+function applied() {
+  return `
+  <div class="sheet">
+    <div class="shead"><span class="title">[ updated ]</span><button class="close">${svg('x')}</button></div>
+    <div class="done">
+      <span class="ring">${svg('check')}</span>
+      <h2>5 accounts updated · 585 new rows · 9 moves paired</h2>
+      <div class="ba">
+        <div style="animation-delay:120ms"><span class="k">total</span><span class="was">€10,240.00</span><span class="now" id="cnt1">€10,240.00</span></div>
+        <div style="animation-delay:200ms"><span class="k">free cash</span><span class="was">€6,180.40</span><span class="now" id="cnt2">€6,180.40</span></div>
+        <div style="animation-delay:280ms"><span class="k">invested</span><span class="was">€4,059.60</span><span class="now" id="cnt3">€4,059.60</span></div>
+        <div style="animation-delay:360ms"><span class="k">year line starts</span><span class="was">2 Aug 2026 (banks)</span><span class="now">1 Oct 2025</span></div>
+      </div>
+      <div class="facts" style="justify-content:center;color:var(--ink-500)"><span>Not money made — what the app now sees: <b>BPI</b> and <b>Trading 212</b> are counted for the first time.</span></div>
+      <svg class="spark" viewBox="0 0 600 90" preserveAspectRatio="none" id="spark"></svg>
+      <div class="facts" style="justify-content:center"><span>New: <b>BPI</b>, <b>Trading 212</b></span><span>·</span><span>1 screenshot placed in <b>Revolut</b></span></div>
+      <button class="apply">${svg('back')}see it on overview</button>
+    </div>
+  </div>`
+}
+function countTo(id, from, to) {
+  const el = document.getElementById(id); const t0 = performance.now()
+  const f = (t) => { const p = Math.min(1, (t - t0) / 1100); const e = 1 - Math.pow(1 - p, 3)
+    el.textContent = '€' + (from + (to - from) * e).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    if (p < 1) requestAnimationFrame(f) }
+  requestAnimationFrame(f)
+}
+function drawSpark() {
+  const el = document.getElementById('spark')
+  const pts = Array.from({ length: 60 }, (_, i) => 30 + i * 0.9 + Math.sin(i / 3) * 4 + (i > 40 ? 10 : 0))
+  const max = Math.max(...pts), min = Math.min(...pts)
+  const xy = pts.map((v, i) => [i * 600 / 59, 85 - (v - min) / (max - min) * 75])
+  const d = xy.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join('')
+  el.innerHTML = `<defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#b5abfc" stop-opacity=".35"/><stop offset="1" stop-color="#b5abfc" stop-opacity="0"/></linearGradient></defs>
+    <path d="${d}L600,90L0,90Z" fill="url(#g)"/><path d="${d}" fill="none" stroke="#b5abfc" stroke-width="2" stroke-dasharray="1400" stroke-dashoffset="1400"><animate attributeName="stroke-dashoffset" to="0" dur="1.2s" fill="freeze"/></path>`
+}
+
+let cur = 'reading'
+function render() {
+  clearTimeout(timer)
+  document.getElementById('scen').innerHTML = Object.entries(SCEN).map(([k, s]) => `<button class="${k === cur ? 'on' : ''}" data-s="${k}">${s.label}</button>`).join('')
+  document.getElementById('note').innerHTML = SCEN[cur].note
+  const stage = document.getElementById('stage')
+  if (cur === 'reading') { stage.innerHTML = reading(); runReading() }
+  else if (cur === 'applied') { stage.innerHTML = applied(); countTo('cnt1', 10240, 13705.43); countTo('cnt2', 6180.40, 8235.22); countTo('cnt3', 4059.60, 5470.21); drawSpark() }
+  else stage.innerHTML = review(cur)
+}
+document.getElementById('scen').onclick = (e) => { const b = e.target.closest('[data-s]'); if (b) { cur = b.dataset.s; render() } }
+document.getElementById('stage').onclick = (e) => {
+  const r = e.target.closest('[data-rows]')
+  if (r) { const a = document.getElementById('acc-' + r.dataset.rows); a.classList.toggle('open'); r.textContent = a.classList.contains('open') ? 'hide rows' : 'rows'; return }
+  const l = e.target.closest('[data-leave]')
+  if (l) { const a = document.getElementById('acc-' + l.dataset.leave); a.classList.toggle('out'); l.textContent = a.classList.contains('out') ? 'left out · undo' : 'leave out'
+    const n = document.querySelectorAll('.acc:not(.out)').length; document.querySelector('[data-apply]').innerHTML = `${svg('check')}apply ${n} account${n === 1 ? '' : 's'}`; return }
+  const o = e.target.closest('[data-ask]')
+  if (o) {
+    const box = document.getElementById('ask-' + o.dataset.ask)
+    if (box.classList.contains('solved')) return
+    box.classList.add('solved')
+    box.querySelector('.ic').innerHTML = svg('check')
+    box.querySelector('.opts').innerHTML = `<span class="tag good">${svg('check')}${o.textContent.replace(' · likely', '')}</span>`
+    box.querySelector('.typed')?.remove()
+    const rem = box.querySelector('.remember'); if (rem) rem.style.pointerEvents = 'none'
+    const id = o.dataset.ask, tag = document.getElementById('tag-' + id), em = document.getElementById('note-' + id), val = document.getElementById('val-' + id)
+    if (tag) { const k = o.dataset.kind || (id === 'income' ? 'income' : ''); tag.textContent = k; tag.classList.remove('warn'); tag.style.animation = 'land .4s both'
+      if (val) val.className = 'v ' + (k === 'income' ? 'in' : '') }
+    if (em) { em.innerHTML = svg('pen') + (o.dataset.noteText || o.textContent); em.style.display = ''; em.style.animation = 'land .4s both' }
+    const left = document.querySelectorAll('.ask:not(.solved)').length
+    const n = document.getElementById('askN'); if (n) { n.textContent = left; if (!left) n.style.color = 'var(--good)' }
+    document.getElementById('footNote').textContent = left ? `${left} left — APPLY saves the rest.` : 'All answered. Oldest statement first, so every balance lands on its day.'
+    return
+  }
+  const pen = e.target.closest('[data-note]')
+  if (pen) { const t = pen.closest('.row').querySelector('.t'); if (!t.querySelector('input')) { t.querySelector('em')?.remove(); t.insertAdjacentHTML('beforeend', '<input placeholder="a note on this row…">'); t.querySelector('input').focus() } return }
+  const rem = e.target.closest('[data-remember]')
+  if (rem) { const i = rem.querySelector('i'); const on = i.style.background !== 'transparent'; i.style.background = on ? 'transparent' : ''; i.style.boxShadow = on ? 'inset 0 0 0 1px rgba(255,255,255,.3)' : ''; i.innerHTML = on ? '' : svg('check'); return }
+  if (e.target.closest('[data-apply]')) { cur = 'applied'; render() }
+}
+document.getElementById('stage').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || !e.target.value) return
+  const id = e.target.dataset.typed
+  if (id) { const box = document.getElementById('ask-' + id); const b = document.createElement('button'); b.dataset.ask = id; b.textContent = e.target.value; box.querySelector('.opts').appendChild(b); b.click(); return }
+  const t = e.target.closest('.t'); if (t) { const v = e.target.value; e.target.remove(); t.insertAdjacentHTML('beforeend', `<em>${svg('pen')}${v}</em>`) }
+})
+render()
+</script>
+</body>
+</html>

@@ -61,7 +61,6 @@ export function Ahead({
   }
   const account = (id?: Id<'accounts'>) => accounts.find((x) => x._id === id)
   const bill = (id: Id<'recurring'>) => a.bills.find((b) => b.id === id)
-  const fresh = a.bills.filter((b) => b.isNew)
   const outs = a.events.filter((e) => e.kind === 'expense')
   const shorts = a.events.filter((e) => e.short)
   const thisMonth = new Date(today).getMonth()
@@ -88,16 +87,13 @@ export function Ahead({
     const d = new Date(a.low.t)
     const when =
       daysBetween(today, a.low.t) > 0
-        ? ` on ${d.getDate()} ${monthName(a.low.t)}`
-        : ''
+        ? `on ${d.getDate()} ${monthName(a.low.t)}`
+        : 'today'
     const value =
       only || a.range === null
         ? eur(a.low.bills)
         : `${eur(a.low.lower)}–${eur(a.low.upper)}`
-    const salary = a.salaryAt
-      ? ` — salary ${new Date(a.salaryAt).getDate()} ${monthName(a.salaryAt)}`
-      : ''
-    return { value, when, salary }
+    return { value, when }
   })()
 
   return (
@@ -148,19 +144,6 @@ export function Ahead({
           ) : null}
         </p>
       ) : null}
-      {fresh.length ? (
-        <p className="text-[13.5px] leading-relaxed text-ink-300">
-          <New /> Found in your statements and put on their days:{' '}
-          {fresh.map((b, i) => (
-            <span key={b.id}>
-              {i ? ', ' : ''}
-              <span className="text-foreground">{b.name}</span>{' '}
-              {eur(b.amount, true)}
-            </span>
-          ))}
-          . Tap one to see the payments it was found from.
-        </p>
-      ) : null}
 
       {nothing ? (
         <div className="flex flex-col items-center gap-3 py-8 text-center text-[13.5px] leading-relaxed text-ink-400">
@@ -180,29 +163,37 @@ export function Ahead({
       ) : (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
           <div className="flex min-w-0 flex-col gap-2">
-            <p className="text-[13.5px] leading-relaxed text-ink-300">
-              Free cash <Veiled>{eur(a.freeTotal)}</Veiled> now. Lowest before
-              the next salary:{' '}
-              <Veiled className="text-foreground">{lowLine.value}</Veiled>
-              {lowLine.when}
-              {lowLine.salary}.{' '}
-              {only || a.range === null
-                ? 'Only bills and salary move this line — the rest of your spending is left out.'
-                : 'Everything is in: bills, salary, and the rest of your spending as a range — the top edge if you spend like your cheapest of the last three months, the bottom like your dearest.'}
-            </p>
-            {a.range !== null ? (
-              <div className="flex justify-end">
+            {/* Straight to the point (4 Oct: "I'm lazy… it should be
+                straight to the point"): three figures, then the line. */}
+            <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
+              <Fact label="free cash now">
+                <Veiled>{eur(a.freeTotal)}</Veiled>
+              </Fact>
+              <Fact label="lowest before salary" hint={lowLine.when}>
+                <Veiled>{lowLine.value}</Veiled>
+              </Fact>
+              {a.salaryAt ? (
+                <Fact label="salary">
+                  {new Date(a.salaryAt).getDate()} {monthName(a.salaryAt)}
+                </Fact>
+              ) : null}
+              {a.range !== null ? (
                 <button
                   type="button"
                   aria-pressed={only}
                   onClick={() => setOnly(!only)}
-                  className={`${PILL_QUIET} ${only ? 'bg-lav-400/12 text-foreground ring-lav-400/45' : ''}`}
+                  className={`${PILL_QUIET} ml-auto ${only ? 'bg-lav-400/12 text-foreground ring-lav-400/45' : ''}`}
                 >
                   only bills and salary
                 </button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
             <AheadChart a={a} only={only} />
+            <span className="label-caps">
+              {only || a.range === null
+                ? 'line: bills and salary only'
+                : 'band: day-to-day spending, your cheapest month to your dearest'}
+            </span>
 
             <div className="mt-2 flex flex-col">
               {a.done.length ? (
@@ -401,6 +392,28 @@ export function Ahead({
         <YearSheet a={a} />
       </Sheet>
     </section>
+  )
+}
+
+function Fact({
+  label,
+  hint,
+  children,
+}: {
+  label: string
+  hint?: string
+  children: React.ReactNode
+}) {
+  return (
+    <span className="flex flex-col gap-1">
+      <span className="label-caps">{label}</span>
+      <span className="text-[22px] leading-none font-light tabular-nums">
+        {children}
+      </span>
+      {hint ? (
+        <span className="font-mono text-[10.5px] text-ink-500">{hint}</span>
+      ) : null}
+    </span>
   )
 }
 

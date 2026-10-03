@@ -1,6 +1,8 @@
 import { ConvexError, v } from 'convex/values'
 
 import { isEuroAmount } from '../src/lib/money'
+import { paysBill } from '../src/lib/ahead'
+import { payeeKey, rowKey } from '../src/lib/payee'
 import { moveSheets, unlinkSheets } from './vault'
 import { requireUser } from './auth'
 import { requireLiveArea } from './areas'
@@ -280,6 +282,103 @@ export const listForArea = query({
 /* The cap moneySums reads a period under; the same here, so the rows a sum
    opens are the rows it added. */
 const MONEY_ROWS = 1000
+
+/**
+ * MOVEMENTS (Flow, 3 Oct: "one view of movements of all sources"): every
+ * money row of every account over the period, newest first. A move
+ * between his accounts is one item, not two — the arriving side names the
+ * leaving side (`meta.pairOf`), so the pair shows once, from → to, and is
+ * never money in or out. A row that is a bill's payment says which bill.
+ */
+export const movements = query({
+  args: { start: v.number(), end: v.number() },
+  returns: v.object({
+    items: v.array(
+      v.union(
+        v.object({
+          type: v.literal('row'),
+          log: schema.doc('logs'),
+          billId: v.union(v.id('recurring'), v.null()),
+        }),
+        v.object({
+          type: v.literal('move'),
+          id: v.id('logs'),
+          t: v.number(),
+          amount: v.number(),
+          from: v.union(v.id('accounts'), v.null()),
+          to: v.union(v.id('accounts'), v.null()),
+          text: v.string(),
+        }),
+      ),
+    ),
+    complete: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', 'money')
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .order('desc')
+      .take(MONEY_ROWS)
+    const bills = (
+      await ctx.db
+        .query('recurring')
+        .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
+        .take(100)
+    )
+      .filter((b) => b.refusedAt === undefined)
+      .map((b) => ({
+        id: b._id,
+        name: b.name,
+        kind: b.kind,
+        amount: b.amount,
+        cadence: b.cadence,
+        day: b.day,
+        month: b.month,
+        key: b.matchKey ?? payeeKey(b.name),
+      }))
+    const ids = new Set(rows.map((r) => r._id))
+    const items = []
+    for (const r of rows) {
+      if (!isEuroAmount(r)) continue
+      if (r.kind === 'move' || r.kind === 'transfer') {
+        /* The arriving side of a pair whose leaving side is here too. */
+        if (r.meta?.pairOf && ids.has(r.meta.pairOf)) continue
+        const other = r.meta?.otherAccountId ?? null
+        const here = r.accountId ?? null
+        const out = r.value < 0
+        items.push({
+          type: 'move' as const,
+          id: r._id,
+          t: r.occurredAt,
+          amount: Math.abs(r.value),
+          from: out ? here : other,
+          to: out ? other : here,
+          text: r.meta?.merchant ?? r.text ?? '',
+        })
+        continue
+      }
+      if (r.kind !== 'expense' && r.kind !== 'income') continue
+      const row = {
+        id: r._id,
+        kind: r.kind,
+        amount: r.value,
+        t: r.occurredAt,
+        key: rowKey(r),
+        recurringId: r.meta?.recurringId,
+      }
+      const bill = bills.find((b) => paysBill(b, row))
+      items.push({ type: 'row' as const, log: r, billId: bill?.id ?? null })
+    }
+    return { items, complete: rows.length < MONEY_ROWS }
+  },
+})
 
 /**
  * The rows behind a money sum (Finances F1): every expense and income in

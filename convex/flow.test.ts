@@ -51,7 +51,7 @@ async function world(t: ReturnType<typeof setup>['t'], owner = ME) {
     const row = (
       kind: 'expense' | 'income',
       value: number,
-      t: number,
+      when: number,
       raw: string,
       extra: {
         accountId?: Id<'accounts'>
@@ -63,7 +63,7 @@ async function world(t: ReturnType<typeof setup>['t'], owner = ME) {
         ownerId: owner,
         area: 'money',
         kind,
-        occurredAt: t,
+        occurredAt: when,
         value,
         unit: 'eur',
         text: extra.merchant ?? raw,
@@ -227,5 +227,126 @@ describe('recurring.fromRow and likely', () => {
         cadence: 'yearly',
       }),
     ).rejects.toThrow()
+  })
+})
+
+/* Local midnights (vitest pins Lisbon). */
+const local = (m: number, d: number) => new Date(2026, m, d).getTime()
+const PAST = [
+  { start: local(6, 1), end: local(7, 1) },
+  { start: local(7, 1), end: local(8, 1) },
+  { start: local(8, 1), end: local(9, 1) },
+]
+
+describe('aggregate.ahead', () => {
+  test('free cash from banks only, bills on their days, the rest as a range', async () => {
+    const { t, me } = setup()
+    const { bank, broker } = await world(t)
+    await t.run(async (ctx) => {
+      for (const [id, value] of [
+        [bank, 1500],
+        [broker, 9000],
+      ] as const) {
+        await ctx.db.insert('stateSnapshots', {
+          ownerId: ME,
+          area: 'money',
+          key: `balance:${id}:EUR`,
+          value,
+          recordedAt: at(9, 4),
+        })
+      }
+    })
+    await me.mutation(api.recurring.find, {})
+    const a = await me.query(api.aggregate.ahead, {
+      today: local(9, 4),
+      days: 60,
+      monthStart: local(9, 1),
+      past: PAST,
+    })
+    expect(a.freeTotal).toBe(1500)
+    expect(a.free.map((f) => f.name)).toEqual(['Bank'])
+    expect(a.events.map((e) => [new Date(e.t).getDate(), e.name])).toEqual([
+      [25, 'Acme'],
+      [25, 'Energia e Água'],
+      [25, 'Acme'],
+      [25, 'Energia e Água'],
+    ])
+    /* July had no rows (not read): left out. August and September's rest
+       is the money out that is no bill's payment. */
+    expect(a.rest.map((r) => r.start)).toEqual([local(7, 1), local(8, 1)])
+    expect(a.range).toEqual({ lo: 12, hi: 236 })
+    expect(a.bills.every((b) => b.isNew)).toBe(true)
+  })
+
+  test('is only his', async () => {
+    const { t, them } = setup()
+    await world(t)
+    const a = await them.query(api.aggregate.ahead, {
+      today: local(9, 4),
+      days: 30,
+      monthStart: local(9, 1),
+      past: PAST,
+    })
+    expect(a.events).toEqual([])
+    expect(a.range).toBeNull()
+  })
+})
+
+describe('aggregate.flowMonths and logs.movements', () => {
+  test('sums each month by group, moves never in it', async () => {
+    const { t, me } = setup()
+    const { bank, broker } = await world(t)
+    await t.run(async (ctx) => {
+      const out = await ctx.db.insert('logs', {
+        ownerId: ME,
+        area: 'money',
+        kind: 'move',
+        occurredAt: at(8, 26),
+        value: -400,
+        unit: 'eur',
+        text: 'Top-up',
+        accountId: bank,
+        meta: { otherAccountId: broker },
+      })
+      await ctx.db.insert('logs', {
+        ownerId: ME,
+        area: 'money',
+        kind: 'move',
+        occurredAt: at(8, 26),
+        value: 400,
+        unit: 'eur',
+        text: 'Top-up',
+        accountId: broker,
+        meta: { otherAccountId: bank, pairOf: out },
+      })
+    })
+    const [sep] = await me.query(api.aggregate.flowMonths, {
+      months: [{ start: local(8, 1), end: local(9, 1) }],
+    })
+    expect(sep).toMatchObject({ in: 2003, out: 267 })
+    expect(sep.groups[0]).toEqual({ category: 'home', sum: 263, count: 4 })
+
+    const m = await me.query(api.logs.movements, {
+      start: local(8, 1),
+      end: local(9, 1),
+    })
+    const moves = m.items.filter((i) => i.type === 'move')
+    expect(moves).toEqual([
+      expect.objectContaining({ amount: 400, from: bank, to: broker }),
+    ])
+  })
+
+  test('marks a row that is a bill’s payment', async () => {
+    const { t, me } = setup()
+    const { ids } = await world(t)
+    await me.mutation(api.recurring.find, {})
+    const m = await me.query(api.logs.movements, {
+      start: local(8, 1),
+      end: local(9, 1),
+    })
+    const edp = m.items.find(
+      (i) => i.type === 'row' && i.log._id === ids.edpSep,
+    )
+    expect(edp?.type === 'row' && edp.billId).toBeTruthy()
   })
 })

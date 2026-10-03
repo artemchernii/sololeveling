@@ -3,6 +3,9 @@ import { v } from 'convex/values'
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
 import { isEuroAmount } from '../src/lib/money'
+import { buildAhead, yearAhead } from '../src/lib/ahead'
+import type { AheadBill, AheadRow } from '../src/lib/ahead'
+import { payeeKey, rowKey } from '../src/lib/payee'
 import { balanceChecks, balanceSeries, coveredBy } from '../src/lib/cashHistory'
 import type { Move, Reading } from '../src/lib/cashHistory'
 import { addSeries, investedSeries } from '../src/lib/worthHistory'
@@ -2359,5 +2362,289 @@ export const worth = query({
       total: (Math.round(b.total * 100) + Math.round(p.totalEur * 100)) / 100,
       byAccount,
     }
+  },
+})
+
+/* ── Flow (3 Oct; docs/specs/2026-10-03-flow.md) ─────────────────────── */
+
+const billOut = v.object({
+  t: v.number(),
+  billId: v.id('recurring'),
+  name: v.string(),
+  kind: v.union(v.literal('expense'), v.literal('income')),
+  amount: v.number(),
+  accountId: v.optional(v.id('accounts')),
+})
+const point = v.object({
+  t: v.number(),
+  bills: v.number(),
+  upper: v.number(),
+  lower: v.number(),
+})
+
+async function liveBills(ctx: QueryCtx, ownerId: string) {
+  return (
+    await ctx.db
+      .query('recurring')
+      .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
+      .take(100)
+  ).filter((b) => b.refusedAt === undefined && b.endedAt === undefined)
+}
+
+function aheadBill(b: Doc<'recurring'>): AheadBill {
+  return {
+    id: b._id,
+    name: b.name,
+    kind: b.kind,
+    amount: b.amount,
+    accountId: b.accountId,
+    category: b.category,
+    cadence: b.cadence,
+    day: b.day,
+    month: b.month,
+    key: b.matchKey ?? payeeKey(b.name),
+    foundAt: b.foundAt,
+  }
+}
+
+function aheadRows(rows: ReadonlyArray<Doc<'logs'>>): Array<AheadRow> {
+  const out: Array<AheadRow> = []
+  for (const r of rows) {
+    if ((r.kind !== 'expense' && r.kind !== 'income') || !isEuroAmount(r)) {
+      continue
+    }
+    out.push({
+      id: r._id,
+      kind: r.kind,
+      amount: r.value,
+      t: r.occurredAt,
+      key: rowKey(r),
+      recurringId: r.meta?.recurringId,
+    })
+  }
+  return out
+}
+
+async function moneyIn(
+  ctx: QueryCtx,
+  ownerId: string,
+  start: number,
+  end: number,
+) {
+  return await ctx.db
+    .query('logs')
+    .withIndex('by_owner_area_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('area', 'money')
+        .gte('occurredAt', start)
+        .lt('occurredAt', end),
+    )
+    .take(MONEY_ROWS)
+}
+
+/**
+ * AHEAD: free cash from today (state), his bills and salary on their days
+ * (the plan he has or the app found), and the rest of his spending as a
+ * range of the last three full months' real sums — src/lib/ahead does the
+ * arithmetic. Month bounds and today arrive from the client, local.
+ */
+export const ahead = query({
+  args: {
+    today: v.number(),
+    days: v.number(),
+    monthStart: v.number(),
+    /** The last three full months, oldest first. */
+    past: v.array(v.object({ start: v.number(), end: v.number() })),
+  },
+  returns: v.object({
+    free: v.array(
+      v.object({
+        accountId: v.id('accounts'),
+        name: v.string(),
+        domain: v.union(v.string(), v.null()),
+        eur: v.number(),
+      }),
+    ),
+    freeTotal: v.number(),
+    unread: v.number(),
+    bills: v.array(
+      v.object({
+        id: v.id('recurring'),
+        name: v.string(),
+        kind: v.union(v.literal('expense'), v.literal('income')),
+        amount: v.number(),
+        cadence: v.union(v.literal('monthly'), v.literal('yearly')),
+        category: v.optional(v.string()),
+        accountId: v.optional(v.id('accounts')),
+        isNew: v.boolean(),
+      }),
+    ),
+    done: v.array(
+      v.object({
+        t: v.number(),
+        billId: v.id('recurring'),
+        name: v.string(),
+        kind: v.union(v.literal('expense'), v.literal('income')),
+        amount: v.number(),
+        accountId: v.optional(v.id('accounts')),
+        rowId: v.union(v.id('logs'), v.null()),
+      }),
+    ),
+    events: v.array(
+      v.object({
+        ...billOut.fields,
+        yearly: v.boolean(),
+        short: v.boolean(),
+        held: v.union(v.number(), v.null()),
+      }),
+    ),
+    rest: v.array(v.object({ start: v.number(), sum: v.number() })),
+    range: v.union(v.object({ lo: v.number(), hi: v.number() }), v.null()),
+    series: v.array(point),
+    low: point,
+    salaryAt: v.union(v.number(), v.null()),
+    year: v.object({
+      total: v.number(),
+      months: v.array(v.object({ month: v.number(), sum: v.number() })),
+      yearly: v.array(
+        v.object({ t: v.number(), name: v.string(), amount: v.number() }),
+      ),
+    }),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const days = Math.min(Math.max(1, Math.round(args.days)), 120)
+    const items = await liveBills(ctx, ownerId)
+    const bills = items.map(aheadBill)
+    const balances = await readBalances(ctx, ownerId)
+    /* Free cash: banks and cash. A broker's cash is waiting to be
+       invested, not for bills (journey, question 6). */
+    const free = balances.accounts.filter(
+      (a) => a.kinds.includes('bank') || a.kinds.includes('cash'),
+    )
+    const monthRows = aheadRows(
+      await moneyIn(ctx, ownerId, args.monthStart, args.today + 86_400_000),
+    )
+    const past = []
+    for (const p of args.past.slice(-3)) {
+      past.push({
+        start: p.start,
+        rows: aheadRows(await moneyIn(ctx, ownerId, p.start, p.end)),
+      })
+    }
+    const built = buildAhead({
+      today: args.today,
+      days,
+      bills,
+      monthRows,
+      monthStart: args.monthStart,
+      past,
+      free: free.map((a) => ({ accountId: a.accountId, eur: a.cashEur })),
+    })
+    const week = 7 * 86_400_000
+    const cast = <T extends { billId: string; accountId?: string }>(x: T) => ({
+      ...x,
+      billId: x.billId as Id<'recurring'>,
+      accountId: x.accountId as Id<'accounts'> | undefined,
+    })
+    return {
+      free: free.map((a) => ({
+        accountId: a.accountId,
+        name: a.name,
+        domain: a.domain,
+        eur: a.cashEur,
+      })),
+      freeTotal: built.freeTotal,
+      unread: balances.unread,
+      bills: items.map((b) => ({
+        id: b._id,
+        name: b.name,
+        kind: b.kind,
+        amount: b.amount,
+        cadence: b.cadence,
+        category: b.category,
+        accountId: b.accountId,
+        isNew: b.foundAt !== undefined && args.today - b.foundAt < week,
+      })),
+      done: built.done.map((d) => ({
+        ...cast(d),
+        rowId: d.rowId as Id<'logs'> | null,
+      })),
+      events: built.events.map(cast),
+      rest: built.rest,
+      range: built.range,
+      series: built.series,
+      low: built.low,
+      salaryAt: built.salaryAt,
+      year: yearAhead(bills, args.today),
+    }
+  },
+})
+
+/**
+ * SPENDING and the month line: per month, money in and out and out by
+ * group (the category), sums of logged euro rows — moves are their own
+ * kind and never in them. Up to seven months, bounds from the client.
+ */
+export const flowMonths = query({
+  args: { months: v.array(v.object({ start: v.number(), end: v.number() })) },
+  returns: v.array(
+    v.object({
+      start: v.number(),
+      in: v.number(),
+      out: v.number(),
+      rows: v.number(),
+      groups: v.array(
+        v.object({
+          category: v.union(v.string(), v.null()),
+          sum: v.number(),
+          count: v.number(),
+        }),
+      ),
+      complete: v.boolean(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const out = []
+    for (const m of args.months.slice(-7)) {
+      const rows = await moneyIn(ctx, ownerId, m.start, m.end)
+      let inC = 0
+      let outC = 0
+      let n = 0
+      const groups = new Map<
+        string,
+        { category: string | null; c: number; n: number }
+      >()
+      for (const r of rows) {
+        if ((r.kind !== 'expense' && r.kind !== 'income') || !isEuroAmount(r)) {
+          continue
+        }
+        n++
+        const c = Math.round(r.value * 100)
+        if (r.kind === 'income') {
+          inC += c
+          continue
+        }
+        outC += c
+        const category = r.meta?.category ?? null
+        const g = groups.get(category ?? '') ?? { category, c: 0, n: 0 }
+        g.c += c
+        g.n++
+        groups.set(category ?? '', g)
+      }
+      out.push({
+        start: m.start,
+        in: inC / 100,
+        out: outC / 100,
+        rows: n,
+        groups: [...groups.values()]
+          .sort((a, b) => b.c - a.c)
+          .map((g) => ({ category: g.category, sum: g.c / 100, count: g.n })),
+        complete: rows.length < MONEY_ROWS,
+      })
+    }
+    return out
   },
 })

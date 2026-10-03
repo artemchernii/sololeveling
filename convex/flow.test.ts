@@ -130,6 +130,47 @@ describe('recurring.find', () => {
     expect(items.every((i) => i.foundAt === at(9, 4))).toBe(true)
   })
 
+  test('takes back a bill it found in an everyday group, never one he added', async () => {
+    const { t, me } = setup()
+    const { bank } = await world(t)
+    await t.run(async (ctx) => {
+      for (const foundAt of [at(9, 3), undefined]) {
+        await ctx.db.insert('recurring', {
+          ownerId: ME,
+          name: 'Petrol',
+          kind: 'expense',
+          amount: 57,
+          category: 'shopping',
+          accountId: bank,
+          cadence: 'monthly',
+          day: 9,
+          foundAt,
+        })
+      }
+    })
+    await me.mutation(api.recurring.find, {})
+    const left = await t.run((ctx) => ctx.db.query('recurring').collect())
+    expect(
+      left.filter((i) => i.name === 'Petrol').map((i) => i.foundAt),
+    ).toEqual([undefined])
+  })
+
+  test('opens a bill onto the payments behind it, and only his', async () => {
+    const { t, me, them } = setup()
+    const { ids } = await world(t)
+    await me.mutation(api.recurring.find, {})
+    const edp = await t.run(async (ctx) =>
+      (await ctx.db.query('recurring').collect()).find(
+        (i) => i.kind === 'expense',
+      ),
+    )
+    const rows = await me.query(api.recurring.payments, { id: edp!._id })
+    expect(rows.map((r) => r._id)).toEqual([ids.edpSep, ids.edpAug])
+    await expect(
+      them.query(api.recurring.payments, { id: edp!._id }),
+    ).rejects.toThrow()
+  })
+
   test('finds nothing twice', async () => {
     const { t, me } = setup()
     await world(t)

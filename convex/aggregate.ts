@@ -3,7 +3,7 @@ import { v } from 'convex/values'
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
 import { isEuroAmount } from '../src/lib/money'
-import { buildAhead, yearAhead } from '../src/lib/ahead'
+import { billsEachMonth, buildAhead, yearAhead } from '../src/lib/ahead'
 import type { AheadBill, AheadRow } from '../src/lib/ahead'
 import { payeeKey, rowKey } from '../src/lib/payee'
 import { balanceChecks, balanceSeries, coveredBy } from '../src/lib/cashHistory'
@@ -2504,8 +2504,19 @@ export const ahead = query({
     series: v.array(point),
     low: point,
     salaryAt: v.union(v.number(), v.null()),
-    /** Bills filed as subscriptions: how many, and a year of them. */
-    subscriptions: v.object({ count: v.number(), year: v.number() }),
+    /** His bills as a month: every monthly one by group, the mortgage
+        and the subscriptions alike, and the once-a-year ones apart. */
+    eachMonth: v.object({
+      total: v.number(),
+      groups: v.array(
+        v.object({
+          category: v.union(v.string(), v.null()),
+          sum: v.number(),
+          names: v.array(v.string()),
+        }),
+      ),
+      yearly: v.object({ total: v.number(), count: v.number() }),
+    }),
     year: v.object({
       total: v.number(),
       months: v.array(v.object({ month: v.number(), sum: v.number() })),
@@ -2579,17 +2590,7 @@ export const ahead = query({
       series: built.series,
       low: built.low,
       salaryAt: built.salaryAt,
-      subscriptions: (() => {
-        const subs = items.filter(
-          (b) => b.kind === 'expense' && b.category === 'subscriptions',
-        )
-        const c = subs.reduce(
-          (n, b) =>
-            n + Math.round(b.amount * 100) * (b.cadence === 'yearly' ? 1 : 12),
-          0,
-        )
-        return { count: subs.length, year: c / 100 }
-      })(),
+      eachMonth: billsEachMonth(bills),
       year: yearAhead(bills, args.today),
     }
   },

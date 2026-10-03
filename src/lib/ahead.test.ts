@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildAhead, paysBill, yearAhead } from './ahead'
+import { billsEachMonth, buildAhead, paysBill, yearAhead } from './ahead'
 import type { AheadBill, AheadRow } from './ahead'
 
 /* Local midnights in Lisbon (vitest pins TZ). */
@@ -177,5 +177,23 @@ describe('yearAhead', () => {
   it('keeps a bill on the last day of a month in that month', () => {
     const y = yearAhead([bill({ day: 31, amount: 10 })], TODAY)
     expect(y.months[0]).toEqual({ month: 2026 * 12 + 9, sum: 10 })
+  })
+})
+
+describe('billsEachMonth', () => {
+  it('puts the mortgage beside the subscriptions, yearly ones apart, salary out', () => {
+    const m = billsEachMonth([
+      bill({ name: 'Interest', amount: 750, category: 'home' }),
+      bill({ name: 'Capital', amount: 450, category: 'home' }),
+      bill({ name: 'Claude', amount: 22, category: 'subscriptions' }),
+      bill({ name: 'Car tax', amount: 120, cadence: 'yearly', month: 0 }),
+      bill({ name: 'Salary', kind: 'income', amount: 2000 }),
+    ])
+    expect(m.total).toBe(1222)
+    expect(m.groups).toEqual([
+      { category: 'home', sum: 1200, names: ['Interest', 'Capital'] },
+      { category: 'subscriptions', sum: 22, names: ['Claude'] },
+    ])
+    expect(m.yearly).toEqual({ total: 120, count: 1 })
   })
 })

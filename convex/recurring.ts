@@ -8,6 +8,7 @@ import type { Doc, Id } from './_generated/dataModel'
 import schema from './schema'
 import { billWhenRefusal, dueDay } from '../src/lib/bills'
 import {
+  EVERYDAY,
   billNames,
   findBills,
   isKnown,
@@ -16,6 +17,7 @@ import {
 import type { BillRow, Known } from '../src/lib/findBills'
 import { isEuroAmount } from '../src/lib/money'
 import { payeeKey, rowKey } from '../src/lib/payee'
+import { paysBill } from '../src/lib/ahead'
 
 /* Bills and salary that come round (Finances F3, 26 Sep). A row here is the
    plan; `markPaid` writes the expense or income log that is the evidence,
@@ -360,6 +362,19 @@ export const find = mutation({
 
 export async function findFor(ctx: MutationCtx, ownerId: string) {
   const now = Date.now()
+  /* The app's own wrong guesses go: a bill it found in an everyday group
+     (a petrol station paid on the 9th twice, 3 Oct) before finding learnt
+     not to. Only ones it found itself — never one he added. */
+  for (const i of await itemsOf(ctx, ownerId)) {
+    if (
+      i.foundAt !== undefined &&
+      i.refusedAt === undefined &&
+      i.category !== undefined &&
+      EVERYDAY.has(i.category)
+    ) {
+      await ctx.db.delete(i._id)
+    }
+  }
   const items = await itemsOf(ctx, ownerId)
   const logs = await moneySince(ctx, ownerId, now - 100 * DAY)
   const rows = billRows(logs, await ownedAccounts(ctx, ownerId))
@@ -488,5 +503,46 @@ export const likely = query({
       accountId: l.accountId as Id<'accounts'> | undefined,
       rowId: l.rowId as Id<'logs'>,
     }))
+  },
+})
+
+/**
+ * A bill opened (4 Oct): the payments behind it over the last year — the
+ * statement rows that made the app find it, or that paid it since. The
+ * row is the evidence; the bill is only what it was for.
+ */
+export const payments = query({
+  args: { id: v.id('recurring') },
+  returns: v.array(schema.doc('logs')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const bill = await ownedItem(ctx, ownerId, args.id)
+    const logs = await moneySince(ctx, ownerId, Date.now() - 400 * DAY)
+    const b = {
+      id: bill._id,
+      name: bill.name,
+      kind: bill.kind,
+      amount: bill.amount,
+      cadence: bill.cadence,
+      day: bill.day,
+      month: bill.month,
+      key: bill.matchKey ?? payeeKey(bill.name),
+    }
+    return logs
+      .filter(
+        (l) =>
+          (l.kind === 'expense' || l.kind === 'income') &&
+          isEuroAmount(l) &&
+          paysBill(b, {
+            id: l._id,
+            kind: l.kind,
+            amount: l.value,
+            t: l.occurredAt,
+            key: rowKey(l),
+            recurringId: l.meta?.recurringId,
+          }),
+      )
+      .sort((x, y) => y.occurredAt - x.occurredAt)
+      .slice(0, 24)
   },
 })

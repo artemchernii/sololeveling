@@ -258,3 +258,36 @@ export function yearAhead(bills: ReadonlyArray<AheadBill>, today: number) {
       .map((e) => ({ t: e.t, name: e.bill.name, amount: e.bill.amount })),
   }
 }
+
+/**
+ * His bills as one month (4 Oct: "what about mortgage" — the old box
+ * held only what was filed as a subscription): every monthly bill by its
+ * group, biggest group first, and the once-a-year ones as their own sum,
+ * never spread over twelve months.
+ */
+export function billsEachMonth(bills: ReadonlyArray<AheadBill>) {
+  const out = bills.filter((b) => b.kind === 'expense')
+  const monthly = out.filter((b) => b.cadence === 'monthly')
+  const groups = new Map<
+    string,
+    { category: string | null; c: number; names: Array<string> }
+  >()
+  for (const b of monthly) {
+    const k = b.category ?? ''
+    const g = groups.get(k) ?? { category: b.category ?? null, c: 0, names: [] }
+    g.c += Math.round(b.amount * 100)
+    g.names.push(b.name)
+    groups.set(k, g)
+  }
+  const yearly = out.filter((b) => b.cadence === 'yearly')
+  return {
+    total: monthly.reduce((n, b) => n + Math.round(b.amount * 100), 0) / 100,
+    groups: [...groups.values()]
+      .sort((a, b) => b.c - a.c)
+      .map((g) => ({ category: g.category, sum: g.c / 100, names: g.names })),
+    yearly: {
+      total: yearly.reduce((n, b) => n + Math.round(b.amount * 100), 0) / 100,
+      count: yearly.length,
+    },
+  }
+}

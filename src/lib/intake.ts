@@ -962,6 +962,50 @@ export function fitByPrice(
   return best
 }
 
+/**
+ * Files the screen's unpriced tickers as frozen (UNPRICED) — only when
+ * the market priced another position of the same screen. With no answer
+ * at all Yahoo may be down, and a live fund filed as frozen would never
+ * be priced again: then each stays asked (preferred -1). In place.
+ */
+export function settleFrozen<
+  TPosition extends {
+    candidates: Array<{
+      symbol: string
+      name: string
+      exchange: string
+      type: string
+    }>
+    preferred?: number
+    todayPriceEur?: number
+    todayAsOf?: number
+  },
+>(
+  positions: Array<TPosition>,
+  frozen: ReadonlyArray<{
+    at: number
+    candidate: { symbol: string; name: string; exchange: string; type: string }
+    priceEur: number
+  }>,
+  now: number,
+): void {
+  const answered = positions.some(
+    (p) =>
+      p.todayPriceEur !== undefined &&
+      p.preferred !== undefined &&
+      p.preferred >= 0,
+  )
+  if (!answered) return
+  for (const f of frozen)
+    positions[f.at] = {
+      ...positions[f.at],
+      candidates: [f.candidate],
+      preferred: 0,
+      todayPriceEur: f.priceEur,
+      todayAsOf: now,
+    }
+}
+
 /** "Alphabet (A)" → "Alphabet": what a ticker search can find. */
 export function searchableName(name: string): string {
   return brokerName(name)

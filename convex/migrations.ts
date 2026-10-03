@@ -332,6 +332,18 @@ export const relist = internalMutation({
       const to = await upsertInstrument(ctx, args.ownerId, args.to)
       for (const h of holdings) await ctx.db.patch(h._id, { instrumentId: to })
       for (const t of trades) await ctx.db.patch(t._id, { instrumentId: to })
+      /* Nothing holds the old listing now: it goes, with its prices, so
+         the daily check stops reading it. */
+      if (to !== from._id) {
+        for (const p of await ctx.db
+          .query('prices')
+          .withIndex('by_owner_instrument_time', (q) =>
+            q.eq('ownerId', args.ownerId).eq('instrumentId', from._id),
+          )
+          .take(2000))
+          await ctx.db.delete(p._id)
+        await ctx.db.delete(from._id)
+      }
     }
     return {
       holdings: holdings.map((h) => ({

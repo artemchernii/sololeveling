@@ -447,6 +447,7 @@ export const retry = mutation({
    long enough to check a month against its statement twice over. */
 export const KEEP_FILES_MS = 90 * 86_400_000
 const keepUntil = () => Date.now() + KEEP_FILES_MS
+const ERASE_PER_RUN = 100
 
 /** The files a confirmed reading came from, while they are kept: each
     with a link to open it, or null once erased. */
@@ -484,19 +485,23 @@ export const eraseOld = internalMutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
-    /* The last month of due dates: an erased file keeps its date (its
-       line says when it went), so the range moves on past it. */
+    /* Every due date, however old — a missed night must not strand a
+       file. An erased one keeps its date (its line says when it went)
+       and is passed over; a long backlog carries on in a next run. */
     const now = Date.now()
     let erased = 0
     for await (const i of ctx.db
       .query('intakes')
       .withIndex('by_keptUntil', (q) =>
-        q.gt('keptUntil', now - 30 * 86_400_000).lte('keptUntil', now),
+        q.gt('keptUntil', 0).lte('keptUntil', now),
       )) {
       if (i.storageIds.length === 0) continue
       for (const id of i.storageIds) await ctx.storage.delete(id)
       await ctx.db.patch(i._id, { storageIds: [] })
-      if (++erased >= 100) break
+      if (++erased >= ERASE_PER_RUN) {
+        await ctx.scheduler.runAfter(0, internal.intake.eraseOld, {})
+        break
+      }
     }
     return erased
   },
@@ -1713,25 +1718,47 @@ async function writeHoldings(
      a second screen of the same fund lands on the same holding, whatever
      listing its search found this time (3 Oct: VUAA.L then VUAA.MI, SHLD.L
      then the US SHLD — each a second copy of one position). */
-  const heldByBase = new Map<string, Id<'instruments'>>()
+  /* Same root and same issuer: SHLD.L (iShares) is not the US SHLD
+     (Global X), and a frozen share only ever matches a frozen one — a
+     screen price never lands on a listing Yahoo prices. */
+  const held = new Map<Id<'instruments'>, Doc<'instruments'>>()
   for (const h of await ctx.db
     .query('holdings')
     .withIndex('by_owner_account', (q) =>
       q.eq('ownerId', ownerId).eq('accountId', account._id),
     )
     .take(MAX_TRADES)) {
-    const inst = await ctx.db.get(h.instrumentId)
-    if (inst !== null) heldByBase.set(tickerBase(inst.symbol), inst._id)
+    const inst = held.has(h.instrumentId)
+      ? null
+      : await ctx.db.get(h.instrumentId)
+    if (inst !== null) held.set(inst._id, inst)
   }
-  const symbols = look.rows.map((r) => tickerBase(r.candidate.symbol))
+  const heldFor = (c: Candidate): Id<'instruments'> | undefined => {
+    const same = [...held.values()].filter(
+      (i) =>
+        tickerBase(i.symbol) === tickerBase(c.symbol) &&
+        (i.type === UNPRICED) === (c.type === UNPRICED),
+    )
+    const exact = same.find((i) => i.symbol === c.symbol)
+    if (exact) return exact._id
+    const k = sameCompany({ name: c.name }, same)
+    return k >= 0 ? same[k]._id : undefined
+  }
+  const symbols = look.rows.map((r) => r.candidate.symbol)
   if (new Set(symbols).size !== symbols.length) {
     throw new ConvexError('Two rows are the same ticker — keep one.')
   }
   let replaced = 0
+  /* Two rows on one held position (VUAA.L and VUAA.MI on one screen) are
+     one fund twice. */
+  const written = new Set<Id<'instruments'>>()
   for (const row of look.rows) {
     const instrumentId =
-      heldByBase.get(tickerBase(row.candidate.symbol)) ??
+      heldFor(row.candidate) ??
       (await upsertInstrument(ctx, ownerId, row.candidate, row.isin))
+    if (written.has(instrumentId))
+      throw new ConvexError('Two rows are the same ticker — keep one.')
+    written.add(instrumentId)
     if (row.candidate.type === UNPRICED) {
       const price = screenPriceEur(
         (look.screens ?? [intake]).flatMap((i) => i.positions ?? []),
@@ -2442,7 +2469,23 @@ const isImage = (i: Doc<'intakes'>) =>
 function mergedHoldings(list: ReadonlyArray<Doc<'intakes'>>) {
   const screens = list.filter((i) => i.kind === 'holdings')
   if (screens.length === 0) return null
-  const positions = screens.flatMap((i) => i.positions ?? [])
+  /* Two scrolls of one list overlap (3 Oct: IMG_9239 and IMG_9250 both
+     show the six ETFs): one position per fund, the later reading's. */
+  const byFund = new Map<
+    string,
+    NonNullable<Doc<'intakes'>['positions']>[number]
+  >()
+  for (const i of [...screens].sort(
+    (a, b) => (a.readAt ?? a._creationTime) - (b.readAt ?? b._creationTime),
+  ))
+    for (const p of i.positions ?? []) {
+      const c =
+        p.preferred !== undefined && p.preferred >= 0
+          ? p.candidates[p.preferred]
+          : undefined
+      byFund.set(c ? tickerBase(c.symbol) : `name:${p.name}`, p)
+    }
+  const positions = [...byFund.values()]
   const rows = positions.map((p) => {
     const c = completePosition(p, p.todayPriceEur)
     /* -1: no listing's price fits what the screen printed — asked, not

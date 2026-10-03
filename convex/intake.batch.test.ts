@@ -1209,6 +1209,12 @@ test('relist: SHLD moves to SHLD.L — lists first, writes only with apply, only
     [true, 'SHLD.L'],
     [false, 'SHLD'],
   ])
+  // The old listing is gone for him, not for them.
+  const left = await t.run((ctx) => ctx.db.query('instruments').collect())
+  expect(left.map((i) => [i.ownerId === ME, i.symbol]).sort()).toEqual([
+    [false, 'SHLD'],
+    [true, 'SHLD.L'],
+  ])
 })
 
 test("a frozen share is valued as 212's screen shows it, attributed to the screen (LUKOIL, 3 Oct)", async () => {
@@ -1374,4 +1380,139 @@ test('the same account screenshotted again lands on what it holds, whichever lis
     ['SHLD.L', 21.867878],
     ['VUAA.L', 1.972174],
   ])
+})
+
+test("two scrolls of one 212 list in one update: one position per fund, the later reading's", async () => {
+  const { t, me } = setup()
+  const t212 = await me.mutation(api.accounts.create, {
+    name: 'Trading 212',
+    kinds: ['broker'],
+    currencies: ['EUR'],
+  })
+  const batchId = await emptyBatch(t)
+  const gold = (shares: number, valueEur: number) => ({
+    name: 'iShares Physical Gold',
+    shares,
+    valueEur,
+    preferred: 0,
+    candidates: [
+      {
+        symbol: 'IGLN.L',
+        name: 'iShares Physical Gold ETC',
+        exchange: 'LSE',
+        type: 'ETF',
+      },
+    ],
+  })
+  const screen = (name: string, readAt: number, positions: Array<unknown>) =>
+    t.run((ctx) =>
+      ctx.db.insert('intakes', {
+        ownerId: ME,
+        batchId,
+        accountId: t212,
+        storageIds: [],
+        status: 'ready',
+        kind: 'holdings',
+        title: 'Invest',
+        readAt,
+        files: [{ name, size: 1, contentType: 'image/png' }],
+        positions,
+      } as never),
+    )
+  await screen('IMG_9239.PNG', 1, [gold(7.36542714, 526.21)])
+  await screen('IMG_9250.PNG', 2, [
+    gold(7.36542714, 526.4),
+    {
+      name: 'LUKOIL',
+      shares: 1.775508,
+      valueEur: 11.14,
+      preferred: 0,
+      candidates: [
+        {
+          symbol: 'LUKOY',
+          name: 'LUKOIL',
+          exchange: 'Trading 212',
+          type: 'UNPRICED',
+        },
+      ],
+    },
+  ])
+  const r = await me.query(api.intake.batchReview, { batchId })
+  expect(r.accounts[0].holdings).toMatchObject({
+    positions: 2,
+    investedEur: 537.54,
+    complete: true,
+  })
+  await me.mutation(api.intake.applyBatch, { batchId, dayStart: day(10, 3) })
+  for (let i = 0; i < 4; i++)
+    await t.mutation(internal.intake.applyStep, {
+      batchId,
+      dayStart: day(10, 3),
+      names: [],
+    })
+  const left = await t.run((ctx) => ctx.db.query('intakes').collect())
+  expect(left.map((i) => i.status)).toEqual(['done', 'done'])
+  const pos = await me.query(api.aggregate.positions, {})
+  expect(pos.rows.map((p) => p.symbol).sort()).toEqual(['IGLN.L', 'LUKOY'])
+})
+
+test("a different issuer on the same root is its own position: Global X's SHLD is not iShares' SHLD.L", async () => {
+  const { t, me } = setup()
+  const t212 = await me.mutation(api.accounts.create, {
+    name: 'Trading 212',
+    kinds: ['broker'],
+    currencies: ['EUR'],
+  })
+  const screen = () =>
+    t.run((ctx) =>
+      ctx.db.insert('intakes', {
+        ownerId: ME,
+        accountId: t212,
+        storageIds: [],
+        status: 'ready',
+        kind: 'holdings',
+        title: 'Invest',
+        files: [{ name: 'IMG.PNG', size: 1, contentType: 'image/png' }],
+        positions: [],
+      }),
+    )
+  const at = (symbol: string, name: string) => ({
+    candidate: { symbol, name, exchange: 'X', type: 'ETF' },
+    shares: 10,
+  })
+  await me.mutation(api.intake.confirmHoldings, {
+    intakeId: await screen(),
+    accountId: t212,
+    asOf: Date.now() - 3_600_000,
+    dayStart: day(10, 3),
+    rows: [at('SHLD.L', 'iShares Digital Security UCITS ETF USD Dist')],
+  })
+  await me.mutation(api.intake.confirmHoldings, {
+    intakeId: await screen(),
+    accountId: t212,
+    asOf: Date.now(),
+    dayStart: day(10, 3),
+    rows: [
+      at('SHLD.L', 'iShares Digital Security UCITS ETF USD Dist'),
+      at('SHLD', 'Global X Defense Tech ETF'),
+    ],
+  })
+  const pos = await me.query(api.aggregate.positions, {})
+  expect(pos.rows.map((p) => p.symbol).sort()).toEqual(['SHLD', 'SHLD.L'])
+})
+
+test('a file whose 90 days ran out long ago (a missed night) is still erased', async () => {
+  const { t } = setup()
+  const id = await t.run(async (ctx) => {
+    const file = await ctx.storage.store(new Blob(['pdf']))
+    return ctx.db.insert('intakes', {
+      ownerId: ME,
+      storageIds: [file],
+      status: 'done',
+      files: [{ name: 'old.pdf', size: 3, contentType: 'application/pdf' }],
+      keptUntil: Date.now() - 60 * 86_400_000,
+    })
+  })
+  expect(await t.mutation(internal.intake.eraseOld, {})).toBe(1)
+  expect((await t.run((ctx) => ctx.db.get(id)))?.storageIds).toEqual([])
 })

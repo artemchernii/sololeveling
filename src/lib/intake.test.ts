@@ -23,6 +23,7 @@ import {
   printedAmount,
   storedDuplicates,
   fitByPrice,
+  settleFrozen,
   preferClass,
   readableFile,
   searchableName,
@@ -197,6 +198,30 @@ describe('share class and search', () => {
     expect(fitByPrice(printed, bySymbol, [53.66, 40.1], 'SHLD')).toBe(-1)
     const byName = [{ symbol: 'LOCK.L' }, { symbol: 'SHLD.L' }]
     expect(fitByPrice(printed, byName, [11.88, 13.02], 'SHLD')).toBe(1)
+  })
+  test('frozen only when the market answered for the rest of the screen', () => {
+    const lukoy = {
+      symbol: 'LUKOY',
+      name: 'LUKOIL',
+      exchange: 'Trading 212',
+      type: 'UNPRICED',
+    }
+    const igln = { symbol: 'IGLN.L', name: 'Gold', exchange: 'L', type: 'ETF' }
+    const screen = () => [
+      { candidates: [igln], preferred: 0, todayPriceEur: 71.4 },
+      { candidates: [] as Array<typeof igln>, preferred: -1 },
+    ]
+    const live = screen()
+    settleFrozen(live, [{ at: 1, candidate: lukoy, priceEur: 6.27 }], 1)
+    expect(live[1]).toMatchObject({
+      candidates: [lukoy],
+      preferred: 0,
+      todayPriceEur: 6.27,
+    })
+    // Yahoo down: nothing priced, so nothing is frozen — it is asked.
+    const down = screen().map((p) => ({ ...p, todayPriceEur: undefined }))
+    settleFrozen(down, [{ at: 1, candidate: lukoy, priceEur: 6.27 }], 1)
+    expect(down[1]).toMatchObject({ candidates: [], preferred: -1 })
   })
   test('without a printed ticker the closest price wins; none, -1', () => {
     const list = [{ symbol: 'A' }, { symbol: 'B' }, { symbol: 'C' }]

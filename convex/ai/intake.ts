@@ -14,6 +14,7 @@ import {
   INTAKE_SCHEMA,
   intakePrompt,
   fitByPrice,
+  settleFrozen,
   matchAccount,
   parseReading,
   partialReading,
@@ -314,6 +315,8 @@ async function readWithModel(
     trades.push({ ...t, ...(await tickers.find(t.name, t.isin)) })
 
   const positions = []
+  const frozen: Array<{ at: number; candidate: Candidate; priceEur: number }> =
+    []
   for (const { symbol, ...p } of parsed.positions) {
     let { candidates, preferred } = await tickers.find(p.name, p.isin, symbol)
     let today: { priceEur: number; asOf: number } | null = null
@@ -326,8 +329,9 @@ async function readWithModel(
          (fitByPrice). The printed ticker's own lines first, then by name
          — "SHLD" alone is a US fund, iShares' is SHLD.L (3 Oct). */
       const fit = async (list: Array<Candidate>) => {
-        const prices = []
-        for (const c of list) prices.push(await tickers.price(c.symbol))
+        const prices = await Promise.all(
+          list.map((c) => tickers.price(c.symbol)),
+        )
         const i = fitByPrice(
           printedEur,
           list,
@@ -344,18 +348,19 @@ async function readWithModel(
         preferred = found.i
         today = found.today
       } else if (symbol && !(await tickers.listed(symbol, candidates))) {
-        /* The printed ticker has no price anywhere — frozen, not
-           mistaken: the broker's own value is the only one there is. */
-        candidates = [
-          {
+        /* The printed ticker has no price anywhere — frozen, if the market
+           answered for the rest of the screen (decided below). */
+        frozen.push({
+          at: positions.length,
+          candidate: {
             symbol,
             name: p.name,
             exchange: parsed.institution ?? 'Broker',
             type: UNPRICED,
           },
-        ]
-        preferred = 0
-        today = { priceEur: printedEur, asOf: Date.now() }
+          priceEur: printedEur,
+        })
+        preferred = -1
       } else {
         /* No listing fits: asked, not filed under a stranger. */
         preferred = -1
@@ -371,6 +376,8 @@ async function readWithModel(
       todayAsOf: today?.asOf,
     })
   }
+
+  settleFrozen(positions, frozen, Date.now())
 
   await ctx.runMutation(internal.intake.finish, {
     intakeId,

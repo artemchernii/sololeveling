@@ -818,6 +818,55 @@ describe('his first real drop (3 Oct)', () => {
   })
 })
 
+test("a listing whose price doesn't fit the screen is asked, not filed (212's SHLD, 3 Oct)", async () => {
+  const { t, me } = setup()
+  const t212 = await me.mutation(api.accounts.create, {
+    name: 'Trading 212',
+    kinds: ['broker'],
+    currencies: ['EUR'],
+  })
+  const batchId = await emptyBatch(t)
+  const intakeId = await t.run((ctx) =>
+    ctx.db.insert('intakes', {
+      ownerId: ME,
+      batchId,
+      accountId: t212,
+      storageIds: [],
+      status: 'ready',
+      kind: 'holdings',
+      title: 'Invest',
+      files: [{ name: 'IMG_9239.PNG', size: 1, contentType: 'image/png' }],
+      positions: [
+        {
+          name: 'iShares Digital Security (Digital Identity)',
+          shares: 21.86787796,
+          valueEur: 284.01,
+          preferred: -1,
+          candidates: [
+            {
+              symbol: 'SHLD',
+              name: 'Global X Defense Tech ETF',
+              exchange: 'NYSEArca',
+              type: 'ETF',
+            },
+          ],
+        },
+      ],
+    }),
+  )
+  const r = await me.query(api.intake.batchReview, { batchId })
+  expect(r.asks).toEqual([
+    {
+      kind: 'holdings',
+      intakeId,
+      name: 'IMG_9239.PNG',
+      accountId: t212,
+      missing: 1,
+      positions: 1,
+    },
+  ])
+})
+
 test('read again: his account named to the reader; another owner refused; start over throws the drop away', async () => {
   const { t, me, them } = setup()
   const { act } = await accountsOf(me)
@@ -1085,5 +1134,79 @@ test('dedupeMoney: lists first, removes only with apply, only his', async () => 
     [true, 'Vodafone'],
     [false, 'Vodafone'],
     [false, 'PAG. VODAFONE'],
+  ])
+})
+
+test('relist: SHLD moves to SHLD.L — lists first, writes only with apply, only his', async () => {
+  const { t, me } = setup()
+  const { act } = await accountsOf(me)
+  const setupOwner = (owner: string, accountId: Id<'accounts'>) =>
+    t.run(async (ctx) => {
+      const instrumentId = await ctx.db.insert('instruments', {
+        ownerId: owner,
+        symbol: 'SHLD',
+        name: 'Global X Defense Tech ETF',
+        exchange: 'NYSEArca',
+        currency: 'USD',
+        type: 'ETF',
+      })
+      await ctx.db.insert('holdings', {
+        ownerId: owner,
+        accountId,
+        instrumentId,
+        shares: 21.867878,
+        asOf: day(10, 3),
+      })
+      return instrumentId
+    })
+  await setupOwner(ME, act)
+  const theirs = await t.run((ctx) =>
+    ctx.db.insert('accounts', {
+      ownerId: SOMEONE_ELSE,
+      name: 'Theirs',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+      order: 0,
+    } as never),
+  )
+  await setupOwner(SOMEONE_ELSE, theirs)
+  const to = {
+    symbol: 'SHLD.L',
+    name: 'iShares Digital Security UCITS ETF USD Dist',
+    exchange: 'London',
+    type: 'ETF',
+  }
+  const dry = await t.mutation(internal.migrations.relist, {
+    ownerId: ME,
+    from: 'SHLD',
+    to,
+    apply: false,
+  })
+  expect(dry).toEqual({
+    holdings: [{ shares: 21.867878, day: expect.any(String) }],
+    trades: 0,
+  })
+  const held = () =>
+    t.run(async (ctx) =>
+      Promise.all(
+        (await ctx.db.query('holdings').collect()).map(async (h) => [
+          h.ownerId === ME,
+          (await ctx.db.get(h.instrumentId))?.symbol,
+        ]),
+      ),
+    )
+  expect(await held()).toEqual([
+    [true, 'SHLD'],
+    [false, 'SHLD'],
+  ])
+  await t.mutation(internal.migrations.relist, {
+    ownerId: ME,
+    from: 'SHLD',
+    to,
+    apply: true,
+  })
+  expect(await held()).toEqual([
+    [true, 'SHLD.L'],
+    [false, 'SHLD'],
   ])
 })

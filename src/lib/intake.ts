@@ -921,6 +921,47 @@ export function preferClass(
   return scored.length > 0 ? scored[0].i : -1
 }
 
+/* How far a listing's price today may sit from the one a screen implies
+   and still be the same fund: a day's move, not a different share. */
+const PRICE_FIT = 0.15
+
+/**
+ * The listing a holdings screen showed, by its price. When the screen
+ * printed both value and shares, value ÷ shares is the price per share —
+ * a listing whose price today is far from it is another fund. Trading 212
+ * prints "SHLD" for iShares Digital Security; Yahoo's top "SHLD" is a US
+ * defence ETF at four times the price (3 Oct: €2,885 shown, €2,014 held).
+ * Among listings that fit, the printed ticker's own line, then the
+ * closest. Returns -1 when none fits.
+ */
+export function fitByPrice(
+  printedEur: number,
+  candidates: ReadonlyArray<{ symbol: string }>,
+  pricesEur: ReadonlyArray<number | undefined>,
+  symbol?: string,
+): number {
+  const base = symbol ? symbol.split('.')[0].toUpperCase() : undefined
+  let best = -1
+  let bestKey: [number, number] = [Infinity, Infinity]
+  candidates.forEach((c, i) => {
+    const p = pricesEur[i]
+    if (p === undefined || !(p > 0) || !(printedEur > 0)) return
+    const off = Math.abs(p - printedEur) / printedEur
+    if (off > PRICE_FIT) return
+    const key: [number, number] = [
+      base !== undefined && c.symbol.split('.')[0].toUpperCase() === base
+        ? 0
+        : 1,
+      off,
+    ]
+    if (key[0] < bestKey[0] || (key[0] === bestKey[0] && key[1] < bestKey[1])) {
+      best = i
+      bestKey = key
+    }
+  })
+  return best
+}
+
 /** "Alphabet (A)" → "Alphabet": what a ticker search can find. */
 export function searchableName(name: string): string {
   return brokerName(name)

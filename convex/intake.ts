@@ -2309,10 +2309,14 @@ function mergedHoldings(list: ReadonlyArray<Doc<'intakes'>>) {
   const positions = screens.flatMap((i) => i.positions ?? [])
   const rows = positions.map((p) => {
     const c = completePosition(p, p.todayPriceEur)
+    /* -1: no listing's price fits what the screen printed — asked, not
+       filed under the first search hit. */
     const pick =
-      p.preferred !== undefined && p.preferred >= 0
-        ? p.candidates[p.preferred]
-        : p.candidates.at(0)
+      p.preferred === undefined
+        ? p.candidates.at(0)
+        : p.preferred >= 0
+          ? p.candidates[p.preferred]
+          : undefined
     const paid =
       p.valueEur !== undefined &&
       p.changePct !== undefined &&

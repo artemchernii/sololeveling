@@ -1,5 +1,6 @@
 import { v } from 'convex/values'
 
+import { upsertInstrument } from './invest'
 import { transferPair } from './logs'
 import { internalMutation } from './_generated/server'
 import { productIn } from '../src/lib/institutions'
@@ -283,5 +284,61 @@ export const dedupeMoney = internalMutation({
       }
     }
     return out
+  },
+})
+
+/* A position filed under the wrong listing (3 Oct): Trading 212's "SHLD"
+   is iShares Digital Security, SHLD.L — the reader took Yahoo's US
+   defence ETF, and his investments read €2,885 for €2,014. Moves every
+   holding and trade on `from` to `to`; lists first, writes only with
+   apply. The new listing's prices are read as it is made. */
+export const relist = internalMutation({
+  args: {
+    ownerId: v.string(),
+    from: v.string(),
+    to: v.object({
+      symbol: v.string(),
+      name: v.string(),
+      exchange: v.string(),
+      type: v.string(),
+    }),
+    apply: v.boolean(),
+  },
+  returns: v.object({
+    holdings: v.array(v.object({ shares: v.number(), day: v.string() })),
+    trades: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const from = await ctx.db
+      .query('instruments')
+      .withIndex('by_owner_symbol', (q) =>
+        q.eq('ownerId', args.ownerId).eq('symbol', args.from),
+      )
+      .first()
+    if (from === null) return { holdings: [], trades: 0 }
+    const holdings = await ctx.db
+      .query('holdings')
+      .withIndex('by_owner_instrument', (q) =>
+        q.eq('ownerId', args.ownerId).eq('instrumentId', from._id),
+      )
+      .take(500)
+    const trades = await ctx.db
+      .query('trades')
+      .withIndex('by_owner_instrument', (q) =>
+        q.eq('ownerId', args.ownerId).eq('instrumentId', from._id),
+      )
+      .take(5000)
+    if (args.apply) {
+      const to = await upsertInstrument(ctx, args.ownerId, args.to)
+      for (const h of holdings) await ctx.db.patch(h._id, { instrumentId: to })
+      for (const t of trades) await ctx.db.patch(t._id, { instrumentId: to })
+    }
+    return {
+      holdings: holdings.map((h) => ({
+        shares: h.shares,
+        day: new Date(h.asOf).toISOString().slice(0, 10),
+      })),
+      trades: trades.length,
+    }
   },
 })

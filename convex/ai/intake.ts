@@ -13,6 +13,7 @@ import {
   INTAKE_MODEL_NAME,
   INTAKE_SCHEMA,
   intakePrompt,
+  fitByPrice,
   matchAccount,
   parseReading,
   partialReading,
@@ -313,14 +314,40 @@ async function readWithModel(
 
   const positions = []
   for (const { symbol, ...p } of parsed.positions) {
-    const { candidates, preferred } = await tickers.find(p.name, p.isin, symbol)
+    let { candidates, preferred } = await tickers.find(p.name, p.isin, symbol)
     let today: { priceEur: number; asOf: number } | null = null
-    if (preferred !== undefined && preferred >= 0) {
-      try {
-        today = await priceEurNow(candidates[preferred].symbol)
-      } catch {
-        today = null
+    const printedEur =
+      p.valueEur !== undefined && p.shares !== undefined && p.shares > 0
+        ? p.valueEur / p.shares
+        : undefined
+    if (printedEur !== undefined) {
+      /* The screen says what one share is worth: the listing must agree
+         (fitByPrice). The printed ticker's own lines first, then by name
+         — "SHLD" alone is a US fund, iShares' is SHLD.L (3 Oct). */
+      const fit = async (list: Array<Candidate>) => {
+        const prices = []
+        for (const c of list) prices.push(await tickers.price(c.symbol))
+        const i = fitByPrice(
+          printedEur,
+          list,
+          prices.map((x) => x?.priceEur),
+          symbol,
+        )
+        return i >= 0 ? { list, i, today: prices[i] } : null
       }
+      const found =
+        (await fit(candidates)) ??
+        (await fit(await tickers.byName(p.name, candidates)))
+      if (found) {
+        candidates = found.list
+        preferred = found.i
+        today = found.today
+      } else {
+        /* No listing fits: asked, not filed under a stranger. */
+        preferred = -1
+      }
+    } else if (preferred !== undefined && preferred >= 0) {
+      today = await tickers.price(candidates[preferred].symbol)
     }
     positions.push({
       ...p,
@@ -708,5 +735,33 @@ class Tickers {
     }
     this.found.set(key, result)
     return result
+  }
+
+  /** Listings a name search finds that `had` does not already hold. */
+  async byName(name: string, had: ReadonlyArray<Candidate>) {
+    let found: Array<Candidate> = []
+    try {
+      found = await searchYahoo(searchableName(name))
+    } catch {
+      found = []
+    }
+    const seen = new Set(had.map((c) => c.symbol))
+    return found
+      .filter((c) => c.type === 'EQUITY' || c.type === 'ETF')
+      .filter((c) => !seen.has(c.symbol))
+      .slice(0, 6)
+  }
+
+  private prices = new Map<string, { priceEur: number; asOf: number } | null>()
+  async price(symbol: string) {
+    if (this.prices.has(symbol)) return this.prices.get(symbol) ?? null
+    let p: { priceEur: number; asOf: number } | null
+    try {
+      p = await priceEurNow(symbol)
+    } catch {
+      p = null
+    }
+    this.prices.set(symbol, p)
+    return p
   }
 }

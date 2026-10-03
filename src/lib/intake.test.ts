@@ -22,6 +22,7 @@ import {
   parseReading,
   printedAmount,
   storedDuplicates,
+  fitByPrice,
   preferClass,
   readableFile,
   searchableName,
@@ -188,6 +189,19 @@ describe('share class and search', () => {
       { symbol: 'PLTR', exchange: 'NASDAQ', type: 'EQUITY' },
     ]
     expect(pltr[preferClass('Palantir Technologies', pltr)].symbol).toBe('PLTR')
+  })
+  test("212's SHLD is iShares Digital Security, not the US defence ETF", () => {
+    // 21.868 shares printed at €284.01: €12.99 a share.
+    const printed = 284.01 / 21.86787796
+    const bySymbol = [{ symbol: 'SHLD' }, { symbol: 'SHLD.TO' }]
+    expect(fitByPrice(printed, bySymbol, [53.66, 40.1], 'SHLD')).toBe(-1)
+    const byName = [{ symbol: 'LOCK.L' }, { symbol: 'SHLD.L' }]
+    expect(fitByPrice(printed, byName, [11.88, 13.02], 'SHLD')).toBe(1)
+  })
+  test('without a printed ticker the closest price wins; none, -1', () => {
+    const list = [{ symbol: 'A' }, { symbol: 'B' }, { symbol: 'C' }]
+    expect(fitByPrice(100, list, [110, 97, undefined])).toBe(1)
+    expect(fitByPrice(100, list, [undefined, 300, 0])).toBe(-1)
   })
   test('names a search can find', () => {
     expect(searchableName('Alphabet (A)')).toBe('Alphabet')

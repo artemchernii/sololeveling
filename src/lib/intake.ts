@@ -16,7 +16,7 @@ export const INTAKE_MODEL = 'claude-haiku-4-5'
 /* Bumped whenever what the reader is asked changes: a file read by an
    older reader is read again rather than its reading reused (3 Oct — a
    reused reading kept "1 100.00" as 100 after the prompt was fixed). */
-export const READER_VERSION = 3
+export const READER_VERSION = 4
 export const INTAKE_MODEL_NAME = 'Claude Haiku 4.5'
 export const MAX_INTAKE_FILES = 6
 /* UPDATE ALL (3 Oct): a year of four banks' monthly statements. */
@@ -210,8 +210,8 @@ export function intakePrompt(opts: {
     '  kind = "trades" — buying and selling shares: a broker\'s order or trade history, or a trade confirmation, with a date, shares and a price per trade.',
     '  otherwise "unknown". A screen of positions is holdings even when it shows a daily change; a list of orders is trades even when it shows a total.',
     'title: a short human label, e.g. "Revolut statement · EUR · Aug 1 → Sep 27", "Trade Republic · holdings", "Trading 212 · orders". institution: the bank or broker the file is FROM, e.g. "Revolut" or "Revolut Invest". account_tail: the last four digits of the IBAN or card number the file is about, if printed (e.g. "0120" for PT50 … 0120), else null. holder_name: the account holder\'s name if printed.',
-    'For transactions: every row, once, including rows under a "pending" heading (pending = true). A pending heading shown only as a total, its lines folded away ("Pending  -1.205,20"), is one row: merchant "Pending", that total as the amount, pending = true. date as YYYY-MM-DD (for "Yesterday" or a weekday, resolve against today). amount is signed: money out negative, money in positive, in the row\'s own currency. amount_text: the amount exactly as it is printed, every character kept ("1 100.00", "-1.205,20"). merchant: a clean human name ("Bolt", not "Bolt.euo2609161656"; "Claude subscription" for "Anthropic* Claude Sub"). raw: the description as printed, one line.',
-    'counterparty: for transfers, who is on the other side — keep any IBAN or card digits printed for it ("PT50…0120", "card ••2789"). self_transfer = true when money goes to or comes from the holder\'s own name, another of their own accounts, a card top-up, a savings or investment account inside the same bank, or a known broker the person uses (their accounts: ' +
+    'For transactions: every row, once, including rows under a "pending" heading (pending = true). Several screenshots of one history overlap: a row on two of them is still one row. A number printed under or beside a row\'s amount, smaller, is the balance after it — never the amount. A row cut off at the edge of a screenshot, its amount not shown, is left out (it is whole on another). A pending heading shown only as a total, its lines folded away ("Pending  -1.205,20"), is one row: merchant "Pending", that total as the amount, pending = true. date as YYYY-MM-DD (for "Yesterday" or a weekday, resolve against today). amount is signed: money out negative, money in positive, in the row\'s own currency. amount_text: the amount exactly as it is printed, every character kept ("1 100.00", "-1.205,20"). merchant: a clean human name ("Bolt", not "Bolt.euo2609161656"; "Claude subscription" for "Anthropic* Claude Sub"). raw: the description as printed, one line.',
+    'counterparty: for transfers, who is on the other side — the name and any IBAN or card digits printed for it ("ARTEM CHERNII, PT50…0120", "card ••2789"). self_transfer = true when money goes to or comes from the holder\'s own name, another of their own accounts, a card top-up, a savings or investment account inside the same bank, or a known broker the person uses (their accounts: ' +
       (opts.accounts.join(', ') || 'unknown') +
       '). A card payment to a broker such as Trade Republic or Trading 212 is a deposit to that broker — self_transfer = true.',
     `category (spending only, else null): one of ${SPEND_CATEGORY_IDS.join(', ')}.`,
@@ -635,6 +635,18 @@ export type ExistingRow = {
   occurredAt: number
   amount: number // signed, same convention as a read row
   merchant: string
+  /** The line as the bank printed it, when the row came from a file. */
+  raw?: string
+}
+
+/* The words a bank's own line is told apart by: "SEGURO", "ALLIANZ",
+   "EMPRESTIMO" — not "TRF", dates or numbers. */
+function lineWords(text: string): Set<string> {
+  return new Set(
+    plain(text)
+      .split(/[^a-z]+/)
+      .filter((w) => w.length >= 4),
+  )
 }
 
 const DAY = 86_400_000
@@ -648,19 +660,29 @@ const DAY = 86_400_000
  */
 export function findDuplicates(
   incoming: ReadonlyArray<
-    Pick<ReadTransaction, 'occurredAt' | 'amount' | 'merchant'>
+    Pick<ReadTransaction, 'occurredAt' | 'amount' | 'merchant'> & {
+      raw?: string
+    }
   >,
   existing: ReadonlyArray<ExistingRow>,
 ): Array<number | null> {
   const used = new Set<number>()
   return incoming.map((r) => {
     const key = merchantKey(r.merchant)
+    /* The same row read twice can come back named twice ("Seguro Allianz"
+       from the statement, "Insurance" from a screenshot — 3 Oct): the
+       bank's own line, shared, says it is the same. */
+    const words = lineWords(`${r.merchant} ${r.raw ?? ''}`)
     let best: number | null = null
     let bestGap = Infinity
     for (const [i, e] of existing.entries()) {
       if (used.has(i)) continue
       if (Math.abs(e.amount - r.amount) > 0.005) continue
-      if (merchantKey(e.merchant) !== key) continue
+      const named = merchantKey(e.merchant) === key
+      const said = [...lineWords(`${e.merchant} ${e.raw ?? ''}`)].some((w) =>
+        words.has(w),
+      )
+      if (!named && !said) continue
       const gap = Math.abs(e.occurredAt - r.occurredAt)
       if (gap <= 2 * DAY + 3_600_000 && gap < bestGap) {
         best = i
@@ -948,6 +970,13 @@ export function ownMoney(
      as its receiver (1 Oct review). */
   const where = plain(`${row.merchant} ${row.counterparty ?? ''}`)
   const words = new Set(where.split(/[^a-z]+/).filter(Boolean))
+  /* A Portuguese bank prints who is on the other side in the line itself:
+     "TRF … P/ <IBAN> ARTEM CHERNII" — to him; "TRF. P/O ARTEM CHERNII" — by
+     his order (3 Oct: BPI's screens, merchant "SEPA Transfer"). */
+  const line = plain(row.raw ?? '')
+  const after = row.amount < 0 ? /\bp\/\s(.*)$/ : /\bp\/o\s(.*)$/
+  for (const w of after.exec(line)?.[1]?.split(/[^a-z]+/) ?? [])
+    if (w) words.add(w)
   return names.some((n) => {
     const parts = plain(n)
       .split(/[^a-z]+/)

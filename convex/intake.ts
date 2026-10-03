@@ -44,7 +44,7 @@ import {
   reviewMonths,
 } from '../src/lib/bulk'
 import type { OwnRow } from '../src/lib/bulk'
-import { productIn, tailsIn } from '../src/lib/institutions'
+import { productByIban, productIn, tailsIn } from '../src/lib/institutions'
 
 /* The intake (Treasury, 27 Sep): what he drops on + becomes a list he
    checks. `start` stores the files and asks the reader (ai/intake.ts);
@@ -70,13 +70,43 @@ const candidate = v.object({
 /* Whose money is his: the name the statement printed, and the name he
    signed in with. A transfer from either is a move, never income. */
 async function hisNames(
-  ctx: Pick<MutationCtx, 'auth'>,
+  ctx: QueryCtx,
   intake: Doc<'intakes'>,
 ): Promise<Array<string>> {
   const identity = await ctx.auth.getUserIdentity()
-  return [intake.holderName, identity?.name].filter(
-    (n): n is string => typeof n === 'string' && n.trim() !== '',
+  return [
+    intake.holderName,
+    identity?.name,
+    ...(await namesOnFiles(ctx, intake.ownerId)),
+  ].filter((n): n is string => typeof n === 'string' && n.trim() !== '')
+}
+
+/* The holder's name as his other statements printed it — a screenshot
+   prints none (3 Oct: BPI's screens), and a sign-in may carry no name. */
+async function namesOnFiles(ctx: QueryCtx, ownerId: string) {
+  const recent = await ctx.db
+    .query('intakes')
+    .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
+    .order('desc')
+    .take(30)
+  return [
+    ...new Set(recent.flatMap((i) => (i.holderName ? [i.holderName] : []))),
+  ]
+}
+
+/* His account at the bank an IBAN in the text belongs to (PT50 0023 … is
+   ActivoBank) — only when he has exactly one there, and not this one. */
+function byBank(
+  accounts: ReadonlyArray<Doc<'accounts'>>,
+  here: Id<'accounts'> | null,
+  text: string,
+): Id<'accounts'> | null {
+  const p = productByIban(text)
+  if (!p) return null
+  const at = accounts.filter(
+    (a) => a.institution === p.institution && a._id !== here,
   )
+  return at.length === 1 ? at[0]._id : null
 }
 
 async function ownedIntake(
@@ -872,15 +902,18 @@ async function buildReview(
           ? (l.value ?? 0)
           : -(l.value ?? 0),
     merchant: l.meta?.merchant ?? l.text ?? '',
+    raw: l.meta?.raw,
   }))
   const dups = findDuplicates(read, existingRows)
   /* A transfer is the same transfer whatever each bank calls it — "To
      Trade Republic" here, "Revolut → TR" typed, "Top up" on the other
      side: its own money moving is matched by amount and days alone. */
   const names = given
-    ? [intake.holderName, ...given].filter(
-        (n): n is string => typeof n === 'string' && n.trim() !== '',
-      )
+    ? [
+        intake.holderName,
+        ...given,
+        ...(await namesOnFiles(ctx, ownerId)),
+      ].filter((n): n is string => typeof n === 'string' && n.trim() !== '')
     : await hisNames(ctx, intake)
   const own = read.map((r) => r.self || ownMoney(r, names))
   const taken = new Set(dups.filter((d): d is number => d !== null))
@@ -977,7 +1010,8 @@ async function buildReview(
             r.counterparty ?? r.merchant,
             others,
             here ?? undefined,
-          ) as Id<'accounts'> | null))
+          ) as Id<'accounts'> | null) ??
+          byBank(accounts, here, `${r.counterparty ?? ''} ${r.raw}`))
         : null,
       counterparty: r.counterparty ?? null,
       duplicateOf: dups[index] === null ? null : existing[dups[index]]._id,
@@ -1831,6 +1865,7 @@ export const progress = internalMutation({
             occurredAt: l.occurredAt,
             amount: l.kind === 'expense' ? -(l.value ?? 0) : (l.value ?? 0),
             merchant: l.meta?.merchant ?? l.text ?? '',
+            raw: l.meta?.raw,
           })),
         )
       }

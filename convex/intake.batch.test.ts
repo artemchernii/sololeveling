@@ -965,3 +965,67 @@ test("'not from here': BPI's side goes, ActivoBank's +€1,000 stays — from ou
   })
   expect(actSheet?.rows[0].sideOf).toBeNull()
 })
+
+test("BPI's screenshots (3 Oct): own transfers by his name on other files and ActivoBank's bank code; a renamed row is already had", async () => {
+  const { t, me } = setup()
+  const bpi = await me.mutation(api.accounts.create, {
+    name: 'BPI',
+    kinds: ['bank'],
+    currencies: ['EUR'],
+    product: 'bpi',
+  })
+  const act = await me.mutation(api.accounts.create, {
+    name: 'ActivoBank',
+    kinds: ['bank'],
+    currencies: ['EUR'],
+    product: 'activo',
+  })
+  await t.run(async (ctx) => {
+    /* His name, as an earlier statement printed it. */
+    await ctx.db.insert('intakes', {
+      ownerId: ME,
+      storageIds: [],
+      status: 'done',
+      holderName: 'ARTEM CHERNII',
+    })
+    await ctx.db.insert('logs', {
+      ownerId: ME,
+      area: 'money',
+      kind: 'expense',
+      value: 24.95,
+      occurredAt: day(9, 1),
+      unit: 'eur',
+      text: 'Seguro Allianz',
+      accountId: bpi,
+      meta: { merchant: 'Seguro Allianz', raw: 'SEGURO ALLIANZ MULTI-RISCOS' },
+    })
+  })
+  const intakeId = await t.run((ctx) =>
+    ctx.db.insert('intakes', {
+      ownerId: ME,
+      accountId: bpi,
+      storageIds: [],
+      status: 'ready',
+      kind: 'transactions',
+      title: 'BPI',
+      transactions: [
+        {
+          ...row(10, 2, 'SEPA Transfer', -1000),
+          raw: 'TRF SEPA+ INST 23 P/ PT50002300004547874109 8894 ARTEM CHERNII',
+          counterparty: 'PT50002300004547874109',
+        },
+        {
+          ...row(9, 1, 'Insurance', -24.95),
+          raw: 'SEGURO ALLIANZ - MULTI-RISCOS-HABITACAO-CERTIF.: 201120549',
+        },
+      ],
+    }),
+  )
+  const r = await me.query(api.intake.review, { intakeId })
+  expect(
+    r?.rows.map((x) => [x.kind, x.otherAccountId, x.duplicateOf !== null]),
+  ).toEqual([
+    ['move', act, false],
+    ['spend', null, true],
+  ])
+})

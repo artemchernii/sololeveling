@@ -222,6 +222,63 @@ test('printedAmount: what a bank prints, whatever the grouping (3 Oct)', () => {
   expect(printedAmount('—')).toBeUndefined()
 })
 
+test("BPI's screens (3 Oct): 'P/ <IBAN> ARTEM CHERNII' is to him; 'P/O' by him", () => {
+  const names = ['ARTEM CHERNII']
+  expect(
+    ownMoney(
+      {
+        amount: -1100,
+        merchant: 'SEPA Transfer',
+        raw: 'TRF SEPA+ INST 20 P/ PT50002300004547874109 8894 ARTEM CHERNII',
+        counterparty: 'PT50002300004547874109',
+      },
+      names,
+    ),
+  ).toBe(true)
+  expect(
+    ownMoney(
+      { amount: 1000, merchant: 'Transfer', raw: 'TRF. P/O ARTEM CHERNII' },
+      names,
+    ),
+  ).toBe(true)
+  /* A payment to someone else with his name elsewhere is not his. */
+  expect(
+    ownMoney(
+      {
+        amount: -50,
+        merchant: 'MB WAY',
+        raw: 'TRF MB WAY P/ OLEKSANDR SAKHNO',
+      },
+      names,
+    ),
+  ).toBe(false)
+})
+
+test("the same row named twice is one row, by the bank's own line (3 Oct)", () => {
+  const day = new Date(2026, 8, 1, 12).getTime()
+  expect(
+    findDuplicates(
+      [
+        {
+          occurredAt: day,
+          amount: -24.95,
+          merchant: 'Insurance',
+          raw: 'SEGURO ALLIANZ - MULTI-RISCOS-HABITACAO',
+        },
+        { occurredAt: day, amount: -24.95, merchant: 'Gym', raw: 'SOLINCA' },
+      ],
+      [
+        {
+          occurredAt: day,
+          amount: -24.95,
+          merchant: 'Seguro Allianz',
+          raw: 'SEGURO ALLIANZ MULTI-RISCOS',
+        },
+      ],
+    ),
+  ).toEqual([0, null])
+})
+
 describe('parseReading', () => {
   test('a statement: signed rows, pending kept apart, the closing balance', () => {
     const r = parseReading(

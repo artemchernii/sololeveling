@@ -170,6 +170,26 @@ export function productById(id: string | undefined): Product | undefined {
  * Securities"; "To investment account" is not one. The most specific
  * match wins.
  */
+/* Portuguese banks by the four digits after "PT50" in an IBAN (Banco de
+   Portugal's codes): a transfer that prints only an IBAN still says which
+   bank it went to — when the account digits are cut or misread off a
+   phone screen (3 Oct: BPI's screens wrap ActivoBank's IBAN). */
+const PT_BANKS: Record<string, string> = {
+  '0010': 'bpi',
+  '0023': 'activo',
+  '0033': 'millennium',
+  '0035': 'cgd',
+  '0007': 'novobanco',
+  '0018': 'santander',
+}
+
+/** The bank an IBAN printed in the text belongs to, if the app knows it. */
+export function productByIban(text: string): Product | undefined {
+  const m = /\bPT\d{2}\s?(\d{4})/i.exec(text)
+  const id = m ? PT_BANKS[m[1]] : undefined
+  return id ? PRODUCTS.find((p) => p.id === id) : undefined
+}
+
 export function productIn(text: string | undefined): Product | undefined {
   if (!text) return undefined
   const hits = PRODUCTS.filter((p) => p.match.test(text))

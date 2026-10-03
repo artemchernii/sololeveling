@@ -252,8 +252,11 @@ function TransactionsReview({
   )
   const shown = filter === 'check' ? unsure : money_
   const cur = rows[0]?.currency ?? 'EUR'
-  const outOnPaper = rows
-    .filter((r) => r.amount < 0 && !r.pending)
+  /* Only what is new (3 Oct: three overlapping screenshots counted the
+     rows the statement had already brought in — "what do you mean
+     spent?"). What it already had is said under the list. */
+  const outOnPaper = live
+    .filter((r) => r.amount < 0)
     .reduce((t, r) => t + r.amount, 0)
   const spent = money_
     .filter((r) => ch(r.index)?.keep && ch(r.index)?.kind === 'spend')
@@ -383,11 +386,11 @@ function TransactionsReview({
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Kpi
-          label="money out on paper"
+          label="new money out"
           value={money(Math.round(outOnPaper * 100) / 100, cur)}
         />
         <Kpi
-          label="actually spent"
+          label="of it, spent"
           value={money(Math.round(spent * 100) / 100, cur)}
           tone="bad"
           note={`${money_.filter((r) => ch(r.index)?.kind === 'spend' && ch(r.index)?.keep).length} rows`}

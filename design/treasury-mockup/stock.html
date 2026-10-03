@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury position</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* One position, opened from Portfolio (3 Oct, first draft). Artem: "mock
+     for stocks … we will need some market data + some better logic for
+     logos and prices". Sample numbers, not his. Journey still owed. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .ctl { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .pill { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400); cursor: pointer; white-space: nowrap }
+  .pill.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 780px; margin: 0 auto; text-align: center }
+  .note b { color: var(--ink-200); font-weight: 400 }
+  .mono { font-family: var(--mono) }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .up { color: var(--good) } .down { color: var(--danger) } .warn { color: var(--warn) } .dim { color: var(--ink-500) }
+  .card { border-radius: 22px; padding: 20px; border: 1px solid var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.07), rgba(181,171,252,.01) 40%), #1b1a2a; box-shadow: 0 30px 80px -30px rgba(0,0,0,.8), 0 0 40px -22px var(--shine); animation: rise .4s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px) } }
+  .title { font-family: var(--mono); font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+
+  .top { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center }
+  .logo { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; font-family: var(--mono); font-weight: 500; font-size: 15px; color: #15151f; background: var(--c); box-shadow: 0 0 22px -6px var(--c) }
+  .nm h1 { font-weight: 400; font-size: 22px } .nm p { font-family: var(--mono); font-size: 11px; color: var(--ink-500); margin-top: 4px; letter-spacing: .04em }
+  .price { text-align: right } .price b { display: block; font-weight: 300; font-size: 34px; font-variant-numeric: tabular-nums } .price small { font-family: var(--mono); font-size: 11.5px }
+  .asof { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap }
+  .tag { display: inline-flex; gap: 5px; align-items: center; font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; color: var(--ink-400); background: rgba(var(--lift),.05) }
+  .tag.w { color: var(--warn); background: color-mix(in oklch, var(--warn) 14%, transparent) }
+  .tag.l { color: var(--lav-300); background: rgba(181,171,252,.12) }
+
+  .grid { display: grid; grid-template-columns: 1fr 300px; gap: 20px; margin-top: 18px }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr } .top { grid-template-columns: auto 1fr } .price { grid-column: 1 / -1; text-align: left } }
+  .ranges { display: flex; gap: 6px; justify-content: flex-end; margin-bottom: 8px }
+  svg { display: block; width: 100%; height: auto; overflow: visible }
+  .axis text { fill: var(--ink-500); font-family: var(--mono); font-size: 10px }
+  .mine { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px }
+  @media (max-width: 640px) { .mine { grid-template-columns: repeat(2, 1fr) } }
+  .m { border-radius: 14px; padding: 12px; background: rgba(var(--lift),.03); border: 1px solid rgba(var(--lift),.06) }
+  .m b { display: block; font-weight: 300; font-size: 22px; margin-top: 4px; font-variant-numeric: tabular-nums }
+  .m small { font-family: var(--mono); font-size: 10.5px }
+  .box { border-radius: 16px; padding: 14px; border: 1px solid rgba(var(--lift),.07); background: rgba(var(--lift),.02); display: flex; flex-direction: column; gap: 6px }
+  .kv { display: flex; justify-content: space-between; gap: 10px; font-family: var(--mono); font-size: 12px; color: var(--ink-200); padding: 3px 0 }
+  .kv span:first-child { color: var(--ink-500) }
+  .rng { position: relative; height: 6px; border-radius: 99px; background: rgba(var(--lift),.08); margin: 8px 0 4px }
+  .rng i { position: absolute; top: -4px; width: 3px; height: 14px; border-radius: 2px; background: var(--lav-400); box-shadow: 0 0 8px var(--shine) }
+  .rng u { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--ink-300); text-decoration: none }
+  .bar { height: 6px; border-radius: 99px; background: rgba(var(--lift),.06); overflow: hidden } .bar i { display: block; height: 100%; background: var(--lav-400); border-radius: 99px }
+  .trades .r { display: grid; grid-template-columns: 70px 1fr auto; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(var(--lift),.05); font-family: var(--mono); font-size: 12px }
+  .src { margin-top: 14px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); line-height: 1.7 }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">Mockup · sample numbers · pick a position</div>
+  <div class="scen" id="scen"></div>
+  <p class="note" id="note"></p>
+  <section class="card" id="card"></section>
+</div>
+<script>
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim()
+const eur = (v, c = 2) => '€' + Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: c, maximumFractionDigits: c })
+const sgn = (v) => (v >= 0 ? '+' : '−')
+
+/* Logo: chosen by what the thing IS, never by the ticker's letters alone
+   (VUAA, SHLD are also US codes). Company → its own site; ETF → the
+   issuer's mark; coin → the coin; nothing found → letters, said so. */
+const P = {
+  nvda: { label: 'US stock', kind: 'stock', name: 'NVIDIA', sym: 'NVDA', ex: 'NASDAQ · USD', isin: 'US67066G1040', acc: 'Revolut', logo: { mark: 'NV', c: 'oklch(0.75 0.17 135)', from: 'company · nvidia.com' },
+    px: 171.2, ccy: '$', fx: 0.853, ch: 2.31, asof: 'close 2 Oct · 22:00 Lisbon', shares: 6.5, paid: 612.4, start: 95, end: 171.2, trend: 1.0,
+    buys: [[0.18, 'Buy 3 @ $98.10'], [0.52, 'Buy 2.5 @ $121.40'], [0.81, 'Buy 1 @ $140.02']], sells: [],
+    facts: [['Market cap', '$4.17T'], ['P/E', '48.6'], ['Dividend', '0.02%'], ['Sector', 'Semiconductors'], ['Next earnings', '19 Nov']], lo52: 86.6, hi52: 184.5,
+    note: '<b>A US stock.</b> Logo from the company\'s own site, found by its ISIN — not by the letters "NVDA". Price in $, shown in € at the stored rate of that close. Your buys sit on the chart.' },
+  vuaa: { label: 'EU ETF', kind: 'etf', name: 'Vanguard S&P 500 UCITS ETF (Acc)', sym: 'VUAA.L', ex: 'LSE · USD', isin: 'IE00BFMXXD54', acc: 'Trading 212', logo: { mark: 'V', c: 'oklch(0.62 0.17 25)', from: 'issuer · Vanguard' },
+    px: 123.85, ccy: '$', fx: 0.853, ch: 0.42, asof: 'close 2 Oct · 16:30 London', shares: 1.972, paid: 189.3, start: 92, end: 123.85, trend: 0.6,
+    buys: [[0.3, 'Buy 0.8 @ $101.2'], [0.7, 'Buy 1.172 @ $114.9']], sells: [],
+    etf: { ter: '0.07%', tracks: 'S&P 500', policy: 'Accumulating — dividends stay inside', top: [['Apple', 7.1], ['NVIDIA', 6.9], ['Microsoft', 6.4], ['Amazon', 3.9], ['Alphabet', 3.8]], region: [['United States', 100]] }, lo52: 96.1, hi52: 126.0,
+    note: '<b>A European ETF.</b> The mark is the issuer\'s (Vanguard), because ETFs have no company logo — and "VUAA" fetched a stranger\'s before. ETF facts instead of P/E: cost a year, what it tracks, what is inside.' },
+  btc: { label: 'crypto', kind: 'coin', name: 'Bitcoin', sym: 'BTC-EUR', ex: 'crypto · EUR · trades all day', isin: null, acc: 'Revolut Crypto', logo: { mark: '₿', c: 'oklch(0.78 0.16 65)', from: 'coin · Bitcoin' },
+    px: 75540.37, ccy: '€', fx: 1, ch: -1.12, asof: 'price 3 Oct · 00:00 UTC', shares: 0.00152749, paid: 100.0, start: 52000, end: 75540, trend: 0.9,
+    buys: [[0.06, 'Buy €50 · 2022'], [0.62, 'Buy $100 · Feb 2026']], sells: [[0.34, 'Sell all · Jul 2025']],
+    facts: [['All-time high', '€98,849'], ['From the high', '−23.6%'], ['Staking', 'none']], lo52: 58200, hi52: 98849,
+    note: '<b>A coin, in its own account (Revolut Crypto).</b> Priced once a day like the others (crypto never closes, so the time is midnight UTC). Your sell-everything in July 2025 shows on the chart.' },
+  lkoh: { label: 'frozen share', kind: 'frozen', name: 'LUKOIL', sym: 'LKOH', ex: 'Moscow · not traded for you', isin: 'RU0009024277', acc: 'Trading 212', logo: { mark: 'LK', c: 'oklch(0.6 0.02 280)', from: 'letters — no logo found' },
+    px: null, shares: 1, value: 11.14, paid: 61.2, note: '<b>A share with no market.</b> No price line, no chart: the value is the broker\'s screen on 3 Oct, said so. P&L shown against what you paid, marked as the broker\'s value.' },
+  stale: { label: 'price is old', kind: 'stock', name: 'Shopify', sym: 'SHOP', ex: 'NASDAQ · USD', isin: 'CA82509L1076', acc: 'Revolut', logo: { mark: 'S', c: 'oklch(0.72 0.15 145)', from: 'company · shopify.com' },
+    px: 118.4, ccy: '$', fx: 0.853, ch: 0, asof: 'close 26 Sep · 7 days old', stale: true, shares: 2, paid: 180.6, start: 70, end: 118.4, trend: 0.8,
+    buys: [[0.4, 'Buy 2 @ $105.9']], sells: [], facts: [['Market cap', '$153B'], ['P/E', '74.2'], ['Sector', 'Software']], lo52: 69.8, hi52: 129.4,
+    note: '<b>The price check failed for a week.</b> It says so on the price, in amber, instead of quietly showing an old number as today\'s. One tap: check again.' },
+}
+let K = 'nvda', R = '1Y'
+
+function chart(p) {
+  const W = 760, H = 230, L = 4, Rm = 60, T = 10, B = 20
+  let seed = p.sym.length * 31 + 7
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+  const n = 120, pts = []
+  for (let i = 0; i < n; i++) { const t = i / (n - 1); pts.push(p.start + (p.end - p.start) * t + (rnd() - 0.5) * (p.end - p.start) * 0.35 * Math.sin(t * 9 + rnd())) }
+  pts[n - 1] = p.end
+  const lo = Math.min(...pts) * 0.96, hi = Math.max(...pts) * 1.03
+  const x = (t) => L + t * (W - L - Rm), y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B)
+  const d = pts.map((v, i) => `${i ? 'L' : 'M'}${x(i / (n - 1)).toFixed(1)},${y(v).toFixed(1)}`).join('')
+  const avg = p.paid / p.shares / p.fx
+  const c = p.end >= avg ? css('--good') : css('--danger')
+  let g = `<svg viewBox="0 0 ${W} ${H}"><g class="axis">`
+  for (let i = 0; i <= 3; i++) { const v = lo + (hi - lo) * i / 3; g += `<line x1="${L}" x2="${W - Rm}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(255,255,255,.05)"/><text x="${W - Rm + 8}" y="${y(v) + 4}">${p.ccy}${v >= 1000 ? Math.round(v).toLocaleString('en-GB') : v.toFixed(0)}</text>` }
+  g += `<text x="${L}" y="${H - 4}">${{ '1M': 'Sep 3', '6M': 'Apr', '1Y': 'Oct 2025', '5Y': '2021' }[R]}</text><text x="${W - Rm}" y="${H - 4}" text-anchor="end">today</text></g>`
+  g += `<defs><linearGradient id="f" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${c}" stop-opacity=".22"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></linearGradient></defs>`
+  g += `<path d="${d}V${H - B}H${L}Z" fill="url(#f)"/><path d="${d}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"/>`
+  if (avg > lo && avg < hi) g += `<line x1="${L}" x2="${W - Rm}" y1="${y(avg)}" y2="${y(avg)}" stroke="${css('--ink-300')}" stroke-dasharray="3 4"/><text x="${L + 4}" y="${y(avg) - 5}" style="font-family:var(--mono);font-size:9.5px" fill="${css('--ink-300')}">you paid ${p.ccy}${avg >= 1000 ? Math.round(avg).toLocaleString('en-GB') : avg.toFixed(2)} on average</text>`
+  for (const [t, label] of p.buys) { const v = pts[Math.round(t * (n - 1))]; g += `<circle cx="${x(t)}" cy="${y(v)}" r="5" fill="#1b1a2a" stroke="${css('--good')}" stroke-width="2"><title>${label}</title></circle><text x="${x(t)}" y="${y(v) + 18}" text-anchor="middle" style="font-family:var(--mono);font-size:9px" fill="${css('--good')}">B</text>` }
+  for (const [t, label] of p.sells) { const v = pts[Math.round(t * (n - 1))]; g += `<circle cx="${x(t)}" cy="${y(v)}" r="5" fill="#1b1a2a" stroke="${css('--danger')}" stroke-width="2"><title>${label}</title></circle><text x="${x(t)}" y="${y(v) - 10}" text-anchor="middle" style="font-family:var(--mono);font-size:9px" fill="${css('--danger')}">S</text>` }
+  return g + `<circle cx="${x(1)}" cy="${y(p.end)}" r="4" fill="${c}"/></svg>`
+}
+
+function render() {
+  document.getElementById('scen').innerHTML = Object.entries(P).map(([k, p]) => `<button class="pill ${k === K ? 'on' : ''}" onclick="K='${k}';render()">${p.label}</button>`).join('')
+  const p = P[K]
+  document.getElementById('note').innerHTML = p.note
+  const value = p.px == null ? p.value : p.px * p.shares * p.fx
+  const pl = value - p.paid, pct = pl / p.paid * 100
+  const head = `<div class="caps" style="margin-bottom:14px"><span class="title">[ PORTFOLIO · ${p.acc} ]</span> &nbsp;‹ back</div>
+  <div class="top"><span class="logo" style="--c:${p.logo.c}">${p.logo.mark}</span>
+    <div class="nm"><h1>${p.name}</h1><p>${p.sym} · ${p.ex}${p.isin ? ' · ' + p.isin : ''}</p></div>
+    <div class="price">${p.px == null ? `<b class="dim">no price</b><small class="warn">market closed to you</small>` : `<b>${p.ccy}${p.px.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b><small class="${p.stale ? 'warn' : p.ch >= 0 ? 'up' : 'down'}">${p.stale ? 'no new price for 7 days' : `${sgn(p.ch)}${Math.abs(p.ch).toFixed(2)}% on the day`}</small>`}</div></div>
+  <div class="asof"><span class="tag ${p.stale ? 'w' : ''}">${p.px == null ? 'value from Trading 212 screen · 3 Oct' : 'Yahoo Finance · ' + p.asof}</span><span class="tag">logo: ${p.logo.from}</span>${p.stale ? '<button class="tag l" style="border:none;cursor:pointer">check price again</button>' : ''}</div>`
+  const mine = `<div class="mine">
+    <div class="m"><span class="caps">value</span><b>${eur(value)}</b><small class="dim">${p.kind === 'coin' ? p.shares + ' BTC' : p.shares + (p.shares === 1 ? ' share' : ' shares')}</small></div>
+    <div class="m"><span class="caps">you paid</span><b>${eur(p.paid)}</b><small class="dim">from your statements</small></div>
+    <div class="m"><span class="caps">gain</span><b class="${pl >= 0 ? 'up' : 'down'}">${sgn(pl)}${eur(pl)}</b><small class="${pl >= 0 ? 'up' : 'down'}">${sgn(pct)}${Math.abs(pct).toFixed(1)}%</small></div>
+    <div class="m"><span class="caps">of your invested</span><b>${(value / 15011 * 100).toFixed(1)}%</b><small class="dim">all brokers</small></div></div>`
+  if (p.px == null) {
+    document.getElementById('card').innerHTML = head + mine + `<div class="box" style="margin-top:16px"><span class="caps">why no chart</span><p style="color:var(--ink-300);line-height:1.6;font-size:13.5px">Moscow shares are frozen for foreign holders since 2022. There is no price anyone can trade at, so there is nothing to draw. The value is what Trading 212 shows, read from your screen — updated when you drop a new one.</p></div>`
+    return
+  }
+  let side = ''
+  side += `<div class="box"><span class="caps">52 weeks</span><div class="rng"><u style="left:${((p.paid / p.shares / p.fx - p.lo52) / (p.hi52 - p.lo52) * 100).toFixed(0)}%"></u><i style="left:${((p.px - p.lo52) / (p.hi52 - p.lo52) * 100).toFixed(0)}%"></i></div>
+    <div class="kv"><span>${p.ccy}${p.lo52.toLocaleString('en-GB')}</span><span>${p.ccy}${p.hi52.toLocaleString('en-GB')}</span></div><span class="caps" style="line-height:1.6">▍ now · │ what you paid</span></div>`
+  if (p.etf) side += `<div class="box"><span class="caps">the fund</span>
+    <div class="kv"><span>Tracks</span><span>${p.etf.tracks}</span></div><div class="kv"><span>Costs a year</span><span>${p.etf.ter}</span></div>
+    <div class="kv"><span>Dividends</span><span>accumulating</span></div>
+    <span class="caps" style="margin-top:8px">biggest inside</span>${p.etf.top.map(([n, w]) => `<div class="kv"><span>${n}</span><span>${w}%</span></div><div class="bar"><i style="width:${w * 10}%"></i></div>`).join('')}</div>`
+  else side += `<div class="box"><span class="caps">${p.kind === 'coin' ? 'the coin' : 'the company'}</span>${p.facts.map(([k, v]) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`).join('')}</div>`
+  side += `<div class="box trades"><span class="caps">your trades · statement rows</span>${[...p.buys.map((b) => [b, 'up']), ...p.sells.map((s) => [s, 'down'])].sort((a, b) => b[0][0] - a[0][0]).map(([[, l], c]) => `<div class="r"><span class="${c}">${c === 'up' ? 'BUY' : 'SELL'}</span><span>${l.replace(/^(Buy|Sell) /, '')}</span><span class="dim">›</span></div>`).join('')}</div>`
+  document.getElementById('card').innerHTML = head + mine + `<div class="grid"><div>
+    <div class="ranges">${['1M', '6M', '1Y', '5Y'].map((r) => `<button class="pill ${r === R ? 'on' : ''}" onclick="R='${r}';render()">${r}</button>`).join('')}</div>${chart(p)}
+    <div class="src">Line: daily closes from Yahoo Finance, stored each night (never fetched on open). ● B / S: your buys and sells from statements. Dashed: what you paid on average. Green or red by today against that line.</div></div>
+    <div style="display:flex;flex-direction:column;gap:12px">${side}</div></div>`
+}
+render()
+</script>
+</body>
+</html>

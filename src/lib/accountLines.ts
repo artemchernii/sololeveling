@@ -172,3 +172,38 @@ export function laneClusters(
   }
   return out.map((c) => c.members)
 }
+
+/** Stacked bands (3 Oct, his pick "A", by default): the steadiest account
+    at the bottom — the one with the most days — so the bands that move
+    sit on top where their changes read. */
+export function stackOrder<TId>(
+  lines: ReadonlyArray<{ accountId: TId; values: Values }>,
+): Array<TId> {
+  return [...lines]
+    .map((l, i) => ({ l, i, days: l.values.filter((v) => v !== null).length }))
+    .sort((a, b) => b.days - a.days || a.i - b.i)
+    .map((x) => x.l.accountId)
+}
+
+/** Each account's band per day: [bottom, top], stacked in `order`. A day
+    an account has no value it is a band of nothing. */
+export function stackBands<TId>(
+  lines: ReadonlyArray<{ accountId: TId; values: Values }>,
+  order: ReadonlyArray<TId>,
+): Map<TId, Array<[number, number]>> {
+  const days = lines[0]?.values.length ?? 0
+  const out = new Map<TId, Array<[number, number]>>()
+  const floor = Array.from({ length: days }, () => 0)
+  for (const id of order) {
+    const vals = lines.find((l) => l.accountId === id)?.values ?? []
+    const band: Array<[number, number]> = []
+    for (let i = 0; i < days; i++) {
+      const lo = floor[i]
+      const hi = Math.round((lo + (vals[i] ?? 0)) * 100) / 100
+      band.push([lo, hi])
+      floor[i] = hi
+    }
+    out.set(id, band)
+  }
+  return out
+}

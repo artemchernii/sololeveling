@@ -9,6 +9,8 @@ import {
   layout,
   niceStep,
   ownMoves,
+  stackBands,
+  stackOrder,
 } from './accountLines'
 
 const D = 86_400_000
@@ -123,4 +125,34 @@ test('events too close to label apart become one cluster', () => {
     [0],
     [5],
   ])
+})
+
+describe('stacked bands', () => {
+  const lines = [
+    { accountId: 'bpi', values: [null, 3000, 2000] },
+    { accountId: 'cash', values: [5000, 5000, 5000] },
+    { accountId: 'tr', values: [2000, 2100, 2200] },
+  ]
+  test('the steadiest at the bottom: most days first, then his order', () => {
+    expect(stackOrder(lines)).toEqual(['cash', 'tr', 'bpi'])
+  })
+  test('each band sits on the ones below; the top edge is the total', () => {
+    const b = stackBands(lines, ['cash', 'tr', 'bpi'])
+    expect(b.get('cash')).toEqual([
+      [0, 5000],
+      [0, 5000],
+      [0, 5000],
+    ])
+    expect(b.get('tr')).toEqual([
+      [5000, 7000],
+      [5000, 7100],
+      [5000, 7200],
+    ])
+    // no value before it joined: a band of nothing, not a drop to zero
+    expect(b.get('bpi')).toEqual([
+      [7000, 7000],
+      [7100, 10100],
+      [7200, 9200],
+    ])
+  })
 })

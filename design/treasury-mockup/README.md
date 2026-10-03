@@ -28,3 +28,4 @@ built to. Served by `.claude/launch.json` config "treasury" on :3950.
 Rule (CLAUDE.md, 27 Sep): journey, then a mockup here he marks up, then
 code that matches it — compared side by side before it is called done.
 - `accounts-chart.html` — chart by account (3 Oct): one line per account on Overview's chart, joins tagged, own moves marked, tap a point for its rows. Journey: `docs/specs/2026-10-03-chart-by-account-journey.md`. Sample numbers.
+- Bands or lines (3 Oct): after the first build looked "bad as fuck" on his data, three drawings were compared on his real numbers in a scratch page (never committed — real balances): A stacked bands, B small charts, C cleaned-up lines. His pick: keep lines, add A, a toggle; bands by default.

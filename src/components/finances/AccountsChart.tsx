@@ -10,8 +10,10 @@ import {
   firstDay,
   joinGroups,
   laneClusters,
-  laneRows,
   layout,
+  niceStep,
+  stackBands,
+  stackOrder,
 } from '@/lib/accountLines'
 import { euros } from '@/lib/money'
 import { useVeil } from '@/lib/veil'
@@ -57,28 +59,42 @@ const H = 340
 const T = 14
 const R = 72
 const L = 4
-const LANE = 46
+const LANE = 26
 const B = 22
-/* Two labels closer than this share one mark in the lane. */
-const LANE_GAP = 120
+/* Two events closer than this share one dot in the lane. */
+const LANE_GAP = 22
+
+export type AccountsMode = 'bands' | 'lines'
 
 export function AccountsChart({
   history,
   dayEnds,
   days,
   rangeLabel,
+  mode,
 }: {
   history: History
   dayEnds: ReadonlyArray<number>
   days: number
   rangeLabel: string
+  /* Stacked bands by default (his pick "A", 3 Oct); lines to compare
+     accounts on their own — a toggle beside the ranges. */
+  mode: AccountsMode
 }) {
   const accounts = useQuery(api.accounts.list, {})
   const { shown } = useVeil()
   const box = useRef<HTMLDivElement>(null)
   const [W, setW] = useState(760)
-  const [hidden, setHidden] = useState<ReadonlySet<AccountId>>(new Set())
+  /* Lines start without Cash: it never moves, and it lies across the
+     others at €5,000. Bands show everything — they never cross. */
+  const [hiddenBands, setHiddenBands] = useState<ReadonlySet<AccountId>>(
+    new Set(),
+  )
+  const [hiddenLines, setHiddenLines] = useState<ReadonlySet<AccountId> | null>(
+    null,
+  )
   const [hover, setHover] = useState<number | null>(null)
+  const [hot, setHot] = useState<AccountId | null>(null)
   const [tap, setTap] = useState<{ id: AccountId; i: number } | null>(null)
 
   useEffect(() => {
@@ -98,6 +114,15 @@ export function AccountsChart({
   const live = (accounts ?? []).filter((a) =>
     lines.some((l) => l.accountId === a._id && firstDay(l.values) !== null),
   )
+  const cashIds = live
+    .filter((a) => a.kinds.includes('cash') && !a.kinds.includes('bank'))
+    .map((a) => a._id)
+  const hidden =
+    mode === 'bands' ? hiddenBands : (hiddenLines ?? new Set(cashIds))
+  const setHidden = (next: ReadonlySet<AccountId>) => {
+    if (mode === 'bands') setHiddenBands(next)
+    else setHiddenLines(next)
+  }
   const colour = new Map(live.map((a, i) => [a._id, colourOf(a, i)]))
   const valuesOf = (id: AccountId) =>
     lines.find((l) => l.accountId === id)?.values ?? []
@@ -105,9 +130,25 @@ export function AccountsChart({
     (l) => !hidden.has(l.accountId) && colour.has(l.accountId),
   )
   const lay = layout(shownLines, from)
-  const top = lay.step * 4
-  const PB = H - B - LANE
   const n = dayEnds.length - 1
+
+  /* Bands: steadiest at the bottom; the top edge is the total. */
+  const order = stackOrder(
+    shownLines.filter((l) => lay.lined.includes(l.accountId)),
+  )
+  const bands = stackBands(shownLines, order)
+  const topOfStack = order.length
+    ? Math.max(
+        ...Array.from(
+          { length: n - from + 1 },
+          (_, k) => bands.get(order[order.length - 1])?.[from + k]?.[1] ?? 0,
+        ),
+      )
+    : 0
+  const step =
+    mode === 'bands' && order.length ? niceStep(topOfStack) : lay.step
+  const top = step * 4
+  const PB = H - B - LANE
   const x = (i: number) =>
     L + ((i - from) / Math.max(1, n - from)) * (W - L - R)
   const y = (v: number) => T + (1 - Math.min(v, top) / top) * (PB - T)
@@ -130,14 +171,15 @@ export function AccountsChart({
       </div>
     )
 
-  /* Who joined in the range (with a line), and his own moves: the lane. */
+  /* The lane: who joined and what moved, as quiet dots; the words on
+     hover (3 Oct: labels on his data were a smear). */
+  const nameOf = (id: AccountId) => live.find((a) => a._id === id)?.name ?? ''
   const joins = joinGroups(
     lay.lined.flatMap((id) => {
       const f = firstDay(valuesOf(id))
       return f !== null && f > from ? [{ accountId: id, at: dayEnds[f] }] : []
     }),
   )
-  const nameOf = (id: AccountId) => live.find((a) => a._id === id)?.name ?? ''
   const moves = history.moves.filter(
     (m) =>
       indexAt(m.at) >= from &&
@@ -149,70 +191,62 @@ export function AccountsChart({
       at: j.at,
       move: false,
       colours: j.accountIds.map((id) => colour.get(id) ?? ''),
-      text:
-        j.accountIds.length === 1
-          ? `${nameOf(j.accountIds[0])} joined`
-          : `${j.accountIds.length} accounts joined`,
-      amount: null as number | null,
+      text: `${j.accountIds.map(nameOf).join(', ')} joined`,
     })),
     ...moves.map((m) => ({
       at: m.at,
       move: true,
       colours: [colour.get(m.from) ?? '', colour.get(m.to) ?? ''],
-      text: `${nameOf(m.from)} → ${nameOf(m.to)}`,
-      amount: m.amount,
+      text: `${euros(m.amount)} ${nameOf(m.from)} → ${nameOf(m.to)}`,
     })),
   ].sort((a, b) => a.at - b.at)
-  /* Close events share one mark; its title lists them all. */
   const marks = laneClusters(
     events.map((e) => x(indexAt(e.at))),
     LANE_GAP,
   ).map((members) => {
     const list = members.map((i) => events[i])
-    const moved = list.filter((e) => e.move).length
-    const joined = list.length - moved
-    const one = list.length === 1 ? list[0] : null
     return {
       at: list[0].at,
-      move: joined === 0,
-      colours: [...new Set(list.flatMap((e) => e.colours))].slice(0, 4),
-      text: one
-        ? `${one.amount !== null ? `${euros(one.amount)} ` : ''}${one.text}`
-        : [
-            joined ? `${joined} joined` : '',
-            moved ? `${moved} ${moved === 1 ? 'move' : 'moves'}` : '',
-          ]
-            .filter(Boolean)
-            .join(' · '),
-      title: list
-        .map(
-          (e) =>
-            `${short(e.at)} — ${e.amount !== null ? `${euros(e.amount)} ` : ''}${e.text}`,
-        )
-        .join('\n'),
+      move: list.every((e) => e.move),
+      colour: list[0].colours[0],
+      count: list.length,
+      title: list.map((e) => `${short(e.at)} — ${e.text}`).join('\n'),
     }
   })
-  const labelWidth = (m: (typeof marks)[number]) =>
-    m.text.length * 6.2 + 14 + m.colours.length * 7
-  /* Near the right edge a label reads leftwards. */
-  const flips = marks.map((m) => x(indexAt(m.at)) + labelWidth(m) + 30 > W)
-  const rows = laneRows(
-    marks.map((m, k) => {
-      const ex = x(indexAt(m.at))
-      return flips[k]
-        ? { start: ex - labelWidth(m), end: ex }
-        : { start: ex, end: ex + labelWidth(m) }
-    }),
-  )
 
-  const pathOf = (vals: ReadonlyArray<number | null>) => {
+  /* Steps: a balance jumps on the day, it does not slide between days. */
+  const stepPath = (pts: ReadonlyArray<[number, number]>) => {
     let d = ''
+    pts.forEach(([i, v], k) => {
+      d += `${k === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`
+      const next = pts[k + 1] as [number, number] | undefined
+      if (next) d += `L${x(next[0]).toFixed(1)},${y(v).toFixed(1)}`
+    })
+    return d
+  }
+  const pointsOf = (id: AccountId): Array<[number, number]> => {
+    const out: Array<[number, number]> = []
+    const vals = valuesOf(id)
     for (let i = from; i <= n; i++) {
       const v = vals[i]
-      if (v === null) continue
-      d += `${d === '' ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`
+      if (v !== null) out.push([i, v])
     }
-    return d
+    return out
+  }
+  const bandPath = (id: AccountId) => {
+    const b = bands.get(id) ?? []
+    const vals = valuesOf(id)
+    const idx: Array<number> = []
+    for (let i = from; i <= n; i++) if (vals[i] !== null) idx.push(i)
+    if (idx.length === 0) return { area: '', edge: '' }
+    const upper = stepPath(idx.map((i) => [i, b[i][1]]))
+    let lower = ''
+    for (let k = idx.length - 1; k >= 0; k--) {
+      const i = idx[k]
+      const nextX = k < idx.length - 1 ? x(idx[k + 1]) : x(i)
+      lower += `L${nextX.toFixed(1)},${y(b[i][0]).toFixed(1)}L${x(i).toFixed(1)},${y(b[i][0]).toFixed(1)}`
+    }
+    return { area: `${upper}${lower}Z`, edge: upper }
   }
 
   const iAt = (clientX: number, el: SVGSVGElement) => {
@@ -223,6 +257,30 @@ export function AccountsChart({
       Math.min(n, Math.round(from + ((px - L) / (W - L - R)) * (n - from))),
     )
   }
+  const pick = (i: number, py: number): AccountId | null => {
+    if (mode === 'bands') {
+      for (const id of order) {
+        const b = bands.get(id)?.[i]
+        if (b && b[1] > b[0] && py <= y(b[0]) && py >= y(b[1])) return id
+      }
+      return null
+    }
+    let best: { id: AccountId; d: number } | null = null
+    for (const id of lay.lined) {
+      const v = valuesOf(id)[i]
+      if (v === null) continue
+      const d = Math.abs(y(v) - py)
+      if (!best || d < best.d) best = { id, d }
+    }
+    return best && best.d < 40 ? best.id : null
+  }
+  const lit = hot ?? tap?.id ?? null
+  const tapY =
+    tap === null
+      ? null
+      : mode === 'bands'
+        ? (bands.get(tap.id)?.[tap.i]?.[1] ?? null)
+        : valuesOf(tap.id)[tap.i]
 
   const ticks = days > 200 ? 6 : 4
   return (
@@ -238,34 +296,48 @@ export function AccountsChart({
           onClick={(e) => {
             const i = iAt(e.clientX, e.currentTarget)
             const r = e.currentTarget.getBoundingClientRect()
-            const py = ((e.clientY - r.top) / r.height) * H
-            let best: { id: AccountId; d: number } | null = null
-            for (const id of lay.lined) {
-              const v = valuesOf(id)[i]
-              if (v === null) continue
-              const d = Math.abs(y(v) - py)
-              if (!best || d < best.d) best = { id, d }
-            }
-            setTap(best && best.d < 40 ? { id: best.id, i } : null)
+            const id = pick(i, ((e.clientY - r.top) / r.height) * H)
+            setTap(id === null ? null : { id, i })
           }}
           role="img"
           aria-label="Each account's balance per day"
         >
+          <defs>
+            {lay.lined.map((id) => (
+              <linearGradient
+                key={id}
+                id={`fill-${id}`}
+                x1="0"
+                x2="0"
+                y1="0"
+                y2="1"
+              >
+                <stop
+                  offset="0"
+                  style={{ stopColor: colour.get(id), stopOpacity: 0.22 }}
+                />
+                <stop
+                  offset="1"
+                  style={{ stopColor: colour.get(id), stopOpacity: 0 }}
+                />
+              </linearGradient>
+            ))}
+          </defs>
           {[0, 1, 2, 3, 4].map((k) => (
             <g key={k}>
               <line
                 x1={L}
                 x2={W - R}
-                y1={y(lay.step * k)}
-                y2={y(lay.step * k)}
+                y1={y(step * k)}
+                y2={y(step * k)}
                 className="stroke-lift/5"
               />
               <text
                 x={W - R + 8}
-                y={y(lay.step * k) + 4}
+                y={y(step * k) + 4}
                 className="fill-ink-500 font-mono text-[10.5px]"
               >
-                {euros(lay.step * k)}
+                {euros(step * k)}
               </text>
             </g>
           ))}
@@ -283,62 +355,69 @@ export function AccountsChart({
               </text>
             )
           })}
-          <line
-            x1={L}
-            x2={W - R}
-            y1={PB + 4}
-            y2={PB + 4}
-            className="stroke-lift/8"
-          />
 
-          {lay.lined.map((id) => {
-            const vals = valuesOf(id)
-            const d = pathOf(vals)
-            const c = colour.get(id)
-            const dim = tap !== null && tap.id !== id
-            const f = firstDay(vals)
-            const last = vals[n]
-            return (
-              <g
-                key={id}
-                style={{ opacity: dim ? 0.15 : 1 }}
-                className="transition-opacity"
-              >
-                <path
-                  d={d}
-                  fill="none"
-                  strokeWidth={7}
-                  style={{ stroke: c, opacity: 0.12, filter: 'blur(3px)' }}
-                />
-                <path
-                  d={d}
-                  fill="none"
-                  strokeWidth={2}
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  style={{ stroke: c }}
-                  className="motion-land"
-                />
-                {f !== null && f > from ? (
-                  <circle
-                    cx={x(f)}
-                    cy={y(vals[f] ?? 0)}
-                    r={3}
-                    strokeWidth={1.5}
-                    className="fill-ground"
-                    style={{ stroke: c }}
-                  />
-                ) : null}
-                {last !== null ? (
-                  <circle cx={x(n)} cy={y(last)} r={3.5} style={{ fill: c }} />
-                ) : null}
-              </g>
-            )
-          })}
+          {mode === 'bands'
+            ? order.map((id) => {
+                const { area, edge } = bandPath(id)
+                const c = colour.get(id)
+                const dim = lit !== null && lit !== id
+                return (
+                  <g key={id} className="motion-land transition-opacity">
+                    <path
+                      d={area}
+                      style={{
+                        fill: c,
+                        opacity: dim ? 0.1 : lit === id ? 0.72 : 0.42,
+                      }}
+                      className="transition-opacity"
+                    />
+                    <path
+                      d={edge}
+                      fill="none"
+                      strokeWidth={1.6}
+                      style={{ stroke: c, opacity: dim ? 0.2 : 1 }}
+                    />
+                  </g>
+                )
+              })
+            : lay.lined.map((id) => {
+                const pts = pointsOf(id)
+                const d = stepPath(pts)
+                const c = colour.get(id)
+                const dim = lit !== null && lit !== id
+                const first = pts[0] as [number, number] | undefined
+                const last = pts.at(-1)
+                return (
+                  <g key={id} className="motion-land">
+                    {first && last ? (
+                      <path
+                        d={`${d}L${x(last[0])},${y(0)}L${x(first[0])},${y(0)}Z`}
+                        fill={`url(#fill-${id})`}
+                        style={{ opacity: dim ? 0.1 : 1 }}
+                      />
+                    ) : null}
+                    <path
+                      d={d}
+                      fill="none"
+                      strokeWidth={lit === id ? 2.6 : 1.8}
+                      strokeLinejoin="round"
+                      style={{ stroke: c, opacity: dim ? 0.18 : 1 }}
+                    />
+                    {last ? (
+                      <circle
+                        cx={x(last[0])}
+                        cy={y(last[1])}
+                        r={3.5}
+                        style={{ fill: c, opacity: dim ? 0.2 : 1 }}
+                      />
+                    ) : null}
+                  </g>
+                )
+              })}
 
           {lay.pinned.map((id, k) => {
             const v = valuesOf(id)[n] ?? 0
-            const over = v > top
+            const over = mode === 'bands' || v > top
             const py = over ? T + 2 + k * 16 : y(v)
             return (
               <g key={id}>
@@ -355,71 +434,45 @@ export function AccountsChart({
                   className="font-mono text-[10px] tracking-[0.08em] uppercase"
                   style={{ fill: colour.get(id) }}
                 >
-                  {over ? '▲ ' : ''}
+                  {v > top ? '▲ ' : ''}
                   {nameOf(id)} {euros(Math.round(v))} · new today
                 </text>
               </g>
             )
           })}
 
-          {moves.map((m) => {
-            const i = indexAt(m.at)
-            const a = valuesOf(m.from)[i]
-            const b = valuesOf(m.to)[i]
-            if (a === null || b === null) return null
+          <line
+            x1={L}
+            x2={W - R}
+            y1={PB + 6}
+            y2={PB + 6}
+            className="stroke-lift/8"
+          />
+          {marks.map((m, k) => {
+            const mx = x(indexAt(m.at))
             return (
-              <line
-                key={`${m.at}-${m.from}`}
-                x1={x(i)}
-                x2={x(i)}
-                y1={y(a)}
-                y2={y(b)}
-                strokeDasharray="2 3"
-                className="stroke-ink-400"
-              />
-            )
-          })}
-
-          {marks.map((e, k) => {
-            const ex = x(indexAt(e.at))
-            const ey = PB + 18 + rows[k] * 16
-            const flip = flips[k]
-            const dots = (j: number) => (flip ? ex - 4 - j * 7 : ex + 4 + j * 7)
-            return (
-              <g
-                key={k}
-                className="font-mono text-[10px] tracking-[0.08em] uppercase"
-              >
-                <title>{e.title}</title>
-                <line
-                  x1={ex}
-                  x2={ex}
-                  y1={PB + 5}
-                  y2={ey - 4}
-                  className="stroke-lift/20"
+              <g key={k} className="cursor-default">
+                <title>{m.title}</title>
+                <circle
+                  cx={mx}
+                  cy={PB + 16}
+                  r={m.count > 1 ? 6 : 4}
+                  strokeWidth={1.4}
+                  style={{
+                    stroke: m.colour,
+                    fill: m.move ? 'transparent' : m.colour,
+                  }}
                 />
-                {e.colours.map((c, j) => (
-                  <circle
-                    key={j}
-                    cx={dots(j)}
-                    cy={ey}
-                    r={3}
-                    strokeWidth={1.3}
-                    style={{ stroke: c, fill: e.move ? 'none' : c }}
-                  />
-                ))}
-                <text
-                  x={
-                    flip
-                      ? ex - 6 - e.colours.length * 7
-                      : ex + 6 + e.colours.length * 7
-                  }
-                  y={ey + 3.5}
-                  textAnchor={flip ? 'end' : 'start'}
-                  className="fill-ink-300"
-                >
-                  {e.text}
-                </text>
+                {m.count > 1 ? (
+                  <text
+                    x={mx}
+                    y={PB + 19}
+                    textAnchor="middle"
+                    className="fill-ink-200 font-mono text-[8.5px]"
+                  >
+                    {m.count}
+                  </text>
+                ) : null}
               </g>
             )
           })}
@@ -433,10 +486,10 @@ export function AccountsChart({
               className="stroke-lift/25"
             />
           ) : null}
-          {tap !== null && valuesOf(tap.id)[tap.i] != null ? (
+          {tap !== null && tapY !== null ? (
             <circle
               cx={x(tap.i)}
-              cy={y(valuesOf(tap.id)[tap.i] ?? 0)}
+              cy={y(tapY)}
               r={6}
               fill="none"
               strokeWidth={2}
@@ -490,6 +543,8 @@ export function AccountsChart({
             <button
               key={a._id}
               type="button"
+              onMouseEnter={() => setHot(a._id)}
+              onMouseLeave={() => setHot(null)}
               onClick={() => {
                 const next = new Set(hidden)
                 if (off) next.delete(a._id)
@@ -501,7 +556,7 @@ export function AccountsChart({
               className={`motion-press grid grid-cols-[10px_1fr_auto] items-center gap-2.5 rounded-[12px] px-2.5 py-2 text-left ring-1 ring-transparent transition ring-inset hover:bg-lift/[0.04] hover:ring-lift/10 ${off ? 'opacity-40' : ''}`}
             >
               <span
-                className="size-2.5 rounded-full"
+                className={`size-2.5 ${mode === 'bands' ? 'rounded-[3px]' : 'rounded-full'}`}
                 style={
                   off
                     ? { boxShadow: `inset 0 0 0 1.5px ${colour.get(a._id)}` }

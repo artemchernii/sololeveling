@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { AreaSeries, LineStyle, createChart } from 'lightweight-charts'
+import { ChartArea, ChartLine } from 'lucide-react'
 import type { AutoscaleInfo, IChartApi, ISeriesApi } from 'lightweight-charts'
 
 import { api } from '../../../convex/_generated/api'
 import { AccountsChart } from '@/components/finances/AccountsChart'
+import type { AccountsMode } from '@/components/finances/AccountsChart'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
@@ -105,6 +107,7 @@ export function WorthChart() {
   const today = useDayStarts(1).at(-1) as number
   const [which, setWhich] = useState<SeriesId>('total')
   const [range, setRange] = useState<(typeof RANGES)[number]['id']>('1Y')
+  const [mode, setMode] = useState<AccountsMode>('bands')
   const days = RANGES.find((r) => r.id === range)?.days ?? 365
   /* One subscription for the year; the switches only choose what of it to
      draw, so pressing them never reloads. */
@@ -266,7 +269,31 @@ export function WorthChart() {
             </button>
           ))}
         </span>
-        <span className="flex gap-1.5">
+        <span className="flex items-center gap-1.5">
+          {which === 'accounts' ? (
+            /* Bands or lines (3 Oct, his "keep what we have + A, and a
+               toggle"): one switch, beside the ranges. */
+            <span className="mr-1.5 flex rounded-full p-0.5 ring-1 ring-lift/14 ring-inset">
+              {(
+                [
+                  ['bands', ChartArea, 'Stacked bands'],
+                  ['lines', ChartLine, 'Lines'],
+                ] as const
+              ).map(([m, Icon, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  aria-label={label}
+                  aria-pressed={mode === m}
+                  title={label}
+                  className={`motion-press grid size-7 place-items-center rounded-full transition-colors ${mode === m ? 'bg-lav-400/18 text-foreground' : 'text-ink-400 hover:text-foreground'}`}
+                >
+                  <Icon className="size-3.5" />
+                </button>
+              ))}
+            </span>
+          ) : null}
           {RANGES.map((r) => (
             <button
               key={r.id}
@@ -285,6 +312,7 @@ export function WorthChart() {
           dayEnds={dayEnds}
           days={days}
           rangeLabel={range}
+          mode={mode}
         />
       ) : null}
       {/* Kept mounted under ACCOUNTS: the chart is made once. */}

@@ -27,3 +27,4 @@ built to. Served by `.claude/launch.json` config "treasury" on :3950.
 
 Rule (CLAUDE.md, 27 Sep): journey, then a mockup here he marks up, then
 code that matches it — compared side by side before it is called done.
+- `accounts-chart.html` — chart by account (3 Oct): one line per account on Overview's chart, joins tagged, own moves marked, tap a point for its rows. Journey: `docs/specs/2026-10-03-chart-by-account-journey.md`. Sample numbers.

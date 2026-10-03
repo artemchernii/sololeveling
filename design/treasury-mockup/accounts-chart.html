@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury chart by account</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Chart by account (3 Oct). Artem: "graph with sources and different
+     lines … like this screenshot but different banks, dynamic and so on.
+     But make it smart." Journey: docs/specs/2026-10-03-chart-by-account-journey.md.
+     Sample numbers at his accounts' scale, not his. The card is the
+     Overview chart he has (WorthChart), with a fourth view: ACCOUNTS. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --money: oklch(0.8 0.1 85);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+    /* One colour per account: its bank's own hue where it has one. Would
+       become tokens under APP ADDITIONS (the reason: a line per account). */
+    --acc-bpi: oklch(0.72 0.16 50);
+    --acc-revolut: oklch(0.74 0.15 350);
+    --acc-activo: oklch(0.76 0.14 160);
+    --acc-tr: oklch(0.88 0.01 280);
+    --acc-212: oklch(0.72 0.13 225);
+    --acc-cash: var(--money);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .ctl { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .pill { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400); cursor: pointer; transition: color .15s, background .15s, border-color .15s }
+  .pill:hover { color: var(--ink-200) }
+  .pill.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 760px; margin: 0 auto; text-align: center }
+  .note b { color: var(--ink-200); font-weight: 400 }
+
+  .card { position: relative; border-radius: 22px; padding: 18px 20px 16px; border: 1px solid rgba(var(--lift),.08);
+    background: linear-gradient(160deg, rgba(var(--lift),.035), rgba(var(--lift),.01) 50%), #1a1a28; box-shadow: 0 30px 80px -30px rgba(0,0,0,.8); overflow: hidden }
+  .bar { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap }
+  .bar .g { display: flex; gap: 6px; flex-wrap: wrap }
+  .mono { font-family: var(--mono) }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+
+  .stage { position: relative; display: grid; grid-template-columns: 1fr 250px; gap: 18px; margin-top: 14px }
+  @media (max-width: 860px) { .stage { grid-template-columns: 1fr } }
+  svg.chart { width: 100%; height: 330px; display: block; overflow: visible }
+  .grid line { stroke: rgba(var(--lift),.05) }
+  .axis text { fill: var(--ink-500); font-family: var(--mono); font-size: 10.5px }
+  .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; transition: opacity .25s }
+  .line.dim { opacity: .14 }
+  .glow { fill: none; stroke-width: 7; opacity: .12; filter: blur(3px) }
+  .dotnow { stroke: #1a1a28; stroke-width: 2 }
+  .join text { font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase }
+  .move line { stroke: var(--ink-400); stroke-dasharray: 2 3 }
+  .move text { fill: var(--ink-300); font-family: var(--mono); font-size: 9.5px; letter-spacing: .06em }
+  .hair { stroke: rgba(var(--lift),.25) }
+  @keyframes draw { from { stroke-dashoffset: var(--len) } to { stroke-dashoffset: 0 } }
+  .line.drawn { stroke-dasharray: var(--len); animation: draw .9s cubic-bezier(.2,.8,.2,1) both }
+
+  /* Legend: what each holds now and how it moved over the range — tap to hide */
+  .legend { display: flex; flex-direction: column; gap: 4px }
+  .acc { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 12px; border: 1px solid transparent; background: none; text-align: left; cursor: pointer; transition: background .15s, opacity .2s, border-color .15s }
+  .acc:hover { background: rgba(var(--lift),.04); border-color: rgba(var(--lift),.08) }
+  .acc.off { opacity: .38 }
+  .acc.off .sw { background: none !important; box-shadow: inset 0 0 0 1.5px var(--c) }
+  .acc .sw { width: 10px; height: 10px; border-radius: 99px; background: var(--c); box-shadow: 0 0 10px -1px var(--c) }
+  .acc .nm { font-size: 13.5px; color: var(--ink-100); display: flex; flex-direction: column; gap: 2px }
+  .acc .nm small { font-family: var(--mono); font-size: 10px; color: var(--ink-500); letter-spacing: .06em }
+  .acc .v { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-family: var(--mono) }
+  .acc .v b { font-weight: 400; font-size: 13.5px; color: var(--ink-100) }
+  .acc .v span { font-size: 11px }
+  .up { color: var(--good) } .down { color: var(--danger) } .flat { color: var(--ink-500) }
+  .sum { margin-top: 6px; padding: 10px; border-top: 1px solid rgba(var(--lift),.07); display: flex; justify-content: space-between; font-family: var(--mono); font-size: 12px; color: var(--ink-300) }
+
+  .read { margin-top: 12px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-400); display: flex; flex-wrap: wrap; gap: 6px 14px; min-height: 18px }
+  .read i { display: inline-block; width: 7px; height: 7px; border-radius: 99px; margin-right: 6px; vertical-align: 1px }
+
+  /* The day's rows behind a point */
+  .day { position: absolute; right: 14px; top: 64px; width: 330px; border-radius: 18px; padding: 16px; border: 1px solid var(--sys-edge);
+    background: linear-gradient(160deg, rgba(181,171,252,.09), rgba(181,171,252,.02) 40%), #1d1c2d; box-shadow: 0 30px 70px -20px rgba(0,0,0,.85), 0 0 40px -18px var(--shine);
+    display: none; flex-direction: column; gap: 12px; animation: rise .3s cubic-bezier(.2,.8,.2,1) both; z-index: 3 }
+  .day.on { display: flex }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px) scale(.99) } }
+  .day .t { font-family: var(--mono); font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine); display: flex; justify-content: space-between; align-items: center }
+  .day .x { width: 28px; height: 28px; border-radius: 99px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300); cursor: pointer }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 2px; border-bottom: 1px solid rgba(var(--lift),.05); font-size: 13px }
+  .row small { display: block; font-family: var(--mono); font-size: 10px; color: var(--ink-500); letter-spacing: .06em; margin-top: 2px }
+  .row .a { font-family: var(--mono) }
+  .tag { display: inline-flex; font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; color: var(--ink-400); background: rgba(var(--lift),.05) }
+
+  .empty { height: 330px; display: grid; place-items: center; text-align: center; color: var(--ink-400); font-size: 14px; line-height: 1.6 }
+  .empty b { display: block; color: var(--ink-100); font-weight: 400; font-size: 16px; margin-bottom: 4px }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">Mockup · sample numbers · pick a situation</div>
+  <div class="scen" id="scen"></div>
+  <p class="note" id="note"></p>
+
+  <div class="card">
+    <div class="bar">
+      <div class="g" id="views"></div>
+      <div class="g" id="ranges"></div>
+    </div>
+    <div class="stage">
+      <div>
+        <div id="plot"></div>
+        <div class="read" id="read"></div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="day" id="day"></div>
+  </div>
+</div>
+
+<script>
+const DAY = 86400000
+const TODAY = Date.UTC(2026, 9, 3)
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim()
+
+/* Six accounts, sample balances at his scale. `from` is the day the app
+   first knows it — no line before. */
+const ACCOUNTS = [
+  { id: '212', name: 'Trading 212', kind: 'broker · cash + shares', c: '--acc-212', from: TODAY },
+  { id: 'tr', name: 'Trade Republic', kind: 'broker · cash + shares', c: '--acc-tr', from: TODAY - 365 * DAY },
+  { id: 'bpi', name: 'BPI', kind: 'bank', c: '--acc-bpi', from: Date.UTC(2026, 7, 1) },
+  { id: 'revolut', name: 'Revolut', kind: 'bank + broker', c: '--acc-revolut', from: Date.UTC(2026, 7, 2) },
+  { id: 'cash', name: 'Cash', kind: 'notes', c: '--acc-cash', from: TODAY - 365 * DAY },
+  { id: 'activo', name: 'ActivoBank', kind: 'bank', c: '--acc-activo', from: Date.UTC(2026, 7, 3) },
+]
+
+/* Moves between his own accounts — shown, never counted as a loss. */
+const MOVES = [
+  { t: Date.UTC(2026, 7, 27), from: 'bpi', to: 'activo', amount: 300 },
+  { t: Date.UTC(2026, 8, 1), from: 'bpi', to: 'activo', amount: 1100 },
+]
+
+/* Deterministic sample histories, built day by day from rows, so a day's
+   change is exactly its rows (SPENDS below) — the panel must add up. */
+let seed = 7
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+const SPENDS = {}
+function series(id) {
+  seed = id.length * 977 + id.charCodeAt(0)
+  const out = []
+  let v = { tr: 4200, cash: 420, bpi: 3200, revolut: 3300, activo: 60, '212': 15011 }[id]
+  const start = ACCOUNTS.find((a) => a.id === id).from
+  for (let t = Math.max(start, TODAY - 365 * DAY); t <= TODAY; t += DAY) {
+    const dom = new Date(t).getUTCDate()
+    const rows = []
+    if (t > start) {
+      if (id === 'tr') rows.push({ text: 'Savings plan', sub: 'shares bought', amt: 0 }, { text: 'Market move', sub: 'prices', amt: Math.round((rnd() - 0.42) * 6000) / 100 })
+      if (id === 'cash' && t === TODAY - 150 * DAY) rows.push({ text: 'ATM top-up spent', sub: 'cash', amt: -120 })
+      if (id === 'bpi') {
+        rows.push({ text: rnd() > 0.5 ? 'Continente' : 'Pingo Doce', sub: 'groceries', amt: -Math.round((25 + rnd() * 40) * 100) / 100 })
+        if (dom === 25) rows.push({ text: 'BNP Paribas', sub: 'salary', amt: 2638.36 })
+        if (dom === 8) rows.push({ text: 'Mortgage', sub: 'bill', amt: -780 })
+      }
+      if (id === 'revolut') {
+        rows.push({ text: 'Card payment', sub: 'eating out', amt: -Math.round((8 + rnd() * 30) * 100) / 100 })
+        if (dom === 26) rows.push({ text: 'Top-up', sub: 'from BPI card', amt: 400 })
+      }
+      if (id === 'activo' && v > 120) rows.push({ text: 'Card payment', sub: 'shopping', amt: -Math.round((20 + rnd() * 30) * 100) / 100 })
+      for (const m of MOVES)
+        if (m.t === t && (m.from === id || m.to === id))
+          rows.unshift({ text: m.from === id ? 'To ActivoBank' : 'From BPI', sub: 'your move · between your accounts', amt: m.from === id ? -m.amount : m.amount, move: true })
+    }
+    v += rows.reduce((n, r) => n + r.amt, 0)
+    SPENDS[id + ':' + t] = rows.filter((r) => r.amt !== 0)
+    out.push({ t, v: Math.round(v * 100) / 100 })
+  }
+  return out
+}
+const DATA = Object.fromEntries(ACCOUNTS.map((a) => [a.id, series(a.id)]))
+
+const SCENARIOS = {
+  all: { label: 'all six', note: '<b>One line per account</b>, same € axis. Trading 212 starts today with a "joined" tag instead of a cliff. The dashed marks are your own moves (BPI → ActivoBank). Hover for the day; tap a point for its rows; tap a name to hide it.' },
+  hide212: { label: '212 hidden', hidden: ['212'], note: '<b>Trading 212 off</b>: the axis rescales to the banks, so BPI\'s payday saw-tooth and the ActivoBank moves become readable.' },
+  tapped: { label: 'tapped a point', hidden: ['212'], tap: { id: 'bpi', t: Date.UTC(2026, 8, 1) }, note: '<b>Tapped BPI on 1 Sep</b>: the rows behind the drop — €1,100 was a move to ActivoBank, not money gone.' },
+  one: { label: 'first account', only: ['bpi'], note: '<b>Day one with one account</b>: a single line; the legend says the others appear as accounts are added.' },
+  none: { label: 'no accounts', only: [], note: '<b>Nothing yet</b>: the empty state, pointing at ADD.' },
+}
+
+const VIEWS = ['total', 'free cash', 'invested', 'accounts']
+const RANGES = { '1M': 31, '3M': 92, '6M': 183, '1Y': 365 }
+let S = { scen: 'all', view: 'accounts', range: '3M', hidden: new Set(), tap: null, hover: null }
+
+function money(v) { return '€' + Math.round(v).toLocaleString('en-GB') }
+function money2(v) { return '€' + v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
+function short(t) { return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) }
+
+function setScen(k) {
+  const sc = SCENARIOS[k]
+  S = { ...S, scen: k, hidden: new Set(sc.hidden ?? []), tap: sc.tap ?? null, hover: null }
+  render()
+}
+
+function render() {
+  document.getElementById('scen').innerHTML = Object.entries(SCENARIOS).map(([k, s]) =>
+    `<button class="pill ${S.scen === k ? 'on' : ''}" onclick="setScen('${k}')">${s.label}</button>`).join('')
+  document.getElementById('note').innerHTML = SCENARIOS[S.scen].note
+  document.getElementById('views').innerHTML = VIEWS.map((v) =>
+    `<button class="pill ${S.view === v ? 'on' : ''}" onclick="S.view='${v}';render()">${v}</button>`).join('')
+  document.getElementById('ranges').innerHTML = Object.keys(RANGES).map((r) =>
+    `<button class="pill ${S.range === r ? 'on' : ''}" onclick="S.range='${r}';S.tap=null;render()">${r}</button>`).join('')
+
+  const only = SCENARIOS[S.scen].only
+  const accounts = ACCOUNTS.filter((a) => !only || only.includes(a.id))
+  const plot = document.getElementById('plot')
+  if (S.view !== 'accounts') {
+    plot.innerHTML = `<div class="empty"><div><b>${S.view.toUpperCase()} — as today</b>This view stays exactly as it is on Overview now.<br/>Pick ACCOUNTS to see the new one.</div></div>`
+    document.getElementById('legend').innerHTML = ''
+    document.getElementById('read').innerHTML = ''
+    document.getElementById('day').classList.remove('on')
+    return
+  }
+  if (accounts.length === 0) {
+    plot.innerHTML = `<div class="empty"><div><b>No accounts yet</b>Each account you add draws its own line here.<br/>Press ADD on the hero, or drop a statement.</div></div>`
+    document.getElementById('legend').innerHTML = ''
+    document.getElementById('read').innerHTML = ''
+    return
+  }
+  const from = TODAY - RANGES[S.range] * DAY
+  const shown = accounts.filter((a) => !S.hidden.has(a.id))
+  const pts = (id) => DATA[id].filter((p) => p.t >= from)
+  const max = Math.max(1, ...shown.flatMap((a) => pts(a.id).map((p) => p.v)))
+  const nice = (() => { const m = Math.pow(10, Math.floor(Math.log10(max))); return Math.ceil(max / m * 2) / 2 * m })()
+  const W = 860, H = 330, L = 6, R = 62, T = 12, B = 26
+  const x = (t) => L + (t - from) / (TODAY - from) * (W - L - R)
+  const y = (v) => T + (1 - v / nice) * (H - T - B)
+
+  let g = `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" id="svg">`
+  g += '<g class="grid axis">'
+  for (let i = 0; i <= 4; i++) {
+    const v = nice * i / 4
+    g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${W - R + 8}" y="${y(v) + 4}">${money(v)}</text>`
+  }
+  const ticks = S.range === '1Y' ? 6 : 4
+  for (let i = 0; i <= ticks; i++) {
+    const t = from + (TODAY - from) * i / ticks
+    g += `<text x="${x(t)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === ticks ? 'end' : 'middle'}">${short(t)}</text>`
+  }
+  g += '</g>'
+  for (const a of accounts) {
+    const p = pts(a.id)
+    if (p.length === 0) continue
+    const d = p.map((q, i) => `${i ? 'L' : 'M'}${x(q.t).toFixed(1)},${y(q.v).toFixed(1)}`).join('')
+    const off = S.hidden.has(a.id)
+    if (off) continue
+    const dim = S.tap && S.tap.id !== a.id ? 'dim' : ''
+    g += `<path class="glow" d="${d}" stroke="${css(a.c)}"/>`
+    g += `<path class="line drawn ${dim}" d="${d}" stroke="${css(a.c)}" style="--len:3000"/>`
+    const last = p.at(-1)
+    g += `<circle class="dotnow" cx="${x(last.t)}" cy="${y(last.v)}" r="${p.length === 1 ? 5 : 3.5}" fill="${css(a.c)}"/>`
+  }
+  /* Accounts that joined within a week of each other share one tag. */
+  const joins = accounts.filter((a) => a.from >= from && !S.hidden.has(a.id) && DATA[a.id].length).sort((a, b) => a.from - b.from)
+  const groups = []
+  for (const a of joins) {
+    const g0 = groups.at(-1)
+    if (g0 && a.from - g0.at(-1).from <= 7 * DAY) g0.push(a)
+    else groups.push([a])
+  }
+  for (const grp of groups) {
+    const t0 = grp[0].from, t1 = grp.at(-1).from
+    const top = Math.min(...grp.map((a) => y(DATA[a.id][0].v)))
+    const end = x(t0) > (W - R) * 0.7
+    g += `<g class="join">`
+    for (const a of grp) g += `<circle cx="${x(a.from)}" cy="${y(DATA[a.id][0].v)}" r="3" fill="none" stroke="${css(a.c)}"/>`
+    g += `<line x1="${x(t0)}" x2="${x(t0)}" y1="${top - 4}" y2="${top - 16}" stroke="${css('--ink-500')}" stroke-dasharray="2 2"/>`
+    g += `<text x="${x(t0) + (end ? -6 : 0)}" y="${top - 20}" text-anchor="${end ? 'end' : 'start'}" fill="${css('--ink-300')}">${grp.map((a) => `<tspan fill="${css(a.c)}">${a.name}</tspan>`).join(', ')} joined · ${short(t0)}${t1 !== t0 ? '–' + short(t1) : ''}</text></g>`
+  }
+  for (const m of MOVES) {
+    if (m.t < from || S.hidden.has(m.from) || S.hidden.has(m.to)) continue
+    if (!accounts.some((a) => a.id === m.from) || !accounts.some((a) => a.id === m.to)) continue
+    const a = DATA[m.from].find((p) => p.t === m.t), b = DATA[m.to].find((p) => p.t === m.t)
+    if (!a || !b) continue
+    g += `<g class="move"><line x1="${x(m.t)}" x2="${x(m.t)}" y1="${y(a.v)}" y2="${y(b.v)}"/>`
+    g += `<text x="${x(m.t) + 6}" y="${Math.min(y(a.v), y(b.v)) - 8}">move €${m.amount.toLocaleString('en-GB')} BPI → ActivoBank</text></g>`
+  }
+  if (S.hover !== null) g += `<line class="hair" x1="${x(S.hover)}" x2="${x(S.hover)}" y1="${T}" y2="${H - B}"/>`
+  if (S.tap) {
+    const p = DATA[S.tap.id].find((q) => q.t === S.tap.t)
+    if (p) g += `<circle cx="${x(p.t)}" cy="${y(p.v)}" r="6" fill="none" stroke="${css(ACCOUNTS.find((a) => a.id === S.tap.id).c)}" stroke-width="2"/>`
+  }
+  g += `<rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent" id="hit"/></svg>`
+  plot.innerHTML = g
+
+  const svg = document.getElementById('svg')
+  const tAt = (ev) => {
+    const r = svg.getBoundingClientRect()
+    const px = (ev.clientX - r.left) / r.width * W
+    return Math.max(from, Math.min(TODAY, Math.round((from + (px - L) / (W - L - R) * (TODAY - from)) / DAY) * DAY))
+  }
+  svg.onmousemove = (ev) => { S.hover = tAt(ev); readout(); const h = svg.querySelector('.hair'); if (h) { h.setAttribute('x1', x(S.hover)); h.setAttribute('x2', x(S.hover)) } else render() }
+  svg.onmouseleave = () => { S.hover = null; render() }
+  svg.onclick = (ev) => {
+    const t = tAt(ev), r = svg.getBoundingClientRect(), py = (ev.clientY - r.top) / r.height * H
+    let best = null
+    for (const a of shown) { const p = DATA[a.id].find((q) => q.t === t); if (p && (!best || Math.abs(y(p.v) - py) < best.d)) best = { id: a.id, d: Math.abs(y(p.v) - py) } }
+    S.tap = best ? { id: best.id, t } : null
+    render()
+  }
+
+  /* Legend */
+  let total = 0
+  document.getElementById('legend').innerHTML = '<div class="caps" style="padding:0 10px 6px">accounts · ' + S.range + '</div>' + accounts.map((a) => {
+    const p = DATA[a.id], now = p.at(-1).v, start = p.find((q) => q.t >= from)
+    total += now
+    const joined = a.from >= from
+    const ch = joined ? null : now - start.v
+    const cls = ch === null ? 'flat' : ch > 0.5 ? 'up' : ch < -0.5 ? 'down' : 'flat'
+    const chText = ch === null ? `joined ${short(a.from)}` : `${ch > 0 ? '▲' : ch < 0 ? '▼' : ''} ${money(Math.abs(ch))}`
+    return `<button class="acc ${S.hidden.has(a.id) ? 'off' : ''}" style="--c:${css(a.c)}" onclick="S.hidden.has('${a.id}')?S.hidden.delete('${a.id}'):S.hidden.add('${a.id}');S.tap=null;render()">
+      <span class="sw"></span><span class="nm">${a.name}<small>${a.kind}</small></span>
+      <span class="v"><b>${money(now)}</b><span class="${cls}">${chText}</span></span></button>`
+  }).join('') + `<div class="sum"><span>all accounts</span><span>${money2(total)}</span></div>` +
+    (accounts.length === 1 ? '<div class="caps" style="padding:10px;line-height:1.6">the others draw here as you add them</div>' : '')
+
+  readout()
+  dayPanel()
+}
+
+function readout() {
+  const t = S.hover ?? (S.tap ? S.tap.t : TODAY)
+  const only = SCENARIOS[S.scen].only
+  const parts = ACCOUNTS.filter((a) => (!only || only.includes(a.id)) && !S.hidden.has(a.id)).flatMap((a) => {
+    const p = DATA[a.id].find((q) => q.t === t)
+    return p ? [`<span><i style="background:${css(a.c)}"></i>${a.name} ${money2(p.v)}</span>`] : []
+  })
+  document.getElementById('read').innerHTML = `<span style="color:var(--ink-200)">${short(t)} 2026</span>` + parts.join('')
+}
+
+function dayPanel() {
+  const el = document.getElementById('day')
+  if (!S.tap) { el.classList.remove('on'); return }
+  const a = ACCOUNTS.find((q) => q.id === S.tap.id)
+  const p = DATA[a.id].find((q) => q.t === S.tap.t)
+  const prev = DATA[a.id].find((q) => q.t === S.tap.t - DAY)
+  const rows = SPENDS[a.id + ':' + S.tap.t] ?? []
+  const move = rows.some((r) => r.move)
+  el.innerHTML = `<div class="t">[ ${a.name} · ${short(S.tap.t)} ]<button class="x" onclick="S.tap=null;render()">✕</button></div>
+    <div class="mono" style="font-size:12px;color:var(--ink-400)">${prev ? money2(prev.v) + ' → ' : ''}<span style="color:var(--ink-100)">${money2(p.v)}</span> at the day's end</div>
+    <div>${rows.map((r) => `<div class="row"><div>${r.text}<small>${r.sub}</small></div><div class="a ${r.amt < 0 ? '' : 'up'}">${r.amt < 0 ? '−' : '+'}${money2(Math.abs(r.amt))}</div></div>`).join('')}</div>
+    ${move ? '<span class="tag">the total did not change — it moved</span>' : ''}`
+  el.classList.add('on')
+}
+
+render()
+</script>
+</body>
+</html>

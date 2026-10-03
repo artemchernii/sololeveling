@@ -2517,10 +2517,10 @@ export const ahead = query({
     const days = Math.min(Math.max(1, Math.round(args.days)), 120)
     const items = await liveBills(ctx, ownerId)
     const bills = items.map(aheadBill)
-    const balances = await readBalances(ctx, ownerId)
+    const read = await readBalances(ctx, ownerId)
     /* Free cash: banks and cash. A broker's cash is waiting to be
        invested, not for bills (journey, question 6). */
-    const free = balances.accounts.filter(
+    const free = read.accounts.filter(
       (a) => a.kinds.includes('bank') || a.kinds.includes('cash'),
     )
     const monthRows = aheadRows(
@@ -2556,7 +2556,7 @@ export const ahead = query({
         eur: a.cashEur,
       })),
       freeTotal: built.freeTotal,
-      unread: balances.unread,
+      unread: read.unread,
       bills: items.map((b) => ({
         id: b._id,
         name: b.name,

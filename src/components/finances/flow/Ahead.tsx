@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
+import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
-import { Plus, X } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
 import { api } from '../../../../convex/_generated/api'
 import type { Doc, Id } from '../../../../convex/_generated/dataModel'
@@ -10,6 +11,7 @@ import { PILL_QUIET } from '@/components/finances/bits'
 import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Veiled } from '@/components/finances/Veil'
+import { categoryLabel } from '@/lib/money'
 import { AheadChart } from './AheadChart'
 import { AddBill } from './AddBill'
 import { daysBetween, eur, monthName, weekday } from './time'
@@ -25,8 +27,10 @@ export type Notice = { text: string; undo: (() => void) | null } | null
    bill on its day: this month in full — paid ✓ with the row that paid it,
    still to come — later months folded to what differs (a yearly bill, an
    account short on the day). Found bills arrive with no question, tagged
-   NEW for a week; × takes one off for good. Beside it: free cash, the
-   rest of his spending as real sums, subscriptions a year. */
+   NEW for a week, and look like any other bill (4 Oct: "× not a bill" on
+   his salary and Anthropic was insulting); tap one for the payments it
+   was found from, and to stop it there. Beside it: free cash, day-to-day
+   spending as real sums, and his bills as a month. */
 export function Ahead({
   a,
   today,
@@ -44,6 +48,7 @@ export function Ahead({
   const [open, setOpen] = useState<Record<number, boolean>>({})
   const [adding, setAdding] = useState(false)
   const [year, setYear] = useState(false)
+  const [opened, setOpened] = useState<Id<'recurring'> | null>(null)
   const notBill = useMutation(api.recurring.notBill)
   const unrefuse = useMutation(api.recurring.unrefuse)
 
@@ -65,13 +70,19 @@ export function Ahead({
   const months = [...new Set(a.events.map((e) => monthKey(e.t)))]
   const nothing = a.bills.length === 0
 
-  function strike(id: Id<'recurring'>, name: string) {
+  function stop(id: Id<'recurring'>, name: string) {
     void notBill({ id })
+    setOpened(null)
     setNotice({
-      text: `${name} is not a bill — it will not be found again.`,
+      text: `${name} is off AHEAD and will not be found again.`,
       undo: () => void unrefuse({ id }),
     })
   }
+  /* The three full months before this one, to name one with no rows. */
+  const pastStarts = [3, 2, 1].map((back) => {
+    const d = new Date(today)
+    return new Date(d.getFullYear(), d.getMonth() - back, 1).getTime()
+  })
 
   const lowLine = (() => {
     const d = new Date(a.low.t)
@@ -147,7 +158,7 @@ export function Ahead({
               {eur(b.amount, true)}
             </span>
           ))}
-          . Nothing to answer — × on a row if it is not a bill.
+          . Tap one to see the payments it was found from.
         </p>
       ) : null}
 
@@ -216,6 +227,7 @@ export function Ahead({
                       account={account(d.accountId)}
                       status={<DoneStatus d={d} />}
                       dim={d.rowId !== null}
+                      onOpen={() => setOpened(d.billId)}
                     />
                   ))}
                 </>
@@ -263,11 +275,7 @@ export function Ahead({
                             account={account(e.accountId)}
                           />
                         }
-                        onStrike={
-                          bill(e.billId)?.isNew
-                            ? () => strike(e.billId, e.name)
-                            : undefined
-                        }
+                        onOpen={() => setOpened(e.billId)}
                       />
                     ))}
                     {!full && odd.length === 0 ? (
@@ -289,7 +297,12 @@ export function Ahead({
               {a.free.map((f) => (
                 <Kv
                   key={f.accountId}
-                  k={f.name}
+                  k={
+                    <span className="flex items-center gap-2">
+                      <AccountLogo name={f.name} domain={f.domain} size={18} />
+                      {f.name}
+                    </span>
+                  }
                   v={<Veiled>{eur(f.eur, true)}</Veiled>}
                   warn={f.eur < 40}
                 />
@@ -299,36 +312,55 @@ export function Ahead({
               </span>
             </Box>
             <Box
-              title={`everything else · ${only ? 'left out of the line' : 'the range in the line'}`}
-              big={a.range ? `${eur(a.range.lo)}–${eur(a.range.hi)}` : '—'}
-            >
-              <span className="label-caps">a month, last three months</span>
-              {a.rest.map((r) => (
-                <Kv
-                  key={r.start}
-                  k={monthName(r.start)}
-                  v={`−${eur(r.sum, true)}`}
-                />
-              ))}
-              <span className="label-caps leading-relaxed">
-                {a.rest.length
-                  ? 'groceries, eating out … · real sums, not a guess'
-                  : 'appears with a month of statements'}
-              </span>
-            </Box>
-            <Box
-              title="subscriptions"
+              title="day-to-day spending"
               big={
-                <>
-                  {eur(a.subscriptions.year)}
-                  <span className="label-caps"> a year</span>
-                </>
+                a.range ? (
+                  <>
+                    {a.range.lo === a.range.hi
+                      ? eur(a.range.lo)
+                      : `${eur(a.range.lo)}–${eur(a.range.hi)}`}
+                    <span className="label-caps"> a month</span>
+                  </>
+                ) : (
+                  '—'
+                )
               }
             >
-              <Kv
-                k={`${a.subscriptions.count} of them`}
-                v={`${eur(a.subscriptions.year / 12, true)} a month`}
-              />
+              <span className="text-[12.5px] leading-relaxed text-ink-400">
+                What you spend that is not a bill — groceries, eating out,
+                transport.{' '}
+                {only ? 'Not in the line now.' : 'In the line as its range.'}
+              </span>
+              {pastStarts.map((start) => {
+                const r = a.rest.find((x) => x.start === start)
+                return (
+                  <Kv
+                    key={start}
+                    k={monthName(start)}
+                    v={r ? `−${eur(r.sum, true)}` : 'no statements'}
+                  />
+                )
+              })}
+            </Box>
+            <Box title="bills each month" big={eur(a.eachMonth.total)}>
+              {a.eachMonth.groups.map((g) => (
+                <Kv
+                  key={g.category ?? ''}
+                  k={
+                    <span title={g.names.join(', ')}>
+                      {categoryLabel('expense', g.category)}{' '}
+                      <span className="text-ink-600">· {g.names.length}</span>
+                    </span>
+                  }
+                  v={`−${eur(g.sum, true)}`}
+                />
+              ))}
+              {a.eachMonth.yearly.count ? (
+                <Kv
+                  k={`once a year · ${a.eachMonth.yearly.count}`}
+                  v={`−${eur(a.eachMonth.yearly.total, true)}`}
+                />
+              ) : null}
               <button
                 type="button"
                 onClick={() => setYear(true)}
@@ -347,6 +379,20 @@ export function Ahead({
         onClose={() => setAdding(false)}
         onAdded={(n) => setNotice(n)}
       />
+      <Sheet
+        open={opened !== null}
+        title={opened ? (bill(opened)?.name ?? 'bill') : 'bill'}
+        onClose={() => setOpened(null)}
+      >
+        {opened ? (
+          <BillSheet
+            id={opened}
+            bill={bill(opened)}
+            account={account(bill(opened)?.accountId)}
+            onStop={() => stop(opened, bill(opened)?.name ?? 'It')}
+          />
+        ) : null}
+      </Sheet>
       <Sheet
         open={year}
         title="what I pay this year"
@@ -408,7 +454,7 @@ function BillRow({
   short,
   status,
   dim,
-  onStrike,
+  onOpen,
 }: {
   t: number
   name: string
@@ -421,11 +467,13 @@ function BillRow({
   short?: boolean
   status: React.ReactNode
   dim?: boolean
-  onStrike?: () => void
+  onOpen: () => void
 }) {
   return (
-    <div
-      className={`motion-arrive grid grid-cols-[46px_28px_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border-b border-lift/4 px-1 py-2.5 ${
+    <button
+      type="button"
+      onClick={onOpen}
+      className={`motion-arrive grid grid-cols-[46px_28px_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border-b border-lift/4 px-1 py-2.5 text-left transition-colors hover:bg-lift/[0.035] ${
         short ? 'bg-state-warn/7' : ''
       } ${dim ? 'opacity-55' : ''}`}
     >
@@ -460,18 +508,68 @@ function BillRow({
           {kind === 'income' ? '+' : '−'}
           {eur(amount, true)}
         </span>
-        {onStrike ? (
-          <button
-            type="button"
-            onClick={onStrike}
-            className="flex items-center gap-1 text-[10px] text-ink-500 hover:text-state-danger"
-          >
-            <X className="size-3" /> not a bill
-          </button>
-        ) : (
-          status
-        )}
+        {status}
       </span>
+    </button>
+  )
+}
+
+/* A bill opened: what it is, and the statement rows behind it — the
+   evidence the app found it from. Stopping it is here, quiet, not on
+   every row. */
+function BillSheet({
+  id,
+  bill,
+  account,
+  onStop,
+}: {
+  id: Id<'recurring'>
+  bill?: AheadData['bills'][number]
+  account?: Doc<'accounts'>
+  onStop: () => void
+}) {
+  const rows = useQuery(api.recurring.payments, { id })
+  if (!bill) return null
+  const income = bill.kind === 'income'
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        {account ? (
+          <AccountLogo name={account.name} domain={account.domain} size={28} />
+        ) : null}
+        <span
+          className={`text-[30px] font-light tabular-nums ${income ? 'text-state-good' : ''}`}
+        >
+          {income ? '+' : '−'}
+          {eur(bill.amount, true)}
+        </span>
+        <span className="label-caps">
+          {bill.cadence === 'yearly' ? 'every year' : 'every month'}
+        </span>
+      </div>
+      <span className="label-caps">
+        {bill.isNew ? 'found in your statements · ' : ''}the payments
+      </span>
+      {rows === undefined ? (
+        <SkeletonRows rows={3} />
+      ) : rows.length ? (
+        rows.map((r) => (
+          <Kv
+            key={r._id}
+            k={`${new Date(r.occurredAt).getDate()} ${monthName(r.occurredAt)} ${new Date(r.occurredAt).getFullYear()}`}
+            v={`${income ? '+' : '−'}${eur(r.value ?? 0, true)}`}
+          />
+        ))
+      ) : (
+        <span className="text-[13px] text-ink-500">No payment read yet.</span>
+      )}
+      <button
+        type="button"
+        onClick={onStop}
+        className="mt-2 self-start font-mono text-[11px] tracking-[0.1em] text-ink-500 uppercase hover:text-state-danger"
+      >
+        {income ? 'it no longer comes in' : 'it does not repeat — remove it'}
+      </button>
     </div>
   )
 }
@@ -550,7 +648,15 @@ function Box({
   )
 }
 
-function Kv({ k, v, warn }: { k: string; v: React.ReactNode; warn?: boolean }) {
+function Kv({
+  k,
+  v,
+  warn,
+}: {
+  k: React.ReactNode
+  v: React.ReactNode
+  warn?: boolean
+}) {
   return (
     <span className="flex justify-between py-0.5 font-mono text-[12px] text-ink-300">
       <span className="text-ink-500">{k}</span>

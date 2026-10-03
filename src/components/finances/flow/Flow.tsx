@@ -97,11 +97,9 @@ export function Flow({ open }: { open?: string } = {}) {
         today={today}
         onRows={() => setTab('movements')}
       />
-      {/* Pinned just under the top bar (shell/TopBar.tsx, 58px). */}
-      <nav
-        aria-label="Flow"
-        className="sticky top-[58px] z-10 grid grid-cols-3 gap-2 py-2"
-      >
+      {/* Not pinned (4 Oct): pinned, the see-through tabs slid over the
+          chart and neither could be read. */}
+      <nav aria-label="Flow" className="grid grid-cols-3 gap-2">
         {lines.map((l) => {
           const on = tab === l.id
           return (

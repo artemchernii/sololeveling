@@ -52,6 +52,25 @@
   @keyframes rise { from { opacity: 0; transform: translateY(8px) } }
   @keyframes land { 0% { background: rgba(181,171,252,.22) } 100% { background: transparent } }
 
+  /* Sub-tabs (3 Oct, his ask: "too much scrolling … additional tabs in
+     flow"). The month line stays on top; one room below it at a time.
+     Each tab carries one line of what is inside, so a warning on a tab
+     you are not looking at is still seen. */
+  .sub { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; position: sticky; top: 0; z-index: 5; padding: 8px 0; background: linear-gradient(var(--bg) 70%, transparent) }
+  .st { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; padding: 12px 16px; border-radius: 16px; border: 1px solid rgba(var(--lift),.08); background: rgba(var(--lift),.02); cursor: pointer; text-align: left; transition: border-color .2s, background .2s, box-shadow .2s }
+  .st:hover { border-color: rgba(var(--lift),.16) }
+  .st .stt { font-family: var(--mono); font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: var(--ink-400) }
+  .st .sts { font-size: 12.5px; color: var(--ink-500); line-height: 1.35 }
+  .st.on { border-color: var(--sys-edge); background: rgba(181,171,252,.07); box-shadow: 0 0 30px -16px var(--shine) }
+  .st.on .stt { color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .st.on .sts { color: var(--ink-300) }
+  .st .dot { display: inline-block; width: 6px; height: 6px; border-radius: 99px; margin-right: 6px; vertical-align: 1px; background: var(--c) }
+  @media (max-width: 620px) { .sub { gap: 5px } .st { padding: 10px 11px } .st .stt { font-size: 10px; letter-spacing: .14em } .st .sts { font-size: 11px } }
+  .room[hidden] { display: none }
+  .tog { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-400); background: none; border: 1px solid rgba(var(--lift),.12); border-radius: 999px; padding: 5px 11px; cursor: pointer }
+  .tog.on { color: var(--ink-100); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent); background: rgba(181,171,252,.12) }
+  .tog i { width: 14px; height: 8px; border-radius: 3px; background: color-mix(in oklch, var(--lav-400) 25%, transparent); border: 1px dashed color-mix(in oklch, var(--lav-400) 60%, transparent) }
+
   /* Month in one line */
   .month { display: grid; grid-template-columns: 1.3fr 1fr; gap: 22px; align-items: end }
   @media (max-width: 860px) { .month { grid-template-columns: 1fr } }
@@ -70,6 +89,7 @@
   .ask { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px }
   .q { display: grid; grid-template-columns: 30px 1fr auto; gap: 12px; align-items: center; padding: 11px 12px; border-radius: 14px; border: 1px dashed color-mix(in oklch, var(--lav-400) 40%, transparent); background: rgba(181,171,252,.05); transition: opacity .3s, transform .3s }
   .q.gone { opacity: 0; transform: translateX(14px) }
+  @media (max-width: 620px) { .q { grid-template-columns: 30px 1fr } .q .btns { grid-column: 2 } }
   .q p { font-size: 13.5px; line-height: 1.45 } .q p small { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); margin-top: 2px }
   .q .btns { display: flex; gap: 6px }
   .yes { background: rgba(181,171,252,.18); border: 1px solid color-mix(in oklch, var(--lav-400) 45%, transparent); color: var(--ink-100); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .1em }
@@ -171,9 +191,10 @@
   <div class="tabs"><span class="pill">Overview</span><span class="pill on">Flow</span><span class="pill">Portfolio</span></div>
 
   <section class="card" id="monthCard"></section>
-  <section class="card sys" id="aheadCard"></section>
-  <section class="card" id="wentCard"></section>
-  <section class="card" id="moveCard"></section>
+  <nav class="sub" id="sub"></nav>
+  <section class="card sys room" id="aheadCard"></section>
+  <section class="card room" id="wentCard"></section>
+  <section class="card room" id="moveCard"></section>
 </div>
 <div class="veil" id="veil" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheet"></div></div>
 
@@ -283,18 +304,48 @@ const SCEN = {
   salary: { label: '28 Oct · salary in', today: D(9, 28), note: '<b>Salary landed yesterday.</b> October almost closed: in, out, what is left. Ahead starts the next pay month — the mortgage on the 8th is the first big step down.' },
   found: { label: 'bills found', today: D(9, 3), ask: true, note: '<b>The reader found two payments that repeat.</b> Asked once, on top of AHEAD. YES puts it on its day (watch it land); NOT A BILL never asks again.' },
   short: { label: 'short on the day', today: D(9, 3), over: { revolut: 31.2, activo: 12.4 }, note: '<b>An account will not hold enough on the day.</b> Revolut has €31.20: ChatGPT on the 11th leaves €8.21, Netflix on the 14th is €12.99 — marked before it happens, with the top-up on the 26th in sight.' },
-  jump: { label: 'spending jumped', today: D(9, 3), went: 8, note: '<b>September, eating out up.</b> WHERE IT WENT says the one thing that grew most in a sentence, then every group with its six months. Tap a group: its rows, this month and last.' },
+  jump: { label: 'spending jumped', today: D(9, 3), went: 8, tab: 'went', note: '<b>September, eating out up.</b> Opens on SPENDING here only to show it — Flow always opens on AHEAD. WHERE IT WENT says the one thing that grew most in a sentence, then every group with its six months. Tap a group: its rows, this month and last.' },
   none: { label: 'nothing yet', today: D(9, 3), empty: true, note: '<b>Day one, no statements.</b> Each card says what will appear and what feeds it — no form to fill.' },
 }
-let S = { scen: 'early', went: null, acc: null, q: '', limit: 30, ans: {}, landed: null, day: null, open: {} }
+let S = { scen: 'early', tab: 'ahead', band: false, went: null, acc: null, q: '', limit: 30, ans: {}, landed: null, day: null, open: {} }
 
-function setScen(k) { S = { scen: k, went: SCEN[k].went ?? null, acc: null, q: '', limit: 30, ans: {}, landed: null, day: null, open: {} }; render() }
+function setScen(k) { S = { scen: k, tab: SCEN[k].tab ?? 'ahead', band: false, went: SCEN[k].went ?? null, acc: null, q: '', limit: 30, ans: {}, landed: null, day: null, open: {} }; render() }
+function setTab(t) { S.tab = t; subTabs(); const top = document.getElementById('sub').getBoundingClientRect().top; if (top <= 1) document.getElementById('sub').scrollIntoView() }
 
 function render() {
   const sc = SCEN[S.scen]
   document.getElementById('scen').innerHTML = Object.entries(SCEN).map(([k, s]) => `<button class="pill ${S.scen === k ? 'on' : ''}" onclick="setScen('${k}')">${s.label}</button>`).join('')
   document.getElementById('note').innerHTML = sc.note
-  monthCard(); aheadCard(); wentCard(); moveCard()
+  monthCard(); aheadCard(); wentCard(); moveCard(); subTabs()
+}
+
+/* ── Sub-tabs: one line each of what is inside ─────────────────── */
+function subTabs() {
+  const sc = SCEN[S.scen], today = sc.today
+  let ahead = 'bills and salary, next 3 months', went = 'six months, by group', moves = 'every account, one list'
+  let aheadDot = '', wentDot = ''
+  if (!sc.empty) {
+    const up = upcoming(today, today + 89 * DAY), k = mkey(today)
+    const next = up.find((e) => !e.r.in)
+    const asks = sc.ask ? FOUND.filter((f) => !S.ans[f.id]).length : 0
+    const shorts = S.shorts ?? 0 /* the AHEAD card's own count, never a second sum */
+    if (asks) { ahead = `${asks} found to answer`; aheadDot = '--lav-400' }
+    else if (shorts) { ahead = `${shorts} not covered on the day`; aheadDot = '--warn' }
+    else if (next) ahead = `next: ${next.r.name} −${eur(next.r.amt)} · ${short(next.t)}`
+    const rows = rowsTo(today), wk = dt(today).getUTCDate() < 10 ? k - 1 : k
+    const g = {}
+    for (const r of rows) if (!r.move && r.amt < 0 && r.group !== 'home') { const m = mkey(r.t); if (m === wk || m === wk - 1) (g[r.group] ??= [0, 0])[m === wk ? 0 : 1] -= r.amt }
+    const top = Object.entries(g).sort((a, b) => (b[1][0] - b[1][1]) - (a[1][0] - a[1][1]))[0]
+    if (top && top[1][0] - top[1][1] > 40) { went = `${top[0]} ▲ ${eur(top[1][0] - top[1][1])} in ${mname(wk)}`; wentDot = '--danger' }
+    else went = `${mname(wk)} −${eur(spend(inMonth(rows, wk)))} out`
+    const tod = rows.filter((r) => r.t === today).length
+    moves = tod ? `${tod} today · every account` : 'every account, one list'
+  }
+  const T = [['ahead', 'Ahead', ahead, aheadDot], ['went', 'Spending', went, wentDot], ['moves', 'Movements', moves, '']]
+  document.getElementById('sub').innerHTML = T.map(([id, t, s, dot]) => `<button class="st ${S.tab === id ? 'on' : ''}" onclick="setTab('${id}')"><span class="stt">${t}</span><span class="sts">${dot ? `<span class="dot" style="--c:var(${dot})"></span>` : ''}${s}</span></button>`).join('')
+  document.getElementById('aheadCard').hidden = S.tab !== 'ahead'
+  document.getElementById('wentCard').hidden = S.tab !== 'went'
+  document.getElementById('moveCard').hidden = S.tab !== 'moves'
 }
 const rowsTo = (today) => SCEN[S.scen].empty ? [] : ROWS.filter((r) => r.t <= today)
 const spend = (rows) => rows.filter((r) => !r.move && r.amt < 0).reduce((n, r) => n - r.amt, 0)
@@ -328,7 +379,7 @@ function monthCard() {
   <div class="month"><div>
     <div class="nums">
       <div class="num"><small>IN</small><b class="up">+${eur(ci)}</b><small>${ci ? 'salary ' + short(D(d.getUTCMonth(), 27)) : 'salary due ' + short(D(d.getUTCMonth(), 27))}</small></div>
-      <div class="num" style="cursor:pointer" onclick="document.getElementById('moveCard').scrollIntoView({behavior:'smooth'})"><small>OUT</small><b class="down">−${eur(co)}</b><small>${cur.filter((r) => !r.move && r.amt < 0).length ? 'tap for the rows' : '—'}</small></div>
+      <div class="num" style="cursor:pointer" onclick="setTab('moves')"><small>OUT</small><b class="down">−${eur(co)}</b><small>${cur.filter((r) => !r.move && r.amt < 0).length ? 'tap: every row' : '—'}</small></div>
       <div class="num"><small>LEFT</small><b class="${!ci ? 'flat' : left >= 0 ? 'up' : 'down'}">${left >= 0 ? '+' : '−'}${eur(left)}</b><small>${ci ? 'in − out' : 'salary not in yet'}</small></div>
     </div>
     <p class="say">${early
@@ -370,6 +421,7 @@ function aheadCard() {
   const out = up.filter((e) => !e.r.in).reduce((n, e) => n + e.r.amt, 0)
   const inn = up.filter((e) => e.r.in).reduce((n, e) => n + e.r.amt, 0)
   const shorts = up.filter((e) => e.short)
+  S.shorts = shorts.length
 
   /* Paid already this month: shown as ticked, above what is coming. */
   const k = mkey(today)
@@ -380,7 +432,9 @@ function aheadCard() {
     <span class="caps">${up.filter((e) => !e.r.in).length} payments · −${eur(out)} &nbsp;·&nbsp; salary +${eur(inn)}${shorts.length ? ` &nbsp;·&nbsp; <span class="warn">${shorts.length} not covered on the day</span>` : ''}</span></div>`
   if (ask.length) html += `<div class="ask">${ask.map((f) => `<div class="q" id="q-${f.id}">${logo(f.acc)}<p>Found in your statements: <b style="font-weight:400">${f.name}, ${eur2(f.amt)} on the ${f.day}${f.day === 2 ? 'nd' : 'th'}</b> — a bill?<small>${f.what} · ${ACC[f.acc].name}</small></p>
       <span class="btns"><button class="yes" onclick="answer('${f.id}','yes')">YES</button><button class="no" onclick="answer('${f.id}','no')">NOT A BILL</button></span></div>`).join('')}</div>`
-  html += `<div class="ahead"><div>${lineChart(today, until, free, up)}<div class="bills" style="margin-top:14px">`
+  const rows0 = rowsTo(today)
+  const rest0 = [k - 3, k - 2, k - 1].map((m) => inMonth(rows0, m).filter((r) => !r.move && r.amt < 0 && !r.rec).reduce((n, r) => n - r.amt, 0))
+  html += `<div class="ahead"><div>${lineChart(today, until, free, up, S.band ? [Math.min(...rest0), Math.max(...rest0)] : null)}<div class="bills" style="margin-top:14px">`
   if (paid.length) html += `<div class="mhead"><span class="caps">${MON[dt(today).getUTCMonth()]} · paid already</span><span class="caps">−${eur2(paid.reduce((n, r) => n - r.amt, 0))}</span></div>` +
     paid.map((r) => billRow({ t: r.t, r: RECUR.find((x) => x.id === r.rec), paidAmt: -r.amt })).join('')
   /* This month in full. Later months fold to one line that names only
@@ -431,12 +485,17 @@ function billRow(e) {
     <span class="nm">${r.name}<small>${r.what} · ${ACC[r.acc].name} ${r.yearly ? '<span class="tag y">yearly</span>' : ''}${e.short ? ' <span class="tag w">not enough on the day</span>' : ''}</small></span>
     <span class="amt"><span class="${r.in ? 'up' : ''}">${r.about && !paid ? '≈ ' : ''}${r.in ? '+' : '−'}${eur2(amt)}</span>${status}</span></div>`
 }
-function lineChart(today, until, free, up) {
+function lineChart(today, until, free, up, band) {
   const W = 760, H = 190, L = 4, R = 64, T = 12, B = 22
   const pts = [{ t: today, v: free }]
   let v = free
   for (const e of up) { v += e.r.in ? e.r.amt : -e.r.amt; pts.push({ t: e.t, v, e }) }
-  const lo = Math.min(...pts.map((p) => p.v)) * 0.9, hi = Math.max(...pts.map((p) => p.v)) * 1.04
+  /* Option, off by default: a faint band under the line — where it lands
+     if everything else runs at last three months' low and high rates. */
+  const days = (t) => (t - today) / DAY
+  const bandLo = band ? pts.map((p) => p.v - band[1] / 30 * days(p.t)) : []
+  const endHi = band ? pts.at(-1).v - band[1] / 30 * days(until) : Infinity
+  const lo = Math.min(...pts.map((p) => p.v), ...bandLo, endHi) * 0.9, hi = Math.max(...pts.map((p) => p.v)) * 1.04
   const x = (t) => L + (t - today) / (until - today) * (W - L - R)
   const y = (val) => T + (1 - (val - lo) / (hi - lo)) * (H - T - B)
   let d = `M${x(today)},${y(free)}`, prev = free
@@ -451,6 +510,17 @@ function lineChart(today, until, free, up) {
   g += `<text x="${L}" y="${H - 6}" fill="${css('--lav-300')}">today</text></g>`
   g += `<path d="${d} V${H - B} H${x(today)} Z" fill="url(#fill)" opacity=".5"/>`
   g += `<defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${css('--lav-400')}" stop-opacity=".22"/><stop offset="1" stop-color="${css('--lav-400')}" stop-opacity="0"/></linearGradient></defs>`
+  if (band) {
+    /* Steps of the line, minus a straight daily rate: sample every 2 days. */
+    const at = (t) => { let v = free; for (const p of pts.slice(1)) if (p.t <= t) v = p.v; return v }
+    const ts = []; for (let t = today; t <= until; t += 2 * DAY) ts.push(t); ts.push(until)
+    const top = ts.map((t) => `${x(t).toFixed(1)},${y(at(t) - band[0] / 30 * days(t)).toFixed(1)}`)
+    const bot = ts.map((t) => `${x(t).toFixed(1)},${y(at(t) - band[1] / 30 * days(t)).toFixed(1)}`).reverse()
+    g += `<polygon points="${top.join(' ')} ${bot.join(' ')}" fill="${css('--lav-400')}" opacity=".12"/>`
+    g += `<polyline points="${top.join(' ')}" fill="none" stroke="${css('--lav-400')}" stroke-opacity=".45" stroke-dasharray="3 4"/>`
+    const eLo = at(until) - band[1] / 30 * days(until), eHi = at(until) - band[0] / 30 * days(until)
+    g += `<text x="${x(until) - 6}" y="${y(eLo) + 14}" text-anchor="end" fill="${css('--lav-300')}" style="font-family:var(--mono);font-size:9.5px">after everything else ${eur(eLo)}–${eur(eHi)}</text>`
+  }
   g += `<path d="${d}" fill="none" stroke="${css('--lav-400')}" stroke-width="2" stroke-linejoin="round" style="filter:drop-shadow(0 0 6px ${css('--shine')})"/>`
   let lastLab = -1e9
   for (const p of pts.slice(1)) {
@@ -469,11 +539,12 @@ function lineChart(today, until, free, up) {
   const nextSal = up.find((e) => e.r.in)
   const before = pts.filter((p) => !nextSal || p.t < nextSal.t)
   const low = before.reduce((a, b) => (b.v < a.v ? b : a), before[0])
-  return `<p class="say" style="margin:0 0 8px">Free cash ${eur(free)} now. Lowest before the next salary: <b>${eur(low.v)}</b>${low.e ? ` on ${short(low.t)}` : ''}${nextSal ? ` — salary ${short(nextSal.t)}` : ''}. Only bills and salary move this line — everything else (groceries, eating out …) is beside it, not in it.</p>${g}`
+  return `<p class="say" style="margin:0 0 8px">Free cash ${eur(free)} now. Lowest before the next salary: <b>${eur(low.v)}</b>${low.e ? ` on ${short(low.t)}` : ''}${nextSal ? ` — salary ${short(nextSal.t)}` : ''}. ${band ? `With everything else at last three months' rates, it lands between the dashed edge and the band's floor.` : `Only bills and salary move this line — everything else (groceries, eating out …) is beside it, not in it.`}</p>
+    <div style="display:flex;justify-content:flex-end;margin:-2px 0 6px"><button class="tog ${band ? 'on' : ''}" onclick="S.band=!S.band;aheadCard()"><i></i>with everything else · option</button></div>${g}`
 }
 function answer(id, a) {
   const n = document.getElementById('q-' + id); n.classList.add('gone')
-  setTimeout(() => { S.ans[id] = a; if (a === 'yes') S.landed = id; aheadCard(); document.querySelector('.bill.l-' + id)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, 280)
+  setTimeout(() => { S.ans[id] = a; if (a === 'yes') S.landed = id; aheadCard(); subTabs(); document.querySelector('.bill.l-' + id)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, 280)
 }
 
 /* ── Where it went ──────────────────────────────────────────────── */

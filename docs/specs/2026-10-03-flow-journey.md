@@ -98,7 +98,13 @@ the rows behind it, goes back. He types nothing.
 
 ## Open questions (my recommendation first)
 
-1–5 answered yes, 3 Oct. New, for steps 7 and 8:
+1–5 answered yes, 3 Oct. 6–8 answered yes, 3 Oct, with: "important
+thing is to show future spendings, especially reoccurring". So in step 8
+the recurring payments ahead come first and in full — each one by date,
+name, amount and the account it leaves from, with a mark when that
+account will not hold enough on the day — and the line comes second.
+
+New, for steps 7 and 8:
 
 6. **Ahead: which money?** Free cash in banks and Cash only — broker
    cash stays out (it is waiting to be invested, not for bills). Say if

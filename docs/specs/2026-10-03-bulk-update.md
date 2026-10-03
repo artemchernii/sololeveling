@@ -6,11 +6,17 @@ to match the mockup; compared side by side before it is called done.
 
 ## What gets built
 
+**0. Its own button, beside what exists** (Artem, 3 Oct: "more like an
+addition to what we have"). An account card's UPDATE and the ADD sheet
+stay as they are — one statement for BPI, one CSV for Revolut. A new
+**UPDATE ALL** button in the Treasury hero, next to ADD, opens the bulk
+sheet. Nothing about the single-file path changes.
+
 **1. A drop is a batch, a file is an intake.** Today one drop is one
 intake (all files read together, at most 6). A bulk drop makes one
 `intakes` row per file, tied by a new `batches` row, so 27 files read in
 parallel and each lands in its own account. Limit raised to 60 files per
-drop. A single-file drop behaves as today.
+drop, on the UPDATE ALL sheet only.
 
 **2. Reading view** (mockup "reading a year"): per-account bins filling
 as each file finishes, the file being read, files read of total, a
@@ -64,7 +70,7 @@ or anything he writes with the pen on a row.
 - `src/lib/intake.ts` — salary detection, person vs company, cross-file
   pairing (pure, tested)
 - `src/components/finances/Bulk.tsx` (new) — reading view and review;
-  `AddDrop.tsx` routes a multi-file drop to it
+  `TreasuryHero.tsx` gets the UPDATE ALL button
 - tests: `convex/intake.batch.test.ts`, `src/lib/intake.test.ts` —
   including another owner's batch refused, a pair across two files,
   `paid_back`/`lent` left out of in/out

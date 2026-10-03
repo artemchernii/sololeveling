@@ -15,6 +15,8 @@
 export const INTAKE_MODEL = 'claude-haiku-4-5'
 export const INTAKE_MODEL_NAME = 'Claude Haiku 4.5'
 export const MAX_INTAKE_FILES = 6
+/* UPDATE ALL (3 Oct): a year of four banks' monthly statements. */
+export const MAX_BATCH_FILES = 60
 export const MAX_INTAKE_BYTES = 10 * 1024 * 1024
 export const INTAKES_PER_WINDOW = 40
 export const INTAKE_WINDOW_MS = 30 * 86_400_000

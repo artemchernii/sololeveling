@@ -12,7 +12,7 @@ import {
   mutation,
   query,
 } from './_generated/server'
-import type { MutationCtx } from './_generated/server'
+import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import type { Candidate } from '../src/lib/market'
 import schema from './schema'
@@ -21,6 +21,7 @@ import {
   INTAKE_WINDOW_MS,
   INTAKES_PER_WINDOW,
   MAX_INTAKE_BYTES,
+  MAX_BATCH_FILES,
   MAX_INTAKE_FILES,
   READING_DEAD_MS,
   findDuplicates,
@@ -132,92 +133,207 @@ export const start = mutation({
         `That's ${INTAKES_PER_WINDOW} files read in 30 days — the most this reads.`,
       )
     }
-    const files = args.files.map((f) => ({
-      name: f.name.slice(0, 160),
-      size: f.size,
-      contentType: f.contentType,
-    }))
-    const fingerprint = await fingerprintOf(
-      ctx,
-      args.files.map((f) => f.storageId),
-    )
-    const hint = args.hint?.trim().slice(0, MAX_HINT) || undefined
-    const base = {
-      ownerId,
-      accountId: args.accountId,
-      hint,
-      storageIds: args.files.map((f) => f.storageId),
-      files,
-      fingerprint,
-    }
-
-    /* The same file again: the first reading, at no cost (27 Sep — every
-       test drop of his statement was paying for a second read). */
-    /* Unless he said what it is: a hint is a request to read it again. */
-    const before =
-      fingerprint && !hint
-        ? (
-            await ctx.db
-              .query('intakes')
-              .withIndex('by_owner_fingerprint', (q) =>
-                q.eq('ownerId', ownerId).eq('fingerprint', fingerprint),
-              )
-              .order('desc')
-              .take(10)
-          ).find(
-            (i) =>
-              (i.status === 'ready' || i.status === 'done') &&
-              i.kind !== undefined &&
-              /* Read before a statement's orders were split out as
-                 trades (27 Sep): read it again, once. */
-              !hasTradeRows(i.transactions ?? []),
-          )
-        : undefined
-    if (before) {
-      const intakeId = await ctx.db.insert('intakes', {
-        ...base,
-        accountId: args.accountId ?? before.accountId,
-        status: 'ready',
-        kind: before.kind,
-        title: before.title,
-        institution: before.institution,
-        accountTail: before.accountTail,
-        holderName: before.holderName,
-        transactions: before.transactions,
-        positions: before.positions,
-        trades: before.trades,
-        balance: before.balance,
-        cashEur: before.cashEur,
-        totalEur: before.totalEur,
-        model: before.model,
-        readAt: now,
-        reusedFrom: before._id,
-        costUsd: 0,
-        note: before.note,
-        historyTrades: before.historyTrades,
-        historyTickers: before.historyTickers,
-      })
-      if (before.historyTrades !== undefined) {
-        const rows = await ctx.db
-          .query('intakeTrades')
-          .withIndex('by_intake', (q) => q.eq('intakeId', before._id))
-          .take(HISTORY_TRADES)
-        for (const { _id, _creationTime, ...r } of rows)
-          await ctx.db.insert('intakeTrades', { ...r, intakeId })
-      }
-      return { ok: true as const, intakeId }
-    }
-
-    const intakeId = await ctx.db.insert('intakes', {
-      ...base,
-      status: 'reading',
-      readingSince: now,
-      progress: { stage: 'opening', rows: 0, have: 0, recent: [] },
-    })
-    await ctx.scheduler.runAfter(0, internal.ai.intake.read, { intakeId })
+    const intakeId = await beginIntake(ctx, ownerId, args)
     return { ok: true as const, intakeId }
   },
 })
+
+const fileArg = v.object({
+  storageId: v.id('_storage'),
+  contentType: v.string(),
+  name: v.string(),
+  size: v.number(),
+})
+
+/* A file the model reads — a PDF or a picture. A CSV is read in code from
+   a remembered column map (one small read the first time a bank's export
+   is seen), so it does not count against the month's reads. */
+function paidRead(files: ReadonlyArray<{ contentType: string; name: string }>) {
+  return files.some(
+    (f) => readableFile(f.contentType, f.name)?.block !== 'text',
+  )
+}
+
+/* Seconds between one file's reading and the next in a batch, so 27
+   statements do not reach the reader in the same second. */
+const BATCH_STAGGER_MS = 1500
+
+/**
+ * UPDATE ALL (3 Oct): every file its own intake, tied by one batch, read
+ * one after another. Refused whole, files deleted, when one file cannot
+ * be read or the drop would take more reads than the month has left —
+ * the same rule as `start`, counting only files the model reads.
+ */
+export const startBatch = mutation({
+  args: { files: v.array(fileArg) },
+  returns: v.union(
+    v.object({ ok: v.literal(true), batchId: v.id('batches') }),
+    v.object({ ok: v.literal(false), error: v.string() }),
+  ),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const refuse = async (error: string) => {
+      for (const f of args.files) await ctx.storage.delete(f.storageId)
+      return { ok: false as const, error }
+    }
+    if (args.files.length === 0) return await refuse('Choose some files.')
+    if (args.files.length > MAX_BATCH_FILES) {
+      return await refuse(`At most ${MAX_BATCH_FILES} files in one update.`)
+    }
+    for (const f of args.files) {
+      if (readableFile(f.contentType, f.name) === null) {
+        return await refuse(`${f.name} is not a PDF, a CSV or a screenshot.`)
+      }
+      if (f.size > MAX_INTAKE_BYTES)
+        return await refuse(`${f.name} is over 10 MB.`)
+    }
+    const now = Date.now()
+    const recent = await ctx.db
+      .query('intakes')
+      .withIndex('by_owner', (q) =>
+        q.eq('ownerId', ownerId).gte('_creationTime', now - INTAKE_WINDOW_MS),
+      )
+      .take(MAX_BATCH_FILES * 4)
+    const used = recent.filter(
+      (i) => i.reusedFrom === undefined && paidRead(i.files ?? []),
+    ).length
+    const wanted = args.files.filter((f) => paidRead([f])).length
+    if (used + wanted > INTAKES_PER_WINDOW) {
+      const left = Math.max(0, INTAKES_PER_WINDOW - used)
+      return await refuse(
+        `That's ${wanted} files to read and ${left} reads left this month (${INTAKES_PER_WINDOW} in 30 days).`,
+      )
+    }
+    const batchId = await ctx.db.insert('batches', {
+      ownerId,
+      status: 'open',
+      leftOut: [],
+      quietMonths: [],
+      moves: [],
+    })
+    let paid = 0
+    for (const f of args.files) {
+      await beginIntake(ctx, ownerId, {
+        files: [f],
+        batchId,
+        delayMs: paidRead([f]) ? paid++ * BATCH_STAGGER_MS : 0,
+      })
+    }
+    return { ok: true as const, batchId }
+  },
+})
+
+type IntakeFile = {
+  storageId: Id<'_storage'>
+  contentType: string
+  name: string
+  size: number
+}
+
+/* Stores what he dropped as one intake and asks the reader — or, for a
+   file already read, reuses that reading at no cost. Shared by `start`
+   (one drop, one intake) and `startBatch` (one intake per file). */
+async function beginIntake(
+  ctx: MutationCtx,
+  ownerId: string,
+  args: {
+    accountId?: Id<'accounts'>
+    hint?: string
+    files: ReadonlyArray<IntakeFile>
+    batchId?: Id<'batches'>
+    /* A batch spaces its reads out. */
+    delayMs?: number
+  },
+): Promise<Id<'intakes'>> {
+  const now = Date.now()
+  const files = args.files.map((f) => ({
+    name: f.name.slice(0, 160),
+    size: f.size,
+    contentType: f.contentType,
+  }))
+  const fingerprint = await fingerprintOf(
+    ctx,
+    args.files.map((f) => f.storageId),
+  )
+  const hint = args.hint?.trim().slice(0, MAX_HINT) || undefined
+  const base = {
+    ownerId,
+    accountId: args.accountId,
+    batchId: args.batchId,
+    hint,
+    storageIds: args.files.map((f) => f.storageId),
+    files,
+    fingerprint,
+  }
+
+  /* The same file again: the first reading, at no cost (27 Sep — every
+     test drop of his statement was paying for a second read). */
+  /* Unless he said what it is: a hint is a request to read it again. */
+  const before =
+    fingerprint && !hint
+      ? (
+          await ctx.db
+            .query('intakes')
+            .withIndex('by_owner_fingerprint', (q) =>
+              q.eq('ownerId', ownerId).eq('fingerprint', fingerprint),
+            )
+            .order('desc')
+            .take(10)
+        ).find(
+          (i) =>
+            (i.status === 'ready' || i.status === 'done') &&
+            i.kind !== undefined &&
+            /* Read before a statement's orders were split out as
+               trades (27 Sep): read it again, once. */
+            !hasTradeRows(i.transactions ?? []),
+        )
+      : undefined
+  if (before) {
+    const intakeId = await ctx.db.insert('intakes', {
+      ...base,
+      accountId: args.accountId ?? before.accountId,
+      status: 'ready',
+      kind: before.kind,
+      title: before.title,
+      institution: before.institution,
+      accountTail: before.accountTail,
+      holderName: before.holderName,
+      transactions: before.transactions,
+      positions: before.positions,
+      trades: before.trades,
+      balance: before.balance,
+      cashEur: before.cashEur,
+      totalEur: before.totalEur,
+      model: before.model,
+      readAt: now,
+      reusedFrom: before._id,
+      costUsd: 0,
+      note: before.note,
+      historyTrades: before.historyTrades,
+      historyTickers: before.historyTickers,
+    })
+    if (before.historyTrades !== undefined) {
+      const rows = await ctx.db
+        .query('intakeTrades')
+        .withIndex('by_intake', (q) => q.eq('intakeId', before._id))
+        .take(HISTORY_TRADES)
+      for (const { _id, _creationTime, ...r } of rows)
+        await ctx.db.insert('intakeTrades', { ...r, intakeId })
+    }
+    return intakeId
+  }
+
+  const intakeId = await ctx.db.insert('intakes', {
+    ...base,
+    status: 'reading',
+    readingSince: now,
+    progress: { stage: 'opening', rows: 0, have: 0, recent: [] },
+  })
+  await ctx.scheduler.runAfter(args.delayMs ?? 0, internal.ai.intake.read, {
+    intakeId,
+  })
+  return intakeId
+}
 
 const HISTORY_TRADES = 8000
 /* A hint is a sentence, not a document. */
@@ -400,6 +516,147 @@ export const whose = query({
   },
 })
 
+async function ownedBatch(
+  ctx: QueryCtx,
+  ownerId: string,
+  batchId: Id<'batches'>,
+): Promise<Doc<'batches'>> {
+  const row = await ctx.db.get(batchId)
+  if (row === null || row.ownerId !== ownerId) throw new Error('No such batch')
+  return row
+}
+
+async function batchIntakes(
+  ctx: QueryCtx,
+  ownerId: string,
+  batchId: Id<'batches'>,
+): Promise<Array<Doc<'intakes'>>> {
+  return await ctx.db
+    .query('intakes')
+    .withIndex('by_owner_batch', (q) =>
+      q.eq('ownerId', ownerId).eq('batchId', batchId),
+    )
+    .take(MAX_BATCH_FILES)
+}
+
+async function liveAccounts(ctx: QueryCtx, ownerId: string) {
+  return (
+    await ctx.db
+      .query('accounts')
+      .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+      .take(50)
+  ).filter((a) => a.retiredAt === undefined)
+}
+
+/* Which account a file is heading for while it is still being read: his
+   pick, or the guess from what the reader has found so far. */
+function headingFor(
+  intake: Doc<'intakes'>,
+  accounts: ReadonlyArray<Doc<'accounts'>>,
+): Id<'accounts'> | null {
+  if (intake.accountId) return intake.accountId
+  const seen = {
+    ...intake,
+    institution: intake.institution ?? intake.progress?.institution,
+    accountTail: intake.accountTail ?? intake.progress?.accountTail,
+    kind: intake.kind ?? intake.progress?.kind,
+  }
+  return guessAccount(seen, accounts)
+}
+
+const batchFile = v.object({
+  intakeId: v.id('intakes'),
+  name: v.string(),
+  status: v.union(
+    v.literal('reading'),
+    v.literal('ready'),
+    v.literal('failed'),
+    v.literal('done'),
+  ),
+  kind: v.union(
+    v.literal('transactions'),
+    v.literal('holdings'),
+    v.literal('trades'),
+    v.null(),
+  ),
+  accountId: v.union(v.id('accounts'), v.null()),
+  /* A bank the app knows that he has not added yet. */
+  suggest: suggestion,
+  institution: v.union(v.string(), v.null()),
+  rows: v.number(),
+  /* The days its rows cover. */
+  from: v.union(v.number(), v.null()),
+  to: v.union(v.number(), v.null()),
+  error: v.union(v.string(), v.null()),
+  retryable: v.boolean(),
+  readingSince: v.union(v.number(), v.null()),
+})
+
+/** A batch while it is read: every file, where it is heading, how far. */
+export const batch = query({
+  args: { batchId: v.id('batches') },
+  returns: v.object({
+    status: v.union(
+      v.literal('open'),
+      v.literal('applying'),
+      v.literal('done'),
+    ),
+    applied: v.union(
+      v.object({ intakes: v.number(), rows: v.number(), accounts: v.number() }),
+      v.null(),
+    ),
+    files: v.array(batchFile),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const b = await ownedBatch(ctx, ownerId, args.batchId)
+    const accounts = await liveAccounts(ctx, ownerId)
+    const files = (await batchIntakes(ctx, ownerId, b._id)).map((i) => {
+      const accountId = headingFor(i, accounts)
+      const times = (i.transactions ?? []).map((r) => r.occurredAt)
+      const tradeTimes = (i.trades ?? []).map((r) => r.occurredAt)
+      const all = [...times, ...tradeTimes]
+      return {
+        intakeId: i._id,
+        name: i.files?.[0]?.name ?? 'file',
+        status: i.status,
+        kind: i.kind ?? i.progress?.kind ?? null,
+        accountId,
+        suggest: accountId === null ? suggestFor(i) : null,
+        institution: i.institution ?? i.progress?.institution ?? null,
+        rows:
+          i.status === 'reading'
+            ? (i.progress?.rows ?? 0)
+            : (i.transactions?.length ?? 0) +
+              (i.trades?.length ?? 0) +
+              (i.positions?.length ?? 0) +
+              (i.historyTrades ?? 0),
+        from: all.length ? Math.min(...all) : null,
+        to: all.length ? Math.max(...all) : null,
+        error: i.error ?? null,
+        retryable: i.retryable ?? false,
+        readingSince: i.readingSince ?? null,
+      }
+    })
+    return { status: b.status, applied: b.applied ?? null, files }
+  },
+})
+
+/** The update still waiting — being read, or read and not applied. */
+export const openBatch = query({
+  args: {},
+  returns: v.union(v.id('batches'), v.null()),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    const latest = await ctx.db
+      .query('batches')
+      .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
+      .order('desc')
+      .first()
+    return latest !== null && latest.status !== 'done' ? latest._id : null
+  },
+})
+
 const reviewRow = v.object({
   index: v.number(),
   occurredAt: v.number(),
@@ -453,204 +710,212 @@ export const review = query({
     const ownerId = await requireUser(ctx)
     const intake = await ownedIntake(ctx, ownerId, args.intakeId)
     if (intake.status !== 'ready' || intake.kind !== 'transactions') return null
-    const read = intake.transactions ?? []
-
-    const accounts = (
-      await ctx.db
-        .query('accounts')
-        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
-        .take(50)
-    ).filter((a) => a.retiredAt === undefined)
-    const guessed = intake.accountId ?? guessAccount(intake, accounts)
-    const accountId = intake.accountId ?? null
-    const here = accountId ?? guessed
-
-    /* What he has in this account over the same days, for duplicates. */
-    const times = read.map((r) => r.occurredAt)
-    const from = Math.min(...times) - 3 * 86_400_000
-    const to = Math.max(...times) + 3 * 86_400_000
-    const existing = here
-      ? await ctx.db
-          .query('logs')
-          .withIndex('by_owner_account_time', (q) =>
-            q
-              .eq('ownerId', ownerId)
-              .eq('accountId', here)
-              .gte('occurredAt', from)
-              .lte('occurredAt', to),
-          )
-          .take(HISTORY_ROWS)
-      : []
-    const existingRows = existing.map((l) => ({
-      occurredAt: l.occurredAt,
-      amount:
-        l.kind === 'income'
-          ? (l.value ?? 0)
-          : l.kind === 'move'
-            ? (l.value ?? 0)
-            : -(l.value ?? 0),
-      merchant: l.meta?.merchant ?? l.text ?? '',
-    }))
-    const dups = findDuplicates(read, existingRows)
-    /* A transfer is the same transfer whatever each bank calls it — "To
-       Trade Republic" here, "Revolut → TR" typed, "Top up" on the other
-       side: its own money moving is matched by amount and days alone. */
-    const names = await hisNames(ctx, intake)
-    const own = read.map((r) => r.self || ownMoney(r, names))
-    const taken = new Set(dups.filter((d): d is number => d !== null))
-    for (const [i, r] of read.entries()) {
-      if (dups[i] !== null || !own[i]) continue
-      const j = existing.findIndex(
-        (l, k) =>
-          !taken.has(k) &&
-          l.kind === 'move' &&
-          Math.abs((l.value ?? 0) - r.amount) < 0.005 &&
-          Math.abs(l.occurredAt - r.occurredAt) <= 2 * DAY_MS + 3_600_000,
-      )
-      if (j >= 0) {
-        dups[i] = j
-        taken.add(j)
-      }
-    }
-
-    const rules = new Map<string, string>()
-    for (const key of new Set(read.map((r) => merchantKey(r.merchant)))) {
-      const rule = await ctx.db
-        .query('merchantRules')
-        .withIndex('by_owner_key', (q) =>
-          q.eq('ownerId', ownerId).eq('key', key),
-        )
-        .first()
-      if (rule) rules.set(key, rule.category)
-    }
-
-    const bills = await ctx.db
-      .query('recurring')
-      .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
-      .take(100)
-    const liveBills = bills.filter((b) => b.endedAt === undefined)
-    const usedBill = new Set<string>()
-
-    const others = accounts
-      .filter((a) => a._id !== here)
-      .map((a) => ({ id: a._id, name: a.name, domain: a.domain }))
-
-    const rows = read.map((r, index) => {
-      const move = own[index]
-      const kind = move
-        ? ('move' as const)
-        : r.amount > 0
-          ? ('income' as const)
-          : ('spend' as const)
-      const rule = rules.get(merchantKey(r.merchant))
-      const category = kind === 'spend' ? (rule ?? r.category ?? null) : null
-      let recurringId: Id<'recurring'> | null = null
-      if (!move && !r.pending) {
-        const d = new Date(r.occurredAt)
-        for (const b of liveBills) {
-          const due = dueDay(b, d.getFullYear(), d.getMonth())
-          const sameWay = (b.kind === 'income') === r.amount > 0
-          const key = `${b._id}:${d.getFullYear()}-${d.getMonth()}`
-          if (
-            due !== null &&
-            sameWay &&
-            !usedBill.has(key) &&
-            Math.abs(Math.abs(r.amount) - b.amount) <= b.amount * 0.1 &&
-            Math.abs(d.getDate() - due) <= 3 &&
-            (merchantKey(b.name) === merchantKey(r.merchant) ||
-              Math.abs(Math.abs(r.amount) - b.amount) < 0.01)
-          ) {
-            recurringId = b._id
-            usedBill.add(key)
-            break
-          }
-        }
-      }
-      return {
-        index,
-        occurredAt: r.occurredAt,
-        merchant: r.merchant,
-        raw: r.raw,
-        amount: r.amount,
-        currency: r.currency,
-        pending: r.pending,
-        kind,
-        category,
-        categorySource:
-          kind !== 'spend'
-            ? null
-            : rule
-              ? ('rule' as const)
-              : r.category
-                ? ('reader' as const)
-                : null,
-        otherAccountId: move
-          ? (byTail(
-              accounts.filter((a) => a._id !== here),
-              tailsIn(`${r.counterparty ?? ''} ${r.raw}`),
-            ) ??
-            (matchAccount(
-              r.counterparty ?? r.merchant,
-              others,
-              here ?? undefined,
-            ) as Id<'accounts'> | null))
-          : null,
-        counterparty: r.counterparty ?? null,
-        duplicateOf: dups[index] === null ? null : existing[dups[index]]._id,
-        recurringId,
-      }
-    })
-
-    /* Things that come round — in this file together with what he has. */
-    const history = here
-      ? await ctx.db
-          .query('logs')
-          .withIndex('by_owner_account_time', (q) =>
-            q
-              .eq('ownerId', ownerId)
-              .eq('accountId', here)
-              .gte('occurredAt', from - 70 * 86_400_000),
-          )
-          .take(HISTORY_ROWS)
-      : []
-    const pool = [
-      ...read.filter((r) => !r.self && !r.pending),
-      ...history
-        .filter((l) => l.kind === 'expense')
-        .map((l) => ({
-          occurredAt: l.occurredAt,
-          amount: -(l.value ?? 0),
-          merchant: l.meta?.merchant ?? l.text ?? '',
-        })),
-    ]
-    const seen = new Set<string>()
-    const unique = pool.filter((r) => {
-      const k = `${merchantKey(r.merchant)}:${r.amount}:${new Date(r.occurredAt).toDateString()}`
-      if (seen.has(k)) return false
-      seen.add(k)
-      return true
-    })
-    const recurring = findRecurring(unique).map((r) => ({
-      merchant: r.merchant,
-      amount: r.amount,
-      day: r.day,
-      months: r.months,
-      alreadyABill: liveBills.some(
-        (b) =>
-          merchantKey(b.name) === r.key ||
-          Math.abs(b.amount - Math.abs(r.amount)) < 0.01,
-      ),
-    }))
-
-    return {
-      accountId,
-      guessedAccountId: guessed,
-      suggest: here === null ? suggestFor(intake) : null,
-      rows,
-      recurring,
-    }
+    return await buildReview(ctx, ownerId, intake)
   },
 })
+
+/* The review of one read statement, against what he has — shared by the
+   single-file review and a batch, which reviews every file the same way. */
+async function buildReview(
+  ctx: QueryCtx,
+  ownerId: string,
+  intake: Doc<'intakes'>,
+) {
+  const read = intake.transactions ?? []
+
+  const accounts = (
+    await ctx.db
+      .query('accounts')
+      .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+      .take(50)
+  ).filter((a) => a.retiredAt === undefined)
+  const guessed = intake.accountId ?? guessAccount(intake, accounts)
+  const accountId = intake.accountId ?? null
+  const here = accountId ?? guessed
+
+  /* What he has in this account over the same days, for duplicates. */
+  const times = read.map((r) => r.occurredAt)
+  const from = Math.min(...times) - 3 * 86_400_000
+  const to = Math.max(...times) + 3 * 86_400_000
+  const existing = here
+    ? await ctx.db
+        .query('logs')
+        .withIndex('by_owner_account_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('accountId', here)
+            .gte('occurredAt', from)
+            .lte('occurredAt', to),
+        )
+        .take(HISTORY_ROWS)
+    : []
+  const existingRows = existing.map((l) => ({
+    occurredAt: l.occurredAt,
+    amount:
+      l.kind === 'income'
+        ? (l.value ?? 0)
+        : l.kind === 'move'
+          ? (l.value ?? 0)
+          : -(l.value ?? 0),
+    merchant: l.meta?.merchant ?? l.text ?? '',
+  }))
+  const dups = findDuplicates(read, existingRows)
+  /* A transfer is the same transfer whatever each bank calls it — "To
+     Trade Republic" here, "Revolut → TR" typed, "Top up" on the other
+     side: its own money moving is matched by amount and days alone. */
+  const names = await hisNames(ctx, intake)
+  const own = read.map((r) => r.self || ownMoney(r, names))
+  const taken = new Set(dups.filter((d): d is number => d !== null))
+  for (const [i, r] of read.entries()) {
+    if (dups[i] !== null || !own[i]) continue
+    const j = existing.findIndex(
+      (l, k) =>
+        !taken.has(k) &&
+        l.kind === 'move' &&
+        Math.abs((l.value ?? 0) - r.amount) < 0.005 &&
+        Math.abs(l.occurredAt - r.occurredAt) <= 2 * DAY_MS + 3_600_000,
+    )
+    if (j >= 0) {
+      dups[i] = j
+      taken.add(j)
+    }
+  }
+
+  const rules = new Map<string, string>()
+  for (const key of new Set(read.map((r) => merchantKey(r.merchant)))) {
+    const rule = await ctx.db
+      .query('merchantRules')
+      .withIndex('by_owner_key', (q) => q.eq('ownerId', ownerId).eq('key', key))
+      .first()
+    if (rule) rules.set(key, rule.category)
+  }
+
+  const bills = await ctx.db
+    .query('recurring')
+    .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
+    .take(100)
+  const liveBills = bills.filter((b) => b.endedAt === undefined)
+  const usedBill = new Set<string>()
+
+  const others = accounts
+    .filter((a) => a._id !== here)
+    .map((a) => ({ id: a._id, name: a.name, domain: a.domain }))
+
+  const rows = read.map((r, index) => {
+    const move = own[index]
+    const kind = move
+      ? ('move' as const)
+      : r.amount > 0
+        ? ('income' as const)
+        : ('spend' as const)
+    const rule = rules.get(merchantKey(r.merchant))
+    const category = kind === 'spend' ? (rule ?? r.category ?? null) : null
+    let recurringId: Id<'recurring'> | null = null
+    if (!move && !r.pending) {
+      const d = new Date(r.occurredAt)
+      for (const b of liveBills) {
+        const due = dueDay(b, d.getFullYear(), d.getMonth())
+        const sameWay = (b.kind === 'income') === r.amount > 0
+        const key = `${b._id}:${d.getFullYear()}-${d.getMonth()}`
+        if (
+          due !== null &&
+          sameWay &&
+          !usedBill.has(key) &&
+          Math.abs(Math.abs(r.amount) - b.amount) <= b.amount * 0.1 &&
+          Math.abs(d.getDate() - due) <= 3 &&
+          (merchantKey(b.name) === merchantKey(r.merchant) ||
+            Math.abs(Math.abs(r.amount) - b.amount) < 0.01)
+        ) {
+          recurringId = b._id
+          usedBill.add(key)
+          break
+        }
+      }
+    }
+    return {
+      index,
+      occurredAt: r.occurredAt,
+      merchant: r.merchant,
+      raw: r.raw,
+      amount: r.amount,
+      currency: r.currency,
+      pending: r.pending,
+      kind,
+      category,
+      categorySource:
+        kind !== 'spend'
+          ? null
+          : rule
+            ? ('rule' as const)
+            : r.category
+              ? ('reader' as const)
+              : null,
+      otherAccountId: move
+        ? (byTail(
+            accounts.filter((a) => a._id !== here),
+            tailsIn(`${r.counterparty ?? ''} ${r.raw}`),
+          ) ??
+          (matchAccount(
+            r.counterparty ?? r.merchant,
+            others,
+            here ?? undefined,
+          ) as Id<'accounts'> | null))
+        : null,
+      counterparty: r.counterparty ?? null,
+      duplicateOf: dups[index] === null ? null : existing[dups[index]]._id,
+      recurringId,
+    }
+  })
+
+  /* Things that come round — in this file together with what he has. */
+  const history = here
+    ? await ctx.db
+        .query('logs')
+        .withIndex('by_owner_account_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('accountId', here)
+            .gte('occurredAt', from - 70 * 86_400_000),
+        )
+        .take(HISTORY_ROWS)
+    : []
+  const pool = [
+    ...read.filter((r) => !r.self && !r.pending),
+    ...history
+      .filter((l) => l.kind === 'expense')
+      .map((l) => ({
+        occurredAt: l.occurredAt,
+        amount: -(l.value ?? 0),
+        merchant: l.meta?.merchant ?? l.text ?? '',
+      })),
+  ]
+  const seen = new Set<string>()
+  const unique = pool.filter((r) => {
+    const k = `${merchantKey(r.merchant)}:${r.amount}:${new Date(r.occurredAt).toDateString()}`
+    if (seen.has(k)) return false
+    seen.add(k)
+    return true
+  })
+  const recurring = findRecurring(unique).map((r) => ({
+    merchant: r.merchant,
+    amount: r.amount,
+    day: r.day,
+    months: r.months,
+    alreadyABill: liveBills.some(
+      (b) =>
+        merchantKey(b.name) === r.key ||
+        Math.abs(b.amount - Math.abs(r.amount)) < 0.01,
+    ),
+  }))
+
+  return {
+    accountId,
+    guessedAccountId: guessed,
+    suggest: here === null ? suggestFor(intake) : null,
+    rows,
+    recurring,
+  }
+}
 
 /* Endings not yet known anywhere are kept on the account (four at most):
    the next file that prints one is matched without asking. */
@@ -742,165 +1007,192 @@ export const confirmTransactions = mutation({
       throw new ConvexError('That is not ready to confirm.')
     }
     const account = await ownedAccount(ctx, ownerId, args.accountId)
-    const read = intake.transactions ?? []
-    const seen = new Set<number>()
-    let written = 0
-    for (const row of args.rows) {
-      const r = read[row.index] as (typeof read)[number] | undefined
-      if (r === undefined || seen.has(row.index)) continue
-      seen.add(row.index)
-      if (r.pending) continue
-      if (row.otherAccountId)
-        await ownedAccount(ctx, ownerId, row.otherAccountId)
-      if (row.recurringId) {
-        const bill = await ctx.db.get(row.recurringId)
-        if (bill === null || bill.ownerId !== ownerId)
-          throw new Error('No such bill')
+    return await writeTransactions(ctx, ownerId, intake, account, args)
+  },
+})
+
+type ConfirmRow = {
+  index: number
+  kind: 'spend' | 'income' | 'move'
+  category?: string
+  otherAccountId?: Id<'accounts'>
+  recurringId?: Id<'recurring'>
+}
+
+/* Writes the rows he kept from one statement, its orders and balance —
+   shared by the single-file confirm and a batch's apply. */
+async function writeTransactions(
+  ctx: MutationCtx,
+  ownerId: string,
+  intake: Doc<'intakes'>,
+  account: Doc<'accounts'>,
+  {
+    rows,
+    keepBalance,
+    dayStart,
+  }: {
+    rows: ReadonlyArray<ConfirmRow>
+    keepBalance: boolean
+    dayStart: number
+  },
+) {
+  const read = intake.transactions ?? []
+  const seen = new Set<number>()
+  let written = 0
+  for (const row of rows) {
+    const r = read[row.index] as (typeof read)[number] | undefined
+    if (r === undefined || seen.has(row.index)) continue
+    seen.add(row.index)
+    if (r.pending) continue
+    if (row.otherAccountId) await ownedAccount(ctx, ownerId, row.otherAccountId)
+    if (row.recurringId) {
+      const bill = await ctx.db.get(row.recurringId)
+      if (bill === null || bill.ownerId !== ownerId)
+        throw new Error('No such bill')
+    }
+    const category = row.category?.trim().toLowerCase() || undefined
+    if (category && category.length > 24)
+      throw new ConvexError('That category is too long.')
+    const base = {
+      ownerId,
+      area: 'money',
+      occurredAt: r.occurredAt,
+      unit: r.currency.toLowerCase(),
+      text: r.merchant,
+      accountId: account._id,
+    }
+    if (row.kind === 'move') {
+      const other = row.otherAccountId
+        ? await ownedAccount(ctx, ownerId, row.otherAccountId)
+        : null
+      /* Answer once: the ending printed for the other side is his
+         account's now, so the next statement lands it by itself. */
+      if (other !== null && other._id !== account._id) {
+        await learnTails(
+          ctx,
+          other,
+          tailsIn(`${r.counterparty ?? ''} ${r.raw}`),
+        )
       }
-      const category = row.category?.trim().toLowerCase() || undefined
-      if (category && category.length > 24)
-        throw new ConvexError('That category is too long.')
-      const base = {
-        ownerId,
-        area: 'money',
-        occurredAt: r.occurredAt,
-        unit: r.currency.toLowerCase(),
-        text: r.merchant,
-        accountId: account._id,
-      }
-      if (row.kind === 'move') {
-        const other = row.otherAccountId
-          ? await ownedAccount(ctx, ownerId, row.otherAccountId)
-          : null
-        /* Answer once: the ending printed for the other side is his
-           account's now, so the next statement lands it by itself. */
-        if (other !== null && other._id !== account._id) {
-          await learnTails(
-            ctx,
-            other,
-            tailsIn(`${r.counterparty ?? ''} ${r.raw}`),
-          )
-        }
-        /* Both sides, unless the other account already has this transfer
-           (its own statement came first) — then only this side, paired to
-           it. An account that does not hold the currency gets no side. */
-        const waiting =
-          other === null || other._id === account._id
-            ? null
-            : await openSide(ctx, ownerId, other._id, -r.amount, r.occurredAt)
-        if (
-          other !== null &&
-          other._id !== account._id &&
-          waiting === null &&
-          other.currencies.includes(r.currency)
-        ) {
-          await writeTransfer(ctx, ownerId, {
-            from: r.amount < 0 ? account : other,
-            to: r.amount < 0 ? other : account,
-            amount: Math.abs(r.amount),
-            currency: r.currency,
-            occurredAt: r.occurredAt,
-            text: r.merchant,
-            raw: r.raw,
-            intakeId: intake._id,
-          })
-        } else {
-          /* Signed: out of this account is negative. */
-          await ctx.db.insert('logs', {
-            ...base,
-            kind: 'move',
-            value: r.amount,
-            meta: {
-              merchant: r.merchant,
-              raw: r.raw,
-              intakeId: intake._id,
-              otherAccountId: row.otherAccountId,
-              pairOf: waiting?._id,
-            },
-          })
-        }
+      /* Both sides, unless the other account already has this transfer
+         (its own statement came first) — then only this side, paired to
+         it. An account that does not hold the currency gets no side. */
+      const waiting =
+        other === null || other._id === account._id
+          ? null
+          : await openSide(ctx, ownerId, other._id, -r.amount, r.occurredAt)
+      if (
+        other !== null &&
+        other._id !== account._id &&
+        waiting === null &&
+        other.currencies.includes(r.currency)
+      ) {
+        await writeTransfer(ctx, ownerId, {
+          from: r.amount < 0 ? account : other,
+          to: r.amount < 0 ? other : account,
+          amount: Math.abs(r.amount),
+          currency: r.currency,
+          occurredAt: r.occurredAt,
+          text: r.merchant,
+          raw: r.raw,
+          intakeId: intake._id,
+        })
       } else {
+        /* Signed: out of this account is negative. */
         await ctx.db.insert('logs', {
           ...base,
-          kind: row.kind === 'income' ? 'income' : 'expense',
-          value: Math.abs(r.amount),
+          kind: 'move',
+          value: r.amount,
           meta: {
             merchant: r.merchant,
             raw: r.raw,
             intakeId: intake._id,
-            category,
-            recurringId: row.recurringId,
+            otherAccountId: row.otherAccountId,
+            pairOf: waiting?._id,
           },
         })
-        if (row.kind === 'spend' && category) {
-          const key = merchantKey(r.merchant)
-          const rule = await ctx.db
-            .query('merchantRules')
-            .withIndex('by_owner_key', (q) =>
-              q.eq('ownerId', ownerId).eq('key', key),
-            )
-            .first()
-          if (rule === null) {
-            await ctx.db.insert('merchantRules', {
-              ownerId,
-              key,
-              category,
-              updatedAt: Date.now(),
-            })
-          } else if (rule.category !== category) {
-            await ctx.db.patch(rule._id, { category, updatedAt: Date.now() })
-          }
+      }
+    } else {
+      await ctx.db.insert('logs', {
+        ...base,
+        kind: row.kind === 'income' ? 'income' : 'expense',
+        value: Math.abs(r.amount),
+        meta: {
+          merchant: r.merchant,
+          raw: r.raw,
+          intakeId: intake._id,
+          category,
+          recurringId: row.recurringId,
+        },
+      })
+      if (row.kind === 'spend' && category) {
+        const key = merchantKey(r.merchant)
+        const rule = await ctx.db
+          .query('merchantRules')
+          .withIndex('by_owner_key', (q) =>
+            q.eq('ownerId', ownerId).eq('key', key),
+          )
+          .first()
+        if (rule === null) {
+          await ctx.db.insert('merchantRules', {
+            ownerId,
+            key,
+            category,
+            updatedAt: Date.now(),
+          })
+        } else if (rule.category !== category) {
+          await ctx.db.patch(rule._id, { category, updatedAt: Date.now() })
         }
       }
-      written++
     }
-    /* The orders a broker's cash statement printed (splitStatement):
-       into its ledger, on the ticker the reader matched. One with no
-       ticker found is left out and said. */
-    let trades = { written: 0, skipped: 0, noTicker: 0 }
-    const orders = intake.trades ?? []
-    if (orders.length > 0) {
-      if (!account.kinds.includes('broker')) {
-        throw new ConvexError(
-          `${account.name} is not a broker — these shares were bought in one.`,
-        )
-      }
-      const items = orders.flatMap((t, index) => {
-        const c = t.candidates.at(
-          t.preferred !== undefined && t.preferred >= 0 ? t.preferred : 0,
-        )
-        return c ? [{ index, trade: t, candidate: c }] : []
-      })
-      trades = {
-        ...(await writeTrades(ctx, ownerId, account, intake._id, items)),
-        noTicker: orders.length - items.length,
-      }
-    }
-    if (args.keepBalance && intake.balance) {
-      /* A statement's balance is true at the end of its closing day. Its
-         day is noon UTC; 18:00 UTC is still that day from Lisbon to New
-         York (27 Sep: +12h put Aug 31 into Sep 1 in Lisbon). */
-      await writeBalance(
-        ctx,
-        ownerId,
-        account,
-        intake.balance.currency,
-        intake.balance.value,
-        args.dayStart,
-        intake.balance.asOf + 6 * 3_600_000,
-        sourceOf(intake),
+    written++
+  }
+  /* The orders a broker's cash statement printed (splitStatement):
+     into its ledger, on the ticker the reader matched. One with no
+     ticker found is left out and said. */
+  let trades = { written: 0, skipped: 0, noTicker: 0 }
+  const orders = intake.trades ?? []
+  if (orders.length > 0) {
+    if (!account.kinds.includes('broker')) {
+      throw new ConvexError(
+        `${account.name} is not a broker — these shares were bought in one.`,
       )
     }
-    if (intake.accountTail) await learnTails(ctx, account, [intake.accountTail])
-    for (const id of intake.storageIds) await ctx.storage.delete(id)
-    await ctx.db.patch(intake._id, {
-      status: 'done',
-      storageIds: [],
-      accountId: account._id,
+    const items = orders.flatMap((t, index) => {
+      const c = t.candidates.at(
+        t.preferred !== undefined && t.preferred >= 0 ? t.preferred : 0,
+      )
+      return c ? [{ index, trade: t, candidate: c }] : []
     })
-    return { written, trades }
-  },
-})
+    trades = {
+      ...(await writeTrades(ctx, ownerId, account, intake._id, items)),
+      noTicker: orders.length - items.length,
+    }
+  }
+  if (keepBalance && intake.balance) {
+    /* A statement's balance is true at the end of its closing day. Its
+       day is noon UTC; 18:00 UTC is still that day from Lisbon to New
+       York (27 Sep: +12h put Aug 31 into Sep 1 in Lisbon). */
+    await writeBalance(
+      ctx,
+      ownerId,
+      account,
+      intake.balance.currency,
+      intake.balance.value,
+      dayStart,
+      intake.balance.asOf + 6 * 3_600_000,
+      sourceOf(intake),
+    )
+  }
+  if (intake.accountTail) await learnTails(ctx, account, [intake.accountTail])
+  for (const id of intake.storageIds) await ctx.storage.delete(id)
+  await ctx.db.patch(intake._id, {
+    status: 'done',
+    storageIds: [],
+    accountId: account._id,
+  })
+  return { written, trades }
+}
 
 /**
  * A broker screen he checked (a screenshot or a net-worth PDF): what it

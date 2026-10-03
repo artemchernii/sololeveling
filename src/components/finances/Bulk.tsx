@@ -627,8 +627,13 @@ function BulkReview({
 
       {review.accounts.map((a, i) => {
         const d = a.accountId ? doc(a.accountId) : undefined
-        const now = a.accountId
-          ? balances?.accounts.find((x) => x.accountId === a.accountId)?.cashEur
+        /* Only an account with a balance already has a "now" — a new
+           one's first statement is not a gain. */
+        const held = a.accountId
+          ? balances?.accounts.find((x) => x.accountId === a.accountId)
+          : undefined
+        const now = held?.pockets.some((p) => p.recordedAt !== null)
+          ? held.cashEur
           : undefined
         return (
           <AccountBlock

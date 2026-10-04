@@ -84,9 +84,13 @@ export function TreasuryHero() {
 
   const loading = worth === undefined || balances === undefined
   const empty = !loading && balances.accounts.length === 0
-  const cash = worth?.cash.total ?? 0
-  const invested = worth?.invested.total ?? 0
   const rows = balances?.accounts ?? []
+  /* Free cash is banks and cash — his pick, 4 Oct, the same number as
+     Flow's AHEAD. A broker's cash waits to be invested, so it sits with
+     the investments as "at brokers"; the two still add up to capital. */
+  const cash = rows
+    .filter((a) => a.kinds.includes('bank') || a.kinds.includes('cash'))
+    .reduce((t, a) => t + a.cashEur, 0)
   const investedBy = (id: Id<'accounts'>) =>
     worth?.byAccount.find((w) => w.accountId === id)?.invested ?? 0
   const monthOf = (id: Id<'accounts'>) =>
@@ -104,6 +108,7 @@ export function TreasuryHero() {
   const brokerCash = brokers
     .filter(brokerOnly)
     .reduce((t, a) => t + a.cashEur, 0)
+  const atBrokers = (worth?.invested.total ?? 0) + brokerCash
 
   const docOf = (id: Id<'accounts'>) => accounts?.find((a) => a._id === id)
   const net = sums ? sums.in.sum - sums.out.sum : null
@@ -205,14 +210,14 @@ export function TreasuryHero() {
             </span>
             <div className="flex max-w-[460px] flex-col gap-1.5">
               <div className="flex h-2.5 gap-[3px] overflow-hidden rounded-full bg-lift/[0.06]">
-                {cash + invested > 0 ? (
+                {cash + atBrokers > 0 ? (
                   <>
                     <span
                       style={{ flex: cash }}
                       className="rounded-full bg-money-cash transition-[flex] duration-700"
                     />
                     <span
-                      style={{ flex: invested }}
+                      style={{ flex: atBrokers }}
                       className="rounded-full bg-lav-400 transition-[flex] duration-700"
                     />
                   </>
@@ -233,7 +238,7 @@ export function TreasuryHero() {
                   className="flex items-center gap-1.5 text-ink-200 hover:text-foreground"
                 >
                   <span className="size-2 rounded-full bg-lav-400" />
-                  invested <Veiled>{euros(invested)}</Veiled>
+                  at brokers <Veiled>{euros(atBrokers)}</Veiled>
                 </Link>
               </div>
             </div>

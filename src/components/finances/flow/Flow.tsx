@@ -4,8 +4,6 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../../convex/_generated/api'
 import { useDayStarts } from '@/components/track/useDayStarts'
-import { categoryLabel } from '@/lib/money'
-import { spendingOf } from '@/lib/spending'
 import { Ahead } from './Ahead'
 import type { Notice } from './Ahead'
 import { PayMonth } from './PayMonth'
@@ -29,7 +27,6 @@ export function Flow({ open }: { open?: string } = {}) {
   }, [find])
 
   const spans = useMemo(() => monthsBack(today, 7), [today])
-  const months = useQuery(api.aggregate.flowMonths, { months: spans })
   const aheadArgs = useMemo(
     () => ({
       today,
@@ -65,22 +62,14 @@ export function Flow({ open }: { open?: string } = {}) {
         a = `next: ${next.name} −${eur(next.amount)} · ${new Date(next.t).getDate()} ${monthName(next.t)}`
       }
     }
-    let s = 'six months, by group'
-    let sDot: string | null = null
-    if (months) {
-      const at =
-        new Date(today).getDate() < 10 ? months.length - 2 : months.length - 1
-      const sp = spendingOf(months, at)
-      if (sp.grew && sp.grew.change > 40) {
-        s = `${categoryLabel('expense', sp.grew.category).toLowerCase()} ▲ ${eur(sp.grew.change)} in ${monthName(spans[at].start)}`
-        sDot = 'bg-state-danger'
-      } else if (months[at]?.rows) {
-        s = `${monthName(spans[at].start)} −${eur(months[at].out)} out`
-      }
-    }
     return [
       { id: 'ahead' as const, title: 'Ahead', line: a, dot: aDot },
-      { id: 'spending' as const, title: 'Spending', line: s, dot: sDot },
+      {
+        id: 'spending' as const,
+        title: 'Spending',
+        line: 'bills and day-to-day, row by row',
+        dot: null,
+      },
       {
         id: 'movements' as const,
         title: 'Movements',
@@ -88,7 +77,7 @@ export function Flow({ open }: { open?: string } = {}) {
         dot: null,
       },
     ]
-  }, [ahead, months, today, spans])
+  }, [ahead])
 
   return (
     <div className="flex flex-col gap-3">
@@ -143,7 +132,7 @@ export function Flow({ open }: { open?: string } = {}) {
         />
       </div>
       <div hidden={tab !== 'spending'}>
-        <Spending months={months} spans={spans} today={today} open={open} />
+        <Spending today={today} accounts={accounts} open={open} />
       </div>
       <div hidden={tab !== 'movements'}>
         <Movements

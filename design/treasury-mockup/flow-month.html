@@ -98,11 +98,11 @@ const PAST = [
 ]
 const SCEN = {
   now: { label: 'day 9 · today', day: 9, len: 30, from: '25 Sep', to: '25 Oct', in: 2669, bills: 1247, billsLeft: 51, dayToDay: 190, paceLast: 236,
-    note: '<b>Nine days after salary.</b> The big number is what is left until the next one. Under it, where it went: bills (fixed, tap to see them) and day-to-day (what you control). One line compares day-to-day with the last pay month at the same day.' },
+    note: '<b>Nine days after salary.</b> The big number is this pay month’s balance: what came in since salary, minus what went out. Not what you hold — that is free cash. Under it: salary, bills (tap for the list), day-to-day.' },
   salary: { label: 'salary today', day: 0, len: 30, from: '25 Oct', to: '25 Nov', in: 2669, bills: 0, billsLeft: 1298, dayToDay: 0, paceLast: 0,
     note: '<b>Salary landed today.</b> A new pay month starts: everything ahead. The last one closes into the bars — hover it.' },
-  late: { label: '2 days to salary', day: 28, len: 30, from: '25 Sep', to: '25 Oct', in: 2669, bills: 1298, billsLeft: 0, dayToDay: 1190, paceLast: 790,
-    note: '<b>Near the end, spending ran high.</b> Left is small and amber (a state, not a grade). The pace line says it plainly: €400 more day-to-day than last pay month by this day.' },
+  late: { label: '2 days to salary', day: 28, len: 30, from: '25 Sep', to: '25 Oct', in: 2809, other: 140, bills: 1298, billsLeft: 0, dayToDay: 1190, paceLast: 790,
+    note: '<b>Near the end, spending ran high.</b> The balance is small but still above zero; a refund shows as its own line. The last line says it plainly: €400 more than this time last month.' },
   nosal: { label: 'salary not seen', day: 33, len: 30, from: '25 Sep', to: '25 Oct', in: 2669, bills: 1298, billsLeft: 0, dayToDay: 860, paceLast: 823, nosal: true,
     note: '<b>The 25th passed and no salary was read.</b> The pay month stays open and says so — the statement may simply not be uploaded yet.' },
   none: { label: 'no salary found yet', empty: true,
@@ -123,26 +123,27 @@ function render() {
   }
   const out = sc.bills + sc.dayToDay
   const left = sc.in - out
-  const tone = sc.day >= 25 && left < 300 ? 'warn' : left >= 0 ? 'up' : 'down'
+  const tone = left >= 0 ? 'up' : 'down'
   const diff = sc.dayToDay - sc.paceLast
-  const pace = sc.day === 0 ? 'Nothing spent yet this pay month.'
-    : `Day-to-day <b>${eur(sc.dayToDay)}</b> by day ${sc.day} — ${Math.abs(diff) < 20 ? 'about the same as' : diff > 0 ? `<span class="down">${eur(diff)} more</span> than` : `<span class="up">${eur(-diff)} less</span> than`} last pay month by this day.`
+  const pace = sc.day === 0 ? 'Nothing spent yet.'
+    : `Day-to-day: ${Math.abs(diff) < 20 ? 'about the same as' : diff > 0 ? `<span class="down">${eur(diff)} more</span> than` : `<span class="up">${eur(-diff)} less</span> than`} this time last month.`
   const all = [...PAST, { from: sc.from, to: sc.to, in: sc.in, bills: sc.bills, day: sc.dayToDay, now: true }]
   el.innerHTML = `<div class="head"><span class="title">[ PAY MONTH · ${sc.from} → ${sc.to} · ${sc.nosal ? 'salary not seen yet' : `day ${sc.day} of ${sc.len}`} ]</span><span class="caps">moves between your accounts not counted</span></div>
     <div class="grid"><div>
-      <div class="left"><small>LEFT UNTIL ${sc.nosal ? 'THE NEXT SALARY' : sc.to.toUpperCase()}</small><b class="${tone}">${left >= 0 ? '' : '−'}${eur(left)}</b>
-        <small>${sc.billsLeft ? `${eur(sc.billsLeft)} of bills still to come before then` : 'every bill of this pay month paid'}</small></div>
+      <div class="left"><small>BALANCE THIS PAY MONTH</small><b class="${tone}">${left >= 0 ? '+' : '−'}${eur(left)}</b>
+        <small>${sc.billsLeft ? `Bills still to pay: ${eur(sc.billsLeft)}` : 'All bills paid'}</small></div>
       <div class="sum">
-        <span class="k">salary + in</span><span class="w">${sc.from}</span><span class="v up">+${eur(sc.in)}</span>
+        <span class="k">salary</span><span class="w">${sc.from}</span><span class="v up">+${eur(sc.in - (sc.other ?? 0))}</span>
+        ${sc.other ? `<span class="k">other money in</span><span class="w">refunds, money back</span><span class="v up">+${eur(sc.other)}</span>` : ''}
         <button class="k" onclick="openBills()">bills</button><span class="w">mortgage, insurance, electricity, Claude</span><span class="v down">−${eur(sc.bills)}</span>
         <span class="k">day-to-day</span><span class="w">food, transport, shopping …</span><span class="v down">−${eur(sc.dayToDay)}</span>
         <span class="line"></span>
-        <span class="k">left</span><span></span><span class="v ${tone}">${left >= 0 ? '' : '−'}${eur(left)}</span>
+        <span class="k">balance</span><span></span><span class="v ${tone}">${left >= 0 ? '+' : '−'}${eur(left)}</span>
       </div>
       <p class="pace">${pace}</p>
     </div>
     <div class="bars" id="bars">${bars(all)}<div class="tip" id="tip"></div>
-      <div class="legend caps"><span><i class="dot" style="background:var(--good)"></i>in</span><span><i class="dot" style="background:var(--bill)"></i>bills</span><span><i class="dot" style="background:var(--danger)"></i>day-to-day</span><span>a bar is one pay month: salary to salary · hover it</span></div>
+      <div class="legend caps"><span><i class="dot" style="background:var(--good)"></i>salary</span><span><i class="dot" style="background:var(--bill)"></i>bills</span><span><i class="dot" style="background:var(--danger)"></i>day-to-day</span><span>a bar is one pay month: salary to salary · hover it</span></div>
     </div></div>`
 }
 function bars(all) {
@@ -170,10 +171,10 @@ function tip(i) {
   const all = [...PAST, { from: sc.from, to: sc.to, in: sc.in, bills: sc.bills, day: sc.dayToDay, now: true }]
   const m = all[i], left = m.in - m.bills - m.day
   t.innerHTML = `<div class="t">${m.from} → ${m.to}${m.now ? ' · so far' : ''}</div>
-    <div class="r"><span>in</span><span class="up">+${eur(m.in)}</span></div>
+    <div class="r"><span>salary</span><span class="up">+${eur(m.in)}</span></div>
     <div class="r"><span>bills</span><span>−${eur(m.bills)}</span></div>
     <div class="r"><span>day-to-day</span><span>−${eur(m.day)}</span></div>
-    <div class="r tot"><span>left</span><span class="${left >= 0 ? 'up' : 'down'}">${left >= 0 ? '+' : '−'}${eur(left)}</span></div>`
+    <div class="r tot"><span>balance</span><span class="${left >= 0 ? 'up' : 'down'}">${left >= 0 ? '+' : '−'}${eur(left)}</span></div>`
   const w = document.getElementById('bars').clientWidth, step = w / all.length
   t.style.left = Math.min(Math.max(0, step * i + step / 2 - 105), w - 220) + 'px'
   t.style.top = '0px'

@@ -82,6 +82,18 @@ total made partly of a month-old number must say so. A position's shares and wha
 of its trade rows. A position's worth is shares × a stored price × a stored rate (source 4,
 composition). A gain, loss or return is still not shown: it needs its own yes.
 
+**Flow's two yeses (3 Oct, journey `docs/specs/2026-10-03-flow-journey.md`).** Both asked for
+in his words and said yes to, the way sums were on 26 Sep:
+
+- **LEFT.** One month's in − out, beside the two sums it is made of, the month named. Not a
+  savings rate, not a running total.
+- **AHEAD.** Free cash today (source 2) moved by his bills and salary on their days — the plan he
+  has, or the app found in his statements and he did not strike out. By default the rest of his
+  spending comes off as a **range**: the cheapest and the dearest of the last three full months,
+  each a real sum shown beside the line, a month with no rows left out. Never an average, never one
+  number for the future; "only bills and salary" shows the plan alone. Worked out in
+  `src/lib/ahead.ts`, read through `aggregate.ahead`.
+
 **A state read as a series (21 Sep, R6b).** Source 2 is the latest
 `stateSnapshots` row for a key; the weight line on Body plots all of them.
 That is the same source read as a series, not a fifth source, and it is

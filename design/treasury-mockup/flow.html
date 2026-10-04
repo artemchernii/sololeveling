@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Flow (3 Oct). Artem: "one view of movements of all sources", "flow
+     should be useful, i actually analyze my spending and future",
+     "important thing is to show future spendings, especially reoccurring".
+     Journey: docs/specs/2026-10-03-flow-journey.md. Sample numbers at his
+     accounts' scale, not his. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --money: oklch(0.8 0.1 85);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+    --acc-bpi: oklch(0.72 0.16 50);
+    --acc-revolut: oklch(0.74 0.15 350);
+    --acc-activo: oklch(0.76 0.14 160);
+    --acc-tr: oklch(0.88 0.01 280);
+    --acc-212: oklch(0.72 0.13 225);
+    --acc-cash: var(--money);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button, input { font: inherit; color: inherit }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .ctl { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .pill { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400); cursor: pointer; transition: color .15s, background .15s, border-color .15s; white-space: nowrap }
+  .pill:hover { color: var(--ink-200) }
+  .pill.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 780px; margin: 0 auto; text-align: center }
+  .note b { color: var(--ink-200); font-weight: 400 }
+  .mono { font-family: var(--mono) }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .up { color: var(--good) } .down { color: var(--danger) } .flat { color: var(--ink-500) } .warn { color: var(--warn) }
+
+  .tabs { display: flex; gap: 6px }
+  .card { position: relative; border-radius: 22px; padding: 18px 20px; border: 1px solid rgba(var(--lift),.08);
+    background: linear-gradient(160deg, rgba(var(--lift),.035), rgba(var(--lift),.01) 50%), #1a1a28; box-shadow: 0 30px 80px -30px rgba(0,0,0,.8); animation: rise .45s cubic-bezier(.2,.8,.2,1) both }
+  .card.sys { border-color: var(--sys-edge); box-shadow: 0 30px 80px -30px rgba(0,0,0,.8), 0 0 40px -22px var(--shine) }
+  .title { font-family: var(--mono); font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px) } }
+  @keyframes land { 0% { background: rgba(181,171,252,.22) } 100% { background: transparent } }
+
+  /* Sub-tabs (3 Oct, his ask: "too much scrolling … additional tabs in
+     flow"). The month line stays on top; one room below it at a time.
+     Each tab carries one line of what is inside, so a warning on a tab
+     you are not looking at is still seen. */
+  .sub { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; position: sticky; top: 0; z-index: 5; padding: 8px 0; background: linear-gradient(var(--bg) 70%, transparent) }
+  .st { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; padding: 12px 16px; border-radius: 16px; border: 1px solid rgba(var(--lift),.08); background: rgba(var(--lift),.02); cursor: pointer; text-align: left; transition: border-color .2s, background .2s, box-shadow .2s }
+  .st:hover { border-color: rgba(var(--lift),.16) }
+  .st .stt { font-family: var(--mono); font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: var(--ink-400) }
+  .st .sts { font-size: 12.5px; color: var(--ink-500); line-height: 1.35 }
+  .st.on { border-color: var(--sys-edge); background: rgba(181,171,252,.07); box-shadow: 0 0 30px -16px var(--shine) }
+  .st.on .stt { color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .st.on .sts { color: var(--ink-300) }
+  .st .dot { display: inline-block; width: 6px; height: 6px; border-radius: 99px; margin-right: 6px; vertical-align: 1px; background: var(--c) }
+  @media (max-width: 620px) { .sub { gap: 5px } .st { padding: 10px 11px } .st .stt { font-size: 10px; letter-spacing: .14em } .st .sts { font-size: 11px } }
+  .room[hidden] { display: none }
+  .tog { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-400); background: none; border: 1px solid rgba(var(--lift),.12); border-radius: 999px; padding: 5px 11px; cursor: pointer }
+  .tog.on { color: var(--ink-100); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent); background: rgba(181,171,252,.12) }
+  .tog i { width: 14px; height: 8px; border-radius: 3px; background: color-mix(in oklch, var(--lav-400) 25%, transparent); border: 1px dashed color-mix(in oklch, var(--lav-400) 60%, transparent) }
+
+  /* Month in one line */
+  .month { display: grid; grid-template-columns: 1.3fr 1fr; gap: 22px; align-items: end }
+  @media (max-width: 860px) { .month { grid-template-columns: 1fr } }
+  .nums { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 8px }
+  .num { display: flex; flex-direction: column; gap: 4px }
+  .num b { font-weight: 300; font-size: 34px; letter-spacing: -.01em; font-variant-numeric: tabular-nums }
+  .num small { font-family: var(--mono); font-size: 11px; color: var(--ink-500) }
+  .say { margin-top: 12px; font-size: 13.5px; color: var(--ink-300); line-height: 1.5 }
+  .say b { font-weight: 400; color: var(--ink-100) }
+  svg { display: block; overflow: visible }
+  .axis text { fill: var(--ink-500); font-family: var(--mono); font-size: 10px }
+
+  /* Ahead */
+  .ahead { display: grid; grid-template-columns: 1fr 260px; gap: 20px }
+  @media (max-width: 900px) { .ahead { grid-template-columns: 1fr } }
+
+  .yes { background: rgba(181,171,252,.18); border: 1px solid color-mix(in oklch, var(--lav-400) 45%, transparent); color: var(--ink-100); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .1em }
+  .no { background: none; border: 1px solid rgba(var(--lift),.12); color: var(--ink-400); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .1em }
+  .no:hover { color: var(--ink-100) }
+  .bills { display: flex; flex-direction: column }
+  .mhead { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 4px 6px; border-bottom: 1px solid rgba(var(--lift),.07) }
+  .mhead:first-child { padding-top: 2px }
+  .bill { display: grid; grid-template-columns: 54px 26px 1fr auto; gap: 12px; align-items: center; padding: 9px 4px; border-bottom: 1px solid rgba(var(--lift),.04); cursor: pointer; border-radius: 8px; transition: background .15s }
+  .bill:hover { background: rgba(var(--lift),.035) }
+  .bill.landed { animation: land 1.4s ease-out }
+  .date { display: flex; flex-direction: column; align-items: center; line-height: 1.1 }
+  .date b { font-weight: 300; font-size: 20px; font-variant-numeric: tabular-nums }
+  .date small { font-family: var(--mono); font-size: 9.5px; color: var(--ink-500); letter-spacing: .1em; text-transform: uppercase }
+  .bill .nm { font-size: 14px; display: flex; flex-direction: column; gap: 3px; min-width: 0 }
+  .bill .nm small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); letter-spacing: .04em }
+  .bill .amt { font-family: var(--mono); font-size: 14px; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 3px }
+  .bill .amt small { font-size: 10px; letter-spacing: .06em }
+  .bill.paid { opacity: .55 }
+  .bill.gone { opacity: 0; transform: translateX(14px); transition: opacity .28s, transform .28s }
+  .nab { background: none; border: none; padding: 0; cursor: pointer; font-family: var(--mono); font-size: 10px; letter-spacing: .06em; color: var(--ink-500) }
+  .nab:hover { color: var(--danger) }
+  .bill.short { background: color-mix(in oklch, var(--warn) 7%, transparent) }
+  .tag { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; color: var(--ink-400); background: rgba(var(--lift),.05); white-space: nowrap }
+  .tag.y { color: var(--lav-300); background: rgba(181,171,252,.12) }
+  .tag.w { color: var(--warn); background: color-mix(in oklch, var(--warn) 14%, transparent) }
+  .tag.g { color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent) }
+  .logo { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-family: var(--mono); font-size: 10px; font-weight: 500; color: #15151f; background: var(--c); box-shadow: 0 0 12px -4px var(--c) }
+  .side { display: flex; flex-direction: column; gap: 14px }
+  .box { border-radius: 16px; padding: 14px; border: 1px solid rgba(var(--lift),.07); background: rgba(var(--lift),.02); display: flex; flex-direction: column; gap: 8px }
+  .box .big { font-weight: 300; font-size: 26px; font-variant-numeric: tabular-nums }
+  .kv { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 12px; color: var(--ink-300); padding: 3px 0 }
+  .kv span:first-child { color: var(--ink-500) }
+  .link { background: none; border: none; padding: 0; color: var(--lav-300); font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; text-align: left }
+  .link:hover { color: var(--ink-100) }
+
+  /* Where it went */
+  .groups { display: flex; flex-direction: column }
+  .grp { display: grid; grid-template-columns: 150px 1fr 120px 96px 90px; gap: 14px; align-items: center; padding: 10px 6px; border-bottom: 1px solid rgba(var(--lift),.05); cursor: pointer; border-radius: 8px; transition: background .15s }
+  .grp:hover { background: rgba(var(--lift),.035) }
+  @media (max-width: 760px) { .grp { grid-template-columns: 110px 1fr 84px 80px } .grp .spark { display: none } }
+  .grp .nm { font-size: 14px; display: flex; flex-direction: column; gap: 2px } .grp .nm small { font-family: var(--mono); font-size: 10px; color: var(--ink-500) }
+  .hb { height: 8px; border-radius: 99px; background: rgba(var(--lift),.05); overflow: hidden }
+  .hb i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, color-mix(in oklch, var(--money) 55%, transparent), var(--money)); transform-origin: left; animation: grow .7s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes grow { from { transform: scaleX(0) } }
+  .grp .v { font-family: var(--mono); text-align: right }
+  .grp .d { font-family: var(--mono); font-size: 12px; text-align: right }
+
+  /* Movements */
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
+  .chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px 5px 5px; border-radius: 999px; border: 1px solid rgba(var(--lift),.1); background: none; cursor: pointer; font-size: 12.5px; color: var(--ink-300); transition: all .15s }
+  .chip .logo { width: 20px; height: 20px; border-radius: 99px; font-size: 8.5px }
+  .chip.on { color: var(--ink-100); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent); background: rgba(181,171,252,.1) }
+  .chip.all { padding-left: 11px }
+  .search { flex: 1; min-width: 160px; max-width: 260px; margin-left: auto; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(var(--lift),.1); background: rgba(var(--lift),.03); outline: none; font-size: 13px }
+  .search:focus { border-color: var(--sys-edge) }
+  .strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; margin: 16px 0 6px; height: 74px; align-items: end }
+  .cell { position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; cursor: pointer; border-radius: 6px; padding-bottom: 2px; background: none; border: none }
+  .cell:hover { background: rgba(var(--lift),.04) }
+  .cell .col { align-self: stretch; margin: 0 18%; border-radius: 3px 3px 1px 1px; background: color-mix(in oklch, var(--danger) 60%, transparent); min-height: 2px; transform-origin: bottom; animation: grow2 .6s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes grow2 { from { transform: scaleY(0) } }
+  .cell .col.in { background: var(--good) }
+  .cell small { font-family: var(--mono); font-size: 9px; color: var(--ink-600); text-align: center }
+  .cell.today small { color: var(--lav-300) }
+  .cell .bd { position: absolute; top: 2px; left: calc(50% - 3px); width: 6px; height: 6px; border-radius: 99px; border: 1.3px solid var(--ink-400) }
+  .cell.future .bd { border-color: var(--lav-400) }
+  .cell.on { background: rgba(181,171,252,.12) }
+  .list { display: flex; flex-direction: column }
+  .dayh { display: flex; justify-content: space-between; padding: 16px 4px 6px; border-bottom: 1px solid rgba(var(--lift),.07); scroll-margin-top: 20px }
+  .dayh.flash { animation: land 1.4s ease-out }
+  .mv { display: grid; grid-template-columns: 26px 1fr auto; gap: 12px; align-items: center; padding: 8px 4px; border-bottom: 1px solid rgba(var(--lift),.035); font-size: 13.5px }
+  .mv small { display: block; font-family: var(--mono); font-size: 10px; color: var(--ink-500); letter-spacing: .04em; margin-top: 2px }
+  .mv .a { font-family: var(--mono) }
+  .mv.move { color: var(--ink-400) }
+  .mv.move .a { color: var(--ink-400) }
+  .pair { display: flex; align-items: center }
+  .pair .logo { width: 18px; height: 18px; font-size: 7.5px; border-radius: 6px }
+  .pair .logo + .logo { margin-left: -6px; box-shadow: 0 0 0 2px #1a1a28 }
+  .more { margin: 14px auto 0; display: block }
+
+  .empty { padding: 34px 10px; text-align: center; color: var(--ink-400); line-height: 1.6; font-size: 13.5px }
+  .empty b { display: block; color: var(--ink-100); font-weight: 400; font-size: 16px; margin-bottom: 4px }
+
+  /* Sheet: rows behind a number */
+  .veil { position: fixed; inset: 0; background: rgba(8,8,14,.55); backdrop-filter: blur(4px); display: none; align-items: flex-end; justify-content: center; z-index: 9 }
+  .veil.on { display: flex }
+  .sheet { width: min(600px, 100%); max-height: 86vh; overflow: auto; border-radius: 22px 22px 0 0; padding: 18px 20px 26px; border: 1px solid var(--sys-edge); border-bottom: none;
+    background: linear-gradient(160deg, rgba(181,171,252,.09), rgba(181,171,252,.02) 40%), #1d1c2d; box-shadow: 0 -20px 70px -20px rgba(0,0,0,.85), 0 0 40px -18px var(--shine); animation: up .32s cubic-bezier(.2,.8,.2,1) both; display: flex; flex-direction: column; gap: 12px }
+  @keyframes up { from { transform: translateY(30px); opacity: 0 } }
+  .sheet .t { display: flex; justify-content: space-between; align-items: center }
+  .mv.tap { cursor: pointer; border-radius: 8px; transition: background .15s } .mv.tap:hover { background: rgba(var(--lift),.035) }
+  .addb { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; padding: 4px 11px; border-radius: 999px; border: 1px dashed color-mix(in oklch, var(--lav-400) 50%, transparent); background: none; color: var(--lav-300); cursor: pointer }
+  .addb:hover { background: rgba(181,171,252,.1); color: var(--ink-100) }
+  .line { width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--sys-edge); background: rgba(var(--lift),.03); outline: none; font-family: var(--mono); font-size: 14px }
+  .read { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 26px; font-size: 13px; color: var(--ink-300) }
+  .read .tag { font-size: 10.5px; padding: 4px 9px }
+  .choose { display: flex; gap: 6px; flex-wrap: wrap }
+  .big2 { font-weight: 300; font-size: 30px; font-variant-numeric: tabular-nums }
+  .x { width: 30px; height: 30px; border-radius: 99px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300); cursor: pointer }
+  .yr { display: grid; grid-template-columns: 44px 1fr 80px; gap: 10px; align-items: center; padding: 6px 0; font-family: var(--mono); font-size: 12px }
+  .yr .hb i { background: linear-gradient(90deg, color-mix(in oklch, var(--lav-400) 50%, transparent), var(--lav-400)) }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">Mockup · sample numbers · pick a situation</div>
+  <div class="scen" id="scen"></div>
+  <p class="note" id="note"></p>
+
+  <div class="tabs"><span class="pill">Overview</span><span class="pill on">Flow</span><span class="pill">Portfolio</span></div>
+
+  <section class="card" id="monthCard"></section>
+  <nav class="sub" id="sub"></nav>
+  <section class="card sys room" id="aheadCard"></section>
+  <section class="card room" id="wentCard"></section>
+  <section class="card room" id="moveCard"></section>
+</div>
+<div class="veil" id="veil" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheet"></div></div>
+
+<script>
+const DAY = 86400000
+const D = (m, d) => Date.UTC(2026, m, d)
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim()
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+const eur = (v, c = 0) => '€' + Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: c, maximumFractionDigits: c })
+const eur2 = (v) => eur(v, 2)
+const dt = (t) => new Date(t)
+const short = (t) => dt(t).getUTCDate() + ' ' + MON[dt(t).getUTCMonth()]
+const mkey = (t) => dt(t).getUTCFullYear() * 12 + dt(t).getUTCMonth()
+const mname = (k) => MON[k % 12]
+const lastDay = (y, m) => new Date(Date.UTC(y, m + 1, 0)).getUTCDate()
+
+const ACC = {
+  bpi: { name: 'BPI', mark: 'BPI', c: '--acc-bpi', free: true },
+  revolut: { name: 'Revolut', mark: 'R', c: '--acc-revolut', free: true },
+  activo: { name: 'ActivoBank', mark: 'AB', c: '--acc-activo', free: true },
+  cash: { name: 'Cash', mark: '€', c: '--acc-cash', free: true },
+  tr: { name: 'Trade Republic', mark: 'TR', c: '--acc-tr', free: false },
+  '212': { name: 'Trading 212', mark: '212', c: '--acc-212', free: false },
+}
+const logo = (id, cls = '') => `<span class="logo ${cls}" style="--c:${css(ACC[id].c)}">${ACC[id].mark}</span>`
+
+/* Recurring: found in statements and said yes to once. `amt` is what the
+   last payment was; a bill whose amount moves (EDP) says "about". */
+const RECUR = [
+  { id: 'salary', name: 'BNP Paribas', what: 'salary', acc: 'bpi', amt: 2638.36, day: 27, in: true },
+  { id: 'gym', name: 'Fitness Hut', what: 'gym', acc: 'activo', amt: 35, day: 1, group: 'health' },
+  { id: 'icloud', name: 'iCloud+', what: 'subscription', acc: 'revolut', amt: 2.99, day: 2, sub: true },
+  { id: 'mort', name: 'Mortgage', what: 'home', acc: 'bpi', amt: 780.12, day: 8, group: 'home' },
+  { id: 'gpt', name: 'ChatGPT Plus', what: 'subscription', acc: 'revolut', amt: 23, day: 11, sub: true },
+  { id: 'netflix', name: 'Netflix', what: 'subscription', acc: 'revolut', amt: 12.99, day: 14, sub: true },
+  { id: 'edp', name: 'EDP electricity', what: 'home · amount changes', acc: 'bpi', amt: 61.4, about: true, day: 18, group: 'home' },
+  { id: 'spotify', name: 'Spotify', what: 'subscription', acc: 'revolut', amt: 10.99, day: 20, sub: true },
+  { id: 'voda', name: 'Vodafone', what: 'phone and internet', acc: 'bpi', amt: 34.99, day: 22, group: 'home' },
+  { id: 'yt', name: 'YouTube Premium', what: 'subscription', acc: 'revolut', amt: 8.49, day: 24, sub: true },
+  { id: 'gone', name: 'Google One', what: 'subscription', acc: 'revolut', amt: 1.99, day: 29, sub: true },
+  { id: 'github', name: 'GitHub', what: 'subscription', acc: 'revolut', amt: 3.69, day: 5, sub: true },
+  { id: 'car', name: 'Fidelidade', what: 'car insurance', acc: 'bpi', amt: 342.18, day: 15, month: 10, yearly: true, group: 'car' },
+  { id: 'domain', name: 'Namecheap', what: 'domain', acc: 'revolut', amt: 14.98, day: 3, month: 11, yearly: true, sub: true },
+  { id: 'iuc', name: 'IUC', what: 'car tax', acc: 'bpi', amt: 118, day: 20, month: 0, yearly: true, group: 'car' },
+  { id: 'duo', name: 'Duolingo', what: 'subscription', acc: 'revolut', amt: 59.99, day: 12, month: 2, yearly: true, sub: true },
+]
+/* Found in statements, not yet asked: same payee, two of the last three
+   months, within 10%. */
+const FOUND = [
+  { id: 'uber', name: 'Uber One', what: 'Aug 9 · Sep 9 · €5.99 both', acc: 'revolut', amt: 5.99, day: 9, sub: true },
+  { id: 'parking', name: 'EMEL parking', what: 'Aug 2 €30 · Sep 2 €30', acc: 'bpi', amt: 30, day: 2, group: 'car' },
+]
+
+/* History: Apr 1 – Oct 31, deterministic. Rows past the situation's
+   "today" are cut, so every situation is the same life at another date. */
+let seed = 11
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+const PAYEES = {
+  groceries: [['Continente', 'bpi'], ['Pingo Doce', 'bpi'], ['Lidl', 'revolut'], ['Mercadona', 'revolut']],
+  'eating out': [['Honorato', 'revolut'], ['Time Out Market', 'revolut'], ['Uber Eats', 'revolut'], ['Zé dos Cornos', 'activo']],
+  'coffee & small': [['Fábrica Coffee', 'revolut'], ['Padaria Portuguesa', 'revolut'], ['Pastelaria', 'cash'], ['Vending', 'revolut']],
+  transport: [['Bolt', 'revolut'], ['Uber', 'revolut'], ['Galp', 'bpi'], ['Via Verde', 'bpi']],
+  shopping: [['Zara', 'activo'], ['Amazon', 'revolut'], ['Fnac', 'activo'], ['Decathlon', 'bpi']],
+}
+const ROWS = []
+function gen() {
+  for (let t = D(3, 1); t <= D(9, 31); t += DAY) {
+    const d = dt(t), dom = d.getUTCDate(), m = d.getUTCMonth()
+    const add = (r) => ROWS.push({ t, ...r })
+    for (const r of RECUR) {
+      if (r.yearly ? (r.month === m && r.day === dom) : r.day === dom) {
+        const amt = r.about ? Math.round((52 + rnd() * 20) * 100) / 100 : r.amt
+        add({ name: r.name, acc: r.acc, amt: r.in ? amt : -amt, group: r.in ? 'salary' : r.sub ? 'subscriptions' : r.group, rec: r.id })
+      }
+    }
+    for (const f of FOUND) if ((m === 7 || m === 8) && f.day === dom) add({ name: f.name, acc: f.acc, amt: -f.amt, group: f.sub ? 'subscriptions' : f.group })
+    const jump = m === 8 ? 1.7 : 1
+    if (rnd() < 0.42) { const [n, a] = PAYEES.groceries[Math.floor(rnd() * 4)]; add({ name: n, acc: a, amt: -Math.round((18 + rnd() * 55) * 100) / 100, group: 'groceries' }) }
+    if (rnd() < 0.28 * jump) { const [n, a] = PAYEES['eating out'][Math.floor(rnd() * 4)]; add({ name: n, acc: a, amt: -Math.round((9 + rnd() * 28) * 100) / 100, group: 'eating out' }) }
+    if (rnd() < 0.8) { const [n, a] = PAYEES['coffee & small'][Math.floor(rnd() * 4)]; add({ name: n, acc: a, amt: -Math.round((1.2 + rnd() * 4.5) * 100) / 100, group: 'coffee & small' }) }
+    if (rnd() < 0.25) { const [n, a] = PAYEES.transport[Math.floor(rnd() * 4)]; add({ name: n, acc: a, amt: -Math.round((5 + rnd() * (n === 'Galp' ? 60 : 12)) * 100) / 100, group: 'transport' }) }
+    if (rnd() < 0.08) { const [n, a] = PAYEES.shopping[Math.floor(rnd() * 4)]; add({ name: n, acc: a, amt: -Math.round((19 + rnd() * 80) * 100) / 100, group: 'shopping' }) }
+    /* Moves between his own accounts: one row, two logos. */
+    if (dom === 26) add({ move: true, from: 'bpi', to: 'revolut', amt: 400, name: 'Top-up' })
+    if (dom === 2) add({ move: true, from: 'revolut', to: 'tr', amt: 100, name: 'Savings plan cash' })
+    if (dom === 12 && m % 2 === 0) add({ move: true, from: 'bpi', to: 'cash', amt: 100, name: 'ATM' })
+    if (t === D(7, 27)) add({ move: true, from: 'bpi', to: 'activo', amt: 300, name: 'Transfer' })
+    if (t === D(8, 1)) add({ move: true, from: 'bpi', to: 'activo', amt: 1100, name: 'Transfer' })
+    /* Paid once so far: a yearly insurance and a club he just joined. */
+    if (t === D(8, 22)) add({ name: 'Allianz', acc: 'bpi', amt: -218.4, group: 'home' })
+    if (t === D(8, 28)) add({ name: 'Padel Lisboa', acc: 'bpi', amt: -40, group: 'health' })
+    if (t === D(3, 15)) add({ name: 'Ordem dos Engenheiros', acc: 'bpi', amt: -75, group: 'fees' })
+    if (t === D(6, 4)) add({ name: 'Médis', acc: 'bpi', amt: -41.5, group: 'health' })
+  }
+}
+gen()
+ROWS.forEach((r, i) => (r.i = i))
+
+/* Balances on 3 Oct (sample), rolled forward by the rows for later "todays". */
+const BASE = { bpi: 3140.55, revolut: 418.2, activo: 153.21, cash: 420, tr: 1042.1, '212': 12994.22 }
+function balances(today, over = {}) {
+  const b = { ...BASE, ...over }
+  for (const r of ROWS) {
+    if (r.t <= D(9, 3) || r.t > today) continue
+    if (r.move) { b[r.from] -= r.amt; b[r.to] += r.amt } else b[r.acc] += r.amt
+  }
+  return b
+}
+
+const SCEN = {
+  early: { label: '3 Oct · early month', today: D(9, 3), note: '<b>3 days into October.</b> The month line is honest about it (September beside it, closed). AHEAD leads: every recurring payment until the end of December, the yearly car insurance inside it, and the line of free cash moved only by those.' },
+  salary: { label: '28 Oct · salary in', today: D(9, 28), note: '<b>Salary landed yesterday.</b> October almost closed: in, out, what is left. Ahead starts the next pay month — the mortgage on the 8th is the first big step down.' },
+  found: { label: 'bills found', today: D(9, 3), found: true, note: '<b>The reader found two payments that repeat.</b> No question: they go straight onto their day, tagged NEW for a week. Wrong one? × NOT A BILL on its row and it is never found again. Same for the mortgage, Vodafone, the gym — found, placed, never asked.' },
+  short: { label: 'short on the day', today: D(9, 3), over: { revolut: 31.2, activo: 12.4 }, note: '<b>An account will not hold enough on the day.</b> Revolut has €31.20: ChatGPT on the 11th leaves €8.21, Netflix on the 14th is €12.99 — marked before it happens, with the top-up on the 26th in sight.' },
+  jump: { label: 'spending jumped', today: D(9, 3), went: 8, tab: 'went', note: '<b>September, eating out up.</b> Opens on SPENDING here only to show it — Flow always opens on AHEAD. WHERE IT WENT says the one thing that grew most in a sentence, then every group with its six months. Tap a group: its rows, this month and last.' },
+  add: { label: 'add a bill', today: D(9, 3), note: '<b>Bills the app cannot know repeat — paid once so far:</b> Allianz home insurance (yearly), Padel Lisboa (just joined), Médis, the Ordem fee. + BILL on AHEAD opens with them, straight from your statements: MONTHLY or YEARLY and it is on its day. Or tap any row in MOVEMENTS → REPEATS. Typing is only for a bill not paid yet.' },
+  none: { label: 'nothing yet', today: D(9, 3), empty: true, note: '<b>Day one, no statements.</b> Each card says what will appear and what feeds it — no form to fill.' },
+}
+let S = { scen: 'early', tab: 'ahead', band: true, went: null, acc: null, q: '', limit: 30, ans: {}, added: [], notice: null, landed: null, day: null, open: {} }
+
+function setScen(k) { S = { scen: k, tab: SCEN[k].tab ?? 'ahead', band: true, went: SCEN[k].went ?? null, acc: null, q: '', limit: 30, ans: {}, added: [], notice: null, landed: null, day: null, open: {} }; render() }
+function setTab(t) { S.tab = t; subTabs(); const top = document.getElementById('sub').getBoundingClientRect().top; if (top <= 1) document.getElementById('sub').scrollIntoView() }
+
+function render() {
+  const sc = SCEN[S.scen]
+  document.getElementById('scen').innerHTML = Object.entries(SCEN).map(([k, s]) => `<button class="pill ${S.scen === k ? 'on' : ''}" onclick="setScen('${k}')">${s.label}</button>`).join('')
+  document.getElementById('note').innerHTML = sc.note
+  monthCard(); aheadCard(); wentCard(); moveCard(); subTabs()
+}
+
+/* ── Sub-tabs: one line each of what is inside ─────────────────── */
+function subTabs() {
+  const sc = SCEN[S.scen], today = sc.today
+  let ahead = 'bills and salary, next 3 months', went = 'six months, by group', moves = 'every account, one list'
+  let aheadDot = '', wentDot = ''
+  if (!sc.empty) {
+    const up = upcoming(today, today + 89 * DAY), k = mkey(today)
+    const next = up.find((e) => !e.r.in)
+    const fresh = foundIn().length
+    const shorts = S.shorts ?? 0 /* the AHEAD card's own count, never a second sum */
+    if (shorts) { ahead = `${shorts} not covered on the day`; aheadDot = '--warn' }
+    else if (fresh) { ahead = `${fresh} new found · added`; aheadDot = '--lav-400' }
+    else if (next) ahead = `next: ${next.r.name} −${eur(next.r.amt)} · ${short(next.t)}`
+    const rows = rowsTo(today), wk = dt(today).getUTCDate() < 10 ? k - 1 : k
+    const g = {}
+    for (const r of rows) if (!r.move && r.amt < 0 && r.group !== 'home') { const m = mkey(r.t); if (m === wk || m === wk - 1) (g[r.group] ??= [0, 0])[m === wk ? 0 : 1] -= r.amt }
+    const top = Object.entries(g).sort((a, b) => (b[1][0] - b[1][1]) - (a[1][0] - a[1][1]))[0]
+    if (top && top[1][0] - top[1][1] > 40) { went = `${top[0]} ▲ ${eur(top[1][0] - top[1][1])} in ${mname(wk)}`; wentDot = '--danger' }
+    else went = `${mname(wk)} −${eur(spend(inMonth(rows, wk)))} out`
+    const tod = rows.filter((r) => r.t === today).length
+    moves = tod ? `${tod} today · every account` : 'every account, one list'
+  }
+  const T = [['ahead', 'Ahead', ahead, aheadDot], ['went', 'Spending', went, wentDot], ['moves', 'Movements', moves, '']]
+  document.getElementById('sub').innerHTML = T.map(([id, t, s, dot]) => `<button class="st ${S.tab === id ? 'on' : ''}" onclick="setTab('${id}')"><span class="stt">${t}</span><span class="sts">${dot ? `<span class="dot" style="--c:var(${dot})"></span>` : ''}${s}</span></button>`).join('')
+  document.getElementById('aheadCard').hidden = S.tab !== 'ahead'
+  document.getElementById('wentCard').hidden = S.tab !== 'went'
+  document.getElementById('moveCard').hidden = S.tab !== 'moves'
+}
+const rowsTo = (today) => SCEN[S.scen].empty ? [] : ROWS.filter((r) => r.t <= today)
+const spend = (rows) => rows.filter((r) => !r.move && r.amt < 0).reduce((n, r) => n - r.amt, 0)
+const income = (rows) => rows.filter((r) => !r.move && r.amt > 0).reduce((n, r) => n + r.amt, 0)
+const inMonth = (rows, k) => rows.filter((r) => mkey(r.t) === k)
+
+/* ── The month in one line ─────────────────────────────────────── */
+function monthCard() {
+  const sc = SCEN[S.scen], today = sc.today, rows = rowsTo(today)
+  const k = mkey(today), d = dt(today)
+  const el = document.getElementById('monthCard')
+  if (sc.empty) { el.innerHTML = `<div class="head"><span class="title">[ ${MON[d.getUTCMonth()]} ]</span></div><div class="empty"><b>Nothing read yet</b>In, out and what is left appear with the first statement.<br/>Drop one with + on Overview.</div>`; return }
+  const cur = inMonth(rows, k), prev = inMonth(rows, k - 1)
+  const ci = income(cur), co = spend(cur), pi = income(prev), po = spend(prev)
+  const dayN = d.getUTCDate(), len = lastDay(2026, d.getUTCMonth())
+  const months = [k - 5, k - 4, k - 3, k - 2, k - 1, k].map((m) => ({ m, i: income(inMonth(rows, m)), o: spend(inMonth(rows, m)) }))
+  const mx = Math.max(...months.flatMap((x) => [x.i, x.o]))
+  const W = 380, H = 120, bw = 18
+  let g = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto"><g class="axis">`
+  months.forEach((x, i) => {
+    const cx = 16 + i * (W - 32) / 5
+    const hi = x.i / mx * 86, ho = x.o / mx * 86, part = x.m === k
+    g += `<rect x="${cx - bw - 1}" y="${96 - hi}" width="${bw}" height="${hi}" rx="3" fill="${css('--good')}" opacity="${part ? .45 : .8}"/>`
+    g += `<rect x="${cx + 1}" y="${96 - ho}" width="${bw}" height="${ho}" rx="3" fill="${css('--danger')}" opacity="${part ? .45 : .8}"/>`
+    g += `<text x="${cx}" y="${H - 6}" text-anchor="middle" ${part ? `fill="${css('--lav-300')}"` : ''}>${mname(x.m)}${part ? ' so far' : ''}</text>`
+  })
+  g += '</g></svg>'
+  const left = ci - co, pleft = pi - po
+  const early = dayN < 10
+  el.innerHTML = `<div class="head"><span class="title">[ ${MON[d.getUTCMonth()]} · day ${dayN} of ${len} ]</span><span class="caps">moves between your accounts not counted</span></div>
+  <div class="month"><div>
+    <div class="nums">
+      <div class="num"><small>IN</small><b class="up">+${eur(ci)}</b><small>${ci ? 'salary ' + short(D(d.getUTCMonth(), 27)) : 'salary due ' + short(D(d.getUTCMonth(), 27))}</small></div>
+      <div class="num" style="cursor:pointer" onclick="setTab('moves')"><small>OUT</small><b class="down">−${eur(co)}</b><small>${cur.filter((r) => !r.move && r.amt < 0).length ? 'tap: every row' : '—'}</small></div>
+      <div class="num"><small>LEFT</small><b class="${!ci ? 'flat' : left >= 0 ? 'up' : 'down'}">${left >= 0 ? '+' : '−'}${eur(left)}</b><small>${ci ? 'in − out' : 'salary not in yet'}</small></div>
+    </div>
+    <p class="say">${early
+      ? `October has only begun. <b>${MON[(k - 1) % 12]} closed at +${eur(pi)} in, −${eur(po)} out: ${pleft >= 0 ? '+' : '−'}${eur(pleft)} left.</b>`
+      : `${MON[(k - 1) % 12]} at this point had gone <b>−${eur(spend(prev.filter((r) => dt(r.t).getUTCDate() <= dayN)))}</b> out; this month <b>−${eur(co)}</b>.`}</p>
+  </div><div><div class="caps" style="margin-bottom:6px">in · out · six months</div>${g}</div></div>`
+}
+
+/* ── Ahead: recurring payments first, then the line ─────────────── */
+/* Found bills are in unless he said "not a bill" — the app decides, he corrects. */
+const foundIn = () => SCEN[S.scen].found ? FOUND.filter((f) => S.ans[f.id] !== 'no') : []
+function upcoming(today, until) {
+  const list = []
+  for (let t = today + DAY; t <= until; t += DAY) {
+    const d = dt(t)
+    for (const r of [...RECUR, ...foundIn(), ...S.added]) {
+      const len = lastDay(d.getUTCFullYear(), d.getUTCMonth())
+      const day = Math.min(r.day, len)
+      if (d.getUTCDate() === day && (!r.yearly || r.month === d.getUTCMonth())) list.push({ t, r })
+    }
+  }
+  return list
+}
+function aheadCard() {
+  const sc = SCEN[S.scen], today = sc.today, el = document.getElementById('aheadCard')
+  if (sc.empty) { el.innerHTML = `<div class="head"><span class="title">[ AHEAD ]</span></div><div class="empty"><b>Nothing coming yet</b>Bills and salary are found in your statements — the same payee each month.<br/>Each one is asked once, then sits here on its day.</div>`; return }
+  const until = today + 89 * DAY
+  const up = upcoming(today, until)
+  const bal = balances(today, sc.over)
+  /* Per account, walk the days: a payment the account will not cover is marked. */
+  const run = { ...bal }
+  const tops = ROWS.filter((r) => r.move && r.t > today && r.t <= until)
+  for (const e of up) {
+    for (const m of tops) if (m.t <= e.t && !m.done) { run[m.from] -= m.amt; run[m.to] += m.amt; m.done = true }
+    const before = run[e.r.acc]
+    run[e.r.acc] += e.r.in ? e.r.amt : -e.r.amt
+    e.after = run[e.r.acc]; e.short = !e.r.in && before < e.r.amt; e.held = before
+  }
+  tops.forEach((m) => delete m.done)
+  const free = Object.entries(bal).filter(([a]) => ACC[a].free).reduce((n, [, v]) => n + v, 0)
+  const out = up.filter((e) => !e.r.in).reduce((n, e) => n + e.r.amt, 0)
+  const inn = up.filter((e) => e.r.in).reduce((n, e) => n + e.r.amt, 0)
+  const shorts = up.filter((e) => e.short)
+  S.shorts = shorts.length
+
+  /* Paid already this month: shown as ticked, above what is coming. */
+  const k = mkey(today)
+  const paid = ROWS.filter((r) => r.rec && r.t <= today && mkey(r.t) === k && !RECUR.find((x) => x.id === r.rec).in)
+
+  const fresh = foundIn()
+  let html = `<div class="head"><span style="display:flex;gap:12px;align-items:center"><span class="title">[ AHEAD · next 3 months ]</span><button class="addb" onclick="openAdd()">+ bill</button></span>
+    <span class="caps">${up.filter((e) => !e.r.in).length} payments · −${eur(out)} &nbsp;·&nbsp; salary +${eur(inn)}${shorts.length ? ` &nbsp;·&nbsp; <span class="warn">${shorts.length} not covered on the day</span>` : ''}</span></div>`
+  if (S.notice) html += `<p class="say" style="margin:0 0 12px"><span class="tag g">added</span>&nbsp; ${S.notice}</p>`
+  if (fresh.length) html += `<p class="say" style="margin:0 0 12px"><span class="tag y">new</span>&nbsp; Found in your statements and put on their days: ${fresh.map((f) => `<b>${f.name}</b> ${eur2(f.amt)}`).join(', ')}. Nothing to answer — × on a row if it is not a bill.</p>`
+  const rows0 = rowsTo(today)
+  const rest0 = [k - 3, k - 2, k - 1].map((m) => inMonth(rows0, m).filter((r) => !r.move && r.amt < 0 && !isBill(r)).reduce((n, r) => n - r.amt, 0))
+  html += `<div class="ahead"><div>${lineChart(today, until, free, up, S.band ? [Math.min(...rest0), Math.max(...rest0)] : null)}<div class="bills" style="margin-top:14px">`
+  if (paid.length) html += `<div class="mhead"><span class="caps">${MON[dt(today).getUTCMonth()]} · paid already</span><span class="caps">−${eur2(paid.reduce((n, r) => n - r.amt, 0))}</span></div>` +
+    paid.map((r) => billRow({ t: r.t, r: RECUR.find((x) => x.id === r.rec), paidAmt: -r.amt })).join('')
+  /* This month in full. Later months fold to one line that names only
+     what differs from a usual month — a yearly bill, a short account —
+     because the same twelve subscriptions three times is a list, not an
+     answer. Tap to open. */
+  const ms = [...new Set(up.map((e) => mkey(e.t)))]
+  for (const m of ms) {
+    const es = up.filter((e) => mkey(e.t) === m), tot = es.filter((x) => !x.r.in).reduce((n, x) => n + x.r.amt, 0)
+    const full = m === k || S.open[m]
+    const odd = es.filter((e) => e.r.yearly || e.short)
+    html += `<div class="mhead" ${m === k ? '' : `style="cursor:pointer" onclick="S.open[${m}]=!S.open[${m}];aheadCard()"`}><span class="caps">${mname(m)}${m === k ? ' · still to come' : ` · ${es.filter((e) => !e.r.in).length} payments ${full ? '▴' : '▾'}`}</span><span class="caps">−${eur2(tot)}${es.some((e) => e.r.in) ? ' · salary +' + eur(es.filter((e) => e.r.in).reduce((n, e) => n + e.r.amt, 0)) : ''}</span></div>`
+    if (full) html += es.map(billRow).join('')
+    else html += odd.length ? odd.map(billRow).join('') : `<div class="caps" style="padding:10px 4px;color:var(--ink-600)">the usual month — nothing new</div>`
+  }
+  html += `</div></div>`
+
+  /* Beside: what the line leaves out, as real sums, and the year. */
+  const rows = rowsTo(today)
+  const rest = [k - 3, k - 2, k - 1].map((m) => ({ m, v: inMonth(rows, m).filter((r) => !r.move && r.amt < 0 && !isBill(r)).reduce((n, r) => n - r.amt, 0) }))
+  const lo = Math.min(...rest.map((x) => x.v)), hi = Math.max(...rest.map((x) => x.v))
+  const subs = RECUR.filter((r) => r.sub).concat(foundIn().filter((f) => f.sub), S.added.filter((r) => r.sub))
+  const subYear = subs.reduce((n, r) => n + (r.yearly ? r.amt : r.amt * 12), 0)
+  html += `<div class="side">
+    <div class="box"><span class="caps">free cash today</span><span class="big">${eur(free)}</span>
+      ${Object.entries(bal).filter(([a]) => ACC[a].free).map(([a, v]) => `<div class="kv"><span>${ACC[a].name}</span><span class="${v < 40 ? 'warn' : ''}">${eur2(v)}</span></div>`).join('')}
+      <span class="caps" style="line-height:1.6;margin-top:4px">banks and cash · broker cash not counted</span></div>
+    <div class="box"><span class="caps">everything else · ${S.band ? 'the range in the line' : 'left out of the line'}</span>
+      <span class="big">${eur(lo)}–${eur(hi)}</span><span class="caps" style="line-height:1.5">a month, last three months</span>
+      ${rest.map((x) => `<div class="kv"><span>${mname(x.m)}</span><span>−${eur2(x.v)}</span></div>`).join('')}
+      <span class="caps" style="line-height:1.6">groceries, eating out, transport … · real sums, not a guess</span></div>
+    <div class="box"><span class="caps">subscriptions</span><span class="big">${eur(subYear)}<small class="caps"> a year</small></span>
+      <div class="kv"><span>${subs.length} of them</span><span>${eur2(subYear / 12)} a month</span></div>
+      <button class="link" onclick="openYear()">what I pay this year →</button></div>
+  </div></div>`
+  el.innerHTML = html
+  if (S.landed) { document.querySelectorAll('.bill.l-' + S.landed).forEach((n) => n.classList.add('landed')); S.landed = null }
+}
+function billRow(e) {
+  const r = e.r, d = dt(e.t), paid = e.paidAmt != null
+  const status = paid ? `<small class="up">✓ paid · statement row</small>`
+    : r.in ? `<small class="up">arrives</small>`
+    : e.short ? `<small class="warn">${ACC[r.acc].name} holds ${eur2(e.held)}</small>`
+    : `<small class="flat">${Math.round((e.t - SCEN[S.scen].today) / DAY)} days</small>`
+  const amt = paid ? e.paidAmt : r.amt
+  return `<div class="bill l-${r.id} ${paid ? 'paid' : ''} ${e.short ? 'short' : ''}" onclick="openBill('${r.id}')">
+    <span class="date"><b>${d.getUTCDate()}</b><small>${WD[d.getUTCDay()]}</small></span>${logo(r.acc)}
+    <span class="nm">${r.name}<small>${r.what} · ${ACC[r.acc].name} ${r.yearly ? '<span class="tag y">yearly</span>' : ''}${isNew(r) ? '<span class="tag y">new</span>' : ''}${e.short ? ' <span class="tag w">not enough on the day</span>' : ''}</small></span>
+    <span class="amt"><span class="${r.in ? 'up' : ''}">${r.about && !paid ? '≈ ' : ''}${r.in ? '+' : '−'}${eur2(amt)}</span>${isNew(r) ? `<button class="nab" onclick="event.stopPropagation();notBill('${r.id}')">× ${S.added.some((a) => a.id === r.id) ? 'remove' : 'not a bill'}</button>` : status}</span></div>`
+}
+const isBill = (r) => r.rec || S.added.some((a) => a.from === r.name)
+const isNew = (r) => FOUND.some((f) => f.id === r.id) || S.added.some((a) => a.id === r.id)
+/* Default (his call, 3 Oct): everything is in — bills, salary and the
+   rest of his spending, as a range from the lowest to the highest of the
+   last three real months. Never an average. The toggle shows the bills
+   and salary line alone. */
+function lineChart(today, until, free, up, band) {
+  const W = 760, H = 190, L = 4, R = 64, T = 12, B = 22
+  const pts = [{ t: today, v: free }]
+  let v = free
+  for (const e of up) { v += e.r.in ? e.r.amt : -e.r.amt; pts.push({ t: e.t, v, e }) }
+  const days = (t) => (t - today) / DAY
+  const at = (t) => { let v = free; for (const p of pts.slice(1)) if (p.t <= t) v = p.v; return v }
+  /* Upper edge: everything else at the cheapest month; lower: the dearest. */
+  const upE = (t) => band ? at(t) - band[0] / 30 * days(t) : at(t)
+  const loE = (t) => band ? at(t) - band[1] / 30 * days(t) : at(t)
+  const ts = []; for (let t = today; t <= until; t += DAY) ts.push(t)
+  const lo0 = Math.min(...ts.map(loE)), hi0 = Math.max(...ts.map(upE))
+  const lo = lo0 - (hi0 - lo0) * 0.08, hi = hi0 + (hi0 - lo0) * 0.06
+  const x = (t) => L + (t - today) / (until - today) * (W - L - R)
+  const y = (val) => T + (1 - (val - lo) / (hi - lo)) * (H - T - B)
+  let g = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto"><g class="axis">`
+  for (let i = 0; i <= 3; i++) { const val = lo + (hi - lo) * i / 3; g += `<line x1="${L}" x2="${W - R}" y1="${y(val)}" y2="${y(val)}" stroke="rgba(255,255,255,.05)"/><text x="${W - R + 8}" y="${y(val) + 4}">${eur(Math.round(val / 100) * 100)}</text>` }
+  for (let mo = 0; mo < 4; mo++) {
+    const td = dt(today), t = Date.UTC(td.getUTCFullYear(), td.getUTCMonth() + mo + 1, 1)
+    if (t < until) g += `<line x1="${x(t)}" x2="${x(t)}" y1="${T}" y2="${H - B}" stroke="rgba(255,255,255,.07)" stroke-dasharray="2 4"/><text x="${x(t) + 4}" y="${H - 6}">${MON[dt(t).getUTCMonth()]}</text>`
+  }
+  if (lo < 0 && hi > 0) g += `<line x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}" stroke="${css('--danger')}" stroke-opacity=".5" stroke-dasharray="4 4"/><text x="${W - R + 8}" y="${y(0) + 4}" fill="${css('--danger')}">€0</text>`
+  g += `<text x="${L}" y="${H - 6}" fill="${css('--lav-300')}">today</text></g>`
+  g += `<defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${css('--lav-400')}" stop-opacity=".22"/><stop offset="1" stop-color="${css('--lav-400')}" stop-opacity="0"/></linearGradient></defs>`
+  const P = (f) => ts.map((t) => `${x(t).toFixed(1)},${y(f(t)).toFixed(1)}`)
+  const glow = `style="filter:drop-shadow(0 0 6px ${css('--shine')})"`
+  if (band) {
+    g += `<polygon points="${P(upE).join(' ')} ${P(loE).reverse().join(' ')}" fill="${css('--lav-400')}" opacity=".22"/>`
+    g += `<polyline points="${P(upE).join(' ')}" fill="none" stroke="${css('--lav-400')}" stroke-width="2" stroke-linejoin="round" ${glow}/>`
+    g += `<polyline points="${P(loE).join(' ')}" fill="none" stroke="${css('--lav-400')}" stroke-width="1.4" stroke-opacity=".7" stroke-linejoin="round"/>`
+  } else {
+    let d = `M${x(today)},${y(free)}`
+    for (const p of pts.slice(1)) d += `H${x(p.t).toFixed(1)}V${y(p.v).toFixed(1)}`
+    d += `H${x(until)}`
+    g += `<path d="${d} V${H - B} H${x(today)} Z" fill="url(#fill)" opacity=".5"/>`
+    g += `<path d="${d}" fill="none" stroke="${css('--lav-400')}" stroke-width="2" stroke-linejoin="round" ${glow}/>`
+  }
+  let lastLab = -1e9
+  for (const p of pts.slice(1)) {
+    if (p.e.r.amt < 100 && !p.e.short) continue
+    const c = p.e.short ? css('--warn') : p.e.r.in ? css('--good') : css('--ink-300'), py = y(upE(p.t))
+    g += `<circle cx="${x(p.t)}" cy="${py}" r="3.2" fill="#1a1a28" stroke="${c}" stroke-width="1.6"><title>${short(p.t)} · ${p.e.r.name} ${p.e.r.in ? '+' : '−'}${eur2(p.e.r.amt)}</title></circle>`
+    if (p.e.r.amt >= 300) {
+      const near = x(p.t) > W - R - 90, close = x(p.t) - lastLab < 80
+      lastLab = x(p.t)
+      g += `<text x="${x(p.t) + (near ? -6 : 5)}" y="${py + (p.e.r.in ? -7 : close ? 25 : 13)}" text-anchor="${near ? 'end' : 'start'}" style="font-family:var(--mono);font-size:9.5px" fill="${c}">${p.e.r.name === 'BNP Paribas' ? 'salary' : p.e.r.name.toLowerCase()} ${p.e.r.in ? '+' : '−'}${eur(p.e.r.amt)}</text>`
+    }
+  }
+  const eL = loE(until), eU = upE(until)
+  g += band ? `<text x="${x(until) - 6}" y="${Math.min(y(eL) + 14, H - B - 4)}" text-anchor="end" fill="${css('--lav-300')}" style="font-family:var(--mono);font-size:9.5px">${eur(eL)}–${eur(eU)}</text>` : `<circle cx="${x(until)}" cy="${y(eU)}" r="4" fill="${css('--lav-400')}"/>`
+  g += '</svg>'
+  /* One sentence: the lowest point before the next salary. */
+  const nextSal = up.find((e) => e.r.in)
+  const before = ts.filter((t) => !nextSal || t < nextSal.t)
+  const lowT = before.reduce((a, t) => (loE(t) < loE(a) ? t : a), before[0])
+  const lowS = band ? `${eur(loE(lowT))}–${eur(upE(lowT))}` : eur(at(lowT))
+  return `<p class="say" style="margin:0 0 8px">Free cash ${eur(free)} now. Lowest before the next salary: <b>${lowS}</b>${lowT > today ? ` on ${short(lowT)}` : ''}${nextSal ? ` — salary ${short(nextSal.t)}` : ''}. ${band
+      ? `Everything is in: bills, salary, and the rest of your spending as a range — the top edge if you spend like your cheapest of the last three months, the bottom like your dearest.`
+      : `Only bills and salary move this line — the rest of your spending is left out.`}</p>
+    <div style="display:flex;justify-content:flex-end;margin:-2px 0 6px"><button class="tog ${band ? '' : 'on'}" onclick="S.band=!S.band;aheadCard()"><i></i>only bills and salary</button></div>${g}`
+}
+function notBill(id) {
+  document.querySelectorAll('.bill.l-' + id).forEach((n) => n.classList.add('gone'))
+  setTimeout(() => { S.ans[id] = 'no'; S.added = S.added.filter((a) => a.id !== id); S.notice = null; aheadCard(); subTabs() }, 280)
+}
+
+/* ── Where it went ──────────────────────────────────────────────── */
+function wentCard() {
+  const sc = SCEN[S.scen], today = sc.today, el = document.getElementById('wentCard')
+  if (sc.empty) { el.innerHTML = `<div class="head"><span class="title">[ WHERE IT WENT ]</span></div><div class="empty"><b>No spending read yet</b>Every payment from your statements lands in a group — groceries, eating out, the small stuff.<br/>Six months of it shows how each one is changing.</div>`; return }
+  const rows = rowsTo(today), tk = mkey(today)
+  const k = S.went != null ? 2026 * 12 + S.went : dt(today).getUTCDate() < 10 ? tk - 1 : tk
+  const groups = {}
+  for (const r of rows) if (!r.move && r.amt < 0) { const m = mkey(r.t); if (m > k - 6 && m <= k) { (groups[r.group] ??= {})[m] = ((groups[r.group] ?? {})[m] ?? 0) - r.amt } }
+  const list = Object.entries(groups).map(([g, ms]) => ({ g, now: ms[k] ?? 0, prev: ms[k - 1] ?? 0, ms, n: rows.filter((r) => r.group === g && mkey(r.t) === k && !r.move).length })).filter((x) => x.now > 0).sort((a, b) => b.now - a.now)
+  const top = list.filter((x) => x.g !== 'home').reduce((a, b) => (b.now - b.prev > a.now - a.prev ? b : a), list[0])
+  const max = list[0]?.now ?? 1
+  const total = list.reduce((n, x) => n + x.now, 0), ptotal = list.reduce((n, x) => n + x.prev, 0)
+  const ch = top.now - top.prev
+  el.innerHTML = `<div class="head"><span class="title">[ WHERE IT WENT ]</span>
+    <span class="tabs">${[k - 5, k - 4, k - 3, k - 2, k - 1, k].concat(k < tk ? [tk] : []).filter((m, i, a) => a.indexOf(m) === i && m <= tk).slice(-6).map((m) => `<button class="pill ${m === k ? 'on' : ''}" onclick="S.went=${m % 12};wentCard()">${mname(m)}${m === tk ? ' so far' : ''}</button>`).join('')}</span></div>
+    <p class="say" style="margin:0 0 12px">${ch > 0 ? `<b>${cap(top.g)} ${eur(top.now)}, up ${eur(ch)} on ${mname(k - 1)}</b> — the most of any group. ` : ''}${mname(k)}: −${eur(total)} out, ${total > ptotal ? '<span class="down">' + eur(total - ptotal) + ' more</span>' : '<span class="up">' + eur(ptotal - total) + ' less</span>'} than ${mname(k - 1)}.</p>
+    <div class="groups">${list.map((x) => {
+      const d = x.now - x.prev
+      const sp = [5, 4, 3, 2, 1, 0].map((i) => x.ms[k - i] ?? 0), smax = Math.max(...sp, 1)
+      return `<div class="grp" onclick="openGroup('${x.g}',${k})"><span class="nm">${cap(x.g)}<small>${x.n} payment${x.n === 1 ? '' : 's'}</small></span>
+        <span class="hb"><i style="width:${x.now / max * 100}%"></i></span>
+        <svg class="spark" viewBox="0 0 120 26" style="width:120px;height:26px">${sp.map((v, i) => `<rect x="${i * 20 + 2}" y="${24 - v / smax * 22}" width="14" height="${Math.max(1, v / smax * 22)}" rx="2" fill="${i === 5 ? css('--money') : 'rgba(255,255,255,.16)'}"/>`).join('')}</svg>
+        <span class="v">−${eur2(x.now)}</span>
+        <span class="d ${Math.abs(d) < 5 ? 'flat' : d > 0 ? 'down' : 'up'}">${Math.abs(d) < 5 ? 'same' : (d > 0 ? '▲ ' : '▼ ') + eur(Math.abs(d))}</span></div>`
+    }).join('')}</div>
+    <div class="caps" style="margin-top:10px">bars: this month · six small bars: the last six months · ▲ more spent than ${mname(k - 1)}</div>`
+}
+const cap = (s) => s[0].toUpperCase() + s.slice(1)
+
+/* ── Movements: every account, one list ─────────────────────────── */
+function moveCard() {
+  const sc = SCEN[S.scen], today = sc.today, el = document.getElementById('moveCard')
+  if (sc.empty) { el.innerHTML = `<div class="head"><span class="title">[ MOVEMENTS ]</span></div><div class="empty"><b>No movements yet</b>Every row from every account will be here, newest first, in one list.</div>`; return }
+  const from = today - (S.limit - 1) * DAY
+  const q = S.q.toLowerCase()
+  const hit = (r) => (!S.acc || r.acc === S.acc || r.from === S.acc || r.to === S.acc) && (!q || r.name.toLowerCase().includes(q) || (r.group ?? '').includes(q))
+  const rows = rowsTo(today).filter((r) => r.t >= from && hit(r)).sort((a, b) => b.t - a.t)
+  /* Strip: the 30 days of the list, then the rest of the month with bills due. */
+  const td = dt(today), endM = D(td.getUTCMonth(), lastDay(2026, td.getUTCMonth()))
+  const stripFrom = today - 29 * DAY
+  const all = rowsTo(today).filter(hit)
+  const bills = upcoming(today, endM)
+  let cells = '', mx = 1
+  for (let t = stripFrom; t <= today; t += DAY) mx = Math.max(mx, spend(all.filter((r) => r.t === t)))
+  for (let t = stripFrom; t <= endM; t += DAY) {
+    const day = all.filter((r) => r.t === t), o = spend(day), i = income(day)
+    const fut = t > today, bill = fut ? bills.find((b) => b.t === t) : day.find((r) => r.rec)
+    cells += `<button class="cell ${t === today ? 'today' : ''} ${fut ? 'future' : ''} ${S.day === t ? 'on' : ''}" ${fut ? '' : `onclick="jump(${t})"`} title="${short(t)}${o ? ' · −' + eur2(o) : ''}${bill ? ' · ' + (bill.r?.name ?? bill.name) : ''}">
+      ${bill ? '<span class="bd"></span>' : ''}${i ? `<span class="col in" style="height:${Math.min(44, Math.sqrt(i / mx) * 44)}px"></span>` : ''}${fut ? '' : `<span class="col" style="height:${Math.max(2, Math.sqrt(o / mx) * 44)}px"></span>`}<small>${dt(t).getUTCDate()}</small></button>`
+  }
+  let list = '', lastT = null
+  for (const r of rows) {
+    if (r.t !== lastT) {
+      lastT = r.t
+      const day = rows.filter((x) => x.t === r.t), o = spend(day)
+      list += `<div class="dayh" id="d-${r.t}"><span class="caps">${r.t === today ? 'today' : r.t === today - DAY ? 'yesterday' : WD[dt(r.t).getUTCDay()] + ' ' + short(r.t)}</span><span class="caps">${o ? '−' + eur2(o) : ''}</span></div>`
+    }
+    list += r.move
+      ? `<div class="mv move"><span class="pair">${logo(r.from)}${logo(r.to)}</span><span>${ACC[r.from].name} → ${ACC[r.to].name}<small>your move · ${r.name.toLowerCase()} · not in or out</small></span><span class="a">⇄ ${eur2(r.amt)}</span></div>`
+      : `<div class="mv tap" onclick="openRow(${r.i})">${logo(r.acc)}<span>${r.name}<small>${r.group}${r.rec || S.added.some((a) => a.from === r.name) ? ' · bill ✓' : ''} · ${ACC[r.acc].name}</small></span><span class="a ${r.amt > 0 ? 'up' : ''}">${r.amt > 0 ? '+' : '−'}${eur2(r.amt)}</span></div>`
+  }
+  el.innerHTML = `<div class="head"><span class="title">[ MOVEMENTS · every account ]</span><span class="caps">last ${S.limit} days</span></div>
+    <div class="filters"><button class="chip all ${!S.acc ? 'on' : ''}" onclick="S.acc=null;moveCard()">All</button>
+      ${['bpi', 'revolut', 'activo', 'cash', 'tr', '212'].map((a) => `<button class="chip ${S.acc === a ? 'on' : ''}" onclick="S.acc='${a}';moveCard()">${logo(a)}${ACC[a].name}</button>`).join('')}
+      <input class="search" placeholder="Search a name — Netflix, Continente…" value="${S.q}" oninput="S.q=this.value;clearTimeout(window._s);window._s=setTimeout(()=>{moveCard();const i=document.querySelector('.search');i.focus();i.setSelectionRange(i.value.length,i.value.length)},180)"/></div>
+    <div class="strip">${cells}</div>
+    <div class="caps" style="display:flex;gap:16px;flex-wrap:wrap"><span>red: out that day · green: in</span><span>○ a bill's day</span><span style="color:var(--lav-300)">○ still to come</span><span>tap a day to jump</span></div>
+    <div class="list">${list || '<div class="empty"><b>Nothing matches</b>Try another name or account.</div>'}</div>
+    <button class="pill more" onclick="S.limit+=30;moveCard()">earlier · 30 more days</button>`
+}
+function jump(t) {
+  S.day = t; moveCard()
+  const h = document.getElementById('d-' + t)
+  if (h) { h.scrollIntoView({ behavior: 'smooth', block: 'start' }); h.classList.add('flash') }
+}
+
+/* ── Sheets ─────────────────────────────────────────────────────── */
+function sheet(html) { document.getElementById('sheet').innerHTML = html; document.getElementById('veil').classList.add('on') }
+function closeSheet() { document.getElementById('veil').classList.remove('on') }
+const sheetHead = (t) => `<div class="t"><span class="title">[ ${t} ]</span><button class="x" onclick="closeSheet()">✕</button></div>`
+function openBill(id) {
+  const r = [...RECUR, ...FOUND].find((x) => x.id === id)
+  const past = rowsTo(SCEN[S.scen].today).filter((x) => x.rec === id || (FOUND.some((f) => f.id === id) && x.name === r.name)).slice(-6).reverse()
+  sheet(sheetHead(r.name) + `<p class="say" style="margin:0">${r.in ? 'Arrives' : 'Leaves'} ${ACC[r.acc].name} on the ${r.day}${r.yearly ? ' of ' + MON[r.month] + ', once a year' : ', every month'}. The rows below are the evidence — each one a statement row.</p>
+    <div class="list">${past.map((x) => `<div class="mv">${logo(x.acc)}<span>${short(x.t)}<small>${ACC[x.acc].name} · statement row</small></span><span class="a ${x.amt > 0 ? 'up' : ''}">${x.amt > 0 ? '+' : '−'}${eur2(x.amt)}</span></div>`).join('') || '<div class="empty">No payment read yet.</div>'}</div>
+    <button class="link" onclick="closeSheet()">it stopped — not a bill any more</button>`)
+}
+function openGroup(g, k) {
+  const rows = rowsTo(SCEN[S.scen].today).filter((r) => r.group === g && !r.move && (mkey(r.t) === k || mkey(r.t) === k - 1)).sort((a, b) => b.t - a.t)
+  const a = spend(rows.filter((r) => mkey(r.t) === k)), b = spend(rows.filter((r) => mkey(r.t) === k - 1))
+  const byPayee = {}
+  for (const r of rows.filter((r) => mkey(r.t) === k)) byPayee[r.name] = (byPayee[r.name] ?? 0) - r.amt
+  sheet(sheetHead(cap(g) + ' · ' + mname(k)) + `<div class="nums"><div class="num"><small>${mname(k)}</small><b>−${eur2(a)}</b></div><div class="num"><small>${mname(k - 1)}</small><b style="color:var(--ink-400)">−${eur2(b)}</b></div></div>
+    <div class="caps">who got it in ${mname(k)}</div>${Object.entries(byPayee).sort((x, y) => y[1] - x[1]).map(([n, v]) => `<div class="kv"><span>${n}</span><span>−${eur2(v)}</span></div>`).join('')}
+    <div class="caps" style="margin-top:6px">every row, both months</div>
+    <div class="list">${rows.map((r) => `<div class="mv">${logo(r.acc)}<span>${r.name}<small>${short(r.t)} · ${ACC[r.acc].name}</small></span><span class="a">−${eur2(r.amt)}</span></div>`).join('')}</div>`)
+}
+/* Tap a movement: everything about the bill is already in the row, so
+   the only thing to say is how often. */
+function openRow(i) {
+  const r = ROWS[i], same = ROWS.filter((x) => x.name === r.name && !x.move && x.t <= SCEN[S.scen].today)
+  const known = r.rec || S.added.some((a) => a.from === r.name)
+  sheet(sheetHead(r.name) + `<div style="display:flex;align-items:center;gap:12px">${logo(r.acc)}<span class="big2 ${r.amt > 0 ? 'up' : ''}">${r.amt > 0 ? '+' : '−'}${eur2(r.amt)}</span></div>
+    <div class="kv"><span>day</span><span>${WD[dt(r.t).getUTCDay()]} ${short(r.t)}</span></div>
+    <div class="kv"><span>account</span><span>${ACC[r.acc].name}</span></div>
+    <div class="kv"><span>group</span><span>${r.group}</span></div>
+    <div class="kv"><span>paid to ${r.name} before</span><span>${same.length === 1 ? 'only this once' : same.length + ' times'}</span></div>
+    ${known ? `<p class="say" style="margin:0"><span class="tag g">bill ✓</span>&nbsp; Already on AHEAD on its day.</p>`
+      : r.amt < 0 ? `<div class="caps" style="margin-top:6px">repeats?</div>
+      <div class="choose"><button class="yes" onclick="fromRow(${i},false)">EVERY MONTH</button><button class="yes" onclick="fromRow(${i},true)">EVERY YEAR</button><button class="no" onclick="closeSheet()">NO, ONCE</button></div>` : ''}`)
+}
+function fromRow(i, yearly) {
+  const r = ROWS[i], d = dt(r.t)
+  addBill({ name: r.name, acc: r.acc, amt: -r.amt, day: d.getUTCDate(), month: yearly ? d.getUTCMonth() : undefined, yearly, group: r.group, from: r.name })
+}
+let nid = 0
+function addBill(b) {
+  const id = 'u' + ++nid, today = SCEN[S.scen].today
+  const bill = { id, what: b.yearly ? 'every year' : 'every month', sub: false, ...b }
+  S.added.push(bill)
+  const next = upcoming(today, today + 400 * DAY).find((e) => e.r.id === id)
+  const inView = next && next.t <= today + 89 * DAY
+  S.notice = `<b>${bill.name}</b> −${eur2(bill.amt)} ${bill.yearly ? 'every year on ' + bill.day + ' ' + MON[bill.month] : 'every month on the ' + bill.day}. Next: ${next ? short(next.t) : '—'}${inView ? '.' : ` — past these three months, so it shows in <button class="link" onclick="openYear()">what I pay this year</button>.`} <button class="link" onclick="notBill('${id}')">undo</button>`
+  S.landed = id
+  closeSheet(); setTab('ahead'); aheadCard(); subTabs()
+  const n = document.querySelector('.bill.l-' + id) ?? document.querySelector('#aheadCard .tag.g')
+  n?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+}
+
+/* + bill: one line, read as you type; past payments that match are
+   offered underneath, because a row already knows everything. */
+function readLine(txt) {
+  const w = txt.trim().split(/\s+/).filter(Boolean)
+  const nums = w.filter((x) => /^\d+([.,]\d+)?$/.test(x)).map((x) => +x.replace(',', '.'))
+  const mi = w.findIndex((x) => MON.some((m) => x.toLowerCase().startsWith(m.toLowerCase())) && /^[a-z]{3,}$/i.test(x))
+  const month = mi >= 0 ? MON.findIndex((m) => w[mi].toLowerCase().startsWith(m.toLowerCase())) : undefined
+  const freq = w.find((x) => /^(monthly|yearly|year|month|annual)$/i.test(x))
+  const yearly = freq ? /year|annual/i.test(freq) : month !== undefined
+  const name = w.filter((x, i) => !/^\d+([.,]\d+)?$/.test(x) && i !== mi && x !== freq && !/^(on|every|the|€)$/i.test(x)).join(' ')
+  const amt = nums[0], day = nums[1] && nums[1] <= 31 ? nums[1] : undefined
+  return { name, amt, day, month, yearly }
+}
+let addAcc = 'bpi'
+const EVERYDAY = ['groceries', 'eating out', 'coffee & small', 'transport', 'shopping']
+function openAdd() {
+  addAcc = 'bpi'
+  sheet(sheetHead('+ bill') + `<p class="say" style="margin:0">Most bills are already in your statements — pick one below. Not paid yet? Type it in one line.</p>
+    <div id="addPast"></div>
+    <div class="caps" style="margin-top:6px">not in your statements yet · or search them</div>
+    <input class="line" id="addLine" placeholder="Name, or a new one: Holmes Place 49 monthly 1" oninput="addPreview()" autocomplete="off" />
+    <div class="read" id="addRead"></div>`)
+  addPreview()
+}
+function addPreview() {
+  const txt = document.getElementById('addLine').value, b = readLine(txt)
+  const ok = b.name && b.amt && b.day && (!b.yearly || b.month !== undefined)
+  const miss = !txt ? '' : [!b.name && 'a name', !b.amt && 'the amount', !b.day && 'the day', b.yearly && b.month === undefined && 'the month'].filter(Boolean)
+  document.getElementById('addRead').innerHTML = !txt ? '' :
+    `${b.name ? `<span class="tag">${b.name}</span>` : ''}${b.amt ? `<span class="tag">−${eur2(b.amt)}</span>` : ''}<span class="tag y">${b.yearly ? 'every year' : 'every month'}</span>${b.day ? `<span class="tag">${b.yearly && b.month !== undefined ? b.day + ' ' + MON[b.month] : 'on the ' + b.day}</span>` : ''}
+     <span class="tag">from</span>${['bpi', 'revolut', 'activo'].map((a) => `<button class="chip ${addAcc === a ? 'on' : ''}" style="padding:3px 9px 3px 3px" onclick="addAcc='${a}';addPreview()">${logo(a)}${ACC[a].name}</button>`).join('')}
+     ${ok ? `<button class="yes" style="margin-left:auto" onclick="addTyped()">ADD</button>` : `<span class="caps" style="margin-left:auto">still need ${miss.join(', ')}</span>`}`
+  const q = b.name.toLowerCase().split(' ')[0]
+  const outs = ROWS.filter((r) => !r.move && r.amt < 0 && r.t <= SCEN[S.scen].today && !isBill(r) && !S.ans[r.name])
+  /* Likely bills: payees outside everyday spending, not already a bill. */
+  const past = q.length >= 2 ? outs.filter((r) => r.name.toLowerCase().includes(q)) : outs.filter((r) => !EVERYDAY.includes(r.group) && !FOUND.some((f) => f.name === r.name))
+  const byName = {}
+  for (const r of past) byName[r.name] = r
+  const list = Object.values(byName).sort((a, b) => b.t - a.t).slice(0, 6)
+  document.getElementById('addPast').innerHTML = list.length ? `<div class="caps" style="margin:4px 0 4px">${q.length >= 2 ? 'paid before — pick it' : 'from your statements · likely bills'}</div>` + list.map((r) => {
+    const n = past.filter((x) => x.name === r.name).length
+    return `<div class="mv">${logo(r.acc)}<span>${r.name}<small>last ${short(r.t)} · ${n === 1 ? 'once' : n + ' times'} · ${ACC[r.acc].name}</small></span><span class="choose"><span class="a" style="align-self:center;margin-right:6px">−${eur2(r.amt)}</span><button class="no" onclick="fromRow(${r.i},false)">MONTHLY</button><button class="no" onclick="fromRow(${r.i},true)">YEARLY</button></span></div>`
+  }).join('') : ''
+}
+function addTyped() {
+  const b = readLine(document.getElementById('addLine').value)
+  addBill({ name: b.name[0].toUpperCase() + b.name.slice(1), acc: addAcc, amt: b.amt, day: b.day, month: b.yearly ? b.month : undefined, yearly: b.yearly, group: 'home' })
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'addLine') document.querySelector('#addRead .yes')?.click() })
+
+function openYear() {
+  const today = SCEN[S.scen].today, td = dt(today), until = Date.UTC(td.getUTCFullYear() + 1, td.getUTCMonth(), 0)
+  const up = upcoming(today, until).filter((e) => !e.r.in)
+  const months = {}
+  for (const e of up) (months[mkey(e.t)] ??= []).push(e)
+  const mx = Math.max(...Object.values(months).map((l) => l.reduce((n, e) => n + e.r.amt, 0)))
+  const yearly = up.filter((e) => e.r.yearly)
+  sheet(sheetHead('what I pay this year') + `<p class="say" style="margin:0">The next twelve months of bills and subscriptions, from what you said yes to. −${eur(up.reduce((n, e) => n + e.r.amt, 0))} in all.</p>
+    ${Object.entries(months).map(([m, l]) => { const v = l.reduce((n, e) => n + e.r.amt, 0); return `<div class="yr"><span>${mname(+m)}</span><span class="hb"><i style="width:${v / mx * 100}%"></i></span><span style="text-align:right">−${eur(v)}</span></div>` }).join('')}
+    <div class="caps" style="margin-top:6px">the once-a-year ones</div>
+    ${yearly.map((e) => `<div class="kv"><span>${short(e.t)} · ${e.r.name} · ${e.r.what}</span><span>−${eur2(e.r.amt)}</span></div>`).join('')}`)
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet() })
+render()
+</script>
+</body>
+</html>

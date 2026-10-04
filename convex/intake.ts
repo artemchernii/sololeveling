@@ -4,6 +4,7 @@ import { requireUser } from './auth'
 import { ownedAccount, writeBalance } from './accounts'
 import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
+import { findFor } from './recurring'
 import { euroRate, writeTransfer } from './money'
 import { internal } from './_generated/api'
 import {
@@ -3438,5 +3439,7 @@ async function finishBatch(
     extras: [],
     applied: { ...applied, rows: applied.rows + extra },
     appliedAt: Date.now(),
-  })
+  }) /* Flow (3 Oct): new statements can show a bill coming round — it goes
+     onto its day with no question. */
+  await findFor(ctx, b.ownerId)
 }

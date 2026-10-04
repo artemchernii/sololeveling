@@ -229,7 +229,7 @@ export function Portfolio() {
 
 /* What was paid and what it is worth, over the rows where both are known
    — a profit is never shown against a cost no file gave. */
-function paidSums(
+export function paidSums(
   rows: ReadonlyArray<{ paid: number | null; valueEur: number | null }>,
 ) {
   let paid = 0
@@ -246,7 +246,7 @@ function paidSums(
 
 /* Profit in green, loss in red — the one place colour means a quantity's
    direction, allowed for P&L in Finances (26 Sep). */
-function ProfitPill({
+export function ProfitPill({
   profit,
   base,
   label,

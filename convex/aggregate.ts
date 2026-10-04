@@ -766,6 +766,12 @@ export const accountMonth = query({
         in: v.number(),
         out: v.number(),
         moves: v.number(),
+        /* A broker's month (4 Oct: "brokers are sad … bought sold stocks
+           since 1st day of month"): what he bought and sold, in euros, from
+           his trades — a first screen's opening holdings are not buys. */
+        bought: v.number(),
+        sold: v.number(),
+        trades: v.number(),
         rows: v.number(),
       }),
     ),
@@ -816,15 +822,46 @@ export const accountMonth = query({
       a.rows++
       by.set(row.accountId, a)
     }
+    const traded = new Map<
+      Id<'accounts'>,
+      { bought: number; sold: number; n: number }
+    >()
+    const trades = await ctx.db
+      .query('trades')
+      .withIndex('by_owner_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .take(MONEY_ROWS)
+    for (const t of trades) {
+      if (t.opening || t.importId !== undefined) continue
+      const x = traded.get(t.accountId) ?? { bought: 0, sold: 0, n: 0 }
+      const c = Math.round(t.shares * t.priceEur * 100)
+      if (t.side === 'buy') x.bought += c
+      else x.sold += c
+      x.n++
+      traded.set(t.accountId, x)
+    }
+    const ids = new Set([...by.keys(), ...traded.keys()])
+    const none = { cents: 0, in: 0, out: 0, moves: 0, rows: 0 }
     return {
-      accounts: [...by].map(([accountId, a]) => ({
-        accountId,
-        net: a.cents / 100,
-        in: a.in / 100,
-        out: a.out / 100,
-        moves: a.moves / 100,
-        rows: a.rows,
-      })),
+      accounts: [...ids].map((accountId) => {
+        const a = by.get(accountId) ?? none
+        const x = traded.get(accountId) ?? { bought: 0, sold: 0, n: 0 }
+        return {
+          accountId,
+          net: a.cents / 100,
+          in: a.in / 100,
+          out: a.out / 100,
+          moves: a.moves / 100,
+          bought: x.bought / 100,
+          sold: x.sold / 100,
+          trades: x.n,
+          rows: a.rows,
+        }
+      }),
       skipped,
     }
   },

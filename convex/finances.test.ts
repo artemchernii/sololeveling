@@ -2543,6 +2543,32 @@ describe('aggregate.accountMonth', () => {
         r.accounts.map((a) => [a.accountId, [a.in, a.out, a.moves]]),
       ),
     ).toEqual({ [bpi]: [2900, 100, -1000], [tr]: [0, 0, 1000] })
+    /* A broker's month: bought and sold from its trades. */
+    await trade(me, {
+      accountId: tr,
+      candidate: TSLA,
+      side: 'buy',
+      shares: 2,
+      priceEur: 100,
+      occurredAt: at,
+    })
+    await trade(me, {
+      accountId: tr,
+      candidate: TSLA,
+      side: 'sell',
+      shares: 1,
+      priceEur: 120,
+      occurredAt: at,
+    })
+    const b = await me.query(api.aggregate.accountMonth, {
+      start: TODAY,
+      end: TODAY + 86_400_000,
+    })
+    expect(
+      b.accounts
+        .filter((a) => a.accountId === tr)
+        .map((a) => [a.bought, a.sold, a.trades]),
+    ).toEqual([[200, 120, 2]])
     void t
   })
 })

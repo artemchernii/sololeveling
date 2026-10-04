@@ -21,6 +21,7 @@ import type { AccountKind } from '@/lib/currency'
 import { agoLabel } from '@/lib/format'
 import { freshness } from '@/lib/freshness'
 import { monthRange } from '@/lib/month'
+import { ProfitPill, paidSums } from '@/components/finances/Portfolio'
 import { PRODUCTS, productIn, searchProducts } from '@/lib/institutions'
 import type { Product } from '@/lib/institutions'
 import { euros } from '@/lib/money'
@@ -56,6 +57,7 @@ export function Accounts() {
   const dayEnds = useMemo(() => dayEndsBack(today, 365), [today])
   const history = useQuery(api.aggregate.cashHistory, { dayEnds })
   const { monthStart, nextStart } = monthRange(today)
+  const positions = useQuery(api.aggregate.positions, {})
   const month = useQuery(api.aggregate.accountMonth, {
     start: monthStart,
     end: nextStart,
@@ -136,6 +138,12 @@ export function Accounts() {
                 month?.accounts.find((m) => m.accountId === a.accountId) ?? null
               }
               monthStart={monthStart}
+              held={(() => {
+                const rows = positions?.rows.filter(
+                  (r) => r.accountId === a.accountId,
+                )
+                return rows?.length ? paidSums(rows) : null
+              })()}
               line={
                 history?.accounts
                   .find((h) => h.accountId === a.accountId)
@@ -188,6 +196,7 @@ function AccountCard({
   invested,
   month,
   monthStart,
+  held,
   line,
   onEdit,
   onUpdate,
@@ -196,9 +205,19 @@ function AccountCard({
   row: BalanceRow
   index: number
   invested: number | null
-  month: { net: number; in: number; out: number; moves: number } | null
+  month: {
+    net: number
+    in: number
+    out: number
+    moves: number
+    bought: number
+    sold: number
+    trades: number
+  } | null
   /** Local midnight of the 1st: what "since" says. */
   monthStart: number
+  /** A broker's positions: paid and worth where both are known. */
+  held: { paid: number; value: number; known: number } | null
   line: Array<number | null>
   onEdit: () => void
   onUpdate: () => void
@@ -300,7 +319,48 @@ function AccountCard({
             </span>
           </span>
         ) : null}
-        {month !== null && month.net !== 0 ? (
+        {a.kinds.includes('broker') && !a.kinds.includes('bank') ? (
+          /* A broker's month (4 Oct: "brokers are sad without one line …
+             bought sold stocks since 1st day of month"), and where its
+             positions stand since bought. */
+          <>
+            <span className="flex items-center justify-between gap-2">
+              <span className="text-ink-400">
+                since 1{' '}
+                {new Date(monthStart).toLocaleDateString('en-GB', {
+                  month: 'short',
+                })}
+              </span>
+              {month && month.trades > 0 ? (
+                <span className="flex flex-wrap justify-end gap-x-2.5 text-[12px]">
+                  {month.bought ? (
+                    <span className="text-lav-300">
+                      <Veiled>bought {euros(month.bought)}</Veiled>
+                    </span>
+                  ) : null}
+                  {month.sold ? (
+                    <span className="text-ink-200">
+                      <Veiled>sold {euros(month.sold)}</Veiled>
+                    </span>
+                  ) : null}
+                </span>
+              ) : (
+                <span className="text-[12px] text-ink-500">no trades yet</span>
+              )}
+            </span>
+            {held && held.known > 0 ? (
+              <span className="flex items-center justify-between gap-2">
+                <span className="text-ink-400">since bought</span>
+                <ProfitPill
+                  profit={held.value - held.paid}
+                  base={held.paid}
+                  small
+                />
+              </span>
+            ) : null}
+          </>
+        ) : null}
+        {a.kinds.includes('bank') && month !== null && month.net !== 0 ? (
           /* "since 1 Oct", and what makes it (4 Oct: "explain what are
              those this month +374 … I dont get those nums"). */
           <span className="flex flex-col gap-0.5">

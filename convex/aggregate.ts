@@ -760,6 +760,12 @@ export const accountMonth = query({
       v.object({
         accountId: v.id('accounts'),
         net: v.number(),
+        /* What makes the net (4 Oct: "explain what are those this month
+           +374 … I dont get those nums"): money in, money out, and his
+           own transfers, each a sum of the same rows. */
+        in: v.number(),
+        out: v.number(),
+        moves: v.number(),
         rows: v.number(),
       }),
     ),
@@ -777,7 +783,10 @@ export const accountMonth = query({
           .lt('occurredAt', args.end),
       )
       .take(MONEY_ROWS)
-    const by = new Map<Id<'accounts'>, { cents: number; rows: number }>()
+    const by = new Map<
+      Id<'accounts'>,
+      { cents: number; in: number; out: number; moves: number; rows: number }
+    >()
     let skipped = 0
     for (const row of rows) {
       if (row.accountId === undefined) continue
@@ -792,8 +801,18 @@ export const accountMonth = query({
         continue
       }
       const signed = row.kind === 'expense' ? -row.value : row.value
-      const a = by.get(row.accountId) ?? { cents: 0, rows: 0 }
-      a.cents += Math.round(signed * 100)
+      const a = by.get(row.accountId) ?? {
+        cents: 0,
+        in: 0,
+        out: 0,
+        moves: 0,
+        rows: 0,
+      }
+      const c = Math.round(signed * 100)
+      a.cents += c
+      if (row.kind === 'move') a.moves += c
+      else if (row.kind === 'income') a.in += c
+      else a.out -= c
       a.rows++
       by.set(row.accountId, a)
     }
@@ -801,6 +820,9 @@ export const accountMonth = query({
       accounts: [...by].map(([accountId, a]) => ({
         accountId,
         net: a.cents / 100,
+        in: a.in / 100,
+        out: a.out / 100,
+        moves: a.moves / 100,
         rows: a.rows,
       })),
       skipped,

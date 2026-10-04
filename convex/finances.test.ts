@@ -2537,6 +2537,12 @@ describe('aggregate.accountMonth', () => {
     expect(
       Object.fromEntries(r.accounts.map((a) => [a.accountId, [a.net, a.rows]])),
     ).toEqual({ [bpi]: [1800, 3], [tr]: [1000, 1] })
+    /* What makes each net: in, spent, transfers (4 Oct). */
+    expect(
+      Object.fromEntries(
+        r.accounts.map((a) => [a.accountId, [a.in, a.out, a.moves]]),
+      ),
+    ).toEqual({ [bpi]: [2900, 100, -1000], [tr]: [0, 0, 1000] })
     void t
   })
 })

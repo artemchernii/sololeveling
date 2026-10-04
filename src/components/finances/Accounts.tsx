@@ -133,9 +133,9 @@ export function Accounts() {
               invested={investedOf(a.accountId)}
               onOpen={() => setOpened(a.accountId)}
               month={
-                month?.accounts.find((m) => m.accountId === a.accountId)?.net ??
-                null
+                month?.accounts.find((m) => m.accountId === a.accountId) ?? null
               }
+              monthStart={monthStart}
               line={
                 history?.accounts
                   .find((h) => h.accountId === a.accountId)
@@ -187,6 +187,7 @@ function AccountCard({
   index,
   invested,
   month,
+  monthStart,
   line,
   onEdit,
   onUpdate,
@@ -195,7 +196,9 @@ function AccountCard({
   row: BalanceRow
   index: number
   invested: number | null
-  month: number | null
+  month: { net: number; in: number; out: number; moves: number } | null
+  /** Local midnight of the 1st: what "since" says. */
+  monthStart: number
   line: Array<number | null>
   onEdit: () => void
   onUpdate: () => void
@@ -297,16 +300,47 @@ function AccountCard({
             </span>
           </span>
         ) : null}
-        {month !== null && month !== 0 ? (
-          <span className="flex items-center justify-between gap-2">
-            <span className="text-ink-400">this month</span>
-            <span
-              className={month > 0 ? 'text-state-good' : 'text-state-danger'}
-            >
-              <Veiled>
-                {month > 0 ? '+' : '−'}
-                {euros(Math.abs(month))}
-              </Veiled>
+        {month !== null && month.net !== 0 ? (
+          /* "since 1 Oct", and what makes it (4 Oct: "explain what are
+             those this month +374 … I dont get those nums"). */
+          <span className="flex flex-col gap-0.5">
+            <span className="flex items-center justify-between gap-2">
+              <span className="text-ink-400">
+                since 1{' '}
+                {new Date(monthStart).toLocaleDateString('en-GB', {
+                  month: 'short',
+                })}
+              </span>
+              <span
+                className={
+                  month.net > 0 ? 'text-state-good' : 'text-state-danger'
+                }
+              >
+                <Veiled>
+                  {month.net > 0 ? '+' : '−'}
+                  {euros(Math.abs(month.net))}
+                </Veiled>
+              </span>
+            </span>
+            <span className="flex flex-wrap justify-end gap-x-2.5 text-[11px]">
+              {month.in ? (
+                <span className="text-state-good/80">
+                  <Veiled>in +{euros(month.in)}</Veiled>
+                </span>
+              ) : null}
+              {month.out ? (
+                <span className="text-state-danger/80">
+                  <Veiled>spent −{euros(month.out)}</Veiled>
+                </span>
+              ) : null}
+              {month.moves ? (
+                <span className="text-lav-300">
+                  <Veiled>
+                    transfers {month.moves > 0 ? '+' : '−'}
+                    {euros(Math.abs(month.moves))}
+                  </Veiled>
+                </span>
+              ) : null}
             </span>
           </span>
         ) : null}

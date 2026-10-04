@@ -14,6 +14,7 @@ import {
   Smartphone,
   TramFront,
   UtensilsCrossed,
+  Wrench,
   Wallet,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -37,6 +38,7 @@ const ICONS: Record<string, LucideIcon> = {
   car: Car,
   shopping: ShoppingBag,
   subscriptions: Repeat,
+  services: Wrench,
   learning: GraduationCap,
   lent: HandCoins,
   salary: Wallet,

@@ -187,6 +187,7 @@ export const SPEND_CATEGORY_IDS = [
   'clothes',
   'shopping',
   'subscriptions',
+  'services',
   'travel',
   'other',
 ] as const

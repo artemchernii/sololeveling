@@ -137,8 +137,6 @@ export function Spending({
         </span>
       </div>
 
-      <Suggestions onDone={setNotice} onOwn={(row) => name(row)()} />
-
       {notice ? (
         <p className="motion-arrive -my-2 flex items-center gap-2 text-[13px] text-ink-300">
           <span className="rounded-full bg-state-good/12 px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] text-state-good uppercase">
@@ -354,9 +352,10 @@ export function Spending({
   )
 }
 
-/** A bill shows his payee name when he gave one, else the bill's own. */
+/** A bill shows his payee name, or a name the app knows ("Home
+    insurance"), else the bill's own. */
 function billWho(w: Who, billName: string): Who {
-  return w.source === 'yours'
+  return w.source !== null
     ? w
     : {
         ...w,
@@ -503,95 +502,6 @@ function Parts({
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <span className="py-3 text-[13px] text-ink-500">{children}</span>
-}
-
-/* What the app can say plainly: Portuguese bank phrases it knows, as one
-   tap each (the mockup's "suggested names"). MY OWN opens Who is this. */
-function Suggestions({
-  onDone,
-  onOwn,
-}: {
-  onDone: (s: string) => void
-  onOwn: (row: Row) => void
-}) {
-  const list = useQuery(api.payees.suggestions, {})
-  const set = useMutation(api.payees.set)
-  const [open, setOpen] = useState(true)
-  if (!list || list.length === 0) return null
-  return (
-    <div className="flex flex-col gap-2 rounded-[16px] bg-lav-400/5 p-3 ring-1 ring-lav-400/25 ring-inset">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="label-caps flex items-center gap-2 text-left text-lav-300"
-      >
-        the app can say {list.length === 1 ? 'this' : `these ${list.length}`}{' '}
-        plainly
-        <ChevronRight
-          className={`size-3.5 transition-transform ${open ? 'rotate-90' : ''}`}
-        />
-      </button>
-      {open
-        ? list.map((s) => (
-            <div
-              key={s.key}
-              className="motion-arrive grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-lift/6 pt-2"
-            >
-              <span className="min-w-0">
-                <span className="block truncate font-mono text-[11px] text-ink-500">
-                  {s.raw}
-                </span>
-                <span className="text-[14px]">→ {s.name}?</span>
-                {s.partOf ? (
-                  <span className="ml-2 font-mono text-[10.5px] text-ink-500">
-                    part of {s.partOf}
-                  </span>
-                ) : null}
-              </span>
-              <span className="flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={() =>
-                    void set({
-                      logId: s.logId,
-                      name: s.name,
-                      domain: null,
-                      category: s.category,
-                      partOf: s.partOf,
-                    }).then((n) => {
-                      onDone(
-                        `${s.name} — ${n} row${n === 1 ? '' : 's'} named, and the next ones too.`,
-                      )
-                    })
-                  }
-                  className="rounded-full bg-lav-400/18 px-3.5 py-1.5 font-mono text-[11px] tracking-[0.1em] ring-1 ring-lav-400/45 ring-inset"
-                >
-                  YES
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    onOwn({
-                      id: s.logId,
-                      t: 0,
-                      name: s.raw,
-                      amount: 0,
-                      raw: s.raw,
-                      category: s.category,
-                      accountId: undefined,
-                      payee: undefined,
-                    })
-                  }
-                  className="rounded-full px-3 py-1.5 font-mono text-[11px] tracking-[0.1em] text-ink-400 ring-1 ring-lift/12 ring-inset"
-                >
-                  MY OWN
-                </button>
-              </span>
-            </div>
-          ))
-        : null}
-    </div>
-  )
 }
 
 /* The group a payee is filed in, changed where it is seen (4 Oct: "I see

@@ -223,11 +223,15 @@ export const PHRASES: ReadonlyArray<Phrase> = [
     partOf: 'Mortgage',
   },
   {
-    pattern: /SEGURO.*MULTI.?RISCOS/i,
+    pattern: /SEGURO.*MULTI/i,
     name: 'Home insurance',
     category: 'home',
   },
-  { pattern: /SEGURO.*VIDA/i, name: 'Life insurance', category: 'home' },
+  {
+    pattern: /SEGURO.*(VIDA|\bVP\b)/i,
+    name: 'Life insurance',
+    category: 'home',
+  },
   { pattern: /\bEDP COMERCIAL/i, name: 'Electricity · EDP', category: 'home' },
   { pattern: /\b(EPAL|SMAS|AGUAS DE)\b/i, name: 'Water', category: 'home' },
   {

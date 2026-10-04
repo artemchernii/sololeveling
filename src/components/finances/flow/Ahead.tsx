@@ -90,7 +90,11 @@ export function Ahead({
      known shop's logo. */
   const whoOf = (b: Bill | undefined, name: string): Who => {
     const w = who({ raw: b?.key, name })
-    return w.source === 'yours' ? w : { ...w, name, original: null }
+    /* His name or a known one on top, the bill's own name underneath. */
+    if (w.source !== null) {
+      return { ...w, original: w.name !== name ? name : null }
+    }
+    return { ...w, name, original: null }
   }
   const rhythmOf = (b?: Bill) =>
     b?.everyWeeks

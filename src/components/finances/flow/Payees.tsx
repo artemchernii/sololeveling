@@ -9,7 +9,7 @@ import { FIELD, PILL_LOUD } from '@/components/finances/bits'
 import { failureMessage } from '@/lib/convex-errors'
 import { SPEND_CATEGORIES } from '@/lib/money'
 import { payeeKey } from '@/lib/payee'
-import { knownShop, payeeIdOf, siteFor } from '@/lib/payees'
+import { bankPhrase, knownShop, payeeIdOf, siteFor } from '@/lib/payees'
 
 /* Payees on the page (4 Oct; mockup design/treasury-mockup/payees.html).
    Who a row is: his name for it if he gave one, else a shop the app knows,
@@ -62,15 +62,22 @@ export function usePayees() {
         source: 'yours',
       }
     }
-    const shop = key.startsWith('PAYPAL ') ? null : knownShop(payeeKey(line))
-    if (shop) {
+    /* A shop the app knows, or what a Portuguese bank's words mean (4 Oct:
+       the box asking YES to seven names was a form he did not know how to
+       use) — named straight away, the bank's words kept underneath, and
+       his own name over it with one tap. */
+    const paypal = key.startsWith('PAYPAL')
+    const shop = paypal ? null : knownShop(payeeKey(line))
+    const phrase = paypal ? null : bankPhrase(line)
+    if (shop || phrase) {
+      const name = phrase?.name ?? shop?.name ?? row.name
       return {
         key,
-        name: shop.name,
+        name,
         original:
-          row.name.toUpperCase() !== shop.name.toUpperCase() ? row.name : null,
-        domain: shop.domain,
-        partOf: null,
+          row.name.toUpperCase() !== name.toUpperCase() ? row.name : null,
+        domain: shop?.domain ?? null,
+        partOf: phrase?.partOf ?? null,
         source: 'known',
       }
     }

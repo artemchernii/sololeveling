@@ -5,17 +5,15 @@ import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc } from './_generated/dataModel'
 import schema from './schema'
-import { isEuroAmount } from '../src/lib/money'
 import { merchantKey } from '../src/lib/intake'
 import { payeeKey } from '../src/lib/payee'
-import { bankPhrase, payeeIdOf } from '../src/lib/payees'
+import { payeeIdOf } from '../src/lib/payees'
 
 /* Payees (4 Oct; design/treasury-mockup/payees.html): who a row is paid
    to, in his words. Naming one names every row of it, past and next. */
 
 const MAX_NAME = 40
 const ROWS = 5000
-const DAY = 86_400_000
 
 const lineOf = (l: Doc<'logs'>) =>
   l.meta?.raw ?? l.meta?.merchant ?? l.text ?? ''
@@ -162,65 +160,5 @@ export const paypalNames = query({
       if (out.size >= 8) break
     }
     return [...out.entries()].map(([name, category]) => ({ name, category }))
-  },
-})
-
-/**
- * What the app can say plainly (the mockup's "suggested names"): payees in
- * the last four months whose bank line is a phrase it knows, not named
- * yet. Proposed only — he says yes.
- */
-export const suggestions = query({
-  args: {},
-  returns: v.array(
-    v.object({
-      logId: v.id('logs'),
-      key: v.string(),
-      raw: v.string(),
-      name: v.string(),
-      category: v.string(),
-      partOf: v.union(v.string(), v.null()),
-    }),
-  ),
-  handler: async (ctx) => {
-    const ownerId = await requireUser(ctx)
-    const named = new Set(
-      (
-        await ctx.db
-          .query('payees')
-          .withIndex('by_owner_key', (q) => q.eq('ownerId', ownerId))
-          .take(1000)
-      ).map((p) => p.key),
-    )
-    const since = Date.now() - 120 * DAY
-    const out = new Map<
-      string,
-      {
-        logId: Doc<'logs'>['_id']
-        key: string
-        raw: string
-        name: string
-        category: string
-        partOf: string | null
-      }
-    >()
-    for (const l of await moneyRows(ctx, ownerId)) {
-      if (l.occurredAt < since) break
-      if (l.kind !== 'expense' || !isEuroAmount(l)) continue
-      const line = lineOf(l)
-      const key = payeeIdOf(line)
-      if (key === '' || named.has(key) || out.has(key)) continue
-      const p = bankPhrase(line)
-      if (!p) continue
-      out.set(key, {
-        logId: l._id,
-        key,
-        raw: line,
-        name: p.name,
-        category: p.category,
-        partOf: p.partOf ?? null,
-      })
-    }
-    return [...out.values()]
   },
 })

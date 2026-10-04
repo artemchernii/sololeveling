@@ -667,7 +667,7 @@ describe('payees', () => {
     expect(await them.query(api.payees.paypalNames, {})).toEqual([])
   })
 
-  test('a bill paid to a payee takes his name; suggestions go once said', async () => {
+  test('a bill paid to a payee takes his name', async () => {
     const { t, me } = setup()
     const { bank } = await world(t)
     const loan = await t.run(async (ctx) => {
@@ -691,12 +691,6 @@ describe('payees', () => {
       return await mk(8)
     })
     await me.mutation(api.recurring.find, {})
-    const sug = await me.query(api.payees.suggestions, {})
-    expect(sug.map((s) => [s.key, s.name, s.partOf])).toContainEqual([
-      'JUROS EMPRESTIMO',
-      'Mortgage · interest',
-      'Mortgage',
-    ])
     await me.mutation(api.payees.set, {
       logId: loan,
       name: 'Mortgage · interest',
@@ -710,8 +704,5 @@ describe('payees', () => {
       ),
     )
     expect(bill?.name).toBe('Mortgage · interest')
-    expect(
-      (await me.query(api.payees.suggestions, {})).map((s) => s.key),
-    ).not.toContain('JUROS EMPRESTIMO')
   })
 })

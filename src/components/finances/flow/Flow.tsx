@@ -63,7 +63,7 @@ export function Flow({ open }: { open?: string } = {}) {
       }
     }
     return [
-      { id: 'ahead' as const, title: 'Ahead', line: a, dot: aDot },
+      { id: 'ahead' as const, title: 'Future balance', line: a, dot: aDot },
       {
         id: 'spending' as const,
         title: 'Spending',

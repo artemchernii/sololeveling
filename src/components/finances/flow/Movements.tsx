@@ -438,7 +438,7 @@ function RowSheet({
           <span className="rounded-full bg-state-good/12 px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] text-state-good uppercase">
             bill ✓
           </span>{' '}
-          Already on AHEAD on its day.
+          Already in Future balance on its day.
         </p>
       ) : (
         <>

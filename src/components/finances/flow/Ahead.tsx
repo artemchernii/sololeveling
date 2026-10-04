@@ -92,6 +92,19 @@ export function Ahead({
     const w = who({ raw: b?.key, name })
     return w.source === 'yours' ? w : { ...w, name, original: null }
   }
+  const rhythmOf = (b?: Bill) =>
+    b?.everyWeeks
+      ? b.everyWeeks === 1
+        ? 'every week'
+        : `every ${b.everyWeeks} weeks`
+      : b?.everyMonths && b.everyMonths > 1
+        ? `every ${b.everyMonths} months`
+        : null
+  const rangeOf = (b?: Bill) =>
+    b?.varies && b.lo !== undefined && b.hi !== undefined
+      ? { lo: b.lo, hi: b.hi }
+      : null
+  const asking = a.bills.filter((b) => b.asksMonths)
   const partOf = (id: Id<'recurring'>) => {
     const b = bill(id)
     if (!b) return null
@@ -109,7 +122,7 @@ export function Ahead({
     void notBill({ id })
     setOpened(null)
     setNotice({
-      text: `${name} is off AHEAD and will not be found again.`,
+      text: `${name} is off Future balance and will not be found again.`,
       undo: () => void unrefuse({ id }),
     })
   }
@@ -119,26 +132,33 @@ export function Ahead({
     return new Date(d.getFullYear(), d.getMonth() - back, 1).getTime()
   })
 
-  const lowLine = (() => {
-    const d = new Date(a.low.t)
-    const when =
-      daysBetween(today, a.low.t) > 0
-        ? `on ${d.getDate()} ${monthName(a.low.t)}`
-        : 'today'
+  /* "Estimated cash next month" (4 Oct, in place of "lowest before
+     salary", which said nothing to him): the line on the 1st of next
+     month, after that day's bills. */
+  const nextMonth = (() => {
+    const d = new Date(today)
+    const m = (d.getMonth() + 1) % 12
+    const p = a.series.find(
+      (x) =>
+        new Date(x.t).getUTCDate() === 1 && new Date(x.t).getUTCMonth() === m,
+    )
+    if (!p) return null
     const value =
       only || a.range === null
-        ? eur(a.low.bills)
-        : eur(a.low.lower) === eur(a.low.upper)
-          ? eur(a.low.lower)
-          : `${eur(a.low.lower)}–${eur(a.low.upper)}`
-    return { value, when }
+        ? eur(p.bills)
+        : eur(p.lower) === eur(p.upper)
+          ? eur(p.lower)
+          : `${eur(p.lower)}–${eur(p.upper)}`
+    return { value, when: `on 1 ${monthName(p.t)}, after its bills` }
   })()
 
   return (
     <section className="system-frame motion-arrive relative flex flex-col gap-4 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex items-center gap-3">
-          <span className="system-title">[ AHEAD · next 3 months ]</span>
+          <span className="system-title">
+            [ FUTURE BALANCE · next 3 months ]
+          </span>
           <button
             type="button"
             onClick={() => setAdding(true)}
@@ -207,9 +227,11 @@ export function Ahead({
               <Fact label="free cash now">
                 <Veiled>{eur(a.freeTotal)}</Veiled>
               </Fact>
-              <Fact label="lowest before salary" hint={lowLine.when}>
-                <Veiled>{lowLine.value}</Veiled>
-              </Fact>
+              {nextMonth ? (
+                <Fact label="estimated cash" hint={nextMonth.when}>
+                  <Veiled>{nextMonth.value}</Veiled>
+                </Fact>
+              ) : null}
               {a.salaryAt ? (
                 <Fact label="salary">
                   {new Date(a.salaryAt).getDate()} {monthName(a.salaryAt)}
@@ -226,13 +248,20 @@ export function Ahead({
                 </button>
               ) : null}
             </div>
-            <AheadChart a={a} only={only} />
+            <AheadChart
+              a={a}
+              only={only}
+              nameOf={(e) => whoOf(bill(e.billId), e.name).name}
+            />
             <span className="label-caps">
               {only || a.range === null
                 ? 'line: bills and salary only'
                 : 'band: day-to-day spending, your cheapest month to your dearest'}
             </span>
 
+            {asking.map((b) => (
+              <CoversQuestion key={b.id} bill={b} />
+            ))}
             <div className="mt-2 flex flex-col">
               {a.done.length ? (
                 <>
@@ -255,7 +284,8 @@ export function Ahead({
                         amount={d.amount}
                         what={bill(d.billId)?.category}
                         account={account(d.accountId)}
-                        varies={bill(d.billId)?.varies}
+                        rhythm={rhythmOf(bill(d.billId))}
+                        range={rangeOf(bill(d.billId))}
                         status={<DoneStatus d={d} />}
                         dim={d.rowId !== null}
                         nested={nested}
@@ -328,7 +358,8 @@ export function Ahead({
                           what={bill(e.billId)?.category}
                           account={account(e.accountId)}
                           yearly={e.yearly}
-                          varies={bill(e.billId)?.varies}
+                          rhythm={rhythmOf(bill(e.billId))}
+                          range={rangeOf(bill(e.billId))}
                           isNew={bill(e.billId)?.isNew}
                           short={e.short}
                           nested={nested}
@@ -610,7 +641,8 @@ function BillRow({
   what,
   account,
   yearly,
-  varies,
+  rhythm,
+  range,
   isNew,
   short,
   status,
@@ -625,7 +657,10 @@ function BillRow({
   what?: string
   account?: Doc<'accounts'>
   yearly?: boolean
-  varies?: boolean
+  /** "every 2 weeks", "every 5 months". */
+  rhythm?: string | null
+  /** One that varies: its cheapest and dearest recent month. */
+  range?: { lo: number; hi: number } | null
   isNew?: boolean
   short?: boolean
   status: React.ReactNode
@@ -654,7 +689,8 @@ function BillRow({
             .filter(Boolean)
             .join(' · ')}
           {yearly ? <Tag tone="lav">yearly</Tag> : null}
-          {varies ? <Tag tone="lav">varies</Tag> : null}
+          {rhythm ? <Tag tone="lav">{rhythm}</Tag> : null}
+          {range ? <Tag tone="lav">varies</Tag> : null}
           {isNew ? <New /> : null}
           {short ? <Tag tone="warn">not enough on the day</Tag> : null}
         </span>
@@ -663,13 +699,40 @@ function BillRow({
         <span
           className={`text-[14px] ${kind === 'income' ? 'text-state-good' : ''}`}
         >
-          {varies ? '~' : ''}
           {kind === 'income' ? '+' : '−'}
-          {eur(amount, true)}
+          {range
+            ? `${eur(range.lo)}–${eur(range.hi).replace('€', '')}`
+            : eur(amount, true)}
         </span>
         {status}
       </span>
     </button>
+  )
+}
+
+/* The one thing the app cannot read (4 Oct: "I paid 175 euros, but that
+   was for 5 months"): asked once, on its own, with the bank's amount. */
+function CoversQuestion({ bill }: { bill: Bill }) {
+  const setCovers = useMutation(api.recurring.setCovers)
+  return (
+    <div className="motion-arrive mt-3 flex flex-col gap-2.5 rounded-[14px] bg-lav-400/6 p-3.5 ring-1 ring-lav-400/25 ring-inset">
+      <span className="text-[14px]">
+        {bill.name} took −{eur(bill.amount, true)}. How many months does one
+        payment cover?
+      </span>
+      <span className="flex flex-wrap gap-1.5">
+        {[1, 2, 3, 4, 5, 6, 12].map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => void setCovers({ id: bill.id, months: n })}
+            className={PILL_QUIET}
+          >
+            {n === 1 ? 'one month' : `${n} months`}
+          </button>
+        ))}
+      </span>
+    </div>
   )
 }
 
@@ -769,7 +832,15 @@ function BillSheet({
           {eur(bill.amount, true)}
         </span>
         <span className="label-caps">
-          {bill.cadence === 'yearly' ? 'every year' : 'every month'}
+          {bill.cadence === 'yearly'
+            ? 'every year'
+            : bill.everyWeeks
+              ? `every ${bill.everyWeeks === 1 ? 'week' : `${bill.everyWeeks} weeks`}`
+              : bill.everyMonths && bill.everyMonths > 1
+                ? `every ${bill.everyMonths} months · ${eur(bill.amount / bill.everyMonths, true)} a month`
+                : bill.varies && bill.lo !== undefined && bill.hi !== undefined
+                  ? `${eur(bill.lo)}–${eur(bill.hi)} a month`
+                  : 'every month'}
         </span>
       </div>
       <span className="label-caps">

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pay Month</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Flow's top line, reworked (4 Oct). Artem: "I still don't get these
+     numbers… IS THIS NUMBER VALUABLE?", "I get salary in the end of the
+     month so in will always be 0 till end of the month". His picks: pay
+     month (salary to salary), out split into bills and day-to-day, a
+     tooltip on the bars. Sample numbers at his scale, not his. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --bill: oklch(0.55 0.13 25);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .ctl { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .pill { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400); cursor: pointer }
+  .pill.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 780px; margin: 0 auto; text-align: center }
+  .note b { color: var(--ink-200); font-weight: 400 }
+  .card { position: relative; border-radius: 22px; padding: 20px 22px; border: 1px solid rgba(var(--lift),.08); background: linear-gradient(160deg, rgba(var(--lift),.035), rgba(var(--lift),.01) 50%), #1a1a28; box-shadow: 0 30px 80px -30px rgba(0,0,0,.8); animation: rise .45s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px) } }
+  .title { font-family: var(--mono); font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 18px }
+  .grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 28px; align-items: end }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr } }
+
+  /* The one number first: what is left until salary. */
+  .left { display: flex; flex-direction: column; gap: 6px }
+  .left b { font-weight: 300; font-size: 46px; letter-spacing: -.01em; font-variant-numeric: tabular-nums; line-height: 1 }
+  .left small { font-family: var(--mono); font-size: 11px; color: var(--ink-500) }
+  .sum { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 14px; align-items: center; margin-top: 18px; max-width: 460px }
+  .sum .k { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-400) }
+  .sum .v { font-family: var(--mono); font-size: 15px; text-align: right; font-variant-numeric: tabular-nums }
+  .sum .w { font-size: 12px; color: var(--ink-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .sum .line { grid-column: 1 / -1; height: 1px; background: rgba(var(--lift),.08); margin: 2px 0 }
+  .sum button.k { background: none; border: none; padding: 0; cursor: pointer; text-align: left; border-bottom: 1px dashed rgba(var(--lift),.2) }
+  .sum button.k:hover { color: var(--ink-100) }
+  .pace { margin-top: 14px; font-size: 13.5px; color: var(--ink-300); line-height: 1.5 }
+  .pace b { font-weight: 400; color: var(--ink-100) }
+  .up { color: var(--good) } .down { color: var(--danger) } .flat { color: var(--ink-500) } .warn { color: var(--warn) }
+
+  /* Six pay months: in beside out, out stacked bills under day-to-day. */
+  .bars { position: relative }
+  svg { display: block; overflow: visible }
+  .hit { cursor: pointer }
+  .hit:hover rect.bg, .hit.on rect.bg { fill: rgba(255,255,255,.05) }
+  .tip { position: absolute; pointer-events: none; min-width: 210px; padding: 12px 14px; border-radius: 14px; background: #22213a; border: 1px solid color-mix(in oklch, var(--lav-400) 34%, transparent); box-shadow: 0 20px 50px -20px rgba(0,0,0,.9), 0 0 30px -18px var(--shine); font-size: 12.5px; opacity: 0; transform: translateY(calc(-100% - 2px)); transition: opacity .15s, transform .15s; z-index: 3 }
+  .tip.on { opacity: 1; transform: translateY(calc(-100% - 8px)) }
+  .tip .t { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--lav-300); margin-bottom: 8px }
+  .tip .r { display: flex; justify-content: space-between; gap: 16px; font-family: var(--mono); padding: 2px 0 }
+  .tip .r span:first-child { color: var(--ink-400) }
+  .tip .r.tot { border-top: 1px solid rgba(var(--lift),.1); margin-top: 4px; padding-top: 6px }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 0 }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px }
+
+  /* The bills sheet, opened from BILLS. */
+  .veil { position: fixed; inset: 0; background: rgba(8,8,14,.55); backdrop-filter: blur(4px); display: none; align-items: flex-end; justify-content: center; z-index: 9 }
+  .veil.on { display: flex }
+  .sheet { width: min(560px, 100%); border-radius: 22px 22px 0 0; padding: 18px 20px 26px; border: 1px solid color-mix(in oklch, #b5abfc 34%, transparent); background: #1d1c2d; display: flex; flex-direction: column; gap: 10px; animation: rise .3s both }
+  .kv { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 12.5px; padding: 4px 0; border-bottom: 1px solid rgba(var(--lift),.05) }
+  .kv span:first-child { color: var(--ink-300) }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">Mockup · sample numbers · pick a situation · hover the bars</div>
+  <div class="scen" id="scen"></div>
+  <p class="note" id="note"></p>
+  <section class="card" id="card"></section>
+</div>
+<div class="veil" id="veil" onclick="if(event.target===this)this.classList.remove('on')"><div class="sheet" id="sheet"></div></div>
+<script>
+const eur = (v, c = 0) => '€' + Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: c, maximumFractionDigits: c })
+const BILLS = [['Mortgage · interest', 750], ['Mortgage · capital', 448], ['Home insurance', 25], ['Life insurance', 23], ['Electricity', 29], ['Claude', 22]]
+const BILLS_SUM = BILLS.reduce((n, b) => n + b[1], 0)
+/* Six pay months, oldest first: salary day to salary day. */
+const PAST = [
+  { from: '25 Apr', to: '25 May', in: 2610, bills: 1290, day: 720 },
+  { from: '25 May', to: '25 Jun', in: 2610, bills: 1297, day: 905 },
+  { from: '25 Jun', to: '25 Jul', in: 2640, bills: 1297, day: 1310 },
+  { from: '25 Jul', to: '25 Aug', in: 2640, bills: 1297, day: 780 },
+  { from: '25 Aug', to: '25 Sep', in: 2808, bills: 1297, day: 823 },
+]
+const SCEN = {
+  now: { label: 'day 9 · today', day: 9, len: 30, from: '25 Sep', to: '25 Oct', in: 2669, bills: 1247, billsLeft: 51, dayToDay: 190, paceLast: 236,
+    note: '<b>Nine days after salary.</b> The big number is this pay month’s balance: what came in since salary, minus what went out. Not what you hold — that is free cash. Under it: salary, bills (tap for the list), day-to-day.' },
+  salary: { label: 'salary today', day: 0, len: 30, from: '25 Oct', to: '25 Nov', in: 2669, bills: 0, billsLeft: 1298, dayToDay: 0, paceLast: 0,
+    note: '<b>Salary landed today.</b> A new pay month starts: everything ahead. The last one closes into the bars — hover it.' },
+  late: { label: '2 days to salary', day: 28, len: 30, from: '25 Sep', to: '25 Oct', in: 2809, other: 140, bills: 1298, billsLeft: 0, dayToDay: 1190, paceLast: 790,
+    note: '<b>Near the end, spending ran high.</b> The balance is small but still above zero; a refund shows as its own line. The last line says it plainly: €400 more than this time last month.' },
+  nosal: { label: 'salary not seen', day: 33, len: 30, from: '25 Sep', to: '25 Oct', in: 2669, bills: 1298, billsLeft: 0, dayToDay: 860, paceLast: 823, nosal: true,
+    note: '<b>The 25th passed and no salary was read.</b> The pay month stays open and says so — the statement may simply not be uploaded yet.' },
+  none: { label: 'no salary found yet', empty: true,
+    note: '<b>No salary found in the statements yet.</b> The month cannot start on a salary it does not know, so it says what will make it work.' },
+}
+let S = { scen: 'now', hover: null }
+function setScen(k) { S = { scen: k, hover: null }; render() }
+
+function render() {
+  const sc = SCEN[S.scen]
+  document.getElementById('scen').innerHTML = Object.entries(SCEN).map(([k, s]) => `<button class="pill ${S.scen === k ? 'on' : ''}" onclick="setScen('${k}')">${s.label}</button>`).join('')
+  document.getElementById('note').innerHTML = sc.note
+  const el = document.getElementById('card')
+  if (sc.empty) {
+    el.innerHTML = `<div class="head"><span class="title">[ PAY MONTH ]</span></div>
+      <p class="pace" style="text-align:center;padding:26px 0">Your month runs from one salary to the next.<br/><b>No salary found yet</b> — it is found by itself once a statement shows the same pay two months running.</p>`
+    return
+  }
+  const out = sc.bills + sc.dayToDay
+  const left = sc.in - out
+  const tone = left >= 0 ? 'up' : 'down'
+  const diff = sc.dayToDay - sc.paceLast
+  const pace = sc.day === 0 ? 'Nothing spent yet.'
+    : `Day-to-day: ${Math.abs(diff) < 20 ? 'about the same as' : diff > 0 ? `<span class="down">${eur(diff)} more</span> than` : `<span class="up">${eur(-diff)} less</span> than`} this time last month.`
+  const all = [...PAST, { from: sc.from, to: sc.to, in: sc.in, bills: sc.bills, day: sc.dayToDay, now: true }]
+  el.innerHTML = `<div class="head"><span class="title">[ PAY MONTH · ${sc.from} → ${sc.to} · ${sc.nosal ? 'salary not seen yet' : `day ${sc.day} of ${sc.len}`} ]</span><span class="caps">moves between your accounts not counted</span></div>
+    <div class="grid"><div>
+      <div class="left"><small>BALANCE THIS PAY MONTH</small><b class="${tone}">${left >= 0 ? '+' : '−'}${eur(left)}</b>
+        <small>${sc.billsLeft ? `Bills still to pay: ${eur(sc.billsLeft)}` : 'All bills paid'}</small></div>
+      <div class="sum">
+        <span class="k">salary</span><span class="w">${sc.from}</span><span class="v up">+${eur(sc.in - (sc.other ?? 0))}</span>
+        ${sc.other ? `<span class="k">other money in</span><span class="w">refunds, money back</span><span class="v up">+${eur(sc.other)}</span>` : ''}
+        <button class="k" onclick="openBills()">bills</button><span class="w">mortgage, insurance, electricity, Claude</span><span class="v down">−${eur(sc.bills)}</span>
+        <span class="k">day-to-day</span><span class="w">food, transport, shopping …</span><span class="v down">−${eur(sc.dayToDay)}</span>
+        <span class="line"></span>
+        <span class="k">balance</span><span></span><span class="v ${tone}">${left >= 0 ? '+' : '−'}${eur(left)}</span>
+      </div>
+      <p class="pace">${pace}</p>
+    </div>
+    <div class="bars" id="bars">${bars(all)}<div class="tip" id="tip"></div>
+      <div class="legend caps"><span><i class="dot" style="background:var(--good)"></i>salary</span><span><i class="dot" style="background:var(--bill)"></i>bills</span><span><i class="dot" style="background:var(--danger)"></i>day-to-day</span><span>a bar is one pay month: salary to salary · hover it</span></div>
+    </div></div>`
+}
+function bars(all) {
+  const W = 420, H = 150, base = 120, top = 104
+  const mx = Math.max(...all.map((m) => Math.max(m.in, m.bills + m.day)))
+  const step = W / all.length, bw = 20
+  let g = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">`
+  all.forEach((m, i) => {
+    const cx = step * i + step / 2
+    const hi = m.in / mx * top, hb = m.bills / mx * top, hd = m.day / mx * top
+    const op = m.now ? .5 : .9
+    g += `<g class="hit" onmouseenter="tip(${i})" onmouseleave="tip(null)" onclick="tip(${i})">
+      <rect class="bg" x="${cx - step / 2 + 3}" y="0" width="${step - 6}" height="${H}" rx="8" fill="transparent"/>
+      <rect x="${cx - bw - 1}" y="${base - hi}" width="${bw}" height="${hi}" rx="3" fill="var(--good)" opacity="${op}"/>
+      <rect x="${cx + 1}" y="${base - hb}" width="${bw}" height="${hb}" rx="3" fill="var(--bill)" opacity="${op}"/>
+      <rect x="${cx + 1}" y="${base - hb - hd}" width="${bw}" height="${hd}" rx="3" fill="var(--danger)" opacity="${op}"/>
+      <text x="${cx}" y="${H - 8}" text-anchor="middle" style="font-family:var(--mono);font-size:10px" fill="${m.now ? 'var(--lav-300)' : 'var(--ink-500)'}">${m.from.split(' ')[1]} pay${m.now ? ' · now' : ''}</text></g>`
+  })
+  return g + '</svg>'
+}
+function tip(i) {
+  const t = document.getElementById('tip'); if (!t) return
+  if (i === null) { t.classList.remove('on'); return }
+  const sc = SCEN[S.scen]
+  const all = [...PAST, { from: sc.from, to: sc.to, in: sc.in, bills: sc.bills, day: sc.dayToDay, now: true }]
+  const m = all[i], left = m.in - m.bills - m.day
+  t.innerHTML = `<div class="t">${m.from} → ${m.to}${m.now ? ' · so far' : ''}</div>
+    <div class="r"><span>salary</span><span class="up">+${eur(m.in)}</span></div>
+    <div class="r"><span>bills</span><span>−${eur(m.bills)}</span></div>
+    <div class="r"><span>day-to-day</span><span>−${eur(m.day)}</span></div>
+    <div class="r tot"><span>balance</span><span class="${left >= 0 ? 'up' : 'down'}">${left >= 0 ? '+' : '−'}${eur(left)}</span></div>`
+  const w = document.getElementById('bars').clientWidth, step = w / all.length
+  t.style.left = Math.min(Math.max(0, step * i + step / 2 - 105), w - 220) + 'px'
+  t.style.top = '0px'
+  t.classList.add('on')
+}
+function openBills() {
+  document.getElementById('sheet').innerHTML = `<div class="title" style="margin-bottom:6px">[ BILLS · this pay month ]</div>
+    ${BILLS.map(([n, v]) => `<div class="kv"><span>${n}</span><span>−${eur(v, 2)}</span></div>`).join('')}
+    <div class="kv" style="border:none;margin-top:4px"><span class="caps">each one opens its statement row in the app</span><span>−${eur(BILLS_SUM)}</span></div>`
+  document.getElementById('veil').classList.add('on')
+}
+render()
+</script>
+</body>
+</html>

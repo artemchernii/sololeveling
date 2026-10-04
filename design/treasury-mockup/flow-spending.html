@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spending Breakdown</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* SPENDING, reworked (4 Oct). Artem: "Bills, daytoday I would love to see
+     those exactly values and where they come from… Spendings tab is shit
+     now, no valuable data." The pay month's own numbers, opened: every
+     bill, every day-to-day group with its rows, and money in. Sample
+     numbers at his scale, not his. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --money: oklch(0.8 0.1 85);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+    --bpi: oklch(0.72 0.16 50); --rev: oklch(0.74 0.15 350); --act: oklch(0.76 0.14 160);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .ctl { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 720px; margin: 0 auto; text-align: center }
+  .note b { color: var(--ink-200); font-weight: 400 }
+  .card { border-radius: 22px; padding: 20px 22px; border: 1px solid rgba(var(--lift),.08); background: linear-gradient(160deg, rgba(var(--lift),.035), rgba(var(--lift),.01) 50%), #1a1a28; box-shadow: 0 30px 80px -30px rgba(0,0,0,.8) }
+  .title { font-family: var(--mono); font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap }
+  .pills { display: flex; gap: 6px }
+  .pill { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400); cursor: pointer }
+  .pill.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+
+  .sec { margin-top: 22px }
+  .sech { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 8px; border-bottom: 1px solid rgba(var(--lift),.1) }
+  .sech b { font-weight: 300; font-size: 26px; font-variant-numeric: tabular-nums }
+  .sech .caps { font-size: 11px; color: var(--ink-300) }
+  .up { color: var(--good) } .down { color: var(--danger) } .warn { color: var(--warn) }
+
+  .row { display: grid; grid-template-columns: 26px 1fr auto; gap: 12px; align-items: center; padding: 9px 4px; border-bottom: 1px solid rgba(var(--lift),.04); font-size: 14px }
+  .row small { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); margin-top: 2px }
+  .row .a { font-family: var(--mono); text-align: right }
+  .row .a small { text-align: right }
+  .logo { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; font-family: var(--mono); font-size: 9px; font-weight: 500; color: #15151f; background: var(--c) }
+  .todo { background: color-mix(in oklch, var(--warn) 7%, transparent); border-radius: 8px }
+
+  .grp { border-bottom: 1px solid rgba(var(--lift),.05) }
+  .gh { display: grid; grid-template-columns: 1fr 140px 96px 20px; gap: 14px; align-items: center; padding: 11px 4px; cursor: pointer; border-radius: 8px; background: none; border: none; width: 100%; text-align: left }
+  .gh:hover { background: rgba(var(--lift),.03) }
+  @media (max-width: 620px) { .gh { grid-template-columns: 1fr 70px 86px 16px } }
+  .gh .n { font-size: 14.5px } .gh .n small { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); margin-top: 2px }
+  .bar { height: 7px; border-radius: 99px; background: rgba(var(--lift),.06); overflow: hidden }
+  .bar i { display: block; height: 100%; border-radius: 99px; background: var(--money) }
+  .gh .v { font-family: var(--mono); text-align: right }
+  .gh .chev { color: var(--ink-500); transition: transform .2s }
+  .grp.open .chev { transform: rotate(90deg) }
+  .rows { display: none; padding: 0 0 8px 12px; border-left: 1px solid rgba(var(--lift),.08); margin: 0 0 6px 10px }
+  .grp.open .rows { display: block }
+  .rows .row { font-size: 13px; padding: 7px 4px }
+  .raw { font-family: var(--mono); font-size: 10px; color: var(--ink-600); margin-top: 2px }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">Mockup · sample numbers · tap a group</div>
+  <p class="note"><b>SPENDING is the pay month opened.</b> The same three numbers as the top of Flow — bills, day-to-day, money in — each with exactly what it is made of: every bill paid and still to pay; day-to-day by group, biggest first, each group opening its rows with the account, the day and what the bank wrote. Last month's figure beside each group, as a plain number.</p>
+  <section class="card" id="card"></section>
+</div>
+<script>
+const eur = (v, c = 2) => '€' + Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: c, maximumFractionDigits: c })
+const ACC = { bpi: ['BPI', '--bpi'], rev: ['R', '--rev'], act: ['AB', '--act'] }
+const NAME = { bpi: 'BPI', rev: 'Revolut', act: 'ActivoBank' }
+const logo = (a) => `<span class="logo" style="--c:var(${ACC[a][1]})">${ACC[a][0]}</span>`
+const MONTHS = {
+  sep: { label: 'Sep pay · now', span: '25 Sep → ~25 Oct',
+    bills: [
+      ['1 Oct', 'Mortgage · interest', 'bpi', 749.74, 'JUROS DE EMPRESTIMO'],
+      ['1 Oct', 'Mortgage · capital', 'bpi', 449.00, 'AMORTIZACAO DE CAPITAL'],
+      ['1 Oct', 'Home insurance', 'bpi', 24.95, 'SEGURO ALLIANZ - MULTI-RISCOS'],
+      ['1 Oct', 'Life insurance', 'bpi', 22.89, 'SEGURO BPI VP-VIDA-HABITACAO'],
+      ['25 Sep', 'Electricity · EDP', 'bpi', 29.11, 'DD EDP COMERCIAL'],
+    ],
+    todo: [['5 Oct', 'Claude', 'rev', 22.14]],
+    groups: [
+      ['Lessons · Preply', 1, 123.72, 250, [['29 Sep', 'PayPal · Preply', 'act', 123.72, 'PayPal Europe']]],
+      ['Lent', 1, 100, 0, [['28 Sep', 'Oleksandr', 'act', 100, 'TRF MB WAY P/ OLEKSANDR']]],
+      ['Eating out', 6, 74.86, 104, [['28 Sep', 'Fulai Restaurante', 'rev', 14, 'Fulai Restaurante To: Fulai, Lisboa'], ['26 Sep', 'Li Yuan', 'rev', 10.81, 'Li Yuan To: Li Yuan, Lisboa'], ['2 Oct', 'Guacamole', 'rev', 13.05, 'Guacamole (C.C. Colombo)'], ['3 Oct', 'Bnp Toc', 'rev', 6.7, 'Bnp Toc To: Bnp Toc'], ['30 Sep', 'Padaria', 'rev', 2.55, 'A Padaria Portuguesa'], ['1 Oct', 'Bnp Toc', 'rev', 27.75, 'Bnp Toc To: Bnp Toc']]],
+      ['Transport', 2, 42.25, 54, [['28 Sep', 'Transport pass', 'rev', 40, 'Santander To: Santander, Lisboa'], ['1 Oct', 'Via Verde', 'act', 2.25, 'PAG BXVAL- 2789 VIAVERDE']]],
+      ['Home', 2, 15.98, 20, [['29 Sep', 'Vodafone', 'act', 10, 'PAG. 919703708 - VODAFONE'], ['30 Sep', 'Gym', 'act', 5.98, 'DD SOLINCA LIGHT']]],
+      ['Fun', 1, 8.75, 0, [['28 Sep', 'Cinemas NOS', 'rev', 8.75, 'Cinemas NOS To: NOS']]],
+      ['Other', 1, 175, 160, [['2 Oct', 'Condominium', 'act', 175, 'TRF P/ COND P S PRCRT V CASTRO']]],
+    ],
+    inn: [['25 Sep', 'Salary · BNP Paribas', 'bpi', 2668.98], ['1 Oct', 'Oleksandr paid back', 'act', 100]],
+  },
+  aug: { label: 'Aug pay', span: '25 Aug → 25 Sep',
+    bills: [
+      ['1 Sep', 'Mortgage · interest', 'bpi', 750.77, 'JUROS DE EMPRESTIMO'],
+      ['1 Sep', 'Mortgage · capital', 'bpi', 447.97, 'AMORTIZACAO DE CAPITAL'],
+      ['1 Sep', 'Home insurance', 'bpi', 24.95, 'SEGURO ALLIANZ'],
+      ['1 Sep', 'Life insurance', 'bpi', 22.92, 'SEGURO BPI VP'],
+      ['5 Sep', 'Claude', 'rev', 22.14, 'Anthropic To: Anthropic'],
+      ['25 Aug', 'Electricity · EDP', 'bpi', 29.11, 'DD EDP COMERCIAL'],
+    ],
+    todo: [],
+    groups: [
+      ['Lessons · Preply', 3, 298.64, 0, [['31 Aug', 'PayPal · Preply', 'act', 172.4, 'PayPal Europe'], ['1 Sep', 'PayPal · Preply', 'act', 121.47, 'DD PAYPAL EUROPE'], ['4 Sep', 'PayPal', 'act', 4.77, 'DD PAYPAL EUROPE']]],
+      ['Clothes', 2, 142.72, 0, [['5 Sep', 'GANT', 'rev', 108, 'GANT To: GANT, Lisboa'], ['20 Sep', 'Mango', 'rev', 34.72, 'Mango To: Mango']]],
+      ['Eating out', 9, 104.18, 0, []],
+      ['Transport', 4, 111.44, 0, []],
+      ['Other', 5, 75.02, 0, []],
+    ],
+    inn: [['25 Aug', 'Salary · BNP Paribas', 'bpi', 2638.36], ['25 Aug', 'BNP compensation', 'bpi', 80], ['14 Sep', 'PayPal refund', 'act', 139.5]],
+  },
+}
+let S = { m: 'sep', open: { 'Lessons · Preply': true } }
+function render() {
+  const m = MONTHS[S.m]
+  const billsPaid = m.bills.reduce((n, b) => n + b[3], 0), todo = m.todo.reduce((n, b) => n + b[3], 0)
+  const day = m.groups.reduce((n, g) => n + g[2], 0), inn = m.inn.reduce((n, r) => n + r[3], 0)
+  const max = Math.max(...m.groups.map((g) => g[2]))
+  document.getElementById('card').innerHTML = `
+    <div class="head"><span class="title">[ WHERE IT WENT · ${m.span} ]</span>
+      <span class="pills">${Object.entries(MONTHS).reverse().map(([k, x]) => `<button class="pill ${S.m === k ? 'on' : ''}" onclick="S.m='${k}';render()">${x.label}</button>`).join('')}</span></div>
+
+    <div class="sec"><div class="sech"><span class="caps">bills · ${m.bills.length} paid${m.todo.length ? ` · ${m.todo.length} to pay` : ''}</span><b class="down">−${eur(billsPaid, 0)}</b></div>
+      ${m.bills.map(([d, n, a, v, raw]) => `<div class="row">${logo(a)}<span>${n}<small>${d} · ${NAME[a]} · ✓ paid</small><div class="raw">${raw}</div></span><span class="a">−${eur(v)}</span></div>`).join('')}
+      ${m.todo.map(([d, n, a, v]) => `<div class="row todo">${logo(a)}<span>${n}<small class="warn">${d} · still to pay</small></span><span class="a warn">−${eur(v)}</span></div>`).join('')}
+    </div>
+
+    <div class="sec"><div class="sech"><span class="caps">day-to-day · biggest first · tap a group</span><b class="down">−${eur(day, 0)}</b></div>
+      ${m.groups.map(([g, n, v, last, rows]) => `<div class="grp ${S.open[g] ? 'open' : ''}">
+        <button class="gh" onclick="S.open['${g}']=!S.open['${g}'];render()"><span class="n">${g}<small>${n} payment${n === 1 ? '' : 's'}${last ? ` · last month ${eur(last, 0)}` : ''}</small></span>
+          <span class="bar"><i style="width:${v / max * 100}%"></i></span><span class="v">−${eur(v)}</span><span class="chev">›</span></button>
+        <div class="rows">${rows.length ? rows.map(([d, nm, a, x, raw]) => `<div class="row">${logo(a)}<span>${nm}<small>${d} · ${NAME[a]}</small><div class="raw">${raw}</div></span><span class="a">−${eur(x)}</span></div>`).join('') : '<div class="caps" style="padding:8px 4px">rows here</div>'}</div></div>`).join('')}
+    </div>
+
+    <div class="sec"><div class="sech"><span class="caps">money in</span><b class="up">+${eur(inn, 0)}</b></div>
+      ${m.inn.map(([d, n, a, v]) => `<div class="row">${logo(a)}<span>${n}<small>${d} · ${NAME[a]}</small></span><span class="a up">+${eur(v)}</span></div>`).join('')}
+    </div>`
+}
+render()
+</script>
+</body>
+</html>

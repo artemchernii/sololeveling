@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Payees</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Payees (4 Oct). Artem: "we have paypal and its not clear what it is. I
+     want to name it… Preply + you know that its preply and add icon", "or
+     I add Clothes, maybe even Nike, AboutYou … attach Nike + Icon", and
+     "Juros Emprestimo — I want to keep name but add my own explanation
+     that its Mortgage". One feature: a payee named once, with its logo and
+     group, the bank's words kept underneath; known bank phrases suggested;
+     bills grouped into one thing. Sample rows shaped like his. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --money: oklch(0.8 0.1 85);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button, input { font: inherit; color: inherit }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .ctl { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .pill { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400); cursor: pointer }
+  .pill.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 720px; margin: 0 auto; text-align: center }
+  .note b { color: var(--ink-200); font-weight: 400 }
+  .card { border-radius: 22px; padding: 20px 22px; border: 1px solid rgba(var(--lift),.08); background: linear-gradient(160deg, rgba(var(--lift),.035), rgba(var(--lift),.01) 50%), #1a1a28 }
+  .title { font-family: var(--mono); font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .sech { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 0 8px; border-bottom: 1px solid rgba(var(--lift),.1) }
+  .sech b { font-weight: 300; font-size: 22px; font-variant-numeric: tabular-nums; color: var(--danger) }
+
+  .row { display: grid; grid-template-columns: 34px 1fr auto; gap: 12px; align-items: center; padding: 10px 4px; border-bottom: 1px solid rgba(var(--lift),.05) }
+  .row.land { animation: land 1.6s ease-out }
+  @keyframes land { 0% { background: rgba(181,171,252,.22) } 100% { background: transparent } }
+  .nm { font-size: 14.5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+  .nm button { background: none; border: none; padding: 0; cursor: pointer; text-align: left; border-bottom: 1px dashed rgba(var(--lift),.25) }
+  .nm button:hover { color: var(--lav-300) }
+  .sub { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); margin-top: 3px }
+  .raw { font-family: var(--mono); font-size: 10px; color: var(--ink-600); margin-top: 2px }
+  .amt { font-family: var(--mono); text-align: right }
+  .tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 7px; border-radius: 5px; color: var(--lav-300); background: rgba(181,171,252,.1); border: 1px solid rgba(181,171,252,.25) }
+  .tag.g { color: var(--good); background: color-mix(in oklch, var(--good) 10%, transparent); border-color: color-mix(in oklch, var(--good) 30%, transparent) }
+
+  /* A payee's mark with the bank's small in the corner. */
+  .mark { position: relative; width: 32px; height: 32px }
+  .mark .shop { width: 32px; height: 32px; border-radius: 9px; background: #fff; display: grid; place-items: center; overflow: hidden; padding: 4px }
+  .mark .shop img { width: 100%; height: 100%; object-fit: contain }
+  .mark .shop.letters { background: rgba(181,171,252,.16); color: var(--lav-300); font-family: var(--mono); font-size: 11px; padding: 0 }
+  .mark .bank { position: absolute; right: -4px; bottom: -4px; width: 16px; height: 16px; border-radius: 5px; display: grid; place-items: center; font-family: var(--mono); font-size: 6.5px; font-weight: 500; color: #15151f; box-shadow: 0 0 0 2px #1a1a28 }
+
+  .ask { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 11px 12px; border-radius: 14px; border: 1px dashed color-mix(in oklch, var(--lav-400) 40%, transparent); background: rgba(181,171,252,.05); margin-top: 8px }
+  .ask .t { font-size: 13.5px } .ask .t s { color: var(--ink-500); text-decoration: none; font-family: var(--mono); font-size: 11.5px }
+  .yes { background: rgba(181,171,252,.18); border: 1px solid color-mix(in oklch, var(--lav-400) 45%, transparent); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .1em }
+  .no { background: none; border: 1px solid rgba(var(--lift),.12); color: var(--ink-400); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .1em }
+
+  .parts { padding: 0 0 6px 46px }
+  .parts .row { grid-template-columns: 1fr auto; padding: 6px 4px; font-size: 13px }
+  .chev { color: var(--ink-500); margin-left: 4px; transition: transform .2s; display: inline-block }
+  .open .chev { transform: rotate(90deg) }
+
+  /* The "who is this?" sheet. */
+  .veil { position: fixed; inset: 0; background: rgba(8,8,14,.55); backdrop-filter: blur(4px); display: none; align-items: flex-end; justify-content: center; z-index: 9 }
+  .veil.on { display: flex }
+  .sheet { width: min(560px, 100%); border-radius: 22px 22px 0 0; padding: 18px 20px 26px; border: 1px solid var(--edge); border-bottom: none; background: linear-gradient(160deg, rgba(181,171,252,.09), rgba(181,171,252,.02) 40%), #1d1c2d; display: flex; flex-direction: column; gap: 12px; animation: up .3s both }
+  @keyframes up { from { transform: translateY(30px); opacity: 0 } }
+  .field { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--edge); background: rgba(var(--lift),.03); outline: none; font-size: 15px }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px }
+  .chip { padding: 5px 11px; border-radius: 999px; border: 1px solid rgba(var(--lift),.12); background: none; cursor: pointer; font-size: 12.5px; color: var(--ink-300) }
+  .chip.on { color: var(--ink-100); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent); background: rgba(181,171,252,.14) }
+  .chip.new { border-style: dashed }
+  .found { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(var(--lift),.03) }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">Mockup · rows shaped like his · pick a situation</div>
+  <div class="scen" id="scen"></div>
+  <p class="note" id="note"></p>
+  <section class="card" id="card"></section>
+</div>
+<div class="veil" id="veil" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheet"></div></div>
+<script>
+const fav = (d) => `https://www.google.com/s2/favicons?domain=${d}&sz=64`
+const BANK = { act: ['AB', 'oklch(0.76 0.14 160)', 'ActivoBank'], bpi: ['BPI', 'oklch(0.72 0.16 50)', 'BPI'], rev: ['R', 'oklch(0.74 0.15 350)', 'Revolut'] }
+function mark(p, bank) {
+  const shop = p.domain ? `<span class="shop"><img src="${fav(p.domain)}" alt=""/></span>` : `<span class="shop letters">${p.letters ?? p.name.slice(0, 2).toUpperCase()}</span>`
+  return `<span class="mark">${shop}<span class="bank" style="background:${BANK[bank][1]}">${BANK[bank][0]}</span></span>`
+}
+/* Payees as the app knows them. `named` = he said who it is. */
+let P = {
+  paypal: { name: 'PayPal Europe', letters: 'PP', raw: 'DD PayPal Europe 5D4J2254EVNWL LU96000000000', group: 'Subscriptions', rows: 4 },
+  solinca: { name: 'Solinca Light', domain: 'solinca.pt', raw: 'DD SOLINCA LIGHT, 00003262677 PT13107755', group: 'Health', known: true },
+  mango: { name: 'Mango', domain: 'mango.com', raw: 'Mango To: Mango, Lisboa Card: 5167', group: 'Clothes', known: true },
+  gant: { name: 'GANT', domain: 'gant.com', raw: 'GANT To: GANT, Lisboa Card: 5167', group: 'Clothes', known: true },
+  condo: { name: 'TRF P/ COND P S PRCRT V CASTRO', letters: 'TR', raw: 'TRF P/ COND P S PRCRT V CASTRO ALMEIDA 4', group: 'Unsorted', suggest: 'Condominium', suggestGroup: 'Home & bills' },
+}
+const SCEN = {
+  before: { label: 'before', note: '<b>What he sees today.</b> A PayPal debit he knows is Preply, a transfer that is his condominium. Tap a payee\'s name (dashed) to say who it is.' },
+  name: { label: 'naming PayPal', note: '<b>"Who is this?"</b> He types Preply. The app finds preply.com and its logo, proposes a group, and says which rows it applies to: every PayPal debit with this mandate code — not all of PayPal.' },
+  after: { label: 'after', named: true, note: '<b>Named once, everywhere.</b> Preply with its logo, the bank small in the corner, the bank\'s words kept underneath. Mango and GANT were recognised with no question — the app ships a short list of shops it knows (KNOWN).' },
+  suggest: { label: 'suggested names', note: '<b>Bank phrases it knows.</b> Portuguese banking words are fixed, so the app proposes the plain name — one tap to accept. Anything it cannot know, he names himself.' },
+  parts: { label: 'mortgage in parts', note: '<b>One thing, two payments.</b> Interest and capital become "Mortgage" — one line in bills, opening into its parts, each with the bank\'s words. The same works for insurance.' },
+}
+let S = { scen: 'before', open: false, landed: null, accepted: {} }
+function setScen(k) {
+  S = { scen: k, open: k === 'parts', landed: null, accepted: {} }
+  P.paypal = SCEN[k].named ? { ...P.paypal, name: 'Preply', domain: 'preply.com', group: 'Learning', named: true } : { name: 'PayPal Europe', letters: 'PP', raw: 'DD PayPal Europe 5D4J2254EVNWL LU96000000000', group: 'Subscriptions', rows: 4 }
+  render()
+  if (k === 'name') openSheet()
+}
+function row(id, bank, date, amt, sub = '') {
+  const p = P[id]
+  return `<div class="row ${S.landed === id ? 'land' : ''}">${mark(p, bank)}
+    <span><span class="nm"><button onclick="openSheet('${id}')">${p.name}</button>${p.named ? '<span class="tag">your name</span>' : ''}${p.known ? '<span class="tag g">known</span>' : ''}</span>
+      <div class="sub">${date} · ${BANK[bank][2]} · ${p.group}${sub}</div><div class="raw">${p.raw}</div></span>
+    <span class="amt">−€${amt}</span></div>`
+}
+function render() {
+  const sc = SCEN[S.scen]
+  document.getElementById('scen').innerHTML = Object.entries(SCEN).map(([k, s]) => `<button class="pill ${S.scen === k ? 'on' : ''}" onclick="setScen('${k}')">${s.label}</button>`).join('')
+  document.getElementById('note').innerHTML = sc.note
+  let html = `<span class="title">[ WHERE IT WENT · 25 SEP → ~25 OCT ]</span>`
+  if (S.scen === 'suggest') {
+    const asks = [
+      ['juros', 'JUROS DE EMPRESTIMO', 'Mortgage · interest'],
+      ['amort', 'AMORTIZACAO DE CAPITAL', 'Mortgage · capital'],
+      ['allianz', 'SEGURO ALLIANZ - MULTI-RISCOS HABITACAO', 'Home insurance'],
+      ['vida', 'SEGURO BPI VP-VIDA-HABITACAO', 'Life insurance'],
+      ['condo', 'TRF P/ COND P S PRCRT V CASTRO', 'Condominium'],
+    ]
+    html += `<div class="sech"><span class="caps">the app can say these plainly · ${asks.filter(([k]) => !S.accepted[k]).length} to look at</span></div>
+      ${asks.map(([k, raw, plain]) => S.accepted[k]
+        ? `<div class="row land"><span class="mark"><span class="shop letters">✓</span></span><span><span class="nm">${plain}<span class="tag">your name</span></span><div class="raw">${raw}</div></span><span class="amt"></span></div>`
+        : `<div class="ask"><span class="t"><s>${raw}</s><br/>→ <b style="font-weight:400">${plain}</b>?</span><span style="display:flex;gap:6px"><button class="yes" onclick="S.accepted['${k}']=1;render()">YES</button><button class="no" onclick="openSheet('condo')">MY OWN</button></span></div>`).join('')}`
+  } else if (S.scen === 'parts') {
+    html += `<div class="sech"><span class="caps">bills · 5 paid</span><b>−€1,276</b></div>
+      <div class="${S.open ? 'open' : ''}"><div class="row" style="cursor:pointer" onclick="S.open=!S.open;render()"><span class="mark"><span class="shop letters">🏠</span><span class="bank" style="background:${BANK.bpi[1]}">BPI</span></span>
+        <span><span class="nm">Mortgage<span class="chev">›</span><span class="tag">2 parts</span></span><div class="sub">1 Oct · BPI · Home & bills</div></span><span class="amt">−€1,198.74</span></div>
+        ${S.open ? `<div class="parts">
+          <div class="row"><span>interest<div class="raw">JUROS DE EMPRESTIMO - 006504665-165-001</div></span><span class="amt">−€749.74</span></div>
+          <div class="row"><span>capital<div class="raw">AMORTIZACAO DE CAPITAL - 006504665-165-001</div></span><span class="amt">−€449.00</span></div></div>` : ''}</div>
+      <div class="row"><span class="mark"><span class="shop"><img src="${fav('allianz.pt')}" alt=""/></span><span class="bank" style="background:${BANK.bpi[1]}">BPI</span></span><span><span class="nm">Home insurance</span><div class="sub">1 Oct · BPI · Home & bills</div><div class="raw">SEGURO ALLIANZ - MULTI-RISCOS-HABITACAO</div></span><span class="amt">−€24.95</span></div>
+      <div class="row"><span class="mark"><span class="shop"><img src="${fav('edp.pt')}" alt=""/></span><span class="bank" style="background:${BANK.bpi[1]}">BPI</span></span><span><span class="nm">Electricity · EDP</span><div class="sub">25 Sep · BPI · Home & bills</div><div class="raw">DD EDP COMERCIAL COMERCIALIZACAO</div></span><span class="amt">−€29.11</span></div>`
+  } else {
+    html += `<div class="sech"><span class="caps">${P.paypal.group === 'Learning' ? 'learning · 1 payment' : 'subscriptions · 2 payments'}</span><b>−€${P.paypal.group === 'Learning' ? '123.72' : '129.70'}</b></div>
+      ${row('paypal', 'act', '29 Sep', '123.72')}
+      ${P.paypal.group === 'Learning' ? `<div class="sech"><span class="caps">health · 1 payment</span><b>−€5.98</b></div>` : ''}
+      ${row('solinca', 'act', '30 Sep', '5.98')}
+      <div class="sech"><span class="caps">clothes · 2 payments</span><b>−€142.72</b></div>
+      ${row('gant', 'rev', '5 Sep', '108.00')}${row('mango', 'rev', '20 Sep', '34.72')}
+      <div class="sech"><span class="caps">${P.condo.named ? 'home & bills' : 'unsorted'} · 1 payment</span><b>−€175</b></div>
+      ${row('condo', 'act', '2 Oct', '175.00')}`
+  }
+  document.getElementById('card').innerHTML = html
+}
+let draft = null
+function openSheet(id = 'paypal') {
+  const p = P[id]
+  const guess = id === 'paypal' ? { name: 'Preply', domain: 'preply.com', group: 'Learning' } : { name: p.suggest ?? p.name, domain: null, group: p.suggestGroup ?? p.group }
+  draft = { id, ...guess }
+  sheetDraw()
+  document.getElementById('veil').classList.add('on')
+}
+function sheetDraw() {
+  const p = P[draft.id]
+  const groups = ['Learning', 'Subscriptions', 'Home & bills', 'Clothes', 'Health', 'Eating out', 'Transport', 'Fun', 'Other']
+  document.getElementById('sheet').innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><span class="title">[ WHO IS THIS? ]</span><button class="no" onclick="closeSheet()">✕</button></div>
+    <div class="raw" style="font-size:11px">the bank wrote: ${p.raw}</div>
+    <input class="field" value="${draft.name}" oninput="draft.name=this.value;draft.domain=this.value.toLowerCase()==='preply'?'preply.com':null;document.getElementById('fd').innerHTML=foundLine()" />
+    <div id="fd">${foundLine()}</div>
+    <span class="caps">group</span>
+    <div class="chips">${groups.map((g) => `<button class="chip ${draft.group === g ? 'on' : ''} ${g === 'Learning' ? 'new' : ''}" onclick="draft.group='${g}';sheetDraw()">${g}${g === 'Learning' ? ' · new' : ''}</button>`).join('')}</div>
+    ${draft.id === 'paypal' ? `<span class="caps">part of</span><div class="chips"><button class="chip on">nothing</button><button class="chip">Mortgage</button><button class="chip new">+ new</button></div>` : ''}
+    <div class="found" style="background:none;padding:0"><span class="caps" style="line-height:1.6">${draft.id === 'paypal' ? 'applies to 4 PayPal debits with mandate 5D4J2254EVNWL — and the next ones. Other PayPal payments stay as they are.' : 'applies to every row from this payee — and the next ones.'}</span></div>
+    <button class="yes" style="align-self:flex-start;padding:9px 18px" onclick="save()">SAVE</button>`
+}
+function foundLine() {
+  return draft.domain
+    ? `<div class="found"><span class="mark"><span class="shop"><img src="${fav(draft.domain)}" alt=""/></span></span><span><b style="font-weight:400">${draft.domain}</b><div class="sub">logo found from the name</div></span></div>`
+    : `<div class="found"><span class="mark"><span class="shop letters">${(draft.name || '?').slice(0, 2).toUpperCase()}</span></span><span class="sub">no site found — its letters will do, or type a site</span></div>`
+}
+function save() {
+  const p = P[draft.id]
+  P[draft.id] = { ...p, name: draft.name, domain: draft.domain, group: draft.group, named: true, letters: draft.name.slice(0, 2).toUpperCase() }
+  S.landed = draft.id
+  if (S.scen === 'name' || S.scen === 'before') S.scen = 'after'
+  closeSheet(); render()
+}
+function closeSheet() { document.getElementById('veil').classList.remove('on') }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet() })
+render()
+</script>
+</body>
+</html>

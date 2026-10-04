@@ -3,10 +3,8 @@ import { useEffect, useState } from 'react'
 import { CandlestickChart, LayoutGrid, Waves } from 'lucide-react'
 
 import { Accounts } from '@/components/finances/Accounts'
-import { Bills } from '@/components/finances/Bills'
+import { Flow } from '@/components/finances/flow/Flow'
 import { IntakeFlow, OpenIntakes } from '@/components/finances/Intake'
-import { MoneyCalendar } from '@/components/finances/MoneyCalendar'
-import { MonthMoney } from '@/components/finances/MonthMoney'
 import { Portfolio } from '@/components/finances/Portfolio'
 import { RoomTabLabel, RoomTabs, roomTabClass } from '@/components/RoomTabs'
 import { Sheet } from '@/components/finances/Sheet'
@@ -72,11 +70,7 @@ function Treasury() {
         hidden={room !== 'flow'}
         className="flex flex-col gap-3"
       >
-        <Bills />
-        <MonthMoney open={month} />
-        <section className="glass flex flex-col gap-5 rounded-[22px] p-4 sm:p-5">
-          <MoneyCalendar />
-        </section>
+        <Flow open={month} />
       </div>
       <div
         style={areaVars('money')}

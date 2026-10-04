@@ -670,6 +670,16 @@ export default defineSchema({
     /* Yearly only: 0–11. */
     month: v.optional(v.number()),
     endedAt: v.optional(v.number()),
+    /* Flow (3 Oct): the payee as the bank printed it (src/lib/payee), so a
+       statement row is known as this bill's payment without anything
+       written onto the row. Absent on a bill typed before Flow. */
+    matchKey: v.optional(v.string()),
+    /* When the app found it in his statements by itself — NEW for a week.
+       Absent on one he added. */
+    foundAt: v.optional(v.number()),
+    /* "× not a bill": out of every view, and never found again. Kept, not
+       deleted, because the key is what stops it coming back. */
+    refusedAt: v.optional(v.number()),
   }).index('by_owner', ['ownerId']),
 
   /* A ticker he holds or held (Finances F4), found by search and never
@@ -1070,6 +1080,22 @@ export default defineSchema({
     }),
     updatedAt: v.number(),
   }).index('by_owner_header', ['ownerId', 'headerKey']),
+
+  /* Who a payee is, in his words (4 Oct: "we have paypal and its not
+     clear what it is. I want to name it"). Keyed by src/lib/payees
+     payeeIdOf — a PayPal row by its mandate code, so naming one PayPal
+     shop never names all of PayPal. The bank's own words stay on the rows;
+     this is the name shown above them. */
+  payees: defineTable({
+    ownerId: v.string(),
+    key: v.string(),
+    name: v.string(),
+    /** The site its logo is taken from ("preply.com"). */
+    domain: v.optional(v.string()),
+    /** One thing made of several payees: "Mortgage" = interest + capital. */
+    partOf: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index('by_owner_key', ['ownerId', 'key']),
 
   /* What a merchant is, as he taught it (Treasury, 27 Sep): change "Bnp
      Toc" to eating out once and every row of it — this statement and the

@@ -10,6 +10,7 @@ import { PILL_QUIET } from '@/components/finances/bits'
 import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Veiled } from '@/components/finances/Veil'
+import { GroupBadge, PaidChip } from '@/components/finances/GroupBadge'
 import { LENT, SPEND_CATEGORIES, categoryLabel } from '@/lib/money'
 import { bankPhrase } from '@/lib/payees'
 import { PayeeMark, PayeeName, WhoIsThis, usePayees } from './Payees'
@@ -116,6 +117,16 @@ export function Spending({
     else billItems.push({ kind: 'one', b })
   }
 
+  /** What a group change says, by where the row went. */
+  const moved = (r: Row) => (n: number, to: string) =>
+    setNotice(
+      to === LENT
+        ? `${who(r).name}: lent — out of spending. The money back is found by itself.`
+        : to === 'subscriptions'
+          ? `${who(r).name}: a bill now — every month, in Future balance.`
+          : `${who(r).name}: ${n} row${n === 1 ? '' : 's'} moved to ${categoryLabel('expense', to)} — and the next ones too.`,
+    )
+
   return (
     <section className="glass motion-arrive flex flex-col gap-5 rounded-[22px] p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -161,13 +172,15 @@ export function Spending({
                   key={item.b.row.id}
                   row={item.b.row}
                   who={billWho(who(item.b.row), item.b.billName)}
-                  sub={`${dayMonth(item.b.row.t)} · ${account(item.b.row.accountId)?.name ?? '—'} · ✓ paid${
+                  sub={`${dayMonth(item.b.row.t)} · ${account(item.b.row.accountId)?.name ?? '—'}${
                     item.b.everyMonths && item.b.everyMonths > 1
                       ? ` · covers ${item.b.everyMonths} months, ${eur(item.b.row.amount / item.b.everyMonths, true)} a month`
                       : ''
                   }`}
                   account={account(item.b.row.accountId)}
                   onName={name(item.b.row)}
+                  onMoved={moved(item.b.row)}
+                  status={<PaidChip />}
                 />
               ) : (
                 <Parts
@@ -183,7 +196,7 @@ export function Spending({
                     })
                   }
                   total={item.bills.reduce((n, b) => n + b.row.amount, 0)}
-                  sub={`${dayMonth(item.bills[0].row.t)} · ${account(item.bills[0].row.accountId)?.name ?? '—'} · ✓ paid`}
+                  sub={`${dayMonth(item.bills[0].row.t)} · ${account(item.bills[0].row.accountId)?.name ?? '—'}`}
                   account={account(item.bills[0].row.accountId)}
                 >
                   {item.bills.map((b) => (
@@ -194,6 +207,7 @@ export function Spending({
                       sub={dayMonth(b.row.t)}
                       account={account(b.row.accountId)}
                       onName={name(b.row)}
+                      onMoved={moved(b.row)}
                     />
                   ))}
                 </Parts>
@@ -276,18 +290,7 @@ export function Spending({
                           sub={`${dayMonth(r.t)} · ${account(r.accountId)?.name ?? '—'}`}
                           account={account(r.accountId)}
                           onName={name(r)}
-                          group={
-                            <GroupPick
-                              row={r}
-                              onMoved={(n, to) =>
-                                setNotice(
-                                  to === LENT
-                                    ? `${who(r).name}: lent — out of spending. The money back is found by itself.`
-                                    : `${who(r).name}: ${n} row${n === 1 ? '' : 's'} moved to ${categoryLabel('expense', to)} — and the next ones too.`,
-                                )
-                              }
-                            />
-                          }
+                          onMoved={moved(r)}
                         />
                       ))}
                     </div>
@@ -354,18 +357,7 @@ export function Spending({
                   account={account(x.row.accountId)}
                   income={x.kind === 'income'}
                   onName={name(x.row)}
-                  group={
-                    x.kind === 'expense' ? (
-                      <GroupPick
-                        row={x.row}
-                        onMoved={(n, to) =>
-                          setNotice(
-                            `${who(x.row).name}: ${n} row${n === 1 ? '' : 's'} moved to ${categoryLabel('expense', to)}.`,
-                          )
-                        }
-                      />
-                    ) : undefined
-                  }
+                  onMoved={x.kind === 'expense' ? moved(x.row) : undefined}
                 />
               ))}
             </Section>
@@ -441,7 +433,8 @@ function RowLine({
   account,
   income,
   onName,
-  group,
+  onMoved,
+  status,
 }: {
   row: Row
   who: Who
@@ -449,9 +442,15 @@ function RowLine({
   account?: Doc<'accounts'>
   income?: boolean
   onName?: () => void
-  /** The group chip, for a day-to-day row. */
-  group?: React.ReactNode
+  /** Money out: its group badge opens the picker, and this hears where
+      it went. */
+  onMoved?: (n: number, to: string) => void
+  /** Under the amount: PAID, for a bill. */
+  status?: React.ReactNode
 }) {
+  const refile = useMutation(api.logs.refile)
+  const [picking, setPicking] = useState(false)
+  const now = row.category ?? null
   return (
     <div className="grid w-full grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 border-b border-lift/4 px-1 py-2.5">
       <PayeeMark who={who} account={account} />
@@ -462,21 +461,55 @@ function RowLine({
             {who.original}
           </span>
         ) : null}
-        <span className="block font-mono text-[10.5px] text-ink-500">
-          {sub}
+        <span className="mt-1 flex flex-wrap items-center gap-2">
+          {income && now === null ? null : (
+            <GroupBadge
+              kind={income ? 'income' : 'expense'}
+              category={now}
+              open={picking}
+              onClick={onMoved ? () => setPicking(!picking) : undefined}
+            />
+          )}
+          <span className="font-mono text-[10.5px] text-ink-500">{sub}</span>
         </span>
-        {group}
+        {picking && onMoved ? (
+          <span className="motion-arrive mt-1.5 flex flex-wrap gap-1">
+            {SPEND_CATEGORIES.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  setPicking(false)
+                  if (c.id === now) return
+                  void refile({ logId: row.id, category: c.id }).then((n) =>
+                    onMoved(n, c.id),
+                  )
+                }}
+                className={`rounded-full px-2.5 py-1 text-[12px] ring-1 ring-inset transition-colors ${
+                  c.id === now
+                    ? 'bg-lav-400/14 text-foreground ring-lav-400/45'
+                    : 'text-ink-300 ring-lift/12 hover:text-foreground hover:ring-lift/25'
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </span>
+        ) : null}
         {row.raw && row.raw !== who.name && row.raw !== who.original ? (
-          <span className="block truncate font-mono text-[10px] text-ink-600">
+          <span className="mt-0.5 block truncate font-mono text-[10px] text-ink-600">
             {row.raw}
           </span>
         ) : null}
       </span>
-      <span className={`font-mono ${income ? 'text-state-good' : ''}`}>
-        <Veiled>
-          {income ? '+' : '−'}
-          {eur(row.amount, true)}
-        </Veiled>
+      <span className="flex flex-col items-end gap-1">
+        <span className={`font-mono ${income ? 'text-state-good' : ''}`}>
+          <Veiled>
+            {income ? '+' : '−'}
+            {eur(row.amount, true)}
+          </Veiled>
+        </span>
+        {status}
       </span>
     </div>
   )
@@ -533,8 +566,11 @@ function Parts({
             {sub}
           </span>
         </span>
-        <span className="font-mono">
-          <Veiled>−{eur(total, true)}</Veiled>
+        <span className="flex flex-col items-end gap-1">
+          <span className="font-mono">
+            <Veiled>−{eur(total, true)}</Veiled>
+          </span>
+          <PaidChip />
         </span>
       </button>
       {open ? (
@@ -548,63 +584,4 @@ function Parts({
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <span className="py-3 text-[13px] text-ink-500">{children}</span>
-}
-
-/* The group a payee is filed in, changed where it is seen (4 Oct: "I see
-   unsorted… shopping last month includes fuel"). The app's own list, not
-   a browser picker; the choice moves every row of the payee and is
-   remembered for the next statements. */
-function GroupPick({
-  row,
-  onMoved,
-}: {
-  row: Row
-  onMoved: (n: number, to: string) => void
-}) {
-  const refile = useMutation(api.logs.refile)
-  const [open, setOpen] = useState(false)
-  const now = row.category ?? null
-  return (
-    <span className="mt-1 block">
-      <span
-        role="button"
-        tabIndex={0}
-        onClick={() => setOpen(!open)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') setOpen(!open)
-        }}
-        className={`cursor-pointer rounded-[5px] px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.12em] uppercase ring-1 ring-inset ${
-          now
-            ? 'bg-lav-400/10 text-lav-300 ring-lav-400/25'
-            : 'bg-state-warn/12 text-state-warn ring-state-warn/30'
-        }`}
-      >
-        {now ? categoryLabel('expense', now) : 'unsorted'} · change
-      </span>
-      {open ? (
-        <span className="motion-arrive mt-1.5 flex flex-wrap gap-1">
-          {SPEND_CATEGORIES.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => {
-                setOpen(false)
-                if (c.id === now) return
-                void refile({ logId: row.id, category: c.id }).then((n) => {
-                  onMoved(n, c.id)
-                })
-              }}
-              className={`rounded-full px-2.5 py-1 text-[12px] ring-1 ring-inset transition-colors ${
-                c.id === now
-                  ? 'bg-lav-400/14 text-foreground ring-lav-400/45'
-                  : 'text-ink-300 ring-lift/12 hover:text-foreground hover:ring-lift/25'
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
-        </span>
-      ) : null}
-    </span>
-  )
 }

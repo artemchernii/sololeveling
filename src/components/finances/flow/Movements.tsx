@@ -12,6 +12,7 @@ import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { failureMessage } from '@/lib/convex-errors'
 import { categoryLabel } from '@/lib/money'
+import { GroupBadge, PaidChip } from '@/components/finances/GroupBadge'
 import type { Notice } from './Ahead'
 import { whenSaid } from './AddBill'
 import { PayeeMark, PayeeName, usePayees, Why } from './Payees'
@@ -42,6 +43,9 @@ export function Movements({
   const [acc, setAcc] = useState<Id<'accounts'> | null>(null)
   const [q, setQ] = useState('')
   const [day, setDay] = useState<number | null>(null)
+  /* The day under the pointer (4 Oct: hovering a green-and-red day showed
+     only the money out). */
+  const [hover, setHover] = useState<number | null>(null)
   const [open, setOpen] = useState<Doc<'logs'> | null>(null)
   const span = useMemo(
     () => ({ start: today - (days - 1) * DAY, end: today + DAY }),
@@ -148,17 +152,27 @@ export function Movements({
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search a name — Netflix, Continente…"
+          placeholder="Search"
           aria-label="Search movements"
           className={`${FIELD} ml-auto min-w-40 flex-1 rounded-full py-1.5 sm:max-w-64`}
         />
       </div>
 
       <div
-        className="mt-2 grid h-[74px] auto-cols-fr grid-flow-col items-end gap-[3px]"
+        className="relative mt-2 grid h-[74px] auto-cols-fr grid-flow-col items-end gap-[3px]"
         role="list"
         aria-label="Days"
+        onPointerLeave={() => setHover(null)}
       >
+        {hover !== null ? (
+          <DayTip
+            t={hover}
+            at={cells.indexOf(hover) / Math.max(1, cells.length - 1)}
+            s={sums.get(hover)}
+            bill={hover > today ? billDays.has(hover) : !!sums.get(hover)?.bill}
+            future={hover > today}
+          />
+        ) : null}
         {cells.map((c) => {
           const s = sums.get(c)
           const future = c > today
@@ -169,7 +183,7 @@ export function Movements({
               role="listitem"
               disabled={future}
               onClick={() => jump(c)}
-              title={`${dayMonth(c)}${s?.o ? ` · −${eur(s.o, true)}` : ''}`}
+              onPointerEnter={() => setHover(c)}
               className={`relative flex h-full flex-col items-center justify-end gap-1 rounded-[6px] pb-0.5 transition-colors hover:bg-lift/4 ${
                 day === c ? 'bg-lav-400/12' : ''
               }`}
@@ -279,12 +293,17 @@ export function Movements({
                             {whoOf(i.log).original}
                           </span>
                         ) : null}
-                        <span className="block font-mono text-[10px] text-ink-500">
-                          {categoryLabel(
-                            i.log.kind === 'income' ? 'income' : 'expense',
-                            i.log.meta?.category ?? null,
+                        <span className="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-[10px] text-ink-500">
+                          {i.log.kind === 'income' &&
+                          !i.log.meta?.category ? null : (
+                            <GroupBadge
+                              kind={
+                                i.log.kind === 'income' ? 'income' : 'expense'
+                              }
+                              category={i.log.meta?.category ?? null}
+                            />
                           )}
-                          {i.billId ? ' · bill ✓' : ''} ·{' '}
+                          {i.billId ? <PaidChip label="bill" /> : null}
                           {account(i.log.accountId)?.name ?? '—'}
                         </span>
                       </span>
@@ -344,6 +363,54 @@ function Logo({ a }: { a?: Doc<'accounts'> }) {
   )
 }
 
+function DayTip({
+  t,
+  at,
+  s,
+  bill,
+  future,
+}: {
+  t: number
+  /** 0–1 across the strip. */
+  at: number
+  s?: { o: number; i: number }
+  bill: boolean
+  future: boolean
+}) {
+  return (
+    <div
+      style={{ left: `${Math.min(88, Math.max(12, at * 100))}%` }}
+      className="pointer-events-none absolute -top-2 z-10 min-w-[150px] -translate-x-1/2 -translate-y-full rounded-[12px] bg-background/95 p-2.5 ring-1 ring-[color:var(--system-edge)] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.9)]"
+    >
+      <div className="mb-1 font-mono text-[10px] tracking-[0.14em] text-lav-300 uppercase">
+        {weekday(t)} {dayMonth(t)}
+      </div>
+      {s?.i ? (
+        <div className="flex justify-between gap-4 font-mono text-[12px] text-state-good">
+          <span>in</span>
+          <span>+{eur(s.i, true)}</span>
+        </div>
+      ) : null}
+      {s?.o ? (
+        <div className="flex justify-between gap-4 font-mono text-[12px] text-state-danger">
+          <span>out</span>
+          <span>−{eur(s.o, true)}</span>
+        </div>
+      ) : null}
+      {!s?.i && !s?.o ? (
+        <div className="font-mono text-[12px] text-ink-500">
+          {future ? 'still to come' : 'nothing moved'}
+        </div>
+      ) : null}
+      {bill ? (
+        <div className="mt-1 font-mono text-[10px] text-ink-400">
+          ○ a bill&apos;s day
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function MoveRow({
   i,
   from,
@@ -354,7 +421,9 @@ function MoveRow({
   to?: Doc<'accounts'>
 }) {
   return (
-    <div className="grid grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-3 border-b border-lift/3 px-1 py-2 text-[13.5px] text-ink-400">
+    /* Lavender (4 Oct: "transfers make violet"): his own money moving,
+       apart from red out and green in at a glance. */
+    <div className="grid grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border-b border-lift/3 bg-lav-400/6 px-1 py-2 text-[13.5px] text-lav-200 shadow-[inset_2px_0_0_var(--color-lav-400)]">
       <span className="flex items-center">
         {from ? (
           <AccountLogo name={from.name} domain={from.domain} size={18} />
@@ -374,11 +443,11 @@ function MoveRow({
               ? `${from.name} · within the account`
               : `${from?.name ?? 'another account'} → ${to?.name ?? 'another account'}`}
         </span>
-        <span className="block font-mono text-[10px] text-ink-500">
+        <span className="block font-mono text-[10px] text-lav-300/70">
           your move · {i.text.toLowerCase()} · not in or out
         </span>
       </span>
-      <span className="font-mono">⇄ {eur(i.amount, true)}</span>
+      <span className="font-mono text-lav-300">⇄ {eur(i.amount, true)}</span>
     </div>
   )
 }

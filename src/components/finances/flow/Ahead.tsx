@@ -8,6 +8,7 @@ import { api } from '../../../../convex/_generated/api'
 import type { Doc, Id } from '../../../../convex/_generated/dataModel'
 import { AccountLogo } from '@/components/finances/Logo'
 import { PILL_QUIET } from '@/components/finances/bits'
+import { GroupBadge, PaidChip } from '@/components/finances/GroupBadge'
 import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Veiled } from '@/components/finances/Veil'
@@ -702,9 +703,11 @@ function BillRow({
           </span>
         ) : null}
         <span className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] text-ink-500">
-          {[kind === 'income' ? 'salary' : what, account?.name]
-            .filter(Boolean)
-            .join(' · ')}
+          <GroupBadge
+            kind={kind}
+            category={kind === 'income' ? 'salary' : (what ?? null)}
+          />
+          {account?.name}
           {yearly ? <Tag tone="lav">yearly</Tag> : null}
           {rhythm ? <Tag tone="lav">{rhythm}</Tag> : null}
           {range ? <Tag tone="lav">varies</Tag> : null}
@@ -799,8 +802,9 @@ function FoldRow({
         )}
         <span className="flex min-w-0 flex-col gap-1">
           <span className="truncate text-[14px]">{part}</span>
-          <span className="font-mono text-[10.5px] text-ink-500">
-            {[what, account?.name, `${count} parts ${open ? '▴' : '▾'}`]
+          <span className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] text-ink-500">
+            <GroupBadge kind="expense" category={what ?? null} />
+            {[account?.name, `${count} parts ${open ? '▴' : '▾'}`]
               .filter(Boolean)
               .join(' · ')}
           </span>
@@ -920,9 +924,7 @@ function Tag({
 
 function DoneStatus({ d }: { d: Done }) {
   return d.rowId !== null ? (
-    <span className="text-[10px] text-state-good">
-      ✓ {d.kind === 'income' ? 'arrived' : 'paid'} · statement row
-    </span>
+    <PaidChip label={d.kind === 'income' ? 'arrived' : 'paid'} />
   ) : (
     <span className="text-[10px] text-state-warn">not seen yet</span>
   )

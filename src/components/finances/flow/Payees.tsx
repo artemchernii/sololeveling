@@ -130,16 +130,11 @@ export function PayeeMark({
 
 /** The name, his tag, and the bank's words underneath. */
 export function PayeeName({ who, onName }: { who: Who; onName?: () => void }) {
+  /* No YOUR NAME / KNOWN (4 Oct: "these badges are weird"): where a
+     name came from is not what he reads a row for. PayPal unnamed still
+     asks — that one wants something from him. */
   const tag =
-    who.source === 'yours' ? (
-      <span className="rounded-[5px] bg-lav-400/10 px-1.5 py-px font-mono text-[9px] tracking-[0.12em] text-lav-300 uppercase ring-1 ring-lav-400/25 ring-inset">
-        your name
-      </span>
-    ) : who.source === 'known' ? (
-      <span className="rounded-[5px] bg-state-good/10 px-1.5 py-px font-mono text-[9px] tracking-[0.12em] text-state-good uppercase ring-1 ring-state-good/25 ring-inset">
-        known
-      </span>
-    ) : who.key.startsWith('PAYPAL') ? (
+    who.source !== 'yours' && who.key.startsWith('PAYPAL') ? (
       /* PayPal is many shops: an unnamed one asks, quietly. */
       <span className="rounded-[5px] bg-state-warn/10 px-1.5 py-px font-mono text-[9px] tracking-[0.12em] text-state-warn uppercase ring-1 ring-state-warn/25 ring-inset">
         what was it?

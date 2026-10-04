@@ -8,7 +8,7 @@
    The balance is in − out of that pay month — his "monthly balance", not
    what he holds. Moves between his accounts are never rows here. */
 
-import { dueDay } from './bills'
+import { dueDay, dueOn } from './bills'
 import { noonOf, paysBill } from './ahead'
 import type { AheadBill, AheadRow } from './ahead'
 
@@ -119,7 +119,7 @@ export function payMonths(input: {
     if (b.kind !== 'expense') continue
     for (let t = today + DAY; t < expected; t += DAY) {
       const d = new Date(t)
-      if (dueDay(b, d.getUTCFullYear(), d.getUTCMonth()) !== d.getUTCDate()) {
+      if (!dueOn(b, d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())) {
         continue
       }
       const paidAlready = current.paid.some(
@@ -212,7 +212,7 @@ export function payMonthDetail(input: {
     if (b.kind !== 'expense') continue
     for (let t = from; t < input.end; t += DAY) {
       const d = new Date(t)
-      if (dueDay(b, d.getUTCFullYear(), d.getUTCMonth()) !== d.getUTCDate()) {
+      if (!dueOn(b, d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())) {
         continue
       }
       if (!paid.some((p) => p.bill.id === b.id)) todo.push({ bill: b, t })

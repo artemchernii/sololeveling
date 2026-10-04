@@ -36,9 +36,18 @@ export type FoundBill = {
   day: number
   accountId?: string
   category?: string
-  /** Its amount changes month to month (Preply, the gym every two weeks,
-      Vodafone top-ups): `amount` is last month's sum, any amount pays it. */
+  /** Its amount changes month to month (his phone top-ups): `amount` is
+      the middle of `lo`–`hi`, the last two months' sums; any amount to
+      the payee pays it. */
   varies?: boolean
+  lo?: number
+  hi?: number
+  /** Paid every N weeks, counted from `anchor` (a payment's time). */
+  everyWeeks?: number
+  anchor?: number
+  /** One payment covers some months, and only he knows how many (the
+      condominium): AHEAD asks once. */
+  asksMonths?: boolean
 }
 
 const DAY = 86_400_000
@@ -103,6 +112,9 @@ export function findBills(
   const recent = rows.filter(
     (r) =>
       r.key !== '' &&
+      /* PayPal is a middleman (4 Oct: "sometimes paypal is preply,
+         sometimes I buy clothes online"): never a bill by itself. */
+      !r.key.startsWith('PAYPAL') &&
       r.amount >= MIN_BILL &&
       /* A petrol station paid on the 9th twice is not a bill (his rows,
          3 Oct): everyday groups are offered under + BILL, never found. */
@@ -150,48 +162,76 @@ export function findBills(
     }
   }
 
-  /* Paid every month, the amount moving (4 Oct: Preply through PayPal,
-     twice some months; the gym every two weeks; Vodafone top-ups). He
-     counts these as bills, so AHEAD shows them: a payee with no fixed
-     bill, paid in each of the last two full months, €10 or more each. */
+  /* Every two weeks (4 Oct: his gym, €5.98 on a fortnight's rhythm) or
+     every week: three or more payments at one amount, every gap the same
+     to a day. Each payment goes on its own day. */
+  for (const list of byKey.values()) {
+    const asc = [...list].sort((a, b) => a.t - b.t)
+    const latest = asc.at(-1)
+    if (!latest || latest.kind !== 'expense' || asc.length < 3) continue
+    if (known.some((k) => k.key === latest.key)) continue
+    if (found.some((f) => f.key === latest.key)) continue
+    if (now - latest.t > 21 * DAY) continue
+    if (!asc.every((r) => sameAmount(r.amount, latest.amount))) continue
+    const gaps = asc.slice(1).map((r, i) => Math.round((r.t - asc[i].t) / DAY))
+    const weeks = [1, 2].find((w) =>
+      gaps.every((g) => Math.abs(g - 7 * w) <= 1),
+    )
+    if (!weeks) continue
+    found.push({
+      key: latest.key,
+      name: latest.name,
+      kind: 'expense',
+      amount: latest.amount,
+      day: new Date(latest.t).getUTCDate(),
+      accountId: latest.accountId,
+      category: latest.category,
+      everyWeeks: weeks,
+      anchor: latest.t,
+    })
+  }
+
+  /* Paid every month, the amount moving (4 Oct: his phone, "20-30
+     euros", €10 top-ups when they come). A payee with no fixed bill,
+     paid in each of the last two full months, €10 or more each: the
+     line takes the middle, the row says the range. */
   for (const list of byKey.values()) {
     const latest = list.reduce((a, r) => (r.t > a.t ? r : a))
     if (latest.kind !== 'expense') continue
     if (known.some((k) => k.key === latest.key)) continue
     if (found.some((f) => f.key === latest.key)) continue
     if (now - latest.t > 42 * DAY) continue
-    const sums = [thisMonth - 2, thisMonth - 1].map((m) =>
+    const months = [thisMonth - 2, thisMonth - 1].map((m) =>
       list.filter((r) => monthOf(r.t) === m),
     )
-    if (
-      sums.some(
-        (rs) => rs.reduce((n, r) => n + r.amount, 0) < MIN_VARIES - 1e-9,
-      )
-    ) {
-      continue
-    }
+    const sums = months.map(
+      (rs) => Math.round(rs.reduce((n, r) => n + r.amount * 100, 0)) / 100,
+    )
+    if (sums.some((x) => x < MIN_VARIES - 1e-9)) continue
     /* One payment a month at one amount is the fixed rule's to judge. */
     const moves =
-      sums.some((rs) => rs.length > 1) ||
-      !sameAmount(sums[0][0].amount, sums[1][0].amount)
+      months.some((rs) => rs.length > 1) ||
+      !sameAmount(months[0][0].amount, months[1][0].amount)
     if (!moves) continue
-    const last = sums[1]
-    const first = last.reduce((a, r) => (r.t < a.t ? r : a))
+    const first = months[1].reduce((a, r) => (r.t < a.t ? r : a))
     found.push({
       key: latest.key,
       name: latest.name,
       kind: 'expense',
-      amount: Math.round(last.reduce((n, r) => n + r.amount * 100, 0)) / 100,
+      amount: Math.round(((sums[0] + sums[1]) / 2) * 100) / 100,
       day: new Date(first.t).getUTCDate(),
       accountId: latest.accountId,
       category: latest.category,
       varies: true,
+      lo: Math.min(...sums),
+      hi: Math.max(...sums),
     })
   }
 
-  /* Monthly by what it is (4 Oct: the condominium, €175, read once): a
-     bank phrase that is always a monthly bill is one from its first
-     payment. */
+  /* A bill by what it is (4 Oct: the condominium, €175, read once): a
+     bank phrase that is always a bill is one from its first payment.
+     How many months a payment covers ("€175 … for 5 months") cannot be
+     read; AHEAD asks him once. */
   for (const r of recent) {
     const phrase = bankPhrase(r.name)
     if (!phrase?.monthly || r.kind !== 'expense') continue
@@ -205,6 +245,8 @@ export function findBills(
       day: new Date(r.t).getUTCDate(),
       accountId: r.accountId,
       category: phrase.category,
+      anchor: r.t,
+      asksMonths: true,
     })
   }
   return found.sort(

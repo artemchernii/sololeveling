@@ -40,7 +40,7 @@ describe('findBills', () => {
     expect(bill).toMatchObject({ kind: 'income', amount: 2050 })
   })
 
-  it('finds the gym every two weeks as one that varies: last month summed', () => {
+  it('finds the gym every two weeks: each payment on its own day', () => {
     const rows = [
       out('GYM', 6, 7, 5),
       out('GYM', 6, 7, 19),
@@ -49,25 +49,40 @@ describe('findBills', () => {
       out('GYM', 6, 8, 30),
     ]
     expect(findBills(rows, [], NOW)).toEqual([
-      expect.objectContaining({ key: 'GYM', amount: 18, day: 2, varies: true }),
+      expect.objectContaining({
+        key: 'GYM',
+        amount: 6,
+        everyWeeks: 2,
+        anchor: at(8, 30),
+      }),
     ])
   })
 
-  it('finds a payee whose amount moves (Preply through PayPal, twice some months)', () => {
+  it('finds a phone topped up when it runs out: the range of its months', () => {
     const rows = [
-      out('PAYPAL M1', 120, 7, 4),
-      out('PAYPAL M1', 135, 7, 5),
-      out('PAYPAL M1', 170, 7, 31),
-      out('PAYPAL M1', 120, 8, 1),
-      out('PAYPAL M1', 125, 8, 29),
+      out('PHONE', 10, 7, 3),
+      out('PHONE', 10, 7, 21),
+      out('PHONE', 10, 8, 1),
+      out('PHONE', 10, 8, 14),
+      out('PHONE', 10, 8, 29),
     ]
     expect(findBills(rows, [], NOW)).toEqual([
-      expect.objectContaining({ amount: 245, day: 1, varies: true }),
+      expect.objectContaining({ amount: 25, lo: 20, hi: 30, varies: true }),
     ])
     /* Struck out once: any amount of it stays known. */
     expect(
-      findBills(rows, [{ key: 'PAYPAL M1', amount: 1, varies: true }], NOW),
+      findBills(rows, [{ key: 'PHONE', amount: 1, varies: true }], NOW),
     ).toEqual([])
+  })
+
+  it('never finds PayPal: Preply one month, a jacket the next', () => {
+    const rows = [
+      out('PAYPAL 5D4J2254EVNWL', 122, 7, 4),
+      out('PAYPAL 5D4J2254EVNWL', 172, 7, 31),
+      out('PAYPAL 5D4J2254EVNWL', 121, 8, 1),
+      out('PAYPAL 5D4J2254EVNWL', 4.77, 8, 4),
+    ]
+    expect(findBills(rows, [], NOW)).toEqual([])
   })
 
   it('wants €10 a month from one that varies, and both last months', () => {
@@ -107,6 +122,7 @@ describe('findBills', () => {
       amount: 175,
       day: 2,
       category: 'home',
+      asksMonths: true,
     })
     expect(billNames([{ key: b.key, name: b.name, kind: 'expense' }])).toEqual([
       'Condominium',

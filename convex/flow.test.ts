@@ -93,7 +93,7 @@ async function world(t: ReturnType<typeof setup>['t'], owner = ME) {
         at(8, 25),
         'TRF CR SEPA+ 0000021 DE ACME',
       ),
-      /* Twice a month: a bill that varies, last month's two summed. */
+      /* Every two weeks: a bill on a fortnight's rhythm. */
       gym1: await row('expense', 6, at(7, 5), 'DD GYM LIGHT 1'),
       gym2: await row('expense', 6, at(7, 19), 'DD GYM LIGHT 2'),
       gym3: await row('expense', 6, at(8, 2), 'DD GYM LIGHT 3'),
@@ -123,12 +123,13 @@ describe('recurring.find', () => {
     const items = await t.run((ctx) => ctx.db.query('recurring').collect())
     expect(
       items
-        .map((i) => [i.name, i.kind, i.amount, i.day, i.matchKey, !!i.varies])
+        .map((i) => [i.name, i.kind, i.amount, i.day, i.matchKey, i.everyWeeks])
         .sort(),
     ).toEqual([
-      ['Acme', 'income', 2000, 25, 'ACME', false],
-      ['Edp Comercial', 'expense', 31, 25, 'EDP COMERCIAL', false],
-      ['Gym Light', 'expense', 12, 2, 'GYM LIGHT', true],
+      ['Acme', 'income', 2000, 25, 'ACME', undefined],
+      ['Edp Comercial', 'expense', 31, 25, 'EDP COMERCIAL', undefined],
+      /* Every two weeks: each €6 on its own day, from 16 Sep. */
+      ['Gym Light', 'expense', 6, 16, 'GYM LIGHT', 2],
     ])
     expect(items.every((i) => i.foundAt === at(9, 4))).toBe(true)
   })
@@ -311,12 +312,14 @@ describe('aggregate.ahead', () => {
     expect(a.freeTotal).toBe(1500)
     expect(a.free.map((f) => f.name)).toEqual(['Bank'])
     expect(a.events.map((e) => [new Date(e.t).getDate(), e.name])).toEqual([
+      [14, 'Gym Light'],
       [25, 'Acme'],
       [25, 'Edp Comercial'],
-      [2, 'Gym Light'],
+      [28, 'Gym Light'],
+      [11, 'Gym Light'],
+      [25, 'Gym Light'],
       [25, 'Acme'],
       [25, 'Edp Comercial'],
-      [2, 'Gym Light'],
     ])
     /* July had no rows (not read): left out. August and September's rest
        is the money out that is no bill's payment. */
@@ -455,6 +458,56 @@ describe('aggregate.payMonth', () => {
     expect(
       await them.query(api.aggregate.payMonth, { today: local(9, 4) }),
     ).toBeNull()
+  })
+})
+
+describe('recurring.setCovers', () => {
+  test('one payment for five months: every five months, a fifth a month — only his', async () => {
+    const { t, me, them } = setup()
+    const { bank } = await world(t)
+    await t.run((ctx) =>
+      ctx.db.insert('logs', {
+        ownerId: ME,
+        area: 'money',
+        kind: 'expense',
+        occurredAt: at(9, 2),
+        value: 175,
+        unit: 'eur',
+        text: 'TRF P/ COND P S PRCRT V CASTRO ALMEIDA 4',
+        accountId: bank,
+        meta: {
+          raw: 'TRF P/ COND P S PRCRT V CASTRO ALMEIDA 4',
+          category: 'home',
+        },
+      }),
+    )
+    await me.mutation(api.recurring.find, {})
+    const cond = await t.run(async (ctx) =>
+      (await ctx.db.query('recurring').collect()).find(
+        (i) => i.name === 'Condominium',
+      ),
+    )
+    expect(cond).toMatchObject({ asksMonths: true, amount: 175 })
+    await expect(
+      them.mutation(api.recurring.setCovers, { id: cond!._id, months: 5 }),
+    ).rejects.toThrow()
+    await expect(
+      me.mutation(api.recurring.setCovers, { id: cond!._id, months: 13 }),
+    ).rejects.toThrow('One to twelve months.')
+    await me.mutation(api.recurring.setCovers, { id: cond!._id, months: 5 })
+    const after = await t.run((ctx) => ctx.db.get(cond!._id))
+    expect(after).toMatchObject({ everyMonths: 5, anchor: at(9, 2) })
+    expect(after?.asksMonths).toBeUndefined()
+    const a = await me.query(api.aggregate.ahead, {
+      today: local(9, 4),
+      days: 60,
+      monthStart: local(9, 1),
+      past: PAST,
+    })
+    expect(a.events.some((e) => e.name === 'Condominium')).toBe(false)
+    expect(
+      a.eachMonth.groups.find((g) => g.names.includes('Condominium'))?.sum,
+    ).toBeGreaterThanOrEqual(35)
   })
 })
 

@@ -2407,6 +2407,11 @@ function aheadBill(b: Doc<'recurring'>): AheadBill {
     key: b.matchKey ?? payeeKey(b.name),
     foundAt: b.foundAt,
     varies: b.varies,
+    everyMonths: b.everyMonths,
+    everyWeeks: b.everyWeeks,
+    anchor: b.anchor,
+    lo: b.lo,
+    hi: b.hi,
   }
 }
 
@@ -2488,6 +2493,11 @@ export const ahead = query({
         /** The payee key, for his payee name and logo. */
         key: v.string(),
         varies: v.boolean(),
+        lo: v.optional(v.number()),
+        hi: v.optional(v.number()),
+        everyMonths: v.optional(v.number()),
+        everyWeeks: v.optional(v.number()),
+        asksMonths: v.boolean(),
       }),
     ),
     done: v.array(
@@ -2613,6 +2623,11 @@ export const ahead = query({
         isNew: b.foundAt !== undefined && args.today - b.foundAt < week,
         key: b.matchKey ?? payeeKey(b.name),
         varies: b.varies === true,
+        lo: b.lo,
+        hi: b.hi,
+        everyMonths: b.everyMonths,
+        everyWeeks: b.everyWeeks,
+        asksMonths: b.asksMonths === true,
       })),
       done: built.done.map((d) => ({
         ...cast(d),

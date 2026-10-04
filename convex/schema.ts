@@ -684,6 +684,18 @@ export default defineSchema({
        top-ups): `amount` is a recent month's sum, and any payment to the
        payee is its payment. */
     varies: v.optional(v.boolean()),
+    /* For one that varies: its cheapest and dearest recent month. */
+    lo: v.optional(v.number()),
+    hi: v.optional(v.number()),
+    /* Rhythms (4 Oct): paid every N months (the condominium, €175 for
+       five) or every N weeks (the gym), counted from `anchor`, a
+       payment's time. Absent: every month, or once a year. */
+    everyMonths: v.optional(v.number()),
+    everyWeeks: v.optional(v.number()),
+    anchor: v.optional(v.number()),
+    /* Found from a payment that may cover several months: AHEAD asks him
+       how many, once. */
+    asksMonths: v.optional(v.boolean()),
   }).index('by_owner', ['ownerId']),
 
   /* A ticker he holds or held (Finances F4), found by search and never

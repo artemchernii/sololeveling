@@ -14,6 +14,7 @@ import {
   isKnown,
   likelyBills,
 } from '../src/lib/findBills'
+import { PHRASES } from '../src/lib/payees'
 import type { BillRow, Known } from '../src/lib/findBills'
 import { isEuroAmount } from '../src/lib/money'
 import { payeeKey, rowKey } from '../src/lib/payee'
@@ -285,7 +286,7 @@ export function knownOf(items: ReadonlyArray<Doc<'recurring'>>): Array<Known> {
   return items.map((i) => ({
     key: i.matchKey ?? payeeKey(i.name),
     amount: i.amount,
-    varies: i.varies,
+    varies: i.varies === true || i.everyWeeks !== undefined,
   }))
 }
 
@@ -370,8 +371,11 @@ export async function findFor(ctx: MutationCtx, ownerId: string) {
     if (
       i.foundAt !== undefined &&
       i.refusedAt === undefined &&
-      i.category !== undefined &&
-      EVERYDAY.has(i.category)
+      ((i.category !== undefined && EVERYDAY.has(i.category)) ||
+        /* PayPal is a middleman, never a bill by itself (4 Oct). */
+        i.matchKey?.startsWith('PAYPAL') === true ||
+        /* Found as "varies" before rhythms: found again in its shape. */
+        (i.varies === true && i.lo === undefined))
     ) {
       await ctx.db.delete(i._id)
     }
@@ -386,6 +390,14 @@ export async function findFor(ctx: MutationCtx, ownerId: string) {
   )
   for (const [n, i] of mine.entries()) {
     if (better[n] !== i.name) await ctx.db.patch(i._id, { name: better[n] })
+    /* Found before AHEAD asked how many months a payment covers. */
+    if (
+      i.asksMonths === undefined &&
+      i.everyMonths === undefined &&
+      PHRASES.some((p) => p.monthly && p.name === i.name)
+    ) {
+      await ctx.db.patch(i._id, { asksMonths: true })
+    }
   }
   const items = await itemsOf(ctx, ownerId)
   const logs = await moneySince(ctx, ownerId, now - 100 * DAY)
@@ -408,11 +420,42 @@ export async function findFor(ctx: MutationCtx, ownerId: string) {
       matchKey: b.key,
       foundAt: now,
       varies: b.varies,
+      lo: b.lo,
+      hi: b.hi,
+      everyWeeks: b.everyWeeks,
+      anchor: b.anchor,
+      asksMonths: b.asksMonths,
     })
     added++
   }
   return added
 }
+
+/**
+ * How many months one payment covers (4 Oct: "I paid 175 euros, but that
+ * was for 5 months"). He says it once; the bill then falls every N
+ * months from that payment, and counts as amount ÷ N in a month.
+ */
+export const setCovers = mutation({
+  args: { id: v.id('recurring'), months: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const item = await ownedItem(ctx, ownerId, args.id)
+    if (!Number.isInteger(args.months) || args.months < 1 || args.months > 12) {
+      throw new ConvexError('One to twelve months.')
+    }
+    if (item.cadence !== 'monthly') {
+      throw new ConvexError('Only a monthly bill covers months.')
+    }
+    await ctx.db.patch(item._id, {
+      everyMonths: args.months,
+      anchor: item.anchor ?? item.foundAt ?? Date.now(),
+      asksMonths: undefined,
+    })
+    return null
+  },
+})
 
 /** "× not a bill": gone from every view, and never found again. */
 export const notBill = mutation({
@@ -541,6 +584,9 @@ export const payments = query({
       month: bill.month,
       key: bill.matchKey ?? payeeKey(bill.name),
       varies: bill.varies,
+      everyWeeks: bill.everyWeeks,
+      everyMonths: bill.everyMonths,
+      anchor: bill.anchor,
     }
     return logs
       .filter(

@@ -7,6 +7,21 @@ export type BillWhen = {
   day: number
   /** Yearly only: 0–11. */
   month?: number
+  /* Rhythms (4 Oct: "condominio 35 euros" — €175 paid for 5 months; the
+     gym every two weeks). Both count from `anchor`, a day it was paid. */
+  /** Monthly only: paid every N months (2–12). */
+  everyMonths?: number
+  /** Paid every N weeks (1–4), on the anchor's weekday rhythm. */
+  everyWeeks?: number
+  /** Epoch ms of a payment the rhythm counts from. */
+  anchor?: number
+}
+
+const DAY_MS = 86_400_000
+const mod = (a: number, n: number) => ((a % n) + n) % n
+const monthIndex = (t: number) => {
+  const d = new Date(t)
+  return d.getUTCFullYear() * 12 + d.getUTCMonth()
 }
 
 function daysIn(year: number, month: number): number {
@@ -24,8 +39,49 @@ export function dueDay(
   month: number,
 ): number | null {
   if (when.cadence === 'yearly' && when.month !== month) return null
+  /* Every few weeks is not one day of the month: dueOn says which. */
+  if (when.everyWeeks) return null
+  if (
+    when.cadence === 'monthly' &&
+    when.everyMonths &&
+    when.everyMonths > 1 &&
+    when.anchor !== undefined &&
+    mod(year * 12 + month - monthIndex(when.anchor), when.everyMonths) !== 0
+  ) {
+    return null
+  }
   const last = daysIn(year, month)
   return when.day === 0 ? last : Math.min(when.day, last)
+}
+
+/** Whether a bill is due on this calendar date (month 0–11). */
+export function dueOn(
+  when: BillWhen,
+  year: number,
+  month: number,
+  day: number,
+): boolean {
+  if (when.everyWeeks) {
+    if (when.anchor === undefined) return false
+    const at = Math.floor(Date.UTC(year, month, day, 12) / DAY_MS)
+    const from = Math.floor(when.anchor / DAY_MS)
+    return mod(at - from, 7 * when.everyWeeks) === 0
+  }
+  return dueDay(when, year, month) === day
+}
+
+/** What a bill costs in a usual month: one every few months spread over
+    them, one every few weeks as its payments in a year over twelve. A
+    planned figure for "bills each month", never a sum of rows. */
+export function monthlyShare(when: BillWhen & { amount: number }): number {
+  if (when.cadence === 'yearly') return 0
+  if (when.everyWeeks) {
+    return Math.round((when.amount * 52 * 100) / (12 * when.everyWeeks)) / 100
+  }
+  if (when.everyMonths && when.everyMonths > 1) {
+    return Math.round((when.amount * 100) / when.everyMonths) / 100
+  }
+  return when.amount
 }
 
 /** "30th", "last day", "1st" — how the due day is said. */

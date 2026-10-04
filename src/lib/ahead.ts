@@ -7,7 +7,7 @@
    dearest of the last three full months, each a real sum shown beside it.
    Never an average. */
 
-import { dueDay } from './bills'
+import { dueOn, monthlyShare } from './bills'
 
 const DAY = 86_400_000
 const NOON = 12 * 3_600_000
@@ -26,6 +26,12 @@ export type AheadBill = {
   foundAt?: number
   /** Any payment to the payee pays it; the month's payments add up. */
   varies?: boolean
+  everyMonths?: number
+  everyWeeks?: number
+  anchor?: number
+  /** One that varies: its cheapest and dearest recent month. */
+  lo?: number
+  hi?: number
 }
 
 export type AheadRow = {
@@ -118,7 +124,7 @@ export function dueBetween(
        lands an hour off, and its noon is still the same date. */
     const { y, m, d } = dateOf(t)
     for (const bill of bills) {
-      if (dueDay(bill, y, m) === d) out.push({ t: noonOf(t), bill })
+      if (dueOn(bill, y, m, d)) out.push({ t: noonOf(t), bill })
     }
   }
   return out
@@ -141,9 +147,12 @@ export function buildAhead(input: AheadInput) {
         : row?.amount
     return { t, bill, row, paid }
   })
+  /* Every few weeks comes on its own days, paid early or not. */
   const paidEarly = new Set(
     bills
-      .filter((b) => input.monthRows.some((r) => paysBill(b, r)))
+      .filter(
+        (b) => !b.everyWeeks && input.monthRows.some((r) => paysBill(b, r)),
+      )
       .map((b) => b.id),
   )
 
@@ -295,13 +304,14 @@ export function billsEachMonth(bills: ReadonlyArray<AheadBill>) {
   for (const b of monthly) {
     const k = b.category ?? ''
     const g = groups.get(k) ?? { category: b.category ?? null, c: 0, names: [] }
-    g.c += Math.round(b.amount * 100)
+    g.c += Math.round(monthlyShare(b) * 100)
     g.names.push(b.name)
     groups.set(k, g)
   }
   const yearly = out.filter((b) => b.cadence === 'yearly')
   return {
-    total: monthly.reduce((n, b) => n + Math.round(b.amount * 100), 0) / 100,
+    total:
+      monthly.reduce((n, b) => n + Math.round(monthlyShare(b) * 100), 0) / 100,
     groups: [...groups.values()]
       .sort((a, b) => b.c - a.c)
       .map((g) => ({ category: g.category, sum: g.c / 100, names: g.names })),

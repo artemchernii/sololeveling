@@ -25,6 +25,9 @@ export function isEuroAmount<T extends { value?: number; unit?: string }>(
     the euros really moved. */
 export const LENT = 'lent'
 
+/** Subscriptions are bills (4 Oct): a payment filed there is made one. */
+export const SUBSCRIPTIONS = 'subscriptions'
+
 export function isLent(row: { meta?: { category?: string } }): boolean {
   return row.meta?.category === LENT
 }
@@ -74,7 +77,9 @@ export const SPEND_CATEGORIES: ReadonlyArray<MoneyCategory> = [
   },
   {
     id: 'home',
-    label: 'Home & bills',
+    /* "Home", not "Home & bills" (4 Oct): Bills is the word for anything
+       that comes back, a section of its own; this is one group inside. */
+    label: 'Home',
     words: [
       'bills',
       'bill',

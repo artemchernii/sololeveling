@@ -1,7 +1,13 @@
 import { ConvexError, v } from 'convex/values'
 
-import { LENT, countsInOut, isEuroAmount } from '../src/lib/money'
+import {
+  LENT,
+  SUBSCRIPTIONS,
+  countsInOut,
+  isEuroAmount,
+} from '../src/lib/money'
 import { pairLent } from './lent'
+import { billFromRow } from './recurring'
 import { paysBill } from '../src/lib/ahead'
 import { payeeKey, rowKey } from '../src/lib/payee'
 import { merchantKey } from '../src/lib/intake'
@@ -556,6 +562,12 @@ export const refile = mutation({
       } else {
         await ctx.db.patch(rule._id, { category, updatedAt: Date.now() })
       }
+    }
+    /* Subscriptions are bills (4 Oct: "we should simply call bills and
+       subscription as one"): filed there, it comes back every month. */
+    if (category === SUBSCRIPTIONS) {
+      const fresh = await ctx.db.get(log._id)
+      if (fresh) await billFromRow(ctx, ownerId, fresh, 'monthly')
     }
     return moved
   },

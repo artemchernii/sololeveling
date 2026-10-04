@@ -8,7 +8,8 @@ import schema from './schema'
 import { merchantKey } from '../src/lib/intake'
 import { payeeKey } from '../src/lib/payee'
 import { payeeIdOf } from '../src/lib/payees'
-import { LENT } from '../src/lib/money'
+import { LENT, SUBSCRIPTIONS } from '../src/lib/money'
+import { billFromRow } from './recurring'
 import { pairLent } from './lent'
 
 /* Payees (4 Oct; design/treasury-mockup/payees.html): who a row is paid
@@ -94,6 +95,10 @@ export const set = mutation({
           ...(group && log.kind === 'expense' ? { category: group } : {}),
         },
       })
+      if (group === SUBSCRIPTIONS && log.kind === 'expense') {
+        const fresh = await ctx.db.get(log._id)
+        if (fresh) await billFromRow(ctx, ownerId, fresh, 'monthly')
+      }
       return 1
     }
 
@@ -151,6 +156,11 @@ export const set = mutation({
           await ctx.db.patch(b._id, { name, foundAt: undefined })
         }
       }
+    }
+    /* Subscriptions are bills: this payment makes one (see logs.refile). */
+    if (group === SUBSCRIPTIONS && log.kind === 'expense') {
+      const fresh = await ctx.db.get(log._id)
+      if (fresh) await billFromRow(ctx, ownerId, fresh, 'monthly')
     }
     return rows.length
   },

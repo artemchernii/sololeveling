@@ -503,6 +503,65 @@ export const unrefuse = mutation({
  * from the row; he says only how often. One already known is not made
  * twice — its id comes back.
  */
+/**
+ * A bill made from one of his payments — fromRow, and filing a payment
+ * as Subscriptions (4 Oct: "bills and subscription … same thing"). One
+ * already known is not made twice; its id comes back.
+ */
+export async function billFromRow(
+  ctx: MutationCtx,
+  ownerId: string,
+  log: Doc<'logs'>,
+  every: 'monthly' | 'yearly',
+): Promise<{ id: Id<'recurring'>; created: boolean }> {
+  if ((log.kind !== 'expense' && log.kind !== 'income') || !isEuroAmount(log)) {
+    throw new ConvexError('Only money in or out in euros can be a bill.')
+  }
+  const key = rowKey(log)
+  const items = await itemsOf(ctx, ownerId)
+  const same = items.find(
+    (i) =>
+      i.refusedAt === undefined &&
+      isKnown(knownOf([i]), { key, amount: log.value }),
+  )
+  if (same) return { id: same._id, created: false }
+  if (items.length >= MAX_ITEMS) {
+    throw new ConvexError('That is a lot of bills — end one first.')
+  }
+  const d = new Date(log.occurredAt)
+  /* His name for the payee, or for this one payment, comes first. */
+  const payee = log.meta?.payee
+    ? null
+    : await ctx.db
+        .query('payees')
+        .withIndex('by_owner_key', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq(
+              'key',
+              payeeIdOf(log.meta?.raw ?? log.meta?.merchant ?? log.text ?? ''),
+            ),
+        )
+        .first()
+  const [found] = billNames([
+    { key, name: log.meta?.merchant ?? log.text ?? '', kind: log.kind },
+  ])
+  const name = log.meta?.payee ?? payee?.name ?? found
+  const id = await ctx.db.insert('recurring', {
+    ownerId,
+    name: name.slice(0, MAX_NAME) || 'Bill',
+    kind: log.kind,
+    amount: Math.round(log.value * 100) / 100,
+    category: log.meta?.category,
+    accountId: log.accountId,
+    cadence: every,
+    day: d.getUTCDate(),
+    month: every === 'yearly' ? d.getUTCMonth() : undefined,
+    matchKey: key || undefined,
+  })
+  return { id, created: true }
+}
+
 export const fromRow = mutation({
   args: { logId: v.id('logs'), cadence },
   /** `created` false: it was a bill already, and that one comes back —
@@ -512,57 +571,7 @@ export const fromRow = mutation({
     const ownerId = await requireUser(ctx)
     const log = await ctx.db.get(args.logId)
     if (log === null || log.ownerId !== ownerId) throw new Error('No such row')
-    if (
-      (log.kind !== 'expense' && log.kind !== 'income') ||
-      !isEuroAmount(log)
-    ) {
-      throw new ConvexError('Only money in or out in euros can be a bill.')
-    }
-    const key = rowKey(log)
-    const items = await itemsOf(ctx, ownerId)
-    const same = items.find(
-      (i) =>
-        i.refusedAt === undefined &&
-        isKnown(knownOf([i]), { key, amount: log.value }),
-    )
-    if (same) return { id: same._id, created: false }
-    if (items.length >= MAX_ITEMS) {
-      throw new ConvexError('That is a lot of bills — end one first.')
-    }
-    const d = new Date(log.occurredAt)
-    /* His name for the payee, or for this one payment, comes first. */
-    const payee = log.meta?.payee
-      ? null
-      : await ctx.db
-          .query('payees')
-          .withIndex('by_owner_key', (q) =>
-            q
-              .eq('ownerId', ownerId)
-              .eq(
-                'key',
-                payeeIdOf(
-                  log.meta?.raw ?? log.meta?.merchant ?? log.text ?? '',
-                ),
-              ),
-          )
-          .first()
-    const [found] = billNames([
-      { key, name: log.meta?.merchant ?? log.text ?? '', kind: log.kind },
-    ])
-    const name = log.meta?.payee ?? payee?.name ?? found
-    const id = await ctx.db.insert('recurring', {
-      ownerId,
-      name: name.slice(0, MAX_NAME) || 'Bill',
-      kind: log.kind,
-      amount: Math.round(log.value * 100) / 100,
-      category: log.meta?.category,
-      accountId: log.accountId,
-      cadence: args.cadence,
-      day: d.getUTCDate(),
-      month: args.cadence === 'yearly' ? d.getUTCMonth() : undefined,
-      matchKey: key || undefined,
-    })
-    return { id, created: true }
+    return await billFromRow(ctx, ownerId, log, args.cadence)
   },
 })
 

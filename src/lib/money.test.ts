@@ -46,7 +46,7 @@ describe('money categories', () => {
   })
 
   test('labels, and unsorted for none', () => {
-    expect(categoryLabel('expense', 'home')).toBe('Home & bills')
+    expect(categoryLabel('expense', 'home')).toBe('Home')
     expect(categoryLabel('expense', null)).toBe('Unsorted')
     expect(categoryLabel('expense', 'books')).toBe('books')
   })

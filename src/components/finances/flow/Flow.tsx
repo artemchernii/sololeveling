@@ -8,7 +8,7 @@ import { categoryLabel } from '@/lib/money'
 import { spendingOf } from '@/lib/spending'
 import { Ahead } from './Ahead'
 import type { Notice } from './Ahead'
-import { MonthLine } from './MonthLine'
+import { PayMonth } from './PayMonth'
 import { Movements } from './Movements'
 import { Spending } from './Spending'
 import { eur, monthName, monthsBack } from './time'
@@ -92,11 +92,7 @@ export function Flow({ open }: { open?: string } = {}) {
 
   return (
     <div className="flex flex-col gap-3">
-      <MonthLine
-        months={months}
-        today={today}
-        onRows={() => setTab('movements')}
-      />
+      <PayMonth today={today} onDayToDay={() => setTab('movements')} />
       {/* Not pinned (4 Oct): pinned, the see-through tabs slid over the
           chart and neither could be read. */}
       <nav aria-label="Flow" className="grid grid-cols-3 gap-2">

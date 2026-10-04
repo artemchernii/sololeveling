@@ -15,6 +15,8 @@ export type BillWhen = {
   everyWeeks?: number
   /** Epoch ms of a payment the rhythm counts from. */
   anchor?: number
+  /** Cancelled: due on no day after this. */
+  endedAt?: number
 }
 
 const DAY_MS = 86_400_000
@@ -61,6 +63,9 @@ export function dueOn(
   month: number,
   day: number,
 ): boolean {
+  if (when.endedAt !== undefined && Date.UTC(year, month, day) > when.endedAt) {
+    return false
+  }
   if (when.everyWeeks) {
     if (when.anchor === undefined) return false
     const at = Math.floor(Date.UTC(year, month, day, 12) / DAY_MS)

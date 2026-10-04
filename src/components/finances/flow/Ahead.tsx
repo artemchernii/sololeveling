@@ -74,6 +74,8 @@ export function Ahead({
   const [unfolded, setUnfolded] = useState<Record<string, boolean>>({})
   const notBill = useMutation(api.recurring.notBill)
   const unrefuse = useMutation(api.recurring.unrefuse)
+  const endBill = useMutation(api.recurring.end)
+  const resume = useMutation(api.recurring.resume)
   const { who } = usePayees()
 
   if (a === undefined) {
@@ -122,6 +124,16 @@ export function Ahead({
   const months = [...new Set(a.events.map((e) => monthKey(e.t)))]
   const nothing = a.bills.length === 0
 
+  /* "What if I want to cancel subscription" (4 Oct): ended from today —
+     gone from what is ahead, its payments kept where they were. */
+  function cancel(id: Id<'recurring'>, name: string) {
+    void endBill({ id })
+    setOpened(null)
+    setNotice({
+      text: `${name} cancelled — off Future balance from today. Its past payments stay.`,
+      undo: () => void resume({ id }),
+    })
+  }
   function stop(id: Id<'recurring'>, name: string) {
     void notBill({ id })
     setOpened(null)
@@ -547,6 +559,7 @@ export function Ahead({
             bill={bill(opened)}
             account={account(bill(opened)?.accountId)}
             onStop={() => stop(opened, bill(opened)?.name ?? 'It')}
+            onCancel={() => cancel(opened, bill(opened)?.name ?? 'It')}
           />
         ) : null}
       </Sheet>
@@ -814,11 +827,13 @@ function BillSheet({
   bill,
   account,
   onStop,
+  onCancel,
 }: {
   id: Id<'recurring'>
   bill?: AheadData['bills'][number]
   account?: Doc<'accounts'>
   onStop: () => void
+  onCancel: () => void
 }) {
   const rows = useQuery(api.recurring.payments, { id })
   if (!bill) return null
@@ -862,6 +877,15 @@ function BillSheet({
         ))
       ) : (
         <span className="text-[13px] text-ink-500">No payment read yet.</span>
+      )}
+      {income ? null : (
+        <button
+          type="button"
+          onClick={onCancel}
+          className={`${PILL_QUIET} mt-2 self-start`}
+        >
+          I cancelled it
+        </button>
       )}
       <button
         type="button"

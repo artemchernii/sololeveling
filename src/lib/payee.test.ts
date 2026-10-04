@@ -57,4 +57,15 @@ describe('rowKey', () => {
       }),
     ).toBe('PAYPAL 5D4J2254EVNWL')
   })
+
+  it('keys a PayPal payment he named on its own by his name', () => {
+    expect(
+      rowKey({
+        meta: {
+          raw: 'DD PayPal Europe 5D4J2254EVNWL LU96',
+          payee: 'Preply - Portuguese',
+        },
+      }),
+    ).toBe('NAMED PREPLY PORTUGUESE')
+  })
 })

@@ -66,7 +66,10 @@ export function payeeIdOf(line: string): string {
     payee a bill can be found on. */
 export function rowKey(row: {
   text?: string
-  meta?: { raw?: string; merchant?: string }
+  meta?: { raw?: string; merchant?: string; payee?: string }
 }): string {
+  /* A PayPal payment he named on its own ("Preply - Portuguese") is that
+     payee, so a bill made from it is paid by the next one he names so. */
+  if (row.meta?.payee) return `NAMED ${payeeKey(row.meta.payee)}`
   return payeeIdOf(row.meta?.raw ?? row.meta?.merchant ?? row.text ?? '')
 }

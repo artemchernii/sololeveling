@@ -14,7 +14,7 @@ import {
   isKnown,
   likelyBills,
 } from '../src/lib/findBills'
-import { PHRASES } from '../src/lib/payees'
+import { PHRASES, payeeIdOf } from '../src/lib/payees'
 import type { BillRow, Known } from '../src/lib/findBills'
 import { isEuroAmount } from '../src/lib/money'
 import { payeeKey, rowKey } from '../src/lib/payee'
@@ -138,6 +138,18 @@ export const end = mutation({
     const ownerId = await requireUser(ctx)
     await ownedItem(ctx, ownerId, args.id)
     await ctx.db.patch(args.id, { endedAt: Date.now() })
+    return null
+  },
+})
+
+/** Undo of "I cancelled it", within the moment. */
+export const resume = mutation({
+  args: { id: v.id('recurring') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedItem(ctx, ownerId, args.id)
+    await ctx.db.patch(args.id, { endedAt: undefined })
     return null
   },
 })
@@ -514,9 +526,26 @@ export const fromRow = mutation({
       throw new ConvexError('That is a lot of bills — end one first.')
     }
     const d = new Date(log.occurredAt)
-    const [name] = billNames([
+    /* His name for the payee, or for this one payment, comes first. */
+    const payee = log.meta?.payee
+      ? null
+      : await ctx.db
+          .query('payees')
+          .withIndex('by_owner_key', (q) =>
+            q
+              .eq('ownerId', ownerId)
+              .eq(
+                'key',
+                payeeIdOf(
+                  log.meta?.raw ?? log.meta?.merchant ?? log.text ?? '',
+                ),
+              ),
+          )
+          .first()
+    const [found] = billNames([
       { key, name: log.meta?.merchant ?? log.text ?? '', kind: log.kind },
     ])
+    const name = log.meta?.payee ?? payee?.name ?? found
     const id = await ctx.db.insert('recurring', {
       ownerId,
       name: name.slice(0, MAX_NAME) || 'Bill',

@@ -190,6 +190,11 @@ export function WhoIsThis({
   onDone: (n: number, name: string) => void
 }) {
   const set = useMutation(api.payees.set)
+  const fromRow = useMutation(api.recurring.fromRow)
+  /* "Santander is navegante pass … bills every month I pay. And i dont
+     know how to add it" (4 Oct): saying it comes every month, here,
+     makes it a bill — Future balance and SPENDING's bills take it. */
+  const [monthly, setMonthly] = useState(false)
   const [name, setName] = useState(
     who.source === 'yours'
       ? who.name
@@ -214,6 +219,7 @@ export function WhoIsThis({
         category: group,
         partOf: partOf === '+' ? newPart.trim() || null : partOf,
       })
+      if (monthly) await fromRow({ logId: row.id, cadence: 'monthly' })
       onDone(n, name)
     } catch (e) {
       setError(failureMessage(e) ?? 'It did not save.')
@@ -286,7 +292,19 @@ export function WhoIsThis({
         ))}
       </span>
 
-      {paypal ? null : (
+      <span className="label-caps">does it come back?</span>
+      <span className="flex flex-wrap gap-1.5">
+        <Chip on={!monthly} onClick={() => setMonthly(false)}>
+          when it comes
+        </Chip>
+        <Chip on={monthly} onClick={() => setMonthly(true)}>
+          every month — a bill
+        </Chip>
+      </span>
+
+      {/* "part of" only where it means something (4 Oct: "part of i have
+          nothing and + new"): a payee already in one, or names in use. */}
+      {paypal || (parts.length === 0 && who.partOf === null) ? null : (
         <>
           <span className="label-caps">part of</span>
           <span className="flex flex-wrap items-center gap-1.5">

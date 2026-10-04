@@ -84,6 +84,12 @@ describe('rhythms', () => {
     expect(dueOn(cond, 2027, 2, 2)).toBe(true)
   })
 
+  test('cancelled: due on no day after it ended', () => {
+    const b = { cadence: 'monthly' as const, day: 5, endedAt: at(9, 4) }
+    expect(dueOn(b, 2026, 8, 5)).toBe(true)
+    expect(dueOn(b, 2026, 9, 5)).toBe(false)
+  })
+
   test('what a month carries of each', () => {
     expect(
       monthlyShare({ cadence: 'monthly', day: 2, amount: 175, everyMonths: 5 }),

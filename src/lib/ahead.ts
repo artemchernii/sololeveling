@@ -32,6 +32,8 @@ export type AheadBill = {
   /** One that varies: its cheapest and dearest recent month. */
   lo?: number
   hi?: number
+  /** Cancelled: pays its past rows, due on no day after. */
+  endedAt?: number
 }
 
 export type AheadRow = {

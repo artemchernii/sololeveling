@@ -461,6 +461,81 @@ describe('aggregate.payMonth', () => {
   })
 })
 
+describe('recurring.end and resume', () => {
+  test('cancelled: off what is ahead, its past payment still a bill — only his', async () => {
+    const { t, me, them } = setup()
+    await world(t)
+    await me.mutation(api.recurring.find, {})
+    const edp = await t.run(async (ctx) =>
+      (await ctx.db.query('recurring').collect()).find(
+        (i) => i.matchKey === 'EDP COMERCIAL',
+      ),
+    )
+    await expect(
+      them.mutation(api.recurring.end, { id: edp!._id }),
+    ).rejects.toThrow()
+    await expect(
+      them.mutation(api.recurring.resume, { id: edp!._id }),
+    ).rejects.toThrow()
+    await me.mutation(api.recurring.end, { id: edp!._id })
+    const a = await me.query(api.aggregate.ahead, {
+      today: local(9, 4),
+      days: 60,
+      monthStart: local(9, 1),
+      past: PAST,
+    })
+    expect(a.events.map((e) => e.name)).not.toContain('Edp Comercial')
+    expect(a.bills.map((b) => b.name)).not.toContain('Edp Comercial')
+    /* September's EDP payment is still a bill's, not day-to-day. */
+    const d = await me.query(api.aggregate.payMonthDetail, {
+      start: at(7, 25),
+      end: at(8, 25),
+      prev: null,
+      today: local(9, 4),
+    })
+    expect(d.bills.map((b) => b.billName)).toContain('Edp Comercial')
+    await me.mutation(api.recurring.resume, { id: edp!._id })
+    expect(
+      (await t.run((ctx) => ctx.db.get(edp!._id)))?.endedAt,
+    ).toBeUndefined()
+  })
+})
+
+describe('recurring.fromRow, from a payment he named', () => {
+  test('a PayPal payment named Preply makes a Preply bill, paid by the next one named so', async () => {
+    const { t, me } = setup()
+    const { bank } = await world(t)
+    const [a, b] = await t.run(async (ctx) => {
+      const mk = (m: number) =>
+        ctx.db.insert('logs', {
+          ownerId: ME,
+          area: 'money',
+          kind: 'expense',
+          occurredAt: at(m, 29),
+          value: 124,
+          unit: 'eur',
+          text: 'PayPal Europe',
+          accountId: bank,
+          meta: {
+            raw: 'DD PayPal Europe 5D4J2254EVNWL LU96',
+            merchant: 'PayPal Europe',
+            category: 'learning',
+            payee: 'Preply',
+          },
+        })
+      return [await mk(7), await mk(8)]
+    })
+    const { id } = await me.mutation(api.recurring.fromRow, {
+      logId: b,
+      cadence: 'monthly',
+    })
+    const bill = await t.run((ctx) => ctx.db.get(id))
+    expect(bill).toMatchObject({ name: 'Preply', matchKey: 'NAMED PREPLY' })
+    const rows = await me.query(api.recurring.payments, { id })
+    expect(rows.map((r) => r._id).sort()).toEqual([a, b].sort())
+  })
+})
+
 describe('recurring.setCovers', () => {
   test('one payment for five months: every five months, a fifth a month — only his', async () => {
     const { t, me, them } = setup()

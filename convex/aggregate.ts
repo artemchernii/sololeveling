@@ -2390,7 +2390,7 @@ async function liveBills(ctx: QueryCtx, ownerId: string) {
       .query('recurring')
       .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
       .take(100)
-  ).filter((b) => b.refusedAt === undefined && b.endedAt === undefined)
+  ).filter((b) => b.refusedAt === undefined)
 }
 
 function aheadBill(b: Doc<'recurring'>): AheadBill {
@@ -2412,6 +2412,8 @@ function aheadBill(b: Doc<'recurring'>): AheadBill {
     anchor: b.anchor,
     lo: b.lo,
     hi: b.hi,
+    /* A cancelled one still explains the payments it had (4 Oct). */
+    endedAt: b.endedAt,
   }
 }
 
@@ -2555,8 +2557,10 @@ export const ahead = query({
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const days = Math.min(Math.max(1, Math.round(args.days)), 120)
-    const items = await liveBills(ctx, ownerId)
-    const bills = items.map(aheadBill)
+    /* Cancelled ones still pay their past rows; only what is due goes. */
+    const all = await liveBills(ctx, ownerId)
+    const items = all.filter((b) => b.endedAt === undefined)
+    const bills = all.map(aheadBill)
     const read = await readBalances(ctx, ownerId)
     /* Free cash: banks and cash. A broker's cash is waiting to be
        invested, not for bills (journey, question 6). */
@@ -2642,7 +2646,7 @@ export const ahead = query({
       series: built.series,
       low: built.low,
       salaryAt: built.salaryAt,
-      eachMonth: billsEachMonth(bills),
+      eachMonth: billsEachMonth(items.map(aheadBill)),
       year: yearAhead(bills, args.today),
     }
   },

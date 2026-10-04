@@ -6,25 +6,25 @@ import { ChevronRight } from 'lucide-react'
 
 import { api } from '../../../../convex/_generated/api'
 import type { Doc, Id } from '../../../../convex/_generated/dataModel'
-import { AccountLogo } from '@/components/finances/Logo'
-import { FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
+import { PILL_QUIET } from '@/components/finances/bits'
 import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Veiled } from '@/components/finances/Veil'
-import { failureMessage } from '@/lib/convex-errors'
 import { SPEND_CATEGORIES, categoryLabel } from '@/lib/money'
+import { PayeeMark, PayeeName, WhoIsThis, usePayees } from './Payees'
+import type { Who } from './Payees'
 import { dayMonth, eur, monthName } from './time'
 
-type Row = FunctionReturnType<
-  typeof api.aggregate.payMonthDetail
->['groups'][number]['rows'][number]
+type Detail = FunctionReturnType<typeof api.aggregate.payMonthDetail>
+type Row = Detail['groups'][number]['rows'][number]
 
-/* SPENDING (4 Oct; mockup design/treasury-mockup/flow-spending.html). His
-   words: "Bills, daytoday I would love to see those exactly values and
-   where they come from." The pay month opened: every bill paid, with the
-   line the bank wrote, and the ones still to pay; day-to-day by group,
-   biggest first, each opening its rows, last month's figure beside it;
-   the money in. The same rows aggregate.payMonth sums. */
+/* SPENDING (4 Oct; mockups flow-spending.html and payees.html). His words:
+   "Bills, daytoday I would love to see those exactly values and where they
+   come from." The pay month opened: every bill — one thing made of parts
+   (Mortgage) shown as one line that opens — and the ones still to pay;
+   day-to-day by group, each opening its rows, last month's figure beside
+   it; the money in. Every row says who it is in his words, the bank's
+   own name underneath, and its name opens "Who is this?". */
 export function Spending({
   today,
   accounts,
@@ -61,14 +61,17 @@ export function Spending({
         }
       : 'skip',
   )
+  const { who, parts } = usePayees()
   const [openGroup, setOpenGroup] = useState<Record<string, boolean>>({})
-  const [moved, setMoved] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [naming, setNaming] = useState<{
-    id: Id<'recurring'>
-    name: string
-    raw?: string
+    row: Row
+    who: Who
+    category: string | null
   } | null>(null)
   const account = (id?: Id<'accounts'>) => accounts.find((a) => a._id === id)
+  const name = (row: Row) => () =>
+    setNaming({ row, who: who(row), category: row.category ?? null })
 
   if (p === undefined) {
     return (
@@ -95,6 +98,21 @@ export function Spending({
   const max = Math.max(1, ...(d?.groups.map((g) => g.sum) ?? []))
   const now = at === months.length - 1
 
+  /* Bills that are parts of one thing (Mortgage) fold into it. */
+  const billItems: Array<
+    | { kind: 'one'; b: Detail['bills'][number] }
+    | { kind: 'parts'; name: string; bills: Array<Detail['bills'][number]> }
+  > = []
+  for (const b of d?.bills ?? []) {
+    const part = who(b.row).partOf
+    const into = part
+      ? billItems.find((x) => x.kind === 'parts' && x.name === part)
+      : undefined
+    if (into && into.kind === 'parts') into.bills.push(b)
+    else if (part) billItems.push({ kind: 'parts', name: part, bills: [b] })
+    else billItems.push({ kind: 'one', b })
+  }
+
   return (
     <section className="glass motion-arrive flex flex-col gap-5 rounded-[22px] p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -116,6 +134,17 @@ export function Spending({
         </span>
       </div>
 
+      <Suggestions onDone={setNotice} onOwn={(row) => name(row)()} />
+
+      {notice ? (
+        <p className="motion-arrive -my-2 flex items-center gap-2 text-[13px] text-ink-300">
+          <span className="rounded-full bg-state-good/12 px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] text-state-good uppercase">
+            done
+          </span>
+          {notice}
+        </p>
+      ) : null}
+
       {d === undefined ? (
         <SkeletonRows rows={8} twoLine />
       ) : (
@@ -125,24 +154,55 @@ export function Spending({
             sum={`−${eur(billsSum)}`}
             tone="text-state-danger"
           >
-            {d.bills.map((b) => (
-              <RowLine
-                key={b.row.id}
-                row={b.row}
-                name={b.billName}
-                sub={`${dayMonth(b.row.t)} · ${account(b.row.accountId)?.name ?? '—'} · ✓ paid · tap to rename`}
-                account={account(b.row.accountId)}
-                onClick={() =>
-                  setNaming({ id: b.billId, name: b.billName, raw: b.row.raw })
-                }
-              />
-            ))}
+            {billItems.map((item) =>
+              item.kind === 'one' ? (
+                <RowLine
+                  key={item.b.row.id}
+                  row={item.b.row}
+                  who={billWho(who(item.b.row), item.b.billName)}
+                  sub={`${dayMonth(item.b.row.t)} · ${account(item.b.row.accountId)?.name ?? '—'} · ✓ paid`}
+                  account={account(item.b.row.accountId)}
+                  onName={name(item.b.row)}
+                />
+              ) : (
+                <Parts
+                  key={item.name}
+                  name={item.name}
+                  open={openGroup[`part:${item.name}`] ?? false}
+                  onToggle={() =>
+                    setOpenGroup({
+                      ...openGroup,
+                      [`part:${item.name}`]: !(
+                        openGroup[`part:${item.name}`] ?? false
+                      ),
+                    })
+                  }
+                  total={item.bills.reduce((n, b) => n + b.row.amount, 0)}
+                  sub={`${dayMonth(item.bills[0].row.t)} · ${account(item.bills[0].row.accountId)?.name ?? '—'} · ✓ paid`}
+                  account={account(item.bills[0].row.accountId)}
+                >
+                  {item.bills.map((b) => (
+                    <RowLine
+                      key={b.row.id}
+                      row={b.row}
+                      who={billWho(who(b.row), b.billName)}
+                      sub={dayMonth(b.row.t)}
+                      account={account(b.row.accountId)}
+                      onName={name(b.row)}
+                    />
+                  ))}
+                </Parts>
+              ),
+            )}
             {d.todo.map((x) => (
               <div
                 key={`${x.billId}-${x.t}`}
-                className="grid grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] bg-state-warn/7 px-1 py-2.5"
+                className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] bg-state-warn/7 px-1 py-2.5"
               >
-                <Logo a={account(x.accountId)} />
+                <PayeeMark
+                  who={who({ name: x.name })}
+                  account={account(x.accountId)}
+                />
                 <span className="min-w-0">
                   <span className="block truncate text-[14px]">{x.name}</span>
                   <span className="block font-mono text-[10.5px] text-state-warn">
@@ -158,16 +218,6 @@ export function Spending({
               <Empty>No bills this pay month.</Empty>
             ) : null}
           </Section>
-
-          {moved ? (
-            <p className="motion-arrive -mb-2 flex items-center gap-2 text-[13px] text-ink-300">
-              <span className="rounded-full bg-state-good/12 px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] text-state-good uppercase">
-                done
-              </span>
-
-              {moved}
-            </p>
-          ) : null}
 
           <Section
             title="day-to-day · biggest first · tap a group"
@@ -217,15 +267,16 @@ export function Spending({
                         <RowLine
                           key={r.id}
                           row={r}
-                          name={r.name}
+                          who={who(r)}
                           sub={`${dayMonth(r.t)} · ${account(r.accountId)?.name ?? '—'}`}
                           account={account(r.accountId)}
+                          onName={name(r)}
                           group={
                             <GroupPick
                               row={r}
                               onMoved={(n, to) =>
-                                setMoved(
-                                  `${r.name}: ${n} row${n === 1 ? '' : 's'} moved to ${categoryLabel('expense', to)} — and the next ones too.`,
+                                setNotice(
+                                  `${who(r).name}: ${n} row${n === 1 ? '' : 's'} moved to ${categoryLabel('expense', to)} — and the next ones too.`,
                                 )
                               }
                             />
@@ -251,7 +302,16 @@ export function Spending({
               <RowLine
                 key={m.row.id}
                 row={m.row}
-                name={m.salary ? 'Salary' : m.row.name}
+                who={
+                  m.salary
+                    ? {
+                        ...who(m.row),
+                        name: 'Salary',
+                        original: m.row.name,
+                        source: null,
+                      }
+                    : who(m.row)
+                }
                 sub={`${dayMonth(m.row.t)} · ${account(m.row.accountId)?.name ?? '—'}`}
                 account={account(m.row.accountId)}
                 income
@@ -264,19 +324,38 @@ export function Spending({
 
       <Sheet
         open={naming !== null}
-        title="the bill's name"
+        title="who is this?"
         onClose={() => setNaming(null)}
       >
         {naming ? (
-          <Rename
-            key={naming.id}
-            bill={naming}
-            onDone={() => setNaming(null)}
+          <WhoIsThis
+            key={naming.row.id}
+            row={naming.row}
+            who={naming.who}
+            category={naming.category}
+            parts={parts}
+            onDone={(n, called) => {
+              setNaming(null)
+              setNotice(
+                `${called} — ${n} row${n === 1 ? '' : 's'} named, and the next ones too.`,
+              )
+            }}
           />
         ) : null}
       </Sheet>
     </section>
   )
+}
+
+/** A bill shows his payee name when he gave one, else the bill's own. */
+function billWho(w: Who, billName: string): Who {
+  return w.source === 'yours'
+    ? w
+    : {
+        ...w,
+        name: billName,
+        original: w.original ?? (billName !== w.name ? w.name : null),
+      }
 }
 
 function Section({
@@ -303,42 +382,39 @@ function Section({
   )
 }
 
-function Logo({ a }: { a?: Doc<'accounts'> }) {
-  return a ? (
-    <AccountLogo name={a.name} domain={a.domain} size={24} />
-  ) : (
-    <span />
-  )
-}
-
 function RowLine({
   row,
-  name,
+  who,
   sub,
   account,
   income,
-  onClick,
+  onName,
   group,
 }: {
   row: Row
-  name: string
+  who: Who
   sub: string
   account?: Doc<'accounts'>
   income?: boolean
-  onClick?: () => void
+  onName?: () => void
   /** The group chip, for a day-to-day row. */
   group?: React.ReactNode
 }) {
-  const body = (
-    <>
-      <Logo a={account} />
+  return (
+    <div className="grid w-full grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 border-b border-lift/4 px-1 py-2.5">
+      <PayeeMark who={who} account={account} />
       <span className="min-w-0">
-        <span className="block truncate text-[14px]">{name}</span>
+        <PayeeName who={who} onName={onName} />
+        {who.original ? (
+          <span className="block truncate text-[12px] text-ink-400">
+            {who.original}
+          </span>
+        ) : null}
         <span className="block font-mono text-[10.5px] text-ink-500">
           {sub}
         </span>
         {group}
-        {row.raw && row.raw !== name ? (
+        {row.raw && row.raw !== who.name && row.raw !== who.original ? (
           <span className="block truncate font-mono text-[10px] text-ink-600">
             {row.raw}
           </span>
@@ -350,20 +426,71 @@ function RowLine({
           {eur(row.amount, true)}
         </Veiled>
       </span>
-    </>
+    </div>
   )
-  const cls =
-    'grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-3 border-b border-lift/4 px-1 py-2.5 text-left'
-  return onClick ? (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`${cls} rounded-[8px] transition-colors hover:bg-lift/[0.035]`}
-    >
-      {body}
-    </button>
-  ) : (
-    <div className={cls}>{body}</div>
+}
+
+/** One thing made of several bills (Mortgage): one line, opening into its parts. */
+function Parts({
+  name,
+  open,
+  onToggle,
+  total,
+  sub,
+  account,
+  children,
+}: {
+  name: string
+  open: boolean
+  onToggle: () => void
+  total: number
+  sub: string
+  account?: Doc<'accounts'>
+  children: React.ReactNode
+}) {
+  const count = Array.isArray(children) ? children.length : 1
+  return (
+    <div className="border-b border-lift/4">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="grid w-full grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] px-1 py-2.5 text-left transition-colors hover:bg-lift/[0.035]"
+      >
+        <PayeeMark
+          who={{
+            key: name,
+            name,
+            original: null,
+            domain: null,
+            partOf: null,
+            source: null,
+          }}
+          account={account}
+        />
+        <span className="min-w-0">
+          <span className="flex items-center gap-2 text-[14px]">
+            {name}
+            <ChevronRight
+              className={`size-3.5 text-ink-500 transition-transform ${open ? 'rotate-90' : ''}`}
+            />
+            <span className="rounded-[5px] bg-lav-400/10 px-1.5 py-px font-mono text-[9px] tracking-[0.12em] text-lav-300 uppercase ring-1 ring-lav-400/25 ring-inset">
+              {count} parts
+            </span>
+          </span>
+          <span className="block font-mono text-[10.5px] text-ink-500">
+            {sub}
+          </span>
+        </span>
+        <span className="font-mono">
+          <Veiled>−{eur(total, true)}</Veiled>
+        </span>
+      </button>
+      {open ? (
+        <div className="motion-arrive mb-2 ml-2.5 border-l border-lift/8 pl-3">
+          {children}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -371,53 +498,90 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <span className="py-3 text-[13px] text-ink-500">{children}</span>
 }
 
-/* His name for a bill: "Mortgage · interest" rather than what the bank
-   printed. Once renamed it is his, and the app never renames it. */
-function Rename({
-  bill,
+/* What the app can say plainly: Portuguese bank phrases it knows, as one
+   tap each (the mockup's "suggested names"). MY OWN opens Who is this. */
+function Suggestions({
   onDone,
+  onOwn,
 }: {
-  bill: { id: Id<'recurring'>; name: string; raw?: string }
-  onDone: () => void
+  onDone: (s: string) => void
+  onOwn: (row: Row) => void
 }) {
-  const rename = useMutation(api.recurring.rename)
-  const [name, setName] = useState(bill.name)
-  const [error, setError] = useState<string | null>(null)
-  async function save() {
-    try {
-      await rename({ id: bill.id, name })
-      onDone()
-    } catch (e) {
-      setError(failureMessage(e) ?? 'It did not save.')
-    }
-  }
+  const list = useQuery(api.payees.suggestions, {})
+  const set = useMutation(api.payees.set)
+  const [open, setOpen] = useState(true)
+  if (!list || list.length === 0) return null
   return (
-    <div className="flex flex-col gap-3">
-      {bill.raw ? (
-        <span className="font-mono text-[11px] text-ink-500">
-          the bank wrote: {bill.raw}
-        </span>
-      ) : null}
-      <input
-        autoFocus
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') void save()
-        }}
-        aria-label="Bill name"
-        className={FIELD}
-      />
+    <div className="flex flex-col gap-2 rounded-[16px] bg-lav-400/5 p-3 ring-1 ring-lav-400/25 ring-inset">
       <button
         type="button"
-        onClick={() => void save()}
-        className={`${PILL_LOUD} self-start`}
+        onClick={() => setOpen(!open)}
+        className="label-caps flex items-center gap-2 text-left text-lav-300"
       >
-        save
+        the app can say {list.length === 1 ? 'this' : `these ${list.length}`}{' '}
+        plainly
+        <ChevronRight
+          className={`size-3.5 transition-transform ${open ? 'rotate-90' : ''}`}
+        />
       </button>
-      {error ? (
-        <span className="text-[12.5px] text-state-danger">{error}</span>
-      ) : null}
+      {open
+        ? list.map((s) => (
+            <div
+              key={s.key}
+              className="motion-arrive grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-lift/6 pt-2"
+            >
+              <span className="min-w-0">
+                <span className="block truncate font-mono text-[11px] text-ink-500">
+                  {s.raw}
+                </span>
+                <span className="text-[14px]">→ {s.name}?</span>
+                {s.partOf ? (
+                  <span className="ml-2 font-mono text-[10.5px] text-ink-500">
+                    part of {s.partOf}
+                  </span>
+                ) : null}
+              </span>
+              <span className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    void set({
+                      logId: s.logId,
+                      name: s.name,
+                      domain: null,
+                      category: s.category,
+                      partOf: s.partOf,
+                    }).then((n) => {
+                      onDone(
+                        `${s.name} — ${n} row${n === 1 ? '' : 's'} named, and the next ones too.`,
+                      )
+                    })
+                  }
+                  className="rounded-full bg-lav-400/18 px-3.5 py-1.5 font-mono text-[11px] tracking-[0.1em] ring-1 ring-lav-400/45 ring-inset"
+                >
+                  YES
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onOwn({
+                      id: s.logId,
+                      t: 0,
+                      name: s.raw,
+                      amount: 0,
+                      raw: s.raw,
+                      category: s.category,
+                      accountId: undefined,
+                    })
+                  }
+                  className="rounded-full px-3 py-1.5 font-mono text-[11px] tracking-[0.1em] text-ink-400 ring-1 ring-lift/12 ring-inset"
+                >
+                  MY OWN
+                </button>
+              </span>
+            </div>
+          ))
+        : null}
     </div>
   )
 }

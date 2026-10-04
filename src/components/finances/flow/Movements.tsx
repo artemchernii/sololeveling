@@ -14,6 +14,7 @@ import { failureMessage } from '@/lib/convex-errors'
 import { categoryLabel } from '@/lib/money'
 import type { Notice } from './Ahead'
 import { whenSaid } from './AddBill'
+import { PayeeMark, PayeeName, usePayees } from './Payees'
 import { dayMonth, eur, weekday } from './time'
 
 type Item = FunctionReturnType<typeof api.logs.movements>['items'][number]
@@ -47,6 +48,9 @@ export function Movements({
     [today, days],
   )
   const data = useQuery(api.logs.movements, span)
+  const { who } = usePayees()
+  const whoOf = (l: Doc<'logs'>) =>
+    who({ raw: l.meta?.raw, name: l.meta?.merchant ?? l.text ?? '' })
   const account = (id: Id<'accounts'> | null | undefined) =>
     accounts.find((a) => a._id === id)
 
@@ -258,13 +262,19 @@ export function Movements({
                       key={i.log._id}
                       type="button"
                       onClick={() => setOpen(i.log)}
-                      className="grid grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border-b border-lift/3 px-1 py-2 text-left text-[13.5px] transition-colors hover:bg-lift/[0.035]"
+                      className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border-b border-lift/3 px-1 py-2 text-left text-[13.5px] transition-colors hover:bg-lift/[0.035]"
                     >
-                      <Logo a={account(i.log.accountId)} />
+                      <PayeeMark
+                        who={whoOf(i.log)}
+                        account={account(i.log.accountId)}
+                      />
                       <span className="min-w-0">
-                        <span className="block truncate">
-                          {i.log.meta?.merchant ?? i.log.text}
-                        </span>
+                        <PayeeName who={whoOf(i.log)} />
+                        {whoOf(i.log).original ? (
+                          <span className="block truncate text-[12px] text-ink-400">
+                            {whoOf(i.log).original}
+                          </span>
+                        ) : null}
                         <span className="block font-mono text-[10px] text-ink-500">
                           {categoryLabel(
                             i.log.kind === 'income' ? 'income' : 'expense',

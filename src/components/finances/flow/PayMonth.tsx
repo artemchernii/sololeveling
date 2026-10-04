@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
+import { CalendarClock, CircleCheck } from 'lucide-react'
 
 import { api } from '../../../../convex/_generated/api'
 import { Sheet } from '@/components/finances/Sheet'
@@ -50,7 +51,6 @@ export function PayMonth({
   const all = [...p.past, { ...c, now: true as const }]
   const sign = (n: number) => (n >= 0 ? '+' : '−')
   const tone = c.balance >= 0 ? 'text-state-good' : 'text-state-danger'
-  const diff = c.pace ? c.pace.now - c.pace.last : 0
   const max = Math.max(
     1,
     ...all.map((m) => Math.max(m.salary + m.other, m.bills + m.dayToDay)),
@@ -61,7 +61,7 @@ export function PayMonth({
     <section className="glass motion-arrive flex flex-col gap-4 rounded-[22px] p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="system-title">
-          [ PAY MONTH · {dayMonth(c.start)} → {dayMonth(c.end)} ·{' '}
+          [ PAY MONTH · {dayMonth(c.start)} → ~{dayMonth(c.end)} ·{' '}
           {c.salaryLate ? 'salary not seen yet' : `day ${c.day} of ${c.length}`}{' '}
           ]
         </span>
@@ -73,7 +73,7 @@ export function PayMonth({
       <div className="grid items-end gap-7 md:grid-cols-[1.25fr_1fr]">
         <div className="flex flex-col">
           <span className="font-mono text-[11px] text-ink-500">
-            BALANCE THIS PAY MONTH
+            BALANCE THIS MONTH
           </span>
           <span
             className={`mt-1.5 text-[46px] leading-none font-light tabular-nums ${tone}`}
@@ -83,11 +83,19 @@ export function PayMonth({
               {eur(c.balance)}
             </Veiled>
           </span>
-          <span className="mt-1.5 font-mono text-[11px] text-ink-500">
-            {c.billsLeft > 0
-              ? `Bills still to pay: ${eur(c.billsLeft)}`
-              : 'All bills paid'}
-          </span>
+          {/* Important (4 Oct): coloured, with a mark — a state, not a
+              footnote. */}
+          {c.billsLeft > 0 ? (
+            <span className="mt-2.5 inline-flex w-fit items-center gap-2 rounded-full bg-state-warn/12 px-3 py-1.5 text-[13px] text-state-warn ring-1 ring-state-warn/30 ring-inset">
+              <CalendarClock className="size-4" />
+              Bills still to pay: <Veiled>{eur(c.billsLeft, true)}</Veiled>
+            </span>
+          ) : (
+            <span className="mt-2.5 inline-flex w-fit items-center gap-2 rounded-full bg-state-good/12 px-3 py-1.5 text-[13px] text-state-good ring-1 ring-state-good/30 ring-inset">
+              <CircleCheck className="size-4" />
+              All bills paid
+            </span>
+          )}
 
           <div className="mt-5 grid max-w-[460px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3.5 gap-y-1.5">
             <Line
@@ -126,23 +134,16 @@ export function PayMonth({
             />
           </div>
 
-          <p className="mt-3.5 text-[13.5px] text-ink-300">
-            {c.day === 0 || !c.pace ? (
-              'Nothing to compare yet.'
-            ) : (
-              <>
-                Day-to-day:{' '}
-                {Math.abs(diff) < 20 ? (
-                  'about the same as'
-                ) : diff > 0 ? (
-                  <span className="text-state-danger">{eur(diff)} more</span>
-                ) : (
-                  <span className="text-state-good">{eur(-diff)} less</span>
-                )}{' '}
-                than this time last month.
-              </>
-            )}
-          </p>
+          {/* Two plain facts, not a difference to decode (4 Oct: "we
+              spend this month 100 euros more? Confusing"). */}
+          {c.pace && c.day > 0 ? (
+            <p className="mt-3.5 text-[13.5px] text-ink-300">
+              Day-to-day so far:{' '}
+              <Veiled className="text-foreground">{eur(c.pace.now)}</Veiled>.
+              Last month by day {c.day}:{' '}
+              <Veiled className="text-foreground">{eur(c.pace.last)}</Veiled>.
+            </p>
+          ) : null}
         </div>
 
         <div className="relative">

@@ -28,6 +28,7 @@ import type * as migrations from "../migrations.js";
 import type * as milestones from "../milestones.js";
 import type * as money from "../money.js";
 import type * as notes from "../notes.js";
+import type * as payees from "../payees.js";
 import type * as principles from "../principles.js";
 import type * as projects from "../projects.js";
 import type * as recurring from "../recurring.js";
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   milestones: typeof milestones;
   money: typeof money;
   notes: typeof notes;
+  payees: typeof payees;
   principles: typeof principles;
   projects: typeof projects;
   recurring: typeof recurring;

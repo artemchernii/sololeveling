@@ -68,7 +68,7 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="ctl">Mockup · your numbers from the 3 Oct crypto statement · "you paid" and the shares/ETF split approximate</div>
+  <div class="ctl">Mockup · your real positions and coins (4 Oct) · real logos · coins' "you paid" approximate</div>
   <div class="scen" id="scen"></div>
   <p class="note" id="note"></p>
   <div id="out" style="display:flex;flex-direction:column;gap:14px"></div>
@@ -79,6 +79,41 @@ const sgn = (v) => (v >= 0 ? '+' : '−')
 const pp = (pl, base, s) => `<span class="pp ${s ? 's' : ''} ${pl >= 0 ? 'up' : 'down'}">${sgn(pl)}${eur(pl)} <span>${sgn(pl)}${Math.abs(pl / base * 100).toFixed(1)}%</span></span>`
 
 /* His five coins (closing balances and values from the statement). */
+/* Logos by what a thing is (4 Oct: "those logos are annoy me … real
+   logo"): a coin's own icon, a company's own site, an ETF's issuer, a
+   broker's site. Letters only when none is known. */
+const COIN_ICON = (s) => `https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color/${s.toLowerCase()}.svg`
+const SITE = (d) => `https://www.google.com/s2/favicons?domain=${d}&sz=64`
+const img = (src, size = 40, r = 12) => `<img src="${src}" alt="" style="width:${size}px;height:${size}px;border-radius:${r}px;background:#fff;object-fit:contain;padding:${Math.round(size / 8)}px">`
+const coinImg = (s, size = 40) => `<img src="${COIN_ICON(s)}" alt="" style="width:${size}px;height:${size}px;border-radius:50%">`
+/* His 23 shares and ETFs (Portfolio, 4 Oct). */
+const HELD = [
+  ['IGLN', 'iShares Physical Gold ETC', 527.71, -3.74, 'ETF', 'T212', 'ishares.com'],
+  ['VHYL', 'Vanguard FTSE All-World High Dividend', 502.28, 2.51, 'ETF', 'T212', 'vanguard.com'],
+  ['GOOG', 'Alphabet', 377.33, 10.33, 'stock', 'TR', 'google.com'],
+  ['AMZN', 'Amazon', 365.93, 19.20, 'stock', 'TR', 'amazon.com'],
+  ['MSFT', 'Microsoft', 341.98, 36.14, 'stock', 'TR', 'microsoft.com'],
+  ['META', 'Meta Platforms', 319.37, 28.06, 'stock', 'TR', 'meta.com'],
+  ['AVGO', 'Broadcom', 309.20, -6.32, 'stock', 'TR', 'broadcom.com'],
+  ['NVDA', 'NVIDIA', 295.85, 26.32, 'stock', 'TR', 'nvidia.com'],
+  ['SHLD', 'iShares Digital Security', 284.82, 18.86, 'ETF', 'T212', 'ishares.com'],
+  ['PLTR', 'Palantir', 280.96, 12.01, 'stock', 'TR', 'palantir.com'],
+  ['SHOP', 'Shopify', 274.53, 9.43, 'stock', 'TR', 'shopify.com'],
+  ['GEV', 'GE Vernova', 269.26, 7.26, 'stock', 'TR', 'gevernova.com'],
+  ['VUAA', 'Vanguard S&P 500 (Acc)', 262.45, 16.65, 'ETF', 'T212', 'vanguard.com'],
+  ['MA', 'Mastercard', 259.62, 0.49, 'stock', 'TR', 'mastercard.com'],
+  ['V', 'Visa', 258.09, 1.26, 'stock', 'TR', 'visa.com'],
+  ['VFEG', 'Vanguard FTSE Emerging Markets (Acc)', 256.68, 2.82, 'ETF', 'T212', 'vanguard.com'],
+  ['UBER', 'Uber', 248.14, -1.56, 'stock', 'TR', 'uber.com'],
+  ['NFLX', 'Netflix', 231.92, -7.87, 'stock', 'TR', 'netflix.com'],
+  ['DASH', 'DoorDash', 168.51, 4.16, 'stock', 'TR', 'doordash.com'],
+  ['VDPG', 'Vanguard FTSE Dev. Asia Pacific ex Japan', 162.50, 8.50, 'ETF', 'T212', 'vanguard.com'],
+  ['MELI', 'MercadoLibre', 140.66, -6.85, 'stock', 'TR', 'mercadolibre.com'],
+  ['LUKOY', 'LUKOIL · no market price', 11.14, -55.37, 'stock', 'T212', 'lukoil.com'],
+  ['NILSY', 'Norilsk Nickel · no market price', 9.78, -60.82, 'stock', 'T212', 'nornickel.com'],
+]
+const ETFS = HELD.filter((h) => h[4] === 'ETF').reduce((t, h) => t + h[2], 0)
+const STOCKS = HELD.filter((h) => h[4] === 'stock').reduce((t, h) => t + h[2], 0)
 const COINS = [
   { s: 'SOL', n: 'Solana', q: 1.239235, px: 106.70, v: 132.23, paid: 88.6, c: 'oklch(0.72 0.17 300)', m: '◎' },
   { s: 'ETH', n: 'Ether', q: 0.05275025, px: 2387.67, v: 125.96, paid: 87.9, c: 'oklch(0.72 0.08 270)', m: 'Ξ' },
@@ -99,35 +134,37 @@ const S = {
 let K = 'portfolio', F = 'all'
 
 function brokers() {
-  const card = (name, mark, c, pos, worth, paid, cash, extra = '', cls = '') => `<section class="glass bk ${cls}">
-    <div class="hd"><span class="lg" style="--c:${c}">${mark}</span><b>${name}</b><span class="caps">${pos}</span></div>
+  const card = (name, site, pos, worth, paid, cash, extra = '', cls = '') => `<section class="glass bk ${cls}">
+    <div class="hd">${img(SITE(site), 34, 10)}<b>${name}</b><span class="caps">${pos}</span></div>
     <div><span class="caps">total</span><div class="big" style="font-size:28px;margin-top:4px">${eur(worth + (cash ?? 0))}</div></div>
     <div class="kv"><span>investments</span><span>${eur(worth)} ${pp(worth - paid, paid, 1)}</span></div>
     <div class="kv"><span>you paid for them</span><span>${eur(paid)}</span></div>
     ${cash !== null ? `<div class="kv"><span>free cash</span><span>${eur(cash)}</span></div>` : ''}${extra}</section>`
   return `<div class="brokers">
-    ${card('Trade Republic', '≋', '#f1f1f5', '15 positions', 4141.35, 3796.40, 1543.09)}
-    ${card('Trading 212', '◮', 'oklch(0.7 0.12 230)', '8 positions', 2017.36, 1952.11, 12994.22)}
-    ${card('Revolut Crypto', 'R', '#f1f1f5', '5 coins', crypto, cpaid, null, `<div class="kv"><span>earned by staking</span><span class="up">4.91 ADA · €1.07</span></div><div class="kv"><span>statement</span><span class="dim">read 3 Oct · adds up ✓</span></div>`, 'new')}
+    ${card('Trade Republic', 'traderepublic.com', '15 positions', 4141.35, 3796.40, 1543.09)}
+    ${card('Trading 212', 'trading212.com', '8 positions', 2017.36, 1952.11, 12994.22)}
+    ${card('Revolut Crypto', 'revolut.com', '5 coins', crypto, cpaid, null, `<div class="kv"><span>earned by staking</span><span class="up">4.91 ADA · €1.07</span></div><div class="kv"><span>statement</span><span class="dim">read 3 Oct · adds up ✓</span></div>`, 'new')}
   </div>`
 }
 
 function list() {
-  const shares = [['VHYL', 'Vanguard All-World High Dividend', 502.28, 2.51, 'ETF'], ['IGLN', 'iShares Physical Gold', 527.71, -3.74, 'ETF'], ['GOOG', 'Alphabet', 377.33, 10.33, 'stock']]
-  const coinRows = COINS.map((c) => `<div class="row" onclick="K='coin';render()"><span class="coin" style="--c:${c.c}">${c.m}</span>
+  const coinRows = COINS.map((c) => `<div class="row" onclick="${c.s === 'ADA' ? "K='coin';render()" : ''}">${coinImg(c.s)}
     <span class="nm"><b>${c.n}</b><p>${c.s} · Revolut Crypto · ${c.q} ${c.s}${c.staked ? ` · <span class="up">${c.staked.toFixed(2)} from staking</span>` : ''}</p></span>
-    <span class="rt">${eur(c.v)}<small class="${c.v >= c.paid ? 'up' : 'down'}">${c.v >= c.paid ? '▲' : '▼'} ${Math.abs((c.v - c.paid) / c.paid * 100).toFixed(1)}%</small></span></div>`).join('')
-  const shareRows = shares.map(([s, n, v, p, k]) => `<div class="row"><span class="coin" style="--c:oklch(0.5 0.02 280);color:var(--ink-100);font-size:11px;font-family:var(--mono)">${s.slice(0, 2)}</span>
-    <span class="nm"><b>${n}</b><p>${s} · ${k}</p></span><span class="rt">${eur(v)}<small class="${p >= 0 ? 'up' : 'down'}">${p >= 0 ? '▲' : '▼'} ${Math.abs(p)}%</small></span></div>`).join('')
-  const body = F === 'crypto' ? coinRows : F === 'shares' ? shareRows : shareRows.split('</div><div').slice(0, 2).join('</div><div') + '</div>' + coinRows
+    <span class="rt">${eur(c.v)}<small class="${c.v >= c.paid ? 'up' : 'down'}">${c.v >= c.paid ? '▲' : '▼'} ${Math.abs((c.v - c.paid) / c.paid * 100).toFixed(1)}%</small></span></div>`)
+  const heldRows = HELD.map(([s, n, v, p, k, a, d]) => `<div class="row">${img(SITE(d))}
+    <span class="nm"><b>${n}</b><p>${s} · ${k} · ${a === 'TR' ? 'Trade Republic' : 'Trading 212'}</p></span>
+    <span class="rt">${eur(v)}<small class="${p >= 0 ? 'up' : 'down'}">${p >= 0 ? '▲' : '▼'} ${Math.abs(p)}%</small></span></div>`)
+  /* Biggest first, coins among the shares. */
+  const all = [...HELD.map((h, i) => [h[2], heldRows[i]]), ...COINS.map((c, i) => [c.v, coinRows[i]])].sort((x, y) => y[0] - x[0]).map((x) => x[1])
+  const body = (F === 'crypto' ? coinRows : F === 'shares' ? heldRows : all).join('')
   return `<section class="panel"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-    <span class="title">[ POSITIONS ]</span><span class="filters">${['all', 'shares', 'crypto'].map((f) => `<button class="pill ${F === f ? 'on' : ''}" onclick="F='${f}';render()">${f}</button>`).join('')}</span></div>${body}
-    ${F !== 'shares' ? `<div class="row" onclick="K='sold';render()" style="opacity:.6"><span class="coin" style="--c:oklch(0.4 0.02 280);color:var(--ink-200)">✦</span><span class="nm"><b>sold · 1 coin</b><p>XLM · none left</p></span><span class="rt dim">›</span></div>` : ''}</section>`
+    <span class="title">[ POSITIONS · ${F === 'crypto' ? 5 : F === 'shares' ? 23 : 28} ]</span><span class="filters">${['all', 'shares', 'crypto'].map((f) => `<button class="pill ${F === f ? 'on' : ''}" onclick="F='${f}';render()">${f}</button>`).join('')}</span></div>${body}
+    ${F !== 'shares' ? `<div class="row" onclick="K='sold';render()" style="opacity:.6">${coinImg('XLM')}<span class="nm"><b>sold · 1 coin</b><p>XLM · none left</p></span><span class="rt dim">›</span></div>` : ''}</section>`
 }
 
 function portfolio() {
   const worth = SH.worth + crypto, paid = SH.paid + cpaid
-  const parts = [['shares', 3700, 'var(--lav-400)'], ['ETFs', 2458.71, 'oklch(0.7 0.12 230)'], ['crypto', crypto, 'oklch(0.78 0.16 65)']]
+  const parts = [['stocks', STOCKS, 'var(--lav-400)'], ['ETFs', ETFS, 'oklch(0.7 0.12 230)'], ['crypto', crypto, 'oklch(0.78 0.16 65)']]
   return `<section class="panel"><span class="title">[ PORTFOLIO · SHARES AND CRYPTO · ALL ACCOUNTS ]</span>
     <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-end;margin-top:16px">
       <div><span class="caps">worth now</span><div class="big" style="margin-top:6px">${eur(worth)}</div></div>
@@ -157,7 +194,7 @@ function coin() {
   const c = COINS[4]
   return `<section class="panel"><div class="caps" style="margin-bottom:14px"><span class="title">[ PORTFOLIO · REVOLUT CRYPTO ]</span> &nbsp;‹ back</div>
     <div style="display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center">
-      <span class="coin" style="--c:${c.c};width:56px;height:56px;font-size:24px;border-radius:16px">${c.m}</span>
+      ${coinImg('ADA', 56)}
       <div><div style="font-size:22px">Cardano</div><div class="caps" style="margin-top:4px">ADA-EUR · crypto · trades all day</div></div>
       <div style="text-align:right"><div class="big" style="font-size:34px">€0.22</div><div class="caps down" style="margin-top:4px">−1.8% on the day</div></div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><span class="tag">Yahoo Finance · price 3 Oct · 00:00 UTC</span><span class="tag">logo: coin · Cardano</span></div>
@@ -179,7 +216,7 @@ function coin() {
 
 function sold() {
   return `<section class="panel"><div class="caps" style="margin-bottom:14px"><span class="title">[ PORTFOLIO · SOLD ]</span> &nbsp;‹ back</div>
-    <div class="row" style="cursor:default"><span class="coin" style="--c:oklch(0.65 0.05 230)">✦</span><span class="nm"><b>Stellar</b><p>XLM · Revolut Crypto · none left since Nov 2022</p></span>
+    <div class="row" style="cursor:default">${coinImg('XLM')}<span class="nm"><b>Stellar</b><p>XLM · Revolut Crypto · none left since Nov 2022</p></span>
     <span class="rt">returned −€1.24<small class="down">bought €170 · sold €175.17 · fees €6.41</small></span></div>
     <p class="note" style="text-align:left;margin:12px 0 0">Four buys and four sells, 2020–2022. Kept here so the history adds up; not in what you hold.</p></section>`
 }

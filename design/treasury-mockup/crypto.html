@@ -159,7 +159,8 @@ function brokers() {
     <div><span class="caps">total</span><div class="big" style="font-size:28px;margin-top:4px">${eur(worth + (cash ?? 0))}</div></div>
     <div class="kv"><span>investments</span><span>${eur(worth)} ${pp(worth - paid, paid, 1)}</span></div>
     <div class="kv"><span>bought for</span><span>${eur(paid)}</span></div>
-    ${cash !== null ? `<div class="kv"><span>free cash</span><span>${eur(cash)}</span></div>` : ''}${extra}</section>`
+    ${cash !== null ? `<div class="kv"><span>free cash</span><span>${eur(cash)}</span></div>` : ''}
+    <div class="kv"><span>since 1 Oct</span><span class="dim">no buys or sells yet</span></div>${extra}</section>`
   return `<div class="brokers">
     ${card('Trade Republic', 'traderepublic.com', '15 positions', 4141.35, 3796.40, 1543.09)}
     ${card('Trading 212', 'trading212.com', '8 positions', 2017.36, 1952.11, 12994.22)}
@@ -169,7 +170,8 @@ function brokers() {
       <div class="kv"><span>bought for</span><span>${eur(cpaid)}</span></div>
       <div class="kv"><span>free from staking</span><span class="up">4.91 ADA · ${eur(1.07)}</span></div>
       <div class="kv"><span>stocks</span><span class="dim">add the trading statement</span></div>
-      <div class="kv"><span>gold</span><span class="dim">add the statement</span></div></section>
+      <div class="kv"><span>gold</span><span class="dim">add the statement</span></div>
+      <div class="kv"><span>since 1 Oct</span><span class="dim">no buys or sells yet</span></div></section>
   </div>`
 }
 

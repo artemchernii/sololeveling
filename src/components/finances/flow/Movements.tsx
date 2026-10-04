@@ -50,7 +50,11 @@ export function Movements({
   const data = useQuery(api.logs.movements, span)
   const { who } = usePayees()
   const whoOf = (l: Doc<'logs'>) =>
-    who({ raw: l.meta?.raw, name: l.meta?.merchant ?? l.text ?? '' })
+    who({
+      raw: l.meta?.raw,
+      name: l.meta?.merchant ?? l.text ?? '',
+      payee: l.meta?.payee,
+    })
   const account = (id: Id<'accounts'> | null | undefined) =>
     accounts.find((a) => a._id === id)
 

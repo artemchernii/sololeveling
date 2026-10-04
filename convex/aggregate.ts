@@ -2779,6 +2779,8 @@ const detailRow = v.object({
   raw: v.optional(v.string()),
   category: v.optional(v.string()),
   accountId: v.optional(v.id('accounts')),
+  /** His name for this one row (a PayPal payment). */
+  payee: v.optional(v.string()),
 })
 
 /**
@@ -2798,6 +2800,8 @@ export const payMonthDetail = query({
       v.object({
         billId: v.id('recurring'),
         billName: v.string(),
+        /** One payment for several months (the condominium). */
+        everyMonths: v.optional(v.number()),
         row: detailRow,
       }),
     ),
@@ -2849,6 +2853,7 @@ export const payMonthDetail = query({
         raw: l.meta?.raw,
         category: l.meta?.category,
         accountId: l.accountId,
+        payee: l.meta?.payee,
       })
     }
     const d = openPayMonth({ ...args, rows, bills })
@@ -2860,11 +2865,13 @@ export const payMonthDetail = query({
       raw: r.raw,
       category: r.category,
       accountId: r.accountId as Id<'accounts'> | undefined,
+      payee: r.payee,
     })
     return {
       bills: d.bills.map((b) => ({
         billId: b.bill.id as Id<'recurring'>,
         billName: b.bill.name,
+        everyMonths: b.bill.everyMonths,
         row: out(b.row),
       })),
       todo: d.todo.map((x) => ({

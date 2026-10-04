@@ -11,6 +11,7 @@ import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Veiled } from '@/components/finances/Veil'
 import { SPEND_CATEGORIES, categoryLabel } from '@/lib/money'
+import { bankPhrase } from '@/lib/payees'
 import { PayeeMark, PayeeName, WhoIsThis, usePayees } from './Payees'
 import type { Who } from './Payees'
 import { dayMonth, eur, monthName } from './time'
@@ -104,7 +105,9 @@ export function Spending({
     | { kind: 'parts'; name: string; bills: Array<Detail['bills'][number]> }
   > = []
   for (const b of d?.bills ?? []) {
-    const part = who(b.row).partOf
+    /* His "part of", else what the bank's words say (the mortgage). */
+    const part =
+      who(b.row).partOf ?? bankPhrase(b.row.raw ?? '')?.partOf ?? null
     const into = part
       ? billItems.find((x) => x.kind === 'parts' && x.name === part)
       : undefined
@@ -160,7 +163,11 @@ export function Spending({
                   key={item.b.row.id}
                   row={item.b.row}
                   who={billWho(who(item.b.row), item.b.billName)}
-                  sub={`${dayMonth(item.b.row.t)} · ${account(item.b.row.accountId)?.name ?? '—'} · ✓ paid`}
+                  sub={`${dayMonth(item.b.row.t)} · ${account(item.b.row.accountId)?.name ?? '—'} · ✓ paid${
+                    item.b.everyMonths && item.b.everyMonths > 1
+                      ? ` · covers ${item.b.everyMonths} months, ${eur(item.b.row.amount / item.b.everyMonths, true)} a month`
+                      : ''
+                  }`}
                   account={account(item.b.row.accountId)}
                   onName={name(item.b.row)}
                 />
@@ -572,6 +579,7 @@ function Suggestions({
                       raw: s.raw,
                       category: s.category,
                       accountId: undefined,
+                      payee: undefined,
                     })
                   }
                   className="rounded-full px-3 py-1.5 font-mono text-[11px] tracking-[0.1em] text-ink-400 ring-1 ring-lift/12 ring-inset"

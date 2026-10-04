@@ -37,9 +37,20 @@ export function usePayees() {
     ...new Set((list ?? []).flatMap((p) => (p.partOf ? [p.partOf] : []))),
   ]
   return { who, parts }
-  function who(row: { raw?: string; name: string }): Who {
+  function who(row: { raw?: string; name: string; payee?: string }): Who {
     const line = row.raw ?? row.name
     const key = payeeIdOf(line)
+    /* A PayPal payment he named on its own (4 Oct). */
+    if (row.payee) {
+      return {
+        key,
+        name: row.payee,
+        original: row.name !== row.payee ? row.name : null,
+        domain: knownShop(payeeKey(row.payee))?.domain ?? siteFor(row.payee),
+        partOf: null,
+        source: 'yours',
+      }
+    }
     const mine = byKey.get(key)
     if (mine) {
       return {
@@ -121,6 +132,11 @@ export function PayeeName({ who, onName }: { who: Who; onName?: () => void }) {
       <span className="rounded-[5px] bg-state-good/10 px-1.5 py-px font-mono text-[9px] tracking-[0.12em] text-state-good uppercase ring-1 ring-state-good/25 ring-inset">
         known
       </span>
+    ) : who.key.startsWith('PAYPAL') ? (
+      /* PayPal is many shops: an unnamed one asks, quietly. */
+      <span className="rounded-[5px] bg-state-warn/10 px-1.5 py-px font-mono text-[9px] tracking-[0.12em] text-state-warn uppercase ring-1 ring-state-warn/25 ring-inset">
+        what was it?
+      </span>
     ) : null
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-2">
@@ -179,7 +195,8 @@ export function WhoIsThis({
   const [newPart, setNewPart] = useState('')
   const [error, setError] = useState<string | null>(null)
   const domain = siteTouched ? site : (site ?? (name ? siteFor(name) : null))
-  const paypal = who.key.startsWith('PAYPAL ')
+  const paypal = who.key.startsWith('PAYPAL')
+  const earlier = useQuery(api.payees.paypalNames, paypal ? {} : 'skip')
 
   async function save() {
     try {
@@ -205,10 +222,31 @@ export function WhoIsThis({
         autoFocus
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Who is it? Preply, Mango, Condominium…"
+        placeholder={
+          paypal
+            ? 'What was this one? Preply, Zalando…'
+            : 'Who is it? Preply, Mango, Condominium…'
+        }
         aria-label="Payee name"
         className={`${FIELD} text-[15px]`}
       />
+      {paypal && earlier?.length ? (
+        <span className="flex flex-wrap items-center gap-1.5">
+          <span className="label-caps">earlier through PayPal</span>
+          {earlier.map((e) => (
+            <Chip
+              key={e.name}
+              on={name === e.name}
+              onClick={() => {
+                setName(e.name)
+                if (e.category) setGroup(e.category)
+              }}
+            >
+              {e.name}
+            </Chip>
+          ))}
+        </span>
+      ) : null}
       <div className="flex items-center gap-3 rounded-[12px] bg-lift/[0.03] p-2.5">
         <PayeeMark
           who={{ ...who, name: name || '?', domain: domain ?? null }}
@@ -241,33 +279,37 @@ export function WhoIsThis({
         ))}
       </span>
 
-      <span className="label-caps">part of</span>
-      <span className="flex flex-wrap items-center gap-1.5">
-        <Chip on={partOf === null} onClick={() => setPartOf(null)}>
-          nothing
-        </Chip>
-        {parts.map((p) => (
-          <Chip key={p} on={partOf === p} onClick={() => setPartOf(p)}>
-            {p}
-          </Chip>
-        ))}
-        <Chip on={partOf === '+'} onClick={() => setPartOf('+')} dashed>
-          + new
-        </Chip>
-        {partOf === '+' ? (
-          <input
-            value={newPart}
-            onChange={(e) => setNewPart(e.target.value)}
-            placeholder="Mortgage, Insurance…"
-            aria-label="Part of"
-            className={`${FIELD} py-1 text-[13px]`}
-          />
-        ) : null}
-      </span>
+      {paypal ? null : (
+        <>
+          <span className="label-caps">part of</span>
+          <span className="flex flex-wrap items-center gap-1.5">
+            <Chip on={partOf === null} onClick={() => setPartOf(null)}>
+              nothing
+            </Chip>
+            {parts.map((p) => (
+              <Chip key={p} on={partOf === p} onClick={() => setPartOf(p)}>
+                {p}
+              </Chip>
+            ))}
+            <Chip on={partOf === '+'} onClick={() => setPartOf('+')} dashed>
+              + new
+            </Chip>
+            {partOf === '+' ? (
+              <input
+                value={newPart}
+                onChange={(e) => setNewPart(e.target.value)}
+                placeholder="Mortgage, Insurance…"
+                aria-label="Part of"
+                className={`${FIELD} py-1 text-[13px]`}
+              />
+            ) : null}
+          </span>
+        </>
+      )}
 
       <span className="label-caps leading-relaxed">
         {paypal
-          ? 'applies to every PayPal debit with this mandate — and the next ones. Other PayPal payments stay as they are.'
+          ? 'names this payment only — PayPal is Preply one day and a shop the next.'
           : 'applies to every row from this payee — and the next ones.'}
       </span>
       <button

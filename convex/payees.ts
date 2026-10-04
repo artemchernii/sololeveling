@@ -73,6 +73,21 @@ export const set = mutation({
     const partOf = args.partOf?.trim() || undefined
     const key = payeeIdOf(lineOf(log))
     if (key === '') throw new ConvexError('This row has no payee to name.')
+    const category = args.category?.trim().toLowerCase() || undefined
+
+    /* PayPal is a middleman (4 Oct: "sometimes paypal is preply, sometimes
+       I buy clothes online"): its mandate is his PayPal account, not a
+       shop. A PayPal row is named on its own — this payment only. */
+    if (key.startsWith('PAYPAL')) {
+      await ctx.db.patch(log._id, {
+        meta: {
+          ...log.meta,
+          payee: name,
+          ...(category && log.kind === 'expense' ? { category } : {}),
+        },
+      })
+      return 1
+    }
 
     const had = await ctx.db
       .query('payees')
@@ -85,7 +100,6 @@ export const set = mutation({
     const rows = (await moneyRows(ctx, ownerId)).filter(
       (l) => payeeIdOf(lineOf(l)) === key,
     )
-    const category = args.category?.trim().toLowerCase() || undefined
     if (category) {
       for (const l of rows) {
         if (l.kind !== 'expense' || l.meta?.category === category) continue
@@ -128,6 +142,26 @@ export const set = mutation({
       }
     }
     return rows.length
+  },
+})
+
+/** The names he gave single PayPal payments, newest first ("Preply",
+    "Zalando"): offered as one tap on the next one. */
+export const paypalNames = query({
+  args: {},
+  returns: v.array(
+    v.object({ name: v.string(), category: v.union(v.string(), v.null()) }),
+  ),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    const out = new Map<string, string | null>()
+    for (const l of await moneyRows(ctx, ownerId)) {
+      const name = l.meta?.payee
+      if (!name || out.has(name)) continue
+      out.set(name, l.meta?.category ?? null)
+      if (out.size >= 8) break
+    }
+    return [...out.entries()].map(([name, category]) => ({ name, category }))
   },
 })
 

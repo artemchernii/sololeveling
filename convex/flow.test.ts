@@ -626,7 +626,7 @@ describe('payees', () => {
     })
   }
 
-  test('naming one PayPal mandate names its rows, not all of PayPal', async () => {
+  test('a PayPal payment is named on its own — Preply one day, a jacket the next', async () => {
     const { t, me, them } = setup()
     const { bank } = await world(t)
     const ids = await paypal(t, bank)
@@ -646,26 +646,25 @@ describe('payees', () => {
       category: 'learning',
       partOf: null,
     })
-    expect(n).toBe(2)
+    expect(n).toBe(1)
     const rows = await t.run(async (ctx) =>
       Promise.all([ids.a, ids.b, ids.other].map((id) => ctx.db.get(id))),
     )
-    expect(rows.map((r) => r?.meta?.category)).toEqual([
-      'learning',
-      'learning',
-      'subscriptions',
+    expect(rows.map((r) => [r?.meta?.payee, r?.meta?.category])).toEqual([
+      ['Preply', 'learning'],
+      [undefined, 'subscriptions'],
+      [undefined, 'subscriptions'],
     ])
-    expect(await me.query(api.payees.list, {})).toEqual([
-      expect.objectContaining({
-        key: 'PAYPAL 5D4J2254EVNWL',
-        name: 'Preply',
-        domain: 'preply.com',
-      }),
-    ])
-    /* A PayPal mandate teaches no merchant rule: it would file all PayPal. */
+    /* No payee for all of PayPal, and no merchant rule. */
+    expect(await me.query(api.payees.list, {})).toEqual([])
     expect(
       await t.run((ctx) => ctx.db.query('merchantRules').collect()),
     ).toEqual([])
+    /* The next one is one tap: the names he used before. */
+    expect(await me.query(api.payees.paypalNames, {})).toEqual([
+      { name: 'Preply', category: 'learning' },
+    ])
+    expect(await them.query(api.payees.paypalNames, {})).toEqual([])
   })
 
   test('a bill paid to a payee takes his name; suggestions go once said', async () => {

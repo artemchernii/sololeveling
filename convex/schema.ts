@@ -552,6 +552,10 @@ export default defineSchema({
            arriving side names the leaving side here, so the pair is seen,
            matched and removed as one. */
         pairOf: v.optional(v.id('logs')),
+        /* His name for this one payment (4 Oct): a PayPal debit is Preply
+           one day and a jacket the next, so it is named row by row, not
+           by payee. */
+        payee: v.optional(v.string()),
       }),
     ),
   })

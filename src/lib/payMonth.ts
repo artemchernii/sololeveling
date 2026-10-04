@@ -172,6 +172,8 @@ export type DetailRow = AheadRow & {
   raw?: string
   category?: string
   accountId?: string
+  /** His name for this one row (a PayPal payment). */
+  payee?: string
 }
 
 /**

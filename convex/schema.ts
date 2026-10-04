@@ -680,6 +680,10 @@ export default defineSchema({
     /* "× not a bill": out of every view, and never found again. Kept, not
        deleted, because the key is what stops it coming back. */
     refusedAt: v.optional(v.number()),
+    /* Its amount moves month to month (4 Oct: Preply, the gym, Vodafone
+       top-ups): `amount` is a recent month's sum, and any payment to the
+       payee is its payment. */
+    varies: v.optional(v.boolean()),
   }).index('by_owner', ['ownerId']),
 
   /* A ticker he holds or held (Finances F4), found by search and never

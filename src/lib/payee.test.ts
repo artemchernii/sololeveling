@@ -49,4 +49,12 @@ describe('rowKey', () => {
     ).toBe('EDP COMERCIAL COMERCIALIZACAO')
     expect(rowKey({ text: 'Netflix' })).toBe('NETFLIX')
   })
+
+  it('keys a PayPal row by its mandate, so Preply is a payee of its own', () => {
+    expect(
+      rowKey({
+        meta: { raw: 'DD PayPal Europe 5D4J2254EVNWL LU960000000000' },
+      }),
+    ).toBe('PAYPAL 5D4J2254EVNWL')
+  })
 })

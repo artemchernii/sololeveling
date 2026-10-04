@@ -285,6 +285,7 @@ export function knownOf(items: ReadonlyArray<Doc<'recurring'>>): Array<Known> {
   return items.map((i) => ({
     key: i.matchKey ?? payeeKey(i.name),
     amount: i.amount,
+    varies: i.varies,
   }))
 }
 
@@ -406,6 +407,7 @@ export async function findFor(ctx: MutationCtx, ownerId: string) {
       day: b.day,
       matchKey: b.key,
       foundAt: now,
+      varies: b.varies,
     })
     added++
   }
@@ -538,6 +540,7 @@ export const payments = query({
       day: bill.day,
       month: bill.month,
       key: bill.matchKey ?? payeeKey(bill.name),
+      varies: bill.varies,
     }
     return logs
       .filter(

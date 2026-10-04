@@ -7,20 +7,9 @@
 
 import { payeeKey } from './payee'
 
-/**
- * The payee of a row. PayPal is a middleman — one PayPal debit is Preply,
- * the next a jacket — so a PayPal row is keyed by the mandate code on it
- * (the long reference with letters and digits), not by "PayPal".
- */
-export function payeeIdOf(line: string): string {
-  const base = payeeKey(line)
-  if (!/\bPAYPAL\b/i.test(line)) return base
-  const mandate = line
-    .toUpperCase()
-    .split(/[^A-Z0-9]+/)
-    .find((w) => w.length >= 10 && /\d/.test(w) && /[A-Z]/.test(w))
-  return mandate ? `PAYPAL ${mandate}` : base
-}
+/* payeeIdOf lives with payeeKey (src/lib/payee), so a bill's key and
+   a payee's are the same key; re-exported here where the page looks. */
+export { payeeIdOf } from './payee'
 
 export type Shop = {
   name: string
@@ -213,6 +202,8 @@ export type Phrase = {
   name: string
   category: string
   partOf?: string
+  /** Always a monthly bill: found from its first payment. */
+  monthly?: boolean
   pattern: RegExp
 }
 
@@ -220,13 +211,13 @@ export type Phrase = {
    he says yes (the mockup's "suggested names"). */
 export const PHRASES: ReadonlyArray<Phrase> = [
   {
-    pattern: /JUROS DE EMPRESTIMO/i,
+    pattern: /JUROS (DE )?EMPRESTIMO/i,
     name: 'Mortgage · interest',
     category: 'home',
     partOf: 'Mortgage',
   },
   {
-    pattern: /AMORTIZACAO DE CAPITAL/i,
+    pattern: /AMORTIZACAO (DE )?CAPITAL/i,
     name: 'Mortgage · capital',
     category: 'home',
     partOf: 'Mortgage',
@@ -243,6 +234,7 @@ export const PHRASES: ReadonlyArray<Phrase> = [
     pattern: /TRF P\/ COND\b|CONDOMINIO/i,
     name: 'Condominium',
     category: 'home',
+    monthly: true,
   },
   { pattern: /\bIUC\b/i, name: 'Car tax', category: 'car' },
   { pattern: /\bIMI\b/i, name: 'Property tax', category: 'home' },

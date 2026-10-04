@@ -1,4 +1,5 @@
 import { payeeKey } from './payee'
+import { PHRASES, bankPhrase } from './payees'
 
 /* Bills found in his statements (Flow, 3 Oct). He: asking about a €5.99
    Uber One is "a lot of hustle"; the mortgage, Vodafone, the gym are what
@@ -35,6 +36,9 @@ export type FoundBill = {
   day: number
   accountId?: string
   category?: string
+  /** Its amount changes month to month (Preply, the gym every two weeks,
+      Vodafone top-ups): `amount` is last month's sum, any amount pays it. */
+  varies?: boolean
 }
 
 const DAY = 86_400_000
@@ -71,14 +75,20 @@ export const EVERYDAY = new Set([
 
 /** A bill he has, or one he said is not: a payee at an amount. One payee
     can be two bills (interest and capital), so the key alone is not it. */
-export type Known = { key: string; amount: number }
+export type Known = { key: string; amount: number; varies?: boolean }
 
 export function isKnown(
   known: ReadonlyArray<Known>,
   r: { key: string; amount: number },
 ): boolean {
-  return known.some((k) => k.key === r.key && sameAmount(k.amount, r.amount))
+  return known.some(
+    (k) => k.key === r.key && (k.varies || sameAmount(k.amount, r.amount)),
+  )
 }
+
+/** A bill whose amount moves is worth showing from €10 a month: tolls of
+    €0.54 and €2.25 are not one (his Via Verde, 4 Oct). */
+const MIN_VARIES = 10
 
 /**
  * The monthly bills in `rows`, leaving out what is `known` (bills he has,
@@ -139,6 +149,64 @@ export function findBills(
       })
     }
   }
+
+  /* Paid every month, the amount moving (4 Oct: Preply through PayPal,
+     twice some months; the gym every two weeks; Vodafone top-ups). He
+     counts these as bills, so AHEAD shows them: a payee with no fixed
+     bill, paid in each of the last two full months, €10 or more each. */
+  for (const list of byKey.values()) {
+    const latest = list.reduce((a, r) => (r.t > a.t ? r : a))
+    if (latest.kind !== 'expense') continue
+    if (known.some((k) => k.key === latest.key)) continue
+    if (found.some((f) => f.key === latest.key)) continue
+    if (now - latest.t > 42 * DAY) continue
+    const sums = [thisMonth - 2, thisMonth - 1].map((m) =>
+      list.filter((r) => monthOf(r.t) === m),
+    )
+    if (
+      sums.some(
+        (rs) => rs.reduce((n, r) => n + r.amount, 0) < MIN_VARIES - 1e-9,
+      )
+    ) {
+      continue
+    }
+    /* One payment a month at one amount is the fixed rule's to judge. */
+    const moves =
+      sums.some((rs) => rs.length > 1) ||
+      !sameAmount(sums[0][0].amount, sums[1][0].amount)
+    if (!moves) continue
+    const last = sums[1]
+    const first = last.reduce((a, r) => (r.t < a.t ? r : a))
+    found.push({
+      key: latest.key,
+      name: latest.name,
+      kind: 'expense',
+      amount: Math.round(last.reduce((n, r) => n + r.amount * 100, 0)) / 100,
+      day: new Date(first.t).getUTCDate(),
+      accountId: latest.accountId,
+      category: latest.category,
+      varies: true,
+    })
+  }
+
+  /* Monthly by what it is (4 Oct: the condominium, €175, read once): a
+     bank phrase that is always a monthly bill is one from its first
+     payment. */
+  for (const r of recent) {
+    const phrase = bankPhrase(r.name)
+    if (!phrase?.monthly || r.kind !== 'expense') continue
+    if (isKnown(known, r) || found.some((f) => f.key === r.key)) continue
+    if (now - r.t > 42 * DAY) continue
+    found.push({
+      key: r.key,
+      name: phrase.name,
+      kind: 'expense',
+      amount: r.amount,
+      day: new Date(r.t).getUTCDate(),
+      accountId: r.accountId,
+      category: phrase.category,
+    })
+  }
   return found.sort(
     (a, b) =>
       a.day - b.day || a.key.localeCompare(b.key) || a.amount - b.amount,
@@ -162,6 +230,8 @@ export function billNames(
   found: ReadonlyArray<{ key: string; name: string; kind: string }>,
 ): Array<string> {
   return found.map((b) => {
+    /* A name the app's bank phrases gave ("Condominium") stays. */
+    if (PHRASES.some((p) => p.monthly && p.name === b.name)) return b.name
     const shared = found.some((o) => o !== b && o.name === b.name)
     const raw = /\d{3,}/.test(b.name) || b.name === b.name.toUpperCase()
     /* "Energia e Água" over "DD EDP COMERCIAL…" (4 Oct): a name sharing no
@@ -202,7 +272,8 @@ export function likelyBills(
   for (const r of rows) {
     if (r.kind !== 'expense' || r.key === '' || isKnown(known, r)) continue
     if (r.amount < MIN_BILL) continue
-    if (r.category === undefined || EVERYDAY.has(r.category)) continue
+    if (r.category === undefined) continue
+    if (EVERYDAY.has(r.category) && !passLike(rows, r)) continue
     const k = `${r.key}:${Math.round(r.amount)}`
     const had = [...byKey.values()].find(
       (x) => x.key === r.key && sameAmount(x.amount, r.amount),
@@ -215,6 +286,22 @@ export function likelyBills(
     byKey.set(k, { ...latestOf(r), times: 1 })
   }
   return [...byKey.values()].sort((a, b) => b.amount - a.amount).slice(0, limit)
+}
+
+/* His transport pass (4 Oct): €40 at the Metro on 1 Sep, €40 at a
+   Santander machine in the station on 28 Sep — two payees, an everyday
+   group. The same amount to the cent, €20 or more, about a month apart
+   is offered first, whoever took it. */
+function passLike(rows: ReadonlyArray<BillRow>, r: BillRow): boolean {
+  if (r.amount < 20) return false
+  return rows.some(
+    (o) =>
+      o !== r &&
+      o.kind === 'expense' &&
+      Math.round(o.amount * 100) === Math.round(r.amount * 100) &&
+      Math.abs(o.t - r.t) >= 20 * DAY &&
+      Math.abs(o.t - r.t) <= 40 * DAY,
+  )
 }
 
 function latestOf(r: BillRow & { id: string }) {

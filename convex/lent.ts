@@ -8,7 +8,10 @@ export async function pairLent(ctx: MutationCtx, ownerId: string) {
   const logs = await ctx.db
     .query('logs')
     .withIndex('by_owner_area_time', (q) =>
-      q.eq('ownerId', ownerId).eq('area', 'money'),
+      q
+        .eq('ownerId', ownerId)
+        .eq('area', 'money')
+        .gte('occurredAt', Date.now() - 400 * 86_400_000),
     )
     .order('desc')
     .take(5000)

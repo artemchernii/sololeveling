@@ -88,9 +88,11 @@ export const set = mutation({
        I buy clothes online"): its mandate is his PayPal account, not a
        shop. A PayPal row is named on its own — this payment only. */
     if (key.startsWith('PAYPAL')) {
+      /* Read again: "Lent" above may have filed it already. */
+      const now = (await ctx.db.get(log._id)) ?? log
       await ctx.db.patch(log._id, {
         meta: {
-          ...log.meta,
+          ...now.meta,
           payee: name,
           ...(group && log.kind === 'expense' ? { category: group } : {}),
         },

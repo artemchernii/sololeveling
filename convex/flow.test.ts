@@ -842,8 +842,21 @@ describe('payees', () => {
     expect(
       await t.run((ctx) => ctx.db.query('merchantRules').collect()),
     ).toEqual([])
+    /* Named and lent at once: lent stays. */
+    await me.mutation(api.payees.set, {
+      logId: ids.b,
+      name: 'Ivan',
+      domain: null,
+      category: 'lent',
+      partOf: null,
+    })
+    expect((await t.run((ctx) => ctx.db.get(ids.b)))?.meta).toMatchObject({
+      payee: 'Ivan',
+      category: 'lent',
+    })
     /* The next one is one tap: the names he used before. */
     expect(await me.query(api.payees.paypalNames, {})).toEqual([
+      { name: 'Ivan', category: 'lent' },
       { name: 'Preply', category: 'learning' },
     ])
     expect(await them.query(api.payees.paypalNames, {})).toEqual([])

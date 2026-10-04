@@ -56,7 +56,9 @@ export const row = query({
             cadence: x.cadence,
             day: x.day,
             key: x.matchKey ?? payeeKey(x.name),
-            varies: x.varies === true || x.everyWeeks !== undefined,
+            /* As the sums match it (aggregate's aheadBill): every few
+               weeks still wants about the same amount. */
+            varies: x.varies === true,
           },
           r,
         ),

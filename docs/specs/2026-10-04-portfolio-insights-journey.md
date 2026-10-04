@@ -59,11 +59,11 @@ plan, goes to Portfolio to act.
 ## Questions
 
 1. **Crypto as its own account, from the PDF, counted in INVESTED** —
-   still yes? *Mine: yes.*
-2. **Staking rewards at €0 cost, never money in** — yes? *Mine: yes;
-   they show as "earned by staking" on the coin.*
+   still yes? _Mine: yes._
+2. **Staking rewards at €0 cost, never money in** — yes? _Mine: yes;
+   they show as "earned by staking" on the coin._
 3. **Order:** crypto → position page (mock first) → logos → Insights?
-   *Mine: yes — Insights needs everything he owns in one place first.*
+   _Mine: yes — Insights needs everything he owns in one place first._
 4. **Your plan, in a sentence or two** — e.g. "€500 a month, 70% ETFs,
    20% stocks, 10% crypto". Insights is built around what you write.
-   *No recommendation: it is yours.*
+   _No recommendation: it is yours._

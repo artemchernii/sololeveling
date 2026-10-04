@@ -12,13 +12,35 @@ import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Veiled } from '@/components/finances/Veil'
 import { categoryLabel } from '@/lib/money'
+import { bankPhrase } from '@/lib/payees'
 import { AheadChart } from './AheadChart'
 import { AddBill } from './AddBill'
+import { PayeeMark, PayeeName, usePayees } from './Payees'
+import type { Who } from './Payees'
 import { daysBetween, eur, monthName, weekday } from './time'
 
 type AheadData = FunctionReturnType<typeof api.aggregate.ahead>
 type Event = AheadData['events'][number]
 type Done = AheadData['done'][number]
+type Bill = AheadData['bills'][number]
+
+/** Rows of one day that are parts of one thing (the mortgage's interest
+    and capital, 4 Oct) fold into one row; the rest stand alone. */
+function fold<T extends { t: number; billId: Id<'recurring'> }>(
+  items: ReadonlyArray<T>,
+  partOf: (id: Id<'recurring'>) => string | null,
+): Array<{ part: string | null; items: Array<T> }> {
+  const out: Array<{ part: string | null; items: Array<T> }> = []
+  for (const x of items) {
+    const part = partOf(x.billId)
+    const g = part
+      ? out.find((o) => o.part === part && o.items[0].t === x.t)
+      : undefined
+    if (g) g.items.push(x)
+    else out.push({ part, items: [x] })
+  }
+  return out
+}
 
 export type Notice = { text: string; undo: (() => void) | null } | null
 
@@ -49,8 +71,10 @@ export function Ahead({
   const [adding, setAdding] = useState(false)
   const [year, setYear] = useState(false)
   const [opened, setOpened] = useState<Id<'recurring'> | null>(null)
+  const [unfolded, setUnfolded] = useState<Record<string, boolean>>({})
   const notBill = useMutation(api.recurring.notBill)
   const unrefuse = useMutation(api.recurring.unrefuse)
+  const { who } = usePayees()
 
   if (a === undefined) {
     return (
@@ -61,6 +85,18 @@ export function Ahead({
   }
   const account = (id?: Id<'accounts'>) => accounts.find((x) => x._id === id)
   const bill = (id: Id<'recurring'>) => a.bills.find((b) => b.id === id)
+  /* Who a bill is paid to (4 Oct): his payee name and logo when he gave
+     one, with the bill's own name underneath; else the bill's name and a
+     known shop's logo. */
+  const whoOf = (b: Bill | undefined, name: string): Who => {
+    const w = who({ raw: b?.key, name })
+    return w.source === 'yours' ? w : { ...w, name, original: null }
+  }
+  const partOf = (id: Id<'recurring'>) => {
+    const b = bill(id)
+    if (!b) return null
+    return whoOf(b, b.name).partOf ?? bankPhrase(b.key)?.partOf ?? null
+  }
   const outs = a.events.filter((e) => e.kind === 'expense')
   const shorts = a.events.filter((e) => e.short)
   const thisMonth = new Date(today).getMonth()
@@ -92,7 +128,9 @@ export function Ahead({
     const value =
       only || a.range === null
         ? eur(a.low.bills)
-        : `${eur(a.low.lower)}–${eur(a.low.upper)}`
+        : eur(a.low.lower) === eur(a.low.upper)
+          ? eur(a.low.lower)
+          : `${eur(a.low.lower)}–${eur(a.low.upper)}`
     return { value, when }
   })()
 
@@ -207,20 +245,52 @@ export function Ahead({
                       true,
                     )}`}
                   />
-                  {a.done.map((d) => (
-                    <BillRow
-                      key={`${d.billId}-${d.t}`}
-                      t={d.t}
-                      name={d.name}
-                      kind={d.kind}
-                      amount={d.amount}
-                      what={bill(d.billId)?.category}
-                      account={account(d.accountId)}
-                      status={<DoneStatus d={d} />}
-                      dim={d.rowId !== null}
-                      onOpen={() => setOpened(d.billId)}
-                    />
-                  ))}
+                  {fold(a.done, partOf).map((g) => {
+                    const row = (d: Done, nested?: boolean) => (
+                      <BillRow
+                        key={`${d.billId}-${d.t}`}
+                        t={d.t}
+                        who={whoOf(bill(d.billId), d.name)}
+                        kind={d.kind}
+                        amount={d.amount}
+                        what={bill(d.billId)?.category}
+                        account={account(d.accountId)}
+                        varies={bill(d.billId)?.varies}
+                        status={<DoneStatus d={d} />}
+                        dim={d.rowId !== null}
+                        nested={nested}
+                        onOpen={() => setOpened(d.billId)}
+                      />
+                    )
+                    if (g.part === null || g.items.length < 2) {
+                      return g.items.map((d) => row(d))
+                    }
+                    const id = `done-${g.part}-${g.items[0].t}`
+                    const first = g.items[0]
+                    return (
+                      <FoldRow
+                        key={id}
+                        t={first.t}
+                        part={g.part}
+                        count={g.items.length}
+                        amount={g.items.reduce((n, d) => n + d.amount, 0)}
+                        what={bill(first.billId)?.category}
+                        account={account(first.accountId)}
+                        status={
+                          <DoneStatus
+                            d={g.items.find((d) => d.rowId === null) ?? first}
+                          />
+                        }
+                        dim={g.items.every((d) => d.rowId !== null)}
+                        open={unfolded[id] === true}
+                        onToggle={() =>
+                          setUnfolded({ ...unfolded, [id]: !unfolded[id] })
+                        }
+                      >
+                        {g.items.map((d) => row(d, true))}
+                      </FoldRow>
+                    )
+                  })}
                 </>
               ) : null}
               {months.map((m) => {
@@ -247,28 +317,62 @@ export function Ahead({
                           : () => setOpen({ ...open, [m]: !open[m] })
                       }
                     />
-                    {(full ? es : odd).map((e) => (
-                      <BillRow
-                        key={`${e.billId}-${e.t}`}
-                        t={e.t}
-                        name={e.name}
-                        kind={e.kind}
-                        amount={e.amount}
-                        what={bill(e.billId)?.category}
-                        account={account(e.accountId)}
-                        yearly={e.yearly}
-                        isNew={bill(e.billId)?.isNew}
-                        short={e.short}
-                        status={
-                          <EventStatus
-                            e={e}
-                            today={today}
-                            account={account(e.accountId)}
-                          />
-                        }
-                        onOpen={() => setOpened(e.billId)}
-                      />
-                    ))}
+                    {fold(full ? es : odd, partOf).map((g) => {
+                      const row = (e: Event, nested?: boolean) => (
+                        <BillRow
+                          key={`${e.billId}-${e.t}`}
+                          t={e.t}
+                          who={whoOf(bill(e.billId), e.name)}
+                          kind={e.kind}
+                          amount={e.amount}
+                          what={bill(e.billId)?.category}
+                          account={account(e.accountId)}
+                          yearly={e.yearly}
+                          varies={bill(e.billId)?.varies}
+                          isNew={bill(e.billId)?.isNew}
+                          short={e.short}
+                          nested={nested}
+                          status={
+                            <EventStatus
+                              e={e}
+                              today={today}
+                              account={account(e.accountId)}
+                            />
+                          }
+                          onOpen={() => setOpened(e.billId)}
+                        />
+                      )
+                      if (g.part === null || g.items.length < 2) {
+                        return g.items.map((e) => row(e))
+                      }
+                      const id = `${g.part}-${g.items[0].t}`
+                      const first = g.items[0]
+                      return (
+                        <FoldRow
+                          key={id}
+                          t={first.t}
+                          part={g.part}
+                          count={g.items.length}
+                          amount={g.items.reduce((n, e) => n + e.amount, 0)}
+                          what={bill(first.billId)?.category}
+                          account={account(first.accountId)}
+                          short={g.items.some((e) => e.short)}
+                          status={
+                            <EventStatus
+                              e={g.items.find((e) => e.short) ?? first}
+                              today={today}
+                              account={account(first.accountId)}
+                            />
+                          }
+                          open={unfolded[id] === true}
+                          onToggle={() =>
+                            setUnfolded({ ...unfolded, [id]: !unfolded[id] })
+                          }
+                        >
+                          {g.items.map((e) => row(e, true))}
+                        </FoldRow>
+                      )
+                    })}
                     {!full && odd.length === 0 ? (
                       <span className="label-caps px-1 py-2.5 text-ink-600">
                         the usual month — nothing new
@@ -324,11 +428,38 @@ export function Ahead({
               </span>
               {pastStarts.map((start) => {
                 const r = a.rest.find((x) => x.start === start)
+                /* Read only partway (4 Oct: BPI from 25 Aug): said, and
+                   left out of the range while a whole month exists. */
+                const part = r?.partial.length
+                  ? r.partial
+                      .map(
+                        (p) =>
+                          `${p.name} from ${new Date(p.from).getDate()} ${monthName(p.from)}`,
+                      )
+                      .join(', ')
+                  : null
                 return (
                   <Kv
                     key={start}
-                    k={monthName(start)}
-                    v={r ? `−${eur(r.sum, true)}` : 'no statements'}
+                    k={
+                      part ? (
+                        <span title="Not in the range: this month was only partly read">
+                          {monthName(start)}{' '}
+                          <span className="text-state-warn">· {part}</span>
+                        </span>
+                      ) : (
+                        monthName(start)
+                      )
+                    }
+                    v={
+                      r ? (
+                        <span className={part ? 'text-ink-600' : ''}>
+                          −{eur(r.sum, true)}
+                        </span>
+                      ) : (
+                        'no statements'
+                      )
+                    }
                   />
                 )
               })}
@@ -455,61 +586,75 @@ function MonthHead({
   )
 }
 
+function DayCell({ t }: { t: number }) {
+  return (
+    <span className="flex flex-col items-center leading-tight">
+      <span className="text-[20px] font-light tabular-nums">
+        {new Date(t).getDate()}
+      </span>
+      <span className="font-mono text-[9.5px] tracking-[0.1em] text-ink-500 uppercase">
+        {weekday(t)}
+      </span>
+    </span>
+  )
+}
+
+const ROW =
+  'motion-arrive grid grid-cols-[46px_32px_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border-b border-lift/4 px-1 py-2.5 text-left transition-colors hover:bg-lift/[0.035]'
+
 function BillRow({
   t,
-  name,
+  who,
   kind,
   amount,
   what,
   account,
   yearly,
+  varies,
   isNew,
   short,
   status,
   dim,
+  nested,
   onOpen,
 }: {
   t: number
-  name: string
+  who: Who
   kind: 'expense' | 'income'
   amount: number
   what?: string
   account?: Doc<'accounts'>
   yearly?: boolean
+  varies?: boolean
   isNew?: boolean
   short?: boolean
   status: React.ReactNode
   dim?: boolean
+  /** A part inside a folded row: no day of its own. */
+  nested?: boolean
   onOpen: () => void
 }) {
   return (
     <button
       type="button"
       onClick={onOpen}
-      className={`motion-arrive grid grid-cols-[46px_28px_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border-b border-lift/4 px-1 py-2.5 text-left transition-colors hover:bg-lift/[0.035] ${
-        short ? 'bg-state-warn/7' : ''
-      } ${dim ? 'opacity-55' : ''}`}
+      className={`${ROW} ${short ? 'bg-state-warn/7' : ''} ${dim ? 'opacity-55' : ''}`}
     >
-      <span className="flex flex-col items-center leading-tight">
-        <span className="text-[20px] font-light tabular-nums">
-          {new Date(t).getDate()}
-        </span>
-        <span className="font-mono text-[9.5px] tracking-[0.1em] text-ink-500 uppercase">
-          {weekday(t)}
-        </span>
-      </span>
-      {account ? (
-        <AccountLogo name={account.name} domain={account.domain} size={26} />
-      ) : (
-        <span />
-      )}
+      {nested ? <span /> : <DayCell t={t} />}
+      <PayeeMark who={who} account={account} />
       <span className="flex min-w-0 flex-col gap-1">
-        <span className="truncate text-[14px]">{name}</span>
+        <PayeeName who={who} />
+        {who.original ? (
+          <span className="truncate text-[12px] text-ink-400">
+            {who.original}
+          </span>
+        ) : null}
         <span className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] text-ink-500">
           {[kind === 'income' ? 'salary' : what, account?.name]
             .filter(Boolean)
             .join(' · ')}
           {yearly ? <Tag tone="lav">yearly</Tag> : null}
+          {varies ? <Tag tone="lav">varies</Tag> : null}
           {isNew ? <New /> : null}
           {short ? <Tag tone="warn">not enough on the day</Tag> : null}
         </span>
@@ -518,12 +663,79 @@ function BillRow({
         <span
           className={`text-[14px] ${kind === 'income' ? 'text-state-good' : ''}`}
         >
+          {varies ? '~' : ''}
           {kind === 'income' ? '+' : '−'}
           {eur(amount, true)}
         </span>
         {status}
       </span>
     </button>
+  )
+}
+
+/* The parts of one thing on one day (4 Oct: the mortgage is one payment
+   to him, interest and capital to the bank): one row, the sum, and the
+   parts underneath when opened. */
+function FoldRow({
+  t,
+  part,
+  count,
+  amount,
+  what,
+  account,
+  short,
+  status,
+  dim,
+  open,
+  onToggle,
+  children,
+}: {
+  t: number
+  part: string
+  count: number
+  amount: number
+  what?: string
+  account?: Doc<'accounts'>
+  short?: boolean
+  status: React.ReactNode
+  dim?: boolean
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        className={`${ROW} ${short ? 'bg-state-warn/7' : ''} ${dim && !open ? 'opacity-55' : ''}`}
+      >
+        <DayCell t={t} />
+        {account ? (
+          <AccountLogo name={account.name} domain={account.domain} size={32} />
+        ) : (
+          <span />
+        )}
+        <span className="flex min-w-0 flex-col gap-1">
+          <span className="truncate text-[14px]">{part}</span>
+          <span className="font-mono text-[10.5px] text-ink-500">
+            {[what, account?.name, `${count} parts ${open ? '▴' : '▾'}`]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        </span>
+        <span className="flex flex-col items-end gap-1 font-mono">
+          <span className="text-[14px]">−{eur(amount, true)}</span>
+          {status}
+        </span>
+      </button>
+      {open ? (
+        <div className="motion-arrive flex flex-col rounded-[8px] bg-lift/[0.015]">
+          {children}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -631,7 +843,11 @@ function EventStatus({
   if (e.short && e.held !== null) {
     return (
       <span className="text-[10px] text-state-warn">
-        {account?.name ?? 'account'} holds <Veiled>{eur(e.held, true)}</Veiled>
+        {account?.name ?? 'account'} {e.held < 0 ? 'already at ' : 'holds '}
+        <Veiled>
+          {e.held < 0 ? '−' : ''}
+          {eur(Math.abs(e.held), true)}
+        </Veiled>
       </span>
     )
   }

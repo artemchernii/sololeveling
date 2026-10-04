@@ -165,3 +165,102 @@ export function payMonths(input: {
       .map((x) => x.month),
   }
 }
+
+/** A row as SPENDING shows it: where it came from, not only what. */
+export type DetailRow = AheadRow & {
+  name: string
+  raw?: string
+  category?: string
+  accountId?: string
+}
+
+/**
+ * One pay month opened (4 Oct: "Bills, daytoday I would love to see those
+ * exactly values and where they come from"): the bill payments with the
+ * bill each paid, the bills still due before `end` from `today`, the
+ * day-to-day by group with every row and the same group's sum in the
+ * month before, and the money in. The three sums are the pay month's own.
+ */
+export function payMonthDetail(input: {
+  rows: ReadonlyArray<DetailRow>
+  bills: ReadonlyArray<AheadBill>
+  start: number
+  end: number
+  /** The pay month before, for each group's last figure. */
+  prev: { start: number; end: number } | null
+  /** Local midnight of today; bills due after it and before `end` are
+      still to pay. */
+  today: number
+}) {
+  const inside = (r: DetailRow, s: number, e: number) => r.t >= s && r.t < e
+  const billOf = (r: DetailRow) =>
+    input.bills.find((b) => b.kind === r.kind && paysBill(b, r))
+  const salary = input.bills
+    .filter((b) => b.kind === 'income')
+    .sort((a, b) => b.amount - a.amount)
+    .at(0)
+
+  const rows = input.rows.filter((r) => inside(r, input.start, input.end))
+  const paid = rows
+    .filter((r) => r.kind === 'expense' && billOf(r))
+    .map((r) => ({ row: r, bill: billOf(r) as AheadBill }))
+    .sort((a, b) => a.row.t - b.row.t)
+
+  const todo: Array<{ bill: AheadBill; t: number }> = []
+  const from = Math.max(noonOf(input.today) + DAY, input.start)
+  for (const b of input.bills) {
+    if (b.kind !== 'expense') continue
+    for (let t = from; t < input.end; t += DAY) {
+      const d = new Date(t)
+      if (dueDay(b, d.getUTCFullYear(), d.getUTCMonth()) !== d.getUTCDate()) {
+        continue
+      }
+      if (!paid.some((p) => p.bill.id === b.id)) todo.push({ bill: b, t })
+    }
+  }
+  todo.sort((a, b) => a.t - b.t)
+
+  const lastBy = new Map<string, number>()
+  if (input.prev) {
+    for (const r of input.rows) {
+      if (
+        r.kind !== 'expense' ||
+        !inside(r, input.prev.start, input.prev.end)
+      ) {
+        continue
+      }
+      if (billOf(r)) continue
+      const k = r.category ?? ''
+      lastBy.set(k, (lastBy.get(k) ?? 0) + Math.round(r.amount * 100))
+    }
+  }
+  const groups = new Map<
+    string,
+    { category: string | null; c: number; rows: Array<DetailRow> }
+  >()
+  for (const r of rows) {
+    if (r.kind !== 'expense' || billOf(r)) continue
+    const k = r.category ?? ''
+    const g = groups.get(k) ?? { category: r.category ?? null, c: 0, rows: [] }
+    g.c += Math.round(r.amount * 100)
+    g.rows.push(r)
+    groups.set(k, g)
+  }
+
+  return {
+    bills: paid,
+    todo,
+    groups: [...groups.entries()]
+      .map(([k, g]) => ({
+        category: g.category,
+        sum: g.c / 100,
+        last: input.prev ? (lastBy.get(k) ?? 0) / 100 : null,
+        rows: g.rows.sort((a, b) => b.t - a.t),
+      }))
+      .sort((a, b) => b.sum - a.sum),
+    moneyIn: rows
+      .filter((r) => r.kind === 'income')
+      .map((r) => ({ row: r, salary: salary ? paysBill(salary, r) : false }))
+      .sort((a, b) => a.row.t - b.row.t),
+  }
+}

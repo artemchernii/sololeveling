@@ -446,3 +446,52 @@ describe('aggregate.payMonth', () => {
     ).toBeNull()
   })
 })
+
+describe('recurring.rename and aggregate.payMonthDetail', () => {
+  test('his name stays: no longer NEW, never renamed by the app', async () => {
+    const { t, me, them } = setup()
+    await world(t)
+    await me.mutation(api.recurring.find, {})
+    const edp = await t.run(async (ctx) =>
+      (await ctx.db.query('recurring').collect()).find(
+        (i) => i.kind === 'expense',
+      ),
+    )
+    await expect(
+      them.mutation(api.recurring.rename, { id: edp!._id, name: 'x' }),
+    ).rejects.toThrow()
+    await me.mutation(api.recurring.rename, {
+      id: edp!._id,
+      name: 'Electricity',
+    })
+    await me.mutation(api.recurring.find, {})
+    const after = await t.run((ctx) => ctx.db.get(edp!._id))
+    expect(after?.name).toBe('Electricity')
+    expect(after?.foundAt).toBeUndefined()
+  })
+
+  test('opens a pay month into its bills, groups and money in — only his', async () => {
+    const { t, me, them } = setup()
+    await world(t)
+    await me.mutation(api.recurring.find, {})
+    const args = {
+      start: at(7, 25),
+      end: at(8, 25),
+      prev: null,
+      today: local(9, 4),
+    }
+    const d = await me.query(api.aggregate.payMonthDetail, args)
+    expect(d.bills.map((b) => b.row.amount)).toEqual([30])
+    expect(d.moneyIn.map((m) => [m.row.amount, m.salary])).toEqual([
+      [2000, true],
+      [3, false],
+    ])
+    /* Gym twice and the insurance (home), the café (eating out). */
+    expect(d.groups.map((g) => [g.category, g.sum])).toEqual([
+      ['home', 232],
+      ['eating out', 4],
+    ])
+    const theirs = await them.query(api.aggregate.payMonthDetail, args)
+    expect(theirs).toEqual({ bills: [], todo: [], groups: [], moneyIn: [] })
+  })
+})

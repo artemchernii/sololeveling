@@ -557,3 +557,22 @@ export const payments = query({
       .slice(0, 24)
   },
 })
+
+/**
+ * His name for a bill (4 Oct): the app names a found one by what the bank
+ * printed ("Juros Emprestimo"); he calls it "Mortgage · interest". A
+ * renamed bill is his — no longer NEW, and never renamed by the app again.
+ */
+export const rename = mutation({
+  args: { id: v.id('recurring'), name: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedItem(ctx, ownerId, args.id)
+    const name = args.name.trim()
+    if (name.length === 0) throw new ConvexError('A bill needs a name.')
+    if (name.length > MAX_NAME) throw new ConvexError('That name is too long.')
+    await ctx.db.patch(args.id, { name, foundAt: undefined })
+    return null
+  },
+})

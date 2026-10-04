@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { payMonths } from './payMonth'
+import { payMonthDetail, payMonths } from './payMonth'
 import type { AheadBill, AheadRow } from './ahead'
 
 /* Rows at noon UTC; today a Lisbon midnight (vitest pins the zone). */
@@ -129,5 +129,50 @@ describe('payMonths', () => {
     expect(
       payMonths({ rows: [], bills: [SALARY], today: today(10, 4) }),
     ).toBeNull()
+  })
+})
+
+describe('payMonthDetail', () => {
+  const detail = rows.map((r) => ({
+    ...r,
+    name: r.key,
+    category: r.key === 'CAFE' ? 'eating out' : undefined,
+  }))
+  const open = () =>
+    payMonthDetail({
+      rows: detail,
+      bills: [SALARY, LOAN, PHONE],
+      start: at(9, 25),
+      end: at(10, 25),
+      prev: { start: at(8, 25), end: at(9, 25) },
+      today: today(10, 4),
+    })
+
+  it('opens the pay month into its bills, what is still to pay, groups and money in', () => {
+    const d = open()
+    expect(d.bills.map((b) => [b.bill.name, b.row.amount])).toEqual([
+      ['Loan', 1200],
+    ])
+    expect(
+      d.todo.map((x) => [x.bill.name, new Date(x.t).getUTCDate()]),
+    ).toEqual([['Phone', 10]])
+    expect(d.groups).toEqual([
+      expect.objectContaining({ category: 'eating out', sum: 120, last: 70 }),
+    ])
+    expect(d.groups[0].rows.map((r) => r.amount)).toEqual([20, 100])
+    expect(d.moneyIn.map((m) => [m.row.amount, m.salary])).toEqual([
+      [2520, true],
+    ])
+  })
+
+  it('adds up to the pay month it opens', () => {
+    const d = open()
+    const p = payMonths({
+      rows,
+      bills: [SALARY, LOAN, PHONE],
+      today: today(10, 4),
+    })!
+    expect(d.bills.reduce((n, b) => n + b.row.amount, 0)).toBe(p.current.bills)
+    expect(d.groups.reduce((n, g) => n + g.sum, 0)).toBe(p.current.dayToDay)
   })
 })

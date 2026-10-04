@@ -4,7 +4,8 @@ import { requireUser } from './auth'
 import { logKindValidator } from './logs'
 import { isEuroAmount } from '../src/lib/money'
 import { billsEachMonth, buildAhead, yearAhead } from '../src/lib/ahead'
-import { payMonths } from '../src/lib/payMonth'
+import { payMonthDetail as openPayMonth, payMonths } from '../src/lib/payMonth'
+import type { DetailRow } from '../src/lib/payMonth'
 import type { AheadBill, AheadRow } from '../src/lib/ahead'
 import { payeeKey, rowKey } from '../src/lib/payee'
 import { balanceChecks, balanceSeries, coveredBy } from '../src/lib/cashHistory'
@@ -2717,5 +2718,112 @@ export const payMonth = query({
       )
       .take(MONEY_ROWS * 4)
     return payMonths({ rows: aheadRows(rows), bills, today: args.today })
+  },
+})
+
+const detailRow = v.object({
+  id: v.id('logs'),
+  t: v.number(),
+  name: v.string(),
+  amount: v.number(),
+  raw: v.optional(v.string()),
+  accountId: v.optional(v.id('accounts')),
+})
+
+/**
+ * SPENDING (4 Oct): one pay month opened — every bill payment with its
+ * bill, the bills still due, day-to-day by group with every row and last
+ * pay month's figure, money in. The same rows payMonth sums, listed.
+ */
+export const payMonthDetail = query({
+  args: {
+    start: v.number(),
+    end: v.number(),
+    prev: v.union(v.null(), v.object({ start: v.number(), end: v.number() })),
+    today: v.number(),
+  },
+  returns: v.object({
+    bills: v.array(
+      v.object({
+        billId: v.id('recurring'),
+        billName: v.string(),
+        row: detailRow,
+      }),
+    ),
+    todo: v.array(
+      v.object({
+        billId: v.id('recurring'),
+        name: v.string(),
+        amount: v.number(),
+        t: v.number(),
+        accountId: v.optional(v.id('accounts')),
+      }),
+    ),
+    groups: v.array(
+      v.object({
+        category: v.union(v.string(), v.null()),
+        sum: v.number(),
+        last: v.union(v.number(), v.null()),
+        rows: v.array(detailRow),
+      }),
+    ),
+    moneyIn: v.array(v.object({ salary: v.boolean(), row: detailRow })),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const bills = (await liveBills(ctx, ownerId)).map(aheadBill)
+    const logs = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', 'money')
+          .gte('occurredAt', args.prev?.start ?? args.start)
+          .lt('occurredAt', args.end),
+      )
+      .take(MONEY_ROWS * 2)
+    const rows = []
+    for (const l of logs) {
+      if ((l.kind !== 'expense' && l.kind !== 'income') || !isEuroAmount(l)) {
+        continue
+      }
+      rows.push({
+        id: l._id,
+        kind: l.kind,
+        amount: l.value,
+        t: l.occurredAt,
+        key: rowKey(l),
+        recurringId: l.meta?.recurringId,
+        name: l.meta?.merchant ?? l.text ?? '',
+        raw: l.meta?.raw,
+        category: l.meta?.category,
+        accountId: l.accountId,
+      })
+    }
+    const d = openPayMonth({ ...args, rows, bills })
+    const out = (r: DetailRow) => ({
+      id: r.id as Id<'logs'>,
+      t: r.t,
+      name: r.name,
+      amount: r.amount,
+      raw: r.raw,
+      accountId: r.accountId as Id<'accounts'> | undefined,
+    })
+    return {
+      bills: d.bills.map((b) => ({
+        billId: b.bill.id as Id<'recurring'>,
+        billName: b.bill.name,
+        row: out(b.row),
+      })),
+      todo: d.todo.map((x) => ({
+        billId: x.bill.id as Id<'recurring'>,
+        name: x.bill.name,
+        amount: x.bill.amount,
+        t: x.t,
+        accountId: x.bill.accountId as Id<'accounts'> | undefined,
+      })),
+      groups: d.groups.map((g) => ({ ...g, rows: g.rows.map(out) })),
+      moneyIn: d.moneyIn.map((m) => ({ salary: m.salary, row: out(m.row) })),
+    }
   },
 })

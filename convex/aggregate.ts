@@ -760,6 +760,18 @@ export const accountMonth = query({
       v.object({
         accountId: v.id('accounts'),
         net: v.number(),
+        /* What makes the net (4 Oct: "explain what are those this month
+           +374 … I dont get those nums"): money in, money out, and his
+           own transfers, each a sum of the same rows. */
+        in: v.number(),
+        out: v.number(),
+        moves: v.number(),
+        /* A broker's month (4 Oct: "brokers are sad … bought sold stocks
+           since 1st day of month"): what he bought and sold, in euros, from
+           his trades — a first screen's opening holdings are not buys. */
+        bought: v.number(),
+        sold: v.number(),
+        trades: v.number(),
         rows: v.number(),
       }),
     ),
@@ -777,7 +789,10 @@ export const accountMonth = query({
           .lt('occurredAt', args.end),
       )
       .take(MONEY_ROWS)
-    const by = new Map<Id<'accounts'>, { cents: number; rows: number }>()
+    const by = new Map<
+      Id<'accounts'>,
+      { cents: number; in: number; out: number; moves: number; rows: number }
+    >()
     let skipped = 0
     for (const row of rows) {
       if (row.accountId === undefined) continue
@@ -792,17 +807,61 @@ export const accountMonth = query({
         continue
       }
       const signed = row.kind === 'expense' ? -row.value : row.value
-      const a = by.get(row.accountId) ?? { cents: 0, rows: 0 }
-      a.cents += Math.round(signed * 100)
+      const a = by.get(row.accountId) ?? {
+        cents: 0,
+        in: 0,
+        out: 0,
+        moves: 0,
+        rows: 0,
+      }
+      const c = Math.round(signed * 100)
+      a.cents += c
+      if (row.kind === 'move') a.moves += c
+      else if (row.kind === 'income') a.in += c
+      else a.out -= c
       a.rows++
       by.set(row.accountId, a)
     }
+    const traded = new Map<
+      Id<'accounts'>,
+      { bought: number; sold: number; n: number }
+    >()
+    const trades = await ctx.db
+      .query('trades')
+      .withIndex('by_owner_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .gte('occurredAt', args.start)
+          .lt('occurredAt', args.end),
+      )
+      .take(MONEY_ROWS)
+    for (const t of trades) {
+      if (t.opening || t.importId !== undefined) continue
+      const x = traded.get(t.accountId) ?? { bought: 0, sold: 0, n: 0 }
+      const c = Math.round(t.shares * t.priceEur * 100)
+      if (t.side === 'buy') x.bought += c
+      else x.sold += c
+      x.n++
+      traded.set(t.accountId, x)
+    }
+    const ids = new Set([...by.keys(), ...traded.keys()])
+    const none = { cents: 0, in: 0, out: 0, moves: 0, rows: 0 }
     return {
-      accounts: [...by].map(([accountId, a]) => ({
-        accountId,
-        net: a.cents / 100,
-        rows: a.rows,
-      })),
+      accounts: [...ids].map((accountId) => {
+        const a = by.get(accountId) ?? none
+        const x = traded.get(accountId) ?? { bought: 0, sold: 0, n: 0 }
+        return {
+          accountId,
+          net: a.cents / 100,
+          in: a.in / 100,
+          out: a.out / 100,
+          moves: a.moves / 100,
+          bought: x.bought / 100,
+          sold: x.sold / 100,
+          trades: x.n,
+          rows: a.rows,
+        }
+      }),
       skipped,
     }
   },
@@ -1660,7 +1719,16 @@ export const worthHistory = query({
     const ownerId = await requireUser(ctx)
     const dayEnds = args.dayEnds.slice(0, 400)
     const cash = await readCashHistory(ctx, ownerId, dayEnds)
-    const from = (dayEnds[0] ?? 0) - 14 * 86_400_000
+    /* Where a close is looked up: every day of the last month, a week
+       apart before it. A point between two looks takes the earlier close,
+       so a year's line is weekly in its old part — about 80 reads a
+       position instead of 365. */
+    const priced = dayEnds.filter(
+      (_, i) =>
+        i === 0 ||
+        i >= dayEnds.length - 31 ||
+        (dayEnds.length - 1 - i) % 7 === 0,
+    )
 
     const live = new Set(
       (
@@ -1722,17 +1790,28 @@ export const worthHistory = query({
       if (instrument === null || instrument.ownerId !== ownerId) continue
       let closes = closesOf.get(p.instrumentId)
       if (closes === undefined) {
-        closes = (
-          await ctx.db
+        /* One close per point drawn (4 Oct: the year of daily closes for
+           every position, read on every re-run, was 99% of the month's
+           database reads). The latest at or before each day's end, through
+           the index — one row each — and none older than two weeks, as
+           before. */
+        const found = new Map<number, Close>()
+        for (const end of priced) {
+          const r = await ctx.db
             .query('prices')
             .withIndex('by_owner_instrument_time', (q) =>
               q
                 .eq('ownerId', ownerId)
                 .eq('instrumentId', p.instrumentId)
-                .gte('asOf', from),
+                .lte('asOf', end),
             )
-            .take(450)
-        ).map((r) => ({ asOf: r.asOf, price: r.price }))
+            .order('desc')
+            .first()
+          if (r && r.asOf >= end - STALE_CLOSE_MS - 7 * 86_400_000) {
+            found.set(r.asOf, { asOf: r.asOf, price: r.price })
+          }
+        }
+        closes = [...found.values()].sort((a, b) => a.asOf - b.asOf)
         closesOf.set(p.instrumentId, closes)
       }
       const { base, divide } = quoteToRate(instrument.currency)
@@ -1740,14 +1819,20 @@ export const worthHistory = query({
       if (base !== 'EUR') {
         rates = ratesOf.get(base) ?? null
         if (rates === null) {
-          rates = (
-            await ctx.db
+          const got = new Map<number, Rate>()
+          for (const end of priced) {
+            const r = await ctx.db
               .query('fxRates')
               .withIndex('by_owner_currency_time', (q) =>
-                q.eq('ownerId', ownerId).eq('currency', base).gte('asOf', from),
+                q.eq('ownerId', ownerId).eq('currency', base).lte('asOf', end),
               )
-              .take(450)
-          ).map((r) => ({ asOf: r.asOf, rate: r.rate }))
+              .order('desc')
+              .first()
+            if (r && r.asOf >= end - STALE_CLOSE_MS - 7 * 86_400_000) {
+              got.set(r.asOf, { asOf: r.asOf, rate: r.rate })
+            }
+          }
+          rates = [...got.values()].sort((a, b) => a.asOf - b.asOf)
           ratesOf.set(base, rates)
         }
       }
@@ -1775,6 +1860,8 @@ export const worthHistory = query({
 })
 
 const HISTORY_ROWS = 5000
+/** A close or rate this old is no longer the day's: the point is unpriced. */
+const STALE_CLOSE_MS = 14 * 86_400_000
 
 /* One pocket's rows as signed cents: spending out, money in, a move's own
    side; in a broker's euro pocket, buys out and sells in. */

@@ -1025,7 +1025,11 @@ async function buildReview(
       : r.amount > 0
         ? ('income' as const)
         : ('spend' as const)
-    const rule = rules.get(merchantKey(r.merchant))
+    /* PayPal is many shops: its rows come in unfiled, to be named one
+       by one (4 Oct), whatever an old rule said. */
+    const rule = /\bPAYPAL\b/i.test(`${r.merchant} ${r.raw}`)
+      ? undefined
+      : rules.get(merchantKey(r.merchant))
     const category = kind === 'spend' ? (rule ?? r.category ?? null) : null
     let recurringId: Id<'recurring'> | null = null
     if (!move && !r.pending) {

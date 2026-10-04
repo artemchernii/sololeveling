@@ -137,6 +137,13 @@ export const SPEND_CATEGORIES: ReadonlyArray<MoneyCategory> = [
     label: 'Subscriptions',
     words: ['netflix', 'spotify', 'claude', 'icloud', 'youtube'],
   },
+  /* 4 Oct: "Add one time service … Like deepseek … call it Services" —
+     paid once for something done, not every month (that is a bill). */
+  {
+    id: 'services',
+    label: 'Services',
+    words: ['service', 'services', 'repair', 'deepseek', 'openai'],
+  },
   /* 4 Oct: Preply lessons are real money, and Languages money. */
   {
     id: 'learning',

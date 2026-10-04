@@ -2537,6 +2537,38 @@ describe('aggregate.accountMonth', () => {
     expect(
       Object.fromEntries(r.accounts.map((a) => [a.accountId, [a.net, a.rows]])),
     ).toEqual({ [bpi]: [1800, 3], [tr]: [1000, 1] })
+    /* What makes each net: in, spent, transfers (4 Oct). */
+    expect(
+      Object.fromEntries(
+        r.accounts.map((a) => [a.accountId, [a.in, a.out, a.moves]]),
+      ),
+    ).toEqual({ [bpi]: [2900, 100, -1000], [tr]: [0, 0, 1000] })
+    /* A broker's month: bought and sold from its trades. */
+    await trade(me, {
+      accountId: tr,
+      candidate: TSLA,
+      side: 'buy',
+      shares: 2,
+      priceEur: 100,
+      occurredAt: at,
+    })
+    await trade(me, {
+      accountId: tr,
+      candidate: TSLA,
+      side: 'sell',
+      shares: 1,
+      priceEur: 120,
+      occurredAt: at,
+    })
+    const b = await me.query(api.aggregate.accountMonth, {
+      start: TODAY,
+      end: TODAY + 86_400_000,
+    })
+    expect(
+      b.accounts
+        .filter((a) => a.accountId === tr)
+        .map((a) => [a.bought, a.sold, a.trades]),
+    ).toEqual([[200, 120, 2]])
     void t
   })
 })
@@ -3293,6 +3325,61 @@ describe('worth, day by day (Finances B)', () => {
     const theirs = await them.query(api.aggregate.worthHistory, { dayEnds })
     expect(theirs.total).toEqual([null, null])
     expect(theirs.investedAccounts).toEqual([])
+  })
+
+  test('a long range reads a close a week apart before the last month (4 Oct, database reads)', async () => {
+    const { t, me } = setup()
+    const DAY = 86_400_000
+    const base = new Date(2026, 6, 1, 23, 59, 59, 999).getTime()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    await t.run(async (ctx) => {
+      const etf = await ctx.db.insert('instruments', {
+        ownerId: ME,
+        symbol: 'VWCE.DE',
+        name: 'All-World',
+        exchange: 'XETRA',
+        currency: 'EUR',
+        type: 'ETF',
+      })
+      await ctx.db.insert('trades', {
+        ownerId: ME,
+        accountId: tr,
+        instrumentId: etf,
+        side: 'buy',
+        shares: 1,
+        priceEur: 1,
+        occurredAt: base - 2 * DAY,
+        opening: true,
+      })
+      /* A close every day: the day's number is its price. */
+      for (let d = -1; d < 70; d++)
+        await ctx.db.insert('prices', {
+          ownerId: ME,
+          instrumentId: etf,
+          price: d,
+          currency: 'EUR',
+          asOf: base + d * DAY - 3_600_000,
+          fetchedAt: base,
+          source: 'Yahoo Finance',
+        })
+    })
+    const dayEnds = Array.from({ length: 70 }, (_, i) => base + i * DAY)
+    const w = await me.query(api.aggregate.worthHistory, { dayEnds })
+    /* The last month: every day its own close. */
+    expect(w.invested.slice(-31)).toEqual(
+      Array.from({ length: 31 }, (_, i) => 39 + i),
+    )
+    /* Before it: never unpriced, and never ahead of the day. */
+    expect(w.unpriced.every((n) => n === 0)).toBe(true)
+    w.invested.slice(0, 39).forEach((v, i) => {
+      expect(v).not.toBeNull()
+      expect(v!).toBeLessThanOrEqual(i)
+      expect(v!).toBeGreaterThan(i - 7)
+    })
   })
 })
 

@@ -201,9 +201,17 @@ export function TreasuryHero() {
                   >
                     <Veiled>{`${net >= 0 ? '+' : '−'}${euros(Math.abs(net))}`}</Veiled>
                   </span>
+                  {/* In green, out red (4 Oct: "in and out are a bit
+                      bland"). */}
                   <span className="text-[12px] font-normal text-ink-500">
                     this month ·{' '}
-                    <Veiled>{`in ${euros(sums.in.sum)} · out ${euros(sums.out.sum)}`}</Veiled>
+                    <span className="text-state-good">
+                      <Veiled>{`in ${euros(sums.in.sum)}`}</Veiled>
+                    </span>{' '}
+                    ·{' '}
+                    <span className="text-state-danger">
+                      <Veiled>{`out ${euros(sums.out.sum)}`}</Veiled>
+                    </span>
                   </span>
                 </>
               )}

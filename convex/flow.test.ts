@@ -608,9 +608,8 @@ describe('payees', () => {
     const { t, me } = setup()
     const { bank } = await world(t)
     const loan = await t.run(async (ctx) => {
-      let last = null
-      for (const m of [7, 8]) {
-        last = await ctx.db.insert('logs', {
+      const mk = (m: number) =>
+        ctx.db.insert('logs', {
           ownerId: ME,
           area: 'money',
           kind: 'expense',
@@ -625,8 +624,8 @@ describe('payees', () => {
             category: 'home',
           },
         })
-      }
-      return last!
+      await mk(7)
+      return await mk(8)
     })
     await me.mutation(api.recurring.find, {})
     const sug = await me.query(api.payees.suggestions, {})

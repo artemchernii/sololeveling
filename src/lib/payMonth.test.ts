@@ -172,7 +172,9 @@ describe('payMonthDetail', () => {
       bills: [SALARY, LOAN, PHONE],
       today: today(10, 4),
     })!
-    expect(d.bills.reduce((n, b) => n + b.row.amount, 0)).toBe(p.current.bills)
-    expect(d.groups.reduce((n, g) => n + g.sum, 0)).toBe(p.current.dayToDay)
+    expect(d.bills.reduce((sum, b) => sum + b.row.amount, 0)).toBe(
+      p.current.bills,
+    )
+    expect(d.groups.reduce((sum, g) => sum + g.sum, 0)).toBe(p.current.dayToDay)
   })
 })

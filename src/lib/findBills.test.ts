@@ -183,6 +183,17 @@ describe('findBills', () => {
         NOW,
       ),
     ).toEqual([])
+    /* Fuel at one station on the 10th and the 9th (his BP, 4 Oct). */
+    expect(
+      findBills(
+        [
+          out('EST SERVICO', 61, 7, 10, { category: 'car' }),
+          out('EST SERVICO', 57, 8, 9, { category: 'car' }),
+        ],
+        [],
+        NOW,
+      ),
+    ).toEqual([])
     /* Last paid in June: three months old, gone. */
     expect(
       findBills([out('OLD', 9, 4, 3), out('OLD', 9, 5, 3)], [], NOW),

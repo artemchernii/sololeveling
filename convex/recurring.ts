@@ -532,6 +532,10 @@ export async function billFromRow(
     throw new ConvexError('Only money in or out in euros can be a bill.')
   }
   const key = rowKey(log)
+  /* PayPal unnamed is many shops; a bill on it would be paid by all. */
+  if (key.startsWith('PAYPAL')) {
+    throw new ConvexError('Say what this PayPal payment was first.')
+  }
   const items = await itemsOf(ctx, ownerId)
   const same = items.find(
     (i) =>

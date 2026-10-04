@@ -76,6 +76,9 @@ export const EVERYDAY = new Set([
   'groceries',
   'eating out',
   'transport',
+  /* 4 Oct: fuel at the same station on the 10th and the 9th is not a
+     bill ("i bought fuel/gas on BP station, added to CAR"). */
+  'car',
   'shopping',
   'clothes',
   'fun',

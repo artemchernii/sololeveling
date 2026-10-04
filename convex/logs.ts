@@ -9,7 +9,7 @@ import {
 import { pairLent } from './lent'
 import { billFromRow, refileBills } from './recurring'
 import { paysBill } from '../src/lib/ahead'
-import { payeeKey, rowKey } from '../src/lib/payee'
+import { payeeIdOf, payeeKey, rowKey } from '../src/lib/payee'
 import { merchantKey } from '../src/lib/intake'
 import { moveSheets, unlinkSheets } from './vault'
 import { requireUser } from './auth'
@@ -524,6 +524,20 @@ export const refile = mutation({
       await pairLent(ctx, ownerId)
       return 1
     }
+    const was = log.meta?.category
+    /* A PayPal payment is filed on its own (4 Oct: filing Deepseek moved
+       every PayPal row, Preply's too), and teaches no rule. */
+    if (
+      payeeIdOf(log.meta?.raw ?? log.meta?.merchant ?? '').startsWith('PAYPAL')
+    ) {
+      await ctx.db.patch(log._id, { meta: { ...log.meta, category } })
+      if (category === SUBSCRIPTIONS && was !== SUBSCRIPTIONS) {
+        const fresh = await ctx.db.get(log._id)
+        if (fresh?.meta?.payee)
+          await billFromRow(ctx, ownerId, fresh, 'monthly')
+      }
+      return 1
+    }
     const key = merchantKey(log.meta?.merchant ?? log.text ?? '')
     const rows = key
       ? (
@@ -566,7 +580,9 @@ export const refile = mutation({
     await refileBills(ctx, ownerId, new Set(rows.map(rowKey)), category)
     /* Subscriptions are bills (4 Oct: "we should simply call bills and
        subscription as one"): filed there, it comes back every month. */
-    if (category === SUBSCRIPTIONS) {
+    /* Only a change into Subscriptions makes a bill — a row already
+       there was put there before it meant one. */
+    if (category === SUBSCRIPTIONS && was !== SUBSCRIPTIONS) {
       const fresh = await ctx.db.get(log._id)
       if (fresh) await billFromRow(ctx, ownerId, fresh, 'monthly')
     }

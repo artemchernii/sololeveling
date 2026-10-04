@@ -97,7 +97,11 @@ export const set = mutation({
           ...(group && log.kind === 'expense' ? { category: group } : {}),
         },
       })
-      if (group === SUBSCRIPTIONS && log.kind === 'expense') {
+      if (
+        group === SUBSCRIPTIONS &&
+        log.kind === 'expense' &&
+        log.meta?.category !== SUBSCRIPTIONS
+      ) {
         const fresh = await ctx.db.get(log._id)
         if (fresh) await billFromRow(ctx, ownerId, fresh, 'monthly')
       }
@@ -161,7 +165,11 @@ export const set = mutation({
     }
     if (group) await refileBills(ctx, ownerId, new Set(rows.map(rowKey)), group)
     /* Subscriptions are bills: this payment makes one (see logs.refile). */
-    if (group === SUBSCRIPTIONS && log.kind === 'expense') {
+    if (
+      group === SUBSCRIPTIONS &&
+      log.kind === 'expense' &&
+      log.meta?.category !== SUBSCRIPTIONS
+    ) {
       const fresh = await ctx.db.get(log._id)
       if (fresh) await billFromRow(ctx, ownerId, fresh, 'monthly')
     }

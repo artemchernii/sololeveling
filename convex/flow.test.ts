@@ -855,6 +855,38 @@ describe('payees', () => {
     expect(
       await t.run((ctx) => ctx.db.query('merchantRules').collect()),
     ).toEqual([])
+    /* Filing one PayPal payment moves that one only, and no rule. */
+    expect(
+      await me.mutation(api.logs.refile, {
+        logId: ids.other,
+        category: 'clothes',
+      }),
+    ).toBe(1)
+    const after = await t.run(async (ctx) =>
+      Promise.all([ids.b, ids.other].map((id) => ctx.db.get(id))),
+    )
+    expect(after.map((r) => r?.meta?.category)).toEqual([
+      'subscriptions',
+      'clothes',
+    ])
+    expect(
+      await t.run((ctx) => ctx.db.query('merchantRules').collect()),
+    ).toEqual([])
+    /* An unnamed PayPal payment is never a bill: it would be all of PayPal. */
+    await expect(
+      me.mutation(api.recurring.fromRow, { logId: ids.b, cadence: 'monthly' }),
+    ).rejects.toThrow('Say what this PayPal payment was first.')
+    /* Named while already in Subscriptions: a name, not a bill. */
+    await me.mutation(api.payees.set, {
+      logId: ids.b,
+      name: 'Deepseek',
+      domain: null,
+      category: 'subscriptions',
+      partOf: null,
+    })
+    expect(await t.run((ctx) => ctx.db.query('recurring').collect())).toEqual(
+      [],
+    )
     /* Named and lent at once: lent stays. */
     await me.mutation(api.payees.set, {
       logId: ids.b,

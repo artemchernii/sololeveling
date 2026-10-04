@@ -427,3 +427,22 @@ describe('aggregate.flowMonths and logs.movements', () => {
     expect(edp?.type === 'row' && edp.billId).toBeTruthy()
   })
 })
+
+describe('aggregate.payMonth', () => {
+  test('salary to salary on his rows; nothing for another owner', async () => {
+    const { t, me, them } = setup()
+    await world(t)
+    await me.mutation(api.recurring.find, {})
+    const p = await me.query(api.aggregate.payMonth, { today: local(9, 4) })
+    expect(p?.current).toMatchObject({
+      start: at(8, 25),
+      end: at(9, 25),
+      salary: 2000,
+      bills: 31,
+      day: 9,
+    })
+    expect(
+      await them.query(api.aggregate.payMonth, { today: local(9, 4) }),
+    ).toBeNull()
+  })
+})

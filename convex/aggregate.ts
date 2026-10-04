@@ -4,6 +4,7 @@ import { requireUser } from './auth'
 import { logKindValidator } from './logs'
 import { isEuroAmount } from '../src/lib/money'
 import { billsEachMonth, buildAhead, yearAhead } from '../src/lib/ahead'
+import { payMonths } from '../src/lib/payMonth'
 import type { AheadBill, AheadRow } from '../src/lib/ahead'
 import { payeeKey, rowKey } from '../src/lib/payee'
 import { balanceChecks, balanceSeries, coveredBy } from '../src/lib/cashHistory'
@@ -2660,5 +2661,61 @@ export const flowMonths = query({
       })
     }
     return out
+  },
+})
+
+const payMonthShape = v.object({
+  start: v.number(),
+  end: v.number(),
+  salary: v.number(),
+  other: v.number(),
+  bills: v.number(),
+  dayToDay: v.number(),
+})
+
+/**
+ * The pay month (4 Oct, his pick): salary to salary, split into salary,
+ * other money in, bills and day-to-day, with the five before it — sums
+ * of his rows (source 1) cut at the days his salary landed. Null until a
+ * salary is known. src/lib/payMonth does the arithmetic.
+ */
+export const payMonth = query({
+  args: { today: v.number() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      salaryName: v.string(),
+      current: v.object({
+        ...payMonthShape.fields,
+        day: v.number(),
+        length: v.number(),
+        balance: v.number(),
+        billsLeft: v.number(),
+        salaryLate: v.boolean(),
+        pace: v.union(
+          v.null(),
+          v.object({ now: v.number(), last: v.number() }),
+        ),
+        paid: v.array(
+          v.object({ name: v.string(), amount: v.number(), t: v.number() }),
+        ),
+      }),
+      past: v.array(payMonthShape),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const bills = (await liveBills(ctx, ownerId)).map(aheadBill)
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('area', 'money')
+          .gte('occurredAt', args.today - 200 * 86_400_000)
+          .lt('occurredAt', args.today + 86_400_000),
+      )
+      .take(MONEY_ROWS * 4)
+    return payMonths({ rows: aheadRows(rows), bills, today: args.today })
   },
 })

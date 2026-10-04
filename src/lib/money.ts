@@ -19,6 +19,23 @@ export function isEuroAmount<T extends { value?: number; unit?: string }>(
   )
 }
 
+/** Money lent to someone, and the money back (4 Oct: €100 to Oleksandr
+    on 28 Sep, back on 1 Oct). It left the account and came back — it is
+    not spending and not money in, so no in/out sum adds it. Balances do:
+    the euros really moved. */
+export const LENT = 'lent'
+
+export function isLent(row: { meta?: { category?: string } }): boolean {
+  return row.meta?.category === LENT
+}
+
+/** A row that counts in money in / money out: euros, and not lent. */
+export function countsInOut<
+  T extends { value?: number; unit?: string; meta?: { category?: string } },
+>(row: T): row is T & { value: number } {
+  return isEuroAmount(row) && !isLent(row)
+}
+
 export type MoneyCategory = {
   id: string
   label: string
@@ -123,6 +140,7 @@ export const SPEND_CATEGORIES: ReadonlyArray<MoneyCategory> = [
     label: 'Learning',
     words: ['course', 'lesson', 'lessons', 'tutor', 'preply', 'book', 'books'],
   },
+  { id: 'lent', label: 'Lent', words: ['lent', 'loan', 'lend'] },
   { id: 'other', label: 'Other', words: [] },
 ]
 
@@ -135,6 +153,7 @@ export const INCOME_CATEGORIES: ReadonlyArray<MoneyCategory> = [
     label: 'Freelance',
     words: ['client', 'invoice', 'contract', 'project'],
   },
+  { id: 'lent', label: 'Paid back', words: ['payback', 'repaid'] },
   { id: 'other', label: 'Other', words: ['gift', 'refund', 'sold'] },
 ]
 

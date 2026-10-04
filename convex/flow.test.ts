@@ -536,6 +536,73 @@ describe('recurring.fromRow, from a payment he named', () => {
   })
 })
 
+describe('lent', () => {
+  test('lent and paid back: in no in/out sum, paired by itself, listed — only his', async () => {
+    const { t, me, them } = setup()
+    const { bank } = await world(t)
+    const [out, back] = await t.run(async (ctx) => {
+      const mk = (kind: 'expense' | 'income', d: number, raw: string) =>
+        ctx.db.insert('logs', {
+          ownerId: ME,
+          area: 'money',
+          kind,
+          occurredAt: at(8, d),
+          value: 100,
+          unit: 'eur',
+          text: raw,
+          accountId: bank,
+          meta: { raw, merchant: raw, category: 'other' },
+        })
+      return [
+        await mk('expense', 28, 'TRF MB WAY P/ IVAN PETROV'),
+        await mk('income', 30, 'TRF. P/O IVAN PETROV'),
+      ]
+    })
+    const before = await me.query(api.aggregate.moneySums, {
+      start: at(8, 1),
+      end: at(9, 1),
+    })
+    await expect(
+      them.mutation(api.logs.refile, { logId: out, category: 'lent' }),
+    ).rejects.toThrow()
+    expect(
+      await me.mutation(api.logs.refile, { logId: out, category: 'lent' }),
+    ).toBe(1)
+    const rows = await t.run(async (ctx) =>
+      Promise.all([out, back].map((id) => ctx.db.get(id))),
+    )
+    expect(rows.map((r) => r?.meta?.category)).toEqual(['lent', 'lent'])
+    /* A lending teaches no rule: the next transfer may be for dinner. */
+    expect(
+      (await t.run((ctx) => ctx.db.query('merchantRules').collect())).map(
+        (r) => r.category,
+      ),
+    ).not.toContain('lent')
+    const after = await me.query(api.aggregate.moneySums, {
+      start: at(8, 1),
+      end: at(9, 1),
+    })
+    expect(before.out.sum - after.out.sum).toBe(100)
+    expect(before.in.sum - after.in.sum).toBe(100)
+    const listed = await me.query(api.logs.moneyRows, {
+      start: at(8, 1),
+      end: at(9, 1),
+    })
+    expect(listed.map((r) => r._id)).not.toContain(out)
+    const d = await me.query(api.aggregate.payMonthDetail, {
+      start: at(8, 25),
+      end: at(9, 25),
+      prev: null,
+      today: local(9, 4),
+    })
+    expect(d.lent.map((x) => [x.kind, x.row.id])).toEqual([
+      ['expense', out],
+      ['income', back],
+    ])
+    expect(d.moneyIn.map((m) => m.row.id)).not.toContain(back)
+  })
+})
+
 describe('recurring.setCovers', () => {
   test('one payment for five months: every five months, a fifth a month — only his', async () => {
     const { t, me, them } = setup()
@@ -631,7 +698,13 @@ describe('recurring.rename and aggregate.payMonthDetail', () => {
       ['eating out', 4],
     ])
     const theirs = await them.query(api.aggregate.payMonthDetail, args)
-    expect(theirs).toEqual({ bills: [], todo: [], groups: [], moneyIn: [] })
+    expect(theirs).toEqual({
+      bills: [],
+      todo: [],
+      groups: [],
+      moneyIn: [],
+      lent: [],
+    })
   })
 })
 

@@ -8,6 +8,8 @@ import schema from './schema'
 import { merchantKey } from '../src/lib/intake'
 import { payeeKey } from '../src/lib/payee'
 import { payeeIdOf } from '../src/lib/payees'
+import { LENT } from '../src/lib/money'
+import { pairLent } from './lent'
 
 /* Payees (4 Oct; design/treasury-mockup/payees.html): who a row is paid
    to, in his words. Naming one names every row of it, past and next. */
@@ -72,6 +74,14 @@ export const set = mutation({
     const key = payeeIdOf(lineOf(log))
     if (key === '') throw new ConvexError('This row has no payee to name.')
     const category = args.category?.trim().toLowerCase() || undefined
+    /* "I lent it" files this payment only (see logs.refile). */
+    if (category === LENT) {
+      if (log.kind === 'expense') {
+        await ctx.db.patch(log._id, { meta: { ...log.meta, category } })
+        await pairLent(ctx, ownerId)
+      }
+    }
+    const group = category === LENT ? undefined : category
 
     /* PayPal is a middleman (4 Oct: "sometimes paypal is preply, sometimes
        I buy clothes online"): its mandate is his PayPal account, not a
@@ -81,7 +91,7 @@ export const set = mutation({
         meta: {
           ...log.meta,
           payee: name,
-          ...(category && log.kind === 'expense' ? { category } : {}),
+          ...(group && log.kind === 'expense' ? { category: group } : {}),
         },
       })
       return 1
@@ -98,10 +108,10 @@ export const set = mutation({
     const rows = (await moneyRows(ctx, ownerId)).filter(
       (l) => payeeIdOf(lineOf(l)) === key,
     )
-    if (category) {
+    if (group) {
       for (const l of rows) {
-        if (l.kind !== 'expense' || l.meta?.category === category) continue
-        await ctx.db.patch(l._id, { meta: { ...l.meta, category } })
+        if (l.kind !== 'expense' || l.meta?.category === group) continue
+        await ctx.db.patch(l._id, { meta: { ...l.meta, category: group } })
       }
       if (!key.startsWith('PAYPAL ')) {
         const mk = merchantKey(log.meta?.merchant ?? log.text ?? '')
@@ -116,11 +126,14 @@ export const set = mutation({
             await ctx.db.insert('merchantRules', {
               ownerId,
               key: mk,
-              category,
+              category: group,
               updatedAt: Date.now(),
             })
           } else {
-            await ctx.db.patch(rule._id, { category, updatedAt: Date.now() })
+            await ctx.db.patch(rule._id, {
+              category: group,
+              updatedAt: Date.now(),
+            })
           }
         }
       }

@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
-import { isEuroAmount } from '../src/lib/money'
+import { countsInOut, isEuroAmount, isLent } from '../src/lib/money'
 import { billsEachMonth, buildAhead, yearAhead } from '../src/lib/ahead'
 import { payMonthDetail as openPayMonth, payMonths } from '../src/lib/payMonth'
 import type { DetailRow } from '../src/lib/payMonth'
@@ -713,6 +713,7 @@ export const moneySums = query({
         skipped++
         continue
       }
+      if (isLent(row)) continue
       const c = Math.round(row.value * 100)
       const category = row.meta?.category ?? null
       const key = `${row.kind}:${category ?? ''}`
@@ -2420,7 +2421,7 @@ function aheadBill(b: Doc<'recurring'>): AheadBill {
 function aheadRows(rows: ReadonlyArray<Doc<'logs'>>): Array<AheadRow> {
   const out: Array<AheadRow> = []
   for (const r of rows) {
-    if ((r.kind !== 'expense' && r.kind !== 'income') || !isEuroAmount(r)) {
+    if ((r.kind !== 'expense' && r.kind !== 'income') || !countsInOut(r)) {
       continue
     }
     out.push({
@@ -2688,7 +2689,7 @@ export const flowMonths = query({
         { category: string | null; c: number; n: number }
       >()
       for (const r of rows) {
-        if ((r.kind !== 'expense' && r.kind !== 'income') || !isEuroAmount(r)) {
+        if ((r.kind !== 'expense' && r.kind !== 'income') || !countsInOut(r)) {
           continue
         }
         n++
@@ -2827,6 +2828,13 @@ export const payMonthDetail = query({
       }),
     ),
     moneyIn: v.array(v.object({ salary: v.boolean(), row: detailRow })),
+    /** Lent and paid back in this pay month: in no sum above. */
+    lent: v.array(
+      v.object({
+        kind: v.union(v.literal('expense'), v.literal('income')),
+        row: detailRow,
+      }),
+    ),
   }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
@@ -2842,8 +2850,27 @@ export const payMonthDetail = query({
       )
       .take(MONEY_ROWS * 2)
     const rows = []
+    const lent = []
     for (const l of logs) {
       if ((l.kind !== 'expense' && l.kind !== 'income') || !isEuroAmount(l)) {
+        continue
+      }
+      if (isLent(l)) {
+        if (l.occurredAt >= args.start) {
+          lent.push({
+            kind: l.kind,
+            row: {
+              id: l._id,
+              t: l.occurredAt,
+              name: l.meta?.merchant ?? l.text ?? '',
+              amount: l.value,
+              raw: l.meta?.raw,
+              category: l.meta?.category,
+              accountId: l.accountId,
+              payee: l.meta?.payee,
+            },
+          })
+        }
         continue
       }
       rows.push({
@@ -2887,6 +2914,7 @@ export const payMonthDetail = query({
       })),
       groups: d.groups.map((g) => ({ ...g, rows: g.rows.map(out) })),
       moneyIn: d.moneyIn.map((m) => ({ salary: m.salary, row: out(m.row) })),
+      lent: lent.sort((a, b) => a.row.t - b.row.t),
     }
   },
 })

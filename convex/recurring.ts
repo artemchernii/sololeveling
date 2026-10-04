@@ -15,8 +15,9 @@ import {
   likelyBills,
 } from '../src/lib/findBills'
 import { PHRASES, payeeIdOf } from '../src/lib/payees'
+import { pairLent } from './lent'
 import type { BillRow, Known } from '../src/lib/findBills'
-import { isEuroAmount } from '../src/lib/money'
+import { countsInOut, isEuroAmount } from '../src/lib/money'
 import { payeeKey, rowKey } from '../src/lib/payee'
 import { paysBill } from '../src/lib/ahead'
 
@@ -314,7 +315,8 @@ export function billRows(
   const out = []
   for (const l of logs) {
     if (l.kind !== 'expense' && l.kind !== 'income') continue
-    if (!isEuroAmount(l)) continue
+    /* Lent money is not a bill, however regularly he lends. */
+    if (!countsInOut(l)) continue
     if (l.kind === 'income' && (!l.accountId || !bank.has(l.accountId))) {
       continue
     }
@@ -411,6 +413,8 @@ export async function findFor(ctx: MutationCtx, ownerId: string) {
       await ctx.db.patch(i._id, { asksMonths: true })
     }
   }
+  /* Money back for what he lent, found as statements arrive. */
+  await pairLent(ctx, ownerId)
   const items = await itemsOf(ctx, ownerId)
   const logs = await moneySince(ctx, ownerId, now - 100 * DAY)
   const rows = billRows(logs, await ownedAccounts(ctx, ownerId))

@@ -9,7 +9,7 @@ import {
 } from './money'
 
 describe('money categories', () => {
-  test('thirteen to spend on — his nine, three his statement needed, and learning (4 Oct)', () => {
+  test('fourteen to spend on — his nine, three his statement needed, learning and lent (4 Oct)', () => {
     expect(SPEND_CATEGORIES.map((c) => c.id)).toEqual([
       'groceries',
       'eating out',
@@ -23,6 +23,7 @@ describe('money categories', () => {
       'shopping',
       'subscriptions',
       'learning',
+      'lent',
       'other',
     ])
   })

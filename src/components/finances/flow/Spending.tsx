@@ -10,7 +10,7 @@ import { PILL_QUIET } from '@/components/finances/bits'
 import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Veiled } from '@/components/finances/Veil'
-import { SPEND_CATEGORIES, categoryLabel } from '@/lib/money'
+import { LENT, SPEND_CATEGORIES, categoryLabel } from '@/lib/money'
 import { bankPhrase } from '@/lib/payees'
 import { PayeeMark, PayeeName, WhoIsThis, usePayees } from './Payees'
 import type { Who } from './Payees'
@@ -281,7 +281,9 @@ export function Spending({
                               row={r}
                               onMoved={(n, to) =>
                                 setNotice(
-                                  `${who(r).name}: ${n} row${n === 1 ? '' : 's'} moved to ${categoryLabel('expense', to)} — and the next ones too.`,
+                                  to === LENT
+                                    ? `${who(r).name}: lent — out of spending. The money back is found by itself.`
+                                    : `${who(r).name}: ${n} row${n === 1 ? '' : 's'} moved to ${categoryLabel('expense', to)} — and the next ones too.`,
                                 )
                               }
                             />
@@ -324,6 +326,50 @@ export function Spending({
             ))}
             {d.moneyIn.length === 0 ? <Empty>Nothing in yet.</Empty> : null}
           </Section>
+
+          {/* Lent and paid back (4 Oct): money that left and came back,
+              in no sum above — said here so nothing goes missing. */}
+          {d.lent.length ? (
+            <Section
+              title="lent · not spending, not money in"
+              sum={(() => {
+                const out = d.lent
+                  .filter((x) => x.kind === 'expense')
+                  .reduce((n, x) => n + x.row.amount, 0)
+                const back = d.lent
+                  .filter((x) => x.kind === 'income')
+                  .reduce((n, x) => n + x.row.amount, 0)
+                return out - back > 0.005
+                  ? `${eur(out - back)} still out`
+                  : 'all back'
+              })()}
+              tone="text-ink-300"
+            >
+              {d.lent.map((x) => (
+                <RowLine
+                  key={x.row.id}
+                  row={x.row}
+                  who={who(x.row)}
+                  sub={`${dayMonth(x.row.t)} · ${account(x.row.accountId)?.name ?? '—'} · ${x.kind === 'expense' ? 'lent' : 'paid back'}`}
+                  account={account(x.row.accountId)}
+                  income={x.kind === 'income'}
+                  onName={name(x.row)}
+                  group={
+                    x.kind === 'expense' ? (
+                      <GroupPick
+                        row={x.row}
+                        onMoved={(n, to) =>
+                          setNotice(
+                            `${who(x.row).name}: ${n} row${n === 1 ? '' : 's'} moved to ${categoryLabel('expense', to)}.`,
+                          )
+                        }
+                      />
+                    ) : undefined
+                  }
+                />
+              ))}
+            </Section>
+          ) : null}
         </>
       )}
 

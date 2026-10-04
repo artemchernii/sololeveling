@@ -14,8 +14,10 @@ import {
   isKnown,
   likelyBills,
 } from '../src/lib/findBills'
+import { PHRASES, payeeIdOf } from '../src/lib/payees'
+import { pairLent } from './lent'
 import type { BillRow, Known } from '../src/lib/findBills'
-import { isEuroAmount } from '../src/lib/money'
+import { countsInOut, isEuroAmount } from '../src/lib/money'
 import { payeeKey, rowKey } from '../src/lib/payee'
 import { paysBill } from '../src/lib/ahead'
 
@@ -137,6 +139,18 @@ export const end = mutation({
     const ownerId = await requireUser(ctx)
     await ownedItem(ctx, ownerId, args.id)
     await ctx.db.patch(args.id, { endedAt: Date.now() })
+    return null
+  },
+})
+
+/** Undo of "I cancelled it", within the moment. */
+export const resume = mutation({
+  args: { id: v.id('recurring') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    await ownedItem(ctx, ownerId, args.id)
+    await ctx.db.patch(args.id, { endedAt: undefined })
     return null
   },
 })
@@ -285,6 +299,7 @@ export function knownOf(items: ReadonlyArray<Doc<'recurring'>>): Array<Known> {
   return items.map((i) => ({
     key: i.matchKey ?? payeeKey(i.name),
     amount: i.amount,
+    varies: i.varies === true || i.everyWeeks !== undefined,
   }))
 }
 
@@ -300,7 +315,8 @@ export function billRows(
   const out = []
   for (const l of logs) {
     if (l.kind !== 'expense' && l.kind !== 'income') continue
-    if (!isEuroAmount(l)) continue
+    /* Lent money is not a bill, however regularly he lends. */
+    if (!countsInOut(l)) continue
     if (l.kind === 'income' && (!l.accountId || !bank.has(l.accountId))) {
       continue
     }
@@ -369,8 +385,11 @@ export async function findFor(ctx: MutationCtx, ownerId: string) {
     if (
       i.foundAt !== undefined &&
       i.refusedAt === undefined &&
-      i.category !== undefined &&
-      EVERYDAY.has(i.category)
+      ((i.category !== undefined && EVERYDAY.has(i.category)) ||
+        /* PayPal is a middleman, never a bill by itself (4 Oct). */
+        i.matchKey?.startsWith('PAYPAL') === true ||
+        /* Found as "varies" before rhythms: found again in its shape. */
+        (i.varies === true && i.lo === undefined))
     ) {
       await ctx.db.delete(i._id)
     }
@@ -385,7 +404,17 @@ export async function findFor(ctx: MutationCtx, ownerId: string) {
   )
   for (const [n, i] of mine.entries()) {
     if (better[n] !== i.name) await ctx.db.patch(i._id, { name: better[n] })
+    /* Found before AHEAD asked how many months a payment covers. */
+    if (
+      i.asksMonths === undefined &&
+      i.everyMonths === undefined &&
+      PHRASES.some((p) => p.monthly && p.name === i.name)
+    ) {
+      await ctx.db.patch(i._id, { asksMonths: true })
+    }
   }
+  /* Money back for what he lent, found as statements arrive. */
+  await pairLent(ctx, ownerId)
   const items = await itemsOf(ctx, ownerId)
   const logs = await moneySince(ctx, ownerId, now - 100 * DAY)
   const rows = billRows(logs, await ownedAccounts(ctx, ownerId))
@@ -406,11 +435,43 @@ export async function findFor(ctx: MutationCtx, ownerId: string) {
       day: b.day,
       matchKey: b.key,
       foundAt: now,
+      varies: b.varies,
+      lo: b.lo,
+      hi: b.hi,
+      everyWeeks: b.everyWeeks,
+      anchor: b.anchor,
+      asksMonths: b.asksMonths,
     })
     added++
   }
   return added
 }
+
+/**
+ * How many months one payment covers (4 Oct: "I paid 175 euros, but that
+ * was for 5 months"). He says it once; the bill then falls every N
+ * months from that payment, and counts as amount ÷ N in a month.
+ */
+export const setCovers = mutation({
+  args: { id: v.id('recurring'), months: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const item = await ownedItem(ctx, ownerId, args.id)
+    if (!Number.isInteger(args.months) || args.months < 1 || args.months > 12) {
+      throw new ConvexError('One to twelve months.')
+    }
+    if (item.cadence !== 'monthly') {
+      throw new ConvexError('Only a monthly bill covers months.')
+    }
+    await ctx.db.patch(item._id, {
+      everyMonths: args.months,
+      anchor: item.anchor ?? item.foundAt ?? Date.now(),
+      asksMonths: undefined,
+    })
+    return null
+  },
+})
 
 /** "× not a bill": gone from every view, and never found again. */
 export const notBill = mutation({
@@ -442,6 +503,79 @@ export const unrefuse = mutation({
  * from the row; he says only how often. One already known is not made
  * twice — its id comes back.
  */
+/** A payee moved to another group takes its bills along (4 Oct: Vodafone
+    out of Home into Phone & internet — rows and bill alike). */
+export async function refileBills(
+  ctx: MutationCtx,
+  ownerId: string,
+  keys: ReadonlySet<string>,
+  category: string,
+) {
+  for (const b of await itemsOf(ctx, ownerId)) {
+    if (b.kind !== 'expense' || !b.matchKey || !keys.has(b.matchKey)) continue
+    if (b.category !== category) await ctx.db.patch(b._id, { category })
+  }
+}
+
+/**
+ * A bill made from one of his payments — fromRow, and filing a payment
+ * as Subscriptions (4 Oct: "bills and subscription … same thing"). One
+ * already known is not made twice; its id comes back.
+ */
+export async function billFromRow(
+  ctx: MutationCtx,
+  ownerId: string,
+  log: Doc<'logs'>,
+  every: 'monthly' | 'yearly',
+): Promise<{ id: Id<'recurring'>; created: boolean }> {
+  if ((log.kind !== 'expense' && log.kind !== 'income') || !isEuroAmount(log)) {
+    throw new ConvexError('Only money in or out in euros can be a bill.')
+  }
+  const key = rowKey(log)
+  const items = await itemsOf(ctx, ownerId)
+  const same = items.find(
+    (i) =>
+      i.refusedAt === undefined &&
+      isKnown(knownOf([i]), { key, amount: log.value }),
+  )
+  if (same) return { id: same._id, created: false }
+  if (items.length >= MAX_ITEMS) {
+    throw new ConvexError('That is a lot of bills — end one first.')
+  }
+  const d = new Date(log.occurredAt)
+  /* His name for the payee, or for this one payment, comes first. */
+  const payee = log.meta?.payee
+    ? null
+    : await ctx.db
+        .query('payees')
+        .withIndex('by_owner_key', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq(
+              'key',
+              payeeIdOf(log.meta?.raw ?? log.meta?.merchant ?? log.text ?? ''),
+            ),
+        )
+        .first()
+  const [found] = billNames([
+    { key, name: log.meta?.merchant ?? log.text ?? '', kind: log.kind },
+  ])
+  const name = log.meta?.payee ?? payee?.name ?? found
+  const id = await ctx.db.insert('recurring', {
+    ownerId,
+    name: name.slice(0, MAX_NAME) || 'Bill',
+    kind: log.kind,
+    amount: Math.round(log.value * 100) / 100,
+    category: log.meta?.category,
+    accountId: log.accountId,
+    cadence: every,
+    day: d.getUTCDate(),
+    month: every === 'yearly' ? d.getUTCMonth() : undefined,
+    matchKey: key || undefined,
+  })
+  return { id, created: true }
+}
+
 export const fromRow = mutation({
   args: { logId: v.id('logs'), cadence },
   /** `created` false: it was a bill already, and that one comes back —
@@ -451,40 +585,7 @@ export const fromRow = mutation({
     const ownerId = await requireUser(ctx)
     const log = await ctx.db.get(args.logId)
     if (log === null || log.ownerId !== ownerId) throw new Error('No such row')
-    if (
-      (log.kind !== 'expense' && log.kind !== 'income') ||
-      !isEuroAmount(log)
-    ) {
-      throw new ConvexError('Only money in or out in euros can be a bill.')
-    }
-    const key = rowKey(log)
-    const items = await itemsOf(ctx, ownerId)
-    const same = items.find(
-      (i) =>
-        i.refusedAt === undefined &&
-        isKnown(knownOf([i]), { key, amount: log.value }),
-    )
-    if (same) return { id: same._id, created: false }
-    if (items.length >= MAX_ITEMS) {
-      throw new ConvexError('That is a lot of bills — end one first.')
-    }
-    const d = new Date(log.occurredAt)
-    const [name] = billNames([
-      { key, name: log.meta?.merchant ?? log.text ?? '', kind: log.kind },
-    ])
-    const id = await ctx.db.insert('recurring', {
-      ownerId,
-      name: name.slice(0, MAX_NAME) || 'Bill',
-      kind: log.kind,
-      amount: Math.round(log.value * 100) / 100,
-      category: log.meta?.category,
-      accountId: log.accountId,
-      cadence: args.cadence,
-      day: d.getUTCDate(),
-      month: args.cadence === 'yearly' ? d.getUTCMonth() : undefined,
-      matchKey: key || undefined,
-    })
-    return { id, created: true }
+    return await billFromRow(ctx, ownerId, log, args.cadence)
   },
 })
 
@@ -538,6 +639,10 @@ export const payments = query({
       day: bill.day,
       month: bill.month,
       key: bill.matchKey ?? payeeKey(bill.name),
+      varies: bill.varies,
+      everyWeeks: bill.everyWeeks,
+      everyMonths: bill.everyMonths,
+      anchor: bill.anchor,
     }
     return logs
       .filter(

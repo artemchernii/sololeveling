@@ -45,6 +45,11 @@ describe('bankPhrase', () => {
       name: 'Mortgage · interest',
       partOf: 'Mortgage',
     })
+    /* A bill's key has lost the "DE": still the mortgage. */
+    expect(bankPhrase('AMORTIZACAO CAPITAL')?.partOf).toBe('Mortgage')
+    /* A bill's key, shorter than the bank's line. */
+    expect(bankPhrase('SEGURO ALLIANZ MULTI')?.name).toBe('Home insurance')
+    expect(bankPhrase('SEGURO BPI VP')?.name).toBe('Life insurance')
     expect(bankPhrase('SEGURO ALLIANZ - MULTI-RISCOS-HABITACAO')?.name).toBe(
       'Home insurance',
     )

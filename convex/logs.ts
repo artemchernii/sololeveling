@@ -1,6 +1,13 @@
 import { ConvexError, v } from 'convex/values'
 
-import { isEuroAmount } from '../src/lib/money'
+import {
+  LENT,
+  SUBSCRIPTIONS,
+  countsInOut,
+  isEuroAmount,
+} from '../src/lib/money'
+import { pairLent } from './lent'
+import { billFromRow, refileBills } from './recurring'
 import { paysBill } from '../src/lib/ahead'
 import { payeeKey, rowKey } from '../src/lib/payee'
 import { merchantKey } from '../src/lib/intake'
@@ -431,9 +438,10 @@ export const moneyRows = query({
       )
       .order('desc')
       .take(MONEY_ROWS)
+    /* The same rule as moneySums: lent money is in neither. */
     return rows.filter(
       (row) =>
-        (row.kind === 'expense' || row.kind === 'income') && isEuroAmount(row),
+        (row.kind === 'expense' || row.kind === 'income') && countsInOut(row),
     )
   },
 })
@@ -509,6 +517,13 @@ export const refile = mutation({
     if (category.length === 0 || category.length > 24) {
       throw new ConvexError('That is not a group.')
     }
+    /* "I lent it" is about this payment, not the person: the next
+       transfer to them may be for dinner. The money back finds itself. */
+    if (category === LENT) {
+      await ctx.db.patch(log._id, { meta: { ...log.meta, category } })
+      await pairLent(ctx, ownerId)
+      return 1
+    }
     const key = merchantKey(log.meta?.merchant ?? log.text ?? '')
     const rows = key
       ? (
@@ -547,6 +562,13 @@ export const refile = mutation({
       } else {
         await ctx.db.patch(rule._id, { category, updatedAt: Date.now() })
       }
+    }
+    await refileBills(ctx, ownerId, new Set(rows.map(rowKey)), category)
+    /* Subscriptions are bills (4 Oct: "we should simply call bills and
+       subscription as one"): filed there, it comes back every month. */
+    if (category === SUBSCRIPTIONS) {
+      const fresh = await ctx.db.get(log._id)
+      if (fresh) await billFromRow(ctx, ownerId, fresh, 'monthly')
     }
     return moved
   },

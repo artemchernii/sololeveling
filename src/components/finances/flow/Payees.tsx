@@ -9,7 +9,7 @@ import { FIELD, PILL_LOUD } from '@/components/finances/bits'
 import { failureMessage } from '@/lib/convex-errors'
 import { SPEND_CATEGORIES } from '@/lib/money'
 import { payeeKey } from '@/lib/payee'
-import { knownShop, payeeIdOf, siteFor } from '@/lib/payees'
+import { bankPhrase, knownShop, payeeIdOf, siteFor } from '@/lib/payees'
 
 /* Payees on the page (4 Oct; mockup design/treasury-mockup/payees.html).
    Who a row is: his name for it if he gave one, else a shop the app knows,
@@ -37,9 +37,20 @@ export function usePayees() {
     ...new Set((list ?? []).flatMap((p) => (p.partOf ? [p.partOf] : []))),
   ]
   return { who, parts }
-  function who(row: { raw?: string; name: string }): Who {
+  function who(row: { raw?: string; name: string; payee?: string }): Who {
     const line = row.raw ?? row.name
     const key = payeeIdOf(line)
+    /* A PayPal payment he named on its own (4 Oct). */
+    if (row.payee) {
+      return {
+        key,
+        name: row.payee,
+        original: row.name !== row.payee ? row.name : null,
+        domain: knownShop(payeeKey(row.payee))?.domain ?? siteFor(row.payee),
+        partOf: null,
+        source: 'yours',
+      }
+    }
     const mine = byKey.get(key)
     if (mine) {
       return {
@@ -51,15 +62,22 @@ export function usePayees() {
         source: 'yours',
       }
     }
-    const shop = key.startsWith('PAYPAL ') ? null : knownShop(payeeKey(line))
-    if (shop) {
+    /* A shop the app knows, or what a Portuguese bank's words mean (4 Oct:
+       the box asking YES to seven names was a form he did not know how to
+       use) — named straight away, the bank's words kept underneath, and
+       his own name over it with one tap. */
+    const paypal = key.startsWith('PAYPAL')
+    const shop = paypal ? null : knownShop(payeeKey(line))
+    const phrase = paypal ? null : bankPhrase(line)
+    if (shop || phrase) {
+      const name = phrase?.name ?? shop?.name ?? row.name
       return {
         key,
-        name: shop.name,
+        name,
         original:
-          row.name.toUpperCase() !== shop.name.toUpperCase() ? row.name : null,
-        domain: shop.domain,
-        partOf: null,
+          row.name.toUpperCase() !== name.toUpperCase() ? row.name : null,
+        domain: shop?.domain ?? null,
+        partOf: phrase?.partOf ?? null,
         source: 'known',
       }
     }
@@ -112,14 +130,14 @@ export function PayeeMark({
 
 /** The name, his tag, and the bank's words underneath. */
 export function PayeeName({ who, onName }: { who: Who; onName?: () => void }) {
+  /* No YOUR NAME / KNOWN (4 Oct: "these badges are weird"): where a
+     name came from is not what he reads a row for. PayPal unnamed still
+     asks — that one wants something from him. */
   const tag =
-    who.source === 'yours' ? (
-      <span className="rounded-[5px] bg-lav-400/10 px-1.5 py-px font-mono text-[9px] tracking-[0.12em] text-lav-300 uppercase ring-1 ring-lav-400/25 ring-inset">
-        your name
-      </span>
-    ) : who.source === 'known' ? (
-      <span className="rounded-[5px] bg-state-good/10 px-1.5 py-px font-mono text-[9px] tracking-[0.12em] text-state-good uppercase ring-1 ring-state-good/25 ring-inset">
-        known
+    who.source !== 'yours' && who.key.startsWith('PAYPAL') ? (
+      /* PayPal is many shops: an unnamed one asks, quietly. */
+      <span className="rounded-[5px] bg-state-warn/10 px-1.5 py-px font-mono text-[9px] tracking-[0.12em] text-state-warn uppercase ring-1 ring-state-warn/25 ring-inset">
+        what was it?
       </span>
     ) : null
   return (
@@ -148,6 +166,19 @@ export function PayeeName({ who, onName }: { who: Who; onName?: () => void }) {
   )
 }
 
+/** Why a row is where it is, in one plain line (4 Oct: "its like a
+    blackbox for me"). */
+export function Why({ logId }: { logId: Id<'logs'> }) {
+  const line = useQuery(api.why.row, { logId })
+  if (!line) return null
+  return (
+    <p className="rounded-[10px] bg-lift/[0.03] px-3 py-2 text-[13px] leading-relaxed text-ink-300 ring-1 ring-lift/7 ring-inset">
+      <span className="label-caps mr-2">why here</span>
+      {line}
+    </p>
+  )
+}
+
 /**
  * "Who is this?" — his name for a payee, the logo found from it, its
  * group, and what it is part of. Saves for every row of the payee.
@@ -167,6 +198,11 @@ export function WhoIsThis({
   onDone: (n: number, name: string) => void
 }) {
   const set = useMutation(api.payees.set)
+  const fromRow = useMutation(api.recurring.fromRow)
+  /* "Santander is navegante pass … bills every month I pay. And i dont
+     know how to add it" (4 Oct): saying it comes every month, here,
+     makes it a bill — Future balance and SPENDING's bills take it. */
+  const [monthly, setMonthly] = useState(false)
   const [name, setName] = useState(
     who.source === 'yours'
       ? who.name
@@ -179,7 +215,8 @@ export function WhoIsThis({
   const [newPart, setNewPart] = useState('')
   const [error, setError] = useState<string | null>(null)
   const domain = siteTouched ? site : (site ?? (name ? siteFor(name) : null))
-  const paypal = who.key.startsWith('PAYPAL ')
+  const paypal = who.key.startsWith('PAYPAL')
+  const earlier = useQuery(api.payees.paypalNames, paypal ? {} : 'skip')
 
   async function save() {
     try {
@@ -190,6 +227,7 @@ export function WhoIsThis({
         category: group,
         partOf: partOf === '+' ? newPart.trim() || null : partOf,
       })
+      if (monthly) await fromRow({ logId: row.id, cadence: 'monthly' })
       onDone(n, name)
     } catch (e) {
       setError(failureMessage(e) ?? 'It did not save.')
@@ -198,6 +236,7 @@ export function WhoIsThis({
 
   return (
     <div className="flex flex-col gap-3">
+      <Why logId={row.id} />
       <span className="font-mono text-[11px] text-ink-500">
         the bank wrote: {row.raw ?? row.name}
       </span>
@@ -205,10 +244,31 @@ export function WhoIsThis({
         autoFocus
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Who is it? Preply, Mango, Condominium…"
+        placeholder={
+          paypal
+            ? 'What was this one? Preply, Zalando…'
+            : 'Who is it? Preply, Mango, Condominium…'
+        }
         aria-label="Payee name"
         className={`${FIELD} text-[15px]`}
       />
+      {paypal && earlier?.length ? (
+        <span className="flex flex-wrap items-center gap-1.5">
+          <span className="label-caps">earlier through PayPal</span>
+          {earlier.map((e) => (
+            <Chip
+              key={e.name}
+              on={name === e.name}
+              onClick={() => {
+                setName(e.name)
+                if (e.category) setGroup(e.category)
+              }}
+            >
+              {e.name}
+            </Chip>
+          ))}
+        </span>
+      ) : null}
       <div className="flex items-center gap-3 rounded-[12px] bg-lift/[0.03] p-2.5">
         <PayeeMark
           who={{ ...who, name: name || '?', domain: domain ?? null }}
@@ -241,33 +301,49 @@ export function WhoIsThis({
         ))}
       </span>
 
-      <span className="label-caps">part of</span>
-      <span className="flex flex-wrap items-center gap-1.5">
-        <Chip on={partOf === null} onClick={() => setPartOf(null)}>
-          nothing
+      <span className="label-caps">does it come back?</span>
+      <span className="flex flex-wrap gap-1.5">
+        <Chip on={!monthly} onClick={() => setMonthly(false)}>
+          when it comes
         </Chip>
-        {parts.map((p) => (
-          <Chip key={p} on={partOf === p} onClick={() => setPartOf(p)}>
-            {p}
-          </Chip>
-        ))}
-        <Chip on={partOf === '+'} onClick={() => setPartOf('+')} dashed>
-          + new
+        <Chip on={monthly} onClick={() => setMonthly(true)}>
+          every month — a bill
         </Chip>
-        {partOf === '+' ? (
-          <input
-            value={newPart}
-            onChange={(e) => setNewPart(e.target.value)}
-            placeholder="Mortgage, Insurance…"
-            aria-label="Part of"
-            className={`${FIELD} py-1 text-[13px]`}
-          />
-        ) : null}
       </span>
+
+      {/* "part of" only where it means something (4 Oct: "part of i have
+          nothing and + new"): a payee already in one, or names in use. */}
+      {paypal || (parts.length === 0 && who.partOf === null) ? null : (
+        <>
+          <span className="label-caps">part of</span>
+          <span className="flex flex-wrap items-center gap-1.5">
+            <Chip on={partOf === null} onClick={() => setPartOf(null)}>
+              nothing
+            </Chip>
+            {parts.map((p) => (
+              <Chip key={p} on={partOf === p} onClick={() => setPartOf(p)}>
+                {p}
+              </Chip>
+            ))}
+            <Chip on={partOf === '+'} onClick={() => setPartOf('+')} dashed>
+              + new
+            </Chip>
+            {partOf === '+' ? (
+              <input
+                value={newPart}
+                onChange={(e) => setNewPart(e.target.value)}
+                placeholder="Mortgage, Insurance…"
+                aria-label="Part of"
+                className={`${FIELD} py-1 text-[13px]`}
+              />
+            ) : null}
+          </span>
+        </>
+      )}
 
       <span className="label-caps leading-relaxed">
         {paypal
-          ? 'applies to every PayPal debit with this mandate — and the next ones. Other PayPal payments stay as they are.'
+          ? 'names this payment only — PayPal is Preply one day and a shop the next.'
           : 'applies to every row from this payee — and the next ones.'}
       </span>
       <button

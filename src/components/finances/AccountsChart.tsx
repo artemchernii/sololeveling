@@ -672,7 +672,7 @@ function DayRows({
                 <span className="block truncate text-foreground">{r.text}</span>
                 <span className="font-mono text-[10px] tracking-[0.06em] text-ink-500">
                   {r.kind === 'move'
-                    ? `your move${r.other ? ` · ${r.amount < 0 ? 'to' : 'from'} ${r.other}` : ''}`
+                    ? `transfer${r.other ? ` · ${r.amount < 0 ? 'to' : 'from'} ${r.other}` : ''}`
                     : (r.category ?? r.kind)}
                 </span>
               </span>

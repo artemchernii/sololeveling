@@ -46,10 +46,30 @@ export function payeeKey(line: string): string {
   return out.join(' ')
 }
 
-/** A row's key: from what the bank printed, else its name. */
+/**
+ * The payee of a row. PayPal is a middleman — one PayPal debit is Preply,
+ * the next a jacket — so a PayPal row is keyed by the mandate code on it
+ * (the long reference with letters and digits), not by "PayPal".
+ */
+export function payeeIdOf(line: string): string {
+  const base = payeeKey(line)
+  if (!/\bPAYPAL\b/i.test(line)) return base
+  const mandate = line
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .find((w) => w.length >= 10 && /\d/.test(w) && /[A-Z]/.test(w))
+  return mandate ? `PAYPAL ${mandate}` : base
+}
+
+/** A row's key: from what the bank printed, else its name. A PayPal
+    row is keyed by its mandate (4 Oct), so Preply through PayPal is one
+    payee a bill can be found on. */
 export function rowKey(row: {
   text?: string
-  meta?: { raw?: string; merchant?: string }
+  meta?: { raw?: string; merchant?: string; payee?: string }
 }): string {
-  return payeeKey(row.meta?.raw ?? row.meta?.merchant ?? row.text ?? '')
+  /* A PayPal payment he named on its own ("Preply - Portuguese") is that
+     payee, so a bill made from it is paid by the next one he names so. */
+  if (row.meta?.payee) return `NAMED ${payeeKey(row.meta.payee)}`
+  return payeeIdOf(row.meta?.raw ?? row.meta?.merchant ?? row.text ?? '')
 }

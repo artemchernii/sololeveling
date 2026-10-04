@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
-import { isEuroAmount } from '../src/lib/money'
+import { countsInOut, isEuroAmount, isLent } from '../src/lib/money'
 import { billsEachMonth, buildAhead, yearAhead } from '../src/lib/ahead'
 import { payMonthDetail as openPayMonth, payMonths } from '../src/lib/payMonth'
 import type { DetailRow } from '../src/lib/payMonth'
@@ -713,6 +713,7 @@ export const moneySums = query({
         skipped++
         continue
       }
+      if (isLent(row)) continue
       const c = Math.round(row.value * 100)
       const category = row.meta?.category ?? null
       const key = `${row.kind}:${category ?? ''}`
@@ -2390,7 +2391,7 @@ async function liveBills(ctx: QueryCtx, ownerId: string) {
       .query('recurring')
       .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
       .take(100)
-  ).filter((b) => b.refusedAt === undefined && b.endedAt === undefined)
+  ).filter((b) => b.refusedAt === undefined)
 }
 
 function aheadBill(b: Doc<'recurring'>): AheadBill {
@@ -2406,13 +2407,21 @@ function aheadBill(b: Doc<'recurring'>): AheadBill {
     month: b.month,
     key: b.matchKey ?? payeeKey(b.name),
     foundAt: b.foundAt,
+    varies: b.varies,
+    everyMonths: b.everyMonths,
+    everyWeeks: b.everyWeeks,
+    anchor: b.anchor,
+    lo: b.lo,
+    hi: b.hi,
+    /* A cancelled one still explains the payments it had (4 Oct). */
+    endedAt: b.endedAt,
   }
 }
 
 function aheadRows(rows: ReadonlyArray<Doc<'logs'>>): Array<AheadRow> {
   const out: Array<AheadRow> = []
   for (const r of rows) {
-    if ((r.kind !== 'expense' && r.kind !== 'income') || !isEuroAmount(r)) {
+    if ((r.kind !== 'expense' && r.kind !== 'income') || !countsInOut(r)) {
       continue
     }
     out.push({
@@ -2444,6 +2453,10 @@ async function moneyIn(
     )
     .take(MONEY_ROWS)
 }
+
+/** A bank's first row within three days of a month's start is a whole
+    month: statements begin on the first weekday with a payment. */
+const PARTIAL_GRACE = 3 * 86_400_000
 
 /**
  * AHEAD: free cash from today (state), his bills and salary on their days
@@ -2480,6 +2493,14 @@ export const ahead = query({
         category: v.optional(v.string()),
         accountId: v.optional(v.id('accounts')),
         isNew: v.boolean(),
+        /** The payee key, for his payee name and logo. */
+        key: v.string(),
+        varies: v.boolean(),
+        lo: v.optional(v.number()),
+        hi: v.optional(v.number()),
+        everyMonths: v.optional(v.number()),
+        everyWeeks: v.optional(v.number()),
+        asksMonths: v.boolean(),
       }),
     ),
     done: v.array(
@@ -2501,7 +2522,14 @@ export const ahead = query({
         held: v.union(v.number(), v.null()),
       }),
     ),
-    rest: v.array(v.object({ start: v.number(), sum: v.number() })),
+    rest: v.array(
+      v.object({
+        start: v.number(),
+        sum: v.number(),
+        /** Banks read only from partway through the month. */
+        partial: v.array(v.object({ name: v.string(), from: v.number() })),
+      }),
+    ),
     range: v.union(v.object({ lo: v.number(), hi: v.number() }), v.null()),
     series: v.array(point),
     low: point,
@@ -2530,8 +2558,10 @@ export const ahead = query({
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const days = Math.min(Math.max(1, Math.round(args.days)), 120)
-    const items = await liveBills(ctx, ownerId)
-    const bills = items.map(aheadBill)
+    /* Cancelled ones still pay their past rows; only what is due goes. */
+    const all = await liveBills(ctx, ownerId)
+    const items = all.filter((b) => b.endedAt === undefined)
+    const bills = all.map(aheadBill)
     const read = await readBalances(ctx, ownerId)
     /* Free cash: banks and cash. A broker's cash is waiting to be
        invested, not for bills (journey, question 6). */
@@ -2541,11 +2571,26 @@ export const ahead = query({
     const monthRows = aheadRows(
       await moneyIn(ctx, ownerId, args.monthStart, args.today + 86_400_000),
     )
+    /* Where each bank's rows begin: a month before that is unread for
+       it, and one it begins partway through is partial. */
+    const firsts: Array<{ name: string; from: number }> = []
+    for (const a of free) {
+      const first = await ctx.db
+        .query('logs')
+        .withIndex('by_owner_account_time', (q) =>
+          q.eq('ownerId', ownerId).eq('accountId', a.accountId),
+        )
+        .first()
+      if (first) firsts.push({ name: a.name, from: first.occurredAt })
+    }
+    const partialOf = (p: { start: number; end: number }) =>
+      firsts.filter((f) => f.from > p.start + PARTIAL_GRACE && f.from < p.end)
     const past = []
     for (const p of args.past.slice(-3)) {
       past.push({
         start: p.start,
         rows: aheadRows(await moneyIn(ctx, ownerId, p.start, p.end)),
+        partial: partialOf(p).map((f) => f.name),
       })
     }
     const built = buildAhead({
@@ -2581,18 +2626,28 @@ export const ahead = query({
         category: b.category,
         accountId: b.accountId,
         isNew: b.foundAt !== undefined && args.today - b.foundAt < week,
+        key: b.matchKey ?? payeeKey(b.name),
+        varies: b.varies === true,
+        lo: b.lo,
+        hi: b.hi,
+        everyMonths: b.everyMonths,
+        everyWeeks: b.everyWeeks,
+        asksMonths: b.asksMonths === true,
       })),
       done: built.done.map((d) => ({
         ...cast(d),
         rowId: d.rowId as Id<'logs'> | null,
       })),
       events: built.events.map(cast),
-      rest: built.rest,
+      rest: built.rest.map((r) => {
+        const p = args.past.find((x) => x.start === r.start)
+        return { ...r, partial: p ? partialOf(p) : [] }
+      }),
       range: built.range,
       series: built.series,
       low: built.low,
       salaryAt: built.salaryAt,
-      eachMonth: billsEachMonth(bills),
+      eachMonth: billsEachMonth(items.map(aheadBill)),
       year: yearAhead(bills, args.today),
     }
   },
@@ -2634,7 +2689,7 @@ export const flowMonths = query({
         { category: string | null; c: number; n: number }
       >()
       for (const r of rows) {
-        if ((r.kind !== 'expense' && r.kind !== 'income') || !isEuroAmount(r)) {
+        if ((r.kind !== 'expense' && r.kind !== 'income') || !countsInOut(r)) {
           continue
         }
         n++
@@ -2729,6 +2784,8 @@ const detailRow = v.object({
   raw: v.optional(v.string()),
   category: v.optional(v.string()),
   accountId: v.optional(v.id('accounts')),
+  /** His name for this one row (a PayPal payment). */
+  payee: v.optional(v.string()),
 })
 
 /**
@@ -2748,6 +2805,8 @@ export const payMonthDetail = query({
       v.object({
         billId: v.id('recurring'),
         billName: v.string(),
+        /** One payment for several months (the condominium). */
+        everyMonths: v.optional(v.number()),
         row: detailRow,
       }),
     ),
@@ -2769,6 +2828,13 @@ export const payMonthDetail = query({
       }),
     ),
     moneyIn: v.array(v.object({ salary: v.boolean(), row: detailRow })),
+    /** Lent and paid back in this pay month: in no sum above. */
+    lent: v.array(
+      v.object({
+        kind: v.union(v.literal('expense'), v.literal('income')),
+        row: detailRow,
+      }),
+    ),
   }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
@@ -2784,8 +2850,27 @@ export const payMonthDetail = query({
       )
       .take(MONEY_ROWS * 2)
     const rows = []
+    const lent = []
     for (const l of logs) {
       if ((l.kind !== 'expense' && l.kind !== 'income') || !isEuroAmount(l)) {
+        continue
+      }
+      if (isLent(l)) {
+        if (l.occurredAt >= args.start) {
+          lent.push({
+            kind: l.kind,
+            row: {
+              id: l._id,
+              t: l.occurredAt,
+              name: l.meta?.merchant ?? l.text ?? '',
+              amount: l.value,
+              raw: l.meta?.raw,
+              category: l.meta?.category,
+              accountId: l.accountId,
+              payee: l.meta?.payee,
+            },
+          })
+        }
         continue
       }
       rows.push({
@@ -2799,6 +2884,7 @@ export const payMonthDetail = query({
         raw: l.meta?.raw,
         category: l.meta?.category,
         accountId: l.accountId,
+        payee: l.meta?.payee,
       })
     }
     const d = openPayMonth({ ...args, rows, bills })
@@ -2810,11 +2896,13 @@ export const payMonthDetail = query({
       raw: r.raw,
       category: r.category,
       accountId: r.accountId as Id<'accounts'> | undefined,
+      payee: r.payee,
     })
     return {
       bills: d.bills.map((b) => ({
         billId: b.bill.id as Id<'recurring'>,
         billName: b.bill.name,
+        everyMonths: b.bill.everyMonths,
         row: out(b.row),
       })),
       todo: d.todo.map((x) => ({
@@ -2826,6 +2914,7 @@ export const payMonthDetail = query({
       })),
       groups: d.groups.map((g) => ({ ...g, rows: g.rows.map(out) })),
       moneyIn: d.moneyIn.map((m) => ({ salary: m.salary, row: out(m.row) })),
+      lent: lent.sort((a, b) => a.row.t - b.row.t),
     }
   },
 })

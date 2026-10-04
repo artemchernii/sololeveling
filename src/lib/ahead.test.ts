@@ -46,6 +46,11 @@ describe('paysBill', () => {
     )
     expect(paysBill(bill({}), row({ kind: 'income' }))).toBe(false)
   })
+
+  it('takes any amount to the payee for one that varies', () => {
+    expect(paysBill(bill({ varies: true }), row({ amount: 4.77 }))).toBe(true)
+    expect(paysBill(bill({ varies: true }), row({ key: 'OTHER' }))).toBe(false)
+  })
 })
 
 describe('buildAhead', () => {
@@ -108,6 +113,50 @@ describe('buildAhead', () => {
         .filter((e) => e.billId === 'early')
         .map((e) => new Date(e.t).getMonth()),
     ).toEqual([])
+  })
+
+  it('adds up the month’s payments of one that varies', () => {
+    const a = buildAhead({
+      ...base,
+      bills: [bill({ day: 1, amount: 250, varies: true })],
+      monthRows: [
+        row({ id: 'r1', amount: 120 }),
+        row({ id: 'r2', amount: 4.77, t: day(9, 3) }),
+      ],
+    })
+    expect(a.done).toEqual([
+      expect.objectContaining({ billId: 'b', amount: 124.77, rowId: 'r1' }),
+    ])
+    /* Not paid yet: last month's sum stands. */
+    const b = buildAhead({
+      ...base,
+      bills: [bill({ day: 1, amount: 250, varies: true })],
+    })
+    expect(b.done).toEqual([
+      expect.objectContaining({ amount: 250, rowId: null }),
+    ])
+  })
+
+  it('leaves a month a bank was only partly read out of the range', () => {
+    const spend = (m: number, amount: number) =>
+      row({ key: 'SHOP', amount, t: day(m, 15) })
+    const a = buildAhead({
+      ...base,
+      bills: [],
+      past: [
+        { start: day(7, 1), rows: [spend(7, 300)], partial: ['BPI'] },
+        { start: day(8, 1), rows: [spend(8, 900)] },
+      ],
+    })
+    expect(a.range).toEqual({ lo: 900, hi: 900 })
+    expect(a.rest.map((r) => r.partial)).toEqual([['BPI'], []])
+    /* Only partial months: they are all there is. */
+    const b = buildAhead({
+      ...base,
+      bills: [],
+      past: [{ start: day(7, 1), rows: [spend(7, 300)], partial: ['BPI'] }],
+    })
+    expect(b.range).toEqual({ lo: 300, hi: 300 })
   })
 
   it('takes the rest off as a range of real months, leaving unread months out', () => {

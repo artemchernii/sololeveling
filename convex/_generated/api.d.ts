@@ -22,6 +22,7 @@ import type * as github from "../github.js";
 import type * as goals from "../goals.js";
 import type * as intake from "../intake.js";
 import type * as invest from "../invest.js";
+import type * as lent from "../lent.js";
 import type * as logs from "../logs.js";
 import type * as market from "../market.js";
 import type * as migrations from "../migrations.js";
@@ -39,6 +40,7 @@ import type * as seed from "../seed.js";
 import type * as state from "../state.js";
 import type * as tasks from "../tasks.js";
 import type * as vault from "../vault.js";
+import type * as why from "../why.js";
 
 import type {
   ApiFromModules,
@@ -61,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   goals: typeof goals;
   intake: typeof intake;
   invest: typeof invest;
+  lent: typeof lent;
   logs: typeof logs;
   market: typeof market;
   migrations: typeof migrations;
@@ -78,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   state: typeof state;
   tasks: typeof tasks;
   vault: typeof vault;
+  why: typeof why;
 }>;
 
 /**

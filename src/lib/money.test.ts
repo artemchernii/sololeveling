@@ -9,12 +9,13 @@ import {
 } from './money'
 
 describe('money categories', () => {
-  test('thirteen to spend on — his nine, three his statement needed, and learning (4 Oct)', () => {
+  test('fifteen to spend on — his nine, three his statement needed, learning, lent and phone (4 Oct)', () => {
     expect(SPEND_CATEGORIES.map((c) => c.id)).toEqual([
       'groceries',
       'eating out',
       'transport',
       'home',
+      'phone',
       'health',
       'fun',
       'clothes',
@@ -23,6 +24,7 @@ describe('money categories', () => {
       'shopping',
       'subscriptions',
       'learning',
+      'lent',
       'other',
     ])
   })
@@ -45,7 +47,7 @@ describe('money categories', () => {
   })
 
   test('labels, and unsorted for none', () => {
-    expect(categoryLabel('expense', 'home')).toBe('Home & bills')
+    expect(categoryLabel('expense', 'home')).toBe('Home')
     expect(categoryLabel('expense', null)).toBe('Unsorted')
     expect(categoryLabel('expense', 'books')).toBe('books')
   })

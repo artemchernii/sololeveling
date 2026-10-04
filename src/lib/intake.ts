@@ -181,6 +181,7 @@ export const SPEND_CATEGORY_IDS = [
   'transport',
   'car',
   'home',
+  'phone',
   'health',
   'fun',
   'clothes',

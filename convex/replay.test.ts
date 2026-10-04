@@ -459,8 +459,11 @@ describe('replay: his statements through UPDATE ALL', () => {
         ['Amortizacao Capital', 'expense', 1],
         ['Anthropic', 'expense', 5],
         ['Edp Comercial', 'expense', 25],
+        /* Every two weeks (from 30 Sep), and phone top-ups that vary. */
+        ['Gym Light', 'expense', 30],
         ['Juros Emprestimo', 'expense', 1],
         ['Seguro Allianz', 'expense', 1],
+        ['Vodafone', 'expense', 14],
       ].sort(),
     )
   })

@@ -40,7 +40,7 @@ describe('findBills', () => {
     expect(bill).toMatchObject({ kind: 'income', amount: 2050 })
   })
 
-  it('is not fooled by a payee paid twice a month (gym every two weeks)', () => {
+  it('finds the gym every two weeks: each payment on its own day', () => {
     const rows = [
       out('GYM', 6, 7, 5),
       out('GYM', 6, 7, 19),
@@ -48,7 +48,85 @@ describe('findBills', () => {
       out('GYM', 6, 8, 16),
       out('GYM', 6, 8, 30),
     ]
+    expect(findBills(rows, [], NOW)).toEqual([
+      expect.objectContaining({
+        key: 'GYM',
+        amount: 6,
+        everyWeeks: 2,
+        anchor: at(8, 30),
+      }),
+    ])
+  })
+
+  it('finds a phone topped up when it runs out: the range of its months', () => {
+    const rows = [
+      out('PHONE', 10, 7, 3),
+      out('PHONE', 10, 7, 21),
+      out('PHONE', 10, 8, 1),
+      out('PHONE', 10, 8, 14),
+      out('PHONE', 10, 8, 29),
+    ]
+    expect(findBills(rows, [], NOW)).toEqual([
+      expect.objectContaining({ amount: 25, lo: 20, hi: 30, varies: true }),
+    ])
+    /* Struck out once: any amount of it stays known. */
+    expect(
+      findBills(rows, [{ key: 'PHONE', amount: 1, varies: true }], NOW),
+    ).toEqual([])
+  })
+
+  it('never finds PayPal: Preply one month, a jacket the next', () => {
+    const rows = [
+      out('PAYPAL 5D4J2254EVNWL', 122, 7, 4),
+      out('PAYPAL 5D4J2254EVNWL', 172, 7, 31),
+      out('PAYPAL 5D4J2254EVNWL', 121, 8, 1),
+      out('PAYPAL 5D4J2254EVNWL', 4.77, 8, 4),
+    ]
     expect(findBills(rows, [], NOW)).toEqual([])
+  })
+
+  it('wants €10 a month from one that varies, and both last months', () => {
+    expect(
+      findBills(
+        [
+          out('TOLL', 2.25, 7, 3),
+          out('TOLL', 3, 7, 17),
+          out('TOLL', 2.5, 8, 9),
+        ],
+        [],
+        NOW,
+      ),
+    ).toEqual([])
+    expect(
+      findBills(
+        [out('X', 20, 6, 3), out('X', 30, 6, 17), out('X', 25, 8, 9)],
+        [],
+        NOW,
+      ),
+    ).toEqual([])
+  })
+
+  it('finds the condominium from its first payment, by what the bank wrote', () => {
+    const [b] = findBills(
+      [
+        out('COND PRCRT CASTRO', 175, 9, 2, {
+          name: 'TRF P/ COND P S PRCRT V CASTRO ALMEIDA 4',
+          category: 'home',
+        }),
+      ],
+      [],
+      NOW,
+    )
+    expect(b).toMatchObject({
+      name: 'Condominium',
+      amount: 175,
+      day: 2,
+      category: 'home',
+      asksMonths: true,
+    })
+    expect(billNames([{ key: b.key, name: b.name, kind: 'expense' }])).toEqual([
+      'Condominium',
+    ])
   })
 
   it('keeps two bills of one payee apart by amount (interest and capital)', () => {
@@ -144,6 +222,19 @@ describe('likelyBills', () => {
       [],
     )
     expect(one).toMatchObject({ times: 2, rowId: 'PHONE-8-21' })
+  })
+
+  it('offers a pass: the same amount about a month apart, whoever took it', () => {
+    const list = likelyBills(
+      [
+        row('METRO', 40, 8, 1, 'transport'),
+        row('SANTANDER', 40, 8, 28, 'other'),
+        row('CAFE', 4, 8, 2, 'eating out'),
+        row('CAFE', 4, 9, 2, 'eating out'),
+      ],
+      [],
+    )
+    expect(list.map((l) => l.key).sort()).toEqual(['METRO', 'SANTANDER'])
   })
 
   it('skips payees that are bills already or were struck out', () => {

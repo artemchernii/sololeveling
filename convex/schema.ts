@@ -552,6 +552,10 @@ export default defineSchema({
            arriving side names the leaving side here, so the pair is seen,
            matched and removed as one. */
         pairOf: v.optional(v.id('logs')),
+        /* His name for this one payment (4 Oct): a PayPal debit is Preply
+           one day and a jacket the next, so it is named row by row, not
+           by payee. */
+        payee: v.optional(v.string()),
       }),
     ),
   })
@@ -680,6 +684,22 @@ export default defineSchema({
     /* "× not a bill": out of every view, and never found again. Kept, not
        deleted, because the key is what stops it coming back. */
     refusedAt: v.optional(v.number()),
+    /* Its amount moves month to month (4 Oct: Preply, the gym, Vodafone
+       top-ups): `amount` is a recent month's sum, and any payment to the
+       payee is its payment. */
+    varies: v.optional(v.boolean()),
+    /* For one that varies: its cheapest and dearest recent month. */
+    lo: v.optional(v.number()),
+    hi: v.optional(v.number()),
+    /* Rhythms (4 Oct): paid every N months (the condominium, €175 for
+       five) or every N weeks (the gym), counted from `anchor`, a
+       payment's time. Absent: every month, or once a year. */
+    everyMonths: v.optional(v.number()),
+    everyWeeks: v.optional(v.number()),
+    anchor: v.optional(v.number()),
+    /* Found from a payment that may cover several months: AHEAD asks him
+       how many, once. */
+    asksMonths: v.optional(v.boolean()),
   }).index('by_owner', ['ownerId']),
 
   /* A ticker he holds or held (Finances F4), found by search and never

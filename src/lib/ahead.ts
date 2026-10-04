@@ -24,6 +24,8 @@ export type AheadBill = {
   month?: number
   key: string
   foundAt?: number
+  /** Any payment to the payee pays it; the month's payments add up. */
+  varies?: boolean
 }
 
 export type AheadRow = {
@@ -43,6 +45,7 @@ export function paysBill(bill: AheadBill, row: AheadRow): boolean {
   if (row.kind !== bill.kind || bill.key === '' || row.key !== bill.key) {
     return false
   }
+  if (bill.varies) return true
   return (
     Math.abs(row.amount - bill.amount) <=
     0.15 * Math.max(row.amount, bill.amount)
@@ -83,7 +86,13 @@ export type AheadInput = {
   monthStart: number
   /** The last three full months: every money-out row of each, and whether
       the month had any rows at all (no statement read = left out, not 0). */
-  past: ReadonlyArray<{ start: number; rows: ReadonlyArray<AheadRow> }>
+  past: ReadonlyArray<{
+    start: number
+    rows: ReadonlyArray<AheadRow>
+    /** Banks whose rows only begin partway through it (4 Oct: BPI read
+        from 25 Aug made August look cheap). */
+    partial?: ReadonlyArray<string>
+  }>
   /** Free cash now, per bank or cash account, in euros. */
   free: ReadonlyArray<{ accountId: string; eur: number }>
 }
@@ -123,8 +132,14 @@ export function buildAhead(input: AheadInput) {
   /* This month: bills whose day has come, paid (the row) or not seen. */
   const pastDue = dueBetween(bills, input.monthStart, today)
   const done = pastDue.map(({ t, bill }) => {
-    const row = input.monthRows.find((r) => paysBill(bill, r))
-    return { t, bill, row: row ?? null }
+    const rows = input.monthRows.filter((r) => paysBill(bill, r))
+    const row = rows.at(0) ?? null
+    /* One that varies is paid by all of the month's payments so far. */
+    const paid =
+      bill.varies && rows.length
+        ? cents(rows.reduce((n, r) => n + r.amount, 0))
+        : row?.amount
+    return { t, bill, row, paid }
   })
   const paidEarly = new Set(
     bills
@@ -170,6 +185,7 @@ export function buildAhead(input: AheadInput) {
     .filter((p) => p.rows.length > 0)
     .map((p) => ({
       start: p.start,
+      partial: [...(p.partial ?? [])],
       sum: cents(
         p.rows
           .filter(
@@ -178,12 +194,16 @@ export function buildAhead(input: AheadInput) {
           .reduce((n, r) => n + r.amount, 0),
       ),
     }))
+  /* A month a bank was only partly read is not a real month: the range
+     takes whole months, and the partial ones only when there is no other. */
+  const whole = rest.filter((r) => r.partial.length === 0)
+  const counted = whole.length ? whole : rest
   const range =
-    rest.length === 0
+    counted.length === 0
       ? null
       : {
-          lo: Math.min(...rest.map((r) => r.sum)),
-          hi: Math.max(...rest.map((r) => r.sum)),
+          lo: Math.min(...counted.map((r) => r.sum)),
+          hi: Math.max(...counted.map((r) => r.sum)),
         }
 
   /* A point a day. `bills` is free cash moved by bills and salary only;
@@ -215,12 +235,12 @@ export function buildAhead(input: AheadInput) {
 
   return {
     freeTotal,
-    done: done.map(({ t, bill, row }) => ({
+    done: done.map(({ t, bill, row, paid }) => ({
       t,
       billId: bill.id,
       name: bill.name,
       kind: bill.kind,
-      amount: row?.amount ?? bill.amount,
+      amount: paid ?? bill.amount,
       accountId: bill.accountId,
       rowId: row?.id ?? null,
     })),

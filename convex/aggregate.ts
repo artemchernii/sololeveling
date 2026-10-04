@@ -2406,6 +2406,7 @@ function aheadBill(b: Doc<'recurring'>): AheadBill {
     month: b.month,
     key: b.matchKey ?? payeeKey(b.name),
     foundAt: b.foundAt,
+    varies: b.varies,
   }
 }
 
@@ -2445,6 +2446,10 @@ async function moneyIn(
     .take(MONEY_ROWS)
 }
 
+/** A bank's first row within three days of a month's start is a whole
+    month: statements begin on the first weekday with a payment. */
+const PARTIAL_GRACE = 3 * 86_400_000
+
 /**
  * AHEAD: free cash from today (state), his bills and salary on their days
  * (the plan he has or the app found), and the rest of his spending as a
@@ -2480,6 +2485,9 @@ export const ahead = query({
         category: v.optional(v.string()),
         accountId: v.optional(v.id('accounts')),
         isNew: v.boolean(),
+        /** The payee key, for his payee name and logo. */
+        key: v.string(),
+        varies: v.boolean(),
       }),
     ),
     done: v.array(
@@ -2501,7 +2509,14 @@ export const ahead = query({
         held: v.union(v.number(), v.null()),
       }),
     ),
-    rest: v.array(v.object({ start: v.number(), sum: v.number() })),
+    rest: v.array(
+      v.object({
+        start: v.number(),
+        sum: v.number(),
+        /** Banks read only from partway through the month. */
+        partial: v.array(v.object({ name: v.string(), from: v.number() })),
+      }),
+    ),
     range: v.union(v.object({ lo: v.number(), hi: v.number() }), v.null()),
     series: v.array(point),
     low: point,
@@ -2541,11 +2556,26 @@ export const ahead = query({
     const monthRows = aheadRows(
       await moneyIn(ctx, ownerId, args.monthStart, args.today + 86_400_000),
     )
+    /* Where each bank's rows begin: a month before that is unread for
+       it, and one it begins partway through is partial. */
+    const firsts: Array<{ name: string; from: number }> = []
+    for (const a of free) {
+      const first = await ctx.db
+        .query('logs')
+        .withIndex('by_owner_account_time', (q) =>
+          q.eq('ownerId', ownerId).eq('accountId', a.accountId),
+        )
+        .first()
+      if (first) firsts.push({ name: a.name, from: first.occurredAt })
+    }
+    const partialOf = (p: { start: number; end: number }) =>
+      firsts.filter((f) => f.from > p.start + PARTIAL_GRACE && f.from < p.end)
     const past = []
     for (const p of args.past.slice(-3)) {
       past.push({
         start: p.start,
         rows: aheadRows(await moneyIn(ctx, ownerId, p.start, p.end)),
+        partial: partialOf(p).map((f) => f.name),
       })
     }
     const built = buildAhead({
@@ -2581,13 +2611,18 @@ export const ahead = query({
         category: b.category,
         accountId: b.accountId,
         isNew: b.foundAt !== undefined && args.today - b.foundAt < week,
+        key: b.matchKey ?? payeeKey(b.name),
+        varies: b.varies === true,
       })),
       done: built.done.map((d) => ({
         ...cast(d),
         rowId: d.rowId as Id<'logs'> | null,
       })),
       events: built.events.map(cast),
-      rest: built.rest,
+      rest: built.rest.map((r) => {
+        const p = args.past.find((x) => x.start === r.start)
+        return { ...r, partial: p ? partialOf(p) : [] }
+      }),
       range: built.range,
       series: built.series,
       low: built.low,

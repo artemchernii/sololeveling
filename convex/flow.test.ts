@@ -93,7 +93,7 @@ async function world(t: ReturnType<typeof setup>['t'], owner = ME) {
         at(8, 25),
         'TRF CR SEPA+ 0000021 DE ACME',
       ),
-      /* Twice a month: not a monthly bill. */
+      /* Twice a month: a bill that varies, last month's two summed. */
       gym1: await row('expense', 6, at(7, 5), 'DD GYM LIGHT 1'),
       gym2: await row('expense', 6, at(7, 19), 'DD GYM LIGHT 2'),
       gym3: await row('expense', 6, at(8, 2), 'DD GYM LIGHT 3'),
@@ -119,13 +119,16 @@ describe('recurring.find', () => {
   test('puts bills found in statements on their day, with no question', async () => {
     const { t, me } = setup()
     await world(t)
-    expect(await me.mutation(api.recurring.find, {})).toBe(2)
+    expect(await me.mutation(api.recurring.find, {})).toBe(3)
     const items = await t.run((ctx) => ctx.db.query('recurring').collect())
     expect(
-      items.map((i) => [i.name, i.kind, i.amount, i.day, i.matchKey]).sort(),
+      items
+        .map((i) => [i.name, i.kind, i.amount, i.day, i.matchKey, !!i.varies])
+        .sort(),
     ).toEqual([
-      ['Acme', 'income', 2000, 25, 'ACME'],
-      ['Edp Comercial', 'expense', 31, 25, 'EDP COMERCIAL'],
+      ['Acme', 'income', 2000, 25, 'ACME', false],
+      ['Edp Comercial', 'expense', 31, 25, 'EDP COMERCIAL', false],
+      ['Gym Light', 'expense', 12, 2, 'GYM LIGHT', true],
     ])
     expect(items.every((i) => i.foundAt === at(9, 4))).toBe(true)
   })
@@ -161,7 +164,7 @@ describe('recurring.find', () => {
     await me.mutation(api.recurring.find, {})
     const edp = await t.run(async (ctx) =>
       (await ctx.db.query('recurring').collect()).find(
-        (i) => i.kind === 'expense',
+        (i) => i.matchKey === 'EDP COMERCIAL',
       ),
     )
     const rows = await me.query(api.recurring.payments, { id: edp!._id })
@@ -184,7 +187,7 @@ describe('recurring.find', () => {
     await me.mutation(api.recurring.find, {})
     const edp = await t.run(async (ctx) =>
       (await ctx.db.query('recurring').collect()).find(
-        (i) => i.kind === 'expense',
+        (i) => i.matchKey === 'EDP COMERCIAL',
       ),
     )
     await me.mutation(api.recurring.notBill, { id: edp!._id })
@@ -196,11 +199,11 @@ describe('recurring.find', () => {
         start: at(9, 1) - 12 * 3600e3,
         end: at(10, 1) - 12 * 3600e3,
       }),
-    ).toEqual([
+    ).not.toContainEqual(
       expect.objectContaining({
-        item: expect.objectContaining({ kind: 'income' }),
+        item: expect.objectContaining({ matchKey: 'EDP COMERCIAL' }),
       }),
-    ])
+    )
     await me.mutation(api.recurring.unrefuse, { id: edp!._id })
     expect(
       (await t.run((ctx) => ctx.db.get(edp!._id)))?.refusedAt,
@@ -256,8 +259,8 @@ describe('recurring.fromRow and likely', () => {
     await world(t)
     await me.mutation(api.recurring.find, {})
     const list = await me.query(api.recurring.likely, {})
-    expect(list.map((l) => l.key)).toEqual(['SEGURO HOME', 'GYM LIGHT'])
-    expect(list[1].times).toBe(4)
+    /* The gym is a bill now (one that varies), so not offered. */
+    expect(list.map((l) => l.key)).toEqual(['SEGURO HOME'])
   })
 
   test("refuses another owner's row", async () => {
@@ -310,13 +313,21 @@ describe('aggregate.ahead', () => {
     expect(a.events.map((e) => [new Date(e.t).getDate(), e.name])).toEqual([
       [25, 'Acme'],
       [25, 'Edp Comercial'],
+      [2, 'Gym Light'],
       [25, 'Acme'],
       [25, 'Edp Comercial'],
+      [2, 'Gym Light'],
     ])
     /* July had no rows (not read): left out. August and September's rest
        is the money out that is no bill's payment. */
     expect(a.rest.map((r) => r.start)).toEqual([local(7, 1), local(8, 1)])
-    expect(a.range).toEqual({ lo: 12, hi: 236 })
+    /* The bank's rows begin on 5 August: August is partial, said so,
+       and out of the range. The gym is a bill's payment, not the rest. */
+    expect(a.rest.map((r) => r.partial.map((p) => p.name))).toEqual([
+      ['Bank'],
+      [],
+    ])
+    expect(a.range).toEqual({ lo: 224, hi: 224 })
     expect(a.bills.every((b) => b.isNew)).toBe(true)
   })
 
@@ -454,7 +465,7 @@ describe('recurring.rename and aggregate.payMonthDetail', () => {
     await me.mutation(api.recurring.find, {})
     const edp = await t.run(async (ctx) =>
       (await ctx.db.query('recurring').collect()).find(
-        (i) => i.kind === 'expense',
+        (i) => i.matchKey === 'EDP COMERCIAL',
       ),
     )
     await expect(
@@ -481,14 +492,14 @@ describe('recurring.rename and aggregate.payMonthDetail', () => {
       today: local(9, 4),
     }
     const d = await me.query(api.aggregate.payMonthDetail, args)
-    expect(d.bills.map((b) => b.row.amount)).toEqual([30])
+    expect(d.bills.map((b) => b.row.amount)).toEqual([30, 6, 6])
     expect(d.moneyIn.map((m) => [m.row.amount, m.salary])).toEqual([
       [2000, true],
       [3, false],
     ])
-    /* Gym twice and the insurance (home), the café (eating out). */
+    /* The insurance (home), the café (eating out); the gym is a bill. */
     expect(d.groups.map((g) => [g.category, g.sum])).toEqual([
-      ['home', 232],
+      ['home', 220],
       ['eating out', 4],
     ])
     const theirs = await them.query(api.aggregate.payMonthDetail, args)

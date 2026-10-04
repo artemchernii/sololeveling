@@ -87,7 +87,7 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="ctl">Mockup · your real positions and coins (4 Oct) · real logos · coins' "you paid" approximate</div>
+  <div class="ctl">Mockup · your real positions (4 Oct) · coins' "bought for" approximate</div>
   <div class="scen" id="scen"></div>
   <p class="note" id="note"></p>
   <div id="out" style="display:flex;flex-direction:column;gap:14px"></div>
@@ -107,7 +107,7 @@ const img = (src, size = 40, r = 12) => `<img src="${src}" alt="" style="width:$
 const coinImg = (s, size = 40) => `<img src="${COIN_ICON(s)}" alt="" style="width:${size}px;height:${size}px;border-radius:50%">`
 /* His 23 shares and ETFs (Portfolio, 4 Oct). */
 const HELD = [
-  ['IGLN', 'iShares Physical Gold ETC', 527.71, -3.74, 'ETF', 'T212', 'ishares.com'],
+  ['IGLN', 'iShares Physical Gold', 527.71, -3.74, 'gold', 'T212', 'ishares.com'],
   ['VHYL', 'Vanguard FTSE All-World High Dividend', 502.28, 2.51, 'ETF', 'T212', 'vanguard.com'],
   ['GOOG', 'Alphabet', 377.33, 10.33, 'stock', 'TR', 'google.com'],
   ['AMZN', 'Amazon', 365.93, 19.20, 'stock', 'TR', 'amazon.com'],
@@ -132,6 +132,7 @@ const HELD = [
   ['NILSY', 'Norilsk Nickel · no market price', 9.78, -60.82, 'stock', 'T212', 'nornickel.com'],
 ]
 const ETFS = HELD.filter((h) => h[4] === 'ETF').reduce((t, h) => t + h[2], 0)
+const GOLD = HELD.filter((h) => h[4] === 'gold').reduce((t, h) => t + h[2], 0)
 const STOCKS = HELD.filter((h) => h[4] === 'stock').reduce((t, h) => t + h[2], 0)
 const COINS = [
   { s: 'SOL', n: 'Solana', q: 1.239235, px: 106.70, v: 132.23, paid: 88.6, c: 'oklch(0.72 0.17 300)', m: '◎' },
@@ -145,10 +146,10 @@ const cpaid = COINS.reduce((t, c) => t + c.paid, 0)
 const SH = { worth: 6158.71, paid: 5748.51 }
 
 const S = {
-  portfolio: { label: 'Portfolio with crypto', note: '<b>Revolut Crypto is its own account</b>, beside Trade Republic and Trading 212, and its coins count in WORTH NOW and in INVESTED (your pick, 3 Oct). The split bar says shares, ETFs and crypto at a glance.' },
-  coin: { label: 'a coin opened · ADA', note: '<b>Real ADA closes</b> (Apr → Oct), with MA 20, MA 40 and RSI you can switch on and off, each explained in a sentence. ' + '<b>A coin opened</b> works like a share: price line, what you paid, your trades on the line. What only coins have: <b>earned by staking</b> — 4.91 ADA at €0 cost, 45 rewards since February, shown on the coin and never as money in.' },
-  sold: { label: 'sold out · XLM', note: '<b>Coins you no longer hold</b> stay findable under "sold", with what they returned. XLM: bought and sold six times since 2020, none left.' },
-  drop: { label: 'adding the statement', note: '<b>Adding the PDF</b> is the drop you know from UPDATE ALL. The app reads it, checks it adds up — opening 0 → trades and staking → closing €569.07 — and shows that before anything is written.' },
+  portfolio: { label: 'Portfolio with crypto', note: '<b>One Revolut card</b> holds its crypto now, and its stocks and gold once you add those statements. The bar splits everything you own into stocks, ETFs, gold and crypto. Each position says which currency it was bought in.' },
+  coin: { label: 'a coin opened · ADA', note: '<b>Real ADA closes</b> (Apr → Oct), with MA 20, MA 40 and RSI you can switch on and off, each explained in a sentence. ' + 'Like a share: the price, what you bought it for, your buys. What only coins have: <b>free from staking</b> — 4.91 ADA Revolut gave you for holding it.' },
+  sold: { label: 'sold out · XLM', note: '<b>Coins you sold completely</b> are in "Sold", with how it went. Stellar: four buys and four sells, 2020–2022.' },
+  drop: { label: 'adding the statement', note: '<b>Adding the PDF:</b> drop it like any statement. The app reads it, checks its numbers match Revolut’s, and shows you what it found before saving anything.' },
 }
 let K = 'portfolio', F = 'all', ch
 
@@ -157,44 +158,46 @@ function brokers() {
     <div class="hd">${img(SITE(site), 34, 10)}<b>${name}</b><span class="caps">${pos}</span></div>
     <div><span class="caps">total</span><div class="big" style="font-size:28px;margin-top:4px">${eur(worth + (cash ?? 0))}</div></div>
     <div class="kv"><span>investments</span><span>${eur(worth)} ${pp(worth - paid, paid, 1)}</span></div>
-    <div class="kv"><span>you paid for them</span><span>${eur(paid)}</span></div>
+    <div class="kv"><span>bought for</span><span>${eur(paid)}</span></div>
     ${cash !== null ? `<div class="kv"><span>free cash</span><span>${eur(cash)}</span></div>` : ''}${extra}</section>`
-  return `<p class="note" style="text-align:left;margin:0">Revolut is two accounts here, as Revolut keeps them: <b>Revolut</b> (bank and its stocks) and <b>Revolut Crypto</b> (Revolut Digital Assets, Cyprus). Its stocks come in from the trading statement, like Trade Republic's.</p>
-  <div class="brokers">
+  return `<div class="brokers">
     ${card('Trade Republic', 'traderepublic.com', '15 positions', 4141.35, 3796.40, 1543.09)}
     ${card('Trading 212', 'trading212.com', '8 positions', 2017.36, 1952.11, 12994.22)}
-    <section class="glass bk"><div class="hd">${img(SITE('revolut.com'), 34, 10)}<b>Revolut · stocks</b><span class="caps">0 positions</span></div>
-      <p style="color:var(--ink-400);font-size:13px;line-height:1.55">Your Revolut shares appear here when you drop its trading statement — same reading as the others, each trade checked.</p>
-      <button class="pill" style="align-self:flex-start">drop the trading statement</button></section>
-    ${card('Revolut Crypto', 'revolut.com', '5 coins', crypto, cpaid, null, `<div class="kv"><span>earned by staking</span><span class="up">4.91 ADA · €1.07</span></div><div class="kv"><span>statement</span><span class="dim">read 3 Oct · adds up ✓</span></div>`, 'new')}
+    <section class="glass bk new"><div class="hd">${img(SITE('revolut.com'), 34, 10)}<b>Revolut</b><span class="caps">5 coins</span></div>
+      <div><span class="caps">total</span><div class="big" style="font-size:28px;margin-top:4px">${eur(crypto)}</div></div>
+      <div class="kv"><span>crypto</span><span>${eur(crypto)} ${pp(crypto - cpaid, cpaid, 1)}</span></div>
+      <div class="kv"><span>bought for</span><span>${eur(cpaid)}</span></div>
+      <div class="kv"><span>free from staking</span><span class="up">4.91 ADA · ${eur(1.07)}</span></div>
+      <div class="kv"><span>stocks</span><span class="dim">add the trading statement</span></div>
+      <div class="kv"><span>gold</span><span class="dim">add the statement</span></div></section>
   </div>`
 }
 
 function list() {
   const coinRows = COINS.map((c) => `<div class="row" onclick="${c.s === 'ADA' ? "K='coin';render()" : ''}">${coinImg(c.s)}
-    <span class="nm"><b>${c.n}</b><p>${c.s} · Revolut Crypto · ${c.q} ${c.s}${c.staked ? ` · <span class="up">${c.staked.toFixed(2)} from staking</span>` : ''}</p></span>
+    <span class="nm"><b>${c.n}</b><p>${c.s} · crypto · Revolut · ${c.q} ${c.s} · <span class="tag" style="padding:1px 6px">bought in € and $</span>${c.staked ? ` · <span class="up">+${c.staked.toFixed(2)} free from staking</span>` : ''}</p></span>
     <span class="rt">${eur(c.v)}<small class="${c.v >= c.paid ? 'up' : 'down'}">${c.v >= c.paid ? '▲' : '▼'} ${Math.abs((c.v - c.paid) / c.paid * 100).toFixed(1)}%</small></span></div>`)
   const heldRows = HELD.map(([s, n, v, p, k, a, d]) => `<div class="row">${img(SITE(d))}
-    <span class="nm"><b>${n}</b><p>${s} · ${k} · ${a === 'TR' ? 'Trade Republic' : 'Trading 212'}</p></span>
+    <span class="nm"><b>${n}</b><p>${s} · ${k} · ${a === 'TR' ? 'Trade Republic' : 'Trading 212'} · <span class="tag" style="padding:1px 6px">${a === 'TR' ? 'bought in €' : 'bought in $'}</span></p></span>
     <span class="rt">${eur(v)}<small class="${p >= 0 ? 'up' : 'down'}">${p >= 0 ? '▲' : '▼'} ${Math.abs(p)}%</small></span></div>`)
   /* Biggest first, coins among the shares. */
   const all = [...HELD.map((h, i) => [h[2], heldRows[i]]), ...COINS.map((c, i) => [c.v, coinRows[i]])].sort((x, y) => y[0] - x[0]).map((x) => x[1])
   const body = (F === 'crypto' ? coinRows : F === 'shares' ? heldRows : all).join('')
   return `<section class="panel"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
     <span class="title">[ POSITIONS · ${F === 'crypto' ? 5 : F === 'shares' ? 23 : 28} ]</span><span class="filters">${['all', 'shares', 'crypto'].map((f) => `<button class="pill ${F === f ? 'on' : ''}" onclick="F='${f}';render()">${f}</button>`).join('')}</span></div>${body}
-    ${F !== 'shares' ? `<div class="row" onclick="K='sold';render()" style="opacity:.6">${coinImg('XLM')}<span class="nm"><b>sold · 1 coin</b><p>XLM · none left</p></span><span class="rt dim">›</span></div>` : ''}</section>`
+    ${F !== 'shares' ? `<div class="row" onclick="K='sold';render()" style="opacity:.6">${coinImg('XLM')}<span class="nm"><b>Sold · 1 coin</b><p>Stellar · you sold all of it in 2022</p></span><span class="rt dim">›</span></div>` : ''}</section>`
 }
 
 function portfolio() {
   const worth = SH.worth + crypto, paid = SH.paid + cpaid
-  const parts = [['stocks', STOCKS, 'var(--lav-400)'], ['ETFs', ETFS, 'oklch(0.7 0.12 230)'], ['crypto', crypto, 'oklch(0.78 0.16 65)']]
-  return `<section class="panel"><span class="title">[ PORTFOLIO · SHARES AND CRYPTO · ALL ACCOUNTS ]</span>
+  const parts = [['stocks', STOCKS, 'var(--lav-400)'], ['ETFs', ETFS, 'oklch(0.7 0.12 230)'], ['gold', GOLD, 'oklch(0.82 0.14 90)'], ['crypto', crypto, 'oklch(0.7 0.16 40)']]
+  return `<section class="panel"><span class="title">[ PORTFOLIO · ALL ACCOUNTS ]</span>
     <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-end;margin-top:16px">
       <div><span class="caps">worth now</span><div class="big" style="margin-top:6px">${eur(worth)}</div></div>
-      <div>${pp(worth - paid, paid)} <span class="caps">&nbsp;since bought</span><div class="caps" style="margin-top:8px">you paid ${eur(paid)}</div></div></div>
+      <div>${pp(worth - paid, paid)} <span class="caps">&nbsp;since bought</span><div class="caps" style="margin-top:8px">bought for ${eur(paid)}</div></div></div>
     <div class="split">${parts.map(([, v, c]) => `<i style="flex:${v};background:${c}"></i>`).join('')}</div>
     <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">${parts.map(([n, v, c]) => `<span class="caps"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${c};margin-right:6px"></i>${n} ${eur(v, 0)} · ${(v / worth * 100).toFixed(0)}%</span>`).join('')}</div>
-    <div class="caps" style="margin-top:12px">shares: closes as of Oct 2 · Yahoo Finance &nbsp;·&nbsp; coins: price 3 Oct 00:00 UTC · Yahoo Finance</div></section>` + brokers() + list()
+    <div class="caps" style="margin-top:12px">prices from Yahoo Finance · shares 2 Oct close · coins 3 Oct</div></section>` + brokers() + list()
 }
 
 const ADA_CLOSES = [["04 Apr", 0.2152], ["05 Apr", 0.2176], ["06 Apr", 0.2132], ["07 Apr", 0.2257], ["08 Apr", 0.215], ["09 Apr", 0.2171], ["10 Apr", 0.2168], ["11 Apr", 0.2129], ["12 Apr", 0.2024], ["13 Apr", 0.2112], ["14 Apr", 0.2031], ["15 Apr", 0.2083], ["16 Apr", 0.2201], ["17 Apr", 0.2199], ["18 Apr", 0.212], ["19 Apr", 0.2066], ["20 Apr", 0.2107], ["21 Apr", 0.2126], ["22 Apr", 0.2123], ["23 Apr", 0.214], ["24 Apr", 0.2136], ["25 Apr", 0.2135], ["26 Apr", 0.2156], ["27 Apr", 0.2117], ["28 Apr", 0.2106], ["29 Apr", 0.2093], ["30 Apr", 0.2099], ["01 May", 0.2117], ["02 May", 0.2132], ["03 May", 0.2127], ["04 May", 0.2137], ["05 May", 0.2238], ["06 May", 0.227], ["07 May", 0.2239], ["08 May", 0.2317], ["09 May", 0.2297], ["10 May", 0.2401], ["11 May", 0.2382], ["12 May", 0.2309], ["13 May", 0.2259], ["14 May", 0.2317], ["15 May", 0.225], ["16 May", 0.2194], ["17 May", 0.2169], ["18 May", 0.2157], ["19 May", 0.2139], ["20 May", 0.2142], ["21 May", 0.2154], ["22 May", 0.2088], ["23 May", 0.2119], ["24 May", 0.208], ["25 May", 0.2092], ["26 May", 0.2061], ["27 May", 0.2041], ["28 May", 0.2012], ["29 May", 0.1994], ["30 May", 0.2019], ["31 May", 0.202], ["01 Jun", 0.1981], ["02 Jun", 0.1829], ["03 Jun", 0.1727], ["04 Jun", 0.1547], ["05 Jun", 0.1359], ["06 Jun", 0.1365], ["07 Jun", 0.1432], ["08 Jun", 0.1478], ["09 Jun", 0.1433], ["10 Jun", 0.1394], ["11 Jun", 0.1471], ["12 Jun", 0.1467], ["13 Jun", 0.1485], ["14 Jun", 0.1575], ["15 Jun", 0.154], ["16 Jun", 0.1483], ["17 Jun", 0.1448], ["18 Jun", 0.1426], ["19 Jun", 0.1412], ["20 Jun", 0.1421], ["21 Jun", 0.1366], ["22 Jun", 0.1386], ["23 Jun", 0.133], ["24 Jun", 0.1299], ["25 Jun", 0.1262], ["26 Jun", 0.1301], ["27 Jun", 0.1274], ["28 Jun", 0.1262], ["29 Jun", 0.1275], ["30 Jun", 0.1263], ["01 Jul", 0.1354], ["02 Jul", 0.1412], ["03 Jul", 0.1573], ["04 Jul", 0.1679], ["05 Jul", 0.1656], ["06 Jul", 0.1608], ["07 Jul", 0.153], ["08 Jul", 0.1461], ["09 Jul", 0.1456], ["10 Jul", 0.1458], ["11 Jul", 0.1454], ["12 Jul", 0.142], ["13 Jul", 0.1381], ["14 Jul", 0.1446], ["15 Jul", 0.1439], ["16 Jul", 0.1404], ["17 Jul", 0.1457], ["18 Jul", 0.1457], ["19 Jul", 0.1452], ["20 Jul", 0.1487], ["21 Jul", 0.152], ["22 Jul", 0.1527], ["23 Jul", 0.148], ["24 Jul", 0.144], ["25 Jul", 0.1447], ["26 Jul", 0.1454], ["27 Jul", 0.1367], ["28 Jul", 0.1419], ["29 Jul", 0.1413], ["30 Jul", 0.1473], ["31 Jul", 0.1456], ["01 Aug", 0.151], ["02 Aug", 0.164], ["03 Aug", 0.1682], ["04 Aug", 0.1672], ["05 Aug", 0.1655], ["06 Aug", 0.1742], ["07 Aug", 0.1739], ["08 Aug", 0.1723], ["09 Aug", 0.1684], ["10 Aug", 0.1655], ["11 Aug", 0.1619], ["12 Aug", 0.1582], ["13 Aug", 0.158], ["14 Aug", 0.1555], ["15 Aug", 0.1522], ["16 Aug", 0.1511], ["17 Aug", 0.1502], ["18 Aug", 0.1505], ["19 Aug", 0.1601], ["20 Aug", 0.1703], ["21 Aug", 0.1963], ["22 Aug", 0.1937], ["23 Aug", 0.1942], ["24 Aug", 0.1895], ["25 Aug", 0.1791], ["26 Aug", 0.1824], ["27 Aug", 0.1835], ["28 Aug", 0.1753], ["29 Aug", 0.174], ["30 Aug", 0.1663], ["31 Aug", 0.1702], ["01 Sep", 0.1695], ["02 Sep", 0.1732], ["03 Sep", 0.1903], ["04 Sep", 0.1819], ["05 Sep", 0.1882], ["06 Sep", 0.1921], ["07 Sep", 0.1897], ["08 Sep", 0.1886], ["09 Sep", 0.1822], ["10 Sep", 0.1763], ["11 Sep", 0.1777], ["12 Sep", 0.1788], ["13 Sep", 0.1756], ["14 Sep", 0.1806], ["15 Sep", 0.1694], ["16 Sep", 0.171], ["17 Sep", 0.1766], ["18 Sep", 0.1954], ["19 Sep", 0.1984], ["20 Sep", 0.1986], ["21 Sep", 0.2136], ["22 Sep", 0.222], ["23 Sep", 0.2094], ["24 Sep", 0.2181], ["25 Sep", 0.2269], ["26 Sep", 0.2233], ["27 Sep", 0.2246], ["28 Sep", 0.2173], ["29 Sep", 0.2154], ["30 Sep", 0.2177], ["01 Oct", 0.2189], ["02 Oct", 0.2171], ["03 Oct", 0.2169], ["04 Oct", 0.2254]]
@@ -226,7 +229,7 @@ function adaChart() {
   g += `<path d="${path(xs)}" fill="none" stroke="var(--good)" stroke-width="2"/>`
   if (IND.ma20) g += `<path d="${path(m20)}" fill="none" stroke="oklch(0.85 0.13 85)" stroke-width="1.4"/>`
   if (IND.ma40) g += `<path d="${path(m40)}" fill="none" stroke="oklch(0.78 0.12 230)" stroke-width="1.4"/>`
-  g += `<line x1="${L}" x2="${W - R}" y1="${y(avg)}" y2="${y(avg)}" stroke="var(--ink-300)" stroke-dasharray="3 4"/><text x="${L + 4}" y="${y(avg) - 6}" fill="var(--ink-300)" style="font-family:var(--mono);font-size:9.5px">you paid €${avg.toFixed(3)} on average</text>`
+  g += `<line x1="${L}" x2="${W - R}" y1="${y(avg)}" y2="${y(avg)}" stroke="var(--ink-300)" stroke-dasharray="3 4"/><text x="${L + 4}" y="${y(avg) - 6}" fill="var(--ink-300)" style="font-family:var(--mono);font-size:9.5px">your average buy price €${avg.toFixed(3)}</text>`
   g += `<circle cx="${x(n - 1)}" cy="${y(xs[n - 1])}" r="4" fill="var(--good)"/></svg>`
   if (IND.rsi) {
     const h = 90, yy = (v) => 6 + (1 - v / 100) * (h - 12)
@@ -240,29 +243,29 @@ function adaChart() {
 
 function coin() {
   const c = COINS[4]
-  return `<section class="panel"><div class="caps" style="margin-bottom:14px"><span class="title">[ PORTFOLIO · REVOLUT CRYPTO ]</span> &nbsp;‹ back</div>
+  return `<section class="panel"><div class="caps" style="margin-bottom:14px"><span class="title">[ PORTFOLIO · REVOLUT ]</span> &nbsp;‹ back</div>
     <div style="display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center">
       ${coinImg('ADA', 56)}
       <div><div style="font-size:22px">Cardano</div><div class="caps" style="margin-top:4px">ADA-EUR · crypto · trades all day</div></div>
       <div style="text-align:right"><div class="big" style="font-size:34px">€0.22</div><div class="caps down" style="margin-top:4px">−1.8% on the day</div></div></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><span class="tag">Yahoo Finance · price 3 Oct · 00:00 UTC</span><span class="tag">logo: coin · Cardano</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><span class="tag">price 3 Oct · Yahoo Finance</span></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px">
       <div class="glass"><span class="caps">value</span><div class="big" style="font-size:22px;margin-top:4px">€86.99</div><div class="caps">398.26 ADA</div></div>
-      <div class="glass"><span class="caps">you paid</span><div class="big" style="font-size:22px;margin-top:4px">€85.30</div><div class="caps">for 393.35 ADA</div></div>
+      <div class="glass"><span class="caps">bought for</span><div class="big" style="font-size:22px;margin-top:4px">€85.30</div><div class="caps">393.35 ADA</div></div>
       <div class="glass"><span class="caps">gain</span><div class="big up" style="font-size:22px;margin-top:4px">+€1.69</div><div class="caps up">+2.0%</div></div>
-      <div class="glass" style="border-color:color-mix(in oklch,var(--good) 30%,transparent)"><span class="caps">earned by staking</span><div class="big up" style="font-size:22px;margin-top:4px">4.91 ADA</div><div class="caps">€1.07 now · cost €0</div></div></div>
+      <div class="glass" style="border-color:color-mix(in oklch,var(--good) 30%,transparent)"><span class="caps">free from staking</span><div class="big up" style="font-size:22px;margin-top:4px">4.91 ADA</div><div class="caps">worth €1.07 now</div></div></div>
     <div class="grid2" style="margin-top:18px"><div>
-      <div class="ind">${[['ma20', 'MA 20'], ['ma40', 'MA 40'], ['rsi', 'RSI 14']].map(([k, l]) => `<button class="pill ${k} ${IND[k] ? 'on' : ''}" onclick="IND.${k}=!IND.${k};render()">${l}</button>`).join('')}<span class="caps" style="margin-left:auto;align-self:center">6 months · daily closes · Yahoo Finance</span></div>
+      <div class="ind">${[['ma20', 'MA 20'], ['ma40', 'MA 40'], ['rsi', 'RSI 14']].map(([k, l]) => `<button class="pill ${k} ${IND[k] ? 'on' : ''}" onclick="IND.${k}=!IND.${k};render()">${l}</button>`).join('')}<span class="caps" style="margin-left:auto;align-self:center">last 6 months · daily prices</span></div>
       ${(ch = adaChart()).svg}
       <div class="explain">
         <div class="box"><b>MA 20 · MA 40</b><p>The average close of the last 20 and 40 days, drawn day by day. They smooth the noise: the 20 follows the price quickly, the 40 slowly. Now €${ch.now.m20.toFixed(3)} and €${ch.now.m40.toFixed(3)}; the price is ${ch.now.px > ch.now.m20 ? 'above' : 'below'} both${ch.now.px > ch.now.m40 && ch.now.px < ch.now.m20 ? ' (between them)' : ''}.</p></div>
         <div class="box"><b>RSI 14</b><p>How strong the last 14 days' rises were against the falls, 0 to 100. Near 70 the rises have been much bigger lately; near 30 the falls. It says how the price moved, not where it goes. Now ${ch.now.rsi.toFixed(0)}.</p></div>
-        <div class="box"><b>Where these come from</b><p>Worked out from the daily closes the app stores — the same ones the value uses. Nothing here is advice: no buy, no sell.</p></div>
+        <div class="box"><b>Not advice</b><p>These are worked out from the same daily prices as the value above. They describe how the price moved. They don't tell you to buy or sell.</p></div>
       </div></div>
       <div style="display:flex;flex-direction:column;gap:12px">
-        <div class="box"><span class="caps">staking</span><div class="kv"><span>rewards</span><span>45 since 24 Feb</span></div><div class="kv"><span>about</span><span>0.11 ADA every 5 days</span></div><div class="kv"><span>last</span><span>2 Oct · 0.109748</span></div>
-          <p style="font-size:12px;color:var(--ink-400);line-height:1.55;margin-top:4px">Coins paid to you for holding. They cost nothing, so they count in what it is worth, not in what you paid — and never as money in.</p></div>
-        <div class="box"><span class="caps">your trades · statement rows</span>
+        <div class="box"><span class="caps">staking</span><div class="kv"><span>times paid</span><span>45, since 24 Feb</span></div><div class="kv"><span>each time</span><span>about 0.11 ADA, every 5 days</span></div><div class="kv"><span>last</span><span>2 Oct · 0.11 ADA</span></div>
+          <p style="font-size:12px;color:var(--ink-400);line-height:1.55;margin-top:4px">Revolut gives you a little ADA for holding it. You didn't buy these, so they add to what it's worth but not to what you bought it for. Not counted as income.</p></div>
+        <div class="box"><span class="caps">your buys and sells</span>
           <div class="tr"><span class="up">BUY</span><span>400.39 ADA · $100</span><span class="dim">Feb 2026</span></div>
           <div class="tr"><span class="down">SELL</span><span>79.11 ADA · $24.92</span><span class="dim">Nov 2022</span></div>
           <div class="tr"><span class="up">BUY</span><span>80.30 ADA · $25</span><span class="dim">Nov 2022</span></div>
@@ -271,22 +274,22 @@ function coin() {
 
 function sold() {
   return `<section class="panel"><div class="caps" style="margin-bottom:14px"><span class="title">[ PORTFOLIO · SOLD ]</span> &nbsp;‹ back</div>
-    <div class="row" style="cursor:default">${coinImg('XLM')}<span class="nm"><b>Stellar</b><p>XLM · Revolut Crypto · none left since Nov 2022</p></span>
-    <span class="rt">returned −€1.24<small class="down">bought €170 · sold €175.17 · fees €6.41</small></span></div>
-    <p class="note" style="text-align:left;margin:12px 0 0">Four buys and four sells, 2020–2022. Kept here so the history adds up; not in what you hold.</p></section>`
+    <div class="row" style="cursor:default">${coinImg('XLM')}<span class="nm"><b>Stellar</b><p>XLM · you sold all of it in Nov 2022</p></span>
+    <span class="rt">lost €1.24<small class="down">bought for €170 · sold for €175.17 · fees €6.41</small></span></div>
+    <p class="note" style="text-align:left;margin:12px 0 0">Four buys and four sells, 2020–2022. You don't hold it any more; it stays here so you can see how it went.</p></section>`
 }
 
 function drop() {
-  const checks = [['5 coins', 'SOL ETH BTC XRP ADA — closing amounts', 'l'], ['81 trades', 'Sep 2020 → Feb 2026 · in € and $ · each $ trade at the ECB rate of its day', 'l'], ['45 staking rewards', 'ADA · cost €0 · never money in', 'g'], ['1 coin sold out', 'XLM · kept under sold', 'l'], ['adds up', 'opening €0 → trades and staking → closing €569.07', 'g']]
-  return `<section class="panel drop" style="max-width:680px;margin:0 auto;width:100%"><span class="title">[ READING · REVOLUT CRYPTO STATEMENT ]</span>
+  const checks = [['5 coins you hold', 'SOL, ETH, BTC, XRP, ADA', 'l'], ['81 buys and sells', 'Sep 2020 → Feb 2026, in € and $ — dollar ones turned into € at that day\'s rate', 'l'], ['45 staking payments', '4.91 ADA you got for free', 'g'], ['1 coin you sold completely', 'Stellar (XLM)', 'l'], ['The numbers match', 'started at €0, every buy, sell and staking payment, ended at €569.07 — same as Revolut says', 'g']]
+  return `<section class="panel drop" style="max-width:680px;margin:0 auto;width:100%"><span class="title">[ ADDING · REVOLUT CRYPTO STATEMENT ]</span>
     <div class="file" style="margin-top:14px">${img(SITE('revolut.com'), 48, 14)}
       <div style="flex:1;min-width:0"><div style="font-size:15px">Revolut Digital Assets Europe</div><div class="caps" style="margin-top:4px;text-transform:none;letter-spacing:.02em">crypto-account-statement · 7 Sep 2020 → 3 Oct 2026 · 4 pages</div>
       <div class="coins">${['SOL', 'ETH', 'BTC', 'XRP', 'ADA'].map((c, i) => `<img src="${COIN_ICON(c)}" alt="" style="width:26px;height:26px;border-radius:50%;animation-delay:${0.6 + i * 0.12}s">`).join('')}</div></div>
-      <span class="badge g" style="animation-delay:2.4s">✓ adds up</span></div>
-    <div class="reading"><i></i></div><span class="caps">read by Claude Haiku 4.5 · checked by the app</span>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px">${[['€569.07 now', 'l'], ['5 coins', 'l'], ['81 trades', 'l'], ['+4.91 ADA staking', 'g']].map(([t, k], i) => `<span class="badge ${k === 'g' ? 'g' : ''}" style="animation-delay:${1.3 + i * 0.15}s">${t}</span>`).join('')}</div>
+      <span class="badge g" style="animation-delay:2.4s">✓ matches Revolut</span></div>
+    <div class="reading"><i></i></div><span class="caps">reading the PDF…</span>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px">${[['worth €569.07', 'l'], ['5 coins', 'l'], ['81 trades', 'l'], ['+4.91 ADA free', 'g']].map(([t, k], i) => `<span class="badge ${k === 'g' ? 'g' : ''}" style="animation-delay:${1.3 + i * 0.15}s">${t}</span>`).join('')}</div>
     ${checks.map(([a, b, k], i) => `<div class="check" style="animation-delay:${1.0 + i * 0.25}s"><span class="ok ${k === 'g' ? 'up' : ''}" style="animation-delay:${1.15 + i * 0.25}s">✓</span><span><b style="font-weight:400">${a}</b><div class="caps" style="margin-top:3px;text-transform:none;letter-spacing:.02em">${b}</div></span><span></span></div>`).join('')}
-    <div style="display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap"><button class="btn">put it in · new account Revolut Crypto</button><span class="caps">nothing is written before this</span></div>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap"><button class="btn">add to Revolut</button><span class="caps">nothing is saved until you press it</span></div>
     <button class="pill" style="margin-top:12px" onclick="render()">replay</button></section>`
 }
 

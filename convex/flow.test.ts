@@ -495,3 +495,43 @@ describe('recurring.rename and aggregate.payMonthDetail', () => {
     expect(theirs).toEqual({ bills: [], todo: [], groups: [], moneyIn: [] })
   })
 })
+
+describe('logs.refile', () => {
+  test('moves a payee to another group: every row of it, and the ones to come', async () => {
+    const { t, me, them } = setup()
+    const { bank } = await world(t)
+    const [a, b] = await t.run(async (ctx) => {
+      const mk = (d: number) =>
+        ctx.db.insert('logs', {
+          ownerId: ME,
+          area: 'money',
+          kind: 'expense',
+          occurredAt: at(8, d),
+          value: 57,
+          unit: 'eur',
+          text: 'COMPRA 2789 EST SERVICO VEIGA',
+          accountId: bank,
+          meta: {
+            merchant: 'COMPRA 2789 EST SERVICO VEIGA',
+            category: 'shopping',
+          },
+        })
+      return [await mk(9), await mk(19)]
+    })
+    await expect(
+      them.mutation(api.logs.refile, { logId: a, category: 'car' }),
+    ).rejects.toThrow()
+    expect(
+      await me.mutation(api.logs.refile, { logId: a, category: 'car' }),
+    ).toBe(2)
+    const rows = await t.run(async (ctx) => [
+      await ctx.db.get(a),
+      await ctx.db.get(b),
+    ])
+    expect(rows.map((r) => r?.meta?.category)).toEqual(['car', 'car'])
+    const rule = await t.run((ctx) => ctx.db.query('merchantRules').collect())
+    expect(rule.map((r) => [r.key, r.category])).toEqual([
+      ['compra est servico veiga', 'car'],
+    ])
+  })
+})

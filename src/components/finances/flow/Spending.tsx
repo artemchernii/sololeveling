@@ -12,7 +12,7 @@ import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Veiled } from '@/components/finances/Veil'
 import { failureMessage } from '@/lib/convex-errors'
-import { categoryLabel } from '@/lib/money'
+import { SPEND_CATEGORIES, categoryLabel } from '@/lib/money'
 import { dayMonth, eur, monthName } from './time'
 
 type Row = FunctionReturnType<
@@ -62,6 +62,7 @@ export function Spending({
       : 'skip',
   )
   const [openGroup, setOpenGroup] = useState<Record<string, boolean>>({})
+  const [moved, setMoved] = useState<string | null>(null)
   const [naming, setNaming] = useState<{
     id: Id<'recurring'>
     name: string
@@ -158,6 +159,16 @@ export function Spending({
             ) : null}
           </Section>
 
+          {moved ? (
+            <p className="motion-arrive -mb-2 flex items-center gap-2 text-[13px] text-ink-300">
+              <span className="rounded-full bg-state-good/12 px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] text-state-good uppercase">
+                done
+              </span>
+
+              {moved}
+            </p>
+          ) : null}
+
           <Section
             title="day-to-day · biggest first · tap a group"
             sum={`−${eur(daySum)}`}
@@ -209,6 +220,16 @@ export function Spending({
                           name={r.name}
                           sub={`${dayMonth(r.t)} · ${account(r.accountId)?.name ?? '—'}`}
                           account={account(r.accountId)}
+                          group={
+                            <GroupPick
+                              row={r}
+                              onMoved={(n, to) =>
+                                setMoved(
+                                  `${r.name}: ${n} row${n === 1 ? '' : 's'} moved to ${categoryLabel('expense', to)} — and the next ones too.`,
+                                )
+                              }
+                            />
+                          }
                         />
                       ))}
                     </div>
@@ -297,6 +318,7 @@ function RowLine({
   account,
   income,
   onClick,
+  group,
 }: {
   row: Row
   name: string
@@ -304,6 +326,8 @@ function RowLine({
   account?: Doc<'accounts'>
   income?: boolean
   onClick?: () => void
+  /** The group chip, for a day-to-day row. */
+  group?: React.ReactNode
 }) {
   const body = (
     <>
@@ -313,6 +337,7 @@ function RowLine({
         <span className="block font-mono text-[10.5px] text-ink-500">
           {sub}
         </span>
+        {group}
         {row.raw && row.raw !== name ? (
           <span className="block truncate font-mono text-[10px] text-ink-600">
             {row.raw}
@@ -394,5 +419,64 @@ function Rename({
         <span className="text-[12.5px] text-state-danger">{error}</span>
       ) : null}
     </div>
+  )
+}
+
+/* The group a payee is filed in, changed where it is seen (4 Oct: "I see
+   unsorted… shopping last month includes fuel"). The app's own list, not
+   a browser picker; the choice moves every row of the payee and is
+   remembered for the next statements. */
+function GroupPick({
+  row,
+  onMoved,
+}: {
+  row: Row
+  onMoved: (n: number, to: string) => void
+}) {
+  const refile = useMutation(api.logs.refile)
+  const [open, setOpen] = useState(false)
+  const now = row.category ?? null
+  return (
+    <span className="mt-1 block">
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen(!open)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') setOpen(!open)
+        }}
+        className={`cursor-pointer rounded-[5px] px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.12em] uppercase ring-1 ring-inset ${
+          now
+            ? 'bg-lav-400/10 text-lav-300 ring-lav-400/25'
+            : 'bg-state-warn/12 text-state-warn ring-state-warn/30'
+        }`}
+      >
+        {now ? categoryLabel('expense', now) : 'unsorted'} · change
+      </span>
+      {open ? (
+        <span className="motion-arrive mt-1.5 flex flex-wrap gap-1">
+          {SPEND_CATEGORIES.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => {
+                setOpen(false)
+                if (c.id === now) return
+                void refile({ logId: row.id, category: c.id }).then((n) => {
+                  onMoved(n, c.id)
+                })
+              }}
+              className={`rounded-full px-2.5 py-1 text-[12px] ring-1 ring-inset transition-colors ${
+                c.id === now
+                  ? 'bg-lav-400/14 text-foreground ring-lav-400/45'
+                  : 'text-ink-300 ring-lift/12 hover:text-foreground hover:ring-lift/25'
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </span>
+      ) : null}
+    </span>
   )
 }

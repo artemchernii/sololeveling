@@ -3,6 +3,7 @@ import { ConvexError, v } from 'convex/values'
 import { isEuroAmount } from '../src/lib/money'
 import { paysBill } from '../src/lib/ahead'
 import { payeeKey, rowKey } from '../src/lib/payee'
+import { merchantKey } from '../src/lib/intake'
 import { moveSheets, unlinkSheets } from './vault'
 import { requireUser } from './auth'
 import { requireLiveArea } from './areas'
@@ -484,6 +485,70 @@ export const setCategory = mutation({
       meta: Object.keys(meta).length === 0 ? undefined : meta,
     })
     return null
+  },
+})
+
+/**
+ * Move a payee to another group (4 Oct: "I see unsorted… shopping last
+ * month includes fuel"). This row, every other row from the same payee,
+ * and every one still to come: the merchant rule the reader files by is
+ * written too. Only money out. Returns how many rows moved, this one
+ * included.
+ */
+export const refile = mutation({
+  args: { logId: v.id('logs'), category: v.string() },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const log = await ctx.db.get(args.logId)
+    if (log === null || log.ownerId !== ownerId) throw new Error('No such log')
+    if (log.kind !== 'expense') {
+      throw new ConvexError('Only money out is filed in a group.')
+    }
+    const category = args.category.trim().toLowerCase()
+    if (category.length === 0 || category.length > 24) {
+      throw new ConvexError('That is not a group.')
+    }
+    const key = merchantKey(log.meta?.merchant ?? log.text ?? '')
+    const rows = key
+      ? (
+          await ctx.db
+            .query('logs')
+            .withIndex('by_owner_area_time', (q) =>
+              q.eq('ownerId', ownerId).eq('area', 'money'),
+            )
+            .take(MONEY_ROWS * 5)
+        ).filter(
+          (l) =>
+            l.kind === 'expense' &&
+            merchantKey(l.meta?.merchant ?? l.text ?? '') === key,
+        )
+      : [log]
+    let moved = 0
+    for (const l of rows) {
+      if (l.meta?.category === category) continue
+      await ctx.db.patch(l._id, { meta: { ...l.meta, category } })
+      moved++
+    }
+    if (key) {
+      const rule = await ctx.db
+        .query('merchantRules')
+        .withIndex('by_owner_key', (q) =>
+          q.eq('ownerId', ownerId).eq('key', key),
+        )
+        .first()
+      if (rule === null) {
+        await ctx.db.insert('merchantRules', {
+          ownerId,
+          key,
+          category,
+          updatedAt: Date.now(),
+        })
+      } else {
+        await ctx.db.patch(rule._id, { category, updatedAt: Date.now() })
+      }
+    }
+    return moved
   },
 })
 

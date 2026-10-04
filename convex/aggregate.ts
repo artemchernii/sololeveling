@@ -2727,6 +2727,7 @@ const detailRow = v.object({
   name: v.string(),
   amount: v.number(),
   raw: v.optional(v.string()),
+  category: v.optional(v.string()),
   accountId: v.optional(v.id('accounts')),
 })
 
@@ -2807,6 +2808,7 @@ export const payMonthDetail = query({
       name: r.name,
       amount: r.amount,
       raw: r.raw,
+      category: r.category,
       accountId: r.accountId as Id<'accounts'> | undefined,
     })
     return {

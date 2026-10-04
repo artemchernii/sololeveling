@@ -14,7 +14,7 @@ import { failureMessage } from '@/lib/convex-errors'
 import { categoryLabel } from '@/lib/money'
 import type { Notice } from './Ahead'
 import { whenSaid } from './AddBill'
-import { PayeeMark, PayeeName, usePayees } from './Payees'
+import { PayeeMark, PayeeName, usePayees, Why } from './Payees'
 import { dayMonth, eur, weekday } from './time'
 
 type Item = FunctionReturnType<typeof api.logs.movements>['items'][number]
@@ -437,6 +437,7 @@ function RowSheet({
         )}
       />
       {row.meta?.raw ? <Line k="the bank wrote" v={row.meta.raw} /> : null}
+      <Why logId={row._id} />
       {isBill ? (
         <p className="text-[13.5px] text-ink-300">
           <span className="rounded-full bg-state-good/12 px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] text-state-good uppercase">

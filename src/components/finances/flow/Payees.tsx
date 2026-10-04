@@ -171,6 +171,19 @@ export function PayeeName({ who, onName }: { who: Who; onName?: () => void }) {
   )
 }
 
+/** Why a row is where it is, in one plain line (4 Oct: "its like a
+    blackbox for me"). */
+export function Why({ logId }: { logId: Id<'logs'> }) {
+  const line = useQuery(api.why.row, { logId })
+  if (!line) return null
+  return (
+    <p className="rounded-[10px] bg-lift/[0.03] px-3 py-2 text-[13px] leading-relaxed text-ink-300 ring-1 ring-lift/7 ring-inset">
+      <span className="label-caps mr-2">why here</span>
+      {line}
+    </p>
+  )
+}
+
 /**
  * "Who is this?" — his name for a payee, the logo found from it, its
  * group, and what it is part of. Saves for every row of the payee.
@@ -228,6 +241,7 @@ export function WhoIsThis({
 
   return (
     <div className="flex flex-col gap-3">
+      <Why logId={row.id} />
       <span className="font-mono text-[11px] text-ink-500">
         the bank wrote: {row.raw ?? row.name}
       </span>

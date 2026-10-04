@@ -603,6 +603,40 @@ describe('lent', () => {
   })
 })
 
+describe('why.row and subscriptions as bills', () => {
+  test('a row says why it is where it is — only his', async () => {
+    const { t, me, them } = setup()
+    const { ids } = await world(t)
+    await me.mutation(api.recurring.find, {})
+    expect(await me.query(api.why.row, { logId: ids.edpSep })).toBe(
+      /* The name the row shows, not the bill's bank-ish one. */
+      'Bill — pays Electricity · EDP (found in your statements): same payee, about the same amount.',
+    )
+    expect(await me.query(api.why.row, { logId: ids.cafe })).toContain(
+      'Eating out',
+    )
+    expect(await them.query(api.why.row, { logId: ids.edpSep })).toBeNull()
+  })
+
+  test('filed as Subscriptions, a payment becomes a bill', async () => {
+    const { t, me } = setup()
+    const { ids } = await world(t)
+    await me.mutation(api.logs.refile, {
+      logId: ids.insurance,
+      category: 'subscriptions',
+    })
+    const bills = await t.run((ctx) => ctx.db.query('recurring').collect())
+    expect(bills).toEqual([
+      expect.objectContaining({
+        matchKey: 'SEGURO HOME',
+        amount: 220,
+        cadence: 'monthly',
+        category: 'subscriptions',
+      }),
+    ])
+  })
+})
+
 describe('recurring.setCovers', () => {
   test('one payment for five months: every five months, a fifth a month — only his', async () => {
     const { t, me, them } = setup()

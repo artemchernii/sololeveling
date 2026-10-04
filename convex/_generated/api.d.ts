@@ -40,6 +40,7 @@ import type * as seed from "../seed.js";
 import type * as state from "../state.js";
 import type * as tasks from "../tasks.js";
 import type * as vault from "../vault.js";
+import type * as why from "../why.js";
 
 import type {
   ApiFromModules,
@@ -80,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   state: typeof state;
   tasks: typeof tasks;
   vault: typeof vault;
+  why: typeof why;
 }>;
 
 /**

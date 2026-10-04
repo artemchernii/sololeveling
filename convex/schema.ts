@@ -1081,6 +1081,22 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index('by_owner_header', ['ownerId', 'headerKey']),
 
+  /* Who a payee is, in his words (4 Oct: "we have paypal and its not
+     clear what it is. I want to name it"). Keyed by src/lib/payees
+     payeeIdOf — a PayPal row by its mandate code, so naming one PayPal
+     shop never names all of PayPal. The bank's own words stay on the rows;
+     this is the name shown above them. */
+  payees: defineTable({
+    ownerId: v.string(),
+    key: v.string(),
+    name: v.string(),
+    /** The site its logo is taken from ("preply.com"). */
+    domain: v.optional(v.string()),
+    /** One thing made of several payees: "Mortgage" = interest + capital. */
+    partOf: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index('by_owner_key', ['ownerId', 'key']),
+
   /* What a merchant is, as he taught it (Treasury, 27 Sep): change "Bnp
      Toc" to eating out once and every row of it — this statement and the
      next — files itself. Keyed by the merchant's cleaned name. */

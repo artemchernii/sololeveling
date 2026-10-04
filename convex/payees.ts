@@ -1,0 +1,192 @@
+import { ConvexError, v } from 'convex/values'
+
+import { requireUser } from './auth'
+import { mutation, query } from './_generated/server'
+import type { MutationCtx, QueryCtx } from './_generated/server'
+import type { Doc } from './_generated/dataModel'
+import schema from './schema'
+import { isEuroAmount } from '../src/lib/money'
+import { merchantKey } from '../src/lib/intake'
+import { payeeKey } from '../src/lib/payee'
+import { bankPhrase, payeeIdOf } from '../src/lib/payees'
+
+/* Payees (4 Oct; design/treasury-mockup/payees.html): who a row is paid
+   to, in his words. Naming one names every row of it, past and next. */
+
+const MAX_NAME = 40
+const ROWS = 5000
+const DAY = 86_400_000
+
+const lineOf = (l: Doc<'logs'>) =>
+  l.meta?.raw ?? l.meta?.merchant ?? l.text ?? ''
+
+async function moneyRows(ctx: QueryCtx | MutationCtx, ownerId: string) {
+  return await ctx.db
+    .query('logs')
+    .withIndex('by_owner_area_time', (q) =>
+      q.eq('ownerId', ownerId).eq('area', 'money'),
+    )
+    .order('desc')
+    .take(ROWS)
+}
+
+/** Every payee he has named. */
+export const list = query({
+  args: {},
+  returns: v.array(schema.doc('payees')),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    return await ctx.db
+      .query('payees')
+      .withIndex('by_owner_key', (q) => q.eq('ownerId', ownerId))
+      .take(1000)
+  },
+})
+
+/**
+ * "Who is this?" — name the payee of a row. Every row of that payee shows
+ * the name; the group, when given, moves them all (and, unless it is a
+ * PayPal mandate, the reader's rule, so the next statement comes in
+ * filed); a bill paid to it takes the name too. Returns the rows it
+ * covers.
+ */
+export const set = mutation({
+  args: {
+    logId: v.id('logs'),
+    name: v.string(),
+    domain: v.union(v.string(), v.null()),
+    category: v.union(v.string(), v.null()),
+    partOf: v.union(v.string(), v.null()),
+  },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const log = await ctx.db.get(args.logId)
+    if (log === null || log.ownerId !== ownerId) throw new Error('No such row')
+    const name = args.name.trim()
+    if (name.length === 0) throw new ConvexError('Say who it is.')
+    if (name.length > MAX_NAME) throw new ConvexError('That name is too long.')
+    const domain = args.domain?.trim().toLowerCase() || undefined
+    if (domain && !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) {
+      throw new ConvexError('That is not a site.')
+    }
+    const partOf = args.partOf?.trim() || undefined
+    const key = payeeIdOf(lineOf(log))
+    if (key === '') throw new ConvexError('This row has no payee to name.')
+
+    const had = await ctx.db
+      .query('payees')
+      .withIndex('by_owner_key', (q) => q.eq('ownerId', ownerId).eq('key', key))
+      .first()
+    const fields = { name, domain, partOf, updatedAt: Date.now() }
+    if (had) await ctx.db.patch(had._id, fields)
+    else await ctx.db.insert('payees', { ownerId, key, ...fields })
+
+    const rows = (await moneyRows(ctx, ownerId)).filter(
+      (l) => payeeIdOf(lineOf(l)) === key,
+    )
+    const category = args.category?.trim().toLowerCase() || undefined
+    if (category) {
+      for (const l of rows) {
+        if (l.kind !== 'expense' || l.meta?.category === category) continue
+        await ctx.db.patch(l._id, { meta: { ...l.meta, category } })
+      }
+      if (!key.startsWith('PAYPAL ')) {
+        const mk = merchantKey(log.meta?.merchant ?? log.text ?? '')
+        if (mk) {
+          const rule = await ctx.db
+            .query('merchantRules')
+            .withIndex('by_owner_key', (q) =>
+              q.eq('ownerId', ownerId).eq('key', mk),
+            )
+            .first()
+          if (rule === null) {
+            await ctx.db.insert('merchantRules', {
+              ownerId,
+              key: mk,
+              category,
+              updatedAt: Date.now(),
+            })
+          } else {
+            await ctx.db.patch(rule._id, { category, updatedAt: Date.now() })
+          }
+        }
+      }
+    }
+
+    /* A bill paid to this payee takes his name: it is the same thing. */
+    if (!key.startsWith('PAYPAL ')) {
+      const base = payeeKey(lineOf(log))
+      const bills = await ctx.db
+        .query('recurring')
+        .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
+        .take(100)
+      for (const b of bills) {
+        if (b.matchKey === base && b.name !== name) {
+          await ctx.db.patch(b._id, { name, foundAt: undefined })
+        }
+      }
+    }
+    return rows.length
+  },
+})
+
+/**
+ * What the app can say plainly (the mockup's "suggested names"): payees in
+ * the last four months whose bank line is a phrase it knows, not named
+ * yet. Proposed only — he says yes.
+ */
+export const suggestions = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      logId: v.id('logs'),
+      key: v.string(),
+      raw: v.string(),
+      name: v.string(),
+      category: v.string(),
+      partOf: v.union(v.string(), v.null()),
+    }),
+  ),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    const named = new Set(
+      (
+        await ctx.db
+          .query('payees')
+          .withIndex('by_owner_key', (q) => q.eq('ownerId', ownerId))
+          .take(1000)
+      ).map((p) => p.key),
+    )
+    const since = Date.now() - 120 * DAY
+    const out = new Map<
+      string,
+      {
+        logId: Doc<'logs'>['_id']
+        key: string
+        raw: string
+        name: string
+        category: string
+        partOf: string | null
+      }
+    >()
+    for (const l of await moneyRows(ctx, ownerId)) {
+      if (l.occurredAt < since) break
+      if (l.kind !== 'expense' || !isEuroAmount(l)) continue
+      const line = lineOf(l)
+      const key = payeeIdOf(line)
+      if (key === '' || named.has(key) || out.has(key)) continue
+      const p = bankPhrase(line)
+      if (!p) continue
+      out.set(key, {
+        logId: l._id,
+        key,
+        raw: line,
+        name: p.name,
+        category: p.category,
+        partOf: p.partOf ?? null,
+      })
+    }
+    return [...out.values()]
+  },
+})

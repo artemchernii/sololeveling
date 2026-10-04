@@ -117,6 +117,12 @@ export const SPEND_CATEGORIES: ReadonlyArray<MoneyCategory> = [
     label: 'Subscriptions',
     words: ['netflix', 'spotify', 'claude', 'icloud', 'youtube'],
   },
+  /* 4 Oct: Preply lessons are real money, and Languages money. */
+  {
+    id: 'learning',
+    label: 'Learning',
+    words: ['course', 'lesson', 'lessons', 'tutor', 'preply', 'book', 'books'],
+  },
   { id: 'other', label: 'Other', words: [] },
 ]
 

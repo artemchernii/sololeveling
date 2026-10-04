@@ -535,3 +535,121 @@ describe('logs.refile', () => {
     ])
   })
 })
+
+describe('payees', () => {
+  async function paypal(
+    t: ReturnType<typeof setup>['t'],
+    bank: Id<'accounts'>,
+  ) {
+    return await t.run(async (ctx) => {
+      const mk = (d: number, raw: string, value: number) =>
+        ctx.db.insert('logs', {
+          ownerId: ME,
+          area: 'money',
+          kind: 'expense',
+          occurredAt: at(8, d),
+          value,
+          unit: 'eur',
+          text: 'PayPal Europe',
+          accountId: bank,
+          meta: { raw, merchant: 'PayPal Europe', category: 'subscriptions' },
+        })
+      return {
+        a: await mk(1, 'DD PAYPAL EUROPE 5D4J2254EVNWL LU96', 121),
+        b: await mk(29, 'DD PayPal Europe 5D4J2254EVNWL LU96', 124),
+        other: await mk(12, 'DD PAYPAL EUROPE 7XK2P99LMQRSZ LU96', 40),
+      }
+    })
+  }
+
+  test('naming one PayPal mandate names its rows, not all of PayPal', async () => {
+    const { t, me, them } = setup()
+    const { bank } = await world(t)
+    const ids = await paypal(t, bank)
+    await expect(
+      them.mutation(api.payees.set, {
+        logId: ids.a,
+        name: 'x',
+        domain: null,
+        category: null,
+        partOf: null,
+      }),
+    ).rejects.toThrow()
+    const n = await me.mutation(api.payees.set, {
+      logId: ids.a,
+      name: 'Preply',
+      domain: 'preply.com',
+      category: 'learning',
+      partOf: null,
+    })
+    expect(n).toBe(2)
+    const rows = await t.run(async (ctx) =>
+      Promise.all([ids.a, ids.b, ids.other].map((id) => ctx.db.get(id))),
+    )
+    expect(rows.map((r) => r?.meta?.category)).toEqual([
+      'learning',
+      'learning',
+      'subscriptions',
+    ])
+    expect(await me.query(api.payees.list, {})).toEqual([
+      expect.objectContaining({
+        key: 'PAYPAL 5D4J2254EVNWL',
+        name: 'Preply',
+        domain: 'preply.com',
+      }),
+    ])
+    /* A PayPal mandate teaches no merchant rule: it would file all PayPal. */
+    expect(
+      await t.run((ctx) => ctx.db.query('merchantRules').collect()),
+    ).toEqual([])
+  })
+
+  test('a bill paid to a payee takes his name; suggestions go once said', async () => {
+    const { t, me } = setup()
+    const { bank } = await world(t)
+    const loan = await t.run(async (ctx) => {
+      let last = null
+      for (const m of [7, 8]) {
+        last = await ctx.db.insert('logs', {
+          ownerId: ME,
+          area: 'money',
+          kind: 'expense',
+          occurredAt: at(m, 1),
+          value: 700,
+          unit: 'eur',
+          text: 'Habitação e Rendas',
+          accountId: bank,
+          meta: {
+            raw: 'JUROS DE EMPRESTIMO - 0065',
+            merchant: 'Habitação e Rendas',
+            category: 'home',
+          },
+        })
+      }
+      return last!
+    })
+    await me.mutation(api.recurring.find, {})
+    const sug = await me.query(api.payees.suggestions, {})
+    expect(sug.map((s) => [s.key, s.name, s.partOf])).toContainEqual([
+      'JUROS EMPRESTIMO',
+      'Mortgage · interest',
+      'Mortgage',
+    ])
+    await me.mutation(api.payees.set, {
+      logId: loan,
+      name: 'Mortgage · interest',
+      domain: null,
+      category: 'home',
+      partOf: 'Mortgage',
+    })
+    const bill = await t.run(async (ctx) =>
+      (await ctx.db.query('recurring').collect()).find(
+        (b) => b.matchKey === 'JUROS EMPRESTIMO',
+      ),
+    )
+    expect(bill?.name).toBe('Mortgage · interest')
+    expect(
+      (await me.query(api.payees.suggestions, {})).map((s) => s.key),
+    ).not.toContain('JUROS EMPRESTIMO')
+  })
+})

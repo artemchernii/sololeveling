@@ -7,7 +7,7 @@ import {
   isEuroAmount,
 } from '../src/lib/money'
 import { pairLent } from './lent'
-import { billFromRow } from './recurring'
+import { billFromRow, refileBills } from './recurring'
 import { paysBill } from '../src/lib/ahead'
 import { payeeKey, rowKey } from '../src/lib/payee'
 import { merchantKey } from '../src/lib/intake'
@@ -563,6 +563,7 @@ export const refile = mutation({
         await ctx.db.patch(rule._id, { category, updatedAt: Date.now() })
       }
     }
+    await refileBills(ctx, ownerId, new Set(rows.map(rowKey)), category)
     /* Subscriptions are bills (4 Oct: "we should simply call bills and
        subscription as one"): filed there, it comes back every month. */
     if (category === SUBSCRIPTIONS) {

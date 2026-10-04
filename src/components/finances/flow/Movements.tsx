@@ -423,7 +423,7 @@ function MoveRow({
   return (
     /* Lavender (4 Oct: "transfers make violet"): his own money moving,
        apart from red out and green in at a glance. */
-    <div className="grid grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border-b border-lift/3 bg-lav-400/6 px-1 py-2 text-[13.5px] text-lav-200 shadow-[inset_2px_0_0_var(--color-lav-400)]">
+    <div className="my-0.5 grid grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-3 rounded-[10px] bg-lav-400/7 px-1.5 py-2 text-[13.5px] text-lav-200 ring-1 ring-lav-400/15 ring-inset">
       <span className="flex items-center">
         {from ? (
           <AccountLogo name={from.name} domain={from.domain} size={18} />
@@ -444,7 +444,7 @@ function MoveRow({
               : `${from?.name ?? 'another account'} → ${to?.name ?? 'another account'}`}
         </span>
         <span className="block font-mono text-[10px] text-lav-300/70">
-          your move · {i.text.toLowerCase()} · not in or out
+          transfer · {i.text.toLowerCase()} · not in or out
         </span>
       </span>
       <span className="font-mono text-lav-300">⇄ {eur(i.amount, true)}</span>

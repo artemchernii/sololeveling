@@ -80,15 +80,13 @@ export const SPEND_CATEGORIES: ReadonlyArray<MoneyCategory> = [
     /* "Home", not "Home & bills" (4 Oct): Bills is the word for anything
        that comes back, a section of its own; this is one group inside. */
     label: 'Home',
-    words: [
-      'bills',
-      'bill',
-      'rent',
-      'electricity',
-      'water',
-      'internet',
-      'phone',
-    ],
+    words: ['bills', 'bill', 'rent', 'electricity', 'water'],
+  },
+  /* 4 Oct: "i see vodafone as Home, but this is my mobile phone bill". */
+  {
+    id: 'phone',
+    label: 'Phone & internet',
+    words: ['phone', 'mobile', 'internet', 'vodafone', 'meo', 'nos'],
   },
   {
     id: 'health',

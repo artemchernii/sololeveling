@@ -6,10 +6,10 @@ import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc } from './_generated/dataModel'
 import schema from './schema'
 import { merchantKey } from '../src/lib/intake'
-import { payeeKey } from '../src/lib/payee'
+import { payeeKey, rowKey } from '../src/lib/payee'
 import { payeeIdOf } from '../src/lib/payees'
 import { LENT, SUBSCRIPTIONS } from '../src/lib/money'
-import { billFromRow } from './recurring'
+import { billFromRow, refileBills } from './recurring'
 import { pairLent } from './lent'
 
 /* Payees (4 Oct; design/treasury-mockup/payees.html): who a row is paid
@@ -159,6 +159,7 @@ export const set = mutation({
         }
       }
     }
+    if (group) await refileBills(ctx, ownerId, new Set(rows.map(rowKey)), group)
     /* Subscriptions are bills: this payment makes one (see logs.refile). */
     if (group === SUBSCRIPTIONS && log.kind === 'expense') {
       const fresh = await ctx.db.get(log._id)

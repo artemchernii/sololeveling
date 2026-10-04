@@ -618,6 +618,19 @@ describe('why.row and subscriptions as bills', () => {
     expect(await them.query(api.why.row, { logId: ids.edpSep })).toBeNull()
   })
 
+  test('a payee moved to another group takes its bill along', async () => {
+    const { t, me } = setup()
+    const { ids } = await world(t)
+    await me.mutation(api.recurring.find, {})
+    await me.mutation(api.logs.refile, { logId: ids.edpSep, category: 'phone' })
+    const bill = await t.run(async (ctx) =>
+      (await ctx.db.query('recurring').collect()).find(
+        (b) => b.matchKey === 'EDP COMERCIAL',
+      ),
+    )
+    expect(bill?.category).toBe('phone')
+  })
+
   test('filed as Subscriptions, a payment becomes a bill', async () => {
     const { t, me } = setup()
     const { ids } = await world(t)

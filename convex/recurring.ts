@@ -503,6 +503,20 @@ export const unrefuse = mutation({
  * from the row; he says only how often. One already known is not made
  * twice — its id comes back.
  */
+/** A payee moved to another group takes its bills along (4 Oct: Vodafone
+    out of Home into Phone & internet — rows and bill alike). */
+export async function refileBills(
+  ctx: MutationCtx,
+  ownerId: string,
+  keys: ReadonlySet<string>,
+  category: string,
+) {
+  for (const b of await itemsOf(ctx, ownerId)) {
+    if (b.kind !== 'expense' || !b.matchKey || !keys.has(b.matchKey)) continue
+    if (b.category !== category) await ctx.db.patch(b._id, { category })
+  }
+}
+
 /**
  * A bill made from one of his payments — fromRow, and filing a payment
  * as Subscriptions (4 Oct: "bills and subscription … same thing"). One

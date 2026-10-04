@@ -186,7 +186,7 @@ export const SHOPS: ReadonlyArray<Shop> = [
   {
     name: 'Vodafone',
     domain: 'vodafone.pt',
-    category: 'home',
+    category: 'phone',
     words: ['VODAFONE'],
   },
   { name: 'EDP', domain: 'edp.pt', category: 'home', words: ['EDP COMERCIAL'] },

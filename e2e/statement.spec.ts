@@ -50,7 +50,10 @@ test('a Revolut CSV: read, checked, added — and it lands', async ({ page }) =>
   })
   await add.click()
   await expect(sheet.getByText('2 payments added')).toBeVisible()
-  await expect(sheet.getByText(/kept as is, not in this file/)).toBeVisible()
+  await expect(sheet.getByText('no changes')).toBeVisible()
+  await expect(sheet.getByText('Pingo Doce')).toBeVisible()
+  /* Once everything has arrived. */
+  await page.waitForTimeout(1500)
   await page.screenshot(shot('landed'))
   await sheet.getByRole('button', { name: 'done' }).click()
 

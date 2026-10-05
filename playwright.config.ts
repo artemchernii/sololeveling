@@ -19,6 +19,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3200',
     trace: 'retain-on-failure',
+    /* Landing and arriving are motion; a still cannot show them. */
+    video: { mode: 'on', size: { width: 1280, height: 720 } },
     /* He uses the app dark. */
     colorScheme: 'dark',
     ...devices['Desktop Chrome'],

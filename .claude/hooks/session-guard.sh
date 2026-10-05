@@ -27,13 +27,13 @@ if [ -n "$transcript" ] && [ -f "$transcript" ]; then
   fi
 fi
 cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || exit 0
-lines=$(git diff --shortstat master...HEAD 2>/dev/null | awk '{print $4 + $6}')
+lines=$(git diff --shortstat origin/master...HEAD 2>/dev/null | awk '{print $4 + $6}')
 if [ -n "$lines" ] && [ "$lines" -gt 1000 ]; then
   msgs+=("This branch changes $lines lines against master (limit 1000). Split it: open a PR for what is done, start the rest on a new branch.")
 fi
 # Rule 5: a file under ~500 lines. Name any file this branch touches
 # that is over it, so the split happens in the slice, not later.
-big=$(git diff --name-only master...HEAD -- '*.ts' '*.tsx' 2>/dev/null \
+big=$(git diff --name-only origin/master...HEAD -- '*.ts' '*.tsx' 2>/dev/null \
   | while read -r f; do
       [ -f "$f" ] && n=$(wc -l < "$f" | tr -d ' ') && [ "$n" -gt 500 ] && printf '%s (%s) ' "$f" "$n"
     done)

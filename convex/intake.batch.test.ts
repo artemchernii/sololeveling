@@ -311,6 +311,10 @@ describe('batchReview and apply', () => {
     const view = await me.query(api.intake.batch, { batchId })
     expect(view.status).toBe('done')
     expect(view.applied).toMatchObject({ intakes: 3, accounts: 2 })
+    /* One line an account on the landed screen: what each one got. */
+    const by = view.applied?.byAccount ?? []
+    expect(by.map((x) => x.accountId).sort()).toEqual([bpi, act].sort())
+    expect(by.reduce((n, x) => n + x.rows, 0)).toBe(view.applied?.rows)
     const bal = await me.query(api.aggregate.balances, {})
     expect(bal.accounts.map((x) => x.cashEur)).toEqual([450, 690])
   })

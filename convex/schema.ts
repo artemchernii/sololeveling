@@ -1066,6 +1066,11 @@ export default defineSchema({
         intakes: v.number(),
         rows: v.number(),
         accounts: v.number(),
+        /* Rows written per account (5 Oct): the landed screen is one line
+           an account — "Revolut · 38 added" — however many files. */
+        byAccount: v.optional(
+          v.array(v.object({ accountId: v.id('accounts'), rows: v.number() })),
+        ),
       }),
     ),
     appliedAt: v.optional(v.number()),

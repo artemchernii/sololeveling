@@ -1,7 +1,8 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
-import { ownedAccount, writeBalance } from './accounts'
+import { balanceKey, ownedAccount, writeBalance } from './accounts'
+import { movedSince } from './aggregate'
 import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
 import { findFor } from './recurring'
@@ -802,7 +803,14 @@ export const batch = query({
       v.literal('done'),
     ),
     applied: v.union(
-      v.object({ intakes: v.number(), rows: v.number(), accounts: v.number() }),
+      v.object({
+        intakes: v.number(),
+        rows: v.number(),
+        accounts: v.number(),
+        byAccount: v.optional(
+          v.array(v.object({ accountId: v.id('accounts'), rows: v.number() })),
+        ),
+      }),
       v.null(),
     ),
     files: v.array(batchFile),
@@ -1408,6 +1416,45 @@ async function writeTransactions(
       intake.balance.asOf + 6 * 3_600_000,
       sourceOf(intake),
     )
+    /* The account's other currencies (5 Oct: "When I upload csv it means
+       usd should be updated as well"). Revolut exports one currency a
+       file; its EUR statement says USD did not move, so USD is read again
+       as it stood that day — its last reading and what moved since, up
+       to the statement's day. Here, so a single file and a bulk upload
+       do the same. */
+    const at = intake.balance.asOf + 6 * 3_600_000
+    for (const currency of account.currencies) {
+      if (currency === intake.balance.currency) continue
+      const last = await ctx.db
+        .query('stateSnapshots')
+        .withIndex('by_owner_key_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('key', balanceKey(account._id, currency))
+            .lte('recordedAt', at),
+        )
+        .order('desc')
+        .first()
+      if (last?.value === undefined) continue
+      const since = await movedSince(
+        ctx,
+        ownerId,
+        account,
+        currency,
+        last.recordedAt,
+        at,
+      )
+      await writeBalance(
+        ctx,
+        ownerId,
+        account,
+        currency,
+        (Math.round(last.value * 100) + since.cents) / 100,
+        dayStart,
+        at,
+        sourceOf(intake),
+      )
+    }
   }
   if (intake.accountTail) await learnTails(ctx, account, [intake.accountTail])
   await ctx.db.patch(intake._id, {
@@ -3389,11 +3436,18 @@ export const applyStep = internalMutation({
         retryable: false,
       })
     }
+    const was = applied.byAccount ?? []
+    const accountId = next.accountId
     await ctx.db.patch(b._id, {
       applied: {
         ...applied,
         intakes: applied.intakes + 1,
         rows: applied.rows + rows,
+        byAccount: was.some((x) => x.accountId === accountId)
+          ? was.map((x) =>
+              x.accountId === accountId ? { ...x, rows: x.rows + rows } : x,
+            )
+          : [...was, { accountId, rows }],
       },
     })
     await ctx.scheduler.runAfter(0, internal.intake.applyStep, args)

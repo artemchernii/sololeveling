@@ -47,3 +47,15 @@ export function addLabel(o: {
   if (parts.length === 0) return o.balance ? 'update the balance' : 'done'
   return `add ${parts.join(', ')}${o.balance ? ' and the balance' : ''}`
 }
+
+/** "Revolut is up to date", "3 accounts up to date" — or "updated" while
+    a pocket is still old. */
+export function landedTitle(
+  names: ReadonlyArray<string>,
+  fresh: boolean,
+): string {
+  if (names.length === 0) return 'Saved'
+  const who = names.length === 1 ? names[0] : `${names.length} accounts`
+  const verb = names.length === 1 ? 'is ' : ''
+  return fresh ? `${who} ${verb}up to date` : `${who} updated`
+}

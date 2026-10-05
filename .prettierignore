@@ -9,3 +9,5 @@ convex/_generated
 .wrangler
 dist
 .superpowers
+.convex/
+e2e/.results/

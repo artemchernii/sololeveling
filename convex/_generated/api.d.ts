@@ -17,6 +17,7 @@ import type * as attachments from "../attachments.js";
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
 import type * as drills from "../drills.js";
+import type * as e2e from "../e2e.js";
 import type * as events from "../events.js";
 import type * as github from "../github.js";
 import type * as goals from "../goals.js";
@@ -58,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   crons: typeof crons;
   drills: typeof drills;
+  e2e: typeof e2e;
   events: typeof events;
   github: typeof github;
   goals: typeof goals;

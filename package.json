@@ -15,6 +15,7 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "e2e:setup": "scripts/e2e-setup.sh",
+    "verify": "pnpm typecheck && pnpm lint && pnpm check && pnpm test && pnpm build && pnpm e2e",
     "format": "prettier --write . && eslint --fix",
     "check": "prettier --check .",
     "deploy": "pnpm run build && wrangler deploy",

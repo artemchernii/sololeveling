@@ -1,0 +1,7 @@
+{
+  "name": "e2e-backend",
+  "private": true,
+  "dependencies": {
+    "convex": "*"
+  }
+}

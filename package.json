@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit && tsc -p convex --noEmit",
     "test": "vitest run",
     "e2e": "playwright test",
+    "e2e:setup": "scripts/e2e-setup.sh",
     "format": "prettier --write . && eslint --fix",
     "check": "prettier --check .",
     "deploy": "pnpm run build && wrangler deploy",

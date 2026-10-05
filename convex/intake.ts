@@ -869,6 +869,7 @@ export const openBatch = query({
 const reviewRow = v.object({
   index: v.number(),
   occurredAt: v.number(),
+  time: v.union(v.string(), v.null()),
   merchant: v.string(),
   raw: v.string(),
   amount: v.number(),
@@ -1057,6 +1058,7 @@ async function buildReview(
     return {
       index,
       occurredAt: r.occurredAt,
+      time: r.time ?? null,
       merchant: r.merchant,
       raw: r.raw,
       amount: r.amount,

@@ -1,4 +1,4 @@
-import { parseDay, parseMoney } from './csv'
+import { parseClock, parseDay, parseMoney } from './csv'
 import type { DateOrder } from './csv'
 import type { ReadTrade, ReadTransaction } from './intake'
 
@@ -46,9 +46,12 @@ export const LAYOUT_SCHEMA = {
   type: 'object',
   properties: {
     kind: { type: 'string', enum: ['transactions', 'trades', 'unknown'] },
-    institution: { type: ['string', 'null'] },
-    account_tail: { type: ['string', 'null'] },
-    currency: { type: ['string', 'null'] },
+    /* Text that may be absent is an empty string, not null: the API takes
+       at most 16 nullable fields, and the fifteen columns need them (5 Oct
+       — eighteen made every new CSV fail with a 400). */
+    institution: { type: 'string' },
+    account_tail: { type: 'string' },
+    currency: { type: 'string' },
     date_column: col,
     date_order: { type: 'string', enum: ['ymd', 'dmy', 'mdy'] },
     decimal: { type: 'string', enum: ['.', ','] },
@@ -156,7 +159,7 @@ export function layoutPrompt(opts: {
       ? `Every value of the short columns, across the whole file:\n${short}`
       : '',
     'kind = "transactions" for cash moving (a bank or card statement), "trades" for buying and selling shares (a broker\'s order or trade history), else "unknown".',
-    'institution: the bank or broker, if the columns or values make it clear (e.g. Revolut exports "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance" for the bank and "Date,Ticker,Type,Quantity,Price per share,Total Amount,Currency,FX Rate" for trading), else null. account_tail only if an IBAN or card number is in the file. currency: the currency when no column says it, else null.',
+    'institution: the bank or broker, if the columns or values make it clear (e.g. Revolut exports "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance" for the bank and "Date,Ticker,Type,Quantity,Price per share,Total Amount,Currency,FX Rate" for trading), else an empty string. account_tail only if an IBAN or card number is in the file, else an empty string. currency: the currency when no column says it, else an empty string.',
     'date_column: the date the money moved or the trade happened (for a bank with started and completed dates, the started one). date_order: how the day, month and year are ordered when not ISO. decimal: the decimal mark numbers use.',
     'Transactions: description_column; amount_column when one signed column holds the amount, else out_column and in_column; fee_column if a fee is charged apart from the amount; currency_column; balance_column (the balance after the row) if any; state_column if rows have a state, with pending_values (states that are not final yet, e.g. PENDING) and skip_values (states to leave out, e.g. REVERTED, DECLINED, FAILED).',
     'Trades: ticker_column, name_column, isin_column (whichever exist); type_column; buy_prefixes and sell_prefixes — short uppercase prefixes that start every buy or sell value (e.g. ["BUY"], ["SELL"]), never matching dividends, fees, top-ups, withdrawals or splits; split_prefixes for stock splits (e.g. ["STOCK SPLIT"]; the quantity on such a row is the shares added); quantity_column (shares); price_column (price per share, not the total).',
@@ -356,8 +359,10 @@ export function applyLayout(
       const pending = state !== '' && starts(state, layout.pendingValues)
       const cur = (currency ?? layout.currency ?? 'EUR').slice(0, 3)
       const self = selfHint(description)
+      const time = parseClock(cell(r, layout.dateColumn))
       transactions.push({
         occurredAt: at,
+        ...(time ? { time } : {}),
         merchant: cleanMerchant(description),
         raw: description.slice(0, 160),
         amount: Math.round(amount * 100) / 100,

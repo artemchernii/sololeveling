@@ -837,6 +837,9 @@ export default defineSchema({
       v.array(
         v.object({
           occurredAt: v.number(),
+          /* "13:20" as the file printed it — words beside the day, so a
+             late payment never moves day in a UTC server (5 Oct). */
+          time: v.optional(v.string()),
           merchant: v.string(),
           raw: v.string(),
           /* Signed, in `currency`: −6.70 is money out. */

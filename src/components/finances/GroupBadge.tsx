@@ -45,6 +45,11 @@ const ICONS: Record<string, LucideIcon> = {
   freelance: Wallet,
 }
 
+/** A group's icon — a plain circle for one without its own. */
+export function groupIcon(category: string | null | undefined): LucideIcon {
+  return (category && ICONS[category]) || Circle
+}
+
 export function GroupBadge({
   kind,
   category,

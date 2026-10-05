@@ -1,7 +1,6 @@
 import { Fragment, useMemo, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ArrowDown, ArrowLeftRight, ArrowUp } from 'lucide-react'
 import type { FunctionReturnType } from 'convex/server'
 
 import { api } from '../../../convex/_generated/api'
@@ -12,6 +11,8 @@ import { Sheet } from '@/components/finances/Sheet'
 import { Veiled } from '@/components/finances/Veil'
 import { SkeletonRows } from '@/components/Skeleton'
 import { failureMessage } from '@/lib/convex-errors'
+import { FileView } from './AccountFileView'
+import { Divider, RowLine, fmt, short } from './AccountSheetRows'
 
 /* An account, opened (A.4 — journey agreed 1 Oct, mock agreed 2 Oct:
    "build it"). Everything in it, newest first: each row, moves and trades
@@ -31,17 +32,6 @@ type FileInfo = SheetData['files'][number]
 
 const DAY_MS = 86_400_000
 
-const fmt = (v: number, currency = 'EUR', sign = false) => {
-  const s = new Intl.NumberFormat('en', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.abs(v))
-  return `${v < 0 ? '−' : sign && v > 0 ? '+' : ''}${s}`
-}
-const short = (t: number) =>
-  new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 const dayLabel = (t: number) =>
   new Date(t).toLocaleDateString('en-GB', {
     weekday: 'short',
@@ -487,12 +477,12 @@ function Timeline({
               index={i++}
               onDelete={
                 r.logId
-                  ? () => void remove({ logId: r.logId as Id<'logs'> })
+                  ? () => remove({ logId: r.logId as Id<'logs'> })
                   : undefined
               }
               onNotHere={
                 r.sideLogId
-                  ? () => void removeSide({ logId: r.sideLogId })
+                  ? () => removeSide({ logId: r.sideLogId })
                   : undefined
               }
             />
@@ -509,254 +499,6 @@ function Timeline({
           No rows yet. Drop a statement or a screenshot and its rows land here.
         </span>
       )}
-    </div>
-  )
-}
-
-function Divider({
-  label,
-  value,
-  file,
-  typed = false,
-  onFile,
-}: {
-  label: string
-  value?: string
-  file: FileInfo | undefined
-  typed?: boolean
-  onFile: (id: Id<'intakes'>) => void
-}) {
-  return (
-    <div className="motion-arrive my-2 flex flex-col gap-2 rounded-[14px] bg-lav-400/[0.06] px-3 py-2.5 ring-1 ring-lav-400/22 ring-inset">
-      <span className="flex items-baseline gap-2.5">
-        <span className="label-caps text-lav-300">{label}</span>
-        {value ? (
-          <b className="ml-auto font-mono text-[14px] font-medium text-foreground">
-            <Veiled>{value}</Veiled>
-          </b>
-        ) : null}
-      </span>
-      {file ? (
-        <button
-          type="button"
-          onClick={() => onFile(file.id)}
-          className="motion-press flex items-center gap-2.5 rounded-[10px] bg-sink/30 px-2.5 py-2 text-left hover:bg-sink/50"
-        >
-          <span className="grid h-[30px] w-[26px] shrink-0 place-items-center rounded-[5px] bg-lift/[0.08] font-mono text-[8.5px] text-ink-300">
-            {file.images ? 'IMG' : 'PDF'}
-          </span>
-          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="truncate text-[13px] text-foreground">
-              {file.names.join(' · ') || file.title}
-            </span>
-            <span className="font-mono text-[10.5px] text-ink-400">
-              {file.images
-                ? `${file.names.length} ${file.names.length === 1 ? 'screenshot' : 'screenshots'}`
-                : 'statement'}
-              {file.from !== null && file.to !== null
-                ? ` · ${short(file.from)} → ${short(file.to)}`
-                : ''}{' '}
-              · added {file.added} {file.added === 1 ? 'row' : 'rows'} · read{' '}
-              {short(file.readAt)}
-            </span>
-          </span>
-          <span className="font-mono text-[10px] tracking-[0.12em] text-lav-300 uppercase">
-            open ›
-          </span>
-        </button>
-      ) : typed ? (
-        <span className="font-mono text-[10.5px] text-ink-400">
-          typed by you
-        </span>
-      ) : null}
-    </div>
-  )
-}
-
-function RowLine({
-  row: r,
-  inside,
-  index,
-  onDelete,
-  onNotHere,
-}: {
-  row: Row
-  /** The day of the balance that already covers this typed row. */
-  inside: number | null
-  index: number
-  onDelete?: () => void
-  /** The other side of another account's transfer: "not from here". */
-  onNotHere?: () => void
-}) {
-  const moved = r.kind === 'move'
-  const traded = r.kind === 'buy' || r.kind === 'sell'
-  const cls = moved
-    ? 'text-lav-300'
-    : r.amount > 0
-      ? 'text-state-good'
-      : 'text-foreground'
-  const Icon =
-    moved || traded ? ArrowLeftRight : r.amount > 0 ? ArrowDown : ArrowUp
-  return (
-    <div
-      style={{ animationDelay: `${Math.min(index, 20) * 18}ms` }}
-      className="motion-land group flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 hover:bg-lift/[0.035]"
-    >
-      <span
-        className={`grid size-[26px] shrink-0 place-items-center rounded-[8px] ${
-          moved || traded
-            ? 'bg-lav-400/12 text-lav-300'
-            : r.amount > 0
-              ? 'bg-state-good/14 text-state-good'
-              : 'bg-lift/[0.06] text-ink-400'
-        }`}
-      >
-        <Icon className="size-3.5" />
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-[13.5px] text-foreground">{r.text}</span>
-        <span className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] text-ink-500">
-          {moved ? (
-            <span className="rounded-[5px] px-1.5 text-[9.5px] tracking-[0.08em] text-lav-300 uppercase ring-1 ring-lav-400/35 ring-inset">
-              move
-              {r.other
-                ? ` · ${r.amount < 0 ? '→' : '←'} ${r.other}`
-                : ' · your own money'}
-            </span>
-          ) : traded ? (
-            <span className="rounded-[5px] px-1.5 text-[9.5px] tracking-[0.08em] text-lav-300 uppercase ring-1 ring-lav-400/35 ring-inset">
-              {r.kind}
-            </span>
-          ) : r.category ? (
-            <span>{r.category}</span>
-          ) : null}
-          {r.logId ? (
-            <span className="rounded-[5px] px-1.5 text-[9.5px] tracking-[0.08em] text-ink-300 uppercase ring-1 ring-lift/10 ring-inset">
-              typed
-            </span>
-          ) : null}
-          {inside !== null ? (
-            /* Information, not a warning (2 Oct: in amber it read as one,
-               on the very row that made the balance add up). */
-            <span className="rounded-[5px] px-1.5 text-[9.5px] tracking-[0.08em] text-ink-400 uppercase ring-1 ring-lift/10 ring-inset">
-              in the {short(inside)} balance
-            </span>
-          ) : null}
-        </span>
-      </span>
-      {onNotHere ? (
-        <button
-          type="button"
-          onClick={onNotHere}
-          title={`Written because ${r.sideOf ?? 'another account'}'s file said it came from here. Remove only this side; ${r.sideOf ?? 'that account'} keeps its row.`}
-          className="px-1 font-mono text-[10px] tracking-[0.1em] text-state-warn uppercase opacity-0 group-hover:opacity-100 focus:opacity-100"
-        >
-          not from here
-        </button>
-      ) : null}
-      {onDelete ? (
-        <button
-          type="button"
-          onClick={onDelete}
-          className="px-1 font-mono text-[10px] tracking-[0.1em] text-state-danger uppercase opacity-0 group-hover:opacity-100 focus:opacity-100"
-        >
-          delete
-        </button>
-      ) : null}
-      <span className={`font-mono text-[13.5px] whitespace-nowrap ${cls}`}>
-        <Veiled>{fmt(r.amount, r.currency, true)}</Veiled>
-      </span>
-    </div>
-  )
-}
-
-/* A confirmed file, opened again: what it read, as it read it, and which
-   rows landed. Amounts are plain: a file's row is not yet a spend, income
-   or move, so its sign is not coloured as one. */
-function FileView({ intakeId }: { intakeId: Id<'intakes'> }) {
-  const f = useQuery(api.intake.fileRows, { intakeId })
-  if (f === undefined) return <SkeletonRows rows={6} />
-  const landed = f.rows.filter((r) => r.landed).length
-  return (
-    <div className="flex flex-col gap-3">
-      <span className="flex flex-col gap-1">
-        <span className="text-[15px] text-foreground">{f.title}</span>
-        <span className="font-mono text-[11px] text-ink-400">
-          {f.names.join(' · ')} · read {short(f.readAt)} · {f.rows.length} rows
-          read, {landed} landed
-        </span>
-      </span>
-      <Originals intakeId={intakeId} />
-      <div className="flex flex-col">
-        {f.rows.map((r, i) => (
-          <div
-            key={`${r.at}-${i}`}
-            className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-2"
-          >
-            <span className="w-14 shrink-0 font-mono text-[11px] text-ink-500">
-              {short(r.at)}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-[13.5px] text-foreground">
-              {r.text}
-            </span>
-            <span className="font-mono text-[10px] tracking-[0.1em] text-ink-500 uppercase">
-              {r.pending ? 'pending' : r.landed ? '' : 'left out'}
-            </span>
-            <span
-              className={`font-mono text-[13px] whitespace-nowrap ${r.landed ? 'text-foreground' : 'text-ink-500 line-through'}`}
-            >
-              <Veiled>{fmt(r.amount, r.currency, true)}</Veiled>
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* The file itself, next to what was read from it — kept 90 days
-   (intake.KEEP_FILES_MS), then erased; the rows stay. */
-function Originals({ intakeId }: { intakeId: Id<'intakes'> }) {
-  const o = useQuery(api.intake.originals, { intakeId })
-  if (o === undefined) return null
-  const kept = o.files.some((f) => f.url !== null)
-  const note = kept
-    ? `file kept until ${short(o.keptUntil ?? Date.now())}`
-    : o.keptUntil !== null && o.keptUntil <= Date.now()
-      ? `file erased · ${short(o.keptUntil)}`
-      : 'file not kept — it went in before files were'
-  return (
-    <div className="flex flex-col gap-2">
-      {o.files.map((f, i) =>
-        f.url === null ? null : f.contentType.startsWith('image/') ? (
-          <a
-            key={i}
-            href={f.url}
-            target="_blank"
-            rel="noreferrer"
-            className="motion-press self-start overflow-hidden rounded-[12px] ring-1 ring-lift/12"
-          >
-            <img
-              src={f.url}
-              alt={f.name}
-              className="max-h-[420px] w-auto object-contain"
-            />
-          </a>
-        ) : (
-          <a
-            key={i}
-            href={f.url}
-            target="_blank"
-            rel="noreferrer"
-            className={`${PILL_QUIET} self-start`}
-          >
-            open {f.name} ↗
-          </a>
-        ),
-      )}
-      <span className="font-mono text-[10.5px] tracking-[0.08em] text-ink-500 uppercase">
-        {note}
-      </span>
     </div>
   )
 }

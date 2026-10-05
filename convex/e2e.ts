@@ -312,3 +312,59 @@ export const readHoldings = mutation({
     })
   },
 })
+
+/**
+ * A Revolut stock order history as the reader returns it: two buys and
+ * a sell — so the trades review can be confirmed without paying for a
+ * reading (5 Oct safety net).
+ */
+export const readTrades = mutation({
+  args: { days: v.array(v.number()) },
+  returns: v.id('intakes'),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const [d1, d2, d3] = args.days
+    const t = (
+      at: number,
+      name: string,
+      symbol: string,
+      side: 'buy' | 'sell',
+      shares: number,
+      price: number,
+    ) => ({
+      occurredAt: at + 15 * 3_600_000,
+      name,
+      side,
+      shares,
+      price,
+      currency: 'EUR',
+      fee: 0,
+      preferred: 0,
+      candidates: [{ symbol, name, exchange: 'NMS', type: 'EQUITY' }],
+    })
+    return await ctx.db.insert('intakes', {
+      ownerId,
+      storageIds: [],
+      status: 'ready',
+      kind: 'trades',
+      title: 'Revolut stock orders',
+      institution: 'Revolut',
+      model: 'Claude Haiku 4.5',
+      costUsd: 0.004,
+      readAt: Date.now(),
+      files: [
+        {
+          name: 'trading-account-statement.pdf',
+          size: 90_000,
+          contentType: 'application/pdf',
+        },
+      ],
+      trades: [
+        t(d1, 'Apple', 'AAPL', 'buy', 2, 200),
+        t(d2, 'Microsoft', 'MSFT', 'buy', 1, 380),
+        t(d3, 'Apple', 'AAPL', 'sell', 1, 210),
+      ],
+    })
+  },
+})

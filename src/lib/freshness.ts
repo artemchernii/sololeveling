@@ -7,6 +7,9 @@
 export const STALE_MS = 7 * 86_400_000
 
 export type PocketTime = {
+  /** Named in the words when the account has more than one (5 Oct:
+      Revolut stayed in check-in for its USD, and nothing said so). */
+  currency?: string
   recordedAt: number | null
   writtenAt: number | null
   source: 'typed' | 'statement' | 'screenshot' | 'sync' | null
@@ -50,7 +53,9 @@ export function freshness(
   const sameDay =
     new Date(written).toDateString() ===
     new Date(oldest.recordedAt).toDateString()
-  const word = oldest.source ? WORD[oldest.source] : 'read'
+  const word =
+    (read.length > 1 && oldest.currency ? `${oldest.currency} ` : '') +
+    (oldest.source ? WORD[oldest.source] : 'read')
   const stale = now - oldest.recordedAt > STALE_MS
   return {
     label: sameDay
@@ -59,7 +64,7 @@ export function freshness(
     stale,
     asOf: oldest.recordedAt,
     todo: stale
-      ? `Its balance is from ${DAY.format(oldest.recordedAt)}. Drop a newer statement or screenshot, or type what it holds today.`
+      ? `Its ${read.length > 1 && oldest.currency ? `${oldest.currency} ` : ''}balance is from ${DAY.format(oldest.recordedAt)}. Drop a newer statement or screenshot, or type what it holds today.`
       : null,
   }
 }

@@ -34,3 +34,27 @@ describe('freshness', () => {
     ).toBe('no balance yet')
   })
 })
+
+test('an account with two pockets names the old one (5 Oct)', () => {
+  const at = new Date(2026, 9, 5, 12).getTime()
+  const f = freshness(
+    [
+      {
+        currency: 'EUR',
+        recordedAt: at - 86_400_000,
+        writtenAt: null,
+        source: 'statement',
+      },
+      {
+        currency: 'USD',
+        recordedAt: at - 9 * 86_400_000,
+        writtenAt: null,
+        source: 'typed',
+      },
+    ],
+    at,
+  )
+  expect(f.label).toBe('USD typed 9d ago')
+  expect(f.stale).toBe(true)
+  expect(f.todo).toMatch(/^Its USD balance is from/)
+})

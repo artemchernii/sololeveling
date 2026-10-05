@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { headerKey, parseCsv, parseDay, parseMoney } from './csv'
+import { headerKey, parseClock, parseCsv, parseDay, parseMoney } from './csv'
 import {
   applyLayout,
   cleanMerchant,
@@ -118,6 +118,14 @@ describe('cells', () => {
     expect(parseDay('yesterday', 'ymd')).toBeUndefined()
   })
 
+  test('the time beside a date is kept as printed, and only a real one', () => {
+    expect(parseClock('2026-10-01 13:20:45')).toBe('13:20')
+    expect(parseClock('2020-06-08T07:44:05.588105')).toBe('07:44')
+    expect(parseClock('01/10/2026 9:05')).toBe('09:05')
+    expect(parseClock('01/10/2026')).toBeUndefined()
+    expect(parseClock('2026-10-01 25:10')).toBeUndefined()
+  })
+
   test('the same header is the same key, whatever its spacing or case', () => {
     expect(headerKey(['Date', ' Ticker '])).toBe(headerKey(['date', 'ticker']))
   })
@@ -219,12 +227,18 @@ describe('applyLayout', () => {
     const rows = parseCsv(BANK).slice(1)
     const r = applyLayout(rows, BANK_LAYOUT)
     expect(
-      r.transactions.map((t) => [t.merchant, t.amount, t.pending, t.self]),
+      r.transactions.map((t) => [
+        t.merchant,
+        t.amount,
+        t.pending,
+        t.self,
+        t.time,
+      ]),
     ).toEqual([
-      ['Bolt', -6.7, false, false],
-      ['To Trade Republic', -200, false, false],
-      ['Top-Up by *2789', 50, true, true],
-      ['Exchanged to USD', -100.5, false, true],
+      ['Bolt', -6.7, false, false, '10:11'],
+      ['To Trade Republic', -200, false, false, '09:00'],
+      ['Top-Up by *2789', 50, true, true, '09:00'],
+      ['Exchanged to USD', -100.5, false, true, '12:00'],
     ])
     expect(r.skipped).toEqual({ REVERTED: 1 })
     expect(r.balance).toMatchObject({ value: 692.8, currency: 'EUR' })

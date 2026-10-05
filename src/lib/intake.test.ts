@@ -28,6 +28,8 @@ import {
   readableFile,
   searchableName,
 } from './intake'
+import { LAYOUT_SCHEMA } from './csvLayout'
+import { READING_SCHEMA } from './reading'
 
 /* Shaped on his real examples (27 Sep): a Revolut statement, a Revolut
    history screenshot, a Trade Republic holdings screenshot. */
@@ -235,19 +237,26 @@ describe('share class and search', () => {
   })
 })
 
-test("the reader's schema stays inside the API's limit on nullable fields", () => {
-  let n = 0
-  const walk = (x: unknown) => {
-    if (Array.isArray(x)) return x.forEach(walk)
-    if (x && typeof x === 'object') {
-      const o = x as Record<string, unknown>
-      if (Array.isArray(o.type) && o.type.includes('null')) n++
-      Object.values(o).forEach(walk)
+test.each([
+  ['intake', INTAKE_SCHEMA],
+  ['CSV layout', LAYOUT_SCHEMA],
+  ['reading', READING_SCHEMA],
+])(
+  "the %s schema stays inside the API's limit on nullable fields",
+  (_, schema) => {
+    let n = 0
+    const walk = (x: unknown) => {
+      if (Array.isArray(x)) return x.forEach(walk)
+      if (x && typeof x === 'object') {
+        const o = x as Record<string, unknown>
+        if (Array.isArray(o.type) && o.type.includes('null')) n++
+        Object.values(o).forEach(walk)
+      }
     }
-  }
-  walk(INTAKE_SCHEMA)
-  expect(n).toBeLessThanOrEqual(MAX_NULLABLE_FIELDS)
-})
+    walk(schema)
+    expect(n).toBeLessThanOrEqual(MAX_NULLABLE_FIELDS)
+  },
+)
 
 test('printedAmount: what a bank prints, whatever the grouping (3 Oct)', () => {
   expect(printedAmount('1 100.00')).toBe(1100)

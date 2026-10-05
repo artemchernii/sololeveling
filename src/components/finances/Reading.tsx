@@ -8,7 +8,6 @@ import type { Doc } from '../../../convex/_generated/dataModel'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { AccountLogo } from '@/components/finances/Logo'
 import { money } from '@/lib/currency'
-import { agoLabel } from '@/lib/format'
 import { INTAKE_MODEL_NAME, READING_DEAD_MS, usd } from '@/lib/intake'
 import { productIn } from '@/lib/institutions'
 
@@ -518,16 +517,48 @@ export function IntakeStrip({
 
 /* ---- Once read ---------------------------------------------------------- */
 
-/** "read by Claude Haiku 4.5 2 min ago · $0.004", or "read before · $0". */
+/** Claude's mark, "Claude Haiku 4.5 · $0.004" (5 Oct: the icon, the
+    name, what it cost — no "read by … today"). */
 export function ReadBy({ intake }: { intake: Doc<'intakes'> }) {
-  if (intake.reusedFrom)
-    return <>the same file as before — its first reading, $0</>
   return (
-    <>
-      read by {intake.model}
-      {intake.readAt ? ` ${agoLabel(intake.readAt)}` : ''}
-      {intake.costUsd !== undefined ? ` · ${usd(intake.costUsd)}` : ''}
-    </>
+    <span className="inline-flex items-center gap-1.5">
+      <img
+        src="https://www.google.com/s2/favicons?domain=claude.ai&sz=32"
+        alt=""
+        aria-hidden
+        referrerPolicy="no-referrer"
+        className="size-3.5 rounded-[3px]"
+      />
+      {intake.reusedFrom
+        ? 'the same file as before · $0'
+        : `${intake.model ?? INTAKE_MODEL_NAME}${intake.costUsd !== undefined ? ` · ${usd(intake.costUsd)}` : ''}`}
+    </span>
+  )
+}
+
+/** What kind of file it was — CSV, PDF or a screenshot — in its colour. */
+export function FileBadge({ intake }: { intake: Doc<'intakes'> }) {
+  const types = (intake.files ?? []).map((f) => f.contentType.toLowerCase())
+  const name = (intake.files ?? []).map((f) => f.name.toLowerCase()).join(' ')
+  const kind = types.some((t) => t === 'application/pdf')
+    ? 'pdf'
+    : types.some((t) => t.startsWith('image/'))
+      ? 'image'
+      : types.length > 0 || name.endsWith('.csv')
+        ? 'csv'
+        : null
+  if (!kind) return null
+  const tone = {
+    csv: 'text-file-csv bg-file-csv/12 ring-file-csv/35',
+    pdf: 'text-file-pdf bg-file-pdf/12 ring-file-pdf/35',
+    image: 'text-file-image bg-file-image/12 ring-file-image/35',
+  }[kind]
+  return (
+    <span
+      className={`shrink-0 rounded-[5px] px-1.5 py-0.5 font-mono text-[10px] font-medium tracking-[0.1em] uppercase ring-1 ring-inset ${tone}`}
+    >
+      {kind === 'image' ? 'screenshot' : kind}
+    </span>
   )
 }
 

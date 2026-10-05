@@ -2,14 +2,25 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAction, useMutation } from 'convex/react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Check, ChevronRight, Loader2, Plus, Search, X } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  Check,
+  ChevronRight,
+  Loader2,
+  Plus,
+  Search,
+  TrendingUp,
+  X,
+} from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
-import { MoneyIcon } from '@/components/finances/icons'
+import { groupIcon } from '@/components/finances/GroupBadge'
+import { usePayees } from '@/components/finances/flow/Payees'
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import {
+  FileBadge,
   HistoryReview,
   IntakeStrip,
   ReadBy,
@@ -25,6 +36,8 @@ import { tickerBase } from '@/lib/market'
 import type { Candidate } from '@/lib/market'
 import { SPEND_CATEGORIES, categoryLabel, euros } from '@/lib/money'
 import { checkCryptoStatement } from '@/lib/crypto'
+import { addLabel, groupByDay, rowsSpan } from '@/lib/checkFile'
+import { STALE_MS } from '@/lib/freshness'
 
 /* What he dropped, from reading to confirmed (Treasury, 27 Sep). The
    review is the product: the reader's guesses laid against what he has
@@ -189,12 +202,18 @@ function TransactionsReview({
   const review = useQuery(api.intake.review, { intakeId: intake._id })
   const accounts = useQuery(api.accounts.list, {}) ?? []
   const setAccount = useMutation(api.intake.setAccount)
+  const setBalance = useMutation(api.accounts.setBalance)
+  const balances = useQuery(api.aggregate.balances, {})
   const [landed, setLanded] = useState<{
     count: number
     months: Array<string>
     orders?: { written: number; skipped: number; noTicker: number }
     /* Kept from before: once done, the review that named it is gone. */
     accountName?: string
+    accountId?: Id<'accounts'>
+    noun?: string
+    balance?: { value: number; currency: string; asOf: number }
+    others?: Array<{ currency: string; value: number }>
   } | null>(null)
   const confirm = useMutation(api.intake.confirmTransactions)
   const addBill = useMutation(api.recurring.create)
@@ -213,7 +232,6 @@ function TransactionsReview({
     set(index, { other: id })
   }
   const [choices, setChoices] = useState<Record<number, Choice>>({})
-  const [filter, setFilter] = useState<'check' | 'all'>('check')
   const [keepBalance, setKeepBalance] = useState(true)
   const [added, setAdded] = useState<Set<string>>(new Set())
   const [fixed, setFixed] = useState<string | null>(null)
@@ -261,19 +279,10 @@ function TransactionsReview({
   const ch = (i: number) => choices[i] as Choice | undefined
   const moves = live.filter((r) => ch(r.index)?.kind === 'move')
   const money_ = live.filter((r) => ch(r.index)?.kind !== 'move')
-  const unsure = money_.filter(
-    (r) =>
-      ch(r.index)?.kind === 'spend' &&
-      (r.categorySource !== 'rule' || ch(r.index)?.category === null),
-  )
-  const shown = filter === 'check' ? unsure : money_
   const cur = rows[0]?.currency ?? 'EUR'
   /* Only what is new (3 Oct: three overlapping screenshots counted the
      rows the statement had already brought in — "what do you mean
      spent?"). What it already had is said under the list. */
-  const outOnPaper = live
-    .filter((r) => r.amount < 0)
-    .reduce((t, r) => t + r.amount, 0)
   const spent = money_
     .filter((r) => ch(r.index)?.keep && ch(r.index)?.kind === 'spend')
     .reduce((t, r) => t + r.amount, 0)
@@ -306,6 +315,11 @@ function TransactionsReview({
     setSaving(true)
     setError(null)
     try {
+      /* The account's other pockets, as they stand (5 Oct: "When I upload
+         csv it means usd should be updated as well"). Revolut exports one
+         currency a file; a EUR statement says USD did not move, so USD is
+         kept as is, as of the statement's day — shown before he confirms. */
+      const others = keepsBalance ? otherPockets : []
       const done = await confirm({
         intakeId: intake._id,
         accountId,
@@ -324,10 +338,17 @@ function TransactionsReview({
           }
         }),
       })
+      for (const p of others)
+        await setBalance({
+          accountId,
+          currency: p.currency,
+          value: p.value,
+          dayStart: today,
+          asOf: intake.balance?.asOf,
+        })
       /* Rows that went into another month than this one: say where, and
          open that month in Flow (27 Sep: "Flow is not updated at all" —
          his August statement had gone into August). */
-      const now = new Date(today)
       const key = (d: Date) =>
         `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       const months = [
@@ -337,18 +358,18 @@ function TransactionsReview({
         done.trades.written + done.trades.skipped + done.trades.noTicker > 0
           ? done.trades
           : undefined
-      if (
-        !orders &&
-        (months.length === 0 || (months.length === 1 && months[0] === key(now)))
-      )
-        onDone()
-      else
-        setLanded({
-          count: kept.length,
-          months,
-          orders,
-          accountName: account?.name,
-        })
+      /* Always seen to land (5 Oct: "There should be some animation when
+         I click confirm add payments? Nothing happened"). */
+      setLanded({
+        count: kept.length,
+        months,
+        orders,
+        accountName: account?.name,
+        accountId,
+        noun: noun(kept.length),
+        balance: keepsBalance ? intake.balance : undefined,
+        others,
+      })
     } catch (e) {
       setError(
         e instanceof Error
@@ -359,19 +380,49 @@ function TransactionsReview({
     }
   }
 
+  /* The answer in words first (5 Oct, mockup check.html: "new money out,
+     of it spent … I was fighting these not clear text"). */
+  const spends = kept.filter((r) => ch(r.index)?.kind === 'spend')
+  const ins = kept.filter((r) => ch(r.index)?.kind === 'income')
+  const cameIn = ins.reduce((t, r) => t + r.amount, 0)
+  const allPayments =
+    live.length > 0 && live.every((r) => ch(r.index)?.kind === 'spend')
+  const noun = (n: number) =>
+    allPayments ? (n === 1 ? 'payment' : 'payments') : n === 1 ? 'row' : 'rows'
+  const keepsBalance = intake.balance !== undefined && keepBalance
+  const otherPockets = (
+    balances?.accounts.find((a) => a.accountId === accountId)?.pockets ?? []
+  ).flatMap((p) =>
+    p.currency !== intake.balance?.currency && p.value !== null
+      ? [{ currency: p.currency, value: p.value }]
+      : [],
+  )
+  const orders = (intake.trades ?? []).length
+  const span = rowsSpan(rows.map((r) => r.occurredAt))
+  /* Newest first, one heading a day, each row its printed time. */
+  const byDay = groupByDay(
+    [...live].sort(
+      (a, b) =>
+        b.occurredAt - a.occurredAt ||
+        (b.time ?? '').localeCompare(a.time ?? ''),
+    ),
+  )
+  let shown = 0
+
   return (
-    <>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="flex-1 text-[15px] text-foreground">
-          {intake.title}
+    <div className="motion-arrive flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2.5">
+        <FileBadge intake={intake} />
+        <span className="min-w-[200px] flex-1 text-[15.5px] text-foreground">
+          {account?.name ?? intake.institution ?? 'Statement'}
+          {span ? ` · ${span}` : ''}
         </span>
         <span className="font-mono text-[10.5px] text-ink-500">
-          <ReadBy intake={intake} /> · {rows.length} rows
+          <ReadBy intake={intake} />
         </span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="label-caps">this is</span>
+      <div className="flex flex-wrap items-center gap-1.5">
         {accounts.map((a) => (
           <button
             key={a._id}
@@ -380,8 +431,9 @@ function TransactionsReview({
             onClick={() =>
               void setAccount({ intakeId: intake._id, accountId: a._id })
             }
-            className={accountId === a._id ? PILL_LOUD : PILL_QUIET}
+            className={`motion-press inline-flex items-center gap-2 rounded-full py-1 pr-3 pl-1.5 text-[12.5px] ring-1 ring-inset ${accountId === a._id ? 'bg-lav-400/12 text-foreground ring-lav-400/55' : 'text-ink-300 ring-lift/12 hover:text-foreground'}`}
           >
+            <AccountLogo name={a.name} domain={a.domain} size={18} />
             {a.name}
           </button>
         ))}
@@ -394,7 +446,7 @@ function TransactionsReview({
           />
         ) : !accountId ? (
           <span className="font-mono text-[11px] text-state-warn">
-            pick the account
+            whose is it?
           </span>
         ) : null}
         <AnotherAccount
@@ -406,27 +458,58 @@ function TransactionsReview({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <p className="text-[18px] leading-snug font-light text-ink-200">
+        {live.length === 0 ? (
+          <>
+            <b className="font-normal text-foreground">Nothing new</b>.
+            {dups.length > 0
+              ? ` You already have ${dups.length === 1 ? 'it' : `all ${dups.length} rows`}.`
+              : ''}
+          </>
+        ) : (
+          <>
+            <b className="font-normal text-foreground">
+              {live.length} new {noun(live.length)}
+            </b>
+            .
+            {dups.length > 0
+              ? ` The other ${dups.length} ${dups.length === 1 ? 'row' : 'rows'} you already have.`
+              : ''}
+            {moves.length > 0
+              ? ` ${moves.length} ${moves.length === 1 ? 'is a move' : 'are moves'} between your own accounts.`
+              : ''}
+          </>
+        )}
+        {pending.length > 0 ? ` ${pending.length} not finished yet.` : ''}
+      </p>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <Kpi
-          label="new money out"
-          value={money(Math.round(outOnPaper * 100) / 100, cur)}
-        />
-        <Kpi
-          label="of it, spent"
+          label="spent"
           value={money(Math.round(spent * 100) / 100, cur)}
-          tone="bad"
-          note={`${money_.filter((r) => ch(r.index)?.kind === 'spend' && ch(r.index)?.keep).length} rows`}
+          tone={spends.length > 0 ? 'bad' : undefined}
+          note={
+            spends.length === 0
+              ? 'nothing'
+              : `${spends.length} ${spends.length === 1 ? 'payment' : 'payments'}`
+          }
         />
         <Kpi
-          label="your money moving"
-          value={`${moves.length} moves`}
-          note="not spending"
+          label="came in"
+          value={`${cameIn > 0 ? '+' : ''}${money(Math.round(cameIn * 100) / 100, cur)}`}
+          tone={ins.length > 0 ? 'good' : undefined}
+          note={
+            ins.length === 0
+              ? 'nothing'
+              : `${ins.length} ${ins.length === 1 ? 'payment' : 'payments'}`
+          }
         />
         {intake.balance ? (
           <button
             type="button"
+            aria-pressed={keepBalance}
             onClick={() => setKeepBalance((k) => !k)}
-            className={`flex flex-col gap-1 rounded-[12px] p-3 text-left ring-1 ring-inset ${keepBalance ? 'bg-lav-400/10 ring-lav-400/40' : 'bg-lift/[0.035] ring-lift/10'}`}
+            className={`motion-press flex flex-col gap-1 rounded-[12px] p-3 text-left ring-1 ring-inset ${keepBalance ? 'bg-lav-400/10 ring-lav-400/45' : 'bg-lift/[0.035] ring-lift/10'}`}
           >
             <span className="label-caps flex items-center gap-1.5">
               {keepBalance ? <Check className="size-3 text-lav-400" /> : null}
@@ -437,88 +520,27 @@ function TransactionsReview({
             </span>
             <span className="font-mono text-[10.5px] text-ink-500">
               {keepBalance
-                ? `→ ${account?.name ?? 'the account'} free cash`
-                : 'not kept'}
+                ? `becomes ${account?.name ?? 'its'} ${intake.balance.currency} cash`
+                : 'not used'}
             </span>
+            {keepBalance && otherPockets.length > 0 ? (
+              <span className="font-mono text-[10.5px] text-ink-500">
+                {otherPockets
+                  .map((p) => `${p.currency} ${money(p.value, p.currency)}`)
+                  .join(', ')}{' '}
+                kept as is
+              </span>
+            ) : null}
           </button>
         ) : null}
       </div>
 
-      {(intake.trades ?? []).length > 0 ? (
+      {orders > 0 ? (
         <OrdersFound orders={intake.trades ?? []} account={account ?? null} />
       ) : null}
 
-      {moves.length > 0 ? (
-        <Section
-          title="⇄ your money moving — not spending"
-          aside={`${moves.filter((r) => !ch(r.index)?.other).length} need you`}
-        >
-          {moves.map((r) => (
-            <Row key={r.index} r={r}>
-              <select
-                value={ch(r.index)?.other ?? ''}
-                onChange={(e) => {
-                  const v = e.target.value
-                  if (v === 'spend' || v === 'income')
-                    set(r.index, { kind: v, other: null })
-                  else if (v === '__new')
-                    void addAccountFor(r.index, r.counterparty ?? r.merchant)
-                  else
-                    set(r.index, {
-                      other: (v || null) as Id<'accounts'> | null,
-                    })
-                }}
-                aria-label={`Where ${r.merchant} went`}
-                className={`rounded-[8px] bg-lift/[0.05] px-2 py-1 font-mono text-[11.5px] ring-1 ring-inset ${ch(r.index)?.other ? 'text-lav-300 ring-lav-400/35' : 'text-state-warn ring-state-warn/45'}`}
-              >
-                <option value="">
-                  {r.amount < 0 ? 'to which account?' : 'from which account?'}
-                </option>
-                {accounts.map((a) =>
-                  a._id === accountId ? (
-                    /* Its own broker side: Revolut's cash into Revolut's
-                       stocks is still a move — within the account. */
-                    a.kinds.includes('broker') ? (
-                      <option key={a._id} value={a._id}>
-                        {r.amount < 0
-                          ? `→ ${a.name} · its investments`
-                          : `← ${a.name} · its investments`}
-                      </option>
-                    ) : null
-                  ) : (
-                    <option key={a._id} value={a._id}>
-                      {r.amount < 0 ? `→ ${a.name}` : `← ${a.name}`}
-                    </option>
-                  ),
-                )}
-                {knownInstitution(r.counterparty ?? r.merchant) &&
-                !accounts.some(
-                  (a) =>
-                    a.name.toLowerCase() ===
-                    knownInstitution(
-                      r.counterparty ?? r.merchant,
-                    )?.name.toLowerCase(),
-                ) ? (
-                  <option value="__new">
-                    + add {knownInstitution(r.counterparty ?? r.merchant)?.name}{' '}
-                    as an account
-                  </option>
-                ) : null}
-                <option value={r.amount < 0 ? 'spend' : 'income'}>
-                  not mine — {r.amount < 0 ? 'spending' : 'income'}
-                </option>
-              </select>
-            </Row>
-          ))}
-          <span className="text-[12px] text-ink-500">
-            Answer once — a counterparty you name is matched the same way next
-            time.
-          </span>
-        </Section>
-      ) : null}
-
       {review.recurring.filter((x) => !x.alreadyABill).length > 0 ? (
-        <Section title="↻ found things that come round" aside="add as bills?">
+        <Section title="↻ comes every month" aside="add as a bill?">
           {review.recurring
             .filter((x) => !x.alreadyABill)
             .map((x) => {
@@ -534,7 +556,7 @@ function TransactionsReview({
                   <span className="flex-1">
                     {x.merchant}
                     <span className="block font-mono text-[10.5px] text-ink-500">
-                      {x.months} months running, same amount
+                      {x.months} months in a row, same amount
                     </span>
                   </span>
                   <span className="font-mono">{money(x.amount, cur)}</span>
@@ -564,119 +586,175 @@ function TransactionsReview({
         </Section>
       ) : null}
 
-      <Section
-        title={`↘ spending and money in · ${money_.length} rows`}
-        aside={
-          <span className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => setFilter('check')}
-              className={filter === 'check' ? PILL_LOUD : PILL_QUIET}
-            >
-              to check · {unsure.length}
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('all')}
-              className={filter === 'all' ? PILL_LOUD : PILL_QUIET}
-            >
-              all
-            </button>
-          </span>
-        }
-      >
-        {fixed ? (
-          <span className="font-mono text-[11.5px] text-state-good">
-            ✓ {fixed}
-          </span>
-        ) : null}
-        {shown.length === 0 ? (
-          <span className="py-2 text-[13px] text-ink-500">
-            {filter === 'check'
-              ? 'Nothing to check — every row is filed by a merchant you taught.'
-              : 'No rows.'}
-          </span>
-        ) : (
-          shown.map((r) => {
-            const c = ch(r.index)
-            if (!c) return null
-            return (
-              <Row key={r.index} r={r} dim={!c.keep}>
-                <span className="flex items-center gap-1.5">
-                  {r.recurringId ? (
-                    <span className="rounded-[5px] bg-lav-400/12 px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.1em] text-lav-300 uppercase">
-                      pays a bill
-                    </span>
-                  ) : null}
-                  {c.kind === 'spend' ? (
-                    <>
-                      <span
-                        className={`rounded-[5px] px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.1em] uppercase ${r.categorySource === 'rule' ? 'bg-state-good/10 text-state-good' : 'bg-state-warn/12 text-state-warn'}`}
-                      >
-                        {r.categorySource === 'rule' ? 'sure' : 'guess'}
-                      </span>
-                      <MoneyIcon
-                        kind="expense"
-                        category={c.category}
-                        className="size-3.5 text-area"
-                      />
-                      <select
-                        value={c.category ?? ''}
-                        onChange={(e) => fixAll(r.merchant, e.target.value)}
-                        aria-label={`Category for ${r.merchant}`}
-                        className="rounded-[8px] bg-lift/[0.05] px-1.5 py-1 font-mono text-[11.5px] text-ink-100 ring-1 ring-lift/12 ring-inset"
-                      >
-                        {c.category === null ? (
-                          <option value="">pick…</option>
-                        ) : null}
-                        {SPEND_CATEGORIES.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </select>
-                    </>
-                  ) : (
-                    <span className="rounded-[5px] bg-state-good/10 px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.1em] text-state-good uppercase">
-                      money in
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={c.keep}
-                    aria-label={`Keep ${r.merchant}`}
-                    onClick={() => set(r.index, { keep: !c.keep })}
-                    className={`grid size-5 place-items-center rounded-[6px] ${c.keep ? 'bg-lav-400 text-background' : 'ring-1 ring-lift/25'}`}
+      {live.length > 0 ? (
+        <Section title={`new · ${live.length}`}>
+          {fixed ? (
+            <span className="font-mono text-[11.5px] text-state-good">
+              ✓ {fixed}
+            </span>
+          ) : null}
+          {byDay.map(([day, list]) => (
+            <div key={day} className="flex flex-col">
+              <DayHeading at={list[0].occurredAt} />
+              {list.map((r) => {
+                const c = ch(r.index)
+                if (!c) return null
+                const order = shown++
+                return (
+                  <Row
+                    key={r.index}
+                    r={r}
+                    dim={!c.keep}
+                    order={order}
+                    kind={c.kind}
                   >
-                    {c.keep ? (
-                      <Check className="size-3" strokeWidth={3} />
-                    ) : null}
-                  </button>
-                </span>
-              </Row>
-            )
-          })
-        )}
-      </Section>
+                    {c.kind === 'move' ? (
+                      <>
+                        <MoveChip />
+                        <select
+                          value={c.other ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value
+                            if (v === 'spend' || v === 'income')
+                              set(r.index, { kind: v, other: null })
+                            else if (v === '__new')
+                              void addAccountFor(
+                                r.index,
+                                r.counterparty ?? r.merchant,
+                              )
+                            else
+                              set(r.index, {
+                                other: (v || null) as Id<'accounts'> | null,
+                              })
+                          }}
+                          aria-label={`Where ${r.merchant} went`}
+                          className={`rounded-[8px] bg-lift/[0.05] px-2 py-1 font-mono text-[11.5px] ring-1 ring-inset ${c.other ? 'text-lav-300 ring-lav-400/35' : 'text-state-warn ring-state-warn/45'}`}
+                        >
+                          <option value="">
+                            {r.amount < 0
+                              ? 'to which account?'
+                              : 'from which account?'}
+                          </option>
+                          {accounts.map((a) =>
+                            a._id === accountId ? (
+                              /* Its own broker side: Revolut's cash into
+                                 Revolut's stocks is still a move. */
+                              a.kinds.includes('broker') ? (
+                                <option key={a._id} value={a._id}>
+                                  {r.amount < 0
+                                    ? `→ ${a.name} · its investments`
+                                    : `← ${a.name} · its investments`}
+                                </option>
+                              ) : null
+                            ) : (
+                              <option key={a._id} value={a._id}>
+                                {r.amount < 0 ? `→ ${a.name}` : `← ${a.name}`}
+                              </option>
+                            ),
+                          )}
+                          {knownInstitution(r.counterparty ?? r.merchant) &&
+                          !accounts.some(
+                            (a) =>
+                              a.name.toLowerCase() ===
+                              knownInstitution(
+                                r.counterparty ?? r.merchant,
+                              )?.name.toLowerCase(),
+                          ) ? (
+                            <option value="__new">
+                              + add{' '}
+                              {
+                                knownInstitution(r.counterparty ?? r.merchant)
+                                  ?.name
+                              }{' '}
+                              as an account
+                            </option>
+                          ) : null}
+                          <option value={r.amount < 0 ? 'spend' : 'income'}>
+                            not mine — {r.amount < 0 ? 'spending' : 'came in'}
+                          </option>
+                        </select>
+                      </>
+                    ) : c.kind === 'spend' ? (
+                      <>
+                        {r.recurringId ? (
+                          <span className="rounded-[5px] bg-lav-400/12 px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.1em] text-lav-300 uppercase">
+                            pays a bill
+                          </span>
+                        ) : null}
+                        <select
+                          value={c.category ?? ''}
+                          onChange={(e) => fixAll(r.merchant, e.target.value)}
+                          aria-label={`Group for ${r.merchant}`}
+                          title={
+                            r.categorySource === 'rule'
+                              ? 'as you filed it before'
+                              : 'a guess — change it if wrong'
+                          }
+                          className={`rounded-full bg-lift/[0.05] px-2 py-0.5 font-mono text-[10.5px] tracking-[0.06em] uppercase ring-1 ring-inset ${r.categorySource === 'rule' && c.category !== null ? 'text-ink-300 ring-lift/12' : 'text-state-warn ring-state-warn/40'}`}
+                        >
+                          {c.category === null ? (
+                            <option value="">which group?</option>
+                          ) : null}
+                          {SPEND_CATEGORIES.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.label}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    ) : (
+                      <span className="rounded-full bg-state-good/10 px-2 py-0.5 font-mono text-[10.5px] tracking-[0.06em] text-state-good uppercase">
+                        came in
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={c.keep}
+                      aria-label={`Add ${r.merchant}`}
+                      title={c.keep ? 'will be added' : 'left out'}
+                      onClick={() => set(r.index, { keep: !c.keep })}
+                      className={`grid size-5 place-items-center rounded-[6px] ${c.keep ? 'bg-lav-400 text-background' : 'ring-1 ring-lift/25'}`}
+                    >
+                      {c.keep ? (
+                        <Check className="size-3" strokeWidth={3} />
+                      ) : null}
+                    </button>
+                  </Row>
+                )
+              })}
+            </div>
+          ))}
+        </Section>
+      ) : null}
 
       {pending.length > 0 ? (
         <Section
-          title="◷ pending — held back"
-          aside="matched when it completes"
+          title={`not finished yet · ${pending.length}`}
+          aside="added once it goes through"
         >
-          {pending.map((r) => (
-            <Row key={r.index} r={r} dim />
+          {groupByDay(pending).map(([day, list]) => (
+            <div key={day} className="flex flex-col">
+              <DayHeading at={list[0].occurredAt} />
+              {list.map((r) => (
+                <Row key={r.index} r={r} dim kind={r.kind} />
+              ))}
+            </div>
           ))}
         </Section>
       ) : null}
       {dups.length > 0 ? (
         <Section
-          title={`= already have these · ${dups.length}`}
-          aside="matched by amount, place, ±2 days — skipped"
+          title={`already have · ${dups.length}`}
+          aside="not added again"
         >
-          {dups.map((r) => (
-            <Row key={r.index} r={r} dim />
+          {groupByDay(dups).map(([day, list]) => (
+            <div key={day} className="flex flex-col">
+              <DayHeading at={list[0].occurredAt} />
+              {list.map((r) => (
+                <Row key={r.index} r={r} dim kind={r.kind} />
+              ))}
+            </div>
           ))}
         </Section>
       ) : null}
@@ -698,14 +776,22 @@ function TransactionsReview({
           onClick={() => void save()}
           className={`${PILL_LOUD} flex-[2] justify-center py-3 disabled:opacity-40`}
         >
-          confirm · {kept.length} rows
-          {(intake.trades ?? []).length > 0
-            ? ` and ${(intake.trades ?? []).length} orders`
-            : ''}
-          {intake.balance && keepBalance ? ' · balance' : ''}
+          {saving ? (
+            <>
+              <Loader2 className="size-3.5 animate-spin" />
+              adding
+            </>
+          ) : (
+            addLabel({
+              rows: kept.length,
+              noun: noun(kept.length),
+              orders,
+              balance: keepsBalance,
+            })
+          )}
         </button>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -877,28 +963,42 @@ function Section({
 function Row({
   r,
   dim = false,
+  order,
+  kind,
   children,
 }: {
   r: {
     occurredAt: number
+    time?: string | null
     merchant: string
     raw: string
     amount: number
     currency: string
+    category?: string | null
   }
   dim?: boolean
+  /** Its place in the list: rows slide in one after another. */
+  order?: number
+  kind?: 'spend' | 'income' | 'move'
   children?: React.ReactNode
 }) {
-  /* The name and the amount get the line; what he decides about the row
-     sits under them, so a phone never cuts a merchant to "Tr…". */
+  /* The time, its mark, the name and the amount get the line; what he
+     decides about the row sits under them, so a phone never cuts a
+     merchant to "Tr…". The day is the heading above (5 Oct). */
   return (
     <div
-      className={`flex flex-col gap-1.5 border-t border-lift/[0.04] py-2 ${dim ? 'opacity-50' : ''}`}
+      className={`motion-arrive flex flex-col gap-1.5 border-t border-lift/[0.04] py-2 first:border-t-0 ${dim ? 'opacity-50' : ''}`}
+      style={
+        order !== undefined
+          ? { animationDelay: `${Math.min(order, 12) * 35}ms` }
+          : undefined
+      }
     >
-      <div className="flex items-center gap-3">
-        <span className="w-12 shrink-0 font-mono text-[11px] text-ink-500">
-          {DAY_FMT.format(new Date(r.occurredAt))}
+      <div className="flex items-center gap-2.5">
+        <span className="w-10 shrink-0 font-mono text-[11px] text-ink-500">
+          {r.time ?? ''}
         </span>
+        <RowMark r={r} kind={kind} />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[13.5px] text-foreground">
             {r.merchant}
@@ -910,18 +1010,75 @@ function Row({
           ) : null}
         </span>
         <span
-          className={`shrink-0 text-right font-mono text-[13px] ${r.amount > 0 ? 'text-state-good' : 'text-ink-100'}`}
+          className={`shrink-0 text-right font-mono text-[13px] ${r.amount > 0 ? 'text-state-good' : kind === 'spend' && !dim ? 'text-state-danger' : 'text-ink-100'}`}
         >
           {r.amount > 0 ? '+' : ''}
           {money(r.amount, r.currency)}
         </span>
       </div>
       {children ? (
-        <div className="flex flex-wrap items-center gap-1.5 pl-15">
+        <div className="flex flex-wrap items-center gap-1.5 pl-[86px]">
           {children}
         </div>
       ) : null}
     </div>
+  )
+}
+
+/** A row's mark: the shop's logo where the app knows its site, else what
+    it is — a move, money in, or its group's icon (5 Oct, "Bolt icon +
+    Bolt, Salary can have growth icon"). */
+function RowMark({
+  r,
+  kind,
+}: {
+  r: { merchant: string; raw: string; category?: string | null }
+  kind?: 'spend' | 'income' | 'move'
+}) {
+  const { who } = usePayees()
+  const [failed, setFailed] = useState(false)
+  const domain = who({ raw: r.raw, name: r.merchant }).domain
+  if (domain && !failed && kind !== 'move')
+    return (
+      <img
+        src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`}
+        alt=""
+        aria-hidden
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+        className="size-[26px] shrink-0 rounded-[8px] bg-mark-ground object-contain p-[4px]"
+      />
+    )
+  const Icon =
+    kind === 'move'
+      ? ArrowLeftRight
+      : kind === 'income'
+        ? TrendingUp
+        : groupIcon(r.category)
+  return (
+    <span
+      className={`grid size-[26px] shrink-0 place-items-center rounded-[8px] ${kind === 'move' ? 'bg-lav-400/14 text-lav-400' : kind === 'income' ? 'bg-state-good/14 text-state-good' : 'bg-lift/[0.06] text-ink-300'}`}
+    >
+      <Icon className="size-[15px]" />
+    </span>
+  )
+}
+
+/** "your move" — his own money between his own accounts, in the app's
+    lavender (5 Oct). */
+function MoveChip() {
+  return (
+    <span className="rounded-full bg-lav-400/12 px-2 py-0.5 font-mono text-[10.5px] tracking-[0.06em] text-lav-300 uppercase ring-1 ring-lav-400/45 ring-inset">
+      your move
+    </span>
+  )
+}
+
+function DayHeading({ at }: { at: number }) {
+  return (
+    <span className="pt-2 pb-0.5 font-mono text-[10px] tracking-[0.14em] text-ink-400 uppercase">
+      {DAY_FMT.format(new Date(at))}
+    </span>
   )
 }
 
@@ -2150,12 +2307,20 @@ function Landed({
   months,
   orders,
   account,
+  accountId,
+  noun,
+  balance,
+  others = [],
   onDone,
 }: {
   count: number
   months: Array<string>
   orders?: { written: number; skipped: number; noTicker: number }
   account?: string
+  accountId?: Id<'accounts'>
+  noun?: string
+  balance?: { value: number; currency: string; asOf: number }
+  others?: Array<{ currency: string; value: number }>
   onDone: () => void
 }) {
   const name = (m: string) => {
@@ -2163,21 +2328,47 @@ function Landed({
     return MONTH_LONG.format(new Date(y, mo - 1, 1))
   }
   const last = months.at(-1)
+  /* The account's other pockets that are still old — Revolut's USD after
+     a EUR statement (5 Oct: "I still have revolut here"). Each one asks,
+     with one press, rather than leaving check-in to say it later. */
+  const data = useQuery(api.aggregate.balances, {})
+  const now = Date.now()
+  const old = (
+    data?.accounts.find((a) => a.accountId === accountId)?.pockets ?? []
+  ).filter(
+    (p) =>
+      p.currency !== balance?.currency &&
+      (p.recordedAt === null || now - p.recordedAt > STALE_MS),
+  )
   return (
     <div className="motion-land flex flex-col items-center gap-3 py-6 text-center">
-      <span className="motion-pop grid size-11 place-items-center rounded-full bg-state-good/16 text-state-good">
-        <Check className="size-5" strokeWidth={2.5} />
+      <span className="motion-pop grid size-12 place-items-center rounded-full bg-state-good/16 text-state-good">
+        <Check className="size-6" strokeWidth={2.5} />
       </span>
-      <span className="text-[16px] text-foreground">
-        {account ? `${account} is up to date` : 'Saved'}
+      <span className="text-[17px] text-foreground">
+        {count > 0
+          ? `${count} ${noun ?? (count === 1 ? 'row' : 'rows')} added`
+          : balance
+            ? 'Balance updated'
+            : 'Saved'}
       </span>
       <div className="flex max-w-md flex-col gap-1 text-[13px] text-ink-300">
-        {count > 0 ? (
+        {count > 0 && months.length > 0 ? (
+          <span>to {months.map(name).join(', ')}</span>
+        ) : null}
+        {balance ? (
           <span>
-            {count} {count === 1 ? 'row' : 'rows'} added
-            {months.length > 0 ? ` — ${months.map(name).join(', ')}` : ''}
+            {account ?? 'Its'} {balance.currency} cash ·{' '}
+            {money(balance.value, balance.currency)} on{' '}
+            {DAY_FMT.format(new Date(balance.asOf))}
           </span>
         ) : null}
+        {others.map((p) => (
+          <span key={p.currency}>
+            {account ?? 'Its'} {p.currency} · {money(p.value, p.currency)} ·
+            kept as is, not in this file
+          </span>
+        ))}
         {orders ? (
           <span>
             {orders.written} {orders.written === 1 ? 'order' : 'orders'} filed
@@ -2190,6 +2381,18 @@ function Landed({
           </span>
         ) : null}
       </div>
+      {accountId && old.length > 0 ? (
+        <div className="flex w-full max-w-md flex-col gap-2 rounded-[14px] bg-state-warn/[0.06] p-3 text-left ring-1 ring-state-warn/30 ring-inset">
+          {old.map((p) => (
+            <OldPocket
+              key={p.currency}
+              accountId={accountId}
+              account={account ?? ''}
+              pocket={p}
+            />
+          ))}
+        </div>
+      ) : null}
       <div className="flex flex-wrap justify-center gap-2 pt-1">
         {orders ? (
           <Link
@@ -2206,7 +2409,7 @@ function Landed({
             to="/finances"
             search={{ room: 'flow', month: last }}
             onClick={onDone}
-            className={`${orders ? PILL_QUIET : PILL_LOUD} justify-center py-2.5`}
+            className={`${PILL_QUIET} justify-center py-2.5`}
           >
             see {name(last)} in Flow →
           </Link>
@@ -2214,11 +2417,74 @@ function Landed({
         <button
           type="button"
           onClick={onDone}
-          className={`${PILL_QUIET} justify-center py-2.5`}
+          className={`${PILL_LOUD} justify-center px-6 py-2.5`}
         >
           done
         </button>
       </div>
+    </div>
+  )
+}
+
+/** "USD · $120.00 · typed Sep 26" and one press to say it is still so. */
+function OldPocket({
+  accountId,
+  account,
+  pocket,
+}: {
+  accountId: Id<'accounts'>
+  account: string
+  pocket: { currency: string; value: number | null; recordedAt: number | null }
+}) {
+  const today = useDayStarts(1).at(-1) as number
+  const setBalance = useMutation(api.accounts.setBalance)
+  const [done, setDone] = useState(false)
+  const [busy, setBusy] = useState(false)
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="flex-1 text-[13px] text-ink-200">
+        {account} {pocket.currency}
+        {pocket.value !== null
+          ? ` · ${money(pocket.value, pocket.currency)}`
+          : ''}
+        <span className="block font-mono text-[10.5px] text-state-warn">
+          {done
+            ? 'saved today'
+            : pocket.recordedAt
+              ? `last set ${DAY_FMT.format(new Date(pocket.recordedAt))}`
+              : 'never set'}
+        </span>
+      </span>
+      {pocket.value !== null ? (
+        <button
+          key={done ? 'saved' : 'ask'}
+          type="button"
+          disabled={done || busy}
+          onClick={() => {
+            setBusy(true)
+            void setBalance({
+              accountId,
+              currency: pocket.currency,
+              value: pocket.value as number,
+              dayStart: today,
+            })
+              .then(() => setDone(true))
+              .finally(() => setBusy(false))
+          }}
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[10.5px] tracking-[0.08em] whitespace-nowrap uppercase ring-1 ring-inset ${done ? 'motion-pop bg-state-good text-background ring-state-good' : 'motion-press bg-state-good/10 text-state-good ring-state-good/40'}`}
+        >
+          {busy ? (
+            <>
+              <Loader2 className="size-3 animate-spin" />
+              saving
+            </>
+          ) : done ? (
+            '✓ saved'
+          ) : (
+            '✓ still the same'
+          )}
+        </button>
+      ) : null}
     </div>
   )
 }

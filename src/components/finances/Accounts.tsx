@@ -1006,7 +1006,7 @@ export function UpdateSheet({
       }
       onClose={close}
       onBack={intakeId ? () => setIntakeId(null) : undefined}
-      wide={intakeId !== null}
+      wide={intakeId !== null || tab === 'file'}
     >
       {account && intakeId ? (
         <IntakeFlow
@@ -1053,6 +1053,28 @@ function TypeBalances({
     data?.accounts.find((a) => a.accountId === account._id)?.pockets ?? []
   const [values, setValues] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
+  const [same, setSame] = useState<Set<string>>(new Set())
+
+  /* "Still the same" (5 Oct): the number it shows, recorded as today in
+     one press — the window closes once nothing is left to say. */
+  async function keepSame(c: string, value: number) {
+    setError(null)
+    try {
+      await setBalance({
+        accountId: account._id,
+        currency: c,
+        value,
+        dayStart: today,
+      })
+      const next = new Set(same).add(c)
+      if (account.currencies.every((x) => next.has(x))) onDone()
+      else setSame(next)
+    } catch (e) {
+      setError(
+        failureMessage(e) ?? (e instanceof Error ? e.message : 'Not saved'),
+      )
+    }
+  }
 
   async function save() {
     setError(null)
@@ -1083,7 +1105,7 @@ function TypeBalances({
   return (
     <>
       <span className="text-[12.5px] text-ink-400">
-        The free cash in it now — its investments are not in this number.
+        Free cash in it now, without its investments.
       </span>
       {account.currencies.map((c) => {
         const p = pockets.find((x) => x.currency === c)
@@ -1105,10 +1127,20 @@ function TypeBalances({
               aria-label={`${account.name} ${c}`}
               className="w-full bg-transparent text-[18px] focus:outline-none"
             />
-            {p?.recordedAt ? (
+            {p?.recordedAt && !same.has(c) ? (
               <span className="shrink-0 font-mono text-[10.5px] text-ink-500">
                 {agoLabel(p.recordedAt)}
               </span>
+            ) : null}
+            {typeof p?.value === 'number' && !(c in values) ? (
+              <button
+                type="button"
+                disabled={same.has(c)}
+                onClick={() => void keepSame(c, p.value as number)}
+                className="motion-press shrink-0 rounded-full bg-state-good/10 px-3 py-1.5 font-mono text-[10.5px] tracking-[0.08em] whitespace-nowrap text-state-good uppercase ring-1 ring-state-good/40 ring-inset disabled:opacity-60"
+              >
+                {same.has(c) ? '✓ saved' : '✓ still the same'}
+              </button>
             ) : null}
           </label>
         )

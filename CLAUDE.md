@@ -229,7 +229,7 @@ entirely in my court.>
 <what I do next, once he says go>
 
 ### ⏱ Session
-<length · context · written · 5-hour % · week %>
+⏱️ <length> · 🧠 <context> · ✍️ <written> · 🔋 5h <%> · 📅 week <%>
 ```
 
 The ⏱ line (5 Oct) is how he paces the Pro plan. Length, context and
@@ -237,7 +237,9 @@ written come from the `session-guard` hook's `meter:` line on his last
 message. The plan percentages come from `get_usage`: read it on the first
 reply of a session, at every plan-position refresh, and whenever the hook
 says the session is long — otherwise repeat the last reading with its time
-("week 95% at 17:55"). Past 80% of the week, say so in the 🫪 line.
+("📅 week 95% at 17:55"). Each item carries its emoji (5 Oct: "emoji drag
+attention"). When 10% or less is left of the 5-hour or the weekly limit,
+that item gets 🚨 after it, e.g. `📅 week 95% 🚨`.
 
 The phrase to say lives inside the 🫪 line. No separate closing paragraph or
 "do this now" line after the block — he called that bother.

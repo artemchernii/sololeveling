@@ -15,9 +15,10 @@ import {
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
-import { FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
+import { Busy, FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { groupIcon } from '@/components/finances/GroupBadge'
 import { AccountsLanded } from '@/components/finances/Landed'
+import type { LandedAccount } from '@/components/finances/Landed'
 import { usePayees } from '@/components/finances/flow/Payees'
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import {
@@ -1221,44 +1222,12 @@ function HoldingsReview({
     }
   }
 
-  if (saved)
+  if (saved && target)
     return (
-      <div className="motion-land flex flex-col items-center gap-3 py-6 text-center">
-        <span className="motion-pop grid size-11 place-items-center rounded-full bg-state-good/16 text-state-good">
-          <Check className="size-5" strokeWidth={2.5} />
-        </span>
-        <span className="text-[16px] text-foreground">
-          {targetName} is in — {money(Math.round(total * 100) / 100)}
-        </span>
-        <span className="font-mono text-[11px] text-ink-400">
-          {kept.length} positions {money(Math.round(invested * 100) / 100)}
-          {cashNum !== null ? ` · free cash ${money(cashNum)}` : ''} · what you
-          paid: {known.length === 0 ? 'unknown' : `${known.length} known`}
-        </span>
-        {known.length < kept.length ? (
-          <span className="max-w-md text-[12.5px] text-ink-400">
-            Drop a {targetName} statement any time and what you paid fills in —
-            nothing is added twice.
-          </span>
-        ) : null}
-        <div className="flex flex-wrap justify-center gap-2 pt-1">
-          <Link
-            to="/finances"
-            search={{ room: 'portfolio' }}
-            onClick={onDone}
-            className={`${PILL_LOUD} justify-center py-2.5`}
-          >
-            see Portfolio →
-          </Link>
-          <button
-            type="button"
-            onClick={onDone}
-            className={`${PILL_QUIET} justify-center py-2.5`}
-          >
-            done
-          </button>
-        </div>
-      </div>
+      <ReviewLanded
+        landed={{ accountId: target, added: kept.length }}
+        onDone={onDone}
+      />
     )
 
   return (
@@ -1612,13 +1581,15 @@ function HoldingsReview({
         </button>
         <button
           type="button"
-          disabled={!ready}
+          disabled={!ready || saving}
           onClick={() => void save()}
           className={`${PILL_LOUD} flex-[2] justify-center py-3 disabled:opacity-40`}
         >
-          {target === null
-            ? 'pick the account above'
-            : `save ${kept.length} ${kept.length === 1 ? 'position' : 'positions'}${cashNum !== null ? ' and the cash' : ''}`}
+          <Busy on={saving} doing="saving">
+            {target === null
+              ? 'pick the account above'
+              : `save ${kept.length} ${kept.length === 1 ? 'position' : 'positions'}${cashNum !== null ? ' and the cash' : ''}`}
+          </Busy>
         </button>
       </div>
     </>
@@ -1880,6 +1851,7 @@ function TradesReview({
   const [drop, setDrop] = useState<Set<number>>(new Set())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [landed, setLanded] = useState<LandedAccount | null>(null)
   const kept = trades
     .map((t, i) => ({ t, i }))
     .filter(({ i }) => !drop.has(i) && picks[i])
@@ -1890,7 +1862,7 @@ function TradesReview({
     setSaving(true)
     setError(null)
     try {
-      await confirm({
+      const done = await confirm({
         intakeId: intake._id,
         accountId: target,
         rows: kept.map(({ i }) => ({
@@ -1898,7 +1870,7 @@ function TradesReview({
           candidate: picks[i] as Candidate,
         })),
       })
-      onDone()
+      setLanded({ accountId: target, added: done.written })
     } catch (e) {
       setError(
         e instanceof Error
@@ -1908,6 +1880,8 @@ function TradesReview({
       setSaving(false)
     }
   }
+
+  if (landed) return <ReviewLanded landed={landed} onDone={onDone} />
 
   return (
     <>
@@ -2030,7 +2004,9 @@ function TradesReview({
           onClick={() => void save()}
           className={`${PILL_LOUD} flex-[2] justify-center py-3 disabled:opacity-40`}
         >
-          confirm · {kept.length} trades
+          <Busy on={saving} doing="adding">
+            confirm · {kept.length} trades
+          </Busy>
         </button>
       </div>
     </>
@@ -2068,6 +2044,7 @@ function CryptoReview({
   const account = accounts.find((a) => a._id === target)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [landed, setLanded] = useState<LandedAccount | null>(null)
   const c = checkCryptoStatement(trades, closing)
   const year = (t: number) => new Date(t).getFullYear()
   const checks: Array<[string, string, boolean]> = [
@@ -2127,7 +2104,7 @@ function CryptoReview({
     setSaving(true)
     setError(null)
     try {
-      await confirm({
+      const done = await confirm({
         intakeId: intake._id,
         accountId: target,
         rows: trades.map((t, index) => ({
@@ -2135,12 +2112,14 @@ function CryptoReview({
           candidate: t.candidates[t.preferred ?? 0],
         })),
       })
-      onDone()
+      setLanded({ accountId: target, added: done.written })
     } catch (e) {
       setError(failureMessage(e) ?? 'Not saved')
       setSaving(false)
     }
   }
+
+  if (landed) return <ReviewLanded landed={landed} onDone={onDone} />
 
   return (
     <>
@@ -2264,7 +2243,9 @@ function CryptoReview({
           onClick={() => void save()}
           className={`${PILL_LOUD} flex-[2] justify-center py-3 disabled:opacity-40`}
         >
-          add to {account?.name ?? '…'}
+          <Busy on={saving} doing="adding">
+            add to {account?.name ?? '…'}
+          </Busy>
         </button>
       </div>
       <span className="label-caps text-center">
@@ -2281,6 +2262,35 @@ const MONTH_LONG = new Intl.DateTimeFormat(undefined, {
 
 /* After a statement from another month: where its rows went, and a way
    there. */
+/** A broker file landed: its account's line, Portfolio, done. */
+function ReviewLanded({
+  landed,
+  onDone,
+}: {
+  landed: LandedAccount
+  onDone: () => void
+}) {
+  return (
+    <AccountsLanded accounts={[landed]} cash={false}>
+      <Link
+        to="/finances"
+        search={{ room: 'portfolio' }}
+        onClick={onDone}
+        className={`${PILL_QUIET} justify-center py-2.5`}
+      >
+        Portfolio →
+      </Link>
+      <button
+        type="button"
+        onClick={onDone}
+        className={`${PILL_LOUD} justify-center px-8 py-2.5`}
+      >
+        done
+      </button>
+    </AccountsLanded>
+  )
+}
+
 /** What a confirm wrote: one line an account, and the way on. */
 function Landed({
   accountId,

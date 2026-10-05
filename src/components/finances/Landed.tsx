@@ -29,9 +29,13 @@ export type LandedAccount = { accountId: Id<'accounts'>; added: number }
 
 export function AccountsLanded({
   accounts,
+  cash = true,
   children,
 }: {
   accounts: Array<LandedAccount>
+  /** False for a file of trades or holdings: it says nothing about the
+      account's cash, so its cash is neither dated nor asked about. */
+  cash?: boolean
   /** The way on: Flow, Portfolio, done. */
   children: React.ReactNode
 }) {
@@ -45,7 +49,7 @@ export function AccountsLanded({
   const now = Date.now()
   const old = (p: { recordedAt: number | null }) =>
     p.recordedAt === null || now - p.recordedAt > STALE_MS
-  const allFresh = lines.every((l) => !l.pockets.some(old))
+  const allFresh = !cash || lines.every((l) => !l.pockets.some(old))
   return (
     <div className="flex flex-col items-center gap-4 py-5">
       <span
@@ -88,12 +92,24 @@ export function AccountsLanded({
               <span className={l.added > 0 ? 'text-state-good' : ''}>
                 {l.added > 0 ? `${l.added} added` : 'nothing new'}
               </span>
-              <span>·</span>
-              <span>{asOf(l.pockets.filter((p) => !old(p)))}</span>
+              {cash ? (
+                <>
+                  <span>·</span>
+                  <span>{asOf(l.pockets.filter((p) => !old(p)))}</span>
+                </>
+              ) : null}
             </div>
-            {l.pockets.filter(old).map((p) => (
-              <OldPocket key={p.currency} accountId={l.accountId} pocket={p} />
-            ))}
+            {cash
+              ? l.pockets
+                  .filter(old)
+                  .map((p) => (
+                    <OldPocket
+                      key={p.currency}
+                      accountId={l.accountId}
+                      pocket={p}
+                    />
+                  ))
+              : null}
           </div>
         ))}
       </div>

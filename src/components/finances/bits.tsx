@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Loader2 } from 'lucide-react'
 
 /* Small shared pieces of the Finances page. */
 
@@ -82,3 +83,28 @@ export const PILL_QUIET = `${PILL} text-ink-300 ring-lift/15 hover:text-foregrou
 export const PILL_LOUD = `${PILL} bg-lav-400/15 text-foreground ring-lav-400/45 hover:bg-lav-400/25`
 export const FIELD =
   'rounded-[12px] bg-lift/[0.05] px-3 py-2 text-[14px] text-foreground ring-1 ring-lift/12 ring-inset placeholder:text-ink-500 focus:ring-lav-400/50 focus:outline-none'
+
+/**
+ * A button's words while it writes (5 Oct: "WE STUCK AND IT LOOKED
+ * FROZEN"): a spinner and what it is doing, the moment it is pressed —
+ * never only a dimmed button.
+ */
+export function Busy({
+  on,
+  doing,
+  children,
+}: {
+  on: boolean
+  /** "adding", "saving" — what it is doing now. */
+  doing: string
+  children: ReactNode
+}) {
+  return on ? (
+    <span className="inline-flex items-center gap-2">
+      <Loader2 className="size-3.5 animate-spin" />
+      {doing}
+    </span>
+  ) : (
+    <>{children}</>
+  )
+}

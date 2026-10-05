@@ -233,6 +233,8 @@ export function intakePrompt(opts: {
 
 export type ReadTransaction = {
   occurredAt: number
+  /** "13:20", when the file prints a time (a CSV does, a PDF does not). */
+  time?: string
   merchant: string
   raw: string
   amount: number

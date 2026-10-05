@@ -1,4 +1,4 @@
-import { parseDay, parseMoney } from './csv'
+import { parseClock, parseDay, parseMoney } from './csv'
 import type { DateOrder } from './csv'
 import type { ReadTrade, ReadTransaction } from './intake'
 
@@ -359,8 +359,10 @@ export function applyLayout(
       const pending = state !== '' && starts(state, layout.pendingValues)
       const cur = (currency ?? layout.currency ?? 'EUR').slice(0, 3)
       const self = selfHint(description)
+      const time = parseClock(cell(r, layout.dateColumn))
       transactions.push({
         occurredAt: at,
+        ...(time ? { time } : {}),
         merchant: cleanMerchant(description),
         raw: description.slice(0, 160),
         amount: Math.round(amount * 100) / 100,

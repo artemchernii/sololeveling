@@ -108,6 +108,17 @@ export function parseMoney(
 export type DateOrder = 'ymd' | 'dmy' | 'mdy'
 
 /** A date cell → local noon that day, the way a statement's day is kept. */
+/** The time printed beside a date ("2026-10-01 13:20:45" → "13:20"), as
+    printed — kept as words, not folded into the date: the server reads in
+    UTC, and a 23:30 payment must not move to the next day (5 Oct). */
+export function parseClock(cell: string): string | undefined {
+  const m = /(?:^|[ T])(\d{1,2}):(\d{2})(?::\d{2})?(?:\.\d+)?\s*$/.exec(
+    cell.trim(),
+  )
+  if (!m || +m[1] > 23 || +m[2] > 59) return undefined
+  return `${m[1].padStart(2, '0')}:${m[2]}`
+}
+
 export function parseDay(cell: string, order: DateOrder): number | undefined {
   const s = cell.trim()
   const iso = /^(\d{4})-(\d{2})-(\d{2})(?:[T ]|$)/.exec(s)

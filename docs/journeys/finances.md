@@ -26,7 +26,7 @@ safety-net tests.
 
 | Journey                                              | Screen       | Component                                                             | Convex                                                             | Test                           |
 | ---------------------------------------------------- | ------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------ |
-| Add an account: pick the bank, its balance, it lands | + → account  | `Accounts` (`AccountForm`, `PickBank`, `AccountDetails`) → `Landed`   | `accounts.create`, `setBalance`                                    | `accounts.spec`                |
+| Add an account: pick the bank, its balance, it lands | + → account  | `AccountForm` (`PickBank`, `AccountDetails`) → `Landed`               | `accounts.create`, `setBalance`                                    | `accounts.spec`                |
 | Drop a statement file (CSV, PDF, screenshot)         | + → drop     | `Add` → `AddDrop`                                                     | `attachments.generateUploadUrl`, `intake.start`, `intake.lastRead` | `statement.spec` (Revolut CSV) |
 | Watch it being read, retry, discard                  | reading      | `Reading`                                                             | `intake.preview`, `history`, `retry`, `discard`                    | —                              |
 | Check transactions found in a file                   | check it     | `Intake` → `TransactionsReview` (own file; rows in `TransactionRows`) | `intake.review`, `setAccount`, `whose`, `confirmTransactions`      | `statement.spec`               |
@@ -42,18 +42,18 @@ safety-net tests.
 | Journey                                       | Screen     | Component                                                                                                    | Convex                                                                                                | Test                              |
 | --------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | --------------------------------- |
 | See which accounts are old                    | update all | `Bulk` → `BulkUpdate`                                                                                        | `aggregate.balances`                                                                                  | `statement.spec` (check-in)       |
-| "Still the same": saving, saved, closed       | update all | `Accounts` → `UpdateSheet`, `SavedNote`                                                                      | `accounts.setBalance`                                                                                 | `statement.spec` (still the same) |
+| "Still the same": saving, saved, closed       | update all | `UpdateSheet`, `SavedNote` (in `AccountParts`)                                                               | `accounts.setBalance`                                                                                 | `statement.spec` (still the same) |
 | Drop many files at once, one line per account | bulk       | `BulkDrop` → `BulkReading` → `BulkReview` (`BulkAskCard`, `BulkAccountBlock`) → `Applied` (in `BulkReading`) | `intake.startBatch`, `batch`, `batchReview`, `batchAnswer`, `applyBatch`, `readAgain`, `discardBatch` | `statement.spec` (bulk)           |
 
 ## Overview: my accounts
 
-| Journey                              | Screen         | Component                                     | Convex                                                                                | Test |
-| ------------------------------------ | -------------- | --------------------------------------------- | ------------------------------------------------------------------------------------- | ---- |
-| Net worth over time                  | Overview chart | `WorthChart` → `AccountsChart`                | `aggregate.worthHistory`, `accountSheet`                                              | —    |
-| Account cards with sparkline         | Overview       | `Accounts` → `AccountCard`, `Sparkline`       | `accounts.list`, `aggregate.cashHistory`, `positions`, `accountMonth`                 | —    |
-| Open one account: its rows and files | account sheet  | `OpenAccount`                                 | `aggregate.accountSheet`, `intake.fileRows`, `originals`, `logs.remove`, `removeSide` | —    |
-| Fix one row: value, category, delete | row            | `MoneyRow`                                    | `logs.setValue`, `setCategory`, `remove`                                              | —    |
-| Edit, retire or erase an account     | account sheet  | `Accounts` → `AccountDetails`, `StillCounted` | `accounts.update`, `remove`, `retired`, `erase`                                       | —    |
+| Journey                              | Screen         | Component                                                     | Convex                                                                                | Test |
+| ------------------------------------ | -------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---- |
+| Net worth over time                  | Overview chart | `WorthChart` → `AccountsChart`                                | `aggregate.worthHistory`, `accountSheet`                                              | —    |
+| Account cards with sparkline         | Overview       | `Accounts` → `AccountCard` (with `Sparkline`)                 | `accounts.list`, `aggregate.cashHistory`, `positions`, `accountMonth`                 | —    |
+| Open one account: its rows and files | account sheet  | `OpenAccount`                                                 | `aggregate.accountSheet`, `intake.fileRows`, `originals`, `logs.remove`, `removeSide` | —    |
+| Fix one row: value, category, delete | row            | `MoneyRow`                                                    | `logs.setValue`, `setCategory`, `remove`                                              | —    |
+| Edit, retire or erase an account     | account sheet  | `AccountForm` → `AccountDetails`; `Accounts` → `StillCounted` | `accounts.update`, `remove`, `retired`, `erase`                                       | —    |
 
 ## Flow: bills, salary, where the month went
 
@@ -77,6 +77,6 @@ safety-net tests.
 
 - Revolut stocks history: `HistoryReview` (in `Reading`, `Intake`) reads the trades but saves nothing.
 - The crypto landing for Revolut says only "N added", with no coin values.
-- `Intake.tsx` and `Bulk.tsx` are split, one review per file (5 Oct).
-  `Accounts.tsx` (~1.3k lines) is still over the 500-line rule; split it
-  the same way and keep this map's Component column in step.
+- `Intake.tsx`, `Bulk.tsx` and `Accounts.tsx` are split, one part per file
+  (5 Oct). The session-guard hook names any file a branch touches that
+  grows past 500 lines again.

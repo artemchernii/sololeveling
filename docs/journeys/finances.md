@@ -68,10 +68,10 @@ safety-net tests.
 
 ## Portfolio: how are my investments doing
 
-| Journey                                          | Screen    | Component   | Convex                                         | Test |
-| ------------------------------------------------ | --------- | ----------- | ---------------------------------------------- | ---- |
-| Brokers, positions, P&L                          | Portfolio | `Portfolio` | `aggregate.positions`, `worth`, `invest.looks` | —    |
-| One position: price line, trades, delete a trade | Portfolio | `Portfolio` | `invest.priceLine`, `trades`, `removeTrade`    | —    |
+| Journey                                          | Screen    | Component   | Convex                                         | Test             |
+| ------------------------------------------------ | --------- | ----------- | ---------------------------------------------- | ---------------- |
+| Brokers, positions, P&L                          | Portfolio | `Portfolio` | `aggregate.positions`, `worth`, `invest.looks` | `portfolio.spec` |
+| One position: price line, trades, delete a trade | Portfolio | `Portfolio` | `invest.priceLine`, `trades`, `removeTrade`    | —                |
 
 ## Known gaps
 

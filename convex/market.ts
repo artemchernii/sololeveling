@@ -8,6 +8,7 @@ import {
   internalMutation,
   internalQuery,
 } from './_generated/server'
+import type { ActionCtx } from './_generated/server'
 import {
   PRICE_SOURCE,
   RATE_SOURCE,
@@ -80,6 +81,41 @@ async function rateYear(currency: string) {
   )
   if (!res.ok) return []
   return parseRateSeries(await res.json())
+}
+
+/**
+ * A currency's daily ECB rates from a day on, stored for one owner (4 Oct:
+ * his crypto trades in dollars go back to 2020; the nightly job keeps a
+ * year). From a reading action; a failed fetch leaves the stored ones.
+ */
+export async function backfillRates(
+  ctx: ActionCtx,
+  ownerId: string,
+  currency: string,
+  from: number,
+) {
+  const cur = rateCurrency(currency)
+  if (cur === null) return
+  const day = new Date(from - 7 * 86_400_000).toISOString().slice(0, 10)
+  let rows: Array<{ rate: number; asOf: number }> = []
+  try {
+    const res = await fetch(
+      `https://api.frankfurter.app/${day}..?from=${encodeURIComponent(cur)}&to=EUR`,
+      { redirect: 'follow' },
+    )
+    if (res.ok) rows = parseRateSeries(await res.json())
+  } catch {
+    return
+  }
+  const fetchedAt = Date.now()
+  /* storeRates reads what is there in pieces it can hold. */
+  for (let i = 0; i < rows.length; i += 250)
+    await ctx.runMutation(internal.market.storeRates, {
+      ownerIds: [ownerId],
+      currency: cur,
+      rows: rows.slice(i, i + 250),
+      fetchedAt,
+    })
 }
 
 async function rate(currency: string) {

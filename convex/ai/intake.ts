@@ -7,7 +7,7 @@ import { internal } from '../_generated/api'
 import { internalAction } from '../_generated/server'
 import type { ActionCtx } from '../_generated/server'
 import type { Id } from '../_generated/dataModel'
-import { priceEurNow, searchYahoo } from '../market'
+import { backfillRates, priceEurNow, searchYahoo } from '../market'
 import {
   INTAKE_MODEL,
   INTAKE_MODEL_NAME,
@@ -312,12 +312,48 @@ async function readWithModel(
   const tickers = new Tickers()
   const trades = []
   for (const t of readTrades)
-    trades.push({ ...t, ...(await tickers.find(t.name, t.isin)) })
+    trades.push({
+      ...t,
+      ...(t.crypto ? coin(t.name) : await tickers.find(t.name, t.isin)),
+    })
+  /* A crypto statement's closing amounts: its coins, as the trades name
+     them. */
+  const coins = new Set(
+    readTrades.filter((t) => t.crypto).map((t) => coinSymbol(t.name)),
+  )
+
+  /* Dollar trades from years back are priced at their own day's rate
+     (4 Oct): the stored rates are filled back to the oldest trade. */
+  const oldest = new Map<string, number>()
+  for (const t of readTrades)
+    if (t.currency !== 'EUR')
+      oldest.set(
+        t.currency,
+        Math.min(oldest.get(t.currency) ?? Infinity, t.occurredAt),
+      )
+  for (const [currency, from] of oldest)
+    await backfillRates(ctx, job.ownerId, currency, from)
 
   const positions = []
   const frozen: Array<{ at: number; candidate: Candidate; priceEur: number }> =
     []
   for (const { symbol, ...p } of parsed.positions) {
+    if (parsed.kind === 'trades') {
+      /* A crypto statement's closing amount: the coin, at today's price. */
+      const sym = coinSymbol(symbol || p.name)
+      if (!coins.has(sym)) continue
+      const c = coin(sym)
+      const today = await tickers.price(c.candidates[0].symbol)
+      positions.push({
+        ...p,
+        name: sym,
+        candidates: c.candidates,
+        preferred: 0,
+        todayPriceEur: today?.priceEur,
+        todayAsOf: today?.asOf,
+      })
+      continue
+    }
     let { candidates, preferred } = await tickers.find(p.name, p.isin, symbol)
     let today: { priceEur: number; asOf: number } | null = null
     const printedEur =
@@ -388,7 +424,11 @@ async function readWithModel(
     holderName: parsed.holderName,
     transactions:
       parsed.kind === 'transactions' ? split.transactions : undefined,
-    positions: parsed.kind === 'holdings' ? positions : undefined,
+    positions:
+      parsed.kind === 'holdings' ||
+      (parsed.kind === 'trades' && positions.length > 0)
+        ? positions
+        : undefined,
     trades:
       parsed.kind === 'trades' ||
       (parsed.kind === 'transactions' && trades.length > 0)
@@ -715,6 +755,29 @@ export const resplit = internalAction({
     return { trades: trades.length }
   },
 })
+
+/** "SOL", "Solana (SOL)" → "SOL". */
+function coinSymbol(name: string): string {
+  const inBrackets = /\(([A-Za-z0-9]{2,10})\)/.exec(name)?.[1]
+  return (inBrackets ?? name).trim().toUpperCase().split(/\s+/)[0]
+}
+
+/* A coin is its Yahoo pair in euros, found without a search: a name
+   search for "SOL" answers with shares called Sol. */
+function coin(name: string) {
+  const sym = coinSymbol(name)
+  return {
+    candidates: [
+      {
+        symbol: `${sym}-EUR`,
+        name: sym,
+        exchange: 'CCC',
+        type: 'CRYPTOCURRENCY',
+      },
+    ],
+    preferred: 0,
+  }
+}
 
 /* A name as the broker prints it → ticker candidates, and which one is the
    right share class. Once per name: a trade history repeats them. */

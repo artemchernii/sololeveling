@@ -738,6 +738,14 @@ export default defineSchema({
        Every other buy takes its cost out of the broker's cash, and every
        sell puts it back (aggregate.ts, readBalances). */
     opening: v.optional(v.boolean()),
+    /* A staking payment (4 Oct, his Revolut crypto: 45 of them in ADA):
+       coins given for holding, at €0 cost — what it is worth, never what
+       he bought it for, never income. */
+    reward: v.optional(v.boolean()),
+    /* No cash side: Revolut's crypto is bought with money its bank
+       statement already shows leaving, so the trade must not take it from
+       a cash pocket a second time. */
+    noCash: v.optional(v.boolean()),
   })
     .index('by_owner_time', ['ownerId', 'occurredAt'])
     .index('by_owner_instrument', ['ownerId', 'instrumentId'])
@@ -876,11 +884,22 @@ export default defineSchema({
           occurredAt: v.number(),
           name: v.string(),
           isin: v.optional(v.string()),
-          side: v.union(v.literal('buy'), v.literal('sell')),
+          side: v.union(
+            v.literal('buy'),
+            v.literal('sell'),
+            /* A staking payment: coins given, price 0. */
+            v.literal('reward'),
+          ),
           shares: v.number(),
           /* Per share, in `currency` as printed. */
           price: v.number(),
           currency: v.string(),
+          /* The fee printed beside it, in `currency` — Revolut takes its
+             crypto fee in coins, so a buy brings in less than its
+             quantity. */
+          fee: v.optional(v.number()),
+          /* A coin (Revolut's crypto statement): priced as SYM-EUR. */
+          crypto: v.optional(v.boolean()),
           /* The same ticker search as holdings: candidates and which one
              the right share class is. */
           preferred: v.optional(v.number()),
@@ -1058,9 +1077,14 @@ export default defineSchema({
     occurredAt: v.number(),
     name: v.string(),
     isin: v.optional(v.string()),
-    side: v.union(v.literal('buy'), v.literal('sell'), v.literal('split')),
+    side: v.union(
+      v.literal('buy'),
+      v.literal('sell'),
+      v.literal('split'),
+      v.literal('reward'),
+    ),
     shares: v.number(),
-    /* Per share, in `currency`; 0 for a split. */
+    /* Per share, in `currency`; 0 for a split or a reward. */
     price: v.number(),
     currency: v.string(),
   }).index('by_intake', ['intakeId', 'occurredAt']),

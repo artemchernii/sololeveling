@@ -125,6 +125,36 @@ export async function euroRate(
   return row.rate
 }
 
+/**
+ * Euros per unit of `currency` on a past day (4 Oct: a dollar trade of
+ * 2021 at its own day's rate, not today's): the ECB rate on or before it,
+ * else the nearest after it when the stored rates start later.
+ */
+export async function euroRateAt(
+  ctx: MutationCtx,
+  ownerId: string,
+  currency: string,
+  at: number,
+): Promise<number> {
+  if (currency === 'EUR') return 1
+  const before = await ctx.db
+    .query('fxRates')
+    .withIndex('by_owner_currency_time', (q) =>
+      q.eq('ownerId', ownerId).eq('currency', currency).lte('asOf', at),
+    )
+    .order('desc')
+    .first()
+  if (before) return before.rate
+  const after = await ctx.db
+    .query('fxRates')
+    .withIndex('by_owner_currency_time', (q) =>
+      q.eq('ownerId', ownerId).eq('currency', currency).gt('asOf', at),
+    )
+    .first()
+  if (after) return after.rate
+  throw new ConvexError(`There is no ${currency} rate yet — type it in €.`)
+}
+
 const candidate = v.object({
   symbol: v.string(),
   name: v.string(),

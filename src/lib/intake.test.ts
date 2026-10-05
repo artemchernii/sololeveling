@@ -862,3 +862,67 @@ describe('his own money', () => {
     expect(ownMoney(row(0.14, 'Cash Dividend US02079K3059'), me)).toBe(false)
   })
 })
+
+describe('a crypto statement read (4 Oct)', () => {
+  test('keeps staking rewards at price 0, the fee and the coin flag', () => {
+    const r = parseReading(
+      JSON.stringify({
+        kind: 'trades',
+        title: 'Crypto Account Statement',
+        institution: 'Revolut Digital Assets Europe',
+        account_tail: null,
+        holder_name: null,
+        currency: 'EUR',
+        transactions: [],
+        positions: [
+          {
+            name: 'ADA',
+            isin: null,
+            symbol: 'ADA',
+            shares: 398.26,
+            average_price_eur: null,
+            value_eur: 86.99,
+            change_pct: null,
+          },
+        ],
+        trades: [
+          {
+            date: '2026-02-05',
+            name: 'ADA',
+            isin: null,
+            side: 'buy',
+            shares: 400.39,
+            price: 0.25,
+            currency: 'USD',
+            fee: 1.75,
+            crypto: true,
+          },
+          {
+            date: '2026-02-24',
+            name: 'ADA',
+            isin: null,
+            side: 'reward',
+            shares: 0.114553,
+            price: 0,
+            currency: 'EUR',
+            fee: null,
+            crypto: true,
+          },
+        ],
+        closing_balance: 569.07,
+        closing_balance_date: '2026-10-03',
+        cash_eur: null,
+        total_eur: null,
+      }),
+    )
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.trades.map((t) => [t.side, t.price, t.fee, t.crypto])).toEqual([
+      ['buy', 0.25, 1.75, true],
+      ['reward', 0, undefined, true],
+    ])
+    expect(r.positions.map((p) => [p.name, p.shares])).toEqual([
+      ['ADA', 398.26],
+    ])
+  })
+})

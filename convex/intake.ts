@@ -5,7 +5,8 @@ import { ownedAccount, writeBalance } from './accounts'
 import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
 import { findFor } from './recurring'
-import { euroRate, writeTransfer } from './money'
+import { euroRateAt, writeTransfer } from './money'
+import { sharesIn } from '../src/lib/crypto'
 import { internal } from './_generated/api'
 import {
   internalMutation,
@@ -1473,10 +1474,12 @@ async function writeTrades(
       occurredAt: number
       name: string
       isin?: string
-      side: 'buy' | 'sell'
+      side: 'buy' | 'sell' | 'reward'
       shares: number
       price: number
       currency: string
+      fee?: number
+      crypto?: boolean
     }
     candidate: Candidate
   }>,
@@ -1514,8 +1517,18 @@ async function writeTrades(
   for (const { index, trade: t, candidate: c } of rows) {
     if (seen.has(index)) continue
     seen.add(index)
-    const priceEur = t.price * (await euroRate(ctx, ownerId, t.currency))
-    checkTrade(t.shares, priceEur)
+    /* That day's rate, not today's (4 Oct: his crypto trades go back to
+       2020, in € and $). */
+    const priceEur =
+      t.side === 'reward'
+        ? 0
+        : t.price * (await euroRateAt(ctx, ownerId, t.currency, t.occurredAt))
+    /* Revolut takes its crypto fee in coins: a buy brings in its quantity
+       less the fee's share of the value. */
+    const shares = t.crypto && t.side === 'buy' ? sharesIn(t) : t.shares
+    if (t.side === 'reward') {
+      if (!(shares > 0)) throw new ConvexError('A reward needs an amount.')
+    } else checkTrade(shares, priceEur)
     const same = sameCompany({ name: t.name, isin: t.isin }, held)
     const instrumentId =
       same >= 0
@@ -1537,8 +1550,8 @@ async function writeTrades(
         !claimed.has(x._id) &&
         x.importId !== intakeId &&
         x.accountId === account._id &&
-        x.side === t.side &&
-        Math.abs(x.shares - t.shares) < 1e-6 &&
+        (x.reward ? 'reward' : x.side) === t.side &&
+        Math.abs(x.shares - shares) < 1e-6 &&
         Math.abs(x.priceEur - priceEur) <= priceEur * 0.05 + 0.01 &&
         Math.abs(x.occurredAt - t.occurredAt) <= 2 * DAY_MS + 3_600_000,
     )
@@ -1553,11 +1566,14 @@ async function writeTrades(
       ownerId,
       accountId: account._id,
       instrumentId,
-      side: t.side,
-      shares: t.shares,
+      side: t.side === 'sell' ? 'sell' : 'buy',
+      shares,
       priceEur: Math.round(priceEur * 10000) / 10000,
       occurredAt: t.occurredAt,
       importId: intakeId,
+      ...(t.side === 'reward' ? { reward: true } : {}),
+      /* Revolut's crypto money is on its bank statement already. */
+      ...(t.crypto ? { noCash: true } : {}),
     })
     written++
   }
@@ -1601,6 +1617,7 @@ export const confirmTrades = mutation({
           : []
       }),
     )
+    await writeClosing(ctx, ownerId, account, intake)
     if (intake.accountTail) await learnTails(ctx, account, [intake.accountTail])
     await ctx.db.patch(intake._id, {
       status: 'done',
@@ -1610,6 +1627,62 @@ export const confirmTrades = mutation({
     return { written, skipped }
   },
 })
+
+/**
+ * A crypto statement's closing amounts (4 Oct): what the account held on
+ * the statement's last day, as its own observation — the trades say what
+ * was bought and for how much, this says how much is there. The same day's
+ * look for the same coin is replaced, never added to.
+ */
+async function writeClosing(
+  ctx: MutationCtx,
+  ownerId: string,
+  account: Doc<'accounts'>,
+  intake: Doc<'intakes'>,
+) {
+  if (intake.kind !== 'trades') return
+  const asOf = intake.balance?.asOf ?? intake.readAt ?? Date.now()
+  for (const p of intake.positions ?? []) {
+    const c = p.candidates.at(p.preferred ?? 0)
+    if (!c || p.shares === undefined || !(p.shares > 0)) continue
+    const instrumentId = await upsertInstrument(ctx, ownerId, c)
+    const day = Math.floor(asOf / DAY_MS)
+    const same = (
+      await ctx.db
+        .query('holdings')
+        .withIndex('by_owner_instrument', (q) =>
+          q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+        )
+        .take(MAX_TRADES)
+    ).filter(
+      (h) => h.accountId === account._id && Math.floor(h.asOf / DAY_MS) === day,
+    )
+    for (const h of same) await ctx.db.delete(h._id)
+    /* What went in for it, by the trades up to that day: buys less what
+       sells brought back (holdings' "paid"). Carried on the look, so a
+       coin whose fees the trades miss by a little still says it. */
+    let cents = 0
+    for (const t of await ctx.db
+      .query('trades')
+      .withIndex('by_owner_instrument', (q) =>
+        q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+      )
+      .take(MAX_TRADES)) {
+      if (t.accountId !== account._id || t.occurredAt > asOf) continue
+      cents +=
+        (t.side === 'buy' ? 1 : -1) * Math.round(t.shares * t.priceEur * 100)
+    }
+    await ctx.db.insert('holdings', {
+      ownerId,
+      accountId: account._id,
+      instrumentId,
+      shares: p.shares,
+      paidEur: cents / 100,
+      asOf,
+      importId: intake._id,
+    })
+  }
+}
 
 /** Throw it away, files and all. */
 export const discard = mutation({
@@ -2110,7 +2183,12 @@ export const storeHistory = internalMutation({
         occurredAt: v.number(),
         name: v.string(),
         isin: v.optional(v.string()),
-        side: v.union(v.literal('buy'), v.literal('sell'), v.literal('split')),
+        side: v.union(
+          v.literal('buy'),
+          v.literal('sell'),
+          v.literal('split'),
+          v.literal('reward'),
+        ),
         shares: v.number(),
         price: v.number(),
         currency: v.string(),

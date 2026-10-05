@@ -768,7 +768,8 @@ export const accountMonth = query({
         moves: v.number(),
         /* A broker's month (4 Oct: "brokers are sad … bought sold stocks
            since 1st day of month"): what he bought and sold, in euros, from
-           his trades — a first screen's opening holdings are not buys. */
+           his trades — a first screen's opening holdings are not buys. A
+           staking reward is neither. */
         bought: v.number(),
         sold: v.number(),
         trades: v.number(),
@@ -836,7 +837,9 @@ export const accountMonth = query({
       )
       .take(MONEY_ROWS)
     for (const t of trades) {
-      if (t.opening || t.importId !== undefined) continue
+      /* A first screen's opening holdings are not buys; a statement's
+         trades are (they carry importId too). */
+      if (t.opening || t.reward) continue
       const x = traded.get(t.accountId) ?? { bought: 0, sold: 0, n: 0 }
       const c = Math.round(t.shares * t.priceEur * 100)
       if (t.side === 'buy') x.bought += c
@@ -1461,6 +1464,8 @@ export const positions = query({
         rate: v.union(v.number(), v.null()),
         rateAsOf: v.union(v.number(), v.null()),
         valueEur: v.union(v.number(), v.null()),
+        /** Coins given for holding it (staking), in its own units. */
+        staked: v.number(),
       }),
     ),
     /** The sum of the valued positions, in euros, and the oldest price in
@@ -1889,7 +1894,9 @@ function pocketMoves(
   }
   if (currency === 'EUR')
     for (const t of trades) {
-      if (t.opening === true) continue
+      /* No cash side: opening holdings, and coins whose money the bank
+         statement already shows leaving (noCash). */
+      if (t.opening === true || t.noCash === true) continue
       const cost = Math.round(t.shares * t.priceEur * 100)
       moves.push({
         at: t.occurredAt,
@@ -2239,7 +2246,8 @@ async function movedSince(
       )
       .take(TRADE_ROWS)
     for (const t of trades) {
-      if (t.opening === true || t.occurredAt <= readAt) continue
+      if (t.opening === true || t.noCash === true || t.occurredAt <= readAt)
+        continue
       const cost = Math.round(t.shares * t.priceEur * 100)
       cents += t.side === 'buy' ? -cost : cost
       rows++
@@ -2282,6 +2290,7 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
       accountId: Id<'accounts'>
       instrumentId: Id<'instruments'>
       trades: Array<LedgerTrade>
+      staked: number
       looks: Array<Observation>
     }
   >()
@@ -2289,12 +2298,16 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
     const key = `${accountId}:${instrumentId}`
     let p = held.get(key)
     if (p === undefined) {
-      p = { accountId, instrumentId, trades: [], looks: [] }
+      p = { accountId, instrumentId, trades: [], looks: [], staked: 0 }
       held.set(key, p)
     }
     return p
   }
-  for (const t of trades) slot(t.accountId, t.instrumentId).trades.push(t)
+  for (const t of trades) {
+    const p = slot(t.accountId, t.instrumentId)
+    p.trades.push(t)
+    if (t.reward) p.staked += t.shares
+  }
   /* Stored oldest first, so on a tie the later look wins. */
   const lastLook = new Map<Id<'accounts'>, number>()
   for (const h of looks) {
@@ -2362,6 +2375,7 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
       rate: rate?.rate ?? null,
       rateAsOf: rate?.asOf ?? null,
       valueEur,
+      staked: Math.round(p.staked * 1e6) / 1e6,
     })
   }
   rows.sort((a, b) => (b.valueEur ?? b.paid ?? 0) - (a.valueEur ?? a.paid ?? 0))

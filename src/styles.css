@@ -113,6 +113,9 @@
   --color-mark-ground: var(--mark-ground);
   --color-mark-ink: var(--mark-ink);
   --color-money-cash: var(--money-cash);
+  --color-file-csv: var(--file-csv);
+  --color-file-pdf: var(--file-pdf);
+  --color-file-image: var(--file-image);
   --color-acct-bank: var(--acct-bank);
   --color-acct-cash: var(--acct-cash);
   --color-area-social: var(--area-social);

@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Check a file</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150); --bad: oklch(0.68 0.2 22); --warn: oklch(0.79 0.15 75);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --csv: oklch(0.78 0.14 160); --pdf: oklch(0.72 0.17 25); --img: oklch(0.78 0.12 240);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 18px }
+  .mono { font-family: var(--mono) }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .good { color: var(--good) } .bad { color: var(--bad) } .dim { color: var(--ink-500) }
+  .ctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+  .label { text-align: center; font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; color: var(--ink-500); text-transform: uppercase; margin-top: 8px }
+
+  .sys { position: relative; border-radius: 22px; border: 1px solid rgba(255,255,255,.08); background: #1c1c2a; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8); overflow: hidden; width: 100% }
+  .shead { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,.06) }
+  .stitle { font-family: var(--mono); font-size: 11.5px; letter-spacing: .38em; text-transform: uppercase; color: var(--lav-400); flex: 1 }
+  .iconbtn { width: 32px; height: 32px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: none; color: var(--ink-300); font-size: 15px; display: grid; place-items: center }
+  .back { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-300); border: 1px solid rgba(255,255,255,.14); border-radius: 999px; padding: 6px 12px; background: none }
+  .body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px }
+  .foot { padding: 14px 20px 18px; border-top: 1px solid rgba(255,255,255,.06); display: flex; gap: 10px }
+
+  /* file line */
+  .file { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+  .badge { font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: .1em; padding: 3px 7px; border-radius: 5px }
+  .badge.csv { color: var(--csv); background: color-mix(in oklch, var(--csv) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--csv) 35%, transparent) }
+  .badge.pdf { color: var(--pdf); background: color-mix(in oklch, var(--pdf) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--pdf) 35%, transparent) }
+  .badge.img { color: var(--img); background: color-mix(in oklch, var(--img) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--img) 35%, transparent) }
+  .ftitle { font-size: 16px; flex: 1; min-width: 200px }
+  .reader { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .reader svg { width: 13px; height: 13px }
+
+  /* account chips */
+  .accts { display: flex; gap: 6px; flex-wrap: wrap }
+  .acct { display: flex; align-items: center; gap: 7px; padding: 5px 11px 5px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); font-size: 12.5px; color: var(--ink-300); background: none }
+  .acct img, .acct .cash { width: 18px; height: 18px; border-radius: 5px; background: #fff }
+  .acct .cash { background: oklch(0.78 0.14 160 / .2); display: grid; place-items: center; font-size: 11px }
+  .acct.on { color: var(--ink-100); border-color: rgba(181,171,252,.6); background: rgba(181,171,252,.12) }
+  .acct.add { border-style: dashed; padding-left: 11px; color: var(--ink-400) }
+
+  /* the answer */
+  .answer { font-size: 18px; font-weight: 300; line-height: 1.45; color: var(--ink-200) }
+  .answer b { font-weight: 400; color: var(--ink-100) }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px }
+  @media (max-width: 620px) { .tiles { grid-template-columns: 1fr 1fr } }
+  .tile { border-radius: 14px; padding: 12px 14px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08); display: flex; flex-direction: column; gap: 4px }
+  .tile .v { font-size: 22px; font-weight: 300 }
+  .tile .n { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .tile.bal { border-color: rgba(181,171,252,.45); background: rgba(181,171,252,.08) }
+
+  /* rows */
+  .box { border-radius: 14px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.02); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px }
+  .bhead { display: flex; justify-content: space-between; align-items: center; padding-bottom: 6px }
+  .r { display: grid; grid-template-columns: 44px 26px 1fr auto auto; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid rgba(255,255,255,.04) }
+  .day { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-400); padding: 10px 0 2px }
+  .ic { width: 26px; height: 26px; border-radius: 8px; background: #fff; display: grid; place-items: center; overflow: hidden }
+  .ic img { width: 18px; height: 18px }
+  .ic.sym { background: rgba(255,255,255,.06); color: var(--ink-300) }
+  .ic.sym.up { background: color-mix(in oklch, var(--good) 16%, transparent); color: var(--good) }
+  .ic.sym.mv { background: rgba(181,171,252,.14); color: var(--lav-400) }
+  .ic svg { width: 15px; height: 15px }
+  .cat.move { color: var(--lav-300); background: rgba(181,171,252,.12); box-shadow: inset 0 0 0 1px rgba(181,171,252,.45) }
+  .r:first-of-type { border-top: 0 }
+  .r .d { font-family: var(--mono); font-size: 11px; color: var(--ink-500) }
+  .r .amt { font-family: var(--mono); font-size: 13px }
+  .cat { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.05); color: var(--ink-300) }
+  .had .r { opacity: .55 }
+  .toggle { font-family: var(--mono); font-size: 10.5px; color: var(--ink-400); background: none; border: 0; text-transform: uppercase; letter-spacing: .12em; cursor: pointer }
+
+  .btn { flex: 1; border-radius: 999px; padding: 13px; font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; border: 1px solid rgba(255,255,255,.14); background: none; color: var(--ink-300) }
+  .btn.loud { flex: 2; color: var(--ink-100); border-color: rgba(181,171,252,.55); background: rgba(181,171,252,.16) }
+
+  /* cash sheet */
+  .small { max-width: 560px; margin: 0 auto }
+  .field { display: flex; align-items: center; gap: 10px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03); padding: 10px 10px 10px 12px }
+  .field .cur { font-family: var(--mono); font-size: 10.5px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,.06); color: var(--ink-300) }
+  .field input { flex: 1; background: none; border: 0; color: var(--ink-100); font: 300 20px Inter; outline: none; min-width: 0 }
+  .same { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--good); border: 1px solid color-mix(in oklch, var(--good) 40%, transparent); background: color-mix(in oklch, var(--good) 10%, transparent); border-radius: 999px; padding: 7px 12px; white-space: nowrap }
+  .ago { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); white-space: nowrap }
+  .note { font-size: 12.5px; color: var(--ink-400) }
+  .anno { font-family: var(--mono); font-size: 11px; color: var(--warn); border-left: 2px solid var(--warn); padding: 4px 10px; max-width: 900px; margin: 0 auto; width: 100% }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="ctl" id="ctl">
+    <span>scenario:</span>
+    <button data-s="mine" class="on">your oct csv</button>
+    <button data-s="month">a whole month (pdf)</button>
+    <button data-s="nothing">nothing new</button>
+  </div>
+
+  <!-- ============ CHECK IT ============ -->
+  <div class="sys">
+    <div class="shead">
+      <button class="back">‹ back</button>
+      <span class="stitle">[ check it ]</span>
+      <button class="iconbtn">✕</button>
+    </div>
+    <div class="body">
+      <div class="file">
+        <span class="badge csv" id="badge">CSV</span>
+        <span class="ftitle" id="ftitle">Revolut · 1 – 4 Oct</span>
+        <span class="reader">
+          <svg viewBox="0 0 24 24" fill="#D97757"><path d="M12 1.5l1.6 7.1 5.9-4.3-4.3 5.9 7.1 1.6-7.1 1.6 4.3 5.9-5.9-4.3L12 22.5l-1.6-7.1-5.9 4.3 4.3-5.9-7.1-1.6 7.1-1.6-4.3-5.9 5.9 4.3z"/></svg>
+          Claude Haiku 4.5 · $0.003
+        </span>
+      </div>
+
+      <div class="accts">
+        <button class="acct on"><img src="https://www.google.com/s2/favicons?domain=revolut.com&sz=64" alt="">Revolut</button>
+        <button class="acct"><img src="https://www.google.com/s2/favicons?domain=activobank.pt&sz=64" alt="">ActivoBank</button>
+        <button class="acct"><span class="cash">€</span>Cash</button>
+        <button class="acct"><img src="https://www.google.com/s2/favicons?domain=traderepublic.com&sz=64" alt="">Trade Republic</button>
+        <button class="acct"><img src="https://www.google.com/s2/favicons?domain=bancobpi.pt&sz=64" alt="">BPI</button>
+        <button class="acct"><img src="https://www.google.com/s2/favicons?domain=trading212.com&sz=64" alt="">Trading 212</button>
+        <button class="acct add">+ another</button>
+      </div>
+
+      <p class="answer" id="answer"></p>
+
+      <div class="tiles" id="tiles"></div>
+
+      <div class="box" id="newbox"></div>
+
+      <div class="box had" id="hadbox"></div>
+    </div>
+    <div class="foot">
+      <button class="btn">discard</button>
+      <button class="btn loud" id="go"></button>
+    </div>
+  </div>
+  <div class="label">check a file · after it is read</div>
+
+  <!-- ============ UPDATE CASH ============ -->
+  <div class="sys small">
+    <div class="shead">
+      <span class="stitle">[ update · cash ]</span>
+      <button class="iconbtn">✕</button>
+    </div>
+    <div class="body">
+      <span class="note">Free cash in it now, without its investments.</span>
+      <div class="field">
+        <span class="cur">EUR</span>
+        <input value="5000" />
+        <span class="ago">8d ago</span>
+        <button class="same">✓ still the same</button>
+      </div>
+    </div>
+    <div class="foot"><button class="btn loud">save</button></div>
+  </div>
+  <div class="label">update cash · "still the same" is a button: one press saves 5000 as today and closes</div>
+
+  <div class="anno">
+    animation: the sheet keeps one width from drop to check (no jump from narrow to wide); what was read slides in row by row; the numbers count up once.
+  </div>
+</div>
+
+<script>
+const fav = d => `<span class="ic"><img src="https://www.google.com/s2/favicons?domain=${d}&sz=64" alt=""></span>`
+const svg = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`
+const I = {
+  bolt: fav('bolt.eu'), pingo: fav('pingodoce.pt'), continente: fav('continente.pt'), claude: fav('claude.ai'), guac: `<span class="ic sym">${svg('<path d="M3 11h18M5 11a7 7 0 0 0 14 0M12 4v3"/>')}</span>`,
+  up: `<span class="ic sym up">${svg('<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>')}</span>`,
+  move: `<span class="ic sym mv">${svg('<path d="M7 7h12l-4-4M17 17H5l4 4"/>')}</span>`,
+}
+/* [day, time, icon, name, category, amount, tone] — time only when the file prints one */
+const S = {
+  mine: {
+    badge: ['csv', 'CSV'], title: 'Revolut · Oct 1, 2026 → Oct 4, 2026',
+    answer: '<b>2 new payments</b>. The other 3 rows you already have.',
+    tiles: [['spent', '−€30.94', 'bad', '2 payments'], ['came in', '€0', '', 'nothing'], ['balance · 4 oct', '€1,089.20', 'bal', 'becomes Revolut cash']],
+    fresh: [['Oct 4', '18:42', I.pingo, 'Pingo Doce', 'groceries', '−€22.14', 'bad'], ['Oct 4', '09:15', I.bolt, 'Bolt', 'transport', '−€8.80', 'bad']],
+    had: [['Oct 1', '13:20', I.guac, 'Guacamole (C.C. Colombo)', '', '−€13.05', ''], ['Oct 2', '10:02', I.move, 'To investment account', 'your move', '−€312.33', ''], ['Oct 3', '21:47', I.move, 'Top-up by *2789', 'your move', '+€700', 'good']],
+    go: 'add 2 payments and the balance',
+  },
+  month: {
+    badge: ['pdf', 'PDF'], title: 'Revolut · Sep 1, 2026 → Sep 30, 2026',
+    answer: '<b>38 new rows</b>. 6 you already have. 4 are moves between your own accounts.',
+    tiles: [['spent', '−€561.40', 'bad', '31 payments'], ['came in', '+€1,450.00', 'good', '3 payments'], ['balance · 30 sep', '€1,302.11', 'bal', 'becomes Revolut cash']],
+    fresh: [['Sep 29', '', I.bolt, 'Bolt', 'transport', '−€6.80', 'bad'], ['Sep 29', '', I.bolt, 'Bolt', 'transport', '−€9.10', 'bad'], ['Sep 28', '', I.continente, 'Continente', 'groceries', '−€41.27', 'bad'], ['Sep 27', '', I.move, 'To Trade Republic', 'your move', '−€300.00', ''], ['Sep 25', '', I.up, 'Salary', 'came in', '+€1,450.00', 'good']],
+    had: [['Sep 2', '', I.claude, 'Claude subscription', 'subscriptions', '−€20.00', ''], ['Sep 1', '', I.move, 'Top-up by *2789', 'your move', '+€500', 'good']],
+    go: 'add 38 rows and the balance',
+  },
+  nothing: {
+    badge: ['csv', 'CSV'], title: 'Revolut · Oct 1, 2026 → Oct 4, 2026',
+    answer: '<b>Nothing new</b>. You already have all 5 rows.',
+    tiles: [['spent', '€0', '', 'nothing new'], ['came in', '€0', '', 'nothing new'], ['balance · 4 oct', '€1,089.20', 'bal', 'becomes Revolut cash']],
+    fresh: [],
+    had: [['Oct 1', '13:20', I.guac, 'Guacamole (C.C. Colombo)', '', '−€13.05', ''], ['Oct 2', '10:02', I.move, 'To investment account', 'your move', '−€312.33', ''], ['Oct 3', '21:47', I.move, 'Top-up by *2789', 'your move', '+€700', 'good'], ['Oct 4', '18:42', I.pingo, 'Pingo Doce', 'groceries', '−€22.14', ''], ['Oct 4', '09:15', I.bolt, 'Bolt', 'transport', '−€8.80', '']],
+    go: 'update the balance',
+  },
+}
+/* One day heading, then that day's rows with their time (or nothing, for a PDF). */
+const rows = list => {
+  let last = ''
+  return list.map(([d, t, ic, m, c, a, tone]) => {
+    const head = d !== last ? `<div class="day">${d}</div>` : ''
+    last = d
+    return head + `<div class="r"><span class="d">${t}</span>${ic}<span>${m}</span>${c ? `<span class="cat ${c === 'your move' ? 'move' : ''}">${c}</span>` : '<span></span>'}<span class="amt ${tone}">${a}</span></div>`
+  }).join('')
+}
+function show(k) {
+  const s = S[k]
+  document.querySelectorAll('#ctl button').forEach(b => b.classList.toggle('on', b.dataset.s === k))
+  const b = document.getElementById('badge'); b.className = 'badge ' + s.badge[0]; b.textContent = s.badge[1]
+  document.getElementById('ftitle').textContent = s.title
+  document.getElementById('answer').innerHTML = s.answer
+  document.getElementById('tiles').innerHTML = s.tiles.map(([l, v, t, n]) =>
+    `<div class="tile ${t === 'bal' ? 'bal' : ''}"><span class="caps">${l}</span><span class="v ${t === 'bal' ? '' : t}">${v}</span><span class="n">${n}</span></div>`).join('')
+  const nb = document.getElementById('newbox')
+  nb.style.display = s.fresh.length ? '' : 'none'
+  nb.innerHTML = `<div class="bhead"><span class="caps">new · ${s.fresh.length}</span></div>` +
+    rows(s.fresh)
+  const hb = document.getElementById('hadbox')
+  hb.innerHTML = `<div class="bhead"><span class="caps">already have · ${s.had.length}</span><span class="dim mono" style="font-size:10.5px">not added again</span></div>` +
+    rows(s.had)
+  document.getElementById('go').textContent = s.go
+}
+document.querySelectorAll('#ctl button').forEach(b => b.onclick = () => show(b.dataset.s))
+show('mine')
+</script>
+</body>
+</html>

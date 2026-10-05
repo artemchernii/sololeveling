@@ -51,7 +51,7 @@ export function Sheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`motion-arrive flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[22px] bg-popover ring-1 ring-lift/10 outline-none sm:rounded-[22px] ${
+        className={`motion-arrive flex max-h-[92vh] w-full flex-col transition-[max-width] duration-[var(--motion-linger)] ease-[var(--motion-ease)] overflow-hidden rounded-t-[22px] bg-popover ring-1 ring-lift/10 outline-none sm:rounded-[22px] ${
           wide ? 'sm:max-w-[920px]' : 'sm:max-w-[560px]'
         }`}
       >

@@ -1058,8 +1058,10 @@ function TypeBalances({
     setError(null)
     try {
       for (const c of account.currencies) {
-        if (!(c in values)) continue
-        const raw = values[c]
+        /* An untouched field still saves what it shows: "still 5000" is a
+           reading too, and it clears "8d ago" (5 Oct — Save did nothing). */
+        const shown = pockets.find((x) => x.currency === c)?.value
+        const raw = values[c] ?? (shown == null ? '' : String(shown))
         if (raw.trim() === '') continue
         const n = Number(raw.replace(/\s/g, '').replace(',', '.'))
         if (!Number.isFinite(n)) throw new Error(`${c}: not a number`)

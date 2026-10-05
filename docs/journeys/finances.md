@@ -39,11 +39,11 @@ safety-net tests.
 
 ## Update all (monthly check-in)
 
-| Journey                                       | Screen     | Component                                                                         | Convex                                                                                                | Test                              |
-| --------------------------------------------- | ---------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------- |
-| See which accounts are old                    | update all | `Bulk` → `BulkUpdate`                                                             | `aggregate.balances`                                                                                  | `statement.spec` (check-in)       |
-| "Still the same": saving, saved, closed       | update all | `Accounts` → `UpdateSheet`, `SavedNote`                                           | `accounts.setBalance`                                                                                 | `statement.spec` (still the same) |
-| Drop many files at once, one line per account | bulk       | `BulkDrop` → `BulkReading` → `BulkReview` (`AskCard`, `AccountBlock`) → `Applied` | `intake.startBatch`, `batch`, `batchReview`, `batchAnswer`, `applyBatch`, `readAgain`, `discardBatch` | `statement.spec` (bulk)           |
+| Journey                                       | Screen     | Component                                                                                                    | Convex                                                                                                | Test                              |
+| --------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | --------------------------------- |
+| See which accounts are old                    | update all | `Bulk` → `BulkUpdate`                                                                                        | `aggregate.balances`                                                                                  | `statement.spec` (check-in)       |
+| "Still the same": saving, saved, closed       | update all | `Accounts` → `UpdateSheet`, `SavedNote`                                                                      | `accounts.setBalance`                                                                                 | `statement.spec` (still the same) |
+| Drop many files at once, one line per account | bulk       | `BulkDrop` → `BulkReading` → `BulkReview` (`BulkAskCard`, `BulkAccountBlock`) → `Applied` (in `BulkReading`) | `intake.startBatch`, `batch`, `batchReview`, `batchAnswer`, `applyBatch`, `readAgain`, `discardBatch` | `statement.spec` (bulk)           |
 
 ## Overview: my accounts
 
@@ -77,6 +77,6 @@ safety-net tests.
 
 - Revolut stocks history: `HistoryReview` (in `Reading`, `Intake`) reads the trades but saves nothing.
 - The crypto landing for Revolut says only "N added", with no coin values.
-- `Intake.tsx` is done (88 lines, each review in its own file, 5 Oct). `Bulk.tsx` (~1.8k) and `Accounts.tsx` (~1.3k)
-  are over the 500-line rule. Split them one review per file, and keep this
-  map's Component column in step.
+- `Intake.tsx` and `Bulk.tsx` are split, one review per file (5 Oct).
+  `Accounts.tsx` (~1.3k lines) is still over the 500-line rule; split it
+  the same way and keep this map's Component column in step.

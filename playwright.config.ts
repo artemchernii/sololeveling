@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { parseEnv } from 'node:util'
+
 import { defineConfig, devices } from '@playwright/test'
 
 /* Browser tests on mock data (docs/specs/2026-10-05-e2e-tests.md).
@@ -5,8 +8,13 @@ import { defineConfig, devices } from '@playwright/test'
    backend on :3210, whatever .env.local points at. .env.local only adds
    the Clerk keys. */
 process.loadEnvFile('.env.e2e')
-process.loadEnvFile('.env.local')
-process.env.CLERK_PUBLISHABLE_KEY ??= process.env.VITE_CLERK_PUBLISHABLE_KEY
+/* Only the two Clerk keys come from .env.local — never its deployment
+   (5 Oct: loading the whole file sent a test run's backend to his dev). */
+const local = parseEnv(readFileSync('.env.local', 'utf8'))
+process.env.CLERK_SECRET_KEY = local.CLERK_SECRET_KEY
+process.env.CLERK_PUBLISHABLE_KEY = local.VITE_CLERK_PUBLISHABLE_KEY
+process.env.VITE_CLERK_PUBLISHABLE_KEY = local.VITE_CLERK_PUBLISHABLE_KEY
+delete process.env.CONVEX_DEPLOYMENT
 
 export default defineConfig({
   testDir: 'e2e',
@@ -27,7 +35,9 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'npx convex dev --env-file .env.e2e --tail-logs disable',
+      command: 'cd e2e/backend && npx convex dev --tail-logs disable',
+      /* Named outright: the test backend, whatever the shell has. */
+      env: { CONVEX_DEPLOYMENT: 'anonymous:anonymous-agent' },
       url: 'http://127.0.0.1:3210/version',
       reuseExistingServer: true,
       timeout: 120_000,

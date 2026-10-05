@@ -202,6 +202,8 @@ function TransactionsReview({
   const review = useQuery(api.intake.review, { intakeId: intake._id })
   const accounts = useQuery(api.accounts.list, {}) ?? []
   const setAccount = useMutation(api.intake.setAccount)
+  const setBalance = useMutation(api.accounts.setBalance)
+  const balances = useQuery(api.aggregate.balances, {})
   const [landed, setLanded] = useState<{
     count: number
     months: Array<string>
@@ -211,6 +213,7 @@ function TransactionsReview({
     accountId?: Id<'accounts'>
     noun?: string
     balance?: { value: number; currency: string; asOf: number }
+    others?: Array<{ currency: string; value: number }>
   } | null>(null)
   const confirm = useMutation(api.intake.confirmTransactions)
   const addBill = useMutation(api.recurring.create)
@@ -312,6 +315,11 @@ function TransactionsReview({
     setSaving(true)
     setError(null)
     try {
+      /* The account's other pockets, as they stand (5 Oct: "When I upload
+         csv it means usd should be updated as well"). Revolut exports one
+         currency a file; a EUR statement says USD did not move, so USD is
+         kept as is, as of the statement's day — shown before he confirms. */
+      const others = keepsBalance ? otherPockets : []
       const done = await confirm({
         intakeId: intake._id,
         accountId,
@@ -330,6 +338,14 @@ function TransactionsReview({
           }
         }),
       })
+      for (const p of others)
+        await setBalance({
+          accountId,
+          currency: p.currency,
+          value: p.value,
+          dayStart: today,
+          asOf: intake.balance?.asOf,
+        })
       /* Rows that went into another month than this one: say where, and
          open that month in Flow (27 Sep: "Flow is not updated at all" —
          his August statement had gone into August). */
@@ -352,6 +368,7 @@ function TransactionsReview({
         accountId,
         noun: noun(kept.length),
         balance: keepsBalance ? intake.balance : undefined,
+        others,
       })
     } catch (e) {
       setError(
@@ -373,6 +390,13 @@ function TransactionsReview({
   const noun = (n: number) =>
     allPayments ? (n === 1 ? 'payment' : 'payments') : n === 1 ? 'row' : 'rows'
   const keepsBalance = intake.balance !== undefined && keepBalance
+  const otherPockets = (
+    balances?.accounts.find((a) => a.accountId === accountId)?.pockets ?? []
+  ).flatMap((p) =>
+    p.currency !== intake.balance?.currency && p.value !== null
+      ? [{ currency: p.currency, value: p.value }]
+      : [],
+  )
   const orders = (intake.trades ?? []).length
   const span = rowsSpan(rows.map((r) => r.occurredAt))
   /* Newest first, one heading a day, each row its printed time. */
@@ -496,9 +520,17 @@ function TransactionsReview({
             </span>
             <span className="font-mono text-[10.5px] text-ink-500">
               {keepBalance
-                ? `becomes ${account?.name ?? 'its'} cash`
+                ? `becomes ${account?.name ?? 'its'} ${intake.balance.currency} cash`
                 : 'not used'}
             </span>
+            {keepBalance && otherPockets.length > 0 ? (
+              <span className="font-mono text-[10.5px] text-ink-500">
+                {otherPockets
+                  .map((p) => `${p.currency} ${money(p.value, p.currency)}`)
+                  .join(', ')}{' '}
+                kept as is
+              </span>
+            ) : null}
           </button>
         ) : null}
       </div>
@@ -2271,6 +2303,7 @@ function Landed({
   accountId,
   noun,
   balance,
+  others = [],
   onDone,
 }: {
   count: number
@@ -2280,6 +2313,7 @@ function Landed({
   accountId?: Id<'accounts'>
   noun?: string
   balance?: { value: number; currency: string; asOf: number }
+  others?: Array<{ currency: string; value: number }>
   onDone: () => void
 }) {
   const name = (m: string) => {
@@ -2322,6 +2356,12 @@ function Landed({
             {DAY_FMT.format(new Date(balance.asOf))}
           </span>
         ) : null}
+        {others.map((p) => (
+          <span key={p.currency}>
+            {account ?? 'Its'} {p.currency} · {money(p.value, p.currency)} ·
+            kept as is, not in this file
+          </span>
+        ))}
         {orders ? (
           <span>
             {orders.written} {orders.written === 1 ? 'order' : 'orders'} filed

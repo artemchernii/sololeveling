@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   MoreHorizontal,
   Notebook,
+  Settings,
   Target,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -90,4 +91,22 @@ export const mobileNav: Array<NavItem> = [
   { to: '/projects', label: 'Projects', icon: Layers },
   { to: '/notes', label: 'Notes', icon: Notebook },
   { to: '/settings', label: 'More', icon: MoreHorizontal },
+]
+
+/**
+ * What "More" opens on a phone (5 Oct: "on mobile i cant open a lot of
+ * pages" — More went straight to Settings): every sidebar page the bar
+ * does not show, in the sidebar's groups, then Settings.
+ */
+export const moreNav: Array<NavGroup> = [
+  ...navGroups
+    .map((g) => ({
+      heading: g.heading,
+      items: g.items.filter((i) => !mobileNav.some((m) => m.to === i.to)),
+    }))
+    .filter((g) => g.items.length > 0),
+  {
+    heading: 'APP',
+    items: [{ to: '/settings', label: 'Settings', icon: Settings }],
+  },
 ]

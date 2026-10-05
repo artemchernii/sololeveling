@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { mobileNav, navGroups } from './nav'
+import { mobileNav, moreNav, navGroups } from './nav'
 
 /* PLAN.md §3 (15 Sep): three groups, ten entries, Settings below them. A
    section that is not used is the thing the rethink exists to remove, so the
@@ -57,6 +57,23 @@ describe('the sidebar is PLAN.md §3’s table', () => {
       'Projects',
       'Notes',
       'More',
+    ])
+  })
+
+  test('More opens every page the bar leaves out, and Settings', () => {
+    const inBar = mobileNav.map((i) => i.to)
+    const inMore = moreNav.flatMap((g) => g.items.map((i) => i.to))
+    for (const g of navGroups)
+      for (const i of g.items)
+        expect(inBar.includes(i.to) || inMore.includes(i.to)).toBe(true)
+    expect(inMore).toEqual([
+      '/reviews',
+      '/goals',
+      '/backlog',
+      '/finances',
+      '/body',
+      '/languages',
+      '/settings',
     ])
   })
 })

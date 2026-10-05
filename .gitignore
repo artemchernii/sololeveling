@@ -40,3 +40,6 @@ sololeveling-*.zip
 
 # A.6 trace — his real money figures; repo is public (3 Oct)
 docs/specs/2026-10-03-overview-numbers.md
+e2e/.results/
+e2e/screens/
+.convex/

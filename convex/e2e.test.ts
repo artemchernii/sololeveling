@@ -91,3 +91,21 @@ test('on the test backend: a ready trades reading, none of them crypto', async (
   expect(intake?.trades).toHaveLength(3)
   expect(intake?.trades?.some((x) => x.crypto)).toBe(false)
 })
+
+test('paySalary refuses anywhere but the test backend', async () => {
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  await expect(
+    me.mutation(api.e2e.paySalary, { day: days[0] - DAY }),
+  ).rejects.toThrow('E2E functions run only on the test backend.')
+})
+
+test('paySalary: the salary landed, so Spending has a pay month', async () => {
+  vi.stubEnv('E2E', '1')
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  await me.mutation(api.e2e.reset, { days })
+  await me.mutation(api.e2e.paySalary, { day: days[0] - DAY })
+  const p = await me.query(api.aggregate.payMonth, { today: days[3] + DAY })
+  expect(p?.salaryName).toBe('Acme Payroll')
+})

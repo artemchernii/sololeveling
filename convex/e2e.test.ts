@@ -72,3 +72,22 @@ test('on the test backend: a ready holdings reading, two shares and cash', async
   })
   expect(intake?.positions).toHaveLength(2)
 })
+
+test('readTrades refuses anywhere but the test backend', async () => {
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  await expect(me.mutation(api.e2e.readTrades, { days })).rejects.toThrow(
+    'E2E functions run only on the test backend.',
+  )
+})
+
+test('on the test backend: a ready trades reading, none of them crypto', async () => {
+  vi.stubEnv('E2E', '1')
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  const id = await me.mutation(api.e2e.readTrades, { days })
+  const intake = await t.run((ctx) => ctx.db.get(id))
+  expect(intake).toMatchObject({ ownerId: ME, status: 'ready', kind: 'trades' })
+  expect(intake?.trades).toHaveLength(3)
+  expect(intake?.trades?.some((x) => x.crypto)).toBe(false)
+})

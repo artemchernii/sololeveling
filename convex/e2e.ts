@@ -187,6 +187,47 @@ export const reset = mutation({
 })
 
 /**
+ * His salary, landed the day before the bad day's first row — so Spending
+ * has a pay month to open. Its own call: in reset, Future balance would
+ * show it coming and the empty "Nothing coming yet" would never be seen.
+ */
+export const paySalary = mutation({
+  args: { day: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const revolut = (
+      await ctx.db
+        .query('accounts')
+        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+        .first()
+    )?._id
+    const salary = await ctx.db.insert('recurring', {
+      ownerId,
+      name: 'Acme Payroll',
+      kind: 'income',
+      amount: 2900,
+      accountId: revolut,
+      cadence: 'monthly',
+      day: new Date(args.day).getDate(),
+    })
+    await ctx.db.insert('logs', {
+      ownerId,
+      area: 'money',
+      kind: 'income',
+      occurredAt: args.day + 9 * 3_600_000,
+      value: 2900,
+      unit: 'eur',
+      text: 'Acme Payroll',
+      accountId: revolut,
+      meta: { raw: 'Acme Payroll', recurringId: salary },
+    })
+    return null
+  },
+})
+
+/**
  * A Revolut crypto statement as the reader returns it — so the crypto
  * review can be pressed without paying for a reading (5 Oct: "add to
  * Revolut … WE STUCK AND IT LOOKED FROZEN").

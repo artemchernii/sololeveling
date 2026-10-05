@@ -6,7 +6,7 @@ import { ChevronRight } from 'lucide-react'
 
 import { api } from '../../../../convex/_generated/api'
 import type { Doc, Id } from '../../../../convex/_generated/dataModel'
-import { PILL_QUIET } from '@/components/finances/bits'
+import { Busy, PILL_QUIET } from '@/components/finances/bits'
 import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Veiled } from '@/components/finances/Veil'
@@ -450,6 +450,7 @@ function RowLine({
 }) {
   const refile = useMutation(api.logs.refile)
   const [picking, setPicking] = useState(false)
+  const [saving, setSaving] = useState(false)
   const now = row.category ?? null
   return (
     <div className="grid w-full grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 border-b border-lift/4 px-1 py-2.5">
@@ -462,7 +463,13 @@ function RowLine({
           </span>
         ) : null}
         <span className="mt-1 flex flex-wrap items-center gap-2">
-          {income && now === null ? null : (
+          {saving ? (
+            <span className="font-mono text-[10.5px] text-ink-300">
+              <Busy on doing="saving">
+                {null}
+              </Busy>
+            </span>
+          ) : income && now === null ? null : (
             <GroupBadge
               kind={income ? 'income' : 'expense'}
               category={now}
@@ -481,9 +488,10 @@ function RowLine({
                 onClick={() => {
                   setPicking(false)
                   if (c.id === now) return
-                  void refile({ logId: row.id, category: c.id }).then((n) =>
-                    onMoved(n, c.id),
-                  )
+                  setSaving(true)
+                  void refile({ logId: row.id, category: c.id })
+                    .then((n) => onMoved(n, c.id))
+                    .finally(() => setSaving(false))
                 }}
                 className={`rounded-full px-2.5 py-1 text-[12px] ring-1 ring-inset transition-colors ${
                   c.id === now

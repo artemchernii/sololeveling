@@ -185,3 +185,75 @@ export const reset = mutation({
     return null
   },
 })
+
+/**
+ * A Revolut crypto statement as the reader returns it — so the crypto
+ * review can be pressed without paying for a reading (5 Oct: "add to
+ * Revolut … WE STUCK AND IT LOOKED FROZEN").
+ */
+export const readCrypto = mutation({
+  args: { days: v.array(v.number()) },
+  returns: v.id('intakes'),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const [d1, d2, d3, d4] = args.days
+    const coin = (symbol: string) => [
+      {
+        symbol: `${symbol}-EUR`,
+        name: symbol,
+        exchange: 'CCC',
+        type: 'CRYPTOCURRENCY',
+      },
+    ]
+    const t = (
+      at: number,
+      name: string,
+      side: 'buy' | 'sell' | 'reward',
+      shares: number,
+      price: number,
+    ) => ({
+      occurredAt: at + 12 * 3_600_000,
+      name,
+      side,
+      shares,
+      price,
+      currency: 'EUR',
+      fee: side === 'reward' ? undefined : 0.01,
+      crypto: true,
+      preferred: 0,
+      candidates: coin(name),
+    })
+    return await ctx.db.insert('intakes', {
+      ownerId,
+      storageIds: [],
+      status: 'ready',
+      kind: 'trades',
+      title: 'Revolut crypto statement',
+      institution: 'Revolut',
+      model: 'Claude Haiku 4.5',
+      costUsd: 0.004,
+      readAt: Date.now(),
+      files: [
+        {
+          name: 'crypto-account-statement.pdf',
+          size: 120_000,
+          contentType: 'application/pdf',
+        },
+      ],
+      trades: [
+        t(d1, 'BTC', 'buy', 0.002, 52_000),
+        t(d1, 'ETH', 'buy', 0.05, 2_300),
+        t(d2, 'ADA', 'buy', 100, 0.42),
+        t(d3, 'ADA', 'reward', 1.5, 0),
+        t(d4, 'ETH', 'sell', 0.01, 2_400),
+      ],
+      positions: [
+        { name: 'BTC', shares: 0.002, valueEur: 104, candidates: coin('BTC') },
+        { name: 'ETH', shares: 0.04, valueEur: 96, candidates: coin('ETH') },
+        { name: 'ADA', shares: 101.5, valueEur: 43, candidates: coin('ADA') },
+      ],
+    })
+  },
+})
+

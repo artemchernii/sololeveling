@@ -5,7 +5,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { api } from '../../../../convex/_generated/api'
 import type { Doc, Id } from '../../../../convex/_generated/dataModel'
 import { AccountLogo } from '@/components/finances/Logo'
-import { FIELD, PILL_LOUD } from '@/components/finances/bits'
+import { Busy, FIELD, PILL_LOUD } from '@/components/finances/bits'
 import { failureMessage } from '@/lib/convex-errors'
 import { SPEND_CATEGORIES } from '@/lib/money'
 import { payeeKey } from '@/lib/payee'
@@ -214,11 +214,13 @@ export function WhoIsThis({
   const [partOf, setPartOf] = useState<string | null>(who.partOf)
   const [newPart, setNewPart] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
   const domain = siteTouched ? site : (site ?? (name ? siteFor(name) : null))
   const paypal = who.key.startsWith('PAYPAL')
   const earlier = useQuery(api.payees.paypalNames, paypal ? {} : 'skip')
 
   async function save() {
+    setBusy(true)
     try {
       const n = await set({
         logId: row.id,
@@ -231,6 +233,8 @@ export function WhoIsThis({
       onDone(n, name)
     } catch (e) {
       setError(failureMessage(e) ?? 'It did not save.')
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -349,10 +353,12 @@ export function WhoIsThis({
       <button
         type="button"
         onClick={() => void save()}
-        disabled={!name.trim()}
+        disabled={!name.trim() || busy}
         className={`${PILL_LOUD} self-start disabled:opacity-40`}
       >
-        save
+        <Busy on={busy} doing="saving">
+          save
+        </Busy>
       </button>
       {error ? (
         <span className="text-[12.5px] text-state-danger">{error}</span>

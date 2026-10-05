@@ -5,7 +5,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { api } from '../../../../convex/_generated/api'
 import type { Doc, Id } from '../../../../convex/_generated/dataModel'
 import { AccountLogo } from '@/components/finances/Logo'
-import { FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
+import { Busy, FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { Sheet } from '@/components/finances/Sheet'
 import { dayLabel } from '@/lib/bills'
 import { missingFrom, readBillLine } from '@/lib/billLine'
@@ -52,6 +52,7 @@ export function AddBill({
   const banks = accounts.filter((a) => a.kinds.includes('bank'))
   const [accountId, setAccountId] = useState<Id<'accounts'> | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
   const from = accountId ?? banks.at(0)?._id ?? null
 
   const line = readBillLine(text)
@@ -82,17 +83,21 @@ export function AddBill({
     l: NonNullable<typeof likely>[number],
     cadence: 'monthly' | 'yearly',
   ) {
+    setBusy(`${l.rowId}:${cadence}`)
     try {
       const made = await fromRow({ logId: l.rowId, cadence })
       const d = new Date(l.t)
       done(made, l.name, whenSaid(cadence, d.getUTCDate(), d.getUTCMonth()))
     } catch (e) {
       setError(failureMessage(e) ?? 'It did not go in.')
+    } finally {
+      setBusy(null)
     }
   }
 
   async function typed() {
     if (missing.length || line.amount === null || line.day === null) return
+    setBusy('typed')
     try {
       const id = await create({
         name: line.name[0].toUpperCase() + line.name.slice(1),
@@ -110,6 +115,8 @@ export function AddBill({
       )
     } catch (e) {
       setError(failureMessage(e) ?? 'It did not go in.')
+    } finally {
+      setBusy(null)
     }
   }
 
@@ -158,16 +165,22 @@ export function AddBill({
                     <button
                       type="button"
                       className={PILL_QUIET}
+                      disabled={busy !== null}
                       onClick={() => void pick(l, 'monthly')}
                     >
-                      monthly
+                      <Busy on={busy === `${l.rowId}:monthly`} doing="adding">
+                        monthly
+                      </Busy>
                     </button>
                     <button
                       type="button"
                       className={PILL_QUIET}
+                      disabled={busy !== null}
                       onClick={() => void pick(l, 'yearly')}
                     >
-                      yearly
+                      <Busy on={busy === `${l.rowId}:yearly`} doing="adding">
+                        yearly
+                      </Busy>
                     </button>
                   </span>
                 </div>
@@ -233,10 +246,13 @@ export function AddBill({
             ) : (
               <button
                 type="button"
+                disabled={busy !== null}
                 onClick={() => void typed()}
                 className={`${PILL_LOUD} ml-auto`}
               >
-                add
+                <Busy on={busy === 'typed'} doing="adding">
+                  add
+                </Busy>
               </button>
             )}
           </div>

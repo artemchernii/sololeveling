@@ -12,6 +12,14 @@ export function lastDays(n = 4): Array<number> {
   return Array.from({ length: n }, (_, i) => today.getTime() - (n - i) * DAY)
 }
 
+let signedIn: ConvexHttpClient | null = null
+
+/** The test user's backend, after start(): to drop a canned reading in. */
+export function testClient(): ConvexHttpClient {
+  if (!signedIn) throw new Error('start(page) first')
+  return signedIn
+}
+
 /** Sign the test user in, then reset its data to the bad day. */
 export async function start(page: Page): Promise<Array<number>> {
   await page.goto('/login')
@@ -27,6 +35,7 @@ export async function start(page: Page): Promise<Array<number>> {
   })
   const client = new ConvexHttpClient(process.env.VITE_CONVEX_URL as string)
   client.setAuth(token)
+  signedIn = client
   const days = lastDays()
   await client.mutation(anyApi.e2e.reset, { days })
   return days

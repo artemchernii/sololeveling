@@ -32,10 +32,10 @@ safety-net tests.
 | Check transactions found in a file                   | check it     | `Intake` → `TransactionsReview`                                     | `intake.review`, `setAccount`, `whose`, `confirmTransactions`      | `statement.spec`               |
 | Check holdings (broker screenshot)                   | check it     | `Intake` → `HoldingsReview`                                         | `intake.confirmHoldings`, `market.search`                          | —                              |
 | Check trades / orders                                | check it     | `Intake` → `TradesReview`, `OrdersFound`                            | `intake.confirmTrades`                                             | —                              |
-| Check a crypto statement                             | check it     | `Intake` → `CryptoReview`                                           | `intake.confirmTransactions`                                       | `crypto.spec`                  |
+| Check a crypto statement                             | check it     | `Intake` → `CryptoReview` (own file)                                | `intake.confirmTransactions`                                       | `crypto.spec`                  |
 | Something still waiting to be checked                | Overview top | `OpenIntakes`                                                       | `intake.open`, `one`                                               | —                              |
 | Type a few rows by hand (spend, buy)                 | + → rows     | `AddRows`                                                           | `money.record`, `logs.categories`, `market.search`                 | —                              |
-| What a save landed as                                | landed       | `Landed` (+ `ReviewLanded` in `Intake`)                             | `accounts.setBalance`, `aggregate.balances`                        | all four specs assert it       |
+| What a save landed as                                | landed       | `Landed` (+ `Landed`, `ReviewLanded` in `IntakeLanded`)             | `accounts.setBalance`, `aggregate.balances`                        | every write spec               |
 
 ## Update all (monthly check-in)
 
@@ -57,14 +57,14 @@ safety-net tests.
 
 ## Flow: bills, salary, where the month went
 
-| Journey                            | Screen          | Component                | Convex                                                                                       | Test |
-| ---------------------------------- | --------------- | ------------------------ | -------------------------------------------------------------------------------------------- | ---- |
-| Payday to payday: in, out, left    | Flow            | `flow/Flow` → `PayMonth` | `aggregate.payMonth`, `recurring.find`                                                       | —    |
-| Where the month went, refile a row | Flow            | `Spending`               | `aggregate.payMonthDetail`, `logs.refile`                                                    | —    |
-| What's coming: bills ahead         | Flow            | `Ahead` → `AheadChart`   | `aggregate.ahead`, `recurring.payments`, `end`, `resume`, `setCovers`, `notBill`, `unrefuse` | —    |
-| Add a bill (from a row or by hand) | Flow            | `AddBill`                | `recurring.create`, `fromRow`, `likely`, `remove`                                            | —    |
-| Every movement in a month          | Flow            | `Movements`              | `logs.movements`, `recurring.fromRow`                                                        | —    |
-| Name who a payee is                | Flow / check it | `Payees`                 | `payees.list`, `set`, `paypalNames`, `why.row`                                               | —    |
+| Journey                            | Screen          | Component                | Convex                                                                                       | Test                |
+| ---------------------------------- | --------------- | ------------------------ | -------------------------------------------------------------------------------------------- | ------------------- |
+| Payday to payday: in, out, left    | Flow            | `flow/Flow` → `PayMonth` | `aggregate.payMonth`, `recurring.find`                                                       | —                   |
+| Where the month went, refile a row | Flow            | `Spending`               | `aggregate.payMonthDetail`, `logs.refile`                                                    | —                   |
+| What's coming: bills ahead         | Flow            | `Ahead` → `AheadChart`   | `aggregate.ahead`, `recurring.payments`, `end`, `resume`, `setCovers`, `notBill`, `unrefuse` | `flow.spec` (empty) |
+| Add a bill (from a row or by hand) | Flow            | `AddBill`                | `recurring.create`, `fromRow`, `likely`, `remove`                                            | `flow.spec` (typed) |
+| Every movement in a month          | Flow            | `Movements`              | `logs.movements`, `recurring.fromRow`                                                        | `flow.spec`         |
+| Name who a payee is                | Flow / check it | `Payees`                 | `payees.list`, `set`, `paypalNames`, `why.row`                                               | —                   |
 
 ## Portfolio: how are my investments doing
 
@@ -77,6 +77,6 @@ safety-net tests.
 
 - Revolut stocks history: `HistoryReview` (in `Reading`, `Intake`) reads the trades but saves nothing.
 - The crypto landing for Revolut says only "N added", with no coin values.
-- `Intake.tsx` (~2.3k lines), `Bulk.tsx` (~1.8k) and `Accounts.tsx` (~1.3k)
+- `Intake.tsx` (~2k lines; crypto split out 5 Oct), `Bulk.tsx` (~1.8k) and `Accounts.tsx` (~1.3k)
   are over the 500-line rule. Split them one review per file, and keep this
   map's Component column in step.

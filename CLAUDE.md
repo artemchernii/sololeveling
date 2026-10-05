@@ -227,7 +227,17 @@ entirely in my court.>
 
 ### 🤖 Me
 <what I do next, once he says go>
+
+### ⏱ Session
+<length · context · written · 5-hour % · week %>
 ```
+
+The ⏱ line (5 Oct) is how he paces the Pro plan. Length, context and
+written come from the `session-guard` hook's `meter:` line on his last
+message. The plan percentages come from `get_usage`: read it on the first
+reply of a session, at every plan-position refresh, and whenever the hook
+says the session is long — otherwise repeat the last reading with its time
+("week 95% at 17:55"). Past 80% of the week, say so in the 🫪 line.
 
 The phrase to say lives inside the 🫪 line. No separate closing paragraph or
 "do this now" line after the block — he called that bother.

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Check, Pencil, Plus, Search } from 'lucide-react'
+import { Check, Loader2, Pencil, Plus, Search } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
@@ -19,7 +19,7 @@ import { useDayStarts } from '@/components/track/useDayStarts'
 import { ACCOUNT_KINDS, CURRENCIES, money } from '@/lib/currency'
 import type { AccountKind } from '@/lib/currency'
 import { agoLabel } from '@/lib/format'
-import { freshness } from '@/lib/freshness'
+import { STALE_MS, freshness } from '@/lib/freshness'
 import { monthRange } from '@/lib/month'
 import { ProfitPill, paidSums } from '@/components/finances/Portfolio'
 import { PRODUCTS, productIn, searchProducts } from '@/lib/institutions'
@@ -1054,6 +1054,8 @@ function TypeBalances({
   const [values, setValues] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [same, setSame] = useState<Set<string>>(new Set())
+  /* What is being written right now — the press is answered at once. */
+  const [busy, setBusy] = useState<string | null>(null)
   /* A save is seen to land (5 Oct: "I click still the same and NO
      animation, no confirmation"): a tick, the words, then it closes. */
   const [saved, setSaved] = useState(false)
@@ -1067,8 +1069,16 @@ function TypeBalances({
 
   /* "Still the same" (5 Oct): the number it shows, recorded as today in
      one press — the window closes once nothing is left to say. */
+  /* Only a pocket that needs it asks (5 Oct: "should appear only when
+     need update. Not always") — more than a week old, like check-in. */
+  const now = Date.now()
+  const isOld = (c: string) => {
+    const at = pockets.find((x) => x.currency === c)?.recordedAt
+    return !at || now - at > STALE_MS
+  }
   async function keepSame(c: string, value: number) {
     setError(null)
+    setBusy(c)
     try {
       await setBalance({
         accountId: account._id,
@@ -1078,16 +1088,22 @@ function TypeBalances({
       })
       const next = new Set(same).add(c)
       setSame(next)
-      if (account.currencies.every((x) => next.has(x))) setSaved(true)
+      /* Nothing old left: the green tick shows a moment, then the sheet
+         says it is up to date and closes. */
+      if (account.currencies.every((x) => next.has(x) || !isOld(x)))
+        setTimeout(() => setSaved(true), 650)
     } catch (e) {
       setError(
         failureMessage(e) ?? (e instanceof Error ? e.message : 'Not saved'),
       )
+    } finally {
+      setBusy(null)
     }
   }
 
   async function save() {
     setError(null)
+    setBusy('all')
     try {
       for (const c of account.currencies) {
         /* An untouched field still saves what it shows: "still 5000" is a
@@ -1109,6 +1125,8 @@ function TypeBalances({
       setError(
         failureMessage(e) ?? (e instanceof Error ? e.message : 'Not saved'),
       )
+    } finally {
+      setBusy(null)
     }
   }
 
@@ -1148,15 +1166,26 @@ function TypeBalances({
                 {agoLabel(p.recordedAt)}
               </span>
             ) : null}
-            {typeof p?.value === 'number' && !(c in values) ? (
+            {typeof p?.value === 'number' &&
+            !(c in values) &&
+            (isOld(c) || same.has(c)) ? (
               <button
                 type="button"
                 key={same.has(c) ? 'saved' : 'ask'}
-                disabled={same.has(c)}
+                disabled={same.has(c) || busy !== null}
                 onClick={() => void keepSame(c, p.value as number)}
-                className={`shrink-0 rounded-full px-3 py-1.5 font-mono text-[10.5px] tracking-[0.08em] whitespace-nowrap uppercase ring-1 ring-inset ${same.has(c) ? 'motion-pop bg-state-good text-background ring-state-good' : 'motion-press bg-state-good/10 text-state-good ring-state-good/40'}`}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[10.5px] tracking-[0.08em] whitespace-nowrap uppercase ring-1 ring-inset ${same.has(c) ? 'motion-pop bg-state-good text-background ring-state-good' : 'motion-press bg-state-good/10 text-state-good ring-state-good/40'}`}
               >
-                {same.has(c) ? '✓ saved' : '✓ still the same'}
+                {busy === c ? (
+                  <>
+                    <Loader2 className="size-3 animate-spin" />
+                    saving
+                  </>
+                ) : same.has(c) ? (
+                  '✓ saved'
+                ) : (
+                  '✓ still the same'
+                )}
               </button>
             ) : null}
           </label>
@@ -1167,10 +1196,18 @@ function TypeBalances({
       ) : null}
       <button
         type="button"
+        disabled={busy !== null}
         onClick={() => void save()}
-        className={`${PILL_LOUD} justify-center py-3`}
+        className={`${PILL_LOUD} justify-center gap-2 py-3 disabled:opacity-70`}
       >
-        save
+        {busy === 'all' ? (
+          <>
+            <Loader2 className="size-3.5 animate-spin" />
+            saving
+          </>
+        ) : (
+          'save'
+        )}
       </button>
     </>
   )

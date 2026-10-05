@@ -776,12 +776,19 @@ function TransactionsReview({
           onClick={() => void save()}
           className={`${PILL_LOUD} flex-[2] justify-center py-3 disabled:opacity-40`}
         >
-          {addLabel({
-            rows: kept.length,
-            noun: noun(kept.length),
-            orders,
-            balance: keepsBalance,
-          })}
+          {saving ? (
+            <>
+              <Loader2 className="size-3.5 animate-spin" />
+              adding
+            </>
+          ) : (
+            addLabel({
+              rows: kept.length,
+              noun: noun(kept.length),
+              orders,
+              balance: keepsBalance,
+            })
+          )}
         </button>
       </div>
     </div>
@@ -2432,6 +2439,7 @@ function OldPocket({
   const today = useDayStarts(1).at(-1) as number
   const setBalance = useMutation(api.accounts.setBalance)
   const [done, setDone] = useState(false)
+  const [busy, setBusy] = useState(false)
   return (
     <div className="flex items-center gap-2.5">
       <span className="flex-1 text-[13px] text-ink-200">
@@ -2451,18 +2459,30 @@ function OldPocket({
         <button
           key={done ? 'saved' : 'ask'}
           type="button"
-          disabled={done}
-          onClick={() =>
+          disabled={done || busy}
+          onClick={() => {
+            setBusy(true)
             void setBalance({
               accountId,
               currency: pocket.currency,
               value: pocket.value as number,
               dayStart: today,
-            }).then(() => setDone(true))
-          }
-          className={`shrink-0 rounded-full px-3 py-1.5 font-mono text-[10.5px] tracking-[0.08em] whitespace-nowrap uppercase ring-1 ring-inset ${done ? 'motion-pop bg-state-good text-background ring-state-good' : 'motion-press bg-state-good/10 text-state-good ring-state-good/40'}`}
+            })
+              .then(() => setDone(true))
+              .finally(() => setBusy(false))
+          }}
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[10.5px] tracking-[0.08em] whitespace-nowrap uppercase ring-1 ring-inset ${done ? 'motion-pop bg-state-good text-background ring-state-good' : 'motion-press bg-state-good/10 text-state-good ring-state-good/40'}`}
         >
-          {done ? '✓ saved' : '✓ still the same'}
+          {busy ? (
+            <>
+              <Loader2 className="size-3 animate-spin" />
+              saving
+            </>
+          ) : done ? (
+            '✓ saved'
+          ) : (
+            '✓ still the same'
+          )}
         </button>
       ) : null}
     </div>

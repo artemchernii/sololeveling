@@ -169,34 +169,40 @@ TanStack Start · Convex · Clerk · Tailwind v4 · shadcn/ui · deployed to
 Cloudflare Workers. Fixed, per `PLAN.md` §1. A new dependency needs a one-line
 reason before it goes in.
 
-## Working style
+## Workflow (5 Oct) — work like pros, on a Pro plan
 
-Light process, written 22 Sep after one session burned 13% of a week's
-tokens on helper agents re-reading the same files. Superpowers is off in
-this project; these are the parts of it worth keeping.
+Artem, after a week of fixes breaking last week's screens: "I finally
+want to work smart and not go back and forth, and generating slop."
+These are rules, not advice.
 
-- **A new row opens with a one-page spec** in `docs/specs/`: what gets built,
-  which files, the done-when from `PLAN.md` §4, and open questions. No code in
-  the spec. Artem reads it and says go before any code.
-- **Ask, don't guess.** Questions go in the spec or the reply, a few at a
-  time, each with my recommendation — when `PLAN.md` is ambiguous, a UI element
-  has no source in the data model, or a number is not one of the four sources.
-- **Tests with the code.** Every Convex function that writes or counts gets a
-  `convex-test` case in the same commit, including the refusal paths
-  (`TODAY_FULL`, another owner's row). Parsers and mappers in `src/lib` too.
-- **Work inline.** Helper agents only for a genuinely huge row, and few of them.
-- **Look at UI in the browser pane** whenever something visible changed —
-  precision matters here. Read text with `get_page_text`; screenshot for layout,
-  colour and motion.
-- **Close a row** with typecheck, lint and tests green, one review of the whole
-  branch, a PR based on `master`, and one thing for Artem to press by hand.
-  Commit per meaningful step with a real message.
-- **Conventional commits, never squashed** (24 Sep). Every commit is
-  `type(scope): what changed` — `feat`, `fix`, `docs`, `test`, `refactor`,
-  `chore` — with the why in the body. A PR lands as a merge commit; squash
-  and rebase merging are switched off on GitHub. Artem: one commit for a lot
-  of work "looks like I don't do work". The history is the record of the
-  work, so it stays whole.
+1. **Every screen or feature is a slice: load the `slice` skill first.**
+   Spec for me (scenarios that become tests) → Artem approves **1–2
+   plain sentences plus something to see** (mockup or screenshot), never
+   the spec text → e2e tests first → build until green → PR with
+   screenshots → he tests on localhost with his own data → merge.
+2. **`pnpm verify` before every PR** (typecheck, lint, format, unit,
+   build, e2e). Red means no PR.
+3. **Tests run on mock data only** — the `e2e` skill. Never press a
+   write on his real account to check something.
+4. **Every write answers**: "saving…" at once, a landed screen, then it
+   closes. An e2e test asserts all three.
+5. **Small**: a PR under ~600 changed lines, never over 1000; a file
+   under ~500 lines (split, don't grow). The `session-guard` hook says
+   when a branch is too big or a session too long.
+6. **Find, don't search**: `docs/journeys/<area>.md` maps each journey
+   to its screens, functions and test. Read it before the code; update
+   it in the same PR.
+7. **Budget (Pro plan)**: one slice per session; start from the handoff
+   memory and the spec, not the history; no helper agents unless the
+   slice is huge; screenshots from tests, not browsing. When the hook
+   fires, write the handoff and stop.
+8. **Ask, don't guess** — in the spec or the reply, few at a time, each
+   with a recommendation.
+9. **Tests with the code**: every Convex write or count gets convex-test
+   (with refusals); parsers and mappers in `src/lib` too.
+10. **Conventional commits, never squashed** (24 Sep): `type(scope): what`
+    with the why in the body; PRs land as merge commits. The history is
+    the record of the work.
 
 ## Where we are
 

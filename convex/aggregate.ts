@@ -2202,22 +2202,25 @@ const MOVED_ROWS = 2000
  * pocket's currency. Spending out, money in, a transfer's own side; in the
  * euro pocket of an account with trades, buys out and sells in.
  */
-async function movedSince(
+export async function movedSince(
   ctx: QueryCtx,
   ownerId: string,
   account: Doc<'accounts'>,
   currency: string,
   readAt: number,
+  /** Up to and including this moment; now when absent. */
+  until?: number,
 ): Promise<{ cents: number; rows: number }> {
   const unit = currency.toLowerCase()
   const logs = await ctx.db
     .query('logs')
-    .withIndex('by_owner_account_time', (q) =>
-      q
+    .withIndex('by_owner_account_time', (q) => {
+      const from = q
         .eq('ownerId', ownerId)
         .eq('accountId', account._id)
-        .gt('occurredAt', readAt),
-    )
+        .gt('occurredAt', readAt)
+      return until === undefined ? from : from.lte('occurredAt', until)
+    })
     .take(MOVED_ROWS)
   let cents = 0
   let rows = 0

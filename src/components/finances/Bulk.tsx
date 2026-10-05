@@ -24,6 +24,7 @@ import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { IntakeFlow } from '@/components/finances/Intake'
+import { AccountsLanded } from '@/components/finances/Landed'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Sheet } from '@/components/finances/Sheet'
 import { Veiled } from '@/components/finances/Veil'
@@ -47,8 +48,6 @@ type Ask = Review['asks'][number]
 type BatchView = NonNullable<
   ReturnType<typeof useQuery<typeof api.intake.batch>>
 >
-type Worth = { total: number; cash: number; invested: number }
-
 const DAY = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
   month: 'short',
@@ -113,11 +112,8 @@ function BulkUpdate({
   const [mine, setMine] = useState<Id<'batches'> | null>(null)
   const batchId = mine ?? waiting
   const view = useQuery(api.intake.batch, batchId ? { batchId } : 'skip')
-  const worth = useQuery(api.aggregate.worth, {})
   const [checking, setChecking] = useState<Id<'intakes'> | null>(null)
-  /* What the money looked like when he pressed APPLY, and whether this
-     sheet saw the apply through — the applied screen's before and after. */
-  const [before, setBefore] = useState<Worth | null>(null)
+  /* Whether this sheet saw the apply through. */
   const [pressed, setPressed] = useState(false)
 
   if (checking) {
@@ -136,13 +132,7 @@ function BulkUpdate({
   if (view.status === 'applying') return <Applying view={view} />
   if (pressed && (view.status === 'done' || view.applied !== null)) {
     return (
-      <Applied
-        view={view}
-        before={before}
-        now={worth ? worthOf(worth) : null}
-        onClose={onClose}
-        onMore={() => setPressed(false)}
-      />
+      <Applied view={view} onClose={onClose} onMore={() => setPressed(false)} />
     )
   }
   if (view.status === 'done') return <BulkDrop onStarted={setMine} />
@@ -153,7 +143,6 @@ function BulkUpdate({
       onCheck={setChecking}
       onClose={onClose}
       onApplied={() => {
-        setBefore(worth ? worthOf(worth) : null)
         setPressed(true)
         /* Once applied it is no longer the one waiting — hold on to it
            here, so its applied screen still has it. */
@@ -161,14 +150,6 @@ function BulkUpdate({
       }}
     />
   )
-}
-
-function worthOf(w: {
-  total: number
-  cash: { total: number }
-  invested: { total: number }
-}): Worth {
-  return { total: w.total, cash: w.cash.total, invested: w.invested.total }
 }
 
 /* ---- Drop ------------------------------------------------------------ */
@@ -1678,70 +1659,49 @@ function Applying({ view }: { view: BatchView }) {
 
 function Applied({
   view,
-  before,
-  now,
   onClose,
   onMore,
 }: {
   view: BatchView
-  before: Worth | null
-  now: Worth | null
   onClose: () => void
   onMore: () => void
 }) {
-  const a = view.applied
   const waiting = view.files.filter((f) => f.status !== 'done').length
-  const [shownNow, setShownNow] = useState(now)
-  useEffect(() => setShownNow(now), [now])
+  /* One line an account (5 Oct), the same screen a single file lands
+     on. A batch applied before per-account counts were kept falls back
+     to its files' rows. */
+  const accounts =
+    view.applied?.byAccount?.map((x) => ({
+      accountId: x.accountId,
+      added: x.rows,
+    })) ??
+    [
+      ...new Set(
+        view.files.flatMap((f) =>
+          f.status === 'done' && f.accountId ? [f.accountId] : [],
+        ),
+      ),
+    ].map((accountId) => ({
+      accountId,
+      added: view.files
+        .filter((f) => f.accountId === accountId && f.status === 'done')
+        .reduce((t, f) => t + f.rows, 0),
+    }))
   return (
-    <div className="flex flex-col items-center gap-4 py-2 text-center">
-      <span className="motion-stamp grid size-14 place-items-center rounded-full bg-state-good/12 text-state-good">
-        <Check className="size-6" />
-      </span>
-      <h2 className="text-[21px] font-light">
-        {a?.accounts ?? 0} accounts updated · {a?.rows ?? 0} new rows
-      </h2>
-      {before && shownNow ? (
-        <div className="grid w-full gap-2.5 sm:grid-cols-3">
-          {(
-            [
-              ['total', before.total, shownNow.total],
-              ['free cash', before.cash, shownNow.cash],
-              ['invested', before.invested, shownNow.invested],
-            ] as const
-          ).map(([k, was, is], i) => (
-            <div
-              key={k}
-              style={{ animationDelay: `${120 + i * 80}ms` }}
-              className="motion-land flex flex-col gap-1.5 rounded-[16px] bg-lift/[0.035] p-3 text-left ring-1 ring-lift/[0.07] ring-inset"
-            >
-              <span className="label-caps">{k}</span>
-              <span className="font-mono text-[12px] text-ink-500 line-through">
-                <Veiled>{euros(was)}</Veiled>
-              </span>
-              <span key={is} className="motion-pop text-[22px] font-light">
-                <Veiled>{euros(is)}</Veiled>
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      <p className="max-w-md text-[12.5px] text-ink-500">
-        Not money made — what the app now sees: rows and balances from the files
-        you dropped, counted for the first time.
-      </p>
-      <div className="flex flex-wrap justify-center gap-2">
-        {waiting > 0 ? (
-          <button type="button" onClick={onMore} className={PILL_QUIET}>
-            {waiting} {waiting === 1 ? 'file' : 'files'} still waiting
-          </button>
-        ) : null}
-        <button type="button" onClick={onClose} className={PILL_LOUD}>
-          <ArrowRight className="size-3.5" />
-          see it on overview
+    <AccountsLanded accounts={accounts}>
+      {waiting > 0 ? (
+        <button type="button" onClick={onMore} className={PILL_QUIET}>
+          {waiting} {waiting === 1 ? 'file' : 'files'} still waiting
         </button>
-      </div>
-    </div>
+      ) : null}
+      <button
+        type="button"
+        onClick={onClose}
+        className={`${PILL_LOUD} justify-center px-8 py-2.5`}
+      >
+        done
+      </button>
+    </AccountsLanded>
   )
 }
 

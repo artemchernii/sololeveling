@@ -52,3 +52,15 @@ export function revolutCsv(days: Array<number>): Buffer {
   ]
   return Buffer.from(rows.join('\n') + '\n')
 }
+
+/** An ActivoBank export over the same days: two rows, both new. */
+export function activoCsv(days: Array<number>): Buffer {
+  const [, , d3, d4] = days
+  const day = (d: number) => iso(d, '').trim()
+  const rows = [
+    'Date,Description,Amount,Balance',
+    `${day(d3)},Condominio,-60.00,770.50`,
+    `${day(d4)},EDP,-42.10,728.40`,
+  ]
+  return Buffer.from(rows.join('\n') + '\n')
+}

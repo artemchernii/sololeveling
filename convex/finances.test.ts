@@ -1133,6 +1133,43 @@ describe('intake: transactions', () => {
     expect(await me.query(api.intake.open, {})).toEqual([])
   })
 
+  test('a EUR statement keeps the account’s USD as it stood that day (5 Oct)', async () => {
+    const { t, me } = setup()
+    const rev = await me.mutation(api.accounts.create, {
+      name: 'Revolut',
+      kinds: ['bank'],
+      currencies: ['EUR', 'USD'],
+    })
+    await me.mutation(api.accounts.setBalance, {
+      accountId: rev,
+      currency: 'USD',
+      value: 40,
+      dayStart: TODAY,
+      asOf: day(9, 1),
+    })
+    const { intakeId } = await ready(
+      t,
+      me,
+      [tx(9, 15, 'Bnp Toc', -6.7)],
+      799.47,
+    )
+    await me.mutation(api.intake.confirmTransactions, {
+      intakeId,
+      accountId: rev,
+      dayStart: TODAY,
+      keepBalance: true,
+      rows: [{ index: 0, kind: 'spend', category: 'eating out' }],
+    })
+    const pockets = (await me.query(api.aggregate.balances, {})).accounts[0]
+      .pockets
+    const eur = pockets.find((p) => p.currency === 'EUR')
+    const usd = pockets.find((p) => p.currency === 'USD')
+    expect(usd?.value).toBe(40)
+    /* Read again on the statement's day, like its EUR. */
+    expect(usd?.recordedAt).toBe(eur?.recordedAt)
+    expect(usd?.recordedAt).toBeGreaterThan(day(9, 1))
+  })
+
   test('a broker statement’s orders land as trades, not moves — once, and not into a bank', async () => {
     const { t, me } = setup()
     const tr = await me.mutation(api.accounts.create, {

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { revolutCsv, start } from './helpers'
+import { activoCsv, revolutCsv, start } from './helpers'
 
 /* What broke on 5 Oct, pressed the way he presses it — on mock data. */
 
@@ -49,9 +49,11 @@ test('a Revolut CSV: read, checked, added — and it lands', async ({ page }) =>
     name: 'add 2 payments and the balance',
   })
   await add.click()
-  await expect(sheet.getByText('2 payments added')).toBeVisible()
-  await expect(sheet.getByText('no changes')).toBeVisible()
-  await expect(sheet.getByText('Pingo Doce')).toBeVisible()
+  /* One line an account: is Revolut right now? */
+  await expect(sheet.getByText('Revolut is up to date')).toBeVisible()
+  await expect(sheet.getByText('€1,108.04 · $40')).toBeVisible()
+  await expect(sheet.getByText('2 added')).toBeVisible()
+  await expect(sheet.getByText('Pingo Doce')).toHaveCount(0)
   /* Once everything has arrived. */
   await page.waitForTimeout(1500)
   await page.screenshot(shot('landed'))
@@ -81,4 +83,30 @@ test('"still the same": saving, saved, up to date, closed', async ({
   await expect(sheet.getByText('Cash is up to date')).toBeVisible()
   await page.screenshot(shot('still-the-same'))
   await expect(sheet).toHaveCount(0, { timeout: 5_000 })
+})
+
+test('a bulk upload lands one line an account', async ({ page }) => {
+  const days = await start(page)
+  await page.goto('/finances')
+  await page.getByRole('button', { name: 'update all' }).click()
+  await page.locator('input[type=file]').setInputFiles([
+    {
+      name: 'revolut.csv',
+      mimeType: 'text/csv',
+      buffer: revolutCsv(days),
+    },
+    {
+      name: 'activobank.csv',
+      mimeType: 'text/csv',
+      buffer: activoCsv(days),
+    },
+  ])
+  const sheet = page.getByRole('dialog')
+  await sheet.getByRole('button', { name: /apply 2 accounts/ }).click()
+  await expect(sheet.getByText('2 accounts up to date')).toBeVisible()
+  await expect(sheet.getByText('Revolut', { exact: true })).toBeVisible()
+  await expect(sheet.getByText('ActivoBank', { exact: true })).toBeVisible()
+  await expect(sheet.getByText('2 added')).toHaveCount(2)
+  await page.waitForTimeout(1500)
+  await page.screenshot(shot('bulk-landed'))
 })

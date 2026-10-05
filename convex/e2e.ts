@@ -45,6 +45,8 @@ async function wipe(ctx: MutationCtx) {
 export const REVOLUT_HEADER =
   'type|product|started date|completed date|description|amount|fee|currency|state|balance'
 
+export const ACTIVO_HEADER = 'date|description|amount|balance'
+
 /**
  * His accounts as they stand on a bad day: everything 8 days old, Revolut
  * holding EUR and USD, three rows of the coming CSV already in. `days`
@@ -152,6 +154,28 @@ export const reset = mutation({
         balanceColumn: 9,
         pendingValues: ['PENDING'],
         skipValues: ['REVERTED', 'DECLINED', 'FAILED'],
+        buyPrefixes: [],
+        sellPrefixes: [],
+        splitPrefixes: [],
+      },
+      updatedAt: now,
+    })
+    /* A second bank's export, so a bulk upload touches two accounts. */
+    await ctx.db.insert('csvLayouts', {
+      ownerId,
+      headerKey: ACTIVO_HEADER,
+      layout: {
+        kind: 'transactions',
+        institution: 'ActivoBank',
+        currency: 'EUR',
+        dateColumn: 0,
+        dateOrder: 'ymd',
+        decimal: '.',
+        descriptionColumn: 1,
+        amountColumn: 2,
+        balanceColumn: 3,
+        pendingValues: [],
+        skipValues: [],
         buyPrefixes: [],
         sellPrefixes: [],
         splitPrefixes: [],

@@ -17,7 +17,7 @@ import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { groupIcon } from '@/components/finances/GroupBadge'
-import { Sparks } from '@/components/track/Sparks'
+import { AccountsLanded } from '@/components/finances/Landed'
 import { usePayees } from '@/components/finances/flow/Payees'
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import {
@@ -38,7 +38,6 @@ import type { Candidate } from '@/lib/market'
 import { SPEND_CATEGORIES, categoryLabel, euros } from '@/lib/money'
 import { checkCryptoStatement } from '@/lib/crypto'
 import { addLabel, groupByDay, rowsSpan } from '@/lib/checkFile'
-import { STALE_MS } from '@/lib/freshness'
 
 /* What he dropped, from reading to confirmed (Treasury, 27 Sep). The
    review is the product: the reader's guesses laid against what he has
@@ -203,20 +202,12 @@ function TransactionsReview({
   const review = useQuery(api.intake.review, { intakeId: intake._id })
   const accounts = useQuery(api.accounts.list, {}) ?? []
   const setAccount = useMutation(api.intake.setAccount)
-  const setBalance = useMutation(api.accounts.setBalance)
   const balances = useQuery(api.aggregate.balances, {})
   const [landed, setLanded] = useState<{
     count: number
     months: Array<string>
     orders?: { written: number; skipped: number; noTicker: number }
-    /* Kept from before: once done, the review that named it is gone. */
-    accountName?: string
     accountId?: Id<'accounts'>
-    noun?: string
-    balance?: { value: number; currency: string; asOf: number }
-    others?: Array<{ currency: string; value: number }>
-    rows?: Array<LandedRow>
-    accountDoc?: { name: string; domain?: string | null }
   } | null>(null)
   const confirm = useMutation(api.intake.confirmTransactions)
   const addBill = useMutation(api.recurring.create)
@@ -267,8 +258,10 @@ function TransactionsReview({
   if (landed)
     return (
       <Landed
-        {...landed}
-        account={landed.accountName ?? account?.name}
+        accountId={landed.accountId}
+        count={landed.count}
+        months={landed.months}
+        orders={landed.orders}
         onDone={onDone}
       />
     )
@@ -318,11 +311,6 @@ function TransactionsReview({
     setSaving(true)
     setError(null)
     try {
-      /* The account's other pockets, as they stand (5 Oct: "When I upload
-         csv it means usd should be updated as well"). Revolut exports one
-         currency a file; a EUR statement says USD did not move, so USD is
-         kept as is, as of the statement's day — shown before he confirms. */
-      const others = keepsBalance ? otherPockets : []
       const done = await confirm({
         intakeId: intake._id,
         accountId,
@@ -341,14 +329,6 @@ function TransactionsReview({
           }
         }),
       })
-      for (const p of others)
-        await setBalance({
-          accountId,
-          currency: p.currency,
-          value: p.value,
-          dayStart: today,
-          asOf: intake.balance?.asOf,
-        })
       /* Rows that went into another month than this one: say where, and
          open that month in Flow (27 Sep: "Flow is not updated at all" —
          his August statement had gone into August). */
@@ -367,25 +347,7 @@ function TransactionsReview({
         count: kept.length,
         months,
         orders,
-        accountName: account?.name,
         accountId,
-        noun: noun(kept.length),
-        balance: keepsBalance ? intake.balance : undefined,
-        others,
-        accountDoc: account
-          ? { name: account.name, domain: account.domain }
-          : undefined,
-        rows: kept.map((r) => {
-          const c = choices[r.index]
-          return {
-            merchant: r.merchant,
-            raw: r.raw,
-            amount: r.amount,
-            currency: r.currency,
-            category: c.kind === 'spend' ? c.category : null,
-            kind: c.kind,
-          }
-        }),
       })
     } catch (e) {
       setError(
@@ -2319,277 +2281,55 @@ const MONTH_LONG = new Intl.DateTimeFormat(undefined, {
 
 /* After a statement from another month: where its rows went, and a way
    there. */
-type LandedRow = {
-  merchant: string
-  raw: string
-  amount: number
-  currency: string
-  category: string | null
-  kind: 'spend' | 'income' | 'move'
-}
-
+/** What a confirm wrote: one line an account, and the way on. */
 function Landed({
+  accountId,
   count,
   months,
   orders,
-  account,
-  accountDoc,
-  accountId,
-  noun,
-  balance,
-  others = [],
-  rows = [],
   onDone,
 }: {
+  accountId?: Id<'accounts'>
   count: number
   months: Array<string>
   orders?: { written: number; skipped: number; noTicker: number }
-  account?: string
-  accountDoc?: { name: string; domain?: string | null }
-  accountId?: Id<'accounts'>
-  noun?: string
-  balance?: { value: number; currency: string; asOf: number }
-  others?: Array<{ currency: string; value: number }>
-  rows?: Array<LandedRow>
   onDone: () => void
 }) {
+  const last = months.at(-1)
   const name = (m: string) => {
     const [y, mo] = m.split('-').map(Number)
     return MONTH_LONG.format(new Date(y, mo - 1, 1))
   }
-  const last = months.at(-1)
-  /* The account's other pockets that are still old — each asks, with one
-     press, rather than leaving check-in to say it later. */
-  const data = useQuery(api.aggregate.balances, {})
-  const now = Date.now()
-  const old = (
-    data?.accounts.find((a) => a.accountId === accountId)?.pockets ?? []
-  ).filter(
-    (p) =>
-      p.currency !== balance?.currency &&
-      !others.some((o) => o.currency === p.currency) &&
-      (p.recordedAt === null || now - p.recordedAt > STALE_MS),
-  )
-  const who = accountDoc ?? { name: account ?? 'Account', domain: null }
-  /* Things arrive one after another under the tick (5 Oct: "Is there
-     animation? when landed? … bland"): the tick pops with sparks, then
-     each line slides in. */
-  let order = 0
-  const next = () => ({ animationDelay: `${180 + order++ * 70}ms` })
-  const shown = rows.slice(0, 6)
   return (
-    <div className="flex flex-col items-center gap-4 py-5">
-      <span
-        className="motion-pop relative grid size-16 place-items-center rounded-full bg-state-good/16 text-state-good ring-1 ring-state-good/45 shadow-[0_0_36px_-6px_var(--color-state-good)]"
-        style={{ '--area': 'var(--color-state-good)' } as React.CSSProperties}
-      >
-        <Check className="size-8" strokeWidth={2.5} />
-        <Sparks count={14} reach={46} />
-      </span>
-      <span className="motion-land text-[24px] font-light text-foreground">
-        {count > 0
-          ? `${count} ${noun ?? (count === 1 ? 'row' : 'rows')} added`
-          : `${who.name} is up to date`}
-      </span>
-
-      <div className="flex w-full max-w-lg flex-col gap-1.5">
-        {balance ? (
-          <PocketLine
-            who={who}
-            amount={money(balance.value, balance.currency)}
-            when={DAY_FMT.format(new Date(balance.asOf))}
-            style={next()}
-          />
-        ) : null}
-        {others.map((p) => (
-          <PocketLine
-            key={p.currency}
-            who={who}
-            amount={money(p.value, p.currency)}
-            when="no changes"
-            style={next()}
-          />
-        ))}
-        {accountId
-          ? old.map((p) => (
-              <OldPocket
-                key={p.currency}
-                accountId={accountId}
-                who={who}
-                pocket={p}
-                style={next()}
-              />
-            ))
-          : null}
-        {shown.map((r, i) => (
-          <div
-            key={i}
-            style={next()}
-            className="motion-arrive flex items-center gap-3 rounded-[12px] px-3 py-2"
-          >
-            <RowMark r={r} kind={r.kind} />
-            <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">
-              {r.merchant}
-            </span>
-            <span
-              className={`font-mono text-[13px] ${r.amount > 0 ? 'text-state-good' : r.kind === 'spend' ? 'text-state-danger' : 'text-ink-100'}`}
-            >
-              {r.amount > 0 ? '+' : ''}
-              {money(r.amount, r.currency)}
-            </span>
-          </div>
-        ))}
-        {rows.length > shown.length ? (
-          <span
-            style={next()}
-            className="motion-arrive px-3 font-mono text-[11px] text-ink-500"
-          >
-            and {rows.length - shown.length} more
-          </span>
-        ) : null}
-        {orders ? (
-          <span
-            style={next()}
-            className="motion-arrive px-3 text-[13px] text-ink-300"
-          >
-            {orders.written} {orders.written === 1 ? 'order' : 'orders'} filed
-            as trades
-            {orders.skipped > 0 ? `, ${orders.skipped} already there` : ''}
-            {orders.noTicker > 0
-              ? `, ${orders.noTicker} left out (no ticker found)`
-              : ''}
-          </span>
-        ) : null}
-      </div>
-
-      <div
-        style={next()}
-        className="motion-arrive flex flex-wrap justify-center gap-2 pt-1"
-      >
-        {orders ? (
-          <Link
-            to="/finances"
-            search={{ room: 'portfolio' }}
-            onClick={onDone}
-            className={`${PILL_QUIET} justify-center py-2.5`}
-          >
-            portfolio →
-          </Link>
-        ) : null}
-        {last ? (
-          <Link
-            to="/finances"
-            search={{ room: 'flow', month: last }}
-            onClick={onDone}
-            className={`${PILL_QUIET} justify-center py-2.5`}
-          >
-            {name(last)} in Flow →
-          </Link>
-        ) : null}
-        <button
-          type="button"
+    <AccountsLanded accounts={accountId ? [{ accountId, added: count }] : []}>
+      {orders ? (
+        <Link
+          to="/finances"
+          search={{ room: 'portfolio' }}
           onClick={onDone}
-          className={`${PILL_LOUD} justify-center px-8 py-2.5`}
+          className={`${PILL_QUIET} justify-center py-2.5`}
         >
-          done
-        </button>
-      </div>
-    </div>
-  )
-}
-
-/** One pocket, as he reads it: [logo] Revolut [cash] €1,108.04 · Oct 4. */
-function PocketLine({
-  who,
-  amount,
-  when,
-  style,
-  children,
-}: {
-  who: { name: string; domain?: string | null }
-  amount: string
-  when: string
-  style?: React.CSSProperties
-  children?: React.ReactNode
-}) {
-  return (
-    <div
-      style={style}
-      className="motion-arrive flex items-center gap-3 rounded-[12px] bg-lift/[0.04] px-3 py-2.5 ring-1 ring-lift/[0.08] ring-inset"
-    >
-      <AccountLogo name={who.name} domain={who.domain} size={26} />
-      <span className="text-[14px] text-foreground">{who.name}</span>
-      <span className="rounded-full bg-money-cash/14 px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] text-money-cash uppercase ring-1 ring-money-cash/35 ring-inset">
-        cash
-      </span>
-      <span className="flex-1" />
-      <span className="text-[17px] font-light text-foreground">{amount}</span>
-      <span className="w-[86px] text-right font-mono text-[10.5px] text-ink-500">
-        {when}
-      </span>
-      {children}
-    </div>
-  )
-}
-
-/** An old pocket on the same line, and one press to say it is still so. */
-function OldPocket({
-  accountId,
-  who,
-  pocket,
-  style,
-}: {
-  accountId: Id<'accounts'>
-  who: { name: string; domain?: string | null }
-  pocket: { currency: string; value: number | null; recordedAt: number | null }
-  style?: React.CSSProperties
-}) {
-  const today = useDayStarts(1).at(-1) as number
-  const setBalance = useMutation(api.accounts.setBalance)
-  const [done, setDone] = useState(false)
-  const [busy, setBusy] = useState(false)
-  if (pocket.value === null) return null
-  return (
-    <PocketLine
-      who={who}
-      amount={money(pocket.value, pocket.currency)}
-      when={
-        done
-          ? 'today'
-          : pocket.recordedAt
-            ? DAY_FMT.format(new Date(pocket.recordedAt))
-            : 'never'
-      }
-      style={style}
-    >
+          {orders.written} {orders.written === 1 ? 'order' : 'orders'} in
+          Portfolio →
+        </Link>
+      ) : null}
+      {last ? (
+        <Link
+          to="/finances"
+          search={{ room: 'flow', month: last }}
+          onClick={onDone}
+          className={`${PILL_QUIET} justify-center py-2.5`}
+        >
+          {name(last)} in Flow →
+        </Link>
+      ) : null}
       <button
-        key={done ? 'saved' : 'ask'}
         type="button"
-        disabled={done || busy}
-        onClick={() => {
-          setBusy(true)
-          void setBalance({
-            accountId,
-            currency: pocket.currency,
-            value: pocket.value as number,
-            dayStart: today,
-          })
-            .then(() => setDone(true))
-            .finally(() => setBusy(false))
-        }}
-        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[10.5px] tracking-[0.08em] whitespace-nowrap uppercase ring-1 ring-inset ${done ? 'motion-pop bg-state-good text-background ring-state-good' : 'motion-press bg-state-good/10 text-state-good ring-state-good/40'}`}
+        onClick={onDone}
+        className={`${PILL_LOUD} justify-center px-8 py-2.5`}
       >
-        {busy ? (
-          <>
-            <Loader2 className="size-3 animate-spin" />
-            saving
-          </>
-        ) : done ? (
-          '✓ saved'
-        ) : (
-          '✓ still the same'
-        )}
+        done
       </button>
-    </PocketLine>
+    </AccountsLanded>
   )
 }

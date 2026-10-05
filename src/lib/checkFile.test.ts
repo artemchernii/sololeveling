@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { addLabel, groupByDay, rowsSpan } from './checkFile'
+import { addLabel, groupByDay, landedTitle, rowsSpan } from './checkFile'
 
 const at = (d: number, h = 12) => new Date(2026, 9, d, h).getTime()
 
@@ -36,5 +36,14 @@ describe('the check screen', () => {
     expect(addLabel({ rows: 0, noun: 'rows', orders: 0, balance: false })).toBe(
       'done',
     )
+  })
+
+  test('landed says what he asks: is the account right now', () => {
+    expect(landedTitle(['Revolut'], true)).toBe('Revolut is up to date')
+    expect(landedTitle(['Revolut'], false)).toBe('Revolut updated')
+    expect(landedTitle(['Revolut', 'BPI', 'ActivoBank'], true)).toBe(
+      '3 accounts up to date',
+    )
+    expect(landedTitle([], true)).toBe('Saved')
   })
 })

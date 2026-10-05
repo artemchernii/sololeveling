@@ -2118,6 +2118,129 @@ describe('the reader says what it is — trades, and whose account', () => {
     ).toEqual({ written: 0, skipped: 1 })
   })
 
+  test('a crypto statement: rate of the day, fee in coins, staking at €0, no cash moved, the closing amount kept — only his', async () => {
+    const { t, me, them } = setup()
+    const DAY = 86_400_000
+    const rev = await me.mutation(api.accounts.create, {
+      name: 'Revolut',
+      kinds: ['bank', 'broker'],
+      currencies: ['EUR'],
+    })
+    const old = new Date(2021, 11, 4, 12).getTime()
+    await t.run(async (ctx) => {
+      for (const [rate, asOf] of [
+        [0.8, old - DAY],
+        [0.9, TODAY - DAY],
+      ] as const)
+        await ctx.db.insert('fxRates', {
+          ownerId: ME,
+          currency: 'USD',
+          rate,
+          asOf,
+          fetchedAt: TODAY,
+          source: 'test',
+        })
+      await ctx.db.insert('stateSnapshots', {
+        ownerId: ME,
+        area: 'money',
+        key: `balance:${rev}:EUR`,
+        value: 1000,
+        recordedAt: TODAY - 10 * DAY,
+      })
+    })
+    const ADA = {
+      symbol: 'ADA-EUR',
+      name: 'ADA',
+      exchange: 'CCC',
+      type: 'CRYPTOCURRENCY',
+    }
+    const coin = { candidates: [ADA], preferred: 0, crypto: true }
+    const id = await read(t, me, {
+      kind: 'trades',
+      title: 'Crypto Account Statement',
+      institution: 'Revolut Digital Assets Europe',
+      balance: { currency: 'EUR', value: 87, asOf: TODAY - DAY },
+      trades: [
+        /* $100 in 2021 at that day's 0.8, fee $1 taken in coins. */
+        {
+          occurredAt: old,
+          name: 'ADA',
+          side: 'buy',
+          shares: 400,
+          price: 0.25,
+          currency: 'USD',
+          fee: 1,
+          ...coin,
+        },
+        {
+          occurredAt: TODAY - 3 * DAY,
+          name: 'ADA',
+          side: 'reward',
+          shares: 0.5,
+          price: 0,
+          currency: 'EUR',
+          ...coin,
+        },
+        {
+          occurredAt: TODAY - 2 * DAY,
+          name: 'ADA',
+          side: 'sell',
+          shares: 10,
+          price: 0.3,
+          currency: 'EUR',
+          ...coin,
+        },
+      ],
+      positions: [
+        {
+          name: 'ADA',
+          shares: 386.5,
+          valueEur: 87,
+          candidates: [ADA],
+          preferred: 0,
+        },
+      ],
+    })
+    await expect(
+      them.mutation(api.intake.confirmTrades, {
+        intakeId: id,
+        accountId: rev,
+        rows: [0, 1, 2].map((index) => ({ index, candidate: ADA })),
+      }),
+    ).rejects.toThrow()
+    expect(
+      await me.mutation(api.intake.confirmTrades, {
+        intakeId: id,
+        accountId: rev,
+        rows: [0, 1, 2].map((index) => ({ index, candidate: ADA })),
+      }),
+    ).toEqual({ written: 3, skipped: 0 })
+    const trades = await t.run((ctx) => ctx.db.query('trades').collect())
+    expect(
+      trades.map((x) => [
+        x.side,
+        +x.shares.toFixed(4),
+        x.priceEur,
+        !!x.reward,
+        !!x.noCash,
+      ]),
+    ).toEqual([
+      ['buy', 396, 0.2, false, true],
+      ['buy', 0.5, 0, true, true],
+      ['sell', 10, 0.3, false, true],
+    ])
+    /* The closing amount, with what went in by its trades: 79.2 − 3. */
+    const looks = await t.run((ctx) => ctx.db.query('holdings').collect())
+    expect(looks.map((h) => [h.shares, h.paidEur])).toEqual([[386.5, 76.2]])
+    const pos = await me.query(api.aggregate.positions, {})
+    expect(pos.rows.map((r) => [r.symbol, r.shares, r.paid, r.staked])).toEqual(
+      [['ADA-EUR', 386.5, 76.2, 0.5]],
+    )
+    /* Revolut's cash is what its bank statement says: crypto moved none. */
+    const b = await me.query(api.aggregate.balances, {})
+    expect(b.accounts.find((a) => a.accountId === rev)?.cashEur).toBe(1000)
+  })
+
   test('a statement after a screenshot fills in what was paid, and adds no shares — in any order, and once', async () => {
     const run = async (screenFirst: boolean) => {
       const { t, me } = setup()

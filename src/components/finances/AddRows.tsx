@@ -950,7 +950,9 @@ function TickerPicker({
       return found.map((c) => ({
         key: c.symbol,
         label: `${c.symbol} · ${c.name}`,
-        icon: <TickerLogo symbol={c.symbol} size={20} />,
+        icon: (
+          <TickerLogo symbol={c.symbol} type={c.type} name={c.name} size={20} />
+        ),
         sub: `${c.exchange}${c.type === 'ETF' ? ' · ETF' : c.type === 'MUTUALFUND' ? ' · fund' : ''}`,
       }))
     },
@@ -962,7 +964,12 @@ function TickerPicker({
       trigger={
         value ? (
           <>
-            <TickerLogo symbol={value.symbol} size={20} />
+            <TickerLogo
+              symbol={value.symbol}
+              type={value.type}
+              name={value.name}
+              size={20}
+            />
             <span className="truncate">
               {value.symbol}{' '}
               <span className="text-ink-500">· {value.name}</span>

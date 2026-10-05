@@ -16,6 +16,8 @@ import { Veiled } from '@/components/finances/Veil'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
 import { UNPRICED } from '@/lib/market'
+import { kindOf } from '@/lib/logo'
+import type { Kind } from '@/lib/logo'
 import { SkeletonRows } from '@/components/Skeleton'
 
 const DATE = new Intl.DateTimeFormat(undefined, {
@@ -54,7 +56,7 @@ export function Portfolio() {
 
   return (
     <div className="flex flex-col gap-3">
-      <Panel title="shares · all brokers">
+      <Panel title="portfolio · all accounts">
         {data.rows.length === 0 ? (
           <p className="py-4 text-center text-[13.5px] text-ink-400">
             No positions yet. Press + and drop a screenshot of your
@@ -82,10 +84,10 @@ export function Portfolio() {
             ) : null}
             <span className="font-mono text-[11px] text-ink-500">
               {sums.known === 0 ? (
-                'what you paid: unknown until a statement comes'
+                'put in: unknown until a statement comes'
               ) : (
                 <>
-                  you paid{' '}
+                  put in{' '}
                   <Veiled>{euros(Math.round(sums.paid * 100) / 100)}</Veiled>
                   {sums.known < data.rows.length
                     ? ` for ${sums.known} of ${data.rows.length}`
@@ -101,6 +103,7 @@ export function Portfolio() {
             </span>
           </div>
         )}
+        {data.rows.length > 0 ? <KindSplit rows={data.rows} /> : null}
       </Panel>
 
       {holders.length > 0 ? (
@@ -148,7 +151,9 @@ export function Portfolio() {
                     </span>
                   </span>
                   <span className="flex items-center justify-between gap-2">
-                    <span className="text-ink-500">you paid for them</span>
+                    {/* Buys less what sells brought back (4 Oct: "you paid
+                        for them" was not clear). */}
+                    <span className="text-ink-500">put in</span>
                     {known.known === 0 ? (
                       <span className="text-ink-600">unknown</span>
                     ) : (
@@ -286,6 +291,7 @@ type Position = {
   price: number | null
   priceAsOf: number | null
   valueEur: number | null
+  staked: number
 }
 
 function PositionRow({
@@ -320,14 +326,26 @@ function PositionRow({
             : 'ring-transparent hover:bg-lift/[0.03] hover:ring-lift/12'
         }`}
       >
-        <TickerLogo symbol={row.symbol} size={34} />
+        <TickerLogo
+          symbol={row.symbol}
+          type={row.type}
+          name={row.name}
+          size={34}
+        />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[14.5px] text-foreground">
             {row.name}
           </span>
           <span className="truncate font-mono text-[11px] text-ink-500">
-            {row.symbol} · {account} · <Veiled>{`${row.shares} sh`}</Veiled>
+            {row.symbol.split('-')[0]} · {account} ·{' '}
+            <Veiled>{`${row.shares} ${unitOf(row)}`}</Veiled>
           </span>
+          {row.staked > 0 ? (
+            <span className="truncate font-mono text-[10.5px] text-state-good">
+              +{row.staked < 10 ? row.staked.toFixed(2) : row.staked.toFixed(1)}{' '}
+              {unitOf(row)} free from staking
+            </span>
+          ) : null}
           <span
             className={`truncate font-mono text-[10.5px] ${said.warn ? 'text-state-warn' : 'text-ink-500'}`}
           >
@@ -371,6 +389,55 @@ function PositionRow({
   )
 }
 
+const KINDS: ReadonlyArray<{ kind: Kind; label: string; tone: string }> = [
+  { kind: 'stock', label: 'stocks', tone: 'bg-lav-400' },
+  { kind: 'etf', label: 'ETFs', tone: 'bg-area-knowledge' },
+  { kind: 'gold', label: 'gold', tone: 'bg-money-cash' },
+  { kind: 'crypto', label: 'crypto', tone: 'bg-state-warn' },
+]
+
+/* What he owns, by kind (4 Oct: "we gonna have etfs, stocks, crypto and
+   gold"): the valued positions' sums, as a bar and its words. */
+function KindSplit({ rows }: { rows: ReadonlyArray<Position> }) {
+  const sum = new Map<Kind, number>()
+  for (const r of rows)
+    if (r.valueEur !== null)
+      sum.set(kindOf(r), (sum.get(kindOf(r)) ?? 0) + r.valueEur)
+  const total = [...sum.values()].reduce((t, v) => t + v, 0)
+  if (total <= 0) return null
+  const parts = KINDS.filter((k) => (sum.get(k.kind) ?? 0) > 0)
+  return (
+    <div className="mt-4 flex flex-col gap-2">
+      <div className="flex h-2.5 gap-[3px] overflow-hidden rounded-full">
+        {parts.map((k) => (
+          <span
+            key={k.kind}
+            style={{ flex: sum.get(k.kind) }}
+            className={`rounded-full ${k.tone} transition-[flex] duration-700`}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {parts.map((k) => {
+          const v = sum.get(k.kind) ?? 0
+          return (
+            <span key={k.kind} className="label-caps flex items-center gap-1.5">
+              <i className={`inline-block size-2 rounded-[2px] ${k.tone}`} />
+              {k.label} <Veiled>{euros(Math.round(v))}</Veiled> ·{' '}
+              {Math.round((v / total) * 100)}%
+            </span>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/** "sh" for a share, the coin's own symbol for a coin. */
+function unitOf(row: Pick<Position, 'symbol' | 'type'>): string {
+  return kindOf(row) === 'crypto' ? row.symbol.split('-')[0] : 'sh'
+}
+
 /* Where the row's number came from, in a line: which files agree. */
 function standing(row: Position): {
   text: string
@@ -391,6 +458,18 @@ function standing(row: Position): {
       warn: true,
       ok: false,
     }
+  /* A coin's amount is its statement's closing amount (4 Oct). */
+  if (kindOf(row) === 'crypto' && row.seenAt !== null) {
+    const unit = unitOf(row)
+    if (row.status === 'match')
+      return { text: `matches the ${day} statement`, warn: false, ok: true }
+    if (row.status === 'gap' || row.status === 'over')
+      return {
+        text: `the ${day} statement has ${Math.abs(row.gap)} ${unit} ${row.gap > 0 ? 'more' : 'less'} than its trades add up to — its amount is used`,
+        warn: false,
+        ok: true,
+      }
+  }
   switch (row.status) {
     case 'match':
       return {

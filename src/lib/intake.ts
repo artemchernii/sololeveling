@@ -135,10 +135,12 @@ export const INTAKE_SCHEMA = {
           date: { type: 'string' },
           name: { type: 'string' },
           isin: { type: ['string', 'null'] },
-          side: { type: 'string', enum: ['buy', 'sell'] },
+          side: { type: 'string', enum: ['buy', 'sell', 'reward'] },
           shares: { type: 'number' },
           price: { type: 'number' },
           currency: { type: 'string' },
+          fee: { type: ['number', 'null'] },
+          crypto: { type: 'boolean' },
         },
         required: [
           'date',
@@ -148,6 +150,8 @@ export const INTAKE_SCHEMA = {
           'shares',
           'price',
           'currency',
+          'fee',
+          'crypto',
         ],
         additionalProperties: false,
       },
@@ -219,7 +223,8 @@ export function intakePrompt(opts: {
     `category (spending only, else null): one of ${SPEND_CATEGORY_IDS.join(', ')}.`,
     'closing_balance: the final balance printed for the account (completed transactions only) and closing_balance_date; else null.',
     'For holdings: every position, once. value_eur: its current value as printed. change_pct: the % gain or loss since buying if printed (negative for a loss). shares and average_price_eur only if printed — a number printed under or beside the name together with a ticker ("7.36542714 IGLN" on Trading 212) is the shares, and the ticker is symbol (else an empty string). cash_eur: uninvested cash if shown; total_eur: the account total if shown. An account summary screen with a total and cash but no list of positions (Trading 212\'s "Account value … Cash") is holdings with no positions.',
-    'For trades: every buy and sell, once — date as YYYY-MM-DD, name as printed, isin if printed, side, shares, price per share and its currency. Skip cancelled or rejected orders.',
+    'For trades: every buy and sell, once — date as YYYY-MM-DD, name as printed, isin if printed, side, shares, price per share and its currency, fee as printed (in the same currency, else null). Skip cancelled or rejected orders. crypto = false for shares and funds.',
+    'A crypto statement (e.g. Revolut Digital Assets) is trades: name = the coin\'s symbol as printed (BTC, ETH, SOL), crypto = true, each buy and sell with its quantity, price, currency and fee; each staking reward is side "reward" with its quantity, price 0, currency "EUR". Its account summary\'s closing amount of every coin still held (more than 0) goes in positions: symbol and name = the coin\'s symbol, shares = the closing amount, value_eur = its closing value. closing_balance = the statement\'s total closing value and closing_balance_date = the last day of its period.',
     'Read numbers exactly: a European comma decimal (1.234,56) is 1234.56; thousands set apart by a space ("1 100.00", "1 277,35") are one number — 1100.00, never 100.00. Never invent a number that is not printed — use null. Leave the arrays that do not apply empty.',
   ].join('\n')
 }
@@ -253,10 +258,14 @@ export type ReadTrade = {
   occurredAt: number
   name: string
   isin?: string
-  side: 'buy' | 'sell'
+  side: 'buy' | 'sell' | 'reward'
   shares: number
   price: number
   currency: string
+  /** As printed, in `currency`. */
+  fee?: number
+  /** A coin: priced as SYM-EUR. */
+  crypto?: boolean
 }
 
 export type Reading = {
@@ -469,13 +478,15 @@ function tradeRows(j: Record<string, unknown>): Array<ReadTrade> {
     const at = typeof r.date === 'string' ? dayToMs(r.date) : undefined
     const name = str(r.name)
     const shares = pos(r.shares)
-    const price = pos(r.price)
+    /* A staking reward is given, at price 0. */
+    const price = r.side === 'reward' ? 0 : pos(r.price)
+    const fee = num(r.fee)
     if (
       at === undefined ||
       name === undefined ||
       shares === undefined ||
       price === undefined ||
-      (r.side !== 'buy' && r.side !== 'sell')
+      (r.side !== 'buy' && r.side !== 'sell' && r.side !== 'reward')
     )
       continue
     trades.push({
@@ -489,6 +500,8 @@ function tradeRows(j: Record<string, unknown>): Array<ReadTrade> {
       shares,
       price,
       currency: str(r.currency, 3)?.toUpperCase() ?? 'EUR',
+      ...(fee !== undefined && fee > 0 ? { fee } : {}),
+      ...(r.crypto === true ? { crypto: true } : {}),
     })
   }
   return trades

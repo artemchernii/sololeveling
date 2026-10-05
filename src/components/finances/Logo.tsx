@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Banknote } from 'lucide-react'
 
+import { isCoin, logoSrc } from '@/lib/logo'
+
 /* Real marks (27 Sep: "in portfolio i want icons of broker"). An account's
    logo comes from its own site's icon, by the domain he gave it; a ticker's
    from the market's logo service. Either falls back to letters rather than
@@ -88,16 +90,28 @@ function inkOf(img: HTMLImageElement): Ink {
 
 export function TickerLogo({
   symbol,
+  type,
+  name,
   size = 32,
 }: {
   symbol: string
+  /** What it is (EQUITY, ETF, CRYPTOCURRENCY) and its name: a fund's mark
+      is its issuer's, a coin's its own (src/lib/logo). */
+  type?: string
+  name?: string
   size?: number
 }) {
   const [failed, setFailed] = useState(false)
   const [ink, setInk] = useState<Ink>('dark')
-  const base = symbol.split('.')[0]
-  const box = { width: size, height: size, borderRadius: size / 3.6 }
-  if (failed || ink === 'blank') {
+  const src = logoSrc({ symbol, type, name })
+  const coin = isCoin({ symbol, type })
+  const base = symbol.split(/[.-]/)[0]
+  const box = {
+    width: size,
+    height: size,
+    borderRadius: coin ? size / 2 : size / 3.6,
+  }
+  if (src === null || failed || ink === 'blank') {
     return (
       <span
         aria-hidden
@@ -110,15 +124,15 @@ export function TickerLogo({
   }
   return (
     <img
-      src={`https://financialmodelingprep.com/image-stock/${encodeURIComponent(base)}.png`}
+      src={src}
       alt=""
       aria-hidden
-      crossOrigin="anonymous"
+      crossOrigin={coin ? undefined : 'anonymous'}
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      onLoad={(e) => setInk(inkOf(e.currentTarget))}
-      style={{ ...box, padding: size / 10 }}
-      className={`shrink-0 object-contain ${ink === 'light' ? 'bg-mark-ink' : 'bg-mark-ground'}`}
+      onLoad={(e) => (coin ? undefined : setInk(inkOf(e.currentTarget)))}
+      style={coin ? box : { ...box, padding: size / 10 }}
+      className={`shrink-0 object-contain ${coin ? '' : ink === 'light' ? 'bg-mark-ink' : 'bg-mark-ground'}`}
     />
   )
 }

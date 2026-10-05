@@ -37,6 +37,7 @@ import type { Candidate } from '@/lib/market'
 import { SPEND_CATEGORIES, categoryLabel, euros } from '@/lib/money'
 import { checkCryptoStatement } from '@/lib/crypto'
 import { addLabel, groupByDay, rowsSpan } from '@/lib/checkFile'
+import { STALE_MS } from '@/lib/freshness'
 
 /* What he dropped, from reading to confirmed (Treasury, 27 Sep). The
    review is the product: the reader's guesses laid against what he has
@@ -207,6 +208,9 @@ function TransactionsReview({
     orders?: { written: number; skipped: number; noTicker: number }
     /* Kept from before: once done, the review that named it is gone. */
     accountName?: string
+    accountId?: Id<'accounts'>
+    noun?: string
+    balance?: { value: number; currency: string; asOf: number }
   } | null>(null)
   const confirm = useMutation(api.intake.confirmTransactions)
   const addBill = useMutation(api.recurring.create)
@@ -329,7 +333,6 @@ function TransactionsReview({
       /* Rows that went into another month than this one: say where, and
          open that month in Flow (27 Sep: "Flow is not updated at all" —
          his August statement had gone into August). */
-      const now = new Date(today)
       const key = (d: Date) =>
         `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       const months = [
@@ -339,18 +342,17 @@ function TransactionsReview({
         done.trades.written + done.trades.skipped + done.trades.noTicker > 0
           ? done.trades
           : undefined
-      if (
-        !orders &&
-        (months.length === 0 || (months.length === 1 && months[0] === key(now)))
-      )
-        onDone()
-      else
-        setLanded({
-          count: kept.length,
-          months,
-          orders,
-          accountName: account?.name,
-        })
+      /* Always seen to land (5 Oct: "There should be some animation when
+         I click confirm add payments? Nothing happened"). */
+      setLanded({
+        count: kept.length,
+        months,
+        orders,
+        accountName: account?.name,
+        accountId,
+        noun: noun(kept.length),
+        balance: keepsBalance ? intake.balance : undefined,
+      })
     } catch (e) {
       setError(
         e instanceof Error
@@ -2266,12 +2268,18 @@ function Landed({
   months,
   orders,
   account,
+  accountId,
+  noun,
+  balance,
   onDone,
 }: {
   count: number
   months: Array<string>
   orders?: { written: number; skipped: number; noTicker: number }
   account?: string
+  accountId?: Id<'accounts'>
+  noun?: string
+  balance?: { value: number; currency: string; asOf: number }
   onDone: () => void
 }) {
   const name = (m: string) => {
@@ -2279,19 +2287,39 @@ function Landed({
     return MONTH_LONG.format(new Date(y, mo - 1, 1))
   }
   const last = months.at(-1)
+  /* The account's other pockets that are still old — Revolut's USD after
+     a EUR statement (5 Oct: "I still have revolut here"). Each one asks,
+     with one press, rather than leaving check-in to say it later. */
+  const data = useQuery(api.aggregate.balances, {})
+  const now = Date.now()
+  const old = (
+    data?.accounts.find((a) => a.accountId === accountId)?.pockets ?? []
+  ).filter(
+    (p) =>
+      p.currency !== balance?.currency &&
+      (p.recordedAt === null || now - p.recordedAt > STALE_MS),
+  )
   return (
     <div className="motion-land flex flex-col items-center gap-3 py-6 text-center">
-      <span className="motion-pop grid size-11 place-items-center rounded-full bg-state-good/16 text-state-good">
-        <Check className="size-5" strokeWidth={2.5} />
+      <span className="motion-pop grid size-12 place-items-center rounded-full bg-state-good/16 text-state-good">
+        <Check className="size-6" strokeWidth={2.5} />
       </span>
-      <span className="text-[16px] text-foreground">
-        {account ? `${account} is up to date` : 'Saved'}
+      <span className="text-[17px] text-foreground">
+        {count > 0
+          ? `${count} ${noun ?? (count === 1 ? 'row' : 'rows')} added`
+          : balance
+            ? 'Balance updated'
+            : 'Saved'}
       </span>
       <div className="flex max-w-md flex-col gap-1 text-[13px] text-ink-300">
-        {count > 0 ? (
+        {count > 0 && months.length > 0 ? (
+          <span>to {months.map(name).join(', ')}</span>
+        ) : null}
+        {balance ? (
           <span>
-            {count} {count === 1 ? 'row' : 'rows'} added
-            {months.length > 0 ? ` — ${months.map(name).join(', ')}` : ''}
+            {account ?? 'Its'} {balance.currency} cash ·{' '}
+            {money(balance.value, balance.currency)} on{' '}
+            {DAY_FMT.format(new Date(balance.asOf))}
           </span>
         ) : null}
         {orders ? (
@@ -2306,6 +2334,18 @@ function Landed({
           </span>
         ) : null}
       </div>
+      {accountId && old.length > 0 ? (
+        <div className="flex w-full max-w-md flex-col gap-2 rounded-[14px] bg-state-warn/[0.06] p-3 text-left ring-1 ring-state-warn/30 ring-inset">
+          {old.map((p) => (
+            <OldPocket
+              key={p.currency}
+              accountId={accountId}
+              account={account ?? ''}
+              pocket={p}
+            />
+          ))}
+        </div>
+      ) : null}
       <div className="flex flex-wrap justify-center gap-2 pt-1">
         {orders ? (
           <Link
@@ -2322,7 +2362,7 @@ function Landed({
             to="/finances"
             search={{ room: 'flow', month: last }}
             onClick={onDone}
-            className={`${orders ? PILL_QUIET : PILL_LOUD} justify-center py-2.5`}
+            className={`${PILL_QUIET} justify-center py-2.5`}
           >
             see {name(last)} in Flow →
           </Link>
@@ -2330,11 +2370,61 @@ function Landed({
         <button
           type="button"
           onClick={onDone}
-          className={`${PILL_QUIET} justify-center py-2.5`}
+          className={`${PILL_LOUD} justify-center px-6 py-2.5`}
         >
           done
         </button>
       </div>
+    </div>
+  )
+}
+
+/** "USD · $120.00 · typed Sep 26" and one press to say it is still so. */
+function OldPocket({
+  accountId,
+  account,
+  pocket,
+}: {
+  accountId: Id<'accounts'>
+  account: string
+  pocket: { currency: string; value: number | null; recordedAt: number | null }
+}) {
+  const today = useDayStarts(1).at(-1) as number
+  const setBalance = useMutation(api.accounts.setBalance)
+  const [done, setDone] = useState(false)
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="flex-1 text-[13px] text-ink-200">
+        {account} {pocket.currency}
+        {pocket.value !== null
+          ? ` · ${money(pocket.value, pocket.currency)}`
+          : ''}
+        <span className="block font-mono text-[10.5px] text-state-warn">
+          {done
+            ? 'saved today'
+            : pocket.recordedAt
+              ? `last set ${DAY_FMT.format(new Date(pocket.recordedAt))}`
+              : 'never set'}
+        </span>
+      </span>
+      {pocket.value !== null ? (
+        <button
+          key={done ? 'saved' : 'ask'}
+          type="button"
+          disabled={done}
+          onClick={() =>
+            void setBalance({
+              accountId,
+              currency: pocket.currency,
+              value: pocket.value as number,
+              dayStart: today,
+            }).then(() => setDone(true))
+          }
+          className={`shrink-0 rounded-full px-3 py-1.5 font-mono text-[10.5px] tracking-[0.08em] whitespace-nowrap uppercase ring-1 ring-inset ${done ? 'motion-pop bg-state-good text-background ring-state-good' : 'motion-press bg-state-good/10 text-state-good ring-state-good/40'}`}
+        >
+          {done ? '✓ saved' : '✓ still the same'}
+        </button>
+      ) : null}
     </div>
   )
 }

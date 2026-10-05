@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Pencil, Plus, Search } from 'lucide-react'
+import { Check, Pencil, Plus, Search } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
@@ -1054,6 +1054,16 @@ function TypeBalances({
   const [values, setValues] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [same, setSame] = useState<Set<string>>(new Set())
+  /* A save is seen to land (5 Oct: "I click still the same and NO
+     animation, no confirmation"): a tick, the words, then it closes. */
+  const [saved, setSaved] = useState(false)
+  const close = useRef(onDone)
+  close.current = onDone
+  useEffect(() => {
+    if (!saved) return
+    const t = setTimeout(() => close.current(), 1400)
+    return () => clearTimeout(t)
+  }, [saved])
 
   /* "Still the same" (5 Oct): the number it shows, recorded as today in
      one press — the window closes once nothing is left to say. */
@@ -1067,8 +1077,8 @@ function TypeBalances({
         dayStart: today,
       })
       const next = new Set(same).add(c)
-      if (account.currencies.every((x) => next.has(x))) onDone()
-      else setSame(next)
+      setSame(next)
+      if (account.currencies.every((x) => next.has(x))) setSaved(true)
     } catch (e) {
       setError(
         failureMessage(e) ?? (e instanceof Error ? e.message : 'Not saved'),
@@ -1094,13 +1104,15 @@ function TypeBalances({
           dayStart: today,
         })
       }
-      onDone()
+      setSaved(true)
     } catch (e) {
       setError(
         failureMessage(e) ?? (e instanceof Error ? e.message : 'Not saved'),
       )
     }
   }
+
+  if (saved) return <SavedNote name={account.name} />
 
   return (
     <>
@@ -1127,7 +1139,11 @@ function TypeBalances({
               aria-label={`${account.name} ${c}`}
               className="w-full bg-transparent text-[18px] focus:outline-none"
             />
-            {p?.recordedAt && !same.has(c) ? (
+            {same.has(c) ? (
+              <span className="shrink-0 font-mono text-[10.5px] text-state-good">
+                today
+              </span>
+            ) : p?.recordedAt ? (
               <span className="shrink-0 font-mono text-[10.5px] text-ink-500">
                 {agoLabel(p.recordedAt)}
               </span>
@@ -1135,9 +1151,10 @@ function TypeBalances({
             {typeof p?.value === 'number' && !(c in values) ? (
               <button
                 type="button"
+                key={same.has(c) ? 'saved' : 'ask'}
                 disabled={same.has(c)}
                 onClick={() => void keepSame(c, p.value as number)}
-                className="motion-press shrink-0 rounded-full bg-state-good/10 px-3 py-1.5 font-mono text-[10.5px] tracking-[0.08em] whitespace-nowrap text-state-good uppercase ring-1 ring-state-good/40 ring-inset disabled:opacity-60"
+                className={`shrink-0 rounded-full px-3 py-1.5 font-mono text-[10.5px] tracking-[0.08em] whitespace-nowrap uppercase ring-1 ring-inset ${same.has(c) ? 'motion-pop bg-state-good text-background ring-state-good' : 'motion-press bg-state-good/10 text-state-good ring-state-good/40'}`}
               >
                 {same.has(c) ? '✓ saved' : '✓ still the same'}
               </button>
@@ -1156,5 +1173,21 @@ function TypeBalances({
         save
       </button>
     </>
+  )
+}
+
+/** A balance saved: a tick that lands, and the words — then the sheet
+    closes on its own. */
+export function SavedNote({ name }: { name: string }) {
+  return (
+    <div className="motion-land flex flex-col items-center gap-3 py-8 text-center">
+      <span className="motion-pop grid size-12 place-items-center rounded-full bg-state-good/16 text-state-good">
+        <Check className="size-6" strokeWidth={2.5} />
+      </span>
+      <span className="text-[16px] text-foreground">{name} is up to date</span>
+      <span className="font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase">
+        saved today
+      </span>
+    </div>
   )
 }

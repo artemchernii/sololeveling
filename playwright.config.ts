@@ -19,6 +19,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3200',
     trace: 'retain-on-failure',
+    /* He uses the app dark. */
+    colorScheme: 'dark',
     ...devices['Desktop Chrome'],
   },
   webServer: [

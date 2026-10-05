@@ -12,7 +12,8 @@ test('check-in names what is old', async ({ page }) => {
   await page.getByRole('button', { name: 'check-in' }).click()
   const sheet = page.getByRole('dialog')
   await expect(sheet.getByText('Revolut')).toBeVisible()
-  await expect(sheet.getByText(/read 8d ago/).first()).toBeVisible()
+  /* Two pockets: the words name the old one. */
+  await expect(sheet.getByText(/Its EUR balance is from/)).toBeVisible()
   await page.screenshot(shot('check-in'))
 })
 
@@ -38,7 +39,8 @@ test('a Revolut CSV: read, checked, added — and it lands', async ({ page }) =>
   await expect(
     sheet.getByText('The other 3 rows you already have.', { exact: false }),
   ).toBeVisible()
-  await expect(sheet.getByText('CSV', { exact: true })).toBeVisible()
+  await expect(sheet.getByText(/^csv$/i)).toBeVisible()
+  await expect(sheet.getByText('no AI needed · $0')).toBeVisible()
   await expect(sheet.getByText('18:42')).toBeVisible()
   await expect(sheet.getByText(/USD .* kept as is/)).toBeVisible()
   await page.screenshot({ ...shot('check-it'), fullPage: true })

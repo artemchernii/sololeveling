@@ -520,6 +520,10 @@ export function IntakeStrip({
 /** Claude's mark, "Claude Haiku 4.5 · $0.004" (5 Oct: the icon, the
     name, what it cost — no "read by … today"). */
 export function ReadBy({ intake }: { intake: Doc<'intakes'> }) {
+  /* A CSV whose columns the app already knows is read by code: no
+     Claude mark on what Claude did not read (5 Oct, seen in a test). */
+  if (intake.model !== undefined && !intake.model.startsWith('Claude'))
+    return <>no AI needed · $0</>
   return (
     <span className="inline-flex items-center gap-1.5">
       <img

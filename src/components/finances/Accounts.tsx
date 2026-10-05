@@ -15,6 +15,7 @@ import { OpenAccount } from '@/components/finances/OpenAccount'
 import { Sheet } from '@/components/finances/Sheet'
 import { Veiled } from '@/components/finances/Veil'
 import { SkeletonRows } from '@/components/Skeleton'
+import { Sparks } from '@/components/track/Sparks'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { ACCOUNT_KINDS, CURRENCIES, money } from '@/lib/currency'
 import type { AccountKind } from '@/lib/currency'
@@ -699,8 +700,28 @@ function AccountDetails({
       .map((x) => x.trim())
       .filter(Boolean)
 
+  /* Seen to land (5 Oct, every press answers): "adding" at once, then a
+     tick and the words, then the sheet closes. */
+  const [busy, setBusy] = useState(false)
+  /* The words are fixed when he presses: once the new account exists it
+     is its own "twin", and "Added to Trading 212" would be wrong. */
+  const [saved, setSaved] = useState<string | null>(null)
+  const close = useRef(onDone)
+  close.current = onDone
+  useEffect(() => {
+    if (saved === null) return
+    const t = setTimeout(() => close.current(), 1400)
+    return () => clearTimeout(t)
+  }, [saved])
+
   async function save() {
     setError(null)
+    setBusy(true)
+    const title = account
+      ? `${name} saved`
+      : twin
+        ? `Added to ${twin.name}`
+        : `${name} added`
     try {
       const args = {
         name,
@@ -737,13 +758,24 @@ function AccountDetails({
           asOf: day >= Date.now() ? undefined : day,
         })
       }
-      onDone()
+      setSaved(title)
     } catch (e) {
       setError(
         failureMessage(e) ?? (e instanceof Error ? e.message : 'Not saved'),
       )
+    } finally {
+      setBusy(false)
     }
   }
+
+  if (saved !== null)
+    return (
+      <SavedNote
+        name={name}
+        title={saved}
+        note={account ? 'saved' : 'in your accounts now'}
+      />
+    )
 
   return (
     <>
@@ -917,14 +949,22 @@ function AccountDetails({
       ) : null}
       <button
         type="button"
+        disabled={busy}
         onClick={() => void save()}
-        className={`${PILL_LOUD} justify-center py-3`}
+        className={`${PILL_LOUD} justify-center gap-2 py-3 disabled:opacity-70`}
       >
-        {account
-          ? 'save'
-          : twin
-            ? `add to ${twin.name}`
-            : `add ${name || 'account'}`}
+        {busy ? (
+          <>
+            <Loader2 className="size-3.5 animate-spin" />
+            {account ? 'saving' : 'adding'}
+          </>
+        ) : account ? (
+          'save'
+        ) : twin ? (
+          `add to ${twin.name}`
+        ) : (
+          `add ${name || 'account'}`
+        )}
       </button>
       {account ? (
         <div className="flex flex-col gap-2 border-t border-lift/[0.07] pt-4">
@@ -1215,15 +1255,29 @@ function TypeBalances({
 
 /** A balance saved: a tick that lands, and the words — then the sheet
     closes on its own. */
-export function SavedNote({ name }: { name: string }) {
+export function SavedNote({
+  name,
+  title,
+  note = 'saved today',
+}: {
+  name: string
+  title?: string
+  note?: string
+}) {
   return (
     <div className="motion-land flex flex-col items-center gap-3 py-8 text-center">
-      <span className="motion-pop grid size-12 place-items-center rounded-full bg-state-good/16 text-state-good">
-        <Check className="size-6" strokeWidth={2.5} />
+      <span
+        className="motion-pop relative grid size-16 place-items-center rounded-full bg-state-good/16 text-state-good shadow-[0_0_36px_-6px_var(--color-state-good)] ring-1 ring-state-good/45"
+        style={{ '--area': 'var(--color-state-good)' } as React.CSSProperties}
+      >
+        <Check className="size-8" strokeWidth={2.5} />
+        <Sparks count={14} reach={46} />
       </span>
-      <span className="text-[16px] text-foreground">{name} is up to date</span>
+      <span className="text-[22px] font-light text-foreground">
+        {title ?? `${name} is up to date`}
+      </span>
       <span className="font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase">
-        saved today
+        {note}
       </span>
     </div>
   )

@@ -256,3 +256,59 @@ export const readCrypto = mutation({
     })
   },
 })
+
+/**
+ * A Revolut Invest screenshot as the reader returns it: two shares and
+ * the free cash — so the holdings review can be saved without paying for
+ * a reading (5 Oct safety net).
+ */
+export const readHoldings = mutation({
+  args: {},
+  returns: v.id('intakes'),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const stock = (symbol: string, name: string) => [
+      { symbol, name, exchange: 'NMS', type: 'EQUITY' },
+    ]
+    const now = Date.now()
+    return await ctx.db.insert('intakes', {
+      ownerId,
+      storageIds: [],
+      status: 'ready',
+      kind: 'holdings',
+      title: 'Revolut Invest screenshot',
+      institution: 'Revolut',
+      model: 'Claude Haiku 4.5',
+      costUsd: 0.003,
+      readAt: now,
+      files: [
+        { name: 'revolut-invest.png', size: 240_000, contentType: 'image/png' },
+      ],
+      positions: [
+        {
+          name: 'Apple',
+          shares: 2,
+          priceEur: 200,
+          valueEur: 400,
+          preferred: 0,
+          todayPriceEur: 200,
+          todayAsOf: now,
+          candidates: stock('AAPL', 'Apple Inc.'),
+        },
+        {
+          name: 'Microsoft',
+          shares: 1,
+          priceEur: 380,
+          valueEur: 380,
+          preferred: 0,
+          todayPriceEur: 380,
+          todayAsOf: now,
+          candidates: stock('MSFT', 'Microsoft Corporation'),
+        },
+      ],
+      cashEur: 120,
+      totalEur: 900,
+    })
+  },
+})

@@ -49,3 +49,26 @@ test('on the test backend: the bad day — old balances, Revolut EUR and USD', a
   await me.mutation(api.e2e.reset, { days })
   expect(await me.query(api.accounts.list, {})).toHaveLength(3)
 })
+
+test('readHoldings refuses anywhere but the test backend', async () => {
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  await expect(me.mutation(api.e2e.readHoldings, {})).rejects.toThrow(
+    'E2E functions run only on the test backend.',
+  )
+})
+
+test('on the test backend: a ready holdings reading, two shares and cash', async () => {
+  vi.stubEnv('E2E', '1')
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  const id = await me.mutation(api.e2e.readHoldings, {})
+  const intake = await t.run((ctx) => ctx.db.get(id))
+  expect(intake).toMatchObject({
+    ownerId: ME,
+    status: 'ready',
+    kind: 'holdings',
+    cashEur: 120,
+  })
+  expect(intake?.positions).toHaveLength(2)
+})

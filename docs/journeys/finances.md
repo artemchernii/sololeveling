@@ -30,8 +30,8 @@ safety-net tests.
 | Drop a statement file (CSV, PDF, screenshot)         | + → drop     | `Add` → `AddDrop`                                                     | `attachments.generateUploadUrl`, `intake.start`, `intake.lastRead` | `statement.spec` (Revolut CSV) |
 | Watch it being read, retry, discard                  | reading      | `Reading`                                                             | `intake.preview`, `history`, `retry`, `discard`                    | —                              |
 | Check transactions found in a file                   | check it     | `Intake` → `TransactionsReview` (own file; rows in `TransactionRows`) | `intake.review`, `setAccount`, `whose`, `confirmTransactions`      | `statement.spec`               |
-| Check holdings (broker screenshot)                   | check it     | `Intake` → `HoldingsReview`                                           | `intake.confirmHoldings`, `market.search`                          | —                              |
-| Check trades / orders                                | check it     | `Intake` → `TradesReview`, `OrdersFound`                              | `intake.confirmTrades`                                             | —                              |
+| Check holdings (broker screenshot)                   | check it     | `Intake` → `HoldingsReview` (own file)                                | `intake.confirmHoldings`, `market.search`                          | —                              |
+| Check trades / orders                                | check it     | `Intake` → `TradesReview` (own file), `OrdersFound`                   | `intake.confirmTrades`                                             | —                              |
 | Check a crypto statement                             | check it     | `Intake` → `CryptoReview` (own file)                                  | `intake.confirmTransactions`                                       | `crypto.spec`                  |
 | Something still waiting to be checked                | Overview top | `OpenIntakes`                                                         | `intake.open`, `one`                                               | —                              |
 | Type a few rows by hand (spend, buy)                 | + → rows     | `AddRows`                                                             | `money.record`, `logs.categories`, `market.search`                 | —                              |
@@ -77,6 +77,6 @@ safety-net tests.
 
 - Revolut stocks history: `HistoryReview` (in `Reading`, `Intake`) reads the trades but saves nothing.
 - The crypto landing for Revolut says only "N added", with no coin values.
-- `Intake.tsx` (~900 lines; crypto and transactions split out 5 Oct), `Bulk.tsx` (~1.8k) and `Accounts.tsx` (~1.3k)
+- `Intake.tsx` is done (88 lines, each review in its own file, 5 Oct). `Bulk.tsx` (~1.8k) and `Accounts.tsx` (~1.3k)
   are over the 500-line rule. Split them one review per file, and keep this
   map's Component column in step.

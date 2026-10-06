@@ -47,13 +47,12 @@ safety-net tests.
 
 ## Overview: my accounts
 
-| Journey                              | Screen         | Component                                                     | Convex                                                                                | Test |
-| ------------------------------------ | -------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---- |
-| Net worth over time                  | Overview chart | `WorthChart` → `AccountsChart`                                | `aggregate.worthHistory`, `accountSheet`                                              | —    |
-| Account cards with sparkline         | Overview       | `Accounts` → `AccountCard` (with `Sparkline`)                 | `accounts.list`, `aggregate.cashHistory`, `positions`, `accountMonth`                 | —    |
-| Open one account: its rows and files | account sheet  | `OpenAccount`                                                 | `aggregate.accountSheet`, `intake.fileRows`, `originals`, `logs.remove`, `removeSide` | —    |
-| Fix one row: value, category, delete | row            | `MoneyRow`                                                    | `logs.setValue`, `setCategory`, `remove`                                              | —    |
-| Edit, retire or erase an account     | account sheet  | `AccountForm` → `AccountDetails`; `Accounts` → `StillCounted` | `accounts.update`, `remove`, `retired`, `erase`                                       | —    |
+| Journey                              | Screen         | Component                                                     | Convex                                                                                | Test                     |
+| ------------------------------------ | -------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------ |
+| Net worth over time                  | Overview chart | `WorthChart` → `AccountsChart`                                | `aggregate.worthHistory`, `accountSheet`                                              | —                        |
+| Account cards with sparkline         | Overview       | `Accounts` → `AccountCard` (with `Sparkline`)                 | `accounts.list`, `aggregate.cashHistory`, `positions`, `accountMonth`                 | —                        |
+| Open one account: its rows and files | account sheet  | `OpenAccount` (`AccountSheetRows`, `AccountFileView`)         | `aggregate.accountSheet`, `intake.fileRows`, `originals`, `logs.remove`, `removeSide` | `accounts.spec` (delete) |
+| Edit, retire or erase an account     | account sheet  | `AccountForm` → `AccountDetails`; `Accounts` → `StillCounted` | `accounts.update`, `remove`, `retired`, `erase`                                       | —                        |
 
 ## Flow: bills, salary, where the month went
 

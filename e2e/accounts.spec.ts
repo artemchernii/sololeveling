@@ -27,3 +27,25 @@ test('add an account: pick the bank, its balance, and it lands', async ({
     page.getByRole('button', { name: 'Open Trading 212' }),
   ).toBeVisible()
 })
+
+/* The account sheet (5 Oct): open Revolut, its rows are there, and a typed
+   row deleted says so at once, then is gone. */
+test('account sheet: a typed row deleted — deleting, then gone', async ({
+  page,
+}) => {
+  await start(page)
+  await page.goto('/finances')
+  await page.getByRole('button', { name: 'Open Revolut' }).click()
+  const sheet = page.getByRole('dialog')
+  for (const name of ['Guacamole', 'Bolt', 'Continente'])
+    await expect(sheet.getByText(name).first()).toBeVisible()
+  await page.screenshot(shot('account-sheet'))
+
+  const bolt = sheet.locator('div.group', { hasText: 'Bolt' })
+  await bolt.hover()
+  await bolt.getByRole('button', { name: 'delete' }).click()
+  await expect(bolt.getByText('deleting')).toBeVisible()
+  await expect(sheet.getByText('Bolt')).toHaveCount(0)
+  await expect(sheet.getByText('Guacamole').first()).toBeVisible()
+  await page.screenshot(shot('account-row-deleted'))
+})

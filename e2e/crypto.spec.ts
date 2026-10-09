@@ -23,7 +23,7 @@ test('crypto statement: add to Revolut answers at once, then lands', async ({
   ).toBeVisible()
   await expect(sheet.getByText('Revolut is up to date')).toBeVisible()
   await expect(sheet.getByText('still the same')).toHaveCount(0)
-  await expect(sheet.getByText('5 added')).toBeVisible()
+  await expect(sheet.getByText('5 trades added')).toBeVisible()
   await page.waitForTimeout(1200)
   await page.screenshot(shot('crypto-landed'))
 })

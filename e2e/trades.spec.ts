@@ -19,7 +19,7 @@ test('stock orders: confirm answers at once, then lands', async ({ page }) => {
   await confirm.click()
   await expect(sheet.getByText(/adding|Portfolio/).first()).toBeVisible()
   await expect(sheet.getByRole('link', { name: /Portfolio/ })).toBeVisible()
-  await expect(sheet.getByText('3 added')).toBeVisible()
+  await expect(sheet.getByText(/^3 trades added · /)).toBeVisible()
   await page.waitForTimeout(1200)
   await page.screenshot(shot('trades-landed'))
 })

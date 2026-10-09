@@ -52,7 +52,7 @@ test('a Revolut CSV: read, checked, added — and it lands', async ({ page }) =>
   /* One line an account: is Revolut right now? */
   await expect(sheet.getByText('Revolut is up to date')).toBeVisible()
   await expect(sheet.getByText('€1,108.04 · $40')).toBeVisible()
-  await expect(sheet.getByText('2 added')).toBeVisible()
+  await expect(sheet.getByText('2 movements added')).toBeVisible()
   await expect(sheet.getByText('Pingo Doce')).toHaveCount(0)
   /* Once everything has arrived. */
   await page.waitForTimeout(1500)
@@ -106,7 +106,7 @@ test('a bulk upload lands one line an account', async ({ page }) => {
   await expect(sheet.getByText('2 accounts up to date')).toBeVisible()
   await expect(sheet.getByText('Revolut', { exact: true })).toBeVisible()
   await expect(sheet.getByText('ActivoBank', { exact: true })).toBeVisible()
-  await expect(sheet.getByText('2 added')).toHaveCount(2)
+  await expect(sheet.getByText('2 movements added')).toHaveCount(2)
   await page.waitForTimeout(1500)
   await page.screenshot(shot('bulk-landed'))
 })

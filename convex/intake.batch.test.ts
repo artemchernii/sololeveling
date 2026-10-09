@@ -315,6 +315,8 @@ describe('batchReview and apply', () => {
     const by = view.applied?.byAccount ?? []
     expect(by.map((x) => x.accountId).sort()).toEqual([bpi, act].sort())
     expect(by.reduce((n, x) => n + x.rows, 0)).toBe(view.applied?.rows)
+    /* And what they were (9 Oct): statements bring movements. */
+    expect(by.every((x) => x.movements === x.rows && !x.trades)).toBe(true)
     const bal = await me.query(api.aggregate.balances, {})
     expect(bal.accounts.map((x) => x.cashEur)).toEqual([450, 690])
   })

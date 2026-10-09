@@ -73,3 +73,20 @@ export function activoCsv(days: Array<number>): Buffer {
   ]
   return Buffer.from(rows.join('\n') + '\n')
 }
+
+/** Revolut's commodity account export (9 Oct): the same columns as its
+    euro account, ounces of silver and gold in the amount. Silver bought
+    and sold out; 0.408365 oz of gold left. */
+export function revolutMetalsCsv(days: Array<number>): Buffer {
+  const [d1, d2, d3, d4] = days
+  const row = (d: number, what: string, n: string, cur: string, bal: string) =>
+    `EXCHANGE,Current,${iso(d, '10:00:00')},${iso(d, '10:00:01')},${what},${n},0.00,${cur},COMPLETED,${bal}`
+  const rows = [
+    'Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance',
+    row(d1, 'Exchanged to XAG', '12.9', 'XAG', '12.9'),
+    row(d2, 'Exchanged to XAU', '0.14', 'XAU', '0.14'),
+    row(d3, 'Exchanged to EUR', '-12.9', 'XAG', '0'),
+    row(d4, 'Exchanged to XAU', '0.268365', 'XAU', '0.408365'),
+  ]
+  return Buffer.from(rows.join('\n'))
+}

@@ -13,6 +13,8 @@ import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
+import { METALS } from '@/lib/metals'
+import { money } from '@/lib/currency'
 import { EurUsd } from '@/components/finances/EurUsd'
 import { Trades } from '@/components/finances/PortfolioTrades'
 import {
@@ -136,24 +138,46 @@ export function Portfolio() {
                   </span>
                 </div>
                 <div className="flex flex-col gap-1.5 font-mono text-[12px]">
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-ink-500">investments</span>
-                    <span className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
-                      <EurUsd eur={value} usdRate={data.usdRate} />
-                      {known.known > 0 ? (
-                        <ProfitPill
-                          profit={known.value - known.paid}
-                          base={known.paid}
-                          small
-                        />
-                      ) : null}
-                      {known.knownUsd > 0 ? (
-                        <ProfitPill
-                          profit={known.valueUsd - known.paidUsd}
-                          base={known.paidUsd}
-                          small
-                          usd
-                        />
+                  {/* One line a currency, each with its own gain, the
+                      label on the first (10 Oct: "alignment is bad"). */}
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="leading-[22px] text-ink-500">
+                      investments
+                    </span>
+                    <span className="grid grid-cols-[auto_auto] items-center justify-end gap-x-2 gap-y-1">
+                      <span className="text-right leading-[22px]">
+                        <Veiled>{euros(Math.round(value * 100) / 100)}</Veiled>
+                      </span>
+                      <span className="flex justify-end">
+                        {known.known > 0 ? (
+                          <ProfitPill
+                            profit={known.value - known.paid}
+                            base={known.paid}
+                            small
+                          />
+                        ) : null}
+                      </span>
+                      {data.usdRate ? (
+                        <>
+                          <span className="text-right leading-[22px] text-ink-400">
+                            <Veiled>
+                              {money(
+                                Math.round((value / data.usdRate) * 100) / 100,
+                                'USD',
+                              )}
+                            </Veiled>
+                          </span>
+                          <span className="flex justify-end">
+                            {known.knownUsd > 0 ? (
+                              <ProfitPill
+                                profit={known.valueUsd - known.paidUsd}
+                                base={known.paidUsd}
+                                small
+                                usd
+                              />
+                            ) : null}
+                          </span>
+                        </>
                       ) : null}
                     </span>
                   </span>
@@ -285,7 +309,7 @@ function PositionRow({
             {row.name}
           </span>
           <span className="truncate font-mono text-[11px] text-ink-500">
-            {row.symbol.split('-')[0]} · {account} ·{' '}
+            {metalOf(row.symbol) ?? row.symbol.split('-')[0]} · {account} ·{' '}
             <Veiled>{`${row.shares} ${unitOf(row)}`}</Veiled>
           </span>
           {row.staked > 0 ? (
@@ -387,7 +411,18 @@ function KindSplit({ rows }: { rows: ReadonlyArray<Position> }) {
 
 /** "sh" for a share, the coin's own symbol for a coin. */
 function unitOf(row: Pick<Position, 'symbol' | 'type'>): string {
+  if (metalOf(row.symbol)) return 'oz'
   return kindOf(row) === 'crypto' ? row.symbol.split('-')[0] : 'sh'
+}
+
+/* A metal is shown by its own code (10 Oct: "GC=F" is the future its
+   price is read from, not a name he knows) — XAU, in ounces. */
+function metalOf(symbol: string): string | null {
+  return (
+    Object.entries(METALS).find(
+      ([, m]) => m.candidate.symbol === symbol,
+    )?.[0] ?? null
+  )
 }
 
 /* Where the row's number came from, in a line: which files agree. */
@@ -432,6 +467,14 @@ function standing(row: Position): {
     case 'trades':
       return { text: 'from statements', warn: false, ok: false }
     case 'screen':
+      /* A metal's ounces come from his commodity statement, and what he
+         paid from his euro statement — never "drop a statement". */
+      if (metalOf(row.symbol))
+        return {
+          text: `from your ${day} statement · paid not known yet`,
+          warn: false,
+          ok: false,
+        }
       return {
         text:
           row.paid === null

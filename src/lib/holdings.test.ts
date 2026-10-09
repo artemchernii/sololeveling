@@ -42,6 +42,11 @@ describe('reconcile', () => {
     expect(r).toMatchObject({ shares: 1, paid: 20 })
   })
 
+  it('fewer on the screen than bought: the rest costs its share of the trades (his ETH)', () => {
+    const r = reconcile([buy(1, 2, 100)], [seen(10, 1.5, 999)])
+    expect(r).toMatchObject({ shares: 1.5, status: 'over', paid: 150 })
+  })
+
   it('sold out: nothing held, nothing paid — never below zero (his XLM)', () => {
     expect(reconcile([buy(1, 1, 5), sell(5, 1.2, 9)], [])).toMatchObject({
       paid: 0,

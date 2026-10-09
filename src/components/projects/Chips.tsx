@@ -91,7 +91,7 @@ export function StatusBadge({ status }: { status: Doc<'projects'>['status'] }) {
 
   return (
     <span className="motion-pop label-caps inline-flex items-center gap-1.5 rounded-full bg-lav-900/80 px-2.5 py-1 text-lav-200 shadow-[0_0_20px_-4px_var(--color-accent)] ring-1 ring-lav-500/50 ring-inset">
-      <span className="motion-breathe size-1.5 rounded-full bg-lav-300" />
+      <span className="animate-pulse size-1.5 rounded-full bg-lav-300" />
       focus
     </span>
   )

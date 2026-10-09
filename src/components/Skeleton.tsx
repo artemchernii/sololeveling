@@ -3,11 +3,10 @@ import { cn } from '@/lib/utils'
 /* §3d.2: loading shows shape, never values. A bar stands where text will be
    and carries no number, no "0", no plausible figure.
 
-   It breathes (motion-breathe, PLAN §3d.2). Built still at first, by §3d.1's
-   rule that the app moving on its own does not animate — and a still grey bar
-   read as a page that had died. Only opacity moves; the rows it stands in for
-   still swap in without a transition, so nothing reflows. Every bar mounts at
-   the same moment, so they breathe together. */
+   One lavender light crosses every bar on the page together
+   (motion-loading, 9 Oct) — the bars used to breathe each on their own, and
+   read as cheap and as a page that had died. The rows it stands in for still
+   swap in without a transition, so nothing reflows. */
 
 /* Fixed, not random: a skeleton that changes shape between renders is itself
    motion nobody asked for. */
@@ -18,7 +17,7 @@ export function Skeleton({ className }: { className?: string }) {
     <span
       aria-hidden
       className={cn(
-        'motion-breathe block h-3 rounded-full bg-lift/[0.08]',
+        'motion-loading block h-3 rounded-full bg-lift/[0.08]',
         className,
       )}
     />

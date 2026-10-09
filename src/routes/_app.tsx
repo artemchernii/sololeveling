@@ -15,6 +15,7 @@ import { MobileNav } from '@/components/shell/MobileNav'
 import { QuickCapture } from '@/components/shell/QuickCapture'
 import { SearchPalette } from '@/components/shell/SearchPalette'
 import { SessionGuard } from '@/components/shell/SessionGuard'
+import { SystemWait } from '@/components/shell/SystemWait'
 import { SideNav } from '@/components/shell/SideNav'
 import { TopBar } from '@/components/shell/TopBar'
 import { WriteFailureNotice } from '@/components/shell/WriteFailureNotice'
@@ -73,7 +74,26 @@ export const Route = createFileRoute('/_app')({
     return { userId }
   },
   component: AppShell,
+  /* What the server sends while the app's code is still on its way (9 Oct):
+     with ssr 'data-only' the page itself is drawn only in the browser, and
+     until then there was nothing — a dark page for a second or two. The
+     guard above has already found him signed in. */
+  pendingComponent: AppWait,
 })
+
+function AppWait() {
+  return (
+    <div className="grid min-h-dvh place-items-center p-6">
+      <SystemWait
+        title="opening"
+        lines={[
+          { text: 'found your session', done: true },
+          { text: 'loading the app', done: false },
+        ]}
+      />
+    </div>
+  )
+}
 
 /* One overlay, not two booleans. Search and Log are separate modals with
    opposite Enter keys, but only ever one of them is on screen: two independent

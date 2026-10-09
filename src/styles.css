@@ -635,27 +635,75 @@ h6 {
   );
 }
 
-/* A stand-in for something still loading (PLAN §3d.2): it fades in at once
-   and breathes in opacity. It used to wait --motion-fast so a quick load
-   showed nothing — which made a load just past that threshold flash a
-   skeleton for a few frames. Now the page holds it for --loading-hold
-   instead (src/lib/loading.ts). Never a sweep or a slide — nothing about the
-   layout moves. */
-@keyframes breathe {
-  0%,
-  100% {
-    opacity: 1;
+/* A stand-in for something still loading (PLAN §3d.2). It fades in after
+   --loading-wait, so a quick load shows nothing. Then one lavender light
+   crosses every placeholder on the page together (9 Oct, loading.html: "the
+   skeleton was really bad, felt like app crashed … animation is cheap") —
+   the gradient is fixed to the viewport, so each bar shows its own slice of
+   the same light. It replaced bars breathing each on its own. Only the light
+   moves; nothing about the layout does. */
+@keyframes loading-sheen {
+  from {
+    background-position: -150vw 0;
   }
-  50% {
-    opacity: 0.45;
+  to {
+    background-position: 50vw 0;
   }
 }
-@utility motion-breathe {
-  /* Invisible for --loading-wait, so a quick load never shows it. */
+@utility motion-loading {
+  background-image: linear-gradient(
+    105deg,
+    transparent 40%,
+    color-mix(in oklab, var(--color-lav-400) 24%, transparent) 50%,
+    transparent 60%
+  );
+  background-size: 200vw 100%;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   animation:
     save-appear var(--motion-base) var(--motion-ease) var(--loading-wait) both,
-    breathe var(--motion-breathe) ease-in-out
+    loading-sheen var(--motion-loading) var(--motion-ease)
       calc(var(--loading-wait) + var(--motion-base)) infinite;
+}
+
+/* SystemWait's light along the window's top edge, and the dots after the
+   step still going (9 Oct). Only while the app itself is arriving. */
+@keyframes wait-scan {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@utility motion-wait-scan {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-lav-400),
+    transparent
+  );
+  animation: wait-scan 1400ms var(--motion-ease) infinite;
+}
+@keyframes wait-dots {
+  0% {
+    content: '';
+  }
+  25% {
+    content: '.';
+  }
+  50% {
+    content: '..';
+  }
+  75% {
+    content: '...';
+  }
+}
+@utility motion-wait-dots {
+  &::after {
+    content: '';
+    animation: wait-dots 1200ms steps(1) infinite;
+  }
 }
 
 /* + add, the Treasury's one loud control (27 Sep, "I want cooler animation

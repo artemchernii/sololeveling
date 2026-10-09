@@ -8,6 +8,7 @@ import { transferPair } from './logs'
 import { findFor } from './recurring'
 import { euroRateAt, writeTransfer } from './money'
 import { sharesIn } from '../src/lib/crypto'
+import { heldCost } from '../src/lib/holdings'
 import { internal } from './_generated/api'
 import {
   internalMutation,
@@ -1763,23 +1764,20 @@ async function writeClosing(
     /* What went in for it, by the trades up to that day: buys less what
        sells brought back (holdings' "paid"). Carried on the look, so a
        coin whose fees the trades miss by a little still says it. */
-    let cents = 0
-    for (const t of await ctx.db
-      .query('trades')
-      .withIndex('by_owner_instrument', (q) =>
-        q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
-      )
-      .take(MAX_TRADES)) {
-      if (t.accountId !== account._id || t.occurredAt > asOf) continue
-      cents +=
-        (t.side === 'buy' ? 1 : -1) * Math.round(t.shares * t.priceEur * 100)
-    }
+    const upTo = (
+      await ctx.db
+        .query('trades')
+        .withIndex('by_owner_instrument', (q) =>
+          q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+        )
+        .take(MAX_TRADES)
+    ).filter((t) => t.accountId === account._id && t.occurredAt <= asOf)
     await ctx.db.insert('holdings', {
       ownerId,
       accountId: account._id,
       instrumentId,
       shares: p.shares,
-      paidEur: cents / 100,
+      paidEur: heldCost(upTo),
       asOf,
       importId: intake._id,
     })

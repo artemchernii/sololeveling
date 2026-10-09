@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
@@ -15,6 +13,15 @@ import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
+import { METALS } from '@/lib/metals'
+import { money } from '@/lib/currency'
+import { EurUsd } from '@/components/finances/EurUsd'
+import { Trades } from '@/components/finances/PortfolioTrades'
+import {
+  DollarLine,
+  ProfitPill,
+  paidSums,
+} from '@/components/finances/PortfolioParts'
 import { UNPRICED } from '@/lib/market'
 import { kindOf } from '@/lib/logo'
 import type { Kind } from '@/lib/logo'
@@ -52,7 +59,7 @@ export function Portfolio() {
   const rows = data.rows.filter(
     (r) => filter === 'all' || r.accountId === filter,
   )
-  const sums = paidSums(data.rows)
+  const sums = paidSums(data.rows, data.usdRate)
 
   return (
     <div className="flex flex-col gap-3">
@@ -68,7 +75,7 @@ export function Portfolio() {
             <div className="flex flex-col gap-1">
               <span className="label-caps">worth now</span>
               <span className="text-[38px] leading-none font-light text-foreground">
-                <Veiled>{euros(data.totalEur)}</Veiled>
+                <EurUsd eur={data.totalEur} usdRate={data.usdRate} />
               </span>
             </div>
             {sums.known > 0 ? (
@@ -76,26 +83,20 @@ export function Portfolio() {
                 profit={sums.value - sums.paid}
                 base={sums.paid}
                 label={
-                  sums.known === data.rows.length
-                    ? 'since bought'
-                    : `on ${sums.known} of ${data.rows.length}`
+                  sums.known === data.rows.length ? 'since bought' : undefined
                 }
               />
             ) : null}
+            {sums.knownUsd > 0 ? (
+              <ProfitPill
+                profit={sums.valueUsd - sums.paidUsd}
+                base={sums.paidUsd}
+                usd
+              />
+            ) : null}
             <span className="font-mono text-[11px] text-ink-500">
-              {sums.known === 0 ? (
-                'put in: unknown until a statement comes'
-              ) : (
-                <>
-                  put in{' '}
-                  <Veiled>{euros(Math.round(sums.paid * 100) / 100)}</Veiled>
-                  {sums.known < data.rows.length
-                    ? ` for ${sums.known} of ${data.rows.length}`
-                    : ''}
-                </>
-              )}
               {data.oldestPriceAsOf !== null
-                ? ` · closes as of ${DATE.format(new Date(data.oldestPriceAsOf))} · Yahoo Finance`
+                ? `closes as of ${DATE.format(new Date(data.oldestPriceAsOf))} · Yahoo Finance`
                 : ''}
               {data.unvalued > 0
                 ? ` · ${data.unvalued} without a price yet`
@@ -111,7 +112,7 @@ export function Portfolio() {
           {holders.map((a) => {
             const held = data.rows.filter((r) => r.accountId === a._id)
             const value = held.reduce((t, r) => t + (r.valueEur ?? 0), 0)
-            const known = paidSums(held)
+            const known = paidSums(held, data.usdRate)
             const cash =
               worth.byAccount.find((w) => w.accountId === a._id)?.cash ?? null
             return (
@@ -137,38 +138,48 @@ export function Portfolio() {
                   </span>
                 </div>
                 <div className="flex flex-col gap-1.5 font-mono text-[12px]">
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-ink-500">investments</span>
-                    <span className="flex items-center gap-2">
-                      <Veiled>{euros(Math.round(value * 100) / 100)}</Veiled>
-                      {known.known > 0 ? (
-                        <ProfitPill
-                          profit={known.value - known.paid}
-                          base={known.paid}
-                          small
-                        />
-                      ) : null}
+                  {/* One line a currency, each with its own gain, the
+                      label on the first (10 Oct: "alignment is bad"). */}
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="leading-[22px] text-ink-500">
+                      investments
                     </span>
-                  </span>
-                  <span className="flex items-center justify-between gap-2">
-                    {/* Buys less what sells brought back (4 Oct: "you paid
-                        for them" was not clear). */}
-                    <span className="text-ink-500">put in</span>
-                    {known.known === 0 ? (
-                      <span className="text-ink-600">unknown</span>
-                    ) : (
-                      <span>
-                        <Veiled>
-                          {euros(Math.round(known.paid * 100) / 100)}
-                        </Veiled>
-                        {known.known < held.length ? (
-                          <span className="text-ink-600">
-                            {' '}
-                            · {known.known} of {held.length}
-                          </span>
+                    <span className="grid grid-cols-[auto_auto] items-center justify-end gap-x-2 gap-y-1">
+                      <span className="text-right leading-[22px]">
+                        <Veiled>{euros(Math.round(value * 100) / 100)}</Veiled>
+                      </span>
+                      <span className="flex justify-end">
+                        {known.known > 0 ? (
+                          <ProfitPill
+                            profit={known.value - known.paid}
+                            base={known.paid}
+                            small
+                          />
                         ) : null}
                       </span>
-                    )}
+                      {data.usdRate ? (
+                        <>
+                          <span className="text-right leading-[22px] text-ink-400">
+                            <Veiled>
+                              {money(
+                                Math.round((value / data.usdRate) * 100) / 100,
+                                'USD',
+                              )}
+                            </Veiled>
+                          </span>
+                          <span className="flex justify-end">
+                            {known.knownUsd > 0 ? (
+                              <ProfitPill
+                                profit={known.valueUsd - known.paidUsd}
+                                base={known.paidUsd}
+                                small
+                                usd
+                              />
+                            ) : null}
+                          </span>
+                        </>
+                      ) : null}
+                    </span>
                   </span>
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-ink-500">free cash</span>
@@ -222,6 +233,7 @@ export function Portfolio() {
                 account={
                   accounts.find((a) => a._id === r.accountId)?.name ?? ''
                 }
+                usdRate={data.usdRate}
                 delay={i * 30}
               />
             ))}
@@ -229,49 +241,6 @@ export function Portfolio() {
         </Panel>
       ) : null}
     </div>
-  )
-}
-
-/* What was paid and what it is worth, over the rows where both are known
-   — a profit is never shown against a cost no file gave. */
-export function paidSums(
-  rows: ReadonlyArray<{ paid: number | null; valueEur: number | null }>,
-) {
-  let paid = 0
-  let value = 0
-  let known = 0
-  for (const r of rows) {
-    if (r.paid === null || r.valueEur === null) continue
-    paid += r.paid
-    value += r.valueEur
-    known++
-  }
-  return { paid, value, known }
-}
-
-/* Profit in green, loss in red — the one place colour means a quantity's
-   direction, allowed for P&L in Finances (26 Sep). */
-export function ProfitPill({
-  profit,
-  base,
-  label,
-  small = false,
-}: {
-  profit: number
-  base: number
-  label?: string
-  small?: boolean
-}) {
-  const up = profit >= 0
-  const pct = base > 0 ? (profit / base) * 100 : 0
-  return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-[8px] bg-lift/[0.06] font-mono ${small ? 'px-1.5 py-0.5 text-[11px]' : 'px-3 py-1.5 text-[15px]'} ${up ? 'text-state-good' : 'text-state-danger'}`}
-    >
-      <Veiled>{`${up ? '+' : '−'}${euros(Math.abs(Math.round(profit * 100) / 100))}`}</Veiled>
-      <span>{`${up ? '+' : '−'}${Math.abs(pct).toFixed(1)}%`}</span>
-      {label ? <span className="text-[11px] text-ink-500">{label}</span> : null}
-    </span>
   )
 }
 
@@ -284,6 +253,7 @@ type Position = {
   currency: string
   shares: number
   paid: number | null
+  paidUsd: number | null
   status: 'trades' | 'match' | 'screen' | 'gap' | 'over'
   seenAt: number | null
   gap: number
@@ -298,10 +268,12 @@ function PositionRow({
   row,
   account,
   delay,
+  usdRate,
 }: {
   row: Position
   account: string
   delay: number
+  usdRate: number | null
 }) {
   const today = useDayStarts(1).at(-1) as number
   const line = useQuery(api.invest.priceLine, {
@@ -337,7 +309,7 @@ function PositionRow({
             {row.name}
           </span>
           <span className="truncate font-mono text-[11px] text-ink-500">
-            {row.symbol.split('-')[0]} · {account} ·{' '}
+            {metalOf(row.symbol) ?? row.symbol.split('-')[0]} · {account} ·{' '}
             <Veiled>{`${row.shares} ${unitOf(row)}`}</Veiled>
           </span>
           {row.staked > 0 ? (
@@ -380,6 +352,10 @@ function PositionRow({
               %
             </span>
           )}
+          {/* The same in dollars, Revolut's view (10 Oct). */}
+          {usdRate && row.valueEur !== null ? (
+            <DollarLine value={row.valueEur / usdRate} paid={row.paidUsd} />
+          ) : null}
         </span>
       </button>
       {open ? (
@@ -435,7 +411,18 @@ function KindSplit({ rows }: { rows: ReadonlyArray<Position> }) {
 
 /** "sh" for a share, the coin's own symbol for a coin. */
 function unitOf(row: Pick<Position, 'symbol' | 'type'>): string {
+  if (metalOf(row.symbol)) return 'oz'
   return kindOf(row) === 'crypto' ? row.symbol.split('-')[0] : 'sh'
+}
+
+/* A metal is shown by its own code (10 Oct: "GC=F" is the future its
+   price is read from, not a name he knows) — XAU, in ounces. */
+function metalOf(symbol: string): string | null {
+  return (
+    Object.entries(METALS).find(
+      ([, m]) => m.candidate.symbol === symbol,
+    )?.[0] ?? null
+  )
 }
 
 /* Where the row's number came from, in a line: which files agree. */
@@ -480,6 +467,14 @@ function standing(row: Position): {
     case 'trades':
       return { text: 'from statements', warn: false, ok: false }
     case 'screen':
+      /* A metal's ounces come from his commodity statement, and what he
+         paid from his euro statement — never "drop a statement". */
+      if (metalOf(row.symbol))
+        return {
+          text: `from your ${day} statement · paid not known yet`,
+          warn: false,
+          ok: false,
+        }
       return {
         text:
           row.paid === null
@@ -501,83 +496,4 @@ function standing(row: Position): {
         ok: false,
       }
   }
-}
-
-function Trades({
-  accountId,
-  instrumentId,
-}: {
-  accountId: Id<'accounts'>
-  instrumentId: Id<'instruments'>
-}) {
-  const rows = useQuery(api.invest.trades, { accountId, instrumentId })
-  const looks = useQuery(api.invest.looks, { accountId, instrumentId })
-  const remove = useMutation(api.invest.removeTrade)
-  return (
-    <div className="motion-arrive ml-6 flex flex-col border-l border-lav-400/20 py-1 pl-2.5">
-      {(looks ?? []).map((h) => (
-        <div
-          key={h._id}
-          className="flex min-h-9 items-center gap-2.5 text-[13px]"
-        >
-          <span className="w-10 font-mono text-[10.5px] tracking-[0.12em] text-lav-300 uppercase">
-            seen
-          </span>
-          <span className="flex-1 text-ink-200">
-            <Veiled>{`${h.shares} sh`}</Veiled>
-            {h.paidEur !== undefined ? (
-              <span className="text-ink-400">
-                {' '}
-                · paid <Veiled>{euros(h.paidEur)}</Veiled>
-              </span>
-            ) : null}
-            <span className="ml-2 font-mono text-[10px] text-ink-600">
-              {h.sharesCalculated
-                ? 'screenshot · shares worked out'
-                : 'screenshot'}
-            </span>
-          </span>
-          <span className="font-mono text-[11px] text-ink-500">
-            {DATE.format(new Date(h.asOf))}
-          </span>
-          <span className="size-5" />
-        </div>
-      ))}
-      {(rows ?? []).map((t) => (
-        <div
-          key={t._id}
-          className="group flex min-h-9 items-center gap-2.5 text-[13px]"
-        >
-          <span
-            className={`w-10 font-mono text-[10.5px] tracking-[0.12em] uppercase ${
-              t.side === 'buy' ? 'text-area' : 'text-ink-300'
-            }`}
-          >
-            {t.split ? 'split' : t.side}
-          </span>
-          <span className="flex-1 text-ink-200">
-            <Veiled>
-              {t.split ? `+${t.shares}` : `${t.shares} × ${euros(t.priceEur)}`}
-            </Veiled>
-            {t.importId ? (
-              <span className="ml-2 font-mono text-[10px] text-ink-600">
-                {t.opening ? 'held when first read' : 'from a statement'}
-              </span>
-            ) : null}
-          </span>
-          <span className="font-mono text-[11px] text-ink-500">
-            {DATE.format(new Date(t.occurredAt))}
-          </span>
-          <button
-            type="button"
-            aria-label="Remove this trade"
-            onClick={() => void remove({ tradeId: t._id })}
-            className="grid size-5 place-items-center rounded-[6px] text-ink-700 opacity-0 group-hover:opacity-100 hover:text-state-danger [@media(hover:none)]:opacity-100"
-          >
-            <X className="size-3" />
-          </button>
-        </div>
-      ))}
-    </div>
-  )
 }

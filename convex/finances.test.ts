@@ -427,7 +427,8 @@ describe('investments', () => {
     let p = await me.query(api.aggregate.positions, {})
     expect(p.rows).toHaveLength(1)
     expect(p.rows[0].shares).toBe(2.5)
-    expect(p.rows[0].paid).toBe(755)
+    /* 2.5 left of 3 bought for €930: they cost €775 (10 Oct). */
+    expect(p.rows[0].paid).toBe(775)
     expect(p.rows[0].status).toBe('trades')
     expect(p.rows[0].valueEur).toBeNull()
     expect(p.totalEur).toBe(0)
@@ -2143,7 +2144,7 @@ describe('the reader says what it is — trades, and whose account', () => {
       }),
     ).toEqual({ written: 2, skipped: 0 })
     const p = await me.query(api.aggregate.positions, {})
-    expect(p.rows[0]).toMatchObject({ shares: 1, paid: 720 - 378 })
+    expect(p.rows[0]).toMatchObject({ shares: 1, paid: 720 / 2 })
     /* The same export dropped again adds nothing. */
     const again = await read(t, me, history)
     expect(
@@ -2268,10 +2269,10 @@ describe('the reader says what it is — trades, and whose account', () => {
     ])
     /* The closing amount, with what went in by its trades: 79.2 − 3. */
     const looks = await t.run((ctx) => ctx.db.query('holdings').collect())
-    expect(looks.map((h) => [h.shares, h.paidEur])).toEqual([[386.5, 76.2]])
+    expect(looks.map((h) => [h.shares, h.paidEur])).toEqual([[386.5, 77.2]])
     const pos = await me.query(api.aggregate.positions, {})
     expect(pos.rows.map((r) => [r.symbol, r.shares, r.paid, r.staked])).toEqual(
-      [['ADA-EUR', 386.5, 76.2, 0.5]],
+      [['ADA-EUR', 386.5, 77.2, 0.5]],
     )
     /* Revolut's cash is what its bank statement says: crypto moved none. */
     const b = await me.query(api.aggregate.balances, {})

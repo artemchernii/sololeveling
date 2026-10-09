@@ -24,13 +24,32 @@ const seen = (at: number, shares: number, paidEur?: number): Observation => ({
 })
 
 describe('reconcile', () => {
-  it('trades alone: their sum, and what they cost', () => {
+  it('trades alone: their sum, and what the shares still held cost', () => {
+    /* Sold 0.5 of 2 bought at €100: the 1.5 left cost €150, whatever the
+       sell brought back. */
     expect(reconcile([buy(1, 2, 100), sell(5, 0.5, 120)], [])).toEqual({
       shares: 1.5,
-      paid: 140,
+      paid: 150,
       status: 'trades',
       seenAt: null,
       gap: 0,
+    })
+  })
+
+  it('selling most of a coin at a profit never makes the rest cost less than it did (his SOL, 10 Oct)', () => {
+    const r = reconcile([buy(1, 4, 20), sell(5, 3, 60)], [])
+    /* Buys less sells' money said −€100; the 1 coin left cost €20. */
+    expect(r).toMatchObject({ shares: 1, paid: 20 })
+  })
+
+  it('fewer on the screen than bought: the rest costs its share of the trades (his ETH)', () => {
+    const r = reconcile([buy(1, 2, 100)], [seen(10, 1.5, 999)])
+    expect(r).toMatchObject({ shares: 1.5, status: 'over', paid: 150 })
+  })
+
+  it('sold out: nothing held, nothing paid — never below zero (his XLM)', () => {
+    expect(reconcile([buy(1, 1, 5), sell(5, 1.2, 9)], [])).toMatchObject({
+      paid: 0,
     })
   })
 
@@ -59,7 +78,7 @@ describe('reconcile', () => {
     const a = reconcile(trades, looks)
     const b = reconcile([...trades].reverse(), [...looks].reverse())
     expect(a).toEqual(b)
-    expect(a).toMatchObject({ shares: 1.5, status: 'match', paid: 145 })
+    expect(a).toMatchObject({ shares: 1.5, status: 'match', paid: 157.5 })
   })
 
   it('screen shares worked out from value ÷ price still match', () => {

@@ -7,7 +7,7 @@ import { AccountLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { money } from '@/lib/currency'
 import { freshness } from '@/lib/freshness'
-import { ProfitPill } from '@/components/finances/Portfolio'
+import { ProfitPill } from '@/components/finances/PortfolioParts'
 import { euros } from '@/lib/money'
 import { KindBadge } from '@/components/finances/AccountParts'
 

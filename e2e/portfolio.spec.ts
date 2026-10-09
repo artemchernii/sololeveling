@@ -28,6 +28,8 @@ test('Portfolio: empty, then the positions a screenshot brought', async ({
   await expect(page.getByText('No positions yet.')).toHaveCount(0)
   await expect(page.getByText('worth now')).toBeVisible()
   await expect(page.getByText('2 positions')).toBeVisible()
+  /* "put in" was meaningless (10 Oct): gone. */
+  await expect(page.getByText(/put in/)).toHaveCount(0)
   for (const name of ['Apple', 'Microsoft'])
     await expect(page.getByText(name).first()).toBeVisible()
   await page.waitForTimeout(800)

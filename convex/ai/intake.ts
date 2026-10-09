@@ -682,6 +682,32 @@ async function readCsv(
       ),
     })
   }
+  /* Each name matched to a ticker once, and the dollar rates stored back
+     to the first trade — so applying it needs no fetch (9 Oct). */
+  await ctx.runMutation(internal.intake.progress, {
+    intakeId,
+    stage: 'tickers',
+  })
+  const tickers = new Tickers()
+  const names = new Map<string, string | undefined>()
+  for (const r of rows)
+    if (!names.get(r.name)) names.set(r.name, 'isin' in r ? r.isin : undefined)
+  const historyFound = []
+  for (const [name, isin] of names)
+    historyFound.push({
+      name,
+      isin,
+      ...(await tickers.find(name, isin, TICKER.test(name) ? name : undefined)),
+    })
+  const oldest = new Map<string, number>()
+  for (const r of rows)
+    if (r.currency !== 'EUR' && r.side !== 'split')
+      oldest.set(
+        r.currency,
+        Math.min(oldest.get(r.currency) ?? Infinity, r.occurredAt),
+      )
+  for (const [currency, from] of oldest)
+    await backfillRates(ctx, job.ownerId, currency, from)
   await ctx.runMutation(internal.intake.finish, {
     intakeId,
     kind: 'trades',
@@ -694,6 +720,7 @@ async function readCsv(
     model,
     historyTrades: rows.length,
     historyTickers: merged.tickers,
+    historyFound,
   })
 }
 
@@ -781,6 +808,9 @@ function coin(name: string) {
 
 /* A name as the broker prints it → ticker candidates, and which one is the
    right share class. Once per name: a trade history repeats them. */
+/* A ticker as a trading CSV prints it: "TSLA", "BRK.B". */
+const TICKER = /^[A-Z][A-Z0-9.]{0,7}$/
+
 class Tickers {
   private found = new Map<
     string,

@@ -16,7 +16,7 @@ export const INTAKE_MODEL = 'claude-haiku-4-5'
 /* Bumped whenever what the reader is asked changes: a file read by an
    older reader is read again rather than its reading reused (3 Oct — a
    reused reading kept "1 100.00" as 100 after the prompt was fixed). */
-export const READER_VERSION = 5
+export const READER_VERSION = 6
 export const INTAKE_MODEL_NAME = 'Claude Haiku 4.5'
 export const MAX_INTAKE_FILES = 6
 /* UPDATE ALL (3 Oct): a year of four banks' monthly statements. */

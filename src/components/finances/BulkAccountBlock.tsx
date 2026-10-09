@@ -276,7 +276,9 @@ export function AccountBlock({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] text-ink-400">
-        {block.fresh > 0 || block.had > 0 || holdings === null ? (
+        {block.fresh > 0 ||
+        block.had > 0 ||
+        (holdings === null && block.trades === 0) ? (
           <span>
             <b className="font-normal text-foreground">{block.fresh}</b> new
             rows

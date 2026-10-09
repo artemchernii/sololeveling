@@ -2984,9 +2984,14 @@ describe('intake: reuse, progress, failures, cost', () => {
       historyTickers: 1,
     })
     expect(
-      (await me.query(api.intake.history, { intakeId: s.intakeId })).map(
-        (r) => r.side,
-      ),
+      (
+        await t.run((ctx) =>
+          ctx.db
+            .query('intakeTrades')
+            .withIndex('by_intake', (q) => q.eq('intakeId', s.intakeId))
+            .collect(),
+        )
+      ).map((r) => r.side),
     ).toEqual(['buy', 'split'])
     await me.mutation(api.intake.discard, { intakeId: s.intakeId })
     expect(

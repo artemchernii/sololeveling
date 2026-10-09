@@ -845,9 +845,8 @@ export const batch = query({
         intakes: v.number(),
         rows: v.number(),
         accounts: v.number(),
-        byAccount: v.optional(
-          v.array(v.object({ accountId: v.id('accounts'), rows: v.number() })),
-        ),
+        byAccount:
+          schema.tables.batches.validator.fields.applied.fields.byAccount,
       }),
       v.null(),
     ),
@@ -3484,16 +3483,46 @@ export const applyStep = internalMutation({
     const accountId = next.accountId
     /* A history goes in a chunk a step; it counts as one file once done. */
     const finished = (await ctx.db.get(next.i._id))?.status !== 'ready'
+    const line = was.find((x) => x.accountId === accountId) ?? {
+      accountId,
+      rows: 0,
+    }
+    const noun =
+      next.i.kind === 'holdings'
+        ? 'positions'
+        : next.i.kind === 'trades'
+          ? 'trades'
+          : 'movements'
+    const named =
+      rows === 0
+        ? []
+        : next.i.kind === 'holdings'
+          ? (next.i.positions ?? []).map((p) => p.name)
+          : next.i.historyTrades !== undefined
+            ? (next.i.historyFound ?? []).flatMap(
+                (f) => f.candidates.at(f.preferred ?? 0)?.symbol ?? [],
+              )
+            : next.i.kind === 'trades'
+              ? (next.i.trades ?? []).map(
+                  (t) =>
+                    t.candidates.at(t.preferred ?? 0)?.symbol.split('.')[0] ??
+                    t.name,
+                )
+              : []
+    const updated = {
+      ...line,
+      rows: line.rows + rows,
+      [noun]: (line[noun] ?? 0) + rows,
+      names: [...new Set([...(line.names ?? []), ...named])].slice(0, 8),
+    }
     await ctx.db.patch(b._id, {
       applied: {
         ...applied,
         intakes: applied.intakes + (finished ? 1 : 0),
         rows: applied.rows + rows,
         byAccount: was.some((x) => x.accountId === accountId)
-          ? was.map((x) =>
-              x.accountId === accountId ? { ...x, rows: x.rows + rows } : x,
-            )
-          : [...was, { accountId, rows }],
+          ? was.map((x) => (x.accountId === accountId ? updated : x))
+          : [...was, updated],
       },
     })
     await ctx.scheduler.runAfter(0, internal.intake.applyStep, args)

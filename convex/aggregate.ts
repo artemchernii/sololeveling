@@ -1787,67 +1787,111 @@ export const worthHistory = query({
         asOf: h.asOf,
       })
 
-    const closesOf = new Map<Id<'instruments'>, Array<Close>>()
-    const ratesOf = new Map<string, Array<Rate>>()
+    /* Every close and rate is looked up at once, not one after another
+       (9 Oct): the same ~80 one-row reads a position, but in sequence they
+       took 6 s — and Convex holds every update on screen until each open
+       query has caught up, so a save froze the whole app for those 6 s. */
+    const latestAt = async <T>(
+      ends: ReadonlyArray<number>,
+      read: (end: number) => Promise<T | null>,
+      asOf: (row: T) => number,
+    ) => {
+      const found = new Map<number, T>()
+      for (const [k, r] of (await Promise.all(ends.map(read))).entries())
+        if (r !== null && asOf(r) >= ends[k] - STALE_CLOSE_MS - 7 * 86_400_000)
+          found.set(asOf(r), r)
+      return [...found.values()].sort((a, b) => asOf(a) - asOf(b))
+    }
+    const instruments = new Map(
+      (
+        await Promise.all(
+          [...new Set([...slots.values()].map((p) => p.instrumentId))].map(
+            (id) => ctx.db.get(id),
+          ),
+        )
+      )
+        .filter(
+          (x): x is Doc<'instruments'> => x !== null && x.ownerId === ownerId,
+        )
+        .map((x) => [x._id, x]),
+    )
+    /* One close per point drawn (4 Oct: the year of daily closes for every
+       position, read on every re-run, was 99% of the month's database
+       reads). The latest at or before each day's end, through the index —
+       one row each — and none older than two weeks. */
+    const closesOf = new Map(
+      await Promise.all(
+        [...instruments.keys()].map(
+          async (id) =>
+            [
+              id,
+              (
+                await latestAt(
+                  priced,
+                  (end) =>
+                    ctx.db
+                      .query('prices')
+                      .withIndex('by_owner_instrument_time', (q) =>
+                        q
+                          .eq('ownerId', ownerId)
+                          .eq('instrumentId', id)
+                          .lte('asOf', end),
+                      )
+                      .order('desc')
+                      .first(),
+                  (r) => r.asOf,
+                )
+              ).map((r): Close => ({ asOf: r.asOf, price: r.price })),
+            ] as const,
+        ),
+      ),
+    )
+    const bases = [
+      ...new Set(
+        [...instruments.values()]
+          .map((x) => quoteToRate(x.currency).base)
+          .filter((b) => b !== 'EUR'),
+      ),
+    ]
+    const ratesOf = new Map(
+      await Promise.all(
+        bases.map(
+          async (base) =>
+            [
+              base,
+              (
+                await latestAt(
+                  priced,
+                  (end) =>
+                    ctx.db
+                      .query('fxRates')
+                      .withIndex('by_owner_currency_time', (q) =>
+                        q
+                          .eq('ownerId', ownerId)
+                          .eq('currency', base)
+                          .lte('asOf', end),
+                      )
+                      .order('desc')
+                      .first(),
+                  (r) => r.asOf,
+                )
+              ).map((r): Rate => ({ asOf: r.asOf, rate: r.rate })),
+            ] as const,
+        ),
+      ),
+    )
     const holdings: Array<Holding<Id<'accounts'>>> = []
     for (const p of slots.values()) {
-      const instrument = await ctx.db.get(p.instrumentId)
-      if (instrument === null || instrument.ownerId !== ownerId) continue
-      let closes = closesOf.get(p.instrumentId)
-      if (closes === undefined) {
-        /* One close per point drawn (4 Oct: the year of daily closes for
-           every position, read on every re-run, was 99% of the month's
-           database reads). The latest at or before each day's end, through
-           the index — one row each — and none older than two weeks, as
-           before. */
-        const found = new Map<number, Close>()
-        for (const end of priced) {
-          const r = await ctx.db
-            .query('prices')
-            .withIndex('by_owner_instrument_time', (q) =>
-              q
-                .eq('ownerId', ownerId)
-                .eq('instrumentId', p.instrumentId)
-                .lte('asOf', end),
-            )
-            .order('desc')
-            .first()
-          if (r && r.asOf >= end - STALE_CLOSE_MS - 7 * 86_400_000) {
-            found.set(r.asOf, { asOf: r.asOf, price: r.price })
-          }
-        }
-        closes = [...found.values()].sort((a, b) => a.asOf - b.asOf)
-        closesOf.set(p.instrumentId, closes)
-      }
+      const instrument = instruments.get(p.instrumentId)
+      if (instrument === undefined) continue
       const { base, divide } = quoteToRate(instrument.currency)
-      let rates: Array<Rate> | null = null
-      if (base !== 'EUR') {
-        rates = ratesOf.get(base) ?? null
-        if (rates === null) {
-          const got = new Map<number, Rate>()
-          for (const end of priced) {
-            const r = await ctx.db
-              .query('fxRates')
-              .withIndex('by_owner_currency_time', (q) =>
-                q.eq('ownerId', ownerId).eq('currency', base).lte('asOf', end),
-              )
-              .order('desc')
-              .first()
-            if (r && r.asOf >= end - STALE_CLOSE_MS - 7 * 86_400_000) {
-              got.set(r.asOf, { asOf: r.asOf, rate: r.rate })
-            }
-          }
-          rates = [...got.values()].sort((a, b) => a.asOf - b.asOf)
-          ratesOf.set(base, rates)
-        }
-      }
       holdings.push({
         accountId: p.accountId,
         trades: p.trades,
         looks: p.looks,
-        closes,
+        closes: closesOf.get(p.instrumentId) ?? [],
         divide,
-        rates,
+        rates: base === 'EUR' ? null : (ratesOf.get(base) ?? []),
       })
     }
 

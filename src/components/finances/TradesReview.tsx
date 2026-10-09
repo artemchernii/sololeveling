@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
+import { addedWords } from '@/lib/addedWords'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Check } from 'lucide-react'
 
@@ -75,7 +76,15 @@ export function TradesReview({
           candidate: picks[i] as Candidate,
         })),
       })
-      setLanded({ accountId: target, added: done.written })
+      setLanded({
+        accountId: target,
+        added: done.written,
+        what: addedWords({
+          rows: done.written,
+          trades: done.written,
+          names: [...new Set(kept.flatMap(({ i }) => picks[i]?.symbol ?? []))],
+        }),
+      })
     } catch (e) {
       setError(
         e instanceof Error

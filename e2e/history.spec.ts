@@ -22,7 +22,7 @@ test('trading history: applied through update all, and again adds nothing', asyn
   await sheet.getByRole('button', { name: /apply 1 account/ }).click()
   await expect(sheet.getByText(/Writing|updated/).first()).toBeVisible()
   await expect(sheet.getByText('Revolut updated')).toBeVisible()
-  await expect(sheet.getByText('31 added')).toBeVisible()
+  await expect(sheet.getByText(/^31 trades added · /)).toBeVisible()
   await page.waitForTimeout(1200)
   await page.screenshot(shot('history-landed'))
   await sheet.getByRole('button', { name: 'done' }).click()

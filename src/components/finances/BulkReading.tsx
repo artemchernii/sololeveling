@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { addedWords } from '@/lib/addedWords'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import {
   Check,
@@ -240,6 +241,7 @@ export function Applied({
     view.applied?.byAccount?.map((x) => ({
       accountId: x.accountId,
       added: x.rows,
+      what: addedWords(x),
     })) ??
     [
       ...new Set(

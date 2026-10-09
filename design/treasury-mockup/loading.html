@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Loading states</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #12131d; --ink-100: #f1f1f5; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc; --lav-500: #8f82f5;
+    --good: oklch(0.78 0.17 150); --gold: #e3b766;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 22px }
+  .ctl { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; font-family: var(--mono); font-size: 11px; color: #f0b85a; text-transform: uppercase; letter-spacing: .08em; align-items: center }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: #f0b85a }
+  .label { text-align: center; font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; color: var(--ink-500); text-transform: uppercase }
+  .anno { font-family: var(--mono); font-size: 11px; color: #f0b85a; border-left: 2px solid #f0b85a; padding: 4px 10px; line-height: 1.6 }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+
+  /* ---------- sign-in wait ---------- */
+  .stage { height: 440px; border-radius: 22px; border: 1px solid rgba(255,255,255,.06); background: #10111a; display: grid; place-items: center; position: relative; overflow: hidden }
+  .logo { display: flex; align-items: center; gap: 9px; font-size: 11px; font-weight: 500; letter-spacing: .2em }
+  .logo i { width: 14px; height: 14px; border-radius: 4px; background: var(--lav-500); box-shadow: 0 0 18px var(--lav-500); animation: glow 1.6s ease-in-out infinite }
+  @keyframes glow { 50% { box-shadow: 0 0 4px var(--lav-500); transform: scale(.86) } }
+  .gate { display: flex; flex-direction: column; align-items: center; gap: 26px }
+  .sysbox { position: relative; width: 340px; padding: 26px 22px; border: 1px solid color-mix(in oklch, var(--lav-400) 34%, transparent); border-radius: 16px; background: rgba(28,28,42,.7); display: flex; flex-direction: column; gap: 14px; overflow: hidden }
+  .sysbox::before, .sysbox::after { content: ''; position: absolute; width: 14px; height: 14px; border: 2px solid var(--lav-400) }
+  .sysbox::before { top: 6px; left: 6px; border-right: 0; border-bottom: 0 }
+  .sysbox::after { bottom: 6px; right: 6px; border-left: 0; border-top: 0 }
+  .scan { position: absolute; left: 0; right: 0; top: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--lav-400), transparent); animation: scan 1.4s cubic-bezier(.5,0,.5,1) infinite }
+  @keyframes scan { 0% { transform: translateX(-100%) } 100% { transform: translateX(100%) } }
+  .stitle { font-family: var(--mono); font-size: 11.5px; letter-spacing: .38em; color: var(--lav-400); text-align: center }
+  .steps { display: flex; flex-direction: column; gap: 8px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-400) }
+  .steps span { display: flex; gap: 10px; align-items: center; opacity: 0; animation: step .4s ease forwards }
+  .steps span:nth-child(2) { animation-delay: .5s } .steps span:nth-child(3) { animation-delay: 1s }
+  .steps b { width: 14px; color: var(--lav-400); font-weight: 400 }
+  @keyframes step { to { opacity: 1 } }
+  .dots::after { content: ''; animation: dots 1.2s steps(4) infinite }
+  @keyframes dots { 0% { content: '' } 25% { content: '.' } 50% { content: '..' } 75% { content: '...' } }
+
+  /* ---------- finances ---------- */
+  .page { border-radius: 22px; border: 1px solid rgba(255,255,255,.06); background: #10111a; padding: 18px; display: flex; flex-direction: column; gap: 14px; position: relative; overflow: hidden }
+  .glass { border-radius: 18px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.07); padding: 18px; position: relative; overflow: hidden }
+  .hero { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; background: linear-gradient(120deg, rgba(227,183,102,.12), rgba(255,255,255,.03) 60%) }
+  @media (max-width: 720px) { .hero { grid-template-columns: 1fr } .cards { grid-template-columns: 1fr !important } }
+  .num { font-size: 40px; font-weight: 300; letter-spacing: -.01em; font-variant-numeric: tabular-nums; min-height: 48px; display: flex; align-items: center }
+  .rows { display: flex; flex-direction: column; gap: 8px }
+  .row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; background: rgba(255,255,255,.03) }
+  .row .n { margin-left: auto; font-family: var(--mono); font-size: 13px; min-width: 70px; text-align: right }
+  .tabs { display: flex; gap: 6px }
+  .tab { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; padding: 7px 12px; border-radius: 999px; color: var(--ink-400); border: 1px solid rgba(255,255,255,.08) }
+  .tab.on { color: var(--ink-100); border-color: rgba(227,183,102,.5); background: rgba(227,183,102,.1) }
+  .chart { height: 150px; display: flex; align-items: flex-end }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px }
+  .card { display: flex; flex-direction: column; gap: 10px; min-height: 120px }
+  .card .top { display: flex; align-items: center; gap: 10px }
+  .ic { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,.07) }
+
+  /* placeholder: one sheen of light crossing the whole page, not grey bars breathing on their own */
+  .ph { display: inline-block; height: .7em; border-radius: 999px; background: rgba(255,255,255,.07) }
+  .loading .page::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgba(181,171,252,.10) 48%, rgba(181,171,252,.16) 50%, rgba(181,171,252,.10) 52%, transparent 65%); background-size: 250% 100%; animation: sheen 1.6s cubic-bezier(.4,0,.2,1) infinite }
+  @keyframes sheen { 0% { background-position: 120% 0 } 100% { background-position: -20% 0 } }
+  .val { display: none } .loading .val { display: none } .arrived .val { display: inline } .arrived .ph { display: none }
+  .arrived .val { animation: rise .5s cubic-bezier(.2,.8,.2,1) both }
+  .arrived .card { animation: rise .5s cubic-bezier(.2,.8,.2,1) both }
+  .arrived .card:nth-child(2) { animation-delay: .06s } .arrived .card:nth-child(3) { animation-delay: .12s }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); filter: blur(3px) } }
+  .line { width: 100%; height: 100%; }
+  .line path { fill: none; stroke: var(--gold); stroke-width: 2 }
+  .loading .line { display: none }
+  .chartph { width: 100%; height: 100%; border-radius: 12px; background: linear-gradient(to top, rgba(227,183,102,.07), transparent) }
+  .arrived .chartph { display: none }
+  .old { opacity: .9 }
+  .oldbar { display: block; height: 12px; border-radius: 999px; background: rgba(255,255,255,.08); animation: breathe 2s ease-in-out infinite }
+  @keyframes breathe { 50% { opacity: .45 } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="ctl"><span>sign-in wait</span><button id="replay1">replay</button></div>
+  <div class="stage" id="stage1">
+    <div class="gate">
+      <div class="logo"><i></i>SOLO LEVELING</div>
+      <div class="sysbox">
+        <span class="scan"></span>
+        <span class="stitle">[ SIGNING IN ]</span>
+        <div class="steps">
+          <span><b>✓</b>app loaded</span>
+          <span><b>✓</b>found your session</span>
+          <span><b>›</b><span class="dots">opening Today</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="label">opening localhost · today: the logo alone on a dark page until Clerk answers</div>
+  <div class="anno">The same System window as the app, at once — never a blank page. Each line lights as it really happens. Signed in already: it goes straight to Today. Not signed in: Clerk's form takes the window's place.</div>
+
+  <div class="ctl" id="ctl2"><span>finances</span><button data-s="loading" class="on">loading</button><button data-s="arrived">arrived</button><button data-s="old">today's skeleton</button><button id="replay2">replay arrival</button></div>
+  <div id="fin" class="loading">
+    <div class="page">
+      <div class="glass hero">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <span class="caps">net worth</span>
+          <span class="num"><span class="ph" style="width:220px;height:30px"></span><span class="val">€48,213</span></span>
+          <span class="caps" style="color:var(--ink-500)"><span class="ph" style="width:120px"></span><span class="val">this month <span style="color:var(--good)">+€412</span></span></span>
+        </div>
+        <div class="rows">
+          <div class="row"><span class="caps">investments</span><span class="n"><span class="ph" style="width:60px"></span><span class="val">€31,040</span></span></div>
+          <div class="row"><span class="caps">banks</span><span class="n"><span class="ph" style="width:50px"></span><span class="val">€15,920</span></span></div>
+          <div class="row"><span class="caps">cash</span><span class="n"><span class="ph" style="width:40px"></span><span class="val">€1,253</span></span></div>
+        </div>
+      </div>
+      <div class="tabs"><span class="tab on">overview</span><span class="tab">flow</span><span class="tab">portfolio</span></div>
+      <div class="glass">
+        <span class="caps">worth over time</span>
+        <div class="chart"><div class="chartph"></div>
+          <svg class="line val" viewBox="0 0 600 140" preserveAspectRatio="none"><path d="M0 120 C80 112 120 100 180 96 S300 80 360 70 S480 40 600 22" /></svg>
+        </div>
+      </div>
+      <div class="cards">
+        <div class="glass card"><div class="top"><span class="ic"></span><span><span class="ph" style="width:70px"></span><span class="val">Revolut</span></span></div><span class="num" style="font-size:24px;min-height:30px"><span class="ph" style="width:110px;height:18px"></span><span class="val">€22,610</span></span></div>
+        <div class="glass card"><div class="top"><span class="ic"></span><span><span class="ph" style="width:90px"></span><span class="val">ActivoBank</span></span></div><span class="num" style="font-size:24px;min-height:30px"><span class="ph" style="width:90px;height:18px"></span><span class="val">€9,880</span></span></div>
+        <div class="glass card"><div class="top"><span class="ic"></span><span><span class="ph" style="width:44px"></span><span class="val">Cash</span></span></div><span class="num" style="font-size:24px;min-height:30px"><span class="ph" style="width:70px;height:18px"></span><span class="val">€1,253</span></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="label" id="lbl2">loading · the page's own frame and labels at once; only your data waits</div>
+  <div class="anno">Loading: everything the app already knows is drawn at once, in place, at its real size: labels, tabs, panels, and three cards where your three accounts go. Only what comes from your data are placeholders, and one soft lavender light crosses the whole page together. No grey bars pulsing each on its own. Arrived: the numbers rise in, the cards follow one after another, nothing jumps. Plus: Finances asks only for the open tab now, so this lasts a fraction of today's 2 s (done on a branch already).</div>
+</div>
+<script>
+const fin = document.getElementById('fin')
+const lbl = document.getElementById('lbl2')
+const OLD = `<div class="page old">${['260px','70%','100%','100%'].map(w=>`<div class="glass"><span class="oldbar" style="width:40%;margin-bottom:12px"></span><span class="oldbar" style="width:${w}"></span></div>`).join('')}</div>`
+const NEW = fin.innerHTML
+function show(s) {
+  document.querySelectorAll('#ctl2 [data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === s))
+  fin.innerHTML = s === 'old' ? OLD : NEW
+  fin.className = s === 'old' ? '' : s
+  lbl.textContent = s === 'old' ? "today's skeleton · grey bars breathing on their own, no labels, the page looks gone"
+    : s === 'arrived' ? 'arrived · numbers rise in, cards one after another' : "loading · the page's own frame and labels at once; only your data waits"
+}
+document.querySelectorAll('#ctl2 [data-s]').forEach(b => b.onclick = () => show(b.dataset.s))
+document.getElementById('replay2').onclick = () => { show('loading'); setTimeout(() => show('arrived'), 1400) }
+document.getElementById('replay1').onclick = () => { const s = document.getElementById('stage1'); const h = s.innerHTML; s.innerHTML = ''; requestAnimationFrame(() => s.innerHTML = h) }
+</script>
+</body>
+</html>

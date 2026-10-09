@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
@@ -15,6 +13,8 @@ import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
+import { EurUsd } from '@/components/finances/EurUsd'
+import { Trades } from '@/components/finances/PortfolioTrades'
 import { UNPRICED } from '@/lib/market'
 import { kindOf } from '@/lib/logo'
 import type { Kind } from '@/lib/logo'
@@ -68,7 +68,7 @@ export function Portfolio() {
             <div className="flex flex-col gap-1">
               <span className="label-caps">worth now</span>
               <span className="text-[38px] leading-none font-light text-foreground">
-                <Veiled>{euros(data.totalEur)}</Veiled>
+                <EurUsd eur={data.totalEur} usdRate={data.usdRate} />
               </span>
             </div>
             {sums.known > 0 ? (
@@ -76,26 +76,13 @@ export function Portfolio() {
                 profit={sums.value - sums.paid}
                 base={sums.paid}
                 label={
-                  sums.known === data.rows.length
-                    ? 'since bought'
-                    : `on ${sums.known} of ${data.rows.length}`
+                  sums.known === data.rows.length ? 'since bought' : undefined
                 }
               />
             ) : null}
             <span className="font-mono text-[11px] text-ink-500">
-              {sums.known === 0 ? (
-                'put in: unknown until a statement comes'
-              ) : (
-                <>
-                  put in{' '}
-                  <Veiled>{euros(Math.round(sums.paid * 100) / 100)}</Veiled>
-                  {sums.known < data.rows.length
-                    ? ` for ${sums.known} of ${data.rows.length}`
-                    : ''}
-                </>
-              )}
               {data.oldestPriceAsOf !== null
-                ? ` · closes as of ${DATE.format(new Date(data.oldestPriceAsOf))} · Yahoo Finance`
+                ? `closes as of ${DATE.format(new Date(data.oldestPriceAsOf))} · Yahoo Finance`
                 : ''}
               {data.unvalued > 0
                 ? ` · ${data.unvalued} without a price yet`
@@ -140,7 +127,7 @@ export function Portfolio() {
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-ink-500">investments</span>
                     <span className="flex items-center gap-2">
-                      <Veiled>{euros(Math.round(value * 100) / 100)}</Veiled>
+                      <EurUsd eur={value} usdRate={data.usdRate} />
                       {known.known > 0 ? (
                         <ProfitPill
                           profit={known.value - known.paid}
@@ -149,26 +136,6 @@ export function Portfolio() {
                         />
                       ) : null}
                     </span>
-                  </span>
-                  <span className="flex items-center justify-between gap-2">
-                    {/* Buys less what sells brought back (4 Oct: "you paid
-                        for them" was not clear). */}
-                    <span className="text-ink-500">put in</span>
-                    {known.known === 0 ? (
-                      <span className="text-ink-600">unknown</span>
-                    ) : (
-                      <span>
-                        <Veiled>
-                          {euros(Math.round(known.paid * 100) / 100)}
-                        </Veiled>
-                        {known.known < held.length ? (
-                          <span className="text-ink-600">
-                            {' '}
-                            · {known.known} of {held.length}
-                          </span>
-                        ) : null}
-                      </span>
-                    )}
                   </span>
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-ink-500">free cash</span>
@@ -501,83 +468,4 @@ function standing(row: Position): {
         ok: false,
       }
   }
-}
-
-function Trades({
-  accountId,
-  instrumentId,
-}: {
-  accountId: Id<'accounts'>
-  instrumentId: Id<'instruments'>
-}) {
-  const rows = useQuery(api.invest.trades, { accountId, instrumentId })
-  const looks = useQuery(api.invest.looks, { accountId, instrumentId })
-  const remove = useMutation(api.invest.removeTrade)
-  return (
-    <div className="motion-arrive ml-6 flex flex-col border-l border-lav-400/20 py-1 pl-2.5">
-      {(looks ?? []).map((h) => (
-        <div
-          key={h._id}
-          className="flex min-h-9 items-center gap-2.5 text-[13px]"
-        >
-          <span className="w-10 font-mono text-[10.5px] tracking-[0.12em] text-lav-300 uppercase">
-            seen
-          </span>
-          <span className="flex-1 text-ink-200">
-            <Veiled>{`${h.shares} sh`}</Veiled>
-            {h.paidEur !== undefined ? (
-              <span className="text-ink-400">
-                {' '}
-                · paid <Veiled>{euros(h.paidEur)}</Veiled>
-              </span>
-            ) : null}
-            <span className="ml-2 font-mono text-[10px] text-ink-600">
-              {h.sharesCalculated
-                ? 'screenshot · shares worked out'
-                : 'screenshot'}
-            </span>
-          </span>
-          <span className="font-mono text-[11px] text-ink-500">
-            {DATE.format(new Date(h.asOf))}
-          </span>
-          <span className="size-5" />
-        </div>
-      ))}
-      {(rows ?? []).map((t) => (
-        <div
-          key={t._id}
-          className="group flex min-h-9 items-center gap-2.5 text-[13px]"
-        >
-          <span
-            className={`w-10 font-mono text-[10.5px] tracking-[0.12em] uppercase ${
-              t.side === 'buy' ? 'text-area' : 'text-ink-300'
-            }`}
-          >
-            {t.split ? 'split' : t.side}
-          </span>
-          <span className="flex-1 text-ink-200">
-            <Veiled>
-              {t.split ? `+${t.shares}` : `${t.shares} × ${euros(t.priceEur)}`}
-            </Veiled>
-            {t.importId ? (
-              <span className="ml-2 font-mono text-[10px] text-ink-600">
-                {t.opening ? 'held when first read' : 'from a statement'}
-              </span>
-            ) : null}
-          </span>
-          <span className="font-mono text-[11px] text-ink-500">
-            {DATE.format(new Date(t.occurredAt))}
-          </span>
-          <button
-            type="button"
-            aria-label="Remove this trade"
-            onClick={() => void remove({ tradeId: t._id })}
-            className="grid size-5 place-items-center rounded-[6px] text-ink-700 opacity-0 group-hover:opacity-100 hover:text-state-danger [@media(hover:none)]:opacity-100"
-          >
-            <X className="size-3" />
-          </button>
-        </div>
-      ))}
-    </div>
-  )
 }

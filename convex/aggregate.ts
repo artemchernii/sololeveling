@@ -1475,6 +1475,9 @@ export const positions = query({
     oldestPriceAsOf: v.union(v.number(), v.null()),
     unvalued: v.number(),
     complete: v.boolean(),
+    /** Euros per dollar, the latest stored ECB rate (source 4) — so the
+        investments can read in dollars beside euros (10 Oct). */
+    usdRate: v.union(v.number(), v.null()),
   }),
   handler: async (ctx) => await readPositions(ctx, await requireUser(ctx)),
 })
@@ -2446,6 +2449,7 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
     oldestPriceAsOf,
     unvalued,
     complete: trades.length < TRADE_ROWS && looks.length < HOLDING_ROWS,
+    usdRate: (await rateFor('USD'))?.rate ?? null,
   }
 }
 

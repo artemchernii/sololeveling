@@ -37,7 +37,7 @@ export type HoldingStatus = 'trades' | 'match' | 'screen' | 'gap' | 'over'
 
 export type Reconciled = {
   shares: number
-  /** Net euros put in for these shares; null when no file says. */
+  /** What the shares still held cost, in euros; null when no file says. */
   paid: number | null
   status: HoldingStatus
   /** The latest screen's day, or null when none has shown it. */
@@ -51,16 +51,37 @@ export const MATCH_TOLERANCE = 0.015
 
 const round6 = (n: number) => Math.round(n * 1e6) / 1e6
 
-function sum(trades: ReadonlyArray<LedgerTrade>) {
-  let shares = 0
-  let cents = 0
-  for (const t of trades) {
-    const sign = t.side === 'buy' ? 1 : -1
-    shares += sign * t.shares
-    cents += sign * Math.round(t.shares * t.priceEur * 100)
+/* What the shares still held cost (10 Oct): a sell takes out its shares
+   at the average cost of what was held, never at what it brought back.
+   Buys less sells' money made "paid" for his SOL €16 when the coins he
+   still holds cost €83 — and the gain +80% instead of +28%. `cents` is
+   null when the start's cost is not known. */
+function ledger(
+  start: { shares: number; cents: number | null },
+  trades: ReadonlyArray<LedgerTrade>,
+) {
+  let { shares, cents } = start
+  for (const t of [...trades].sort((a, b) => a.occurredAt - b.occurredAt)) {
+    if (t.side === 'buy') {
+      shares += t.shares
+      if (cents !== null) cents += Math.round(t.shares * t.priceEur * 100)
+      continue
+    }
+    const out = Math.min(t.shares, Math.max(0, shares))
+    if (cents !== null)
+      cents = shares > 1e-9 ? Math.round(cents * (1 - out / shares)) : 0
+    shares -= t.shares
   }
+  if (shares <= 1e-9 && cents !== null) cents = 0
   return { shares, cents }
 }
+
+const sum = (trades: ReadonlyArray<LedgerTrade>) =>
+  ledger({ shares: 0, cents: 0 }, trades) as { shares: number; cents: number }
+
+/** What the shares still held after these trades cost, in euros. */
+export const heldCost = (trades: ReadonlyArray<LedgerTrade>) =>
+  sum(trades).cents / 100
 
 export function reconcile(
   trades: ReadonlyArray<LedgerTrade>,
@@ -83,26 +104,31 @@ export function reconcile(
 
   const at = seen.asOf
   const before = sum(trades.filter((t) => t.occurredAt <= at))
-  const after = sum(trades.filter((t) => t.occurredAt > at))
+  const later = trades.filter((t) => t.occurredAt > at)
   const gap = seen.shares - before.shares
   const slack = Math.max(1e-6, seen.shares * MATCH_TOLERANCE)
 
   if (Math.abs(gap) <= slack) {
     /* The trades are exact where a screen may be rounded: they win. */
+    const all = sum(trades)
     return {
-      shares: round6(before.shares + after.shares),
-      paid: (before.cents + after.cents) / 100,
+      shares: round6(all.shares),
+      paid: all.cents / 100,
       status: 'match',
       seenAt: at,
       gap: 0,
     }
   }
+  const from = ledger(
+    {
+      shares: seen.shares,
+      cents: seen.paidEur === undefined ? null : Math.round(seen.paidEur * 100),
+    },
+    later,
+  )
   return {
-    shares: round6(seen.shares + after.shares),
-    paid:
-      seen.paidEur === undefined
-        ? null
-        : Math.round(seen.paidEur * 100 + after.cents) / 100,
+    shares: round6(from.shares),
+    paid: from.cents === null ? null : from.cents / 100,
     status:
       gap < 0 ? 'over' : Math.abs(before.shares) <= 1e-6 ? 'screen' : 'gap',
     seenAt: at,

@@ -549,7 +549,7 @@ function BacklogPicker({
         </button>
       </div>
       {backlog === undefined ? (
-        <p className="motion-breathe px-2.5 py-2 text-[12.5px] text-ink-600">
+        <p className="animate-pulse px-2.5 py-2 text-[12.5px] text-ink-600">
           Opening the backlog…
         </p>
       ) : rows.length === 0 && leavingRow === undefined ? (

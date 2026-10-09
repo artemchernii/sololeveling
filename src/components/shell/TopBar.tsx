@@ -98,7 +98,7 @@ export function TopBar({
           <ClerkLoading>
             <span
               aria-hidden
-              className="motion-breathe absolute inset-0 rounded-[10px] bg-lift/[0.06]"
+              className="motion-loading absolute inset-0 rounded-[10px] bg-lift/[0.06]"
             />
           </ClerkLoading>
           <ClerkLoaded>

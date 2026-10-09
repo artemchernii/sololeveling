@@ -429,8 +429,11 @@ qualifies — except a write you pressed for and are waiting on.
 **A skeleton breathes, and stays long enough to be seen** (decided 14 Sep,
 after using it). Built static first, by the letter of rule 1: loading is the
 app, not you. On screen a still grey block read as a page that had died, not
-one that was coming. So a skeleton pulses slowly in opacity — never a sweep,
-never a slide. It first waited `--motion-fast` before appearing, which made a
+one that was coming. So a skeleton pulsed slowly in opacity. On 9 Oct Artem
+found that cheap and outdated ("felt like app crashed"): now one lavender light
+crosses every placeholder on the page together (`motion-loading`), and a
+loading page draws its own frame and words at once — only what comes from his
+data waits (`design/treasury-mockup/loading.html`). Still never a slide. It first waited `--motion-fast` before appearing, which made a
 load just past that flash a skeleton for a few frames; Artem called that a
 flicker. Now a page that opens without its data shows the skeleton at once and
 holds it for `--loading-hold` (half a breath), then fades the content in. A

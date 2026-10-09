@@ -138,7 +138,7 @@
      a still skeleton read as a dead page. Slow on purpose: it should be
      noticed only as "alive", never watched. Only a stand-in for something
      still loading may use it. */
-  --motion-breathe: 1600ms;
+  --motion-loading: 1600ms;
   /* The shortest a skeleton stays once it has appeared (14 Sep, Artem): a
      skeleton that lasted 30ms before the page replaced it read as a flicker,
      not as loading. Half a breath, so what you see is one exhale and then the
@@ -252,7 +252,7 @@
   --system-shine: color-mix(in oklch, var(--color-accent-400) 75%, transparent);
   /* Faint horizontal lines: the screen the window is drawn on. */
   --system-scan: rgba(233, 233, 237, 0.022);
-  /* A period, like --motion-breathe: one breath of the System's glow. Slower
+  /* A period, like --motion-loading: one breath of the System's glow. Slower
      than a skeleton's, because this one is meant to be looked at — the rank,
      the popup — and faster would read as an alarm. Only a System glow, or
      the System's scan line over a sheet being read (26 Sep), may use it. */

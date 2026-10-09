@@ -15,6 +15,11 @@ import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
 import { EurUsd } from '@/components/finances/EurUsd'
 import { Trades } from '@/components/finances/PortfolioTrades'
+import {
+  DollarLine,
+  ProfitPill,
+  paidSums,
+} from '@/components/finances/PortfolioParts'
 import { UNPRICED } from '@/lib/market'
 import { kindOf } from '@/lib/logo'
 import type { Kind } from '@/lib/logo'
@@ -52,7 +57,7 @@ export function Portfolio() {
   const rows = data.rows.filter(
     (r) => filter === 'all' || r.accountId === filter,
   )
-  const sums = paidSums(data.rows)
+  const sums = paidSums(data.rows, data.usdRate)
 
   return (
     <div className="flex flex-col gap-3">
@@ -80,6 +85,13 @@ export function Portfolio() {
                 }
               />
             ) : null}
+            {sums.knownUsd > 0 ? (
+              <ProfitPill
+                profit={sums.valueUsd - sums.paidUsd}
+                base={sums.paidUsd}
+                usd
+              />
+            ) : null}
             <span className="font-mono text-[11px] text-ink-500">
               {data.oldestPriceAsOf !== null
                 ? `closes as of ${DATE.format(new Date(data.oldestPriceAsOf))} · Yahoo Finance`
@@ -98,7 +110,7 @@ export function Portfolio() {
           {holders.map((a) => {
             const held = data.rows.filter((r) => r.accountId === a._id)
             const value = held.reduce((t, r) => t + (r.valueEur ?? 0), 0)
-            const known = paidSums(held)
+            const known = paidSums(held, data.usdRate)
             const cash =
               worth.byAccount.find((w) => w.accountId === a._id)?.cash ?? null
             return (
@@ -126,13 +138,21 @@ export function Portfolio() {
                 <div className="flex flex-col gap-1.5 font-mono text-[12px]">
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-ink-500">investments</span>
-                    <span className="flex items-center gap-2">
+                    <span className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
                       <EurUsd eur={value} usdRate={data.usdRate} />
                       {known.known > 0 ? (
                         <ProfitPill
                           profit={known.value - known.paid}
                           base={known.paid}
                           small
+                        />
+                      ) : null}
+                      {known.knownUsd > 0 ? (
+                        <ProfitPill
+                          profit={known.valueUsd - known.paidUsd}
+                          base={known.paidUsd}
+                          small
+                          usd
                         />
                       ) : null}
                     </span>
@@ -189,6 +209,7 @@ export function Portfolio() {
                 account={
                   accounts.find((a) => a._id === r.accountId)?.name ?? ''
                 }
+                usdRate={data.usdRate}
                 delay={i * 30}
               />
             ))}
@@ -196,49 +217,6 @@ export function Portfolio() {
         </Panel>
       ) : null}
     </div>
-  )
-}
-
-/* What was paid and what it is worth, over the rows where both are known
-   — a profit is never shown against a cost no file gave. */
-export function paidSums(
-  rows: ReadonlyArray<{ paid: number | null; valueEur: number | null }>,
-) {
-  let paid = 0
-  let value = 0
-  let known = 0
-  for (const r of rows) {
-    if (r.paid === null || r.valueEur === null) continue
-    paid += r.paid
-    value += r.valueEur
-    known++
-  }
-  return { paid, value, known }
-}
-
-/* Profit in green, loss in red — the one place colour means a quantity's
-   direction, allowed for P&L in Finances (26 Sep). */
-export function ProfitPill({
-  profit,
-  base,
-  label,
-  small = false,
-}: {
-  profit: number
-  base: number
-  label?: string
-  small?: boolean
-}) {
-  const up = profit >= 0
-  const pct = base > 0 ? (profit / base) * 100 : 0
-  return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-[8px] bg-lift/[0.06] font-mono ${small ? 'px-1.5 py-0.5 text-[11px]' : 'px-3 py-1.5 text-[15px]'} ${up ? 'text-state-good' : 'text-state-danger'}`}
-    >
-      <Veiled>{`${up ? '+' : '−'}${euros(Math.abs(Math.round(profit * 100) / 100))}`}</Veiled>
-      <span>{`${up ? '+' : '−'}${Math.abs(pct).toFixed(1)}%`}</span>
-      {label ? <span className="text-[11px] text-ink-500">{label}</span> : null}
-    </span>
   )
 }
 
@@ -251,6 +229,7 @@ type Position = {
   currency: string
   shares: number
   paid: number | null
+  paidUsd: number | null
   status: 'trades' | 'match' | 'screen' | 'gap' | 'over'
   seenAt: number | null
   gap: number
@@ -265,10 +244,12 @@ function PositionRow({
   row,
   account,
   delay,
+  usdRate,
 }: {
   row: Position
   account: string
   delay: number
+  usdRate: number | null
 }) {
   const today = useDayStarts(1).at(-1) as number
   const line = useQuery(api.invest.priceLine, {
@@ -347,6 +328,10 @@ function PositionRow({
               %
             </span>
           )}
+          {/* The same in dollars, Revolut's view (10 Oct). */}
+          {usdRate && row.valueEur !== null ? (
+            <DollarLine value={row.valueEur / usdRate} paid={row.paidUsd} />
+          ) : null}
         </span>
       </button>
       {open ? (

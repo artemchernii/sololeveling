@@ -1448,6 +1448,8 @@ export const positions = query({
         currency: v.string(),
         shares: v.number(),
         paid: v.union(v.number(), v.null()),
+        /** What he paid in dollars, at each day's ECB rate (10 Oct). */
+        paidUsd: v.union(v.number(), v.null()),
         status: v.union(
           v.literal('trades'),
           v.literal('match'),
@@ -2386,6 +2388,57 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
     return r === null ? null : { rate: r.rate, asOf: r.asOf as number | null }
   }
 
+  /* The dollar rate of each day he traded or a screen saw a cost (10
+     Oct): what he paid, in dollars on the day — Revolut's own view. Read
+     side by side, one row a day. */
+  const usdOn = new Map<number, number | null>()
+  const dayOf = (at: number) => Math.floor(at / 86_400_000)
+  const days = new Set<number>()
+  for (const p of held.values()) {
+    for (const t of p.trades) days.add(dayOf(t.occurredAt))
+    for (const o of p.looks)
+      if (o.paidEur !== undefined) days.add(dayOf(o.asOf))
+  }
+  await Promise.all(
+    [...days].map(async (d) => {
+      const r = await ctx.db
+        .query('fxRates')
+        .withIndex('by_owner_currency_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('currency', 'USD')
+            .lte('asOf', (d + 1) * 86_400_000),
+        )
+        .order('desc')
+        .first()
+      usdOn.set(d, r === null ? null : r.rate)
+    }),
+  )
+  const inDollars = (p: {
+    trades: Array<LedgerTrade>
+    looks: Array<Observation>
+  }) => {
+    const rateAt = (at: number) => usdOn.get(dayOf(at)) ?? null
+    if (p.trades.some((t) => rateAt(t.occurredAt) === null)) return null
+    const r = reconcile(
+      p.trades.map((t) => ({
+        ...t,
+        priceEur: t.priceEur / (rateAt(t.occurredAt) as number),
+      })),
+      p.looks.map((o) => {
+        const rate = rateAt(o.asOf)
+        return {
+          ...o,
+          paidEur:
+            o.paidEur === undefined || rate === null
+              ? undefined
+              : o.paidEur / rate,
+        }
+      }),
+    )
+    return r.paid
+  }
+
   const rows = []
   for (const p of held.values()) {
     /* A position sold out is not shown. */
@@ -2407,6 +2460,9 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
       price === null || rate === null
         ? null
         : Math.round(((shares * price.price) / divide) * rate.rate * 100) / 100
+    /* Dust left by a sale — 0.06 XLM, €0.01 — is not a position (10 Oct:
+       Revolut does not list it either). */
+    if (valueEur !== null && valueEur < 1) continue
     rows.push({
       accountId: p.accountId,
       instrumentId: p.instrumentId,
@@ -2416,6 +2472,7 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
       currency: instrument.currency,
       shares,
       paid: r.paid,
+      paidUsd: r.paid === null ? null : inDollars(p),
       status: r.status,
       seenAt: r.seenAt,
       gap: r.gap,

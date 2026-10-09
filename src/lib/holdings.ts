@@ -119,13 +119,17 @@ export function reconcile(
       gap: 0,
     }
   }
-  const from = ledger(
-    {
-      shares: seen.shares,
-      cents: seen.paidEur === undefined ? null : Math.round(seen.paidEur * 100),
-    },
-    later,
-  )
+  /* Fewer on the screen than the trades bought (a crypto fee taken in
+     coins, a sell not dropped yet): what is left cost its share of the
+     trades' cost — never a cost a file once saved by other math (10 Oct:
+     his ETH read +39% where Revolut says +33.6%). */
+  const startCents =
+    gap < 0 && before.shares > 1e-9
+      ? Math.round((before.cents * seen.shares) / before.shares)
+      : seen.paidEur === undefined
+        ? null
+        : Math.round(seen.paidEur * 100)
+  const from = ledger({ shares: seen.shares, cents: startCents }, later)
   return {
     shares: round6(from.shares),
     paid: from.cents === null ? null : from.cents / 100,

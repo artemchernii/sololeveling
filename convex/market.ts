@@ -290,7 +290,40 @@ export const readAll = internalAction({
         fetchedAt,
       })
     }
+    /* Dollar rates back to his first trade (10 Oct): what he paid, in
+       dollars on the day, needs that day's rate — his coins go back to
+       2020, the stored rates only to the first dollar statement. */
+    for (const g of await ctx.runQuery(internal.market.usdGaps, {}))
+      await backfillRates(ctx, g.ownerId, 'USD', g.from)
     return null
+  },
+})
+
+/** Owners whose first trade is older than their first stored dollar rate. */
+export const usdGaps = internalQuery({
+  args: {},
+  returns: v.array(v.object({ ownerId: v.string(), from: v.number() })),
+  handler: async (ctx) => {
+    const owners = new Set(
+      (await ctx.db.query('instruments').take(2000)).map((i) => i.ownerId),
+    )
+    const gaps = []
+    for (const ownerId of owners) {
+      const first = await ctx.db
+        .query('trades')
+        .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
+        .first()
+      if (first === null) continue
+      const oldest = await ctx.db
+        .query('fxRates')
+        .withIndex('by_owner_currency_time', (q) =>
+          q.eq('ownerId', ownerId).eq('currency', 'USD'),
+        )
+        .first()
+      if (oldest === null || oldest.asOf > first.occurredAt)
+        gaps.push({ ownerId, from: first.occurredAt })
+    }
+    return gaps
   },
 })
 

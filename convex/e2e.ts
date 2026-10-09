@@ -28,6 +28,8 @@ const TABLES: Array<TableNames> = [
   'fxRates',
   'csvLayouts',
   'intakes',
+  'intakeTrades',
+  'batches',
   'merchantRules',
   'recurring',
   'trades',
@@ -407,5 +409,73 @@ export const readTrades = mutation({
         t(d3, 'Apple', 'AAPL', 'sell', 1, 210),
       ],
     })
+  },
+})
+
+/* A whole trading history as the reader leaves it (9 Oct): its rows apart
+   in intakeTrades, each ticker found once, in an update of its own. */
+export const readHistory = mutation({
+  args: { days: v.array(v.number()) },
+  returns: v.id('batches'),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const first = args.days[0] - 40 * DAY
+    const batchId = await ctx.db.insert('batches', {
+      ownerId,
+      status: 'open',
+      leftOut: [],
+      quietMonths: [],
+      moves: [],
+      extras: [],
+      dismissed: [],
+    })
+    const rows = [
+      ...Array.from({ length: 30 }, (_, i) => ({
+        occurredAt: first + i * DAY + 15 * 3_600_000,
+        name: i % 3 === 0 ? 'MSFT' : 'AAPL',
+        side: 'buy' as const,
+        shares: 0.5,
+        price: i % 3 === 0 ? 380 : 200,
+        currency: 'EUR',
+      })),
+      {
+        occurredAt: first + 31 * DAY,
+        name: 'AAPL',
+        side: 'split' as const,
+        shares: 10,
+        price: 0,
+        currency: 'EUR',
+      },
+    ]
+    const intakeId = await ctx.db.insert('intakes', {
+      ownerId,
+      batchId,
+      storageIds: [],
+      status: 'ready',
+      kind: 'trades',
+      title: 'Revolut · trades',
+      institution: 'Revolut',
+      model: 'its remembered columns',
+      costUsd: 0,
+      readAt: Date.now(),
+      files: [
+        { name: 'trading-account.csv', size: 4_000, contentType: 'text/csv' },
+      ],
+      trades: [],
+      historyTrades: rows.length,
+      historyTickers: 2,
+      historyFound: [
+        ['AAPL', 'Apple Inc.'],
+        ['MSFT', 'Microsoft Corporation'],
+      ].map(([symbol, name]) => ({
+        name: symbol,
+        preferred: 0,
+        candidates: [{ symbol, name, exchange: 'NMS', type: 'EQUITY' }],
+      })),
+    })
+    for (const r of rows)
+      await ctx.db.insert('intakeTrades', { ...r, ownerId, intakeId })
+    return batchId
   },
 })

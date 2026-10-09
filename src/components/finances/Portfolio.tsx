@@ -553,11 +553,11 @@ function Trades({
               t.side === 'buy' ? 'text-area' : 'text-ink-300'
             }`}
           >
-            {t.side}
+            {t.split ? 'split' : t.side}
           </span>
           <span className="flex-1 text-ink-200">
             <Veiled>
-              {t.shares} × {euros(t.priceEur)}
+              {t.split ? `+${t.shares}` : `${t.shares} × ${euros(t.priceEur)}`}
             </Veiled>
             {t.importId ? (
               <span className="ml-2 font-mono text-[10px] text-ink-600">

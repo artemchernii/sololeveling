@@ -8,6 +8,7 @@ import { internalAction } from '../_generated/server'
 import type { ActionCtx } from '../_generated/server'
 import type { Id } from '../_generated/dataModel'
 import { backfillRates, priceEurNow, searchYahoo } from '../market'
+import { metalHoldings, metalsTitle } from '../../src/lib/metals'
 import {
   INTAKE_MODEL,
   INTAKE_MODEL_NAME,
@@ -553,6 +554,11 @@ async function readCsv(
       .map((r) => r.reading.balance)
       .filter((b) => b !== undefined)
       .sort((a, b) => b.asOf - a.asOf)[0],
+    closings: Object.fromEntries(
+      readings
+        .flatMap((r) => Object.entries(r.reading.closings))
+        .sort((x, y) => x[1].asOf - y[1].asOf),
+    ),
     first: Math.min(...readings.map((r) => r.reading.first ?? Infinity)),
     last: Math.max(...readings.map((r) => r.reading.last ?? -Infinity)),
     tickers: 0,
@@ -575,6 +581,29 @@ async function readCsv(
     title,
     accountTail,
   })
+
+  /* Gold and silver (9 Oct): ounces, not money — what he holds, through
+     the holdings check like a broker's screen. */
+  const metals = merged.kind === 'transactions' ? metalHoldings(merged) : null
+  if (metals !== null) {
+    await ctx.runMutation(internal.intake.finish, {
+      intakeId,
+      kind: 'holdings',
+      title: `${institution ?? 'Revolut'} · ${metalsTitle(metals.map((m) => m.name))}`,
+      institution: institution ?? 'Revolut',
+      accountTail,
+      positions: metals.map((m) => ({
+        name: m.name,
+        shares: m.shares,
+        preferred: 0,
+        candidates: [m.candidate],
+      })),
+      costUsd: spent.usd,
+      note,
+      model,
+    })
+    return
+  }
 
   if (merged.kind === 'transactions') {
     if (merged.transactions.length > MAX_TRANSACTIONS)
@@ -682,6 +711,32 @@ async function readCsv(
       ),
     })
   }
+  /* Each name matched to a ticker once, and the dollar rates stored back
+     to the first trade — so applying it needs no fetch (9 Oct). */
+  await ctx.runMutation(internal.intake.progress, {
+    intakeId,
+    stage: 'tickers',
+  })
+  const tickers = new Tickers()
+  const names = new Map<string, string | undefined>()
+  for (const r of rows)
+    if (!names.get(r.name)) names.set(r.name, 'isin' in r ? r.isin : undefined)
+  const historyFound = []
+  for (const [name, isin] of names)
+    historyFound.push({
+      name,
+      isin,
+      ...(await tickers.find(name, isin, TICKER.test(name) ? name : undefined)),
+    })
+  const oldest = new Map<string, number>()
+  for (const r of rows)
+    if (r.currency !== 'EUR' && r.side !== 'split')
+      oldest.set(
+        r.currency,
+        Math.min(oldest.get(r.currency) ?? Infinity, r.occurredAt),
+      )
+  for (const [currency, from] of oldest)
+    await backfillRates(ctx, job.ownerId, currency, from)
   await ctx.runMutation(internal.intake.finish, {
     intakeId,
     kind: 'trades',
@@ -694,6 +749,7 @@ async function readCsv(
     model,
     historyTrades: rows.length,
     historyTickers: merged.tickers,
+    historyFound,
   })
 }
 
@@ -781,6 +837,9 @@ function coin(name: string) {
 
 /* A name as the broker prints it → ticker candidates, and which one is the
    right share class. Once per name: a trade history repeats them. */
+/* A ticker as a trading CSV prints it: "TSLA", "BRK.B". */
+const TICKER = /^[A-Z][A-Z0-9.]{0,7}$/
+
 class Tickers {
   private found = new Map<
     string,

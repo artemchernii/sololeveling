@@ -296,6 +296,9 @@ export type CsvReading = {
   /** What was left out and why: "DIVIDEND" → 184, "REVERTED" → 3. */
   skipped: Record<string, number>
   balance?: { value: number; currency: string; asOf: number }
+  /** The latest balance of each currency, as printed (9 Oct: a commodity
+      account's XAU and XAG are amounts of metal, kept to every decimal). */
+  closings: Record<string, { value: number; asOf: number }>
   first?: number
   last?: number
   tickers: number
@@ -320,6 +323,7 @@ export function applyLayout(
   const trades: Array<ReadTrade> = []
   const splits: CsvReading['splits'] = []
   let balance: CsvReading['balance']
+  const closings: CsvReading['closings'] = {}
   let first: number | undefined
   let last: number | undefined
   const tickers = new Set<string>()
@@ -375,6 +379,8 @@ export function applyLayout(
       if (bal && !pending && (balance === undefined || at >= balance.asOf)) {
         balance = { value: bal.value, currency: cur, asOf: at }
       }
+      if (bal && !pending && !(cur in closings && closings[cur].asOf > at))
+        closings[cur] = { value: bal.value, asOf: at }
     } else {
       const type = cell(r, layout.typeColumn).toUpperCase()
       if (layout.splitPrefixes.length && starts(type, layout.splitPrefixes)) {
@@ -428,6 +434,7 @@ export function applyLayout(
     splits,
     skipped,
     balance,
+    closings,
     first,
     last,
     tickers: tickers.size,

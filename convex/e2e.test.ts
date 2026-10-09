@@ -109,3 +109,21 @@ test('paySalary: the salary landed, so Spending has a pay month', async () => {
   const p = await me.query(api.aggregate.payMonth, { today: days[3] + DAY })
   expect(p?.salaryName).toBe('Acme Payroll')
 })
+
+test('readHistory refuses anywhere but the test backend', async () => {
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  await expect(me.mutation(api.e2e.readHistory, { days })).rejects.toThrow(
+    'E2E functions run only on the test backend.',
+  )
+})
+
+test('on the test backend: a ready history in an update of its own', async () => {
+  vi.stubEnv('E2E', '1')
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  const batchId = await me.mutation(api.e2e.readHistory, { days })
+  expect(await me.query(api.intake.openBatch, {})).toBe(batchId)
+  const rows = await t.run((ctx) => ctx.db.query('intakeTrades').collect())
+  expect(rows).toHaveLength(31)
+})

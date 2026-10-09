@@ -57,7 +57,8 @@ export function UpdateAllButton() {
   )
 }
 
-function BulkUpdate({
+/* Also where a trading history dropped on + opens (9 Oct). */
+export function BulkUpdate({
   waiting,
   onClose,
 }: {

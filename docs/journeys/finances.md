@@ -28,7 +28,7 @@ safety-net tests.
 | ---------------------------------------------------- | ------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------ |
 | Add an account: pick the bank, its balance, it lands | + → account  | `AccountForm` (`PickBank`, `AccountDetails`) → `Landed`               | `accounts.create`, `setBalance`                                    | `accounts.spec`                |
 | Drop a statement file (CSV, PDF, screenshot)         | + → drop     | `Add` → `AddDrop`                                                     | `attachments.generateUploadUrl`, `intake.start`, `intake.lastRead` | `statement.spec` (Revolut CSV) |
-| Watch it being read, retry, discard                  | reading      | `Reading`                                                             | `intake.preview`, `history`, `retry`, `discard`                    | —                              |
+| Watch it being read, retry, discard                  | reading      | `Reading`                                                             | `intake.preview`, `retry`, `discard`                               | —                              |
 | Check transactions found in a file                   | check it     | `Intake` → `TransactionsReview` (own file; rows in `TransactionRows`) | `intake.review`, `setAccount`, `whose`, `confirmTransactions`      | `statement.spec`               |
 | Check holdings (broker screenshot)                   | check it     | `Intake` → `HoldingsReview` (own file)                                | `intake.confirmHoldings`, `market.search`                          | `holdings.spec`                |
 | Check trades / orders                                | check it     | `Intake` → `TradesReview` (own file), `OrdersFound`                   | `intake.confirmTrades`                                             | `trades.spec`                  |
@@ -39,11 +39,12 @@ safety-net tests.
 
 ## Update all (monthly check-in)
 
-| Journey                                       | Screen     | Component                                                                                                    | Convex                                                                                                | Test                              |
-| --------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | --------------------------------- |
-| See which accounts are old                    | update all | `Bulk` → `BulkUpdate`                                                                                        | `aggregate.balances`                                                                                  | `statement.spec` (check-in)       |
-| "Still the same": saving, saved, closed       | update all | `UpdateSheet`, `SavedNote` (in `AccountParts`)                                                               | `accounts.setBalance`                                                                                 | `statement.spec` (still the same) |
-| Drop many files at once, one line per account | bulk       | `BulkDrop` → `BulkReading` → `BulkReview` (`BulkAskCard`, `BulkAccountBlock`) → `Applied` (in `BulkReading`) | `intake.startBatch`, `batch`, `batchReview`, `batchAnswer`, `applyBatch`, `readAgain`, `discardBatch` | `statement.spec` (bulk)           |
+| Journey                                                | Screen     | Component                                                                                                    | Convex                                                                                                                          | Test                              |
+| ------------------------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| See which accounts are old                             | update all | `Bulk` → `BulkUpdate`                                                                                        | `aggregate.balances`                                                                                                            | `statement.spec` (check-in)       |
+| "Still the same": saving, saved, closed                | update all | `UpdateSheet`, `SavedNote` (in `AccountParts`)                                                               | `accounts.setBalance`                                                                                                           | `statement.spec` (still the same) |
+| Drop many files at once, one line per account          | bulk       | `BulkDrop` → `BulkReading` → `BulkReview` (`BulkAskCard`, `BulkAccountBlock`) → `Applied` (in `BulkReading`) | `intake.startBatch`, `batch`, `batchReview`, `batchAnswer`, `applyBatch`, `readAgain`, `discardBatch`                           | `statement.spec` (bulk)           |
+| A whole trading history (Revolut CSV), on + or in bulk | bulk       | `Intake` → `BulkUpdate` (no screen of its own); `BulkAccountBlock` shows "N trades"                          | `intake.finish` (joins the open update), `applyStep` → `applyHistoryChunk` → `writeTrades`, `retry` (history read before 9 Oct) | `history.spec`                    |
 
 ## Overview: my accounts
 
@@ -74,7 +75,6 @@ safety-net tests.
 
 ## Known gaps
 
-- Revolut stocks history: `HistoryReview` (in `Reading`, `Intake`) reads the trades but saves nothing.
 - The crypto landing for Revolut says only "N added", with no coin values.
 - `Intake.tsx`, `Bulk.tsx` and `Accounts.tsx` are split, one part per file
   (5 Oct). The session-guard hook names any file a branch touches that

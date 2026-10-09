@@ -8,6 +8,7 @@ import { internalAction } from '../_generated/server'
 import type { ActionCtx } from '../_generated/server'
 import type { Id } from '../_generated/dataModel'
 import { backfillRates, priceEurNow, searchYahoo } from '../market'
+import { metalHoldings, metalsTitle } from '../../src/lib/metals'
 import {
   INTAKE_MODEL,
   INTAKE_MODEL_NAME,
@@ -553,6 +554,11 @@ async function readCsv(
       .map((r) => r.reading.balance)
       .filter((b) => b !== undefined)
       .sort((a, b) => b.asOf - a.asOf)[0],
+    closings: Object.fromEntries(
+      readings
+        .flatMap((r) => Object.entries(r.reading.closings))
+        .sort((x, y) => x[1].asOf - y[1].asOf),
+    ),
     first: Math.min(...readings.map((r) => r.reading.first ?? Infinity)),
     last: Math.max(...readings.map((r) => r.reading.last ?? -Infinity)),
     tickers: 0,
@@ -575,6 +581,29 @@ async function readCsv(
     title,
     accountTail,
   })
+
+  /* Gold and silver (9 Oct): ounces, not money — what he holds, through
+     the holdings check like a broker's screen. */
+  const metals = merged.kind === 'transactions' ? metalHoldings(merged) : null
+  if (metals !== null) {
+    await ctx.runMutation(internal.intake.finish, {
+      intakeId,
+      kind: 'holdings',
+      title: `${institution ?? 'Revolut'} · ${metalsTitle(metals.map((m) => m.name))}`,
+      institution: institution ?? 'Revolut',
+      accountTail,
+      positions: metals.map((m) => ({
+        name: m.name,
+        shares: m.shares,
+        preferred: 0,
+        candidates: [m.candidate],
+      })),
+      costUsd: spent.usd,
+      note,
+      model,
+    })
+    return
+  }
 
   if (merged.kind === 'transactions') {
     if (merged.transactions.length > MAX_TRANSACTIONS)

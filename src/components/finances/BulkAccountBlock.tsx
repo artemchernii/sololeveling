@@ -244,7 +244,7 @@ export function AccountBlock({
         <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[12.5px] text-ink-400">
           <span>
             <b className="font-normal text-foreground">{holdings.positions}</b>{' '}
-            positions ·{' '}
+            {holdings.positions === 1 ? 'position' : 'positions'} ·{' '}
             <b className="font-normal text-foreground">
               <Veiled>{euros(holdings.investedEur)}</Veiled>
             </b>{' '}

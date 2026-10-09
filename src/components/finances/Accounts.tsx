@@ -8,7 +8,7 @@ import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { PILL_LOUD, PILL_QUIET, Panel } from '@/components/finances/bits'
 import { dayEndsBack } from '@/components/finances/WorthChart'
 import { OpenAccount } from '@/components/finances/OpenAccount'
-import { SkeletonRows } from '@/components/Skeleton'
+import { Skeleton } from '@/components/Skeleton'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { ACCOUNT_KINDS } from '@/lib/currency'
 import type { AccountKind } from '@/lib/currency'
@@ -80,7 +80,26 @@ export function Accounts() {
       }
     >
       {data === undefined || accounts === undefined ? (
-        <SkeletonRows rows={3} twoLine rowClassName="py-4" />
+        /* Cards where the cards will be (9 Oct), not rows of bars. */
+        <div
+          role="status"
+          aria-label="Loading"
+          className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="flex min-h-[150px] flex-col gap-4 rounded-[16px] bg-lift/[0.03] p-4 ring-1 ring-lift/[0.07] ring-inset"
+            >
+              <span className="flex items-center gap-3">
+                <span className="size-10 rounded-[11px] bg-lift/[0.06]" />
+                <Skeleton className="h-3 w-24" />
+              </span>
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-2.5 w-2/3" />
+            </div>
+          ))}
+        </div>
       ) : data.accounts.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <p className="max-w-sm text-[13.5px] text-ink-400">

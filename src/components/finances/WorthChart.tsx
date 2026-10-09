@@ -323,6 +323,17 @@ export function WorthChart() {
           ref={box}
           className={`absolute inset-0 transition-[filter] ${shown ? '' : 'blur-[8px]'}`}
         />
+        {/* Where the line will be (9 Oct): the shared light over a soft
+            ground, not an empty panel. */}
+        {history === undefined ? (
+          <div
+            role="status"
+            aria-label="Loading"
+            className="absolute inset-x-0 bottom-0 h-3/5 overflow-hidden rounded-[12px] bg-gradient-to-t from-lift/[0.06] to-transparent"
+          >
+            <span className="motion-loading absolute inset-0" />
+          </div>
+        ) : null}
         {history !== undefined && points.length < 2 ? (
           <p className="absolute inset-0 grid place-items-center px-6 text-center text-[13px] text-ink-400">
             {which === 'invested'

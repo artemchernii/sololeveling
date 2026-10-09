@@ -746,6 +746,9 @@ export default defineSchema({
        statement already shows leaving, so the trade must not take it from
        a cash pocket a second time. */
     noCash: v.optional(v.boolean()),
+    /* A stock split from a trading history (9 Oct): the shares it added,
+       on its day, at no cost — never a buy he paid for. */
+    split: v.optional(v.boolean()),
   })
     .index('by_owner_time', ['ownerId', 'occurredAt'])
     .index('by_owner_instrument', ['ownerId', 'instrumentId'])
@@ -1005,6 +1008,28 @@ export default defineSchema({
        trades since 2020) lives in intakeTrades; this says how many. */
     historyTrades: v.optional(v.number()),
     historyTickers: v.optional(v.number()),
+    /* Each name in the history matched to a ticker once (9 Oct) — a few
+       dozen, not one per row. A name with no candidates is left out. */
+    historyFound: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          isin: v.optional(v.string()),
+          preferred: v.optional(v.number()),
+          candidates: v.array(
+            v.object({
+              symbol: v.string(),
+              name: v.string(),
+              exchange: v.string(),
+              type: v.string(),
+            }),
+          ),
+        }),
+      ),
+    ),
+    /* Where applying the history got to: it goes in a chunk at a time,
+       so 3,595 rows never meet one transaction's limits. */
+    historyCursor: v.optional(v.string()),
     /* Which version of the reader's instructions read it (READER_VERSION):
        a reading is reused for the same file only from the same version. */
     reader: v.optional(v.number()),

@@ -151,10 +151,34 @@ export function TreasuryHero() {
       </div>
 
       {loading ? (
-        <div className="relative mt-4 flex flex-col gap-3">
-          <Skeleton className="h-3 w-48" />
-          <Skeleton className="h-12 w-64" />
-          <Skeleton className="h-8 w-72" />
+        /* The hero's own frame at once (9 Oct, loading.html): its words and
+           rows where they will be, only the numbers waiting. */
+        <div
+          role="status"
+          aria-label="Loading"
+          className="relative mt-4 grid gap-5 sm:grid-cols-[1.1fr_1fr] sm:gap-7"
+        >
+          <div className="flex min-w-0 flex-col gap-3">
+            <span className="label-caps">capital · cash · investments</span>
+            <span className="flex h-[46px] items-center sm:h-[56px]">
+              <Skeleton className="h-9 w-56 sm:h-11" />
+            </span>
+            <span className="inline-flex min-h-9 items-center self-start rounded-[10px] bg-lift/[0.06] px-3 py-1.5">
+              <Skeleton className="h-3 w-40" />
+            </span>
+            <span className="h-2.5 max-w-[460px] rounded-full bg-lift/[0.06]" />
+          </div>
+          <div className="flex min-w-0 flex-col justify-center gap-2">
+            {['investments', 'banks', 'cash'].map((label) => (
+              <span
+                key={label}
+                className="flex items-center gap-2.5 rounded-[13px] bg-sink/35 px-3.5 py-2.5 ring-1 ring-lift/10 ring-inset"
+              >
+                <span className="label-caps flex-1">{label}</span>
+                <Skeleton className="h-3 w-16" />
+              </span>
+            ))}
+          </div>
         </div>
       ) : empty ? (
         <div className="relative mt-4 flex max-w-md flex-col gap-3">

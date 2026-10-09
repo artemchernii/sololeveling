@@ -4,11 +4,8 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
-import {
-  HistoryReview,
-  IntakeStrip,
-  ReadingSheet,
-} from '@/components/finances/Reading'
+import { IntakeStrip, ReadingSheet } from '@/components/finances/Reading'
+import { BulkUpdate } from '@/components/finances/Bulk'
 import { CryptoReview } from '@/components/finances/CryptoReview'
 import { TransactionsReview } from '@/components/finances/TransactionsReview'
 import { HoldingsReview } from '@/components/finances/HoldingsReview'
@@ -55,8 +52,14 @@ export function IntakeFlow({
   }
   if (intake.status === 'reading' || intake.status === 'failed')
     return <ReadingSheet intake={intake} onBack={onBack} />
+  /* A whole trading history has no screen of its own (9 Oct): it is in
+     an update, and opens on the update-all screen. */
   if (intake.kind === 'trades' && intake.historyTrades !== undefined)
-    return <HistoryReview intake={intake} onDiscard={throwAway} />
+    return intake.batchId ? (
+      <BulkUpdate waiting={intake.batchId} onClose={onDone} />
+    ) : (
+      <ReadAgain intake={intake} />
+    )
   return intake.kind === 'holdings' ? (
     <HoldingsReview intake={intake} onDiscard={throwAway} onDone={onDone} />
   ) : intake.kind === 'trades' &&
@@ -85,4 +88,14 @@ export function OpenIntakes({
       ))}
     </div>
   )
+}
+
+/* A history read before 9 Oct had no tickers found with it: it is read
+   again by itself, once — the reading screen takes over as it starts. */
+function ReadAgain({ intake }: { intake: Doc<'intakes'> }) {
+  const retry = useMutation(api.intake.retry)
+  useEffect(() => {
+    retry({ intakeId: intake._id }).catch(() => undefined)
+  }, [retry, intake._id])
+  return <div className="min-h-[240px]" />
 }

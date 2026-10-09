@@ -370,6 +370,7 @@ async function beginIntake(
       note: before.note,
       historyTrades: before.historyTrades,
       historyTickers: before.historyTickers,
+      historyFound: before.historyFound,
     })
     if (before.historyTrades !== undefined) {
       const rows = await ctx.db
@@ -378,6 +379,7 @@ async function beginIntake(
         .take(HISTORY_TRADES)
       for (const { _id, _creationTime, ...r } of rows)
         await ctx.db.insert('intakeTrades', { ...r, intakeId })
+      await joinUpdate(ctx, ownerId, intakeId)
     }
     return intakeId
   }
@@ -395,6 +397,36 @@ async function beginIntake(
 }
 
 const HISTORY_TRADES = 8000
+
+/* A trading history has no screen of its own (9 Oct, "go use bulk"): one
+   dropped on + joins the update that is open, or starts one, and opens on
+   the update-all screen like every other file. */
+async function joinUpdate(
+  ctx: MutationCtx,
+  ownerId: string,
+  intakeId: Id<'intakes'>,
+) {
+  const intake = await ctx.db.get(intakeId)
+  if (intake === null || intake.batchId !== undefined) return
+  const latest = await ctx.db
+    .query('batches')
+    .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
+    .order('desc')
+    .first()
+  const batchId =
+    latest !== null && latest.status === 'open'
+      ? latest._id
+      : await ctx.db.insert('batches', {
+          ownerId,
+          status: 'open',
+          leftOut: [],
+          quietMonths: [],
+          moves: [],
+          extras: [],
+          dismissed: [],
+        })
+  await ctx.db.patch(intakeId, { batchId })
+}
 /* A hint is a sentence, not a document. */
 const MAX_HINT = 200
 
@@ -426,7 +458,13 @@ export const retry = mutation({
       intake.status === 'reading' &&
       Date.now() - (intake.readingSince ?? intake._creationTime) >
         READING_DEAD_MS
-    if (intake.status !== 'failed' && !dead) {
+    /* A trading history read before its tickers were found with it
+       (9 Oct) is read again once, so it can go in. */
+    const stale =
+      intake.status === 'ready' &&
+      intake.historyTrades !== undefined &&
+      intake.historyFound === undefined
+    if (intake.status !== 'failed' && !dead && !stale) {
       throw new ConvexError('That one is not stuck.')
     }
     if (intake.storageIds.length === 0) {
@@ -1522,7 +1560,7 @@ async function writeTrades(
       occurredAt: number
       name: string
       isin?: string
-      side: 'buy' | 'sell' | 'reward'
+      side: 'buy' | 'sell' | 'reward' | 'split'
       shares: number
       price: number
       currency: string
@@ -1531,6 +1569,9 @@ async function writeTrades(
     }
     candidate: Candidate
   }>,
+  /* A trading history's rows (9 Oct): Revolut's cash is on its
+     statements already, so they never move it. */
+  noCash = false,
 ): Promise<{ written: number; skipped: number }> {
   const rows = [...items].sort(
     (a, b) => a.trade.occurredAt - b.trade.occurredAt,
@@ -1562,32 +1603,44 @@ async function writeTrades(
   let skipped = 0
   const seen = new Set<number>()
   const claimed = new Set<Id<'trades'>>()
+  /* Each ticker's stored trades, read once a call: a history chunk of
+     hundreds of rows over a few tickers would read them hundreds of times. */
+  const stored = new Map<Id<'instruments'>, Array<Doc<'trades'>>>()
+  const storedFor = async (instrumentId: Id<'instruments'>) => {
+    let list = stored.get(instrumentId)
+    if (list === undefined) {
+      list = await ctx.db
+        .query('trades')
+        .withIndex('by_owner_instrument', (q) =>
+          q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+        )
+        .take(MAX_TRADES)
+      stored.set(instrumentId, list)
+    }
+    return list
+  }
   for (const { index, trade: t, candidate: c } of rows) {
     if (seen.has(index)) continue
     seen.add(index)
     /* That day's rate, not today's (4 Oct: his crypto trades go back to
        2020, in € and $). */
-    const priceEur =
-      t.side === 'reward'
-        ? 0
-        : t.price * (await euroRateAt(ctx, ownerId, t.currency, t.occurredAt))
+    const free = t.side === 'reward' || t.side === 'split'
+    const priceEur = free
+      ? 0
+      : t.price * (await euroRateAt(ctx, ownerId, t.currency, t.occurredAt))
     /* Revolut takes its crypto fee in coins: a buy brings in its quantity
        less the fee's share of the value. */
-    const shares = t.crypto && t.side === 'buy' ? sharesIn(t) : t.shares
-    if (t.side === 'reward') {
-      if (!(shares > 0)) throw new ConvexError('A reward needs an amount.')
+    const shares =
+      t.crypto && t.side === 'buy' ? sharesIn({ ...t, side: 'buy' }) : t.shares
+    if (free) {
+      if (!(shares > 0)) throw new ConvexError('That needs a number of shares.')
     } else checkTrade(shares, priceEur)
     const same = sameCompany({ name: t.name, isin: t.isin }, held)
     const instrumentId =
       same >= 0
         ? held[same]._id
         : await upsertInstrument(ctx, ownerId, c, t.isin)
-    const near = await ctx.db
-      .query('trades')
-      .withIndex('by_owner_instrument', (q) =>
-        q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
-      )
-      .take(MAX_TRADES)
+    const near = await storedFor(instrumentId)
     /* Already stored from another file: same side and shares, about the
        same price (5%: a dollar trade read again months later meets a
        newer rate), within two days. Each stored trade answers for one
@@ -1598,7 +1651,7 @@ async function writeTrades(
         !claimed.has(x._id) &&
         x.importId !== intakeId &&
         x.accountId === account._id &&
-        (x.reward ? 'reward' : x.side) === t.side &&
+        (x.reward ? 'reward' : x.split ? 'split' : x.side) === t.side &&
         Math.abs(x.shares - shares) < 1e-6 &&
         Math.abs(x.priceEur - priceEur) <= priceEur * 0.05 + 0.01 &&
         Math.abs(x.occurredAt - t.occurredAt) <= 2 * DAY_MS + 3_600_000,
@@ -1620,8 +1673,9 @@ async function writeTrades(
       occurredAt: t.occurredAt,
       importId: intakeId,
       ...(t.side === 'reward' ? { reward: true } : {}),
+      ...(t.side === 'split' ? { split: true } : {}),
       /* Revolut's crypto money is on its bank statement already. */
-      ...(t.crypto ? { noCash: true } : {}),
+      ...(t.crypto || noCash ? { noCash: true } : {}),
     })
     written++
   }
@@ -2000,19 +2054,6 @@ export const lastRead = query({
   },
 })
 
-export const history = query({
-  args: { intakeId: v.id('intakes') },
-  returns: v.array(schema.doc('intakeTrades')),
-  handler: async (ctx, args) => {
-    const ownerId = await requireUser(ctx)
-    await ownedIntake(ctx, ownerId, args.intakeId)
-    return await ctx.db
-      .query('intakeTrades')
-      .withIndex('by_intake', (q) => q.eq('intakeId', args.intakeId))
-      .take(HISTORY_TRADES)
-  },
-})
-
 /* ---- For the reader (ai/intake.ts) ------------------------------------ */
 
 export const forReading = internalQuery({
@@ -2294,6 +2335,7 @@ export const finish = internalMutation({
     note: v.optional(v.string()),
     historyTrades: v.optional(v.number()),
     historyTickers: v.optional(v.number()),
+    historyFound: schema.tables.intakes.validator.fields.historyFound,
     /* Read in code from a remembered column map: no model this time. */
     model: v.optional(v.string()),
   },
@@ -2314,6 +2356,8 @@ export const finish = internalMutation({
           ? intake.costUsd
           : (intake.costUsd ?? 0) + args.costUsd,
     })
+    if (args.historyTrades !== undefined)
+      await joinUpdate(ctx, intake.ownerId, intake._id)
     return null
   },
 })
@@ -3380,7 +3424,7 @@ export const applyStep = internalMutation({
       (i) =>
         i.status === 'ready' &&
         (i.kind === 'transactions' ||
-          (i.kind === 'trades' && i.historyTrades === undefined) ||
+          i.kind === 'trades' ||
           (i.kind === 'holdings' &&
             mergedHoldings(screensOf(headingFor(i, accounts)))?.missing === 0)),
     )
@@ -3437,6 +3481,8 @@ export const applyStep = internalMutation({
     }
     const was = applied.byAccount ?? []
     const accountId = next.accountId
+    /* A history goes in a chunk a step; it counts as one file once done. */
+    const finished = (await ctx.db.get(next.i._id))?.status !== 'ready'
     const line = was.find((x) => x.accountId === accountId) ?? {
       accountId,
       rows: 0,
@@ -3452,13 +3498,17 @@ export const applyStep = internalMutation({
         ? []
         : next.i.kind === 'holdings'
           ? (next.i.positions ?? []).map((p) => p.name)
-          : next.i.kind === 'trades'
-            ? (next.i.trades ?? []).map(
-                (t) =>
-                  t.candidates.at(t.preferred ?? 0)?.symbol.split('.')[0] ??
-                  t.name,
+          : next.i.historyTrades !== undefined
+            ? (next.i.historyFound ?? []).flatMap(
+                (f) => f.candidates.at(f.preferred ?? 0)?.symbol ?? [],
               )
-            : []
+            : next.i.kind === 'trades'
+              ? (next.i.trades ?? []).map(
+                  (t) =>
+                    t.candidates.at(t.preferred ?? 0)?.symbol.split('.')[0] ??
+                    t.name,
+                )
+              : []
     const updated = {
       ...line,
       rows: line.rows + rows,
@@ -3468,7 +3518,7 @@ export const applyStep = internalMutation({
     await ctx.db.patch(b._id, {
       applied: {
         ...applied,
-        intakes: applied.intakes + 1,
+        intakes: applied.intakes + (finished ? 1 : 0),
         rows: applied.rows + rows,
         byAccount: was.some((x) => x.accountId === accountId)
           ? was.map((x) => (x.accountId === accountId ? updated : x))
@@ -3548,6 +3598,8 @@ export const applyOne = internalMutation({
         })
       }
       return done.positions
+    } else if (intake.historyTrades !== undefined) {
+      rows = await applyHistoryChunk(ctx, ownerId, intake, account)
     } else {
       const items = (intake.trades ?? []).flatMap((t, index) => {
         const c = t.candidates.at(
@@ -3568,6 +3620,69 @@ export const applyOne = internalMutation({
     return rows
   },
 })
+
+/* Rows of a trading history written in one step: enough to finish his
+   3,595 in a handful of steps, few enough for one transaction. */
+const HISTORY_CHUNK = 400
+
+/**
+ * The next chunk of a trading history, oldest first, each name on the
+ * ticker found for it when it was read. A name with no ticker is left out
+ * and said in the file's note — never guessed. Done when the last chunk is
+ * written.
+ */
+async function applyHistoryChunk(
+  ctx: MutationCtx,
+  ownerId: string,
+  intake: Doc<'intakes'>,
+  account: Doc<'accounts'>,
+) {
+  const page = await ctx.db
+    .query('intakeTrades')
+    .withIndex('by_intake', (q) => q.eq('intakeId', intake._id))
+    .paginate({ cursor: intake.historyCursor ?? null, numItems: HISTORY_CHUNK })
+  const found = new Map(
+    (intake.historyFound ?? []).map((f) => [
+      f.name,
+      f.candidates.at(f.preferred ?? 0) ?? null,
+    ]),
+  )
+  const items = page.page.flatMap((t, index) => {
+    const pick = found.get(t.name) ?? null
+    return pick ? [{ index, trade: t, candidate: pick }] : []
+  })
+  const done = await writeTrades(ctx, ownerId, account, intake._id, items, true)
+  if (!page.isDone) {
+    await ctx.db.patch(intake._id, { historyCursor: page.continueCursor })
+    return done.written
+  }
+  const left = new Map<string, number>()
+  for (const [name, c] of found) if (c === null) left.set(name, 0)
+  if (left.size > 0)
+    for (const t of await ctx.db
+      .query('intakeTrades')
+      .withIndex('by_intake', (q) => q.eq('intakeId', intake._id))
+      .take(HISTORY_TRADES))
+      if (left.has(t.name)) left.set(t.name, (left.get(t.name) ?? 0) + 1)
+  const said = [...left]
+    .filter(([, n]) => n > 0)
+    .map(([name, n]) => `${n} trades of ${name}`)
+  await ctx.db.patch(intake._id, {
+    status: 'done',
+    keptUntil: keepUntil(),
+    accountId: account._id,
+    historyCursor: undefined,
+    ...(said.length
+      ? {
+          note: [intake.note, `Left out, no ticker found: ${said.join(', ')}.`]
+            .filter(Boolean)
+            .join(' '),
+        }
+      : {}),
+  })
+  if (intake.accountTail) await learnTails(ctx, account, [intake.accountTail])
+  return done.written
+}
 
 /* The rows he added where balances disagreed, then done — or open again
    when something in it is still waiting for him. */

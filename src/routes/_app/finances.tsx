@@ -32,6 +32,13 @@ function Treasury() {
   const { room = 'overview', month } = Route.useSearch()
   const [reviewing, setReviewing] = useState<Id<'intakes'> | null>(null)
   useEffect(() => setReviewing(null), [room])
+  /* A room loads the first time it is opened, then stays (9 Oct): loading
+     all three on arrival made him wait ~2s for rooms he could not see, and
+     read Flow's and Portfolio's sums on every visit. */
+  const [opened, setOpened] = useState<ReadonlySet<Room>>(() => new Set([room]))
+  useEffect(() => {
+    setOpened((was) => (was.has(room) ? was : new Set([...was, room])))
+  }, [room])
   return (
     <div className="flex flex-col gap-[18px]">
       <TreasuryHero />
@@ -53,31 +60,35 @@ function Treasury() {
         })}
       </RoomTabs>
 
-      {/* All three rooms stay mounted; a tab only shows one (27 Sep: every
-          switch rebuilt the room — its queries reloaded, skeletons
+      {/* A room once opened stays mounted; a tab only shows one (27 Sep:
+          every switch rebuilt the room — its queries reloaded, skeletons
           flashed, it slid in again. "IT JUMPS FLICK"). */}
       <div
         style={areaVars('money')}
         hidden={room !== 'overview'}
         className="flex flex-col gap-3"
       >
-        <OpenIntakes onOpen={setReviewing} />
-        <WorthChart />
-        <Accounts />
+        {opened.has('overview') ? (
+          <>
+            <OpenIntakes onOpen={setReviewing} />
+            <WorthChart />
+            <Accounts />
+          </>
+        ) : null}
       </div>
       <div
         style={areaVars('money')}
         hidden={room !== 'flow'}
         className="flex flex-col gap-3"
       >
-        <Flow open={month} />
+        {opened.has('flow') ? <Flow open={month} /> : null}
       </div>
       <div
         style={areaVars('money')}
         hidden={room !== 'portfolio'}
         className="flex flex-col gap-3"
       >
-        <Portfolio />
+        {opened.has('portfolio') ? <Portfolio /> : null}
       </div>
 
       <Sheet

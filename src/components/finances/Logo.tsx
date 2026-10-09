@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Banknote } from 'lucide-react'
 
+import { metalOf } from '@/lib/holdingLine'
 import { isCoin, logoSrc } from '@/lib/logo'
+import { METALS } from '@/lib/metals'
 
 /* Real marks (27 Sep: "in portfolio i want icons of broker"). An account's
    logo comes from its own site's icon, by the domain he gave it; a ticker's
@@ -110,6 +112,20 @@ export function TickerLogo({
     width: size,
     height: size,
     borderRadius: coin ? size / 2 : size / 3.6,
+  }
+  /* A metal is its element in its own colour (10 Oct: "GC=F" is the
+     future its price is read from, not a name he knows). */
+  const metal = metalOf(symbol)
+  if (metal) {
+    return (
+      <span
+        aria-hidden
+        style={{ ...box, borderRadius: size / 2 }}
+        className="grid shrink-0 place-items-center bg-money-cash text-[13px] font-semibold text-ground"
+      >
+        {METALS[metal].element}
+      </span>
+    )
   }
   if (src === null || failed || ink === 'blank') {
     return (

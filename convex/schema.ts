@@ -1069,7 +1069,19 @@ export default defineSchema({
         /* Rows written per account (5 Oct): the landed screen is one line
            an account — "Revolut · 38 added" — however many files. */
         byAccount: v.optional(
-          v.array(v.object({ accountId: v.id('accounts'), rows: v.number() })),
+          v.array(
+            v.object({
+              accountId: v.id('accounts'),
+              rows: v.number(),
+              /* What those rows were (9 Oct: "what i added … no fucking
+                 clue"): movements from statements, trades, positions, and
+                 the names of what was bought or held — "gold", "AAPL". */
+              movements: v.optional(v.number()),
+              trades: v.optional(v.number()),
+              positions: v.optional(v.number()),
+              names: v.optional(v.array(v.string())),
+            }),
+          ),
         ),
       }),
     ),

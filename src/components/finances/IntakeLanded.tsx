@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 
 import type { Id } from '../../../convex/_generated/dataModel'
+import { addedWords } from '@/lib/addedWords'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { AccountsLanded } from '@/components/finances/Landed'
 import type { LandedAccount } from '@/components/finances/Landed'
@@ -61,7 +62,19 @@ export function Landed({
     return MONTH_LONG.format(new Date(y, mo - 1, 1))
   }
   return (
-    <AccountsLanded accounts={accountId ? [{ accountId, added: count }] : []}>
+    <AccountsLanded
+      accounts={
+        accountId
+          ? [
+              {
+                accountId,
+                added: count,
+                what: addedWords({ rows: count, movements: count }),
+              },
+            ]
+          : []
+      }
+    >
       {orders ? (
         <Link
           to="/finances"

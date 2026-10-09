@@ -807,9 +807,8 @@ export const batch = query({
         intakes: v.number(),
         rows: v.number(),
         accounts: v.number(),
-        byAccount: v.optional(
-          v.array(v.object({ accountId: v.id('accounts'), rows: v.number() })),
-        ),
+        byAccount:
+          schema.tables.batches.validator.fields.applied.fields.byAccount,
       }),
       v.null(),
     ),
@@ -3438,16 +3437,42 @@ export const applyStep = internalMutation({
     }
     const was = applied.byAccount ?? []
     const accountId = next.accountId
+    const line = was.find((x) => x.accountId === accountId) ?? {
+      accountId,
+      rows: 0,
+    }
+    const noun =
+      next.i.kind === 'holdings'
+        ? 'positions'
+        : next.i.kind === 'trades'
+          ? 'trades'
+          : 'movements'
+    const named =
+      rows === 0
+        ? []
+        : next.i.kind === 'holdings'
+          ? (next.i.positions ?? []).map((p) => p.name)
+          : next.i.kind === 'trades'
+            ? (next.i.trades ?? []).map(
+                (t) =>
+                  t.candidates.at(t.preferred ?? 0)?.symbol.split('.')[0] ??
+                  t.name,
+              )
+            : []
+    const updated = {
+      ...line,
+      rows: line.rows + rows,
+      [noun]: (line[noun] ?? 0) + rows,
+      names: [...new Set([...(line.names ?? []), ...named])].slice(0, 8),
+    }
     await ctx.db.patch(b._id, {
       applied: {
         ...applied,
         intakes: applied.intakes + 1,
         rows: applied.rows + rows,
         byAccount: was.some((x) => x.accountId === accountId)
-          ? was.map((x) =>
-              x.accountId === accountId ? { ...x, rows: x.rows + rows } : x,
-            )
-          : [...was, { accountId, rows }],
+          ? was.map((x) => (x.accountId === accountId ? updated : x))
+          : [...was, updated],
       },
     })
     await ctx.scheduler.runAfter(0, internal.intake.applyStep, args)

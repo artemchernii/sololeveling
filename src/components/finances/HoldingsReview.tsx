@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAction, useMutation } from 'convex/react'
+import { addedWords } from '@/lib/addedWords'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Check, ChevronRight, Loader2, Search } from 'lucide-react'
 
@@ -181,7 +182,11 @@ export function HoldingsReview({
   if (saved && target)
     return (
       <ReviewLanded
-        landed={{ accountId: target, added: kept.length }}
+        landed={{
+          accountId: target,
+          added: kept.length,
+          what: addedWords({ rows: kept.length, positions: kept.length }),
+        }}
         onDone={onDone}
       />
     )

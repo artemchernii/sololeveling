@@ -25,7 +25,12 @@ const DAY_FMT = new Intl.DateTimeFormat(undefined, {
   month: 'short',
 })
 
-export type LandedAccount = { accountId: Id<'accounts'>; added: number }
+export type LandedAccount = {
+  accountId: Id<'accounts'>
+  added: number
+  /** What came in, in words (addedWords): "1 position added · Gold". */
+  what?: string
+}
 
 export function AccountsLanded({
   accounts,
@@ -90,7 +95,7 @@ export function AccountsLanded({
             </div>
             <div className="flex items-center gap-2 pl-[42px] font-mono text-[10.5px] text-ink-500">
               <span className={l.added > 0 ? 'text-state-good' : ''}>
-                {l.added > 0 ? `${l.added} added` : 'nothing new'}
+                {l.what ?? (l.added > 0 ? `${l.added} added` : 'nothing new')}
               </span>
               {cash ? (
                 <>

@@ -78,9 +78,8 @@ another owner cannot read or write it; `accounts` returns both pockets;
   line, paired with the bank side, and Flow's "to brokers" (step 2).
 - Portfolio combined across brokers: All | Revolut | TR | 212 (step 3).
 
-## Questions
+## Decided after the mockup (10 Oct)
 
-- Should the card get a small three-part bar (free cash · broker cash ·
-  investments)? Recommended: yes — it is the one visual that says where the
-  money sits, and it is a split of stored numbers, not a grade. Not in the
-  mockup yet; needs his yes.
+- The card gets a thin three-part bar — free cash · broker cash ·
+  investments ("bar yes"). A split of stored numbers, not a grade. It is not
+  in the mockup; draw it in the build and show him the screenshot.

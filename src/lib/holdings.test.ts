@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { notSeenSince, reconcile } from './holdings'
+import { lookFamily, notSeenSince, reconcile } from './holdings'
 import type { LedgerTrade, Observation } from './holdings'
 
 const DAY = 86_400_000
@@ -130,5 +130,17 @@ describe('notSeenSince', () => {
   })
   it('never seen on a screen: nothing to flag', () => {
     expect(notSeenSince(null, d(3))).toBe(false)
+  })
+})
+
+describe('lookFamily', () => {
+  it('tells a metal, a coin and a share apart', () => {
+    expect(lookFamily({ symbol: 'GC=F', type: 'FUTURE' })).toBe('metal')
+    expect(lookFamily({ symbol: 'SI=F', type: 'FUTURE' })).toBe('metal')
+    expect(lookFamily({ symbol: 'SOL-EUR', type: 'CRYPTOCURRENCY' })).toBe(
+      'coin',
+    )
+    expect(lookFamily({ symbol: 'IGLN.L', type: 'ETF' })).toBe('security')
+    expect(lookFamily({ symbol: 'AMZN', type: 'EQUITY' })).toBe('security')
   })
 })

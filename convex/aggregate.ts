@@ -1,5 +1,6 @@
 import { v } from 'convex/values'
 
+import { brokerCashKey, hasBrokerCash } from './accounts'
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
 import { countsInOut, isEuroAmount, isLent } from '../src/lib/money'
@@ -1407,6 +1408,20 @@ export const balances = query({
         pockets: v.array(pocket),
         /** Its free cash in euros — the pockets that could be valued. */
         cashEur: v.number(),
+        /** The broker's cash of a bank that is also a broker (10 Oct):
+            source 2, the latest `brokerCash:<id>` state, plus what its
+            buys cost and its sells brought since. Null where the account
+            has no such pocket; `eur` null while it was never read. It is
+            in `total`, and not in `cashEur` — not free for bills. */
+        brokerCash: v.union(
+          v.null(),
+          v.object({
+            eur: v.union(v.number(), v.null()),
+            recordedAt: v.union(v.number(), v.null()),
+            moved: v.number(),
+            movedRows: v.number(),
+          }),
+        ),
       }),
     ),
     total: v.number(),
@@ -1569,6 +1584,34 @@ async function readBalances(ctx: QueryCtx, ownerId: string) {
       })
     }
     cents += accountCents
+    let brokerCash = null
+    if (hasBrokerCash(account)) {
+      const row = await ctx.db
+        .query('stateSnapshots')
+        .withIndex('by_owner_key_time', (q) =>
+          q.eq('ownerId', ownerId).eq('key', brokerCashKey(account._id)),
+        )
+        .order('desc')
+        .first()
+      if (row === null) {
+        unread++
+        brokerCash = { eur: null, recordedAt: null, moved: 0, movedRows: 0 }
+      } else {
+        const since = await tradedSince(ctx, ownerId, account, row.recordedAt)
+        const now = Math.round((row.value ?? 0) * 100) + since.cents
+        cents += now
+        oldestAt =
+          oldestAt === null
+            ? row.recordedAt
+            : Math.min(oldestAt, row.recordedAt)
+        brokerCash = {
+          eur: now / 100,
+          recordedAt: row.recordedAt,
+          moved: since.cents / 100,
+          movedRows: since.rows,
+        }
+      }
+    }
     out.push({
       accountId: account._id,
       name: account.name,
@@ -1576,6 +1619,7 @@ async function readBalances(ctx: QueryCtx, ownerId: string) {
       domain: account.domain ?? null,
       pockets,
       cashEur: accountCents / 100,
+      brokerCash,
     })
   }
   return { accounts: out, total: cents / 100, oldestAt, unread }
@@ -1681,7 +1725,11 @@ async function readCashHistory(
                 .first()
             )?.rate ?? null)
       if (rate === null) continue
-      const moves = pocketMoves(logs, trades, currency)
+      const moves = pocketMoves(
+        logs,
+        hasBrokerCash(account) ? [] : trades,
+        currency,
+      )
       const series = balanceSeries(
         dayEnds,
         readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
@@ -1691,6 +1739,29 @@ async function readCashHistory(
       for (const [i, x] of series.entries()) {
         if (x === null) continue
         values[i] = Math.round(((values[i] ?? 0) + x * rate) * 100) / 100
+      }
+    }
+    if (hasBrokerCash(account)) {
+      /* Its broker cash, from the day it was first read (10 Oct). */
+      const readings = await ctx.db
+        .query('stateSnapshots')
+        .withIndex('by_owner_key_time', (q) =>
+          q.eq('ownerId', ownerId).eq('key', brokerCashKey(account._id)),
+        )
+        .take(500)
+      const series =
+        readings.length === 0
+          ? []
+          : balanceSeries(
+              dayEnds,
+              readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
+              pocketMoves([], trades, 'EUR'),
+              false,
+            )
+      const first = Math.min(...readings.map((r) => r.recordedAt))
+      for (const [i, x] of series.entries()) {
+        if (x === null || dayEnds[i] < first) continue
+        values[i] = Math.round(((values[i] ?? 0) + x) * 100) / 100
       }
     }
     for (const [i, x] of values.entries())
@@ -2185,7 +2256,10 @@ export const accountSheet = query({
         })
       }
       coverOf.set(currency.toLowerCase(), read)
-      for (const c of balanceChecks(read, pocketMoves(logs, trades, currency)))
+      for (const c of balanceChecks(
+        read,
+        pocketMoves(logs, hasBrokerCash(account) ? [] : trades, currency),
+      ))
         checks.push({ currency, ...c })
     }
 
@@ -2314,20 +2388,42 @@ export async function movedSince(
     cents += Math.round(signed * 100)
     rows++
   }
-  if (currency === 'EUR' && account.kinds.includes('broker')) {
-    const trades = await ctx.db
-      .query('trades')
-      .withIndex('by_owner_account', (q) =>
-        q.eq('ownerId', ownerId).eq('accountId', account._id),
-      )
-      .take(TRADE_ROWS)
-    for (const t of trades) {
-      if (t.opening === true || t.noCash === true || t.occurredAt <= readAt)
-        continue
-      const cost = Math.round(t.shares * t.priceEur * 100)
-      cents += t.side === 'buy' ? -cost : cost
-      rows++
-    }
+  /* A bank that is also a broker pays for shares from its broker cash,
+     not from these euros (10 Oct). */
+  if (
+    currency === 'EUR' &&
+    account.kinds.includes('broker') &&
+    !hasBrokerCash(account)
+  ) {
+    const traded = await tradedSince(ctx, ownerId, account, readAt)
+    cents += traded.cents
+    rows += traded.rows
+  }
+  return { cents, rows }
+}
+
+/* What an account's buys cost and its sells brought after a reading, as
+   signed cents: the trades side of a broker's cash. */
+async function tradedSince(
+  ctx: QueryCtx,
+  ownerId: string,
+  account: Doc<'accounts'>,
+  readAt: number,
+): Promise<{ cents: number; rows: number }> {
+  const trades = await ctx.db
+    .query('trades')
+    .withIndex('by_owner_account', (q) =>
+      q.eq('ownerId', ownerId).eq('accountId', account._id),
+    )
+    .take(TRADE_ROWS)
+  let cents = 0
+  let rows = 0
+  for (const t of trades) {
+    if (t.opening === true || t.noCash === true || t.occurredAt <= readAt)
+      continue
+    const cost = Math.round(t.shares * t.priceEur * 100)
+    cents += t.side === 'buy' ? -cost : cost
+    rows++
   }
   return { cents, rows }
 }
@@ -2584,6 +2680,8 @@ export const worth = query({
       v.object({
         accountId: v.id('accounts'),
         cash: v.union(v.number(), v.null()),
+        /** Its broker cash: null where it has none, or it was never read. */
+        brokerCash: v.union(v.number(), v.null()),
         invested: v.union(v.number(), v.null()),
         positions: v.number(),
       }),
@@ -2602,6 +2700,7 @@ export const worth = query({
       return {
         accountId: a.accountId,
         cash: a.pockets.some((pk) => pk.eur !== null) ? a.cashEur : null,
+        brokerCash: a.brokerCash?.eur ?? null,
         invested: held.length === 0 ? null : cents / 100,
         positions: held.length,
       }

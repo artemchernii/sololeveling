@@ -1,7 +1,12 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
-import { balanceKey, ownedAccount, writeBalance } from './accounts'
+import {
+  balanceKey,
+  hasBrokerCash,
+  ownedAccount,
+  writeBalance,
+} from './accounts'
 import { movedSince } from './aggregate'
 import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
@@ -2001,6 +2006,9 @@ async function writeHoldings(
       look.dayStart,
       undefined,
       sourceOf(intake),
+      /* A bank that is also a broker: the screen's cash is the broker's,
+         and the bank's euros stay as they were (10 Oct). */
+      hasBrokerCash(account) ? 'broker' : 'free',
     )
   }
   await ctx.db.patch(intake._id, {

@@ -104,9 +104,11 @@ export function TreasuryHero() {
      bank that is also a broker (Revolut) shows its cash under Banks. */
   const brokerOnly = (a: Row) => !a.kinds.includes('bank')
   const stale = rows.filter((a) => balanceFreshness(a.pockets, now).stale)
-  const brokerCash = brokers
-    .filter(brokerOnly)
-    .reduce((t, a) => t + a.cashEur, 0)
+  /* What a broker holds in cash: all of a broker-only account's, and the
+     broker cash line of a bank that is also one (10 Oct). */
+  const cashAtBroker = (a: Row) =>
+    brokerOnly(a) ? a.cashEur : (a.brokerCash?.eur ?? 0)
+  const brokerCash = brokers.reduce((t, a) => t + cashAtBroker(a), 0)
   const atBrokers = (worth?.invested.total ?? 0) + brokerCash
 
   const docOf = (id: Id<'accounts'>) => accounts?.find((a) => a._id === id)
@@ -302,7 +304,7 @@ export function TreasuryHero() {
                 }
                 parts={brokers.map((a) => ({
                   a,
-                  v: investedBy(a.accountId) + (brokerOnly(a) ? a.cashEur : 0),
+                  v: investedBy(a.accountId) + cashAtBroker(a),
                 }))}
                 stale={stale}
                 onOpen={() => setOpen('investments')}

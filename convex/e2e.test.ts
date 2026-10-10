@@ -144,6 +144,9 @@ test('the update mocks refuse anywhere but the test backend', async () => {
   )
   const refused = 'E2E functions run only on the test backend.'
   await expect(me.mutation(api.e2eUpdate.holdRead, {})).rejects.toThrow(refused)
+  await expect(me.mutation(api.e2eUpdate.addBroker, {})).rejects.toThrow(
+    refused,
+  )
   await expect(
     me.mutation(api.e2eUpdate.failRead, { batchId }),
   ).rejects.toThrow(refused)

@@ -12,11 +12,8 @@ import type { SheetGuard } from '@/components/finances/Sheet'
 import { failureMessage } from '@/lib/convex-errors'
 import { MAX_BATCH_FILES } from '@/lib/intake'
 import { useBatchUpload } from '@/components/finances/BulkParts'
-import {
-  BulkReading,
-  Applying,
-  Applied,
-} from '@/components/finances/BulkReading'
+import { BulkReading } from '@/components/finances/BulkReading'
+import { Applying, Applied } from '@/components/finances/BulkSaving'
 import { BulkReview } from '@/components/finances/BulkReview'
 
 /* UPDATE ALL (3 Oct). Artem: "When I simply drag and drop multiple

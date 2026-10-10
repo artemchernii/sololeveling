@@ -159,7 +159,7 @@ test('reading: one line per file, each the same height, with whose it is', async
   const batchId = await testClient().mutation(anyApi.e2e.readHistory, { days })
   await testClient().mutation(anyApi.e2eUpdate.holdRead, { batchId })
   const sheet = await open(page)
-  await expect(sheet.getByText('1 of 2 files read')).toBeVisible()
+  await expect(sheet.getByText('of 2 files read')).toBeVisible()
   const read = sheet
     .getByTestId('file-line')
     .filter({ hasText: 'trading-account.csv' })

@@ -229,19 +229,24 @@ entirely in my court.>
 <what I do next, once he says go>
 
 ### ⏱ Session
-⏱️ <length> · 🧠 <context> · 🗄️ <written> · 🔋 5h <%> · 🔋 week <%> 🛸
+⏱️ <length> · 🧠 <context> of 500k · 🔋 5h <% left> (resets <time>) · 🔋 week <% left> · ♨️ cache <min left> 🛸
 ```
 
-The ⏱ line (5 Oct) is how he paces the Pro plan. Length, context and
-written come from the `session-guard` hook's `meter:` line on his last
-message. The plan percentages come from `get_usage`: read it on the first
-reply of a session, at every plan-position refresh, and whenever the hook
-says the session is long — otherwise repeat the last reading with its time
-("week 95% at 17:55"). Each item carries its emoji (5 Oct: "emoji drag
-attention"). A limit with more than 10% left is 🔋 and the line ends 🛸;
-with 10% or less left it is 🪫 and the line ends 🚨:
-`🔋 5h 2% · 🪫 week 95% 🚨`. The hook also says when context passes 500k
-or the branch touches a file over 500 lines.
+The ⏱ line (5 Oct, reworked 10 Oct) is how he paces the Pro plan. Every
+number is read fresh on every reply — a reading repeated from earlier in
+the session is what he called "not updating and weird". Length and cache
+come from the global `session-meter` hook's `meter:` line on his last message;
+context and both plan limits come from `get_usage`, called once per
+reply. The limits say what is **left** (100 minus percent used), never
+what is used. Cache is the minutes before the hour-long prompt cache
+expires — after that the next message re-reads the whole context at full
+price; when the hook says cold, write `🧊 cache cold`. Each item carries
+its emoji (5 Oct: "emoji drag attention"). A limit with more than 10%
+left is 🔋 and the line ends 🛸; with 10% or less left it is 🪫 and the
+line ends 🚨: `🔋 5h 98% left · 🪫 week 5% left 🚨`. That hook also says
+when context passes 500k; `session-guard` says when the branch touches a
+file over 500 lines. The same block and line are in `~/.claude/CLAUDE.md`
+for every other project.
 
 The phrase to say lives inside the 🫪 line. No separate closing paragraph or
 "do this now" line after the block — he called that bother.

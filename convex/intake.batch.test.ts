@@ -1522,3 +1522,46 @@ test('a file whose 90 days ran out long ago (a missed night) is still erased', a
   expect(await t.mutation(internal.intake.eraseOld, {})).toBe(1)
   expect((await t.run((ctx) => ctx.db.get(id)))?.storageIds).toEqual([])
 })
+
+/* ADD is the one door (10 Oct): a drop on an account, or with his words
+   about a screenshot, runs as an update and still carries both. */
+test('startBatch: a drop can name its account and carry his words', async () => {
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: 'https://clerk.test|door_me' })
+  const other = t.withIdentity({ tokenIdentifier: 'https://clerk.test|door_x' })
+  const mine = await me.mutation(api.accounts.create, {
+    name: 'Mine',
+    kinds: ['broker'],
+    currencies: ['EUR'],
+  })
+  const theirs = await other.mutation(api.accounts.create, {
+    name: 'Theirs',
+    kinds: ['broker'],
+    currencies: ['EUR'],
+  })
+  const file = async () => ({
+    storageId: await t.run((ctx) => ctx.storage.store(new Blob(['png']))),
+    contentType: 'image/png',
+    name: 'screen.png',
+    size: 3,
+  })
+
+  await expect(
+    me.mutation(api.intake.startBatch, {
+      files: [await file()],
+      accountId: theirs,
+    }),
+  ).rejects.toThrow()
+
+  const r = await me.mutation(api.intake.startBatch, {
+    files: [await file()],
+    accountId: mine,
+    hint: 'my Trade Republic wealth screen',
+  })
+  expect(r.ok).toBe(true)
+  const intakes = await t.run((ctx) => ctx.db.query('intakes').collect())
+  expect(intakes).toHaveLength(1)
+  expect(intakes[0].accountId).toBe(mine)
+  expect(intakes[0].hint).toBe('my Trade Republic wealth screen')
+  expect(intakes[0].batchId).toBeDefined()
+})

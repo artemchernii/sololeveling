@@ -7,8 +7,8 @@ names the file. Update the row in the same PR that changes the path.
 
 **Shape.** `src/routes/_app/finances.tsx` renders `TreasuryHero` above three
 rooms kept mounted (`?room=` in the URL): **Overview**, **Flow**,
-**Portfolio**. Everything enters through the hero's **+** (`Add`) or
-**update all** (`Bulk`). Reviews open in a `Sheet` titled "check it".
+**Portfolio**. Files enter through one door, the hero's **ADD** (`Add`): one file or
+many, each drop an update (`Bulk`). An account's UPDATE still has its own (next). Reviews open in a `Sheet` titled "check it".
 Components live in `src/components/finances/` (Flow in `flow/`); functions
 in `convex/`.
 
@@ -27,7 +27,7 @@ safety-net tests.
 | Journey                                              | Screen       | Component                                                             | Convex                                                             | Test                           |
 | ---------------------------------------------------- | ------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------ |
 | Add an account: pick the bank, its balance, it lands | + → account  | `AccountForm` (`PickBank`, `AccountDetails`) → `Landed`               | `accounts.create`, `setBalance`                                    | `accounts.spec`                |
-| Drop a statement file (CSV, PDF, screenshot)         | + → drop     | `Add` → `AddDrop`                                                     | `attachments.generateUploadUrl`, `intake.start`, `intake.lastRead` | `statement.spec` (Revolut CSV) |
+| Drop a statement file (CSV, PDF, screenshot)         | + → drop     | `Add` → `AddDrop` → `BulkUpdate`                                      | `attachments.generateUploadUrl`, `intake.start`, `intake.lastRead` | `statement.spec` (Revolut CSV) |
 | Watch it being read, retry, discard                  | reading      | `Reading`                                                             | `intake.preview`, `retry`, `discard`                               | —                              |
 | Check transactions found in a file                   | check it     | `Intake` → `TransactionsReview` (own file; rows in `TransactionRows`) | `intake.review`, `setAccount`, `whose`, `confirmTransactions`      | `statement.spec`               |
 | Check holdings (broker screenshot)                   | check it     | `Intake` → `HoldingsReview` (own file)                                | `intake.confirmHoldings`, `market.search`                          | `holdings.spec`                |

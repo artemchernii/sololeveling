@@ -27,10 +27,10 @@ test('one button: update all is gone, and ADD shows what is waiting', async ({
   const add = page.getByRole('button', { name: 'add', exact: true }).first()
   await expect(add).toBeVisible()
   await expect(page.getByRole('button', { name: 'update all' })).toHaveCount(0)
-  await expect(add.getByLabel('an update is waiting')).toHaveCount(0)
+  await expect(page.getByLabel('an update is waiting')).toHaveCount(0)
 
   await testClient().mutation(anyApi.e2eUpdate.holdRead, {})
-  await expect(add.getByLabel('an update is waiting')).toBeVisible()
+  await expect(page.getByLabel('an update is waiting')).toBeVisible()
   /* It opens on what is waiting, not on an empty drop area. */
   await add.click()
   const sheet = page.getByRole('dialog', { name: 'add' })

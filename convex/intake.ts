@@ -214,6 +214,11 @@ export const startBatch = mutation({
     files: v.array(fileArg),
     /* More files for an update still open — "drop March". */
     batchId: v.optional(v.id('batches')),
+    /* Whose they are, when he dropped them on an account (10 Oct: ADD
+       is the one door, and it could always be told this). */
+    accountId: v.optional(v.id('accounts')),
+    /* What he says a screenshot is. */
+    hint: v.optional(v.string()),
   },
   returns: v.union(
     v.object({ ok: v.literal(true), batchId: v.id('batches') }),
@@ -221,6 +226,7 @@ export const startBatch = mutation({
   ),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+    if (args.accountId) await ownedAccount(ctx, ownerId, args.accountId)
     const refuse = async (error: string) => {
       for (const f of args.files) await ctx.storage.delete(f.storageId)
       return { ok: false as const, error }
@@ -274,6 +280,8 @@ export const startBatch = mutation({
       await beginIntake(ctx, ownerId, {
         files: [f],
         batchId,
+        accountId: args.accountId,
+        hint: args.hint,
         delayMs: paidRead([f]) ? paid++ * BATCH_STAGGER_MS : 0,
       })
     }

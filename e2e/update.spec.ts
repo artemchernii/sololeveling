@@ -67,11 +67,61 @@ test('the same statement twice: the second time there is nothing to save', async
   await expect(page.getByLabel('an update is waiting')).toHaveCount(0)
 })
 
+/* Artem, 10 Oct: "One starts Sep 1 till Sep 15. Second starts Sep 1 till
+   Sep 30. I upload 2nd and it should understand that we do not duplicate
+   what we already have uploaded." */
+test('a longer statement over a shorter one: only the new days are added', async ({
+  page,
+}) => {
+  const days = await start(page)
+  const sheet = await open(page)
+  await page.locator('input[type=file]').setInputFiles([
+    {
+      name: 'revolut-short.csv',
+      mimeType: 'text/csv',
+      buffer: revolutCsv(days),
+    },
+  ])
+  await sheet.getByRole('button', { name: /apply 1 account/ }).click()
+  await expect(sheet.getByText('2 movements added')).toBeVisible()
+  await sheet.getByRole('button', { name: 'done' }).click()
+  await expect(sheet).toBeHidden()
+
+  await page.getByRole('button', { name: 'update all' }).click()
+  await page.locator('input[type=file]').setInputFiles([
+    {
+      name: 'revolut-long.csv',
+      mimeType: 'text/csv',
+      buffer: revolutCsv(days, 3),
+    },
+  ])
+  await expect(sheet.getByText('3 new rows')).toBeVisible()
+  await expect(sheet.getByText('5 already had')).toBeVisible()
+  await page.waitForTimeout(700)
+  await page.screenshot(shot('update-longer-statement'))
+  await sheet.getByRole('button', { name: /apply 1 account/ }).click()
+  await expect(sheet.getByText('3 movements added')).toBeVisible()
+  await sheet.getByRole('button', { name: 'done' }).click()
+
+  /* And the whole of it once more: nothing left to add. */
+  await page.getByRole('button', { name: 'update all' }).click()
+  await page.locator('input[type=file]').setInputFiles([
+    {
+      name: 'revolut-long.csv',
+      mimeType: 'text/csv',
+      buffer: revolutCsv(days, 3),
+    },
+  ])
+  await expect(
+    sheet.getByText(/is already in\. There is nothing to save\./),
+  ).toBeVisible()
+})
+
 test('reading: it shows at once, closing asks first, and leaving loses nothing', async ({
   page,
 }) => {
   await start(page)
-  await testClient().mutation(anyApi.e2e.holdRead, {})
+  await testClient().mutation(anyApi.e2eUpdate.holdRead, {})
   const sheet = await open(page)
   await expect(sheet.getByText('of 1 files read')).toBeVisible()
   await expect(sheet.getByText('statement-sep.pdf')).toBeVisible()
@@ -103,10 +153,10 @@ test('every file bad: it says so, per file, and nothing is saved', async ({
   page,
 }) => {
   await start(page)
-  const batchId = await testClient().mutation(anyApi.e2e.holdRead, {})
+  const batchId = await testClient().mutation(anyApi.e2eUpdate.holdRead, {})
   const sheet = await open(page)
   await expect(sheet.getByText('statement-sep.pdf')).toBeVisible()
-  await testClient().mutation(anyApi.e2e.failRead, { batchId })
+  await testClient().mutation(anyApi.e2eUpdate.failRead, { batchId })
   await expect(sheet.getByText('None of these could be read')).toBeVisible()
   await expect(sheet.getByText('statement-sep.pdf')).toBeVisible()
   await expect(
@@ -123,7 +173,7 @@ test('one file bad: it is named with its reason, the rest still applies', async 
 }) => {
   const days = await start(page)
   const batchId = await testClient().mutation(anyApi.e2e.readHistory, { days })
-  await testClient().mutation(anyApi.e2e.badFile, { batchId })
+  await testClient().mutation(anyApi.e2eUpdate.badFile, { batchId })
   const sheet = await open(page)
   await expect(sheet.getByText('blurry.png')).toBeVisible()
   await expect(
@@ -158,7 +208,7 @@ test('a save that stopped: it says so, closing asks, and finishing lands it once
   page,
 }) => {
   const days = await start(page)
-  await testClient().mutation(anyApi.e2e.stuckApply, { days })
+  await testClient().mutation(anyApi.e2eUpdate.stuckApply, { days })
   const sheet = await open(page)
   await expect(sheet.getByText('saving…')).toBeVisible()
   const ask = page.getByRole('alertdialog', { name: 'Still saving' })

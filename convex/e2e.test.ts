@@ -143,14 +143,14 @@ test('the update mocks refuse anywhere but the test backend', async () => {
     }),
   )
   const refused = 'E2E functions run only on the test backend.'
-  await expect(me.mutation(api.e2e.holdRead, {})).rejects.toThrow(refused)
-  await expect(me.mutation(api.e2e.failRead, { batchId })).rejects.toThrow(
+  await expect(me.mutation(api.e2eUpdate.holdRead, {})).rejects.toThrow(refused)
+  await expect(
+    me.mutation(api.e2eUpdate.failRead, { batchId }),
+  ).rejects.toThrow(refused)
+  await expect(me.mutation(api.e2eUpdate.badFile, { batchId })).rejects.toThrow(
     refused,
   )
-  await expect(me.mutation(api.e2e.badFile, { batchId })).rejects.toThrow(
-    refused,
-  )
-  await expect(me.mutation(api.e2e.stuckApply, { days })).rejects.toThrow(
+  await expect(me.mutation(api.e2eUpdate.stuckApply, { days })).rejects.toThrow(
     refused,
   )
 })
@@ -159,11 +159,11 @@ test('a read held open, then failed: nothing in it can be applied', async () => 
   vi.stubEnv('E2E', '1')
   const t = convexTest(schema, modules)
   const me = t.withIdentity({ tokenIdentifier: ME })
-  const batchId = await me.mutation(api.e2e.holdRead, {})
+  const batchId = await me.mutation(api.e2eUpdate.holdRead, {})
   expect((await me.query(api.intake.batch, { batchId })).files[0].status).toBe(
     'reading',
   )
-  await me.mutation(api.e2e.failRead, { batchId })
+  await me.mutation(api.e2eUpdate.failRead, { batchId })
   const review = await me.query(api.intake.batchReview, { batchId })
   expect(review.ready).toBe(true)
   expect(review.accounts).toHaveLength(0)
@@ -176,7 +176,7 @@ test('a save that stopped is finished once, however often it is pressed', async 
   const t = convexTest(schema, modules)
   const me = t.withIdentity({ tokenIdentifier: ME })
   await me.mutation(api.e2e.reset, { days })
-  const batchId = await me.mutation(api.e2e.stuckApply, { days })
+  const batchId = await me.mutation(api.e2eUpdate.stuckApply, { days })
   /* Stuck: nothing is scheduled, so nothing moves by itself. */
   await t.finishAllScheduledFunctions(vi.runAllTimers)
   expect((await me.query(api.intake.batch, { batchId })).status).toBe(
@@ -202,7 +202,7 @@ test("resumeApply cannot touch another person's update", async () => {
   vi.stubEnv('E2E', '1')
   const t = convexTest(schema, modules)
   const me = t.withIdentity({ tokenIdentifier: ME })
-  const batchId = await me.mutation(api.e2e.stuckApply, { days })
+  const batchId = await me.mutation(api.e2eUpdate.stuckApply, { days })
   const other = t.withIdentity({ tokenIdentifier: 'https://clerk.test|other' })
   await expect(
     other.mutation(api.intake.resumeApply, { batchId, dayStart: days[3] }),

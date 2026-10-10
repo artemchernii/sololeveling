@@ -48,8 +48,9 @@ const iso = (day: number, time: string) => {
 }
 
 /** Revolut's EUR export over those four days: three rows the test user
-    already has, two new on the last day. */
-export function revolutCsv(days: Array<number>): Buffer {
+    already has, two new on the last day — and `more` after those, for a
+    longer statement that covers the same days again. */
+export function revolutCsv(days: Array<number>, more = 0): Buffer {
   const [d1, d2, d3, d4] = days
   const rows = [
     'Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance',
@@ -59,6 +60,13 @@ export function revolutCsv(days: Array<number>): Buffer {
     `CARD_PAYMENT,Current,${iso(d4, '09:05:00')},${iso(d4, '09:05:01')},Bolt,-8.80,0.00,EUR,COMPLETED,1130.18`,
     `CARD_PAYMENT,Current,${iso(d4, '18:42:10')},${iso(d4, '18:42:11')},Pingo Doce,-22.14,0.00,EUR,COMPLETED,1108.04`,
   ]
+  /* A longer statement of the same days: `more` rows after the last. */
+  for (let i = 0; i < more; i++) {
+    const at = iso(d4, `2${i}:10:00`)
+    rows.push(
+      `CARD_PAYMENT,Current,${at},${at},Late shop ${i + 1},-${5 + i}.00,0.00,EUR,COMPLETED,${(1108.04 - (i + 1) * 5 - (i * (i + 1)) / 2).toFixed(2)}`,
+    )
+  }
   return Buffer.from(rows.join('\n') + '\n')
 }
 

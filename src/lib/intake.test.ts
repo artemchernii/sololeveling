@@ -935,3 +935,48 @@ describe('a crypto statement read (4 Oct)', () => {
     ])
   })
 })
+
+/* Artem, 10 Oct: "One starts Sep 1 till Sep 15. Second starts Sep 1 till
+   Sep 30. I upload 2nd and it should understand that we do not duplicate
+   what we already have uploaded … this can mess up everything." */
+describe('findDuplicates: a longer statement over a shorter one', () => {
+  const noon = (d: number) => Date.UTC(2026, 8, d, 12)
+  const row = (d: number, amount: number, merchant: string) => ({
+    occurredAt: noon(d),
+    amount,
+    merchant,
+  })
+  const first = [
+    row(2, -41.27, 'Continente'),
+    row(5, -6.7, 'Bolt'),
+    row(9, -13.05, 'Guacamole'),
+    row(15, -6.7, 'Bolt'),
+  ]
+  const rest = [
+    row(16, -6.7, 'Bolt'),
+    row(21, -60, 'Condominio'),
+    row(30, 2450, 'ACME'),
+  ]
+
+  test('oldest first: the first half is already in, the rest is new', () => {
+    expect(findDuplicates([...first, ...rest], first)).toEqual([
+      0,
+      1,
+      2,
+      3,
+      null,
+      null,
+      null,
+    ])
+  })
+
+  test('newest first, as banks print: the same rows, the same answer', () => {
+    const file = [...first, ...rest].reverse()
+    expect(findDuplicates(file, first)).toEqual([null, null, null, 3, 2, 1, 0])
+  })
+
+  test('dropped a second time, nothing in it is new', () => {
+    const all = [...first, ...rest]
+    expect(findDuplicates(all, all).every((x) => x !== null)).toBe(true)
+  })
+})

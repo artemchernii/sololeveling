@@ -8,23 +8,26 @@ import { guard, history } from './e2e'
    open, a read that failed, a save that stopped. Like convex/e2e.ts,
    every function refuses anywhere but the test backend. */
 
-/* An update whose one file is still being read (10 Oct) — held there, so
-   a test can try to close the window on it. */
+/* An update with a file still being read (10 Oct) — held there, so a
+   test can try to close the window on it. `batchId` adds that file to an
+   update that already has one read. */
 export const holdRead = mutation({
-  args: {},
+  args: { batchId: v.optional(v.id('batches')) },
   returns: v.id('batches'),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     guard()
-    const batchId = await ctx.db.insert('batches', {
-      ownerId,
-      status: 'open',
-      leftOut: [],
-      quietMonths: [],
-      moves: [],
-      extras: [],
-      dismissed: [],
-    })
+    const batchId =
+      args.batchId ??
+      (await ctx.db.insert('batches', {
+        ownerId,
+        status: 'open',
+        leftOut: [],
+        quietMonths: [],
+        moves: [],
+        extras: [],
+        dismissed: [],
+      }))
     await ctx.db.insert('intakes', {
       ownerId,
       batchId,

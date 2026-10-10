@@ -149,6 +149,39 @@ test('reading: it shows at once, closing asks first, and leaving loses nothing',
   await expect(sheet.getByText('statement-sep.pdf')).toBeVisible()
 })
 
+/* The look agreed on the mockup (design/treasury-mockup/update.html): one
+   line per file, each the same height whatever it says, so nothing shifts
+   while files are read. */
+test('reading: one line per file, each the same height, with whose it is', async ({
+  page,
+}) => {
+  const days = await start(page)
+  const batchId = await testClient().mutation(anyApi.e2e.readHistory, { days })
+  await testClient().mutation(anyApi.e2eUpdate.holdRead, { batchId })
+  const sheet = await open(page)
+  await expect(sheet.getByText('1 of 2 files read')).toBeVisible()
+  const read = sheet
+    .getByTestId('file-line')
+    .filter({ hasText: 'trading-account.csv' })
+  const reading = sheet
+    .getByTestId('file-line')
+    .filter({ hasText: 'statement-sep.pdf' })
+  await expect(read.getByText('31 trades')).toBeVisible()
+  await expect(read.getByText('Revolut')).toBeVisible()
+  await expect(reading.getByText(/reading rows · 12/)).toBeVisible()
+  const a = await read.boundingBox()
+  const b = await reading.boundingBox()
+  expect(Math.round(a!.height)).toBe(Math.round(b!.height))
+  await page.waitForTimeout(700)
+  await page.screenshot(shot('update-reading-lines'))
+
+  /* The read line holds its place and height when the other one ends. */
+  await testClient().mutation(anyApi.e2eUpdate.failRead, { batchId })
+  await expect(
+    sheet.getByRole('button', { name: /apply 1 account/ }),
+  ).toBeVisible()
+})
+
 test('every file bad: it says so, per file, and nothing is saved', async ({
   page,
 }) => {
@@ -211,6 +244,12 @@ test('a save that stopped: it says so, closing asks, and finishing lands it once
   await testClient().mutation(anyApi.e2eUpdate.stuckApply, { days })
   const sheet = await open(page)
   await expect(sheet.getByText('saving…')).toBeVisible()
+  /* A row per bank: its logo, its name, how far it is. */
+  const bank = sheet.getByTestId('bank-row').filter({ hasText: 'Revolut' })
+  await expect(bank.getByTestId('bank-logo')).toBeVisible()
+  await expect(bank.getByText('saving')).toBeVisible()
+  await page.waitForTimeout(700)
+  await page.screenshot(shot('update-saving-rows'))
   const ask = page.getByRole('alertdialog', { name: 'Still saving' })
   await page.keyboard.press('Escape')
   await expect(ask).toBeVisible()
@@ -219,6 +258,7 @@ test('a save that stopped: it says so, closing asks, and finishing lands it once
   await expect(sheet.getByText('The save stopped before the end')).toBeVisible({
     timeout: 20_000,
   })
+  await expect(bank.getByText('not finished')).toBeVisible()
   await page.waitForTimeout(700)
   await page.screenshot(shot('update-save-stopped'))
   await sheet.getByRole('button', { name: 'finish saving' }).click()

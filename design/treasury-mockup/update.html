@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · one update window</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* One update window (10 Oct). Artem: "We should use this update all for
+     all updates modals, no?" and "all scenarios, not only happy path".
+     Journey and cases: docs/specs/2026-10-10-one-update.md. Sample numbers,
+     not his. The check step keeps the layout of bulk.html; this page is
+     about the steps around it and everything that can go wrong. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit }
+  svg.i { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .ctl { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .groups { display: flex; flex-direction: column; gap: 6px }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; align-items: center }
+  .scen > span { font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500); width: 62px }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400); cursor: pointer }
+  .scen button.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 720px; margin: 0 auto; text-align: center }
+  .note b { color: var(--ink-200); font-weight: 400 }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .mono { font-family: var(--mono) }
+  .logo { width: 30px; height: 30px; border-radius: 10px; background: #fff; object-fit: contain; padding: 3px; flex: none }
+  .logo.sm { width: 20px; height: 20px; border-radius: 7px; padding: 2px }
+  .tag { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; color: var(--ink-400); background: rgba(var(--lift),.05); white-space: nowrap }
+  .tag.good { color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent) }
+  .tag.warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 12%, transparent) }
+  .tag.bad { color: var(--danger); background: color-mix(in oklch, var(--danger) 12%, transparent) }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.99) } }
+  @keyframes land { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+  @keyframes blink { 50% { opacity: .3 } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  @keyframes scan { from { transform: translateX(-100%) } to { transform: translateX(100%) } }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--good) 45%, transparent) } 100% { box-shadow: 0 0 0 26px transparent } }
+  .spin { animation: spin .9s linear infinite }
+
+  /* ---- The ways in: every one opens the same window ---- */
+  .hero { border-radius: 18px; padding: 12px 14px; background: rgba(var(--lift),.03); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+  .hero .sp { flex: 1 }
+  .pill { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: rgba(var(--lift),.03); font-family: var(--mono); font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-200); cursor: pointer }
+  .pill:hover { border-color: color-mix(in oklch, var(--lav-400) 55%, transparent) }
+  .pill.loud { color: #17152a; border: 0; background: linear-gradient(135deg, var(--lav-300), var(--lav-400)) }
+  .pill .dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 99px; background: var(--lav-400); box-shadow: 0 0 8px var(--shine); animation: blink 1s infinite }
+  .pill small { text-transform: none; letter-spacing: 0; color: var(--lav-300); font-size: 10.5px }
+  .acct { display: inline-flex; align-items: center; gap: 7px; padding: 4px 5px 4px 4px; border-radius: 999px; background: rgba(var(--lift),.04); font-size: 12.5px; color: var(--ink-200) }
+  .acct em { font-style: normal; font-family: var(--mono); font-size: 10px; color: var(--warn) }
+  .acct button { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300); cursor: pointer }
+
+  /* ---- The window ---- */
+  .sheet { position: relative; border-radius: 22px; padding: 20px; border: 1px solid var(--sys-edge); overflow: hidden;
+    background: linear-gradient(160deg, rgba(181,171,252,.08), rgba(181,171,252,.015) 40%), #1d1c2d; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine);
+    display: flex; flex-direction: column; gap: 16px; animation: rise .35s cubic-bezier(.2,.8,.2,1) both; }
+  .sheet.still { animation: none }
+  @keyframes breathe { 50% { border-color: color-mix(in oklch, var(--lav-400) 85%, transparent); box-shadow: inset 0 0 34px -14px var(--shine) } }
+  .zone { animation: breathe 2.6s ease-in-out infinite }
+  .zone.err { animation: none }
+  .oradd, .typed { justify-content: center }
+  .f { min-height: 56px }
+  .dim { opacity: .35; pointer-events: none }
+  .sheet.small { max-width: 560px; margin: 0 auto; width: 100%; min-height: 0 }
+  .shead { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid rgba(181,171,252,.16); flex-wrap: wrap }
+  .title { font-family: var(--mono); font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine); white-space: nowrap }
+  .steps { flex: 1; display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap }
+  .steps span { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; color: var(--ink-600) }
+  .steps span.was { color: var(--good) }
+  .steps span.now { color: var(--ink-100); background: rgba(181,171,252,.16); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 40%, transparent) }
+  .steps svg.i { width: 11px; height: 11px; stroke-width: 3 }
+  .close { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300); display: grid; place-items: center; cursor: pointer }
+  .grow { flex: 1 }
+  .foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid rgba(181,171,252,.12) }
+  .foot .left { flex: 1; font-size: 12.5px; color: var(--ink-400); min-width: 200px; line-height: 1.45 }
+  .apply { display: inline-flex; align-items: center; gap: 9px; padding: 11px 20px; border-radius: 999px; border: 0; cursor: pointer; font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #17152a; background: linear-gradient(135deg, var(--lav-300), var(--lav-400)); box-shadow: 0 0 26px -6px var(--shine) }
+  .apply:active { transform: scale(.97) }
+  .apply[disabled] { opacity: .75; cursor: default }
+  .ghost { padding: 10px 16px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-300) }
+
+  /* Drop */
+  .zone { position: relative; border-radius: 18px; padding: 34px 20px; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; background: rgba(181,171,252,.04); border: 1.5px dashed color-mix(in oklch, var(--lav-400) 40%, transparent); cursor: pointer }
+  .zone:hover { background: rgba(181,171,252,.09) }
+  .zone.err { border-color: color-mix(in oklch, var(--danger) 55%, transparent); background: color-mix(in oklch, var(--danger) 5%, transparent) }
+  .zone .ic { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: var(--lav-300); background: rgba(181,171,252,.1); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 35%, transparent) }
+  .zone .ic svg { width: 20px; height: 20px }
+  .zone h3 { font-weight: 400; font-size: 16px }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 999px; background: rgba(var(--lift),.04); box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); font-size: 12.5px; color: var(--ink-200) }
+  .chip small { font-family: var(--mono); font-size: 10px; color: var(--ink-500) }
+  .chip small.old { color: var(--warn) }
+  .said { display: flex; gap: 10px; align-items: flex-start; border-radius: 14px; padding: 12px 14px; line-height: 1.45; animation: land .35s both }
+  .said.bad { background: color-mix(in oklch, var(--danger) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--danger) 35%, transparent) }
+  .said.bad .ic { color: var(--danger) }
+  .said.warn { background: color-mix(in oklch, var(--warn) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 30%, transparent) }
+  .said.warn .ic { color: var(--warn) }
+  .said .ic { margin-top: 2px }
+  .said small { display: block; color: var(--ink-400); font-size: 12px; margin-top: 2px }
+  .said .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px }
+  .opt { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: rgba(var(--lift),.03); font-size: 12.5px; color: var(--ink-200); cursor: pointer }
+  .opt.l { padding-left: 5px }
+  .opt:hover { border-color: color-mix(in oklch, var(--lav-400) 55%, transparent); background: rgba(181,171,252,.1) }
+  .or { display: flex; align-items: center; gap: 10px; color: var(--ink-500) }
+  .or::before, .or::after { content: ''; flex: 1; height: 1px; background: rgba(var(--lift),.07) }
+  .typed { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+  .field { flex: 1; min-width: 180px; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 12px; background: rgba(var(--lift),.04); box-shadow: inset 0 0 0 1px rgba(var(--lift),.1) }
+  .field b { font-family: var(--mono); font-size: 10.5px; font-weight: 400; color: var(--ink-300); background: rgba(var(--lift),.06); padding: 1px 6px; border-radius: 4px }
+  .field input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--ink-100); font: inherit; font-size: 17px }
+  .field small { font-family: var(--mono); font-size: 10.5px; color: var(--warn) }
+
+  /* Reading and saving: a big count, a track, one line per file */
+  .overall { display: flex; flex-direction: column; gap: 8px }
+  .overall .line { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+  .overall .big { font-size: 34px; font-weight: 300; letter-spacing: -.02em }
+  .overall .sub { color: var(--ink-400); font-size: 13px }
+  .track { height: 4px; border-radius: 99px; background: rgba(var(--lift),.07); overflow: hidden }
+  .track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--lav-400), var(--lav-300)); box-shadow: 0 0 12px var(--shine); transition: width .35s ease }
+  .files { display: flex; flex-direction: column; gap: 6px }
+  .f { position: relative; overflow: hidden; display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 13px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07) }
+  .f .n { min-width: 0; display: flex; flex-direction: column; gap: 2px }
+  .f .n b { font-weight: 400; font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .f .n small { color: var(--ink-400); font-size: 12px }
+  .f .st { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-300); white-space: nowrap }
+  .f.wait { opacity: .5 }
+  .f.now { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 40%, transparent), 0 0 22px -12px var(--shine) }
+  .f.now::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(181,171,252,.13), transparent); animation: scan 1.3s linear infinite; pointer-events: none }
+  .f.now .lead { color: var(--lav-300) } .f.ok .lead { color: var(--good) } .f.bad .lead { color: var(--danger) }
+  .f.bad { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--danger) 35%, transparent) }
+
+  /* Check: one line per account (the full layout is bulk.html) */
+  .acc { border-radius: 18px; padding: 14px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); display: flex; flex-direction: column; gap: 10px; animation: land .45s cubic-bezier(.2,.8,.2,1) both }
+  .acc .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+  .acc .name { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 140px }
+  .acc .name b { font-weight: 500; font-size: 15px }
+  .acc .name span { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .bal { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 13px; color: var(--ink-300) }
+  .bal .to { color: var(--ink-100); font-size: 15px }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--ink-400); align-items: center }
+  .facts b { color: var(--ink-100); font-weight: 400 }
+  .facts .sp { flex: 1 }
+  .link { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--lav-400); background: none; border: 0; cursor: pointer }
+
+  /* Landed */
+  .done { display: flex; flex-direction: column; gap: 16px; align-items: center; text-align: center; padding: 10px 0 4px }
+  .done .ring { width: 58px; height: 58px; border-radius: 999px; display: grid; place-items: center; color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent); animation: ping 1.4s ease-out 1 }
+  .done .ring svg { width: 26px; height: 26px }
+  .done .ring.bad { color: var(--danger); background: color-mix(in oklch, var(--danger) 12%, transparent); animation: none }
+  .done h2 { font-weight: 300; font-size: 22px }
+  .done p { color: var(--ink-400); font-size: 13px; max-width: 520px; line-height: 1.5 }
+  .ba { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; width: 100% }
+  .ba > div { border-radius: 16px; padding: 12px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); text-align: left; display: flex; flex-direction: column; gap: 6px; animation: land .45s both }
+  .ba .k { display: flex; align-items: center; gap: 8px; font-size: 13px }
+  .ba .now { font-size: 20px; font-weight: 300 }
+  .ba .was { font-family: var(--mono); font-size: 11px; color: var(--ink-500) }
+  .ba .not { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 35%, transparent) }
+
+  /* "Close anyway?" — our own, never the browser's */
+  .veil { position: absolute; inset: 0; background: rgba(15,14,26,.72); backdrop-filter: blur(3px); display: grid; place-items: center; padding: 16px; animation: land .2s both }
+  .dlg { max-width: 380px; width: 100%; border-radius: 18px; padding: 18px; background: #232136; border: 1px solid var(--sys-edge); box-shadow: 0 20px 60px -10px rgba(0,0,0,.8); display: flex; flex-direction: column; gap: 10px }
+  .dlg h3 { font-weight: 400; font-size: 16px }
+  .dlg p { color: var(--ink-400); font-size: 13px; line-height: 1.5 }
+  .dlg .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; flex-wrap: wrap }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+  .door { border-radius: 16px; padding: 18px 14px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; cursor: pointer; text-align: left; border: 0 }
+  .door span { color: var(--ink-400); font-size: 12.5px }
+  @media (max-width: 560px) {
+    .sheet { padding: 14px } .steps { order: 3; flex-basis: 100%; justify-content: flex-start }
+    .shead .title { flex: 1 } .two { grid-template-columns: 1fr }
+    .f { grid-template-columns: 22px 1fr } .f .st { grid-column: 2 }
+  }
+
+  /* v2 (10 Oct, his marks): the opening keeps the + ADD he likes; steps carry icons; nothing jumps */
+  @keyframes pop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.2) } 100% { transform: none; opacity: 1 } }
+  @keyframes glow { 50% { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 70%, transparent), 0 0 26px -8px var(--warn) } }
+  .body { display: flex; flex-direction: column; gap: 16px }
+  .steps span svg.i { width: 12px; height: 12px; stroke-width: 2 }
+  .zone { padding: 26px 20px; gap: 16px }
+  .zone .zh { display: flex; align-items: center; gap: 14px; text-align: left }
+  .zone .zh small { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); margin-top: 3px }
+  .flow { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; color: var(--ink-600) }
+  .flow span { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-300); padding: 6px 11px; border-radius: 999px; background: rgba(var(--lift),.04); animation: land .4s both }
+  .chip small { text-transform: uppercase; letter-spacing: .1em }
+  .chip.old { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 45%, transparent) }
+  .nudge { text-align: center; font-family: var(--mono); font-size: 11.5px; color: var(--ink-400) }
+  .nudge b { color: var(--warn); font-weight: 400 } .nudge u { color: var(--lav-300); text-decoration: none; cursor: pointer }
+  .oradd { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+  .oradd .mk { display: inline-flex; align-items: center; gap: 8px; padding: 8px 13px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-200); cursor: pointer }
+  .oradd .mk:hover { border-color: color-mix(in oklch, var(--lav-400) 55%, transparent); background: rgba(181,171,252,.08) }
+  .in { color: var(--good) } .out { color: var(--danger) }
+  /* Saving: one row per bank, its logo, its own bar */
+  .srow { display: grid; grid-template-columns: 38px 1fr auto; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 16px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); transition: box-shadow .3s, background .3s, opacity .3s }
+  .srow .logo { width: 38px; height: 38px; border-radius: 12px }
+  .srow .n { display: flex; flex-direction: column; gap: 5px; min-width: 0 }
+  .srow .n b { font-weight: 500; font-size: 15px } .srow .n small { color: var(--ink-400); font-size: 12px }
+  .srow .st { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-500); white-space: nowrap }
+  .srow.wait { opacity: .5 }
+  .srow.now { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 45%, transparent), 0 0 26px -12px var(--shine) } .srow.now .st { color: var(--lav-300) }
+  .srow.ok { background: color-mix(in oklch, var(--good) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 30%, transparent) }
+  .srow.ok .st { color: var(--good) } .srow.ok .st svg { animation: pop .45s both }
+  .srow .track { height: 3px } .srow.ok .track i { background: var(--good); box-shadow: none }
+  .bigline { display: flex; align-items: center; gap: 12px } .bigline svg.i { width: 22px; height: 22px; color: var(--lav-300) }
+  /* Save stopped: what is in is green and ticked, what is not is amber and alive */
+  .ring.warn { color: var(--warn) !important; background: color-mix(in oklch, var(--warn) 12%, transparent) !important }
+  .ba .okc { background: color-mix(in oklch, var(--good) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 30%, transparent) }
+  .ba .not { background: color-mix(in oklch, var(--warn) 6%, transparent); animation: land .45s both, glow 2s 0.5s infinite }
+  .ba .not .track i { background: var(--warn); box-shadow: none }
+  .ba .k { justify-content: space-between } .ba .k > span { display: inline-flex; align-items: center; gap: 8px }
+  .ba .tag svg { animation: pop .5s .3s both }
+  /* Rows, behind ROWS — in the check, and on what landed */
+  .rows { display: flex; flex-direction: column; border-top: 1px solid rgba(var(--lift),.06); padding-top: 8px; animation: land .3s both }
+  .rows[hidden] { display: none }
+  .ba > div:has(.rows:not([hidden])) { grid-column: 1 / -1 }
+  .row { display: grid; grid-template-columns: 76px 1fr auto auto; gap: 10px; align-items: center; font-size: 12.5px; padding: 5px 0; color: var(--ink-200) }
+  .row .d { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) } .row .v { font-family: var(--mono) }
+  .row.had { opacity: .45 }
+  @media (max-width: 560px) { .row { grid-template-columns: 60px 1fr auto } .row .tag { display: none } .srow { grid-template-columns: 38px 1fr } .srow .st { grid-column: 2 } .zone .zh { flex-direction: column; text-align: center } }
+  .chip { padding: 6px 14px 6px 7px; gap: 9px }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup · one update window · press a way in, or jump to any moment</div>
+  <div id="hero"></div>
+  <div class="groups" id="scen"></div>
+  <div id="stage"></div>
+  <p class="note" id="note"></p>
+</div>
+
+<script>
+const I = {
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', check: '<path d="M20 6 9 17l-5-5"/>', plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
+  q: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  up: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/>',
+  file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+  load: '<path d="M21 12a9 9 0 1 1-6.2-8.56"/>', alert: '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 2.4 17.5A2 2 0 0 0 4.1 20.5h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  bank: '<path d="M3 21h18"/><path d="M5 21V10"/><path d="M19 21V10"/><path d="M9 21v-7"/><path d="M15 21v-7"/><path d="m12 3 9 5H3z"/>',
+  down: '<path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/>',
+  scan: '<path d="M4 8V6a2 2 0 0 1 2-2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M20 16v2a2 2 0 0 1-2 2h-2"/><path d="M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/>',
+  inn: '<path d="M7 17 17 7"/><path d="M8 7h9v9"/>', outt: '<path d="m7 7 10 10"/><path d="M17 8v9H8"/>',
+  swap: '<path d="M4 8h14"/><path d="m15 5 3 3-3 3"/><path d="M20 16H6"/><path d="m9 13-3 3 3 3"/>',
+  buy: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>', sell: '<path d="m3 7 6 6 4-4 8 8"/><path d="M15 17h6v-6"/>',
+  play: '<path d="m7 4 12 8-12 8z"/>',
+}
+const svg = (k, c = '') => `<svg class="i ${c}" viewBox="0 0 24 24">${I[k]}</svg>`
+const logo = (d, sm) => `<img class="logo ${sm ? 'sm' : ''}" src="https://www.google.com/s2/favicons?domain=${d}&sz=128" alt="">`
+const A = { bpi: ['BPI', 'bancobpi.pt'], act: ['ActivoBank', 'activobank.pt'], rev: ['Revolut', 'revolut.com'], tr: ['Trade Republic', 'traderepublic.com'], t212: ['Trading 212', 'trading212.com'] }
+const who = (k) => `${logo(A[k][1], true)}${A[k][0]}`
+
+/* Five sample files: three statements, one whole trading history, one screenshot. */
+const FILES = [
+  { n: 'extrato_BPI_2026-09.pdf', k: 'bpi', found: '17 rows · September' },
+  { n: 'Extrato_ActivoBank_Sep.pdf', k: 'act', found: '12 rows · September' },
+  { n: 'account-statement_2026-09.csv', k: 'rev', found: '41 rows · September' },
+  { n: 'trading-history_2019-2026.csv', k: 'rev', found: '1,284 trades · 2019 to 2026', big: true },
+  { n: 'IMG_2201.PNG', k: 'rev', found: '15 positions and the cash' },
+]
+const ROWS = {
+  bpi: [['30 Sep', 'ACME LDA', 'salary', '+€2,450.00'], ['28 Sep', 'EDP Comercial', 'bill', '−€48.20'], ['26 Sep', 'Pingo Doce', 'groceries', '−€31.74'], ['3 Sep', 'To ActivoBank', 'between your accounts', '−€500.00']],
+  act: [['14 Sep', 'MB WAY · Maria S.', 'paid back', '+€30.00'], ['3 Sep', 'From BPI', 'between your accounts', '+€500.00'], ['1 Sep', 'Vodafone', 'already in', '−€10.00', 1], ['1 Sep', 'Netflix', 'already in', '−€13.99', 1]],
+  rev: [['29 Sep', 'Bnp Toc', 'eating out', '−€6.70'], ['24 Sep', 'Buy · NVDA 2 shares', 'trade', '−$372.40'], ['12 Sep', 'Anthropic', 'already in', '−€22.14', 1], ['4 Mar 2019', 'Buy · AAPL 3 shares', 'trade', '−$526.11']],
+}
+const rowsHtml = (k, more) => `<div class="rows" hidden>${ROWS[k].map(([d, t, tag, v, had]) => `<div class="row ${had ? 'had' : ''}"><span class="d">${d}</span><span>${t}</span><span class="tag">${tag}</span><span class="v ${v[0] === '+' ? 'in' : ''}">${v}</span></div>`).join('')}<div class="row"><span></span><span class="caps">and ${more} more</span></div></div>`
+
+let cur = 'open', timer = null, dialog = null, wait = null, resume = null
+const READY = { text: 'ready to check', to: 'many' }
+const go = (s) => { cur = s; dialog = null; resume = null; if (s === 'away' && !wait) wait = READY; if (s !== 'away') wait = null; render() }
+
+/* ---- The window. Its steps are the four he already knows from + ADD. ---- */
+const STEPS = [['down', 'drop'], ['scan', 'read'], ['check', 'you check'], ['bank', 'lands on the account']]
+const dlgHtml = (d) => `<div class="veil"><div class="dlg"><h3>${d.h}</h3><p>${d.p}</p><div class="btns"><button class="ghost" data-go="back">close it</button><button class="apply" data-stay>keep it open</button></div></div></div>`
+function win(step, body, foot = '', o = {}) {
+  const strip = step === 0 || o.plain ? '<span class="grow"></span>' : `<div class="steps">${STEPS.map(([ic, s], i) => `<span class="${i < step ? 'was' : i === step ? 'now' : ''}">${svg(i < step ? 'check' : ic)}${s}</span>`).join('')}</div>`
+  return `<div class="sheet">
+    <div class="shead"><span class="title">[ ${o.title || 'add'} ]</span>${strip}<button class="close" data-close aria-label="Close">${svg('x')}</button></div>
+    <div class="body" id="body">${body}</div><span class="grow"></span>${foot ? `<div class="foot">${foot}</div>` : ''}${dialog ? dlgHtml(dialog) : ''}</div>`
+}
+const said = (kind, icon, text, sub, btns = '') => `<div class="said ${kind}"><span class="ic">${svg(icon)}</span><div>${text}${sub ? `<small>${sub}</small>` : ''}${btns ? `<div class="btns">${btns}</div>` : ''}</div></div>`
+
+/* ---- Drop: the + ADD as it is today (his screenshot), kept ---- */
+const chip = (k, how, old) => `<span class="chip ${old ? 'old' : ''}">${logo(A[k][1], true)}${A[k][0]}<small class="${old ? 'old' : ''}">${how}</small></span>`
+const ORADD = `<div class="oradd"><span class="caps">or add</span><button class="mk">${svg('inn', 'in')}money in</button><button class="mk">${svg('outt', 'out')}money out</button><button class="mk">${svg('swap')}transfer</button><button class="mk">${svg('buy')}buy</button><button class="mk">${svg('sell')}sell</button></div>`
+function drop(o = {}) {
+  const acct = o.acct
+  const flow = STEPS.map(([ic, s], i) => `${i ? '<span style="all:unset">→</span>' : ''}<span style="animation-delay:${60 + i * 90}ms">${svg(ic)}${s}</span>`).join('')
+  const zone = `<div class="zone ${o.err ? 'err' : ''}" data-go="uploading">
+    <div class="zh"><span class="ic">${svg(o.busy ? 'load' : 'up', o.busy ? 'spin' : '')}</span><div><h3>${o.busy ? 'uploading 2 of 5…' : acct ? 'Drop a Revolut statement or screenshot' : 'Drop statements or screenshots'}</h3><small>${o.busy ? 'keep this open while they go up' : 'or click to pick · one file or many'}</small></div></div>
+    ${o.busy ? '<div class="flow" style="min-height:29px"><div class="track" style="width:260px"><i style="width:40%"></i></div></div>' : `<div class="flow">${flow}</div>`}
+    ${acct ? '' : `<span class="chips ${o.busy ? 'dim' : ''}">${chip('rev', 'typed · 5d ago')}${chip('act', 'screenshot · 7d ago')}${chip('tr', 'statement · 7d ago')}${chip('bpi', 'balance of Oct 2', 1)}${chip('t212', 'screenshot · 7d ago')}</span>`}
+  </div>`
+  const nudge = acct || o.err ? '' : `<p class="nudge ${o.busy ? 'dim' : ''}">● <b>BPI</b> balance of Oct 2 — a newer one not in yet <u>drop it</u></p>`
+  const typed = acct ? `<div class="or caps">or type what is in it now</div>
+    <div class="typed"><label class="field"><b>EUR</b><input value="846.22"><small>5d ago</small></label><label class="field"><b>USD</b><input value="120.00"><small>5d ago</small></label><button class="ghost" data-go="typedSaved">save</button></div>` : ''
+  return win(0, `${zone}${o.err || ''}${nudge}${typed}${acct ? '' : o.busy ? ORADD.replace('oradd', 'oradd dim') : ORADD}`, '', { title: acct ? 'update · revolut' : 'add' })
+}
+
+/* ---- Reading: drawn once, then only what changed is touched ---- */
+function fileLine(f, state, i, extra) {
+  const lead = state === 'ok' ? svg('check') : state === 'now' ? svg('load', 'spin') : state === 'bad' ? svg('alert') : svg('file')
+  const st = state === 'ok' ? `<span class="st">${who(f.k)}</span>` : state === 'now' ? `<span class="st" style="color:var(--lav-300)">${extra || 'reading'}</span>` : state === 'bad' ? '<span class="st" style="color:var(--danger)">could not be read</span>' : '<span class="st">waiting</span>'
+  const sub = state === 'ok' ? f.found : state === 'bad' ? (f.why || 'The picture is too blurry to read the numbers.') : ''
+  return `<div class="f ${state}" id="f${i}" data-s="${state}"><span class="lead">${lead}</span><span class="n"><b>${f.n}</b>${sub ? `<small>${sub}</small>` : ''}</span>${st}</div>`
+}
+const fState = (i, n) => (i < n ? 'ok' : i === n ? 'now' : 'wait')
+const found = (t) => (t ? `${t.toLocaleString('en')} trades found so far` : '')
+const leftText = (n) => (n >= FILES.length ? 'all read' : `about ${Math.max(5, (FILES.length - n) * 12)} s left`)
+function readingBody(n, trades) {
+  return `<div class="overall"><div class="line"><span class="big" id="rN">${n}</span><span class="sub">of ${FILES.length} files read</span><span class="caps" style="margin-left:auto" id="rLeft">${leftText(n)}</span></div><div class="track"><i id="rBar" style="width:${(n / FILES.length) * 100}%"></i></div></div>
+    <div class="files">${FILES.map((f, i) => fileLine(f, fState(i, n), i, f.big ? found(trades) : '')).join('')}</div>`
+}
+function paintReading(n, trades) {
+  document.getElementById('rN').textContent = Math.min(n, FILES.length)
+  document.getElementById('rLeft').textContent = leftText(n)
+  document.getElementById('rBar').style.width = `${Math.min(100, (n / FILES.length) * 100)}%`
+  FILES.forEach((f, i) => {
+    const el = document.getElementById('f' + i), s = fState(i, n)
+    if (el.dataset.s !== s) el.outerHTML = fileLine(f, s, i, f.big ? found(trades) : '')
+    else if (s === 'now' && f.big && trades) el.querySelector('.st').textContent = found(trades)
+  })
+}
+const READ_FOOT = '<span class="left">You can close this. Reading goes on and waits for you on + ADD.</span>'
+function runReading() {
+  let n = 0, trades = 0
+  const tick = () => {
+    if (cur !== 'reading' || dialog) return
+    if (FILES[n]?.big && trades < 1284) trades = Math.min(1284, trades + 107)
+    else { n++; trades = 0 }
+    paintReading(n, trades)
+    timer = setTimeout(n >= FILES.length ? () => go('many') : tick, FILES[n]?.big ? 260 : 1000)
+  }
+  resume = tick
+  timer = setTimeout(tick, 900)
+}
+
+/* ---- Check ---- */
+const ACC = {
+  bpi: { k: 'bpi', files: '1 pdf', fresh: 17, had: 0, bal: ['€3,180.40', '€3,412.60'] },
+  act: { k: 'act', files: '1 pdf', fresh: 12, had: 2, bal: ['€540.10', '€521.36'] },
+  rev: { k: 'rev', files: '2 csv, 1 screenshot', fresh: 41, had: 3, bal: ['€902.00', '€846.22'], extra: '<b>1,284</b> trades · <b>15</b> positions and the cash' },
+}
+function accLine(a, i) {
+  const none = a.fresh === 0 && !a.extra
+  return `<div class="acc" style="animation-delay:${80 + i * 80}ms"><div class="top">${logo(A[a.k][1])}<div class="name"><b>${A[a.k][0]}</b><span>${a.files}</span></div>
+    ${none ? '<span class="tag">nothing new</span>' : `<div class="bal">${a.bal[0]}<span style="color:var(--ink-600)">→</span><span class="to">${a.bal[1]}</span></div>`}</div>
+    <div class="facts"><span><b>${a.fresh}</b> new rows</span>${a.had ? `<span><b>${a.had}</b> already in</span>` : ''}${a.extra ? `<span>${a.extra}</span>` : ''}${none ? '' : `<span class="tag good">${svg('check')}adds up</span>`}<span class="sp"></span><button class="link" data-rows>rows</button></div>${rowsHtml(a.k, a.fresh + a.had - 4 + (a.extra ? 1284 : 0))}</div>`
+}
+function check(o) {
+  const n = o.accs.length
+  const foot = o.nothing
+    ? `<span class="left">Everything in ${n === 1 ? 'this file' : 'these files'} is already in. There is nothing to save.</span><button class="ghost" data-go="open">more files</button><button class="apply" data-go="back">${svg('check')}done</button>`
+    : n === 0
+      ? `<span class="left">Nothing was saved.</span><button class="ghost" data-go="reading">read them again</button><button class="apply" data-go="open">drop other files</button>`
+      : `<span class="left">${o.left || 'Nothing is saved until you press it.'}</span><button class="ghost" data-go="back">later</button><button class="apply" data-go="saving">${svg('check')}apply ${n} ${n === 1 ? 'account' : 'accounts'}</button>`
+  return win(n === 0 ? 1 : 2, `${o.top || ''}${o.accs.map(accLine).join('')}`, foot)
+}
+
+/* ---- Saving: one row per bank, its logo, its own bar ---- */
+const SAVE = [['bpi', '17 rows'], ['act', '12 rows'], ['rev', '41 rows · 1,284 trades · 15 positions and the cash']]
+const SAVE_FOOT = '<span class="left">Closing does not stop it. The save finishes either way.</span>'
+function sRow(i, step, trades) {
+  const [k, what] = SAVE[i], s = fState(i, step)
+  const pct = s === 'ok' ? 100 : s === 'now' ? (k === 'rev' ? (trades / 1284) * 100 : 55) : 0
+  const st = s === 'ok' ? `${svg('check')}saved` : s === 'now' ? `${svg('load', 'spin')}<span class="cnt">${k === 'rev' ? `${trades.toLocaleString('en')} of 1,284 trades` : 'saving'}</span>` : 'waiting'
+  return `<div class="srow ${s}" id="s${i}" data-s="${s}">${logo(A[k][1])}<span class="n"><b>${A[k][0]}</b><small>${what}</small><span class="track"><i style="width:${pct}%"></i></span></span><span class="st">${st}</span></div>`
+}
+const savePct = (step, trades) => (step >= 3 ? 100 : ((step + (step === 2 ? trades / 1284 : 0)) / 3) * 100)
+function savingBody(step, trades) {
+  return `<div class="overall"><div class="line bigline">${svg('load', 'spin')}<span class="big">saving…</span><span class="sub"><span id="sN">${Math.min(step, 3)}</span> of 3 accounts</span></div><div class="track"><i id="sBar" style="width:${savePct(step, trades)}%"></i></div></div>
+    <div class="files">${SAVE.map((_, i) => sRow(i, step, trades)).join('')}</div>`
+}
+function paintSaving(step, trades) {
+  document.getElementById('sN').textContent = Math.min(step, 3)
+  document.getElementById('sBar').style.width = `${savePct(step, trades)}%`
+  SAVE.forEach((_, i) => {
+    const el = document.getElementById('s' + i), s = fState(i, step)
+    if (el.dataset.s !== s) el.outerHTML = sRow(i, step, trades)
+    else if (s === 'now' && i === 2) { el.querySelector('.cnt').textContent = `${trades.toLocaleString('en')} of 1,284 trades`; el.querySelector('.track i').style.width = `${(trades / 1284) * 100}%` }
+  })
+}
+function runSaving() {
+  let step = 0, trades = 0
+  const tick = () => {
+    if (cur !== 'saving' || dialog) return
+    if (step === 2 && trades < 1284) trades = Math.min(1284, trades + 107)
+    else step++
+    paintSaving(step, trades)
+    timer = setTimeout(step >= 3 ? () => go('landed') : tick, step === 2 ? 240 : 900)
+  }
+  resume = tick
+  timer = setTimeout(tick, 800)
+}
+
+/* ---- Landed, and a save that stopped ---- */
+const card = (k, o) => `<div class="${o.cls || ''}" style="animation-delay:${o.delay || 0}ms"><span class="k"><span>${who(k)}</span>${o.tag || ''}</span><span class="now">${o.now}</span>${o.bar != null ? `<span class="track"><i style="width:${o.bar}%"></i></span>` : ''}<span class="was">${o.was}</span><span style="font-size:12.5px;color:var(--ink-300);display:flex;gap:10px;align-items:center">${o.what}<span class="grow"></span><button class="link" data-rows>rows</button></span>${rowsHtml(k, o.more)}</div>`
+const SAVED = `<span class="tag good">${svg('check')}saved</span>`
+function landed() {
+  return win(4, `<div class="done"><span class="ring">${svg('check')}</span><h2>3 accounts are up to date</h2>
+    <div class="ba">${card('bpi', { cls: 'okc', tag: SAVED, now: '€3,412.60', was: 'was €3,180.40', what: '17 new rows', more: 13, delay: 100 })}${card('act', { cls: 'okc', tag: SAVED, now: '€521.36', was: 'was €540.10', what: '12 new rows', more: 10, delay: 180 })}${card('rev', { cls: 'okc', tag: SAVED, now: '€846.22', was: 'was €902.00', what: '41 new rows · 1,284 trades · 15 positions and the cash', more: 1324, delay: 260 })}</div>
+    <p>5 rows were already in and were left alone.</p></div>`,
+    `<span class="left">It stays until you close it.</span><button class="ghost" data-go="open">more files</button><button class="apply" data-go="closed">${svg('check')}done</button>`)
+}
+function stopped() {
+  return win(3, `<div class="done"><span class="ring warn">${svg('alert')}</span><h2>The save stopped before the end</h2>
+    <div class="ba">${card('bpi', { cls: 'okc', tag: SAVED, now: '17 rows', was: 'all in', what: '€3,412.60 now', more: 13, delay: 100 })}${card('act', { cls: 'okc', tag: SAVED, now: '12 rows', was: 'all in', what: '€521.36 now', more: 10, delay: 180 })}${card('rev', { cls: 'not', tag: `<span class="tag warn">${svg('alert')}not finished</span>`, now: '640 of 1,284 trades', bar: 50, was: 'in so far', what: '644 trades and 41 rows still to save', more: 636, delay: 260 })}</div>
+    <p>Nothing is lost and nothing is in twice. Finishing adds only what is missing.</p></div>`,
+    `<span class="left">You can also finish later. It waits on + ADD.</span><button class="ghost" data-go="back">later</button><button class="apply" data-go="saving">${svg('play')}finish saving</button>`)
+}
+
+/* ---- Every moment ---- */
+const bad = (text, sub) => said('bad', 'alert', text, sub)
+const S = {
+  open: { g: 'drop', l: 'opens', note: 'The <b>+ ADD</b> you have today, kept as it is: the drop area, the four steps with their icons, your accounts and how each was last filled, the amber line for the one that is behind, and <b>OR ADD</b> for rows by hand. What changes is what happens after a drop: one file or twenty now go the same way. Press the drop area to walk it through.', r: () => drop() },
+  acct: { g: 'drop', l: 'from an account', note: 'Opened from Revolut\'s UPDATE or from the check-in. The same window with the account already named, and typing the number as the quick way without a file.', r: () => drop({ acct: true }) },
+  uploading: { g: 'drop', l: 'uploading', note: 'The moment you drop files it says so and counts them up. Never a still window.', r: () => drop({ busy: true }), after: () => { timer = setTimeout(() => go('reading'), 1500) } },
+  wrong: { g: 'drop', l: 'wrong file', note: 'A file it cannot read is named before anything goes up. The other files are not started either, so there is never half an update.', r: () => drop({ err: bad('<b>notes.docx</b> is not a PDF, a CSV or a screenshot.', 'Nothing was uploaded. Drop the files again without it.') }) },
+  big: { g: 'drop', l: 'too big', note: 'Same for a file over the size limit.', r: () => drop({ err: bad('<b>scan_2024.pdf</b> is over 10 MB.', 'Nothing was uploaded. Export a shorter period, or a CSV.') }) },
+  failed: { g: 'drop', l: 'upload stopped', note: 'The connection dropped halfway. It says where, and leaves nothing half-started behind.', r: () => drop({ err: bad('The upload stopped at file 3 of 5.', 'Nothing was started. Check the connection and drop them again.') }) },
+  noreads: { g: 'drop', l: 'no reads left', note: 'PDFs and screenshots are read by the AI, and there is a monthly limit. It says how many are left and when more come. CSV files do not count.', r: () => drop({ err: said('warn', 'clock', '<b>4 files</b> need reading and <b>2 reads</b> are left until 14 Oct.', 'Nothing was uploaded. Drop two now, or the CSV files, which do not count.') }) },
+  reading: { g: 'read', l: 'reading', note: 'One line per file: waiting, reading, read and whose it is. A big file counts what it has found, so it never looks stuck. Lines keep their height, so nothing shifts while it reads. When all are read it goes to the check by itself.', r: () => win(1, readingBody(0, 0), READ_FOOT), after: runReading },
+  closeRead: { g: 'read', l: 'close asks', note: 'The ✕, Escape and a click outside all ask first while files are being read. No accidental close.', r: () => win(1, readingBody(3, 428), READ_FOOT), d: { h: 'Still reading 2 files', p: 'If you close it, reading goes on. The + ADD button will show it is waiting, and it opens right here again.' } },
+  away: { g: 'read', l: 'left and came back', note: 'You closed it, or reloaded the page, or picked up the phone. Nothing is lost: <b>+ ADD</b> carries a lit dot and says what is waiting. Press it and the window opens on the same step.', r: () => '' },
+  closed: { note: 'Closed. Nothing is waiting, so + ADD is quiet.', r: () => '' },
+  oneBad: { g: 'read', l: 'one file bad', note: 'One of five could not be read. It says which and why. The other accounts are ready and can be applied without it.', r: () => check({ top: said('bad', 'alert', '<b>IMG_2201.PNG</b> could not be read.', 'The picture is too blurry to read the numbers. The other four files are fine.', '<button class="opt">read it again</button><button class="opt">drop a sharper one</button><button class="opt">leave it out</button>'), accs: [ACC.bpi, ACC.act, { ...ACC.rev, files: '2 csv', extra: '<b>1,284</b> trades' }] }) },
+  allBad: { g: 'read', l: 'all bad', note: 'Nothing could be read. It says so plainly, per file, and nothing is saved.', r: () => check({ top: `<div class="done"><span class="ring bad">${svg('alert')}</span><h2>None of these could be read</h2></div><div class="files">${fileLine({ n: 'IMG_2201.PNG' }, 'bad', 'a')}${fileLine({ n: 'IMG_2202.PNG', why: 'No amounts on it — it looks like a login page.' }, 'bad', 'b')}</div>`, accs: [] }) },
+  one: { g: 'check', l: 'one file', note: 'The usual small update: one statement, one line. New rows, rows already in, the balance before and after, and whether the rows add up. <b>ROWS</b> opens them.', r: () => check({ accs: [ACC.bpi] }) },
+  many: { g: 'check', l: 'many accounts', note: 'Five files became three lines, one per account. The full trading history sits on Revolut as one count. Press <b>ROWS</b> on any of them to see what is inside before you apply.', r: () => check({ accs: [ACC.bpi, ACC.act, ACC.rev] }) },
+  twice: { g: 'check', l: 'same file again', note: 'You dropped a statement that is already in. It reads it, finds every row already there, and says so. There is no apply button because there is nothing to save.', r: () => check({ nothing: true, accs: [{ ...ACC.rev, files: '1 csv', fresh: 0, had: 41, extra: null }] }) },
+  overlap: { g: 'check', l: 'days overlap', note: 'Two files cover some of the same days. Each row is counted once: the ones already in are left alone, and show dimmed under ROWS.', r: () => check({ accs: [{ ...ACC.act, files: '2 pdf', fresh: 9, had: 15 }] }) },
+  unknown: { g: 'check', l: 'bank not known', note: 'A screenshot with no bank name. One question, asked once, with your accounts to tap. The rest can be applied meanwhile.', r: () => check({ left: 'One question left. Apply saves the rest; that file waits.', top: said('warn', 'q', '<b>IMG_4412.PNG</b> has 14 rows and no bank name on it. Whose is it?', '9 of its rows are already in Revolut.', `<button class="opt l">${who('rev')}</button><button class="opt l">${who('bpi')}</button><button class="opt l">${who('act')}</button><button class="opt">leave it out</button>`), accs: [ACC.bpi, ACC.act] }) },
+  saving: { g: 'save', l: 'saving', note: 'Apply answers at once. Each bank has its row, its logo and its own bar; it turns green with a tick as it lands, and the big file counts its trades as they go in.', r: () => win(3, savingBody(0, 0), SAVE_FOOT), after: runSaving },
+  closeSave: { g: 'save', l: 'close asks', note: 'Closing while it saves asks too, and says the save will finish by itself.', r: () => win(3, savingBody(2, 640), SAVE_FOOT), d: { h: 'Still saving', p: 'If you close it, the save finishes by itself. + ADD will show what landed when you come back.' } },
+  stopped: { g: 'save', l: 'save stopped', note: 'A save broke halfway through the big file. Green and ticked is in. Amber is not finished, with how far it got. <b>ROWS</b> shows what each one holds. <b>Finish saving</b> adds only what is missing, never the same trade twice.', r: stopped },
+  landed: { g: 'landed', l: 'landed', note: 'What came in, per bank, with <b>ROWS</b> to look inside. It does not close by itself: after a big update you read it, then press done.', r: landed },
+  typedSaved: { g: 'landed', l: 'typed number', note: 'The quick one: a typed number says "saving", shows this for a moment, then closes by itself.', r: () => win(4, `<div class="done"><span class="ring">${svg('check')}</span><h2>Revolut is up to date</h2><p>€846.22 and $120.00, as of today.</p></div>`, '', { title: 'update · revolut', plain: true }) },
+}
+
+function hero() {
+  const waiting = cur === 'away' ? wait : null
+  return `<div class="hero"><span class="caps">the ways in</span>
+    <span class="acct">${logo(A.rev[1], true)}Revolut <em>5d ago</em><button data-go="acct">update</button></span>
+    <button class="pill" data-go="acct">${svg('clock')}check-in · 2 are old</button><span class="sp"></span>
+    <button class="pill loud" data-go="${waiting ? waiting.to : 'open'}">${svg('plus')}add${waiting ? `<span class="dot"></span>` : ''}</button>${waiting ? `<span class="mono" style="font-size:11px;color:var(--lav-300)">${waiting.text}</span>` : ''}</div>`
+}
+function render() {
+  clearTimeout(timer)
+  const s = S[cur], stage = document.getElementById('stage')
+  const old = stage.querySelector('.sheet'), had = !!old, oldH = old ? old.getBoundingClientRect().height : 0
+  if (s.d) dialog = s.d
+  const groups = [...new Set(Object.values(S).map((x) => x.g))].filter(Boolean)
+  document.getElementById('scen').innerHTML = groups.map((g) => `<div class="scen"><span>${g}</span>${Object.entries(S).filter(([, x]) => x.g === g).map(([k, x]) => `<button class="${k === cur ? 'on' : ''}" data-go="${k}">${x.l}</button>`).join('')}</div>`).join('')
+  document.getElementById('hero').innerHTML = hero()
+  document.getElementById('note').innerHTML = s.note
+  stage.innerHTML = s.r()
+  /* The window arrives once. Between steps it stays put. */
+  const sheet = stage.querySelector('.sheet')
+  if (had && sheet) {
+    sheet.classList.add('still')
+    const h = sheet.getBoundingClientRect().height
+    if (Math.abs(h - oldH) > 1) {
+      sheet.style.height = oldH + 'px'; sheet.getBoundingClientRect()
+      sheet.style.transition = 'height .32s cubic-bezier(.2,.8,.2,1)'; sheet.style.height = h + 'px'
+      sheet.addEventListener('transitionend', () => { sheet.style.height = ''; sheet.style.transition = '' }, { once: true })
+    }
+  }
+  if (s.after && !dialog) s.after()
+}
+function leave() {
+  const saving = ['saving', 'closeSave'].includes(cur), reading = ['uploading', 'reading', 'closeRead'].includes(cur)
+  const next = cur === 'stopped' ? { text: 'a save is waiting', to: 'stopped' } : saving ? { text: 'saving · 640 of 1,284 trades', to: 'saving' }
+    : reading ? { text: 'reading · 3 of 5', to: 'reading' } : ['one', 'many', 'oneBad', 'unknown', 'overlap'].includes(cur) ? READY : null
+  cur = next ? 'away' : 'closed'; wait = next; dialog = null; resume = null; render()
+}
+function askClose() {
+  const sheet = document.querySelector('#stage .sheet')
+  if (!sheet || dialog) return
+  if (!['uploading', 'reading', 'saving'].includes(cur)) return leave()
+  dialog = cur === 'saving' ? S.closeSave.d : S.closeRead.d
+  clearTimeout(timer)
+  sheet.insertAdjacentHTML('beforeend', dlgHtml(dialog))
+}
+document.body.addEventListener('click', (e) => {
+  if (e.target.closest('[data-stay]')) { dialog = null; document.querySelector('.veil')?.remove(); if (resume) timer = setTimeout(resume, 400); return }
+  if (e.target.closest('[data-close]')) return askClose()
+  const r = e.target.closest('[data-rows]')
+  if (r) { const box = r.closest('.acc, .ba > div').querySelector('.rows'); box.hidden = !box.hidden; r.textContent = box.hidden ? 'rows' : 'hide rows'; return }
+  const b = e.target.closest('[data-go]')
+  if (!b) return
+  if (b.dataset.go === 'back') return leave()
+  go(b.dataset.go)
+})
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') askClose() })
+render()
+</script>
+</body>
+</html>

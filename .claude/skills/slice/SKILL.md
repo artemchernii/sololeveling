@@ -32,6 +32,32 @@ Never the spec text. Example: "After you press add, you see a tick and
 'Revolut is up to date'. Here's the picture." Visual = a mockup on
 :3950 (`design/treasury-mockup/`) or a screenshot. Wait for "go".
 
+### Look before he looks (10 Oct)
+
+Artem: "we need some common sense rules somewhere because I don't have to
+tell you it jumps, alignment is bad, spacing is bad." Run this on every
+state of a mockup or a built screen before sending it. Measure in the
+browser pane; do not judge from the code.
+
+1. **Start from what is built.** Open the screen he has today and keep
+   what he likes; say in the reply what is kept. Compare side by side.
+2. **Nothing jumps.** Walk every step: a window changes height only
+   between steps, and glides when it does. Lines keep their height while
+   their text changes. Read the heights with `getBoundingClientRect`.
+3. **No dead space.** No fixed heights to hide a jump. Content fills its
+   box; the gap under the last thing is 0.
+4. **One axis.** Under a centred block, the next row is centred too.
+   Cards in a row share a height; things in a row share a baseline.
+5. **Room.** Nothing touches its edge: a logo sits 6px or more inside its
+   chip, text 12px or more from a border.
+6. **Alive.** What moves in the app moves in the mockup (the breathing
+   drop edge, things arriving). A state that matters — saved, stopped,
+   not finished — has an icon, a colour and motion, never grey words.
+7. **Only what applies.** No step, button or label that means nothing in
+   this state (a typed number shows no "drop · read").
+8. **Words.** "You", never "he". Plain ([[plain-ui-words]]).
+9. **Both widths.** His window (about 950px) and a phone.
+
 ## 3. Tests first
 
 Write the e2e scenarios (`e2e/<area>.spec.ts`, see the `e2e` skill) and

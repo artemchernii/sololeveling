@@ -1,16 +1,16 @@
 /* The Vault's reading (R7a, 26 Sep): what is sent to the model that reads a
    class sheet, and what is accepted back. Artem's sheets are mostly scans,
-   so the reader has to see the page — Claude Haiku 4.5 reads PDFs and
+   so the reader has to see the page — Claude Haiku 5.5 reads PDFs and
    photos directly. One call returns everything, and it is stored: the
    sheet is never sent twice.
 
    Shared by convex/vault.ts (what may be read, the cap) and
    convex/ai/read.ts (the call), and tested here without either. */
 
-export const READING_MODEL = 'claude-haiku-4-5'
+export const READING_MODEL = 'claude-haiku-5-5'
 
 /** On screen, beside every reading — who wrote it. */
-export const READING_MODEL_NAME = 'Claude Haiku 4.5'
+export const READING_MODEL_NAME = 'Claude Haiku 5.5'
 
 /** A page, not a textbook: 10 MB is a long scanned handout. */
 export const MAX_READ_BYTES = 10 * 1024 * 1024

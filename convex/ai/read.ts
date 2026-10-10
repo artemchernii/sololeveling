@@ -14,7 +14,7 @@ import {
 } from '../../src/lib/reading'
 
 /* The one place a Vault sheet leaves for a model (R7a, 26 Sep). Claude
-   Haiku 4.5, because his sheets are mostly scans and it reads the page
+   Haiku 5.5, because his sheets are mostly scans and it reads the page
    itself; one call for the text, the summary, the conclusion and the
    words, in the shape READING_SCHEMA fixes. The key is ANTHROPIC_API_KEY in
    Convex's environment — a separate, capped Console workspace (his pick,
@@ -73,6 +73,7 @@ export const readDocument = internalAction({
         model: READING_MODEL,
         max_tokens: 16000,
         output_config: {
+          effort: 'medium',
           format: { type: 'json_schema', schema: READING_SCHEMA },
         },
         messages: [

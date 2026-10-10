@@ -274,7 +274,7 @@ export const readCrypto = mutation({
       kind: 'trades',
       title: 'Revolut crypto statement',
       institution: 'Revolut',
-      model: 'Claude Haiku 4.5',
+      model: 'Claude Haiku 5.5',
       costUsd: 0.004,
       readAt: Date.now(),
       files: [
@@ -322,7 +322,7 @@ export const readHoldings = mutation({
       kind: 'holdings',
       title: 'Revolut Invest screenshot',
       institution: 'Revolut',
-      model: 'Claude Haiku 4.5',
+      model: 'Claude Haiku 5.5',
       costUsd: 0.003,
       readAt: now,
       files: [
@@ -393,7 +393,7 @@ export const readTrades = mutation({
       kind: 'trades',
       title: 'Revolut stock orders',
       institution: 'Revolut',
-      model: 'Claude Haiku 4.5',
+      model: 'Claude Haiku 5.5',
       costUsd: 0.004,
       readAt: Date.now(),
       files: [

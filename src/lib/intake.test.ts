@@ -684,10 +684,27 @@ describe('a reading in progress', () => {
 })
 
 describe('what a reading costs', () => {
-  test('his failed CSV: ~65k in, 32k out ≈ $0.23', () => {
+  test('Haiku 5.5: ~65k in, 32k out ≈ $0.02 (was $0.23 on 4.5)', () => {
     expect(
       readingCost({ input_tokens: 65_000, output_tokens: 32_000 }),
-    ).toBeCloseTo(0.225, 3)
+    ).toBeCloseTo(0.0225, 4)
+  })
+  test('a prompt over 100,000 tokens is on the dearer card, cached tokens counted', () => {
+    expect(
+      readingCost({ input_tokens: 100_000, output_tokens: 10_000 }),
+    ).toBeCloseTo(0.015, 4)
+    expect(
+      readingCost({ input_tokens: 120_000, output_tokens: 10_000 }),
+    ).toBeCloseTo(0.085, 4)
+    expect(
+      readingCost({
+        input_tokens: 60_000,
+        cache_read_input_tokens: 50_000,
+        output_tokens: 10_000,
+      }),
+    ).toBeCloseTo(0.0575, 4)
+  })
+  test('how it is written', () => {
     expect(usd(0.225)).toBe('$0.23')
     expect(usd(0.0031)).toBe('$0.003')
     expect(usd(0.0004)).toBe('under $0.001')

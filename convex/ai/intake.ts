@@ -41,7 +41,7 @@ import { UNPRICED } from '../../src/lib/market'
 import type { Candidate } from '../../src/lib/market'
 
 /* The reader (Treasury, 27 Sep). What he dropped becomes rows he checks.
-   A PDF or a screenshot goes to Claude Haiku 4.5, streamed, and what it
+   A PDF or a screenshot goes to Claude Haiku 5.5, streamed, and what it
    has found so far is written as it arrives (intake.progress) so the
    screen shows the bank, the rows and the balance landing instead of
    "Reading…". A CSV is read in code: the model only says which column is
@@ -255,8 +255,13 @@ async function readWithModel(
      plain request that could run past ten. */
   const stream = client().messages.stream({
     model: INTAKE_MODEL,
-    max_tokens: 32000,
-    output_config: { format: { type: 'json_schema', schema: INTAKE_SCHEMA } },
+    /* Haiku 5.5 thinks before it writes, and that counts here too: room
+       for both (10 Oct, was 32000 on 4.5, which did not think). */
+    max_tokens: 64000,
+    output_config: {
+      effort: 'medium',
+      format: { type: 'json_schema', schema: INTAKE_SCHEMA },
+    },
     messages: [
       {
         role: 'user',
@@ -485,8 +490,9 @@ async function readCsv(
       })
       const response = await client().messages.create({
         model: INTAKE_MODEL,
-        max_tokens: 4000,
+        max_tokens: 8000,
         output_config: {
+          effort: 'medium',
           format: { type: 'json_schema', schema: LAYOUT_SCHEMA },
         },
         messages: [

@@ -1,5 +1,5 @@
 /* The intake (Treasury, 27 Sep): what he drops on + — a statement, a
-   history screenshot, a broker's holdings — read once by Claude Haiku 4.5,
+   history screenshot, a broker's holdings — read once by Claude Haiku 5.5,
    then checked by him. This file is the part that must be right every
    time, so it is pure and tested: what the reader is asked for, what is
    accepted back, and the rules that turn rows into something he can trust
@@ -12,12 +12,12 @@
    posting day vs the spending day), a Trade Republic holdings screenshot
    (value and % since buy, no shares). */
 
-export const INTAKE_MODEL = 'claude-haiku-4-5'
+export const INTAKE_MODEL = 'claude-haiku-5-5'
 /* Bumped whenever what the reader is asked changes: a file read by an
    older reader is read again rather than its reading reused (3 Oct — a
    reused reading kept "1 100.00" as 100 after the prompt was fixed). */
 export const READER_VERSION = 7
-export const INTAKE_MODEL_NAME = 'Claude Haiku 4.5'
+export const INTAKE_MODEL_NAME = 'Claude Haiku 5.5'
 export const MAX_INTAKE_FILES = 6
 /* UPDATE ALL (3 Oct): a year of four banks' monthly statements. */
 export const MAX_BATCH_FILES = 60
@@ -602,9 +602,12 @@ export function partialReading(text: string) {
   }
 }
 
-/* What a reading costs (Claude Haiku 4.5: $1 in, $5 out per million
-   tokens), from the API's own counts. */
-export const INTAKE_USD_PER_TOKEN = { input: 1 / 1e6, output: 5 / 1e6 }
+/* What a reading costs, from the API's own counts. Claude Haiku 5.5 (10
+   Oct, was 4.5 at $1 in, $5 out): $0.10 in, $0.50 out per million tokens
+   for a prompt up to 100,000 tokens; $0.50 and $2.50 for a longer one. */
+export const INTAKE_USD_PER_TOKEN = { input: 0.1 / 1e6, output: 0.5 / 1e6 }
+export const INTAKE_USD_PER_TOKEN_LONG = { input: 0.5 / 1e6, output: 2.5 / 1e6 }
+export const LONG_PROMPT_TOKENS = 100_000
 
 export function readingCost(usage: {
   input_tokens: number
@@ -616,10 +619,15 @@ export function readingCost(usage: {
     usage.input_tokens +
     (usage.cache_creation_input_tokens ?? 0) * 1.25 +
     (usage.cache_read_input_tokens ?? 0) * 0.1
-  return (
-    input * INTAKE_USD_PER_TOKEN.input +
-    usage.output_tokens * INTAKE_USD_PER_TOKEN.output
-  )
+  const prompt =
+    usage.input_tokens +
+    (usage.cache_creation_input_tokens ?? 0) +
+    (usage.cache_read_input_tokens ?? 0)
+  const rate =
+    prompt > LONG_PROMPT_TOKENS
+      ? INTAKE_USD_PER_TOKEN_LONG
+      : INTAKE_USD_PER_TOKEN
+  return input * rate.input + usage.output_tokens * rate.output
 }
 
 /** "$0.23", "$0.004", "under $0.001", "$0". */

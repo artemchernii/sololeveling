@@ -800,7 +800,7 @@ export default defineSchema({
   }).index('by_owner_currency_time', ['ownerId', 'currency', 'asOf']),
 
   /* Anything he drops on + (Treasury, 27 Sep): statements (PDF/CSV) and
-     screenshots, any bank or broker, read once by Claude Haiku 4.5. The
+     screenshots, any bank or broker, read once by Claude Haiku 5.5. The
      reader says what it is — TRANSACTIONS (a statement, a history screen)
      or HOLDINGS (a broker's positions) — and returns rows he checks. Rows
      are a proposal: nothing becomes a log, a trade or a balance until he

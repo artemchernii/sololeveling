@@ -3396,6 +3396,29 @@ export const applyBatch = mutation({
   },
 })
 
+/**
+ * A save that stopped is carried on (10 Oct): the chain of steps is
+ * started again from where it is. It writes nothing itself, and a step
+ * takes only a file still waiting — so pressing it twice, or while the
+ * save is in fact still running, adds nothing twice.
+ */
+export const resumeApply = mutation({
+  args: { batchId: v.id('batches'), dayStart: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const b = await ownedBatch(ctx, ownerId, args.batchId)
+    if (b.status !== 'applying') return null
+    const identity = await ctx.auth.getUserIdentity()
+    await ctx.scheduler.runAfter(0, internal.intake.applyStep, {
+      batchId: b._id,
+      dayStart: args.dayStart,
+      names: identity?.name ? [identity.name] : [],
+    })
+    return null
+  },
+})
+
 export const applyStep = internalMutation({
   args: {
     batchId: v.id('batches'),

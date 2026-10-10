@@ -1,17 +1,22 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { addedWords } from '@/lib/addedWords'
+import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import {
+  AlertTriangle,
   Check,
   CircleHelp,
   FileText,
   ImageIcon,
-  Layers,
   Loader2,
+  Play,
 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
+import type { Id } from '../../../convex/_generated/dataModel'
+import { useDayStarts } from '@/components/track/useDayStarts'
+import { failureMessage } from '@/lib/convex-errors'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { AccountsLanded } from '@/components/finances/Landed'
 import { AccountLogo } from '@/components/finances/Logo'
@@ -200,16 +205,46 @@ function ReadingBin({
 
 /* ---- Review ---------------------------------------------------------- */
 
-export function Applying({ view }: { view: BatchView }) {
+/* A save moves every step. This long with no step and it has stopped
+   (10 Oct): say so, rather than turn for ever. */
+const STALL_MS = 10_000
+
+export function Applying({
+  view,
+  batchId,
+  onClose,
+}: {
+  view: BatchView
+  batchId: Id<'batches'>
+  onClose: () => void
+}) {
   const done = view.applied?.intakes ?? 0
+  const rows = view.applied?.rows ?? 0
   const total = view.files.filter((f) => f.status !== 'failed').length
+  const [stalled, setStalled] = useState(false)
+  const [nudge, setNudge] = useState(0)
+  useEffect(() => {
+    setStalled(false)
+    const t = setTimeout(() => setStalled(true), STALL_MS)
+    return () => clearTimeout(t)
+  }, [done, rows, nudge])
+  if (stalled)
+    return (
+      <Stopped
+        view={view}
+        batchId={batchId}
+        onClose={onClose}
+        onResumed={() => setNudge((n) => n + 1)}
+      />
+    )
   return (
     <div className="flex min-h-[260px] flex-col items-center justify-center gap-4 text-center">
-      <span className="motion-pulse grid size-12 place-items-center rounded-full bg-lav-400/12 text-lav-300">
-        <Layers className="size-5" />
+      <span className="flex items-center gap-3">
+        <Loader2 className="size-5 animate-spin text-lav-300" />
+        <span className="text-[26px] font-light tracking-tight">saving…</span>
       </span>
-      <span className="text-[15px]">
-        Writing {done} of {total} files…
+      <span className="text-[13px] text-ink-400">
+        {done} of {total} files{rows > 0 ? ` · ${rows} rows in` : ''}
       </span>
       <div className="h-1 w-60 overflow-hidden rounded-full bg-lift/[0.07]">
         <i
@@ -220,6 +255,112 @@ export function Applying({ view }: { view: BatchView }) {
       <span className="font-mono text-[10.5px] text-ink-500">
         oldest statement first
       </span>
+    </div>
+  )
+}
+
+/* The save stopped before the end: what is in, in green; that it is not
+   finished, in amber; one press carries on. Finishing writes only what is
+   missing — applyStep takes the next file still waiting. */
+function Stopped({
+  view,
+  batchId,
+  onClose,
+  onResumed,
+}: {
+  view: BatchView
+  batchId: Id<'batches'>
+  onClose: () => void
+  onResumed: () => void
+}) {
+  const accounts = useQuery(api.accounts.list, {})
+  const resume = useMutation(api.intake.resumeApply)
+  const dayStart = useDayStarts(1).at(-1) as number
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const landed = view.applied?.byAccount ?? []
+  const left = view.files.filter((f) => f.status === 'ready').length
+  return (
+    <div className="flex flex-col items-center gap-4 py-3 text-center">
+      <span className="motion-pop grid size-14 place-items-center rounded-full bg-state-warn/12 text-state-warn ring-1 ring-state-warn/40">
+        <AlertTriangle className="size-6" />
+      </span>
+      <span className="text-[22px] font-light">
+        The save stopped before the end
+      </span>
+      <div className="flex w-full flex-wrap justify-center gap-2.5">
+        {landed.map((x) => {
+          const a = accounts?.find((d) => d._id === x.accountId)
+          return (
+            <div
+              key={x.accountId}
+              className="motion-land flex min-w-[190px] flex-col gap-1.5 rounded-[16px] bg-state-good/[0.06] p-3 text-left ring-1 ring-state-good/30 ring-inset"
+            >
+              <span className="flex items-center justify-between gap-2 text-[13px]">
+                <span className="inline-flex items-center gap-2">
+                  <AccountLogo
+                    name={a?.name ?? ''}
+                    domain={a?.domain ?? null}
+                    size={20}
+                  />
+                  {a?.name}
+                </span>
+                <Tag tone="good">
+                  <Check className="motion-pop size-3" />
+                  saved
+                </Tag>
+              </span>
+              <span className="text-[20px] font-light">{x.rows} rows</span>
+            </div>
+          )
+        })}
+        <div className="motion-land flex min-w-[190px] flex-col gap-1.5 rounded-[16px] bg-state-warn/[0.06] p-3 text-left ring-1 ring-state-warn/40 ring-inset">
+          <span className="flex items-center justify-between gap-2 text-[13px]">
+            still to save
+            <Tag tone="warn">
+              <AlertTriangle className="size-3" />
+              not finished
+            </Tag>
+          </span>
+          <span className="text-[20px] font-light">
+            {left} {left === 1 ? 'file' : 'files'}
+          </span>
+        </div>
+      </div>
+      <p className="max-w-[520px] text-[13px] leading-normal text-ink-400">
+        {error ? (
+          <span className="text-state-danger">{error}</span>
+        ) : (
+          'Nothing is lost and nothing is in twice. Finishing adds only what is missing.'
+        )}
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
+        <button type="button" onClick={onClose} className={PILL_QUIET}>
+          later
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true)
+            setError(null)
+            resume({ batchId, dayStart })
+              .then(onResumed)
+              .catch((e: unknown) =>
+                setError(failureMessage(e) ?? 'It did not start — try again.'),
+              )
+              .finally(() => setBusy(false))
+          }}
+          className={`${PILL_LOUD} justify-center gap-2 px-6 py-2.5 disabled:opacity-70`}
+        >
+          {busy ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Play className="size-3.5" />
+          )}
+          finish saving
+        </button>
+      </div>
     </div>
   )
 }

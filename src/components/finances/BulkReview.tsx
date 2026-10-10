@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ArrowRight, Check, Plus } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Check, Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
@@ -69,10 +69,36 @@ export function BulkReview({
       : ''
   const solve = (key: string) => (text: string) =>
     setSolved((s) => [...s, { key, text }])
+  /* Read, and nothing in it can be used (10 Oct): said outright. */
+  const allBad =
+    review.ready &&
+    review.accounts.length === 0 &&
+    review.asks.some((a) => a.kind === 'failed')
+  /* Every row already in — the same file dropped again. There is nothing
+     to apply, so there is no apply. */
+  const nothingNew =
+    review.ready &&
+    placed.length > 0 &&
+    placed.length === review.accounts.length &&
+    review.asks.length === 0 &&
+    placed.every((a) => a.fresh === 0 && a.trades === 0 && a.holdings === null)
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+      {allBad ? (
+        <div className="flex flex-col items-center gap-3 pt-2 text-center">
+          <span className="motion-pop grid size-14 place-items-center rounded-full bg-state-danger/12 text-state-danger ring-1 ring-state-danger/40">
+            <AlertTriangle className="size-6" />
+          </span>
+          <span className="text-[22px] font-light">
+            None of these could be read
+          </span>
+        </div>
+      ) : null}
+      <div
+        hidden={allBad}
+        className="flex flex-wrap items-baseline gap-x-6 gap-y-2"
+      >
         <Stat n={review.files} label="files" />
         <Stat n={review.accounts.length} label="accounts" />
         <Stat n={fresh} label="new rows" />
@@ -201,6 +227,10 @@ export function BulkReview({
         <span className="min-w-[200px] flex-1 text-[12.5px] text-ink-400">
           {error ? (
             <span className="text-state-danger">{error}</span>
+          ) : allBad ? (
+            'Nothing was saved.'
+          ) : nothingNew ? (
+            `Everything in ${review.files === 1 ? 'this file' : 'these files'} is already in. There is nothing to save.`
           ) : (
             [
               asks.length > 0
@@ -217,7 +247,23 @@ export function BulkReview({
               .join(' ')
           )}
         </span>
-        {sure ? (
+        {nothingNew ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              /* Nothing to keep waiting: the read is let go with it. */
+              setBusy(true)
+              void discard({ batchId })
+                .then(onClose)
+                .finally(() => setBusy(false))
+            }}
+            className="motion-press inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-lav-300 to-lav-400 px-5 py-2.5 font-mono text-[12px] tracking-[0.14em] text-background uppercase disabled:opacity-50"
+          >
+            <Check className="size-4" />
+            done
+          </button>
+        ) : sure ? (
           <button
             type="button"
             onClick={() => void discard({ batchId }).then(onClose)}
@@ -234,11 +280,17 @@ export function BulkReview({
             start over
           </button>
         )}
-        <button type="button" onClick={onClose} className={PILL_QUIET}>
+        <button
+          type="button"
+          hidden={nothingNew}
+          onClick={onClose}
+          className={PILL_QUIET}
+        >
           later
         </button>
         <button
           type="button"
+          hidden={nothingNew || allBad}
           disabled={busy || placed.length === 0}
           onClick={() => {
             setBusy(true)

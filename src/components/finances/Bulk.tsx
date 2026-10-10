@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Files, Layers } from 'lucide-react'
 
@@ -8,6 +8,7 @@ import { PILL_QUIET } from '@/components/finances/bits'
 import { IntakeFlow } from '@/components/finances/Intake'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Sheet } from '@/components/finances/Sheet'
+import type { SheetGuard } from '@/components/finances/Sheet'
 import { failureMessage } from '@/lib/convex-errors'
 import { MAX_BATCH_FILES } from '@/lib/intake'
 import { useBatchUpload } from '@/components/finances/BulkParts'
@@ -25,10 +26,26 @@ import { BulkReview } from '@/components/finances/BulkReview'
    docs/specs/2026-10-03-bulk-update*.md; the mockup it is built to:
    design/treasury-mockup/bulk.html. */
 
+export type Flight = 'reading' | 'saving'
+
+/* What closing would take out of sight (10 Oct). Reading and saving go on
+   without the window; he is told so before it shuts. */
+const GUARD: Record<Flight, SheetGuard> = {
+  reading: {
+    title: 'Still reading',
+    text: 'If you close it, reading goes on. UPDATE ALL will show it is waiting, and it opens right here again.',
+  },
+  saving: {
+    title: 'Still saving',
+    text: 'If you close it, the save finishes by itself.',
+  },
+}
+
 /** The hero's second button, beside ADD. */
 export function UpdateAllButton() {
   const waiting = useQuery(api.intake.openBatch, {})
   const [open, setOpen] = useState(false)
+  const [flight, setFlight] = useState<Flight | null>(null)
   return (
     <>
       <button
@@ -45,11 +62,18 @@ export function UpdateAllButton() {
           />
         ) : null}
       </button>
-      <Sheet open={open} title="update all" wide onClose={() => setOpen(false)}>
+      <Sheet
+        open={open}
+        title="update all"
+        wide
+        onClose={() => setOpen(false)}
+        guard={flight ? GUARD[flight] : null}
+      >
         {open ? (
           <BulkUpdate
             waiting={waiting ?? null}
             onClose={() => setOpen(false)}
+            onFlight={setFlight}
           />
         ) : null}
       </Sheet>
@@ -61,9 +85,12 @@ export function UpdateAllButton() {
 export function BulkUpdate({
   waiting,
   onClose,
+  onFlight,
 }: {
   waiting: Id<'batches'> | null
   onClose: () => void
+  /** Told what is in flight, so the sheet around it can ask before closing. */
+  onFlight?: (flight: Flight | null) => void
 }) {
   const [mine, setMine] = useState<Id<'batches'> | null>(null)
   const batchId = mine ?? waiting
@@ -71,6 +98,28 @@ export function BulkUpdate({
   const [checking, setChecking] = useState<Id<'intakes'> | null>(null)
   /* Whether this sheet saw the apply through. */
   const [pressed, setPressed] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const reading = view?.files.some((f) => f.status === 'reading') ?? false
+  const flight: Flight | null =
+    view?.status === 'applying'
+      ? 'saving'
+      : uploading || reading
+        ? 'reading'
+        : null
+  useEffect(() => {
+    onFlight?.(flight)
+    return () => onFlight?.(null)
+  }, [flight, onFlight])
+  /* A save watched to its end lands here, whoever pressed apply — this
+     window or one closed since (10 Oct: he came back to a bare drop
+     area, with no word on what was saved). */
+  const applying = view?.status === 'applying'
+  useEffect(() => {
+    if (!applying || batchId === null) return
+    setPressed(true)
+    setMine(batchId)
+  }, [applying, batchId])
+  const drop = <BulkDrop onStarted={setMine} onBusy={setUploading} />
 
   if (checking) {
     return (
@@ -81,17 +130,17 @@ export function BulkUpdate({
       />
     )
   }
-  if (batchId === null) return <BulkDrop onStarted={setMine} />
+  if (batchId === null) return drop
   if (view === undefined) return <div className="min-h-[320px]" />
 
-  const reading = view.files.some((f) => f.status === 'reading')
-  if (view.status === 'applying') return <Applying view={view} />
+  if (view.status === 'applying')
+    return <Applying view={view} batchId={batchId} onClose={onClose} />
   if (pressed && (view.status === 'done' || view.applied !== null)) {
     return (
       <Applied view={view} onClose={onClose} onMore={() => setPressed(false)} />
     )
   }
-  if (view.status === 'done') return <BulkDrop onStarted={setMine} />
+  if (view.status === 'done') return drop
   if (reading) return <BulkReading view={view} />
   return (
     <BulkReview
@@ -110,8 +159,19 @@ export function BulkUpdate({
 
 /* ---- Drop ------------------------------------------------------------ */
 
-function BulkDrop({ onStarted }: { onStarted: (id: Id<'batches'>) => void }) {
+function BulkDrop({
+  onStarted,
+  onBusy,
+}: {
+  onStarted: (id: Id<'batches'>) => void
+  onBusy: (busy: boolean) => void
+}) {
   const { send, sent } = useBatchUpload()
+  const busy = sent !== null
+  useEffect(() => {
+    onBusy(busy)
+    return () => onBusy(false)
+  }, [busy, onBusy])
   const [over, setOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const input = useRef<HTMLInputElement>(null)

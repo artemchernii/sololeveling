@@ -155,6 +155,8 @@ export function useBatchUpload() {
   async function send(
     files: Array<File>,
     batchId?: Id<'batches'>,
+    /* Whose they are, and his words about a screenshot. */
+    opts: { accountId?: Id<'accounts'>; hint?: string } = {},
   ): Promise<Id<'batches'>> {
     if (files.length > MAX_BATCH_FILES)
       throw new Error(`At most ${MAX_BATCH_FILES} files in one update.`)
@@ -187,7 +189,7 @@ export function useBatchUpload() {
         })
         setSent({ done: stored.length, of: files.length })
       }
-      const r = await start({ files: stored, batchId })
+      const r = await start({ files: stored, batchId, ...opts })
       if (!r.ok) throw new Error(r.error)
       return r.batchId
     } finally {

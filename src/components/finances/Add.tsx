@@ -1,23 +1,23 @@
 import { useRef, useState } from 'react'
 import { useMutation } from 'convex/react'
+import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { FileUp, Loader2, Plus } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { IntakeFlow } from '@/components/finances/Intake'
+import { BulkUpdate, GUARD } from '@/components/finances/Bulk'
+import type { Flight } from '@/components/finances/Bulk'
 import { Sheet } from '@/components/finances/Sheet'
 import { AddDrop } from '@/components/finances/AddDrop'
 import { AddRows } from '@/components/finances/AddRows'
 import { MAX_INTAKE_FILES, readableFile } from '@/lib/intake'
 
-/* + (Treasury, 27 Sep; reworked the same day as "adding money"): two
-   doors. DROP FILES — statements and screenshots, any bank or broker,
-   several at once; the reader works out what each is and returns a list
-   to check. BY HAND — a row per thing, of any kind, prefilled (AddRows,
-   27 Sep: the text box is gone). Every step has a way back; nothing closes
-   the whole sheet but close. */
-
-type Step = { at: 'home' } | { at: 'intake'; id: Id<'intakes'> }
+/* ADD — the one door (10 Oct; "why we have 2 buttons UPDATE ALL and
+   ADD?"). It opens as it always did: the drop area with his accounts
+   (AddDrop) and rows by hand (AddRows). A drop — one file or many — runs
+   as an update: read, checked one line an account, applied, landed.
+   Anything still waiting is marked on the button, and opening it returns
+   to that step. While files are read or saved, closing asks first. */
 
 export function AddButton({
   className = '',
@@ -33,44 +33,51 @@ export function AddButton({
       an account to add money to. */
   onOpen?: () => void
 }) {
-  const [step, setStep] = useState<Step | null>(null)
-  const home = () => setStep({ at: 'home' })
-  const title = step === null ? '' : step.at === 'home' ? 'add' : 'check it'
+  const waiting = useQuery(api.intake.openBatch, onOpen ? 'skip' : {})
+  const [open, setOpen] = useState(false)
+  const [flight, setFlight] = useState<Flight | null>(null)
   return (
-    <>
+    <span className={`relative inline-flex ${className}`}>
       <button
         type="button"
-        onClick={onOpen ?? home}
+        onClick={onOpen ?? (() => setOpen(true))}
         className={
           cta
-            ? `motion-press inline-flex items-center justify-center gap-1.5 rounded-full bg-lav-400 px-4 py-2.5 font-mono text-[11px] font-medium tracking-[0.14em] text-background uppercase ${className}`
-            : `add-live motion-press inline-flex items-center gap-1.5 rounded-full py-1.5 pr-4 pl-3 font-mono text-[11px] font-medium tracking-[0.14em] text-background uppercase ${className}`
+            ? `motion-press inline-flex items-center justify-center gap-1.5 rounded-full bg-lav-400 px-4 py-2.5 font-mono text-[11px] font-medium tracking-[0.14em] text-background uppercase`
+            : `add-live motion-press inline-flex items-center gap-1.5 rounded-full py-1.5 pr-4 pl-3 font-mono text-[11px] font-medium tracking-[0.14em] text-background uppercase`
         }
       >
         {cta ? null : <Plus className="add-plus size-3.5" strokeWidth={2.5} />}
         {label}
       </button>
+      {waiting ? (
+        <span
+          aria-label="an update is waiting"
+          className="motion-pulse absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-state-warn shadow-[0_0_8px_var(--color-state-warn)] ring-2 ring-background"
+        />
+      ) : null}
       <Sheet
-        open={step !== null}
-        title={title}
-        onClose={() => setStep(null)}
-        onBack={step !== null && step.at !== 'home' ? home : undefined}
+        open={open}
+        title="add"
         wide
+        onClose={() => setOpen(false)}
+        guard={flight ? GUARD[flight] : null}
       >
-        {step?.at === 'home' ? (
-          <>
-            <AddDrop onStarted={(id) => setStep({ at: 'intake', id })} />
-            <AddRows />
-          </>
-        ) : step?.at === 'intake' ? (
-          <IntakeFlow
-            intakeId={step.id}
-            onBack={home}
-            onDone={() => setStep(null)}
+        {open ? (
+          <BulkUpdate
+            waiting={waiting ?? null}
+            onClose={() => setOpen(false)}
+            onFlight={setFlight}
+            dropArea={(onStarted, onBusy) => (
+              <>
+                <AddDrop onStarted={onStarted} onBusy={onBusy} />
+                <AddRows />
+              </>
+            )}
           />
         ) : null}
       </Sheet>
-    </>
+    </span>
   )
 }
 

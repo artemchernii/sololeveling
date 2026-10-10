@@ -97,7 +97,7 @@ export function BulkReading({ view }: { view: BatchView }) {
         })}
       </div>
       <p className="border-t border-lav-400/10 pt-3 text-[12.5px] text-ink-400">
-        You can close this. Reading goes on and waits for you under UPDATE ALL.
+        You can close this. Reading goes on and waits for you on ADD.
       </p>
     </div>
   )

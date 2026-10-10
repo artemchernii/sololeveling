@@ -88,7 +88,7 @@ test('"still the same": saving, saved, up to date, closed', async ({
 test('a bulk upload lands one line an account', async ({ page }) => {
   const days = await start(page)
   await page.goto('/finances')
-  await page.getByRole('button', { name: 'update all' }).click()
+  await page.getByRole('button', { name: 'add', exact: true }).first().click()
   await page.locator('input[type=file]').setInputFiles([
     {
       name: 'revolut.csv',

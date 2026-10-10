@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import {
   ArrowDownToLine,
@@ -13,20 +13,23 @@ import type { LucideIcon } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { useIntakeUpload } from '@/components/finances/Add'
 import { FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
+import { useBatchUpload } from '@/components/finances/BulkParts'
 import { AccountLogo } from '@/components/finances/Logo'
 import { agoLabel } from '@/lib/format'
 import { freshness } from '@/lib/freshness'
 import type { PocketTime } from '@/lib/freshness'
-import { MAX_INTAKE_FILES } from '@/lib/intake'
+import { MAX_BATCH_FILES } from '@/lib/intake'
 
 /* The + sheet as it opens (27 Sep; design/treasury-mockup/add-empty.html,
    approved). Artem found it bare. It is filled with what is true about his
    setup, not with instructions: how a file goes (one line), his accounts
    and how each was last filled, and the last file read — or, when an
    account is a week behind, that one, in amber, one tap from its picker.
-   After a drop the reading screen takes over, as before. */
+   After a drop the reading screen takes over, as before.
+   One door (10 Oct): every drop here — one file or sixty — goes through
+   the update engine (`startBatch`), the path that asks before closing,
+   says when a save stopped and never writes a row twice. */
 
 const STEPS: ReadonlyArray<[LucideIcon, string]> = [
   [ArrowDownToLine, 'drop'],
@@ -68,12 +71,15 @@ function filledBy(pockets: ReadonlyArray<PocketTime>): string {
 
 export function AddDrop({
   onStarted,
+  onBusy,
 }: {
-  onStarted: (intakeId: Id<'intakes'>) => void
+  onStarted: (batchId: Id<'batches'>) => void
+  /** Told while files go up, so the sheet asks before it closes. */
+  onBusy?: (busy: boolean) => void
 }) {
   const data = useQuery(api.aggregate.balances, {})
   const last = useQuery(api.intake.lastRead, {})
-  const upload = useIntakeUpload()
+  const { send: upload, sent } = useBatchUpload()
   const input = useRef<HTMLInputElement>(null)
   /* The account a picker was opened for — a tap on a behind account. */
   const forAccount = useRef<Id<'accounts'> | undefined>(undefined)
@@ -85,6 +91,10 @@ export function AddDrop({
      line is optional — read it without one and nothing changes. */
   const [waiting, setWaiting] = useState<Array<File> | null>(null)
   const [hint, setHint] = useState('')
+  useEffect(() => {
+    onBusy?.(busy)
+    return () => onBusy?.(false)
+  }, [busy, onBusy])
 
   const now = Date.now()
   const accounts = (data?.accounts ?? []).map((a) => ({
@@ -120,11 +130,14 @@ export function AddDrop({
     setBusy(true)
     setError(null)
     try {
-      for (const id of await upload(files, {
-        accountId: forAccount.current,
-        hint: words,
-      }))
-        onStarted(id)
+      if (files.length > MAX_BATCH_FILES)
+        throw new Error(`At most ${MAX_BATCH_FILES} files at once.`)
+      onStarted(
+        await upload(files, undefined, {
+          accountId: forAccount.current,
+          hint: words,
+        }),
+      )
       setWaiting(null)
     } catch (e) {
       setError(
@@ -192,10 +205,14 @@ export function AddDrop({
               </span>
               <span className="flex flex-col gap-0.5">
                 <span className="text-[15.5px] text-foreground">
-                  {busy ? 'Uploading…' : 'Drop statements or screenshots'}
+                  {sent
+                    ? `uploading ${sent.done} of ${sent.of}…`
+                    : busy
+                      ? 'uploading…'
+                      : 'Drop statements or screenshots'}
                 </span>
                 <span className="font-mono text-[10.5px] text-ink-500">
-                  or click to pick · up to {MAX_INTAKE_FILES} at once
+                  or click to pick · one file or many
                 </span>
               </span>
             </button>

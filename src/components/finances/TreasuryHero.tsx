@@ -10,7 +10,6 @@ import { AddButton } from '@/components/finances/Add'
 import { UpdateSheet } from '@/components/finances/UpdateSheet'
 import { AccountLogo } from '@/components/finances/Logo'
 import { SetupSheet } from '@/components/finances/Setup'
-import { UpdateAllButton } from '@/components/finances/Bulk'
 import { Sheet } from '@/components/finances/Sheet'
 import { Veiled, VeilToggle } from '@/components/finances/Veil'
 import { Skeleton } from '@/components/Skeleton'
@@ -146,7 +145,6 @@ export function TreasuryHero() {
         {/* No account yet: + brings accounts in — there is nothing to add
             money to. */}
         {/* UPDATE ALL (3 Oct): many statements at once, beside ADD. */}
-        {!loading && !empty ? <UpdateAllButton /> : null}
         <AddButton onOpen={empty ? () => setSetup(true) : undefined} />
       </div>
 

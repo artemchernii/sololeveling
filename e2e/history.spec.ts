@@ -15,7 +15,7 @@ test('trading history: applied through update all, and again adds nothing', asyn
   await testClient().mutation(anyApi.e2e.readHistory, { days })
   await page.goto('/finances')
 
-  await page.getByRole('button', { name: 'update all' }).click()
+  await page.getByRole('button', { name: 'add', exact: true }).first().click()
   const sheet = page.getByRole('dialog')
   await expect(sheet.getByText('31 trades')).toBeVisible()
   await page.screenshot({ ...shot('history-review'), fullPage: true })
@@ -29,7 +29,7 @@ test('trading history: applied through update all, and again adds nothing', asyn
   await expect(sheet).toBeHidden()
 
   await testClient().mutation(anyApi.e2e.readHistory, { days })
-  await page.getByRole('button', { name: 'update all' }).click()
+  await page.getByRole('button', { name: 'add', exact: true }).first().click()
   await sheet.getByRole('button', { name: /apply 1 account/ }).click()
   await expect(sheet.getByText('Revolut updated')).toBeVisible()
   await expect(sheet.getByText('nothing new')).toBeVisible()

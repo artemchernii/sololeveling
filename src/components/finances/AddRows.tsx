@@ -302,7 +302,7 @@ export function AddRows() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-2">
         <span className="label-caps mr-1">or add</span>
         {ORDER.map((k) => {
           const { Icon, label, icon, hover } = KINDS[k]

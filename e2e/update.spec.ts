@@ -13,9 +13,44 @@ const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
 
 const open = async (page: Page) => {
   await page.goto('/finances')
-  await page.getByRole('button', { name: 'update all' }).click()
+  await page.getByRole('button', { name: 'add', exact: true }).first().click()
   return page.getByRole('dialog')
 }
+
+/* One door (10 Oct, "why we have 2 buttons UPDATE ALL and ADD?"): files go
+   in through ADD and nowhere else, one file or many. */
+test('one button: update all is gone, and ADD shows what is waiting', async ({
+  page,
+}) => {
+  await start(page)
+  await page.goto('/finances')
+  const add = page.getByRole('button', { name: 'add', exact: true }).first()
+  await expect(add).toBeVisible()
+  await expect(page.getByRole('button', { name: 'update all' })).toHaveCount(0)
+  await expect(add.getByLabel('an update is waiting')).toHaveCount(0)
+
+  await testClient().mutation(anyApi.e2eUpdate.holdRead, {})
+  await expect(add.getByLabel('an update is waiting')).toBeVisible()
+  /* It opens on what is waiting, not on an empty drop area. */
+  await add.click()
+  const sheet = page.getByRole('dialog', { name: 'add' })
+  await expect(sheet.getByText('statement-sep.pdf')).toBeVisible()
+  await page.waitForTimeout(700)
+  await page.screenshot(shot('add-one-door-waiting'))
+})
+
+test('ADD opens as it always did: the drop area, your accounts, rows by hand', async ({
+  page,
+}) => {
+  await start(page)
+  const sheet = await open(page)
+  await expect(sheet.getByText('Drop statements or screenshots')).toBeVisible()
+  await expect(sheet.getByText('lands on the account')).toBeVisible()
+  await expect(sheet.getByText('Revolut').first()).toBeVisible()
+  await expect(sheet.getByRole('button', { name: 'money in' })).toBeVisible()
+  await page.waitForTimeout(900)
+  await page.screenshot(shot('add-one-door'))
+})
 
 test('a wrong kind of file is named, and nothing starts', async ({ page }) => {
   await start(page)
@@ -30,7 +65,7 @@ test('a wrong kind of file is named, and nothing starts', async ({ page }) => {
   await expect(
     sheet.getByText('notes.docx is not a PDF, a CSV or a screenshot.'),
   ).toBeVisible()
-  await expect(sheet.getByText('Drop every statement at once')).toBeVisible()
+  await expect(sheet.getByText('Drop statements or screenshots')).toBeVisible()
   await expect(page.getByLabel('an update is waiting')).toHaveCount(0)
   await page.waitForTimeout(700)
   await page.screenshot(shot('update-wrong-file'))
@@ -52,7 +87,7 @@ test('the same statement twice: the second time there is nothing to save', async
   await sheet.getByRole('button', { name: 'done' }).click()
   await expect(sheet).toBeHidden()
 
-  await page.getByRole('button', { name: 'update all' }).click()
+  await page.getByRole('button', { name: 'add', exact: true }).first().click()
   await page.locator('input[type=file]').setInputFiles([file])
   await expect(
     sheet.getByText(
@@ -87,7 +122,7 @@ test('a longer statement over a shorter one: only the new days are added', async
   await sheet.getByRole('button', { name: 'done' }).click()
   await expect(sheet).toBeHidden()
 
-  await page.getByRole('button', { name: 'update all' }).click()
+  await page.getByRole('button', { name: 'add', exact: true }).first().click()
   await page.locator('input[type=file]').setInputFiles([
     {
       name: 'revolut-long.csv',
@@ -104,7 +139,7 @@ test('a longer statement over a shorter one: only the new days are added', async
   await sheet.getByRole('button', { name: 'done' }).click()
 
   /* And the whole of it once more: nothing left to add. */
-  await page.getByRole('button', { name: 'update all' }).click()
+  await page.getByRole('button', { name: 'add', exact: true }).first().click()
   await page.locator('input[type=file]').setInputFiles([
     {
       name: 'revolut-long.csv',
@@ -145,7 +180,7 @@ test('reading: it shows at once, closing asks first, and leaving loses nothing',
   /* Gone from sight, not lost: the button says so, a reload too. */
   await expect(page.getByLabel('an update is waiting')).toBeVisible()
   await page.reload()
-  await page.getByRole('button', { name: 'update all' }).click()
+  await page.getByRole('button', { name: 'add', exact: true }).first().click()
   await expect(sheet.getByText('statement-sep.pdf')).toBeVisible()
 })
 

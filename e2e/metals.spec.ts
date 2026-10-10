@@ -12,7 +12,7 @@ test('a commodity CSV lands as gold held at Revolut, with no money questions', a
 }) => {
   const days = await start(page)
   await page.goto('/finances')
-  await page.getByRole('button', { name: 'update all' }).click()
+  await page.getByRole('button', { name: 'add', exact: true }).first().click()
   await page.locator('input[type=file]').setInputFiles([
     {
       name: 'account-statement_metals.csv',

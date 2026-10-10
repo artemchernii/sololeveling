@@ -62,6 +62,25 @@ export function revolutCsv(days: Array<number>): Buffer {
   return Buffer.from(rows.join('\n') + '\n')
 }
 
+/** Revolut's EUR export with `n` new rows on the last day — a big file. */
+export function bigRevolutCsv(days: Array<number>, n: number): Buffer {
+  const day = days[3]
+  const p = (x: number) => String(x).padStart(2, '0')
+  let balance = 1138.98
+  const rows = [
+    'Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance',
+  ]
+  for (let i = 0; i < n; i++) {
+    const amount = 1 + i / 100
+    balance -= amount
+    const at = iso(day, `${p(8 + Math.floor(i / 60))}:${p(i % 60)}:00`)
+    rows.push(
+      `CARD_PAYMENT,Current,${at},${at},Shop ${i + 1},-${amount.toFixed(2)},0.00,EUR,COMPLETED,${balance.toFixed(2)}`,
+    )
+  }
+  return Buffer.from(rows.join('\n') + '\n')
+}
+
 /** An ActivoBank export over the same days: two rows, both new. */
 export function activoCsv(days: Array<number>): Buffer {
   const [, , d3, d4] = days

@@ -626,8 +626,20 @@ describe('worth: free cash and investments, apart', () => {
     expect(w.invested.total).toBe(1700)
     expect(w.total).toBe(3850)
     expect(w.byAccount).toEqual([
-      { accountId: revolut, cash: 2000, invested: 1700, positions: 1 },
-      { accountId: tr, cash: 150, invested: null, positions: 0 },
+      {
+        accountId: revolut,
+        cash: 2000,
+        brokerCash: null,
+        invested: 1700,
+        positions: 1,
+      },
+      {
+        accountId: tr,
+        cash: 150,
+        brokerCash: null,
+        invested: null,
+        positions: 0,
+      },
     ])
   })
 
@@ -679,7 +691,8 @@ describe('accounts: kinds, currencies, delete', () => {
     let b = await me.query(api.aggregate.balances, {})
     /* No USD rate stored yet: the pocket is shown as read, not guessed. */
     expect(b.total).toBe(799.47)
-    expect(b.unread).toBe(1)
+    /* And its broker cash was never read (10 Oct): two pockets missing. */
+    expect(b.unread).toBe(2)
     await t.mutation(internal.market.storeRate, {
       ownerIds: [ME],
       currency: 'USD',

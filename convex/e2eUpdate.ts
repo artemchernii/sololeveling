@@ -8,6 +8,38 @@ import { guard, history } from './e2e'
    open, a read that failed, a save that stopped. Like convex/e2e.ts,
    every function refuses anywhere but the test backend. */
 
+/* A broker that is only a broker beside Revolut, which is a bank too
+   (10 Oct, broker cash): its one cash line is the broker's. */
+export const addBroker = mutation({
+  args: {},
+  returns: v.id('accounts'),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const accountId = await ctx.db.insert('accounts', {
+      ownerId,
+      name: 'Trade Republic',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+      domain: 'traderepublic.com',
+      institution: 'trade-republic',
+      ibanTails: [],
+      cardTails: [],
+      order: 3,
+    })
+    await ctx.db.insert('stateSnapshots', {
+      ownerId,
+      area: 'money',
+      key: `balance:${accountId}:EUR`,
+      value: 300,
+      unit: 'eur',
+      recordedAt: Date.now() - 8 * 86_400_000,
+      source: 'typed',
+    })
+    return accountId
+  },
+})
+
 /* An update with a file still being read (10 Oct) — held there, so a
    test can try to close the window on it. `batchId` adds that file to an
    update that already has one read. */

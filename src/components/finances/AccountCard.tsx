@@ -54,6 +54,9 @@ export function AccountCard({
   onOpen: () => void
 }) {
   const f = freshness(a.pockets, Date.now())
+  const broker = a.brokerCash
+  const total =
+    Math.round((a.cashEur + (broker?.eur ?? 0) + (invested ?? 0)) * 100) / 100
   return (
     <div
       role="button"
@@ -98,16 +101,24 @@ export function AccountCard({
         </button>
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-[30px] leading-none font-light text-foreground">
-          <Veiled>
-            {euros(Math.round((a.cashEur + (invested ?? 0)) * 100) / 100)}
-          </Veiled>
+        <span
+          data-testid="account-total"
+          className="text-[30px] leading-none font-light text-foreground"
+        >
+          <Veiled>{euros(total)}</Veiled>
         </span>
         {/* The line is cash only. Where shares are held, cash spent on them
             would draw as a loss (27 Sep, TR's red line), so it waits for
             stored closes to draw the whole account. */}
         {invested !== null && invested > 0 ? null : <Sparkline values={line} />}
       </div>
+      {broker ? (
+        <CashBar
+          free={a.cashEur}
+          broker={broker.eur ?? 0}
+          invested={invested ?? 0}
+        />
+      ) : null}
       <div className="flex flex-col gap-1.5 font-mono text-[12.5px]">
         {a.pockets
           /* "$0 ≈ €0" is noise beside a pocket that holds something. */
@@ -140,8 +151,28 @@ export function AccountCard({
               </span>
             </span>
           ))}
+        {broker ? (
+          /* The broker's own cash, beside the bank's (10 Oct): never read
+             is said in amber, with no number. */
+          <span
+            data-testid="broker-cash"
+            className="flex items-center justify-between gap-2"
+          >
+            <span className="text-ink-400">broker cash</span>
+            {broker.eur === null ? (
+              <span className="text-state-warn">never read</span>
+            ) : (
+              <span className="text-ink-100">
+                <Veiled>{euros(broker.eur)}</Veiled>
+              </span>
+            )}
+          </span>
+        ) : null}
         {invested !== null && invested > 0 ? (
-          <span className="flex items-center justify-between gap-2">
+          <span
+            data-testid="account-invested"
+            className="flex items-center justify-between gap-2"
+          >
             <span className="text-ink-400">investments</span>
             <span className="text-ink-100">
               <Veiled>{euros(invested)}</Veiled>
@@ -256,6 +287,36 @@ export function AccountCard({
           update
         </button>
       </div>
+    </div>
+  )
+}
+
+/* Where a bank-and-broker's money sits (10 Oct, "bar yes"): free cash,
+   broker cash, investments — a split of stored numbers, not a grade. */
+function CashBar({
+  free,
+  broker,
+  invested,
+}: {
+  free: number
+  broker: number
+  invested: number
+}) {
+  const parts = [
+    { v: free, tone: 'bg-money-cash' },
+    { v: broker, tone: 'bg-money-cash/45' },
+    { v: invested, tone: 'bg-lav-400' },
+  ].filter((p) => p.v > 0)
+  if (parts.length < 2) return null
+  return (
+    <div data-testid="cash-bar" className="flex h-1.5 gap-0.5" aria-hidden>
+      {parts.map((p) => (
+        <span
+          key={p.tone}
+          style={{ flex: p.v }}
+          className={`motion-arrive min-w-1 rounded-full ${p.tone}`}
+        />
+      ))}
     </div>
   )
 }

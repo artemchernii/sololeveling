@@ -60,6 +60,8 @@ export function AccountBlock({
   const title = account?.name ?? block.product?.name ?? ''
   const domain = account?.domain ?? product?.domain ?? null
   const kinds = account?.kinds ?? product?.kinds ?? []
+  /* A bank that is also a broker: a screen's cash is its broker cash. */
+  const brokerCash = kinds.includes('bank') && kinds.includes('broker')
   const { first, last, holdings } = block
   const twoReadings =
     first !== null && last !== null && first.asOf !== last.asOf
@@ -252,7 +254,7 @@ export function AccountBlock({
           </span>
           {holdings.cashEur !== null ? (
             <span>
-              cash{' '}
+              {brokerCash ? 'broker cash' : 'cash'}{' '}
               <b className="font-normal text-foreground">
                 <Veiled>{euros(holdings.cashEur)}</Veiled>
               </b>

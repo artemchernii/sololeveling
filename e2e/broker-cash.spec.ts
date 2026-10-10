@@ -33,8 +33,8 @@ test('S2 never read: the card says so, and adds nothing for it', async ({
   await expect(revolut.getByTestId('broker-cash')).toHaveText(
     /broker cash\s*never read/,
   )
-  /* €1,200 and $40 at 0.86: the bank's alone. */
-  await expect(revolut.getByTestId('account-total')).toHaveText('€1,234.40')
+  /* €1,200 less the three spends, and $40 at 0.86: the bank's alone. */
+  await expect(revolut.getByTestId('account-total')).toHaveText(/^€1,173\.38/)
   await expect(card(page, 'ActivoBank').getByTestId('broker-cash')).toHaveCount(
     0,
   )
@@ -49,7 +49,7 @@ test('S1 Invest screenshot into Revolut: broker cash lands beside the free cash'
   await expect(sheet.getByText('broker cash', { exact: true })).toBeVisible()
   await expect(
     sheet.getByText(
-      'Goes to broker cash. Your free cash at Revolut stays €1,234.40.',
+      'Goes to broker cash. Your free cash at Revolut stays €1,173.38.',
     ),
   ).toBeVisible()
   const save = sheet.getByRole('button', {
@@ -75,7 +75,7 @@ test('S1 Invest screenshot into Revolut: broker cash lands beside the free cash'
   await expect(revolut.getByTestId('broker-cash')).toHaveText(
     /broker cash\s*€120/,
   )
-  await expect(revolut.getByText(/free cash\s*EUR\s*€1,200/)).toBeVisible()
+  await expect(revolut.getByText(/free cash\s*EUR\s*€1,138\.98/)).toBeVisible()
   await expect(revolut.getByTestId('cash-bar')).toBeVisible()
   /* The total is the three added: free cash, broker cash, investments. */
   const invested = amount(
@@ -83,7 +83,7 @@ test('S1 Invest screenshot into Revolut: broker cash lands beside the free cash'
   )
   expect(invested).toBeGreaterThan(0)
   const total = amount(await revolut.getByTestId('account-total').textContent())
-  expect(total).toBeCloseTo(1234.4 + 120 + invested, 2)
+  expect(total).toBeCloseTo(1173.38 + 120 + invested, 2)
   await page.screenshot({ ...shot('broker-cash-card'), fullPage: true })
 })
 
@@ -91,7 +91,7 @@ test('S3 the same screenshot into a broker that is only a broker: its free cash,
   page,
 }) => {
   await start(page)
-  await testClient().mutation(anyApi.e2e.addBroker, {})
+  await testClient().mutation(anyApi.e2eUpdate.addBroker, {})
   const sheet = await openCheck(page)
   await sheet.getByRole('button', { name: 'Trade Republic' }).click()
   await expect(sheet.getByText('broker cash')).toHaveCount(0)

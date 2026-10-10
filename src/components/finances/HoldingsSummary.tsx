@@ -21,6 +21,7 @@ export function HoldingsSummary({
   paid,
   gain,
   fromFile,
+  freeStays,
 }: {
   targetName: string | undefined
   /** The total the screen printed, when it did. */
@@ -39,7 +40,11 @@ export function HoldingsSummary({
   gain: number
   /** Read from a file, not a screenshot. */
   fromFile: boolean
+  /** A bank that is also a broker: the cash here is its broker cash, and
+      this is the free cash that stays as it is (10 Oct). */
+  freeStays?: number
 }) {
+  const label = freeStays === undefined ? 'free cash' : 'broker cash'
   const [editCash, setEditCash] = useState(false)
   const worthKnown = totalEur !== undefined || valued > 0 || cashNum !== null
   return (
@@ -56,7 +61,7 @@ export function HoldingsSummary({
             {totalEur !== undefined
               ? 'what the screen shows'
               : worthKnown
-                ? 'invested and free cash'
+                ? `invested and ${label}`
                 : 'worth is not in this file'}
           </span>
         </div>
@@ -76,7 +81,7 @@ export function HoldingsSummary({
         <div className="flex flex-col gap-1">
           <span className="label-caps flex items-center gap-1.5">
             <span className="size-[7px] rounded-full bg-money-cash" />
-            free cash
+            {label}
           </span>
           {editCash ? (
             <input
@@ -85,7 +90,11 @@ export function HoldingsSummary({
               value={cash}
               onChange={(e) => setCash(e.target.value)}
               onBlur={() => setEditCash(false)}
-              aria-label="Free cash in the account"
+              aria-label={
+                freeStays === undefined
+                  ? 'Free cash in the account'
+                  : 'Broker cash in the account'
+              }
               className={`${FIELD} mt-1 w-32 py-1 text-[16px]`}
             />
           ) : (
@@ -121,6 +130,12 @@ export function HoldingsSummary({
             />
           ) : null}
         </div>
+      ) : null}
+      {freeStays !== undefined && cashNum !== null ? (
+        <span className="text-[13px] text-ink-300">
+          Goes to broker cash. Your free cash at {targetName} stays{' '}
+          {money(freeStays)}.
+        </span>
       ) : null}
       <div className="flex flex-wrap items-center gap-2 border-t border-lift/[0.06] pt-3 text-[13px] text-ink-300">
         {known === 0 ? (

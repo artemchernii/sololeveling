@@ -64,6 +64,10 @@ export function HoldingsReview({
   )
   const target = accountId ?? whose?.guessedAccountId ?? null
   const targetName = accounts.find((a) => a._id === target)?.name
+  /* A bank that is also a broker: this screen's cash is its broker cash. */
+  const balances = useQuery(api.aggregate.balances, {})
+  const targetRow = balances?.accounts.find((a) => a.accountId === target)
+  const freeStays = targetRow?.brokerCash ? targetRow.cashEur : undefined
   const [drafts, setDrafts] = useState<Array<PosDraft>>([])
   const [open, setOpen] = useState<number | null>(null)
   const [searching, setSearching] = useState<number | null>(null)
@@ -270,6 +274,7 @@ export function HoldingsReview({
         paid={paid}
         gain={gain}
         fromFile={fromFile}
+        freeStays={freeStays}
       />
 
       {changes ? (
@@ -481,7 +486,7 @@ export function HoldingsReview({
           <Busy on={saving} doing="saving">
             {target === null
               ? 'pick the account above'
-              : `save ${kept.length} ${kept.length === 1 ? 'position' : 'positions'}${cashNum !== null ? ' and the cash' : ''}`}
+              : `save ${kept.length} ${kept.length === 1 ? 'position' : 'positions'}${cashNum !== null ? (freeStays === undefined ? ' and the cash' : ' and the broker cash') : ''}`}
           </Busy>
         </button>
       </div>

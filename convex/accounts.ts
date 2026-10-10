@@ -31,6 +31,21 @@ export function balanceKey(
   return `balance:${accountId}:${currency}`
 }
 
+/* Broker cash (10 Oct): Revolut is a bank and a broker, and the broker's
+   cash is not the bank's. An account that is both keeps it as a second
+   state beside its euro balance — one number in euros, as the Invest
+   screen prints it. A broker that is only a broker has no such pocket:
+   its one cash line is already the broker's. */
+export function brokerCashKey(accountId: Id<'accounts'>): string {
+  return `brokerCash:${accountId}:EUR`
+}
+
+export function hasBrokerCash(account: {
+  kinds: ReadonlyArray<string>
+}): boolean {
+  return account.kinds.includes('bank') && account.kinds.includes('broker')
+}
+
 export async function ownedAccount(
   ctx: QueryCtx | MutationCtx,
   ownerId: string,
@@ -259,7 +274,12 @@ export async function writeBalance(
   dayStart: number,
   asOf?: number,
   source: BalanceSource = 'typed',
+  /** The broker's cash of a bank that is also a broker, in euros. */
+  pocket: 'free' | 'broker' = 'free',
 ) {
+  if (pocket === 'broker' && (currency !== 'EUR' || !hasBrokerCash(account))) {
+    throw new ConvexError(`${account.name} has no broker cash.`)
+  }
   if (!account.currencies.includes(currency)) {
     throw new ConvexError(`${account.name} does not hold ${currency}.`)
   }
@@ -271,7 +291,10 @@ export async function writeBalance(
   /* The day the reading is for: today's local midnight from the client, or
      the midnight before an earlier as-of (a day is at most 25 hours). */
   const from = at >= dayStart ? dayStart : startOfDayNear(at, dayStart)
-  const key = balanceKey(account._id, currency)
+  const key =
+    pocket === 'broker'
+      ? brokerCashKey(account._id)
+      : balanceKey(account._id, currency)
   const sameDay = await ctx.db
     .query('stateSnapshots')
     .withIndex('by_owner_key_time', (q) =>
@@ -370,13 +393,14 @@ export const remove = mutation({
       await ctx.db.patch(args.accountId, { retiredAt: Date.now() })
       return 'retired'
     }
-    for (const currency of account.currencies) {
+    for (const key of [
+      ...account.currencies.map((c) => balanceKey(args.accountId, c)),
+      brokerCashKey(args.accountId),
+    ]) {
       const readings = await ctx.db
         .query('stateSnapshots')
         .withIndex('by_owner_key_time', (q) =>
-          q
-            .eq('ownerId', ownerId)
-            .eq('key', balanceKey(args.accountId, currency)),
+          q.eq('ownerId', ownerId).eq('key', key),
         )
         .take(1000)
       for (const r of readings) await ctx.db.delete(r._id)
@@ -496,13 +520,14 @@ export const erase = mutation({
       if (i.accountId === args.accountId)
         await ctx.db.patch(i._id, { accountId: undefined })
 
-    for (const currency of account.currencies) {
+    for (const key of [
+      ...account.currencies.map((c) => balanceKey(args.accountId, c)),
+      brokerCashKey(args.accountId),
+    ]) {
       const readings = await ctx.db
         .query('stateSnapshots')
         .withIndex('by_owner_key_time', (q) =>
-          q
-            .eq('ownerId', ownerId)
-            .eq('key', balanceKey(args.accountId, currency)),
+          q.eq('ownerId', ownerId).eq('key', key),
         )
         .take(1000)
       for (const r of readings) await ctx.db.delete(r._id)

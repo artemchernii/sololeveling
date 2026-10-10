@@ -16,7 +16,8 @@ test('holdings screenshot: save answers at once, then lands', async ({
   await page.getByText('Revolut Invest screenshot').first().click()
   const sheet = page.getByRole('dialog')
   const save = sheet.getByRole('button', {
-    name: 'save 2 positions and the cash',
+    /* Revolut is a bank too: the screen's cash is its broker cash. */
+    name: 'save 2 positions and the broker cash',
   })
   await expect(save).toBeEnabled()
   await page.screenshot({ ...shot('holdings-check'), fullPage: true })

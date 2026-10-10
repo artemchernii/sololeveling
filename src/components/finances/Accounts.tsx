@@ -164,7 +164,10 @@ export function Accounts() {
         total={
           openRow
             ? Math.round(
-                (openRow.cashEur + (investedOf(openRow.accountId) ?? 0)) * 100,
+                (openRow.cashEur +
+                  (openRow.brokerCash?.eur ?? 0) +
+                  (investedOf(openRow.accountId) ?? 0)) *
+                  100,
               ) / 100
             : 0
         }

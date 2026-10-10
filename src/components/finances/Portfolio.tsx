@@ -112,8 +112,11 @@ export function Portfolio() {
             const held = data.rows.filter((r) => r.accountId === a._id)
             const value = held.reduce((t, r) => t + (r.valueEur ?? 0), 0)
             const known = paidSums(held, data.usdRate)
-            const cash =
-              worth.byAccount.find((w) => w.accountId === a._id)?.cash ?? null
+            /* A bank that is also a broker: the cash beside its shares is
+               its broker cash, not the bank's euros (10 Oct). */
+            const both = a.kinds.includes('bank')
+            const w = worth.byAccount.find((x) => x.accountId === a._id)
+            const cash = (both ? w?.brokerCash : w?.cash) ?? null
             return (
               <section
                 key={a._id}
@@ -181,10 +184,14 @@ export function Portfolio() {
                     </span>
                   </span>
                   <span className="flex items-center justify-between gap-2">
-                    <span className="text-ink-500">free cash</span>
+                    <span className="text-ink-500">
+                      {both ? 'broker cash' : 'free cash'}
+                    </span>
                     <span>
                       {cash === null ? (
-                        <span className="text-ink-600">not typed</span>
+                        <span className="text-ink-600">
+                          {both ? 'never read' : 'not typed'}
+                        </span>
                       ) : (
                         <Veiled>{euros(cash)}</Veiled>
                       )}

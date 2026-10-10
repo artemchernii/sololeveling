@@ -20,7 +20,7 @@ test('Portfolio: empty, then the positions a screenshot brought', async ({
   await page.getByText('Revolut Invest screenshot').first().click()
   const sheet = page.getByRole('dialog')
   await sheet
-    .getByRole('button', { name: 'save 2 positions and the cash' })
+    .getByRole('button', { name: 'save 2 positions and the broker cash' })
     .click()
   await sheet.getByRole('link', { name: /Portfolio/ }).click()
 

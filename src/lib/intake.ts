@@ -691,40 +691,41 @@ export function findDuplicates(
     const k = `${merchantKey(r.merchant)}:${Math.round(r.amount * 100)}`
     repeats.set(k, (repeats.get(k) ?? 0) + 1)
   }
-  return incoming.map((r) => {
+  /* Every pair that could be the same row, closest in time first — so a
+     row takes the stored row of its own day before a neighbour can (10
+     Oct: in a file printed newest first, the 16th's lunch took the 15th's
+     place and the 15th's was written again). */
+  const pairs: Array<{ r: number; e: number; gap: number }> = []
+  for (const [ri, r] of incoming.entries()) {
     const key = merchantKey(r.merchant)
     const often = (repeats.get(`${key}:${Math.round(r.amount * 100)}`) ?? 0) > 1
     /* The same row read twice can come back named twice ("Seguro Allianz"
        from the statement, "Insurance" from a screenshot — 3 Oct): the
        bank's own line, shared, says it is the same. */
     const words = lineWords(`${r.merchant} ${r.raw ?? ''}`)
-    let best: number | null = null
-    let bestGap = Infinity
     for (const [i, e] of existing.entries()) {
-      if (used.has(i)) continue
       if (Math.abs(e.amount - r.amount) > 0.005) continue
-      const named = merchantKey(e.merchant) === key
-      const said = [...lineWords(`${e.merchant} ${e.raw ?? ''}`)].some((w) =>
-        words.has(w),
-      )
-      if (!named && !said) continue
+      const shared = [...lineWords(`${e.merchant} ${e.raw ?? ''}`)].filter(
+        (w) => words.has(w),
+      ).length
+      if (merchantKey(e.merchant) !== key && shared === 0) continue
       const gap = Math.abs(e.occurredAt - r.occurredAt)
       /* A statement can date a row by its value day, the app by the day it
          moved — Est Servico on 9 Sep here, 14 Sep there (3 Oct). The
          bank's own line, closely shared, stretches the window to a week. */
-      const close =
-        [...lineWords(`${e.merchant} ${e.raw ?? ''}`)].filter((w) =>
-          words.has(w),
-        ).length >= 2
-      const window = close && !often ? 7 * DAY + 3_600_000 : 2 * DAY + 3_600_000
-      if (gap <= window && gap < bestGap) {
-        best = i
-        bestGap = gap
-      }
+      const window =
+        shared >= 2 && !often ? 7 * DAY + 3_600_000 : 2 * DAY + 3_600_000
+      if (gap <= window) pairs.push({ r: ri, e: i, gap })
     }
-    if (best !== null) used.add(best)
-    return best
-  })
+  }
+  pairs.sort((x, y) => x.gap - y.gap || x.r - y.r || x.e - y.e)
+  const out: Array<number | null> = incoming.map(() => null)
+  for (const p of pairs) {
+    if (out[p.r] !== null || used.has(p.e)) continue
+    out[p.r] = p.e
+    used.add(p.e)
+  }
+  return out
 }
 
 /**

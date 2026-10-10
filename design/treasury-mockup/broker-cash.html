@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Broker cash</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150); --bad: oklch(0.68 0.2 22); --warn: oklch(0.79 0.15 75);
+    --cash: oklch(0.8 0.12 85); --bank: oklch(0.8 0.12 85); --broker: #b5abfc;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 18px }
+  .mono { font-family: var(--mono) }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .dim { color: var(--ink-500) }
+  .ctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+  .label { text-align: center; font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; color: var(--ink-500); text-transform: uppercase }
+  .say { text-align: center; font-size: 15px; font-weight: 300; color: var(--ink-200); line-height: 1.5; max-width: 640px; margin: 0 auto }
+  .say b { font-weight: 400; color: var(--ink-100) }
+
+  /* the check window */
+  .sys { position: relative; border-radius: 22px; border: 1px solid color-mix(in oklch, #b5abfc 34%, transparent); background: #1c1c2a; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8); overflow: hidden; width: 100% }
+  .shead { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,.06) }
+  .stitle { font-family: var(--mono); font-size: 11.5px; letter-spacing: .38em; text-transform: uppercase; color: var(--lav-400); flex: 1 }
+  .iconbtn { width: 32px; height: 32px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: none; color: var(--ink-300); font-size: 15px; display: grid; place-items: center }
+  .body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px }
+  .foot { padding: 14px 20px 18px; border-top: 1px solid rgba(255,255,255,.06); display: flex; gap: 10px }
+  .file { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+  .logo { width: 30px; height: 30px; border-radius: 8px; background: #fff; color: #111; display: grid; place-items: center; font-weight: 600; font-size: 17px; flex: none }
+  .ftitle { font-size: 16px; flex: 1; min-width: 180px }
+  .reader { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .tiles { display: grid; grid-template-columns: 1.2fr 1fr 1.2fr; gap: 6px; border-radius: 16px; padding: 8px; background: rgba(255,255,255,.03); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08) }
+  .tile { display: flex; flex-direction: column; gap: 6px; min-width: 0; border-radius: 12px; padding: 10px 12px }
+  .tile .n { font-size: 22px; font-weight: 300; line-height: 30px; font-variant-numeric: tabular-nums }
+  .tile.big .n { font-size: 30px }
+  .tile .n .two { display: flex; flex-direction: column; font-size: 18px; line-height: 24px }
+  .tile .s { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); line-height: 1.5 }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 999px; margin-right: 6px }
+  .tile.goes { background: color-mix(in oklch, #b5abfc 9%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, #b5abfc 30%, transparent) }
+  .where { display: flex; align-items: flex-start; gap: 10px; border-radius: 14px; padding: 12px 14px; background: color-mix(in oklch, var(--good) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 28%, transparent); font-size: 13.5px; line-height: 1.5; color: var(--ink-200) }
+  .where svg { width: 16px; height: 16px; color: var(--good); flex: none; margin-top: 2px }
+  .rows { border-radius: 16px; background: rgba(255,255,255,.02); box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); overflow: hidden }
+  .rhead { display: flex; justify-content: space-between; padding: 12px 14px 8px }
+  .row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid rgba(255,255,255,.05); font-size: 13px }
+  .tick { width: 26px; height: 26px; border-radius: 8px; background: rgba(255,255,255,.1); display: grid; place-items: center; font-size: 10px; font-weight: 600; flex: none }
+  .row .sym { width: 56px; font-weight: 500 } .row .nm { flex: 1; color: var(--ink-400); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .row .v { font-family: var(--mono); font-size: 12px; color: var(--ink-300); text-align: right; white-space: nowrap }
+  .more { padding: 10px 14px; border-top: 1px solid rgba(255,255,255,.05); font-family: var(--mono); font-size: 11px; color: var(--ink-500); text-align: center }
+  .btn { flex: 1; font-family: var(--mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; border-radius: 999px; padding: 13px 16px; cursor: pointer; border: 1px solid rgba(255,255,255,.14); background: none; color: var(--ink-300) }
+  .btn.go { flex: 2.2; color: var(--ink-100); border-color: color-mix(in oklch, #b5abfc 60%, transparent); background: color-mix(in oklch, #b5abfc 16%, transparent) }
+
+  /* the account card, as in the app */
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: stretch }
+  .col { display: flex; flex-direction: column; gap: 8px; min-width: 0 }
+  .card { flex: 1; display: flex; flex-direction: column; gap: 14px; border-radius: 18px; padding: 16px; background: rgba(255,255,255,.055); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12) }
+  .card.now { box-shadow: inset 0 0 0 1px color-mix(in oklch, #b5abfc 40%, transparent) }
+  .ctop { display: flex; align-items: flex-start; gap: 12px }
+  .ctop .logo { width: 40px; height: 40px; border-radius: 10px; font-size: 22px }
+  .cname { flex: 1; display: flex; flex-direction: column; gap: 7px; font-size: 17px; line-height: 1 }
+  .kinds { display: flex; gap: 4px }
+  .kind { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; padding: 2px 6px; border-radius: 5px; text-transform: uppercase }
+  .kind.bank { color: var(--bank); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--bank) 45%, transparent) }
+  .kind.broker { color: var(--broker); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--broker) 45%, transparent) }
+  .pill { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-300); border: 1px solid rgba(255,255,255,.14); border-radius: 999px; padding: 6px 12px; background: none }
+  .pill.amber { color: var(--warn); border-color: color-mix(in oklch, var(--warn) 45%, transparent) }
+  .ctotal { font-size: 30px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums }
+  .lines { display: flex; flex-direction: column; gap: 7px; font-family: var(--mono); font-size: 12.5px }
+  .line { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px }
+  .line .k { color: var(--ink-400); white-space: nowrap }
+  .line .val { color: var(--ink-100); text-align: right }
+  .cur { font-size: 10.5px; color: var(--ink-200); background: rgba(255,255,255,.08); border-radius: 5px; padding: 2px 6px; margin-left: 4px }
+  .line.new { border-radius: 6px; margin: 0 -8px; padding: 0 8px; animation: land .7s cubic-bezier(.2,.8,.2,1) both, glow 2.4s ease-out .2s both }
+  .line.new .k { color: var(--lav-300) }
+  .line.new:nth-child(3) { animation-delay: .12s, .32s }
+  @keyframes land { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+  @keyframes glow { 0% { background: color-mix(in oklch, #b5abfc 26%, transparent) } 100% { background: color-mix(in oklch, #b5abfc 7%, transparent) } }
+  .cfoot { margin-top: auto; display: flex; align-items: center; gap: 10px; border-top: 1px solid rgba(255,255,255,.07); padding-top: 12px; font-family: var(--mono); font-size: 11px; color: var(--ink-500); line-height: 1.5 }
+  .cfoot span { flex: 1 }
+
+  /* the top of Finances */
+  .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 14px }
+  .hbox { border-radius: 16px; padding: 14px 16px; background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); display: flex; flex-direction: column; gap: 8px }
+  .hbox.now { box-shadow: inset 0 0 0 1px color-mix(in oklch, #b5abfc 40%, transparent) }
+  .hrow { display: flex; align-items: baseline; justify-content: space-between; gap: 10px }
+  .hrow .big { font-size: 22px; font-weight: 300; font-variant-numeric: tabular-nums }
+  .hrow .sm { font-family: var(--mono); font-size: 11.5px; color: var(--ink-400) }
+  .up { color: var(--good); font-family: var(--mono); font-size: 11.5px }
+
+  [hidden] { display: none !important }
+  @media (max-width: 640px) {
+    .tiles { grid-template-columns: 1fr 1fr } .tile.big { grid-column: span 2 }
+    .pair, .hero { grid-template-columns: 1fr }
+    .row .nm { display: none } .foot { flex-direction: column-reverse } .btn, .btn.go { flex: none }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">situation
+    <button data-s="main" class="on">Invest screen dropped</button>
+    <button data-s="cash">Cash screen dropped</button>
+    <button data-s="today">today, nothing dropped</button>
+  </div>
+  <p class="say" id="say"></p>
+
+  <!-- 1 · the check -->
+  <div id="checkWrap" class="col">
+    <div class="label">1 · the check, after you drop the screenshot into + ADD</div>
+    <div class="sys">
+      <div class="shead"><span class="stitle">[ check it ]</span><button class="iconbtn">×</button></div>
+      <div class="body">
+        <div class="file"><span class="logo">R</span><span class="ftitle" id="ftitle"></span><span class="reader">Claude Haiku 4.5 · $0.004 · prices Yahoo Finance · ECB rate</span></div>
+        <div class="tiles">
+          <div class="tile big"><span class="caps">at Revolut's broker</span><span class="n" id="cTotal"></span><span class="s">what the screen shows</span></div>
+          <div class="tile"><span class="caps"><i class="dot" style="background:var(--lav-400)"></i>invested</span><span class="n" id="cInv"></span><span class="s" id="cInvS"></span></div>
+          <div class="tile goes"><span class="caps" style="color:var(--lav-300)"><i class="dot" style="background:var(--cash)"></i>broker cash</span><span class="n" id="cCash"></span><span class="s" id="cCashS"></span></div>
+        </div>
+        <div class="where">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          <span id="where"></span>
+        </div>
+        <div class="rows" id="rows">
+          <div class="rhead"><span class="caps">15 positions</span><span class="mono dim" style="font-size:10.5px">shares · worth now</span></div>
+          <div class="row"><span class="tick">AM</span><span class="sym">AMZN</span><span class="nm">Amazon</span><span class="v">4.22 sh</span><span class="v" style="width:84px;color:var(--ink-100)">€985.00</span></div>
+          <div class="row"><span class="tick">GO</span><span class="sym">GOOGL</span><span class="nm">Alphabet (Class A)</span><span class="v">2.84 sh</span><span class="v" style="width:84px;color:var(--ink-100)">€890.00</span></div>
+          <div class="row"><span class="tick">ME</span><span class="sym">META</span><span class="nm">Meta Platforms</span><span class="v">1.35 sh</span><span class="v" style="width:84px;color:var(--ink-100)">€865.00</span></div>
+          <div class="more">12 more · same shares as Revolut already has</div>
+        </div>
+      </div>
+      <div class="foot"><button class="btn">discard</button><button class="btn go" id="save"></button></div>
+    </div>
+  </div>
+
+  <!-- 2 · the card -->
+  <div class="col">
+    <div class="label" id="cardLabel"></div>
+    <div class="pair">
+      <div class="col" id="beforeCol">
+        <span class="caps" style="text-align:center">before</span>
+        <div class="card">
+          <div class="ctop"><span class="logo">R</span><span class="cname">Revolut<span class="kinds"><span class="kind bank">bank</span><span class="kind broker">broker</span></span></span><button class="pill">✎ edit</button></div>
+          <div class="ctotal">€14,230.00</div>
+          <div class="lines">
+            <div class="line"><span class="k">free cash <span class="cur">EUR</span></span><span class="val">€1,080.00</span></div>
+            <div class="line"><span class="k">investments</span><span class="val">€13,150.00</span></div>
+            <div class="line"><span class="k">since 1 Oct</span><span class="val" style="color:var(--good)">+€352.00</span></div>
+          </div>
+          <div class="cfoot"><span>EUR statement read 5d ago · balance of Oct 4</span><button class="pill">update</button></div>
+        </div>
+      </div>
+      <div class="col">
+        <span class="caps" style="text-align:center;color:var(--lav-300)" id="afterCap">after</span>
+        <div class="card now" id="after"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 · the top of Finances -->
+  <div class="col" id="heroWrap">
+    <div class="label">3 · the top of Finances</div>
+    <div class="hero">
+      <div class="hbox"><span class="caps">before · at brokers</span><div class="hrow"><span class="big">€34,060.00</span><span class="sm">investments €19,520 · cash €14,540</span></div><span class="mono dim" style="font-size:11.5px">Revolut's broker cash is not in it</span></div>
+      <div class="hbox now"><span class="caps" style="color:var(--lav-300)">after · at brokers</span><div class="hrow"><span class="big">€51,930.00</span><span class="sm">investments €19,520 · cash €32,410</span></div><span class="up">▲ €17,870.00 — Revolut's broker cash, counted for the first time</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const S = {
+  main: {
+    say: 'You drop the <b>Invest screen</b>. It shows one number for cash, already turned into euros by Revolut. It lands on its own line; your bank cash is not touched.',
+    ftitle: 'Revolut · Invest screen', total: '€31,020.00', inv: '€13,150.00', invS: '15 positions · worth now',
+    cash: '€17,870.00', cashS: 'as Revolut shows it · your dollars are inside, turned into euros by Revolut',
+    where: 'Goes to <b>broker cash</b>. Your free cash at Revolut stays <b>€1,080.00</b>.',
+    save: 'save 15 positions and the broker cash', rows: true, cardLabel: '2 · the Revolut card',
+    lines: [['broker cash', 'EUR', '€17,870.00', true]],
+    foot: 'broker cash from a screenshot today, in euros as Revolut shows it · EUR statement read 5d ago',
+    total2: '€32,100.00', hero: true,
+  },
+  cash: {
+    say: 'You drop the <b>Cash balance screen</b>. It shows the euros and the dollars apart, so the card keeps them apart: two exact lines, and the dollars follow the ECB rate like every other dollar in the app.',
+    ftitle: 'Revolut · Cash balance screen', total: '€17,870.00', inv: '—', invS: 'not on this screen · positions stay as they are',
+    cash: '<span class="two"><span>€6,000.00</span><span>$13,900.00</span></span>', cashS: '$13,900.00 ≈ €11,870.00 at the ECB rate of Oct 9',
+    where: 'Goes to <b>broker cash</b>, euros and dollars each on their own line. Your free cash at Revolut stays <b>€1,080.00</b>.',
+    save: 'save the broker cash', rows: false, cardLabel: '2 · the Revolut card',
+    lines: [['broker cash', 'EUR', '€6,000.00', true], ['broker cash', 'USD', '$13,900.00 <span class="dim">≈ €11,870.00</span>', true]],
+    foot: 'broker cash from a screenshot today · EUR statement read 5d ago',
+    total2: '€32,100.00', hero: true,
+  },
+  today: {
+    say: 'Nothing dropped yet. The card does not invent a number: it says the broker cash was <b>never read</b>, and UPDATE is the way in.',
+    cardLabel: 'the Revolut card today, once this is built',
+    lines: [['broker cash', '', '<span style="color:var(--warn)">never read</span>', false]],
+    foot: 'broker cash never read — drop the Invest screen · EUR statement read 5d ago',
+    total2: '€14,230.00', hero: false, amber: true,
+  },
+}
+const $ = (id) => document.getElementById(id)
+function show(key) {
+  const s = S[key]
+  document.querySelectorAll('.ctl button').forEach((b) => b.classList.toggle('on', b.dataset.s === key))
+  $('say').innerHTML = s.say
+  $('checkWrap').hidden = !s.ftitle
+  $('heroWrap').hidden = !s.hero
+  $('beforeCol').hidden = !s.hero
+  $('afterCap').hidden = !s.hero
+  document.querySelector('.pair').style.gridTemplateColumns = s.hero ? '' : 'minmax(0, 460px)'
+  document.querySelector('.pair').style.justifyContent = s.hero ? '' : 'center'
+  if (s.ftitle) {
+    $('ftitle').textContent = s.ftitle; $('cTotal').textContent = s.total; $('cInv').textContent = s.inv
+    $('cInvS').textContent = s.invS; $('cCash').innerHTML = s.cash; $('cCashS').textContent = s.cashS
+    $('where').innerHTML = s.where; $('save').textContent = s.save; $('rows').hidden = !s.rows
+  }
+  $('cardLabel').textContent = s.cardLabel
+  $('after').innerHTML = `
+    <div class="ctop"><span class="logo">R</span><span class="cname">Revolut<span class="kinds"><span class="kind bank">bank</span><span class="kind broker">broker</span></span></span><button class="pill">✎ edit</button></div>
+    <div class="ctotal">${s.total2}</div>
+    <div class="lines">
+      <div class="line"><span class="k">free cash <span class="cur">EUR</span></span><span class="val">€1,080.00</span></div>
+      ${s.lines.map(([k, c, v, fresh]) => `<div class="line ${fresh ? 'new' : ''}"><span class="k">${k}${c ? ` <span class="cur">${c}</span>` : ''}</span><span class="val">${v}</span></div>`).join('')}
+      <div class="line"><span class="k">investments</span><span class="val">€13,150.00</span></div>
+      <div class="line"><span class="k">since 1 Oct</span><span class="val" style="color:var(--good)">+€352.00</span></div>
+    </div>
+    <div class="cfoot"><span>${s.foot}</span><button class="pill ${s.amber ? 'amber' : ''}">update</button></div>`
+}
+document.querySelectorAll('.ctl button').forEach((b) => (b.onclick = () => show(b.dataset.s)))
+show('main')
+</script>
+</body>
+</html>

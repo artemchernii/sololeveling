@@ -3547,6 +3547,60 @@ describe('worth, day by day (Finances B)', () => {
       expect(v!).toBeGreaterThan(i - 7)
     })
   })
+
+  test('bought between two weekly looks and sold again: priced from its first day, €0 after, and never looked up outside (10 Oct, too many reads)', async () => {
+    const { t, me } = setup()
+    const DAY = 86_400_000
+    const base = new Date(2026, 6, 1, 23, 59, 59, 999).getTime()
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'TR',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+    })
+    await t.run(async (ctx) => {
+      const etf = await ctx.db.insert('instruments', {
+        ownerId: ME,
+        symbol: 'VWCE.DE',
+        name: 'All-World',
+        exchange: 'XETRA',
+        currency: 'EUR',
+        type: 'ETF',
+      })
+      for (const [side, d] of [
+        ['buy', 3],
+        ['sell', 10],
+      ] as const)
+        await ctx.db.insert('trades', {
+          ownerId: ME,
+          accountId: tr,
+          instrumentId: etf,
+          side,
+          shares: 1,
+          priceEur: 1,
+          occurredAt: base + d * DAY - 6 * 3_600_000,
+        })
+      for (let d = 1; d < 70; d++)
+        await ctx.db.insert('prices', {
+          ownerId: ME,
+          instrumentId: etf,
+          price: d,
+          currency: 'EUR',
+          asOf: base + d * DAY - 3_600_000,
+          fetchedAt: base,
+          source: 'Yahoo Finance',
+        })
+    })
+    const dayEnds = Array.from({ length: 70 }, (_, i) => base + i * DAY)
+    const w = await me.query(api.aggregate.worthHistory, { dayEnds })
+    expect(w.unpriced.every((n) => n === 0)).toBe(true)
+    expect(w.invested.slice(0, 3)).toEqual([null, null, null])
+    expect(w.invested[3]).toBe(3)
+    w.invested.slice(3, 10).forEach((v, i) => {
+      expect(v!).toBeGreaterThanOrEqual(3)
+      expect(v!).toBeLessThanOrEqual(3 + i)
+    })
+    expect(w.invested.slice(10).every((v) => v === 0)).toBe(true)
+  })
 })
 
 test("the chart's lane: his own moves once each, whichever side names the other account; only his", async () => {

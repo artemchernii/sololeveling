@@ -95,7 +95,7 @@ describe('vault.add — pages become one sheet, read once', () => {
     ])
     expect(row).toMatchObject({
       session: { logId: classId, category: 'class' },
-      reading: { status: 'reading', model: 'claude-haiku-4-5' },
+      reading: { status: 'reading', model: 'claude-haiku-5-5' },
     })
     expect(
       await w.t.run(
@@ -170,7 +170,7 @@ describe('vault.add — pages become one sheet, read once', () => {
           ownerId: me,
           sheetId: first,
           status: 'done',
-          model: 'claude-haiku-4-5',
+          model: 'claude-haiku-5-5',
           requestedAt: Date.now() - i * 60_000,
         })
       }
@@ -382,7 +382,7 @@ describe('migrateSheets — a first-day sheet becomes a one-page sheet', () => {
         attachmentId: id,
         status: 'done',
         title: 'Old sheet',
-        model: 'claude-haiku-4-5',
+        model: 'claude-haiku-5-5',
         requestedAt: 1,
       })
       return id

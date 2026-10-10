@@ -517,7 +517,7 @@ export function IntakeStrip({
 
 /* ---- Once read ---------------------------------------------------------- */
 
-/** Claude's mark, "Claude Haiku 4.5 · $0.004" (5 Oct: the icon, the
+/** Claude's mark, "Claude Haiku 5.5 · $0.004" (5 Oct: the icon, the
     name, what it cost — no "read by … today"). */
 export function ReadBy({ intake }: { intake: Doc<'intakes'> }) {
   /* A CSV whose columns the app already knows is read by code: no

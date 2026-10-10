@@ -112,3 +112,64 @@ export function addSeries(
     return Math.round(((x ?? 0) + (y ?? 0)) * 100) / 100
   })
 }
+
+/** Per day end: was any of these positions holding shares. */
+export function heldDays(
+  dayEnds: ReadonlyArray<number>,
+  positions: ReadonlyArray<{
+    trades: ReadonlyArray<LedgerTrade>
+    looks: ReadonlyArray<Observation>
+  }>,
+): Array<boolean> {
+  return dayEnds.map((end) =>
+    positions.some(
+      (p) =>
+        reconcile(
+          p.trades.filter((t) => t.occurredAt <= end),
+          p.looks.filter((o) => o.asOf <= end),
+        ).shares > 0,
+    ),
+  )
+}
+
+/* How finely the line is priced: [days at the end looked up one by one,
+   days apart before that]. The first is what the chart has drawn since 4
+   Oct; each next one is coarser, for a year of more positions than one
+   query may look up. */
+const LOOK_STEPS: ReadonlyArray<readonly [number, number]> = [
+  [31, 7],
+  [14, 7],
+  [7, 14],
+  [7, 28],
+  [1, 28],
+  [1, 90],
+]
+
+/**
+ * The day ends to look a close (or a rate) up at, one list per line of
+ * `held`. Only days it was held (10 Oct: his stocks file brought 57
+ * instruments, most sold long ago, and a year of looks for each was more
+ * than Convex lets one query read — the page broke on save). The first day
+ * of every held stretch is always looked up, so nothing held starts
+ * unpriced; between two looks a day takes the earlier close. The finest
+ * step whose looks fit `budget` is used.
+ */
+export function closeLooks(
+  dayEnds: ReadonlyArray<number>,
+  held: ReadonlyArray<ReadonlyArray<boolean>>,
+  budget: number,
+): Array<Array<number>> {
+  const n = dayEnds.length
+  let looks: Array<Array<number>> = []
+  for (const [tail, step] of LOOK_STEPS) {
+    looks = held.map((days) =>
+      dayEnds.filter(
+        (_, i) =>
+          days[i] &&
+          (!days[i - 1] || i >= n - tail || (n - 1 - i) % step === 0),
+      ),
+    )
+    if (looks.reduce((sum, l) => sum + l.length, 0) <= budget) break
+  }
+  return looks
+}

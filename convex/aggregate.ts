@@ -10,7 +10,12 @@ import type { AheadBill, AheadRow } from '../src/lib/ahead'
 import { payeeKey, rowKey } from '../src/lib/payee'
 import { balanceChecks, balanceSeries, coveredBy } from '../src/lib/cashHistory'
 import type { Move, Reading } from '../src/lib/cashHistory'
-import { addSeries, investedSeries } from '../src/lib/worthHistory'
+import {
+  addSeries,
+  closeLooks,
+  heldDays,
+  investedSeries,
+} from '../src/lib/worthHistory'
 import { ownMoves } from '../src/lib/accountLines'
 import type { Close, Holding, Rate } from '../src/lib/worthHistory'
 import { lookFamily, notSeenSince, reconcile } from '../src/lib/holdings'
@@ -1729,17 +1734,6 @@ export const worthHistory = query({
     const ownerId = await requireUser(ctx)
     const dayEnds = args.dayEnds.slice(0, 400)
     const cash = await readCashHistory(ctx, ownerId, dayEnds)
-    /* Where a close is looked up: every day of the last month, a week
-       apart before it. A point between two looks takes the earlier close,
-       so a year's line is weekly in its old part — about 80 reads a
-       position instead of 365. */
-    const priced = dayEnds.filter(
-      (_, i) =>
-        i === 0 ||
-        i >= dayEnds.length - 31 ||
-        (dayEnds.length - 1 - i) % 7 === 0,
-    )
-
     const live = new Set(
       (
         await ctx.db
@@ -1820,19 +1814,53 @@ export const worthHistory = query({
         )
         .map((x) => [x._id, x]),
     )
+    const ids = [...instruments.keys()]
+    const bases = [
+      ...new Set(
+        [...instruments.values()]
+          .map((x) => quoteToRate(x.currency).base)
+          .filter((b) => b !== 'EUR'),
+      ),
+    ]
+    /* Where a close is looked up: only on days the instrument was held,
+       every day of the last month and a week apart before it — coarser
+       when that is more than PRICE_LOOKS (closeLooks). A rate, on the
+       days anything quoted in it was held. */
+    const heldOf = ids.map((id) =>
+      heldDays(
+        dayEnds,
+        [...slots.values()].filter((p) => p.instrumentId === id),
+      ),
+    )
+    const looksOf = closeLooks(
+      dayEnds,
+      [
+        ...heldOf,
+        ...bases.map((base) =>
+          dayEnds.map((_, i) =>
+            ids.some(
+              (id, k) =>
+                heldOf[k][i] &&
+                quoteToRate(instruments.get(id)!.currency).base === base,
+            ),
+          ),
+        ),
+      ],
+      PRICE_LOOKS,
+    )
     /* One close per point drawn (4 Oct: the year of daily closes for every
        position, read on every re-run, was 99% of the month's database
        reads). The latest at or before each day's end, through the index —
        one row each — and none older than two weeks. */
     const closesOf = new Map(
       await Promise.all(
-        [...instruments.keys()].map(
-          async (id) =>
+        ids.map(
+          async (id, k) =>
             [
               id,
               (
                 await latestAt(
-                  priced,
+                  looksOf[k],
                   (end) =>
                     ctx.db
                       .query('prices')
@@ -1851,22 +1879,15 @@ export const worthHistory = query({
         ),
       ),
     )
-    const bases = [
-      ...new Set(
-        [...instruments.values()]
-          .map((x) => quoteToRate(x.currency).base)
-          .filter((b) => b !== 'EUR'),
-      ),
-    ]
     const ratesOf = new Map(
       await Promise.all(
         bases.map(
-          async (base) =>
+          async (base, k) =>
             [
               base,
               (
                 await latestAt(
-                  priced,
+                  looksOf[ids.length + k],
                   (end) =>
                     ctx.db
                       .query('fxRates')
@@ -1914,6 +1935,9 @@ export const worthHistory = query({
 })
 
 const HISTORY_ROWS = 5000
+/** Closes and rates one worthHistory may look up: Convex stops a query at
+    4,096 reads, and the cash side needs its share. */
+const PRICE_LOOKS = 3200
 /** A close or rate this old is no longer the day's: the point is unpriced. */
 const STALE_CLOSE_MS = 14 * 86_400_000
 

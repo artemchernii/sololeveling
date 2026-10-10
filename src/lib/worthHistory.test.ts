@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { addSeries, investedSeries } from './worthHistory'
+import { addSeries, closeLooks, heldDays, investedSeries } from './worthHistory'
 
 const at = (d: number, h = 23) => new Date(2026, 8, d, h, 59).getTime()
 const ends = [1, 2, 3, 4].map((d) => at(d))
@@ -118,5 +118,59 @@ describe('sold out and bought again', () => {
       },
     ])
     expect(r.total).toEqual([10, 0, 0, 10])
+  })
+})
+
+describe('heldDays', () => {
+  test('from the buy to the sale, across every position given', () => {
+    const buy = (d: number) =>
+      ({ side: 'buy', shares: 1, priceEur: 1, occurredAt: at(d, 10) }) as const
+    const sell = (d: number) =>
+      ({ side: 'sell', shares: 1, priceEur: 1, occurredAt: at(d, 10) }) as const
+    expect(heldDays(ends, [{ trades: [buy(2), sell(3)], looks: [] }])).toEqual([
+      false,
+      true,
+      false,
+      false,
+    ])
+    expect(
+      heldDays(ends, [
+        { trades: [buy(2), sell(3)], looks: [] },
+        { trades: [buy(4)], looks: [] },
+      ]),
+    ).toEqual([false, true, false, true])
+  })
+})
+
+describe('closeLooks', () => {
+  const DAY = 86_400_000
+  const year = Array.from({ length: 365 }, (_, i) => i * DAY)
+  const all = year.map(() => true)
+
+  test('held all year: every day of the last month, a week apart before', () => {
+    const [looks] = closeLooks(year, [all], 3200)
+    expect(looks.slice(-31)).toEqual(year.slice(-31))
+    expect(looks[0]).toBe(0)
+    expect(looks.length).toBeLessThanOrEqual(80)
+  })
+
+  test('never held: no looks; sold long ago: none after the sale', () => {
+    const sold = year.map((_, i) => i >= 10 && i < 40)
+    const [never, once] = closeLooks(year, [year.map(() => false), sold], 3200)
+    expect(never).toEqual([])
+    /* Its first day, though no weekly look falls on it. */
+    expect(once[0]).toBe(10 * DAY)
+    expect(once.every((end) => end >= 10 * DAY && end < 40 * DAY)).toBe(true)
+    expect(once.length).toBeLessThanOrEqual(6)
+  })
+
+  test('more positions than the budget: coarser, never over, first day kept (10 Oct, 57 instruments)', () => {
+    const held = Array.from({ length: 80 }, () => all)
+    const looks = closeLooks(year, held, 3200)
+    expect(looks.reduce((n, l) => n + l.length, 0)).toBeLessThanOrEqual(3200)
+    for (const l of looks) {
+      expect(l[0]).toBe(0)
+      expect(l.at(-1)).toBe(364 * DAY)
+    }
   })
 })

@@ -13,6 +13,7 @@ import { ReviewLanded } from '@/components/finances/IntakeLanded'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { failureMessage } from '@/lib/convex-errors'
 import { money } from '@/lib/currency'
+import { lookFamily } from '@/lib/holdings'
 import { completePosition } from '@/lib/intake'
 import { tickerBase } from '@/lib/market'
 import type { Candidate } from '@/lib/market'
@@ -142,8 +143,16 @@ export function HoldingsReview({
                 `${sym} ${n > h.shares ? '+' : '−'}${shareText(Math.abs(n - h.shares))} sh`,
               )
           }
+          /* Only what this kind of file lists can be missing from it: a
+             gold file says nothing of his coins (10 Oct). */
+          const kinds = new Set(
+            kept.flatMap((r) =>
+              r.d.candidate ? [lookFamily(r.d.candidate)] : [],
+            ),
+          )
           const gone = heldHere.filter(
             (h) =>
+              kinds.has(lookFamily(h)) &&
               !kept.some(
                 (r) =>
                   tickerBase(r.d.candidate?.symbol ?? '') ===
@@ -362,8 +371,8 @@ export function HoldingsReview({
           {changes.gone.length > 0 ? (
             <span className="flex items-baseline gap-2 text-[12.5px] text-ink-300">
               <span className="text-state-warn">!</span>
-              {changes.gone.map((g) => g.symbol).join(', ')} not on this screen
-              — kept, and marked, in case the list was cut off
+              Not in this file: {changes.gone.map((g) => g.symbol).join(', ')}.
+              They stay, in case the list was cut off
             </span>
           ) : null}
           <span className="text-[12px] text-ink-500">

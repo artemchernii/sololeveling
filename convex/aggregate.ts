@@ -13,7 +13,7 @@ import type { Move, Reading } from '../src/lib/cashHistory'
 import { addSeries, investedSeries } from '../src/lib/worthHistory'
 import { ownMoves } from '../src/lib/accountLines'
 import type { Close, Holding, Rate } from '../src/lib/worthHistory'
-import { notSeenSince, reconcile } from '../src/lib/holdings'
+import { lookFamily, notSeenSince, reconcile } from '../src/lib/holdings'
 import type { LedgerTrade, Observation } from '../src/lib/holdings'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
@@ -2360,15 +2360,30 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
     p.trades.push(t)
     if (t.reward) p.staked += t.shares
   }
-  /* Stored oldest first, so on a tie the later look wins. */
-  const lastLook = new Map<Id<'accounts'>, number>()
-  for (const h of looks) {
+  for (const h of looks)
     slot(h.accountId, h.instrumentId).looks.push({
       shares: h.shares,
       paidEur: h.paidEur,
       asOf: h.asOf,
     })
-    lastLook.set(h.accountId, Math.max(lastLook.get(h.accountId) ?? 0, h.asOf))
+  /* Every instrument once, side by side. */
+  const instruments = new Map(
+    await Promise.all(
+      [...new Set([...held.values()].map((p) => p.instrumentId))].map(
+        async (id) => [id, await ctx.db.get(id)] as const,
+      ),
+    ),
+  )
+  /* The latest look of each kind of file an account had (10 Oct: a gold
+     file is not a look at his coins). */
+  const lookKey = (accountId: Id<'accounts'>, id: Id<'instruments'>) => {
+    const i = instruments.get(id)
+    return `${accountId}:${i ? lookFamily(i) : 'security'}`
+  }
+  const lastLook = new Map<string, number>()
+  for (const h of looks) {
+    const k = lookKey(h.accountId, h.instrumentId)
+    lastLook.set(k, Math.max(lastLook.get(k) ?? 0, h.asOf))
   }
 
   const rates = new Map<string, { rate: number; asOf: number } | null>()
@@ -2445,7 +2460,7 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
     const r = reconcile(p.trades, p.looks)
     const shares = r.shares
     if (shares <= 0) continue
-    const instrument = await ctx.db.get(p.instrumentId)
+    const instrument = instruments.get(p.instrumentId) ?? null
     if (instrument === null || instrument.ownerId !== ownerId) continue
     const price = await ctx.db
       .query('prices')
@@ -2476,7 +2491,10 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
       status: r.status,
       seenAt: r.seenAt,
       gap: r.gap,
-      notSeen: notSeenSince(r.seenAt, lastLook.get(p.accountId) ?? null),
+      notSeen: notSeenSince(
+        r.seenAt,
+        lastLook.get(lookKey(p.accountId, p.instrumentId)) ?? null,
+      ),
       price: price?.price ?? null,
       priceAsOf: price?.asOf ?? null,
       rate: rate?.rate ?? null,

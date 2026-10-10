@@ -12,6 +12,9 @@
    those rows cost, or what the screen printed. When neither says, paid is
    unknown (null) — and a profit is never shown against it. */
 
+import { isCoin } from './logo'
+import { METALS } from './metals'
+
 export type LedgerTrade = {
   side: 'buy' | 'sell'
   shares: number
@@ -138,6 +141,20 @@ export function reconcile(
     seenAt: at,
     gap: round6(gap),
   }
+}
+
+/** Which kind of file sees a holding (10 Oct): a gold statement lists
+    only metals, a crypto statement only coins, a broker screen only
+    shares. "Left out of the latest look" compares a holding with the
+    latest look of its own kind — a gold file must not mark every coin
+    of the same account as gone. */
+export function lookFamily(i: {
+  symbol: string
+  type?: string
+}): 'metal' | 'coin' | 'security' {
+  if (Object.values(METALS).some((m) => m.candidate.symbol === i.symbol))
+    return 'metal'
+  return isCoin(i) ? 'coin' : 'security'
 }
 
 /** A later screen of the same account left this ticker out: flagged, not

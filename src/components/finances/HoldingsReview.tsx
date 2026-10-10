@@ -9,10 +9,12 @@ import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { Busy, FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import { ReadBy } from '@/components/finances/Reading'
+import { HoldingsSummary } from '@/components/finances/HoldingsSummary'
 import { ReviewLanded } from '@/components/finances/IntakeLanded'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { failureMessage } from '@/lib/convex-errors'
 import { money } from '@/lib/currency'
+import { metalOf } from '@/lib/holdingLine'
 import { lookFamily } from '@/lib/holdings'
 import { completePosition } from '@/lib/intake'
 import { tickerBase } from '@/lib/market'
@@ -39,6 +41,9 @@ type PosDraft = {
 
 const shareText = (n: number) =>
   n >= 100 ? n.toFixed(2) : n.toFixed(4).replace(/\.?0+$/, '')
+/** Gold and silver are held in ounces, not shares. */
+const unit = (symbol: string | undefined) =>
+  symbol !== undefined && metalOf(symbol) ? 'oz' : 'sh'
 
 export function HoldingsReview({
   intake,
@@ -65,7 +70,6 @@ export function HoldingsReview({
   const [cash, setCash] = useState(
     intake.cashEur === undefined ? '' : String(intake.cashEur),
   )
-  const [editCash, setEditCash] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -109,6 +113,12 @@ export function HoldingsReview({
   const kept = rows.filter((r) => r.d.keep)
   const cashNum = cash.trim() === '' ? null : num(cash)
   const invested = kept.reduce((t, r) => t + (r.p.valueEur ?? 0), 0)
+  /* How many say what they are worth: a file of ounces says none (10
+     Oct: unknown was shown as €0). */
+  const valued = kept.filter((r) => r.p.valueEur !== undefined).length
+  /* Read by code, not by Claude: a file, not a screenshot. */
+  const fromFile =
+    intake.model !== undefined && !intake.model.startsWith('Claude')
   const total = intake.totalEur ?? invested + (cashNum ?? 0)
   const known = kept.filter((r) => r.paid !== undefined)
   const paid = known.reduce((t, r) => t + (r.paid ?? 0), 0)
@@ -140,7 +150,7 @@ export function HoldingsReview({
             else if (Math.abs(n - h.shares) <= h.shares * 0.015) same++
             else
               out.push(
-                `${sym} ${n > h.shares ? '+' : '−'}${shareText(Math.abs(n - h.shares))} sh`,
+                `${sym} ${n > h.shares ? '+' : '−'}${shareText(Math.abs(n - h.shares))} ${unit(sym)}`,
               )
           }
           /* Only what this kind of file lists can be missing from it: a
@@ -246,120 +256,29 @@ export function HoldingsReview({
         />
       </div>
 
-      <div className="motion-arrive flex flex-col gap-3 rounded-[16px] bg-lift/[0.03] p-4 ring-1 ring-lift/[0.08] ring-inset">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1.2fr_1fr_1fr]">
-          <div className="col-span-2 flex flex-col gap-1 sm:col-span-1">
-            <span className="label-caps">
-              total{targetName ? ` in ${targetName}` : ''}
-            </span>
-            <span className="text-[30px] leading-none font-light tabular-nums">
-              {money(Math.round(total * 100) / 100)}
-            </span>
-            <span className="font-mono text-[10.5px] text-ink-500">
-              {intake.totalEur !== undefined
-                ? 'what the screen shows'
-                : 'invested + free cash'}
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="label-caps flex items-center gap-1.5">
-              <span className="size-[7px] rounded-full bg-lav-400" />
-              invested
-            </span>
-            <span className="pt-2 text-[22px] leading-none font-light tabular-nums">
-              {money(Math.round(invested * 100) / 100)}
-            </span>
-            <span className="font-mono text-[10.5px] text-ink-500">
-              {kept.length} positions · worth now
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="label-caps flex items-center gap-1.5">
-              <span className="size-[7px] rounded-full bg-money-cash" />
-              free cash
-            </span>
-            {editCash ? (
-              <input
-                autoFocus
-                inputMode="decimal"
-                value={cash}
-                onChange={(e) => setCash(e.target.value)}
-                onBlur={() => setEditCash(false)}
-                aria-label="Free cash in the account"
-                className={`${FIELD} mt-1 w-32 py-1 text-[16px]`}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setEditCash(true)}
-                className="pt-2 text-left text-[22px] leading-none font-light tabular-nums"
-              >
-                {cashNum === null ? (
-                  <span className="text-[14px] text-ink-500">
-                    not on the screen
-                  </span>
-                ) : (
-                  money(cashNum)
-                )}
-              </button>
-            )}
-            <span className="font-mono text-[10.5px] text-ink-500">
-              not invested · tap to change
-            </span>
-          </div>
-        </div>
-        {invested + (cashNum ?? 0) > 0 ? (
-          <div className="flex h-1.5 gap-0.5">
-            <span
-              style={{ flex: invested }}
-              className="rounded-full bg-lav-400"
-            />
-            {cashNum ? (
-              <span
-                style={{ flex: cashNum }}
-                className="rounded-full bg-money-cash"
-              />
-            ) : null}
-          </div>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-2 border-t border-lift/[0.06] pt-3 text-[13px] text-ink-300">
-          {known.length === 0 ? (
-            <>
-              <span className="rounded-[6px] bg-lift/[0.06] px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] text-ink-400 uppercase">
-                what you paid · unknown
-              </span>
-              <span>
-                A screenshot doesn&apos;t say it. Drop a{' '}
-                {targetName ?? 'broker'} statement later and it fills in.
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="rounded-[6px] bg-lift/[0.06] px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] text-ink-400 uppercase">
-                you paid {money(Math.round(paid * 100) / 100)}
-              </span>
-              <span
-                className={`rounded-[6px] px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${gain >= 0 ? 'bg-state-good/14 text-state-good' : 'bg-state-danger/14 text-state-danger'}`}
-              >
-                {gain >= 0 ? '+' : '−'}
-                {money(Math.abs(Math.round(gain * 100) / 100))} ·{' '}
-                {paid > 0 ? `${((gain / paid) * 100).toFixed(1)}%` : ''}
-              </span>
-              <span>
-                {known.length === kept.length
-                  ? 'as the screen printed it'
-                  : `on the ${known.length} of ${kept.length} the screen gave a % for`}
-              </span>
-            </>
-          )}
-        </div>
-      </div>
+      <HoldingsSummary
+        targetName={targetName}
+        totalEur={intake.totalEur}
+        total={total}
+        invested={invested}
+        count={kept.length}
+        valued={valued}
+        cash={cash}
+        setCash={setCash}
+        cashNum={cashNum}
+        known={known.length}
+        paid={paid}
+        gain={gain}
+        fromFile={fromFile}
+      />
 
       {changes ? (
         <div className="motion-arrive flex flex-col gap-1.5 rounded-[14px] bg-lav-400/[0.05] p-3 ring-1 ring-lav-400/22 ring-inset">
           <span className="text-[13.5px] text-foreground">
             {changes.out.length === 0 && changes.gone.length === 0
-              ? `Same shares as ${targetName} already has — only prices moved.`
+              ? valued === 0
+                ? `Same as ${targetName} already has. Nothing new in this file.`
+                : `Same shares as ${targetName} already has — only prices moved.`
               : `Against what ${targetName} has: ${changes.out.length} changed · ${changes.same} the same`}
           </span>
           {changes.out.length > 0 ? (
@@ -376,15 +295,17 @@ export function HoldingsReview({
             </span>
           ) : null}
           <span className="text-[12px] text-ink-500">
-            Saved as today&apos;s look. What you paid is never changed by a
-            screenshot.
+            Saved as today&apos;s look. What you paid is never changed by{' '}
+            {fromFile ? 'this file' : 'a screenshot'}.
           </span>
         </div>
       ) : null}
 
       <div className="overflow-hidden rounded-[16px] bg-lift/[0.02] ring-1 ring-lift/[0.07] ring-inset">
         <div className="flex justify-between px-3.5 pt-3 pb-2">
-          <span className="label-caps">{rows.length} positions</span>
+          <span className="label-caps">
+            {rows.length} {rows.length === 1 ? 'position' : 'positions'}
+          </span>
           <span className="font-mono text-[10.5px] text-ink-500">
             shares · profit · worth now
           </span>
@@ -448,7 +369,9 @@ export function HoldingsReview({
                     {p.name}
                   </span>
                   <span className="ml-auto hidden w-24 text-right font-mono text-[11.5px] text-ink-400 sm:block">
-                    {n > 0 ? `${shareText(n)} sh` : '? sh'}
+                    {n > 0
+                      ? `${shareText(n)} ${unit(d.candidate?.symbol)}`
+                      : '? sh'}
                   </span>
                   <span
                     className={`w-24 text-right font-mono text-[11.5px] ${profit === null ? 'text-ink-500' : profit >= 0 ? 'text-state-good' : 'text-state-danger'}`}

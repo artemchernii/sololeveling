@@ -13,7 +13,7 @@ import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
-import { METALS } from '@/lib/metals'
+import { holdingLine, metalOf, unitOf } from '@/lib/holdingLine'
 import { money } from '@/lib/currency'
 import { EurUsd } from '@/components/finances/EurUsd'
 import { Trades } from '@/components/finances/PortfolioTrades'
@@ -22,7 +22,6 @@ import {
   ProfitPill,
   paidSums,
 } from '@/components/finances/PortfolioParts'
-import { UNPRICED } from '@/lib/market'
 import { kindOf } from '@/lib/logo'
 import type { Kind } from '@/lib/logo'
 import { SkeletonRows } from '@/components/Skeleton'
@@ -284,7 +283,7 @@ function PositionRow({
   const profit =
     row.valueEur === null || row.paid === null ? null : row.valueEur - row.paid
   const up = (profit ?? 0) >= 0
-  const said = standing(row)
+  const said = holdingLine(row, account, (t) => DATE.format(new Date(t)))
   return (
     <div className="flex flex-col">
       <button
@@ -310,20 +309,22 @@ function PositionRow({
           </span>
           <span className="truncate font-mono text-[11px] text-ink-500">
             {metalOf(row.symbol) ?? row.symbol.split('-')[0]} · {account} ·{' '}
-            <Veiled>{`${row.shares} ${unitOf(row)}`}</Veiled>
+            <Veiled>{`${row.shares} ${unitOf(row, row.shares)}`}</Veiled>
           </span>
           {row.staked > 0 ? (
             <span className="truncate font-mono text-[10.5px] text-state-good">
               +{row.staked < 10 ? row.staked.toFixed(2) : row.staked.toFixed(1)}{' '}
-              {unitOf(row)} free from staking
+              {unitOf(row, row.staked)} free from staking
             </span>
           ) : null}
-          <span
-            className={`truncate font-mono text-[10.5px] ${said.warn ? 'text-state-warn' : 'text-ink-500'}`}
-          >
-            {said.warn ? '⚠ ' : said.ok ? '✓ ' : ''}
-            {said.text}
-          </span>
+          {said ? (
+            <span
+              className={`truncate text-[11.5px] ${said.warn ? 'text-state-warn' : 'text-ink-500'}`}
+            >
+              {said.warn ? '⚠ ' : ''}
+              {said.text}
+            </span>
+          ) : null}
         </span>
         <Sparkline
           className="hidden h-8 w-24 sm:block"
@@ -339,7 +340,7 @@ function PositionRow({
           </span>
           {profit === null ? (
             <span className="font-mono text-[10.5px] text-ink-500">
-              {row.valueEur === null ? 'price on its way' : 'paid unknown'}
+              {row.valueEur === null ? 'price on its way' : '—'}
             </span>
           ) : (
             <span
@@ -407,93 +408,4 @@ function KindSplit({ rows }: { rows: ReadonlyArray<Position> }) {
       </div>
     </div>
   )
-}
-
-/** "sh" for a share, the coin's own symbol for a coin. */
-function unitOf(row: Pick<Position, 'symbol' | 'type'>): string {
-  if (metalOf(row.symbol)) return 'oz'
-  return kindOf(row) === 'crypto' ? row.symbol.split('-')[0] : 'sh'
-}
-
-/* A metal is shown by its own code (10 Oct: "GC=F" is the future its
-   price is read from, not a name he knows) — XAU, in ounces. */
-function metalOf(symbol: string): string | null {
-  return (
-    Object.entries(METALS).find(
-      ([, m]) => m.candidate.symbol === symbol,
-    )?.[0] ?? null
-  )
-}
-
-/* Where the row's number came from, in a line: which files agree. */
-function standing(row: Position): {
-  text: string
-  warn: boolean
-  ok: boolean
-} {
-  const day = row.seenAt === null ? '' : DATE.format(new Date(row.seenAt))
-  /* Frozen: no market prices it, the broker's screen does. */
-  if (row.type === UNPRICED && !row.notSeen)
-    return {
-      text: `no market price · the ${row.priceAsOf === null ? day : DATE.format(new Date(row.priceAsOf))} screen's value`,
-      warn: false,
-      ok: false,
-    }
-  if (row.notSeen)
-    return {
-      text: `not on the latest screenshot — last seen ${day}`,
-      warn: true,
-      ok: false,
-    }
-  /* A coin's amount is its statement's closing amount (4 Oct). */
-  if (kindOf(row) === 'crypto' && row.seenAt !== null) {
-    const unit = unitOf(row)
-    if (row.status === 'match')
-      return { text: `matches the ${day} statement`, warn: false, ok: true }
-    if (row.status === 'gap' || row.status === 'over')
-      return {
-        text: `the ${day} statement has ${Math.abs(row.gap)} ${unit} ${row.gap > 0 ? 'more' : 'less'} than its trades add up to — its amount is used`,
-        warn: false,
-        ok: true,
-      }
-  }
-  switch (row.status) {
-    case 'match':
-      return {
-        text: `statement and ${day} screen agree`,
-        warn: false,
-        ok: true,
-      }
-    case 'trades':
-      return { text: 'from statements', warn: false, ok: false }
-    case 'screen':
-      /* A metal's ounces come from his commodity statement, and what he
-         paid from his euro statement — never "drop a statement". */
-      if (metalOf(row.symbol))
-        return {
-          text: `from your ${day} statement · paid not known yet`,
-          warn: false,
-          ok: false,
-        }
-      return {
-        text:
-          row.paid === null
-            ? `${day} screen · drop a statement for what you paid`
-            : `${day} screen`,
-        warn: false,
-        ok: false,
-      }
-    case 'gap':
-      return {
-        text: `${day} screen shows ${row.gap} sh more than the statements — one is missing`,
-        warn: true,
-        ok: false,
-      }
-    case 'over':
-      return {
-        text: `statements show ${-row.gap} sh more than the ${day} screen — a sell is missing`,
-        warn: true,
-        ok: false,
-      }
-  }
 }

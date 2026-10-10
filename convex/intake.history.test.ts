@@ -12,11 +12,18 @@ const ME = 'https://clerk.test|user_me'
 
 /* A whole trading history (his Revolut export, 3,595 trades since 2020)
    goes in through update all, like every other file (9 Oct, "go use
-   bulk"). Fake timers so no scheduled reading reaches the model. */
+   bulk"). Fake timers so no scheduled reading reaches the model, and no
+   network: a price or ticker look-up finds nothing (10 Oct: CI timed out
+   on Yahoo and failed a PR that never touched this). */
 beforeEach(() => {
   vi.useFakeTimers({ now: new Date(2026, 9, 9, 12) })
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response('{}', { status: 404 })),
+  )
 })
 afterEach(() => {
+  vi.unstubAllGlobals()
   vi.useRealTimers()
 })
 

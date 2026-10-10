@@ -6,9 +6,13 @@ import type { Candidate } from './market'
    in the currency column and troy ounces in the amount — read as euros,
    "Exchanged to XAG +12.90" came out as €12.90 of his own money arriving.
    Each metal is priced by its COMEX future, in dollars an ounce. */
-export const METALS: Record<string, { name: string; candidate: Candidate }> = {
+export const METALS: Record<
+  string,
+  { name: string; element: string; candidate: Candidate }
+> = {
   XAU: {
     name: 'Gold',
+    element: 'Au',
     candidate: {
       symbol: 'GC=F',
       name: 'Gold',
@@ -18,6 +22,7 @@ export const METALS: Record<string, { name: string; candidate: Candidate }> = {
   },
   XAG: {
     name: 'Silver',
+    element: 'Ag',
     candidate: {
       symbol: 'SI=F',
       name: 'Silver',
@@ -27,6 +32,7 @@ export const METALS: Record<string, { name: string; candidate: Candidate }> = {
   },
   XPT: {
     name: 'Platinum',
+    element: 'Pt',
     candidate: {
       symbol: 'PL=F',
       name: 'Platinum',
@@ -36,6 +42,7 @@ export const METALS: Record<string, { name: string; candidate: Candidate }> = {
   },
   XPD: {
     name: 'Palladium',
+    element: 'Pd',
     candidate: {
       symbol: 'PA=F',
       name: 'Palladium',

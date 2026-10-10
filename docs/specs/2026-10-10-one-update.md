@@ -82,6 +82,7 @@ uses them — check), the file tab in `UpdateSheet`, `OpenIntakes` +
 ## Scenarios (each one e2e test, mock backend only)
 
 Drop
+
 - D1 wrong kind of file → named, nothing uploaded
 - D2 file over 10 MB / more than the limit → said plainly, nothing started
 - D3 upload fails halfway → says so, can drop again, no half update left
@@ -89,6 +90,7 @@ Drop
 - D5 first time, no accounts → a new bank becomes its account
 
 Reading
+
 - R1 "uploading" then one line per file, at once (slow read held open)
 - R2 close / Escape / click outside while reading → asks first
 - R3 he leaves anyway or reloads → still reading; dot on update; reopening
@@ -98,6 +100,7 @@ Reading
 - R5 every file bad → says so, nothing to apply, nothing saved
 
 Check
+
 - C1 one account, one file → one line: new rows, already-in rows
 - C2 many accounts → one line each
 - C3 the same file as last time → "already in, nothing new"; apply adds 0
@@ -106,6 +109,7 @@ Check
 - C6 back from a file's detail returns to the list, not out
 
 Apply
+
 - A1 pressed → "saving…" at once → landed → closes (the three asserts)
 - A2 100+ rows / a full trading history → progress, then landed with counts
 - A3 a write fails midway → says what landed and what did not; pressing
@@ -113,6 +117,7 @@ Apply
 - A4 close while saving → asks first; leaving does not stop the save
 
 Landed
+
 - L1 per account: what came in, in his words
 - L2 "more files" returns to the drop; close closes
 

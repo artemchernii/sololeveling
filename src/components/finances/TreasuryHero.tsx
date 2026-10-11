@@ -79,6 +79,8 @@ export function TreasuryHero() {
   })
   const [open, setOpen] = useState<Group | 'checkin' | null>(null)
   const [updating, setUpdating] = useState<Doc<'accounts'> | null>(null)
+  /* UPDATE was pressed on a line of the check-in. */
+  const [fromCheckIn, setFromCheckIn] = useState(false)
   const [setup, setSetup] = useState(false)
 
   const loading = worth === undefined || balances === undefined
@@ -369,6 +371,7 @@ export function TreasuryHero() {
             onUpdate={(id) => {
               const doc = docOf(id)
               if (doc) {
+                setFromCheckIn(open === 'checkin')
                 setOpen(null)
                 setUpdating(doc)
               }
@@ -376,7 +379,16 @@ export function TreasuryHero() {
           />
         )}
       </Sheet>
-      <UpdateSheet account={updating} onClose={() => setUpdating(null)} />
+      <UpdateSheet
+        account={updating}
+        onClose={() => {
+          setUpdating(null)
+          /* The check-in is a list worked down: it comes back with what
+             is still old (11 Oct), not the page. */
+          if (fromCheckIn && stale.length > 0) setOpen('checkin')
+          setFromCheckIn(false)
+        }}
+      />
       <SetupSheet open={setup} onClose={() => setSetup(false)} />
     </section>
   )

@@ -88,13 +88,14 @@ test('a typed number: saving, up to date, and it closes by itself', async ({
   const sheet = await update(page, 'Revolut')
   await sheet.getByLabel('Revolut EUR').fill('846.22')
   await sheet.getByRole('button', { name: 'save', exact: true }).click()
-  await expect(sheet.getByText('saving')).toBeVisible()
+  await expect(sheet.getByRole('button', { name: 'saving' })).toBeVisible()
   await expect(sheet.getByText('Revolut is up to date')).toBeVisible()
   /* Landed is the tick alone: the drop area is gone with the fields. */
   await expect(sheet.getByText(/Drop a Revolut/)).toHaveCount(0)
   await page.screenshot(shot('account-update-typed'))
   await expect(sheet).toHaveCount(0, { timeout: 5_000 })
-  await expect(card(page, 'Revolut').getByText('€846.22')).toBeVisible()
+  await card(page, 'Revolut').getByRole('button', { name: 'update' }).click()
+  await expect(page.getByLabel('Revolut EUR')).toHaveValue('846.22')
 })
 
 test('cash has no statement: only the number', async ({ page }) => {
@@ -111,28 +112,17 @@ test('a connected bank: free cash is from the bank, nothing to type', async ({
   page,
 }) => {
   await start(page)
-  await testClient().mutation(anyApi.e2eBank.reachable, {})
-  await page.goto('/finances')
-  await card(page, 'ActivoBank').getByRole('button', { name: 'connect' }).click()
-  const bank = page.getByRole('dialog')
-  await bank.getByRole('button', { name: /continue at ActivoBank/ }).click()
-  await expect(bank.getByText('ActivoBank is connected')).toBeVisible()
-  await bank.getByRole('button', { name: 'Close' }).click()
-  /* Its card has no UPDATE; its sheet does, for a statement's rows. */
-  await card(page, 'ActivoBank').click()
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: 'update' })
-    .first()
-    .click()
-  const sheet = page.getByRole('dialog', { name: 'update · ActivoBank' })
+  await testClient().mutation(anyApi.e2eAccountUpdate.linkRevolut, {})
+  /* A bank that is also a broker keeps UPDATE, for the broker's files. */
+  const sheet = await update(page, 'Revolut')
   await expect(
-    sheet.getByText('Drop a ActivoBank statement or screenshot'),
+    sheet.getByText('Drop a Revolut statement or screenshot'),
   ).toBeVisible()
-  await expect(sheet.getByTestId('from-bank')).toContainText('€727.49')
+  await expect(sheet.getByTestId('from-bank')).toContainText('€1,138.98 · $40')
   await expect(sheet.getByTestId('from-bank')).toContainText('from the bank')
-  await expect(sheet.getByLabel('ActivoBank EUR')).toHaveCount(0)
+  await expect(sheet.getByLabel('Revolut EUR')).toHaveCount(0)
   await expect(sheet.getByRole('button', { name: 'save' })).toHaveCount(0)
+  await expect(sheet.getByText('or type what is in it now')).toHaveCount(0)
   await page.waitForTimeout(700)
   await page.screenshot(shot('account-update-connected'))
 })

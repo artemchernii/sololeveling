@@ -24,11 +24,11 @@ export type Flight = 'reading' | 'saving'
 export const GUARD: Record<Flight, SheetGuard> = {
   reading: {
     title: 'Still reading',
-    text: 'If you close it, reading goes on. ADD will show it is waiting, and it opens right here again.',
+    text: 'Closing does not stop the reading. ADD shows a dot and opens here again.',
   },
   saving: {
     title: 'Still saving',
-    text: 'If you close it, the save finishes by itself.',
+    text: 'Closing does not stop the save. It finishes either way.',
   },
 }
 
@@ -39,12 +39,16 @@ export function BulkUpdate({
   waiting,
   onClose,
   onFlight,
+  onStep,
   dropArea,
 }: {
   waiting: Id<'batches'> | null
   onClose: () => void
   /** Told what is in flight, so the sheet around it can ask before closing. */
   onFlight?: (flight: Flight | null) => void
+  /** Told which of the four steps it is on (1 read, 2 check, 3 saving,
+      4 landed), null while there is only the drop area. */
+  onStep?: (step: number | null) => void
   /** What shows when no update is open: where files are dropped. */
   dropArea?: (
     onStarted: (id: Id<'batches'>) => void,
@@ -86,6 +90,23 @@ export function BulkUpdate({
     setPressed(true)
     setMine(batchId)
   }, [applying, batchId])
+  const landed = pressed && (view?.status === 'done' || view?.applied != null)
+  const step =
+    batchId === null || view === undefined || checking
+      ? null
+      : view.status === 'applying' || justPressed
+        ? 3
+        : landed
+          ? 4
+          : view.status === 'done'
+            ? null
+            : reading
+              ? 1
+              : 2
+  useEffect(() => {
+    onStep?.(step)
+    return () => onStep?.(null)
+  }, [step, onStep])
   const drop = dropArea ? (
     dropArea(setMine, setUploading)
   ) : (
@@ -108,7 +129,7 @@ export function BulkUpdate({
 
   if (view.status === 'applying' || justPressed)
     return <Applying view={view} batchId={batchId} onClose={onClose} />
-  if (pressed && (view.status === 'done' || view.applied !== null)) {
+  if (landed) {
     return (
       <Applied
         view={view}

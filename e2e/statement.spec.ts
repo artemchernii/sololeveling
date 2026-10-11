@@ -78,7 +78,10 @@ test('"still the same": saving, saved, up to date, closed', async ({
   await same.click()
   await expect(sheet.getByText('Cash is up to date')).toBeVisible()
   await page.screenshot(shot('still-the-same'))
-  await expect(sheet).toHaveCount(0, { timeout: 5_000 })
+  /* It closes by itself, and the check-in is back without Cash. */
+  const list = page.getByRole('dialog', { name: 'check-in' })
+  await expect(list.getByText('Revolut')).toBeVisible({ timeout: 5_000 })
+  await expect(list.getByText('Cash')).toHaveCount(0)
 })
 
 test('a bulk upload lands one line an account', async ({ page }) => {

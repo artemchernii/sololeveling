@@ -4,7 +4,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
-import { IntakeStrip, ReadingSheet } from '@/components/finances/Reading'
+import { ReadingSheet } from '@/components/finances/Reading'
 import { BulkUpdate } from '@/components/finances/Bulk'
 import { CryptoReview } from '@/components/finances/CryptoReview'
 import { TransactionsReview } from '@/components/finances/TransactionsReview'
@@ -70,23 +70,6 @@ export function IntakeFlow({
     <TradesReview intake={intake} onDiscard={throwAway} onDone={onDone} />
   ) : (
     <TransactionsReview intake={intake} onDiscard={throwAway} onDone={onDone} />
-  )
-}
-
-/** Open intakes on the page — for one he closed while it was reading. */
-export function OpenIntakes({
-  onOpen,
-}: {
-  onOpen: (id: Id<'intakes'>) => void
-}) {
-  const open = useQuery(api.intake.open, {})
-  if (!open || open.length === 0) return null
-  return (
-    <div className="flex flex-col gap-2">
-      {open.map((i) => (
-        <IntakeStrip key={i._id} intake={i} onOpen={() => onOpen(i._id)} />
-      ))}
-    </div>
   )
 }
 

@@ -26,6 +26,7 @@ import {
 import type { Ask } from '@/components/finances/BulkParts'
 import { AskCard } from '@/components/finances/BulkAskCard'
 import { AccountBlock } from '@/components/finances/BulkAccountBlock'
+import { sharesOpen } from '@/components/finances/BulkSharesCheck'
 
 export function BulkReview({
   batchId,
@@ -58,6 +59,12 @@ export function BulkReview({
   const waitingNew = review.accounts.filter((a) => a.accountId === null)
   /* The sum is off and nothing is answered: apply leaves these (11 Oct). */
   const unsaved = placed.filter((a) => a.held)
+  /* A company of a trading history whose shares differ, not answered. */
+  const sharesAsked = placed.flatMap((a) => sharesOpen(a.shares).asked)
+  const notSaved = [
+    ...unsaved.map((a) => (a.accountId ? doc(a.accountId)?.name : null)),
+    ...sharesAsked.map((l) => l.name),
+  ]
   const ready = placed.length - unsaved.length
   const fresh = review.accounts
     .filter((a) => !a.leftOut)
@@ -113,14 +120,14 @@ export function BulkReview({
         <Stat n={review.accounts.length} label="accounts" />
         <Stat n={fresh} label="new rows" />
         <Stat n={review.moves.length} label="moves paired" />
-        {asks.length + unsaved.length > 0 || solved.length > 0 ? (
+        {asks.length + notSaved.length > 0 || solved.length > 0 ? (
           <Stat
-            n={asks.length + unsaved.length}
+            n={asks.length + notSaved.length}
             label={
-              asks.length + unsaved.length === 1 ? 'question' : 'questions'
+              asks.length + notSaved.length === 1 ? 'question' : 'questions'
             }
             className={
-              asks.length + unsaved.length
+              asks.length + notSaved.length
                 ? 'text-state-warn'
                 : 'text-state-good'
             }
@@ -249,8 +256,8 @@ export function BulkReview({
             `Everything in ${review.files === 1 ? 'this file' : 'these files'} is already in. There is nothing to save.`
           ) : (
             [
-              unsaved.length > 0
-                ? `${unsaved.map((a) => (a.accountId ? doc(a.accountId)?.name : null)).join(', ')} not saved — ${unsaved.length === 1 ? '1 question' : `${unsaved.length} questions`} open.`
+              notSaved.length > 0
+                ? `${notSaved.join(', ')} not saved — ${notSaved.length === 1 ? '1 question' : `${notSaved.length} questions`} open.`
                 : null,
               asks.length > 0
                 ? `${asks.length === 1 ? 'One question' : `${asks.length} questions`} left — they wait here.`
@@ -260,7 +267,7 @@ export function BulkReview({
                 : null,
               asks.length === 0 &&
               waitingNew.length === 0 &&
-              unsaved.length === 0
+              notSaved.length === 0
                 ? 'Oldest statement first, so every balance lands on its day. Nothing is saved until you press it.'
                 : null,
             ]

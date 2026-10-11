@@ -29,6 +29,7 @@ import {
 } from '@/components/finances/BulkParts'
 import type { Review } from '@/components/finances/BulkParts'
 import { SumCheck } from '@/components/finances/BulkSumCheck'
+import { SharesCheck, sharesOpen } from '@/components/finances/BulkSharesCheck'
 
 export function AccountBlock({
   block,
@@ -99,13 +100,30 @@ export function AccountBlock({
     }
   }
 
+  /* A trading history against the account's shares (11 Oct). */
+  const open = sharesOpen(block.shares)
+  const sharesTag =
+    block.shares === null || block.leftOut ? null : block.shares.state !==
+      'checked' ? (
+      <Tag>not checked</Tag>
+    ) : open.asked.length > 0 ? (
+      <Tag tone="warn">
+        {open.asked.map((l) => l.name).join(', ')} not saved
+      </Tag>
+    ) : open.left.length === 0 ? (
+      <Tag tone="good">
+        <Check className="size-3" />
+        shares are right
+      </Tag>
+    ) : null
+
   return (
     <div
       style={{ animationDelay: `${120 + index * 80}ms` }}
       className={`motion-land flex flex-col gap-3 rounded-[18px] p-3.5 ring-1 transition-opacity ring-inset ${
         account === null
           ? 'bg-lav-400/[0.05] ring-lav-400/30'
-          : block.held && !block.leftOut
+          : (block.held || open.asked.length > 0) && !block.leftOut
             ? 'bg-lift/[0.035] ring-state-warn/40'
             : 'bg-lift/[0.035] ring-lift/[0.07]'
       } ${block.leftOut ? 'opacity-40' : ''}`}
@@ -301,7 +319,17 @@ export function AccountBlock({
           <Chip tone="new">{block.fresh - wasPending} new</Chip>
         ) : null}
         {wasPending > 0 ? <Chip>{wasPending} was pending</Chip> : null}
-        {block.trades > 0 ? (
+        {block.trades > 0 && block.shares !== null ? (
+          <>
+            <Chip tone="new">{block.trades - open.rows} to save</Chip>
+            {open.left.map((l) => (
+              <Chip key={l.n}>
+                {l.rows} {l.name} not saved
+              </Chip>
+            ))}
+            <span className="ml-auto">{sharesTag}</span>
+          </>
+        ) : block.trades > 0 ? (
           <span>
             <b className="font-normal text-foreground">{block.trades}</b> trades
           </span>
@@ -325,6 +353,9 @@ export function AccountBlock({
 
       {block.check && !block.leftOut ? (
         <SumCheck block={block} name={title} batchId={batchId} />
+      ) : null}
+      {block.shares && !block.leftOut ? (
+        <SharesCheck shares={block.shares} batchId={batchId} />
       ) : null}
 
       <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5">

@@ -106,6 +106,11 @@ test('his screenshot of 11 Oct is taken back: €90.35 is €153.21 again', asyn
   const kept = await t.run((ctx) => ctx.db.get(screen))
   expect(kept?.takenBackAt).toBe(NOON)
   expect(kept?.transactions).toHaveLength(4)
+  /* The opened file still lists what was read, each row with its group. */
+  const file = await me.query(api.intake.fileRows, { intakeId: screen })
+  expect(file.rows.map((r) => [r.landed, r.category])).toEqual(
+    Array(4).fill([false, null]),
+  )
   expect(await me.query(api.undoFile.preview, { intakeId: screen })).toBeNull()
 })
 

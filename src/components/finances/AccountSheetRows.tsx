@@ -5,6 +5,7 @@ import type { FunctionReturnType } from 'convex/server'
 import type { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { Busy } from '@/components/finances/bits'
+import { RowMark } from '@/components/finances/RowMark'
 import { Veiled } from '@/components/finances/Veil'
 
 /* The account sheet's lines (split from OpenAccount.tsx, 5 Oct): a
@@ -119,22 +120,31 @@ export function RowLine({
       : 'text-foreground'
   const Icon =
     moved || traded ? ArrowLeftRight : r.amount > 0 ? ArrowDown : ArrowUp
+  /* A shop the app knows shows its logo, else the row's group its icon
+     (RowMark, 11 Oct); a transfer, a trade and a row with neither keep
+     the arrow. */
   return (
     <div
       style={{ animationDelay: `${Math.min(index, 20) * 18}ms` }}
       className="motion-land group flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 hover:bg-lift/[0.035]"
     >
-      <span
-        className={`grid size-[26px] shrink-0 place-items-center rounded-[8px] ${
-          moved || traded
-            ? 'bg-lav-400/12 text-lav-300'
-            : r.amount > 0
-              ? 'bg-state-good/14 text-state-good'
-              : 'bg-lift/[0.06] text-ink-400'
-        }`}
+      <RowMark
+        name={moved || traded ? '' : r.text}
+        category={moved || traded ? null : r.category}
+        income={r.amount > 0}
       >
-        <Icon className="size-3.5" />
-      </span>
+        <span
+          className={`grid size-[26px] shrink-0 place-items-center rounded-[8px] ${
+            moved || traded
+              ? 'bg-lav-400/12 text-lav-300'
+              : r.amount > 0
+                ? 'bg-state-good/14 text-state-good'
+                : 'bg-lift/[0.06] text-ink-400'
+          }`}
+        >
+          <Icon className="size-3.5" />
+        </span>
+      </RowMark>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[13.5px] text-foreground">{r.text}</span>
         <span className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] text-ink-500">

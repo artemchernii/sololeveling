@@ -3,6 +3,8 @@ import { Pencil } from 'lucide-react'
 import type { api } from '../../../convex/_generated/api'
 import type { FunctionReturnType } from 'convex/server'
 import { PILL_QUIET } from '@/components/finances/bits'
+import { AccountFoot } from '@/components/finances/AccountFoot'
+import type { CardLink } from '@/components/finances/AccountFoot'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { money } from '@/lib/currency'
@@ -30,6 +32,9 @@ export function AccountCard({
   onEdit,
   onUpdate,
   onOpen,
+  link,
+  connectable,
+  onConnect,
 }: {
   row: BalanceRow
   index: number
@@ -52,6 +57,12 @@ export function AccountCard({
   onUpdate: () => void
   /** The account, opened: its rows, balances and files (A.4). */
   onOpen: () => void
+  /** Its bank link once the bank has answered, else null. */
+  link: CardLink | null
+  /** A bank the app can connect. */
+  connectable: boolean
+  /** CONNECT, or APPROVE when the approval ended. */
+  onConnect: () => void
 }) {
   const f = freshness(a.pockets, Date.now())
   const broker = a.brokerCash
@@ -265,28 +276,16 @@ export function AccountCard({
           </span>
         ) : null}
       </div>
-      <div className="mt-auto flex items-center justify-between gap-2 border-t border-lift/[0.08] pt-3">
-        <span
-          title={f.todo ?? undefined}
-          className={`min-w-0 font-mono text-[11px] ${f.stale ? 'text-state-warn' : 'text-ink-400'}`}
-        >
-          {f.label}
-        </span>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onUpdate()
-          }}
-          className={
-            f.stale
-              ? 'motion-press shrink-0 rounded-full bg-state-warn/12 px-3 py-1.5 font-mono text-[10.5px] tracking-[0.12em] text-state-warn uppercase ring-1 ring-state-warn/50 ring-inset'
-              : PILL_QUIET
-          }
-        >
-          update
-        </button>
-      </div>
+      <AccountFoot
+        label={f.label}
+        stale={f.stale}
+        todo={f.todo}
+        link={link}
+        connectable={connectable}
+        broker={a.kinds.includes('broker')}
+        onUpdate={onUpdate}
+        onConnect={onConnect}
+      />
     </div>
   )
 }

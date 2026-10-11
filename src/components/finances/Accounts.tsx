@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Plus } from 'lucide-react'
@@ -16,6 +16,10 @@ import { freshness } from '@/lib/freshness'
 import { monthRange } from '@/lib/month'
 import { paidSums } from '@/components/finances/PortfolioParts'
 import { AccountCard } from '@/components/finances/AccountCard'
+import { BankSheet } from '@/components/finances/BankSheet'
+import { canConnect } from '@/lib/bankLink'
+import { takeReturn } from '@/lib/bankReturn'
+import type { BankBack } from '@/lib/bankReturn'
 import { AccountSheet } from '@/components/finances/AccountForm'
 import { UpdateSheet } from '@/components/finances/UpdateSheet'
 
@@ -42,6 +46,21 @@ export function Accounts() {
   const [editing, setEditing] = useState<Doc<'accounts'> | 'new' | null>(null)
   const [updating, setUpdating] = useState<Doc<'accounts'> | null>(null)
   const [opened, setOpened] = useState<Id<'accounts'> | null>(null)
+  /* The connect window: opened from a card, or on the way back from the
+     bank's own page with how that ended. */
+  const links = useQuery(api.bank.links, {})
+  const [bank, setBank] = useState<{
+    accountId: string
+    back: BankBack | null
+    again: boolean
+  } | null>(null)
+  useEffect(() => {
+    const came = takeReturn()
+    if (came) setBank(came)
+  }, [])
+  const linkOf = (id: Id<'accounts'>) =>
+    links?.find((l) => l.accountId === id) ?? null
+  const bankDoc = accounts?.find((a) => a._id === bank?.accountId) ?? null
   const openRow = data?.accounts.find((a) => a.accountId === opened)
   const openDoc = accounts?.find((a) => a._id === opened) ?? null
   const investedOf = (id: Id<'accounts'>) =>
@@ -152,6 +171,24 @@ export function Accounts() {
                 const doc = accounts.find((x) => x._id === a.accountId)
                 if (doc) setUpdating(doc)
               }}
+              link={
+                linkOf(a.accountId)?.status === 'linked'
+                  ? linkOf(a.accountId)
+                  : null
+              }
+              connectable={
+                a.kinds.includes('bank') &&
+                canConnect(
+                  accounts.find((x) => x._id === a.accountId)?.institution,
+                )
+              }
+              onConnect={() =>
+                setBank({
+                  accountId: a.accountId,
+                  back: null,
+                  again: linkOf(a.accountId)?.status === 'linked',
+                })
+              }
             />
           ))}
         </div>
@@ -176,6 +213,17 @@ export function Accounts() {
         onUpdate={() => openDoc && setUpdating(openDoc)}
       />
       <UpdateSheet account={updating} onClose={() => setUpdating(null)} />
+      <BankSheet
+        account={bankDoc}
+        link={bankDoc ? linkOf(bankDoc._id) : null}
+        pockets={
+          data?.accounts.find((a) => a.accountId === bankDoc?._id)?.pockets ??
+          []
+        }
+        back={bank?.back ?? null}
+        again={bank?.again ?? false}
+        onClose={() => setBank(null)}
+      />
     </Panel>
   )
 }

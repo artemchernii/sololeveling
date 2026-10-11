@@ -37,6 +37,7 @@ import type * as projects from "../projects.js";
 import type * as recurring from "../recurring.js";
 import type * as repo from "../repo.js";
 import type * as reviews from "../reviews.js";
+import type * as rowBalance from "../rowBalance.js";
 import type * as search from "../search.js";
 import type * as seed from "../seed.js";
 import type * as state from "../state.js";
@@ -80,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   recurring: typeof recurring;
   repo: typeof repo;
   reviews: typeof reviews;
+  rowBalance: typeof rowBalance;
   search: typeof search;
   seed: typeof seed;
   state: typeof state;

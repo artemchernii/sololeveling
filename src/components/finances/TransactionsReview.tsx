@@ -153,7 +153,7 @@ export function TransactionsReview({
           kind: r.kind,
           category: r.category,
           other: r.otherAccountId,
-          keep: !r.pending && r.duplicateOf === null,
+          keep: !r.pending && r.duplicateOf === null && !r.counted,
         }
       }
       return next
@@ -180,8 +180,12 @@ export function TransactionsReview({
 
   const rows = review.rows
   const pending = rows.filter((r) => r.pending)
-  const dups = rows.filter((r) => !r.pending && r.duplicateOf !== null)
-  const live = rows.filter((r) => !r.pending && r.duplicateOf === null)
+  const dups = rows.filter(
+    (r) => !r.pending && (r.duplicateOf !== null || r.counted),
+  )
+  const live = rows.filter(
+    (r) => !r.pending && r.duplicateOf === null && !r.counted,
+  )
   const ch = (i: number) => choices[i] as Choice | undefined
   const moves = live.filter((r) => ch(r.index)?.kind === 'move')
   const money_ = live.filter((r) => ch(r.index)?.kind !== 'move')

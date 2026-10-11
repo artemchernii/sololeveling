@@ -150,7 +150,9 @@ the existing check, a daily cron, and `bankLinks`. No new dependency
 expected (Node's own crypto signs the token) — to confirm when built.
 
 Three slices, each under 600 lines: (1) connect, approve again, the stored
-balance on the card; (2) rows through the check, the arrived block, the
+balance on the card — 1a the backend (`convex/bank.ts`, `bankApi.ts`,
+`src/lib/bankLink.ts`, built 11 Oct, no screen), 1b the card, the window
+and the callback route with e2e; (2) rows through the check, the arrived block, the
 question; (3) the daily check, not reached, ends soon.
 
 ## Out of scope

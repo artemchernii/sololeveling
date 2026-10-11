@@ -659,6 +659,48 @@ export default defineSchema({
     retiredAt: v.optional(v.number()),
   }).index('by_owner_order', ['ownerId', 'order']),
 
+  /* An account read from the bank itself, through Enable Banking (11 Oct,
+     docs/specs/2026-10-11-bank-connections.md). Facts about the link, not
+     about money: the balance it brings is a `stateSnapshots` row with
+     source 'sync'. Read-only by registration. `sessionId` and `uids` never
+     leave the backend. */
+  bankLinks: defineTable({
+    ownerId: v.string(),
+    accountId: v.id('accounts'),
+    /* pending: sent to the bank's page, not back yet. choose: the bank
+       showed several accounts and none is known. linked: readable. */
+    status: v.union(
+      v.literal('pending'),
+      v.literal('choose'),
+      v.literal('linked'),
+    ),
+    /* The one-time word the bank's page hands back; gone once used. */
+    state: v.optional(v.string()),
+    bank: v.optional(v.string()),
+    country: v.optional(v.string()),
+    sessionId: v.optional(v.string()),
+    /* The bank's accounts behind this card, one per currency. */
+    uids: v.optional(
+      v.array(v.object({ uid: v.string(), currency: v.string() })),
+    ),
+    choices: v.optional(
+      v.array(
+        v.object({
+          uid: v.string(),
+          currency: v.string(),
+          iban: v.optional(v.string()),
+          name: v.optional(v.string()),
+        }),
+      ),
+    ),
+    /* When the bank's approval ends, and when it last answered. */
+    validUntil: v.optional(v.number()),
+    checkedAt: v.optional(v.number()),
+    startedAt: v.number(),
+  })
+    .index('by_owner_account', ['ownerId', 'accountId'])
+    .index('by_owner_state', ['ownerId', 'state']),
+
   /* A bill or a salary that comes round (Finances F3): the plan, not the
      payment. Tapping "paid" writes the expense log that is the evidence
      (`logs.meta.recurringId`) — nothing is logged by itself (CLAUDE.md,

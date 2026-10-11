@@ -127,7 +127,7 @@ test('a connected bank: free cash is from the bank, nothing to type', async ({
   await page.screenshot(shot('account-update-connected'))
 })
 
-test('an update still being read: UPDATE opens on it, closing asks, Overview has no strip', async ({
+test('an update still being read: UPDATE opens on it, and closing asks', async ({
   page,
 }) => {
   await start(page)
@@ -153,7 +153,6 @@ test('an update still being read: UPDATE opens on it, closing asks, Overview has
   await expect(sheet).toBeHidden()
   /* The dot on ADD is the one sign of it. */
   await expect(page.getByLabel('an update is waiting')).toBeVisible()
-  await expect(page.getByText('statement-sep.pdf')).toHaveCount(0)
 })
 
 test('phone width: the window fits, the steps take their own line', async ({

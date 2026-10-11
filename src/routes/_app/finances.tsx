@@ -4,11 +4,14 @@ import { CandlestickChart, LayoutGrid, Waves } from 'lucide-react'
 
 import { Accounts } from '@/components/finances/Accounts'
 import { Flow } from '@/components/finances/flow/Flow'
+import { IntakeFlow, OpenIntakes } from '@/components/finances/Intake'
 import { Portfolio } from '@/components/finances/Portfolio'
 import { RoomTabLabel, RoomTabs, roomTabClass } from '@/components/RoomTabs'
+import { Sheet } from '@/components/finances/Sheet'
 import { TreasuryHero } from '@/components/finances/TreasuryHero'
 import { WorthChart } from '@/components/finances/WorthChart'
 import { areaVars } from '@/lib/areas'
+import type { Id } from '../../../convex/_generated/dataModel'
 
 /* The Treasury (R6b-c, 27 Sep; docs/specs/2026-09-27-r6b-treasury.md).
    Artem: "log + track + invest but not slop but bigboy approach." The hero
@@ -27,6 +30,8 @@ type Room = (typeof ROOMS)[number]['id']
 
 function Treasury() {
   const { room = 'overview', month } = Route.useSearch()
+  const [reviewing, setReviewing] = useState<Id<'intakes'> | null>(null)
+  useEffect(() => setReviewing(null), [room])
   /* A room loads the first time it is opened, then stays (9 Oct): loading
      all three on arrival made him wait ~2s for rooms he could not see, and
      read Flow's and Portfolio's sums on every visit. */
@@ -65,6 +70,7 @@ function Treasury() {
       >
         {opened.has('overview') ? (
           <>
+            <OpenIntakes onOpen={setReviewing} />
             <WorthChart />
             <Accounts />
           </>
@@ -84,6 +90,21 @@ function Treasury() {
       >
         {opened.has('portfolio') ? <Portfolio /> : null}
       </div>
+
+      <Sheet
+        open={reviewing !== null}
+        title="check it"
+        wide
+        onClose={() => setReviewing(null)}
+      >
+        {reviewing ? (
+          <IntakeFlow
+            intakeId={reviewing}
+            onBack={() => setReviewing(null)}
+            onDone={() => setReviewing(null)}
+          />
+        ) : null}
+      </Sheet>
     </div>
   )
 }

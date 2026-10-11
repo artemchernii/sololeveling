@@ -53,7 +53,7 @@ export function Flow({ open }: { open?: string } = {}) {
       const fresh = ahead.bills.filter((b) => b.isNew).length
       const next = ahead.events.find((e) => e.kind === 'expense')
       if (shorts) {
-        a = `${shorts} not covered on the day`
+        a = `${shorts} ${shorts === 1 ? 'account' : 'accounts'} short`
         aDot = 'bg-state-warn'
       } else if (fresh) {
         a = `${fresh} new found · added`

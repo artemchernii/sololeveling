@@ -76,8 +76,13 @@ export type AheadEvent = {
   amount: number
   accountId?: string
   yearly: boolean
-  /** The account will not hold the amount that day. */
+  /** The first payment its account cannot cover. Later ones are the same
+      gap carried on (11 Oct: five tags for one shortfall), and are not
+      marked. */
   short: boolean
+  /** On that payment: what to add to the account before the day, the
+      whole of that month's gap. */
+  add: number | null
   /** What the account holds just before it, when known. */
   held: number | null
 }
@@ -166,15 +171,29 @@ export function buildAhead(input: AheadInput) {
       !(new Date(t).getUTCMonth() === thisMonth && paidEarly.has(bill.id)),
   )
 
-  /* Each account walked forward: a payment it cannot cover is marked. */
+  /* Each account walked forward. `deep` is how far below zero it has
+     been; a payment that takes it further is a gap, summed by month. The
+     first one is marked — nothing here knows of his top-ups, so every
+     later payment would be marked too. */
   const run = new Map(input.free.map((a) => [a.accountId, a.eur]))
+  const deep = new Map<string, number>()
+  const gaps = new Map<string, number>()
+  const monthOf = (t: number) =>
+    new Date(t).getUTCFullYear() * 12 + new Date(t).getUTCMonth()
   const events: Array<AheadEvent> = coming.map(({ t, bill }) => {
     const before = bill.accountId ? run.get(bill.accountId) : undefined
+    let short = false
     if (bill.accountId && before !== undefined) {
-      run.set(
-        bill.accountId,
-        before + (bill.kind === 'income' ? bill.amount : -bill.amount),
-      )
+      const after =
+        before + (bill.kind === 'income' ? bill.amount : -bill.amount)
+      run.set(bill.accountId, after)
+      const was = deep.get(bill.accountId)
+      if (bill.kind === 'expense' && -after > (was ?? 0)) {
+        const k = `${monthOf(t)}|${bill.accountId}`
+        gaps.set(k, (gaps.get(k) ?? 0) - after - (was ?? 0))
+        deep.set(bill.accountId, -after)
+        short = was === undefined
+      }
     }
     return {
       t,
@@ -184,11 +203,23 @@ export function buildAhead(input: AheadInput) {
       amount: bill.amount,
       accountId: bill.accountId,
       yearly: bill.cadence === 'yearly',
-      short:
-        bill.kind === 'expense' && before !== undefined && before < bill.amount,
+      short,
       held: before === undefined ? null : cents(before),
+      add: null,
     }
   })
+  /* The marked payment carries its month's gap; each later month's is
+     said once, on the month. */
+  const later: Array<{ month: number; accountId: string; amount: number }> = []
+  for (const [k, gap] of gaps) {
+    const [month, accountId] = k.split('|')
+    const first = events.find(
+      (e) =>
+        e.short && e.accountId === accountId && monthOf(e.t) === Number(month),
+    )
+    if (first) first.add = cents(gap)
+    else later.push({ month: Number(month), accountId, amount: cents(gap) })
+  }
 
   /* The rest: each past month's money out that is no bill's payment. A
      month with no rows at all was not read, and is left out. */
@@ -256,6 +287,7 @@ export function buildAhead(input: AheadInput) {
       rowId: row?.id ?? null,
     })),
     events,
+    later,
     rest,
     range,
     series,

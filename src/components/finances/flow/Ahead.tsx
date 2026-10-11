@@ -18,7 +18,7 @@ import { AheadChart } from './AheadChart'
 import { AddBill } from './AddBill'
 import { PayeeMark, PayeeName, usePayees } from './Payees'
 import type { Who } from './Payees'
-import { daysBetween, eur, monthName, weekday } from './time'
+import { dayMonth, daysBetween, eur, monthName, weekday } from './time'
 
 type AheadData = FunctionReturnType<typeof api.aggregate.ahead>
 type Event = AheadData['events'][number]
@@ -192,7 +192,8 @@ export function Ahead({
             {shorts.length ? (
               <span className="text-state-warn">
                 {' '}
-                · {shorts.length} not covered on the day
+                · {shorts.length} {shorts.length === 1 ? 'account' : 'accounts'}{' '}
+                short
               </span>
             ) : null}
           </span>
@@ -350,6 +351,7 @@ export function Ahead({
                   es[0] && new Date(es[0].t).getMonth() === thisMonth
                 const full = current || open[m]
                 const odd = es.filter((e) => e.yearly || e.short)
+                const asks = a.later.filter((l) => l.month === m)
                 return (
                   <div key={m} className="flex flex-col">
                     <MonthHead
@@ -378,7 +380,7 @@ export function Ahead({
                           rhythm={rhythmOf(bill(e.billId))}
                           range={rangeOf(bill(e.billId))}
                           isNew={bill(e.billId)?.isNew}
-                          short={e.short}
+                          short={e.add ?? undefined}
                           nested={nested}
                           status={
                             <EventStatus
@@ -421,7 +423,16 @@ export function Ahead({
                         </FoldRow>
                       )
                     })}
-                    {!full && odd.length === 0 ? (
+                    {asks.map((l) => (
+                      <span
+                        key={l.accountId}
+                        className="px-1 pt-2 pb-1 font-mono text-[10.5px] text-state-warn"
+                      >
+                        add <Veiled>{eur(l.amount, true)}</Veiled> to{' '}
+                        {account(l.accountId)?.name ?? 'the account'}
+                      </span>
+                    ))}
+                    {!full && odd.length === 0 && !asks.length ? (
                       <span className="label-caps px-1 py-2.5 text-ink-600">
                         the usual month — nothing new
                       </span>
@@ -680,7 +691,8 @@ function BillRow({
   /** One that varies: its cheapest and dearest recent month. */
   range?: { lo: number; hi: number } | null
   isNew?: boolean
-  short?: boolean
+  /** What its account lacks that month, on the first it cannot cover. */
+  short?: number
   status: React.ReactNode
   dim?: boolean
   /** A part inside a folded row: no day of its own. */
@@ -712,7 +724,11 @@ function BillRow({
           {rhythm ? <Tag tone="lav">{rhythm}</Tag> : null}
           {range ? <Tag tone="lav">varies</Tag> : null}
           {isNew ? <New /> : null}
-          {short ? <Tag tone="warn">not enough on the day</Tag> : null}
+          {short ? (
+            <Tag tone="warn">
+              <Veiled>{eur(short, true)}</Veiled> short
+            </Tag>
+          ) : null}
         </span>
       </span>
       <span className="flex flex-col items-end gap-1 font-mono">
@@ -941,14 +957,15 @@ function EventStatus({
 }) {
   if (e.kind === 'income')
     return <span className="text-[10px] text-state-good">arrives</span>
-  if (e.short && e.held !== null) {
+  if (e.add !== null && e.held !== null) {
     return (
-      <span className="text-[10px] text-state-warn">
-        {account?.name ?? 'account'} {e.held < 0 ? 'already at ' : 'holds '}
+      <span className="text-right text-[10px] text-state-warn">
+        {account?.name ?? 'account'} {e.held < 0 ? 'is at ' : 'has '}
         <Veiled>
           {e.held < 0 ? '−' : ''}
           {eur(Math.abs(e.held), true)}
         </Veiled>
+        , add <Veiled>{eur(e.add, true)}</Veiled> before {dayMonth(e.t)}
       </span>
     )
   }

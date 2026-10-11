@@ -5,6 +5,7 @@ import type { Id } from '../../../convex/_generated/dataModel'
 import { TakeBack } from '@/components/finances/AccountFileBack'
 import type { Taken } from '@/components/finances/AccountFileBack'
 import { PILL_QUIET } from '@/components/finances/bits'
+import { PayeeLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { SkeletonRows } from '@/components/Skeleton'
 import { fmt, short } from './AccountSheetRows'
@@ -42,6 +43,9 @@ export function FileView({
           >
             <span className="w-14 shrink-0 font-mono text-[11px] text-ink-500">
               {short(r.at)}
+            </span>
+            <span className={r.landed || r.pending ? '' : 'opacity-45'}>
+              <PayeeLogo name={r.text} />
             </span>
             <span className="min-w-0 flex-1 truncate text-[13.5px] text-foreground">
               {r.text}

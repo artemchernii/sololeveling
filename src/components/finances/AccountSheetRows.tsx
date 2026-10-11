@@ -5,7 +5,9 @@ import type { FunctionReturnType } from 'convex/server'
 import type { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { Busy } from '@/components/finances/bits'
+import { AccountLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
+import { payeeSite } from '@/lib/payeeSites'
 
 /* The account sheet's lines (split from OpenAccount.tsx, 5 Oct): a
    balance or a file between the rows, and one row with its delete. */
@@ -119,22 +121,29 @@ export function RowLine({
       : 'text-foreground'
   const Icon =
     moved || traded ? ArrowLeftRight : r.amount > 0 ? ArrowDown : ArrowUp
+  /* A shop the app knows shows its own mark (11 Oct); a transfer, a trade
+     and a payee it does not know keep the arrow. */
+  const site = moved || traded ? null : payeeSite(r.text)
   return (
     <div
       style={{ animationDelay: `${Math.min(index, 20) * 18}ms` }}
       className="motion-land group flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 hover:bg-lift/[0.035]"
     >
-      <span
-        className={`grid size-[26px] shrink-0 place-items-center rounded-[8px] ${
-          moved || traded
-            ? 'bg-lav-400/12 text-lav-300'
-            : r.amount > 0
-              ? 'bg-state-good/14 text-state-good'
-              : 'bg-lift/[0.06] text-ink-400'
-        }`}
-      >
-        <Icon className="size-3.5" />
-      </span>
+      {site !== null ? (
+        <AccountLogo name={r.text} domain={site} size={26} />
+      ) : (
+        <span
+          className={`grid size-[26px] shrink-0 place-items-center rounded-[8px] ${
+            moved || traded
+              ? 'bg-lav-400/12 text-lav-300'
+              : r.amount > 0
+                ? 'bg-state-good/14 text-state-good'
+                : 'bg-lift/[0.06] text-ink-400'
+          }`}
+        >
+          <Icon className="size-3.5" />
+        </span>
+      )}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[13.5px] text-foreground">{r.text}</span>
         <span className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] text-ink-500">

@@ -17,7 +17,10 @@ test('trading history: applied through update all, and again adds nothing', asyn
 
   await page.getByRole('button', { name: 'add', exact: true }).first().click()
   const sheet = page.getByRole('dialog')
-  await expect(sheet.getByText('31 trades')).toBeVisible()
+  await expect(sheet.getByText('31 to save')).toBeVisible()
+  await expect(
+    sheet.getByText('Not checked: no screenshot of the shares yet.'),
+  ).toBeVisible()
   await page.screenshot({ ...shot('history-review'), fullPage: true })
   await sheet.getByRole('button', { name: /apply 1 account/ }).click()
   await expect(sheet.getByText(/Writing|updated/).first()).toBeVisible()

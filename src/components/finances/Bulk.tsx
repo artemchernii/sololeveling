@@ -57,6 +57,14 @@ export function BulkUpdate({
   const [checking, setChecking] = useState<Id<'intakes'> | null>(null)
   /* Whether this sheet saw the apply through. */
   const [pressed, setPressed] = useState(false)
+  /* "saving…" stays long enough to be read: a small file is written
+     before the screen would ever show it (every press answers). */
+  const [justPressed, setJustPressed] = useState(false)
+  useEffect(() => {
+    if (!justPressed) return
+    const t = setTimeout(() => setJustPressed(false), 600)
+    return () => clearTimeout(t)
+  }, [justPressed])
   const [uploading, setUploading] = useState(false)
   const reading = view?.files.some((f) => f.status === 'reading') ?? false
   const flight: Flight | null =
@@ -98,7 +106,7 @@ export function BulkUpdate({
   if (batchId === null) return drop
   if (view === undefined) return <div className="min-h-[320px]" />
 
-  if (view.status === 'applying')
+  if (view.status === 'applying' || justPressed)
     return <Applying view={view} batchId={batchId} onClose={onClose} />
   if (pressed && (view.status === 'done' || view.applied !== null)) {
     return (
@@ -119,6 +127,7 @@ export function BulkUpdate({
       onClose={onClose}
       onApplied={() => {
         setPressed(true)
+        setJustPressed(true)
         /* Once applied it is no longer the one waiting — hold on to it
            here, so its applied screen still has it. */
         setMine(batchId)

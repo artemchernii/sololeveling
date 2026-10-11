@@ -43,7 +43,11 @@ export function TypedBalance({
       now: money(p.now),
       after: p.after === null ? null : money(p.after),
     })
-    remove({ snapshotId })
+    /* "removing…" is shown before the write, not beside it: the balance
+       leaves the sheet the moment the write lands, and a press that
+       answers with nothing to read is no answer (every press answers). */
+    new Promise((shown) => setTimeout(shown, 400))
+      .then(() => remove({ snapshotId }))
       .then(() => onRemoved({ title: 'Removed.', words }))
       .catch((e: unknown) => {
         setBusy(false)

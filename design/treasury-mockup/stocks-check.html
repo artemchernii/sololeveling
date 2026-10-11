@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · stocks file against your shares</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Stocks file checked against the shares held (11 Oct). Third of the
+     reliability slices he ordered: a trading history (Revolut's stocks
+     CSV) is checked before saving — per company, what its buys and sells
+     end at against the shares the last broker screen showed. The one
+     that does not match waits; the rest save. The block is the check
+     step's account block from check-sum.html, with the trades inside. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit; cursor: pointer }
+  svg.i { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400) }
+  .scen button.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 720px; margin: 0 auto; text-align: center }
+  .note b { color: var(--ink-200); font-weight: 400 }
+  .sheet { border-radius: 22px; padding: 20px; border: 1px solid var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.08), rgba(181,171,252,.015) 40%), #1d1c2d; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine); display: flex; flex-direction: column; gap: 16px }
+  .shead { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid rgba(181,171,252,.16) }
+  .title { flex: 1; font-family: var(--mono); font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .close { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300); display: grid; place-items: center }
+  .summary { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline }
+  .summary .n { font-size: 26px; font-weight: 300 }
+  .summary .l { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500); margin-left: 6px }
+  .summary .warn { color: var(--warn) }
+  .logo { width: 30px; height: 30px; border-radius: 10px; background: #fff; object-fit: contain; padding: 3px; flex: none }
+  .tag { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; color: var(--ink-400); background: rgba(var(--lift),.05); white-space: nowrap }
+  .tag.good { color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent) }
+  .tag.warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 12%, transparent) }
+  @keyframes land { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+  @keyframes breathe { 50% { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 60%, transparent), 0 0 26px -10px var(--warn) } }
+  @keyframes pop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.15) } }
+  .acc { border-radius: 18px; padding: 14px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); display: flex; flex-direction: column; gap: 12px; animation: land .45s cubic-bezier(.2,.8,.2,1) both; transition: box-shadow .3s }
+  .acc.held { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 38%, transparent); animation: land .45s cubic-bezier(.2,.8,.2,1) both, breathe 2.6s ease-in-out .5s infinite }
+  .acc .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+  .acc .name { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 140px }
+  .acc .name b { font-weight: 500; font-size: 15px }
+  .acc .name span { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .bal { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 13px; color: var(--ink-300); flex-wrap: wrap; justify-content: flex-end }
+  .bal .to { color: var(--ink-100); font-size: 15px }
+  .bal small { color: var(--ink-500); font-size: 10px }
+  .bal .down { display: inline-flex; gap: 4px; align-items: center; border-radius: 999px; padding: 2px 8px; font-size: 11px; color: var(--danger); background: color-mix(in oklch, var(--danger) 12%, transparent) }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; padding: 4px 10px; border-radius: 999px }
+  .chip i { width: 6px; height: 6px; border-radius: 999px; background: currentColor }
+  .chip.new { color: var(--good); background: color-mix(in oklch, var(--good) 10%, transparent); border: 1px solid color-mix(in oklch, var(--good) 35%, transparent) }
+  .chip.had { color: #a9a3d6; background: rgba(181,171,252,.08); border: 1px solid rgba(181,171,252,.22) }
+  .strip { display: grid; grid-template-columns: repeat(4, 1fr); border-radius: 12px; background: rgba(0,0,0,.22); border: 1px solid rgba(var(--lift),.06); overflow: hidden }
+  .cell { display: flex; flex-direction: column; gap: 3px; padding: 9px 12px; border-left: 1px solid rgba(var(--lift),.06); min-width: 0 }
+  .cell:first-child { border-left: 0 }
+  .cell span { font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .cell b { font-size: 16px; font-weight: 300; color: var(--ink-200) }
+  .cell em { font-style: normal; font-family: var(--mono); font-size: 9.5px; color: var(--ink-500); min-height: 12px; display: flex; gap: 4px; align-items: center }
+  .cell em svg { width: 11px; height: 11px; stroke-width: 3 }
+  .cell.out b { color: oklch(0.72 0.17 25) }
+  .cell.in b { color: var(--good) }
+  .cell.in.zero b { color: var(--ink-500) }
+  .cell.says { background: rgba(181,171,252,.07) }
+  .cell.says b { color: var(--ink-100); font-weight: 400 }
+  .cell.says.good em { color: var(--good) }
+  .cell.says.good em svg { animation: pop .45s cubic-bezier(.2,.8,.2,1) .35s both }
+  .cell.says.warn em { color: var(--warn) }
+  .why { display: flex; gap: 9px; align-items: flex-start; font-size: 12.5px; color: var(--ink-300); line-height: 1.5 }
+  .why svg { margin-top: 3px; color: var(--lav-400) }
+  .why b { color: var(--ink-100); font-weight: 400 }
+  .off { border-radius: 14px; padding: 12px 13px; background: color-mix(in oklch, var(--warn) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 30%, transparent); display: flex; flex-direction: column; gap: 10px; animation: land .4s cubic-bezier(.2,.8,.2,1) .15s both }
+  .off .q { display: flex; gap: 9px; align-items: flex-start; line-height: 1.5; font-size: 13.5px }
+  .off .q svg { color: var(--warn); margin-top: 3px }
+  .off .q b { font-weight: 500 }
+  .off .q small { display: block; color: var(--ink-400); font-size: 12px }
+  .line { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; font-size: 12.5px; color: var(--ink-200); margin-left: 23px; padding: 7px 10px; border-radius: 10px; background: rgba(0,0,0,.22) }
+  .line .d { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .line .v { font-family: var(--mono) }
+  .line small { display: block; font-size: 11.5px; color: var(--ink-400) }
+  .line.mine { background: none; box-shadow: inset 0 0 0 1px rgba(181,171,252,.22); color: var(--ink-300) }
+  .opts { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 23px }
+  .opt { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: rgba(var(--lift),.03); font-size: 12.5px; color: var(--ink-200); transition: border-color .2s, background .2s, transform .1s }
+  .opt.loud { border-color: color-mix(in oklch, var(--lav-400) 50%, transparent); background: rgba(181,171,252,.14) }
+  .opt:hover { border-color: color-mix(in oklch, var(--lav-400) 55%, transparent); background: rgba(181,171,252,.1) }
+  .opt:active { transform: scale(.97) }
+  .done { display: flex; align-items: center; gap: 9px; border-radius: 14px; padding: 11px 13px; font-size: 13px; color: var(--ink-200); background: color-mix(in oklch, var(--good) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 30%, transparent); animation: land .4s cubic-bezier(.2,.8,.2,1) both }
+  .done svg { color: var(--good); animation: pop .45s cubic-bezier(.2,.8,.2,1) both }
+  .done .sp { flex: 1 }
+  .link { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--lav-400); background: none; border: 0; padding: 2px 0 }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center }
+  .facts .sp { flex: 1 }
+  .leave { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500); background: none; border: 0; box-shadow: inset 0 0 0 1px rgba(var(--lift),.1); border-radius: 999px; padding: 4px 10px }
+  .foot { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; border-top: 1px solid rgba(181,171,252,.12); padding-top: 14px }
+  .foot p { flex: 1; min-width: 200px; font-size: 12.5px; color: var(--ink-400); line-height: 1.5 }
+  .foot p b { color: var(--warn); font-weight: 400 }
+  .pill { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-300); background: none; border: 1px solid rgba(var(--lift),.14); border-radius: 999px; padding: 8px 14px }
+  .apply { display: inline-flex; gap: 8px; align-items: center; font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #17152a; border: 0; border-radius: 999px; padding: 10px 20px; background: linear-gradient(135deg, var(--lav-300), var(--lav-400)); box-shadow: 0 0 26px -6px var(--lav-400) }
+  .apply[disabled] { opacity: .4; box-shadow: none; cursor: default }
+  @media (max-width: 560px) {
+    .strip { grid-template-columns: 1fr 1fr }
+    .cell:nth-child(3) { border-left: 0 }
+    .cell:nth-child(n+3) { border-top: 1px solid rgba(var(--lift),.06) }
+    .line, .opts { margin-left: 0; padding-left: 0 } .line { padding-left: 10px }
+  }
+  .tk { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 6px }
+  .t { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 10px; background: rgba(0,0,0,.22); min-width: 0; animation: land .4s cubic-bezier(.2,.8,.2,1) both }
+  .t img, .t .lt { width: 22px; height: 22px; border-radius: 7px; background: #fff; object-fit: contain; padding: 3px; flex: none }
+  .t .lt { display: grid; place-items: center; background: rgba(181,171,252,.14); color: var(--lav-300); font-family: var(--mono); font-size: 8.5px; padding: 0 }
+  .t b { flex: 1; min-width: 0; font-weight: 400; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .t span { font-family: var(--mono); font-size: 11px; color: var(--ink-300); white-space: nowrap }
+  .t svg { color: var(--good); width: 12px; height: 12px; stroke-width: 3 }
+  .t.bad { background: color-mix(in oklch, var(--warn) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 40%, transparent) }
+  .t.bad span { color: var(--warn) } .t.bad svg { color: var(--warn) }
+  .t.more { background: none; box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); color: var(--ink-400); font-family: var(--mono); font-size: 10.5px; justify-content: center; border: 0; letter-spacing: .08em }
+  .t.grey span, .t.grey b { color: var(--ink-500) }
+  .head { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--ink-200) }
+  .head svg { color: var(--good); stroke-width: 3; animation: pop .45s cubic-bezier(.2,.8,.2,1) .3s both }
+  .head.warn svg { color: var(--warn); stroke-width: 2 }
+  .head small { color: var(--ink-400); font-size: 12px }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-left: 23px }
+  .two .cell { border: 1px solid rgba(var(--lift),.12); border-radius: 12px; background: rgba(0,0,0,.22); gap: 4px }
+  .two .cell b { color: var(--ink-100); font-weight: 400 }
+  .two .cell u { text-decoration: none; font-size: 13px; color: var(--ink-200) }
+  @media (max-width: 560px) { .two { margin-left: 0 } .tk { grid-template-columns: 1fr } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="scen" id="scen"></div>
+  <p class="note" id="note"></p>
+  <div class="sheet">
+    <div class="shead"><span class="title">[ check it ]</span><button class="close">✕</button></div>
+    <div id="body" style="display:flex;flex-direction:column;gap:16px"></div>
+  </div>
+</div>
+<script>
+const P = { check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', sigma: '<path d="M18 5H6l6 7-6 7h12"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', neq: '<path d="M5 9h14M5 15h14M16 5L8 19"/>', eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>' }
+const svg = (n) => `<svg class="i" viewBox="0 0 24 24">${P[n]}</svg>`
+const fav = (d) => `https://www.google.com/s2/favicons?domain=${d}&sz=128`
+const stat = (n, l, c = '') => `<span class="${c}"><span class="n">${n}</span><span class="l">${l}</span></span>`
+const stats = (n, waits = 0) => `<div class="summary">${stat(1, 'file')}${stat(n, 'buys and sells')}${waits ? stat(waits, waits === 1 ? 'question' : 'questions', 'warn') : ''}</div>`
+const chips = (list) => `<div class="chips">${list.map(([n, l, c]) => `<span class="chip ${c}"><i></i>${n} ${l}</span>`).join('')}</div>`
+const HELD = [['Vanguard All-World', 'vanguard.com', '42.1'], ['NVIDIA', 'nvidia.com', '6'], ['Apple', 'apple.com', '12'], ['Microsoft', 'microsoft.com', '4'], ['Alphabet', 'abc.xyz', '9'], ['Amazon', 'amazon.com', '7'], ['ASML', 'asml.com', '1.5'], ['Tesla', 'tesla.com', '3']]
+const t = ([name, d, sh], cls = '', mark = svg('check')) => `<div class="t ${cls}">${d ? `<img src="${fav(d)}" alt="">` : `<span class="lt">${name.slice(0, 2).toUpperCase()}</span>`}<b>${name}</b><span>${sh}</span>${mark}</div>`
+const grid = (off = null, extra = '') => `<div class="tk">${HELD.map((h) => off && h[0] === off[0] ? t([h[0], h[1], off[1]], 'bad', svg('neq')) : t(h)).join('')}${extra}<button class="t more">6 more</button></div>`
+const block = ({ held = false, right, body }) => `
+  <div class="acc ${held ? 'held' : ''}">
+    <div class="top"><img class="logo" src="${fav('revolut.com')}" alt="">
+      <div class="name"><b>Revolut</b><span>broker · trading-account-statement.csv · 2 Feb 2023 → 9 Oct</span></div>
+      <div class="bal">${right}</div>
+    </div>
+    ${body}
+    <div class="facts"><span class="sp"></span><button class="link">buys and sells</button><button class="leave">leave out</button></div>
+  </div>`
+const foot = (text, label) => `<div class="foot"><p>${text}</p><button class="pill">start over</button><button class="pill">later</button><button class="apply">${svg('check')}${label}</button></div>`
+const two = (a, b) => `<div class="two"><div class="cell"><span>${a[0]}</span><b>${a[1]}</b>${a[2] ? `<u>${a[2]}</u>` : ''}<em>${a[3]}</em></div><div class="cell"><span>${b[0]}</span><b>${b[1]}</b>${b[2] ? `<u>${b[2]}</u>` : ''}<em>${b[3]}</em></div></div>`
+const okTag = `<span class="tag good">${svg('check')}shares are right</span>`
+
+const RIGHT = (n, more = '') => `<div class="head">${svg('check')}<span>${n} companies: same shares in the file and in the account.<small> Screenshot of 9 Oct${more}</small></span></div>`
+const RIGHT15 = RIGHT('All 15', ' · 9 more sold completely'), RIGHT14 = RIGHT('The other 14')
+let answer = null
+const ask = ({ q, why, file, screen, name, n }) => `<div class="off"><div class="q">${svg('neq')}<div><b>${q}</b><small>${why}</small></div></div>
+    ${two(['in the file', ...file], ['in the account', ...screen])}
+    <div class="opts"><button class="opt loud" data-a="wait">do not save ${name}</button><button class="opt" data-a="save">save ${name} anyway</button></div></div>`
+const answered = (words) => `<div class="done">${svg('check')}<span>${words}</span><span class="sp"></span><button class="link" data-a="">undo</button></div>`
+const off = (o) => answer === 'wait'
+  ? stats(212, 0) + block({ right: `<span class="tag">${212 - o.n} to save</span>`, body: chips([[212 - o.n, 'to save', 'new'], [o.n, `${o.name} not saved`, 'had']]) + RIGHT14 + grid(o.cell) + answered(`${o.name} not saved. Still ${parseFloat(o.screen[0])} shares in the account.`) }) + foot('Ready to save.', `apply ${212 - o.n}`)
+  : answer === 'save'
+    ? stats(212, 0) + block({ right: `<span class="tag">212 to save</span>`, body: chips([[212, 'to save', 'new']]) + RIGHT14 + grid(o.cell) + answered(`${o.name} saved as the file says. Still ${parseFloat(o.screen[0])} shares in the account. ${o.paid}`) }) + foot('Ready to save.', 'apply 212')
+    : stats(212, 1) + block({ held: true, right: `<span class="tag warn">${o.name} not saved</span>`, body: chips([[212 - o.n, 'to save', 'new'], [o.n, `${o.name} not saved`, 'had']]) + ask(o) + RIGHT14 + grid(o.cell) }) + foot(`<b>${o.name} not saved</b> — 1 question open.`, `apply ${212 - o.n}`)
+
+const S = {
+  ok: { l: 'it matches', note: 'Your Revolut stocks file, 212 buys and sells. For every company, buys minus sales give the same shares as your screenshot of 9 Oct. One press.',
+    r: () => stats(212) + block({ right: okTag, body: chips([[212, 'to save', 'new']]) + RIGHT15 + `<div class="tk">${HELD.map((h) => t(h)).join('')}<button class="t more">7 more</button></div>` }) + foot('Ready to save.', 'apply 212') },
+  short: { l: 'file has fewer', note: 'The file has one NVIDIA share less than your account. NVIDIA is not saved until you choose; the other companies are. Both buttons work.',
+    r: () => off({ name: 'NVIDIA', n: 14, cell: ['NVIDIA', '5 shares · 6'], q: 'NVIDIA: 5 shares in the file, 6 in the account.', why: 'One buy is missing from the file. The file starts on 2 Feb 2023.', file: ['5 shares', '', 'bought 11 times, sold 3 times'], screen: ['6 shares', '', 'screenshot of 9 Oct'], paid: 'Price paid is known for 5.' }) },
+  over: { l: 'file has more', note: 'The file has two Tesla shares more than your account.',
+    r: () => off({ name: 'Tesla', n: 9, cell: ['Tesla', '5 shares · 3'], q: 'Tesla: 5 shares in the file, 3 in the account.', why: 'A sale is missing from the file, or the same buy is in it twice.', file: ['5 shares', '', 'bought 9 times, never sold'], screen: ['3 shares', '', 'screenshot of 9 Oct'], paid: 'Price paid is counted from all 9 buys.' }) },
+  after: { l: 'bought after the screenshot', note: 'You bought 2 Apple on 10 Oct, a day after your last screenshot. The screenshot cannot show them, so they are saved without a check.',
+    r: () => stats(213) + block({ right: okTag, body: chips([[213, 'to save', 'new']]) + RIGHT15 + `<div class="tk">${HELD.map((h) => t(h)).join('')}<button class="t more">7 more</button></div><div class="why">${svg('clock')}<span><b>2 Apple bought on 10 Oct</b>, after the last screenshot. Saved. Apple shows 14 shares after a newer screenshot.</span></div>` }) + foot('Ready to save.', 'apply 213') },
+  none: { l: 'no screenshot yet', note: 'The app has no screenshot of your Revolut shares, so it cannot check the file. It is saved as it is.',
+    r: () => stats(212) + block({ right: `<span class="tag">not checked</span>`, body: chips([[212, 'to save', 'new']]) + `<div class="why">${svg('eye')}<span><b>Not checked: no screenshot of Revolut shares yet.</b> Checked after the first screenshot.</span></div><div class="tk">${HELD.map((h) => t(h, 'grey', '')).join('')}<button class="t more">16 more</button></div>` }) + foot('Ready to save.', 'apply 212') },
+}
+let on = 'ok'
+function draw() {
+  document.getElementById('scen').innerHTML = Object.entries(S).map(([k, v]) => `<button class="${k === on ? 'on' : ''}" data-k="${k}">${v.l}</button>`).join('')
+  document.getElementById('note').textContent = S[on].note
+  document.getElementById('body').innerHTML = S[on].r()
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button')
+  if (!b) return
+  if (b.dataset.k) { on = b.dataset.k; answer = null; draw() }
+  else if (b.dataset.a !== undefined) { answer = b.dataset.a || null; draw() }
+})
+draw()
+</script>
+</body>
+</html>

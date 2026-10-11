@@ -5,7 +5,9 @@ description: Writing and running SOLO LEVELING browser tests (Playwright) on the
 
 # e2e on mock data
 
-- Run: `pnpm e2e` (all) or `pnpm exec playwright test e2e/<file>`.
+- Run: `pnpm exec playwright test e2e/<file>` while building — only the
+  spec files the slice touches. `pnpm e2e` (all, about 8 minutes) runs
+  once, inside `pnpm verify`, on the final branch before the PR.
   Starts the test backend (`e2e/backend`) and the app on this checkout's
   own ports (`e2e/ports.ts`; `node e2e/ports.ts` prints them), so two
   worktrees run at the same time. Each has its own test data

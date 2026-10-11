@@ -181,7 +181,11 @@ These are rules, not advice.
    the spec text → e2e tests first → build until green → PR with
    screenshots → he tests on localhost with his own data → merge.
 2. **`pnpm verify` before every PR** (typecheck, lint, format, unit,
-   build, e2e). Red means no PR.
+   build, e2e). Red means no PR. The full run is owed **once per PR, on
+   the final branch** (11 Oct: one slice ran it six times, 8 minutes
+   each). While building: `pnpm typecheck && pnpm lint` and only the spec
+   files the slice touches (`pnpm exec playwright test e2e/<file>`). A
+   commit after the green run — a fix, a merge of master — owes it again.
 3. **Tests run on mock data only** — the `e2e` skill. Never press a
    write on his real account to check something.
 4. **Every write answers**: "saving…" at once, a landed screen, then it

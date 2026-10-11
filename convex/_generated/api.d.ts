@@ -20,6 +20,7 @@ import type * as drills from "../drills.js";
 import type * as e2e from "../e2e.js";
 import type * as e2eUpdate from "../e2eUpdate.js";
 import type * as events from "../events.js";
+import type * as gapMatch from "../gapMatch.js";
 import type * as github from "../github.js";
 import type * as goals from "../goals.js";
 import type * as intake from "../intake.js";
@@ -64,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   e2e: typeof e2e;
   e2eUpdate: typeof e2eUpdate;
   events: typeof events;
+  gapMatch: typeof gapMatch;
   github: typeof github;
   goals: typeof goals;
   intake: typeof intake;

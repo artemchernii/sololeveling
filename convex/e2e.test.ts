@@ -151,6 +151,9 @@ test('the update mocks refuse anywhere but the test backend', async () => {
     refused,
   )
   await expect(
+    me.mutation(api.e2eUpdate.sheetGap, { as: 'found' }),
+  ).rejects.toThrow(refused)
+  await expect(
     me.mutation(api.e2eUpdate.failRead, { batchId }),
   ).rejects.toThrow(refused)
   await expect(me.mutation(api.e2eUpdate.badFile, { batchId })).rejects.toThrow(

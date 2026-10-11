@@ -257,3 +257,73 @@ export const readActivo = mutation({
     return batchId
   },
 })
+
+/* His Trade Republic on 11 Oct, for the account sheet (is the balance
+   right): €1,042.46, then €1,543.09 a week later with no row between.
+   `found`: ActivoBank's statement shows −€505.20 sent to it three days
+   after — the same money less a €4.57 fee. `none`: no account shows it. */
+export const sheetGap = mutation({
+  args: { as: v.union(v.literal('found'), v.literal('none')) },
+  returns: v.id('accounts'),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const accounts = await ctx.db
+      .query('accounts')
+      .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+      .take(10)
+    const activo = accounts.find((a) => a.name === 'ActivoBank')
+    if (!activo) throw new Error('reset first')
+    const DAY = 86_400_000
+    const now = Date.now()
+    const accountId = await ctx.db.insert('accounts', {
+      ownerId,
+      name: 'Trade Republic',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+      domain: 'traderepublic.com',
+      institution: 'trade-republic',
+      ibanTails: [],
+      cardTails: [],
+      order: 3,
+    })
+    for (const [ago, value] of [
+      [15, 1042.46],
+      [8, 1543.09],
+    ])
+      await ctx.db.insert('stateSnapshots', {
+        ownerId,
+        area: 'money',
+        key: `balance:${accountId}:EUR`,
+        value,
+        unit: 'eur',
+        recordedAt: now - ago * DAY,
+        source: 'statement',
+      })
+    if (args.as === 'none') return accountId
+    const file = await ctx.db.insert('intakes', {
+      ownerId,
+      accountId: activo._id,
+      storageIds: [],
+      status: 'done',
+      kind: 'transactions',
+    })
+    await ctx.db.insert('logs', {
+      ownerId,
+      area: 'money',
+      kind: 'move',
+      occurredAt: now - 5 * DAY,
+      value: -505.2,
+      unit: 'eur',
+      text: 'Trade Republic',
+      accountId: activo._id,
+      meta: {
+        merchant: 'Trade Republic',
+        raw: 'COMPRA 2789 TRADE REPUBLIC',
+        intakeId: file,
+        otherAccountId: accountId,
+      },
+    })
+    return accountId
+  },
+})

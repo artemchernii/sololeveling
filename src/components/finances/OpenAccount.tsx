@@ -10,6 +10,8 @@ import { Sheet } from '@/components/finances/Sheet'
 import { Veiled } from '@/components/finances/Veil'
 import { SkeletonRows } from '@/components/Skeleton'
 import { FileView } from './AccountFileView'
+import { TakenStrip } from './AccountFileBack'
+import type { Taken } from './AccountFileBack'
 import { BalanceTick, SheetCheck, dayOf } from './AccountSheetCheck'
 import { Divider, RowLine, fmt, short } from './AccountSheetRows'
 
@@ -53,8 +55,11 @@ export function OpenAccount({
   onUpdate: () => void
 }) {
   const [file, setFile] = useState<Id<'intakes'> | null>(null)
+  /* A file just taken back: the account says so until the sheet closes. */
+  const [taken, setTaken] = useState<Taken | null>(null)
   const close = () => {
     setFile(null)
+    setTaken(null)
     onClose()
   }
   return (
@@ -65,10 +70,17 @@ export function OpenAccount({
       onBack={file ? () => setFile(null) : undefined}
     >
       {account === null ? null : file ? (
-        <FileView intakeId={file} />
+        <FileView
+          intakeId={file}
+          onTaken={(t) => {
+            setTaken(t)
+            setFile(null)
+          }}
+        />
       ) : (
         <Ledger
           account={account}
+          taken={taken}
           total={total}
           meta={meta}
           onFile={setFile}
@@ -86,10 +98,12 @@ function Ledger({
   account,
   total,
   meta,
+  taken,
   onFile,
   onUpdate,
 }: {
   account: Doc<'accounts'>
+  taken: Taken | null
   total: number
   meta: string
   onFile: (id: Id<'intakes'>) => void
@@ -134,6 +148,7 @@ function Ledger({
         </p>
       ) : (
         <>
+          {taken ? <TakenStrip taken={taken} /> : null}
           <SheetCheck data={data} account={account} onUpdate={onUpdate} />
           <span className="label-caps">
             {data.rows.length} {data.rows.length === 1 ? 'row' : 'rows'} ·{' '}

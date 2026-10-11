@@ -49,7 +49,7 @@ const SOURCE: Record<NonNullable<PocketTime['source']>, string> = {
   typed: 'typed',
   statement: 'statement',
   screenshot: 'screenshot',
-  sync: 'synced',
+  sync: 'from the bank',
 }
 
 const DAY = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })

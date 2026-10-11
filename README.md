@@ -108,10 +108,10 @@ pnpm verify      # everything below, in order — green before every PR
 | `pnpm check`     | Prettier (`pnpm format` fixes it)                             |
 | `pnpm test`      | Vitest and convex-test                                        |
 | `pnpm build`     | the production build                                          |
-| `pnpm e2e`       | Playwright, on a local test backend (:3210) and app (:3200)   |
+| `pnpm e2e`       | Playwright, on a local test backend and app (`e2e/ports.ts`)  |
 
-The e2e tests use mock data only and never touch a real account. First time on
-a machine: `pnpm e2e:setup`. CI runs everything except e2e (for now).
+The e2e tests use mock data only and never touch a real account. First time in
+a checkout: `pnpm e2e:setup`. CI runs everything except e2e (for now).
 
 ## Deploying
 

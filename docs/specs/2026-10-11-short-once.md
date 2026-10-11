@@ -12,13 +12,13 @@ the wording table, with "add" rather than "move".
 ## What changes
 
 - **The first bill an account cannot cover** carries the tag
-  `€45.33 short` and, under the amount, "ActivoBank has €78.39, add €45.33
+  `⚠ not enough funds · €45.33 missing` and, under the amount, "ActivoBank has €78.39, add €45.33
   before 29 Oct". The amount is the whole of that month's gap for the
   account, so one add covers the month.
 - **Later bills of that account** carry no tag and no orange line.
 - **A later month** says it once, under its heading: "add €160.68 to
   ActivoBank".
-- The list's summary says "1 account short", not "5 not covered on the
+- The list's summary says "not enough funds in 1 account", not "5 not covered on the
   day".
 
 Files: `src/lib/ahead.ts` (`buildAhead`: `short` on the first only, `add`,

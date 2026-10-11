@@ -64,7 +64,8 @@ test('Flow: a bill the account cannot cover says how much to add, once', async (
   await sheet.getByRole('button', { name: 'add', exact: true }).click()
   await expect(sheet).toHaveCount(0, { timeout: 5_000 })
 
-  await expect(page.getByText(/1 account short/)).toHaveCount(2)
+  await expect(page.getByText(/not enough funds in 1 account/)).toHaveCount(2)
+  await expect(page.getByText(/not enough funds · .* missing/)).toHaveCount(1)
   await expect(
     page.getByText(/Revolut (has|is at) .*, add .* before 1 /),
   ).toHaveCount(1)

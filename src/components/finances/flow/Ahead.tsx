@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
-import { Plus } from 'lucide-react'
+import { Plus, TriangleAlert } from 'lucide-react'
 
 import { api } from '../../../../convex/_generated/api'
 import type { Doc, Id } from '../../../../convex/_generated/dataModel'
@@ -192,8 +192,8 @@ export function Ahead({
             {shorts.length ? (
               <span className="text-state-warn">
                 {' '}
-                · {shorts.length} {shorts.length === 1 ? 'account' : 'accounts'}{' '}
-                short
+                · not enough funds in {shorts.length}{' '}
+                {shorts.length === 1 ? 'account' : 'accounts'}
               </span>
             ) : null}
           </span>
@@ -660,7 +660,7 @@ function DayCell({ t }: { t: number }) {
 }
 
 const ROW =
-  'motion-arrive grid grid-cols-[46px_32px_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border-b border-lift/4 px-1 py-2.5 text-left transition-colors hover:bg-lift/[0.035]'
+  'motion-arrive grid grid-cols-[46px_32px_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border-b border-lift/4 py-2.5 pr-[7px] pl-1 text-left transition-colors hover:bg-lift/[0.035]'
 
 function BillRow({
   t,
@@ -726,7 +726,11 @@ function BillRow({
           {isNew ? <New /> : null}
           {short ? (
             <Tag tone="warn">
-              <Veiled>{eur(short, true)}</Veiled> short
+              <TriangleAlert
+                className="mr-1 -mt-px inline size-2.5"
+                aria-hidden
+              />
+              not enough funds · <Veiled>{eur(short, true)}</Veiled> missing
             </Tag>
           ) : null}
         </span>
@@ -927,7 +931,7 @@ function Tag({
 }) {
   return (
     <span
-      className={`rounded-full px-1.5 py-px text-[9.5px] tracking-[0.12em] uppercase ${
+      className={`rounded-full px-1.5 py-px text-[9.5px] tracking-[0.12em] whitespace-nowrap uppercase ${
         tone === 'lav'
           ? 'bg-lav-400/12 text-lav-300'
           : 'bg-state-warn/14 text-state-warn'

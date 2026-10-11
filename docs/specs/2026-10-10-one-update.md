@@ -140,6 +140,141 @@ rows the apply writes (source 1); balances are state (source 2).
 3. Every door opens the one window; "update all" → "update".
 4. Delete what nothing calls; update `docs/journeys/finances.md`.
 
+## UPDATE on one account (piece 3b) — journey, 11 Oct
+
+Status: journey and mockup `design/treasury-mockup/update-account.html`
+in review. No code until his go.
+
+### Journey (his words)
+
+"We should use this update all for all updates modals, no?" (9 Oct)
+"+ add now looks pretty cool, exactly the way I love" · "afraid we lose
+some good stuff" (10 Oct) "I click still the same and NO animation, no
+confirmation" · "should appear only when need update. Not always" (5 Oct)
+"I cant run fixes and db fixes after every update to clean the mess"
+(11 Oct)
+
+He is looking at one account and its number is old or wrong. Two moments:
+
+- **The card says amber, "balance of Oct 3".** He has that bank's app
+  open. About weekly per account, and after payday.
+- **Check-in says two are old.** He goes down the list, one account
+  after another. About weekly.
+
+What he wants: this account right, now, and proof it took. What he does:
+
+1. Presses UPDATE on the card, in the account's sheet, or on a line of the
+   check-in. The window ADD opens, already named for that account.
+2. Either drops that bank's statement or screenshot (the usual, it brings
+   the rows too), or types what is in it now (ten seconds, no file), or
+   presses "still the same" on a number over a week old.
+3. A file: reads, he checks one account, applies, "saving…", landed with
+   ROWS and UNDO. A number: "saving", a tick, the window closes itself.
+4. From check-in, the list comes back with what is still old, so the next
+   account is one press away. (Proposed — today it drops him on the page.)
+
+### Today, measured on the test backend (11 Oct)
+
+- UPDATE opens a narrow window with two tabs, "type it" / "statement or
+  screenshot"; picking the file tab widens it from 560 to 920.
+- The file tab is the old drop (`DropFiles`), then the old one-file check
+  (`TransactionsReview`: "2 new payments", spent / came in / balance,
+  "add 2 payments and the balance"). None of what was built on the
+  many-files check since 10 Oct runs here: not the was · out · in · now
+  check before saving, not the shares check, not "same file again", not
+  UNDO on the landed card, not the close guard.
+- A file that names another bank is saved into the account UPDATE was
+  pressed on, with no word: an ActivoBank CSV dropped on Revolut's UPDATE
+  read as "Revolut", "becomes Revolut EUR cash". `intake.accountId` wins
+  over what the file says (`headingFor`, `guessAccount` is never asked).
+- Cash gets the file tab too, though cash has no statement.
+- A connected bank still gets the typing fields, though its free cash
+  comes from the bank.
+- Check-in closes when UPDATE is pressed and does not come back.
+
+### What the mockup's "from an account" state (10 Oct) did not know
+
+Built since: the check is `BulkAccountBlock` with chips and the
+was · out · in · now strip (#123–#126), not "adds up"; the landed card has
+UNDO (#135) and no ROWS yet; a typed balance can be removed from the
+account sheet (#138), so a wrong typed number has a way back; a connected
+bank's card has no UPDATE unless it also holds investments (`AccountFoot`).
+The 10 Oct state had no "still the same", no hint line, no cash account,
+no connected bank, no wrong-account file.
+
+### After
+
+`UpdateSheet` becomes the same `Sheet` + `BulkUpdate` ADD uses. Its drop
+area is `AddDrop` told the account (title names it, one chip, no "what is
+it?" step, no last-read line), with `TypeBalances` under "or type what is
+in it now". Kept as built, untouched: `AddDrop`'s look, `TypeBalances`
+(fields, ages, "still the same", save, `SavedNote`), `BulkReading`,
+`BulkReview` and its blocks, `Applying`, `Applied` with UNDO, the guard.
+
+New in the window (ADD gets them too, it is one window):
+
+- the four steps in the header once a file is in, the step it is on lit;
+- the window glides to each step's height (measured in the mockup: one
+  change per step, the file line 58px and the saving row 70px throughout);
+- ROWS on the landed card (`intake.fileRows` per file);
+- "Which account is this file for?" when the file names another account
+  than the one UPDATE was pressed on; not saved until picked;
+- cash: no drop area; connected: a "from the bank" line, no fields;
+- check-in comes back after the window closes while something is old.
+
+Goes: the tabs; the Overview strip (`OpenIntakes`) — ADD's dot is the one
+sign of waiting work; `statement.spec`'s old words.
+
+Words changed to the rule (no "you", nothing "waits"): reading footer
+"Closing does not stop the reading. It opens again from ADD."; guards
+"Closing does not stop the reading. ADD shows a dot and opens here
+again." / "Closing does not stop the save. It finishes either way.";
+check footer "Nothing is saved until apply is pressed."; "1 file",
+"1 account". The step words "you check" and "lands on the account" stay:
+they are the built ADD he approved.
+
+### Scenarios (each one e2e test, new file `e2e/account-update.spec.ts`)
+
+- U1 card UPDATE → window named for the account, drop area and fields, no
+  tabs; phone width the same
+- U2 a Revolut CSV from check-in → reading → check (was · out · in · now)
+  → apply → "saving…" → landed, ROWS opens the rows → done → check-in list
+  without Revolut (replaces `statement.spec` "a Revolut CSV")
+- U3 typed number → "saving" → "Revolut is up to date" → closes itself
+- U4 "still the same" on cash → saving → saved → closes; cash has no drop
+- U5 the same file again → "nothing to save", no apply
+- U6 another account's file → the question; apply off; pick → that account
+  lands; the account UPDATE was pressed on is unchanged
+- U7 a typed save fails → "Not saved", numbers kept, save again works
+- U8 a file save stops → not finished → finish saving lands it once
+- U9 a slow save → pending stays visible (typed and file)
+- U10 connected account → "from the bank", no fields; a file still reads
+- U11 close while reading asks first; Overview has no strip
+
+convex-test: none new unless `intake.batch` gains `named` (see below).
+
+### Data
+
+No new numbers. Balances are state (source 2); counts on the check and
+the landed card are log counts of the rows the apply writes (source 1).
+
+### Not in this slice — dead after it, for the piece-4 PR
+
+`DropFiles` + `useIntakeUpload` stay (Setup uses both). After 3b nothing
+calls: `OpenIntakes` (Intake.tsx), `IntakeStrip` outside Setup,
+`ReadingSheet` and `IntakeFlow`'s reading branch outside Setup and
+`BulkUpdate`'s `onCheck`, `intake.open` outside Setup, `intake.lastRead`
+when the last-read line is not shown. Confirm each by search then.
+
+### Open
+
+- Check-in comes back after an update (recommended), or stays closed.
+- A connected account shows no typing fields (recommended).
+- "Revolut" picked for a file that names ActivoBank is remembered only
+  while the window is open, unless `batchAnswer` learns it (A's file).
+- An update already waiting on ADD when UPDATE is pressed: the file joins
+  it (`intake.finish` does that today) — to be checked in the build.
+
 ## Questions
 
 - Q1 The button says **update**. (recommended)

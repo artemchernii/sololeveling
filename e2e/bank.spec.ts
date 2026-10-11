@@ -13,6 +13,7 @@ const card = (page: Page) =>
 
 /** The address the bank's page would send him back to. */
 async function fromTheBank(): Promise<string> {
+  await testClient().mutation(anyApi.e2eBank.reachable, {})
   const accounts: Array<{ _id: string; name: string }> =
     await testClient().query(anyApi.accounts.list, {})
   const activo = accounts.find((a) => a.name === 'ActivoBank')

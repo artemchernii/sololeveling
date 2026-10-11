@@ -27,6 +27,7 @@ import {
 } from '../../src/lib/intake'
 import type { ReadTrade, ReadTransaction } from '../../src/lib/intake'
 import { headerKey, parseCsv } from '../../src/lib/csv'
+import { yearlessToThisYear } from '../../src/lib/noYear'
 import {
   LAYOUT_SCHEMA,
   applyLayout,
@@ -299,9 +300,13 @@ async function readWithModel(
     )
   text = response.content.map((b) => (b.type === 'text' ? b.text : '')).join('')
 
-  const parsed = parseReading(text)
-  if (!parsed.ok)
-    throw new ReadFailure(parsed.error, parsed.error.includes('shape'))
+  const whole = parseReading(text)
+  if (!whole.ok)
+    throw new ReadFailure(whole.error, whole.error.includes('shape'))
+  /* A screenshot prints days with no year; a statement prints them. */
+  const parsed = job.files.every((f) => f.contentType.startsWith('image/'))
+    ? yearlessToThisYear(whole, Date.now())
+    : whole
 
   /* A broker's cash statement prints its orders as rows: they are
      trades inside the account, not money leaving it. */

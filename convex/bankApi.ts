@@ -1,8 +1,9 @@
 import { ConvexError } from 'convex/values'
 
 import type { Aspsp, BankAccount, BankBalance } from '../src/lib/bankLink'
+import type { BankTx } from '../src/lib/bankRows'
 
-/* Enable Banking, Account Information only (11 Oct): the four calls a
+/* Enable Banking, Account Information only (11 Oct): the five calls a
    connection needs. Read-only by registration — the application has no
    payment service. The private key is a Convex environment variable he sets
    himself; it is never logged, returned or stored in a row.
@@ -31,7 +32,13 @@ export type BankApi = {
   }) => Promise<string>
   session: (code: string) => Promise<BankSession>
   balances: (uid: string) => Promise<Array<BankBalance>>
+  /** Every row from `from` ("2026-10-10") on, all pages — or it throws:
+      half an answer is no answer. */
+  transactions: (uid: string, from: string) => Promise<Array<BankTx>>
 }
+
+/* Pages of rows asked for in one check: a month of his is one or two. */
+const MAX_PAGES = 20
 
 const b64url = (bytes: Uint8Array | string) => {
   const raw =
@@ -202,6 +209,50 @@ function real(appId: string, pem: string, redirect: string): BankApi {
           { balance_type: type, balance_amount: { amount: value, currency } },
         ]
       }),
+    transactions: async (uid, from) => {
+      const rows: Array<BankTx> = []
+      let key: string | undefined
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const data = await call(
+          `/accounts/${encodeURIComponent(uid)}/transactions?date_from=${from}` +
+            (key === undefined
+              ? ''
+              : `&continuation_key=${encodeURIComponent(key)}`),
+        )
+        for (const t of list(data.transactions)) {
+          const money =
+            typeof t.transaction_amount === 'object' &&
+            t.transaction_amount !== null
+              ? (t.transaction_amount as Record<string, unknown>)
+              : {}
+          const amount = text(money.amount)
+          const currency = text(money.currency)
+          const named = (v: unknown) =>
+            typeof v === 'object' && v !== null
+              ? text((v as Record<string, unknown>).name)
+              : undefined
+          if (amount === undefined || currency === undefined) continue
+          rows.push({
+            status: text(t.status) ?? '',
+            amount,
+            currency,
+            indicator: text(t.credit_debit_indicator) ?? '',
+            bookingDate: text(t.booking_date),
+            valueDate: text(t.value_date),
+            creditor: named(t.creditor),
+            debtor: named(t.debtor),
+            remittance: Array.isArray(t.remittance_information)
+              ? t.remittance_information.filter(
+                  (w): w is string => typeof w === 'string',
+                )
+              : [],
+          })
+        }
+        key = text(data.continuation_key)
+        if (key === undefined) return rows
+      }
+      throw new ConvexError('The bank sent more rows than can be read at once.')
+    },
   }
 }
 
@@ -258,6 +309,7 @@ export const CANNED: BankApi = {
         balance_amount: { amount: '727.49', currency: 'EUR' },
       },
     ]),
+  transactions: () => Promise.resolve([]),
 }
 
 export function bankApi(): BankApi {

@@ -421,6 +421,20 @@ async function beginIntake(
 
 const HISTORY_TRADES = 8000
 
+/* The newest update he made by dropping files. One a bank's answer made
+   (convex/bankRows.ts) is not his to add files to. */
+async function latestUpdate(
+  ctx: QueryCtx,
+  ownerId: string,
+): Promise<Doc<'batches'> | null> {
+  const recent = await ctx.db
+    .query('batches')
+    .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
+    .order('desc')
+    .take(12)
+  return recent.find((b) => b.via === undefined) ?? null
+}
+
 /* A trading history has no screen of its own (9 Oct, "go use bulk"): one
    dropped on + joins the update that is open, or starts one, and opens on
    the update-all screen like every other file. */
@@ -431,11 +445,7 @@ async function joinUpdate(
 ) {
   const intake = await ctx.db.get(intakeId)
   if (intake === null || intake.batchId !== undefined) return
-  const latest = await ctx.db
-    .query('batches')
-    .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
-    .order('desc')
-    .first()
+  const latest = await latestUpdate(ctx, ownerId)
   const batchId =
     latest !== null && latest.status === 'open'
       ? latest._id
@@ -925,11 +935,7 @@ export const openBatch = query({
   returns: v.union(v.id('batches'), v.null()),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
-    const latest = await ctx.db
-      .query('batches')
-      .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
-      .order('desc')
-      .first()
+    const latest = await latestUpdate(ctx, ownerId)
     return latest !== null && latest.status !== 'done' ? latest._id : null
   },
 })
@@ -1540,7 +1546,9 @@ async function writeTransactions(
        do the same. */
     const at = intake.balance.asOf + 6 * 3_600_000
     for (const currency of account.currencies) {
-      if (currency === intake.balance.currency) continue
+      /* The bank reports each currency itself: none is worked out. */
+      if (currency === intake.balance.currency || intake.via === 'bank')
+        continue
       const last = await ctx.db
         .query('stateSnapshots')
         .withIndex('by_owner_key_time', (q) =>
@@ -2092,7 +2100,8 @@ async function writeHoldings(
 
 /* A balance read off a picture is a screenshot's; off a PDF or CSV, a
    statement's. */
-function sourceOf(intake: Doc<'intakes'>): 'statement' | 'screenshot' {
+function sourceOf(intake: Doc<'intakes'>): 'statement' | 'screenshot' | 'sync' {
+  if (intake.via === 'bank') return 'sync'
   return (intake.files ?? []).some((f) => f.contentType.startsWith('image/'))
     ? 'screenshot'
     : 'statement'
@@ -2848,7 +2857,7 @@ export const batchReview = query({
 
 /* The batch gathered per account — what the review shows, and what an
    apply needs to resolve its transfers before writing. */
-async function gatherBatch(
+export async function gatherBatch(
   ctx: QueryCtx,
   ownerId: string,
   b: Doc<'batches'>,
@@ -3526,6 +3535,21 @@ export const applyBatch = mutation({
     const b = await openBatchFor(ctx, ownerId, args.batchId)
     const identity = await ctx.auth.getUserIdentity()
     const names = identity?.name ? [identity.name] : []
+    await startApply(ctx, ownerId, b, names, args.dayStart)
+    return null
+  },
+})
+
+/** The apply itself, begun: by his press, or by a bank's rows that add up
+    (convex/bankRows.ts). */
+export async function startApply(
+  ctx: MutationCtx,
+  ownerId: string,
+  b: Doc<'batches'>,
+  names: Array<string>,
+  dayStart: number,
+) {
+  {
     const g = await gatherBatch(ctx, ownerId, b, names)
     if (!g.ready) throw new ConvexError('Some files are still being read.')
     const moves = [...b.moves]
@@ -3577,12 +3601,11 @@ export const applyBatch = mutation({
     })
     await ctx.scheduler.runAfter(0, internal.intake.applyStep, {
       batchId: b._id,
-      dayStart: args.dayStart,
+      dayStart,
       names,
     })
-    return null
-  },
-})
+  }
+}
 
 /**
  * A save that stopped is carried on (10 Oct): the chain of steps is

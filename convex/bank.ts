@@ -5,11 +5,10 @@ import {
   aspspFor,
   canConnect,
   pickAccounts,
-  pickBalance,
 } from '../src/lib/bankLink'
-import { writeBalance } from './accounts'
 import { requireUser } from './auth'
 import { bankApi } from './bankApi'
+import { pull } from './bankRows'
 import { internal } from './_generated/api'
 import {
   action,
@@ -21,10 +20,11 @@ import {
 import type { Id } from './_generated/dataModel'
 
 /* A connected bank (11 Oct, docs/specs/2026-10-11-bank-connections.md),
-   slice 1: connect, approve again, and the bank's balance stored.
+   slice 1: connect and approve again. What the bank then reports — its
+   balance and its booked rows — is read and stored by convex/bankRows.ts.
 
    The balance is an external reading (PLAN.md §1 source 4): stored — a
-   `stateSnapshots` row written by `land`, never fetched by a page;
+   `stateSnapshots` row written by `bankRows.arrive`, never fetched by a page;
    attributed — source 'sync' on the row, the bank on the link; as of a time
    — the row's `recordedAt`, the moment the bank answered; not a licence to
    derive — nothing is computed from it here. The whole reading or none: a
@@ -131,8 +131,8 @@ export const waiting = internalQuery({
   },
 })
 
-/** The bank answered: the link is kept and its balances written, in one
-    step — or the choice of account is kept to be asked. */
+/** The bank answered: the link is kept — or the choice of account is kept
+    to be asked. */
 export const land = internalMutation({
   args: {
     ownerId: v.string(),
@@ -143,8 +143,6 @@ export const land = internalMutation({
     validUntil: v.number(),
     uids: v.array(v.object({ uid: v.string(), currency: v.string() })),
     choices: v.array(account),
-    readings: v.array(v.object({ currency: v.string(), value: v.number() })),
-    dayStart: v.number(),
   },
   returns: v.id('accounts'),
   handler: async (ctx, args) => {
@@ -168,19 +166,7 @@ export const land = internalMutation({
       validUntil: args.validUntil,
       uids: choosing ? undefined : args.uids,
       choices: choosing ? args.choices : undefined,
-      ...(choosing ? {} : { checkedAt: Date.now() }),
     })
-    for (const r of args.readings)
-      await writeBalance(
-        ctx,
-        args.ownerId,
-        row,
-        r.currency,
-        r.value,
-        args.dayStart,
-        undefined,
-        'sync',
-      )
     return row._id
   },
 })
@@ -229,8 +215,8 @@ export const connect = action({
   },
 })
 
-/** Back from the bank's page with its code: the balance is read and
-    stored, or the bank's accounts are kept to pick from. */
+/** Back from the bank's page with its code: the link is kept and the bank
+    is read (bankRows.pull), or its accounts are kept to pick from. */
 export const finish = action({
   args: {
     code: v.string(),
@@ -260,14 +246,6 @@ export const finish = action({
     )
     if (picked.kind === 'none')
       throw new ConvexError('The bank showed no account in this currency.')
-    const readings: Array<{ currency: string; value: number }> = []
-    if (picked.kind === 'found')
-      for (const a of picked.accounts) {
-        const value = pickBalance(await api.balances(a.uid), a.currency)
-        if (value === null)
-          throw new ConvexError('The bank gave no balance. Nothing was saved.')
-        readings.push({ currency: a.currency, value })
-      }
     const accountId: Id<'accounts'> = await ctx.runMutation(
       internal.bank.land,
       {
@@ -279,10 +257,10 @@ export const finish = action({
         validUntil: session.validUntil,
         uids: picked.kind === 'found' ? picked.accounts : [],
         choices: picked.kind === 'choose' ? picked.choices : [],
-        readings,
-        dayStart: args.dayStart,
       },
     )
+    if (picked.kind === 'found')
+      await pull(ctx, ownerId, accountId, args.dayStart)
     return { accountId, status: picked.kind === 'found' ? 'linked' : 'choose' }
   },
 })
@@ -344,12 +322,6 @@ export const choose = action({
     })
     const picked = open.choices.find((c) => c.uid === args.uid)
     if (picked === undefined) throw new ConvexError('Not one of the accounts.')
-    const value = pickBalance(
-      await bankApi().balances(picked.uid),
-      picked.currency,
-    )
-    if (value === null)
-      throw new ConvexError('The bank gave no balance. Nothing was saved.')
     await ctx.runMutation(internal.bank.land, {
       ownerId,
       state: open.state,
@@ -359,9 +331,8 @@ export const choose = action({
       validUntil: open.validUntil,
       uids: [{ uid: picked.uid, currency: picked.currency }],
       choices: [],
-      readings: [{ currency: picked.currency, value }],
-      dayStart: args.dayStart,
     })
+    await pull(ctx, ownerId, args.accountId, args.dayStart)
     return null
   },
 })

@@ -2879,6 +2879,15 @@ export const ahead = query({
         yearly: v.boolean(),
         short: v.boolean(),
         held: v.union(v.number(), v.null()),
+        add: v.union(v.number(), v.null()),
+      }),
+    ),
+    /** A later month's gap in an account, said once on the month. */
+    later: v.array(
+      v.object({
+        month: v.number(),
+        accountId: v.id('accounts'),
+        amount: v.number(),
       }),
     ),
     rest: v.array(
@@ -2998,6 +3007,10 @@ export const ahead = query({
         rowId: d.rowId as Id<'logs'> | null,
       })),
       events: built.events.map(cast),
+      later: built.later.map((l) => ({
+        ...l,
+        accountId: l.accountId as Id<'accounts'>,
+      })),
       rest: built.rest.map((r) => {
         const p = args.past.find((x) => x.start === r.start)
         return { ...r, partial: p ? partialOf(p) : [] }

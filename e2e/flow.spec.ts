@@ -46,3 +46,39 @@ test('Flow: a bill in one line — adding, done, closed, on the list', async ({
   await page.screenshot(shot('bill-landed'))
   await expect(page.getByText('Nothing coming yet')).toHaveCount(0)
 })
+
+/* 11 Oct: one shortfall was tagged on every later bill of the account
+   ("this wording is killing me"). The first says how much to add and by
+   when; a later month says it once. */
+test('Flow: a bill the account cannot cover says how much to add, once', async ({
+  page,
+}) => {
+  await start(page)
+  await page.goto('/finances?room=flow')
+  await page
+    .getByRole('button', { name: /a bill from your statements/ })
+    .click()
+  const sheet = page.getByRole('dialog')
+  await sheet.getByLabel('A bill in one line').fill('Landlord 90000 monthly 1')
+  await sheet.getByRole('button', { name: 'Revolut' }).click()
+  await sheet.getByRole('button', { name: 'add', exact: true }).click()
+  await expect(sheet).toHaveCount(0, { timeout: 5_000 })
+
+  await expect(page.getByText(/not enough funds in 1 account/)).toHaveCount(2)
+  await expect(page.getByText(/not enough funds · .* missing/)).toHaveCount(1)
+  await expect(
+    page.getByText(/Revolut (has|is at) .*, add .* before 1 /),
+  ).toHaveCount(1)
+  await expect(page.getByText(/^add .* to Revolut$/)).toHaveCount(2)
+  await expect(page.getByText('the usual month — nothing new')).toHaveCount(0)
+  await expect(
+    page.getByText(/not enough on the day|already at|not covered/),
+  ).toHaveCount(0)
+  await page.getByRole('button', { name: 'Show amounts' }).click()
+  await page
+    .getByText(/^add .* to Revolut$/)
+    .first()
+    .scrollIntoViewIfNeeded()
+  await page.waitForTimeout(600)
+  await page.screenshot(shot('flow-short-once'))
+})

@@ -74,7 +74,7 @@ export function GroupBadge({
   const body = (
     <>
       <Icon className="size-3" aria-hidden />
-      {unsorted ? 'file it' : categoryLabel(kind, category)}
+      {unsorted ? 'no group' : categoryLabel(kind, category)}
     </>
   )
   return onClick ? (

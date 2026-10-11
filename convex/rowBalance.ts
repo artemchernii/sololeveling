@@ -100,3 +100,30 @@ export async function landedCheck(
     gap: balance ? (cents(balance.value) - was - fresh) / 100 : 0,
   }
 }
+
+/** A file's printed balance the account does not hold yet: every row of
+    it can be one he has, and it still has something to save (11 Oct: his
+    card stood at −€1,114.85 and the screenshot that says €90.35 was
+    "nothing to save"). */
+export async function balanceIsNews(
+  ctx: QueryCtx,
+  ownerId: string,
+  accountId: Doc<'accounts'>['_id'],
+  balance: NonNullable<Doc<'intakes'>['balance']>,
+): Promise<boolean> {
+  const held = await ctx.db
+    .query('stateSnapshots')
+    .withIndex('by_owner_key_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('key', balanceKey(accountId, balance.currency))
+        .lte('recordedAt', balance.asOf + DAY),
+    )
+    .order('desc')
+    .first()
+  return (
+    held?.value === undefined ||
+    cents(held.value) !== cents(balance.value) ||
+    held.recordedAt < balance.asOf - DAY / 2
+  )
+}

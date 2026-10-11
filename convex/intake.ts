@@ -11,7 +11,7 @@ import { movedSince } from './aggregate'
 import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
 import { findFor } from './recurring'
-import { countedRows, landedCheck } from './rowBalance'
+import { balanceIsNews, countedRows, landedCheck } from './rowBalance'
 import { euroRateAt, writeTransfer } from './money'
 import { sharesIn } from '../src/lib/crypto'
 import { heldCost } from '../src/lib/holdings'
@@ -2631,6 +2631,8 @@ const batchAccount = v.object({
   ),
   fresh: v.number(),
   had: v.number(),
+  /* The file prints a balance the account does not hold yet. */
+  balanceNews: v.boolean(),
   trades: v.number(),
   holdings: v.union(
     v.object({
@@ -2929,12 +2931,15 @@ async function gatherBatch(
     )
     const pendingRows: Array<{ occurredAt: number; amount: number }> = []
     const balances: Array<{ asOf: number; value: number }> = []
+    let printed: Doc<'intakes'>['balance']
     const rows: Array<(typeof batchAccount.type)['rows'][number]> = []
     for (const i of g.list) {
       /* A broker screen's total is not a bank balance (3 Oct: Trading
          212's two screens drew "€15,008.26 → €2,014.04"). */
-      if (i.balance && i.kind === 'transactions')
+      if (i.balance && i.kind === 'transactions') {
         balances.push({ asOf: i.balance.asOf, value: i.balance.value })
+        if (!printed || i.balance.asOf > printed.asOf) printed = i.balance
+      }
       trades += (i.trades?.length ?? 0) + (i.historyTrades ?? 0)
       for (const t of i.trades ?? []) adds.push(t.occurredAt)
       const r = reviews.get(i._id)
@@ -3047,6 +3052,10 @@ async function gatherBatch(
       })),
       fresh: newRows,
       had: hadRows,
+      balanceNews:
+        accountId !== null && printed !== undefined
+          ? await balanceIsNews(ctx, ownerId, accountId, printed)
+          : false,
       trades,
       holdings: held
         ? {

@@ -75,13 +75,20 @@ export function BulkReview({
     review.accounts.length === 0 &&
     review.asks.some((a) => a.kind === 'failed')
   /* Every row already in — the same file dropped again. There is nothing
-     to apply, so there is no apply. */
+     to apply, so there is no apply. A balance the account does not hold
+     yet is something to apply (11 Oct). */
   const nothingNew =
     review.ready &&
     placed.length > 0 &&
     placed.length === review.accounts.length &&
     review.asks.length === 0 &&
-    placed.every((a) => a.fresh === 0 && a.trades === 0 && a.holdings === null)
+    placed.every(
+      (a) =>
+        a.fresh === 0 &&
+        a.trades === 0 &&
+        a.holdings === null &&
+        !a.balanceNews,
+    )
 
   return (
     <div className="flex flex-col gap-4">

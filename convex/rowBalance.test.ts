@@ -152,6 +152,48 @@ describe('the balance from the rows', () => {
     expect(await kept()).toMatchObject({ was: 153.21, had: 0, printed: false })
   })
 
+  /* His card stood at −€1,114.85: the four rows were in, the balance was
+     not, and the screenshot that prints €90.35 had "nothing to save". */
+  test('every row already in, the balance not: the file still has it to save', async () => {
+    const { t, me, intakeId, balance } = await setup()
+    const batchId = await t.run(async (ctx) => {
+      for (const [d, merchant, amount] of SCREEN)
+        await ctx.db.insert('logs', {
+          ownerId: ME,
+          area: 'money',
+          kind: 'expense',
+          occurredAt: day(d),
+          value: -amount,
+          unit: 'eur',
+          text: merchant,
+          accountId: (await ctx.db.get(intakeId))?.accountId,
+          meta: { merchant, raw: merchant },
+        })
+      const id = await ctx.db.insert('batches', {
+        ownerId: ME,
+        status: 'open',
+        leftOut: [],
+        quietMonths: [],
+        moves: [],
+        extras: [],
+        dismissed: [],
+      })
+      await ctx.db.patch(intakeId, { batchId: id })
+      return id
+    })
+    expect(await balance()).toBe(-1114.85)
+    const before = await me.query(api.intake.batchReview, { batchId })
+    expect(before.accounts.map((a) => [a.fresh, a.balanceNews])).toEqual([
+      [0, true],
+    ])
+    await me.mutation(api.intake.applyBatch, {
+      batchId,
+      dayStart: new Date(2026, 9, 13).getTime(),
+    })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(await balance()).toBe(90.35)
+  })
+
   test('an account with no balance yet: the rows land, nothing is kept', async () => {
     const { t, confirm, kept } = await setup()
     await t.run(async (ctx) => {

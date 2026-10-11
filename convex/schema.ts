@@ -577,6 +577,9 @@ export default defineSchema({
     textValue: v.optional(v.string()),
     unit: v.optional(v.string()),
     recordedAt: v.number(),
+    /* Money the bank showed as pending with this balance (11 Oct), signed:
+       the balance has it taken off, and no row of that day itemises it. */
+    pending: v.optional(v.number()),
     /* Where a balance came from (27 Sep): the card says "statement read
        today · balance of Aug 31", not "26d". Absent on older rows. */
     source: v.optional(
@@ -875,6 +878,8 @@ export default defineSchema({
         had: v.number(),
         printed: v.boolean(),
         gap: v.number(),
+        /* Rows of it the held balance had taken off as pending, summed. */
+        pending: v.optional(v.number()),
       }),
     ),
     positions: v.optional(

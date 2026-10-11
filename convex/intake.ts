@@ -12,10 +12,12 @@ import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
 import { findFor } from './recurring'
 import {
+  accountCheck,
   balanceIsNews,
   countedRows,
   landedCheck,
   pullBackAhead,
+  sumCheckValue,
 } from './rowBalance'
 import { euroRateAt, writeTransfer } from './money'
 import { sharesIn } from '../src/lib/crypto'
@@ -952,6 +954,11 @@ const reviewRow = v.object({
   duplicateOf: v.union(v.id('logs'), v.null()),
   /** A balance he already has had counted it (convex/rowBalance.ts). */
   counted: v.boolean(),
+  /** A row he has of the same amount, days apart, that nothing matched. */
+  twinOf: v.union(
+    v.object({ occurredAt: v.number(), merchant: v.string() }),
+    v.null(),
+  ),
   /** The bill this pays, if it matches one on its day. */
   recurringId: v.union(v.id('recurring'), v.null()),
 })
@@ -1103,6 +1110,22 @@ async function buildReview(
     .filter((a) => a._id !== here)
     .map((a) => ({ id: a._id, name: a.name, domain: a.domain }))
 
+  /* The same amount a week either way, under any name, that no row of the
+     file was matched to: asked about only when the sum is off. */
+  const twinOf = (r: (typeof read)[number]) => {
+    const k = existingRows.findIndex(
+      (l, j) =>
+        !taken.has(j) &&
+        Math.abs(l.amount - r.amount) < 0.005 &&
+        Math.abs(l.occurredAt - r.occurredAt) <= 7 * DAY_MS,
+    )
+    return k < 0
+      ? null
+      : {
+          occurredAt: existingRows[k].occurredAt,
+          merchant: existingRows[k].merchant,
+        }
+  }
   const rows = read.map((r, index) => {
     const move = own[index]
     const kind = move
@@ -1172,6 +1195,7 @@ async function buildReview(
       counterparty: r.counterparty ?? null,
       duplicateOf: dups[index] === null ? null : existing[dups[index]]._id,
       counted: dups[index] === null && counted.has(index),
+      twinOf: dups[index] === null && !r.pending ? twinOf(r) : null,
       recurringId,
     }
   })
@@ -1501,6 +1525,10 @@ async function writeTransactions(
       dayStart,
       intake.balance.asOf + 6 * 3_600_000,
       sourceOf(intake),
+      'free',
+      read
+        .filter((r) => r.pending && r.currency === intake.balance?.currency)
+        .reduce((t, r) => t + r.amount, 0),
     )
     /* The account's other currencies (5 Oct: "When I upload csv it means
        usd should be updated as well"). Revolut exports one currency a
@@ -2651,6 +2679,10 @@ const batchAccount = v.object({
   had: v.number(),
   /* The file prints a balance the account does not hold yet. */
   balanceNews: v.boolean(),
+  /* Does it add up (11 Oct): null when the account holds no balance. */
+  check: v.union(sumCheckValue, v.null()),
+  /* It does not, and he has not said what to do: apply leaves it. */
+  held: v.boolean(),
   trades: v.number(),
   holdings: v.union(
     v.object({
@@ -2951,6 +2983,8 @@ async function gatherBatch(
     const balances: Array<{ asOf: number; value: number }> = []
     let printed: Doc<'intakes'>['balance']
     const rows: Array<(typeof batchAccount.type)['rows'][number]> = []
+    const sumRows: Array<Parameters<typeof accountCheck>[4][number]> = []
+    const skippedRows: Array<Parameters<typeof accountCheck>[5][number]> = []
     for (const i of g.list) {
       /* A broker screen's total is not a bank balance (3 Oct: Trading
          212's two screens drew "€15,008.26 → €2,014.04"). */
@@ -2963,7 +2997,25 @@ async function gatherBatch(
       const r = reviews.get(i._id)
       if (!r) continue
       for (const row of r.rows) {
-        const dup = row.duplicateOf !== null || row.counted
+        const rowKey = `${i._id}:${row.index}`
+        const skipped = b.dismissed.includes(`skip:${rowKey}`)
+        const dup = row.duplicateOf !== null || row.counted || skipped
+        if (!dup && !row.pending)
+          sumRows.push({
+            key: rowKey,
+            occurredAt: row.occurredAt,
+            merchant: row.merchant,
+            amount: row.amount,
+            currency: row.currency,
+            twinOf: row.twinOf,
+            two: b.dismissed.includes(`two:${rowKey}`),
+          })
+        if (skipped)
+          skippedRows.push({
+            key: rowKey,
+            merchant: row.merchant,
+            amount: row.amount,
+          })
         rows.push({
           occurredAt: row.occurredAt,
           merchant: row.merchant,
@@ -3058,6 +3110,19 @@ async function gatherBatch(
         })
     }
     rows.sort((x, y) => y.occurredAt - x.occurredAt)
+    const account = accounts.find((a) => a._id === accountId)
+    const check =
+      account && sumRows.length + skippedRows.length + (printed ? 1 : 0) > 0
+        ? await accountCheck(
+            ctx,
+            ownerId,
+            account,
+            printed,
+            sumRows,
+            skippedRows,
+            b.dismissed.includes(`sum:${account._id}`),
+          )
+        : null
     out.push({
       accountId,
       product: accountId ? null : g.product,
@@ -3074,6 +3139,16 @@ async function gatherBatch(
         accountId !== null && printed !== undefined
           ? await balanceIsNews(ctx, ownerId, accountId, printed)
           : false,
+      check,
+      /* Only rows can be written twice: a file with none to add and a
+         balance the account does not hold just corrects it (11 Oct, his
+         card at −€1,114.85 and the screenshot that says €90.35). */
+      held:
+        check !== null &&
+        !check.accepted &&
+        check.kept.length === 0 &&
+        sumRows.length > 0 &&
+        (check.state === 'ask' || check.state === 'off'),
       trades,
       holdings: held
         ? {

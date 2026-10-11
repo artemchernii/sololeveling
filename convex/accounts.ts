@@ -276,6 +276,8 @@ export async function writeBalance(
   source: BalanceSource = 'typed',
   /** The broker's cash of a bank that is also a broker, in euros. */
   pocket: 'free' | 'broker' = 'free',
+  /** Money the same screen showed as pending, signed. */
+  pending = 0,
 ) {
   if (pocket === 'broker' && (currency !== 'EUR' || !hasBrokerCash(account))) {
     throw new ConvexError(`${account.name} has no broker cash.`)
@@ -314,6 +316,7 @@ export async function writeBalance(
     unit: currency.toLowerCase(),
     recordedAt: at,
     source,
+    ...(pending !== 0 ? { pending: Math.round(pending * 100) / 100 } : {}),
   })
 }
 

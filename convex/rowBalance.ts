@@ -1,6 +1,10 @@
+import { v } from 'convex/values'
+
 import { balanceKey } from './accounts'
 import { movedSince } from './aggregate'
 import { HISTORY_GRACE_MS } from '../src/lib/cashHistory'
+import { sumCheck } from '../src/lib/fileCheck'
+import type { CheckRow } from '../src/lib/fileCheck'
 import { insideReadings } from '../src/lib/rowBalance'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc } from './_generated/dataModel'
@@ -43,6 +47,29 @@ export async function countedRows(
   )
 }
 
+/** The sum, from a held balance. A new row dated the day of that balance
+    may be inside it (a statement's closing balance) or after it (an app
+    screenshot taken that morning): counted after it only when that is what
+    makes the file's balance (10 Oct, Sep 1–15 in, then Sep 1–30 dropped). */
+function checkFrom(
+  last: { recordedAt: number; pending?: number },
+  wasCents: number,
+  rows: ReadonlyArray<CheckRow>,
+  printedCents: number | null,
+) {
+  const from = (after: number) =>
+    sumCheck({
+      wasCents,
+      pendingCents: cents(last.pending ?? 0),
+      rows: rows.filter((r) => r.at > after),
+      printedCents,
+    })
+  const strict = from(last.recordedAt + HISTORY_GRACE_MS)
+  if (strict.state === 'ok' || strict.state === 'bare') return strict
+  const sameDay = from(last.recordedAt - 18 * 3_600_000)
+  return sameDay.state === 'ok' ? sameDay : strict
+}
+
 /** What saving `kept` of a file's rows finds, before any is written: the
     balance the app holds now, and whether it and the new rows reach the
     balance the file prints. Null when the account has no balance yet. */
@@ -82,14 +109,25 @@ export async function landedCheck(
   const was = cents(last.value) + moved.cents
   const since = last.recordedAt + HISTORY_GRACE_MS
   const booked = read.filter((r) => !r.pending)
-  let fresh = 0
+  const fresh: Array<CheckRow> = []
   let added = 0
   for (const [i, r] of read.entries()) {
     if (r.pending || !kept.has(i)) continue
     added++
-    if (r.currency === currency && r.occurredAt > since)
-      fresh += cents(r.amount)
+    if (r.currency === currency)
+      fresh.push({
+        index: i,
+        at: r.occurredAt,
+        cents: cents(r.amount),
+        twin: false,
+      })
   }
+  /* The same sum the review showed (src/lib/fileCheck.ts): a row the held
+     balance had taken off as pending is saved and not counted again. */
+  const sum = checkFrom(last, was, fresh, balance ? cents(balance.value) : null)
+  const pending = fresh
+    .filter((r) => sum.pending.includes(r.index))
+    .reduce((t, r) => t + r.cents, 0)
   return {
     currency,
     was: was / 100,
@@ -97,7 +135,142 @@ export async function landedCheck(
     since,
     had: booked.length - added,
     printed: balance !== undefined,
-    gap: balance ? (cents(balance.value) - was - fresh) / 100 : 0,
+    gap: sum.gapCents / 100,
+    ...(pending !== 0 ? { pending: pending / 100 } : {}),
+  }
+}
+
+const sumRow = v.object({
+  key: v.string(),
+  merchant: v.string(),
+  amount: v.number(),
+})
+
+/** What the review shows of an account before apply: was, out, in, now —
+    and, when that is not the balance the file prints, why. */
+export const sumCheckValue = v.object({
+  currency: v.string(),
+  was: v.number(),
+  wasAt: v.number(),
+  out: v.number(),
+  in: v.number(),
+  /* What the held balance and the new rows make. */
+  now: v.number(),
+  printed: v.union(v.number(), v.null()),
+  /* printed − now: negative when money left that no row shows. */
+  gap: v.number(),
+  state: v.union(
+    v.literal('ok'),
+    v.literal('ask'),
+    v.literal('off'),
+    v.literal('bare'),
+  ),
+  /* "Save it as it is": the file's balance wins. */
+  accepted: v.boolean(),
+  /* Rows the held balance had taken off as pending. */
+  pending: v.array(sumRow),
+  /* The row that may be one he has, and the one he has. */
+  twin: v.union(
+    v.object({
+      key: v.string(),
+      merchant: v.string(),
+      amount: v.number(),
+      occurredAt: v.number(),
+      mine: v.object({ occurredAt: v.number(), merchant: v.string() }),
+    }),
+    v.null(),
+  ),
+  /* His answers so far, each one undoable. */
+  skipped: v.array(sumRow),
+  kept: v.array(sumRow),
+})
+
+type SumRow = {
+  key: string
+  occurredAt: number
+  merchant: string
+  amount: number
+  currency: string
+  twinOf: { occurredAt: number; merchant: string } | null
+  /** He said it is another payment than the one it looks like. */
+  two: boolean
+}
+
+/** Does the account add up with these files' new rows (`rows`: not
+    pending, not ones he has)? Null when it holds no balance to start
+    from. Reads only; the review and apply both ask it. */
+export async function accountCheck(
+  ctx: QueryCtx,
+  ownerId: string,
+  account: Doc<'accounts'>,
+  printed: Doc<'intakes'>['balance'],
+  rows: ReadonlyArray<SumRow>,
+  skipped: ReadonlyArray<{ key: string; merchant: string; amount: number }>,
+  accepted: boolean,
+): Promise<typeof sumCheckValue.type | null> {
+  const currency = printed?.currency ?? rows.at(0)?.currency
+  if (currency === undefined) return null
+  const at = printed ? printed.asOf + 6 * 3_600_000 : undefined
+  const last = await ctx.db
+    .query('stateSnapshots')
+    .withIndex('by_owner_key_time', (q) => {
+      const key = q
+        .eq('ownerId', ownerId)
+        .eq('key', balanceKey(account._id, currency))
+      return at === undefined ? key : key.lte('recordedAt', at)
+    })
+    .order('desc')
+    .first()
+  if (last?.value === undefined) return null
+  const moved = await movedSince(
+    ctx,
+    ownerId,
+    account,
+    currency,
+    last.recordedAt,
+    at,
+  )
+  const sum = checkFrom(
+    last,
+    cents(last.value) + moved.cents,
+    rows.flatMap((r, index) =>
+      r.currency === currency
+        ? [
+            {
+              index,
+              at: r.occurredAt,
+              cents: cents(r.amount),
+              twin: r.twinOf !== null && !r.two,
+            },
+          ]
+        : [],
+    ),
+    printed ? cents(printed.value) : null,
+  )
+  const line = ({ key, merchant, amount }: SumRow) => ({
+    key,
+    merchant,
+    amount,
+  })
+  const twin = sum.twin === null ? undefined : rows[sum.twin]
+  return {
+    currency,
+    was: (cents(last.value) + moved.cents) / 100,
+    wasAt: last.recordedAt,
+    out: sum.outCents / 100,
+    in: sum.inCents / 100,
+    now: sum.nowCents / 100,
+    printed: printed?.value ?? null,
+    gap: sum.gapCents / 100,
+    state: sum.state,
+    accepted,
+    pending: sum.pending.map((i) => line(rows[i])),
+    twin:
+      twin?.twinOf != null
+        ? { ...line(twin), occurredAt: twin.occurredAt, mine: twin.twinOf }
+        : null,
+    skipped: [...skipped],
+    kept: rows.filter((r) => r.two).map(line),
   }
 }
 

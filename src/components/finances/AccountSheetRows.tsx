@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { ArrowDown, ArrowLeftRight, ArrowUp } from 'lucide-react'
 import type { FunctionReturnType } from 'convex/server'
 
@@ -33,13 +34,14 @@ export function Divider({
   label,
   value,
   file,
-  typed = false,
+  typed,
   onFile,
 }: {
   label: string
   value?: string
   file: FileInfo | undefined
-  typed?: boolean
+  /** A balance typed by hand: its own line, which removes it. */
+  typed?: ReactNode
   onFile: (id: Id<'intakes'>) => void
 }) {
   return (
@@ -80,11 +82,9 @@ export function Divider({
             open ›
           </span>
         </button>
-      ) : typed ? (
-        <span className="font-mono text-[10.5px] text-ink-400">
-          typed by you
-        </span>
-      ) : null}
+      ) : (
+        (typed ?? null)
+      )}
     </div>
   )
 }

@@ -2,6 +2,8 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { TakeBack } from '@/components/finances/AccountFileBack'
+import type { Taken } from '@/components/finances/AccountFileBack'
 import { PILL_QUIET } from '@/components/finances/bits'
 import { Veiled } from '@/components/finances/Veil'
 import { SkeletonRows } from '@/components/Skeleton'
@@ -9,8 +11,15 @@ import { fmt, short } from './AccountSheetRows'
 
 /* A confirmed file, opened again: what it read, as it read it, and which
    rows landed. Amounts are plain: a file's row is not yet a spend, income
-   or move, so its sign is not coloured as one. */
-export function FileView({ intakeId }: { intakeId: Id<'intakes'> }) {
+   or move, so its sign is not coloured as one. Under the file itself, the
+   way to take it back (AccountFileBack). */
+export function FileView({
+  intakeId,
+  onTaken,
+}: {
+  intakeId: Id<'intakes'>
+  onTaken: (t: Taken) => void
+}) {
   const f = useQuery(api.intake.fileRows, { intakeId })
   if (f === undefined) return <SkeletonRows rows={6} />
   const landed = f.rows.filter((r) => r.landed).length
@@ -24,6 +33,7 @@ export function FileView({ intakeId }: { intakeId: Id<'intakes'> }) {
         </span>
       </span>
       <Originals intakeId={intakeId} />
+      <TakeBack intakeId={intakeId} onTaken={onTaken} />
       <div className="flex flex-col">
         {f.rows.map((r, i) => (
           <div

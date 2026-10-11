@@ -7,6 +7,7 @@ import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { AccountsLanded } from '@/components/finances/Landed'
+import { UndoSave, Undone } from '@/components/finances/LandedUndo'
 import { AccountLogo } from '@/components/finances/Logo'
 import type { BatchView } from '@/components/finances/BulkParts'
 import { useDayStarts } from '@/components/track/useDayStarts'
@@ -279,13 +280,16 @@ function Resume({
 
 export function Applied({
   view,
+  batchId,
   onClose,
   onMore,
 }: {
   view: BatchView
+  batchId: Id<'batches'>
   onClose: () => void
   onMore: () => void
 }) {
+  const [undone, setUndone] = useState(false)
   const waiting = view.files.filter((f) => f.status !== 'done').length
   /* One line an account (5 Oct), the same screen a single file lands
      on. A batch applied before per-account counts were kept falls back
@@ -308,8 +312,10 @@ export function Applied({
         .filter((f) => f.accountId === accountId && f.status === 'done')
         .reduce((t, f) => t + f.rows, 0),
     }))
+  if (undone) return <Undone onClose={onClose} />
   return (
     <AccountsLanded accounts={accounts}>
+      <UndoSave batchId={batchId} onUndone={() => setUndone(true)} />
       {waiting > 0 ? (
         <button type="button" onClick={onMore} className={PILL_QUIET}>
           {waiting} {waiting === 1 ? 'file' : 'files'} still waiting

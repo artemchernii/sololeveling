@@ -204,6 +204,33 @@
   .until { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-400) }
   .until svg { width: 12px; height: 12px }
   .nope { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--warn) }
+  /* + ADD, as built (add-empty.html): the drop zone, its four steps, the
+     accounts and what each is read from. */
+  .sheet.wide { max-width: 760px }
+  .drop { position: relative; border-radius: 18px; padding: 22px 20px 18px; display: flex; flex-direction: column; align-items: center; gap: 16px; background: radial-gradient(420px 140px at 50% 0%, rgba(181,171,252,.07), transparent 70%) }
+  .drop::before { content: ''; position: absolute; inset: 0; border-radius: inherit; border: 1.5px dashed color-mix(in oklch, var(--lav-400) 30%, transparent); animation: edge 3.2s ease-in-out infinite; pointer-events: none }
+  @keyframes edge { 50% { border-color: color-mix(in oklch, var(--lav-400) 62%, transparent); box-shadow: inset 0 0 26px -12px var(--shine) } }
+  .drop .dhead { display: flex; align-items: center; gap: 12px; font-size: 16px }
+  .drop .up { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--lav-300); background: rgba(181,171,252,.1); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 35%, transparent); flex: none }
+  .drop .up svg { width: 19px; height: 19px }
+  .drop .dhead small { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); margin-top: 3px }
+  .sts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center }
+  .st { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-400); padding: 6px 10px; border-radius: 999px; background: rgba(var(--lift),.035) }
+  .arrow { color: var(--ink-600); font-family: var(--mono); font-size: 11px }
+  .knows { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center }
+  .acct { display: inline-flex; align-items: center; gap: 8px; padding: 5px 11px 5px 5px; border-radius: 999px; background: rgba(var(--lift),.04); box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); font-size: 12.5px; color: var(--ink-200); white-space: nowrap; animation: arrive .4s var(--ease) both }
+  .acct .logo { width: 24px; height: 24px; border-radius: 999px; padding: 3px }
+  .acct .how { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500) }
+  .acct .how svg { width: 11px; height: 11px }
+  .acct.linked { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 28%, transparent) }
+  .acct.linked .how.bank { color: var(--good) }
+  .last { display: flex; align-items: center; gap: 8px; justify-content: center; font-family: var(--mono); font-size: 11px; color: var(--ink-500); text-align: center }
+  .last b { font-weight: 400; color: var(--ink-300) }
+  .last .dot { width: 6px; height: 6px; border-radius: 99px; background: var(--good); box-shadow: 0 0 8px var(--good); flex: none }
+  .starters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .start { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; padding: 8px 14px; border-radius: 999px; color: var(--ink-100); background: none; border: 1px solid rgba(var(--lift),.16) }
+  .start svg { color: var(--k) }
   .center { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap }
 
   @media (max-width: 640px) {
@@ -215,6 +242,7 @@
     .cell:nth-child(n+3) { border-top: 1px solid rgba(var(--lift),.06) }
     .line, .opts { margin-left: 0; padding-left: 0 } .line { padding-left: 10px }
     .sfoot .apply { flex: 1 }
+    .drop { padding: 18px 12px 14px } .drop .dhead { font-size: 14.5px } .arrow { display: none }
   }
 </style>
 </head>
@@ -240,6 +268,15 @@ const P = {
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   rows: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
+  up: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/>',
+  drop: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
+  read: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  land: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/>',
+  in: '<path d="M7 17 17 7"/><path d="M7 7h10v10"/>',
+  spend: '<path d="M7 7l10 10"/><path d="M17 7v10H7"/>',
+  move: '<path d="M4 8h14"/><path d="m15 5 3 3-3 3"/><path d="M20 16H6"/><path d="m9 13-3 3 3 3"/>',
+  buy: '<path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
+  sell: '<path d="m3 7 6 6 4-4 8 8"/><path d="M14 17h7v-7"/>',
   bank: '<path d="M3 10l9-6 9 6"/><path d="M5 10v8M10 10v8M14 10v8M19 10v8M3 21h18"/>',
 }
 const svg = (n) => `<svg class="i" viewBox="0 0 24 24">${P[n]}</svg>`
@@ -249,6 +286,7 @@ const BANKS = {
   tr: { name: 'Trade Republic', d: 'traderepublic.com', kinds: ['broker'] },
   revolut: { name: 'Revolut', d: 'revolut.com', kinds: ['bank', 'broker'] },
   bpi: { name: 'BPI', d: 'bancobpi.pt', kinds: ['bank'] },
+  t212: { name: 'Trading 212', d: 'trading212.com', kinds: ['broker'] },
 }
 const spark = (pts, tone) => `<svg viewBox="0 0 120 32" preserveAspectRatio="none" class="${tone}"><path d="${pts}" fill="none" stroke="currentColor" stroke-width="1.8" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`
 const DOWN = 'M0,6 L18,7 L30,12 L44,11 L58,19 L74,18 L90,25 L104,24 L120,28'
@@ -296,6 +334,7 @@ const revolut = (o = {}) => card('revolut', { total: '€21,244.75',
   bar: `<div class="bar"><span style="flex:1204;background:var(--bank)"></span><span style="flex:6040;background:color-mix(in oklch,var(--bank) 45%,transparent)"></span><span style="flex:14000;background:var(--lav-400)"></span></div>`,
   rows: cash('EUR', '€1,204.75') + row('broker cash', '€6,040.00') + row('investments', '€14,000.00'), foot: `${F.bank('today 14:05')}<div class="btns">${pill('update', 'none')}</div>`, ...o })
 const bpi = (o = {}) => card('bpi', { total: '€2,410.00', line: spark(UP, 'green'), rows: cash('EUR', '€2,410.00', false) + row('since 1 Oct', '+€2,300.00', 'green'), foot: F.file('statement read 7d ago'), ...o })
+const t212 = () => card('t212', { total: '€4,180.30', rows: cash('EUR', '€80.30', false) + row('investments', '€4,100.00') + row('since 1 Oct', 'no trades yet', 'dim'), foot: F.file('csv read 6d ago', false) })
 const busyU = `${F.busy('08:02')}<div class="btns">${pill('update', 'none')}</div>`
 const arrived = `<div class="got"><span class="chip new"><i></i>2 new</span><span class="okline">${svg('check')}as the bank shows</span><button class="shut" data-do="shut" aria-label="close">✕</button></div>` + strip({ was: '€769.89', wasDay: 'Oct 10', out: '€42.40', says: '€727.49', under: '' })
 
@@ -303,55 +342,67 @@ const S = {
   fresh: {
     l: 'connected',
     note: 'You open Finances and drop nothing. <b>ActivoBank</b>, <b>Trade Republic</b> and <b>Revolut</b> show what the bank reports, and when. The link marks what the bank reports: free cash. Investments still come from a screenshot, so those two keep UPDATE. BPI is as today, with one new button: connect.',
-    r: () => activo() + trade() + revolut() + bpi(),
+    r: () => activo() + trade() + revolut() + bpi() + t212(),
   },
   busy: {
     l: 'checking now',
     note: 'The last check was hours ago, so the app asks the bank when you open Finances. The balance on screen stays the stored one until the answer is in.',
-    r: () => activo({ cls: 'busy', foot: F.busy('08:02') }) + trade({ cls: 'busy', foot: busyU }) + revolut({ cls: 'busy', foot: busyU }) + bpi(),
+    r: () => activo({ cls: 'busy', foot: F.busy('08:02') }) + trade({ cls: 'busy', foot: busyU }) + revolut({ cls: 'busy', foot: busyU }) + bpi() + t212(),
   },
   rows: {
     l: 'new rows arrived',
     note: 'Two payments were booked since yesterday. They add up to the bank’s balance, so they are saved with no press. The block stays on the card until you close it with ✕. <b>Play it again</b> by pressing the scenario.',
-    r: () => activo({ cls: 'busy', total: '€769.89', foot: F.busy('08:02') }) + trade() + revolut() + bpi(),
-    after: () => setTimeout(() => {
+    r: () => activo({ cls: 'busy', total: '€769.89', foot: F.busy('08:02') }) + trade() + revolut() + bpi() + t212(),
+    after: () => timer = setTimeout(() => {
       swapCard('activo', activo({ extra: arrived, foot: F.fresh('now') }), true)
     }, 1500),
   },
   ask: {
     l: 'a question',
     note: 'The bank’s rows do not reach the bank’s balance, so nothing of ActivoBank is saved. Press <b>check it</b> and answer — every button works.',
-    r: () => activo({ cls: 'ask', total: '€790.35', foot: F.ask() }) + trade() + revolut() + bpi(),
+    r: () => activo({ cls: 'ask', total: '€790.35', foot: F.ask() }) + trade() + revolut() + bpi() + t212(),
   },
   soon: {
     l: 'approval ends soon',
     note: 'A week before the bank’s approval runs out the card says the day. Nothing is wrong yet.',
-    r: () => activo({ foot: F.soon() }) + trade() + revolut() + bpi(),
+    r: () => activo({ foot: F.soon() }) + trade() + revolut() + bpi() + t212(),
   },
   ended: {
     l: 'approval needed',
     note: 'Every few months the bank wants your approval again. The card keeps the last balance it got and shows one button. Press it.',
-    r: () => activo({ total: '€769.89', foot: F.ended() }) + trade() + revolut() + bpi(),
+    r: () => activo({ total: '€769.89', foot: F.ended() }) + trade() + revolut() + bpi() + t212(),
   },
   down: {
     l: 'bank not reached',
     note: 'The bank did not answer. The card keeps the last balance and says of when. A file still works, through + ADD.',
-    r: () => activo({ foot: F.down() }) + trade() + revolut() + bpi(),
+    r: () => activo({ foot: F.down() }) + trade() + revolut() + bpi() + t212(),
   },
-  file: {
+  only: {
     l: 'file only, beside it',
     note: 'BPI is not connected and its balance is nine days old: amber, as today. The three beside it needed nothing.',
-    r: () => activo() + trade() + revolut() + bpi({ foot: F.file('statement read 9d ago', true, true) }),
+    r: () => activo() + trade() + revolut() + bpi({ foot: F.file('statement read 9d ago', true, true) }) + t212(),
   },
   first: {
     l: 'first connect',
     note: 'Press <b>connect</b> on BPI. The app takes only the rows after the balance it already has.',
-    r: () => activo() + trade() + revolut() + bpi(),
+    r: () => activo() + trade() + revolut() + bpi() + t212(),
+  },
+  add: {
+    l: '+ add',
+    note: '+ ADD as it is today. One thing is new: each account says where it is read from. Green link: the bank brings it. Grey words: what a file still brings (investments, broker cash).',
+    r: () => activo() + trade() + revolut() + bpi() + t212(),
+    after: () => openSheet(addSheet(), '[ add ]', true),
+  },
+  file: {
+    l: 'a file for a connected bank',
+    note: 'An ActivoBank screenshot dropped anyway. It goes through the same check; the bank already brought its rows, so nothing is written twice.',
+    r: () => activo() + trade() + revolut() + bpi() + t212(),
+    after: () => openSheet(fileSheet(), '[ check it ]'),
   },
   two: {
     l: 'bank has two accounts',
     note: 'Press <b>connect</b> on BPI. BPI shows two accounts and neither number is known to the app, so it asks which one this card is.',
-    r: () => activo() + trade() + revolut() + bpi(),
+    r: () => activo() + trade() + revolut() + bpi() + t212(),
   },
 }
 
@@ -363,7 +414,7 @@ function draw() {
   $('scen').innerHTML = Object.entries(S).map(([k, s]) => `<button class="${k === on ? 'on' : ''}" data-k="${k}">${s.l}</button>`).join('')
   $('note').innerHTML = S[on].note
   $('grid').innerHTML = S[on].r()
-  if (S[on].after) timer = S[on].after()
+  if (S[on].after) S[on].after()
 }
 /* A card changes in place: no re-arrival, and what is new grows in. */
 function swapCard(id, html, growIn = false) {
@@ -393,7 +444,7 @@ function step(html, title) {
     setTimeout(() => { body.style.height = 'auto' }, 380)
   }
 }
-function openSheet(html, title) { $('sbody').innerHTML = ''; $('sbody').style.height = 'auto'; $('veil').classList.add('on'); step(html, title) }
+function openSheet(html, title, wide = false) { $('sbody').innerHTML = ''; $('sbody').style.height = 'auto'; document.querySelector('.sheet').classList.toggle('wide', wide); $('veil').classList.add('on'); step(html, title) }
 function closeSheet() { $('veil').classList.remove('on'); clearTimeout(timer) }
 
 /* The question: check-sum.html's account block, the bank in the place of
@@ -463,6 +514,31 @@ const landedAgain = () => `
   </div>
   <div class="center"><button class="pill loud" data-do="done" style="padding-inline:30px">Done</button></div>`
 let flow = null
+
+/* + ADD: nothing redrawn, only what each account is read from. */
+const KNOWN = [
+  ['activobank.pt', 'ActivoBank', 'from the bank', ''],
+  ['traderepublic.com', 'Trade Republic', 'cash', 'screenshot'],
+  ['revolut.com', 'Revolut', 'cash', 'screenshot · csv'],
+  ['bancobpi.pt', 'BPI', '', 'pdf'],
+  ['trading212.com', 'Trading 212', '', 'csv'],
+]
+const addSheet = () => `
+  <div class="drop">
+    <div class="dhead"><span class="up">${svg('up')}</span><span>Drop statements or screenshots<small>or click to pick files · several at once is fine</small></span></div>
+    <div class="sts">${[['drop', 'drop'], ['read', 'read'], ['check', 'you check'], ['land', 'lands on the account']].map(([k, l], i) => (i ? '<span class="arrow">→</span>' : '') + `<span class="st">${svg(k)}${l}</span>`).join('')}</div>
+    <div class="knows">${KNOWN.map(([d, n, bank, file], i) => `<span class="acct ${bank ? 'linked' : ''}" style="animation-delay:${i * 70}ms">${logo(d)}${n}${bank ? `<span class="how bank">${svg('link')}${bank}</span>` : ''}${file ? `<span class="how">${file}</span>` : ''}</span>`).join('')}</div>
+  </div>
+  <div class="last"><span class="dot"></span><span>last read <b>BPI PDF</b> · 7 days ago · 31 rows</span></div>
+  <div class="starters"><span class="caps">or add</span>
+    <button class="start" style="--k:var(--good)">${svg('in')}money in</button><button class="start" style="--k:var(--danger)">${svg('spend')}money out</button><button class="start" style="--k:var(--lav-400)">${svg('move')}transfer</button><button class="start" style="--k:var(--good)">${svg('buy')}buy</button><button class="start" style="--k:var(--danger)">${svg('sell')}sell</button>
+  </div>`
+const fileSheet = () => `
+  <div class="acc"><div class="atop">${logo('activobank.pt', 's')}<div class="name"><b>ActivoBank</b><span>bank · 1 file</span></div><div class="bal"><small>now</small><span class="to">€727.49</span><small>from the bank, today 14:05</small></div></div>
+    ${chips([[4, 'already added', 'had']])}
+    <div class="done">${svg('check')}<span>Nothing new. The bank already brought these 4 rows.</span></div>
+  </div>
+  <div class="sfoot"><p>Nothing to save.</p><button class="pill loud" data-do="close" style="padding-inline:30px">Done</button></div>`
 
 const DO = {
   close: () => closeSheet(),

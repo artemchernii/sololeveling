@@ -1,6 +1,6 @@
 # A connected bank
 
-Mockup: `design/treasury-mockup/bank-connected.html` (ten situations, both
+Mockup: `design/treasury-mockup/bank-connected.html` (twelve situations, both
 widths). Nothing is built. He marks the mockup up before any code.
 
 ## Journey (approved 11 Oct, "journey yes")
@@ -62,6 +62,32 @@ arrive.
   Nothing changed." Two accounts at the bank and no number the app knows:
   "Which one is this card?"
 
+## + ADD and UPDATE (his question, 11 Oct: "to not mess")
+
+One rule: each number on a card has one source at a time, and UPDATE stays
+on a card as long as something on it does not come from the bank.
+
+- ActivoBank: all from the bank, no UPDATE. Trade Republic, Revolut: free
+  cash from the bank; investments and broker cash from files, UPDATE stays.
+  BPI, Trading 212: all from files, as today.
+- - ADD is unchanged. Its account chips say where each is read from: a
+    green link and "from the bank" or "cash", then what a file still brings.
+- A file for a connected account is still taken (the fallback). It goes
+  through the same check; rows the bank brought are "already added", and
+  its balance never replaces a newer one from the bank.
+- Trading 212 is not in Enable Banking. It has its own API and key: its
+  own slice, and the key must be made with read permissions only.
+
+## Connecting from the app (checked in Enable Banking's FAQ, 11 Oct)
+
+What he did in Enable Banking's panel names the accounts the application
+may read ("you can only fetch data from the specific accounts that have
+been explicitly linked"). The app still asks each bank once itself: it
+sends him to the bank's page, he approves, the bank sends him back, and
+the app holds a session. Approval is set by the app and capped by the
+bank — "for the majority of ASPSPs … 180 days" — and can end early; the
+app is then told the session expired and shows APPROVE.
+
 ## Scenarios (each becomes a test; the bank is mocked, never his)
 
 - S1 connected and fresh: the card shows the stored balance, "from the
@@ -89,6 +115,9 @@ arrive.
 - Every write: pressed → "saving…" at once → landed tick → closes.
 - Refusals (convex-test): another owner's link, a callback with a wrong
   `state`, a check while one is running, a check with approval ended.
+- S13 a file for a connected account whose rows the bank brought →
+  nothing new, nothing written; its older balance does not replace the
+  bank's.
 - Phone width; dark and light.
 
 ## Data — where each number comes from

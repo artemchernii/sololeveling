@@ -34,6 +34,7 @@ const TABLES: Array<TableNames> = [
   'recurring',
   'trades',
   'payees',
+  'bankLinks',
 ]
 
 async function wipe(ctx: MutationCtx) {

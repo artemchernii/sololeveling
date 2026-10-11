@@ -84,3 +84,9 @@ safety-net tests.
 - `Intake.tsx`, `Bulk.tsx` and `Accounts.tsx` are split, one part per file
   (5 Oct). The session-guard hook names any file a branch touches that
   grows past 500 lines again.
+
+## A connected bank (spec `docs/specs/2026-10-11-bank-connections.md`)
+
+| Journey                                                                               | Screen         | Component | Convex                                                                                                                                                           | Test                         |
+| ------------------------------------------------------------------------------------- | -------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Connect or approve again: to the bank's page and back, its balance stored as "synced" | not built (1b) | —         | `bank.connect`, `finish`, `choose`, `cancel`, `links`; Enable Banking calls and the test backend's canned bank in `bankApi.ts`; choices in `src/lib/bankLink.ts` | `bank.test`, `bankLink.test` |

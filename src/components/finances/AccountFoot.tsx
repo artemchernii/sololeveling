@@ -1,0 +1,112 @@
+import { ExternalLink, KeyRound, Link2 } from 'lucide-react'
+import type { MouseEvent } from 'react'
+
+import { PILL_QUIET } from '@/components/finances/bits'
+import { bankWhen } from '@/lib/bankLink'
+
+const WARN =
+  'motion-press inline-flex shrink-0 items-center gap-1.5 rounded-full bg-state-warn/12 px-3 py-1.5 font-mono text-[10.5px] tracking-[0.12em] text-state-warn uppercase ring-1 ring-state-warn/50 ring-inset'
+const DAY = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
+
+/** What the card needs to know of a bank link (bank.links). */
+export type CardLink = { validUntil: number | null; checkedAt: number | null }
+
+/* The card's last line: where the balance came from, and the one thing to
+   do about it (11 Oct, bank-connected.html). One source for each number:
+   a card the bank reports in full has no UPDATE; one that also holds
+   investments keeps it for the broker's screenshot. An approval that ended
+   keeps the last balance, says of when, and offers APPROVE. */
+export function AccountFoot({
+  label,
+  stale,
+  todo,
+  link,
+  connectable,
+  broker,
+  onUpdate,
+  onConnect,
+}: {
+  /** freshness() of the account's pockets. */
+  label: string
+  stale: boolean
+  todo: string | null
+  /** The account's link when it is connected, else null. */
+  link: CardLink | null
+  /** A bank the app can reach, not connected yet. */
+  connectable: boolean
+  /** It holds investments too: those still come from a file. */
+  broker: boolean
+  onUpdate: () => void
+  onConnect: () => void
+}) {
+  const now = Date.now()
+  const press = (run: () => void) => (e: MouseEvent) => {
+    e.stopPropagation()
+    run()
+  }
+  const update = (
+    <button
+      type="button"
+      onClick={press(onUpdate)}
+      className={stale ? WARN : PILL_QUIET}
+    >
+      update
+    </button>
+  )
+  const ended = link !== null && (link.validUntil ?? 0) <= now
+  return (
+    <div className="mt-auto flex min-h-[41px] flex-wrap items-center justify-between gap-2 border-t border-lift/[0.08] pt-3">
+      {link === null ? (
+        <span
+          title={todo ?? undefined}
+          className={`min-w-[150px] flex-1 font-mono text-[11px] ${stale ? 'text-state-warn' : 'text-ink-400'}`}
+        >
+          {label}
+        </span>
+      ) : ended ? (
+        <span className="motion-fade flex min-w-0 flex-col font-mono text-[11px] leading-[14px]">
+          <span className="flex items-center gap-[7px] text-state-warn">
+            <KeyRound className="size-3.5 shrink-0" />
+            approval ended {DAY.format(link.validUntil ?? now)}
+          </span>
+          {link.checkedAt === null ? null : (
+            <span className="pl-[21px] text-ink-500">
+              balance of{' '}
+              {bankWhen(link.checkedAt, now).replace('today ', 'today, ')}
+            </span>
+          )}
+        </span>
+      ) : (
+        <span className="motion-fade flex min-w-0 items-center gap-[7px] font-mono text-[11px] text-ink-400">
+          <Link2 className="motion-pulse size-3.5 shrink-0 text-state-good" />
+          from the bank
+          {link.checkedAt === null ? '' : ` · ${bankWhen(link.checkedAt, now)}`}
+        </span>
+      )}
+      <span className="ml-auto flex shrink-0 items-center gap-1.5">
+        {link === null ? (
+          <>
+            {connectable ? (
+              <button
+                type="button"
+                onClick={press(onConnect)}
+                className={PILL_QUIET}
+              >
+                <Link2 className="size-3" />
+                connect
+              </button>
+            ) : null}
+            {update}
+          </>
+        ) : ended ? (
+          <button type="button" onClick={press(onConnect)} className={WARN}>
+            <ExternalLink className="size-3" />
+            approve
+          </button>
+        ) : broker ? (
+          update
+        ) : null}
+      </span>
+    </div>
+  )
+}

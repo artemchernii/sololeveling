@@ -24,7 +24,7 @@ test('a commodity CSV lands as gold held at Revolut, with no money questions', a
   const apply = sheet.getByRole('button', { name: /apply 1 account/ })
   await expect(apply).toBeVisible()
   await expect(sheet.getByText(/Exchanged to/)).toHaveCount(0)
-  await expect(sheet.getByText(/only you know/i)).toHaveCount(0)
+  await expect(sheet.getByText(/questions?$/i)).toHaveCount(0)
   await expect(sheet.getByText(/1\s+position\b/)).toBeVisible()
   await page.screenshot({ ...shot('metals-review'), fullPage: true })
   await apply.click()

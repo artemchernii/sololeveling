@@ -142,3 +142,118 @@ export const stuckApply = mutation({
     return batchId
   },
 })
+
+/* His ActivoBank screenshot of 11 Oct, read and waiting in an update
+   (check before saving): €153.21 held with −€1,205.20 pending, the −€700
+   top-up already in. `twice`: nothing ties that top-up to another bank's
+   file, so the screenshot's row of it looks new. `missing`: the
+   screenshot prints €12 less than its rows make. */
+export const readActivo = mutation({
+  args: {
+    as: v.union(v.literal('yours'), v.literal('twice'), v.literal('missing')),
+  },
+  returns: v.id('batches'),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const accounts = await ctx.db
+      .query('accounts')
+      .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+      .take(10)
+    const activo = accounts.find((a) => a.name === 'ActivoBank')
+    const revolut = accounts.find((a) => a.name === 'Revolut')
+    if (!activo || !revolut) throw new Error('reset first')
+    const DAY = 86_400_000
+    const now = Date.now()
+    const held = now - 8 * DAY
+    for (const s of await ctx.db
+      .query('stateSnapshots')
+      .withIndex('by_owner_key_time', (q) =>
+        q.eq('ownerId', ownerId).eq('key', `balance:${activo._id}:EUR`),
+      )
+      .take(20))
+      await ctx.db.delete(s._id)
+    await ctx.db.insert('stateSnapshots', {
+      ownerId,
+      area: 'money',
+      key: `balance:${activo._id}:EUR`,
+      value: 153.21,
+      unit: 'eur',
+      recordedAt: held,
+      source: 'screenshot',
+      pending: -1205.2,
+    })
+    const csv = await ctx.db.insert('intakes', {
+      ownerId,
+      accountId: revolut._id,
+      storageIds: [],
+      status: 'done',
+      kind: 'transactions',
+    })
+    await ctx.db.insert('logs', {
+      ownerId,
+      area: 'money',
+      kind: 'move',
+      occurredAt: held - 3_600_000,
+      value: -700,
+      unit: 'eur',
+      text: 'Top-up by *2789',
+      accountId: activo._id,
+      meta: {
+        merchant: 'Top-up by *2789',
+        raw: 'Top-up by *2789',
+        intakeId: args.as === 'twice' ? undefined : csv,
+      },
+    })
+    const batchId = await ctx.db.insert('batches', {
+      ownerId,
+      status: 'open',
+      leftOut: [],
+      quietMonths: [],
+      moves: [],
+      extras: [],
+      dismissed: [],
+    })
+    const row = (
+      ago: number,
+      merchant: string,
+      raw: string,
+      amount: number,
+      self = false,
+    ) => ({
+      occurredAt: now - ago * DAY - 3_600_000,
+      merchant,
+      raw,
+      amount,
+      currency: 'EUR',
+      pending: false,
+      self,
+    })
+    await ctx.db.insert('intakes', {
+      ownerId,
+      accountId: activo._id,
+      batchId,
+      storageIds: [],
+      status: 'ready',
+      kind: 'transactions',
+      title: 'ActivoBank',
+      institution: 'ActivoBank',
+      readAt: now,
+      transactions: [
+        row(0, 'Transfer to Andrei Pavlov', 'TRF P/ ANDREI PAVLOV', -25),
+        row(5, 'Trade Republic', 'COMPRA 2789 TRADE REPUBLIC', -505.2, true),
+        row(5, 'Revolut', 'COMPRA 2789 REVOLUT 8134 DUBLIN IE', -700, true),
+        row(6, 'Veiga e Seabra', 'COMPRA 2789 EST SERVICO VEIGA', -37.86),
+      ],
+      balance: {
+        currency: 'EUR',
+        value: args.as === 'missing' ? 78.35 : 90.35,
+        asOf: now - 3_600_000,
+      },
+      files: [
+        { name: 'IMG_9282.PNG', size: 400_000, contentType: 'image/png' },
+      ],
+    })
+    return batchId
+  },
+})

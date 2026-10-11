@@ -1110,6 +1110,9 @@ export default defineSchema({
     ),
     /* Asks he answered "leave it" to, by key ("gap:<account>:<from>"). */
     dismissed: v.array(v.string()),
+    /* Accounts whose sum was off when apply was pressed (11 Oct): this
+       apply writes nothing of theirs. */
+    held: v.optional(v.array(v.id('accounts'))),
     /* While applying, how far it got; once done, what it wrote. */
     applied: v.optional(
       v.object({

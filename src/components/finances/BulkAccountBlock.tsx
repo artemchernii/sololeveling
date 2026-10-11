@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { useMutation } from 'convex/react'
 import {
   Check,
@@ -27,6 +28,7 @@ import {
   Opt,
 } from '@/components/finances/BulkParts'
 import type { Review } from '@/components/finances/BulkParts'
+import { SumCheck } from '@/components/finances/BulkSumCheck'
 
 export function AccountBlock({
   block,
@@ -70,6 +72,7 @@ export function AccountBlock({
       ? Math.round((last.value - nowEur) * 100) / 100
       : null
   const intakeIds = block.files.map((f) => f.intakeId)
+  const wasPending = block.check?.pending.length ?? 0
 
   async function keep(into?: Id<'accounts'>) {
     if (!product && !into) return
@@ -102,7 +105,9 @@ export function AccountBlock({
       className={`motion-land flex flex-col gap-3 rounded-[18px] p-3.5 ring-1 transition-opacity ring-inset ${
         account === null
           ? 'bg-lav-400/[0.05] ring-lav-400/30'
-          : 'bg-lift/[0.035] ring-lift/[0.07]'
+          : block.held && !block.leftOut
+            ? 'bg-lift/[0.035] ring-state-warn/40'
+            : 'bg-lift/[0.035] ring-lift/[0.07]'
       } ${block.leftOut ? 'opacity-40' : ''}`}
     >
       <div className="flex flex-wrap items-center gap-3">
@@ -123,7 +128,19 @@ export function AccountBlock({
             <small className="text-[10px] text-ink-500">account total</small>
           </div>
         ) : null}
-        {last !== null ? (
+        {block.held ? (
+          <div className="flex items-center gap-2 font-mono text-[13px] text-ink-300">
+            {nowEur !== null ? (
+              <>
+                <small className="text-[10px] text-ink-500">now</small>
+                <span className="text-[15px] text-foreground">
+                  <Veiled>{euros(nowEur)}</Veiled>
+                </span>
+              </>
+            ) : null}
+            <Tag tone="warn">not saved</Tag>
+          </div>
+        ) : last !== null ? (
           <div className="flex flex-wrap items-center justify-end gap-2 font-mono text-[13px] text-ink-300">
             {nowEur !== null && change !== null && change !== 0 ? (
               <>
@@ -277,26 +294,19 @@ export function AccountBlock({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] text-ink-400">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px] text-ink-400">
         {block.fresh > 0 ||
         block.had > 0 ||
         (holdings === null && block.trades === 0) ? (
-          <span>
-            <b className="font-normal text-foreground">{block.fresh}</b> new
-            rows
-          </span>
+          <Chip tone="new">{block.fresh - wasPending} new</Chip>
         ) : null}
+        {wasPending > 0 ? <Chip>{wasPending} was pending</Chip> : null}
         {block.trades > 0 ? (
           <span>
             <b className="font-normal text-foreground">{block.trades}</b> trades
           </span>
         ) : null}
-        {block.had > 0 ? (
-          <span>
-            <b className="font-normal text-foreground">{block.had}</b> already
-            had
-          </span>
-        ) : null}
+        {block.had > 0 ? <Chip>{block.had} already added</Chip> : null}
         {block.gaps > 0 ? (
           <Tag tone="warn">doesn't add up</Tag>
         ) : twoReadings ? (
@@ -311,7 +321,13 @@ export function AccountBlock({
           </Tag>
         ) : null}
         {holes ? <Tag tone="warn">a month missing</Tag> : null}
-        <span className="flex-1" />
+      </div>
+
+      {block.check && !block.leftOut ? (
+        <SumCheck block={block} name={title} batchId={batchId} />
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5">
         {block.rows.length > 0 ? (
           <button
             type="button"
@@ -386,7 +402,7 @@ export function AccountBlock({
                   {r.pending
                     ? 'pending'
                     : r.had
-                      ? 'already had'
+                      ? 'already added'
                       : (r.category ?? r.kind)}
                 </Tag>
               </span>
@@ -403,5 +419,20 @@ export function AccountBlock({
         </div>
       ) : null}
     </div>
+  )
+}
+
+function Chip({ tone, children }: { tone?: 'new'; children: ReactNode }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[10.5px] tracking-[0.06em] ring-1 ring-inset ${
+        tone === 'new'
+          ? 'bg-state-good/10 text-state-good ring-state-good/35'
+          : 'bg-lav-400/[0.08] text-lav-300/80 ring-lav-400/22'
+      }`}
+    >
+      <i className="size-1.5 rounded-full bg-current" />
+      {children}
+    </span>
   )
 }

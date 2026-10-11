@@ -1,0 +1,77 @@
+/* Rows from the bank itself (11 Oct, a connected bank, slice 2): what
+   Enable Banking answers for one account, turned into the rows a read file
+   has, so they go through the same check before saving. No Convex and no
+   network here. */
+
+export type BankTx = {
+  /** BOOK is booked; anything else is not money that has moved yet. */
+  status: string
+  /** Unsigned, as the bank prints it: "25.00". */
+  amount: string
+  currency: string
+  /** CRDT came in, DBIT went out. */
+  indicator: string
+  bookingDate?: string
+  valueDate?: string
+  creditor?: string
+  debtor?: string
+  remittance: Array<string>
+}
+
+export type BankRow = {
+  occurredAt: number
+  merchant: string
+  raw: string
+  amount: number
+  currency: string
+  pending: boolean
+  self: boolean
+}
+
+const DAY = 86_400_000
+
+/** The day asked from: the day before the balance held, as the bank
+    writes days. Rows older than that balance are dropped by `rowsSince`. */
+export function dateFrom(heldAt: number): string {
+  return new Date(heldAt - DAY).toISOString().slice(0, 10)
+}
+
+/** A booked row, or null: pending money is never a row (it is written
+    once the bank books it), and a row with no day or amount is no row. */
+export function bankRow(t: BankTx, now: number): BankRow | null {
+  if (t.status !== 'BOOK') return null
+  const day = t.bookingDate ?? t.valueDate
+  const value = Number(t.amount)
+  if (day === undefined || !Number.isFinite(value) || value === 0) return null
+  /* A day is noon UTC, as a file's rows are — the same day from Lisbon to
+     New York. Never ahead of the moment the bank answered. */
+  const at = Date.parse(`${day}T12:00:00Z`)
+  if (!Number.isFinite(at)) return null
+  const out = t.indicator === 'DBIT'
+  const words = t.remittance.map((w) => w.trim()).filter((w) => w !== '')
+  const other = (out ? t.creditor : t.debtor)?.trim()
+  const merchant = (other || words.at(0) || 'Payment').slice(0, 80)
+  return {
+    occurredAt: Math.min(at, now),
+    merchant,
+    raw: (words.join(' ') || merchant).slice(0, 200),
+    amount: (out ? -1 : 1) * Math.abs(value),
+    currency: t.currency,
+    pending: false,
+    self: false,
+  }
+}
+
+/** The bank's booked rows from the balance held on: a first connect takes
+    nothing older (the balance already has it). A row of that balance's own
+    day is kept — the check decides whether the balance had counted it. */
+export function rowsSince(
+  list: ReadonlyArray<BankTx>,
+  heldAt: number,
+  now: number,
+): Array<BankRow> {
+  return list
+    .flatMap((t) => bankRow(t, now) ?? [])
+    .filter((r) => r.occurredAt > heldAt - 18 * 3_600_000)
+    .sort((a, b) => b.occurredAt - a.occurredAt)
+}

@@ -17,6 +17,7 @@ import type * as attachments from "../attachments.js";
 import type * as auth from "../auth.js";
 import type * as bank from "../bank.js";
 import type * as bankApi from "../bankApi.js";
+import type * as bankRows from "../bankRows.js";
 import type * as crons from "../crons.js";
 import type * as drills from "../drills.js";
 import type * as e2e from "../e2e.js";
@@ -68,6 +69,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   bank: typeof bank;
   bankApi: typeof bankApi;
+  bankRows: typeof bankRows;
   crons: typeof crons;
   drills: typeof drills;
   e2e: typeof e2e;

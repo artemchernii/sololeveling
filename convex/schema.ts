@@ -703,6 +703,14 @@ export default defineSchema({
     validUntil: v.optional(v.number()),
     checkedAt: v.optional(v.number()),
     startedAt: v.number(),
+    /* A check that is running, by when it began: a second one waits. */
+    checking: v.optional(v.number()),
+    /* Rows the bank brought that were saved by themselves, by the reading
+       that held them: shown on the card until he closes it with ✕. */
+    arrived: v.optional(v.array(v.id('intakes'))),
+    /* Rows that did not add up: an update waiting for his answer. Nothing
+       of the account is asked from the bank again until it is applied. */
+    questions: v.optional(v.array(v.id('batches'))),
   })
     .index('by_owner_account', ['ownerId', 'accountId'])
     .index('by_owner_state', ['ownerId', 'state']),
@@ -1128,6 +1136,9 @@ export default defineSchema({
     reader: v.optional(v.number()),
     /* The bulk drop it came in (3 Oct): one intake per file, gathered. */
     batchId: v.optional(v.id('batches')),
+    /* Rows the bank itself sent (11 Oct, convex/bankRows.ts): no file and
+       no reader. Its balance is written with source 'sync'. */
+    via: v.optional(v.literal('bank')),
     /* The file itself is kept until then, to open next to what was read
        (3 Oct: "I can't open those png now to check") — 90 days from when
        it went in, then erased by the daily job (intake.eraseOld). What
@@ -1187,6 +1198,9 @@ export default defineSchema({
     /* Companies of a trading history whose shares differ from the account
        when apply was pressed, "<intake>:<n>": their rows are not written. */
     heldShares: v.optional(v.array(v.string())),
+    /* Made by a bank's answer, not by a drop (11 Oct): it is not "the
+       update that is open" — a dropped file never joins it. */
+    via: v.optional(v.literal('bank')),
     /* While applying, how far it got; once done, what it wrote. */
     applied: v.optional(
       v.object({

@@ -27,28 +27,22 @@ test('a Revolut CSV: read, checked, added — and it lands', async ({ page }) =>
     .getByRole('button', { name: 'update' })
     .first()
     .click()
-  await page.getByRole('button', { name: 'statement or screenshot' }).click()
   await page.locator('input[type=file]').setInputFiles({
     name: 'account-statement.csv',
     mimeType: 'text/csv',
     buffer: revolutCsv(days),
   })
 
-  const sheet = page.getByRole('dialog')
-  await expect(sheet.getByText('2 new payments')).toBeVisible()
-  await expect(
-    sheet.getByText('The other 3 rows you already have.', { exact: false }),
-  ).toBeVisible()
-  await expect(sheet.getByText(/^csv$/i)).toBeVisible()
-  await expect(sheet.getByText('no AI needed · $0')).toBeVisible()
-  await expect(sheet.getByText('18:42')).toBeVisible()
-  await expect(sheet.getByText(/USD .* kept as is/)).toBeVisible()
+  /* The window ADD opens, named for the account (11 Oct): one line an
+     account, what is new against what was already added. */
+  const sheet = page.getByRole('dialog', { name: 'update · Revolut' })
+  await expect(sheet.getByText('2 new', { exact: true })).toBeVisible()
+  await expect(sheet.getByText('3 already added')).toBeVisible()
+  await page.waitForTimeout(700)
   await page.screenshot({ ...shot('check-it'), fullPage: true })
 
-  const add = sheet.getByRole('button', {
-    name: 'add 2 payments and the balance',
-  })
-  await add.click()
+  await sheet.getByRole('button', { name: /apply 1 account/ }).click()
+  await expect(sheet.getByText('saving…')).toBeVisible()
   /* One line an account: is Revolut right now? */
   await expect(sheet.getByText('Revolut is up to date')).toBeVisible()
   await expect(sheet.getByText('€1,108.04 · $40')).toBeVisible()
@@ -59,9 +53,11 @@ test('a Revolut CSV: read, checked, added — and it lands', async ({ page }) =>
   await page.screenshot(shot('landed'))
   await sheet.getByRole('button', { name: 'done' }).click()
 
-  /* Revolut — EUR and USD — is no longer out of date. */
-  await page.getByRole('button', { name: 'check-in' }).click()
-  await expect(page.getByRole('dialog').getByText('Revolut')).toHaveCount(0)
+  /* The check-in is back with what is still old — Revolut, EUR and USD,
+     is not in it. */
+  const list = page.getByRole('dialog', { name: 'check-in' })
+  await expect(list.getByText('ActivoBank')).toBeVisible()
+  await expect(list.getByText('Revolut')).toHaveCount(0)
 })
 
 test('"still the same": saving, saved, up to date, closed', async ({

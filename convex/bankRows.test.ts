@@ -106,7 +106,7 @@ const TWO = [
 ]
 
 test('rows that reach the bank’s balance are saved with no press, once', async () => {
-  const { rows, balance, link, arrive } = await connected()
+  const { me, rows, balance, link, arrive } = await connected()
   await arrive(664.63, TWO)
   expect(await rows()).toHaveLength(2)
   expect(await rows()).toContainEqual({
@@ -117,6 +117,20 @@ test('rows that reach the bank’s balance are saved with no press, once', async
   expect(await balance()).toEqual({ value: 664.63, source: 'sync' })
   expect(await link()).toMatchObject({ checkedAt: NEXT, questions: [] })
   expect((await link()).arrived).toHaveLength(1)
+  /* What the card shows of it: log sums between two stored balances. */
+  expect((await me.query(api.bank.links, {}))[0]).toMatchObject({
+    checking: false,
+    question: null,
+    arrived: {
+      rows: 2,
+      currency: 'EUR',
+      was: 727.49,
+      wasAt: NOON,
+      out: 62.86,
+      in: 0,
+      now: 664.63,
+    },
+  })
 
   /* The same answer again: nothing new, nothing written. */
   await arrive(664.63, TWO, NEXT + 3_600_000)
@@ -167,6 +181,10 @@ test('a payment the account already has under another name is held, then saved o
   expect(await balance()).toEqual({ value: 727.49, source: 'sync' })
   const [batchId] = (await link()).questions ?? []
   expect(batchId).toBeDefined()
+  expect((await me.query(api.bank.links, {}))[0]).toMatchObject({
+    question: batchId,
+    arrived: null,
+  })
   /* It is not the update a dropped file would join. */
   expect(await me.query(api.intake.openBatch, {})).toBeNull()
   /* And the bank is not asked again while it is open. */
@@ -188,6 +206,11 @@ test('a payment the account already has under another name is held, then saved o
   await t.finishAllScheduledFunctions(vi.runAllTimers)
   expect(await rows()).toHaveLength(2)
   expect(await balance()).toEqual({ value: 702.49, source: 'sync' })
+  /* Answered: it reads as rows that arrived, before any next check. */
+  expect((await me.query(api.bank.links, {}))[0]).toMatchObject({
+    question: null,
+    arrived: { rows: 1, was: 727.49, out: 25, now: 702.49 },
+  })
 
   /* Answered: the next check goes through, and the rows count as arrived. */
   vi.setSystemTime(NEXT + 5 * 3_600_000)

@@ -30,7 +30,11 @@ export function SumCheck({
   const [busy, setBusy] = useState(false)
   const c = block.check
   if (!c) return null
-  const file = block.files.every((f) => f.image) ? 'screenshot' : 'statement'
+  const file = block.files.every((f) => f.bank)
+    ? 'bank'
+    : block.files.every((f) => f.image)
+      ? 'screenshot'
+      : 'statement'
   const say = (key: string, on = true) => {
     setBusy(true)
     void answer({ batchId, answer: { kind: 'sum', key, on } }).finally(() =>

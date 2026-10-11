@@ -5,6 +5,8 @@ import type { FunctionReturnType } from 'convex/server'
 import { PILL_QUIET } from '@/components/finances/bits'
 import { AccountFoot } from '@/components/finances/AccountFoot'
 import type { CardLink } from '@/components/finances/AccountFoot'
+import { AccountArrived } from '@/components/finances/AccountArrived'
+import type { Arrived } from '@/components/finances/AccountArrived'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { money } from '@/lib/currency'
@@ -35,6 +37,9 @@ export function AccountCard({
   link,
   connectable,
   onConnect,
+  arrived,
+  onShut,
+  onCheck,
 }: {
   row: BalanceRow
   index: number
@@ -63,6 +68,10 @@ export function AccountCard({
   connectable: boolean
   /** CONNECT, or APPROVE when the approval ended. */
   onConnect: () => void
+  /** Rows the bank brought, until closed with ✕. */
+  arrived: Arrived | null
+  onShut: () => Promise<unknown>
+  onCheck: () => void
 }) {
   const f = freshness(a.pockets, Date.now())
   const broker = a.brokerCash
@@ -84,7 +93,14 @@ export function AccountCard({
         }
       }}
       style={{ animationDelay: `${index * 40}ms` }}
-      className="motion-arrive flex h-full cursor-pointer flex-col gap-3.5 rounded-[18px] bg-lift/[0.055] p-4 ring-1 ring-lift/[0.12] transition-shadow ring-inset hover:ring-lav-400/40"
+      data-bank={link?.question ? 'question' : link?.checking ? 'checking' : ''}
+      className={`motion-arrive flex h-full cursor-pointer flex-col gap-3.5 rounded-[18px] bg-lift/[0.055] p-4 ring-1 transition-shadow ring-inset hover:ring-lav-400/40 ${
+        link?.question
+          ? 'bank-edge-ask ring-state-warn/45'
+          : link?.checking
+            ? 'bank-edge-busy ring-lav-400/45'
+            : 'ring-lift/[0.12]'
+      }`}
     >
       <div className="flex items-start gap-3">
         <AccountLogo name={a.name} domain={a.domain} size={40} />
@@ -276,7 +292,11 @@ export function AccountCard({
           </span>
         ) : null}
       </div>
+      {arrived && !link?.question ? (
+        <AccountArrived arrived={arrived} onShut={onShut} />
+      ) : null}
       <AccountFoot
+        onCheck={onCheck}
         label={f.label}
         stale={f.stale}
         todo={f.todo}

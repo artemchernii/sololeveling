@@ -1014,8 +1014,8 @@ async function buildReview(
 
   /* What he has in this account over the same days, for duplicates. */
   const times = read.map((r) => r.occurredAt)
-  const from = Math.min(...times) - 3 * 86_400_000
-  const to = Math.max(...times) + 3 * 86_400_000
+  const from = Math.min(...times) - 4 * 86_400_000
+  const to = Math.max(...times) + 4 * 86_400_000
   const existing = here
     ? await ctx.db
         .query('logs')
@@ -1056,6 +1056,17 @@ async function buildReview(
     : await hisNames(ctx, intake)
   const own = read.map((r) => r.self || ownMoney(r, names))
   const taken = new Set(dups.filter((d): d is number => d !== null))
+  /* A side another account's file wrote here is waiting for this bank to
+     book it, and a bank books a card top-up days later, over a weekend
+     (11 Oct: Revolut's top-up of Sat 3 Oct, ActivoBank's row on Tue the
+     6th — written twice). Such a side is matched four days out. */
+  const fromOther = new Set<number>()
+  for (const [k, l] of existing.entries()) {
+    if (l.kind !== 'move' || l.meta?.intakeId === undefined) continue
+    const file = await ctx.db.get(l.meta.intakeId)
+    if (file && file.accountId !== undefined && file.accountId !== here)
+      fromOther.add(k)
+  }
   for (const [i, r] of read.entries()) {
     if (dups[i] !== null || !own[i]) continue
     const j = existing.findIndex(
@@ -1063,7 +1074,8 @@ async function buildReview(
         !taken.has(k) &&
         l.kind === 'move' &&
         Math.abs((l.value ?? 0) - r.amount) < 0.005 &&
-        Math.abs(l.occurredAt - r.occurredAt) <= 2 * DAY_MS + 3_600_000,
+        Math.abs(l.occurredAt - r.occurredAt) <=
+          (fromOther.has(k) ? 4 : 2) * DAY_MS + 3_600_000,
     )
     if (j >= 0) {
       dups[i] = j

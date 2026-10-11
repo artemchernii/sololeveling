@@ -280,3 +280,55 @@ describe('his account on 11 Oct', () => {
     expect(again.accounts.every((a) => !a.balanceNews)).toBe(true)
   })
 })
+
+/* Revolut's file wrote ActivoBank's side of the top-up on Sat 3 Oct;
+   ActivoBank's own screen books it on Tue 6 Oct. */
+describe('a transfer the other bank reported first', () => {
+  test('this bank’s row three days later is the same transfer', async () => {
+    const { t, me, intakeId } = await setup()
+    await t.run(async (ctx) => {
+      const revolut = await ctx.db.insert('accounts', {
+        ownerId: ME,
+        name: 'Revolut',
+        kinds: ['bank'],
+        currencies: ['EUR'],
+        ibanTails: [],
+        cardTails: [],
+        order: 1,
+      })
+      const csv = await ctx.db.insert('intakes', {
+        ownerId: ME,
+        accountId: revolut,
+        storageIds: [],
+        status: 'done',
+        kind: 'transactions',
+      })
+      for (const l of await ctx.db.query('logs').collect())
+        await ctx.db.patch(l._id, { meta: { ...l.meta, intakeId: csv } })
+      const read = await ctx.db.get(intakeId)
+      await ctx.db.patch(intakeId, {
+        transactions: read?.transactions?.map((r) =>
+          r.amount === -700 ? { ...r, merchant: 'Revolut', self: true } : r,
+        ),
+      })
+    })
+    const review = await me.query(api.intake.review, { intakeId })
+    const topUp = review?.rows.find((r) => r.amount === -700)
+    expect(topUp?.kind).toBe('move')
+    expect(topUp?.duplicateOf).not.toBeNull()
+  })
+
+  test('its own two rows three days apart stay two', async () => {
+    const { me, intakeId, t } = await setup()
+    await t.run(async (ctx) => {
+      const read = await ctx.db.get(intakeId)
+      await ctx.db.patch(intakeId, {
+        transactions: read?.transactions?.map((r) =>
+          r.amount === -700 ? { ...r, merchant: 'Revolut', self: true } : r,
+        ),
+      })
+    })
+    const review = await me.query(api.intake.review, { intakeId })
+    expect(review?.rows.find((r) => r.amount === -700)?.duplicateOf).toBeNull()
+  })
+})

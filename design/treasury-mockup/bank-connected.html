@@ -106,7 +106,11 @@
   .cell.says.good em svg { animation: pop .45s var(--ease) .35s both }
   .cell.says.warn em { color: var(--warn) }
   /* In a card: four numbers on one line, the tick beside the count. */
-  .got { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap }
+  .got { display: flex; align-items: center; gap: 10px }
+  .got .okline { margin-right: auto }
+  .shut { width: 26px; height: 26px; border-radius: 999px; border: 0; background: none; box-shadow: inset 0 0 0 1px rgba(var(--lift),.14); color: var(--ink-400); font-size: 11px; display: grid; place-items: center; flex: none; transition: color .2s, box-shadow .2s, transform .1s }
+  .shut:hover { color: var(--ink-100); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 40%, transparent) }
+  .shut:active { transform: scale(.94) }
   .okline { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10.5px; color: var(--good) }
   .okline svg { width: 12px; height: 12px; stroke-width: 3; animation: pop .45s var(--ease) .5s both }
   .card .strip { grid-template-columns: repeat(4, auto) }
@@ -293,7 +297,7 @@ const revolut = (o = {}) => card('revolut', { total: '€21,244.75',
   rows: cash('EUR', '€1,204.75') + row('broker cash', '€6,040.00') + row('investments', '€14,000.00'), foot: `${F.bank('today 14:05')}<div class="btns">${pill('update', 'none')}</div>`, ...o })
 const bpi = (o = {}) => card('bpi', { total: '€2,410.00', line: spark(UP, 'green'), rows: cash('EUR', '€2,410.00', false) + row('since 1 Oct', '+€2,300.00', 'green'), foot: F.file('statement read 7d ago'), ...o })
 const busyU = `${F.busy('08:02')}<div class="btns">${pill('update', 'none')}</div>`
-const arrived = `<div class="got"><span class="chip new"><i></i>2 new</span><span class="okline">${svg('check')}as the bank shows</span></div>` + strip({ was: '€769.89', wasDay: 'Oct 10', out: '€42.40', says: '€727.49', under: '' })
+const arrived = `<div class="got"><span class="chip new"><i></i>2 new</span><span class="okline">${svg('check')}as the bank shows</span><button class="shut" data-do="shut" aria-label="close">✕</button></div>` + strip({ was: '€769.89', wasDay: 'Oct 10', out: '€42.40', says: '€727.49', under: '' })
 
 const S = {
   fresh: {
@@ -308,7 +312,7 @@ const S = {
   },
   rows: {
     l: 'new rows arrived',
-    note: 'Two payments were booked since yesterday. They add up to the bank’s balance, so they are saved with no press. <b>Play it again</b> by pressing the scenario.',
+    note: 'Two payments were booked since yesterday. They add up to the bank’s balance, so they are saved with no press. The block stays on the card until you close it with ✕. <b>Play it again</b> by pressing the scenario.',
     r: () => activo({ cls: 'busy', total: '€769.89', foot: F.busy('08:02') }) + trade() + revolut() + bpi(),
     after: () => setTimeout(() => {
       swapCard('activo', activo({ extra: arrived, foot: F.fresh('now') }), true)
@@ -500,6 +504,7 @@ const DO = {
     }, b ? 350 : 0)
   },
   done: () => closeSheet(),
+  shut: (b) => b.closest('.grow').classList.remove('on'),
   retry: (b) => {
     swapCard('activo', activo({ cls: 'busy', foot: F.busy('08:02') }))
     timer = setTimeout(() => swapCard('activo', activo({ foot: F.fresh('now') })), 1500)

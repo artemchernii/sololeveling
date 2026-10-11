@@ -47,7 +47,8 @@ arrive.
 - **Checking**: lavender edge breathes, "checking the bank… · last 08:02".
   The number on screen is the stored one until the answer is in.
 - **Rows arrived, they add up**: saved with no press. The card glides
-  taller: "2 new", "✓ as the bank shows", was · out · in · now.
+  taller: "2 new", "✓ as the bank shows", was · out · in · now, and a ✕
+  that closes it. It stays until closed.
 - **A question**: amber breathing edge, "not saved — 1 question open",
   CHECK IT opens the built check window. Nothing of that account is written
   until answered. Apply → saving… → landed → closes; the card is up to date.
@@ -145,8 +146,9 @@ the chart. Pending money on the card (see questions). BPI's login.
    screen: the card can be lower or higher than the bank's app by the
    pending amount until it books.
 4. **How old before a check on opening?** Recommend 4 hours.
-5. **How long "2 new" stays on the card.** Recommend: until the end of the
-   day after it arrived; the rows are always in the account's sheet.
+5. **How long "2 new" stays on the card** — decided 11 Oct: until he
+   closes it with ✕. Rows that arrive before he closes it join the same
+   block (was stays the first day).
 6. **A "check now" button.** Recommend none: opening Finances is the
    button, and banks limit unattended checks.
 7. **CONNECT on every card, or only where the bank is supported?**

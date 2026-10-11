@@ -193,6 +193,11 @@ async function setup(
     await me.mutation(api.intake.applyBatch, { batchId: ids.batchId, dayStart })
     await t.finishAllScheduledFunctions(vi.runAllTimers)
   }
+  const answer = (key: string, on = true) =>
+    me.mutation(api.intake.batchAnswer, {
+      batchId: ids.batchId,
+      answer: { kind: 'sum', key, on },
+    })
   const balance = async () =>
     (await me.query(api.aggregate.balances, {})).accounts.find(
       (a) => a.accountId === ids.accountId,
@@ -203,7 +208,7 @@ async function setup(
         .filter((l) => l.accountId === account)
         .map((l) => [l.text, l.kind === 'expense' ? -(l.value ?? 0) : l.value]),
     )
-  return { t, me, ...ids, block, apply, balance, rows }
+  return { t, me, ...ids, block, apply, answer, balance, rows }
 }
 
 describe('his ActivoBank screenshot of 11 Oct, checked before it is saved', () => {
@@ -232,8 +237,10 @@ describe('his ActivoBank screenshot of 11 Oct, checked before it is saved', () =
     expect(landed).toMatchObject({ was: 153.21, gap: 0, pending: -505.2 })
   })
 
-  test('the top-up comes again under another name: seen before it is written', async () => {
-    const { block } = await setup({ topUp: 'typed' })
+  test('the top-up comes again under another name: nothing of it is written', async () => {
+    const { t, intakeId, revolut, block, apply, balance, rows } = await setup({
+      topUp: 'typed',
+    })
     const b = await block()
     expect(b.held).toBe(true)
     expect(b.check).toMatchObject({
@@ -249,10 +256,53 @@ describe('his ActivoBank screenshot of 11 Oct, checked before it is saved', () =
       occurredAt: day(6),
       mine: { merchant: 'Top-up by *2789', occurredAt: day(3) },
     })
+    await apply()
+    /* ActivoBank is as it was; the bank with nothing to ask is saved. */
+    expect(await balance()).toBe(153.21)
+    expect(await rows()).toHaveLength(5)
+    expect((await t.run((ctx) => ctx.db.get(intakeId)))?.status).toBe('ready')
+    expect(await rows(revolut)).toEqual([['Bolt', -6.7]])
   })
 
-  test('no row explains it: off, by what no row shows', async () => {
-    const { block } = await setup({ closing: 78.35 })
+  test('"same payment": it adds up, and the row is not added again', async () => {
+    const { block, apply, answer, balance, rows } = await setup({
+      topUp: 'typed',
+    })
+    const key = (await block()).check?.twin?.key ?? ''
+    await answer(`skip:${key}`)
+    const b = await block()
+    expect([b.fresh, b.had, b.held]).toEqual([3, 4, false])
+    expect(b.check).toMatchObject({ state: 'ok', now: 90.35, twin: null })
+    expect(b.check?.skipped.map((r) => r.amount)).toEqual([-700])
+    /* Taken back: asked again. */
+    await answer(`skip:${key}`, false)
+    expect((await block()).held).toBe(true)
+    await answer(`skip:${key}`)
+    await apply()
+    expect(await balance()).toBe(90.35)
+    expect((await rows()).filter(([, v]) => v === -700)).toHaveLength(1)
+  })
+
+  test('"two payments": both are saved, and both were pending', async () => {
+    const { block, apply, answer, balance, rows } = await setup({
+      topUp: 'typed',
+    })
+    await answer(`two:${(await block()).check?.twin?.key}`)
+    const b = await block()
+    expect(b.held).toBe(false)
+    expect(b.check).toMatchObject({ state: 'ok', now: 90.35 })
+    expect(b.check?.kept.map((r) => r.amount)).toEqual([-700])
+    expect(b.check?.pending.map((r) => r.amount).sort((x, y) => x - y)).toEqual(
+      [-700, -505.2],
+    )
+    await apply()
+    expect(await balance()).toBe(90.35)
+    expect((await rows()).filter(([, v]) => v === -700)).toHaveLength(2)
+  })
+
+  test('no row explains it: held until he says save, then the file’s balance wins', async () => {
+    const { t, intakeId, accountId, block, apply, answer, balance } =
+      await setup({ closing: 78.35 })
     const b = await block()
     expect(b.held).toBe(true)
     expect(b.check).toMatchObject({
@@ -262,5 +312,26 @@ describe('his ActivoBank screenshot of 11 Oct, checked before it is saved', () =
       gap: -12,
       twin: null,
     })
+    await apply()
+    expect(await balance()).toBe(153.21)
+    await answer(`sum:${accountId}`)
+    expect(await block()).toMatchObject({ held: false })
+    await apply()
+    expect(await balance()).toBe(78.35)
+    const landed = (await t.run((ctx) => ctx.db.get(intakeId)))?.landed
+    expect(landed).toMatchObject({ gap: -12, pending: -505.2 })
+  })
+
+  test('an answer that is no answer, or on another’s update, is refused', async () => {
+    const { t, batchId, answer } = await setup()
+    await expect(answer('gap:whatever')).rejects.toThrow()
+    await expect(answer('skip:' + 'x'.repeat(90))).rejects.toThrow()
+    const other = t.withIdentity({ tokenIdentifier: 'https://clerk.test|else' })
+    await expect(
+      other.mutation(api.intake.batchAnswer, {
+        batchId,
+        answer: { kind: 'sum', key: 'sum:abc', on: true },
+      }),
+    ).rejects.toThrow()
   })
 })

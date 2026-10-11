@@ -3368,6 +3368,10 @@ export const batchAnswer = mutation({
         amount: v.number(),
       }),
       v.object({ kind: v.literal('dismiss'), key: v.string() }),
+      /* A sum that is off (11 Oct): "skip:<file>:<row>" the same payment,
+         "two:<file>:<row>" another one, "sum:<account>" save it as it is.
+         `on: false` takes the answer back. */
+      v.object({ kind: v.literal('sum'), key: v.string(), on: v.boolean() }),
       v.object({
         kind: v.literal('leaveOut'),
         accountId: v.id('accounts'),
@@ -3453,6 +3457,15 @@ export const batchAnswer = mutation({
         })
         return null
       }
+      case 'sum': {
+        if (!/^(skip|two|sum):[a-z0-9:]{1,80}$/.test(answer.key))
+          throw new ConvexError('No such answer.')
+        const rest = b.dismissed.filter((k) => k !== answer.key)
+        await ctx.db.patch(b._id, {
+          dismissed: answer.on ? [...rest, answer.key] : rest,
+        })
+        return null
+      }
       case 'leaveOut': {
         await ownedAccount(ctx, ownerId, answer.accountId)
         const rest = b.leftOut.filter((a) => a !== answer.accountId)
@@ -3514,13 +3527,17 @@ export const applyBatch = mutation({
           otherAccountId: x.otherAccountId,
         })
     }
+    const held = g.accounts.flatMap((x) =>
+      x.held && x.accountId !== null && !x.leftOut ? [x.accountId] : [],
+    )
     await ctx.db.patch(b._id, {
       status: 'applying',
       moves,
+      held,
       applied: {
         intakes: 0,
         rows: 0,
-        accounts: g.accounts.filter((x) => !x.leftOut).length,
+        accounts: g.accounts.filter((x) => !x.leftOut && !x.held).length,
       },
     })
     await ctx.scheduler.runAfter(0, internal.intake.applyStep, {
@@ -3603,6 +3620,7 @@ export const applyStep = internalMutation({
           (x) =>
             x.accountId !== null &&
             !b.leftOut.includes(x.accountId) &&
+            !(b.held ?? []).includes(x.accountId) &&
             !(
               x.i.kind !== 'transactions' &&
               !accounts
@@ -3711,7 +3729,13 @@ export const applyOne = internalMutation({
         b.moves.map((m) => [`${m.intakeId}:${m.index}`, m.otherAccountId]),
       )
       const keep: Array<ConfirmRow> = read.rows
-        .filter((r) => !r.pending && r.duplicateOf === null && !r.counted)
+        .filter(
+          (r) =>
+            !r.pending &&
+            r.duplicateOf === null &&
+            !r.counted &&
+            !b.dismissed.includes(`skip:${intake._id}:${r.index}`),
+        )
         .map((r) => {
           const answer = answered.get(`${intake._id}:${r.index}`)
           const other = answer === undefined ? r.otherAccountId : answer

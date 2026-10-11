@@ -130,8 +130,8 @@ test('a longer statement over a shorter one: only the new days are added', async
       buffer: revolutCsv(days, 3),
     },
   ])
-  await expect(sheet.getByText('3 new rows')).toBeVisible()
-  await expect(sheet.getByText('5 already had')).toBeVisible()
+  await expect(sheet.getByText('3 new', { exact: true })).toBeVisible()
+  await expect(sheet.getByText('5 already added')).toBeVisible()
   await page.waitForTimeout(700)
   await page.screenshot(shot('update-longer-statement'))
   await sheet.getByRole('button', { name: /apply 1 account/ }).click()

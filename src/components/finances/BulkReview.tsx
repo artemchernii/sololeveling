@@ -56,6 +56,9 @@ export function BulkReview({
     (a) => a.accountId !== null && !a.leftOut,
   )
   const waitingNew = review.accounts.filter((a) => a.accountId === null)
+  /* The sum is off and nothing is answered: apply leaves these (11 Oct). */
+  const unsaved = placed.filter((a) => a.held)
+  const ready = placed.length - unsaved.length
   const fresh = review.accounts
     .filter((a) => !a.leftOut)
     .reduce((t, a) => t + a.fresh + a.trades, 0)
@@ -110,11 +113,17 @@ export function BulkReview({
         <Stat n={review.accounts.length} label="accounts" />
         <Stat n={fresh} label="new rows" />
         <Stat n={review.moves.length} label="moves paired" />
-        {asks.length > 0 || solved.length > 0 ? (
+        {asks.length + unsaved.length > 0 || solved.length > 0 ? (
           <Stat
-            n={asks.length}
-            label="only you know"
-            className={asks.length ? 'text-state-warn' : 'text-state-good'}
+            n={asks.length + unsaved.length}
+            label={
+              asks.length + unsaved.length === 1 ? 'question' : 'questions'
+            }
+            className={
+              asks.length + unsaved.length
+                ? 'text-state-warn'
+                : 'text-state-good'
+            }
           />
         ) : null}
       </div>
@@ -240,13 +249,18 @@ export function BulkReview({
             `Everything in ${review.files === 1 ? 'this file' : 'these files'} is already in. There is nothing to save.`
           ) : (
             [
+              unsaved.length > 0
+                ? `${unsaved.map((a) => (a.accountId ? doc(a.accountId)?.name : null)).join(', ')} not saved — ${unsaved.length === 1 ? '1 question' : `${unsaved.length} questions`} open.`
+                : null,
               asks.length > 0
                 ? `${asks.length === 1 ? 'One question' : `${asks.length} questions`} left — they wait here.`
                 : null,
               waitingNew.length > 0
                 ? `${waitingNew.map((a) => a.product?.name).join(', ')} ${waitingNew.length === 1 ? 'waits' : 'wait'} until you add ${waitingNew.length === 1 ? 'it' : 'them'}.`
                 : null,
-              asks.length === 0 && waitingNew.length === 0
+              asks.length === 0 &&
+              waitingNew.length === 0 &&
+              unsaved.length === 0
                 ? 'Oldest statement first, so every balance lands on its day. Nothing is saved until you press it.'
                 : null,
             ]
@@ -298,7 +312,7 @@ export function BulkReview({
         <button
           type="button"
           hidden={nothingNew || allBad}
-          disabled={busy || placed.length === 0}
+          disabled={busy || ready === 0}
           onClick={() => {
             setBusy(true)
             setError(null)
@@ -312,7 +326,7 @@ export function BulkReview({
           className="motion-press inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-lav-300 to-lav-400 px-5 py-2.5 font-mono text-[12px] tracking-[0.14em] text-background uppercase shadow-[0_0_26px_-6px_var(--color-lav-400)] disabled:opacity-50"
         >
           <Check className="size-4" />
-          apply {placed.length} account{placed.length === 1 ? '' : 's'}
+          apply{ready > 0 ? ` ${ready} account${ready === 1 ? '' : 's'}` : ''}
         </button>
       </div>
     </div>

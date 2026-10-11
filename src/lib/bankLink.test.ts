@@ -1,8 +1,10 @@
 import { expect, test } from 'vitest'
 
 import {
+  approvalDay,
   approvalEnds,
   aspspFor,
+  bankWhen,
   canConnect,
   pickAccounts,
   pickBalance,
@@ -110,4 +112,22 @@ test('two accounts and no number known: it is asked', () => {
 test('nothing in a currency the card holds', () => {
   expect(pickAccounts([USD], ['EUR'], [])).toEqual({ kind: 'none' })
   expect(pickAccounts([], ['EUR'], [])).toEqual({ kind: 'none' })
+})
+
+test('when the bank answered: the time today, the day and time before', () => {
+  const now = new Date(2026, 9, 11, 17, 30).getTime()
+  expect(bankWhen(new Date(2026, 9, 11, 14, 5).getTime(), now)).toBe(
+    'today 14:05',
+  )
+  expect(bankWhen(new Date(2026, 9, 9, 8, 2).getTime(), now)).toBe(
+    'Oct 9, 08:02',
+  )
+  /* Midnight is a day, not "today", even a minute back. */
+  expect(bankWhen(new Date(2026, 9, 10, 23, 59).getTime(), now)).toBe(
+    'Oct 10, 23:59',
+  )
+})
+
+test('the day an approval runs to carries its year', () => {
+  expect(approvalDay(new Date(2027, 3, 9, 12).getTime())).toBe('Apr 9, 2027')
 })

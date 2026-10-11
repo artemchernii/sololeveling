@@ -24,6 +24,7 @@ import { Route as AppGoalsRouteImport } from './routes/_app/goals'
 import { Route as AppLanguagesRouteImport } from './routes/_app/languages'
 import { Route as AppReviewsRouteImport } from './routes/_app/reviews'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppBankCallbackRouteImport } from './routes/_app/bank.callback'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes.index'
 import { Route as AppNotesIdRouteImport } from './routes/_app/notes.$id'
 import { Route as AppProjectsIndexRouteImport } from './routes/_app/projects.index'
@@ -103,6 +104,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBankCallbackRoute = AppBankCallbackRouteImport.update({
+  id: '/bank/callback',
+  path: '/bank/callback',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppNotesIndexRoute = AppNotesIndexRouteImport.update({
   id: '/notes/',
   path: '/notes/',
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/languages': typeof AppLanguagesRoute
   '/reviews': typeof AppReviewsRoute
   '/settings': typeof AppSettingsRoute
+  '/bank/callback': typeof AppBankCallbackRoute
   '/notes/$id': typeof AppNotesIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/notes/': typeof AppNotesIndexRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByTo {
   '/languages': typeof AppLanguagesRoute
   '/reviews': typeof AppReviewsRoute
   '/settings': typeof AppSettingsRoute
+  '/bank/callback': typeof AppBankCallbackRoute
   '/notes/$id': typeof AppNotesIdRoute
   '/projects/$id': typeof AppProjectsIdRoute
   '/notes': typeof AppNotesIndexRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/_app/languages': typeof AppLanguagesRoute
   '/_app/reviews': typeof AppReviewsRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/bank/callback': typeof AppBankCallbackRoute
   '/_app/notes/$id': typeof AppNotesIdRoute
   '/_app/projects/$id': typeof AppProjectsIdRoute
   '/_app/notes/': typeof AppNotesIndexRoute
@@ -203,6 +212,7 @@ export interface FileRouteTypes {
     | '/languages'
     | '/reviews'
     | '/settings'
+    | '/bank/callback'
     | '/notes/$id'
     | '/projects/$id'
     | '/notes/'
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/languages'
     | '/reviews'
     | '/settings'
+    | '/bank/callback'
     | '/notes/$id'
     | '/projects/$id'
     | '/notes'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/_app/languages'
     | '/_app/reviews'
     | '/_app/settings'
+    | '/_app/bank/callback'
     | '/_app/notes/$id'
     | '/_app/projects/$id'
     | '/_app/notes/'
@@ -365,6 +377,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/bank/callback': {
+      id: '/_app/bank/callback'
+      path: '/bank/callback'
+      fullPath: '/bank/callback'
+      preLoaderRoute: typeof AppBankCallbackRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notes/': {
       id: '/_app/notes/'
       path: '/notes'
@@ -407,6 +426,7 @@ interface AppRouteChildren {
   AppLanguagesRoute: typeof AppLanguagesRoute
   AppReviewsRoute: typeof AppReviewsRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppBankCallbackRoute: typeof AppBankCallbackRoute
   AppNotesIdRoute: typeof AppNotesIdRoute
   AppProjectsIdRoute: typeof AppProjectsIdRoute
   AppNotesIndexRoute: typeof AppNotesIndexRoute
@@ -424,6 +444,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppLanguagesRoute: AppLanguagesRoute,
   AppReviewsRoute: AppReviewsRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppBankCallbackRoute: AppBankCallbackRoute,
   AppNotesIdRoute: AppNotesIdRoute,
   AppProjectsIdRoute: AppProjectsIdRoute,
   AppNotesIndexRoute: AppNotesIndexRoute,

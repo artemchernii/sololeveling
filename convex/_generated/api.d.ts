@@ -20,6 +20,7 @@ import type * as bankApi from "../bankApi.js";
 import type * as crons from "../crons.js";
 import type * as drills from "../drills.js";
 import type * as e2e from "../e2e.js";
+import type * as e2eBank from "../e2eBank.js";
 import type * as e2eUpdate from "../e2eUpdate.js";
 import type * as events from "../events.js";
 import type * as gapMatch from "../gapMatch.js";
@@ -67,6 +68,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   drills: typeof drills;
   e2e: typeof e2e;
+  e2eBank: typeof e2eBank;
   e2eUpdate: typeof e2eUpdate;
   events: typeof events;
   gapMatch: typeof gapMatch;

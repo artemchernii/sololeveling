@@ -110,3 +110,24 @@ export function pickAccounts(
   }
   return accounts.length > 0 ? { kind: 'found', accounts } : { kind: 'none' }
 }
+
+const DAY_FMT = new Intl.DateTimeFormat('en', {
+  day: 'numeric',
+  month: 'short',
+})
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** When the bank last answered, as the card says it: "today 14:05", or
+    "Oct 9, 08:02" for any other day. */
+export function bankWhen(at: number, now: number): string {
+  const d = new Date(at)
+  const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return d.toDateString() === new Date(now).toDateString()
+    ? `today ${time}`
+    : `${DAY_FMT.format(d)}, ${time}`
+}
+
+/** The day an approval runs to, with its year: "Apr 9, 2027". */
+export function approvalDay(validUntil: number): string {
+  return `${DAY_FMT.format(validUntil)}, ${new Date(validUntil).getFullYear()}`
+}

@@ -19,7 +19,7 @@ const WORD = {
   typed: 'typed',
   statement: 'statement read',
   screenshot: 'screenshot read',
-  sync: 'synced',
+  sync: 'from the bank',
 } as const
 
 const DAY = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })

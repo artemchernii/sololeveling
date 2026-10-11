@@ -27,6 +27,7 @@ import {
 } from '../../src/lib/intake'
 import type { ReadTrade, ReadTransaction } from '../../src/lib/intake'
 import { headerKey, parseCsv } from '../../src/lib/csv'
+import { historySums } from '../../src/lib/sharesCheck'
 import { notAhead, yearlessToThisYear } from '../../src/lib/noYear'
 import {
   LAYOUT_SCHEMA,
@@ -764,6 +765,7 @@ async function readCsv(
     historyTrades: rows.length,
     historyTickers: merged.tickers,
     historyFound,
+    historyShares: historySums(rows),
   })
 }
 

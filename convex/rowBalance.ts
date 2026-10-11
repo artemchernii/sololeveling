@@ -2,7 +2,7 @@ import { balanceKey } from './accounts'
 import { movedSince } from './aggregate'
 import { HISTORY_GRACE_MS } from '../src/lib/cashHistory'
 import { insideReadings } from '../src/lib/rowBalance'
-import type { QueryCtx } from './_generated/server'
+import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc } from './_generated/dataModel'
 
 /* A file's rows against the balances he already has (11 Oct, balance
@@ -111,6 +111,7 @@ export async function balanceIsNews(
   accountId: Doc<'accounts'>['_id'],
   balance: NonNullable<Doc<'intakes'>['balance']>,
 ): Promise<boolean> {
+  const account = await ctx.db.get(accountId)
   const held = await ctx.db
     .query('stateSnapshots')
     .withIndex('by_owner_key_time', (q) =>
@@ -121,9 +122,45 @@ export async function balanceIsNews(
     )
     .order('desc')
     .first()
+  if (account === null || held?.value === undefined) return true
+  /* What the card shows: the reading and the rows after it. */
+  const moved = await movedSince(
+    ctx,
+    ownerId,
+    account,
+    balance.currency,
+    held.recordedAt,
+  )
   return (
-    held?.value === undefined ||
-    cents(held.value) !== cents(balance.value) ||
+    cents(held.value) + moved.cents !== cents(balance.value) ||
     held.recordedAt < balance.asOf - DAY / 2
   )
+}
+
+/** Rows of this account that a file dated after today (the bank's booking
+    day), saved before `notAhead` (src/lib/noYear.ts) brought such rows to
+    the day they were read: brought to today, so the balance read today
+    has them. Only rows from files; `dayStart` is today's local midnight. */
+export async function pullBackAhead(
+  ctx: MutationCtx,
+  ownerId: string,
+  accountId: Doc<'accounts'>['_id'],
+  dayStart: number,
+): Promise<number> {
+  const ahead = await ctx.db
+    .query('logs')
+    .withIndex('by_owner_account_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('accountId', accountId)
+        .gte('occurredAt', dayStart + DAY),
+    )
+    .take(50)
+  let moved = 0
+  for (const l of ahead) {
+    if (l.area !== 'money' || l.meta?.intakeId === undefined) continue
+    await ctx.db.patch(l._id, { occurredAt: dayStart + DAY / 2 })
+    moved++
+  }
+  return moved
 }

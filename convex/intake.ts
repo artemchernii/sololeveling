@@ -11,7 +11,12 @@ import { movedSince } from './aggregate'
 import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
 import { findFor } from './recurring'
-import { balanceIsNews, countedRows, landedCheck } from './rowBalance'
+import {
+  balanceIsNews,
+  countedRows,
+  landedCheck,
+  pullBackAhead,
+} from './rowBalance'
 import { euroRateAt, writeTransfer } from './money'
 import { sharesIn } from '../src/lib/crypto'
 import { heldCost } from '../src/lib/holdings'
@@ -1329,6 +1334,7 @@ async function writeTransactions(
   },
 ) {
   const read = intake.transactions ?? []
+  await pullBackAhead(ctx, ownerId, account._id, dayStart)
   /* Before a row is written: what the account held, for the landed card. */
   const landed = await landedCheck(
     ctx,

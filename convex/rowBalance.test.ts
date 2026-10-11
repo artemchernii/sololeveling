@@ -204,3 +204,79 @@ describe('the balance from the rows', () => {
     expect(await kept()).toBeUndefined()
   })
 })
+
+/* Artem's account as it really stood on Sunday 11 Oct at 13:40, not a tidy
+   case: the four rows saved by an earlier read (one of them dated Monday
+   the 12th, the bank's booking day), then €90.35 saved as of the 11th —
+   and the card said €65.35, the −€25 taken off twice. */
+describe('his account on 11 Oct', () => {
+  test('€65.35 becomes €90.35 when the screenshot is dropped again', async () => {
+    vi.setSystemTime(new Date(2026, 9, 11, 13, 40))
+    const { t, me, accountId, intakeId, balance } = await setup()
+    const dayStart = new Date(2026, 9, 11).getTime()
+    const batchId = await t.run(async (ctx) => {
+      const earlier = await ctx.db.insert('intakes', {
+        ownerId: ME,
+        accountId,
+        storageIds: [],
+        status: 'done',
+        kind: 'transactions',
+      })
+      for (const [d, merchant, amount] of SCREEN)
+        await ctx.db.insert('logs', {
+          ownerId: ME,
+          area: 'money',
+          kind: 'expense',
+          occurredAt: day(d),
+          value: -amount,
+          unit: 'eur',
+          text: merchant,
+          accountId,
+          meta: { merchant, raw: merchant, intakeId: earlier },
+        })
+      await ctx.db.insert('stateSnapshots', {
+        ownerId: ME,
+        area: 'money',
+        key: `balance:${accountId}:EUR`,
+        value: 90.35,
+        unit: 'eur',
+        recordedAt: Date.now(),
+        source: 'screenshot',
+      })
+      /* Read again today: the row of the 12th comes back as today's. */
+      const read = await ctx.db.get(intakeId)
+      const id = await ctx.db.insert('batches', {
+        ownerId: ME,
+        status: 'open',
+        leftOut: [],
+        quietMonths: [],
+        moves: [],
+        extras: [],
+        dismissed: [],
+      })
+      await ctx.db.patch(intakeId, {
+        batchId: id,
+        transactions: read?.transactions?.map((r) => ({
+          ...r,
+          occurredAt: Math.min(r.occurredAt, day(11)),
+        })),
+        balance: { currency: 'EUR', value: 90.35, asOf: day(11) },
+      })
+      return id
+    })
+    expect(await balance()).toBe(65.35)
+    const review = await me.query(api.intake.batchReview, { batchId })
+    expect(review.accounts.map((a) => [a.fresh, a.balanceNews])).toEqual([
+      [0, true],
+    ])
+    await me.mutation(api.intake.applyBatch, { batchId, dayStart })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(await balance()).toBe(90.35)
+    const logs = await t.run((ctx) => ctx.db.query('logs').collect())
+    expect(logs.filter((l) => l.occurredAt > Date.now())).toEqual([])
+    expect(logs).toHaveLength(5)
+    /* And dropped once more: nothing to save. */
+    const again = await me.query(api.intake.batchReview, { batchId })
+    expect(again.accounts.every((a) => !a.balanceNews)).toBe(true)
+  })
+})

@@ -737,7 +737,16 @@ async function removeOwnedLog(
      side removes the pair, or a balance keeps half a transfer. */
   if (log.kind === 'move') {
     const other = await transferPair(ctx, ownerId, log)
-    if (other !== null) await ctx.db.delete(other._id)
+    /* A side added by hand beside a row a file wrote (the account sheet's
+       "same transfer", 11 Oct) goes alone: the file's row stays, unpaired. */
+    if (
+      other !== null &&
+      other.meta?.intakeId !== undefined &&
+      log.meta?.intakeId === undefined
+    ) {
+      const { pairOf: _pair, ...meta } = other.meta
+      await ctx.db.patch(other._id, { meta })
+    } else if (other !== null) await ctx.db.delete(other._id)
   }
 
   /* A Vault sheet outlives its session, "not linked" (R7a). */

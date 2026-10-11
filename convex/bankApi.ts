@@ -1,0 +1,271 @@
+import { ConvexError } from 'convex/values'
+
+import type { Aspsp, BankAccount, BankBalance } from '../src/lib/bankLink'
+
+/* Enable Banking, Account Information only (11 Oct): the four calls a
+   connection needs. Read-only by registration — the application has no
+   payment service. The private key is a Convex environment variable he sets
+   himself; it is never logged, returned or stored in a row.
+
+   On the test backend (E2E=1) no call leaves: the answers are canned, so a
+   test walks the whole connection without a bank. */
+
+const BASE = 'https://api.enablebanking.com'
+
+export type BankSession = {
+  sessionId: string
+  bank: string
+  country: string
+  accounts: Array<BankAccount>
+  /** When the bank's approval ends, ms. */
+  validUntil: number
+}
+
+export type BankApi = {
+  aspsps: () => Promise<Array<Aspsp>>
+  /** The bank's own page to send him to. */
+  auth: (o: {
+    bank: Aspsp
+    state: string
+    validUntil: number
+  }) => Promise<string>
+  session: (code: string) => Promise<BankSession>
+  balances: (uid: string) => Promise<Array<BankBalance>>
+}
+
+const b64url = (bytes: Uint8Array | string) => {
+  const raw =
+    typeof bytes === 'string'
+      ? bytes
+      : Array.from(bytes, (b) => String.fromCharCode(b)).join('')
+  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/** The signed token every call carries: RS256, the application as `kid`. */
+export async function signToken(
+  appId: string,
+  pem: string,
+  now: number,
+): Promise<string> {
+  const der = Uint8Array.from(
+    atob(pem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '')),
+    (c) => c.charCodeAt(0),
+  )
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    der,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const iat = Math.floor(now / 1000)
+  const head = b64url(JSON.stringify({ typ: 'JWT', alg: 'RS256', kid: appId }))
+  const body = b64url(
+    JSON.stringify({
+      iss: 'enablebanking.com',
+      aud: 'api.enablebanking.com',
+      iat,
+      exp: iat + 600,
+    }),
+  )
+  const signed = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    new TextEncoder().encode(`${head}.${body}`),
+  )
+  return `${head}.${body}.${b64url(new Uint8Array(signed))}`
+}
+
+const text = (v: unknown): string | undefined =>
+  typeof v === 'string' ? v : undefined
+const list = (v: unknown): Array<Record<string, unknown>> =>
+  Array.isArray(v)
+    ? v.filter(
+        (x): x is Record<string, unknown> =>
+          typeof x === 'object' && x !== null,
+      )
+    : []
+
+function real(appId: string, pem: string, redirect: string): BankApi {
+  const call = async (
+    path: string,
+    body?: object,
+  ): Promise<Record<string, unknown>> => {
+    const res = await fetch(BASE + path, {
+      method: body ? 'POST' : 'GET',
+      headers: {
+        Authorization: `Bearer ${await signToken(appId, pem, Date.now())}`,
+        'Content-Type': 'application/json',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    })
+    const json: unknown = await res.json().catch(() => null)
+    const data =
+      typeof json === 'object' && json !== null
+        ? (json as Record<string, unknown>)
+        : {}
+    if (!res.ok) {
+      /* The bank's own reason, when it gave one; never the request. */
+      throw new ConvexError(
+        text(data.message) ?? `The bank did not answer (${res.status}).`,
+      )
+    }
+    return data
+  }
+  return {
+    aspsps: async () =>
+      list((await call('/aspsps')).aspsps).flatMap((a) => {
+        const name = text(a.name)
+        const country = text(a.country)
+        if (name === undefined || country === undefined) return []
+        const max = a.maximum_consent_validity
+        return [
+          {
+            name,
+            country,
+            ...(typeof max === 'number'
+              ? { maximum_consent_validity: max }
+              : {}),
+          },
+        ]
+      }),
+    auth: async ({ bank, state, validUntil }) => {
+      const url = text(
+        (
+          await call('/auth', {
+            access: { valid_until: new Date(validUntil).toISOString() },
+            aspsp: { name: bank.name, country: bank.country },
+            state,
+            redirect_url: redirect,
+            psu_type: 'personal',
+          })
+        ).url,
+      )
+      if (url === undefined)
+        throw new ConvexError('The bank gave no page to open.')
+      return url
+    },
+    session: async (code) => {
+      const data = await call('/sessions', { code })
+      const sessionId = text(data.session_id)
+      const access = data.access
+      const until =
+        typeof access === 'object' && access !== null
+          ? Date.parse(
+              text((access as Record<string, unknown>).valid_until) ?? '',
+            )
+          : NaN
+      const aspsp =
+        typeof data.aspsp === 'object' && data.aspsp !== null
+          ? (data.aspsp as Record<string, unknown>)
+          : {}
+      if (sessionId === undefined || !Number.isFinite(until))
+        throw new ConvexError('The bank did not open a session.')
+      return {
+        sessionId,
+        bank: text(aspsp.name) ?? '',
+        country: text(aspsp.country) ?? '',
+        validUntil: until,
+        accounts: list(data.accounts).flatMap((a) => {
+          const uid = text(a.uid)
+          const currency = text(a.currency)
+          if (uid === undefined || currency === undefined) return []
+          const id = a.account_id
+          const iban =
+            typeof id === 'object' && id !== null
+              ? text((id as Record<string, unknown>).iban)
+              : undefined
+          const name = text(a.name) ?? text(a.product)
+          return [
+            {
+              uid,
+              currency,
+              ...(iban !== undefined ? { iban } : {}),
+              ...(name !== undefined ? { name } : {}),
+            },
+          ]
+        }),
+      }
+    },
+    balances: async (uid) =>
+      list(
+        (await call(`/accounts/${encodeURIComponent(uid)}/balances`)).balances,
+      ).flatMap((b) => {
+        const type = text(b.balance_type)
+        const amount = b.balance_amount
+        if (type === undefined || typeof amount !== 'object' || amount === null)
+          return []
+        const value = text((amount as Record<string, unknown>).amount)
+        const currency = text((amount as Record<string, unknown>).currency)
+        if (value === undefined || currency === undefined) return []
+        return [
+          { balance_type: type, balance_amount: { amount: value, currency } },
+        ]
+      }),
+  }
+}
+
+/* The test backend's bank: one euro account, €727.49 booked. A code of
+   "two" answers with two accounts the app cannot tell apart. */
+export const CANNED: BankApi = {
+  aspsps: () =>
+    Promise.resolve([
+      {
+        name: 'ActivoBank',
+        country: 'PT',
+        maximum_consent_validity: 15_552_000,
+      },
+      {
+        name: 'Banco BPI',
+        country: 'PT',
+        maximum_consent_validity: 15_552_000,
+      },
+    ]),
+  auth: ({ state }) =>
+    Promise.resolve(`/bank/callback?code=one&state=${state}`),
+  session: (code) =>
+    Promise.resolve({
+      sessionId: 'e2e-session',
+      bank: 'ActivoBank',
+      country: 'PT',
+      validUntil: Date.now() + 180 * 86_400_000,
+      accounts:
+        code === 'two'
+          ? [
+              {
+                uid: 'e2e-a',
+                currency: 'EUR',
+                iban: 'PT50000000004471',
+                name: 'Conta à Ordem',
+              },
+              {
+                uid: 'e2e-b',
+                currency: 'EUR',
+                iban: 'PT50000000009920',
+                name: 'Conta Poupança',
+              },
+            ]
+          : [{ uid: 'e2e-a', currency: 'EUR', iban: 'PT50000000004471' }],
+    }),
+  balances: () =>
+    Promise.resolve([
+      {
+        balance_type: 'ITAV',
+        balance_amount: { amount: '702.49', currency: 'EUR' },
+      },
+      {
+        balance_type: 'CLBD',
+        balance_amount: { amount: '727.49', currency: 'EUR' },
+      },
+    ]),
+}
+
+export function bankApi(): BankApi {
+  if (process.env.E2E === '1') return CANNED
+  const appId = process.env.ENABLE_BANKING_APP_ID
+  const pem = process.env.ENABLE_BANKING_KEY
+  const redirect = process.env.BANK_REDIRECT_URL
+  if (!appId || !pem || !redirect)
+    throw new ConvexError('The bank connection is not set up yet.')
+  return real(appId, pem, redirect)
+}

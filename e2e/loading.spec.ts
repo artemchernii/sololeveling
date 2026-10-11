@@ -13,7 +13,7 @@ test('Finances: its own frame while the numbers load; a tab loads when first ope
   await start(page)
   let release = () => {}
   const held = new Promise<void>((r) => (release = r))
-  await page.routeWebSocket(/:3210\/api\/.*\/sync/, async (ws) => {
+  await page.routeWebSocket(/\/api\/.*\/sync/, async (ws) => {
     await held
     ws.connectToServer()
   })

@@ -11,7 +11,11 @@ export default defineConfig({
        where a broken expansion would pass. Lisbon is where the clocks that
        matter actually change. */
     env: { TZ: 'Europe/Lisbon' },
-    include: ['convex/**/*.test.ts', 'src/**/*.test.ts'],
+    include: [
+      'convex/**/*.test.ts',
+      'src/**/*.test.ts',
+      'scripts/**/*.test.ts',
+    ],
     server: { deps: { inline: ['convex-test'] } },
   },
 })

@@ -5,9 +5,17 @@ description: Writing and running SOLO LEVELING browser tests (Playwright) on the
 
 # e2e on mock data
 
-- Run: `pnpm e2e` (all) or `pnpm exec playwright test e2e/<file>`.
-  Starts the test backend (`e2e/backend`, :3210) and the app (:3200).
-- First time on a machine: `pnpm e2e:setup`.
+- Run: `pnpm exec playwright test e2e/<file>` while building — only the
+  spec files the slice touches. `pnpm e2e` (all, about 8 minutes) runs
+  once, inside `pnpm verify`, on the final branch before the PR.
+  Starts the test backend (`e2e/backend`) and the app on this checkout's
+  own ports (`e2e/ports.ts`; `node e2e/ports.ts` prints them), so two
+  worktrees run at the same time. Each has its own test data
+  (`e2e/backend/.convex`); they share only the Clerk test user's sign-in.
+- First time in a checkout (each new worktree): `pnpm e2e:setup`. It
+  copies `.env.local` from the main checkout when there is none.
+- A port already taken stops the run and names who holds it — a server
+  left over from a killed run, or a second run in the same folder.
 - Test user: `e2e+clerk_test@example.com` (Clerk dev). `start(page)` in
   `e2e/helpers.ts` signs in and calls `e2e.reset` (his kind of bad day).
 - Mock data and canned readings live in `convex/e2e.ts`. Every function

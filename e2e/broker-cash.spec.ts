@@ -77,13 +77,19 @@ test('S1 Invest screenshot into Revolut: broker cash lands beside the free cash'
   )
   await expect(revolut.getByText(/free cash\s*EUR\s*€1,138\.98/)).toBeVisible()
   await expect(revolut.getByTestId('cash-bar')).toBeVisible()
-  /* The total is the three added: free cash, broker cash, investments. */
-  const invested = amount(
-    await revolut.getByTestId('account-invested').textContent(),
-  )
-  expect(invested).toBeGreaterThan(0)
-  const total = amount(await revolut.getByTestId('account-total').textContent())
-  expect(total).toBeCloseTo(1173.38 + 120 + invested, 2)
+  /* The total is the three added: free cash, broker cash, investments.
+     Read as a pair until they agree — a price landing between the two
+     reads moved one and not the other (11 Oct, two runs at once). */
+  await expect(async () => {
+    const invested = amount(
+      await revolut.getByTestId('account-invested').textContent(),
+    )
+    expect(invested).toBeGreaterThan(0)
+    const total = amount(
+      await revolut.getByTestId('account-total').textContent(),
+    )
+    expect(total).toBeCloseTo(1173.38 + 120 + invested, 2)
+  }).toPass({ timeout: 10_000 })
   await page.screenshot({ ...shot('broker-cash-card'), fullPage: true })
 })
 

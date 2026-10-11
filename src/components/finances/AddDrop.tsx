@@ -264,7 +264,7 @@ export function AddDrop({
                           disabled={busy}
                           onClick={() => pick(a.accountId)}
                           title={`Drop a file for ${a.name}`}
-                          className={`motion-land motion-press inline-flex items-center gap-2 rounded-full bg-lift/[0.04] py-1 pr-3 pl-1 text-[12.5px] text-ink-200 ring-1 ring-inset hover:text-foreground ${
+                          className={`motion-land motion-press inline-flex items-center gap-2 rounded-full bg-lift/[0.04] py-1.5 pr-3.5 pl-2 text-[12.5px] text-ink-200 ring-1 ring-inset hover:text-foreground ${
                             late
                               ? 'ring-state-warn/40 hover:ring-state-warn/70'
                               : 'ring-lift/8 hover:ring-lav-400/45'

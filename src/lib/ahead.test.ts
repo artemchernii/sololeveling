@@ -87,7 +87,58 @@ describe('buildAhead', () => {
       free: [{ accountId: 'bank', eur: 60 }],
       bills: [bill({})],
     })
-    expect(a.events[0]).toMatchObject({ short: true, held: 60 })
+    expect(a.events[0]).toMatchObject({ short: true, held: 60, add: 40 })
+  })
+
+  it('says nothing for an account that can pay', () => {
+    const a = buildAhead({ ...base, days: 70, bills: [bill({})] })
+    expect(a.events.some((e) => e.short || e.add !== null)).toBe(false)
+    expect(a.later).toEqual([])
+  })
+
+  it('tags the first short payment only, and gives a later month its sum', () => {
+    const a = buildAhead({
+      ...base,
+      days: 70,
+      free: [{ accountId: 'bank', eur: 60 }],
+      bills: [bill({})],
+    })
+    expect(a.events.map((e) => [e.short, e.add])).toEqual([
+      [true, 40],
+      [false, null],
+      [false, null],
+    ])
+    expect(a.later).toEqual([
+      { month: 2026 * 12 + 10, accountId: 'bank', amount: 100 },
+      { month: 2026 * 12 + 11, accountId: 'bank', amount: 100 },
+    ])
+  })
+
+  it('asks for nothing in a month the salary already covers', () => {
+    const a = buildAhead({
+      ...base,
+      days: 40,
+      free: [{ accountId: 'bank', eur: 60 }],
+      bills: [
+        bill({}),
+        bill({ id: 's', kind: 'income', amount: 2000, day: 25, name: 'Pay' }),
+      ],
+    })
+    expect(a.events.filter((e) => e.short)).toHaveLength(1)
+    expect(a.later).toEqual([])
+  })
+
+  it('adds up a month where two payments are short: one tag, one sum', () => {
+    const a = buildAhead({
+      ...base,
+      free: [{ accountId: 'bank', eur: 60 }],
+      bills: [bill({}), bill({ id: 'c', day: 20, amount: 30, key: 'C' })],
+    })
+    expect(a.events.map((e) => [e.short, e.add])).toEqual([
+      [true, 70],
+      [false, null],
+    ])
+    expect(a.later).toEqual([])
   })
 
   it('shows this month’s paid bills with their row, and does not ask again', () => {

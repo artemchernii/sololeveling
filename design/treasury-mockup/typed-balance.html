@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · remove a typed balance</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Remove a typed balance (11 Oct). A file is taken back in one press
+     since #135; a balance typed by hand could not be removed at all. The
+     account sheet is the built one: a typed balance's line opens in place
+     and says what the account is afterwards, before the press — the same
+     now / after strip as "take this file back". Nothing to type. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit; cursor: pointer }
+  svg.i { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400) }
+  .scen button.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 560px; margin: 0 auto; text-align: center }
+  .sheet { border-radius: 22px; padding: 20px; border: 1px solid var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.08), rgba(181,171,252,.015) 40%), #1d1c2d; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine); display: flex; flex-direction: column; gap: 16px }
+  .shead { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid rgba(181,171,252,.16) }
+  .title { flex: 1; font-family: var(--mono); font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .round { height: 34px; min-width: 34px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300); display: inline-flex; gap: 6px; align-items: center; justify-content: center; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase }
+  .round { width: 32px; min-width: 32px; height: 32px; padding: 0; color: var(--ink-400); border-color: rgba(var(--lift),.12) }
+  .backb { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border-radius: 999px; border: 0; box-shadow: inset 0 0 0 1px rgba(var(--lift),.15); background: none; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-300) }
+  .backb:hover, .round:hover { color: var(--ink-100) }
+  #body { display: flex; flex-direction: column; gap: 16px }
+  .logo { width: 30px; height: 30px; border-radius: 10px; background: #fff; object-fit: contain; padding: 6px; flex: none }
+  @keyframes land { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+  @keyframes pop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.15) } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  @keyframes leave { to { opacity: .35 } }
+
+  /* the built account sheet */
+  .top { display: flex; align-items: center; gap: 14px }
+  .top .logo { width: 44px; height: 44px; border-radius: 13px }
+  .top .who { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0 }
+  .top .who b { font-size: 17px; font-weight: 400 }
+  .top .who span { font-family: var(--mono); font-size: 11px; color: var(--ink-400) }
+  .top .amt { text-align: right; font-size: 30px; font-weight: 300; letter-spacing: -.02em; line-height: 1 }
+  .top .amt small { display: block; margin-top: 6px; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0; color: var(--ink-500) }
+  .top .amt small.ok { color: var(--good) }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-400) }
+  .list { display: flex; flex-direction: column }
+  .day { padding: 12px 2px 4px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500) }
+  .row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; font-size: 13.5px }
+  .mk { width: 26px; height: 26px; border-radius: 8px; flex: none; background: #fff; object-fit: contain; padding: 4px }
+  .row .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px }
+  .row .t small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .row .v { font-family: var(--mono); font-size: 13.5px; white-space: nowrap }
+  .row .v.in { color: var(--good) }
+  .div { margin: 8px 0; border-radius: 14px; padding: 10px 12px; background: rgba(181,171,252,.06); box-shadow: inset 0 0 0 1px rgba(181,171,252,.22); display: flex; flex-direction: column; gap: 8px }
+  .div .l { display: flex; align-items: baseline; gap: 10px }
+  .div .l span { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--lav-300) }
+  .div .l b { margin-left: auto; font-family: var(--mono); font-size: 14px; font-weight: 500 }
+  .filech { display: flex; align-items: center; gap: 10px; border-radius: 10px; padding: 8px 10px; background: rgba(0,0,0,.2); font-size: 13px }
+  .filech i { font-style: normal; width: 26px; height: 30px; border-radius: 5px; display: grid; place-items: center; background: rgba(var(--lift),.08); font-family: var(--mono); font-size: 8.5px; color: var(--ink-300) }
+  .filech span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px } .filech small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-400) }
+  .filech u, .typed u { text-decoration: none; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--lav-300) }
+  /* new: the typed line is a button */
+  .typed { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; border-radius: 10px; padding: 8px 10px; background: rgba(0,0,0,.2); text-align: left; font-family: var(--mono); font-size: 10.5px; color: var(--ink-400); transition: background .2s }
+  .typed:hover { background: rgba(0,0,0,.34) }
+  .typed svg { color: var(--ink-300) } .typed span { flex: 1 }
+  .typed u svg { width: 10px; height: 10px; vertical-align: -1px; transition: transform .25s }
+  .div.open .typed u svg { transform: rotate(90deg) }
+  .fold { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s cubic-bezier(.2,.8,.2,1) }
+  .div.open .fold { grid-template-rows: 1fr }
+  .fold > div { overflow: hidden; display: flex; flex-direction: column; gap: 10px }
+  .fold .say { padding-top: 2px; font-size: 13.5px; line-height: 1.55; color: var(--ink-200) }
+  .fold .say small { display: block; font-size: 12.5px; color: var(--ink-400) }
+  .strip { display: grid; grid-template-columns: 1fr 1fr; border-radius: 12px; background: rgba(0,0,0,.22); border: 1px solid rgba(var(--lift),.06); overflow: hidden }
+  .cell { display: flex; flex-direction: column; gap: 3px; padding: 9px 12px; min-width: 0 }
+  .cell + .cell { border-left: 1px solid rgba(var(--lift),.06); background: rgba(181,171,252,.07) }
+  .cell span { font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .cell b { font-size: 16px; font-weight: 300; color: var(--ink-300) }
+  .cell + .cell b { color: var(--ink-100); font-weight: 400 }
+  .cell em { font-style: normal; font-family: var(--mono); font-size: 9.5px; color: var(--ink-500); min-height: 12px }
+  .acts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-bottom: 2px }
+  .take { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 15px; border-radius: 999px; font-size: 13px; color: var(--ink-100); border: 1px solid color-mix(in oklch, var(--danger) 45%, transparent); background: color-mix(in oklch, var(--danger) 10%, transparent); transition: background .2s, transform .1s }
+  .take svg { color: var(--danger) }
+  .take:hover { background: color-mix(in oklch, var(--danger) 18%, transparent) }
+  .take:active { transform: scale(.97) }
+  .take[disabled] { cursor: default; color: var(--ink-300); font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase }
+  .take[disabled] svg { animation: spin .8s linear infinite; color: var(--ink-300) }
+  .acts small { font-size: 12px; color: var(--ink-500) }
+  .fail { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--danger); animation: land .3s both }
+  .div.going { animation: leave .5s ease both }
+  .done { display: flex; align-items: center; gap: 9px; border-radius: 14px; padding: 11px 13px; font-size: 13px; color: var(--ink-200); background: color-mix(in oklch, var(--good) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 30%, transparent); animation: land .4s cubic-bezier(.2,.8,.2,1) both }
+  .done svg { color: var(--good); animation: pop .45s cubic-bezier(.2,.8,.2,1) .15s both }
+  .done small { display: block; font-size: 12px; color: var(--ink-400) }
+  .amt b { font-weight: 300; display: inline-block } .amt b.new { animation: land .4s both }
+  @media (max-width: 560px) { .top .amt { font-size: 24px } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="scen" id="scen"></div>
+  <p class="note" id="note"></p>
+  <div class="sheet">
+    <div class="shead"><span class="title" id="title"></span><button class="round"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div id="body"></div>
+  </div>
+</div>
+<script>
+const P = { check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', bin: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>', spin: '<path d="M21 12a9 9 0 11-6.2-8.5"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>', pen: '<path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/>', go: '<path d="M9 6l6 6-6 6"/>' }
+const svg = (n) => `<svg class="i" viewBox="0 0 24 24">${P[n]}</svg>`
+const fav = (d, c) => `<img class="${c}" src="https://www.google.com/s2/favicons?domain=${d}&sz=128" alt="">`
+const row = (d, t, sub, v) => `<div class="row">${d ? fav(d, 'mk') : `<span class="mk" style="display:grid;place-items:center;background:rgba(181,171,252,.12);color:var(--lav-300);font-family:var(--mono);font-size:9.5px;padding:0">${t.slice(0, 2).toUpperCase()}</span>`}<span class="t">${t}<small>${sub}</small></span><span class="v${v[0] === '+' ? ' in' : ''}">${v}</span></div>`
+const fileBal = (day, v, name, sub) => `<div class="div"><div class="l"><span>balance · ${day}</span><b>${v}</b></div><div class="filech"><i>IMG</i><span>${name}<small>${sub}</small></span><u>open ›</u></div></div>`
+
+/* Each: the account sheet as built, with one typed balance in it. `say`
+   is what the opened line says, `then` what the account is afterwards. */
+const pingo = row('pingodoce.pt', 'Pingo Doce', 'groceries', '−€25.00'), conti = row('continente.pt', 'Continente', 'groceries', '−€37.86')
+const S = {
+  newest: { l: 'the newest balance', acct: 'ActivoBank', d: 'activobank.pt', meta: 'typed today · ••0120', amt: '€190.35', tick: ['', 'free cash · EUR'], tickAfter: ['ok', '✓ rows match · since 3 Oct'],
+    note: 'You typed €190.35 today and meant €90.35. Press the line "typed by you" under that balance.',
+    typed: ['12 Oct', '€190.35'], say: 'The <b>balance of 12 Oct</b> you typed goes.', now: ['€190.35', '12 Oct'], then: ['€90.35', 'balance of 11 Oct'],
+    after: ['€90.35', 'screenshot read 1d ago · ••0120', 'ActivoBank is €90.35 again.'],
+    below: '<span class="day">Sun 11 Oct</span>' + pingo + fileBal('11 Oct', '€90.35', 'IMG_9282.png', '1 screenshot · 1 Oct → 11 Oct · added 2 rows · read 11 Oct') + '<span class="day">Thu 8 Oct</span>' + conti },
+  older: { l: 'an older one', acct: 'ActivoBank', d: 'activobank.pt', meta: 'screenshot read 1d ago · ••0120', amt: '€90.35', tick: ['ok', '✓ rows match · since 3 Oct'],
+    note: 'A balance typed weeks ago, with newer ones above it. It goes; the amount on the card does not move.', above: '<span class="day">Sun 11 Oct</span>' + pingo + fileBal('11 Oct', '€90.35', 'IMG_9282.png', '1 screenshot · 1 Oct → 11 Oct · added 2 rows · read 11 Oct') + '<span class="day">Thu 8 Oct</span>' + conti,
+    typed: ['25 Sept', '€1,480.00'], say: 'The <b>balance of 25 Sept</b> you typed goes.<small>ActivoBank stays €90.35 — the file of 11 Oct set that.</small>', now: ['€90.35', '11 Oct'], then: ['€90.35', 'not changed'],
+    after: ['€90.35', 'screenshot read 1d ago · ••0120', 'ActivoBank stays €90.35.'],
+    below: '<span class="day">Thu 24 Sept</span>' + row('bancobpi.pt', 'Salary transfer BPI', 'move · ← BPI', '+€1,400.00') },
+  rows: { l: 'rows after it', acct: 'Wallet', d: '', meta: 'typed 9d ago', amt: '€55.00', tick: ['', 'free cash · EUR'],
+    note: 'Cash in your wallet: typed once, then two rows typed after it. Without the balance the rows have nothing to count from.',
+    above: '<span class="day">Fri 9 Oct</span>' + row('lidl.pt', 'Lidl', 'groceries · typed', '−€18.00') + '<span class="day">Mon 5 Oct</span>' + row('', 'Coffee', 'eating out · typed', '−€7.00'),
+    typed: ['3 Oct', '€80.00'], say: 'The <b>balance of 3 Oct</b> you typed goes.<small>It is the only balance Wallet has. The 2 rows stay.</small>', now: ['€55.00', 'worked out from the rows'], then: ['—', 'no balance left'],
+    after: ['—', 'never read', 'Wallet has no balance now. Type one or drop a file.'], below: '' },
+  fail: { l: 'it could not', acct: 'ActivoBank', d: 'activobank.pt', meta: 'typed today · ••0120', amt: '€190.35', tick: ['', 'free cash · EUR'], tickAfter: ['ok', '✓ rows match · since 3 Oct'], fails: true,
+    note: 'The write fails. Nothing changed; the line stays open and says so.',
+    typed: ['12 Oct', '€190.35'], say: 'The <b>balance of 12 Oct</b> you typed goes.', now: ['€190.35', '12 Oct'], then: ['€90.35', 'balance of 11 Oct'],
+    below: '<span class="day">Sun 11 Oct</span>' + pingo + fileBal('11 Oct', '€90.35', 'IMG_9282.png', '1 screenshot · 1 Oct → 11 Oct · added 2 rows · read 11 Oct') },
+}
+
+let on = 'newest', open = false, step = 'idle' // idle | busy | done | failed
+const logo = (s) => s.d ? fav(s.d, 'logo') : '<span class="logo" style="display:grid;place-items:center;background:rgba(181,171,252,.14);color:var(--lav-300);padding:0">W</span>'
+function typedDiv(s) {
+  const busy = step === 'busy'
+  return `<div class="div${open ? ' open' : ''}${busy ? ' going' : ''}" id="typed"><div class="l"><span>balance · ${s.typed[0]}</span><b>${s.typed[1]}</b></div>
+    <button class="typed" data-open>${svg('pen')}<span>typed by you</span><u>${open ? 'close' : 'remove'} ${svg('go')}</u></button>
+    <div class="fold"><div><div class="say">${s.say}</div>
+      <div class="strip"><div class="cell"><span>${s.acct} now</span><b>${s.now[0]}</b><em>${s.now[1]}</em></div><div class="cell"><span>after</span><b>${s.then[0]}</b><em>${s.then[1]}</em></div></div>
+      <div class="acts"><button class="take" data-go ${busy ? 'disabled' : ''}>${svg(busy ? 'spin' : 'bin')}${busy ? 'removing…' : 'remove this balance'}</button>${step === 'failed' ? `<div class="fail">${svg('x')}Not removed — nothing changed. Press again.</div>` : '<small>Type it again any time.</small>'}</div>
+    </div></div></div>`
+}
+function draw() {
+  const s = S[on], done = step === 'done'
+  document.getElementById('scen').innerHTML = Object.entries(S).map(([k, v]) => `<button class="${k === on ? 'on' : ''}" data-k="${k}">${v.l}</button>`).join('')
+  document.getElementById('note').textContent = s.note
+  document.getElementById('title').textContent = `[ ${s.acct} ]`
+  const rows = (s.above ?? '') + (s.below ?? ''), n = (rows.match(/class="row"/g) ?? []).length, f = (rows.match(/filech/g) ?? []).length
+  document.getElementById('body').innerHTML = `<div class="top">${logo(s)}<div class="who"><b>${s.acct}</b><span>${done ? s.after[1] : s.meta}</span></div>
+      <div class="amt"><b class="${done ? 'new' : ''}">${done ? s.after[0] : s.amt}</b>${((t) => `<small class="${t[0]}">${t[1]}</small>`)(done && s.tickAfter ? s.tickAfter : s.tick)}</div></div>
+    ${done ? `<div class="done">${svg('check')}<span>Removed.<small>${s.after[2]}</small></span></div>` : ''}
+    <span class="caps">${n} ${n === 1 ? 'row' : 'rows'} · ${f} ${f === 1 ? 'file' : 'files'} · newest first</span>
+    <div class="list">${s.above ?? ''}${done ? '' : typedDiv(s)}${s.below ?? ''}</div>`
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button')
+  if (!b) return
+  if (b.dataset.k) { on = b.dataset.k; step = 'idle'; open = false; draw() }
+  else if (b.dataset.open !== undefined && step !== 'busy') {
+    /* Toggle the class, not a redraw: the box glides open. */
+    open = !open
+    const d = document.getElementById('typed'); d.classList.toggle('open', open)
+    d.querySelector('u').firstChild.textContent = open ? 'close ' : 'remove '
+  }
+  else if (b.dataset.go !== undefined && step !== 'busy') {
+    step = 'busy'; draw()
+    setTimeout(() => { step = S[on].fails ? 'failed' : 'done'; draw() }, 1100)
+  }
+})
+draw()
+</script>
+</body>
+</html>

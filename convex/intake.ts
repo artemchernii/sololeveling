@@ -1529,6 +1529,7 @@ async function writeTransactions(
       read
         .filter((r) => r.pending && r.currency === intake.balance?.currency)
         .reduce((t, r) => t + r.amount, 0),
+      intake._id,
     )
     /* The account's other currencies (5 Oct: "When I upload csv it means
        usd should be updated as well"). Revolut exports one currency a
@@ -1567,6 +1568,9 @@ async function writeTransactions(
         dayStart,
         at,
         sourceOf(intake),
+        'free',
+        0,
+        intake._id,
       )
     }
   }
@@ -2073,6 +2077,8 @@ async function writeHoldings(
       /* A bank that is also a broker: the screen's cash is the broker's,
          and the bank's euros stay as they were (10 Oct). */
       hasBrokerCash(account) ? 'broker' : 'free',
+      0,
+      intake._id,
     )
   }
   await ctx.db.patch(intake._id, {
@@ -2122,7 +2128,9 @@ export const lastRead = query({
       .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
       .order('desc')
       .take(LAST_READ_LOOK)
-    const done = recent.find((i) => i.status === 'done')
+    const done = recent.find(
+      (i) => i.status === 'done' && i.takenBackAt === undefined,
+    )
     if (!done) return null
     return {
       name: done.files?.[0]?.name ?? done.title ?? 'a file',
@@ -2525,6 +2533,8 @@ export const fileRows = query({
         text: v.string(),
         amount: v.number(),
         currency: v.string(),
+        /** The group the reader filed it under, for the row's icon. */
+        category: v.union(v.string(), v.null()),
         pending: v.boolean(),
         landed: v.boolean(),
       }),
@@ -2562,6 +2572,7 @@ export const fileRows = query({
           text: r.merchant,
           amount: r.amount,
           currency: r.currency,
+          category: r.category ?? null,
           pending: r.pending,
           landed: written.has(
             `${r.occurredAt}:${Math.abs(r.amount).toFixed(2)}`,

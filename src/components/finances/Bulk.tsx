@@ -102,7 +102,12 @@ export function BulkUpdate({
     return <Applying view={view} batchId={batchId} onClose={onClose} />
   if (pressed && (view.status === 'done' || view.applied !== null)) {
     return (
-      <Applied view={view} onClose={onClose} onMore={() => setPressed(false)} />
+      <Applied
+        view={view}
+        batchId={batchId}
+        onClose={onClose}
+        onMore={() => setPressed(false)}
+      />
     )
   }
   if (view.status === 'done') return drop

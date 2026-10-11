@@ -10,8 +10,11 @@ import { Sheet } from '@/components/finances/Sheet'
 import { Veiled } from '@/components/finances/Veil'
 import { SkeletonRows } from '@/components/Skeleton'
 import { FileView } from './AccountFileView'
+import { TakenStrip } from './AccountFileBack'
+import type { Taken } from './AccountFileBack'
 import { BalanceTick, SheetCheck, dayOf } from './AccountSheetCheck'
 import { Divider, RowLine, fmt, short } from './AccountSheetRows'
+import { TypedBalance } from './AccountTypedBalance'
 
 /* An account, opened (A.4 — journey agreed 1 Oct, mock agreed 2 Oct:
    "build it"). Everything in it, newest first: each row, moves and trades
@@ -53,8 +56,11 @@ export function OpenAccount({
   onUpdate: () => void
 }) {
   const [file, setFile] = useState<Id<'intakes'> | null>(null)
+  /* A file just taken back: the account says so until the sheet closes. */
+  const [taken, setTaken] = useState<Taken | null>(null)
   const close = () => {
     setFile(null)
+    setTaken(null)
     onClose()
   }
   return (
@@ -65,10 +71,18 @@ export function OpenAccount({
       onBack={file ? () => setFile(null) : undefined}
     >
       {account === null ? null : file ? (
-        <FileView intakeId={file} />
+        <FileView
+          intakeId={file}
+          onTaken={(t) => {
+            setTaken(t)
+            setFile(null)
+          }}
+        />
       ) : (
         <Ledger
           account={account}
+          taken={taken}
+          onRemoved={setTaken}
           total={total}
           meta={meta}
           onFile={setFile}
@@ -86,10 +100,14 @@ function Ledger({
   account,
   total,
   meta,
+  taken,
+  onRemoved,
   onFile,
   onUpdate,
 }: {
   account: Doc<'accounts'>
+  taken: Taken | null
+  onRemoved: (t: Taken) => void
   total: number
   meta: string
   onFile: (id: Id<'intakes'>) => void
@@ -134,13 +152,14 @@ function Ledger({
         </p>
       ) : (
         <>
+          {taken ? <TakenStrip taken={taken} /> : null}
           <SheetCheck data={data} account={account} onUpdate={onUpdate} />
           <span className="label-caps">
             {data.rows.length} {data.rows.length === 1 ? 'row' : 'rows'} ·{' '}
             {data.files.length} {data.files.length === 1 ? 'file' : 'files'} ·
             newest first
           </span>
-          <Timeline data={data} onFile={onFile} />
+          <Timeline data={data} onFile={onFile} onRemoved={onRemoved} />
         </>
       )}
     </div>
@@ -178,9 +197,11 @@ function Said({ check: c }: { check: Check }) {
 function Timeline({
   data,
   onFile,
+  onRemoved,
 }: {
   data: SheetData
   onFile: (id: Id<'intakes'>) => void
+  onRemoved: (t: Taken) => void
 }) {
   const remove = useMutation(api.logs.remove)
   const removeSide = useMutation(api.logs.removeSide)
@@ -240,7 +261,14 @@ function Timeline({
                   label={`balance · ${short(it.bal.asOf)}`}
                   value={fmt(it.bal.value, it.bal.currency)}
                   file={fileOf(it.bal.fileId)}
-                  typed={it.bal.source === 'typed'}
+                  typed={
+                    it.bal.source === 'typed' ? (
+                      <TypedBalance
+                        snapshotId={it.bal.id}
+                        onRemoved={onRemoved}
+                      />
+                    ) : undefined
+                  }
                   onFile={onFile}
                 />
               ) : (

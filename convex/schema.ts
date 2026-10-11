@@ -565,7 +565,10 @@ export default defineSchema({
        every log this month filtered in JavaScript. A log with no project has
        an absent projectId and never matches an eq(). */
     .index('by_owner_project_time', ['ownerId', 'projectId', 'occurredAt'])
-    .index('by_owner_account_time', ['ownerId', 'accountId', 'occurredAt']),
+    .index('by_owner_account_time', ['ownerId', 'accountId', 'occurredAt'])
+    /* The rows one file wrote, in any account (11 Oct): how a file is
+       taken back without reading every row there is. */
+    .index('by_owner_intake', ['ownerId', 'meta.intakeId']),
 
   /* The second number source: latest row for a key wins. Keys in use so far —
      weight, bench, net_worth, cefr_level, protein_avg, savings. */
@@ -590,6 +593,9 @@ export default defineSchema({
         v.literal('sync'),
       ),
     ),
+    /* The file that set this balance (11 Oct), so taking the file back
+       takes its balance too. Absent on a typed one and on older rows. */
+    intakeId: v.optional(v.id('intakes')),
   }).index('by_owner_key_time', ['ownerId', 'key', 'recordedAt']),
 
   notes: defineTable({
@@ -1107,6 +1113,9 @@ export default defineSchema({
        it went in, then erased by the daily job (intake.eraseOld). What
        was read from it stays. */
     keptUntil: v.optional(v.number()),
+    /* When he took it back (11 Oct, undoFile.ts): what it wrote is gone,
+       the reading stays so the same file dropped again is not read twice. */
+    takenBackAt: v.optional(v.number()),
   })
     .index('by_owner', ['ownerId'])
     .index('by_owner_fingerprint', ['ownerId', 'fingerprint'])

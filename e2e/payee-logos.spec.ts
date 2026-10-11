@@ -6,10 +6,11 @@ import { start, testClient } from './helpers'
 const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
 
 /* A row's mark (11 Oct: "icons for statements like BP or Spotify are not
-   there"): a shop the app knows shows its site's icon; anything else keeps
-   its arrow in the account and gets letters in a file. Nothing is written. */
+   there"): a shop the app knows shows its site's icon; a row that names
+   no shop shows its group's icon; with neither, the arrow in the account
+   and letters in a file. Nothing is written by the first test. */
 
-test('an account: a known shop has its logo, a transfer keeps its arrow', async ({
+test('an account: a known shop has its logo, any other row its group’s icon', async ({
   page,
 }) => {
   await start(page)
@@ -26,9 +27,11 @@ test('an account: a known shop has its logo, a transfer keeps its arrow', async 
     'src',
     /domain=bolt\.eu/,
   )
-  /* Not in the list: the arrow, as before. */
+  /* Not a shop the app knows: the icon of the group it is filed under. */
   await expect(row('Guacamole').locator('img')).toHaveCount(0)
-  await expect(row('Guacamole').locator('svg').first()).toBeVisible()
+  await expect(
+    row('Guacamole').locator('[data-group="eating out"] svg'),
+  ).toBeVisible()
   await page.waitForTimeout(700)
   await page.screenshot(shot('payee-logos-account'))
 })

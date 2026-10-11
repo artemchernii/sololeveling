@@ -2533,6 +2533,8 @@ export const fileRows = query({
         text: v.string(),
         amount: v.number(),
         currency: v.string(),
+        /** The group the reader filed it under, for the row's icon. */
+        category: v.union(v.string(), v.null()),
         pending: v.boolean(),
         landed: v.boolean(),
       }),
@@ -2570,6 +2572,7 @@ export const fileRows = query({
           text: r.merchant,
           amount: r.amount,
           currency: r.currency,
+          category: r.category ?? null,
           pending: r.pending,
           landed: written.has(
             `${r.occurredAt}:${Math.abs(r.amount).toFixed(2)}`,

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
 import { dayToMs } from './intake'
-import { yearlessToThisYear } from './noYear'
+import { notAhead, yearlessToThisYear } from './noYear'
 import type { ReadTransaction } from './intake'
 
 const day = (iso: string) => dayToMs(iso) as number
@@ -73,5 +73,36 @@ describe('yearlessToThisYear', () => {
     )
     expect(r.transactions[0].occurredAt).toBe(day('2026-10-12'))
     expect(r.balance.asOf).toBe(NOW)
+  })
+})
+
+describe('notAhead', () => {
+  const at = (d: number) => new Date(2026, 9, d, 12).getTime()
+  const sunday = new Date(2026, 9, 11, 13, 40).getTime()
+  const bought = (d: number) => ({
+    occurredAt: at(d),
+    merchant: 'x',
+    raw: 'x',
+    amount: -25,
+    currency: 'EUR',
+    pending: false,
+    self: false,
+  })
+  const screen = {
+    kind: 'transactions' as const,
+    title: 'ActivoBank',
+    transactions: [bought(12), bought(10)],
+    balance: { value: 90.35, asOf: at(12) },
+  }
+
+  test('a row and a balance dated tomorrow are today’s', () => {
+    const r = notAhead(screen, sunday)
+    expect(r.transactions.map((t) => t.occurredAt)).toEqual([at(11), at(10)])
+    expect(r.balance.asOf).toBe(at(11))
+  })
+
+  test('nothing ahead: left as it is, also read in the morning', () => {
+    const monday = new Date(2026, 9, 12, 8).getTime()
+    expect(notAhead(screen, monday)).toBe(screen)
   })
 })

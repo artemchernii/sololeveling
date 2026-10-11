@@ -11,7 +11,12 @@ import { movedSince } from './aggregate'
 import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
 import { findFor } from './recurring'
-import { countedRows, landedCheck } from './rowBalance'
+import {
+  balanceIsNews,
+  countedRows,
+  landedCheck,
+  pullBackAhead,
+} from './rowBalance'
 import { euroRateAt, writeTransfer } from './money'
 import { sharesIn } from '../src/lib/crypto'
 import { heldCost } from '../src/lib/holdings'
@@ -1009,8 +1014,8 @@ async function buildReview(
 
   /* What he has in this account over the same days, for duplicates. */
   const times = read.map((r) => r.occurredAt)
-  const from = Math.min(...times) - 3 * 86_400_000
-  const to = Math.max(...times) + 3 * 86_400_000
+  const from = Math.min(...times) - 4 * 86_400_000
+  const to = Math.max(...times) + 4 * 86_400_000
   const existing = here
     ? await ctx.db
         .query('logs')
@@ -1051,6 +1056,17 @@ async function buildReview(
     : await hisNames(ctx, intake)
   const own = read.map((r) => r.self || ownMoney(r, names))
   const taken = new Set(dups.filter((d): d is number => d !== null))
+  /* A side another account's file wrote here is waiting for this bank to
+     book it, and a bank books a card top-up days later, over a weekend
+     (11 Oct: Revolut's top-up of Sat 3 Oct, ActivoBank's row on Tue the
+     6th — written twice). Such a side is matched four days out. */
+  const fromOther = new Set<number>()
+  for (const [k, l] of existing.entries()) {
+    if (l.kind !== 'move' || l.meta?.intakeId === undefined) continue
+    const file = await ctx.db.get(l.meta.intakeId)
+    if (file && file.accountId !== undefined && file.accountId !== here)
+      fromOther.add(k)
+  }
   for (const [i, r] of read.entries()) {
     if (dups[i] !== null || !own[i]) continue
     const j = existing.findIndex(
@@ -1058,7 +1074,8 @@ async function buildReview(
         !taken.has(k) &&
         l.kind === 'move' &&
         Math.abs((l.value ?? 0) - r.amount) < 0.005 &&
-        Math.abs(l.occurredAt - r.occurredAt) <= 2 * DAY_MS + 3_600_000,
+        Math.abs(l.occurredAt - r.occurredAt) <=
+          (fromOther.has(k) ? 4 : 2) * DAY_MS + 3_600_000,
     )
     if (j >= 0) {
       dups[i] = j
@@ -1329,6 +1346,7 @@ async function writeTransactions(
   },
 ) {
   const read = intake.transactions ?? []
+  await pullBackAhead(ctx, ownerId, account._id, dayStart)
   /* Before a row is written: what the account held, for the landed card. */
   const landed = await landedCheck(
     ctx,
@@ -2631,6 +2649,8 @@ const batchAccount = v.object({
   ),
   fresh: v.number(),
   had: v.number(),
+  /* The file prints a balance the account does not hold yet. */
+  balanceNews: v.boolean(),
   trades: v.number(),
   holdings: v.union(
     v.object({
@@ -2929,12 +2949,15 @@ async function gatherBatch(
     )
     const pendingRows: Array<{ occurredAt: number; amount: number }> = []
     const balances: Array<{ asOf: number; value: number }> = []
+    let printed: Doc<'intakes'>['balance']
     const rows: Array<(typeof batchAccount.type)['rows'][number]> = []
     for (const i of g.list) {
       /* A broker screen's total is not a bank balance (3 Oct: Trading
          212's two screens drew "€15,008.26 → €2,014.04"). */
-      if (i.balance && i.kind === 'transactions')
+      if (i.balance && i.kind === 'transactions') {
         balances.push({ asOf: i.balance.asOf, value: i.balance.value })
+        if (!printed || i.balance.asOf > printed.asOf) printed = i.balance
+      }
       trades += (i.trades?.length ?? 0) + (i.historyTrades ?? 0)
       for (const t of i.trades ?? []) adds.push(t.occurredAt)
       const r = reviews.get(i._id)
@@ -3047,6 +3070,10 @@ async function gatherBatch(
       })),
       fresh: newRows,
       had: hadRows,
+      balanceNews:
+        accountId !== null && printed !== undefined
+          ? await balanceIsNews(ctx, ownerId, accountId, printed)
+          : false,
       trades,
       holdings: held
         ? {

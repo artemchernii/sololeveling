@@ -152,6 +152,48 @@ describe('the balance from the rows', () => {
     expect(await kept()).toMatchObject({ was: 153.21, had: 0, printed: false })
   })
 
+  /* His card stood at −€1,114.85: the four rows were in, the balance was
+     not, and the screenshot that prints €90.35 had "nothing to save". */
+  test('every row already in, the balance not: the file still has it to save', async () => {
+    const { t, me, intakeId, balance } = await setup()
+    const batchId = await t.run(async (ctx) => {
+      for (const [d, merchant, amount] of SCREEN)
+        await ctx.db.insert('logs', {
+          ownerId: ME,
+          area: 'money',
+          kind: 'expense',
+          occurredAt: day(d),
+          value: -amount,
+          unit: 'eur',
+          text: merchant,
+          accountId: (await ctx.db.get(intakeId))?.accountId,
+          meta: { merchant, raw: merchant },
+        })
+      const id = await ctx.db.insert('batches', {
+        ownerId: ME,
+        status: 'open',
+        leftOut: [],
+        quietMonths: [],
+        moves: [],
+        extras: [],
+        dismissed: [],
+      })
+      await ctx.db.patch(intakeId, { batchId: id })
+      return id
+    })
+    expect(await balance()).toBe(-1114.85)
+    const before = await me.query(api.intake.batchReview, { batchId })
+    expect(before.accounts.map((a) => [a.fresh, a.balanceNews])).toEqual([
+      [0, true],
+    ])
+    await me.mutation(api.intake.applyBatch, {
+      batchId,
+      dayStart: new Date(2026, 9, 13).getTime(),
+    })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(await balance()).toBe(90.35)
+  })
+
   test('an account with no balance yet: the rows land, nothing is kept', async () => {
     const { t, confirm, kept } = await setup()
     await t.run(async (ctx) => {
@@ -160,5 +202,133 @@ describe('the balance from the rows', () => {
     })
     await confirm()
     expect(await kept()).toBeUndefined()
+  })
+})
+
+/* Artem's account as it really stood on Sunday 11 Oct at 13:40, not a tidy
+   case: the four rows saved by an earlier read (one of them dated Monday
+   the 12th, the bank's booking day), then €90.35 saved as of the 11th —
+   and the card said €65.35, the −€25 taken off twice. */
+describe('his account on 11 Oct', () => {
+  test('€65.35 becomes €90.35 when the screenshot is dropped again', async () => {
+    vi.setSystemTime(new Date(2026, 9, 11, 13, 40))
+    const { t, me, accountId, intakeId, balance } = await setup()
+    const dayStart = new Date(2026, 9, 11).getTime()
+    const batchId = await t.run(async (ctx) => {
+      const earlier = await ctx.db.insert('intakes', {
+        ownerId: ME,
+        accountId,
+        storageIds: [],
+        status: 'done',
+        kind: 'transactions',
+      })
+      for (const [d, merchant, amount] of SCREEN)
+        await ctx.db.insert('logs', {
+          ownerId: ME,
+          area: 'money',
+          kind: 'expense',
+          occurredAt: day(d),
+          value: -amount,
+          unit: 'eur',
+          text: merchant,
+          accountId,
+          meta: { merchant, raw: merchant, intakeId: earlier },
+        })
+      await ctx.db.insert('stateSnapshots', {
+        ownerId: ME,
+        area: 'money',
+        key: `balance:${accountId}:EUR`,
+        value: 90.35,
+        unit: 'eur',
+        recordedAt: Date.now(),
+        source: 'screenshot',
+      })
+      /* Read again today: the row of the 12th comes back as today's. */
+      const read = await ctx.db.get(intakeId)
+      const id = await ctx.db.insert('batches', {
+        ownerId: ME,
+        status: 'open',
+        leftOut: [],
+        quietMonths: [],
+        moves: [],
+        extras: [],
+        dismissed: [],
+      })
+      await ctx.db.patch(intakeId, {
+        batchId: id,
+        transactions: read?.transactions?.map((r) => ({
+          ...r,
+          occurredAt: Math.min(r.occurredAt, day(11)),
+        })),
+        balance: { currency: 'EUR', value: 90.35, asOf: day(11) },
+      })
+      return id
+    })
+    expect(await balance()).toBe(65.35)
+    const review = await me.query(api.intake.batchReview, { batchId })
+    expect(review.accounts.map((a) => [a.fresh, a.balanceNews])).toEqual([
+      [0, true],
+    ])
+    await me.mutation(api.intake.applyBatch, { batchId, dayStart })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    expect(await balance()).toBe(90.35)
+    const logs = await t.run((ctx) => ctx.db.query('logs').collect())
+    expect(logs.filter((l) => l.occurredAt > Date.now())).toEqual([])
+    expect(logs).toHaveLength(5)
+    /* And dropped once more: nothing to save. */
+    const again = await me.query(api.intake.batchReview, { batchId })
+    expect(again.accounts.every((a) => !a.balanceNews)).toBe(true)
+  })
+})
+
+/* Revolut's file wrote ActivoBank's side of the top-up on Sat 3 Oct;
+   ActivoBank's own screen books it on Tue 6 Oct. */
+describe('a transfer the other bank reported first', () => {
+  test('this bank’s row three days later is the same transfer', async () => {
+    const { t, me, intakeId } = await setup()
+    await t.run(async (ctx) => {
+      const revolut = await ctx.db.insert('accounts', {
+        ownerId: ME,
+        name: 'Revolut',
+        kinds: ['bank'],
+        currencies: ['EUR'],
+        ibanTails: [],
+        cardTails: [],
+        order: 1,
+      })
+      const csv = await ctx.db.insert('intakes', {
+        ownerId: ME,
+        accountId: revolut,
+        storageIds: [],
+        status: 'done',
+        kind: 'transactions',
+      })
+      for (const l of await ctx.db.query('logs').collect())
+        await ctx.db.patch(l._id, { meta: { ...l.meta, intakeId: csv } })
+      const read = await ctx.db.get(intakeId)
+      await ctx.db.patch(intakeId, {
+        transactions: read?.transactions?.map((r) =>
+          r.amount === -700 ? { ...r, merchant: 'Revolut', self: true } : r,
+        ),
+      })
+    })
+    const review = await me.query(api.intake.review, { intakeId })
+    const topUp = review?.rows.find((r) => r.amount === -700)
+    expect(topUp?.kind).toBe('move')
+    expect(topUp?.duplicateOf).not.toBeNull()
+  })
+
+  test('its own two rows three days apart stay two', async () => {
+    const { me, intakeId, t } = await setup()
+    await t.run(async (ctx) => {
+      const read = await ctx.db.get(intakeId)
+      await ctx.db.patch(intakeId, {
+        transactions: read?.transactions?.map((r) =>
+          r.amount === -700 ? { ...r, merchant: 'Revolut', self: true } : r,
+        ),
+      })
+    })
+    const review = await me.query(api.intake.review, { intakeId })
+    expect(review?.rows.find((r) => r.amount === -700)?.duplicateOf).toBeNull()
   })
 })

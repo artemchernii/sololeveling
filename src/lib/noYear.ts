@@ -49,3 +49,27 @@ export function yearlessToThisYear<T extends Dated>(
         : reading.balance,
   }
 }
+
+/* A bank lists a weekend's transfer under the Monday it books, and its
+   balance already has it (11 Oct: a −€25 row dated 12 Oct, read on the
+   11th with a balance of €90.35 — the balance was saved as of the 11th,
+   the row counted as after it, and the card said €65.35). The money has
+   left by the time it is on the screen: a row dated after today is
+   today's, and so is the balance printed with it. */
+export function notAhead<T extends Dated>(reading: T, now: number): T {
+  const today = new Date(now).setHours(12, 0, 0, 0)
+  const cap = (at: number) => (at > today + DAY_MS / 2 ? today : at)
+  if (reading.transactions.every((t) => cap(t.occurredAt) === t.occurredAt))
+    return reading
+  return {
+    ...reading,
+    transactions: reading.transactions.map((t) => ({
+      ...t,
+      occurredAt: cap(t.occurredAt),
+    })),
+    balance: reading.balance && {
+      ...reading.balance,
+      asOf: cap(reading.balance.asOf),
+    },
+  }
+}

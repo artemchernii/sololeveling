@@ -24,3 +24,22 @@ export const end = mutation({
     return null
   },
 })
+
+/** The mock ActivoBank becomes a bank the app can connect: convex/bankApi.ts
+    answers for it. Its own step, so no other test's account changes. */
+export const reachable = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const accounts = await ctx.db
+      .query('accounts')
+      .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+      .take(50)
+    for (const a of accounts)
+      if (a.name === 'ActivoBank')
+        await ctx.db.patch(a._id, { institution: 'activo' })
+    return null
+  },
+})

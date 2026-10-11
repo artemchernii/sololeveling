@@ -98,8 +98,6 @@ export const reset = mutation({
       1,
     )
     const cash = await account('Cash', ['cash'], ['EUR'], undefined, 2)
-    /* A bank the app can connect (convex/bankApi.ts answers for it). */
-    await ctx.db.patch(activo, { institution: 'activo' })
 
     const balance = (id: typeof revolut, currency: string, value: number) =>
       ctx.db.insert('stateSnapshots', {

@@ -2111,6 +2111,8 @@ export const accountSheet = query({
           currency: v.string(),
           source: v.union(v.string(), v.null()),
           fileId: v.union(v.id('intakes'), v.null()),
+          /** The stored reading itself: a typed one is removed by it. */
+          id: v.id('stateSnapshots'),
         }),
       ),
       files: v.array(
@@ -2184,6 +2186,7 @@ export const accountSheet = query({
     ).filter(
       (i) =>
         i.status === 'done' &&
+        i.takenBackAt === undefined &&
         (i.accountId === account._id || added.has(i._id)),
     )
     const files = intakes.map((i) => {
@@ -2253,6 +2256,7 @@ export const accountSheet = query({
           currency,
           source: r.source ?? null,
           fileId: file?._id ?? null,
+          id: r._id,
         })
       }
       coverOf.set(currency.toLowerCase(), read)
@@ -2357,6 +2361,8 @@ export async function movedSince(
   readAt: number,
   /** Up to and including this moment; now when absent. */
   until?: number,
+  /** As if this file had never been saved (undoFile.ts). */
+  skip?: Id<'intakes'>,
 ): Promise<{ cents: number; rows: number }> {
   const unit = currency.toLowerCase()
   const logs = await ctx.db
@@ -2373,6 +2379,7 @@ export async function movedSince(
   let rows = 0
   for (const l of logs) {
     if (l.area !== 'money' || l.unit !== unit || l.value === undefined) continue
+    if (skip !== undefined && l.meta?.intakeId === skip) continue
     if (
       l.meta?.intakeId !== undefined &&
       l.occurredAt <= readAt + FILE_ROW_GRACE_MS
@@ -2395,7 +2402,7 @@ export async function movedSince(
     account.kinds.includes('broker') &&
     !hasBrokerCash(account)
   ) {
-    const traded = await tradedSince(ctx, ownerId, account, readAt)
+    const traded = await tradedSince(ctx, ownerId, account, readAt, skip)
     cents += traded.cents
     rows += traded.rows
   }
@@ -2404,11 +2411,12 @@ export async function movedSince(
 
 /* What an account's buys cost and its sells brought after a reading, as
    signed cents: the trades side of a broker's cash. */
-async function tradedSince(
+export async function tradedSince(
   ctx: QueryCtx,
   ownerId: string,
   account: Doc<'accounts'>,
   readAt: number,
+  skip?: Id<'intakes'>,
 ): Promise<{ cents: number; rows: number }> {
   const trades = await ctx.db
     .query('trades')
@@ -2421,6 +2429,7 @@ async function tradedSince(
   for (const t of trades) {
     if (t.opening === true || t.noCash === true || t.occurredAt <= readAt)
       continue
+    if (skip !== undefined && t.importId === skip) continue
     const cost = Math.round(t.shares * t.priceEur * 100)
     cents += t.side === 'buy' ? -cost : cost
     rows++
@@ -2870,6 +2879,15 @@ export const ahead = query({
         yearly: v.boolean(),
         short: v.boolean(),
         held: v.union(v.number(), v.null()),
+        add: v.union(v.number(), v.null()),
+      }),
+    ),
+    /** A later month's gap in an account, said once on the month. */
+    later: v.array(
+      v.object({
+        month: v.number(),
+        accountId: v.id('accounts'),
+        amount: v.number(),
       }),
     ),
     rest: v.array(
@@ -2989,6 +3007,10 @@ export const ahead = query({
         rowId: d.rowId as Id<'logs'> | null,
       })),
       events: built.events.map(cast),
+      later: built.later.map((l) => ({
+        ...l,
+        accountId: l.accountId as Id<'accounts'>,
+      })),
       rest: built.rest.map((r) => {
         const p = args.past.find((x) => x.start === r.start)
         return { ...r, partial: p ? partialOf(p) : [] }

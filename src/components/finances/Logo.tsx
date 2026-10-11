@@ -4,6 +4,7 @@ import { Banknote } from 'lucide-react'
 import { metalOf } from '@/lib/holdingLine'
 import { isCoin, logoSrc } from '@/lib/logo'
 import { METALS } from '@/lib/metals'
+import { payeeSite } from '@/lib/payeeSites'
 
 /* Real marks (27 Sep: "in portfolio i want icons of broker"). An account's
    logo comes from its own site's icon, by the domain he gave it; a ticker's
@@ -55,6 +56,29 @@ export function AccountLogo({
       style={{ ...box, padding: size / 9 }}
       className="shrink-0 bg-mark-ground object-contain"
     />
+  )
+}
+
+/** A payee's mark on a money row: its site's icon when the shop is one
+    the app knows (src/lib/payeeSites.ts), else its two letters. */
+export function PayeeLogo({
+  name,
+  size = 26,
+}: {
+  name: string
+  size?: number
+}) {
+  const site = payeeSite(name)
+  if (site !== null)
+    return <AccountLogo name={name} domain={site} size={size} />
+  return (
+    <span
+      aria-hidden
+      style={{ width: size, height: size, borderRadius: size / 3.2 }}
+      className="grid shrink-0 place-items-center bg-lav-400/12 font-mono text-[9.5px] text-lav-300"
+    >
+      {name.trim().slice(0, 2).toUpperCase()}
+    </span>
   )
 }
 

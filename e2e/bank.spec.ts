@@ -14,6 +14,12 @@ const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
 const card = (page: Page) =>
   page.getByRole('button', { name: 'Open ActivoBank' })
 
+/** Signed in on the bad day, with ActivoBank a bank the app can connect. */
+async function ready(page: Page) {
+  await start(page)
+  await testClient().mutation(anyApi.e2eBank.reachable, {})
+}
+
 /** Press connect, then continue — and stop at the bank's door: the address
     it would open comes back, for a test to change how the bank answered. */
 async function toTheBank(page: Page, word = 'connect'): Promise<string> {
@@ -35,7 +41,7 @@ async function toTheBank(page: Page, word = 'connect'): Promise<string> {
 test('connect: three facts, the bank, and its balance lands on the card', async ({
   page,
 }) => {
-  await start(page)
+  await ready(page)
   await page.goto('/finances')
   await expect(card(page).getByTestId('account-total')).toContainText('€830.50')
   await card(page).scrollIntoViewIfNeeded()
@@ -82,7 +88,7 @@ test('connect: three facts, the bank, and its balance lands on the card', async 
 test('two accounts at the bank: asked which one, reading, landed', async ({
   page,
 }) => {
-  await start(page)
+  await ready(page)
   await page.goto('/finances')
   const address = await toTheBank(page)
   await page.goto(address.replace('code=one', 'code=two'))
@@ -106,7 +112,7 @@ test('two accounts at the bank: asked which one, reading, landed', async ({
 test('cancelled at the bank: not approved, nothing changed', async ({
   page,
 }) => {
-  await start(page)
+  await ready(page)
   await page.goto('/finances')
   const address = await toTheBank(page)
   await page.goto(address.replace('code=one', 'error=access_denied'))
@@ -126,7 +132,7 @@ test('cancelled at the bank: not approved, nothing changed', async ({
 test('approval ended: the card says so, approve again, and it is read', async ({
   page,
 }) => {
-  await start(page)
+  await ready(page)
   await page.goto('/finances')
   await card(page).getByRole('button', { name: 'connect' }).click()
   const sheet = page.getByRole('dialog')
@@ -156,7 +162,7 @@ test('approval ended: the card says so, approve again, and it is read', async ({
 test('the bank fails after the approval: said in words, nothing saved', async ({
   page,
 }) => {
-  await start(page)
+  await ready(page)
   await page.goto('/finances')
   const address = await toTheBank(page)
   /* A one-time word the app never gave: the answer belongs to no approval. */
@@ -169,7 +175,7 @@ test('the bank fails after the approval: said in words, nothing saved', async ({
 
 test('phone width: the window and the connected card fit', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await start(page)
+  await ready(page)
   await page.goto('/finances')
   await card(page).getByRole('button', { name: 'connect' }).click()
   const sheet = page.getByRole('dialog')

@@ -20,6 +20,7 @@ async function connected() {
   const t = convexTest(schema, modules)
   const me = t.withIdentity({ tokenIdentifier: ME })
   await me.mutation(api.e2e.reset, { days })
+  await me.mutation(api.e2eBank.reachable, {})
   const activo = (await me.query(api.accounts.list, {})).find(
     (a) => a.name === 'ActivoBank',
   )
@@ -60,4 +61,12 @@ test('end refuses anywhere but the test backend, and a caller not signed in', as
   )
   vi.stubEnv('E2E', '1')
   await expect(t.mutation(api.e2eBank.end, {})).rejects.toThrow('Not signed in')
+})
+
+test('reachable refuses anywhere but the test backend', async () => {
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  await expect(me.mutation(api.e2eBank.reachable, {})).rejects.toThrow(
+    'E2E functions run only on the test backend.',
+  )
 })

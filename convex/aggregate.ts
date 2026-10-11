@@ -1,6 +1,6 @@
 import { v } from 'convex/values'
 
-import { brokerCashKey, hasBrokerCash } from './accounts'
+import { balanceKey, brokerCashKey, hasBrokerCash } from './accounts'
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
 import { countsInOut, isEuroAmount, isLent } from '../src/lib/money'
@@ -3290,3 +3290,73 @@ export const payMonthDetail = query({
     }
   },
 })
+
+/**
+ * What a bank's own rows brought (11 Oct, the card's arrived block): how
+ * many were saved, what went out and came in — sums over those logged rows
+ * (source 1: one currency, from the day of `was`, only rows a bank reading
+ * wrote, each opening in the account's rows) — between the balance held
+ * before the first of them (`was`, state) and the account's balance now
+ * (state). Null until a reading of them has been saved.
+ */
+export async function arrivedFromBank(
+  ctx: QueryCtx,
+  ownerId: string,
+  accountId: Id<'accounts'>,
+  intakeIds: ReadonlyArray<Id<'intakes'>>,
+) {
+  let first: NonNullable<Doc<'intakes'>['landed']> | null = null
+  let rows = 0
+  let outCents = 0
+  let inCents = 0
+  for (const id of intakeIds) {
+    const intake = await ctx.db.get(id)
+    if (
+      intake === null ||
+      intake.ownerId !== ownerId ||
+      intake.status !== 'done' ||
+      intake.landed === undefined
+    )
+      continue
+    first ??= intake.landed
+    const unit = first.currency.toLowerCase()
+    const logs = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_intake', (q) =>
+        q.eq('ownerId', ownerId).eq('meta.intakeId', id),
+      )
+      .take(300)
+    for (const l of logs) {
+      if (l.accountId !== accountId || l.unit !== unit) continue
+      const signed =
+        l.kind === 'expense'
+          ? -(l.value ?? 0)
+          : l.kind === 'income' || l.kind === 'move'
+            ? (l.value ?? 0)
+            : 0
+      if (signed === 0) continue
+      rows++
+      if (signed < 0) outCents -= Math.round(signed * 100)
+      else inCents += Math.round(signed * 100)
+    }
+  }
+  if (first === null || rows === 0) return null
+  const { currency } = first
+  const now = await ctx.db
+    .query('stateSnapshots')
+    .withIndex('by_owner_key_time', (q) =>
+      q.eq('ownerId', ownerId).eq('key', balanceKey(accountId, currency)),
+    )
+    .order('desc')
+    .first()
+  if (now?.value === undefined) return null
+  return {
+    rows,
+    currency,
+    was: first.was,
+    wasAt: first.wasAt,
+    out: outCents / 100,
+    in: inCents / 100,
+    now: now.value,
+  }
+}

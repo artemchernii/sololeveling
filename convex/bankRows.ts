@@ -24,7 +24,7 @@ import type { Id } from './_generated/dataModel'
 
 const HOUR = 3_600_000
 /* A check that began this long ago and never ended is taken as lost. */
-const CHECK_LOST_MS = 2 * 60_000
+export const CHECK_LOST_MS = 2 * 60_000
 
 const tx = v.object({
   status: v.string(),

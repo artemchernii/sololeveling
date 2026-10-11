@@ -136,8 +136,10 @@ export function AccountBlock({
             {account === null ? <Tag tone="new">new</Tag> : null}
           </b>
           <span className="font-mono text-[10.5px] text-ink-500">
-            {kinds.join(' · ')} · {block.files.length}{' '}
-            {block.files.length === 1 ? 'file' : 'files'}
+            {kinds.join(' · ')} ·{' '}
+            {block.files.every((f) => f.bank)
+              ? 'from the bank'
+              : `${block.files.length} ${block.files.length === 1 ? 'file' : 'files'}`}
           </span>
         </div>
         {last === null && holdings?.totalEur != null ? (

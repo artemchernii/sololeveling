@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useMutation } from 'convex/react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useAction, useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Plus } from 'lucide-react'
 
@@ -22,6 +22,12 @@ import { takeReturn } from '@/lib/bankReturn'
 import type { BankBack } from '@/lib/bankReturn'
 import { AccountSheet } from '@/components/finances/AccountForm'
 import { UpdateSheet } from '@/components/finances/UpdateSheet'
+import { BulkUpdate, GUARD } from '@/components/finances/Bulk'
+import type { Flight } from '@/components/finances/Bulk'
+import { Sheet } from '@/components/finances/Sheet'
+
+/* The bank is asked again when its last answer is this old (11 Oct). */
+const BANK_STALE_MS = 4 * 3_600_000
 
 /* Accounts, in the Overview room (Treasury, 27 Sep). His, not hard-coded:
    filter by what they are, add one, edit or delete one, update one. Each
@@ -60,6 +66,38 @@ export function Accounts() {
   }, [])
   const linkOf = (id: Id<'accounts'>) =>
     links?.find((l) => l.accountId === id) ?? null
+  /* Opening Finances is the button: a connected account whose last answer
+     is hours old is asked once, and the card says so while it is. */
+  const check = useAction(api.bankRows.check)
+  const shut = useMutation(api.bankRows.close)
+  const asked = useRef(new Set<string>())
+  const [asking, setAsking] = useState<ReadonlyArray<string>>([])
+  useEffect(() => {
+    const now = Date.now()
+    for (const l of links ?? []) {
+      if (
+        l.status !== 'linked' ||
+        l.question !== null ||
+        l.checking ||
+        l.checkedAt === null ||
+        now - l.checkedAt < BANK_STALE_MS ||
+        (l.validUntil ?? 0) <= now ||
+        asked.current.has(l.accountId)
+      )
+        continue
+      const id = l.accountId
+      asked.current.add(id)
+      setAsking((list) => [...list, id])
+      /* A bank that does not answer keeps the balance it had; the card
+         says of when (slice 3 says so in words). */
+      void check({ accountId: id, dayStart: today })
+        .catch(() => null)
+        .finally(() => setAsking((list) => list.filter((x) => x !== id)))
+    }
+  }, [links, check, today])
+  /* CHECK IT: the question a bank's rows left, in the check window. */
+  const [question, setQuestion] = useState<Id<'batches'> | null>(null)
+  const [flight, setFlight] = useState<Flight | null>(null)
   const bankDoc = accounts?.find((a) => a._id === bank?.accountId) ?? null
   const openRow = data?.accounts.find((a) => a.accountId === opened)
   const openDoc = accounts?.find((a) => a._id === opened) ?? null
@@ -171,11 +209,20 @@ export function Accounts() {
                 const doc = accounts.find((x) => x._id === a.accountId)
                 if (doc) setUpdating(doc)
               }}
-              link={
-                linkOf(a.accountId)?.status === 'linked'
-                  ? linkOf(a.accountId)
+              link={(() => {
+                const l = linkOf(a.accountId)
+                return l?.status === 'linked'
+                  ? {
+                      validUntil: l.validUntil,
+                      checkedAt: l.checkedAt,
+                      checking: l.checking || asking.includes(a.accountId),
+                      question: l.question !== null,
+                    }
                   : null
-              }
+              })()}
+              arrived={linkOf(a.accountId)?.arrived ?? null}
+              onShut={() => shut({ accountId: a.accountId })}
+              onCheck={() => setQuestion(linkOf(a.accountId)?.question ?? null)}
               connectable={
                 a.kinds.includes('bank') &&
                 canConnect(
@@ -213,6 +260,21 @@ export function Accounts() {
         onUpdate={() => openDoc && setUpdating(openDoc)}
       />
       <UpdateSheet account={updating} onClose={() => setUpdating(null)} />
+      <Sheet
+        open={question !== null}
+        title="check it"
+        wide
+        onClose={() => setQuestion(null)}
+        guard={flight ? GUARD[flight] : null}
+      >
+        {question !== null ? (
+          <BulkUpdate
+            waiting={question}
+            onClose={() => setQuestion(null)}
+            onFlight={setFlight}
+          />
+        ) : null}
+      </Sheet>
       <BankSheet
         account={bankDoc}
         link={bankDoc ? linkOf(bankDoc._id) : null}

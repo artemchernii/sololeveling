@@ -2111,6 +2111,8 @@ export const accountSheet = query({
           currency: v.string(),
           source: v.union(v.string(), v.null()),
           fileId: v.union(v.id('intakes'), v.null()),
+          /** The stored reading itself: a typed one is removed by it. */
+          id: v.id('stateSnapshots'),
         }),
       ),
       files: v.array(
@@ -2254,6 +2256,7 @@ export const accountSheet = query({
           currency,
           source: r.source ?? null,
           fileId: file?._id ?? null,
+          id: r._id,
         })
       }
       coverOf.set(currency.toLowerCase(), read)

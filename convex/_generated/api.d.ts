@@ -48,6 +48,7 @@ import type * as seed from "../seed.js";
 import type * as sharesCheck from "../sharesCheck.js";
 import type * as state from "../state.js";
 import type * as tasks from "../tasks.js";
+import type * as transferMatch from "../transferMatch.js";
 import type * as typedBalance from "../typedBalance.js";
 import type * as undoFile from "../undoFile.js";
 import type * as vault from "../vault.js";
@@ -100,6 +101,7 @@ declare const fullApi: ApiFromModules<{
   sharesCheck: typeof sharesCheck;
   state: typeof state;
   tasks: typeof tasks;
+  transferMatch: typeof transferMatch;
   typedBalance: typeof typedBalance;
   undoFile: typeof undoFile;
   vault: typeof vault;

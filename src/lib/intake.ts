@@ -12,11 +12,13 @@
    posting day vs the spending day), a Trade Republic holdings screenshot
    (value and % since buy, no shares). */
 
+import { printedBalance } from './rowBalance'
+
 export const INTAKE_MODEL = 'claude-haiku-5-5'
 /* Bumped whenever what the reader is asked changes: a file read by an
    older reader is read again rather than its reading reused (3 Oct — a
    reused reading kept "1 100.00" as 100 after the prompt was fixed). */
-export const READER_VERSION = 9
+export const READER_VERSION = 10
 export const INTAKE_MODEL_NAME = 'Claude Haiku 5.5'
 export const MAX_INTAKE_FILES = 6
 /* UPDATE ALL (3 Oct): a year of four banks' monthly statements. */
@@ -81,6 +83,7 @@ export const INTAKE_SCHEMA = {
           raw: { type: 'string' },
           amount: { type: 'number' },
           amount_text: { type: 'string' },
+          balance_after_text: { type: 'string' },
           currency: { type: 'string' },
           pending: { type: 'boolean' },
           counterparty: { type: ['string', 'null'] },
@@ -93,6 +96,7 @@ export const INTAKE_SCHEMA = {
           'raw',
           'amount',
           'amount_text',
+          'balance_after_text',
           'currency',
           'pending',
           'counterparty',
@@ -216,7 +220,7 @@ export function intakePrompt(opts: {
     '  kind = "trades" — buying and selling shares: a broker\'s order or trade history, or a trade confirmation, with a date, shares and a price per trade.',
     '  otherwise "unknown". A screen of positions is holdings even when it shows a daily change; a list of orders is trades even when it shows a total.',
     'title: a short human label, e.g. "Revolut statement · EUR · Aug 1 → Sep 27", "Trade Republic · holdings", "Trading 212 · orders". institution: the bank or broker the file is FROM, e.g. "Revolut" or "Revolut Invest". account_tail: the last four digits of the IBAN or card number the file is about, if printed (e.g. "0120" for PT50 … 0120), else null. holder_name: the account holder\'s name if printed.',
-    'For transactions: every row, once, including rows under a "pending" heading (pending = true). Several screenshots of one history overlap: a row on two of them is still one row. A number printed under or beside a row\'s amount, smaller, is the balance after it — never the amount. A row cut off at the edge of a screenshot, its amount not shown, is left out (it is whole on another). A pending heading shown only as a total, its lines folded away ("Pending  -1.205,20"), is one row: merchant "Pending", that total as the amount, pending = true. date as YYYY-MM-DD (for "Yesterday" or a weekday, resolve against today; a day printed with no year, "12 oct", is this year\'s — also when it is a day or two after today, a bank lists a weekend\'s transfer under the Monday it books — and last year\'s only when this year\'s would be weeks away). amount is signed: money out negative, money in positive, in the row\'s own currency. amount_text: the amount exactly as it is printed, every character kept ("1 100.00", "-1.205,20"). merchant: a clean human name ("Bolt", not "Bolt.euo2609161656"; "Claude subscription" for "Anthropic* Claude Sub"). raw: the description as printed, one line.',
+    'For transactions: every row, once, including rows under a "pending" heading (pending = true). Several screenshots of one history overlap: a row on two of them is still one row. A number printed under or beside a row\'s amount, smaller, is the balance after it — never the amount. A row cut off at the edge of a screenshot, its amount not shown, is left out (it is whole on another). A pending heading shown only as a total, its lines folded away ("Pending  -1.205,20"), is one row: merchant "Pending", that total as the amount, pending = true. date as YYYY-MM-DD (for "Yesterday" or a weekday, resolve against today; a day printed with no year, "12 oct", is this year\'s — also when it is a day or two after today, a bank lists a weekend\'s transfer under the Monday it books — and last year\'s only when this year\'s would be weeks away). amount is signed: money out negative, money in positive, in the row\'s own currency. amount_text: the amount exactly as it is printed, every character kept ("1 100.00", "-1.205,20"). balance_after_text: the balance printed under or beside this row, exactly as printed ("90,35"), and "" when the row shows none — copy it for every row that shows one, never work it out. merchant: a clean human name ("Bolt", not "Bolt.euo2609161656"; "Claude subscription" for "Anthropic* Claude Sub"). raw: the description as printed, one line.',
     'counterparty: for transfers, who is on the other side — the name and any IBAN or card digits printed for it ("ARTEM CHERNII, PT50…0120", "card ••2789"). self_transfer = true when money goes to or comes from the holder\'s own name, another of their own accounts, a card top-up, a savings or investment account inside the same bank, or a known broker the person uses (their accounts: ' +
       (opts.accounts.join(', ') || 'unknown') +
       '). A card payment to a broker such as Trade Republic or Trading 212 is a deposit to that broker — self_transfer = true.',
@@ -243,6 +247,8 @@ export type ReadTransaction = {
   counterparty?: string
   self: boolean
   category?: string
+  /** The balance the bank printed beside the row (src/lib/rowBalance.ts). */
+  balanceAfter?: number
 }
 
 export type ReadPosition = {
@@ -345,11 +351,17 @@ export function parseReading(
   ) {
     return { ok: false, error: 'No positions were found on it.' }
   }
-  const balanceValue = num(j.closing_balance)
+  /* The balance under the newest row is the account's — read off the
+     rows in code, whatever the model made of closing_balance (11 Oct: the
+     same screenshot came back with 90.35 once and with none the next). */
+  const printed =
+    j.kind === 'transactions' ? printedBalance(transactions) : null
+  const balanceValue = printed?.value ?? num(j.closing_balance)
   const balanceAt =
-    typeof j.closing_balance_date === 'string'
+    printed?.asOf ??
+    (typeof j.closing_balance_date === 'string'
       ? dayToMs(j.closing_balance_date)
-      : undefined
+      : undefined)
   const cash = num(j.cash_eur)
   return {
     ok: true,
@@ -439,9 +451,18 @@ function txRows(j: Record<string, unknown>): Array<ReadTransaction> {
         (SPEND_CATEGORY_IDS as ReadonlyArray<string>).includes(category)
           ? category
           : undefined,
+      balanceAfter: printedBalanceText(r.balance_after_text),
     })
   }
   return transactions
+}
+
+/** "90,35" → 90.35; "-12.00" → −12; "" → none. */
+function printedBalanceText(text: unknown): number | undefined {
+  if (typeof text !== 'string' || !/\d/.test(text)) return undefined
+  const value = printedAmount(text)
+  if (value === undefined) return undefined
+  return /^\s*[-−]/.test(text) ? -value : value
 }
 
 function positionRows(j: Record<string, unknown>): Array<ReadPosition> {

@@ -854,8 +854,28 @@ export default defineSchema({
           counterparty: v.optional(v.string()),
           self: v.boolean(),
           category: v.optional(v.string()),
+          /* The balance the bank printed beside the row (11 Oct): the
+             newest one is the account's, and the trail of them says which
+             rows an earlier balance had counted (src/lib/rowBalance.ts). */
+          balanceAfter: v.optional(v.number()),
         }),
       ),
+    ),
+    /* What saving this file found (11 Oct), for the landed card: the
+       balance the app held just before it (`was`, of `wasAt`), from when
+       its rows count on top of that (`since`), how many read rows he
+       already had, whether the file printed a balance, and what no row
+       explains (`gap`: printed minus was and the new rows). */
+    landed: v.optional(
+      v.object({
+        currency: v.string(),
+        was: v.number(),
+        wasAt: v.number(),
+        since: v.number(),
+        had: v.number(),
+        printed: v.boolean(),
+        gap: v.number(),
+      }),
     ),
     positions: v.optional(
       v.array(

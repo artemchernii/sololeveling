@@ -11,6 +11,7 @@ import { movedSince } from './aggregate'
 import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
 import { findFor } from './recurring'
+import { countedRows, landedCheck } from './rowBalance'
 import { euroRateAt, writeTransfer } from './money'
 import { sharesIn } from '../src/lib/crypto'
 import { heldCost } from '../src/lib/holdings'
@@ -944,6 +945,8 @@ const reviewRow = v.object({
   counterparty: v.union(v.string(), v.null()),
   /** Already in his history: the log it repeats. */
   duplicateOf: v.union(v.id('logs'), v.null()),
+  /** A balance he already has had counted it (convex/rowBalance.ts). */
+  counted: v.boolean(),
   /** The bill this pays, if it matches one on its day. */
   recurringId: v.union(v.id('recurring'), v.null()),
 })
@@ -1032,6 +1035,10 @@ async function buildReview(
     raw: l.meta?.raw,
   }))
   const dups = findDuplicates(read, existingRows)
+  const hereAccount = accounts.find((a) => a._id === here)
+  const counted = hereAccount
+    ? await countedRows(ctx, ownerId, hereAccount, intake)
+    : new Set<number>()
   /* A transfer is the same transfer whatever each bank calls it — "To
      Trade Republic" here, "Revolut → TR" typed, "Top up" on the other
      side: its own money moving is matched by amount and days alone. */
@@ -1147,6 +1154,7 @@ async function buildReview(
         : null,
       counterparty: r.counterparty ?? null,
       duplicateOf: dups[index] === null ? null : existing[dups[index]]._id,
+      counted: dups[index] === null && counted.has(index),
       recurringId,
     }
   })
@@ -1321,6 +1329,15 @@ async function writeTransactions(
   },
 ) {
   const read = intake.transactions ?? []
+  /* Before a row is written: what the account held, for the landed card. */
+  const landed = await landedCheck(
+    ctx,
+    ownerId,
+    account,
+    intake,
+    new Set(rows.map((r) => r.index)),
+    keepBalance,
+  )
   const seen = new Set<number>()
   let written = 0
   for (const row of rows) {
@@ -1512,6 +1529,7 @@ async function writeTransactions(
     status: 'done',
     keptUntil: keepUntil(),
     accountId: account._id,
+    landed: landed ?? undefined,
   })
   return { written, trades }
 }
@@ -2922,7 +2940,7 @@ async function gatherBatch(
       const r = reviews.get(i._id)
       if (!r) continue
       for (const row of r.rows) {
-        const dup = row.duplicateOf !== null
+        const dup = row.duplicateOf !== null || row.counted
         rows.push({
           occurredAt: row.occurredAt,
           merchant: row.merchant,
@@ -3591,7 +3609,7 @@ export const applyOne = internalMutation({
         b.moves.map((m) => [`${m.intakeId}:${m.index}`, m.otherAccountId]),
       )
       const keep: Array<ConfirmRow> = read.rows
-        .filter((r) => !r.pending && r.duplicateOf === null)
+        .filter((r) => !r.pending && r.duplicateOf === null && !r.counted)
         .map((r) => {
           const answer = answered.get(`${intake._id}:${r.index}`)
           const other = answer === undefined ? r.otherAccountId : answer

@@ -45,6 +45,7 @@ import type * as search from "../search.js";
 import type * as seed from "../seed.js";
 import type * as state from "../state.js";
 import type * as tasks from "../tasks.js";
+import type * as typedBalance from "../typedBalance.js";
 import type * as undoFile from "../undoFile.js";
 import type * as vault from "../vault.js";
 import type * as why from "../why.js";
@@ -93,6 +94,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   state: typeof state;
   tasks: typeof tasks;
+  typedBalance: typeof typedBalance;
   undoFile: typeof undoFile;
   vault: typeof vault;
   why: typeof why;

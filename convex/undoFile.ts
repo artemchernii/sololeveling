@@ -65,7 +65,7 @@ function rowsOf(ctx: QueryCtx, ownerId: string, intakeId: Id<'intakes'>) {
     )
 }
 
-type Pocket = { key: string; currency: string; broker: boolean }
+export type Pocket = { key: string; currency: string; broker: boolean }
 
 function pocketsOf(account: Doc<'accounts'>): Array<Pocket> {
   return [
@@ -103,7 +103,7 @@ function setBy(
   )
 }
 
-async function readingsOf(
+export async function readingsOf(
   ctx: QueryCtx,
   ownerId: string,
   p: Pocket,
@@ -117,7 +117,7 @@ async function readingsOf(
     .take(KEY_ROWS)
 }
 
-async function standing(
+export async function standing(
   ctx: QueryCtx,
   ownerId: string,
   account: Doc<'accounts'>,

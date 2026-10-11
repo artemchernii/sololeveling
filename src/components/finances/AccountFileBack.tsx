@@ -18,7 +18,7 @@ import { fmt, short } from './AccountSheetRows'
    type — then answers at once, and the sheet returns to the account. */
 
 /** What the account says once a file is taken back. */
-export type Taken = { words: string }
+export type Taken = { words: string; title?: string }
 
 export function TakeBack({
   intakeId,
@@ -169,7 +169,7 @@ export function TakeBack({
   )
 }
 
-function Cell({
+export function Cell({
   label,
   value,
   under,
@@ -208,7 +208,7 @@ export function TakenStrip({ taken }: { taken: Taken }) {
     >
       <Check className="motion-pop size-3.5 text-state-good" strokeWidth={3} />
       <span className="flex flex-col">
-        <span>Taken back.</span>
+        <span>{taken.title ?? 'Taken back.'}</span>
         <span className="text-[12px] text-ink-400">{taken.words}</span>
       </span>
     </div>

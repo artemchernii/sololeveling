@@ -14,6 +14,7 @@ import { TakenStrip } from './AccountFileBack'
 import type { Taken } from './AccountFileBack'
 import { BalanceTick, SheetCheck, dayOf } from './AccountSheetCheck'
 import { Divider, RowLine, fmt, short } from './AccountSheetRows'
+import { TypedBalance } from './AccountTypedBalance'
 
 /* An account, opened (A.4 — journey agreed 1 Oct, mock agreed 2 Oct:
    "build it"). Everything in it, newest first: each row, moves and trades
@@ -81,6 +82,7 @@ export function OpenAccount({
         <Ledger
           account={account}
           taken={taken}
+          onRemoved={setTaken}
           total={total}
           meta={meta}
           onFile={setFile}
@@ -99,11 +101,13 @@ function Ledger({
   total,
   meta,
   taken,
+  onRemoved,
   onFile,
   onUpdate,
 }: {
   account: Doc<'accounts'>
   taken: Taken | null
+  onRemoved: (t: Taken) => void
   total: number
   meta: string
   onFile: (id: Id<'intakes'>) => void
@@ -155,7 +159,7 @@ function Ledger({
             {data.files.length} {data.files.length === 1 ? 'file' : 'files'} ·
             newest first
           </span>
-          <Timeline data={data} onFile={onFile} />
+          <Timeline data={data} onFile={onFile} onRemoved={onRemoved} />
         </>
       )}
     </div>
@@ -193,9 +197,11 @@ function Said({ check: c }: { check: Check }) {
 function Timeline({
   data,
   onFile,
+  onRemoved,
 }: {
   data: SheetData
   onFile: (id: Id<'intakes'>) => void
+  onRemoved: (t: Taken) => void
 }) {
   const remove = useMutation(api.logs.remove)
   const removeSide = useMutation(api.logs.removeSide)
@@ -255,7 +261,14 @@ function Timeline({
                   label={`balance · ${short(it.bal.asOf)}`}
                   value={fmt(it.bal.value, it.bal.currency)}
                   file={fileOf(it.bal.fileId)}
-                  typed={it.bal.source === 'typed'}
+                  typed={
+                    it.bal.source === 'typed' ? (
+                      <TypedBalance
+                        snapshotId={it.bal.id}
+                        onRemoved={onRemoved}
+                      />
+                    ) : undefined
+                  }
                   onFile={onFile}
                 />
               ) : (

@@ -16,7 +16,7 @@ export const INTAKE_MODEL = 'claude-haiku-5-5'
 /* Bumped whenever what the reader is asked changes: a file read by an
    older reader is read again rather than its reading reused (3 Oct — a
    reused reading kept "1 100.00" as 100 after the prompt was fixed). */
-export const READER_VERSION = 8
+export const READER_VERSION = 9
 export const INTAKE_MODEL_NAME = 'Claude Haiku 5.5'
 export const MAX_INTAKE_FILES = 6
 /* UPDATE ALL (3 Oct): a year of four banks' monthly statements. */
@@ -221,7 +221,7 @@ export function intakePrompt(opts: {
       (opts.accounts.join(', ') || 'unknown') +
       '). A card payment to a broker such as Trade Republic or Trading 212 is a deposit to that broker — self_transfer = true.',
     `category (spending only, else null): one of ${SPEND_CATEGORY_IDS.join(', ')}.`,
-    'closing_balance: the final balance printed for the account (completed transactions only) and closing_balance_date; else null.',
+    "closing_balance: the final balance printed for the account (completed transactions only) and closing_balance_date; else null. A bank app's history prints a running balance under or beside each row and no total: closing_balance is then the one printed with the newest row, and closing_balance_date that row's date — never null when the newest row shows one.",
     'For holdings: every position, once. value_eur: its current value as printed. change_pct: the % gain or loss since buying if printed (negative for a loss). shares and average_price_eur only if printed — a number printed under or beside the name together with a ticker ("7.36542714 IGLN" on Trading 212) is the shares, and the ticker is symbol (else an empty string). cash_eur: uninvested cash if shown; total_eur: the account total if shown. An account summary screen with a total and cash but no list of positions (Trading 212\'s "Account value … Cash") is holdings with no positions.',
     'For trades: every buy and sell, once — date as YYYY-MM-DD, name as printed, isin if printed, side, shares, price per share and its currency, fee as printed (in the same currency, else null). Skip cancelled or rejected orders. crypto = false for shares and funds.',
     'A crypto statement (e.g. Revolut Digital Assets) is trades: name = the coin\'s symbol as printed (BTC, ETH, SOL), crypto = true, each buy and sell with its quantity, price, currency and fee; each staking reward is side "reward" with its quantity, price 0, currency "EUR". Its account summary\'s closing amount of every coin still held (more than 0) goes in positions: symbol and name = the coin\'s symbol, shares = the closing amount, value_eur = its closing value. closing_balance = the statement\'s total closing value and closing_balance_date = the last day of its period.',

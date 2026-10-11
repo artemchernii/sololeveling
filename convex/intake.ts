@@ -2695,6 +2695,8 @@ const batchAccount = v.object({
         v.literal('trades'),
       ),
       image: v.boolean(),
+      /* Rows the bank itself sent: no file was read. */
+      bank: v.boolean(),
     }),
   ),
   fresh: v.number(),
@@ -3156,6 +3158,7 @@ export async function gatherBatch(
         name: i.files?.[0]?.name ?? 'file',
         kind: i.kind ?? 'transactions',
         image: isImage(i),
+        bank: i.via === 'bank',
       })),
       fresh: newRows,
       had: hadRows,

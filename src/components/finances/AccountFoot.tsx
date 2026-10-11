@@ -1,4 +1,4 @@
-import { ExternalLink, KeyRound, Link2 } from 'lucide-react'
+import { ExternalLink, KeyRound, Link2, Loader2, Sigma } from 'lucide-react'
 import type { MouseEvent } from 'react'
 
 import { PILL_QUIET } from '@/components/finances/bits'
@@ -9,7 +9,14 @@ const WARN =
 const DAY = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
 
 /** What the card needs to know of a bank link (bank.links). */
-export type CardLink = { validUntil: number | null; checkedAt: number | null }
+export type CardLink = {
+  validUntil: number | null
+  checkedAt: number | null
+  /** The bank is being asked right now. */
+  checking: boolean
+  /** Rows that did not add up wait for an answer. */
+  question: boolean
+}
 
 /* The card's last line: where the balance came from, and the one thing to
    do about it (11 Oct, bank-connected.html). One source for each number:
@@ -25,6 +32,7 @@ export function AccountFoot({
   broker,
   onUpdate,
   onConnect,
+  onCheck,
 }: {
   /** freshness() of the account's pockets. */
   label: string
@@ -38,6 +46,8 @@ export function AccountFoot({
   broker: boolean
   onUpdate: () => void
   onConnect: () => void
+  /** CHECK IT: the question the bank's rows left. */
+  onCheck: () => void
 }) {
   const now = Date.now()
   const press = (run: () => void) => (e: MouseEvent) => {
@@ -76,6 +86,28 @@ export function AccountFoot({
             </span>
           )}
         </span>
+      ) : link.question ? (
+        <span className="motion-fade flex min-w-0 flex-col font-mono text-[11px] leading-[14px]">
+          <span className="flex items-center gap-[7px] text-state-warn">
+            <Sigma className="size-3.5 shrink-0" />
+            not saved — 1 question open
+          </span>
+          {link.checkedAt === null ? null : (
+            <span className="pl-[21px] text-ink-500">
+              asked {bankWhen(link.checkedAt, now).replace('today ', 'today, ')}
+            </span>
+          )}
+        </span>
+      ) : link.checking ? (
+        <span className="motion-fade flex min-w-0 items-center gap-[7px] font-mono text-[11px] text-lav-300">
+          <Loader2 className="save-spinner size-3.5 shrink-0" />
+          checking the bank…
+          {link.checkedAt === null ? null : (
+            <span className="text-ink-500">
+              · last {bankWhen(link.checkedAt, now).replace('today ', '')}
+            </span>
+          )}
+        </span>
       ) : (
         <span className="motion-fade flex min-w-0 items-center gap-[7px] font-mono text-[11px] text-ink-400">
           <Link2 className="motion-pulse size-3.5 shrink-0 text-state-good" />
@@ -102,6 +134,10 @@ export function AccountFoot({
           <button type="button" onClick={press(onConnect)} className={WARN}>
             <ExternalLink className="size-3" />
             approve
+          </button>
+        ) : link.question ? (
+          <button type="button" onClick={press(onCheck)} className={WARN}>
+            check it
           </button>
         ) : broker ? (
           update

@@ -67,7 +67,9 @@ function checkFrom(
   const strict = from(last.recordedAt + HISTORY_GRACE_MS)
   if (strict.state === 'ok' || strict.state === 'bare') return strict
   const sameDay = from(last.recordedAt - 18 * 3_600_000)
-  return sameDay.state === 'ok' ? sameDay : strict
+  /* Or when, counted so, one row that looks like one he has explains it
+     (11 Oct: a bank asked twice in a day books the top-up the same day). */
+  return sameDay.state === 'ok' || sameDay.state === 'ask' ? sameDay : strict
 }
 
 /** What saving `kept` of a file's rows finds, before any is written: the

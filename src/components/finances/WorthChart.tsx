@@ -9,6 +9,7 @@ import { AccountsChart } from '@/components/finances/AccountsChart'
 import type { AccountsMode } from '@/components/finances/AccountsChart'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { useDayStarts } from '@/components/track/useDayStarts'
+import { useArrived, useHeld } from '@/lib/loading'
 import { euros } from '@/lib/money'
 import { useVeil } from '@/lib/veil'
 
@@ -112,7 +113,13 @@ export function WorthChart() {
   /* One subscription for the year; the switches only choose what of it to
      draw, so pressing them never reloads. */
   const dayEnds = useMemo(() => dayEndsBack(today, 365), [today])
-  const history = useQuery(api.aggregate.worthHistory, { dayEnds })
+  /* Held like every other page's first load (11 Oct, "skeleton … is
+     flickering"): the query used to pass straight through, so the stand-in
+     was torn out mid fade — 145ms after it mounted, measured. Now a quick
+     load shows no stand-in at all, and one that has shown stays
+     --loading-hold. */
+  const history = useHeld(useQuery(api.aggregate.worthHistory, { dayEnds }))
+  const arrived = useArrived(history)
   const { shown } = useVeil()
   const box = useRef<HTMLDivElement>(null)
   const chart = useRef<IChartApi | null>(null)
@@ -321,15 +328,17 @@ export function WorthChart() {
       >
         <div
           ref={box}
-          className={`absolute inset-0 transition-[filter] ${shown ? '' : 'blur-[8px]'}`}
+          className={`absolute inset-0 transition-[filter] ${arrived} ${shown ? '' : 'blur-[8px]'}`}
         />
         {/* Where the line will be (9 Oct): the shared light over a soft
-            ground, not an empty panel. */}
+            ground, not an empty panel. The mask fades both upward (11 Oct):
+            the ground already faded, but the light did not, and drew the
+            box's top edge and corner each time it crossed. */}
         {history === undefined ? (
           <div
             role="status"
             aria-label="Loading"
-            className="absolute inset-x-0 bottom-0 h-3/5 overflow-hidden rounded-[12px] bg-gradient-to-t from-lift/[0.06] to-transparent"
+            className="motion-loading-ground absolute inset-x-0 bottom-0 h-3/5 overflow-hidden rounded-[12px] bg-gradient-to-t from-lift/[0.06] to-transparent [mask-image:linear-gradient(to_top,black,transparent)]"
           >
             <span className="motion-loading absolute inset-0" />
           </div>

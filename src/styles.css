@@ -666,6 +666,14 @@ h6 {
       calc(var(--loading-wait) + var(--motion-base)) infinite;
 }
 
+/* The ground a stand-in's light crosses, where it is more than a bar — the
+   chart's (11 Oct). It waits --loading-wait as the light does: shown at once,
+   it was a grey block that flashed on every quick load. */
+@utility motion-loading-ground {
+  animation: save-appear var(--motion-base) var(--motion-ease)
+    var(--loading-wait) both;
+}
+
 /* SystemWait's light along the window's top edge, and the dots after the
    step still going (9 Oct). Only while the app itself is arriving. */
 @keyframes wait-scan {

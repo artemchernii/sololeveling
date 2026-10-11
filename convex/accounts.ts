@@ -278,6 +278,8 @@ export async function writeBalance(
   pocket: 'free' | 'broker' = 'free',
   /** Money the same screen showed as pending, signed. */
   pending = 0,
+  /** The file that set it: taking the file back takes this too. */
+  intakeId?: Id<'intakes'>,
 ) {
   if (pocket === 'broker' && (currency !== 'EUR' || !hasBrokerCash(account))) {
     throw new ConvexError(`${account.name} has no broker cash.`)
@@ -317,6 +319,7 @@ export async function writeBalance(
     recordedAt: at,
     source,
     ...(pending !== 0 ? { pending: Math.round(pending * 100) / 100 } : {}),
+    ...(intakeId !== undefined ? { intakeId } : {}),
   })
 }
 

@@ -22,6 +22,7 @@ import {
 import { euroRateAt, writeTransfer } from './money'
 import { sharesIn } from '../src/lib/crypto'
 import { heldCost } from '../src/lib/holdings'
+import { notSaved, sharesFor, sharesValue, sharesView } from './sharesCheck'
 import { internal } from './_generated/api'
 import {
   internalMutation,
@@ -2422,6 +2423,7 @@ export const finish = internalMutation({
     historyTrades: v.optional(v.number()),
     historyTickers: v.optional(v.number()),
     historyFound: schema.tables.intakes.validator.fields.historyFound,
+    historyShares: schema.tables.intakes.validator.fields.historyShares,
     /* Read in code from a remembered column map: no model this time. */
     model: v.optional(v.string()),
   },
@@ -2695,6 +2697,8 @@ const batchAccount = v.object({
   /* It does not, and he has not said what to do: apply leaves it. */
   held: v.boolean(),
   trades: v.number(),
+  /* A trading history against the account's shares (11 Oct). */
+  shares: v.union(sharesValue, v.null()),
   holdings: v.union(
     v.object({
       positions: v.number(),
@@ -3161,6 +3165,14 @@ async function gatherBatch(
         sumRows.length > 0 &&
         (check.state === 'ask' || check.state === 'off'),
       trades,
+      shares: await (async () => {
+        const file = leftOut
+          ? undefined
+          : g.list.find((i) => i.historyShares !== undefined)
+        if (!file) return null
+        const c = await sharesFor(ctx, ownerId, file, accountId)
+        return c ? sharesView(file, c, b.dismissed) : null
+      })(),
       holdings: held
         ? {
             positions: held.rows.length,
@@ -3469,9 +3481,18 @@ export const batchAnswer = mutation({
         return null
       }
       case 'sum': {
-        if (!/^(skip|two|sum):[a-z0-9:]{1,80}$/.test(answer.key))
+        if (
+          !/^(skip|two|sum|shares|noshares):[a-z0-9:]{1,80}$/.test(answer.key)
+        )
           throw new ConvexError('No such answer.')
-        const rest = b.dismissed.filter((k) => k !== answer.key)
+        /* "save it anyway" and "do not save it" are one answer or the
+           other (11 Oct, a company whose shares differ). */
+        const twin = answer.key.startsWith('shares:')
+          ? `no${answer.key}`
+          : answer.key.startsWith('noshares:')
+            ? answer.key.slice(2)
+            : null
+        const rest = b.dismissed.filter((k) => k !== answer.key && k !== twin)
         await ctx.db.patch(b._id, {
           dismissed: answer.on ? [...rest, answer.key] : rest,
         })
@@ -3545,6 +3566,9 @@ export const applyBatch = mutation({
       status: 'applying',
       moves,
       held,
+      heldShares: g.accounts.flatMap((x) =>
+        x.shares && !x.leftOut ? notSaved(x.shares) : [],
+      ),
       applied: {
         intakes: 0,
         rows: 0,
@@ -3791,7 +3815,13 @@ export const applyOne = internalMutation({
       }
       return done.positions
     } else if (intake.historyTrades !== undefined) {
-      rows = await applyHistoryChunk(ctx, ownerId, intake, account)
+      rows = await applyHistoryChunk(
+        ctx,
+        ownerId,
+        intake,
+        account,
+        b.heldShares ?? [],
+      )
     } else {
       const items = (intake.trades ?? []).flatMap((t, index) => {
         const c = t.candidates.at(
@@ -3828,7 +3858,15 @@ async function applyHistoryChunk(
   ownerId: string,
   intake: Doc<'intakes'>,
   account: Doc<'accounts'>,
+  /* Companies whose shares differ from the account's and he did not say
+     to save: "<intake>:<n>" (applyBatch). */
+  heldShares: ReadonlyArray<string>,
 ) {
+  const differs = new Set(
+    (intake.historyShares?.sums ?? []).flatMap((s, n) =>
+      heldShares.includes(`${intake._id}:${n}`) ? [s.name] : [],
+    ),
+  )
   const page = await ctx.db
     .query('intakeTrades')
     .withIndex('by_intake', (q) => q.eq('intakeId', intake._id))
@@ -3841,7 +3879,9 @@ async function applyHistoryChunk(
   )
   const items = page.page.flatMap((t, index) => {
     const pick = found.get(t.name) ?? null
-    return pick ? [{ index, trade: t, candidate: pick }] : []
+    return pick && !differs.has(t.name)
+      ? [{ index, trade: t, candidate: pick }]
+      : []
   })
   const done = await writeTrades(ctx, ownerId, account, intake._id, items, true)
   if (!page.isDone) {
@@ -3864,9 +3904,15 @@ async function applyHistoryChunk(
     keptUntil: keepUntil(),
     accountId: account._id,
     historyCursor: undefined,
-    ...(said.length
+    ...(said.length + differs.size
       ? {
-          note: [intake.note, `Left out, no ticker found: ${said.join(', ')}.`]
+          note: [
+            intake.note,
+            said.length ? `Left out, no ticker found: ${said.join(', ')}.` : '',
+            differs.size
+              ? `Not saved, shares differ from the account: ${[...differs].join(', ')}.`
+              : '',
+          ]
             .filter(Boolean)
             .join(' '),
         }

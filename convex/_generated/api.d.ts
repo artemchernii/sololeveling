@@ -44,6 +44,7 @@ import type * as reviews from "../reviews.js";
 import type * as rowBalance from "../rowBalance.js";
 import type * as search from "../search.js";
 import type * as seed from "../seed.js";
+import type * as sharesCheck from "../sharesCheck.js";
 import type * as state from "../state.js";
 import type * as tasks from "../tasks.js";
 import type * as typedBalance from "../typedBalance.js";
@@ -94,6 +95,7 @@ declare const fullApi: ApiFromModules<{
   rowBalance: typeof rowBalance;
   search: typeof search;
   seed: typeof seed;
+  sharesCheck: typeof sharesCheck;
   state: typeof state;
   tasks: typeof tasks;
   typedBalance: typeof typedBalance;

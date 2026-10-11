@@ -4,6 +4,7 @@ import { mutation } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { TableNames } from './_generated/dataModel'
 import { requireUser } from './auth'
+import { historySums } from '../src/lib/sharesCheck'
 
 /* Browser tests on mock data (docs/specs/2026-10-05-e2e-tests.md). Only
    the throwaway test backend on his Mac has E2E=1; his dev deployment and
@@ -476,6 +477,7 @@ export async function history(
       trades: [],
       historyTrades: rows.length,
       historyTickers: 2,
+      historyShares: historySums(rows),
       historyFound: [
         ['AAPL', 'Apple Inc.'],
         ['MSFT', 'Microsoft Corporation'],

@@ -327,3 +327,52 @@ export const sheetGap = mutation({
     return accountId
   },
 })
+
+/* The shares a Revolut screenshot showed, for the trading history of
+   e2e.readHistory (20 Apple and 5 Microsoft once its rows are summed):
+   `same` as the file, or one Microsoft share more than the file has. */
+export const sharesScreen = mutation({
+  args: { as: v.union(v.literal('same'), v.literal('fewer')) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const revolut = (
+      await ctx.db
+        .query('accounts')
+        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+        .take(10)
+    ).find((a) => a.name === 'Revolut')
+    if (!revolut) throw new Error('reset first')
+    const held = [
+      ['AAPL', 'Apple Inc.', 20],
+      ['MSFT', 'Microsoft Corporation', args.as === 'same' ? 5 : 6],
+    ] as const
+    for (const [symbol, name, shares] of held) {
+      const had = await ctx.db
+        .query('instruments')
+        .withIndex('by_owner_symbol', (q) =>
+          q.eq('ownerId', ownerId).eq('symbol', symbol),
+        )
+        .first()
+      const instrumentId =
+        had?._id ??
+        (await ctx.db.insert('instruments', {
+          ownerId,
+          symbol,
+          name,
+          exchange: 'NMS',
+          currency: 'USD',
+          type: 'EQUITY',
+        }))
+      await ctx.db.insert('holdings', {
+        ownerId,
+        accountId: revolut._id,
+        instrumentId,
+        shares,
+        asOf: Date.now(),
+      })
+    }
+    return null
+  },
+})

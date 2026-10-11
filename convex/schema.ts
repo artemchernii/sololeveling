@@ -1100,6 +1100,26 @@ export default defineSchema({
         }),
       ),
     ),
+    /* What the history's rows add up to, a company (11 Oct): compared
+       with the shares of the last screenshot before it is saved
+       (src/lib/sharesCheck.ts). Absent on a history read before this. */
+    historyShares: v.optional(
+      v.object({
+        from: v.union(v.number(), v.null()),
+        to: v.union(v.number(), v.null()),
+        sums: v.array(
+          v.object({
+            name: v.string(),
+            isin: v.optional(v.string()),
+            net: v.number(),
+            buys: v.number(),
+            sells: v.number(),
+            rows: v.number(),
+            late: v.array(v.object({ at: v.number(), shares: v.number() })),
+          }),
+        ),
+      }),
+    ),
     /* Where applying the history got to: it goes in a chunk at a time,
        so 3,595 rows never meet one transaction's limits. */
     historyCursor: v.optional(v.string()),
@@ -1164,6 +1184,9 @@ export default defineSchema({
     /* Accounts whose sum was off when apply was pressed (11 Oct): this
        apply writes nothing of theirs. */
     held: v.optional(v.array(v.id('accounts'))),
+    /* Companies of a trading history whose shares differ from the account
+       when apply was pressed, "<intake>:<n>": their rows are not written. */
+    heldShares: v.optional(v.array(v.string())),
     /* While applying, how far it got; once done, what it wrote. */
     applied: v.optional(
       v.object({

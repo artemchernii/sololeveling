@@ -246,7 +246,7 @@
   /* What changed: one line per company, before beside now. */
   .logo.xs { width: 28px; height: 28px; border-radius: 9px; padding: 6px }
   .chg { border-radius: 12px; background: rgba(0,0,0,.22); border: 1px solid rgba(var(--lift),.06); overflow: hidden; font-family: var(--mono); font-size: 12px }
-  .chg .r { display: grid; grid-template-columns: minmax(0,1fr) 88px 92px; align-items: center; gap: 8px; padding: 7px 12px; border-top: 1px solid rgba(var(--lift),.06); min-height: 42px }
+  .chg .r { display: grid; grid-template-columns: minmax(0,1fr) 84px 104px; align-items: center; gap: 8px; padding: 7px 12px; border-top: 1px solid rgba(var(--lift),.06); min-height: 42px }
   .chg .r:first-child { border-top: 0 }
   .chg .r.h { min-height: 0; padding: 7px 12px; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500) }
   .chg .n { display: flex; align-items: center; gap: 9px; min-width: 0; font-family: Inter, system-ui, sans-serif; font-size: 13px; color: var(--ink-200) }
@@ -254,13 +254,15 @@
   .chg .n small { display: block; font-family: var(--mono); font-size: 10px; color: var(--ink-500); white-space: normal; line-height: 1.35 }
   .chg .n small.lav { color: var(--lav-300) } .chg .n small.amber { color: var(--warn) }
   .chg .v { text-align: right; color: var(--ink-500); white-space: nowrap }
-  .chg .v.now { color: var(--ink-100) }
+  .chg .v.now { color: var(--ink-100); display: flex; align-items: center; justify-content: flex-end; gap: 5px }
+  .chg .way { display: inline-flex; animation: pop .45s var(--ease) .4s both }
+  .chg .way svg { width: 12px; height: 12px; stroke-width: 2.6 }
   .chg .ic { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; color: var(--bank); background: color-mix(in oklch, var(--bank) 10%, transparent); flex: none }
   .more { align-self: flex-start }
   .envs { display: flex; gap: 6px; flex-wrap: wrap; padding-left: 23px }
   .envs code { font-family: var(--mono); font-size: 11px; color: var(--ink-200); background: rgba(0,0,0,.25); border-radius: 7px; padding: 4px 8px }
   .sheet .chg { max-height: 52vh; overflow: auto }
-  @media (max-width: 640px) { .chg .r { grid-template-columns: minmax(0,1fr) 74px 80px; padding-inline: 10px } }
+  @media (max-width: 640px) { .chg .r { grid-template-columns: minmax(0,1fr) 70px 92px; padding-inline: 10px } }
 </style>
 </head>
 <body>
@@ -281,6 +283,8 @@ const P = {
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M16 7l3 3"/>',
   eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  up: '<path d="M12 19V5"/><path d="m6 11 6-6 6 6"/>',
+  down: '<path d="M12 5v14"/><path d="m6 13 6 6 6-6"/>',
   land: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/>',
 }
 const svg = (n) => `<svg class="i" viewBox="0 0 24 24">${P[n]}</svg>`
@@ -319,7 +323,9 @@ const tr = () => card('tr', 'Trade Republic', 'traderepublic.com', { total: '€
 /* One changed line: the company, what it was worth in the account, what
    it is worth now. The shares sit small underneath (12 Oct: "amount is
    important"). */
-const line = ([d, name, sub, was, now, tone = '']) => `<div class="r"><span class="n">${d ? logo(d, 'xs') : `<span class="ic">${svg('land')}</span>`}<span>${name}<small class="${tone}">${sub}</small></span></span><span class="v">${was}</span><span class="v now">${now}</span></div>`
+const num = (t) => Number(t.replace(/[^0-9.]/g, ''))
+const way = (was, now) => num(now) === num(was) ? '' : `<span class="way ${num(now) > num(was) ? 'green' : 'red'}">${svg(num(now) > num(was) ? 'up' : 'down')}</span>`
+const line = ([d, name, sub, was, now, tone = '']) => `<div class="r"><span class="n">${d ? logo(d, 'xs') : `<span class="ic">${svg('land')}</span>`}<span>${name}<small class="${tone}">${sub}</small></span></span><span class="v">${was}</span><span class="v now">${way(was, now)}${now}</span></div>`
 const table = (lines, day = 'Oct 10') => `<div class="chg"><div class="r h"><span></span><span class="v">${day}</span><span class="v">now</span></div>${lines.map(line).join('')}</div>`
 const CASH = ['', 'Free cash', 'EUR', '€1,280.30', '€1,620.30']
 const NVDA = ['nvidia.com', 'Nvidia', '8 → 10 shares', '€1,200.00', '€1,500.00']

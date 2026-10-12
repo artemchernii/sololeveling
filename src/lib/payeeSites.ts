@@ -119,6 +119,7 @@ const SITES: ReadonlyArray<readonly [string, string]> = [
   ['trading 212', 'trading212.com'],
   ['activobank', 'activobank.pt'],
   ['bpi', 'bancobpi.pt'],
+  ['bnp paribas', 'bnpparibas.com'],
   ['wise', 'wise.com'],
   ['mb way', 'mbway.pt'],
   ['mbway', 'mbway.pt'],

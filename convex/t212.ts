@@ -143,6 +143,18 @@ export const begin = internalMutation({
       throw new ConvexError('No such account.')
     if (account.institution !== T212 || !account.kinds.includes('broker'))
       throw new ConvexError(`${account.name} is not Trading 212.`)
+    /* One key for the whole backend, and it is one person's (12 Oct,
+       docs/specs/2026-09-26-later-sharing.md point 6): it answers only for
+       the user who connected first. Anyone else would be shown that
+       person's cash and positions. */
+    const first = await ctx.db
+      .query('bankLinks')
+      .withIndex('by_via', (q) => q.eq('via', 't212'))
+      .first()
+    if (first !== null && first.ownerId !== args.ownerId)
+      throw new ConvexError(
+        'The Trading 212 key here belongs to another user. Nothing changed.',
+      )
     const now = Date.now()
     let link = await linkOf(ctx, args.ownerId, args.accountId)
     if (link === null) {

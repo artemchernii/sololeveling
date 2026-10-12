@@ -291,3 +291,36 @@ test('the card reads what changed in euros: shares × the stored price, then and
   const other = t.withIdentity({ tokenIdentifier: OTHER })
   expect(await other.query(api.bank.links, {})).toEqual([])
 })
+
+test('the key answers only for the user who connected first: a second user is refused and gets nothing', async () => {
+  const { t, me, args } = await mock()
+  const other = t.withIdentity({ tokenIdentifier: OTHER })
+  const theirs = await other.mutation(api.e2eBank.t212, {})
+  await me.action(api.t212.connect, args)
+  await expect(
+    other.action(api.t212.connect, { ...args, accountId: theirs }),
+  ).rejects.toThrow(
+    'The Trading 212 key here belongs to another user. Nothing changed.',
+  )
+  const got = await t.run(async (ctx) => ({
+    links: await ctx.db
+      .query('bankLinks')
+      .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', OTHER).eq('accountId', theirs),
+      )
+      .collect(),
+    looks: await ctx.db
+      .query('holdings')
+      .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', OTHER).eq('accountId', theirs),
+      )
+      .collect(),
+  }))
+  expect(got.links).toEqual([])
+  /* Only the look their own file left. */
+  expect(got.looks).toHaveLength(2)
+  /* The first user is not stopped by the attempt. */
+  await me.mutation(api.e2eBank.answer, { as: 'traded' })
+  vi.setSystemTime(Date.now() + 5 * HOUR)
+  expect(await me.action(api.t212.check, args)).toBe('checked')
+})

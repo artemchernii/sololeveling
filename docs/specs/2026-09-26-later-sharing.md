@@ -42,6 +42,19 @@ own rows. No rewrite is needed; the work is in the edges.
    stored file — which a real app needs anyway.
 5. **Improving it** is not this row. Working on the code means being a
    collaborator on the GitHub repo, which already works.
+6. **Connections are his alone today (12 Oct).** Artem: "I want to
+   actually later share this app at some point."
+   - **Trading 212** is read with one key for the whole backend
+     (`TRADING212_KEY`, `TRADING212_SECRET`) — his. Until this row, the
+     key answers only for the user who connected first on that backend
+     (`convex/t212.ts`), so a second sign-in cannot read his account. At
+     this row: each person types their own key in the app, stored
+     encrypted as the AI key in point 3 is, and his moves there too.
+   - **Banks** go through his Enable Banking application, activated only
+     for accounts he linked himself. Other people's banks need Enable
+     Banking's full activation — their approval and a contract, not code.
+     Until then an invited person uses files.
+   - **Files** (statements, screenshots) already work for anyone.
 
 ## Done when (draft)
 

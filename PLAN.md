@@ -542,6 +542,10 @@ one-page spec under `docs/specs/` written when the previous row has shipped.
 - **Finances (R6b-c).** Unblocked 26 Sep by the sum rule in §1. Three rows: F1 Spending (a
   month's out and in by category, `logs.meta.category`), F2 Balances,
   F3 Investments — each its own spec when the one before ships.
+- **Sharing (R8) is wanted, said again 12 Oct:** "I want to actually later share this app at
+  some point." Nothing new may assume one person. Connections are the open part — one Trading
+  212 key for the whole backend, an Enable Banking application activated for his accounts only
+  — and what each needs is point 6 of `docs/specs/2026-09-26-later-sharing.md`.
 
 **Rules that carry through every row:** every number from a sanctioned source (§1); three a
 day (§3c.1); the backlog never on Today (§3c.3); tasks and events two tables (§3b.3);

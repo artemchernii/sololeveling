@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
+import { Check } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
@@ -9,6 +10,7 @@ import type { SheetGuard } from '@/components/finances/Sheet'
 import { BulkReading } from '@/components/finances/BulkReading'
 import { Applying, Applied } from '@/components/finances/BulkSaving'
 import { BulkReview } from '@/components/finances/BulkReview'
+import { WhoseFile, namedElsewhere } from '@/components/finances/BulkWhose'
 
 /* An update (3 Oct, as UPDATE ALL; since 10 Oct what every drop on ADD
    runs as). Artem: "When I simply drag and drop multiple csv/pdf files,
@@ -41,9 +43,13 @@ export function BulkUpdate({
   onFlight,
   onStep,
   dropArea,
+  forAccount,
 }: {
   waiting: Id<'batches'> | null
   onClose: () => void
+  /** The account UPDATE was pressed on: a file that names another one is
+      asked about before anything of it is saved. */
+  forAccount?: Id<'accounts'>
   /** Told what is in flight, so the sheet around it can ask before closing. */
   onFlight?: (flight: Flight | null) => void
   /** Told which of the four steps it is on (1 read, 2 check, 3 saving,
@@ -59,6 +65,11 @@ export function BulkUpdate({
   const batchId = mine ?? waiting
   const view = useQuery(api.intake.batch, batchId ? { batchId } : 'skip')
   const [checking, setChecking] = useState<Id<'intakes'> | null>(null)
+  const accounts = useQuery(api.accounts.list, forAccount ? {} : 'skip')
+  /* Files kept on the account UPDATE was pressed on, and what was
+     answered — remembered while the window is open. */
+  const [kept, setKept] = useState<ReadonlySet<Id<'intakes'>>>(new Set())
+  const [answered, setAnswered] = useState<Array<string>>([])
   /* Whether this sheet saw the apply through. */
   const [pressed, setPressed] = useState(false)
   /* "saving…" stays long enough to be read: a small file is written
@@ -141,18 +152,53 @@ export function BulkUpdate({
   }
   if (view.status === 'done') return drop
   if (reading) return <BulkReading view={view} />
+  if (forAccount) {
+    if (accounts === undefined) return <div className="min-h-[320px]" />
+    const opened = accounts.find((a) => a._id === forAccount)
+    for (const file of view.files) {
+      if (file.status !== 'ready' || kept.has(file.intakeId) || !opened)
+        continue
+      const named = namedElsewhere(file, forAccount, accounts)
+      if (named)
+        return (
+          <WhoseFile
+            file={file}
+            named={named}
+            opened={opened}
+            batchId={batchId}
+            only={view.files.length === 1}
+            onClose={onClose}
+            onPicked={(a) => {
+              setKept((was) => new Set([...was, file.intakeId]))
+              setAnswered((was) => [...was, `${file.name} → ${a.name}.`])
+            }}
+          />
+        )
+    }
+  }
   return (
-    <BulkReview
-      batchId={batchId}
-      onCheck={setChecking}
-      onClose={onClose}
-      onApplied={() => {
-        setPressed(true)
-        setJustPressed(true)
-        /* Once applied it is no longer the one waiting — hold on to it
+    <>
+      {answered.map((text) => (
+        <div
+          key={text}
+          className="motion-land flex items-center gap-2.5 rounded-[16px] bg-state-good/[0.06] px-3.5 py-3 text-[13px] text-ink-200 ring-1 ring-state-good/30 ring-inset"
+        >
+          <Check className="size-4 text-state-good" />
+          {text}
+        </div>
+      ))}
+      <BulkReview
+        batchId={batchId}
+        onCheck={setChecking}
+        onClose={onClose}
+        onApplied={() => {
+          setPressed(true)
+          setJustPressed(true)
+          /* Once applied it is no longer the one waiting — hold on to it
            here, so its applied screen still has it. */
-        setMine(batchId)
-      }}
-    />
+          setMine(batchId)
+        }}
+      />
+    </>
   )
 }

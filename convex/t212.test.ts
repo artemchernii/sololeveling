@@ -398,3 +398,66 @@ test('the first answer shows what differs from the last file, as of that file', 
   })
   vi.restoreAllMocks()
 })
+
+test('sameFund: a fund saved twice is one again — its look moved, the "sold" look gone, the copy removed', async () => {
+  const { t, me, accountId } = await mock()
+  /* As the first real answer left it: NVDA "sold", a copy holding 8. */
+  const at = NOON
+  await t.run(async (ctx) => {
+    const nvda = await ctx.db
+      .query('instruments')
+      .withIndex('by_owner_symbol', (q) =>
+        q.eq('ownerId', ME).eq('symbol', 'NVDA'),
+      )
+      .unique()
+    if (!nvda) throw new Error('no NVDA')
+    await ctx.db.patch(nvda._id, { isin: undefined })
+    const copy = await ctx.db.insert('instruments', {
+      ownerId: ME,
+      symbol: 'NVD.DE',
+      name: 'NVIDIA Corporation',
+      exchange: 'GER',
+      currency: 'EUR',
+      type: 'EQUITY',
+      isin: 'US67066G1040',
+    })
+    const look = { ownerId: ME, accountId, asOf: at }
+    await ctx.db.insert('holdings', {
+      ...look,
+      instrumentId: nvda._id,
+      shares: 0,
+    })
+    await ctx.db.insert('holdings', { ...look, instrumentId: copy, shares: 8 })
+    await ctx.db.insert('prices', {
+      ownerId: ME,
+      instrumentId: copy,
+      price: 150,
+      currency: 'EUR',
+      asOf: at,
+      fetchedAt: at,
+      source: 'test',
+    })
+  })
+  const args = { ownerId: ME, copy: 'NVD.DE', kept: 'NVDA' }
+  const symbols = async () =>
+    (await me.query(api.aggregate.positions, {})).rows.map((r) => r.symbol)
+  /* A dry run lists and writes nothing. */
+  expect(
+    await t.mutation(internal.migrations.sameFund, { ...args, apply: false }),
+  ).toEqual({ looks: 1, trades: 0, sold: 1, isin: 'US67066G1040' })
+  expect((await symbols()).sort()).toEqual(['ASML.AS', 'NVD.DE'])
+  await t.mutation(internal.migrations.sameFund, { ...args, apply: true })
+  const rows = (await me.query(api.aggregate.positions, {})).rows
+  expect(rows.map((r) => [r.symbol, r.shares]).sort()).toEqual([
+    ['ASML.AS', 1],
+    ['NVDA', 8],
+  ])
+  /* Another owner's funds are not reached. */
+  await expect(
+    t.mutation(internal.migrations.sameFund, {
+      ...args,
+      ownerId: OTHER,
+      apply: true,
+    }),
+  ).rejects.toThrow('Both funds must be there')
+})

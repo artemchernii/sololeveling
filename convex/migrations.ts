@@ -354,3 +354,80 @@ export const relist = internalMutation({
     }
   },
 })
+
+/* One fund saved twice (12 Oct): the first real answer from Trading 212
+   named three funds by another listing than the files had — VHYD.L for
+   VHYL.AS, VFEA.L for VFEG.L, VAPU.L for VDPG.L — so each was saved as a
+   new fund and the old one written as sold. Moves every look and trade
+   of `copy` onto `kept`, drops the look of 0 shares that "sold" it at the
+   same moment, gives `kept` the ISIN, and removes `copy` with its prices.
+   Lists first, writes only with apply. */
+export const sameFund = internalMutation({
+  args: {
+    ownerId: v.string(),
+    copy: v.string(),
+    kept: v.string(),
+    apply: v.boolean(),
+  },
+  returns: v.object({
+    looks: v.number(),
+    trades: v.number(),
+    sold: v.number(),
+    isin: v.union(v.string(), v.null()),
+  }),
+  handler: async (ctx, args) => {
+    const bySymbol = (symbol: string) =>
+      ctx.db
+        .query('instruments')
+        .withIndex('by_owner_symbol', (q) =>
+          q.eq('ownerId', args.ownerId).eq('symbol', symbol),
+        )
+        .first()
+    const copy = await bySymbol(args.copy)
+    const kept = await bySymbol(args.kept)
+    if (copy === null || kept === null || copy._id === kept._id)
+      throw new Error('Both funds must be there, and not the same one.')
+    const of = (id: typeof copy._id) =>
+      ctx.db
+        .query('holdings')
+        .withIndex('by_owner_instrument', (q) =>
+          q.eq('ownerId', args.ownerId).eq('instrumentId', id),
+        )
+        .take(500)
+    const looks = await of(copy._id)
+    const trades = await ctx.db
+      .query('trades')
+      .withIndex('by_owner_instrument', (q) =>
+        q.eq('ownerId', args.ownerId).eq('instrumentId', copy._id),
+      )
+      .take(5000)
+    const sold = (await of(kept._id)).filter(
+      (h) =>
+        h.shares === 0 &&
+        looks.some((l) => l.accountId === h.accountId && l.asOf === h.asOf),
+    )
+    if (args.apply) {
+      for (const h of sold) await ctx.db.delete(h._id)
+      for (const h of looks)
+        await ctx.db.patch(h._id, { instrumentId: kept._id })
+      for (const t of trades)
+        await ctx.db.patch(t._id, { instrumentId: kept._id })
+      if (kept.isin === undefined && copy.isin !== undefined)
+        await ctx.db.patch(kept._id, { isin: copy.isin })
+      for (const p of await ctx.db
+        .query('prices')
+        .withIndex('by_owner_instrument_time', (q) =>
+          q.eq('ownerId', args.ownerId).eq('instrumentId', copy._id),
+        )
+        .take(2000))
+        await ctx.db.delete(p._id)
+      await ctx.db.delete(copy._id)
+    }
+    return {
+      looks: looks.length,
+      trades: trades.length,
+      sold: sold.length,
+      isin: kept.isin ?? copy.isin ?? null,
+    }
+  },
+})

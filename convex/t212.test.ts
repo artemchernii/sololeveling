@@ -291,3 +291,173 @@ test('the card reads what changed in euros: shares × the stored price, then and
   const other = t.withIdentity({ tokenIdentifier: OTHER })
   expect(await other.query(api.bank.links, {})).toEqual([])
 })
+
+test('the key answers only for the user who connected first: a second user is refused and gets nothing', async () => {
+  const { t, me, args } = await mock()
+  const other = t.withIdentity({ tokenIdentifier: OTHER })
+  const theirs = await other.mutation(api.e2eBank.t212, {})
+  await me.action(api.t212.connect, args)
+  await expect(
+    other.action(api.t212.connect, { ...args, accountId: theirs }),
+  ).rejects.toThrow(
+    'The Trading 212 key here belongs to another user. Nothing changed.',
+  )
+  const got = await t.run(async (ctx) => ({
+    links: await ctx.db
+      .query('bankLinks')
+      .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', OTHER).eq('accountId', theirs),
+      )
+      .collect(),
+    looks: await ctx.db
+      .query('holdings')
+      .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', OTHER).eq('accountId', theirs),
+      )
+      .collect(),
+  }))
+  expect(got.links).toEqual([])
+  /* Only the look their own file left. */
+  expect(got.looks).toHaveLength(2)
+  /* The first user is not stopped by the attempt. */
+  await me.mutation(api.e2eBank.answer, { as: 'traded' })
+  vi.setSystemTime(Date.now() + 5 * HOUR)
+  expect(await me.action(api.t212.check, args)).toBe('checked')
+})
+
+test('a fund the account holds under another listing is that holding, not a second fund', async () => {
+  const { t, me, args, link } = await mock()
+  await me.action(api.t212.connect, args)
+  /* Trading 212 calls ASML by a ticker and an ISIN the account does not
+     have; the market lists that ISIN as ASML.AS too. */
+  await t.run(async (ctx) => {
+    const asml = await ctx.db
+      .query('instruments')
+      .withIndex('by_owner_symbol', (q) =>
+        q.eq('ownerId', ME).eq('symbol', 'ASML.AS'),
+      )
+      .unique()
+    if (asml) await ctx.db.patch(asml._id, { isin: undefined })
+  })
+  vi.setSystemTime(NOON + 5 * HOUR)
+  await t.mutation(internal.t212.begin, {
+    ownerId: ME,
+    accountId: args.accountId,
+    connect: false,
+  })
+  await t.mutation(internal.t212.arrive, {
+    ownerId: ME,
+    ...args,
+    cash: { currency: 'EUR', value: 1280.3 },
+    positions: [
+      { ticker: 'NVDA_US_EQ', name: 'Nvidia', isin: 'US67066G1040', shares: 8 },
+      {
+        ticker: 'ASMLa_EQ',
+        name: 'ASML',
+        isin: 'NL0010273215',
+        shares: 1,
+        held: 'ASML.AS',
+      },
+    ],
+  })
+  expect((await link())?.changed).toBeUndefined()
+  const rows = (await me.query(api.aggregate.positions, {})).rows
+  expect(rows.map((r) => r.symbol).sort()).toEqual(['ASML.AS', 'NVDA'])
+})
+
+test('the first answer shows what differs from the last file, as of that file', async () => {
+  const { me, args, link } = await mock()
+  const fileDay = NOON - 3 * 86_400_000
+  const t212 = await import('./t212Api')
+  vi.spyOn(t212, 't212Api').mockReturnValue({
+    summary: () =>
+      Promise.resolve({
+        currency: 'EUR',
+        free: 1280.3,
+        inPies: 0,
+        reserved: 0,
+      }),
+    positions: () =>
+      Promise.resolve([
+        {
+          ticker: 'NVDA_US_EQ',
+          name: 'Nvidia',
+          isin: 'US67066G1040',
+          shares: 9,
+        },
+        { ticker: 'ASML_NA_EQ', name: 'ASML', isin: 'NL0010273215', shares: 1 },
+      ]),
+  })
+  expect(await me.action(api.t212.connect, args)).toEqual({
+    same: 2,
+    changed: 1,
+  })
+  expect((await link())?.changed).toMatchObject({
+    at: fileDay,
+    lines: [{ was: 8, now: 9 }],
+  })
+  vi.restoreAllMocks()
+})
+
+test('sameFund: a fund saved twice is one again — its look moved, the "sold" look gone, the copy removed', async () => {
+  const { t, me, accountId } = await mock()
+  /* As the first real answer left it: NVDA "sold", a copy holding 8. */
+  const at = NOON
+  await t.run(async (ctx) => {
+    const nvda = await ctx.db
+      .query('instruments')
+      .withIndex('by_owner_symbol', (q) =>
+        q.eq('ownerId', ME).eq('symbol', 'NVDA'),
+      )
+      .unique()
+    if (!nvda) throw new Error('no NVDA')
+    await ctx.db.patch(nvda._id, { isin: undefined })
+    const copy = await ctx.db.insert('instruments', {
+      ownerId: ME,
+      symbol: 'NVD.DE',
+      name: 'NVIDIA Corporation',
+      exchange: 'GER',
+      currency: 'EUR',
+      type: 'EQUITY',
+      isin: 'US67066G1040',
+    })
+    const look = { ownerId: ME, accountId, asOf: at }
+    await ctx.db.insert('holdings', {
+      ...look,
+      instrumentId: nvda._id,
+      shares: 0,
+    })
+    await ctx.db.insert('holdings', { ...look, instrumentId: copy, shares: 8 })
+    await ctx.db.insert('prices', {
+      ownerId: ME,
+      instrumentId: copy,
+      price: 150,
+      currency: 'EUR',
+      asOf: at,
+      fetchedAt: at,
+      source: 'test',
+    })
+  })
+  const args = { ownerId: ME, copy: 'NVD.DE', kept: 'NVDA' }
+  const symbols = async () =>
+    (await me.query(api.aggregate.positions, {})).rows.map((r) => r.symbol)
+  /* A dry run lists and writes nothing. */
+  expect(
+    await t.mutation(internal.migrations.sameFund, { ...args, apply: false }),
+  ).toEqual({ looks: 1, trades: 0, sold: 1, isin: 'US67066G1040' })
+  expect((await symbols()).sort()).toEqual(['ASML.AS', 'NVD.DE'])
+  await t.mutation(internal.migrations.sameFund, { ...args, apply: true })
+  const rows = (await me.query(api.aggregate.positions, {})).rows
+  expect(rows.map((r) => [r.symbol, r.shares]).sort()).toEqual([
+    ['ASML.AS', 1],
+    ['NVDA', 8],
+  ])
+  /* Another owner's funds are not reached. */
+  await expect(
+    t.mutation(internal.migrations.sameFund, {
+      ...args,
+      ownerId: OTHER,
+      apply: true,
+    }),
+  ).rejects.toThrow('Both funds must be there')
+})

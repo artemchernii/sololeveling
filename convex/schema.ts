@@ -742,7 +742,10 @@ export default defineSchema({
     ),
   })
     .index('by_owner_account', ['ownerId', 'accountId'])
-    .index('by_owner_state', ['ownerId', 'state']),
+    .index('by_owner_state', ['ownerId', 'state'])
+    /* Read across owners on purpose, by convex/t212.ts only: the one
+       Trading 212 key of the backend answers for whoever connected first. */
+    .index('by_via', ['via']),
 
   /* A bill or a salary that comes round (Finances F3): the plan, not the
      payment. Tapping "paid" writes the expense log that is the evidence

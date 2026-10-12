@@ -211,10 +211,10 @@ export function Movements({
                 />
               ) : s?.i ? null : (
                 /* Nothing moved (12 Oct: "no moves and little out are
-                   same. Both red"): a grey dash, not a red bar. */
+                   same. Both red"): a dash in the hover card's amber, not a red bar. */
                 <span
                   data-quiet
-                  className="mx-[30%] h-px self-stretch rounded-full bg-ink-600"
+                  className="mx-[30%] h-px self-stretch rounded-full bg-state-warn/80"
                 />
               )}
               <span
@@ -254,7 +254,7 @@ export function Movements({
           <span className="text-lav-300">a bill to come</span>
         </Key>
         <Key mark="quiet">
-          <i className="block h-px w-2.5 bg-ink-600" />
+          <i className="block h-px w-2.5 bg-state-warn/80" />
           nothing moved
         </Key>
         <span className="ml-auto text-ink-500">tap a day to jump</span>

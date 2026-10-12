@@ -20,10 +20,14 @@ vi.setConfig({ testTimeout: 20_000 })
 beforeEach(() => {
   vi.useFakeTimers({ now: NOON })
   vi.stubEnv('E2E', '1')
+  /* Saved positions ask for their prices: never from a test (12 Oct, CI
+     waited on Yahoo until the test ran out of time). */
+  vi.stubGlobal('fetch', () => Promise.reject(new Error('no network here')))
 })
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
 })
 
 async function setup(as: 'same' | 'cut' | 'none' | 'two') {

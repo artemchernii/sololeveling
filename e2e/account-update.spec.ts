@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { anyApi } from 'convex/server'
 
-import { revolutCsv, start, testClient } from './helpers'
+import { activoCsv, revolutCsv, start, testClient } from './helpers'
 
 const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
 
@@ -191,4 +191,76 @@ test('phone width: the window fits, the steps take their own line', async ({
   expect(steps.y).toBeGreaterThan(close.y + close.height - 1)
   await page.waitForTimeout(700)
   await page.screenshot(shot('account-update-check-phone'))
+})
+
+test("another account's file on UPDATE: asked which account, not saved until picked", async ({
+  page,
+}) => {
+  const days = await start(page)
+  const sheet = await update(page, 'Revolut')
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'activobank.csv',
+    mimeType: 'text/csv',
+    buffer: activoCsv(days),
+  })
+  const ask = sheet.getByTestId('whose-file')
+  await expect(ask.getByText('Which account is this file for?')).toBeVisible()
+  await expect(
+    ask.getByText('the file names ActivoBank · UPDATE was opened on Revolut'),
+  ).toBeVisible()
+  await expect(sheet.getByText('Not saved — 1 question open.')).toBeVisible()
+  /* Nothing to apply while it is open. */
+  await expect(sheet.getByRole('button', { name: /apply/ })).toHaveCount(0)
+  await page.waitForTimeout(700)
+  await page.screenshot(shot('account-update-whose'))
+
+  await ask.getByRole('button', { name: 'ActivoBank' }).click()
+  await expect(sheet.getByText('activobank.csv → ActivoBank.')).toBeVisible()
+  await expect(ask).toHaveCount(0)
+  await page.screenshot(shot('account-update-whose-answered'))
+  await sheet.getByRole('button', { name: /apply 1 account/ }).click()
+  await expect(sheet.getByText('saving…')).toBeVisible()
+  await expect(sheet.getByText('ActivoBank is up to date')).toBeVisible()
+  await expect(sheet.getByText('Revolut is up to date')).toHaveCount(0)
+})
+
+test("another account's file, kept on the account UPDATE was pressed on", async ({
+  page,
+}) => {
+  const days = await start(page)
+  const sheet = await update(page, 'Revolut')
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'activobank.csv',
+    mimeType: 'text/csv',
+    buffer: activoCsv(days),
+  })
+  const ask = sheet.getByTestId('whose-file')
+  await ask.getByRole('button', { name: 'Revolut' }).click()
+  await expect(sheet.getByText('activobank.csv → Revolut.')).toBeVisible()
+  await expect(
+    sheet.getByRole('button', { name: /apply 1 account/ }),
+  ).toBeVisible()
+})
+
+test('landed: ROWS opens what the file brought, and hides it again', async ({
+  page,
+}) => {
+  const days = await start(page)
+  const sheet = await update(page, 'Revolut')
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'account-statement.csv',
+    mimeType: 'text/csv',
+    buffer: revolutCsv(days),
+  })
+  await sheet.getByRole('button', { name: /apply 1 account/ }).click()
+  await expect(sheet.getByText('Revolut is up to date')).toBeVisible()
+  await expect(sheet.getByText('Pingo Doce')).toHaveCount(0)
+  await sheet.getByRole('button', { name: 'rows', exact: true }).click()
+  const rows = sheet.getByTestId('landed-rows')
+  await expect(rows.getByText('Pingo Doce')).toBeVisible()
+  await expect(rows.getByText('Bolt')).toHaveCount(1)
+  await page.waitForTimeout(700)
+  await page.screenshot(shot('account-update-landed-rows'))
+  await sheet.getByRole('button', { name: 'hide rows' }).click()
+  await expect(rows).toHaveCount(0)
 })

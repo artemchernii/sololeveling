@@ -69,7 +69,12 @@ export function BulkReview({
   const fresh = review.accounts
     .filter((a) => !a.leftOut)
     .reduce((t, a) => t + a.fresh + a.trades, 0)
-  const months = review.months
+  /* Rows the bank itself sent (11 Oct): no file was dropped, so nothing
+     here speaks of files, a drop, or months a statement covers. */
+  const fromBank =
+    review.accounts.length > 0 &&
+    review.accounts.every((a) => a.files.every((f) => f.bank))
+  const months = fromBank ? [] : review.months
   const asks = review.asks.filter(
     (a) => !solved.some((s) => s.key === askKey(a)),
   )
@@ -116,7 +121,12 @@ export function BulkReview({
         hidden={allBad}
         className="flex flex-wrap items-baseline gap-x-6 gap-y-2"
       >
-        <Stat n={review.files} label={review.files === 1 ? 'file' : 'files'} />
+        {fromBank ? null : (
+          <Stat
+            n={review.files}
+            label={review.files === 1 ? 'file' : 'files'}
+          />
+        )}
         <Stat
           n={review.accounts.length}
           label={review.accounts.length === 1 ? 'account' : 'accounts'}

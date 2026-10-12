@@ -6,9 +6,10 @@ import {
   canConnect,
   pickAccounts,
 } from '../src/lib/bankLink'
+import { arrivedFromBank } from './aggregate'
 import { requireUser } from './auth'
 import { bankApi } from './bankApi'
-import { pull } from './bankRows'
+import { CHECK_LOST_MS, pull } from './bankRows'
 import { internal } from './_generated/api'
 import {
   action,
@@ -50,6 +51,23 @@ export const links = query({
       ),
       validUntil: v.union(v.number(), v.null()),
       checkedAt: v.union(v.number(), v.null()),
+      /* A check of the bank is running. */
+      checking: v.boolean(),
+      /* Rows that did not add up: the update that asks about them. */
+      question: v.union(v.id('batches'), v.null()),
+      /* Rows the bank brought, saved, and not closed with ✕ yet. */
+      arrived: v.union(
+        v.object({
+          rows: v.number(),
+          currency: v.string(),
+          was: v.number(),
+          wasAt: v.number(),
+          out: v.number(),
+          in: v.number(),
+          now: v.number(),
+        }),
+        v.null(),
+      ),
       choices: v.array(
         v.object({
           uid: v.string(),
@@ -65,17 +83,49 @@ export const links = query({
       .query('bankLinks')
       .withIndex('by_owner_account', (q) => q.eq('ownerId', ownerId))
       .take(50)
-    return rows.map((r) => ({
-      accountId: r.accountId,
-      status: r.status,
-      validUntil: r.validUntil ?? null,
-      checkedAt: r.checkedAt ?? null,
-      choices: (r.status === 'choose' ? (r.choices ?? []) : []).map((c) => ({
-        uid: c.uid,
-        name: c.name ?? null,
-        tail: c.iban?.slice(-4) ?? null,
+    const now = Date.now()
+    const out = []
+    for (const r of rows) {
+      /* A question he answered is rows that arrived (bankRows.begin moves
+         it over at the next check; until then it is read as one here). */
+      let question: Id<'batches'> | null = null
+      const saved = [...(r.arrived ?? [])]
+      for (const id of r.questions ?? []) {
+        const b = await ctx.db.get(id)
+        if (b === null) continue
+        if (b.status !== 'done') {
+          question ??= id
+          continue
+        }
+        const files = await ctx.db
+          .query('intakes')
+          .withIndex('by_owner_batch', (q) =>
+            q.eq('ownerId', ownerId).eq('batchId', id),
+          )
+          .take(5)
+        saved.push(...files.map((f) => f._id))
+      }
+      out.push({ r, question, saved })
+    }
+    return await Promise.all(
+      out.map(async ({ r, question, saved }) => ({
+        accountId: r.accountId,
+        status: r.status,
+        validUntil: r.validUntil ?? null,
+        checkedAt: r.checkedAt ?? null,
+        checking: r.checking !== undefined && now - r.checking < CHECK_LOST_MS,
+        question,
+        arrived:
+          saved.length === 0
+            ? null
+            : await arrivedFromBank(ctx, ownerId, r.accountId, saved),
+        choices: (r.status === 'choose' ? (r.choices ?? []) : []).map((c) => ({
+          uid: c.uid,
+          name: c.name ?? null,
+          tail: c.iban?.slice(-4) ?? null,
+        })),
       })),
-    }))
+    )
   },
 })
 

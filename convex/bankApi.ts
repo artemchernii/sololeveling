@@ -298,7 +298,7 @@ export const CANNED: BankApi = {
             ]
           : [{ uid: 'e2e-a', currency: 'EUR', iban: 'PT50000000004471' }],
     }),
-  balances: () =>
+  balances: (uid) =>
     Promise.resolve([
       {
         balance_type: 'ITAV',
@@ -306,10 +306,58 @@ export const CANNED: BankApi = {
       },
       {
         balance_type: 'CLBD',
-        balance_amount: { amount: '727.49', currency: 'EUR' },
+        balance_amount: {
+          amount: LATER[uid.split(':')[1]]?.balance ?? '727.49',
+          currency: 'EUR',
+        },
       },
     ]),
-  transactions: () => Promise.resolve([]),
+  transactions: (uid) => {
+    const today = new Date().toISOString().slice(0, 10)
+    return Promise.resolve(
+      (LATER[uid.split(':')[1]]?.rows ?? []).map(([amount, words, status]) => ({
+        status: status ?? 'BOOK',
+        amount,
+        currency: 'EUR',
+        indicator: 'DBIT',
+        bookingDate: today,
+        remittance: [words],
+      })),
+    )
+  },
+}
+
+/* What the canned bank answers after the day it was connected, by the word
+   e2eBank.answer puts after the account's id ("e2e-a:two"). Each starts
+   from the €727.49 of the connect. */
+const LATER: Partial<
+  Record<string, { balance: string; rows: Array<[string, string, string?]> }>
+> = {
+  /* Two payments booked, one still pending: they reach the balance. */
+  two: {
+    balance: '685.09',
+    rows: [
+      ['25.00', 'TRF P/ ANDREI PAVLOV'],
+      ['17.40', 'COMPRA 2789 PINGO DOCE LISBOA'],
+      ['9.99', 'COMPRA 2789 SPOTIFY', 'PDNG'],
+    ],
+  },
+  /* The top-up the account already has under Revolut's name, booked. */
+  twin: {
+    balance: '702.49',
+    rows: [
+      ['700.00', 'COMPRA 2789 REVOLUT 8134 DUBLIN IE'],
+      ['25.00', 'TRF P/ ANDREI PAVLOV'],
+    ],
+  },
+  /* A month at once: sixty payments of one euro. */
+  many: {
+    balance: '667.49',
+    rows: Array.from({ length: 60 }, (_, i): [string, string] => [
+      '1.00',
+      `COMPRA 2789 CAFE ${i + 1}`,
+    ]),
+  },
 }
 
 export function bankApi(): BankApi {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { CalendarClock, CircleCheck } from 'lucide-react'
+import { CalendarClock, CircleCheck, TrendingDown } from 'lucide-react'
 
 import { api } from '../../../../convex/_generated/api'
 import { Sheet } from '@/components/finances/Sheet'
@@ -148,18 +148,20 @@ export function PayMonth({
                 {c.day === 1 ? 'day' : 'days'} after salary
               </span>
               <span className="flex flex-wrap gap-x-6 gap-y-1">
-                <span>
-                  this month{' '}
-                  <Veiled className="font-mono text-foreground">
-                    {eur(c.pace.now)}
-                  </Veiled>
-                </span>
-                <span>
-                  last month{' '}
-                  <Veiled className="font-mono text-foreground">
-                    {eur(c.pace.last)}
-                  </Veiled>
-                </span>
+                {(
+                  [
+                    ['this month', c.pace.now],
+                    ['last month', c.pace.last],
+                  ] as const
+                ).map(([when, spent]) => (
+                  <span key={when} className="flex items-center gap-1.5">
+                    {when}
+                    <TrendingDown className="size-3.5 text-state-danger" />
+                    <Veiled className="font-mono text-state-danger">
+                      −{eur(spent)}
+                    </Veiled>
+                  </span>
+                ))}
               </span>
             </div>
           ) : null}

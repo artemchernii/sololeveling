@@ -23,8 +23,14 @@ const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short' })
 
 export const monthName = (t: number) => MONTH.format(new Date(t))
 export const monthLong = (t: number) => LONG.format(new Date(t))
+export const dayMonthYear = (t: number) =>
+  `${new Date(t).getDate()} ${monthName(t)} ${new Date(t).getFullYear()}`
+/* The year on any day that is not this year's (13 Oct: "use more year" —
+   Revolut's old rows said "14 May" and which May was a guess). */
 export const dayMonth = (t: number) =>
-  `${new Date(t).getDate()} ${monthName(t)}`
+  new Date(t).getFullYear() === new Date().getFullYear()
+    ? `${new Date(t).getDate()} ${monthName(t)}`
+    : dayMonthYear(t)
 export const weekday = (t: number) => WEEKDAY.format(new Date(t))
 
 /** Whole days from one local day to another's (noon UTC or midnight). */

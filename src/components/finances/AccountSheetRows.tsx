@@ -27,8 +27,18 @@ export const fmt = (v: number, currency = 'EUR', sign = false) => {
   }).format(Math.abs(v))
   return `${v < 0 ? '−' : sign && v > 0 ? '+' : ''}${s}`
 }
-export const short = (t: number) =>
-  new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+/* A day of another year says its year (12 Oct: Revolut's rows went back
+   past January and "14 Dec" could be either). */
+export const short = (t: number) => {
+  const d = new Date(t)
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    ...(d.getFullYear() === new Date().getFullYear()
+      ? {}
+      : { year: 'numeric' }),
+  })
+}
 
 export function Divider({
   label,

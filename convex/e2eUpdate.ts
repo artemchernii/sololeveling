@@ -376,3 +376,71 @@ export const sharesScreen = mutation({
     return null
   },
 })
+
+/* Revolut as it stood on 12 Oct, connected to its bank: hundreds of rows
+   going back past January. One €1 payment a day for `count` days, and an
+   older balance the rows since explain — the check is over rows the sheet
+   has not loaded. */
+export const manyRows = mutation({
+  args: { count: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const accounts = await ctx.db
+      .query('accounts')
+      .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+      .take(50)
+    const revolut = accounts.find((a) => a.name === 'Revolut')
+    if (!revolut) throw new Error('no Revolut in the mock')
+    const now = Date.now()
+    const DAY = 86_400_000
+    for (let i = 1; i <= args.count; i++)
+      await ctx.db.insert('logs', {
+        ownerId,
+        kind: 'expense',
+        area: 'money',
+        occurredAt: now - i * DAY,
+        value: 1,
+        unit: 'eur',
+        text: `Coffee ${i}`,
+        accountId: revolut._id,
+        meta: { category: 'eating out' },
+      })
+    /* The mock's balance is of eight days ago; this older one is what
+       the euro rows between the two add back to it. */
+    const key = `balance:${revolut._id}:EUR`
+    const latest = await ctx.db
+      .query('stateSnapshots')
+      .withIndex('by_owner_key_time', (q) =>
+        q.eq('ownerId', ownerId).eq('key', key),
+      )
+      .order('desc')
+      .first()
+    if (latest === null) throw new Error('no Revolut balance in the mock')
+    const from = now - 300.5 * DAY
+    const rows = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_account_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('accountId', revolut._id)
+          .gt('occurredAt', from)
+          .lte('occurredAt', latest.recordedAt),
+      )
+      .take(1000)
+    const spent = rows
+      .filter((l) => l.kind === 'expense' && l.unit === 'eur')
+      .reduce((n, l) => n + Math.round((l.value ?? 0) * 100), 0)
+    await ctx.db.insert('stateSnapshots', {
+      ownerId,
+      area: 'money',
+      key,
+      value: (latest.value ?? 0) + spent / 100,
+      unit: 'eur',
+      recordedAt: from,
+      source: 'typed',
+    })
+    return null
+  },
+})

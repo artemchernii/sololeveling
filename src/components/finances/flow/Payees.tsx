@@ -1,3 +1,4 @@
+import { payeeSite } from '@/lib/payeeSites'
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
@@ -29,6 +30,12 @@ export type Who = {
   source: 'yours' | 'known' | null
 }
 
+/* The logo list every other money row uses (src/lib/payeeSites.ts): a
+   payee Flow's own shop list does not know still gets its mark there
+   (13 Oct: the salary from BNP Paribas showed the bank's logo only). */
+const listed = (...names: Array<string>) =>
+  names.map((n) => payeeSite(n)).find((d) => d !== null) ?? null
+
 export function usePayees() {
   const list = useQuery(api.payees.list, {})
   const byKey = new Map((list ?? []).map((p) => [p.key, p]))
@@ -57,7 +64,7 @@ export function usePayees() {
         key,
         name: mine.name,
         original: row.name !== mine.name ? row.name : null,
-        domain: mine.domain ?? null,
+        domain: mine.domain ?? listed(mine.name, row.name),
         partOf: mine.partOf ?? null,
         source: 'yours',
       }
@@ -76,7 +83,7 @@ export function usePayees() {
         name,
         original:
           row.name.toUpperCase() !== name.toUpperCase() ? row.name : null,
-        domain: shop?.domain ?? null,
+        domain: shop?.domain ?? (paypal ? null : listed(name, row.name)),
         partOf: phrase?.partOf ?? null,
         source: 'known',
       }
@@ -85,7 +92,7 @@ export function usePayees() {
       key,
       name: row.name,
       original: null,
-      domain: null,
+      domain: paypal ? null : listed(row.name),
       partOf: null,
       source: null,
     }

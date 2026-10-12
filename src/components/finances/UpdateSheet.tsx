@@ -62,6 +62,7 @@ export function UpdateSheet({
           onClose={onClose}
           onFlight={setFlight}
           onStep={setStep}
+          forAccount={account._id}
           dropArea={(onStarted, onBusy) => (
             <>
               {noFile || typed ? null : (

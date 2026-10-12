@@ -48,7 +48,19 @@ export const reachable = mutation({
     its last answer made five hours old — so opening Finances asks again.
     `twin` also puts the top-up Revolut's file wrote here yesterday. */
 export const answer = mutation({
-  args: { as: v.union(v.literal('two'), v.literal('twin'), v.literal('many')) },
+  args: {
+    as: v.union(
+      v.literal('two'),
+      v.literal('twin'),
+      v.literal('many'),
+      /* Trading 212's (convex/t212Api.ts). */
+      v.literal('traded'),
+      v.literal('frozen'),
+      v.literal('cash'),
+      v.literal('refused'),
+      v.literal('down'),
+    ),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
@@ -80,5 +92,69 @@ export const answer = mutation({
         })
     }
     return null
+  },
+})
+
+/** A Trading 212 account as its last file left it, three days ago: €1,280.30
+    free, 8 Nvidia at €150 and 1 ASML at €640 — what the canned Trading 212
+    of convex/t212Api.ts answers first. */
+export const t212 = mutation({
+  args: {},
+  returns: v.id('accounts'),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const at = Date.now() - 3 * 86_400_000
+    const accountId = await ctx.db.insert('accounts', {
+      ownerId,
+      name: 'Trading 212',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+      domain: 'trading212.com',
+      institution: 'trading-212',
+      ibanTails: [],
+      cardTails: [],
+      order: 9,
+    })
+    await ctx.db.insert('stateSnapshots', {
+      ownerId,
+      area: 'money',
+      key: `balance:${accountId}:EUR`,
+      value: 1280.3,
+      unit: 'eur',
+      recordedAt: at,
+      source: 'statement',
+    })
+    for (const [symbol, name, isin, shares, price] of [
+      ['NVDA', 'NVIDIA Corporation', 'US67066G1040', 8, 150],
+      ['ASML.AS', 'ASML Holding N.V.', 'NL0010273215', 1, 640],
+    ] as const) {
+      const instrumentId = await ctx.db.insert('instruments', {
+        ownerId,
+        symbol,
+        name,
+        exchange: 'e2e',
+        currency: 'EUR',
+        type: 'EQUITY',
+        isin,
+      })
+      await ctx.db.insert('holdings', {
+        ownerId,
+        accountId,
+        instrumentId,
+        shares,
+        asOf: at,
+      })
+      await ctx.db.insert('prices', {
+        ownerId,
+        instrumentId,
+        price,
+        currency: 'EUR',
+        asOf: at,
+        fetchedAt: at,
+        source: 'e2e',
+      })
+    }
+    return accountId
   },
 })

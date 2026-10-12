@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAction, useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Plus } from 'lucide-react'
@@ -17,6 +17,8 @@ import { monthRange } from '@/lib/month'
 import { paidSums } from '@/components/finances/PortfolioParts'
 import { AccountCard } from '@/components/finances/AccountCard'
 import { BankSheet } from '@/components/finances/BankSheet'
+import { T212Sheet } from '@/components/finances/T212Sheet'
+import { T212 } from '@/lib/t212'
 import { canConnect } from '@/lib/bankLink'
 import { takeReturn } from '@/lib/bankReturn'
 import type { BankBack } from '@/lib/bankReturn'
@@ -70,8 +72,26 @@ export function Accounts() {
      is hours old is asked once, and the card says so while it is. */
   const check = useAction(api.bankRows.check)
   const shut = useMutation(api.bankRows.close)
+  /* Trading 212 is asked by its own key: nothing to approve, nothing ends. */
+  const checkT212 = useAction(api.t212.check)
+  const shutT212 = useMutation(api.t212.close)
+  const [t212, setT212] = useState<Id<'accounts'> | null>(null)
   const asked = useRef(new Set<string>())
   const [asking, setAsking] = useState<ReadonlyArray<string>>([])
+  const ask = useCallback(
+    (id: Id<'accounts'>, via: 't212' | null) => {
+      setAsking((list) => [...list, id])
+      /* A bank that does not answer keeps the balance it had; the card
+         says of when (slice 3 says so in words). */
+      void (via === 't212' ? checkT212 : check)({
+        accountId: id,
+        dayStart: today,
+      })
+        .catch(() => null)
+        .finally(() => setAsking((list) => list.filter((x) => x !== id)))
+    },
+    [check, checkT212, today],
+  )
   useEffect(() => {
     const now = Date.now()
     for (const l of links ?? []) {
@@ -81,20 +101,14 @@ export function Accounts() {
         l.checking ||
         l.checkedAt === null ||
         now - l.checkedAt < BANK_STALE_MS ||
-        (l.validUntil ?? 0) <= now ||
+        (l.via === null && (l.validUntil ?? 0) <= now) ||
         asked.current.has(l.accountId)
       )
         continue
-      const id = l.accountId
-      asked.current.add(id)
-      setAsking((list) => [...list, id])
-      /* A bank that does not answer keeps the balance it had; the card
-         says of when (slice 3 says so in words). */
-      void check({ accountId: id, dayStart: today })
-        .catch(() => null)
-        .finally(() => setAsking((list) => list.filter((x) => x !== id)))
+      asked.current.add(l.accountId)
+      ask(l.accountId, l.via)
     }
-  }, [links, check, today])
+  }, [links, ask])
   /* CHECK IT: the question a bank's rows left, in the check window. */
   const [question, setQuestion] = useState<Id<'batches'> | null>(null)
   const [flight, setFlight] = useState<Flight | null>(null)
@@ -217,24 +231,37 @@ export function Accounts() {
                       checkedAt: l.checkedAt,
                       checking: l.checking || asking.includes(a.accountId),
                       question: l.question !== null,
+                      via: l.via,
+                      failed: l.failed,
                     }
                   : null
               })()}
               arrived={linkOf(a.accountId)?.arrived ?? null}
-              onShut={() => shut({ accountId: a.accountId })}
-              onCheck={() => setQuestion(linkOf(a.accountId)?.question ?? null)}
-              connectable={
-                a.kinds.includes('bank') &&
-                canConnect(
-                  accounts.find((x) => x._id === a.accountId)?.institution,
-                )
-              }
-              onConnect={() =>
-                setBank({
+              changed={linkOf(a.accountId)?.changed ?? null}
+              onShut={() =>
+                (linkOf(a.accountId)?.via === 't212' ? shutT212 : shut)({
                   accountId: a.accountId,
-                  back: null,
-                  again: linkOf(a.accountId)?.status === 'linked',
                 })
+              }
+              onRetry={() => ask(a.accountId, 't212')}
+              onCheck={() => setQuestion(linkOf(a.accountId)?.question ?? null)}
+              connectable={(() => {
+                const at = accounts.find(
+                  (x) => x._id === a.accountId,
+                )?.institution
+                return at === T212
+                  ? a.kinds.includes('broker')
+                  : a.kinds.includes('bank') && canConnect(at)
+              })()}
+              onConnect={() =>
+                accounts.find((x) => x._id === a.accountId)?.institution ===
+                T212
+                  ? setT212(a.accountId)
+                  : setBank({
+                      accountId: a.accountId,
+                      back: null,
+                      again: linkOf(a.accountId)?.status === 'linked',
+                    })
               }
             />
           ))}
@@ -286,6 +313,23 @@ export function Accounts() {
         again={bank?.again ?? false}
         onClose={() => setBank(null)}
       />
+      {(() => {
+        const row = data?.accounts.find((a) => a.accountId === t212)
+        return (
+          <T212Sheet
+            account={accounts?.find((a) => a._id === t212) ?? null}
+            total={
+              row
+                ? Math.round(
+                    (row.cashEur + (investedOf(row.accountId) ?? 0)) * 100,
+                  ) / 100
+                : 0
+            }
+            read={row ? freshness(row.pockets, Date.now()).label : ''}
+            onClose={() => setT212(null)}
+          />
+        )
+      })()}
     </Panel>
   )
 }

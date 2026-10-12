@@ -3360,3 +3360,104 @@ export async function arrivedFromBank(
     now: now.value,
   }
 }
+
+/**
+ * What Trading 212's answers changed since the look at `at`, as the card
+ * says it (12 Oct, docs/specs/2026-10-12-trading-212.md): per company the
+ * shares then and now (state, kept on the link) and what they are worth —
+ * shares × the stored price (external reading) of that day, and of now.
+ * Null euros where no price is stored. Free cash: the balance it had and
+ * the balance stored now (state).
+ */
+export async function changedAtBroker(
+  ctx: QueryCtx,
+  ownerId: string,
+  account: Doc<'accounts'>,
+  changed: NonNullable<Doc<'bankLinks'>['changed']>,
+) {
+  const worthOf = async (
+    inst: Doc<'instruments'>,
+    shares: number,
+    at?: number,
+  ) => {
+    if (shares === 0) return 0
+    const { base, divide } = quoteToRate(inst.currency)
+    const price = await ctx.db
+      .query('prices')
+      .withIndex('by_owner_instrument_time', (q) => {
+        const mine = q.eq('ownerId', ownerId).eq('instrumentId', inst._id)
+        return at === undefined ? mine : mine.lte('asOf', at)
+      })
+      .order('desc')
+      .first()
+    const rate =
+      base === 'EUR'
+        ? 1
+        : (
+            await ctx.db
+              .query('fxRates')
+              .withIndex('by_owner_currency_time', (q) => {
+                const mine = q.eq('ownerId', ownerId).eq('currency', base)
+                return at === undefined ? mine : mine.lte('asOf', at)
+              })
+              .order('desc')
+              .first()
+          )?.rate
+    return price === null || rate === undefined
+      ? null
+      : Math.round(((shares * price.price) / divide) * rate * 100) / 100
+  }
+  const lines: Array<{
+    symbol: string
+    name: string
+    type: string
+    was: number
+    now: number
+    wasEur: number | null
+    nowEur: number | null
+  }> = []
+  for (const l of changed.lines) {
+    const inst = await ctx.db.get(l.instrumentId)
+    if (inst === null || inst.ownerId !== ownerId) continue
+    lines.push({
+      symbol: inst.symbol,
+      name: inst.name,
+      type: inst.type,
+      was: l.was,
+      now: l.now,
+      wasEur: await worthOf(inst, l.was, changed.at),
+      nowEur: await worthOf(inst, l.now),
+    })
+  }
+  const move = (l: (typeof lines)[number]) =>
+    Math.abs((l.nowEur ?? 0) - (l.wasEur ?? 0))
+  lines.sort((a, b) => move(b) - move(a))
+  const currency = account.currencies[0] ?? 'EUR'
+  const cashNow =
+    changed.cashWas === undefined
+      ? undefined
+      : (
+          await ctx.db
+            .query('stateSnapshots')
+            .withIndex('by_owner_key_time', (q) =>
+              q
+                .eq('ownerId', ownerId)
+                .eq(
+                  'key',
+                  hasBrokerCash(account)
+                    ? brokerCashKey(account._id)
+                    : balanceKey(account._id, currency),
+                ),
+            )
+            .order('desc')
+            .first()
+        )?.value
+  return {
+    at: changed.at,
+    cash:
+      changed.cashWas === undefined || cashNow === undefined
+        ? null
+        : { currency, was: changed.cashWas, now: cashNow },
+    lines,
+  }
+}

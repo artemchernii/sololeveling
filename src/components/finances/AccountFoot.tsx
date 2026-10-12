@@ -1,4 +1,12 @@
-import { ExternalLink, KeyRound, Link2, Loader2, Sigma } from 'lucide-react'
+import {
+  CloudOff,
+  ExternalLink,
+  KeyRound,
+  Link2,
+  Loader2,
+  RotateCw,
+  Sigma,
+} from 'lucide-react'
 import type { MouseEvent } from 'react'
 
 import { PILL_QUIET } from '@/components/finances/bits'
@@ -16,6 +24,10 @@ export type CardLink = {
   checking: boolean
   /** Rows that did not add up wait for an answer. */
   question: boolean
+  /** Read from Trading 212 itself: no approval to end. */
+  via: 't212' | null
+  /** Its last check wrote nothing: the key, or no answer. */
+  failed: 'refused' | 'down' | null
 }
 
 /* The card's last line: where the balance came from, and the one thing to
@@ -33,6 +45,7 @@ export function AccountFoot({
   onUpdate,
   onConnect,
   onCheck,
+  onRetry,
 }: {
   /** freshness() of the account's pockets. */
   label: string
@@ -48,6 +61,8 @@ export function AccountFoot({
   onConnect: () => void
   /** CHECK IT: the question the bank's rows left. */
   onCheck: () => void
+  /** TRY AGAIN: ask Trading 212 once more. */
+  onRetry: () => void
 }) {
   const now = Date.now()
   const press = (run: () => void) => (e: MouseEvent) => {
@@ -63,7 +78,10 @@ export function AccountFoot({
       update
     </button>
   )
-  const ended = link !== null && (link.validUntil ?? 0) <= now
+  const t212 = link?.via === 't212'
+  const who = t212 ? 'Trading 212' : 'the bank'
+  const ended = link !== null && !t212 && (link.validUntil ?? 0) <= now
+  const failed = link?.checking ? null : (link?.failed ?? null)
   return (
     <div className="mt-auto flex min-h-[41px] flex-wrap items-center justify-between gap-2 border-t border-lift/[0.08] pt-3">
       {link === null ? (
@@ -86,6 +104,23 @@ export function AccountFoot({
             </span>
           )}
         </span>
+      ) : failed ? (
+        <span className="motion-fade flex min-w-0 flex-col font-mono text-[11px] leading-[14px]">
+          <span className="flex items-center gap-[7px] text-state-warn">
+            {failed === 'refused' ? (
+              <KeyRound className="size-3.5 shrink-0" />
+            ) : (
+              <CloudOff className="size-3.5 shrink-0" />
+            )}
+            {who} did not {failed === 'refused' ? 'accept the key' : 'answer'}
+          </span>
+          {link.checkedAt === null ? null : (
+            <span className="pl-[21px] text-ink-500">
+              cash and positions of{' '}
+              {bankWhen(link.checkedAt, now).replace('today ', 'today, ')}
+            </span>
+          )}
+        </span>
       ) : link.question ? (
         <span className="motion-fade flex min-w-0 flex-col font-mono text-[11px] leading-[14px]">
           <span className="flex items-center gap-[7px] text-state-warn">
@@ -101,7 +136,7 @@ export function AccountFoot({
       ) : link.checking ? (
         <span className="motion-fade flex min-w-0 items-center gap-[7px] font-mono text-[11px] text-lav-300">
           <Loader2 className="save-spinner size-3.5 shrink-0" />
-          checking the bank…
+          checking {who}…
           {link.checkedAt === null ? null : (
             <span className="text-ink-500">
               · last {bankWhen(link.checkedAt, now).replace('today ', '')}
@@ -111,7 +146,7 @@ export function AccountFoot({
       ) : (
         <span className="motion-fade flex min-w-0 items-center gap-[7px] font-mono text-[11px] text-ink-400">
           <Link2 className="motion-pulse size-3.5 shrink-0 text-state-good" />
-          from the bank
+          from {who}
           {link.checkedAt === null ? '' : ` · ${bankWhen(link.checkedAt, now)}`}
         </span>
       )}
@@ -134,6 +169,11 @@ export function AccountFoot({
           <button type="button" onClick={press(onConnect)} className={WARN}>
             <ExternalLink className="size-3" />
             approve
+          </button>
+        ) : failed ? (
+          <button type="button" onClick={press(onRetry)} className={WARN}>
+            <RotateCw className="size-3" />
+            try again
           </button>
         ) : link.question ? (
           <button type="button" onClick={press(onCheck)} className={WARN}>

@@ -6,7 +6,7 @@ import {
   canConnect,
   pickAccounts,
 } from '../src/lib/bankLink'
-import { arrivedFromBank } from './aggregate'
+import { arrivedFromBank, changedAtBroker } from './aggregate'
 import { requireUser } from './auth'
 import { bankApi } from './bankApi'
 import { CHECK_LOST_MS, pull } from './bankRows'
@@ -75,6 +75,36 @@ export const links = query({
           tail: v.union(v.string(), v.null()),
         }),
       ),
+      /* Read from Trading 212's own API (convex/t212.ts): no approval. */
+      via: v.union(v.literal('t212'), v.null()),
+      /* Its last check wrote nothing, and why. */
+      failed: v.union(v.literal('refused'), v.literal('down'), v.null()),
+      /* What its answers changed, until closed with ✕. */
+      changed: v.union(
+        v.object({
+          at: v.number(),
+          cash: v.union(
+            v.object({
+              currency: v.string(),
+              was: v.number(),
+              now: v.number(),
+            }),
+            v.null(),
+          ),
+          lines: v.array(
+            v.object({
+              symbol: v.string(),
+              name: v.string(),
+              type: v.string(),
+              was: v.number(),
+              now: v.number(),
+              wasEur: v.union(v.number(), v.null()),
+              nowEur: v.union(v.number(), v.null()),
+            }),
+          ),
+        }),
+        v.null(),
+      ),
     }),
   ),
   handler: async (ctx) => {
@@ -105,10 +135,15 @@ export const links = query({
           .take(5)
         saved.push(...files.map((f) => f._id))
       }
-      out.push({ r, question, saved })
+      const held = r.changed ? await ctx.db.get(r.accountId) : null
+      const changed =
+        r.changed && held
+          ? await changedAtBroker(ctx, ownerId, held, r.changed)
+          : null
+      out.push({ r, question, saved, changed })
     }
     return await Promise.all(
-      out.map(async ({ r, question, saved }) => ({
+      out.map(async ({ r, question, saved, changed }) => ({
         accountId: r.accountId,
         status: r.status,
         validUntil: r.validUntil ?? null,
@@ -124,6 +159,9 @@ export const links = query({
           name: c.name ?? null,
           tail: c.iban?.slice(-4) ?? null,
         })),
+        via: r.via ?? null,
+        failed: r.failed?.why ?? null,
+        changed,
       })),
     )
   },

@@ -259,8 +259,13 @@ h6 {
     transform: none;
   }
 }
+/* `backwards`, not `both` (13 Oct): the keyframes end where the element
+   rests, so nothing is lost — and a finished `both` left an identity
+   transform on every card for good. A frosted panel that stays
+   transformed is redrawn in strips by the browser when something near it
+   is hovered or pressed: a pale band along its bottom edge. */
 @utility motion-arrive {
-  animation: arrive var(--motion-base) var(--motion-ease) both;
+  animation: arrive var(--motion-base) var(--motion-ease) backwards;
 }
 
 /* An edge that grows from where it is anchored — the area-coloured rail down

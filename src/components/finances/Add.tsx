@@ -9,6 +9,7 @@ import { BulkUpdate, GUARD } from '@/components/finances/Bulk'
 import type { Flight } from '@/components/finances/Bulk'
 import { Sheet } from '@/components/finances/Sheet'
 import { AddDrop } from '@/components/finances/AddDrop'
+import { StepStrip } from '@/components/finances/StepStrip'
 import { AddRows } from '@/components/finances/AddRows'
 import { MAX_INTAKE_FILES, readableFile } from '@/lib/intake'
 
@@ -36,6 +37,7 @@ export function AddButton({
   const waiting = useQuery(api.intake.openBatch, onOpen ? 'skip' : {})
   const [open, setOpen] = useState(false)
   const [flight, setFlight] = useState<Flight | null>(null)
+  const [step, setStep] = useState<number | null>(null)
   return (
     <span className={`relative inline-flex ${className}`}>
       <button
@@ -60,6 +62,8 @@ export function AddButton({
         open={open}
         title="add"
         wide
+        glide
+        header={step ? <StepStrip step={step} /> : null}
         onClose={() => setOpen(false)}
         guard={flight ? GUARD[flight] : null}
       >
@@ -68,6 +72,7 @@ export function AddButton({
             waiting={waiting ?? null}
             onClose={() => setOpen(false)}
             onFlight={setFlight}
+            onStep={setStep}
             dropArea={(onStarted, onBusy) => (
               <>
                 <AddDrop onStarted={onStarted} onBusy={onBusy} />

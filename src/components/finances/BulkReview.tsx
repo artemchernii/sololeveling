@@ -124,8 +124,16 @@ export function BulkReview({
         hidden={allBad}
         className="flex flex-wrap items-baseline gap-x-6 gap-y-2"
       >
-        {fromBank ? null : <Stat n={review.files} label="files" />}
-        <Stat n={review.accounts.length} label="accounts" />
+        {fromBank ? null : (
+          <Stat
+            n={review.files}
+            label={review.files === 1 ? 'file' : 'files'}
+          />
+        )}
+        <Stat
+          n={review.accounts.length}
+          label={review.accounts.length === 1 ? 'account' : 'accounts'}
+        />
         <Stat n={fresh} label="new rows" />
         <Stat n={review.moves.length} label="moves paired" />
         {asks.length + notSaved.length > 0 || solved.length > 0 ? (
@@ -276,7 +284,7 @@ export function BulkReview({
               asks.length === 0 &&
               waitingNew.length === 0 &&
               notSaved.length === 0
-                ? 'Oldest statement first, so every balance lands on its day. Nothing is saved until you press it.'
+                ? 'Nothing is saved until apply is pressed.'
                 : null,
             ]
               .filter(Boolean)

@@ -294,11 +294,16 @@ export function Applied({
   /* One line an account (5 Oct), the same screen a single file lands
      on. A batch applied before per-account counts were kept falls back
      to its files' rows. */
+  const filesOf = (accountId: Id<'accounts'>) =>
+    view.files.flatMap((f) =>
+      f.accountId === accountId && f.status === 'done' ? [f.intakeId] : [],
+    )
   const accounts =
     view.applied?.byAccount?.map((x) => ({
       accountId: x.accountId,
       added: x.rows,
       what: addedWords(x),
+      files: filesOf(x.accountId),
     })) ??
     [
       ...new Set(

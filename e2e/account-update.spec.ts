@@ -237,8 +237,11 @@ test("another account's file, kept on the account UPDATE was pressed on", async 
   const ask = sheet.getByTestId('whose-file')
   await ask.getByRole('button', { name: 'Revolut' }).click()
   await expect(sheet.getByText('activobank.csv → Revolut.')).toBeVisible()
+  await expect(ask).toHaveCount(0)
+  /* It is Revolut's now, and the check before saving takes over: these
+     rows do not reach Revolut's balance, so it is still not saved. */
   await expect(
-    sheet.getByRole('button', { name: /apply 1 account/ }),
+    sheet.getByText('Revolut not saved — 1 question open.'),
   ).toBeVisible()
 })
 

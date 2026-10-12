@@ -20,7 +20,11 @@ const amount = (text: string | null) =>
 async function openCheck(page: Page) {
   await testClient().mutation(anyApi.e2e.readHoldings, {})
   await page.goto('/finances')
-  await page.getByText('Revolut Invest screenshot').first().click()
+  await page.getByRole('button', { name: 'add', exact: true }).first().click()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'positions', exact: true })
+    .click()
   return page.getByRole('dialog')
 }
 

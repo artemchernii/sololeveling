@@ -13,7 +13,11 @@ test('holdings screenshot: save answers at once, then lands', async ({
   await start(page)
   await testClient().mutation(anyApi.e2e.readHoldings, {})
   await page.goto('/finances')
-  await page.getByText('Revolut Invest screenshot').first().click()
+  await page.getByRole('button', { name: 'add', exact: true }).first().click()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'positions', exact: true })
+    .click()
   const sheet = page.getByRole('dialog')
   const save = sheet.getByRole('button', {
     /* Revolut is a bank too: the screen's cash is its broker cash. */

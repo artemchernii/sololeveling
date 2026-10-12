@@ -29,7 +29,10 @@ import {
 } from '@/components/finances/BulkParts'
 import type { Review } from '@/components/finances/BulkParts'
 import { SumCheck } from '@/components/finances/BulkSumCheck'
-import { TransferCheck } from '@/components/finances/BulkTransferCheck'
+import {
+  TransferCheck,
+  transferCounts,
+} from '@/components/finances/BulkTransferCheck'
 import { SharesCheck, sharesOpen } from '@/components/finances/BulkSharesCheck'
 
 export function AccountBlock({
@@ -74,15 +77,7 @@ export function AccountBlock({
       ? Math.round((last.value - nowEur) * 100) / 100
       : null
   const intakeIds = block.files.map((f) => f.intakeId)
-  const moved = block.transfers.filter(
-    (t) => t.state === 'sure' || t.state === 'same',
-  ).length
-  /* A transfer the account already has is its own chip, not a row. */
-  const here = block.transfers.filter(
-    (t) =>
-      (t.state === 'sure' || t.state === 'same') &&
-      t.sides.some((x) => x.id === t.chosen && x.here),
-  ).length
+  const { moved, here } = transferCounts(block.transfers)
   const wasPending = block.check?.pending.length ?? 0
   const news = block.fresh - wasPending - (moved - here)
 

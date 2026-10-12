@@ -19,6 +19,17 @@ type Accounts = ReadonlyArray<Doc<'accounts'>>
 export const transferOpen = (t: Transfer) =>
   t.state === 'ask' && (t.sides.some((s) => s.stored) || t.amount > 0)
 
+/** For the account's chips: transfers shown as one, and those of them
+    the account already has (a chip of their own, not a row). */
+export function transferCounts(transfers: ReadonlyArray<Transfer>) {
+  const one = transfers.filter((t) => t.state === 'sure' || t.state === 'same')
+  return {
+    moved: one.length,
+    here: one.filter((t) => t.sides.some((x) => x.id === t.chosen && x.here))
+      .length,
+  }
+}
+
 /* A transfer between two of his accounts, seen before apply (11 Oct,
    design/treasury-mockup/transfer-match.html): one line when the app is
    sure, both rows and the fee when it asks. Every number is the server's

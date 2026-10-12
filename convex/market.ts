@@ -241,13 +241,19 @@ export const backfillYear = internalAction({
  * overwritten with a guess.
  */
 export const readAll = internalAction({
-  /* pricesOnly: the hourly reading (13 Oct: "def more often than once a
-     day") — today's price for every ticker, and nothing else. Exchange
-     rates are published once a day, so they stay with the daily run. */
-  args: { pricesOnly: v.optional(v.boolean()) },
+  /* ownerId + pricesOnly: the reading asked for when Finances is open
+     (13 Oct, prices.refresh) — one owner's tickers, today's price, and
+     nothing else. Exchange rates are published once a day, so they stay
+     with the daily run. */
+  args: {
+    pricesOnly: v.optional(v.boolean()),
+    ownerId: v.optional(v.string()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const all = await ctx.runQuery(internal.market.allInstruments, {})
+    const all = (await ctx.runQuery(internal.market.allInstruments, {})).filter(
+      (i) => args.ownerId === undefined || i.ownerId === args.ownerId,
+    )
     const bySymbol = new Map<string, typeof all>()
     for (const i of all) {
       bySymbol.set(i.symbol, [...(bySymbol.get(i.symbol) ?? []), i])

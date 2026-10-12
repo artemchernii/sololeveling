@@ -23,18 +23,6 @@ crons.daily(
   {},
 )
 
-/* And every hour between the closes (13 Oct: "def more often than once a
-   day"): today's row is replaced by the latest price, then by the close
-   — one row a day stays (storePrices). Hourly, not by the minute: each
-   run reads and writes every ticker, and the free plan's database
-   budget is the limit. */
-crons.interval(
-  'read market prices through the day',
-  { hours: 1 },
-  internal.market.readAll,
-  { pricesOnly: true },
-)
-
 /* Dropped files are kept 90 days to open again, then erased (3 Oct).
    What was read from them stays. */
 crons.daily(

@@ -5,6 +5,7 @@ import { CandlestickChart, LayoutGrid, Waves } from 'lucide-react'
 import { Accounts } from '@/components/finances/Accounts'
 import { Flow } from '@/components/finances/flow/Flow'
 import { Portfolio } from '@/components/finances/Portfolio'
+import { useFreshPrices } from '@/components/finances/useFreshPrices'
 import { RoomTabLabel, RoomTabs, roomTabClass } from '@/components/RoomTabs'
 import { TreasuryHero } from '@/components/finances/TreasuryHero'
 import { WorthChart } from '@/components/finances/WorthChart'
@@ -27,6 +28,7 @@ type Room = (typeof ROOMS)[number]['id']
 
 function Treasury() {
   const { room = 'overview', month } = Route.useSearch()
+  useFreshPrices()
   /* A room loads the first time it is opened, then stays (9 Oct): loading
      all three on arrival made him wait ~2s for rooms he could not see, and
      read Flow's and Portfolio's sums on every visit. */

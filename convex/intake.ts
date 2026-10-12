@@ -24,6 +24,8 @@ import { sharesIn } from '../src/lib/crypto'
 import { heldCost } from '../src/lib/holdings'
 import { notSaved, sharesFor, sharesValue, sharesView } from './sharesCheck'
 import { totalStops, totalValue, totalView } from './holdingsTotal'
+import { applyRow, forDrop, transferValue } from './transferMatch'
+import type { DropRow, Transfer } from './transferMatch'
 import { internal } from './_generated/api'
 import {
   internalMutation,
@@ -1371,22 +1373,45 @@ async function writeTransactions(
     rows,
     keepBalance,
     dayStart,
+    pairs,
   }: {
     rows: ReadonlyArray<ConfirmRow>
     keepBalance: boolean
     dayStart: number
+    /** Rows the check matched to a transfer: row → its other side. */
+    pairs?: ReadonlyMap<number, string>
   },
 ) {
   const read = intake.transactions ?? []
   await pullBackAhead(ctx, ownerId, account._id, dayStart)
+  /* What saving each matched row will do, before the balance is worked
+     out: a row the account already has is not counted, its fee is. */
+  const here = new Set<number>()
+  let feeCents = 0
+  for (const row of rows) {
+    const sideId = pairs?.get(row.index)
+    const r = read.at(row.index)
+    if (sideId === undefined || r === undefined || r.pending) continue
+    const plan = await applyRow(ctx, ownerId, {
+      account,
+      intakeId: intake._id,
+      row: r,
+      sideId,
+      dry: true,
+    })
+    if (plan?.did !== 'skipped') continue
+    here.add(row.index)
+    feeCents += plan.feeCents
+  }
   /* Before a row is written: what the account held, for the landed card. */
   const landed = await landedCheck(
     ctx,
     ownerId,
     account,
     intake,
-    new Set(rows.map((r) => r.index)),
+    new Set(rows.map((r) => r.index).filter((i) => !here.has(i))),
     keepBalance,
+    feeCents,
   )
   const seen = new Set<number>()
   let written = 0
@@ -1395,6 +1420,19 @@ async function writeTransactions(
     if (r === undefined || seen.has(row.index)) continue
     seen.add(row.index)
     if (r.pending) continue
+    const sideId = pairs?.get(row.index)
+    if (sideId !== undefined) {
+      const did = await applyRow(ctx, ownerId, {
+        account,
+        intakeId: intake._id,
+        row: r,
+        sideId,
+      })
+      if (did !== null) {
+        if (did.did === 'written') written++
+        continue
+      }
+    }
     if (row.otherAccountId) await ownedAccount(ctx, ownerId, row.otherAccountId)
     if (row.recurringId) {
       const bill = await ctx.db.get(row.recurringId)
@@ -2706,6 +2744,9 @@ const batchAccount = v.object({
   balanceNews: v.boolean(),
   /* Does it add up (11 Oct): null when the account holds no balance. */
   check: v.union(sumCheckValue, v.null()),
+  /* Rows that are one side of a transfer between two of his accounts
+     (12 Oct, convex/transferMatch.ts). */
+  transfers: v.array(transferValue),
   /* It does not, and he has not said what to do: apply leaves it. */
   held: v.boolean(),
   trades: v.number(),
@@ -2960,6 +3001,44 @@ export async function gatherBatch(
       if (i.kind === 'transactions')
         reviews.set(i._id, await buildReview(ctx, ownerId, i, names))
 
+  /* New rows that are one side of a transfer he has, or of one in another
+     file of this drop: shown as one transfer, written once (12 Oct). */
+  const dropRows: Array<DropRow> = []
+  for (const g of groups.values()) {
+    const accountId = g.accountId
+    if (accountId === null || b.leftOut.includes(accountId)) continue
+    for (const i of g.list)
+      for (const row of reviews.get(i._id)?.rows ?? []) {
+        const key = `${i._id}:${row.index}`
+        if (
+          row.pending ||
+          row.duplicateOf !== null ||
+          row.counted ||
+          b.dismissed.includes(`skip:${key}`)
+        )
+          continue
+        dropRows.push({
+          key,
+          intakeId: i._id,
+          accountId,
+          occurredAt: row.occurredAt,
+          amount: row.amount,
+          currency: row.currency,
+          merchant: row.merchant,
+          raw: row.raw,
+          counterparty: row.counterparty,
+          move: row.kind === 'move',
+        })
+      }
+  }
+  const transferBy = new Map(
+    (dropRows.length > 0
+      ? await forDrop(ctx, ownerId, accounts, dropRows, b.dismissed)
+      : []
+    ).map((t) => [t.key, t]),
+  )
+  const matched: Array<{ t: Transfer; side: Transfer['sides'][number] }> = []
+
   const allTimes = [...groups.values()].flatMap((g) =>
     g.list.flatMap((i) => [
       ...(i.transactions ?? []).map((r) => r.occurredAt),
@@ -3023,6 +3102,7 @@ export async function gatherBatch(
     const balances: Array<{ asOf: number; value: number }> = []
     let printed: Doc<'intakes'>['balance']
     const rows: Array<(typeof batchAccount.type)['rows'][number]> = []
+    const transfers: Array<Transfer> = []
     const sumRows: Array<Parameters<typeof accountCheck>[4][number]> = []
     const skippedRows: Array<Parameters<typeof accountCheck>[5][number]> = []
     for (const i of g.list) {
@@ -3039,16 +3119,52 @@ export async function gatherBatch(
       for (const row of r.rows) {
         const rowKey = `${i._id}:${row.index}`
         const skipped = b.dismissed.includes(`skip:${rowKey}`)
-        const dup = row.duplicateOf !== null || row.counted || skipped
+        /* One side of a transfer. Two rows both read as moves, to the
+           cent and two days apart, stay with the pairing below. */
+        const found = transferBy.get(rowKey)
+        const side = found?.sides.find((s) => s.id === found.chosen)
+        const transfer =
+          found !== undefined &&
+          found.state !== 'apart' &&
+          !(
+            row.kind === 'move' &&
+            found.state === 'sure' &&
+            side !== undefined &&
+            !side.here &&
+            side.fee === 0 &&
+            Math.abs(side.occurredAt - row.occurredAt) <= 2 * DAY_MS + 3_600_000
+          )
+            ? found
+            : undefined
+        if (found !== undefined && (transfer || found.state === 'apart'))
+          transfers.push(found)
+        if (transfer && side && !side.here) matched.push({ t: transfer, side })
+        const feeHere =
+          transfer && side && (side.here || row.amount > 0) ? side.fee : 0
+        const dup =
+          row.duplicateOf !== null ||
+          row.counted ||
+          skipped ||
+          (transfer !== undefined && side?.here === true)
         if (!dup && !row.pending)
           sumRows.push({
             key: rowKey,
             occurredAt: row.occurredAt,
             merchant: row.merchant,
-            amount: row.amount,
+            amount: row.amount + feeHere,
             currency: row.currency,
-            twinOf: row.twinOf,
+            twinOf: transfer ? null : row.twinOf,
             two: b.dismissed.includes(`two:${rowKey}`),
+          })
+        if (feeHere > 0 && !row.pending)
+          sumRows.push({
+            key: `${rowKey}:fee`,
+            occurredAt: row.occurredAt,
+            merchant: 'Transfer fee',
+            amount: -feeHere,
+            currency: row.currency,
+            twinOf: null,
+            two: false,
           })
         if (skipped)
           skippedRows.push({
@@ -3075,7 +3191,7 @@ export async function gatherBatch(
           adds.push(row.occurredAt)
           ledger.push({ occurredAt: row.occurredAt, amount: row.amount })
         }
-        if (row.kind === 'move' && !dup && !leftOut) {
+        if (row.kind === 'move' && !dup && !leftOut && !transfer) {
           const key = `${i._id}:${row.index}`
           const answer = answered.get(key)
           own.push({
@@ -3182,10 +3298,17 @@ export async function gatherBatch(
           ? await balanceIsNews(ctx, ownerId, accountId, printed)
           : false,
       check,
+      transfers: leftOut ? [] : transfers,
       /* Only rows can be written twice: a file with none to add and a
          balance the account does not hold just corrects it (11 Oct, his
          card at −€1,114.85 and the screenshot that says €90.35). */
       held:
+        (!leftOut &&
+          transfers.some(
+            (t) =>
+              t.state === 'ask' &&
+              (t.amount > 0 || t.sides.some((x) => x.stored)),
+          )) ||
         (check !== null &&
           !check.accepted &&
           check.kept.length === 0 &&
@@ -3336,6 +3459,18 @@ export async function gatherBatch(
       occurredAt: Math.min(r.occurredAt, x.occurredAt),
       days: Math.round(Math.abs(r.occurredAt - x.occurredAt) / DAY_MS),
       had: true,
+    })
+  }
+  for (const { t, side } of matched) {
+    if (t.chosen === null || (!side.stored && t.amount < 0)) continue
+    const leaving = t.amount < 0
+    moves.push({
+      fromAccountId: leaving ? t.accountId : side.accountId,
+      toAccountId: leaving ? side.accountId : t.accountId,
+      amount: Math.abs(leaving ? t.amount : side.amount),
+      occurredAt: Math.min(t.occurredAt, side.occurredAt),
+      days: Math.round(Math.abs(t.occurredAt - side.occurredAt) / DAY_MS),
+      had: side.stored,
     })
   }
 
@@ -3512,7 +3647,7 @@ export const batchAnswer = mutation({
       }
       case 'sum': {
         if (
-          !/^(skip|two|sum|shares|noshares|total|nototal):[a-z0-9:]{1,80}$/.test(
+          !/^((skip|two|sum|shares|noshares|total|nototal):[a-z0-9:]{1,80}|(same|apart):[a-z0-9:]{1,90})$/.test(
             answer.key,
           )
         )
@@ -3524,7 +3659,16 @@ export const batchAnswer = mutation({
           : /^no(shares|total):/.test(answer.key)
             ? answer.key.slice(2)
             : null
-        const rest = b.dismissed.filter((k) => k !== answer.key && k !== twin)
+        /* One answer per row of a transfer: the same as one side, or
+           not (12 Oct). */
+        const row = /^(same|apart):([a-z0-9]+:[0-9]+)/.exec(answer.key)?.[2]
+        const rest = b.dismissed.filter(
+          (k) =>
+            k !== answer.key &&
+            k !== twin &&
+            (row === undefined ||
+              (k !== `apart:${row}` && !k.startsWith(`same:${row}:`))),
+        )
         await ctx.db.patch(b._id, {
           dismissed: answer.on ? [...rest, answer.key] : rest,
         })
@@ -3613,6 +3757,20 @@ export async function startApply(
       status: 'applying',
       moves,
       held,
+      /* What the check decided for each row of a transfer, for the
+         step that writes it. */
+      dismissed: [
+        ...b.dismissed.filter((k) => !k.startsWith('pair:')),
+        ...g.accounts.flatMap((x) =>
+          x.leftOut || x.held
+            ? []
+            : x.transfers.flatMap((t) =>
+                t.chosen !== null && t.state !== 'apart'
+                  ? [`pair:${t.key}:${t.chosen}`]
+                  : [],
+              ),
+        ),
+      ],
       heldShares: g.accounts.flatMap((x) =>
         x.shares && !x.leftOut ? notSaved(x.shares) : [],
       ),
@@ -3829,10 +3987,18 @@ export const applyOne = internalMutation({
             recurringId: r.recurringId ?? undefined,
           }
         })
+      const mark = `pair:${intake._id}:`
       const done = await writeTransactions(ctx, ownerId, intake, account, {
         rows: keep,
         keepBalance: true,
         dayStart: args.dayStart,
+        pairs: new Map(
+          b.dismissed.flatMap((k) => {
+            if (!k.startsWith(mark)) return []
+            const [index, ...sideId] = k.slice(mark.length).split(':')
+            return [[Number(index), sideId.join(':')] as const]
+          }),
+        ),
       })
       rows = done.written + done.trades.written
     } else if (intake.kind === 'holdings') {

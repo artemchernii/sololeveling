@@ -324,3 +324,77 @@ test('the key answers only for the user who connected first: a second user is re
   vi.setSystemTime(Date.now() + 5 * HOUR)
   expect(await me.action(api.t212.check, args)).toBe('checked')
 })
+
+test('a fund the account holds under another listing is that holding, not a second fund', async () => {
+  const { t, me, args, link } = await mock()
+  await me.action(api.t212.connect, args)
+  /* Trading 212 calls ASML by a ticker and an ISIN the account does not
+     have; the market lists that ISIN as ASML.AS too. */
+  await t.run(async (ctx) => {
+    const asml = await ctx.db
+      .query('instruments')
+      .withIndex('by_owner_symbol', (q) =>
+        q.eq('ownerId', ME).eq('symbol', 'ASML.AS'),
+      )
+      .unique()
+    if (asml) await ctx.db.patch(asml._id, { isin: undefined })
+  })
+  vi.setSystemTime(NOON + 5 * HOUR)
+  await t.mutation(internal.t212.begin, {
+    ownerId: ME,
+    accountId: args.accountId,
+    connect: false,
+  })
+  await t.mutation(internal.t212.arrive, {
+    ownerId: ME,
+    ...args,
+    cash: { currency: 'EUR', value: 1280.3 },
+    positions: [
+      { ticker: 'NVDA_US_EQ', name: 'Nvidia', isin: 'US67066G1040', shares: 8 },
+      {
+        ticker: 'ASMLa_EQ',
+        name: 'ASML',
+        isin: 'NL0010273215',
+        shares: 1,
+        held: 'ASML.AS',
+      },
+    ],
+  })
+  expect((await link())?.changed).toBeUndefined()
+  const rows = (await me.query(api.aggregate.positions, {})).rows
+  expect(rows.map((r) => r.symbol).sort()).toEqual(['ASML.AS', 'NVDA'])
+})
+
+test('the first answer shows what differs from the last file, as of that file', async () => {
+  const { me, args, link } = await mock()
+  const fileDay = NOON - 3 * 86_400_000
+  const t212 = await import('./t212Api')
+  vi.spyOn(t212, 't212Api').mockReturnValue({
+    summary: () =>
+      Promise.resolve({
+        currency: 'EUR',
+        free: 1280.3,
+        inPies: 0,
+        reserved: 0,
+      }),
+    positions: () =>
+      Promise.resolve([
+        {
+          ticker: 'NVDA_US_EQ',
+          name: 'Nvidia',
+          isin: 'US67066G1040',
+          shares: 9,
+        },
+        { ticker: 'ASML_NA_EQ', name: 'ASML', isin: 'NL0010273215', shares: 1 },
+      ]),
+  })
+  expect(await me.action(api.t212.connect, args)).toEqual({
+    same: 2,
+    changed: 1,
+  })
+  expect((await link())?.changed).toMatchObject({
+    at: fileDay,
+    lines: [{ was: 8, now: 9 }],
+  })
+  vi.restoreAllMocks()
+})

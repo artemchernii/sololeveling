@@ -60,6 +60,8 @@ const position = v.object({
   paidEur: v.optional(v.number()),
   /* What the market calls it, for one the account never held. */
   candidate: v.optional(candidate),
+  /* The holding it is, when the market lists it under that ticker too. */
+  held: v.optional(v.string()),
 })
 
 async function linkOf(
@@ -239,7 +241,9 @@ export const arrive = internalMutation({
     const paid = new Map<Id<'instruments'>, number>()
     const insts = held.map((h) => h.inst)
     for (const p of args.positions) {
-      const k = heldAs(p, insts)
+      const byListing =
+        p.held === undefined ? -1 : insts.findIndex((i) => i.symbol === p.held)
+      const k = byListing >= 0 ? byListing : heldAs(p, insts)
       let id: Id<'instruments'>
       if (k >= 0) {
         id = insts[k]._id
@@ -328,16 +332,13 @@ export const arrive = internalMutation({
         pocket,
       )
 
-    /* The first answer sets the card right and shows no block: what a file
-       had wrong is not something he bought or sold. */
-    const first = link.checkedAt === undefined
+    /* The first answer shows its block too (12 Oct, his "i dont get if it
+       works or not"): what differs from the last file, as of that file. */
     const open = link.changed
-    const merged = first
-      ? []
-      : mergeChanged(
-          (open?.lines ?? []).map((l) => ({ ...l, id: l.instrumentId })),
-          lines,
-        )
+    const merged = mergeChanged(
+      (open?.lines ?? []).map((l) => ({ ...l, id: l.instrumentId })),
+      lines,
+    )
     const startCash =
       open !== undefined ? open.cashWas : cashMoved ? cashWas : undefined
     const cashLine =
@@ -348,10 +349,10 @@ export const arrive = internalMutation({
       checkedAt: at,
       lookAt: write ? at : link.lookAt,
       changed:
-        first || (merged.length === 0 && !cashLine)
+        merged.length === 0 && !cashLine
           ? undefined
           : {
-              at: open?.at ?? link.checkedAt ?? at,
+              at: open?.at ?? link.checkedAt ?? (lastLook || at),
               ...(cashLine ? { cashWas: startCash } : {}),
               lines: merged.map(({ id, was: w, now: n }) => ({
                 instrumentId: id,
@@ -393,15 +394,26 @@ async function pull(
     for (const p of await api.positions()) {
       /* A company the account never held: what the market calls it, by
          its ISIN. None found — it is kept at Trading 212's own price. */
-      const found =
+      const listings =
         heldAs(p, start.known) >= 0 ||
         p.isin === undefined ||
         process.env.E2E === '1'
-          ? undefined
-          : (await searchYahoo(p.isin)).find(
-              (c) => c.type === 'EQUITY' || c.type === 'ETF',
-            )
-      positions.push({ ...p, ...(found ? { candidate: found } : {}) })
+          ? []
+          : await searchYahoo(p.isin)
+      /* One fund is listed in several places under several tickers (12
+         Oct: VHYD in London is the VHYL the account held from Amsterdam,
+         and it was saved as a second fund). A listing the account holds
+         already is that holding. */
+      const held = start.known.find((k) =>
+        listings.some((c) => c.symbol === k.symbol),
+      )?.symbol
+      const found = listings.find(
+        (c) => c.type === 'EQUITY' || c.type === 'ETF',
+      )
+      positions.push({
+        ...p,
+        ...(held ? { held } : found ? { candidate: found } : {}),
+      })
     }
     const done: { same: number; changed: number } = await ctx.runMutation(
       internal.t212.arrive,

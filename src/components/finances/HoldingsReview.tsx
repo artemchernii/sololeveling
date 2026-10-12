@@ -1,21 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useAction, useMutation } from 'convex/react'
+import { useMutation } from 'convex/react'
 import { addedWords } from '@/lib/addedWords'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Check, ChevronRight, Loader2, Search } from 'lucide-react'
+import { Check, ChevronRight, Search } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { Busy, FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import { ReadBy } from '@/components/finances/Reading'
-import { HoldingsSummary } from '@/components/finances/HoldingsSummary'
+import {
+  HoldingsChanges,
+  HoldingsSummary,
+} from '@/components/finances/HoldingsSummary'
+import { TickerSearch } from '@/components/finances/HoldingsTickerSearch'
+import { TotalAsk } from '@/components/finances/HoldingsTotalCheck'
 import { ReviewLanded } from '@/components/finances/IntakeLanded'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { failureMessage } from '@/lib/convex-errors'
 import { money } from '@/lib/currency'
 import { metalOf } from '@/lib/holdingLine'
 import { lookFamily } from '@/lib/holdings'
+import { holdingsTotal } from '@/lib/holdingsTotal'
 import { completePosition } from '@/lib/intake'
 import { tickerBase } from '@/lib/market'
 import type { Candidate } from '@/lib/market'
@@ -124,6 +130,14 @@ export function HoldingsReview({
   const fromFile =
     intake.model !== undefined && !intake.model.startsWith('Claude')
   const total = intake.totalEur ?? invested + (cashNum ?? 0)
+  /* What is kept, against the total the screenshot prints (11 Oct): one
+     that differs is saved only by "save it anyway". */
+  const check = holdingsTotal(
+    kept.map((r) => r.p.valueEur),
+    cashNum,
+    intake.totalEur ?? null,
+  )
+  const differs = check.state === 'differs'
   const known = kept.filter((r) => r.paid !== undefined)
   const paid = known.reduce((t, r) => t + (r.paid ?? 0), 0)
   const gain = known.reduce(
@@ -187,6 +201,8 @@ export function HoldingsReview({
         asOf: Date.now(),
         dayStart: today,
         cashEur: cashNum ?? undefined,
+        kept: kept.map((r) => r.i),
+        anyway: differs || undefined,
         rows: kept.map((r) => ({
           candidate: r.d.candidate as Candidate,
           isin: r.p.isin,
@@ -278,32 +294,20 @@ export function HoldingsReview({
       />
 
       {changes ? (
-        <div className="motion-arrive flex flex-col gap-1.5 rounded-[14px] bg-lav-400/[0.05] p-3 ring-1 ring-lav-400/22 ring-inset">
-          <span className="text-[13.5px] text-foreground">
-            {changes.out.length === 0 && changes.gone.length === 0
-              ? valued === 0
-                ? `Same as ${targetName} already has. Nothing new in this file.`
-                : `Same shares as ${targetName} already has — only prices moved.`
-              : `Against what ${targetName} has: ${changes.out.length} changed · ${changes.same} the same`}
-          </span>
-          {changes.out.length > 0 ? (
-            <span className="flex items-baseline gap-2 text-[12.5px] text-ink-300">
-              <Check className="size-3.5 translate-y-0.5 text-state-good" />
-              {changes.out.join(' · ')}
-            </span>
-          ) : null}
-          {changes.gone.length > 0 ? (
-            <span className="flex items-baseline gap-2 text-[12.5px] text-ink-300">
-              <span className="text-state-warn">!</span>
-              Not in this file: {changes.gone.map((g) => g.symbol).join(', ')}.
-              They stay, in case the list was cut off
-            </span>
-          ) : null}
-          <span className="text-[12px] text-ink-500">
-            Saved as today&apos;s look. What you paid is never changed by{' '}
-            {fromFile ? 'this file' : 'a screenshot'}.
-          </span>
-        </div>
+        <HoldingsChanges
+          changes={changes}
+          targetName={targetName}
+          valued={valued}
+          fromFile={fromFile}
+        />
+      ) : null}
+      {differs ? (
+        <TotalAsk
+          name={targetName ?? 'This screenshot'}
+          check={check}
+          cash={freeStays === undefined ? 'cash' : 'broker cash'}
+          file={intake.files?.[0]?.name ?? 'screenshot'}
+        />
       ) : null}
 
       <div className="overflow-hidden rounded-[16px] bg-lift/[0.02] ring-1 ring-lift/[0.07] ring-inset">
@@ -475,7 +479,7 @@ export function HoldingsReview({
           onClick={onDiscard}
           className={`${PILL_QUIET} flex-1 justify-center py-3`}
         >
-          discard
+          {differs && targetName ? `do not save ${targetName}` : 'discard'}
         </button>
         <button
           type="button"
@@ -486,68 +490,12 @@ export function HoldingsReview({
           <Busy on={saving} doing="saving">
             {target === null
               ? 'pick the account above'
-              : `save ${kept.length} ${kept.length === 1 ? 'position' : 'positions'}${cashNum !== null ? (freeStays === undefined ? ' and the cash' : ' and the broker cash') : ''}`}
+              : differs
+                ? `save ${targetName} anyway`
+                : `save ${kept.length} ${kept.length === 1 ? 'position' : 'positions'}${cashNum !== null ? (freeStays === undefined ? ' and the cash' : ' and the broker cash') : ''}`}
           </Busy>
         </button>
       </div>
     </>
-  )
-}
-
-function TickerSearch({
-  initial,
-  onPick,
-}: {
-  initial: string
-  onPick: (c: Candidate) => void
-}) {
-  const search = useAction(api.market.search)
-  const [q, setQ] = useState(initial)
-  const [results, setResults] = useState<Array<Candidate> | null>(null)
-  const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    const term = q.trim()
-    if (term.length < 2) return
-    setBusy(true)
-    const t = setTimeout(() => {
-      search({ q: term })
-        .then(setResults, () => setResults([]))
-        .finally(() => setBusy(false))
-    }, 300)
-    return () => clearTimeout(t)
-  }, [q, search])
-  return (
-    <div className="flex flex-col gap-1">
-      <label className={`${FIELD} flex items-center gap-2 py-1.5`}>
-        {busy ? (
-          <Loader2 className="size-4 animate-spin text-lav-400" />
-        ) : (
-          <Search className="size-4 text-ink-500" />
-        )}
-        <input
-          autoFocus
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          aria-label="Find a ticker"
-          className="w-full bg-transparent focus:outline-none"
-        />
-      </label>
-      {(results ?? []).map((c) => (
-        <button
-          key={c.symbol}
-          type="button"
-          onClick={() => onPick(c)}
-          className="flex items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left hover:bg-lav-400/10"
-        >
-          <span className="w-20 font-mono text-[12px] text-area">
-            {c.symbol}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-[13px]">{c.name}</span>
-          <span className="font-mono text-[10.5px] text-ink-500">
-            {c.exchange}
-          </span>
-        </button>
-      ))}
-    </div>
   )
 }

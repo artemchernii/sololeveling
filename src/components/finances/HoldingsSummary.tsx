@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Check } from 'lucide-react'
 
 import { FIELD } from '@/components/finances/bits'
 import { money } from '@/lib/currency'
@@ -168,6 +169,52 @@ export function HoldingsSummary({
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+/* Against what the account has already: what this screen changes. */
+export function HoldingsChanges({
+  changes,
+  targetName,
+  valued,
+  fromFile,
+}: {
+  changes: {
+    out: Array<string>
+    same: number
+    gone: Array<{ symbol: string }>
+  }
+  targetName: string | undefined
+  valued: number
+  fromFile: boolean
+}) {
+  return (
+    <div className="motion-arrive flex flex-col gap-1.5 rounded-[14px] bg-lav-400/[0.05] p-3 ring-1 ring-lav-400/22 ring-inset">
+      <span className="text-[13.5px] text-foreground">
+        {changes.out.length === 0 && changes.gone.length === 0
+          ? valued === 0
+            ? `Same as ${targetName} already has. Nothing new in this file.`
+            : `Same shares as ${targetName} already has — only prices moved.`
+          : `Against what ${targetName} has: ${changes.out.length} changed · ${changes.same} the same`}
+      </span>
+      {changes.out.length > 0 ? (
+        <span className="flex items-baseline gap-2 text-[12.5px] text-ink-300">
+          <Check className="size-3.5 translate-y-0.5 text-state-good" />
+          {changes.out.join(' · ')}
+        </span>
+      ) : null}
+      {changes.gone.length > 0 ? (
+        <span className="flex items-baseline gap-2 text-[12.5px] text-ink-300">
+          <span className="text-state-warn">!</span>
+          Not in this file: {changes.gone.map((g) => g.symbol).join(', ')}. They
+          stay, in case the list was cut off
+        </span>
+      ) : null}
+      <span className="text-[12px] text-ink-500">
+        Saved as today&apos;s look. What you paid is never changed by{' '}
+        {fromFile ? 'this file' : 'a screenshot'}.
+      </span>
     </div>
   )
 }

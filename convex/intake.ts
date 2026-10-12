@@ -1686,7 +1686,7 @@ export const confirmHoldings = mutation({
 })
 
 /* Two looks at one ticker within this are the same look. */
-const SAME_LOOK_MS = 20 * 3_600_000
+export const SAME_LOOK_MS = 20 * 3_600_000
 
 /**
  * Buys and sells into the broker's ledger, oldest first, each with its own
@@ -1968,12 +1968,12 @@ function screenPriceEur(
 /* The broker's value of a share no market prices, as a stored reading:
    attributed to its screen, as of the look. A second look the same day
    replaces it, as storePrices does a close. */
-async function writeScreenPrice(
+export async function writeScreenPrice(
   ctx: MutationCtx,
   ownerId: string,
   instrumentId: Id<'instruments'>,
   account: Doc<'accounts'>,
-  read: { priceEur: number; asOf: number },
+  read: { priceEur: number; asOf: number; source?: string },
 ) {
   const inst = await ctx.db.get(instrumentId)
   if (inst !== null && inst.currency !== 'EUR')
@@ -1998,7 +1998,7 @@ async function writeScreenPrice(
     currency: 'EUR',
     asOf: read.asOf,
     fetchedAt: Date.now(),
-    source: screenSource(account.name),
+    source: read.source ?? screenSource(account.name),
   })
 }
 

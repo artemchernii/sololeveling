@@ -35,10 +35,12 @@ export function logoSrc(p: LogoOf): string | null {
     const base = p.symbol.split('-')[0].toLowerCase()
     return /^[a-z0-9]{2,10}$/.test(base) ? `${COIN_ICONS}/${base}.svg` : null
   }
-  if (p.type === 'ETF' || p.type === 'MUTUALFUND' || p.type === 'ETC') {
-    const site = ISSUERS.find(([re]) => re.test(p.name ?? ''))?.[1]
-    return site ? `${SITE_ICON}${site}` : null
-  }
+  /* An issuer's word in the name is enough: a fund is not always typed as
+     one (iShares Physical Gold came as a plain share, 13 Oct). */
+  const site = ISSUERS.find(([re]) => re.test(p.name ?? ''))?.[1]
+  if (site) return `${SITE_ICON}${site}`
+  if (p.type === 'ETF' || p.type === 'MUTUALFUND' || p.type === 'ETC')
+    return null
   const base = p.symbol.split('.')[0]
   return base ? `${SHARE_LOGO}${encodeURIComponent(base)}.png` : null
 }

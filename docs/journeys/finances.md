@@ -81,11 +81,12 @@ safety-net tests.
 
 ## Portfolio: how are my investments doing
 
-| Journey                                           | Screen    | Component                   | Convex                                         | Test                  |
-| ------------------------------------------------- | --------- | --------------------------- | ---------------------------------------------- | --------------------- |
-| Brokers, positions, P&L                           | Portfolio | `Portfolio`                 | `aggregate.positions`, `worth`, `invest.looks` | `portfolio.spec`      |
-| One position: price line, trades, delete a trade  | Portfolio | `Portfolio`                 | `invest.priceLine`, `trades`, `removeTrade`    | —                     |
-| A holding left out of the latest file of its kind | Portfolio | `Portfolio` (`holdingLine`) | `aggregate.positions` (`lookFamily`)           | `holdings.looks.test` |
+| Journey                                           | Screen    | Component                          | Convex                                      | Test                           |
+| ------------------------------------------------- | --------- | ---------------------------------- | ------------------------------------------- | ------------------------------ |
+| Brokers, worth, split by kind                     | Portfolio | `Portfolio`                        | `aggregate.positions`, `worth`              | `portfolio.spec`               |
+| Everything owned, one row a thing; order, filters | Portfolio | `PortfolioList` (`owned`)          | `aggregate.positions`, `invest.priceLine`   | `portfolio.spec`, `owned.test` |
+| One position: price line, trades, delete a trade  | Portfolio | `PortfolioList`, `PortfolioTrades` | `invest.priceLine`, `trades`, `removeTrade` | —                              |
+| A holding left out of the latest file of its kind | Portfolio | `PortfolioList` (`holdingLine`)    | `aggregate.positions` (`lookFamily`)        | `holdings.looks.test`          |
 
 ## Known gaps
 

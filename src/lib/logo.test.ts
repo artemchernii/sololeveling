@@ -51,4 +51,14 @@ describe('kindOf', () => {
     ).toBe('gold')
     expect(kindOf({ symbol: 'BTC-EUR', type: 'CRYPTOCURRENCY' })).toBe('crypto')
   })
+
+  it("gives a fund typed as a share its issuer's mark", () => {
+    expect(
+      logoSrc({
+        symbol: 'IGLN.L',
+        type: 'EQUITY',
+        name: 'iShares Physical Gold ETC',
+      }),
+    ).toContain('ishares.com')
+  })
 })

@@ -32,6 +32,7 @@ test('Flow: nothing coming yet, then the month row by row', async ({
     ['in', 'in'],
     ['bill', "a bill's day"],
     ['to-come', 'a bill to come'],
+    ['quiet', 'nothing moved'],
   ]) {
     const key = legend.locator(`[data-mark="${mark}"]`)
     await expect(key).toHaveText(word)
@@ -41,7 +42,11 @@ test('Flow: nothing coming yet, then the month row by row', async ({
 
   /* A day nothing moved says so in a colour of its own, not label grey. */
   const days = page.getByRole('list', { name: 'Days' })
-  await days.getByRole('listitem').nth(9).hover()
+  /* Such a day draws a grey dash, never a small red bar. */
+  const quietDay = days.getByRole('listitem').nth(9)
+  await expect(quietDay.locator('[data-quiet]')).toHaveCount(1)
+  await expect(quietDay.locator('.bg-state-danger\\/60')).toHaveCount(0)
+  await quietDay.hover()
   const quiet = page.getByTestId('day-quiet')
   await expect(quiet).toHaveText('nothing moved')
   await expect(quiet).toHaveClass(/text-state-warn/)

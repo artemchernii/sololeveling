@@ -200,12 +200,21 @@ export function Movements({
                   style={{ height: Math.min(44, Math.sqrt(s.i / mx) * 44) }}
                 />
               ) : null}
-              {future ? null : (
+              {future ? null : s?.o ? (
                 <span
-                  className="motion-pop mx-[18%] min-h-0.5 self-stretch rounded-[3px_3px_1px_1px] bg-state-danger/60"
+                  className="motion-pop mx-[18%] self-stretch rounded-[3px_3px_1px_1px] bg-state-danger/60"
                   style={{
-                    height: Math.max(2, Math.sqrt((s?.o ?? 0) / mx) * 44),
+                    /* The smallest payment is still a bar: never the
+                       height of a day's dash. */
+                    height: Math.max(5, Math.sqrt(s.o / mx) * 44),
                   }}
+                />
+              ) : s?.i ? null : (
+                /* Nothing moved (12 Oct: "no moves and little out are
+                   same. Both red"): a grey dash, not a red bar. */
+                <span
+                  data-quiet
+                  className="mx-[30%] h-px self-stretch rounded-full bg-ink-600"
                 />
               )}
               <span
@@ -243,6 +252,10 @@ export function Movements({
         <Key mark="to-come">
           <i className="block size-2 rounded-full border border-lav-400" />
           <span className="text-lav-300">a bill to come</span>
+        </Key>
+        <Key mark="quiet">
+          <i className="block h-px w-2.5 bg-ink-600" />
+          nothing moved
         </Key>
         <span className="ml-auto text-ink-500">tap a day to jump</span>
       </div>

@@ -50,6 +50,9 @@ export function SumCheck({
     }).finally(() => setBusy(false))
   }
   const off = c.state === 'ask' || c.state === 'off'
+  /* An account can also be not saved for a transfer's question
+     (BulkTransferCheck): this box is only the sum's. */
+  const held = block.held && off
   const noRow = (
     <>
       <Veiled>{euros(Math.abs(c.gap))}</Veiled>{' '}
@@ -70,19 +73,14 @@ export function SumCheck({
   )
 
   return (
-    <div
-      data-sum={block.held ? 'held' : c.state}
-      className="flex flex-col gap-3"
-    >
+    <div data-sum={held ? 'held' : c.state} className="flex flex-col gap-3">
       <div className="grid grid-cols-2 overflow-hidden rounded-[12px] bg-sink/[0.22] ring-1 ring-lift/[0.06] ring-inset sm:grid-cols-4">
         <Cell label={`was · ${DAY.format(c.wasAt)}`} value={euros(c.was)} />
         <Cell label="out" value={euros(c.out)} tone="out" />
         <Cell label="in" value={euros(c.in)} tone={c.in > 0 ? 'in' : 'none'} />
         <Cell
           label="now"
-          value={euros(
-            off && !block.held && c.printed !== null ? c.printed : c.now,
-          )}
+          value={euros(off && !held && c.printed !== null ? c.printed : c.now)}
           tone="now"
           under={
             c.state === 'bare' ? (
@@ -92,7 +90,7 @@ export function SumCheck({
                 <Check className="motion-pop size-3" strokeWidth={3} />
                 as the {file} shows
               </span>
-            ) : block.held ? (
+            ) : held ? (
               <span className="text-state-warn">
                 {file} shows <Veiled>{euros(c.printed ?? 0)}</Veiled>
               </span>
@@ -119,7 +117,7 @@ export function SumCheck({
         </div>
       ))}
 
-      {block.held ? (
+      {held ? (
         <div className="motion-land flex flex-col gap-2.5 rounded-[14px] bg-state-warn/[0.06] p-3 ring-1 ring-state-warn/30 ring-inset">
           <div className="flex items-start gap-2 text-[13.5px] leading-normal">
             <Sigma className="mt-1 size-3.5 shrink-0 text-state-warn" />

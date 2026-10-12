@@ -215,6 +215,8 @@ test('what does not fit', () => {
   expect(fit(arrived, { ...side, paired: true })).toBeNull()
   /* Two rows that both left. */
   expect(fit({ ...arrived, cents: -50520 }, side)).toBeNull()
+  /* A payment here and money in there, neither read as his own. */
+  expect(fit(arrived, { ...side, move: false, names: [] })).toBeNull()
   /* Two rows of one file. */
   expect(fit(arrived, { ...side, file: 'tr' })).toBeNull()
 })

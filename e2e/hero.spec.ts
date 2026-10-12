@@ -15,7 +15,7 @@ const SPENT = [13.05, 6.7, 41.27]
 const amount = async (line: Locator) =>
   Number(((await line.textContent()) ?? '').replace(/[^0-9.]/g, ''))
 
-test('hero: capital is free cash and what is at brokers; this month is in less out', async ({
+test('hero: capital is free cash and what is at brokers; in and out since salary', async ({
   page,
 }) => {
   const days = await start(page)
@@ -48,15 +48,19 @@ test('hero: capital is free cash and what is at brokers; this month is in less o
     0,
   )
   if (out === 0)
-    await expect(
-      hero.getByText('nothing in or out yet this month'),
-    ).toBeVisible()
+    await expect(hero.getByText('nothing in or out this month')).toBeVisible()
   else {
     const eur = `€${(out / 100).toFixed(2)}`
     await expect(hero.getByText(`−${eur}`)).toBeVisible()
     await expect(hero.getByText(`out ${eur}`)).toBeVisible()
     await expect(hero.getByText('in €0')).toBeVisible()
   }
+  /* Revolut is a bank and a broker, and its broker cash was never saved:
+     said by name. */
+  await expect(hero.getByTestId('no-balance')).toHaveText(
+    'no balance saved: Revolut broker cash',
+  )
+  await expect(hero.getByText('not read yet')).toHaveCount(0)
   await page.waitForTimeout(700)
   await page.screenshot(shot('hero'))
 
@@ -64,14 +68,13 @@ test('hero: capital is free cash and what is at brokers; this month is in less o
   await testClient().mutation(anyApi.e2e.paySalary, { day: days[0] - DAY })
   await expect(hero.getByText('€9,903.88').first()).toBeVisible()
   await expect(free).toContainText('€9,903.88')
-  if (days[0] - DAY >= monthStart) {
-    await expect(hero.getByText('in €2,900')).toBeVisible()
-    await expect(
-      hero.getByText(
-        `+€${((290000 - out) / 100).toLocaleString('en', { minimumFractionDigits: 2 })}`,
-      ),
-    ).toBeVisible()
-  }
+  /* In and out now run from that salary, whatever the calendar month:
+     the mock's three payments all came after it. */
+  await expect(hero.getByText(/since salary on \d+ \w{3}/)).toBeVisible()
+  await expect(hero.getByText('in €2,900')).toBeVisible()
+  await expect(hero.getByText('out €61.02')).toBeVisible()
+  await expect(hero.getByText('+€2,838.98')).toBeVisible()
+  await expect(hero.getByText('this month')).toHaveCount(0)
   await page.waitForTimeout(700)
   await page.screenshot(shot('hero-salary'))
 })

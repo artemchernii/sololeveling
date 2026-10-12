@@ -294,6 +294,7 @@ export function AccountBlock({
           file={block.files[0].name}
           batchId={batchId}
           accountId={account._id}
+          onOpen={() => onCheck(block.files[0].intakeId)}
         />
       ) : holdings !== null ? (
         <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[12.5px] text-ink-400">

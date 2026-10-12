@@ -309,10 +309,21 @@ export function AccountBlock({
             </span>
           ) : null}
           {holdings.complete ? (
-            <Tag tone="good">
-              <Check className="size-3" />
-              every position known
-            </Tag>
+            <>
+              <Tag tone="good">
+                <Check className="size-3" />
+                every position known
+              </Tag>
+              {/* The positions open even when nothing is missing (12 Oct):
+                  a file through an account's UPDATE has no other way in. */}
+              <button
+                type="button"
+                onClick={() => onCheck(block.files[0].intakeId)}
+                className="font-mono text-[10.5px] tracking-[0.12em] text-lav-400 uppercase"
+              >
+                positions
+              </button>
+            </>
           ) : (
             <button
               type="button"

@@ -158,7 +158,7 @@ test('reading: it shows at once, closing asks first, and leaving loses nothing',
   await start(page)
   await testClient().mutation(anyApi.e2eUpdate.holdRead, {})
   const sheet = await open(page)
-  await expect(sheet.getByText('of 1 files read')).toBeVisible()
+  await expect(sheet.getByText('of 1 file read')).toBeVisible()
   await expect(sheet.getByText('statement-sep.pdf')).toBeVisible()
 
   /* Escape, the ✕ and a click outside all ask. */

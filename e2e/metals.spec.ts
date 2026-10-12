@@ -49,13 +49,15 @@ test('a commodity CSV in the holdings check: ounces, no €0, and it is a file',
     .getByRole('button', { name: 'update' })
     .first()
     .click()
-  await page.getByRole('button', { name: 'statement or screenshot' }).click()
   await page.locator('input[type=file]').setInputFiles({
     name: 'account-statement_metals.csv',
     mimeType: 'text/csv',
     buffer: revolutMetalsCsv(days),
   })
+  /* The window ADD opens, named for the account (12 Oct): the positions
+     open from the account's line in the check. */
   const sheet = page.getByRole('dialog')
+  await sheet.getByRole('button', { name: 'positions', exact: true }).click()
   await expect(sheet.getByText('no AI needed · $0')).toBeVisible()
   await expect(sheet.getByText(/0\.4084 oz/)).toBeVisible()
   await expect(sheet.getByText(/\b1 position\b/).first()).toBeVisible()

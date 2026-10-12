@@ -53,7 +53,7 @@ export function BulkReading({ view }: { view: BatchView }) {
             {read}
           </span>
           <span className="text-[13px] text-ink-400">
-            of {files.length} files read
+            of {files.length} {files.length === 1 ? 'file' : 'files'} read
           </span>
           <span className="ml-auto font-mono text-[11px] text-ink-500">
             {elapsed}
@@ -97,7 +97,7 @@ export function BulkReading({ view }: { view: BatchView }) {
         })}
       </div>
       <p className="border-t border-lav-400/10 pt-3 text-[12.5px] text-ink-400">
-        You can close this. Reading goes on and waits for you on ADD.
+        Closing does not stop the reading. It opens again from ADD.
       </p>
     </div>
   )

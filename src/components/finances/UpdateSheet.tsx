@@ -1,24 +1,30 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Loader2 } from 'lucide-react'
+import { Link2, Loader2 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import type { Doc } from '../../../convex/_generated/dataModel'
 import { FIELD, PILL_LOUD } from '@/components/finances/bits'
-import { DropFiles } from '@/components/finances/Add'
-import { IntakeFlow } from '@/components/finances/Intake'
+import { AddDrop } from '@/components/finances/AddDrop'
+import { BulkUpdate, GUARD } from '@/components/finances/Bulk'
+import type { Flight } from '@/components/finances/Bulk'
+import { StepStrip } from '@/components/finances/StepStrip'
 import { Sheet } from '@/components/finances/Sheet'
 import { useDayStarts } from '@/components/track/useDayStarts'
+import { bankWhen } from '@/lib/bankLink'
 import { agoLabel } from '@/lib/format'
+import { money } from '@/lib/currency'
 import { STALE_MS } from '@/lib/freshness'
 import { failureMessage } from '@/lib/convex-errors'
 import { SavedNote } from '@/components/finances/AccountParts'
 
-/* Update: type each currency, or drop a statement or screenshot of this
-   account — the same reader as +, told which account it is. A drop turns
-   this sheet into the reading and its review, as + does (27 Sep: it used
-   to close and leave him where he started, the read out of sight). */
+/* UPDATE on one account (11 Oct; docs/specs/2026-10-10-one-update.md,
+   piece 3b; design/treasury-mockup/update-account.html). The window ADD
+   opens, named for the account: its drop area on top, what is in it now
+   under it — no tabs. A file runs as an update, the same engine and the
+   same check as ADD. Cash has no statement, so no drop area; a connected
+   bank sends its free cash, so nothing to type. */
 export function UpdateSheet({
   account,
   onClose,
@@ -26,58 +32,112 @@ export function UpdateSheet({
   account: Doc<'accounts'> | null
   onClose: () => void
 }) {
-  const [tab, setTab] = useState<'type' | 'file'>('type')
-  const [intakeId, setIntakeId] = useState<Id<'intakes'> | null>(null)
-  const close = () => {
-    setIntakeId(null)
-    onClose()
-  }
+  const waiting = useQuery(api.intake.openBatch, account ? {} : 'skip')
+  const links = useQuery(api.bank.links, account ? {} : 'skip')
+  const [flight, setFlight] = useState<Flight | null>(null)
+  const [step, setStep] = useState<number | null>(null)
+  /* A typed number landed: the tick alone, then it closes. */
+  const [typed, setTyped] = useState(false)
+  useEffect(() => setTyped(false), [account?._id])
+  const noFile = account?.kinds.every((k) => k === 'cash') ?? false
+  const link = links?.find(
+    (l) =>
+      l.accountId === account?._id &&
+      l.status === 'linked' &&
+      (l.validUntil ?? 0) > Date.now(),
+  )
   return (
     <Sheet
       open={account !== null}
-      title={
-        intakeId ? 'check it' : account ? `update · ${account.name}` : 'update'
-      }
-      onClose={close}
-      onBack={intakeId ? () => setIntakeId(null) : undefined}
-      wide={intakeId !== null || tab === 'file'}
+      title={account ? `update · ${account.name}` : 'update'}
+      onClose={onClose}
+      wide={!noFile}
+      glide
+      header={step ? <StepStrip step={step} /> : null}
+      guard={flight ? GUARD[flight] : null}
     >
-      {account && intakeId ? (
-        <IntakeFlow
-          intakeId={intakeId}
-          onBack={() => setIntakeId(null)}
-          onDone={close}
-        />
-      ) : account ? (
-        <>
-          <div className="flex gap-1 rounded-[12px] bg-lift/[0.04] p-1">
-            {(['type', 'file'] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTab(t)}
-                className={`flex-1 rounded-[9px] py-2 font-mono text-[11px] tracking-[0.12em] uppercase ${tab === t ? 'bg-lav-400/16 text-foreground ring-1 ring-lav-400/40 ring-inset' : 'text-ink-400'}`}
-              >
-                {t === 'type' ? 'type it' : 'statement or screenshot'}
-              </button>
-            ))}
-          </div>
-          {tab === 'type' ? (
-            <TypeBalances key={account._id} account={account} onDone={close} />
-          ) : (
-            <DropFiles accountId={account._id} onStarted={setIntakeId} />
+      {account ? (
+        <BulkUpdate
+          waiting={waiting ?? null}
+          onClose={onClose}
+          onFlight={setFlight}
+          onStep={setStep}
+          dropArea={(onStarted, onBusy) => (
+            <>
+              {noFile || typed ? null : (
+                <AddDrop
+                  accountId={account._id}
+                  onStarted={onStarted}
+                  onBusy={onBusy}
+                />
+              )}
+              {link ? (
+                <FromBank account={account} checkedAt={link.checkedAt} />
+              ) : (
+                <div className="mx-auto flex w-full max-w-[520px] flex-col gap-3">
+                  {noFile || typed ? null : (
+                    <span className="label-caps flex items-center gap-2.5 before:h-px before:flex-1 before:bg-lift/[0.07] after:h-px after:flex-1 after:bg-lift/[0.07]">
+                      or type what is in it now
+                    </span>
+                  )}
+                  <TypeBalances
+                    key={account._id}
+                    account={account}
+                    onSaved={() => setTyped(true)}
+                    onDone={onClose}
+                  />
+                </div>
+              )}
+            </>
           )}
-        </>
+        />
       ) : null}
     </Sheet>
   )
 }
 
+/* A connected bank's free cash: the bank's number, not his to type. */
+function FromBank({
+  account,
+  checkedAt,
+}: {
+  account: Doc<'accounts'>
+  checkedAt: number | null
+}) {
+  const data = useQuery(api.aggregate.balances, {})
+  const pockets =
+    data?.accounts.find((a) => a.accountId === account._id)?.pockets ?? []
+  return (
+    <div
+      data-testid="from-bank"
+      className="mx-auto flex w-full max-w-[520px] flex-wrap items-center gap-x-3 gap-y-1 rounded-[14px] bg-state-good/[0.05] px-3.5 py-3 ring-1 ring-state-good/28 ring-inset"
+    >
+      <span className="label-caps">free cash</span>
+      <span className="min-w-[120px] flex-1 text-[17px] font-light">
+        {pockets
+          .filter((p) => p.value !== null)
+          .map((p) => money(p.value as number, p.currency))
+          .join(' · ')}
+      </span>
+      <span className="inline-flex items-center gap-[7px] font-mono text-[11px] text-ink-300">
+        <Link2 className="motion-pulse size-3.5 text-state-good" />
+        from the bank
+        {checkedAt === null
+          ? ''
+          : ` · ${bankWhen(checkedAt, Date.now()).replace('today ', 'today, ')}`}
+      </span>
+    </div>
+  )
+}
+
 function TypeBalances({
   account,
+  onSaved,
   onDone,
 }: {
   account: Doc<'accounts'>
+  /** The moment it landed: what is around the fields steps aside. */
+  onSaved: () => void
   onDone: () => void
 }) {
   const today = useDayStarts(1).at(-1) as number
@@ -95,8 +155,11 @@ function TypeBalances({
   const [saved, setSaved] = useState(false)
   const close = useRef(onDone)
   close.current = onDone
+  const landed = useRef(onSaved)
+  landed.current = onSaved
   useEffect(() => {
     if (!saved) return
+    landed.current()
     const t = setTimeout(() => close.current(), 1400)
     return () => clearTimeout(t)
   }, [saved])
@@ -168,7 +231,7 @@ function TypeBalances({
 
   return (
     <>
-      <span className="text-[12.5px] text-ink-400">
+      <span className="text-center text-[12.5px] text-ink-400">
         Free cash in it now, without its investments.
       </span>
       {account.currencies.map((c) => {

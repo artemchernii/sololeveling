@@ -319,18 +319,20 @@ export const arrive = internalMutation({
     )?.value
     const cashMoved =
       cashWas === undefined || Math.abs(cashWas - args.cash.value) >= 0.005
-    if (cashMoved)
-      await writeBalance(
-        ctx,
-        ownerId,
-        account,
-        args.cash.currency,
-        args.cash.value,
-        args.dayStart,
-        at,
-        'sync',
-        pocket,
-      )
+    /* Written on every answer, the same amount or not (12 Oct: connected,
+       and the check-in still called its balance nine days old): the cash
+       is as fresh as Trading 212's last answer. One reading a day is kept. */
+    await writeBalance(
+      ctx,
+      ownerId,
+      account,
+      args.cash.currency,
+      args.cash.value,
+      args.dayStart,
+      at,
+      'sync',
+      pocket,
+    )
 
     /* The first answer shows its block too (12 Oct, his "i dont get if it
        works or not"): what differs from the last file, as of that file. */

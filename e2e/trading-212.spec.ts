@@ -72,7 +72,10 @@ test('connect: three facts, one press, asking at once, connected, the card says 
   ).toBeVisible()
   await expect(card(page).getByLabel('from Trading 212')).toHaveCount(2)
   await expect(card(page).getByTestId('t212-changed')).toHaveCount(0)
-  await expect(card(page).getByRole('button', { name: 'update' })).toBeVisible()
+  /* Nothing to update by hand: Trading 212 reports it. */
+  await expect(card(page).getByRole('button', { name: 'update' })).toHaveCount(
+    0,
+  )
   await expect(card(page).getByRole('button', { name: 'connect' })).toHaveCount(
     0,
   )

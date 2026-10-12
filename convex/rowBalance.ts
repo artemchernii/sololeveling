@@ -82,6 +82,9 @@ export async function landedCheck(
   intake: Doc<'intakes'>,
   kept: ReadonlySet<number>,
   keepBalance: boolean,
+  /** Fees saving will add beside rows the account already has (a
+      transfer matched before saving, convex/transferMatch.ts). */
+  feeCents = 0,
 ): Promise<NonNullable<Doc<'intakes'>['landed']> | null> {
   const read = intake.transactions ?? []
   const balance = keepBalance ? intake.balance : undefined
@@ -124,6 +127,7 @@ export async function landedCheck(
         twin: false,
       })
   }
+  if (feeCents > 0) fresh.push({ index: -1, at, cents: -feeCents, twin: false })
   /* The same sum the review showed (src/lib/fileCheck.ts): a row the held
      balance had taken off as pending is saved and not counted again. */
   const sum = checkFrom(last, was, fresh, balance ? cents(balance.value) : null)

@@ -24,6 +24,7 @@ import type * as e2e from "../e2e.js";
 import type * as e2eAccountUpdate from "../e2eAccountUpdate.js";
 import type * as e2eBank from "../e2eBank.js";
 import type * as e2eHoldingsTotal from "../e2eHoldingsTotal.js";
+import type * as e2eTransfer from "../e2eTransfer.js";
 import type * as e2eUpdate from "../e2eUpdate.js";
 import type * as events from "../events.js";
 import type * as gapMatch from "../gapMatch.js";
@@ -80,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   e2eAccountUpdate: typeof e2eAccountUpdate;
   e2eBank: typeof e2eBank;
   e2eHoldingsTotal: typeof e2eHoldingsTotal;
+  e2eTransfer: typeof e2eTransfer;
   e2eUpdate: typeof e2eUpdate;
   events: typeof events;
   gapMatch: typeof gapMatch;

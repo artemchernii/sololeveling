@@ -134,15 +134,34 @@ export function PayMonth({
             />
           </div>
 
-          {/* Two plain facts, not a difference to decode (4 Oct: "we
-              spend this month 100 euros more? Confusing"). */}
+          {/* Two numbers with their places (13 Oct: "Day-to-day so far:
+              €127. Last month by day 18: €474." could not be read): what
+              was spent day to day in the same first days after salary,
+              this month and last. */}
           {c.pace && c.day > 0 ? (
-            <p className="mt-3.5 text-[13.5px] text-ink-300">
-              Day-to-day so far:{' '}
-              <Veiled className="text-foreground">{eur(c.pace.now)}</Veiled>.
-              Last month by day {c.day}:{' '}
-              <Veiled className="text-foreground">{eur(c.pace.last)}</Veiled>.
-            </p>
+            <div
+              data-testid="pace"
+              className="mt-3.5 flex flex-col gap-1.5 text-[13.5px] text-ink-300"
+            >
+              <span>
+                Day-to-day spending in the first {c.day}{' '}
+                {c.day === 1 ? 'day' : 'days'} after salary
+              </span>
+              <span className="flex flex-wrap gap-x-6 gap-y-1">
+                <span>
+                  this month{' '}
+                  <Veiled className="font-mono text-foreground">
+                    {eur(c.pace.now)}
+                  </Veiled>
+                </span>
+                <span>
+                  last month{' '}
+                  <Veiled className="font-mono text-foreground">
+                    {eur(c.pace.last)}
+                  </Veiled>
+                </span>
+              </span>
+            </div>
           ) : null}
         </div>
 

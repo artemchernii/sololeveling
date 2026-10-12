@@ -132,6 +132,73 @@ describe('payMonths', () => {
   })
 })
 
+/* 12 Oct: a salary that is not stamped at noon — typed by hand in the
+   morning, or booked by a connected bank and fetched before noon — opened
+   the pay month and was left out of it: "salary +€0", balance −€61. */
+describe('a salary at any hour of its day', () => {
+  const HOUR = 3_600_000
+  const spend = row(9, 28, 'CAFE', 61)
+  it('in the morning: it is in the pay month it opens', () => {
+    const p = payMonths({
+      rows: [
+        {
+          id: 'm',
+          kind: 'income',
+          amount: 2900,
+          t: at(9, 25) - 4 * HOUR,
+          key: 'ACME',
+        },
+        spend,
+      ],
+      bills: [SALARY],
+      today: today(9, 30),
+    })!
+    expect(p.current).toMatchObject({
+      start: at(9, 25),
+      salary: 2900,
+      dayToDay: 61,
+      balance: 2839,
+    })
+  })
+  it('this afternoon: the pay month opens today, not tomorrow', () => {
+    const p = payMonths({
+      rows: [
+        row(8, 25, 'ACME', 2500, 'income'),
+        {
+          id: 'e',
+          kind: 'income',
+          amount: 2900,
+          t: at(9, 25) + 5 * HOUR,
+          key: 'ACME',
+        },
+      ],
+      bills: [SALARY],
+      today: today(9, 25),
+    })!
+    expect(p.current).toMatchObject({ start: at(9, 25), salary: 2900, day: 0 })
+  })
+  it('a row of the day after is not pulled back into the month before', () => {
+    const p = payMonths({
+      rows: [
+        row(8, 25, 'ACME', 2500, 'income'),
+        {
+          id: 'c',
+          kind: 'expense',
+          amount: 9,
+          t: at(9, 25) - 4 * HOUR,
+          key: 'CAFE',
+        },
+        row(9, 25, 'ACME', 2500, 'income'),
+      ],
+      bills: [SALARY],
+      today: today(9, 30),
+    })!
+    /* The coffee of the 25th's morning is the new month's, as its day is. */
+    expect(p.past[0].dayToDay).toBe(0)
+    expect(p.current.dayToDay).toBe(9)
+  })
+})
+
 describe('payMonthDetail', () => {
   const detail = rows.map((r) => ({
     ...r,

@@ -2729,6 +2729,8 @@ export const worth = query({
 
 /* ── Flow (3 Oct; docs/specs/2026-10-03-flow.md) ─────────────────────── */
 
+const HALF_DAY = 12 * 3_600_000
+
 const billOut = v.object({
   t: v.number(),
   billId: v.id('recurring'),
@@ -3217,7 +3219,9 @@ export const payMonthDetail = query({
         q
           .eq('ownerId', ownerId)
           .eq('area', 'money')
-          .gte('occurredAt', args.prev?.start ?? args.start)
+          /* A pay month starts at its first day's noon; a row of that
+             morning is its too (payMonth.ts cuts by days). */
+          .gte('occurredAt', (args.prev?.start ?? args.start) - HALF_DAY)
           .lt('occurredAt', args.end),
       )
       .take(MONEY_ROWS * 2)
@@ -3228,7 +3232,7 @@ export const payMonthDetail = query({
         continue
       }
       if (isLent(l)) {
-        if (l.occurredAt >= args.start) {
+        if (l.occurredAt >= args.start - HALF_DAY) {
           lent.push({
             kind: l.kind,
             row: {

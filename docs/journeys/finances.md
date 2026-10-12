@@ -23,10 +23,10 @@ safety-net tests.
 
 ## Hero: where do I stand
 
-| Journey                                     | Screen           | Component      | Convex                                                     | Test |
-| ------------------------------------------- | ---------------- | -------------- | ---------------------------------------------------------- | ---- |
-| See net worth, cash vs invested, this month | hero             | `TreasuryHero` | `aggregate.worth`, `balances`, `accountMonth`, `moneySums` | —    |
-| First visit, no accounts yet                | hero empty state | `Setup`        | `accounts.create`, `setBalance`, `intake.open`             | —    |
+| Journey                                     | Screen           | Component      | Convex                                                     | Test        |
+| ------------------------------------------- | ---------------- | -------------- | ---------------------------------------------------------- | ----------- |
+| See net worth, cash vs invested, this month | hero             | `TreasuryHero` | `aggregate.worth`, `balances`, `accountMonth`, `moneySums` | `hero.spec` |
+| First visit, no accounts yet                | hero empty state | `Setup`        | `accounts.create`, `setBalance`, `intake.open`             | —           |
 
 ## Bring things in (+)
 
@@ -70,14 +70,14 @@ safety-net tests.
 
 ## Flow: bills, salary, where the month went
 
-| Journey                            | Screen          | Component                | Convex                                                                                       | Test                                          |
-| ---------------------------------- | --------------- | ------------------------ | -------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| Payday to payday: in, out, left    | Flow            | `flow/Flow` → `PayMonth` | `aggregate.payMonth`, `recurring.find`                                                       | —                                             |
-| Where the month went, refile a row | Flow            | `Spending`               | `aggregate.payMonthDetail`, `logs.refile`                                                    | `spending.spec`                               |
-| What's coming: bills ahead         | Flow            | `Ahead` → `AheadChart`   | `aggregate.ahead`, `recurring.payments`, `end`, `resume`, `setCovers`, `notBill`, `unrefuse` | `flow.spec` (empty, short once), `ahead.test` |
-| Add a bill (from a row or by hand) | Flow            | `AddBill`                | `recurring.create`, `fromRow`, `likely`, `remove`                                            | `flow.spec` (typed)                           |
-| Every movement in a month          | Flow            | `Movements`              | `logs.movements`, `recurring.fromRow`                                                        | `flow.spec`                                   |
-| Name who a payee is                | Flow / check it | `Payees`                 | `payees.list`, `set`, `paypalNames`, `why.row`                                               | —                                             |
+| Journey                                                                                      | Screen          | Component                | Convex                                                                                       | Test                                          |
+| -------------------------------------------------------------------------------------------- | --------------- | ------------------------ | -------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| Payday to payday: in, out, left — cut by days: a salary at any hour is in the month it opens | Flow            | `flow/Flow` → `PayMonth` | `aggregate.payMonth`, `recurring.find`                                                       | `pay-month.spec`, `payMonth.test`             |
+| Where the month went, refile a row                                                           | Flow            | `Spending`               | `aggregate.payMonthDetail`, `logs.refile`                                                    | `spending.spec`                               |
+| What's coming: bills ahead                                                                   | Flow            | `Ahead` → `AheadChart`   | `aggregate.ahead`, `recurring.payments`, `end`, `resume`, `setCovers`, `notBill`, `unrefuse` | `flow.spec` (empty, short once), `ahead.test` |
+| Add a bill (from a row or by hand)                                                           | Flow            | `AddBill`                | `recurring.create`, `fromRow`, `likely`, `remove`                                            | `flow.spec` (typed)                           |
+| Every movement in a month                                                                    | Flow            | `Movements`              | `logs.movements`, `recurring.fromRow`                                                        | `flow.spec`                                   |
+| Name who a payee is                                                                          | Flow / check it | `Payees`                 | `payees.list`, `set`, `paypalNames`, `why.row`                                               | —                                             |
 
 ## Portfolio: how are my investments doing
 

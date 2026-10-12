@@ -14,8 +14,10 @@ test('the positions screen: it does not add up, "save anyway" answers and lands'
   await testClient().mutation(anyApi.e2eHoldingsTotal.cutScreen, {})
   await page.goto('/finances')
   await page.getByRole('button', { name: 'Show amounts' }).first().click()
-  await page.getByText('Revolut Invest screenshot').first().click()
+  /* Opened the way he does (12 Oct): ADD, then the account's positions. */
+  await page.getByRole('button', { name: 'add', exact: true }).first().click()
   const sheet = page.getByRole('dialog')
+  await sheet.getByRole('button', { name: /^(check )?positions$/ }).click()
   const box = sheet.getByTestId('total-differs')
   await expect(
     box.getByText(

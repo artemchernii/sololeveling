@@ -135,7 +135,7 @@ export const screens = mutation({
   },
 })
 
-/* One Revolut screenshot outside a drop, for the positions screen: two
+/* One Revolut screenshot in an update of its own, for the positions screen: two
    positions and the cash give €900, the screenshot prints €1,312.30. */
 export const cutScreen = mutation({
   args: {},
@@ -144,8 +144,18 @@ export const cutScreen = mutation({
     const ownerId = await requireUser(ctx)
     guard()
     const now = Date.now()
+    const batchId = await ctx.db.insert('batches', {
+      ownerId,
+      status: 'open',
+      leftOut: [],
+      quietMonths: [],
+      moves: [],
+      extras: [],
+      dismissed: [],
+    })
     return await ctx.db.insert('intakes', {
       ownerId,
+      batchId,
       storageIds: [],
       status: 'ready',
       kind: 'holdings',

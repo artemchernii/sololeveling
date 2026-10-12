@@ -57,10 +57,15 @@ test('hero: capital is free cash and what is at brokers; in and out since salary
   }
   /* Revolut is a bank and a broker, and its broker cash was never saved:
      said by name. */
-  await expect(hero.getByTestId('no-balance')).toHaveText(
-    'no balance saved: Revolut broker cash',
-  )
-  await expect(hero.getByText('not read yet')).toHaveCount(0)
+  const todo = hero.getByTestId('hero-todo')
+  await expect(
+    todo.getByRole('button', { name: 'Revolut broker cash is missing' }),
+  ).toBeVisible()
+  /* Every balance of the mock is eight days old: each is named. */
+  await expect(
+    todo.getByRole('button', { name: 'ActivoBank balance outdated' }),
+  ).toBeVisible()
+  await expect(hero.getByText(/not read yet|balances as of/)).toHaveCount(0)
   await page.waitForTimeout(700)
   await page.screenshot(shot('hero'))
 
@@ -92,4 +97,20 @@ test('hero: a group opens on its accounts', async ({ page }) => {
   await expect(sheet.getByText('ActivoBank').first()).toBeVisible()
   await expect(sheet.getByText('€830.50').first()).toBeVisible()
   await page.screenshot(shot('hero-banks'))
+})
+
+test('hero: an outdated balance opens UPDATE for that account', async ({
+  page,
+}) => {
+  await start(page)
+  await page.goto('/finances')
+  const hero = page.locator('section', {
+    hasText: 'capital · cash · investments',
+  })
+  await hero
+    .getByRole('button', { name: 'ActivoBank balance outdated' })
+    .click()
+  await expect(
+    page.getByRole('dialog').getByText(/update · ActivoBank/i),
+  ).toBeVisible()
 })

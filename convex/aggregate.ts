@@ -1495,6 +1495,9 @@ export const positions = query({
         A position with no price yet is counted in `unvalued`, not added. */
     totalEur: v.number(),
     oldestPriceAsOf: v.union(v.number(), v.null()),
+    /** When the newest of those prices was fetched (source 4: shown as
+        of a time). */
+    pricesFetchedAt: v.union(v.number(), v.null()),
     unvalued: v.number(),
     complete: v.boolean(),
     /** Euros per dollar, the latest stored ECB rate (source 4) — so the
@@ -2584,6 +2587,7 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
   }
 
   const rows = []
+  let pricesFetchedAt: number | null = null
   for (const p of held.values()) {
     /* A position sold out is not shown. */
     const r = reconcile(p.trades, p.looks)
@@ -2607,6 +2611,7 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
     /* Dust left by a sale — 0.06 XLM, €0.01 — is not a position (10 Oct:
        Revolut does not list it either). */
     if (valueEur !== null && valueEur < 1) continue
+    if (price) pricesFetchedAt = Math.max(pricesFetchedAt ?? 0, price.fetchedAt)
     rows.push({
       accountId: p.accountId,
       instrumentId: p.instrumentId,
@@ -2651,6 +2656,7 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
     rows,
     totalEur: cents / 100,
     oldestPriceAsOf,
+    pricesFetchedAt,
     unvalued,
     complete: trades.length < TRADE_ROWS && looks.length < HOLDING_ROWS,
     usdRate: (await rateFor('USD'))?.rate ?? null,
@@ -2682,6 +2688,7 @@ export const worth = query({
     invested: v.object({
       total: v.number(),
       oldestAt: v.union(v.number(), v.null()),
+      fetchedAt: v.union(v.number(), v.null()),
       unvalued: v.number(),
     }),
     total: v.number(),
@@ -2719,6 +2726,7 @@ export const worth = query({
       invested: {
         total: p.totalEur,
         oldestAt: p.oldestPriceAsOf,
+        fetchedAt: p.pricesFetchedAt,
         unvalued: p.unvalued,
       },
       total: (Math.round(b.total * 100) + Math.round(p.totalEur * 100)) / 100,

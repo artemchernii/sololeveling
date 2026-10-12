@@ -32,38 +32,23 @@ import { euros } from '@/lib/money'
    `balances` (readings plus what moved since), this month from `moneySums`
    and `accountMonth` (sums of his rows). Nothing is estimated. */
 
-const DAY_MS = 86_400_000
-
 type Row = FunctionReturnType<typeof api.aggregate.balances>['accounts'][number]
 type Group = 'investments' | 'banks' | 'cash'
 
-const WEEKDAY = new Intl.DateTimeFormat('en', { weekday: 'long' })
-const SHORT = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
-
-/* "balances as of today · market prices: Friday's close" */
 /* A pay month starts at noon UTC of its salary day. */
 const utcDay = (t: number) =>
   `${new Date(t).getUTCDate()} ${new Date(t).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })}`
 
-function freshness(
-  oldestCash: number | null,
-  oldestPrice: number | null,
-  today: number,
-): string {
-  const day = (t: number) =>
-    t >= today
-      ? 'today'
-      : t >= today - DAY_MS
-        ? 'yesterday'
-        : t >= today - 6 * DAY_MS
-          ? WEEKDAY.format(new Date(t))
-          : SHORT.format(new Date(t))
-  const parts: Array<string> = []
-  if (oldestCash !== null) parts.push(`oldest balance: ${day(oldestCash)}`)
-  if (oldestPrice !== null) {
-    parts.push(`share prices: ${day(oldestPrice)}`)
-  }
-  return parts.join(' · ')
+/* "at 14:33" today, else its day too. */
+function fetched(t: number, today: number): string {
+  const d = new Date(t)
+  const time = d.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  return t >= today
+    ? `at ${time}`
+    : `on ${d.getDate()} ${d.toLocaleString('en-US', { month: 'short' })} at ${time}`
 }
 
 export function TreasuryHero() {
@@ -138,16 +123,25 @@ export function TreasuryHero() {
   const net = period
     ? (Math.round(period.in * 100) - Math.round(period.out * 100)) / 100
     : null
-  /* Cash lines with no balance saved, by name ("1 not read yet" said
-     neither what nor where). */
-  const noBalance = rows.flatMap((a) => [
-    ...a.pockets
-      .filter((p) => p.eur === null)
-      .map((p) => `${a.name} ${p.currency}`),
-    ...(a.brokerCash && a.brokerCash.eur === null
-      ? [`${a.name} broker cash`]
-      : []),
-  ])
+  /* What the total wants done, one line each, by name (13 Oct, his
+     words): a balance that is old, a cash line never entered. Each opens
+     UPDATE for its account. Nothing when all is recent. */
+  const todo = [
+    ...rows.flatMap((a) => [
+      ...a.pockets
+        .filter((p) => p.eur === null)
+        .map((p) => ({
+          id: a.accountId,
+          text: `${a.name} ${p.currency} is missing`,
+        })),
+      ...(a.brokerCash && a.brokerCash.eur === null
+        ? [{ id: a.accountId, text: `${a.name} broker cash is missing` }]
+        : []),
+    ]),
+    ...stale
+      .filter((a) => a.pockets.some((p) => p.recordedAt !== null))
+      .map((a) => ({ id: a.accountId, text: `${a.name} balance outdated` })),
+  ]
 
   return (
     <section
@@ -309,16 +303,30 @@ export function TreasuryHero() {
                 </Link>
               </div>
             </div>
-            <span className="font-mono text-[11px] text-ink-500">
-              {freshness(worth.cash.oldestAt, worth.invested.oldestAt, today)}
-            </span>
-            {noBalance.length > 0 ? (
+            {todo.length > 0 ? (
               <span
-                data-testid="no-balance"
-                className="flex items-center gap-1.5 font-mono text-[11px] text-state-warn"
+                data-testid="hero-todo"
+                className="flex flex-wrap gap-x-4 gap-y-1"
               >
-                <TriangleAlert className="size-3.5 shrink-0" />
-                no balance saved: {noBalance.join(', ')}
+                {todo.map((t) => (
+                  <button
+                    key={t.text}
+                    type="button"
+                    onClick={() => {
+                      const doc = docOf(t.id)
+                      if (doc) setUpdating(doc)
+                    }}
+                    className="motion-press flex items-center gap-1.5 font-mono text-[11px] text-state-warn hover:underline"
+                  >
+                    <TriangleAlert className="size-3.5 shrink-0" />
+                    {t.text}
+                  </button>
+                ))}
+              </span>
+            ) : null}
+            {worth.invested.fetchedAt !== null ? (
+              <span className="font-mono text-[11px] text-ink-500">
+                Asset prices fetched {fetched(worth.invested.fetchedAt, today)}
               </span>
             ) : null}
           </div>

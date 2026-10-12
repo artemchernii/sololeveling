@@ -171,7 +171,7 @@ test("his €700 top-up, written by Revolut's file on 3 Oct: already added, and 
       },
     ],
   })
-  expect(await apply(compra, out)).toBe('skipped')
+  expect(await apply(compra, out)).toMatchObject({ did: 'skipped' })
   expect((await logs(ids.activo)).map((l) => l.value)).toEqual([-700])
 })
 
@@ -194,7 +194,7 @@ test('€500.63 arrived of his €505.20: asked, and "same transfer" writes one 
     chosen: null,
   })
 
-  expect(await apply(arrived, out)).toBe('written')
+  expect(await apply(arrived, out)).toMatchObject({ did: 'written' })
   const tr = await logs(ids.tr)
   expect(tr.map((l) => [l.kind, l.value, l.meta?.category ?? null])).toEqual([
     ['move', 505.2, null],
@@ -236,7 +236,7 @@ test('the other order: the arrival was saved as money in, the sending file comes
     state: 'ask',
     sides: [{ id: had, fee: 4.57, amount: 500.63 }],
   })
-  expect(await apply(row, had)).toBe('written')
+  expect(await apply(row, had)).toMatchObject({ did: 'written' })
   const activo = await logs(ids.activo)
   expect(activo.map((l) => [l.kind, l.value])).toEqual([['move', -505.2]])
   const tr = await logs(ids.tr)
@@ -262,7 +262,7 @@ test("ActivoBank's file wrote both sides as €505.20: Trade Republic's own €5
     state: 'ask',
     sides: [{ id: side, here: true, fee: 4.57 }],
   })
-  expect(await apply(arrived, side)).toBe('skipped')
+  expect(await apply(arrived, side)).toMatchObject({ did: 'skipped' })
   expect((await logs(ids.tr)).map((l) => [l.kind, l.value])).toEqual([
     ['expense', 4.57],
     ['move', 505.2],
@@ -314,7 +314,7 @@ test('both files in one drop: each row names the other; the first saved is writt
     meta: { intakeId: ids.revolutFile },
   })
   /* …then ActivoBank's is its other side. */
-  expect(await apply(compra, topUp.key)).toBe('written')
+  expect(await apply(compra, topUp.key)).toMatchObject({ did: 'written' })
   const [activo] = await logs(ids.activo)
   const [revolut] = await logs(ids.revolut)
   expect([activo.kind, activo.value]).toEqual(['move', -700])

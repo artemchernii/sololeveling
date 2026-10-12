@@ -711,6 +711,35 @@ export default defineSchema({
     /* Rows that did not add up: an update waiting for his answer. Nothing
        of the account is asked from the bank again until it is applied. */
     questions: v.optional(v.array(v.id('batches'))),
+    /* Read from Trading 212's own API, not through Enable Banking (12 Oct,
+       docs/specs/2026-10-12-trading-212.md): no bank page, no approval. */
+    via: v.optional(v.literal('t212')),
+    /* The time of the last look this link wrote: a file saved after it
+       makes the next answer write every position again. */
+    lookAt: v.optional(v.number()),
+    /* What the answers since `at` changed, until he closes it with ✕:
+       shares at that look and now, and the free cash it had. */
+    changed: v.optional(
+      v.object({
+        at: v.number(),
+        cashWas: v.optional(v.number()),
+        lines: v.array(
+          v.object({
+            instrumentId: v.id('instruments'),
+            was: v.number(),
+            now: v.number(),
+          }),
+        ),
+      }),
+    ),
+    /* The last check wrote nothing: the key was not accepted, or Trading
+       212 did not answer. Gone with the next answer. */
+    failed: v.optional(
+      v.object({
+        at: v.number(),
+        why: v.union(v.literal('refused'), v.literal('down')),
+      }),
+    ),
   })
     .index('by_owner_account', ['ownerId', 'accountId'])
     .index('by_owner_state', ['ownerId', 'state']),

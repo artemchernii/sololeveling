@@ -1,4 +1,4 @@
-import { Pencil } from 'lucide-react'
+import { Link2, Pencil } from 'lucide-react'
 
 import type { api } from '../../../convex/_generated/api'
 import type { FunctionReturnType } from 'convex/server'
@@ -7,6 +7,8 @@ import { AccountFoot } from '@/components/finances/AccountFoot'
 import type { CardLink } from '@/components/finances/AccountFoot'
 import { AccountArrived } from '@/components/finances/AccountArrived'
 import type { Arrived } from '@/components/finances/AccountArrived'
+import { AccountChanged } from '@/components/finances/AccountChanged'
+import type { Changed } from '@/components/finances/AccountChanged'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { money } from '@/lib/currency'
@@ -38,8 +40,10 @@ export function AccountCard({
   connectable,
   onConnect,
   arrived,
+  changed,
   onShut,
   onCheck,
+  onRetry,
 }: {
   row: BalanceRow
   index: number
@@ -70,11 +74,24 @@ export function AccountCard({
   onConnect: () => void
   /** Rows the bank brought, until closed with ✕. */
   arrived: Arrived | null
+  /** What Trading 212's answers changed, until closed with ✕. */
+  changed: Changed | null
   onShut: () => Promise<unknown>
   onCheck: () => void
+  onRetry: () => void
 }) {
   const f = freshness(a.pockets, Date.now())
   const broker = a.brokerCash
+  /* What Trading 212 itself reports wears a green link (12 Oct). */
+  const fromT212 =
+    link?.via === 't212' ? (
+      <Link2
+        aria-label="from Trading 212"
+        className="ml-1 inline size-3 text-state-good"
+      />
+    ) : null
+  const stopped =
+    link?.question || (link?.failed === 'refused' && !link.checking)
   const total =
     Math.round((a.cashEur + (broker?.eur ?? 0) + (invested ?? 0)) * 100) / 100
   return (
@@ -93,9 +110,9 @@ export function AccountCard({
         }
       }}
       style={{ animationDelay: `${index * 40}ms` }}
-      data-bank={link?.question ? 'question' : link?.checking ? 'checking' : ''}
+      data-bank={stopped ? 'question' : link?.checking ? 'checking' : ''}
       className={`motion-arrive flex h-full cursor-pointer flex-col gap-3.5 rounded-[18px] bg-lift/[0.055] p-4 ring-1 transition-shadow ring-inset hover:ring-lav-400/40 ${
-        link?.question
+        stopped
           ? 'bank-edge-ask ring-state-warn/45'
           : link?.checking
             ? 'bank-edge-busy ring-lav-400/45'
@@ -163,6 +180,7 @@ export function AccountCard({
                 <span className="rounded-[5px] bg-lift/[0.08] px-1.5 py-0.5 text-[10.5px] text-ink-200">
                   {p.currency}
                 </span>
+                {fromT212}
               </span>
               <span className="text-ink-100">
                 {p.value === null ? (
@@ -200,10 +218,15 @@ export function AccountCard({
             data-testid="account-invested"
             className="flex items-center justify-between gap-2"
           >
-            <span className="text-ink-400">investments</span>
+            <span className="text-ink-400">investments{fromT212}</span>
             <span className="text-ink-100">
               <Veiled>{euros(invested)}</Veiled>
             </span>
+          </span>
+        ) : fromT212 ? (
+          <span className="flex items-center justify-between gap-2">
+            <span className="text-ink-400">investments{fromT212}</span>
+            <span className="text-ink-500">none held</span>
           </span>
         ) : null}
         {a.kinds.includes('broker') && !a.kinds.includes('bank') ? (
@@ -295,8 +318,10 @@ export function AccountCard({
       {arrived && !link?.question ? (
         <AccountArrived arrived={arrived} onShut={onShut} />
       ) : null}
+      {changed ? <AccountChanged changed={changed} onShut={onShut} /> : null}
       <AccountFoot
         onCheck={onCheck}
+        onRetry={onRetry}
         label={f.label}
         stale={f.stale}
         todo={f.todo}

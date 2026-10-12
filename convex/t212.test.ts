@@ -249,3 +249,45 @@ test('refusals: another owner’s account, one that is not Trading 212, not conn
   })
   expect(await me.action(api.t212.check, args)).toBe('busy')
 })
+
+test('the card reads what changed in euros: shares × the stored price, then and now', async () => {
+  const { t, me, args, later } = await mock()
+  await me.action(api.t212.connect, args)
+  expect((await me.query(api.bank.links, {}))[0]).toMatchObject({
+    via: 't212',
+    failed: null,
+    changed: null,
+  })
+  await later('traded')
+  const [link] = await me.query(api.bank.links, {})
+  expect(link.changed).toEqual({
+    at: NOON - 5 * HOUR,
+    cash: { currency: 'EUR', was: 1280.3, now: 1620.3 },
+    /* The larger move first. */
+    lines: [
+      {
+        symbol: 'ASML.AS',
+        name: 'ASML Holding N.V.',
+        type: 'EQUITY',
+        was: 1,
+        now: 0,
+        wasEur: 640,
+        nowEur: 0,
+      },
+      {
+        symbol: 'NVDA',
+        name: 'NVIDIA Corporation',
+        type: 'EQUITY',
+        was: 8,
+        now: 10,
+        wasEur: 1200,
+        nowEur: 1500,
+      },
+    ],
+  })
+  await later('refused')
+  expect((await me.query(api.bank.links, {}))[0].failed).toBe('refused')
+  /* Nobody else's link is listed. */
+  const other = t.withIdentity({ tokenIdentifier: OTHER })
+  expect(await other.query(api.bank.links, {})).toEqual([])
+})

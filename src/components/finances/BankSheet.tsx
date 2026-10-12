@@ -264,7 +264,7 @@ export function BankSheet({
   )
 }
 
-function Head({
+export function Head({
   logo,
   title,
   children,
@@ -288,7 +288,7 @@ function Head({
   )
 }
 
-function Fact({
+export function Fact({
   Icon,
   small,
   children,
@@ -310,7 +310,7 @@ function Fact({
   )
 }
 
-function Nope({ children }: { children: ReactNode }) {
+export function Nope({ children }: { children: ReactNode }) {
   return (
     <div className="motion-land flex items-center gap-[9px] text-[12.5px] text-state-warn">
       <KeyRound className="size-4 shrink-0" />

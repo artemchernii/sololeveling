@@ -49,6 +49,7 @@ import type * as search from "../search.js";
 import type * as seed from "../seed.js";
 import type * as sharesCheck from "../sharesCheck.js";
 import type * as state from "../state.js";
+import type * as t212Api from "../t212Api.js";
 import type * as tasks from "../tasks.js";
 import type * as transferMatch from "../transferMatch.js";
 import type * as typedBalance from "../typedBalance.js";
@@ -104,6 +105,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   sharesCheck: typeof sharesCheck;
   state: typeof state;
+  t212Api: typeof t212Api;
   tasks: typeof tasks;
   transferMatch: typeof transferMatch;
   typedBalance: typeof typedBalance;

@@ -180,12 +180,17 @@ These are rules, not advice.
    plain sentences plus something to see** (mockup or screenshot), never
    the spec text → e2e tests first → build until green → PR with
    screenshots → he tests on localhost with his own data → merge.
-2. **`pnpm verify` before every PR** (typecheck, lint, format, unit,
-   build, e2e). Red means no PR. The full run is owed **once per PR, on
-   the final branch** (11 Oct: one slice ran it six times, 8 minutes
-   each). While building: `pnpm typecheck && pnpm lint` and only the spec
-   files the slice touches (`pnpm exec playwright test e2e/<file>`). A
-   commit after the green run — a fix, a merge of master — owes it again.
+2. **Checks sized to the change (12 Oct).** Artem, waiting ten minutes
+   on a two-line fix: "all this verification slow down everything badly
+   … We need to verify not on every turn." Before the 12th every PR owed
+   the full `pnpm verify`; now:
+   - **A fix or a small change:** `pnpm typecheck && pnpm lint`, the unit
+     tests of what changed, and only the spec files it touches
+     (`pnpm exec playwright test e2e/<file>`). About two minutes. GitHub
+     runs typecheck, lint, format, every unit test and the build on the PR.
+   - **A new screen or a slice:** the full `pnpm verify` once, on the
+     final branch — in the background, never while he waits on a reply.
+   - Red means no PR. Say in the PR which of the two was run.
 3. **Tests run on mock data only** — the `e2e` skill. Never press a
    write on his real account to check something.
 4. **Every write answers**: "saving…" at once, a landed screen, then it

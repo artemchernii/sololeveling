@@ -610,7 +610,7 @@ describe('why.row and subscriptions as bills', () => {
     await me.mutation(api.recurring.find, {})
     expect(await me.query(api.why.row, { logId: ids.edpSep })).toBe(
       /* The name the row shows, not the bill's bank-ish one. */
-      'Bill — pays Electricity · EDP (found in your statements): same payee, about the same amount.',
+      'Bill: Electricity · EDP. Found in the statements.',
     )
     expect(await me.query(api.why.row, { logId: ids.cafe })).toContain(
       'Eating out',

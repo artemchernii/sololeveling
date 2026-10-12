@@ -2,7 +2,15 @@ import { useMemo, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
-import { ArrowLeftRight } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  CalendarDays,
+  FileText,
+  Landmark,
+  Repeat,
+  Tag,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 import { api } from '../../../../convex/_generated/api'
 import type { Doc, Id } from '../../../../convex/_generated/dataModel'
@@ -493,19 +501,25 @@ function RowSheet({
           {eur(row.value ?? 0, true)}
         </span>
       </div>
-      <Line
-        k="day"
-        v={`${weekday(row.occurredAt)} ${dayMonth(row.occurredAt)}`}
-      />
-      <Line k="account" v={account?.name ?? '—'} />
-      <Line
-        k="group"
-        v={categoryLabel(
-          income ? 'income' : 'expense',
-          row.meta?.category ?? null,
-        )}
-      />
-      {row.meta?.raw ? <Line k="the bank wrote" v={row.meta.raw} /> : null}
+      <div className="flex flex-col gap-2 py-1">
+        <Line
+          icon={CalendarDays}
+          k="date"
+          v={`${weekday(row.occurredAt)} ${dayMonth(row.occurredAt)}`}
+        />
+        <Line icon={Landmark} k="account" v={account?.name ?? '—'} />
+        <Line
+          icon={Tag}
+          k="group"
+          v={categoryLabel(
+            income ? 'income' : 'expense',
+            row.meta?.category ?? null,
+          )}
+        />
+        {row.meta?.raw ? (
+          <Line icon={FileText} k="description" v={row.meta.raw} />
+        ) : null}
+      </div>
       <Why logId={row._id} />
       {isBill ? (
         <p className="text-[13.5px] text-ink-300">
@@ -516,7 +530,10 @@ function RowSheet({
         </p>
       ) : (
         <>
-          <span className="label-caps mt-1.5">repeats?</span>
+          <span className="label-caps mt-1.5 flex items-center gap-2">
+            <Repeat className="size-3.5 text-lav-300" />
+            make it a bill
+          </span>
           <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
@@ -542,11 +559,25 @@ function RowSheet({
   )
 }
 
-function Line({ k, v }: { k: string; v: string }) {
+/* One fact of a row: its icon, what it is, and the value — which wraps,
+   so a long line from the bank is read whole (13 Oct: "no icons on the
+   left or any distinguish"). */
+function Line({
+  icon: Icon,
+  k,
+  v,
+}: {
+  icon: LucideIcon
+  k: string
+  v: string
+}) {
   return (
-    <span className="flex justify-between gap-4 font-mono text-[12px] text-ink-300">
-      <span className="text-ink-500">{k}</span>
-      <span className="truncate text-right">{v}</span>
+    <span className="flex items-start gap-2.5 text-[13px]">
+      <Icon className="mt-[3px] size-3.5 shrink-0 text-lav-300" />
+      <span className="w-24 shrink-0 text-ink-400">{k}</span>
+      <span className="min-w-0 flex-1 text-right break-words text-foreground">
+        {v}
+      </span>
     </span>
   )
 }

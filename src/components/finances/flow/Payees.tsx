@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Info } from 'lucide-react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
@@ -172,9 +173,9 @@ export function Why({ logId }: { logId: Id<'logs'> }) {
   const line = useQuery(api.why.row, { logId })
   if (!line) return null
   return (
-    <p className="rounded-[10px] bg-lift/[0.03] px-3 py-2 text-[13px] leading-relaxed text-ink-300 ring-1 ring-lift/7 ring-inset">
-      <span className="label-caps mr-2">why here</span>
-      {line}
+    <p className="flex items-start gap-2.5 rounded-[10px] bg-lift/[0.03] px-3 py-2 text-[13px] leading-relaxed text-ink-200 ring-1 ring-lift/7 ring-inset">
+      <Info className="mt-[3px] size-3.5 shrink-0 text-lav-300" />
+      <span>{line}</span>
     </p>
   )
 }
@@ -242,7 +243,7 @@ export function WhoIsThis({
     <div className="flex flex-col gap-3">
       <Why logId={row.id} />
       <span className="font-mono text-[11px] text-ink-500">
-        the bank wrote: {row.raw ?? row.name}
+        description: {row.raw ?? row.name}
       </span>
       <input
         autoFocus

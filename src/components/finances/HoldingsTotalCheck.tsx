@@ -210,6 +210,7 @@ export function HoldingsTotal({
   file,
   batchId,
   accountId,
+  onOpen,
 }: {
   total: Total
   name: string
@@ -217,6 +218,8 @@ export function HoldingsTotal({
   file: string
   batchId: Id<'batches'>
   accountId: Id<'accounts'>
+  /** Opens the positions screen. */
+  onOpen: () => void
 }) {
   const answer = useMutation(api.intake.batchAnswer)
   const [busy, setBusy] = useState(false)
@@ -326,6 +329,13 @@ export function HoldingsTotal({
           </button>
         ) : null}
       </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="self-end font-mono text-[10.5px] tracking-[0.12em] text-lav-400 uppercase"
+      >
+        positions
+      </button>
     </div>
   )
 }

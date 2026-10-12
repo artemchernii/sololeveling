@@ -5,6 +5,7 @@ import { Check, Loader2 } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { LandedRows } from '@/components/finances/LandedRows'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Sparks } from '@/components/track/Sparks'
 import { useDayStarts } from '@/components/track/useDayStarts'
@@ -30,6 +31,8 @@ export type LandedAccount = {
   added: number
   /** What came in, in words (addedWords): "1 position added · Gold". */
   what?: string
+  /** The files that brought it: ROWS opens what they saved. */
+  files?: Array<Id<'intakes'>>
 }
 
 export function AccountsLanded({
@@ -54,6 +57,7 @@ export function AccountsLanded({
   const now = Date.now()
   const old = (p: { recordedAt: number | null }) =>
     p.recordedAt === null || now - p.recordedAt > STALE_MS
+  const [open, setOpen] = useState<Id<'accounts'> | null>(null)
   const allFresh = !cash || lines.every((l) => !l.pockets.some(old))
   return (
     <div className="flex flex-col items-center gap-4 py-5">
@@ -103,7 +107,21 @@ export function AccountsLanded({
                   <span>{asOf(l.pockets.filter((p) => !old(p)))}</span>
                 </>
               ) : null}
+              {l.files?.length && l.added > 0 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpen(open === l.accountId ? null : l.accountId)
+                  }
+                  className="ml-auto tracking-[0.12em] text-lav-400 uppercase"
+                >
+                  {open === l.accountId ? 'hide rows' : 'rows'}
+                </button>
+              ) : null}
             </div>
+            {open === l.accountId && l.files ? (
+              <LandedRows files={l.files} />
+            ) : null}
             {cash
               ? l.pockets
                   .filter(old)

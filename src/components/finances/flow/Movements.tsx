@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
@@ -221,11 +222,29 @@ export function Movements({
           )
         })}
       </div>
-      <div className="label-caps flex flex-wrap gap-4">
-        <span>red: out that day · green: in</span>
-        <span>○ a bill&apos;s day</span>
-        <span className="text-lav-300">○ still to come</span>
-        <span>tap a day to jump</span>
+      {/* The strip's own marks beside their words (12 Oct: four lines of
+          text could not be read at a glance). */}
+      <div
+        data-testid="movements-legend"
+        className="label-caps flex flex-wrap items-center gap-x-4 gap-y-1.5"
+      >
+        <Key mark="out">
+          <i className="block h-3 w-1.5 rounded-[3px_3px_1px_1px] bg-state-danger/60" />
+          out
+        </Key>
+        <Key mark="in">
+          <i className="block h-3 w-1.5 rounded-[3px] bg-state-good" />
+          in
+        </Key>
+        <Key mark="bill">
+          <i className="block size-2 rounded-full border border-ink-400" />a
+          bill&apos;s day
+        </Key>
+        <Key mark="to-come">
+          <i className="block size-2 rounded-full border border-lav-400" />
+          <span className="text-lav-300">a bill to come</span>
+        </Key>
+        <span className="ml-auto text-ink-500">tap a day to jump</span>
       </div>
 
       {data === undefined ? (
@@ -363,6 +382,15 @@ function Logo({ a }: { a?: Doc<'accounts'> }) {
   )
 }
 
+/* One mark of the strip and its word. */
+function Key({ mark, children }: { mark: string; children: ReactNode }) {
+  return (
+    <span data-mark={mark} className="inline-flex items-center gap-1.5">
+      {children}
+    </span>
+  )
+}
+
 function DayTip({
   t,
   at,
@@ -398,13 +426,24 @@ function DayTip({
         </div>
       ) : null}
       {!s?.i && !s?.o ? (
-        <div className="font-mono text-[12px] text-ink-500">
+        /* A state of its own, not the grey of a label (12 Oct): a day to
+           come is the app's lavender, a day nothing moved is amber. */
+        <div
+          data-testid="day-quiet"
+          className={`flex items-center gap-1.5 font-mono text-[12px] ${
+            future ? 'text-lav-300' : 'text-state-warn'
+          }`}
+        >
+          <i className="block h-px w-2.5 bg-current" />
           {future ? 'still to come' : 'nothing moved'}
         </div>
       ) : null}
       {bill ? (
-        <div className="mt-1 font-mono text-[10px] text-ink-400">
-          ○ a bill&apos;s day
+        <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] text-ink-400">
+          <i
+            className={`block size-1.5 rounded-full border ${future ? 'border-lav-400' : 'border-ink-400'}`}
+          />
+          {future ? 'a bill to come' : "a bill's day"}
         </div>
       ) : null}
     </div>

@@ -11,6 +11,7 @@ its row, new), `src/lib/owned.ts` (one row a thing, new). No Convex
 change: `aggregate.positions` already carries every row.
 
 Scenarios:
+
 - S1 nothing owned → "Nothing owned yet" and where positions come from.
 - S2 one broker → no account cards' filter pills needed beyond its own;
   rows show euros first, shares small underneath; title "everything

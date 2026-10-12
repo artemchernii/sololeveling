@@ -3,25 +3,15 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
-import {
-  PILL_LOUD,
-  PILL_QUIET,
-  Panel,
-  Sparkline,
-} from '@/components/finances/bits'
-import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
+import { Panel } from '@/components/finances/bits'
+import { AccountLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
-import { useDayStarts } from '@/components/track/useDayStarts'
 import { euros } from '@/lib/money'
-import { holdingLine, metalOf, unitOf } from '@/lib/holdingLine'
 import { money } from '@/lib/currency'
 import { EurUsd } from '@/components/finances/EurUsd'
-import { Trades } from '@/components/finances/PortfolioTrades'
-import {
-  DollarLine,
-  ProfitPill,
-  paidSums,
-} from '@/components/finances/PortfolioParts'
+import { PortfolioList } from '@/components/finances/PortfolioList'
+import type { Position } from '@/components/finances/PortfolioList'
+import { ProfitPill, paidSums } from '@/components/finances/PortfolioParts'
 import { kindOf } from '@/lib/logo'
 import type { Kind } from '@/lib/logo'
 import { SkeletonRows } from '@/components/Skeleton'
@@ -44,6 +34,7 @@ export function Portfolio() {
   const worth = useQuery(api.aggregate.worth, {})
   const accounts = useQuery(api.accounts.list, {})
   const [filter, setFilter] = useState<Id<'accounts'> | 'all'>('all')
+  const [kind, setKind] = useState<Kind | 'all'>('all')
 
   if (data === undefined || accounts === undefined || worth === undefined) {
     return (
@@ -55,20 +46,21 @@ export function Portfolio() {
   const holders = accounts.filter((a) =>
     data.rows.some((r) => r.accountId === a._id),
   )
-  const rows = data.rows.filter(
-    (r) => filter === 'all' || r.accountId === filter,
-  )
   const sums = paidSums(data.rows, data.usdRate)
 
   return (
     <div className="flex flex-col gap-3">
       <Panel title="portfolio · all accounts">
         {data.rows.length === 0 ? (
-          <p className="py-4 text-center text-[13.5px] text-ink-400">
-            No positions yet. Press + and drop a screenshot of your
-            broker&apos;s holdings — each position is matched to its ticker, and
-            you check it before it lands.
-          </p>
+          <div className="flex flex-col items-center gap-2 py-6 text-center">
+            <span className="text-[22px] font-light text-foreground">
+              Nothing owned yet
+            </span>
+            <p className="max-w-[420px] text-[13.5px] leading-normal text-ink-400">
+              Shares, funds, coins and gold show here, from a broker screenshot,
+              a statement, or Trading 212 itself.
+            </p>
+          </div>
         ) : (
           <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
             <div className="flex flex-col gap-1">
@@ -103,7 +95,9 @@ export function Portfolio() {
             </span>
           </div>
         )}
-        {data.rows.length > 0 ? <KindSplit rows={data.rows} /> : null}
+        {data.rows.length > 0 ? (
+          <KindSplit rows={data.rows} kind={kind} onKind={setKind} />
+        ) : null}
       </Panel>
 
       {holders.length > 0 ? (
@@ -118,11 +112,16 @@ export function Portfolio() {
             const w = worth.byAccount.find((x) => x.accountId === a._id)
             const cash = (both ? w?.brokerCash : w?.cash) ?? null
             return (
-              <section
+              <button
                 key={a._id}
-                className="glass flex flex-col gap-3 rounded-[20px] p-4"
+                type="button"
+                aria-pressed={filter === a._id}
+                onClick={() => setFilter(filter === a._id ? 'all' : a._id)}
+                className={`glass motion-press flex flex-col gap-3 rounded-[20px] p-4 text-left ring-1 transition-shadow ring-inset ${
+                  filter === a._id ? 'ring-lav-400/55' : 'ring-transparent'
+                }`}
               >
-                <div className="flex items-center gap-2.5">
+                <span className="flex items-center gap-2.5">
                   <AccountLogo name={a.name} domain={a.domain} size={34} />
                   <span className="flex-1 truncate text-[16px] text-foreground">
                     {a.name}
@@ -130,16 +129,16 @@ export function Portfolio() {
                   <span className="font-mono text-[10.5px] text-ink-500">
                     {held.length} positions
                   </span>
-                </div>
-                <div className="flex flex-col gap-0.5">
+                </span>
+                <span className="flex flex-col gap-0.5">
                   <span className="label-caps">total</span>
                   <span className="text-[28px] leading-none font-light text-foreground">
                     <Veiled>
                       {euros(Math.round((value + (cash ?? 0)) * 100) / 100)}
                     </Veiled>
                   </span>
-                </div>
-                <div className="flex flex-col gap-1.5 font-mono text-[12px]">
+                </span>
+                <span className="flex flex-col gap-1.5 font-mono text-[12px]">
                   {/* One line a currency, each with its own gain, the
                       label on the first (10 Oct: "alignment is bad"). */}
                   <span className="flex items-start justify-between gap-2">
@@ -197,177 +196,21 @@ export function Portfolio() {
                       )}
                     </span>
                   </span>
-                </div>
-              </section>
+                </span>
+              </button>
             )
           })}
         </div>
       ) : null}
 
       {data.rows.length > 0 ? (
-        <Panel
-          title="positions"
-          aside={
-            holders.length > 1 ? (
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setFilter('all')}
-                  className={filter === 'all' ? PILL_LOUD : PILL_QUIET}
-                >
-                  all
-                </button>
-                {holders.map((a) => (
-                  <button
-                    key={a._id}
-                    type="button"
-                    onClick={() => setFilter(a._id)}
-                    className={filter === a._id ? PILL_LOUD : PILL_QUIET}
-                  >
-                    {a.name}
-                  </button>
-                ))}
-              </div>
-            ) : undefined
-          }
-        >
-          <div className="flex flex-col gap-1">
-            {rows.map((r, i) => (
-              <PositionRow
-                key={`${r.accountId}:${r.instrumentId}`}
-                row={r}
-                account={
-                  accounts.find((a) => a._id === r.accountId)?.name ?? ''
-                }
-                usdRate={data.usdRate}
-                delay={i * 30}
-              />
-            ))}
-          </div>
-        </Panel>
-      ) : null}
-    </div>
-  )
-}
-
-type Position = {
-  accountId: Id<'accounts'>
-  instrumentId: Id<'instruments'>
-  symbol: string
-  name: string
-  type: string
-  currency: string
-  shares: number
-  paid: number | null
-  paidUsd: number | null
-  status: 'trades' | 'match' | 'screen' | 'gap' | 'over'
-  seenAt: number | null
-  gap: number
-  notSeen: boolean
-  price: number | null
-  priceAsOf: number | null
-  valueEur: number | null
-  staked: number
-}
-
-function PositionRow({
-  row,
-  account,
-  delay,
-  usdRate,
-}: {
-  row: Position
-  account: string
-  delay: number
-  usdRate: number | null
-}) {
-  const today = useDayStarts(1).at(-1) as number
-  const line = useQuery(api.invest.priceLine, {
-    instrumentId: row.instrumentId,
-    since: today - 90 * 86_400_000,
-  })
-  const [open, setOpen] = useState(false)
-  const profit =
-    row.valueEur === null || row.paid === null ? null : row.valueEur - row.paid
-  const up = (profit ?? 0) >= 0
-  const said = holdingLine(row, account, (t) => DATE.format(new Date(t)))
-  return (
-    <div className="flex flex-col">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        style={{ animationDelay: `${delay}ms` }}
-        className={`motion-press motion-land flex min-h-16 items-center gap-3 rounded-[14px] px-2.5 py-2 text-left ring-1 transition-colors ring-inset ${
-          open
-            ? 'bg-lav-400/8 ring-lav-400/35'
-            : 'ring-transparent hover:bg-lift/[0.03] hover:ring-lift/12'
-        }`}
-      >
-        <TickerLogo
-          symbol={row.symbol}
-          type={row.type}
-          name={row.name}
-          size={34}
+        <PortfolioList
+          rows={data.rows}
+          holders={holders}
+          filter={filter}
+          onFilter={setFilter}
+          kind={kind}
         />
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-[14.5px] text-foreground">
-            {row.name}
-          </span>
-          <span className="truncate font-mono text-[11px] text-ink-500">
-            {metalOf(row.symbol) ?? row.symbol.split('-')[0]} · {account} ·{' '}
-            <Veiled>{`${row.shares} ${unitOf(row, row.shares)}`}</Veiled>
-          </span>
-          {row.staked > 0 ? (
-            <span className="truncate font-mono text-[10.5px] text-state-good">
-              +{row.staked < 10 ? row.staked.toFixed(2) : row.staked.toFixed(1)}{' '}
-              {unitOf(row, row.staked)} free from staking
-            </span>
-          ) : null}
-          {said ? (
-            <span
-              className={`truncate text-[11.5px] ${said.warn ? 'text-state-warn' : 'text-ink-500'}`}
-            >
-              {said.warn ? '⚠ ' : ''}
-              {said.text}
-            </span>
-          ) : null}
-        </span>
-        <Sparkline
-          className="hidden h-8 w-24 sm:block"
-          points={(line ?? []).map((p) => ({ t: p.asOf, v: p.price }))}
-        />
-        <span className="flex w-28 flex-col items-end">
-          <span className="font-mono text-[14.5px] text-foreground">
-            {row.valueEur === null ? (
-              '—'
-            ) : (
-              <Veiled>{euros(row.valueEur)}</Veiled>
-            )}
-          </span>
-          {profit === null ? (
-            <span className="font-mono text-[10.5px] text-ink-500">
-              {row.valueEur === null ? 'price on its way' : '—'}
-            </span>
-          ) : (
-            <span
-              className={`font-mono text-[11.5px] ${up ? 'text-state-good' : 'text-state-danger'}`}
-            >
-              {up ? '▲' : '▼'}{' '}
-              {Math.abs(
-                row.paid && row.paid > 0 ? (profit / row.paid) * 100 : 0,
-              ).toFixed(2)}
-              %
-            </span>
-          )}
-          {/* The same in dollars, Revolut's view (10 Oct). */}
-          {usdRate && row.valueEur !== null ? (
-            <DollarLine value={row.valueEur / usdRate} paid={row.paidUsd} />
-          ) : null}
-        </span>
-      </button>
-      {open ? (
-        <Trades accountId={row.accountId} instrumentId={row.instrumentId} />
       ) : null}
     </div>
   )
@@ -382,7 +225,15 @@ const KINDS: ReadonlyArray<{ kind: Kind; label: string; tone: string }> = [
 
 /* What he owns, by kind (4 Oct: "we gonna have etfs, stocks, crypto and
    gold"): the valued positions' sums, as a bar and its words. */
-function KindSplit({ rows }: { rows: ReadonlyArray<Position> }) {
+function KindSplit({
+  rows,
+  kind,
+  onKind,
+}: {
+  rows: ReadonlyArray<Position>
+  kind: Kind | 'all'
+  onKind: (next: Kind | 'all') => void
+}) {
   const sum = new Map<Kind, number>()
   for (const r of rows)
     if (r.valueEur !== null)
@@ -397,19 +248,29 @@ function KindSplit({ rows }: { rows: ReadonlyArray<Position> }) {
           <span
             key={k.kind}
             style={{ flex: sum.get(k.kind) }}
-            className={`rounded-full ${k.tone} transition-[flex] duration-700`}
+            className={`rounded-full ${k.tone} transition-[flex,opacity] duration-700 ${
+              kind === 'all' || kind === k.kind ? '' : 'opacity-25'
+            }`}
           />
         ))}
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
+      <div className="-mx-2 flex flex-wrap gap-x-1 gap-y-1">
         {parts.map((k) => {
           const v = sum.get(k.kind) ?? 0
           return (
-            <span key={k.kind} className="label-caps flex items-center gap-1.5">
+            <button
+              key={k.kind}
+              type="button"
+              aria-pressed={kind === k.kind}
+              onClick={() => onKind(kind === k.kind ? 'all' : k.kind)}
+              className={`label-caps motion-press flex items-center gap-1.5 rounded-[8px] px-2 py-1 transition-colors hover:bg-lift/[0.07] ${
+                kind === k.kind ? 'bg-lift/[0.07] text-foreground' : ''
+              }`}
+            >
               <i className={`inline-block size-2 rounded-[2px] ${k.tone}`} />
               {k.label} <Veiled>{euros(Math.round(v))}</Veiled> ·{' '}
               {Math.round((v / total) * 100)}%
-            </span>
+            </button>
           )
         })}
       </div>

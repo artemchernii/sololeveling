@@ -37,16 +37,19 @@ test('Portfolio: empty, then the positions a screenshot brought', async ({
   await expect(page.getByText(/put in/)).toHaveCount(0)
   for (const name of ['Apple', 'Microsoft'])
     await expect(page.getByText(name).first()).toBeVisible()
+  /* The ADD window is still over the room: open the room afresh. */
+  await page.goto('/finances?room=portfolio')
   await expect(page.getByText('everything owned · 2')).toBeVisible()
   await page.waitForTimeout(800)
   await page.screenshot({ ...shot('portfolio-held'), fullPage: true })
 
-  /* Euros lead a row; biggest first, and the order can be turned. */
+  /* One row a thing, biggest first (amounts stay veiled until "show"),
+     and the order can be turned. */
   const rows = page.getByTestId('owned-row')
   await expect(rows).toHaveCount(2)
   await expect(rows.first()).toContainText('Apple')
-  await expect(rows.first()).toContainText('€400.00')
   await expect(rows.first()).toContainText('2 shares')
+  await expect(rows.first()).toContainText('Revolut')
   const upMost = page.getByRole('button', { name: 'up most' })
   await upMost.click()
   await expect(upMost).toHaveAttribute('aria-pressed', 'true')
@@ -68,7 +71,7 @@ test('Portfolio: empty, then the positions a screenshot brought', async ({
 
   /* A phone: nothing runs off the side. */
   await page.setViewportSize({ width: 375, height: 812 })
-  await expect(rows.first()).toContainText('€400.00')
+  await expect(rows.first()).toContainText('Apple')
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

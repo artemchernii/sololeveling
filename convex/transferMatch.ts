@@ -49,6 +49,8 @@ const side = v.object({
   here: v.boolean(),
   /** In the app; false for a row of another file of this drop. */
   stored: v.boolean(),
+  /** The account a stored row says it went to or came from. */
+  otherAccountId: v.union(v.id('accounts'), v.null()),
 })
 
 /** One row of the drop that is a side of a transfer, for the check. */
@@ -209,6 +211,7 @@ export async function forDrop(
               amount: signed(log) / 100,
               merchant: log.meta?.merchant ?? log.text ?? '',
               stored: true,
+              otherAccountId: log.meta?.otherAccountId ?? null,
             },
           ]
         return other
@@ -220,6 +223,7 @@ export async function forDrop(
                 amount: other.amount,
                 merchant: other.merchant,
                 stored: false,
+                otherAccountId: null,
               },
             ]
           : []
@@ -310,7 +314,7 @@ async function pairIn(
  *   the fee as spending in the account the money arrived in. An arrival
  *   saved a fee less becomes what was sent, with the fee beside it: its
  *   account's balance does not change.
- * Returns null when the side is not there or no longer fits — the row is
+ * Returns what it did and the fee, or null when the side is not there or no longer fits — the row is
  * then saved as the file shows it.
  */
 export async function applyRow(
@@ -327,8 +331,10 @@ export async function applyRow(
       raw?: string
     }
     sideId: string
+    /** Say what it would do, and write nothing. */
+    dry?: boolean
   },
-): Promise<'skipped' | 'written' | null> {
+): Promise<{ did: 'skipped' | 'written'; feeCents: number } | null> {
   const { account, intakeId, row } = args
   const found = await sideLog(ctx, ownerId, args.sideId)
   if (
@@ -384,8 +390,8 @@ export async function applyRow(
       fromOther: true,
     })
     if (f === null) return null
-    await fee(account._id, f.feeCents, row.occurredAt)
-    return 'skipped'
+    if (!args.dry) await fee(account._id, f.feeCents, row.occurredAt)
+    return { did: 'skipped', feeCents: f.feeCents }
   }
   const f = fit(mine, {
     id: found._id,
@@ -399,6 +405,7 @@ export async function applyRow(
     fromOther: false,
   })
   if (f === null) return null
+  if (args.dry) return { did: 'written', feeCents: f.feeCents }
   const arrives = row.amount > 0
   const sent = Math.abs(arrives ? signed(found) : cents(row.amount)) / 100
   const moveId = await ctx.db.insert('logs', {
@@ -434,5 +441,5 @@ export async function applyRow(
     f.feeCents,
     arrives ? row.occurredAt : found.occurredAt,
   )
-  return 'written'
+  return { did: 'written', feeCents: f.feeCents }
 }

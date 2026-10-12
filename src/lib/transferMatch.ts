@@ -84,6 +84,15 @@ export function fit(row: Row, side: Side): Fit | null {
     (row.names.length > 0 && !row.names.includes(side.accountId))
   )
     return null
+  /* Spending here and money in there is two things, unless a line says
+     it is his own money. */
+  if (
+    !row.move &&
+    !side.move &&
+    !row.names.includes(side.accountId) &&
+    !side.names.includes(row.accountId)
+  )
+    return null
   const sent = Math.abs(row.cents < 0 ? row.cents : side.cents)
   const arrived = Math.abs(row.cents < 0 ? side.cents : row.cents)
   const feeCents = sent - arrived

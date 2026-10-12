@@ -29,6 +29,7 @@ import {
 } from '@/components/finances/BulkParts'
 import type { Review } from '@/components/finances/BulkParts'
 import { SumCheck } from '@/components/finances/BulkSumCheck'
+import { TransferCheck } from '@/components/finances/BulkTransferCheck'
 import { SharesCheck, sharesOpen } from '@/components/finances/BulkSharesCheck'
 
 export function AccountBlock({
@@ -73,7 +74,17 @@ export function AccountBlock({
       ? Math.round((last.value - nowEur) * 100) / 100
       : null
   const intakeIds = block.files.map((f) => f.intakeId)
+  const moved = block.transfers.filter(
+    (t) => t.state === 'sure' || t.state === 'same',
+  ).length
+  /* A transfer the account already has is its own chip, not a row. */
+  const here = block.transfers.filter(
+    (t) =>
+      (t.state === 'sure' || t.state === 'same') &&
+      t.sides.some((x) => x.id === t.chosen && x.here),
+  ).length
   const wasPending = block.check?.pending.length ?? 0
+  const news = block.fresh - wasPending - (moved - here)
 
   async function keep(into?: Id<'accounts'>) {
     if (!product && !into) return
@@ -315,10 +326,11 @@ export function AccountBlock({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px] text-ink-400">
-        {block.fresh > 0 ||
-        block.had > 0 ||
-        (holdings === null && block.trades === 0) ? (
-          <Chip tone="new">{block.fresh - wasPending} new</Chip>
+        {(block.fresh > 0 ||
+          block.had > 0 ||
+          (holdings === null && block.trades === 0)) &&
+        (news > 0 || moved === 0) ? (
+          <Chip tone="new">{news} new</Chip>
         ) : null}
         {wasPending > 0 ? <Chip>{wasPending} was pending</Chip> : null}
         {block.trades > 0 && block.shares !== null ? (
@@ -336,7 +348,14 @@ export function AccountBlock({
             <b className="font-normal text-foreground">{block.trades}</b> trades
           </span>
         ) : null}
-        {block.had > 0 ? <Chip>{block.had} already added</Chip> : null}
+        {block.had - here > 0 ? (
+          <Chip>{block.had - here} already added</Chip>
+        ) : null}
+        {moved > 0 ? (
+          <Chip>
+            {moved} {moved === 1 ? 'transfer' : 'transfers'}
+          </Chip>
+        ) : null}
         {block.gaps > 0 ? (
           <Tag tone="warn">doesn't add up</Tag>
         ) : twoReadings ? (
@@ -355,6 +374,14 @@ export function AccountBlock({
 
       {block.check && !block.leftOut ? (
         <SumCheck block={block} name={title} batchId={batchId} />
+      ) : null}
+      {!block.leftOut ? (
+        <TransferCheck
+          transfers={block.transfers}
+          accounts={accounts}
+          file={block.files.every((f) => f.image) ? 'screenshot' : 'statement'}
+          batchId={batchId}
+        />
       ) : null}
       {block.shares && !block.leftOut ? (
         <SharesCheck shares={block.shares} batchId={batchId} />

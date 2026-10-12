@@ -26,6 +26,7 @@ import { notSaved, sharesFor, sharesValue, sharesView } from './sharesCheck'
 import { totalStops, totalValue, totalView } from './holdingsTotal'
 import { applyRow, forDrop, transferValue } from './transferMatch'
 import type { DropRow, Transfer } from './transferMatch'
+import { holdingsTotal } from '../src/lib/holdingsTotal'
 import { internal } from './_generated/api'
 import {
   internalMutation,
@@ -1657,6 +1658,10 @@ export const confirmHoldings = mutation({
       }),
     ),
     cashEur: v.optional(v.number()),
+    /* Which of the reading's positions are kept, and "save it anyway"
+       for a screenshot that does not reach its own total (11 Oct). */
+    kept: v.optional(v.array(v.number())),
+    anyway: v.optional(v.boolean()),
   },
   returns: v.object({ positions: v.number(), replaced: v.number() }),
   handler: async (ctx, args) => {
@@ -1665,6 +1670,16 @@ export const confirmHoldings = mutation({
     if (intake.status !== 'ready' || intake.kind !== 'holdings') {
       throw new ConvexError('That is not ready to confirm.')
     }
+    const all = intake.positions ?? []
+    const check = holdingsTotal(
+      (args.kept ?? all.map((_, i) => i)).map((i) => all.at(i)?.valueEur),
+      args.cashEur ?? null,
+      intake.totalEur ?? null,
+    )
+    if (check.state === 'differs' && args.anyway !== true)
+      throw new ConvexError(
+        'The positions and the cash do not reach the total on the screenshot.',
+      )
     const account = await ownedAccount(ctx, ownerId, args.accountId)
     return await writeHoldings(ctx, ownerId, intake, account, args)
   },

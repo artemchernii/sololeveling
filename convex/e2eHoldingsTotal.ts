@@ -134,3 +134,40 @@ export const screens = mutation({
     return batchId
   },
 })
+
+/* One Revolut screenshot outside a drop, for the positions screen: two
+   positions and the cash give €900, the screenshot prints €1,312.30. */
+export const cutScreen = mutation({
+  args: {},
+  returns: v.id('intakes'),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const now = Date.now()
+    return await ctx.db.insert('intakes', {
+      ownerId,
+      storageIds: [],
+      status: 'ready',
+      kind: 'holdings',
+      title: 'Revolut Invest screenshot',
+      institution: 'Revolut',
+      model: 'Claude Haiku 5.5',
+      costUsd: 0.003,
+      readAt: now,
+      files: [
+        { name: 'IMG_9302.png', size: 240_000, contentType: 'image/png' },
+      ],
+      positions: [TR[1], TR[4]].map(([symbol, name, shares], i) => ({
+        name,
+        shares,
+        valueEur: [400, 380][i],
+        preferred: 0,
+        todayPriceEur: [400, 380][i] / shares,
+        todayAsOf: now,
+        candidates: [{ symbol, name, exchange: 'NMS', type: 'EQUITY' }],
+      })),
+      cashEur: 120,
+      totalEur: 1312.3,
+    })
+  },
+})

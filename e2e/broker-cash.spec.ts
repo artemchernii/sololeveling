@@ -123,9 +123,12 @@ test('S4 a failed save says so and writes nothing', async ({ page }) => {
   const sheet = await openCheck(page)
   await sheet.getByRole('button', { name: /€120/ }).click()
   await sheet.getByLabel('Broker cash in the account').fill('99999999999')
-  await sheet.getByRole('button', { name: /^save 2 positions/ }).click()
+  /* A cash typed over the screenshot's no longer reaches its total (11
+     Oct): the save says so, and is still a save. */
+  const save = sheet.getByRole('button', { name: 'save Revolut anyway' })
+  await save.click()
   await expect(sheet.getByText('That is not an amount.')).toBeVisible()
-  await expect(sheet.getByRole('button', { name: /^save 2/ })).toBeEnabled()
+  await expect(save).toBeEnabled()
   await page.screenshot(shot('broker-cash-failed'))
   await page.keyboard.press('Escape')
   await page.goto('/finances')

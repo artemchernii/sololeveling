@@ -180,6 +180,40 @@ test('a list with its own total and a summary with the account total', async () 
   void me
 })
 
+test('the positions screen refuses one that differs without "anyway"', async () => {
+  const { t, me, block } = await setup('cut')
+  const a = await block(19)
+  const intake = await t.run(async (ctx) =>
+    (await ctx.db.query('intakes').collect()).find(
+      (i) => i.accountId === a.accountId,
+    ),
+  )
+  if (!intake?.positions) throw new Error('no screenshot')
+  const args = {
+    intakeId: intake._id,
+    accountId: a.accountId,
+    asOf: NOON,
+    dayStart,
+    rows: intake.positions.map((p) => ({
+      candidate: p.candidates[0],
+      shares: p.shares ?? 1,
+    })),
+    cashEur: 1205.66,
+  }
+  await expect(me.mutation(api.intake.confirmHoldings, args)).rejects.toThrow(
+    /do not reach the total/,
+  )
+  /* Unticking a row does not make it right; "anyway" saves it. */
+  await expect(
+    me.mutation(api.intake.confirmHoldings, { ...args, kept: [0, 1] }),
+  ).rejects.toThrow(/do not reach the total/)
+  const done = await me.mutation(api.intake.confirmHoldings, {
+    ...args,
+    anyway: true,
+  })
+  expect(done.positions).toBe(19)
+})
+
 test('another owner cannot answer, and the mock refuses outside tests', async () => {
   const { t, batchId, block, me } = await setup('cut')
   const { accountId } = await block(19)

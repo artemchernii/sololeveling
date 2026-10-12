@@ -1,3 +1,4 @@
+import { groupFor } from '../src/lib/merchantRule'
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
@@ -82,6 +83,8 @@ const MAX_TRADES = 2000
 const LAST_READ_LOOK = 20
 const HISTORY_ROWS = 3000
 const DAY_MS = 86_400_000
+/** His filed payees one review may read to find a row's group. */
+const RULES_READ = 400
 
 const candidate = v.object({
   symbol: v.string(),
@@ -1108,6 +1111,22 @@ async function buildReview(
       .withIndex('by_owner_key', (q) => q.eq('ownerId', ownerId).eq('key', key))
       .first()
     if (rule) rules.set(key, rule.category)
+  }
+  /* A payee filed before under another spelling (12 Oct): the bank's own
+     rows say "COMPRA 2789 PINGO DOCE LISBOA", his statement said "Pingo
+     Doce". The rules are read once, and only when a row met none. */
+  const unmet = read.filter(
+    (r) => r.amount < 0 && !rules.has(merchantKey(r.merchant)),
+  )
+  if (unmet.length > 0) {
+    const all = await ctx.db
+      .query('merchantRules')
+      .withIndex('by_owner_key', (q) => q.eq('ownerId', ownerId))
+      .take(RULES_READ)
+    for (const r of unmet) {
+      const group = groupFor(r.merchant, all)
+      if (group !== null) rules.set(merchantKey(r.merchant), group)
+    }
   }
 
   const bills = await ctx.db

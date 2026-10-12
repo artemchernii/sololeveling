@@ -3629,7 +3629,7 @@ export const batchAnswer = mutation({
       }
       case 'sum': {
         if (
-          !/^(skip|two|sum|shares|noshares|same|apart):[a-z0-9:]{1,90}$/.test(
+          !/^((skip|two|sum|shares|noshares):[a-z0-9:]{1,80}|(same|apart):[a-z0-9:]{1,90})$/.test(
             answer.key,
           )
         )

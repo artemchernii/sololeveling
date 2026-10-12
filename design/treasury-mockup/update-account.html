@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · update one account</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* UPDATE on one account (11 Oct) — piece 3b of the one update window.
+     Journey and cases: docs/specs/2026-10-10-one-update.md, "UPDATE on one
+     account". The window is the built + ADD; the check, the saving rows and
+     the landed card are drawn as they are in the app today. Sample numbers,
+     not his. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit }
+  svg.i { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .wrap { max-width: 952px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .ctl { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .groups { display: flex; flex-direction: column; gap: 6px }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; align-items: center }
+  .scen > span { font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500); width: 86px }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400); cursor: pointer }
+  .scen button.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 720px; margin: 0 auto; text-align: center }
+  .note b { color: var(--ink-200); font-weight: 400 }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .mono { font-family: var(--mono) }
+  .logo { width: 30px; height: 30px; border-radius: 10px; background: #fff; object-fit: contain; padding: 3px; flex: none }
+  .logo.sm { width: 24px; height: 24px; border-radius: 8px }
+  .logo.cash { background: #e2bd6b; color: #3a2c08; display: inline-grid; place-items: center }
+  .logo.cash svg { width: 60%; height: 60% }
+  .tag { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; color: var(--ink-400); background: rgba(var(--lift),.05); white-space: nowrap }
+  .tag.good { color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent) }
+  .tag.warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 12%, transparent) }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.99) } }
+  @keyframes land { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  @keyframes scan { from { transform: translateX(-100%) } to { transform: translateX(100%) } }
+  @keyframes pop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.2) } 100% { transform: none; opacity: 1 } }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--good) 45%, transparent) } 100% { box-shadow: 0 0 0 26px transparent } }
+  @keyframes breathe { 50% { border-color: color-mix(in oklch, var(--lav-400) 85%, transparent); box-shadow: inset 0 0 34px -14px var(--shine) } }
+  @keyframes glow { 50% { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 70%, transparent), 0 0 26px -8px var(--warn) } }
+  @keyframes pulse { 50% { opacity: .45 } }
+  .spin { animation: spin .9s linear infinite }
+
+  /* The ways in: the account's card, the check-in */
+  .ways { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 8px; align-items: stretch }
+  .card { border-radius: 16px; padding: 10px 12px; background: rgba(var(--lift),.03); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); display: flex; flex-direction: column; gap: 8px; min-width: 0 }
+  .card .h { display: flex; align-items: center; gap: 8px; font-size: 13.5px }
+  .card .ft { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-400); min-height: 27px }
+  .card .ft.old { color: var(--warn) }
+  .card .ft .lk { display: inline-flex; align-items: center; gap: 6px } .card .ft .lk svg { color: var(--good); animation: pulse 2s infinite }
+  .upd { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 5px 11px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300); cursor: pointer; white-space: nowrap }
+  .upd.old { color: var(--warn); border-color: color-mix(in oklch, var(--warn) 50%, transparent); background: color-mix(in oklch, var(--warn) 12%, transparent) }
+  .checkin { align-self: center; display: inline-flex; align-items: center; gap: 8px; padding: 5px 7px 5px 11px; border-radius: 999px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--warn); background: color-mix(in oklch, var(--warn) 10%, transparent); border: 1px solid color-mix(in oklch, var(--warn) 45%, transparent); cursor: pointer }
+  .checkin.fine { color: var(--ink-300); background: none; border-color: rgba(var(--lift),.15); cursor: default; padding-right: 11px }
+  .checkin i { width: 6px; height: 6px; border-radius: 9px; background: var(--good); box-shadow: 0 0 8px var(--good) }
+  .checkin .logo { width: 18px; height: 18px; border-radius: 6px; padding: 2px; margin-left: -4px }
+
+  /* The window — the app's Sheet */
+  .sheet { position: relative; border-radius: 22px; border: 1px solid var(--sys-edge); overflow: hidden; margin: 0 auto; width: 100%; max-width: 920px;
+    background: linear-gradient(160deg, rgba(181,171,252,.08), rgba(181,171,252,.015) 40%), #1d1c2d; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine);
+    animation: rise .35s cubic-bezier(.2,.8,.2,1) both; transition: max-width .32s cubic-bezier(.2,.8,.2,1) }
+  .sheet.still { animation: none }
+  .sheet.small { max-width: 560px }
+  .shead { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid rgba(var(--lift),.06); flex-wrap: wrap; min-height: 63px }
+  .title { font-family: var(--mono); font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine); white-space: nowrap }
+  .steps { flex: 1; display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; animation: land .3s both }
+  .steps span { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; color: var(--ink-600) }
+  .steps span.was { color: var(--good) }
+  .steps span.now { color: var(--ink-100); background: rgba(181,171,252,.16); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 40%, transparent) }
+  .steps svg.i { width: 12px; height: 12px }
+  .close { margin-left: auto; width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(var(--lift),.12); background: none; color: var(--ink-400); display: grid; place-items: center; cursor: pointer; flex: none }
+  .steps + .close { margin-left: 0 }
+  .body { display: flex; flex-direction: column; gap: 16px; padding: 16px 20px }
+  .foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid rgba(181,171,252,.12) }
+  .foot .left { flex: 1; font-size: 12.5px; color: var(--ink-400); min-width: 200px; line-height: 1.45 }
+  .apply { display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 10px 20px; border-radius: 999px; border: 0; cursor: pointer; font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #17152a; background: linear-gradient(135deg, var(--lav-300), var(--lav-400)); box-shadow: 0 0 26px -6px var(--shine) }
+  .apply:active, .ghost:active, .upd:active { transform: scale(.97) }
+  .apply[disabled] { opacity: .5; cursor: default }
+  .ghost { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-300) }
+  .link { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--lav-400); background: none; border: 0; cursor: pointer; padding: 6px 4px }
+
+  /* Drop — AddDrop as built, named for the account */
+  .zone { border-radius: 18px; padding: 22px 16px 18px; display: flex; flex-direction: column; gap: 16px; align-items: center; background: radial-gradient(420px 140px at 50% 0%, rgba(181,171,252,.07), transparent 70%); border: 1.5px dashed color-mix(in oklch, var(--lav-400) 40%, transparent); cursor: pointer; animation: breathe 2.6s ease-in-out infinite }
+  .zone:hover { background-color: rgba(181,171,252,.06) }
+  .zone .zh { display: flex; align-items: center; gap: 12px; text-align: left }
+  .zone .ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--lav-300); background: rgba(181,171,252,.1); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 35%, transparent); flex: none }
+  .zone .ic svg { width: 20px; height: 20px }
+  .zone h3 { font-weight: 400; font-size: 15.5px }
+  .zone small { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); margin-top: 3px }
+  .flow { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; color: var(--ink-600); min-height: 29px }
+  .flow span { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-400); padding: 6px 10px; border-radius: 999px; background: rgba(var(--lift),.035); animation: land .4s both }
+  .flow { position: relative } .flow.busy > span, .flow.busy > i { visibility: hidden } .flow .track { position: absolute; width: min(260px, 80%); top: 50%; left: 50%; transform: translate(-50%, -50%) }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; border-radius: 999px; background: rgba(var(--lift),.04); box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); font-size: 12.5px; color: var(--ink-200); min-height: 36px; animation: land .4s .36s both }
+  .chip small { margin: 0; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase }
+  .chip.old { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 40%, transparent) } .chip.old small { color: var(--warn) }
+  .track { height: 4px; border-radius: 99px; background: rgba(var(--lift),.07); overflow: hidden; position: relative }
+  .track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--lav-400), var(--lav-300)); box-shadow: 0 0 12px var(--shine); transition: width .35s ease }
+
+  /* Type what is in it now — TypeBalances as built */
+  .or { display: flex; align-items: center; gap: 10px; color: var(--ink-500) }
+  .or::before, .or::after { content: ''; flex: 1; height: 1px; background: rgba(var(--lift),.07) }
+  .typed { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 520px; margin: 0 auto }
+  .typed > p { font-size: 12.5px; color: var(--ink-400); text-align: center }
+  .field { display: flex; align-items: center; gap: 8px; padding: 0 8px 0 12px; height: 48px; border-radius: 12px; background: rgba(var(--lift),.04); box-shadow: inset 0 0 0 1px rgba(var(--lift),.1) }
+  .field:focus-within { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 55%, transparent) }
+  .field b { font-family: var(--mono); font-size: 10.5px; font-weight: 400; color: var(--ink-300); background: rgba(var(--lift),.06); padding: 1px 6px; border-radius: 4px }
+  .field input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--ink-100); font: inherit; font-size: 18px }
+  .field small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); white-space: nowrap; padding-right: 4px }
+  .field small.today { color: var(--good) }
+  .same { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 132px; height: 30px; border-radius: 999px; border: 0; cursor: pointer; font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; color: var(--good); background: color-mix(in oklch, var(--good) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 40%, transparent) }
+  .same.done { color: #10231a; background: var(--good); animation: pop .4s both; cursor: default }
+  .typed .apply { height: 44px }
+  .typed.busy .field { opacity: .55; pointer-events: none }
+  .bad { display: flex; gap: 10px; align-items: center; border-radius: 12px; padding: 10px 12px; font-size: 13px; color: var(--ink-200); background: color-mix(in oklch, var(--danger) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--danger) 35%, transparent); animation: land .3s both }
+  .bad svg { color: var(--danger) }
+  .fromBank { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 14px; background: color-mix(in oklch, var(--good) 5%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 28%, transparent); width: 100%; max-width: 520px; margin: 0 auto }
+  .fromBank .v { font-size: 17px; font-weight: 300; flex: 1; min-width: 150px }
+  .fromBank .src { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; color: var(--ink-300) } .fromBank .src svg { color: var(--good); animation: pulse 2s infinite }
+
+  /* Reading — BulkReading as built: one line a file, 58px whatever it says */
+  .overall { display: flex; flex-direction: column; gap: 8px }
+  .overall .line { display: flex; align-items: baseline; gap: 10px }
+  .big { font-size: 34px; font-weight: 300; letter-spacing: -.02em; line-height: 1 }
+  .sub { color: var(--ink-400); font-size: 13px }
+  .f { position: relative; overflow: hidden; display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 0 12px; height: 58px; border-radius: 13px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07) }
+  .f .n { min-width: 0; display: flex; flex-direction: column; gap: 2px }
+  .f .n b { font-weight: 400; font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .f .n small { color: var(--ink-400); font-size: 12px }
+  .f .st { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-300); white-space: nowrap }
+  .f.now { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 40%, transparent), 0 0 22px -12px var(--shine) }
+  .f.now::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(181,171,252,.13), transparent); animation: scan 1.3s linear infinite; pointer-events: none }
+  .f.now .lead { color: var(--lav-300) } .f.ok .lead { color: var(--good) }
+  .quiet { font-size: 12.5px; color: var(--ink-400); border-top: 1px solid rgba(181,171,252,.1); padding-top: 12px }
+
+  /* Check — BulkReview and its account block as built */
+  .stats { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline }
+  .stats span { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500) }
+  .stats b { font-family: Inter, sans-serif; font-size: 26px; font-weight: 300; letter-spacing: 0; color: var(--ink-100); margin-right: 5px }
+  .stats .q, .stats .q b { color: var(--warn) }
+  .ask { display: flex; gap: 12px; border-radius: 16px; padding: 14px; background: color-mix(in oklch, var(--warn) 5%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 35%, transparent); animation: land .35s both }
+  .ask > svg { color: var(--warn); margin-top: 3px }
+  .ask h4 { font-weight: 400; font-size: 14.5px } .ask p { color: var(--ink-400); font-size: 12.5px; margin-top: 3px; line-height: 1.5 }
+  .ask p b { color: var(--ink-200); font-weight: 400 }
+  .ask .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px }
+  .opt { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 13px 0 5px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: rgba(var(--lift),.03); font-size: 13px; color: var(--ink-200); cursor: pointer }
+  .opt.t { padding-left: 13px } .opt:hover { border-color: color-mix(in oklch, var(--lav-400) 55%, transparent); background: rgba(181,171,252,.1) }
+  .solved { display: flex; align-items: center; gap: 10px; border-radius: 16px; padding: 12px 14px; font-size: 13px; color: var(--ink-200); background: color-mix(in oklch, var(--good) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 30%, transparent); animation: land .35s both } .solved svg { color: var(--good) }
+  .acc { border-radius: 18px; padding: 14px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); display: flex; flex-direction: column; gap: 12px; animation: land .45s .08s cubic-bezier(.2,.8,.2,1) both }
+  .acc.open { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 40%, transparent) }
+  .acc .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+  .acc .name { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 140px }
+  .acc .name b { font-weight: 500; font-size: 15px } .acc .name span { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .bal { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12.5px; color: var(--ink-400); flex-wrap: wrap }
+  .bal .to { color: var(--ink-100); font-size: 14.5px }
+  .bal .dn { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; color: var(--danger); background: color-mix(in oklch, var(--danger) 12%, transparent); font-size: 11px }
+  .months { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px }
+  .months i { display: block; height: 7px; border-radius: 9px; background: rgba(181,171,252,.25) } .months i.new { background: var(--lav-400); box-shadow: 0 0 10px -2px var(--lav-400) }
+  .months span { font-family: var(--mono); font-size: 9px; color: var(--ink-600); text-align: center; padding-top: 4px }
+  .chips2 { display: flex; flex-wrap: wrap; gap: 6px }
+  .c2 { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; color: color-mix(in oklch, var(--lav-300) 80%, transparent); background: rgba(181,171,252,.08); box-shadow: inset 0 0 0 1px rgba(181,171,252,.22) }
+  .c2::before { content: ''; width: 5px; height: 5px; border-radius: 9px; background: currentColor }
+  .c2.new { color: var(--good); background: color-mix(in oklch, var(--good) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 35%, transparent) }
+  .strip { display: grid; grid-template-columns: repeat(4, 1fr); border-radius: 12px; overflow: hidden; background: rgba(0,0,0,.18); box-shadow: inset 0 0 0 1px rgba(var(--lift),.06) }
+  .strip > div { padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; border-left: 1px solid rgba(var(--lift),.06); min-width: 0 }
+  .strip > div:first-child { border-left: 0 }
+  .strip b { font-weight: 300; font-size: 17px; white-space: nowrap } .strip .out { color: var(--danger) } .strip .in { color: var(--good) }
+  .strip em { font-style: normal; display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; color: var(--good) }
+  .acts { display: flex; justify-content: flex-end; align-items: center; gap: 8px }
+  .leave { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(var(--lift),.1); background: none; color: var(--ink-500); cursor: pointer }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-family: var(--mono); font-size: 10px; color: var(--ink-500); align-items: center }
+  .legend i { display: inline-block; width: 14px; height: 6px; border-radius: 9px; margin-right: 6px; background: rgba(181,171,252,.25) } .legend i.new { background: var(--lav-400) }
+  .legend span:last-child { margin-left: auto }
+  .rows { display: flex; flex-direction: column; border-top: 1px solid rgba(var(--lift),.06); padding-top: 8px; animation: land .3s both }
+  .row { display: grid; grid-template-columns: 62px 1fr auto auto; gap: 10px; align-items: center; font-size: 12.5px; padding: 6px 0; color: var(--ink-200) }
+  .row .d { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) } .row .v { font-family: var(--mono) } .row .v.in { color: var(--good) }
+  .row.had { opacity: .45 }
+
+  /* Saving and what landed — BulkSaving and AccountsLanded as built */
+  .bigline { display: flex; align-items: center; gap: 12px } .bigline svg.i { width: 22px; height: 22px; color: var(--lav-300) }
+  .srow { display: grid; grid-template-columns: 38px 1fr auto; gap: 12px; align-items: center; padding: 0 14px; height: 70px; border-radius: 16px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 45%, transparent), 0 0 26px -12px var(--shine); transition: box-shadow .3s, background .3s }
+  .srow .logo { width: 38px; height: 38px; border-radius: 12px }
+  .srow .n { display: flex; flex-direction: column; gap: 5px; min-width: 0 } .srow .n b { font-weight: 500; font-size: 15px } .srow .n small { color: var(--ink-400); font-size: 12px }
+  .srow .track { height: 3px }
+  .srow .st { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--lav-300); white-space: nowrap; min-width: 112px; justify-content: flex-end }
+  .srow.ok { background: color-mix(in oklch, var(--good) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 30%, transparent) } .srow.ok .st { color: var(--good) } .srow.ok .st svg { animation: pop .45s both } .srow.ok .track i { background: var(--good); box-shadow: none }
+  .srow.stop { background: color-mix(in oklch, var(--warn) 6%, transparent); animation: glow 2s infinite } .srow.stop .st { color: var(--warn) } .srow.stop .track i { background: var(--warn); box-shadow: none }
+  .done { display: flex; flex-direction: column; gap: 16px; align-items: center; text-align: center; padding: 20px 0 }
+  .ring { width: 64px; height: 64px; border-radius: 999px; display: grid; place-items: center; color: var(--good); background: color-mix(in oklch, var(--good) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 45%, transparent), 0 0 36px -6px var(--good); animation: pop .45s both, ping 1.4s ease-out 1 }
+  .ring svg { width: 30px; height: 30px; stroke-width: 2.5 }
+  .ring.warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 45%, transparent) }
+  .ring.back { color: var(--lav-300); background: rgba(181,171,252,.12); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .done h2 { font-weight: 300; font-size: 24px; animation: land .4s both }
+  .done p { color: var(--ink-400); font-size: 13px; max-width: 460px; line-height: 1.5 }
+  .lcard { width: 100%; max-width: 576px; border-radius: 14px; padding: 12px 14px; background: rgba(var(--lift),.04); box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); display: flex; flex-direction: column; gap: 8px; text-align: left; animation: land .45s .2s both }
+  .lcard .k { display: flex; align-items: center; gap: 12px; font-size: 15px } .lcard .k span { flex: 1 } .lcard .k b { font-weight: 300; font-size: 17px; white-space: nowrap }
+  .lcard .m { display: flex; align-items: center; gap: 8px; padding-left: 42px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); min-height: 27px }
+  .lcard .m .g { color: var(--good) } .lcard .m .link { margin-left: auto }
+  .btnrow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center } .btnrow .apply { padding: 10px 32px }
+
+  /* "Still reading" — the Sheet's own guard, as built */
+  .veil { position: absolute; inset: 0; background: rgba(15,14,26,.72); backdrop-filter: blur(3px); display: grid; place-items: center; padding: 16px; animation: land .2s both; z-index: 2 }
+  .dlg { max-width: 380px; width: 100%; border-radius: 18px; padding: 18px; background: #232136; border: 1px solid var(--sys-edge); display: flex; flex-direction: column; gap: 10px }
+  .dlg h3 { font-weight: 400; font-size: 16px } .dlg p { color: var(--ink-400); font-size: 13px; line-height: 1.5 }
+  .dlg .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; flex-wrap: wrap }
+  /* Check-in: the list of what is old, as built */
+  .lst { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); animation: land .35s both }
+  .lst div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px } .lst small { font-family: var(--mono); font-size: 10.5px; color: var(--warn) }
+
+  @media (max-width: 620px) {
+    .ways { grid-template-columns: 1fr 1fr } .checkin { grid-column: 1 / -1; justify-self: start }
+    .shead { padding: 12px 16px } .body { padding: 14px 16px }
+    .steps { order: 3; flex-basis: 100%; justify-content: flex-start; margin-left: -6px } .steps span { padding: 4px 6px; letter-spacing: .06em }
+    .steps span:not(.now) b { display: none }
+    .shead .close { margin-left: auto }
+    .zone .zh { flex-direction: column; text-align: center } .flow > i { display: none }
+    .f { grid-template-columns: 22px 1fr } .f .st { display: none }
+    .strip { grid-template-columns: 1fr 1fr } .strip > div:nth-child(3) { border-left: 0 } .strip > div:nth-child(n+3) { border-top: 1px solid rgba(var(--lift),.06) }
+    .row { grid-template-columns: 52px 1fr auto } .row .tag { display: none }
+    .srow { grid-template-columns: 38px 1fr } .srow .st { grid-column: 2; justify-content: flex-start; min-width: 0 } .srow { height: 92px }
+    .foot .left { flex-basis: 100% } .foot .apply { flex: 1 }
+    .same { min-width: 0; padding: 0 10px } .field small { display: none }
+    .scen > span { width: 100% }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup · update on one account · press update on a card, or jump to any moment</div>
+  <div id="ways"></div>
+  <div class="groups" id="scen"></div>
+  <div id="stage"></div>
+  <p class="note" id="note"></p>
+</div>
+
+<script>
+const I = {
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', check: '<path d="M20 6 9 17l-5-5"/>',
+  up: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/>',
+  file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+  load: '<path d="M21 12a9 9 0 1 1-6.2-8.56"/>', alert: '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 2.4 17.5A2 2 0 0 0 4.1 20.5h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>',
+  bank: '<path d="M3 21h18"/><path d="M5 21V10"/><path d="M19 21V10"/><path d="M9 21v-7"/><path d="M15 21v-7"/><path d="m12 3 9 5H3z"/>',
+  down: '<path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/>',
+  scan: '<path d="M4 8V6a2 2 0 0 1 2-2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M20 16v2a2 2 0 0 1-2 2h-2"/><path d="M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/>',
+  play: '<path d="m7 4 12 8-12 8z"/>', undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  link: '<path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/>',
+  q: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  note: '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2"/>', sell: '<path d="m3 7 6 6 4-4 8 8"/><path d="M15 17h6v-6"/>',
+}
+const svg = (k, c = '') => `<svg class="i ${c}" viewBox="0 0 24 24">${I[k]}</svg>`
+const A = {
+  rev: { name: 'Revolut', d: 'revolut.com', kinds: 'bank · broker', pockets: [['EUR', '902.00', '8d ago', 1], ['USD', '120.00', '2d ago', 0]], last: 'balance of Oct 3' },
+  cash: { name: 'Cash', kinds: 'cash', pockets: [['EUR', '60.00', '9d ago', 1]], last: 'balance of Oct 2', noFile: true },
+  act: { name: 'ActivoBank', d: 'activobank.pt', kinds: 'bank', pockets: [['EUR', '521.36', 'today', 0]], linked: 'today, 09:12' },
+}
+const logo = (k, c = '') => A[k].d ? `<img class="logo ${c}" src="https://www.google.com/s2/favicons?domain=${A[k].d}&sz=128" alt="">` : `<span class="logo cash ${c}">${svg('note')}</span>`
+const sym = { EUR: '€', USD: '$' }
+
+/* What the mockup remembers between moments. */
+let cur = 'closed', acct = 'rev', v = 'ok', tv = 'ok', from = 'card', old = ['rev', 'cash'], linkedRev = false
+let dialog = null, timer = null, resume = null, rowsOpen = false, answered = null, vals = {}, sameDone = {}, failed = false
+const to = (s) => { cur = s; dialog = null; resume = null; rowsOpen = false; render() }
+const open = (k, how = 'card') => { acct = k; from = how; v = 'ok'; tv = 'ok'; answered = null; vals = {}; sameDone = {}; failed = false; to('open') }
+
+/* ---- The window: the app's Sheet, with the four steps in its header once a file is in ---- */
+const STEPS = [['down', 'drop'], ['scan', 'read'], ['check', 'you check'], ['bank', 'lands on the account']]
+function win(step, body, o = {}) {
+  const who = answered === 'act' ? 'act' : acct
+  const strip = step ? `<div class="steps">${STEPS.map(([ic, s], i) => `<span class="${i < step ? 'was' : i === step ? 'now' : ''}">${svg(i < step ? 'check' : ic)}<b style="font-weight:inherit">${s}</b></span>`).join('')}</div>` : ''
+  const dlg = dialog ? `<div class="veil"><div class="dlg"><h3>${dialog.h}</h3><p>${dialog.p}</p><div class="btns"><button class="ghost" data-leave>close it</button><button class="apply" data-stay>keep it open</button></div></div></div>` : ''
+  return `<div class="sheet ${o.small ? 'small' : ''}"><div class="shead"><span class="title">[ ${o.title || `update · ${A[who].name}`} ]</span>${strip}<button class="close" data-close aria-label="Close">${svg('x')}</button></div><div class="body">${body}</div>${dlg}</div>`
+}
+
+/* ---- It opens: the drop area named for the account, and what is in it now ---- */
+function typedHtml(a, o) {
+  const fields = a.pockets.map(([c, val, age, isOld]) => {
+    const done = sameDone[c]
+    const ask = isOld && vals[c] === undefined ? `<button class="same ${done === 2 ? 'done' : ''}" data-same="${c}" ${done ? 'disabled' : ''}>${done === 1 ? `${svg('load', 'spin')}saving` : done === 2 ? '✓ saved' : '✓ still the same'}</button>` : ''
+    return `<label class="field"><b>${c}</b><input inputmode="decimal" data-cur="${c}" value="${vals[c] ?? val}" aria-label="${a.name} ${c}"><small class="${done === 2 ? 'today' : ''}">${done === 2 ? 'today' : age}</small>${ask}</label>`
+  }).join('')
+  return `<div class="typed ${o.saving ? 'busy' : ''}"><p>Free cash in it now, without its investments.</p>${fields}
+    ${failed ? `<div class="bad">${svg('alert')}<span>Not saved — ${a.name} is unchanged.</span></div>` : ''}
+    <button class="apply" data-save ${o.saving ? 'disabled' : ''}>${o.saving ? `${svg('load', 'spin')}saving` : failed ? 'save again' : 'save'}</button></div>`
+}
+function openBody(o = {}) {
+  const a = A[acct], linked = a.linked || (acct === 'rev' && linkedRev)
+  const flow = STEPS.map(([ic, s], i) => `${i ? '<i style="font-style:normal">→</i>' : ''}<span style="animation-delay:${60 + i * 90}ms">${svg(ic)}${s}</span>`).join('')
+  const zone = a.noFile ? '' : `<div class="zone" data-drop>
+      <div class="zh"><span class="ic">${svg(o.busy ? 'load' : 'up', o.busy ? 'spin' : '')}</span><div><h3>${o.busy ? 'uploading 1 of 1…' : `Drop a ${a.name} statement or screenshot`}</h3><small>or click to pick · one file or many</small></div></div>
+      <div class="flow ${o.busy ? 'busy' : ''}">${flow}${o.busy ? '<div class="track"><i style="width:55%"></i></div>' : ''}</div>
+      <span class="chip ${linked ? '' : 'old'}">${logo(acct, 'sm')}${a.name}<small>${linked ? 'from the bank · today' : a.last}</small></span>
+    </div>`
+  const second = linked
+    ? `<div class="fromBank"><span class="caps">free cash</span><span class="v">${a.pockets.map(([c, val]) => sym[c] + val).join(' · ')}</span><span class="src">${svg('link')}from the bank · ${a.linked || 'today, 09:12'}</span></div>`
+    : `${a.noFile ? '' : '<div class="or caps">or type what is in it now</div>'}${typedHtml(a, o)}`
+  return zone + second
+}
+
+/* ---- Reading: one file, one line that keeps its height ---- */
+const FILE = { ok: ['account-statement_2026-10.csv', '44 rows · Oct 1 to Oct 9'], other: ['Extrato_ActivoBank_Sep.pdf', '12 rows · Sep 1 to Sep 30'] }
+const fname = () => (FILE[v] || FILE.ok)[0]
+function readingBody(read, stage) {
+  const whose = v === 'other' ? '' : `${logo(acct, 'sm')}${A[acct].name}`
+  return `<div class="overall"><div class="line"><span class="big">${read}</span><span class="sub">of 1 file read</span><span class="mono" style="margin-left:auto;font-size:11px;color:var(--ink-500)" id="rT">0:0${read ? 3 : 0}</span></div><div class="track"><i id="rBar" style="width:${read * 100}%"></i></div></div>
+    <div class="f ${read ? 'ok' : 'now'}"><span class="lead">${svg(read ? 'check' : 'load', read ? '' : 'spin')}</span><span class="n"><b>${fname()}</b><small id="rS">${read ? (FILE[v] || FILE.ok)[1] : stage}</small></span><span class="st">${whose}</span></div>
+    <p class="quiet">Closing does not stop the reading. It opens again from ADD.</p>`
+}
+
+/* ---- Check: the app's check, one account ---- */
+const ROWS = {
+  rev: [['Oct 9', 'Pingo Doce', 'groceries', '−€22.14'], ['Oct 9', 'Bolt', 'transport', '−€8.80'], ['Oct 7', 'From ActivoBank', 'transfer', '+€250.00'], ['Oct 3', 'Continente', 'already added', '−€41.27', 1], ['Oct 2', 'Bolt', 'already added', '−€6.70', 1]],
+  act: [['Sep 30', 'EDP Comercial', 'bill', '−€48.20'], ['Sep 14', 'MB WAY · Maria S.', 'paid back', '+€30.00'], ['Sep 3', 'From BPI', 'transfer', '+€500.00']],
+}
+const rowsHtml = (k, more) => `<div class="rows">${ROWS[k].map(([d, t, tag, val, had]) => `<div class="row ${had ? 'had' : ''}"><span class="d">${d}</span><span>${t}</span><span class="tag">${tag}</span><span class="v ${val[0] === '+' ? 'in' : ''}">${val}</span></div>`).join('')}<div class="row"><span></span><span class="caps">and ${more} more</span></div></div>`
+const MONTHS = 'NDJFMAMJJASO'.split('')
+const months = (lit) => `<div class="months">${MONTHS.map((m, i) => `<i class="${i === lit ? 'new' : ''}"></i>`).join('')}${MONTHS.map((m) => `<span>${m}</span>`).join('')}</div>`
+const B = {
+  rev: { files: 'bank · broker · 1 file', bal: ['€902.00', '€846.22', 'Oct 9', '−€55.78'], lit: 11, chips: [['new', '41 new'], ['', '3 already added']], strip: ['Oct 3', '€902.00', '−€312.40', '+€256.62', '€846.22', 'as the file shows'], more: 39 },
+  act: { files: 'bank · 1 file', bal: ['€540.10', '€521.36', 'Sep 30', '−€18.74'], lit: 10, chips: [['new', '12 new']], strip: ['Aug 31', '€540.10', '−€548.74', '+€530.00', '€521.36', 'as the file shows'], more: 9 },
+}
+function block(k) {
+  const b = B[k]
+  return `<div class="acc"><div class="top">${logo(k)}<div class="name"><b>${A[k].name}</b><span>${b.files}</span></div>
+      <div class="bal">now ${b.bal[0]} <span style="color:var(--ink-600)">→</span> <span class="to">${b.bal[1]}</span> ${b.bal[2]} <span class="dn">${svg('sell')}${b.bal[3]}</span></div></div>
+    ${months(b.lit)}<div class="chips2">${b.chips.map(([c, t]) => `<span class="c2 ${c}">${t}</span>`).join('')}</div>
+    <div class="strip"><div><span class="caps">was · ${b.strip[0]}</span><b>${b.strip[1]}</b></div><div><span class="caps">out</span><b class="out">${b.strip[2]}</b></div><div><span class="caps">in</span><b class="in">${b.strip[3]}</b></div><div><span class="caps">now</span><b>${b.strip[4]}</b><em>${svg('check')}${b.strip[5]}</em></div></div>
+    <div class="acts"><button class="link" data-rows>${rowsOpen ? 'hide rows' : 'rows'}</button><button class="leave">leave out</button></div>${rowsOpen ? rowsHtml(k, b.more) : ''}</div>`
+}
+const stats = (rows, q) => `<div class="stats"><span><b>1</b>file</span><span><b>1</b>account</span><span><b>${rows}</b>new rows</span><span><b>${rows === 41 ? 1 : 0}</b>${rows === 41 ? 'move' : 'moves'} paired</span>${q ? '<span class="q"><b>1</b>question</span>' : ''}</div>`
+const legend = (r) => `<div class="legend"><span><i></i>already had</span><span><i class="new"></i>this drop</span><span>${r}</span></div>`
+const foot = (left, btns) => `<div class="foot"><span class="left">${left}</span>${btns}</div>`
+const applyBtn = (off) => `<button class="ghost">start over</button><button class="ghost" data-later>later</button><button class="apply" data-apply ${off ? 'disabled' : ''}>${svg('check')}apply${off ? '' : ' 1 account'}</button>`
+function checkBody() {
+  if (v === 'twice') return `${stats(0)}${legend('Nov 2025 – Oct 2026')}<div class="acc"><div class="top">${logo('rev')}<div class="name"><b>Revolut</b><span>bank · broker · 1 file</span></div><span class="tag">nothing new</span></div>${months(-1)}<div class="chips2"><span class="c2">44 already added</span></div></div>
+    ${foot('Everything in this file is already in. There is nothing to save.', `<button class="apply" data-leave>${svg('check')}done</button>`)}`
+  if (v === 'other' && !answered) return `${stats(12, 1)}
+    <div class="ask">${svg('q')}<div><h4>Which account is this file for?</h4><p><b>${fname()}</b> · the file names ActivoBank · UPDATE was opened on Revolut</p>
+      <div class="btns"><button class="opt" data-answer="act">${logo('act', 'sm')}ActivoBank</button><button class="opt" data-answer="rev">${logo('rev', 'sm')}Revolut</button><button class="opt t" data-leave>leave it out</button></div></div></div>
+    <div class="acc open"><div class="top"><span class="logo sm" style="display:grid;place-items:center;background:rgba(var(--lift),.06);color:var(--ink-300)">${svg('file')}</span><div class="name"><b>${fname()}</b><span>12 rows · Sep 1 to Sep 30</span></div><span class="tag warn">${svg('alert')}not saved</span></div></div>
+    ${foot('Not saved — 1 question open.', applyBtn(true))}`
+  const k = v === 'other' ? answered : 'rev'
+  return `${stats(k === 'act' ? 12 : 41)}${v === 'other' ? `<div class="solved">${svg('check')}${fname()} → ${A[k].name}.</div>` : ''}${legend(k === 'act' ? 'Nov 2025 – Oct 2026' : 'Nov 2025 – Oct 2026')}${block(k)}
+    ${foot('Nothing is saved until apply is pressed.', applyBtn())}`
+}
+
+/* ---- Saving, a save that stopped, landed ---- */
+const target = () => (v === 'other' && answered === 'act' ? 'act' : 'rev')
+function savingBody(state, n) {
+  const k = target(), all = k === 'act' ? 12 : 41
+  const st = state === 'ok' ? `${svg('check')}saved` : state === 'stop' ? `${svg('alert')}not finished` : `${svg('load', 'spin')}saving`
+  return `<div class="overall"><div class="line bigline">${state === 'stop' ? '' : svg('load', 'spin')}<span class="big" style="font-size:${state === 'stop' ? 24 : 34}px">${state === 'stop' ? 'The save stopped before the end' : 'saving…'}</span>${state === 'stop' ? '' : `<span class="sub">${state === 'ok' ? 1 : 0} of 1 account</span>`}</div>${state === 'stop' ? '' : `<div class="track"><i id="sBar" style="width:${(n / all) * 100}%"></i></div>`}</div>
+    <div class="srow ${state}" id="sRow">${logo(k)}<span class="n"><b>${A[k].name}</b><small id="sN">${n} of ${all} rows</small><span class="track"><i id="sBar2" style="width:${(n / all) * 100}%"></i></span></span><span class="st">${st}</span></div>
+    ${state === 'stop' ? foot('Nothing is lost and nothing is in twice. Finishing adds only what is missing.', `<button class="ghost" data-later>later</button><button class="apply" data-finish>${svg('play')}finish saving</button>`) : '<p class="quiet">Closing does not stop it. The save finishes either way.</p>'}`
+}
+function landedBody() {
+  const k = target(), act = k === 'act'
+  return `<div class="done"><span class="ring">${svg('check')}</span><h2>${A[k].name} is up to date</h2>
+    <div class="lcard"><div class="k">${logo(k)}<span>${A[k].name}</span><b>${act ? '€521.36' : '€846.22 · $120.00'}</b></div>
+      <div class="m"><span class="g">${act ? 12 : 41} movements added</span><span>·</span><span>balance of ${act ? 'Sep 30' : 'Oct 9'}</span><button class="link" data-rows>${rowsOpen ? 'hide rows' : 'rows'}</button></div>${rowsOpen ? rowsHtml(k, act ? 9 : 39) : ''}</div>
+    <div class="btnrow"><button class="ghost" data-undo>${svg('undo')}undo</button><button class="apply" data-done>done</button></div></div>`
+}
+
+/* ---- Every moment ---- */
+const small = () => !!A[acct].noFile
+const S = {
+  closed: { note: () => old.length ? 'Press <b>UPDATE</b> on a card, or <b>check-in</b>. Both open the same window, with that account already named. ActivoBank is connected to the bank: its balance comes by itself, so its card has no UPDATE.' : 'Nothing is old. The check-in says <b>up to date</b>.', r: () => '' },
+  checkin: { note: () => 'The check-in lists what is old. <b>UPDATE</b> opens the window for that account; when it closes, this list is back with what is still old.', r: () => win(0, old.map((k, i) => `<div class="lst" style="animation-delay:${i * 70}ms">${logo(k)}<div><span>${A[k].name}</span><small>Its EUR ${A[k].last.replace('balance of', 'balance is from')}</small></div><button class="upd old" data-open="${k}" data-how="checkin">update</button></div>`).join(''), { title: 'check-in', small: true }) },
+  open: { g: 'opens', l: 'revolut', note: () => failed ? 'The save failed: a red line says so, the typed numbers stay, and the button says <b>save again</b>.' : A[acct].noFile ? 'Cash has no statement to drop, so there is no drop area: only the number, and <b>still the same</b> because it is over a week old.' : A[acct].linked || linkedRev ? 'A connected account: the bank sends the free cash, so there is nothing to type. A file still brings its rows and, for a broker, its investments.' : 'The window ADD opens, with the account named. No tabs: the drop area on top, the numbers under it. <b>Still the same</b> shows only on a number over a week old. Press the drop area, or save.', r: () => win(0, openBody(), { small: small() }) },
+  uploading: { r: () => win(0, openBody({ busy: true })), after: () => { timer = setTimeout(() => to('reading'), 1100) } },
+  reading: { g: 'a file', l: 'reading', note: () => 'One line for the file. The line keeps its height while its words change, and the four steps are now in the header. When it is read the check opens by itself.', r: () => win(1, readingBody(0, 'finding the bank')), after: runReading },
+  check: { g: 'a file', l: 'check', note: () => v === 'twice' ? 'The same statement dropped again: every row is already added, so there is nothing to save and no apply button.' : v === 'other' && !answered ? 'An ActivoBank statement dropped on Revolut\'s UPDATE. Today the app would save it into Revolut without a word. Here it is not saved until the account is picked.' : 'The check as it is in the app today: what is new, what was already added, and was · out · in · now against the balance on the file. <b>ROWS</b> opens them.', r: () => win(2, checkBody()) },
+  saving: { g: 'a file', l: 'saving', note: () => v === 'slow' ? 'A slow save: the row counts its rows as they go in, so it never looks stuck.' : 'Apply answers at once: the account\'s row, its bar, then green with a tick.', r: () => win(3, savingBody('now', 0)), after: runSaving },
+  stopped: { g: 'goes wrong', l: 'file save stops', note: () => 'The save broke halfway. Amber, with how far it got. <b>Finish saving</b> adds only what is missing.', r: () => win(3, savingBody('stop', 19)) },
+  landed: { g: 'a file', l: 'landed', note: () => 'The landed card as it is today, with <b>ROWS</b> added to look inside, and <b>UNDO</b>. It stays until done is pressed.', r: () => win(4, landedBody()) },
+  undone: { note: () => 'Undo takes back what this save wrote.', r: () => win(4, `<div class="done"><span class="ring back">${svg('undo')}</span><h2>Taken back</h2><p>${A[target()].name} is as it was before this save. Drop the file again any time to add it back.</p><div class="btnrow"><button class="apply" data-leave>done</button></div></div>`) },
+  typedSaving: { g: 'typed', l: 'save', note: () => tv === 'slow' ? 'A slow save: the button turns and says saving for as long as it takes; the fields cannot be changed meanwhile.' : tv === 'fail' ? 'The save fails: a red line says so, the typed numbers stay, and the button says save again.' : 'Save answers at once, then the tick, then the window closes by itself.', r: () => win(0, openBody({ saving: true }), { small: small() }), after: () => { timer = setTimeout(() => { if (tv === 'fail') { failed = true; tv = 'ok'; to('open') } else to('typedLanded') }, tv === 'slow' ? 4200 : 900) } },
+  typedLanded: { note: () => 'Saved. It closes by itself after a moment.', r: () => win(0, `<div class="done"><span class="ring">${svg('check')}</span><h2>${A[acct].name} is up to date</h2><span class="caps">${A[acct].pockets.map(([c, val]) => sym[c] + (vals[c] ?? val)).join(' · ')} · saved today</span></div>`, { small: small() }), after: () => { timer = setTimeout(() => leave(true), 1700) } },
+}
+/* Jumps that set a case first. */
+const JUMPS = [
+  ['opens', 'revolut', () => open('rev')], ['opens', 'from check-in', () => { old = ['rev', 'cash']; to('checkin') }], ['opens', 'cash', () => open('cash')], ['opens', 'connected bank', () => { linkedRev = true; open('rev') }],
+  ['a file', 'reading', () => { v = 'ok'; answered = null; acct = 'rev'; to('reading') }], ['a file', 'check', () => { v = 'ok'; acct = 'rev'; to('check') }], ['a file', 'saving', () => { v = 'ok'; acct = 'rev'; to('saving') }], ['a file', 'landed', () => { v = 'ok'; acct = 'rev'; to('landed') }],
+  ['a file', 'same file again', () => { v = 'twice'; acct = 'rev'; to('check') }], ['a file', 'another account\'s file', () => { v = 'other'; answered = null; acct = 'rev'; to('check') }],
+  ['typed', 'save', () => { acct = 'rev'; failed = false; tv = 'ok'; to('typedSaving') }], ['typed', 'still the same', () => open('cash')],
+  ['goes wrong', 'typed save fails', () => { acct = 'rev'; failed = false; tv = 'fail'; to('typedSaving') }], ['goes wrong', 'file save stops', () => { v = 'fail'; acct = 'rev'; to('saving') }],
+  ['goes wrong', 'slow typed save', () => { acct = 'rev'; failed = false; tv = 'slow'; to('typedSaving') }], ['goes wrong', 'slow file save', () => { v = 'slow'; acct = 'rev'; to('saving') }],
+  ['goes wrong', 'close asks', () => { v = 'ok'; acct = 'rev'; cur = 'reading'; render(); askClose() }],
+]
+let lit = 'revolut'
+
+function runReading() {
+  const stages = ['finding the bank', 'reading the columns', 'reading the columns · 18', 'reading the columns · 44']
+  let i = 0
+  const tick = () => {
+    if (cur !== 'reading' || dialog) return
+    i++
+    if (i >= stages.length) { document.querySelector('#stage .body').innerHTML = readingBody(1); timer = setTimeout(() => to('check'), 700); return }
+    document.getElementById('rS').textContent = stages[i]; document.getElementById('rT').textContent = `0:0${i}`; document.getElementById('rBar').style.width = `${i * 25}%`
+    timer = setTimeout(tick, 650)
+  }
+  resume = tick; timer = setTimeout(tick, 650)
+}
+function runSaving() {
+  const all = target() === 'act' ? 12 : 41, slow = v === 'slow'
+  let n = 0
+  const tick = () => {
+    if (cur !== 'saving' || dialog) return
+    n = Math.min(all, n + (slow ? 2 : Math.ceil(all / 4)))
+    if (v === 'fail' && n >= all / 2) return to('stopped')
+    document.getElementById('sN').textContent = `${n} of ${all} rows`
+    for (const id of ['sBar', 'sBar2']) document.getElementById(id).style.width = `${(n / all) * 100}%`
+    if (n >= all) { document.querySelector('#stage .body').innerHTML = savingBody('ok', all); timer = setTimeout(() => to('landed'), 800); return }
+    timer = setTimeout(tick, slow ? 300 : 320)
+  }
+  resume = tick; timer = setTimeout(tick, 600)
+}
+
+function waysHtml() {
+  const card = (k) => {
+    const a = A[k], isOld = old.includes(k), linked = a.linked || (k === 'rev' && linkedRev)
+    return `<div class="card"><div class="h">${logo(k, 'sm')}${a.name}</div><div class="ft ${isOld && !linked ? 'old' : ''}">${linked ? `<span class="lk">${svg('link')}from the bank · today</span>` : `<span>${isOld ? a.last : 'typed today'}</span>`}${linked && k !== 'rev' ? '' : `<button class="upd ${isOld && !linked ? 'old' : ''}" data-open="${k}">update</button>`}</div></div>`
+  }
+  const list = old.filter((k) => !(k === 'rev' && linkedRev))
+  return `<div class="ways">${card('rev')}${card('cash')}${card('act')}${list.length ? `<button class="checkin" data-checkin>check-in<span style="display:flex;padding-left:4px">${list.map((k) => logo(k)).join('')}</span></button>` : '<span class="checkin fine"><i></i>up to date</span>'}</div>`
+}
+function render() {
+  clearTimeout(timer)
+  const s = S[cur], stage = document.getElementById('stage')
+  const was = stage.querySelector('.sheet'), oldH = was ? was.getBoundingClientRect().height : 0
+  const groups = [...new Set(JUMPS.map((j) => j[0]))]
+  document.getElementById('scen').innerHTML = groups.map((g) => `<div class="scen"><span>${g}</span>${JUMPS.map((j, i) => j[0] === g ? `<button class="${j[1] === lit ? 'on' : ''}" data-jump="${i}">${j[1]}</button>` : '').join('')}</div>`).join('')
+  document.getElementById('ways').innerHTML = waysHtml()
+  document.getElementById('note').innerHTML = s.note ? s.note() : ''
+  stage.innerHTML = s.r()
+  /* The window arrives once. Between steps it stays put and glides to its new height. */
+  const sheet = stage.querySelector('.sheet')
+  if (was && sheet) {
+    sheet.classList.add('still')
+    const h = sheet.getBoundingClientRect().height
+    if (Math.abs(h - oldH) > 1) {
+      sheet.style.height = oldH + 'px'; sheet.getBoundingClientRect()
+      sheet.style.transition = 'height .32s cubic-bezier(.2,.8,.2,1)'; sheet.style.height = h + 'px'
+      sheet.addEventListener('transitionend', () => { sheet.style.height = ''; sheet.style.transition = '' }, { once: true })
+    }
+  }
+  if (s.after && !dialog) s.after()
+}
+/* Closing: back to the check-in list when that is where it came from and something is still old. */
+function leave(saved) {
+  if (saved) old = old.filter((k) => k !== (answered === 'act' ? 'act' : acct))
+  const back = from === 'checkin' && old.length > 0 && cur !== 'checkin'
+  from = back ? 'list' : 'card'; lit = ''
+  to(back ? 'checkin' : 'closed')
+}
+function askClose() {
+  const sheet = document.querySelector('#stage .sheet')
+  if (!sheet || dialog) return
+  if (!['uploading', 'reading', 'saving'].includes(cur)) return leave(false)
+  dialog = cur === 'saving' ? { h: 'Still saving', p: 'Closing does not stop the save. It finishes either way.' } : { h: 'Still reading', p: 'Closing does not stop the reading. ADD shows a dot and opens here again.' }
+  clearTimeout(timer); render()
+}
+document.body.addEventListener('input', (e) => { const c = e.target.dataset?.cur; if (c) { vals[c] = e.target.value; const b = e.target.parentElement.querySelector('.same'); if (b) b.remove() } })
+document.body.addEventListener('click', (e) => {
+  const on = (sel) => e.target.closest(sel)
+  if (on('[data-stay]')) { dialog = null; document.querySelector('.veil')?.remove(); if (resume) timer = setTimeout(resume, 400); return }
+  if (on('[data-leave]')) return leave(false)
+  if (on('[data-close]')) return askClose()
+  if (on('[data-jump]')) { const j = JUMPS[+on('[data-jump]').dataset.jump]; lit = j[1]; linkedRev = j[1] === 'connected bank'; from = 'card'; sameDone = {}; vals = {}; j[2](); return }
+  if (on('[data-checkin]')) { lit = 'from check-in'; return to('checkin') }
+  if (on('[data-open]')) { const b = on('[data-open]'); lit = ''; return open(b.dataset.open, b.dataset.how || 'card') }
+  if (on('[data-rows]')) { rowsOpen = !rowsOpen; return render() }
+  if (on('[data-drop]') && cur === 'open') return to('uploading')
+  if (on('[data-answer]')) { answered = on('[data-answer]').dataset.answer; return render() }
+  if (on('[data-apply]')) return to('saving')
+  if (on('[data-finish]')) { v = 'ok'; return to('saving') }
+  if (on('[data-later]')) return leave(false)
+  if (on('[data-undo]')) { const b = on('[data-undo]'); b.disabled = true; b.innerHTML = `${svg('load', 'spin')}taking it back…`; timer = setTimeout(() => to('undone'), 900); return }
+  if (on('[data-done]')) return leave(true)
+  if (on('[data-save]')) { failed = false; return to('typedSaving') }
+  const same = on('[data-same]')
+  if (same) {
+    const c = same.dataset.same; sameDone[c] = 1; render()
+    timer = setTimeout(() => { sameDone[c] = 2; render(); if (A[acct].pockets.every(([p, , , isOld]) => !isOld || sameDone[p] === 2)) timer = setTimeout(() => to('typedLanded'), 650) }, 800)
+  }
+})
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') askClose() })
+render()
+</script>
+</body>
+</html>

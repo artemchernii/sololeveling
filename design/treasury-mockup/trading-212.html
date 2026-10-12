@@ -246,12 +246,12 @@
   /* What changed: one line per company, before beside now. */
   .logo.xs { width: 28px; height: 28px; border-radius: 9px; padding: 6px }
   .chg { border-radius: 12px; background: rgba(0,0,0,.22); border: 1px solid rgba(var(--lift),.06); overflow: hidden; font-family: var(--mono); font-size: 12px }
-  .chg .r { display: grid; grid-template-columns: minmax(0,1fr) 84px 92px; align-items: center; gap: 8px; padding: 7px 12px; border-top: 1px solid rgba(var(--lift),.06); min-height: 42px }
+  .chg .r { display: grid; grid-template-columns: minmax(0,1fr) 88px 92px; align-items: center; gap: 8px; padding: 7px 12px; border-top: 1px solid rgba(var(--lift),.06); min-height: 42px }
   .chg .r:first-child { border-top: 0 }
   .chg .r.h { min-height: 0; padding: 7px 12px; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500) }
   .chg .n { display: flex; align-items: center; gap: 9px; min-width: 0; font-family: Inter, system-ui, sans-serif; font-size: 13px; color: var(--ink-200) }
   .chg .n > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-  .chg .n small { display: block; font-family: var(--mono); font-size: 10px; color: var(--ink-500); overflow: hidden; text-overflow: ellipsis }
+  .chg .n small { display: block; font-family: var(--mono); font-size: 10px; color: var(--ink-500); white-space: normal; line-height: 1.35 }
   .chg .n small.lav { color: var(--lav-300) } .chg .n small.amber { color: var(--warn) }
   .chg .v { text-align: right; color: var(--ink-500); white-space: nowrap }
   .chg .v.now { color: var(--ink-100) }
@@ -316,14 +316,17 @@ const AFTER = { total: '€5,380.30', rows: rowsOf('€1,620.30', '€3,760.00',
 const t212 = (o = {}) => card('t212', 'Trading 212', 'trading212.com', { ...BEFORE, foot: F.t212('today 14:05'), ...o })
 const tr = () => card('tr', 'Trade Republic', 'traderepublic.com', { total: '€9,417.60', rows: row(`free cash <i>EUR</i>${mark}`, '€1,005.20') + row('investments', '€8,412.40') + row('since 1 Oct', 'bought €500.00', 'lav'), foot: `<div class="from"><span><span class="link">${svg('link')}</span>from the bank · today 14:05</span></div>${update}` })
 
-/* One changed line: the company, what the account held, what it holds. */
+/* One changed line: the company, what it was worth in the account, what
+   it is worth now. The shares sit small underneath (12 Oct: "amount is
+   important"). */
 const line = ([d, name, sub, was, now, tone = '']) => `<div class="r"><span class="n">${d ? logo(d, 'xs') : `<span class="ic">${svg('land')}</span>`}<span>${name}<small class="${tone}">${sub}</small></span></span><span class="v">${was}</span><span class="v now">${now}</span></div>`
 const table = (lines, day = 'Oct 10') => `<div class="chg"><div class="r h"><span></span><span class="v">${day}</span><span class="v">now</span></div>${lines.map(line).join('')}</div>`
 const CASH = ['', 'Free cash', 'EUR', '€1,280.30', '€1,620.30']
-const NVDA = ['nvidia.com', 'Nvidia', 'NVDA · shares', '8', '10']
-const ASML = ['asml.com', 'ASML', 'ASML · shares', '1', '0']
+const NVDA = ['nvidia.com', 'Nvidia', '8 → 10 shares', '€1,200.00', '€1,500.00']
+const ASML = ['asml.com', 'ASML', '1 → 0 shares', '€640.00', '€0.00']
 const got = (n, lines, tail = '') => `<div class="got"><span class="chip new"><i></i>${n} changed</span><span class="okline">${svg('check')}as Trading 212 shows</span><button class="shut" data-do="shut" aria-label="close">✕</button></div>${table(lines)}${tail}`
-const MANY = [['apple.com', 'Apple', 'AAPL', '4', '6'], ['microsoft.com', 'Microsoft', 'MSFT', '2', '3'], ['amazon.com', 'Amazon', 'AMZN', '5', '0'], ['alphabet.com', 'Alphabet', 'GOOGL', '3', '4.5'], ['meta.com', 'Meta', 'META', '1', '2'], ['tesla.com', 'Tesla', 'TSLA', '6', '2'], ['amd.com', 'AMD', 'AMD', '10', '14'], ['netflix.com', 'Netflix', 'NFLX', '0', '1'], ['sap.com', 'SAP', 'SAP', '3', '5'], ['shopify.com', 'Shopify', 'SHOP', '7', '0'], ['adobe.com', 'Adobe', 'ADBE', '1', '2'], ['intel.com', 'Intel', 'INTC', '20', '0'], ['palantir.com', 'Palantir', 'PLTR', '0', '12'], ['spotify.com', 'Spotify', 'SPOT', '2', '3'], ['airbnb.com', 'Airbnb', 'ABNB', '4', '0'], ['uber.com', 'Uber', 'UBER', '0', '9'], ['siemens.com', 'Siemens', 'SIE', '2', '4']].map(([d, n, t, a, b]) => [d, n, `${t} · shares`, a, b])
+const eur = (n) => '€' + n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const MANY = [['apple.com', 'Apple', 4, 6, 210], ['microsoft.com', 'Microsoft', 2, 3, 395], ['amazon.com', 'Amazon', 5, 0, 180], ['alphabet.com', 'Alphabet', 3, 4.5, 160], ['meta.com', 'Meta', 1, 2, 540], ['tesla.com', 'Tesla', 6, 2, 230], ['amd.com', 'AMD', 10, 14, 120], ['netflix.com', 'Netflix', 0, 1, 610], ['sap.com', 'SAP', 3, 5, 205], ['shopify.com', 'Shopify', 7, 0, 95], ['adobe.com', 'Adobe', 1, 2, 420], ['intel.com', 'Intel', 20, 0, 21.5], ['palantir.com', 'Palantir', 0, 12, 38], ['spotify.com', 'Spotify', 2, 3, 330], ['airbnb.com', 'Airbnb', 4, 0, 118], ['uber.com', 'Uber', 0, 9, 68], ['siemens.com', 'Siemens', 2, 4, 176]].map(([d, n, a, b, p]) => [d, n, `${a} → ${b} shares`, eur(a * p), eur(b * p)])
 
 const S = {
   today: {
@@ -343,19 +346,19 @@ const S = {
   },
   changed: {
     l: 'bought and sold',
-    note: 'Since the last look you bought 2 Nvidia and sold your ASML. Saved with no press. The block says what changed — the day of the last look beside now — and stays until you close it with ✕. <b>Play it again</b> by pressing the scenario.',
+    note: 'Since the last look you bought 2 Nvidia and sold your ASML. Saved with no press. The block says what changed in euros — what each was worth at the last look, and now — and stays until you close it with ✕. <b>Play it again</b> by pressing the scenario.',
     r: () => t212({ cls: 'busy', foot: F.busy('Oct 10') }) + tr(),
     after: () => timer = setTimeout(() => swapCard(t212({ ...AFTER, extra: got(3, [NVDA, ASML, CASH]), foot: F.fresh('now') }), true), 1500),
   },
   many: {
     l: 'twenty changed',
-    note: 'A busy month: twenty lines changed. The card shows three and the rest open in a window, so the card stays one size.',
+    note: 'A busy month: twenty things changed. The card shows three and the rest open in a window, so the card stays one size.',
     r: () => t212({ ...AFTER, extra: got(20, [NVDA, ASML, CASH], `<button class="textlink more" data-do="all">17 more</button>`), foot: F.fresh('now') }) + tr(),
   },
   odd: {
     l: 'a share with no market price',
     note: 'Trading 212 lists a share the app finds no market price for. No question: it is saved with the price Trading 212 gave, and says so.',
-    r: () => t212({ total: '€5,620.30', rows: rowsOf('€1,280.30', '€4,340.00', true), extra: got(1, [['', 'Nordic Mining Rights', 'price from Trading 212', '0', '400', 'lav']]), foot: F.fresh('now') }) + tr(),
+    r: () => t212({ total: '€5,620.30', rows: rowsOf('€1,280.30', '€4,340.00', true), extra: got(1, [['', 'Nordic Mining Rights', '400 shares · price from Trading 212', '€0.00', '€240.00', 'lav']]), foot: F.fresh('now') }) + tr(),
   },
   empty: {
     l: 'cash only',
@@ -435,7 +438,7 @@ const landed = () => `
   <div class="landed">Trading 212 is connected</div>
   <div class="acc"><div class="atop">${logo('trading212.com', 's')}<div class="name"><b>Trading 212</b><span>from Trading 212, now</span></div><div class="bal"><span class="to">€5,380.30</span><small>now</small></div></div>
     <div class="chips"><span class="chip had"><i></i>7 the same</span><span class="chip new"><i></i>1 changed</span></div>
-    ${table([['nvidia.com', 'Nvidia', 'NVDA · shares', '8', '8.0853']], 'csv, Oct 6')}
+    ${table([['nvidia.com', 'Nvidia', '8 → 8.0853 shares', '€1,200.00', '€1,212.80']], 'csv, Oct 6')}
   </div>
   <div class="center"><button class="pill loud" data-do="close" style="padding-inline:30px">Done</button></div>`
 

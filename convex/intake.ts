@@ -23,6 +23,7 @@ import { euroRateAt, writeTransfer } from './money'
 import { sharesIn } from '../src/lib/crypto'
 import { heldCost } from '../src/lib/holdings'
 import { notSaved, sharesFor, sharesValue, sharesView } from './sharesCheck'
+import { totalStops, totalValue, totalView } from './holdingsTotal'
 import { applyRow, forDrop, transferValue } from './transferMatch'
 import type { DropRow, Transfer } from './transferMatch'
 import { internal } from './_generated/api'
@@ -2758,6 +2759,8 @@ const batchAccount = v.object({
       cashEur: v.union(v.number(), v.null()),
       totalEur: v.union(v.number(), v.null()),
       complete: v.boolean(),
+      /* The positions and the cash against the printed total (11 Oct). */
+      total: totalValue,
     }),
     v.null(),
   ),
@@ -2851,6 +2854,17 @@ function mergedHoldings(list: ReadonlyArray<Doc<'intakes'>>) {
     rows,
     cashEur: cash ?? null,
     totalEur: total ?? null,
+    /* Each position as printed, for the check against the total. */
+    values: positions.map((p) => p.valueEur),
+    lines: positions.map((p) => {
+      const c = p.candidates.at(p.preferred ?? 0)
+      return {
+        name: p.name,
+        symbol: c?.symbol ?? null,
+        type: c?.type ?? null,
+        valueEur: p.valueEur ?? null,
+      }
+    }),
     investedEur:
       Math.round(positions.reduce((t, p) => t + (p.valueEur ?? 0), 0) * 100) /
       100,
@@ -3265,6 +3279,7 @@ export async function gatherBatch(
             b.dismissed.includes(`sum:${account._id}`),
           )
         : null
+    const total = held ? totalView(held, accountId, b.dismissed) : null
     out.push({
       accountId,
       product: accountId ? null : g.product,
@@ -3298,7 +3313,9 @@ export async function gatherBatch(
           !check.accepted &&
           check.kept.length === 0 &&
           sumRows.length > 0 &&
-          (check.state === 'ask' || check.state === 'off')),
+          (check.state === 'ask' || check.state === 'off')) ||
+        /* A broker screenshot that does not reach its own total. */
+        (total !== null && !leftOut && totalStops(total)),
       trades,
       shares: await (async () => {
         const file = leftOut
@@ -3315,6 +3332,7 @@ export async function gatherBatch(
             cashEur: held.cashEur,
             totalEur: held.totalEur,
             complete: held.missing === 0,
+            total: total ?? totalView(held, accountId, b.dismissed),
           }
         : null,
       first: balances.at(0) ?? null,
@@ -3629,16 +3647,16 @@ export const batchAnswer = mutation({
       }
       case 'sum': {
         if (
-          !/^((skip|two|sum|shares|noshares):[a-z0-9:]{1,80}|(same|apart):[a-z0-9:]{1,90})$/.test(
+          !/^((skip|two|sum|shares|noshares|total|nototal):[a-z0-9:]{1,80}|(same|apart):[a-z0-9:]{1,90})$/.test(
             answer.key,
           )
         )
           throw new ConvexError('No such answer.')
         /* "save it anyway" and "do not save it" are one answer or the
            other (11 Oct, a company whose shares differ). */
-        const twin = answer.key.startsWith('shares:')
+        const twin = /^(shares|total):/.test(answer.key)
           ? `no${answer.key}`
-          : answer.key.startsWith('noshares:')
+          : /^no(shares|total):/.test(answer.key)
             ? answer.key.slice(2)
             : null
         /* One answer per row of a transfer: the same as one side, or

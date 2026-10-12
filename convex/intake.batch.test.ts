@@ -761,12 +761,19 @@ describe('his first real drop (3 Oct)', () => {
     })
     const r = await me.query(api.intake.batchReview, { batchId })
     expect(r.asks).toEqual([])
-    expect(r.accounts[0].holdings).toEqual({
+    expect(r.accounts[0].holdings).toMatchObject({
       positions: 1,
       investedEur: 526.21,
       cashEur: 12994.22,
       totalEur: 15008.26,
       complete: true,
+      /* One of the list's six positions is here: it does not reach the
+         total, and is saved once he says so (11 Oct). */
+      total: { state: 'differs', bothEur: 13520.43 },
+    })
+    await me.mutation(api.intake.batchAnswer, {
+      batchId,
+      answer: { kind: 'sum', key: `total:${t212}`, on: true },
     })
     await me.mutation(api.intake.applyBatch, { batchId, dayStart: day(10, 3) })
     for (let i = 0; i < 4; i++)

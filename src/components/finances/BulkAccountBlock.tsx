@@ -34,6 +34,7 @@ import {
   transferCounts,
 } from '@/components/finances/BulkTransferCheck'
 import { SharesCheck, sharesOpen } from '@/components/finances/BulkSharesCheck'
+import { HoldingsTotal } from '@/components/finances/HoldingsTotalCheck'
 
 export function AccountBlock({
   block,
@@ -285,7 +286,17 @@ export function AccountBlock({
         </div>
       ) : null}
 
-      {holdings !== null ? (
+      {holdings?.complete && account !== null && !block.leftOut ? (
+        <HoldingsTotal
+          total={holdings.total}
+          name={title}
+          cash={brokerCash ? 'broker cash' : 'cash'}
+          file={block.files[0].name}
+          batchId={batchId}
+          accountId={account._id}
+          onOpen={() => onCheck(block.files[0].intakeId)}
+        />
+      ) : holdings !== null ? (
         <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[12.5px] text-ink-400">
           <span>
             <b className="font-normal text-foreground">{holdings.positions}</b>{' '}

@@ -62,7 +62,10 @@ export function BulkReview({
   /* A company of a trading history whose shares differ, not answered. */
   const sharesAsked = placed.flatMap((a) => sharesOpen(a.shares).asked)
   const notSaved = [
-    ...unsaved.map((a) => (a.accountId ? doc(a.accountId)?.name : null)),
+    /* "do not save" is an answer: that screenshot is no open question. */
+    ...unsaved
+      .filter((a) => a.holdings?.total.answer !== 'skip')
+      .map((a) => (a.accountId ? doc(a.accountId)?.name : null)),
     ...sharesAsked.map((l) => l.name),
   ]
   const ready = placed.length - unsaved.length

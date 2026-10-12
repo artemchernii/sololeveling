@@ -241,9 +241,12 @@ export const backfillYear = internalAction({
  * overwritten with a guess.
  */
 export const readAll = internalAction({
-  args: {},
+  /* pricesOnly: the hourly reading (13 Oct: "def more often than once a
+     day") — today's price for every ticker, and nothing else. Exchange
+     rates are published once a day, so they stay with the daily run. */
+  args: { pricesOnly: v.optional(v.boolean()) },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const all = await ctx.runQuery(internal.market.allInstruments, {})
     const bySymbol = new Map<string, typeof all>()
     for (const i of all) {
@@ -268,6 +271,7 @@ export const readAll = internalAction({
         }
       }
     }
+    if (args.pricesOnly) return null
     /* And every currency an account holds, so a USD pocket is shown in
        euros at a rate from today, not from the day it was added. */
     for (const a of await ctx.runQuery(

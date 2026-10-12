@@ -12,6 +12,12 @@ many, each drop an update (`Bulk`). An account's UPDATE still has its own (next)
 Components live in `src/components/finances/` (Flow in `flow/`); functions
 in `convex/`.
 
+Stock orders and a crypto statement have no screen of their own (12 Oct):
+they are saved from the update's check. The strip of waiting reads on
+Overview is gone; ADD's dot says an update is waiting. First-time setup
+(`Setup`) still reads one file at a time (`DropFiles`, `IntakeStrip`,
+`IntakeFlow`).
+
 **Test** column: `—` means nothing guards it yet. Those are the next
 safety-net tests.
 
@@ -24,18 +30,15 @@ safety-net tests.
 
 ## Bring things in (+)
 
-| Journey                                                                        | Screen       | Component                                                             | Convex                                                             | Test                           |
-| ------------------------------------------------------------------------------ | ------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------ |
-| Add an account: pick the bank, its balance, it lands                           | + → account  | `AccountForm` (`PickBank`, `AccountDetails`) → `Landed`               | `accounts.create`, `setBalance`                                    | `accounts.spec`                |
-| Drop a statement file (CSV, PDF, screenshot)                                   | + → drop     | `Add` → `AddDrop` → `BulkUpdate`                                      | `attachments.generateUploadUrl`, `intake.start`, `intake.lastRead` | `statement.spec` (Revolut CSV) |
-| Watch it being read, retry, discard                                            | reading      | `Reading`                                                             | `intake.preview`, `retry`, `discard`                               | —                              |
-| Check transactions found in a file                                             | check it     | `Intake` → `TransactionsReview` (own file; rows in `TransactionRows`) | `intake.review`, `setAccount`, `whose`, `confirmTransactions`      | `statement.spec`               |
-| Check holdings (broker screenshot, or a gold file through an account's UPDATE) | check it     | `Intake` → `HoldingsReview` (top card: `HoldingsSummary`)             | `intake.confirmHoldings`, `market.search`                          | `holdings.spec`, `metals.spec` |
-| Check trades / orders                                                          | check it     | `Intake` → `TradesReview` (own file), `OrdersFound`                   | `intake.confirmTrades`                                             | `trades.spec`                  |
-| Check a crypto statement                                                       | check it     | `Intake` → `CryptoReview` (own file)                                  | `intake.confirmTransactions`                                       | `crypto.spec`                  |
-| Something still waiting to be checked                                          | Overview top | `OpenIntakes`                                                         | `intake.open`, `one`                                               | —                              |
-| Type a few rows by hand (spend, buy)                                           | + → rows     | `AddRows`                                                             | `money.record`, `logs.categories`, `market.search`                 | —                              |
-| What a save landed as                                                          | landed       | `Landed` (+ `Landed`, `ReviewLanded` in `IntakeLanded`)               | `accounts.setBalance`, `aggregate.balances`                        | every write spec               |
+| Journey                                                                        | Screen      | Component                                                             | Convex                                                             | Test                           |
+| ------------------------------------------------------------------------------ | ----------- | --------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------ |
+| Add an account: pick the bank, its balance, it lands                           | + → account | `AccountForm` (`PickBank`, `AccountDetails`) → `Landed`               | `accounts.create`, `setBalance`                                    | `accounts.spec`                |
+| Drop a statement file (CSV, PDF, screenshot)                                   | + → drop    | `Add` → `AddDrop` → `BulkUpdate`                                      | `attachments.generateUploadUrl`, `intake.start`, `intake.lastRead` | `statement.spec` (Revolut CSV) |
+| Watch it being read, retry, discard                                            | reading     | `Reading`                                                             | `intake.preview`, `retry`, `discard`                               | —                              |
+| Check transactions found in a file                                             | check it    | `Intake` → `TransactionsReview` (own file; rows in `TransactionRows`) | `intake.review`, `setAccount`, `whose`, `confirmTransactions`      | `statement.spec`               |
+| Check holdings (broker screenshot, or a gold file through an account's UPDATE) | check it    | `Intake` → `HoldingsReview` (top card: `HoldingsSummary`)             | `intake.confirmHoldings`, `market.search`                          | `holdings.spec`, `metals.spec` |
+| Type a few rows by hand (spend, buy)                                           | + → rows    | `AddRows`                                                             | `money.record`, `logs.categories`, `market.search`                 | —                              |
+| What a save landed as                                                          | landed      | `Landed` (+ `Landed`, `ReviewLanded` in `IntakeLanded`)               | `accounts.setBalance`, `aggregate.balances`                        | every write spec               |
 
 ## Update all (monthly check-in)
 
@@ -86,7 +89,6 @@ safety-net tests.
 
 ## Known gaps
 
-- The crypto landing for Revolut says only "N added", with no coin values.
 - `Intake.tsx`, `Bulk.tsx` and `Accounts.tsx` are split, one part per file
   (5 Oct). The session-guard hook names any file a branch touches that
   grows past 500 lines again.

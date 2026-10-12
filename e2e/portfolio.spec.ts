@@ -17,7 +17,11 @@ test('Portfolio: empty, then the positions a screenshot brought', async ({
 
   await testClient().mutation(anyApi.e2e.readHoldings, {})
   await page.goto('/finances')
-  await page.getByText('Revolut Invest screenshot').first().click()
+  await page.getByRole('button', { name: 'add', exact: true }).first().click()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'positions', exact: true })
+    .click()
   const sheet = page.getByRole('dialog')
   await sheet
     .getByRole('button', { name: 'save 2 positions and the broker cash' })

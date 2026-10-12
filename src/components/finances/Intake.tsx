@@ -4,12 +4,10 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
-import { IntakeStrip, ReadingSheet } from '@/components/finances/Reading'
+import { ReadingSheet } from '@/components/finances/Reading'
 import { BulkUpdate } from '@/components/finances/Bulk'
-import { CryptoReview } from '@/components/finances/CryptoReview'
 import { TransactionsReview } from '@/components/finances/TransactionsReview'
 import { HoldingsReview } from '@/components/finances/HoldingsReview'
-import { TradesReview } from '@/components/finances/TradesReview'
 
 /* What he dropped, from reading to confirmed (Treasury, 27 Sep). The
    review is the product: the reader's guesses laid against what he has
@@ -60,33 +58,20 @@ export function IntakeFlow({
     ) : (
       <ReadAgain intake={intake} />
     )
+  /* Stock orders and a crypto statement have no screen of their own any
+     more (12 Oct): every drop is an update, and its check saves them.
+     One read by itself — only first-time setup can still make one —
+     says where it goes. */
+  if (intake.kind === 'trades')
+    return (
+      <p className="py-6 text-center text-[13.5px] text-ink-400">
+        Stock orders and crypto statements are added with ADD.
+      </p>
+    )
   return intake.kind === 'holdings' ? (
     <HoldingsReview intake={intake} onDiscard={throwAway} onDone={onDone} />
-  ) : intake.kind === 'trades' &&
-    (intake.trades ?? []).length > 0 &&
-    (intake.trades ?? []).every((t) => t.crypto) ? (
-    <CryptoReview intake={intake} onDiscard={throwAway} onDone={onDone} />
-  ) : intake.kind === 'trades' ? (
-    <TradesReview intake={intake} onDiscard={throwAway} onDone={onDone} />
   ) : (
     <TransactionsReview intake={intake} onDiscard={throwAway} onDone={onDone} />
-  )
-}
-
-/** Open intakes on the page — for one he closed while it was reading. */
-export function OpenIntakes({
-  onOpen,
-}: {
-  onOpen: (id: Id<'intakes'>) => void
-}) {
-  const open = useQuery(api.intake.open, {})
-  if (!open || open.length === 0) return null
-  return (
-    <div className="flex flex-col gap-2">
-      {open.map((i) => (
-        <IntakeStrip key={i._id} intake={i} onOpen={() => onOpen(i._id)} />
-      ))}
-    </div>
   )
 }
 

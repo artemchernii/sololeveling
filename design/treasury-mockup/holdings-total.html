@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · broker screenshot against its total</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Broker screenshot checked against the total it prints (11 Oct). Fourth
+     of the reliability slices: the positions and the cash a screenshot
+     shows must reach the total the same screenshot prints. When they do
+     not, that account is not saved until he chooses. The block is the
+     check step's account block from stocks-check.html; the positions
+     screen is the built HoldingsReview with one strip added. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc; --cash: #e8c268;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit; cursor: pointer }
+  svg.i { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .wrap.phone { max-width: 390px; padding-left: 0; padding-right: 0 }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400) }
+  .scen button.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .scen .sep { width: 1px; background: rgba(var(--lift),.14); margin: 0 4px }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 720px; margin: 0 auto; text-align: center; padding: 0 16px }
+  .sheet { container-type: inline-size; border-radius: 22px; padding: 20px; border: 1px solid var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.08), rgba(181,171,252,.015) 40%), #1d1c2d; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine); display: flex; flex-direction: column; gap: 16px }
+  .shead { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid rgba(181,171,252,.16) }
+  .title { flex: 1; font-family: var(--mono); font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .close { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300); display: grid; place-items: center }
+  #body { display: flex; flex-direction: column; gap: 16px }
+  .summary { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline }
+  .summary .n { font-size: 26px; font-weight: 300 }
+  .summary .l { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500); margin-left: 6px }
+  .summary .warn { color: var(--warn) }
+  .logo { width: 30px; height: 30px; border-radius: 10px; background: #fff; object-fit: contain; padding: 3px; flex: none }
+  .tag { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; color: var(--ink-400); background: rgba(var(--lift),.05); white-space: nowrap }
+  .tag.good { color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent) }
+  .tag.warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 12%, transparent) }
+  @keyframes arrive { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+  @keyframes breathe { 50% { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 60%, transparent), 0 0 26px -10px var(--warn) } }
+  @keyframes pop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.15) } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .spin { width: 12px; height: 12px; border-radius: 999px; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; flex: none }
+  .acc { border-radius: 18px; padding: 14px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); display: flex; flex-direction: column; gap: 12px; animation: arrive .45s cubic-bezier(.2,.8,.2,1) both }
+  .acc.stop { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 38%, transparent); animation: arrive .45s cubic-bezier(.2,.8,.2,1) both, breathe 2.6s ease-in-out .5s infinite }
+  .acc .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+  .acc .name { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 140px }
+  .acc .name b { font-weight: 500; font-size: 15px }
+  .acc .name span { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .strip { display: grid; grid-template-columns: repeat(4, 1fr); border-radius: 12px; background: rgba(0,0,0,.22); border: 1px solid rgba(var(--lift),.06); overflow: hidden }
+  .cell { display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; padding: 9px 12px; border-left: 1px solid rgba(var(--lift),.06); min-width: 0 }
+  .cell:first-child { border-left: 0 }
+  .cell span { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; line-height: 1.35; text-transform: uppercase; color: var(--ink-500); display: flex; align-items: center; gap: 6px }
+  .cell span i { width: 7px; height: 7px; border-radius: 999px; flex: none }
+  .cell b { font-size: 16px; font-weight: 300; color: var(--ink-200); font-variant-numeric: tabular-nums }
+  .cell em { font-style: normal; font-family: var(--mono); font-size: 9.5px; color: var(--ink-500); min-height: 12px; display: flex; gap: 4px; align-items: center }
+  .cell em svg { width: 11px; height: 11px; stroke-width: 3 }
+  .cell.says { background: rgba(181,171,252,.07) }
+  .cell.says b, .cell.both b { color: var(--ink-100); font-weight: 400 }
+  .cell.good em { color: var(--good) }
+  .cell.good em svg { animation: pop .45s cubic-bezier(.2,.8,.2,1) .35s both }
+  .cell.warn em, .cell.warn b { color: var(--warn) }
+  .cell.none b { color: var(--ink-500) }
+  .why { display: flex; gap: 9px; align-items: flex-start; font-size: 12.5px; color: var(--ink-300); line-height: 1.5 }
+  .why svg { margin-top: 3px; color: var(--lav-400) }
+  .why b { color: var(--ink-100); font-weight: 400 }
+  .ask { border-radius: 14px; padding: 12px 13px; background: color-mix(in oklch, var(--warn) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 30%, transparent); display: flex; flex-direction: column; gap: 10px; animation: arrive .4s cubic-bezier(.2,.8,.2,1) .15s both }
+  .ask .q { display: flex; gap: 9px; align-items: flex-start; line-height: 1.5; font-size: 13.5px }
+  .ask .q svg { color: var(--warn); margin-top: 3px }
+  .ask .q b { font-weight: 500 }
+  .ask .q small { display: block; color: var(--ink-400); font-size: 12px }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-left: 23px }
+  .two .cell { border: 1px solid rgba(var(--lift),.12); border-radius: 12px; background: rgba(0,0,0,.22); gap: 4px }
+  .two .cell b { color: var(--ink-100); font-weight: 400; font-size: 18px }
+  .opts { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 23px }
+  .opt { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: rgba(var(--lift),.03); font-size: 12.5px; color: var(--ink-200); transition: border-color .2s, background .2s, transform .1s, opacity .2s }
+  .opt.loud { border-color: color-mix(in oklch, var(--lav-400) 50%, transparent); background: rgba(181,171,252,.14) }
+  .opt:hover { border-color: color-mix(in oklch, var(--lav-400) 55%, transparent); background: rgba(181,171,252,.1) }
+  .opt:active { transform: scale(.97) }
+  .opt[disabled] { opacity: .35; cursor: default }
+  .done { display: flex; align-items: center; gap: 9px; border-radius: 14px; padding: 11px 13px; font-size: 13px; color: var(--ink-200); background: color-mix(in oklch, var(--good) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 30%, transparent); animation: arrive .4s cubic-bezier(.2,.8,.2,1) both; line-height: 1.45 }
+  .done svg { color: var(--good); animation: pop .45s cubic-bezier(.2,.8,.2,1) both }
+  .done .sp { flex: 1 }
+  .link { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--lav-400); background: none; border: 0; padding: 2px 0; white-space: nowrap }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center }
+  .facts .sp { flex: 1 }
+  .leave { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500); background: none; border: 0; box-shadow: inset 0 0 0 1px rgba(var(--lift),.1); border-radius: 999px; padding: 4px 10px }
+  .foot { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; border-top: 1px solid rgba(181,171,252,.12); padding-top: 14px }
+  .foot p { flex: 1; min-width: 200px; font-size: 12.5px; color: var(--ink-400); line-height: 1.5 }
+  .foot p b { color: var(--warn); font-weight: 400 }
+  .pill { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-300); background: none; border: 1px solid rgba(var(--lift),.14); border-radius: 999px; padding: 8px 14px }
+  .apply { display: inline-flex; gap: 8px; align-items: center; font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #17152a; border: 0; border-radius: 999px; padding: 10px 20px; background: linear-gradient(135deg, var(--lav-300), var(--lav-400)); box-shadow: 0 0 26px -6px var(--lav-400) }
+  .apply[disabled] { opacity: .4; box-shadow: none; cursor: default }
+  .apply.busy { opacity: .85 }
+  .tk { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px }
+  .t { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 10px; background: rgba(0,0,0,.22); min-width: 0; animation: arrive .4s cubic-bezier(.2,.8,.2,1) both }
+  .t img, .lt { width: 22px; height: 22px; border-radius: 7px; background: #fff; object-fit: contain; padding: 2px; flex: none }
+  .t b { flex: none; font-weight: 500; font-size: 12.5px; white-space: nowrap }
+  .t span { flex: 1; text-align: right; font-family: var(--mono); font-size: 11px; color: var(--ink-300); white-space: nowrap; font-variant-numeric: tabular-nums }
+  .t.more { background: none; box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); color: var(--ink-400); font-family: var(--mono); font-size: 10.5px; justify-content: center; border: 0; letter-spacing: .08em; min-height: 36px }
+  .t.grey span, .t.grey b { color: var(--ink-500) }
+  /* landed */
+  .landed { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 26px 10px 10px; text-align: center; animation: arrive .45s cubic-bezier(.2,.8,.2,1) both }
+  .landed .ring { width: 54px; height: 54px; border-radius: 999px; display: grid; place-items: center; color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent); box-shadow: 0 0 34px -8px var(--good); animation: pop .5s cubic-bezier(.2,.8,.2,1) both }
+  .landed .ring svg { width: 24px; height: 24px; stroke-width: 3 }
+  .landed h3 { font-weight: 400; font-size: 20px }
+  .landed .rows { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 460px }
+  .landed .row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; background: rgba(0,0,0,.22); text-align: left; font-size: 13px; color: var(--ink-200) }
+  .landed .row .sp { flex: 1 } .landed .row span.m { font-family: var(--mono); font-size: 12px; color: var(--ink-300) }
+  .landed .row img { width: 24px; height: 24px; border-radius: 8px; padding: 2px }
+  /* the positions screen (built HoldingsReview) */
+  .sum { border-radius: 16px; padding: 16px; background: rgba(var(--lift),.03); box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); display: flex; flex-direction: column; gap: 12px; animation: arrive .45s cubic-bezier(.2,.8,.2,1) both }
+  .sum .g { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px }
+  .sum .g > div { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+  .caps { font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400); display: flex; align-items: center; gap: 6px }
+  .caps i { width: 7px; height: 7px; border-radius: 999px }
+  .sum .big { font-size: 30px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums }
+  .sum .mid { font-size: 22px; font-weight: 300; line-height: 1; padding-top: 8px; font-variant-numeric: tabular-nums }
+  .sum small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .bar { display: flex; gap: 2px; height: 6px } .bar span { border-radius: 999px }
+  .list { border-radius: 16px; background: rgba(var(--lift),.02); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); overflow: hidden }
+  .list .lh { display: flex; justify-content: space-between; padding: 12px 14px 8px }
+  .r { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid rgba(var(--lift),.05); animation: arrive .4s cubic-bezier(.2,.8,.2,1) both }
+  .r .cb { width: 18px; height: 18px; border-radius: 5px; background: var(--lav-400); color: #17152a; display: grid; place-items: center; flex: none; border: 0; padding: 0 }
+  .r .cb svg { width: 12px; height: 12px; stroke-width: 3 }
+  .r .cb.no { background: none; box-shadow: inset 0 0 0 1.5px rgba(var(--lift),.25) } .r .cb.no svg { display: none }
+  .r.no > :not(.cb) { opacity: .4 }
+  .r img { width: 28px; height: 28px; border-radius: 8px; background: #fff; object-fit: contain; padding: 2px; flex: none }
+  .r .sy { min-width: 52px; font-weight: 500 }
+  .r .nm { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .r .c { width: 92px; text-align: right; font-family: var(--mono); font-size: 11.5px; color: var(--ink-400); flex: none; font-variant-numeric: tabular-nums }
+  .r .c.up { color: var(--good) } .r .c.dn { color: var(--danger) } .r .c.w { font-size: 13px; color: var(--ink-100) }
+  .btns { display: flex; gap: 8px; border-top: 1px solid rgba(var(--lift),.06); padding-top: 12px }
+  .btns button { flex: 1; display: inline-flex; justify-content: center; align-items: center; gap: 8px; padding: 12px; border-radius: 999px; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300) }
+  .btns button.go { flex: 2; color: #17152a; border: 0; background: linear-gradient(135deg, var(--lav-300), var(--lav-400)); box-shadow: 0 0 26px -6px var(--lav-400) }
+  .btns button[disabled] { opacity: .4; cursor: default }
+  @container (max-width: 560px) {
+    .strip { grid-template-columns: 1fr 1fr }
+    .cell:nth-child(3) { border-left: 0 }
+    .cell:nth-child(n+3) { border-top: 1px solid rgba(var(--lift),.06) }
+    .two, .opts { margin-left: 0; padding-left: 0 }
+    .two .cell { justify-content: flex-start } .two .cell span { min-height: 2.7em; align-items: flex-start }
+    .tk { grid-template-columns: 1fr 1fr }
+    .t { padding: 7px 8px; gap: 5px } .t span { font-size: 10px } .t b { font-size: 12px }
+    .sum .g { grid-template-columns: 1fr 1fr } .sum .g > div:first-child { grid-column: span 2 }
+    .r .nm, .r .c.sh { display: none } .r { gap: 9px; padding: 10px 12px } .r .c { width: 78px } .r .sy { flex: 1 }
+    .foot p { flex: 1 1 100% } .foot .pill { flex: 1; white-space: nowrap } .foot .apply { flex: 1 1 100%; justify-content: center }
+    .btns { flex-wrap: wrap } .btns button.go { flex: 1 1 100%; order: -1 }
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <div class="scen" id="scen"></div>
+  <p class="note" id="note"></p>
+  <div class="sheet">
+    <div class="shead"><span class="title" id="title">[ check it ]</span><button class="close">✕</button></div>
+    <div id="body"></div>
+  </div>
+</div>
+<script>
+const P = { check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', neq: '<path d="M5 9h14M5 15h14M16 5L8 19"/>', eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>' }
+const svg = (n) => `<svg class="i" viewBox="0 0 24 24">${P[n]}</svg>`
+const fav = (d) => `https://www.google.com/s2/favicons?domain=${d}&sz=128`
+const share = (s) => `https://financialmodelingprep.com/image-stock/${s}.png`
+const eur = (n) => '€' + n.toLocaleString('en-IE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const sum = (l) => Math.round(l.reduce((t, p) => t + p[4], 0) * 100) / 100
+/* symbol · name · logo · shares · worth · % since buy */
+const TR = [
+  ['VWCE', 'Vanguard FTSE All-World', fav('vanguard.com'), '42.1', 4812.4, 18.2], ['AAPL', 'Apple', share('AAPL'), '12', 2461.92, 31.4],
+  ['IWDA', 'iShares Core MSCI World', fav('ishares.com'), '18', 1742.04, 12.7], ['SXR8', 'iShares Core S&P 500', fav('ishares.com'), '3', 1598.91, 22.1],
+  ['MSFT', 'Microsoft', share('MSFT'), '4', 1502.36, 9.8], ['GOOGL', 'Alphabet (A)', share('GOOGL'), '9', 1388.07, 27.3],
+  ['AMZN', 'Amazon', share('AMZN'), '7', 1214.5, -3.1], ['META', 'Meta Platforms', share('META'), '2', 1031.6, 41.0],
+  ['ASML', 'ASML Holding', share('ASML'), '1.5', 968.25, -8.4], ['KO', 'Coca-Cola', share('KO'), '15', 884.1, 4.2],
+  ['SAP', 'SAP', share('SAP'), '4', 812.3, 15.5], ['V', 'Visa', fav('visa.com'), '3', 742.8, 6.9],
+  ['NVDA', 'NVIDIA', share('NVDA'), '6', 742.18, 88.6], ['TSLA', 'Tesla', share('TSLA'), '3', 702.33, -12.2],
+  ['AMD', 'Advanced Micro Devices', share('AMD'), '5', 687.15, -5.7], ['NFLX', 'Netflix', share('NFLX'), '1', 618.44, 19.9],
+  ['SHEL', 'Shell', share('SHEL'), '20', 601.75, 2.3], ['NVO', 'Novo Nordisk', share('NVO'), '10', 598.2, -21.6],
+  ['ADBE', 'Adobe', share('ADBE'), '1', 412.3, -14.0], ['IGLN', 'iShares Physical Gold', fav('ishares.com'), '7.3654', 398.52, 24.8],
+].map(([s, n, l, sh, v, pc]) => [s, n, l, sh, v, pc])
+const TRCASH = 1205.66, TRTOTAL = Math.round((sum(TR) + TRCASH) * 100) / 100
+const CUT = TR.slice(0, 19) /* the last row is under the screen's edge */
+const REV = [TR[1], TR[4], TR[12], TR[6], TR[7], TR[5]].map((p, i) => [p[0], p[1], p[2], p[3], Math.round(p[4] * [0.5, 1.5, 2, 1, 0.5, 1][i] * 100) / 100, p[5]])
+const REVCASH = 17893.93, REVTOTAL = Math.round((sum(REV) + REVCASH) * 100) / 100
+const A = { tr: { name: 'Trade Republic', d: 'traderepublic.com', file: 'IMG_9301.png', cash: 'cash', was: '2 Oct' }, rev: { name: 'Revolut', d: 'revolut.com', file: 'IMG_9302.png', cash: 'broker cash', was: '28 Sep' } }
+
+const stat = (n, l, c = '') => `<span class="${c}"><span class="n">${n}</span><span class="l">${l}</span></span>`
+const stats = (files, pos, q = 0) => `<div class="summary">${stat(files, files === 1 ? 'screenshot' : 'screenshots')}${stat(pos, 'positions')}${q ? stat(q, q === 1 ? 'question' : 'questions', 'warn') : ''}</div>`
+const tile = (p, i, cls = '') => `<div class="t ${cls}" style="animation-delay:${i * 18}ms"><img src="${p[2]}" alt=""><b title="${p[1]}">${p[0]}</b><span>${eur(p[4])}</span></div>`
+const grid = (list, id, cashLabel, cash, cls = '') => {
+  const open = opened[id] || list.length <= 24
+  const shown = open ? list : list.slice(0, 23)
+  return `<div class="tk">${shown.map((p, i) => tile(p, i, cls)).join('')}${open ? '' : `<button class="t more" data-more="${id}">${list.length - 23} more</button>`}</div>`
+}
+/* positions · cash · positions and cash · total on the screenshot */
+const strip = (list, cashLabel, cash, total, state) => `<div class="strip">
+  <div class="cell"><span><i style="background:var(--lav-400)"></i>${list.length} positions</span><b>${eur(sum(list))}</b><em>worth on the screenshot</em></div>
+  <div class="cell"><span><i style="background:var(--cash)"></i>${cashLabel}</span><b>${eur(cash)}</b><em>not invested</em></div>
+  <div class="cell both"><span>positions and ${cashLabel}</span><b>${eur(Math.round((sum(list) + cash) * 100) / 100)}</b><em>sum of the two</em></div>
+  <div class="cell says ${state}"><span>total on the screenshot</span><b>${total == null ? '—' : eur(total)}</b><em>${state === 'good' ? svg('check') + 'adds up' : state === 'warn' ? svg('neq') + 'does not add up' : 'not on the screenshot'}</em></div></div>`
+const block = ({ a, stop = false, tag, body, n }) => `
+  <div class="acc ${stop ? 'stop' : ''}">
+    <div class="top"><img class="logo" src="${fav(a.d)}" alt="">
+      <div class="name"><b>${a.name}</b><span>broker · ${a.file} · today 21:40</span></div>${tag}
+    </div>
+    ${body}
+    <div class="facts"><span class="sp"></span><button class="link" data-go="list">${n} positions</button><button class="leave">leave out</button></div>
+  </div>`
+const foot = (text, label, off = false) => `<div class="foot"><p>${text}</p><button class="pill">start over</button><button class="pill">later</button><button class="apply ${busy === 'apply' ? 'busy' : ''}" data-apply ${off || busy ? 'disabled' : ''}>${busy === 'apply' ? '<span class="spin"></span>saving…' : svg('check') + label}</button></div>`
+const okTag = `<span class="tag good">${svg('check')}adds up</span>`
+const two = (a, b) => `<div class="two">${[a, b].map((c) => `<div class="cell"><span>${c[0]}</span><b>${c[1]}</b><em>${c[2]}</em></div>`).join('')}</div>`
+const btn = (k, label, loud) => `<button class="opt ${loud ? 'loud' : ''}" data-a="${k}" ${busy ? 'disabled' : ''}>${busy === k ? '<span class="spin"></span>saving…' : label}</button>`
+const ask = (a, list, cash, total) => `<div class="ask"><div class="q">${svg('neq')}<div><b>${a.name}: ${eur(Math.round((sum(list) + cash) * 100) / 100)} in the positions and ${a.cash}, ${eur(total)} total on the screenshot.</b><small>${sum(list) + cash < total ? 'A position is missing from the screenshot, or a number was read wrong.' : 'A number was read wrong, or a position is on the screenshot twice.'}</small></div></div>
+    ${two([`positions and ${a.cash}`, eur(Math.round((sum(list) + cash) * 100) / 100), `${list.length} positions · ${a.cash} ${eur(cash)}`], ['total on the screenshot', eur(total), a.file])}
+    <div class="opts">${btn('no', `do not save ${a.name}`, true)}${btn('yes', `save ${a.name} anyway`)}</div></div>`
+const answered = (words) => `<div class="done">${svg('check')}<span>${words}</span><span class="sp"></span><button class="link" data-a="">undo</button></div>`
+const landed = (rows) => `<div class="landed"><div class="ring">${svg('check')}</div><h3>${rows.filter((r) => r[2]).map((r) => r[0].name).join(' and ') || 'Nothing'} updated</h3>
+  <div class="rows">${rows.map(([a, words, ok]) => `<div class="row"><img class="logo" src="${fav(a.d)}" alt=""><span>${a.name}</span><span class="sp"></span><span class="m">${words}</span>${ok ? `<span style="color:var(--good)">${svg('check')}</span>` : ''}</div>`).join('')}</div>
+  <button class="pill" data-k="${on}" style="margin-top:6px">done</button></div>`
+
+/* Trade Republic with its last row under the screen's edge */
+const trBad = () => {
+  const a = A.tr, n = CUT.length
+  const body = (mid) => strip(CUT, 'cash', TRCASH, TRTOTAL, 'warn') + mid + grid(CUT, 'tr', 'cash', TRCASH)
+  if (answer === 'no') return block({ a, n, tag: `<span class="tag">not saved</span>`, body: body(answered(`${a.name} not saved. Positions stay as they were on ${a.was}.`)) })
+  if (answer === 'yes') return block({ a, n, tag: `<span class="tag">${n} to save</span>`, body: body(answered(`${a.name} saved as the screenshot shows: ${n} positions and the cash.`)) })
+  return block({ a, n, stop: true, tag: `<span class="tag warn">not saved</span>`, body: strip(CUT, 'cash', TRCASH, TRTOTAL, 'warn') + ask(a, CUT, TRCASH, TRTOTAL) + grid(CUT, 'tr', 'cash', TRCASH) })
+}
+const revOk = () => block({ a: A.rev, n: REV.length, tag: okTag, body: strip(REV, 'broker cash', REVCASH, REVTOTAL, 'good') + grid(REV, 'rev', 'broker cash', REVCASH) })
+
+const S = {
+  ok: { l: 'it adds up', note: 'A Trade Republic screenshot with 20 positions. The positions and the cash give the total the screenshot prints. Nothing is asked. Press apply.',
+    r: () => done ? landed([[A.tr, '20 positions and the cash', true]]) : stats(1, 20) + block({ a: A.tr, n: 20, tag: okTag, body: strip(TR, 'cash', TRCASH, TRTOTAL, 'good') + grid(TR, 'tr', 'cash', TRCASH) }) + foot('Ready to save.', 'apply 1 account') },
+  bad: { l: 'it does not add up', note: 'The same screenshot with the last position under the edge of the screen: 19 positions were read, the total counts 20. Trade Republic is not saved until one of the two buttons is pressed. Both work, undo too, then apply.',
+    r: () => done ? landed([[A.tr, answer === 'yes' ? '19 positions and the cash' : 'not saved', answer === 'yes']]) : stats(1, 19, answer ? 0 : 1) + trBad() + (answer === 'yes' ? foot('Ready to save.', 'apply 1 account') : answer === 'no' ? foot('Nothing to save.', 'apply', true) : foot(`<b>Trade Republic not saved</b> — 1 question open.`, 'apply', true)) },
+  none: { l: 'no total on the screenshot', note: 'A screenshot of the list only: it prints no total, so there is nothing to compare. It says so and saves as read.',
+    r: () => done ? landed([[A.tr, '20 positions and the cash', true]]) : stats(1, 20) + block({ a: A.tr, n: 20, tag: `<span class="tag">not checked</span>`, body: strip(TR, 'cash', TRCASH, null, 'none') + `<div class="why">${svg('eye')}<span><b>Not checked: no total on the screenshot.</b> Saved as the screenshot shows.</span></div>` + grid(TR, 'tr', 'cash', TRCASH, 'grey') }) + foot('Ready to save.', 'apply 1 account') },
+  two: { l: 'two accounts, one right', note: 'Two screenshots in one drop. Revolut adds up and is saved on apply. Trade Republic does not, and is not saved until a button is pressed.',
+    r: () => done ? landed([[A.rev, '6 positions and the broker cash', true], [A.tr, answer === 'yes' ? '19 positions and the cash' : 'not saved', answer === 'yes']]) : stats(2, 25, answer ? 0 : 1) + revOk() + trBad() + (answer === 'yes' ? foot('Ready to save.', 'apply 2 accounts') : answer === 'no' ? foot('Ready to save.', 'apply 1 account') : foot(`<b>Trade Republic not saved</b> — 1 question open.`, 'apply 1 account')) },
+  list: { l: 'the positions screen', title: '[ trade republic · positions ]', note: 'The screen that is built today (press "19 positions" on the block): total, invested, cash, every row. New: the strip under the three numbers, and the save button says what it does. Untick a row or press a button.',
+    r: () => review() },
+}
+/* the built HoldingsReview: summary, strip, rows, discard / save */
+let kept = CUT.map(() => true)
+function review() {
+  const list = CUT.filter((_, i) => kept[i]), s = sum(list), both = Math.round((s + TRCASH) * 100) / 100, right = both === TRTOTAL
+  if (done) return landed([[A.tr, answer === 'no' ? 'not saved' : `${list.length} positions and the cash`, answer !== 'no']])
+  return `<div class="sum"><div class="g">
+      <div><span class="caps">total in Trade Republic</span><span class="big">${eur(TRTOTAL)}</span><small>as the screenshot shows</small></div>
+      <div><span class="caps"><i style="background:var(--lav-400)"></i>invested</span><span class="mid">${eur(s)}</span><small>${list.length} positions · worth now</small></div>
+      <div><span class="caps"><i style="background:var(--cash)"></i>free cash</span><span class="mid">${eur(TRCASH)}</span><small>not invested</small></div></div>
+    <div class="bar"><span style="flex:${s};background:var(--lav-400)"></span><span style="flex:${TRCASH};background:var(--cash)"></span></div></div>
+  ${right ? '' : `<div class="ask"><div class="q">${svg('neq')}<div><b>Trade Republic: ${eur(both)} in the positions and cash, ${eur(TRTOTAL)} total on the screenshot.</b><small>A position is missing from the screenshot, or a number was read wrong.</small></div></div>
+    ${two(['positions and cash', eur(both), `${list.length} positions · cash ${eur(TRCASH)}`], ['total on the screenshot', eur(TRTOTAL), A.tr.file])}</div>`}
+  <div class="list"><div class="lh"><span class="caps">${CUT.length} positions</span><small style="font-family:var(--mono);font-size:10.5px;color:var(--ink-500)">shares · profit · worth now</small></div>
+    ${CUT.map((p, i) => { const paid = p[4] / (1 + p[5] / 100), g = p[4] - paid; return `<div class="r ${kept[i] ? '' : 'no'}" style="animation-delay:${i * 18}ms"><button class="cb ${kept[i] ? '' : 'no'}" data-keep="${i}" aria-label="Keep ${p[1]}">${svg('check')}</button><img src="${p[2]}" alt=""><span class="sy">${p[0]}</span><span class="nm">${p[1]}</span><span class="c sh">${p[3]} sh</span><span class="c ${g >= 0 ? 'up' : 'dn'}">${g >= 0 ? '+' : '−'}${eur(Math.abs(g))}</span><span class="c w">${eur(p[4])}</span></div>` }).join('')}</div>
+  <div class="btns"><button data-a2="no" ${busy ? 'disabled' : ''}>${busy === 'no' ? '<span class="spin"></span>saving…' : right ? 'discard' : 'do not save Trade Republic'}</button><button class="go" data-a2="yes" ${busy ? 'disabled' : ''}>${busy === 'yes' ? '<span class="spin"></span>saving…' : svg('check') + (right ? `save ${list.length} positions and the cash` : 'save Trade Republic anyway')}</button></div>`
+}
+
+let on = 'ok', answer = null, busy = null, done = false, phone = false
+const opened = {}
+function draw() {
+  document.getElementById('scen').innerHTML = Object.entries(S).map(([k, v]) => `<button class="${k === on ? 'on' : ''}" data-k="${k}">${v.l}</button>`).join('') + `<span class="sep"></span><button class="${phone ? 'on' : ''}" data-phone>phone width</button>`
+  document.getElementById('wrap').classList.toggle('phone', phone)
+  document.getElementById('note').textContent = S[on].note
+  document.getElementById('title').textContent = S[on].title || '[ check it ]'
+  document.getElementById('body').innerHTML = S[on].r()
+}
+const after = (ms, fn) => setTimeout(() => { fn(); busy = null; draw() }, ms)
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button')
+  if (!b || b.disabled) return
+  const d = b.dataset
+  if (d.k) { on = d.k; answer = null; done = false; kept = CUT.map(() => true); draw() }
+  else if ('phone' in d) { phone = !phone; draw() }
+  else if (d.more) { opened[d.more] = true; draw() }
+  else if (d.go) { on = d.go; answer = null; done = false; draw() }
+  else if (d.keep) { kept[+d.keep] = !kept[+d.keep]; draw() }
+  else if (d.a !== undefined) { if (!d.a) { answer = null; draw() } else { busy = d.a; draw(); after(800, () => { answer = d.a }) } }
+  else if (d.a2) { busy = d.a2; answer = d.a2; draw(); after(900, () => { done = true }) }
+  else if ('apply' in d) { busy = 'apply'; draw(); after(900, () => { done = true }) }
+})
+draw()
+</script>
+</body>
+</html>

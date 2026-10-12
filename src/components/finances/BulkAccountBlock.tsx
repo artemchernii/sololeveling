@@ -30,6 +30,7 @@ import {
 import type { Review } from '@/components/finances/BulkParts'
 import { SumCheck } from '@/components/finances/BulkSumCheck'
 import { SharesCheck, sharesOpen } from '@/components/finances/BulkSharesCheck'
+import { HoldingsTotal } from '@/components/finances/HoldingsTotalCheck'
 
 export function AccountBlock({
   block,
@@ -279,7 +280,16 @@ export function AccountBlock({
         </div>
       ) : null}
 
-      {holdings !== null ? (
+      {holdings?.complete && account !== null && !block.leftOut ? (
+        <HoldingsTotal
+          total={holdings.total}
+          name={title}
+          cash={brokerCash ? 'broker cash' : 'cash'}
+          file={block.files[0].name}
+          batchId={batchId}
+          accountId={account._id}
+        />
+      ) : holdings !== null ? (
         <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[12.5px] text-ink-400">
           <span>
             <b className="font-normal text-foreground">{holdings.positions}</b>{' '}

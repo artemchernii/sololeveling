@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronLeft, X } from 'lucide-react'
@@ -8,7 +8,10 @@ import { ChevronLeft, X } from 'lucide-react'
    his rule: discard and back never close everything, they return to where
    he came from. Escape does the same: back if there is a back, else close.
    `guard` (10 Oct, "accidentally close modal"): while something is being
-   read or saved, the ✕, Escape and a click outside ask first. */
+   read or saved, the ✕, Escape and a click outside ask first.
+   `header` sits beside the title (the update's steps); `glide` lets the
+   window move to each step's height instead of jumping to it (11 Oct,
+   design/treasury-mockup/update-account.html). */
 export type SheetGuard = { title: string; text: string }
 
 export function Sheet({
@@ -20,6 +23,8 @@ export function Sheet({
   children,
   footer,
   guard = null,
+  header,
+  glide = false,
 }: {
   open: boolean
   title: string
@@ -29,6 +34,8 @@ export function Sheet({
   children: ReactNode
   footer?: ReactNode
   guard?: SheetGuard | null
+  header?: ReactNode
+  glide?: boolean
 }) {
   const panel = useRef<HTMLDivElement>(null)
   const [asking, setAsking] = useState(false)
@@ -37,6 +44,16 @@ export function Sheet({
     if (!guarded || !open) setAsking(false)
   }, [guarded, open])
   const close = () => (guarded ? setAsking(true) : onClose())
+  /* What is inside sets the height; the window follows it. */
+  const inside = useRef<HTMLDivElement>(null)
+  const [height, setHeight] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const el = inside.current
+    if (!open || !glide || !el) return setHeight(null)
+    const watch = new ResizeObserver(() => setHeight(el.offsetHeight))
+    watch.observe(el)
+    return () => watch.disconnect()
+  }, [open, glide])
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -69,7 +86,7 @@ export function Sheet({
           wide ? 'sm:max-w-[920px]' : 'sm:max-w-[560px]'
         }`}
       >
-        <div className="flex items-center gap-3 border-b border-lift/[0.06] px-4 py-3.5 sm:px-5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-lift/[0.06] px-4 py-3.5 sm:px-5">
           {onBack ? (
             <button
               type="button"
@@ -82,6 +99,11 @@ export function Sheet({
             </button>
           ) : null}
           <span className="system-title flex-1 truncate">[ {title} ]</span>
+          {header ? (
+            <div className="order-3 basis-full sm:order-none sm:basis-auto">
+              {header}
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={close}
@@ -91,8 +113,16 @@ export function Sheet({
             <X className="size-4" />
           </button>
         </div>
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-5 [&>*]:shrink-0">
-          {children}
+        <div
+          style={height === null ? undefined : { height }}
+          className={`min-h-0 overflow-y-auto ${glide ? 'shrink transition-[height] duration-[320ms] ease-[var(--motion-ease)]' : 'flex-1'}`}
+        >
+          <div
+            ref={inside}
+            className="flex flex-col gap-4 px-4 py-4 sm:px-5 [&>*]:shrink-0"
+          >
+            {children}
+          </div>
         </div>
         {footer ? (
           <div className="flex gap-2 border-t border-lift/[0.06] px-4 py-3 sm:px-5">

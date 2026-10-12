@@ -29,9 +29,11 @@ import { MAX_BATCH_FILES } from '@/lib/intake'
    After a drop the reading screen takes over, as before.
    One door (10 Oct): every drop here — one file or sixty — goes through
    the update engine (`startBatch`), the path that asks before closing,
-   says when a save stopped and never writes a row twice. */
+   says when a save stopped and never writes a row twice.
+   Told an account (11 Oct, its own UPDATE): the drop area is named for
+   it, every file is its, and the other accounts are not shown. */
 
-const STEPS: ReadonlyArray<[LucideIcon, string]> = [
+export const STEPS: ReadonlyArray<[LucideIcon, string]> = [
   [ArrowDownToLine, 'drop'],
   [ScanSearch, 'read'],
   [Check, 'you check'],
@@ -72,17 +74,20 @@ function filledBy(pockets: ReadonlyArray<PocketTime>): string {
 export function AddDrop({
   onStarted,
   onBusy,
+  accountId,
 }: {
+  /** The account UPDATE was pressed on: every file here is its. */
+  accountId?: Id<'accounts'>
   onStarted: (batchId: Id<'batches'>) => void
   /** Told while files go up, so the sheet asks before it closes. */
   onBusy?: (busy: boolean) => void
 }) {
   const data = useQuery(api.aggregate.balances, {})
-  const last = useQuery(api.intake.lastRead, {})
+  const last = useQuery(api.intake.lastRead, accountId ? 'skip' : {})
   const { send: upload, sent } = useBatchUpload()
   const input = useRef<HTMLInputElement>(null)
   /* The account a picker was opened for — a tap on a behind account. */
-  const forAccount = useRef<Id<'accounts'> | undefined>(undefined)
+  const forAccount = useRef<Id<'accounts'> | undefined>(accountId)
   const [busy, setBusy] = useState(false)
   const [over, setOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -97,17 +102,17 @@ export function AddDrop({
   }, [busy, onBusy])
 
   const now = Date.now()
-  const accounts = (data?.accounts ?? []).map((a) => ({
-    ...a,
-    fresh: freshness(a.pockets, now),
-  }))
+  const accounts = (data?.accounts ?? [])
+    .filter((a) => accountId === undefined || a.accountId === accountId)
+    .map((a) => ({ ...a, fresh: freshness(a.pockets, now) }))
+  const named = accountId ? accounts.at(0)?.name : undefined
   /* Cash is counted, not read — a wallet is never "behind" on a file. */
   const behind = accounts.find(
     (a) => a.fresh.stale && a.fresh.asOf !== null && !a.kinds.includes('cash'),
   )
 
-  function pick(accountId?: Id<'accounts'>) {
-    forAccount.current = accountId
+  function pick(id?: Id<'accounts'>) {
+    forAccount.current = id ?? accountId
     input.current?.click()
   }
 
@@ -144,7 +149,7 @@ export function AddDrop({
         e instanceof Error ? e.message : 'It did not upload — try again.',
       )
     } finally {
-      forAccount.current = undefined
+      forAccount.current = accountId
       setBusy(false)
     }
   }
@@ -164,7 +169,7 @@ export function AddDrop({
           e.preventDefault()
           setOver(false)
           if (waiting) return
-          forAccount.current = undefined
+          forAccount.current = accountId
           send([...e.dataTransfer.files])
         }}
         className={`flex flex-col items-center gap-4 rounded-[18px] border-[1.5px] px-4 pt-5 pb-4 transition-[background-color,border-color,box-shadow] duration-300 ${
@@ -209,7 +214,9 @@ export function AddDrop({
                     ? `uploading ${sent.done} of ${sent.of}…`
                     : busy
                       ? 'uploading…'
-                      : 'Drop statements or screenshots'}
+                      : named
+                        ? `Drop a ${named} statement or screenshot`
+                        : 'Drop statements or screenshots'}
                 </span>
                 <span className="font-mono text-[10.5px] text-ink-500">
                   or click to pick · one file or many
@@ -293,6 +300,7 @@ export function AddDrop({
       </div>
 
       <LastLine
+        hidden={accountId !== undefined}
         behind={
           behind && behind.fresh.asOf !== null
             ? { name: behind.name, asOf: behind.fresh.asOf }
@@ -324,10 +332,12 @@ export function AddDrop({
 /* One line under the zone: the account that is behind, else the last file
    read, else that nothing has been. */
 function LastLine({
+  hidden,
   behind,
   last,
   onDrop,
 }: {
+  hidden: boolean
   behind: { name: string; asOf: number } | null
   last:
     | { name: string; institution: string | null; readAt: number }
@@ -335,7 +345,7 @@ function LastLine({
     | undefined
   onDrop: () => void
 }) {
-  if (last === undefined) return null
+  if (hidden || last === undefined) return null
   const dot = behind
     ? 'bg-state-warn shadow-[0_0_8px_var(--color-state-warn)]'
     : 'bg-state-good shadow-[0_0_8px_var(--color-state-good)]'

@@ -179,7 +179,10 @@ export function AccountFoot({
           <button type="button" onClick={press(onCheck)} className={WARN}>
             check it
           </button>
-        ) : broker ? (
+        ) : broker && !t212 ? (
+          /* Trading 212 reports cash and positions itself: nothing to
+             update by hand (12 Oct, "we connected and should we see
+             update? Seems weird"). Its history file goes through + ADD. */
           update
         ) : null}
       </span>

@@ -82,7 +82,12 @@ test('connect: Trading 212 says what the file said — all the same, a look writ
   expect(l?.changed).toBeUndefined()
   expect(l?.checking).toBeUndefined()
   expect((await looks()).filter((h) => h.asOf === NOON)).toHaveLength(2)
-  expect(await cash()).toMatchObject({ value: 1280.3, source: 'statement' })
+  /* The same amount, and now Trading 212's own reading of this moment. */
+  expect(await cash()).toMatchObject({
+    value: 1280.3,
+    source: 'sync',
+    recordedAt: NOON,
+  })
 })
 
 test('bought and sold: saved with no press, and the block says what each was and is', async () => {
@@ -106,12 +111,16 @@ test('bought and sold: saved with no press, and the block says what each was and
     [8, 10],
   ])
 
-  /* The same answer again writes nothing and the block stays as it is. */
+  /* The same answer again writes no position and the block stays as it
+     is; the cash is as fresh as the answer, one reading for the day. */
   const before = await looks()
   vi.setSystemTime(at + 5 * HOUR)
   expect(await me.action(api.t212.check, args)).toBe('checked')
   expect(await looks()).toEqual(before)
-  expect((await cash())?.recordedAt).toBe(at)
+  expect(await cash()).toMatchObject({
+    value: 1620.3,
+    recordedAt: at + 5 * HOUR,
+  })
   expect((await link())?.changed).toEqual(changed)
 
   /* ✕: seen. It stays closed, and what was saved stays. */

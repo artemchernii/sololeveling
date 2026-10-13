@@ -85,11 +85,11 @@ export function TypedBalance({
             <>
               <div className="flex flex-col gap-0.5 pt-2.5 text-[13.5px] leading-relaxed text-ink-200">
                 <span>
-                  The{' '}
+                  The typed{' '}
                   <b className="font-medium text-foreground">
                     balance of {short(p.of)}
                   </b>{' '}
-                  you typed goes.
+                  is removed.
                 </span>
                 {p.after === null ? (
                   <span className="text-[12.5px] text-ink-400">

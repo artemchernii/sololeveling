@@ -75,7 +75,7 @@ export function TakeBack({
       <div className="flex flex-col gap-0.5 text-[13.5px] leading-relaxed text-ink-200">
         <span>
           {parts.length === 0 ? (
-            'This file added nothing that is still here.'
+            'Nothing from this file is left.'
           ) : (
             <>
               {parts.map((part, i) => (
@@ -93,12 +93,12 @@ export function TakeBack({
             <AccountLogo name={there.account} domain={there.domain} size={16} />
             <span>
               The <Veiled>{fmt(there.amount, there.currency)}</Veiled> it added
-              in {there.account} on {short(there.at)} goes too.
+              in {there.account} on {short(there.at)} is removed too.
             </span>
           </span>
         ) : p.elsewhereRows > 1 ? (
           <span className="text-[12.5px] text-ink-400">
-            {p.elsewhereRows} rows it added in other accounts go too.
+            {p.elsewhereRows} rows it added in other accounts are removed too.
           </span>
         ) : null}
         {same && cash.newer ? (

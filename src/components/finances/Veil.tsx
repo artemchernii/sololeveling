@@ -21,7 +21,7 @@ export function Veiled({
       <span aria-hidden className="pointer-events-none blur-[9px] select-none">
         {children}
       </span>
-      <span className="sr-only">hidden — press show to see it</span>
+      <span className="sr-only">hidden</span>
     </span>
   )
 }

@@ -63,7 +63,7 @@ export function T212Sheet({
       setError(
         e instanceof ConvexError && typeof e.data === 'string'
           ? e.data
-          : 'It did not work. Nothing changed.',
+          : 'Not connected. Nothing changed.',
       )
     }
     setBusy(false)
@@ -132,23 +132,24 @@ export function T212Sheet({
           <div className="flex flex-col gap-3">
             <Fact
               Icon={Eye}
-              small="Make the key with the read permissions only."
+              small="Made in Trading 212 with read permissions only."
             >
-              The app only reads: the cash and the positions.
+              Read-only key: cash and positions.
             </Fact>
-            <Fact Icon={Lock} small="Never in the browser, the repo or a chat.">
-              The key stays on the backend.
+            <Fact Icon={Lock} small="Not in the browser.">
+              Key stored on the server only.
             </Fact>
-            <Fact
-              Icon={Clock}
-              small="When the last answer is over 4 hours old."
-            >
-              Asked when you open Finances.
+            <Fact Icon={Clock} small="At most every 4 hours.">
+              Updated when Finances opens.
             </Fact>
           </div>
           {error ? (
             <div className="flex flex-col gap-2">
-              <Nope>{error}</Nope>
+              <Nope>
+                {error === NO_KEY
+                  ? 'No Trading 212 key saved. Nothing changed.'
+                  : error}
+              </Nope>
               {error === NO_KEY ? (
                 <div className="flex flex-wrap gap-1.5 pl-[25px]">
                   {['TRADING212_KEY', 'TRADING212_SECRET'].map((k) => (
@@ -179,7 +180,7 @@ export function T212Sheet({
               {busy ? (
                 <>
                   <Loader2 className="size-3.5 animate-spin" />
-                  asking {name}…
+                  connecting {name}…
                 </>
               ) : (
                 <>

@@ -179,7 +179,6 @@ export function AccountFoot({
           </button>
         ) : link.question ? (
           <button type="button" onClick={press(onCheck)} className={WARN}>
-            {' '}
             open question
           </button>
         ) : broker && !t212 ? (

@@ -401,7 +401,7 @@ export function TreasuryHero() {
 
       <Sheet
         open={open !== null}
-        title={open === 'checkin' ? 'check-in' : (open ?? '')}
+        title={open === 'checkin' ? 'outdated balances' : (open ?? '')}
         onClose={() => setOpen(null)}
       >
         {open === null ? null : (
@@ -466,7 +466,7 @@ function CheckIn({ stale, onOpen }: { stale: Array<Row>; onOpen: () => void }) {
     >
       {stale.length <= 2 ? (
         <>
-          outdated{' '}
+          outdated
           <span className="flex pl-1">
             {stale.map((a) => (
               <span

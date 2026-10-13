@@ -59,13 +59,13 @@ export function holdingLine(
   const seen = row.seenAt === null ? null : day(row.seenAt)
   if (row.notSeen)
     return {
-      text: `Not in your latest ${account} upload${seen ? ` — last there ${seen}` : ''}`,
+      text: `Not in the latest ${account} file${seen ? ` · last seen ${seen}` : ''}`,
       warn: true,
     }
   if (row.type === UNPRICED) {
     const asOf = row.priceAsOf ?? row.seenAt
     return {
-      text: `No live price — value from your ${account} screenshot${asOf === null ? '' : ` of ${day(asOf)}`}`,
+      text: `No market price · worth from the ${account} screenshot${asOf === null ? '' : ` of ${day(asOf)}`}`,
       warn: false,
     }
   }
@@ -74,17 +74,17 @@ export function holdingLine(
   if (kindOf(row) === 'crypto' || metalOf(row.symbol)) return null
   if (row.status === 'gap')
     return {
-      text: `${account} shows ${shares(row.gap)} more than your statements — a buy is missing`,
+      text: `${account}: ${shares(row.gap)} more than in the files. A buy is missing.`,
       warn: true,
     }
   if (row.status === 'over')
     return {
-      text: `Your statements show ${shares(row.gap)} more than ${account} — a sell is missing`,
+      text: `Files: ${shares(row.gap)} more than in ${account}. A sale is missing.`,
       warn: true,
     }
   if (row.status === 'screen' && row.paid === null)
     return {
-      text: `Upload a ${account} statement to see what you paid`,
+      text: `Bought for: unknown · a ${account} statement adds it`,
       warn: false,
     }
   return null

@@ -51,15 +51,15 @@ test('connect: three facts, one press, asking at once, connected, the card says 
   await card(page).getByRole('button', { name: 'connect' }).click()
   const sheet = page.getByRole('dialog')
   await expect(
-    sheet.getByText('The app only reads: the cash and the positions.'),
+    sheet.getByText('Read-only key: cash and positions.'),
   ).toBeVisible()
-  await expect(sheet.getByText('The key stays on the backend.')).toBeVisible()
-  await expect(sheet.getByText('Asked when you open Finances.')).toBeVisible()
+  await expect(sheet.getByText('Key stored on the server only.')).toBeVisible()
+  await expect(sheet.getByText('Updated when Finances opens.')).toBeVisible()
   await expect(sheet.getByText(/here now: €3,120\.30/)).toBeVisible()
   await page.screenshot(shot('t212-connect'))
 
   await sheet.getByRole('button', { name: 'connect' }).click()
-  await expect(sheet.getByText('asking Trading 212…')).toBeVisible()
+  await expect(sheet.getByText('connecting Trading 212…')).toBeVisible()
   await expect(sheet.getByText('Trading 212 is connected')).toBeVisible()
   await expect(sheet.getByText('3 the same')).toBeVisible()
   await page.waitForTimeout(700)

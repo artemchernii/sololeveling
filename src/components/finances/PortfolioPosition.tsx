@@ -341,7 +341,11 @@ export function PortfolioPosition({
             points={line}
             marks={all
               .filter((t) => !t.reward && !t.split)
-              .map((t) => ({ t: t.occurredAt, side: t.side }))}
+              .map((t) => ({
+                t: t.occurredAt,
+                side: t.side,
+                eur: Math.round(t.shares * t.priceEur * 100) / 100,
+              }))}
             currency={first.currency}
             tone={gain === null ? 'plain' : up ? 'up' : 'down'}
           />

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · the chart</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lightweight-charts@5.2.1/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  /* The chart of one position, on TradingView's free chart library
+     (13 Oct, in review). Artem: "i want to have more advanced charts that
+     are useful" — two tools beside the chart, as TradingView has: compare
+     one day with another on the line, and a ruler drawn as a rectangle; and volume.
+     The rest of the position page (portfolio.html) stays as approved.
+     Sample numbers, not his. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: #4fd08a; --danger: #ef6a5a;
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --ease: cubic-bezier(.2,.8,.2,1);
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh; padding: 24px 16px 60px }
+  button { font: inherit; color: inherit; cursor: pointer; background: none; border: none }
+  .wrap { max-width: 940px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .sys { position: relative; border-radius: 22px; padding: 20px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px var(--sys-edge), 0 0 34px -18px #b5abfc }
+  .head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
+  .logo { width: 52px; height: 52px; border-radius: 14px; background: #a31621; display: grid; place-items: center; font-weight: 500; font-size: 20px }
+  .head h1 { font-size: 22px; font-weight: 400 } .head p { font-family: var(--mono); font-size: 11px; color: var(--ink-500); margin-top: 4px }
+  .head .px { margin-left: auto; text-align: right } .head .px b { display: block; font-size: 26px; font-weight: 300; font-variant-numeric: tabular-nums } .head .px small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .bar { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; margin: 18px 0 8px }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap }
+  .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 99px; padding: 6px 11px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-400); box-shadow: inset 0 0 0 1px rgba(var(--lift),.12); transition: background .2s, color .2s, box-shadow .2s, transform .12s var(--ease) }
+  .pill:hover { color: var(--ink-100); background: rgba(var(--lift),.06) } .pill:active { transform: scale(.96) }
+  .pill.on { color: var(--ink-100); background: color-mix(in srgb, var(--lav-400) 22%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lav-400) 60%, transparent) }
+  .pill svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+  .tool.on svg { animation: live 1.6s ease-in-out infinite } @keyframes live { 50% { opacity: .45 } }
+  .sp { flex: 1 }
+  .read { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-height: 22px; margin-bottom: 6px; font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums }
+  .read small { color: var(--ink-500); font-size: 10.5px } .read b { font-weight: 400 }
+  .chip { border-radius: 99px; padding: 2px 9px; font-size: 11.5px } .chip.up { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent) } .chip.down { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent) }
+  .up { color: var(--good) } .down { color: var(--danger) }
+  .plot { position: relative; height: 380px; border-radius: 14px; overflow: hidden }
+  /* Its own layer: the library's canvases carry a z-index of their own. */
+  #chart { position: absolute; inset: 0; z-index: 0 }
+  /* The tools draw over the chart; it takes the pointer only when one is on. */
+  #tool { position: absolute; inset: 0; z-index: 5; pointer-events: none; touch-action: pan-y; user-select: none; -webkit-user-select: none } #tool.on { pointer-events: auto; cursor: crosshair }
+  /* One shape, moved — never rebuilt while the pointer drags (13 Oct:
+     "a bit luggy"). Lavender and dotted, not the line's green on green. */
+  #shape { position: absolute; left: 0; top: 0; display: none; border: 1.5px dotted var(--lav-400); border-radius: 4px; background: color-mix(in srgb, var(--lav-400) 13%, transparent); will-change: transform, width, height }
+  #shape.band { border-top: 0; border-bottom: 0; border-radius: 0 }
+  #shape span { position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; font-family: var(--mono); font-size: 11.5px; padding: 4px 9px; border-radius: 8px; color: var(--ink-100); background: #2b2850; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lav-400) 55%, transparent), 0 8px 20px -8px #000 }
+  #shape.band span { display: none }
+  @keyframes arrive { from { opacity: 0 } }
+  .keys { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .keys span { display: inline-flex; align-items: center; gap: 6px } .dot { width: 9px; height: 9px; border-radius: 99px; border: 2px solid } .sq { width: 9px; height: 9px; border-radius: 2px; background: var(--ink-600) }
+  @media (max-width: 640px) { .plot { height: 300px } .read { min-height: 42px } .head .px { margin-left: 0; text-align: left; width: 100% } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="caps">mockup · one position's chart · sample numbers</span>
+  <section class="sys">
+    <div class="head">
+      <div class="logo">V</div>
+      <div><h1>Vanguard S&amp;P 500 UCITS ETF</h1><p>VUAA · fund · USD</p></div>
+      <div class="px"><b id="px"></b><small>price on 9 Oct · Yahoo Finance</small></div>
+    </div>
+    <div class="bar">
+      <span class="caps">price</span>
+      <div class="pills" id="tools"></div>
+      <span class="sp"></span>
+      <div class="pills" id="views"></div>
+      <div class="pills" id="ranges"></div>
+    </div>
+    <div class="read" id="read"></div>
+    <div class="plot"><div id="chart"></div><div id="tool"><div id="shape"><span></span></div></div></div>
+    <div class="keys"><span><i class="dot" style="border-color:var(--good)"></i>bought</span><span><i class="dot" style="border-color:var(--danger)"></i>sold</span><span id="volkey"><i class="sq"></i>shares traded that day</span></div>
+  </section>
+</div>
+<script>
+const LC = LightweightCharts
+const GOOD = '#4fd08a', BAD = '#ef6a5a', LAV = '#b5abfc', INK = '#6e6e84'
+const I = {
+  compare: '<svg viewBox="0 0 24 24"><path d="M5 4v16M19 4v16M9 12h6M9 12l2-2M9 12l2 2M15 12l-2-2M15 12l-2 2"/></svg>',
+  ruler: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" stroke-dasharray="3 3"/><path d="M4 19 20 5"/></svg>',
+}
+
+/* Sample days: a walk from $98 to $123.85 over two years of weekdays. */
+let seed = 11
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+const bars = []
+{ const end = new Date(Date.UTC(2026, 9, 9)), n = 520; let d = new Date(end), days = []
+  while (days.length < n) { if (d.getUTCDay() % 6) days.unshift(d.toISOString().slice(0, 10)); d = new Date(d - 864e5) }
+  let v = 86, w = 0
+  days.forEach((time, i) => { const t = i / (n - 1), open = v; w = w * .9 + (rnd() - .5); v = 86 + (123.85 - 86) * t + w * 5.5 * Math.sin(Math.PI * t) ** .5
+    const close = i === n - 1 ? 123.85 : v, hi = Math.max(open, close) + rnd() * 1.1, lo = Math.min(open, close) - rnd() * 1.1
+    bars.push({ time, open, high: hi, low: lo, close, volume: Math.round((40 + rnd() * 90 + Math.abs(close - open) * 60) * 1000) }) }) }
+const trades = [[80, 'buy', 650], [200, 'buy', 1605], [330, 'buy', 300], [372, 'sell', 420], [455, 'buy', 250], [495, 'buy', 250]]
+const usd = (v) => '$' + Math.abs(v).toFixed(2), eur = (v) => '€' + v.toLocaleString('en-GB', { minimumFractionDigits: 2 })
+const day = (t) => new Date(t + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+const many = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : Math.round(n / 1000) + 'K'
+document.getElementById('px').textContent = usd(bars.at(-1).close)
+
+let view = 'line', range = '1Y', tool = null, volume = true
+const chart = LC.createChart(document.getElementById('chart'), {
+  autoSize: true,
+  layout: { background: { type: 'solid', color: 'transparent' }, textColor: INK, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, attributionLogo: true },
+  grid: { vertLines: { visible: false }, horzLines: { color: 'rgba(255,255,255,.05)' } },
+  rightPriceScale: { borderVisible: false }, timeScale: { borderVisible: false, rightOffset: 2 },
+  crosshair: { mode: LC.CrosshairMode.Magnet, vertLine: { color: 'rgba(181,171,252,.5)', labelBackgroundColor: '#3a3566' }, horzLine: { color: 'rgba(181,171,252,.5)', labelBackgroundColor: '#3a3566' } },
+  localization: { priceFormatter: (p) => '$' + p.toFixed(2) },
+})
+let series, vol, marks
+function build() {
+  if (series) chart.removeSeries(series)
+  if (vol) { chart.removeSeries(vol); vol = null }
+  series = view === 'line'
+    ? chart.addSeries(LC.AreaSeries, { lineColor: GOOD, lineWidth: 2, topColor: 'rgba(79,208,138,.22)', bottomColor: 'rgba(79,208,138,0)', priceLineVisible: false })
+    : chart.addSeries(LC.CandlestickSeries, { upColor: GOOD, downColor: BAD, wickUpColor: GOOD, wickDownColor: BAD, borderVisible: false, priceLineVisible: false })
+  series.setData(view === 'line' ? bars.map((b) => ({ time: b.time, value: b.close })) : bars)
+  series.priceScale().applyOptions({ scaleMargins: { top: .08, bottom: volume ? .26 : .06 } })
+  if (volume) {
+    vol = chart.addSeries(LC.HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: '', lastValueVisible: false, priceLineVisible: false })
+    vol.priceScale().applyOptions({ scaleMargins: { top: .82, bottom: 0 } })
+    vol.setData(bars.map((b) => ({ time: b.time, value: b.volume, color: b.close >= b.open ? 'rgba(79,208,138,.35)' : 'rgba(239,106,90,.35)' })))
+  }
+  marks = LC.createSeriesMarkers(series, trades.map(([i, side]) => ({ time: bars[i].time, position: side === 'buy' ? 'belowBar' : 'aboveBar', shape: 'circle', color: side === 'buy' ? GOOD : BAD, size: 1 })))
+  document.getElementById('volkey').style.display = volume ? '' : 'none'
+}
+function span() {
+  const n = { '1M': 22, '6M': 128, '1Y': 256, all: bars.length }[range]
+  chart.timeScale().setVisibleLogicalRange({ from: bars.length - n, to: bars.length + 1 })
+}
+
+/* The line of words: the latest price at rest, the day under the pointer,
+   a buy or a sell on its day, or what a tool has measured. */
+const read = document.getElementById('read')
+let held = null   // what a tool measured, kept until the next press
+function say(i) {
+  if (held) { read.innerHTML = held; return }
+  const b = bars[i ?? bars.length - 1], t = trades.find((x) => x[0] === i)
+  read.innerHTML = t
+    ? `<b class="chip ${t[1] === 'buy' ? 'up' : 'down'}">${t[1] === 'buy' ? 'bought' : 'sold'}</b><span>${eur(t[2])}</span><small>${day(b.time)} · at ${usd(b.close)}</small>`
+    : `<span>${usd(b.close)}</span><small>${day(b.time)}${i == null ? ' · latest price' : ''}${volume ? ' · ' + many(b.volume) + ' shares traded' : ''}</small>`
+}
+chart.subscribeCrosshairMove((p) => { const i = p.time ? bars.findIndex((b) => b.time === p.time) : -1; say(i < 0 ? null : i) })
+
+/* The two tools. Compare: two days on the line, both prices and the
+   difference. Ruler: a rectangle from any point to any point — the price
+   change, the percent and the days between. Each is kept in days and
+   prices, so it stays in place while the chart is moved or zoomed. */
+const layer = document.getElementById('tool')
+let shape = null, from = null
+const idxAt = (x) => Math.max(0, Math.min(bars.length - 1, Math.round(chart.timeScale().coordinateToLogical(x) ?? 0)))
+const xOf = (i) => chart.timeScale().logicalToCoordinate(i)
+const box = document.getElementById('shape'), tag = box.firstChild
+let due = false
+function place() {
+  if (due) return
+  due = true
+  requestAnimationFrame(() => {
+    due = false
+    const a = shape && xOf(shape.a), b = shape && xOf(shape.b)
+    if (!shape || a == null || b == null) { box.style.display = 'none'; return }
+    const band = shape.kind === 'compare', h = layer.clientHeight - 26
+    const y0 = band ? 0 : series.priceToCoordinate(shape.p0), y1 = band ? h : series.priceToCoordinate(shape.p1)
+    box.className = band ? 'band' : ''
+    box.style.display = 'block'
+    box.style.transform = `translate(${Math.min(a, b)}px,${Math.min(y0, y1)}px)`
+    box.style.width = Math.abs(b - a) + 'px'
+    box.style.height = Math.abs(y1 - y0) + 'px'
+    if (!band && tag.textContent !== shape.label) tag.textContent = shape.label
+  })
+}
+function measure(e) {
+  const r = layer.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, i = idxAt(x)
+  if (tool === 'compare') {
+    const [a, b] = from.i <= i ? [from.i, i] : [i, from.i], d = bars[b].close - bars[a].close, up = d >= 0
+    shape = { kind: 'compare', a, b, up }
+    held = a === b ? null : `<small>${day(bars[a].time)}</small><span>${usd(bars[a].close)}</span><small>→ ${day(bars[b].time)}</small><span>${usd(bars[b].close)}</span><b class="chip ${up ? 'up' : 'down'}">${up ? '+' : '−'}${usd(d)} · ${up ? '▲' : '▼'} ${Math.abs(d / bars[a].close * 100).toFixed(1)}%</b>`
+  } else {
+    const p1 = series.coordinateToPrice(y), d = p1 - from.p, up = d >= 0, days = Math.round(Math.abs(new Date(bars[i].time) - new Date(bars[from.i].time)) / 864e5)
+    const label = `${up ? '+' : '−'}${usd(d)} · ${up ? '▲' : '▼'} ${Math.abs(d / from.p * 100).toFixed(1)}% · ${days} ${days === 1 ? 'day' : 'days'}`
+    shape = { kind: 'ruler', a: from.i, b: i, p0: from.p, p1, up, label }
+    held = `<small>from</small><span>${usd(from.p)}</span><small>to</small><span>${usd(p1)}</span><b class="chip ${up ? 'up' : 'down'}">${label}</b>`
+  }
+  place()
+  if (read.innerHTML !== (held ?? '')) say(null)
+}
+layer.onpointerdown = (e) => { const r = layer.getBoundingClientRect(); from = { i: idxAt(e.clientX - r.left), p: series.coordinateToPrice(e.clientY - r.top) }; shape = null; held = null; layer.setPointerCapture(e.pointerId); place(); say(from.i) }
+layer.onpointermove = (e) => { if (from) measure(e) }
+layer.onpointerup = () => { from = null }
+chart.timeScale().subscribeVisibleLogicalRangeChange(place)
+addEventListener('keydown', (e) => { if (e.key === 'Escape') { shape = null; held = null; place(); say(null) } })
+
+function bar() {
+  document.getElementById('tools').innerHTML =
+    `<button class="pill tool ${tool === 'compare' ? 'on' : ''}" aria-pressed="${tool === 'compare'}" onclick="arm('compare')">${I.compare}compare</button>` +
+    `<button class="pill tool ${tool === 'ruler' ? 'on' : ''}" aria-pressed="${tool === 'ruler'}" onclick="arm('ruler')">${I.ruler}ruler</button>`
+  document.getElementById('views').innerHTML =
+    ['line', 'candles'].map((v) => `<button class="pill ${v === view ? 'on' : ''}" onclick="view='${v}';redo()">${v}</button>`).join('') +
+    `<button class="pill ${volume ? 'on' : ''}" aria-pressed="${volume}" onclick="volume=!volume;redo()">volume</button>`
+  document.getElementById('ranges').innerHTML = ['1M', '6M', '1Y', 'all'].map((r) => `<button class="pill ${r === range ? 'on' : ''}" onclick="range='${r}';bar();span()">${r}</button>`).join('')
+  layer.className = tool ? 'on' : ''
+}
+function arm(t) { tool = tool === t ? null : t; shape = null; held = null; place(); say(null); bar() }
+function redo() { build(); bar(); place(); say(null) }
+build(); bar(); span(); say(null)
+</script>
+</body>
+</html>

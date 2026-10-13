@@ -51,6 +51,9 @@ export type Position = {
   staked: number
 }
 
+/** Sold things shown before "all", newest first. */
+const SOLD_FIRST = 10
+
 /** One account's side of a thing sold out: no shares, `paid` what its
     buys cost. */
 export type Sold = Position & { soldFor: number | null; soldAt: number }
@@ -89,6 +92,9 @@ export function PortfolioList({
   const chosen = holders.find((a) => a._id === filter)
   /* Sold is folded away until asked for (mockup portfolio.html). */
   const [showSold, setShowSold] = useState(false)
+  /* The newest few first (13 Oct: 151 sold things were one long list);
+     the rest behind one press. */
+  const [allSold, setAllSold] = useState(false)
   const gone = combine(
     sold.filter((r) => filter === 'all' || r.accountId === filter),
   )
@@ -174,14 +180,25 @@ export function PortfolioList({
           )}
           {showSold || only ? (
             <div className="flex flex-col gap-0.5">
-              {gone.map(({ owned, sums }, i) => (
-                <SoldRow
-                  key={owned.instrumentId}
-                  owned={owned}
-                  sums={sums}
-                  delay={i * 28}
-                />
-              ))}
+              {(allSold ? gone : gone.slice(0, SOLD_FIRST)).map(
+                ({ owned, sums }, i) => (
+                  <SoldRow
+                    key={owned.instrumentId}
+                    owned={owned}
+                    sums={sums}
+                    delay={Math.min(i, 12) * 28}
+                  />
+                ),
+              )}
+              {!allSold && gone.length > SOLD_FIRST ? (
+                <button
+                  type="button"
+                  onClick={() => setAllSold(true)}
+                  className="motion-press mt-1 self-start rounded-full px-3 py-1.5 font-mono text-[10.5px] tracking-[0.12em] text-lav-300 uppercase ring-1 ring-lav-400/40 ring-inset hover:bg-lav-400/10"
+                >
+                  all {gone.length}
+                </button>
+              ) : null}
             </div>
           ) : null}
         </>

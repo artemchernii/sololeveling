@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { metalHoldings, metalsTitle } from './metals'
+import { metalHoldings, metalTicker, metalsTitle } from './metals'
 
 const tx = (currency: string, amount: number) => ({
   occurredAt: 1,
@@ -50,4 +50,17 @@ describe('metalHoldings', () => {
 test('metalsTitle names what the file holds', () => {
   expect(metalsTitle(['Gold', 'Silver'])).toBe('gold and silver')
   expect(metalsTitle(['Gold'])).toBe('gold')
+})
+
+describe('metalTicker', () => {
+  test('knows a metal by its code or its name, without a search', () => {
+    expect(metalTicker('XAU')?.candidates[0].symbol).toBe('GC=F')
+    expect(metalTicker(' gold ')?.candidates[0].symbol).toBe('GC=F')
+    expect(metalTicker('XAG')?.candidates[0].symbol).toBe('SI=F')
+  })
+  test('leaves a share alone, even one with gold in its name', () => {
+    expect(metalTicker('Barrick Gold')).toBeNull()
+    expect(metalTicker('iShares Physical Gold ETC')).toBeNull()
+    expect(metalTicker('')).toBeNull()
+  })
 })

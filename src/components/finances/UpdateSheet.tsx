@@ -28,9 +28,16 @@ import { SavedNote } from '@/components/finances/AccountParts'
 export function UpdateSheet({
   account,
   onClose,
+  title,
+  fileOnly = false,
 }: {
   account: Doc<'accounts'> | null
   onClose: () => void
+  /** The window's own name, where it is not "update · the account". */
+  title?: string
+  /** Only the drop area: nothing to type, nothing from the bank (ADD
+      BUYS on a position's page, 13 Oct). */
+  fileOnly?: boolean
 }) {
   const waiting = useQuery(api.intake.openBatch, account ? {} : 'skip')
   const links = useQuery(api.bank.links, account ? {} : 'skip')
@@ -49,7 +56,7 @@ export function UpdateSheet({
   return (
     <Sheet
       open={account !== null}
-      title={account ? `update · ${account.name}` : 'update'}
+      title={title ?? (account ? `update · ${account.name}` : 'update')}
       onClose={onClose}
       wide={!noFile}
       glide
@@ -72,7 +79,7 @@ export function UpdateSheet({
                   onBusy={onBusy}
                 />
               )}
-              {link ? (
+              {fileOnly ? null : link ? (
                 <FromBank account={account} checkedAt={link.checkedAt} />
               ) : (
                 <div className="mx-auto flex w-full max-w-[520px] flex-col gap-3">

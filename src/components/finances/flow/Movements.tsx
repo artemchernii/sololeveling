@@ -1,14 +1,24 @@
+import { groupHint } from '@/lib/groupHint'
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
-import { ArrowLeftRight } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  CalendarDays,
+  Check,
+  FileText,
+  Landmark,
+  Repeat,
+  Tag,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 import { api } from '../../../../convex/_generated/api'
 import type { Doc, Id } from '../../../../convex/_generated/dataModel'
 import { AccountLogo } from '@/components/finances/Logo'
-import { FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
+import { Busy, FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { failureMessage } from '@/lib/convex-errors'
@@ -17,7 +27,7 @@ import { GroupBadge, PaidChip } from '@/components/finances/GroupBadge'
 import type { Notice } from './Ahead'
 import { whenSaid } from './AddBill'
 import { PayeeMark, PayeeName, usePayees, Why } from './Payees'
-import { dayMonth, eur, weekday } from './time'
+import { dayMonth, dayMonthYear, eur, weekday } from './time'
 
 type Item = FunctionReturnType<typeof api.logs.movements>['items'][number]
 type AheadData = FunctionReturnType<typeof api.aggregate.ahead>
@@ -521,6 +531,17 @@ function RowSheet({
   const remove = useMutation(api.recurring.remove)
   const [error, setError] = useState<string | null>(null)
   const income = row.kind === 'income'
+  /* A group its own name points to ("English Bar 42" → Fun): offered,
+     one press files it (13 Oct). */
+  const refile = useMutation(api.logs.refile)
+  const [filing, setFiling] = useState(false)
+  const [filed, setFiled] = useState<string | null>(null)
+  const group = filed ?? row.meta?.category ?? null
+  const hint =
+    income || group !== null
+      ? null
+      : (groupHint(row.meta?.merchant ?? row.text ?? '') ??
+        groupHint(row.meta?.raw ?? ''))
   const d = new Date(row.occurredAt)
   async function make(cadence: 'monthly' | 'yearly') {
     try {
@@ -545,19 +566,48 @@ function RowSheet({
           {eur(row.value ?? 0, true)}
         </span>
       </div>
-      <Line
-        k="day"
-        v={`${weekday(row.occurredAt)} ${dayMonth(row.occurredAt)}`}
-      />
-      <Line k="account" v={account?.name ?? '—'} />
-      <Line
-        k="group"
-        v={categoryLabel(
-          income ? 'income' : 'expense',
-          row.meta?.category ?? null,
-        )}
-      />
-      {row.meta?.raw ? <Line k="the bank wrote" v={row.meta.raw} /> : null}
+      <div className="flex flex-col gap-2 py-1">
+        <Line
+          icon={CalendarDays}
+          k="date"
+          v={`${weekday(row.occurredAt)} ${dayMonthYear(row.occurredAt)}`}
+        />
+        <Line icon={Landmark} k="account" v={account?.name ?? '—'} />
+        <Line
+          icon={Tag}
+          k="group"
+          v={categoryLabel(income ? 'income' : 'expense', group)}
+        />
+        {hint ? (
+          <button
+            type="button"
+            data-testid="group-hint"
+            disabled={filing}
+            onClick={() => {
+              setFiling(true)
+              void refile({ logId: row._id, category: hint })
+                .then(() => setFiled(hint))
+                .catch((e) => setError(failureMessage(e) ?? 'Not saved.'))
+                .finally(() => setFiling(false))
+            }}
+            className={`${PILL_LOUD} self-end`}
+          >
+            <Busy on={filing} doing="saving">
+              set group: {categoryLabel('expense', hint)}
+            </Busy>
+          </button>
+        ) : filed ? (
+          <span
+            data-testid="group-filed"
+            className="motion-pop flex items-center gap-1.5 self-end text-[12.5px] text-state-good"
+          >
+            <Check className="size-3.5" /> saved
+          </span>
+        ) : null}
+        {row.meta?.raw ? (
+          <Line icon={FileText} k="description" v={row.meta.raw} />
+        ) : null}
+      </div>
       <Why logId={row._id} />
       {isBill ? (
         <p className="text-[13.5px] text-ink-300">
@@ -568,7 +618,10 @@ function RowSheet({
         </p>
       ) : (
         <>
-          <span className="label-caps mt-1.5">repeats?</span>
+          <span className="label-caps mt-1.5 flex items-center gap-2">
+            <Repeat className="size-3.5 text-lav-300" />
+            make it a bill
+          </span>
           <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
@@ -594,11 +647,25 @@ function RowSheet({
   )
 }
 
-function Line({ k, v }: { k: string; v: string }) {
+/* One fact of a row: its icon, what it is, and the value — which wraps,
+   so a long line from the bank is read whole (13 Oct: "no icons on the
+   left or any distinguish"). */
+function Line({
+  icon: Icon,
+  k,
+  v,
+}: {
+  icon: LucideIcon
+  k: string
+  v: string
+}) {
   return (
-    <span className="flex justify-between gap-4 font-mono text-[12px] text-ink-300">
-      <span className="text-ink-500">{k}</span>
-      <span className="truncate text-right">{v}</span>
+    <span className="flex items-start gap-2.5 text-[13px]">
+      <Icon className="mt-[3px] size-3.5 shrink-0 text-lav-300" />
+      <span className="w-24 shrink-0 text-ink-400">{k}</span>
+      <span className="min-w-0 flex-1 text-right break-words text-foreground">
+        {v}
+      </span>
     </span>
   )
 }

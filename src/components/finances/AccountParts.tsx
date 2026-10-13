@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Banknote, ChartCandlestick, Check, Landmark } from 'lucide-react'
 
 import { Sparks } from '@/components/track/Sparks'
 import type { AccountKind } from '@/lib/currency'
@@ -9,11 +9,16 @@ const KIND_STYLE: Record<AccountKind, string> = {
   cash: 'text-acct-cash ring-acct-cash/35 bg-acct-cash/8',
 }
 
+/* Each kind has its picture as well as its word (13 Oct). */
+const KIND_ICON = { bank: Landmark, broker: ChartCandlestick, cash: Banknote }
+
 export function KindBadge({ kind }: { kind: AccountKind }) {
+  const Icon = KIND_ICON[kind]
   return (
     <span
-      className={`rounded-[6px] px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.14em] uppercase ring-1 ring-inset ${KIND_STYLE[kind]}`}
+      className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.14em] uppercase ring-1 ring-inset ${KIND_STYLE[kind]}`}
     >
+      <Icon className="size-3" />
       {kind}
     </span>
   )

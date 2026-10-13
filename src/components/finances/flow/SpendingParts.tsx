@@ -1,3 +1,4 @@
+import { groupHint } from '@/lib/groupHint'
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
@@ -8,7 +9,7 @@ import type { Doc } from '../../../../convex/_generated/dataModel'
 import { Busy } from '@/components/finances/bits'
 import { Veiled } from '@/components/finances/Veil'
 import { GroupBadge, PaidChip } from '@/components/finances/GroupBadge'
-import { SPEND_CATEGORIES } from '@/lib/money'
+import { categoryLabel, SPEND_CATEGORIES } from '@/lib/money'
 import { PayeeMark, PayeeName } from './Payees'
 import type { Who } from './Payees'
 import { eur } from './time'
@@ -81,6 +82,12 @@ export function RowLine({
   const [picking, setPicking] = useState(false)
   const [saving, setSaving] = useState(false)
   const now = row.category ?? null
+  /* A group the name itself points to ("English Bar 42" → Fun): offered
+     beside "no group", filed on one press (13 Oct). */
+  const hint =
+    income || now !== null
+      ? null
+      : (groupHint(who.name) ?? groupHint(row.raw ?? ''))
   return (
     <div className="grid w-full grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 border-b border-lift/4 px-1 py-2.5">
       <PayeeMark who={who} account={account} />
@@ -106,6 +113,21 @@ export function RowLine({
               onClick={onMoved ? () => setPicking(!picking) : undefined}
             />
           )}
+          {hint && onMoved && !saving ? (
+            <button
+              type="button"
+              data-testid="group-hint"
+              onClick={() => {
+                setSaving(true)
+                void refile({ logId: row.id, category: hint })
+                  .then((n) => onMoved(n, hint))
+                  .finally(() => setSaving(false))
+              }}
+              className="rounded-full px-2.5 py-0.5 text-[12px] text-lav-300 ring-1 ring-lav-400/45 ring-inset hover:bg-lav-400/10"
+            >
+              set group: {categoryLabel('expense', hint)}
+            </button>
+          ) : null}
           <span className="font-mono text-[10.5px] text-ink-500">{sub}</span>
         </span>
         {picking && onMoved ? (

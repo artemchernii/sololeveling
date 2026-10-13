@@ -30,12 +30,50 @@ export function FileView({
       <span className="flex flex-col gap-1">
         <span className="text-[15px] text-foreground">{f.title}</span>
         <span className="font-mono text-[11px] text-ink-400">
-          {f.names.join(' · ')} · read {short(f.readAt)} · {f.rows.length} rows
-          in the file · {landed} saved
+          {f.names.join(' · ')} · read {short(f.readAt)} ·{' '}
+          {f.positions.length > 0 && f.rows.length === 0
+            ? `${f.positions.length} ${f.positions.length === 1 ? 'position' : 'positions'} read`
+            : `${f.rows.length} rows in the file · ${landed} saved`}
         </span>
       </span>
       <Originals intakeId={intakeId} />
       <TakeBack intakeId={intakeId} onTaken={onTaken} />
+      {f.positions.length > 0 ? (
+        /* What a broker's screen listed (13 Oct: Trading 212's screenshot
+           opened on "0 rows in the file" and nothing under it). In euros,
+           the shares small underneath. */
+        <div data-testid="file-positions" className="flex flex-col">
+          {f.positions.map((p, i) => (
+            <div
+              key={`${p.name}-${i}`}
+              className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-2"
+            >
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="truncate text-[13.5px] text-foreground">
+                  {p.name}
+                </span>
+                {p.shares !== null || p.symbol !== null ? (
+                  <span className="font-mono text-[10.5px] text-ink-500">
+                    {[
+                      p.shares !== null
+                        ? `${Math.round(p.shares * 1e6) / 1e6} sh`
+                        : null,
+                      p.symbol,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                ) : null}
+              </span>
+              {p.valueEur !== null ? (
+                <span className="font-mono text-[13px] whitespace-nowrap text-foreground">
+                  <Veiled>{fmt(p.valueEur)}</Veiled>
+                </span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="flex flex-col">
         {f.rows.map((r, i) => (
           <div

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   between,
+  candleRows,
   drawable,
   many,
   boxAt,
@@ -160,27 +161,60 @@ describe('boxAt', () => {
 /* Candles and volume (13 Oct, chart.html). */
 describe('what can be drawn', () => {
   const bar = { o: 1, h: 3, l: 0.5, vol: 199_000 }
-  it('candles only where every stored day has all four', () => {
+  it('candles where every stored day has all four', () => {
     expect(
       drawable([
         { t: 1, v: 2, ...bar },
         { t: 2, v: 2, ...bar },
       ]),
-    ).toEqual({ candles: true, volume: true })
+    ).toEqual({ candles: true, whole: true, volume: true })
     expect(
       drawable([
         { t: 1, v: 2, ...bar },
         { t: 2, v: 2 },
       ]),
-    ).toEqual({ candles: false, volume: true })
+    ).toEqual({ candles: false, whole: false, volume: true })
+  })
+  /* Yahoo sent VUAA.L's 12 Oct empty: one day in a year. */
+  it('a day or two with no bar still leaves candles, that day left out', () => {
+    const year = Array.from({ length: 250 }, (_, i) => ({
+      t: i * DAY,
+      v: 2,
+      ...(i === 100 ? {} : bar),
+    }))
+    expect(drawable(year)).toMatchObject({ candles: true, whole: false })
+    const rows = candleRows(year)
+    expect(rows).toHaveLength(250)
+    expect(rows[100]).toEqual({ time: 100 * 86_400 })
+    expect(rows[99]).toEqual({
+      time: 99 * 86_400,
+      open: 1,
+      high: 3,
+      low: 0.5,
+      close: 2,
+    })
+  })
+  /* The last five days only, as before a share's year is read again. */
+  it('a few bars among closes are not candles', () => {
+    const year = Array.from({ length: 250 }, (_, i) => ({
+      t: i * DAY,
+      v: 2,
+      ...(i >= 245 ? bar : {}),
+    }))
+    expect(drawable(year)).toMatchObject({ candles: false, whole: false })
   })
   it('no volume where none is stored, or it is all zero', () => {
     expect(drawable([{ t: 1, v: 2 }])).toEqual({
       candles: false,
+      whole: false,
       volume: false,
     })
     expect(drawable([{ t: 1, v: 2, ...bar, vol: 0 }]).volume).toBe(false)
-    expect(drawable([])).toEqual({ candles: false, volume: false })
+    expect(drawable([])).toEqual({
+      candles: false,
+      whole: false,
+      volume: false,
+    })
   })
 })
 

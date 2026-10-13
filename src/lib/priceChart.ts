@@ -50,18 +50,34 @@ export function priceSeries(
   return { pts, on }
 }
 
+const isBar = (p: Pt) =>
+  p.o !== undefined && p.h !== undefined && p.l !== undefined
+
+/* How many of the stored days must be bars for candles to be offered. */
+const MOSTLY = 0.95
+
 /** What the stored days can be drawn as (13 Oct, chart.html): candles
-    only where every one has its open, high and low — a gap would be a
-    candle made up; volume where any shares traded are stored. */
+    where nearly every day has its open, high and low — Yahoo sends a
+    day empty now and then, and that day is left out, never a candle
+    made up (candleRows); volume where any shares traded are stored.
+    `whole` says no day lacks its bar: nothing is left to read again. */
 export function drawable(pts: ReadonlyArray<Pt>) {
+  const bars = pts.filter(isBar).length
   return {
-    candles:
-      pts.length > 0 &&
-      pts.every(
-        (p) => p.o !== undefined && p.h !== undefined && p.l !== undefined,
-      ),
+    candles: bars > 0 && bars >= pts.length * MOSTLY,
+    whole: pts.length > 0 && bars === pts.length,
     volume: pts.some((p) => (p.vol ?? 0) > 0),
   }
+}
+
+/** The days as candles, at the second each is stored on. A day with no
+    bar keeps its place and is drawn empty. */
+export function candleRows(pts: ReadonlyArray<Pt>) {
+  return pts.map((p) =>
+    isBar(p)
+      ? { time: seconds(p.t), open: p.o, high: p.h, low: p.l, close: p.v }
+      : { time: seconds(p.t) },
+  )
 }
 
 /** Shares traded, said short: "199K", "1.2M". */

@@ -52,9 +52,7 @@ export function Applying({
           <span className="motion-pop grid size-14 place-items-center rounded-full bg-state-warn/12 text-state-warn ring-1 ring-state-warn/40">
             <AlertTriangle className="size-6" />
           </span>
-          <span className="text-[22px] font-light">
-            The save stopped before the end
-          </span>
+          <span className="text-[22px] font-light">Saving stopped</span>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -218,7 +216,7 @@ function BankRow({
             not finished
           </>
         ) : (
-          'waiting'
+          'not saved yet'
         )}
       </span>
     </div>
@@ -246,7 +244,7 @@ function Resume({
         {error ? (
           <span className="text-state-danger">{error}</span>
         ) : (
-          'Nothing is lost and nothing is in twice. Finishing adds only what is missing.'
+          'Nothing is saved twice. Finish saves the rest.'
         )}
       </span>
       <button type="button" onClick={onClose} className={PILL_QUIET}>
@@ -261,7 +259,7 @@ function Resume({
           resume({ batchId, dayStart })
             .then(onResumed)
             .catch((e: unknown) =>
-              setError(failureMessage(e) ?? 'It did not start — try again.'),
+              setError(failureMessage(e) ?? 'Not started — try again.'),
             )
             .finally(() => setBusy(false))
         }}
@@ -323,7 +321,7 @@ export function Applied({
       <UndoSave batchId={batchId} onUndone={() => setUndone(true)} />
       {waiting > 0 ? (
         <button type="button" onClick={onMore} className={PILL_QUIET}>
-          {waiting} {waiting === 1 ? 'file' : 'files'} still waiting
+          {waiting} {waiting === 1 ? 'file' : 'files'} not saved yet
         </button>
       ) : null}
       <button

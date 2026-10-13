@@ -59,9 +59,7 @@ export function AskCard({
     setError(null)
     run()
       .then(() => onSolved(text))
-      .catch((e: unknown) =>
-        setError(failureMessage(e) ?? 'That did not save.'),
-      )
+      .catch((e: unknown) => setError(failureMessage(e) ?? 'Not saved.'))
       .finally(() => setBusy(false))
   }
   /* Into one of his accounts — and, for a screenshot, read again with the
@@ -169,11 +167,11 @@ export function AskCard({
       const month = MONTH_LONG.format(monthDate(ask.month))
       q = (
         <>
-          <b className="font-medium">{name(ask.accountId)}</b> has no rows in{' '}
-          {month} — a statement is missing?
+          <b className="font-medium">{name(ask.accountId)}</b>: no rows in{' '}
+          {month}. A statement may be missing.
         </>
       )
-      sub = `The months either side of ${month} have rows in this drop.`
+      sub = ''
       opts = (
         <>
           <Opt disabled={busy} onClick={() => file.current?.click()}>
@@ -193,11 +191,11 @@ export function AskCard({
                       month: ask.month,
                     },
                   }),
-                `${month}: nothing that month.`,
+                `${month}: no payments.`,
               )
             }
           >
-            there was nothing that month
+            no payments that month
           </Opt>
           <input
             ref={file}
@@ -230,15 +228,9 @@ export function AskCard({
       )
       /* A hint, not an answer (3 Oct: "likely BPI", pressed, was wrong —
          BPI's statement ended before the day). Said with its reason. */
-      sub = `${
-        into
-          ? 'Your own money arriving — but no file in this drop shows it leaving anywhere. Which account did it leave?'
-          : 'Your own money leaving — but no file in this drop shows it arriving anywhere. Where did it go?'
-      }${
-        ask.likely
-          ? ` ${name(ask.likely)} is where ${name(ask.accountId)}'s other transfers ${into ? 'came from' : 'went'}, but nothing in this drop covers ${DAY.format(ask.occurredAt)} for it — answer only if you know.`
-          : ''
-      }`
+      sub = into
+        ? 'Transfer in. Which account did it come from?'
+        : 'Transfer out. Which account did it go to?'
       const pick = (otherAccountId: Id<'accounts'> | null, text: string) =>
         act(
           () =>
@@ -294,15 +286,15 @@ export function AskCard({
       const short = ask.gap < 0
       q = (
         <>
-          <b className="font-medium">{name(ask.accountId)}</b>: the balances say{' '}
+          <b className="font-medium">{name(ask.accountId)}</b>:{' '}
           <Veiled>{euros(Math.abs(ask.gap))}</Veiled>{' '}
-          {short ? 'more left' : 'more arrived'} between {DAY.format(ask.from)}{' '}
-          and {DAY.format(ask.to)} than the rows show.
+          {short ? 'went out' : 'came in'} with no row · {DAY.format(ask.from)}{' '}
+          – {DAY.format(ask.to)}
         </>
       )
       sub = short
-        ? 'A row cut off a statement or a screenshot?'
-        : 'A deposit missing from the rows?'
+        ? 'A payment is missing from the rows.'
+        : 'A deposit is missing from the rows.'
       opts = (
         <>
           <Opt
@@ -335,7 +327,7 @@ export function AskCard({
                     batchId,
                     answer: { kind: 'dismiss', key: ask.key },
                   }),
-                'Left as it is.',
+                'Not changed.',
               )
             }
           >
@@ -351,12 +343,10 @@ export function AskCard({
       q = (
         <>
           <b className="font-medium">{name(ask.accountId)}</b>: {ask.missing} of{' '}
-          {ask.positions} positions on {ask.name} have no share count or ticker
-          the app could find.
+          {ask.positions} positions on {ask.name}: shares or ticker missing.
         </>
       )
-      sub =
-        'Read it again with the account named, or fill them in on the check screen.'
+      sub = ''
       opts = (
         <>
           <Opt
@@ -424,10 +414,10 @@ export function AskCard({
           <Opt
             disabled={busy}
             onClick={() =>
-              act(() => discard({ intakeId: ask.intakeId }), 'Thrown away.')
+              act(() => discard({ intakeId: ask.intakeId }), 'Discarded.')
             }
           >
-            throw it away
+            discard file
           </Opt>
         </>
       )

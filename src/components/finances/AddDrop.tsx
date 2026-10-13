@@ -36,8 +36,8 @@ import { MAX_BATCH_FILES } from '@/lib/intake'
 export const STEPS: ReadonlyArray<[LucideIcon, string]> = [
   [ArrowDownToLine, 'drop'],
   [ScanSearch, 'read'],
-  [Check, 'you check'],
-  [Landmark, 'lands on the account'],
+  [Check, 'check'],
+  [Landmark, 'saved'],
 ]
 
 /* Day one has no accounts to name, so it names the files instead. */
@@ -145,9 +145,7 @@ export function AddDrop({
       )
       setWaiting(null)
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : 'It did not upload — try again.',
-      )
+      setError(e instanceof Error ? e.message : 'Not uploaded — try again.')
     } finally {
       forAccount.current = accountId
       setBusy(false)
@@ -375,7 +373,7 @@ function LastLine({
           {agoLabel(last.readAt)}
         </span>
       ) : (
-        <span>nothing read yet — the first file makes its account</span>
+        <span>no files yet · the first file creates the account</span>
       )}
     </div>
   )
@@ -426,8 +424,7 @@ function NoteStep({
         />
       </label>
       <span className="text-[12px] text-ink-500">
-        A screen often has no bank name on it. A few words say whose it is — or
-        leave it and read.
+        Screenshots often show no bank name. Name the account, or leave empty.
       </span>
       <div className="flex gap-2">
         <button

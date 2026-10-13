@@ -122,7 +122,7 @@ export function BulkUpdate({
     dropArea(setMine, setUploading)
   ) : (
     <p className="py-6 text-center text-[13.5px] text-ink-400">
-      Nothing is waiting here.
+      Nothing to check.
     </p>
   )
 

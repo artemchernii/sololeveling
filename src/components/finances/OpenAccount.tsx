@@ -254,15 +254,30 @@ function Timeline({
     | { t: 'row'; at: number; row: Row }
     | { t: 'bal'; at: number; bal: SheetData['readings'][number] }
     | { t: 'file'; at: number; file: FileInfo }
+  /* A balance read again with nothing moved is not said twice (13 Oct:
+     the bank answers every day, and Revolut's $0.00 stood there once a
+     day): the first reading of an amount stays, with its file. */
+  const same = (bal: SheetData['readings'][number]) =>
+    bal.fileId === null &&
+    data.checks.some(
+      (c) =>
+        c.to === bal.at &&
+        c.currency === bal.currency &&
+        c.rows === 0 &&
+        c.missing === 0 &&
+        c.fromValue === bal.value,
+    )
   const items: Array<Item> = [
     ...data.rows.map((row) => ({ t: 'row' as const, at: row.at, row })),
     ...data.readings
-      .filter((bal) => bal.at >= since)
+      .filter((bal) => bal.at >= since && !same(bal))
       .map((bal) => ({ t: 'bal' as const, at: bal.at, bal })),
     /* A file that set no balance (a broker's orders) still has a place:
-       where its rows end. */
+       where its rows end. One that read rows the account already had,
+       and nothing else, saved nothing and is not listed. */
     ...data.files
       .filter((f) => !data.readings.some((r) => r.fileId === f.id))
+      .filter((f) => f.added > 0 || f.positions > 0)
       .map((file) => ({
         t: 'file' as const,
         at: file.to ?? file.readAt,

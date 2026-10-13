@@ -124,6 +124,26 @@ test('Portfolio: empty, then the positions a screenshot brought', async ({
   await page.screenshot({ ...shot('portfolio-position-phone'), fullPage: true })
 })
 
+/* Many things sold: the newest ten, the rest behind one press (13 Oct:
+   "sold · 151" was one long list). */
+test('Portfolio: a long sold list shows the newest ten, then all', async ({
+  page,
+}) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2ePortfolio.soldOut, { more: 12 })
+  await page.goto('/finances?room=portfolio')
+  await expect(page.getByText('sold · 13')).toBeVisible()
+  const rows = page.getByTestId('sold-row')
+  await expect(rows).toHaveCount(10)
+  /* Newest first: Shopify was sold last. */
+  await expect(rows.first()).toContainText('Shopify Inc.')
+  await page.screenshot({ ...shot('portfolio-sold-ten'), fullPage: true })
+  await page.getByRole('button', { name: 'all 13' }).click()
+  await expect(rows).toHaveCount(13)
+  await expect(rows.last()).toContainText('Sold thing 12')
+  await expect(page.getByRole('button', { name: 'all 13' })).toHaveCount(0)
+})
+
 /* What was sold out has its rows and a page, with nothing owned (13 Oct). */
 test('Portfolio: a thing sold out has its row and its page', async ({
   page,

@@ -849,7 +849,10 @@ export default defineSchema({
   })
     .index('by_owner_time', ['ownerId', 'occurredAt'])
     .index('by_owner_instrument', ['ownerId', 'instrumentId'])
-    .index('by_owner_account', ['ownerId', 'accountId']),
+    .index('by_owner_account', ['ownerId', 'accountId'])
+    /* The account sheet's page (13 Oct): the newest trades of one account
+       without reading all of them — Revolut holds 3,700. */
+    .index('by_owner_account_time', ['ownerId', 'accountId', 'occurredAt']),
 
   /* What a holdings screen showed (R6c, 27 Sep): the shares of one ticker
      in one account on one day, and what was paid when the screen printed a

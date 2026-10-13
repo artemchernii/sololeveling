@@ -50,6 +50,9 @@ export const soldOut = mutation({
     bars: v.optional(v.boolean()),
     /* 'fail': pressing "all" gets no answer for its older years. */
     years: v.optional(v.literal('fail')),
+    /* So many other things sold out too, each a day older than the
+       last: the sold list is longer than it first shows. */
+    more: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -148,6 +151,38 @@ export const soldOut = mutation({
         priceEur,
         occurredAt: now - ago * DAY,
       })
+    for (let n = 1; n <= (args.more ?? 0); n++) {
+      const symbol = `SOLD${n}`
+      const had = await ctx.db
+        .query('instruments')
+        .withIndex('by_owner_symbol', (q) =>
+          q.eq('ownerId', ownerId).eq('symbol', symbol),
+        )
+        .first()
+      const id =
+        had?._id ??
+        (await ctx.db.insert('instruments', {
+          ownerId,
+          symbol,
+          name: `Sold thing ${n}`,
+          exchange: 'NMS',
+          currency: 'USD',
+          type: 'EQUITY',
+        }))
+      for (const [side, priceEur, ago] of [
+        ['buy', 10, 300 + n],
+        ['sell', 12, 70 + n],
+      ] as const)
+        await ctx.db.insert('trades', {
+          ownerId,
+          accountId: account._id,
+          instrumentId: id,
+          side,
+          shares: 1,
+          priceEur,
+          occurredAt: now - ago * DAY,
+        })
+    }
     await trade('buy', 1, 80.6, 200)
     await trade('buy', 1, 100, 150)
     await trade('sell', 2, 118.45, 60)

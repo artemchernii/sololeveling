@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · add buys to one position</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ADD BUYS on one position's page (13 Oct: "maybe we want to have a
+     button to update particular asset (stock/metal/crypto) like this
+     screenshot of transactions"). Gold shows "bought for —": no buy of
+     it was ever in a file. He drops the broker's own list of its buys;
+     the app reads the rows, skips what it has, puts the units beside
+     what he holds, and saves. The numbers are his screenshot's. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit; cursor: pointer }
+  svg.i { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400) }
+  .scen button.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 720px; margin: 0 auto; text-align: center }
+  .caps { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500) }
+  .frame { border-radius: 22px; padding: 20px; border: 1px solid var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.08), rgba(181,171,252,.015) 40%), #1d1c2d; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine); display: flex; flex-direction: column; gap: 16px }
+  .head { display: flex; align-items: center; gap: 14px }
+  .au { width: 52px; height: 52px; border-radius: 999px; background: #e8c170; color: #fff7df; display: grid; place-items: center; font-weight: 500 }
+  .head h1 { font-size: 22px; font-weight: 400 }
+  .head p { font-family: var(--mono); font-size: 11px; color: var(--ink-500); margin-top: 3px }
+  .head .px { margin-left: auto; text-align: right; font-size: 26px; font-weight: 300 }
+  .head .px small { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px }
+  .tile { border-radius: 14px; padding: 12px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); display: flex; flex-direction: column; gap: 5px; min-height: 92px }
+  .tile .v { font-size: 22px; font-weight: 300; font-variant-numeric: tabular-nums }
+  .tile .s { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .tile.lit { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 45%, transparent); animation: land .5s both }
+  .good { color: var(--good) } .warn { color: var(--warn) } .dim { color: var(--ink-500) }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid color-mix(in oklch, var(--lav-400) 45%, transparent); background: rgba(181,171,252,.14); align-self: flex-start }
+  .pill:hover { background: rgba(181,171,252,.24) }
+  .sheet { border-radius: 18px; padding: 16px; background: #20203a; box-shadow: inset 0 0 0 1px var(--sys-edge), 0 24px 60px -24px #000; display: flex; flex-direction: column; gap: 14px; animation: land .4s both; transition: height .3s }
+  .shead { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid rgba(181,171,252,.16) }
+  .shead .title { flex: 1; font-family: var(--mono); font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--lav-400) }
+  .steps { display: flex; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500) }
+  .steps b { font-weight: 400; color: var(--ink-100) }
+  .drop { border-radius: 16px; padding: 34px 16px; text-align: center; border: 1.5px dashed color-mix(in oklch, var(--lav-400) 55%, transparent); color: var(--ink-300); animation: breathe 2.6s ease-in-out infinite; display: flex; flex-direction: column; gap: 6px; align-items: center }
+  .drop small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .row { display: grid; grid-template-columns: 58px minmax(0,1fr) auto auto; gap: 12px; align-items: center; padding: 10px 2px; border-top: 1px solid rgba(var(--lift),.06); animation: land .4s both }
+  .row:first-child { border-top: 0 }
+  .row .side { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--good) }
+  .row .amt { font-family: var(--mono); font-size: 13.5px }
+  .row .sub { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); margin-top: 2px }
+  .row .day { font-family: var(--mono); font-size: 11px; color: var(--ink-400) }
+  .row.had { opacity: .5 }
+  .tag { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; white-space: nowrap; color: var(--ink-400); background: rgba(var(--lift),.05) }
+  .tag.good { color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent) }
+  .tag.warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 12%, transparent) }
+  .sum { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px }
+  .sum div { border-radius: 12px; padding: 10px 12px; background: rgba(var(--lift),.04); display: flex; flex-direction: column; gap: 3px }
+  .sum b { font-weight: 300; font-size: 19px; font-variant-numeric: tabular-nums }
+  .line { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-200) }
+  .foot { display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap }
+  .go { padding: 9px 16px; border-radius: 999px; border: 0; background: var(--lav-400); color: #17152b; font-weight: 500 }
+  .quiet { padding: 9px 14px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300) }
+  .spin { width: 13px; height: 13px; border-radius: 999px; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite }
+  .done { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 22px 0; text-align: center }
+  .done .tick { width: 44px; height: 44px; border-radius: 999px; background: color-mix(in oklch, var(--good) 18%, transparent); color: var(--good); display: grid; place-items: center; animation: pop .5s both }
+  @keyframes land { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+  @keyframes breathe { 50% { border-color: var(--lav-300); box-shadow: 0 0 30px -12px var(--shine) } }
+  @keyframes pop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.15) } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  @media (max-width: 640px) { .tiles { grid-template-columns: repeat(2, minmax(0,1fr)) } .sum { grid-template-columns: 1fr } .head .px { font-size: 20px } .row { grid-template-columns: 44px minmax(0,1fr) auto } .row .tagc { display: none } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="scen" id="scen"></div>
+  <p class="note" id="note"></p>
+  <div class="frame">
+    <div class="head">
+      <div class="au">Au</div>
+      <div><h1>Gold</h1><p>XAU · gold · USD</p></div>
+      <div class="px">$4,183.10<small>€3,741.24 · price on Oct 13, 20:09 · Yahoo Finance</small></div>
+    </div>
+    <div class="tiles" id="tiles"></div>
+    <div id="body"></div>
+  </div>
+</div>
+<script>
+const I = {
+  plus: '<svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  check: '<svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+  alert: '<svg class="i" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+  up: '<svg class="i" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>',
+}
+/* His screenshot, 13 Oct: four buys of gold at Revolut. */
+const BUYS = [
+  ['Jul 23, 2026', 300, 0.08275, 3607.63],
+  ['Jun 10, 2026', 250, 0.069022, 3604.38],
+  ['Apr 30, 2026', 300, 0.074456, 4009.46],
+  ['Apr 16, 2026', 250, 0.059985, 4147.38],
+]
+const OLDER = [
+  ['Apr 1, 2026', 200, 0.047310, 4227.44],
+  ['Feb 12, 2026', 300, 0.074842, 4008.44],
+]
+const HELD = 0.408365
+const eur = (n) => '€' + n.toLocaleString('en-US', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })
+const oz = (n) => Number(n.toFixed(6)) + ' oz'
+const sumE = (r) => r.reduce((t, x) => t + x[1], 0)
+const sumU = (r) => r.reduce((t, x) => t + x[2], 0)
+
+const SCENES = {
+  page: ['the page today', 'Gold has no buys in any file, so "bought for" is empty. One button under it.'],
+  drop: ['drop', 'The window is named for Gold. Screenshots of its transactions, several at once.'],
+  reading: ['reading', 'Pressed or dropped: reading at once, the rows arrive as they are read.'],
+  part: ['some missing', 'Your screenshot: four buys, 0.286213 oz of the 0.408365 oz held. It says how much is still missing and saves what it has.'],
+  whole: ['all of it', 'With the older screenshots too, the buys reach what is held.'],
+  again: ['same screenshot again', 'Every row is already saved: nothing to add, nothing doubled.'],
+  saved: ['saved', '"Bought for" fills in, the gain shows, BUY dots appear on the chart.'],
+}
+let scene = 'page'
+
+function rows(list, had = []) {
+  return list.map(([day, e, u, p], i) => `
+    <div class="row ${had.includes(i) ? 'had' : ''}" style="animation-delay:${i * 60}ms">
+      <span class="side">BUY</span>
+      <span><div class="amt">${eur(e)}</div><div class="sub">${oz(u)} at ${eur(p)}</div></span>
+      <span class="tagc">${had.includes(i) ? '<span class="tag">already saved</span>' : '<span class="tag good">new</span>'}</span>
+      <span class="day">${day}</span>
+    </div>`).join('')
+}
+function sheet(step, inner) {
+  return `<div class="sheet"><div class="shead"><span class="title">[ Add buys · Gold ]</span>
+    <span class="steps">${['drop', 'check', 'saved'].map((s) => s === step ? `<b>${s}</b>` : s).join(' · ')}</span></div>${inner}</div>`
+}
+function check(list, had = []) {
+  const fresh = list.filter((_, i) => !had.includes(i))
+  const u = sumU(list), miss = HELD - u
+  const whole = Math.abs(miss) < 0.0005
+  return sheet('check', `
+    <div class="sum">
+      <div><span class="caps">buys read</span><b>${list.length}</b><span class="caps">${had.length ? `${had.length} already saved` : 'all new'}</span></div>
+      <div><span class="caps">bought for</span><b>${eur(sumE(list))}</b><span class="caps">${oz(u)}</span></div>
+      <div><span class="caps">held at Revolut</span><b>${oz(HELD)}</b><span class="caps">screenshot · Oct 10</span></div>
+    </div>
+    <div class="line ${whole ? 'good' : 'warn'}">${whole ? I.check : I.alert}
+      <span>${whole ? 'The buys reach what is held.' : `${oz(miss)} of what is held is not in these buys — older ones are missing.`}</span></div>
+    <div>${rows(list, had)}</div>
+    <div class="foot">
+      ${fresh.length === 0 ? '<span class="tag">nothing new to save</span><button class="quiet" data-go="page">close</button>'
+        : `<button class="quiet" data-go="drop">${I.plus} more screenshots</button><button class="go" data-go="saved">save ${fresh.length} ${fresh.length === 1 ? 'buy' : 'buys'}</button>`}
+    </div>`)
+}
+function draw() {
+  document.getElementById('scen').innerHTML = Object.entries(SCENES).map(([k, v]) => `<button class="${k === scene ? 'on' : ''}" data-go="${k}">${v[0]}</button>`).join('')
+  document.getElementById('note').textContent = SCENES[scene][1]
+  const paid = scene === 'saved' ? sumE(BUYS) : null
+  const worth = 1527.79
+  document.getElementById('tiles').innerHTML = `
+    <div class="tile"><span class="caps">worth now</span><span class="v">${eur(worth)}</span><span class="s">${oz(HELD)}</span></div>
+    <div class="tile ${paid ? 'lit' : ''}"><span class="caps">bought for</span><span class="v ${paid ? '' : 'dim'}">${paid ? eur(paid) : '—'}</span>
+      <span class="s ${paid ? 'warn' : ''}">${paid ? `4 buys · ${oz(HELD - sumU(BUYS))} missing` : 'not in the files yet'}</span></div>
+    <div class="tile ${paid ? 'lit' : ''}"><span class="caps">since bought</span><span class="v dim">—</span>
+      <span class="s">${paid ? 'shown once every buy is in' : ''}</span></div>
+    <div class="tile"><span class="caps">account</span><span class="s" style="font-size:12px;color:var(--ink-200);display:flex;justify-content:space-between"><span>Revolut</span><span>${eur(worth)}</span></span></div>`
+  const body = document.getElementById('body')
+  if (scene === 'page') body.innerHTML = `<button class="pill" data-go="drop">${I.plus} add buys</button>`
+  if (scene === 'drop') body.innerHTML = sheet('drop', `<div class="drop" data-go="reading">${I.up}<span>Drop screenshots of Gold's transactions</span><small>from Revolut · several at once · or press to choose</small></div>`)
+  if (scene === 'reading') {
+    body.innerHTML = sheet('drop', `<div class="line"><span class="spin"></span><span>reading 1 screenshot…</span></div><div>${rows(BUYS.slice(0, 2))}</div>`)
+    setTimeout(() => { if (scene === 'reading') { scene = 'part'; draw() } }, 1600)
+  }
+  if (scene === 'part') body.innerHTML = check(BUYS)
+  if (scene === 'whole') body.innerHTML = check([...BUYS, ...OLDER])
+  if (scene === 'again') body.innerHTML = check(BUYS, [0, 1, 2, 3])
+  if (scene === 'saved') body.innerHTML = sheet('saved', `<div class="done"><span class="tick">${I.check}</span><b style="font-weight:400;font-size:17px">4 buys saved · ${eur(sumE(BUYS))}</b>
+    <span class="s caps warn">${oz(HELD - sumU(BUYS))} still missing — add older screenshots any time</span>
+    <div class="foot"><button class="quiet" data-go="drop">${I.plus} more screenshots</button><button class="go" data-go="page">done</button></div></div>`)
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-go]')
+  if (!b) return
+  scene = b.dataset.go
+  draw()
+})
+draw()
+</script>
+</body>
+</html>

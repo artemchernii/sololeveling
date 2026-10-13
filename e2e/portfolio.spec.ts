@@ -172,37 +172,38 @@ test('Portfolio: a thing sold out has its row and its page', async ({
   const across = (f: number) => plot.x + plot.width * f
   const mid = plot.y + plot.height / 2
   const height = (await read.boundingBox())?.height
-  await page.mouse.move(across(0.45), mid)
-  await expect(read).toContainText('$124')
+  await page.mouse.move(across(0.15), mid)
+  await expect(read).toContainText('$96')
   await expect(read).not.toContainText('latest price')
   /* The line keeps its height while its words change. */
   expect((await read.boundingBox())?.height).toBe(height)
   /* The sale sits on the stored price nearest its day: read there. */
-  await page.mouse.move(across(0.15), mid)
+  await page.mouse.move(across(0.45), mid)
   await expect(read).toContainText('sold')
-  await expect(read).toContainText('at $96')
+  await expect(read).toContainText('at $124')
   expect((await read.boundingBox())?.height).toBe(height)
   await page.screenshot({ ...shot('portfolio-chart-read'), fullPage: true })
   /* 1M shows the latest days only: the same place reads another day. */
   await position.getByRole('button', { name: '1M' }).click()
   await page.mouse.move(across(0.16), mid)
   await expect(read).toContainText('$124')
+  await expect(read).not.toContainText('$96')
   await position.getByRole('button', { name: '1Y' }).click()
   await page.mouse.move(across(0.15), mid)
   await expect(read).toContainText('$96')
-  /* The wheel zooms in on the latest day; the first one leaves. */
+  /* The wheel zooms in: the same place reads another day. */
+  await page.mouse.move(across(0.3), mid)
+  await expect(read).toContainText('$96')
   await page.mouse.move(across(0.6), mid)
   for (let i = 0; i < 6; i++) await page.mouse.wheel(0, -400)
-  await page.mouse.move(across(0.05), mid)
-  await expect(read).not.toContainText('$96')
-  /* A drag moves the chart back to it. */
-  await page.mouse.move(across(0.2), mid)
+  await page.mouse.move(across(0.3), mid)
+  await expect(read).toContainText('$124')
+  /* A drag moves the chart: the first day is under that place again. */
   await page.mouse.down()
-  await page.mouse.move(across(0.9), mid, { steps: 8 })
+  await page.mouse.move(across(0.61), mid, { steps: 8 })
   await page.mouse.up()
   await page.mouse.move(across(0.3), mid)
-  await page.mouse.move(across(0.31), mid)
-  await expect(read).toContainText(/\$96|\$124/)
+  await expect(read).toContainText('$96')
   /* Off the chart: the latest price again. */
   await page.mouse.move(plot.x - 30, plot.y - 60)
   await expect(read).toContainText('latest price')

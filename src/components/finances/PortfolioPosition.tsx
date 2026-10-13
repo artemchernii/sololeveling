@@ -96,10 +96,12 @@ export function PortfolioPosition({
   const [range, setRange] = useState<Range>('1Y')
   const today = useDayStarts(1).at(-1) as number
   const first = owned.at[0]
+  /* The whole year is read once; a range sets what of it is in view,
+     and the chart can be moved back from there (mockup chart.html). */
   const days = RANGES.find((r) => r.id === range)?.days ?? 366
   const line = useQuery(api.invest.priceLine, {
     instrumentId: first.instrumentId,
-    since: today - days * 86_400_000,
+    since: today - 366 * 86_400_000,
   })
   const slot = (i: number) =>
     i < owned.at.length
@@ -348,6 +350,7 @@ export function PortfolioPosition({
               }))}
             currency={first.currency}
             tone={gain === null ? 'plain' : up ? 'up' : 'down'}
+            since={today - days * 86_400_000}
           />
         </div>
       )}

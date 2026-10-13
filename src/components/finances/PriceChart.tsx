@@ -1,10 +1,24 @@
-import { useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  AreaSeries,
+  CrosshairMode,
+  createChart,
+  createSeriesMarkers,
+} from 'lightweight-charts'
+import type {
+  IChartApi,
+  ISeriesApi,
+  ISeriesMarkersPluginApi,
+  Time,
+  UTCTimestamp,
+} from 'lightweight-charts'
 
 import { Veiled } from '@/components/finances/Veil'
 import { money } from '@/lib/currency'
 import { euros } from '@/lib/money'
-import { BOX, between, nearest, priceChart } from '@/lib/priceChart'
+import { firstSince, priceSeries, seconds } from '@/lib/priceChart'
 import type { Mark } from '@/lib/priceChart'
+import { css, token } from '@/lib/tokenColour'
 
 const DAY = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
@@ -12,135 +26,192 @@ const DAY = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 })
 
+/* The line's colour, and what the library draws if the token is gone. */
 const TONE = {
-  up: 'var(--state-good)',
-  down: 'var(--state-danger)',
-  plain: 'var(--color-lav-400)',
-}
+  up: ['--state-good', '#4fd08a'],
+  down: ['--state-danger', '#ef6a5a'],
+  plain: ['--color-lav-400', '#b5abfc'],
+} as const
 
-/* One position's stored closes as a line, its buys and sells on it
-   (13 Oct, mockup portfolio.html). Green or red by whether the position
-   is up or down since bought; lavender when that is not known.
+const PLOT = 'h-[300px] rounded-[14px] sm:h-[380px]'
 
-   It reads under the pointer (13 Oct: "not like you can hover dots or
-   drag and see differences"): a day's stored close on the line, a buy or
-   a sell on its dot, and — dragged — two days with both prices and the
-   difference between them. The line of words above keeps its height. */
+const price = (v: number, currency: string) =>
+  money(Math.round(v * 100) / 100, currency)
+
+type Series = NonNullable<ReturnType<typeof priceSeries>>
+
+/* One position's stored closes as a line, its buys and sells on it,
+   drawn by TradingView's chart library (13 Oct: "library for sure",
+   mockup chart.html). Green or red by whether the position is up or down
+   since bought; lavender when that is not known.
+
+   The wheel or two fingers zoom, a drag moves it; a range pill sets what
+   is in view, of the year that is loaded. The line of words above reads
+   under the pointer — a day's stored close, a buy or a sell on its day —
+   and keeps its height. */
 export function PriceChart({
   points,
   marks,
   currency,
   tone,
+  since,
 }: {
   points: ReadonlyArray<{ asOf: number; price: number }> | undefined
   marks: ReadonlyArray<Mark>
   currency: string
   tone: keyof typeof TONE
+  /** The first moment of the range in view. */
+  since: number
 }) {
-  const chart = priceChart(
-    (points ?? []).map((p) => ({ t: p.asOf, v: p.price })),
-    marks,
-  )
-  const { w, h } = BOX
-  if (chart === null) {
+  /* By what they hold, not by the arrays: the page hands new ones on
+     every render, and a redraw would undo a zoom. */
+  const held = JSON.stringify([points ?? [], marks])
+  const series = useMemo(() => {
+    const [closes, trades] = JSON.parse(held) as [
+      Array<{ asOf: number; price: number }>,
+      Array<Mark>,
+    ]
+    return priceSeries(
+      closes.map((p) => ({ t: p.asOf, v: p.price })),
+      trades,
+    )
+  }, [held])
+  if (series === null) {
     return (
       <div
-        style={{ aspectRatio: `${w} / ${h}` }}
-        className="grid place-items-center rounded-[14px] bg-lift/[0.025] font-mono text-[11px] text-ink-500"
+        className={`${PLOT} grid place-items-center bg-lift/[0.025] font-mono text-[11px] text-ink-500`}
       >
         {points === undefined ? 'reading…' : 'no prices stored for this period'}
       </div>
     )
   }
-  return (
-    <Plot
-      key={`${chart.from}-${chart.to}-${chart.pts.length}`}
-      chart={chart}
-      currency={currency}
-      colour={TONE[tone]}
-    />
-  )
+  return <Plot series={series} currency={currency} tone={tone} since={since} />
 }
 
-const price = (v: number, currency: string) =>
-  money(Math.round(v * 100) / 100, currency)
-
 function Plot({
-  chart,
+  series,
   currency,
-  colour,
+  tone,
+  since,
 }: {
-  chart: NonNullable<ReturnType<typeof priceChart>>
+  series: Series
   currency: string
-  colour: string
+  tone: keyof typeof TONE
+  since: number
 }) {
-  const { w, h, left, right, top, bottom } = BOX
-  const { pts, dots } = chart
-  /* The close under the pointer, the dot under it, and a dragged pair —
-     which stays after the pointer lets go, until the next press. */
+  const { pts, on } = series
+  const box = useRef<HTMLDivElement>(null)
+  const chart = useRef<IChartApi | null>(null)
+  const line = useRef<ISeriesApi<'Area'> | null>(null)
+  const dots = useRef<ISeriesMarkersPluginApi<Time> | null>(null)
+  /* The stored close under the pointer; none at rest. */
   const [at, setAt] = useState<number | null>(null)
-  const [dot, setDot] = useState<number | null>(null)
-  const [pair, setPair] = useState<[number, number] | null>(null)
-  const from = useRef<number | null>(null)
+  const index = useRef(new Map<number, number>())
 
-  const place = (e: React.PointerEvent<SVGSVGElement>) => {
-    const r = e.currentTarget.getBoundingClientRect()
-    return {
-      x: ((e.clientX - r.left) / r.width) * w,
-      y: ((e.clientY - r.top) / r.height) * h,
+  useEffect(() => {
+    if (!box.current) return
+    const edge = css('--color-lav-400', '#b5abfc', 0.5)
+    const label = '#3a3566'
+    const c = createChart(box.current, {
+      autoSize: true,
+      layout: {
+        background: { color: 'transparent' },
+        textColor: css('--color-ink-500', '#6e6e84'),
+        fontFamily: token('--font-mono', 'ui-monospace, monospace'),
+        fontSize: 10,
+        /* The licence asks for TradingView's link on the page. */
+        attributionLogo: true,
+      },
+      grid: {
+        vertLines: { visible: false },
+        horzLines: { color: 'rgba(255,255,255,0.05)' },
+      },
+      rightPriceScale: { borderVisible: false },
+      /* A narrower window keeps the same days in view. */
+      timeScale: { borderVisible: false, lockVisibleTimeRangeOnResize: true },
+      crosshair: {
+        mode: CrosshairMode.Magnet,
+        vertLine: { color: edge, labelBackgroundColor: label },
+        horzLine: { color: edge, labelBackgroundColor: label },
+      },
+      /* A finger moving up or down scrolls the page, not the chart. */
+      handleScroll: { vertTouchDrag: false },
+      localization: {
+        timeFormatter: (t: Time) =>
+          typeof t === 'number' ? DAY.format(new Date(t * 1000)) : String(t),
+      },
+    })
+    line.current = c.addSeries(AreaSeries, {
+      lineWidth: 2,
+      priceLineVisible: false,
+    })
+    dots.current = createSeriesMarkers(line.current, [])
+    c.subscribeCrosshairMove((p) =>
+      setAt(
+        typeof p.time === 'number' ? (index.current.get(p.time) ?? null) : null,
+      ),
+    )
+    chart.current = c
+    return () => {
+      c.remove()
+      chart.current = null
+      line.current = null
+      dots.current = null
     }
-  }
-  const down = (e: React.PointerEvent<SVGSVGElement>) => {
-    const i = nearest(pts, place(e).x)
-    from.current = i
-    e.currentTarget.setPointerCapture(e.pointerId)
-    setPair(null)
-    setDot(null)
-    setAt(i)
-  }
-  const move = (e: React.PointerEvent<SVGSVGElement>) => {
-    const p = place(e)
-    const i = nearest(pts, p.x)
-    if (from.current !== null) {
-      setPair(i === from.current ? null : [from.current, i])
-      setAt(i)
-    } else if (pair === null) {
-      const d = dots.findIndex((m) => Math.hypot(m.x - p.x, m.y - p.y) < 10)
-      setDot(d < 0 ? null : d)
-      setAt(i)
-    }
-  }
-  const leave = () => {
-    if (from.current !== null || pair !== null) return
-    setAt(null)
-    setDot(null)
-  }
+  }, [])
 
-  const span = pair ? between(pts[pair[0]], pts[pair[1]]) : null
-  const spanUp = (span?.diff ?? 0) >= 0
-  const spanTone = spanUp ? 'var(--state-good)' : 'var(--state-danger)'
-  const held = dot === null ? null : dots[dot]
+  useEffect(() => {
+    const [name, fallback] = TONE[tone]
+    line.current?.applyOptions({
+      lineColor: css(name, fallback),
+      topColor: css(name, fallback, 0.22),
+      bottomColor: css(name, fallback, 0),
+    })
+  }, [tone])
+
+  useEffect(() => {
+    chart.current?.applyOptions({
+      localization: { priceFormatter: (p: number) => price(p, currency) },
+    })
+  }, [currency])
+
+  useEffect(() => {
+    const time = (i: number) => seconds(pts[i].t) as UTCTimestamp
+    index.current = new Map(pts.map((_, i) => [time(i), i]))
+    line.current?.setData(pts.map((p, i) => ({ time: time(i), value: p.v })))
+    const good = css('--state-good', '#4fd08a')
+    const bad = css('--state-danger', '#ef6a5a')
+    dots.current?.setMarkers(
+      [...on].flatMap(([i, ms]) =>
+        (['buy', 'sell'] as const)
+          .filter((side) => ms.some((m) => m.side === side))
+          .map((side) => ({
+            time: time(i),
+            position:
+              side === 'buy' ? ('belowBar' as const) : ('aboveBar' as const),
+            shape: 'circle' as const,
+            color: side === 'buy' ? good : bad,
+            size: 1,
+          })),
+      ),
+    )
+  }, [pts, on])
+
+  /* A range pill sets what is in view; the wheel and a drag go on from
+     there. A little air after the latest close, as the mockup has. */
+  useEffect(() => {
+    const first = firstSince(pts, since)
+    const air = pts.length - first > 20 ? 2 : 0
+    chart.current?.timeScale().setVisibleLogicalRange({
+      from: first - 0.5,
+      to: pts.length - 0.5 + air,
+    })
+  }, [pts, since])
+
   const seen = pts[at ?? pts.length - 1]
-  const guide = (p: { x: number; y: number }, stroke: string) => (
-    <g key={p.x}>
-      <line
-        x1={p.x}
-        x2={p.x}
-        y1={top}
-        y2={h - bottom}
-        stroke={stroke}
-        strokeDasharray="2 3"
-      />
-      <circle
-        cx={p.x}
-        cy={p.y}
-        r={4.5}
-        strokeWidth={2}
-        stroke={stroke}
-        className="fill-ground"
-      />
-    </g>
-  )
+  /* The key names only what is on the chart. */
+  const sides = new Set([...on.values()].flat().map((m) => m.side))
+  const held = at === null ? undefined : on.get(at)
 
   return (
     <div className="flex flex-col gap-2">
@@ -148,38 +219,21 @@ function Plot({
         data-testid="price-read"
         className="flex min-h-[42px] flex-wrap items-baseline gap-x-2 gap-y-0.5 font-mono text-[13px] text-foreground tabular-nums sm:min-h-[22px]"
       >
-        {span ? (
-          <>
-            <span className="text-[10.5px] text-ink-500">
-              {DAY.format(new Date(span.from.t))}
-            </span>
-            <span>{price(span.from.v, currency)}</span>
-            <span className="text-[10.5px] text-ink-500">
-              → {DAY.format(new Date(span.to.t))}
-            </span>
-            <span>{price(span.to.v, currency)}</span>
-            <span
-              className={`rounded-full px-2 py-0.5 text-[11.5px] ${spanUp ? 'bg-state-good/14 text-state-good' : 'bg-state-danger/14 text-state-danger'}`}
-            >
-              {spanUp ? '+' : '−'}
-              {price(Math.abs(span.diff), currency)} · {spanUp ? '▲' : '▼'}{' '}
-              {Math.abs(span.pct).toFixed(1)}%
-            </span>
-          </>
-        ) : held ? (
+        {held ? (
           <>
             <span
-              className={`rounded-full px-2 py-0.5 text-[11.5px] ${held.side === 'buy' ? 'bg-state-good/14 text-state-good' : 'bg-state-danger/14 text-state-danger'}`}
+              className={`rounded-full px-2 py-0.5 text-[11.5px] ${held[0].side === 'buy' ? 'bg-state-good/14 text-state-good' : 'bg-state-danger/14 text-state-danger'}`}
             >
-              {held.side === 'buy' ? 'bought' : 'sold'}
+              {held[0].side === 'buy' ? 'bought' : 'sold'}
             </span>
-            {held.eur === undefined ? null : (
+            {held[0].eur === undefined ? null : (
               <span>
-                <Veiled>{euros(held.eur)}</Veiled>
+                <Veiled>{euros(held[0].eur)}</Veiled>
               </span>
             )}
             <span className="text-[10.5px] text-ink-500">
-              {DAY.format(new Date(held.t))} · at {price(held.v, currency)}
+              {DAY.format(new Date(held[0].t))} · at {price(seen.v, currency)}
+              {held.length > 1 ? ` · and ${held.length - 1} more that day` : ''}
             </span>
           </>
         ) : (
@@ -192,121 +246,36 @@ function Plot({
           </>
         )}
       </div>
-      <svg
-        viewBox={`0 0 ${w} ${h}`}
+      {/* Its own layer: the library's canvases carry a z-index of their
+          own, and PR 2's tools draw above it. */}
+      <div
+        data-testid="price-plot"
         role="img"
         aria-label="Price over the period, with buys and sells"
-        onPointerDown={down}
-        onPointerMove={move}
-        onPointerUp={() => (from.current = null)}
-        onPointerCancel={() => (from.current = null)}
-        onPointerLeave={leave}
-        className="block h-auto w-full cursor-crosshair touch-pan-y overflow-visible select-none"
+        className={`${PLOT} relative z-0 overflow-hidden`}
       >
-        <defs>
-          <linearGradient id="price-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor={colour} stopOpacity=".22" />
-            <stop offset="1" stopColor={colour} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {chart.ticks.map((t) => (
-          <g key={t.y}>
-            <line
-              x1={left}
-              x2={w - right}
-              y1={t.y}
-              y2={t.y}
-              className="stroke-lift/6"
-            />
-            <text
-              x={w - right + 8}
-              y={t.y + 4}
-              className="fill-ink-500 font-mono text-[8.5px]"
-            >
-              {money(Math.round(t.v * 100) / 100, currency)}
-            </text>
-          </g>
-        ))}
-        <text
-          x={left}
-          y={h - 3}
-          className="fill-ink-500 font-mono text-[8.5px]"
-        >
-          {DAY.format(new Date(chart.from))}
-        </text>
-        <text
-          x={w - right}
-          y={h - 3}
-          textAnchor="end"
-          className="fill-ink-500 font-mono text-[8.5px]"
-        >
-          {DAY.format(new Date(chart.to))}
-        </text>
-        <path d={chart.area} fill="url(#price-fill)" />
-        <path
-          key={chart.line}
-          d={chart.line}
-          pathLength={24}
-          fill="none"
-          stroke={colour}
-          strokeWidth={2}
-          strokeLinejoin="round"
-          className="motion-draw"
-        />
-        {chart.dots.map((d) => (
-          <circle
-            key={`${d.t}-${d.side}-${d.eur ?? ''}`}
-            cx={d.x}
-            cy={d.y}
-            r={5}
-            strokeWidth={2}
-            className={`fill-ground ${d.side === 'buy' ? 'stroke-state-good' : 'stroke-state-danger'}`}
-          />
-        ))}
-        <circle cx={chart.last.x} cy={chart.last.y} r={4} fill={colour} />
-        <g className="pointer-events-none">
-          {span && pair ? (
-            <>
-              <rect
-                x={Math.min(pts[pair[0]].x, pts[pair[1]].x)}
-                y={top}
-                width={Math.abs(pts[pair[1]].x - pts[pair[0]].x)}
-                height={h - top - bottom}
-                fill={spanTone}
-                opacity={0.1}
+        <div ref={box} className="absolute inset-0" />
+      </div>
+      <div className="flex flex-wrap gap-x-3.5 gap-y-1 font-mono text-[10.5px] text-ink-500">
+        {(['buy', 'sell'] as const)
+          .filter((side) => sides.has(side))
+          .map((side) => (
+            <span key={side} className="flex items-center gap-1.5">
+              <i
+                className={`size-[9px] rounded-full border-2 ${side === 'buy' ? 'border-state-good' : 'border-state-danger'}`}
               />
-              {guide(pts[pair[0]], spanTone)}
-              {guide(pts[pair[1]], spanTone)}
-            </>
-          ) : held ? (
-            <circle
-              cx={held.x}
-              cy={held.y}
-              r={9}
-              opacity={0.25}
-              fill={
-                held.side === 'buy'
-                  ? 'var(--state-good)'
-                  : 'var(--state-danger)'
-              }
-            />
-          ) : at !== null ? (
-            guide(pts[at], 'var(--color-ink-300)')
-          ) : null}
-        </g>
-      </svg>
-      {chart.dots.length > 0 ? (
-        <div className="flex flex-wrap gap-x-3.5 gap-y-1 font-mono text-[10.5px] text-ink-500">
-          <span className="flex items-center gap-1.5">
-            <i className="size-[9px] rounded-full border-2 border-state-good" />
-            bought
-          </span>
-          <span className="flex items-center gap-1.5">
-            <i className="size-[9px] rounded-full border-2 border-state-danger" />
-            sold
-          </span>
-        </div>
-      ) : null}
+              {side === 'buy' ? 'bought' : 'sold'}
+            </span>
+          ))}
+        <a
+          href="https://www.tradingview.com/"
+          target="_blank"
+          rel="noreferrer"
+          className="ml-auto hover:text-ink-300"
+        >
+          TradingView Lightweight Charts™ · © 2025 TradingView, Inc.
+        </a>
+      </div>
     </div>
   )
 }

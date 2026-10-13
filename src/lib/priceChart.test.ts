@@ -26,9 +26,7 @@ describe('priceSeries', () => {
       { t: DAY + 3_600_000, side: 'buy', eur: 250 },
     ])!
     expect([...s.on.keys()]).toEqual([1])
-    expect(s.on.get(1)).toEqual([
-      { t: DAY + 3_600_000, side: 'buy', eur: 250 },
-    ])
+    expect(s.on.get(1)).toEqual([{ t: DAY + 3_600_000, side: 'buy', eur: 250 }])
   })
 
   it('keeps two trades of one day together, earlier first', () => {

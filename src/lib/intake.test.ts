@@ -889,6 +889,52 @@ describe('his own money', () => {
   })
 })
 
+describe("a metal's buys read from a bank app (14 Oct)", () => {
+  test('the fee is what was paid over units × price', () => {
+    const r = parseReading(
+      JSON.stringify({
+        kind: 'trades',
+        title: 'Buy XAU',
+        institution: 'Revolut',
+        account_tail: null,
+        holder_name: null,
+        currency: 'EUR',
+        transactions: [],
+        positions: [],
+        trades: [
+          {
+            date: '2026-07-23',
+            name: 'XAU',
+            isin: null,
+            side: 'buy',
+            shares: 0.08275,
+            price: 3607.63,
+            currency: 'EUR',
+            fee: null,
+            paid: -300,
+            crypto: false,
+          },
+          {
+            date: '2026-06-10',
+            name: 'XAU',
+            isin: null,
+            side: 'buy',
+            shares: 0.069022,
+            price: 3604.38,
+            currency: 'EUR',
+            fee: null,
+            paid: 0,
+            crypto: false,
+          },
+        ],
+        closing_balance: null,
+        closing_balance_date: null,
+      }),
+    )
+    expect(r.ok ? r.trades.map((t) => t.fee) : null).toEqual([1.47, undefined])
+  })
+})
+
 describe('a crypto statement read (4 Oct)', () => {
   test('keeps staking rewards at price 0, the fee and the coin flag', () => {
     const r = parseReading(

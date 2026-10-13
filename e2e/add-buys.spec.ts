@@ -38,7 +38,7 @@ test('ADD BUYS: four buys read, some of what is held still missing, saved', asyn
   await expect(check).toContainText('0.408365 oz')
   await expect(sheet.getByTestId('buys-row')).toHaveCount(4)
   await expect(sheet.getByTestId('buys-line')).toContainText(
-    '0.122152 oz of what is held is not in the buys',
+    '0.122152 oz missing',
   )
   /* A month with no buy is not a statement missing. */
   await expect(sheet.getByText('A statement may be missing')).toHaveCount(0)
@@ -50,8 +50,13 @@ test('ADD BUYS: four buys read, some of what is held still missing, saved', asyn
   await expect(sheet.getByText(/saving/i).first()).toBeVisible()
   await expect(sheet.getByText('4 buys saved · Gold')).toBeVisible()
   await expect(sheet.getByText(/up to date/)).toHaveCount(0)
+  /* Its icon, the sum, and the buys themselves — nothing to open. */
+  await expect(sheet.getByText('4 buys added')).toBeVisible()
+  await expect(sheet.getByText('€1,094.62')).toBeVisible()
+  await expect(sheet.getByTestId('buys-row')).toHaveCount(4)
+  await expect(sheet.getByRole('button', { name: 'rows' })).toHaveCount(0)
   await expect(sheet.getByTestId('buys-line')).toContainText(
-    '0.122152 oz of what is held is not in the buys',
+    '0.122152 oz missing',
   )
   await page.waitForTimeout(700)
   await page.screenshot({ ...shot('add-buys-saved'), fullPage: true })

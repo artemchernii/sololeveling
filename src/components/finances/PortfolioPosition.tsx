@@ -287,9 +287,11 @@ export function PortfolioPosition({
                       occurredAt: t.occurredAt,
                       side: t.side,
                       shares: t.shares,
+                      priceEur: t.priceEur,
                     },
                   ],
             ),
+            logo: { symbol: owned.symbol, type: owned.type, name: owned.name },
           }}
           at={owned.at}
           accountOf={accountOf}

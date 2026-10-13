@@ -1,4 +1,4 @@
-import { BuysLine, useBuysLanded } from '@/components/finances/BuysCheck'
+import { BuysSaved, useBuysLanded } from '@/components/finances/BuysCheck'
 import { useEffect, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
@@ -320,33 +320,37 @@ export function Applied({
   if (undone) return <Undone onClose={onClose} />
   /* Opened for one thing (ADD BUYS): the save is said of that thing,
      not of the whole account. */
-  const count = accounts.reduce((t, a) => t + a.added, 0)
-  const buys = `${count} ${count === 1 ? 'buy' : 'buys'}`
-  return (
-    <AccountsLanded
-      accounts={
-        landed
-          ? accounts.map((a) => ({
-              ...a,
-              what: a.added > 0 ? `${landed.thing.name}` : 'nothing new',
-            }))
-          : accounts
-      }
-      cash={landed ? false : undefined}
-      bare={landed !== null}
-      title={
-        landed
-          ? count > 0
-            ? `${buys} saved · ${landed.thing.name}`
-            : `Nothing new for ${landed.thing.name}`
-          : undefined
-      }
-      note={
-        landed?.check ? (
-          <BuysLine check={landed.check} thing={landed.thing} />
-        ) : null
-      }
+  const done = (
+    <button
+      type="button"
+      onClick={onClose}
+      className={`${PILL_LOUD} justify-center px-8 py-2.5`}
     >
+      done
+    </button>
+  )
+  if (landed) {
+    const count = accounts.reduce((t, a) => t + a.added, 0)
+    return (
+      <div className="flex flex-col items-center gap-4 py-5">
+        <span className="motion-pop grid size-14 place-items-center rounded-full bg-state-good/16 text-state-good shadow-[0_0_36px_-6px_var(--color-state-good)] ring-1 ring-state-good/45">
+          <Check className="size-7" strokeWidth={2.5} />
+        </span>
+        <span className="motion-land text-center text-[24px] font-light text-foreground">
+          {count > 0
+            ? `${count} ${count === 1 ? 'buy' : 'buys'} saved · ${landed.thing.name}`
+            : `Nothing new for ${landed.thing.name}`}
+        </span>
+        <BuysSaved thing={landed.thing} check={landed.check} added={count} />
+        <div className="flex flex-wrap justify-center gap-2 pt-1">
+          <UndoSave batchId={batchId} onUndone={() => setUndone(true)} />
+          {done}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <AccountsLanded accounts={accounts}>
       <UndoSave batchId={batchId} onUndone={() => setUndone(true)} />
       {waiting > 0 ? (
         <button type="button" onClick={onMore} className={PILL_QUIET}>

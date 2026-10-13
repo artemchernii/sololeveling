@@ -4,6 +4,7 @@ import { Check, TriangleAlert } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
+import { TickerLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { buysCheck } from '@/lib/addBuys'
 import type { SavedTrade } from '@/lib/addBuys'
@@ -23,7 +24,9 @@ export type BuysFor = {
   /** "0.286213 oz", "3 shares". */
   amount: (n: number) => string
   /** Its buys and sells saved so far. */
-  saved: ReadonlyArray<SavedTrade>
+  saved: ReadonlyArray<SavedTrade & { priceEur: number }>
+  /** What its icon is drawn from. */
+  logo: { symbol: string; type: string; name: string }
 }
 export const BuysContext = createContext<BuysFor | null>(null)
 export const useBuysFor = () => useContext(BuysContext)
@@ -63,16 +66,20 @@ export function BuysLine({
       )}
       <span className="text-ink-100">
         {ok ? (
-          'The buys reach what is held.'
+          'Every buy is in.'
         ) : check.state === 'missing' ? (
           <>
-            <Veiled>{thing.amount(check.missing)}</Veiled> of what is held is
-            not in the buys — older ones are missing.
+            <b className="font-medium text-state-warn">
+              <Veiled>{thing.amount(check.missing)}</Veiled> missing
+            </b>{' '}
+            — add older buys.
           </>
         ) : (
           <>
-            The buys are <Veiled>{thing.amount(-check.missing)}</Veiled> more
-            than is held.
+            <b className="font-medium text-state-warn">
+              <Veiled>{thing.amount(-check.missing)}</Veiled> too much
+            </b>{' '}
+            — more bought than held.
           </>
         )}
       </span>
@@ -119,41 +126,7 @@ function Read({ batchId, thing }: { batchId: Id<'batches'>; thing: BuysFor }) {
           else, not {thing.name}.
         </p>
       ) : null}
-      <div className="flex flex-col">
-        {c.rows.map((r, i) => (
-          <div
-            key={`${r.occurredAt}:${i}`}
-            data-testid="buys-row"
-            style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}
-            className={`motion-arrive grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-lift/6 py-2.5 first:border-t-0 ${r.had ? 'opacity-50' : ''}`}
-          >
-            <span
-              className={`rounded-full px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${r.side === 'sell' ? 'bg-state-danger/14 text-state-danger' : 'bg-state-good/14 text-state-good'}`}
-            >
-              {r.side}
-            </span>
-            <span className="flex min-w-0 flex-col gap-0.5 font-mono">
-              <span className="text-[13.5px] text-foreground">
-                <Veiled>
-                  {r.eur === null ? thing.amount(r.shares) : euros(r.eur)}
-                </Veiled>
-              </span>
-              <span className="truncate text-[10.5px] text-ink-500">
-                <Veiled>{thing.amount(r.shares)}</Veiled>
-                {r.currency === 'EUR' ? ` at ${euros(r.price)}` : ''}
-              </span>
-            </span>
-            <span
-              className={`rounded-full px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${r.had ? 'bg-lift/[0.05] text-ink-400' : 'bg-state-good/12 text-state-good'}`}
-            >
-              {r.had ? 'already saved' : 'new'}
-            </span>
-            <span className="font-mono text-[11px] text-ink-400">
-              {DAY.format(new Date(r.occurredAt))}
-            </span>
-          </div>
-        ))}
-      </div>
+      <BuyRows rows={c.rows} thing={thing} />
     </div>
   )
 }
@@ -193,4 +166,113 @@ export function useBuysLanded(batchId: Id<'batches'>) {
       ? undefined
       : buysCheck(read, thing.saved, thing.symbols, thing.held)
   return { thing, check }
+}
+
+/** Each buy: a badge, what it was for, the units and the day. `plain`
+    on the saved screen, where nothing is new or old any more. */
+function BuyRows({
+  rows,
+  thing,
+  plain = false,
+}: {
+  rows: ReturnType<typeof buysCheck>['rows']
+  thing: BuysFor
+  plain?: boolean
+}) {
+  return (
+    <div className="flex flex-col">
+      {rows.map((r, i) => (
+        <div
+          key={`${r.occurredAt}:${i}`}
+          data-testid="buys-row"
+          style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}
+          className={`motion-arrive grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-lift/6 py-2.5 first:border-t-0 ${r.had && !plain ? 'opacity-50' : ''}`}
+        >
+          <span
+            className={`rounded-full px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${r.side === 'sell' ? 'bg-state-danger/14 text-state-danger' : 'bg-state-good/14 text-state-good'}`}
+          >
+            {r.side}
+          </span>
+          <span className="flex min-w-0 flex-col gap-0.5 font-mono">
+            <span className="text-[13.5px] text-foreground">
+              <Veiled>
+                {r.eur === null ? thing.amount(r.shares) : euros(r.eur)}
+              </Veiled>
+            </span>
+            <span className="truncate text-[10.5px] text-ink-500">
+              <Veiled>{thing.amount(r.shares)}</Veiled>
+              {r.currency === 'EUR' ? ` at ${euros(r.price)}` : ''}
+            </span>
+          </span>
+          {plain ? (
+            <span />
+          ) : (
+            <span
+              className={`rounded-full px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${r.had ? 'bg-lift/[0.05] text-ink-400' : 'bg-state-good/12 text-state-good'}`}
+            >
+              {r.had ? 'already saved' : 'new'}
+            </span>
+          )}
+          <span className="font-mono text-[11px] text-ink-400">
+            {DAY.format(new Date(r.occurredAt))}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** The saved screen, said of the thing: its icon, how many buys went
+    in and what they come to, the units beside what is held, and the
+    buys themselves — no account card, no "rows" to open (14 Oct: "no
+    icon, bland … rows I clicked and see nothing"). */
+export function BuysSaved({
+  thing,
+  check,
+  added,
+}: {
+  thing: BuysFor
+  check: ReturnType<typeof buysCheck> | undefined
+  added: number
+}) {
+  const buys = thing.saved.filter((t) => t.side === 'buy')
+  const total =
+    Math.round(buys.reduce((t, b) => t + b.shares * b.priceEur, 0) * 100) / 100
+  return (
+    <div className="flex w-full max-w-xl flex-col gap-3">
+      <div className="motion-arrive flex items-center gap-3.5 rounded-[16px] bg-state-good/[0.06] px-4 py-3.5 ring-1 ring-state-good/30 ring-inset">
+        <TickerLogo {...thing.logo} size={44} />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate text-[17px] text-foreground">
+            {thing.name}
+          </span>
+          <span className="font-mono text-[11px] text-state-good">
+            {added > 0
+              ? `${added} ${added === 1 ? 'buy' : 'buys'} added`
+              : 'nothing new'}
+          </span>
+        </div>
+        <div className="flex flex-col items-end gap-0.5">
+          <span className="text-[22px] leading-tight font-light text-foreground tabular-nums">
+            <Veiled>{euros(total)}</Veiled>
+          </span>
+          <span className="label-caps">buy total</span>
+        </div>
+      </div>
+      {check ? (
+        <>
+          <div className="grid grid-cols-2 gap-2.5">
+            <Sum label="held" value={thing.amount(check.held)} veiled>
+              at the broker
+            </Sum>
+            <Sum label="in the buys" value={thing.amount(check.units)} veiled>
+              {buys.length} {buys.length === 1 ? 'buy' : 'buys'}
+            </Sum>
+          </div>
+          <BuysLine check={check} thing={thing} />
+          <BuyRows rows={check.rows} thing={thing} plain />
+        </>
+      ) : null}
+    </div>
+  )
 }

@@ -15,6 +15,7 @@ import {
   PositionMissing,
 } from '@/components/finances/PortfolioPosition'
 import { combine } from '@/lib/owned'
+import { soldSums } from '@/lib/sold'
 import type { Position } from '@/components/finances/PortfolioList'
 import { ProfitPill, paidSums } from '@/components/finances/PortfolioParts'
 import { kindOf } from '@/lib/logo'
@@ -53,11 +54,18 @@ export function Portfolio({ position }: { position?: string }) {
   )
   const sums = paidSums(data.rows, data.usdRate)
 
-  /* One position has the room to itself (13 Oct): its own address. */
+  /* One position has the room to itself (13 Oct): its own address — and
+     so has a thing sold out, read with the accounts it was in. */
   if (position !== undefined) {
     const owned = combine(data.rows).find((o) => o.instrumentId === position)
-    return owned ? (
-      <PortfolioPosition owned={owned} holders={holders} />
+    if (owned) return <PortfolioPosition owned={owned} holders={holders} />
+    const gone = combine(data.sold).find((o) => o.instrumentId === position)
+    return gone ? (
+      <PortfolioPosition
+        owned={gone}
+        holders={accounts}
+        sold={soldSums(gone.paid, gone.at)}
+      />
     ) : (
       <PositionMissing />
     )
@@ -218,9 +226,10 @@ export function Portfolio({ position }: { position?: string }) {
         </div>
       ) : null}
 
-      {data.rows.length > 0 ? (
+      {data.rows.length > 0 || data.sold.length > 0 ? (
         <PortfolioList
           rows={data.rows}
+          sold={data.sold}
           holders={holders}
           filter={filter}
           onFilter={setFilter}

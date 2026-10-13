@@ -90,6 +90,18 @@ test('Portfolio: empty, then the positions a screenshot brought', async ({
   await position.getByRole('link', { name: 'Portfolio' }).click()
   await expect(rows).toHaveCount(2)
 
+  /* What was sold out is folded under what is owned, until asked for. */
+  await testClient().mutation(anyApi.e2ePortfolio.soldOut, {})
+  const fold = page.getByRole('button', { name: 'sold · 1' })
+  await expect(fold).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByTestId('sold-row')).toHaveCount(0)
+  await fold.click()
+  await expect(fold).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByTestId('sold-row')).toContainText('Shopify Inc.')
+  await expect(rows).toHaveCount(2)
+  await page.waitForTimeout(600)
+  await page.screenshot({ ...shot('portfolio-held-sold'), fullPage: true })
+
   /* A phone: nothing runs off the side. */
   await page.setViewportSize({ width: 375, height: 812 })
   await expect(rows.first()).toContainText('Apple')
@@ -109,4 +121,58 @@ test('Portfolio: empty, then the positions a screenshot brought', async ({
     ),
   ).toBe(true)
   await page.screenshot({ ...shot('portfolio-position-phone'), fullPage: true })
+})
+
+/* What was sold out has its rows and a page, with nothing owned (13 Oct). */
+test('Portfolio: a thing sold out has its row and its page', async ({
+  page,
+}) => {
+  await start(page)
+  await page.goto('/finances?room=portfolio')
+  await expect(page.getByText('Nothing owned yet')).toBeVisible()
+  await expect(page.getByRole('button', { name: /^sold/ })).toHaveCount(0)
+
+  await testClient().mutation(anyApi.e2ePortfolio.soldOut, {})
+  /* Nothing is owned, so the sold rows are the list: no fold to open. */
+  await expect(page.getByText('sold · 1')).toBeVisible()
+  const rows = page.getByTestId('sold-row')
+  await expect(rows).toHaveCount(1)
+  await expect(rows.first()).toContainText('Shopify Inc.')
+  await expect(rows.first()).toContainText(/SHOP · all sold .+ \d{4}/)
+  await expect(rows.first()).toContainText('sold for')
+  await expect(rows.first()).toContainText('bought for')
+  await expect(page.getByTestId('owned-row')).toHaveCount(0)
+  await page.waitForTimeout(600)
+  await page.screenshot({ ...shot('portfolio-sold'), fullPage: true })
+
+  await rows.first().getByRole('link').click()
+  await expect(page).toHaveURL(/position=/)
+  const position = page.getByTestId('position-page')
+  await expect(
+    position.getByRole('heading', { name: 'Shopify Inc.' }),
+  ).toBeVisible()
+  await expect(position.getByText(/^all sold .+ \d{4}$/)).toBeVisible()
+  for (const label of ['worth now', 'bought for', 'sold for', 'up when sold'])
+    await expect(position.getByText(label, { exact: true })).toBeVisible()
+  await expect(position.getByText('bought and sold · 3')).toBeVisible()
+  await page.waitForTimeout(800)
+  await page.screenshot({ ...shot('portfolio-sold-position'), fullPage: true })
+
+  /* Its address alone opens it. */
+  await page.reload()
+  await expect(
+    position.getByRole('heading', { name: 'Shopify Inc.' }),
+  ).toBeVisible()
+
+  /* A phone: nothing runs off the side. */
+  await page.setViewportSize({ width: 375, height: 812 })
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true)
+  await page.screenshot({
+    ...shot('portfolio-sold-position-phone'),
+    fullPage: true,
+  })
 })

@@ -873,6 +873,43 @@ const batchFile = v.object({
 })
 
 /** A batch while it is read: every file, where it is heading, how far. */
+/**
+ * The buys and sells a batch's files hold, each with the ticker it was
+ * matched to — for ADD BUYS on one position's page (14 Oct), which puts
+ * the units read beside the units held. Trade rows as read, nothing
+ * worked out.
+ */
+export const batchBuys = query({
+  args: { batchId: v.id('batches') },
+  returns: v.array(
+    v.object({
+      accountId: v.union(v.id('accounts'), v.null()),
+      occurredAt: v.number(),
+      side: v.union(v.literal('buy'), v.literal('sell'), v.literal('reward')),
+      shares: v.number(),
+      price: v.number(),
+      currency: v.string(),
+      symbol: v.union(v.string(), v.null()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const b = await ctx.db.get(args.batchId)
+    if (b === null || b.ownerId !== ownerId) return []
+    return (await batchIntakes(ctx, ownerId, args.batchId)).flatMap((i) =>
+      (i.trades ?? []).map((t) => ({
+        accountId: i.accountId ?? null,
+        occurredAt: t.occurredAt,
+        side: t.side,
+        shares: t.shares,
+        price: t.price,
+        currency: t.currency,
+        symbol: t.candidates[t.preferred ?? 0]?.symbol ?? null,
+      })),
+    )
+  },
+})
+
 export const batch = query({
   args: { batchId: v.id('batches') },
   returns: v.object({
@@ -3273,11 +3310,17 @@ export async function gatherBatch(
           .filter((q) => q.accountId === accountId)
           .map((q) => q.month)
       : []
+    /* A month with no buy is not a statement missing (14 Oct: a
+       screenshot of four gold buys asked "no rows in May?"). Only files
+       of money rows can have a hole. */
+    const money = g.list.some((i) => i.kind === 'transactions')
     const cover = coverage(
       months,
       had.map((l) => l.occurredAt),
       adds,
       quiet,
+    ).map((c) =>
+      c.state === 'hole' && !money ? { ...c, state: 'none' as const } : c,
     )
     /* A gap the pending rows account for is not one: the app showed the
        balance with them already taken off. */

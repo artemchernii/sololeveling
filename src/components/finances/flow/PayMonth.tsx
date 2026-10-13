@@ -62,7 +62,20 @@ export function PayMonth({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="system-title">
           [ PAY MONTH · {dayMonth(c.start)} → ~{dayMonth(c.end)} ·{' '}
-          {c.salaryLate ? 'salary not seen yet' : `day ${c.day} of ${c.length}`}{' '}
+          {c.salaryLate ? (
+            'salary not seen yet'
+          ) : (
+            /* Where the month stands is the part read first (13 Oct). */
+            <>
+              <span
+                data-testid="pay-day"
+                className="rounded-[6px] bg-lav-400/20 px-1.5 py-0.5 text-lav-100 ring-1 ring-lav-400/45 ring-inset"
+              >
+                day {c.day}
+              </span>{' '}
+              of {c.length}
+            </>
+          )}{' '}
           ]
         </span>
         <span className="label-caps">

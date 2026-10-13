@@ -221,3 +221,21 @@ export function AccountList({
     </div>
   )
 }
+
+/* An amount that changes in place (13 Oct: prices are read often and the
+   whole total popped each time — "jumping is not good"). Only the
+   characters that changed fade in; the rest do not move. Each is keyed by
+   its place from the right, so €9,999 → €10,000 keeps its cents still;
+   equal-width digits keep the line from shifting. */
+export function Steady({ text }: { text: string }) {
+  const chars = [...text]
+  return (
+    <span className="tabular-nums">
+      {chars.map((ch, i) => (
+        <span key={`${chars.length - i}:${ch}`} className="motion-fade">
+          {ch}
+        </span>
+      ))}
+    </span>
+  )
+}

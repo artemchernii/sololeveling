@@ -65,3 +65,20 @@ export function between(a: Pt, b: Pt) {
   const diff = Math.round((to.v - from.v) * 100) / 100
   return { from, to, diff, pct: from.v > 0 ? (diff / from.v) * 100 : 0 }
 }
+
+/**
+ * The ruler: from the point where a drag began to where it ended — two
+ * levels read off the price axis, not stored closes, each on the stored
+ * day under it. Allowed with `between()` on the same condition: both
+ * levels and both days go with the difference, and the days between.
+ */
+export function ruler(from: Pt, to: Pt) {
+  const diff = Math.round((to.v - from.v) * 100) / 100
+  return {
+    from,
+    to,
+    diff,
+    pct: from.v > 0 ? (diff / from.v) * 100 : 0,
+    days: Math.round(Math.abs(to.t - from.t) / DAY),
+  }
+}

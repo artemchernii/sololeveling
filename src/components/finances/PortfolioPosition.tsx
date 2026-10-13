@@ -6,6 +6,8 @@ import { Check, ChevronLeft, Sparkles, TriangleAlert } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
+import { ToolPills } from '@/components/finances/ChartTools'
+import type { Tool } from '@/components/finances/ChartTools'
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import { PriceChart } from '@/components/finances/PriceChart'
 import type { Position } from '@/components/finances/PortfolioList'
@@ -94,6 +96,7 @@ export function PortfolioPosition({
   /* An account's trades are read one account at a time (invest.trades);
      a position is in a few accounts at most, so four fixed readings. */
   const [range, setRange] = useState<Range>('1Y')
+  const [tool, setTool] = useState<Tool | null>(null)
   const today = useDayStarts(1).at(-1) as number
   const first = owned.at[0]
   /* The whole year is read once; a range sets what of it is in view,
@@ -323,9 +326,10 @@ export function PortfolioPosition({
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
             <span className="label-caps">price</span>
-            <div className="flex gap-1.5">
+            <ToolPills tool={tool} onTool={setTool} />
+            <div className="ml-auto flex gap-1.5">
               {RANGES.map((r) => (
                 <button
                   key={r.id}
@@ -351,6 +355,7 @@ export function PortfolioPosition({
             currency={first.currency}
             tone={gain === null ? 'plain' : up ? 'up' : 'down'}
             since={today - days * 86_400_000}
+            tool={tool}
           />
         </div>
       )}

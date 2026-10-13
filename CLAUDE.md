@@ -56,7 +56,11 @@ The difference between two stored prices was allowed on 2026-10-13, on one
 screen: the price chart of one position, when Artem drags from one day to
 another ("lets do with drags"). Its conditions: only that chart
 (`between()` in `src/lib/priceChart.ts`), both prices and both days always
-shown beside it, nothing stored, nothing graded. It is not a licence for
+shown beside it, nothing stored, nothing graded. The same day the ruler
+was allowed on that chart ("go" on the mockup `chart.html`): the
+difference between two levels read off the price axis, not stored prices
+(`ruler()` beside `between()`), with both levels and both days always
+shown and the days between. It is not a licence for
 indicators — RSI and moving averages still wait for their own yes.
 The fourth was added deliberately, on 2026-09-09, because money cannot be
 tracked without prices that come from outside. That is the bar for adding

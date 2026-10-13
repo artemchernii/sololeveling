@@ -217,7 +217,7 @@ test('Portfolio: a thing sold out has its row and its page', async ({
   await page.mouse.down()
   await page.mouse.move(across(0.5), plot.y + plot.height * 0.3, { steps: 8 })
   await page.mouse.up()
-  await expect(read).toContainText(/from .+\d{4}.+\$.+to .+\d{4}.+\$/)
+  await expect(read).toContainText(/from .+\d{4}.*\$.+to .+\d{4}.*\$/)
   await expect(read).toContainText(/\+\$[\d.]+ · ▲ [\d.]+% · \d+ days/)
   await expect(shape).toBeVisible()
   await expect(shape).toContainText(/▲ [\d.]+% · \d+ days/)

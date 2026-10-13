@@ -222,6 +222,27 @@ export function ToolLayer({
       last = null
       soon()
     }
+    /* The wheel still zooms with a tool lit: it is handed to the
+       chart under the layer, and what was measured follows. */
+    const wheel = (e: WheelEvent) => {
+      const under = document
+        .elementsFromPoint(e.clientX, e.clientY)
+        .find((n) => n instanceof HTMLCanvasElement)
+      if (!under) return
+      e.preventDefault()
+      under.dispatchEvent(
+        new WheelEvent('wheel', {
+          deltaX: e.deltaX,
+          deltaY: e.deltaY,
+          deltaMode: e.deltaMode,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          ctrlKey: e.ctrlKey,
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+    }
     const esc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') clear()
     }
@@ -232,6 +253,7 @@ export function ToolLayer({
     el.addEventListener('pointermove', move)
     el.addEventListener('pointerup', up)
     el.addEventListener('pointercancel', up)
+    el.addEventListener('wheel', wheel, { passive: false })
     window.addEventListener('keydown', esc)
     return () => {
       gone = true
@@ -241,6 +263,7 @@ export function ToolLayer({
       el.removeEventListener('pointermove', move)
       el.removeEventListener('pointerup', up)
       el.removeEventListener('pointercancel', up)
+      el.removeEventListener('wheel', wheel)
       window.removeEventListener('keydown', esc)
       rect.style.display = 'none'
       live.current.onRead(null)

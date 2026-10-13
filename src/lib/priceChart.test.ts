@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { between, firstSince, nearest, priceSeries, ruler } from './priceChart'
+import {
+  between,
+  firstSince,
+  nearMark,
+  nearest,
+  priceSeries,
+  ruler,
+} from './priceChart'
 
 const DAY = 86_400_000
 const points = [
@@ -64,6 +71,18 @@ describe('what the pointer reads', () => {
     expect(nearest(xs, -50)).toBe(0)
     expect(nearest(xs, 378)).toBe(2)
     expect(nearest(xs, 620)).toBe(3)
+  })
+
+  it('reads the dot within reach of the pointer, the nearest one', () => {
+    const dots = [
+      { i: 3, x: 100 },
+      { i: 9, x: 112 },
+    ]
+    expect(nearMark(dots, 104, 9)).toBe(3)
+    expect(nearMark(dots, 108, 9)).toBe(9)
+    expect(nearMark(dots, 121, 9)).toBe(9)
+    expect(nearMark(dots, 122, 9)).toBeNull()
+    expect(nearMark([], 100, 9)).toBeNull()
   })
 
   it('gives two days, both prices and the difference, earlier first', () => {

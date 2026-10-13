@@ -223,10 +223,19 @@ test('Portfolio: a thing sold out has its row and its page', async ({
   await expect(shape).toContainText(/▲ [\d.]+% · \d+ days/)
   expect((await read.boundingBox())?.height).toBe(height)
   await page.screenshot({ ...shot('portfolio-chart-ruler'), fullPage: true })
+  /* The wheel still zooms with a tool lit, and the shape follows. */
+  const wide = (await shape.boundingBox())?.width ?? 0
+  await page.mouse.move(across(0.35), mid)
+  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, -400)
+  await expect
+    .poll(async () => (await shape.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(wide + 20)
   /* The button pressed again: nothing measured, the pointer reads days. */
   await ruler.click()
   await expect(ruler).toHaveAttribute('aria-pressed', 'false')
   await expect(shape).toBeHidden()
+  await position.getByRole('button', { name: '6M' }).click()
+  await position.getByRole('button', { name: '1Y' }).click()
   await page.mouse.move(across(0.15), mid)
   await expect(read).toContainText('$96')
   await expect(read).not.toContainText('latest price')

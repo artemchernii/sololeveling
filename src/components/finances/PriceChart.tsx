@@ -9,6 +9,7 @@ import type {
   IChartApi,
   ISeriesApi,
   ISeriesMarkersPluginApi,
+  Logical,
   Time,
   UTCTimestamp,
 } from 'lightweight-charts'
@@ -22,7 +23,7 @@ import type { Measured, Tool } from '@/components/finances/ChartTools'
 import { Veiled } from '@/components/finances/Veil'
 import { money } from '@/lib/currency'
 import { euros } from '@/lib/money'
-import { firstSince, priceSeries, seconds } from '@/lib/priceChart'
+import { firstSince, nearMark, priceSeries, seconds } from '@/lib/priceChart'
 import type { Mark } from '@/lib/priceChart'
 import { css, token } from '@/lib/tokenColour'
 
@@ -39,6 +40,8 @@ const TONE = {
   plain: ['--color-lav-400', '#b5abfc'],
 } as const
 
+/* How far across, in pixels, a dot is read from. */
+const DOT_REACH = 9
 const PLOT = 'h-[300px] rounded-[14px] sm:h-[380px]'
 
 const price = (v: number, currency: string) =>
@@ -126,6 +129,8 @@ function Plot({
   /* The stored close under the pointer; none at rest. */
   const [at, setAt] = useState<number | null>(null)
   const index = useRef(new Map<number, number>())
+  /* The stored closes a buy or a sell sits on. */
+  const marked = useRef<Array<number>>([])
   /* What a tool measured; kept until the next press or Esc. */
   const [measured, setMeasured] = useState<Measured | null>(null)
 
@@ -167,11 +172,23 @@ function Plot({
       priceLineVisible: false,
     })
     dots.current = createSeriesMarkers(line.current, [])
-    c.subscribeCrosshairMove((p) =>
-      setAt(
-        typeof p.time === 'number' ? (index.current.get(p.time) ?? null) : null,
-      ),
-    )
+    c.subscribeCrosshairMove((p) => {
+      const day =
+        typeof p.time === 'number' ? (index.current.get(p.time) ?? null) : null
+      /* A dot near the pointer is read before the day beside it. */
+      const dot =
+        day === null || p.point === undefined
+          ? null
+          : nearMark(
+              marked.current.flatMap((i) => {
+                const x = c.timeScale().logicalToCoordinate(i as Logical)
+                return x === null ? [] : [{ i, x }]
+              }),
+              p.point.x,
+              DOT_REACH,
+            )
+      setAt(dot ?? day)
+    })
     chart.current = c
     return () => {
       c.remove()
@@ -199,6 +216,7 @@ function Plot({
   useEffect(() => {
     const time = (i: number) => seconds(pts[i].t) as UTCTimestamp
     index.current = new Map(pts.map((_, i) => [time(i), i]))
+    marked.current = [...on.keys()]
     line.current?.setData(pts.map((p, i) => ({ time: time(i), value: p.v })))
     const good = css('--state-good', '#4fd08a')
     const bad = css('--state-danger', '#ef6a5a')

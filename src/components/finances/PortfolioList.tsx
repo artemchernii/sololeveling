@@ -14,7 +14,7 @@ import {
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { useDayStarts } from '@/components/track/useDayStarts'
-import { codeOf, holdingLine, unitOf } from '@/lib/holdingLine'
+import { codesOf, holdingLine, unitOf } from '@/lib/holdingLine'
 import type { Kind } from '@/lib/logo'
 import { euros } from '@/lib/money'
 import { combine, gainOf, ordered } from '@/lib/owned'
@@ -238,7 +238,7 @@ function SoldRow({
             {owned.name}
           </span>
           <span className="truncate font-mono text-[11px] text-ink-500">
-            {codeOf(owned)} · all sold {FULL.format(new Date(sums.day))}
+            {codesOf(owned)} · all sold {FULL.format(new Date(sums.day))}
           </span>
         </span>
         <span className="flex flex-col items-end gap-[3px] font-mono">
@@ -308,7 +308,7 @@ function OwnedRow({
             {owned.name}
           </span>
           <span className="flex items-center gap-1.5 overflow-hidden font-mono text-[11px] whitespace-nowrap text-ink-500">
-            <span>{codeOf(owned)}</span>
+            <span>{codesOf(owned)}</span>
             <span>·</span>
             {at.map(({ row, account }) => (
               <AccountLogo

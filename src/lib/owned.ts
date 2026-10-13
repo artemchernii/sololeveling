@@ -37,16 +37,30 @@ export type Owned<T extends Held = Held> = {
 
 const cents = (n: number) => Math.round(n * 100) / 100
 
+/* One company or fund is one row, whichever exchange it was bought on
+   (13 Oct: Novo Nordisk showed as three — Frankfurt, New York and
+   Copenhagen): the same name and the same kind of thing. */
+const sameThing = (r: Held) => `${r.type}|${r.name.trim().toLowerCase()}`
+
 export function combine<T extends Held>(
   rows: ReadonlyArray<T>,
 ): Array<Owned<T>> {
   const by = new Map<string, Array<T>>()
   for (const r of rows) {
-    const list = by.get(r.instrumentId)
+    const key = sameThing(r)
+    const list = by.get(key)
     if (list) list.push(r)
-    else by.set(r.instrumentId, [r])
+    else by.set(key, [r])
   }
-  return [...by.values()].map((at) => {
+  return [...by.values()].map((parts) => {
+    /* The listing worth the most leads: its code, its price, its page. */
+    const lead = [...parts].sort(
+      (a, b) => (b.valueEur ?? -1) - (a.valueEur ?? -1),
+    )[0].instrumentId
+    const at = [
+      ...parts.filter((r) => r.instrumentId === lead),
+      ...parts.filter((r) => r.instrumentId !== lead),
+    ]
     const first = at[0]
     const shares = at.reduce((t, r) => t + r.shares, 0)
     const staked = at.reduce((t, r) => t + r.staked, 0)

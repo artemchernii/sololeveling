@@ -9,6 +9,7 @@ import { IntakeFlow } from '@/components/finances/Intake'
 import type { SheetGuard } from '@/components/finances/Sheet'
 import { BulkReading } from '@/components/finances/BulkReading'
 import { Applying, Applied } from '@/components/finances/BulkSaving'
+import { BuysCheck } from '@/components/finances/BuysCheck'
 import { BulkReview } from '@/components/finances/BulkReview'
 import { WhoseFile, namedElsewhere } from '@/components/finances/BulkWhose'
 
@@ -187,6 +188,7 @@ export function BulkUpdate({
           {text}
         </div>
       ))}
+      <BuysCheck batchId={batchId} />
       <BulkReview
         batchId={batchId}
         onCheck={setChecking}

@@ -35,6 +35,7 @@ import {
 } from '@/components/finances/BulkTransferCheck'
 import { SharesCheck, sharesOpen } from '@/components/finances/BulkSharesCheck'
 import { HoldingsTotal } from '@/components/finances/HoldingsTotalCheck'
+import { useBuysFor } from '@/components/finances/BuysCheck'
 import { usePayees } from '@/components/finances/flow/Payees'
 
 export function AccountBlock({
@@ -61,6 +62,7 @@ export function AccountBlock({
 }) {
   const answer = useMutation(api.intake.batchAnswer)
   const { who } = usePayees()
+  const buysFor = useBuysFor()
   const create = useMutation(api.accounts.create)
   const readAgain = useMutation(api.intake.readAgain)
   const [rows, setRows] = useState(false)
@@ -364,7 +366,8 @@ export function AccountBlock({
           </>
         ) : block.trades > 0 ? (
           <span>
-            <b className="font-normal text-foreground">{block.trades}</b> trades
+            <b className="font-normal text-foreground">{block.trades}</b>{' '}
+            {buysFor ? (block.trades === 1 ? 'buy' : 'buys') : 'trades'}
           </span>
         ) : null}
         {block.had - here > 0 ? (

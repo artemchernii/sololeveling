@@ -321,6 +321,63 @@ describe('batchReview and apply', () => {
     expect(bal.accounts.map((x) => x.cashEur)).toEqual([450, 690])
   })
 
+  test('a month with no buy is not a statement missing', async () => {
+    const { t, me } = setup()
+    const { bpi } = await accountsOf(me)
+    const batchId = await emptyBatch(t)
+    const gold = {
+      name: 'XAU',
+      side: 'buy' as const,
+      price: 3600,
+      currency: 'EUR',
+      preferred: 0,
+      candidates: [
+        { symbol: 'GC=F', name: 'Gold', exchange: 'CMX', type: 'FUTURE' },
+      ],
+    }
+    await t.run((ctx) =>
+      ctx.db.insert('intakes', {
+        ownerId: ME,
+        batchId,
+        accountId: bpi,
+        storageIds: [],
+        status: 'ready',
+        kind: 'trades',
+        title: 'Buy XAU',
+        files: [{ name: 'gold.png', size: 1, contentType: 'image/png' }],
+        trades: [
+          { ...gold, occurredAt: day(4, 16), shares: 0.06 },
+          { ...gold, occurredAt: day(6, 10), shares: 0.07 },
+        ],
+      }),
+    )
+    const r = await me.query(api.intake.batchReview, { batchId })
+    expect(r.asks.filter((x) => x.kind === 'hole')).toEqual([])
+    /* The buys as read, with their ticker — and none for another user. */
+    expect(await me.query(api.intake.batchBuys, { batchId })).toEqual([
+      {
+        accountId: bpi,
+        occurredAt: day(4, 16),
+        side: 'buy',
+        shares: 0.06,
+        price: 3600,
+        currency: 'EUR',
+        symbol: 'GC=F',
+      },
+      {
+        accountId: bpi,
+        occurredAt: day(6, 10),
+        side: 'buy',
+        shares: 0.07,
+        price: 3600,
+        currency: 'EUR',
+        symbol: 'GC=F',
+      },
+    ])
+    const other = t.withIdentity({ tokenIdentifier: 'https://clerk.test|x' })
+    expect(await other.query(api.intake.batchBuys, { batchId })).toEqual([])
+  })
+
   test('a missing month is asked, and a quiet one is not', async () => {
     const { t, me } = setup()
     const { bpi } = await accountsOf(me)

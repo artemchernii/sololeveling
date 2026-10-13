@@ -6,10 +6,12 @@ import {
   many,
   boxAt,
   firstSince,
+  leftStop,
   nearMark,
   nearest,
   priceSeries,
   ruler,
+  withOlder,
 } from './priceChart'
 
 const DAY = 86_400_000
@@ -189,5 +191,35 @@ describe('shares traded, said short', () => {
     expect(many(199_000)).toBe('199K')
     expect(many(1_240_000)).toBe('1.2M')
     expect(many(640)).toBe('640')
+  })
+})
+
+it('older years go before the loaded year, a day once', () => {
+  const year = [{ asOf: 10 * DAY + 5 }, { asOf: 11 * DAY }]
+  const older = [{ asOf: 8 * DAY }, { asOf: 9 * DAY + 7 }, { asOf: 10 * DAY }]
+  expect(withOlder(year, older).map((p) => p.asOf)).toEqual([
+    8 * DAY,
+    9 * DAY + 7,
+    10 * DAY + 5,
+    11 * DAY,
+  ])
+  expect(withOlder(year, [])).toEqual(year)
+  expect(withOlder([], older)).toEqual(older)
+})
+
+it('the view never opens before the first stored close', () => {
+  /* In the stored days: left alone. */
+  expect(leftStop({ from: -0.5, to: 99.5 }, 100)).toBeNull()
+  expect(leftStop({ from: 20, to: 60 }, 100)).toBeNull()
+  expect(leftStop(null, 100)).toBeNull()
+  /* Dragged past the first day: the same width, from the first day. */
+  expect(leftStop({ from: -10.5, to: 29.5 }, 100)).toEqual({
+    from: -0.5,
+    to: 39.5,
+  })
+  /* Zoomed out past everything: all of it, a little air after. */
+  expect(leftStop({ from: -50, to: 150 }, 100)).toEqual({
+    from: -0.5,
+    to: 101.5,
   })
 })

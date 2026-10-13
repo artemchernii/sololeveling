@@ -33,6 +33,7 @@ import { money } from '@/lib/currency'
 import { euros } from '@/lib/money'
 import {
   firstSince,
+  leftStop,
   many,
   nearMark,
   priceSeries,
@@ -169,6 +170,8 @@ function Plot({
   /* The stored close under the pointer; none at rest. */
   const [at, setAt] = useState<number | null>(null)
   const index = useRef(new Map<number, number>())
+  /* How many stored closes are drawn, for the stop at the first. */
+  const count = useRef(pts.length)
   /* The stored closes a buy or a sell sits on. */
   const marked = useRef<Array<number>>([])
   /* Where each day's dot sits, for the height of its box. */
@@ -251,6 +254,14 @@ function Plot({
             },
       )
     })
+    /* Zooming out or dragging stops at the first stored day: no empty
+       space before it (13 Oct, "i zoom out and see gaps"). The
+       library's own fixLeftEdge also stops a range pill widening the
+       view, so the stop is here. */
+    c.timeScale().subscribeVisibleLogicalRangeChange((r) => {
+      const stop = leftStop(r, count.current)
+      if (stop) c.timeScale().setVisibleLogicalRange(stop)
+    })
     chart.current = c
     return () => {
       c.remove()
@@ -287,6 +298,7 @@ function Plot({
 
   useEffect(() => {
     index.current = new Map(pts.map((p, i) => [seconds(p.t), i]))
+    count.current = pts.length
     marked.current = [...on.keys()]
     heights.current = dotLevels(pts, on, view)
     if (line.current) fill(line.current, view, pts)
@@ -374,6 +386,7 @@ function Plot({
       <div
         data-testid="price-plot"
         data-view={view}
+        data-days={pts.length}
         role="img"
         aria-label="Price over the period, with buys and sells"
         className={`${PLOT} relative z-0 overflow-hidden`}

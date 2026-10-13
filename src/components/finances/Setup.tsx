@@ -86,7 +86,7 @@ export function SetupSheet({
             }}
           />
           <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-400">
-            No file at hand?
+            No file?
             <button
               type="button"
               onClick={() => setStep({ at: 'pick' })}
@@ -130,12 +130,11 @@ function Intro() {
     <div className="flex flex-col gap-2">
       <span className="label-caps">set up</span>
       <span className="text-[28px] leading-tight font-light text-foreground">
-        Bring in your accounts
+        Add accounts
       </span>
       <span className="text-[13.5px] text-ink-400">
-        Drop a statement or a screenshot from each bank and broker — several at
-        once. Each one becomes an account: its balance, and every movement from
-        that day on.
+        Drop a statement or a screenshot from each bank and broker, several at
+        once. Each becomes an account with its balance and rows.
       </span>
     </div>
   )
@@ -172,7 +171,7 @@ function Found({
         <Intro />
         <DropFiles oneEach onStarted={onMore} />
         <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-400">
-          No file at hand?
+          No file?
           <button type="button" onClick={onByHand} className={PILL_QUIET}>
             add an account by hand
           </button>
@@ -193,10 +192,10 @@ function Found({
         </span>
         <span className="text-[26px] leading-tight font-light text-foreground">
           {reading
-            ? 'Reading your files…'
+            ? 'Reading files…'
             : readyCount > 0
               ? `${readyCount} to check`
-              : 'Your accounts'}
+              : 'Accounts'}
         </span>
       </div>
       <div className="flex flex-col gap-2">
@@ -409,14 +408,14 @@ function AccountSetup({
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="What you call it"
+            placeholder="Name"
             aria-label="Name"
             className={`${FIELD} flex-1 text-[16px]`}
           />
         )}
       </div>
 
-      <Step n="1" title="what it is">
+      <Step n="1" title="type">
         <div className="flex flex-wrap gap-2">
           {IS.map(({ id, label, Icon }) => (
             <button
@@ -439,7 +438,7 @@ function AccountSetup({
         </div>
         {is.includes('bank') && is.includes('broker') ? (
           <span className="font-mono text-[10.5px] text-ink-500">
-            Both — its cash and its investments, one account.
+            Cash and investments in one account.
           </span>
         ) : null}
       </Step>
@@ -476,7 +475,7 @@ function AccountSetup({
         ) : null}
       </Step>
 
-      <Step n="3" title="how much">
+      <Step n="3" title="balance">
         {parts.includes('cash') ? (
           <div className="flex flex-col gap-2 rounded-[12px] bg-lift/[0.03] p-3 ring-1 ring-lift/[0.07] ring-inset">
             <span className="flex items-center gap-2 text-[13.5px] text-foreground">
@@ -484,7 +483,7 @@ function AccountSetup({
               <span className="ml-auto font-mono text-[10px] text-ink-500">
                 {is.includes('cash') && is.length === 1
                   ? 'counted'
-                  : 'or drop a statement later — it reads every currency'}
+                  : 'or add a statement later'}
               </span>
             </span>
             {cash.map((x, i) => (
@@ -502,7 +501,7 @@ function AccountSetup({
                       ),
                     )
                   }
-                  placeholder="how much, now"
+                  placeholder="balance now"
                   aria-label={`${x.c} now`}
                   className={`${FIELD} font-mono`}
                 />
@@ -551,7 +550,7 @@ function AccountSetup({
                 <FileUp className="size-4 text-area" />
               )}
               {shot
-                ? `${shot.name} — read when you save`
+                ? `${shot.name} · read on save`
                 : 'add a screenshot of the portfolio'}
             </button>
             <input
@@ -564,7 +563,7 @@ function AccountSetup({
           </div>
         ) : null}
         <span className="font-mono text-[10.5px] text-ink-500">
-          As of now. Anything left empty fills from the next file you drop.
+          Empty fields are filled by the next file.
         </span>
       </Step>
 

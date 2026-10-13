@@ -221,7 +221,7 @@ export function TreasuryHero() {
           </span>
           <AddButton
             cta
-            label="bring in your accounts"
+            label="add accounts"
             className="self-start"
             onOpen={() => setSetup(true)}
           />

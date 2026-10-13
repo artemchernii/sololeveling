@@ -213,13 +213,13 @@ export function TransactionsReview({
     })
     const n = rows.filter((r) => merchantKey(r.merchant) === key).length
     setFixed(
-      `${merchant} → ${categoryLabel('expense', category)} · ${n} row${n > 1 ? 's' : ''} · remembered for next time`,
+      `${merchant} → ${categoryLabel('expense', category)} · ${n} row${n > 1 ? 's' : ''} and every next one`,
     )
   }
 
   async function save() {
     if (!accountId) {
-      setError('Pick which account this is.')
+      setError('No account picked.')
       return
     }
     setSaving(true)
@@ -339,7 +339,7 @@ export function TransactionsReview({
           />
         ) : !accountId ? (
           <span className="font-mono text-[11px] text-state-warn">
-            whose is it?
+            which account?
           </span>
         ) : null}
         <AnotherAccount
@@ -356,7 +356,7 @@ export function TransactionsReview({
           <>
             <b className="font-normal text-foreground">Nothing new</b>.
             {dups.length > 0
-              ? ` You already have ${dups.length === 1 ? 'it' : `all ${dups.length} rows`}.`
+              ? ` ${dups.length === 1 ? 'The row is' : `All ${dups.length} rows`} already added.`
               : ''}
           </>
         ) : (
@@ -366,14 +366,14 @@ export function TransactionsReview({
             </b>
             .
             {dups.length > 0
-              ? ` The other ${dups.length} ${dups.length === 1 ? 'row' : 'rows'} you already have.`
+              ? ` ${dups.length} ${dups.length === 1 ? 'row' : 'rows'} already added.`
               : ''}
             {moves.length > 0
-              ? ` ${moves.length} ${moves.length === 1 ? 'is a move' : 'are moves'} between your own accounts.`
+              ? ` ${moves.length} ${moves.length === 1 ? 'transfer' : 'transfers'} between own accounts.`
               : ''}
           </>
         )}
-        {pending.length > 0 ? ` ${pending.length} not finished yet.` : ''}
+        {pending.length > 0 ? ` ${pending.length} pending.` : ''}
       </p>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -433,7 +433,7 @@ export function TransactionsReview({
       ) : null}
 
       {review.recurring.filter((x) => !x.alreadyABill).length > 0 ? (
-        <Section title="↻ comes every month" aside="add as a bill?">
+        <Section title="repeats every month" aside="add as a bill">
           {review.recurring
             .filter((x) => !x.alreadyABill)
             .map((x) => {
@@ -580,8 +580,8 @@ export function TransactionsReview({
                           aria-label={`Group for ${r.merchant}`}
                           title={
                             r.categorySource === 'rule'
-                              ? 'as you filed it before'
-                              : 'a guess — change it if wrong'
+                              ? 'same group as before'
+                              : 'suggested group'
                           }
                           className={`rounded-full bg-lift/[0.05] px-2 py-0.5 font-mono text-[10.5px] tracking-[0.06em] uppercase ring-1 ring-inset ${r.categorySource === 'rule' && c.category !== null ? 'text-ink-300 ring-lift/12' : 'text-state-warn ring-state-warn/40'}`}
                         >
@@ -623,8 +623,8 @@ export function TransactionsReview({
 
       {pending.length > 0 ? (
         <Section
-          title={`not finished yet · ${pending.length}`}
-          aside="added once it goes through"
+          title={`pending · ${pending.length}`}
+          aside="saved once booked"
         >
           {groupByDay(pending).map(([day, list]) => (
             <div key={day} className="flex flex-col">
@@ -638,8 +638,8 @@ export function TransactionsReview({
       ) : null}
       {dups.length > 0 ? (
         <Section
-          title={`already have · ${dups.length}`}
-          aside="not added again"
+          title={`already added · ${dups.length}`}
+          aside="not saved twice"
         >
           {groupByDay(dups).map(([day, list]) => (
             <div key={day} className="flex flex-col">

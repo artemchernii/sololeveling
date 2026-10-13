@@ -54,6 +54,26 @@ export const soldOut = mutation({
           fetchedAt: now,
           source: 'Yahoo Finance',
         })
+    /* A euro for a dollar on the last two days only: the first shows
+       its dollar price alone (13 Oct, euros beside dollars). */
+    for (const ago of [60, 1]) {
+      const asOf = Math.floor((now - ago * DAY) / DAY) * DAY
+      const stored = await ctx.db
+        .query('fxRates')
+        .withIndex('by_owner_currency_time', (q) =>
+          q.eq('ownerId', ownerId).eq('currency', 'USD').eq('asOf', asOf),
+        )
+        .first()
+      if (stored === null)
+        await ctx.db.insert('fxRates', {
+          ownerId,
+          currency: 'USD',
+          rate: 0.9,
+          asOf,
+          fetchedAt: now,
+          source: 'ECB',
+        })
+    }
     const trade = (
       side: 'buy' | 'sell',
       shares: number,
@@ -71,7 +91,7 @@ export const soldOut = mutation({
       })
     await trade('buy', 1, 80.6, 200)
     await trade('buy', 1, 100, 150)
-    await trade('sell', 2, 118.45, 90)
+    await trade('sell', 2, 118.45, 60)
     return null
   },
 })

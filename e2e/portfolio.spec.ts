@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { anyApi } from 'convex/server'
 
 import { start, testClient } from './helpers'
@@ -159,11 +160,17 @@ test('Portfolio: a thing sold out has its row and its page', async ({
   await page.screenshot({ ...shot('portfolio-sold-position'), fullPage: true })
 
   /* The chart reads under the pointer (13 Oct, on the chart library):
-     the latest price at rest, a day's price under a real mouse, a sell
-     on its day. The mock stores $96, $124 and $118.40. */
+     the latest price at rest, a day's price under a real mouse, in
+     dollars and in euros at that day's stored rate. The mock stores
+     $96, $124 and $118.40, and a rate of 0.9 for the last two days only. */
   const read = position.getByTestId('price-read')
   await expect(read).toContainText('$118.40')
+  await expect(read).toContainText('€106.56')
   await expect(read).toContainText('latest price')
+  /* The header says both too. */
+  await expect(position.getByTestId('position-price')).toContainText(
+    /\$118\.40.*€106\.56/,
+  )
   const chart = position.getByTestId('price-plot')
   await chart.scrollIntoViewIfNeeded()
   await expect(chart.locator('canvas').first()).toBeVisible()
@@ -172,17 +179,33 @@ test('Portfolio: a thing sold out has its row and its page', async ({
   const across = (f: number) => plot.x + plot.width * f
   const mid = plot.y + plot.height / 2
   const height = (await read.boundingBox())?.height
+  /* A day with no stored rate: the dollar price alone, no made-up euro. */
   await page.mouse.move(across(0.15), mid)
   await expect(read).toContainText('$96')
+  await expect(read).not.toContainText('€')
   await expect(read).not.toContainText('latest price')
   /* The line keeps its height while its words change. */
   expect((await read.boundingBox())?.height).toBe(height)
-  /* The sale sits on the stored price nearest its day: read there. */
-  await page.mouse.move(across(0.45), mid)
-  await expect(read).toContainText('sold')
-  await expect(read).toContainText('at $124')
+  /* The sale sits on the stored price nearest its day. Near its dot, a
+     box says what was sold, for what, on which day, at what a share; the
+     line of words reads the day only. */
+  const dotBox = position.getByTestId('dot-box')
+  await expect(dotBox).toBeHidden()
+  await nearDot(page, plot, dotBox)
+  await expect(dotBox).toContainText('sold')
+  await expect(dotBox).toContainText('€236.90')
+  await expect(dotBox).toContainText(/\d{4}/)
+  await expect(dotBox).toContainText('at $124')
+  await expect(dotBox).toContainText('€111.60 a share')
+  await expect(read).toContainText('$124')
+  await expect(read).toContainText('€111.60')
+  await expect(read).not.toContainText('sold')
   expect((await read.boundingBox())?.height).toBe(height)
+  await within(dotBox, plot)
   await page.screenshot({ ...shot('portfolio-chart-read'), fullPage: true })
+  /* Away from the dot, the box goes. */
+  await page.mouse.move(across(0.15), mid)
+  await expect(dotBox).toBeHidden()
   /* The two tools (13 Oct, mockup chart.html). Compare: a real drag from
      one day to another reads both days, both prices and the difference,
      and the chart does not move under it. */
@@ -281,8 +304,36 @@ test('Portfolio: a thing sold out has its row and its page', async ({
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true)
+  /* The box at the dot stays inside the plot on a phone too. */
+  await chart.scrollIntoViewIfNeeded()
+  const small = await chart.boundingBox()
+  if (small === null) throw new Error('no chart')
+  await nearDot(page, small, dotBox)
+  await within(dotBox, small)
   await page.screenshot({
     ...shot('portfolio-sold-position-phone'),
     fullPage: true,
   })
 })
+
+type Box = { x: number; y: number; width: number; height: number }
+
+/* A real mouse across the middle of the chart until a dot's box shows:
+   where a dot sits depends on the width of the price axis. */
+async function nearDot(page: Page, plot: Box, dotBox: Locator) {
+  for (let f = 0.3; f <= 0.7; f += 0.005) {
+    await page.mouse.move(plot.x + plot.width * f, plot.y + plot.height / 2)
+    if (await dotBox.isVisible()) return
+  }
+  throw new Error('no box at any dot')
+}
+
+/* Nothing of the box is cut by an edge of the plot. */
+async function within(dotBox: Locator, plot: Box) {
+  const b = await dotBox.boundingBox()
+  if (b === null) throw new Error('no box')
+  expect(b.x).toBeGreaterThanOrEqual(plot.x)
+  expect(b.y).toBeGreaterThanOrEqual(plot.y)
+  expect(b.x + b.width).toBeLessThanOrEqual(plot.x + plot.width)
+  expect(b.y + b.height).toBeLessThanOrEqual(plot.y + plot.height)
+}

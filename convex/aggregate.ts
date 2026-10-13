@@ -1435,7 +1435,10 @@ export const balances = query({
 })
 
 /* Pence: London quotes in GBp, a hundredth of the pound the rate is for. */
-function quoteToRate(currency: string): { base: string; divide: number } {
+export function quoteToRate(currency: string): {
+  base: string
+  divide: number
+} {
   return currency === 'GBp' || currency === 'GBX'
     ? { base: 'GBP', divide: 100 }
     : { base: currency, divide: 1 }

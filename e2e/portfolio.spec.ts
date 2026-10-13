@@ -62,12 +62,33 @@ test('Portfolio: empty, then the positions a screenshot brought', async ({
   await stocks.click()
   await expect(stocks).toHaveAttribute('aria-pressed', 'false')
 
-  /* A row opens what was bought and sold, in place. */
-  await rows.first().getByRole('button').first().click()
-  await expect(rows.first().getByRole('button').first()).toHaveAttribute(
-    'aria-expanded',
-    'true',
-  )
+  /* A row opens the position's own page, with its own address. */
+  await rows.first().getByRole('link').click()
+  await expect(page).toHaveURL(/position=/)
+  const position = page.getByTestId('position-page')
+  await expect(
+    position.getByRole('heading', { name: 'Apple Inc.' }),
+  ).toBeVisible()
+  for (const label of ['worth now', 'bought for', 'account', 'price'])
+    await expect(position.getByText(label, { exact: true })).toBeVisible()
+  await expect(page.getByText('everything owned · 2')).toHaveCount(0)
+  await page.waitForTimeout(800)
+  await page.screenshot({ ...shot('portfolio-position'), fullPage: true })
+
+  /* The address alone opens it; back is the list again. */
+  await page.reload()
+  await expect(
+    position.getByRole('heading', { name: 'Apple Inc.' }),
+  ).toBeVisible()
+  await position.getByRole('link', { name: 'Portfolio' }).click()
+  await expect(page.getByText('everything owned · 2')).toBeVisible()
+  await expect(page).not.toHaveURL(/position=/)
+
+  /* An address for something not owned says so, with the way back. */
+  await page.goto('/finances?room=portfolio&position=nothing')
+  await expect(page.getByText('Not owned now')).toBeVisible()
+  await position.getByRole('link', { name: 'Portfolio' }).click()
+  await expect(rows).toHaveCount(2)
 
   /* A phone: nothing runs off the side. */
   await page.setViewportSize({ width: 375, height: 812 })
@@ -78,4 +99,14 @@ test('Portfolio: empty, then the positions a screenshot brought', async ({
     ),
   ).toBe(true)
   await page.screenshot({ ...shot('portfolio-phone'), fullPage: true })
+  await rows.first().getByRole('link').click()
+  await expect(
+    position.getByRole('heading', { name: 'Apple Inc.' }),
+  ).toBeVisible()
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true)
+  await page.screenshot({ ...shot('portfolio-position-phone'), fullPage: true })
 })

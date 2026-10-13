@@ -10,6 +10,11 @@ import { euros } from '@/lib/money'
 import { money } from '@/lib/currency'
 import { EurUsd } from '@/components/finances/EurUsd'
 import { PortfolioList } from '@/components/finances/PortfolioList'
+import {
+  PortfolioPosition,
+  PositionMissing,
+} from '@/components/finances/PortfolioPosition'
+import { combine } from '@/lib/owned'
 import type { Position } from '@/components/finances/PortfolioList'
 import { ProfitPill, paidSums } from '@/components/finances/PortfolioParts'
 import { kindOf } from '@/lib/logo'
@@ -29,7 +34,7 @@ const DATE = new Intl.DateTimeFormat(undefined, {
    trades, screenshots what was seen; each row says whether they agree.
    Profit is value against what he paid (pick D, 26 Sep) — only where
    paid is known, never against zero. */
-export function Portfolio() {
+export function Portfolio({ position }: { position?: string }) {
   const data = useQuery(api.aggregate.positions, {})
   const worth = useQuery(api.aggregate.worth, {})
   const accounts = useQuery(api.accounts.list, {})
@@ -47,6 +52,16 @@ export function Portfolio() {
     data.rows.some((r) => r.accountId === a._id),
   )
   const sums = paidSums(data.rows, data.usdRate)
+
+  /* One position has the room to itself (13 Oct): its own address. */
+  if (position !== undefined) {
+    const owned = combine(data.rows).find((o) => o.instrumentId === position)
+    return owned ? (
+      <PortfolioPosition owned={owned} holders={holders} />
+    ) : (
+      <PositionMissing />
+    )
+  }
 
   return (
     <div className="flex flex-col gap-3">

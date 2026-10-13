@@ -28,6 +28,15 @@ export function metalOf(symbol: string): string | null {
   )
 }
 
+/** The code he knows it by: VUAA for VUAA.L, SOL for SOL-EUR, XAU for
+    gold's price symbol. A share class (BRK-B) is kept whole. */
+export function codeOf(row: Pick<HoldingRow, 'symbol' | 'type'>): string {
+  const metal = metalOf(row.symbol)
+  if (metal) return metal
+  if (kindOf(row) === 'crypto') return row.symbol.split('-')[0]
+  return row.symbol.replace(/\.[A-Z]{1,4}$/, '')
+}
+
 /** "oz" for a metal, the coin's own symbol for a coin, "shares" else. */
 export function unitOf(
   row: Pick<HoldingRow, 'symbol' | 'type'>,

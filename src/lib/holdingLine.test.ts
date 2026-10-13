@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { holdingLine, unitOf } from './holdingLine'
+import { codeOf, holdingLine, unitOf } from './holdingLine'
 import type { HoldingRow } from './holdingLine'
 
 const day = () => 'Oct 3'
@@ -101,5 +101,22 @@ describe('unitOf', () => {
     expect(unitOf({ symbol: 'GOOG', type: 'EQUITY' }, 1)).toBe('share')
     expect(unitOf({ symbol: 'GC=F', type: 'FUTURE' }, 0.4)).toBe('oz')
     expect(unitOf({ symbol: 'SOL-EUR', type: 'CRYPTOCURRENCY' }, 3)).toBe('SOL')
+  })
+})
+
+describe('codeOf', () => {
+  it('drops the exchange from a fund and the currency from a coin', () => {
+    expect(codeOf({ symbol: 'VUAA.L', type: 'ETF' })).toBe('VUAA')
+    expect(codeOf({ symbol: 'VHYL.AS', type: 'ETF' })).toBe('VHYL')
+    expect(codeOf({ symbol: 'SOL-EUR', type: 'CRYPTOCURRENCY' })).toBe('SOL')
+  })
+
+  it('keeps a share class and a plain ticker whole', () => {
+    expect(codeOf({ symbol: 'BRK-B', type: 'EQUITY' })).toBe('BRK-B')
+    expect(codeOf({ symbol: 'AAPL', type: 'EQUITY' })).toBe('AAPL')
+  })
+
+  it('reads a metal by its own code', () => {
+    expect(codeOf({ symbol: 'GC=F', type: 'FUTURE' })).toBe('XAU')
   })
 })

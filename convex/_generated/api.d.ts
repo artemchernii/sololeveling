@@ -51,6 +51,7 @@ import type * as rowBalance from "../rowBalance.js";
 import type * as search from "../search.js";
 import type * as seed from "../seed.js";
 import type * as sharesCheck from "../sharesCheck.js";
+import type * as sheetRows from "../sheetRows.js";
 import type * as state from "../state.js";
 import type * as t212 from "../t212.js";
 import type * as t212Api from "../t212Api.js";
@@ -111,6 +112,7 @@ declare const fullApi: ApiFromModules<{
   search: typeof search;
   seed: typeof seed;
   sharesCheck: typeof sharesCheck;
+  sheetRows: typeof sheetRows;
   state: typeof state;
   t212: typeof t212;
   t212Api: typeof t212Api;

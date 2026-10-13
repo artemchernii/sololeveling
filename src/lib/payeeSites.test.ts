@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { payeeSite } from './payeeSites'
+import { payeeSite, senderSite } from './payeeSites'
 
 describe('whose mark a row gets', () => {
   test('a clean name', () => {
@@ -33,5 +33,19 @@ describe('whose mark a row gets', () => {
     expect(payeeSite('TRF P/ APPLE WELLS')).toBeNull()
     expect(payeeSite('Veiga e Seabra')).toBeNull()
     expect(payeeSite('')).toBeNull()
+  })
+})
+
+describe('senderSite', () => {
+  test('a transfer in from a sender the list knows by its whole name', () => {
+    expect(senderSite('TRF CR SEPA+ 0000021 DE BNP PARIBAS')).toBe(
+      'bnpparibas.com',
+    )
+  })
+  test('a person, a longer name, or no sender: nothing', () => {
+    expect(senderSite('TRF CR DE CLAUDE MARTIN')).toBeNull()
+    expect(senderSite('TRF CR DE BNP PARIBAS LEASING')).toBeNull()
+    expect(senderSite('COMPRA 2789 EASYPAY LISBOA')).toBeNull()
+    expect(senderSite('Salary')).toBeNull()
   })
 })

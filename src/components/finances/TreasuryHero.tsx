@@ -12,6 +12,7 @@ import {
   AccountList,
   CheckIn,
   GroupRow,
+  Steady,
 } from '@/components/finances/TreasuryHeroParts'
 import type { Group, Row } from '@/components/finances/TreasuryHeroParts'
 import { Sheet } from '@/components/finances/Sheet'
@@ -231,10 +232,12 @@ export function TreasuryHero() {
           <div className="flex min-w-0 flex-col gap-3">
             <span className="label-caps">capital · cash · investments</span>
             <span
-              key={worth.total}
-              className="motion-pop text-[46px] leading-none font-light tracking-tight text-foreground sm:text-[56px]"
+              data-testid="hero-total"
+              className="motion-fade text-[46px] leading-none font-light tracking-tight text-foreground sm:text-[56px]"
             >
-              <Veiled>{euros(worth.total)}</Veiled>
+              <Veiled>
+                <Steady text={euros(worth.total)} />
+              </Veiled>
             </span>
             {/* One "this month" (1 Oct: two pills said the same thing):
                 in − out, his own money moving left out of both. */}

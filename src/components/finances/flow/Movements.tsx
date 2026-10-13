@@ -171,7 +171,7 @@ export function Movements({
       </div>
 
       <div
-        className="relative mt-2 grid h-[74px] auto-cols-fr grid-flow-col items-end gap-[3px]"
+        className="relative mt-2 grid h-[86px] auto-cols-fr grid-flow-col items-end gap-[3px]"
         role="list"
         aria-label="Days"
         onPointerLeave={() => setHover(null)}
@@ -197,24 +197,32 @@ export function Movements({
               disabled={future}
               onClick={() => jump(c)}
               onPointerEnter={() => setHover(c)}
-              className={`relative flex h-full flex-col items-center justify-end gap-1 rounded-[6px] pb-0.5 transition-colors hover:bg-lift/4 ${
-                day === c ? 'bg-lav-400/12' : ''
+              data-today={c === today ? '' : undefined}
+              /* The top 14px are the bill mark's own room (13 Oct: the
+                 ring sat on a salary's green bar); today is a lit column. */
+              className={`group/day relative flex h-full flex-col items-center justify-end gap-1 rounded-[7px] pt-3.5 pb-0.5 transition-colors hover:bg-lift/5 ${
+                day === c
+                  ? 'bg-lav-400/14'
+                  : c === today
+                    ? 'bg-lav-400/[0.07] ring-1 ring-lav-400/35 ring-inset'
+                    : ''
               }`}
             >
               {(future ? billDays.has(c) : s?.bill) ? (
+                /* Paid is a full dot, to come a ring. */
                 <span
-                  className={`absolute top-0.5 size-1.5 rounded-full border ${future ? 'border-lav-400' : 'border-ink-400'}`}
+                  className={`absolute top-1 size-[7px] rounded-full ${future ? 'border border-lav-400' : 'bg-lav-300 shadow-[0_0_8px_var(--system-shine)]'}`}
                 />
               ) : null}
               {s?.i ? (
                 <span
-                  className="mx-[18%] min-h-0.5 self-stretch rounded-[3px] bg-state-good"
+                  className="motion-pop mx-[18%] min-h-0.5 self-stretch rounded-[3px] bg-linear-to-t from-state-good/55 to-state-good transition-[filter] group-hover/day:brightness-125"
                   style={{ height: bars.in }}
                 />
               ) : null}
               {future ? null : s?.o ? (
                 <span
-                  className="motion-pop mx-[18%] self-stretch rounded-[3px_3px_1px_1px] bg-state-danger/60"
+                  className="motion-pop mx-[18%] self-stretch rounded-[3px_3px_1px_1px] bg-linear-to-t from-state-danger/35 to-state-danger/75 transition-[filter] group-hover/day:brightness-125"
                   style={{ height: bars.out }}
                 />
               ) : s?.i ? null : (
@@ -226,7 +234,7 @@ export function Movements({
                 />
               )}
               <span
-                className={`font-mono text-[9px] ${c === today ? 'text-lav-300' : 'text-ink-600'} ${
+                className={`font-mono text-[9px] ${c === today ? 'rounded-[4px] bg-lav-400/25 px-1 text-lav-200' : 'text-ink-600'} ${
                   /* Fifty-odd days on a phone: every fifth, and today. */
                   c === today || new Date(c).getDate() % 5 === 0
                     ? ''
@@ -254,8 +262,8 @@ export function Movements({
           in
         </Key>
         <Key mark="bill">
-          <i className="block size-2 rounded-full border border-ink-400" />a
-          bill&apos;s day
+          <i className="block size-2 rounded-full bg-lav-300" />a bill&apos;s
+          day
         </Key>
         <Key mark="to-come">
           <i className="block size-2 rounded-full border border-lav-400" />
@@ -296,7 +304,9 @@ export function Movements({
                   id={`mv-${g.day}`}
                   className={`flex scroll-mt-28 justify-between border-b border-lift/7 px-1 pt-4 pb-1.5 ${day === g.day ? 'motion-land' : ''}`}
                 >
-                  <span className="label-caps">
+                  <span
+                    className={`label-caps ${g.day === today ? 'text-lav-300' : ''}`}
+                  >
                     {g.day === today
                       ? 'today'
                       : g.day === startOf(today - 3_600_000)

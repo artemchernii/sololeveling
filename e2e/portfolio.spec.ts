@@ -427,6 +427,81 @@ test('Portfolio: closes only — no candles, no volume', async ({ page }) => {
   })
 })
 
+/* The years before the loaded one are read when "all" is pressed, for
+   that share alone (13 Oct: "i zoom out and see gaps"). */
+test('Portfolio: older years behind "all"', async ({ page }) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2ePortfolio.soldOut, {})
+  await page.goto('/finances?room=portfolio')
+  await page.getByTestId('sold-row').first().getByRole('link').click()
+  const position = page.getByTestId('position-page')
+  const read = position.getByTestId('price-read')
+  const chart = position.getByTestId('price-plot')
+  const pill = (name: string) =>
+    position.getByRole('button', { name, exact: true })
+  await expect(chart).toHaveAttribute('data-days', '3')
+  await chart.scrollIntoViewIfNeeded()
+  const plot = await chart.boundingBox()
+  if (plot === null) throw new Error('no chart')
+  const mid = plot.y + plot.height / 2
+  const year = (y: number) => new RegExp(`\\b${y}\\b`)
+  const then = new Date().getFullYear() - 5
+
+  /* Pressed: reading at once, then the chart grows to five years. */
+  await pill('all').click()
+  await expect(pill('reading…')).toBeVisible()
+  await expect(pill('reading…')).toBeDisabled()
+  await expect(pill('all')).toHaveAttribute('aria-pressed', 'true')
+  await expect
+    .poll(async () => Number(await chart.getAttribute('data-days')))
+    .toBeGreaterThan(1000)
+  await page.mouse.move(plot.x + 4, mid)
+  await expect(read).toContainText(year(then))
+  await page.screenshot({ ...shot('portfolio-chart-all'), fullPage: true })
+
+  /* Zooming out stops at the first stored day: its left edge stays. */
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 600)
+  await page.mouse.move(plot.x + 5, mid)
+  await page.mouse.move(plot.x + 4, mid)
+  await expect(read).toContainText(year(then))
+
+  /* A year in view again, then all again: nothing is read twice. */
+  await pill('1Y').click()
+  await page.mouse.move(plot.x + 5, mid)
+  await expect(read).not.toContainText(year(then))
+  await pill('all').click()
+  await expect(pill('all')).toHaveAttribute('aria-pressed', 'true')
+  await expect(pill('reading…')).toHaveCount(0)
+  await page.mouse.move(plot.x + 4, mid)
+  await expect(read).toContainText(year(then))
+})
+
+test('Portfolio: older years not read — the pill says so, the year stays', async ({
+  page,
+}) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2ePortfolio.soldOut, { years: 'fail' })
+  await page.goto('/finances?room=portfolio')
+  await page.getByTestId('sold-row').first().getByRole('link').click()
+  const position = page.getByTestId('position-page')
+  const chart = position.getByTestId('price-plot')
+  await expect(chart).toHaveAttribute('data-days', '3')
+  await position.getByRole('button', { name: 'all', exact: true }).click()
+  await expect(position.getByRole('button', { name: 'reading…' })).toBeVisible()
+  await expect(
+    position.getByRole('button', { name: 'all · not read' }),
+  ).toBeVisible()
+  await expect(chart).toHaveAttribute('data-days', '3')
+  await expect(
+    position.getByRole('button', { name: '1Y', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await expect(position.getByTestId('price-read')).toContainText('$118.40')
+  await page.screenshot({
+    ...shot('portfolio-chart-all-not-read'),
+    fullPage: true,
+  })
+})
+
 type Box = { x: number; y: number; width: number; height: number }
 
 /* A real mouse across the middle of the chart until a dot's box shows:

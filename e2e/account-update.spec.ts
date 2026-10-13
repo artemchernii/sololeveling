@@ -155,6 +155,22 @@ test('an update still being read: UPDATE opens on it, and closing asks', async (
   await expect(page.getByLabel('an update is waiting')).toBeVisible()
 })
 
+test('a file being read for a known account: "reading", never "finding the bank"', async ({
+  page,
+}) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2eUpdate.holdRead, {
+    account: 'Revolut',
+  })
+  const sheet = await update(page, 'Revolut')
+  const line = sheet.getByTestId('file-line')
+  await expect(line).toContainText('Revolut')
+  await expect(line.getByText('reading', { exact: true })).toBeVisible()
+  await expect(sheet.getByText('finding the bank')).toHaveCount(0)
+  await expect(sheet.getByText('finding whose')).toHaveCount(0)
+  await page.screenshot(shot('account-update-reading-known'))
+})
+
 test('phone width: the window fits, the steps take their own line', async ({
   page,
 }) => {

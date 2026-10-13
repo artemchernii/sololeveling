@@ -1,13 +1,24 @@
+import { groupHint } from '@/lib/groupHint'
 import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
-import { ArrowLeftRight } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  CalendarDays,
+  Check,
+  FileText,
+  Landmark,
+  Repeat,
+  Tag,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 import { api } from '../../../../convex/_generated/api'
 import type { Doc, Id } from '../../../../convex/_generated/dataModel'
 import { AccountLogo } from '@/components/finances/Logo'
-import { FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
+import { Busy, FIELD, PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { failureMessage } from '@/lib/convex-errors'
@@ -16,7 +27,7 @@ import { GroupBadge, PaidChip } from '@/components/finances/GroupBadge'
 import type { Notice } from './Ahead'
 import { whenSaid } from './AddBill'
 import { PayeeMark, PayeeName, usePayees, Why } from './Payees'
-import { dayMonth, eur, weekday } from './time'
+import { dayMonth, dayMonthYear, eur, weekday } from './time'
 
 type Item = FunctionReturnType<typeof api.logs.movements>['items'][number]
 type AheadData = FunctionReturnType<typeof api.aggregate.ahead>
@@ -199,12 +210,21 @@ export function Movements({
                   style={{ height: Math.min(44, Math.sqrt(s.i / mx) * 44) }}
                 />
               ) : null}
-              {future ? null : (
+              {future ? null : s?.o ? (
                 <span
-                  className="motion-pop mx-[18%] min-h-0.5 self-stretch rounded-[3px_3px_1px_1px] bg-state-danger/60"
+                  className="motion-pop mx-[18%] self-stretch rounded-[3px_3px_1px_1px] bg-state-danger/60"
                   style={{
-                    height: Math.max(2, Math.sqrt((s?.o ?? 0) / mx) * 44),
+                    /* The smallest payment is still a bar: never the
+                       height of a day's dash. */
+                    height: Math.max(5, Math.sqrt(s.o / mx) * 44),
                   }}
+                />
+              ) : s?.i ? null : (
+                /* Nothing moved (12 Oct: "no moves and little out are
+                   same. Both red"): a dash in the hover card's amber, not a red bar. */
+                <span
+                  data-quiet
+                  className="mx-[30%] h-px self-stretch rounded-full bg-state-warn/80"
                 />
               )}
               <span
@@ -221,11 +241,33 @@ export function Movements({
           )
         })}
       </div>
-      <div className="label-caps flex flex-wrap gap-4">
-        <span>red: out that day · green: in</span>
-        <span>○ a bill&apos;s day</span>
-        <span className="text-lav-300">○ still to come</span>
-        <span>tap a day to jump</span>
+      {/* The strip's own marks beside their words (12 Oct: four lines of
+          text could not be read at a glance). */}
+      <div
+        data-testid="movements-legend"
+        className="label-caps flex flex-wrap items-center gap-x-4 gap-y-1.5"
+      >
+        <Key mark="out">
+          <i className="block h-3 w-1.5 rounded-[3px_3px_1px_1px] bg-state-danger/60" />
+          out
+        </Key>
+        <Key mark="in">
+          <i className="block h-3 w-1.5 rounded-[3px] bg-state-good" />
+          in
+        </Key>
+        <Key mark="bill">
+          <i className="block size-2 rounded-full border border-ink-400" />a
+          bill&apos;s day
+        </Key>
+        <Key mark="to-come">
+          <i className="block size-2 rounded-full border border-lav-400" />
+          <span className="text-lav-300">a bill to come</span>
+        </Key>
+        <Key mark="quiet">
+          <i className="block h-px w-2.5 bg-state-warn/80" />
+          nothing moved
+        </Key>
+        <span className="ml-auto text-ink-500">tap a day to jump</span>
       </div>
 
       {data === undefined ? (
@@ -363,6 +405,15 @@ function Logo({ a }: { a?: Doc<'accounts'> }) {
   )
 }
 
+/* One mark of the strip and its word. */
+function Key({ mark, children }: { mark: string; children: ReactNode }) {
+  return (
+    <span data-mark={mark} className="inline-flex items-center gap-1.5">
+      {children}
+    </span>
+  )
+}
+
 function DayTip({
   t,
   at,
@@ -398,13 +449,24 @@ function DayTip({
         </div>
       ) : null}
       {!s?.i && !s?.o ? (
-        <div className="font-mono text-[12px] text-ink-500">
+        /* A state of its own, not the grey of a label (12 Oct): a day to
+           come is the app's lavender, a day nothing moved is amber. */
+        <div
+          data-testid="day-quiet"
+          className={`flex items-center gap-1.5 font-mono text-[12px] ${
+            future ? 'text-lav-300' : 'text-state-warn'
+          }`}
+        >
+          <i className="block h-px w-2.5 bg-current" />
           {future ? 'still to come' : 'nothing moved'}
         </div>
       ) : null}
       {bill ? (
-        <div className="mt-1 font-mono text-[10px] text-ink-400">
-          ○ a bill&apos;s day
+        <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] text-ink-400">
+          <i
+            className={`block size-1.5 rounded-full border ${future ? 'border-lav-400' : 'border-ink-400'}`}
+          />
+          {future ? 'a bill to come' : "a bill's day"}
         </div>
       ) : null}
     </div>
@@ -469,6 +531,17 @@ function RowSheet({
   const remove = useMutation(api.recurring.remove)
   const [error, setError] = useState<string | null>(null)
   const income = row.kind === 'income'
+  /* A group its own name points to ("English Bar 42" → Fun): offered,
+     one press files it (13 Oct). */
+  const refile = useMutation(api.logs.refile)
+  const [filing, setFiling] = useState(false)
+  const [filed, setFiled] = useState<string | null>(null)
+  const group = filed ?? row.meta?.category ?? null
+  const hint =
+    income || group !== null
+      ? null
+      : (groupHint(row.meta?.merchant ?? row.text ?? '') ??
+        groupHint(row.meta?.raw ?? ''))
   const d = new Date(row.occurredAt)
   async function make(cadence: 'monthly' | 'yearly') {
     try {
@@ -493,19 +566,48 @@ function RowSheet({
           {eur(row.value ?? 0, true)}
         </span>
       </div>
-      <Line
-        k="day"
-        v={`${weekday(row.occurredAt)} ${dayMonth(row.occurredAt)}`}
-      />
-      <Line k="account" v={account?.name ?? '—'} />
-      <Line
-        k="group"
-        v={categoryLabel(
-          income ? 'income' : 'expense',
-          row.meta?.category ?? null,
-        )}
-      />
-      {row.meta?.raw ? <Line k="the bank wrote" v={row.meta.raw} /> : null}
+      <div className="flex flex-col gap-2 py-1">
+        <Line
+          icon={CalendarDays}
+          k="date"
+          v={`${weekday(row.occurredAt)} ${dayMonthYear(row.occurredAt)}`}
+        />
+        <Line icon={Landmark} k="account" v={account?.name ?? '—'} />
+        <Line
+          icon={Tag}
+          k="group"
+          v={categoryLabel(income ? 'income' : 'expense', group)}
+        />
+        {hint ? (
+          <button
+            type="button"
+            data-testid="group-hint"
+            disabled={filing}
+            onClick={() => {
+              setFiling(true)
+              void refile({ logId: row._id, category: hint })
+                .then(() => setFiled(hint))
+                .catch((e) => setError(failureMessage(e) ?? 'Not saved.'))
+                .finally(() => setFiling(false))
+            }}
+            className={`${PILL_LOUD} self-end`}
+          >
+            <Busy on={filing} doing="saving">
+              set group: {categoryLabel('expense', hint)}
+            </Busy>
+          </button>
+        ) : filed ? (
+          <span
+            data-testid="group-filed"
+            className="motion-pop flex items-center gap-1.5 self-end text-[12.5px] text-state-good"
+          >
+            <Check className="size-3.5" /> saved
+          </span>
+        ) : null}
+        {row.meta?.raw ? (
+          <Line icon={FileText} k="description" v={row.meta.raw} />
+        ) : null}
+      </div>
       <Why logId={row._id} />
       {isBill ? (
         <p className="text-[13.5px] text-ink-300">
@@ -516,7 +618,10 @@ function RowSheet({
         </p>
       ) : (
         <>
-          <span className="label-caps mt-1.5">repeats?</span>
+          <span className="label-caps mt-1.5 flex items-center gap-2">
+            <Repeat className="size-3.5 text-lav-300" />
+            make it a bill
+          </span>
           <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
@@ -542,11 +647,25 @@ function RowSheet({
   )
 }
 
-function Line({ k, v }: { k: string; v: string }) {
+/* One fact of a row: its icon, what it is, and the value — which wraps,
+   so a long line from the bank is read whole (13 Oct: "no icons on the
+   left or any distinguish"). */
+function Line({
+  icon: Icon,
+  k,
+  v,
+}: {
+  icon: LucideIcon
+  k: string
+  v: string
+}) {
   return (
-    <span className="flex justify-between gap-4 font-mono text-[12px] text-ink-300">
-      <span className="text-ink-500">{k}</span>
-      <span className="truncate text-right">{v}</span>
+    <span className="flex items-start gap-2.5 text-[13px]">
+      <Icon className="mt-[3px] size-3.5 shrink-0 text-lav-300" />
+      <span className="w-24 shrink-0 text-ink-400">{k}</span>
+      <span className="min-w-0 flex-1 text-right break-words text-foreground">
+        {v}
+      </span>
     </span>
   )
 }

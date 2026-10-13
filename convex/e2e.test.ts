@@ -135,6 +135,9 @@ test('the update mocks refuse anywhere but the test backend', async () => {
     me.mutation(api.e2eUpdate.sheetGap, { as: 'found' }),
   ).rejects.toThrow(refused)
   await expect(
+    me.mutation(api.e2eUpdate.manyRows, { count: 5 }),
+  ).rejects.toThrow(refused)
+  await expect(
     me.mutation(api.e2eUpdate.failRead, { batchId }),
   ).rejects.toThrow(refused)
   await expect(me.mutation(api.e2eUpdate.badFile, { batchId })).rejects.toThrow(
@@ -143,6 +146,22 @@ test('the update mocks refuse anywhere but the test backend', async () => {
   await expect(me.mutation(api.e2eUpdate.stuckApply, { days })).rejects.toThrow(
     refused,
   )
+})
+
+test("a read held for a named account is that account's; an unknown name is refused", async () => {
+  vi.stubEnv('E2E', '1')
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  await expect(
+    me.mutation(api.e2eUpdate.holdRead, { account: 'Trade Republic' }),
+  ).rejects.toThrow('no Trade Republic in the mock')
+  const accountId = await me.mutation(api.e2eUpdate.addBroker, {})
+  const batchId = await me.mutation(api.e2eUpdate.holdRead, {
+    account: 'Trade Republic',
+  })
+  const [file] = (await me.query(api.intake.batch, { batchId })).files
+  expect(file.accountId).toBe(accountId)
+  expect(file.stage).toBe('opening')
 })
 
 test('a read held open, then failed: nothing in it can be applied', async () => {

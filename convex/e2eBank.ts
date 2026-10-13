@@ -78,6 +78,15 @@ export const answer = mutation({
         })),
         checkedAt: Date.now() - 5 * 3_600_000,
       })
+      /* Pingo Doce, filed once from a statement under its short name: the
+         bank's "COMPRA 2789 PINGO DOCE LISBOA" is the same payee. */
+      if (args.as === 'two')
+        await ctx.db.insert('merchantRules', {
+          ownerId,
+          key: 'pingo doce',
+          category: 'groceries',
+          updatedAt: Date.now(),
+        })
       if (args.as === 'twin')
         await ctx.db.insert('logs', {
           ownerId,

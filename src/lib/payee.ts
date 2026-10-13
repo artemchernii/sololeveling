@@ -24,15 +24,13 @@ const NOISE = new Set([
    "<merchant> Revolut Rate €1.00 = $1.15": what follows is not the payee. */
 const STOP = new Set(['TO', 'CARD', 'RATE', 'REVOLUT'])
 
-/**
- * The payee key of a money row: upper case, accents gone, words with a
- * digit dropped (references change every month), bank words dropped,
- * repeats dropped, the first three words. '' when nothing is left.
- */
-export function payeeKey(line: string): string {
+/** A row's name as words: upper case, accents gone, words with a digit
+    dropped (references change every month), bank words dropped, repeats
+    dropped, the first `max` of them. */
+export function payeeWords(line: string, max: number): Array<string> {
   const words = line
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
     .split(/[^A-Z0-9]+/)
     .filter((w) => w.length > 1 && !/\d/.test(w))
@@ -41,9 +39,17 @@ export function payeeKey(line: string): string {
     if (STOP.has(w) && out.length > 0) break
     if (NOISE.has(w) || STOP.has(w) || out.includes(w)) continue
     out.push(w)
-    if (out.length === 3) break
+    if (out.length === max) break
   }
-  return out.join(' ')
+  return out
+}
+
+/**
+ * The payee key of a money row: its first three words (`payeeWords`). ''
+ * when nothing is left.
+ */
+export function payeeKey(line: string): string {
+  return payeeWords(line, 3).join(' ')
 }
 
 /**

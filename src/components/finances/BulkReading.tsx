@@ -118,8 +118,15 @@ function FileLine({
       : f.kind === 'trades'
         ? 'trades'
         : 'rows'
+  /* UPDATE on one account, or a file whose account is already known:
+     there is no bank to find (12 Oct — "finding the bank" beside BPI's
+     own logo). */
+  const stage =
+    whose && !whose.isNew && (f.stage ?? 'opening') === 'opening'
+      ? 'reading'
+      : STAGE[f.stage ?? 'opening']
   const sub = reading
-    ? `${STAGE[f.stage ?? 'opening']}${f.rows > 0 ? ` · ${f.rows}` : ''}`
+    ? `${stage}${f.rows > 0 ? ` · ${f.rows}` : ''}`
     : failed
       ? (f.error ?? 'It could not be read.')
       : `${f.rows} ${noun}${f.from !== null && f.to !== null ? ` · ${DAY.format(f.from)} to ${DAY.format(f.to)}` : ''}`

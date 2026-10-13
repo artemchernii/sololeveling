@@ -20,37 +20,39 @@ describe('whyLine', () => {
         ...base,
         bill: { name: 'Navegante', found: false, varies: false, salary: false },
       }),
-    ).toBe(
-      'Bill — pays Navegante (you made it a bill): same payee, about the same amount.',
-    )
+    ).toBe('Bill: Navegante. Added by hand.')
     expect(
       whyLine({
         ...base,
         bill: { name: 'Vodafone', found: true, varies: true, salary: false },
       }),
-    ).toContain('found in your statements): same payee, any amount')
+    ).toBe('Bill: Vodafone. Found in the statements. The amount changes.')
     expect(
       whyLine({
         ...base,
         kind: 'income',
         bill: { name: 'BNP', found: true, varies: false, salary: true },
       }),
-    ).toBe('Salary — BNP, every month.')
+    ).toBe('Salary from BNP, every month.')
   })
 
   it('lent, moves, and where a group came from', () => {
-    expect(whyLine({ ...base, lent: true })).toContain('Lent — you said so')
+    expect(whyLine({ ...base, lent: true })).toBe(
+      'Lent. Not counted as spending.',
+    )
     expect(whyLine({ ...base, kind: 'income', lent: true, name: 'Ivan' })).toBe(
-      'Paid back — money from Ivan after you lent. Not money in.',
+      'Paid back by Ivan. Not counted as income.',
     )
     expect(whyLine({ ...base, kind: 'move' })).toContain('own accounts')
     expect(whyLine({ ...base, category: 'groceries', hisRule: true })).toBe(
-      'Groceries — you filed Continente there; the next ones go there too.',
+      'Groceries: set by hand for every Continente payment.',
     )
     expect(
       whyLine({ ...base, category: 'groceries', shop: 'Continente' }),
-    ).toBe('Groceries — Continente is a shop the app knows.')
-    expect(whyLine({ ...base, category: 'fun' })).toContain("reader's guess")
-    expect(whyLine(base)).toContain('Not filed')
+    ).toBe('Groceries: Continente is a known shop.')
+    expect(whyLine({ ...base, category: 'fun' })).toBe(
+      'Fun: read from the statement.',
+    )
+    expect(whyLine(base)).toBe('No group yet.')
   })
 })

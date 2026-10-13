@@ -24,6 +24,41 @@ test('Flow: nothing coming yet, then the month row by row', async ({
   for (const name of ['Guacamole', 'Bolt', 'Continente'])
     await expect(page.getByText(name).first()).toBeVisible()
   await page.screenshot(shot('flow-movements'))
+
+  /* The legend draws the strip's own marks, each with a short word. */
+  const legend = page.getByTestId('movements-legend')
+  for (const [mark, word] of [
+    ['out', 'out'],
+    ['in', 'in'],
+    ['bill', "a bill's day"],
+    ['to-come', 'a bill to come'],
+    ['quiet', 'nothing moved'],
+  ]) {
+    const key = legend.locator(`[data-mark="${mark}"]`)
+    await expect(key).toHaveText(word)
+    await expect(key.locator('i')).toBeVisible()
+  }
+  await expect(legend.getByText(/red:|green:/)).toHaveCount(0)
+
+  /* A day nothing moved says so in a colour of its own, not label grey. */
+  const days = page.getByRole('list', { name: 'Days' })
+  /* Such a day draws a grey dash, never a small red bar. */
+  const quietDay = days.getByRole('listitem').nth(9)
+  await expect(quietDay.locator('[data-quiet]')).toHaveCount(1)
+  await expect(quietDay.locator('.bg-state-danger\\/60')).toHaveCount(0)
+  await quietDay.hover()
+  const quiet = page.getByTestId('day-quiet')
+  await expect(quiet).toHaveText('nothing moved')
+  await expect(quiet).toHaveClass(/text-state-warn/)
+  await page.screenshot(shot('flow-movements-quiet-day'))
+  /* A day still to come is the app's lavender. */
+  const toCome = days.locator('button[disabled]')
+  /* On a month's last day there is none. */
+  if ((await toCome.count()) > 0) {
+    await toCome.last().hover({ force: true })
+    await expect(quiet).toHaveText('still to come')
+    await expect(quiet).toHaveClass(/text-lav-300/)
+  }
 })
 
 test('Flow: a bill in one line — adding, done, closed, on the list', async ({

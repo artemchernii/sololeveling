@@ -24,33 +24,31 @@ export type WhyFacts = {
   shop: string | null
 }
 
+/* Reworded 13 Oct ("again here stupid LLM language"): facts in bank-app
+   words — no "you", nothing "goes" anywhere, no advice. */
 export function whyLine(f: WhyFacts): string {
   if (f.kind === 'move') {
-    return 'Between your own accounts — counted as neither spending nor money in.'
+    return 'Transfer between own accounts. Not spending, not income.'
   }
   if (f.lent) {
     return f.kind === 'expense'
-      ? 'Lent — you said so. Not spending; the money back is found by itself.'
-      : `Paid back — money from ${f.name} after you lent. Not money in.`
+      ? 'Lent. Not counted as spending.'
+      : `Paid back by ${f.name}. Not counted as income.`
   }
   if (f.bill) {
-    if (f.bill.salary) return `Salary — ${f.bill.name}, every month.`
-    const how = f.bill.found ? 'found in your statements' : 'you made it a bill'
-    const match = f.bill.varies
-      ? 'same payee, any amount — it varies'
-      : 'same payee, about the same amount'
-    return `Bill — pays ${f.bill.name} (${how}): ${match}.`
+    if (f.bill.salary) return `Salary from ${f.bill.name}, every month.`
+    return [
+      `Bill: ${f.bill.name}.`,
+      f.bill.found ? 'Found in the statements.' : 'Added by hand.',
+      ...(f.bill.varies ? ['The amount changes.'] : []),
+    ].join(' ')
   }
   const kind = f.kind === 'income' ? 'income' : 'expense'
   if (f.category === null) {
-    return f.kind === 'income'
-      ? 'Money in — no group needed.'
-      : 'Not filed — nothing known about it yet. Tap its group to file it.'
+    return f.kind === 'income' ? 'Income. No group needed.' : 'No group yet.'
   }
   const group = categoryLabel(kind, f.category)
-  if (f.hisRule) {
-    return `${group} — you filed ${f.name} there; the next ones go there too.`
-  }
-  if (f.shop) return `${group} — ${f.shop} is a shop the app knows.`
-  return `${group} — the statement reader's guess. Tap the group to change it.`
+  if (f.hisRule) return `${group}: set by hand for every ${f.name} payment.`
+  if (f.shop) return `${group}: ${f.shop} is a known shop.`
+  return `${group}: read from the statement.`
 }

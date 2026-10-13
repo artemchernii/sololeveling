@@ -6,6 +6,7 @@ import type { FunctionReturnType } from 'convex/server'
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { AccountLogo } from '@/components/finances/Logo'
+import { Busy } from '@/components/finances/bits'
 import { Sheet } from '@/components/finances/Sheet'
 import { Veiled } from '@/components/finances/Veil'
 import { SkeletonRows } from '@/components/Skeleton'
@@ -31,12 +32,21 @@ type Row = SheetData['rows'][number]
 type Check = SheetData['checks'][number]
 type FileInfo = SheetData['files'][number]
 
-const dayLabel = (t: number) =>
-  new Date(t).toLocaleDateString('en-GB', {
+/* The year only on a day that is not this year's. */
+const dayLabel = (t: number) => {
+  const d = new Date(t)
+  return d.toLocaleDateString('en-GB', {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
+    ...(d.getFullYear() === new Date().getFullYear()
+      ? {}
+      : { year: 'numeric' }),
   })
+}
+/* Rows the sheet opens on, and how many more each press brings. */
+const FIRST_ROWS = 60
+const MORE_ROWS = 120
 const dayKey = (t: number) => new Date(t).toDateString()
 
 export function OpenAccount({
@@ -113,7 +123,23 @@ function Ledger({
   onFile: (id: Id<'intakes'>) => void
   onUpdate: () => void
 }) {
-  const data = useQuery(api.aggregate.accountSheet, { accountId: account._id })
+  /* The balances, files and check are over every row; the rows themselves
+     come a page at a time (12 Oct: Revolut's hundreds made the sheet lag). */
+  const head = useQuery(api.aggregate.accountSheet, {
+    accountId: account._id,
+    head: true,
+  })
+  const [show, setShow] = useState(FIRST_ROWS)
+  const asked = useQuery(api.sheetRows.page, { accountId: account._id, show })
+  /* The rows already on screen stay while older ones are fetched. */
+  const [page, setPage] = useState(asked)
+  if (asked !== undefined && asked !== page) setPage(asked)
+  const data =
+    head === undefined || page === undefined
+      ? undefined
+      : head === null || page === null
+        ? null
+        : { ...head, rows: page.rows }
   const tails = account.ibanTails?.[0] ? ` · ••${account.ibanTails[0]}` : ''
 
   return (
@@ -155,11 +181,18 @@ function Ledger({
           {taken ? <TakenStrip taken={taken} /> : null}
           <SheetCheck data={data} account={account} onUpdate={onUpdate} />
           <span className="label-caps">
-            {data.rows.length} {data.rows.length === 1 ? 'row' : 'rows'} ·{' '}
+            {data.total} {data.total === 1 ? 'row' : 'rows'} ·{' '}
             {data.files.length} {data.files.length === 1 ? 'file' : 'files'} ·
             newest first
           </span>
-          <Timeline data={data} onFile={onFile} onRemoved={onRemoved} />
+          <Timeline
+            data={data}
+            older={page?.older === true}
+            loading={asked === undefined}
+            onOlder={() => setShow((n) => n + MORE_ROWS)}
+            onFile={onFile}
+            onRemoved={onRemoved}
+          />
         </>
       )}
     </div>
@@ -196,10 +229,17 @@ function Said({ check: c }: { check: Check }) {
    between the rows it closes and the ones after it. */
 function Timeline({
   data,
+  older,
+  loading,
+  onOlder,
   onFile,
   onRemoved,
 }: {
   data: SheetData
+  /** Older rows are saved and not on screen yet. */
+  older: boolean
+  loading: boolean
+  onOlder: () => void
   onFile: (id: Id<'intakes'>) => void
   onRemoved: (t: Taken) => void
 }) {
@@ -207,13 +247,18 @@ function Timeline({
   const removeSide = useMutation(api.logs.removeSide)
   const fileOf = (id: Id<'intakes'> | null) =>
     id === null ? undefined : data.files.find((f) => f.id === id)
+  /* A balance or a file older than the last row on screen waits for its
+     rows: it would otherwise sit under rows it does not close. */
+  const since = older ? (data.rows.at(-1)?.at ?? 0) : -Infinity
   type Item =
     | { t: 'row'; at: number; row: Row }
     | { t: 'bal'; at: number; bal: SheetData['readings'][number] }
     | { t: 'file'; at: number; file: FileInfo }
   const items: Array<Item> = [
     ...data.rows.map((row) => ({ t: 'row' as const, at: row.at, row })),
-    ...data.readings.map((bal) => ({ t: 'bal' as const, at: bal.at, bal })),
+    ...data.readings
+      .filter((bal) => bal.at >= since)
+      .map((bal) => ({ t: 'bal' as const, at: bal.at, bal })),
     /* A file that set no balance (a broker's orders) still has a place:
        where its rows end. */
     ...data.files
@@ -222,7 +267,8 @@ function Timeline({
         t: 'file' as const,
         at: file.to ?? file.readAt,
         file,
-      })),
+      }))
+      .filter((f) => f.at >= since),
   ]
   /* Newest first; on a tie a balance sits above the rows it closes. */
   items.sort((a, b) => b.at - a.at || (a.t === 'row' ? 1 : -1))
@@ -311,14 +357,26 @@ function Timeline({
               }
               onNotHere={
                 r.sideLogId
-                  ? () => removeSide({ logId: r.sideLogId })
+                  ? () => removeSide({ logId: r.sideLogId as Id<'logs'> })
                   : undefined
               }
             />
           </Fragment>
         )
       })}
-      {first ? (
+      {older ? (
+        <button
+          type="button"
+          data-testid="older-rows"
+          disabled={loading}
+          onClick={onOlder}
+          className="motion-press mt-3 self-center rounded-[10px] px-3.5 py-2 font-mono text-[10.5px] tracking-[0.12em] text-lav-300 uppercase ring-1 ring-lav-400/35 ring-inset hover:bg-lav-400/10 disabled:opacity-70"
+        >
+          <Busy on={loading} doing="loading">
+            older rows · {data.total - data.rows.length} more
+          </Busy>
+        </button>
+      ) : first ? (
         <span className="px-0.5 pt-3 font-mono text-[10.5px] leading-relaxed text-ink-500">
           That is the start: nothing before {short(first.at)} has been read.
           Drop an older statement to go further back.

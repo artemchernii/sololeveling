@@ -243,10 +243,11 @@ export const PHRASES: ReadonlyArray<Phrase> = [
   { pattern: /\bIUC\b/i, name: 'Car tax', category: 'car' },
   { pattern: /\bIMI\b/i, name: 'Property tax', category: 'home' },
   {
-    pattern: /COMISSAO|MANUTENCAO DE CONTA/i,
-    name: 'Bank fee',
+    pattern: /MANUTENCAO DE CONTA/i,
+    name: 'Bank account maintenance',
     category: 'other',
   },
+  { pattern: /COMISSAO/i, name: 'Bank fee', category: 'other' },
   { pattern: /IMPOSTO DO SELO/i, name: 'Stamp duty', category: 'other' },
 ]
 

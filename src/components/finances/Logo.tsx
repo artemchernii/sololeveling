@@ -131,6 +131,10 @@ export function TickerLogo({
   const [ink, setInk] = useState<Ink>('dark')
   const src = logoSrc({ symbol, type, name })
   const coin = isCoin({ symbol, type })
+  /* A fund's mark is its issuer's site icon, which cannot be read for its
+     colours (no CORS): asked for plainly, or it fails and shows letters
+     (13 Oct: "why etfs dont have icons?"). */
+  const site = src?.includes('/s2/favicons') ?? false
   const base = symbol.split(/[.-]/)[0]
   const box = {
     width: size,
@@ -167,10 +171,12 @@ export function TickerLogo({
       src={src}
       alt=""
       aria-hidden
-      crossOrigin={coin ? undefined : 'anonymous'}
+      crossOrigin={coin || site ? undefined : 'anonymous'}
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      onLoad={(e) => (coin ? undefined : setInk(inkOf(e.currentTarget)))}
+      onLoad={(e) =>
+        coin || site ? undefined : setInk(inkOf(e.currentTarget))
+      }
       style={coin ? box : { ...box, padding: size / 10 }}
       className={`shrink-0 object-contain ${coin ? '' : ink === 'light' ? 'bg-mark-ink' : 'bg-mark-ground'}`}
     />

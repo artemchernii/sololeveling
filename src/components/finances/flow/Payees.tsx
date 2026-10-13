@@ -1,4 +1,4 @@
-import { payeeSite } from '@/lib/payeeSites'
+import { payeeSite, senderSite } from '@/lib/payeeSites'
 import { useState } from 'react'
 import { Info } from 'lucide-react'
 import { useMutation } from 'convex/react'
@@ -36,7 +36,9 @@ export type Who = {
    payee Flow's own shop list does not know still gets its mark there
    (13 Oct: the salary from BNP Paribas showed the bank's logo only). */
 const listed = (...names: Array<string>) =>
-  names.map((n) => payeeSite(n)).find((d) => d !== null) ?? null
+  names.map((n) => payeeSite(n)).find((d) => d !== null) ??
+  names.map((n) => senderSite(n)).find((d) => d !== null) ??
+  null
 
 export function usePayees() {
   const list = useQuery(api.payees.list, {})
@@ -66,7 +68,9 @@ export function usePayees() {
         key,
         name: mine.name,
         original: row.name !== mine.name ? row.name : null,
-        domain: mine.domain ?? listed(mine.name, row.name),
+        /* The bank's own line names who sent it when his name for it
+           does not (13 Oct: "Salary" · "TRF CR … DE BNP PARIBAS"). */
+        domain: mine.domain ?? listed(mine.name, row.name, line),
         partOf: mine.partOf ?? null,
         source: 'yours',
       }
@@ -97,7 +101,7 @@ export function usePayees() {
       key,
       name: plain ?? row.name,
       original: plain === null ? null : row.name,
-      domain: paypal ? null : listed(row.name),
+      domain: paypal ? null : listed(row.name, line),
       partOf: null,
       source: null,
     }

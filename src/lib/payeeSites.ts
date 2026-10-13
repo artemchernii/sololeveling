@@ -150,3 +150,14 @@ export function payeeSite(name: string): string | null {
   if (/^ (transfer|transferencia|trf|to|from|sent) /.test(words)) return null
   return BY_LENGTH.find(([shop]) => words.includes(` ${shop} `))?.[1] ?? null
 }
+
+/** Who sent a transfer in, when the bank's line ends with a sender the
+ * list knows by its whole name: "TRF CR SEPA+ 0000021 DE BNP PARIBAS"
+ * (13 Oct, his salary). The whole name only — "DE CLAUDE MARTIN" is a
+ * person, not the Claude subscription. */
+export function senderSite(line: string): string | null {
+  const sender = /\s(?:DE|FROM)\s+([^\d]+)$/i.exec(line)?.[1]
+  if (sender === undefined) return null
+  const words = plain(sender)
+  return BY_LENGTH.find(([shop]) => words === ` ${shop} `)?.[1] ?? null
+}

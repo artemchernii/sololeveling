@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
+import { ArrowLeftRight, CalendarClock, ReceiptText } from 'lucide-react'
 
 import { api } from '../../../../convex/_generated/api'
 import { useDayStarts } from '@/components/track/useDayStarts'
@@ -63,18 +64,26 @@ export function Flow({ open }: { open?: string } = {}) {
       }
     }
     return [
-      { id: 'ahead' as const, title: 'Future balance', line: a, dot: aDot },
+      {
+        id: 'ahead' as const,
+        title: 'Future balance',
+        line: a,
+        dot: aDot,
+        Icon: CalendarClock,
+      },
       {
         id: 'spending' as const,
         title: 'Spending',
         line: 'bills and day-to-day, row by row',
         dot: null,
+        Icon: ReceiptText,
       },
       {
         id: 'movements' as const,
         title: 'Movements',
         line: 'every account, one list',
         dot: null,
+        Icon: ArrowLeftRight,
       },
     ]
   }, [ahead])
@@ -93,30 +102,43 @@ export function Flow({ open }: { open?: string } = {}) {
               type="button"
               aria-current={on ? 'page' : undefined}
               onClick={() => setTab(l.id)}
-              className={`motion-press flex flex-col items-start gap-1 rounded-[16px] px-3 py-2.5 text-left ring-1 ring-inset transition-colors sm:px-4 sm:py-3 ${
+              className={`motion-press flex items-center gap-3 rounded-[16px] px-3 py-2.5 text-left ring-1 ring-inset transition-colors sm:px-4 sm:py-3 ${
                 on
                   ? 'glass shadow-[0_0_30px_-16px_var(--system-shine)] ring-[color:var(--system-edge)]'
                   : 'glass ring-transparent hover:ring-lift/16'
               }`}
             >
+              {/* Each tab has its mark (13 Oct: three boxes of words read
+                  alike); lavender on the one that is open. */}
               <span
-                className={`font-mono text-[10px] tracking-[0.14em] uppercase sm:text-[11px] sm:tracking-[0.24em] ${
+                className={`hidden size-9 shrink-0 place-items-center rounded-[11px] ring-1 transition-colors ring-inset sm:grid ${
                   on
-                    ? 'text-lav-400 [text-shadow:0_0_10px_var(--system-shine)]'
-                    : 'text-ink-400'
+                    ? 'bg-lav-400/16 text-lav-300 ring-lav-400/40'
+                    : 'bg-lift/[0.05] text-ink-400 ring-lift/10'
                 }`}
               >
-                {l.title}
+                <l.Icon className="size-[18px]" strokeWidth={1.75} />
               </span>
-              <span
-                className={`text-[11px] leading-snug sm:text-[12.5px] ${on ? 'text-ink-300' : 'text-ink-500'}`}
-              >
-                {l.dot ? (
-                  <span
-                    className={`mr-1.5 inline-block size-1.5 rounded-full align-[1px] ${l.dot}`}
-                  />
-                ) : null}
-                {l.line}
+              <span className="flex min-w-0 flex-col items-start gap-1">
+                <span
+                  className={`font-mono text-[10px] tracking-[0.14em] uppercase sm:text-[11px] sm:tracking-[0.24em] ${
+                    on
+                      ? 'text-lav-400 [text-shadow:0_0_10px_var(--system-shine)]'
+                      : 'text-ink-400'
+                  }`}
+                >
+                  {l.title}
+                </span>
+                <span
+                  className={`text-[11px] leading-snug sm:text-[12.5px] ${on ? 'text-ink-300' : 'text-ink-500'}`}
+                >
+                  {l.dot ? (
+                    <span
+                      className={`mr-1.5 inline-block size-1.5 rounded-full align-[1px] ${l.dot}`}
+                    />
+                  ) : null}
+                  {l.line}
+                </span>
               </span>
             </button>
           )

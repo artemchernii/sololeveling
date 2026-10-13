@@ -626,10 +626,13 @@ function DayRows({
   after: number | null
   onClose: () => void
 }) {
-  const sheet = useQuery(api.aggregate.accountSheet, { accountId })
-  const rows = (sheet?.rows ?? []).filter(
-    (r) => r.at >= dayStart && r.at <= dayEnd,
-  )
+  /* Only that day's rows, not the whole account sheet (13 Oct). */
+  const sheet = useQuery(api.sheetRows.day, {
+    accountId,
+    from: dayStart,
+    to: dayEnd,
+  })
+  const rows = sheet ?? []
   const moved = rows.some((r) => r.kind === 'move' && r.other !== null)
   return (
     <div className="system-frame motion-arrive absolute top-2 right-2 z-10 flex bg-popover shadow-2xl w-[320px] max-w-[calc(100%-16px)] flex-col gap-3 rounded-[18px] p-4">

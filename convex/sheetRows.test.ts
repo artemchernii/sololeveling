@@ -77,3 +77,28 @@ test("another user gets nothing of this account's rows; signed out is refused", 
     t.query(api.sheetRows.page, { accountId, show: 60 }),
   ).rejects.toThrow()
 })
+
+test("a day is that day's rows of the whole sheet, and nobody else's", async () => {
+  const { t, me, accountId } = await revolutWith(400)
+  const whole = (await me.query(api.aggregate.accountSheet, { accountId }))!
+  /* A day in the middle of what the sheet holds. */
+  const mid = whole.rows[Math.floor(whole.rows.length / 2)].at
+  const from = Math.floor(mid / DAY) * DAY
+  const to = from + DAY - 1
+  const rows = await me.query(api.sheetRows.day, { accountId, from, to })
+  if (rows === null) throw new Error('no day')
+  expect(rows.length).toBeGreaterThan(0)
+  expect(rows).toEqual(whole.rows.filter((r) => r.at >= from && r.at <= to))
+
+  /* A day with nothing: an empty list, not the account's other rows. */
+  const far = Date.UTC(2020, 0, 1)
+  expect(
+    await me.query(api.sheetRows.day, { accountId, from: far, to: far + DAY }),
+  ).toEqual([])
+
+  /* Another owner gets nothing of it. */
+  const them = t.withIdentity({ tokenIdentifier: OTHER })
+  expect(
+    await them.query(api.sheetRows.day, { accountId, from, to }),
+  ).toBeNull()
+})

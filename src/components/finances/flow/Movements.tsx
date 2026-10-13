@@ -1,3 +1,4 @@
+import { dayBars } from '@/lib/flowMarks'
 import { groupHint } from '@/lib/groupHint'
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -187,6 +188,7 @@ export function Movements({
         {cells.map((c) => {
           const s = sums.get(c)
           const future = c > today
+          const bars = dayBars(s?.i ?? 0, future ? 0 : (s?.o ?? 0), mx)
           return (
             <button
               key={c}
@@ -207,17 +209,13 @@ export function Movements({
               {s?.i ? (
                 <span
                   className="mx-[18%] min-h-0.5 self-stretch rounded-[3px] bg-state-good"
-                  style={{ height: Math.min(44, Math.sqrt(s.i / mx) * 44) }}
+                  style={{ height: bars.in }}
                 />
               ) : null}
               {future ? null : s?.o ? (
                 <span
                   className="motion-pop mx-[18%] self-stretch rounded-[3px_3px_1px_1px] bg-state-danger/60"
-                  style={{
-                    /* The smallest payment is still a bar: never the
-                       height of a day's dash. */
-                    height: Math.max(5, Math.sqrt(s.o / mx) * 44),
-                  }}
+                  style={{ height: bars.out }}
                 />
               ) : s?.i ? null : (
                 /* Nothing moved (12 Oct: "no moves and little out are

@@ -61,6 +61,13 @@ test('a reading half an hour old is read again, once asked', async () => {
   expect(jobs[0].args).toEqual([{ pricesOnly: true, ownerId: ME }])
 })
 
+test('asked twice before the first prices land: one reading, not two', async () => {
+  const { me, asked } = await setup(NOON - FRESH_FOR)
+  expect(await me.mutation(api.prices.refresh, {})).toBe('reading')
+  expect(await me.mutation(api.prices.refresh, {})).toBe('reading')
+  expect(await asked()).toHaveLength(1)
+})
+
 test('a ticker never priced is read', async () => {
   const { me, asked } = await setup(null)
   expect(await me.mutation(api.prices.refresh, {})).toBe('reading')

@@ -4,21 +4,23 @@ import {
   HistogramSeries,
 } from 'lightweight-charts'
 import type {
+  CandlestickData,
   IChartApi,
   ISeriesApi,
   SeriesMarker,
   SeriesType,
   Time,
   UTCTimestamp,
+  WhitespaceData,
 } from 'lightweight-charts'
 
-import { seconds } from '@/lib/priceChart'
+import { candleRows, seconds } from '@/lib/priceChart'
 import type { Mark, Pt } from '@/lib/priceChart'
 import { css } from '@/lib/tokenColour'
 
 /* What the position chart draws its stored days as (13 Oct: "candles?
    volume?", mockup chart.html): the line of closes, or a candle a day
-   where every day has its open, high and low; and the shares traded
+   where nearly every day has its open, high and low; and the shares traded
    that day as bars along the bottom, on a scale of their own. Colours
    come from the state tokens through css() — the library cannot parse
    oklch(). */
@@ -70,13 +72,9 @@ export function fill(main: Main, view: View, pts: ReadonlyArray<Pt>) {
     )
   else
     (main as ISeriesApi<'Candlestick'>).setData(
-      pts.map((p) => ({
-        time: time(p),
-        open: p.o ?? p.v,
-        high: p.h ?? p.v,
-        low: p.l ?? p.v,
-        close: p.v,
-      })),
+      candleRows(pts) as Array<
+        CandlestickData<UTCTimestamp> | WhitespaceData<UTCTimestamp>
+      >,
     )
 }
 

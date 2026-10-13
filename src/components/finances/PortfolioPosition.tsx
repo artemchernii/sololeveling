@@ -132,7 +132,7 @@ export function PortfolioPosition({
   const can = useMemo(() => drawable((line ?? []).map(asPt)), [line])
   const askBars = useMutation(api.bars.ask)
   const asked = useRef<Id<'instruments'> | null>(null)
-  const lacks = line !== undefined && line.length > 0 && !can.candles
+  const lacks = line !== undefined && line.length > 0 && !can.whole
   useEffect(() => {
     if (!lacks || first.type === UNPRICED) return
     if (asked.current === first.instrumentId) return

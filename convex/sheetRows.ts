@@ -186,24 +186,91 @@ export const page = query({
             .take(SHEET_TRADES)
         ).filter((t) => t.occurredAt >= since)
       : []
-    const coverOf = new Map<string, Array<Reading>>()
-    for (const currency of account.currencies) {
-      const snaps = await ctx.db
-        .query('stateSnapshots')
-        .withIndex('by_owner_key_time', (q) =>
-          q
-            .eq('ownerId', ownerId)
-            .eq('key', `balance:${account._id}:${currency}`),
-        )
-        .take(500)
-      coverOf.set(
-        currency.toLowerCase(),
-        snaps.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
-      )
-    }
     return {
-      rows: await buildSheetRows(ctx, ownerId, account, logs, trades, coverOf),
+      rows: await buildSheetRows(
+        ctx,
+        ownerId,
+        account,
+        logs,
+        trades,
+        await readCover(ctx, ownerId, account),
+      ),
       older,
     }
+  },
+})
+
+/** The account's balances by currency: what a row is checked against. */
+async function readCover(
+  ctx: QueryCtx,
+  ownerId: string,
+  account: Doc<'accounts'>,
+): Promise<Map<string, Array<Reading>>> {
+  const cover = new Map<string, Array<Reading>>()
+  for (const currency of account.currencies) {
+    const snaps = await ctx.db
+      .query('stateSnapshots')
+      .withIndex('by_owner_key_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('key', `balance:${account._id}:${currency}`),
+      )
+      .take(500)
+    cover.set(
+      currency.toLowerCase(),
+      snaps.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
+    )
+  }
+  return cover
+}
+
+/** One day's rows are never more than this; the chart's window lists them. */
+const DAY_ROWS = 200
+
+/**
+ * The rows of one account between two times — a day on the accounts
+ * chart (13 Oct). Before, the chart's day window asked for the whole
+ * account sheet (up to 2,000 rows, every file, every check) to show a
+ * handful. Reads only that span through the account's index. Source 1:
+ * logged rows, listed.
+ */
+export const day = query({
+  args: { accountId: v.id('accounts'), from: v.number(), to: v.number() },
+  returns: v.union(v.null(), v.array(sheetRow)),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const account = await ctx.db.get(args.accountId)
+    if (account === null || account.ownerId !== ownerId) return null
+    const logs = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_account_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('accountId', account._id)
+          .gte('occurredAt', args.from)
+          .lte('occurredAt', args.to),
+      )
+      .order('desc')
+      .take(DAY_ROWS)
+    /* Trades have no index by time: a broker's are read whole (small
+       rows), as the page does. */
+    const trades = account.kinds.includes('broker')
+      ? (
+          await ctx.db
+            .query('trades')
+            .withIndex('by_owner_account', (q) =>
+              q.eq('ownerId', ownerId).eq('accountId', account._id),
+            )
+            .take(SHEET_TRADES)
+        ).filter((t) => t.occurredAt >= args.from && t.occurredAt <= args.to)
+      : []
+    return await buildSheetRows(
+      ctx,
+      ownerId,
+      account,
+      logs,
+      trades,
+      await readCover(ctx, ownerId, account),
+    )
   },
 })

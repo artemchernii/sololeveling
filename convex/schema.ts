@@ -1183,6 +1183,9 @@ export default defineSchema({
     .index('by_owner', ['ownerId'])
     .index('by_owner_fingerprint', ['ownerId', 'fingerprint'])
     .index('by_owner_batch', ['ownerId', 'batchId'])
+    /* One account's files, for its sheet (13 Oct): not the owner's newest
+       200 loaded whole. */
+    .index('by_owner_account', ['ownerId', 'accountId'])
     /* Read only by the daily eraser, which acts for every owner — like
        instruments.by_symbol. */
     .index('by_keptUntil', ['keptUntil']),

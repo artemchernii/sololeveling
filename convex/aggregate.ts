@@ -2166,18 +2166,26 @@ export const accountSheet = query({
         added.set(l.meta.intakeId, (added.get(l.meta.intakeId) ?? 0) + 1)
     for (const t of trades)
       if (t.importId) added.set(t.importId, (added.get(t.importId) ?? 0) + 1)
-    const intakes = (
-      await ctx.db
-        .query('intakes')
-        .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
-        .order('desc')
-        .take(SHEET_FILES)
-    ).filter(
-      (i) =>
-        i.status === 'done' &&
-        i.takenBackAt === undefined &&
-        (i.accountId === account._id || added.has(i._id)),
-    )
+    /* Only this account's files are read (13 Oct): the ones filed under
+       it, through its index, and the ones a row here names. Before, the
+       owner's newest 200 files were loaded whole to keep a few. */
+    const own = await ctx.db
+      .query('intakes')
+      .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', ownerId).eq('accountId', account._id),
+      )
+      .order('desc')
+      .take(SHEET_FILES)
+    const seen = new Set(own.map((i) => i._id))
+    const named: Array<Doc<'intakes'>> = []
+    for (const id of [...added.keys()].slice(0, SHEET_FILES)) {
+      if (seen.has(id)) continue
+      const file = await ctx.db.get(id)
+      if (file !== null && file.ownerId === ownerId) named.push(file)
+    }
+    const intakes = [...own, ...named]
+      .filter((i) => i.status === 'done' && i.takenBackAt === undefined)
+      .sort((a, b) => b._creationTime - a._creationTime)
     const files = intakes.map((i) => {
       const times = [
         ...(i.transactions ?? []).map((t) => t.occurredAt),

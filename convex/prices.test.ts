@@ -20,6 +20,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllEnvs()
 })
 
 async function setup(fetchedAt: number | null, ownerId = ME) {
@@ -81,4 +82,11 @@ test("nothing owned asks for nothing — another owner's ticker is not mine", as
 test('refused without a sign-in', async () => {
   const { t } = await setup(null)
   await expect(t.mutation(api.prices.refresh, {})).rejects.toThrow()
+})
+
+test("the test backend never reads: its prices are the mock's", async () => {
+  vi.stubEnv('E2E', '1')
+  const { me, asked } = await setup(null)
+  expect(await me.mutation(api.prices.refresh, {})).toBe('fresh')
+  expect(await asked()).toHaveLength(0)
 })

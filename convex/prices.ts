@@ -25,6 +25,9 @@ export const refresh = mutation({
   ),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
+    /* The test backend keeps its mock prices: a reading from Yahoo there
+       changed every total the browser tests expect (13 Oct). */
+    if (process.env.E2E === '1') return 'fresh'
     const held = (
       await ctx.db
         .query('instruments')

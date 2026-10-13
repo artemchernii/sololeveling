@@ -54,7 +54,7 @@ export function AddButton({
       </button>
       {waiting ? (
         <span
-          aria-label="an update is waiting"
+          aria-label="update not finished"
           className="motion-pulse absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-state-warn shadow-[0_0_8px_var(--color-state-warn)] ring-2 ring-background"
         />
       ) : null}
@@ -123,7 +123,7 @@ export function useIntakeUpload() {
         headers: { 'Content-Type': type },
         body: file,
       })
-      if (!res.ok) throw new Error('It did not upload — try again.')
+      if (!res.ok) throw new Error('Not uploaded — try again.')
       const { storageId } = (await res.json()) as {
         storageId: Id<'_storage'>
       }
@@ -156,7 +156,7 @@ export function DropFiles({
   onStarted,
   oneEach = false,
   title = 'Drop statements or screenshots',
-  hint = `PDF · CSV · PNG — any bank, any broker, up to ${MAX_INTAKE_FILES} at once. It works out what each one is.`,
+  hint = `PDF · CSV · PNG · any bank or broker · up to ${MAX_INTAKE_FILES} files`,
   small = false,
 }: {
   accountId?: Id<'accounts'>
@@ -180,9 +180,7 @@ export function DropFiles({
       for (const id of await upload(files, { accountId, oneEach }))
         onStarted(id)
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : 'It did not upload — try again.',
-      )
+      setError(e instanceof Error ? e.message : 'Not uploaded — try again.')
     } finally {
       setBusy(false)
     }

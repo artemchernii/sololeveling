@@ -177,7 +177,7 @@ export function useBatchUpload() {
           headers: { 'Content-Type': type },
           body: file,
         })
-        if (!res.ok) throw new Error('It did not upload — try again.')
+        if (!res.ok) throw new Error('Not uploaded — try again.')
         const { storageId } = (await res.json()) as {
           storageId: Id<'_storage'>
         }

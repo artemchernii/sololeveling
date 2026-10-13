@@ -111,8 +111,8 @@ export function SumCheck({
             <span className="text-foreground">
               {r.merchant} <Veiled>{signed(r.amount)}</Veiled>
             </span>{' '}
-            was pending on {DAY.format(c.wasAt)}. The{' '}
-            <Veiled>{euros(c.was)}</Veiled> already had it taken off.
+            was pending on {DAY.format(c.wasAt)} · already counted in the{' '}
+            <Veiled>{euros(c.was)}</Veiled> balance
           </span>
         </div>
       ))}

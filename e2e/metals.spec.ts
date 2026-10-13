@@ -58,7 +58,7 @@ test('a commodity CSV in the holdings check: ounces, no €0, and it is a file',
      open from the account's line in the check. */
   const sheet = page.getByRole('dialog')
   await sheet.getByRole('button', { name: 'positions', exact: true }).click()
-  await expect(sheet.getByText('no AI needed · $0')).toBeVisible()
+  await expect(sheet.getByText('read without AI · $0')).toBeVisible()
   await expect(sheet.getByText(/0\.4084 oz/)).toBeVisible()
   await expect(sheet.getByText(/\b1 position\b/).first()).toBeVisible()
   await expect(sheet.getByText(/\b1 positions\b/)).toHaveCount(0)

@@ -213,7 +213,7 @@ export function AccountBlock({
       {account === null && block.product ? (
         <div className="flex flex-col gap-2 rounded-[12px] bg-lift/[0.03] px-3 py-2.5 text-[12.5px] text-ink-300">
           <span>
-            A {kinds[0] ?? 'bank'} you haven't added yet — found on{' '}
+            Not an account yet · found in{' '}
             {block.files.map((f) => f.name).join(', ')}
             {block.product.accountTail
               ? `, account ending …${block.product.accountTail}`
@@ -221,7 +221,7 @@ export function AccountBlock({
             {block.product.holder
               ? `, in the name of ${block.product.holder}`
               : ''}
-            . Its rows and balance go in once you add it.
+            . Add it to save its rows and balance.
           </span>
           <div className="flex flex-wrap gap-1.5">
             {mine ? (
@@ -244,7 +244,7 @@ export function AccountBlock({
                   add {title}
                 </Opt>
                 <Opt disabled={busy} onClick={() => setMine(true)}>
-                  it's one I have…
+                  an existing account…
                 </Opt>
               </>
             )}

@@ -124,7 +124,7 @@ export function ReadingSheet({
                 </span>
                 {p.rows > 0 && !trades ? (
                   <span className="font-mono text-[11px] text-ink-500">
-                    {p.have} already here · {fresh} new
+                    {p.have} already added · {fresh} new
                   </span>
                 ) : null}
               </span>
@@ -159,7 +159,7 @@ export function ReadingSheet({
                   <span
                     className={`text-right font-mono text-[9.5px] tracking-[0.12em] uppercase ${r.have ? 'text-ink-600' : 'text-lav-300'}`}
                   >
-                    {r.have ? 'have it' : r.move ? 'move' : 'new'}
+                    {r.have ? 'already added' : r.move ? 'move' : 'new'}
                   </span>
                 </div>
               ))}
@@ -191,7 +191,7 @@ export function ReadingSheet({
       <span className="border-t border-lav-400/15 pt-3 font-mono text-[11px] text-ink-500">
         {p.stage === 'rows' &&
         intake.files?.every((f) => /csv/i.test(f.contentType))
-          ? 'read in code'
+          ? 'read without AI'
           : INTAKE_MODEL_NAME}{' '}
         · {elapsed(since(intake, now))} · nothing saved until you confirm
       </span>
@@ -321,7 +321,7 @@ function ReadFailed({
       </span>
       <p className="text-[15px] leading-relaxed text-foreground">
         {dead
-          ? 'The reader stopped without answering. Nothing was saved — try again, and if it stops twice, the file is too long for one reading.'
+          ? 'Could not be read. Nothing saved. Twice in a row: the file is too long.'
           : intake.error}
       </p>
       <span className="font-mono text-[11px] text-ink-500">
@@ -408,7 +408,7 @@ export function IntakeStrip({
             : p?.stage === 'columns'
               ? 'reading the columns'
               : 'opening the file',
-          p?.rows && p.have ? `${p.have} already here` : null,
+          p?.rows && p.have ? `${p.have} already added` : null,
           p?.rows ? `${fresh.toLocaleString()} new` : null,
           elapsed(since(intake, now)),
         ]
@@ -418,7 +418,7 @@ export function IntakeStrip({
           intake.historyTrades !== undefined
             ? `${intake.historyTrades.toLocaleString()} trades · ${intake.historyTickers ?? 0} tickers`
             : p && p.rows > 0
-              ? `${fresh} new · ${p.have} already here`
+              ? `${fresh} new · ${p.have} already added`
               : null,
           intake.balance
             ? `balance ${money(intake.balance.value, intake.balance.currency)}`
@@ -523,7 +523,7 @@ export function ReadBy({ intake }: { intake: Doc<'intakes'> }) {
   /* A CSV whose columns the app already knows is read by code: no
      Claude mark on what Claude did not read (5 Oct, seen in a test). */
   if (intake.model !== undefined && !intake.model.startsWith('Claude'))
-    return <>no AI needed · $0</>
+    return <>read without AI · $0</>
   return (
     <span className="inline-flex items-center gap-1.5">
       <img

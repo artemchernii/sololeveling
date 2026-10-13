@@ -27,10 +27,10 @@ test('one button: update all is gone, and ADD shows what is waiting', async ({
   const add = page.getByRole('button', { name: 'add', exact: true }).first()
   await expect(add).toBeVisible()
   await expect(page.getByRole('button', { name: 'update all' })).toHaveCount(0)
-  await expect(page.getByLabel('an update is waiting')).toHaveCount(0)
+  await expect(page.getByLabel('update not finished')).toHaveCount(0)
 
   await testClient().mutation(anyApi.e2eUpdate.holdRead, {})
-  await expect(page.getByLabel('an update is waiting')).toBeVisible()
+  await expect(page.getByLabel('update not finished')).toBeVisible()
   /* It opens on what is waiting, not on an empty drop area. */
   await add.click()
   const sheet = page.getByRole('dialog', { name: 'add' })
@@ -45,7 +45,7 @@ test('ADD opens as it always did: the drop area, your accounts, rows by hand', a
   await start(page)
   const sheet = await open(page)
   await expect(sheet.getByText('Drop statements or screenshots')).toBeVisible()
-  await expect(sheet.getByText('lands on the account')).toBeVisible()
+  await expect(sheet.getByText('saved', { exact: true }).first()).toBeVisible()
   await expect(sheet.getByText('Revolut').first()).toBeVisible()
   await expect(sheet.getByRole('button', { name: 'money in' })).toBeVisible()
   await page.waitForTimeout(900)
@@ -66,7 +66,7 @@ test('a wrong kind of file is named, and nothing starts', async ({ page }) => {
     sheet.getByText('notes.docx is not a PDF, a CSV or a screenshot.'),
   ).toBeVisible()
   await expect(sheet.getByText('Drop statements or screenshots')).toBeVisible()
-  await expect(page.getByLabel('an update is waiting')).toHaveCount(0)
+  await expect(page.getByLabel('update not finished')).toHaveCount(0)
   await page.waitForTimeout(700)
   await page.screenshot(shot('update-wrong-file'))
 })
@@ -99,7 +99,7 @@ test('the same statement twice: the second time there is nothing to save', async
   await page.screenshot(shot('update-same-file-again'))
   await sheet.getByRole('button', { name: 'done' }).click()
   await expect(sheet).toBeHidden()
-  await expect(page.getByLabel('an update is waiting')).toHaveCount(0)
+  await expect(page.getByLabel('update not finished')).toHaveCount(0)
 })
 
 /* Artem, 10 Oct: "One starts Sep 1 till Sep 15. Second starts Sep 1 till
@@ -178,7 +178,7 @@ test('reading: it shows at once, closing asks first, and leaving loses nothing',
   await expect(sheet).toBeHidden()
 
   /* Gone from sight, not lost: the button says so, a reload too. */
-  await expect(page.getByLabel('an update is waiting')).toBeVisible()
+  await expect(page.getByLabel('update not finished')).toBeVisible()
   await page.reload()
   await page.getByRole('button', { name: 'add', exact: true }).first().click()
   await expect(sheet.getByText('statement-sep.pdf')).toBeVisible()
@@ -290,7 +290,7 @@ test('a save that stopped: it says so, closing asks, and finishing lands it once
   await expect(ask).toBeVisible()
   await ask.getByRole('button', { name: 'keep it open' }).click()
 
-  await expect(sheet.getByText('The save stopped before the end')).toBeVisible({
+  await expect(sheet.getByText('Saving stopped')).toBeVisible({
     timeout: 20_000,
   })
   await expect(bank.getByText('not finished')).toBeVisible()

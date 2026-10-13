@@ -27,7 +27,7 @@ test('UPDATE on a card: the drop area named for it, the numbers under it, no tab
   await expect(
     sheet.getByText('Drop a Revolut statement or screenshot'),
   ).toBeVisible()
-  await expect(sheet.getByText('lands on the account')).toBeVisible()
+  await expect(sheet.getByText('saved', { exact: true }).first()).toBeVisible()
   await expect(sheet.getByText('or type what is in it now')).toBeVisible()
   await expect(sheet.getByLabel('Revolut EUR')).toBeVisible()
   await expect(sheet.getByLabel('Revolut USD')).toBeVisible()
@@ -58,11 +58,9 @@ test('a file from UPDATE: the steps in the header, checked, saving…, landed, c
   await expect(sheet.getByText('2 new', { exact: true })).toBeVisible()
   await expect(sheet.getByText('3 already added')).toBeVisible()
   await expect(sheet.getByText('as the statement shows')).toBeVisible()
-  await expect(
-    sheet.getByText('Nothing is saved until apply is pressed.'),
-  ).toBeVisible()
+  await expect(sheet.getByText('Nothing saved yet.')).toBeVisible()
   const steps = sheet.getByTestId('steps')
-  await expect(steps.locator('[aria-current=step]')).toHaveText('you check')
+  await expect(steps.locator('[aria-current=step]')).toHaveText('check')
   await page.waitForTimeout(700)
   await page.screenshot(shot('account-update-check'))
   /* The window took the check's height, and holds it. */
@@ -152,7 +150,7 @@ test('an update still being read: UPDATE opens on it, and closing asks', async (
   await ask.getByRole('button', { name: 'close it' }).click()
   await expect(sheet).toBeHidden()
   /* The dot on ADD is the one sign of it. */
-  await expect(page.getByLabel('an update is waiting')).toBeVisible()
+  await expect(page.getByLabel('update not finished')).toBeVisible()
 })
 
 test('a file being read for a known account: "reading", never "finding the bank"', async ({

@@ -178,7 +178,7 @@ export function BulkReview({
 
       {months.length > 0 ? (
         <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] tracking-[0.06em] text-ink-500">
-          <Legend className="bg-lav-400/25">already had</Legend>
+          <Legend className="bg-lav-400/25">already added</Legend>
           <Legend className="bg-lav-400">this drop</Legend>
           <Legend className="hatch-warn">missing</Legend>
           <span className="ml-auto">{range}</span>
@@ -226,7 +226,8 @@ export function BulkReview({
               <b className="font-normal text-foreground">
                 {review.moves.length}
               </b>{' '}
-              paired — each written once, never as income or spending
+              transfers between own accounts · saved once, not income or
+              spending
             </span>
           </div>
           {review.moves.map((m) => (
@@ -276,15 +277,15 @@ export function BulkReview({
                 ? `${notSaved.join(', ')} not saved — ${notSaved.length === 1 ? '1 question' : `${notSaved.length} questions`} open.`
                 : null,
               asks.length > 0
-                ? `${asks.length === 1 ? 'One question' : `${asks.length} questions`} left — they wait here.`
+                ? `${asks.length === 1 ? '1 question' : `${asks.length} questions`} open.`
                 : null,
               waitingNew.length > 0
-                ? `${waitingNew.map((a) => a.product?.name).join(', ')} ${waitingNew.length === 1 ? 'waits' : 'wait'} until you add ${waitingNew.length === 1 ? 'it' : 'them'}.`
+                ? `${waitingNew.map((a) => a.product?.name).join(', ')} not saved — account not added.`
                 : null,
               asks.length === 0 &&
               waitingNew.length === 0 &&
               notSaved.length === 0
-                ? 'Nothing is saved until apply is pressed.'
+                ? 'Nothing saved yet.'
                 : null,
             ]
               .filter(Boolean)
@@ -313,7 +314,7 @@ export function BulkReview({
             onClick={() => void discard({ batchId }).then(onClose)}
             className={`${PILL_QUIET} text-state-danger`}
           >
-            throw all {review.files} files away
+            discard all {review.files} files
           </button>
         ) : (
           <button
@@ -342,7 +343,7 @@ export function BulkReview({
             apply({ batchId, dayStart })
               .then(onApplied)
               .catch((e: unknown) =>
-                setError(failureMessage(e) ?? 'It did not apply — try again.'),
+                setError(failureMessage(e) ?? 'Not saved — try again.'),
               )
               .finally(() => setBusy(false))
           }}

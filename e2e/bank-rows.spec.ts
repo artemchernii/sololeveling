@@ -60,6 +60,17 @@ test('rows arrive and add up: saved with no press, shown on the card until close
   const sheet = page.getByRole('dialog')
   await expect(sheet.getByText('TRF P/ ANDREI PAVLOV')).toBeVisible()
   await expect(sheet.getByText(/PINGO DOCE/)).toBeVisible()
+  /* Each row reads as who was paid, the bank's line underneath (13 Oct). */
+  await expect(
+    sheet.getByTestId('row-name').filter({ hasText: /^Andrei Pavlov$/ }),
+  ).toBeVisible()
+  await expect(
+    sheet.getByTestId('row-name').filter({ hasText: /^Pingo Doce$/ }),
+  ).toBeVisible()
+  await expect(
+    sheet.getByTestId('row-bank').filter({ hasText: 'TRF P/ ANDREI PAVLOV' }),
+  ).toBeVisible()
+  await page.screenshot(shot('row-names-account'))
   await expect(sheet.getByText(/SPOTIFY/)).toHaveCount(0)
   /* Pingo Doce was filed once under its short name: the bank's line has
      its group and its logo. A transfer to a person was never filed: no

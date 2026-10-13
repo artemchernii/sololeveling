@@ -1,3 +1,4 @@
+import { usePayees } from '@/components/finances/flow/Payees'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { ArrowDown, ArrowLeftRight, ArrowUp } from 'lucide-react'
@@ -123,6 +124,10 @@ export function RowLine({
   }
   const moved = r.kind === 'move'
   const traded = r.kind === 'buy' || r.kind === 'sell'
+  /* The same name Movements gives the row (13 Oct), the bank's line
+     underneath. A trade is named by its ticker already. */
+  const { who } = usePayees()
+  const named = traded ? null : who({ name: r.text })
   const cls = moved
     ? 'text-lav-300'
     : r.amount > 0
@@ -156,8 +161,19 @@ export function RowLine({
         </span>
       </RowMark>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-[13.5px] text-foreground">{r.text}</span>
+        <span
+          data-testid="row-name"
+          className="truncate text-[13.5px] text-foreground"
+        >
+          {named?.name ?? r.text}
+        </span>
         <span className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] text-ink-500">
+          {named?.original ? (
+            <span data-testid="row-bank" className="max-w-full truncate">
+              {named.original}
+              {moved || r.category ? ' ·' : ''}
+            </span>
+          ) : null}
           {moved ? (
             <span className="rounded-[5px] px-1.5 text-[9.5px] tracking-[0.08em] text-lav-300 uppercase ring-1 ring-lav-400/35 ring-inset">
               transfer{' '}

@@ -35,6 +35,7 @@ import {
 } from '@/components/finances/BulkTransferCheck'
 import { SharesCheck, sharesOpen } from '@/components/finances/BulkSharesCheck'
 import { HoldingsTotal } from '@/components/finances/HoldingsTotalCheck'
+import { usePayees } from '@/components/finances/flow/Payees'
 
 export function AccountBlock({
   block,
@@ -59,6 +60,7 @@ export function AccountBlock({
   onCheck: (id: Id<'intakes'>) => void
 }) {
   const answer = useMutation(api.intake.batchAnswer)
+  const { who } = usePayees()
   const create = useMutation(api.accounts.create)
   const readAgain = useMutation(api.intake.readAgain)
   const [rows, setRows] = useState(false)
@@ -473,7 +475,16 @@ export function AccountBlock({
               <span className="font-mono text-[10.5px] text-ink-500">
                 {DAY.format(r.occurredAt)}
               </span>
-              <span className="truncate">{r.merchant}</span>
+              <span className="flex min-w-0 flex-col">
+                <span data-testid="row-name" className="truncate">
+                  {who({ name: r.merchant }).name}
+                </span>
+                {who({ name: r.merchant }).original ? (
+                  <span className="truncate font-mono text-[10.5px] text-ink-500">
+                    {who({ name: r.merchant }).original}
+                  </span>
+                ) : null}
+              </span>
               <span className="hidden sm:inline">
                 <Tag>
                   {r.pending

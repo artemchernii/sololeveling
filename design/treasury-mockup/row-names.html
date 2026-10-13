@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · a row reads as who was paid</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Row names (13 Oct). A row from a connected bank keeps the bank's own
+     line as its name — "COMPRA 2789 EASYPAY LISBOA". Movements names a
+     shop the app knows; an account's page and the check never do. After:
+     one name on every screen — yours, else the shop the app knows, else
+     the bank's line cleaned of its own words — and the bank's line small
+     underneath. Nothing stored changes. The rows here are examples. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit; cursor: pointer }
+  svg.i { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400) }
+  .scen button.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .note { font-size: 12.5px; color: var(--ink-400); line-height: 1.55; max-width: 560px; margin: 0 auto; text-align: center }
+  .sheet { border-radius: 22px; padding: 20px; border: 1px solid var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.08), rgba(181,171,252,.015) 40%), #1d1c2d; box-shadow: 0 30px 80px -20px rgba(0,0,0,.7); display: flex; flex-direction: column; gap: 14px }
+  .shead { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid rgba(181,171,252,.16) }
+  .title { flex: 1; font-family: var(--mono); font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-400) }
+  @keyframes land { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+  .top { display: flex; align-items: center; gap: 14px }
+  .top .who { flex: 1; display: flex; flex-direction: column; gap: 3px }
+  .top .who b { font-size: 17px; font-weight: 400 }
+  .top .who span { font-family: var(--mono); font-size: 11px; color: var(--ink-400) }
+  .top .amt { font-size: 30px; font-weight: 300; letter-spacing: -.02em }
+  .biglogo { width: 44px; height: 44px; border-radius: 13px; background: #fff; color: #1a3c8f; display: grid; place-items: center; font-weight: 500; font-size: 15px }
+  .list { display: flex; flex-direction: column }
+  .day { padding: 12px 2px 4px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500) }
+  .row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; font-size: 14px }
+  .row:hover { background: rgba(var(--lift),.035) }
+  .mk { width: 26px; height: 26px; border-radius: 8px; flex: none; display: grid; place-items: center; font-size: 10px; font-weight: 500; background: rgba(var(--lift),.06); color: var(--ink-400) }
+  .mk.shop { background: #fff; color: #222 }
+  .mk.move { background: rgba(181,171,252,.12); color: var(--lav-300) }
+  .mk.home { background: color-mix(in oklch, var(--warn) 14%, transparent); color: var(--warn) }
+  .row .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px }
+  .row .t b { font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .row .t small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .row .t small em { font-style: normal; color: var(--ink-400) }
+  .tag { margin-left: 6px; border-radius: 5px; padding: 1px 6px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--lav-300); box-shadow: inset 0 0 0 1px rgba(181,171,252,.35) }
+  .row .v { font-family: var(--mono); font-size: 13.5px; white-space: nowrap }
+  .row .v.out { color: var(--ink-100) }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap }
+  .chip { border-radius: 999px; padding: 3px 10px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase }
+  .chip.new { color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent) }
+  .chip.had { color: var(--lav-300); background: rgba(181,171,252,.12) }
+  .apply { align-self: flex-end; border: 0; border-radius: 999px; padding: 10px 18px; background: var(--lav-400); color: #17152a; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="scen" id="screen"></div>
+  <div class="scen" id="when"></div>
+  <p class="note" id="note"></p>
+  <div class="sheet"><div class="shead"><span class="title" id="title"></span></div><div id="body"></div></div>
+</div>
+<script>
+const ICON = {
+  move: '<svg class="i" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4"/></svg>',
+  home: '<svg class="i" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
+  out: '<svg class="i" viewBox="0 0 24 24"><path d="M7 7h10v10M7 17 17 7"/></svg>',
+}
+/* bank: the line as the bank sent it. plain: what the row says after.
+   how: where the plain name comes from. known: Movements names it today. */
+const ROWS = [
+  { day: 'Mon 12 Oct', bank: 'COMPRA 2789 EASYPAY LISBOA', plain: 'Easypay Lisboa', how: 'clean', amt: '−€25.00', group: 'shopping' },
+  { day: 'Mon 12 Oct', bank: 'COMPRA 2789 PINGO DOCE LISBOA', plain: 'Pingo Doce', how: 'shop', known: true, mark: 'PD', amt: '−€37.86', group: 'groceries' },
+  { day: 'Fri 9 Oct', bank: 'COMPRA 2789 FARMACIA ESTRELA LISBOA', plain: 'Farmacia Estrela Lisboa', how: 'clean', amt: '−€12.40', group: 'health' },
+  { day: 'Fri 9 Oct', bank: 'DD PT10100897 VODAFONE PORTUGAL', plain: 'Vodafone', how: 'shop', known: true, mark: 'V', amt: '−€39.90', group: 'phone & internet' },
+  { day: 'Thu 8 Oct', bank: 'TRF P/ JOAO SILVA', plain: 'Joao Silva', how: 'clean', move: true, amt: '−€60.00', group: 'transfer' },
+  { day: 'Tue 6 Oct', bank: 'JUROS EMPRESTIMO 0045123', plain: 'Mortgage · interest', how: 'shop', known: true, home: true, amt: '−€212.15', group: 'home' },
+  { day: 'Tue 6 Oct', bank: 'COMPRA 2789 PAYPAL *PREPLY', plain: 'Preply', how: 'yours', known: true, mark: 'P', amt: '−€48.00', group: 'learning' },
+  { day: 'Tue 6 Oct', bank: 'PAG SERV 21345 678901234', plain: 'PAG SERV 21345 678901234', how: 'none', amt: '−€18.20', group: 'no group' },
+]
+const SCREENS = {
+  movements: { label: 'Movements', title: '[ MOVEMENTS · every account ]' },
+  account: { label: "an account's page", title: 'ACTIVOBANK' },
+  check: { label: 'the check after an update', title: 'ADD · CHECK' },
+}
+const NOTES = {
+  movements: ['Today: a shop the app knows, or a payee you named, reads plainly. Every other row is the bank’s own line.', 'After: every row reads as who was paid. The bank’s line is small underneath. A line with nothing but numbers stays as it is.'],
+  account: ['Today: this page never uses the plain names. Even Pingo Doce and Vodafone show as the bank’s line.', 'After: the same names as Movements, the bank’s line small underneath.'],
+  check: ['Today: the rows of a file or a bank read are listed by the bank’s line.', 'After: the same names, before anything is saved.'],
+}
+let view = 'movements', after = false
+function name(r) {
+  const plain = after || (view === 'movements' && r.known)
+  const shown = plain ? r.plain : r.bank
+  const under = plain && r.plain !== r.bank ? `<em>${r.bank}</em> · ` : ''
+  const cls = r.move ? 'move' : r.home && plain ? 'home' : r.mark && plain ? 'shop' : ''
+  const mark = r.move ? ICON.move : r.home && plain ? ICON.home : r.mark && plain ? r.mark : ICON.out
+  return `<div class="row"><span class="mk ${cls}">${mark}</span><span class="t"><b>${shown}${r.move ? '<span class="tag">transfer</span>' : ''}</b><small>${under}${r.group}</small></span><span class="v out">${r.amt}</span></div>`
+}
+function rows() {
+  let out = '', day = ''
+  for (const r of ROWS) {
+    if (r.day !== day) { day = r.day; out += `<div class="day">${day}</div>` }
+    out += name(r)
+  }
+  return `<div class="list">${out}</div>`
+}
+function render() {
+  document.getElementById('screen').innerHTML = Object.entries(SCREENS).map(([k, s]) => `<button class="${k === view ? 'on' : ''}" onclick="view='${k}';render()">${s.label}</button>`).join('')
+  document.getElementById('when').innerHTML = [['today', false], ['after', true]].map(([l, v]) => `<button class="${v === after ? 'on' : ''}" onclick="after=${v};render()">${l}</button>`).join('')
+  document.getElementById('note').textContent = NOTES[view][after ? 1 : 0]
+  document.getElementById('title').textContent = SCREENS[view].title
+  const head = view === 'account'
+    ? '<div class="top"><span class="biglogo">AB</span><span class="who"><b>ActivoBank</b><span>free cash · EUR</span></span><span class="amt">€90.35</span></div><span class="caps" style="display:block;margin-top:14px">rows · newest first</span>'
+    : view === 'check'
+      ? '<div class="top"><span class="biglogo">AB</span><span class="who"><b>ActivoBank</b><span>from the bank · 8 rows</span></span></div><div class="chips" style="margin-top:12px"><span class="chip new">8 new</span><span class="chip had">0 already added</span></div>'
+      : ''
+  const foot = view === 'check' ? '<div style="display:flex;margin-top:10px"><span style="flex:1;font-size:12.5px;color:var(--ink-400);align-self:center">Nothing saved yet.</span><button class="apply">apply 1 account</button></div>' : ''
+  document.getElementById('body').innerHTML = head + rows() + foot
+}
+render()
+</script>
+</body>
+</html>

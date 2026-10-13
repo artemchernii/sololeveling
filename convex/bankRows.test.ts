@@ -139,6 +139,38 @@ test('rows that reach the bank’s balance are saved with no press, once', async
   expect(await balance()).toEqual({ value: 664.63, source: 'sync' })
 })
 
+test('a payee filed before under another name: the bank’s row gets its group; one never filed gets none', async () => {
+  const { t, arrive } = await connected()
+  await t.run(async (ctx) => {
+    await ctx.db.insert('merchantRules', {
+      ownerId: ME,
+      key: 'est servico veiga e seabra sa',
+      category: 'car',
+      updatedAt: NOON,
+    })
+    /* Someone else's filing is not his. */
+    await ctx.db.insert('merchantRules', {
+      ownerId: 'https://clerk.test|user_other',
+      key: 'andrei pavlov',
+      category: 'fun',
+      updatedAt: NOON,
+    })
+  })
+  await arrive(664.63, TWO)
+  const saved = await t.run(async (ctx) =>
+    (
+      await ctx.db
+        .query('logs')
+        .withIndex('by_owner_time', (q) => q.eq('ownerId', ME))
+        .take(50)
+    )
+      .filter((l) => l.meta?.intakeId !== undefined)
+      .map((l) => [l.meta?.merchant, l.meta?.category ?? null]),
+  )
+  expect(saved).toContainEqual(['COMPRA 2789 EST SERVICO VEIGA', 'car'])
+  expect(saved).toContainEqual(['TRF P/ ANDREI PAVLOV', null])
+})
+
 test('pending money is never a row; it is one once the bank books it', async () => {
   const { rows, balance, arrive } = await connected()
   await arrive(727.49, [out('2026-10-12', '25.00', 'TRF P/ ANDREI', 'PDNG')])

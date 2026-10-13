@@ -61,6 +61,17 @@ test('rows arrive and add up: saved with no press, shown on the card until close
   await expect(sheet.getByText('TRF P/ ANDREI PAVLOV')).toBeVisible()
   await expect(sheet.getByText(/PINGO DOCE/)).toBeVisible()
   await expect(sheet.getByText(/SPOTIFY/)).toHaveCount(0)
+  /* Pingo Doce was filed once under its short name: the bank's line has
+     its group and its logo. A transfer to a person was never filed: no
+     group, to be filed once. */
+  const shop = sheet.locator('div.group', { hasText: 'PINGO DOCE' })
+  await expect(shop.getByText('groceries')).toBeVisible()
+  await expect(shop.locator('img')).toHaveCount(1)
+  const person = sheet.locator('div.group', { hasText: 'ANDREI PAVLOV' })
+  await expect(person.getByText('groceries')).toHaveCount(0)
+  await expect(person.locator('[data-group]')).toHaveCount(0)
+  await page.waitForTimeout(500)
+  await page.screenshot(shot('bank-rows-group'))
 })
 
 test('a payment the account already has: not saved, asked, answered once', async ({

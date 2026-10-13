@@ -324,11 +324,15 @@ export function TreasuryHero() {
                 ))}
               </span>
             ) : null}
-            {worth.invested.fetchedAt !== null ? (
-              <span className="font-mono text-[11px] text-ink-500">
-                Asset prices fetched {fetched(worth.invested.fetchedAt, today)}
-              </span>
-            ) : null}
+            {
+              /* A number only: an older backend answers without it. */
+              typeof worth.invested.fetchedAt === 'number' ? (
+                <span className="font-mono text-[11px] text-ink-500">
+                  Asset prices fetched{' '}
+                  {fetched(worth.invested.fetchedAt, today)}
+                </span>
+              ) : null
+            }
           </div>
 
           <div className="flex min-w-0 flex-col justify-center gap-2">

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { ChevronRight, Sparkles, TriangleAlert } from 'lucide-react'
 
@@ -11,7 +12,6 @@ import {
   Sparkline,
 } from '@/components/finances/bits'
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
-import { Trades } from '@/components/finances/PortfolioTrades'
 import { Veiled } from '@/components/finances/Veil'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { holdingLine, metalOf, unitOf } from '@/lib/holdingLine'
@@ -148,7 +148,6 @@ function OwnedRow({
     instrumentId: first.instrumentId,
     since: today - 90 * 86_400_000,
   })
-  const [open, setOpen] = useState(false)
   const gain = gainOf(owned)
   const up = (gain?.eur ?? 0) >= 0
   const tone = up ? 'text-state-good' : 'text-state-danger'
@@ -163,16 +162,11 @@ function OwnedRow({
     .find((s) => s !== null)
   return (
     <div data-testid="owned-row" className="flex flex-col">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
+      <Link
+        to="/finances"
+        search={{ room: 'portfolio', position: owned.instrumentId }}
         style={{ animationDelay: `${delay}ms` }}
-        className={`motion-press motion-arrive grid min-h-[62px] grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-3 rounded-[14px] px-2.5 py-2 text-left ring-1 transition-colors ring-inset sm:grid-cols-[38px_minmax(0,1fr)_96px_auto_14px] ${
-          open
-            ? 'bg-lav-400/8 ring-lav-400/35'
-            : 'ring-transparent hover:bg-lav-400/[0.07] hover:ring-lav-400/30'
-        }`}
+        className="motion-press motion-arrive grid min-h-[62px] grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-3 rounded-[14px] px-2.5 py-2 text-left ring-1 ring-transparent transition-colors ring-inset hover:bg-lav-400/[0.07] hover:ring-lav-400/30 sm:grid-cols-[38px_minmax(0,1fr)_96px_auto_14px]"
       >
         <TickerLogo
           symbol={owned.symbol}
@@ -245,35 +239,8 @@ function OwnedRow({
             </span>
           )}
         </span>
-        <ChevronRight
-          className={`hidden size-3.5 text-ink-600 transition-transform sm:block ${open ? 'rotate-90 text-lav-300' : ''}`}
-        />
-      </button>
-      {open
-        ? at.map(({ row, account }) => (
-            <div key={row.accountId} className="flex flex-col">
-              {at.length > 1 ? (
-                <span className="mt-1 ml-6 flex items-center gap-1.5 pl-2.5 font-mono text-[10.5px] tracking-[0.12em] text-ink-400 uppercase">
-                  <AccountLogo
-                    name={account?.name ?? ''}
-                    domain={account?.domain}
-                    size={14}
-                  />
-                  {account?.name}
-                  <span className="text-ink-200 normal-case">
-                    {row.valueEur === null ? null : (
-                      <Veiled>{euros(row.valueEur)}</Veiled>
-                    )}
-                  </span>
-                </span>
-              ) : null}
-              <Trades
-                accountId={row.accountId}
-                instrumentId={row.instrumentId}
-              />
-            </div>
-          ))
-        : null}
+        <ChevronRight className="hidden size-3.5 text-ink-600 sm:block" />
+      </Link>
     </div>
   )
 }

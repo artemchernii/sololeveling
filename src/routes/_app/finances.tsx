@@ -27,7 +27,7 @@ const ROOMS = [
 type Room = (typeof ROOMS)[number]['id']
 
 function Treasury() {
-  const { room = 'overview', month } = Route.useSearch()
+  const { room = 'overview', month, position } = Route.useSearch()
   useFreshPrices()
   /* A room loads the first time it is opened, then stays (9 Oct): loading
      all three on arrival made him wait ~2s for rooms he could not see, and
@@ -84,7 +84,7 @@ function Treasury() {
         hidden={room !== 'portfolio'}
         className="flex flex-col gap-3"
       >
-        {opened.has('portfolio') ? <Portfolio /> : null}
+        {opened.has('portfolio') ? <Portfolio position={position} /> : null}
       </div>
     </div>
   )
@@ -93,12 +93,18 @@ function Treasury() {
 export const Route = createFileRoute('/_app/finances')({
   validateSearch: (
     search: Record<string, unknown>,
-  ): { room?: Room; month?: string } => ({
+  ): { room?: Room; month?: string; position?: string } => ({
     ...(ROOMS.some((r) => r.id === search.room) && search.room !== 'overview'
       ? { room: search.room as Room }
       : {}),
     ...(typeof search.month === 'string' && /^\d{4}-\d{2}$/.test(search.month)
       ? { month: search.month }
+      : {}),
+    /* One position's page, inside Portfolio (13 Oct). */
+    ...(search.room === 'portfolio' &&
+    typeof search.position === 'string' &&
+    search.position !== ''
+      ? { position: search.position }
       : {}),
   }),
   component: Treasury,

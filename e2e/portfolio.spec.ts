@@ -87,7 +87,7 @@ test('Portfolio: empty, then the positions a screenshot brought', async ({
   /* An address for something not owned says so, with the way back. */
   await page.goto('/finances?room=portfolio&position=nothing')
   await expect(page.getByText('Not owned now')).toBeVisible()
-  await page.getByRole('link', { name: 'Portfolio' }).click()
+  await position.getByRole('link', { name: 'Portfolio' }).click()
   await expect(rows).toHaveCount(2)
 
   /* A phone: nothing runs off the side. */

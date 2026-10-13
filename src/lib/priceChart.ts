@@ -1,58 +1,49 @@
-/* The price line on one position's page (13 Oct, mockup portfolio.html):
-   where the stored closes sit in a box, and where each buy and sell sits
-   on that line. Pure geometry — the points are the stored readings and
-   nothing is drawn between two of them but the straight line. */
+/* The price line on one position's page (13 Oct, mockup chart.html):
+   the stored closes as the chart library takes them, and which stored
+   close each buy and sell sits on. The points are the stored readings;
+   nothing is made up between two of them. */
 
 export type Pt = { t: number; v: number }
-/** A buy or a sell; `eur` is what it was for, read on its dot. */
+/** A buy or a sell; `eur` is what it was for, read on its day. */
 export type Mark = { t: number; side: 'buy' | 'sell'; eur?: number }
 
-export const BOX = { w: 620, h: 220, left: 4, right: 56, top: 12, bottom: 20 }
+const DAY = 86_400_000
+/** The library counts time in whole seconds. */
+export const seconds = (t: number) => Math.floor(t / 1000)
 
-export function priceChart(
+export function priceSeries(
   points: ReadonlyArray<Pt>,
   marks: ReadonlyArray<Mark> = [],
 ) {
-  if (points.length < 2) return null
-  const { w, h, left, right, top, bottom } = BOX
-  const t0 = points[0].t
-  const t1 = points[points.length - 1].t
-  const values = points.map((p) => p.v)
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const pad = (max - min || max || 1) * 0.06
-  const lo = min - pad
-  const hi = max + pad
-  const x = (t: number) =>
-    t1 === t0 ? left : left + ((t - t0) / (t1 - t0)) * (w - left - right)
-  const y = (v: number) => top + (1 - (v - lo) / (hi - lo)) * (h - top - bottom)
-  const line = points
-    .map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`)
-    .join('')
-  const last = points[points.length - 1]
-  return {
-    /* Each stored close where it sits — what the pointer reads. */
-    pts: points.map((p) => ({ x: x(p.t), y: y(p.v), t: p.t, v: p.v })),
-    line,
-    area: `${line}V${h - bottom}H${left}Z`,
-    ticks: [0, 1, 2, 3].map((i) => {
-      const v = lo + ((hi - lo) * i) / 3
-      return { v, y: y(v) }
-    }),
-    last: { x: x(last.t), y: y(last.v) },
-    /* A buy or sell inside the period sits on the line at the stored
-       close nearest its day; one before the period is not drawn. */
-    dots: marks
-      .filter((m) => m.t >= t0 && m.t <= t1 + 86_400_000)
-      .map((m) => {
-        const near = points.reduce((a, b) =>
-          Math.abs(b.t - m.t) < Math.abs(a.t - m.t) ? b : a,
-        )
-        return { ...m, x: x(near.t), y: y(near.v), v: near.v }
-      }),
-    from: t0,
-    to: t1,
+  /* Oldest first, one a second — the library refuses anything else. */
+  const pts: Array<Pt> = []
+  for (const p of [...points].sort((a, b) => a.t - b.t)) {
+    const last = pts.at(-1)
+    if (last && seconds(last.t) === seconds(p.t)) pts[pts.length - 1] = p
+    else pts.push(p)
   }
+  if (pts.length < 2) return null
+  const t0 = pts[0].t
+  const t1 = pts[pts.length - 1].t
+  /* A buy or sell inside the period sits on the stored close nearest
+     its day (the earlier of two equally near); one from before the
+     period is not drawn. */
+  const on = new Map<number, Array<Mark>>()
+  for (const m of [...marks].sort((a, b) => a.t - b.t)) {
+    if (m.t < t0 || m.t > t1 + DAY) continue
+    let i = 0
+    for (let k = 1; k < pts.length; k++)
+      if (Math.abs(pts[k].t - m.t) < Math.abs(pts[i].t - m.t)) i = k
+    on.set(i, [...(on.get(i) ?? []), m])
+  }
+  return { pts, on }
+}
+
+/** Where a range opens: the first stored close on or after `since`,
+    never fewer than the last two — one point is not a line. */
+export function firstSince(pts: ReadonlyArray<Pt>, since: number) {
+  const i = pts.findIndex((p) => p.t >= since)
+  return Math.max(0, Math.min(i < 0 ? pts.length : i, pts.length - 2))
 }
 
 /** The stored close nearest a place across the box. */

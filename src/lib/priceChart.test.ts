@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { BOX, between, nearest, priceChart } from './priceChart'
+import { between, firstSince, nearest, priceSeries } from './priceChart'
 
 const DAY = 86_400_000
 const points = [
@@ -10,61 +10,60 @@ const points = [
   { t: 3 * DAY, v: 120 },
 ]
 
-describe('priceChart', () => {
+describe('priceSeries', () => {
   it('needs two points to draw a line', () => {
-    expect(priceChart([])).toBeNull()
-    expect(priceChart([points[0]])).toBeNull()
+    expect(priceSeries([])).toBeNull()
+    expect(priceSeries([points[0]])).toBeNull()
   })
 
-  it('keeps the line inside the box, the last point at the right edge', () => {
-    const c = priceChart(points)!
-    expect(c.line.startsWith(`M${BOX.left.toFixed(1)},`)).toBe(true)
-    expect(c.last.x).toBeCloseTo(BOX.w - BOX.right)
-    for (const tick of c.ticks) {
-      expect(tick.y).toBeGreaterThanOrEqual(BOX.top - 0.01)
-      expect(tick.y).toBeLessThanOrEqual(BOX.h - BOX.bottom + 0.01)
-    }
-    /* A higher price sits higher. */
-    expect(c.ticks[3].y).toBeLessThan(c.ticks[0].y)
+  it('gives the closes oldest first, one a second, the later reading kept', () => {
+    const s = priceSeries([points[2], points[0], { t: 400, v: 101 }])!
+    expect(s.pts.map((p) => p.v)).toEqual([101, 90])
   })
 
-  it('puts a buy on the line at the nearest stored day', () => {
-    const c = priceChart(points, [{ t: DAY + 3_600_000, side: 'buy' }])!
-    const whole = BOX.w - BOX.left - BOX.right
-    expect(c.dots).toHaveLength(1)
-    expect(c.dots[0].x).toBeCloseTo(BOX.left + whole / 3)
-    expect(c.dots[0].side).toBe('buy')
+  it('puts a buy on the nearest stored day, with what it was for', () => {
+    const s = priceSeries(points, [
+      { t: DAY + 3_600_000, side: 'buy', eur: 250 },
+    ])!
+    expect([...s.on.keys()]).toEqual([1])
+    expect(s.on.get(1)).toEqual([{ t: DAY + 3_600_000, side: 'buy', eur: 250 }])
+  })
+
+  it('keeps two trades of one day together, earlier first', () => {
+    const s = priceSeries(points, [
+      { t: 2 * DAY + 2000, side: 'sell' },
+      { t: 2 * DAY + 1000, side: 'buy' },
+    ])!
+    expect(s.on.get(2)?.map((m) => m.side)).toEqual(['buy', 'sell'])
   })
 
   it('does not draw a trade from before the period', () => {
-    const c = priceChart(points, [
+    const s = priceSeries(points, [
       { t: -30 * DAY, side: 'buy' },
       { t: 3 * DAY + 1000, side: 'sell' },
     ])!
-    expect(c.dots.map((d) => d.side)).toEqual(['sell'])
+    expect([...s.on.keys()]).toEqual([3])
+  })
+})
+
+describe('firstSince', () => {
+  it('opens a range on the first close inside it', () => {
+    expect(firstSince(points, -DAY)).toBe(0)
+    expect(firstSince(points, DAY + 1)).toBe(2)
   })
 
-  it('draws a flat price in the middle, not on an edge', () => {
-    const c = priceChart([
-      { t: 0, v: 50 },
-      { t: DAY, v: 50 },
-    ])!
-    expect(c.last.y).toBeCloseTo((BOX.top + BOX.h - BOX.bottom) / 2)
+  it('never shows fewer than the last two closes', () => {
+    expect(firstSince(points, 3 * DAY)).toBe(2)
+    expect(firstSince(points, 9 * DAY)).toBe(2)
   })
 })
 
 describe('what the pointer reads', () => {
   it('finds the stored close nearest a place across the box', () => {
-    const c = priceChart(points)!
-    expect(c.pts.map((p) => p.v)).toEqual([100, 110, 90, 120])
-    expect(nearest(c.pts, -50)).toBe(0)
-    expect(nearest(c.pts, c.pts[2].x + 1)).toBe(2)
-    expect(nearest(c.pts, BOX.w)).toBe(3)
-  })
-
-  it('carries what a buy was for to its dot, at the close it sits on', () => {
-    const c = priceChart(points, [{ t: DAY + 1000, side: 'buy', eur: 250 }])!
-    expect(c.dots[0]).toMatchObject({ side: 'buy', eur: 250, v: 110 })
+    const xs = [{ x: 4 }, { x: 190 }, { x: 377 }, { x: 564 }]
+    expect(nearest(xs, -50)).toBe(0)
+    expect(nearest(xs, 378)).toBe(2)
+    expect(nearest(xs, 620)).toBe(3)
   })
 
   it('gives two days, both prices and the difference, earlier first', () => {

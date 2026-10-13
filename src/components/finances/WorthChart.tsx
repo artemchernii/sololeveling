@@ -11,6 +11,7 @@ import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { useArrived, useHeld } from '@/lib/loading'
 import { euros } from '@/lib/money'
+import { css, token } from '@/lib/tokenColour'
 import { useVeil } from '@/lib/veil'
 
 /* The Overview chart, as on :3950 (Finances B, 1 Oct — "do we have divided
@@ -40,28 +41,6 @@ const RANGES = [
 
 type SeriesId = (typeof SERIES)[number]['id']
 type Summed = Exclude<SeriesId, 'accounts'>
-
-/* A token's colour as rgb(): the chart cannot parse oklch() (1 Oct: the
-   gold token, `oklch(0.83 0.1 85)`, threw and drew nothing), so the
-   browser converts it by painting one pixel. */
-const token = (name: string, fallback: string) => {
-  if (typeof window === 'undefined') return fallback
-  const v = getComputedStyle(document.documentElement)
-    .getPropertyValue(name)
-    .trim()
-  return v || fallback
-}
-
-const css = (name: string, fallback: string) => {
-  const v = token(name, '')
-  if (!v) return fallback
-  const ctx = document.createElement('canvas').getContext('2d')
-  if (!ctx) return fallback
-  ctx.fillStyle = v
-  ctx.fillRect(0, 0, 1, 1)
-  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
-  return `rgb(${r}, ${g}, ${b})`
-}
 
 /* The mock's two inks: free cash gold, total and invested lavender. */
 const tint = (s: Summed) =>

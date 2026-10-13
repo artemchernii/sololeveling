@@ -88,11 +88,38 @@ export const many = (n: number) =>
       ? `${Math.round(n / 1000)}K`
       : String(n)
 
+/** The older years before the loaded year (13 Oct, "all"): only their
+    days before its first one — a day stored in both is drawn once, as
+    the year has it. */
+export function withOlder<T extends { asOf: number }>(
+  year: ReadonlyArray<T>,
+  older: ReadonlyArray<T>,
+): Array<T> {
+  if (year.length === 0) return [...older]
+  const first = Math.floor(year[0].asOf / DAY)
+  return [...older.filter((p) => Math.floor(p.asOf / DAY) < first), ...year]
+}
+
 /** Where a range opens: the first stored close on or after `since`,
     never fewer than the last two — one point is not a line. */
 export function firstSince(pts: ReadonlyArray<Pt>, since: number) {
   const i = pts.findIndex((p) => p.t >= since)
   return Math.max(0, Math.min(i < 0 ? pts.length : i, pts.length - 2))
+}
+
+/**
+ * What is in view once it would show space before the first stored
+ * close: moved back to start there, and no wider than all of them with
+ * a little air after the latest. Null when nothing has to move.
+ */
+export function leftStop(
+  view: { from: number; to: number } | null,
+  count: number,
+  air = 2,
+) {
+  if (view === null || view.from >= -0.5 - 1e-6) return null
+  const to = Math.min(view.to - view.from - 0.5, count - 0.5 + air)
+  return { from: -0.5, to }
 }
 
 /** The stored close nearest a place across the box. */

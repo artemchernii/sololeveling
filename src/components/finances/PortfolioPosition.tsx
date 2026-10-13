@@ -2,7 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Check, ChevronLeft, Sparkles, TriangleAlert } from 'lucide-react'
+import {
+  Check,
+  ChevronLeft,
+  Loader2,
+  Sparkles,
+  TriangleAlert,
+} from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
@@ -15,13 +21,14 @@ import { PriceChart, asPt } from '@/components/finances/PriceChart'
 import type { Position } from '@/components/finances/PortfolioList'
 import { PositionTrades } from '@/components/finances/PositionTrades'
 import { Veiled } from '@/components/finances/Veil'
+import { useOlderYears } from '@/components/finances/useOlderYears'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { money } from '@/lib/currency'
 import { codeOf, unitOf } from '@/lib/holdingLine'
 import { UNPRICED } from '@/lib/market'
 import { euros } from '@/lib/money'
 import { gainOf } from '@/lib/owned'
-import { drawable } from '@/lib/priceChart'
+import { drawable, withOlder } from '@/lib/priceChart'
 import type { Owned } from '@/lib/owned'
 import type { soldSums } from '@/lib/sold'
 
@@ -41,7 +48,7 @@ const RANGES = [
   { id: '6M', days: 183 },
   { id: '1Y', days: 366 },
 ] as const
-type Range = (typeof RANGES)[number]['id']
+type Range = (typeof RANGES)[number]['id'] | 'all'
 const KIND = { stock: 'share', etf: 'fund', crypto: 'coin', gold: 'gold' }
 function BackToList() {
   return (
@@ -104,11 +111,19 @@ export function PortfolioPosition({
   const first = owned.at[0]
   /* The whole year is read once; a range sets what of it is in view,
      and the chart can be moved back from there (mockup chart.html). */
-  const days = RANGES.find((r) => r.id === range)?.days ?? 366
-  const line = useQuery(api.invest.priceLine, {
+  const days = RANGES.find((r) => r.id === range)?.days ?? Infinity
+  const year = useQuery(api.invest.priceLine, {
     instrumentId: first.instrumentId,
     since: today - 366 * 86_400_000,
   })
+  /* The years before it, once "all" is pressed — for this share alone
+     (priceYears.ts). They stay for the other ranges: zooming out goes
+     on into them. */
+  const years = useOlderYears(first.instrumentId)
+  const line = useMemo(
+    () => (year && years.older ? withOlder(year, years.older) : year),
+    [year, years.older],
+  )
   /* Candles and volume only where the loaded year is stored that way
      (13 Oct). A share whose days were stored before has its year read
      again — once, this share alone, when its page is opened (bars.ts). */
@@ -126,7 +141,7 @@ export function PortfolioPosition({
   }, [lacks, first.instrumentId, first.type, askBars])
   /* The header's price in euros (13 Oct, chart.html): the server's
      euros for that same stored close, none when it has no rate. */
-  const last = line?.at(-1)
+  const last = year?.at(-1)
   const latestEur =
     last !== undefined && last.asOf === first.priceAsOf ? last.eur : undefined
   const slot = (i: number) =>
@@ -378,6 +393,34 @@ export function PortfolioPosition({
                     {r.id}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  aria-pressed={range === 'all'}
+                  disabled={years.reading}
+                  title={
+                    years.failed
+                      ? 'Yahoo Finance did not answer. Press to read again.'
+                      : 'Five years'
+                  }
+                  onClick={() =>
+                    void years.ask().then((ok) => ok && setRange('all'))
+                  }
+                  className={`${range === 'all' ? PILL_LOUD : PILL_QUIET} inline-flex items-center gap-1.5 ${years.failed ? 'text-state-warn ring-state-warn/40' : ''}`}
+                >
+                  {years.reading ? (
+                    <>
+                      <Loader2 className="size-3 animate-spin" />
+                      reading…
+                    </>
+                  ) : years.failed ? (
+                    <>
+                      <TriangleAlert className="motion-pulse size-3" />
+                      all · not read
+                    </>
+                  ) : (
+                    'all'
+                  )}
+                </button>
               </div>
             </div>
           </div>

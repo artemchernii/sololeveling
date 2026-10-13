@@ -807,6 +807,9 @@ export default defineSchema({
     /* When its stored year was read again for open, high, low and
        volume (bars.ts, 13 Oct) — once, so its page never asks twice. */
     barsReadAt: v.optional(v.number()),
+    /* When its older years were last read (priceYears.ts): once a
+       calendar year, when the year that ended becomes a past one. */
+    yearsReadAt: v.optional(v.number()),
   })
     .index('by_owner_symbol', ['ownerId', 'symbol'])
     /* Read only by the daily price check, which acts for every owner —
@@ -887,6 +890,32 @@ export default defineSchema({
     low: v.optional(v.number()),
     volume: v.optional(v.number()),
   }).index('by_owner_instrument_time', ['ownerId', 'instrumentId', 'asOf']),
+
+  /* Source 4: one share's closes of one past calendar year, in one
+     record (13 Oct, older years behind "all"). Read from Yahoo only for
+     a share "all" is pressed on; a year that is over never changes, so
+     it is stored once. `rates` are the ECB's euros per unit on its days
+     — none for a share quoted in euros. */
+  priceYears: defineTable({
+    ownerId: v.string(),
+    instrumentId: v.id('instruments'),
+    year: v.number(),
+    currency: v.string(),
+    bars: v.array(
+      v.object({
+        asOf: v.number(),
+        price: v.number(),
+        open: v.optional(v.number()),
+        high: v.optional(v.number()),
+        low: v.optional(v.number()),
+        volume: v.optional(v.number()),
+      }),
+    ),
+    rates: v.array(v.object({ asOf: v.number(), rate: v.number() })),
+    source: v.string(),
+    rateSource: v.string(),
+    fetchedAt: v.number(),
+  }).index('by_owner_instrument_year', ['ownerId', 'instrumentId', 'year']),
 
   /* Source 4: an exchange rate, one currency into euros, as the ECB
      published it (via Frankfurter). What lets a US share be shown in

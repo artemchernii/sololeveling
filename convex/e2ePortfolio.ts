@@ -3,8 +3,40 @@ import { v } from 'convex/values'
 import { mutation } from './_generated/server'
 import { requireUser } from './auth'
 import { guard } from './e2e'
+import type { Doc } from './_generated/dataModel'
+import type { Chart } from '../src/lib/market'
 
 const DAY = 86_400_000
+
+/**
+ * What the test backend answers when "all" is pressed, in place of
+ * Yahoo: five years of working days up to yesterday, after a moment so
+ * "reading…" is seen. No answer for a share marked `years: 'fail'`.
+ */
+export async function cannedYears(
+  inst: Doc<'instruments'>,
+  now: number,
+): Promise<Pick<Chart, 'currency' | 'closes'> | null> {
+  await new Promise((done) => setTimeout(done, 700))
+  if (inst.isin === NO_YEARS) return null
+  const closes: Chart['closes'] = []
+  for (let ago = 5 * 365; ago >= 1; ago--) {
+    const asOf = (Math.floor(now / DAY) - ago) * DAY + 13.5 * 3_600_000
+    if ([0, 6].includes(new Date(asOf).getUTCDay())) continue
+    const price =
+      Math.round((60 + Math.sin(ago / 40) * 12 - ago / 60) * 100) / 100 + 40
+    closes.push({
+      asOf,
+      price,
+      open: price - 1,
+      high: price + 2,
+      low: price - 2,
+      volume: 150_000 + (ago % 7) * 10_000,
+    })
+  }
+  return { currency: inst.currency, closes }
+}
+const NO_YEARS = 'E2E-NO-YEARS'
 
 /**
  * Shopify, bought twice and sold out, in the first account — so the
@@ -14,7 +46,11 @@ const DAY = 86_400_000
 export const soldOut = mutation({
   /* `bars: false` stores the closes alone, as a day read before 13 Oct
      was: the chart has no candles and no volume to draw. */
-  args: { bars: v.optional(v.boolean()) },
+  args: {
+    bars: v.optional(v.boolean()),
+    /* 'fail': pressing "all" gets no answer for its older years. */
+    years: v.optional(v.literal('fail')),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
@@ -41,6 +77,18 @@ export const soldOut = mutation({
         currency: 'USD',
         type: 'EQUITY',
       }))
+    /* Its older years are not read yet, each time. */
+    await ctx.db.patch(instrumentId, {
+      yearsReadAt: undefined,
+      isin: args.years === 'fail' ? NO_YEARS : undefined,
+    })
+    for (const old of await ctx.db
+      .query('priceYears')
+      .withIndex('by_owner_instrument_year', (q) =>
+        q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+      )
+      .take(8))
+      await ctx.db.delete(old._id)
     /* Its days are stored afresh each time: reset keeps tickers and
        prices, and a test asks for them with or without bars. */
     for (const old of await ctx.db

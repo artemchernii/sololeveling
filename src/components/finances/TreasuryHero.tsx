@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, TriangleAlert } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import type { FunctionReturnType } from 'convex/server'
 
@@ -32,34 +32,23 @@ import { euros } from '@/lib/money'
    `balances` (readings plus what moved since), this month from `moneySums`
    and `accountMonth` (sums of his rows). Nothing is estimated. */
 
-const DAY_MS = 86_400_000
-
 type Row = FunctionReturnType<typeof api.aggregate.balances>['accounts'][number]
 type Group = 'investments' | 'banks' | 'cash'
 
-const WEEKDAY = new Intl.DateTimeFormat('en', { weekday: 'long' })
-const SHORT = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
+/* A pay month starts at noon UTC of its salary day. */
+const utcDay = (t: number) =>
+  `${new Date(t).getUTCDate()} ${new Date(t).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })}`
 
-/* "balances as of today · market prices: Friday's close" */
-function freshness(
-  oldestCash: number | null,
-  oldestPrice: number | null,
-  today: number,
-): string {
-  const day = (t: number) =>
-    t >= today
-      ? 'today'
-      : t >= today - DAY_MS
-        ? 'yesterday'
-        : t >= today - 6 * DAY_MS
-          ? WEEKDAY.format(new Date(t))
-          : SHORT.format(new Date(t))
-  const parts: Array<string> = []
-  if (oldestCash !== null) parts.push(`balances as of ${day(oldestCash)}`)
-  if (oldestPrice !== null) {
-    parts.push(`market prices: ${day(oldestPrice)}'s close`)
-  }
-  return parts.join(' · ')
+/* "at 14:33" today, else its day too. */
+function fetched(t: number, today: number): string {
+  const d = new Date(t)
+  const time = d.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  return t >= today
+    ? `at ${time}`
+    : `on ${d.getDate()} ${d.toLocaleString('en-US', { month: 'short' })} at ${time}`
 }
 
 export function TreasuryHero() {
@@ -69,10 +58,27 @@ export function TreasuryHero() {
   const worth = useQuery(api.aggregate.worth, {})
   const balances = useQuery(api.aggregate.balances, {})
   const accounts = useQuery(api.accounts.list, {})
-  const sums = useQuery(api.aggregate.moneySums, {
-    start: monthStart,
-    end: nextStart,
-  })
+  /* In and out run from salary to salary, as Flow's pay month does (13
+     Oct: "I get salary in the end of the month", so a calendar month is
+     "in €0" until its last days). The calendar month only while no salary
+     is found yet. */
+  const pay = useQuery(api.aggregate.payMonth, { today })
+  const sums = useQuery(
+    api.aggregate.moneySums,
+    pay === null ? { start: monthStart, end: nextStart } : 'skip',
+  )
+  const period =
+    pay === undefined
+      ? undefined
+      : pay !== null
+        ? {
+            in: pay.current.salary + pay.current.other,
+            out: pay.current.bills + pay.current.dayToDay,
+            label: `since salary on ${utcDay(pay.current.start)}`,
+          }
+        : sums === undefined
+          ? undefined
+          : { in: sums.in.sum, out: sums.out.sum, label: 'this month' }
   const month = useQuery(api.aggregate.accountMonth, {
     start: monthStart,
     end: nextStart,
@@ -114,7 +120,28 @@ export function TreasuryHero() {
   const atBrokers = (worth?.invested.total ?? 0) + brokerCash
 
   const docOf = (id: Id<'accounts'>) => accounts?.find((a) => a._id === id)
-  const net = sums ? sums.in.sum - sums.out.sum : null
+  const net = period
+    ? (Math.round(period.in * 100) - Math.round(period.out * 100)) / 100
+    : null
+  /* What the total wants done, one line each, by name (13 Oct, his
+     words): a balance that is old, a cash line never entered. Each opens
+     UPDATE for its account. Nothing when all is recent. */
+  const todo = [
+    ...rows.flatMap((a) => [
+      ...a.pockets
+        .filter((p) => p.eur === null)
+        .map((p) => ({
+          id: a.accountId,
+          text: `${a.name} ${p.currency} is missing`,
+        })),
+      ...(a.brokerCash && a.brokerCash.eur === null
+        ? [{ id: a.accountId, text: `${a.name} broker cash is missing` }]
+        : []),
+    ]),
+    ...stale
+      .filter((a) => a.pockets.some((p) => p.recordedAt !== null))
+      .map((a) => ({ id: a.accountId, text: `${a.name} balance outdated` })),
+  ]
 
   return (
     <section
@@ -212,11 +239,11 @@ export function TreasuryHero() {
             {/* One "this month" (1 Oct: two pills said the same thing):
                 in − out, his own money moving left out of both. */}
             <span className="inline-flex min-h-9 flex-wrap items-center gap-x-2.5 gap-y-1 self-start rounded-[10px] bg-lift/[0.06] px-3 py-1.5 font-mono text-[14.5px] font-medium">
-              {sums === undefined || net === null ? (
+              {period === undefined || net === null ? (
                 <Skeleton className="h-3 w-40" />
-              ) : sums.in.sum === 0 && sums.out.sum === 0 ? (
+              ) : period.in === 0 && period.out === 0 ? (
                 <span className="text-[12px] font-normal text-ink-400">
-                  nothing in or out yet this month
+                  nothing in or out {period.label}
                 </span>
               ) : (
                 <>
@@ -230,13 +257,13 @@ export function TreasuryHero() {
                   {/* In green, out red (4 Oct: "in and out are a bit
                       bland"). */}
                   <span className="text-[12px] font-normal text-ink-500">
-                    this month ·{' '}
+                    {period.label} ·{' '}
                     <span className="text-state-good">
-                      <Veiled>{`in ${euros(sums.in.sum)}`}</Veiled>
+                      <Veiled>{`in ${euros(period.in)}`}</Veiled>
                     </span>{' '}
                     ·{' '}
                     <span className="text-state-danger">
-                      <Veiled>{`out ${euros(sums.out.sum)}`}</Veiled>
+                      <Veiled>{`out ${euros(period.out)}`}</Veiled>
                     </span>
                   </span>
                 </>
@@ -276,12 +303,36 @@ export function TreasuryHero() {
                 </Link>
               </div>
             </div>
-            <span className="font-mono text-[11px] text-ink-500">
-              {freshness(worth.cash.oldestAt, worth.invested.oldestAt, today)}
-              {worth.cash.unread > 0
-                ? ` · ${worth.cash.unread} not read yet`
-                : ''}
-            </span>
+            {todo.length > 0 ? (
+              <span
+                data-testid="hero-todo"
+                className="flex flex-wrap gap-x-4 gap-y-1"
+              >
+                {todo.map((t) => (
+                  <button
+                    key={t.text}
+                    type="button"
+                    onClick={() => {
+                      const doc = docOf(t.id)
+                      if (doc) setUpdating(doc)
+                    }}
+                    className="motion-press flex items-center gap-1.5 font-mono text-[11px] text-state-warn hover:underline"
+                  >
+                    <TriangleAlert className="size-3.5 shrink-0" />
+                    {t.text}
+                  </button>
+                ))}
+              </span>
+            ) : null}
+            {
+              /* A number only: an older backend answers without it. */
+              typeof worth.invested.fetchedAt === 'number' ? (
+                <span className="font-mono text-[11px] text-ink-500">
+                  Asset prices fetched{' '}
+                  {fetched(worth.invested.fetchedAt, today)}
+                </span>
+              ) : null
+            }
           </div>
 
           <div className="flex min-w-0 flex-col justify-center gap-2">

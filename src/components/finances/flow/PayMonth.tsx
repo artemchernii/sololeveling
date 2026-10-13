@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { CalendarClock, CircleCheck } from 'lucide-react'
+import { CalendarClock, CircleCheck, TrendingDown } from 'lucide-react'
 
 import { api } from '../../../../convex/_generated/api'
 import { Sheet } from '@/components/finances/Sheet'
@@ -134,15 +134,36 @@ export function PayMonth({
             />
           </div>
 
-          {/* Two plain facts, not a difference to decode (4 Oct: "we
-              spend this month 100 euros more? Confusing"). */}
+          {/* Two numbers with their places (13 Oct: "Day-to-day so far:
+              €127. Last month by day 18: €474." could not be read): what
+              was spent day to day in the same first days after salary,
+              this month and last. */}
           {c.pace && c.day > 0 ? (
-            <p className="mt-3.5 text-[13.5px] text-ink-300">
-              Day-to-day so far:{' '}
-              <Veiled className="text-foreground">{eur(c.pace.now)}</Veiled>.
-              Last month by day {c.day}:{' '}
-              <Veiled className="text-foreground">{eur(c.pace.last)}</Veiled>.
-            </p>
+            <div
+              data-testid="pace"
+              className="mt-3.5 flex flex-col gap-1.5 text-[13.5px] text-ink-300"
+            >
+              <span>
+                Day-to-day spending in the first {c.day}{' '}
+                {c.day === 1 ? 'day' : 'days'} after salary
+              </span>
+              <span className="flex flex-wrap gap-x-6 gap-y-1">
+                {(
+                  [
+                    ['this month', c.pace.now],
+                    ['last month', c.pace.last],
+                  ] as const
+                ).map(([when, spent]) => (
+                  <span key={when} className="flex items-center gap-1.5">
+                    {when}
+                    <TrendingDown className="size-3.5 text-state-danger" />
+                    <Veiled className="font-mono text-state-danger">
+                      −{eur(spent)}
+                    </Veiled>
+                  </span>
+                ))}
+              </span>
+            </div>
           ) : null}
         </div>
 

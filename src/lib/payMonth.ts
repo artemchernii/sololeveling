@@ -27,6 +27,11 @@ export type PayMonth = {
 
 const cents = (n: number) => Math.round(n * 100) / 100
 const daysApart = (a: number, b: number) => Math.round((b - a) / DAY)
+/* A row's day, as that day's noon. A pay month is cut by days: a row is
+   not always stamped at noon (typed by hand, or booked by a connected bank
+   and fetched that morning), and a salary of 9 am was left out of the
+   month it opened (12 Oct: "salary +€0"). */
+const dayOf = (t: number) => noonOf(t - 12 * 3_600_000)
 
 /** When this salary comes next after a day: its bill day, next month. */
 function nextSalary(bill: AheadBill, after: number): number {
@@ -50,7 +55,8 @@ function split(
   let d = 0
   const paid: Array<{ name: string; amount: number; t: number }> = []
   for (const r of rows) {
-    if (r.t < start || r.t >= end) continue
+    const t = dayOf(r.t)
+    if (t < start || t >= end) continue
     if (r.kind === 'income') {
       if (paysBill(salary, r)) s += r.amount
       else o += r.amount
@@ -96,8 +102,8 @@ export function payMonths(input: {
   /* The days the salary landed, oldest first; one a week at most. */
   const landed: Array<number> = []
   for (const r of [...input.rows].sort((a, b) => a.t - b.t)) {
-    if (r.kind !== 'income' || r.t > today || !paysBill(salary, r)) continue
-    const day = noonOf(r.t - 12 * 3_600_000)
+    const day = dayOf(r.t)
+    if (r.kind !== 'income' || day > today || !paysBill(salary, r)) continue
     if (landed.length && day - (landed.at(-1) ?? 0) < 7 * DAY) continue
     landed.push(day)
   }
@@ -194,7 +200,8 @@ export function payMonthDetail(input: {
       still to pay. */
   today: number
 }) {
-  const inside = (r: DetailRow, s: number, e: number) => r.t >= s && r.t < e
+  const inside = (r: DetailRow, s: number, e: number) =>
+    dayOf(r.t) >= s && dayOf(r.t) < e
   const billOf = (r: DetailRow) =>
     input.bills.find((b) => b.kind === r.kind && paysBill(b, r))
   const salary = input.bills

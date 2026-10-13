@@ -37,6 +37,14 @@ export function codeOf(row: Pick<HoldingRow, 'symbol' | 'type'>): string {
   return row.symbol.replace(/\.[A-Z]{1,4}$/, '')
 }
 
+/** Every code a thing is owned under, the leading one first: "NVO ·
+    NOV1 · NOVO-B" for one company bought on three exchanges. */
+export function codesOf(owned: {
+  at: ReadonlyArray<Pick<HoldingRow, 'symbol' | 'type'>>
+}): string {
+  return [...new Set(owned.at.map(codeOf))].join(' · ')
+}
+
 /** "oz" for a metal, the coin's own symbol for a coin, "shares" else. */
 export function unitOf(
   row: Pick<HoldingRow, 'symbol' | 'type'>,

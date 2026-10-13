@@ -57,9 +57,12 @@ export function Portfolio({ position }: { position?: string }) {
   /* One position has the room to itself (13 Oct): its own address — and
      so has a thing sold out, read with the accounts it was in. */
   if (position !== undefined) {
-    const owned = combine(data.rows).find((o) => o.instrumentId === position)
+    /* Any of its listings is its address. */
+    const has = (o: { at: ReadonlyArray<{ instrumentId: string }> }) =>
+      o.at.some((r) => r.instrumentId === position)
+    const owned = combine(data.rows).find(has)
     if (owned) return <PortfolioPosition owned={owned} holders={holders} />
-    const gone = combine(data.sold).find((o) => o.instrumentId === position)
+    const gone = combine(data.sold).find(has)
     return gone ? (
       <PortfolioPosition
         owned={gone}

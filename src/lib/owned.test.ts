@@ -30,6 +30,29 @@ describe('combine', () => {
     expect(gainOf(o)).toEqual({ eur: 15.2, pct: (15.2 / 1010) * 100 })
   })
 
+  it('makes one row of a company bought on three exchanges', () => {
+    const novo = { name: 'Novo Nordisk A/S' }
+    const [o, ...rest] = combine([
+      held({ ...novo, instrumentId: 'f', symbol: 'NOV1.F', valueEur: 50 }),
+      held({ ...novo, instrumentId: 'ny', symbol: 'NVO', valueEur: 300 }),
+      held({ ...novo, instrumentId: 'co', symbol: 'NOVO-B.CO', valueEur: 80 }),
+      held({ ...novo, instrumentId: 'ny', accountId: 'tr', valueEur: 10 }),
+    ])
+    expect(rest).toHaveLength(0)
+    /* The listing worth the most leads, with every account it is in. */
+    expect(o.instrumentId).toBe('ny')
+    expect(o.symbol).toBe('NVO')
+    expect(o.at.map((r) => r.instrumentId)).toEqual(['ny', 'ny', 'f', 'co'])
+    expect(o.valueEur).toBe(440)
+    expect(o.paid).toBe(400)
+  })
+
+  it('keeps a fund and a company of one name apart', () => {
+    expect(
+      combine([held({}), held({ instrumentId: 'etf', type: 'ETF' })]),
+    ).toHaveLength(2)
+  })
+
   it('keeps two things apart and says what kind each is', () => {
     const list = combine([
       held({}),
@@ -62,11 +85,16 @@ describe('combine', () => {
 
 describe('ordered', () => {
   const list = combine([
-    held({ instrumentId: 'big', paid: 900, valueEur: 1000 }),
-    held({ instrumentId: 'winner', paid: 100, valueEur: 200 }),
-    held({ instrumentId: 'loser', paid: 500, valueEur: 400 }),
-    held({ instrumentId: 'unknown', paid: null, valueEur: 50 }),
-    held({ instrumentId: 'unpriced', valueEur: null }),
+    held({ instrumentId: 'big', name: 'big', paid: 900, valueEur: 1000 }),
+    held({ instrumentId: 'winner', name: 'winner', paid: 100, valueEur: 200 }),
+    held({ instrumentId: 'loser', name: 'loser', paid: 500, valueEur: 400 }),
+    held({
+      instrumentId: 'unknown',
+      name: 'unknown',
+      paid: null,
+      valueEur: 50,
+    }),
+    held({ instrumentId: 'unpriced', name: 'unpriced', valueEur: null }),
   ])
   const ids = (by: 'worth' | 'up' | 'down') =>
     ordered(list, by).map((o) => o.instrumentId)

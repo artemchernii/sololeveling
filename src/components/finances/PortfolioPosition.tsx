@@ -24,7 +24,7 @@ import { Veiled } from '@/components/finances/Veil'
 import { useOlderYears } from '@/components/finances/useOlderYears'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { money } from '@/lib/currency'
-import { codeOf, unitOf } from '@/lib/holdingLine'
+import { codesOf, unitOf } from '@/lib/holdingLine'
 import { UNPRICED } from '@/lib/market'
 import { euros } from '@/lib/money'
 import { gainOf } from '@/lib/owned'
@@ -153,7 +153,11 @@ export function PortfolioPosition({
     last !== undefined && last.asOf === first.priceAsOf ? last.eur : undefined
   const slot = (i: number) =>
     i < owned.at.length
-      ? { accountId: owned.at[i].accountId, instrumentId: first.instrumentId }
+      ? {
+          accountId: owned.at[i].accountId,
+          /* Its own listing: one company can be owned under several. */
+          instrumentId: owned.at[i].instrumentId,
+        }
       : 'skip'
   const trades = [
     useQuery(api.invest.trades, slot(0)),
@@ -171,7 +175,7 @@ export function PortfolioPosition({
   const tone = up ? 'text-state-good' : 'text-state-danger'
   const unpriced = first.type === UNPRICED
   const accountOf = (id: Id<'accounts'>) => holders.find((a) => a._id === id)
-  const code = codeOf(owned)
+  const code = codesOf(owned)
   const unit = (n: number) => unitOf(first, n)
   const bought = all.filter(
     (t) => t.side === 'buy' && !t.reward && !t.split,

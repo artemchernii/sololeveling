@@ -21,6 +21,7 @@ import {
 import { ownMoves } from '../src/lib/accountLines'
 import type { Close, Holding, Rate } from '../src/lib/worthHistory'
 import { lookFamily, notSeenSince, reconcile } from '../src/lib/holdings'
+import { soldPart } from '../src/lib/sold'
 import type { LedgerTrade, Observation } from '../src/lib/holdings'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
@@ -1440,6 +1441,38 @@ function quoteToRate(currency: string): { base: string; divide: number } {
     : { base: currency, divide: 1 }
 }
 
+/* One position as the room reads it. */
+const positionRow = {
+  accountId: v.id('accounts'),
+  instrumentId: v.id('instruments'),
+  symbol: v.string(),
+  name: v.string(),
+  type: v.string(),
+  currency: v.string(),
+  shares: v.number(),
+  paid: v.union(v.number(), v.null()),
+  /** What he paid in dollars, at each day's ECB rate (10 Oct). */
+  paidUsd: v.union(v.number(), v.null()),
+  status: v.union(
+    v.literal('trades'),
+    v.literal('match'),
+    v.literal('screen'),
+    v.literal('gap'),
+    v.literal('over'),
+  ),
+  seenAt: v.union(v.number(), v.null()),
+  gap: v.number(),
+  /** A later screen of the account left it out. */
+  notSeen: v.boolean(),
+  price: v.union(v.number(), v.null()),
+  priceAsOf: v.union(v.number(), v.null()),
+  rate: v.union(v.number(), v.null()),
+  rateAsOf: v.union(v.number(), v.null()),
+  valueEur: v.union(v.number(), v.null()),
+  /** Coins given for holding it (staking), in its own units. */
+  staked: v.number(),
+}
+
 /**
  * What he holds, per account and ticker (Finances F4; R6c, 27 Sep).
  *
@@ -1459,36 +1492,14 @@ function quoteToRate(currency: string): { base: string; divide: number } {
 export const positions = query({
   args: {},
   returns: v.object({
-    rows: v.array(
+    rows: v.array(v.object(positionRow)),
+    /** Sold out everywhere (13 Oct): the same row with no shares, `paid`
+        what its buys cost, and what the sales brought (src/lib/sold.ts). */
+    sold: v.array(
       v.object({
-        accountId: v.id('accounts'),
-        instrumentId: v.id('instruments'),
-        symbol: v.string(),
-        name: v.string(),
-        type: v.string(),
-        currency: v.string(),
-        shares: v.number(),
-        paid: v.union(v.number(), v.null()),
-        /** What he paid in dollars, at each day's ECB rate (10 Oct). */
-        paidUsd: v.union(v.number(), v.null()),
-        status: v.union(
-          v.literal('trades'),
-          v.literal('match'),
-          v.literal('screen'),
-          v.literal('gap'),
-          v.literal('over'),
-        ),
-        seenAt: v.union(v.number(), v.null()),
-        gap: v.number(),
-        /** A later screen of the account left it out. */
-        notSeen: v.boolean(),
-        price: v.union(v.number(), v.null()),
-        priceAsOf: v.union(v.number(), v.null()),
-        rate: v.union(v.number(), v.null()),
-        rateAsOf: v.union(v.number(), v.null()),
-        valueEur: v.union(v.number(), v.null()),
-        /** Coins given for holding it (staking), in its own units. */
-        staked: v.number(),
+        ...positionRow,
+        soldFor: v.union(v.number(), v.null()),
+        soldAt: v.number(),
       }),
     ),
     /** The sum of the valued positions, in euros, and the oldest price in
@@ -2495,12 +2506,11 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
   }
 
   const rows = []
+  const gone = []
   let pricesFetchedAt: number | null = null
   for (const p of held.values()) {
-    /* A position sold out is not shown. */
     const r = reconcile(p.trades, p.looks)
     const shares = r.shares
-    if (shares <= 0) continue
     const instrument = instruments.get(p.instrumentId) ?? null
     if (instrument === null || instrument.ownerId !== ownerId) continue
     const price = await ctx.db
@@ -2516,9 +2526,37 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
       price === null || rate === null
         ? null
         : Math.round(((shares * price.price) / divide) * rate.rate * 100) / 100
-    /* Dust left by a sale — 0.06 XLM, €0.01 — is not a position (10 Oct:
-       Revolut does not list it either). */
-    if (valueEur !== null && valueEur < 1) continue
+    /* Sold out, or dust left by a sale — 0.06 XLM, €0.01 — is not a
+       position (10 Oct: Revolut does not list it either). It goes under
+       "sold" when a sale or a later screen says so. */
+    if (shares <= 0 || (valueEur !== null && valueEur < 1)) {
+      const s = soldPart(p.trades, p.looks)
+      if (s !== null)
+        gone.push({
+          accountId: p.accountId,
+          instrumentId: p.instrumentId,
+          symbol: instrument.symbol,
+          name: instrument.name,
+          type: instrument.type,
+          currency: instrument.currency,
+          shares: 0,
+          paid: s.boughtFor,
+          paidUsd: null,
+          status: r.status,
+          seenAt: r.seenAt,
+          gap: 0,
+          notSeen: false,
+          price: price?.price ?? null,
+          priceAsOf: price?.asOf ?? null,
+          rate: rate?.rate ?? null,
+          rateAsOf: rate?.asOf ?? null,
+          valueEur: 0,
+          staked: 0,
+          soldFor: s.soldFor,
+          soldAt: s.soldAt,
+        })
+      continue
+    }
     if (price) pricesFetchedAt = Math.max(pricesFetchedAt ?? 0, price.fetchedAt)
     rows.push({
       accountId: p.accountId,
@@ -2560,8 +2598,13 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
         ? r.priceAsOf
         : Math.min(oldestPriceAsOf, r.priceAsOf)
   }
+  /* Sold in one account and owned in another is owned. */
+  const owned = new Set(rows.map((r) => r.instrumentId))
   return {
     rows,
+    sold: gone
+      .filter((g) => !owned.has(g.instrumentId))
+      .sort((a, b) => b.soldAt - a.soldAt),
     totalEur: cents / 100,
     oldestPriceAsOf,
     pricesFetchedAt,

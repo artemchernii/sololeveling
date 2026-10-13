@@ -804,6 +804,9 @@ export default defineSchema({
     currency: v.string(),
     type: v.string(), // 'EQUITY', 'ETF'
     isin: v.optional(v.string()),
+    /* When its stored year was read again for open, high, low and
+       volume (bars.ts, 13 Oct) — once, so its page never asks twice. */
+    barsReadAt: v.optional(v.number()),
   })
     .index('by_owner_symbol', ['ownerId', 'symbol'])
     /* Read only by the daily price check, which acts for every owner —
@@ -876,6 +879,13 @@ export default defineSchema({
     asOf: v.number(),
     fetchedAt: v.number(),
     source: v.string(),
+    /* The day as a bar (13 Oct: "candles? volume?"): from the same
+       answer as the close, same source. All four or none; a row stored
+       before has none until its share's page is opened (bars.ts). */
+    open: v.optional(v.number()),
+    high: v.optional(v.number()),
+    low: v.optional(v.number()),
+    volume: v.optional(v.number()),
   }).index('by_owner_instrument_time', ['ownerId', 'instrumentId', 'asOf']),
 
   /* Source 4: an exchange rate, one currency into euros, as the ECB

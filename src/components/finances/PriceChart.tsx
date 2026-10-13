@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  AreaSeries,
   CrosshairMode,
   createChart,
   createSeriesMarkers,
 } from 'lightweight-charts'
 import type {
   IChartApi,
-  ISeriesApi,
   ISeriesMarkersPluginApi,
   Logical,
+  LogicalRange,
   Time,
-  UTCTimestamp,
 } from 'lightweight-charts'
 
 import {
@@ -20,10 +18,26 @@ import {
   daysBetween,
 } from '@/components/finances/ChartTools'
 import type { Measured, Tool } from '@/components/finances/ChartTools'
+import {
+  addMain,
+  addVolume,
+  dotLevels,
+  dotsOf,
+  fill,
+  makeRoom,
+  tint,
+} from '@/components/finances/chartSeries'
+import type { Main, Tone, View } from '@/components/finances/chartSeries'
 import { DotBox } from '@/components/finances/DotBox'
 import { money } from '@/lib/currency'
 import { euros } from '@/lib/money'
-import { firstSince, nearMark, priceSeries, seconds } from '@/lib/priceChart'
+import {
+  firstSince,
+  many,
+  nearMark,
+  priceSeries,
+  seconds,
+} from '@/lib/priceChart'
 import type { Mark } from '@/lib/priceChart'
 import { css, token } from '@/lib/tokenColour'
 
@@ -33,13 +47,6 @@ const DAY = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 })
 
-/* The line's colour, and what the library draws if the token is gone. */
-const TONE = {
-  up: ['--state-good', '#4fd08a'],
-  down: ['--state-danger', '#ef6a5a'],
-  plain: ['--color-lav-400', '#b5abfc'],
-} as const
-
 /* How far across, in pixels, a dot is read from. */
 const DOT_REACH = 9
 const PLOT = 'h-[300px] rounded-[14px] sm:h-[380px]'
@@ -47,15 +54,37 @@ const PLOT = 'h-[300px] rounded-[14px] sm:h-[380px]'
 const price = (v: number, currency: string) =>
   money(Math.round(v * 100) / 100, currency)
 
-/* A close in euros where the server worked one out (invest.priceLine). */
-type Close = { asOf: number; price: number; eur?: number }
+/* A close in euros where the server worked one out, and the day's open,
+   high, low and shares traded where it is stored as a bar
+   (invest.priceLine). */
+export type Close = {
+  asOf: number
+  price: number
+  eur?: number
+  open?: number
+  high?: number
+  low?: number
+  volume?: number
+}
+/** A stored day as the chart's helpers take it. */
+export const asPt = (p: Close) => ({
+  t: p.asOf,
+  v: p.price,
+  eur: p.eur,
+  o: p.open,
+  h: p.high,
+  l: p.low,
+  vol: p.volume,
+})
 
 type Series = NonNullable<ReturnType<typeof priceSeries>>
 
 /* One position's stored closes as a line, its buys and sells on it,
    drawn by TradingView's chart library (13 Oct: "library for sure",
    mockup chart.html). Green or red by whether the position is up or down
-   since bought; lavender when that is not known.
+   since bought; lavender when that is not known. Or a candle a day, and
+   the shares traded that day along the bottom (chartSeries.ts) — the
+   page offers those only where they are stored.
 
    The wheel or two fingers zoom, a drag moves it; a range pill sets what
    is in view, of the year that is loaded. The line of words above reads
@@ -69,25 +98,27 @@ export function PriceChart({
   tone,
   since,
   tool = null,
+  view = 'line',
+  volume = false,
 }: {
   points: ReadonlyArray<Close> | undefined
   marks: ReadonlyArray<Mark>
   currency: string
-  tone: keyof typeof TONE
+  tone: Tone
   /** The first moment of the range in view. */
   since: number
   /** Compare or the ruler, while its button is lit. */
   tool?: Tool | null
+  view?: View
+  /** The shares traded each day, drawn and said. */
+  volume?: boolean
 }) {
   /* By what they hold, not by the arrays: the page hands new ones on
      every render, and a redraw would undo a zoom. */
   const held = JSON.stringify([points ?? [], marks])
   const series = useMemo(() => {
     const [closes, trades] = JSON.parse(held) as [Array<Close>, Array<Mark>]
-    return priceSeries(
-      closes.map((p) => ({ t: p.asOf, v: p.price, eur: p.eur })),
-      trades,
-    )
+    return priceSeries(closes.map(asPt), trades)
   }, [held])
   if (series === null) {
     return (
@@ -105,6 +136,8 @@ export function PriceChart({
       tone={tone}
       since={since}
       tool={tool}
+      view={view}
+      volume={volume}
     />
   )
 }
@@ -115,24 +148,30 @@ function Plot({
   tone,
   since,
   tool,
+  view,
+  volume,
 }: {
   series: Series
   currency: string
-  tone: keyof typeof TONE
+  tone: Tone
   since: number
   tool: Tool | null
+  view: View
+  volume: boolean
 }) {
   const { pts, on } = series
   const box = useRef<HTMLDivElement>(null)
   const chart = useRef<IChartApi | null>(null)
-  const line = useRef<ISeriesApi<'Area'> | null>(null)
+  const line = useRef<Main | null>(null)
+  /* What was in view, kept across a change of line to candles. */
+  const span = useRef<LogicalRange | null>(null)
   const dots = useRef<ISeriesMarkersPluginApi<Time> | null>(null)
   /* The stored close under the pointer; none at rest. */
   const [at, setAt] = useState<number | null>(null)
   const index = useRef(new Map<number, number>())
   /* The stored closes a buy or a sell sits on. */
   const marked = useRef<Array<number>>([])
-  /* The stored closes as drawn, for the height of a dot. */
+  /* Where each day's dot sits, for the height of its box. */
   const heights = useRef<Array<number>>([])
   /* What a tool measured; kept until the next press or Esc. */
   const [measured, setMeasured] = useState<Measured | null>(null)
@@ -177,11 +216,6 @@ function Plot({
           typeof t === 'number' ? DAY.format(new Date(t * 1000)) : String(t),
       },
     })
-    line.current = c.addSeries(AreaSeries, {
-      lineWidth: 2,
-      priceLineVisible: false,
-    })
-    dots.current = createSeriesMarkers(line.current, [])
     c.subscribeCrosshairMove((p) => {
       const day =
         typeof p.time === 'number' ? (index.current.get(p.time) ?? null) : null
@@ -221,19 +255,29 @@ function Plot({
     return () => {
       c.remove()
       chart.current = null
-      line.current = null
-      dots.current = null
     }
   }, [])
 
+  /* The line or the candles: one of them, made again when the pill
+     changes, with the same days in view. */
   useEffect(() => {
-    const [name, fallback] = TONE[tone]
-    line.current?.applyOptions({
-      lineColor: css(name, fallback),
-      topColor: css(name, fallback, 0.22),
-      bottomColor: css(name, fallback, 0),
-    })
-  }, [tone])
+    const c = chart.current
+    if (!c) return
+    const main = addMain(c, view)
+    line.current = main
+    dots.current = createSeriesMarkers(main, [])
+    return () => {
+      line.current = null
+      dots.current = null
+      if (chart.current !== c) return
+      span.current = c.timeScale().getVisibleLogicalRange()
+      c.removeSeries(main)
+    }
+  }, [view])
+
+  useEffect(() => {
+    if (line.current) tint(line.current, view, tone)
+  }, [tone, view])
 
   useEffect(() => {
     chart.current?.applyOptions({
@@ -242,28 +286,27 @@ function Plot({
   }, [currency])
 
   useEffect(() => {
-    const time = (i: number) => seconds(pts[i].t) as UTCTimestamp
-    index.current = new Map(pts.map((_, i) => [time(i), i]))
+    index.current = new Map(pts.map((p, i) => [seconds(p.t), i]))
     marked.current = [...on.keys()]
-    heights.current = pts.map((p) => p.v)
-    line.current?.setData(pts.map((p, i) => ({ time: time(i), value: p.v })))
-    const good = css('--state-good', '#4fd08a')
-    const bad = css('--state-danger', '#ef6a5a')
-    dots.current?.setMarkers(
-      [...on].flatMap(([i, ms]) =>
-        (['buy', 'sell'] as const)
-          .filter((side) => ms.some((m) => m.side === side))
-          .map((side) => ({
-            time: time(i),
-            position:
-              side === 'buy' ? ('belowBar' as const) : ('aboveBar' as const),
-            shape: 'circle' as const,
-            color: side === 'buy' ? good : bad,
-            size: 1,
-          })),
-      ),
-    )
-  }, [pts, on])
+    heights.current = dotLevels(pts, on, view)
+    if (line.current) fill(line.current, view, pts)
+    dots.current?.setMarkers(dotsOf(pts, on))
+    if (span.current)
+      chart.current?.timeScale().setVisibleLogicalRange(span.current)
+    span.current = null
+  }, [pts, on, view])
+
+  /* Volume has a scale of its own at the bottom; the line makes room. */
+  useEffect(() => {
+    const c = chart.current
+    if (!c || !line.current) return
+    makeRoom(line.current, volume)
+    if (!volume) return
+    const vol = addVolume(c, pts)
+    return () => {
+      if (chart.current === c) c.removeSeries(vol)
+    }
+  }, [volume, pts, view])
 
   /* A range pill sets what is in view; the wheel and a drag go on from
      there. A little air after the latest close, as the mockup has. */
@@ -319,6 +362,9 @@ function Plot({
             <span className="text-[10.5px] text-ink-500">
               {DAY.format(new Date(seen.t))}
               {at === null ? ' · latest price' : ''}
+              {volume && seen.vol !== undefined
+                ? ` · ${many(seen.vol)} shares traded`
+                : ''}
             </span>
           </>
         )}
@@ -327,6 +373,7 @@ function Plot({
           own, and the tools draw above it. */}
       <div
         data-testid="price-plot"
+        data-view={view}
         role="img"
         aria-label="Price over the period, with buys and sells"
         className={`${PLOT} relative z-0 overflow-hidden`}
@@ -363,6 +410,12 @@ function Plot({
               {side === 'buy' ? 'bought' : 'sold'}
             </span>
           ))}
+        {volume ? (
+          <span className="flex items-center gap-1.5">
+            <i className="size-[9px] rounded-[2px] bg-ink-600" />
+            shares traded that day
+          </span>
+        ) : null}
         <a
           href="https://www.tradingview.com/"
           target="_blank"

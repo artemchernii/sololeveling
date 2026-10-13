@@ -13,6 +13,7 @@ import {
   PRICE_SOURCE,
   RATE_SOURCE,
   UNPRICED,
+  chartRows,
   parseChart,
   parseRate,
   parseRateSeries,
@@ -32,9 +33,17 @@ const YAHOO = 'https://query1.finance.yahoo.com'
 const HEADERS = { 'User-Agent': 'Mozilla/5.0 (SoloLeveling personal app)' }
 /* How far back a new ticker's closes are read: a year, so the worth chart
    can draw invested on its 1Y view (Finances B, 1 Oct; was 3 months). */
-const HISTORY_RANGE = '1y'
+export const HISTORY_RANGE = '1y'
 const YEAR_MS = 366 * 86_400_000
 const MAX_INSTRUMENTS = 500
+
+/** A day's open, high, low and shares traded, beside its close. */
+export const bar = {
+  open: v.optional(v.number()),
+  high: v.optional(v.number()),
+  low: v.optional(v.number()),
+  volume: v.optional(v.number()),
+}
 
 const candidate = v.object({
   symbol: v.string(),
@@ -62,7 +71,7 @@ export const search = action({
   },
 })
 
-async function chart(symbol: string, range: string) {
+export async function chart(symbol: string, range: string) {
   const res = await fetch(
     `${YAHOO}/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=1d`,
     { headers: HEADERS },
@@ -154,7 +163,7 @@ export const readOne = internalAction({
       ownerId: inst.ownerId,
       instrumentId: inst._id,
       currency: c.currency,
-      rows: [...c.closes, { asOf: c.asOf, price: c.price }],
+      rows: chartRows(c),
       fetchedAt,
     })
     const cur = rateCurrency(c.currency)
@@ -268,7 +277,7 @@ export const readAll = internalAction({
           ownerId: i.ownerId,
           instrumentId: i._id,
           currency: c.currency,
-          rows: [...c.closes, { asOf: c.asOf, price: c.price }],
+          rows: chartRows(c),
           fetchedAt,
         })
         const cur = rateCurrency(c.currency)
@@ -415,7 +424,7 @@ export const storePrices = internalMutation({
     ownerId: v.string(),
     instrumentId: v.id('instruments'),
     currency: v.string(),
-    rows: v.array(v.object({ asOf: v.number(), price: v.number() })),
+    rows: v.array(v.object({ asOf: v.number(), price: v.number(), ...bar })),
     fetchedAt: v.number(),
   },
   returns: v.null(),
@@ -439,10 +448,22 @@ export const storePrices = internalMutation({
     const dayOf = (t: number) => new Date(t).toISOString().slice(0, 10)
     /* What is stored per day as this runs; a row replaced is dropped here
        too, so a second reading of the same day never deletes it twice. */
-    let kept = have.map((h) => ({ id: h._id, asOf: h.asOf, price: h.price }))
+    let kept = have.map((h) => ({
+      id: h._id,
+      asOf: h.asOf,
+      price: h.price,
+      bar: h.open !== undefined,
+    }))
     for (const row of args.rows) {
-      const sameDay = kept.filter((h) => dayOf(h.asOf) === dayOf(row.asOf))
-      if (sameDay.some((h) => h.asOf === row.asOf && h.price === row.price)) {
+      const { asOf, price, ...its } = row
+      const sameDay = kept.filter((h) => dayOf(h.asOf) === dayOf(asOf))
+      const same = sameDay.find((h) => h.asOf === asOf && h.price === price)
+      if (same !== undefined) {
+        /* The same reading, now with its bar: the row takes it. */
+        if (!same.bar && its.open !== undefined) {
+          await ctx.db.patch(same.id, its)
+          same.bar = true
+        }
         continue
       }
       for (const h of sameDay) await ctx.db.delete(h.id)
@@ -450,13 +471,14 @@ export const storePrices = internalMutation({
       const id = await ctx.db.insert('prices', {
         ownerId: args.ownerId,
         instrumentId: args.instrumentId,
-        price: row.price,
+        price,
         currency: args.currency,
-        asOf: row.asOf,
+        asOf,
         fetchedAt: args.fetchedAt,
         source: PRICE_SOURCE,
+        ...its,
       })
-      kept.push({ id, asOf: row.asOf, price: row.price })
+      kept.push({ id, asOf, price, bar: its.open !== undefined })
     }
     return null
   },

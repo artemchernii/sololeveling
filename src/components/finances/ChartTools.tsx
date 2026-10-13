@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
-import type { IChartApi, ISeriesApi, Logical } from 'lightweight-charts'
+import type { IChartApi, Logical } from 'lightweight-charts'
 
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
+import type { Main, View } from '@/components/finances/chartSeries'
 import { between, ruler } from '@/lib/priceChart'
 import type { Pt } from '@/lib/priceChart'
 
@@ -75,6 +76,52 @@ export function ToolPills({
   )
 }
 
+/* Line or candles, and volume (13 Oct, chart.html) — each offered only
+   where the stored days can be drawn that way: a pill that would draw
+   nothing is not shown. */
+export function ViewPills({
+  can,
+  view,
+  onView,
+  volume,
+  onVolume,
+}: {
+  can: { candles: boolean; volume: boolean }
+  view: View
+  onView: (view: View) => void
+  volume: boolean
+  onVolume: (on: boolean) => void
+}) {
+  if (!can.candles && !can.volume) return null
+  return (
+    <div className="flex gap-1.5">
+      {can.candles
+        ? (['line', 'candles'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={view === v}
+              onClick={() => onView(v)}
+              className={view === v ? PILL_LOUD : PILL_QUIET}
+            >
+              {v}
+            </button>
+          ))
+        : null}
+      {can.volume ? (
+        <button
+          type="button"
+          aria-pressed={volume}
+          onClick={() => onVolume(!volume)}
+          className={volume ? PILL_LOUD : PILL_QUIET}
+        >
+          volume
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
 type Shape = { kind: Tool; a: number; b: number; p0: number; p1: number }
 
 /* The layer the tools draw on, above the chart's own canvases. Compare
@@ -94,7 +141,7 @@ export function ToolLayer({
 }: {
   tool: Tool | null
   chart: RefObject<IChartApi | null>
-  line: RefObject<ISeriesApi<'Area'> | null>
+  line: RefObject<Main | null>
   pts: ReadonlyArray<Pt>
   say: (v: number) => string
   /** The day pressed, before anything is measured. */

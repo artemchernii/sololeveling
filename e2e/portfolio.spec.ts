@@ -316,6 +316,117 @@ test('Portfolio: a thing sold out has its row and its page', async ({
   })
 })
 
+/* Candles and volume (13 Oct, mockup chart.html): the mock Shopify days
+   are stored as bars — $96 on a day 199K shares were traded. */
+test('Portfolio: candles and volume on a position', async ({ page }) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2ePortfolio.soldOut, {})
+  await page.goto('/finances?room=portfolio')
+  await page.getByTestId('sold-row').first().getByRole('link').click()
+  const position = page.getByTestId('position-page')
+  const read = position.getByTestId('price-read')
+  const chart = position.getByTestId('price-plot')
+  const pill = (name: string) =>
+    position.getByRole('button', { name, exact: true })
+  /* A line at first, volume off: the page he knows. */
+  await expect(pill('line')).toHaveAttribute('aria-pressed', 'true')
+  await expect(pill('candles')).toHaveAttribute('aria-pressed', 'false')
+  await expect(pill('volume')).toHaveAttribute('aria-pressed', 'false')
+  await expect(chart).toHaveAttribute('data-view', 'line')
+  await expect(position.getByText('shares traded that day')).toHaveCount(0)
+  await expect(read).not.toContainText('shares traded')
+  await chart.scrollIntoViewIfNeeded()
+  const plot = await chart.boundingBox()
+  if (plot === null) throw new Error('no chart')
+  const across = (f: number) => plot.x + plot.width * f
+  const mid = plot.y + plot.height / 2
+  const height = (await read.boundingBox())?.height
+
+  /* Candles: the same days, drawn as bars; the words read as before. */
+  await pill('candles').click()
+  await expect(pill('candles')).toHaveAttribute('aria-pressed', 'true')
+  await expect(pill('line')).toHaveAttribute('aria-pressed', 'false')
+  await expect(chart).toHaveAttribute('data-view', 'candles')
+  await expect(read).toContainText('$118.40')
+  await expect(read).toContainText('latest price')
+  await page.mouse.move(across(0.15), mid)
+  await expect(read).toContainText('$96')
+  expect((await read.boundingBox())?.height).toBe(height)
+  /* The box at the dot still says what was sold, inside the plot. */
+  const dotBox = position.getByTestId('dot-box')
+  await nearDot(page, plot, dotBox)
+  await expect(dotBox).toContainText('sold')
+  await expect(dotBox).toContainText('at $124')
+  await within(dotBox, plot)
+  await page.screenshot({ ...shot('portfolio-chart-candles'), fullPage: true })
+  /* Compare still reads two closes on candles. */
+  await pill('compare').click()
+  await page.mouse.move(across(0.15), mid)
+  await page.mouse.down()
+  await page.mouse.move(across(0.45), mid, { steps: 8 })
+  await page.mouse.up()
+  await expect(read).toContainText(/\+\$28(\.00)? · ▲ 29\.2%/)
+  await expect(position.getByTestId('tool-shape')).toBeVisible()
+  await pill('compare').click()
+
+  /* Volume: bars under the chart, their key, and the day's in words. */
+  await pill('volume').click()
+  await expect(pill('volume')).toHaveAttribute('aria-pressed', 'true')
+  await expect(position.getByText('shares traded that day')).toBeVisible()
+  await expect(read).toContainText('1.2M shares traded')
+  await page.mouse.move(across(0.15), mid)
+  await expect(read).toContainText('$96')
+  await expect(read).toContainText('199K shares traded')
+  expect((await read.boundingBox())?.height).toBe(height)
+  await page.screenshot({ ...shot('portfolio-chart-volume'), fullPage: true })
+  /* On the line too. */
+  await pill('line').click()
+  await expect(chart).toHaveAttribute('data-view', 'line')
+  await page.mouse.move(across(0.15), mid)
+  await expect(read).toContainText('199K shares traded')
+  await page.screenshot({
+    ...shot('portfolio-chart-line-volume'),
+    fullPage: true,
+  })
+
+  /* A phone: the pills wrap, nothing runs off the side. */
+  await page.setViewportSize({ width: 375, height: 812 })
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true)
+  await pill('candles').click()
+  await page.screenshot({
+    ...shot('portfolio-chart-candles-phone'),
+    fullPage: true,
+  })
+})
+
+/* A share whose days are stored as closes only: a line, and no pill
+   that would draw nothing. */
+test('Portfolio: closes only — no candles, no volume', async ({ page }) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2ePortfolio.soldOut, { bars: false })
+  await page.goto('/finances?room=portfolio')
+  await page.getByTestId('sold-row').first().getByRole('link').click()
+  const position = page.getByTestId('position-page')
+  await expect(position.getByTestId('price-read')).toContainText('$118.40')
+  await expect(position.getByTestId('price-plot')).toHaveAttribute(
+    'data-view',
+    'line',
+  )
+  for (const name of ['line', 'candles', 'volume'])
+    await expect(
+      position.getByRole('button', { name, exact: true }),
+    ).toHaveCount(0)
+  await expect(position.getByRole('button', { name: 'compare' })).toBeVisible()
+  await page.screenshot({
+    ...shot('portfolio-chart-closes-only'),
+    fullPage: true,
+  })
+})
+
 type Box = { x: number; y: number; width: number; height: number }
 
 /* A real mouse across the middle of the chart until a dot's box shows:

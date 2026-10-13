@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   between,
+  drawable,
+  many,
   boxAt,
   firstSince,
   nearMark,
@@ -152,5 +154,40 @@ describe('boxAt', () => {
       h: 60,
     })
     expect(at.top).toBe(6)
+  })
+})
+
+/* Candles and volume (13 Oct, chart.html). */
+describe('what can be drawn', () => {
+  const bar = { o: 1, h: 3, l: 0.5, vol: 199_000 }
+  it('candles only where every stored day has all four', () => {
+    expect(
+      drawable([
+        { t: 1, v: 2, ...bar },
+        { t: 2, v: 2, ...bar },
+      ]),
+    ).toEqual({ candles: true, volume: true })
+    expect(
+      drawable([
+        { t: 1, v: 2, ...bar },
+        { t: 2, v: 2 },
+      ]),
+    ).toEqual({ candles: false, volume: true })
+  })
+  it('no volume where none is stored, or it is all zero', () => {
+    expect(drawable([{ t: 1, v: 2 }])).toEqual({
+      candles: false,
+      volume: false,
+    })
+    expect(drawable([{ t: 1, v: 2, ...bar, vol: 0 }]).volume).toBe(false)
+    expect(drawable([])).toEqual({ candles: false, volume: false })
+  })
+})
+
+describe('shares traded, said short', () => {
+  it('thousands and millions', () => {
+    expect(many(199_000)).toBe('199K')
+    expect(many(1_240_000)).toBe('1.2M')
+    expect(many(640)).toBe('640')
   })
 })

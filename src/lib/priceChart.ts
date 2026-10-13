@@ -3,7 +3,8 @@
    close each buy and sell sits on. The points are the stored readings;
    nothing is made up between two of them. */
 
-export type Pt = { t: number; v: number }
+/** A stored close; `eur` is it in euros, where the server had a rate. */
+export type Pt = { t: number; v: number; eur?: number }
 /** A buy or a sell; `eur` is what it was for, read on its day. */
 export type Mark = { t: number; side: 'buy' | 'sell'; eur?: number }
 
@@ -100,4 +101,36 @@ export function ruler(from: Pt, to: Pt) {
     pct: from.v > 0 ? (diff / from.v) * 100 : 0,
     days: Math.round(Math.abs(to.t - from.t) / DAY),
   }
+}
+
+/**
+ * Where the box at a dot sits (13 Oct, chart.html #tip): centred over
+ * the dot, below a buy and above a sale, on the other side when that
+ * one has no room — and never cut by an edge. `room` is the width left
+ * of the price axis; `w` is the whole plot, the last limit.
+ */
+export function boxAt(
+  dot: { x: number; y: number; side: 'buy' | 'sell' },
+  box: { w: number; h: number },
+  plot: { w: number; h: number; room: number },
+  gap = 18,
+  pad = 6,
+) {
+  const left = Math.max(
+    pad,
+    Math.min(plot.room - box.w, plot.w - box.w - pad, dot.x - box.w / 2),
+  )
+  const below = dot.y + gap
+  const above = dot.y - box.h - gap
+  const fitsBelow = below + box.h <= plot.h - pad
+  const fitsAbove = above >= pad
+  const top =
+    dot.side === 'buy'
+      ? fitsBelow || !fitsAbove
+        ? below
+        : above
+      : fitsAbove || !fitsBelow
+        ? above
+        : below
+  return { left, top: Math.max(pad, Math.min(plot.h - box.h - pad, top)) }
 }

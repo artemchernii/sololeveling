@@ -20,7 +20,7 @@ import {
   daysBetween,
 } from '@/components/finances/ChartTools'
 import type { Measured, Tool } from '@/components/finances/ChartTools'
-import { Veiled } from '@/components/finances/Veil'
+import { DotBox } from '@/components/finances/DotBox'
 import { money } from '@/lib/currency'
 import { euros } from '@/lib/money'
 import { firstSince, nearMark, priceSeries, seconds } from '@/lib/priceChart'
@@ -47,6 +47,9 @@ const PLOT = 'h-[300px] rounded-[14px] sm:h-[380px]'
 const price = (v: number, currency: string) =>
   money(Math.round(v * 100) / 100, currency)
 
+/* A close in euros where the server worked one out (invest.priceLine). */
+type Close = { asOf: number; price: number; eur?: number }
+
 type Series = NonNullable<ReturnType<typeof priceSeries>>
 
 /* One position's stored closes as a line, its buys and sells on it,
@@ -56,8 +59,9 @@ type Series = NonNullable<ReturnType<typeof priceSeries>>
 
    The wheel or two fingers zoom, a drag moves it; a range pill sets what
    is in view, of the year that is loaded. The line of words above reads
-   under the pointer — a day's stored close, a buy or a sell on its day,
-   or what a lit tool has measured — and keeps its height. */
+   under the pointer — a day's stored close in its currency and in euros,
+   or what a lit tool has measured — and keeps its height. A buy or sell
+   near the pointer is said in a box at its dot (DotBox). */
 export function PriceChart({
   points,
   marks,
@@ -66,7 +70,7 @@ export function PriceChart({
   since,
   tool = null,
 }: {
-  points: ReadonlyArray<{ asOf: number; price: number }> | undefined
+  points: ReadonlyArray<Close> | undefined
   marks: ReadonlyArray<Mark>
   currency: string
   tone: keyof typeof TONE
@@ -79,12 +83,9 @@ export function PriceChart({
      every render, and a redraw would undo a zoom. */
   const held = JSON.stringify([points ?? [], marks])
   const series = useMemo(() => {
-    const [closes, trades] = JSON.parse(held) as [
-      Array<{ asOf: number; price: number }>,
-      Array<Mark>,
-    ]
+    const [closes, trades] = JSON.parse(held) as [Array<Close>, Array<Mark>]
     return priceSeries(
-      closes.map((p) => ({ t: p.asOf, v: p.price })),
+      closes.map((p) => ({ t: p.asOf, v: p.price, eur: p.eur })),
       trades,
     )
   }, [held])
@@ -131,8 +132,17 @@ function Plot({
   const index = useRef(new Map<number, number>())
   /* The stored closes a buy or a sell sits on. */
   const marked = useRef<Array<number>>([])
+  /* The stored closes as drawn, for the height of a dot. */
+  const heights = useRef<Array<number>>([])
   /* What a tool measured; kept until the next press or Esc. */
   const [measured, setMeasured] = useState<Measured | null>(null)
+  /* The dot near the pointer, where it is in the plot. */
+  const [near, setNear] = useState<{
+    i: number
+    x: number
+    y: number
+    plot: { w: number; h: number; room: number }
+  } | null>(null)
 
   useEffect(() => {
     if (!box.current) return
@@ -188,6 +198,24 @@ function Plot({
               DOT_REACH,
             )
       setAt(dot ?? day)
+      const y =
+        dot === null
+          ? null
+          : line.current?.priceToCoordinate(heights.current[dot])
+      setNear(
+        dot === null || y === null || y === undefined
+          ? null
+          : {
+              i: dot,
+              x: c.timeScale().logicalToCoordinate(dot as Logical) ?? 0,
+              y,
+              plot: {
+                w: c.paneSize().width + c.priceScale('right').width(),
+                h: c.paneSize().height,
+                room: c.paneSize().width,
+              },
+            },
+      )
     })
     chart.current = c
     return () => {
@@ -217,6 +245,7 @@ function Plot({
     const time = (i: number) => seconds(pts[i].t) as UTCTimestamp
     index.current = new Map(pts.map((_, i) => [time(i), i]))
     marked.current = [...on.keys()]
+    heights.current = pts.map((p) => p.v)
     line.current?.setData(pts.map((p, i) => ({ time: time(i), value: p.v })))
     const good = css('--state-good', '#4fd08a')
     const bad = css('--state-danger', '#ef6a5a')
@@ -250,7 +279,9 @@ function Plot({
   const seen = pts[at ?? pts.length - 1]
   /* The key names only what is on the chart. */
   const sides = new Set([...on.values()].flat().map((m) => m.side))
-  const held = at === null ? undefined : on.get(at)
+  /* The box at a dot: not while a tool holds what it measured. */
+  const held = near === null || measured ? undefined : on.get(near.i)
+  const dotDay = near === null ? undefined : pts[near.i]
 
   return (
     <div className="flex flex-col gap-2">
@@ -279,26 +310,12 @@ function Plot({
                 : ''}
             </span>
           </>
-        ) : held ? (
-          <>
-            <span
-              className={`rounded-full px-2 py-0.5 text-[11.5px] ${held[0].side === 'buy' ? 'bg-state-good/14 text-state-good' : 'bg-state-danger/14 text-state-danger'}`}
-            >
-              {held[0].side === 'buy' ? 'bought' : 'sold'}
-            </span>
-            {held[0].eur === undefined ? null : (
-              <span>
-                <Veiled>{euros(held[0].eur)}</Veiled>
-              </span>
-            )}
-            <span className="text-[10.5px] text-ink-500">
-              {DAY.format(new Date(held[0].t))} · at {price(seen.v, currency)}
-              {held.length > 1 ? ` · and ${held.length - 1} more that day` : ''}
-            </span>
-          </>
         ) : (
           <>
             <span>{price(seen.v, currency)}</span>
+            {seen.eur === undefined ? null : (
+              <span className="text-ink-300">{euros(seen.eur)}</span>
+            )}
             <span className="text-[10.5px] text-ink-500">
               {DAY.format(new Date(seen.t))}
               {at === null ? ' · latest price' : ''}
@@ -315,6 +332,16 @@ function Plot({
         className={`${PLOT} relative z-0 overflow-hidden`}
       >
         <div ref={box} className="absolute inset-0" />
+        {held && near && dotDay ? (
+          <DotBox
+            marks={held}
+            dot={near}
+            plot={near.plot}
+            day={DAY.format(new Date(held[0].t))}
+            price={price(dotDay.v, currency)}
+            eur={dotDay.eur === undefined ? null : euros(dotDay.eur)}
+          />
+        ) : null}
         <ToolLayer
           tool={tool}
           chart={chart}

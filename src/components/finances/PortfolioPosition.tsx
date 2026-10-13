@@ -106,6 +106,11 @@ export function PortfolioPosition({
     instrumentId: first.instrumentId,
     since: today - 366 * 86_400_000,
   })
+  /* The header's price in euros (13 Oct, chart.html): the server's
+     euros for that same stored close, none when it has no rate. */
+  const last = line?.at(-1)
+  const latestEur =
+    last !== undefined && last.asOf === first.priceAsOf ? last.eur : undefined
   const slot = (i: number) =>
     i < owned.at.length
       ? { accountId: owned.at[i].accountId, instrumentId: first.instrumentId }
@@ -184,16 +189,22 @@ export function PortfolioPosition({
               </span>
             </>
           ) : (
-            <>
+            <div data-testid="position-price">
               <span className="block text-[26px] font-light text-foreground tabular-nums">
                 {money(first.price, first.currency)}
               </span>
               <span className="font-mono text-[10.5px] text-ink-500">
+                {latestEur === undefined ? null : (
+                  <span className="text-ink-300">
+                    {euros(latestEur)}
+                    {' · '}
+                  </span>
+                )}
                 {first.priceAsOf === null
                   ? 'Yahoo Finance'
                   : `price on ${DAY.format(new Date(first.priceAsOf))} · Yahoo Finance`}
               </span>
-            </>
+            </div>
           )}
         </div>
       </div>

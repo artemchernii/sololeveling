@@ -1,5 +1,6 @@
 import { ConvexError, v } from 'convex/values'
 
+import { quoteToRate } from './aggregate'
 import { requireUser } from './auth'
 import { internal } from './_generated/api'
 import { mutation, query } from './_generated/server'
@@ -149,12 +150,26 @@ export const looks = query({
  * A ticker's stored closes over a period, oldest first, with where they
  * came from — source 4 read as a series, on the same condition as the
  * weight line (PLAN.md §1): the stored points and nothing between them.
+ *
+ * Each close carries `eur` (13 Oct: "we want euros and dollar"): the
+ * close times the stored ECB rate of the same day, as the position's
+ * worth converts (quoteToRate). None for a euro share, and none on a day
+ * with no stored rate — never a rate borrowed from another day.
  */
 export const priceLine = query({
   args: { instrumentId: v.id('instruments'), since: v.number() },
-  returns: v.array(v.object({ asOf: v.number(), price: v.number() })),
+  returns: v.array(
+    v.object({
+      asOf: v.number(),
+      price: v.number(),
+      eur: v.optional(v.number()),
+    }),
+  ),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
+    type Close = { asOf: number; price: number; eur?: number }
+    const instrument = await ctx.db.get(args.instrumentId)
+    if (instrument === null || instrument.ownerId !== ownerId) return []
     const rows = await ctx.db
       .query('prices')
       .withIndex('by_owner_instrument_time', (q) =>
@@ -164,6 +179,36 @@ export const priceLine = query({
           .gte('asOf', args.since),
       )
       .take(400)
-    return rows.map((r) => ({ asOf: r.asOf, price: r.price }))
+    const { base, divide } = quoteToRate(instrument.currency)
+    if (base === 'EUR' || base === '' || rows.length === 0)
+      return rows.map((r): Close => ({ asOf: r.asOf, price: r.price }))
+    /* The rates of the same window, one read: a business day each. */
+    const rates = new Map(
+      (
+        await ctx.db
+          .query('fxRates')
+          .withIndex('by_owner_currency_time', (q) =>
+            q
+              .eq('ownerId', ownerId)
+              .eq('currency', base)
+              .gte('asOf', dayOf(rows[0].asOf) * DAY),
+          )
+          .take(400)
+      ).map((r) => [dayOf(r.asOf), r.rate]),
+    )
+    return rows.map((r): Close => {
+      const rate = rates.get(dayOf(r.asOf))
+      return rate === undefined
+        ? { asOf: r.asOf, price: r.price }
+        : {
+            asOf: r.asOf,
+            price: r.price,
+            eur: Math.round((r.price / divide) * rate * 100) / 100,
+          }
+    })
   },
 })
+
+const DAY = 86_400_000
+/* The UTC day, as market.ts keeps one close a day. */
+const dayOf = (t: number) => Math.floor(t / DAY)

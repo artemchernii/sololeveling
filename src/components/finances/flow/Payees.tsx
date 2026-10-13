@@ -12,6 +12,7 @@ import { failureMessage } from '@/lib/convex-errors'
 import { SPEND_CATEGORIES } from '@/lib/money'
 import { payeeKey } from '@/lib/payee'
 import { bankPhrase, knownShop, payeeIdOf, siteFor } from '@/lib/payees'
+import { plainName } from '@/lib/plainName'
 
 /* Payees on the page (4 Oct; mockup design/treasury-mockup/payees.html).
    Who a row is: his name for it if he gave one, else a shop the app knows,
@@ -89,10 +90,13 @@ export function usePayees() {
         source: 'known',
       }
     }
+    /* Neither his nor known: the bank's own line, cleaned of the bank's
+       words and numbers (13 Oct), the line itself kept underneath. */
+    const plain = plainName(row.name)
     return {
       key,
-      name: row.name,
-      original: null,
+      name: plain ?? row.name,
+      original: plain === null ? null : row.name,
       domain: paypal ? null : listed(row.name),
       partOf: null,
       source: null,

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { between, firstSince, nearest, priceSeries } from './priceChart'
+import {
+  between,
+  firstSince,
+  nearMark,
+  nearest,
+  priceSeries,
+  ruler,
+} from './priceChart'
 
 const DAY = 86_400_000
 const points = [
@@ -66,6 +73,18 @@ describe('what the pointer reads', () => {
     expect(nearest(xs, 620)).toBe(3)
   })
 
+  it('reads the dot within reach of the pointer, the nearest one', () => {
+    const dots = [
+      { i: 3, x: 100 },
+      { i: 9, x: 112 },
+    ]
+    expect(nearMark(dots, 104, 9)).toBe(3)
+    expect(nearMark(dots, 108, 9)).toBe(9)
+    expect(nearMark(dots, 121, 9)).toBe(9)
+    expect(nearMark(dots, 122, 9)).toBeNull()
+    expect(nearMark([], 100, 9)).toBeNull()
+  })
+
   it('gives two days, both prices and the difference, earlier first', () => {
     const d = between(points[3], points[0])
     expect(d.from).toEqual(points[0])
@@ -74,5 +93,20 @@ describe('what the pointer reads', () => {
     expect(d.pct).toBe(20)
     expect(between(points[1], points[2]).diff).toBe(-20)
     expect(between(points[1], points[2]).pct).toBeCloseTo(-18.18, 2)
+  })
+
+  it('rules from where the drag began to where it ended, with the days', () => {
+    const day = 86_400_000
+    const up = ruler({ t: 10 * day, v: 80 }, { t: 3 * day, v: 100.004 })
+    expect(up.from).toEqual({ t: 10 * day, v: 80 })
+    expect(up.to.v).toBe(100.004)
+    expect(up.diff).toBe(20)
+    expect(up.pct).toBe(25)
+    expect(up.days).toBe(7)
+    const down = ruler({ t: 0, v: 50 }, { t: day, v: 45 })
+    expect(down.diff).toBe(-5)
+    expect(down.pct).toBe(-10)
+    expect(down.days).toBe(1)
+    expect(ruler({ t: 0, v: 0 }, { t: 0, v: 5 }).pct).toBe(0)
   })
 })

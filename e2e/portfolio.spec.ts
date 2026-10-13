@@ -183,6 +183,62 @@ test('Portfolio: a thing sold out has its row and its page', async ({
   await expect(read).toContainText('at $124')
   expect((await read.boundingBox())?.height).toBe(height)
   await page.screenshot({ ...shot('portfolio-chart-read'), fullPage: true })
+  /* The two tools (13 Oct, mockup chart.html). Compare: a real drag from
+     one day to another reads both days, both prices and the difference,
+     and the chart does not move under it. */
+  const compare = position.getByRole('button', { name: 'compare' })
+  const shape = position.getByTestId('tool-shape')
+  await expect(shape).toBeHidden()
+  await compare.click()
+  await expect(compare).toHaveAttribute('aria-pressed', 'true')
+  await page.mouse.move(across(0.15), mid)
+  await page.mouse.down()
+  await page.mouse.move(across(0.45), mid, { steps: 8 })
+  await page.mouse.up()
+  await expect(read).toContainText('$96')
+  await expect(read).toContainText('$124')
+  await expect(read).toContainText(/\+\$28(\.00)? · ▲ 29\.2%/)
+  await expect(read).toContainText(/\d{4}.+→.+\d{4}/)
+  await expect(shape).toBeVisible()
+  expect((await read.boundingBox())?.height).toBe(height)
+  await page.screenshot({ ...shot('portfolio-chart-compare'), fullPage: true })
+  /* Esc takes it away; the button stays lit. */
+  await page.keyboard.press('Escape')
+  await expect(shape).toBeHidden()
+  await expect(read).toContainText('latest price')
+  await expect(compare).toHaveAttribute('aria-pressed', 'true')
+  /* The ruler: any point to any point — two levels off the axis, the
+     two days, the difference and the days between, on the shape too. */
+  const ruler = position.getByRole('button', { name: 'ruler' })
+  await ruler.click()
+  await expect(ruler).toHaveAttribute('aria-pressed', 'true')
+  await expect(compare).toHaveAttribute('aria-pressed', 'false')
+  await page.mouse.move(across(0.2), plot.y + plot.height * 0.7)
+  await page.mouse.down()
+  await page.mouse.move(across(0.5), plot.y + plot.height * 0.3, { steps: 8 })
+  await page.mouse.up()
+  await expect(read).toContainText(/from .+\d{4}.*\$.+to .+\d{4}.*\$/)
+  await expect(read).toContainText(/\+\$[\d.]+ · ▲ [\d.]+% · \d+ days/)
+  await expect(shape).toBeVisible()
+  await expect(shape).toContainText(/▲ [\d.]+% · \d+ days/)
+  expect((await read.boundingBox())?.height).toBe(height)
+  await page.screenshot({ ...shot('portfolio-chart-ruler'), fullPage: true })
+  /* The wheel still zooms with a tool lit, and the shape follows. */
+  const wide = (await shape.boundingBox())?.width ?? 0
+  await page.mouse.move(across(0.35), mid)
+  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, -400)
+  await expect
+    .poll(async () => (await shape.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(wide + 20)
+  /* The button pressed again: nothing measured, the pointer reads days. */
+  await ruler.click()
+  await expect(ruler).toHaveAttribute('aria-pressed', 'false')
+  await expect(shape).toBeHidden()
+  await position.getByRole('button', { name: '6M' }).click()
+  await position.getByRole('button', { name: '1Y' }).click()
+  await page.mouse.move(across(0.15), mid)
+  await expect(read).toContainText('$96')
+  await expect(read).not.toContainText('latest price')
   /* 1M shows the latest days only: the same place reads another day. */
   await position.getByRole('button', { name: '1M' }).click()
   await page.mouse.move(across(0.16), mid)

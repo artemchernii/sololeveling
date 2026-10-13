@@ -9,14 +9,21 @@ import type {
   IChartApi,
   ISeriesApi,
   ISeriesMarkersPluginApi,
+  Logical,
   Time,
   UTCTimestamp,
 } from 'lightweight-charts'
 
+import {
+  ToolLayer,
+  change,
+  daysBetween,
+} from '@/components/finances/ChartTools'
+import type { Measured, Tool } from '@/components/finances/ChartTools'
 import { Veiled } from '@/components/finances/Veil'
 import { money } from '@/lib/currency'
 import { euros } from '@/lib/money'
-import { firstSince, priceSeries, seconds } from '@/lib/priceChart'
+import { firstSince, nearMark, priceSeries, seconds } from '@/lib/priceChart'
 import type { Mark } from '@/lib/priceChart'
 import { css, token } from '@/lib/tokenColour'
 
@@ -33,6 +40,8 @@ const TONE = {
   plain: ['--color-lav-400', '#b5abfc'],
 } as const
 
+/* How far across, in pixels, a dot is read from. */
+const DOT_REACH = 9
 const PLOT = 'h-[300px] rounded-[14px] sm:h-[380px]'
 
 const price = (v: number, currency: string) =>
@@ -47,14 +56,15 @@ type Series = NonNullable<ReturnType<typeof priceSeries>>
 
    The wheel or two fingers zoom, a drag moves it; a range pill sets what
    is in view, of the year that is loaded. The line of words above reads
-   under the pointer — a day's stored close, a buy or a sell on its day —
-   and keeps its height. */
+   under the pointer — a day's stored close, a buy or a sell on its day,
+   or what a lit tool has measured — and keeps its height. */
 export function PriceChart({
   points,
   marks,
   currency,
   tone,
   since,
+  tool = null,
 }: {
   points: ReadonlyArray<{ asOf: number; price: number }> | undefined
   marks: ReadonlyArray<Mark>
@@ -62,6 +72,8 @@ export function PriceChart({
   tone: keyof typeof TONE
   /** The first moment of the range in view. */
   since: number
+  /** Compare or the ruler, while its button is lit. */
+  tool?: Tool | null
 }) {
   /* By what they hold, not by the arrays: the page hands new ones on
      every render, and a redraw would undo a zoom. */
@@ -85,7 +97,15 @@ export function PriceChart({
       </div>
     )
   }
-  return <Plot series={series} currency={currency} tone={tone} since={since} />
+  return (
+    <Plot
+      series={series}
+      currency={currency}
+      tone={tone}
+      since={since}
+      tool={tool}
+    />
+  )
 }
 
 function Plot({
@@ -93,11 +113,13 @@ function Plot({
   currency,
   tone,
   since,
+  tool,
 }: {
   series: Series
   currency: string
   tone: keyof typeof TONE
   since: number
+  tool: Tool | null
 }) {
   const { pts, on } = series
   const box = useRef<HTMLDivElement>(null)
@@ -107,6 +129,10 @@ function Plot({
   /* The stored close under the pointer; none at rest. */
   const [at, setAt] = useState<number | null>(null)
   const index = useRef(new Map<number, number>())
+  /* The stored closes a buy or a sell sits on. */
+  const marked = useRef<Array<number>>([])
+  /* What a tool measured; kept until the next press or Esc. */
+  const [measured, setMeasured] = useState<Measured | null>(null)
 
   useEffect(() => {
     if (!box.current) return
@@ -146,11 +172,23 @@ function Plot({
       priceLineVisible: false,
     })
     dots.current = createSeriesMarkers(line.current, [])
-    c.subscribeCrosshairMove((p) =>
-      setAt(
-        typeof p.time === 'number' ? (index.current.get(p.time) ?? null) : null,
-      ),
-    )
+    c.subscribeCrosshairMove((p) => {
+      const day =
+        typeof p.time === 'number' ? (index.current.get(p.time) ?? null) : null
+      /* A dot near the pointer is read before the day beside it. */
+      const dot =
+        day === null || p.point === undefined
+          ? null
+          : nearMark(
+              marked.current.flatMap((i) => {
+                const x = c.timeScale().logicalToCoordinate(i as Logical)
+                return x === null ? [] : [{ i, x }]
+              }),
+              p.point.x,
+              DOT_REACH,
+            )
+      setAt(dot ?? day)
+    })
     chart.current = c
     return () => {
       c.remove()
@@ -178,6 +216,7 @@ function Plot({
   useEffect(() => {
     const time = (i: number) => seconds(pts[i].t) as UTCTimestamp
     index.current = new Map(pts.map((_, i) => [time(i), i]))
+    marked.current = [...on.keys()]
     line.current?.setData(pts.map((p, i) => ({ time: time(i), value: p.v })))
     const good = css('--state-good', '#4fd08a')
     const bad = css('--state-danger', '#ef6a5a')
@@ -219,7 +258,28 @@ function Plot({
         data-testid="price-read"
         className="flex min-h-[42px] flex-wrap items-baseline gap-x-2 gap-y-0.5 font-mono text-[13px] text-foreground tabular-nums sm:min-h-[22px]"
       >
-        {held ? (
+        {measured ? (
+          <>
+            <span className="text-[10.5px] text-ink-500">
+              {measured.kind === 'ruler' ? 'from ' : ''}
+              {DAY.format(new Date(measured.from.t))}
+            </span>
+            <span>{price(measured.from.v, currency)}</span>
+            <span className="text-[10.5px] text-ink-500">
+              {measured.kind === 'ruler' ? 'to' : '→'}{' '}
+              {DAY.format(new Date(measured.to.t))}
+            </span>
+            <span>{price(measured.to.v, currency)}</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[11.5px] ${measured.diff >= 0 ? 'bg-state-good/14 text-state-good' : 'bg-state-danger/14 text-state-danger'}`}
+            >
+              {change(measured, (v) => price(v, currency))}
+              {measured.kind === 'ruler'
+                ? ` · ${daysBetween(measured.days)}`
+                : ''}
+            </span>
+          </>
+        ) : held ? (
           <>
             <span
               className={`rounded-full px-2 py-0.5 text-[11.5px] ${held[0].side === 'buy' ? 'bg-state-good/14 text-state-good' : 'bg-state-danger/14 text-state-danger'}`}
@@ -247,7 +307,7 @@ function Plot({
         )}
       </div>
       {/* Its own layer: the library's canvases carry a z-index of their
-          own, and PR 2's tools draw above it. */}
+          own, and the tools draw above it. */}
       <div
         data-testid="price-plot"
         role="img"
@@ -255,6 +315,15 @@ function Plot({
         className={`${PLOT} relative z-0 overflow-hidden`}
       >
         <div ref={box} className="absolute inset-0" />
+        <ToolLayer
+          tool={tool}
+          chart={chart}
+          line={line}
+          pts={pts}
+          say={(v) => price(v, currency)}
+          onPoint={setAt}
+          onRead={setMeasured}
+        />
       </div>
       <div className="flex flex-wrap gap-x-3.5 gap-y-1 font-mono text-[10.5px] text-ink-500">
         {(['buy', 'sell'] as const)

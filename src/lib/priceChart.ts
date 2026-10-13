@@ -54,6 +54,25 @@ export function nearest(pts: ReadonlyArray<{ x: number }>, x: number) {
   return best
 }
 
+/** The buy or sell dot within reach of the pointer, the nearest of
+    them; none when the pointer is further than `reach` from every dot.
+    A dot is a few pixels wide and a day can be two — without this the
+    pointer has to sit on the exact day to read what was bought. */
+export function nearMark(
+  dots: ReadonlyArray<{ i: number; x: number }>,
+  x: number,
+  reach: number,
+) {
+  let best: { i: number; x: number } | null = null
+  for (const d of dots)
+    if (
+      Math.abs(d.x - x) <= reach &&
+      (best === null || Math.abs(d.x - x) < Math.abs(best.x - x))
+    )
+      best = d
+  return best?.i ?? null
+}
+
 /**
  * Two stored closes and the difference between them (13 Oct: "drag and
  * see differences"). The one worked-out number CLAUDE.md allows on this
@@ -64,4 +83,21 @@ export function between(a: Pt, b: Pt) {
   const [from, to] = a.t <= b.t ? [a, b] : [b, a]
   const diff = Math.round((to.v - from.v) * 100) / 100
   return { from, to, diff, pct: from.v > 0 ? (diff / from.v) * 100 : 0 }
+}
+
+/**
+ * The ruler: from the point where a drag began to where it ended — two
+ * levels read off the price axis, not stored closes, each on the stored
+ * day under it. Allowed with `between()` on the same condition: both
+ * levels and both days go with the difference, and the days between.
+ */
+export function ruler(from: Pt, to: Pt) {
+  const diff = Math.round((to.v - from.v) * 100) / 100
+  return {
+    from,
+    to,
+    diff,
+    pct: from.v > 0 ? (diff / from.v) * 100 : 0,
+    days: Math.round(Math.abs(to.t - from.t) / DAY),
+  }
 }

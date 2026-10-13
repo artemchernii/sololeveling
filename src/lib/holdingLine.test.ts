@@ -52,7 +52,7 @@ describe('holdingLine', () => {
     expect(
       holdingLine(row({ status: 'screen', paid: null }), 'Trading 212', day),
     ).toEqual({
-      text: 'Upload a Trading 212 statement to see what you paid',
+      text: 'Bought for: unknown · a Trading 212 statement adds it',
       warn: false,
     })
   })
@@ -61,19 +61,17 @@ describe('holdingLine', () => {
     expect(
       holdingLine(row({ status: 'gap', gap: 2 }), 'Trading 212', day),
     ).toEqual({
-      text: 'Trading 212 shows 2 shares more than your statements — a buy is missing',
+      text: 'Trading 212: 2 shares more than in the files. A buy is missing.',
       warn: true,
     })
     expect(
       holdingLine(row({ status: 'over', gap: -1 }), 'Trading 212', day)?.text,
-    ).toBe(
-      'Your statements show 1 share more than Trading 212 — a sell is missing',
-    )
+    ).toBe('Files: 1 share more than in Trading 212. A sale is missing.')
   })
 
   it('warns when the latest upload no longer has it', () => {
     expect(holdingLine(row({ notSeen: true }), 'Revolut', day)).toEqual({
-      text: 'Not in your latest Revolut upload — last there Oct 3',
+      text: 'Not in the latest Revolut file · last seen Oct 3',
       warn: true,
     })
   })
@@ -81,7 +79,7 @@ describe('holdingLine', () => {
   it('says a holding without a live price is the screenshot value', () => {
     expect(
       holdingLine(row({ type: 'UNPRICED' }), 'Trading 212', day)?.text,
-    ).toBe('No live price — value from your Trading 212 screenshot of Oct 3')
+    ).toBe('No market price · worth from the Trading 212 screenshot of Oct 3')
   })
 
   it('never uses the old words', () => {

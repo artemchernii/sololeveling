@@ -13,7 +13,7 @@ test('check-in names what is old', async ({ page }) => {
   const sheet = page.getByRole('dialog')
   await expect(sheet.getByText('Revolut')).toBeVisible()
   /* Two pockets: the words name the old one. */
-  await expect(sheet.getByText(/Its EUR balance is from/)).toBeVisible()
+  await expect(sheet.getByText(/EUR balance from/)).toBeVisible()
   await page.screenshot(shot('check-in'))
 })
 
@@ -55,7 +55,7 @@ test('a Revolut CSV: read, checked, added — and it lands', async ({ page }) =>
 
   /* The check-in is back with what is still old — Revolut, EUR and USD,
      is not in it. */
-  const list = page.getByRole('dialog', { name: 'check-in' })
+  const list = page.getByRole('dialog', { name: 'outdated balances' })
   await expect(list.getByText('ActivoBank')).toBeVisible()
   await expect(list.getByText('Revolut')).toHaveCount(0)
 })
@@ -79,7 +79,7 @@ test('"still the same": saving, saved, up to date, closed', async ({
   await expect(sheet.getByText('Cash is up to date')).toBeVisible()
   await page.screenshot(shot('still-the-same'))
   /* It closes by itself, and the check-in is back without Cash. */
-  const list = page.getByRole('dialog', { name: 'check-in' })
+  const list = page.getByRole('dialog', { name: 'outdated balances' })
   await expect(list.getByText('Revolut')).toBeVisible({ timeout: 5_000 })
   await expect(list.getByText('Cash')).toHaveCount(0)
 })

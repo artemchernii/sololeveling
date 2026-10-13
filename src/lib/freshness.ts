@@ -45,7 +45,7 @@ export function freshness(
       label: 'no balance yet',
       stale: true,
       asOf: null,
-      todo: 'Drop a statement or a screenshot, or type what it holds.',
+      todo: 'Add a statement or a screenshot, or type the balance.',
     }
   /* The oldest pocket decides: a card is as fresh as its stalest part. */
   const oldest = read.reduce((a, b) => (b.recordedAt < a.recordedAt ? b : a))
@@ -64,7 +64,7 @@ export function freshness(
     stale,
     asOf: oldest.recordedAt,
     todo: stale
-      ? `Its ${read.length > 1 && oldest.currency ? `${oldest.currency} ` : ''}balance is from ${DAY.format(oldest.recordedAt)}. Drop a newer statement or screenshot, or type what it holds today.`
+      ? `${read.length > 1 && oldest.currency ? `${oldest.currency} balance` : 'Balance'} from ${DAY.format(oldest.recordedAt)}. Add a newer statement or screenshot, or type the balance.`
       : null,
   }
 }

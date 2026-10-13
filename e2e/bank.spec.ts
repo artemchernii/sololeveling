@@ -56,7 +56,7 @@ test('connect: three facts, the bank, and its balance lands on the card', async 
   await card(page).getByRole('button', { name: 'connect' }).click()
   const sheet = page.getByRole('dialog')
   await expect(sheet.getByText('Read only')).toBeVisible()
-  await expect(sheet.getByText('It never reaches this app.')).toBeVisible()
+  await expect(sheet.getByText('Not seen by the app.')).toBeVisible()
   await expect(sheet.getByText('balance here: €830.50')).toBeVisible()
   await page.screenshot(shot('bank-connect'))
 

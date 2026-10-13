@@ -43,7 +43,7 @@ test('a typed balance opens, says what the account is after, and one press remov
   await expect(line).toHaveCount(1)
   await line.getByRole('button', { name: /^typed/ }).click()
   await expect(
-    line.getByText(/balance of \d+ Oct you typed goes\./),
+    line.getByText(/typed balance of \d+ Oct is removed\./),
   ).toBeVisible()
   await expect(line.getByText('ActivoBank now')).toBeVisible()
   await expect(line.getByText('€190.35')).toBeVisible()

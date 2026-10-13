@@ -498,7 +498,7 @@ function RowView({
           )
         }
         items={accountItems()}
-        placeholder="your accounts"
+        placeholder="accounts"
         onPick={(id) => {
           const a = accounts.find((x) => x._id === id)
           onPatch({
@@ -912,13 +912,13 @@ function Picker({
                     <Plus className="size-4" />
                     <span className="flex-1">new: “{q.trim()}”</span>
                     <span className="font-mono text-[10.5px] text-ink-500">
-                      kept for next time
+                      saved
                     </span>
                   </button>
                 ) : (
                   <span className="flex items-center gap-2.5 border-t border-lift/[0.07] px-2.5 pt-2 pb-1 font-mono text-[10.5px] text-ink-500">
-                    <Plus className="size-3.5 text-lav-300" /> type above to
-                    make a new one
+                    <Plus className="size-3.5 text-lav-300" /> type a name to
+                    add one
                   </span>
                 )
               ) : null}

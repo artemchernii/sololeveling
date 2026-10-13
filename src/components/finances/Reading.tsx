@@ -193,7 +193,7 @@ export function ReadingSheet({
         intake.files?.every((f) => /csv/i.test(f.contentType))
           ? 'read without AI'
           : INTAKE_MODEL_NAME}{' '}
-        · {elapsed(since(intake, now))} · nothing saved until you confirm
+        · {elapsed(since(intake, now))} · nothing saved yet
       </span>
     </div>
   )
@@ -244,11 +244,7 @@ function Bank({ institution, tail }: { institution: string; tail?: string }) {
         {product?.name ?? institution}
         <span className="font-mono text-[11px] text-ink-500">
           {tail ? ` · …${tail}` : ''}
-          {mine
-            ? ` → your ${mine.name}`
-            : accounts
-              ? ' · not one of yours yet'
-              : ''}
+          {mine ? ` → ${mine.name}` : accounts ? ' · not an account yet' : ''}
         </span>
       </span>
     </span>
@@ -287,7 +283,7 @@ function FileLook({ intake, lit }: { intake: Doc<'intakes'>; lit: number }) {
         {intake.status === 'reading' ? <span className="system-beam" /> : null}
       </div>
       <span className="font-mono text-[11px] break-all text-ink-400">
-        {files.map((f) => f.name).join(', ') || 'your file'}
+        {files.map((f) => f.name).join(', ') || 'file'}
         {files.length ? (
           <span className="block text-ink-600">
             {kb(files.reduce((n, f) => n + f.size, 0))}
@@ -317,7 +313,7 @@ function ReadFailed({
   return (
     <div className="motion-arrive flex flex-col gap-4 rounded-[14px] bg-state-warn/[0.06] p-4 ring-1 ring-state-warn/30 ring-inset">
       <span className="font-mono text-[11px] tracking-[0.3em] text-state-warn uppercase">
-        [ couldn’t read it ]
+        [ not read ]
       </span>
       <p className="text-[15px] leading-relaxed text-foreground">
         {dead
@@ -387,15 +383,13 @@ export function IntakeStrip({
   const fresh = (p?.rows ?? 0) - (p?.have ?? 0)
 
   const title = failed
-    ? (intake.title ?? p?.title ?? name ?? 'Your file')
+    ? (intake.title ?? p?.title ?? name ?? 'File')
     : reading
       ? (p?.title ??
-        (product
-          ? `${product.name} — reading`
-          : `Reading ${name ?? 'your file'}`))
+        (product ? `${product.name} — reading` : `Reading ${name ?? 'file'}`))
       : intake.historyTrades !== undefined
         ? `${intake.title ?? 'Trades'} · ready`
-        : `${intake.title ?? 'Your file'} · ready to check`
+        : `${intake.title ?? 'File'} · ready to check`
 
   const sub = failed
     ? dead

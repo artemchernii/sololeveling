@@ -38,7 +38,7 @@ const DAY = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
 const said = (e: unknown) =>
   e instanceof ConvexError && typeof e.data === 'string'
     ? e.data
-    : 'It did not work. Nothing changed.'
+    : 'Not connected. Nothing changed.'
 
 /* Connecting a bank, and approving it again: the same window (11 Oct,
    bank-connected.html). What is true of the connection, then the bank's own
@@ -200,8 +200,8 @@ export function BankSheet({
               </span>
             </button>
           ))}
-          <Fact Icon={Rows3} small="Add it as an account, any time.">
-            The other one can be its own account.
+          <Fact Icon={Rows3} small="Any time.">
+            The other one can be added as its own account.
           </Fact>
           {error ? <Nope>{error}</Nope> : null}
         </>
@@ -215,17 +215,14 @@ export function BankSheet({
                 : 'no balance here yet'}
           </Head>
           <div className="flex flex-col gap-3">
-            <Fact Icon={Eye} small="Nothing can be paid or moved from here.">
-              Read only: the balance and the movements.
+            <Fact Icon={Eye} small="No payments from here.">
+              Read only: balance and rows.
             </Fact>
-            <Fact Icon={Lock} small="It never reaches this app.">
-              The password is typed on {name}’s own page.
+            <Fact Icon={Lock} small="Not seen by the app.">
+              Password typed on {name}’s page only.
             </Fact>
-            <Fact
-              Icon={CalendarClock}
-              small="The card says so when it is time."
-            >
-              {name} asks again every few months.
+            <Fact Icon={CalendarClock} small="Shown on the card when due.">
+              {name} asks for approval again every few months.
             </Fact>
           </div>
           {back === 'refused' && busy === null && error === null ? (

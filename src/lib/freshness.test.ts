@@ -56,5 +56,5 @@ test('an account with two pockets names the old one (5 Oct)', () => {
   )
   expect(f.label).toBe('USD typed 9d ago')
   expect(f.stale).toBe(true)
-  expect(f.todo).toMatch(/^Its USD balance is from/)
+  expect(f.todo).toMatch(/^USD balance from/)
 })

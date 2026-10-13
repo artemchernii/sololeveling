@@ -158,6 +158,45 @@ test('Portfolio: a thing sold out has its row and its page', async ({
   await page.waitForTimeout(800)
   await page.screenshot({ ...shot('portfolio-sold-position'), fullPage: true })
 
+  /* The chart reads under the pointer (13 Oct): the latest price at
+     rest, a day's price on the line, and — dragged — two days, both
+     prices and the difference. The mock stores $96, $124 and $118.40. */
+  const read = position.getByTestId('price-read')
+  await expect(read).toContainText('$118.40')
+  await expect(read).toContainText('latest price')
+  const svg = position.getByRole('img', { name: /Price over/ })
+  await svg.scrollIntoViewIfNeeded()
+  const plot = await svg.boundingBox()
+  if (plot === null) throw new Error('no chart')
+  const across = (f: number) => plot.x + plot.width * f
+  const mid = plot.y + plot.height / 2
+  await page.mouse.move(across(0.45), mid)
+  await expect(read).toContainText('$124')
+  await expect(read).not.toContainText('latest price')
+  const height = (await read.boundingBox())?.height
+  await page.mouse.move(across(0.005), mid)
+  await page.mouse.down()
+  await page.mouse.move(across(0.5), mid, { steps: 4 })
+  await page.mouse.move(across(0.9), mid, { steps: 4 })
+  await expect(read).toContainText('$96')
+  await expect(read).toContainText('$118.40')
+  await expect(read).toContainText('+$22.40')
+  await expect(read).toContainText('23.3%')
+  /* The line keeps its height while its words change. */
+  expect((await read.boundingBox())?.height).toBe(height)
+  await page.screenshot({ ...shot('portfolio-chart-drag'), fullPage: true })
+  /* Let go: it stays. A press clears it. */
+  await page.mouse.up()
+  await page.mouse.move(across(0.45), mid)
+  await expect(read).toContainText('+$22.40')
+  await page.mouse.click(across(0.45), mid)
+  await expect(read).not.toContainText('+$22.40')
+  /* A sell's dot reads the sale and the close it sits on. */
+  await svg.locator('circle.stroke-state-danger').hover()
+  await expect(read).toContainText('sold')
+  await expect(read).toContainText('at $124')
+  await page.mouse.move(plot.x - 30, plot.y - 60)
+
   /* Its address alone opens it. */
   await page.reload()
   await expect(

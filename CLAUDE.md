@@ -52,6 +52,12 @@ fifth source, or find yourself deriving a score, an index, or a percentage out
 of thin air — stop and ask.
 
 Sums were allowed on 2026-09-26 for Finances, the same way.
+The difference between two stored prices was allowed on 2026-10-13, on one
+screen: the price chart of one position, when Artem drags from one day to
+another ("lets do with drags"). Its conditions: only that chart
+(`between()` in `src/lib/priceChart.ts`), both prices and both days always
+shown beside it, nothing stored, nothing graded. It is not a licence for
+indicators — RSI and moving averages still wait for their own yes.
 The fourth was added deliberately, on 2026-09-09, because money cannot be
 tracked without prices that come from outside. That is the bar for adding
 another: a real thing the app must show, and a written set of conditions that

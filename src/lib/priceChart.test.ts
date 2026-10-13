@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { BOX, priceChart } from './priceChart'
+import { BOX, between, nearest, priceChart } from './priceChart'
 
 const DAY = 86_400_000
 const points = [
@@ -50,5 +50,30 @@ describe('priceChart', () => {
       { t: DAY, v: 50 },
     ])!
     expect(c.last.y).toBeCloseTo((BOX.top + BOX.h - BOX.bottom) / 2)
+  })
+})
+
+describe('what the pointer reads', () => {
+  it('finds the stored close nearest a place across the box', () => {
+    const c = priceChart(points)!
+    expect(c.pts.map((p) => p.v)).toEqual([100, 110, 90, 120])
+    expect(nearest(c.pts, -50)).toBe(0)
+    expect(nearest(c.pts, c.pts[2].x + 1)).toBe(2)
+    expect(nearest(c.pts, BOX.w)).toBe(3)
+  })
+
+  it('carries what a buy was for to its dot, at the close it sits on', () => {
+    const c = priceChart(points, [{ t: DAY + 1000, side: 'buy', eur: 250 }])!
+    expect(c.dots[0]).toMatchObject({ side: 'buy', eur: 250, v: 110 })
+  })
+
+  it('gives two days, both prices and the difference, earlier first', () => {
+    const d = between(points[3], points[0])
+    expect(d.from).toEqual(points[0])
+    expect(d.to).toEqual(points[3])
+    expect(d.diff).toBe(20)
+    expect(d.pct).toBe(20)
+    expect(between(points[1], points[2]).diff).toBe(-20)
+    expect(between(points[1], points[2]).pct).toBeCloseTo(-18.18, 2)
   })
 })

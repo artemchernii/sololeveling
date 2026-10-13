@@ -7,6 +7,7 @@ import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Veiled } from '@/components/finances/Veil'
 import { dayMonth, eur, monthName } from './time'
+import { inEur, outEur } from '@/lib/flowMarks'
 
 /* The pay month (4 Oct; mockup design/treasury-mockup/flow-month.html).
    His words: "I get salary in the end of the month so in will always be 0
@@ -100,28 +101,28 @@ export function PayMonth({
             <Line
               k="salary"
               what={dayMonth(c.start)}
-              v={`+${eur(c.salary)}`}
+              v={inEur(c.salary)}
               tone="text-state-good"
             />
             {c.other > 0 ? (
               <Line
                 k="other money in"
                 what="refunds, money back"
-                v={`+${eur(c.other)}`}
+                v={inEur(c.other)}
                 tone="text-state-good"
               />
             ) : null}
             <Line
               k="bills"
               what={c.paid.map((x) => x.name).join(', ') || 'none yet'}
-              v={`−${eur(c.bills)}`}
+              v={outEur(c.bills)}
               tone="text-state-danger"
               onClick={() => setBills(true)}
             />
             <Line
               k="day-to-day"
               what="food, transport, shopping …"
-              v={`−${eur(c.dayToDay)}`}
+              v={outEur(c.dayToDay)}
               tone="text-state-danger"
               onClick={onDayToDay}
             />
@@ -157,7 +158,7 @@ export function PayMonth({
                     {when}
                     <TrendingDown className="size-3.5 text-state-danger" />
                     <Veiled className="font-mono text-state-danger">
-                      −{eur(spent)}
+                      {outEur(spent)}
                     </Veiled>
                   </span>
                 ))}
@@ -178,12 +179,12 @@ export function PayMonth({
                 {dayMonth(shown.start)} → {dayMonth(shown.end)}
                 {'now' in shown ? ' · so far' : ''}
               </div>
-              <Tip k="salary" v={`+${eur(shown.salary)}`} />
+              <Tip k="salary" v={inEur(shown.salary)} />
               {shown.other > 0 ? (
-                <Tip k="other money in" v={`+${eur(shown.other)}`} />
+                <Tip k="other money in" v={inEur(shown.other)} />
               ) : null}
-              <Tip k="bills" v={`−${eur(shown.bills)}`} />
-              <Tip k="day-to-day" v={`−${eur(shown.dayToDay)}`} />
+              <Tip k="bills" v={outEur(shown.bills)} />
+              <Tip k="day-to-day" v={outEur(shown.dayToDay)} />
               <div className="mt-1 border-t border-lift/10 pt-1.5">
                 <Tip
                   k="balance"

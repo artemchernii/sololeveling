@@ -529,8 +529,8 @@ function GroupRow({
             </span>
           ))}
           {parts.length > 4 ? (
-            <span className="-ml-1 grid size-5 place-items-center rounded-[6px] bg-lift/15 font-mono text-[9px] text-ink-200">
-              +{parts.length - 4}
+            <span className="ml-1 grid h-5 place-items-center rounded-[6px] bg-lift/15 px-1.5 font-mono text-[9px] whitespace-nowrap text-ink-200">
+              {parts.length - 4} more
             </span>
           ) : null}
         </span>

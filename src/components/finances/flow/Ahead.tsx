@@ -12,6 +12,7 @@ import { GroupBadge, PaidChip } from '@/components/finances/GroupBadge'
 import { Sheet } from '@/components/finances/Sheet'
 import { SkeletonRows } from '@/components/Skeleton'
 import { Veiled } from '@/components/finances/Veil'
+import { outEur } from '@/lib/flowMarks'
 import { categoryLabel } from '@/lib/money'
 import { bankPhrase } from '@/lib/payees'
 import { AheadChart } from './AheadChart'
@@ -187,8 +188,8 @@ export function Ahead({
         </span>
         {!nothing ? (
           <span className="label-caps">
-            {outs.length} payments · −
-            {eur(outs.reduce((n, e) => n + e.amount, 0))}
+            {outs.length} payments ·{' '}
+            {outEur(outs.reduce((n, e) => n + e.amount, 0))}
             {shorts.length ? (
               <span className="text-state-warn">
                 {' '}

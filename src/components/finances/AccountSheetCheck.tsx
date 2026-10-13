@@ -59,7 +59,9 @@ export function BalanceTick({
       <span className="flex items-center gap-1 font-mono text-[11px] text-state-good">
         <Tick className="motion-pop size-3" strokeWidth={3} />
         rows match · since{' '}
-        {short(dayOf(data, Math.min(...data.checks.map((c) => c.from))))}
+        {/* Always with its year (13 Oct): the rows under it go back
+            years, "since 27 Sept" could be any of them. */}
+        {short(dayOf(data, Math.min(...data.checks.map((c) => c.from))), true)}
       </span>
     )
   return <span className="font-mono text-[11px] text-ink-400">{fallback}</span>

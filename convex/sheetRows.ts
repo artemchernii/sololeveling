@@ -15,7 +15,6 @@ import type { Doc, Id } from './_generated/dataModel'
    balance check — the check is over all of them, loaded or not. */
 
 export const SHEET_ROWS = 2000
-const SHEET_TRADES = 6000
 
 export const sheetRow = v.object({
   id: v.string(),
@@ -149,9 +148,10 @@ export async function buildSheetRows(
 }
 
 /**
- * The newest `show` rows of one account, and whether older ones are
- * saved. Reads `show` logs through the account's index, not the 2,000
- * the whole sheet may hold. Source 1: logged rows, listed.
+ * The newest `show` rows of one account, trades among them, and whether
+ * older ones are saved. Reads `show` logs and `show` trades through the
+ * account's indexes, not all the sheet may hold. Source 1: logged rows,
+ * listed.
  */
 export const page = query({
   args: { accountId: v.id('accounts'), show: v.number() },
@@ -164,39 +164,35 @@ export const page = query({
     const account = await ctx.db.get(args.accountId)
     if (account === null || account.ownerId !== ownerId) return null
     const show = Math.min(Math.max(Math.floor(args.show), 1), SHEET_ROWS)
-    const read = await ctx.db
+    const logs = await ctx.db
       .query('logs')
       .withIndex('by_owner_account_time', (q) =>
         q.eq('ownerId', ownerId).eq('accountId', account._id),
       )
       .order('desc')
       .take(show + 1)
-    const older = read.length > show && show < SHEET_ROWS
-    const logs = read.slice(0, show)
-    /* Trades have no index by time: a broker's are read whole (small
-       rows) and shown down to the oldest row loaded. */
-    const since = older ? logs[logs.length - 1].occurredAt : -Infinity
+    /* A broker's trades are paged with the rows (13 Oct): Revolut, with
+       few bank rows and 3,700 trades, listed every trade at once. */
     const trades = account.kinds.includes('broker')
-      ? (
-          await ctx.db
-            .query('trades')
-            .withIndex('by_owner_account', (q) =>
-              q.eq('ownerId', ownerId).eq('accountId', account._id),
-            )
-            .take(SHEET_TRADES)
-        ).filter((t) => t.occurredAt >= since)
+      ? await ctx.db
+          .query('trades')
+          .withIndex('by_owner_account_time', (q) =>
+            q.eq('ownerId', ownerId).eq('accountId', account._id),
+          )
+          .order('desc')
+          .take(show + 1)
       : []
-    return {
-      rows: await buildSheetRows(
-        ctx,
-        ownerId,
-        account,
-        logs,
-        trades,
-        await readCover(ctx, ownerId, account),
-      ),
-      older,
-    }
+    const rows = await buildSheetRows(
+      ctx,
+      ownerId,
+      account,
+      logs,
+      trades,
+      await readCover(ctx, ownerId, account),
+    )
+    const more =
+      rows.length > show || logs.length > show || trades.length > show
+    return { rows: rows.slice(0, show), older: more && show < SHEET_ROWS }
   },
 })
 
@@ -252,17 +248,17 @@ export const day = query({
       )
       .order('desc')
       .take(DAY_ROWS)
-    /* Trades have no index by time: a broker's are read whole (small
-       rows), as the page does. */
     const trades = account.kinds.includes('broker')
-      ? (
-          await ctx.db
-            .query('trades')
-            .withIndex('by_owner_account', (q) =>
-              q.eq('ownerId', ownerId).eq('accountId', account._id),
-            )
-            .take(SHEET_TRADES)
-        ).filter((t) => t.occurredAt >= args.from && t.occurredAt <= args.to)
+      ? await ctx.db
+          .query('trades')
+          .withIndex('by_owner_account_time', (q) =>
+            q
+              .eq('ownerId', ownerId)
+              .eq('accountId', account._id)
+              .gte('occurredAt', args.from)
+              .lte('occurredAt', args.to),
+          )
+          .take(DAY_ROWS)
       : []
     return await buildSheetRows(
       ctx,

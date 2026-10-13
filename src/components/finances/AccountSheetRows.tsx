@@ -30,12 +30,12 @@ export const fmt = (v: number, currency = 'EUR', sign = false) => {
 }
 /* A day of another year says its year (12 Oct: Revolut's rows went back
    past January and "14 Dec" could be either). */
-export const short = (t: number) => {
+export const short = (t: number, year = false) => {
   const d = new Date(t)
   return d.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
-    ...(d.getFullYear() === new Date().getFullYear()
+    ...(!year && d.getFullYear() === new Date().getFullYear()
       ? {}
       : { year: 'numeric' }),
   })
@@ -85,8 +85,11 @@ export function Divider({
               {file.from !== null && file.to !== null
                 ? ` · ${short(file.from)} → ${short(file.to)}`
                 : ''}{' '}
-              · added {file.added} {file.added === 1 ? 'row' : 'rows'} · read{' '}
-              {short(file.readAt)}
+              ·{' '}
+              {file.positions > 0 && file.added === 0
+                ? `${file.positions} ${file.positions === 1 ? 'position' : 'positions'}`
+                : `added ${file.added} ${file.added === 1 ? 'row' : 'rows'}`}{' '}
+              · read {short(file.readAt)}
             </span>
           </span>
           <span className="font-mono text-[10px] tracking-[0.12em] text-lav-300 uppercase">

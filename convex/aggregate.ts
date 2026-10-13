@@ -2113,6 +2113,8 @@ export const accountSheet = query({
           from: v.union(v.number(), v.null()),
           to: v.union(v.number(), v.null()),
           added: v.number(),
+          /** Positions a broker's screen or file listed. */
+          positions: v.number(),
           readAt: v.number(),
         }),
       ),
@@ -2204,6 +2206,7 @@ export const accountSheet = query({
         from: times.length ? Math.min(...times) : null,
         to: times.length ? Math.max(...times) : null,
         added: added.get(i._id) ?? 0,
+        positions: (i.positions ?? []).length,
         readAt: i.readAt ?? i._creationTime,
       }
     })
@@ -2221,15 +2224,47 @@ export const accountSheet = query({
         )
         .take(500)
       const read: Array<Reading> = []
+      /* The file a balance came from (13 Oct): the one stored with it,
+         else — a balance older than that field — the file that printed
+         this amount nearest in time. A file is one balance's, and never
+         the bank's own: ActivoBank's two later answers of €90.35 each
+         showed the screenshot that had read €90.35 the day before. */
+      const fileOf = new Map<Id<'stateSnapshots'>, Doc<'intakes'>>()
+      const taken = new Set<Id<'intakes'>>()
       for (const r of rows) {
-        const file = intakes.find(
-          (i) =>
-            i.balance !== undefined &&
-            i.balance.currency === currency &&
-            Math.round(i.balance.value * 100) ===
-              Math.round((r.value ?? 0) * 100) &&
-            Math.abs(i.balance.asOf - r.recordedAt) <= FILE_READING_MS,
-        )
+        const file =
+          r.intakeId === undefined
+            ? undefined
+            : intakes.find((i) => i._id === r.intakeId)
+        if (file === undefined) continue
+        fileOf.set(r._id, file)
+        taken.add(file._id)
+      }
+      for (const i of intakes) {
+        const printed = i.balance
+        if (taken.has(i._id) || printed === undefined) continue
+        if (printed.currency !== currency) continue
+        const near = rows
+          .filter(
+            (r) =>
+              !fileOf.has(r._id) &&
+              r.intakeId === undefined &&
+              r.source !== 'sync' &&
+              r.source !== 'typed' &&
+              Math.round(printed.value * 100) ===
+                Math.round((r.value ?? 0) * 100) &&
+              Math.abs(printed.asOf - r.recordedAt) <= FILE_READING_MS,
+          )
+          .sort(
+            (a, b) =>
+              Math.abs(printed.asOf - a.recordedAt) -
+              Math.abs(printed.asOf - b.recordedAt),
+          )
+          .at(0)
+        if (near !== undefined) fileOf.set(near._id, i)
+      }
+      for (const r of rows) {
+        const file = fileOf.get(r._id)
         /* What the same screen showed as pending: the balance has it off. */
         const pending = (file?.transactions ?? [])
           .filter((t) => t.pending && t.currency === currency)

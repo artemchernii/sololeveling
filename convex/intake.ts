@@ -2623,6 +2623,15 @@ export const fileRows = query({
         landed: v.boolean(),
       }),
     ),
+    /** What a broker's screen or file listed, as it was read. */
+    positions: v.array(
+      v.object({
+        name: v.string(),
+        symbol: v.union(v.string(), v.null()),
+        valueEur: v.union(v.number(), v.null()),
+        shares: v.union(v.number(), v.null()),
+      }),
+    ),
   }),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
@@ -2663,6 +2672,12 @@ export const fileRows = query({
           ),
         }))
         .sort((a, b) => b.at - a.at),
+      positions: (intake.positions ?? []).map((p) => ({
+        name: p.name,
+        symbol: p.candidates.at(p.preferred ?? 0)?.symbol ?? null,
+        valueEur: p.valueEur ?? null,
+        shares: p.shares ?? null,
+      })),
     }
   },
 })

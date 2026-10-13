@@ -42,9 +42,13 @@ export const addBroker = mutation({
 
 /* An update with a file still being read (10 Oct) — held there, so a
    test can try to close the window on it. `batchId` adds that file to an
-   update that already has one read. */
+   update that already has one read. `account` is the name of the account
+   UPDATE was pressed on: the read is its, and has only just begun. */
 export const holdRead = mutation({
-  args: { batchId: v.optional(v.id('batches')) },
+  args: {
+    batchId: v.optional(v.id('batches')),
+    account: v.optional(v.string()),
+  },
   returns: v.id('batches'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
@@ -60,13 +64,25 @@ export const holdRead = mutation({
         extras: [],
         dismissed: [],
       }))
+    const accounts = args.account
+      ? await ctx.db
+          .query('accounts')
+          .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+          .take(50)
+      : []
+    const known = accounts.find((a) => a.name === args.account)
+    if (args.account && !known)
+      throw new Error(`no ${args.account} in the mock`)
     await ctx.db.insert('intakes', {
       ownerId,
       batchId,
       storageIds: [],
       status: 'reading',
       readingSince: Date.now(),
-      progress: { stage: 'rows', rows: 12, have: 0, recent: [] },
+      ...(known ? { accountId: known._id } : {}),
+      progress: known
+        ? { stage: 'opening', rows: 0, have: 0, recent: [] }
+        : { stage: 'rows', rows: 12, have: 0, recent: [] },
       files: [
         {
           name: 'statement-sep.pdf',

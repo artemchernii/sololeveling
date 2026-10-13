@@ -380,7 +380,7 @@ export function HoldingsReview({
                   <span className="ml-auto hidden w-24 text-right font-mono text-[11.5px] text-ink-400 sm:block">
                     {n > 0
                       ? `${shareText(n)} ${unit(d.candidate?.symbol)}`
-                      : '? sh'}
+                      : 'shares missing'}
                   </span>
                   <span
                     className={`w-24 text-right font-mono text-[11.5px] ${profit === null ? 'text-ink-500' : profit >= 0 ? 'text-state-good' : 'text-state-danger'}`}
@@ -458,10 +458,10 @@ export function HoldingsReview({
                   <span className="font-mono text-[10.5px] text-ink-500">
                     {p.name}
                     {d.sharesCalc
-                      ? ' · shares worked out as worth ÷ today’s price'
+                      ? ' · shares from worth and today’s price'
                       : ' · shares read from the screen'}
                     {rowPaid !== undefined
-                      ? ` · paid ${money(rowPaid)} (from its %)`
+                      ? ` · bought for ${money(rowPaid)}, from the % shown`
                       : ''}
                   </span>
                 </div>

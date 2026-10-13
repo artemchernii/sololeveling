@@ -87,8 +87,8 @@ export function Spending({
       <section className="glass motion-arrive rounded-[22px] p-4 sm:p-5">
         <span className="system-title">[ WHERE IT WENT ]</span>
         <p className="py-6 text-center text-[13.5px] leading-relaxed text-ink-400">
-          Spending is shown by pay month, salary to salary. It appears once your
-          salary is found in a statement.
+          Spending by pay month, salary to salary. Shown once a salary is found
+          in a statement.
         </p>
       </section>
     )
@@ -121,7 +121,7 @@ export function Spending({
   const moved = (r: Row) => (n: number, to: string) =>
     setNotice(
       to === LENT
-        ? `${who(r).name}: lent — out of spending. The money back is found by itself.`
+        ? `${who(r).name}: lent. Not counted as spending.`
         : to === 'subscriptions'
           ? `${who(r).name}: a bill now — every month, in Future balance.`
           : `${who(r).name}: ${n} row${n === 1 ? '' : 's'} moved to ${categoryLabel('expense', to)} — and the next ones too.`,
@@ -343,8 +343,8 @@ export function Spending({
                   .filter((x) => x.kind === 'income')
                   .reduce((n, x) => n + x.row.amount, 0)
                 return out - back > 0.005
-                  ? `${eur(out - back)} still out`
-                  : 'all back'
+                  ? `${eur(out - back)} not returned`
+                  : 'all returned'
               })()}
               tone="text-ink-300"
             >

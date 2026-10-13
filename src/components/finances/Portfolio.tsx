@@ -110,7 +110,7 @@ export function Portfolio({ position }: { position?: string }) {
             ) : null}
             <span className="font-mono text-[11px] text-ink-500">
               {data.oldestPriceAsOf !== null
-                ? `closes as of ${DATE.format(new Date(data.oldestPriceAsOf))} · Yahoo Finance`
+                ? `prices from ${DATE.format(new Date(data.oldestPriceAsOf))} · Yahoo Finance`
                 : ''}
               {data.unvalued > 0
                 ? ` · ${data.unvalued} without a price yet`

@@ -131,7 +131,7 @@ export function Ahead({
     void endBill({ id })
     setOpened(null)
     setNotice({
-      text: `${name} cancelled — off Future balance from today. Its past payments stay.`,
+      text: `${name} cancelled. Removed from Future balance. Past payments stay.`,
       undo: () => void resume({ id }),
     })
   }
@@ -139,7 +139,7 @@ export function Ahead({
     void notBill({ id })
     setOpened(null)
     setNotice({
-      text: `${name} is off Future balance and will not be found again.`,
+      text: `${name} removed from Future balance.`,
       undo: () => void unrefuse({ id }),
     })
   }
@@ -226,14 +226,13 @@ export function Ahead({
           <span className="text-[16px] text-foreground">
             Nothing coming yet
           </span>
-          Bills and salary are found in your statements — the same payee each
-          month — and put here on their day.
+          Bills and salary found in statements show here on their day.
           <button
             type="button"
             onClick={() => setAdding(true)}
             className={PILL_QUIET}
           >
-            <Plus className="size-3" /> a bill from your statements
+            <Plus className="size-3" /> a bill from statements
           </button>
         </div>
       ) : (
@@ -274,7 +273,7 @@ export function Ahead({
             <span className="label-caps">
               {only || a.range === null
                 ? 'line: bills and salary only'
-                : 'band: day-to-day spending, your cheapest month to your dearest'}
+                : 'band: day-to-day spending, lowest month to highest'}
             </span>
 
             {asking.map((b) => (
@@ -481,9 +480,8 @@ export function Ahead({
               }
             >
               <span className="text-[12.5px] leading-relaxed text-ink-400">
-                What you spend that is not a bill — groceries, eating out,
-                transport.{' '}
-                {only ? 'Not in the line now.' : 'In the line as its range.'}
+                Spending that is not a bill: groceries, eating out, transport.{' '}
+                {only ? 'Not in the chart.' : 'In the chart as a band.'}
               </span>
               {pastStarts.map((start) => {
                 const r = a.rest.find((x) => x.start === start)
@@ -547,7 +545,7 @@ export function Ahead({
                 onClick={() => setYear(true)}
                 className="text-left font-mono text-[11px] tracking-[0.1em] text-lav-300 uppercase hover:text-foreground"
               >
-                what I pay this year →
+                bills this year →
               </button>
             </Box>
           </div>
@@ -575,11 +573,7 @@ export function Ahead({
           />
         ) : null}
       </Sheet>
-      <Sheet
-        open={year}
-        title="what I pay this year"
-        onClose={() => setYear(false)}
-      >
+      <Sheet open={year} title="bills this year" onClose={() => setYear(false)}>
         <YearSheet a={a} />
       </Sheet>
     </section>
@@ -887,7 +881,7 @@ function BillSheet({
         </span>
       </div>
       <span className="label-caps">
-        {bill.isNew ? 'found in your statements · ' : ''}the payments
+        {bill.isNew ? 'found in statements · ' : ''}the payments
       </span>
       {rows === undefined ? (
         <SkeletonRows rows={3} />
@@ -908,7 +902,7 @@ function BillSheet({
           onClick={onCancel}
           className={`${PILL_QUIET} mt-2 self-start`}
         >
-          I cancelled it
+          cancelled
         </button>
       )}
       <button
@@ -916,7 +910,7 @@ function BillSheet({
         onClick={onStop}
         className="mt-2 self-start font-mono text-[11px] tracking-[0.1em] text-ink-500 uppercase hover:text-state-danger"
       >
-        {income ? 'it no longer comes in' : 'it does not repeat — remove it'}
+        {income ? 'stopped' : 'not a repeating payment'}
       </button>
     </div>
   )

@@ -552,7 +552,7 @@ function RowSheet({
         undo: made.created ? () => void remove({ id: made.id }) : null,
       })
     } catch (e) {
-      setError(failureMessage(e) ?? 'It did not go in.')
+      setError(failureMessage(e) ?? 'Not saved.')
     }
   }
   return (

@@ -240,7 +240,7 @@ export function WhoIsThis({
       if (monthly) await fromRow({ logId: row.id, cadence: 'monthly' })
       onDone(n, name)
     } catch (e) {
-      setError(failureMessage(e) ?? 'It did not save.')
+      setError(failureMessage(e) ?? 'Not saved.')
     } finally {
       setBusy(false)
     }
@@ -313,10 +313,10 @@ export function WhoIsThis({
         ))}
       </span>
 
-      <span className="label-caps">does it come back?</span>
+      <span className="label-caps">repeats?</span>
       <span className="flex flex-wrap gap-1.5">
         <Chip on={!monthly} onClick={() => setMonthly(false)}>
-          when it comes
+          not regular
         </Chip>
         <Chip on={monthly} onClick={() => setMonthly(true)}>
           every month — a bill
@@ -354,9 +354,7 @@ export function WhoIsThis({
       )}
 
       <span className="label-caps leading-relaxed">
-        {paypal
-          ? 'names this payment only — PayPal is Preply one day and a shop the next.'
-          : 'applies to every row from this payee — and the next ones.'}
+        {paypal ? 'for this payment only' : 'for every payment from this payee'}
       </span>
       <button
         type="button"

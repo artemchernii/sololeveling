@@ -38,10 +38,9 @@ export function PayMonth({
       <section className="glass motion-arrive flex flex-col gap-3 rounded-[22px] p-4 sm:p-5">
         <span className="system-title">[ PAY MONTH ]</span>
         <p className="py-6 text-center text-[13.5px] leading-relaxed text-ink-400">
-          Your month runs from one salary to the next.
-          <span className="block text-foreground">No salary found yet.</span>
-          It is found by itself once a statement shows the same pay two months
-          running.
+          <span className="block text-foreground">No salary found yet.</span> A
+          pay month is salary to salary. It needs the same pay in two months of
+          statements.
         </p>
       </section>
     )
@@ -66,7 +65,7 @@ export function PayMonth({
           ]
         </span>
         <span className="label-caps">
-          moves between your accounts not counted
+          transfers between own accounts not counted
         </span>
       </div>
 
@@ -306,7 +305,7 @@ export function PayMonth({
           {c.billsLeft > 0 ? (
             <span className="label-caps mt-2">
               still to pay before {dayMonth(c.end)}: {eur(c.billsLeft)} — see
-              AHEAD
+              Future balance
             </span>
           ) : null}
         </div>

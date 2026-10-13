@@ -126,7 +126,7 @@ export function AheadChart({
           ))}
           {band ? (
             <div className="mt-1.5 font-mono text-[10px] text-ink-600">
-              day-to-day at your cheapest to dearest month
+              day-to-day, lowest month to highest
             </div>
           ) : null}
         </div>

@@ -87,7 +87,7 @@ export function PositionTrades({
                     <>
                       <Veiled>{`${t.shares} ${unit(t.shares)}`}</Veiled>
                       {` at ${euros(t.priceEur)}`}
-                      {t.opening ? ' · in the account when first read' : ''}
+                      {t.opening ? ' · owned before the first file' : ''}
                     </>
                   )}
                 </span>

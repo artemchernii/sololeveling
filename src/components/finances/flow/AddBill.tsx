@@ -89,7 +89,7 @@ export function AddBill({
       const d = new Date(l.t)
       done(made, l.name, whenSaid(cadence, d.getUTCDate(), d.getUTCMonth()))
     } catch (e) {
-      setError(failureMessage(e) ?? 'It did not go in.')
+      setError(failureMessage(e) ?? 'Not saved.')
     } finally {
       setBusy(null)
     }
@@ -114,7 +114,7 @@ export function AddBill({
         whenSaid(line.cadence, line.day, line.month),
       )
     } catch (e) {
-      setError(failureMessage(e) ?? 'It did not go in.')
+      setError(failureMessage(e) ?? 'Not saved.')
     } finally {
       setBusy(null)
     }
@@ -124,15 +124,14 @@ export function AddBill({
     <Sheet open={open} title="+ bill" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <p className="text-[13.5px] leading-relaxed text-ink-300">
-          Most bills are already in your statements — pick one below. Not paid
-          yet? Type it in one line.
+          Bills found in statements. Not paid yet: type it in one line.
         </p>
         {likely === undefined ? null : shown.length ? (
           <div className="flex flex-col">
             <span className="label-caps mb-1">
               {q.length >= 2
                 ? 'paid before — pick it'
-                : 'from your statements · likely bills'}
+                : 'from statements · likely bills'}
             </span>
             {shown.map((l) => {
               const acc = accounts.find((a) => a._id === l.accountId)
@@ -189,13 +188,12 @@ export function AddBill({
           </div>
         ) : q.length < 2 ? (
           <p className="text-[13px] text-ink-500">
-            Nothing in your statements looks like a bill that is not one
-            already.
+            No more bills found in statements.
           </p>
         ) : null}
 
         <span className="label-caps mt-1">
-          not in your statements yet · or search them
+          not in statements yet · or search
         </span>
         <input
           value={text}

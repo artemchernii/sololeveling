@@ -66,9 +66,7 @@ test('Flow: a bill in one line — adding, done, closed, on the list', async ({
 }) => {
   await start(page)
   await page.goto('/finances?room=flow')
-  await page
-    .getByRole('button', { name: /a bill from your statements/ })
-    .click()
+  await page.getByRole('button', { name: /a bill from statements/ }).click()
   const sheet = page.getByRole('dialog')
   await sheet.getByLabel('A bill in one line').fill('Holmes Place 49 monthly 1')
   await sheet.getByRole('button', { name: 'Revolut' }).click()
@@ -90,9 +88,7 @@ test('Flow: a bill the account cannot cover says how much to add, once', async (
 }) => {
   await start(page)
   await page.goto('/finances?room=flow')
-  await page
-    .getByRole('button', { name: /a bill from your statements/ })
-    .click()
+  await page.getByRole('button', { name: /a bill from statements/ }).click()
   const sheet = page.getByRole('dialog')
   await sheet.getByLabel('A bill in one line').fill('Landlord 90000 monthly 1')
   await sheet.getByRole('button', { name: 'Revolut' }).click()

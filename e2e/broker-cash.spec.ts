@@ -53,7 +53,7 @@ test('S1 Invest screenshot into Revolut: broker cash lands beside the free cash'
   await expect(sheet.getByText('broker cash', { exact: true })).toBeVisible()
   await expect(
     sheet.getByText(
-      'Goes to broker cash. Your free cash at Revolut stays €1,173.38.',
+      'Saved as broker cash. Free cash at Revolut unchanged, €1,173.38.',
     ),
   ).toBeVisible()
   const save = sheet.getByRole('button', {

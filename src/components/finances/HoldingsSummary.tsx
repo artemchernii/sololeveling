@@ -134,7 +134,7 @@ export function HoldingsSummary({
       ) : null}
       {freeStays !== undefined && cashNum !== null ? (
         <span className="text-[13px] text-ink-300">
-          Goes to broker cash. Your free cash at {targetName} stays{' '}
+          Saved as broker cash. Free cash at {targetName} unchanged,{' '}
           {money(freeStays)}.
         </span>
       ) : null}
@@ -142,17 +142,17 @@ export function HoldingsSummary({
         {known === 0 ? (
           <>
             <span className="rounded-[6px] bg-lift/[0.06] px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] text-ink-400 uppercase">
-              what you paid · unknown
+              bought for · unknown
             </span>
             <span>
-              {fromFile ? 'This file' : 'A screenshot'} doesn&apos;t say it.
-              Drop a {targetName ?? 'broker'} statement later and it fills in.
+              Not in {fromFile ? 'this file' : 'a screenshot'}. A{' '}
+              {targetName ?? 'broker'} statement adds it.
             </span>
           </>
         ) : (
           <>
             <span className="rounded-[6px] bg-lift/[0.06] px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] text-ink-400 uppercase">
-              you paid {money(Math.round(paid * 100) / 100)}
+              bought for {money(Math.round(paid * 100) / 100)}
             </span>
             <span
               className={`rounded-[6px] px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${gain >= 0 ? 'bg-state-good/14 text-state-good' : 'bg-state-danger/14 text-state-danger'}`}
@@ -207,13 +207,13 @@ export function HoldingsChanges({
       {changes.gone.length > 0 ? (
         <span className="flex items-baseline gap-2 text-[12.5px] text-ink-300">
           <span className="text-state-warn">!</span>
-          Not in this file: {changes.gone.map((g) => g.symbol).join(', ')}. They
-          stay, in case the list was cut off
+          Not in this file: {changes.gone.map((g) => g.symbol).join(', ')}.
+          Kept.
         </span>
       ) : null}
       <span className="text-[12px] text-ink-500">
-        Saved as today&apos;s look. What you paid is never changed by{' '}
-        {fromFile ? 'this file' : 'a screenshot'}.
+        Saved as of today. {fromFile ? 'This file' : 'A screenshot'} never
+        changes bought for.
       </span>
     </div>
   )

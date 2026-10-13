@@ -79,8 +79,7 @@ export function OrdersFound({
       aside={`${buys} buys · ${orders.length - buys} sells`}
     >
       <span className="pb-1 text-[12.5px] text-ink-400">
-        Not money leaving — these fill in what you paid for each position. The
-        cash they used is in the balance already.
+        Buys and sells. Not counted as spending.
       </span>
       {groups.map((g, i) => (
         <div
@@ -112,7 +111,7 @@ export function OrdersFound({
           </span>
           <span className="text-right font-mono text-[12px] text-ink-300">
             {Math.abs(g.shares) < 1e-6
-              ? 'sold out'
+              ? 'sold all'
               : `${g.shares > 0 ? '' : '−'}${Math.abs(g.shares)
                   .toFixed(4)
                   .replace(/\.?0+$/, '')} sh`}
@@ -266,7 +265,7 @@ function RowMark({
 export function MoveChip() {
   return (
     <span className="rounded-full bg-lav-400/12 px-2 py-0.5 font-mono text-[10.5px] tracking-[0.06em] text-lav-300 uppercase ring-1 ring-lav-400/45 ring-inset">
-      your move
+      transfer
     </span>
   )
 }

@@ -109,8 +109,7 @@ export function TakeBack({
         ) : null}
         {p.trades > 0 ? (
           <span className="text-[12.5px] text-ink-400">
-            Shares stay as the last screen showed them. What was paid for them
-            is no longer known.
+            Shares stay as on the last screenshot. Bought for: unknown.
           </span>
         ) : null}
       </div>
@@ -161,7 +160,7 @@ export function TakeBack({
           </span>
         ) : (
           <span className="text-[12px] text-ink-500">
-            Drop it again any time to add it back.
+            Add the file again to put it back.
           </span>
         )}
       </div>

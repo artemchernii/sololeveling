@@ -459,13 +459,14 @@ function CheckIn({ stale, onOpen }: { stale: Array<Row>; onOpen: () => void }) {
   }
   return (
     <button
+      data-testid="check-in"
       type="button"
       onClick={onOpen}
       className="motion-press inline-flex items-center gap-2 rounded-full bg-state-warn/10 py-1 pr-1.5 pl-2.5 font-mono text-[10.5px] tracking-[0.1em] text-state-warn uppercase ring-1 ring-state-warn/45 ring-inset"
     >
       {stale.length <= 2 ? (
         <>
-          check-in
+          outdated{' '}
           <span className="flex pl-1">
             {stale.map((a) => (
               <span
@@ -478,7 +479,7 @@ function CheckIn({ stale, onOpen }: { stale: Array<Row>; onOpen: () => void }) {
           </span>
         </>
       ) : (
-        <span className="pr-1">check-in · {stale.length} to update</span>
+        <span className="pr-1">{stale.length} balances outdated</span>
       )}
     </button>
   )
@@ -572,8 +573,8 @@ function AccountList({
     <div className="flex flex-col gap-2">
       {group === 'checkin' ? (
         <span className="text-[13px] text-ink-400">
-          These balances are more than a week old. Update means: drop a newer
-          statement or screenshot, or type what the account holds today.
+          Balances older than a week. Add a newer statement or screenshot, or
+          type the balance.
         </span>
       ) : null}
       {rows.map((a, i) => {
@@ -612,7 +613,7 @@ function AccountList({
                           )
                           .map((p) =>
                             p.value === null
-                              ? `${p.currency} not read`
+                              ? `${p.currency} balance is missing`
                               : money(p.value, p.currency),
                           )
                           .join(' · ')

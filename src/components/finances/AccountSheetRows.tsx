@@ -160,10 +160,10 @@ export function RowLine({
         <span className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] text-ink-500">
           {moved ? (
             <span className="rounded-[5px] px-1.5 text-[9.5px] tracking-[0.08em] text-lav-300 uppercase ring-1 ring-lav-400/35 ring-inset">
-              move
+              transfer{' '}
               {r.other
                 ? ` · ${r.amount < 0 ? '→' : '←'} ${r.other}`
-                : ' · your own money'}
+                : ' · own account'}
             </span>
           ) : traded ? (
             <span className="rounded-[5px] px-1.5 text-[9.5px] tracking-[0.08em] text-lav-300 uppercase ring-1 ring-lav-400/35 ring-inset">
@@ -197,7 +197,7 @@ export function RowLine({
         <button
           type="button"
           onClick={run('removing', onNotHere)}
-          title={`Written because ${r.sideOf ?? 'another account'}'s file said it came from here. Remove only this side; ${r.sideOf ?? 'that account'} keeps its row.`}
+          title={`Added from ${r.sideOf ?? 'another account'}'s file. Deleting it here keeps the row in ${r.sideOf ?? 'that account'}.`}
           className="px-1 font-mono text-[10px] tracking-[0.1em] text-state-warn uppercase opacity-0 group-hover:opacity-100 focus:opacity-100"
         >
           not from here

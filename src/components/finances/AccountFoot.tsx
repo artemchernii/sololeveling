@@ -112,7 +112,9 @@ export function AccountFoot({
             ) : (
               <CloudOff className="size-3.5 shrink-0" />
             )}
-            {who} did not {failed === 'refused' ? 'accept the key' : 'answer'}
+            {failed === 'refused'
+              ? `${who} rejected the key`
+              : `${who} did not answer`}
           </span>
           {link.checkedAt === null ? null : (
             <span className="pl-[21px] text-ink-500">
@@ -177,7 +179,8 @@ export function AccountFoot({
           </button>
         ) : link.question ? (
           <button type="button" onClick={press(onCheck)} className={WARN}>
-            check it
+            {' '}
+            open question
           </button>
         ) : broker && !t212 ? (
           /* Trading 212 reports cash and positions itself: nothing to

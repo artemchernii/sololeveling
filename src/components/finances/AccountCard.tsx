@@ -184,7 +184,7 @@ export function AccountCard({
               </span>
               <span className="text-ink-100">
                 {p.value === null ? (
-                  <span className="text-ink-500">not read</span>
+                  <span className="text-ink-500">missing</span>
                 ) : (
                   <Veiled>
                     {money(p.value, p.currency)}
@@ -205,7 +205,7 @@ export function AccountCard({
           >
             <span className="text-ink-400">broker cash</span>
             {broker.eur === null ? (
-              <span className="text-state-warn">never read</span>
+              <span className="text-state-warn">missing</span>
             ) : (
               <span className="text-ink-100">
                 <Veiled>{euros(broker.eur)}</Veiled>
@@ -226,7 +226,7 @@ export function AccountCard({
         ) : fromT212 ? (
           <span className="flex items-center justify-between gap-2">
             <span className="text-ink-400">investments{fromT212}</span>
-            <span className="text-ink-500">none held</span>
+            <span className="text-ink-500">no investments</span>
           </span>
         ) : null}
         {a.kinds.includes('broker') && !a.kinds.includes('bank') ? (

@@ -68,7 +68,7 @@ export function TypedBalance({
         className="motion-press flex items-center gap-2.5 rounded-[10px] bg-sink/30 px-2.5 py-2 text-left font-mono text-[10.5px] text-ink-400 hover:bg-sink/50"
       >
         <Pencil className="size-3.5 text-ink-300" />
-        <span className="flex-1">typed by you</span>
+        <span className="flex-1">typed</span>
         <span className="flex items-center gap-1 text-[10px] tracking-[0.12em] text-lav-300 uppercase">
           {open ? 'close' : 'remove'}
           <ChevronRight

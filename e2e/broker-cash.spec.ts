@@ -28,14 +28,14 @@ async function openCheck(page: Page) {
   return page.getByRole('dialog')
 }
 
-test('S2 never read: the card says so, and adds nothing for it', async ({
+test('S2 missing: the card says so, and adds nothing for it', async ({
   page,
 }) => {
   await start(page)
   await page.goto('/finances')
   const revolut = card(page, 'Revolut')
   await expect(revolut.getByTestId('broker-cash')).toHaveText(
-    /broker cash\s*never read/,
+    /broker cash\s*missing/,
   )
   /* €1,200 less the three spends, and $40 at 0.86: the bank's alone. */
   await expect(revolut.getByTestId('account-total')).toHaveText(/^€1,173\.38/)
@@ -118,7 +118,7 @@ test('S3 the same screenshot into a broker that is only a broker: its free cash,
   await expect(tr.getByText(/free cash\s*EUR\s*€120/)).toBeVisible()
   await expect(tr.getByTestId('broker-cash')).toHaveCount(0)
   await expect(card(page, 'Revolut').getByTestId('broker-cash')).toHaveText(
-    /never read/,
+    /missing/,
   )
 })
 
@@ -137,7 +137,7 @@ test('S4 a failed save says so and writes nothing', async ({ page }) => {
   await page.keyboard.press('Escape')
   await page.goto('/finances')
   await expect(card(page, 'Revolut').getByTestId('broker-cash')).toHaveText(
-    /never read/,
+    /missing/,
   )
 })
 

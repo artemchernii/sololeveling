@@ -218,7 +218,7 @@ function GapBox({
       </div>
       {found === undefined ? (
         <span className="pl-6 text-[12.5px] text-ink-400">
-          <Busy on doing="looking in your other accounts…">
+          <Busy on doing="searching other accounts…">
             {null}
           </Busy>
         </span>

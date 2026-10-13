@@ -124,7 +124,7 @@ test('the key is not accepted: the card keeps its numbers and says of when; try 
   await connected(page, 'refused')
   await page.goto('/finances')
   await expect(
-    card(page).getByText('Trading 212 did not accept the key'),
+    card(page).getByText('Trading 212 rejected the key'),
   ).toBeVisible()
   await expect(card(page).getByText(/cash and positions of/)).toBeVisible()
   await expect(total(page)).toContainText('€3,120.30')
@@ -137,7 +137,7 @@ test('the key is not accepted: the card keeps its numbers and says of when; try 
     card(page).getByTestId('t212-changed').getByText('3 changed'),
   ).toBeVisible()
   await expect(
-    card(page).getByText('Trading 212 did not accept the key'),
+    card(page).getByText('Trading 212 rejected the key'),
   ).toHaveCount(0)
 })
 
@@ -182,10 +182,10 @@ test('twenty changed, at phone width: three on the card, the rest in a window', 
   await page.screenshot(shot('t212-many-open'))
 })
 
-test('cash only: investments are none held', async ({ page }) => {
+test('cash only: no investments', async ({ page }) => {
   await connected(page, 'cash')
   await page.goto('/finances')
   await expect(total(page)).toContainText('€3,040.30')
-  await expect(card(page).getByText('none held')).toBeVisible()
+  await expect(card(page).getByText('no investments')).toBeVisible()
   await still(page, 't212-cash-only')
 })

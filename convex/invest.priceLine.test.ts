@@ -118,3 +118,20 @@ test("another user's share returns nothing", async () => {
     await me.query(api.invest.priceLine, { instrumentId, since: TUE - DAY }),
   ).toEqual([])
 })
+
+/* Candles and volume (13 Oct): a stored day's open, high, low and shares
+   traded come with its close; a day stored before has the close alone. */
+test('a day stored as a bar comes back as one', async () => {
+  const { t, me, instrumentId } = await setup('EUR')
+  const bar = { open: 117, high: 121.5, low: 116.2, volume: 199_000 }
+  await t.run(async (ctx) => {
+    const first = await ctx.db.query('prices').first()
+    if (first !== null) await ctx.db.patch(first._id, bar)
+  })
+  const line = await me.query(api.invest.priceLine, {
+    instrumentId,
+    since: TUE - DAY,
+  })
+  expect(line[0]).toEqual({ asOf: TUE + 20 * 3_600_000, price: 118.76, ...bar })
+  expect(line[1]).toEqual({ asOf: WED + 20 * 3_600_000, price: 120 })
+})

@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest'
 
-import { parseChart, parseRate, parseRateSeries, parseSearch } from './market'
+import {
+  chartRows,
+  parseChart,
+  parseRate,
+  parseRateSeries,
+  parseSearch,
+} from './market'
 
 describe('parseSearch', () => {
   test('keeps shares and funds, names them, drops the rest', () => {
@@ -76,6 +82,70 @@ describe('parseChart', () => {
       parseChart(chart({ regularMarketPrice: 1, regularMarketTime: 1 })),
     ).toBeNull()
     expect(parseChart({ chart: { result: [] } })).toBeNull()
+  })
+})
+
+/* Candles and volume (13 Oct): the same answer carries each day's open,
+   high, low and shares traded. */
+describe('a day as a bar', () => {
+  const answer = (quote: Record<string, Array<unknown>>, time = 1790107200) =>
+    parseChart({
+      chart: {
+        result: [
+          {
+            meta: {
+              currency: 'USD',
+              regularMarketPrice: 379.5,
+              regularMarketTime: time,
+            },
+            timestamp: [1789997400, 1790083800],
+            indicators: { quote: [quote] },
+          },
+        ],
+      },
+    })
+  const full = {
+    close: [375.3, 378.9],
+    open: [370, 376],
+    high: [377, 380],
+    low: [369.5, null],
+    volume: [199_000, 0],
+  }
+  test('all four where Yahoo sent all four, the close alone otherwise', () => {
+    expect(answer(full)?.closes).toEqual([
+      {
+        asOf: 1789997400000,
+        price: 375.3,
+        open: 370,
+        high: 377,
+        low: 369.5,
+        volume: 199_000,
+      },
+      { asOf: 1790083800000, price: 378.9 },
+    ])
+  })
+  test("the latest price takes its own day's bar, never a second row", () => {
+    const c = answer({ ...full, low: [369.5, 375] })
+    if (c === null) throw new Error('no reading')
+    const rows = chartRows(c)
+    expect(rows).toHaveLength(2)
+    expect(rows[1]).toEqual({
+      asOf: 1790107200000,
+      price: 379.5,
+      open: 376,
+      high: 380,
+      low: 375,
+      volume: 0,
+    })
+  })
+  test('a latest price on a day with no bar yet stands alone', () => {
+    const c = answer(full, 1790107200 + 86_400)
+    if (c === null) throw new Error('no reading')
+    expect(chartRows(c).at(-1)).toEqual({
+      asOf: (1790107200 + 86_400) * 1000,
+      price: 379.5,
+    })
+    expect(chartRows(c)).toHaveLength(3)
   })
 })
 

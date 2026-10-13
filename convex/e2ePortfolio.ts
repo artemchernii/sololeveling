@@ -12,9 +12,11 @@ const DAY = 86_400_000
  * (13 Oct). Test backend only (`guard`).
  */
 export const soldOut = mutation({
-  args: {},
+  /* `bars: false` stores the closes alone, as a day read before 13 Oct
+     was: the chart has no candles and no volume to draw. */
+  args: { bars: v.optional(v.boolean()) },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     guard()
     const account = await ctx.db
@@ -39,21 +41,30 @@ export const soldOut = mutation({
         currency: 'USD',
         type: 'EQUITY',
       }))
-    if (found === null)
-      for (const [ago, price] of [
-        [120, 96],
-        [60, 124],
-        [1, 118.4],
-      ])
-        await ctx.db.insert('prices', {
-          ownerId,
-          instrumentId,
-          price,
-          currency: 'USD',
-          asOf: now - ago * DAY,
-          fetchedAt: now,
-          source: 'Yahoo Finance',
-        })
+    /* Its days are stored afresh each time: reset keeps tickers and
+       prices, and a test asks for them with or without bars. */
+    for (const old of await ctx.db
+      .query('prices')
+      .withIndex('by_owner_instrument_time', (q) =>
+        q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+      )
+      .take(50))
+      await ctx.db.delete(old._id)
+    for (const [ago, price, open, high, low, volume] of [
+      [120, 96, 93.2, 97.5, 92.4, 199_000],
+      [60, 124, 121, 125.3, 120.1, 264_000],
+      [1, 118.4, 119.6, 120.2, 117.5, 1_240_000],
+    ])
+      await ctx.db.insert('prices', {
+        ...(args.bars === false ? {} : { open, high, low, volume }),
+        ownerId,
+        instrumentId,
+        price,
+        currency: 'USD',
+        asOf: now - ago * DAY,
+        fetchedAt: now,
+        source: 'Yahoo Finance',
+      })
     /* A euro for a dollar on the last two days only: the first shows
        its dollar price alone (13 Oct, euros beside dollars). */
     for (const ago of [60, 1]) {

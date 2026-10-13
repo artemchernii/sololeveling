@@ -1,15 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
+import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { Check, ChevronLeft, Sparkles, TriangleAlert } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
-import { ToolPills } from '@/components/finances/ChartTools'
+import { ToolPills, ViewPills } from '@/components/finances/ChartTools'
 import type { Tool } from '@/components/finances/ChartTools'
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
-import { PriceChart } from '@/components/finances/PriceChart'
+import type { View } from '@/components/finances/chartSeries'
+import { PriceChart, asPt } from '@/components/finances/PriceChart'
 import type { Position } from '@/components/finances/PortfolioList'
 import { PositionTrades } from '@/components/finances/PositionTrades'
 import { Veiled } from '@/components/finances/Veil'
@@ -19,6 +21,7 @@ import { codeOf, unitOf } from '@/lib/holdingLine'
 import { UNPRICED } from '@/lib/market'
 import { euros } from '@/lib/money'
 import { gainOf } from '@/lib/owned'
+import { drawable } from '@/lib/priceChart'
 import type { Owned } from '@/lib/owned'
 import type { soldSums } from '@/lib/sold'
 
@@ -106,6 +109,21 @@ export function PortfolioPosition({
     instrumentId: first.instrumentId,
     since: today - 366 * 86_400_000,
   })
+  /* Candles and volume only where the loaded year is stored that way
+     (13 Oct). A share whose days were stored before has its year read
+     again — once, this share alone, when its page is opened (bars.ts). */
+  const [view, setView] = useState<View>('line')
+  const [volume, setVolume] = useState(false)
+  const can = useMemo(() => drawable((line ?? []).map(asPt)), [line])
+  const askBars = useMutation(api.bars.ask)
+  const asked = useRef<Id<'instruments'> | null>(null)
+  const lacks = line !== undefined && line.length > 0 && !can.candles
+  useEffect(() => {
+    if (!lacks || first.type === UNPRICED) return
+    if (asked.current === first.instrumentId) return
+    asked.current = first.instrumentId
+    void askBars({ instrumentId: first.instrumentId }).catch(() => undefined)
+  }, [lacks, first.instrumentId, first.type, askBars])
   /* The header's price in euros (13 Oct, chart.html): the server's
      euros for that same stored close, none when it has no rate. */
   const last = line?.at(-1)
@@ -340,18 +358,27 @@ export function PortfolioPosition({
           <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
             <span className="label-caps">price</span>
             <ToolPills tool={tool} onTool={setTool} />
-            <div className="ml-auto flex gap-1.5">
-              {RANGES.map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  aria-pressed={range === r.id}
-                  onClick={() => setRange(r.id)}
-                  className={range === r.id ? PILL_LOUD : PILL_QUIET}
-                >
-                  {r.id}
-                </button>
-              ))}
+            <div className="ml-auto flex flex-wrap justify-end gap-x-3.5 gap-y-2">
+              <ViewPills
+                can={can}
+                view={can.candles ? view : 'line'}
+                onView={setView}
+                volume={can.volume && volume}
+                onVolume={setVolume}
+              />
+              <div className="flex gap-1.5">
+                {RANGES.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    aria-pressed={range === r.id}
+                    onClick={() => setRange(r.id)}
+                    className={range === r.id ? PILL_LOUD : PILL_QUIET}
+                  >
+                    {r.id}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           <PriceChart
@@ -367,6 +394,8 @@ export function PortfolioPosition({
             tone={gain === null ? 'plain' : up ? 'up' : 'down'}
             since={today - days * 86_400_000}
             tool={tool}
+            view={can.candles ? view : 'line'}
+            volume={can.volume && volume}
           />
         </div>
       )}

@@ -382,6 +382,7 @@ test('Portfolio: candles and volume on a position', async ({ page }) => {
   /* On the line too. */
   await pill('line').click()
   await expect(chart).toHaveAttribute('data-view', 'line')
+  await page.mouse.move(across(0.15), mid)
   await expect(read).toContainText('199K shares traded')
   await page.screenshot({
     ...shot('portfolio-chart-line-volume'),
@@ -420,7 +421,10 @@ test('Portfolio: closes only — no candles, no volume', async ({ page }) => {
       position.getByRole('button', { name, exact: true }),
     ).toHaveCount(0)
   await expect(position.getByRole('button', { name: 'compare' })).toBeVisible()
-  await page.screenshot({ ...shot('portfolio-chart-closes-only'), fullPage: true })
+  await page.screenshot({
+    ...shot('portfolio-chart-closes-only'),
+    fullPage: true,
+  })
 })
 
 type Box = { x: number; y: number; width: number; height: number }

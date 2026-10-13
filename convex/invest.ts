@@ -5,10 +5,12 @@ import { requireUser } from './auth'
 import { internal } from './_generated/api'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
-import type { Id } from './_generated/dataModel'
+import type { Doc, Id } from './_generated/dataModel'
 import schema from './schema'
 import { reconcile } from '../src/lib/holdings'
+import { bar } from './market'
 import { UNPRICED } from '../src/lib/market'
+import type { Bar } from '../src/lib/market'
 
 /* Investments (Finances F4, 26 Sep): tickers and trades. Trades come in
    from a trade history or statement (intake.ts), or a typed line
@@ -154,7 +156,8 @@ export const looks = query({
  * Each close carries `eur` (13 Oct: "we want euros and dollar"): the
  * close times the stored ECB rate of the same day, as the position's
  * worth converts (quoteToRate). None for a euro share, and none where no
- * rate is stored for that day or the four before it.
+ * rate is stored for that day or the four before it. A day stored as a
+ * bar carries its open, high, low and shares traded too.
  */
 export const priceLine = query({
   args: { instrumentId: v.id('instruments'), since: v.number() },
@@ -163,11 +166,24 @@ export const priceLine = query({
       asOf: v.number(),
       price: v.number(),
       eur: v.optional(v.number()),
+      ...bar,
     }),
   ),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    type Close = { asOf: number; price: number; eur?: number }
+    type Close = { asOf: number; price: number; eur?: number } & Partial<Bar>
+    /* The day as a bar, where it is stored as one (13 Oct) — in the
+       share's own currency, as the axis is. */
+    const stored = (r: Doc<'prices'>): Close => ({
+      asOf: r.asOf,
+      price: r.price,
+      ...(r.open !== undefined &&
+      r.high !== undefined &&
+      r.low !== undefined &&
+      r.volume !== undefined
+        ? { open: r.open, high: r.high, low: r.low, volume: r.volume }
+        : {}),
+    })
     const instrument = await ctx.db.get(args.instrumentId)
     if (instrument === null || instrument.ownerId !== ownerId) return []
     const rows = await ctx.db
@@ -180,8 +196,7 @@ export const priceLine = query({
       )
       .take(400)
     const { base, divide } = quoteToRate(instrument.currency)
-    if (base === 'EUR' || base === '' || rows.length === 0)
-      return rows.map((r): Close => ({ asOf: r.asOf, price: r.price }))
+    if (base === 'EUR' || base === '' || rows.length === 0) return rows.map(stored)
     /* The rates of the same window, one read. The ECB publishes on
        business days, in the afternoon: a close on a weekend, a holiday
        or this morning takes the last rate before it, as the position's
@@ -200,10 +215,9 @@ export const priceLine = query({
       const day = dayOf(r.asOf)
       while (k + 1 < rates.length && dayOf(rates[k + 1].asOf) <= day) k++
       return k < 0 || day - dayOf(rates[k].asOf) > RATE_REACH
-        ? { asOf: r.asOf, price: r.price }
+        ? stored(r)
         : {
-            asOf: r.asOf,
-            price: r.price,
+            ...stored(r),
             eur: Math.round((r.price / divide) * rates[k].rate * 100) / 100,
           }
     })

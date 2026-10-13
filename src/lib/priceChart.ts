@@ -3,8 +3,18 @@
    close each buy and sell sits on. The points are the stored readings;
    nothing is made up between two of them. */
 
-/** A stored close; `eur` is it in euros, where the server had a rate. */
-export type Pt = { t: number; v: number; eur?: number }
+/** A stored close; `eur` is it in euros, where the server had a rate.
+    `o`, `h`, `l` and `vol` are the day's open, high, low and shares
+    traded, where the day is stored as a bar. */
+export type Pt = {
+  t: number
+  v: number
+  eur?: number
+  o?: number
+  h?: number
+  l?: number
+  vol?: number
+}
 /** A buy or a sell; `eur` is what it was for, read on its day. */
 export type Mark = { t: number; side: 'buy' | 'sell'; eur?: number }
 
@@ -39,6 +49,28 @@ export function priceSeries(
   }
   return { pts, on }
 }
+
+/** What the stored days can be drawn as (13 Oct, chart.html): candles
+    only where every one has its open, high and low — a gap would be a
+    candle made up; volume where any shares traded are stored. */
+export function drawable(pts: ReadonlyArray<Pt>) {
+  return {
+    candles:
+      pts.length > 0 &&
+      pts.every(
+        (p) => p.o !== undefined && p.h !== undefined && p.l !== undefined,
+      ),
+    volume: pts.some((p) => (p.vol ?? 0) > 0),
+  }
+}
+
+/** Shares traded, said short: "199K", "1.2M". */
+export const many = (n: number) =>
+  n >= 1e6
+    ? `${(n / 1e6).toFixed(1)}M`
+    : n >= 1000
+      ? `${Math.round(n / 1000)}K`
+      : String(n)
 
 /** Where a range opens: the first stored close on or after `since`,
     never fewer than the last two — one point is not a line. */

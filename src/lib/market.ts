@@ -56,7 +56,25 @@ export type Chart = {
   price: number
   asOf: number
   /** Daily closes, oldest first, for the line on a position. */
-  closes: Array<{ asOf: number; price: number }>
+  closes: Array<Close>
+}
+
+/** A day's open, high, low and shares traded (13 Oct: "candles?
+    volume?") — all four from the same answer as the close, or none. */
+export type Bar = { open: number; high: number; low: number; volume: number }
+export type Close = { asOf: number; price: number } & Partial<Bar>
+
+/**
+ * What a reading stores: the closes, and the latest price on its own
+ * market time. The latest price takes the bar of its own day — one row
+ * a day, so today is a candle like the days before it.
+ */
+export function chartRows(c: Chart): Array<Close> {
+  const day = (t: number) => Math.floor(t / 86_400_000)
+  const last = c.closes.at(-1)
+  return last !== undefined && day(last.asOf) === day(c.asOf)
+    ? [...c.closes.slice(0, -1), { ...last, asOf: c.asOf, price: c.price }]
+    : [...c.closes, { asOf: c.asOf, price: c.price }]
 }
 
 /** Yahoo's chart for one symbol, or null when it is not a whole reading. */
@@ -81,15 +99,38 @@ export function parseChart(json: unknown): Chart | null {
   const stamps = Array.isArray(result.timestamp)
     ? (result.timestamp as Array<unknown>)
     : []
-  const quote = (
+  const all = (
     result.indicators as
-      { quote?: Array<{ close?: Array<unknown> } | undefined> } | undefined
-  )?.quote?.[0]?.close
+      | {
+          quote?: Array<Record<string, Array<unknown> | undefined> | undefined>
+        }
+      | undefined
+  )?.quote?.[0]
+  const quote = all?.close
   const closes: Chart['closes'] = []
   stamps.forEach((t, i) => {
     const c = quote?.[i]
     if (typeof t === 'number' && typeof c === 'number' && c > 0) {
-      closes.push({ asOf: t * 1000, price: c })
+      const [open, high, low, volume] = [
+        all?.open?.[i],
+        all?.high?.[i],
+        all?.low?.[i],
+        all?.volume?.[i],
+      ]
+      const bar =
+        typeof open === 'number' &&
+        typeof high === 'number' &&
+        typeof low === 'number' &&
+        typeof volume === 'number' &&
+        open > 0 &&
+        low > 0 &&
+        high >= low &&
+        volume >= 0
+      closes.push({
+        asOf: t * 1000,
+        price: c,
+        ...(bar ? { open, high, low, volume } : {}),
+      })
     }
   })
   return { currency, price, asOf: time * 1000, closes }

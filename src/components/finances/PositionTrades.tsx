@@ -13,7 +13,7 @@ const FULL = new Intl.DateTimeFormat(undefined, {
   month: 'short',
   year: 'numeric',
 })
-/** Rows of bought and sold shown before "all". */
+/** Rows of buys and sells shown before "all". */
 const FIRST = 8
 
 /* Every buy and sell of one position, in euros, newest first — what its
@@ -37,7 +37,7 @@ export function PositionTrades({
   return (
     <div className="flex flex-col rounded-[16px] bg-lift/[0.025] p-3.5 ring-1 ring-lift/8 ring-inset">
       <span className="label-caps mb-1">
-        bought and sold{loaded && all.length > 0 ? ` · ${all.length}` : ''}
+        buys and sells{loaded && all.length > 0 ? ` · ${all.length}` : ''}
       </span>
       {!loaded ? (
         <span className="py-3 font-mono text-[11px] text-ink-500">
@@ -62,13 +62,7 @@ export function PositionTrades({
                   t.side === 'sell' ? 'text-state-danger' : 'text-state-good'
                 }`}
               >
-                {t.reward
-                  ? 'staking'
-                  : t.split
-                    ? 'split'
-                    : t.side === 'buy'
-                      ? 'bought'
-                      : 'sold'}
+                {t.reward ? 'staking' : t.split ? 'split' : t.side}
               </span>
               <span className="flex min-w-0 flex-col gap-0.5 font-mono">
                 <span className="text-[13.5px] text-foreground">

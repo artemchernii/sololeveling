@@ -125,6 +125,14 @@
   .ranges { display: flex; gap: 6px; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap }
   .chart svg { display: block; width: 100%; height: auto; overflow: visible } .chart text { fill: var(--ink-500); font-family: var(--mono); font-size: 10px }
   .chart .ln { stroke-dasharray: 1; animation: draw 1.1s var(--ease) both }
+  /* Hover and drag (13 Oct): the pointer reads a day; a drag reads two. */
+  .chart svg { touch-action: pan-y; cursor: crosshair; user-select: none; -webkit-user-select: none }
+  .read { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-height: 22px; margin-bottom: 6px; font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums }
+  .read small { color: var(--ink-500); font-size: 10.5px } .read b { font-weight: 400 }
+  .read .chip { border-radius: 99px; padding: 2px 9px; font-size: 11.5px } .read .chip.up { background: color-mix(in srgb, var(--good) 14%, transparent) } .read .chip.down { background: color-mix(in srgb, var(--danger) 14%, transparent) }
+  #ov * { pointer-events: none } #ov .pt { animation: pop .18s var(--ease) both; transform-box: fill-box; transform-origin: center }
+  @keyframes pop { from { transform: scale(.4) } }
+  @media (max-width: 640px) { .read { min-height: 42px } }
   .keys { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
   .keys span { display: inline-flex; align-items: center; gap: 6px } .dot { width: 9px; height: 9px; border-radius: 99px; border: 2px solid } .dash { width: 14px; border-top: 1.5px dashed var(--ink-300) }
   .box { border-radius: 16px; padding: 14px; box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); background: rgba(var(--lift),.025); display: flex; flex-direction: column; gap: 4px }
@@ -311,8 +319,55 @@ function chart(p, avg) {
   g += `<path d="${d}V${H - B}H${L}Z" fill="url(#f)"/><path class="ln" pathLength="1" d="${d}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"/>`
   if (avg != null) g += `<line x1="${L}" x2="${W - Rm}" y1="${y(avg)}" y2="${y(avg)}" stroke="${css('--ink-300')}" stroke-dasharray="3 4"/>`
   for (const t of p.trades) { if (t[1] === 'staking') continue; const v = pts[Math.round(t[6] * (n - 1))], col = t[1] === 'buy' ? css('--good') : css('--danger')
-    g += `<circle cx="${x(t[6])}" cy="${y(v)}" r="5" fill="#1d1c2e" stroke="${col}" stroke-width="2"><title>${t[1]} ${eur(t[3])} · ${t[0]}</title></circle>` }
-  return g + `<circle cx="${x(1)}" cy="${y(p.px)}" r="4" fill="${c}"/></svg>`
+    g += `<circle cx="${x(t[6])}" cy="${y(v)}" r="5" fill="#1d1c2e" stroke="${col}" stroke-width="2"></circle>` }
+  CH = { p, pts, x, y, n, W, H, L, Rm, T, B }
+  return g + `<circle cx="${x(1)}" cy="${y(p.px)}" r="4" fill="${c}"/><g id="ov"></g></svg>`
+}
+
+/* What the pointer reads: one day's price, a buy or a sell, or — dragged
+   — two days with both prices and the difference between them. */
+let CH = null, sel = null
+function dayAt(i) {
+  const span = { '1M': 31, '6M': 183, '1Y': 366, all: 900 }[range]
+  const d = new Date(new Date(2026, 9, 9) - (1 - i / (CH.n - 1)) * span * 864e5)
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(span > 200 ? { year: 'numeric' } : {}) })
+}
+function show(i, j, trade) {
+  const el = document.getElementById('read'), g = document.getElementById('ov')
+  if (!el || !g || !CH) return
+  const { p, pts, x, y, n, T, H, B } = CH, X = (k) => x(k / (n - 1)), ink = css('--ink-300')
+  const dot = (k, c) => `<line x1="${X(k)}" x2="${X(k)}" y1="${T}" y2="${H - B}" stroke="${c}" stroke-dasharray="2 3"/><circle class="pt" cx="${X(k)}" cy="${y(pts[k])}" r="4.5" fill="#1d1c2e" stroke="${c}" stroke-width="2"/>`
+  if (trade) {
+    const k = Math.round(trade[6] * (n - 1)), c = trade[1] === 'buy' ? css('--good') : css('--danger')
+    g.innerHTML = `<circle class="pt" cx="${X(k)}" cy="${y(pts[k])}" r="9" fill="${c}" opacity=".25"/>`
+    el.innerHTML = `<b class="chip ${trade[1] === 'buy' ? 'up' : 'down'}">${trade[1] === 'buy' ? 'bought' : 'sold'}</b><span>${eur(trade[3])}</span><small>${trade[0]} · at ${cur(pts[k], p.ccy)}</small>`
+  } else if (i != null && j != null && j !== i) {
+    const [a, b] = i < j ? [i, j] : [j, i], d = pts[b] - pts[a], up = d >= 0, c = up ? css('--good') : css('--danger')
+    g.innerHTML = `<rect x="${X(a)}" y="${T}" width="${X(b) - X(a)}" height="${H - T - B}" fill="${c}" opacity=".1"/>` + dot(a, c) + dot(b, c)
+    el.innerHTML = `<small>${dayAt(a)}</small><span>${cur(pts[a], p.ccy)}</span><small>→ ${dayAt(b)}</small><span>${cur(pts[b], p.ccy)}</span><b class="chip ${up ? 'up' : 'down'}">${sgn(d)}${cur(d, p.ccy)} · ${up ? '▲' : '▼'} ${Math.abs(d / pts[a] * 100).toFixed(1)}%</b>`
+  } else {
+    const k = i ?? n - 1
+    g.innerHTML = i == null ? '' : dot(k, ink)
+    el.innerHTML = `<span>${cur(pts[k], p.ccy)}</span><small>${dayAt(k)}${i == null ? ' · latest price' : ''}</small>`
+  }
+}
+function wire() {
+  const svg = document.querySelector('.chart svg')
+  sel = null
+  if (!svg || !CH) return
+  show(null)
+  const at = (e) => { const r = svg.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * CH.W, (e.clientY - r.top) / r.height * CH.H] }
+  const idx = (e) => Math.max(0, Math.min(CH.n - 1, Math.round((at(e)[0] - CH.L) / (CH.W - CH.L - CH.Rm) * (CH.n - 1))))
+  const near = (e) => { const [sx, sy] = at(e); return CH.p.trades.find((t) => t[1] !== 'staking' && Math.hypot(CH.x(t[6]) - sx, CH.y(CH.pts[Math.round(t[6] * (CH.n - 1))]) - sy) < 10) }
+  let from = null
+  svg.onpointerdown = (e) => { from = idx(e); sel = null; svg.setPointerCapture(e.pointerId); show(from) }
+  svg.onpointermove = (e) => {
+    const i = idx(e)
+    if (from != null) { sel = i === from ? null : [from, i]; show(from, i) }
+    else if (!sel) show(i, null, near(e))
+  }
+  svg.onpointerup = () => { from = null }
+  svg.onpointerleave = () => { if (from == null && !sel) show(null) }
 }
 
 function page(p) {
@@ -342,7 +397,7 @@ function page(p) {
     <div class="why">${I.alert}<p>LUKOIL is not traded since 2022, so there is no price and no chart. €11.14 is the worth Trading 212 showed on ${p.seen}.</p></div>
     <div class="grid" style="grid-template-columns:1fr">${trades}</div></section>`
   return `<section class="sys">${head}<div class="mine">${tiles}</div>
-    <div class="grid"><div class="chart"><div class="ranges"><span class="caps">price</span><div class="pills">${['1M', '6M', '1Y', 'all'].map((r) => `<button class="pill ${r === range ? 'on' : ''}" onclick="range='${r}';render()">${r}</button>`).join('')}</div></div>${chart(p, avg)}
+    <div class="grid"><div class="chart"><div class="ranges"><span class="caps">price</span><div class="pills">${['1M', '6M', '1Y', 'all'].map((r) => `<button class="pill ${r === range ? 'on' : ''}" onclick="range='${r}';render()">${r}</button>`).join('')}</div></div><div class="read" id="read"></div>${chart(p, avg)}
       <div class="keys"><span><i class="dot" style="border-color:var(--good)"></i>bought</span><span><i class="dot" style="border-color:var(--danger)"></i>sold</span>${avg == null ? '' : `<span><i class="dash"></i>average buy price ${cur(avg, p.ccy)}</span>`}</div></div>
       <div class="side">${what}</div></div>
     <div style="margin-top:18px">${trades}</div></section>`
@@ -353,6 +408,8 @@ function pick(k) { K = k; open = S[k].open ?? null; acct = 'all'; kind = 'all'; 
 function render() {
   document.getElementById('scen').innerHTML = Object.entries(S).map(([k, s]) => `<button class="pill ${k === K ? 'on' : ''}" onclick="pick('${k}')">${s.label}</button>`).join('')
   document.getElementById('app').innerHTML = `<div style="display:flex;flex-direction:column;gap:12px">${open ? page(P.find((p) => p.id === open)) : list()}</div>`
+  CH = open ? CH : null
+  wire()
 }
 render()
 </script>

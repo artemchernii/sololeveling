@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   between,
+  boxAt,
   firstSince,
   nearMark,
   nearest,
@@ -108,5 +109,48 @@ describe('what the pointer reads', () => {
     expect(down.pct).toBe(-10)
     expect(down.days).toBe(1)
     expect(ruler({ t: 0, v: 0 }, { t: 0, v: 5 }).pct).toBe(0)
+  })
+})
+
+/* The box at a dot (13 Oct, chart.html #tip): beside the dot, inside
+   the plot, never cut by an edge. */
+describe('boxAt', () => {
+  const plot = { w: 800, h: 380, room: 730 }
+  const box = { w: 260, h: 56 }
+
+  it('centres a box over its dot, below a buy and above a sale', () => {
+    expect(boxAt({ x: 400, y: 100, side: 'buy' }, box, plot)).toEqual({
+      left: 270,
+      top: 118,
+    })
+    expect(boxAt({ x: 400, y: 200, side: 'sell' }, box, plot)).toEqual({
+      left: 270,
+      top: 126,
+    })
+  })
+
+  it('turns to the other side when one has no room', () => {
+    expect(boxAt({ x: 400, y: 340, side: 'buy' }, box, plot).top).toBe(266)
+    expect(boxAt({ x: 400, y: 20, side: 'sell' }, box, plot).top).toBe(38)
+  })
+
+  it('stays clear of the left edge and the price axis', () => {
+    expect(boxAt({ x: 10, y: 100, side: 'buy' }, box, plot).left).toBe(6)
+    expect(boxAt({ x: 720, y: 100, side: 'buy' }, box, plot).left).toBe(470)
+  })
+
+  it('on a phone, a box wider than the room still starts inside', () => {
+    const phone = { w: 343, h: 300, room: 290 }
+    const at = boxAt({ x: 300, y: 150, side: 'buy' }, box, phone)
+    expect(at.left).toBeGreaterThanOrEqual(6)
+    expect(at.left + box.w).toBeLessThanOrEqual(phone.w - 6)
+  })
+
+  it('a plot too short for the box keeps its top inside', () => {
+    const at = boxAt({ x: 400, y: 30, side: 'buy' }, box, {
+      ...plot,
+      h: 60,
+    })
+    expect(at.top).toBe(6)
   })
 })

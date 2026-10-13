@@ -29,6 +29,7 @@ async function setup(currency: string, ownerId = ME) {
     for (const [asOf, price] of [
       [TUE + 20 * 3_600_000, 118.76],
       [WED + 20 * 3_600_000, 120],
+      [WED + 7 * DAY, 121],
     ])
       await ctx.db.insert('prices', {
         ownerId,
@@ -39,7 +40,7 @@ async function setup(currency: string, ownerId = ME) {
         fetchedAt: asOf,
         source: 'Yahoo Finance',
       })
-    /* A rate for Tuesday only: Wednesday's is not stored. */
+    /* A rate for Tuesday only: none for Wednesday or the week after. */
     for (const cur of ['USD', 'GBP'])
       await ctx.db.insert('fxRates', {
         ownerId,
@@ -62,7 +63,7 @@ test('a dollar close has its euros on a day with a stored rate', async () => {
     instrumentId,
     since: TUE - DAY,
   })
-  expect(line).toHaveLength(2)
+  expect(line).toHaveLength(3)
   expect(line[0]).toEqual({
     asOf: TUE + 20 * 3_600_000,
     price: 118.76,
@@ -70,13 +71,26 @@ test('a dollar close has its euros on a day with a stored rate', async () => {
   })
 })
 
-test('a day with no stored rate has the dollar price alone', async () => {
+test('a day with no rate of its own takes the last one before it', async () => {
   const { me, instrumentId } = await setup('USD')
   const line = await me.query(api.invest.priceLine, {
     instrumentId,
     since: TUE - DAY,
   })
-  expect(line[1]).toEqual({ asOf: WED + 20 * 3_600_000, price: 120 })
+  expect(line[1]).toEqual({
+    asOf: WED + 20 * 3_600_000,
+    price: 120,
+    eur: 107.81,
+  })
+})
+
+test('no rate within four days: the dollar price alone', async () => {
+  const { me, instrumentId } = await setup('USD')
+  const line = await me.query(api.invest.priceLine, {
+    instrumentId,
+    since: TUE - DAY,
+  })
+  expect(line[2]).toEqual({ asOf: WED + 7 * DAY, price: 121 })
 })
 
 test('a share quoted in euros has one currency', async () => {
@@ -85,7 +99,7 @@ test('a share quoted in euros has one currency', async () => {
     instrumentId,
     since: TUE - DAY,
   })
-  expect(line.map((p) => p.eur)).toEqual([undefined, undefined])
+  expect(line.map((p) => p.eur)).toEqual([undefined, undefined, undefined])
 })
 
 test('a London share is quoted in pence, the rate is for pounds', async () => {

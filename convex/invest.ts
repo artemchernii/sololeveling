@@ -153,8 +153,8 @@ export const looks = query({
  *
  * Each close carries `eur` (13 Oct: "we want euros and dollar"): the
  * close times the stored ECB rate of the same day, as the position's
- * worth converts (quoteToRate). None for a euro share, and none on a day
- * with no stored rate — never a rate borrowed from another day.
+ * worth converts (quoteToRate). None for a euro share, and none where no
+ * rate is stored for that day or the four before it.
  */
 export const priceLine = query({
   args: { instrumentId: v.id('instruments'), since: v.number() },
@@ -182,33 +182,36 @@ export const priceLine = query({
     const { base, divide } = quoteToRate(instrument.currency)
     if (base === 'EUR' || base === '' || rows.length === 0)
       return rows.map((r): Close => ({ asOf: r.asOf, price: r.price }))
-    /* The rates of the same window, one read: a business day each. */
-    const rates = new Map(
-      (
-        await ctx.db
-          .query('fxRates')
-          .withIndex('by_owner_currency_time', (q) =>
-            q
-              .eq('ownerId', ownerId)
-              .eq('currency', base)
-              .gte('asOf', dayOf(rows[0].asOf) * DAY),
-          )
-          .take(400)
-      ).map((r) => [dayOf(r.asOf), r.rate]),
-    )
+    /* The rates of the same window, one read. The ECB publishes on
+       business days, in the afternoon: a close on a weekend, a holiday
+       or this morning takes the last rate before it, as the position's
+       worth does — but none older than RATE_REACH days. */
+    const rates = await ctx.db
+      .query('fxRates')
+      .withIndex('by_owner_currency_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('currency', base)
+          .gte('asOf', (dayOf(rows[0].asOf) - RATE_REACH) * DAY),
+      )
+      .take(400 + RATE_REACH)
+    let k = -1
     return rows.map((r): Close => {
-      const rate = rates.get(dayOf(r.asOf))
-      return rate === undefined
+      const day = dayOf(r.asOf)
+      while (k + 1 < rates.length && dayOf(rates[k + 1].asOf) <= day) k++
+      return k < 0 || day - dayOf(rates[k].asOf) > RATE_REACH
         ? { asOf: r.asOf, price: r.price }
         : {
             asOf: r.asOf,
             price: r.price,
-            eur: Math.round((r.price / divide) * rate * 100) / 100,
+            eur: Math.round((r.price / divide) * rates[k].rate * 100) / 100,
           }
     })
   },
 })
 
+/* How many days back a close may take its rate from: a long weekend. */
+const RATE_REACH = 4
 const DAY = 86_400_000
 /* The UTC day, as market.ts keeps one close a day. */
 const dayOf = (t: number) => Math.floor(t / DAY)

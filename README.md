@@ -16,18 +16,18 @@ price). If a number cannot say where it came from, it is not shown.
 
 ## What is in it
 
-| Group     | Page      | What it does                                                                                         | State        |
-| --------- | --------- | ---------------------------------------------------------------------------------------------------- | ------------ |
-| **Now**   | Today     | The morning screen: the six principles, today's timeline, three tasks for the day, the month's count | in use       |
-|           | Calendar  | Events and scheduled tasks; drag to move, any duration                                               | in use       |
-|           | Review    | The weekly look back                                                                                 | next         |
-| **Build** | Projects  | A project's tasks, notes, files, hours and GitHub commits                                            | in use       |
-|           | Goals     | Goals with targets, milestones and deadlines                                                         | in use       |
-|           | Backlog   | Every task not picked for today — and the only place they appear                                     | in use       |
-|           | Notes     | The knowledge base: kinds, images, PDFs, YouTube, prompts to copy back out                           | in use       |
-| **Track** | Finances  | Net worth, spending by month, accounts and portfolio — fed by bank files, not forms                  | **building** |
-|           | Body      | Workouts per day, sessions, weight against a target                                                  | in use       |
-|           | Languages | A tab per language: classes, homework, level, and class sheets read by AI                            | in use       |
+| Group     | Page      | What it does                                                                                                                                                                            | State        |
+| --------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| **Now**   | Today     | The morning screen: the six principles, today's timeline, three tasks for the day, the month's count                                                                                    | in use       |
+|           | Calendar  | Events and scheduled tasks; drag to move, any duration                                                                                                                                  | in use       |
+|           | Review    | The weekly look back                                                                                                                                                                    | next         |
+| **Build** | Projects  | A project's tasks, notes, files, hours and GitHub commits                                                                                                                               | in use       |
+|           | Goals     | Goals with targets, milestones and deadlines                                                                                                                                            | in use       |
+|           | Backlog   | Every task not picked for today — and the only place they appear                                                                                                                        | in use       |
+|           | Notes     | The knowledge base: kinds, images, PDFs, YouTube, prompts to copy back out                                                                                                              | in use       |
+| **Track** | Finances  | Net worth, spending by month, accounts and portfolio — fed by bank files, not forms. Each position has a page with a price chart: candles, volume, compare, ruler, euros beside dollars | **building** |
+|           | Body      | Workouts per day, sessions, weight against a target                                                                                                                                     | in use       |
+|           | Languages | A tab per language: classes, homework, level, and class sheets read by AI                                                                                                               | in use       |
 
 Plus **Quick capture (⌘L)** — `workout 60`, `spend 48 groceries`,
 `weight 75.4`, `note …` — logged in under three seconds from anywhere, and

@@ -15,6 +15,9 @@ describe("a bank's line as a name", () => {
   })
   it('a transfer to a person: the name', () => {
     expect(plainName('TRF P/ JOAO SILVA')).toBe('Joao Silva')
+    /* 13 Oct, his ActivoBank: "P/O" left an "O" before the name. */
+    expect(plainName('TRF P/O ARTEM CHERNII')).toBe('Artem Chernii')
+    expect(plainName('TRF. P/O OLEKSANDR SAKHNO')).toBe('Oleksandr Sakhno')
   })
   it('small words inside a name are lower case, accents are kept', () => {
     expect(plainName('COMPRA 2789 PADARIA DO BAIRRO')).toBe('Padaria do Bairro')

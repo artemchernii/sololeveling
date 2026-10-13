@@ -16,8 +16,9 @@ const HOW = new Set([
   'SEPA',
   'CR',
   'DB',
-  'P',
 ])
+/* "P/" (para) and "P/O" (por ordem de) before a person's name. */
+const TO_WHOM = /(^|\s)P\/O?(?=\s|$)/g
 const SMALL = new Set(['DE', 'DO', 'DA', 'DOS', 'DAS', 'E'])
 
 /**
@@ -29,6 +30,7 @@ const SMALL = new Set(['DE', 'DO', 'DA', 'DOS', 'DAS', 'E'])
 export function plainName(line: string): string | null {
   if (/\p{Ll}/u.test(line)) return null
   const words = line
+    .replace(TO_WHOM, ' ')
     .split(/[^\p{L}\p{N}]+/u)
     .filter((w) => w.length > 0 && !/\d/.test(w) && !HOW.has(w))
   if (words.length === 0) return null

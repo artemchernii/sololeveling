@@ -12,6 +12,7 @@
    posting day vs the spending day), a Trade Republic holdings screenshot
    (value and % since buy, no shares). */
 
+import { feeInside } from './tradeCost'
 import { printedBalance } from './rowBalance'
 
 export const INTAKE_MODEL = 'claude-haiku-5-5'
@@ -144,6 +145,7 @@ export const INTAKE_SCHEMA = {
           price: { type: 'number' },
           currency: { type: 'string' },
           fee: { type: ['number', 'null'] },
+          paid: { type: 'number' },
           crypto: { type: 'boolean' },
         },
         required: [
@@ -155,6 +157,7 @@ export const INTAKE_SCHEMA = {
           'price',
           'currency',
           'fee',
+          'paid',
           'crypto',
         ],
         additionalProperties: false,
@@ -227,7 +230,7 @@ export function intakePrompt(opts: {
     `category (spending only, else null): one of ${SPEND_CATEGORY_IDS.join(', ')}.`,
     "closing_balance: the final balance printed for the account (completed transactions only) and closing_balance_date; else null. A bank app's history prints a running balance under or beside each row and no total: closing_balance is then the one printed with the newest row, and closing_balance_date that row's date — never null when the newest row shows one.",
     'For holdings: every position, once. value_eur: its current value as printed. change_pct: the % gain or loss since buying if printed (negative for a loss). shares and average_price_eur only if printed — a number printed under or beside the name together with a ticker ("7.36542714 IGLN" on Trading 212) is the shares, and the ticker is symbol (else an empty string). cash_eur: uninvested cash if shown; total_eur: the account total if shown. An account summary screen with a total and cash but no list of positions (Trading 212\'s "Account value … Cash") is holdings with no positions.',
-    'For trades: every buy and sell, once — date as YYYY-MM-DD, name as printed, isin if printed, side, shares, price per share and its currency, fee as printed (in the same currency, else null). Skip cancelled or rejected orders. crypto = false for shares and funds.',
+    'For trades: every buy and sell, once — date as YYYY-MM-DD, name as printed, isin if printed, side, shares, price per share and its currency, fee as printed (in the same currency, else null), paid = the whole amount printed beside the trade as what left or came into the account for it, in the same currency and without its sign (−€300 beside a buy is 300; 0 when none is printed). Skip cancelled or rejected orders. crypto = false for shares and funds.',
     "A bank app's list of one metal's buys and sells (\"Buy XAU · 0,08275 units · €3 607,63\", the amount paid beside it) is trades: name = the metal's code as printed (XAU, XAG), shares = the units, price = the price printed for one unit and its currency, crypto = false.",
     'A crypto statement (e.g. Revolut Digital Assets) is trades: name = the coin\'s symbol as printed (BTC, ETH, SOL), crypto = true, each buy and sell with its quantity, price, currency and fee; each staking reward is side "reward" with its quantity, price 0, currency "EUR". Its account summary\'s closing amount of every coin still held (more than 0) goes in positions: symbol and name = the coin\'s symbol, shares = the closing amount, value_eur = its closing value. closing_balance = the statement\'s total closing value and closing_balance_date = the last day of its period.',
     'Read numbers exactly: a European comma decimal (1.234,56) is 1234.56; thousands set apart by a space ("1 100.00", "1 277,35") are one number — 1100.00, never 100.00. Never invent a number that is not printed — use null. Leave the arrays that do not apply empty.',
@@ -504,7 +507,19 @@ function tradeRows(j: Record<string, unknown>): Array<ReadTrade> {
     const shares = pos(r.shares)
     /* A staking reward is given, at price 0. */
     const price = r.side === 'reward' ? 0 : pos(r.price)
-    const fee = num(r.fee)
+    /* The fee as printed — or the one inside the amount printed beside
+       the trade, where no fee is (tradeCost.ts). */
+    const paid = num(r.paid)
+    const fee =
+      num(r.fee) ??
+      (paid !== undefined &&
+      paid !== 0 &&
+      shares !== undefined &&
+      price !== undefined &&
+      r.crypto !== true &&
+      (r.side === 'buy' || r.side === 'sell')
+        ? feeInside(r.side, shares, price, Math.abs(paid))
+        : undefined)
     if (
       at === undefined ||
       name === undefined ||

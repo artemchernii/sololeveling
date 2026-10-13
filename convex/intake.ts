@@ -1,3 +1,4 @@
+import { costPrice } from '../src/lib/tradeCost'
 import { groupFor } from '../src/lib/merchantRule'
 import { ConvexError, v } from 'convex/values'
 
@@ -1789,9 +1790,13 @@ async function writeTrades(
     /* That day's rate, not today's (4 Oct: his crypto trades go back to
        2020, in € and $). */
     const free = t.side === 'reward' || t.side === 'split'
+    /* The price with its fee in it: a buy is saved for what it cost
+       (14 Oct: "yes, fee" — his gold buys came to €1,094.62 of the
+       €1,100 paid). */
     const priceEur = free
       ? 0
-      : t.price * (await euroRateAt(ctx, ownerId, t.currency, t.occurredAt))
+      : costPrice(t) *
+        (await euroRateAt(ctx, ownerId, t.currency, t.occurredAt))
     /* Revolut takes its crypto fee in coins: a buy brings in its quantity
        less the fee's share of the value. */
     const shares =

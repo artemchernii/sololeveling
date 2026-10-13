@@ -56,7 +56,14 @@
   #shape.band { border-top: 0; border-bottom: 0; border-radius: 0 }
   #shape span { position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; font-family: var(--mono); font-size: 11.5px; padding: 4px 9px; border-radius: 8px; color: var(--ink-100); background: #2b2850; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lav-400) 55%, transparent), 0 8px 20px -8px #000 }
   #shape.band span { display: none }
-  @keyframes arrive { from { opacity: 0 } }
+  /* What was bought or sold, said at its dot (13 Oct: "when i hover dot i
+     expected something like tooltip"). Both currencies: the price as the
+     exchange quotes it, and in euros at that day's rate. */
+  #tip { position: absolute; left: 0; top: 0; z-index: 6; display: none; pointer-events: none; white-space: nowrap; padding: 9px 12px; border-radius: 12px; background: #2b2850; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lav-400) 55%, transparent), 0 14px 30px -12px #000; font-family: var(--mono); font-size: 11px; color: var(--ink-400); animation: arrive .16s var(--ease) }
+  #tip div { display: flex; align-items: baseline; gap: 8px } #tip div + div { margin-top: 6px }
+  #tip span { color: var(--ink-100); font-size: 13.5px; font-variant-numeric: tabular-nums } #tip i { font-style: normal; color: var(--ink-200) }
+  .alt { color: var(--ink-300) }
+  @keyframes arrive { from { opacity: 0; translate: 0 4px } }
   .keys { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
   .keys span { display: inline-flex; align-items: center; gap: 6px } .dot { width: 9px; height: 9px; border-radius: 99px; border: 2px solid } .sq { width: 9px; height: 9px; border-radius: 2px; background: var(--ink-600) }
   @media (max-width: 640px) { .plot { height: 300px } .read { min-height: 42px } .head .px { margin-left: 0; text-align: left; width: 100% } }
@@ -69,7 +76,7 @@
     <div class="head">
       <div class="logo">V</div>
       <div><h1>Vanguard S&amp;P 500 UCITS ETF</h1><p>VUAA · fund · USD</p></div>
-      <div class="px"><b id="px"></b><small>price on 9 Oct · Yahoo Finance</small></div>
+      <div class="px"><b id="px"></b><small><span id="pxe"></span> · price on 9 Oct · Yahoo Finance</small></div>
     </div>
     <div class="bar">
       <span class="caps">price</span>
@@ -79,7 +86,7 @@
       <div class="pills" id="ranges"></div>
     </div>
     <div class="read" id="read"></div>
-    <div class="plot"><div id="chart"></div><div id="tool"><div id="shape"><span></span></div></div></div>
+    <div class="plot"><div id="chart"></div><div id="tip"></div><div id="tool"><div id="shape"><span></span></div></div></div>
     <div class="keys"><span><i class="dot" style="border-color:var(--good)"></i>bought</span><span><i class="dot" style="border-color:var(--danger)"></i>sold</span><span id="volkey"><i class="sq"></i>shares traded that day</span></div>
   </section>
 </div>
@@ -95,17 +102,20 @@ const I = {
 let seed = 11
 const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
 const bars = []
-{ const end = new Date(Date.UTC(2026, 9, 9)), n = 520; let d = new Date(end), days = []
+{ const end = new Date(Date.UTC(2026, 9, 9)), n = 1300; let d = new Date(end), days = []
   while (days.length < n) { if (d.getUTCDay() % 6) days.unshift(d.toISOString().slice(0, 10)); d = new Date(d - 864e5) }
   let v = 86, w = 0
   days.forEach((time, i) => { const t = i / (n - 1), open = v; w = w * .9 + (rnd() - .5); v = 86 + (123.85 - 86) * t + w * 5.5 * Math.sin(Math.PI * t) ** .5
     const close = i === n - 1 ? 123.85 : v, hi = Math.max(open, close) + rnd() * 1.1, lo = Math.min(open, close) - rnd() * 1.1
     bars.push({ time, open, high: hi, low: lo, close, volume: Math.round((40 + rnd() * 90 + Math.abs(close - open) * 60) * 1000) }) }) }
-const trades = [[80, 'buy', 650], [200, 'buy', 1605], [330, 'buy', 300], [372, 'sell', 420], [455, 'buy', 250], [495, 'buy', 250]]
+const trades = [[80, 'buy', 650], [200, 'buy', 1605], [330, 'buy', 300], [372, 'sell', 420], [455, 'buy', 250], [495, 'buy', 250]].map(([i, ...r]) => [bars.length - 520 + i, ...r])
+/* A euro for a dollar on each day — sample rates, as the stored ones would be. */
+const inEur = (i) => '€' + (bars[i].close * (0.92 + 0.03 * Math.sin(i / 70))).toFixed(2)
 const usd = (v) => '$' + Math.abs(v).toFixed(2), eur = (v) => '€' + v.toLocaleString('en-GB', { minimumFractionDigits: 2 })
 const day = (t) => new Date(t + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 const many = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : Math.round(n / 1000) + 'K'
 document.getElementById('px').textContent = usd(bars.at(-1).close)
+document.getElementById('pxe').textContent = inEur(bars.length - 1)
 
 let view = 'line', range = '1Y', tool = null, volume = true
 const chart = LC.createChart(document.getElementById('chart'), {
@@ -144,12 +154,27 @@ const read = document.getElementById('read')
 let held = null   // what a tool measured, kept until the next press
 function say(i) {
   if (held) { read.innerHTML = held; return }
-  const b = bars[i ?? bars.length - 1], t = trades.find((x) => x[0] === i)
-  read.innerHTML = t
-    ? `<b class="chip ${t[1] === 'buy' ? 'up' : 'down'}">${t[1] === 'buy' ? 'bought' : 'sold'}</b><span>${eur(t[2])}</span><small>${day(b.time)} · at ${usd(b.close)}</small>`
-    : `<span>${usd(b.close)}</span><small>${day(b.time)}${i == null ? ' · latest price' : ''}${volume ? ' · ' + many(b.volume) + ' shares traded' : ''}</small>`
+  const k = i ?? bars.length - 1, b = bars[k]
+  read.innerHTML = `<span>${usd(b.close)}</span><span class="alt">${inEur(k)}</span><small>${day(b.time)}${i == null ? ' · latest price' : ''}${volume ? ' · ' + many(b.volume) + ' shares traded' : ''}</small>`
 }
-chart.subscribeCrosshairMove((p) => { const i = p.time ? bars.findIndex((b) => b.time === p.time) : -1; say(i < 0 ? null : i) })
+chart.subscribeCrosshairMove((p) => { const i = p.time ? bars.findIndex((b) => b.time === p.time) : -1; say(i < 0 ? null : i); tell(i < 0 || !p.point ? null : near(p.point.x)) })
+
+/* The box at a dot: the nearest buy or sell within 9px of the pointer. */
+const tip = document.getElementById('tip')
+function near(x) {
+  let best = null, gap = 9
+  for (const t of trades) { const tx = chart.timeScale().logicalToCoordinate(t[0]); if (tx != null && Math.abs(tx - x) <= gap) { gap = Math.abs(tx - x); best = t } }
+  return best
+}
+function tell(t) {
+  if (!t) { tip.style.display = 'none'; return }
+  const b = bars[t[0]], x = chart.timeScale().logicalToCoordinate(t[0]), y = series.priceToCoordinate(view === 'line' ? b.close : t[1] === 'buy' ? b.low : b.high), buy = t[1] === 'buy'
+  tip.innerHTML = `<div><b class="chip ${buy ? 'up' : 'down'}">${buy ? 'bought' : 'sold'}</b><span>${eur(t[2])}</span><i>${day(b.time)}</i></div><div>at <i>${usd(b.close)}</i> · <i>${inEur(t[0])}</i> a share</div>`
+  tip.style.display = 'block'
+  const w = tip.offsetWidth, h = tip.offsetHeight, room = document.getElementById('chart').clientWidth - 70
+  const left = Math.max(6, Math.min(room - w, x - w / 2)), top = buy ? (y + 18 + h < 340 ? y + 18 : y - h - 18) : (y - h - 18 > 4 ? y - h - 18 : y + 18)
+  tip.style.transform = `translate(${left}px,${top}px)`
+}
 
 /* The two tools. Compare: two days on the line, both prices and the
    difference. Ruler: a rectangle from any point to any point — the price

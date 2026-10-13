@@ -31,7 +31,7 @@ export function FileView({
         <span className="text-[15px] text-foreground">{f.title}</span>
         <span className="font-mono text-[11px] text-ink-400">
           {f.names.join(' · ')} · read {short(f.readAt)} · {f.rows.length} rows
-          read, {landed} landed
+          in the file · {landed} saved
         </span>
       </span>
       <Originals intakeId={intakeId} />
@@ -82,7 +82,7 @@ function Originals({ intakeId }: { intakeId: Id<'intakes'> }) {
     ? `file kept until ${short(o.keptUntil ?? Date.now())}`
     : o.keptUntil !== null && o.keptUntil <= Date.now()
       ? `file erased · ${short(o.keptUntil)}`
-      : 'file not kept — it went in before files were'
+      : 'file not kept'
   return (
     <div className="flex flex-col gap-2">
       {o.files.map((f, i) =>

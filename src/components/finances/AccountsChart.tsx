@@ -165,8 +165,7 @@ export function AccountsChart({
           <b className="mb-1 block text-[15px] font-normal text-foreground">
             No accounts yet
           </b>
-          Each account you add draws its own line here. Press ADD, or drop a
-          statement.
+          Each account draws its own line here. Press ADD, or drop a statement.
         </span>
       </div>
     )
@@ -600,7 +599,7 @@ export function AccountsChart({
         </span>
         {live.length === 1 ? (
           <span className="px-2.5 pt-2 font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase">
-            the others draw here as you add them
+            other accounts show here once added
           </span>
         ) : null}
       </div>
@@ -658,8 +657,7 @@ function DayRows({
       ) : null}
       {sheet === undefined ? null : rows.length === 0 ? (
         <span className="text-[13px] text-ink-400">
-          No rows that day — the line moved with its prices, or a balance was
-          read.
+          No rows that day. Prices changed, or a new balance was saved.
         </span>
       ) : (
         <div className="flex flex-col">
@@ -690,7 +688,7 @@ function DayRows({
       )}
       {moved ? (
         <span className="self-start rounded-full bg-lift/[0.05] px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] text-ink-400 uppercase">
-          a move between your accounts — the total did not change
+          transfer between own accounts · total unchanged
         </span>
       ) : null}
     </div>

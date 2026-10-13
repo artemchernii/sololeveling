@@ -174,9 +174,8 @@ export function Accounts() {
       ) : data.accounts.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <p className="max-w-sm text-[13.5px] text-ink-400">
-            Add where your money sits — a bank, a broker, the cash in your
-            wallet. Then drop a statement or a screenshot on + and it fills
-            itself.
+            Add a bank, a broker or cash in hand. A statement or screenshot
+            fills in the balance and rows.
           </p>
           <button
             type="button"
@@ -289,7 +288,7 @@ export function Accounts() {
       <UpdateSheet account={updating} onClose={() => setUpdating(null)} />
       <Sheet
         open={question !== null}
-        title="check it"
+        title="open question"
         wide
         onClose={() => setQuestion(null)}
         guard={flight ? GUARD[flight] : null}
@@ -351,7 +350,7 @@ function StillCounted() {
           className="motion-land flex flex-wrap items-center gap-2 font-mono text-[11px] text-ink-500"
         >
           <span className="min-w-0 flex-1">
-            Deleted, still counted:{' '}
+            Deleted, still in the totals:{' '}
             <span className="text-ink-300">{g.name}</span> · {g.rows} row
             {g.rows === 1 ? '' : 's'}
             {g.trades > 0
@@ -361,7 +360,7 @@ function StillCounted() {
           {asking === g.accountId ? (
             <>
               <span className="text-state-warn">
-                Erase them? Transfers to your other accounts keep their side.
+                Erase them? The other account keeps its side of a transfer.
               </span>
               <button
                 type="button"

@@ -41,7 +41,7 @@ test('a typed balance opens, says what the account is after, and one press remov
   const sheet = await open(page, 190.35)
   const line = sheet.getByTestId('typed-balance')
   await expect(line).toHaveCount(1)
-  await line.getByRole('button', { name: /typed by you/ }).click()
+  await line.getByRole('button', { name: /^typed/ }).click()
   await expect(
     line.getByText(/balance of \d+ Oct you typed goes\./),
   ).toBeVisible()
@@ -69,7 +69,7 @@ test('an older typed balance goes and the amount does not move', async ({
 }) => {
   const sheet = await open(page, 1480, 20)
   const line = sheet.getByTestId('typed-balance')
-  await line.getByRole('button', { name: /typed by you/ }).click()
+  await line.getByRole('button', { name: /^typed/ }).click()
   await expect(line.getByText('not changed')).toBeVisible()
   await expect(line.getByText(/ActivoBank stays €153\.21/)).toBeVisible()
   await page.waitForTimeout(700)

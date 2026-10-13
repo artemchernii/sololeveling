@@ -246,11 +246,7 @@ function AccountDetails({
 
   if (saved !== null)
     return (
-      <SavedNote
-        name={name}
-        title={saved}
-        note={account ? 'saved' : 'in your accounts now'}
-      />
+      <SavedNote name={name} title={saved} note={account ? 'saved' : 'added'} />
     )
 
   return (
@@ -261,7 +257,7 @@ function AccountDetails({
           autoFocus={!product}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="What you call it"
+          placeholder="Name"
           aria-label="Name"
           className={`${FIELD} min-w-0 flex-1`}
         />
@@ -281,12 +277,12 @@ function AccountDetails({
             : product.kinds[0] === 'broker'
               ? 'Its free cash, and its investments from a screenshot.'
               : product.kinds[0] === 'cash'
-                ? 'The notes in your wallet — counted, not read.'
-                : 'Its statements fill it; transfers to your other accounts are matched.'}
+                ? 'Cash in hand, typed.'
+                : 'Balance and rows from statements.'}
         </span>
       ) : (
         <>
-          <span className="label-caps">what it is</span>
+          <span className="label-caps">type</span>
           <div className="flex flex-wrap gap-1.5">
             {ACCOUNT_KINDS.map((k) => (
               <button
@@ -314,7 +310,7 @@ function AccountDetails({
           </label>
         </>
       )}
-      <span className="label-caps">currencies it holds</span>
+      <span className="label-caps">currencies</span>
       <div className="flex flex-wrap gap-1.5">
         {shown.map((c) => (
           <button
@@ -339,7 +335,7 @@ function AccountDetails({
       </div>
       {kinds.includes('cash') && kinds.length === 1 ? null : (
         <>
-          <span className="label-caps">how statements show it · optional</span>
+          <span className="label-caps">IBAN and card digits · optional</span>
           <div className="grid grid-cols-2 gap-2">
             <label className={`${FIELD} flex items-center gap-2`}>
               <span className="shrink-0 font-mono text-[10.5px] text-ink-500">
@@ -369,14 +365,14 @@ function AccountDetails({
             </label>
           </div>
           <span className="text-[12px] text-ink-500">
-            The last four digits. A transfer from PT50…0120 then lands on this
-            account by itself.
+            Last four digits. Transfers from PT50…0120 are added to this
+            account.
           </span>
         </>
       )}
       {account ? null : (
         <>
-          <span className="label-caps">what it holds · optional</span>
+          <span className="label-caps">balance now · optional</span>
           {currencies.map((c) => (
             <label key={c} className={`${FIELD} flex items-center gap-2`}>
               <span className="rounded-[4px] bg-lift/[0.06] px-1.5 font-mono text-[10.5px] text-ink-300">
@@ -409,15 +405,15 @@ function AccountDetails({
             />
           </label>
           <span className="text-[12px] text-ink-500">
-            Or leave it — drop a statement or a screenshot on + and it is read
-            from there, with the day it is true.
+            Or leave empty: a statement or screenshot sets the balance and its
+            date.
           </span>
         </>
       )}
       {twin ? (
         <span className="text-[12.5px] text-ink-300">
-          You already have {twin.name} ({twin.currencies.join(', ')}). This adds
-          to it — a currency left blank keeps what it holds.
+          {twin.name} ({twin.currencies.join(', ')}) is already an account. This
+          adds to it; an empty currency is not changed.
         </span>
       ) : null}
       {error ? (
@@ -450,9 +446,8 @@ function AccountDetails({
                 Delete {account.name}?
               </span>
               <span className="text-[12.5px] text-ink-500">
-                It leaves every list and total. What it paid and earned stays in
-                your history — those things happened. If only the name is wrong,
-                edit it instead.
+                Removed from every list and total. Its past payments stay in
+                Movements. Wrong name only: edit.
               </span>
               <div className="flex gap-2">
                 <button
@@ -479,7 +474,7 @@ function AccountDetails({
                 }
                 className="self-center font-mono text-[10.5px] tracking-[0.1em] text-ink-500 uppercase underline-offset-4 hover:text-state-danger hover:underline"
               >
-                a test, or read twice? erase it with its history
+                erase the account and all its rows
               </button>
             </>
           ) : (

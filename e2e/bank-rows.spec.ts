@@ -89,7 +89,7 @@ test('a payment the account already has: not saved, asked, answered once', async
   await page.waitForTimeout(700)
   await page.screenshot(shot('bank-question'))
 
-  await card(page).getByRole('button', { name: 'check it' }).click()
+  await card(page).getByRole('button', { name: 'open question' }).click()
   const sheet = page.getByRole('dialog')
   await expect(sheet.getByText('Is this the same payment?')).toBeVisible()
   await expect(sheet.getByText('bank shows €702.49')).toBeVisible()

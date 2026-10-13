@@ -83,7 +83,7 @@ test('account sheet with many rows: 60 first, older on a press, the year on last
   await older.click()
   await expect(sheet.getByText('Coffee 400', { exact: true })).toBeVisible()
   await expect(older).toHaveCount(0)
-  await expect(sheet.getByText(/That is the start/)).toBeVisible()
+  await expect(sheet.getByText(/No rows before/)).toBeVisible()
   /* A row of another year: its day says the year; this year's does not. */
   const lastYear = new Date().getFullYear() - 1
   await expect(

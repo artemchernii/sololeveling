@@ -209,15 +209,15 @@ function Said({ check: c }: { check: Check }) {
       <span>
         {c.bookedLater !== null ? (
           <>
-            <Veiled>{fmt(c.bookedLater.amount, c.currency, true)}</Veiled> was
-            already in this balance — the bank booked it on{' '}
-            {short(c.bookedLater.at)}.
+            <Veiled>{fmt(c.bookedLater.amount, c.currency, true)}</Veiled>{' '}
+            already counted in this balance · booked by the bank on{' '}
+            {short(c.bookedLater.at)}
           </>
         ) : null}
         {c.pendingPart !== null ? (
           <>
-            <Veiled>{fmt(c.pendingPart, c.currency, true)}</Veiled> was still
-            pending here — the next statement itemises it.
+            <Veiled>{fmt(c.pendingPart, c.currency, true)}</Veiled> pending on
+            this day · not in a statement yet
           </>
         ) : null}
       </span>
@@ -378,12 +378,11 @@ function Timeline({
         </button>
       ) : first ? (
         <span className="px-0.5 pt-3 font-mono text-[10.5px] leading-relaxed text-ink-500">
-          That is the start: nothing before {short(first.at)} has been read.
-          Drop an older statement to go further back.
+          No rows before {short(first.at)}. An older statement adds them.
         </span>
       ) : (
         <span className="py-6 text-center text-[13.5px] text-ink-400">
-          No rows yet. Drop a statement or a screenshot and its rows land here.
+          No rows yet. Add a statement or a screenshot.
         </span>
       )}
     </div>

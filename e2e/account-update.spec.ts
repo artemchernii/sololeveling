@@ -177,7 +177,7 @@ test('phone width: the window fits, the steps take their own line', async ({
   await page.setViewportSize({ width: 390, height: 844 })
   const days = await start(page)
   await page.goto('/finances')
-  await page.getByRole('button', { name: /check-in/ }).click()
+  await page.getByTestId('check-in').click()
   await page
     .getByRole('dialog')
     .locator('div', { hasText: /^Revolut/ })

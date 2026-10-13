@@ -211,9 +211,7 @@ export function Portfolio({ position }: { position?: string }) {
                     </span>
                     <span>
                       {cash === null ? (
-                        <span className="text-ink-600">
-                          {both ? 'never read' : 'not typed'}
-                        </span>
+                        <span className="text-ink-600">missing</span>
                       ) : (
                         <Veiled>{euros(cash)}</Veiled>
                       )}

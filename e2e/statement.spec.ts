@@ -9,7 +9,7 @@ const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
 test('check-in names what is old', async ({ page }) => {
   await start(page)
   await page.goto('/finances')
-  await page.getByRole('button', { name: 'check-in' }).click()
+  await page.getByTestId('check-in').click()
   const sheet = page.getByRole('dialog')
   await expect(sheet.getByText('Revolut')).toBeVisible()
   /* Two pockets: the words name the old one. */
@@ -20,7 +20,7 @@ test('check-in names what is old', async ({ page }) => {
 test('a Revolut CSV: read, checked, added — and it lands', async ({ page }) => {
   const days = await start(page)
   await page.goto('/finances')
-  await page.getByRole('button', { name: 'check-in' }).click()
+  await page.getByTestId('check-in').click()
   await page
     .getByRole('dialog')
     .locator('div', { hasText: /^Revolut/ })
@@ -65,7 +65,7 @@ test('"still the same": saving, saved, up to date, closed', async ({
 }) => {
   await start(page)
   await page.goto('/finances')
-  await page.getByRole('button', { name: 'check-in' }).click()
+  await page.getByTestId('check-in').click()
   await page
     .getByRole('dialog')
     .locator('div', { hasText: /^Cash/ })

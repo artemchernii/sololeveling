@@ -50,13 +50,16 @@
   .sheet { border-radius: 18px; padding: 16px; background: #20203a; box-shadow: inset 0 0 0 1px var(--sys-edge), 0 24px 60px -24px #000; display: flex; flex-direction: column; gap: 14px; animation: land .4s both; transition: height .3s }
   .shead { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid rgba(181,171,252,.16) }
   .shead .title { flex: 1; font-family: var(--mono); font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--lav-400) }
-  .steps { display: flex; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500) }
-  .steps b { font-weight: 400; color: var(--ink-100) }
+  .steps { display: flex; gap: 10px; align-items: center; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500) }
+  .steps span { display: inline-flex; align-items: center; gap: 5px }
+  .steps .now { color: var(--ink-100) }
+  .steps .ok { color: var(--good) }
+  .steps .ok svg { width: 12px; height: 12px; animation: pop .4s both }
   .drop { border-radius: 16px; padding: 34px 16px; text-align: center; border: 1.5px dashed color-mix(in oklch, var(--lav-400) 55%, transparent); color: var(--ink-300); animation: breathe 2.6s ease-in-out infinite; display: flex; flex-direction: column; gap: 6px; align-items: center }
   .drop small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
   .row { display: grid; grid-template-columns: 58px minmax(0,1fr) auto auto; gap: 12px; align-items: center; padding: 10px 2px; border-top: 1px solid rgba(var(--lift),.06); animation: land .4s both }
   .row:first-child { border-top: 0 }
-  .row .side { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--good) }
+  .row .side { justify-self: start; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--good); background: color-mix(in oklch, var(--good) 14%, transparent); padding: 3px 9px; border-radius: 999px }
   .row .amt { font-family: var(--mono); font-size: 13.5px }
   .row .sub { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); margin-top: 2px }
   .row .day { font-family: var(--mono); font-size: 11px; color: var(--ink-400) }
@@ -69,8 +72,10 @@
   .sum b { font-weight: 300; font-size: 19px; font-variant-numeric: tabular-nums }
   .line { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-200) }
   .foot { display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap }
-  .go { padding: 9px 16px; border-radius: 999px; border: 0; background: var(--lav-400); color: #17152b; font-weight: 500 }
-  .quiet { padding: 9px 14px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300) }
+  .go, .quiet { height: 36px; padding: 0 16px; border-radius: 999px; display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase }
+  .go { border: 1px solid transparent; background: var(--lav-400); color: #17152b; font-weight: 500 }
+  .quiet { border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300) }
+  .done .foot { justify-content: center; margin-top: 6px }
   .spin { width: 13px; height: 13px; border-radius: 999px; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite }
   .done { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 22px 0; text-align: center }
   .done .tick { width: 44px; height: 44px; border-radius: 999px; background: color-mix(in oklch, var(--good) 18%, transparent); color: var(--good); display: grid; place-items: center; animation: pop .5s both }
@@ -120,13 +125,13 @@ const sumE = (r) => r.reduce((t, x) => t + x[1], 0)
 const sumU = (r) => r.reduce((t, x) => t + x[2], 0)
 
 const SCENES = {
-  page: ['the page today', 'Gold has no buys in any file, so "bought for" is empty. One button under it.'],
+  page: ['the page today', 'Gold has no buys in any file, so "buy total" is empty. One button under it.'],
   drop: ['drop', 'The window is named for Gold. Screenshots of its transactions, several at once.'],
   reading: ['reading', 'Pressed or dropped: reading at once, the rows arrive as they are read.'],
   part: ['some missing', 'Your screenshot: four buys, 0.286213 oz of the 0.408365 oz held. It says how much is still missing and saves what it has.'],
   whole: ['all of it', 'With the older screenshots too, the buys reach what is held.'],
   again: ['same screenshot again', 'Every row is already saved: nothing to add, nothing doubled.'],
-  saved: ['saved', '"Bought for" fills in, the gain shows, BUY dots appear on the chart.'],
+  saved: ['saved', '"Buy total" fills in and BUY dots appear on the chart. "Since bought" waits until every buy is in.'],
 }
 let scene = 'page'
 
@@ -139,9 +144,10 @@ function rows(list, had = []) {
       <span class="day">${day}</span>
     </div>`).join('')
 }
+const ORDER = ['drop', 'check', 'saved']
 function sheet(step, inner) {
   return `<div class="sheet"><div class="shead"><span class="title">[ Add buys · Gold ]</span>
-    <span class="steps">${['drop', 'check', 'saved'].map((s) => s === step ? `<b>${s}</b>` : s).join(' · ')}</span></div>${inner}</div>`
+    <span class="steps">${ORDER.map((s, i) => i < ORDER.indexOf(step) || step === 'saved' ? `<span class="ok">${I.check}${s}</span>` : s === step ? `<span class="now">${s}</span>` : `<span>${s}</span>`).join('')}</span></div>${inner}</div>`
 }
 function check(list, had = []) {
   const fresh = list.filter((_, i) => !had.includes(i))
@@ -150,7 +156,7 @@ function check(list, had = []) {
   return sheet('check', `
     <div class="sum">
       <div><span class="caps">buys read</span><b>${list.length}</b><span class="caps">${had.length ? `${had.length} already saved` : 'all new'}</span></div>
-      <div><span class="caps">bought for</span><b>${eur(sumE(list))}</b><span class="caps">${oz(u)}</span></div>
+      <div><span class="caps">buy total</span><b>${eur(sumE(list))}</b><span class="caps">${oz(u)}</span></div>
       <div><span class="caps">held at Revolut</span><b>${oz(HELD)}</b><span class="caps">screenshot · Oct 10</span></div>
     </div>
     <div class="line ${whole ? 'good' : 'warn'}">${whole ? I.check : I.alert}
@@ -168,7 +174,7 @@ function draw() {
   const worth = 1527.79
   document.getElementById('tiles').innerHTML = `
     <div class="tile"><span class="caps">worth now</span><span class="v">${eur(worth)}</span><span class="s">${oz(HELD)}</span></div>
-    <div class="tile ${paid ? 'lit' : ''}"><span class="caps">bought for</span><span class="v ${paid ? '' : 'dim'}">${paid ? eur(paid) : '—'}</span>
+    <div class="tile ${paid ? 'lit' : ''}"><span class="caps">buy total</span><span class="v ${paid ? '' : 'dim'}">${paid ? eur(paid) : '—'}</span>
       <span class="s ${paid ? 'warn' : ''}">${paid ? `4 buys · ${oz(HELD - sumU(BUYS))} missing` : 'not in the files yet'}</span></div>
     <div class="tile ${paid ? 'lit' : ''}"><span class="caps">since bought</span><span class="v dim">—</span>
       <span class="s">${paid ? 'shown once every buy is in' : ''}</span></div>

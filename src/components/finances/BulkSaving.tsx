@@ -1,3 +1,4 @@
+import { BuysLine, useBuysLanded } from '@/components/finances/BuysCheck'
 import { useEffect, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
@@ -288,6 +289,7 @@ export function Applied({
   onMore: () => void
 }) {
   const [undone, setUndone] = useState(false)
+  const landed = useBuysLanded(batchId)
   const waiting = view.files.filter((f) => f.status !== 'done').length
   /* One line an account (5 Oct), the same screen a single file lands
      on. A batch applied before per-account counts were kept falls back
@@ -316,8 +318,35 @@ export function Applied({
         .reduce((t, f) => t + f.rows, 0),
     }))
   if (undone) return <Undone onClose={onClose} />
+  /* Opened for one thing (ADD BUYS): the save is said of that thing,
+     not of the whole account. */
+  const count = accounts.reduce((t, a) => t + a.added, 0)
+  const buys = `${count} ${count === 1 ? 'buy' : 'buys'}`
   return (
-    <AccountsLanded accounts={accounts}>
+    <AccountsLanded
+      accounts={
+        landed
+          ? accounts.map((a) => ({
+              ...a,
+              what: a.added > 0 ? `${landed.thing.name}` : 'nothing new',
+            }))
+          : accounts
+      }
+      cash={landed ? false : undefined}
+      bare={landed !== null}
+      title={
+        landed
+          ? count > 0
+            ? `${buys} saved · ${landed.thing.name}`
+            : `Nothing new for ${landed.thing.name}`
+          : undefined
+      }
+      note={
+        landed?.check ? (
+          <BuysLine check={landed.check} thing={landed.thing} />
+        ) : null
+      }
+    >
       <UndoSave batchId={batchId} onUndone={() => setUndone(true)} />
       {waiting > 0 ? (
         <button type="button" onClick={onMore} className={PILL_QUIET}>

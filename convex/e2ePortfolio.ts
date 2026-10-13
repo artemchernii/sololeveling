@@ -189,3 +189,98 @@ export const soldOut = mutation({
     return null
   },
 })
+
+/**
+ * Gold held at Revolut with no buy saved, and a screenshot of four of
+ * its buys read and waiting in an update — ADD BUYS on its page opens on
+ * it (14 Oct; his screenshot's rows). Test backend only (`guard`).
+ */
+export const goldBuys = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const revolut = (
+      await ctx.db
+        .query('accounts')
+        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+        .take(10)
+    ).find((a) => a.name === 'Revolut')
+    if (!revolut) throw new Error('reset first')
+    const now = Date.now()
+    const gold = {
+      symbol: 'GC=F',
+      name: 'Gold',
+      exchange: 'CMX',
+      type: 'FUTURE',
+    }
+    const had = await ctx.db
+      .query('instruments')
+      .withIndex('by_owner_symbol', (q) =>
+        q.eq('ownerId', ownerId).eq('symbol', gold.symbol),
+      )
+      .first()
+    const instrumentId =
+      had?._id ??
+      (await ctx.db.insert('instruments', {
+        ownerId,
+        currency: 'EUR',
+        ...gold,
+      }))
+    await ctx.db.insert('holdings', {
+      ownerId,
+      accountId: revolut._id,
+      instrumentId,
+      shares: 0.408365,
+      asOf: now,
+    })
+    if (had === null)
+      await ctx.db.insert('prices', {
+        ownerId,
+        instrumentId,
+        price: 3741.24,
+        currency: 'EUR',
+        asOf: now - DAY,
+        fetchedAt: now,
+        source: 'Yahoo Finance',
+      })
+    const batchId = await ctx.db.insert('batches', {
+      ownerId,
+      status: 'open',
+      leftOut: [],
+      quietMonths: [],
+      moves: [],
+      extras: [],
+      dismissed: [],
+    })
+    const year = new Date(now).getUTCFullYear() - 1
+    const buy = (m: number, d: number, shares: number, price: number) => ({
+      occurredAt: Date.UTC(year, m - 1, d, 12),
+      name: 'XAU',
+      side: 'buy' as const,
+      shares,
+      price,
+      currency: 'EUR',
+      preferred: 0,
+      candidates: [gold],
+    })
+    await ctx.db.insert('intakes', {
+      ownerId,
+      batchId,
+      accountId: revolut._id,
+      storageIds: [],
+      status: 'ready',
+      kind: 'trades',
+      title: 'Buy XAU · trades',
+      files: [{ name: 'gold.png', size: 1, contentType: 'image/png' }],
+      trades: [
+        buy(7, 23, 0.08275, 3607.63),
+        buy(6, 10, 0.069022, 3604.38),
+        buy(4, 30, 0.074456, 4009.46),
+        buy(4, 16, 0.059985, 4147.38),
+      ],
+    })
+    return null
+  },
+})

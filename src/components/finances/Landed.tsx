@@ -38,8 +38,17 @@ export type LandedAccount = {
 export function AccountsLanded({
   accounts,
   cash = true,
+  title,
+  bare = false,
+  note,
   children,
 }: {
+  /** Its own words, where it is not "X is up to date". */
+  title?: string
+  /** No cash beside the account: the save was not about its money. */
+  bare?: boolean
+  /** A line under the accounts. */
+  note?: React.ReactNode
   accounts: Array<LandedAccount>
   /** False for a file of trades or holdings: it says nothing about the
       account's cash, so its cash is neither dated nor asked about. */
@@ -69,10 +78,11 @@ export function AccountsLanded({
         <Sparks count={14} reach={46} />
       </span>
       <span className="motion-land text-center text-[24px] font-light text-foreground">
-        {landedTitle(
-          lines.map((l) => l.account.name),
-          allFresh,
-        )}
+        {title ??
+          landedTitle(
+            lines.map((l) => l.account.name),
+            allFresh,
+          )}
       </span>
       <div className="flex w-full max-w-xl flex-col gap-1.5">
         {lines.map((l, i) => (
@@ -90,7 +100,9 @@ export function AccountsLanded({
               <span className="min-w-0 flex-1 truncate text-[15px] text-foreground">
                 {l.account.name}
               </span>
-              <span className="text-right text-[17px] font-light text-foreground">
+              <span
+                className={`text-right text-[17px] font-light text-foreground ${bare ? 'hidden' : ''}`}
+              >
                 {l.pockets
                   .filter((p) => p.value !== null)
                   .map((p) => money(p.value as number, p.currency))
@@ -135,6 +147,7 @@ export function AccountsLanded({
               : null}
           </div>
         ))}
+        {note}
       </div>
       <div
         style={{ animationDelay: `${260 + lines.length * 80}ms` }}

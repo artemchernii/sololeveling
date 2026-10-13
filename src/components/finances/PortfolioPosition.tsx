@@ -15,12 +15,12 @@ import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
 import { ToolPills, ViewPills } from '@/components/finances/ChartTools'
 import type { Tool } from '@/components/finances/ChartTools'
-import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
+import { TickerLogo } from '@/components/finances/Logo'
 import type { View } from '@/components/finances/chartSeries'
 import { PriceChart, asPt } from '@/components/finances/PriceChart'
 import type { Position } from '@/components/finances/PortfolioList'
+import { PositionTiles } from '@/components/finances/PositionTiles'
 import { PositionTrades } from '@/components/finances/PositionTrades'
-import { Veiled } from '@/components/finances/Veil'
 import { AddBuys } from '@/components/finances/AddBuys'
 import { useOlderYears } from '@/components/finances/useOlderYears'
 import { useDayStarts } from '@/components/track/useDayStarts'
@@ -173,14 +173,21 @@ export function PortfolioPosition({
 
   const gain = sold ? sold.gain : gainOf(owned)
   const up = (gain?.eur ?? 0) >= 0
-  const tone = up ? 'text-state-good' : 'text-state-danger'
   const unpriced = first.type === UNPRICED
   const accountOf = (id: Id<'accounts'>) => holders.find((a) => a._id === id)
   const code = codesOf(owned)
   const unit = (n: number) => unitOf(first, n)
-  const bought = all.filter(
-    (t) => t.side === 'buy' && !t.reward && !t.split,
-  ).length
+  const buys = all.filter((t) => t.side === 'buy' && !t.reward && !t.split)
+  const bought = buys.length
+  /* Buys are saved but do not reach what is held (ADD BUYS, 14 Oct):
+     their sum is shown as what it is — a part — beside the units still
+     missing; no gain is worked out against a part. */
+  const gap = owned.at.reduce((t, r) => t + (r.status === 'gap' ? r.gap : 0), 0)
+  const part =
+    loaded && bought > 0 && gap > 0 && all.every((t) => t.side === 'buy')
+      ? Math.round(buys.reduce((t, b) => t + b.shares * b.priceEur, 0) * 100) /
+        100
+      : null
 
   return (
     <section
@@ -254,123 +261,40 @@ export function PortfolioPosition({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        <Tile label="worth now" delay={0}>
-          <span
-            className={`text-[22px] leading-tight font-light tabular-nums ${sold ? 'text-ink-500' : 'text-foreground'}`}
-          >
-            {owned.valueEur === null ? (
-              '—'
-            ) : (
-              <Veiled>{euros(owned.valueEur)}</Veiled>
-            )}
-          </span>
-          <span className="font-mono text-[10.5px] text-ink-500">
-            {sold ? (
-              'all sold'
-            ) : (
-              <Veiled>{`${owned.shares} ${unit(owned.shares)}`}</Veiled>
-            )}
-          </span>
-        </Tile>
-        <Tile label="buy total" delay={40}>
-          <span className="text-[22px] leading-tight font-light text-foreground tabular-nums">
-            {owned.paid === null ? '—' : <Veiled>{euros(owned.paid)}</Veiled>}
-          </span>
-          <span className="font-mono text-[10.5px] text-ink-500">
-            {owned.paid === null
-              ? 'not in the files yet'
-              : bought > 0
-                ? `${bought} ${bought === 1 ? 'buy' : 'buys'}`
-                : ''}
-          </span>
-        </Tile>
-        {sold ? (
-          <Tile label="sold for" delay={80}>
-            <span className="text-[22px] leading-tight font-light text-foreground tabular-nums">
-              {sold.got === null ? '—' : <Veiled>{euros(sold.got)}</Veiled>}
-            </span>
-            <span className="font-mono text-[10.5px] text-ink-500">
-              {sold.got === null
-                ? 'not in the files yet'
-                : FULL.format(new Date(sold.day))}
-            </span>
-          </Tile>
-        ) : null}
-        <Tile
-          label={
-            sold
-              ? gain === null
-                ? 'when sold'
-                : `${up ? 'up' : 'down'} when sold`
-              : gain === null
-                ? 'since bought'
-                : `${up ? 'up' : 'down'} since bought`
-          }
-          delay={sold ? 120 : 80}
-        >
-          {gain === null ? (
-            <span className="text-[22px] leading-tight font-light text-ink-500">
-              —
-            </span>
-          ) : (
-            <>
-              <span
-                className={`text-[22px] leading-tight font-light tabular-nums ${tone}`}
-              >
-                <Veiled>{`${up ? '+' : '−'}${euros(Math.abs(gain.eur))}`}</Veiled>
-              </span>
-              <span className={`font-mono text-[10.5px] ${tone}`}>
-                {up ? '▲' : '▼'} {Math.abs(gain.pct).toFixed(1)}%
-              </span>
-            </>
-          )}
-        </Tile>
-        {sold ? null : owned.stakedEur !== null && owned.at.length === 1 ? (
-          <Tile label="from staking" delay={120}>
-            <span className="text-[22px] leading-tight font-light text-state-good tabular-nums">
-              <Veiled>{euros(owned.stakedEur)}</Veiled>
-            </span>
-            <span className="font-mono text-[10.5px] text-ink-500">
-              <Veiled>{`${Number(owned.staked.toFixed(4))} ${unit(owned.staked)}`}</Veiled>{' '}
-              · not counted as income
-            </span>
-          </Tile>
-        ) : (
-          <Tile
-            label={owned.at.length > 1 ? 'accounts' : 'account'}
-            delay={120}
-          >
-            {owned.at.map((r) => {
-              const a = accountOf(r.accountId)
-              return (
-                <span
-                  key={r.accountId}
-                  className="flex min-h-5 items-center justify-between gap-2 font-mono text-[12px]"
-                >
-                  <span className="flex min-w-0 items-center gap-1.5 text-ink-300">
-                    <AccountLogo
-                      name={a?.name ?? ''}
-                      domain={a?.domain}
-                      size={14}
-                    />
-                    <span className="truncate">{a?.name}</span>
-                  </span>
-                  <span className="text-foreground">
-                    {r.valueEur === null ? (
-                      '—'
-                    ) : (
-                      <Veiled>{euros(r.valueEur)}</Veiled>
-                    )}
-                  </span>
-                </span>
-              )
-            })}
-          </Tile>
-        )}
-      </div>
+      <PositionTiles
+        owned={owned}
+        sold={sold}
+        gain={gain}
+        bought={bought}
+        part={part}
+        gap={gap}
+        unit={unit}
+        accountOf={accountOf}
+      />
 
-      {sold ? null : <AddBuys owned={owned} accountOf={accountOf} />}
+      {sold ? null : (
+        <AddBuys
+          thing={{
+            name: owned.name,
+            symbols: [...new Set(owned.at.map((r) => r.symbol))],
+            held: owned.shares,
+            amount: (n) => `${Number(n.toFixed(6))} ${unit(n)}`,
+            saved: all.flatMap((t) =>
+              t.reward || t.split
+                ? []
+                : [
+                    {
+                      occurredAt: t.occurredAt,
+                      side: t.side,
+                      shares: t.shares,
+                    },
+                  ],
+            ),
+          }}
+          at={owned.at}
+          accountOf={accountOf}
+        />
+      )}
 
       {unpriced ? (
         <div className="flex items-start gap-3 rounded-[16px] bg-state-warn/9 p-4 text-state-warn ring-1 ring-state-warn/30 ring-inset">
@@ -464,25 +388,5 @@ export function PortfolioPosition({
         accountOf={accountOf}
       />
     </section>
-  )
-}
-
-function Tile({
-  label,
-  delay,
-  children,
-}: {
-  label: string
-  delay: number
-  children: React.ReactNode
-}) {
-  return (
-    <div
-      style={{ animationDelay: `${delay}ms` }}
-      className="motion-arrive flex flex-col gap-1 rounded-[14px] bg-lift/[0.035] p-3 ring-1 ring-lift/7 ring-inset"
-    >
-      <span className="label-caps">{label}</span>
-      {children}
-    </div>
   )
 }

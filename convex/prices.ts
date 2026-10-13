@@ -15,6 +15,9 @@ import { UNPRICED } from '../src/lib/market'
 export const FRESH_FOR = 30 * 60_000
 /** How many tickers are looked at to tell how old the last reading is. */
 const SAMPLE = 5
+/** How many of the newest scheduled jobs are looked at for a reading
+    already on its way. */
+const RECENT_JOBS = 30
 
 export const refresh = mutation({
   args: {},
@@ -49,6 +52,23 @@ export const refresh = mutation({
       if (row !== null) newest = Math.max(newest, row.fetchedAt)
     }
     if (Date.now() - newest < FRESH_FOR) return 'fresh'
+    /* One reading at a time (14 Oct). A reading of every ticker takes a
+       minute or two, and until its first prices land a second ask — a
+       second tab, the page shown again, the effect React runs twice in
+       development — still sees old prices. Two readings side by side
+       saved the same rows at the same moment: 465 collisions on
+       `prices` in three days, each one redone. */
+    const jobs = await ctx.db.system
+      .query('_scheduled_functions')
+      .order('desc')
+      .take(RECENT_JOBS)
+    const running = jobs.some(
+      (j) =>
+        (j.state.kind === 'pending' || j.state.kind === 'inProgress') &&
+        j.name.endsWith('readAll') &&
+        (j.args[0] as { ownerId?: string } | undefined)?.ownerId === ownerId,
+    )
+    if (running) return 'reading'
     await ctx.scheduler.runAfter(0, internal.market.readAll, {
       pricesOnly: true,
       ownerId,

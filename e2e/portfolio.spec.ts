@@ -70,11 +70,24 @@ test('Portfolio: empty, then the positions a screenshot brought', async ({
   await expect(
     position.getByRole('heading', { name: 'Apple Inc.' }),
   ).toBeVisible()
-  for (const label of ['worth now', 'bought for', 'account', 'price'])
+  for (const label of ['worth now', 'buy total', 'account', 'price'])
     await expect(position.getByText(label, { exact: true })).toBeVisible()
   await expect(page.getByText('everything owned · 2')).toHaveCount(0)
   await page.waitForTimeout(800)
   await page.screenshot({ ...shot('portfolio-position'), fullPage: true })
+
+  /* ADD BUYS opens the account's update window, named for the thing:
+     the drop area alone, nothing to type. */
+  await position.getByRole('button', { name: 'add buys' }).click()
+  const buys = page.getByRole('dialog')
+  await expect(buys.getByText('add buys · Apple Inc.')).toBeVisible()
+  /* The screenshot of this test is still an update waiting, so the
+     window opens on it — the same engine as ADD. */
+  await expect(buys.getByRole('listitem').first()).toHaveText('drop')
+  await expect(buys.getByText('or type what is in it now')).toHaveCount(0)
+  await page.screenshot({ ...shot('portfolio-add-buys'), fullPage: true })
+  await page.keyboard.press('Escape')
+  await expect(buys).toBeHidden()
 
   /* The address alone opens it; back is the list again. */
   await page.reload()
@@ -173,7 +186,7 @@ test('Portfolio: a thing sold out has its row and its page', async ({
     position.getByRole('heading', { name: 'Shopify Inc.' }),
   ).toBeVisible()
   await expect(position.getByText(/^all sold .+ \d{4}$/)).toBeVisible()
-  for (const label of ['worth now', 'bought for', 'sold for', 'up when sold'])
+  for (const label of ['worth now', 'buy total', 'sold for', 'up when sold'])
     await expect(position.getByText(label, { exact: true })).toBeVisible()
   await expect(position.getByText('buys and sells · 3')).toBeVisible()
   await page.waitForTimeout(800)

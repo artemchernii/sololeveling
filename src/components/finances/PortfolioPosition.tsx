@@ -21,6 +21,7 @@ import { PriceChart, asPt } from '@/components/finances/PriceChart'
 import type { Position } from '@/components/finances/PortfolioList'
 import { PositionTrades } from '@/components/finances/PositionTrades'
 import { Veiled } from '@/components/finances/Veil'
+import { AddBuys } from '@/components/finances/AddBuys'
 import { useOlderYears } from '@/components/finances/useOlderYears'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { money } from '@/lib/currency'
@@ -32,7 +33,7 @@ import { drawable, withOlder } from '@/lib/priceChart'
 import type { Owned } from '@/lib/owned'
 import type { soldSums } from '@/lib/sold'
 
-type Account = Pick<Doc<'accounts'>, '_id' | 'name' | 'domain'>
+type Account = Doc<'accounts'>
 
 const DAY = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
@@ -272,7 +273,7 @@ export function PortfolioPosition({
             )}
           </span>
         </Tile>
-        <Tile label="bought for" delay={40}>
+        <Tile label="buy total" delay={40}>
           <span className="text-[22px] leading-tight font-light text-foreground tabular-nums">
             {owned.paid === null ? '—' : <Veiled>{euros(owned.paid)}</Veiled>}
           </span>
@@ -368,6 +369,8 @@ export function PortfolioPosition({
           </Tile>
         )}
       </div>
+
+      {sold ? null : <AddBuys owned={owned} accountOf={accountOf} />}
 
       {unpriced ? (
         <div className="flex items-start gap-3 rounded-[16px] bg-state-warn/9 p-4 text-state-warn ring-1 ring-state-warn/30 ring-inset">

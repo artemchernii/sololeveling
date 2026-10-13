@@ -52,6 +52,18 @@ export const METALS: Record<
   },
 }
 
+/** The metal a trade is named for — its code ("XAU") or its name
+    ("Gold") and nothing else — as its ticker, found without a search:
+    a search for "XAU" answers with shares (13 Oct, a screenshot of
+    Revolut's gold buys). Null for anything else. */
+export function metalTicker(name: string) {
+  const said = name.trim().toUpperCase()
+  const metal = Object.entries(METALS).find(
+    ([code, m]) => code === said || m.name.toUpperCase() === said,
+  )
+  return metal ? { candidates: [metal[1].candidate], preferred: 0 } : null
+}
+
 /**
  * A statement whose every row is in a metal is what he holds, not money
  * moving: one position a metal, its ounces the statement's last balance

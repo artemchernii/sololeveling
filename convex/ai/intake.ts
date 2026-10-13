@@ -8,7 +8,7 @@ import { internalAction } from '../_generated/server'
 import type { ActionCtx } from '../_generated/server'
 import type { Id } from '../_generated/dataModel'
 import { backfillRates, priceEurNow, searchYahoo } from '../market'
-import { metalHoldings, metalsTitle } from '../../src/lib/metals'
+import { metalHoldings, metalTicker, metalsTitle } from '../../src/lib/metals'
 import {
   INTAKE_MODEL,
   INTAKE_MODEL_NAME,
@@ -329,7 +329,9 @@ async function readWithModel(
   for (const t of readTrades)
     trades.push({
       ...t,
-      ...(t.crypto ? coin(t.name) : await tickers.find(t.name, t.isin)),
+      ...(t.crypto
+        ? coin(t.name)
+        : (metalTicker(t.name) ?? (await tickers.find(t.name, t.isin)))),
     })
   /* A crypto statement's closing amounts: its coins, as the trades name
      them. */
@@ -672,7 +674,10 @@ async function readCsv(
     const tickers = new Tickers()
     const trades = []
     for (const t of merged.trades)
-      trades.push({ ...t, ...(await tickers.find(t.name, t.isin)) })
+      trades.push({
+        ...t,
+        ...(metalTicker(t.name) ?? (await tickers.find(t.name, t.isin))),
+      })
     await ctx.runMutation(internal.intake.finish, {
       intakeId,
       kind: 'trades',
@@ -818,7 +823,10 @@ export const resplit = internalAction({
     const tickers = new Tickers()
     const trades = []
     for (const t of split.trades)
-      trades.push({ ...t, ...(await tickers.find(t.name, t.isin)) })
+      trades.push({
+        ...t,
+        ...(metalTicker(t.name) ?? (await tickers.find(t.name, t.isin))),
+      })
     await ctx.runMutation(internal.intake.applySplit, {
       intakeId: args.intakeId,
       transactions: split.transactions,

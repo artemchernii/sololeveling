@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { between, firstSince, nearest, priceSeries } from './priceChart'
+import { between, firstSince, nearest, priceSeries, ruler } from './priceChart'
 
 const DAY = 86_400_000
 const points = [
@@ -74,5 +74,20 @@ describe('what the pointer reads', () => {
     expect(d.pct).toBe(20)
     expect(between(points[1], points[2]).diff).toBe(-20)
     expect(between(points[1], points[2]).pct).toBeCloseTo(-18.18, 2)
+  })
+
+  it('rules from where the drag began to where it ended, with the days', () => {
+    const day = 86_400_000
+    const up = ruler({ t: 10 * day, v: 80 }, { t: 3 * day, v: 100.004 })
+    expect(up.from).toEqual({ t: 10 * day, v: 80 })
+    expect(up.to.v).toBe(100.004)
+    expect(up.diff).toBe(20)
+    expect(up.pct).toBe(25)
+    expect(up.days).toBe(7)
+    const down = ruler({ t: 0, v: 50 }, { t: day, v: 45 })
+    expect(down.diff).toBe(-5)
+    expect(down.pct).toBe(-10)
+    expect(down.days).toBe(1)
+    expect(ruler({ t: 0, v: 0 }, { t: 0, v: 5 }).pct).toBe(0)
   })
 })

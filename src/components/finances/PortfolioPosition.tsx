@@ -38,6 +38,13 @@ const DAY = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
   month: 'short',
 })
+/* The latest price with its time (13 Oct: "Latest price needs time"). */
+const TIME = new Intl.DateTimeFormat(undefined, {
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+})
 const FULL = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
   month: 'short',
@@ -235,7 +242,7 @@ export function PortfolioPosition({
                 )}
                 {first.priceAsOf === null
                   ? 'Yahoo Finance'
-                  : `price on ${DAY.format(new Date(first.priceAsOf))} · Yahoo Finance`}
+                  : `price on ${TIME.format(new Date(first.priceAsOf))} · Yahoo Finance`}
               </span>
             </div>
           )}

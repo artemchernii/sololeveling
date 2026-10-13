@@ -18,7 +18,7 @@ export function DotBox({
   price,
   eur,
 }: {
-  /** The buys and sells on this stored close; the first is said. */
+  /** The buys and sells on this stored close. */
   marks: ReadonlyArray<Mark>
   dot: { x: number; y: number }
   plot: { w: number; h: number; room: number }
@@ -37,7 +37,6 @@ export function DotBox({
       setSize({ w: el.offsetWidth, h: el.offsetHeight })
   })
   const at = boxAt({ ...dot, side: m.side }, size, plot)
-  const buy = m.side === 'buy'
   return (
     <div
       ref={own}
@@ -48,29 +47,42 @@ export function DotBox({
       }}
       className="pointer-events-none absolute top-0 left-0 z-[6] max-w-[calc(100%-12px)] rounded-lg bg-popover px-3 py-[9px] font-mono text-[11px] text-ink-400 shadow-lg ring-1 ring-lav-400/55 ring-inset"
     >
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <b
-          className={`rounded-full px-2 py-0.5 text-[11px] font-normal ${buy ? 'bg-state-good/14 text-state-good' : 'bg-state-danger/14 text-state-danger'}`}
-        >
-          {buy ? 'bought' : 'sold'}
-        </b>
-        {m.eur === undefined ? null : (
-          <span className="text-[13.5px] text-ink-100 tabular-nums">
-            <Veiled>{euros(m.eur)}</Veiled>
-          </span>
-        )}
-        <i className="text-ink-200 not-italic">{day}</i>
-      </div>
+      {(['buy', 'sell'] as const).map((side) => {
+        const those = marks.filter((x) => x.side === side)
+        if (those.length === 0) return null
+        /* Several that day are said as one: how many, and their sum. */
+        const sum = those.every((x) => x.eur !== undefined)
+          ? Math.round(those.reduce((n, x) => n + (x.eur ?? 0), 0) * 100) / 100
+          : undefined
+        return (
+          <div
+            key={side}
+            className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 not-first:mt-1.5"
+          >
+            <b
+              className={`rounded-full px-2 py-0.5 text-[10.5px] font-normal tracking-[0.12em] uppercase ${side === 'buy' ? 'bg-state-good/14 text-state-good' : 'bg-state-danger/14 text-state-danger'}`}
+            >
+              {those.length > 1 ? `${those.length} ` : ''}
+              {side}
+              {those.length > 1 ? 's' : ''}
+            </b>
+            {sum === undefined ? null : (
+              <span className="text-[13.5px] text-ink-100 tabular-nums">
+                <Veiled>{euros(sum)}</Veiled>
+              </span>
+            )}
+            <i className="text-ink-200 not-italic">{day}</i>
+          </div>
+        )
+      })}
       <div className="mt-1.5">
-        at <i className="text-ink-200 not-italic">{price}</i>
+        price that day <i className="text-ink-200 not-italic">{price}</i>
         {eur === null ? null : (
           <>
             {' · '}
             <i className="text-ink-200 not-italic">{eur}</i>
           </>
-        )}{' '}
-        a share
-        {marks.length > 1 ? ` · and ${marks.length - 1} more that day` : ''}
+        )}
       </div>
     </div>
   )

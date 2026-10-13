@@ -48,6 +48,16 @@ const DAY = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
 })
 
+/* The latest price says its time too (13 Oct: "Latest price needs
+   time"); a past day is its close. */
+const NOW = new Intl.DateTimeFormat(undefined, {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
 /* How far across, in pixels, a dot is read from. */
 const DOT_REACH = 9
 const PLOT = 'h-[300px] rounded-[14px] sm:h-[380px]'
@@ -342,16 +352,16 @@ function Plot({
     <div className="flex flex-col gap-2">
       <div
         data-testid="price-read"
-        className="flex min-h-[42px] flex-wrap items-baseline gap-x-2 gap-y-0.5 font-mono text-[13px] text-foreground tabular-nums sm:min-h-[22px]"
+        className="flex min-h-[50px] flex-wrap items-baseline gap-x-2.5 gap-y-0.5 font-mono text-[17px] text-foreground tabular-nums sm:min-h-[26px]"
       >
         {measured ? (
           <>
-            <span className="text-[10.5px] text-ink-500">
+            <span className="text-[11.5px] text-ink-500">
               {measured.kind === 'ruler' ? 'from ' : ''}
               {DAY.format(new Date(measured.from.t))}
             </span>
             <span>{price(measured.from.v, currency)}</span>
-            <span className="text-[10.5px] text-ink-500">
+            <span className="text-[11.5px] text-ink-500">
               {measured.kind === 'ruler' ? 'to' : '→'}{' '}
               {DAY.format(new Date(measured.to.t))}
             </span>
@@ -371,8 +381,8 @@ function Plot({
             {seen.eur === undefined ? null : (
               <span className="text-ink-300">{euros(seen.eur)}</span>
             )}
-            <span className="text-[10.5px] text-ink-500">
-              {DAY.format(new Date(seen.t))}
+            <span className="text-[11.5px] text-ink-500">
+              {(at === null ? NOW : DAY).format(new Date(seen.t))}
               {at === null ? ' · latest price' : ''}
               {volume && seen.vol !== undefined
                 ? ` · ${many(seen.vol)} shares traded`
@@ -420,7 +430,7 @@ function Plot({
               <i
                 className={`size-[9px] rounded-full border-2 ${side === 'buy' ? 'border-state-good' : 'border-state-danger'}`}
               />
-              {side === 'buy' ? 'bought' : 'sold'}
+              <span className="tracking-[0.12em] uppercase">{side}</span>
             </span>
           ))}
         {volume ? (

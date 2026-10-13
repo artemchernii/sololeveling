@@ -196,7 +196,8 @@ export const priceLine = query({
       )
       .take(400)
     const { base, divide } = quoteToRate(instrument.currency)
-    if (base === 'EUR' || base === '' || rows.length === 0) return rows.map(stored)
+    if (base === 'EUR' || base === '' || rows.length === 0)
+      return rows.map(stored)
     /* The rates of the same window, one read. The ECB publishes on
        business days, in the afternoon: a close on a weekend, a holiday
        or this morning takes the last rate before it, as the position's

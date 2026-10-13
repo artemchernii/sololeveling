@@ -10,7 +10,7 @@
   /* The chart of one position, on TradingView's free chart library
      (13 Oct, in review). Artem: "i want to have more advanced charts that
      are useful" — two tools beside the chart, as TradingView has: compare
-     two days on the line, and a ruler drawn as a rectangle; and volume.
+     one day with another on the line, and a ruler drawn as a rectangle; and volume.
      The rest of the position page (portfolio.html) stays as approved.
      Sample numbers, not his. */
   :root {
@@ -50,9 +50,12 @@
   #chart { position: absolute; inset: 0; z-index: 0 }
   /* The tools draw over the chart; it takes the pointer only when one is on. */
   #tool { position: absolute; inset: 0; z-index: 5; pointer-events: none; touch-action: pan-y; user-select: none; -webkit-user-select: none } #tool.on { pointer-events: auto; cursor: crosshair }
-  .band { position: absolute; top: 0; bottom: 26px; border-left: 1px dashed; border-right: 1px dashed; animation: arrive .2s var(--ease) both }
-  .box { position: absolute; border: 1px solid; border-radius: 4px; animation: arrive .2s var(--ease) both }
-  .box span { position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; font-family: var(--mono); font-size: 11.5px; padding: 4px 9px; border-radius: 8px; background: #23213a; box-shadow: inset 0 0 0 1px currentColor, 0 8px 20px -8px #000 }
+  /* One shape, moved — never rebuilt while the pointer drags (13 Oct:
+     "a bit luggy"). Lavender and dotted, not the line's green on green. */
+  #shape { position: absolute; left: 0; top: 0; display: none; border: 1.5px dotted var(--lav-400); border-radius: 4px; background: color-mix(in srgb, var(--lav-400) 13%, transparent); will-change: transform, width, height }
+  #shape.band { border-top: 0; border-bottom: 0; border-radius: 0 }
+  #shape span { position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; font-family: var(--mono); font-size: 11.5px; padding: 4px 9px; border-radius: 8px; color: var(--ink-100); background: #2b2850; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lav-400) 55%, transparent), 0 8px 20px -8px #000 }
+  #shape.band span { display: none }
   @keyframes arrive { from { opacity: 0 } }
   .keys { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
   .keys span { display: inline-flex; align-items: center; gap: 6px } .dot { width: 9px; height: 9px; border-radius: 99px; border: 2px solid } .sq { width: 9px; height: 9px; border-radius: 2px; background: var(--ink-600) }
@@ -76,7 +79,7 @@
       <div class="pills" id="ranges"></div>
     </div>
     <div class="read" id="read"></div>
-    <div class="plot"><div id="chart"></div><div id="tool"></div></div>
+    <div class="plot"><div id="chart"></div><div id="tool"><div id="shape"><span></span></div></div></div>
     <div class="keys"><span><i class="dot" style="border-color:var(--good)"></i>bought</span><span><i class="dot" style="border-color:var(--danger)"></i>sold</span><span id="volkey"><i class="sq"></i>shares traded that day</span></div>
   </section>
 </div>
@@ -156,17 +159,24 @@ const layer = document.getElementById('tool')
 let shape = null, from = null
 const idxAt = (x) => Math.max(0, Math.min(bars.length - 1, Math.round(chart.timeScale().coordinateToLogical(x) ?? 0)))
 const xOf = (i) => chart.timeScale().logicalToCoordinate(i)
+const box = document.getElementById('shape'), tag = box.firstChild
+let due = false
 function place() {
-  layer.innerHTML = ''
-  if (!shape) return
-  const a = xOf(shape.a), b = xOf(shape.b)
-  if (a == null || b == null) return
-  const el = document.createElement('div'), c = shape.up ? GOOD : BAD
-  if (shape.kind === 'compare') { el.className = 'band'; el.style.cssText = `left:${Math.min(a, b)}px;width:${Math.abs(b - a)}px;border-color:${c};background:${c}1c` }
-  else { const y0 = series.priceToCoordinate(shape.p0), y1 = series.priceToCoordinate(shape.p1)
-    el.className = 'box'; el.style.cssText = `left:${Math.min(a, b)}px;width:${Math.abs(b - a)}px;top:${Math.min(y0, y1)}px;height:${Math.abs(y1 - y0)}px;border-color:${c};background:${c}1c`
-    el.innerHTML = `<span class="${shape.up ? 'up' : 'down'}">${shape.label}</span>` }
-  layer.appendChild(el)
+  if (due) return
+  due = true
+  requestAnimationFrame(() => {
+    due = false
+    const a = shape && xOf(shape.a), b = shape && xOf(shape.b)
+    if (!shape || a == null || b == null) { box.style.display = 'none'; return }
+    const band = shape.kind === 'compare', h = layer.clientHeight - 26
+    const y0 = band ? 0 : series.priceToCoordinate(shape.p0), y1 = band ? h : series.priceToCoordinate(shape.p1)
+    box.className = band ? 'band' : ''
+    box.style.display = 'block'
+    box.style.transform = `translate(${Math.min(a, b)}px,${Math.min(y0, y1)}px)`
+    box.style.width = Math.abs(b - a) + 'px'
+    box.style.height = Math.abs(y1 - y0) + 'px'
+    if (!band && tag.textContent !== shape.label) tag.textContent = shape.label
+  })
 }
 function measure(e) {
   const r = layer.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, i = idxAt(x)
@@ -180,7 +190,8 @@ function measure(e) {
     shape = { kind: 'ruler', a: from.i, b: i, p0: from.p, p1, up, label }
     held = `<small>from</small><span>${usd(from.p)}</span><small>to</small><span>${usd(p1)}</span><b class="chip ${up ? 'up' : 'down'}">${label}</b>`
   }
-  place(); say(null)
+  place()
+  if (read.innerHTML !== (held ?? '')) say(null)
 }
 layer.onpointerdown = (e) => { const r = layer.getBoundingClientRect(); from = { i: idxAt(e.clientX - r.left), p: series.coordinateToPrice(e.clientY - r.top) }; shape = null; held = null; layer.setPointerCapture(e.pointerId); place(); say(from.i) }
 layer.onpointermove = (e) => { if (from) measure(e) }
@@ -190,7 +201,7 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape') { shape = null; hel
 
 function bar() {
   document.getElementById('tools').innerHTML =
-    `<button class="pill tool ${tool === 'compare' ? 'on' : ''}" aria-pressed="${tool === 'compare'}" onclick="arm('compare')">${I.compare}two days</button>` +
+    `<button class="pill tool ${tool === 'compare' ? 'on' : ''}" aria-pressed="${tool === 'compare'}" onclick="arm('compare')">${I.compare}compare</button>` +
     `<button class="pill tool ${tool === 'ruler' ? 'on' : ''}" aria-pressed="${tool === 'ruler'}" onclick="arm('ruler')">${I.ruler}ruler</button>`
   document.getElementById('views').innerHTML =
     ['line', 'candles'].map((v) => `<button class="pill ${v === view ? 'on' : ''}" onclick="view='${v}';redo()">${v}</button>`).join('') +

@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { useMutation } from 'convex/react'
-import { ChevronDown, X } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 
-import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
@@ -40,7 +38,6 @@ export function PositionTrades({
   /* A long round shows its newest rows; the rest is one press away. */
   const [whole, setWhole] = useState(false)
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
-  const remove = useMutation(api.invest.removeTrade)
   const row = (t: Doc<'trades'>, i: number) => {
     const a = accountOf(t.accountId)
     const free = t.reward || t.split
@@ -49,7 +46,7 @@ export function PositionTrades({
         key={t._id}
         data-testid="trade-row"
         style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}
-        className="group motion-arrive grid grid-cols-[62px_minmax(0,1fr)_auto_16px_20px] items-center gap-2.5 border-t border-lift/6 py-2.5"
+        className="motion-arrive grid grid-cols-[62px_minmax(0,1fr)_auto_16px] items-center gap-2.5 border-t border-lift/6 py-2.5"
       >
         <span
           className={`font-mono text-[10.5px] tracking-[0.12em] uppercase ${
@@ -84,14 +81,6 @@ export function PositionTrades({
           {FULL.format(new Date(t.occurredAt))}
         </span>
         <AccountLogo name={a?.name ?? ''} domain={a?.domain} size={16} />
-        <button
-          type="button"
-          aria-label="Remove this trade"
-          onClick={() => void remove({ tradeId: t._id })}
-          className="grid size-5 place-items-center rounded-[6px] text-ink-600 opacity-0 group-hover:opacity-100 hover:text-state-danger [@media(hover:none)]:opacity-100"
-        >
-          <X className="size-3" />
-        </button>
       </div>
     )
   }

@@ -53,6 +53,21 @@ describe('rounds', () => {
     expect(r[0].open).toBe(false)
   })
 
+  it('adds each trade to the cent, as PAID does', () => {
+    /* His MSFT round: €436.03 + €219.42 + €251.00 = €906.45 summed raw,
+       €906.44 cent by cent. */
+    const [r] = rounds([
+      t('buy', '2026-06-22', 1.31940046, 330.48),
+      t('buy', '2026-07-01', 0.64990974, 337.61),
+      t('buy', '2026-07-01', 0.741729, 338.398526),
+    ])
+    expect(r.buyEur).toBe(
+      [1.31940046 * 330.48, 0.64990974 * 337.61, 0.741729 * 338.398526]
+        .map((n) => Math.round(n * 100) / 100)
+        .reduce((a, b) => Math.round((a + b) * 100) / 100),
+    )
+  })
+
   it('is empty with no trade', () => {
     expect(rounds([])).toEqual([])
   })

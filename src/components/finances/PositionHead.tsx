@@ -80,8 +80,8 @@ function Gold({ title }: { title?: string }) {
       title={title}
       className={BADGE}
       style={{
-        color: 'var(--metal-xau)',
-        background: 'color-mix(in oklch, var(--metal-xau) 16%, transparent)',
+        color: 'var(--metal-xau-ink)',
+        background: 'color-mix(in oklch, var(--metal-xau) 18%, transparent)',
       }}
     >
       <Bars size={12} fill="currentColor" />

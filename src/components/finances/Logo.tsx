@@ -3,7 +3,6 @@ import { Banknote } from 'lucide-react'
 
 import { metalOf } from '@/lib/holdingLine'
 import { isCoin, logoSrc } from '@/lib/logo'
-import { METALS } from '@/lib/metals'
 import { payeeSite } from '@/lib/payeeSites'
 
 /* Real marks (27 Sep: "in portfolio i want icons of broker"). An account's
@@ -141,17 +140,31 @@ export function TickerLogo({
     height: size,
     borderRadius: coin ? size / 2 : size / 3.6,
   }
-  /* A metal is its element in its own colour (10 Oct: "GC=F" is the
-     future its price is read from, not a name he knows). */
+  /* A metal is three bars on its own colour (14 Oct, his picture: the
+     element's letters spilled out of a small circle). Not "GC=F", the
+     future its price is read from (10 Oct). */
   const metal = metalOf(symbol)
   if (metal) {
     return (
       <span
         aria-hidden
-        style={{ ...box, borderRadius: size / 2 }}
-        className="grid shrink-0 place-items-center bg-money-cash text-[13px] font-semibold text-ground"
+        style={{
+          ...box,
+          borderRadius: size / 2,
+          background: `var(--metal-${metal.toLowerCase()})`,
+        }}
+        className="grid shrink-0 place-items-center"
       >
-        {METALS[metal].element}
+        <svg
+          viewBox="0 0 24 24"
+          width={size * 0.62}
+          height={size * 0.62}
+          fill="white"
+        >
+          <path d="M9.2 4.5h5.6l2.4 5.6H6.8z" />
+          <path d="M3.6 12.7h6.1l2.4 5.6H1.2z" />
+          <path d="M14.3 12.7h6.1l2.4 5.6H11.9z" />
+        </svg>
       </span>
     )
   }

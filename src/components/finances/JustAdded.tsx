@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
-import { Check, X } from 'lucide-react'
+import { Check, ChevronDown, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
@@ -61,21 +61,70 @@ export function JustAdded({
     name: string
     badge: string
   } | null>(null)
+  /* One line until pressed (14 Oct: five cards after one drop were a
+     wall); × hides it on this device until a newer file is saved. */
+  const [open, setOpen] = useState(false)
+  const key = `just-added-hidden:${accountId ?? [...(intakeIds ?? [])].sort().join(',')}`
+  const [hid, setHidden] = useState(0)
+  const hidden = Math.max(hid, readHidden(key))
+  const list = files ?? []
+  const newest = Math.max(0, ...list.map((f) => f.addedAt))
   /* A thing whose last file went has nothing to ask about: the line
      that says it was removed still stands. */
-  if (removed === null && (files === undefined || files.length === 0))
-    return null
-  const list = files ?? []
+  if (removed === null && (list.length === 0 || newest <= hidden)) return null
   const today = days[days.length - 1]
+  const shown = open || removed !== null || asking !== null
+  const buys = list.reduce((n, f) => n + f.buys, 0)
+  const sells = list.reduce((n, f) => n + f.sells, 0)
+  const rows = list.reduce((n, f) => n + (isTrades(f) ? 0 : f.saved), 0)
   return (
     <div data-testid="just-added" className="flex flex-col gap-2">
-      <span className="flex items-center gap-2">
-        {list.some((f) => f.addedAt >= today) ? (
-          <span className="size-1.5 animate-pulse rounded-full bg-lav-400 shadow-[0_0_8px_var(--color-lav-400)]" />
-        ) : null}
-        <span className="label-caps text-lav-300">just added</span>
-        <span className="font-mono text-[11px] text-ink-400">· 7 days</span>
-      </span>
+      <div
+        data-testid="just-line"
+        className="motion-arrive flex items-center gap-1 rounded-[14px] bg-lav-400/[0.06] py-1 pr-1 pl-3 ring-1 ring-lav-400/22 ring-inset"
+      >
+        <button
+          type="button"
+          aria-expanded={shown}
+          onClick={() => setOpen(!shown)}
+          className="motion-press flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left"
+        >
+          {newest >= today ? (
+            <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-lav-400 shadow-[0_0_8px_var(--color-lav-400)]" />
+          ) : null}
+          <span className="label-caps shrink-0 text-lav-300">just added</span>
+          <span className="shrink-0 font-mono text-[11px] text-ink-400">
+            · {list.length} {list.length === 1 ? 'file' : 'files'}
+          </span>
+          {buys > 0 ? <Badge tone="buy">{buys} buy</Badge> : null}
+          {sells > 0 ? <Badge tone="sell">{sells} sell</Badge> : null}
+          {rows > 0 ? (
+            <Badge tone="rows">
+              {rows} {rows === 1 ? 'row' : 'rows'}
+            </Badge>
+          ) : null}
+          <span className="truncate font-mono text-[11px] text-ink-400">
+            · {newest >= today ? 'today' : short(newest)}
+          </span>
+          <span className="flex-1" />
+          <ChevronDown
+            className={`size-4 shrink-0 text-lav-300 transition-transform ${shown ? 'rotate-180' : ''}`}
+          />
+        </button>
+        <button
+          type="button"
+          aria-label="hide just added"
+          onClick={() => {
+            writeHidden(key, newest)
+            setHidden(newest)
+            setRemoved(null)
+            setAsking(null)
+          }}
+          className="motion-press grid size-8 shrink-0 place-items-center rounded-full text-ink-400 hover:bg-lift/[0.06] hover:text-foreground"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
       {removed ? (
         <div
           data-testid="just-removed"
@@ -91,42 +140,67 @@ export function JustAdded({
           <span className="font-mono text-[11px] text-ink-400">removed</span>
         </div>
       ) : null}
-      {list.map((f, i) =>
-        asking === f.id ? (
-          <Ask
-            key={f.id}
-            file={f}
-            unit={unit}
-            sums={sums(f)}
-            onKeep={() => setAsking(null)}
-            onRemoved={() => {
-              setAsking(null)
-              setRemoved({ name: nameOf(f), badge: goneBadge(f) })
-            }}
-          />
-        ) : (
-          <Panel
-            key={f.id}
-            file={f}
-            index={i}
-            today={today}
-            onOpen={() => onOpen(f.id)}
-            onRemove={() => {
-              setRemoved(null)
-              setAsking(f.id)
-            }}
-          />
-        ),
-      )}
+      {shown
+        ? list.map((f, i) =>
+            asking === f.id ? (
+              <Ask
+                key={f.id}
+                file={f}
+                unit={unit}
+                sums={sums(f)}
+                onKeep={() => setAsking(null)}
+                onRemoved={() => {
+                  setAsking(null)
+                  setRemoved({ name: nameOf(f), badge: goneBadge(f) })
+                }}
+              />
+            ) : (
+              <Panel
+                key={f.id}
+                file={f}
+                index={i}
+                today={today}
+                onOpen={() => onOpen(f.id)}
+                onRemove={() => {
+                  setRemoved(null)
+                  setAsking(f.id)
+                }}
+              />
+            ),
+          )
+        : null}
     </div>
   )
 }
 
+/* Per device, and never in the way: storage may be blocked. */
+function readHidden(key: string): number {
+  try {
+    return Number(localStorage.getItem(key) ?? 0) || 0
+  } catch {
+    return 0
+  }
+}
+function writeHidden(key: string, at: number) {
+  try {
+    localStorage.setItem(key, String(at))
+  } catch {
+    /* not kept: it shows again next time */
+  }
+}
+
 const nameOf = (f: JustFile) => f.names.join(' · ') || 'A file'
 const isTrades = (f: JustFile) => f.things.length > 0
-const count = (f: JustFile, n: number) =>
-  isTrades(f) ? `${n} buy` : `${n} ${n === 1 ? 'row' : 'rows'}`
-const goneBadge = (f: JustFile) => `−${count(f, f.saved)}`
+const rowsOf = (n: number) => `${n} ${n === 1 ? 'row' : 'rows'}`
+const goneBadge = (f: JustFile) =>
+  isTrades(f)
+    ? [
+        f.buys > 0 ? `−${f.buys} buy` : '',
+        f.sells > 0 ? `−${f.sells} sell` : '',
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : `−${rowsOf(f.saved)}`
 
 function Badge({
   tone,
@@ -203,14 +277,13 @@ function Panel({
             {t.name}
           </span>
         ))}
-        {f.saved > 0 ? (
-          <Badge tone={isTrades(f) ? 'buy' : 'rows'}>{count(f, f.saved)}</Badge>
-        ) : (
-          <Badge tone="in">0 saved</Badge>
-        )}
-        {f.had > 0 ? (
-          <Badge tone="in">{count(f, f.had)} in already</Badge>
+        {f.buys > 0 ? <Badge tone="buy">{f.buys} buy</Badge> : null}
+        {f.sells > 0 ? <Badge tone="sell">{f.sells} sell</Badge> : null}
+        {!isTrades(f) && f.saved > 0 ? (
+          <Badge tone="rows">{rowsOf(f.saved)}</Badge>
         ) : null}
+        {f.saved === 0 ? <Badge tone="in">0 saved</Badge> : null}
+        {f.had > 0 ? <Badge tone="in">{f.had} in already</Badge> : null}
         <span className="flex-1" />
         {f.saved > 0 ? (
           <button

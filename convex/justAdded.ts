@@ -40,6 +40,10 @@ const file = v.object({
   /** Rows it saved, and rows it read that were saved before it. */
   saved: v.number(),
   had: v.number(),
+  /** Of what it saved, the buys and the sells (14 Oct: IMG_9288 held 3
+      buys and 1 sell and read "4 BUY"). */
+  buys: v.number(),
+  sells: v.number(),
   /** Its buys and sells: of what. */
   things: v.array(
     v.object({ symbol: v.string(), name: v.string(), type: v.string() }),
@@ -174,6 +178,8 @@ async function described(ctx: QueryCtx, ownerId: string, i: Doc<'intakes'>) {
     to,
     saved,
     had: Math.max(0, read.length - saved),
+    buys: trades.filter((t) => t.side === 'buy').length,
+    sells: trades.filter((t) => t.side === 'sell').length,
     things: [...things.values()],
     rows,
   }

@@ -151,6 +151,8 @@ export const preview = query({
       account: v.union(v.string(), v.null()),
       rows: v.number(),
       trades: v.number(),
+      /** Of those, the sells: badges say BUY and SELL apart. */
+      sells: v.number(),
       positions: v.number(),
       /** Rows it wrote in other accounts: the first few, and how many. */
       elsewhere: v.array(
@@ -207,18 +209,21 @@ export const preview = query({
       })
     }
     let trades = 0
+    let sells = 0
     let positions = 0
     let balanceOf: number | null = null
     let cash = null
     if (account !== null) {
-      trades = (
+      const its = (
         await ctx.db
           .query('trades')
           .withIndex('by_owner_account', (q) =>
             q.eq('ownerId', ownerId).eq('accountId', account._id),
           )
           .take(TRADE_ROWS)
-      ).filter((t) => t.importId === intake._id).length
+      ).filter((t) => t.importId === intake._id)
+      trades = its.length
+      sells = its.filter((t) => t.side === 'sell').length
       positions = (
         await ctx.db
           .query('holdings')
@@ -278,6 +283,7 @@ export const preview = query({
       account: account?.name ?? null,
       rows: logs.length - away.length,
       trades,
+      sells,
       positions,
       elsewhere,
       elsewhereRows: away.length,

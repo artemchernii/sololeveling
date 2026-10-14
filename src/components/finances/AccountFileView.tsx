@@ -51,17 +51,6 @@ export function FileView({
         </span>
       </span>
       <Originals intakeId={intakeId} />
-      <TakeBack
-        intakeId={intakeId}
-        what={
-          !f.names.every((n) => IMAGE.test(n))
-            ? 'statement'
-            : f.names.length > 1
-              ? 'screenshots'
-              : 'screenshot'
-        }
-        onTaken={onTaken}
-      />
       {f.positions.length > 0 ? (
         /* What a broker's screen listed (13 Oct: Trading 212's screenshot
            opened on "0 rows in the file" and nothing under it). In euros,
@@ -165,6 +154,17 @@ export function FileView({
           </div>
         ))}
       </div>
+      <TakeBack
+        intakeId={intakeId}
+        what={
+          !f.names.every((n) => IMAGE.test(n))
+            ? 'statement'
+            : f.names.length > 1
+              ? 'screenshots'
+              : 'screenshot'
+        }
+        onTaken={onTaken}
+      />
     </div>
   )
 }

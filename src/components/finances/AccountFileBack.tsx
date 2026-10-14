@@ -5,7 +5,7 @@ import { Check, TriangleAlert, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { Busy } from '@/components/finances/bits'
+import { Busy, PILL_QUIET } from '@/components/finances/bits'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { failureMessage } from '@/lib/convex-errors'
@@ -34,7 +34,23 @@ export function TakeBack({
   const takeBack = useMutation(api.undoFile.takeBack)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState<string | null>(null)
+  /* Opening a file is history, not an alarm (14 Oct: "every update
+     will have this huge warning … small button to remove and only
+     after you click you see these warnings"). */
+  const [asking, setAsking] = useState(false)
   if (p === undefined || p === null) return null
+  if (!asking)
+    return (
+      <button
+        type="button"
+        data-testid="take-back-open"
+        onClick={() => setAsking(true)}
+        className="motion-press inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1.5 font-mono text-[10.5px] tracking-[0.12em] text-state-danger uppercase ring-1 ring-state-danger/40 ring-inset hover:bg-state-danger/10"
+      >
+        <X className="size-3.5" />
+        remove {what}
+      </button>
+    )
 
   const cash = p.cash
   const g = {
@@ -148,6 +164,14 @@ export function TakeBack({
           </span>
         ) : null}
         <span className="flex-1" />
+        <button
+          type="button"
+          onClick={() => setAsking(false)}
+          disabled={busy}
+          className={PILL_QUIET}
+        >
+          keep
+        </button>
         <button
           type="button"
           onClick={press}

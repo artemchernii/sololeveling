@@ -47,7 +47,7 @@ test('an opened file: every row has a mark', async ({ page }) => {
   await page.getByRole('button', { name: 'Open ActivoBank' }).click()
   const sheet = page.getByRole('dialog')
   await sheet.getByRole('button', { name: /IMG_9282/ }).click()
-  await expect(sheet.getByTestId('take-back')).toBeVisible()
+  await expect(sheet.getByTestId('take-back-open')).toBeVisible()
   await expect(
     sheet.locator('img[src*="domain=traderepublic.com"]'),
   ).toBeVisible()

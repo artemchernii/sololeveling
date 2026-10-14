@@ -37,7 +37,7 @@ export function UndoSave({
         }}
         className={`${PILL_QUIET} gap-2 py-2.5`}
       >
-        <Busy on={busy} doing="taking it back…">
+        <Busy on={busy} doing="removing…">
           <Undo2 className="size-3.5" />
           undo
         </Busy>
@@ -62,7 +62,7 @@ export function Undone({ onClose }: { onClose: () => void }) {
         <Check className="size-8" strokeWidth={2.5} />
       </span>
       <span className="motion-land text-center text-[24px] font-light text-foreground">
-        Taken back
+        Removed
       </span>
       <span className="motion-land max-w-sm text-center text-[13.5px] text-ink-400">
         Your accounts are as they were before this save. Drop the files again

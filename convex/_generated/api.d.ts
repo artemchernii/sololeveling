@@ -35,6 +35,7 @@ import type * as goals from "../goals.js";
 import type * as holdingsTotal from "../holdingsTotal.js";
 import type * as intake from "../intake.js";
 import type * as invest from "../invest.js";
+import type * as justAdded from "../justAdded.js";
 import type * as lent from "../lent.js";
 import type * as logs from "../logs.js";
 import type * as market from "../market.js";
@@ -99,6 +100,7 @@ declare const fullApi: ApiFromModules<{
   holdingsTotal: typeof holdingsTotal;
   intake: typeof intake;
   invest: typeof invest;
+  justAdded: typeof justAdded;
   lent: typeof lent;
   logs: typeof logs;
   market: typeof market;

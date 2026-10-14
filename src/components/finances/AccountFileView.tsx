@@ -15,6 +15,9 @@ import { fmt, short } from './AccountSheetRows'
    rows landed. Amounts are plain: a file's row is not yet a spend, income
    or move, so its sign is not coloured as one. Under the file itself, the
    way to take it back (AccountFileBack). */
+/* A file's name says what it is: a screenshot, else a statement. */
+const IMAGE = /\.(png|jpe?g|webp|heic|gif)$/i
+
 export function FileView({
   intakeId,
   onTaken,
@@ -37,7 +40,17 @@ export function FileView({
         </span>
       </span>
       <Originals intakeId={intakeId} />
-      <TakeBack intakeId={intakeId} onTaken={onTaken} />
+      <TakeBack
+        intakeId={intakeId}
+        what={
+          !f.names.every((n) => IMAGE.test(n))
+            ? 'statement'
+            : f.names.length > 1
+              ? 'screenshots'
+              : 'screenshot'
+        }
+        onTaken={onTaken}
+      />
       {f.positions.length > 0 ? (
         /* What a broker's screen listed (13 Oct: Trading 212's screenshot
            opened on "0 rows in the file" and nothing under it). In euros,

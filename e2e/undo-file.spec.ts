@@ -37,9 +37,10 @@ test('the opened file says what goes, one press takes it back, the account is �
     .last()
     .click()
   const box = sheet.getByTestId('take-back')
-  await expect(
-    box.getByText(/3 rows and the balance of \d+ Oct go\./),
-  ).toBeVisible()
+  /* A warning, and what goes as badges (14 Oct). */
+  await expect(box.getByText('remove · these numbers go')).toBeVisible()
+  await expect(box.getByText('−3 rows')).toBeVisible()
+  await expect(box.getByText(/^balance · \d+ Oct$/)).toBeVisible()
   await expect(box.getByText('ActivoBank now')).toBeVisible()
   await expect(box.getByText('€90.35')).toBeVisible()
   await expect(box.getByText('€153.21')).toBeVisible()
@@ -51,9 +52,9 @@ test('the opened file says what goes, one press takes it back, the account is �
   await page.screenshot(shot('undo-file-box-phone'))
   await page.setViewportSize({ width: 1280, height: 720 })
 
-  await box.getByRole('button', { name: 'take this file back' }).click()
-  await expect(sheet.getByText('taking it back…')).toBeVisible()
-  await expect(sheet.getByText('Taken back.')).toBeVisible()
+  await box.getByRole('button', { name: 'remove screenshot' }).click()
+  await expect(sheet.getByText('removing…')).toBeVisible()
+  await expect(sheet.getByText('Removed.')).toBeVisible()
   await expect(sheet.getByText('ActivoBank is €153.21 again.')).toBeVisible()
   /* Back on the account: the file and its rows are gone. */
   await expect(sheet.getByRole('button', { name: /IMG_9282/ })).toHaveCount(0)
@@ -70,8 +71,8 @@ test('undo on the card a save lands on takes that save back', async ({
   await page.waitForTimeout(700)
   await page.screenshot(shot('undo-file-landed'))
   await sheet.getByRole('button', { name: 'undo' }).click()
-  await expect(sheet.getByText('taking it back…')).toBeVisible()
-  await expect(sheet.getByText('Taken back')).toBeVisible()
+  await expect(sheet.getByText('removing…')).toBeVisible()
+  await expect(sheet.getByText('Removed', { exact: true })).toBeVisible()
   await page.waitForTimeout(700)
   await page.screenshot(shot('undo-file-undone'))
   await sheet.getByRole('button', { name: 'done' }).click()

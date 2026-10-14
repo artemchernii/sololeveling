@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Check, Undo2, X } from 'lucide-react'
+import { Check, TriangleAlert, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
@@ -9,7 +9,7 @@ import { Busy } from '@/components/finances/bits'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { failureMessage } from '@/lib/convex-errors'
-import { afterWords, goesParts, goesVerb } from '@/lib/undoFile'
+import { afterWords } from '@/lib/undoFile'
 import { fmt, short } from './AccountSheetRows'
 
 /* Take this file back (11 Oct, mockup design/treasury-mockup/undo-
@@ -22,9 +22,12 @@ export type Taken = { words: string; title?: string }
 
 export function TakeBack({
   intakeId,
+  what,
   onTaken,
 }: {
   intakeId: Id<'intakes'>
+  /** What it is, on its button: "screenshot", "statement". */
+  what: 'screenshot' | 'screenshots' | 'statement'
   onTaken: (t: Taken) => void
 }) {
   const p = useQuery(api.undoFile.preview, { intakeId })
@@ -41,7 +44,6 @@ export function TakeBack({
     balanceDay: p.balanceOf === null ? null : short(p.balanceOf),
     cash: p.positions > 0 && p.balanceOf !== null,
   }
-  const parts = goesParts(g)
   const name = p.account ?? 'The account'
   const money = (v: number) => fmt(v, cash?.currency)
   const same = cash !== null && cash.after === cash.now
@@ -67,52 +69,56 @@ export function TakeBack({
       })
   }
 
+  /* What goes, as badges (14 Oct: "take this file back.... remove
+     screenshot or remove statement with warning icon"). */
+  const n = (count: number, one: string, many: string) =>
+    `−${count} ${count === 1 ? one : many}`
+  const badges = [
+    ...(p.rows > 0 ? [n(p.rows, 'row', 'rows')] : []),
+    ...(p.trades > 0 ? [n(p.trades, 'buy or sell', 'buys and sells')] : []),
+    ...(p.positions > 0 ? [n(p.positions, 'position', 'positions')] : []),
+    ...(g.balanceDay !== null ? [`balance · ${g.balanceDay}`] : []),
+  ]
+
   return (
     <div
       data-testid="take-back"
-      className="motion-arrive flex flex-col gap-3 rounded-[14px] bg-lift/[0.035] px-3.5 py-3 ring-1 ring-lift/10 ring-inset"
+      className="motion-arrive flex flex-col gap-3 rounded-[14px] bg-state-warn/[0.05] px-3.5 py-3 ring-1 ring-state-warn/30 ring-inset"
     >
-      <div className="flex flex-col gap-0.5 text-[13.5px] leading-relaxed text-ink-200">
-        <span>
-          {parts.length === 0 ? (
-            'Nothing from this file is left.'
-          ) : (
-            <>
-              {parts.map((part, i) => (
-                <span key={part}>
-                  {i === 0 ? '' : i === parts.length - 1 ? ' and ' : ', '}
-                  <b className="font-medium text-foreground">{part}</b>
-                </span>
-              ))}{' '}
-              {goesVerb(g)}.
-            </>
-          )}
+      <span className="flex items-center gap-2">
+        <TriangleAlert className="motion-pulse size-4 shrink-0 text-state-warn" />
+        <span className="label-caps text-state-warn">
+          remove · these numbers go
         </span>
-        {p.elsewhereRows === 1 && there ? (
-          <span className="flex items-center gap-1.5 text-[12.5px] text-ink-400">
-            <AccountLogo name={there.account} domain={there.domain} size={16} />
-            <span>
-              The <Veiled>{fmt(there.amount, there.currency)}</Veiled> it added
-              in {there.account} on {short(there.at)} is removed too.
+      </span>
+      <span className="flex flex-wrap items-center gap-1.5">
+        {badges.length === 0 ? (
+          <span className="font-mono text-[11px] text-ink-400">
+            nothing left from it
+          </span>
+        ) : (
+          badges.map((b) => (
+            <span
+              key={b}
+              className="rounded-full bg-state-danger/14 px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-state-danger uppercase"
+            >
+              {b}
             </span>
-          </span>
-        ) : p.elsewhereRows > 1 ? (
-          <span className="text-[12.5px] text-ink-400">
-            {p.elsewhereRows} rows it added in other accounts are removed too.
-          </span>
-        ) : null}
-        {same && cash.newer ? (
-          <span className="text-[12.5px] text-ink-400">
-            {name} stays <Veiled>{money(cash.now)}</Veiled> — a newer file set
-            that.
-          </span>
-        ) : null}
-        {p.trades > 0 ? (
-          <span className="text-[12.5px] text-ink-400">
-            Shares stay as on the last screenshot. Bought for: unknown.
+          ))
+        )}
+        {p.elsewhereRows > 0 ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-state-danger/14 py-0.5 pr-2.5 pl-1 font-mono text-[10px] tracking-[0.12em] text-state-danger uppercase">
+            {there ? (
+              <AccountLogo
+                name={there.account}
+                domain={there.domain}
+                size={16}
+              />
+            ) : null}
+            −{p.elsewhereRows} in {there?.account ?? 'other accounts'}
           </span>
         ) : null}
-      </div>
+      </span>
 
       {cash !== null ? (
         <div className="grid grid-cols-2 overflow-hidden rounded-[12px] bg-sink/25 ring-1 ring-lift/[0.06] ring-inset">
@@ -129,7 +135,9 @@ export function TakeBack({
               cash.after === null
                 ? 'no balance left'
                 : same
-                  ? 'not changed'
+                  ? cash.newer
+                    ? 'kept · a newer file'
+                    : 'not changed'
                   : cash.afterOf === null
                     ? ''
                     : `balance of ${short(cash.afterOf)}`
@@ -143,11 +151,11 @@ export function TakeBack({
           type="button"
           onClick={press}
           disabled={busy}
-          className="motion-press inline-flex h-[34px] items-center gap-2 rounded-full bg-state-danger/10 px-4 text-[13px] text-foreground ring-1 ring-state-danger/45 transition-colors ring-inset hover:bg-state-danger/18 disabled:text-ink-300"
+          className="motion-press inline-flex h-[34px] items-center gap-2 rounded-full bg-state-danger/15 px-4 font-mono text-[11px] tracking-[0.12em] text-foreground uppercase ring-1 ring-state-danger/45 transition-colors ring-inset hover:bg-state-danger/25 disabled:text-ink-300"
         >
-          <Busy on={busy} doing="taking it back…">
-            <Undo2 className="size-3.5 text-state-danger" />
-            take this file back
+          <Busy on={busy} doing="removing…">
+            <X className="size-3.5 text-state-danger" />
+            remove {what}
           </Busy>
         </button>
         {failed !== null ? (
@@ -156,13 +164,9 @@ export function TakeBack({
             className="motion-land flex items-center gap-1.5 text-[12.5px] text-state-danger"
           >
             <X className="size-3.5" />
-            Not taken back — nothing changed. {failed}
+            Not removed. {failed}
           </span>
-        ) : (
-          <span className="text-[12px] text-ink-500">
-            Add the file again to put it back.
-          </span>
-        )}
+        ) : null}
       </div>
     </div>
   )
@@ -207,7 +211,7 @@ export function TakenStrip({ taken }: { taken: Taken }) {
     >
       <Check className="motion-pop size-3.5 text-state-good" strokeWidth={3} />
       <span className="flex flex-col">
-        <span>{taken.title ?? 'Taken back.'}</span>
+        <span>{taken.title ?? 'Removed.'}</span>
         <span className="text-[12px] text-ink-400">{taken.words}</span>
       </span>
     </div>

@@ -164,12 +164,13 @@ test('ADD BUYS: buys saved on another thing are named, never said saved', async 
   await expect(sheet).toBeHidden()
   const just = position.getByTestId('just-added')
   await expect(just.getByTestId('just-misplaced')).toContainText(
-    '1 file on the wrong thing',
+    '1 file of Gold saved on iShares Digital Security',
   )
   const file = just.getByTestId('just-file')
-  await expect(file).toContainText('iShares Digital Security')
-  await expect(file).toContainText('saved here instead')
-  await expect(file).toContainText('read as Gold')
+  await expect(file).toContainText(
+    'Gold buys, saved on iShares Digital Security',
+  )
+  await expect(file).not.toContainText('in already')
   await page.screenshot({ ...shot('add-buys-away-page'), fullPage: true })
 
   /* REMOVE on the saved screen: said at once, then the save is gone

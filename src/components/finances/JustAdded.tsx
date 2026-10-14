@@ -77,7 +77,7 @@ export function JustAdded({
   } | null>(null)
   /* One line until pressed (14 Oct: five cards after one drop were a
      wall); × hides it on this device until a newer file is saved. */
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState<boolean | null>(null)
   const key = `just-added-hidden:${accountId ?? [...(intakeIds ?? [])].sort().join(',')}`
   const [hid, setHidden] = useState(0)
   const list = files ?? []
@@ -90,7 +90,8 @@ export function JustAdded({
      that says it was removed still stands. */
   if (removed === null && (list.length === 0 || newest <= hidden)) return null
   const today = days[days.length - 1]
-  const shown = open || removed !== null || asking !== null
+  /* Open by itself while a file sits on the wrong thing. */
+  const shown = (open ?? wrong) || removed !== null || asking !== null
   const buys = list.reduce((n, f) => n + f.buys, 0)
   const sells = list.reduce((n, f) => n + f.sells, 0)
   const rows = list.reduce((n, f) => n + (isTrades(f) ? 0 : f.saved), 0)
@@ -196,15 +197,19 @@ export function JustAdded({
 const misplaced = (f: JustFile) => f.things.some((t) => t.read !== undefined)
 
 function Misplaced({ files }: { files: ReadonlyArray<JustFile> }) {
-  const n = files.filter(misplaced).length
-  if (n === 0) return null
+  const off = files.filter(misplaced)
+  if (off.length === 0) return null
+  const t = off[0].things.find((x) => x.read !== undefined)
   return (
     <span
       data-testid="just-misplaced"
-      className="motion-land inline-flex items-center gap-1.5 rounded-full bg-state-warn/14 px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-state-warn uppercase"
+      className="motion-land inline-flex min-w-0 items-center gap-1.5 text-[12px] text-state-warn"
     >
-      <TriangleAlert className="motion-pulse size-3" />
-      {n} {n === 1 ? 'file' : 'files'} on the wrong thing
+      <TriangleAlert className="motion-pulse size-3.5 shrink-0" />
+      <span className="truncate">
+        {off.length} {off.length === 1 ? 'file' : 'files'} of {t?.read} saved on{' '}
+        {t?.name}
+      </span>
     </span>
   )
 }
@@ -305,35 +310,45 @@ function Panel({
         </span>
       </button>
       <span className="flex flex-wrap items-center gap-1.5">
-        {f.things.map((t) => (
-          <span
-            key={t.symbol}
-            className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-200"
-          >
-            <TickerLogo
-              symbol={t.symbol}
-              type={t.type}
-              name={t.name}
-              size={18}
-            />
-            {t.name}
-            {t.read !== undefined ? (
-              <>
-                <Badge tone="warn">saved here instead</Badge>
-                <span className="font-mono text-[11px] text-ink-400">
-                  read as {t.read}
-                </span>
-              </>
-            ) : null}
-          </span>
-        ))}
+        {f.things.map((t) =>
+          t.read !== undefined ? (
+            /* Said as it is (14 Oct): what the buys are, and where they
+               were saved. */
+            <span
+              key={t.symbol}
+              className="inline-flex min-w-0 items-center gap-1.5 text-[12.5px] text-state-warn"
+            >
+              <TriangleAlert className="motion-pulse size-3.5 shrink-0" />
+              <span className="truncate">
+                <b className="font-medium">{t.read}</b>
+                <span className="text-ink-300"> buys, saved on </span>
+                <b className="font-medium">{t.name}</b>
+              </span>
+            </span>
+          ) : (
+            <span
+              key={t.symbol}
+              className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-200"
+            >
+              <TickerLogo
+                symbol={t.symbol}
+                type={t.type}
+                name={t.name}
+                size={18}
+              />
+              {t.name}
+            </span>
+          ),
+        )}
         {f.buys > 0 ? <Badge tone="buy">{f.buys} buy</Badge> : null}
         {f.sells > 0 ? <Badge tone="sell">{f.sells} sell</Badge> : null}
         {!isTrades(f) && f.saved > 0 ? (
           <Badge tone="rows">{rowsOf(f.saved)}</Badge>
         ) : null}
         {f.saved === 0 ? <Badge tone="in">0 saved</Badge> : null}
-        {f.had > 0 ? <Badge tone="in">{f.had} in already</Badge> : null}
+        {f.had > 0 && !misplaced(f) ? (
+          <Badge tone="in">{f.had} in already</Badge>
+        ) : null}
         <span className="flex-1" />
         {f.saved > 0 ? (
           <button

@@ -196,9 +196,11 @@ export const soldOut = mutation({
  * it (14 Oct; his screenshot's rows). Test backend only (`guard`).
  */
 export const goldBuys = mutation({
-  args: {},
+  /* With `fund`: two screenshots of iShares Physical Gold dropped too,
+     one saying Trading 212, one saying nothing (his drop of 14 Oct). */
+  args: { fund: v.optional(v.boolean()) },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     guard()
     const revolut = (
@@ -255,12 +257,20 @@ export const goldBuys = mutation({
       dismissed: [],
     })
     const year = new Date(now).getUTCFullYear() - 1
-    const buy = (m: number, d: number, shares: number, price: number) => ({
+    /* The fee is what was paid (−€300, −€250) over units × price. */
+    const buy = (
+      m: number,
+      d: number,
+      shares: number,
+      price: number,
+      fee: number,
+    ) => ({
       occurredAt: Date.UTC(year, m - 1, d, 12),
       name: 'XAU',
       side: 'buy' as const,
       shares,
       price,
+      fee,
       currency: 'EUR',
       preferred: 0,
       candidates: [gold],
@@ -275,12 +285,46 @@ export const goldBuys = mutation({
       title: 'Buy XAU · trades',
       files: [{ name: 'gold.png', size: 1, contentType: 'image/png' }],
       trades: [
-        buy(7, 23, 0.08275, 3607.63),
-        buy(6, 10, 0.069022, 3604.38),
-        buy(4, 30, 0.074456, 4009.46),
-        buy(4, 16, 0.059985, 4147.38),
+        buy(7, 23, 0.08275, 3607.63, 1.47),
+        buy(6, 10, 0.069022, 3604.38, 1.22),
+        buy(4, 30, 0.074456, 4009.46, 1.47),
+        buy(4, 16, 0.059985, 4147.38, 1.22),
       ],
     })
+    if (args.fund === true) {
+      const fund = {
+        symbol: 'IGLN.L',
+        name: 'iShares Physical Gold',
+        exchange: 'LSE',
+        type: 'ETF',
+      }
+      const row = (m: number, d: number, side: 'buy' | 'sell') => ({
+        occurredAt: Date.UTC(year, m - 1, d, 12),
+        name: 'iShares Physical Gold',
+        side,
+        shares: 1.5,
+        price: 36,
+        currency: 'EUR',
+        preferred: 0,
+        candidates: [fund],
+      })
+      for (const [name, institution] of [
+        ['212-a.png', 'trading 212'],
+        ['212-b.png', undefined],
+      ] as const)
+        await ctx.db.insert('intakes', {
+          ownerId,
+          batchId,
+          accountId: revolut._id,
+          storageIds: [],
+          status: 'ready',
+          kind: 'trades',
+          title: 'iShares Physical Gold · trades',
+          institution,
+          files: [{ name, size: 1, contentType: 'image/png' }],
+          trades: [row(5, 2, 'buy'), row(6, 3, 'sell'), row(7, 4, 'buy')],
+        })
+    }
     return null
   },
 })

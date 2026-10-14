@@ -34,6 +34,54 @@ describe('buysCheck', () => {
     expect(c.rows.map((r) => r.eur)).toEqual([298.53, 248.78, 298.53, 248.78])
   })
 
+  it('rows for another thing are named, by file, with their bank', () => {
+    const fund = (intakeId: string, institution: string | null) => ({
+      ...buy(5, 2, 2, 36),
+      symbol: 'IGLN.L',
+      name: 'iShares Physical Gold',
+      intakeId,
+      institution,
+    })
+    const c = buysCheck(
+      [
+        ...SHOT,
+        fund('a', 'trading 212'),
+        fund('a', 'trading 212'),
+        fund('b', null),
+      ],
+      [],
+      ['GC=F'],
+      HELD,
+    )
+    expect(c.fresh).toBe(4)
+    expect(c.elsewhere).toEqual([
+      {
+        intakeId: 'a',
+        names: ['iShares Physical Gold'],
+        rows: 2,
+        institution: 'trading 212',
+      },
+      {
+        intakeId: 'b',
+        names: ['iShares Physical Gold'],
+        rows: 1,
+        institution: null,
+      },
+    ])
+  })
+
+  it('with the fee printed beside each buy: what was paid, €1,100', () => {
+    const fees = [1.47, 1.22, 1.47, 1.22]
+    const c = buysCheck(
+      SHOT.map((r, i) => ({ ...r, fee: fees[i] })),
+      [],
+      ['GC=F'],
+      HELD,
+    )
+    expect(c.totalEur).toBe(1100)
+    expect(c.rows.map((r) => r.eur)).toEqual([300, 250, 300, 250])
+  })
+
   it('the same screenshot again: every row is saved, nothing new', () => {
     const c = buysCheck(
       SHOT,

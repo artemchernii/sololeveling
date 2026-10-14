@@ -346,7 +346,7 @@ describe('batchReview and apply', () => {
         title: 'Buy XAU',
         files: [{ name: 'gold.png', size: 1, contentType: 'image/png' }],
         trades: [
-          { ...gold, occurredAt: day(4, 16), shares: 0.06 },
+          { ...gold, occurredAt: day(4, 16), shares: 0.06, fee: 1.22 },
           { ...gold, occurredAt: day(6, 10), shares: 0.07 },
         ],
       }),
@@ -357,25 +357,82 @@ describe('batchReview and apply', () => {
     expect(await me.query(api.intake.batchBuys, { batchId })).toEqual([
       {
         accountId: bpi,
+        intakeId: expect.any(String),
+        name: 'XAU',
+        institution: null,
         occurredAt: day(4, 16),
         side: 'buy',
         shares: 0.06,
         price: 3600,
+        fee: 1.22,
         currency: 'EUR',
         symbol: 'GC=F',
       },
       {
         accountId: bpi,
+        intakeId: expect.any(String),
+        name: 'XAU',
+        institution: null,
         occurredAt: day(6, 10),
         side: 'buy',
         shares: 0.07,
         price: 3600,
+        fee: null,
         currency: 'EUR',
         symbol: 'GC=F',
       },
     ])
     const other = t.withIdentity({ tokenIdentifier: 'https://clerk.test|x' })
     expect(await other.query(api.intake.batchBuys, { batchId })).toEqual([])
+  })
+
+  test('ADD BUYS: a drop with rows for another thing is not saved', async () => {
+    const { t, me } = setup()
+    const { bpi } = await accountsOf(me)
+    const batchId = await emptyBatch(t)
+    /* 14 Oct: iShares Physical Gold dropped on Gold's ADD BUYS. */
+    await t.run((ctx) =>
+      ctx.db.insert('intakes', {
+        ownerId: ME,
+        batchId,
+        accountId: bpi,
+        storageIds: [],
+        status: 'ready',
+        kind: 'trades',
+        title: 'iShares',
+        files: [{ name: 'fund.png', size: 1, contentType: 'image/png' }],
+        trades: [
+          {
+            name: 'iShares Physical Gold',
+            side: 'buy',
+            occurredAt: day(5, 2),
+            shares: 2,
+            price: 36,
+            currency: 'EUR',
+            preferred: 0,
+            candidates: [
+              {
+                symbol: 'IGLN.L',
+                name: 'iShares',
+                exchange: 'LSE',
+                type: 'ETF',
+              },
+            ],
+          },
+        ],
+      }),
+    )
+    await expect(
+      me.mutation(api.intake.applyBatch, {
+        batchId,
+        dayStart: day(10, 3),
+        only: ['GC=F'],
+      }),
+    ).rejects.toThrow(/something else/)
+    const trades = await t.run((ctx) => ctx.db.query('trades').collect())
+    expect(trades).toEqual([])
+    const view = await me.query(api.intake.batch, { batchId })
+    expect(view.status).toBe('open')
   })
 
   test('a missing month is asked, and a quiet one is not', async () => {

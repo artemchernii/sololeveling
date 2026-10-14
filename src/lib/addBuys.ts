@@ -9,8 +9,14 @@ export type ReadBuy = {
   side: 'buy' | 'sell' | 'reward'
   shares: number
   price: number
+  /** In `currency`, beside the trade: a buy cost units × price and this. */
+  fee?: number | null
   currency: string
   symbol: string | null
+  /** The file it was read from, the thing as printed, the file's bank. */
+  intakeId?: string
+  name?: string
+  institution?: string | null
 }
 export type SavedTrade = {
   occurredAt: number
@@ -47,10 +53,15 @@ export function buysCheck(
       return {
         ...r,
         had: i >= 0,
-        /* What it was for, where it is printed in euros. */
+        /* What it was for, where it is printed in euros: what was paid,
+           fee and all (14 Oct: "it should show what I paid (€1,100)"). */
         eur:
           r.currency === 'EUR'
-            ? Math.round(r.shares * r.price * 100) / 100
+            ? Math.round(
+                (r.shares * r.price +
+                  (r.side === 'sell' ? -1 : 1) * (r.fee ?? 0)) *
+                  100,
+              ) / 100
             : null,
       }
     })
@@ -64,6 +75,7 @@ export function buysCheck(
     rows,
     /* Rows of the file that are for something else: not saved here. */
     others: read.length - mine.length,
+    elsewhere: elsewhere(read.filter((r) => !mine.includes(r))),
     fresh: fresh.length,
     totalEur: buys.some((r) => r.eur === null)
       ? null
@@ -79,4 +91,33 @@ export function buysCheck(
           ? ('over' as const)
           : ('reaches' as const),
   }
+}
+
+/** The files holding rows for something else, each with what they are
+    for: ADD BUYS saves none of it (14 Oct: "it should say what they are
+    and where they belong"). */
+function elsewhere(rows: ReadonlyArray<ReadBuy>) {
+  const files = new Map<
+    string,
+    {
+      intakeId: string
+      names: Array<string>
+      rows: number
+      institution: string | null
+    }
+  >()
+  for (const r of rows) {
+    const key = r.intakeId ?? ''
+    const f = files.get(key) ?? {
+      intakeId: key,
+      names: [],
+      rows: 0,
+      institution: r.institution ?? null,
+    }
+    f.rows += 1
+    const name = r.name ?? r.symbol ?? 'something unnamed'
+    if (!f.names.includes(name)) f.names.push(name)
+    files.set(key, f)
+  }
+  return [...files.values()]
 }

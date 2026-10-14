@@ -884,10 +884,16 @@ export const batchBuys = query({
   returns: v.array(
     v.object({
       accountId: v.union(v.id('accounts'), v.null()),
+      intakeId: v.id('intakes'),
+      /* The thing as printed, and the bank the file says it is from. */
+      name: v.string(),
+      institution: v.union(v.string(), v.null()),
       occurredAt: v.number(),
       side: v.union(v.literal('buy'), v.literal('sell'), v.literal('reward')),
       shares: v.number(),
       price: v.number(),
+      /* Printed beside it, in `currency`: a buy cost units × price and this. */
+      fee: v.union(v.number(), v.null()),
       currency: v.string(),
       symbol: v.union(v.string(), v.null()),
     }),
@@ -899,10 +905,15 @@ export const batchBuys = query({
     return (await batchIntakes(ctx, ownerId, args.batchId)).flatMap((i) =>
       (i.trades ?? []).map((t) => ({
         accountId: i.accountId ?? null,
+        intakeId: i._id,
+        name: t.name,
+        institution: i.institution ?? null,
         occurredAt: t.occurredAt,
         side: t.side,
         shares: t.shares,
         price: t.price,
+        /* A coin's fee is taken in coins, not in money. */
+        fee: t.crypto ? null : (t.fee ?? null),
         currency: t.currency,
         symbol: t.candidates[t.preferred ?? 0]?.symbol ?? null,
       })),
@@ -3792,11 +3803,33 @@ export const batchAnswer = mutation({
  * waiting.
  */
 export const applyBatch = mutation({
-  args: { batchId: v.id('batches'), dayStart: v.number() },
+  args: {
+    batchId: v.id('batches'),
+    dayStart: v.number(),
+    /* ADD BUYS on one thing's page: every listing it is owned under. A
+       trade read for anything else stops the save (14 Oct: iShares
+       Physical Gold from Trading 212, dropped on Gold's, was about to
+       be saved under Revolut). */
+    only: v.optional(v.array(v.string())),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const b = await openBatchFor(ctx, ownerId, args.batchId)
+    const only = args.only
+    if (only !== undefined) {
+      const files = await batchIntakes(ctx, ownerId, b._id)
+      const other = files.some(
+        (i) =>
+          i.status === 'ready' &&
+          (i.trades ?? []).some((t) => {
+            const symbol = t.candidates.at(t.preferred ?? 0)?.symbol
+            return symbol === undefined || !only.includes(symbol)
+          }),
+      )
+      if (other)
+        throw new ConvexError('Rows for something else are in this drop.')
+    }
     const identity = await ctx.auth.getUserIdentity()
     const names = identity?.name ? [identity.name] : []
     await startApply(ctx, ownerId, b, names, args.dayStart)

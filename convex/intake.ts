@@ -892,6 +892,8 @@ export const batchBuys = query({
       side: v.union(v.literal('buy'), v.literal('sell'), v.literal('reward')),
       shares: v.number(),
       price: v.number(),
+      /* Printed beside it, in `currency`: a buy cost units × price and this. */
+      fee: v.union(v.number(), v.null()),
       currency: v.string(),
       symbol: v.union(v.string(), v.null()),
     }),
@@ -910,6 +912,8 @@ export const batchBuys = query({
         side: t.side,
         shares: t.shares,
         price: t.price,
+        /* A coin's fee is taken in coins, not in money. */
+        fee: t.crypto ? null : (t.fee ?? null),
         currency: t.currency,
         symbol: t.candidates[t.preferred ?? 0]?.symbol ?? null,
       })),

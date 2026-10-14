@@ -9,6 +9,8 @@ export type ReadBuy = {
   side: 'buy' | 'sell' | 'reward'
   shares: number
   price: number
+  /** In `currency`, beside the trade: a buy cost units × price and this. */
+  fee?: number | null
   currency: string
   symbol: string | null
   /** The file it was read from, the thing as printed, the file's bank. */
@@ -51,10 +53,15 @@ export function buysCheck(
       return {
         ...r,
         had: i >= 0,
-        /* What it was for, where it is printed in euros. */
+        /* What it was for, where it is printed in euros: what was paid,
+           fee and all (14 Oct: "it should show what I paid (€1,100)"). */
         eur:
           r.currency === 'EUR'
-            ? Math.round(r.shares * r.price * 100) / 100
+            ? Math.round(
+                (r.shares * r.price +
+                  (r.side === 'sell' ? -1 : 1) * (r.fee ?? 0)) *
+                  100,
+              ) / 100
             : null,
       }
     })

@@ -70,6 +70,18 @@ describe('buysCheck', () => {
     ])
   })
 
+  it('with the fee printed beside each buy: what was paid, €1,100', () => {
+    const fees = [1.47, 1.22, 1.47, 1.22]
+    const c = buysCheck(
+      SHOT.map((r, i) => ({ ...r, fee: fees[i] })),
+      [],
+      ['GC=F'],
+      HELD,
+    )
+    expect(c.totalEur).toBe(1100)
+    expect(c.rows.map((r) => r.eur)).toEqual([300, 250, 300, 250])
+  })
+
   it('the same screenshot again: every row is saved, nothing new', () => {
     const c = buysCheck(
       SHOT,

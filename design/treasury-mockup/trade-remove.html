@@ -38,7 +38,7 @@
   .list { border-radius: 16px; background: rgba(var(--lift),.025); box-shadow: inset 0 0 0 1px rgba(var(--lift),.08), 0 0 0 1px var(--sys-edge); padding: 14px }
   .round { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 0 8px }
   .round .days { font-family: var(--mono); font-size: 11px; color: var(--ink-300) } .sp { flex: 1 }
-  .row { position: relative; display: grid; grid-template-columns: 64px minmax(0,1fr) auto 18px 74px; gap: 12px; align-items: center; padding: 10px 8px; margin: 0 -8px; border-top: 1px solid rgba(var(--lift),.06); border-radius: 10px; transition: background .25s, box-shadow .25s }
+  .row { position: relative; display: grid; grid-template-columns: 64px minmax(0,1fr) auto 18px 20px; gap: 12px; align-items: center; padding: 10px 8px; margin: 0 -8px; border-top: 1px solid rgba(var(--lift),.06); border-radius: 10px; transition: background .25s, box-shadow .25s }
   .row.old .side, .row.old .amt { }
   .side { justify-self: start; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase }
   /* old row look, for "built now" */
@@ -54,17 +54,17 @@
   .neu .sh { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
   .dm { display: none }
   @media (max-width: 600px) {
-    .neu .row { grid-template-columns: 58px minmax(0,1fr) 18px 70px; gap: 10px }
+    .neu .row { grid-template-columns: 58px minmax(0,1fr) 18px 20px; gap: 10px }
     .neu .row.ask, .neu .row.gone { grid-template-columns: 58px minmax(0,1fr) }
     .neu .row.ask .acts, .neu .row.gone .acts { grid-column: 1 / -1; justify-content: flex-end }
     .neu .d { display: none } .dm { display: inline } .neu .at { display: none }
-    .neu .row .rm { opacity: 1 }
   }
   .logo { width: 18px; height: 18px; border-radius: 5px; background: #fff; color: #000; font: 700 11px var(--mono); display: grid; place-items: center }
   .logo.tr { background: #000; color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3) }
-  .rm { justify-self: end; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-400); padding: 4px 9px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(var(--lift),.14); opacity: 0; transition: opacity .15s }
-  .row:hover .rm, .row.touch .rm { opacity: 1 }
-  .rm:hover { color: var(--danger); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--danger) 45%, transparent) }
+  .rm { justify-self: end; width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; color: var(--ink-500); transition: color .15s, background .15s }
+  .rm svg { width: 12px; height: 12px }
+  .row:hover .rm { color: var(--ink-300) }
+  .rm:hover { color: var(--danger); background: color-mix(in oklch, var(--danger) 12%, transparent) }
   /* asking */
   .row.ask { background: color-mix(in oklch, var(--warn) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 40%, transparent); grid-template-columns: 64px minmax(0,1fr) auto }
   .acts { display: flex; gap: 6px; align-items: center }
@@ -103,6 +103,7 @@ const ic = {
   undo: '<svg class="i" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>',
   load: '<svg class="i spin" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>',
   check: '<svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+  x: '<svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>',
   down: '<svg class="i" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
 }
 /* His MSFT, the round now — the TR buy is the one he removed by accident. */
@@ -113,8 +114,8 @@ const R = [
 ]
 const logo = a => a === 'r' ? '<span class="logo">R</span>' : '<span class="logo tr">⟋</span>'
 const NOTE = {
-  rows: 'BUY / SELL are badges; the amount is the big thing; × is gone — a small REMOVE shows on hover (always on a phone).',
-  ask: 'REMOVE asks on the row itself: amber, the two answers. Nothing is gone yet.',
+  rows: 'BUY / SELL are badges; the amount is the big thing; the × stays, slim and faint, the same on every row — nothing removed by it alone.',
+  ask: '× pressed: the row turns amber and asks — REMOVE or KEEP. Nothing is gone yet.',
   saving: 'Pressed: "removing…" at once.',
   gone: 'Landed: the row stays where it was, struck, REMOVED, with UNDO. PAID and the counts above drop it now.',
   later: 'Back on the page later: removed rows fold at the end, REMOVED · 1, each with UNDO.',
@@ -127,13 +128,13 @@ function row(r, st) {
   if (st === 'ask') return `<div class="row ask land">${side}${body}<span class="acts"><span class="badge b-warn">remove?</span><button class="btn kill">${ic.trash}remove</button><button class="btn keep">keep</button></span></div>`
   if (st === 'saving') return `<div class="row ask">${side}${body}<span class="acts"><span class="btn kill" style="opacity:.8">${ic.load}removing…</span></span></div>`
   if (st === 'gone') return `<div class="row gone">${side}${body}<span class="acts land"><span class="badge b-bad">removed</span><button class="btn undo">${ic.undo}undo</button></span></div>`
-  return `<div class="row ${st === 'back' ? 'back' : ''} ${st === 'touch' ? 'touch' : ''}">${side}${body}<span class="d">${r.d}</span>${logo(r.acct)}<button class="rm">remove</button></div>`
+  return `<div class="row ${st === 'back' ? 'back' : ''} ${st === 'touch' ? 'touch' : ''}">${side}${body}<span class="d">${r.d}</span>${logo(r.acct)}<button class="rm" aria-label="Remove">${ic.x}</button></div>`
 }
 function list(kind) {
   const now = kind === 'gone' || kind === 'saving' || kind === 'ask' || kind === 'later'
   const counted = kind === 'gone' || kind === 'later' ? '2 buy · €655.44' : '3 buy · €906.44'
   const rows = R.map((r, i) => {
-    if (i !== 0) return row(r, i === 1 && kind === 'rows' ? 'touch' : '')
+    if (i !== 0) return row(r, '')
     if (kind === 'later') return ''
     return row(r, kind === 'rows' ? '' : kind)
   }).join('')

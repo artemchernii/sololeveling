@@ -40,6 +40,7 @@ test('ADD BUYS: four buys read, some of what is held still missing, saved', asyn
   await expect(sheet.getByTestId('buys-line')).toContainText(
     '0.122152 oz missing',
   )
+  await expect(sheet.getByTestId('buys-line')).not.toContainText('add older')
   /* A month with no buy is not a statement missing. */
   await expect(sheet.getByText('A statement may be missing')).toHaveCount(0)
   await expect(sheet.getByText('4 buys')).toBeVisible()
@@ -48,16 +49,23 @@ test('ADD BUYS: four buys read, some of what is held still missing, saved', asyn
   /* Saved: said at once, then of gold — not "Revolut is up to date". */
   await sheet.getByRole('button', { name: /apply/ }).click()
   await expect(sheet.getByText(/saving/i).first()).toBeVisible()
-  await expect(sheet.getByText('4 buys saved · Gold')).toBeVisible()
+  /* Counts as badges (14 Oct: "0 NEW · 9 SAVED BEFORE"). */
+  const counts = sheet.getByTestId('buys-counts')
+  await expect(counts).toContainText('4 new')
+  await expect(counts).not.toContainText('saved before')
   await expect(sheet.getByText(/up to date/)).toHaveCount(0)
-  /* Its icon, the sum, and the buys themselves — nothing to open. */
-  await expect(sheet.getByText('4 buys added')).toBeVisible()
-  await expect(sheet.getByText('€1,100')).toBeVisible()
-  await expect(sheet.getByTestId('buys-row')).toHaveCount(4)
+  /* Its icon, PAID with its round, and the buys themselves. */
+  const card = sheet.getByTestId('buys-saved-card')
+  await expect(card).toContainText('€1,100')
+  await expect(card).toContainText('paid · 4 buy')
+  await expect(card).toContainText('since')
+  await expect(sheet.getByTestId('trade-row')).toHaveCount(4)
   await expect(sheet.getByRole('button', { name: 'rows' })).toHaveCount(0)
-  await expect(sheet.getByTestId('buys-line')).toContainText(
-    '0.122152 oz missing',
-  )
+  /* One line: held · in the buys · missing. */
+  const line = sheet.getByTestId('buys-line')
+  await expect(line).toContainText('0.408365 oz')
+  await expect(line).toContainText('0.286213 oz in the buys')
+  await expect(line).toContainText('0.122152 oz missing')
   await page.waitForTimeout(700)
   await page.screenshot({ ...shot('add-buys-saved'), fullPage: true })
   await sheet.getByRole('button', { name: 'done' }).click()
@@ -70,7 +78,10 @@ test('ADD BUYS: four buys read, some of what is held still missing, saved', asyn
   await expect(missing).toContainText('0.286213 of 0.408365 oz')
   await expect(missing).toContainText('0.122152 oz missing')
   await expect(position.getByText('needs every buy')).toBeVisible()
-  await expect(position.getByText('€1,100')).toBeVisible()
+  await expect(position.getByText('€1,100', { exact: true })).toBeVisible()
+  await expect(position.getByTestId('round-now')).toContainText(
+    '4 buy · €1,100',
+  )
   await expect(position.getByText('buys and sells · 4')).toBeVisible()
   await page.screenshot({ ...shot('add-buys-page'), fullPage: true })
 
@@ -119,7 +130,7 @@ test('ADD BUYS: files for another thing are named and never saved here', async (
   await others.first().getByRole('button', { name: 'remove' }).click()
   await expect(sheet.getByTestId('buys-elsewhere')).toHaveCount(0)
   await sheet.getByRole('button', { name: /apply/ }).click()
-  await expect(sheet.getByText('4 buys saved · Gold')).toBeVisible()
+  await expect(sheet.getByTestId('buys-counts')).toContainText('4 new')
   await page.screenshot({ ...shot('add-buys-elsewhere-saved'), fullPage: true })
 })
 
@@ -143,7 +154,7 @@ test('ADD BUYS: buys saved on another thing are named, never said saved', async 
   await position.getByRole('button', { name: 'add buys' }).click()
   const sheet = page.getByRole('dialog')
   await sheet.getByRole('button', { name: /apply/ }).click()
-  await expect(sheet.getByText('4 buys saved · Gold')).toBeVisible()
+  await expect(sheet.getByTestId('buys-counts')).toContainText('4 new')
 
   /* The trades now sit on iShares Digital Security, as his did. */
   await testClient().mutation(anyApi.e2ePortfolio.misplaceBuys, {})
@@ -156,7 +167,7 @@ test('ADD BUYS: buys saved on another thing are named, never said saved', async 
   await expect(away).toContainText('saved on')
   await expect(away).toContainText('in the file')
   await expect(away).not.toContainText('instead')
-  await expect(sheet.getByText('nothing added')).toBeVisible()
+  await expect(sheet.getByTestId('buys-counts')).toHaveCount(0)
   await expect(sheet.getByTestId('buys-line')).toHaveCount(0)
   await expect(sheet.getByRole('button', { name: 'undo' })).toHaveCount(0)
   await page.waitForTimeout(700)
@@ -182,7 +193,7 @@ test('ADD BUYS: buys saved on another thing are named, never said saved', async 
   await testClient().mutation(anyApi.e2ePortfolio.goldBuys, {})
   await position.getByRole('button', { name: 'add buys' }).click()
   await sheet.getByRole('button', { name: /apply/ }).click()
-  await expect(sheet.getByText('4 buys saved · Gold')).toBeVisible()
+  await expect(sheet.getByTestId('buys-counts')).toContainText('4 new')
   await testClient().mutation(anyApi.e2ePortfolio.misplaceBuys, {})
   const away2 = sheet.getByTestId('buys-away-thing')
   await expect(away2).toContainText('4 buy')
@@ -211,11 +222,49 @@ test('ADD BUYS: a buy in two overlapping screenshots counts once', async ({
   await position.getByRole('button', { name: 'add buys' }).click()
   const sheet = page.getByRole('dialog')
   await expect(sheet.getByTestId('buys-row')).toHaveCount(19)
-  await expect(sheet.getByTestId('buys-line')).toContainText('Every buy is in.')
+  await expect(sheet.getByTestId('buys-line')).toContainText('0.408365 oz')
+  await expect(sheet.getByTestId('buys-line')).toContainText('every buy in')
   await expect(sheet.getByText(/too much/)).toHaveCount(0)
   await page.screenshot({ ...shot('add-buys-overlap'), fullPage: true })
   await sheet.getByRole('button', { name: /apply/ }).click()
-  await expect(sheet.getByTestId('buys-line')).toContainText('Every buy is in.')
+  await expect(sheet.getByTestId('buys-line')).toContainText('every buy in')
+  await expect(sheet.getByTestId('buys-counts')).toContainText('19 new')
+  /* PAID speaks of the round held now: 7 buys since 17 Feb 2026. */
+  await expect(sheet.getByTestId('buys-saved-card')).toContainText(
+    'paid · 7 buy',
+  )
+  await page.waitForTimeout(700)
+  await page.screenshot({ ...shot('add-buys-saved-rounds'), fullPage: true })
   await sheet.getByRole('button', { name: 'done' }).click()
   await expect(position.getByText('buys and sells · 19')).toBeVisible()
+  await expect(
+    position.getByText('paid · 7 buy', { exact: true }),
+  ).toBeVisible()
+  await expect(position.getByTestId('paid-since')).toContainText('since')
+  await expect(position.getByText(/down since|up since/)).not.toContainText(
+    'bought',
+  )
+  /* Two rounds sold out in 2023, folded with their own sums. */
+  const now = position.getByTestId('round-now')
+  await expect(now).toContainText('7 buy')
+  await expect(now.getByTestId('trade-row')).toHaveCount(7)
+  const closed = position.getByTestId('round-closed')
+  await expect(closed).toHaveCount(2)
+  await expect(closed.first()).toContainText('4 buy')
+  await expect(closed.first()).toContainText('1 sell')
+  await expect(closed.first().getByTestId('trade-row')).toHaveCount(0)
+  await closed.first().getByRole('button').first().click()
+  await expect(closed.first().getByTestId('trade-row')).toHaveCount(5)
+  await page.screenshot({ ...shot('position-rounds'), fullPage: true })
+
+  /* The same drop again: nothing new, nineteen saved before. */
+  await testClient().mutation(anyApi.e2ePortfolio.goldBuys, { drop: true })
+  await position.getByRole('button', { name: 'add buys' }).click()
+  await sheet.getByRole('button', { name: /apply/ }).click()
+  const counts = sheet.getByTestId('buys-counts')
+  await expect(counts).toContainText('0 new')
+  await expect(counts).toContainText('19 saved before')
+  await expect(sheet.getByRole('button', { name: 'undo' })).toHaveCount(0)
+  await page.waitForTimeout(700)
+  await page.screenshot({ ...shot('add-buys-saved-none'), fullPage: true })
 })

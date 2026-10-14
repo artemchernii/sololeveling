@@ -31,6 +31,12 @@ export type BuysFor = {
   saved: ReadonlyArray<SavedTrade & { priceEur: number }>
   /** What its icon is drawn from. */
   logo: { symbol: string; type: string; name: string }
+  /** PAID as its page says it (null where no file says). */
+  paid: number | null
+  /** The round held now (src/lib/rounds.ts), where there is one. */
+  since?: { from: number; buys: number; sells: number; buyEur: number }
+  /** Its page's list of buys and sells, cut into rounds. */
+  trades: React.ReactNode
 }
 export const BuysContext = createContext<BuysFor | null>(null)
 export const useBuysFor = () => useContext(BuysContext)
@@ -48,45 +54,52 @@ function useCheck(batchId: Id<'batches'>, thing: BuysFor) {
     : buysCheck(read, thing.saved, thing.symbols, thing.held)
 }
 
-/** The units the buys reach beside the units held: a state, said with
-    its colour, its icon and a pulse — never grey words. */
+/** What is held beside what the buys reach, on one line (14 Oct, his
+    words: "7.365427 shares · every buy in ✓"): a state, said with its
+    colour, its icon and a pulse — never grey words. */
 export function BuysLine({
   check,
   thing,
 }: {
-  check: Pick<ReturnType<typeof buysCheck>, 'state' | 'missing'>
+  check: Pick<
+    ReturnType<typeof buysCheck>,
+    'state' | 'missing' | 'held' | 'units'
+  >
   thing: BuysFor
 }) {
   const ok = check.state === 'reaches'
   return (
     <div
       data-testid="buys-line"
-      className={`motion-land flex items-center gap-2.5 rounded-[14px] px-3.5 py-3 text-[13.5px] ring-1 ring-inset ${ok ? 'bg-state-good/[0.06] text-state-good ring-state-good/30' : 'bg-state-warn/[0.07] text-state-warn ring-state-warn/35'}`}
+      className={`motion-land flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[14px] px-3.5 py-3 font-mono text-[13px] ring-1 ring-inset ${ok ? 'bg-state-good/[0.06] ring-state-good/30' : 'bg-state-warn/[0.07] ring-state-warn/35'}`}
     >
-      {ok ? (
-        <Check className="size-4 shrink-0" />
-      ) : (
-        <TriangleAlert className="motion-pulse size-4 shrink-0" />
-      )}
-      <span className="text-ink-100">
-        {ok ? (
-          'Every buy is in.'
-        ) : check.state === 'missing' ? (
-          <>
-            <b className="font-medium text-state-warn">
-              <Veiled>{thing.amount(check.missing)}</Veiled> missing
-            </b>{' '}
-            — add older buys.
-          </>
-        ) : (
-          <>
-            <b className="font-medium text-state-warn">
-              <Veiled>{thing.amount(-check.missing)}</Veiled> too much
-            </b>{' '}
-            — more bought than held.
-          </>
-        )}
+      <span className="text-foreground">
+        <Veiled>{thing.amount(check.held)}</Veiled>
       </span>
+      <span className="text-ink-500">·</span>
+      {ok ? (
+        <span className="flex items-center gap-1.5 text-state-good">
+          every buy in
+          <Check className="size-3.5 shrink-0" />
+        </span>
+      ) : (
+        <>
+          <span className="text-ink-300">
+            <Veiled>{thing.amount(check.units)}</Veiled> in the buys
+          </span>
+          {check.state === 'missing' ? (
+            <>
+              <span className="text-ink-500">·</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-state-warn/14 px-2.5 py-0.5 text-[10.5px] tracking-[0.12em] text-state-warn uppercase">
+                <TriangleAlert className="motion-pulse size-3 shrink-0" />
+                <Veiled>{thing.amount(check.missing)}</Veiled> missing
+              </span>
+            </>
+          ) : (
+            <TriangleAlert className="motion-pulse size-3.5 shrink-0 text-state-warn" />
+          )}
+        </>
+      )}
     </div>
   )
 }
@@ -104,7 +117,7 @@ function Read({ batchId, thing }: { batchId: Id<'batches'>; thing: BuysFor }) {
   const had = c.rows.length - c.fresh
   return (
     <div data-testid="buys-check" className="flex flex-col gap-3.5">
-      <div className="grid gap-2.5 sm:grid-cols-3">
+      <div className="grid gap-2.5 sm:grid-cols-2">
         <Sum label="buys read" value={String(c.rows.length)}>
           {c.rows.length === 0
             ? `none for ${thing.name}`
@@ -118,9 +131,6 @@ function Read({ batchId, thing }: { batchId: Id<'batches'>; thing: BuysFor }) {
           veiled
         >
           <Veiled>{thing.amount(c.readUnits)}</Veiled>
-        </Sum>
-        <Sum label="held" value={thing.amount(c.held)} veiled>
-          {`${thing.amount(c.units)} in the buys`}
         </Sum>
       </div>
       <BuysLine check={c} thing={thing} />
@@ -286,16 +296,13 @@ export function useBuysLanded(batchId: Id<'batches'>) {
   return { thing, check, where }
 }
 
-/** Each buy: a badge, what it was for, the units and the day. `plain`
-    on the saved screen, where nothing is new or old any more. */
+/** Each buy: a badge, what it was for, the units and the day. */
 function BuyRows({
   rows,
   thing,
-  plain = false,
 }: {
   rows: ReturnType<typeof buysCheck>['rows']
   thing: BuysFor
-  plain?: boolean
 }) {
   return (
     <div className="flex flex-col">
@@ -304,7 +311,7 @@ function BuyRows({
           key={`${r.occurredAt}:${i}`}
           data-testid="buys-row"
           style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}
-          className={`motion-arrive grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-lift/6 py-2.5 first:border-t-0 ${r.had && !plain ? 'opacity-50' : ''}`}
+          className={`motion-arrive grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-lift/6 py-2.5 first:border-t-0 ${r.had ? 'opacity-50' : ''}`}
         >
           <span
             className={`rounded-full px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${r.side === 'sell' ? 'bg-state-danger/14 text-state-danger' : 'bg-state-good/14 text-state-good'}`}
@@ -322,15 +329,11 @@ function BuyRows({
               {r.currency === 'EUR' ? ` at ${euros(r.price)}` : ''}
             </span>
           </span>
-          {plain ? (
-            <span />
-          ) : (
-            <span
-              className={`rounded-full px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${r.had ? 'bg-lift/[0.05] text-ink-400' : 'bg-state-good/12 text-state-good'}`}
-            >
-              {r.had ? 'already saved' : 'new'}
-            </span>
-          )}
+          <span
+            className={`rounded-full px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${r.had ? 'bg-lift/[0.05] text-ink-400' : 'bg-state-good/12 text-state-good'}`}
+          >
+            {r.had ? 'already saved' : 'new'}
+          </span>
           <span className="font-mono text-[11px] text-ink-400">
             {DAY.format(new Date(r.occurredAt))}
           </span>
@@ -347,57 +350,45 @@ function BuyRows({
 export function BuysSaved({
   thing,
   check,
-  added,
   warn = false,
 }: {
   thing: BuysFor
   check: ReturnType<typeof buysCheck> | undefined
-  added: number
   /** Some of the save sits on another thing: this card is not the news. */
   warn?: boolean
 }) {
-  const buys = thing.saved.filter((t) => t.side === 'buy')
-  const total =
-    Math.round(buys.reduce((t, b) => t + b.shares * b.priceEur, 0) * 100) / 100
+  const r = thing.since
+  const amount = thing.paid ?? r?.buyEur ?? null
+  const chip =
+    'rounded-full bg-lift/[0.06] px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] text-ink-300 uppercase'
   return (
     <div className="flex w-full max-w-xl flex-col gap-3">
       <div
+        data-testid="buys-saved-card"
         className={`motion-arrive flex items-center gap-3.5 rounded-[16px] px-4 py-3.5 ring-1 ring-inset ${warn ? 'bg-lift/[0.035] ring-lift/8' : 'bg-state-good/[0.06] ring-state-good/30'}`}
       >
         <TickerLogo {...thing.logo} size={44} />
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <span className="truncate text-[17px] text-foreground">
             {thing.name}
           </span>
-          <span
-            className={`font-mono text-[11px] ${warn ? 'text-ink-400' : 'text-state-good'}`}
-          >
-            {added > 0
-              ? `${added} ${added === 1 ? 'buy' : 'buys'} added`
-              : warn
-                ? 'nothing added'
-                : 'nothing new'}
-          </span>
+          {r ? (
+            <span className="flex flex-wrap gap-1.5">
+              <span className={chip}>
+                paid · {r.buys} buy{r.sells > 0 ? ` · ${r.sells} sell` : ''}
+              </span>
+              <span className={chip}>since {DAY.format(new Date(r.from))}</span>
+            </span>
+          ) : null}
         </div>
-        <div className="flex flex-col items-end gap-0.5">
-          <span className="text-[22px] leading-tight font-light text-foreground tabular-nums">
-            <Veiled>{euros(total)}</Veiled>
-          </span>
-          <span className="label-caps">buy total</span>
-        </div>
+        <span className="text-[22px] leading-tight text-foreground tabular-nums">
+          {amount === null ? '—' : <Veiled>{euros(amount)}</Veiled>}
+        </span>
       </div>
       {check && !warn ? (
         <>
-          <div className="grid grid-cols-2 gap-2.5">
-            <Sum label="held" value={thing.amount(check.held)} veiled>
-              at the broker
-            </Sum>
-            <Sum label="in the buys" value={thing.amount(check.units)} veiled>
-              {buys.length} {buys.length === 1 ? 'buy' : 'buys'}
-            </Sum>
-          </div>
           <BuysLine check={check} thing={thing} />
-          <BuyRows rows={check.rows} thing={thing} plain />
+          {thing.trades}
         </>
       ) : null}
     </div>

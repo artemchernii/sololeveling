@@ -337,6 +337,8 @@ export function Applied({
     const name = landed.thing.name
     const warn = where.away.length > 0
     const count = where.here
+    /* What this thing had before this save: saved now, less what it added. */
+    const before = Math.max(0, landed.thing.saved.length - count)
     return (
       <div className="flex flex-col items-center gap-4 py-5">
         {warn ? (
@@ -348,15 +350,34 @@ export function Applied({
             <Check className="size-7" strokeWidth={2.5} />
           </span>
         )}
-        <span className="motion-land text-center text-[24px] font-light text-foreground">
-          {warn
-            ? count > 0
+        {warn ? (
+          <span className="motion-land text-center text-[24px] font-light text-foreground">
+            {count > 0
               ? `${count} of ${where.all} buys on ${name}`
-              : `Not saved on ${name}`
-            : count > 0
-              ? `${count} ${count === 1 ? 'buy' : 'buys'} saved · ${name}`
-              : `Nothing new for ${name}`}
-        </span>
+              : `Not saved on ${name}`}
+          </span>
+        ) : (
+          /* His words (14 Oct): "0 NEW · 9 SAVED BEFORE" — counts as
+             badges, the thing's name on the card below. */
+          <span
+            data-testid="buys-counts"
+            className="motion-land flex flex-wrap justify-center gap-2 font-mono text-[13px] tracking-[0.14em] uppercase"
+          >
+            <span
+              className={`rounded-full px-3.5 py-1.5 ${count > 0 ? 'bg-state-good/14 text-state-good' : 'bg-lift/[0.06] text-ink-300'}`}
+            >
+              {count} new
+            </span>
+            {before > 0 ? (
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 ${count > 0 ? 'bg-lift/[0.06] text-ink-300' : 'bg-state-good/14 text-state-good'}`}
+              >
+                {count > 0 ? null : <Check className="size-3.5" />}
+                {before} saved before
+              </span>
+            ) : null}
+          </span>
+        )}
         {warn ? (
           <div className="w-full max-w-xl">
             <BuysAway
@@ -366,14 +387,9 @@ export function Applied({
             />
           </div>
         ) : null}
-        <BuysSaved
-          thing={landed.thing}
-          check={landed.check}
-          added={count}
-          warn={warn}
-        />
+        <BuysSaved thing={landed.thing} check={landed.check} warn={warn} />
         <div className="flex flex-wrap justify-center gap-2 pt-1">
-          {warn ? null : (
+          {warn || count === 0 ? null : (
             <UndoSave batchId={batchId} onUndone={() => setUndone(true)} />
           )}
           {done}

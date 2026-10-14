@@ -284,6 +284,10 @@ export function PortfolioPosition({
         intakeIds={[
           ...new Set(all.flatMap((t) => (t.importId ? [t.importId] : []))),
         ]}
+        readAs={{
+          symbols: [...new Set(owned.at.map((r) => r.symbol))],
+          accountIds: [...new Set(owned.at.map((r) => r.accountId))],
+        }}
         unit={(n) => `${Number(n.toFixed(6))} ${unit(n)}`}
         onOpen={setFile}
         sums={(f) => {

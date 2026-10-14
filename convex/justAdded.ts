@@ -42,7 +42,13 @@ const file = v.object({
   had: v.number(),
   /** Its buys and sells: of what. */
   things: v.array(
-    v.object({ symbol: v.string(), name: v.string(), type: v.string() }),
+    v.object({
+      symbol: v.string(),
+      name: v.string(),
+      type: v.string(),
+      /** What the file printed, when it is another thing. */
+      read: v.optional(v.string()),
+    }),
   ),
   /** The first rows it saved, newest first. */
   rows: v.array(row),
@@ -55,6 +61,15 @@ export const list = query({
     accountId: v.optional(v.id('accounts')),
     /** A thing's page: the files its buys came from. */
     intakeIds: v.optional(v.array(v.id('intakes'))),
+    /** A thing's page, too: files in its accounts that read it and saved
+        their buys on another thing (14 Oct) — else they are seen only
+        on the page of the thing that got them. */
+    readAs: v.optional(
+      v.object({
+        symbols: v.array(v.string()),
+        accountIds: v.array(v.id('accounts')),
+      }),
+    ),
   },
   returns: v.array(file),
   handler: async (ctx, args) => {
@@ -76,6 +91,25 @@ export const list = query({
       const i = await ctx.db.get(id)
       if (i !== null && i.ownerId === ownerId) found.push(i)
     }
+    const misread = new Set<Id<'intakes'>>()
+    for (const accountId of (args.readAs?.accountIds ?? []).slice(0, 4)) {
+      const symbols = args.readAs?.symbols ?? []
+      for (const i of await ctx.db
+        .query('intakes')
+        .withIndex('by_owner_account', (q) =>
+          q.eq('ownerId', ownerId).eq('accountId', accountId),
+        )
+        .order('desc')
+        .take(FILES))
+        if (
+          (i.trades ?? []).some((t) =>
+            symbols.includes(t.candidates.at(t.preferred ?? 0)?.symbol ?? ''),
+          )
+        ) {
+          misread.add(i._id)
+          found.push(i)
+        }
+    }
     const out = []
     const seen = new Set<Id<'intakes'>>()
     for (const i of found) {
@@ -84,7 +118,17 @@ export const list = query({
       if (i.status !== 'done' || i.takenBackAt !== undefined) continue
       const addedAt = await savedAt(ctx, i)
       if (addedAt < args.since) continue
-      out.push({ ...(await described(ctx, ownerId, i)), addedAt })
+      const f = await described(ctx, ownerId, i)
+      /* Found by what it read: only when its buys sit elsewhere. */
+      const asked =
+        args.accountId === i.accountId || (args.intakeIds ?? []).includes(i._id)
+      if (
+        misread.has(i._id) &&
+        !asked &&
+        !f.things.some((t) => t.read !== undefined)
+      )
+        continue
+      out.push({ ...f, addedAt })
     }
     return out.sort((a, b) => b.addedAt - a.addedAt)
   },
@@ -129,14 +173,30 @@ async function described(ctx: QueryCtx, ownerId: string, i: Doc<'intakes'>) {
             )
             .take(ROWS)
         ).filter((t) => t.importId === i._id)
+  /* Of what: the things its trades sit on, not what it read (14 Oct:
+     iShares Physical Gold read, iShares Digital Security saved, and the
+     card named the gold). `read` when the file printed another thing. */
   const things = new Map<
     string,
-    { symbol: string; name: string; type: string }
+    { symbol: string; name: string; type: string; read?: string }
   >()
-  for (const t of i.trades ?? []) {
-    const c = t.candidates.at(t.preferred ?? 0)
-    if (c && trades.some((x) => x.occurredAt === t.occurredAt))
-      things.set(c.symbol, { symbol: c.symbol, name: c.name, type: c.type })
+  const instruments = new Map<Id<'instruments'>, Doc<'instruments'> | null>()
+  for (const t of trades) {
+    if (!instruments.has(t.instrumentId))
+      instruments.set(t.instrumentId, await ctx.db.get(t.instrumentId))
+    const ins = instruments.get(t.instrumentId)
+    if (!ins || ins.ownerId !== ownerId) continue
+    const printed = (i.trades ?? []).find((r) => r.occurredAt === t.occurredAt)
+    const c = printed?.candidates.at(printed.preferred ?? 0)
+    const misread =
+      things.get(ins.symbol)?.read ??
+      (c && otherThing(c, ins) ? c.name : undefined)
+    things.set(ins.symbol, {
+      symbol: ins.symbol,
+      name: ins.name,
+      type: ins.type,
+      ...(misread === undefined ? {} : { read: misread }),
+    })
   }
   const rows = [
     ...trades.flatMap((t) =>
@@ -177,4 +237,18 @@ async function described(ctx: QueryCtx, ownerId: string, i: Doc<'intakes'>) {
     things: [...things.values()],
     rows,
   }
+}
+
+/* Another listing of the same thing (VWCE.DE, VWCE.AS) is the same
+   thing; another name on another code is not. */
+function otherThing(
+  read: { symbol: string; name: string },
+  saved: { symbol: string; name: string },
+) {
+  const code = (s: string) => s.split(/[.-]/)[0].toUpperCase()
+  const name = (s: string) => s.trim().toLowerCase()
+  return (
+    code(read.symbol) !== code(saved.symbol) &&
+    name(read.name) !== name(saved.name)
+  )
 }

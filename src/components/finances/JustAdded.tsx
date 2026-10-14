@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
-import { Check, X } from 'lucide-react'
+import { Check, TriangleAlert, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
@@ -34,12 +34,18 @@ const when = (t: number, today: number) =>
 export function JustAdded({
   accountId,
   intakeIds,
+  readAs,
   unit,
   sums,
   onOpen,
 }: {
   accountId?: Id<'accounts'>
   intakeIds?: ReadonlyArray<Id<'intakes'>>
+  /** A thing's page: also files that read it and saved it elsewhere. */
+  readAs?: {
+    symbols: ReadonlyArray<string>
+    accountIds: ReadonlyArray<Id<'accounts'>>
+  }
   /** "0.08275 oz", "3 shares" — on a thing's page. */
   unit?: (shares: number) => string
   sums: (f: JustFile) => Array<Sum>
@@ -48,12 +54,20 @@ export function JustAdded({
   const days = useDayStarts(1)
   const files = useQuery(
     api.justAdded.list,
-    accountId === undefined && (intakeIds ?? []).length === 0
+    accountId === undefined &&
+      (intakeIds ?? []).length === 0 &&
+      (readAs?.accountIds ?? []).length === 0
       ? 'skip'
       : {
           since: days[0],
           accountId,
           intakeIds: intakeIds ? [...intakeIds] : undefined,
+          readAs: readAs
+            ? {
+                symbols: [...readAs.symbols],
+                accountIds: [...readAs.accountIds],
+              }
+            : undefined,
         },
   )
   const [asking, setAsking] = useState<Id<'intakes'> | null>(null)
@@ -75,6 +89,7 @@ export function JustAdded({
         ) : null}
         <span className="label-caps text-lav-300">just added</span>
         <span className="font-mono text-[11px] text-ink-400">· 7 days</span>
+        <Misplaced files={list} />
       </span>
       {removed ? (
         <div
@@ -122,6 +137,24 @@ export function JustAdded({
   )
 }
 
+/* A file whose buys sit on another thing than it read (14 Oct): said
+   on the line itself, so it is seen with every card closed. */
+const misplaced = (f: JustFile) => f.things.some((t) => t.read !== undefined)
+
+function Misplaced({ files }: { files: ReadonlyArray<JustFile> }) {
+  const n = files.filter(misplaced).length
+  if (n === 0) return null
+  return (
+    <span
+      data-testid="just-misplaced"
+      className="motion-land inline-flex items-center gap-1.5 rounded-full bg-state-warn/14 px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-state-warn uppercase"
+    >
+      <TriangleAlert className="motion-pulse size-3" />
+      {n} {n === 1 ? 'file' : 'files'} on the wrong thing
+    </span>
+  )
+}
+
 const nameOf = (f: JustFile) => f.names.join(' · ') || 'A file'
 const isTrades = (f: JustFile) => f.things.length > 0
 const count = (f: JustFile, n: number) =>
@@ -132,7 +165,7 @@ function Badge({
   tone,
   children,
 }: {
-  tone: 'buy' | 'sell' | 'out' | 'in' | 'rows'
+  tone: 'buy' | 'sell' | 'out' | 'in' | 'rows' | 'warn'
   children: React.ReactNode
 }) {
   const look = {
@@ -141,6 +174,7 @@ function Badge({
     out: 'bg-state-danger/14 text-state-danger',
     in: 'bg-lift/[0.05] text-ink-400',
     rows: 'bg-lav-400/14 text-lav-300',
+    warn: 'bg-state-warn/14 text-state-warn',
   }[tone]
   return (
     <span
@@ -168,7 +202,7 @@ function Panel({
     <div
       data-testid="just-file"
       style={{ animationDelay: `${index * 70}ms` }}
-      className={`motion-arrive flex flex-col gap-2 rounded-[14px] px-3 py-2.5 ring-1 ring-inset ${f.saved > 0 ? 'bg-lav-400/[0.06] ring-lav-400/22' : 'bg-lift/[0.03] ring-lift/10'}`}
+      className={`motion-arrive flex flex-col gap-2 rounded-[14px] px-3 py-2.5 ring-1 ring-inset ${misplaced(f) ? 'bg-state-warn/[0.07] ring-state-warn/35' : f.saved > 0 ? 'bg-lav-400/[0.06] ring-lav-400/22' : 'bg-lift/[0.03] ring-lift/10'}`}
     >
       <button
         type="button"
@@ -199,8 +233,21 @@ function Panel({
             key={t.symbol}
             className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-200"
           >
-            <TickerLogo {...t} size={18} />
+            <TickerLogo
+              symbol={t.symbol}
+              type={t.type}
+              name={t.name}
+              size={18}
+            />
             {t.name}
+            {t.read !== undefined ? (
+              <>
+                <Badge tone="warn">saved here instead</Badge>
+                <span className="font-mono text-[11px] text-ink-400">
+                  read as {t.read}
+                </span>
+              </>
+            ) : null}
           </span>
         ))}
         {f.saved > 0 ? (

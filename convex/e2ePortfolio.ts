@@ -255,12 +255,20 @@ export const goldBuys = mutation({
       dismissed: [],
     })
     const year = new Date(now).getUTCFullYear() - 1
-    const buy = (m: number, d: number, shares: number, price: number) => ({
+    /* The fee is what was paid (−€300, −€250) over units × price. */
+    const buy = (
+      m: number,
+      d: number,
+      shares: number,
+      price: number,
+      fee: number,
+    ) => ({
       occurredAt: Date.UTC(year, m - 1, d, 12),
       name: 'XAU',
       side: 'buy' as const,
       shares,
       price,
+      fee,
       currency: 'EUR',
       preferred: 0,
       candidates: [gold],
@@ -275,10 +283,10 @@ export const goldBuys = mutation({
       title: 'Buy XAU · trades',
       files: [{ name: 'gold.png', size: 1, contentType: 'image/png' }],
       trades: [
-        buy(7, 23, 0.08275, 3607.63),
-        buy(6, 10, 0.069022, 3604.38),
-        buy(4, 30, 0.074456, 4009.46),
-        buy(4, 16, 0.059985, 4147.38),
+        buy(7, 23, 0.08275, 3607.63, 1.47),
+        buy(6, 10, 0.069022, 3604.38, 1.22),
+        buy(4, 30, 0.074456, 4009.46, 1.47),
+        buy(4, 16, 0.059985, 4147.38, 1.22),
       ],
     })
     return null

@@ -93,19 +93,18 @@ describe('justAdded.list', () => {
       since: NOW - 7 * DAY,
       accountId,
     })
-    expect(files.map((f) => [f.id, f.saved, f.had])).toEqual([
-      [again, 0, 4],
-      [first, 4, 0],
-    ])
-    expect(files[1].names).toEqual(['IMG_9285.PNG'])
-    expect(files[1].things).toEqual([
+    /* The same screenshot dropped again saved nothing: not listed. */
+    expect(files.map((f) => [f.id, f.saved, f.had])).toEqual([[first, 4, 0]])
+    expect(files.some((f) => f.id === again)).toBe(false)
+    expect(files[0].names).toEqual(['IMG_9285.PNG'])
+    expect(files[0].things).toEqual([
       { symbol: 'GC=F', name: 'Gold', type: 'FUTURE' },
     ])
-    expect(files[1].rows.map((r) => [r.side, r.shares])).toEqual(
+    expect(files[0].rows.map((r) => [r.side, r.shares])).toEqual(
       BUYS.map(([, s]) => ['buy', s]),
     )
-    expect(files[1].from).toBe(at(4, 16))
-    expect(files[1].to).toBe(at(7, 23))
+    expect(files[0].from).toBe(at(4, 16))
+    expect(files[0].to).toBe(at(7, 23))
   })
 
   test('IMG_9288: three buys and a sell are counted apart', async () => {
@@ -160,7 +159,6 @@ describe('justAdded.list', () => {
     })
     expect(files.map((f) => [f.names[0], f.saved, f.buys, f.sells])).toEqual([
       ['IMG_9288.PNG', 4, 3, 1],
-      ['IMG_9301.PNG', 0, 0, 0],
       ['IMG_9285.PNG', 4, 4, 0],
     ])
   })
@@ -180,6 +178,43 @@ describe('justAdded.list', () => {
       false,
       false,
     ])
+  })
+
+  test('what the bank sent on its own, and yesterday, are not listed', async () => {
+    const { t, me, accountId } = await setup()
+    await t.run(async (ctx) => {
+      const intakeId = await ctx.db.insert('intakes', {
+        ownerId: ME,
+        accountId,
+        storageIds: [],
+        status: 'done',
+        via: 'bank',
+        readAt: NOW - DAY / 8,
+        transactions: [],
+      })
+      await ctx.db.insert('logs', {
+        ownerId: ME,
+        kind: 'expense',
+        area: 'finance',
+        value: 12,
+        unit: 'eur',
+        occurredAt: NOW - DAY,
+        accountId,
+        meta: { intakeId },
+      })
+    })
+    const files = await me.query(api.justAdded.list, {
+      since: NOW - DAY / 2,
+      accountId,
+    })
+    expect(files.map((f) => f.names[0])).toEqual(['IMG_9285.PNG'])
+    /* Since the start of today: the file saved 12 hours before NOW is
+       still listed; one before it is not. */
+    const later = await me.query(api.justAdded.list, {
+      since: NOW - DAY / 4,
+      accountId,
+    })
+    expect(later).toEqual([])
   })
 
   test('a thing: only the files asked for', async () => {

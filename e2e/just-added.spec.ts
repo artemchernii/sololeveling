@@ -92,7 +92,7 @@ test("just added: on Revolut's sheet, with its BANK and BROKER badges", async ({
 
   /* OPEN: the built file view. */
   await file.getByRole('button', { name: 'open ›' }).click()
-  await expect(sheet.getByTestId('take-back')).toBeVisible()
+  await expect(sheet.getByTestId('take-back-open')).toBeVisible()
 
   /* Phone width. */
   await page.setViewportSize({ width: 390, height: 844 })
@@ -145,7 +145,13 @@ test('just added: five files of one drop, one line, BUY and SELL apart', async (
   const rows = sheet.getByTestId('file-trade')
   await expect(rows).toHaveCount(nine ? 5 : 4)
   await expect(rows.filter({ hasText: 'already added' })).toHaveCount(3)
-  /* The remove box: badges left, the button right, on one line. */
+  /* The remove box: a small button first; pressed, badges left and the
+     button right, on one line; KEEP folds it back. */
+  await expect(sheet.getByTestId('take-back')).toHaveCount(0)
+  await sheet.getByTestId('take-back-open').scrollIntoViewIfNeeded()
+  await page.waitForTimeout(500)
+  await sheet.screenshot(shot('file-view-quiet'))
+  await sheet.getByTestId('take-back-open').click()
   const box = sheet.getByTestId('take-back')
   const gone = nine ? '−2 buy' : '−1 buy'
   await expect(box).toContainText(gone)
@@ -160,6 +166,9 @@ test('just added: five files of one drop, one line, BUY and SELL apart', async (
   expect(press!.x).toBeGreaterThan(badge!.x + 100)
   await page.waitForTimeout(500)
   await sheet.screenshot(shot('just-added-file-trades'))
+  await box.getByRole('button', { name: 'keep' }).click()
+  await expect(sheet.getByTestId('take-back')).toHaveCount(0)
+  await expect(sheet.getByTestId('take-back-open')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(sheet).toBeHidden()
 
@@ -187,7 +196,11 @@ test("just added: removing from the opened file on Gold's page is said", async (
     .getByRole('button', { name: 'open ›' })
     .click()
   const sheet = page.getByRole('dialog')
-  await sheet.getByRole('button', { name: 'remove screenshot' }).click()
+  await sheet.getByTestId('take-back-open').click()
+  await sheet
+    .getByTestId('take-back')
+    .getByRole('button', { name: 'remove screenshot' })
+    .click()
   await expect(sheet.getByText('removing…')).toBeVisible()
   await expect(sheet.getByText('Removed', { exact: true })).toBeVisible()
   await page.waitForTimeout(700)

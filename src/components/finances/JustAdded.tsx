@@ -15,7 +15,7 @@ import { euros } from '@/lib/money'
 import { fmt, short } from './AccountSheetRows'
 
 /* Just added (14 Oct, mockup just-added.html, docs/specs/2026-10-14-
-   just-added.md). Files saved in the last 7 days, on top of an account's
+   just-added.md). Files he dropped today that saved something, on top of an account's
    sheet and of a thing's page: the sheet's own file row (IMG, name, days,
    OPEN ›), what it saved as badges, and REMOVE — which shows each row
    that goes and the before → after first, then the built take-back. */
@@ -59,7 +59,8 @@ export function JustAdded({
       (readAs?.accountIds ?? []).length === 0
       ? 'skip'
       : {
-          since: days[0],
+          /* Today only (14 Oct): files stay in the history at their dates. */
+          since: days[days.length - 1],
           accountId,
           intakeIds: intakeIds ? [...intakeIds] : undefined,
           readAs: readAs

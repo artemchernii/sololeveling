@@ -830,6 +830,18 @@ describe('a broker’s own spelling', () => {
     expect(sameCompany({ name: 'UBER TECH. DL-,00001' }, held)).toBe(4)
     expect(sameCompany({ name: 'APPLE INC.' }, held)).toBe(-1)
   })
+
+  /* 14 Oct: his Trading 212 screenshots of iShares Physical Gold were
+     saved under iShares Digital Security, the first iShares fund held. */
+  test('sameCompany: a fund house is not a company', () => {
+    const funds = [
+      { symbol: 'SHLD.L', name: 'iShares Digital Security UCITS ETF USD Dist' },
+      { symbol: 'IGLN.L', name: 'iShares Physical Gold ETC' },
+    ]
+    expect(sameCompany({ name: 'iShares Physical Gold' }, funds)).toBe(1)
+    expect(sameCompany({ name: 'iShares Digital Security' }, funds)).toBe(0)
+    expect(sameCompany({ name: 'iShares Core MSCI World' }, funds)).toBe(-1)
+  })
 })
 
 describe('his own money', () => {

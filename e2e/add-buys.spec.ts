@@ -122,3 +122,31 @@ test('ADD BUYS: files for another thing are named and never saved here', async (
   await expect(sheet.getByText('4 buys saved · Gold')).toBeVisible()
   await page.screenshot({ ...shot('add-buys-elsewhere-saved'), fullPage: true })
 })
+
+/* 14 Oct, his drop: five screenshots of gold scrolled one after another,
+   IMG_9290's last three rows IMG_9291's first three. Each buy counts
+   once, as the save counts it — not "too much". Mock data only. */
+test('ADD BUYS: a buy in two overlapping screenshots counts once', async ({
+  page,
+}) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2ePortfolio.goldBuys, { drop: true })
+  await page.goto('/finances?room=portfolio')
+  await page.getByRole('button', { name: 'Show amounts' }).first().click()
+  await page
+    .getByTestId('owned-row')
+    .filter({ hasText: 'Gold' })
+    .getByRole('link')
+    .click()
+  const position = page.getByTestId('position-page')
+  await position.getByRole('button', { name: 'add buys' }).click()
+  const sheet = page.getByRole('dialog')
+  await expect(sheet.getByTestId('buys-row')).toHaveCount(19)
+  await expect(sheet.getByTestId('buys-line')).toContainText('Every buy is in.')
+  await expect(sheet.getByText(/too much/)).toHaveCount(0)
+  await page.screenshot({ ...shot('add-buys-overlap'), fullPage: true })
+  await sheet.getByRole('button', { name: /apply/ }).click()
+  await expect(sheet.getByTestId('buys-line')).toContainText('Every buy is in.')
+  await sheet.getByRole('button', { name: 'done' }).click()
+  await expect(position.getByText('buys and sells · 19')).toBeVisible()
+})

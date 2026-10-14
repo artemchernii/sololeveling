@@ -36,6 +36,9 @@ test('the opened file says what goes, one press takes it back, the account is â‚
     .getByRole('button', { name: /IMG_9282/ })
     .last()
     .click()
+  /* History, not an alarm: one small button until pressed (14 Oct). */
+  await expect(sheet.getByTestId('take-back')).toHaveCount(0)
+  await sheet.getByTestId('take-back-open').click()
   const box = sheet.getByTestId('take-back')
   /* A warning, and what goes as badges (14 Oct). */
   await expect(box.getByText('remove Â· these numbers go')).toBeVisible()

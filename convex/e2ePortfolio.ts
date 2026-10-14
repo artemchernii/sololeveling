@@ -196,9 +196,11 @@ export const soldOut = mutation({
  * it (14 Oct; his screenshot's rows). Test backend only (`guard`).
  */
 export const goldBuys = mutation({
-  args: {},
+  /* With `fund`: two screenshots of iShares Physical Gold dropped too,
+     one saying Trading 212, one saying nothing (his drop of 14 Oct). */
+  args: { fund: v.optional(v.boolean()) },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     guard()
     const revolut = (
@@ -281,6 +283,40 @@ export const goldBuys = mutation({
         buy(4, 16, 0.059985, 4147.38),
       ],
     })
+    if (args.fund === true) {
+      const fund = {
+        symbol: 'IGLN.L',
+        name: 'iShares Physical Gold',
+        exchange: 'LSE',
+        type: 'ETF',
+      }
+      const row = (m: number, d: number, side: 'buy' | 'sell') => ({
+        occurredAt: Date.UTC(year, m - 1, d, 12),
+        name: 'iShares Physical Gold',
+        side,
+        shares: 1.5,
+        price: 36,
+        currency: 'EUR',
+        preferred: 0,
+        candidates: [fund],
+      })
+      for (const [name, institution] of [
+        ['212-a.png', 'trading 212'],
+        ['212-b.png', undefined],
+      ] as const)
+        await ctx.db.insert('intakes', {
+          ownerId,
+          batchId,
+          accountId: revolut._id,
+          storageIds: [],
+          status: 'ready',
+          kind: 'trades',
+          title: 'iShares Physical Gold · trades',
+          institution,
+          files: [{ name, size: 1, contentType: 'image/png' }],
+          trades: [row(5, 2, 'buy'), row(6, 3, 'sell'), row(7, 4, 'buy')],
+        })
+    }
     return null
   },
 })

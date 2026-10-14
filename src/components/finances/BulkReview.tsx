@@ -27,6 +27,7 @@ import type { Ask } from '@/components/finances/BulkParts'
 import { AskCard } from '@/components/finances/BulkAskCard'
 import { AccountBlock } from '@/components/finances/BulkAccountBlock'
 import { sharesOpen } from '@/components/finances/BulkSharesCheck'
+import { useBuysGate } from '@/components/finances/BuysCheck'
 
 export function BulkReview({
   batchId,
@@ -43,6 +44,7 @@ export function BulkReview({
   const accounts = useQuery(api.accounts.list, {})
   const balances = useQuery(api.aggregate.balances, {})
   const apply = useMutation(api.intake.applyBatch)
+  const gate = useBuysGate(batchId)
   const discard = useMutation(api.intake.discardBatch)
   const dayStart = useDayStarts(1).at(-1) as number
   const [solved, setSolved] = useState<Array<{ key: string; text: string }>>([])
@@ -335,12 +337,12 @@ export function BulkReview({
         </button>
         <button
           type="button"
-          hidden={nothingNew || allBad}
+          hidden={nothingNew || allBad || gate?.blocked === true}
           disabled={busy || ready === 0}
           onClick={() => {
             setBusy(true)
             setError(null)
-            apply({ batchId, dayStart })
+            apply({ batchId, dayStart, only: gate?.only })
               .then(onApplied)
               .catch((e: unknown) =>
                 setError(failureMessage(e) ?? 'Not saved — try again.'),

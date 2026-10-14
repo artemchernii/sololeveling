@@ -32,7 +32,10 @@ test('the opened file says what goes, one press takes it back, the account is â‚
 
   await page.getByRole('button', { name: 'Open ActivoBank' }).click()
   const sheet = page.getByRole('dialog')
-  await sheet.getByRole('button', { name: /IMG_9282/ }).click()
+  await sheet
+    .getByRole('button', { name: /IMG_9282/ })
+    .last()
+    .click()
   const box = sheet.getByTestId('take-back')
   await expect(
     box.getByText(/3 rows and the balance of \d+ Oct go\./),

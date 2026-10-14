@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · paid since zero</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* A position's page, 14 Oct night (his four asks): PAID counts the
+     buys since the last day he held zero, with that day; closed rounds
+     keep their own BUY / SELL sums in the list; ADD BUYS' saved screen
+     says "0 NEW · 9 SAVED BEFORE" and one line for shares; the head
+     line gets a currency chip and a sector / region badge. His real
+     rows: iShares Physical Gold (9) and Gold (19), read 14 Oct 22:20. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --metal-xau: oklch(0.8 0.14 78);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0 }
+  svg.i { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 16px }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); color: var(--ink-400) }
+  .scen button.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--lav-300); margin-bottom: 6px }
+  .frame { border-radius: 22px; padding: 20px; border: 1px solid var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.08), rgba(181,171,252,.015) 40%), #1d1c2d; display: flex; flex-direction: column; gap: 16px }
+  .caps { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-300) }
+  .mono { font-family: var(--mono) }
+  .badge { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap }
+  .b-lav { background: rgba(181,171,252,.16); color: var(--lav-300) }
+  .b-q { background: rgba(var(--lift),.06); color: var(--ink-300) }
+  .b-good { background: color-mix(in oklch, var(--good) 14%, transparent); color: var(--good) }
+  .b-bad { background: color-mix(in oklch, var(--danger) 14%, transparent); color: var(--danger) }
+  .b-warn { background: color-mix(in oklch, var(--warn) 14%, transparent); color: var(--warn) }
+  .b-gold { background: color-mix(in oklch, var(--metal-xau) 16%, transparent); color: var(--metal-xau) }
+  .b-sect { background: rgba(var(--lift),.07); color: var(--ink-100); box-shadow: inset 0 0 0 1px rgba(var(--lift),.12) }
+  .b-cur { background: none; color: var(--ink-100); box-shadow: inset 0 0 0 1px rgba(var(--lift),.22) }
+  .b-cur b { font-weight: 500; color: var(--lav-300) }
+  .good-t { color: var(--good) } .bad-t { color: var(--danger) } .warn-t { color: var(--warn) }
+
+  /* head */
+  .head { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 14px; align-items: center }
+  @media (max-width: 640px) { .head { grid-template-columns: auto minmax(0,1fr) } .head .px { grid-column: 1 / -1; text-align: left } }
+  .logo { width: 56px; height: 56px; border-radius: 12px; display: grid; place-items: center; flex: none }
+  .logo.i { background: #fff; color: #000; font: 600 32px Georgia, serif }
+  .logo.au { background: var(--metal-xau) }
+  .logo.au svg { width: 30px; height: 30px; fill: #1d1c2d }
+  .logo.ms { background: #fff; padding: 12px } .logo.ms i { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; width: 100% ; height: 100% }
+  .logo.vg { background: #96151d; color: #fff; font: 600 13px var(--mono); letter-spacing: .04em }
+  .head h1 { font-size: 22px; font-weight: 400; line-height: 1.2 }
+  .meta { margin-top: 6px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-family: var(--mono); font-size: 11px; color: var(--ink-300) }
+  .px { text-align: right }
+  .px .big { font-size: 36px; font-weight: 500; letter-spacing: -.02em }
+  .px .eur { font-size: 18px; color: var(--ink-300); margin-left: 6px }
+  .px .sub { font-family: var(--mono); font-size: 11px; color: var(--ink-400); margin-top: 2px }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px }
+  @media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, minmax(0,1fr)) } }
+  .tile { border-radius: 14px; padding: 12px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); display: flex; flex-direction: column; gap: 4px; min-width: 0; animation: arrive .4s both }
+  .tile.bad { background: color-mix(in oklch, var(--danger) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--danger) 30%, transparent) }
+  .num { font-size: 27px; line-height: 1.15; font-variant-numeric: tabular-nums }
+  .under { font-family: var(--mono); font-size: 11px; color: var(--ink-300); display: flex; gap: 5px; align-items: center; flex-wrap: wrap }
+  .hl { background: color-mix(in oklch, var(--lav-400) 22%, transparent); outline: 1px dashed var(--lav-400); outline-offset: 2px; border-radius: 6px }
+
+  /* list */
+  .list { border-radius: 16px; background: rgba(var(--lift),.025); box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); padding: 14px }
+  .round { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 0 8px; border-top: 1px solid rgba(var(--lift),.08) }
+  .round:first-of-type { border-top: 0; padding-top: 4px }
+  .round .days { font-family: var(--mono); font-size: 11px; color: var(--ink-300) }
+  .round .sp { flex: 1 }
+  .round button.open { font-family: var(--mono); font-size: 10.5px; color: var(--ink-400); display: inline-flex; gap: 4px; align-items: center }
+  .row { display: grid; grid-template-columns: 62px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid rgba(var(--lift),.05); animation: arrive .35s both }
+  .row .side { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase }
+  .row .amt { font-family: var(--mono); font-size: 13.5px } .row .sh { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .row .d { font-family: var(--mono); font-size: 11px; color: var(--ink-500) }
+  .closed .row { opacity: .72 }
+
+  /* saved screen */
+  .sheet { max-width: 640px; margin: 0 auto; width: 100%; border-radius: 18px; padding: 16px; background: #20203a; box-shadow: inset 0 0 0 1px var(--sys-edge), 0 24px 60px -24px #000 }
+  .shead { display: flex; align-items: center; padding-bottom: 12px; border-bottom: 1px solid rgba(181,171,252,.16); font-family: var(--mono); font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--lav-400) }
+  .landed { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px 0 6px }
+  .tick { width: 56px; height: 56px; border-radius: 999px; display: grid; place-items: center; animation: pop .5s both }
+  .tick svg { width: 28px; height: 28px; stroke-width: 2.5 }
+  .tick.g { background: color-mix(in oklch, var(--good) 16%, transparent); color: var(--good); box-shadow: 0 0 36px -6px var(--good), inset 0 0 0 1px color-mix(in oklch, var(--good) 45%, transparent) }
+  .counts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; animation: land .5s .1s both }
+  .counts .badge { font-size: 13px; padding: 6px 14px; letter-spacing: .14em }
+  .card { width: 100%; display: flex; align-items: center; gap: 14px; border-radius: 16px; padding: 14px 16px; background: color-mix(in oklch, var(--good) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 30%, transparent); animation: arrive .4s both }
+  .card.q { background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.08) }
+  .card .logo { width: 44px; height: 44px; border-radius: 10px; font-size: 26px }
+  .line { width: 100%; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-radius: 14px; padding: 12px 14px; font-family: var(--mono); font-size: 13px; animation: land .45s both }
+  .line.ok { background: color-mix(in oklch, var(--good) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 30%, transparent) }
+  .line.miss { background: color-mix(in oklch, var(--warn) 7%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 35%, transparent) }
+  .line .dot { color: var(--ink-500) }
+  .pills { display: flex; gap: 8px; justify-content: center; padding-top: 4px }
+  .pill { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 9px 20px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(var(--lift),.18); color: var(--ink-300) }
+  .pill.loud { background: var(--lav-400); color: #17162a; box-shadow: none; padding: 9px 32px }
+  .heads { display: flex; flex-direction: column; gap: 14px }
+  .heads .frame { gap: 0; padding: 16px 20px }
+  .src { font-family: var(--mono); font-size: 10px; color: var(--ink-500); margin-top: 8px; letter-spacing: .08em }
+  .pulse { animation: p 1.6s ease-in-out infinite } @keyframes p { 50% { opacity: .45 } }
+  @keyframes arrive { from { opacity: 0; transform: translateY(6px) } }
+  @keyframes land { from { opacity: 0; transform: scale(.96) } }
+  @keyframes pop { 0% { transform: scale(.4); opacity: 0 } 70% { transform: scale(1.08) } }
+  .ask { font-family: var(--mono); font-size: 11px; color: var(--warn); border: 1px dashed color-mix(in oklch, var(--warn) 45%, transparent); border-radius: 10px; padding: 8px 10px; max-width: 720px; margin: 0 auto; text-align: center; line-height: 1.6 }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="scen" id="scen">
+    <button data-s="igln" class="on">1 · physical gold page</button>
+    <button data-s="gold">1 · gold page</button>
+    <button data-s="saved0">2·3 · add buys · 0 new</button>
+    <button data-s="saved2">2·3 · add buys · 2 new (sample)</button>
+    <button data-s="savedMiss">2·3 · add buys · missing (sample)</button>
+    <button data-s="heads">4 · head line</button>
+  </div>
+  <div id="ask" class="ask" hidden></div>
+  <div id="out"></div>
+</div>
+<script>
+const ic = {
+  check: '<svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+  warn: '<svg class="i" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+  down: '<svg class="i" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
+  cpu: '<svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/></svg>',
+  globe: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
+  shield: '<svg class="i" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>',
+  bars: '<svg class="i" viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M9.2 4.5h5.6l2.4 5.6H6.8z"/><path d="M3.6 12.7h6.1l2.4 5.6H1.2z"/><path d="M14.3 12.7h6.1l2.4 5.6H11.9z"/></svg>',
+}
+const barsLogo = '<svg viewBox="0 0 24 24"><path d="M9.2 4.5h5.6l2.4 5.6H6.8z"/><path d="M3.6 12.7h6.1l2.4 5.6H1.2z"/><path d="M14.3 12.7h6.1l2.4 5.6H11.9z"/></svg>'
+const ms = '<i><b style="background:#f25022"></b><b style="background:#7fba00"></b><b style="background:#00a4ef"></b><b style="background:#ffb900"></b></i>'
+
+/* His rows, newest first, read off the page 14 Oct 22:20. */
+const T = {
+  igln: {
+    name: 'iShares Physical Gold ETC', logo: '<div class="logo i">i</div>', code: 'IGLN', cur: ['$', 'USD'],
+    kind: '', sect: ['b-gold', ic.bars, 'gold'], px: '$79.30', eur: '€70.84', day: '−1.42 (−1.76%)', from: 'from $80.72 · Oct 13 close', at: 'Oct 14, 16:35 · Yahoo Finance',
+    worth: '€521.73', held: '7.365427 shares', unit: 'shares',
+    oldPaid: ['paid · 6 buy · 3 sell', '€549', 'all 7.365427 shares'], gain: ['−€27.27', '5.0%'], acct: 'Trading 212',
+    rounds: [
+      { now: true, from: '16 Apr 2026', buy: '€549', nb: 4, rows: [
+        ['buy', '€100', '1.43383919 shares at €69.74', 'Jul 27, 2026'], ['buy', '€49', '0.70249577 shares at €69.75', 'Jul 1, 2026'],
+        ['buy', '€150', '2.0825794 shares at €72.03', 'Jun 9, 2026'], ['buy', '€250', '3.14651278 shares at €79.45', 'Apr 16, 2026'] ] },
+      { from: '6 Apr 2023', to: '12 Jul 2023', buy: '€125', sell: '€120.75', nb: 2, ns: 3, rows: [
+        ['sell', '€50.96', '1.491915 shares at €34.16', 'Jul 12, 2023'], ['sell', '€19.94', '0.578343 shares at €34.48', 'Jun 21, 2023'],
+        ['sell', '€49.85', '1.412178 shares at €35.30', 'May 19, 2023'], ['buy', '€25', '0.708912 shares at €35.27', 'Apr 26, 2023'],
+        ['buy', '€100', '2.773524 shares at €36.05', 'Apr 6, 2023'] ] },
+    ],
+  },
+  gold: {
+    name: 'Gold', logo: `<div class="logo au">${barsLogo}</div>`, code: 'XAU', cur: ['$', 'USD'],
+    kind: '', sect: ['b-gold', ic.bars, 'gold'], px: '$4,127.30', eur: '€3,686.75', day: '−50.00 (−1.20%)', from: 'from $4,177.30 · Oct 13 close', at: 'Oct 14, 21:59 · Yahoo Finance',
+    worth: '€1,505.54', held: '0.408365 oz', unit: 'oz',
+    oldPaid: ['paid · 17 buy · 2 sell', '€1,620.68', 'all 0.408365 oz'], gain: ['−€115.14', '7.1%'], acct: 'Revolut',
+    rounds: [
+      { now: true, from: '17 Feb 2026', buy: '€1,620.68', nb: 7, rows: [
+        ['buy', '€298.53', '0.08275 oz at €3,607.63', 'Jul 23, 2026'], ['buy', '€248.78', '0.069022 oz at €3,604.38', 'Jun 10, 2026'],
+        ['buy', '€298.53', '0.074456 oz at €4,009.46', 'Apr 30, 2026'], ['buy', '€248.78', '0.059985 oz at €4,147.38', 'Apr 16, 2026'],
+        ['buy', '€100', '0.024092 oz at €4,150.82', 'Apr 1, 2026'], ['buy', '€215.18', '0.047789 oz at €4,502.80', 'Mar 6, 2026'],
+        ['buy', '€210.88', '0.050271 oz at €4,194.87', 'Feb 17, 2026'] ] },
+      { from: '20 Apr 2023', to: '12 Jun 2023', buy: '€494.12', sell: '€484.43', nb: 4, ns: 1, rows: [
+        ['sell', '€484.43', '0.269819 oz at €1,795.39', 'Jun 12, 2023'], ['buy', '€45.15', '0.024669 oz at €1,830.13', 'May 5, 2023'],
+        ['buy', '€90.31', '0.049334 oz at €1,830.49', 'May 5, 2023'], ['buy', '€130', '0.071491 oz at €1,818.39', 'Apr 28, 2023'],
+        ['buy', '€228.66', '0.124325 oz at €1,839.25', 'Apr 20, 2023'] ] },
+      { from: '28 Jul 2022', to: '16 Mar 2023', buy: '€520', sell: '€543.28', nb: 6, ns: 1, rows: [
+        ['sell', '€543.28', '0.302727 oz at €1,794.62', 'Mar 16, 2023'], ['buy', '€50', '0.029292 oz at €1,706.90', 'Sep 27, 2022'],
+        ['buy', '€70', '0.041007 oz at €1,706.99', 'Sep 27, 2022'], ['buy', '€50', '0.02978 oz at €1,678.95', 'Sep 15, 2022'],
+        ['buy', '€50', '0.029789 oz at €1,678.45', 'Sep 15, 2022'], ['buy', '€50', '0.028378 oz at €1,761.97', 'Aug 23, 2022'],
+        ['buy', '€250', '0.144481 oz at €1,730.33', 'Jul 28, 2022'] ] },
+    ],
+  },
+}
+let s = 'igln'
+const open = {}
+
+function head(d, proposed) {
+  const meta = proposed
+    ? `${d.kind ? `<span class="badge b-lav">${d.kind}</span>` : ''}<span class="badge ${d.sect[0]}">${d.sect[1]}${d.sect[2]}</span><span>${d.code}</span><span class="badge b-cur"><b>${d.cur[0]}</b>${d.cur[1]}</span>`
+    : `<span class="badge b-lav">gold</span><span>${d.code}</span> · ${d.cur[1]}`
+  return `<div class="head">${d.logo}<div style="min-width:0"><h1>${d.name}</h1><div class="meta">${meta}</div></div>
+    <div class="px"><div><span class="big">${d.px}</span><span class="eur">${d.eur}</span></div>
+      <div class="bad-t" style="font-size:15px;font-weight:500">${d.day} <span class="mono" style="font-size:11px;color:var(--ink-400)">${d.from}</span></div>
+      <div class="sub">${d.at}</div></div></div>`
+}
+function tiles(d, proposed) {
+  const r = d.rounds[0]
+  const paid = proposed
+    ? `<div class="tile"><span class="caps">paid · ${r.nb} buy</span><span class="num">${r.buy}</span>
+        <span class="under"><span class="badge b-q">since ${r.from}</span></span>
+        <span class="under good-t">${ic.check} every buy in</span></div>`
+    : `<div class="tile"><span class="caps">${d.oldPaid[0]}</span><span class="num">${d.oldPaid[1]}</span><span class="under good-t">${ic.check} ${d.oldPaid[2]}</span></div>`
+  return `<div class="tiles">
+    <div class="tile"><span class="caps">worth now</span><span class="num">${d.worth}</span><span class="under">${d.held}</span></div>
+    ${paid}
+    <div class="tile bad"><span class="caps">down since ${proposed ? r.from.split(' ').slice(0, 2).join(' ') : 'bought'}</span><span class="num bad-t">${d.gain[0]}</span><span class="under bad-t">▼ ${d.gain[1]}</span></div>
+    <div class="tile"><span class="caps">account</span><span class="under" style="justify-content:space-between;font-size:12px"><span>${d.acct}</span><span style="color:var(--ink-100)">${d.worth}</span></span></div>
+  </div>`
+}
+function row(t, i) {
+  return `<div class="row" style="animation-delay:${i * 30}ms"><span class="side ${t[0] === 'sell' ? 'bad-t' : 'good-t'}">${t[0]}</span>
+    <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="amt">${t[1]}</span><span class="sh">${t[2]}</span></span><span class="d">${t[3]}</span></div>`
+}
+function list(d) {
+  const n = d.rounds.reduce((a, r) => a + r.rows.length, 0)
+  return `<div class="list"><span class="caps" style="color:var(--ink-500)">buys and sells · ${n}</span>
+    ${d.rounds.map((r, k) => {
+      const shown = r.now || open[s + k]
+      const headRow = r.now
+        ? `<div class="round"><span class="badge b-lav">now</span><span class="days">since ${r.from}</span><span class="sp"></span><span class="badge b-good">${r.nb} buy · ${r.buy}</span></div>`
+        : `<div class="round"><span class="badge b-q">closed</span><span class="days">${r.from} → ${r.to}</span><span class="sp"></span>
+            <span class="badge b-good">${r.nb} buy · ${r.buy}</span><span class="badge b-bad">${r.ns} sell · ${r.sell}</span>
+            <button class="open" data-k="${k}" style="transform:rotate(${shown ? 180 : 0}deg)">${ic.down}</button></div>`
+      return `<div class="${r.now ? '' : 'closed'}">${headRow}${shown ? r.rows.map(row).join('') : ''}</div>`
+    }).join('')}</div>`
+}
+function page(d) {
+  return `<div style="display:flex;flex-direction:column;gap:18px">
+    <div><div class="tag">built now</div><div class="frame">${head(d, false)}${tiles(d, false)}</div></div>
+    <div><div class="tag">proposed</div><div class="frame">${head(d, true)}${tiles(d, true)}${list(d)}</div></div></div>`
+}
+
+/* ADD BUYS saved screen on iShares Physical Gold. */
+function saved(kind) {
+  const d = T.igln, r = d.rounds[0]
+  const counts = kind === 'saved2'
+    ? `<span class="badge b-good">2 new</span><span class="badge b-q">7 saved before</span>`
+    : kind === 'savedMiss'
+      ? `<span class="badge b-good">3 new</span><span class="badge b-q">6 saved before</span>`
+      : `<span class="badge b-q">0 new</span><span class="badge b-good">${ic.check} 9 saved before</span>`
+  const line = kind === 'savedMiss'
+    ? `<div class="line miss"><span>21.867878 shares</span><span class="dot">·</span><span>7.365427 in the buys</span><span class="dot">·</span><span class="badge b-warn"><span class="pulse" style="display:inline-flex">${ic.warn}</span>14.502451 missing</span></div>`
+    : `<div class="line ok"><span>${d.held}</span><span class="dot">·</span><span class="good-t" style="display:inline-flex;gap:6px;align-items:center">every buy in ${ic.check}</span></div>`
+  const name = kind === 'savedMiss' ? 'iShares Digital Security UCITS ETF USD Dist' : d.name
+  const paidLine = kind === 'savedMiss'
+    ? `<span class="badge b-q">paid · 4 buy</span><span class="badge b-q">since 3 Mar 2026</span>`
+    : `<span class="badge b-q">paid · ${r.nb} buy</span><span class="badge b-q">since ${r.from}</span>`
+  const old = kind === 'saved0'
+    ? `<div><div class="tag">built now</div><div class="sheet"><div class="shead">[ add buys · trading 212 ]</div><div class="landed">
+        <div class="tick g">${ic.check}</div><div style="font-size:24px;font-weight:300;text-align:center">Nothing new for iShares Physical Gold ETC</div>
+        <div class="card"><div class="logo i">i</div><div style="flex:1;min-width:0"><div style="font-size:17px">iShares Physical Gold ETC</div><div class="mono good-t" style="font-size:11px">nothing new</div></div><div style="text-align:right"><div style="font-size:22px;font-weight:300">€674</div><div class="caps" style="color:var(--ink-500)">buy total</div></div></div>
+        <div class="tiles" style="grid-template-columns:1fr 1fr;width:100%"><div class="tile"><span class="caps">held</span><span style="font-size:19px;font-weight:300">7.365427 shares</span><span class="caps" style="color:var(--ink-500)">at the broker</span></div><div class="tile"><span class="caps">in the buys</span><span style="font-size:19px;font-weight:300">7.365427 shares</span><span class="caps" style="color:var(--ink-500)">6 buys</span></div></div>
+        <div class="line ok" style="font-family:Inter"><span class="good-t">${ic.check}</span> Every buy is in.</div></div></div></div>`
+    : ''
+  return `<div style="display:flex;flex-direction:column;gap:18px">${old}
+    <div><div class="tag">proposed</div><div class="sheet"><div class="shead">[ add buys · trading 212 ]</div><div class="landed">
+      <div class="tick g">${ic.check}</div>
+      <div class="counts">${counts}</div>
+      <div class="card ${kind === 'savedMiss' ? 'q' : ''}">${kind === 'savedMiss' ? '<div class="logo i">i</div>' : d.logo.replace('logo i', 'logo i')}<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px"><div style="font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${paidLine}</div></div>
+        <div style="font-size:22px;font-weight:400">${kind === 'savedMiss' ? '€239.64' : r.buy}</div></div>
+      ${line}
+      ${kind === 'savedMiss' ? '' : `<div style="width:100%">${list(d)}</div>`}
+      <div class="pills">${kind === 'saved0' ? '' : '<button class="pill">undo</button>'}<button class="pill loud">done</button></div>
+    </div></div></div></div>`
+}
+
+function heads() {
+  const H = [
+    { logo: `<div class="logo ms">${ms}</div>`, name: 'Microsoft', kind: 'share', sect: ['b-sect', ic.cpu, 'tech'], code: 'MSFT', cur: ['$', 'USD'], src: 'TECH ← Yahoo sector "Technology" · stored 14 Oct', old: 'share · MSFT · USD' },
+    { logo: '<div class="logo vg">VG</div>', name: 'Vanguard FTSE Developed Asia Pacific ex Japan', kind: 'etf', sect: ['b-sect', ic.globe, 'asia pacific'], code: 'VGEK · VDPG', cur: ['€', 'EUR'], src: 'ASIA PACIFIC ← the fund\'s name · Yahoo has no category for it', old: 'ETF · VGEK · VDPG · EUR' },
+    { logo: '<div class="logo i">i</div>', name: 'iShares Digital Security UCITS ETF USD Dist', kind: 'etf', sect: ['b-sect', ic.shield, 'cyber security'], code: 'SHLD', cur: ['$', 'USD'], src: 'CYBER SECURITY ← the fund\'s name', old: 'ETF · SHLD · USD' },
+    { logo: '<div class="logo i">i</div>', name: 'iShares Physical Gold ETC', kind: '', sect: ['b-gold', ic.bars, 'gold'], code: 'IGLN', cur: ['$', 'USD'], src: 'GOLD ← the fund\'s name', old: 'GOLD · IGLN · USD' },
+    { logo: `<div class="logo au">${barsLogo}</div>`, name: 'Gold', kind: '', sect: ['b-gold', ic.bars, 'gold'], code: 'XAU', cur: ['$', 'USD'], src: 'GOLD ← a metal, no read needed', old: 'GOLD · XAU · USD' },
+  ]
+  return `<div class="heads">${H.map(h => `<div class="frame"><div class="head" style="grid-template-columns:auto minmax(0,1fr)">${h.logo}<div style="min-width:0"><h1 style="font-size:20px">${h.name}</h1>
+      <div class="meta" style="color:var(--ink-500)">${h.old} <span class="caps" style="color:var(--ink-500);margin-left:6px">← built</span></div>
+      <div class="meta">${h.kind ? `<span class="badge b-lav">${h.kind}</span>` : ''}<span class="badge ${h.sect[0]}">${h.sect[1]}${h.sect[2]}</span><span>${h.code}</span><span class="badge b-cur"><b>${h.cur[0]}</b>${h.cur[1]}</span></div>
+      <div class="src">${h.src}</div></div></div></div>`).join('')}</div>`
+}
+
+const ASK = {
+  heads: 'Yahoo gives a sector for shares (MSFT → Technology). For your London funds it gives no category at all (checked VDPG, VUAA, SHLD, IGLN tonight). Proposal: shares from Yahoo; funds from words in their own name; nothing found → no badge, one press to pick. The source line is for you here, on hover in the app. IGLN and Gold: GOLD replaces the kind badge (no GOLD · GOLD).',
+}
+function draw() {
+  document.getElementById('out').innerHTML =
+    s === 'igln' || s === 'gold' ? page(T[s]) : s === 'heads' ? heads() : saved(s)
+  const a = document.getElementById('ask')
+  a.hidden = !ASK[s]; a.textContent = ASK[s] ?? ''
+  document.querySelectorAll('#scen button').forEach(b => b.classList.toggle('on', b.dataset.s === s))
+}
+document.getElementById('scen').onclick = e => { const b = e.target.closest('button'); if (!b) return; s = b.dataset.s; draw() }
+document.getElementById('out').onclick = e => { const b = e.target.closest('button.open'); if (!b) return; open[s + b.dataset.k] = !open[s + b.dataset.k]; draw() }
+draw()
+</script>
+</body>
+</html>

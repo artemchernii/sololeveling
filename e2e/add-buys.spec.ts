@@ -76,3 +76,46 @@ test('ADD BUYS: four buys read, some of what is held still missing, saved', asyn
   await position.getByRole('button', { name: 'add buys' }).click()
   await expect(sheet.getByTestId('buys-check')).toContainText('4 already saved')
 })
+
+/* 14 Oct, his drop: two screenshots of iShares Physical Gold from
+   Trading 212 on Gold's ADD BUYS. They are named, with where they
+   belong; nothing is saved until they are removed. Mock data only. */
+test('ADD BUYS: files for another thing are named and never saved here', async ({
+  page,
+}) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2ePortfolio.goldBuys, { fund: true })
+  await page.goto('/finances?room=portfolio')
+  await page.getByRole('button', { name: 'Show amounts' }).first().click()
+  await page
+    .getByTestId('owned-row')
+    .filter({ hasText: 'Gold' })
+    .getByRole('link')
+    .click()
+  const position = page.getByTestId('position-page')
+  await position.getByRole('button', { name: 'add buys' }).click()
+  const sheet = page.getByRole('dialog')
+
+  /* Not asked which account: the files are not saved here at all. */
+  const others = sheet.getByTestId('buys-other-file')
+  await expect(others).toHaveCount(2)
+  await expect(sheet.getByTestId('buys-elsewhere')).toContainText(
+    'not Gold · not saved here',
+  )
+  await expect(others.first()).toContainText('3 rows · iShares Physical Gold')
+  await expect(sheet.getByTestId('buys-elsewhere')).toContainText(
+    'belongs on its own page · Trading 212',
+  )
+  await expect(sheet.getByRole('button', { name: /apply/ })).toBeHidden()
+  await expect(sheet.getByTestId('buys-row')).toHaveCount(4)
+  await page.screenshot({ ...shot('add-buys-elsewhere'), fullPage: true })
+
+  /* Removed: said at once, gone, and APPLY is back — Gold's alone. */
+  await others.first().getByRole('button', { name: 'remove' }).click()
+  await expect(others).toHaveCount(1)
+  await others.first().getByRole('button', { name: 'remove' }).click()
+  await expect(sheet.getByTestId('buys-elsewhere')).toHaveCount(0)
+  await sheet.getByRole('button', { name: /apply/ }).click()
+  await expect(sheet.getByText('4 buys saved · Gold')).toBeVisible()
+  await page.screenshot({ ...shot('add-buys-elsewhere-saved'), fullPage: true })
+})

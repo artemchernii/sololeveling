@@ -1,6 +1,7 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useState } from 'react'
+import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { Check, TriangleAlert } from 'lucide-react'
+import { Check, Loader2, TriangleAlert, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
@@ -8,6 +9,8 @@ import { TickerLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { buysCheck } from '@/lib/addBuys'
 import type { SavedTrade } from '@/lib/addBuys'
+import { productIn } from '@/lib/institutions'
+import { matchAccount } from '@/lib/intake'
 import { euros } from '@/lib/money'
 
 /* ADD BUYS on one position's page (14 Oct, mockup add-buys.html): the
@@ -120,13 +123,118 @@ function Read({ batchId, thing }: { batchId: Id<'batches'>; thing: BuysFor }) {
         </Sum>
       </div>
       <BuysLine check={c} thing={thing} />
-      {c.others > 0 ? (
-        <p className="font-mono text-[11px] text-state-warn">
-          {c.others} {c.others === 1 ? 'row is' : 'rows are'} for something
-          else, not {thing.name}.
-        </p>
-      ) : null}
+      <Elsewhere files={c.elsewhere} thing={thing} />
       <BuyRows rows={c.rows} thing={thing} />
+    </div>
+  )
+}
+
+/** What ADD BUYS needs to know before saving: the listings it may save,
+    whether rows for something else block it, and whether a file holds
+    any row of the thing. Nothing when the window is not ADD BUYS. */
+export function useBuysGate(batchId: Id<'batches'> | null) {
+  const thing = useBuysFor()
+  const read = useQuery(
+    api.intake.batchBuys,
+    thing === null || batchId === null ? 'skip' : { batchId },
+  )
+  if (thing === null) return null
+  return {
+    only: [...thing.symbols],
+    blocked: read === undefined || read.some((r) => !mine(r, thing)),
+    /** A file holds a row of the thing — else it is never asked about. */
+    holds: (intakeId: Id<'intakes'>) =>
+      read?.some((r) => r.intakeId === intakeId && mine(r, thing)) ?? false,
+  }
+}
+const mine = (r: { symbol: string | null }, thing: BuysFor) =>
+  r.symbol !== null && thing.symbols.includes(r.symbol)
+
+/** Files with rows for something else: what they are, where they
+    belong, and a way to take them out. None of it is saved here. */
+function Elsewhere({
+  files,
+  thing,
+}: {
+  files: ReturnType<typeof buysCheck>['elsewhere']
+  thing: BuysFor
+}) {
+  const accounts = useQuery(api.accounts.list, {})
+  if (files.length === 0) return null
+  /* His account of that bank, else the bank as the file names it. */
+  const bank = (institution: string | null) =>
+    accounts?.find(
+      (a) =>
+        a._id ===
+        matchAccount(
+          institution ?? undefined,
+          accounts.map((x) => ({ id: x._id, name: x.name, domain: x.domain })),
+        ),
+    )?.name ?? productIn(institution ?? undefined)?.name
+  return (
+    <div data-testid="buys-elsewhere" className="flex flex-col gap-2">
+      <span className="label-caps text-state-warn">
+        not {thing.name} · not saved here
+      </span>
+      {files.map((f) => (
+        <OtherFile
+          key={f.intakeId}
+          intakeId={f.intakeId as Id<'intakes'>}
+          title={`${f.rows} ${f.rows === 1 ? 'row' : 'rows'} · ${f.names.join(', ')}`}
+          where={`belongs on its own page${bank(f.institution) ? ` · ${bank(f.institution)}` : ''}`}
+        />
+      ))}
+      <span className="font-mono text-[11px] text-ink-400">
+        Remove {files.length === 1 ? 'this file' : 'these files'} to save{' '}
+        {thing.name}&apos;s buys.
+      </span>
+    </div>
+  )
+}
+
+function OtherFile({
+  intakeId,
+  title,
+  where,
+}: {
+  intakeId: Id<'intakes'>
+  title: string
+  where: string
+}) {
+  const discard = useMutation(api.intake.discard)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(false)
+  return (
+    <div
+      data-testid="buys-other-file"
+      className="motion-land flex items-center gap-3 rounded-[14px] bg-state-warn/[0.07] px-3.5 py-3 ring-1 ring-state-warn/35 ring-inset"
+    >
+      <TriangleAlert className="motion-pulse size-4 shrink-0 text-state-warn" />
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-[13.5px] text-foreground">{title}</span>
+        <span className="font-mono text-[11px] text-ink-400">
+          {error ? 'Not removed — try again.' : where}
+        </span>
+      </span>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true)
+          setError(false)
+          discard({ intakeId })
+            .catch(() => setError(true))
+            .finally(() => setBusy(false))
+        }}
+        className="motion-press inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[11px] tracking-[0.12em] text-state-warn uppercase ring-1 ring-state-warn/40 ring-inset disabled:opacity-60"
+      >
+        {busy ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <X className="size-3.5" />
+        )}
+        {busy ? 'removing…' : 'remove'}
+      </button>
     </div>
   )
 }

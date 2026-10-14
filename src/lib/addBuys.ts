@@ -13,6 +13,10 @@ export type ReadBuy = {
   fee?: number | null
   currency: string
   symbol: string | null
+  /** The file it was read from, the thing as printed, the file's bank. */
+  intakeId?: string
+  name?: string
+  institution?: string | null
 }
 export type SavedTrade = {
   occurredAt: number
@@ -71,6 +75,7 @@ export function buysCheck(
     rows,
     /* Rows of the file that are for something else: not saved here. */
     others: read.length - mine.length,
+    elsewhere: elsewhere(read.filter((r) => !mine.includes(r))),
     fresh: fresh.length,
     totalEur: buys.some((r) => r.eur === null)
       ? null
@@ -86,4 +91,33 @@ export function buysCheck(
           ? ('over' as const)
           : ('reaches' as const),
   }
+}
+
+/** The files holding rows for something else, each with what they are
+    for: ADD BUYS saves none of it (14 Oct: "it should say what they are
+    and where they belong"). */
+function elsewhere(rows: ReadonlyArray<ReadBuy>) {
+  const files = new Map<
+    string,
+    {
+      intakeId: string
+      names: Array<string>
+      rows: number
+      institution: string | null
+    }
+  >()
+  for (const r of rows) {
+    const key = r.intakeId ?? ''
+    const f = files.get(key) ?? {
+      intakeId: key,
+      names: [],
+      rows: 0,
+      institution: r.institution ?? null,
+    }
+    f.rows += 1
+    const name = r.name ?? r.symbol ?? 'something unnamed'
+    if (!f.names.includes(name)) f.names.push(name)
+    files.set(key, f)
+  }
+  return [...files.values()]
 }

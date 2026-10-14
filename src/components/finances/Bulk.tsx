@@ -9,7 +9,7 @@ import { IntakeFlow } from '@/components/finances/Intake'
 import type { SheetGuard } from '@/components/finances/Sheet'
 import { BulkReading } from '@/components/finances/BulkReading'
 import { Applying, Applied } from '@/components/finances/BulkSaving'
-import { BuysCheck } from '@/components/finances/BuysCheck'
+import { BuysCheck, useBuysGate } from '@/components/finances/BuysCheck'
 import { BulkReview } from '@/components/finances/BulkReview'
 import { WhoseFile, namedElsewhere } from '@/components/finances/BulkWhose'
 
@@ -67,6 +67,7 @@ export function BulkUpdate({
   const view = useQuery(api.intake.batch, batchId ? { batchId } : 'skip')
   const [checking, setChecking] = useState<Id<'intakes'> | null>(null)
   const accounts = useQuery(api.accounts.list, forAccount ? {} : 'skip')
+  const gate = useBuysGate(batchId)
   /* Files kept on the account UPDATE was pressed on, and what was
      answered — remembered while the window is open. */
   const [kept, setKept] = useState<ReadonlySet<Id<'intakes'>>>(new Set())
@@ -159,6 +160,9 @@ export function BulkUpdate({
     for (const file of view.files) {
       if (file.status !== 'ready' || kept.has(file.intakeId) || !opened)
         continue
+      /* ADD BUYS: a file with no row of the thing is not asked about —
+         it is not saved here, wherever it belongs. */
+      if (gate && !gate.holds(file.intakeId)) continue
       const named = namedElsewhere(file, forAccount, accounts)
       if (named)
         return (

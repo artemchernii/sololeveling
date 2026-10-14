@@ -25,6 +25,9 @@ export const batch = query({
       type: v.string(),
       buys: v.number(),
       sells: v.number(),
+      /** The names its files printed for them: "iShares Physical Gold"
+          read, iShares Digital Security saved. */
+      read: v.array(v.string()),
     }),
   ),
   handler: async (ctx, args) => {
@@ -37,7 +40,10 @@ export const batch = query({
         q.eq('ownerId', ownerId).eq('batchId', args.batchId),
       )
       .take(FILES)
-    const count = new Map<Id<'instruments'>, { buys: number; sells: number }>()
+    const count = new Map<
+      Id<'instruments'>,
+      { buys: number; sells: number; read: Set<string> }
+    >()
     for (const i of intakes) {
       const accountId = i.accountId
       const days = (i.trades ?? []).map((t) => t.occurredAt)
@@ -57,9 +63,15 @@ export const batch = query({
           .take(ROWS)
       ).filter((t) => t.importId === i._id)
       for (const t of trades) {
-        const c = count.get(t.instrumentId) ?? { buys: 0, sells: 0 }
+        const c = count.get(t.instrumentId) ?? {
+          buys: 0,
+          sells: 0,
+          read: new Set<string>(),
+        }
         if (t.side === 'sell') c.sells += 1
         else c.buys += 1
+        const printed = i.trades?.find((r) => r.occurredAt === t.occurredAt)
+        if (printed) c.read.add(printed.name)
         count.set(t.instrumentId, c)
       }
     }
@@ -67,7 +79,14 @@ export const batch = query({
     for (const [instrumentId, c] of count) {
       const ins = await ctx.db.get(instrumentId)
       if (ins === null || ins.ownerId !== ownerId) continue
-      out.push({ symbol: ins.symbol, name: ins.name, type: ins.type, ...c })
+      out.push({
+        symbol: ins.symbol,
+        name: ins.name,
+        type: ins.type,
+        buys: c.buys,
+        sells: c.sells,
+        read: [...c.read],
+      })
     }
     return out
   },

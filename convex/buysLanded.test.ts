@@ -21,6 +21,7 @@ const DIGITAL = {
   exchange: 'LSE',
   type: 'ETF',
 }
+const read = ['iShares Physical Gold']
 const DAYS = [at(7, 31), at(8, 29), at(9, 30)]
 
 /* His 14 Oct save: one file read as iShares Physical Gold. `onto` says
@@ -105,7 +106,7 @@ describe('buysLanded.batch', () => {
   test('every trade on the thing it was read as', async () => {
     const { me, batchId } = await setup(['gold', 'gold', 'gold'])
     expect(await me.query(api.buysLanded.batch, { batchId })).toEqual([
-      { ...pick(GOLD), buys: 3, sells: 0 },
+      { ...pick(GOLD), buys: 3, sells: 0, read },
     ])
   })
 
@@ -113,8 +114,8 @@ describe('buysLanded.batch', () => {
     const { me, batchId } = await setup(['digital', 'digital', 'gold'])
     const landed = await me.query(api.buysLanded.batch, { batchId })
     expect(landed).toHaveLength(2)
-    expect(landed).toContainEqual({ ...pick(DIGITAL), buys: 2, sells: 0 })
-    expect(landed).toContainEqual({ ...pick(GOLD), buys: 1, sells: 0 })
+    expect(landed).toContainEqual({ ...pick(DIGITAL), buys: 2, sells: 0, read })
+    expect(landed).toContainEqual({ ...pick(GOLD), buys: 1, sells: 0, read })
   })
 
   test('another owner reads nothing of the save', async () => {

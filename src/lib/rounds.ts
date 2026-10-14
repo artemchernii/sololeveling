@@ -51,8 +51,11 @@ export function rounds<T extends Trade>(
       trades: [...now].reverse(),
       buys: buys.length,
       sells: sells.length,
-      buyEur: cents(buys.reduce((s, t) => s + t.shares * t.priceEur, 0)),
-      sellEur: cents(sells.reduce((s, t) => s + t.shares * t.priceEur, 0)),
+      /* Each trade to the cent first, as PAID adds them (holdings.ts). */
+      buyEur: cents(buys.reduce((s, t) => s + cents(t.shares * t.priceEur), 0)),
+      sellEur: cents(
+        sells.reduce((s, t) => s + cents(t.shares * t.priceEur), 0),
+      ),
     })
     now = []
   }

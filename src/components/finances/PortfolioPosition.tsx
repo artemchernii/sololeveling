@@ -272,7 +272,8 @@ export function PortfolioPosition({
       <PositionTiles
         owned={owned}
         sold={sold}
-        gain={gain}
+        /* No gain against buys that do not reach what is held. */
+        gain={gap > 0 && !sold ? null : gain}
         bought={bought}
         part={part}
         gap={gap}

@@ -71,8 +71,10 @@ export function PositionTiles({
             '—'
           )}
         </span>
-        {owned.paid === null && part !== null ? (
-          /* Buys saved, and not all of them: a state, not grey words. */
+        {gap > 0 ? (
+          /* Buys saved, and not all of them: a state, not grey words —
+             with a buy total too (14 Oct: the list warned of 14.5 shares
+             more than in the files, the page said nothing). */
           <span
             data-testid="buys-missing"
             className="flex items-center gap-1.5 font-mono text-[10.5px] text-state-warn"

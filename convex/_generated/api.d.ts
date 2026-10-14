@@ -19,6 +19,7 @@ import type * as bank from "../bank.js";
 import type * as bankApi from "../bankApi.js";
 import type * as bankRows from "../bankRows.js";
 import type * as bars from "../bars.js";
+import type * as buysLanded from "../buysLanded.js";
 import type * as crons from "../crons.js";
 import type * as drills from "../drills.js";
 import type * as e2e from "../e2e.js";
@@ -84,6 +85,7 @@ declare const fullApi: ApiFromModules<{
   bankApi: typeof bankApi;
   bankRows: typeof bankRows;
   bars: typeof bars;
+  buysLanded: typeof buysLanded;
   crons: typeof crons;
   drills: typeof drills;
   e2e: typeof e2e;

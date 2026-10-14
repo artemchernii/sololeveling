@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   between,
+  dayChange,
   candleRows,
   drawable,
   many,
@@ -255,5 +256,30 @@ it('the view never opens before the first stored close', () => {
   expect(leftStop({ from: -50, to: 150 }, 100)).toEqual({
     from: -0.5,
     to: 101.5,
+  })
+})
+
+/* His Digital Security on 14 Oct: $14.63 at 16:07 against the close of
+   the day before. */
+describe('dayChange', () => {
+  const at = (d: number, h = 21) => Date.UTC(2026, 9, d, h)
+  it('the latest price against the last close of an earlier day', () => {
+    const closes = [
+      { asOf: at(10), price: 14.9 },
+      { asOf: at(13), price: 15.05 },
+      { asOf: at(14, 15), price: 14.7 },
+    ]
+    const d = dayChange(closes, { asOf: at(14, 16), price: 14.63 })
+    expect(d?.from).toEqual({ t: at(13), v: 15.05 })
+    expect(d?.diff).toBe(-0.42)
+    expect(d?.pct).toBeCloseTo(-2.79, 2)
+  })
+  it('no earlier day: nothing', () => {
+    expect(
+      dayChange([{ asOf: at(14, 9), price: 14 }], {
+        asOf: at(14, 16),
+        price: 14.63,
+      }),
+    ).toBeNull()
   })
 })

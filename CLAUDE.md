@@ -60,7 +60,12 @@ shown beside it, nothing stored, nothing graded. The same day the ruler
 was allowed on that chart ("go" on the mockup `chart.html`): the
 difference between two levels read off the price axis, not stored prices
 (`ruler()` beside `between()`), with both levels and both days always
-shown and the days between. It is not a licence for
+shown and the days between. On 2026-10-14 the day's change was allowed
+on a position's head ("go with day change" on the mockup
+`position-head.html`): the latest stored price minus the last stored
+close of an earlier day (`dayChange()` beside `between()`), with that
+close and its day always shown beside it, nothing stored, nothing
+graded. None of these is a licence for
 indicators — RSI and moving averages still wait for their own yes.
 The fourth was added deliberately, on 2026-09-09, because money cannot be
 tracked without prices that come from outside. That is the bar for adding

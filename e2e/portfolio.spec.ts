@@ -70,7 +70,7 @@ test('Portfolio: empty, then the positions a screenshot brought', async ({
   await expect(
     position.getByRole('heading', { name: 'Apple Inc.' }),
   ).toBeVisible()
-  for (const label of ['worth now', 'buy total', 'account', 'price'])
+  for (const label of ['worth now', /^paid( ·|$)/, 'account', 'price'])
     await expect(position.getByText(label, { exact: true })).toBeVisible()
   await expect(page.getByText('everything owned · 2')).toHaveCount(0)
   await page.waitForTimeout(800)
@@ -186,7 +186,7 @@ test('Portfolio: a thing sold out has its row and its page', async ({
     position.getByRole('heading', { name: 'Shopify Inc.' }),
   ).toBeVisible()
   await expect(position.getByText(/^all sold .+ \d{4}$/)).toBeVisible()
-  for (const label of ['worth now', 'buy total', 'sold for', 'up when sold'])
+  for (const label of ['worth now', /^paid( ·|$)/, 'sold for', 'up when sold'])
     await expect(position.getByText(label, { exact: true })).toBeVisible()
   await expect(position.getByText('buys and sells · 3')).toBeVisible()
   await page.waitForTimeout(800)
@@ -203,6 +203,10 @@ test('Portfolio: a thing sold out has its row and its page', async ({
   /* The header says both too. */
   await expect(position.getByTestId('position-price')).toContainText(
     /\$118\.40.*€106\.56/,
+  )
+  /* The day's change, with the close it is from beside it (14 Oct). */
+  await expect(position.getByTestId('day-change')).toContainText(
+    /[−+]\d+\.\d{2} \([−+]\d+\.\d{2}%\).*from \$[\d.,]+ · .+ close/,
   )
   const chart = position.getByTestId('price-plot')
   await chart.scrollIntoViewIfNeeded()

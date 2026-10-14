@@ -119,3 +119,70 @@ test('ADD BUYS: files for another thing are named and never saved here', async (
   await expect(sheet.getByText('4 buys saved · Gold')).toBeVisible()
   await page.screenshot({ ...shot('add-buys-elsewhere-saved'), fullPage: true })
 })
+
+/* 14 Oct, his save: the buys were read right and written under another
+   thing. The saved screen counts where this save's buys sit, so it
+   turns from saved to a warning naming that thing, and REMOVE takes the
+   save back. Mock data only. */
+test('ADD BUYS: buys saved on another thing are named, never said saved', async ({
+  page,
+}) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2ePortfolio.goldBuys, {})
+  await page.goto('/finances?room=portfolio')
+  await page.getByRole('button', { name: 'Show amounts' }).first().click()
+  await page
+    .getByTestId('owned-row')
+    .filter({ hasText: 'Gold' })
+    .getByRole('link')
+    .click()
+  const position = page.getByTestId('position-page')
+  await position.getByRole('button', { name: 'add buys' }).click()
+  const sheet = page.getByRole('dialog')
+  await sheet.getByRole('button', { name: /apply/ }).click()
+  await expect(sheet.getByText('4 buys saved · Gold')).toBeVisible()
+
+  /* The trades now sit on iShares Digital Security, as his did. */
+  await testClient().mutation(anyApi.e2ePortfolio.misplaceBuys, {})
+  await expect(sheet.getByText('Not saved on Gold')).toBeVisible()
+  await expect(sheet.getByText(/buys saved/)).toHaveCount(0)
+  const away = sheet.getByTestId('buys-away-thing')
+  await expect(away).toHaveCount(1)
+  await expect(away).toContainText('iShares Digital Security')
+  await expect(away).toContainText('4 buy')
+  await expect(away).toContainText('saved here instead')
+  await expect(away).toContainText('read as Gold')
+  await expect(sheet.getByText('nothing added')).toBeVisible()
+  await expect(sheet.getByTestId('buys-line')).toHaveCount(0)
+  await expect(sheet.getByRole('button', { name: 'undo' })).toHaveCount(0)
+  await page.waitForTimeout(700)
+  await page.screenshot({ ...shot('add-buys-away'), fullPage: true })
+
+  /* Closed, the page still says it: the file read as Gold, on the
+     thing it was saved on, amber. */
+  await sheet.getByRole('button', { name: 'done' }).click()
+  await expect(sheet).toBeHidden()
+  const just = position.getByTestId('just-added')
+  await expect(just.getByTestId('just-misplaced')).toContainText(
+    '1 file on the wrong thing',
+  )
+  const file = just.getByTestId('just-file')
+  await expect(file).toContainText('iShares Digital Security')
+  await expect(file).toContainText('saved here instead')
+  await expect(file).toContainText('read as Gold')
+  await page.screenshot({ ...shot('add-buys-away-page'), fullPage: true })
+
+  /* REMOVE on the saved screen: said at once, then the save is gone
+     from both things. */
+  await testClient().mutation(anyApi.e2ePortfolio.goldBuys, {})
+  await position.getByRole('button', { name: 'add buys' }).click()
+  await sheet.getByRole('button', { name: /apply/ }).click()
+  await expect(sheet.getByText('4 buys saved · Gold')).toBeVisible()
+  await testClient().mutation(anyApi.e2ePortfolio.misplaceBuys, {})
+  const away2 = sheet.getByTestId('buys-away-thing')
+  await expect(away2).toContainText('4 buy')
+  await away2.getByRole('button', { name: 'remove' }).click()
+  await expect(sheet.getByText('removing…')).toBeVisible()
+  await expect(sheet.getByText('Removed', { exact: true })).toBeVisible()
+  await page.screenshot({ ...shot('add-buys-away-removed'), fullPage: true })
+})

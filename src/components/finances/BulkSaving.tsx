@@ -1,3 +1,4 @@
+import { BuysAway } from '@/components/finances/BuysAway'
 import { BuysSaved, useBuysLanded } from '@/components/finances/BuysCheck'
 import { useEffect, useState } from 'react'
 import { useMutation } from 'convex/react'
@@ -330,20 +331,52 @@ export function Applied({
     </button>
   )
   if (landed) {
-    const count = accounts.reduce((t, a) => t + a.added, 0)
+    const where = landed.where
+    /* Counted from where the trades sit; nothing said before that. */
+    if (where === undefined) return <div className="min-h-[220px]" />
+    const name = landed.thing.name
+    const warn = where.away.length > 0
+    const count = where.here
     return (
       <div className="flex flex-col items-center gap-4 py-5">
-        <span className="motion-pop grid size-14 place-items-center rounded-full bg-state-good/16 text-state-good shadow-[0_0_36px_-6px_var(--color-state-good)] ring-1 ring-state-good/45">
-          <Check className="size-7" strokeWidth={2.5} />
-        </span>
+        {warn ? (
+          <span className="motion-pop grid size-14 place-items-center rounded-full bg-state-warn/16 text-state-warn shadow-[0_0_36px_-6px_var(--color-state-warn)] ring-1 ring-state-warn/45">
+            <AlertTriangle className="motion-pulse size-7" strokeWidth={2.5} />
+          </span>
+        ) : (
+          <span className="motion-pop grid size-14 place-items-center rounded-full bg-state-good/16 text-state-good shadow-[0_0_36px_-6px_var(--color-state-good)] ring-1 ring-state-good/45">
+            <Check className="size-7" strokeWidth={2.5} />
+          </span>
+        )}
         <span className="motion-land text-center text-[24px] font-light text-foreground">
-          {count > 0
-            ? `${count} ${count === 1 ? 'buy' : 'buys'} saved · ${landed.thing.name}`
-            : `Nothing new for ${landed.thing.name}`}
+          {warn
+            ? count > 0
+              ? `${count} of ${where.all} buys on ${name}`
+              : `Not saved on ${name}`
+            : count > 0
+              ? `${count} ${count === 1 ? 'buy' : 'buys'} saved · ${name}`
+              : `Nothing new for ${name}`}
         </span>
-        <BuysSaved thing={landed.thing} check={landed.check} added={count} />
+        {warn ? (
+          <div className="w-full max-w-xl">
+            <BuysAway
+              away={where.away}
+              all={where.all}
+              batchId={batchId}
+              onRemoved={() => setUndone(true)}
+            />
+          </div>
+        ) : null}
+        <BuysSaved
+          thing={landed.thing}
+          check={landed.check}
+          added={count}
+          warn={warn}
+        />
         <div className="flex flex-wrap justify-center gap-2 pt-1">
-          <UndoSave batchId={batchId} onUndone={() => setUndone(true)} />
+          {warn ? null : (
+            <UndoSave batchId={batchId} onUndone={() => setUndone(true)} />
+          )}
           {done}
         </div>
       </div>

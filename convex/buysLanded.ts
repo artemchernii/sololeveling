@@ -25,8 +25,8 @@ export const batch = query({
       type: v.string(),
       buys: v.number(),
       sells: v.number(),
-      /** The names its files printed for them: "iShares Physical Gold"
-          read, iShares Digital Security saved. */
+      /** What its files read them as: "iShares Physical Gold" read,
+          iShares Digital Security saved. */
       read: v.array(v.string()),
     }),
   ),
@@ -71,7 +71,8 @@ export const batch = query({
         if (t.side === 'sell') c.sells += 1
         else c.buys += 1
         const printed = i.trades?.find((r) => r.occurredAt === t.occurredAt)
-        if (printed) c.read.add(printed.name)
+        const c0 = printed?.candidates.at(printed.preferred ?? 0)
+        if (printed) c.read.add(c0?.name ?? printed.name)
         count.set(t.instrumentId, c)
       }
     }

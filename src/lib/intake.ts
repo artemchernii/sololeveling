@@ -1207,6 +1207,17 @@ const WORD = (name: string) =>
     .split(/[^a-z0-9]+/)
     .find((w) => w.length >= 3)
 
+/* Every word of three letters or more, but the words any fund has. */
+const WORDS = (name: string) =>
+  searchableName(name)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(
+      (w) =>
+        w.length >= 3 &&
+        !/^(ucits|etf|etc|acc|dist|usd|eur|gbp|plc|inc|the)$/.test(w),
+    )
+
 /**
  * The instrument an account already holds that a broker's row means: the
  * same ISIN, or the same first word of the name ("META PLATF. A" is Meta
@@ -1224,8 +1235,23 @@ export function sameCompany(
   }
   const word = WORD(row.name)
   if (!word) return -1
-  const hits = held.flatMap((h, i) => (WORD(h.name) === word ? [i] : []))
-  if (hits.length <= 1) return hits[0] ?? -1
+  const all = held.flatMap((h, i) => (WORD(h.name) === word ? [i] : []))
+  if (all.length <= 1) return all[0] ?? -1
+  /* A first word a fund house shares is not a company (14 Oct: his
+     "iShares Physical Gold" buys were saved under iShares Digital
+     Security, the first iShares fund on Trading 212). The names sharing
+     the most words; two of one company left are its classes, two of
+     different funds are no answer. */
+  const mine = WORDS(row.name)
+  const shared = (i: number) =>
+    WORDS(held[i].name).filter((w) => mine.includes(w)).length
+  const most = Math.max(...all.map(shared))
+  const hits = all.filter((i) => shared(i) === most)
+  if (hits.length === 1) return hits[0]
+  const [a, ...rest] = hits.map((i) => WORDS(held[i].name))
+  const one = (b: Array<string>) =>
+    b.every((w) => a.includes(w)) || a.every((w) => b.includes(w))
+  if (!rest.every(one)) return -1
   const pick = preferClass(
     brokerName(row.name),
     hits.map((i) => ({ ...held[i], exchange: '', type: 'EQUITY' })),

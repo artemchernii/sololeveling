@@ -17,12 +17,10 @@ import { failureMessage } from '@/lib/convex-errors'
    (undoFile.takeBackBatch), from both things. */
 export function BuysAway({
   away,
-  all,
   batchId,
   onRemoved,
 }: {
   away: ReadonlyArray<Landed>
-  all: number
   batchId: Id<'batches'>
   onRemoved: () => void
 }) {
@@ -49,19 +47,26 @@ export function BuysAway({
         >
           <TickerLogo symbol={a.symbol} type={a.type} name={a.name} size={44} />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="truncate text-[17px] text-foreground">
-              {a.name}
-            </span>
-            <span className="flex flex-wrap gap-1.5">
-              {a.buys > 0 ? <Badge tone="warn">{a.buys} buy</Badge> : null}
-              {a.sells > 0 ? <Badge tone="warn">{a.sells} sell</Badge> : null}
-              <Badge tone="dim">saved here instead</Badge>
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="label-caps shrink-0 text-state-warn">
+                saved on
+              </span>
+              <span className="truncate text-[17px] text-foreground">
+                {a.name}
+              </span>
             </span>
             {a.read.length > 0 ? (
-              <span className="truncate font-mono text-[11px] text-ink-400">
-                read as {a.read.join(', ')}
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="label-caps shrink-0">in the file</span>
+                <span className="truncate text-[13.5px] text-ink-200">
+                  {a.read.join(', ')}
+                </span>
               </span>
             ) : null}
+            <span className="flex flex-wrap gap-1.5">
+              {a.buys > 0 ? <Badge>{a.buys} buy</Badge> : null}
+              {a.sells > 0 ? <Badge>{a.sells} sell</Badge> : null}
+            </span>
           </div>
           <button
             type="button"
@@ -76,29 +81,21 @@ export function BuysAway({
           </button>
         </div>
       ))}
-      <span
-        role={failed === null ? undefined : 'alert'}
-        className={`text-center font-mono text-[11px] ${failed === null ? 'text-ink-400' : 'text-state-danger'}`}
-      >
-        {failed === null
-          ? `Remove takes back all ${all} ${all === 1 ? 'buy' : 'buys'} of this save.`
-          : `Not removed — nothing changed. ${failed}`}
-      </span>
+      {failed === null ? null : (
+        <span
+          role="alert"
+          className="text-center font-mono text-[11px] text-state-danger"
+        >
+          Not removed. {failed}
+        </span>
+      )}
     </div>
   )
 }
 
-function Badge({
-  tone,
-  children,
-}: {
-  tone: 'warn' | 'dim'
-  children: React.ReactNode
-}) {
+function Badge({ children }: { children: React.ReactNode }) {
   return (
-    <span
-      className={`rounded-full px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${tone === 'warn' ? 'bg-state-warn/14 text-state-warn' : 'bg-lift/[0.05] text-ink-400'}`}
-    >
+    <span className="rounded-full bg-state-warn/14 px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-state-warn uppercase">
       {children}
     </span>
   )

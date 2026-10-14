@@ -197,19 +197,15 @@ export function JustAdded({
 const misplaced = (f: JustFile) => f.things.some((t) => t.read !== undefined)
 
 function Misplaced({ files }: { files: ReadonlyArray<JustFile> }) {
-  const off = files.filter(misplaced)
-  if (off.length === 0) return null
-  const t = off[0].things.find((x) => x.read !== undefined)
+  const n = files.filter(misplaced).length
+  if (n === 0) return null
   return (
     <span
       data-testid="just-misplaced"
-      className="motion-land inline-flex min-w-0 items-center gap-1.5 text-[12px] text-state-warn"
+      className="motion-land inline-flex shrink-0 items-center gap-1.5 rounded-full bg-state-warn/14 px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-state-warn uppercase"
     >
-      <TriangleAlert className="motion-pulse size-3.5 shrink-0" />
-      <span className="truncate">
-        {off.length} {off.length === 1 ? 'file' : 'files'} of {t?.read} saved on{' '}
-        {t?.name}
-      </span>
+      <TriangleAlert className="motion-pulse size-3" />
+      {n} {n === 1 ? 'file' : 'files'} saved on another asset
     </span>
   )
 }
@@ -312,18 +308,23 @@ function Panel({
       <span className="flex flex-wrap items-center gap-1.5">
         {f.things.map((t) =>
           t.read !== undefined ? (
-            /* Said as it is (14 Oct): what the buys are, and where they
-               were saved. */
+            /* Two things with their places (14 Oct): what the file
+               holds, and where it was saved. */
             <span
               key={t.symbol}
-              className="inline-flex min-w-0 items-center gap-1.5 text-[12.5px] text-state-warn"
+              className="inline-flex min-w-0 flex-wrap items-center gap-1.5 text-[12.5px] text-foreground"
             >
-              <TriangleAlert className="motion-pulse size-3.5 shrink-0" />
-              <span className="truncate">
-                <b className="font-medium">{t.read}</b>
-                <span className="text-ink-300"> buys, saved on </span>
-                <b className="font-medium">{t.name}</b>
-              </span>
+              <TriangleAlert className="motion-pulse size-3.5 shrink-0 text-state-warn" />
+              <span className="label-caps">in the file</span>
+              {t.read}
+              <span className="label-caps text-state-warn">saved on</span>
+              <TickerLogo
+                symbol={t.symbol}
+                type={t.type}
+                name={t.name}
+                size={18}
+              />
+              {t.name}
             </span>
           ) : (
             <span
@@ -347,7 +348,7 @@ function Panel({
         ) : null}
         {f.saved === 0 ? <Badge tone="in">0 saved</Badge> : null}
         {f.had > 0 && !misplaced(f) ? (
-          <Badge tone="in">{f.had} in already</Badge>
+          <Badge tone="in">{f.had} already added</Badge>
         ) : null}
         <span className="flex-1" />
         {f.saved > 0 ? (

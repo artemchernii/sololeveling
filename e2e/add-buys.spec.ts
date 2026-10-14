@@ -150,8 +150,9 @@ test('ADD BUYS: buys saved on another thing are named, never said saved', async 
   await expect(away).toHaveCount(1)
   await expect(away).toContainText('iShares Digital Security')
   await expect(away).toContainText('4 buy')
-  await expect(away).toContainText('saved here instead')
-  await expect(away).toContainText('read as Gold')
+  await expect(away).toContainText('saved on')
+  await expect(away).toContainText('in the file')
+  await expect(away).not.toContainText('instead')
   await expect(sheet.getByText('nothing added')).toBeVisible()
   await expect(sheet.getByTestId('buys-line')).toHaveCount(0)
   await expect(sheet.getByRole('button', { name: 'undo' })).toHaveCount(0)
@@ -164,12 +165,12 @@ test('ADD BUYS: buys saved on another thing are named, never said saved', async 
   await expect(sheet).toBeHidden()
   const just = position.getByTestId('just-added')
   await expect(just.getByTestId('just-misplaced')).toContainText(
-    '1 file of Gold saved on iShares Digital Security',
+    '1 file saved on another asset',
   )
   const file = just.getByTestId('just-file')
-  await expect(file).toContainText(
-    'Gold buys, saved on iShares Digital Security',
-  )
+  await expect(file).toContainText('in the file')
+  await expect(file).toContainText('saved on')
+  await expect(file).toContainText('iShares Digital Security')
   await expect(file).not.toContainText('in already')
   await page.screenshot({ ...shot('add-buys-away-page'), fullPage: true })
 

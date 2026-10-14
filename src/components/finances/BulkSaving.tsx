@@ -361,7 +361,6 @@ export function Applied({
           <div className="w-full max-w-xl">
             <BuysAway
               away={where.away}
-              all={where.all}
               batchId={batchId}
               onRemoved={() => setUndone(true)}
             />

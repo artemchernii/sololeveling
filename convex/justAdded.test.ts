@@ -248,4 +248,61 @@ describe('justAdded.list', () => {
       }),
     ).toEqual([])
   })
+
+  /* His 14 Oct save: gold read, another thing saved. The card names the
+     thing the buys sit on, and what the file printed. */
+  test('buys saved on another thing: named where they sit, with what was read', async () => {
+    const { t, me, accountId, first } = await setup()
+    await t.run(async (ctx) => {
+      const digital = await ctx.db.insert('instruments', {
+        ownerId: ME,
+        symbol: 'SHLD.L',
+        name: 'iShares Digital Security',
+        exchange: 'LSE',
+        currency: 'EUR',
+        type: 'ETF',
+      })
+      for (const x of await ctx.db.query('trades').collect())
+        await ctx.db.patch(x._id, { instrumentId: digital })
+    })
+    const files = await me.query(api.justAdded.list, {
+      since: NOW - 7 * DAY,
+      accountId,
+    })
+    expect(files.find((f) => f.id === first)?.things).toEqual([
+      {
+        symbol: 'SHLD.L',
+        name: 'iShares Digital Security',
+        type: 'ETF',
+        read: 'Gold',
+      },
+    ])
+  })
+
+  test("a thing's page also finds a file that read it and saved elsewhere", async () => {
+    const { t, me, accountId, first } = await setup()
+    const readAs = { symbols: ['GC=F'], accountIds: [accountId] }
+    const list = () =>
+      me.query(api.justAdded.list, { since: NOW - 7 * DAY, readAs })
+    /* Saved on gold itself: nothing extra on gold's page. */
+    expect(await list()).toEqual([])
+    await t.run(async (ctx) => {
+      const digital = await ctx.db.insert('instruments', {
+        ownerId: ME,
+        symbol: 'SHLD.L',
+        name: 'iShares Digital Security',
+        exchange: 'LSE',
+        currency: 'EUR',
+        type: 'ETF',
+      })
+      for (const x of await ctx.db.query('trades').collect())
+        await ctx.db.patch(x._id, { instrumentId: digital })
+    })
+    const files = await list()
+    expect(files.map((f) => f.id)).toEqual([first])
+    expect(files[0].things[0]).toMatchObject({
+      name: 'iShares Digital Security',
+      read: 'Gold',
+    })
+  })
 })

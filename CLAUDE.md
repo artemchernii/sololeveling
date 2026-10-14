@@ -27,6 +27,30 @@ a number with no question behind it — that is slop, however well coded.
 5. **A recommendation is not a decision.** Say what it changes in the
    thing he sees ("Revolut becomes two cards") before he agrees to it.
 
+## Words on screen: badges and numbers, never sentences (14 Oct)
+
+Artem, after asking many times: "I begged you so many times to stop
+writing slop text." Every label in the app, new or already shipped, is
+checked against this list before he sees it. A label that fails is
+rewritten, not explained.
+
+1. **No sentences.** A state is a badge or a caps label with a value:
+   `4 BUY`, `NOT SAVED`, `MISSING`, `IN THE FILE · iShares Physical Gold`.
+   No instruction lines ("Remove takes back…", "add older buys"), no
+   "you/your", no reassurance.
+2. **A difference is two things with their places**, side by side:
+   `IN THE FILE · X` and `SAVED ON · Y`, or
+   `5 in the file · 6 in the account`. Never one word for the difference.
+3. **Banned words** (each has been rejected): thing, wrong thing,
+   instead, read as, in already, short, off, gap, over, wait, waits,
+   lands, ends at, holds, stands on, two days, you paid for them.
+4. **Reuse approved words first:** saved · not saved · missing · in the
+   file · in the account · already added · same payment · BUY / SELL ·
+   was · out · in · now.
+5. **Before showing a screen:** grep the diff for the banned words, read
+   every label aloud and look at the screenshot. If a label needs a
+   second sentence to make sense, it is wrong.
+
 ## Reality over gamification
 
 This is the rule the whole product exists to keep. It is invisible in a diff:

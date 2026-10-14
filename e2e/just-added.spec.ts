@@ -127,7 +127,7 @@ test('just added: five files of one drop, one line, BUY and SELL apart', async (
   await expect(img9288).toContainText('1 sell')
   /* Whichever of the two overlapping files was saved second had its
      three shared rows in already. */
-  const second = files.filter({ hasText: '3 in already' })
+  const second = files.filter({ hasText: '3 already added' })
   await expect(second).toHaveCount(1)
   await expect(second).toContainText(/IMG_929[01]\.PNG/)
   await page.waitForTimeout(800)
@@ -144,7 +144,7 @@ test('just added: five files of one drop, one line, BUY and SELL apart', async (
   ).toBeVisible()
   const rows = sheet.getByTestId('file-trade')
   await expect(rows).toHaveCount(nine ? 5 : 4)
-  await expect(rows.filter({ hasText: 'in already' })).toHaveCount(3)
+  await expect(rows.filter({ hasText: 'already added' })).toHaveCount(3)
   /* The remove box: a small button first; pressed, badges left and the
      button right, on one line; KEEP folds it back. */
   await expect(sheet.getByTestId('take-back')).toHaveCount(0)

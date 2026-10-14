@@ -401,3 +401,52 @@ export const goldBuys = mutation({
     return null
   },
 })
+
+/**
+ * His 14 Oct save as it was written: the buys a file saved for Gold sit
+ * on iShares Digital Security instead (the matcher took "iShares" for
+ * the thing). Moves every Gold trade a file wrote there, so ADD BUYS'
+ * saved screen must say where they are. Test backend only (`guard`).
+ */
+export const misplaceBuys = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const gold = await ctx.db
+      .query('instruments')
+      .withIndex('by_owner_symbol', (q) =>
+        q.eq('ownerId', ownerId).eq('symbol', 'GC=F'),
+      )
+      .first()
+    if (gold === null) throw new Error('goldBuys first')
+    const digital =
+      (
+        await ctx.db
+          .query('instruments')
+          .withIndex('by_owner_symbol', (q) =>
+            q.eq('ownerId', ownerId).eq('symbol', 'SHLD.L'),
+          )
+          .first()
+      )?._id ??
+      (await ctx.db.insert('instruments', {
+        ownerId,
+        symbol: 'SHLD.L',
+        name: 'iShares Digital Security',
+        exchange: 'LSE',
+        currency: 'EUR',
+        type: 'ETF',
+      }))
+    const trades = await ctx.db
+      .query('trades')
+      .withIndex('by_owner_instrument', (q) =>
+        q.eq('ownerId', ownerId).eq('instrumentId', gold._id),
+      )
+      .take(100)
+    for (const t of trades)
+      if (t.importId !== undefined)
+        await ctx.db.patch(t._id, { instrumentId: digital })
+    return null
+  },
+})

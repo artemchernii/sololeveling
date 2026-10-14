@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
-import { Check, ChevronDown, X } from 'lucide-react'
+import { Check, ChevronDown, TriangleAlert, X } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
@@ -34,12 +34,18 @@ const when = (t: number, today: number) =>
 export function JustAdded({
   accountId,
   intakeIds,
+  readAs,
   unit,
   sums,
   onOpen,
 }: {
   accountId?: Id<'accounts'>
   intakeIds?: ReadonlyArray<Id<'intakes'>>
+  /** A thing's page: also files that read it and saved it elsewhere. */
+  readAs?: {
+    symbols: ReadonlyArray<string>
+    accountIds: ReadonlyArray<Id<'accounts'>>
+  }
   /** "0.08275 oz", "3 shares" — on a thing's page. */
   unit?: (shares: number) => string
   sums: (f: JustFile) => Array<Sum>
@@ -48,13 +54,21 @@ export function JustAdded({
   const days = useDayStarts(1)
   const files = useQuery(
     api.justAdded.list,
-    accountId === undefined && (intakeIds ?? []).length === 0
+    accountId === undefined &&
+      (intakeIds ?? []).length === 0 &&
+      (readAs?.accountIds ?? []).length === 0
       ? 'skip'
       : {
           /* Today only (14 Oct): files stay in the history at their dates. */
           since: days[days.length - 1],
           accountId,
           intakeIds: intakeIds ? [...intakeIds] : undefined,
+          readAs: readAs
+            ? {
+                symbols: [...readAs.symbols],
+                accountIds: [...readAs.accountIds],
+              }
+            : undefined,
         },
   )
   const [asking, setAsking] = useState<Id<'intakes'> | null>(null)
@@ -64,17 +78,21 @@ export function JustAdded({
   } | null>(null)
   /* One line until pressed (14 Oct: five cards after one drop were a
      wall); × hides it on this device until a newer file is saved. */
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState<boolean | null>(null)
   const key = `just-added-hidden:${accountId ?? [...(intakeIds ?? [])].sort().join(',')}`
   const [hid, setHidden] = useState(0)
-  const hidden = Math.max(hid, readHidden(key))
   const list = files ?? []
+  /* A file on the wrong thing is never hidden by × (14 Oct: "i need to
+     know that something is wrong even if I close modal"). */
+  const wrong = list.some(misplaced)
+  const hidden = wrong ? 0 : Math.max(hid, readHidden(key))
   const newest = Math.max(0, ...list.map((f) => f.addedAt))
   /* A thing whose last file went has nothing to ask about: the line
      that says it was removed still stands. */
   if (removed === null && (list.length === 0 || newest <= hidden)) return null
   const today = days[days.length - 1]
-  const shown = open || removed !== null || asking !== null
+  /* Open by itself while a file sits on the wrong thing. */
+  const shown = (open ?? wrong) || removed !== null || asking !== null
   const buys = list.reduce((n, f) => n + f.buys, 0)
   const sells = list.reduce((n, f) => n + f.sells, 0)
   const rows = list.reduce((n, f) => n + (isTrades(f) ? 0 : f.saved), 0)
@@ -82,7 +100,7 @@ export function JustAdded({
     <div data-testid="just-added" className="flex flex-col gap-2">
       <div
         data-testid="just-line"
-        className="motion-arrive flex items-center gap-1 rounded-[14px] bg-lav-400/[0.06] py-1 pr-1 pl-3 ring-1 ring-lav-400/22 ring-inset"
+        className={`motion-arrive flex items-center gap-1 rounded-[14px] py-1 pr-1 pl-3 ring-1 ring-inset ${wrong ? 'bg-state-warn/[0.07] ring-state-warn/35' : 'bg-lav-400/[0.06] ring-lav-400/22'}`}
       >
         <button
           type="button"
@@ -107,6 +125,7 @@ export function JustAdded({
           <span className="truncate font-mono text-[11px] text-ink-400">
             · {newest >= today ? 'today' : short(newest)}
           </span>
+          <Misplaced files={list} />
           <span className="flex-1" />
           <ChevronDown
             className={`size-4 shrink-0 text-lav-300 transition-transform ${shown ? 'rotate-180' : ''}`}
@@ -174,6 +193,24 @@ export function JustAdded({
   )
 }
 
+/* A file whose buys sit on another thing than it read (14 Oct): said
+   on the line itself, so it is seen with every card closed. */
+const misplaced = (f: JustFile) => f.things.some((t) => t.read !== undefined)
+
+function Misplaced({ files }: { files: ReadonlyArray<JustFile> }) {
+  const n = files.filter(misplaced).length
+  if (n === 0) return null
+  return (
+    <span
+      data-testid="just-misplaced"
+      className="motion-land inline-flex shrink-0 items-center gap-1.5 rounded-full bg-state-warn/14 px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-state-warn uppercase"
+    >
+      <TriangleAlert className="motion-pulse size-3" />
+      {n} {n === 1 ? 'file' : 'files'} saved on another asset
+    </span>
+  )
+}
+
 /* Per device, and never in the way: storage may be blocked. */
 function readHidden(key: string): number {
   try {
@@ -207,7 +244,7 @@ function Badge({
   tone,
   children,
 }: {
-  tone: 'buy' | 'sell' | 'out' | 'in' | 'rows'
+  tone: 'buy' | 'sell' | 'out' | 'in' | 'rows' | 'warn'
   children: React.ReactNode
 }) {
   const look = {
@@ -216,6 +253,7 @@ function Badge({
     out: 'bg-state-danger/14 text-state-danger',
     in: 'bg-lift/[0.05] text-ink-400',
     rows: 'bg-lav-400/14 text-lav-300',
+    warn: 'bg-state-warn/14 text-state-warn',
   }[tone]
   return (
     <span
@@ -243,7 +281,7 @@ function Panel({
     <div
       data-testid="just-file"
       style={{ animationDelay: `${index * 70}ms` }}
-      className={`motion-arrive flex flex-col gap-2 rounded-[14px] px-3 py-2.5 ring-1 ring-inset ${f.saved > 0 ? 'bg-lav-400/[0.06] ring-lav-400/22' : 'bg-lift/[0.03] ring-lift/10'}`}
+      className={`motion-arrive flex flex-col gap-2 rounded-[14px] px-3 py-2.5 ring-1 ring-inset ${misplaced(f) ? 'bg-state-warn/[0.07] ring-state-warn/35' : f.saved > 0 ? 'bg-lav-400/[0.06] ring-lav-400/22' : 'bg-lift/[0.03] ring-lift/10'}`}
     >
       <button
         type="button"
@@ -269,22 +307,50 @@ function Panel({
         </span>
       </button>
       <span className="flex flex-wrap items-center gap-1.5">
-        {f.things.map((t) => (
-          <span
-            key={t.symbol}
-            className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-200"
-          >
-            <TickerLogo {...t} size={18} />
-            {t.name}
-          </span>
-        ))}
+        {f.things.map((t) =>
+          t.read !== undefined ? (
+            /* Two things with their places (14 Oct): what the file
+               holds, and where it was saved. */
+            <span
+              key={t.symbol}
+              className="inline-flex min-w-0 flex-wrap items-center gap-1.5 text-[12.5px] text-foreground"
+            >
+              <TriangleAlert className="motion-pulse size-3.5 shrink-0 text-state-warn" />
+              <span className="label-caps">in the file</span>
+              {t.read}
+              <span className="label-caps text-state-warn">saved on</span>
+              <TickerLogo
+                symbol={t.symbol}
+                type={t.type}
+                name={t.name}
+                size={18}
+              />
+              {t.name}
+            </span>
+          ) : (
+            <span
+              key={t.symbol}
+              className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-200"
+            >
+              <TickerLogo
+                symbol={t.symbol}
+                type={t.type}
+                name={t.name}
+                size={18}
+              />
+              {t.name}
+            </span>
+          ),
+        )}
         {f.buys > 0 ? <Badge tone="buy">{f.buys} buy</Badge> : null}
         {f.sells > 0 ? <Badge tone="sell">{f.sells} sell</Badge> : null}
         {!isTrades(f) && f.saved > 0 ? (
           <Badge tone="rows">{rowsOf(f.saved)}</Badge>
         ) : null}
         {f.saved === 0 ? <Badge tone="in">0 saved</Badge> : null}
-        {f.had > 0 ? <Badge tone="in">{f.had} in already</Badge> : null}
+        {f.had > 0 && !misplaced(f) ? (
+          <Badge tone="in">{f.had} already added</Badge>
+        ) : null}
         <span className="flex-1" />
         {f.saved > 0 ? (
           <button

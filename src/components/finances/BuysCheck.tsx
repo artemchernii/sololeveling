@@ -9,6 +9,7 @@ import { TickerLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { buysCheck } from '@/lib/addBuys'
 import type { SavedTrade } from '@/lib/addBuys'
+import { landedSplit } from '@/lib/buysLanded'
 import { productIn } from '@/lib/institutions'
 import { matchAccount } from '@/lib/intake'
 import { euros } from '@/lib/money'
@@ -261,11 +262,18 @@ function Sum({
   )
 }
 
-/** The saved screen's words for the thing, and its line. */
+/** The saved screen's words for the thing, its line, and where this
+    save's buys sit — read from the trades its files wrote, never from
+    the file's count (14 Oct: "9 buys saved" while all nine sat on
+    another thing). */
 export function useBuysLanded(batchId: Id<'batches'>) {
   const thing = useBuysFor()
   const read = useQuery(
     api.intake.batchBuys,
+    thing === null ? 'skip' : { batchId },
+  )
+  const landed = useQuery(
+    api.buysLanded.batch,
     thing === null ? 'skip' : { batchId },
   )
   if (thing === null) return null
@@ -273,7 +281,9 @@ export function useBuysLanded(batchId: Id<'batches'>) {
     read === undefined
       ? undefined
       : buysCheck(read, thing.saved, thing.symbols, thing.held)
-  return { thing, check }
+  const where =
+    landed === undefined ? undefined : landedSplit(landed, thing.symbols)
+  return { thing, check, where }
 }
 
 /** Each buy: a badge, what it was for, the units and the day. `plain`
@@ -338,26 +348,35 @@ export function BuysSaved({
   thing,
   check,
   added,
+  warn = false,
 }: {
   thing: BuysFor
   check: ReturnType<typeof buysCheck> | undefined
   added: number
+  /** Some of the save sits on another thing: this card is not the news. */
+  warn?: boolean
 }) {
   const buys = thing.saved.filter((t) => t.side === 'buy')
   const total =
     Math.round(buys.reduce((t, b) => t + b.shares * b.priceEur, 0) * 100) / 100
   return (
     <div className="flex w-full max-w-xl flex-col gap-3">
-      <div className="motion-arrive flex items-center gap-3.5 rounded-[16px] bg-state-good/[0.06] px-4 py-3.5 ring-1 ring-state-good/30 ring-inset">
+      <div
+        className={`motion-arrive flex items-center gap-3.5 rounded-[16px] px-4 py-3.5 ring-1 ring-inset ${warn ? 'bg-lift/[0.035] ring-lift/8' : 'bg-state-good/[0.06] ring-state-good/30'}`}
+      >
         <TickerLogo {...thing.logo} size={44} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="truncate text-[17px] text-foreground">
             {thing.name}
           </span>
-          <span className="font-mono text-[11px] text-state-good">
+          <span
+            className={`font-mono text-[11px] ${warn ? 'text-ink-400' : 'text-state-good'}`}
+          >
             {added > 0
               ? `${added} ${added === 1 ? 'buy' : 'buys'} added`
-              : 'nothing new'}
+              : warn
+                ? 'nothing added'
+                : 'nothing new'}
           </span>
         </div>
         <div className="flex flex-col items-end gap-0.5">
@@ -367,7 +386,7 @@ export function BuysSaved({
           <span className="label-caps">buy total</span>
         </div>
       </div>
-      {check ? (
+      {check && !warn ? (
         <>
           <div className="grid grid-cols-2 gap-2.5">
             <Sum label="held" value={thing.amount(check.held)} veiled>

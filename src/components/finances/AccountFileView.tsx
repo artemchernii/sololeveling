@@ -113,7 +113,7 @@ export function FileView({
               <span
                 className={`rounded-full px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${t.landed ? 'bg-state-good/12 text-state-good' : 'bg-lift/[0.05] text-ink-400'}`}
               >
-                {t.landed ? 'saved' : 'in already'}
+                {t.landed ? 'saved' : 'already added'}
               </span>
               <span className="text-right font-mono text-[11px] whitespace-nowrap text-ink-400">
                 {DAY.format(new Date(t.at))}

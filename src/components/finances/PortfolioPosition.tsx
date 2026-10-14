@@ -23,6 +23,8 @@ import { PositionTiles } from '@/components/finances/PositionTiles'
 import { PositionTrades } from '@/components/finances/PositionTrades'
 import { AddBuys } from '@/components/finances/AddBuys'
 import { FileView } from '@/components/finances/AccountFileView'
+import type { Taken } from '@/components/finances/AccountFileBack'
+import { SavedNote } from '@/components/finances/AccountParts'
 import { JustAdded } from '@/components/finances/JustAdded'
 import { Sheet } from '@/components/finances/Sheet'
 import { useOlderYears } from '@/components/finances/useOlderYears'
@@ -142,6 +144,7 @@ export function PortfolioPosition({
   const [volume, setVolume] = useState(false)
   /* A just-added file, opened from the strip. */
   const [file, setFile] = useState<Id<'intakes'> | null>(null)
+  const [removed, setRemoved] = useState<Taken | null>(null)
   const can = useMemo(() => drawable((line ?? []).map(asPt)), [line])
   const askBars = useMutation(api.bars.ask)
   const asked = useRef<Id<'instruments'> | null>(null)
@@ -300,12 +303,34 @@ export function PortfolioPosition({
         }}
       />
       <Sheet
-        open={file !== null}
+        open={file !== null || removed !== null}
         title={owned.name}
-        onClose={() => setFile(null)}
+        onClose={() => {
+          setFile(null)
+          setRemoved(null)
+        }}
       >
-        {file ? (
-          <FileView intakeId={file} onTaken={() => setFile(null)} />
+        {removed ? (
+          /* Removed: said, then closed by its own press (14 Oct: "after
+             remove I dont see any confirmation just closed"). */
+          <div className="flex flex-col items-center gap-2 pb-2">
+            <SavedNote name={owned.name} title="Removed" note={removed.words} />
+            <button
+              type="button"
+              onClick={() => setRemoved(null)}
+              className={PILL_QUIET}
+            >
+              done
+            </button>
+          </div>
+        ) : file ? (
+          <FileView
+            intakeId={file}
+            onTaken={(t) => {
+              setRemoved(t)
+              setFile(null)
+            }}
+          />
         ) : null}
       </Sheet>
 

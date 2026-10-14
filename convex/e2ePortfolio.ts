@@ -198,7 +198,9 @@ export const soldOut = mutation({
 export const goldBuys = mutation({
   /* With `fund`: two screenshots of iShares Physical Gold dropped too,
      one saying Trading 212, one saying nothing (his drop of 14 Oct). */
-  args: { fund: v.optional(v.boolean()) },
+  /* With `drop`: his four other Revolut screenshots of gold too, IMG_9290
+     and IMG_9291 sharing three rows — nineteen trades, all in EUR. */
+  args: { fund: v.optional(v.boolean()), drop: v.optional(v.boolean()) },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
@@ -291,6 +293,77 @@ export const goldBuys = mutation({
         buy(4, 16, 0.059985, 4147.38, 1.22),
       ],
     })
+    if (args.drop === true) {
+      const t = (
+        side: 'buy' | 'sell',
+        day: string,
+        shares: number,
+        price: number,
+        fee: number,
+      ) => ({
+        occurredAt: Date.parse(`${day}T12:00:00Z`),
+        name: 'XAU',
+        side,
+        shares,
+        price,
+        fee,
+        currency: 'EUR',
+        preferred: 0,
+        candidates: [gold],
+      })
+      const shots: Array<[string, Array<ReturnType<typeof t>>]> = [
+        [
+          'IMG_9288.PNG',
+          [
+            t('buy', '2026-04-01', 0.024092, 4109.31, 1),
+            t('buy', '2026-03-06', 0.047789, 5205.84, 1.22),
+            t('buy', '2026-02-17', 0.050271, 4948.73, 1.22),
+            t('sell', '2023-06-12', 0.269819, 1822.56, 7.33),
+          ],
+        ],
+        [
+          'IMG_9289.PNG',
+          [
+            t('buy', '2023-05-05', 0.024669, 2016.54, 0.25),
+            t('buy', '2023-05-05', 0.049334, 2016.94, 0.5),
+            t('buy', '2023-04-28', 0.071491, 1809.3, 0.65),
+            t('buy', '2023-04-20', 0.124325, 2000.8, 1.25),
+            t('sell', '2023-03-16', 0.302727, 1803.64, 2.73),
+          ],
+        ],
+        [
+          'IMG_9290.PNG',
+          [
+            t('buy', '2022-09-27', 0.029292, 1698.37, 0.25),
+            t('buy', '2022-09-27', 0.041007, 1698.45, 0.35),
+            t('buy', '2022-09-15', 0.02978, 1670.56, 0.25),
+            t('buy', '2022-09-15', 0.029789, 1670.06, 0.25),
+            t('buy', '2022-08-23', 0.028378, 1753.16, 0.25),
+          ],
+        ],
+        [
+          'IMG_9291.PNG',
+          [
+            t('buy', '2022-09-15', 0.02978, 1670.56, 0.25),
+            t('buy', '2022-09-15', 0.029789, 1670.06, 0.25),
+            t('buy', '2022-08-23', 0.028378, 1753.16, 0.25),
+            t('buy', '2022-07-28', 0.144481, 1721.68, 1.25),
+          ],
+        ],
+      ]
+      for (const [name, trades] of shots)
+        await ctx.db.insert('intakes', {
+          ownerId,
+          batchId,
+          accountId: revolut._id,
+          storageIds: [],
+          status: 'ready',
+          kind: 'trades',
+          title: 'Buy XAU · trades',
+          files: [{ name, size: 1, contentType: 'image/png' }],
+          trades,
+        })
+    }
     if (args.fund === true) {
       const fund = {
         symbol: 'IGLN.L',

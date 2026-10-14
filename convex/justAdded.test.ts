@@ -108,6 +108,80 @@ describe('justAdded.list', () => {
     expect(files[1].to).toBe(at(7, 23))
   })
 
+  test('IMG_9288: three buys and a sell are counted apart', async () => {
+    const { t, me, accountId } = await setup()
+    await t.run(async (ctx) => {
+      const instrumentId = (await ctx.db
+        .query('instruments')
+        .withIndex('by_owner_symbol', (q) =>
+          q.eq('ownerId', ME).eq('symbol', 'GC=F'),
+        )
+        .unique())!._id
+      const ROWS = [
+        ['buy', at(4, 1), 0.024092],
+        ['buy', at(3, 6), 0.047789],
+        ['buy', at(2, 17), 0.050271],
+        ['sell', at(1, 12), 0.269819],
+      ] as const
+      const intakeId = await ctx.db.insert('intakes', {
+        ownerId: ME,
+        accountId,
+        storageIds: [],
+        status: 'done',
+        kind: 'trades',
+        readAt: NOW - DAY / 8,
+        files: [{ name: 'IMG_9288.PNG', size: 1, contentType: 'image/png' }],
+        trades: ROWS.map(([side, occurredAt, shares]) => ({
+          occurredAt,
+          name: 'XAU',
+          side,
+          shares,
+          price: 4100,
+          currency: 'EUR',
+          preferred: 0,
+          candidates: [GOLD],
+        })),
+      })
+      for (const [side, occurredAt, shares] of ROWS)
+        await ctx.db.insert('trades', {
+          ownerId: ME,
+          accountId,
+          instrumentId,
+          side,
+          shares,
+          priceEur: 4100,
+          occurredAt,
+          importId: intakeId,
+        })
+    })
+    const files = await me.query(api.justAdded.list, {
+      since: NOW - 7 * DAY,
+      accountId,
+    })
+    expect(files.map((f) => [f.names[0], f.saved, f.buys, f.sells])).toEqual([
+      ['IMG_9288.PNG', 4, 3, 1],
+      ['IMG_9301.PNG', 0, 0, 0],
+      ['IMG_9285.PNG', 4, 4, 0],
+    ])
+  })
+
+  test('a trades file opened: its buys, saved by it or in already', async () => {
+    const { me, first, again } = await setup()
+    const saved = await me.query(api.intake.fileRows, { intakeId: first })
+    expect(saved.rows).toEqual([])
+    expect(saved.trades.map((r) => [r.side, r.shares, r.landed])).toEqual(
+      BUYS.map(([, s]) => ['buy', s, true]),
+    )
+    expect(saved.trades[0].value).toBe(Math.round(0.08275 * 3600 * 100) / 100)
+    const had = await me.query(api.intake.fileRows, { intakeId: again })
+    expect(had.trades.map((r) => r.landed)).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ])
+  })
+
   test('a thing: only the files asked for', async () => {
     const { me, first } = await setup()
     const files = await me.query(api.justAdded.list, {

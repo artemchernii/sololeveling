@@ -80,6 +80,7 @@ test('his screenshot of 11 Oct is taken back: €90.35 is €153.21 again', asyn
        already had off as pending. */
     rows: 3,
     trades: 0,
+    sells: 0,
     positions: 0,
     elsewhere: [],
     elsewhereRows: 0,

@@ -75,7 +75,8 @@ export function TakeBack({
     `−${count} ${count === 1 ? one : many}`
   const badges = [
     ...(p.rows > 0 ? [n(p.rows, 'row', 'rows')] : []),
-    ...(p.trades > 0 ? [n(p.trades, 'buy or sell', 'buys and sells')] : []),
+    ...(p.trades > p.sells ? [`−${p.trades - p.sells} buy`] : []),
+    ...(p.sells > 0 ? [`−${p.sells} sell`] : []),
     ...(p.positions > 0 ? [n(p.positions, 'position', 'positions')] : []),
     ...(g.balanceDay !== null ? [`balance · ${g.balanceDay}`] : []),
   ]
@@ -91,35 +92,6 @@ export function TakeBack({
           remove · these numbers go
         </span>
       </span>
-      <span className="flex flex-wrap items-center gap-1.5">
-        {badges.length === 0 ? (
-          <span className="font-mono text-[11px] text-ink-400">
-            nothing left from it
-          </span>
-        ) : (
-          badges.map((b) => (
-            <span
-              key={b}
-              className="rounded-full bg-state-danger/14 px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-state-danger uppercase"
-            >
-              {b}
-            </span>
-          ))
-        )}
-        {p.elsewhereRows > 0 ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-state-danger/14 py-0.5 pr-2.5 pl-1 font-mono text-[10px] tracking-[0.12em] text-state-danger uppercase">
-            {there ? (
-              <AccountLogo
-                name={there.account}
-                domain={there.domain}
-                size={16}
-              />
-            ) : null}
-            −{p.elsewhereRows} in {there?.account ?? 'other accounts'}
-          </span>
-        ) : null}
-      </span>
-
       {cash !== null ? (
         <div className="grid grid-cols-2 overflow-hidden rounded-[12px] bg-sink/25 ring-1 ring-lift/[0.06] ring-inset">
           <Cell
@@ -146,28 +118,57 @@ export function TakeBack({
         </div>
       ) : null}
 
-      <div className="flex min-h-[34px] flex-wrap items-center gap-x-2.5 gap-y-1.5">
+      {/* What goes, then the press, on one line (14 Oct: badges and the
+          button sat stacked and ragged) — as the strip's file panel. */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {badges.length === 0 ? (
+          <span className="font-mono text-[11px] text-ink-400">
+            nothing left from it
+          </span>
+        ) : (
+          badges.map((b) => (
+            <span
+              key={b}
+              className="rounded-full bg-state-danger/14 px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-state-danger uppercase"
+            >
+              {b}
+            </span>
+          ))
+        )}
+        {p.elsewhereRows > 0 ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-state-danger/14 py-0.5 pr-2.5 pl-1 font-mono text-[10px] tracking-[0.12em] text-state-danger uppercase">
+            {there ? (
+              <AccountLogo
+                name={there.account}
+                domain={there.domain}
+                size={16}
+              />
+            ) : null}
+            −{p.elsewhereRows} in {there?.account ?? 'other accounts'}
+          </span>
+        ) : null}
+        <span className="flex-1" />
         <button
           type="button"
           onClick={press}
           disabled={busy}
-          className="motion-press inline-flex h-[34px] items-center gap-2 rounded-full bg-state-danger/15 px-4 font-mono text-[11px] tracking-[0.12em] text-foreground uppercase ring-1 ring-state-danger/45 transition-colors ring-inset hover:bg-state-danger/25 disabled:text-ink-300"
+          className="motion-press inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-full bg-state-danger/15 px-3 font-mono text-[10.5px] tracking-[0.12em] text-foreground uppercase ring-1 ring-state-danger/45 transition-colors ring-inset hover:bg-state-danger/25 disabled:text-ink-300"
         >
           <Busy on={busy} doing="removing…">
             <X className="size-3.5 text-state-danger" />
             remove {what}
           </Busy>
         </button>
-        {failed !== null ? (
-          <span
-            role="alert"
-            className="motion-land flex items-center gap-1.5 text-[12.5px] text-state-danger"
-          >
-            <X className="size-3.5" />
-            Not removed. {failed}
-          </span>
-        ) : null}
       </div>
+      {failed !== null ? (
+        <span
+          role="alert"
+          className="motion-land flex items-center gap-1.5 text-[12.5px] text-state-danger"
+        >
+          <X className="size-3.5" />
+          Not removed. {failed}
+        </span>
+      ) : null}
     </div>
   )
 }

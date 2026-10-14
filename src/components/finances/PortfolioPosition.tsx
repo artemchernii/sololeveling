@@ -19,6 +19,7 @@ import { TickerLogo } from '@/components/finances/Logo'
 import type { View } from '@/components/finances/chartSeries'
 import { PriceChart, asPt } from '@/components/finances/PriceChart'
 import type { Position } from '@/components/finances/PortfolioList'
+import { HeadLine } from '@/components/finances/PositionHead'
 import { PositionTiles } from '@/components/finances/PositionTiles'
 import { PositionTrades } from '@/components/finances/PositionTrades'
 import { AddBuys } from '@/components/finances/AddBuys'
@@ -62,8 +63,6 @@ const RANGES = [
   { id: '1Y', days: 366 },
 ] as const
 type Range = (typeof RANGES)[number]['id'] | 'all'
-/* Yahoo's words for what a thing is (14 Oct: "fund is etf?"). */
-const KIND = { stock: 'share', etf: 'ETF', crypto: 'coin', gold: 'gold' }
 function BackToList() {
   return (
     <Link
@@ -241,12 +240,12 @@ export function PortfolioPosition({
           <h1 className="text-[22px] leading-tight text-foreground">
             {owned.name}
           </h1>
-          <p className="mt-1.5 flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-ink-500">
-            <span className="rounded-full bg-lav-400/16 px-2.5 py-0.5 text-[10px] tracking-[0.12em] text-lav-300 uppercase">
-              {KIND[owned.kind]}
-            </span>
-            <span className="text-ink-300">{code}</span> · {first.currency}
-          </p>
+          <HeadLine
+            instrumentId={first.instrumentId}
+            kind={owned.kind}
+            code={code}
+            currency={first.currency}
+          />
         </div>
         <div className="col-span-2 sm:col-span-1 sm:text-right">
           {first.price === null || unpriced ? (

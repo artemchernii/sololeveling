@@ -2,6 +2,8 @@ import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 import type { Infer } from 'convex/values'
 
+import { SECTORS } from '../src/lib/sector'
+
 /* PLAN.md §2. Every table carries `ownerId` — the Clerk `identity.subject` —
    and an owner-scoped index, so a query that reads across owners cannot be
    written by accident. There is one user today; the schema does not know that,
@@ -810,6 +812,13 @@ export default defineSchema({
     /* When its older years were last read (priceYears.ts): once a
        calendar year, when the year that ended becomes a past one. */
     yearsReadAt: v.optional(v.number()),
+    /* What it is in, as a badge on its page (sector.ts, 14 Oct): read
+       once, with where it came from — Yahoo's sector for a share, words
+       in a fund's own name. `sectorReadAt` set and no sector: nothing
+       was found, and nothing is asked again. */
+    sector: v.optional(v.union(...SECTORS.map((s) => v.literal(s)))),
+    sectorFrom: v.optional(v.union(v.literal('yahoo'), v.literal('name'))),
+    sectorReadAt: v.optional(v.number()),
   })
     .index('by_owner_symbol', ['ownerId', 'symbol'])
     /* Read only by the daily price check, which acts for every owner —

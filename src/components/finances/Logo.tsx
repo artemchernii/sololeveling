@@ -155,16 +155,7 @@ export function TickerLogo({
         }}
         className="grid shrink-0 place-items-center"
       >
-        <svg
-          viewBox="0 0 24 24"
-          width={size * 0.62}
-          height={size * 0.62}
-          fill="white"
-        >
-          <path d="M9.2 4.5h5.6l2.4 5.6H6.8z" />
-          <path d="M3.6 12.7h6.1l2.4 5.6H1.2z" />
-          <path d="M14.3 12.7h6.1l2.4 5.6H11.9z" />
-        </svg>
+        <Bars size={size * 0.62} />
       </span>
     )
   }
@@ -193,5 +184,22 @@ export function TickerLogo({
       style={coin ? box : { ...box, padding: size / 10 }}
       className={`shrink-0 object-contain ${coin ? '' : ink === 'light' ? 'bg-mark-ink' : 'bg-mark-ground'}`}
     />
+  )
+}
+
+/** A metal's three bars — its mark, and the GOLD badge's icon. */
+export function Bars({
+  size,
+  fill = 'white',
+}: {
+  size: number
+  fill?: string
+}) {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" width={size} height={size} fill={fill}>
+      <path d="M9.2 4.5h5.6l2.4 5.6H6.8z" />
+      <path d="M3.6 12.7h6.1l2.4 5.6H1.2z" />
+      <path d="M14.3 12.7h6.1l2.4 5.6H11.9z" />
+    </svg>
   )
 }

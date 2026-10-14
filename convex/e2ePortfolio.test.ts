@@ -72,3 +72,8 @@ test('misplaceBuys moves the buys a file wrote, and only those', async () => {
     [2, 'GC=F'],
   ])
 })
+
+test('asiaFund runs only on the test backend', async () => {
+  const me = convexTest(schema, modules).withIdentity({ tokenIdentifier: ME })
+  await expect(me.mutation(api.e2eHead.asiaFund, {})).rejects.toThrow()
+})

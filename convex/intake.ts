@@ -10,6 +10,7 @@ import {
   writeBalance,
 } from './accounts'
 import { movedSince } from './aggregate'
+import { fileTrade, fileTrades } from './fileTrades'
 import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
 import { findFor } from './recurring'
@@ -2676,6 +2677,8 @@ export const fileRows = query({
         landed: v.boolean(),
       }),
     ),
+    /** A trades file's buys and sells, each saved or in already. */
+    trades: v.array(fileTrade),
     /** What a broker's screen or file listed, as it was read. */
     positions: v.array(
       v.object({
@@ -2725,6 +2728,7 @@ export const fileRows = query({
           ),
         }))
         .sort((a, b) => b.at - a.at),
+      trades: await fileTrades(ctx, ownerId, intake),
       positions: (intake.positions ?? []).map((p) => ({
         name: p.name,
         symbol: p.candidates.at(p.preferred ?? 0)?.symbol ?? null,

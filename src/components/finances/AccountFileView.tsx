@@ -17,6 +17,12 @@ import { fmt, short } from './AccountSheetRows'
    way to take it back (AccountFileBack). */
 /* A file's name says what it is: a screenshot, else a statement. */
 const IMAGE = /\.(png|jpe?g|webp|heic|gif)$/i
+/* A trade's day with its year: a file of buys goes back years. */
+const DAY = new Intl.DateTimeFormat(undefined, {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+})
 
 export function FileView({
   intakeId,
@@ -28,29 +34,23 @@ export function FileView({
   const f = useQuery(api.intake.fileRows, { intakeId })
   if (f === undefined) return <SkeletonRows rows={6} />
   const landed = f.rows.filter((r) => r.landed).length
+  const buys = f.trades.filter((t) => t.side !== 'sell').length
+  const sells = f.trades.length - buys
+  const tradesSaved = f.trades.filter((t) => t.landed).length
   return (
     <div className="flex flex-col gap-3">
       <span className="flex flex-col gap-1">
         <span className="text-[15px] text-foreground">{f.title}</span>
         <span className="font-mono text-[11px] text-ink-400">
           {f.names.join(' · ')} · read {short(f.readAt)} ·{' '}
-          {f.positions.length > 0 && f.rows.length === 0
-            ? `${f.positions.length} ${f.positions.length === 1 ? 'position' : 'positions'} read`
-            : `${f.rows.length} rows in the file · ${landed} saved`}
+          {f.trades.length > 0 && f.rows.length === 0
+            ? `${[buys > 0 ? `${buys} buy` : '', sells > 0 ? `${sells} sell` : ''].filter(Boolean).join(' · ')} in the file · ${tradesSaved} saved`
+            : f.positions.length > 0 && f.rows.length === 0
+              ? `${f.positions.length} ${f.positions.length === 1 ? 'position' : 'positions'} read`
+              : `${f.rows.length} rows in the file · ${landed} saved`}
         </span>
       </span>
       <Originals intakeId={intakeId} />
-      <TakeBack
-        intakeId={intakeId}
-        what={
-          !f.names.every((n) => IMAGE.test(n))
-            ? 'statement'
-            : f.names.length > 1
-              ? 'screenshots'
-              : 'screenshot'
-        }
-        onTaken={onTaken}
-      />
       {f.positions.length > 0 ? (
         /* What a broker's screen listed (13 Oct: Trading 212's screenshot
            opened on "0 rows in the file" and nothing under it). In euros,
@@ -87,6 +87,41 @@ export function FileView({
           ))}
         </div>
       ) : null}
+      {f.trades.length > 0 ? (
+        /* A trades file: each buy and sell as read (14 Oct: "0 rows in
+           the file" and nothing under his gold screenshot). */
+        <div data-testid="file-trades" className="flex flex-col">
+          {f.trades.map((t, i) => (
+            <div
+              key={`${t.at}:${i}`}
+              data-testid="file-trade"
+              className={`grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-lift/6 px-2.5 py-2.5 first:border-t-0 ${t.landed ? '' : 'opacity-50'}`}
+            >
+              <span
+                className={`rounded-full px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${t.side === 'sell' ? 'bg-state-danger/14 text-state-danger' : 'bg-state-good/14 text-state-good'}`}
+              >
+                {t.side}
+              </span>
+              <span className="flex min-w-0 flex-col gap-0.5 font-mono">
+                <span className="text-[13.5px] text-foreground">
+                  <Veiled>{fmt(t.value, t.currency)}</Veiled>
+                </span>
+                <span className="truncate text-[10.5px] text-ink-500">
+                  <Veiled>{Number(t.shares.toFixed(6))}</Veiled> · {t.name}
+                </span>
+              </span>
+              <span
+                className={`rounded-full px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase ${t.landed ? 'bg-state-good/12 text-state-good' : 'bg-lift/[0.05] text-ink-400'}`}
+              >
+                {t.landed ? 'saved' : 'in already'}
+              </span>
+              <span className="text-right font-mono text-[11px] whitespace-nowrap text-ink-400">
+                {DAY.format(new Date(t.at))}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="flex flex-col">
         {f.rows.map((r, i) => (
           <div
@@ -119,6 +154,17 @@ export function FileView({
           </div>
         ))}
       </div>
+      <TakeBack
+        intakeId={intakeId}
+        what={
+          !f.names.every((n) => IMAGE.test(n))
+            ? 'statement'
+            : f.names.length > 1
+              ? 'screenshots'
+              : 'screenshot'
+        }
+        onTaken={onTaken}
+      />
     </div>
   )
 }

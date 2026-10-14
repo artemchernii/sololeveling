@@ -9,7 +9,7 @@ import type { Doc, Id } from './_generated/dataModel'
    see nothing in revolut, no history of this addings … i cant open what i
    just added and cant undo". A sheet places a file at the date of its
    rows, so a file of July buys saved today sat under 60 newer rows. These
-   are the files saved since a day, newest first, for the top of an
+   are the files he dropped today that saved something, newest first, for the top of an
    account's sheet and of a thing's page. Counts of rows, nothing worked
    out. */
 
@@ -40,6 +40,10 @@ const file = v.object({
   /** Rows it saved, and rows it read that were saved before it. */
   saved: v.number(),
   had: v.number(),
+  /** Of what it saved, the buys and the sells (14 Oct: IMG_9288 held 3
+      buys and 1 sell and read "4 BUY"). */
+  buys: v.number(),
+  sells: v.number(),
   /** Its buys and sells: of what. */
   things: v.array(
     v.object({ symbol: v.string(), name: v.string(), type: v.string() }),
@@ -81,10 +85,16 @@ export const list = query({
     for (const i of found) {
       if (seen.has(i._id)) continue
       seen.add(i._id)
+      /* What he dropped, not what the bank sent on its own (14 Oct:
+         "I didn't ask for it in that history of activo bank"). */
       if (i.status !== 'done' || i.takenBackAt !== undefined) continue
+      if (i.via === 'bank') continue
       const addedAt = await savedAt(ctx, i)
       if (addedAt < args.since) continue
-      out.push({ ...(await described(ctx, ownerId, i)), addedAt })
+      const d = await described(ctx, ownerId, i)
+      /* A file that saved nothing added nothing. */
+      if (d.saved === 0) continue
+      out.push({ ...d, addedAt })
     }
     return out.sort((a, b) => b.addedAt - a.addedAt)
   },
@@ -174,6 +184,8 @@ async function described(ctx: QueryCtx, ownerId: string, i: Doc<'intakes'>) {
     to,
     saved,
     had: Math.max(0, read.length - saved),
+    buys: trades.filter((t) => t.side === 'buy').length,
+    sells: trades.filter((t) => t.side === 'sell').length,
     things: [...things.values()],
     rows,
   }

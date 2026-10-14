@@ -139,3 +139,65 @@ describe('buysCheck', () => {
     expect(c.totalEur).toBeNull()
   })
 })
+
+/* His drop of 14 Oct: four Revolut screenshots of gold, scrolled down
+   one after another, so IMG_9290's last three rows are IMG_9291's first
+   three. The save counted each once; the check said "too much". */
+describe('buysCheck across one drop', () => {
+  const row = (
+    intakeId: string,
+    side: 'buy' | 'sell',
+    day: string,
+    shares: number,
+    price: number,
+    currency = 'EUR',
+  ): ReadBuy => ({
+    occurredAt: Date.parse(`${day}T12:00:00Z`),
+    side,
+    shares,
+    price,
+    currency,
+    symbol: 'GC=F',
+    intakeId,
+  })
+  const IMG_9290 = [
+    row('9290', 'buy', '2022-09-27', 0.029292, 1698.37),
+    row('9290', 'buy', '2022-09-27', 0.041007, 1698.45),
+    row('9290', 'buy', '2022-09-15', 0.02978, 1670.56),
+    row('9290', 'buy', '2022-09-15', 0.029789, 1670.06),
+    row('9290', 'buy', '2022-08-23', 0.028378, 1753.16),
+  ]
+  const IMG_9291 = [
+    row('9291', 'buy', '2022-09-15', 0.02978, 1670.56),
+    row('9291', 'buy', '2022-09-15', 0.029789, 1670.06),
+    row('9291', 'buy', '2022-08-23', 0.028378, 1753.16),
+    row('9291', 'buy', '2022-07-28', 0.144481, 1721.68),
+  ]
+
+  it('a buy in two overlapping screenshots is counted once', () => {
+    const c = buysCheck([...IMG_9290, ...IMG_9291], [], ['GC=F'], 0.302727)
+    expect(c.rows).toHaveLength(6)
+    expect(c.fresh).toBe(6)
+    expect(c.units).toBe(0.302727)
+    expect(c.state).toBe('reaches')
+  })
+
+  it('two alike in one file stay two', () => {
+    const twice = [IMG_9291[3], { ...IMG_9291[3] }]
+    expect(buysCheck(twice, [], ['GC=F'], 1).rows).toHaveLength(2)
+  })
+
+  it('a twin already saved is in already, once', () => {
+    const saved = [
+      {
+        occurredAt: IMG_9291[2].occurredAt,
+        side: 'buy' as const,
+        shares: 0.028378,
+      },
+    ]
+    const c = buysCheck([...IMG_9290, ...IMG_9291], saved, ['GC=F'], 0.302727)
+    expect(c.rows.filter((r) => r.had)).toHaveLength(1)
+    expect(c.fresh).toBe(5)
+    expect(c.units).toBe(0.302727)
+  })
+})

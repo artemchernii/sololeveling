@@ -6,12 +6,17 @@ import type { Position } from '@/components/finances/PortfolioList'
 import { Veiled } from '@/components/finances/Veil'
 import { euros } from '@/lib/money'
 import type { Owned } from '@/lib/owned'
+import type { Round } from '@/lib/rounds'
 import type { soldSums } from '@/lib/sold'
 
 const FULL = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
   month: 'short',
   year: 'numeric',
+})
+const SHORT = new Intl.DateTimeFormat(undefined, {
+  day: 'numeric',
+  month: 'short',
 })
 
 /* The tiles on one position's page: what it is worth, the buy total,
@@ -23,6 +28,7 @@ export function PositionTiles({
   gain,
   bought,
   sells,
+  since,
   part,
   gap,
   unit,
@@ -34,6 +40,14 @@ export function PositionTiles({
   /** How many buys and sells are saved. */
   bought: number
   sells: number
+  /** The round held now (src/lib/rounds.ts): PAID counts its buys and
+      sells and says its first day, not the rounds sold out before. */
+  since?: Round<{
+    occurredAt: number
+    side: 'buy' | 'sell'
+    shares: number
+    priceEur: number
+  }>
   /** The sum of the buys saved, where they do not reach what is held. */
   part: number | null
   /** The units held that no buy accounts for. */
@@ -64,7 +78,7 @@ export function PositionTiles({
         </span>
       </Tile>
       <Tile
-        label={`paid${bought + sells > 0 ? ` · ${bought} buy${sells > 0 ? ` · ${sells} sell` : ''}` : ''}`}
+        label={`paid${bought + sells > 0 ? ` · ${since?.buys ?? bought} buy${(since?.sells ?? sells) > 0 ? ` · ${since?.sells ?? sells} sell` : ''}` : ''}`}
         delay={40}
         tone={gap > 0 ? 'warn' : undefined}
       >
@@ -79,6 +93,16 @@ export function PositionTiles({
             '—'
           )}
         </span>
+        {since && (owned.paid !== null || part !== null) ? (
+          <span className="flex">
+            <span
+              data-testid="paid-since"
+              className="rounded-full bg-lift/[0.06] px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] text-ink-300 uppercase"
+            >
+              since {FULL.format(new Date(since.from))}
+            </span>
+          </span>
+        ) : null}
         {gap > 0 ? (
           /* Buys saved, and not all of them: the two numbers, and the
              state in colour (14 Oct: "BUY TOTAL still confusing"). */
@@ -105,7 +129,7 @@ export function PositionTiles({
         ) : owned.paid !== null ? (
           <span className="flex items-center gap-1.5 font-mono text-[11px] text-state-good">
             <Check className="size-3 shrink-0" />
-            all <Veiled>{`${owned.shares} ${unit(owned.shares)}`}</Veiled>
+            every buy in
           </span>
         ) : (
           <span className="font-mono text-[11px] text-ink-400">
@@ -133,7 +157,7 @@ export function PositionTiles({
               : `${up ? 'up' : 'down'} when sold`
             : gain === null
               ? 'since bought'
-              : `${up ? 'up' : 'down'} since bought`
+              : `${up ? 'up' : 'down'} since ${since ? SHORT.format(new Date(since.from)) : 'bought'}`
         }
         delay={sold ? 120 : 80}
         tone={gain === null ? undefined : up ? 'good' : 'danger'}

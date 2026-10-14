@@ -35,6 +35,7 @@ import { codesOf, unitOf } from '@/lib/holdingLine'
 import { UNPRICED } from '@/lib/market'
 import { euros } from '@/lib/money'
 import { gainOf } from '@/lib/owned'
+import { rounds } from '@/lib/rounds'
 import { dayChange, drawable, withOlder } from '@/lib/priceChart'
 import type { Owned } from '@/lib/owned'
 import type { soldSums } from '@/lib/sold'
@@ -193,6 +194,9 @@ export function PortfolioPosition({
   const unit = (n: number) => unitOf(first, n)
   const buys = all.filter((t) => t.side === 'buy' && !t.reward && !t.split)
   const bought = buys.length
+  /* Cut where it was held at zero: PAID speaks of the round now. */
+  const cut = loaded ? rounds(all) : []
+  const now = cut[0]?.open ? cut[0] : undefined
   /* Buys are saved but do not reach what is held (ADD BUYS, 14 Oct):
      their sum is shown as what it is — a part — beside the units still
      missing; no gain is worked out against a part. */
@@ -202,6 +206,16 @@ export function PortfolioPosition({
       ? Math.round(buys.reduce((t, b) => t + b.shares * b.priceEur, 0) * 100) /
         100
       : null
+
+  const list = (
+    <PositionTrades
+      loaded={loaded}
+      all={all}
+      cut={cut}
+      unit={unit}
+      accountOf={accountOf}
+    />
+  )
 
   return (
     <section
@@ -307,6 +321,7 @@ export function PortfolioPosition({
         sells={
           all.filter((t) => t.side === 'sell' && !t.reward && !t.split).length
         }
+        since={now}
         part={part}
         gap={gap}
         unit={unit}
@@ -378,19 +393,11 @@ export function PortfolioPosition({
             symbols: [...new Set(owned.at.map((r) => r.symbol))],
             held: owned.shares,
             amount: (n) => `${Number(n.toFixed(6))} ${unit(n)}`,
-            saved: all.flatMap((t) =>
-              t.reward || t.split
-                ? []
-                : [
-                    {
-                      occurredAt: t.occurredAt,
-                      side: t.side,
-                      shares: t.shares,
-                      priceEur: t.priceEur,
-                    },
-                  ],
-            ),
+            saved: all.filter((t) => !t.reward && !t.split),
             logo: { symbol: owned.symbol, type: owned.type, name: owned.name },
+            paid: owned.paid ?? part,
+            since: now,
+            trades: list,
           }}
           at={owned.at}
           accountOf={accountOf}
@@ -482,12 +489,7 @@ export function PortfolioPosition({
         </div>
       )}
 
-      <PositionTrades
-        loaded={loaded}
-        all={all}
-        unit={unit}
-        accountOf={accountOf}
-      />
+      {list}
     </section>
   )
 }

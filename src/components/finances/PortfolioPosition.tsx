@@ -22,6 +22,9 @@ import type { Position } from '@/components/finances/PortfolioList'
 import { PositionTiles } from '@/components/finances/PositionTiles'
 import { PositionTrades } from '@/components/finances/PositionTrades'
 import { AddBuys } from '@/components/finances/AddBuys'
+import { FileView } from '@/components/finances/AccountFileView'
+import { JustAdded } from '@/components/finances/JustAdded'
+import { Sheet } from '@/components/finances/Sheet'
 import { useOlderYears } from '@/components/finances/useOlderYears'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { money } from '@/lib/currency'
@@ -137,6 +140,8 @@ export function PortfolioPosition({
      again — once, this share alone, when its page is opened (bars.ts). */
   const [view, setView] = useState<View>('line')
   const [volume, setVolume] = useState(false)
+  /* A just-added file, opened from the strip. */
+  const [file, setFile] = useState<Id<'intakes'> | null>(null)
   const can = useMemo(() => drawable((line ?? []).map(asPt)), [line])
   const askBars = useMutation(api.bars.ask)
   const asked = useRef<Id<'instruments'> | null>(null)
@@ -271,6 +276,38 @@ export function PortfolioPosition({
         unit={unit}
         accountOf={accountOf}
       />
+
+      <JustAdded
+        intakeIds={[
+          ...new Set(all.flatMap((t) => (t.importId ? [t.importId] : []))),
+        ]}
+        unit={(n) => `${Number(n.toFixed(6))} ${unit(n)}`}
+        onOpen={setFile}
+        sums={(f) => {
+          const cost = (ts: typeof buys) =>
+            Math.round(
+              ts.reduce((n, t) => n + t.shares * t.priceEur, 0) * 100,
+            ) / 100
+          const left = buys.filter((t) => t.importId !== f.id)
+          return [
+            {
+              label: `${owned.name} · buy total`,
+              now: euros(cost(buys)),
+              after: left.length ? euros(cost(left)) : '—',
+              under: `${buys.length} buy → ${left.length}`,
+            },
+          ]
+        }}
+      />
+      <Sheet
+        open={file !== null}
+        title={owned.name}
+        onClose={() => setFile(null)}
+      >
+        {file ? (
+          <FileView intakeId={file} onTaken={() => setFile(null)} />
+        ) : null}
+      </Sheet>
 
       {sold ? null : (
         <AddBuys

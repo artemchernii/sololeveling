@@ -5,6 +5,8 @@ import type { FunctionReturnType } from 'convex/server'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import { KindBadge } from '@/components/finances/AccountParts'
+import { JustAdded } from '@/components/finances/JustAdded'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Busy } from '@/components/finances/bits'
 import { Sheet } from '@/components/finances/Sheet'
@@ -150,6 +152,11 @@ function Ledger({
           <span className="truncate text-[17px] text-foreground">
             {account.name}
           </span>
+          <span className="flex flex-wrap gap-1">
+            {account.kinds.map((k) => (
+              <KindBadge key={k} kind={k} />
+            ))}
+          </span>
           <span className="font-mono text-[11px] text-ink-400">
             {meta}
             {tails}
@@ -178,6 +185,18 @@ function Ledger({
         </p>
       ) : (
         <>
+          <JustAdded
+            accountId={account._id}
+            onOpen={onFile}
+            sums={(f) => [
+              {
+                label: `${account.name} · rows`,
+                now: data.total.toLocaleString('en-GB'),
+                after: (data.total - f.saved).toLocaleString('en-GB'),
+                under: `−${f.saved}`,
+              },
+            ]}
+          />
           {taken ? <TakenStrip taken={taken} /> : null}
           <SheetCheck data={data} account={account} onUpdate={onUpdate} />
           <span className="label-caps">

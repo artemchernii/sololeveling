@@ -89,3 +89,24 @@ test("just added: on Revolut's sheet, with its BANK and BROKER badges", async ({
   await expect(sheet.getByTestId('just-file')).toBeVisible()
   await page.screenshot({ ...shot('just-added-phone'), fullPage: true })
 })
+
+/* 14 Oct: "after remove I dont see any confirmation just closed". OPEN
+   on a thing's page, then REMOVE SCREENSHOT: removing…, the tick, done. */
+test("just added: removing from the opened file on Gold's page is said", async ({
+  page,
+}) => {
+  const position = await savedGold(page)
+  await position
+    .getByTestId('just-file')
+    .getByRole('button', { name: 'open ›' })
+    .click()
+  const sheet = page.getByRole('dialog')
+  await sheet.getByRole('button', { name: 'remove screenshot' }).click()
+  await expect(sheet.getByText('removing…')).toBeVisible()
+  await expect(sheet.getByText('Removed', { exact: true })).toBeVisible()
+  await page.waitForTimeout(700)
+  await page.screenshot({ ...shot('just-added-removed-file'), fullPage: true })
+  await sheet.getByRole('button', { name: 'done' }).click()
+  await expect(sheet).toBeHidden()
+  await expect(position.getByText('buys and sells · 4')).toHaveCount(0)
+})

@@ -34,7 +34,7 @@ import { codesOf, unitOf } from '@/lib/holdingLine'
 import { UNPRICED } from '@/lib/market'
 import { euros } from '@/lib/money'
 import { gainOf } from '@/lib/owned'
-import { drawable, withOlder } from '@/lib/priceChart'
+import { dayChange, drawable, withOlder } from '@/lib/priceChart'
 import type { Owned } from '@/lib/owned'
 import type { soldSums } from '@/lib/sold'
 
@@ -62,7 +62,8 @@ const RANGES = [
   { id: '1Y', days: 366 },
 ] as const
 type Range = (typeof RANGES)[number]['id'] | 'all'
-const KIND = { stock: 'share', etf: 'fund', crypto: 'coin', gold: 'gold' }
+/* Yahoo's words for what a thing is (14 Oct: "fund is etf?"). */
+const KIND = { stock: 'share', etf: 'ETF', crypto: 'coin', gold: 'gold' }
 function BackToList() {
   return (
     <Link
@@ -137,6 +138,12 @@ export function PortfolioPosition({
     () => (year && years.older ? withOlder(year, years.older) : year),
     [year, years.older],
   )
+  /* The day's change: the latest price against the last close of an
+     earlier day, that close shown beside it (CLAUDE.md, 14 Oct). */
+  const change =
+    first.price === null || first.priceAsOf === null || year === undefined
+      ? null
+      : dayChange(year, { asOf: first.priceAsOf, price: first.price })
   /* Candles and volume only where the loaded year is stored that way
      (13 Oct). A share whose days were stored before has its year read
      again — once, this share alone, when its page is opened (bars.ts). */
@@ -234,8 +241,11 @@ export function PortfolioPosition({
           <h1 className="text-[22px] leading-tight text-foreground">
             {owned.name}
           </h1>
-          <p className="mt-1 font-mono text-[11px] text-ink-500">
-            {code} · {KIND[owned.kind]} · {first.currency}
+          <p className="mt-1.5 flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-ink-500">
+            <span className="rounded-full bg-lav-400/16 px-2.5 py-0.5 text-[10px] tracking-[0.12em] text-lav-300 uppercase">
+              {KIND[owned.kind]}
+            </span>
+            <span className="text-ink-300">{code}</span> · {first.currency}
           </p>
         </div>
         <div className="col-span-2 sm:col-span-1 sm:text-right">
@@ -249,20 +259,40 @@ export function PortfolioPosition({
               </span>
             </>
           ) : (
-            <div data-testid="position-price">
-              <span className="block text-[26px] font-light text-foreground tabular-nums">
-                {money(first.price, first.currency)}
-              </span>
-              <span className="font-mono text-[10.5px] text-ink-500">
+            <div data-testid="position-price" className="flex flex-col gap-0.5">
+              <span className="flex items-baseline gap-2 sm:justify-end">
+                <span className="text-[36px] leading-none font-medium tracking-[-0.02em] text-foreground tabular-nums">
+                  {money(first.price, first.currency)}
+                </span>
                 {latestEur === undefined ? null : (
-                  <span className="text-ink-300">
+                  <span className="text-[18px] text-ink-300 tabular-nums">
                     {euros(latestEur)}
-                    {' · '}
                   </span>
                 )}
+              </span>
+              {change === null ? null : (
+                <span
+                  data-testid="day-change"
+                  className="flex flex-wrap items-baseline gap-x-2 sm:justify-end"
+                >
+                  <span
+                    className={`text-[15px] font-medium tabular-nums ${change.diff < 0 ? 'text-state-danger' : 'text-state-good'}`}
+                  >
+                    {change.diff < 0 ? '−' : '+'}
+                    {Math.abs(change.diff).toFixed(2)} (
+                    {change.diff < 0 ? '−' : '+'}
+                    {Math.abs(change.pct).toFixed(2)}%)
+                  </span>
+                  <span className="font-mono text-[10.5px] text-ink-400">
+                    from {money(change.from.v, first.currency)} ·{' '}
+                    {DAY.format(new Date(change.from.t))} close
+                  </span>
+                </span>
+              )}
+              <span className="font-mono text-[10.5px] text-ink-400">
                 {first.priceAsOf === null
                   ? 'Yahoo Finance'
-                  : `price on ${TIME.format(new Date(first.priceAsOf))} · Yahoo Finance`}
+                  : `${TIME.format(new Date(first.priceAsOf))} · Yahoo Finance`}
               </span>
             </div>
           )}
@@ -272,8 +302,12 @@ export function PortfolioPosition({
       <PositionTiles
         owned={owned}
         sold={sold}
-        gain={gain}
+        /* No gain against buys that do not reach what is held. */
+        gain={gap > 0 && !sold ? null : gain}
         bought={bought}
+        sells={
+          all.filter((t) => t.side === 'sell' && !t.reward && !t.split).length
+        }
         part={part}
         gap={gap}
         unit={unit}

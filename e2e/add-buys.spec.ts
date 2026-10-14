@@ -64,9 +64,12 @@ test('ADD BUYS: four buys read, some of what is held still missing, saved', asyn
   await expect(sheet).toBeHidden()
 
   /* The tile: the buys' sum, and what is still missing as a state. */
-  await expect(position.getByTestId('buys-missing')).toContainText(
-    '4 buys · 0.122152 oz missing',
-  )
+  /* PAID, the units the buys reach of what is held, the rest missing. */
+  await expect(position.getByText('paid · 4 buy')).toBeVisible()
+  const missing = position.getByTestId('buys-missing')
+  await expect(missing).toContainText('0.286213 of 0.408365 oz')
+  await expect(missing).toContainText('0.122152 oz missing')
+  await expect(position.getByText('needs every buy')).toBeVisible()
   await expect(position.getByText('€1,100')).toBeVisible()
   await expect(position.getByText('buys and sells · 4')).toBeVisible()
   await page.screenshot({ ...shot('add-buys-page'), fullPage: true })

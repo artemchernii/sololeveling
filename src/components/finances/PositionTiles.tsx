@@ -1,4 +1,4 @@
-import { TriangleAlert } from 'lucide-react'
+import { Check, TriangleAlert } from 'lucide-react'
 
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { AccountLogo } from '@/components/finances/Logo'
@@ -22,6 +22,7 @@ export function PositionTiles({
   sold,
   gain,
   bought,
+  sells,
   part,
   gap,
   unit,
@@ -30,8 +31,9 @@ export function PositionTiles({
   owned: Owned<Position>
   sold?: ReturnType<typeof soldSums>
   gain: { eur: number; pct: number } | null
-  /** How many buys are saved. */
+  /** How many buys and sells are saved. */
   bought: number
+  sells: number
   /** The sum of the buys saved, where they do not reach what is held. */
   part: number | null
   /** The units held that no buy accounts for. */
@@ -45,7 +47,7 @@ export function PositionTiles({
     <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
       <Tile label="worth now" delay={0}>
         <span
-          className={`text-[22px] leading-tight font-light tabular-nums ${sold ? 'text-ink-500' : 'text-foreground'}`}
+          className={`text-[27px] leading-tight tabular-nums ${sold ? 'text-ink-500' : 'text-foreground'}`}
         >
           {owned.valueEur === null ? (
             '—'
@@ -53,7 +55,7 @@ export function PositionTiles({
             <Veiled>{euros(owned.valueEur)}</Veiled>
           )}
         </span>
-        <span className="font-mono text-[10.5px] text-ink-500">
+        <span className="font-mono text-[11px] text-ink-300">
           {sold ? (
             'all sold'
           ) : (
@@ -61,8 +63,14 @@ export function PositionTiles({
           )}
         </span>
       </Tile>
-      <Tile label="buy total" delay={40}>
-        <span className="text-[22px] leading-tight font-light text-foreground tabular-nums">
+      <Tile
+        label={`paid${bought + sells > 0 ? ` · ${bought} buy${sells > 0 ? ` · ${sells} sell` : ''}` : ''}`}
+        delay={40}
+        tone={gap > 0 ? 'warn' : undefined}
+      >
+        <span
+          className={`text-[27px] leading-tight tabular-nums ${owned.paid === null && part === null ? 'text-ink-500' : 'text-foreground'}`}
+        >
           {owned.paid !== null ? (
             <Veiled>{euros(owned.paid)}</Veiled>
           ) : part !== null ? (
@@ -71,35 +79,46 @@ export function PositionTiles({
             '—'
           )}
         </span>
-        {owned.paid === null && part !== null ? (
-          /* Buys saved, and not all of them: a state, not grey words. */
+        {gap > 0 ? (
+          /* Buys saved, and not all of them: the two numbers, and the
+             state in colour (14 Oct: "BUY TOTAL still confusing"). */
           <span
             data-testid="buys-missing"
-            className="flex items-center gap-1.5 font-mono text-[10.5px] text-state-warn"
+            className="flex flex-col gap-0.5 font-mono text-[11px]"
           >
-            <TriangleAlert className="motion-pulse size-3 shrink-0" />
-            <span>
-              {bought} {bought === 1 ? 'buy' : 'buys'} ·{' '}
+            <span className="text-ink-300">
+              <b className="font-medium text-foreground">
+                <Veiled>{Number((owned.shares - gap).toFixed(6))}</Veiled>
+              </b>{' '}
+              of{' '}
+              <b className="font-medium text-foreground">
+                <Veiled>{owned.shares}</Veiled>
+              </b>{' '}
+              {unit(owned.shares)}
+            </span>
+            <span className="flex items-center gap-1.5 text-state-warn">
+              <TriangleAlert className="motion-pulse size-3 shrink-0" />
               <Veiled>{`${Number(gap.toFixed(6))} ${unit(gap)}`}</Veiled>{' '}
               missing
             </span>
           </span>
+        ) : owned.paid !== null ? (
+          <span className="flex items-center gap-1.5 font-mono text-[11px] text-state-good">
+            <Check className="size-3 shrink-0" />
+            all <Veiled>{`${owned.shares} ${unit(owned.shares)}`}</Veiled>
+          </span>
         ) : (
-          <span className="font-mono text-[10.5px] text-ink-500">
-            {owned.paid === null
-              ? 'not in the files yet'
-              : bought > 0
-                ? `${bought} ${bought === 1 ? 'buy' : 'buys'}`
-                : ''}
+          <span className="font-mono text-[11px] text-ink-400">
+            not in the files yet · add buys
           </span>
         )}
       </Tile>
       {sold ? (
         <Tile label="sold for" delay={80}>
-          <span className="text-[22px] leading-tight font-light text-foreground tabular-nums">
+          <span className="text-[27px] leading-tight text-foreground tabular-nums">
             {sold.got === null ? '—' : <Veiled>{euros(sold.got)}</Veiled>}
           </span>
-          <span className="font-mono text-[10.5px] text-ink-500">
+          <span className="font-mono text-[11px] text-ink-300">
             {sold.got === null
               ? 'not in the files yet'
               : FULL.format(new Date(sold.day))}
@@ -117,19 +136,23 @@ export function PositionTiles({
               : `${up ? 'up' : 'down'} since bought`
         }
         delay={sold ? 120 : 80}
+        tone={gain === null ? undefined : up ? 'good' : 'danger'}
       >
         {gain === null ? (
-          <span className="text-[22px] leading-tight font-light text-ink-500">
-            —
-          </span>
+          <>
+            <span className="text-[27px] leading-tight text-ink-500">—</span>
+            {sold ? null : (
+              <span className="font-mono text-[11px] text-ink-400">
+                {gap > 0 ? 'needs every buy' : 'needs a buy'}
+              </span>
+            )}
+          </>
         ) : (
           <>
-            <span
-              className={`text-[22px] leading-tight font-light tabular-nums ${tone}`}
-            >
+            <span className={`text-[27px] leading-tight tabular-nums ${tone}`}>
               <Veiled>{`${up ? '+' : '−'}${euros(Math.abs(gain.eur))}`}</Veiled>
             </span>
-            <span className={`font-mono text-[10.5px] ${tone}`}>
+            <span className={`font-mono text-[11px] ${tone}`}>
               {up ? '▲' : '▼'} {Math.abs(gain.pct).toFixed(1)}%
             </span>
           </>
@@ -137,10 +160,10 @@ export function PositionTiles({
       </Tile>
       {sold ? null : owned.stakedEur !== null && owned.at.length === 1 ? (
         <Tile label="from staking" delay={120}>
-          <span className="text-[22px] leading-tight font-light text-state-good tabular-nums">
+          <span className="text-[27px] leading-tight text-state-good tabular-nums">
             <Veiled>{euros(owned.stakedEur)}</Veiled>
           </span>
-          <span className="font-mono text-[10.5px] text-ink-500">
+          <span className="font-mono text-[11px] text-ink-300">
             <Veiled>{`${Number(owned.staked.toFixed(4))} ${unit(owned.staked)}`}</Veiled>{' '}
             · not counted as income
           </span>
@@ -181,18 +204,29 @@ export function PositionTiles({
 function Tile({
   label,
   delay,
+  tone,
   children,
 }: {
   label: string
   delay: number
+  /** A state, said with the tile's colour (14 Oct: "very bland"). */
+  tone?: 'warn' | 'good' | 'danger'
   children: React.ReactNode
 }) {
+  const look =
+    tone === 'warn'
+      ? 'bg-state-warn/[0.07] ring-state-warn/35'
+      : tone === 'good'
+        ? 'bg-state-good/[0.06] ring-state-good/30'
+        : tone === 'danger'
+          ? 'bg-state-danger/[0.06] ring-state-danger/30'
+          : 'bg-lift/[0.035] ring-lift/7'
   return (
     <div
       style={{ animationDelay: `${delay}ms` }}
-      className="motion-arrive flex flex-col gap-1 rounded-[14px] bg-lift/[0.035] p-3 ring-1 ring-lift/7 ring-inset"
+      className={`motion-arrive flex flex-col gap-1 rounded-[14px] p-3 ring-1 ring-inset ${look}`}
     >
-      <span className="label-caps">{label}</span>
+      <span className="label-caps text-ink-300">{label}</span>
       {children}
     </div>
   )

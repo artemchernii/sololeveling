@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · a position's head</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* A position's head (14 Oct, his words: "fund is etf? … price needs to
+     be bolder. BUY TOTAL still confusing … texts need to be brighter /
+     highlighted, very bland"). Built (left) beside proposed (right), on
+     his real numbers: iShares Digital Security (buys missing) and
+     iShares Physical Gold (every buy in). */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit; cursor: pointer }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 18px }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400) }
+  .scen button.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--lav-300); margin-bottom: 6px }
+  .frame { border-radius: 22px; padding: 20px; border: 1px solid var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.08), rgba(181,171,252,.015) 40%), #1d1c2d; display: flex; flex-direction: column; gap: 16px }
+  .head { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap }
+  .logo { width: 52px; height: 52px; border-radius: 12px; background: #fff; color: #000; display: grid; place-items: center; font: 600 30px Georgia, serif }
+  .head h1 { font-size: 22px; font-weight: 400; line-height: 1.2 }
+  .meta { font-family: var(--mono); font-size: 11px; color: var(--ink-500); margin-top: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap }
+  .px { margin-left: auto; text-align: right }
+  .badge { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 9px; border-radius: 999px }
+  .b-lav { background: rgba(181,171,252,.16); color: var(--lav-300) }
+  .b-q { background: rgba(var(--lift),.06); color: var(--ink-300) }
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px }
+  @media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, minmax(0,1fr)) } }
+  .tile { border-radius: 14px; padding: 12px; background: rgba(var(--lift),.035); border: 1px solid rgba(var(--lift),.07); display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+  .caps { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500) }
+  .old .num { font-size: 22px; font-weight: 300 }
+  .old .under { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  /* Proposed: labels brighter, numbers bigger and not light, the state in colour. */
+  .new .caps { color: var(--ink-300) }
+  .new .num { font-size: 27px; font-weight: 400; letter-spacing: -.01em; font-variant-numeric: tabular-nums }
+  .new .under { font-family: var(--mono); font-size: 11px; color: var(--ink-300) }
+  .new .tile.warn { background: color-mix(in oklch, var(--warn) 7%, transparent); border-color: color-mix(in oklch, var(--warn) 35%, transparent) }
+  .new .tile.good { background: color-mix(in oklch, var(--good) 6%, transparent); border-color: color-mix(in oklch, var(--good) 30%, transparent) }
+  .new .tile.bad { background: color-mix(in oklch, var(--danger) 6%, transparent); border-color: color-mix(in oklch, var(--danger) 30%, transparent) }
+  .warn-t { color: var(--warn) } .good-t { color: var(--good) } .bad-t { color: var(--danger) }
+  .two { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap }
+  .bar { height: 5px; border-radius: 99px; background: rgba(var(--lift),.08); overflow: hidden; margin-top: 4px }
+  .bar i { display: block; height: 100%; background: var(--warn); border-radius: 99px }
+  .pulse { animation: p 1.6s ease-in-out infinite } @keyframes p { 50% { opacity: .45 } }
+  .cols { display: grid; gap: 18px }
+  .ask { font-family: var(--mono); font-size: 11px; color: var(--warn); border: 1px dashed color-mix(in oklch, var(--warn) 45%, transparent); border-radius: 10px; padding: 8px 10px; max-width: 720px; margin: 0 auto; text-align: center }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="scen" id="scen">
+    <button data-s="miss" class="on">digital security · buys missing</button>
+    <button data-s="all">physical gold · every buy in</button>
+    <button data-s="none">no buy in the files</button>
+    <button data-s="day">+ day change (needs your yes)</button>
+  </div>
+  <div class="ask" id="ask" hidden>DAY CHANGE IS A NEW NUMBER: today's price minus the last close, both stored. Today it is allowed only on the chart's drag. The −0.42 here is an example, not his. Say yes to it, or it stays off.</div>
+  <div class="cols">
+    <div><div class="tag">built now</div><div class="frame old" id="old"></div></div>
+    <div><div class="tag">proposed</div><div class="frame new" id="new"></div></div>
+  </div>
+</div>
+<script>
+const D = {
+  miss: { name: 'iShares Digital Security UCITS ETF USD Dist', code: 'SHLD', usd: '$14.63', eur: '€13.07', worth: '€285.82', held: '21.867878', paid: '€239.64', inBuys: '7.365427', missing: '14.502451', buys: 6, sells: 3, pct: 34 },
+  all:  { name: 'iShares Physical Gold ETC', code: 'IGLN', usd: '$79.30', eur: '€70.84', worth: '€521.73', held: '7.365427', paid: '€548.17', inBuys: '7.365427', missing: null, buys: 6, sells: 3, gain: '−€26.44', gpct: '4.8%' },
+  none: { name: 'iShares Digital Security UCITS ETF USD Dist', code: 'SHLD', usd: '$14.63', eur: '€13.07', worth: '€285.82', held: '21.867878', paid: null, buys: 0, sells: 0 },
+}
+let s = 'miss', day = false
+const acct = `<div class="tile"><span class="caps">account</span><div class="two" style="justify-content:space-between"><span class="badge b-q">A Trading 212</span><span class="under" style="color:var(--ink-100)">WORTH</span></div></div>`
+function old(d) {
+  return `<div class="head"><div class="logo">i</div><div><h1>${d.name}</h1><div class="meta">${d.code} · fund · USD</div></div>
+    <div class="px"><div style="font-size:26px;font-weight:300">${d.usd}</div><div class="meta" style="justify-content:flex-end"><span style="color:var(--ink-300)">${d.eur}</span> · price on Oct 14, 04:07 PM · Yahoo Finance</div></div></div>
+    <div class="tiles">
+      <div class="tile"><span class="caps">worth now</span><span class="num">${d.worth}</span><span class="under">${d.held} shares</span></div>
+      <div class="tile"><span class="caps">buy total</span><span class="num">${d.paid ?? '—'}</span><span class="under ${d.missing ? 'warn-t' : ''}">${d.missing ? `⚠ ${d.buys} buys · ${d.missing} shares missing` : d.paid ? `${d.buys} buys` : 'not in the files yet'}</span></div>
+      <div class="tile"><span class="caps">${d.gain ? 'down since bought' : 'since bought'}</span><span class="num ${d.gain ? 'bad-t' : ''}">${d.gain ?? '—'}</span>${d.gain ? `<span class="under bad-t">▼ ${d.gpct}</span>` : ''}</div>
+      ${acct.replace('WORTH', d.worth)}
+    </div>`
+}
+function neu(d) {
+  const paid = d.paid === null
+    ? `<div class="tile"><span class="caps">paid</span><span class="num" style="color:var(--ink-500)">—</span><span class="under">no buy in the files · add buys</span></div>`
+    : d.missing
+      ? `<div class="tile warn"><span class="caps">paid · ${d.buys} buy · ${d.sells} sell</span><span class="num">${d.paid}</span>
+          <span class="under"><b style="color:var(--ink-100);font-weight:500">${d.inBuys}</b> of <b style="color:var(--ink-100);font-weight:500">${d.held}</b> shares</span>
+          <span class="under warn-t"><span class="pulse">⚠</span> ${d.missing} shares missing</span></div>`
+      : `<div class="tile"><span class="caps">paid · ${d.buys} buy · ${d.sells} sell</span><span class="num">${d.paid}</span><span class="under good-t">✓ all ${d.held} shares</span></div>`
+  const gain = d.gain
+    ? `<div class="tile bad"><span class="caps">since bought</span><span class="num bad-t">${d.gain}</span><span class="under bad-t">▼ ${d.gpct}</span></div>`
+    : `<div class="tile"><span class="caps">since bought</span><span class="num" style="color:var(--ink-500)">—</span><span class="under">${d.missing ? 'needs every buy' : 'needs a buy'}</span></div>`
+  return `<div class="head"><div class="logo">i</div><div><h1>${d.name}</h1><div class="meta"><span class="badge b-lav">ETF</span><span style="color:var(--ink-300)">${d.code}</span> · USD</div></div>
+    <div class="px"><div class="two" style="justify-content:flex-end"><span style="font-size:36px;font-weight:500;letter-spacing:-.02em">${d.usd}</span><span style="font-size:18px;color:var(--ink-300)">${d.eur}</span></div>
+      ${day ? `<div style="font-size:15px;font-weight:500" class="bad-t">−0.42 (−2.79%) <span class="caps" style="color:var(--ink-400)">today</span></div>` : ''}
+      <div class="meta" style="justify-content:flex-end;color:var(--ink-400)">Oct 14, 16:07 · Yahoo Finance</div></div></div>
+    <div class="tiles">
+      <div class="tile"><span class="caps">worth now</span><span class="num">${d.worth}</span><span class="under">${d.held} shares</span></div>
+      ${paid}${gain}
+      ${acct.replace('WORTH', d.worth)}
+    </div>`
+}
+function draw() {
+  const d = D[s]
+  document.getElementById('old').innerHTML = old(d)
+  document.getElementById('new').innerHTML = neu(d)
+  document.getElementById('ask').hidden = !day
+  document.querySelectorAll('#scen button').forEach(b => b.classList.toggle('on', b.dataset.s === s || (b.dataset.s === 'day' && day)))
+}
+document.getElementById('scen').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return
+  if (b.dataset.s === 'day') day = !day; else s = b.dataset.s
+  draw()
+}
+draw()
+</script>
+</body>
+</html>

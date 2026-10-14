@@ -162,6 +162,28 @@ export function between(a: Pt, b: Pt) {
 }
 
 /**
+ * The day's change on a position's head (14 Oct, "go with day change"
+ * on position-head.html): the latest stored price against the last
+ * stored close of an earlier day. Allowed on `between()`'s condition:
+ * that close and its day are shown beside it. Null with no earlier day.
+ */
+export function dayChange(
+  closes: ReadonlyArray<{ asOf: number; price: number }>,
+  latest: { asOf: number; price: number },
+) {
+  const day = Math.floor(latest.asOf / DAY)
+  let before: { asOf: number; price: number } | undefined
+  for (const c of closes)
+    if (Math.floor(c.asOf / DAY) < day && (!before || c.asOf > before.asOf))
+      before = c
+  if (before === undefined) return null
+  return between(
+    { t: before.asOf, v: before.price },
+    { t: latest.asOf, v: latest.price },
+  )
+}
+
+/**
  * The ruler: from the point where a drag began to where it ended — two
  * levels read off the price axis, not stored closes, each on the stored
  * day under it. Allowed with `between()` on the same condition: both

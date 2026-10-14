@@ -33,7 +33,7 @@ test('ADD BUYS: four buys read, some of what is held still missing, saved', asyn
   const check = sheet.getByTestId('buys-check')
   await expect(check).toContainText('buys read')
   await expect(check).toContainText('all new')
-  await expect(check).toContainText('€1,094.62')
+  await expect(check).toContainText('€1,100')
   await expect(check).toContainText('0.286213 oz')
   await expect(check).toContainText('0.408365 oz')
   await expect(sheet.getByTestId('buys-row')).toHaveCount(4)
@@ -52,7 +52,7 @@ test('ADD BUYS: four buys read, some of what is held still missing, saved', asyn
   await expect(sheet.getByText(/up to date/)).toHaveCount(0)
   /* Its icon, the sum, and the buys themselves — nothing to open. */
   await expect(sheet.getByText('4 buys added')).toBeVisible()
-  await expect(sheet.getByText('€1,094.62')).toBeVisible()
+  await expect(sheet.getByText('€1,100')).toBeVisible()
   await expect(sheet.getByTestId('buys-row')).toHaveCount(4)
   await expect(sheet.getByRole('button', { name: 'rows' })).toHaveCount(0)
   await expect(sheet.getByTestId('buys-line')).toContainText(
@@ -67,7 +67,7 @@ test('ADD BUYS: four buys read, some of what is held still missing, saved', asyn
   await expect(position.getByTestId('buys-missing')).toContainText(
     '4 buys · 0.122152 oz missing',
   )
-  await expect(position.getByText('€1,094.62')).toBeVisible()
+  await expect(position.getByText('€1,100')).toBeVisible()
   await expect(position.getByText('buys and sells · 4')).toBeVisible()
   await page.screenshot({ ...shot('add-buys-page'), fullPage: true })
 

@@ -209,3 +209,54 @@ test("just added: removing from the opened file on Gold's page is said", async (
   await expect(sheet).toBeHidden()
   await expect(position.getByText('buys and sells · 4')).toHaveCount(0)
 })
+
+/* 15 Oct, the clash (mockup remove-clash.html): IMG_9290 and IMG_9291
+   read the same three buys; the file saved first holds them. REMOVE on
+   it says CLASH and STAYS · the other file, and after the press those
+   three are still on Gold, now under the other file. Mock data only. */
+test('just added: removing a file whose buys another file read too', async ({
+  page,
+}) => {
+  const position = await savedGold(page, true)
+  await expect(position.getByText('buys and sells · 19')).toBeVisible()
+  const strip = position.getByTestId('just-added')
+  await strip
+    .getByTestId('just-line')
+    .getByRole('button', { expanded: false })
+    .click()
+  const files = strip.getByTestId('just-file')
+  await expect(files).toHaveCount(5)
+  const second = files.filter({ hasText: '3 already added' })
+  const nine = (await second.textContent())?.includes('IMG_9291') === true
+  /* The first-saved of the two: IMG_9290 (5 rows, 2 its own) or IMG_9291. */
+  const [mine, theirs, only] = nine
+    ? ['IMG_9290.PNG', 'IMG_9291.PNG', 2]
+    : ['IMG_9291.PNG', 'IMG_9290.PNG', 1]
+  await files
+    .filter({ hasText: mine })
+    .getByRole('button', { name: 'remove' })
+    .click()
+  const ask = strip.getByTestId('just-ask')
+  await expect(ask.getByTestId('just-clash')).toContainText('clash')
+  await expect(ask).toContainText(`3 buy · in ${theirs}`)
+  await expect(ask.getByText(`stays · ${theirs}`)).toHaveCount(3)
+  await expect(ask.getByText('goes', { exact: true })).toHaveCount(only)
+  await expect(ask).toContainText(`17 buy → ${17 - only}`)
+  await page.waitForTimeout(600)
+  await page.screenshot({ ...shot('just-added-clash'), fullPage: true })
+
+  await ask.getByRole('button', { name: 'remove' }).click()
+  await expect(ask.getByText('removing…')).toBeVisible()
+  const landed = strip.getByTestId('just-removed')
+  await expect(landed).toContainText(`−${only} buy`)
+  await expect(landed).toContainText(`3 buy stay · ${theirs}`)
+  /* The shared three are still Gold's. */
+  await expect(
+    position.getByText(`buys and sells · ${19 - only}`),
+  ).toBeVisible()
+  await expect(files.filter({ hasText: theirs })).toContainText(
+    `${nine ? 4 : 5} buy`,
+  )
+  await page.waitForTimeout(700)
+  await page.screenshot({ ...shot('just-added-clash-removed'), fullPage: true })
+})

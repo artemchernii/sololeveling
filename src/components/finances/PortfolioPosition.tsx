@@ -344,7 +344,10 @@ export function PortfolioPosition({
             Math.round(
               ts.reduce((n, t) => n + t.shares * t.priceEur, 0) * 100,
             ) / 100
-          const left = buys.filter((t) => t.importId !== f.id)
+          /* Its buys another file read too stay (15 Oct, the clash). */
+          const left = buys.filter(
+            (t) => t.importId !== f.id || f.stay?.ids.includes(t._id),
+          )
           return [
             {
               label: `${owned.name} · buy total`,

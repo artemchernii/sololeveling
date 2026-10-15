@@ -2,12 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import {
-  Check,
-  ChevronLeft,
-  Sparkles,
-  TriangleAlert,
-} from 'lucide-react'
+import { Check, ChevronLeft, Sparkles, TriangleAlert } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'

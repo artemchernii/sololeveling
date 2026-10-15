@@ -34,6 +34,7 @@ const TABLES: Array<TableNames> = [
   'merchantRules',
   'recurring',
   'trades',
+  'removedTrades',
   'payees',
   'bankLinks',
 ]

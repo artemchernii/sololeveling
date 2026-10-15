@@ -225,6 +225,10 @@ export const goldBuys = mutation({
         q.eq('ownerId', ownerId).eq('symbol', gold.symbol),
       )
       .first()
+    /* Instruments outlive a reset: one left by another test may say USD.
+       This gold is Revolut's, in euros. */
+    if (had !== null && had.currency !== 'EUR')
+      await ctx.db.patch(had._id, { currency: 'EUR' })
     const instrumentId =
       had?._id ??
       (await ctx.db.insert('instruments', {

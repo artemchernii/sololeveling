@@ -89,7 +89,12 @@ on a position's head ("go with day change" on the mockup
 `position-head.html`): the latest stored price minus the last stored
 close of an earlier day (`dayChange()` beside `between()`), with that
 close and its day always shown beside it, nothing stored, nothing
-graded. None of these is a licence for
+graded. On 2026-10-15 the week's change was allowed on Review ("yes,
+allow week change on Review" on the mockup `real.html`): this week minus
+last week for spent (the same days of each) and for worth, with both
+numbers always shown beside it, an up or down arrow, green where the move
+is good (less spent, more worth) and red where it is not, nothing stored.
+None of these is a licence for
 indicators — RSI and moving averages still wait for their own yes.
 The fourth was added deliberately, on 2026-09-09, because money cannot be
 tracked without prices that come from outside. That is the bar for adding

@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Review mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150);
+    --bad: oklch(0.68 0.2 22);
+    --warn: oklch(0.79 0.15 75);
+    --glass: linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
+    --edge: rgba(233,233,237,.09);
+    --shadow: inset 0 1px 0 rgba(233,233,237,.08), 0 24px 48px -28px rgba(0,0,0,.9);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    /* area colours: oklch(0.8 0.1 hue), hues from src/lib/area-slug.ts */
+    --a-projects: oklch(0.8 0.1 352);
+    --a-lang: oklch(0.8 0.1 190);
+    --a-body: oklch(0.8 0.1 155);
+    --a-money: oklch(0.8 0.1 88);
+    --a-social: oklch(0.8 0.1 15);
+    --a-know: oklch(0.8 0.1 225);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 13px; min-height: 100vh;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 16px 16px 60px; display: flex; flex-direction: column; gap: 12px; }
+  .mono { font-family: var(--mono); }
+  .caps { font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400); }
+  .good { color: var(--good) } .bad { color: var(--bad) } .dim { color: var(--ink-500) }
+  .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+  .between { justify-content: space-between }
+  .num { font-weight: 300; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums }
+  .xl { font-size: 38px } .big { font-size: 30px } .mid { font-size: 22px } .sm { font-size: 15px }
+
+  /* Mockup controls — not part of the design */
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  /* ───── The bento ───── */
+  .bento { display:grid; gap: 10px; grid-template-columns: repeat(6, 1fr); grid-auto-flow: dense }
+  .w1 { grid-column: span 1 } .w2 { grid-column: span 2 } .w3 { grid-column: span 3 } .w4 { grid-column: span 4 } .w6 { grid-column: span 6 }
+  .h2 { grid-row: span 2 }
+  @media (max-width: 900px) { .bento { grid-template-columns: repeat(2, 1fr) } .w3, .w4, .w6 { grid-column: span 2 } .w2 { grid-column: span 2 } .w1 { grid-column: span 1 } .h2 { grid-row: auto } }
+
+  .tile { position: relative; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 14px; overflow: hidden;
+    display:flex; flex-direction:column; gap: 10px; min-width: 0;
+    transition: transform .25s cubic-bezier(.2,.8,.2,1), border-color .25s, box-shadow .25s;
+    animation: arrive .55s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 55ms) }
+  .tile:hover { transform: translateY(-2px); border-color: color-mix(in oklch, var(--a, var(--lav-400)) 45%, transparent);
+    box-shadow: var(--shadow), 0 0 32px -14px var(--a, var(--shine)) }
+  .tile > * { position: relative; z-index: 2 }
+  @keyframes arrive { from { opacity: 0; transform: translateY(10px) scale(.985) } }
+
+  /* the System window */
+  .sys { border-color: var(--sys-edge);
+    background: linear-gradient(160deg, rgba(181,171,252,.10), rgba(181,171,252,.02) 40%), var(--glass);
+    box-shadow: var(--shadow), 0 0 40px -18px var(--shine) }
+  .sys::before { content:''; position:absolute; inset:0; pointer-events:none; z-index: 1; background: repeating-linear-gradient(0deg, rgba(233,233,237,.022) 0 1px, transparent 1px 3px); }
+  .sys::after { content:''; position:absolute; inset:-1px; border:2px solid var(--lav-400); border-radius:15px; pointer-events:none; z-index: 3;
+    --r: 20px; mask: linear-gradient(#000 0 0) top left/var(--r) var(--r), linear-gradient(#000 0 0) top right/var(--r) var(--r), linear-gradient(#000 0 0) bottom left/var(--r) var(--r), linear-gradient(#000 0 0) bottom right/var(--r) var(--r); mask-repeat:no-repeat;
+    animation: corners 3.2s ease-in-out infinite }
+  @keyframes corners { 0%,100% { filter: drop-shadow(0 0 3px var(--shine)); opacity: .75 } 50% { filter: drop-shadow(0 0 9px var(--shine)); opacity: 1 } }
+  /* a light that sweeps across a System window now and then */
+  .sweep { position:absolute !important; z-index: 1 !important; inset: 0; pointer-events:none; overflow:hidden; border-radius: 14px }
+  .sweep::after { content:''; position:absolute; top:0; bottom:0; width: 40%; left: -50%;
+    background: linear-gradient(100deg, transparent, rgba(181,171,252,.10), transparent); animation: sweep 6s ease-in-out infinite }
+  @keyframes sweep { 0%, 60% { left: -50% } 100% { left: 120% } }
+  .sys-title { font-family: var(--mono); font-size: 11px; letter-spacing: .34em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 12px var(--shine); }
+
+  /* an area's low light, breathing */
+  .glow { position:absolute !important; z-index: 0 !important; top: -80px; left: -50px; width: 220px; height: 220px; border-radius: 50%; background: var(--a); opacity: .13; filter: blur(46px);
+    animation: breathe 5s ease-in-out infinite }
+  @keyframes breathe { 0%,100% { opacity: .09; transform: scale(1) } 50% { opacity: .2; transform: scale(1.12) } }
+  .photo { position:absolute !important; z-index: 0 !important; inset: 0 0 0 50%; background-size: cover; background-position: center;
+    mask-image: linear-gradient(to left, #000 30%, transparent); opacity: .35; animation: drift 18s ease-in-out infinite alternate }
+  @keyframes drift { from { background-position: 50% 40% } to { background-position: 50% 60% } }
+
+  .head { display:flex; align-items:center; justify-content:space-between; gap: 8px }
+  .name { display:flex; align-items:center; gap: 7px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .26em; text-transform: uppercase; color: var(--ink-200) }
+  .icon { width: 22px; height: 22px; border-radius: 7px; display:grid; place-items:center; background: color-mix(in oklch, var(--a) 18%, transparent); color: var(--a); border: 1px solid color-mix(in oklch, var(--a) 35%, transparent) }
+  .icon svg { width: 13px; height: 13px }
+  .open { font-family: var(--mono); font-size: 13px; color: var(--ink-500); cursor: pointer; transition: color .2s, transform .2s }
+  .tile:hover .open { color: var(--a, var(--lav-300)); transform: translateX(3px) }
+
+  .badge { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; border: 1px solid currentColor; display:inline-flex; gap:5px; align-items:center; white-space: nowrap }
+  .b-good { color: var(--good); background: color-mix(in oklch, var(--good) 10%, transparent) }
+  .b-warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 10%, transparent) }
+  .b-lav { color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 10%, transparent) }
+  .b-dim { color: var(--ink-400) }
+  .live::before { content:''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: ping 1.6s ease-out infinite }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 currentColor } 80%,100% { box-shadow: 0 0 0 7px transparent } }
+  .done-pop { animation: pop .5s cubic-bezier(.3,1.6,.5,1) both; animation-delay: .9s }
+  @keyframes pop { from { transform: scale(.4); opacity: 0 } }
+
+  .stat { display:flex; flex-direction:column; gap: 4px; min-width: 0 }
+  .was { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+
+  /* week days */
+  .days { display:grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: auto }
+  .day { border-radius: 9px; padding: 7px 6px; background: rgba(255,255,255,.03); border: 1px solid var(--edge); display:flex; flex-direction:column; gap: 6px; min-height: 74px }
+  .day.today { border-color: var(--lav-400); animation: todayPulse 2.4s ease-in-out infinite }
+  @keyframes todayPulse { 0%,100% { box-shadow: 0 0 10px -6px var(--shine) } 50% { box-shadow: 0 0 22px -4px var(--shine) } }
+  .dots { display:flex; flex-wrap:wrap; gap: 3px }
+  .dot { width: 8px; height: 8px; border-radius: 3px; background: var(--a); animation: pop .4s cubic-bezier(.3,1.6,.5,1) both }
+  .q { display:flex; gap: 3px }
+  .q i { width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,.08) }
+  .q i.on { background: var(--lav-400); box-shadow: 0 0 6px var(--shine) }
+
+  /* stacked bars */
+  .bars { display:grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items:end; flex: 1; min-height: 110px }
+  .pair { display:grid; grid-template-columns:1fr 1fr; gap:2px; height:100%; align-items:end }
+  .bar { display:flex; flex-direction:column-reverse; gap: 2px; transform-origin: bottom; animation: grow .8s cubic-bezier(.2,.8,.2,1) both }
+  .bar span { border-radius: 3px; background: var(--a) }
+  .bar.last span { background: rgba(255,255,255,.12) }
+  @keyframes grow { from { transform: scaleY(0) } }
+  .xlab { display:grid; grid-template-columns: repeat(7, 1fr); gap: 8px; text-align:center }
+  .legend { display:flex; gap: 10px; flex-wrap: wrap }
+  .legend span { display:inline-flex; gap: 5px; align-items:center; font-family: var(--mono); font-size: 9.5px; color: var(--ink-400); text-transform: uppercase; letter-spacing: .08em }
+  .legend i { width: 8px; height: 8px; border-radius: 3px; background: var(--a) }
+
+  /* Body strip */
+  .strip { display:grid; grid-template-columns: 34px repeat(7, 1fr); gap: 4px; align-items:center }
+  .cell { height: 15px; border-radius: 4px; background: rgba(255,255,255,.05) }
+  .cell.on { background: var(--a); box-shadow: 0 0 10px -3px var(--a); animation: pop .4s cubic-bezier(.3,1.6,.5,1) both }
+
+  /* ring against a goal's target */
+  .ring { --p: 0; width: 64px; height: 64px; border-radius: 50%; display:grid; place-items:center; flex: none;
+    background: conic-gradient(var(--a) calc(var(--p) * 1%), rgba(255,255,255,.07) 0); animation: ringFill 1.2s cubic-bezier(.2,.8,.2,1) both }
+  .ring::before { content:''; position:absolute; width: 52px; height: 52px; border-radius: 50%; background: #1b1c2b }
+  .ring > * { position: relative }
+  @property --p { syntax: '<number>'; inherits: false; initial-value: 0 }
+  @keyframes ringFill { from { --p: 0 } }
+  .ring.full { box-shadow: 0 0 18px -4px var(--a); animation: ringFill 1.2s cubic-bezier(.2,.8,.2,1) both, ringGlow 2.6s ease-in-out 1.2s infinite }
+  @keyframes ringGlow { 0%,100% { box-shadow: 0 0 10px -6px var(--a) } 50% { box-shadow: 0 0 24px -2px var(--a) } }
+
+  /* progress line */
+  .track { height: 5px; border-radius: 3px; background: rgba(255,255,255,.07); overflow:hidden }
+  .track b { display:block; height:100%; border-radius: 3px; background: var(--a); transform-origin: left; animation: fill 1s cubic-bezier(.2,.8,.2,1) both; animation-delay: .3s }
+  @keyframes fill { from { transform: scaleX(0) } }
+  .cat { display:grid; grid-template-columns: 92px 1fr 52px; gap: 8px; align-items:center }
+  .cat .track b { background: var(--bad) }
+
+  /* worth line draws itself */
+  .spark { width: 100%; height: 70px; display:block }
+  .spark .line { stroke-dasharray: 600; stroke-dashoffset: 600; animation: draw 1.6s cubic-bezier(.4,0,.2,1) .4s forwards }
+  .spark .area { opacity: 0; animation: fadein 1s ease .9s forwards }
+  .spark .end { animation: endPulse 2s ease-in-out 2s infinite; transform-box: fill-box; transform-origin: center }
+  @keyframes draw { to { stroke-dashoffset: 0 } }
+  @keyframes fadein { to { opacity: 1 } }
+  @keyframes endPulse { 0%,100% { r: 3.5 } 50% { r: 6 } }
+
+  .lang { display:flex; gap: 10px; align-items:center }
+  .flag { width: 30px; height: 30px; border-radius: 8px; background-size: cover; background-position:center; border: 1px solid var(--edge); flex: none }
+
+  .note { width: 100%; flex: 1; background: rgba(255,255,255,.04); border: 1px solid var(--edge); border-radius: 9px; color: var(--ink-100); font: 14px Inter, sans-serif; padding: 10px; resize: none; min-height: 50px }
+  .note:focus { outline: none; border-color: var(--lav-400); box-shadow: 0 0 16px -6px var(--shine) }
+  .btn { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 22%, transparent); border: 1px solid var(--lav-400); border-radius: 999px; padding: 6px 13px; cursor: pointer; transition: box-shadow .2s }
+  .btn:hover { box-shadow: 0 0 18px -4px var(--shine) }
+  .arrow { font-family: var(--mono); font-size: 11px; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid var(--edge); border-radius: 7px; padding: 3px 8px; cursor: pointer }
+  .ai li { list-style: none; display:flex; gap: 8px; align-items:center; padding: 6px 0; border-top: 1px solid var(--edge); opacity: 0; animation: typeIn .45s ease forwards }
+  .ai li:first-child { border-top: 0 }
+  @keyframes typeIn { from { opacity: 0; transform: translateX(-6px) } to { opacity: 1; transform: none } }
+  .cursor { display:inline-block; width: 7px; height: 13px; background: var(--lav-400); vertical-align: -2px; animation: blink 1s steps(1) infinite }
+  @keyframes blink { 50% { opacity: 0 } }
+  .empty { color: var(--ink-500); font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; margin: auto 0 }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important } .spark .line { stroke-dashoffset: 0 } .spark .area, .ai li { opacity: 1 } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <style>
+    .wk { display:grid; grid-template-columns: repeat(7, 1fr); gap: 6px }
+    .wd { border-radius: 10px; padding: 8px 7px; background: rgba(255,255,255,.03); border: 1px solid var(--edge); display:flex; flex-direction:column; gap: 6px; min-height: 96px; transition: transform .2s }
+    .wd:hover { transform: translateY(-2px) }
+    .wd.today { border-color: var(--lav-400); animation: todayPulse 2.4s ease-in-out infinite }
+    .wd.later { opacity: .38 }
+    .cbar { height: 32px; display:flex; align-items:flex-end }
+    .cbar i { width: 100%; border-radius: 3px; background: var(--a-projects); transform-origin: bottom; animation: grow .8s cubic-bezier(.2,.8,.2,1) both; box-shadow: 0 0 10px -3px var(--a-projects) }
+    .chip { font-family: var(--mono); font-size: 9px; letter-spacing: .06em; padding: 1px 5px; border-radius: 6px; border: 1px solid currentColor; align-self: flex-start; white-space: nowrap; animation: pop .4s cubic-bezier(.3,1.6,.5,1) both }
+    .proj { display:flex; flex-direction:column; gap: 7px; padding: 10px; border-radius: 10px; background: rgba(255,255,255,.03); border: 1px solid var(--edge) }
+    .proj.quiet { opacity: .55 }
+    .mini { display:grid; grid-template-columns: repeat(7, 1fr); gap: 3px; align-items:end; height: 26px }
+    .mini i { border-radius: 2px; background: var(--a); min-height: 2px; transform-origin: bottom; animation: grow .8s cubic-bezier(.2,.8,.2,1) both }
+    .mini i.zero { background: rgba(255,255,255,.07) }
+    .pay { display:grid; grid-template-columns: 22px minmax(0,1fr) auto; gap: 8px; align-items:center }
+    .logo { width: 22px; height: 22px; border-radius: 6px; display:grid; place-items:center; font: 600 10px Inter; color: #111; background: var(--c) }
+    .box { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; border:1px solid var(--edge); background: rgba(255,255,255,.03) }
+    .bicon { width:30px; height:30px; border-radius:9px; display:grid; place-items:center; color:var(--c); background: color-mix(in oklch, var(--c) 16%, transparent); border:1px solid color-mix(in oklch, var(--c) 35%, transparent); flex:none }
+    .bicon svg { width:15px; height:15px }
+    .wbd { display:grid; grid-template-columns: repeat(5, 1fr); gap:6px }
+    .wcell { display:flex; flex-direction:column; align-items:center; gap:3px }
+    .wbar { height:34px; width:100%; display:flex; align-items:flex-end; justify-content:center }
+    .wbar i { width:60%; border-radius:3px; background: color-mix(in oklch, var(--a-money) 55%, transparent); transform-origin:bottom; animation: grow .8s cubic-bezier(.2,.8,.2,1) both }
+    .dchip { display:inline-flex; align-items:center; gap:4px; font-family: var(--mono); font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid currentColor; background: color-mix(in oklch, currentColor 12%, transparent); animation: pop .5s cubic-bezier(.3,1.6,.5,1) .9s both }
+    .sbd { display:grid; grid-template-columns: repeat(7, 1fr); gap:6px }
+    .scell { display:flex; flex-direction:column; align-items:center; gap:3px }
+    .scell.later { opacity:.35 }
+    .sbar { height:46px; width:100%; display:flex; align-items:flex-end; justify-content:center }
+    .sbar i { width:62%; border-radius:3px; background: var(--bad); box-shadow: 0 0 10px -3px var(--bad); transform-origin:bottom; animation: grow .8s cubic-bezier(.2,.8,.2,1) both }
+    .four { font-family: var(--mono); font-size: 10.5px; color: var(--ink-300) }
+  </style>
+  <div class="ctl">mockup · real numbers, Thu 15 Oct ·
+    <button data-s="open" class="on">this week</button>
+    <button data-s="closed">closed</button> · finances:
+    <button data-v="this" class="on">1 row (this week)</button>
+    <button data-v="last">6 rows (last week)</button>
+  </div>
+  <div id="app"></div>
+</div>
+
+<script>
+const I = {
+  body: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5h11M6.5 17.5h11M4 9v6M20 9v6M2 11v2M22 11v2"/></svg>',
+  lang: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h8M8 3v2m3 0c-1 5-4 8-7 9m3-5c1 2 3 4 6 5m1 5l4-9 4 9m-7-3h6"/></svg>',
+  money: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>',
+  act: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>',
+  goal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>',
+  note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>',
+  git: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 8v8M18 10c0 4-6 3-10 7"/></svg>',
+  task: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 12l3 3 5-6"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  check: '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg>',
+}
+const A = { projects: 'var(--a-projects)', lang: 'var(--a-lang)', body: 'var(--a-body)', money: 'var(--a-money)', social: 'var(--a-social)', other: 'var(--a-know)' }
+
+I.wallet = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12h2M3 9h18"/></svg>'
+I.trend = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>'
+const DAYS = ['MON 12', 'TUE 13', 'WED 14', 'THU 15', 'FRI 16', 'SAT 17', 'SUN 18']
+const TODAY = 3
+
+/* Read from the app on Thu 15 Oct 16:05, read only. */
+const R = {
+  commits: { this: 138, last: 132, days: [36, 68, 32, 2, 0, 0, 0] },
+  money: {
+    span: 'MON–THU', wasLabel: 'same days last week', byDay: [0, 0, 5.98, 0, 0, 0, 0], dayNames: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'], out: 5.98, outWas: 39.36, inn: 0,
+    rows: [['Solinca', 'SUBSCRIPTIONS', 5.98, 'WED 14', 'oklch(0.8 0.14 30)']],
+    days: [0, 0, 1, 0, 0, 0, 0],
+    worth: [45317.3, 45390.03, 45381.64, 45090, 45134.83], worthDays: ['SUN 11', 'MON 12', 'TUE 13', 'WED 14', 'THU 15'],
+    cash: 25777.66, invested: 19357.17, latestRow: 'WED 14',
+  },
+  last: {
+    span: 'MON–SUN', wasLabel: 'week before', byDay: [39.36, 0, 0, 0, 5.19, 4.5, 25], dayNames: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'], out: 74.05, outWas: 1666.04, inn: 0, latestRow: 'SUN 11',
+    rows: [['Veiga e Seabra', 'CAR', 37.86, 'MON 5', 'oklch(0.75 0.12 250)'], ['Andrei Pavlov', 'FUN', 25, 'SUN 11', 'oklch(0.8 0.12 300)'], ['Manutenção de conta', 'SERVICES', 4.99, 'FRI 9', 'oklch(0.8 0.1 150)'], ['English Bar 42', 'FUN', 4.5, 'SAT 10', 'oklch(0.8 0.12 60)'], ['Fcg Pq Estacionamento', 'CAR', 1.5, 'MON 5', 'oklch(0.75 0.12 250)'], ['Imposto de selo', 'OTHER', 0.2, 'FRI 9', 'oklch(0.7 0.02 250)']],
+  },
+  projects: [
+    { name: 'SOLOLEVELING', focus: true, logo: 'https://insightful-buffalo-883.eu-west-1.convex.cloud/api/storage/dd6ec5d3-a01e-4e36-bf7e-0848e0a2749d', commits: 138, target: 100, was: 132, days: [36, 68, 32, 2, 0, 0, 0],
+      kinds: null,
+      last: ['feat(finances): a removed trade can be taken back — REMOVED with UNDO', 'feat(finances): a trade’s × asks REMOVE / KEEP on the row'],
+      tasks: { week: 0, last: 'SEP 24' } },
+    { name: 'OREUM', focus: false, logo: 'https://insightful-buffalo-883.eu-west-1.convex.cloud/api/storage/353195d4-be6f-43fc-80c3-af89bc18408d', commits: 0, target: null, was: 0, days: [0, 0, 0, 0, 0, 0, 0], kinds: null, last: null, tasks: null },
+  ],
+  tasks: { week: 0, four: 4 },
+  body: { week: 0, four: 7, weight: 75.4, weightDay: 'SEP 8' },
+  langs: [
+    { flag: 'pt-PT', name: 'PORTUGUESE', level: 'B2', week: 0, four: 4 },
+    { flag: 'en', name: 'ENGLISH', level: 'B1', week: 0, four: 1 },
+  ],
+}
+
+let state = 'open'
+let view = 'this'
+const eur = n => '€' + n.toLocaleString('en-IE', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })
+const cu = (n, fmt = 'int') => `<span class="cu" data-to="${n}" data-fmt="${fmt}">0</span>`
+const head = (a, icon, name, extra = '') => `<div class="head"><div class="name"><span class="icon" style="--a:${a}">${icon}</span>${name}</div><div class="row">${extra}<span class="open">→</span></div></div>`
+let i = 0
+const tile = (cls, a, body) => `<section class="tile ${cls}" style="--a:${a}; --i:${i++}">${body}</section>`
+const maxC = Math.max(...R.commits.days)
+
+function worthLine(vals) {
+  const w = 300, h = 64, min = Math.min(...vals) - 80, max = Math.max(...vals) + 80
+  const pts = vals.map((v, k) => [k * w / (vals.length - 1), h - (v - min) / (max - min) * h])
+  const d = pts.map((p, k) => (k ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')
+  return `<svg class="spark" style="height:64px" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="oklch(0.8 0.1 88)" stop-opacity=".35"/><stop offset="1" stop-color="oklch(0.8 0.1 88)" stop-opacity="0"/></linearGradient></defs>
+    <path class="area" d="${d} L ${w} ${h} L 0 ${h} Z" fill="url(#g)"/>
+    <path class="line" d="${d}" fill="none" stroke="oklch(0.8 0.1 88)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+    <circle class="end" cx="${pts.at(-1)[0]}" cy="${pts.at(-1)[1]}" r="3.5" fill="oklch(0.8 0.1 88)"/></svg>`
+}
+
+/* this week minus last week, both numbers beside it; up/down coloured by what is good */
+function delta(now, was, goodWhenUp, label) {
+  const d = Math.round((now - was) * 100) / 100, up = d > 0, good = d === 0 ? null : (up === goodWhenUp)
+  const col = good === null ? 'var(--ink-400)' : good ? 'var(--good)' : 'var(--bad)'
+  const arrow = d === 0 ? '' : `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" style="transform:rotate(${up ? 0 : 180}deg)"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`
+  return `<span class="dchip" style="color:${col}">${arrow}${eur(Math.abs(d))}</span><span class="was">${label} · ${eur(was)}</span>`
+}
+
+function dayBars(days, vals) {
+  const max = Math.max(...vals, 1)
+  return `<div class="sbd">${vals.map((v, k) => `<div class="scell ${k > TODAY && view === 'this' ? 'later' : ''}">
+    <span class="mono" style="font-size:9.5px; color:${v ? 'var(--ink-100)' : 'var(--ink-600)'}">${v ? eur(v) : '·'}</span>
+    <span class="sbar"><i style="height:${v ? Math.max(6, v / max * 100) : 3}%; animation-delay:${k * 60}ms; ${v ? '' : 'background:rgba(255,255,255,.08); box-shadow:none'}"></i></span>
+    <span class="caps" style="font-size:8px">${days[k]}</span></div>`).join('')}</div>`
+}
+
+function worthChart(vals, days) {
+  const w = 320, h = 92, top = 18, bot = 18, min = Math.min(...vals), max = Math.max(...vals)
+  const pts = vals.map((v, k) => [12 + k * (w - 24) / (vals.length - 1), top + (1 - (v - min) / (max - min || 1)) * (h - top - bot)])
+  const d = pts.map((p, k) => (k ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%; height:${h}px; overflow:visible">
+    <path class="line" d="${d}" fill="none" stroke="oklch(0.8 0.1 88)" stroke-width="2"/>
+    ${pts.map(([x, y], k) => `<circle cx="${x}" cy="${y}" r="${k === pts.length - 1 ? 4 : 3}" fill="oklch(0.8 0.1 88)" class="${k === pts.length - 1 ? 'end' : ''}"/>
+      <text x="${x}" y="${y - 8}" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#d9d9e2">${(vals[k] / 1000).toFixed(1)}k</text>
+      <text x="${x}" y="${h - 2}" text-anchor="middle" font-family="JetBrains Mono" font-size="8.5" letter-spacing="1" fill="#8e8ea3">${days[k].slice(0, 3)}</text>`).join('')}
+  </svg>`
+}
+
+function render() {
+  i = 0
+  const closed = state === 'closed'
+
+  /* The week and its days: what the app saw each day, on its own. */
+  const week = `<section class="tile sys w6" style="--i:${i++}">
+    <span class="sweep"></span>
+    <div class="row between">
+      <div class="row" style="gap:10px">
+        <span class="sys-title">[ WEEK 42 ]</span>
+        ${closed ? `<span class="badge b-good done-pop">${I.check} CLOSED</span>` : `<span class="badge b-lav live">DAY 4 OF 7</span>`}
+        <span class="caps">12 – 18 OCT 2026</span>
+      </div>
+      <div class="row" style="gap:4px"><button class="arrow">←</button><button class="arrow" disabled style="opacity:.4">→</button></div>
+    </div>
+    <div class="wk">
+      ${DAYS.map((d, k) => {
+        const c = R.commits.days[k], later = k > TODAY
+        return `<div class="wd ${k === TODAY ? 'today' : ''} ${later ? 'later' : ''}">
+          <span class="caps" style="font-size:8.5px; letter-spacing:.1em">${d}</span>
+          <div class="cbar">${c ? `<i style="height:${c / maxC * 100}%; animation-delay:${k * 70}ms"></i>` : ''}</div>
+          ${c ? `<span class="chip" style="color:var(--a-projects); animation-delay:${400 + k * 70}ms">${c} COMMITS</span>` : later ? '' : `<span class="chip" style="color:var(--ink-500)">0 COMMITS</span>`}
+          ${R.money.days[k] ? `<span class="chip" style="color:var(--a-money); animation-delay:${500 + k * 70}ms">€5.98 OUT</span>` : ''}
+        </div>`
+      }).join('')}
+    </div>
+  </section>`
+
+  const [now, was] = [R.money.worth.at(-1), R.money.worth[0]]
+  const M = view === 'last' ? R.last : R.money
+  const cats = Object.values(M.rows.reduce((acc, [n, c, v]) => { (acc[c] ??= { c, n: 0, v: 0 }); acc[c].n++; acc[c].v += v; return acc }, {})).sort((x, y) => y.v - x.v)
+  const top = [...M.rows].sort((x, y) => y[2] - x[2]).slice(0, 3)
+  const wmin = Math.min(...R.money.worth), wmax = Math.max(...R.money.worth)
+  const finances = tile('w4 h2', 'var(--a-money)', `<span class="glow"></span>
+    ${head('var(--a-money)', I.money, 'Finances', `<span class="badge b-dim">LATEST ROW · ${M.latestRow}</span>`)}
+    <div style="display:grid; grid-template-columns: 1fr 1.25fr; gap: 22px; flex:1">
+      <div style="display:flex; flex-direction:column; gap:14px">
+        <div class="stat"><span class="caps">SPENT · ${M.span}</span><span class="num xl bad">${cu(M.out, 'eur')}</span><div class="row" style="gap:8px">${delta(M.out, M.outWas, false, M.wasLabel.toUpperCase())}</div></div>
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <span class="caps">BIGGEST</span>
+          ${top.map(([n, c, v, d, col], k) => `<div class="pay" style="animation: typeIn .4s ease ${700 + k * 120}ms both">
+            <span class="logo" style="--c:${col}">${n[0]}</span>
+            <span style="display:flex; flex-direction:column; min-width:0"><span style="color:var(--ink-100); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${n}</span><span class="caps" style="font-size:8.5px">${c} · ${d}</span></span>
+            <span class="mono bad" style="font-size:12px">${eur(v)}</span></div>`).join('')}
+          ${M.rows.length > 3 ? `<span class="caps" style="color:var(--lav-300)">${M.rows.length - 3} MORE →</span>` : ''}
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:auto">
+          <span class="caps">SPENT BY DAY</span>
+          ${dayBars(M.dayNames, M.byDay)}
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px">
+        <div class="stat"><span class="caps">WORTH · THIS WEEK</span><span class="num big">${cu(now, 'eur0')}</span><div class="row" style="gap:8px">${delta(Math.round(now), Math.round(was), true, 'LAST WEEK')}</div></div>
+        ${worthChart(R.money.worth, R.money.worthDays)}
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px">
+          <div class="box"><span class="bicon" style="--c:var(--a-money)">${I.wallet}</span><span class="stat"><span class="caps">CASH</span><span class="num sm">${eur(Math.round(R.money.cash))}</span></span></div>
+          <div class="box"><span class="bicon" style="--c:var(--a-lang)">${I.trend}</span><span class="stat"><span class="caps">INVESTED</span><span class="num sm">${eur(Math.round(R.money.invested))}</span></span></div>
+        </div>
+      </div>
+    </div>`)
+
+  const projects = tile('w2 h2', 'var(--a-projects)', `<span class="glow"></span>
+    ${head('var(--a-projects)', I.git, 'Projects')}
+    ${R.projects.map(p => !(p.commits || p.was) ? `<div class="proj quiet" style="flex-direction:row; align-items:center; justify-content:space-between">
+      <span class="row" style="gap:8px"><img src="${p.logo}" alt="" style="width:22px; height:22px; border-radius:6px; object-fit:cover"><span class="caps" style="color:var(--ink-200)">${p.name}</span></span>
+      <span class="four">0 COMMITS · was 0</span></div>` : `<div class="proj" style="--a:var(--a-projects)">
+      <div class="row between" style="flex-wrap:nowrap">
+        <span class="row" style="gap:8px; flex-wrap:nowrap"><img src="${p.logo}" alt="" style="width:26px; height:26px; border-radius:7px; object-fit:cover; border:1px solid var(--edge)"><span class="caps" style="color:var(--ink-200)">${p.name}</span></span>
+        ${p.focus ? '<span class="badge b-lav">FOCUS</span>' : ''}
+      </div>
+      <div class="row" style="gap:10px; align-items:flex-end">
+        <span class="num big">${cu(p.commits)}</span>
+        ${p.target ? `<span class="caps" style="padding-bottom:4px">of ${p.target} COMMITS</span>${p.commits >= p.target ? `<span class="badge b-good done-pop" style="margin-bottom:2px">${I.check} TARGET</span>` : ''}` : `<span class="caps" style="padding-bottom:4px">COMMITS</span>`}
+      </div>
+      ${p.target ? `<div class="track"><b style="width:${Math.min(1, p.commits / p.target) * 100}%"></b></div>` : ''}
+      <span class="was">was ${p.was} last week</span>
+      <div class="mini">${p.days.map((n, k) => `<i class="${n ? '' : 'zero'}" style="height:${n ? Math.max(8, n / maxC * 100) : 8}%; animation-delay:${k * 60}ms; ${k > TODAY ? 'opacity:.3' : ''}"></i>`).join('')}</div>
+      ${p.kinds ? `<div class="row" style="gap:5px">${p.kinds.map(([k, n, col]) => `<span class="badge" style="color:${col}">${n} ${k}</span>`).join('')}</div>` : ''}
+      ${p.last ? `<div style="display:flex; flex-direction:column; gap:3px">${p.last.map(m => `<span style="font-size:11.5px; color:var(--ink-300); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${m}</span>`).join('')}</div>` : ''}
+      ${p.tasks ? `<span class="four">TASKS · ${p.tasks.week} this week · last done ${p.tasks.last}</span>` : ''}
+    </div>`).join('')}`)
+
+  const body = tile('w2', 'var(--a-body)', `<span class="glow"></span>
+    <span class="photo" style="background-image:url(/public/body/body.jpg); inset: 0 0 0 55%; background-position:50% 25%"></span>
+    ${head('var(--a-body)', I.body, 'Body')}
+    <div class="row" style="gap:22px; align-items:flex-start">
+      <div class="stat"><span class="caps">WORKOUTS</span><span class="num big">${cu(R.body.week)}</span><span class="was">${R.body.four} in 4 weeks</span></div>
+      <div class="stat"><span class="caps">WEIGHT · LAST</span><span class="num mid">${R.body.weight} <span class="dim sm">kg</span></span><span class="was">${R.body.weightDay}</span></div>
+    </div>`)
+
+  const langs = tile('w2', 'var(--a-lang)', `<span class="glow"></span>
+    ${head('var(--a-lang)', I.lang, 'Languages')}
+    ${R.langs.map(l => `<div class="lang">
+      <span class="flag" style="background-image:url(/public/languages/${l.flag}.jpg)"></span>
+      <span class="caps" style="color:var(--ink-200); flex:1">${l.name}</span>
+      <span class="four"><b style="color:var(--ink-100); font-weight:400; font-size:15px">${l.week}</b> · ${l.four} in 4 weeks</span>
+      <span class="badge b-lav">${l.level}</span>
+    </div>`).join('')}`)
+
+  const note = tile('w2', 'var(--lav-400)', `${head('var(--lav-400)', I.note, 'Note')}
+    ${closed ? `<p style="font-size:15px; font-weight:300">Gym twice before Sunday.</p><span class="badge b-good done-pop" style="align-self:flex-start">${I.check} SAVED</span>`
+      : `<textarea class="note" placeholder="Next week…"></textarea>
+         <div class="row" style="justify-content:flex-end"><button class="btn" onclick="state='closed';sync()">CLOSE WEEK</button></div>`}`)
+
+  document.getElementById('app').innerHTML = `<div class="bento">${week}${finances}${projects}${body}${langs}${note}</div>`
+  countUp()
+}
+
+function countUp() {
+  document.querySelectorAll('.cu').forEach(el => {
+    const to = +el.dataset.to, fmt = el.dataset.fmt, t0 = performance.now(), dur = 1100
+    const show = v => el.textContent = fmt === 'eur' ? eur(Math.round(v * 100) / 100) : fmt === 'eur0' ? eur(Math.round(v)) : Math.round(v)
+    const step = now => { const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3); show(to * e); if (p < 1) requestAnimationFrame(step) }
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) show(to); else requestAnimationFrame(step)
+  })
+}
+function sync() { document.querySelectorAll('.ctl button').forEach(b => b.classList.toggle('on', b.dataset.s ? b.dataset.s === state : b.dataset.v === view)); render() }
+document.querySelectorAll('.ctl button').forEach(b => b.onclick = () => { if (b.dataset.s) state = b.dataset.s; else view = b.dataset.v; sync() })
+render()
+</script>
+</body>
+</html>

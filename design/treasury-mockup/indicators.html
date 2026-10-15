@@ -86,20 +86,34 @@
   .note { max-width: 940px; margin: 0 auto; font-family: var(--mono); font-size: 11px; color: var(--ink-500); line-height: 1.6 }
   /* 52W: the year's highest and lowest close, dotted ink — a range, not a grade. */
   .pill .sw.dot2 { border-top-style: dotted }
-  /* ? opens the explain cards under the key: what each line is, today's
-     numbers, why it matters. Plain sentences (15 Oct: "sometimes when
-     they needed - fine"). */
-  .pill.ask { width: 30px; justify-content: center; padding: 6px 0; font-size: 12px; letter-spacing: 0 }
-  .explain { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px }
-  .card { border-radius: 14px; padding: 14px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); display: flex; flex-direction: column; gap: 8px; animation: arrive .25s var(--ease) both; transition: box-shadow .2s, opacity .2s }
-  .card.lit { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent); background: color-mix(in srgb, var(--c) 7%, transparent) }
-  .card h3 { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-100) }
-  .card h3 small { font-weight: 400; color: var(--ink-500); letter-spacing: .1em }
-  .card p { font-size: 13.5px; line-height: 1.5; color: var(--ink-300) }
-  .card .now { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-family: var(--mono); font-size: 12.5px; color: var(--ink-100); font-variant-numeric: tabular-nums; padding: 8px 10px; border-radius: 10px; background: rgba(var(--lift),.04) }
-  .card .now small { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500) }
-  .card .st { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; color: var(--ink-100); background: rgba(var(--lift),.1) }
-  @media (max-width: 640px) { .explain { grid-template-columns: 1fr } }
+  /* SIGNALS opens a card per line right under the pills (15 Oct: "I
+     press ? and nothing changes"). Each says what the line says today
+     by its textbook rule, in colour: BULLISH / BEARISH / NEUTRAL (his
+     words: "BAD or GOOD, most likely bullish or bearish"), a gauge of
+     where today sits, and one plain line. */
+  .explain { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin: 2px 0 14px }
+  /* Two a row; an odd last one takes the row, so no hole is left. */
+  .card:last-child:nth-child(odd) { grid-column: 1 / -1 }
+  .card { --v: var(--ink-400); position: relative; overflow: hidden; border-radius: 16px; padding: 14px 14px 12px; background: linear-gradient(150deg, color-mix(in srgb, var(--v) 13%, transparent), transparent 70%), rgba(var(--lift),.03); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--v) 38%, transparent); display: flex; flex-direction: column; gap: 10px; animation: rise .45s var(--ease) both; animation-delay: calc(var(--n) * 60ms) }
+  .card.bull { --v: var(--good) } .card.bear { --v: var(--danger) } .card.flat { --v: var(--ink-400) } .card.lav { --v: var(--lav-400) }
+  @keyframes rise { from { opacity: 0; translate: 0 10px; scale: .98 } }
+  .card .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+  .card .name { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-200) }
+  .verdict { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 8px; border-radius: 99px; font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--v); background: color-mix(in srgb, var(--v) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--v) 45%, transparent); animation: glow 2.4s ease-in-out .5s 2 }
+  .verdict svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round }
+  @keyframes glow { 50% { box-shadow: inset 0 0 0 1px var(--v), 0 0 18px -4px var(--v) } }
+  .big { display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums }
+  .big b { font-size: 24px; font-weight: 400; letter-spacing: -.01em; color: var(--v) } .big span { font-family: var(--mono); font-size: 11px; color: var(--ink-400) }
+  /* The gauge: a track, its zones, and today's mark sliding in. */
+  .gauge { position: relative; height: 8px; border-radius: 99px; background: rgba(var(--lift),.08); margin: 4px 0 2px }
+  .gauge .z { position: absolute; top: 0; bottom: 0; border-radius: 99px }
+  .gauge .mk { position: absolute; top: 50%; left: var(--x); width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 99px; background: var(--v); box-shadow: 0 0 0 3px color-mix(in srgb, var(--v) 25%, transparent), 0 0 14px var(--v); animation: slide .8s var(--ease) both; animation-delay: calc(var(--n) * 60ms + 150ms) }
+  .gauge .mid { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 1.5px; background: var(--ink-500) }
+  @keyframes slide { from { left: var(--x0, 50%); opacity: 0 } }
+  .ends { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: var(--ink-500); font-variant-numeric: tabular-nums }
+  .card p { font-size: 13px; line-height: 1.45; color: var(--ink-200) }
+  .pill.sig svg { width: 13px; height: 13px }
+  .pill.sig.on { background: color-mix(in srgb, var(--lav-400) 22%, transparent) }
   @media (max-width: 640px) { .plot { height: 300px } .plot.rsi { height: 390px } .read { min-height: 50px } .head .px { margin-left: 0; text-align: left; width: 100% } .keys .tv { margin-left: 0 } }
 </style>
 </head>
@@ -124,10 +138,10 @@
       <div class="pills" id="ranges"></div>
     </div>
     <div class="bar2"><div class="pills" id="inds"></div></div>
+    <div class="explain" id="explain" hidden></div>
     <div class="read" id="read"></div>
     <div class="plot" id="plot"><div id="chart"></div></div>
     <div class="keys" id="keys"></div>
-    <div class="explain" id="explain" hidden></div>
   </section>
   <p class="note" id="note"></p>
 </div>
@@ -290,7 +304,7 @@ function bar() {
     const busy = reading === id
     return `<button class="pill ind ${on[id] ? 'on' : ''}" style="--c:${cssv(c)}" aria-pressed="${on[id]}" onclick="flip('${id}')">${busy ? '<i class="spin"></i>' : `<i class="sw ${dash === true ? 'dash' : dash || ''}"></i>`}${busy ? 'reading…' : label}</button>`
   }
-  document.getElementById('inds').innerHTML = (scen === 'held' ? pill('avg', 'avg buy', '--lav-400', true) : '') + pill(50, 'sma 50', '--ind-50') + pill(200, 'sma 200', '--ind-200') + pill('rsi', 'rsi 14', '--ind-rsi') + pill('yr', '52w', '--ink-400', 'dot2') + `<button class="pill ask ${ask ? 'on' : ''}" aria-pressed="${ask}" aria-label="What these lines are" onclick="ask=!ask;redo()">?</button>`
+  document.getElementById('inds').innerHTML = (scen === 'held' ? pill('avg', 'avg buy', '--lav-400', true) : '') + pill(50, 'sma 50', '--ind-50') + pill(200, 'sma 200', '--ind-200') + pill('rsi', 'rsi 14', '--ind-rsi') + pill('yr', '52w', '--ink-400', 'dot2') + `<button class="pill sig ${ask ? 'on' : ''}" aria-pressed="${ask}" onclick="ask=!ask;redo()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>signals</button>`
   document.getElementById('scen').innerHTML = [['held', 'msft · 3 buy'], ['sold', 'sold out · no avg buy']].map(([s, l]) => `<button class="pill ${s === scen ? 'on' : ''}" onclick="scen='${s}';on.avg=false;redo()">${l}</button>`).join('')
   document.getElementById('theme').innerHTML = ['dark', 'light'].map((t) => `<button class="pill ${t === theme ? 'on' : ''}" onclick="setTheme('${t}')">${t}</button>`).join('')
   document.getElementById('note').innerHTML = 'SMA 200 pressed the first time: older closes read from Yahoo, the pill spins, then the line draws. Off again on every open of the page. ? opens the cards; a lit line\'s card is lit too.'
@@ -298,24 +312,43 @@ function bar() {
 }
 /* SMA 200 needs the 200 closes before the year in view: the first press
    reads the older years (as ALL does), the pill spins until they land. */
-/* The cards: what it is, today's numbers with a state in plain words,
-   why it matters. A state is a fact of two numbers side by side, never
-   coloured good or bad. */
+/* The cards. Each line's textbook rule, said as a verdict in colour,
+   a gauge of where today sits, the two numbers, one plain line. */
+const ICON = {
+  up: '<svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>',
+  down: '<svg viewBox="0 0 24 24"><path d="M3 7l6 6 4-4 8 8M15 17h6v-6"/></svg>',
+  flat: '<svg viewBox="0 0 24 24"><path d="M4 12h16M16 8l4 4-4 4"/></svg>',
+}
 function explain() {
   const el = document.getElementById('explain')
   el.hidden = !ask
-  if (!ask) return
-  const p = bars.at(-1).close, k = bars.length - 1, s50 = S[50].at(-1).value, s200 = S[200].at(-1).value, r = S.rsi.at(-1).value
-  const side = (a, b) => a >= b ? 'above' : 'below'
-  const card = (id, c, title, sub, what, now, why) => `<div class="card ${on[id] ? 'lit' : ''}" style="--c:${cssv(c)}"><h3><i class="ln" style="--c:${cssv(c)}"></i>${title}<small>${sub}</small></h3><p>${what}</p><div class="now">${now}</div><p>${why}</p></div>`
-  const price = `<small>price</small>${usd(p)}`
-  el.innerHTML = [
-    scen === 'held' ? card('avg', '--lav-400', 'avg buy', 'what you paid', 'The average price per share of your buys in this round, since 22 Jun 2026.', `${price}<small>avg buy</small>${usd(avgUsd)}<span class="st">price ${side(p, avgUsd)}</span>`, 'Price above it: this round is up. Below it: this round is down.') : '',
-    card(50, '--ind-50', 'sma 50', '50-day average', 'The average of the last 50 closes, about 2½ months. It shows the trend of recent months.', `${price}<small>sma 50</small>${usd(s50)}<span class="st">price ${side(p, s50)}</span>`, 'When the price crosses it, the trend of recent months is often turning.'),
-    card(200, '--ind-200', 'sma 200', '200-day average', 'The average of the last 200 closes, about 10 months. It shows the long trend.', `${price}<small>sma 200</small>${usd(s200)}<span class="st">price ${side(p, s200)}</span>`, 'Long-term investors watch it most. Above it the past year has been strong; below it, weak.'),
-    card('rsi', '--ind-rsi', 'rsi 14', 'momentum, 0–100', 'How strongly the price rose against how strongly it fell, over the last 14 closes.', `<small>rsi 14</small>${r.toFixed(1)}<span class="st">${r > 70 ? 'over 70' : r < 30 ? 'under 30' : 'between 30 and 70'}</span>`, 'Over 70: it rose fast. Under 30: it fell fast. Neither is a buy or sell signal on its own.'),
-    card('yr', '--ink-400', '52w', 'the year\'s range', 'The highest and lowest close of the last 52 weeks.', `${price}<small>high</small>${usd(yr.hi.close)}<small>${fromHi.toFixed(1)}% from high</small><small>low</small>${usd(yr.lo.close)}`, 'It shows where today sits in the year: near the low it costs less than most of the year, near the high more.'),
-  ].join('')
+  if (!ask) { el.dataset.was = ''; return }
+  const p = bars.at(-1).close, s50 = S[50].at(-1).value, s200 = S[200].at(-1).value, r = S.rsi.at(-1).value
+  const pct = (a, b) => (a - b) / b * 100
+  const sg = (v) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + '%'
+  const clamp = (v) => Math.max(3, Math.min(97, v))
+  /* Price against a line: a centred track, ±15% at its ends. */
+  const vs = (d) => `<div class="gauge"><i class="z" style="left:0;width:50%;background:color-mix(in srgb,var(--danger) 22%,transparent)"></i><i class="z" style="left:50%;width:50%;background:color-mix(in srgb,var(--good) 22%,transparent)"></i><i class="mid"></i><i class="mk" style="--x:${clamp(50 + d / 15 * 50)}%"></i></div>`
+  let n = 0
+  const card = (id, cls, c, name, verdict, icon, big, sub, gauge, ends, line) => `<div class="card ${cls}" style="--n:${n++}"><div class="top"><span class="name"><i class="ln${id === 'avg' ? ' dash' : ''}" style="--c:${cssv(c)}"></i>${name}</span><span class="verdict">${ICON[icon]}${verdict}</span></div><div class="big"><b>${big}</b><span>${sub}</span></div>${gauge}<div class="ends">${ends}</div><p>${line}</p></div>`
+  const dA = pct(p, avgUsd), d50 = pct(p, s50), d200 = pct(p, s200)
+  const yrPos = (p - yr.lo.close) / (yr.hi.close - yr.lo.close) * 100
+  const out = []
+  if (scen === 'held') out.push(card('avg', dA >= 0 ? 'bull' : 'bear', '--lav-400', 'avg buy', dA >= 0 ? 'in profit' : 'at a loss', dA >= 0 ? 'up' : 'down', sg(dA), `price ${usd(p)} · avg buy ${usd(avgUsd)}`, vs(dA), '<span>−15%</span><span>avg buy</span><span>+15%</span>',
+    dA >= 0 ? 'Each share of this round is worth more than its average cost.' : 'Each share of this round is worth less than its average cost.'))
+  out.push(card(50, d50 >= 0 ? 'bull' : 'bear', '--ind-50', 'sma 50 · 50 days', d50 >= 0 ? 'bullish' : 'bearish', d50 >= 0 ? 'up' : 'down', sg(d50), `price ${usd(p)} · sma 50 ${usd(s50)}`, vs(d50), '<span>−15%</span><span>sma 50</span><span>+15%</span>',
+    d50 >= 0 ? 'Price above its 50-day average: the trend of recent months is up.' : 'Price below its 50-day average: the trend of recent months is down.'))
+  out.push(card(200, d200 >= 0 ? 'bull' : 'bear', '--ind-200', 'sma 200 · 200 days', d200 >= 0 ? 'bullish' : 'bearish', d200 >= 0 ? 'up' : 'down', sg(d200), `price ${usd(p)} · sma 200 ${usd(s200)}`, vs(d200), '<span>−15%</span><span>sma 200</span><span>+15%</span>',
+    (d200 >= 0 ? 'Price above its 200-day average: the long trend is up.' : 'Price below its 200-day average: the long trend is down.')))
+  const rs = r > 70 ? ['bear', 'overbought', 'down', 'Rose fast in 14 days. Often pauses or drops next.'] : r < 30 ? ['bull', 'oversold', 'up', 'Fell fast in 14 days. Often bounces next.'] : ['flat', 'neutral', 'flat', 'Normal speed: neither rising nor falling too fast.']
+  out.push(card('rsi', rs[0], '--ind-rsi', 'rsi 14 · momentum', rs[1], rs[2], r.toFixed(0), 'of 100 · over 70 overbought · under 30 oversold',
+    `<div class="gauge"><i class="z" style="left:0;width:30%;background:color-mix(in srgb,var(--good) 24%,transparent)"></i><i class="z" style="left:70%;width:30%;background:color-mix(in srgb,var(--danger) 24%,transparent)"></i><i class="mk" style="--x:${clamp(r)}%"></i></div>`, '<span>0 oversold</span><span>30</span><span>70</span><span>overbought 100</span>', rs[3]))
+  const ys = yrPos >= 66 ? ['bull', 'near high', 'up', 'Close to the top of its year: strong, but not cheap.'] : yrPos <= 33 ? ['bear', 'near low', 'down', 'Close to the bottom of its year: weak, but cheaper than most of the year.'] : ['flat', 'mid range', 'flat', 'In the middle of its year: neither at the top nor at the bottom.']
+  out.push(card('yr', ys[0], '--ink-400', '52 weeks', ys[1], ys[2], sg(fromHi), `from 52w high ${usd(yr.hi.close)} · ${day(yr.hi.time)}`,
+    `<div class="gauge" style="background:linear-gradient(90deg,color-mix(in srgb,var(--danger) 22%,transparent),rgba(var(--lift),.06),color-mix(in srgb,var(--good) 22%,transparent))"><i class="mk" style="--x:${clamp(yrPos)}%;--x0:0%"></i></div>`, `<span>low ${usd(yr.lo.close)}</span><span>high ${usd(yr.hi.close)}</span>`, ys[3]))
+  /* Drawn once per open: pressing a line's pill does not replay it. */
+  const html = out.join('') + theme + scen
+  if (el.dataset.was !== html) { el.innerHTML = out.join(''); el.dataset.was = html }
 }
 function flip(id) {
   on[id] = !on[id]

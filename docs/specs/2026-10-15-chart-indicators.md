@@ -41,14 +41,20 @@ row of pills under PRICE: `AVG BUY` · `SMA 50` · `SMA 200` · `RSI 14` ·
 - 52W: two dotted ink lines over the last 52 weeks, `52W HIGH` and
   `52W LOW` on the axis; key `52W HIGH $495.17 · 29 Oct 2025 · 52W LOW
 $384.89 · 22 Jun 2026`.
-- `?`: cards under the key, one per line — title, one plain sentence
-  of what it is, today's numbers side by side with a state
-  (`PRICE ABOVE`, `BETWEEN 30 AND 70`), one sentence of why it
-  matters. A lit line's card is lit. Sentences allowed here (15 Oct:
-  "sometimes when they needed - fine do it"; plain, never LLM wording).
+- `SIGNALS` (was `?`; 15 Oct: "cards are bad … BAD or GOOD, most likely
+  bullish or bearish, and bland. And I press ? and nothing changes"):
+  cards open right under the pills, one per line, each with a verdict
+  badge by the line's textbook rule — icon, colour, a glow:
+  - AVG BUY: `IN PROFIT` / `AT A LOSS`, price vs avg buy in %.
+  - SMA 50 / 200: `BULLISH` price above / `BEARISH` below, in %.
+  - RSI 14: `OVERBOUGHT` over 70 (red), `OVERSOLD` under 30 (green),
+    `NEUTRAL` between.
+  - 52W: `NEAR HIGH` top third (green), `NEAR LOW` bottom third (red),
+    `MID RANGE`; % from the high.
+    A gauge with today's mark sliding in, both numbers, one plain line.
 - The reading line above the chart adds each lit line's value for the
   day under the pointer, in its colour: `SMA 50 $439.62`.
-- Colours never good or bad: new tokens `--ind-50` (hue 225),
+- Line colours never good or bad (only the SIGNALS verdicts are): new tokens `--ind-50` (hue 225),
   `--ind-200` (335), `--ind-rsi` (195), clear of good/danger/warn.
 - Works in LINE and CANDLES, with VOLUME, in both themes and at phone
   width (pills wrap).

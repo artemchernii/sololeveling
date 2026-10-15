@@ -42,7 +42,13 @@ export function TopBar({
   return (
     <header className="glass-bar sticky top-0 z-20 flex h-[58px] shrink-0 items-center justify-between px-[18px] lg:px-6">
       <div className="flex items-center gap-[10px]">
-        <span className="size-3.5 rounded-[4px] bg-lav-500" aria-hidden />
+        {/* His logo (15 Oct), the same mark as the home-screen icon. */}
+        <img
+          src="/logo.svg"
+          alt=""
+          aria-hidden
+          className="size-6 rounded-[6px]"
+        />
         <span className="text-[12px] font-medium tracking-[0.2em] text-foreground">
           SOLO LEVELING
         </span>

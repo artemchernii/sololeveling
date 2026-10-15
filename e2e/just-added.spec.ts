@@ -241,7 +241,7 @@ test('just added: removing a file whose buys another file read too', async ({
   await expect(ask).toContainText(`3 buy · in ${theirs}`)
   await expect(ask.getByText(`stays · ${theirs}`)).toHaveCount(3)
   await expect(ask.getByText('goes', { exact: true })).toHaveCount(only)
-  await expect(ask).toContainText(`19 buy → ${19 - only}`.replace('19', '17'))
+  await expect(ask).toContainText(`17 buy → ${17 - only}`)
   await page.waitForTimeout(600)
   await page.screenshot({ ...shot('just-added-clash'), fullPage: true })
 

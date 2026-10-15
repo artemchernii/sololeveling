@@ -192,8 +192,13 @@ function Ledger({
               {
                 label: `${account.name} · rows`,
                 now: data.total.toLocaleString('en-GB'),
-                after: (data.total - f.saved).toLocaleString('en-GB'),
-                under: `−${f.saved}`,
+                /* Rows another file read too stay (15 Oct). */
+                after: (
+                  data.total -
+                  f.saved +
+                  (f.stay?.ids.length ?? 0)
+                ).toLocaleString('en-GB'),
+                under: `−${f.saved - (f.stay?.ids.length ?? 0)}`,
               },
             ]}
           />

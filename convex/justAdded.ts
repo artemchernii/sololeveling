@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { staysWith } from './handOver'
 import { query } from './_generated/server'
 import type { QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
@@ -27,6 +28,8 @@ const row = v.object({
   currency: v.string(),
   shares: v.union(v.number(), v.null()),
   label: v.string(),
+  /** Another file read it too: it stays, under that file (15 Oct). */
+  stays: v.union(v.string(), v.null()),
 })
 
 const file = v.object({
@@ -52,6 +55,17 @@ const file = v.object({
       type: v.string(),
       /** What the file printed, when it is another thing. */
       read: v.optional(v.string()),
+    }),
+  ),
+  /** Of what it saved, what another file read too: it stays, under
+      that file, when this one is removed (15 Oct, the clash). */
+  stay: v.union(
+    v.null(),
+    v.object({
+      buys: v.number(),
+      sells: v.number(),
+      in: v.string(),
+      ids: v.array(v.id('trades')),
     }),
   ),
   /** The first rows it saved, newest first. */
@@ -116,6 +130,7 @@ export const list = query({
     }
     const out = []
     const seen = new Set<Id<'intakes'>>()
+    const accounts = new Map<Id<'accounts'>, Array<Doc<'intakes'>>>()
     for (const i of found) {
       if (seen.has(i._id)) continue
       seen.add(i._id)
@@ -125,7 +140,7 @@ export const list = query({
       if (i.via === 'bank') continue
       const addedAt = await savedAt(ctx, i)
       if (addedAt < args.since) continue
-      const f = await described(ctx, ownerId, i)
+      const f = await described(ctx, ownerId, i, accounts)
       /* Found by what it read: only when its buys sit elsewhere. */
       const asked =
         args.accountId === i.accountId || (args.intakeIds ?? []).includes(i._id)
@@ -152,7 +167,12 @@ async function savedAt(ctx: QueryCtx, i: Doc<'intakes'>): Promise<number> {
   return i.readAt ?? i._creationTime
 }
 
-async function described(ctx: QueryCtx, ownerId: string, i: Doc<'intakes'>) {
+async function described(
+  ctx: QueryCtx,
+  ownerId: string,
+  i: Doc<'intakes'>,
+  accounts: Map<Id<'accounts'>, Array<Doc<'intakes'>>>,
+) {
   const read = [
     ...(i.transactions ?? []).map((t) => t.occurredAt),
     ...(i.trades ?? []).map((t) => t.occurredAt),
@@ -207,6 +227,8 @@ async function described(ctx: QueryCtx, ownerId: string, i: Doc<'intakes'>) {
       ...(misread === undefined ? {} : { read: misread }),
     })
   }
+  const stays = await staysWith(ctx, ownerId, i, trades, accounts)
+  const kept = trades.filter((t) => stays.has(t._id))
   const rows = [
     ...trades.flatMap((t) =>
       t.reward || t.split
@@ -219,6 +241,7 @@ async function described(ctx: QueryCtx, ownerId: string, i: Doc<'intakes'>) {
               currency: 'EUR',
               shares: t.shares,
               label: '',
+              stays: stays.get(t._id)?.name ?? null,
             },
           ],
     ),
@@ -230,6 +253,7 @@ async function described(ctx: QueryCtx, ownerId: string, i: Doc<'intakes'>) {
       currency: (l.unit ?? 'eur').toUpperCase(),
       shares: null,
       label: l.meta?.merchant ?? l.text ?? '',
+      stays: null,
     })),
   ]
     .sort((a, b) => b.at - a.at)
@@ -246,6 +270,15 @@ async function described(ctx: QueryCtx, ownerId: string, i: Doc<'intakes'>) {
     buys: trades.filter((t) => t.side === 'buy').length,
     sells: trades.filter((t) => t.side === 'sell').length,
     things: [...things.values()],
+    stay:
+      kept.length === 0
+        ? null
+        : {
+            buys: kept.filter((t) => t.side === 'buy').length,
+            sells: kept.filter((t) => t.side === 'sell').length,
+            in: stays.get(kept[0]._id)?.name ?? '',
+            ids: kept.map((t) => t._id),
+          },
     rows,
   }
 }

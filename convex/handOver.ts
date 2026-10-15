@@ -64,19 +64,24 @@ export async function staysWith(
   ownerId: string,
   intake: Doc<'intakes'>,
   trades: ReadonlyArray<Doc<'trades'>>,
+  /* An account's files, read once for a list of files (just added). */
+  seen?: Map<Id<'accounts'>, Array<Doc<'intakes'>>>,
 ): Promise<Map<Id<'trades'>, Stay>> {
   const out = new Map<Id<'trades'>, Stay>()
   const accountId = intake.accountId
   if (accountId === undefined || trades.length === 0) return out
-  const others = (
-    await ctx.db
+  let files = seen?.get(accountId)
+  if (files === undefined) {
+    files = await ctx.db
       .query('intakes')
       .withIndex('by_owner_account', (q) =>
         q.eq('ownerId', ownerId).eq('accountId', accountId),
       )
       .order('desc')
       .take(FILES)
-  ).filter(
+    seen?.set(accountId, files)
+  }
+  const others = files.filter(
     (i) =>
       i._id !== intake._id &&
       i.status === 'done' &&

@@ -3,6 +3,7 @@ import { ConvexError, v } from 'convex/values'
 import { balanceKey, brokerCashKey, hasBrokerCash } from './accounts'
 import { movedSince, tradedSince } from './aggregate'
 import { requireUser } from './auth'
+import { staysWith } from './handOver'
 import { internal } from './_generated/api'
 import { internalMutation, mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
@@ -14,7 +15,8 @@ import type { Doc, Id } from './_generated/dataModel'
    the balance it set — and the account is as it was before. The reading
    itself stays (`takenBackAt`), so the same file dropped again is not read
    a second time. Rows another file wrote are never touched: one that was
-   paired with a row of this file stays, unpaired. */
+   paired with a row of this file stays, unpaired. A trade another saved
+   file read too stays as well, under that file (handOver.ts, 15 Oct). */
 
 /* Rows taken in one go; a longer file goes on in `rest`. */
 const STEP = 1500
@@ -153,6 +155,9 @@ export const preview = query({
       trades: v.number(),
       /** Of those, the sells: badges say BUY and SELL apart. */
       sells: v.number(),
+      /** Trades another saved file read too: they stay, under it (15 Oct,
+          the clash). Not in `trades`. */
+      stay: v.union(v.null(), v.object({ trades: v.number(), in: v.string() })),
       positions: v.number(),
       /** Rows it wrote in other accounts: the first few, and how many. */
       elsewhere: v.array(
@@ -210,6 +215,7 @@ export const preview = query({
     }
     let trades = 0
     let sells = 0
+    let stay = null
     let positions = 0
     let balanceOf: number | null = null
     let cash = null
@@ -222,8 +228,12 @@ export const preview = query({
           )
           .take(TRADE_ROWS)
       ).filter((t) => t.importId === intake._id)
-      trades = its.length
-      sells = its.filter((t) => t.side === 'sell').length
+      const stays = await staysWith(ctx, ownerId, intake, its)
+      const goes = its.filter((t) => !stays.has(t._id))
+      trades = goes.length
+      sells = goes.filter((t) => t.side === 'sell').length
+      const keeper = [...stays.values()].at(0)
+      if (keeper) stay = { trades: stays.size, in: keeper.name }
       positions = (
         await ctx.db
           .query('holdings')
@@ -284,6 +294,7 @@ export const preview = query({
       rows: logs.length - away.length,
       trades,
       sells,
+      stay,
       positions,
       elsewhere,
       elsewhereRows: away.length,
@@ -340,7 +351,13 @@ async function erase(
         )
         .take(TRADE_ROWS)
     ).filter((t) => t.importId === intake._id)
-    for (const t of trades.slice(0, left)) await ctx.db.delete(t._id)
+    /* A trade another saved file read too is that file's now: it stays. */
+    const stays = await staysWith(ctx, ownerId, intake, trades.slice(0, left))
+    for (const t of trades.slice(0, left)) {
+      const to = stays.get(t._id)
+      if (to) await ctx.db.patch(t._id, { importId: to.to })
+      else await ctx.db.delete(t._id)
+    }
     left -= Math.min(left, trades.length)
     if (left > 0) {
       const looks = (
@@ -412,10 +429,11 @@ export const takeBackBatch = mutation({
     ).filter((i) => i.status === 'done' && i.takenBackAt === undefined)
     if (files.length === 0)
       throw new ConvexError('Nothing of that save is left to undo.')
-    for (const intake of files) {
+    /* All marked first: a trade two of its files read goes with the
+       drop, not from one of them to the other. */
+    for (const intake of files)
       await ctx.db.patch(intake._id, { takenBackAt: Date.now() })
-      await erase(ctx, ownerId, intake, false)
-    }
+    for (const intake of files) await erase(ctx, ownerId, intake, false)
     return files.length
   },
 })

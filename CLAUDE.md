@@ -112,8 +112,12 @@ SIGNALS tab:
   the average buy IN PROFIT, above an average BULLISH, RSI over 70
   OVERBOUGHT and under 30 OVERSOLD, the top third of the year NEAR
   HIGH. Green, red or ink, with both numbers always shown on the row.
-  This is the one place a verdict may be coloured. No score adds them
-  up and no screen says buy or sell.
+  This is the one place a verdict may be coloured.
+- **A call to act** (15 Oct, his "go verdict … tell me overall idea
+  what is the best to do"): a position may say ADD / HOLD / WAIT, built
+  from the signals now and from fundamentals and news as those land.
+  Its rule is written out in `src/lib/indicators.ts` and the reasons
+  that made it are always shown beside it — never a bare word.
 
 News (fetched on open, never stored) still waits for its own build.
 The fourth was added deliberately, on 2026-09-09, because money cannot be

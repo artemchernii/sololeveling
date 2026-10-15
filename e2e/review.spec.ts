@@ -95,19 +95,60 @@ test('Review: a quiet week — no zero tiles, Finances and the AI review', async
   await page.screenshot({ ...shot('review-quiet'), fullPage: true })
 })
 
-test('Review: the AI review — GRILL ME turns on, a press answers', async ({
+/* The AI read (R7, docs/specs/2026-10-15-review-ai-read.md): the test
+   backend answers with the canned reads of src/lib/weekRead.ts. */
+test('Review: the AI read — a press reads the week, and it stays', async ({
   page,
 }) => {
   await start(page)
+  await testClient().mutation(anyApi.e2e.reviewWeek, { days: thisWeek() })
   await page.goto('/reviews')
   const ai = page.getByRole('region', { name: 'AI review' })
   await expect(ai.getByText('NOT READ')).toBeVisible()
-  const grill = ai.getByRole('button', { name: 'GRILL ME' })
+
+  await ai.getByRole('button', { name: 'ANALYZE WEEK' }).click()
+  await expect(ai.getByText(/READING WEEK \d+/)).toBeVisible()
+  await expect(ai.getByText(/READ · /)).toBeVisible()
+  await expect(ai.getByTestId('verdict')).toHaveText(/MIXED WEEK/)
+  const lines = ai.getByTestId('read-line')
+  await expect(lines).toHaveCount(4)
+  await expect(lines.nth(0)).toContainText('GOOD')
+  await expect(lines.nth(1)).toContainText('SPENT €50.44 · LAST WEEK €74.05')
+  await expect(lines.nth(3)).toContainText('NEXT')
+
+  /* A line lights the tile it is about. */
+  await lines.nth(1).hover()
+  await expect(page.getByRole('region', { name: 'Finances' })).toHaveClass(
+    /review-lit/,
+  )
+  await page.screenshot(shot('review-read'))
+
+  /* Reopened, the read is there without a press. */
+  await page.reload()
+  await expect(ai.getByTestId('verdict')).toHaveText(/MIXED WEEK/)
+  await expect(ai.getByText('NOT READ')).toHaveCount(0)
+})
+
+test('Review: GRILL ME is its own read, red and GRILLED', async ({ page }) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2e.reviewWeek, { days: thisWeek() })
+  await page.goto('/reviews')
+  const ai = page.getByRole('region', { name: 'AI review' })
+  const grill = ai.getByRole('button', { name: /GRILL ME/ })
   await grill.click()
   await expect(grill).toHaveAttribute('aria-pressed', 'true')
   await ai.getByRole('button', { name: 'ANALYZE WEEK' }).click()
-  await expect(ai.getByText('NOT CONNECTED')).toBeVisible()
-  await page.screenshot(shot('review-ai'))
+  await expect(ai.getByText(/GRILLING WEEK \d+/)).toBeVisible()
+  await expect(ai.getByTestId('verdict')).toHaveText(/WEAK WEEK/)
+  await expect(ai.getByTestId('verdict')).toHaveAttribute('data-hot', 'true')
+  const grilled = ai.getByRole('button', { name: /GRILLED/ })
+  await expect(grilled).toHaveAttribute('aria-pressed', 'true')
+  await page.screenshot(shot('review-grilled'))
+
+  /* The plain read is not run yet: off again shows NOT READ. */
+  await grilled.click()
+  await expect(ai.getByText('NOT READ')).toBeVisible()
+  await expect(ai.getByRole('button', { name: 'ANALYZE WEEK' })).toBeVisible()
 })
 
 test('Review: a tile opens its page', async ({ page }) => {

@@ -177,6 +177,18 @@
   .askin:focus { border-color: var(--lav-400); box-shadow: 0 0 16px -6px var(--shine) }
   .fchip { font-family: var(--mono); font-size: 9px; letter-spacing: .12em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.03); color: var(--ink-400); cursor: pointer; transition: all .15s }
   .fchip.on { color: var(--lav-300); border-color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 16%, transparent); box-shadow: 0 0 12px -5px var(--shine) }
+  .b-bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 10%, transparent) }
+  .grill { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; padding: 0 12px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.04); color: var(--ink-300); cursor: pointer; transition: all .2s; white-space: nowrap }
+  .grill .flame { filter: grayscale(1); opacity: .6; transition: all .2s }
+  .grill.on { color: var(--bad); border-color: var(--bad); background: color-mix(in oklch, var(--bad) 14%, transparent); box-shadow: 0 0 18px -4px var(--bad) }
+  .grill.on .flame { filter: none; opacity: 1; display:inline-block; animation: flick 1s ease-in-out infinite }
+  @keyframes flick { 0%,100% { transform: scale(1) rotate(-4deg) } 50% { transform: scale(1.18) rotate(4deg) } }
+  .aiorb.hot { border-color: var(--bad); box-shadow: 0 0 30px -4px var(--bad); background: radial-gradient(circle, color-mix(in oklch, var(--bad) 35%, transparent), transparent 70%) }
+  .aiorb.hot span { animation: flick .8s ease-in-out infinite }
+  .verdict { display:flex; flex-direction:column; gap: 3px; padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in oklch, var(--warn) 40%, transparent); background: color-mix(in oklch, var(--warn) 8%, transparent); animation: pop .5s cubic-bezier(.3,1.6,.5,1) both }
+  .verdict.hot { border-color: color-mix(in oklch, var(--bad) 50%, transparent); background: color-mix(in oklch, var(--bad) 10%, transparent) }
+  .vtitle { font-family: var(--mono); font-size: 17px; letter-spacing: .22em; color: var(--warn); text-shadow: 0 0 12px color-mix(in oklch, var(--warn) 50%, transparent) }
+  .verdict.hot .vtitle { color: var(--bad); text-shadow: 0 0 12px color-mix(in oklch, var(--bad) 50%, transparent) }
   .big-btn { width: 100%; padding: 10px; font-size: 11px }
   .findings { display:flex; flex-direction:column; gap: 5px }
   .fnd { display:grid; grid-template-columns: 58px 1fr; gap: 8px; align-items:flex-start; padding: 6px 8px; border-radius: 9px; border: 1px solid var(--edge); background: rgba(255,255,255,.025); font-size: 12px; color: var(--ink-100); cursor: pointer; opacity: 0; animation: typeIn .45s ease forwards; transition: border-color .15s, background .15s }
@@ -267,6 +279,18 @@
   .askin:focus { border-color: var(--lav-400); box-shadow: 0 0 16px -6px var(--shine) }
   .fchip { font-family: var(--mono); font-size: 9px; letter-spacing: .12em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.03); color: var(--ink-400); cursor: pointer; transition: all .15s }
   .fchip.on { color: var(--lav-300); border-color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 16%, transparent); box-shadow: 0 0 12px -5px var(--shine) }
+  .b-bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 10%, transparent) }
+  .grill { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; padding: 0 12px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.04); color: var(--ink-300); cursor: pointer; transition: all .2s; white-space: nowrap }
+  .grill .flame { filter: grayscale(1); opacity: .6; transition: all .2s }
+  .grill.on { color: var(--bad); border-color: var(--bad); background: color-mix(in oklch, var(--bad) 14%, transparent); box-shadow: 0 0 18px -4px var(--bad) }
+  .grill.on .flame { filter: none; opacity: 1; display:inline-block; animation: flick 1s ease-in-out infinite }
+  @keyframes flick { 0%,100% { transform: scale(1) rotate(-4deg) } 50% { transform: scale(1.18) rotate(4deg) } }
+  .aiorb.hot { border-color: var(--bad); box-shadow: 0 0 30px -4px var(--bad); background: radial-gradient(circle, color-mix(in oklch, var(--bad) 35%, transparent), transparent 70%) }
+  .aiorb.hot span { animation: flick .8s ease-in-out infinite }
+  .verdict { display:flex; flex-direction:column; gap: 3px; padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in oklch, var(--warn) 40%, transparent); background: color-mix(in oklch, var(--warn) 8%, transparent); animation: pop .5s cubic-bezier(.3,1.6,.5,1) both }
+  .verdict.hot { border-color: color-mix(in oklch, var(--bad) 50%, transparent); background: color-mix(in oklch, var(--bad) 10%, transparent) }
+  .vtitle { font-family: var(--mono); font-size: 17px; letter-spacing: .22em; color: var(--warn); text-shadow: 0 0 12px color-mix(in oklch, var(--warn) 50%, transparent) }
+  .verdict.hot .vtitle { color: var(--bad); text-shadow: 0 0 12px color-mix(in oklch, var(--bad) 50%, transparent) }
   .big-btn { width: 100%; padding: 10px; font-size: 11px }
   .findings { display:flex; flex-direction:column; gap: 5px }
   .fnd { display:grid; grid-template-columns: 58px 1fr; gap: 8px; align-items:flex-start; padding: 6px 8px; border-radius: 9px; border: 1px solid var(--edge); background: rgba(255,255,255,.025); font-size: 12px; color: var(--ink-100); cursor: pointer; opacity: 0; animation: typeIn .45s ease forwards; transition: border-color .15s, background .15s }
@@ -281,7 +305,7 @@
 <div class="wrap">
   <div class="ctl">mockup v2 · real numbers, Thu 15 Oct ·
     days: <button data-d="real" class="on">real</button><button data-d="many">example: many badges</button> ·
-    ai: <button data-a="idle" class="on">not run</button><button data-a="busy">reading</button><button data-a="done">read (example words)</button>
+    ai: <button data-a="idle" class="on">not run</button><button data-a="busy">reading</button><button data-a="done">read (example words)</button> · <button data-g="1">grill</button>
   </div>
   <div id="app"></div>
 </div>
@@ -323,8 +347,7 @@ const MANY = [
   { commits: [['SOLOLEVELING', LOGO_SL, 6], ['OREUM', LOGO_OR, 2]], out: 4.5, lang: 'PT' },
   {}, {}, {},
 ]
-let days = 'real', ai = 'idle', focus = [], focusText = ''
-function toggleFocus(c) { focus = focus.includes(c) ? focus.filter(x => x !== c) : [...focus, c]; render() }
+let days = 'real', ai = 'idle', grill = false
 function run() { ai = 'busy'; sync(); setTimeout(() => { ai = 'done'; sync() }, 1800) }
 function lightTile(t, on) { document.querySelector(`[data-t="${t}"]`)?.classList.toggle('lit', on) }
 const eur = n => '€' + n.toLocaleString('en-IE', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })
@@ -438,37 +461,44 @@ function render() {
       </div>
     </div>`)
 
-  const chips = ['MONEY', 'PROJECTS', 'BODY', 'LANGUAGES']
-  const promptBox = `<div class="ask">
-      <input class="askin" placeholder="Focus on…" value="${focusText}" oninput="focusText=this.value">
-      <div class="row" style="gap:5px">${chips.map(c => `<button class="fchip ${focus.includes(c) ? 'on' : ''}" onclick="toggleFocus('${c}')">${c}</button>`).join('')}</div>
-    </div>`
-  /* EXAMPLE findings — the AI's words are not real yet; every number in
-     them is one already on this page. */
-  const F = [
-    ['GOOD', 'b-good', 'Spent far less than last week', 'SPENT €5.98 · LAST WEEK €74.05', 'fin'],
-    ['GOOD', 'b-good', 'Commit target passed by Thursday', '142 OF 100 COMMITS', 'proj'],
-    ['WATCH', 'b-warn', 'No workout this week', 'WORKOUTS 0 · 7 IN 4 WEEKS', 'body'],
-    ['WATCH', 'b-warn', 'Worth down since Sunday', '€45,263 · LAST WEEK €45,317', 'fin'],
-    ['NEXT', 'b-lav', 'One Portuguese session before Sunday', 'PORTUGUESE 0 · 4 IN 4 WEEKS', 'lang'],
-  ]
-  const used = [...focus, focusText].filter(Boolean).join(' · ')
+  /* EXAMPLE words — the AI is not wired yet; every number in them is one
+     already on this page. Two voices: plain, or grilled. */
+  const V = grill ? {
+    verdict: ['WEAK WEEK', 'b-warn'],
+    lines: [
+      ['GOOD', 'b-good', '142 commits. Fine. Code is the one thing you never skip.', '142 OF 100 COMMITS', 'proj'],
+      ['BAD', 'b-bad', 'Zero workouts. Seven in four weeks and none since. Gym tomorrow, no excuses.', 'WORKOUTS 0 · 7 IN 4 WEEKS', 'body'],
+      ['BAD', 'b-bad', 'Portuguese: nothing. B2 does not stay B2 by itself.', 'PORTUGUESE 0 · 4 IN 4 WEEKS', 'lang'],
+      ['NEXT', 'b-lav', 'Three days left. Two gym sessions and one class. Go.', 'FRI · SAT · SUN', 'body'],
+    ],
+  } : {
+    verdict: ['MIXED WEEK', 'b-warn'],
+    lines: [
+      ['GOOD', 'b-good', 'Commit target passed by Thursday.', '142 OF 100 COMMITS', 'proj'],
+      ['GOOD', 'b-good', 'Spent far less than last week.', 'SPENT €5.98 · LAST WEEK €74.05', 'fin'],
+      ['WATCH', 'b-warn', 'No workout yet this week.', 'WORKOUTS 0 · 7 IN 4 WEEKS', 'body'],
+      ['NEXT', 'b-lav', 'One gym session and one Portuguese class before Sunday.', 'PORTUGUESE 0 · 4 IN 4 WEEKS', 'lang'],
+    ],
+  }
+  const grillBtn = `<button class="grill ${grill ? 'on' : ''}" onclick="grill=!grill;render()"><span class="flame">🔥</span> GRILL ME</button>`
   const aiBody = ai === 'idle'
     ? `<div class="aiempty">
          <span class="aiorb">${I.spark}</span>
          <span class="badge b-dim">NOT READ</span>
          <span class="caps" style="text-align:center">WEEK 42 · FINANCES · PROJECTS · BODY · LANGUAGES</span>
        </div>
-       ${promptBox}
-       <button class="btn big-btn" onclick="run()">${I.spark.replace('<svg', '<svg width="12" height="12" style="vertical-align:-2px; margin-right:6px"')}ANALYZE WEEK</button>`
+       <div style="display:grid; grid-template-columns: 1fr auto; gap:8px">
+         <button class="btn big-btn" onclick="run()">${I.spark.replace('<svg', '<svg width="12" height="12" style="vertical-align:-2px; margin-right:6px"')}ANALYZE WEEK</button>
+         ${grillBtn}
+       </div>`
     : ai === 'busy'
-    ? `<div class="aiempty"><span class="aiorb spin">${I.spark}</span><span class="badge b-lav live">READING WEEK 42</span><div class="scan" style="width:70%"><i></i></div>
-         ${used ? `<span class="caps">FOCUS · ${used}</span>` : ''}</div>`
+    ? `<div class="aiempty"><span class="aiorb spin ${grill ? 'hot' : ''}">${grill ? '<span style="font-size:22px">🔥</span>' : I.spark}</span>
+         <span class="badge ${grill ? 'b-bad' : 'b-lav'} live">${grill ? 'GRILLING WEEK 42' : 'READING WEEK 42'}</span><div class="scan" style="width:70%"><i></i></div></div>`
     : `<div class="row between"><span class="badge b-good done-pop">${I.check} READ · THU 15 20:52</span>
-         <button class="arrow" onclick="run()">RUN AGAIN</button></div>
-       ${used ? `<span class="caps">FOCUS · <span style="color:var(--lav-300)">${used}</span></span>` : `<span class="caps">FOCUS · WHOLE WEEK</span>`}
-       <div class="findings">${F.map(([b, cls, line, nums, t], k) => `
-         <div class="fnd" data-for="${t}" style="animation-delay:${0.1 + k * 0.18}s" onmouseenter="lightTile('${t}', true)" onmouseleave="lightTile('${t}', false)">
+         <div class="row" style="gap:5px">${grill ? '<span class="badge b-bad">🔥 GRILLED</span>' : ''}<button class="arrow" onclick="run()">RUN AGAIN</button></div></div>
+       <div class="verdict ${grill ? 'hot' : ''}"><span class="caps">WEEK 42</span><span class="vtitle">${V.verdict[0]}</span></div>
+       <div class="findings">${V.lines.map(([b, cls, line, nums, t], k) => `
+         <div class="fnd" style="animation-delay:${0.15 + k * 0.18}s" onmouseenter="lightTile('${t}', true)" onmouseleave="lightTile('${t}', false)">
            <span class="badge ${cls}">${b}</span>
            <span style="display:flex; flex-direction:column; gap:3px; min-width:0"><span>${line}</span><span class="fnum">${nums}</span></span>
          </div>`).join('')}</div>`
@@ -526,8 +556,8 @@ function countUp() {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) show(to); else requestAnimationFrame(step)
   })
 }
-function sync() { document.querySelectorAll('.ctl button').forEach(b => b.classList.toggle('on', b.dataset.d ? b.dataset.d === days : b.dataset.a === ai)); render() }
-document.querySelectorAll('.ctl button').forEach(b => b.onclick = () => { if (b.dataset.d) days = b.dataset.d; else ai = b.dataset.a; sync() })
+function sync() { document.querySelectorAll('.ctl button').forEach(b => b.classList.toggle('on', b.dataset.g ? grill : b.dataset.d ? b.dataset.d === days : b.dataset.a === ai)); render() }
+document.querySelectorAll('.ctl button').forEach(b => b.onclick = () => { if (b.dataset.g) grill = !grill; else if (b.dataset.d) days = b.dataset.d; else ai = b.dataset.a; sync() })
 render()
 </script>
 </body>

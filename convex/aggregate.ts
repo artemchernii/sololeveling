@@ -3505,6 +3505,8 @@ export const weekReview = query({
         v.object({
           _id: v.id('logs'),
           name: v.string(),
+          /** The site of its logo, when the payee was named with one. */
+          domain: v.union(v.string(), v.null()),
           category: v.union(v.string(), v.null()),
           amount: v.number(),
           occurredAt: v.number(),
@@ -3568,6 +3570,27 @@ export const weekReview = query({
     const money = logs.filter((l) => l.area === 'money')
     const week = spentWeek(money, starts, args.end)
     const last = spentWeek(money, lastStarts, start)
+    /* The biggest rows under the names he gave their payees (payees.set),
+       as every Finances list shows them. */
+    const biggest = []
+    for (const b of week.biggest) {
+      const row = money.find((m) => m._id === b._id)
+      const named =
+        row === undefined
+          ? null
+          : await ctx.db
+              .query('payees')
+              .withIndex('by_owner_key', (q) =>
+                q.eq('ownerId', ownerId).eq('key', rowKey(row)),
+              )
+              .first()
+      biggest.push({
+        ...b,
+        _id: b._id as Id<'logs'>,
+        name: named?.name ?? b.name,
+        domain: named?.domain ?? null,
+      })
+    }
     const newestMoney = await ctx.db
       .query('logs')
       .withIndex('by_owner_area_time', (q) =>
@@ -3650,7 +3673,7 @@ export const weekReview = query({
         bills: week.bills,
         byDay: week.byDay,
         count: week.count,
-        biggest: week.biggest.map((b) => ({ ...b, _id: b._id as Id<'logs'> })),
+        biggest,
         latestAt: newestMoney?.occurredAt ?? null,
       },
       projects,

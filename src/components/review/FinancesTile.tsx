@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from 'react'
 
 import type { FunctionReturnType } from 'convex/server'
 import type { api } from '../../../convex/_generated/api'
-import { PayeeLogo } from '@/components/finances/Logo'
+import { AccountLogo, PayeeLogo } from '@/components/finances/Logo'
 import { Badge, Caps, CountUp, Tile, dayLabel } from '@/components/review/parts'
 import { categoryLabel, euros } from '@/lib/money'
 import { weekChange } from '@/lib/review'
@@ -87,7 +87,11 @@ export function FinancesTile({
                   style={{ animationDelay: `${700 + k * 120}ms` }}
                   className="motion-arrive grid grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-2"
                 >
-                  <PayeeLogo name={b.name} size={22} />
+                  {b.domain !== null ? (
+                    <AccountLogo name={b.name} domain={b.domain} size={22} />
+                  ) : (
+                    <PayeeLogo name={b.name} size={22} />
+                  )}
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate">{b.name}</span>
                     <Caps className="text-[8.5px]">

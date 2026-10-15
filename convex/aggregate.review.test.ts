@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest'
 
 import { api } from './_generated/api'
 import schema from './schema'
+import { rowKey } from '../src/lib/payee'
 
 const modules = import.meta.glob('./**/*.ts')
 
@@ -56,6 +57,13 @@ describe('aggregate.weekReview', () => {
       await spend(ME, MON - 7 * DAY + 3_600_000, 37.86, { payee: 'Veiga' })
       await spend(ME, MON - DAY, 25)
       await spend(SOMEONE_ELSE, MON + DAY, 999)
+      await ctx.db.insert('payees', {
+        ownerId: ME,
+        key: rowKey({ text: 'Solinca' }),
+        name: 'Solinca Gym',
+        domain: 'solinca.pt',
+        updatedAt: 0,
+      })
     })
 
     const r = await mine.query(api.aggregate.weekReview, args)
@@ -63,8 +71,8 @@ describe('aggregate.weekReview', () => {
     expect(r.money.lastSpent).toBe(62.86)
     expect(r.money.bills).toBe(22.14)
     expect(r.money.byDay).toEqual([0, 0, 5.98, 0, 0, 0, 0])
-    expect(r.money.biggest.map((b) => [b.name, b.category])).toEqual([
-      ['Solinca', 'subscriptions'],
+    expect(r.money.biggest.map((b) => [b.name, b.domain, b.category])).toEqual([
+      ['Solinca Gym', 'solinca.pt', 'subscriptions'],
     ])
     expect(r.money.latestAt).toBe(MON + 2 * DAY + 3_600_000)
     expect(r.complete).toBe(true)

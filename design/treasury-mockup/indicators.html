@@ -84,6 +84,22 @@
   .keys b { font-weight: 400; color: var(--ink-200); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap }
   .keys .tv { margin-left: auto }
   .note { max-width: 940px; margin: 0 auto; font-family: var(--mono); font-size: 11px; color: var(--ink-500); line-height: 1.6 }
+  /* 52W: the year's highest and lowest close, dotted ink — a range, not a grade. */
+  .pill .sw.dot2 { border-top-style: dotted }
+  /* ? opens the explain cards under the key: what each line is, today's
+     numbers, why it matters. Plain sentences (15 Oct: "sometimes when
+     they needed - fine"). */
+  .pill.ask { width: 30px; justify-content: center; padding: 6px 0; font-size: 12px; letter-spacing: 0 }
+  .explain { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px }
+  .card { border-radius: 14px; padding: 14px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.08); display: flex; flex-direction: column; gap: 8px; animation: arrive .25s var(--ease) both; transition: box-shadow .2s, opacity .2s }
+  .card.lit { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent); background: color-mix(in srgb, var(--c) 7%, transparent) }
+  .card h3 { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-100) }
+  .card h3 small { font-weight: 400; color: var(--ink-500); letter-spacing: .1em }
+  .card p { font-size: 13.5px; line-height: 1.5; color: var(--ink-300) }
+  .card .now { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-family: var(--mono); font-size: 12.5px; color: var(--ink-100); font-variant-numeric: tabular-nums; padding: 8px 10px; border-radius: 10px; background: rgba(var(--lift),.04) }
+  .card .now small { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500) }
+  .card .st { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; color: var(--ink-100); background: rgba(var(--lift),.1) }
+  @media (max-width: 640px) { .explain { grid-template-columns: 1fr } }
   @media (max-width: 640px) { .plot { height: 300px } .plot.rsi { height: 390px } .read { min-height: 50px } .head .px { margin-left: 0; text-align: left; width: 100% } .keys .tv { margin-left: 0 } }
 </style>
 </head>
@@ -111,6 +127,7 @@
     <div class="read" id="read"></div>
     <div class="plot" id="plot"><div id="chart"></div></div>
     <div class="keys" id="keys"></div>
+    <div class="explain" id="explain" hidden></div>
   </section>
   <p class="note" id="note"></p>
 </div>
@@ -161,6 +178,11 @@ const sh = buys.reduce((s, b) => s + b.sh, 0)
 const avgEur = buys.reduce((s, b) => s + b.eur, 0) / sh
 const avgUsd = buys.reduce((s, b) => s + b.eur / rate(b.i), 0) / sh
 const S = { 50: sma(50), 200: sma(200), rsi: rsi(14) }
+/* 52W: the highest and lowest stored close of the last 52 weeks, with
+   their days; the latest against the high as between() says it. */
+const Y0 = bars.findIndex((b) => b.time >= new Date(Date.parse(bars.at(-1).time) - 364 * 864e5).toISOString().slice(0, 10))
+const yr = bars.slice(Y0).reduce((m, b) => ({ hi: b.close > m.hi.close ? b : m.hi, lo: b.close < m.lo.close ? b : m.lo }), { hi: bars[Y0], lo: bars[Y0] })
+const fromHi = (bars.at(-1).close - yr.hi.close) / yr.hi.close * 100
 const byTime = (arr) => new Map(arr.map((p) => [p.time, p.value]))
 const M = { 50: byTime(S[50]), 200: byTime(S[200]), rsi: byTime(S.rsi) }
 
@@ -168,7 +190,8 @@ document.getElementById('px').textContent = usd(bars.at(-1).close)
 document.getElementById('pxe').textContent = eur(bars.at(-1).close * rate(bars.length - 1))
 
 let view = 'line', range = '1Y', volume = false, tool = null, scen = 'held', theme = 'dark'
-const on = { avg: false, 50: false, 200: false, rsi: false }
+const on = { avg: false, 50: false, 200: false, rsi: false, yr: false }
+let ask = false
 let reading = null, readOnce = false
 const chart = LC.createChart(document.getElementById('chart'), {
   autoSize: true,
@@ -215,6 +238,11 @@ function build() {
     for (const v of [30, 70]) guides.push(rsiS.createPriceLine({ price: v, color: rgb(cssv('--ink-500'), .7), lineWidth: 1, lineStyle: LC.LineStyle.Dotted, axisLabelVisible: true, title: '' }))
     const p = chart.panes()[1]; if (p) p.setHeight(innerWidth < 640 ? 80 : 100)
   }
+  if (on.yr) for (const [b, t] of [[yr.hi, '52W HIGH'], [yr.lo, '52W LOW']]) {
+    const s = chart.addSeries(LC.LineSeries, { color: rgb(cssv('--ink-400')), lineWidth: 1, lineStyle: LC.LineStyle.Dotted, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, title: t, priceFormat: DOLLARS })
+    s.setData(bars.slice(Y0).map((x) => ({ time: x.time, value: b.close })))
+    lines[t] = s
+  }
   LC.createSeriesMarkers(main, scen === 'held' ? buys.map((b) => ({ time: bars[b.i].time, position: 'belowBar', shape: 'circle', color: G, size: 1 })) : [])
   document.getElementById('plot').classList.toggle('rsi', on.rsi)
   paint()
@@ -247,6 +275,7 @@ function keys() {
   if (on[50] && reading !== 50) k.push(`<span style="--c:${cssv('--ind-50')}"><i class="ln"></i><b>sma 50</b> · 50 closes</span>`)
   if (on[200] && reading !== 200) k.push(`<span style="--c:${cssv('--ind-200')}"><i class="ln"></i><b>sma 200</b> · 200 closes</span>`)
   if (on.rsi) k.push(`<span style="--c:${cssv('--ind-rsi')}"><i class="ln"></i><b>rsi 14</b> · 14 closes · 30 / 70</span>`)
+  if (on.yr) k.push(`<span style="--c:${cssv('--ink-400')}"><i class="ln" style="border-top-style:dotted"></i><b>52w high</b> ${usd(yr.hi.close)} · ${day(yr.hi.time)} · <b>52w low</b> ${usd(yr.lo.close)} · ${day(yr.lo.time)}</span>`)
   k.push('<span class="tv">TradingView Lightweight Charts™ · © 2025 TradingView, Inc.</span>')
   document.getElementById('keys').innerHTML = k.join('')
 }
@@ -259,15 +288,35 @@ function bar() {
   document.getElementById('ranges').innerHTML = ['1M', '6M', '1Y', 'all'].map((r) => `<button class="pill ${r === range ? 'on' : ''}" onclick="range='${r}';bar();span()">${r}</button>`).join('')
   const pill = (id, label, c, dash) => {
     const busy = reading === id
-    return `<button class="pill ind ${on[id] ? 'on' : ''}" style="--c:${cssv(c)}" aria-pressed="${on[id]}" onclick="flip('${id}')">${busy ? '<i class="spin"></i>' : `<i class="sw ${dash ? 'dash' : ''}"></i>`}${busy ? 'reading…' : label}</button>`
+    return `<button class="pill ind ${on[id] ? 'on' : ''}" style="--c:${cssv(c)}" aria-pressed="${on[id]}" onclick="flip('${id}')">${busy ? '<i class="spin"></i>' : `<i class="sw ${dash === true ? 'dash' : dash || ''}"></i>`}${busy ? 'reading…' : label}</button>`
   }
-  document.getElementById('inds').innerHTML = (scen === 'held' ? pill('avg', 'avg buy', '--lav-400', true) : '') + pill(50, 'sma 50', '--ind-50') + pill(200, 'sma 200', '--ind-200') + pill('rsi', 'rsi 14', '--ind-rsi')
+  document.getElementById('inds').innerHTML = (scen === 'held' ? pill('avg', 'avg buy', '--lav-400', true) : '') + pill(50, 'sma 50', '--ind-50') + pill(200, 'sma 200', '--ind-200') + pill('rsi', 'rsi 14', '--ind-rsi') + pill('yr', '52w', '--ink-400', 'dot2') + `<button class="pill ask ${ask ? 'on' : ''}" aria-pressed="${ask}" aria-label="What these lines are" onclick="ask=!ask;redo()">?</button>`
   document.getElementById('scen').innerHTML = [['held', 'msft · 3 buy'], ['sold', 'sold out · no avg buy']].map(([s, l]) => `<button class="pill ${s === scen ? 'on' : ''}" onclick="scen='${s}';on.avg=false;redo()">${l}</button>`).join('')
   document.getElementById('theme').innerHTML = ['dark', 'light'].map((t) => `<button class="pill ${t === theme ? 'on' : ''}" onclick="setTheme('${t}')">${t}</button>`).join('')
-  document.getElementById('note').innerHTML = 'SMA 200 pressed the first time: older closes read from Yahoo, the pill spins, then the line draws. Off again on every open of the page.'
+  document.getElementById('note').innerHTML = 'SMA 200 pressed the first time: older closes read from Yahoo, the pill spins, then the line draws. Off again on every open of the page. ? opens the cards; a lit line\'s card is lit too.'
+  explain()
 }
 /* SMA 200 needs the 200 closes before the year in view: the first press
    reads the older years (as ALL does), the pill spins until they land. */
+/* The cards: what it is, today's numbers with a state in plain words,
+   why it matters. A state is a fact of two numbers side by side, never
+   coloured good or bad. */
+function explain() {
+  const el = document.getElementById('explain')
+  el.hidden = !ask
+  if (!ask) return
+  const p = bars.at(-1).close, k = bars.length - 1, s50 = S[50].at(-1).value, s200 = S[200].at(-1).value, r = S.rsi.at(-1).value
+  const side = (a, b) => a >= b ? 'above' : 'below'
+  const card = (id, c, title, sub, what, now, why) => `<div class="card ${on[id] ? 'lit' : ''}" style="--c:${cssv(c)}"><h3><i class="ln" style="--c:${cssv(c)}"></i>${title}<small>${sub}</small></h3><p>${what}</p><div class="now">${now}</div><p>${why}</p></div>`
+  const price = `<small>price</small>${usd(p)}`
+  el.innerHTML = [
+    scen === 'held' ? card('avg', '--lav-400', 'avg buy', 'what you paid', 'The average price per share of your buys in this round, since 22 Jun 2026.', `${price}<small>avg buy</small>${usd(avgUsd)}<span class="st">price ${side(p, avgUsd)}</span>`, 'Price above it: this round is up. Below it: this round is down.') : '',
+    card(50, '--ind-50', 'sma 50', '50-day average', 'The average of the last 50 closes, about 2½ months. It shows the trend of recent months.', `${price}<small>sma 50</small>${usd(s50)}<span class="st">price ${side(p, s50)}</span>`, 'When the price crosses it, the trend of recent months is often turning.'),
+    card(200, '--ind-200', 'sma 200', '200-day average', 'The average of the last 200 closes, about 10 months. It shows the long trend.', `${price}<small>sma 200</small>${usd(s200)}<span class="st">price ${side(p, s200)}</span>`, 'Long-term investors watch it most. Above it the past year has been strong; below it, weak.'),
+    card('rsi', '--ind-rsi', 'rsi 14', 'momentum, 0–100', 'How strongly the price rose against how strongly it fell, over the last 14 closes.', `<small>rsi 14</small>${r.toFixed(1)}<span class="st">${r > 70 ? 'over 70' : r < 30 ? 'under 30' : 'between 30 and 70'}</span>`, 'Over 70: it rose fast. Under 30: it fell fast. Neither is a buy or sell signal on its own.'),
+    card('yr', '--ink-400', '52w', 'the year\'s range', 'The highest and lowest close of the last 52 weeks.', `${price}<small>high</small>${usd(yr.hi.close)}<small>${fromHi.toFixed(1)}% from high</small><small>low</small>${usd(yr.lo.close)}`, 'It shows where today sits in the year: near the low it costs less than most of the year, near the high more.'),
+  ].join('')
+}
 function flip(id) {
   on[id] = !on[id]
   if (id === '200' && on[id] && !readOnce) { reading = 200; readOnce = true; setTimeout(() => { reading = null; redo() }, 1100) }

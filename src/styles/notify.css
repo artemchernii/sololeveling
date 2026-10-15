@@ -276,3 +276,45 @@
     transform: scale(1.12);
   }
 }
+
+/* The bell while something is unread: a short ring every four seconds and
+   a glow that rises with it. */
+.nt-ring-loop {
+  animation: nt-bell-glow 4s ease-in-out infinite;
+}
+.nt-ring-loop svg {
+  transform-origin: 50% 10%;
+  animation: nt-swing-loop 4s ease-in-out infinite;
+}
+@keyframes nt-swing-loop {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  5% {
+    transform: rotate(16deg);
+  }
+  10% {
+    transform: rotate(-13deg);
+  }
+  15% {
+    transform: rotate(9deg);
+  }
+  20% {
+    transform: rotate(-5deg);
+  }
+  25% {
+    transform: rotate(2deg);
+  }
+}
+@keyframes nt-bell-glow {
+  0%,
+  35%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  10% {
+    box-shadow: 0 0 18px -2px var(--system-shine);
+  }
+}

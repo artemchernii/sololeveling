@@ -117,7 +117,7 @@ function Row({
             NEW
           </span>
         ) : (
-          <span className="motion-pop inline-flex items-center gap-1 text-[9px] tracking-[0.12em] text-state-good">
+          <span className="motion-pop inline-flex items-center gap-1 rounded-full border border-current bg-state-good/10 px-2 py-[2px] text-[9px] tracking-[0.12em] text-state-good">
             ✓ SEEN
           </span>
         )}
@@ -261,8 +261,12 @@ export function Bell() {
           'relative grid size-9 place-items-center rounded-[10px] border border-lift/10 transition-colors',
           open
             ? 'bg-lav-400/15 text-lav-300 shadow-[0_0_18px_-6px_var(--system-shine)]'
-            : 'bg-sink/20 text-ink-400 hover:text-lav-300',
-          ring ? 'nt-ring' : '',
+            : unread > 0
+              ? 'border-lav-400/45 bg-lav-400/10 text-lav-300'
+              : 'bg-sink/20 text-ink-400 hover:text-lav-300',
+          /* A new one swings it hard once; while any is unread it rings
+             again every few seconds, glowing (15 Oct, his ask). */
+          ring ? 'nt-ring' : unread > 0 && !open ? 'nt-ring-loop' : '',
         ].join(' ')}
       >
         <BellIcon className="size-4" />

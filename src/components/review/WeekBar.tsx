@@ -99,7 +99,14 @@ export function WeekBar({
       }
       className="system-frame bento-tile relative flex flex-col gap-3 !overflow-visible p-3.5"
     >
-      <span aria-hidden className="bento-sweep" />
+      {/* Clipped on its own: the bar stays unclipped for the day cards'
+          hover lines, and the sweep must not widen the page. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+      >
+        <span className="bento-sweep" />
+      </span>
       <div className="relative flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <span className="font-mono text-[14px] font-medium tracking-[0.3em] text-lav-300 [text-shadow:0_0_14px_var(--system-shine),0_0_2px_var(--color-lav-400)]">

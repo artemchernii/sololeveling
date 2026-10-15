@@ -17,6 +17,9 @@ if [ ! -f .env.local ]; then
   echo "copied .env.local from $main"
 fi
 issuer=$(npx convex env get CLERK_JWT_ISSUER_DOMAIN)
+# N1: a public key so ALLOW can be pressed in a test; no private key, so
+# the test backend never sends a push.
+vapid=$(node -p "require('web-push').generateVAPIDKeys().publicKey")
 before=$(shasum .env.local)
 read -r backend site _app < <(node e2e/ports.ts)
 at=(--local-cloud-port "$backend" --local-site-port "$site")
@@ -24,6 +27,7 @@ cd e2e/backend
 CONVEX_AGENT_MODE=anonymous npx convex dev --once "${at[@]}" || true
 npx convex env set CLERK_JWT_ISSUER_DOMAIN "$issuer"
 npx convex env set E2E 1
+npx convex env set VAPID_PUBLIC_KEY "$vapid"
 npx convex dev --once "${at[@]}"
 cd ../..
 [ "$before" = "$(shasum .env.local)" ] || { echo "the app's .env.local changed — stop"; exit 1; }

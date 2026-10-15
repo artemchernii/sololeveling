@@ -174,7 +174,7 @@ const SEGS: Record<PhoneState, [Seg, Seg, Seg]> = {
 }
 
 export function PhoneWindow() {
-  const { state, busy, failed, allow, keyMissing } = usePhone()
+  const { state, busy, failed, allow, keyMissing, ready } = usePhone()
   const isPhone =
     typeof navigator !== 'undefined' &&
     deviceOf(navigator.userAgent) === 'iphone'
@@ -241,7 +241,7 @@ export function PhoneWindow() {
           </div>
           <button
             type="button"
-            disabled={busy || keyMissing}
+            disabled={busy || keyMissing || !ready}
             onClick={() => void allow()}
             className={[
               BUTTON,
@@ -279,7 +279,13 @@ export function PhoneWindow() {
         </>
       ) : null}
 
-      {state === 'blocked' ? (
+      {state === 'blocked' && !isPhone ? (
+        <div className="glass rounded-[14px] px-3.5 py-3 font-mono text-[10.5px] tracking-[0.12em] text-ink-200">
+          ADDRESS BAR → SITE SETTINGS → NOTIFICATIONS → ALLOW
+        </div>
+      ) : null}
+
+      {state === 'blocked' && isPhone ? (
         <>
           <span className="font-mono text-[9.5px] tracking-[0.16em] text-ink-400">
             SETTINGS

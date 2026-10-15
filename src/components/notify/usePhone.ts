@@ -35,7 +35,7 @@ async function currentSubscription(): Promise<PushSubscription | null> {
 }
 
 export function usePhone() {
-  const key = useQuery(api.push.publicKey)
+  const key = useQuery(api.push.publicKey, {})
   const save = useMutation(api.push.subscribe)
   const [state, setState] = useState<PhoneState | null>(null)
   const [busy, setBusy] = useState(false)
@@ -79,7 +79,8 @@ export function usePhone() {
       } else if (answer === 'granted') {
         setFailed(true)
       }
-    } catch {
+    } catch (e) {
+      console.warn('push: allow failed', e)
       setFailed(true)
     } finally {
       setBusy(false)
@@ -87,5 +88,12 @@ export function usePhone() {
     }
   }, [key, save, refresh])
 
-  return { state, busy, failed, allow, keyMissing: key === null }
+  return {
+    state,
+    busy,
+    failed,
+    allow,
+    keyMissing: key === null,
+    ready: key !== undefined,
+  }
 }

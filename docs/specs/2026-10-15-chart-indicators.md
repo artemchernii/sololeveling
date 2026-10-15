@@ -40,7 +40,7 @@ row of pills under PRICE: `AVG BUY` · `SMA 50` · `SMA 200` · `RSI 14` ·
   70 in ink; key `RSI 14 · 14 closes · 30 / 70`.
 - 52W: two dotted ink lines over the last 52 weeks, `52W HIGH` and
   `52W LOW` on the axis; key `52W HIGH $495.17 · 29 Oct 2025 · 52W LOW
-  $384.89 · 22 Jun 2026`.
+$384.89 · 22 Jun 2026`.
 - `?`: cards under the key, one per line — title, one plain sentence
   of what it is, today's numbers side by side with a state
   (`PRICE ABOVE`, `BETWEEN 30 AND 70`), one sentence of why it

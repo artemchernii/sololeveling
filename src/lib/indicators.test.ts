@@ -9,7 +9,9 @@ const series = (vs: ReadonlyArray<number>) =>
   vs.map((v, i) => ({ t: at('2026-01-01') + i * DAY, v }))
 
 /* The 14-day RSI worked example from StockCharts' ChartSchool (Wilder's
-   smoothing), and the RSI it lists for each day from the 15th close. */
+   smoothing), and the RSI it lists for each day from the 15th close.
+   Its table rounds the averages to the cent on the way, so it sits up
+   to 0.07 from the exact value. */
 const WILDER = [
   44.34, 44.09, 44.15, 43.61, 44.33, 44.83, 45.1, 45.42, 45.84, 46.08, 45.89,
   46.03, 45.61, 46.28, 46.28, 46.0, 46.03, 46.41, 46.22, 45.64, 46.21, 46.25,
@@ -36,7 +38,9 @@ describe('rsi', () => {
   it("matches Wilder's worked example", () => {
     const out = rsi(series(WILDER), 14)
     expect(out).toHaveLength(WILDER_RSI.length)
-    out.forEach((p, i) => expect(p.v).toBeCloseTo(WILDER_RSI[i], 1))
+    out.forEach((p, i) =>
+      expect(Math.abs(p.v - WILDER_RSI[i])).toBeLessThan(0.1),
+    )
     expect(out[0].t).toBe(series(WILDER)[14].t)
   })
 
@@ -95,7 +99,7 @@ describe('rateOn', () => {
     { t: at('2026-06-23'), v: 120 },
   ]
 
-  it("reads a euro per unit from the close on or before the day", () => {
+  it('reads a euro per unit from the close on or before the day', () => {
     const rate = rateOn(closes)
     expect(rate(at('2026-06-22') + 3600_000)).toBeCloseTo(0.9, 6)
     expect(rate(at('2026-06-20'))).toBeCloseTo(0.86, 6)

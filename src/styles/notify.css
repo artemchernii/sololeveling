@@ -251,3 +251,28 @@
     top: 92%;
   }
 }
+
+/* An unread row's area glow, breathing (the Review tiles' .glow). */
+.nt-glow-blob {
+  position: absolute;
+  top: -60px;
+  left: -40px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: var(--a);
+  filter: blur(42px);
+  pointer-events: none;
+  animation: nt-breathe 5s ease-in-out infinite;
+}
+@keyframes nt-breathe {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.24;
+    transform: scale(1.12);
+  }
+}

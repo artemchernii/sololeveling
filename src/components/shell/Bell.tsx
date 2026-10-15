@@ -65,35 +65,60 @@ function Row({
   onOpen: (n: Doc<'notifications'>) => void
 }) {
   const k = KIND[n.kind]
+  const unread = n.readAt === undefined
+  /* Unread is lit — a lavender edge, its area's glow breathing, NEW and a
+     pinging dot; seen is dimmed with a tick (15 Oct: "when already viewed
+     no indication of that"). */
   return (
     <button
       type="button"
       data-testid="bell-row"
+      data-unread={unread ? 'true' : 'false'}
       onClick={() => onOpen(n)}
-      className="glass motion-arrive group flex w-full items-center gap-3 rounded-[14px] px-3 py-2.5 text-left transition-transform hover:-translate-y-0.5"
+      className={[
+        'motion-arrive group relative flex w-full items-center gap-3.5 overflow-hidden rounded-[16px] border px-3.5 py-3 text-left transition-all duration-300 hover:-translate-y-0.5',
+        unread
+          ? 'border-lav-400/45 bg-lav-400/[0.08] shadow-[0_0_24px_-10px_var(--system-shine)]'
+          : 'border-lift/[0.07] bg-lift/[0.025] opacity-70 hover:opacity-100',
+      ].join(' ')}
       style={
         { '--a': k.area, animationDelay: `${i * 70}ms` } as React.CSSProperties
       }
     >
-      <span className="grid size-[38px] shrink-0 place-items-center rounded-[11px] border border-[color-mix(in_oklch,var(--a)_35%,transparent)] bg-[color-mix(in_oklch,var(--a)_18%,transparent)] text-[var(--a)]">
+      {unread ? <span aria-hidden className="nt-glow-blob" /> : null}
+      <span
+        className={[
+          'relative grid size-11 shrink-0 place-items-center rounded-[13px] border border-[color-mix(in_oklch,var(--a)_40%,transparent)] bg-[color-mix(in_oklch,var(--a)_20%,transparent)] text-[var(--a)]',
+          unread ? 'shadow-[0_0_16px_-4px_var(--a)]' : '',
+        ].join(' ')}
+      >
         {k.icon}
       </span>
-      <span className="min-w-0">
-        <span className="block truncate text-[14px]">{n.title}</span>
-        <span className="mt-0.5 block truncate font-mono text-[10px] tracking-[0.08em] text-ink-400 uppercase">
+      <span className="relative min-w-0">
+        <span
+          className={[
+            'block truncate text-[15px]',
+            unread ? 'font-medium text-foreground' : 'text-ink-300',
+          ].join(' ')}
+        >
+          {n.title}
+        </span>
+        <span className="mt-1 block truncate font-mono text-[10.5px] tracking-[0.08em] text-ink-300 uppercase">
           {n.body}
         </span>
       </span>
-      <span className="ml-auto flex flex-col items-end gap-1.5 self-start font-mono text-[10.5px] text-ink-500">
+      <span className="relative ml-auto flex shrink-0 flex-col items-end gap-2 self-stretch justify-between font-mono text-[11px] text-ink-400">
         {time(n.sentAt)}
-        {n.readAt === undefined ? (
-          <i
+        {unread ? (
+          <span
             data-testid="bell-unread"
-            className="nt-ping block size-[7px] rounded-full bg-lav-400 text-lav-400"
-          />
+            className="nt-live inline-flex items-center gap-1.5 rounded-full border border-current bg-lav-400/10 px-2 py-[2px] text-[9px] tracking-[0.12em] text-lav-400"
+          >
+            NEW
+          </span>
         ) : (
-          <span className="transition-transform group-hover:translate-x-0.5">
-            →
+          <span className="motion-pop inline-flex items-center gap-1 text-[9px] tracking-[0.12em] text-state-good">
+            ✓ SEEN
           </span>
         )}
       </span>
@@ -214,10 +239,15 @@ export function Bell() {
     }
   }, [open])
 
+  /* The row flips to SEEN first, then its screen opens; already on that
+     screen, the bell stays open so the flip is what answers. */
   const openRow = (n: Doc<'notifications'>) => {
-    setOpen(false)
     if (n.readAt === undefined) void markRead({ id: n._id })
-    void navigate({ to: n.url })
+    if (window.location.pathname === n.url) return
+    setTimeout(() => {
+      setOpen(false)
+      void navigate({ to: n.url })
+    }, 350)
   }
 
   return (

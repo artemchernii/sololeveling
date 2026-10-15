@@ -41,17 +41,20 @@ row of pills under PRICE: `AVG BUY` · `SMA 50` · `SMA 200` · `RSI 14` ·
 - 52W: two dotted ink lines over the last 52 weeks, `52W HIGH` and
   `52W LOW` on the axis; key `52W HIGH $495.17 · 29 Oct 2025 · 52W LOW
 $384.89 · 22 Jun 2026`.
-- `SIGNALS` (was `?`; 15 Oct: "cards are bad … BAD or GOOD, most likely
-  bullish or bearish, and bland. And I press ? and nothing changes"):
-  cards open right under the pills, one per line, each with a verdict
-  badge by the line's textbook rule — icon, colour, a glow:
-  - AVG BUY: `IN PROFIT` / `AT A LOSS`, price vs avg buy in %.
-  - SMA 50 / 200: `BULLISH` price above / `BEARISH` below, in %.
-  - RSI 14: `OVERBOUGHT` over 70 (red), `OVERSOLD` under 30 (green),
-    `NEUTRAL` between.
-  - 52W: `NEAR HIGH` top third (green), `NEAR LOW` bottom third (red),
-    `MID RANGE`; % from the high.
-    A gauge with today's mark sliding in, both numbers, one plain line.
+- Under the chart, two tabs (15 Oct: "hide it in tab … list of
+  signals"): `SIGNALS 1 ▲ 2 ▼ 2 —` (first, open by default) and
+  `BUYS & SELLS 3` (the list as built). The last tab chosen is kept on
+  the device. A signal is one row: its line mark (a button that puts
+  the line on the chart), name and period, the verdict badge by the
+  textbook rule (icon + colour), the %, a gauge with today's mark; a
+  tap opens it to one plain sentence and both numbers.
+  - AVG BUY `IN PROFIT` / `AT A LOSS`; SMA 50 / 200 `BULLISH` above,
+    `BEARISH` below; RSI 14 `OVERBOUGHT` > 70, `OVERSOLD` < 30,
+    `NEUTRAL`; 52W `NEAR HIGH` top third, `NEAR LOW` bottom third,
+    `MID RANGE`.
+    A lit pill on the chart carries its verdict arrow (`SMA 200 ▼`).
+    (Earlier: `?` cards under the key, then SIGNALS cards above the chart
+    — "cards are bad … I press ? and nothing changes".)
 - The reading line above the chart adds each lit line's value for the
   day under the pointer, in its colour: `SMA 50 $439.62`.
 - Line colours never good or bad (only the SIGNALS verdicts are): new tokens `--ind-50` (hue 225),

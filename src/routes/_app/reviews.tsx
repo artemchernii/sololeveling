@@ -3,12 +3,12 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
+import { AiReviewTile } from '@/components/review/AiReviewTile'
 import { BodyTile } from '@/components/review/BodyTile'
 import { FinancesTile } from '@/components/review/FinancesTile'
 import { LanguagesTile } from '@/components/review/LanguagesTile'
-import { NoteTile } from '@/components/review/NoteTile'
 import { ProjectsTile } from '@/components/review/ProjectsTile'
-import { WeekBar } from '@/components/review/WeekBar'
+import { WeekBar, isoWeek } from '@/components/review/WeekBar'
 import { Skeleton } from '@/components/Skeleton'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { useHeld } from '@/lib/loading'
@@ -60,42 +60,41 @@ function Reviews() {
     api.aggregate.languageLevels,
     areas === undefined ? 'skip' : { slugs },
   )
-  const review = useQuery(api.reviews.forWeek, { periodStart: key })
 
   const all = week && worth && levels ? { week, worth, levels } : undefined
   /* One page about one week, arriving as one, and held again when you page
      to another week — never last week's numbers under this week's name. */
   const data = useHeld(all, key)
 
-  /* No live project, no commit chips: a row of zeros says nothing. */
-  const commits =
-    data && data.week.projects.length > 0
-      ? Array.from({ length: 7 }, (_, k) =>
-          data.week.projects.reduce((n, p) => n + p.days[k], 0),
-        )
-      : undefined
+  const fourWeeksStart = addWeeks(weekStart, -3).getTime()
   const body = data?.week.body
   const showBody =
     body !== undefined &&
     (body.workouts4 > 0 ||
-      (body.weight !== null &&
-        body.weight.at >= addWeeks(weekStart, -3).getTime()))
+      body.shakes4 > 0 ||
+      (body.weight !== null && body.weight.at >= fourWeeksStart))
   const spoken = languages.filter(
     (a) => (data?.week.languages.find((l) => l.slug === a.slug)?.four ?? 0) > 0,
   )
   const hasProjects = (data?.week.projects.length ?? 0) > 0
-  const noteSpan = ['lg:col-span-2', 'lg:col-span-4', 'lg:col-span-6'][
-    (showBody ? 0 : 1) + (spoken.length > 0 ? 0 : 1)
-  ]
+  /* The bottom row shares six columns between the tiles that have
+     something in four weeks. */
+  const shown = [showBody, spoken.length > 0, hasProjects].filter(Boolean)
+  const rowSpan = `col-span-2 ${['lg:col-span-6', 'lg:col-span-6', 'lg:col-span-3', 'lg:col-span-2'][shown.length]}`
+  const languageCodes = Object.fromEntries(
+    languages.map((a) => [
+      a.slug,
+      (a.lang ?? a.slug).slice(0, 2).toUpperCase(),
+    ]),
+  )
 
   return (
     <div className="flex flex-col gap-2.5">
       <WeekBar
         weekStart={weekStart}
-        closed={review?.closedAt !== undefined}
         today={todayIndex}
-        commits={commits}
-        spent={data?.week.money.byDay}
+        week={data?.week}
+        languageCodes={languageCodes}
         isThisWeek={isThisWeek}
         onMove={(n) => setWeekStart(addWeeks(weekStart, n))}
       />
@@ -112,32 +111,26 @@ function Reviews() {
             dayEnds={dayEnds}
             today={todayIndex}
             wasLabel={isThisWeek ? 'LAST WEEK' : 'WEEK BEFORE'}
-            span={
-              hasProjects
-                ? 'col-span-2 lg:col-span-4 lg:row-span-2'
-                : 'col-span-2 lg:col-span-6'
-            }
+            span="col-span-2 lg:col-span-4 lg:row-span-2"
           />
-          {hasProjects ? (
-            <ProjectsTile
-              projects={data.week.projects}
-              today={todayIndex}
-              most={Math.max(1, ...(commits ?? []))}
-            />
-          ) : null}
-          {showBody ? <BodyTile body={data.week.body} /> : null}
+          <AiReviewTile weekNumber={isoWeek(weekStart)} />
+          {showBody ? <BodyTile body={data.week.body} span={rowSpan} /> : null}
           {spoken.length > 0 ? (
             <LanguagesTile
               languages={spoken}
               week={data.week.languages}
               levels={data.levels}
+              span={rowSpan}
             />
           ) : null}
-          <NoteTile
-            periodStart={key}
-            review={review ?? null}
-            span={`col-span-2 ${noteSpan}`}
-          />
+          {hasProjects ? (
+            <ProjectsTile
+              projects={data.week.projects}
+              today={todayIndex}
+              most={Math.max(1, ...data.week.projects.flatMap((p) => p.days))}
+              span={rowSpan}
+            />
+          ) : null}
         </div>
       )}
     </div>

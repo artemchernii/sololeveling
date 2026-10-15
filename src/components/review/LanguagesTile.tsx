@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { Languages } from 'lucide-react'
 
 import type { FunctionReturnType } from 'convex/server'
@@ -12,17 +13,20 @@ type LanguageWeek = FunctionReturnType<
 >['languages'][number]
 type Level = FunctionReturnType<typeof api.aggregate.languageLevels>[number]
 
-/* Languages (mockup real.html): a line per language with sessions in the
-   last four weeks — this week beside the four, and its level. */
+/* Languages (mockup real2.html): a row per language with sessions in the
+   last four weeks — its sessions THIS WEEK and in 4 WEEKS, two labelled
+   columns, and its level. */
 export function LanguagesTile({
   languages,
   week,
   levels,
+  span,
 }: {
   /** Only the languages with a session in four weeks. */
   languages: ReadonlyArray<Doc<'areas'>>
   week: ReadonlyArray<LanguageWeek>
   levels: ReadonlyArray<Level>
+  span: string
 }) {
   return (
     <Tile
@@ -31,41 +35,54 @@ export function LanguagesTile({
       area={`var(--area-${languages[0].slug})`}
       icon={<Languages />}
       index={4}
-      span="col-span-2 lg:col-span-2"
+      span={span}
     >
-      {languages.map((a) => {
-        const w = week.find((l) => l.slug === a.slug)
-        const level = levels.find((l) => l.slug === a.slug)?.textValue
-        const photo = languageByCode(a.lang)?.photo
-        return (
-          <div
-            key={a.slug}
-            style={areaVars(a.slug)}
-            data-testid={`language-${a.slug}`}
-            className="flex items-center gap-2"
-          >
-            {photo ? (
-              <img
-                src={photo}
-                alt=""
-                className="size-[26px] shrink-0 rounded-[7px] border border-lift/[0.09] object-cover"
-              />
-            ) : null}
-            <Caps className="min-w-0 flex-1 truncate tracking-[0.1em] text-ink-200">
-              {a.label}
-            </Caps>
-            <span className="shrink-0 font-mono text-[10.5px] text-ink-300">
-              <b className="text-[15px] font-normal text-foreground">
+      <div className="grid grid-cols-[26px_minmax(0,1fr)_56px_56px_auto] items-center gap-x-2.5 gap-y-1.5">
+        <span />
+        <span />
+        <Caps className="text-center">THIS WEEK</Caps>
+        <Caps className="text-center">4 WEEKS</Caps>
+        <span />
+        {languages.map((a) => {
+          const w = week.find((l) => l.slug === a.slug)
+          const level = levels.find((l) => l.slug === a.slug)?.textValue
+          const photo = languageByCode(a.lang)?.photo
+          return (
+            <Fragment key={a.slug}>
+              {photo ? (
+                <img
+                  src={photo}
+                  alt=""
+                  style={areaVars(a.slug)}
+                  className="size-[26px] rounded-[7px] border border-lift/[0.09] object-cover"
+                />
+              ) : (
+                <span />
+              )}
+              <span className="truncate font-mono text-[11.5px] font-medium tracking-[0.16em] text-foreground uppercase">
+                {a.label}
+              </span>
+              <span
+                data-testid={`language-${a.slug}-week`}
+                className="text-center text-[18px] font-light tabular-nums"
+              >
                 {w?.week ?? 0}
-              </b>{' '}
-              · {w?.four ?? 0} in 4 weeks
-            </span>
-            {level ? (
-              <Badge className="bg-lav-400/10 text-lav-400">{level}</Badge>
-            ) : null}
-          </div>
-        )
-      })}
+              </span>
+              <span
+                data-testid={`language-${a.slug}-four`}
+                className="text-center text-[18px] font-light text-ink-300 tabular-nums"
+              >
+                {w?.four ?? 0}
+              </span>
+              {level ? (
+                <Badge className="bg-lav-400/10 text-lav-400">{level}</Badge>
+              ) : (
+                <span />
+              )}
+            </Fragment>
+          )
+        })}
+      </div>
     </Tile>
   )
 }

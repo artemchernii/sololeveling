@@ -240,7 +240,7 @@ export const paySalary = mutation({
  * A lived week for Review (15 Oct, mockup real.html) on what the app gets
  * by itself: a project's commits (three of a target of three, one last
  * week) and a quiet one, a task done, four bank rows and a bill this week,
- * one row last week, two gym workouts and a weight. `days` are this week's
+ * one row last week, two gym workouts, a shake and a weight. `days` are this week's
  * Monday, Tuesday and Wednesday, local midnights. The bad day's spends are
  * taken out first, so the sums do not move with the weekday.
  */
@@ -335,6 +335,13 @@ export const reviewWeek = mutation({
       })
     await workout(hour(a, 7))
     await workout(hour(b, 7))
+    await ctx.db.insert('logs', {
+      ownerId,
+      area: 'body',
+      kind: 'intake',
+      occurredAt: hour(b, 8),
+      meta: { category: 'supplements' },
+    })
     await ctx.db.insert('stateSnapshots', {
       ownerId,
       area: 'body',

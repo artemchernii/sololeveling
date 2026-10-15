@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
+import { ArrowRight } from 'lucide-react'
 
 /* The bento's shared pieces (14 Oct, design/review-mockup/index.html). */
 
@@ -116,7 +117,7 @@ export function Tile({
     <section
       aria-label={name}
       style={{ '--area': area, '--i': index } as CSSProperties}
-      className={`glass bento-tile flex min-w-0 flex-col gap-2.5 rounded-[14px] p-3.5 ${span}`}
+      className={`glass bento-tile group/tile flex min-w-0 flex-col gap-2.5 rounded-[14px] p-3.5 ${span}`}
     >
       <span
         aria-hidden
@@ -151,9 +152,9 @@ export function Tile({
               to={to}
               tabIndex={-1}
               aria-hidden
-              className="font-mono text-[13px] text-ink-500 transition group-hover/open:translate-x-0.5 hover:text-(--area)"
+              className="grid size-[26px] place-items-center rounded-[8px] border border-lift/[0.09] bg-lift/[0.04] text-ink-300 transition group-hover/tile:translate-x-0.5 group-hover/tile:border-(--area)/50 group-hover/tile:text-(--area)"
             >
-              →
+              <ArrowRight className="size-3.5" strokeWidth={2.4} />
             </Link>
           ) : null}
         </div>

@@ -74,11 +74,10 @@ describe('aggregate.weekReview', () => {
     expect(r.money.biggest.map((b) => [b.name, b.domain, b.category])).toEqual([
       ['Solinca Gym', 'solinca.pt', 'subscriptions'],
     ])
-    expect(r.money.latestAt).toBe(MON + 2 * DAY + 3_600_000)
     expect(r.complete).toBe(true)
   })
 
-  test('a live project: commits by day, last week, target, messages, tasks', async () => {
+  test('a live project: commits by day, last week, its target', async () => {
     const { t, mine } = twoOwners()
     await t.run(async (ctx) => {
       const p = await ctx.db.insert('projects', {
@@ -138,11 +137,8 @@ describe('aggregate.weekReview', () => {
       thisWeek: 2,
       lastWeek: 1,
       days: [1, 0, 0, 1, 0, 0, 0],
-      messages: ['second', 'first'],
-      tasksDone: 0,
-      lastDoneAt: MON - 20 * DAY,
     })
-    expect(oreum).toMatchObject({ thisWeek: 0, lastWeek: 0, lastDoneAt: null })
+    expect(oreum).toMatchObject({ thisWeek: 0, lastWeek: 0 })
   })
 
   test('body and languages: this week beside four weeks; the last weight', async () => {
@@ -150,12 +146,36 @@ describe('aggregate.weekReview', () => {
     await t.run(async (ctx) => {
       const log = (
         at: number,
-        row: { kind: 'workout' | 'session'; area: string },
+        row: {
+          kind: 'workout' | 'session' | 'intake' | 'income'
+          area: string
+          meta?: { category: string }
+          value?: number
+          unit?: string
+        },
       ) => ctx.db.insert('logs', { ownerId: ME, occurredAt: at, ...row })
-      await log(MON + 3_600_000, { kind: 'workout', area: 'body' })
-      await log(MON - 10 * DAY, { kind: 'workout', area: 'body' })
+      const gym = { category: 'gym' }
+      await log(MON + 3_600_000, { kind: 'workout', area: 'body', meta: gym })
+      await log(MON - 10 * DAY, { kind: 'workout', area: 'body', meta: gym })
+      await log(MON - 12 * DAY, {
+        kind: 'workout',
+        area: 'body',
+        meta: { category: 'hiking' },
+      })
       await log(MON - 30 * DAY, { kind: 'workout', area: 'body' })
+      await log(MON + DAY, {
+        kind: 'intake',
+        area: 'body',
+        meta: { category: 'supplements' },
+      })
+      await log(MON + DAY + 1, { kind: 'session', area: 'portuguese' })
       await log(MON - 2 * DAY, { kind: 'session', area: 'portuguese' })
+      await log(MON + 2 * DAY, {
+        kind: 'income',
+        area: 'money',
+        value: 2900,
+        unit: 'eur',
+      })
       await ctx.db.insert('stateSnapshots', {
         ownerId: ME,
         area: 'body',
@@ -170,15 +190,26 @@ describe('aggregate.weekReview', () => {
     const r = await mine.query(api.aggregate.weekReview, args)
     expect(r.body).toEqual({
       workouts: 1,
-      workouts4: 2,
+      workouts4: 3,
+      shakes: 1,
+      shakes4: 1,
+      kinds: [
+        { category: 'gym', count: 2 },
+        { category: 'hiking', count: 1 },
+      ],
       weight: { value: 75.4, at: MON - 37 * DAY },
     })
-    expect(r.languages).toEqual([{ slug: 'portuguese', week: 0, four: 1 }])
+    expect(r.languages).toEqual([{ slug: 'portuguese', week: 1, four: 2 }])
+    expect(r.days.slice(0, 3)).toEqual([
+      { in: 0, workouts: ['gym'], shakes: 0, languages: [] },
+      { in: 0, workouts: [], shakes: 1, languages: ['portuguese'] },
+      { in: 2900, workouts: [], shakes: 0, languages: [] },
+    ])
   })
 
   test('a quiet account: zeros and nothing to show, never a guess', async () => {
     const r = await twoOwners().mine.query(api.aggregate.weekReview, args)
-    expect(r.money).toMatchObject({ spent: 0, lastSpent: 0, latestAt: null })
+    expect(r.money).toMatchObject({ spent: 0, lastSpent: 0, biggest: [] })
     expect(r.projects).toEqual([])
     expect(r.body.weight).toBeNull()
   })

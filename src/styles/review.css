@@ -143,3 +143,58 @@
 @utility review-today {
   animation: review-today 2.4s ease-in-out infinite;
 }
+
+@keyframes review-badge-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 14px 1px
+      color-mix(in oklch, var(--color-lav-400) 55%, transparent);
+  }
+}
+/* The DAY N OF 7 badge: the week is live, and says so. */
+@utility review-badge-pulse {
+  animation: review-badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes review-orb {
+  0%,
+  100% {
+    box-shadow: 0 0 18px -8px var(--system-shine);
+  }
+  50% {
+    box-shadow: 0 0 36px -4px var(--system-shine);
+  }
+}
+/* The AI review's orb: lavender, breathing; red with GRILL ME. */
+@utility review-orb {
+  background: radial-gradient(
+    circle at 35% 30%,
+    color-mix(in oklch, var(--color-lav-400) 45%, transparent),
+    color-mix(in oklch, var(--color-lav-400) 8%, transparent) 70%
+  );
+  animation: review-orb 3s ease-in-out infinite;
+}
+@utility review-orb-hot {
+  background: radial-gradient(
+    circle,
+    color-mix(in oklch, var(--state-danger) 35%, transparent),
+    transparent 70%
+  );
+  box-shadow: 0 0 30px -4px var(--state-danger);
+}
+
+@keyframes review-flick {
+  0%,
+  100% {
+    transform: scale(1) rotate(-4deg);
+  }
+  50% {
+    transform: scale(1.18) rotate(4deg);
+  }
+}
+@utility review-flick {
+  animation: review-flick 1s ease-in-out infinite;
+}

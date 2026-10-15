@@ -22,7 +22,15 @@ import { ownMoves } from '../src/lib/accountLines'
 import type { Close, Holding, Rate } from '../src/lib/worthHistory'
 import { lookFamily, notSeenSince, reconcile } from '../src/lib/holdings'
 import { soldPart } from '../src/lib/sold'
-import { countIn, projectWeek, spentWeek } from '../src/lib/review'
+import {
+  countIn,
+  dayMarks,
+  isShake,
+  isWorkout,
+  kindCounts,
+  projectWeek,
+  spentWeek,
+} from '../src/lib/review'
 import type { LedgerTrade, Observation } from '../src/lib/holdings'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
@@ -3512,9 +3520,17 @@ export const weekReview = query({
           occurredAt: v.number(),
         }),
       ),
-      /** The newest money row before `end`, any kind — how fresh the bank is. */
-      latestAt: v.union(v.number(), v.null()),
     }),
+    /** This week's days, Monday first: what each carried besides commits
+        and money out — the week bar's badges. */
+    days: v.array(
+      v.object({
+        in: v.number(),
+        workouts: v.array(v.string()),
+        shakes: v.number(),
+        languages: v.array(v.string()),
+      }),
+    ),
     projects: v.array(
       v.object({
         _id: v.id('projects'),
@@ -3526,14 +3542,15 @@ export const weekReview = query({
         thisWeek: v.number(),
         lastWeek: v.number(),
         days: v.array(v.number()),
-        messages: v.array(v.string()),
-        tasksDone: v.number(),
-        lastDoneAt: v.union(v.number(), v.null()),
       }),
     ),
     body: v.object({
       workouts: v.number(),
       workouts4: v.number(),
+      shakes: v.number(),
+      shakes4: v.number(),
+      /** Workouts per kind over the four weeks, most first. */
+      kinds: v.array(v.object({ category: v.string(), count: v.number() })),
       weight: v.union(
         v.object({ value: v.number(), at: v.number() }),
         v.null(),
@@ -3591,16 +3608,6 @@ export const weekReview = query({
         domain: named?.domain ?? null,
       })
     }
-    const newestMoney = await ctx.db
-      .query('logs')
-      .withIndex('by_owner_area_time', (q) =>
-        q.eq('ownerId', ownerId).eq('area', 'money').lt('occurredAt', args.end),
-      )
-      .order('desc')
-      .first()
-
-    const isWorkout = (l: Doc<'logs'>) =>
-      l.area === 'body' && l.kind === 'workout'
     const weight = await ctx.db
       .query('stateSnapshots')
       .withIndex('by_owner_key_time', (q) =>
@@ -3636,19 +3643,6 @@ export const weekReview = query({
           starts,
           args.end,
         )
-        const done = (
-          await ctx.db
-            .query('tasks')
-            .withIndex('by_project', (q) => q.eq('projectId', project._id))
-            .take(MAX_ROWS)
-        ).filter(
-          (t) =>
-            t.ownerId === ownerId &&
-            t.status === 'done' &&
-            t.completedAt !== undefined &&
-            t.completedAt < args.end,
-        )
-        const doneAt = done.map((t) => t.completedAt as number)
         projects.push({
           _id: project._id,
           title: project.title,
@@ -3660,8 +3654,6 @@ export const weekReview = query({
               : await ctx.storage.getUrl(project.logoId),
           target: project.commitTargetWeekly ?? null,
           ...counted,
-          tasksDone: doneAt.filter((t) => t >= start).length,
-          lastDoneAt: doneAt.length > 0 ? Math.max(...doneAt) : null,
         })
       }
     }
@@ -3674,12 +3666,15 @@ export const weekReview = query({
         byDay: week.byDay,
         count: week.count,
         biggest,
-        latestAt: newestMoney?.occurredAt ?? null,
       },
+      days: dayMarks(logs, starts, args.end, args.languages),
       projects,
       body: {
         workouts: countIn(logs, start, args.end, isWorkout),
         workouts4: countIn(logs, args.fourWeeksStart, args.end, isWorkout),
+        shakes: countIn(logs, start, args.end, isShake),
+        shakes4: countIn(logs, args.fourWeeksStart, args.end, isShake),
+        kinds: kindCounts(logs, args.fourWeeksStart, args.end),
         weight:
           weight?.value === undefined
             ? null

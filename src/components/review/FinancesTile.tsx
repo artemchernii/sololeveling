@@ -52,31 +52,30 @@ export function FinancesTile({
       icon={<DollarSign />}
       index={1}
       span={span}
-      extra={
-        money.latestAt !== null ? (
-          <Badge>LATEST ROW · {dayLabel(money.latestAt)}</Badge>
-        ) : null
-      }
     >
       <div className="grid flex-1 gap-[22px] sm:grid-cols-[1fr_1.25fr]">
         <div className="flex min-w-0 flex-col gap-3.5">
           <div className="flex flex-col gap-1">
-            <Caps>
-              SPENT · {wasLabel === 'LAST WEEK' ? 'THIS WEEK' : 'WEEK'}
-            </Caps>
-            <span className="text-[38px] leading-none font-light tracking-tight text-state-danger tabular-nums">
-              <CountUp to={money.spent} format={euros2} testId="spent" />
+            <span className="flex items-center gap-1.5">
+              <Caps>
+                SPENT · {wasLabel === 'LAST WEEK' ? 'THIS WEEK' : 'WEEK'}
+              </Caps>
+              <Info testId="bills">
+                BILLS NOT COUNTED · {euros(money.bills)}
+              </Info>
             </span>
-            <Delta
-              now={money.spent}
-              was={money.lastSpent}
-              goodWhenUp={false}
-              label={wasLabel}
-              testId="spent-change"
-            />
-            <Badge className="mt-1 self-start text-ink-400">
-              BILLS NOT COUNTED · {euros(money.bills)}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="text-[38px] leading-none font-light tracking-tight text-state-danger tabular-nums">
+                <CountUp to={money.spent} format={euros2} testId="spent" />
+              </span>
+              <Change
+                now={money.spent}
+                was={money.lastSpent}
+                goodWhenUp={false}
+                testId="spent-change"
+              />
+            </div>
+            <Was label={wasLabel} amount={euros(money.lastSpent)} />
           </div>
           {money.biggest.length > 0 ? (
             <div className="flex flex-col gap-2">
@@ -125,21 +124,25 @@ export function FinancesTile({
               <Caps>
                 WORTH · {wasLabel === 'LAST WEEK' ? 'THIS WEEK' : 'WEEK'}
               </Caps>
-              <span className="text-[30px] leading-none font-light tracking-tight tabular-nums">
-                <CountUp
-                  to={now.v}
-                  format={(n) => euros(Math.round(n))}
-                  testId="worth"
-                />
-              </span>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="text-[30px] leading-none font-light tracking-tight tabular-nums">
+                  <CountUp
+                    to={now.v}
+                    format={(n) => euros(Math.round(n))}
+                    testId="worth"
+                  />
+                </span>
+                {was ? (
+                  <Change
+                    now={Math.round(now.v)}
+                    was={Math.round(was.v)}
+                    goodWhenUp
+                    testId="worth-change"
+                  />
+                ) : null}
+              </div>
               {was ? (
-                <Delta
-                  now={Math.round(now.v)}
-                  was={Math.round(was.v)}
-                  goodWhenUp
-                  label={wasLabel}
-                  testId="worth-change"
-                />
+                <Was label={wasLabel} amount={euros(Math.round(was.v))} />
               ) : null}
             </div>
           ) : (
@@ -170,18 +173,16 @@ export function FinancesTile({
 
 const euros2 = (n: number) => euros(Math.round(n * 100) / 100)
 
-/** This week minus last, an arrow and the amount, with what it was. */
-function Delta({
+/** This week minus last: an arrow and the amount, green when good. */
+function Change({
   now,
   was,
   goodWhenUp,
-  label,
   testId,
 }: {
   now: number
   was: number
   goodWhenUp: boolean
-  label: string
   testId: string
 }) {
   const c = weekChange(now, was, goodWhenUp)
@@ -192,26 +193,52 @@ function Delta({
         ? 'text-state-good'
         : 'text-state-danger'
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <span
+      data-testid={testId}
+      data-good={String(c.good)}
+      style={{ animationDelay: '900ms' }}
+      className={`motion-pop inline-flex items-center gap-1 rounded-full border border-current bg-current/12 px-[9px] py-[3px] font-mono text-[13px] ${colour}`}
+    >
+      {c.dir === 'same' ? null : (
+        <ArrowUp
+          aria-label={c.dir === 'up' ? 'up' : 'down'}
+          strokeWidth={3}
+          className={`size-[13px] ${c.dir === 'down' ? 'rotate-180' : ''}`}
+        />
+      )}
+      {euros(c.amount)}
+    </span>
+  )
+}
+
+/** What it was: `LAST WEEK · €74.05`, the amount bold. */
+function Was({ label, amount }: { label: string; amount: string }) {
+  return (
+    <span className="font-mono text-[12px] tracking-[0.08em] text-ink-400">
+      {label} ·{' '}
+      <b className="text-[14px] font-medium tracking-normal text-foreground">
+        {amount}
+      </b>
+    </span>
+  )
+}
+
+/** An ⓘ that shows its line on hover or focus. */
+function Info({ children, testId }: { children: ReactNode; testId: string }) {
+  return (
+    <span
+      tabIndex={0}
+      data-testid={testId}
+      className="group/info relative inline-grid size-[15px] cursor-help place-items-center rounded-full border border-ink-500 font-mono text-[9px] font-semibold text-ink-300 outline-none"
+    >
+      i
       <span
-        data-testid={testId}
-        data-good={String(c.good)}
-        style={{ animationDelay: '900ms' }}
-        className={`motion-pop inline-flex items-center gap-1 rounded-full border border-current bg-current/12 px-2 py-0.5 font-mono text-[12px] ${colour}`}
+        role="tooltip"
+        className="pointer-events-none absolute top-[calc(100%+6px)] left-0 z-30 rounded-[10px] border border-lav-400/35 bg-background/95 px-2.5 py-2 font-mono text-[9.5px] tracking-[0.12em] whitespace-nowrap text-ink-200 uppercase opacity-0 shadow-[0_18px_40px_-16px_black] transition group-hover/info:opacity-100 group-focus/info:opacity-100"
       >
-        {c.dir === 'same' ? null : (
-          <ArrowUp
-            aria-label={c.dir === 'up' ? 'up' : 'down'}
-            strokeWidth={3}
-            className={`size-3 ${c.dir === 'down' ? 'rotate-180' : ''}`}
-          />
-        )}
-        {euros(c.amount)}
+        {children}
       </span>
-      <span className="font-mono text-[10.5px] text-ink-500">
-        {label} · {euros(was)}
-      </span>
-    </div>
+    </span>
   )
 }
 

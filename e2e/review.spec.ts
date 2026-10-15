@@ -26,9 +26,15 @@ test('Review: a lived week — spent without bills, commits, body, by day', asyn
 
   const bar = page.getByRole('region', { name: 'Week' })
   await expect(bar.getByText(/DAY \d OF 7/)).toBeVisible()
-  await expect(bar.getByTestId('day-0').getByText('2 COMMITS')).toBeVisible()
-  await expect(bar.getByTestId('day-0').getByText('€37.86 OUT')).toBeVisible()
-  await expect(bar.getByText('LOGGED')).toHaveCount(0)
+  const monday = bar.getByTestId('day-0')
+  await expect(monday.getByLabel('2 commits')).toBeVisible()
+  await expect(monday.getByText('€37.86 OUT')).toBeVisible()
+  await expect(monday.getByText('GYM')).toBeVisible()
+  await expect(bar.getByTestId('day-1').getByText('SHAKE')).toBeVisible()
+  await monday.hover()
+  const tip = monday.getByRole('tooltip')
+  await expect(tip.getByText('Solo Leveling')).toBeVisible()
+  await expect(tip.getByText('2 COMMITS')).toBeVisible()
 
   const money = page.getByRole('region', { name: 'Finances' })
   await expect(money.getByTestId('spent')).toHaveText('€50.44')
@@ -39,35 +45,37 @@ test('Review: a lived week — spent without bills, commits, body, by day', asyn
     'true',
   )
   await expect(money.getByText('LAST WEEK · €74.05')).toBeVisible()
-  await expect(money.getByText('BILLS NOT COUNTED · €22.14')).toBeVisible()
+  await expect(money.getByTestId('bills')).toContainText(
+    'BILLS NOT COUNTED · €22.14',
+  )
+  await expect(money.getByText('LATEST ROW')).toHaveCount(0)
   await expect(money.getByText('Veiga e Seabra')).toBeVisible()
   await expect(money.getByText('Anthropic')).toHaveCount(0)
   await expect(money.getByText('1 MORE →')).toBeVisible()
-  await expect(money.getByText('SPENT BY DAY')).toBeVisible()
   await expect(money.getByText('CASH')).toBeVisible()
-  await expect(money.getByText('INVESTED')).toBeVisible()
 
   const projects = page.getByRole('region', { name: 'Projects' })
   const sl = projects.getByTestId('project')
   await expect(sl.getByTestId('commits')).toHaveText('3')
   await expect(sl.getByText('TARGET')).toBeVisible()
-  await expect(sl.getByText('was 1 last week')).toBeVisible()
-  await expect(sl.getByText('fix(review): bills not counted')).toBeVisible()
-  await expect(sl.getByText(/TASKS · 1 this week · last done/)).toBeVisible()
+  await expect(sl.getByText('1 last week')).toBeVisible()
+  await expect(sl.getByText('fix(review): bills not counted')).toHaveCount(0)
+  await expect(sl.getByText(/TASKS/)).toHaveCount(0)
   await expect(
-    projects.getByTestId('project-quiet').getByText('0 COMMITS · was 0'),
+    projects.getByTestId('project-quiet').getByText('0 COMMITS · 0 last week'),
   ).toBeVisible()
 
   const body = page.getByRole('region', { name: 'Body' })
   await expect(body.getByTestId('workouts')).toHaveText('2')
-  await expect(body.getByText('2 in 4 weeks')).toBeVisible()
+  await expect(body.getByTestId('shakes')).toHaveText('1')
+  await expect(body.getByText('Gym 2')).toBeVisible()
   await expect(body.getByTestId('weight')).toContainText('75.4')
 
-  await expect(page.getByRole('region', { name: 'Activity' })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Note' })).toHaveCount(0)
   await page.screenshot({ ...shot('review-week'), fullPage: true })
 })
 
-test('Review: a quiet week — no zero tiles, Finances and the note', async ({
+test('Review: a quiet week — no zero tiles, Finances and the AI review', async ({
   page,
 }) => {
   await start(page)
@@ -77,7 +85,7 @@ test('Review: a quiet week — no zero tiles, Finances and the note', async ({
 
   const money = page.getByRole('region', { name: 'Finances' })
   await expect(money.getByTestId('spent')).toHaveText('€0')
-  await expect(page.getByRole('region', { name: 'Note' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'AI review' })).toBeVisible()
   for (const name of ['Projects', 'Body', 'Languages'])
     await expect(page.getByRole('region', { name })).toHaveCount(0)
   await expect(
@@ -87,24 +95,19 @@ test('Review: a quiet week — no zero tiles, Finances and the note', async ({
   await page.screenshot({ ...shot('review-quiet'), fullPage: true })
 })
 
-test('Review: the week closes with one line — saving, closed, saved', async ({
+test('Review: the AI review — GRILL ME turns on, a press answers', async ({
   page,
 }) => {
   await start(page)
   await page.goto('/reviews')
-  await expect(page.getByRole('button', { name: 'Week after' })).toBeDisabled()
-
-  const note = page.getByRole('region', { name: 'Note' })
-  await note.getByRole('textbox').fill('Class on Wednesday')
-  await note.getByRole('button', { name: 'CLOSE WEEK' }).click()
-  await expect(note.getByText('saving')).toBeVisible()
-  await expect(note.getByText('SAVED')).toBeVisible()
-  await expect(
-    page.getByRole('region', { name: 'Week' }).getByText('CLOSED'),
-  ).toBeVisible()
-  await expect(note.getByRole('textbox')).toHaveCount(0)
-  await expect(note.getByText('Class on Wednesday')).toBeVisible()
-  await page.screenshot(shot('review-closed'))
+  const ai = page.getByRole('region', { name: 'AI review' })
+  await expect(ai.getByText('NOT READ')).toBeVisible()
+  const grill = ai.getByRole('button', { name: 'GRILL ME' })
+  await grill.click()
+  await expect(grill).toHaveAttribute('aria-pressed', 'true')
+  await ai.getByRole('button', { name: 'ANALYZE WEEK' }).click()
+  await expect(ai.getByText('NOT CONNECTED')).toBeVisible()
+  await page.screenshot(shot('review-ai'))
 })
 
 test('Review: a tile opens its page', async ({ page }) => {

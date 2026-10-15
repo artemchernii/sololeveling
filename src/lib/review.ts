@@ -100,7 +100,7 @@ export function spentWeek<T extends MoneyRow>(
 
 export type CommitRow = {
   repo: string
-  message: string
+  message?: string
   authoredAt: number
   isMerge?: boolean
 }
@@ -110,8 +110,6 @@ export type ProjectCommits = {
   lastWeek: number
   /** This week's commits per day, Monday first. */
   days: Array<number>
-  /** This week's two newest messages, newest first. */
-  messages: Array<string>
 }
 
 /** One project's commits over two weeks. Only its own repo's rows, and no
@@ -128,24 +126,94 @@ export function projectWeek(
   const mine = rows.filter(
     (r) => repo !== undefined && r.repo === repo && r.isMerge !== true,
   )
-  const inWeek: Array<CommitRow> = []
   for (const row of mine) {
     if (row.authoredAt >= lastWeekStart && row.authoredAt < starts[0])
       lastWeek += 1
     const i = dayIndex(starts, end, row.authoredAt)
+    if (i !== -1) days[i] += 1
+  }
+  return { thisWeek: days.reduce((a, b) => a + b, 0), lastWeek, days }
+}
+
+export type LogRow = {
+  kind: string
+  area: string
+  occurredAt: number
+  value?: number
+  unit?: string
+  meta?: { category?: string }
+}
+
+/** A workout: any kind of training logged under Body. */
+export const isWorkout = (r: LogRow) =>
+  r.area === 'body' && r.kind === 'workout'
+/** A shake: protein and creatine, one tick (`supp`, 21 Sep). */
+export const isShake = (r: LogRow) =>
+  r.area === 'body' && r.kind === 'intake' && r.meta?.category === 'supplements'
+
+export type DayMarks = {
+  /** Money in, euros, lent money left out. */
+  in: number
+  /** The kinds trained that day, in the order first logged. */
+  workouts: Array<string>
+  shakes: number
+  /** Language areas with a session that day. */
+  languages: Array<string>
+}
+
+/** What each day of the week carried besides commits and money out — the
+    badges on the week bar's day cards (15 Oct, mockup real2.html). */
+export function dayMarks(
+  rows: ReadonlyArray<LogRow>,
+  starts: ReadonlyArray<number>,
+  end: number,
+  languageSlugs: ReadonlyArray<string>,
+): Array<DayMarks> {
+  const cents = starts.map(() => 0)
+  const days: Array<DayMarks> = starts.map(() => ({
+    in: 0,
+    workouts: [],
+    shakes: 0,
+    languages: [],
+  }))
+  const langs = new Set(languageSlugs)
+  for (const row of [...rows].sort((a, b) => a.occurredAt - b.occurredAt)) {
+    const i = dayIndex(starts, end, row.occurredAt)
     if (i === -1) continue
-    days[i] += 1
-    inWeek.push(row)
+    const day = days[i]
+    if (row.kind === 'income' && isEuroAmount(row) && !isLent(row))
+      cents[i] += Math.round(row.value * 100)
+    if (isWorkout(row)) {
+      const kind = row.meta?.category ?? 'workout'
+      if (!day.workouts.includes(kind)) day.workouts.push(kind)
+    }
+    if (isShake(row)) day.shakes += 1
+    if (
+      row.kind === 'session' &&
+      langs.has(row.area) &&
+      !day.languages.includes(row.area)
+    )
+      day.languages.push(row.area)
   }
-  return {
-    thisWeek: inWeek.length,
-    lastWeek,
-    days,
-    messages: inWeek
-      .sort((a, b) => b.authoredAt - a.authoredAt)
-      .slice(0, 2)
-      .map((r) => r.message),
+  return days.map((d, i) => ({ ...d, in: cents[i] / 100 }))
+}
+
+/** Workouts per kind in [start, end), most first. */
+export function kindCounts(
+  rows: ReadonlyArray<LogRow>,
+  start: number,
+  end: number,
+): Array<{ category: string; count: number }> {
+  const counts = new Map<string, number>()
+  for (const row of rows) {
+    if (row.occurredAt < start || row.occurredAt >= end || !isWorkout(row))
+      continue
+    const kind = row.meta?.category ?? 'workout'
+    counts.set(kind, (counts.get(kind) ?? 0) + 1)
   }
+  return [...counts]
+    .map(([category, count]) => ({ category, count }))
+    .sort((a, b) => b.count - a.count || a.category.localeCompare(b.category))
 }
 
 /** Rows in [start, end) that pass `keep`. */

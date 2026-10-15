@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { countIn, dayIndex, projectWeek, spentWeek, weekChange } from './review'
-import type { CommitRow, MoneyRow } from './review'
+import {
+  countIn,
+  dayIndex,
+  dayMarks,
+  kindCounts,
+  projectWeek,
+  spentWeek,
+  weekChange,
+} from './review'
+import type { CommitRow, LogRow, MoneyRow } from './review'
 
 const DAY = 86_400_000
 const MON = new Date(2026, 9, 12).getTime()
@@ -97,7 +105,7 @@ describe('projectWeek', () => {
     ...r,
   })
 
-  it('counts this week by day and last week, with the two newest messages', () => {
+  it('counts this week by day and last week', () => {
     const w = projectWeek(
       [
         commit(at(0)),
@@ -115,7 +123,6 @@ describe('projectWeek', () => {
     expect(w.thisWeek).toBe(3)
     expect(w.lastWeek).toBe(1)
     expect(w.days).toEqual([2, 0, 0, 1, 0, 0, 0])
-    expect(w.messages).toEqual(['newest', `c${at(0) + 1}`])
   })
 
   it('is zero for a project with no repo', () => {
@@ -130,7 +137,6 @@ describe('projectWeek', () => {
       thisWeek: 0,
       lastWeek: 0,
       days: [0, 0, 0, 0, 0, 0, 0],
-      messages: [],
     })
   })
 })
@@ -163,5 +169,79 @@ describe('weekChange', () => {
       dir: 'same',
       good: null,
     })
+  })
+})
+
+describe('dayMarks', () => {
+  const log = (day: number, r: Partial<LogRow>): LogRow => ({
+    kind: 'event',
+    area: 'knowledge',
+    occurredAt: at(day),
+    ...r,
+  })
+  it('puts in, workouts, shakes and classes on their day', () => {
+    const d = dayMarks(
+      [
+        log(0, { kind: 'workout', area: 'body', meta: { category: 'gym' } }),
+        log(0, { kind: 'workout', area: 'body', meta: { category: 'gym' } }),
+        log(0, { kind: 'workout', area: 'body', meta: { category: 'boxing' } }),
+        log(1, {
+          kind: 'intake',
+          area: 'body',
+          meta: { category: 'supplements' },
+        }),
+        log(1, { kind: 'income', area: 'money', value: 0.1, unit: 'eur' }),
+        log(1, { kind: 'income', area: 'money', value: 0.2, unit: 'eur' }),
+        log(1, {
+          kind: 'income',
+          area: 'money',
+          value: 100,
+          unit: 'eur',
+          meta: { category: 'lent' },
+        }),
+        log(2, { kind: 'session', area: 'portuguese' }),
+        log(2, { kind: 'session', area: 'knowledge' }),
+      ],
+      starts,
+      end,
+      ['portuguese'],
+    )
+    expect(d[0]).toEqual({
+      in: 0,
+      workouts: ['gym', 'boxing'],
+      shakes: 0,
+      languages: [],
+    })
+    expect(d[1]).toEqual({ in: 0.3, workouts: [], shakes: 1, languages: [] })
+    expect(d[2].languages).toEqual(['portuguese'])
+    expect(d[6]).toEqual({ in: 0, workouts: [], shakes: 0, languages: [] })
+  })
+})
+
+describe('kindCounts', () => {
+  it('counts workouts per kind in the period, most first', () => {
+    const w = (day: number, category?: string): LogRow => ({
+      kind: 'workout',
+      area: 'body',
+      occurredAt: at(day),
+      meta: category ? { category } : undefined,
+    })
+    expect(
+      kindCounts(
+        [
+          w(0, 'gym'),
+          w(1, 'gym'),
+          w(2, 'boxing'),
+          w(3),
+          { ...w(0, 'gym'), occurredAt: end },
+        ],
+        MON,
+        end,
+      ),
+    ).toEqual([
+      { category: 'gym', count: 2 },
+      { category: 'boxing', count: 1 },
+      { category: 'workout', count: 1 },
+    ])
   })
 })

@@ -49,7 +49,7 @@ ANALYZE button, because "some weeks are not worth to analyze".
 | On projects | hours                                                                   | `kindCount` (work sessions under `projects`)                                                                                                                 |
 | Body        | WORKOUTS · was; per kind: days strip, `n of target`                     | `categoryDays` (area body) · `goals.setWeeklyTarget` targets, as on Body's Week chips                                                                        |
 | Body        | WEIGHT · was                                                            | state: `stateHistory('weight')` latest in the week and the latest before it                                                                                  |
-| Languages   | per language: level, classes, minutes, sheets, words, a seven-day strip | state `languageLevels` · `kindCount` per category · Vault sheet count · words count                                                                          |
+| Languages   | per language: level, classes, minutes, sheets, a seven-day strip | state `languageLevels` · `kindCount` per category · Vault sheet count (no word count: a reading's words are the model's text, never a number on screen — schema `readings`)                                                                          |
 | Focus       | tasks done of total · commits · was                                     | entity count (the `focus` project's tasks) · `projectCommits`                                                                                                |
 | Note        | the line                                                                | `reviews.decision`                                                                                                                                           |
 
@@ -69,7 +69,7 @@ client (local midnights), as every existing query does.
   0; the day card of that day has one dot.
 - **S4 week arrows** — ← shows last week's numbers; → is disabled on this week.
 - **S5 note write** — type a line → CLOSE WEEK → `saving…` at once → a
-  `CLOSED` badge and `SAVED · ON TODAY MON 13` → the textarea is gone.
+  `CLOSED` badge and `SAVED` → the textarea is gone.
 - **S6 failed write** — the save throws → the line stays typed, `NOT SAVED`
   badge, CLOSE WEEK again works.
 - **S7 tile opens** — pressing the Finances tile opens `/finances`; Body

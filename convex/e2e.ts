@@ -38,6 +38,7 @@ const TABLES: Array<TableNames> = [
   'payees',
   'bankLinks',
   'reviews',
+  'weekReads',
   'projects',
   'commits',
   'tasks',

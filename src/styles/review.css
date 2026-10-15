@@ -198,3 +198,44 @@
 @utility review-flick {
   animation: review-flick 1s ease-in-out infinite;
 }
+
+/* The AI read (R7, mockup real2.html). While it reads, a light runs along
+   a thin bar and the orb turns. */
+@keyframes review-scan {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+@utility review-scan {
+  animation: review-scan 1.1s ease-in-out infinite;
+}
+@keyframes review-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@utility review-spin {
+  animation: review-spin 1.4s linear infinite;
+}
+/* Each line of the read types in after the one before (`--k` its place). */
+@keyframes review-line {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+}
+@utility review-line {
+  animation: review-line 0.45s ease both;
+  animation-delay: calc(0.15s + var(--k, 0) * 0.18s);
+}
+/* A line hovered: the tile it is about lights up in lavender. */
+@utility review-lit {
+  border-color: var(--color-lav-400) !important;
+  box-shadow:
+    0 0 0 1px var(--color-lav-400),
+    0 0 34px -8px var(--system-shine) !important;
+  transform: translateY(-2px);
+}

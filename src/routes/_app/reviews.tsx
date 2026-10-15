@@ -44,16 +44,15 @@ function Reviews() {
   const areas = useQuery(api.areas.list, {})
   const languages = (areas ?? []).filter((a) => a.track === 'language')
   const slugs = languages.map((a) => a.slug)
+  const weekArgs = {
+    dayStarts,
+    end,
+    fourWeeksStart: addWeeks(weekStart, -3).getTime(),
+    languages: slugs,
+  }
   const week = useQuery(
     api.aggregate.weekReview,
-    areas === undefined
-      ? 'skip'
-      : {
-          dayStarts,
-          end,
-          fourWeeksStart: addWeeks(weekStart, -3).getTime(),
-          languages: slugs,
-        },
+    areas === undefined ? 'skip' : weekArgs,
   )
   const worth = useQuery(api.aggregate.worthHistory, { dayEnds })
   const levels = useQuery(
@@ -113,7 +112,12 @@ function Reviews() {
             wasLabel={isThisWeek ? 'LAST WEEK' : 'WEEK BEFORE'}
             span="col-span-2 lg:col-span-4 lg:row-span-2"
           />
-          <AiReviewTile weekNumber={isoWeek(weekStart)} />
+          <AiReviewTile
+            weekNumber={isoWeek(weekStart)}
+            week={key}
+            day={isThisWeek ? todayIndex : null}
+            args={weekArgs}
+          />
           {showBody ? <BodyTile body={data.week.body} span={rowSpan} /> : null}
           {spoken.length > 0 ? (
             <LanguagesTile

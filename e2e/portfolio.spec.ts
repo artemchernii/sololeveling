@@ -186,8 +186,10 @@ test('Portfolio: a thing sold out has its row and its page', async ({
     position.getByRole('heading', { name: 'Shopify Inc.' }),
   ).toBeVisible()
   await expect(position.getByText(/^all sold .+ \d{4}$/)).toBeVisible()
-  for (const label of ['worth now', /^paid( ·|$)/, 'sold for', 'up when sold'])
+  for (const label of ['worth now', /^paid( ·|$)/, 'sold for', 'p&l'])
     await expect(position.getByText(label, { exact: true })).toBeVisible()
+  await expect(position.getByTestId('pl-badge')).toHaveText(/up/i)
+  await expect(position.getByTestId('pl-tile')).toContainText(/when sold/i)
   await expect(position.getByText('buys and sells · 3')).toBeVisible()
   await page.waitForTimeout(800)
   await page.screenshot({ ...shot('portfolio-sold-position'), fullPage: true })

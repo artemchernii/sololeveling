@@ -332,11 +332,15 @@ function Plot({
   }, [currency, view])
 
   /* The lit lines, drawn again when what is lit, the days or the view
-     change (chartLines.ts). */
+     change (chartLines.ts); one just pressed arrives drawn out. */
+  const lit = useRef<Array<LineId>>([])
   useEffect(() => {
     const c = chart.current
     if (!c || !line.current) return
-    return drawLines(c, pts, lines, priceFormat(currency))
+    const ids = drawnIds(lines)
+    const arrive = new Set(ids.filter((id) => !lit.current.includes(id)))
+    lit.current = ids
+    return drawLines(c, pts, lines, priceFormat(currency), arrive)
   }, [lines, pts, view, currency])
 
   useEffect(() => {

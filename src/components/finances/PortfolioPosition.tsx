@@ -23,6 +23,7 @@ import { PriceChart, asPt } from '@/components/finances/PriceChart'
 import type { Position } from '@/components/finances/PortfolioList'
 import { HeadLine } from '@/components/finances/PositionHead'
 import { PositionTiles } from '@/components/finances/PositionTiles'
+import { PositionVerdict } from '@/components/finances/PositionVerdict'
 import { PositionTrades } from '@/components/finances/PositionTrades'
 import { AddBuys } from '@/components/finances/AddBuys'
 import { FileView } from '@/components/finances/AccountFileView'
@@ -338,6 +339,17 @@ export function PortfolioPosition({
         gap={gap}
         unit={unit}
         accountOf={accountOf}
+        /* WORTH NOW in the price's own currency (15 Oct: "add $
+           there"), where every listing is priced in it. */
+        there={
+          first.price !== null &&
+          first.currency !== 'EUR' &&
+          owned.at.every(
+            (r) => r.currency === first.currency && r.price === first.price,
+          )
+            ? { value: owned.shares * first.price, currency: first.currency }
+            : null
+        }
       />
 
       <JustAdded
@@ -475,6 +487,16 @@ export function PortfolioPosition({
           say={say}
           trades={list}
           count={all.length}
+          top={
+            sold || pts.length === 0 ? null : (
+              <PositionVerdict
+                rows={lines.rows}
+                avg={lines.avg?.price ?? null}
+                asOf={pts[pts.length - 1].t}
+                say={say}
+              />
+            )
+          }
         />
       )}
     </section>

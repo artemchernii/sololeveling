@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { avgBuy, rateOn, rsi, signals, sma, yearRange } from './indicators'
+import {
+  avgBuy,
+  rateOn,
+  rsi,
+  signals,
+  sma,
+  verdict,
+  yearRange,
+} from './indicators'
+import type { Signal } from './indicators'
 
 const DAY = 86_400_000
 const at = (day: string) => Date.parse(`${day}T12:00:00Z`)
@@ -180,5 +189,84 @@ describe('signals', () => {
     )
     const s = signals([...wave, { t: wave.at(-1)!.t + DAY, v: 100 }], null)
     expect(s.find((x) => x.id === 'yr')?.verdict).toBe('mid range')
+  })
+})
+
+describe('verdict', () => {
+  /* Today's rows as signals() gives them: price against SMA 50 and
+     SMA 200 in %, and RSI 14. */
+  const rows = (d50: number, d200: number, r: number): Array<Signal> => [
+    {
+      id: 'sma50',
+      verdict: '',
+      way: 'flat',
+      pct: d50,
+      at: 50,
+      price: 100,
+      level: 100,
+    },
+    {
+      id: 'sma200',
+      verdict: '',
+      way: 'flat',
+      pct: d200,
+      at: 50,
+      price: 100,
+      level: 100,
+    },
+    {
+      id: 'rsi',
+      verdict: '',
+      way: 'flat',
+      pct: r,
+      at: r,
+      price: 100,
+      level: r,
+    },
+  ]
+
+  it('says ADD on a dip under SMA 50 in an uptrend', () => {
+    const v = verdict(rows(-4.4, 9.8, 36))
+    expect(v?.call).toBe('add')
+    expect(v?.why).toEqual(['sma200', 'sma50'])
+  })
+
+  it('says ADD when RSI is under 45 above SMA 200', () => {
+    const v = verdict(rows(2, 9, 40))
+    expect(v?.call).toBe('add')
+    expect(v?.why).toEqual(['sma200', 'rsi'])
+  })
+
+  it('says HOLD above both averages with no dip', () => {
+    expect(verdict(rows(3.8, 6.6, 67))?.call).toBe('hold')
+  })
+
+  it('says HOLD between the averages, turning', () => {
+    const v = verdict(rows(2, -3, 55))
+    expect(v?.call).toBe('hold')
+    expect(v?.line).toMatch(/turning/)
+  })
+
+  it('says WAIT below both averages', () => {
+    const v = verdict(rows(-4.3, -14.1, 37))
+    expect(v?.call).toBe('wait')
+    expect(v?.why).toEqual(['sma200', 'sma50'])
+  })
+
+  it('says WAIT over RSI 70 before anything else', () => {
+    const v = verdict(rows(-2, 10, 71))
+    expect(v?.call).toBe('wait')
+    expect(v?.why).toEqual(['rsi'])
+  })
+
+  it('keeps the edges: RSI 70 is not over it, RSI 45 is not under it', () => {
+    expect(verdict(rows(3, 6, 70))?.call).toBe('hold')
+    expect(verdict(rows(3, 6, 45))?.call).toBe('hold')
+    expect(verdict(rows(0, 6, 50))?.call).toBe('hold')
+  })
+
+  it('says nothing without all three lines', () => {
+    expect(verdict(rows(1, 1, 50).slice(0, 2))).toBeNull()
+    expect(verdict([])).toBeNull()
   })
 })

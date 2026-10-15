@@ -49,18 +49,41 @@ const flat = (pts: ReadonlyArray<Pt>, from: number, v: number) =>
 const RSI_PANE = 1
 const RSI_HEIGHT = 96
 
-/** Draws the lines; the returned function takes them off again. */
+type Data = Array<{ time: UTCTimestamp; value: number }>
+const ARRIVE_MS = 700
+
+/** Draws the lines; the returned function takes them off again. A line
+    in `arrive` (just pressed, mockup verdict.html) draws itself from the
+    view's left edge to today; the others are simply there. */
 export function drawLines(
   c: IChartApi,
   pts: ReadonlyArray<Pt>,
   d: Drawn,
   format: PriceFormat,
+  arrive: ReadonlySet<LineId> = new Set(),
 ) {
   const made: Array<ISeriesApi<'Line'>> = []
+  const frames: Array<number> = []
+  const fill = (id: LineId, s: ISeriesApi<'Line'>, data: Data) => {
+    const seen = c.timeScale().getVisibleRange()?.from
+    if (!arrive.has(id) || typeof seen !== 'number') return s.setData(data)
+    const from = seen
+    const before = data.filter((p) => p.time < from)
+    const view = data.filter((p) => p.time >= from)
+    const t0 = performance.now()
+    const step = (now: number) => {
+      const k = Math.min(1, (now - t0) / ARRIVE_MS)
+      const shown = Math.max(1, Math.round(view.length * (1 - (1 - k) ** 3)))
+      s.setData(before.concat(view.slice(0, shown)))
+      if (k < 1) frames.push(requestAnimationFrame(step))
+    }
+    s.setData(before)
+    frames.push(requestAnimationFrame(step))
+  }
   const add = (
     id: LineId,
     title: string,
-    data: Array<{ time: UTCTimestamp; value: number }>,
+    data: Data,
     style: LineStyle = LineStyle.Solid,
   ) => {
     const s = c.addSeries(LineSeries, {
@@ -72,7 +95,7 @@ export function drawLines(
       title,
       priceFormat: format,
     })
-    s.setData(data)
+    fill(id, s, data)
     made.push(s)
   }
   if (d.avg)
@@ -112,7 +135,11 @@ export function drawLines(
       },
       RSI_PANE,
     )
-    s.setData(d.rsi.map((p) => ({ time: time(p.t), value: p.v })))
+    fill(
+      'rsi',
+      s,
+      d.rsi.map((p) => ({ time: time(p.t), value: p.v })),
+    )
     s.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.08 } })
     for (const price of [30, 70])
       s.createPriceLine({
@@ -127,6 +154,7 @@ export function drawLines(
     made.push(s)
   }
   return () => {
+    for (const f of frames) cancelAnimationFrame(f)
     for (const s of made) c.removeSeries(s)
     if (c.panes().length > RSI_PANE) c.removePane(RSI_PANE)
   }

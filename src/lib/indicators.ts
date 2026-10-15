@@ -223,3 +223,66 @@ export function signals(
   }
   return out
 }
+
+export type Call = 'add' | 'hold' | 'wait'
+
+/**
+ * The call to act on a position (15 Oct, mockup verdict.html; his "go
+ * verdict … tell me overall idea what is the best to do"), from today's
+ * SMA 50, SMA 200 and RSI 14 rows of `signals()` by this rule, checked
+ * top to bottom:
+ *
+ * - WAIT: RSI 14 over 70.
+ * - WAIT: price under SMA 50 and under SMA 200.
+ * - ADD: price over SMA 200 and under SMA 50.
+ * - ADD: price over SMA 200 and RSI 14 under 45.
+ * - HOLD: every other case (between the averages: turning).
+ *
+ * `why` names the rows that made the call; the screen shows all three
+ * beside it. The average buy is never an input. Null without all three
+ * rows. Fundamentals and news join the rule in their own slices.
+ */
+export function verdict(
+  rows: ReadonlyArray<Signal>,
+): { call: Call; why: Array<LineId>; line: string } | null {
+  const pct = (id: LineId) => rows.find((r) => r.id === id)?.pct
+  const d50 = pct('sma50')
+  const d200 = pct('sma200')
+  const r = pct('rsi')
+  if (d50 === undefined || d200 === undefined || r === undefined) return null
+  if (r > 70)
+    return {
+      call: 'wait',
+      why: ['rsi'],
+      line: 'RSI 14 above 70: the price rose too fast in 14 days. By the textbook, a pullback often comes next.',
+    }
+  if (d50 < 0 && d200 < 0)
+    return {
+      call: 'wait',
+      why: ['sma200', 'sma50'],
+      line: 'Price below its 50- and 200-day averages: the trend is down. By the textbook, no new shares until the price is back above the 50-day average.',
+    }
+  if (d200 > 0 && d50 < 0)
+    return {
+      call: 'add',
+      why: ['sma200', 'sma50'],
+      line: 'Long trend up, and the price dipped under its 50-day average. By the textbook, a dip in an uptrend is a time to add shares.',
+    }
+  if (d200 > 0 && r < 45)
+    return {
+      call: 'add',
+      why: ['sma200', 'rsi'],
+      line: 'Long trend up, and the price fell fast in 14 days. By the textbook, a dip in an uptrend is a time to add shares.',
+    }
+  if (d200 < 0)
+    return {
+      call: 'hold',
+      why: ['sma200', 'sma50'],
+      line: 'Price above its 50-day average and below its 200-day average: the trend is turning. By the textbook, keep the shares and watch SMA 200.',
+    }
+  return {
+    call: 'hold',
+    why: ['sma200', 'sma50'],
+    line: 'Price above its 50- and 200-day averages: the trend is up, with no dip. By the textbook, keep the shares; no rush to add at this price.',
+  }
+}

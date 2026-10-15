@@ -1,10 +1,13 @@
 import { Check, TriangleAlert } from 'lucide-react'
 
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import { CountUp } from '@/components/finances/CountUp'
 import { AccountLogo } from '@/components/finances/Logo'
 import type { Position } from '@/components/finances/PortfolioList'
 import { Veiled } from '@/components/finances/Veil'
+import { money } from '@/lib/currency'
 import { euros } from '@/lib/money'
+import { gainOf } from '@/lib/owned'
 import type { Owned } from '@/lib/owned'
 import type { Round } from '@/lib/rounds'
 import type { soldSums } from '@/lib/sold'
@@ -14,14 +17,13 @@ const FULL = new Intl.DateTimeFormat(undefined, {
   month: 'short',
   year: 'numeric',
 })
-const SHORT = new Intl.DateTimeFormat(undefined, {
-  day: 'numeric',
-  month: 'short',
-})
-
 /* The tiles on one position's page: what it is worth, the buy total,
-   up or down since, and the accounts it is in (split out of
-   PortfolioPosition, 14 Oct). */
+   P&L, and the accounts it is in (split out of PortfolioPosition, 14
+   Oct). 15 Oct, mockup verdict.html: WORTH NOW also in the price's own
+   currency, P&L with an UP / DOWN badge and its first day, each
+   account's own P&L under its worth, the numbers counting up. */
+const signed = (v: number) => `${v < 0 ? '−' : '+'}${euros(Math.abs(v))}`
+const pctOf = (v: number) => `${v < 0 ? '−' : '+'}${Math.abs(v).toFixed(1)}%`
 export function PositionTiles({
   owned,
   sold,
@@ -33,6 +35,7 @@ export function PositionTiles({
   gap,
   unit,
   accountOf,
+  there,
 }: {
   owned: Owned<Position>
   sold?: ReturnType<typeof soldSums>
@@ -54,11 +57,17 @@ export function PositionTiles({
   gap: number
   unit: (n: number) => string
   accountOf: (id: Id<'accounts'>) => Doc<'accounts'> | undefined
+  /** What it is worth in the price's own currency, where that is not
+      the euro: shares times the latest stored price. */
+  there?: { value: number; currency: string } | null
 }) {
   const up = (gain?.eur ?? 0) >= 0
   const tone = up ? 'text-state-good' : 'text-state-danger'
   return (
-    <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+    <div
+      data-testid="position-tiles"
+      className="grid grid-cols-2 gap-2.5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1.3fr)]"
+    >
       <Tile label="worth now" delay={0}>
         <span
           className={`text-[27px] leading-tight tabular-nums ${sold ? 'text-ink-500' : 'text-foreground'}`}
@@ -66,9 +75,24 @@ export function PositionTiles({
           {owned.valueEur === null ? (
             '—'
           ) : (
-            <Veiled>{euros(owned.valueEur)}</Veiled>
+            <Veiled>
+              <CountUp value={owned.valueEur} format={euros} />
+            </Veiled>
           )}
         </span>
+        {there && !sold ? (
+          <span
+            data-testid="worth-there"
+            className="text-[16px] text-ink-300 tabular-nums"
+          >
+            <Veiled>
+              <CountUp
+                value={there.value}
+                format={(v) => money(Math.round(v * 100) / 100, there.currency)}
+              />
+            </Veiled>
+          </span>
+        ) : null}
         <span className="font-mono text-[11px] text-ink-300">
           {sold ? (
             'all sold'
@@ -86,7 +110,9 @@ export function PositionTiles({
           className={`text-[27px] leading-tight tabular-nums ${owned.paid === null && part === null ? 'text-ink-500' : 'text-foreground'}`}
         >
           {owned.paid !== null ? (
-            <Veiled>{euros(owned.paid)}</Veiled>
+            <Veiled>
+              <CountUp value={owned.paid} format={euros} />
+            </Veiled>
           ) : part !== null ? (
             <Veiled>{euros(part)}</Veiled>
           ) : (
@@ -150,17 +176,21 @@ export function PositionTiles({
         </Tile>
       ) : null}
       <Tile
-        label={
-          sold
-            ? gain === null
-              ? 'when sold'
-              : `${up ? 'up' : 'down'} when sold`
-            : gain === null
-              ? 'since bought'
-              : `${up ? 'up' : 'down'} since ${since ? SHORT.format(new Date(since.from)) : 'bought'}`
+        label="p&l"
+        badge={
+          gain === null ? null : (
+            <span
+              data-testid="pl-badge"
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-px text-[10px] font-medium tracking-[0.12em] uppercase ring-1 ring-inset ${up ? 'bg-state-good/16 ring-state-good/40' : 'bg-state-danger/16 ring-state-danger/40'} ${tone}`}
+            >
+              {up ? '▲ up' : '▼ down'}
+            </span>
+          )
         }
         delay={sold ? 120 : 80}
         tone={gain === null ? undefined : up ? 'good' : 'danger'}
+        wide
+        testId="pl-tile"
       >
         {gain === null ? (
           <>
@@ -173,12 +203,27 @@ export function PositionTiles({
           </>
         ) : (
           <>
-            <span className={`text-[27px] leading-tight tabular-nums ${tone}`}>
-              <Veiled>{`${up ? '+' : '−'}${euros(Math.abs(gain.eur))}`}</Veiled>
+            <span className="flex flex-wrap items-baseline gap-x-2">
+              <span
+                className={`text-[27px] leading-tight tabular-nums ${tone}`}
+              >
+                <Veiled>
+                  <CountUp value={gain.eur} format={signed} />
+                </Veiled>
+              </span>
+              <span className={`text-[16px] tabular-nums ${tone}`}>
+                <CountUp value={gain.pct} format={pctOf} />
+              </span>
             </span>
-            <span className={`font-mono text-[11px] ${tone}`}>
-              {up ? '▲' : '▼'} {Math.abs(gain.pct).toFixed(1)}%
-            </span>
+            {sold || since ? (
+              <span className="flex">
+                <span className="rounded-full bg-lift/[0.06] px-2 py-0.5 font-mono text-[10px] tracking-[0.07em] text-ink-300 uppercase">
+                  {sold
+                    ? `when sold · ${FULL.format(new Date(sold.day))}`
+                    : `since first buy · ${FULL.format(new Date(since!.from))}`}
+                </span>
+              </span>
+            ) : null}
           </>
         )}
       </Tile>
@@ -193,29 +238,42 @@ export function PositionTiles({
           </span>
         </Tile>
       ) : (
-        <Tile label={owned.at.length > 1 ? 'accounts' : 'account'} delay={120}>
+        <Tile
+          label={owned.at.length > 1 ? 'accounts' : 'account'}
+          delay={120}
+          wide
+        >
           {owned.at.map((r) => {
             const a = accountOf(r.accountId)
+            const own = r.status === 'gap' ? null : gainOf(r)
             return (
-              <span
-                key={r.accountId}
-                className="flex min-h-5 items-center justify-between gap-2 font-mono text-[12px]"
-              >
-                <span className="flex min-w-0 items-center gap-1.5 text-ink-300">
-                  <AccountLogo
-                    name={a?.name ?? ''}
-                    domain={a?.domain}
-                    size={14}
-                  />
-                  <span className="truncate">{a?.name}</span>
+              <span key={r.accountId} className="flex flex-col">
+                <span className="flex min-h-5 items-center justify-between gap-2 font-mono text-[12px]">
+                  <span className="flex min-w-0 items-center gap-1.5 text-ink-300">
+                    <AccountLogo
+                      name={a?.name ?? ''}
+                      domain={a?.domain}
+                      size={14}
+                    />
+                    <span className="truncate">{a?.name}</span>
+                  </span>
+                  <span className="text-foreground">
+                    {r.valueEur === null ? (
+                      '—'
+                    ) : (
+                      <Veiled>{euros(r.valueEur)}</Veiled>
+                    )}
+                  </span>
                 </span>
-                <span className="text-foreground">
-                  {r.valueEur === null ? (
-                    '—'
-                  ) : (
-                    <Veiled>{euros(r.valueEur)}</Veiled>
-                  )}
-                </span>
+                {own === null ? null : (
+                  <span
+                    data-testid="account-pl"
+                    className={`self-end font-mono text-[11px] tabular-nums ${own.eur >= 0 ? 'text-state-good' : 'text-state-danger'}`}
+                  >
+                    {own.eur >= 0 ? '▲' : '▼'}{' '}
+                    <Veiled>{signed(own.eur)}</Veiled> · {pctOf(own.pct)}
+                  </span>
+                )}
               </span>
             )
           })}
@@ -227,12 +285,19 @@ export function PositionTiles({
 
 function Tile({
   label,
+  badge,
   delay,
   tone,
+  wide = false,
+  testId,
   children,
 }: {
   label: string
+  badge?: React.ReactNode
   delay: number
+  /** Takes the whole row on a phone: names and both numbers in full. */
+  wide?: boolean
+  testId?: string
   /** A state, said with the tile's colour (14 Oct: "very bland"). */
   tone?: 'warn' | 'good' | 'danger'
   children: React.ReactNode
@@ -247,10 +312,14 @@ function Tile({
           : 'bg-lift/[0.035] ring-lift/7'
   return (
     <div
+      data-testid={testId}
       style={{ animationDelay: `${delay}ms` }}
-      className={`motion-arrive flex flex-col gap-1 rounded-[14px] p-3 ring-1 ring-inset ${look}`}
+      className={`motion-arrive flex flex-col gap-1 rounded-[14px] p-3 ring-1 ring-inset ${wide ? 'max-sm:col-span-2' : ''} ${look}`}
     >
-      <span className="label-caps text-ink-300">{label}</span>
+      <span className="flex min-h-[19px] items-center gap-2">
+        <span className="label-caps text-ink-300">{label}</span>
+        {badge}
+      </span>
       {children}
     </div>
   )

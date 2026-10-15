@@ -257,6 +257,50 @@ test('ADD BUYS: a buy in two overlapping screenshots counts once', async ({
   await expect(closed.first().getByTestId('trade-row')).toHaveCount(5)
   await page.screenshot({ ...shot('position-rounds'), fullPage: true })
 
+  /* × asks on the row; KEEP leaves it; REMOVE keeps it struck with UNDO
+     (15 Oct, mockup trade-remove.html). */
+  const first = now.getByTestId('trade-row').first()
+  await first.getByRole('button', { name: 'Remove this trade' }).click()
+  await expect(now.getByText('remove?')).toBeVisible()
+  await now.getByRole('button', { name: 'keep' }).click()
+  await expect(now.getByTestId('trade-row')).toHaveCount(7)
+  await first.getByRole('button', { name: 'Remove this trade' }).click()
+  await now.getByRole('button', { name: 'remove', exact: true }).click()
+  await expect(now.getByTestId('trade-removed')).toHaveCount(1)
+  await expect(now.getByTestId('trade-row')).toHaveCount(6)
+  await expect(
+    position.getByText('paid · 6 buy', { exact: true }),
+  ).toBeVisible()
+  await page.waitForTimeout(600)
+  await page.screenshot({ ...shot('trade-removed'), fullPage: true })
+  await now.getByRole('button', { name: 'undo' }).click()
+  await expect(now.getByTestId('trade-removed')).toHaveCount(0)
+  await expect(now.getByTestId('trade-row')).toHaveCount(7)
+  await expect(
+    position.getByText('paid · 7 buy', { exact: true }),
+  ).toBeVisible()
+
+  /* Removed, then the page opened again: folded at the end, UNDO there. */
+  await now
+    .getByTestId('trade-row')
+    .first()
+    .getByRole('button', { name: 'Remove this trade' })
+    .click()
+  await now.getByRole('button', { name: 'remove', exact: true }).click()
+  await expect(now.getByTestId('trade-removed')).toHaveCount(1)
+  await page.reload()
+  await page.getByRole('button', { name: 'Show amounts' }).first().click()
+  const fold = position.getByTestId('trades-removed')
+  await expect(fold).toContainText('removed · 1')
+  await fold.getByRole('button').first().click()
+  await page.waitForTimeout(600)
+  await page.screenshot({ ...shot('trade-removed-folded'), fullPage: true })
+  await fold.getByRole('button', { name: 'undo' }).click()
+  await expect(fold).toHaveCount(0)
+  await expect(
+    position.getByText('paid · 7 buy', { exact: true }),
+  ).toBeVisible()
+
   /* The same drop again: nothing new, nineteen saved before. */
   await testClient().mutation(anyApi.e2ePortfolio.goldBuys, { drop: true })
   await position.getByRole('button', { name: 'add buys' }).click()

@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { useMutation } from 'convex/react'
-import { ChevronDown, Loader2, Trash2, X } from 'lucide-react'
+import { useQuery } from 'convex-helpers/react/cache/hooks'
+import { ChevronDown } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
-
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
-import { AccountLogo } from '@/components/finances/Logo'
+import { TradeRow } from '@/components/finances/TradeRow'
 import { Veiled } from '@/components/finances/Veil'
 import { euros } from '@/lib/money'
 import type { Round } from '@/lib/rounds'
@@ -22,15 +21,20 @@ const FIRST = 8
    sums are made of (13 Oct; split out of PortfolioPosition). Cut into
    rounds where it was held at zero (14 Oct, mockup position-rounds.html):
    the round now open, each closed one folded with its own BUY and SELL
-   sums. */
+   sums. A removed trade stays struck in its place with UNDO while the
+   page is open, then folds at the end as REMOVED · N (15 Oct, mockup
+   trade-remove.html). */
 export function PositionTrades({
   loaded,
   all,
   cut,
+  instrumentIds,
   unit,
   accountOf,
 }: {
   loaded: boolean
+  /** Every listing it is owned under: where its removed trades sit. */
+  instrumentIds: ReadonlyArray<Id<'instruments'>>
   all: ReadonlyArray<Doc<'trades'>>
   cut: ReadonlyArray<Round<Doc<'trades'>>>
   unit: (n: number) => string
@@ -41,15 +45,39 @@ export function PositionTrades({
   /* A long round shows its newest rows; the rest is one press away. */
   const [whole, setWhole] = useState(false)
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
-  const row = (t: Doc<'trades'>, i: number) => (
+  const removed = useQuery(api.invest.removedTrades, {
+    instrumentIds: [...instrumentIds],
+  })
+  /* Removed on this visit: shown in place. Put back: flashes as it lands. */
+  const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set())
+  const [back, setBack] = useState<ReadonlySet<string>>(new Set())
+  const [folded, setFolded] = useState(true)
+  const add = (set: typeof setFresh, id: string) =>
+    set((o) => new Set(o).add(id))
+  const row = (t: Doc<'trades'> | Doc<'removedTrades'>, i: number) => (
     <TradeRow
       key={t._id}
-      trade={t}
+      row={t}
       i={i}
       unit={unit}
       account={accountOf(t.accountId)}
+      back={back.has(t._id)}
+      onRemoved={(id) => add(setFresh, id)}
+      onRestored={(id) => add(setBack, id)}
     />
   )
+  const here = (removed ?? []).filter((r) => fresh.has(r._id))
+  /* A removed row of this visit sits in the round its day falls in. */
+  const inRound = (r: Round<Doc<'trades'>>) =>
+    here.filter(
+      (g) => g.occurredAt >= r.from && (r.open || g.occurredAt <= r.to),
+    )
+  const placed = new Set(cut.flatMap((r) => inRound(r).map((g) => g._id)))
+  const aside = (removed ?? []).filter((r) => !placed.has(r._id))
+  const byDay = (
+    a: Doc<'trades'> | Doc<'removedTrades'>,
+    b: Doc<'trades'> | Doc<'removedTrades'>,
+  ) => b.occurredAt - a.occurredAt
   return (
     <div className="flex flex-col rounded-[16px] bg-lift/[0.025] p-3.5 ring-1 ring-lift/8 ring-inset">
       <span className="label-caps mb-1">
@@ -59,7 +87,7 @@ export function PositionTrades({
         <span className="py-3 font-mono text-[11px] text-ink-500">
           reading…
         </span>
-      ) : all.length === 0 ? (
+      ) : all.length === 0 && aside.length === 0 ? (
         <span className="py-3 font-mono text-[11px] text-ink-400">
           0 BUY · 0 SELL
         </span>
@@ -68,7 +96,10 @@ export function PositionTrades({
           /* Sold out: its last round is the page, open at first. */
           const lead = k === 0 && !r.open
           const shown = r.open || (lead ? !open.has(k) : open.has(k))
-          const rows = r.open && !whole ? r.trades.slice(0, FIRST) : r.trades
+          const rows = [
+            ...(r.open && !whole ? r.trades.slice(0, FIRST) : r.trades),
+            ...inRound(r),
+          ].sort(byDay)
           return (
             <div
               key={r.from}
@@ -105,6 +136,25 @@ export function PositionTrades({
           )
         })
       )}
+      {loaded && aside.length > 0 ? (
+        <div data-testid="trades-removed">
+          <button
+            type="button"
+            aria-expanded={!folded}
+            onClick={() => setFolded((f) => !f)}
+            className="motion-press mt-1 flex w-full items-center gap-2 border-t border-lift/8 pt-2.5 pb-2 text-left"
+          >
+            <span className="rounded-full bg-state-danger/14 px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-state-danger uppercase">
+              removed · {aside.length}
+            </span>
+            <span className="flex-1" />
+            <ChevronDown
+              className={`size-3.5 shrink-0 text-ink-400 transition-transform ${folded ? '' : 'rotate-180'}`}
+            />
+          </button>
+          {folded ? null : aside.map(row)}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -164,117 +214,5 @@ function RoundHead({
     </button>
   ) : (
     <div className={look}>{body}</div>
-  )
-}
-
-/** One buy or sell: its badge, what it came to, its units and day. The ×
-    asks first, on the row — REMOVE or KEEP (14 Oct night: the × took his
-    MSFT buy away with no question; mockup trade-remove.html). */
-function TradeRow({
-  trade: t,
-  i,
-  unit,
-  account: a,
-}: {
-  trade: Doc<'trades'>
-  i: number
-  unit: (n: number) => string
-  account: Pick<Doc<'accounts'>, 'name' | 'domain'> | undefined
-}) {
-  const remove = useMutation(api.invest.removeTrade)
-  const [ask, setAsk] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const free = t.reward || t.split
-  const sell = t.side === 'sell'
-  const go = async () => {
-    setBusy(true)
-    try {
-      await remove({ tradeId: t._id })
-    } catch {
-      setBusy(false)
-    }
-  }
-  return (
-    <div
-      data-testid="trade-row"
-      style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}
-      className={`motion-arrive -mx-2 grid items-center gap-3 rounded-[10px] border-t border-lift/6 px-2 py-2.5 transition-colors ${ask ? 'grid-cols-[64px_minmax(0,1fr)] bg-state-warn/[0.08] ring-1 ring-state-warn/40 ring-inset sm:grid-cols-[64px_minmax(0,1fr)_auto]' : 'grid-cols-[64px_minmax(0,1fr)_16px_20px] sm:grid-cols-[64px_minmax(0,1fr)_auto_16px_20px]'}`}
-    >
-      <span
-        className={`justify-self-start rounded-full px-2.5 py-1 font-mono text-[10.5px] font-medium tracking-[0.12em] uppercase ring-1 ring-inset ${sell ? 'bg-state-danger/16 text-state-danger ring-state-danger/35' : 'bg-state-good/16 text-state-good ring-state-good/35'}`}
-      >
-        {t.reward ? 'staking' : t.split ? 'split' : t.side}
-      </span>
-      <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-[17px] font-medium text-foreground tabular-nums">
-          <Veiled>
-            {free
-              ? `${t.shares} ${unit(t.shares)}`
-              : euros(Math.round(t.shares * t.priceEur * 100) / 100)}
-          </Veiled>
-        </span>
-        <span className="truncate font-mono text-[11px] text-ink-300">
-          {t.reward ? (
-            'not counted as income'
-          ) : t.split ? (
-            'added by a split'
-          ) : (
-            <>
-              <b className="font-medium text-foreground">
-                <Veiled>{String(t.shares)}</Veiled>
-              </b>{' '}
-              {unit(t.shares)}
-              <span className="max-sm:hidden">{` at ${euros(t.priceEur)}`}</span>
-              <span className="sm:hidden">{` · ${FULL.format(new Date(t.occurredAt))}`}</span>
-              {t.opening ? ' · owned before the first file' : ''}
-            </>
-          )}
-        </span>
-      </span>
-      {ask ? (
-        <span className="motion-land col-span-2 flex items-center justify-end gap-1.5 sm:col-span-1">
-          <span className="rounded-full bg-state-warn/16 px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-state-warn uppercase">
-            remove?
-          </span>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void go()}
-            className="motion-press inline-flex items-center gap-1.5 rounded-full bg-state-danger px-3 py-1.5 font-mono text-[10.5px] tracking-[0.12em] text-background uppercase disabled:opacity-80"
-          >
-            {busy ? (
-              <Loader2 className="size-3 animate-spin" />
-            ) : (
-              <Trash2 className="size-3" />
-            )}
-            {busy ? 'removing…' : 'remove'}
-          </button>
-          {busy ? null : (
-            <button
-              type="button"
-              onClick={() => setAsk(false)}
-              className="motion-press rounded-full px-3 py-1.5 font-mono text-[10.5px] tracking-[0.12em] text-foreground uppercase ring-1 ring-lift/20 ring-inset"
-            >
-              keep
-            </button>
-          )}
-        </span>
-      ) : (
-        <>
-          <span className="font-mono text-[11.5px] text-ink-300 max-sm:hidden">
-            {FULL.format(new Date(t.occurredAt))}
-          </span>
-          <AccountLogo name={a?.name ?? ''} domain={a?.domain} size={16} />
-          <button
-            type="button"
-            aria-label="Remove this trade"
-            onClick={() => setAsk(true)}
-            className="grid size-5 place-items-center justify-self-end rounded-[6px] text-ink-500 transition-colors hover:bg-state-danger/12 hover:text-state-danger"
-          >
-            <X className="size-3" />
-          </button>
-        </>
-      )}
-    </div>
   )
 }

@@ -1,7 +1,7 @@
 import { clerk } from '@clerk/testing/playwright'
 import { ConvexHttpClient } from 'convex/browser'
 import { anyApi } from 'convex/server'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 const DAY = 86_400_000
 
@@ -116,4 +116,11 @@ export function revolutMetalsCsv(days: Array<number>): Buffer {
     row(d4, 'Exchanged to XAU', '0.268365', 'XAU', '0.408365'),
   ]
   return Buffer.from(rows.join('\n'))
+}
+
+/** A priced position's buys and sells sit behind their tab, beside
+    SIGNALS (15 Oct); a position with no price shows them alone. */
+export async function showTrades(position: Locator): Promise<void> {
+  const tab = position.getByRole('tab', { name: /buys and sells/i })
+  if ((await tab.count()) > 0) await tab.click()
 }

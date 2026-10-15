@@ -89,8 +89,37 @@ on a position's head ("go with day change" on the mockup
 `position-head.html`): the latest stored price minus the last stored
 close of an earlier day (`dayChange()` beside `between()`), with that
 close and its day always shown beside it, nothing stored, nothing
-graded. None of these is a licence for
-indicators — RSI and moving averages still wait for their own yes.
+graded.
+
+Indicators and the average buy were allowed on 2026-10-13 ("yes
+indicators, yes news, yes average price"), built on 2026-10-15 ("go —
+build it" on the mockup `indicators.html`), all in
+`src/lib/indicators.ts` and only on one position's chart and its
+SIGNALS tab:
+
+- **Lines**: RSI(14) (Wilder), the 50- and 200-day simple moving
+  averages (`rsi()`, `sma()`) and the 52-week high and low
+  (`yearRange()`, its distance from the high by `between()`). From stored
+  closes only (`prices` / `priceYears`), each line named with its period
+  on screen, off until pressed on every open, never stored. A line's own
+  colour never means good or bad (`--ind-*`).
+- **Average buy**: `avgBuy()` — the buys of the round held now
+  (`rounds()`, as PAID counts it) over the shares they bought, in euros,
+  and in the chart's currency at each buy's own day's stored rate
+  (`rateOn()`); its buys and the round's first day always beside it.
+- **Signals** (his words: "BAD or GOOD, most likely bullish or
+  bearish"): `signals()` reads each line by its textbook rule — above
+  the average buy IN PROFIT, above an average BULLISH, RSI over 70
+  OVERBOUGHT and under 30 OVERSOLD, the top third of the year NEAR
+  HIGH. Green, red or ink, with both numbers always shown on the row.
+  This is the one place a verdict may be coloured.
+- **A call to act** (15 Oct, his "go verdict … tell me overall idea
+  what is the best to do"): a position may say ADD / HOLD / WAIT, built
+  from the signals now and from fundamentals and news as those land.
+  Its rule is written out in `src/lib/indicators.ts` and the reasons
+  that made it are always shown beside it — never a bare word.
+
+News (fetched on open, never stored) still waits for its own build.
 The fourth was added deliberately, on 2026-09-09, because money cannot be
 tracked without prices that come from outside. That is the bar for adding
 another: a real thing the app must show, and a written set of conditions that

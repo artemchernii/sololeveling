@@ -4,6 +4,43 @@ Mockup: `design/review-mockup/index.html` (served by the `review` entry in
 `.claude/launch.json`, :3960, path `/design/review-mockup/`). Artem on it:
 "fuck its damn goooood! finally". Build what it shows.
 
+## Reworked on real data (15 Oct) — mockup `design/review-mockup/real.html`
+
+Artem on v1 with his own data: "we dont anticipate that i will constantly
+log everything, so i dont want to end up with all 0 screen … Finances are
+important, track what week, days … I wont log every hour, maybe make
+commits". He approved `real.html` ("way better", GO 15 Oct 16:45), allowed
+the week's change on Review (CLAUDE.md), and then: "spent compare not days
+but weeks and exclude reoccuring bills". This section replaces the v1 tiles
+below it: LOGGED, ON PROJECTS hours, the activity bars and the focus tile
+are gone.
+
+| Tile      | Number                                                           | Source                                                                                       |
+| --------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Week      | commits per day, across live projects                            | commits counted as Projects counts them (own repo, no merges) — `weekReview.projects[].days` |
+| Week      | € out per day                                                    | log sum, bills out — `weekReview.money.byDay`                                                |
+| Finances  | SPENT this week · LAST WEEK whole                                | log sum of euro expenses, lent and bills (`meta.recurringId`) out — `spentWeek`              |
+| Finances  | the change chip                                                  | `weekChange` — this week minus last, both beside it (allowed 15 Oct)                         |
+| Finances  | BILLS NOT COUNTED · €x                                           | log sum of the bill rows left out                                                            |
+| Finances  | BIGGEST 3, N MORE                                                | the rows themselves, under the name given with `payees.set`                                  |
+| Finances  | WORTH, its change, the labelled line, CASH, INVESTED             | `aggregate.worthHistory`, last Sunday's end to today                                         |
+| Projects  | commits of `commitTargetWeekly`, ✓ TARGET, was, days, 2 messages | commits rows; the target is the project's own                                                |
+| Projects  | TASKS · N this week · last done                                  | entity count: the project's done tasks by `completedAt`                                      |
+| Body      | WORKOUTS · N in 4 weeks; WEIGHT · LAST + day                     | log count (`workout`); state, the latest `weight`                                            |
+| Languages | sessions this week · N in 4 weeks, level                         | log count (`session` in the language's area); state `cefr_level`                             |
+
+A tile with no rows in four weeks is not drawn (Body: no workout and no
+weight in four weeks; Languages: per language; Projects: no live project).
+Counted in `src/lib/review.ts`, read by `aggregate.weekReview`.
+
+Scenarios (`e2e/review.spec.ts`): a lived week (spent without the bill,
+change green, biggest by name, 1 MORE, commits by day, ✓ TARGET, a quiet
+project as one slim row, body beside four weeks) · a quiet week (only
+Finances and the note) · the week closes with one line · a tile opens its
+page · phone width.
+
+# v1 (14 Oct), kept for the record
+
 ## Journey (his words, 14 Oct)
 
 "It should show small review of everything sololeveling has. Small section

@@ -42,17 +42,19 @@ export function LanguagesTile({
             key={a.slug}
             style={areaVars(a.slug)}
             data-testid={`language-${a.slug}`}
-            className="flex items-center gap-2.5"
+            className="flex items-center gap-2"
           >
             {photo ? (
               <img
                 src={photo}
                 alt=""
-                className="size-[30px] shrink-0 rounded-[8px] border border-lift/[0.09] object-cover"
+                className="size-[26px] shrink-0 rounded-[7px] border border-lift/[0.09] object-cover"
               />
             ) : null}
-            <Caps className="flex-1 truncate text-ink-200">{a.label}</Caps>
-            <span className="font-mono text-[10.5px] text-ink-300">
+            <Caps className="min-w-0 flex-1 truncate tracking-[0.1em] text-ink-200">
+              {a.label}
+            </Caps>
+            <span className="shrink-0 font-mono text-[10.5px] text-ink-300">
               <b className="text-[15px] font-normal text-foreground">
                 {w?.week ?? 0}
               </b>{' '}

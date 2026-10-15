@@ -91,7 +91,9 @@ close of an earlier day (`dayChange()` beside `between()`), with that
 close and its day always shown beside it, nothing stored, nothing
 graded. On 2026-10-15 the week's change was allowed on Review ("yes,
 allow week change on Review" on the mockup `real.html`): this week minus
-last week for spent (the same days of each) and for worth, with both
+last week for spent (whole weeks, recurring bills left out and their sum
+shown beside — "spent compare not days but weeks and exclude reoccuring
+bills") and for worth, with both
 numbers always shown beside it, an up or down arrow, green where the move
 is good (less spent, more worth) and red where it is not, nothing stored.
 None of these is a licence for

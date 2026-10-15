@@ -245,14 +245,14 @@ const TODAY = 3
 const R = {
   commits: { this: 138, last: 132, days: [36, 68, 32, 2, 0, 0, 0] },
   money: {
-    span: 'MON–THU', wasLabel: 'same days last week', byDay: [0, 0, 5.98, 0, 0, 0, 0], dayNames: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'], out: 5.98, outWas: 39.36, inn: 0,
+    span: 'THIS WEEK', wasLabel: 'last week', bills: 0, byDay: [0, 0, 5.98, 0, 0, 0, 0], dayNames: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'], out: 5.98, outWas: 74.05, inn: 0,
     rows: [['Solinca', 'SUBSCRIPTIONS', 5.98, 'WED 14', 'oklch(0.8 0.14 30)']],
     days: [0, 0, 1, 0, 0, 0, 0],
     worth: [45317.3, 45390.03, 45381.64, 45090, 45134.83], worthDays: ['SUN 11', 'MON 12', 'TUE 13', 'WED 14', 'THU 15'],
     cash: 25777.66, invested: 19357.17, latestRow: 'WED 14',
   },
   last: {
-    span: 'MON–SUN', wasLabel: 'week before', byDay: [39.36, 0, 0, 0, 5.19, 4.5, 25], dayNames: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'], out: 74.05, outWas: 1666.04, inn: 0, latestRow: 'SUN 11',
+    span: 'LAST WEEK', wasLabel: 'week before', bills: 0, byDay: [39.36, 0, 0, 0, 5.19, 4.5, 25], dayNames: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'], out: 74.05, outWas: 1643.90, inn: 0, latestRow: 'SUN 11',
     rows: [['Veiga e Seabra', 'CAR', 37.86, 'MON 5', 'oklch(0.75 0.12 250)'], ['Andrei Pavlov', 'FUN', 25, 'SUN 11', 'oklch(0.8 0.12 300)'], ['Manutenção de conta', 'SERVICES', 4.99, 'FRI 9', 'oklch(0.8 0.1 150)'], ['English Bar 42', 'FUN', 4.5, 'SAT 10', 'oklch(0.8 0.12 60)'], ['Fcg Pq Estacionamento', 'CAR', 1.5, 'MON 5', 'oklch(0.75 0.12 250)'], ['Imposto de selo', 'OTHER', 0.2, 'FRI 9', 'oklch(0.7 0.02 250)']],
   },
   projects: [
@@ -355,7 +355,7 @@ function render() {
     ${head('var(--a-money)', I.money, 'Finances', `<span class="badge b-dim">LATEST ROW · ${M.latestRow}</span>`)}
     <div style="display:grid; grid-template-columns: 1fr 1.25fr; gap: 22px; flex:1">
       <div style="display:flex; flex-direction:column; gap:14px">
-        <div class="stat"><span class="caps">SPENT · ${M.span}</span><span class="num xl bad">${cu(M.out, 'eur')}</span><div class="row" style="gap:8px">${delta(M.out, M.outWas, false, M.wasLabel.toUpperCase())}</div></div>
+        <div class="stat"><span class="caps">SPENT · ${M.span}</span><span class="num xl bad">${cu(M.out, 'eur')}</span><div class="row" style="gap:8px">${delta(M.out, M.outWas, false, M.wasLabel.toUpperCase())}</div><span class="badge b-dim" style="align-self:flex-start; margin-top:4px">BILLS NOT COUNTED · ${eur(M.bills)}</span></div>
         <div style="display:flex; flex-direction:column; gap:8px">
           <span class="caps">BIGGEST</span>
           ${top.map(([n, c, v, d, col], k) => `<div class="pay" style="animation: typeIn .4s ease ${700 + k * 120}ms both">

@@ -22,8 +22,7 @@ import { ownMoves } from '../src/lib/accountLines'
 import type { Close, Holding, Rate } from '../src/lib/worthHistory'
 import { lookFamily, notSeenSince, reconcile } from '../src/lib/holdings'
 import { soldPart } from '../src/lib/sold'
-import { countWeek, latestRows } from '../src/lib/review'
-import type { ReviewRow } from '../src/lib/review'
+import { countIn, projectWeek, spentWeek } from '../src/lib/review'
 import type { LedgerTrade, Observation } from '../src/lib/holdings'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
@@ -3474,29 +3473,15 @@ export async function changedAtBroker(
 }
 
 /* ---------------------------------------------------------------------------
-   The week, for Review (14 Oct, the bento). One read of two weeks' logs —
-   last week's seven midnights then this week's — counted by
-   src/lib/review.ts. Source 1 (log counts and sums) for every number, plus
-   two entity counts: the Vault sheets on this week's language sessions and
-   the focus project's tasks. Nothing derived, nothing stored.
+   The week, for Review (15 Oct, mockup design/review-mockup/real.html) — on
+   what the app gets by itself: bank rows, commits, a weight reading, and
+   the hand logs beside four weeks of them so a quiet week is not a screen
+   of zeros. Source 1 (log counts and sums, commits counted as Projects
+   counts them), source 2 (the latest weight) and source 3 (live projects,
+   done tasks). Counted in src/lib/review.ts; nothing stored.
    ------------------------------------------------------------------------ */
 
-const groupCounts = v.object({
-  projects: v.number(),
-  languages: v.number(),
-  body: v.number(),
-  money: v.number(),
-  social: v.number(),
-  other: v.number(),
-})
-
-const weekTotals = {
-  days: v.array(groupCounts),
-  total: v.number(),
-  tasksDone: v.number(),
-  projectMinutes: v.number(),
-  workouts: v.number(),
-}
+const REVIEW_PROJECTS = ['focus', 'active', 'paused'] as const
 
 export const weekReview = query({
   args: {
@@ -3504,48 +3489,58 @@ export const weekReview = query({
     dayStarts: v.array(v.number()),
     /** The midnight after this week's Sunday — exclusive. */
     end: v.number(),
+    /** The Monday three weeks before this one: four whole weeks to `end`. */
+    fourWeeksStart: v.number(),
     /** Language area slugs, from areas.list. */
     languages: v.array(v.string()),
   },
   returns: v.object({
-    week: v.object({
-      ...weekTotals,
-      body: v.array(
-        v.object({ category: v.string(), days: v.array(v.number()) }),
-      ),
-      languages: v.array(
+    money: v.object({
+      spent: v.number(),
+      lastSpent: v.number(),
+      bills: v.number(),
+      byDay: v.array(v.number()),
+      count: v.number(),
+      biggest: v.array(
         v.object({
-          slug: v.string(),
-          classes: v.number(),
-          minutes: v.number(),
-          sheets: v.number(),
-          days: v.array(v.number()),
+          _id: v.id('logs'),
+          name: v.string(),
+          category: v.union(v.string(), v.null()),
+          amount: v.number(),
+          occurredAt: v.number(),
         }),
       ),
+      /** The newest money row before `end`, any kind — how fresh the bank is. */
+      latestAt: v.union(v.number(), v.null()),
     }),
-    lastWeek: v.object(weekTotals),
-    latest: v.array(
+    projects: v.array(
       v.object({
-        _id: v.id('logs'),
-        kind: v.string(),
-        area: v.string(),
-        occurredAt: v.number(),
-        text: v.union(v.string(), v.null()),
-        value: v.union(v.number(), v.null()),
-        unit: v.union(v.string(), v.null()),
-        category: v.union(v.string(), v.null()),
-      }),
-    ),
-    focus: v.union(
-      v.object({
-        id: v.id('projects'),
+        _id: v.id('projects'),
         title: v.string(),
-        done: v.number(),
-        total: v.number(),
+        focus: v.boolean(),
+        area: v.optional(v.string()),
+        logoUrl: v.union(v.string(), v.null()),
+        target: v.union(v.number(), v.null()),
+        thisWeek: v.number(),
+        lastWeek: v.number(),
+        days: v.array(v.number()),
+        messages: v.array(v.string()),
+        tasksDone: v.number(),
+        lastDoneAt: v.union(v.number(), v.null()),
       }),
-      v.null(),
     ),
-    /** False when the read hit MAX_ROWS — the oldest days may be missing rows. */
+    body: v.object({
+      workouts: v.number(),
+      workouts4: v.number(),
+      weight: v.union(
+        v.object({ value: v.number(), at: v.number() }),
+        v.null(),
+      ),
+    }),
+    languages: v.array(
+      v.object({ slug: v.string(), week: v.number(), four: v.number() }),
+    ),
+    /** False when a read hit its cap — a number may be missing rows. */
     complete: v.boolean(),
   }),
   handler: async (ctx, args) => {
@@ -3553,97 +3548,130 @@ export const weekReview = query({
     if (args.dayStarts.length !== 14) throw new Error('FOURTEEN_DAYS')
     const lastStarts = args.dayStarts.slice(0, 7)
     const starts = args.dayStarts.slice(7)
+    const lastWeekStart = lastStarts[0]
+    const start = starts[0]
+    let complete = true
 
+    /* Four weeks of logs in one read: money for this week and last, the
+       hand logs for this week and the four. */
     const logs = await ctx.db
       .query('logs')
       .withIndex('by_owner_time', (q) =>
         q
           .eq('ownerId', ownerId)
-          .gte('occurredAt', lastStarts[0])
+          .gte('occurredAt', args.fourWeeksStart)
           .lt('occurredAt', args.end),
       )
-      .take(MAX_ROWS)
-    const rows: Array<ReviewRow & { _id: Id<'logs'> }> = logs.map((log) => ({
-      _id: log._id,
-      kind: log.kind,
-      area: log.area,
-      occurredAt: log.occurredAt,
-      value: log.value,
-      unit: log.unit,
-      text: log.text,
-      projectId: log.projectId,
-      category:
-        typeof log.meta?.category === 'string' ? log.meta.category : undefined,
-    }))
+      .take(MONEY_ROWS)
+    if (logs.length === MONEY_ROWS) complete = false
 
-    const week = countWeek(rows, starts, args.end, args.languages)
-    const last = countWeek(rows, lastStarts, starts[0], [])
-
-    const languages = []
-    for (const lang of week.languages) {
-      let sheets = 0
-      for (const logId of lang.sessionIds.slice(0, 50)) {
-        const found = await ctx.db
-          .query('vaultSheets')
-          .withIndex('by_owner_log', (q) =>
-            q.eq('ownerId', ownerId).eq('logId', logId as Id<'logs'>),
-          )
-          .take(20)
-        sheets += found.length
-      }
-      languages.push({
-        slug: lang.slug,
-        classes: lang.classes,
-        minutes: lang.minutes,
-        sheets,
-        days: lang.days,
-      })
-    }
-
-    const focusRows = await ctx.db
-      .query('projects')
-      .withIndex('by_owner_status', (q) =>
-        q.eq('ownerId', ownerId).eq('status', 'focus'),
+    const money = logs.filter((l) => l.area === 'money')
+    const week = spentWeek(money, starts, args.end)
+    const last = spentWeek(money, lastStarts, start)
+    const newestMoney = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_area_time', (q) =>
+        q.eq('ownerId', ownerId).eq('area', 'money').lt('occurredAt', args.end),
       )
-      .take(1)
-    let focus = null
-    if (focusRows.length > 0) {
-      const project = focusRows[0]
-      const tasks = await ctx.db
-        .query('tasks')
-        .withIndex('by_project', (q) => q.eq('projectId', project._id))
+      .order('desc')
+      .first()
+
+    const isWorkout = (l: Doc<'logs'>) =>
+      l.area === 'body' && l.kind === 'workout'
+    const weight = await ctx.db
+      .query('stateSnapshots')
+      .withIndex('by_owner_key_time', (q) =>
+        q.eq('ownerId', ownerId).eq('key', 'weight').lt('recordedAt', args.end),
+      )
+      .order('desc')
+      .first()
+
+    const projects = []
+    for (const status of REVIEW_PROJECTS) {
+      const rows = await ctx.db
+        .query('projects')
+        .withIndex('by_owner_status', (q) =>
+          q.eq('ownerId', ownerId).eq('status', status),
+        )
         .take(MAX_ROWS)
-      const own = tasks.filter((t) => t.ownerId === ownerId)
-      focus = {
-        id: project._id,
-        title: project.title,
-        done: own.filter((t) => t.status === 'done').length,
-        total: own.filter((t) => t.status !== 'skipped').length,
+      for (const project of rows) {
+        const commits = await ctx.db
+          .query('commits')
+          .withIndex('by_owner_project_time', (q) =>
+            q
+              .eq('ownerId', ownerId)
+              .eq('projectId', project._id)
+              .gte('authoredAt', lastWeekStart)
+              .lt('authoredAt', args.end),
+          )
+          .take(MAX_ROWS)
+        if (commits.length === MAX_ROWS) complete = false
+        const counted = projectWeek(
+          commits,
+          project.githubRepo,
+          lastWeekStart,
+          starts,
+          args.end,
+        )
+        const done = (
+          await ctx.db
+            .query('tasks')
+            .withIndex('by_project', (q) => q.eq('projectId', project._id))
+            .take(MAX_ROWS)
+        ).filter(
+          (t) =>
+            t.ownerId === ownerId &&
+            t.status === 'done' &&
+            t.completedAt !== undefined &&
+            t.completedAt < args.end,
+        )
+        const doneAt = done.map((t) => t.completedAt as number)
+        projects.push({
+          _id: project._id,
+          title: project.title,
+          focus: project.status === 'focus',
+          area: project.area,
+          logoUrl:
+            project.logoId === undefined
+              ? null
+              : await ctx.storage.getUrl(project.logoId),
+          target: project.commitTargetWeekly ?? null,
+          ...counted,
+          tasksDone: doneAt.filter((t) => t >= start).length,
+          lastDoneAt: doneAt.length > 0 ? Math.max(...doneAt) : null,
+        })
       }
     }
 
-    const totals = (w: typeof week) => ({
-      days: w.days,
-      total: w.total,
-      tasksDone: w.tasksDone,
-      projectMinutes: w.projectMinutes,
-      workouts: w.workouts,
-    })
     return {
-      week: { ...totals(week), body: week.body, languages },
-      lastWeek: totals(last),
-      latest: latestRows(rows, starts[0], args.end).map((r) => ({
-        _id: r._id,
-        kind: r.kind,
-        area: r.area,
-        occurredAt: r.occurredAt,
-        text: r.text ?? null,
-        value: r.value ?? null,
-        unit: r.unit ?? null,
-        category: r.category ?? null,
-      })),
-      focus,
-      complete: logs.length < MAX_ROWS,
+      money: {
+        spent: week.spent,
+        lastSpent: last.spent,
+        bills: week.bills,
+        byDay: week.byDay,
+        count: week.count,
+        biggest: week.biggest.map((b) => ({ ...b, _id: b._id as Id<'logs'> })),
+        latestAt: newestMoney?.occurredAt ?? null,
+      },
+      projects,
+      body: {
+        workouts: countIn(logs, start, args.end, isWorkout),
+        workouts4: countIn(logs, args.fourWeeksStart, args.end, isWorkout),
+        weight:
+          weight?.value === undefined
+            ? null
+            : { value: weight.value, at: weight.recordedAt },
+      },
+      languages: args.languages.map((slug) => {
+        const isSession = (l: Doc<'logs'>) =>
+          l.area === slug && l.kind === 'session'
+        return {
+          slug,
+          week: countIn(logs, start, args.end, isSession),
+          four: countIn(logs, args.fourWeeksStart, args.end, isSession),
+        }
+      }),
+      complete,
     }
   },
 })

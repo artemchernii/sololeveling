@@ -1,14 +1,11 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react'
 
-import type { FunctionReturnType } from 'convex/server'
-import type { api } from '../../../convex/_generated/api'
-import { Caps, CountUp, Stat } from '@/components/review/parts'
+import { Badge, Caps, dayLabel } from '@/components/review/parts'
+import { euros } from '@/lib/money'
 import { addDays } from '@/lib/weeks'
 
-type Week = FunctionReturnType<typeof api.aggregate.weekReview>
-
-/** "6 – 12 OCT 2026" */
+/** "12 – 18 OCT 2026" */
 function range(start: Date): string {
   const end = addDays(start, 6)
   const month = (d: Date) =>
@@ -35,92 +32,136 @@ function isoWeek(monday: Date): number {
   )
 }
 
-const hours = (minutes: number) => `${(minutes / 60).toFixed(1)}h`
-
-/* The week across the top, one slim System window: which week, whether it
-   is closed, and the three counts of the whole week. */
+/* The week across the top, one System window (mockup real.html): a card
+   per day with what the app saw on its own — commits across projects, and
+   what was spent. Today pulses; the days still to come are dim. */
 export function WeekBar({
   weekStart,
   closed,
-  week,
+  today,
+  commits,
+  spent,
   isThisWeek,
   onMove,
 }: {
   weekStart: Date
   closed: boolean
-  week: Week | undefined
+  /** Today's index in this week, or -1 when the week is another. */
+  today: number
+  /** Per day, Monday first — undefined while loading. */
+  commits: ReadonlyArray<number> | undefined
+  spent: ReadonlyArray<number> | undefined
   isThisWeek: boolean
   onMove: (weeks: number) => void
 }) {
   const arrow =
     'motion-press grid size-7 place-items-center rounded-[7px] border border-lift/10 bg-lift/5 text-ink-300 hover:text-foreground disabled:opacity-40'
+  const most = Math.max(1, ...(commits ?? []))
   return (
     <section
       aria-label="Week"
       style={{ '--area': 'var(--color-lav-400)', '--i': 0 } as CSSProperties}
-      className="system-frame bento-tile relative flex flex-wrap items-center justify-between gap-x-6 gap-y-3 p-3.5"
+      className="system-frame bento-tile relative flex flex-col gap-3 p-3.5"
     >
       <span aria-hidden className="bento-sweep" />
-      <div className="relative flex flex-col gap-1.5">
-        <div className="flex items-center gap-2.5">
+      <div className="relative flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           <span className="system-title">[ WEEK {isoWeek(weekStart)} ]</span>
           {closed ? (
-            <span className="motion-pop inline-flex items-center gap-1 rounded-full border border-current bg-state-good/10 px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] text-state-good uppercase">
+            <Badge className="motion-pop bg-state-good/10 text-state-good">
               <Check className="size-3" strokeWidth={3} /> CLOSED
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-current bg-lav-400/10 px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] text-lav-400 uppercase">
+            </Badge>
+          ) : today >= 0 ? (
+            <Badge className="bg-lav-400/10 text-lav-400">
               <span className="bento-ping size-1.5 rounded-full bg-current" />
-              OPEN
-            </span>
-          )}
+              DAY {today + 1} OF 7
+            </Badge>
+          ) : null}
+          <Caps>{range(weekStart)}</Caps>
         </div>
-        <Caps>{range(weekStart)}</Caps>
+        <div className="flex gap-1">
+          <button
+            type="button"
+            aria-label="Week before"
+            className={arrow}
+            onClick={() => onMove(-1)}
+          >
+            <ChevronLeft className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            aria-label="Week after"
+            className={arrow}
+            disabled={isThisWeek}
+            onClick={() => onMove(1)}
+          >
+            <ChevronRight className="size-3.5" />
+          </button>
+        </div>
       </div>
-      {week ? (
-        <div className="relative flex flex-wrap gap-7">
-          <Stat label="LOGGED" size="text-[22px]" was={week.lastWeek.total}>
-            <CountUp to={week.week.total} testId="logged" />
-          </Stat>
-          <Stat
-            label="TASKS DONE"
-            size="text-[22px]"
-            was={week.lastWeek.tasksDone}
-          >
-            <CountUp to={week.week.tasksDone} testId="tasks-done" />
-          </Stat>
-          <Stat
-            label="ON PROJECTS"
-            size="text-[22px]"
-            was={hours(week.lastWeek.projectMinutes)}
-          >
-            <CountUp
-              to={week.week.projectMinutes / 60}
-              format={(n) => n.toFixed(1)}
-            />
-            <span className="text-[15px] text-ink-500">h</span>
-          </Stat>
-        </div>
-      ) : null}
-      <div className="relative flex gap-1">
-        <button
-          type="button"
-          aria-label="Week before"
-          className={arrow}
-          onClick={() => onMove(-1)}
-        >
-          <ChevronLeft className="size-3.5" />
-        </button>
-        <button
-          type="button"
-          aria-label="Week after"
-          className={arrow}
-          disabled={isThisWeek}
-          onClick={() => onMove(1)}
-        >
-          <ChevronRight className="size-3.5" />
-        </button>
+      <div className="relative grid grid-cols-7 gap-1.5">
+        {Array.from({ length: 7 }, (_, k) => {
+          const c = commits?.[k] ?? 0
+          const out = spent?.[k] ?? 0
+          const later = today >= 0 && k > today
+          return (
+            <div
+              key={k}
+              data-testid={`day-${k}`}
+              className={`flex min-h-24 min-w-0 flex-col gap-1.5 rounded-[10px] border border-lift/[0.09] bg-lift/[0.03] px-[7px] py-2 transition hover:-translate-y-0.5 ${k === today ? 'review-today border-lav-400' : ''} ${later ? 'opacity-40' : ''}`}
+            >
+              <Caps className="text-[8.5px] tracking-[0.1em]">
+                {dayLabel(addDays(weekStart, k).getTime())}
+              </Caps>
+              <div className="flex h-8 items-end">
+                {c > 0 ? (
+                  <i
+                    style={{
+                      height: `${(c / most) * 100}%`,
+                      animationDelay: `${k * 70}ms`,
+                    }}
+                    className="bento-grow w-full rounded-[3px] bg-(--area-projects) shadow-[0_0_10px_-3px_var(--area-projects)]"
+                  />
+                ) : null}
+              </div>
+              {commits === undefined || later ? null : (
+                <Chip
+                  className={c > 0 ? 'text-(--area-projects)' : 'text-ink-500'}
+                  delay={400 + k * 70}
+                >
+                  {c}
+                  <span className="max-sm:hidden"> COMMITS</span>
+                </Chip>
+              )}
+              {out > 0 ? (
+                <Chip className="text-area-money" delay={500 + k * 70}>
+                  {euros(out)}
+                  <span className="max-sm:hidden"> OUT</span>
+                </Chip>
+              ) : null}
+            </div>
+          )
+        })}
       </div>
     </section>
+  )
+}
+
+function Chip({
+  children,
+  className,
+  delay,
+}: {
+  children: ReactNode
+  className: string
+  delay: number
+}) {
+  return (
+    <span
+      style={{ animationDelay: `${delay}ms` }}
+      className={`motion-pop self-start truncate rounded-[6px] border border-current px-[5px] py-px font-mono text-[9px] tracking-[0.06em] whitespace-nowrap ${className}`}
+    >
+      {children}
+    </span>
   )
 }

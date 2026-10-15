@@ -129,3 +129,17 @@
     pop var(--motion-base) var(--motion-ease) both,
     bento-lit 2.6s ease-in-out 1s infinite;
 }
+
+@keyframes review-today {
+  0%,
+  100% {
+    box-shadow: 0 0 10px -6px var(--system-shine);
+  }
+  50% {
+    box-shadow: 0 0 22px -4px var(--system-shine);
+  }
+}
+/* Today's card in the week bar: lit, breathing. */
+@utility review-today {
+  animation: review-today 2.4s ease-in-out infinite;
+}

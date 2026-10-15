@@ -38,6 +38,9 @@ const TABLES: Array<TableNames> = [
   'payees',
   'bankLinks',
   'reviews',
+  'projects',
+  'commits',
+  'tasks',
 ]
 
 async function wipe(ctx: MutationCtx) {
@@ -234,8 +237,12 @@ export const paySalary = mutation({
 })
 
 /**
- * A lived week for Review (14 Oct): gym twice, a hike, a plain note, a
- * task ticked — on the days given, this week's local midnights.
+ * A lived week for Review (15 Oct, mockup real.html) on what the app gets
+ * by itself: a project's commits (three of a target of three, one last
+ * week) and a quiet one, a task done, four bank rows and a bill this week,
+ * one row last week, two gym workouts and a weight. `days` are this week's
+ * Monday, Tuesday and Wednesday, local midnights. The bad day's spends are
+ * taken out first, so the sums do not move with the weekday.
  */
 export const reviewWeek = mutation({
   args: { days: v.array(v.number()) },
@@ -243,34 +250,100 @@ export const reviewWeek = mutation({
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     guard()
-    const log = (day: number, row: Record<string, unknown>) =>
+    for (const row of await ctx.db.query('logs').collect())
+      if (row.area === 'money') await ctx.db.delete(row._id)
+    const [a, b, c] = args.days
+    const hour = (day: number, h: number) => day + h * 3_600_000
+
+    const sl = await ctx.db.insert('projects', {
+      ownerId,
+      title: 'Solo Leveling',
+      status: 'focus',
+      githubRepo: 'artem/sololeveling',
+      commitTargetWeekly: 3,
+    })
+    await ctx.db.insert('projects', {
+      ownerId,
+      title: 'Oreum',
+      status: 'active',
+    })
+    const commit = (at: number, message: string) =>
+      ctx.db.insert('commits', {
+        ownerId,
+        projectId: sl,
+        repo: 'artem/sololeveling',
+        sha: `${at}`,
+        message,
+        url: 'https://github.com/artem/sololeveling',
+        authoredAt: at,
+        fetchedAt: at,
+        isMerge: false,
+      })
+    await commit(hour(a - 7 * DAY, 11), 'chore: last week')
+    await commit(hour(a, 10), 'feat(review): the week bar')
+    await commit(hour(a, 15), 'feat(review): spent by day')
+    await commit(hour(b, 12), 'fix(review): bills not counted')
+    await ctx.db.insert('tasks', {
+      ownerId,
+      title: 'Ship Review',
+      projectId: sl,
+      status: 'done',
+      priority: 0,
+      completedAt: hour(a, 18),
+    })
+
+    const bill = await ctx.db.insert('recurring', {
+      ownerId,
+      name: 'Anthropic',
+      kind: 'expense',
+      amount: 22.14,
+      cadence: 'monthly',
+      day: new Date(b).getDate(),
+    })
+    const spend = (
+      at: number,
+      text: string,
+      value: number,
+      category: string,
+      recurringId?: typeof bill,
+    ) =>
       ctx.db.insert('logs', {
         ownerId,
-        occurredAt: day + 10 * 3_600_000,
-        kind: 'event',
-        area: 'knowledge',
-        ...row,
+        area: 'money',
+        kind: 'expense',
+        occurredAt: at,
+        value,
+        unit: 'eur',
+        text,
+        meta: { merchant: text, category, recurringId },
       })
-    const [a, b, c] = args.days
-    await log(a, {
-      kind: 'workout',
+    await spend(hour(a - 7 * DAY, 12), 'English Bar 42', 74.05, 'eating out')
+    await spend(hour(a, 9), 'Veiga e Seabra', 37.86, 'car')
+    await spend(hour(b, 9), 'Anthropic', 22.14, 'subscriptions', bill)
+    await spend(hour(c, 9), 'Solinca', 5.98, 'subscriptions')
+    await spend(hour(c, 13), 'Bolt', 4.5, 'transport')
+    await spend(hour(c, 19), 'Pingo Doce', 2.1, 'groceries')
+
+    const workout = (at: number) =>
+      ctx.db.insert('logs', {
+        ownerId,
+        area: 'body',
+        kind: 'workout',
+        occurredAt: at,
+        value: 60,
+        meta: { category: 'gym' },
+      })
+    await workout(hour(a, 7))
+    await workout(hour(b, 7))
+    await ctx.db.insert('stateSnapshots', {
+      ownerId,
       area: 'body',
-      value: 60,
-      meta: { category: 'gym' },
+      key: 'weight',
+      value: 75.4,
+      unit: 'kg',
+      recordedAt: hour(b, 8),
+      source: 'typed',
     })
-    await log(b, {
-      kind: 'workout',
-      area: 'body',
-      value: 45,
-      meta: { category: 'gym' },
-    })
-    await log(c, {
-      kind: 'workout',
-      area: 'body',
-      meta: { category: 'hiking' },
-    })
-    await log(c, { kind: 'event', area: 'knowledge', text: 'called Dyson' })
-    await log(c, { kind: 'task_done', area: 'projects', text: 'Ship Review' })
     return null
   },
 })

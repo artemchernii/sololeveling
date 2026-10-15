@@ -165,28 +165,32 @@ export function Tile({
   )
 }
 
-/** Monday first, one letter. */
-export const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+/** "WED 14" */
+export const dayLabel = (t: number) =>
+  new Date(t)
+    .toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' })
+    .toUpperCase()
+    .replace(',', '')
 
-/** Seven cells, lit where the day has a row. */
-export function DayCells({
-  days,
-  height = 'h-[15px]',
-  delay = 500,
+/** "SEP 24" */
+export const dateLabel = (t: number) => {
+  const d = new Date(t)
+  return `${d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} ${d.getDate()}`
+}
+
+/** A small caps badge in a colour of its own. */
+export function Badge({
+  children,
+  className = 'text-ink-400',
 }: {
-  days: ReadonlyArray<number>
-  height?: string
-  delay?: number
+  children: ReactNode
+  className?: string
 }) {
   return (
-    <>
-      {days.map((n, i) => (
-        <span
-          key={i}
-          style={{ animationDelay: `${delay + i * 60}ms` }}
-          className={`${height} rounded-[4px] ${n > 0 ? 'motion-pop bg-(--area) shadow-[0_0_10px_-3px_var(--area)]' : 'bg-lift/5'}`}
-        />
-      ))}
-    </>
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border border-current px-[7px] py-0.5 font-mono text-[9.5px] tracking-[0.12em] whitespace-nowrap uppercase ${className}`}
+    >
+      {children}
+    </span>
   )
 }

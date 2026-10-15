@@ -283,7 +283,7 @@ export function Bell() {
       {open ? (
         <div
           data-testid="bell-panel"
-          className="system-frame system-open absolute top-[46px] right-0 z-40 bg-popover flex w-[min(420px,calc(100vw-24px))] flex-col gap-2.5 rounded-[18px] p-3.5"
+          className="system-frame system-open fixed inset-x-3 top-[64px] z-40 flex max-h-[calc(100dvh-220px)] flex-col gap-2.5 overflow-y-auto rounded-[18px] bg-popover p-3.5 md:absolute md:inset-x-auto md:top-[46px] md:right-0 md:max-h-none md:w-[420px] md:overflow-visible"
         >
           <div className="flex items-center gap-2">
             <span className="system-title">[ TODAY ]</span>
@@ -303,7 +303,7 @@ export function Bell() {
               </span>
             </div>
           ) : (
-            <div className="flex max-h-[60vh] flex-col gap-1.5 overflow-y-auto">
+            <div className="flex flex-col gap-1.5 md:max-h-[60vh] md:overflow-y-auto">
               <span className="mx-0.5 mt-1 font-mono text-[9px] tracking-[0.2em] text-ink-500">
                 NOW
               </span>

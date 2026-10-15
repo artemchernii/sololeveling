@@ -122,6 +122,39 @@ const reviewPeriod = v.union(
 
 const area = areaSlug
 
+/* A buy or a sell (Finances F4): shares and the price per share he paid,
+   in euros, as the broker confirmed. A position is the sum of its
+   trades' shares — PLAN.md §1's sum rule, over trade rows. Shared with
+   removedTrades, which keeps the same row aside. */
+const tradeFields = {
+  ownerId: v.string(),
+  accountId: v.id('accounts'),
+  instrumentId: v.id('instruments'),
+  side: v.union(v.literal('buy'), v.literal('sell')),
+  shares: v.number(),
+  priceEur: v.number(),
+  occurredAt: v.number(),
+  /* Brought in from a screenshot rather than typed: what he held on the
+     day of the import, at his average price. */
+  importId: v.optional(v.id('intakes')),
+  /* What he already held when the app first saw the account — a first
+     holdings screenshot. It has no cash side: the money left long before.
+     Every other buy takes its cost out of the broker's cash, and every
+     sell puts it back (aggregate.ts, readBalances). */
+  opening: v.optional(v.boolean()),
+  /* A staking payment (4 Oct, his Revolut crypto: 45 of them in ADA):
+     coins given for holding, at €0 cost — what it is worth, never what
+     he bought it for, never income. */
+  reward: v.optional(v.boolean()),
+  /* No cash side: Revolut's crypto is bought with money its bank
+     statement already shows leaving, so the trade must not take it from
+     a cash pocket a second time. */
+  noCash: v.optional(v.boolean()),
+  /* A stock split from a trading history (9 Oct): the shares it added,
+     on its day, at no cost — never a buy he paid for. */
+  split: v.optional(v.boolean()),
+}
+
 export default defineSchema({
   /* R6, 21 Sep. The set of areas used to be a ten-literal union in this file
      — so adding "English" meant a deploy, which is how Artem found a goal
@@ -825,43 +858,22 @@ export default defineSchema({
        like projects.by_github_repo. */
     .index('by_symbol', ['symbol']),
 
-  /* A buy or a sell (Finances F4): shares and the price per share he paid,
-     in euros, as the broker confirmed. A position is the sum of its
-     trades' shares — PLAN.md §1's sum rule, over trade rows. */
-  trades: defineTable({
-    ownerId: v.string(),
-    accountId: v.id('accounts'),
-    instrumentId: v.id('instruments'),
-    side: v.union(v.literal('buy'), v.literal('sell')),
-    shares: v.number(),
-    priceEur: v.number(),
-    occurredAt: v.number(),
-    /* Brought in from a screenshot rather than typed: what he held on the
-       day of the import, at his average price. */
-    importId: v.optional(v.id('intakes')),
-    /* What he already held when the app first saw the account — a first
-       holdings screenshot. It has no cash side: the money left long before.
-       Every other buy takes its cost out of the broker's cash, and every
-       sell puts it back (aggregate.ts, readBalances). */
-    opening: v.optional(v.boolean()),
-    /* A staking payment (4 Oct, his Revolut crypto: 45 of them in ADA):
-       coins given for holding, at €0 cost — what it is worth, never what
-       he bought it for, never income. */
-    reward: v.optional(v.boolean()),
-    /* No cash side: Revolut's crypto is bought with money its bank
-       statement already shows leaving, so the trade must not take it from
-       a cash pocket a second time. */
-    noCash: v.optional(v.boolean()),
-    /* A stock split from a trading history (9 Oct): the shares it added,
-       on its day, at no cost — never a buy he paid for. */
-    split: v.optional(v.boolean()),
-  })
+  trades: defineTable(tradeFields)
     .index('by_owner_time', ['ownerId', 'occurredAt'])
     .index('by_owner_instrument', ['ownerId', 'instrumentId'])
     .index('by_owner_account', ['ownerId', 'accountId'])
     /* The account sheet's page (13 Oct): the newest trades of one account
        without reading all of them — Revolut holds 3,700. */
     .index('by_owner_account_time', ['ownerId', 'accountId', 'occurredAt']),
+
+  /* A trade taken off its position (15 Oct, mockup trade-remove.html):
+     the same row kept aside with the moment it went, so UNDO puts it back
+     — never gone for good from one press (14 Oct night: the × took his
+     MSFT buy with no way back). Nothing that counts reads this table. */
+  removedTrades: defineTable({
+    ...tradeFields,
+    removedAt: v.number(),
+  }).index('by_owner_instrument', ['ownerId', 'instrumentId']),
 
   /* What a holdings screen showed (R6c, 27 Sep): the shares of one ticker
      in one account on one day, and what was paid when the screen printed a

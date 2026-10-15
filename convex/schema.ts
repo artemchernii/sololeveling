@@ -155,6 +155,19 @@ const tradeFields = {
   split: v.optional(v.boolean()),
 }
 
+/* N1. Where a push subscription lives, and what a notification is about. */
+export const pushDevice = v.union(
+  v.literal('iphone'),
+  v.literal('mac'),
+  v.literal('other'),
+)
+export const notificationKind = v.union(
+  v.literal('reminder'),
+  v.literal('file_read'),
+  v.literal('file_failed'),
+  v.literal('test'),
+)
+
 export default defineSchema({
   /* R6, 21 Sep. The set of areas used to be a ten-literal union in this file
      — so adding "English" meant a deploy, which is how Artem found a goal
@@ -1435,4 +1448,31 @@ export default defineSchema({
     }),
     decision: v.optional(v.string()), // the one sentence "what changes next week"
   }).index('by_owner_period_start', ['ownerId', 'period', 'periodStart']),
+
+  /* N1 (15 Oct). One row per browser that allowed notifications — his
+     iPhone from the home screen, the Mac's browser. The endpoint is the
+     push service's address for that browser; the keys encrypt for it. */
+  pushSubscriptions: defineTable({
+    ownerId: v.string(),
+    endpoint: v.string(),
+    p256dh: v.string(),
+    auth: v.string(),
+    device: pushDevice,
+    createdAt: v.number(),
+  })
+    .index('by_owner', ['ownerId'])
+    .index('by_owner_and_endpoint', ['ownerId', 'endpoint']),
+
+  /* N1. Every notification sent, so the bell lists today's and a tap
+     clears its dot. Written before the push goes, whether or not a phone
+     is subscribed. */
+  notifications: defineTable({
+    ownerId: v.string(),
+    kind: notificationKind,
+    title: v.string(),
+    body: v.string(),
+    url: v.string(),
+    sentAt: v.number(),
+    readAt: v.optional(v.number()),
+  }).index('by_owner_and_sent', ['ownerId', 'sentAt']),
 })

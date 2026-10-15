@@ -1,0 +1,253 @@
+/* N1 (15 Oct) — the motion of the notifications mockup he said "looks
+   good" to (design/notifications-mockup): his logo's bars growing, the
+   live dot pinging, the halo round the icon, the three taps drawn, the
+   bell ringing. Colours come from tokens; the reduced-motion rule in
+   styles.css stops every one of these after one pass. */
+
+.nt-logo .nt-bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: nt-grow 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.nt-logo .nt-bar:nth-of-type(2) {
+  animation-delay: 0.12s;
+}
+.nt-logo .nt-bar:nth-of-type(3) {
+  animation-delay: 0.24s;
+}
+.nt-logo .nt-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation:
+    nt-dot-in 0.5s 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) both,
+    nt-dot 2.6s 1s ease-in-out infinite;
+}
+@keyframes nt-grow {
+  from {
+    transform: scaleY(0.15);
+  }
+}
+@keyframes nt-dot-in {
+  from {
+    transform: scale(0);
+  }
+}
+@keyframes nt-dot {
+  50% {
+    filter: drop-shadow(0 0 6px var(--color-lav-300));
+  }
+}
+
+/* A live state: the dot sends a ring out. */
+.nt-live::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: nt-ping 1.6s ease-out infinite;
+}
+.nt-ping {
+  animation: nt-ping 1.6s ease-out infinite;
+}
+@keyframes nt-ping {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  80%,
+  100% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+
+/* Rings leaving the icon on ALLOW. */
+.nt-halo::before,
+.nt-halo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 34px;
+  border: 1.5px solid var(--color-lav-400);
+  opacity: 0;
+  animation: nt-halo 2.4s ease-out infinite;
+}
+.nt-halo::after {
+  animation-delay: 1.2s;
+}
+@keyframes nt-halo {
+  0% {
+    transform: scale(0.75);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+/* The step in progress: a light running along its segment. */
+.nt-scan {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-lav-400),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: nt-scan 1.6s linear infinite;
+}
+@keyframes nt-scan {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.nt-fill {
+  transform-origin: left;
+  animation: nt-fill 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes nt-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* The three taps, drawn: a finger pressing, a sheet rising, the icon
+   landing on the home screen. */
+.nt-finger {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.3);
+  border: 2px solid #fff;
+  pointer-events: none;
+  animation: nt-tap 1.6s ease-in-out infinite;
+}
+@keyframes nt-tap {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(0.72);
+    opacity: 1;
+  }
+}
+.nt-hit-ring {
+  animation: nt-hit 1.6s ease-out infinite;
+}
+@keyframes nt-hit {
+  0% {
+    box-shadow: 0 0 0 0 rgb(10 122 255 / 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgb(10 122 255 / 0);
+  }
+}
+.nt-sheet-up {
+  animation: nt-up 0.5s cubic-bezier(0.2, 0.9, 0.25, 1.1) both;
+}
+@keyframes nt-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+.nt-land-icon {
+  animation:
+    nt-land 0.8s 0.2s cubic-bezier(0.3, 1.6, 0.5, 1) both,
+    nt-glow 2s 1s ease-in-out infinite;
+}
+@keyframes nt-land {
+  from {
+    transform: scale(0) rotate(-20deg);
+  }
+}
+@keyframes nt-glow {
+  50% {
+    box-shadow: 0 0 18px 2px var(--system-shine);
+  }
+}
+
+/* iOS Settings' switch flipping by itself on BLOCKED. */
+.nt-switch {
+  animation: nt-switch 3s 1s ease-in-out infinite;
+}
+.nt-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  animation: nt-knob 3s 1s ease-in-out infinite;
+}
+@keyframes nt-switch {
+  0%,
+  30%,
+  100% {
+    background: #39393d;
+  }
+  45%,
+  85% {
+    background: #34c759;
+  }
+}
+@keyframes nt-knob {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  45%,
+  85% {
+    transform: translateX(18px);
+  }
+}
+
+/* The bell rings when a new one arrives. */
+.nt-ring svg {
+  transform-origin: 50% 10%;
+  animation: nt-swing 1s ease-in-out;
+}
+@keyframes nt-swing {
+  15% {
+    transform: rotate(18deg);
+  }
+  30% {
+    transform: rotate(-15deg);
+  }
+  45% {
+    transform: rotate(10deg);
+  }
+  60% {
+    transform: rotate(-6deg);
+  }
+  75% {
+    transform: rotate(3deg);
+  }
+}
+
+/* The QR's scan line. */
+.nt-qr-scan {
+  position: absolute;
+  inset-inline: 0;
+  height: 3px;
+  background: var(--color-lav-400);
+  box-shadow: 0 0 12px 2px var(--color-lav-400);
+  animation: nt-qr 2.2s ease-in-out infinite;
+}
+@keyframes nt-qr {
+  0%,
+  100% {
+    top: 6%;
+  }
+  50% {
+    top: 92%;
+  }
+}

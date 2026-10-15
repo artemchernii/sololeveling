@@ -3,8 +3,9 @@ import {
   ClerkLoading,
   UserButton,
 } from '@clerk/tanstack-react-start'
-import { Bell, Plus, Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 
+import { Bell } from './Bell'
 import { ConnectionStatus } from './ConnectionStatus'
 import { Key } from './Key'
 
@@ -80,15 +81,7 @@ export function TopBar({
           </span>
         </button>
 
-        <button
-          type="button"
-          disabled
-          className="relative hidden size-9 place-items-center rounded-[10px] border border-lift/10 bg-sink/20 text-ink-400 disabled:cursor-default md:grid"
-          aria-label="Notifications"
-        >
-          <Bell className="size-4" />
-          <span className="absolute top-[6px] right-[7px] size-[5px] rounded-full bg-lav-500" />
-        </button>
+        <Bell />
 
         {/* The avatar's place is held from the first paint. Clerk's button
             renders nothing until Clerk's script has loaded, and then its

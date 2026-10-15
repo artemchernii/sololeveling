@@ -98,15 +98,17 @@ export function avgBuy(
 }
 
 /** Euros for one unit of the chart's currency on a day: read off the
-    stored close on or before it that carries its euros. */
+    stored close of that day, or the last before it, that carries its
+    euros — a buy at 15:00 takes its day's close, stored that evening. */
 export function rateOn(pts: ReadonlyArray<Pt>) {
   const known = pts
     .filter((p) => p.eur !== undefined && p.v > 0)
     .sort((a, b) => a.t - b.t)
   return (t: number) => {
     let r: number | undefined
+    const day = Math.floor(t / DAY)
     for (const p of known) {
-      if (p.t > t) break
+      if (Math.floor(p.t / DAY) > day) break
       r = p.eur! / p.v
     }
     return r
@@ -128,4 +130,96 @@ export function yearRange(pts: ReadonlyArray<Pt>) {
     if (p.v < low.v) low = p
   }
   return { from, high, low, fromHigh: between(high, last) }
+}
+
+export type LineId = 'avg' | 'sma50' | 'sma200' | 'rsi' | 'yr'
+export type Way = 'up' | 'down' | 'flat'
+
+/** One row of the SIGNALS tab (15 Oct, mockup indicators.html: "BAD or
+    GOOD, most likely bullish or bearish"): what a line says today by
+    its textbook rule. `pct` is the price against the line (RSI: its
+    value; 52W: from the high), `at` where today sits on the row's
+    gauge, 0–100; `level` the line's own value today. */
+export type Signal = {
+  id: LineId
+  verdict: string
+  way: Way
+  pct: number
+  at: number
+  price: number
+  level: number
+}
+
+/* A gauge of price against a line runs from −15% to +15%. */
+const REACH = 15
+const gauge = (v: number) => Math.max(3, Math.min(97, v))
+const against = (
+  id: LineId,
+  price: number,
+  level: number,
+  words: [string, string],
+): Signal => {
+  const pct = ((price - level) / level) * 100
+  return {
+    id,
+    verdict: pct >= 0 ? words[0] : words[1],
+    way: pct >= 0 ? 'up' : 'down',
+    pct,
+    at: gauge(50 + (pct / REACH) * 50),
+    price,
+    level,
+  }
+}
+
+/**
+ * The signals of the stored closes and the average buy, newest close
+ * as today. A line with too few closes for its period has no row.
+ * AVG BUY: in profit above it. SMA 50 / 200: bullish above. RSI 14:
+ * overbought over 70 (a sign it may turn down), oversold under 30.
+ * 52W: near high in the top third of the year's range, near low in the
+ * bottom third.
+ */
+export function signals(
+  pts: ReadonlyArray<Pt>,
+  avg: number | null,
+): Array<Signal> {
+  const last = pts.at(-1)
+  if (!last) return []
+  const p = last.v
+  const out: Array<Signal> = []
+  if (avg !== null) out.push(against('avg', p, avg, ['in profit', 'at a loss']))
+  for (const [id, n] of [
+    ['sma50', 50],
+    ['sma200', 200],
+  ] as const) {
+    const level = sma(pts.slice(-n), n).at(-1)?.v
+    if (level !== undefined)
+      out.push(against(id, p, level, ['bullish', 'bearish']))
+  }
+  const r = rsi(pts, 14).at(-1)?.v
+  if (r !== undefined)
+    out.push({
+      id: 'rsi',
+      verdict: r > 70 ? 'overbought' : r < 30 ? 'oversold' : 'neutral',
+      way: r > 70 ? 'down' : r < 30 ? 'up' : 'flat',
+      pct: r,
+      at: gauge(r),
+      price: p,
+      level: r,
+    })
+  const yr = yearRange(pts)
+  if (yr && yr.high.v > yr.low.v) {
+    const at = ((p - yr.low.v) / (yr.high.v - yr.low.v)) * 100
+    out.push({
+      id: 'yr',
+      verdict:
+        at >= 200 / 3 ? 'near high' : at <= 100 / 3 ? 'near low' : 'mid range',
+      way: at >= 200 / 3 ? 'up' : at <= 100 / 3 ? 'down' : 'flat',
+      pct: yr.fromHigh.pct,
+      at: gauge(at),
+      price: p,
+      level: yr.high.v,
+    })
+  }
+  return out
 }

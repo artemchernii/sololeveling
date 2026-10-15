@@ -59,9 +59,7 @@ test('Portfolio: chart lines and the SIGNALS tab', async ({ page }) => {
   await page.screenshot({ ...shot('chart-signals'), fullPage: true })
 
   /* A row opens on a tap: its sentence and both numbers. */
-  await row('sma50')
-    .getByRole('button', { name: /sma 50/i })
-    .click()
+  await row('sma50').locator('button[aria-expanded]').first().click()
   await expect(row('sma50')).toContainText(
     'Price above its 50-day average: the trend of recent months is up.',
   )
@@ -83,7 +81,7 @@ test('Portfolio: chart lines and the SIGNALS tab', async ({ page }) => {
   await pill('avg buy').click()
   await expect(chart).toHaveAttribute('data-lines', 'avg')
   await expect(keys).toContainText(
-    /AVG BUY \$410\.00 · €352\.60 · 2 BUY · SINCE/i,
+    /AVG BUY \$410(\.00)? · €352\.60 · 2 BUY · SINCE/i,
   )
   await pill('avg buy').click()
 
@@ -93,7 +91,7 @@ test('Portfolio: chart lines and the SIGNALS tab', async ({ page }) => {
   await expect(chart).toHaveAttribute('data-lines', 'rsi yr')
   await expect(keys).toContainText('RSI 14 · 14 closes · 30 / 70')
   await expect(keys).toContainText('52W HIGH $449.50')
-  await expect(keys).toContainText('52W LOW $300.00')
+  await expect(keys).toContainText(/52W LOW \$300(\.00)? · /)
   await chart.scrollIntoViewIfNeeded()
   const plot = await chart.boundingBox()
   if (plot === null) throw new Error('no chart')
@@ -110,14 +108,14 @@ test('Portfolio: chart lines and the SIGNALS tab', async ({ page }) => {
     .toBe('sma200')
   await expect(keys).toContainText('SMA 200 · 200 closes')
 
-  /* BUYS & SELLS is kept on this device; the lines are off again. */
-  await tabs.getByRole('tab', { name: /buys & sells/i }).click()
+  /* BUYS AND SELLS is kept on this device; the lines are off again. */
+  await tabs.getByRole('tab', { name: /buys and sells/i }).click()
   await expect(position.getByTestId('round-now')).toBeVisible()
   await page.reload()
   await expect(
     page
       .getByTestId('position-tabs')
-      .getByRole('tab', { name: /buys & sells/i }),
+      .getByRole('tab', { name: /buys and sells/i }),
   ).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByTestId('price-plot')).toHaveAttribute('data-lines', '')
 

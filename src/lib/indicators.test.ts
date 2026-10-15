@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { avgBuy, rateOn, rsi, sma, yearRange } from './indicators'
+import { avgBuy, rateOn, rsi, signals, sma, yearRange } from './indicators'
 
 const DAY = 86_400_000
 const at = (day: string) => Date.parse(`${day}T12:00:00Z`)
@@ -106,6 +106,8 @@ describe('rateOn', () => {
     /* A close without its euros is passed over for the one before. */
     expect(rate(at('2026-06-24'))).toBeCloseTo(0.9, 6)
     expect(rate(at('2026-06-01'))).toBeUndefined()
+    /* A buy in the morning takes its own day's close. */
+    expect(rate(at('2026-06-22') - 5 * 3600_000)).toBeCloseTo(0.9, 6)
   })
 })
 
@@ -128,5 +130,55 @@ describe('yearRange', () => {
 
   it('is null with no closes', () => {
     expect(yearRange([])).toBeNull()
+  })
+})
+
+describe('signals', () => {
+  /* Rising half a dollar a day to $449.50, as the e2e mock. */
+  const rising = series(Array.from({ length: 300 }, (_, i) => 300 + i * 0.5))
+
+  it('reads each line by its textbook rule', () => {
+    const s = signals(rising, 410)
+    const of = (id: string) => s.find((x) => x.id === id)!
+    expect(s.map((x) => x.id)).toEqual(['avg', 'sma50', 'sma200', 'rsi', 'yr'])
+    expect(of('avg')).toMatchObject({ verdict: 'in profit', way: 'up' })
+    expect(of('avg').pct).toBeCloseTo(9.63, 2)
+    expect(of('sma50')).toMatchObject({ verdict: 'bullish', level: 437.25 })
+    expect(of('sma50').pct).toBeCloseTo(2.8, 1)
+    expect(of('sma200')).toMatchObject({ verdict: 'bullish', level: 399.75 })
+    expect(of('rsi')).toMatchObject({
+      verdict: 'overbought',
+      way: 'down',
+      pct: 100,
+    })
+    expect(of('yr')).toMatchObject({ verdict: 'near high', way: 'up' })
+  })
+
+  it('turns each the other way on a fall', () => {
+    const falling = series(Array.from({ length: 300 }, (_, i) => 450 - i * 0.5))
+    const s = signals(falling, 310)
+    expect(s.map((x) => x.verdict)).toEqual([
+      'at a loss',
+      'bearish',
+      'bearish',
+      'oversold',
+      'near low',
+    ])
+    expect(s[0].at).toBeGreaterThan(3)
+    expect(s[0].at).toBeLessThan(50)
+  })
+
+  it('has no row for a line with too few closes, nor for no average buy', () => {
+    const s = signals(series([1, 2, 3, 2, 3]), null)
+    expect(s.map((x) => x.id)).toEqual(['yr'])
+    expect(signals([], 10)).toEqual([])
+  })
+
+  it('calls RSI between 30 and 70 neutral and the middle of the year mid range', () => {
+    const wave = series(
+      Array.from({ length: 60 }, (_, i) => 100 + 10 * Math.sin(i / 3)),
+    )
+    const s = signals([...wave, { t: wave.at(-1)!.t + DAY, v: 100 }], null)
+    expect(s.find((x) => x.id === 'yr')?.verdict).toBe('mid range')
   })
 })

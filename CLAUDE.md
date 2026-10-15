@@ -217,8 +217,9 @@ These are rules, not advice.
 1. **Every screen or feature is a slice: load the `slice` skill first.**
    Spec for me (scenarios that become tests) → Artem approves **1–2
    plain sentences plus something to see** (mockup or screenshot), never
-   the spec text → e2e tests first → build until green → PR with
-   screenshots → he tests on localhost with his own data → merge.
+   the spec text → e2e tests first → build until green → he tests the
+   branch on localhost with his own data → PR with screenshots → merge.
+   (15 Oct: "We should test by me and then PR" — no PR while he tests.)
 2. **Checks sized to the change (12 Oct).** Artem, waiting ten minutes
    on a two-line fix: "all this verification slow down everything badly
    … We need to verify not on every turn." Before the 12th every PR owed

@@ -74,7 +74,11 @@ one full run per PR, not one per commit. Look at every screenshot in `e2e/screen
 against the mockup — layout, words, motion. Fix before he sees it.
 Update `docs/journeys/<area>.md` with the path the slice touches.
 
-## 5. PR → his review
+## 5. His test on localhost → PR
+
+Localhost runs the branch; he presses it with his own data and says it
+works (15 Oct: "We should test by me and then PR"). Fixes land on the
+same branch. Only then push and open the PR.
 
 PR body: 2 sentences, screenshots/video, one thing to press on
 localhost with his own data. Merge only after he says so. Merge commit,

@@ -98,17 +98,62 @@ export async function heldShares(
   ).shares
 }
 
+/** Takes a trade off its position: the same row kept aside with when it
+    went, so UNDO can put it back (15 Oct, mockup trade-remove.html). */
 export const removeTrade = mutation({
   args: { tradeId: v.id('trades') },
-  returns: v.null(),
+  returns: v.id('removedTrades'),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const trade = await ctx.db.get(args.tradeId)
     if (trade === null || trade.ownerId !== ownerId) {
       throw new Error('No such trade')
     }
-    await ctx.db.delete(args.tradeId)
-    return null
+    const { _id, _creationTime, ...row } = trade
+    const removedId = await ctx.db.insert('removedTrades', {
+      ...row,
+      removedAt: Date.now(),
+    })
+    await ctx.db.delete(_id)
+    return removedId
+  },
+})
+
+/** UNDO: a removed trade back on its position, the same row. */
+export const restoreTrade = mutation({
+  args: { removedId: v.id('removedTrades') },
+  returns: v.id('trades'),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const gone = await ctx.db.get(args.removedId)
+    if (gone === null || gone.ownerId !== ownerId) {
+      throw new Error('No such removed trade')
+    }
+    const { _id, _creationTime, removedAt, ...row } = gone
+    const tradeId = await ctx.db.insert('trades', row)
+    await ctx.db.delete(_id)
+    return tradeId
+  },
+})
+
+/** One position's removed trades, newest removal first — each with UNDO. */
+export const removedTrades = query({
+  /* Every listing it is owned under (one company, several brokers). */
+  args: { instrumentIds: v.array(v.id('instruments')) },
+  returns: v.array(schema.doc('removedTrades')),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const rows = []
+    for (const instrumentId of new Set(args.instrumentIds.slice(0, 8)))
+      rows.push(
+        ...(await ctx.db
+          .query('removedTrades')
+          .withIndex('by_owner_instrument', (q) =>
+            q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
+          )
+          .take(MAX_TRADES)),
+      )
+    return rows.sort((a, b) => b.removedAt - a.removedAt)
   },
 })
 

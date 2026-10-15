@@ -212,6 +212,7 @@ export function PortfolioPosition({
       loaded={loaded}
       all={all}
       cut={cut}
+      instrumentIds={owned.at.map((r) => r.instrumentId)}
       unit={unit}
       accountOf={accountOf}
     />

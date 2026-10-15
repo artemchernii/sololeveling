@@ -36,6 +36,7 @@ const TABLES: Array<TableNames> = [
   'trades',
   'payees',
   'bankLinks',
+  'reviews',
 ]
 
 async function wipe(ctx: MutationCtx) {
@@ -227,6 +228,48 @@ export const paySalary = mutation({
       accountId: revolut,
       meta: { raw: 'Acme Payroll', recurringId: salary },
     })
+    return null
+  },
+})
+
+/**
+ * A lived week for Review (14 Oct): gym twice, a hike, a plain note, a
+ * task ticked — on the days given, this week's local midnights.
+ */
+export const reviewWeek = mutation({
+  args: { days: v.array(v.number()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const log = (day: number, row: Record<string, unknown>) =>
+      ctx.db.insert('logs', {
+        ownerId,
+        occurredAt: day + 10 * 3_600_000,
+        kind: 'event',
+        area: 'knowledge',
+        ...row,
+      })
+    const [a, b, c] = args.days
+    await log(a, {
+      kind: 'workout',
+      area: 'body',
+      value: 60,
+      meta: { category: 'gym' },
+    })
+    await log(b, {
+      kind: 'workout',
+      area: 'body',
+      value: 45,
+      meta: { category: 'gym' },
+    })
+    await log(c, {
+      kind: 'workout',
+      area: 'body',
+      meta: { category: 'hiking' },
+    })
+    await log(c, { kind: 'event', area: 'knowledge', text: 'called Dyson' })
+    await log(c, { kind: 'task_done', area: 'projects', text: 'Ship Review' })
     return null
   },
 })

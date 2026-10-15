@@ -157,3 +157,120 @@ describe('ownership', () => {
     ).rejects.toThrow()
   })
 })
+
+describe('the bento closes the week with one line (14 Oct)', () => {
+  test('one press writes the line and closes the week', async () => {
+    const t = as(ME)
+    await t.mutation(api.reviews.closeWith, {
+      periodStart: WEEK,
+      decision: '  Class on Wednesday  ',
+    })
+    const review = await t.query(api.reviews.forWeek, { periodStart: WEEK })
+    expect(review?.decision).toBe('Class on Wednesday')
+    expect(review?.closedAt).toBeTypeOf('number')
+  })
+
+  test('an empty line is refused and nothing is written', async () => {
+    const t = as(ME)
+    await expect(
+      t.mutation(api.reviews.closeWith, { periodStart: WEEK, decision: '  ' }),
+    ).rejects.toThrow('EMPTY_NOTE')
+    expect(await t.query(api.reviews.forWeek, { periodStart: WEEK })).toBeNull()
+  })
+
+  test('a week written with the five answers keeps them', async () => {
+    const t = as(ME)
+    await t.mutation(api.reviews.save, {
+      periodStart: WEEK,
+      answers: { didHappen: 'Shipped' },
+    })
+    await t.mutation(api.reviews.closeWith, {
+      periodStart: WEEK,
+      decision: 'Rest',
+    })
+    const review = await t.query(api.reviews.forWeek, { periodStart: WEEK })
+    expect(review?.answers.didHappen).toBe('Shipped')
+  })
+
+  test('another person closing the same week touches only their own', async () => {
+    const { mine, theirs } = twoOwners()
+    await mine.mutation(api.reviews.closeWith, {
+      periodStart: WEEK,
+      decision: 'Mine',
+    })
+    await theirs.mutation(api.reviews.closeWith, {
+      periodStart: WEEK,
+      decision: 'Theirs',
+    })
+    const review = await mine.query(api.reviews.forWeek, { periodStart: WEEK })
+    expect(review?.decision).toBe('Mine')
+  })
+})
+
+describe('aggregate.weekReview', () => {
+  const DAY = 86_400_000
+  const MON = new Date(2026, 9, 5).getTime()
+  const dayStarts = Array.from(
+    { length: 14 },
+    (_, i) => MON - 7 * DAY + i * DAY,
+  )
+  const end = MON + 7 * DAY
+
+  test('counts this week and last from logged rows, and only mine', async () => {
+    const { mine, theirs } = twoOwners()
+    const log = (who: string, at: number, row: object) =>
+      (who === ME ? mine : theirs).run(async (ctx) => {
+        await ctx.db.insert('logs', {
+          ownerId: who,
+          occurredAt: at,
+          ...(row as { kind: 'event'; area: string }),
+        })
+      })
+    await log(ME, MON + 3_600_000, {
+      kind: 'workout',
+      area: 'body',
+      meta: { category: 'gym' },
+    })
+    await log(ME, MON + 2 * DAY, {
+      kind: 'event',
+      area: 'knowledge',
+      text: 'called Dyson',
+    })
+    await log(ME, MON - 2 * DAY, { kind: 'task_done', area: 'projects' })
+    await log(SOMEONE_ELSE, MON + DAY, { kind: 'event', area: 'social' })
+
+    const r = await mine.query(api.aggregate.weekReview, {
+      dayStarts,
+      end,
+      languages: [],
+    })
+    expect(r.week.total).toBe(2)
+    expect(r.week.workouts).toBe(1)
+    expect(r.week.days[2].other).toBe(1)
+    expect(r.week.days[1].social).toBe(0)
+    expect(r.lastWeek.total).toBe(1)
+    expect(r.lastWeek.tasksDone).toBe(1)
+    expect(r.latest.map((l) => l.text)).toEqual(['called Dyson', null])
+    expect(r.focus).toBeNull()
+  })
+
+  test('refuses anything but fourteen days', async () => {
+    await expect(
+      as(ME).query(api.aggregate.weekReview, {
+        dayStarts: dayStarts.slice(7),
+        end,
+        languages: [],
+      }),
+    ).rejects.toThrow('FOURTEEN_DAYS')
+  })
+
+  test('refuses without a signed-in person', async () => {
+    await expect(
+      convexTest(schema, modules).query(api.aggregate.weekReview, {
+        dayStarts,
+        end,
+        languages: [],
+      }),
+    ).rejects.toThrow()
+  })
+})

@@ -3537,7 +3537,12 @@ export const weekReview = query({
       }),
     ),
     focus: v.union(
-      v.object({ title: v.string(), done: v.number(), total: v.number() }),
+      v.object({
+        id: v.id('projects'),
+        title: v.string(),
+        done: v.number(),
+        total: v.number(),
+      }),
       v.null(),
     ),
     /** False when the read hit MAX_ROWS — the oldest days may be missing rows. */
@@ -3610,6 +3615,7 @@ export const weekReview = query({
         .take(MAX_ROWS)
       const own = tasks.filter((t) => t.ownerId === ownerId)
       focus = {
+        id: project._id,
         title: project.title,
         done: own.filter((t) => t.status === 'done').length,
         total: own.filter((t) => t.status !== 'skipped').length,

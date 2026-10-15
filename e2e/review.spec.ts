@@ -19,16 +19,20 @@ function thisWeek(): Array<number> {
 test('Review: a lived week — every tile counts it, a plain note is OTHER', async ({
   page,
 }) => {
-  await start(page)
-  await testClient().mutation(anyApi.e2e.reviewWeek, { days: thisWeek() })
+  const resetDays = await start(page)
+  const week = thisWeek()
+  await testClient().mutation(anyApi.e2e.reviewWeek, { days: week })
   await page.goto('/reviews')
+  /* reset's three spends sit on the days before today: some of them fall
+     in this week, depending on the weekday the test runs. */
+  const spends = resetDays.slice(0, 3).filter((d) => d >= week[0]).length
 
   const activity = page.getByRole('region', { name: 'Activity' })
   await expect(activity.getByText('called Dyson')).toBeVisible()
   await expect(activity.getByText('OTHER 1')).toBeVisible()
-  const week = page.getByRole('region', { name: 'Week' })
-  await expect(week.getByTestId('logged')).toHaveText('5')
-  await expect(week.getByTestId('tasks-done')).toHaveText('1')
+  const bar = page.getByRole('region', { name: 'Week' })
+  await expect(bar.getByTestId('logged')).toHaveText(String(5 + spends))
+  await expect(bar.getByTestId('tasks-done')).toHaveText('1')
 
   const body = page.getByRole('region', { name: 'Body' })
   await expect(body.getByTestId('workouts')).toHaveText('3')

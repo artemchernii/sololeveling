@@ -1,0 +1,131 @@
+/* Review, the bento (14 Oct, mockup design/review-mockup/index.html, "fuck
+   its damn goooood! finally"). Its motion, beside the app's own in
+   styles.css: tiles that arrive one after another and lift under the
+   pointer, bars that grow, a line that draws itself, a dot that pings, a
+   glow that breathes, a light that sweeps the System bar. Every colour
+   comes from a token; the global reduced-motion rule stops all of it after
+   one pass. */
+
+@keyframes bento-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+@utility bento-tile {
+  position: relative;
+  overflow: hidden;
+  animation: bento-in 550ms var(--motion-ease) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+  transition:
+    transform 250ms var(--motion-ease),
+    border-color 250ms,
+    box-shadow 250ms;
+  &:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in oklch, var(--area) 45%, transparent);
+    box-shadow:
+      var(--glass-shadow),
+      0 0 32px -14px var(--area);
+  }
+}
+
+@keyframes bento-breathe {
+  0%,
+  100% {
+    opacity: 0.09;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.2;
+    transform: scale(1.12);
+  }
+}
+@utility bento-glow {
+  animation: bento-breathe 5s ease-in-out infinite;
+}
+
+@keyframes bento-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+@utility bento-grow {
+  transform-origin: bottom;
+  animation: bento-grow 800ms var(--motion-ease) both;
+}
+
+@keyframes bento-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+@utility bento-fill {
+  transform-origin: left;
+  animation: bento-fill 1s var(--motion-ease) 300ms both;
+}
+
+@keyframes bento-line {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@utility bento-line {
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  animation: bento-line 1.6s cubic-bezier(0.4, 0, 0.2, 1) 400ms forwards;
+}
+
+@keyframes bento-ping {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  80%,
+  100% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+@utility bento-ping {
+  animation: bento-ping 1.6s ease-out infinite;
+}
+
+@keyframes bento-sweep {
+  0%,
+  60% {
+    left: -50%;
+  }
+  100% {
+    left: 120%;
+  }
+}
+@utility bento-sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  left: -50%;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    color-mix(in oklch, var(--color-lav-400) 12%, transparent),
+    transparent
+  );
+  animation: bento-sweep 6s ease-in-out infinite;
+}
+
+@keyframes bento-lit {
+  0%,
+  100% {
+    box-shadow: 0 0 10px -6px var(--area);
+  }
+  50% {
+    box-shadow: 0 0 18px -2px var(--area);
+  }
+}
+/* A cell or a badge whose day or target is met: it glows in its own colour. */
+@utility bento-lit {
+  animation:
+    pop var(--motion-base) var(--motion-ease) both,
+    bento-lit 2.6s ease-in-out 1s infinite;
+}

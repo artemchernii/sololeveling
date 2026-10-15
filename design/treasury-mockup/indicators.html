@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · chart lines</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lightweight-charts@5.2.1/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  /* The portfolio helper, part 1 (15 Oct, in review). His words, 12–13
+     Oct: "add some RSI, moving averages (but we can have like a
+     toggles)", "yes indicators, yes news, yes average price". The chart
+     as built (chart.html, approved 13 Oct) with a second row of pills:
+     AVG BUY, SMA 50, SMA 200, RSI 14 — each off until pressed, each line
+     named with its period in the key. Sample MSFT closes, not his. */
+  :root {
+    --bg: #161826; --panel: rgba(255,255,255,.035);
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25);
+    /* Indicator lines: hues clear of good (155), danger (25) and warn
+       (75), so a line never reads as a grade. */
+    --ind-50: oklch(0.8 0.11 225); --ind-200: oklch(0.8 0.11 335); --ind-rsi: oklch(0.82 0.09 195);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --tip: #2b2850;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --ease: cubic-bezier(.2,.8,.2,1);
+    --lift: 255,255,255;
+    --glow: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%);
+  }
+  :root[data-theme="light"] {
+    --bg: #f3f0ea; --panel: rgba(255,255,255,.72);
+    --ink-100: #1c1b27; --ink-200: #2e2d3c; --ink-300: #4a4958; --ink-400: #666577; --ink-500: #7d7c8c; --ink-600: #a6a5b2;
+    --lav-300: oklch(0.42 0.11 285); --lav-400: oklch(0.5 0.13 285);
+    --good: oklch(0.5 0.14 155); --danger: oklch(0.52 0.19 25);
+    --ind-50: oklch(0.55 0.12 225); --ind-200: oklch(0.55 0.13 335); --ind-rsi: oklch(0.55 0.1 195);
+    --sys-edge: color-mix(in oklch, oklch(0.5 0.13 285) 40%, transparent);
+    --tip: #ffffff;
+    --lift: 30,28,45;
+    --glow: radial-gradient(1200px 600px at 10% -10%, #e6e0f5 0%, transparent 60%);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: var(--glow), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh; padding: 20px 16px 60px; transition: background .3s }
+  button { font: inherit; color: inherit; cursor: pointer; background: none; border: none }
+  .wrap { max-width: 940px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .sys { position: relative; border-radius: 22px; padding: 20px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--sys-edge), 0 0 34px -18px var(--lav-400) }
+  .head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
+  .logo { width: 52px; height: 52px; border-radius: 14px; background: #fff; display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 12px; box-shadow: inset 0 0 0 1px rgba(var(--lift),.1) }
+  .logo i { display: block } .logo i:nth-child(1) { background: #f25022 } .logo i:nth-child(2) { background: #7fba00 } .logo i:nth-child(3) { background: #00a4ef } .logo i:nth-child(4) { background: #ffb900 }
+  .head h1 { font-size: 22px; font-weight: 400 } .meta { font-family: var(--mono); font-size: 11px; color: var(--ink-500); margin-top: 5px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap }
+  .badge { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 9px; border-radius: 999px; background: rgba(var(--lift),.07); color: var(--ink-300) }
+  .badge.lav { background: color-mix(in oklch, var(--lav-400) 18%, transparent); color: var(--lav-300) }
+  .head .px { margin-left: auto; text-align: right } .head .px b { display: block; font-size: 34px; font-weight: 400; letter-spacing: -.01em; font-variant-numeric: tabular-nums } .head .px small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .bar { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; margin-top: 18px }
+  .bar2 { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; margin: 8px 0 10px }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap }
+  .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 99px; padding: 6px 11px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-400); box-shadow: inset 0 0 0 1px rgba(var(--lift),.12); transition: background .2s, color .2s, box-shadow .2s, transform .12s var(--ease) }
+  .pill:hover { color: var(--ink-100); background: rgba(var(--lift),.06) } .pill:active { transform: scale(.96) }
+  .pill.on { color: var(--ink-100); background: color-mix(in srgb, var(--lav-400) 22%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lav-400) 60%, transparent) }
+  .pill svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+  /* An indicator pill carries its line's colour as a short stroke, lit
+     when on — so the pill and its line are matched without a legend. */
+  .pill .sw { width: 12px; height: 0; border-top: 2px solid var(--c); opacity: .45; transition: opacity .2s }
+  .pill .sw.dash { border-top-style: dashed }
+  .pill.on .sw { opacity: 1 }
+  .pill.ind.on { background: color-mix(in srgb, var(--c) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent) }
+  .pill .spin { width: 11px; height: 11px; border-radius: 99px; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite } @keyframes spin { to { rotate: 1turn } }
+  .tool.on svg { animation: live 1.6s ease-in-out infinite } @keyframes live { 50% { opacity: .45 } }
+  .sp { flex: 1 }
+  .read { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-height: 26px; margin-bottom: 6px; font-family: var(--mono); font-size: 17px; font-variant-numeric: tabular-nums }
+  .read small { color: var(--ink-500); font-size: 11.5px } .read .alt { color: var(--ink-300) }
+  /* A line's reading under the pointer: its colour, its name, its value. */
+  .iv { display: inline-flex; align-items: baseline; gap: 6px; font-size: 12.5px; color: var(--ink-200); animation: arrive .2s var(--ease) }
+  .iv i { font-style: normal; font-size: 10px; letter-spacing: .12em; color: var(--c) }
+  .plot { position: relative; height: 380px; border-radius: 14px; overflow: hidden; transition: height .35s var(--ease) }
+  .plot.rsi { height: 480px }
+  #chart { position: absolute; inset: 0; z-index: 0 }
+  @keyframes arrive { from { opacity: 0; translate: 0 4px } }
+  .keys { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); align-items: center }
+  .keys > span { display: inline-flex; align-items: center; gap: 6px; animation: arrive .25s var(--ease) }
+  .dot { width: 9px; height: 9px; border-radius: 99px; border: 2px solid } .ln { width: 14px; border-top: 2px solid var(--c) } .ln.dash { border-top-style: dashed }
+  .keys b { font-weight: 400; color: var(--ink-200); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap }
+  .keys .tv { margin-left: auto }
+  .note { max-width: 940px; margin: 0 auto; font-family: var(--mono); font-size: 11px; color: var(--ink-500); line-height: 1.6 }
+  /* 52W: the year's highest and lowest close, dotted ink — a range, not a grade. */
+  .pill .sw.dot2 { border-top-style: dotted }
+  /* Under the chart, two tabs (15 Oct: "hide it in tab, we have list of
+     buys/sells, and we can have list of signals"): SIGNALS first, open
+     by default, remembered on this device. A signal is one row — the
+     line, its textbook verdict in colour, the %, a gauge — and opens on
+     a tap to its plain sentence and both numbers. */
+  .tabs { display: flex; gap: 4px; margin-top: 22px; border-bottom: 1px solid rgba(var(--lift),.08) }
+  .tab { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px 11px; font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500); transition: color .2s }
+  .tab:hover { color: var(--ink-200) }
+  .tab.on { color: var(--ink-100) }
+  .tab.on::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--lav-400); box-shadow: 0 0 10px var(--lav-400); animation: grow .3s var(--ease) }
+  @keyframes grow { from { scale: 0 1 } }
+  .tab .ct { display: inline-flex; gap: 6px; letter-spacing: .06em }
+  .up-t { color: var(--good) } .dn-t { color: var(--danger) } .fl-t { color: var(--ink-400) }
+  .sigs { display: flex; flex-direction: column; margin-top: 6px }
+  .sig { --v: var(--ink-400); border-radius: 12px; transition: background .2s; animation: rise .35s var(--ease) both; animation-delay: calc(var(--n) * 50ms) }
+  .sig + .sig { border-top: 1px solid rgba(var(--lift),.06) }
+  .sig.bull { --v: var(--good) } .sig.bear { --v: var(--danger) }
+  .sig.open { background: color-mix(in srgb, var(--v) 7%, transparent); border-top-color: transparent }
+  .sig.open + .sig { border-top-color: transparent }
+  @keyframes rise { from { opacity: 0; translate: 0 8px } }
+  .sh { display: grid; grid-template-columns: 30px 150px 132px 72px minmax(80px, 1fr) 18px; gap: 12px; align-items: center; width: 100%; padding: 11px 8px; text-align: left }
+  .sh:hover { background: rgba(var(--lift),.03); border-radius: 12px }
+  /* The line's mark is its own button: it puts the line on the chart. */
+  .eye { width: 28px; height: 22px; border-radius: 7px; display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(var(--lift),.12); transition: background .2s, box-shadow .2s }
+  .eye i { width: 14px; border-top: 2px solid var(--c); opacity: .5 } .eye i.dash { border-top-style: dashed } .eye i.dot2 { border-top-style: dotted }
+  .eye.on { background: color-mix(in srgb, var(--c) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 60%, transparent) } .eye.on i { opacity: 1 }
+  .nm { font-family: var(--mono); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-100); white-space: nowrap }
+  .nm small { display: block; margin-top: 2px; font-size: 10px; letter-spacing: .08em; color: var(--ink-500) }
+  .verdict { justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 8px; border-radius: 99px; font-family: var(--mono); font-size: 10.5px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; color: var(--v); background: color-mix(in srgb, var(--v) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--v) 45%, transparent) }
+  .verdict svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round }
+  .pc { font-size: 19px; font-weight: 400; color: var(--v); font-variant-numeric: tabular-nums; white-space: nowrap }
+  .gauge { position: relative; height: 7px; border-radius: 99px; background: rgba(var(--lift),.08) }
+  .gauge .z { position: absolute; top: 0; bottom: 0; border-radius: 99px }
+  .gauge .mk { position: absolute; top: 50%; left: var(--x); width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; border-radius: 99px; background: var(--v); box-shadow: 0 0 0 3px color-mix(in srgb, var(--v) 25%, transparent), 0 0 12px var(--v); animation: slide .8s var(--ease) both; animation-delay: calc(var(--n) * 50ms + 150ms) }
+  .gauge .mid { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 1.5px; background: var(--ink-500) }
+  @keyframes slide { from { left: var(--x0, 50%); opacity: 0 } }
+  .chev { width: 16px; height: 16px; stroke: var(--ink-500); fill: none; stroke-width: 2; transition: rotate .25s var(--ease) } .sig.open .chev { rotate: 180deg }
+  .more { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s var(--ease) } .sig.open .more { grid-template-rows: 1fr }
+  .more > div { overflow: hidden; padding: 0 8px 0 50px }
+  .sig.open .more > div { padding-bottom: 14px }
+  .more p { font-size: 13.5px; line-height: 1.5; color: var(--ink-200) }
+  .more .nums { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-family: var(--mono); font-size: 12px; color: var(--ink-100); font-variant-numeric: tabular-nums }
+  .more .nums small { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500); margin-right: 5px }
+  .ends { display: flex; justify-content: space-between; margin-top: 10px; font-family: var(--mono); font-size: 10px; letter-spacing: .06em; color: var(--ink-500) }
+  /* BUYS & SELLS, as built (PositionTrades): the round now and its rows. */
+  .round { display: flex; align-items: center; gap: 8px; padding: 12px 0 6px; font-family: var(--mono); font-size: 11px; color: var(--ink-400) }
+  .rb { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 9px; border-radius: 999px } .rb.lav { background: color-mix(in srgb, var(--lav-400) 18%, transparent); color: var(--lav-300) } .rb.good { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good) }
+  .trow { display: grid; grid-template-columns: 58px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid rgba(var(--lift),.06); animation: rise .35s var(--ease) both; animation-delay: calc(var(--n) * 50ms) }
+  .side { justify-self: start; padding: 4px 10px; border-radius: 999px; font-family: var(--mono); font-size: 10.5px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--good) 35%, transparent) }
+  .trow .amt { font-size: 17px; font-variant-numeric: tabular-nums } .trow .shs { font-family: var(--mono); font-size: 11px; color: var(--ink-400); margin-top: 3px } .trow .d { font-family: var(--mono); font-size: 11px; color: var(--ink-400) }
+  /* A lit line's pill carries its verdict arrow. */
+  .pill .va { font-size: 10px; letter-spacing: 0; animation: arrive .3s var(--ease) }
+  @media (max-width: 720px) {
+    .sh { grid-template-columns: 30px minmax(0,1fr) auto 18px; grid-template-areas: 'e n v c' '. p g g'; row-gap: 8px }
+    .sh .eye { grid-area: e } .sh .nm { grid-area: n } .sh .verdict { grid-area: v } .sh .chev { grid-area: c } .sh .pc { grid-area: p; font-size: 16px } .sh .gauge { grid-area: g }
+    .more > div { padding-left: 8px }
+  }
+  .pill.sig svg { width: 13px; height: 13px }
+  .pill.sig.on { background: color-mix(in srgb, var(--lav-400) 22%, transparent) }
+  @media (max-width: 640px) { .plot { height: 300px } .plot.rsi { height: 390px } .read { min-height: 50px } .head .px { margin-left: 0; text-align: left; width: 100% } .keys .tv { margin-left: 0 } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="caps" style="text-align:center">mockup · chart lines · sample MSFT closes, not yours</span>
+  <div class="scen">
+    <div class="pills" id="scen"></div>
+    <div class="pills" id="theme"></div>
+  </div>
+  <section class="sys">
+    <div class="head">
+      <div class="logo"><i></i><i></i><i></i><i></i></div>
+      <div><h1>Microsoft</h1><div class="meta"><span class="badge lav">share</span><span class="badge">tech</span><span class="badge">$ usd</span><span>MSFT · Trade Republic</span></div></div>
+      <div class="px"><b id="px"></b><small><span id="pxe"></span> · 15 Oct 2026 16:40 · Yahoo Finance</small></div>
+    </div>
+    <div class="bar">
+      <span class="caps">price</span>
+      <div class="pills" id="tools"></div>
+      <span class="sp"></span>
+      <div class="pills" id="views"></div>
+      <div class="pills" id="ranges"></div>
+    </div>
+    <div class="bar2"><div class="pills" id="inds"></div></div>
+    <div class="read" id="read"></div>
+    <div class="plot" id="plot"><div id="chart"></div></div>
+    <div class="keys" id="keys"></div>
+    <div class="tabs" id="tabs"></div>
+    <div id="tabbody"></div>
+  </section>
+  <p class="note" id="note"></p>
+</div>
+<script>
+const LC = LightweightCharts
+const I = {
+  compare: '<svg viewBox="0 0 24 24"><path d="M5 4v16M19 4v16M9 12h6M9 12l2-2M9 12l2 2M15 12l-2-2M15 12l-2 2"/></svg>',
+  ruler: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" stroke-dasharray="3 3"/><path d="M4 19 20 5"/></svg>',
+}
+const cssv = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim()
+/* The chart library takes plain colours; oklch is read through a canvas. */
+const ctx = document.createElement('canvas').getContext('2d')
+const rgb = (c, a = 1) => { ctx.fillStyle = '#000'; ctx.fillStyle = c; ctx.fillRect(0, 0, 1, 1); const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data; return `rgba(${r},${g},${b},${a})` }
+
+/* Sample MSFT-like closes: five years of weekdays through anchor prices,
+   with noise. */
+let seed = 7
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+const A = [['2021-10-18', 305], ['2022-11-03', 222], ['2023-07-18', 355], ['2024-07-05', 465], ['2025-01-13', 418], ['2025-07-30', 512], ['2026-01-20', 468], ['2026-04-10', 430], ['2026-06-22', 392], ['2026-08-20', 446], ['2026-10-15', 428.62]]
+const bars = []
+{ const t = (s) => Date.parse(s + 'T00:00:00Z'); let w = 0
+  for (let d = t(A[0][0]); d <= t(A.at(-1)[0]); d += 864e5) {
+    const day = new Date(d); if (!(day.getUTCDay() % 6)) continue
+    let k = 0; while (t(A[k + 1][0]) < d) k++
+    const f = (d - t(A[k][0])) / (t(A[k + 1][0]) - t(A[k][0])), base = A[k][1] + (A[k + 1][1] - A[k][1]) * (0.5 - Math.cos(Math.PI * f) / 2)
+    w = w * .93 + (rnd() - .5) * 2.2
+    const close = d === t(A.at(-1)[0]) ? A.at(-1)[1] : base + w * 4, open = bars.length ? bars.at(-1).close : close
+    bars.push({ time: day.toISOString().slice(0, 10), open, high: Math.max(open, close) + rnd() * 4, low: Math.min(open, close) - rnd() * 4, close, volume: Math.round((14 + rnd() * 20) * 1e6) })
+  } }
+/* A euro for a dollar on each day — sample rates, as stored ones would be. */
+const rate = (i) => 0.86 + 0.02 * Math.sin(i / 90)
+const at = (s) => bars.findIndex((b) => b.time >= s)
+/* His round now: three buys since 22 Jun 2026 (sample amounts). */
+const buys = [['2026-06-22', 1.2], ['2026-07-01', 0.741729], ['2026-08-14', 0.31]].map(([d, sh]) => { const i = at(d); return { i, sh, eur: +(sh * bars[i].close * rate(i)).toFixed(2) } })
+const usd = (v) => '$' + Math.abs(v).toFixed(2), eur = (v) => '€' + v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const day = (t) => new Date(t + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+
+/* The three formulas, as src/lib/indicators.ts will have them. */
+function sma(n) { const out = []; let s = 0; bars.forEach((b, i) => { s += b.close; if (i >= n) s -= bars[i - n].close; if (i >= n - 1) out.push({ time: b.time, value: s / n }) }); return out }
+function rsi(n = 14) { const out = []; let g = 0, l = 0
+  for (let i = 1; i < bars.length; i++) { const d = bars[i].close - bars[i - 1].close, up = Math.max(d, 0), dn = Math.max(-d, 0)
+    if (i <= n) { g += up / n; l += dn / n } else { g = (g * (n - 1) + up) / n; l = (l * (n - 1) + dn) / n }
+    if (i >= n) out.push({ time: bars[i].time, value: l === 0 ? 100 : 100 - 100 / (1 + g / l) }) }
+  return out }
+/* Average buy: the round's buys in euros over its shares, and in the
+   chart's dollars each buy at its own day's stored rate. */
+const sh = buys.reduce((s, b) => s + b.sh, 0)
+const avgEur = buys.reduce((s, b) => s + b.eur, 0) / sh
+const avgUsd = buys.reduce((s, b) => s + b.eur / rate(b.i), 0) / sh
+const S = { 50: sma(50), 200: sma(200), rsi: rsi(14) }
+/* 52W: the highest and lowest stored close of the last 52 weeks, with
+   their days; the latest against the high as between() says it. */
+const Y0 = bars.findIndex((b) => b.time >= new Date(Date.parse(bars.at(-1).time) - 364 * 864e5).toISOString().slice(0, 10))
+const yr = bars.slice(Y0).reduce((m, b) => ({ hi: b.close > m.hi.close ? b : m.hi, lo: b.close < m.lo.close ? b : m.lo }), { hi: bars[Y0], lo: bars[Y0] })
+const fromHi = (bars.at(-1).close - yr.hi.close) / yr.hi.close * 100
+const byTime = (arr) => new Map(arr.map((p) => [p.time, p.value]))
+const M = { 50: byTime(S[50]), 200: byTime(S[200]), rsi: byTime(S.rsi) }
+
+document.getElementById('px').textContent = usd(bars.at(-1).close)
+document.getElementById('pxe').textContent = eur(bars.at(-1).close * rate(bars.length - 1))
+
+let view = 'line', range = '1Y', volume = false, tool = null, scen = 'held', theme = 'dark'
+const on = { avg: false, 50: false, 200: false, rsi: false, yr: false }
+let tab = 'signals', opened = null
+try { tab = localStorage.getItem('position-tab') || 'signals' } catch {}
+let reading = null, readOnce = false
+const chart = LC.createChart(document.getElementById('chart'), {
+  autoSize: true,
+  layout: { background: { type: 'solid', color: 'transparent' }, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, attributionLogo: true, panes: { separatorColor: 'rgba(128,128,150,.18)', separatorHoverColor: 'rgba(128,128,150,.3)' } },
+  grid: { vertLines: { visible: false } },
+  rightPriceScale: { borderVisible: false }, timeScale: { borderVisible: false, rightOffset: 2 },
+  crosshair: { mode: LC.CrosshairMode.Magnet },
+})
+const DOLLARS = { type: 'custom', minMove: 0.01, formatter: (p) => '$' + p.toFixed(2) }
+function paint() {
+  const lav = rgb(cssv('--lav-400'), .5), ink = rgb(cssv('--ink-500'))
+  chart.applyOptions({ layout: { textColor: ink }, grid: { horzLines: { color: theme === 'dark' ? 'rgba(255,255,255,.05)' : 'rgba(30,28,45,.06)' } }, crosshair: { vertLine: { color: lav, labelBackgroundColor: theme === 'dark' ? '#3a3566' : '#5b4fb0' }, horzLine: { color: lav, labelBackgroundColor: theme === 'dark' ? '#3a3566' : '#5b4fb0' } } })
+}
+let main, vol, lines = {}, avgLine, rsiS, guides = []
+function build() {
+  for (const s of [main, vol, avgLine, rsiS, ...Object.values(lines)]) if (s) chart.removeSeries(s)
+  lines = {}; vol = avgLine = rsiS = null; guides = []
+  const G = rgb(cssv('--good')), B = rgb(cssv('--danger'))
+  main = view === 'line'
+    ? chart.addSeries(LC.AreaSeries, { lineColor: G, lineWidth: 2, topColor: rgb(cssv('--good'), .2), bottomColor: rgb(cssv('--good'), 0), priceLineVisible: false, priceFormat: DOLLARS })
+    : chart.addSeries(LC.CandlestickSeries, { upColor: G, downColor: B, wickUpColor: G, wickDownColor: B, borderVisible: false, priceLineVisible: false, priceFormat: DOLLARS })
+  main.setData(view === 'line' ? bars.map((b) => ({ time: b.time, value: b.close })) : bars)
+  main.priceScale().applyOptions({ scaleMargins: { top: .08, bottom: volume ? .26 : .06 } })
+  if (volume) {
+    vol = chart.addSeries(LC.HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: '', lastValueVisible: false, priceLineVisible: false })
+    vol.priceScale().applyOptions({ scaleMargins: { top: .82, bottom: 0 } })
+    vol.setData(bars.map((b) => ({ time: b.time, value: b.volume, color: b.close >= b.open ? rgb(cssv('--good'), .3) : rgb(cssv('--danger'), .3) })))
+  }
+  for (const n of [50, 200]) if (on[n] && reading !== n) {
+    lines[n] = chart.addSeries(LC.LineSeries, { color: rgb(cssv(`--ind-${n}`)), lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, title: `SMA ${n}`, priceFormat: DOLLARS })
+    lines[n].setData(S[n])
+  }
+  /* AVG BUY: from the round's first day to now, dashed lavender, its
+     label on the price axis. */
+  if (on.avg && scen === 'held') {
+    avgLine = chart.addSeries(LC.LineSeries, { color: rgb(cssv('--lav-400')), lineWidth: 1.5, lineStyle: LC.LineStyle.Dashed, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, title: 'AVG BUY', priceFormat: DOLLARS })
+    avgLine.setData(bars.slice(buys[0].i).map((b) => ({ time: b.time, value: avgUsd })))
+  }
+  /* RSI 14 in its own pane under the price, 0–100, guides at 30 and 70
+     in ink — never red or green. */
+  if (on.rsi) {
+    rsiS = chart.addSeries(LC.LineSeries, { color: rgb(cssv('--ind-rsi')), lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, priceFormat: { type: 'custom', formatter: (v) => v.toFixed(0) }, autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) }, 1)
+    rsiS.setData(S.rsi)
+    for (const v of [30, 70]) guides.push(rsiS.createPriceLine({ price: v, color: rgb(cssv('--ink-500'), .7), lineWidth: 1, lineStyle: LC.LineStyle.Dotted, axisLabelVisible: true, title: '' }))
+    const p = chart.panes()[1]; if (p) p.setHeight(innerWidth < 640 ? 80 : 100)
+  }
+  if (on.yr) for (const [b, t] of [[yr.hi, '52W HIGH'], [yr.lo, '52W LOW']]) {
+    const s = chart.addSeries(LC.LineSeries, { color: rgb(cssv('--ink-400')), lineWidth: 1, lineStyle: LC.LineStyle.Dotted, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, title: t, priceFormat: DOLLARS })
+    s.setData(bars.slice(Y0).map((x) => ({ time: x.time, value: b.close })))
+    lines[t] = s
+  }
+  LC.createSeriesMarkers(main, scen === 'held' ? buys.map((b) => ({ time: bars[b.i].time, position: 'belowBar', shape: 'circle', color: G, size: 1 })) : [])
+  document.getElementById('plot').classList.toggle('rsi', on.rsi)
+  paint()
+}
+function span() {
+  const n = { '1M': 22, '6M': 128, '1Y': 256, all: bars.length }[range]
+  chart.timeScale().setVisibleLogicalRange({ from: bars.length - n, to: bars.length + 1 })
+}
+
+/* The line of words: price at rest or under the pointer, then each lit
+   line's value that day, in its colour. */
+const read = document.getElementById('read')
+function say(i) {
+  const k = i ?? bars.length - 1, b = bars[k]
+  const iv = (c, name, v) => v == null ? '' : `<span class="iv" style="--c:${cssv(c)}"><i>${name}</i>${v}</span>`
+  read.innerHTML = `<span>${usd(b.close)}</span><span class="alt">${eur(b.close * rate(k))}</span><small>${day(b.time)}${i == null ? ' · latest price' : ''}</small>` +
+    (on.avg && scen === 'held' && k >= buys[0].i ? iv('--lav-400', 'AVG BUY', usd(avgUsd)) : '') +
+    (on[50] && reading !== 50 ? iv('--ind-50', 'SMA 50', M[50].has(b.time) ? usd(M[50].get(b.time)) : null) : '') +
+    (on[200] && reading !== 200 ? iv('--ind-200', 'SMA 200', M[200].has(b.time) ? usd(M[200].get(b.time)) : null) : '') +
+    (on.rsi ? iv('--ind-rsi', 'RSI 14', M.rsi.has(b.time) ? M.rsi.get(b.time).toFixed(1) : null) : '')
+}
+chart.subscribeCrosshairMove((p) => { const i = p.time ? bars.findIndex((b) => b.time === p.time) : -1; say(i < 0 ? null : i) })
+
+/* The key names what is drawn, with its period; AVG BUY with both
+   currencies, its buys and the round's first day. */
+function keys() {
+  const k = []
+  if (scen === 'held') k.push(`<span><i class="dot" style="border-color:${cssv('--good')}"></i><b>buy</b></span>`)
+  if (on.avg && scen === 'held') k.push(`<span style="--c:${cssv('--lav-400')}"><i class="ln dash"></i><b>avg buy</b> ${usd(avgUsd)} · ${eur(avgEur)} · ${buys.length} BUY · SINCE ${day(bars[buys[0].i].time).toUpperCase()}</span>`)
+  if (on[50] && reading !== 50) k.push(`<span style="--c:${cssv('--ind-50')}"><i class="ln"></i><b>sma 50</b> · 50 closes</span>`)
+  if (on[200] && reading !== 200) k.push(`<span style="--c:${cssv('--ind-200')}"><i class="ln"></i><b>sma 200</b> · 200 closes</span>`)
+  if (on.rsi) k.push(`<span style="--c:${cssv('--ind-rsi')}"><i class="ln"></i><b>rsi 14</b> · 14 closes · 30 / 70</span>`)
+  if (on.yr) k.push(`<span style="--c:${cssv('--ink-400')}"><i class="ln" style="border-top-style:dotted"></i><b>52w high</b> ${usd(yr.hi.close)} · ${day(yr.hi.time)} · <b>52w low</b> ${usd(yr.lo.close)} · ${day(yr.lo.time)}</span>`)
+  k.push('<span class="tv">TradingView Lightweight Charts™ · © 2025 TradingView, Inc.</span>')
+  document.getElementById('keys').innerHTML = k.join('')
+}
+
+function bar() {
+  document.getElementById('tools').innerHTML = ['compare', 'ruler'].map((t) => `<button class="pill tool ${tool === t ? 'on' : ''}" onclick="tool=tool==='${t}'?null:'${t}';bar()">${I[t]}${t}</button>`).join('')
+  document.getElementById('views').innerHTML =
+    ['line', 'candles'].map((v) => `<button class="pill ${v === view ? 'on' : ''}" onclick="view='${v}';redo()">${v}</button>`).join('') +
+    `<button class="pill ${volume ? 'on' : ''}" onclick="volume=!volume;redo()">volume</button>`
+  document.getElementById('ranges').innerHTML = ['1M', '6M', '1Y', 'all'].map((r) => `<button class="pill ${r === range ? 'on' : ''}" onclick="range='${r}';bar();span()">${r}</button>`).join('')
+  const pill = (id, label, c, dash) => {
+    const busy = reading === id
+    return `<button class="pill ind ${on[id] ? 'on' : ''}" style="--c:${cssv(c)}" aria-pressed="${on[id]}" onclick="flip('${id}')">${busy ? '<i class="spin"></i>' : `<i class="sw ${dash === true ? 'dash' : dash || ''}"></i>`}${busy ? 'reading…' : label}${on[id] && !busy && V[id] ? `<span class="va ${V[id].cls}-t">${V[id].arrow}</span>` : ''}</button>`
+  }
+  document.getElementById('inds').innerHTML = (scen === 'held' ? pill('avg', 'avg buy', '--lav-400', true) : '') + pill(50, 'sma 50', '--ind-50') + pill(200, 'sma 200', '--ind-200') + pill('rsi', 'rsi 14', '--ind-rsi') + pill('yr', '52w', '--ink-400', 'dot2')
+  document.getElementById('scen').innerHTML = [['held', 'msft · 3 buy'], ['sold', 'sold out · no avg buy']].map(([s, l]) => `<button class="pill ${s === scen ? 'on' : ''}" onclick="scen='${s}';on.avg=false;redo()">${l}</button>`).join('')
+  document.getElementById('theme').innerHTML = ['dark', 'light'].map((t) => `<button class="pill ${t === theme ? 'on' : ''}" onclick="setTheme('${t}')">${t}</button>`).join('')
+  document.getElementById('note').innerHTML = 'SMA 200 pressed the first time: older closes read from Yahoo, the pill spins, then the line draws. Off again on every open of the page. SIGNALS tab: tap a row to open it; its line mark puts the line on the chart.'
+}
+/* SMA 200 needs the 200 closes before the year in view: the first press
+   reads the older years (as ALL does), the pill spins until they land. */
+const p0 = bars.at(-1).close, s50 = S[50].at(-1).value, s200 = S[200].at(-1).value, r0 = S.rsi.at(-1).value
+const pct = (a, b) => (a - b) / b * 100
+const sg = (v) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + '%'
+const clamp = (v) => Math.max(3, Math.min(97, v))
+const yrPos = (p0 - yr.lo.close) / (yr.hi.close - yr.lo.close) * 100
+const dA = pct(p0, avgUsd), d50 = pct(p0, s50), d200 = pct(p0, s200)
+const side = (d) => d >= 0 ? { cls: 'up', v: 'bull', arrow: '▲', icon: 'up' } : { cls: 'dn', v: 'bear', arrow: '▼', icon: 'down' }
+/* Each line's verdict by its textbook rule. */
+const V = {
+  avg: { ...side(dA), word: dA >= 0 ? 'in profit' : 'at a loss' },
+  50: { ...side(d50), word: d50 >= 0 ? 'bullish' : 'bearish' },
+  200: { ...side(d200), word: d200 >= 0 ? 'bullish' : 'bearish' },
+  rsi: r0 > 70 ? { cls: 'dn', v: 'bear', arrow: '▼', icon: 'down', word: 'overbought' } : r0 < 30 ? { cls: 'up', v: 'bull', arrow: '▲', icon: 'up', word: 'oversold' } : { cls: 'fl', v: 'flat', arrow: '—', icon: 'flat', word: 'neutral' },
+  yr: yrPos >= 66 ? { cls: 'up', v: 'bull', arrow: '▲', icon: 'up', word: 'near high' } : yrPos <= 33 ? { cls: 'dn', v: 'bear', arrow: '▼', icon: 'down', word: 'near low' } : { cls: 'fl', v: 'flat', arrow: '—', icon: 'flat', word: 'mid range' },
+}
+const vs = (d) => `<div class="gauge"><i class="z" style="left:0;width:50%;background:color-mix(in srgb,var(--danger) 22%,transparent)"></i><i class="z" style="left:50%;width:50%;background:color-mix(in srgb,var(--good) 22%,transparent)"></i><i class="mid"></i><i class="mk" style="--x:${clamp(50 + d / 15 * 50)}%"></i></div>`
+function signals() {
+  const rows = [
+    scen === 'held' && { id: 'avg', c: '--lav-400', mark: 'dash', name: 'avg buy', sub: 'since 22 jun 2026', pc: sg(dA), gauge: vs(dA),
+      line: dA >= 0 ? 'Each share of this round is worth more than its average cost.' : 'Each share of this round is worth less than its average cost.',
+      nums: `<span><small>price</small>${usd(p0)}</span><span><small>avg buy</small>${usd(avgUsd)} · ${eur(avgEur)}</span><span><small>buys</small>3 BUY</span>`, ends: '<span>−15%</span><span>avg buy</span><span>+15%</span>' },
+    { id: '50', c: '--ind-50', mark: '', name: 'sma 50', sub: '50 days', pc: sg(d50), gauge: vs(d50),
+      line: d50 >= 0 ? 'Price above its 50-day average: the trend of recent months is up.' : 'Price below its 50-day average: the trend of recent months is down.',
+      nums: `<span><small>price</small>${usd(p0)}</span><span><small>sma 50</small>${usd(s50)}</span>`, ends: '<span>−15%</span><span>sma 50</span><span>+15%</span>' },
+    { id: '200', c: '--ind-200', mark: '', name: 'sma 200', sub: '200 days', pc: sg(d200), gauge: vs(d200),
+      line: d200 >= 0 ? 'Price above its 200-day average: the long trend is up.' : 'Price below its 200-day average: the long trend is down.',
+      nums: `<span><small>price</small>${usd(p0)}</span><span><small>sma 200</small>${usd(s200)}</span>`, ends: '<span>−15%</span><span>sma 200</span><span>+15%</span>' },
+    { id: 'rsi', c: '--ind-rsi', mark: '', name: 'rsi 14', sub: 'momentum', pc: r0.toFixed(0), gauge: `<div class="gauge"><i class="z" style="left:0;width:30%;background:color-mix(in srgb,var(--good) 24%,transparent)"></i><i class="z" style="left:70%;width:30%;background:color-mix(in srgb,var(--danger) 24%,transparent)"></i><i class="mk" style="--x:${clamp(r0)}%"></i></div>`,
+      line: r0 > 70 ? 'Rose fast in 14 days. Often pauses or drops next.' : r0 < 30 ? 'Fell fast in 14 days. Often bounces next.' : 'Normal speed: neither rising nor falling too fast.',
+      nums: `<span><small>rsi 14</small>${r0.toFixed(1)} of 100</span><span><small>overbought</small>over 70</span><span><small>oversold</small>under 30</span>`, ends: '<span>0 oversold</span><span>30</span><span>70</span><span>overbought 100</span>' },
+    { id: 'yr', c: '--ink-400', mark: 'dot2', name: '52 weeks', sub: 'from high', pc: sg(fromHi), gauge: `<div class="gauge" style="background:linear-gradient(90deg,color-mix(in srgb,var(--danger) 22%,transparent),rgba(var(--lift),.06),color-mix(in srgb,var(--good) 22%,transparent))"><i class="mk" style="--x:${clamp(yrPos)}%;--x0:0%"></i></div>`,
+      line: yrPos >= 66 ? 'Close to the top of its year: strong, but not cheap.' : yrPos <= 33 ? 'Close to the bottom of its year: weak, but cheaper than most of the year.' : 'In the middle of its year: neither at the top nor at the bottom.',
+      nums: `<span><small>price</small>${usd(p0)}</span><span><small>52w high</small>${usd(yr.hi.close)} · ${day(yr.hi.time)}</span><span><small>52w low</small>${usd(yr.lo.close)} · ${day(yr.lo.time)}</span>`, ends: `<span>low ${usd(yr.lo.close)}</span><span>high ${usd(yr.hi.close)}</span>` },
+  ].filter(Boolean)
+  return rows
+}
+const ICON = {
+  up: '<svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>',
+  down: '<svg viewBox="0 0 24 24"><path d="M3 7l6 6 4-4 8 8M15 17h6v-6"/></svg>',
+  flat: '<svg viewBox="0 0 24 24"><path d="M4 12h16M16 8l4 4-4 4"/></svg>',
+}
+function tabs() {
+  const rows = signals()
+  const n = (c) => rows.filter((r) => V[r.id].cls === c).length
+  document.getElementById('tabs').innerHTML =
+    `<button class="tab ${tab === 'signals' ? 'on' : ''}" onclick="pick('signals')">signals <span class="ct"><span class="up-t">${n('up')} ▲</span><span class="dn-t">${n('dn')} ▼</span><span class="fl-t">${n('fl')} —</span></span></button>` +
+    `<button class="tab ${tab === 'trades' ? 'on' : ''}" onclick="pick('trades')">buys &amp; sells <span class="ct fl-t">${scen === 'held' ? 3 : 4}</span></button>`
+  const body = document.getElementById('tabbody')
+  const key = tab + scen + theme
+  if (tab === 'trades') {
+    if (body.dataset.was === key) return
+    body.dataset.was = key
+    body.innerHTML = `<div class="round"><span class="rb lav">now</span><span>since Jun 22, 2026</span><span style="flex:1"></span><span class="rb good">3 buy · ${eur(buys.reduce((s, b) => s + b.eur, 0))}</span></div>` +
+      [...buys].reverse().map((b, i) => `<div class="trow" style="--n:${i}"><span class="side">buy</span><div><div class="amt">${eur(b.eur)}</div><div class="shs">${b.sh} shares · ${usd(bars[b.i].close)} price that day</div></div><span class="d">${day(bars[b.i].time)}</span></div>`).join('')
+    return
+  }
+  /* Signal rows: drawn once per tab open; a press on a row's mark or a
+     pill only changes that mark, so nothing replays. */
+  if (body.dataset.was !== key) {
+    body.dataset.was = key
+    body.innerHTML = '<div class="sigs">' + rows.map((r, i) => `<div class="sig ${V[r.id].v}" data-id="${r.id}" style="--n:${i}">
+      <div class="sh" role="button" tabindex="0" onclick="toggle('${r.id}')">
+        <button class="eye" style="--c:${cssv(r.c)}" aria-label="On the chart" onclick="event.stopPropagation();flip('${r.id}')"><i class="${r.mark}"></i></button>
+        <span class="nm">${r.name}<small>${r.sub}</small></span>
+        <span class="verdict">${ICON[V[r.id].icon]}${V[r.id].word}</span>
+        <span class="pc">${r.pc}</span>
+        ${r.gauge}
+        <svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+      <div class="more"><div><p>${r.line}</p><div class="nums">${r.nums}</div><div class="ends">${r.ends}</div></div></div>
+    </div>`).join('') + '</div>'
+  }
+  for (const el of body.querySelectorAll('.sig')) {
+    el.classList.toggle('open', opened === el.dataset.id)
+    el.querySelector('.eye').classList.toggle('on', !!on[el.dataset.id])
+  }
+}
+function toggle(id) { opened = opened === id ? null : id; tabs() }
+function pick(t) { tab = t; try { localStorage.setItem('position-tab', t) } catch {} tabs() }
+function flip(id) {
+  on[id] = !on[id]
+  if (id === '200' && on[id] && !readOnce) { reading = 200; readOnce = true; setTimeout(() => { reading = null; redo() }, 1100) }
+  redo()
+}
+function setTheme(t) { theme = t; document.documentElement.dataset.theme = t; redo() }
+function redo() { const r = chart.timeScale().getVisibleLogicalRange(); build(); bar(); keys(); tabs(); say(null); if (r) chart.timeScale().setVisibleLogicalRange(r) }
+redo(); span()
+</script>
+</body>
+</html>

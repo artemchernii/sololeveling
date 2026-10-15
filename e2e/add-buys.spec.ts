@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { anyApi } from 'convex/server'
 
-import { start, testClient } from './helpers'
+import { showTrades, start, testClient } from './helpers'
 
 const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
 
@@ -79,6 +79,7 @@ test('ADD BUYS: four buys read, some of what is held still missing, saved', asyn
   await expect(missing).toContainText('0.122152 oz missing')
   await expect(position.getByText('needs every buy')).toBeVisible()
   await expect(position.getByText('€1,100', { exact: true })).toBeVisible()
+  await showTrades(position)
   await expect(position.getByTestId('round-now')).toContainText(
     '4 buy · €1,100',
   )
@@ -245,6 +246,7 @@ test('ADD BUYS: a buy in two overlapping screenshots counts once', async ({
     'bought',
   )
   /* Two rounds sold out in 2023, folded with their own sums. */
+  await showTrades(position)
   const now = position.getByTestId('round-now')
   await expect(now).toContainText('7 buy')
   await expect(now.getByTestId('trade-row')).toHaveCount(7)

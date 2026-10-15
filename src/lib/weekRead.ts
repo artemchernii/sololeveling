@@ -130,7 +130,11 @@ export function weekFacts(
         text: `${b.workouts4} IN 4 WEEKS`,
       },
       { key: 'shakes', tile: 'body', text: `SHAKES ${b.shakes}` },
-      { key: 'shakes-4', tile: 'body', text: `${b.shakes4} SHAKES IN 4 WEEKS` },
+      {
+        key: 'shakes-4',
+        tile: 'body',
+        text: `${b.shakes4} ${b.shakes4 === 1 ? 'SHAKE' : 'SHAKES'} IN 4 WEEKS`,
+      },
     )
     if (b.weight !== null)
       facts.push({

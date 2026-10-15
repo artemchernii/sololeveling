@@ -47,6 +47,7 @@ describe('weekFacts', () => {
     expect(text['project-1-target']).toBeUndefined()
     expect(text.workouts).toBe('WORKOUTS 0')
     expect(text['workouts-4']).toBe('7 IN 4 WEEKS')
+    expect(text['shakes-4']).toBe('1 SHAKE IN 4 WEEKS')
     expect(text.weight).toBe('WEIGHT 75.4 kg · SEP 8')
     expect(text['lang-portuguese']).toBe('PORTUGUESE 0')
     /* A language with nothing in four weeks has no tile, so no fact. */

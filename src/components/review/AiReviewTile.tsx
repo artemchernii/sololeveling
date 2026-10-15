@@ -126,8 +126,8 @@ export function AiReviewTile({
       icon={<Sparkles />}
       index={2}
       span="col-span-2 lg:col-span-2 lg:row-span-2 system-frame"
+      sweep
     >
-      <span aria-hidden className="bento-sweep" />
       {reading ? (
         <Reading grill={grill} weekNumber={weekNumber} />
       ) : read?.status === 'done' ? (

@@ -217,3 +217,10 @@ test("resumeApply cannot touch another person's update", async () => {
     other.mutation(api.intake.resumeApply, { batchId, dayStart: days[3] }),
   ).rejects.toThrow('No such batch')
 })
+
+test('reviewWeek refuses anywhere but the test backend', async () => {
+  const me = convexTest(schema, modules).withIdentity({ tokenIdentifier: ME })
+  await expect(me.mutation(api.e2e.reviewWeek, { days })).rejects.toThrow(
+    'E2E functions run only on the test backend.',
+  )
+})

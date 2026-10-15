@@ -89,7 +89,13 @@ on a position's head ("go with day change" on the mockup
 `position-head.html`): the latest stored price minus the last stored
 close of an earlier day (`dayChange()` beside `between()`), with that
 close and its day always shown beside it, nothing stored, nothing
-graded.
+graded. On 2026-10-15 the week's change was allowed on Review ("yes,
+allow week change on Review" on the mockup `real.html`): this week minus
+last week for spent (whole weeks, recurring bills left out and their sum
+shown beside — "spent compare not days but weeks and exclude reoccuring
+bills") and for worth, with both
+numbers always shown beside it, an up or down arrow, green where the move
+is good (less spent, more worth) and red where it is not, nothing stored.
 
 Indicators and the average buy were allowed on 2026-10-13 ("yes
 indicators, yes news, yes average price"), built on 2026-10-15 ("go —
@@ -246,8 +252,9 @@ These are rules, not advice.
 1. **Every screen or feature is a slice: load the `slice` skill first.**
    Spec for me (scenarios that become tests) → Artem approves **1–2
    plain sentences plus something to see** (mockup or screenshot), never
-   the spec text → e2e tests first → build until green → PR with
-   screenshots → he tests on localhost with his own data → merge.
+   the spec text → e2e tests first → build until green → he tests the
+   branch on localhost with his own data → PR with screenshots → merge.
+   (15 Oct: "We should test by me and then PR" — no PR while he tests.)
 2. **Checks sized to the change (12 Oct).** Artem, waiting ten minutes
    on a two-line fix: "all this verification slow down everything badly
    … We need to verify not on every turn." Before the 12th every PR owed

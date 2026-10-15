@@ -284,7 +284,13 @@
            (14 Oct: the letters "Au" spilled out of a small circle — "what
            is this shity css?", with a picture of gold bars). Gold, silver,
            platinum and palladium as people know them; the same in both
-           themes, because a mark is. */
+           themes, because a mark is.
+         - ind-*: the lines a position's chart adds (15 Oct, mockup
+           indicators.html): SMA 50, SMA 200, RSI 14. Three must be told
+           apart from the price line and each other, and none may read as
+           good or bad, so the hues sit clear of the state colours (155,
+           25, 75). On the line lightness, so the light theme needs
+           nothing. */
   --metal-xau: oklch(0.8 0.14 78);
   --metal-xag: oklch(0.78 0.01 260);
   --metal-xpt: oklch(0.72 0.02 230);
@@ -313,6 +319,9 @@
   --line-2: oklch(var(--line-l) var(--line-c) 300);
   --line-3: oklch(var(--line-l) var(--line-c) 190);
   --line-4: oklch(var(--line-l) var(--line-c) 20);
+  --ind-50: oklch(var(--line-l) var(--line-c) 225);
+  --ind-200: oklch(var(--line-l) var(--line-c) 335);
+  --ind-rsi: oklch(var(--line-l) var(--line-c) 195);
 
   /* 6. Lift and sink (14 Sep, the first step to a light theme). Components
         drew hairlines, hover fills and wells as `white/10` or `black/20` —

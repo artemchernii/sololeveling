@@ -31,8 +31,11 @@ export function PositionTrades({
   instrumentIds,
   unit,
   accountOf,
+  titled = true,
 }: {
   loaded: boolean
+  /** Its own label; under the BUYS AND SELLS tab the tab says it. */
+  titled?: boolean
   /** Every listing it is owned under: where its removed trades sit. */
   instrumentIds: ReadonlyArray<Id<'instruments'>>
   all: ReadonlyArray<Doc<'trades'>>
@@ -80,9 +83,11 @@ export function PositionTrades({
   ) => b.occurredAt - a.occurredAt
   return (
     <div className="flex flex-col rounded-[16px] bg-lift/[0.025] p-3.5 ring-1 ring-lift/8 ring-inset">
-      <span className="label-caps mb-1">
-        buys and sells{loaded && all.length > 0 ? ` · ${all.length}` : ''}
-      </span>
+      {titled ? (
+        <span className="label-caps mb-1">
+          buys and sells{loaded && all.length > 0 ? ` · ${all.length}` : ''}
+        </span>
+      ) : null}
       {!loaded ? (
         <span className="py-3 font-mono text-[11px] text-ink-500">
           reading…

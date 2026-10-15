@@ -29,6 +29,10 @@ import {
 } from '@/components/finances/chartSeries'
 import type { Main, Tone, View } from '@/components/finances/chartSeries'
 import { DotBox } from '@/components/finances/DotBox'
+import { drawLines, drawnIds } from '@/components/finances/lineSeries'
+import type { Drawn } from '@/components/finances/lineSeries'
+import { LineKeys, LineReads } from '@/components/finances/LineKeys'
+import type { LineId } from '@/lib/indicators'
 import { money } from '@/lib/currency'
 import { euros } from '@/lib/money'
 import {
@@ -61,6 +65,15 @@ const NOW = new Intl.DateTimeFormat(undefined, {
 /* How far across, in pixels, a dot is read from. */
 const DOT_REACH = 9
 const PLOT = 'h-[300px] rounded-[14px] sm:h-[380px]'
+/* With RSI 14's pane under the price (mockup indicators.html). */
+const PLOT_RSI = 'h-[390px] rounded-[14px] sm:h-[480px]'
+
+/* The price axis in the position's currency, for every line on it. */
+const priceFormat = (currency: string) => ({
+  type: 'custom' as const,
+  minMove: 0.01,
+  formatter: (p: number) => price(p, currency),
+})
 
 const price = (v: number, currency: string) =>
   money(Math.round(v * 100) / 100, currency)
@@ -111,6 +124,8 @@ export function PriceChart({
   tool = null,
   view = 'line',
   volume = false,
+  lines = NONE,
+  keys = [],
 }: {
   points: ReadonlyArray<Close> | undefined
   marks: ReadonlyArray<Mark>
@@ -123,6 +138,9 @@ export function PriceChart({
   view?: View
   /** The shares traded each day, drawn and said. */
   volume?: boolean
+  /** AVG BUY, the averages, RSI, 52W: what is lit (useChartLines). */
+  lines?: Drawn
+  keys?: ReadonlyArray<{ id: LineId; text: string }>
 }) {
   /* By what they hold, not by the arrays: the page hands new ones on
      every render, and a redraw would undo a zoom. */
@@ -131,6 +149,8 @@ export function PriceChart({
     const [closes, trades] = JSON.parse(held) as [Array<Close>, Array<Mark>]
     return priceSeries(closes.map(asPt), trades)
   }, [held])
+  const lit = JSON.stringify(lines)
+  const drawn = useMemo(() => JSON.parse(lit) as Drawn, [lit])
   if (series === null) {
     return (
       <div
@@ -149,9 +169,12 @@ export function PriceChart({
       tool={tool}
       view={view}
       volume={volume}
+      lines={drawn}
+      keys={keys}
     />
   )
 }
+const NONE: Drawn = {}
 
 function Plot({
   series,
@@ -161,6 +184,8 @@ function Plot({
   tool,
   view,
   volume,
+  lines,
+  keys,
 }: {
   series: Series
   currency: string
@@ -169,6 +194,8 @@ function Plot({
   tool: Tool | null
   view: View
   volume: boolean
+  lines: Drawn
+  keys: ReadonlyArray<{ id: LineId; text: string }>
 }) {
   const { pts, on } = series
   const box = useRef<HTMLDivElement>(null)
@@ -301,10 +328,16 @@ function Plot({
   }, [tone, view])
 
   useEffect(() => {
-    chart.current?.applyOptions({
-      localization: { priceFormatter: (p: number) => price(p, currency) },
-    })
-  }, [currency])
+    line.current?.applyOptions({ priceFormat: priceFormat(currency) })
+  }, [currency, view])
+
+  /* The lit lines, drawn again when what is lit, the days or the view
+     change (chartLines.ts). */
+  useEffect(() => {
+    const c = chart.current
+    if (!c || !line.current) return
+    return drawLines(c, pts, lines, priceFormat(currency))
+  }, [lines, pts, view, currency])
 
   useEffect(() => {
     index.current = new Map(pts.map((p, i) => [seconds(p.t), i]))
@@ -388,6 +421,11 @@ function Plot({
                 ? ` · ${many(seen.vol)} shares traded`
                 : ''}
             </span>
+            <LineReads
+              lines={lines}
+              t={seen.t}
+              say={(v) => price(v, currency)}
+            />
           </>
         )}
       </div>
@@ -397,9 +435,10 @@ function Plot({
         data-testid="price-plot"
         data-view={view}
         data-days={pts.length}
+        data-lines={drawnIds(lines).join(' ')}
         role="img"
         aria-label="Price over the period, with buys and sells"
-        className={`${PLOT} relative z-0 overflow-hidden`}
+        className={`${lines.rsi ? PLOT_RSI : PLOT} relative z-0 overflow-hidden transition-[height] duration-300`}
       >
         <div ref={box} className="absolute inset-0" />
         {held && near && dotDay ? (
@@ -422,7 +461,10 @@ function Plot({
           onRead={setMeasured}
         />
       </div>
-      <div className="flex flex-wrap gap-x-3.5 gap-y-1 font-mono text-[10.5px] text-ink-500">
+      <div
+        data-testid="chart-keys"
+        className="flex flex-wrap gap-x-3.5 gap-y-1 font-mono text-[10.5px] text-ink-500"
+      >
         {(['buy', 'sell'] as const)
           .filter((side) => sides.has(side))
           .map((side) => (
@@ -439,6 +481,7 @@ function Plot({
             shares traded that day
           </span>
         ) : null}
+        <LineKeys keys={keys} />
         <a
           href="https://www.tradingview.com/"
           target="_blank"

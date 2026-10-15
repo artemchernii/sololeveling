@@ -2,18 +2,20 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import {
-  Check,
-  ChevronLeft,
-  Loader2,
-  Sparkles,
-  TriangleAlert,
-} from 'lucide-react'
+import { Check, ChevronLeft, Sparkles, TriangleAlert } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
-import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
+import { PILL_QUIET } from '@/components/finances/bits'
 import { ToolPills, ViewPills } from '@/components/finances/ChartTools'
+import {
+  LinePills,
+  lineKeys,
+  useChartLines,
+} from '@/components/finances/ChartLines'
+import { PositionTabs } from '@/components/finances/PositionSignals'
+import { RANGES, RangePills } from '@/components/finances/RangePills'
+import type { Range } from '@/components/finances/RangePills'
 import type { Tool } from '@/components/finances/ChartTools'
 import { TickerLogo } from '@/components/finances/Logo'
 import type { View } from '@/components/finances/chartSeries'
@@ -36,7 +38,7 @@ import { UNPRICED } from '@/lib/market'
 import { euros } from '@/lib/money'
 import { gainOf } from '@/lib/owned'
 import { rounds } from '@/lib/rounds'
-import { dayChange, drawable, withOlder } from '@/lib/priceChart'
+import { dayChange, drawable, priceSeries, withOlder } from '@/lib/priceChart'
 import type { Owned } from '@/lib/owned'
 import type { soldSums } from '@/lib/sold'
 
@@ -58,12 +60,6 @@ const FULL = new Intl.DateTimeFormat(undefined, {
   month: 'short',
   year: 'numeric',
 })
-const RANGES = [
-  { id: '1M', days: 31 },
-  { id: '6M', days: 183 },
-  { id: '1Y', days: 366 },
-] as const
-type Range = (typeof RANGES)[number]['id'] | 'all'
 function BackToList() {
   return (
     <Link
@@ -186,6 +182,20 @@ export function PortfolioPosition({
     .flatMap((t) => t ?? [])
     .sort((a, b) => b.occurredAt - a.occurredAt)
 
+  /* AVG BUY, the averages, RSI, 52W and their SIGNALS (15 Oct). */
+  const pts = useMemo(
+    () => priceSeries((line ?? []).map(asPt))?.pts ?? [],
+    [line],
+  )
+  const lines = useChartLines({
+    pts,
+    trades: all,
+    currency: first.currency,
+    instrument: first.instrumentId,
+    older: { has: years.older !== undefined, ...years },
+  })
+  const say = (v: number) => money(Math.round(v * 100) / 100, first.currency)
+
   const gain = sold ? sold.gain : gainOf(owned)
   const up = (gain?.eur ?? 0) >= 0
   const unpriced = first.type === UNPRICED
@@ -215,6 +225,7 @@ export function PortfolioPosition({
       instrumentIds={owned.at.map((r) => r.instrumentId)}
       unit={unit}
       accountOf={accountOf}
+      titled={unpriced}
     />
   )
 
@@ -431,49 +442,10 @@ export function PortfolioPosition({
                 volume={can.volume && volume}
                 onVolume={setVolume}
               />
-              <div className="flex gap-1.5">
-                {RANGES.map((r) => (
-                  <button
-                    key={r.id}
-                    type="button"
-                    aria-pressed={range === r.id}
-                    onClick={() => setRange(r.id)}
-                    className={range === r.id ? PILL_LOUD : PILL_QUIET}
-                  >
-                    {r.id}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  aria-pressed={range === 'all'}
-                  disabled={years.reading}
-                  title={
-                    years.failed
-                      ? 'Yahoo Finance did not answer. Press to read again.'
-                      : 'Five years'
-                  }
-                  onClick={() =>
-                    void years.ask().then((ok) => ok && setRange('all'))
-                  }
-                  className={`${range === 'all' ? PILL_LOUD : PILL_QUIET} inline-flex items-center gap-1.5 ${years.failed ? 'text-state-warn ring-state-warn/40' : ''}`}
-                >
-                  {years.reading ? (
-                    <>
-                      <Loader2 className="size-3 animate-spin" />
-                      reading…
-                    </>
-                  ) : years.failed ? (
-                    <>
-                      <TriangleAlert className="motion-pulse size-3" />
-                      all · not read
-                    </>
-                  ) : (
-                    'all'
-                  )}
-                </button>
-              </div>
+              <RangePills range={range} onRange={setRange} years={years} />
             </div>
           </div>
+          <LinePills lines={lines} />
           <PriceChart
             points={line}
             marks={all
@@ -489,11 +461,22 @@ export function PortfolioPosition({
             tool={tool}
             view={can.candles ? view : 'line'}
             volume={can.volume && volume}
+            lines={lines.drawn}
+            keys={lineKeys(lines, say, euros)}
           />
         </div>
       )}
 
-      {list}
+      {unpriced ? (
+        list
+      ) : (
+        <PositionTabs
+          lines={lines}
+          say={say}
+          trades={list}
+          count={all.length}
+        />
+      )}
     </section>
   )
 }

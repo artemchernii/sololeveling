@@ -35,6 +35,7 @@ import type * as fileTrades from "../fileTrades.js";
 import type * as gapMatch from "../gapMatch.js";
 import type * as github from "../github.js";
 import type * as goals from "../goals.js";
+import type * as handOver from "../handOver.js";
 import type * as holdingsTotal from "../holdingsTotal.js";
 import type * as intake from "../intake.js";
 import type * as invest from "../invest.js";
@@ -104,6 +105,7 @@ declare const fullApi: ApiFromModules<{
   gapMatch: typeof gapMatch;
   github: typeof github;
   goals: typeof goals;
+  handOver: typeof handOver;
   holdingsTotal: typeof holdingsTotal;
   intake: typeof intake;
   invest: typeof invest;

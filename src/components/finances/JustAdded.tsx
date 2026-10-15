@@ -75,6 +75,7 @@ export function JustAdded({
   const [removed, setRemoved] = useState<{
     name: string
     badge: string
+    stay: string | null
   } | null>(null)
   /* One line until pressed (14 Oct: five cards after one drop were a
      wall); × hides it on this device until a newer file is saved. */
@@ -153,7 +154,8 @@ export function JustAdded({
           <span className="motion-pop grid size-[26px] place-items-center rounded-full bg-state-good/16 text-state-good shadow-[0_0_18px_-4px_var(--color-state-good)]">
             <Check className="size-3.5" />
           </span>
-          <Badge tone="out">{removed.badge}</Badge>
+          {removed.badge ? <Badge tone="out">{removed.badge}</Badge> : null}
+          {removed.stay ? <Badge tone="stay">{removed.stay}</Badge> : null}
           <span className="truncate text-[13px] text-foreground">
             {removed.name}
           </span>
@@ -171,7 +173,11 @@ export function JustAdded({
                 onKeep={() => setAsking(null)}
                 onRemoved={() => {
                   setAsking(null)
-                  setRemoved({ name: nameOf(f), badge: goneBadge(f) })
+                  setRemoved({
+                    name: nameOf(f),
+                    badge: goneBadge(f),
+                    stay: stayBadge(f),
+                  })
                 }}
               />
             ) : (
@@ -230,27 +236,37 @@ function writeHidden(key: string, at: number) {
 const nameOf = (f: JustFile) => f.names.join(' · ') || 'A file'
 const isTrades = (f: JustFile) => f.things.length > 0
 const rowsOf = (n: number) => `${n} ${n === 1 ? 'row' : 'rows'}`
-const goneBadge = (f: JustFile) =>
-  isTrades(f)
-    ? [
-        f.buys > 0 ? `−${f.buys} buy` : '',
-        f.sells > 0 ? `−${f.sells} sell` : '',
+const goneBadge = (f: JustFile) => {
+  if (!isTrades(f)) return `−${rowsOf(f.saved)}`
+  const buys = f.buys - (f.stay?.buys ?? 0)
+  const sells = f.sells - (f.stay?.sells ?? 0)
+  return [buys > 0 ? `−${buys} buy` : '', sells > 0 ? `−${sells} sell` : '']
+    .filter(Boolean)
+    .join(' · ')
+}
+/* What another file read too stays, under it (15 Oct, the clash). */
+const stayBadge = (f: JustFile) =>
+  f.stay === null
+    ? null
+    : `${[
+        f.stay.buys > 0 ? `${f.stay.buys} buy` : '',
+        f.stay.sells > 0 ? `${f.stay.sells} sell` : '',
       ]
         .filter(Boolean)
-        .join(' · ')
-    : `−${rowsOf(f.saved)}`
+        .join(' · ')} stay · ${f.stay.in}`
 
 function Badge({
   tone,
   children,
 }: {
-  tone: 'buy' | 'sell' | 'out' | 'in' | 'rows' | 'warn'
+  tone: 'buy' | 'sell' | 'out' | 'stay' | 'in' | 'rows' | 'warn'
   children: React.ReactNode
 }) {
   const look = {
     buy: 'bg-state-good/14 text-state-good',
     sell: 'bg-state-danger/14 text-state-danger',
     out: 'bg-state-danger/14 text-state-danger',
+    stay: 'bg-state-good/12 text-state-good',
     in: 'bg-lift/[0.05] text-ink-400',
     rows: 'bg-lav-400/14 text-lav-300',
     warn: 'bg-state-warn/14 text-state-warn',
@@ -389,8 +405,32 @@ function Ask({
       data-testid="just-ask"
       className="motion-arrive flex flex-col gap-2.5 rounded-[14px] bg-state-danger/[0.06] px-3 py-3 ring-1 ring-state-danger/35 ring-inset"
     >
-      <span className="label-caps truncate text-state-danger">
-        remove · {nameOf(f)}
+      <span className="flex flex-wrap items-center gap-1.5">
+        <span className="label-caps truncate text-state-danger">
+          remove · {nameOf(f)}
+        </span>
+        {f.stay !== null ? (
+          <>
+            {/* Another file read some of its rows (15 Oct, mockup
+                remove-clash.html): those stay, under it. */}
+            <span
+              data-testid="just-clash"
+              className="motion-land inline-flex shrink-0 items-center gap-1 rounded-full bg-state-warn/14 px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-state-warn uppercase"
+            >
+              <TriangleAlert className="motion-pulse size-3" />
+              clash
+            </span>
+            <Badge tone="in">
+              {f.stay.buys + f.stay.sells}{' '}
+              {f.stay.sells === 0
+                ? 'buy'
+                : f.stay.buys === 0
+                  ? 'sell'
+                  : 'trades'}{' '}
+              · in {f.stay.in}
+            </Badge>
+          </>
+        ) : null}
       </span>
       <div className="flex flex-col">
         {f.rows.map((r, i) => (
@@ -410,7 +450,11 @@ function Ask({
             <span className="font-mono text-[11px] text-ink-500">
               {short(r.at)}
             </span>
-            <Badge tone="out">goes</Badge>
+            {r.stays === null ? (
+              <Badge tone="out">goes</Badge>
+            ) : (
+              <Badge tone="stay">stays · {r.stays}</Badge>
+            )}
           </div>
         ))}
         {more > 0 ? (

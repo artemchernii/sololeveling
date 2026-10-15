@@ -151,6 +151,22 @@ export function TakeBack({
             </span>
           ))
         )}
+        {p.stay !== null ? (
+          /* Another file read some of its trades (15 Oct, the clash):
+             they stay, under it. */
+          <>
+            <span
+              data-testid="take-back-clash"
+              className="inline-flex items-center gap-1 rounded-full bg-state-warn/14 px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-state-warn uppercase"
+            >
+              <TriangleAlert className="motion-pulse size-3" />
+              clash
+            </span>
+            <span className="rounded-full bg-state-good/12 px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-state-good uppercase">
+              {p.stay.trades} stay · {p.stay.in}
+            </span>
+          </>
+        ) : null}
         {p.elsewhereRows > 0 ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-state-danger/14 py-0.5 pr-2.5 pl-1 font-mono text-[10px] tracking-[0.12em] text-state-danger uppercase">
             {there ? (

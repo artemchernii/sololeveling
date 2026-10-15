@@ -24,15 +24,15 @@ row answers for one trade. UNDO of a whole drop (`takeBackBatch`) marks
 every file first, so nothing is handed between files of the drop.
 
 Scenarios:
-  S1 two overlapping files saved → REMOVE on the one that saved the three
-     → `CLASH`, `3 BUY · IN IMG_9290.PNG`, three `STAYS · IMG_9290.PNG`,
-     the rest `GOES`; buy total counts only the goes.  [e2e, convex-test]
-  S2 pressed → "removing…" → `−1 BUY` `3 BUY STAY · IMG_9290.PNG`
-     removed; buys and sells 19 → 18; the other file `5 BUY`.  [e2e]
-  S3 the other file removed after → the three go too.  [convex-test]
-  S4 the whole drop undone → every buy goes.  [convex-test]
-  S5 another owner → refused, nothing moves.  [convex-test]
-  S6 no clash → as before, every row GOES.  [existing e2e]
+S1 two overlapping files saved → REMOVE on the one that saved the three
+→ `CLASH`, `3 BUY · IN IMG_9290.PNG`, three `STAYS · IMG_9290.PNG`,
+the rest `GOES`; buy total counts only the goes. [e2e, convex-test]
+S2 pressed → "removing…" → `−1 BUY` `3 BUY STAY · IMG_9290.PNG`
+removed; buys and sells 19 → 18; the other file `5 BUY`. [e2e]
+S3 the other file removed after → the three go too. [convex-test]
+S4 the whole drop undone → every buy goes. [convex-test]
+S5 another owner → refused, nothing moves. [convex-test]
+S6 no clash → as before, every row GOES. [existing e2e]
 
 Data: counts of trades rows (entity count of `trades`); no new number.
 

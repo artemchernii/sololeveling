@@ -54,6 +54,40 @@ test('Portfolio: chart lines and the SIGNALS tab', async ({ page }) => {
   await expect(row('rsi')).toContainText(/overbought/i)
   await expect(row('rsi')).toContainText('100')
   await expect(row('yr')).toContainText(/near high/i)
+
+  /* The verdict on top of SIGNALS (15 Oct, mockup verdict.html): RSI
+     100 is over 70, so WAIT, its line and the three reasons; the RSI
+     reason made the call. Fundamentals and news marked next; RULE
+     opens the rule with today's row lit. */
+  const verdict = position.getByTestId('verdict')
+  await expect(verdict).toHaveAttribute('data-call', 'wait')
+  await expect(verdict.getByTestId('verdict-badge')).toHaveText(/wait/i)
+  await expect(verdict).toContainText('RSI 14 above 70')
+  await expect(verdict).toContainText(/a buy now raises the avg buy/i)
+  const why = verdict.getByTestId('verdict-why')
+  await expect(why).toHaveCount(3)
+  await expect(why.filter({ hasText: /rsi 14/i })).toHaveAttribute(
+    'data-key',
+    'true',
+  )
+  await expect(why.filter({ hasText: /sma 50/i })).toContainText('+2.8%')
+  await expect(verdict).toContainText(/fundamentals\s*next/i)
+  await expect(verdict).toContainText(/news\s*next/i)
+  await verdict.getByRole('button', { name: /rule/i }).click()
+  await expect(verdict.getByTestId('rule-row')).toHaveCount(3)
+  await expect(
+    verdict.locator('[data-testid=rule-row][data-on=true]'),
+  ).toContainText(/wait/i)
+
+  /* The tiles: worth in euros, then dollars; P&L with its badge and
+     first day; the account's own P&L under its worth. */
+  const tiles = position.getByTestId('position-tiles')
+  await expect(tiles.getByTestId('worth-there')).toContainText('$1,011')
+  await expect(tiles.getByTestId('pl-tile')).toContainText(/p&l/i)
+  await expect(tiles.getByTestId('pl-badge')).toHaveText(/up/i)
+  await expect(tiles.getByTestId('pl-tile')).toContainText(/since first buy/i)
+  await expect(tiles.getByTestId('account-pl')).toHaveCount(1)
+  await expect(tiles.getByTestId('account-pl')).toContainText('▲')
   await page.waitForTimeout(900)
   await position.getByTestId('position-tabs').scrollIntoViewIfNeeded()
   await page.screenshot({ ...shot('chart-signals'), fullPage: true })

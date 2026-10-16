@@ -242,8 +242,8 @@ test('ADD BUYS: a buy in two overlapping screenshots counts once', async ({
     position.getByText('paid · 7 buy', { exact: true }),
   ).toBeVisible()
   await expect(position.getByTestId('paid-since')).toContainText('since')
-  await expect(position.getByText(/down since|up since/)).not.toContainText(
-    'bought',
+  await expect(position.getByTestId('pl-tile')).toContainText(
+    /since first buy · .+ \d{4}/i,
   )
   /* Two rounds sold out in 2023, folded with their own sums. */
   await showTrades(position)

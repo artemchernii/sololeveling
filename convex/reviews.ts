@@ -124,6 +124,44 @@ export const close = mutation({
   },
 })
 
+/**
+ * The bento's one press (14 Oct): the week's line and closing it, together.
+ * The five answers are no longer asked; a week written with them keeps them.
+ */
+export const closeWith = mutation({
+  args: { periodStart: v.string(), decision: v.string() },
+  returns: v.id('reviews'),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const decision = args.decision.trim()
+    if (decision.length === 0) throw new Error('EMPTY_NOTE')
+
+    const existing = await ctx.db
+      .query('reviews')
+      .withIndex('by_owner_period_start', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('period', 'weekly')
+          .eq('periodStart', args.periodStart),
+      )
+      .take(1)
+
+    const closedAt = Date.now()
+    if (existing.length > 0) {
+      await ctx.db.patch(existing[0]._id, { decision, closedAt })
+      return existing[0]._id
+    }
+    return await ctx.db.insert('reviews', {
+      ownerId,
+      period: 'weekly',
+      periodStart: args.periodStart,
+      answers: {},
+      decision,
+      closedAt,
+    })
+  },
+})
+
 /** Reopens a closed week. Closing is a ritual, not a lock. */
 export const reopen = mutation({
   args: { periodStart: v.string() },

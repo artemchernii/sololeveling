@@ -39,6 +39,10 @@ const TABLES: Array<TableNames> = [
   'bankLinks',
   'notifications',
   'pushSubscriptions',
+  'reviews',
+  'projects',
+  'commits',
+  'tasks',
 ]
 
 async function wipe(ctx: MutationCtx) {
@@ -229,6 +233,125 @@ export const paySalary = mutation({
       text: 'Acme Payroll',
       accountId: revolut,
       meta: { raw: 'Acme Payroll', recurringId: salary },
+    })
+    return null
+  },
+})
+
+/**
+ * A lived week for Review (15 Oct, mockup real.html) on what the app gets
+ * by itself: a project's commits (three of a target of three, one last
+ * week) and a quiet one, a task done, four bank rows and a bill this week,
+ * one row last week, two gym workouts, a shake and a weight. `days` are this week's
+ * Monday, Tuesday and Wednesday, local midnights. The bad day's spends are
+ * taken out first, so the sums do not move with the weekday.
+ */
+export const reviewWeek = mutation({
+  args: { days: v.array(v.number()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    for (const row of await ctx.db.query('logs').collect())
+      if (row.area === 'money') await ctx.db.delete(row._id)
+    const [a, b, c] = args.days
+    const hour = (day: number, h: number) => day + h * 3_600_000
+
+    const sl = await ctx.db.insert('projects', {
+      ownerId,
+      title: 'Solo Leveling',
+      status: 'focus',
+      githubRepo: 'artem/sololeveling',
+      commitTargetWeekly: 3,
+    })
+    await ctx.db.insert('projects', {
+      ownerId,
+      title: 'Oreum',
+      status: 'active',
+    })
+    const commit = (at: number, message: string) =>
+      ctx.db.insert('commits', {
+        ownerId,
+        projectId: sl,
+        repo: 'artem/sololeveling',
+        sha: `${at}`,
+        message,
+        url: 'https://github.com/artem/sololeveling',
+        authoredAt: at,
+        fetchedAt: at,
+        isMerge: false,
+      })
+    await commit(hour(a - 7 * DAY, 11), 'chore: last week')
+    await commit(hour(a, 10), 'feat(review): the week bar')
+    await commit(hour(a, 15), 'feat(review): spent by day')
+    await commit(hour(b, 12), 'fix(review): bills not counted')
+    await ctx.db.insert('tasks', {
+      ownerId,
+      title: 'Ship Review',
+      projectId: sl,
+      status: 'done',
+      priority: 0,
+      completedAt: hour(a, 18),
+    })
+
+    const bill = await ctx.db.insert('recurring', {
+      ownerId,
+      name: 'Anthropic',
+      kind: 'expense',
+      amount: 22.14,
+      cadence: 'monthly',
+      day: new Date(b).getDate(),
+    })
+    const spend = (
+      at: number,
+      text: string,
+      value: number,
+      category: string,
+      recurringId?: typeof bill,
+    ) =>
+      ctx.db.insert('logs', {
+        ownerId,
+        area: 'money',
+        kind: 'expense',
+        occurredAt: at,
+        value,
+        unit: 'eur',
+        text,
+        meta: { merchant: text, category, recurringId },
+      })
+    await spend(hour(a - 7 * DAY, 12), 'English Bar 42', 74.05, 'eating out')
+    await spend(hour(a, 9), 'Veiga e Seabra', 37.86, 'car')
+    await spend(hour(b, 9), 'Anthropic', 22.14, 'subscriptions', bill)
+    await spend(hour(c, 9), 'Solinca', 5.98, 'subscriptions')
+    await spend(hour(c, 13), 'Bolt', 4.5, 'transport')
+    await spend(hour(c, 19), 'Pingo Doce', 2.1, 'groceries')
+
+    const workout = (at: number) =>
+      ctx.db.insert('logs', {
+        ownerId,
+        area: 'body',
+        kind: 'workout',
+        occurredAt: at,
+        value: 60,
+        meta: { category: 'gym' },
+      })
+    await workout(hour(a, 7))
+    await workout(hour(b, 7))
+    await ctx.db.insert('logs', {
+      ownerId,
+      area: 'body',
+      kind: 'intake',
+      occurredAt: hour(b, 8),
+      meta: { category: 'supplements' },
+    })
+    await ctx.db.insert('stateSnapshots', {
+      ownerId,
+      area: 'body',
+      key: 'weight',
+      value: 75.4,
+      unit: 'kg',
+      recordedAt: hour(b, 8),
+      source: 'typed',
     })
     return null
   },

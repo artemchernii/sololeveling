@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, MoveRight, TrendingDown, TrendingUp } from 'lucide-react'
 import type { ReactNode } from 'react'
 
@@ -54,9 +54,12 @@ export function PositionTabs({
   say,
   trades,
   count,
+  top,
 }: {
   lines: Lines
   say: (v: number) => string
+  /** Above the signal rows: the verdict, while something is held. */
+  top?: ReactNode
   /** The BUYS AND SELLS list, as built. */
   trades: ReactNode
   count: number
@@ -111,6 +114,7 @@ export function PositionTabs({
         <div className="pt-2">{trades}</div>
       ) : (
         <div className="flex flex-col pt-1.5">
+          {top}
           {lines.rows.map((r, i) => (
             <Row
               key={r.id}
@@ -223,6 +227,13 @@ function Row({
 /* A gauge: price against a line runs from −15% to +15%, red to green;
    RSI 0–100 with its 30 and 70 zones; 52W from the low to the high. */
 function Gauge({ row }: { row: Signal }) {
+  /* The dot slides in from the middle to today's place (15 Oct, mockup
+     verdict.html). */
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    const f = requestAnimationFrame(() => setShown(true))
+    return () => cancelAnimationFrame(f)
+  }, [])
   const zones =
     row.id === 'rsi'
       ? 'bg-[linear-gradient(90deg,color-mix(in_oklch,var(--state-good)_26%,transparent)_30%,transparent_30%_70%,color-mix(in_oklch,var(--state-danger)_26%,transparent)_70%)]'
@@ -236,7 +247,7 @@ function Gauge({ row }: { row: Signal }) {
       )}
       <i
         className={`absolute top-1/2 -mt-[6.5px] -ml-[6.5px] size-[13px] rounded-full transition-[left] duration-700 ${DOT[row.way]}`}
-        style={{ left: `${row.at}%` }}
+        style={{ left: `${shown ? row.at : 50}%` }}
       />
     </div>
   )

@@ -3,184 +3,163 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
-import { PageTitle } from '@/components/PageTitle'
-import { CloseWeek } from '@/components/review/CloseWeek'
-import { KpiTiles } from '@/components/review/KpiTiles'
-import { MovementTable } from '@/components/review/MovementTable'
-import { Skeleton, SkeletonRows } from '@/components/Skeleton'
+import { AiReviewTile } from '@/components/review/AiReviewTile'
+import { BodyTile } from '@/components/review/BodyTile'
+import { FinancesTile } from '@/components/review/FinancesTile'
+import { LanguagesTile } from '@/components/review/LanguagesTile'
+import { ProjectsTile } from '@/components/review/ProjectsTile'
+import { WeekBar, isoWeek } from '@/components/review/WeekBar'
+import { Skeleton } from '@/components/Skeleton'
+import { useDayStarts } from '@/components/track/useDayStarts'
 import { useHeld } from '@/lib/loading'
-import { localToday } from '@/lib/today'
-import {
-  addWeeks,
-  startOfWeek,
-  weekKey,
-  weekStartsEndingWith,
-} from '@/lib/weeks'
+import { addDays, addWeeks, startOfWeek, weekKey } from '@/lib/weeks'
 
 export const Route = createFileRoute('/_app/reviews')({
   component: Reviews,
 })
 
-/* PLAN.md §3, the weekly review: "the week, as it actually went." KPI tiles,
-   twelve weeks of movement, one principle, the sentence, close.
- 
-   Every number here comes from aggregate.weekCounts. This file composes them —
-   a delta is a subtraction of two source values — and computes none. */
+/* Review (15 Oct; spec docs/specs/2026-10-14-review-bento.md, mockup
+   design/review-mockup/real.html, "way better"). The week on what the app
+   gets by itself — bank rows, worth, commits — with the hand logs beside
+   four weeks of them: "i dont want to end up with all 0 screen". Every
+   number is read here from aggregate.ts and handed to a tile; a tile with
+   nothing in four weeks is not drawn. */
 function Reviews() {
+  const today = useDayStarts(1).at(-1) as number
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
-
-  const starts = weekStartsEndingWith(weekStart, 12)
-  const weeks = useQuery(api.aggregate.weekCounts, {
-    starts,
-    end: addWeeks(weekStart, 1).getTime(),
-  })
-
+  const isThisWeek = weekKey(weekStart) === weekKey(new Date(today))
   const key = weekKey(weekStart)
-  const review = useQuery(api.reviews.forWeek, { periodStart: key })
-  const principles = useQuery(api.principles.list, {})
 
-  /* Deterministic, not random: the same line all week, a different line next
-     week. A principle that changes when you refresh is decoration. */
-  const principle =
-    principles && principles.length > 0
-      ? principles[
-          Math.floor(weekStart.getTime() / (7 * 24 * 60 * 60 * 1000)) %
-            principles.length
-        ]
-      : undefined
+  const end = addWeeks(weekStart, 1).getTime()
+  const dayStarts = Array.from({ length: 14 }, (_, i) =>
+    addDays(weekStart, i - 7).getTime(),
+  )
+  const todayIndex = isThisWeek ? dayStarts.slice(7).indexOf(today) : -1
+  /* Last Sunday's end, then each day of this week up to today. */
+  const dayEnds = Array.from(
+    { length: 8 },
+    (_, i) => addDays(weekStart, i).getTime() - 1,
+  ).filter((t) => t < today + 86_400_000)
 
-  /* The review is one page about one week, so it arrives as one: nothing
-     below the header shows until all three reads are in, held like any other
-     first load — and held again when you page to another week. Showing parts
-     as they land made the page grow twice, and MovementTable, handed an empty
-     list while loading, said "two weeks of logs and this table starts saying
-     something" about a week it had not read yet. Last week's numbers are never
-     kept on screen under this week's heading. */
-  const ready = useHeld(
-    weeks !== undefined && review !== undefined && principles !== undefined
-      ? true
-      : undefined,
-    key,
+  const areas = useQuery(api.areas.list, {})
+  const languages = (areas ?? []).filter((a) => a.track === 'language')
+  const slugs = languages.map((a) => a.slug)
+  const week = useQuery(
+    api.aggregate.weekReview,
+    areas === undefined
+      ? 'skip'
+      : {
+          dayStarts,
+          end,
+          fourWeeksStart: addWeeks(weekStart, -3).getTime(),
+          languages: slugs,
+        },
+  )
+  const worth = useQuery(api.aggregate.worthHistory, { dayEnds })
+  const levels = useQuery(
+    api.aggregate.languageLevels,
+    areas === undefined ? 'skip' : { slugs },
   )
 
-  const thisWeek = weeks?.[weeks.length - 1]
-  const lastWeek = weeks?.[weeks.length - 2]
-  const isCurrentWeek = key === weekKey(new Date())
+  const all = week && worth && levels ? { week, worth, levels } : undefined
+  /* One page about one week, arriving as one, and held again when you page
+     to another week — never last week's numbers under this week's name. */
+  const data = useHeld(all, key)
+
+  const fourWeeksStart = addWeeks(weekStart, -3).getTime()
+  const body = data?.week.body
+  const showBody =
+    body !== undefined &&
+    (body.workouts4 > 0 ||
+      body.shakes4 > 0 ||
+      (body.weight !== null && body.weight.at >= fourWeeksStart))
+  const spoken = languages.filter(
+    (a) => (data?.week.languages.find((l) => l.slug === a.slug)?.four ?? 0) > 0,
+  )
+  const hasProjects = (data?.week.projects.length ?? 0) > 0
+  /* The bottom row shares six columns between the tiles that have
+     something in four weeks. */
+  const shown = [showBody, spoken.length > 0, hasProjects].filter(Boolean)
+  const rowSpan = `col-span-2 ${['lg:col-span-6', 'lg:col-span-6', 'lg:col-span-3', 'lg:col-span-2'][shown.length]}`
+  const languageCodes = Object.fromEntries(
+    languages.map((a) => [
+      a.slug,
+      (a.lang ?? a.slug).slice(0, 2).toUpperCase(),
+    ]),
+  )
 
   return (
-    <div className="flex flex-col gap-[18px]">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <PageTitle
-          title="Weekly review"
-          subtitle={
-            <>
-              Week of{' '}
-              {weekStart.toLocaleDateString(undefined, {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
-            </>
-          }
-        />
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setWeekStart(addWeeks(weekStart, -1))}
-            className="rounded-[7px] bg-lift/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-lift/10"
-          >
-            ←
-          </button>
-          <button
-            type="button"
-            onClick={() => setWeekStart(startOfWeek(new Date()))}
-            className="rounded-[7px] bg-lift/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-lift/10"
-          >
-            This week
-          </button>
-          <button
-            type="button"
-            disabled={isCurrentWeek}
-            onClick={() => setWeekStart(addWeeks(weekStart, 1))}
-            className="rounded-[7px] bg-lift/[0.05] px-3 py-1.5 text-[12.5px] text-ink-500 ring-1 ring-lift/10 disabled:opacity-40"
-          >
-            →
-          </button>
-        </div>
-      </div>
-
-      {ready ? null : <ReviewSkeleton />}
-      {ready ? (
-        <div key={key} className="motion-fade flex flex-col gap-[18px]">
-          <KpiTiles week={thisWeek} previous={lastWeek} />
-
-          <MovementTable weeks={weeks ?? []} />
-
-          {principle ? (
-            <div className="glass rounded-[22px] p-5">
-              <div className="label-caps">This week’s principle</div>
-              <p className="mt-2 text-[17px] font-light text-foreground">
-                {principle.text}
-              </p>
-            </div>
-          ) : principles && principles.length === 0 ? (
-            /* Nothing is seeded automatically (§3b.5), so this is a real state on
-           a fresh deployment rather than an error. */
-            <div className="glass rounded-[22px] p-5">
-              <div className="label-caps">This week’s principle</div>
-              <p className="mt-2 text-[13px] text-ink-500">
-                No principles yet. They are seeded once from the CLI — your
-                ownerId is on Settings.
-              </p>
-            </div>
+    <div className="flex flex-col gap-2.5">
+      <WeekBar
+        weekStart={weekStart}
+        today={todayIndex}
+        week={data?.week}
+        languageCodes={languageCodes}
+        isThisWeek={isThisWeek}
+        onMove={(n) => setWeekStart(addWeeks(weekStart, n))}
+      />
+      {data === undefined ? (
+        <BentoSkeleton />
+      ) : (
+        <div
+          key={key}
+          className="grid grid-flow-dense grid-cols-2 gap-2.5 lg:grid-cols-6"
+        >
+          <FinancesTile
+            money={data.week.money}
+            worth={data.worth}
+            dayEnds={dayEnds}
+            today={todayIndex}
+            wasLabel={isThisWeek ? 'LAST WEEK' : 'WEEK BEFORE'}
+            span="col-span-2 lg:col-span-4 lg:row-span-2"
+          />
+          <AiReviewTile weekNumber={isoWeek(weekStart)} />
+          {showBody ? <BodyTile body={data.week.body} span={rowSpan} /> : null}
+          {spoken.length > 0 ? (
+            <LanguagesTile
+              languages={spoken}
+              week={data.week.languages}
+              levels={data.levels}
+              span={rowSpan}
+            />
           ) : null}
-
-          <CloseWeek weekKey={key} review={review} />
+          {hasProjects ? (
+            <ProjectsTile
+              projects={data.week.projects}
+              today={todayIndex}
+              most={Math.max(1, ...data.week.projects.flatMap((p) => p.days))}
+              span={rowSpan}
+            />
+          ) : null}
         </div>
-      ) : null}
-
-      <p className="text-[11.5px] text-ink-700">
-        Reviewing the week of {key}. Today is {localToday()}.
-      </p>
+      )}
     </div>
   )
 }
 
-/* The page's four cards as shape (§3d.2): the six tiles, the twelve-week
-   table, the principle, and the close-the-week form. */
-function ReviewSkeleton() {
+/* The bento's shape while it loads: Finances and Projects, then the row. */
+function BentoSkeleton() {
   return (
     <div
       role="status"
       aria-label="Loading"
-      className="flex flex-col gap-[18px]"
+      className="grid grid-cols-2 gap-2.5 lg:grid-cols-6"
     >
-      <div className="glass rounded-[22px] p-5">
-        <Skeleton className="mb-4 h-2.5 w-48" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              className="flex h-[92px] flex-col justify-center gap-3 rounded-[16px] border border-lift/[0.06] bg-lift/[0.02] p-4"
-            >
-              <Skeleton className="h-2.5 w-1/3" />
-              <Skeleton className="h-6 w-1/4" />
-            </div>
-          ))}
+      {['lg:col-span-4', 'lg:col-span-2'].map((span) => (
+        <div
+          key={span}
+          className={`glass col-span-2 flex h-[460px] flex-col gap-3 rounded-[14px] p-3.5 ${span}`}
+        >
+          <Skeleton className="h-2.5 w-28" />
+          <Skeleton className="h-8 w-1/3" />
         </div>
-      </div>
-      <div className="glass rounded-[22px] p-5">
-        <Skeleton className="mb-3 h-2.5 w-28" />
-        <SkeletonRows rows={4} />
-      </div>
-      <div className="glass flex flex-col gap-3 rounded-[22px] p-5">
-        <Skeleton className="h-2.5 w-36" />
-        <Skeleton className="h-4 w-1/2" />
-      </div>
-      <div className="glass flex h-[320px] flex-col gap-3 rounded-[22px] p-5">
-        <Skeleton className="h-2.5 w-32" />
-      </div>
+      ))}
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="glass col-span-2 h-[130px] rounded-[14px] lg:col-span-2"
+        />
+      ))}
     </div>
   )
 }

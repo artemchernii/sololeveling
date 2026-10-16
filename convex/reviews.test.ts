@@ -157,3 +157,52 @@ describe('ownership', () => {
     ).rejects.toThrow()
   })
 })
+
+describe('the bento closes the week with one line (14 Oct)', () => {
+  test('one press writes the line and closes the week', async () => {
+    const t = as(ME)
+    await t.mutation(api.reviews.closeWith, {
+      periodStart: WEEK,
+      decision: '  Class on Wednesday  ',
+    })
+    const review = await t.query(api.reviews.forWeek, { periodStart: WEEK })
+    expect(review?.decision).toBe('Class on Wednesday')
+    expect(review?.closedAt).toBeTypeOf('number')
+  })
+
+  test('an empty line is refused and nothing is written', async () => {
+    const t = as(ME)
+    await expect(
+      t.mutation(api.reviews.closeWith, { periodStart: WEEK, decision: '  ' }),
+    ).rejects.toThrow('EMPTY_NOTE')
+    expect(await t.query(api.reviews.forWeek, { periodStart: WEEK })).toBeNull()
+  })
+
+  test('a week written with the five answers keeps them', async () => {
+    const t = as(ME)
+    await t.mutation(api.reviews.save, {
+      periodStart: WEEK,
+      answers: { didHappen: 'Shipped' },
+    })
+    await t.mutation(api.reviews.closeWith, {
+      periodStart: WEEK,
+      decision: 'Rest',
+    })
+    const review = await t.query(api.reviews.forWeek, { periodStart: WEEK })
+    expect(review?.answers.didHappen).toBe('Shipped')
+  })
+
+  test('another person closing the same week touches only their own', async () => {
+    const { mine, theirs } = twoOwners()
+    await mine.mutation(api.reviews.closeWith, {
+      periodStart: WEEK,
+      decision: 'Mine',
+    })
+    await theirs.mutation(api.reviews.closeWith, {
+      periodStart: WEEK,
+      decision: 'Theirs',
+    })
+    const review = await mine.query(api.reviews.forWeek, { periodStart: WEEK })
+    expect(review?.decision).toBe('Mine')
+  })
+})

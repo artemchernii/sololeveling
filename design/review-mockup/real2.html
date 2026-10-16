@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Review mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150);
+    --bad: oklch(0.68 0.2 22);
+    --warn: oklch(0.79 0.15 75);
+    --glass: linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
+    --edge: rgba(233,233,237,.09);
+    --shadow: inset 0 1px 0 rgba(233,233,237,.08), 0 24px 48px -28px rgba(0,0,0,.9);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    /* area colours: oklch(0.8 0.1 hue), hues from src/lib/area-slug.ts */
+    --a-projects: oklch(0.8 0.1 352);
+    --a-lang: oklch(0.8 0.1 190);
+    --a-body: oklch(0.8 0.1 155);
+    --a-money: oklch(0.8 0.1 88);
+    --a-social: oklch(0.8 0.1 15);
+    --a-know: oklch(0.8 0.1 225);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 13px; min-height: 100vh;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 16px 16px 60px; display: flex; flex-direction: column; gap: 12px; }
+  .mono { font-family: var(--mono); }
+  .caps { font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400); }
+  .good { color: var(--good) } .bad { color: var(--bad) } .dim { color: var(--ink-500) }
+  .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+  .between { justify-content: space-between }
+  .num { font-weight: 300; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums }
+  .xl { font-size: 38px } .big { font-size: 30px } .mid { font-size: 22px } .sm { font-size: 15px }
+
+  /* Mockup controls — not part of the design */
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  /* ───── The bento ───── */
+  .bento { display:grid; gap: 10px; grid-template-columns: repeat(6, 1fr); grid-auto-flow: dense }
+  .w1 { grid-column: span 1 } .w2 { grid-column: span 2 } .w3 { grid-column: span 3 } .w4 { grid-column: span 4 } .w6 { grid-column: span 6 }
+  .h2 { grid-row: span 2 }
+  @media (max-width: 900px) { .bento { grid-template-columns: repeat(2, 1fr) } .w3, .w4, .w6 { grid-column: span 2 } .w2 { grid-column: span 2 } .w1 { grid-column: span 1 } .h2 { grid-row: auto } }
+
+  .tile { position: relative; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 14px; overflow: hidden;
+    display:flex; flex-direction:column; gap: 10px; min-width: 0;
+    transition: transform .25s cubic-bezier(.2,.8,.2,1), border-color .25s, box-shadow .25s;
+    animation: arrive .55s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 55ms) }
+  .tile:hover { transform: translateY(-2px); border-color: color-mix(in oklch, var(--a, var(--lav-400)) 45%, transparent);
+    box-shadow: var(--shadow), 0 0 32px -14px var(--a, var(--shine)) }
+  .tile > * { position: relative; z-index: 2 }
+  @keyframes arrive { from { opacity: 0; transform: translateY(10px) scale(.985) } }
+
+  /* the System window */
+  .sys { border-color: var(--sys-edge);
+    background: linear-gradient(160deg, rgba(181,171,252,.10), rgba(181,171,252,.02) 40%), var(--glass);
+    box-shadow: var(--shadow), 0 0 40px -18px var(--shine) }
+  .sys::before { content:''; position:absolute; inset:0; pointer-events:none; z-index: 1; background: repeating-linear-gradient(0deg, rgba(233,233,237,.022) 0 1px, transparent 1px 3px); }
+  .sys::after { content:''; position:absolute; inset:-1px; border:2px solid var(--lav-400); border-radius:15px; pointer-events:none; z-index: 3;
+    --r: 20px; mask: linear-gradient(#000 0 0) top left/var(--r) var(--r), linear-gradient(#000 0 0) top right/var(--r) var(--r), linear-gradient(#000 0 0) bottom left/var(--r) var(--r), linear-gradient(#000 0 0) bottom right/var(--r) var(--r); mask-repeat:no-repeat;
+    animation: corners 3.2s ease-in-out infinite }
+  @keyframes corners { 0%,100% { filter: drop-shadow(0 0 3px var(--shine)); opacity: .75 } 50% { filter: drop-shadow(0 0 9px var(--shine)); opacity: 1 } }
+  /* a light that sweeps across a System window now and then */
+  .sweep { position:absolute !important; z-index: 1 !important; inset: 0; pointer-events:none; overflow:hidden; border-radius: 14px }
+  .sweep::after { content:''; position:absolute; top:0; bottom:0; width: 40%; left: -50%;
+    background: linear-gradient(100deg, transparent, rgba(181,171,252,.10), transparent); animation: sweep 6s ease-in-out infinite }
+  @keyframes sweep { 0%, 60% { left: -50% } 100% { left: 120% } }
+  .sys-title { font-family: var(--mono); font-size: 11px; letter-spacing: .34em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 12px var(--shine); }
+
+  /* an area's low light, breathing */
+  .glow { position:absolute !important; z-index: 0 !important; top: -80px; left: -50px; width: 220px; height: 220px; border-radius: 50%; background: var(--a); opacity: .13; filter: blur(46px);
+    animation: breathe 5s ease-in-out infinite }
+  @keyframes breathe { 0%,100% { opacity: .09; transform: scale(1) } 50% { opacity: .2; transform: scale(1.12) } }
+  .photo { position:absolute !important; z-index: 0 !important; inset: 0 0 0 50%; background-size: cover; background-position: center;
+    mask-image: linear-gradient(to left, #000 30%, transparent); opacity: .35; animation: drift 18s ease-in-out infinite alternate }
+  @keyframes drift { from { background-position: 50% 40% } to { background-position: 50% 60% } }
+
+  .head { display:flex; align-items:center; justify-content:space-between; gap: 8px }
+  .name { display:flex; align-items:center; gap: 7px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .26em; text-transform: uppercase; color: var(--ink-200) }
+  .icon { width: 22px; height: 22px; border-radius: 7px; display:grid; place-items:center; background: color-mix(in oklch, var(--a) 18%, transparent); color: var(--a); border: 1px solid color-mix(in oklch, var(--a) 35%, transparent) }
+  .icon svg { width: 13px; height: 13px }
+  .open { font-family: var(--mono); font-size: 13px; color: var(--ink-500); cursor: pointer; transition: color .2s, transform .2s }
+  .tile:hover .open { color: var(--a, var(--lav-300)); transform: translateX(3px) }
+
+  .badge { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; border: 1px solid currentColor; display:inline-flex; gap:5px; align-items:center; white-space: nowrap }
+  .b-good { color: var(--good); background: color-mix(in oklch, var(--good) 10%, transparent) }
+  .b-warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 10%, transparent) }
+  .b-lav { color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 10%, transparent) }
+  .b-dim { color: var(--ink-400) }
+  .live::before { content:''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: ping 1.6s ease-out infinite }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 currentColor } 80%,100% { box-shadow: 0 0 0 7px transparent } }
+  .done-pop { animation: pop .5s cubic-bezier(.3,1.6,.5,1) both; animation-delay: .9s }
+  @keyframes pop { from { transform: scale(.4); opacity: 0 } }
+
+  .stat { display:flex; flex-direction:column; gap: 4px; min-width: 0 }
+  .was { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+
+  /* week days */
+  .days { display:grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: auto }
+  .day { border-radius: 9px; padding: 7px 6px; background: rgba(255,255,255,.03); border: 1px solid var(--edge); display:flex; flex-direction:column; gap: 6px; min-height: 74px }
+  .day.today { border-color: var(--lav-400); animation: todayPulse 2.4s ease-in-out infinite }
+  @keyframes todayPulse { 0%,100% { box-shadow: 0 0 10px -6px var(--shine) } 50% { box-shadow: 0 0 22px -4px var(--shine) } }
+  .dots { display:flex; flex-wrap:wrap; gap: 3px }
+  .dot { width: 8px; height: 8px; border-radius: 3px; background: var(--a); animation: pop .4s cubic-bezier(.3,1.6,.5,1) both }
+  .q { display:flex; gap: 3px }
+  .q i { width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,.08) }
+  .q i.on { background: var(--lav-400); box-shadow: 0 0 6px var(--shine) }
+
+  /* stacked bars */
+  .bars { display:grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items:end; flex: 1; min-height: 110px }
+  .pair { display:grid; grid-template-columns:1fr 1fr; gap:2px; height:100%; align-items:end }
+  .bar { display:flex; flex-direction:column-reverse; gap: 2px; transform-origin: bottom; animation: grow .8s cubic-bezier(.2,.8,.2,1) both }
+  .bar span { border-radius: 3px; background: var(--a) }
+  .bar.last span { background: rgba(255,255,255,.12) }
+  @keyframes grow { from { transform: scaleY(0) } }
+  .xlab { display:grid; grid-template-columns: repeat(7, 1fr); gap: 8px; text-align:center }
+  .legend { display:flex; gap: 10px; flex-wrap: wrap }
+  .legend span { display:inline-flex; gap: 5px; align-items:center; font-family: var(--mono); font-size: 9.5px; color: var(--ink-400); text-transform: uppercase; letter-spacing: .08em }
+  .legend i { width: 8px; height: 8px; border-radius: 3px; background: var(--a) }
+
+  /* Body strip */
+  .strip { display:grid; grid-template-columns: 34px repeat(7, 1fr); gap: 4px; align-items:center }
+  .cell { height: 15px; border-radius: 4px; background: rgba(255,255,255,.05) }
+  .cell.on { background: var(--a); box-shadow: 0 0 10px -3px var(--a); animation: pop .4s cubic-bezier(.3,1.6,.5,1) both }
+
+  /* ring against a goal's target */
+  .ring { --p: 0; width: 64px; height: 64px; border-radius: 50%; display:grid; place-items:center; flex: none;
+    background: conic-gradient(var(--a) calc(var(--p) * 1%), rgba(255,255,255,.07) 0); animation: ringFill 1.2s cubic-bezier(.2,.8,.2,1) both }
+  .ring::before { content:''; position:absolute; width: 52px; height: 52px; border-radius: 50%; background: #1b1c2b }
+  .ring > * { position: relative }
+  @property --p { syntax: '<number>'; inherits: false; initial-value: 0 }
+  @keyframes ringFill { from { --p: 0 } }
+  .ring.full { box-shadow: 0 0 18px -4px var(--a); animation: ringFill 1.2s cubic-bezier(.2,.8,.2,1) both, ringGlow 2.6s ease-in-out 1.2s infinite }
+  @keyframes ringGlow { 0%,100% { box-shadow: 0 0 10px -6px var(--a) } 50% { box-shadow: 0 0 24px -2px var(--a) } }
+
+  /* progress line */
+  .track { height: 5px; border-radius: 3px; background: rgba(255,255,255,.07); overflow:hidden }
+  .track b { display:block; height:100%; border-radius: 3px; background: var(--a); transform-origin: left; animation: fill 1s cubic-bezier(.2,.8,.2,1) both; animation-delay: .3s }
+  @keyframes fill { from { transform: scaleX(0) } }
+  .cat { display:grid; grid-template-columns: 92px 1fr 52px; gap: 8px; align-items:center }
+  .cat .track b { background: var(--bad) }
+
+  /* worth line draws itself */
+  .spark { width: 100%; height: 70px; display:block }
+  .spark .line { stroke-dasharray: 600; stroke-dashoffset: 600; animation: draw 1.6s cubic-bezier(.4,0,.2,1) .4s forwards }
+  .spark .area { opacity: 0; animation: fadein 1s ease .9s forwards }
+  .spark .end { animation: endPulse 2s ease-in-out 2s infinite; transform-box: fill-box; transform-origin: center }
+  @keyframes draw { to { stroke-dashoffset: 0 } }
+  @keyframes fadein { to { opacity: 1 } }
+  @keyframes endPulse { 0%,100% { r: 3.5 } 50% { r: 6 } }
+
+  .lang { display:flex; gap: 10px; align-items:center }
+  .flag { width: 30px; height: 30px; border-radius: 8px; background-size: cover; background-position:center; border: 1px solid var(--edge); flex: none }
+
+  .aiempty { display:flex; flex-direction:column; align-items:center; gap: 10px; margin: auto 0; padding: 8px 0 }
+  .aiorb { width: 54px; height: 54px; border-radius: 50%; display:grid; place-items:center; color: var(--lav-300);
+    background: radial-gradient(circle at 35% 30%, color-mix(in oklch, var(--lav-400) 45%, transparent), color-mix(in oklch, var(--lav-400) 8%, transparent) 70%);
+    border: 1px solid var(--sys-edge); box-shadow: 0 0 30px -6px var(--shine); animation: orb 3s ease-in-out infinite }
+  .aiorb svg { width: 24px; height: 24px }
+  .aiorb.spin svg { animation: spin 1.4s linear infinite }
+  @keyframes orb { 0%,100% { box-shadow: 0 0 18px -8px var(--shine) } 50% { box-shadow: 0 0 36px -4px var(--shine) } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .ask { display:flex; flex-direction:column; gap: 7px }
+  .askin { width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--edge); border-radius: 9px; color: var(--ink-100); font: 13px Inter, sans-serif; padding: 9px 10px; outline: none }
+  .askin:focus { border-color: var(--lav-400); box-shadow: 0 0 16px -6px var(--shine) }
+  .fchip { font-family: var(--mono); font-size: 9px; letter-spacing: .12em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.03); color: var(--ink-400); cursor: pointer; transition: all .15s }
+  .fchip.on { color: var(--lav-300); border-color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 16%, transparent); box-shadow: 0 0 12px -5px var(--shine) }
+  .b-bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 10%, transparent) }
+  .grill { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; padding: 0 12px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.04); color: var(--ink-300); cursor: pointer; transition: all .2s; white-space: nowrap }
+  .grill .flame { filter: grayscale(1); opacity: .6; transition: all .2s }
+  .grill.on { color: var(--bad); border-color: var(--bad); background: color-mix(in oklch, var(--bad) 14%, transparent); box-shadow: 0 0 18px -4px var(--bad) }
+  .grill.on .flame { filter: none; opacity: 1; display:inline-block; animation: flick 1s ease-in-out infinite }
+  @keyframes flick { 0%,100% { transform: scale(1) rotate(-4deg) } 50% { transform: scale(1.18) rotate(4deg) } }
+  .aiorb.hot { border-color: var(--bad); box-shadow: 0 0 30px -4px var(--bad); background: radial-gradient(circle, color-mix(in oklch, var(--bad) 35%, transparent), transparent 70%) }
+  .aiorb.hot span { animation: flick .8s ease-in-out infinite }
+  .verdict { display:flex; flex-direction:column; gap: 3px; padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in oklch, var(--warn) 40%, transparent); background: color-mix(in oklch, var(--warn) 8%, transparent); animation: pop .5s cubic-bezier(.3,1.6,.5,1) both }
+  .verdict.hot { border-color: color-mix(in oklch, var(--bad) 50%, transparent); background: color-mix(in oklch, var(--bad) 10%, transparent) }
+  .vtitle { font-family: var(--mono); font-size: 17px; letter-spacing: .22em; color: var(--warn); text-shadow: 0 0 12px color-mix(in oklch, var(--warn) 50%, transparent) }
+  .verdict.hot .vtitle { color: var(--bad); text-shadow: 0 0 12px color-mix(in oklch, var(--bad) 50%, transparent) }
+  .big-btn { width: 100%; padding: 10px; font-size: 11px }
+  .findings { display:flex; flex-direction:column; gap: 5px }
+  .fnd { display:grid; grid-template-columns: 58px 1fr; gap: 8px; align-items:flex-start; padding: 6px 8px; border-radius: 9px; border: 1px solid var(--edge); background: rgba(255,255,255,.025); font-size: 12px; color: var(--ink-100); cursor: pointer; opacity: 0; animation: typeIn .45s ease forwards; transition: border-color .15s, background .15s }
+  .fnd:hover { border-color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 8%, transparent) }
+  .fnd .badge { justify-content:center }
+  .fnum { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; color: var(--ink-400) }
+  .tile.lit { border-color: var(--lav-400) !important; box-shadow: var(--shadow), 0 0 0 1px var(--lav-400), 0 0 34px -8px var(--shine) !important; transform: translateY(-2px) }
+  .note { width: 100%; flex: 1; background: rgba(255,255,255,.04); border: 1px solid var(--edge); border-radius: 9px; color: var(--ink-100); font: 14px Inter, sans-serif; padding: 10px; resize: none; min-height: 50px }
+  .note:focus { outline: none; border-color: var(--lav-400); box-shadow: 0 0 16px -6px var(--shine) }
+  .btn { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 22%, transparent); border: 1px solid var(--lav-400); border-radius: 999px; padding: 6px 13px; cursor: pointer; transition: box-shadow .2s }
+  .btn:hover { box-shadow: 0 0 18px -4px var(--shine) }
+  .arrow { font-family: var(--mono); font-size: 11px; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid var(--edge); border-radius: 7px; padding: 3px 8px; cursor: pointer }
+  .ai li { list-style: none; display:flex; gap: 8px; align-items:center; padding: 6px 0; border-top: 1px solid var(--edge); opacity: 0; animation: typeIn .45s ease forwards }
+  .ai li:first-child { border-top: 0 }
+  @keyframes typeIn { from { opacity: 0; transform: translateX(-6px) } to { opacity: 1; transform: none } }
+  .cursor { display:inline-block; width: 7px; height: 13px; background: var(--lav-400); vertical-align: -2px; animation: blink 1s steps(1) infinite }
+  @keyframes blink { 50% { opacity: 0 } }
+  .empty { color: var(--ink-500); font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; margin: auto 0 }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important } .spark .line { stroke-dashoffset: 0 } .spark .area, .ai li { opacity: 1 } }
+
+  .wk { display:grid; grid-template-columns: repeat(7, 1fr); gap: 6px }
+  .wd { position:relative; border-radius: 10px; padding: 8px 7px; background: rgba(255,255,255,.03); border: 1px solid var(--edge); display:flex; flex-direction:column; gap: 5px; min-height: 104px; transition: transform .2s, border-color .2s; cursor: default }
+  .wd:hover { transform: translateY(-2px); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent); z-index: 5 }
+  .wd.today { border-color: var(--lav-400); animation: todayPulse 2.4s ease-in-out infinite }
+  .wd.later { opacity: .38 }
+  .cbar { height: 30px; display:flex; align-items:flex-end }
+  .cbar i { width: 100%; border-radius: 3px; background: var(--a-projects); transform-origin: bottom; animation: grow .8s cubic-bezier(.2,.8,.2,1) both; box-shadow: 0 0 10px -3px var(--a-projects) }
+  .chips { display:flex; flex-wrap: wrap; gap: 3px }
+  .chip { display:inline-flex; align-items:center; gap:3px; font-family: var(--mono); font-size: 9px; letter-spacing: .04em; padding: 1px 5px; border-radius: 6px; border: 1px solid currentColor; white-space: nowrap; animation: pop .4s cubic-bezier(.3,1.6,.5,1) both }
+  .chip svg { width: 9px; height: 9px }
+  .tip { position:absolute; left: 50%; top: calc(100% + 6px); transform: translate(-50%, -4px); min-width: 220px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--sys-edge);
+    background: #1d1e30; box-shadow: 0 18px 40px -16px #000, 0 0 24px -12px var(--shine); opacity: 0; pointer-events:none; transition: opacity .18s, transform .18s; display:flex; flex-direction:column; gap: 6px; z-index: 20 }
+  .wd:hover .tip, .info:hover .tip { opacity: 1; transform: translate(-50%, 0) }
+  .tip .ln { white-space: nowrap; display:grid; grid-template-columns: 16px 1fr auto; gap: 7px; align-items:center; font-family: var(--mono); font-size: 10px; color: var(--ink-200); letter-spacing: .06em }
+  .tip img { width: 16px; height: 16px; border-radius: 4px }
+  .wtitle { font-family: var(--mono); font-size: 14px; font-weight: 500; letter-spacing: .3em; color: var(--lav-300); text-shadow: 0 0 14px var(--shine), 0 0 2px var(--lav-400) }
+  .dayb { animation: badgePulse 2s ease-in-out infinite }
+  @keyframes badgePulse { 0%,100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--lav-400) 0%, transparent) } 50% { box-shadow: 0 0 14px 1px color-mix(in oklch, var(--lav-400) 55%, transparent) } }
+  .rng { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; color: var(--ink-400) }
+  .rng b { color: var(--lav-300); font-weight: 500; text-shadow: 0 0 10px var(--shine) }
+  .go { width: 26px; height: 26px; border-radius: 8px; display:grid; place-items:center; border: 1px solid var(--edge); background: rgba(255,255,255,.04); color: var(--ink-300); transition: all .2s; cursor:pointer }
+  .go svg { width: 14px; height: 14px }
+  .tile:hover .go { color: var(--a, var(--lav-300)); border-color: color-mix(in oklch, var(--a, var(--lav-400)) 50%, transparent); transform: translateX(2px) }
+  .dchip { display:inline-flex; align-items:center; gap:4px; font-family: var(--mono); font-size:13px; padding:3px 9px; border-radius:999px; border:1px solid currentColor; background: color-mix(in oklch, currentColor 12%, transparent); animation: pop .5s cubic-bezier(.3,1.6,.5,1) .9s both }
+  .lastw { font-family: var(--mono); font-size: 12px; color: var(--ink-400); letter-spacing: .08em }
+  .lastw b { color: var(--ink-100); font-weight: 500; font-size: 14px; letter-spacing: 0 }
+  .info { position: relative; display:inline-grid; place-items:center; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--ink-500); color: var(--ink-300); font: 600 9px var(--mono); cursor: help; text-transform: none; letter-spacing: 0 }
+  .info .tip { min-width: 190px; top: calc(100% + 6px) }
+  .pay { display:grid; grid-template-columns: 22px minmax(0,1fr) auto; gap: 8px; align-items:center }
+  .logo { width: 22px; height: 22px; border-radius: 6px; display:grid; place-items:center; font: 600 10px Inter; color: #111; background: var(--c) }
+  .box { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; border:1px solid var(--edge); background: rgba(255,255,255,.03) }
+  .bicon { width:30px; height:30px; border-radius:9px; display:grid; place-items:center; color:var(--c); background: color-mix(in oklch, var(--c) 16%, transparent); border:1px solid color-mix(in oklch, var(--c) 35%, transparent); flex:none }
+  .bicon svg { width:15px; height:15px }
+  .sbd { display:grid; grid-template-columns: repeat(7, 1fr); gap:6px }
+  .scell { display:flex; flex-direction:column; align-items:center; gap:3px }
+  .scell.later { opacity:.35 }
+  .sbar { height:46px; width:100%; display:flex; align-items:flex-end; justify-content:center }
+  .sbar i { width:62%; border-radius:3px; background: var(--bad); box-shadow: 0 0 10px -3px var(--bad); transform-origin:bottom; animation: grow .8s cubic-bezier(.2,.8,.2,1) both }
+  .proj { display:flex; flex-direction:column; gap: 7px; padding: 10px; border-radius: 10px; background: rgba(255,255,255,.03); border: 1px solid var(--edge) }
+  .proj.quiet { opacity: .55; flex-direction: row; align-items:center; justify-content: space-between }
+  .mini { display:grid; grid-template-columns: repeat(7, 1fr); gap: 3px; align-items:end; height: 26px }
+  .mini i { border-radius: 2px; background: var(--a); min-height: 2px; transform-origin: bottom; animation: grow .8s cubic-bezier(.2,.8,.2,1) both }
+  .mini i.zero { background: rgba(255,255,255,.07) }
+  .pair2 { display:grid; grid-template-columns: auto auto; gap: 2px 14px; align-items: baseline }
+  .kinds { display:flex; flex-wrap: wrap; gap: 5px }
+  .kinds .badge { font-size: 9px }
+  .lgrid { display:grid; grid-template-columns: 30px 1fr 64px 64px auto; gap: 6px 10px; align-items:center }
+  .lname { font-family: var(--mono); font-size: 11.5px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-100) }
+  .ncol { text-align:center; display:flex; flex-direction:column; gap: 2px }
+  .ncol b { font-size: 18px; font-weight: 300 }
+  .ai-line { display:flex; gap: 9px; align-items:flex-start; padding: 8px 0; border-top: 1px solid var(--edge); font-size: 12.5px; color: var(--ink-200); opacity: 0; animation: typeIn .45s ease forwards }
+  .ai-line:first-child { border-top: 0 }
+  .ai-line .badge { flex: none; margin-top: 1px }
+  .scan { height: 3px; border-radius: 2px; background: rgba(255,255,255,.06); overflow:hidden }
+  .scan i { display:block; height:100%; width: 35%; background: linear-gradient(90deg, transparent, var(--lav-400), transparent); animation: scan 1.1s ease-in-out infinite }
+  @keyframes scan { from { transform: translateX(-100%) } to { transform: translateX(300%) } }
+  .aiempty { display:flex; flex-direction:column; align-items:center; gap: 10px; margin: auto 0; padding: 8px 0 }
+  .aiorb { width: 54px; height: 54px; border-radius: 50%; display:grid; place-items:center; color: var(--lav-300);
+    background: radial-gradient(circle at 35% 30%, color-mix(in oklch, var(--lav-400) 45%, transparent), color-mix(in oklch, var(--lav-400) 8%, transparent) 70%);
+    border: 1px solid var(--sys-edge); box-shadow: 0 0 30px -6px var(--shine); animation: orb 3s ease-in-out infinite }
+  .aiorb svg { width: 24px; height: 24px }
+  .aiorb.spin svg { animation: spin 1.4s linear infinite }
+  @keyframes orb { 0%,100% { box-shadow: 0 0 18px -8px var(--shine) } 50% { box-shadow: 0 0 36px -4px var(--shine) } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .ask { display:flex; flex-direction:column; gap: 7px }
+  .askin { width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--edge); border-radius: 9px; color: var(--ink-100); font: 13px Inter, sans-serif; padding: 9px 10px; outline: none }
+  .askin:focus { border-color: var(--lav-400); box-shadow: 0 0 16px -6px var(--shine) }
+  .fchip { font-family: var(--mono); font-size: 9px; letter-spacing: .12em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.03); color: var(--ink-400); cursor: pointer; transition: all .15s }
+  .fchip.on { color: var(--lav-300); border-color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 16%, transparent); box-shadow: 0 0 12px -5px var(--shine) }
+  .b-bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 10%, transparent) }
+  .grill { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; padding: 0 12px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.04); color: var(--ink-300); cursor: pointer; transition: all .2s; white-space: nowrap }
+  .grill .flame { filter: grayscale(1); opacity: .6; transition: all .2s }
+  .grill.on { color: var(--bad); border-color: var(--bad); background: color-mix(in oklch, var(--bad) 14%, transparent); box-shadow: 0 0 18px -4px var(--bad) }
+  .grill.on .flame { filter: none; opacity: 1; display:inline-block; animation: flick 1s ease-in-out infinite }
+  @keyframes flick { 0%,100% { transform: scale(1) rotate(-4deg) } 50% { transform: scale(1.18) rotate(4deg) } }
+  .aiorb.hot { border-color: var(--bad); box-shadow: 0 0 30px -4px var(--bad); background: radial-gradient(circle, color-mix(in oklch, var(--bad) 35%, transparent), transparent 70%) }
+  .aiorb.hot span { animation: flick .8s ease-in-out infinite }
+  .verdict { display:flex; flex-direction:column; gap: 3px; padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in oklch, var(--warn) 40%, transparent); background: color-mix(in oklch, var(--warn) 8%, transparent); animation: pop .5s cubic-bezier(.3,1.6,.5,1) both }
+  .verdict.hot { border-color: color-mix(in oklch, var(--bad) 50%, transparent); background: color-mix(in oklch, var(--bad) 10%, transparent) }
+  .vtitle { font-family: var(--mono); font-size: 17px; letter-spacing: .22em; color: var(--warn); text-shadow: 0 0 12px color-mix(in oklch, var(--warn) 50%, transparent) }
+  .verdict.hot .vtitle { color: var(--bad); text-shadow: 0 0 12px color-mix(in oklch, var(--bad) 50%, transparent) }
+  .big-btn { width: 100%; padding: 10px; font-size: 11px }
+  .findings { display:flex; flex-direction:column; gap: 5px }
+  .fnd { display:grid; grid-template-columns: 58px 1fr; gap: 8px; align-items:flex-start; padding: 6px 8px; border-radius: 9px; border: 1px solid var(--edge); background: rgba(255,255,255,.025); font-size: 12px; color: var(--ink-100); cursor: pointer; opacity: 0; animation: typeIn .45s ease forwards; transition: border-color .15s, background .15s }
+  .fnd:hover { border-color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 8%, transparent) }
+  .fnd .badge { justify-content:center }
+  .fnum { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; color: var(--ink-400) }
+  .tile.lit { border-color: var(--lav-400) !important; box-shadow: var(--shadow), 0 0 0 1px var(--lav-400), 0 0 34px -8px var(--shine) !important; transform: translateY(-2px) }
+  .note { width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--edge); border-radius: 9px; color: var(--ink-100); font: 14px Inter, sans-serif; padding: 10px; resize: none; min-height: 58px }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup v2 · real numbers, Thu 15 Oct ·
+    days: <button data-d="real" class="on">real</button><button data-d="many">example: many badges</button> ·
+    ai: <button data-a="idle" class="on">not run</button><button data-a="busy">reading</button><button data-a="done">read (example words)</button> · <button data-g="1">grill</button>
+  </div>
+  <div id="app"></div>
+</div>
+<script>
+const I = {
+  body: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5h11M6.5 17.5h11M4 9v6M20 9v6M2 11v2M22 11v2"/></svg>',
+  lang: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h8M8 3v2m3 0c-1 5-4 8-7 9m3-5c1 2 3 4 6 5m1 5l4-9 4 9m-7-3h6"/></svg>',
+  money: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>',
+  git: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 8v8M18 10c0 4-6 3-10 7"/></svg>',
+  note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>',
+  spark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>',
+  check: '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  up: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+  wallet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12h2M3 9h18"/></svg>',
+  trend: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>',
+  dumb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6.5 6.5v11M17.5 6.5v11M6.5 12h11M3 9v6M21 9v6"/></svg>',
+  cup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 4h10l-1.5 16h-7z M6 8h12"/></svg>',
+  inn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12l7 7 7-7"/></svg>',
+}
+const LOGO_SL = 'https://insightful-buffalo-883.eu-west-1.convex.cloud/api/storage/dd6ec5d3-a01e-4e36-bf7e-0848e0a2749d'
+const LOGO_OR = 'https://insightful-buffalo-883.eu-west-1.convex.cloud/api/storage/353195d4-be6f-43fc-80c3-af89bc18408d'
+const DAYS = ['MON 12', 'TUE 13', 'WED 14', 'THU 15', 'FRI 16', 'SAT 17', 'SUN 18']
+const TODAY = 3
+
+/* Real, read from the app on Thu 15 Oct (read only). */
+const REAL = [
+  { commits: [['SOLOLEVELING', LOGO_SL, 36]] },
+  { commits: [['SOLOLEVELING', LOGO_SL, 68]] },
+  { commits: [['SOLOLEVELING', LOGO_SL, 32]], out: 5.98 },
+  { commits: [['SOLOLEVELING', LOGO_SL, 6]] },
+  {}, {}, {},
+]
+/* EXAMPLE only — what a full week could carry, to judge the badges. */
+const MANY = [
+  { commits: [['SOLOLEVELING', LOGO_SL, 36], ['OREUM', LOGO_OR, 4]], out: 37.86, gym: 1 },
+  { commits: [['SOLOLEVELING', LOGO_SL, 68]], inn: 2900, shake: 1, lang: 'PT' },
+  { commits: [['SOLOLEVELING', LOGO_SL, 32]], out: 5.98, gym: 1, shake: 1 },
+  { commits: [['SOLOLEVELING', LOGO_SL, 6], ['OREUM', LOGO_OR, 2]], out: 4.5, lang: 'PT' },
+  {}, {}, {},
+]
+let days = 'real', ai = 'idle', grill = false
+function run() { ai = 'busy'; sync(); setTimeout(() => { ai = 'done'; sync() }, 1800) }
+function lightTile(t, on) { document.querySelector(`[data-t="${t}"]`)?.classList.toggle('lit', on) }
+const eur = n => '€' + n.toLocaleString('en-IE', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })
+const cu = (n, fmt = 'int') => `<span class="cu" data-to="${n}" data-fmt="${fmt}">0</span>`
+let i = 0
+const head = (a, icon, name, extra = '', go = true) => `<div class="head"><div class="name"><span class="icon" style="--a:${a}">${icon}</span>${name}</div><div class="row">${extra}${go ? `<span class="go" title="Open">${I.arrow}</span>` : ''}</div></div>`
+const tile = (cls, a, body) => `<section class="tile ${cls}" style="--a:${a}; --i:${i++}">${body}</section>`
+
+function chipsFor(d, k) {
+  const c = (d.commits || []).reduce((n, p) => n + p[2], 0), later = k > TODAY
+  const out = []
+  if (c) out.push(`<span class="chip" style="color:var(--a-projects)">${I.git}${c}</span>`)
+  else if (!later) out.push(`<span class="chip" style="color:var(--ink-500)">${I.git}0</span>`)
+  if (d.out) out.push(`<span class="chip" style="color:var(--bad)">${eur(d.out)} OUT</span>`)
+  if (d.inn) out.push(`<span class="chip" style="color:var(--good)">${eur(d.inn)} IN</span>`)
+  if (d.gym) out.push(`<span class="chip" style="color:var(--a-body)">${I.dumb}GYM</span>`)
+  if (d.shake) out.push(`<span class="chip" style="color:var(--a-body)">${I.cup}SHAKE</span>`)
+  if (d.lang) out.push(`<span class="chip" style="color:var(--a-lang)">CLASS ${d.lang}</span>`)
+  return out
+}
+function tipFor(d) {
+  const lines = (d.commits || []).filter(p => p[2]).map(([n, logo, c]) => `<div class="ln"><img src="${logo}" alt=""><span>${n}</span><span style="color:var(--a-projects)">${c} COMMITS</span></div>`)
+  if (d.out) lines.push(`<div class="ln"><span class="bad">€</span><span>OUT</span><span class="bad">${eur(d.out)}</span></div>`)
+  if (d.inn) lines.push(`<div class="ln"><span class="good">€</span><span>IN</span><span class="good">${eur(d.inn)}</span></div>`)
+  return lines.length ? `<div class="tip">${lines.join('')}</div>` : ''
+}
+
+function delta(now, was, goodWhenUp) {
+  const d = Math.round((now - was) * 100) / 100, up = d > 0, good = d === 0 ? null : (up === goodWhenUp)
+  const col = good === null ? 'var(--ink-400)' : good ? 'var(--good)' : 'var(--bad)'
+  return `<span class="dchip" style="color:${col}"><span style="display:inline-flex; transform:rotate(${up ? 0 : 180}deg)">${I.up}</span>${eur(Math.abs(d))}</span>`
+}
+function dayBars(vals) {
+  const max = Math.max(...vals, 1), n = ['MON','TUE','WED','THU','FRI','SAT','SUN']
+  return `<div class="sbd">${vals.map((v, k) => `<div class="scell ${k > TODAY ? 'later' : ''}">
+    <span class="mono" style="font-size:9.5px; color:${v ? 'var(--ink-100)' : 'var(--ink-600)'}">${v ? eur(v) : '·'}</span>
+    <span class="sbar"><i style="height:${v ? Math.max(6, v / max * 100) : 3}%; animation-delay:${k * 60}ms; ${v ? '' : 'background:rgba(255,255,255,.08); box-shadow:none'}"></i></span>
+    <span class="caps" style="font-size:8px">${n[k]}</span></div>`).join('')}</div>`
+}
+function worthChart(vals, days) {
+  const w = 320, h = 92, top = 18, bot = 18, min = Math.min(...vals), max = Math.max(...vals)
+  const pts = vals.map((v, k) => [12 + k * (w - 24) / (vals.length - 1), top + (1 - (v - min) / (max - min || 1)) * (h - top - bot)])
+  const d = pts.map((p, k) => (k ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%; height:${h}px; overflow:visible">
+    <path class="line" d="${d}" fill="none" stroke="oklch(0.8 0.1 88)" stroke-width="2" style="stroke-dasharray:600; stroke-dashoffset:600; animation: draw 1.6s cubic-bezier(.4,0,.2,1) .4s forwards"/>
+    ${pts.map(([x, y], k) => `<circle cx="${x}" cy="${y}" r="${k === pts.length - 1 ? 4 : 3}" fill="oklch(0.8 0.1 88)"/>
+      <text x="${x}" y="${y - 8}" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#d9d9e2">${(vals[k] / 1000).toFixed(1)}k</text>
+      <text x="${x}" y="${h - 2}" text-anchor="middle" font-family="JetBrains Mono" font-size="8.5" letter-spacing="1" fill="#8e8ea3">${days[k]}</text>`).join('')}
+  </svg>`
+}
+
+function render() {
+  i = 0
+  const D = days === 'real' ? REAL : MANY
+  const tot = D.map(d => (d.commits || []).reduce((n, p) => n + p[2], 0)), maxC = Math.max(...tot, 1)
+
+  const week = `<section class="tile sys w6" style="--i:${i++}; overflow:visible; z-index:10">
+    <span class="sweep"></span>
+    <div class="row between">
+      <div class="row" style="gap:12px">
+        <span class="wtitle">[ WEEK 42 ]</span>
+        <span class="badge b-lav live dayb">DAY 4 OF 7</span>
+        <span class="rng">12 – <b>15</b> – 18 OCT 2026</span>
+      </div>
+      <div class="row" style="gap:4px"><button class="arrow">←</button><button class="arrow" disabled style="opacity:.4">→</button></div>
+    </div>
+    <div class="wk">
+      ${DAYS.map((d, k) => {
+        const later = k > TODAY, c = tot[k]
+        return `<div class="wd ${k === TODAY ? 'today' : ''} ${later ? 'later' : ''}">
+          <span class="caps" style="font-size:8.5px; letter-spacing:.1em">${d}</span>
+          <div class="cbar">${c ? `<i style="height:${c / maxC * 100}%; animation-delay:${k * 70}ms"></i>` : ''}</div>
+          <div class="chips">${chipsFor(D[k], k).join('')}</div>
+          ${tipFor(D[k])}
+        </div>`
+      }).join('')}
+    </div>
+  </section>`
+
+  const worth = [45317.3, 45390.03, 45381.64, 45090, 45263]
+  const finances = tile('w4 h2" data-t="fin', 'var(--a-money)', `<span class="glow"></span>
+    ${head('var(--a-money)', I.money, 'Finances')}
+    <div style="display:grid; grid-template-columns: 1fr 1.25fr; gap: 22px; flex:1">
+      <div style="display:flex; flex-direction:column; gap:14px">
+        <div class="stat">
+          <span class="caps row" style="gap:6px">SPENT · THIS WEEK <span class="info">i<span class="tip"><span class="caps" style="color:var(--ink-200)">BILLS NOT COUNTED · €0</span></span></span></span>
+          <div class="row" style="gap:10px; align-items:center"><span class="num xl bad">${cu(5.98, 'eur')}</span>${delta(5.98, 74.05, false)}</div>
+          <span class="lastw">LAST WEEK · <b>€74.05</b></span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <span class="caps">BIGGEST</span>
+          <div class="pay" style="animation: typeIn .4s ease 700ms both">
+            <span class="logo" style="--c:oklch(0.8 0.14 30)">S</span>
+            <span style="display:flex; flex-direction:column; min-width:0"><span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">DD SOLINCA LIGHT, 00003262677</span><span class="caps" style="font-size:8.5px">SUBSCRIPTIONS · WED 14</span></span>
+            <span class="mono bad" style="font-size:12px">€5.98</span></div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:auto">
+          <span class="caps">SPENT BY DAY</span>
+          ${dayBars([0, 0, 5.98, 0, 0, 0, 0])}
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px">
+        <div class="stat"><span class="caps">WORTH · THIS WEEK</span>
+          <div class="row" style="gap:10px; align-items:center"><span class="num big">${cu(45263, 'eur0')}</span>${delta(45263, 45317, true)}</div>
+          <span class="lastw">LAST WEEK · <b>€45,317</b></span></div>
+        ${worthChart(worth, ['SUN', 'MON', 'TUE', 'WED', 'THU'])}
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:auto">
+          <div class="box"><span class="bicon" style="--c:var(--a-money)">${I.wallet}</span><span class="stat"><span class="caps">CASH</span><span class="num sm">€25,778</span></span></div>
+          <div class="box"><span class="bicon" style="--c:var(--a-lang)">${I.trend}</span><span class="stat"><span class="caps">INVESTED</span><span class="num sm">€19,486</span></span></div>
+        </div>
+      </div>
+    </div>`)
+
+  /* EXAMPLE words — the AI is not wired yet; every number in them is one
+     already on this page. Two voices: plain, or grilled. */
+  const V = grill ? {
+    verdict: ['WEAK WEEK', 'b-warn'],
+    lines: [
+      ['GOOD', 'b-good', '142 commits. Fine. Code is the one thing you never skip.', '142 OF 100 COMMITS', 'proj'],
+      ['BAD', 'b-bad', 'Zero workouts. Seven in four weeks and none since. Gym tomorrow, no excuses.', 'WORKOUTS 0 · 7 IN 4 WEEKS', 'body'],
+      ['BAD', 'b-bad', 'Portuguese: nothing. B2 does not stay B2 by itself.', 'PORTUGUESE 0 · 4 IN 4 WEEKS', 'lang'],
+      ['NEXT', 'b-lav', 'Three days left. Two gym sessions and one class. Go.', 'FRI · SAT · SUN', 'body'],
+    ],
+  } : {
+    verdict: ['MIXED WEEK', 'b-warn'],
+    lines: [
+      ['GOOD', 'b-good', 'Commit target passed by Thursday.', '142 OF 100 COMMITS', 'proj'],
+      ['GOOD', 'b-good', 'Spent far less than last week.', 'SPENT €5.98 · LAST WEEK €74.05', 'fin'],
+      ['WATCH', 'b-warn', 'No workout yet this week.', 'WORKOUTS 0 · 7 IN 4 WEEKS', 'body'],
+      ['NEXT', 'b-lav', 'One gym session and one Portuguese class before Sunday.', 'PORTUGUESE 0 · 4 IN 4 WEEKS', 'lang'],
+    ],
+  }
+  const grillBtn = `<button class="grill ${grill ? 'on' : ''}" onclick="grill=!grill;render()"><span class="flame">🔥</span> GRILL ME</button>`
+  const aiBody = ai === 'idle'
+    ? `<div class="aiempty">
+         <span class="aiorb">${I.spark}</span>
+         <span class="badge b-dim">NOT READ</span>
+         <span class="caps" style="text-align:center">WEEK 42 · FINANCES · PROJECTS · BODY · LANGUAGES</span>
+       </div>
+       <div style="display:grid; grid-template-columns: 1fr auto; gap:8px">
+         <button class="btn big-btn" onclick="run()">${I.spark.replace('<svg', '<svg width="12" height="12" style="vertical-align:-2px; margin-right:6px"')}ANALYZE WEEK</button>
+         ${grillBtn}
+       </div>`
+    : ai === 'busy'
+    ? `<div class="aiempty"><span class="aiorb spin ${grill ? 'hot' : ''}">${grill ? '<span style="font-size:22px">🔥</span>' : I.spark}</span>
+         <span class="badge ${grill ? 'b-bad' : 'b-lav'} live">${grill ? 'GRILLING WEEK 42' : 'READING WEEK 42'}</span><div class="scan" style="width:70%"><i></i></div></div>`
+    : `<div class="row between"><span class="badge b-good done-pop">${I.check} READ · THU 15 20:52</span>
+         <div class="row" style="gap:5px">${grill ? '<span class="badge b-bad">🔥 GRILLED</span>' : ''}<button class="arrow" onclick="run()">RUN AGAIN</button></div></div>
+       <div class="verdict ${grill ? 'hot' : ''}"><span class="caps">WEEK 42</span><span class="vtitle">${V.verdict[0]}</span></div>
+       <div class="findings">${V.lines.map(([b, cls, line, nums, t], k) => `
+         <div class="fnd" style="animation-delay:${0.15 + k * 0.18}s" onmouseenter="lightTile('${t}', true)" onmouseleave="lightTile('${t}', false)">
+           <span class="badge ${cls}">${b}</span>
+           <span style="display:flex; flex-direction:column; gap:3px; min-width:0"><span>${line}</span><span class="fnum">${nums}</span></span>
+         </div>`).join('')}</div>`
+  const aiTile = tile('w2 h2 sys', 'var(--lav-400)', `<span class="sweep"></span>
+    ${head('var(--lav-400)', I.spark, 'AI review', '', false)}
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1">${aiBody}</div>`)
+
+  const body = tile('w2" data-t="body', 'var(--a-body)', `<span class="glow"></span>
+    <span class="photo" style="background-image:url(/public/body/body.jpg); inset: 0 0 0 60%; background-position:50% 25%"></span>
+    ${head('var(--a-body)', I.body, 'Body')}
+    <div class="row" style="gap:26px; align-items:flex-start">
+      <div class="stat"><span class="caps">WORKOUTS</span><span class="num big">${cu(0)}</span><span class="was">7 in 4 weeks</span></div>
+      <div class="stat"><span class="caps">SHAKES</span><span class="num big">${cu(0)}</span><span class="was">1 in 4 weeks</span></div>
+    </div>
+    <div class="kinds"><span class="badge" style="color:var(--a-body)">GYM 3</span><span class="badge" style="color:var(--a-body)">STRETCH 2</span><span class="badge" style="color:var(--a-body)">BOXING 1</span><span class="badge" style="color:var(--a-body)">HIKING 1</span></div>
+    <span class="was" style="margin-top:auto">WEIGHT · 75.4 kg · SEP 8</span>`)
+
+  const langs = tile('w2" data-t="lang', 'var(--a-lang)', `<span class="glow"></span>
+    ${head('var(--a-lang)', I.lang, 'Languages')}
+    <div class="lgrid">
+      <span></span><span></span><span class="caps" style="text-align:center">THIS WEEK</span><span class="caps" style="text-align:center">4 WEEKS</span><span></span>
+      ${[['pt-PT', 'PORTUGUESE', 'B2', 0, 4], ['en', 'ENGLISH', 'B1', 0, 1]].map(([f, n, l, w, f4]) => `
+        <span class="flag" style="background-image:url(/public/languages/${f}.jpg)"></span>
+        <span class="lname">${n}</span>
+        <span class="ncol"><b>${w}</b></span>
+        <span class="ncol"><b style="color:var(--ink-300)">${f4}</b></span>
+        <span class="badge b-lav">${l}</span>`).join('')}
+    </div>`)
+
+  const projects = tile('w2" data-t="proj', 'var(--a-projects)', `<span class="glow"></span>
+    ${head('var(--a-projects)', I.git, 'Projects')}
+    <div class="proj" style="--a:var(--a-projects)">
+      <div class="row between" style="flex-wrap:nowrap">
+        <span class="row" style="gap:8px; flex-wrap:nowrap"><img src="${LOGO_SL}" alt="" style="width:24px; height:24px; border-radius:7px"><span class="caps" style="color:var(--ink-100); font-weight:500">SOLOLEVELING</span></span>
+        <span class="badge b-lav">FOCUS</span>
+      </div>
+      <div class="row" style="gap:10px; align-items:flex-end">
+        <span class="num big">${cu(142)}</span><span class="caps" style="padding-bottom:4px">of 100 COMMITS</span>
+        <span class="badge b-good done-pop" style="margin-bottom:2px">${I.check} TARGET</span>
+      </div>
+      <div class="track"><b style="width:100%"></b></div>
+      <div class="row between"><span class="was">132 last week</span>
+        <div class="mini" style="width:50%">${[36, 68, 32, 6, 0, 0, 0].map((n, k) => `<i class="${n ? '' : 'zero'}" style="height:${n ? Math.max(8, n / 68 * 100) : 8}%; ${k > TODAY ? 'opacity:.3' : ''}"></i>`).join('')}</div></div>
+    </div>
+    <div class="proj quiet"><span class="row" style="gap:8px"><img src="${LOGO_OR}" alt="" style="width:20px; height:20px; border-radius:6px"><span class="caps" style="color:var(--ink-200)">OREUM</span></span><span class="was">0 COMMITS · 0 last week</span></div>`)
+
+  document.getElementById('app').innerHTML = `<div class="bento">${week}${finances}${aiTile}${body}${langs}${projects}</div>`
+  countUp()
+}
+function countUp() {
+  document.querySelectorAll('.cu').forEach(el => {
+    const to = +el.dataset.to, fmt = el.dataset.fmt, t0 = performance.now(), dur = 1100
+    const show = v => el.textContent = fmt === 'eur' ? eur(Math.round(v * 100) / 100) : fmt === 'eur0' ? eur(Math.round(v)) : Math.round(v)
+    const step = now => { const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3); show(to * e); if (p < 1) requestAnimationFrame(step) }
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) show(to); else requestAnimationFrame(step)
+  })
+}
+function sync() { document.querySelectorAll('.ctl button').forEach(b => b.classList.toggle('on', b.dataset.g ? grill : b.dataset.d ? b.dataset.d === days : b.dataset.a === ai)); render() }
+document.querySelectorAll('.ctl button').forEach(b => b.onclick = () => { if (b.dataset.g) grill = !grill; else if (b.dataset.d) days = b.dataset.d; else ai = b.dataset.a; sync() })
+render()
+</script>
+</body>
+</html>

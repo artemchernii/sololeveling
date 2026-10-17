@@ -3704,3 +3704,44 @@ export const weekReview = query({
   handler: async (ctx, args) =>
     weekReviewFor(ctx, await requireUser(ctx), args),
 })
+
+/**
+ * N2 money alerts (17 Oct): the same walk as AHEAD, for the next few days
+ * only, read by the 09:00 job (convex/moneyAlerts.ts). Free cash is state
+ * (source 2): an account with a pocket never read is left out, so a bill
+ * is never "missing" against a balance nobody gave. The rows are logged
+ * rows (source 1) since `since`, for the salary.
+ */
+export async function moneySoon(
+  ctx: QueryCtx,
+  ownerId: string,
+  args: { today: number; days: number; monthStart: number; since: number },
+) {
+  const all = await liveBills(ctx, ownerId)
+  const bills = all.map(aheadBill)
+  const read = await readBalances(ctx, ownerId)
+  const free = read.accounts.filter(
+    (a) =>
+      (a.kinds.includes('bank') || a.kinds.includes('cash')) &&
+      a.pockets.every((p) => p.eur !== null),
+  )
+  const end = args.today + 86_400_000
+  const monthRows = aheadRows(await moneyIn(ctx, ownerId, args.monthStart, end))
+  const built = buildAhead({
+    today: args.today,
+    days: args.days,
+    bills,
+    monthRows,
+    monthStart: args.monthStart,
+    past: [],
+    free: free.map((a) => ({ accountId: a.accountId, eur: a.cashEur })),
+  })
+  return {
+    bills,
+    names: new Map(read.accounts.map((a) => [a.accountId as string, a.name])),
+    /** Each readable account's free cash now. */
+    free: new Map(free.map((a) => [a.accountId as string, a.cashEur])),
+    events: built.events,
+    rows: aheadRows(await moneyIn(ctx, ownerId, args.since, end)),
+  }
+}

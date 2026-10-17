@@ -190,6 +190,10 @@ export const notificationKind = v.union(
   v.literal('file_read'),
   v.literal('file_failed'),
   v.literal('test'),
+  /* N2 (17 Oct): money alerts. */
+  v.literal('money_missing'),
+  v.literal('bank_approval'),
+  v.literal('salary_in'),
 )
 
 export default defineSchema({
@@ -1518,6 +1522,14 @@ export default defineSchema({
   /* N1. Every notification sent, so the bell lists today's and a tap
      clears its dot. Written before the push goes, whether or not a phone
      is subscribed. */
+  /* N2 (17 Oct). Each owner's one morning job (convex/moneyAlerts.ts),
+     and the salary day already said, so it is said once. */
+  moneyAlerts: defineTable({
+    ownerId: v.string(),
+    jobId: v.id('_scheduled_functions'),
+    at: v.number(),
+    salaryFor: v.optional(v.number()),
+  }).index('by_owner', ['ownerId']),
   notifications: defineTable({
     ownerId: v.string(),
     kind: notificationKind,

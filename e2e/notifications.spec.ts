@@ -91,6 +91,10 @@ test('S2 S3 ALLOW, then a test lands in the bell', async ({ page }) => {
   await expect(win.getByText('allowing…')).toBeVisible()
   await expect(win).toHaveAttribute('data-state', 'on')
   await expect(win.getByText('10 MIN BEFORE')).toBeVisible()
+  /* N2: the three money alerts. */
+  await expect(win.getByText('2 DAYS BEFORE · 09:00')).toBeVisible()
+  await expect(win.getByText('7 DAYS · 1 DAY BEFORE')).toBeVisible()
+  await expect(win.getByText('WHEN IN · 09:00')).toBeVisible()
 
   await win.getByRole('button', { name: 'SEND A TEST' }).click()
   await expect(win.getByText('SENT')).toBeVisible()

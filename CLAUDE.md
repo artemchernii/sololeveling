@@ -97,6 +97,12 @@ bills") and for worth, with both
 numbers always shown beside it, an up or down arrow, green where the move
 is good (less spent, more worth) and red where it is not, nothing stored.
 
+On 2026-10-17 the month's change was allowed on Today ("yes, as the
+mockup" on `design/today-mockup/month.html`): this month's count minus
+the month before's for langs, workout, shake, post and commits, and worth
+now minus the month before's last day — both numbers always beside it,
+▲/▼ green where it rose and red where it fell, nothing stored.
+
 Indicators and the average buy were allowed on 2026-10-13 ("yes
 indicators, yes news, yes average price"), built on 2026-10-15 ("go —
 build it" on the mockup `indicators.html`), all in
@@ -147,8 +153,9 @@ tracked without prices that come from outside. That is the bar for adding
 another: a real thing the app must show, and a written set of conditions that
 keep it auditable. Not convenience.
 
-`monthCounts()` returns the fixed six-tile shape in `PLAN.md` §3 item 4. It is
-not derived from the `area` enum: nine areas, six tiles, deliberately.
+`monthSix()` returns Today's six (`PLAN.md` §3 item 4, 17 Oct);
+`monthCounts()` keeps the older six-tile shape for Review's weeks. Neither
+is derived from the `area` enum, deliberately.
 
 ## Intent is not evidence
 

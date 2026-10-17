@@ -9,6 +9,7 @@ import { PayeeLogo } from '@/components/finances/Logo'
 import { RowMark } from '@/components/finances/RowMark'
 import { Veiled } from '@/components/finances/Veil'
 import { SkeletonRows } from '@/components/Skeleton'
+import { RefreshCw } from 'lucide-react'
 import { fmt, short } from './AccountSheetRows'
 
 /* A confirmed file, opened again: what it read, as it read it, and which
@@ -39,18 +40,27 @@ export function FileView({
   const tradesSaved = f.trades.filter((t) => t.landed).length
   return (
     <div className="flex flex-col gap-3">
-      <span className="flex flex-col gap-1">
-        <span className="text-[15px] text-foreground">{f.title}</span>
-        <span className="font-mono text-[11px] text-ink-400">
-          {f.names.join(' · ')} · read {short(f.readAt)} ·{' '}
-          {f.trades.length > 0 && f.rows.length === 0
-            ? `${[buys > 0 ? `${buys} buy` : '', sells > 0 ? `${sells} sell` : ''].filter(Boolean).join(' · ')} in the file · ${tradesSaved} saved`
-            : f.positions.length > 0 && f.rows.length === 0
-              ? `${f.positions.length} ${f.positions.length === 1 ? 'position' : 'positions'} read`
-              : `${f.rows.length} rows in the file · ${landed} saved`}
+      {f.bank ? (
+        <SyncedHead
+          title={f.title}
+          at={f.readAt}
+          saved={landed}
+          pending={f.rows.filter((r) => r.pending).length}
+        />
+      ) : (
+        <span className="flex flex-col gap-1">
+          <span className="text-[15px] text-foreground">{f.title}</span>
+          <span className="font-mono text-[11px] text-ink-400">
+            {f.names.join(' · ')} · read {short(f.readAt)} ·{' '}
+            {f.trades.length > 0 && f.rows.length === 0
+              ? `${[buys > 0 ? `${buys} buy` : '', sells > 0 ? `${sells} sell` : ''].filter(Boolean).join(' · ')} in the file · ${tradesSaved} saved`
+              : f.positions.length > 0 && f.rows.length === 0
+                ? `${f.positions.length} ${f.positions.length === 1 ? 'position' : 'positions'} read`
+                : `${f.rows.length} rows in the file · ${landed} saved`}
+          </span>
         </span>
-      </span>
-      <Originals intakeId={intakeId} />
+      )}
+      {f.bank ? null : <Originals intakeId={intakeId} />}
       {f.positions.length > 0 ? (
         /* What a broker's screen listed (13 Oct: Trading 212's screenshot
            opened on "0 rows in the file" and nothing under it). In euros,
@@ -143,11 +153,18 @@ export function FileView({
             <span className="min-w-0 flex-1 truncate text-[13.5px] text-foreground">
               {r.text}
             </span>
-            <span className="font-mono text-[10px] tracking-[0.1em] text-ink-500 uppercase">
-              {r.pending ? 'pending' : r.landed ? '' : 'left out'}
-            </span>
+            {r.pending ? (
+              <span className={`${BADGE} bg-state-warn/12 text-state-warn`}>
+                <i className="size-1.5 animate-pulse rounded-full bg-current" />
+                pending
+              </span>
+            ) : (
+              <span className="font-mono text-[10px] tracking-[0.1em] text-ink-500 uppercase">
+                {r.landed ? '' : 'left out'}
+              </span>
+            )}
             <span
-              className={`font-mono text-[13px] whitespace-nowrap ${r.landed ? 'text-foreground' : 'text-ink-500 line-through'}`}
+              className={`font-mono text-[13px] whitespace-nowrap ${r.landed ? 'text-foreground' : r.pending ? 'text-ink-400' : 'text-ink-500 line-through'}`}
             >
               <Veiled>{fmt(r.amount, r.currency, true)}</Veiled>
             </span>
@@ -157,15 +174,64 @@ export function FileView({
       <TakeBack
         intakeId={intakeId}
         what={
-          !f.names.every((n) => IMAGE.test(n))
-            ? 'statement'
-            : f.names.length > 1
-              ? 'screenshots'
-              : 'screenshot'
+          f.bank
+            ? 'sync'
+            : !f.names.every((n) => IMAGE.test(n))
+              ? 'statement'
+              : f.names.length > 1
+                ? 'screenshots'
+                : 'screenshot'
         }
         onTaken={onTaken}
       />
     </div>
+  )
+}
+
+const BADGE =
+  'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] uppercase'
+
+/* A bank's answer opened (17 Oct: "what the fuck is FILE NOT KEPT"):
+   no file was dropped, so none is kept — the same Synced with bank line
+   as on the sheet, and what it saved and showed pending. */
+function SyncedHead({
+  title,
+  at,
+  saved,
+  pending,
+}: {
+  title: string
+  at: number
+  saved: number
+  pending: number
+}) {
+  const time = new Date(at).toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  return (
+    <span className="flex flex-col gap-2">
+      <span className="text-[15px] text-foreground">{title}</span>
+      <span className="flex items-center gap-1.5 text-[13px] text-foreground">
+        <RefreshCw className="size-3.5 text-lav-400 drop-shadow-[0_0_6px_var(--color-lav-400)]" />
+        Synced with bank
+      </span>
+      <span className="flex flex-wrap gap-1.5">
+        <span className={`${BADGE} bg-lift/[0.05] text-ink-400`}>
+          {short(at)} · {time}
+        </span>
+        <span className={`${BADGE} bg-state-good/12 text-state-good`}>
+          <i className="size-1.5 rounded-full bg-current" />
+          {saved} saved
+        </span>
+        {pending > 0 ? (
+          <span className={`${BADGE} bg-state-warn/12 text-state-warn`}>
+            <i className="size-1.5 animate-pulse rounded-full bg-current" />
+            {pending} pending
+          </span>
+        ) : null}
+      </span>
+    </span>
   )
 }
 

@@ -2675,6 +2675,8 @@ export const fileRows = query({
     title: v.string(),
     names: v.array(v.string()),
     readAt: v.number(),
+    /** A connected bank's answer: no file was ever dropped. */
+    bank: v.boolean(),
     rows: v.array(
       v.object({
         at: v.number(),
@@ -2725,6 +2727,7 @@ export const fileRows = query({
       title: intake.title ?? 'A file',
       names: (intake.files ?? []).map((f) => f.name),
       readAt: intake.readAt ?? intake._creationTime,
+      bank: intake.via === 'bank',
       rows: (intake.transactions ?? [])
         .map((r) => ({
           at: r.occurredAt,

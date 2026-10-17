@@ -40,6 +40,7 @@ const TABLES: Array<TableNames> = [
   'notifications',
   'pushSubscriptions',
   'reviews',
+  'weekReads',
   'projects',
   'commits',
   'tasks',

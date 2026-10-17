@@ -12,6 +12,7 @@ import type * as accounts from "../accounts.js";
 import type * as aggregate from "../aggregate.js";
 import type * as ai_intake from "../ai/intake.js";
 import type * as ai_read from "../ai/read.js";
+import type * as ai_week from "../ai/week.js";
 import type * as areas from "../areas.js";
 import type * as attachments from "../attachments.js";
 import type * as auth from "../auth.js";
@@ -73,6 +74,7 @@ import type * as transferMatch from "../transferMatch.js";
 import type * as typedBalance from "../typedBalance.js";
 import type * as undoFile from "../undoFile.js";
 import type * as vault from "../vault.js";
+import type * as weekReads from "../weekReads.js";
 import type * as why from "../why.js";
 
 import type {
@@ -86,6 +88,7 @@ declare const fullApi: ApiFromModules<{
   aggregate: typeof aggregate;
   "ai/intake": typeof ai_intake;
   "ai/read": typeof ai_read;
+  "ai/week": typeof ai_week;
   areas: typeof areas;
   attachments: typeof attachments;
   auth: typeof auth;
@@ -147,6 +150,7 @@ declare const fullApi: ApiFromModules<{
   typedBalance: typeof typedBalance;
   undoFile: typeof undoFile;
   vault: typeof vault;
+  weekReads: typeof weekReads;
   why: typeof why;
 }>;
 

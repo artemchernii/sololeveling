@@ -1,0 +1,264 @@
+/* Today (17 Oct, mockup design/today-mockup/month.html, his "go"): the
+   day as a line with a pulsing now, the three's tick that fills from its
+   centre and draws itself, the month's day cells that pop in, a goal
+   ring. Lavender is the app; an area's colour is on icons only. Every
+   colour from a token; the global reduced-motion rule stops it after one
+   pass. */
+
+@keyframes td-ping {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  80%,
+  100% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+@keyframes td-pop {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}
+@keyframes td-grow {
+  from {
+    width: 0;
+  }
+}
+@keyframes td-pass {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes td-bump {
+  0% {
+    transform: translateY(14px) scale(0.85);
+    opacity: 0;
+  }
+}
+
+@utility td-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: td-ping 1.6s ease-out infinite;
+  }
+}
+
+/* The day, 08 → 24. */
+@utility td-line {
+  position: relative;
+  height: 64px;
+  & .td-track,
+  & .td-past {
+    position: absolute;
+    left: 0;
+    top: 26px;
+    height: 6px;
+    border-radius: 3px;
+  }
+  & .td-track {
+    right: 0;
+    background: color-mix(in oklch, var(--color-ink-100) 6%, transparent);
+  }
+  & .td-past {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklch, var(--color-lav-400) 35%, transparent)
+    );
+    animation: td-grow 1.2s 0.3s var(--motion-ease) both;
+  }
+  & .td-ev {
+    position: absolute;
+    top: 18px;
+    height: 22px;
+    min-width: 6px;
+    border-radius: 6px;
+    background: var(--color-lav-400);
+    box-shadow: 0 0 18px -2px var(--color-lav-400);
+    color: var(--background);
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    animation: td-pop 0.5s 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  }
+  & .td-now {
+    position: absolute;
+    top: 10px;
+    bottom: 16px;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--color-ink-100);
+    color: var(--color-ink-100);
+    box-shadow: 0 0 10px var(--color-ink-100);
+    &::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -3px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: td-ping 1.6s ease-out infinite;
+    }
+  }
+  & .td-hr {
+    position: absolute;
+    bottom: 0;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--color-ink-500);
+  }
+}
+
+/* One of the three. Ticked: the ring fills from its centre, the check
+   draws itself, one soft light passes, the label dims, DONE shows. */
+@utility td-slot {
+  position: relative;
+  overflow: hidden;
+  transition:
+    border-color 0.4s ease,
+    background 0.4s ease;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      100deg,
+      transparent 30%,
+      color-mix(in oklch, var(--color-lav-400) 16%, transparent) 50%,
+      transparent 70%
+    );
+    transform: translateX(-100%);
+  }
+  & .td-label {
+    transition: color 0.35s ease;
+  }
+  & .td-ok {
+    opacity: 0;
+    transform: translateY(-3px);
+    transition:
+      opacity 0.25s ease 0.3s,
+      transform 0.25s ease 0.3s;
+  }
+  &[data-done='true'] {
+    border-color: color-mix(in oklch, var(--color-lav-400) 32%, transparent);
+    background: color-mix(in oklch, var(--color-lav-400) 5%, transparent);
+    & .td-label {
+      color: var(--color-ink-400);
+    }
+    & .td-ok {
+      opacity: 1;
+      transform: none;
+    }
+    & .td-tick {
+      border-color: var(--color-lav-400);
+      box-shadow: 0 0 14px -3px var(--color-lav-400);
+      &::before {
+        transform: scale(1);
+      }
+      & svg {
+        stroke-dashoffset: 0;
+      }
+    }
+  }
+  &[data-flash='true']::after {
+    animation: td-pass 0.7s ease-out 0.1s;
+  }
+}
+@utility td-tick {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-ink-500);
+  display: grid;
+  place-items: center;
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 50%;
+    background: var(--color-lav-400);
+    transform: scale(0);
+    transition: transform 0.28s cubic-bezier(0.3, 1.4, 0.5, 1);
+  }
+  & svg {
+    position: relative;
+    width: 12px;
+    height: 12px;
+    color: var(--background);
+    stroke-dasharray: 16;
+    stroke-dashoffset: 16;
+    transition: stroke-dashoffset 0.26s ease-out 0.16s;
+  }
+  &:hover {
+    border-color: var(--color-lav-400);
+  }
+}
+
+/* The month's day cells — lavender, the app's colour. */
+@utility td-days {
+  display: grid;
+  grid-template-columns: repeat(var(--n, 31), 1fr);
+  gap: 2px;
+  & i {
+    height: 12px;
+    border-radius: 3px;
+    background: color-mix(in oklch, var(--color-ink-100) 6%, transparent);
+  }
+  & i[data-on='true'] {
+    background: var(--color-lav-400);
+    box-shadow: 0 0 8px -2px var(--color-lav-400);
+    animation: td-pop 0.4s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+    animation-delay: calc(var(--d) * 18ms + 400ms);
+  }
+  & i[data-today='true'] {
+    box-shadow: inset 0 0 0 1px var(--color-lav-300);
+  }
+  & i[data-future='true'] {
+    opacity: 0.35;
+  }
+}
+@utility td-ring {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--color-lav-400) calc(var(--p) * 1%),
+    color-mix(in oklch, var(--color-ink-100) 10%, transparent) 0
+  );
+  mask: radial-gradient(circle, transparent 5.5px, #000 6px);
+}
+@utility td-bump {
+  display: inline-block;
+  animation: td-bump 0.55s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@utility td-spark {
+  animation: td-wipe 1.4s 0.5s ease-out both;
+}
+@keyframes td-wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}

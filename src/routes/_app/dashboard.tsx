@@ -3,12 +3,11 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { useUser } from '@clerk/tanstack-react-start'
 
 import { api } from '../../../convex/_generated/api'
-import { ActionsLogged } from '@/components/dashboard/ActionsLogged'
+import { DayCard } from '@/components/dashboard/DayCard'
+import { MonthSix, useMonth } from '@/components/dashboard/MonthSix'
 import { Principles } from '@/components/dashboard/Principles'
-import { QuestList } from '@/components/dashboard/QuestList'
-import { StateStrip } from '@/components/dashboard/StateStrip'
-import { TodayCard } from '@/components/dashboard/TodayCard'
-import { WeekGlance } from '@/components/dashboard/WeekGlance'
+import type { Pick } from '@/components/dashboard/ThreeSlots'
+import type { ICONS } from '@/components/dashboard/AreaIcon'
 import { YearBar } from '@/components/dashboard/YearBar'
 import { localToday } from '@/lib/today'
 import { useHeld } from '@/lib/loading'
@@ -18,7 +17,8 @@ export const Route = createFileRoute('/_app/dashboard')({
 })
 
 /* Today — PLAN.md §3: greeting, LEVEL with its year, focus and a principle;
-   TODAY beside TODAY'S THREE; CURRENT STATE; THIS MONTH; THIS WEEK.
+   one live TODAY card with TODAY'S THREE in it; THIS MONTH as his six
+   (17 Oct, mockup design/today-mockup/month.html).
 
    Every number on it comes from convex/aggregate.ts. This file composes them
    and computes none. Two kinds of bar, each with a real denominator: the year
@@ -56,10 +56,60 @@ function Today() {
   const focus = projects?.find((p) => p.status === 'focus')
   const firstName = user?.firstName ?? user?.username ?? 'you'
 
+  const areas = useQuery(api.areas.list, {})
+  const languages = areas
+    ?.filter((a) => a.track === 'language')
+    .map((a) => a.slug)
+  const lang = languages?.[0] ?? 'portuguese'
+  const month = useMonth(now, languages)
+  const goals = useQuery(api.goals.listActive, {})
+  const focusTasks = useQuery(
+    api.tasks.listByProject,
+    focus ? { projectId: focus._id } : 'skip',
+  )
+  const iconFor = (area: string | undefined): keyof typeof ICONS | undefined =>
+    area === undefined
+      ? undefined
+      : languages?.includes(area)
+        ? 'language'
+        : area === 'body' ||
+            area === 'social' ||
+            area === 'projects' ||
+            area === 'money'
+          ? area
+          : undefined
+
+  /* What the next empty slot offers besides today's events: a goal behind
+     its month, the focus project's next open task. */
+  const sum = (k: 'langs' | 'workout') =>
+    month.counts?.[k].days.reduce((a, b) => a + b, 0) ?? 0
+  const behind: Array<Pick> = (goals ?? []).flatMap((g) => {
+    const k =
+      g.tile === 'portuguese' ? 'langs' : g.tile === 'body' ? 'workout' : null
+    if (k === null || g.targetValue === undefined || sum(k) >= g.targetValue)
+      return []
+    return [{ title: g.title, area: g.area, icon: iconFor(g.area) }]
+  })
+  const nextTask = focusTasks?.find(
+    (t) => t.status === 'open' && t.todayFor !== today,
+  )
+  const picks: Array<Pick> = [
+    ...behind,
+    ...(nextTask
+      ? [
+          {
+            title: nextTask.title,
+            area: nextTask.area,
+            icon: iconFor(nextTask.area),
+            taskId: nextTask._id,
+          },
+        ]
+      : []),
+  ]
+
   return (
-    /* Mobile order (§3): greeting → the three → TODAY → this month → this
-       week → state. One source of markup, reordered: a phone-shaped copy of
-       this screen is a second version of the same page, and they drift. */
+    /* One column on a phone, the same order: greeting → TODAY → this
+       month. */
     <div className="flex flex-col gap-[18px] lg:grid lg:grid-cols-2">
       {/* Who and when on the left, the principle card on the right: the six
           used to sit under the greeting as a list, which pushed the day's
@@ -107,28 +157,18 @@ function Today() {
         </div>
       </div>
 
-      <div className="order-3 lg:order-2">
-        <TodayCard
+      <div className="order-2 lg:col-span-2">
+        <DayCard
           tasks={quests}
           events={quests === undefined ? [] : (events ?? [])}
-          date={now}
+          today={today}
+          picks={picks}
+          iconFor={iconFor}
         />
       </div>
 
-      <div className="order-2 lg:order-3">
-        <QuestList tasks={quests} today={today} />
-      </div>
-
-      <div className="order-6 lg:order-4 lg:col-span-2">
-        <StateStrip today={now.getTime()} />
-      </div>
-
-      <div className="order-4 lg:order-5 lg:col-span-2">
-        <ActionsLogged today={now.getTime()} />
-      </div>
-
-      <div className="order-5 lg:order-6 lg:col-span-2">
-        <WeekGlance today={now.getTime()} />
+      <div className="order-3 lg:col-span-2">
+        <MonthSix month={month} now={now} lang={lang} />
       </div>
     </div>
   )

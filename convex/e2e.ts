@@ -509,7 +509,12 @@ export async function history(
 /* Today (docs/specs/2026-10-17-today-rework.md): an event later today, a
    lived September and October, and a langs target of 4. */
 export const todayMonth = mutation({
-  args: { now: v.number(), dayEnd: v.number(), monthStart: v.number(), prevStart: v.number() },
+  args: {
+    now: v.number(),
+    dayEnd: v.number(),
+    monthStart: v.number(),
+    prevStart: v.number(),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)

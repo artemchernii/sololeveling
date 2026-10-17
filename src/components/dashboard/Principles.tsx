@@ -6,7 +6,7 @@ import type { CSSProperties } from 'react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
-import { PICK_FIELD_ID } from './QuestList'
+import { PICK_FIELD_ID } from './ThreeSlots'
 
 /** How long one line holds before the column moves up by one. */
 const HOLD_MS = 10_000

@@ -71,8 +71,12 @@ test('Today: NEXT, a pick from the day, and the month against September', async 
   await expect(six.getByTestId('tile-post').getByTestId('count')).toHaveText(
     '1',
   )
-  await expect(six.getByTestId('tile-commits').getByText('AUTO · GITHUB')).toBeVisible()
-  await expect(six.getByTestId('tile-worth').getByText('AUTO · BANK')).toBeVisible()
+  await expect(
+    six.getByTestId('tile-commits').getByText('AUTO · GITHUB'),
+  ).toBeVisible()
+  await expect(
+    six.getByTestId('tile-worth').getByText('AUTO · BANK'),
+  ).toBeVisible()
   await page.screenshot({ ...shot('today-lived-month'), fullPage: true })
 
   const press = work.getByRole('button', { name: '+ WORKOUT' })
@@ -91,7 +95,8 @@ test('Today: phone width — one column, nothing wider than the screen', async (
   await page.setViewportSize({ width: 390, height: 844 })
   await start(page)
   await page.goto('/dashboard')
-  await expect(page.getByRole('region', { name: 'This month' })).toBeVisible()
+  await expect(page.getByTestId('three-count')).toBeVisible()
+  await expect(page.getByTestId('tile-worth')).toBeVisible()
   const wide = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
   )

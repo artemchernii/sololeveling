@@ -3,6 +3,7 @@
 @import './styles/tokens.css';
 @import './styles/notify.css';
 @import './styles/review.css';
+@import './styles/today.css';
 
 @plugin '@tailwindcss/typography';
 @import 'tw-animate-css';

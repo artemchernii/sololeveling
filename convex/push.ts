@@ -9,6 +9,8 @@ import {
   query,
 } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
+import type { Infer } from 'convex/values'
+import { keepMorning } from './moneyAlerts'
 import { notificationKind, pushDevice } from './schema'
 import { dayStart } from '../src/lib/remindAt'
 
@@ -55,6 +57,8 @@ export const subscribe = mutation({
       ...args,
       createdAt: Date.now(),
     })
+    /* N2: a device on means money alerts each morning. */
+    await keepMorning(ctx, ownerId)
     return null
   },
 })
@@ -125,7 +129,7 @@ export async function notifyOwner(
   ctx: MutationCtx,
   args: {
     ownerId: string
-    kind: 'reminder' | 'file_read' | 'file_failed' | 'test'
+    kind: Infer<typeof notificationKind>
     title: string
     body: string
     url: string

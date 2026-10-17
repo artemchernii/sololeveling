@@ -17,9 +17,16 @@ import { useDayStarts } from '@/components/track/useDayStarts'
 import { codesOf, holdingLine, unitOf } from '@/lib/holdingLine'
 import type { Kind } from '@/lib/logo'
 import { euros } from '@/lib/money'
-import { combine, gainOf, ordered } from '@/lib/owned'
+import { combine, gainOf, matches, ordered } from '@/lib/owned'
 import type { Order, Owned } from '@/lib/owned'
 import { soldSums } from '@/lib/sold'
+import {
+  FindField,
+  Lit,
+  NoneFound,
+  keepOrder,
+  keptOrder,
+} from '@/components/finances/PortfolioFind'
 
 const DATE = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
@@ -64,7 +71,11 @@ const ORDERS: ReadonlyArray<{ by: Order; label: string }> = [
   { by: 'worth', label: 'biggest' },
   { by: 'up', label: 'up most' },
   { by: 'down', label: 'down most' },
+  { by: 'name', label: 'a–z' },
 ]
+
+/** The find field shows from this many rows, owned and sold. */
+const FIND_FROM = 6
 
 /* Everything owned, one row a thing (12 Oct, mockup portfolio.html): the
    same company at two brokers is one row with both marks. Euros lead,
@@ -84,43 +95,53 @@ export function PortfolioList({
   onFilter: (next: Id<'accounts'> | 'all') => void
   kind: Kind | 'all'
 }) {
-  const [order, setOrder] = useState<Order>('worth')
-  const shown = ordered(
+  const [order, setOrder] = useState<Order>(keptOrder)
+  const [typed, setTyped] = useState('')
+  const here = ordered(
     combine(rows.filter((r) => filter === 'all' || r.accountId === filter)),
     order,
   ).filter((o) => kind === 'all' || o.kind === kind)
+  const shown = here.filter((o) => matches(o, typed))
   const chosen = holders.find((a) => a._id === filter)
   /* Sold is folded away until asked for (mockup portfolio.html). */
   const [showSold, setShowSold] = useState(false)
   /* The newest few first (13 Oct: 151 sold things were one long list);
      the rest behind one press. */
   const [allSold, setAllSold] = useState(false)
-  const gone = combine(
+  const goneHere = combine(
     sold.filter((r) => filter === 'all' || r.accountId === filter),
   )
     .filter((o) => kind === 'all' || o.kind === kind)
     .map((o) => ({ owned: o, sums: soldSums(o.paid, o.at) }))
     .sort((a, b) => b.sums.day - a.sums.day)
+  const gone = goneHere.filter((g) => matches(g.owned, typed))
   /* Nothing owned here, only sold: the sold rows are the list. */
-  const only = shown.length === 0 && gone.length > 0
+  const only = here.length === 0 && goneHere.length > 0
+  const finding = typed.trim() !== ''
+  /* Only sold things match: they open by themselves. */
+  const soldOpen = showSold || only || (finding && shown.length === 0)
+  const count = (n: number, of: number) => (finding ? `${n} of ${of}` : of)
 
   return (
     <Panel
       title={
         only
-          ? `${chosen ? `${chosen.name} · ` : ''}sold · ${gone.length}`
-          : `${chosen ? chosen.name : 'everything owned'} · ${shown.length}`
+          ? `${chosen ? `${chosen.name} · ` : ''}sold · ${count(gone.length, goneHere.length)}`
+          : `${chosen ? chosen.name : 'everything owned'} · ${count(shown.length, here.length)}`
       }
       aside={
         <div
-          className={`flex flex-wrap gap-1.5 ${shown.length > 1 ? '' : 'hidden'}`}
+          className={`flex flex-wrap gap-1.5 ${here.length > 1 ? '' : 'hidden'}`}
         >
           {ORDERS.map((o) => (
             <button
               key={o.by}
               type="button"
               aria-pressed={order === o.by}
-              onClick={() => setOrder(o.by)}
+              onClick={() => {
+                setOrder(o.by)
+                keepOrder(o.by)
+              }}
               className={order === o.by ? PILL_LOUD : PILL_QUIET}
             >
               {o.label}
@@ -129,6 +150,9 @@ export function PortfolioList({
         </div>
       }
     >
+      {here.length + goneHere.length >= FIND_FROM ? (
+        <FindField value={typed} onChange={setTyped} />
+      ) : null}
       {holders.length > 1 ? (
         <div className="flex flex-wrap gap-1.5">
           <button
@@ -159,26 +183,30 @@ export function PortfolioList({
             key={o.instrumentId}
             owned={o}
             holders={holders}
-            delay={i * 28}
+            delay={finding ? 0 : i * 28}
+            typed={typed}
           />
         ))}
       </div>
+      {finding && shown.length === 0 && gone.length === 0 ? (
+        <NoneFound typed={typed} onClear={() => setTyped('')} />
+      ) : null}
       {gone.length > 0 ? (
         <>
           {only ? null : (
             <button
               type="button"
-              aria-expanded={showSold}
+              aria-expanded={soldOpen}
               onClick={() => setShowSold(!showSold)}
               className="label-caps motion-press flex items-center gap-1.5 self-start rounded-[8px] px-2 py-1.5 transition-colors hover:bg-lift/[0.07] hover:text-foreground"
             >
               <ChevronRight
-                className={`size-3.5 transition-transform duration-300 ${showSold ? 'rotate-90' : ''}`}
+                className={`size-3.5 transition-transform duration-300 ${soldOpen ? 'rotate-90' : ''}`}
               />
               sold · {gone.length}
             </button>
           )}
-          {showSold || only ? (
+          {soldOpen ? (
             <div className="flex flex-col gap-0.5">
               {(allSold ? gone : gone.slice(0, SOLD_FIRST)).map(
                 ({ owned, sums }, i) => (
@@ -186,7 +214,8 @@ export function PortfolioList({
                     key={owned.instrumentId}
                     owned={owned}
                     sums={sums}
-                    delay={Math.min(i, 12) * 28}
+                    delay={finding ? 0 : Math.min(i, 12) * 28}
+                    typed={typed}
                   />
                 ),
               )}
@@ -212,10 +241,12 @@ function SoldRow({
   owned,
   sums,
   delay,
+  typed,
 }: {
   owned: Owned<Sold>
   sums: ReturnType<typeof soldSums>
   delay: number
+  typed: string
 }) {
   return (
     <div data-testid="sold-row" className="flex flex-col">
@@ -235,10 +266,11 @@ function SoldRow({
         </span>
         <span className="flex min-w-0 flex-col gap-[3px]">
           <span className="truncate text-[14.5px] text-ink-300">
-            {owned.name}
+            <Lit text={owned.name} typed={typed} />
           </span>
           <span className="truncate font-mono text-[11px] text-ink-500">
-            {codesOf(owned)} · all sold {FULL.format(new Date(sums.day))}
+            <Lit text={codesOf(owned)} typed={typed} /> · all sold{' '}
+            {FULL.format(new Date(sums.day))}
           </span>
         </span>
         <span className="flex flex-col items-end gap-[3px] font-mono">
@@ -266,10 +298,12 @@ function OwnedRow({
   owned,
   holders,
   delay,
+  typed,
 }: {
   owned: Owned<Position>
   holders: ReadonlyArray<Account>
   delay: number
+  typed: string
 }) {
   const today = useDayStarts(1).at(-1) as number
   const first = owned.at[0]
@@ -305,10 +339,12 @@ function OwnedRow({
         />
         <span className="flex min-w-0 flex-col gap-[3px]">
           <span className="truncate text-[14.5px] text-foreground">
-            {owned.name}
+            <Lit text={owned.name} typed={typed} />
           </span>
           <span className="flex items-center gap-1.5 overflow-hidden font-mono text-[11px] whitespace-nowrap text-ink-500">
-            <span>{codesOf(owned)}</span>
+            <span>
+              <Lit text={codesOf(owned)} typed={typed} />
+            </span>
             <span>·</span>
             {at.map(({ row, account }) => (
               <AccountLogo

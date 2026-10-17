@@ -39,6 +39,7 @@ const TABLES: Array<TableNames> = [
   'bankLinks',
   'notifications',
   'pushSubscriptions',
+  'moneyAlerts',
   'reviews',
   'weekReads',
   'projects',
@@ -46,6 +47,8 @@ const TABLES: Array<TableNames> = [
   'tasks',
   'fundamentals',
   'sectorAverages',
+  'events',
+  'goals',
 ]
 
 async function wipe(ctx: MutationCtx) {
@@ -503,3 +506,50 @@ export async function history(
     return batchId
   }
 }
+
+/* Today (docs/specs/2026-10-17-today-rework.md): an event later today, a
+   lived September and October, and a langs target of 4. */
+export const todayMonth = mutation({
+  args: {
+    now: v.number(),
+    dayEnd: v.number(),
+    monthStart: v.number(),
+    prevStart: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const startsAt = Math.min(args.now + 20 * 60_000, args.dayEnd - 2 * 60_000)
+    await ctx.db.insert('events', {
+      ownerId,
+      title: 'PT',
+      area: 'body',
+      startsAt,
+      endsAt: startsAt + 60 * 60_000,
+    })
+    const log = (
+      kind: 'workout' | 'session' | 'post',
+      area: string,
+      at: number,
+    ) => ctx.db.insert('logs', { ownerId, kind, area, occurredAt: at })
+    const sep = args.prevStart + 3_600_000
+    const oct = args.monthStart + 3_600_000
+    await log('workout', 'body', sep)
+    await log('workout', 'body', sep + DAY)
+    await log('session', 'portuguese', sep)
+    await log('workout', 'body', oct)
+    await log('workout', 'body', oct + 60_000)
+    await log('workout', 'body', oct + 120_000)
+    await log('post', 'social', oct)
+    await ctx.db.insert('goals', {
+      ownerId,
+      title: 'Portuguese',
+      area: 'portuguese',
+      status: 'active',
+      targetValue: 4,
+      tile: 'portuguese',
+    })
+    return null
+  },
+})

@@ -274,22 +274,22 @@ it is built in (R1–R7). Everything in §1–§2 and §3b–§3d still holds.
    workouts), Finances (net worth; later the portfolio value as of a time),
    Social (events this month). Business and Career cells are gone — projects
    were counted twice, and Career had nothing to count.
-4. **THIS MONTH · ACTIONS LOGGED** — the six tiles, each against a **target**
-   when one exists (R2): `Body · 5 of 9 workouts · 4 to go · 16 days left`. The
-   target is a goal's `targetValue` (§1) — the only thing a count may be divided
-   by — set on the tile itself: a goal bound to that tile (`goals.tile`), read
-   per month, one per tile. A tile with no target shows the count and last
-   month, as before.
-5. **THIS WEEK** at a glance (R2): the seven days, what is booked, what was
-   logged. The weekly review stays its own page.
+4. **THIS MONTH — his six** (17 Oct, his "go" on
+   `design/today-mockup/month.html`): LANGS (sessions under a language),
+   WORKOUT, SHAKE, POST (log kind `post`), COMMITS (stored GitHub rows) and
+   WORTH (worthHistory). Each with the month before's number beside it and
+   ▲/▼ in green/red, 31 day cells, a goal ring where a tile's
+   `goals.targetValue` exists, a "+ X" press that logs. `monthSix()` counts
+   the five; `monthCounts()` keeps the old six for Review's weeks.
+   Replaced the six tiles, CURRENT STATE and THIS WEEK on Today.
+5. ~~THIS WEEK~~ left Today on 17 Oct; the weekly review is its own page.
 
 **Three decisions taken by default on 15 Sep** (each is one line to flip):
 
 - **Three a day stays.** §3c.1 is unchanged; only the Quests _page_ went.
-- **No red on the morning screen.** Being behind a target reads as words and a
-  calm colour (`4 to go, 12 days left`). Red/green is reserved for Finances,
-  where direction is a fact (§3d.3), and even there is added only after the
-  position itself has been watched for two weeks.
+- **Red/green on the morning screen — flipped 17 Oct.** Until then being
+  behind read as words and a calm colour. Now THIS MONTH's ▲/▼ against
+  the month before is green/red, both numbers always beside it.
 - **Investments show the position before the gain.** What you hold, what it
   is worth, as of when — then, later, the difference.
 

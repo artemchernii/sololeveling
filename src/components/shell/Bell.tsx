@@ -4,10 +4,13 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import {
   Bell as BellIcon,
   CalendarClock,
+  Coins,
   FileCheck,
   FileX,
+  KeyRound,
   Laptop,
   Smartphone,
+  TrendingUp,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { renderSVG } from 'uqr'
@@ -46,6 +49,18 @@ const KIND: Record<
   test: {
     icon: <BellIcon className="size-[18px]" />,
     area: 'var(--color-lav-400)',
+  },
+  money_missing: {
+    icon: <Coins className="size-[18px]" />,
+    area: 'var(--color-state-warn)',
+  },
+  bank_approval: {
+    icon: <KeyRound className="size-[18px]" />,
+    area: 'var(--color-state-warn)',
+  },
+  salary_in: {
+    icon: <TrendingUp className="size-[18px]" />,
+    area: 'var(--color-state-good)',
   },
 }
 
@@ -103,7 +118,7 @@ function Row({
         >
           {n.title}
         </span>
-        <span className="mt-1 block truncate font-mono text-[10.5px] tracking-[0.08em] text-ink-300 uppercase">
+        <span className="mt-1 line-clamp-2 font-mono text-[10.5px] tracking-[0.08em] text-ink-300 uppercase">
           {n.body}
         </span>
       </span>

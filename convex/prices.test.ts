@@ -97,3 +97,30 @@ test("the test backend never reads: its prices are the mock's", async () => {
   expect(await me.mutation(api.prices.refresh, {})).toBe('fresh')
   expect(await asked()).toHaveLength(0)
 })
+
+/* Only held tickers are read (17 Oct): a sold ticker's old reading beside
+   a fresh one of a held ticker is not a reason to read again. */
+test("a sold ticker's old reading does not start a reading", async () => {
+  const { t, me, asked } = await setup(NOON - FRESH_FOR + 60_000)
+  await t.run(async (ctx) => {
+    const instrumentId = await ctx.db.insert('instruments', {
+      ownerId: ME,
+      symbol: 'AAA',
+      name: 'Sold long ago',
+      exchange: 'NMS',
+      currency: 'USD',
+      type: 'EQUITY',
+    })
+    await ctx.db.insert('prices', {
+      ownerId: ME,
+      instrumentId,
+      price: 5,
+      currency: 'USD',
+      asOf: NOON - 30 * 86_400_000,
+      fetchedAt: NOON - 30 * 86_400_000,
+      source: 'Yahoo Finance',
+    })
+  })
+  expect(await me.mutation(api.prices.refresh, {})).toBe('fresh')
+  expect(await asked()).toHaveLength(0)
+})

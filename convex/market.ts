@@ -1,4 +1,5 @@
 import { v } from 'convex/values'
+import type { Infer } from 'convex/values'
 
 import { requireUser } from './auth'
 import { internal } from './_generated/api'
@@ -8,7 +9,7 @@ import {
   internalMutation,
   internalQuery,
 } from './_generated/server'
-import type { ActionCtx } from './_generated/server'
+import type { ActionCtx, MutationCtx } from './_generated/server'
 import {
   PRICE_SOURCE,
   RATE_SOURCE,
@@ -36,6 +37,8 @@ const HEADERS = { 'User-Agent': 'Mozilla/5.0 (SoloLeveling personal app)' }
 export const HISTORY_RANGE = '1y'
 const YEAR_MS = 366 * 86_400_000
 const MAX_INSTRUMENTS = 500
+/** Tickers stored per write: all of them today, well inside a mutation's limits. */
+const BATCH = 250
 
 /** A day's open, high, low and shares traded, beside its close. */
 export const bar = {
@@ -260,20 +263,30 @@ export const readAll = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const all = (await ctx.runQuery(internal.market.allInstruments, {})).filter(
-      (i) => args.ownerId === undefined || i.ownerId === args.ownerId,
-    )
+    const every = (
+      await ctx.runQuery(internal.market.allInstruments, {})
+    ).filter((i) => args.ownerId === undefined || i.ownerId === args.ownerId)
+    /* Only what is held now (17 Oct): ~33 of 192 tickers. A sold one's
+       stored closes stay; its last price is shown with its day. */
+    const heldNow = new Set<string>()
+    for (const ownerId of new Set(every.map((i) => i.ownerId)))
+      for (const id of await ctx.runQuery(internal.aggregate.heldInstruments, {
+        ownerId,
+      }))
+        heldNow.add(id)
+    const all = every.filter((i) => heldNow.has(i._id))
     const bySymbol = new Map<string, typeof all>()
     for (const i of all) {
       bySymbol.set(i.symbol, [...(bySymbol.get(i.symbol) ?? []), i])
     }
     const currencies = new Map<string, Set<string>>()
     const fetchedAt = Date.now()
+    const readings: Array<PriceReading> = []
     for (const [symbol, held] of bySymbol) {
       const c = await chart(symbol, '5d')
       if (c === null) continue
       for (const i of held) {
-        await ctx.runMutation(internal.market.storePrices, {
+        readings.push({
           ownerId: i.ownerId,
           instrumentId: i._id,
           currency: c.currency,
@@ -286,6 +299,10 @@ export const readAll = internalAction({
         }
       }
     }
+    for (let k = 0; k < readings.length; k += BATCH)
+      await ctx.runMutation(internal.market.storePriceBatch, {
+        readings: readings.slice(k, k + BATCH),
+      })
     if (args.pricesOnly) return null
     /* And every currency an account holds, so a USD pocket is shown in
        euros at a rate from today, not from the day it was added. */
@@ -419,70 +436,89 @@ export const allInstruments = internalQuery({
  * daily job re-reading the last five days adds only what is new — and a
  * live price for today is replaced by the close once the day ends.
  */
+const priceReading = v.object({
+  ownerId: v.string(),
+  instrumentId: v.id('instruments'),
+  currency: v.string(),
+  rows: v.array(v.object({ asOf: v.number(), price: v.number(), ...bar })),
+  fetchedAt: v.number(),
+})
+type PriceReading = Infer<typeof priceReading>
+
 export const storePrices = internalMutation({
-  args: {
-    ownerId: v.string(),
-    instrumentId: v.id('instruments'),
-    currency: v.string(),
-    rows: v.array(v.object({ asOf: v.number(), price: v.number(), ...bar })),
-    fetchedAt: v.number(),
-  },
+  args: priceReading.fields,
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (args.rows.length === 0) return null
-    /* A new ticker learns its quote currency from its first reading. */
-    const inst = await ctx.db.get(args.instrumentId)
-    if (inst !== null && inst.currency !== args.currency) {
-      await ctx.db.patch(args.instrumentId, { currency: args.currency })
-    }
-    const from = Math.min(...args.rows.map((r) => r.asOf))
-    const have = await ctx.db
-      .query('prices')
-      .withIndex('by_owner_instrument_time', (q) =>
-        q
-          .eq('ownerId', args.ownerId)
-          .eq('instrumentId', args.instrumentId)
-          .gte('asOf', from - 86_400_000),
-      )
-      .take(400)
-    const dayOf = (t: number) => new Date(t).toISOString().slice(0, 10)
-    /* What is stored per day as this runs; a row replaced is dropped here
-       too, so a second reading of the same day never deletes it twice. */
-    let kept = have.map((h) => ({
-      id: h._id,
-      asOf: h.asOf,
-      price: h.price,
-      bar: h.open !== undefined,
-    }))
-    for (const row of args.rows) {
-      const { asOf, price, ...its } = row
-      const sameDay = kept.filter((h) => dayOf(h.asOf) === dayOf(asOf))
-      const same = sameDay.find((h) => h.asOf === asOf && h.price === price)
-      if (same !== undefined) {
-        /* The same reading, now with its bar: the row takes it. */
-        if (!same.bar && its.open !== undefined) {
-          await ctx.db.patch(same.id, its)
-          same.bar = true
-        }
-        continue
-      }
-      for (const h of sameDay) await ctx.db.delete(h.id)
-      kept = kept.filter((h) => !sameDay.includes(h))
-      const id = await ctx.db.insert('prices', {
-        ownerId: args.ownerId,
-        instrumentId: args.instrumentId,
-        price,
-        currency: args.currency,
-        asOf,
-        fetchedAt: args.fetchedAt,
-        source: PRICE_SOURCE,
-        ...its,
-      })
-      kept.push({ id, asOf, price, bar: its.open !== undefined })
-    }
+    await storeReading(ctx, args)
     return null
   },
 })
+
+/* Every ticker of one reading in one write (17 Oct). Stored one by one,
+   each of ~190 writes re-ran every open worth query (~5 MB each): 10 GB of
+   reads in one day, the free plan's month. One write, one re-run. */
+export const storePriceBatch = internalMutation({
+  args: { readings: v.array(priceReading) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    for (const r of args.readings) await storeReading(ctx, r)
+    return null
+  },
+})
+
+async function storeReading(ctx: MutationCtx, args: PriceReading) {
+  if (args.rows.length === 0) return
+  /* A new ticker learns its quote currency from its first reading. */
+  const inst = await ctx.db.get(args.instrumentId)
+  if (inst !== null && inst.currency !== args.currency) {
+    await ctx.db.patch(args.instrumentId, { currency: args.currency })
+  }
+  const from = Math.min(...args.rows.map((r) => r.asOf))
+  const have = await ctx.db
+    .query('prices')
+    .withIndex('by_owner_instrument_time', (q) =>
+      q
+        .eq('ownerId', args.ownerId)
+        .eq('instrumentId', args.instrumentId)
+        .gte('asOf', from - 86_400_000),
+    )
+    .take(400)
+  const dayOf = (t: number) => new Date(t).toISOString().slice(0, 10)
+  /* What is stored per day as this runs; a row replaced is dropped here
+       too, so a second reading of the same day never deletes it twice. */
+  let kept = have.map((h) => ({
+    id: h._id,
+    asOf: h.asOf,
+    price: h.price,
+    bar: h.open !== undefined,
+  }))
+  for (const row of args.rows) {
+    const { asOf, price, ...its } = row
+    const sameDay = kept.filter((h) => dayOf(h.asOf) === dayOf(asOf))
+    const same = sameDay.find((h) => h.asOf === asOf && h.price === price)
+    if (same !== undefined) {
+      /* The same reading, now with its bar: the row takes it. */
+      if (!same.bar && its.open !== undefined) {
+        await ctx.db.patch(same.id, its)
+        same.bar = true
+      }
+      continue
+    }
+    for (const h of sameDay) await ctx.db.delete(h.id)
+    kept = kept.filter((h) => !sameDay.includes(h))
+    const id = await ctx.db.insert('prices', {
+      ownerId: args.ownerId,
+      instrumentId: args.instrumentId,
+      price,
+      currency: args.currency,
+      asOf,
+      fetchedAt: args.fetchedAt,
+      source: PRICE_SOURCE,
+      ...its,
+    })
+    kept.push({ id, asOf, price, bar: its.open !== undefined })
+  }
+}
 
 export const storeRate = internalMutation({
   args: {

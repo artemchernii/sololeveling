@@ -30,9 +30,13 @@ The built page, with these changes:
    - three more reason chips after the three lines: `TARGET ▲ +20.0%`,
      `REVENUE ▲ +22.0%`, `RATING ▲ BUY 1.6`, each coloured by its own
      reading; the ones that made the call wear the verdict's ring;
-   - feeds row: `TECHNICAL · 3 LINES` · `FUNDAMENTALS · 3 · YAHOO · 16 OCT`
-     (filled, opens the tab) · `NEWS · 8 · NOT IN THE RULE` (outlined,
-     opens the tab). A fund: `FUNDAMENTALS · NONE FOR A FUND`, dashed;
+   - feeds row: `TECHNICAL 1 ▲ 1 ▼ 1 —` · `FUNDAMENTALS 3 ▲ 0 ▼ 0 — ·
+     YAHOO · 16 OCT` (opens the tab) · `NEWS · 8 · NOT IN THE RULE`
+     (outlined, opens the tab). A fund: `FUNDAMENTALS · NONE FOR A FUND`,
+     dashed. **Colour by count** (17 Oct, his ask): more ▲ than ▼ green,
+     more ▼ red, even amber; the counts always inside the chip; a group
+     that held an ADD back is never green (amber at best). On a phone the
+     `· YAHOO · day` tail is dropped (the tab header has it);
    - RULE gains one HOLD row, tagged `FUNDAMENTALS`.
 2. **Tabs**: `SIGNALS` · `FUNDAMENTALS 3 ▲ 0 ▼ 2 —` · `NEWS 8` ·
    `BUYS & SELLS 5`. Sold out: SIGNALS and BUYS & SELLS only.
@@ -46,7 +50,15 @@ The built page, with these changes:
    | REVENUE · Q3 2026 on Q3 2025 | GROWING / SHRINKING | `+22.0%` | the two quarters' revenue |
    | P/E · price ÷ earnings | NOT IN THE RULE | `33.8` next 12 months | last 12 months `88.4` |
    | DIVIDEND YIELD | NOT IN THE RULE | `0.69%` · `$2.36 a share a year` | ex-dividend day |
-   A fund: one row `NO FUNDAMENTALS · FUND`.
+   A fund: one row `NO FUNDAMENTALS · FUND`. Analysts' "mean" reads
+   `AVG` (17 Oct: "what is mean?").
+   **ⓘ on P/E and DIVIDEND YIELD** (17 Oct, his ask): beside the `NOT IN
+   THE RULE` badge; hover or tap opens a card: what it is in one plain
+   line with this company's number worked through (`33.8 = $33.80 for
+   every $1 of profit in the next 12 months`), three bars —
+   `BROADCOM 33.8` · `SEMICONDUCTORS AVG 31.2` · `S&P 500 AVG 22.4` — one
+   line on why this sector sits where it does, and the source line
+   `SECTOR AVG · DAMODARAN · NYU STERN · JAN 2026`.
 4. **NEWS tab**: header `YAHOO FINANCE · 8 HEADLINES · 10:05 · NOT STORED`;
    rows = publisher chip, headline (two lines at most), `PUBLISHER · time`
    (time today, day before), link out in a new tab. States: none
@@ -88,6 +100,12 @@ the feed says which.
   reads).
 - `+20.0%` on the target: the difference between two stored readings
   (target mean, latest stored price) — needs the exception below.
+- Sector averages in the ⓘ cards: a second **external reading** — the
+  industry averages Aswath Damodaran (NYU Stern) publishes each January
+  (P/E and dividend yield by industry, plus the whole market). Stored as
+  rows in a `sectorAverages` table with source and year, refreshed once a
+  year; Yahoo's `industry` on the position picks the row. Numbers in the
+  mockup are sample. Shown only in the card, never in the rule.
 - News: a Convex action calls Yahoo search news for the ticker on open and
   returns at most 8 items (title, publisher, time, link); nothing written,
   no summary, no AI.
@@ -106,7 +124,9 @@ Under "Reality over gamification", after "A call to act":
 > (`between()`). Only on one position's verdict and its FUNDAMENTALS tab.
 > They feed `verdict()` by the rows written in `src/lib/indicators.ts`:
 > they can turn an ADD into a HOLD, never make an ADD; older than 7 days
-> they do not feed it.
+> they do not feed it. Sector averages for P/E and dividend yield
+> (Damodaran, NYU Stern, yearly) are external readings on the same four
+> conditions, shown only beside the company's own number in its ⓘ card.
 >
 > **News** (13 Oct, "we simply fetch it and show"): headlines with
 > publisher, time and link, fetched on open, never stored, never
@@ -148,4 +168,7 @@ in the rule; fund facts (expense ratio, holdings); alerts.
    stays in view on FUNDAMENTALS and NEWS.
 4. The rating badge uses Yahoo's word (`BUY`), which is also the trade
    badge's word. **Pick: keep it** — it sits in its own row under ANALYST
-   RATING, with the mean beside it.
+   RATING, with the avg beside it.
+5. Sector averages from Damodaran's yearly tables (free, attributed,
+   dated) rather than computed from other tickers. **Pick: Damodaran** —
+   a named source, no averaging of our own.

@@ -168,3 +168,53 @@ test('a new reading stores the bar; a day stored without takes it', async () => 
   })
   expect((await stored()).map((r) => r._id).sort()).toEqual(ids.sort())
 })
+
+/* One reading of every ticker is one write (17 Oct): each separate write
+   re-ran every open worth query. */
+test('a batch stores each ticker as storePrices would, once', async () => {
+  const { t, instrumentId, stored } = await setup()
+  const other = await t.run(
+    async (ctx) =>
+      await ctx.db.insert('instruments', {
+        ownerId: ME,
+        symbol: 'VWCE.DE',
+        name: 'Vanguard FTSE All-World',
+        exchange: 'GER',
+        currency: 'EUR',
+        type: 'ETF',
+      }),
+  )
+  const fetchedAt = MON + 10 * DAY
+  const readings = [
+    {
+      ownerId: ME,
+      instrumentId,
+      currency: 'USD',
+      rows: [bar(3, 126)],
+      fetchedAt,
+    },
+    {
+      ownerId: ME,
+      instrumentId: other,
+      currency: 'EUR',
+      rows: [bar(3, 140)],
+      fetchedAt,
+    },
+  ]
+  await t.mutation(internal.market.storePriceBatch, { readings })
+  expect(await stored()).toHaveLength(5)
+  const theirs = await t.run(
+    async (ctx) =>
+      await ctx.db
+        .query('prices')
+        .withIndex('by_owner_instrument_time', (q) =>
+          q.eq('ownerId', ME).eq('instrumentId', other),
+        )
+        .collect(),
+  )
+  expect(theirs).toHaveLength(1)
+  expect(theirs[0]).toMatchObject({ price: 140, currency: 'EUR' })
+  /* The same batch again writes nothing. */
+  await t.mutation(internal.market.storePriceBatch, { readings })
+  expect(await stored()).toHaveLength(5)
+})

@@ -36,7 +36,7 @@ import { monthSix as monthSixCount } from '../src/lib/monthSix'
 import type { LedgerTrade, Observation } from '../src/lib/holdings'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
-import { query } from './_generated/server'
+import { internalQuery, query } from './_generated/server'
 import type { QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 
@@ -2513,6 +2513,19 @@ export async function tradedSince(
   }
   return { cents, rows }
 }
+
+/* The tickers held now, for the price reading (17 Oct: "We care about my
+   holdings"). A ticker sold out keeps its stored closes; reading it again
+   adds nothing and each save re-ran every open worth query. */
+export const heldInstruments = internalQuery({
+  args: { ownerId: v.string() },
+  returns: v.array(v.id('instruments')),
+  handler: async (ctx, args) => [
+    ...new Set(
+      (await readPositions(ctx, args.ownerId)).rows.map((r) => r.instrumentId),
+    ),
+  ],
+})
 
 async function readPositions(ctx: QueryCtx, ownerId: string) {
   /* A deleted account with history is retired, not erased — and what it

@@ -2,7 +2,7 @@
 import { convexTest } from 'convex-test'
 import { expect, test } from 'vitest'
 
-import { api } from './_generated/api'
+import { api, internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
 import schema from './schema'
 
@@ -141,4 +141,17 @@ test('a retired account takes what it sold with it', async () => {
     await ctx.db.patch(ids.revolut, { retiredAt: Date.now() })
   })
   expect((await me.query(api.aggregate.positions, {})).sold).toEqual([])
+})
+
+/* The price reading asks only for what is held now (17 Oct). */
+test("held tickers: a sold one and another owner's are left out", async () => {
+  const { t, ids, trade } = await world()
+  await trade(ME, ids.revolut, ids.shop, 'buy', 2, 90.3, 400)
+  await trade(ME, ids.revolut, ids.shop, 'sell', 2, 118.45, 90)
+  await trade(ME, ids.revolut, ids.nvda, 'buy', 1, 80, 30)
+  await trade(ME, ids.tr, ids.nvda, 'buy', 1, 85, 20)
+  await trade(OTHER, ids.theirs, ids.theirShop, 'buy', 1, 10, 50)
+  expect(
+    await t.query(internal.aggregate.heldInstruments, { ownerId: ME }),
+  ).toEqual([ids.nvda])
 })

@@ -7,14 +7,15 @@ import { UNPRICED } from '../src/lib/market'
 
 /* Prices while Finances is open (13 Oct: "when we have finances open =>
    we fetch, and after that every 30 min, but if its not opened we dont
-   care and fetch daily"). The screen asks; a reading younger than half an
-   hour is left alone, so a reload or a second tab does not ask Yahoo
+   care and fetch daily"; every 2 hours since 17 Oct, to keep inside
+   Convex's free reads). The screen asks; a reading younger than that is
+   left alone, so a reload or a second tab does not ask Yahoo
    again. The price is still stored and dated before it is shown — source
    4's rule — and the daily run after New York closes is untouched. */
 
-export const FRESH_FOR = 30 * 60_000
-/** How many tickers are looked at to tell how old the last reading is. */
-const SAMPLE = 5
+export const FRESH_FOR = 2 * 3_600_000
+/** Tickers looked at, at most, to tell how old the last reading is. */
+const MAX_TICKERS = 500
 /** How many of the newest scheduled jobs are looked at for a reading
     already on its way. */
 const RECENT_JOBS = 30
@@ -31,17 +32,17 @@ export const refresh = mutation({
     /* The test backend keeps its mock prices: a reading from Yahoo there
        changed every total the browser tests expect (13 Oct). */
     if (process.env.E2E === '1') return 'fresh'
-    const held = (
+    /* Only held tickers are read (17 Oct), so the newest reading of any
+       ticker tells; one row each, stopping at the first fresh one. */
+    const tickers = (
       await ctx.db
         .query('instruments')
         .withIndex('by_owner_symbol', (q) => q.eq('ownerId', ownerId))
-        .take(50)
-    )
-      .filter((i) => i.type !== UNPRICED)
-      .slice(0, SAMPLE)
-    if (held.length === 0) return 'nothing'
+        .take(MAX_TICKERS)
+    ).filter((i) => i.type !== UNPRICED)
+    if (tickers.length === 0) return 'nothing'
     let newest = 0
-    for (const i of held) {
+    for (const i of tickers) {
       const row = await ctx.db
         .query('prices')
         .withIndex('by_owner_instrument_time', (q) =>
@@ -50,6 +51,7 @@ export const refresh = mutation({
         .order('desc')
         .first()
       if (row !== null) newest = Math.max(newest, row.fetchedAt)
+      if (Date.now() - newest < FRESH_FOR) return 'fresh'
     }
     if (Date.now() - newest < FRESH_FOR) return 'fresh'
     /* One reading at a time (14 Oct). A reading of every ticker takes a

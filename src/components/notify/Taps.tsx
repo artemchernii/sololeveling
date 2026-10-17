@@ -18,9 +18,9 @@ function SafariBar() {
         <span className="font-mono text-[9.5px] tracking-[0.16em] text-lav-300">
           SOLO LEVELING
         </span>
-        <i className="block h-2.5 w-[70%] rounded bg-white/10" />
-        <i className="block h-2.5 rounded bg-white/10" />
-        <i className="block h-14 w-[60%] rounded-xl bg-white/10" />
+        <i className="block h-2.5 w-[70%] rounded bg-[#fff]/10" />
+        <i className="block h-2.5 rounded bg-[#fff]/10" />
+        <i className="block h-14 w-[60%] rounded-xl bg-[#fff]/10" />
       </div>
       <div className="absolute inset-x-0 bottom-0 h-[86px] bg-[#f5f5f7] px-3.5 pt-2 text-[#0a7aff]">
         <div className="grid h-9 place-items-center rounded-xl bg-[#e3e3e8] text-[13px] text-[#333]">
@@ -45,7 +45,7 @@ function ShareSheet() {
   const rows = ['Copy', 'Add to Reading List', 'Add Bookmark']
   return (
     <div className="relative h-full overflow-hidden rounded-[16px] bg-[#f2f2f7]">
-      <div className="nt-sheet-up absolute inset-x-2 bottom-2 overflow-hidden rounded-[14px] bg-white text-[15px] text-black">
+      <div className="nt-sheet-up absolute inset-x-2 bottom-2 overflow-hidden rounded-[14px] bg-[#fff] text-[15px] text-[#000]">
         {rows.map((r) => (
           <div key={r} className="border-b border-[#e5e5ea] px-3.5 py-3">
             {r}
@@ -69,13 +69,13 @@ function HomeScreen() {
       {APPS.map((a) => (
         <div
           key={a}
-          className="flex flex-col items-center gap-1 text-[10.5px] text-white"
+          className="flex flex-col items-center gap-1 text-[10.5px] text-[#fff]"
         >
-          <i className="block size-12 rounded-xl bg-white/15" />
+          <i className="block size-12 rounded-xl bg-[#fff]/15" />
           {a}
         </div>
       ))}
-      <div className="flex flex-col items-center gap-1 text-[10.5px] text-white">
+      <div className="flex flex-col items-center gap-1 text-[10.5px] text-[#fff]">
         <span className="nt-land-icon block size-12 overflow-hidden rounded-xl">
           <Logo />
         </span>

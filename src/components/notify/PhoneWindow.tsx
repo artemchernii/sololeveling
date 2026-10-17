@@ -293,7 +293,7 @@ export function PhoneWindow() {
           {/* iOS Settings, drawn in its own dark grey. */}
           <div className="overflow-hidden rounded-[16px] bg-[#1c1c1e] text-[15px]">
             <div className="flex items-center gap-2.5 border-b border-[#2c2c2e] px-3.5 py-3">
-              <span className="grid size-7 place-items-center rounded-[7px] bg-[#ff3b30] text-white">
+              <span className="grid size-7 place-items-center rounded-[7px] bg-[#ff3b30] text-[#fff]">
                 <Bell className="size-4" />
               </span>
               Notifications

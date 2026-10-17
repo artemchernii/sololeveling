@@ -171,7 +171,7 @@ function Devices({
         data-testid="bell-qr"
         className="glass flex items-center gap-4 rounded-[14px] p-3.5"
       >
-        <div className="relative shrink-0 overflow-hidden rounded-[12px] bg-white p-2 shadow-[0_0_30px_-8px_var(--system-shine)]">
+        <div className="relative shrink-0 overflow-hidden rounded-[12px] bg-[#fff] p-2 shadow-[0_0_30px_-8px_var(--system-shine)]">
           <div
             className="size-[118px] [&_svg]:size-full"
             dangerouslySetInnerHTML={{ __html: qr }}

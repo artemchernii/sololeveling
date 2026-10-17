@@ -14,6 +14,7 @@ Screens/files: `PortfolioList.tsx` (field, pills, filtering),
 already loaded by `aggregate.positions`.
 
 What changes in what he sees:
+
 - A field under the list's title: `NAME OR TICKER`, `/` to jump to it,
   × and Esc clear it. Matches any listing's name or ticker, letters
   matched in lavender. Not kept: empty on every open.
@@ -26,13 +27,13 @@ What changes in what he sees:
 - The field shows only with more than 5 rows (owned and sold).
 
 Scenarios (e2e/portfolio-find.spec.ts, mock data):
-  S1 many positions → type part of a name → only matching rows, `n OF m`
-  S2 type a ticker → that row; press it → its page
-  S3 type a sold thing's name → SOLD · 1 opens with it
-  S4 type nonsense → 0 FOUND; CLEAR → every row back
-  S5 press A–Z → rows by name; reload → A–Z still on
-  S6 few positions → no field
-  S7 phone width → field full width, no sideways scroll
+S1 many positions → type part of a name → only matching rows, `n OF m`
+S2 type a ticker → that row; press it → its page
+S3 type a sold thing's name → SOLD · 1 opens with it
+S4 type nonsense → 0 FOUND; CLEAR → every row back
+S5 press A–Z → rows by name; reload → A–Z still on
+S6 few positions → no field
+S7 phone width → field full width, no sideways scroll
 
 Data: no new number. `n OF m` is an entity count of rows already shown.
 
@@ -40,4 +41,5 @@ Out of scope: tags/sector filter (next slice "tags + map"), searching
 inside the account cards, a sort by euros gained.
 
 Questions:
+
 - UP MOST / DOWN MOST stay by percent as built (recommend: yes).

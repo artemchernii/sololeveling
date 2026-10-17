@@ -3207,7 +3207,11 @@ export async function gatherBatch(
     const ledger: Array<{ occurredAt: number; amount: number }> = had.map(
       (l) => ({ occurredAt: l.occurredAt, amount: signedLog(l) }),
     )
-    const pendingRows: Array<{ occurredAt: number; amount: number }> = []
+    const pendingRows: Array<{
+      occurredAt: number
+      amount: number
+      currency: string
+    }> = []
     const balances: Array<{ asOf: number; value: number }> = []
     let printed: Doc<'intakes'>['balance']
     const rows: Array<(typeof batchAccount.type)['rows'][number]> = []
@@ -3291,7 +3295,11 @@ export async function gatherBatch(
           pending: row.pending,
         })
         if (row.pending) {
-          pendingRows.push({ occurredAt: row.occurredAt, amount: row.amount })
+          pendingRows.push({
+            occurredAt: row.occurredAt,
+            amount: row.amount,
+            currency: row.currency,
+          })
           continue
         }
         if (dup) hadRows++
@@ -3392,6 +3400,14 @@ export async function gatherBatch(
             sumRows,
             skippedRows,
             b.dismissed.includes(`sum:${account._id}`),
+            /* The bank sends every row still pending with its balance,
+               and that balance has them off (17 Oct). A file's list may
+               not be whole, so a file keeps the older reading. */
+            g.list.every((i) => i.via === 'bank')
+              ? pendingRows
+                  .filter((p) => !printed || p.currency === printed.currency)
+                  .reduce((t, p) => t + Math.round(p.amount * 100), 0)
+              : null,
           )
         : null
     const total = held ? totalView(held, accountId, b.dismissed) : null

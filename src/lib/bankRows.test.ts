@@ -39,8 +39,19 @@ test('money in is positive, named by who paid; no name → the bank’s words', 
   })
 })
 
-test('pending money is no row; nor is one with no day or no amount', () => {
-  expect(bankRow(tx({ status: 'PDNG' }), NOW)).toBeNull()
+test('pending money is a pending row; a cancelled one, one with no day or no amount is none', () => {
+  expect(bankRow(tx({ status: 'PDNG' }), NOW)?.pending).toBe(true)
+  expect(
+    bankRow(
+      tx({
+        status: 'PDNG',
+        bookingDate: undefined,
+        transactionDate: '2026-10-11',
+      }),
+      NOW,
+    )?.occurredAt,
+  ).toBe(Date.UTC(2026, 9, 11, 12))
+  expect(bankRow(tx({ status: 'CNCL' }), NOW)).toBeNull()
   expect(bankRow(tx({ bookingDate: undefined }), NOW)).toBeNull()
   expect(bankRow(tx({ amount: 'x' }), NOW)).toBeNull()
   expect(bankRow(tx({ amount: '0.00' }), NOW)).toBeNull()
@@ -62,7 +73,7 @@ test('asked from the day before the balance held', () => {
   expect(dateFrom(Date.UTC(2026, 9, 11, 14))).toBe('2026-10-10')
 })
 
-test('only rows from the held balance on, newest first', () => {
+test('booked rows from the held balance on, every pending one; newest first', () => {
   const held = Date.UTC(2026, 9, 11, 14)
   const rows = rowsSince(
     [
@@ -70,9 +81,10 @@ test('only rows from the held balance on, newest first', () => {
       tx({ bookingDate: '2026-10-11', amount: '3' }),
       tx({ bookingDate: '2026-10-12', amount: '25' }),
       tx({ bookingDate: '2026-10-12', amount: '9', status: 'PDNG' }),
+      tx({ bookingDate: '2026-10-09', amount: '4', status: 'PDNG' }),
     ],
     held,
     NOW,
   )
-  expect(rows.map((r) => r.amount)).toEqual([-25, -3])
+  expect(rows.map((r) => r.amount)).toEqual([-25, -9, -3, -4])
 })

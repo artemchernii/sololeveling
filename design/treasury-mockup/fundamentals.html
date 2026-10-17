@@ -184,6 +184,33 @@
   .fd.none { color: var(--ink-500); box-shadow: inset 0 0 0 1px rgba(var(--lift),.12); background-image: repeating-linear-gradient(135deg, rgba(var(--lift),.04) 0 6px, transparent 6px 12px) }
   .fd.fresh { animation: arrive .35s var(--ease) both; animation-delay: calc(var(--n) * 90ms + 700ms) }
   .rc.flat { --v: var(--ink-300) }
+  /* A feed's colour is its rows' count: more ▲ green, more ▼ red, even
+     amber. The counts always sit inside it. */
+  .fd.tone { color: var(--ink-100); background: color-mix(in srgb, var(--t) 13%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--t) 50%, transparent) }
+  .fd.tone svg { color: var(--t) }
+  .fd { white-space: nowrap }
+  .fd .cn { display: inline-flex; gap: 6px; letter-spacing: .04em; font-weight: 500 }
+  .fd .cn .z0 { opacity: .45 }
+  .fd .dim { font-weight: 400; color: var(--ink-500); letter-spacing: .08em }
+
+  /* ⓘ beside a reading the rule does not read: what it is, and this
+     company's number beside its sector's average, with their source. */
+  /* A row with its card open sits above the rows under it. */
+  .sig:has(.info.on), .sig:has(.info:hover) { position: relative; z-index: 6 }
+  .vc { display: flex; align-items: center; justify-self: start }
+  .info { position: relative; display: inline-flex; margin-left: 6px; vertical-align: middle }
+  .ib { width: 22px; height: 22px; border-radius: 99px; display: grid; place-items: center; color: var(--ink-400); box-shadow: inset 0 0 0 1px rgba(var(--lift),.16); font-family: Georgia, serif; font-style: italic; font-size: 12px; font-weight: 600; transition: color .2s, background .2s, box-shadow .2s }
+  .ib:hover, .info.on .ib { color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 55%, transparent) }
+  .tip { position: absolute; z-index: 5; top: calc(100% + 8px); left: -10px; width: 360px; padding: 14px; border-radius: 14px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--sys-edge), 0 18px 40px -12px rgba(0,0,0,.6); text-align: left; font-family: Inter, system-ui, sans-serif; font-size: 13px; line-height: 1.5; color: var(--ink-200); letter-spacing: 0; text-transform: none; white-space: normal; opacity: 0; translate: 0 -4px; pointer-events: none; transition: opacity .2s, translate .2s var(--ease) }
+  :root[data-theme="light"] .tip { background: #fffdf8 }
+  .info:hover .tip, .info.on .tip { opacity: 1; translate: 0 0; pointer-events: auto }
+  .tip .tc { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--lav-300); margin-bottom: 6px }
+  .cmp { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 10px }
+  .cmp > span { display: grid; grid-template-columns: 150px minmax(0,1fr) 46px; gap: 8px; align-items: center; font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-400) }
+  .cmp i { height: 6px; border-radius: 99px; background: rgba(var(--lift),.07); position: relative; overflow: hidden }
+  .cmp i::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--w); border-radius: 99px; background: var(--c); animation: grow .6s var(--ease) both }
+  .cmp b { font-weight: 500; color: var(--ink-100); text-align: right; font-variant-numeric: tabular-nums }
+  .tip .ts { display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-500) }
   .rc .src { font-weight: 400; color: var(--ink-500); letter-spacing: .06em }
   .rule tr.fx td:last-child::after { content: 'fundamentals'; margin-left: 8px; padding: 0 6px; border-radius: 99px; font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 16%, transparent) }
 
@@ -194,7 +221,7 @@
   .upd { display: inline-flex; align-items: center; gap: 6px; color: var(--lav-300) }
   .upd i { width: 7px; height: 7px; border-radius: 99px; background: var(--lav-400); animation: breathe 1.2s ease-in-out infinite }
   @keyframes breathe { 50% { opacity: .3; scale: .7 } }
-  .fu { display: grid; grid-template-columns: 30px 150px 132px 104px minmax(80px, 1fr); gap: 12px; align-items: center; padding: 11px 8px }
+  .fu { display: grid; grid-template-columns: 30px 150px 170px 104px minmax(80px, 1fr); gap: 12px; align-items: center; padding: 11px 8px }
   .ficon { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--v); background: color-mix(in srgb, var(--v) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--v) 30%, transparent) }
   .ficon svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
   .sig.flat .verdict { --v: var(--ink-400); background: rgba(var(--lift),.05); box-shadow: inset 0 0 0 1px rgba(var(--lift),.12); color: var(--ink-300) }
@@ -244,7 +271,8 @@
     .sh { grid-template-columns: 30px minmax(0,1fr) auto; grid-template-areas: 'e n v' '. p g'; row-gap: 8px }
     .sh .eye { grid-area: e } .sh .nm { grid-area: n } .sh .verdict { grid-area: v } .sh .pc { grid-area: p; font-size: 16px } .sh .gauge { grid-area: g }
     .fu { grid-template-columns: 30px minmax(0,1fr) auto; grid-template-areas: 'e n v' '. p p' '. g g'; row-gap: 8px }
-    .fu .ficon { grid-area: e } .fu .nm { grid-area: n } .fu .verdict { grid-area: v } .fu .pc { grid-area: p; font-size: 16px; display: flex; gap: 8px; align-items: baseline } .fu .pc small { margin: 0 } .fu > :last-child { grid-area: g }
+    .tip { left: auto; right: -8px; width: min(360px, calc(100vw - 48px)) }
+    .fu .ficon { grid-area: e } .fu .nm { grid-area: n } .fu .vc { grid-area: v } .fu .pc { grid-area: p; font-size: 16px; display: flex; gap: 8px; align-items: baseline } .fu .pc small { margin: 0 } .fu > :last-child { grid-area: g }
     .tabs { overflow-x: auto; scrollbar-width: none }
   }
   @media (max-width: 640px) {
@@ -253,6 +281,7 @@
     .keys .tv { margin-left: 0 }
     .vtop { grid-template-columns: 1fr; gap: 12px } .vb { justify-self: start; font-size: 19px }
     .rulebtn { margin-left: 0 }
+    .fd .dim { display: none }
     .big { font-size: 23px }
   }
   @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important } }
@@ -350,7 +379,7 @@ const fundOf = () => (scen === 'fund' ? null : scen === 'held' ? FUND_HELD : FUN
 function verdictOf(x) {
   const t = technical(x), f = fundOf()
   if (t.v !== 'add' || !f) return { ...t, fund: false }
-  if (x.p >= f.target.mean) return { v: 'hold', why: ['target'], fund: true, line: `Long trend up with a dip, and the price is at or above the analysts' mean target of ${usd(f.target.mean)}. By the textbook, keep the shares; no room left to the target.` }
+  if (x.p >= f.target.mean) return { v: 'hold', why: ['target'], fund: true, line: `Long trend up with a dip, and the price is at or above the analysts' avg target of ${usd(f.target.mean)}. By the textbook, keep the shares; no room left to the target.` }
   if (f.rev.pct < 0) return { v: 'hold', why: ['rev'], fund: true, line: `Long trend up with a dip, and revenue fell ${Math.abs(f.rev.pct).toFixed(1)}% on a year before. By the textbook, keep the shares until revenue grows again.` }
   if (f.rating.mean >= 3.5) return { v: 'hold', why: ['rating'], fund: true, line: 'Long trend up with a dip, and most analysts rate it sell. By the textbook, keep the shares; no new ones against the analysts.' }
   return { ...t, why: [...t.why, 'target', 'rev', 'rating'], fund: true }
@@ -551,6 +580,13 @@ const NEWS_FUND = [
 const newsOf = () => (newsSt === 'empty' ? [] : scen === 'fund' ? NEWS_FUND : NEWS)
 
 const gauge = (d, n) => `<div class="gauge"><i class="z" style="left:0;width:50%;background:color-mix(in srgb,var(--danger) 22%,transparent)"></i><i class="z" style="left:50%;width:50%;background:color-mix(in srgb,var(--good) 22%,transparent)"></i><i class="mid"></i><i class="mk" style="--x:${Math.max(3, Math.min(97, 50 + d / 15 * 50))}%;--n:${n}"></i></div>`
+/* A feed chip: its colour from its rows' ▲ and ▼, the counts inside it. */
+function feed(icon, name, vs, tabId, tail, n, heldBack = false) {
+  const up = vs.filter((x) => x === 'bull').length, dn = vs.filter((x) => x === 'bear').length, fl = vs.length - up - dn
+  /* A group that held an ADD back is never green. */
+  const t = up > dn && !heldBack ? 'var(--good)' : dn > up ? 'var(--danger)' : 'var(--warn)'
+  return `<button class="fd tone fresh" style="--t:${t};--n:${n}" onclick="setTab('${tabId}')">${icon}${name} <span class="cn"><span class="up-t ${up ? '' : 'z0'}">${up} ▲</span><span class="dn-t ${dn ? '' : 'z0'}">${dn} ▼</span><span class="fl-t ${fl ? '' : 'z0'}">${fl} —</span></span>${tail ? `<span class="dim">${tail}</span>` : ''}</button>`
+}
 function verdictPanel() {
   const vd = D.vd; if (!vd) return ''
   const v = V(), b = VB[vd.v], fx = F()
@@ -559,7 +595,7 @@ function verdictPanel() {
   const slow = newsSt === 'slow'
   const rows = [
     ['add', 'good', 'Above SMA 200, and under SMA 50 or RSI 14 under 45. RSI 14 not above 70.', ''],
-    ['hold', 'lav-400', 'An ADD by the lines, and one of: price at or above the mean target · revenue down on a year before · rating 3.5 or worse.', 'fx', 'hold-f'],
+    ['hold', 'lav-400', 'An ADD by the lines, and one of: price at or above the avg target · revenue down on a year before · rating 3.5 or worse.', 'fx', 'hold-f'],
     ['hold', 'lav-400', 'Every other case: above SMA 200 with no dip, or between the two averages.', ''],
     ['wait', 'warn', 'Under SMA 50 and SMA 200, or RSI 14 above 70.', ''],
   ]
@@ -580,8 +616,8 @@ function verdictPanel() {
       ${fx ? chip('target', 'target', sg(fx.dT), 3, fx.target) + chip('rev', 'revenue', sg(fx.f.rev.pct), 4, fx.rev) + chip('rating', 'rating', `${fx.f.rating.word} ${fx.f.rating.mean.toFixed(1)}`, 5, fx.rating) : ''}
     </div>
     <div class="feeds">
-      <span class="fd live">${ICON.chart}technical <b>· 3 lines</b></span>
-      ${fx ? `<button class="fd live fresh" style="--n:1" onclick="setTab('fund')">${ICON.book}fundamentals <b>· 3 · yahoo · ${slow ? fx.f.was.slice(0, 6) : fx.f.asOf.slice(0, 6)}</b>${slow ? ' <span class="upd"><i></i></span>' : ''}</button>`
+      ${feed(ICON.chart, 'technical', [v[200].v, v[50].v, v.rsi.v], 'signals', '', 0)}
+      ${fx ? feed(ICON.book, 'fundamentals', [fx.target.v, fx.rev.v, fx.rating.v], 'fund', `· yahoo · ${slow ? fx.f.was.slice(0, 6) : fx.f.asOf.slice(0, 6)}${slow ? ' <span class="upd"><i></i></span>' : ''}`, 1, ['target', 'rev', 'rating'].includes(vd.why[0]))
         : `<span class="fd none fresh" style="--n:1">${ICON.book}fundamentals <b style="font-weight:400">· none for a fund</b></span>`}
       ${newsFeed}
       <button class="rulebtn ${ruleOpen ? 'on' : ''}" onclick="ruleOpen=!ruleOpen;this.classList.toggle('on',ruleOpen);this.closest('.vd').querySelector('.rule').classList.toggle('on',ruleOpen)">rule ${ICON.chev}</button>
@@ -608,6 +644,16 @@ function signalsBody() {
       <span class="pc">${r.pc}</span>${r.g === null ? rsiG(i) : gauge(r.g, i)}</div></div>` }).join('') + '</div>'
 }
 
+/* Sector averages for the ⓘ cards: an outside reading, attributed and
+   dated (sample numbers; source to settle in the spec). */
+const SECTOR = { name: 'semiconductors', pe: 31.2, peAll: 22.4, div: 0.92, divAll: 1.31, src: 'damodaran · nyu stern · jan 2026' }
+function info(id, cap, what, bars, max, fmt, why) {
+  return `<!--i--><span class="info" onclick="event.stopPropagation();this.classList.toggle('on')"><button class="ib" aria-label="what is ${cap}">i</button><span class="tip">
+    <span class="tc">${cap}</span>${what}
+    <span class="cmp">${bars.map(([n, v, c]) => `<span><span>${n}</span><i style="--w:${Math.min(100, v / max * 100)}%;--c:${c}"></i><b>${fmt(v)}</b></span>`).join('')}</span>
+    ${why}<span class="ts" style="margin-top:8px">sector avg · ${SECTOR.src}</span></span></span>`
+}
+
 /* FUNDAMENTALS: five readings. Three are in the rule (coloured); P/E and
    dividend are shown with an ink badge. A fund: one empty row. */
 function fundBody() {
@@ -618,23 +664,29 @@ function fundBody() {
   const row = (n, cls, icon, name, sub, badge, pc, small, vis) => `<div class="sig ${cls}" style="--n:${n}"><div class="fu">
       <span class="ficon">${ICON[icon]}</span>
       <span class="nm">${name}<small>${sub}</small></span>
-      <span class="verdict">${badge}</span>
+      <span class="vc"><span class="verdict">${badge.split('<!--i-->')[0]}</span>${badge.split('<!--i-->')[1] || ''}</span>
       <span class="pc">${pc}<small>${small}</small></span>
       <div>${vis}</div></div></div>`
   const st = f.rating, tot = st.strong + st.buy + st.hold + st.sell
   const rows = [
-    row(0, fx.target.v, 'target', 'analyst target', `mean of ${f.target.n}`, `${ICON[fx.target.icon]}${fx.target.word}`, sg(fx.dT), usd(f.target.mean),
+    row(0, fx.target.v, 'target', 'analyst target', `avg of ${f.target.n}`, `${ICON[fx.target.icon]}${fx.target.word}`, sg(fx.dT), usd(f.target.mean),
       `<div class="range"><i class="fill" style="left:0;width:100%"></i><i class="tick" style="--x:${x(f.target.mean)}%"></i><i class="mk" style="--x:${x(D.p)}%"></i>
-       <span class="lb top" style="--x:${x(f.target.mean)}%">mean ${usd(f.target.mean)}</span><span class="lb" style="--x:${x(D.p)}%;color:var(--v)">price ${usd(D.p)}</span>
+       <span class="lb top" style="--x:${x(f.target.mean)}%">avg ${usd(f.target.mean)}</span><span class="lb" style="--x:${x(D.p)}%;color:var(--v)">price ${usd(D.p)}</span>
        <span class="lb top l" style="--x:0%">low ${usd(f.target.low)}</span><span class="lb top r" style="--x:100%">high ${usd(f.target.high)}</span></div>`),
-    row(1, fx.rating.v, 'star', 'analyst rating', `${tot} analysts · 1 to 5`, `${ICON[fx.rating.icon]}${st.word}`, st.mean.toFixed(1), 'mean',
+    row(1, fx.rating.v, 'star', 'analyst rating', `${tot} analysts · 1 to 5`, `${ICON[fx.rating.icon]}${st.word}`, st.mean.toFixed(1), 'avg',
       `<div class="stack">${[[st.strong, '--good', 1], [st.buy, '--good', .55], [st.hold, '--ink-500', 1], [st.sell, '--danger', 1]].map(([k, c, o], i) => `<i style="--k:${k};--c:color-mix(in srgb,var(${c}) ${o * 100}%,transparent);--n:${i}"></i>`).join('')}</div>
        <div class="stk"><span><b>${st.strong}</b> strong buy</span><span><b>${st.buy}</b> buy</span><span><b>${st.hold}</b> hold</span><span><b>${st.sell}</b> sell</span></div>`),
     row(2, fx.rev.v, 'rev', 'revenue', `${f.rev.q} · on ${f.rev.qWas}`, `${ICON[fx.rev.icon]}${fx.rev.word}`, sg(f.rev.pct), 'on a year before',
       `<div class="facts"><span class="fact">${f.rev.q} <b>${f.rev.now}</b></span><span class="fact">${f.rev.qWas} <b>${f.rev.was}</b></span></div>`),
-    row(3, 'flat', 'pe', 'p/e', 'price ÷ earnings', 'not in the rule', f.pe.fwd.toFixed(1), 'next 12 months',
+    row(3, 'flat', 'pe', 'p/e', 'price ÷ earnings', 'not in the rule' + info('pe', 'p/e · price ÷ profit',
+      `What a share costs for each $1 of the company's yearly profit. ${f.pe.fwd.toFixed(1)} = $${f.pe.fwd.toFixed(2)} for every $1 of profit in the next 12 months.`,
+      [['broadcom', f.pe.fwd, 'var(--lav-400)'], ['semiconductors avg', SECTOR.pe, 'var(--ink-400)'], ['s&p 500 avg', SECTOR.peAll, 'var(--ink-500)']], 60, (v) => v.toFixed(1),
+      'Chip makers grow fast, so a share costs more for each $1 of profit than at a bank or a utility.'), f.pe.fwd.toFixed(1), 'next 12 months',
       `<div class="facts"><span class="fact">last 12 months <b>${f.pe.ttm.toFixed(1)}</b></span></div>`),
-    row(4, 'flat', 'coin', 'dividend yield', 'a year · on price', 'not in the rule', f.div.yld.toFixed(2) + '%', `${usd(f.div.year)} a share a year`,
+    row(4, 'flat', 'coin', 'dividend yield', 'a year · on price', 'not in the rule' + info('div', 'dividend yield · cash a year',
+      `Cash paid each year for a share, as a part of its price. ${f.div.yld.toFixed(2)}% = $${f.div.yld.toFixed(2)} a year for every $100 of shares.`,
+      [['broadcom', f.div.yld, 'var(--lav-400)'], ['semiconductors avg', SECTOR.div, 'var(--ink-400)'], ['s&p 500 avg', SECTOR.divAll, 'var(--ink-500)']], 2.5, (v) => v.toFixed(2) + '%',
+      'Chip makers keep most of their profit to grow, so they pay less cash than banks or utilities.'), f.div.yld.toFixed(2) + '%', `${usd(f.div.year)} a share a year`,
       `<div class="facts"><span class="fact">ex-dividend <b>${f.div.ex}</b></span></div>`),
   ]
   return `<div class="tabsrc">${ICON.book.replace('class="i"', 'class="i" style="width:12px;height:12px"')}yahoo finance · ${slow ? f.was : f.asOf + ' · ' + f.time}<span class="sp"></span>${slow ? '<span class="upd"><i></i>updating</span>' : '<span>stored · once a day</span>'}</div><div class="sigs">${rows.join('')}</div>`

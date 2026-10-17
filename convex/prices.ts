@@ -7,12 +7,13 @@ import { UNPRICED } from '../src/lib/market'
 
 /* Prices while Finances is open (13 Oct: "when we have finances open =>
    we fetch, and after that every 30 min, but if its not opened we dont
-   care and fetch daily"). The screen asks; a reading younger than half an
-   hour is left alone, so a reload or a second tab does not ask Yahoo
+   care and fetch daily"; every 2 hours since 17 Oct, to keep inside
+   Convex's free reads). The screen asks; a reading younger than that is
+   left alone, so a reload or a second tab does not ask Yahoo
    again. The price is still stored and dated before it is shown — source
    4's rule — and the daily run after New York closes is untouched. */
 
-export const FRESH_FOR = 30 * 60_000
+export const FRESH_FOR = 2 * 3_600_000
 /** Tickers looked at, at most, to tell how old the last reading is. */
 const MAX_TICKERS = 500
 /** How many of the newest scheduled jobs are looked at for a reading

@@ -114,6 +114,28 @@ const noteKind = v.union(
   v.literal('reference'),
 )
 
+export const weekFact = v.object({
+  key: v.string(),
+  tile: v.union(
+    v.literal('finances'),
+    v.literal('projects'),
+    v.literal('body'),
+    v.literal('languages'),
+  ),
+  text: v.string(),
+})
+
+export const weekReadLine = v.object({
+  kind: v.union(
+    v.literal('GOOD'),
+    v.literal('BAD'),
+    v.literal('WATCH'),
+    v.literal('NEXT'),
+  ),
+  text: v.string(),
+  facts: v.array(v.string()),
+})
+
 const reviewPeriod = v.union(
   v.literal('daily'),
   v.literal('weekly'),
@@ -1435,4 +1457,29 @@ export default defineSchema({
     }),
     decision: v.optional(v.string()), // the one sentence "what changes next week"
   }).index('by_owner_period_start', ['ownerId', 'period', 'periodStart']),
+
+  /* The AI read of a week on Review (R7, 15 Oct; spec
+     docs/specs/2026-10-15-review-ai-read.md). One row per week and tone, so
+     reopening the week shows it without paying again; RUN AGAIN replaces
+     it. `facts` are the page's numbers it was given — the lines name them
+     by key, and the app prints them. The verdict is the model's words. */
+  weekReads: defineTable({
+    ownerId: v.string(),
+    week: v.string(), // ISO date of the Monday, as weekKey()
+    grill: v.boolean(),
+    status: v.union(
+      v.literal('reading'),
+      v.literal('done'),
+      v.literal('failed'),
+    ),
+    facts: v.array(weekFact),
+    /** Today's place in the week when it ran (0 Monday), null when over. */
+    day: v.union(v.number(), v.null()),
+    verdict: v.optional(v.string()),
+    lines: v.optional(v.array(weekReadLine)),
+    error: v.optional(v.string()),
+    readAt: v.optional(v.number()),
+    inputTokens: v.optional(v.number()),
+    outputTokens: v.optional(v.number()),
+  }).index('by_owner_week', ['ownerId', 'week', 'grill']),
 })

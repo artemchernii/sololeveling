@@ -92,6 +92,7 @@ export function Tile({
   span,
   extra,
   photo,
+  sweep = false,
   children,
 }: {
   name: string
@@ -103,6 +104,8 @@ export function Tile({
   span: string
   extra?: ReactNode
   photo?: { src: string; className: string; position?: string }
+  /** A light that sweeps across the whole card, head included. */
+  sweep?: boolean
   children: ReactNode
 }) {
   const head = (
@@ -123,6 +126,7 @@ export function Tile({
         aria-hidden
         className="bento-glow pointer-events-none absolute -top-20 -left-12 size-56 rounded-full bg-(--area) blur-3xl"
       />
+      {sweep ? <span aria-hidden className="bento-sweep" /> : null}
       {photo ? (
         <img
           src={photo.src}

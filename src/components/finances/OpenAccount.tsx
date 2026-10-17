@@ -227,6 +227,18 @@ function Ledger({
    never asked (3 Oct: ActivoBank's 27 Sep screenshot already had the
    −€100 its statement books on the 28th; €505.20 pending on 3 Oct). */
 function Said({ check: c }: { check: Check }) {
+  /* Pending alone: a badge and its amount (17 Oct, no sentences). */
+  if (c.bookedLater === null && c.pendingPart !== null)
+    return (
+      <div className="my-2 flex items-center gap-2.5 rounded-[12px] bg-lift/[0.035] px-3 py-2.5 ring-1 ring-lift/10 ring-inset">
+        <span className="font-mono text-[11px] tracking-[0.14em] text-ink-400 uppercase">
+          pending
+        </span>
+        <b className="ml-auto font-mono text-[13px] font-medium whitespace-nowrap text-ink-200">
+          <Veiled>{fmt(c.pendingPart, c.currency, true)}</Veiled>
+        </b>
+      </div>
+    )
   return (
     <div className="my-2 flex items-start gap-2.5 rounded-[12px] bg-lift/[0.035] px-3 py-2.5 text-[12.5px] text-ink-300 ring-1 ring-lift/10 ring-inset">
       <span className="mt-px font-mono text-[11px] text-ink-500">i</span>

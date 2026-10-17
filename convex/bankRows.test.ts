@@ -205,7 +205,7 @@ test('pending money is never a row; it is one once the bank books it', async () 
 test('a balance with pending payments taken off: saved with no question, and again once they are booked', async () => {
   /* His 17 Oct Revolut: three booked, McDonald's and Petiscaria pending,
      the balance with all five off. */
-  const { rows, balance, link, arrive } = await connected()
+  const { me, accountId, rows, balance, link, arrive } = await connected()
   const pending = [
     held('2026-10-12', '8.65', "McDonald's"),
     held('2026-10-12', '6.00', 'Petiscaria Do'),
@@ -214,6 +214,14 @@ test('a balance with pending payments taken off: saved with no question, and aga
   expect(await rows()).toHaveLength(2)
   expect(await balance()).toEqual({ value: 649.98, source: 'sync' })
   expect((await link()).questions).toEqual([])
+  /* The sheet draws no "no row" under it. */
+  const sheet = () => me.query(api.aggregate.accountSheet, { accountId })
+  expect((await sheet())?.checks.filter((c) => c.missing !== 0)).toEqual([])
+
+  /* Still pending an hour on, nothing new booked: the same. */
+  await arrive(649.98, pending, NEXT + 3_600_000)
+  expect((await link()).questions).toEqual([])
+  expect((await sheet())?.checks.filter((c) => c.missing !== 0)).toEqual([])
 
   /* Next day the same two, booked; the balance has not moved. */
   await arrive(
@@ -228,6 +236,7 @@ test('a balance with pending payments taken off: saved with no question, and aga
   expect(await rows()).toHaveLength(4)
   expect(await balance()).toEqual({ value: 649.98, source: 'sync' })
   expect((await link()).questions).toEqual([])
+  expect((await sheet())?.checks.filter((c) => c.missing !== 0)).toEqual([])
 })
 
 test('a first connect takes nothing older than the balance held', async () => {

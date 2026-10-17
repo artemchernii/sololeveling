@@ -2275,10 +2275,14 @@ export const accountSheet = query({
       }
       for (const r of rows) {
         const file = fileOf.get(r._id)
-        /* What the same screen showed as pending: the balance has it off. */
-        const pending = (file?.transactions ?? [])
-          .filter((t) => t.pending && t.currency === currency)
-          .reduce((n, t) => n + Math.round(t.amount * 100), 0)
+        /* What the same screen showed as pending: the balance has it off.
+           A bank's answer with no new rows keeps no file, only the
+           balance's own pending (17 Oct). */
+        const pending =
+          (file?.transactions ?? [])
+            .filter((t) => t.pending && t.currency === currency)
+            .reduce((n, t) => n + Math.round(t.amount * 100), 0) ||
+          Math.round((r.pending ?? 0) * 100)
         read.push({
           at: r.recordedAt,
           value: r.value ?? 0,

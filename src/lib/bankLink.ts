@@ -69,18 +69,36 @@ export function approvalEnds(now: number, bank: Aspsp): number {
    what the bank calls available, then whatever it gave. */
 const ORDER = ['CLBD', 'ITBD', 'XPCD', 'ITAV', 'CLAV']
 
+/* Balances that leave pending money in: the booked rows alone reach them. */
+const BOOKED = ['CLBD', 'ITBD']
+
+function best(balances: ReadonlyArray<BankBalance>, currency: string) {
+  const mine = balances.filter((b) => b.balance_amount.currency === currency)
+  return (
+    ORDER.map((type) => mine.find((b) => b.balance_type === type)).find(
+      (b) => b !== undefined,
+    ) ?? mine.at(0)
+  )
+}
+
+/** Whether the balance picked leaves pending money in (ActivoBank's
+    booked one) rather than taking it off (Revolut's available one). */
+export function balanceIsBooked(
+  balances: ReadonlyArray<BankBalance>,
+  currency: string,
+): boolean {
+  const b = best(balances, currency)
+  return b !== undefined && BOOKED.includes(b.balance_type)
+}
+
 /** One currency's balance out of the several a bank reports, or null. */
 export function pickBalance(
   balances: ReadonlyArray<BankBalance>,
   currency: string,
 ): number | null {
-  const mine = balances.filter((b) => b.balance_amount.currency === currency)
-  const best =
-    ORDER.map((type) => mine.find((b) => b.balance_type === type)).find(
-      (b) => b !== undefined,
-    ) ?? mine.at(0)
-  if (best === undefined) return null
-  const value = Number(best.balance_amount.amount)
+  const picked = best(balances, currency)
+  if (picked === undefined) return null
+  const value = Number(picked.balance_amount.amount)
   return Number.isFinite(value) ? value : null
 }
 

@@ -239,6 +239,7 @@ function real(appId: string, pem: string, redirect: string): BankApi {
             indicator: text(t.credit_debit_indicator) ?? '',
             bookingDate: text(t.booking_date),
             valueDate: text(t.value_date),
+            transactionDate: text(t.transaction_date),
             creditor: named(t.creditor),
             debtor: named(t.debtor),
             remittance: Array.isArray(t.remittance_information)

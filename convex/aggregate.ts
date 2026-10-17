@@ -2184,6 +2184,14 @@ export const accountSheet = query({
           fileId: v.union(v.id('intakes'), v.null()),
           /** The stored reading itself: a typed one is removed by it. */
           id: v.id('stateSnapshots'),
+          /** Rows pending at the bank with it, by name. */
+          pendingRows: v.array(
+            v.object({
+              merchant: v.string(),
+              amount: v.number(),
+              at: v.number(),
+            }),
+          ),
         }),
       ),
       files: v.array(
@@ -2192,6 +2200,10 @@ export const accountSheet = query({
           title: v.string(),
           names: v.array(v.string()),
           images: v.boolean(),
+          /** A connected bank's answer, not a file he dropped. */
+          bank: v.boolean(),
+          /** Rows it showed pending. */
+          pending: v.number(),
           from: v.union(v.number(), v.null()),
           to: v.union(v.number(), v.null()),
           added: v.number(),
@@ -2285,6 +2297,8 @@ export const accountSheet = query({
         images: (i.files ?? []).every((f) =>
           f.contentType.startsWith('image/'),
         ),
+        bank: i.via === 'bank',
+        pending: (i.transactions ?? []).filter((t) => t.pending).length,
         from: times.length ? Math.min(...times) : null,
         to: times.length ? Math.max(...times) : null,
         added: added.get(i._id) ?? 0,
@@ -2347,10 +2361,14 @@ export const accountSheet = query({
       }
       for (const r of rows) {
         const file = fileOf.get(r._id)
-        /* What the same screen showed as pending: the balance has it off. */
-        const pending = (file?.transactions ?? [])
-          .filter((t) => t.pending && t.currency === currency)
-          .reduce((n, t) => n + Math.round(t.amount * 100), 0)
+        /* What the same screen showed as pending: the balance has it off.
+           A bank's answer with no new rows keeps no file, only the
+           balance's own pending (17 Oct). */
+        const pending =
+          (file?.transactions ?? [])
+            .filter((t) => t.pending && t.currency === currency)
+            .reduce((n, t) => n + Math.round(t.amount * 100), 0) ||
+          Math.round((r.pending ?? 0) * 100)
         read.push({
           at: r.recordedAt,
           value: r.value ?? 0,
@@ -2364,6 +2382,15 @@ export const accountSheet = query({
           source: r.source ?? null,
           fileId: file?._id ?? null,
           id: r._id,
+          pendingRows:
+            r.pendingRows ??
+            (file?.transactions ?? [])
+              .filter((t) => t.pending && t.currency === currency)
+              .map((t) => ({
+                merchant: t.merchant,
+                amount: t.amount,
+                at: t.occurredAt,
+              })),
         })
       }
       coverOf.set(currency.toLowerCase(), read)

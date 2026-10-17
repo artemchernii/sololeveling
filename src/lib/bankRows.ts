@@ -4,7 +4,8 @@
    network here. */
 
 export type BankTx = {
-  /** BOOK is booked; anything else is not money that has moved yet. */
+  /** BOOK is booked; PDNG and HOLD are pending: the bank's available
+      balance has them taken off already. Anything else is no money. */
   status: string
   /** Unsigned, as the bank prints it: "25.00". */
   amount: string
@@ -13,6 +14,8 @@ export type BankTx = {
   indicator: string
   bookingDate?: string
   valueDate?: string
+  /** The day the card was used: a pending row often has only this. */
+  transactionDate?: string
   creditor?: string
   debtor?: string
   remittance: Array<string>
@@ -36,11 +39,17 @@ export function dateFrom(heldAt: number): string {
   return new Date(heldAt - DAY).toISOString().slice(0, 10)
 }
 
-/** A booked row, or null: pending money is never a row (it is written
-    once the bank books it), and a row with no day or amount is no row. */
+const PENDING = ['PDNG', 'HOLD']
+
+/** A booked or a pending row, or null. A pending row is never written
+    (it is once the bank books it); it goes to the check, as a file's
+    pending row does, because Revolut's balance has it taken off already
+    (17 Oct: €14.65 of two pending payments drew a question). A row with
+    no day or amount is no row. */
 export function bankRow(t: BankTx, now: number): BankRow | null {
-  if (t.status !== 'BOOK') return null
-  const day = t.bookingDate ?? t.valueDate
+  const pending = PENDING.includes(t.status)
+  if (t.status !== 'BOOK' && !pending) return null
+  const day = t.bookingDate ?? t.valueDate ?? t.transactionDate
   const value = Number(t.amount)
   if (day === undefined || !Number.isFinite(value) || value === 0) return null
   /* A day is noon UTC, as a file's rows are — the same day from Lisbon to
@@ -57,14 +66,15 @@ export function bankRow(t: BankTx, now: number): BankRow | null {
     raw: (words.join(' ') || merchant).slice(0, 200),
     amount: (out ? -1 : 1) * Math.abs(value),
     currency: t.currency,
-    pending: false,
+    pending,
     self: false,
   }
 }
 
 /** The bank's booked rows from the balance held on: a first connect takes
     nothing older (the balance already has it). A row of that balance's own
-    day is kept — the check decides whether the balance had counted it. */
+    day is kept — the check decides whether the balance had counted it.
+    Every pending row is kept, however old: the balance has it off now. */
 export function rowsSince(
   list: ReadonlyArray<BankTx>,
   heldAt: number,
@@ -72,6 +82,6 @@ export function rowsSince(
 ): Array<BankRow> {
   return list
     .flatMap((t) => bankRow(t, now) ?? [])
-    .filter((r) => r.occurredAt > heldAt - 18 * 3_600_000)
+    .filter((r) => r.pending || r.occurredAt > heldAt - 18 * 3_600_000)
     .sort((a, b) => b.occurredAt - a.occurredAt)
 }

@@ -7,6 +7,7 @@ import {
   bankWhen,
   canConnect,
   pickAccounts,
+  balanceIsBooked,
   pickBalance,
 } from './bankLink'
 
@@ -65,6 +66,14 @@ test('the booked balance is the one kept', () => {
   ).toBe(727.49)
   expect(pickBalance([bal('ITAV', '702.49')], 'EUR')).toBe(702.49)
   expect(pickBalance([bal('OTHR', '5.00')], 'EUR')).toBe(5)
+})
+
+test('a booked balance leaves pending money in; an available one takes it off', () => {
+  expect(
+    balanceIsBooked([bal('ITAV', '702.49'), bal('CLBD', '727.49')], 'EUR'),
+  ).toBe(true)
+  expect(balanceIsBooked([bal('ITAV', '1052.10')], 'EUR')).toBe(false)
+  expect(balanceIsBooked([], 'EUR')).toBe(false)
 })
 
 test('no balance in the currency, or not a number, is no reading', () => {

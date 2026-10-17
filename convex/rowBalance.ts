@@ -213,6 +213,9 @@ export async function accountCheck(
   rows: ReadonlyArray<SumRow>,
   skipped: ReadonlyArray<{ key: string; merchant: string; amount: number }>,
   accepted: boolean,
+  /** Money pending with the printed balance, signed, when the list is
+      whole (a bank's answer); null when it may not be (a file). */
+  pendingNowCents: number | null = null,
 ): Promise<typeof sumCheckValue.type | null> {
   const currency = printed?.currency ?? rows.at(0)?.currency
   if (currency === undefined) return null
@@ -236,8 +239,13 @@ export async function accountCheck(
     last.recordedAt,
     at,
   )
+  /* With the whole list, the rows reach the printed balance less what
+     became pending since the held one: what was pending then and is
+     booked now is a row again (17 Oct, Revolut's two card payments). */
+  const pendingMove =
+    pendingNowCents === null ? 0 : pendingNowCents - cents(last.pending ?? 0)
   const sum = checkFrom(
-    last,
+    pendingNowCents === null ? last : { ...last, pending: 0 },
     cents(last.value) + moved.cents,
     rows.flatMap((r, index) =>
       r.currency === currency
@@ -251,7 +259,7 @@ export async function accountCheck(
           ]
         : [],
     ),
-    printed ? cents(printed.value) : null,
+    printed ? cents(printed.value) - pendingMove : null,
   )
   const line = ({ key, merchant, amount }: SumRow) => ({
     key,

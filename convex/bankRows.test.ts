@@ -37,6 +37,16 @@ const out = (day: string, amount: string, words: string, status = 'BOOK') => ({
   remittance: [words],
 })
 
+/* Pending as Revolut sends it: only the day the card was used. */
+const held = (day: string, amount: string, words: string) => ({
+  status: 'PDNG',
+  amount,
+  currency: 'EUR',
+  indicator: 'DBIT',
+  transactionDate: day,
+  remittance: [words],
+})
+
 async function connected() {
   const t = convexTest(schema, modules)
   const me = t.withIdentity({ tokenIdentifier: ME })
@@ -84,8 +94,9 @@ async function connected() {
   /** The bank's answer the next evening, and every step it starts. */
   const arrive = async (
     value: number,
-    list: Array<ReturnType<typeof out>>,
+    list: Array<ReturnType<typeof out> | ReturnType<typeof held>>,
     at = NEXT,
+    booked = false,
   ) => {
     vi.setSystemTime(at)
     await t.mutation(internal.bankRows.arrive, {
@@ -93,7 +104,7 @@ async function connected() {
       accountId,
       dayStart: DAY_START + DAY,
       names: [],
-      readings: [{ currency: 'EUR', value, rows: list }],
+      readings: [{ currency: 'EUR', value, booked, rows: list }],
     })
     await t.finishAllScheduledFunctions(vi.runAllTimers)
   }
@@ -172,12 +183,71 @@ test('a payee filed before under another name: the bank’s row gets its group; 
 })
 
 test('pending money is never a row; it is one once the bank books it', async () => {
+  /* ActivoBank's booked balance: the pending €25 is still in it. */
   const { rows, balance, arrive } = await connected()
-  await arrive(727.49, [out('2026-10-12', '25.00', 'TRF P/ ANDREI', 'PDNG')])
+  await arrive(
+    727.49,
+    [out('2026-10-12', '25.00', 'TRF P/ ANDREI', 'PDNG')],
+    NEXT,
+    true,
+  )
   expect(await rows()).toEqual([])
-  await arrive(702.49, [out('2026-10-12', '25.00', 'TRF P/ ANDREI')])
+  await arrive(
+    702.49,
+    [out('2026-10-12', '25.00', 'TRF P/ ANDREI')],
+    NEXT + 3_600_000,
+    true,
+  )
   expect(await rows()).toHaveLength(1)
   expect(await balance()).toEqual({ value: 702.49, source: 'sync' })
+})
+
+test('a balance with pending payments taken off: saved with no question, and again once they are booked', async () => {
+  /* His 17 Oct Revolut: three booked, McDonald's and Petiscaria pending,
+     the balance with all five off. */
+  const { me, accountId, rows, balance, link, arrive } = await connected()
+  const pending = [
+    held('2026-10-12', '8.65', "McDonald's"),
+    held('2026-10-12', '6.00', 'Petiscaria Do'),
+  ]
+  await arrive(649.98, [...TWO, ...pending])
+  expect(await rows()).toHaveLength(2)
+  expect(await balance()).toEqual({ value: 649.98, source: 'sync' })
+  expect((await link()).questions).toEqual([])
+  /* The sheet draws no "no row" under it. */
+  const sheet = () => me.query(api.aggregate.accountSheet, { accountId })
+  expect((await sheet())?.checks.filter((c) => c.missing !== 0)).toEqual([])
+  /* By name, for the window to list under their day. */
+  const newest = async () =>
+    (await sheet())?.readings.sort((x, y) => y.at - x.at)[0]
+  expect(
+    (await newest())?.pendingRows.map((p) => [p.merchant, p.amount]),
+  ).toEqual([
+    ["McDonald's", -8.65],
+    ['Petiscaria Do', -6],
+  ])
+
+  /* Still pending an hour on, nothing new booked: the same. */
+  await arrive(649.98, pending, NEXT + 3_600_000)
+  expect((await link()).questions).toEqual([])
+  expect((await newest())?.pendingRows).toHaveLength(2)
+  expect((await sheet())?.checks.filter((c) => c.missing !== 0)).toEqual([])
+
+  /* Next day the same two, booked; the balance has not moved. */
+  await arrive(
+    649.98,
+    [
+      ...TWO,
+      out('2026-10-13', '8.65', "McDonald's"),
+      out('2026-10-13', '6.00', 'Petiscaria Do'),
+    ],
+    NEXT + DAY,
+  )
+  expect(await rows()).toHaveLength(4)
+  expect(await balance()).toEqual({ value: 649.98, source: 'sync' })
+  expect((await newest())?.pendingRows).toEqual([])
+  expect((await link()).questions).toEqual([])
+  expect((await sheet())?.checks.filter((c) => c.missing !== 0)).toEqual([])
 })
 
 test('a first connect takes nothing older than the balance held', async () => {

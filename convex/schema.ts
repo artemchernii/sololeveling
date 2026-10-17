@@ -664,6 +664,13 @@ export default defineSchema({
     /* Money the bank showed as pending with this balance (11 Oct), signed:
        the balance has it taken off, and no row of that day itemises it. */
     pending: v.optional(v.number()),
+    /* Those pending rows by name (17 Oct: "why it doesnt say what is
+       pending"), shown under their day until the bank books them. */
+    pendingRows: v.optional(
+      v.array(
+        v.object({ merchant: v.string(), amount: v.number(), at: v.number() }),
+      ),
+    ),
     /* Where a balance came from (27 Sep): the card says "statement read
        today · balance of Aug 31", not "26d". Absent on older rows. */
     source: v.optional(

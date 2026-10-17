@@ -27,7 +27,7 @@ export function TakeBack({
 }: {
   intakeId: Id<'intakes'>
   /** What it is, on its button: "screenshot", "statement". */
-  what: 'screenshot' | 'screenshots' | 'statement'
+  what: 'screenshot' | 'screenshots' | 'statement' | 'sync'
   onTaken: (t: Taken) => void
 }) {
   const p = useQuery(api.undoFile.preview, { intakeId })

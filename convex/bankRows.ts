@@ -1,6 +1,6 @@
 import { ConvexError, v } from 'convex/values'
 
-import { pickBalance } from '../src/lib/bankLink'
+import { balanceIsBooked, pickBalance } from '../src/lib/bankLink'
 import { dateFrom, rowsSince } from '../src/lib/bankRows'
 import { balanceKey, writeBalance } from './accounts'
 import { requireUser } from './auth'
@@ -18,7 +18,8 @@ import type { Id } from './_generated/dataModel'
 
    Rows that reach the bank's balance are saved with no press. Rows that do
    not are held as an update with a question, and nothing of that account
-   is written until he answers. Pending money is never a row. The whole
+   is written until he answers. Pending money is never a row; it goes to
+   the check and is stored with the balance, as a file's is. The whole
    answer or none: `arrive` is one step, and a call that failed never
    reaches it. */
 
@@ -33,6 +34,7 @@ const tx = v.object({
   indicator: v.string(),
   bookingDate: v.optional(v.string()),
   valueDate: v.optional(v.string()),
+  transactionDate: v.optional(v.string()),
   creditor: v.optional(v.string()),
   debtor: v.optional(v.string()),
   remittance: v.array(v.string()),
@@ -144,7 +146,14 @@ export const arrive = internalMutation({
     dayStart: v.number(),
     names: v.array(v.string()),
     readings: v.array(
-      v.object({ currency: v.string(), value: v.number(), rows: v.array(tx) }),
+      v.object({
+        currency: v.string(),
+        value: v.number(),
+        /* The balance leaves pending money in: pending rows are not
+           counted against it. */
+        booked: v.optional(v.boolean()),
+        rows: v.array(tx),
+      }),
     ),
   },
   returns: v.null(),
@@ -182,9 +191,11 @@ export const arrive = internalMutation({
       const rows =
         held?.value === undefined
           ? []
-          : rowsSince(r.rows, held.recordedAt, at).filter(
-              (x) => x.currency === r.currency,
-            )
+          : rowsSince(
+              r.booked ? r.rows.filter((x) => x.status === 'BOOK') : r.rows,
+              held.recordedAt,
+              at,
+            ).filter((x) => x.currency === r.currency)
       if (rows.length > 0) {
         const batchId = await ctx.db.insert('batches', {
           ownerId,
@@ -242,6 +253,16 @@ export const arrive = internalMutation({
           args.dayStart,
           at,
           'sync',
+          'free',
+          rows.filter((x) => x.pending).reduce((t, x) => t + x.amount, 0),
+          undefined,
+          rows
+            .filter((x) => x.pending)
+            .map((x) => ({
+              merchant: x.merchant,
+              amount: x.amount,
+              at: x.occurredAt,
+            })),
         )
     }
     await ctx.db.patch(link._id, {
@@ -273,12 +294,14 @@ export async function pull(
     const api = bankApi()
     const readings = []
     for (const a of start.asks) {
-      const value = pickBalance(await api.balances(a.uid), a.currency)
+      const balances = await api.balances(a.uid)
+      const value = pickBalance(balances, a.currency)
       if (value === null)
         throw new ConvexError('The bank gave no balance. Nothing was saved.')
       readings.push({
         currency: a.currency,
         value,
+        booked: balanceIsBooked(balances, a.currency),
         rows: a.from === null ? [] : await api.transactions(a.uid, a.from),
       })
     }

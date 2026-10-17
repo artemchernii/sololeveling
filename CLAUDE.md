@@ -124,8 +124,24 @@ SIGNALS tab:
   from the signals now and from fundamentals and news as those land.
   Its rule is written out in `src/lib/indicators.ts` and the reasons
   that made it are always shown beside it — never a bare word.
+- **Fundamentals** (16 Oct, "go" on the mockup `fundamentals.html`): an
+  analyst target (mean, low, high, count), an analyst rating (mean and
+  the counts), revenue growth (last quarter on the same quarter a year
+  before), P/E (next and last 12 months) and dividend yield, as external
+  readings on the four conditions: stored in `fundamentals`, one row per
+  reading, never edited; attributed to Yahoo Finance; shown with their
+  day; derived only as the target's distance from the latest stored
+  price (`between()`). Only on one position's verdict and its
+  FUNDAMENTALS tab. They feed `verdict()` by the rows written in
+  `src/lib/indicators.ts`: they can turn an ADD into a HOLD, never make
+  an ADD; older than 7 days they do not feed it. Sector averages for P/E
+  and dividend yield (Damodaran, NYU Stern, yearly) are external
+  readings on the same four conditions, shown only beside the company's
+  own number in its ⓘ card.
+- **News** (13 Oct, "we simply fetch it and show"): headlines with
+  publisher, time and link, fetched on open, never stored, never
+  summarised, not an input to the verdict.
 
-News (fetched on open, never stored) still waits for its own build.
 The fourth was added deliberately, on 2026-09-09, because money cannot be
 tracked without prices that come from outside. That is the bar for adding
 another: a real thing the app must show, and a written set of conditions that

@@ -141,10 +141,10 @@
   .q .qt { font-size: 15px; display:flex; align-items:center; gap: 10px; flex: 1 }
   .q .label { transition: color .35s ease }
   /* the check: ring fills from its centre, then the tick draws itself */
-  .q .tick { position: relative; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--ink-500); flex: none; display:grid; place-items:center;
+  .q .tick { position: relative; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--ink-500); flex: none; display:grid; place-items:center; padding: 0;
     transition: border-color .25s ease, box-shadow .25s ease }
   .q .tick::before { content:''; position:absolute; inset: 2px; border-radius: 50%; background: var(--lav-400); transform: scale(0); transition: transform .28s cubic-bezier(.3,1.4,.5,1) }
-  .q .tick svg { position: relative; width: 12px; height: 12px; color: #12121c; stroke-dasharray: 16; stroke-dashoffset: 16; transition: stroke-dashoffset .26s ease-out .16s }
+  .q .tick svg { position: relative; display:block; width: 12px; height: 12px; color: #12121c; stroke-dasharray: 16; stroke-dashoffset: 16; transition: stroke-dashoffset .26s ease-out .16s }
   .q .tick:hover { border-color: var(--lav-400); box-shadow: 0 0 10px -2px var(--shine) }
   .q.done { border-color: rgba(181,171,252,.32); background: rgba(181,171,252,.05) }
   .q.done .tick { border-color: var(--lav-400); box-shadow: 0 0 14px -3px var(--shine) }
@@ -314,7 +314,7 @@ function renderThree() {
   document.getElementById('threes').innerHTML = [0, 1, 2].map(i => {
     const q = Q[i];
     if (q) return `<div class="q ${q.done ? 'done' : ''} ${i === justAdded ? 'enter' : ''}" id="q${i}"><span class="k">0${i + 1}</span>
-      <span class="qt"><button class="tick" onclick="tickQ(${i})"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.2l2.3 2.3 4.7-4.9"/></svg></button><span class="ic" style="--a:${q.a};width:22px;height:22px">${IC[q.ic]}</span><span class="label">${q.t}</span></span>
+      <span class="qt"><button class="tick" onclick="tickQ(${i})"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.2l2.3 2.3 4.7-4.9"/></svg></button>${q.ic ? `<span class="ic" style="--a:${q.a};width:22px;height:22px">${IC[q.ic]}</span>` : ''}<span class="label">${q.t}</span></span>
       <span class="badge ok" style="color:var(--lav-300)">DONE</span></div>`;
     if (i !== Q.length) return `<div class="q empty"><span class="k">0${i + 1}</span></div>`;
     return `<div class="q empty"><span class="k">0${i + 1}</span><div class="sugg">${left.map(s =>
@@ -325,7 +325,7 @@ function renderThree() {
   document.getElementById('three').textContent = Q.length < 3 ? `${Q.length} OF 3` : `${done} OF 3 DONE`;
 }
 function pickQ(t) { if (Q.length < 3) { Q.push({ ...SUG.find(s => s.t === t) }); justAdded = Q.length - 1 } renderThree(); justAdded = -1 }
-function ownQ(t) { if (Q.length < 3) { Q.push({ t, ic: 'proj', a: 'var(--ink-300)' }); justAdded = Q.length - 1 } renderThree(); justAdded = -1; const f = document.querySelector('.own'); if (f) f.focus() }
+function ownQ(t) { if (Q.length < 3) { Q.push({ t }); justAdded = Q.length - 1 } renderThree(); justAdded = -1; const f = document.querySelector('.own'); if (f) f.focus() }
 function tickQ(i) {
   Q[i].done = !Q[i].done;
   const el = document.getElementById('q' + i);

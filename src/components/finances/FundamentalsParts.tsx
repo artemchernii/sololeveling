@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { WAY_TEXT } from '@/components/finances/ChartLines'
@@ -89,22 +89,45 @@ export function Info({
   source: string
 }) {
   const [open, setOpen] = useState(false)
+  /* Up when there is no room under the ⓘ and more above it (17 Oct:
+     "tooltip should go up if no space down"). The bottom bar of a
+     narrow window covers the last 88px. */
+  const [up, setUp] = useState(false)
+  const box = useRef<HTMLSpanElement>(null)
+  const card = useRef<HTMLSpanElement>(null)
+  const place = () => {
+    const b = box.current?.getBoundingClientRect()
+    const h = (card.current?.offsetHeight ?? 0) + 16
+    if (!b) return
+    const below = window.innerHeight - 88 - b.bottom
+    setUp(below < h && b.top > below)
+  }
   const max = Math.max(...bars.map(([, v]) => v)) * 1.15
   const tone = ['bg-lav-400', 'bg-ink-400', 'bg-ink-500']
   return (
-    <span data-open={open} className="group relative ml-1.5 inline-flex">
+    <span
+      ref={box}
+      data-open={open}
+      data-up={up}
+      onMouseEnter={place}
+      className="group relative ml-1.5 inline-flex"
+    >
       <button
         type="button"
         aria-label={label}
         aria-expanded={open}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          place()
+          setOpen(!open)
+        }}
         className={`grid size-[22px] place-items-center rounded-full font-serif text-[12px] font-semibold italic ring-1 transition-colors ring-inset ${open ? 'bg-lav-400/16 text-lav-300 ring-lav-400/55' : 'text-ink-400 ring-lift/16 hover:text-lav-300'}`}
       >
         i
       </button>
       <span
+        ref={card}
         data-testid="info-card"
-        className={`absolute top-[calc(100%+8px)] right-[-8px] z-20 w-[min(360px,calc(100vw-48px))] rounded-[14px] bg-background p-3.5 text-left text-[13px] leading-normal text-ink-200 shadow-[inset_0_0_0_1px_var(--system-edge),var(--glass-shadow)] transition-[opacity,translate] sm:right-auto sm:left-[-10px] ${open ? 'visible translate-y-0 opacity-100' : 'invisible -translate-y-1 opacity-0 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100'}`}
+        className={`absolute ${up ? 'bottom-[calc(100%+8px)]' : 'top-[calc(100%+8px)]'} right-[-8px] z-20 w-[min(360px,calc(100vw-48px))] rounded-[14px] bg-background p-3.5 text-left text-[13px] leading-normal text-ink-200 shadow-[inset_0_0_0_1px_var(--system-edge),var(--glass-shadow)] transition-[opacity,translate] sm:right-auto sm:left-[-10px] ${open ? 'visible translate-y-0 opacity-100' : `invisible opacity-0 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 ${up ? 'translate-y-1' : '-translate-y-1'}`}`}
       >
         <span className="mb-1.5 block font-mono text-[10px] tracking-[0.16em] text-lav-300 uppercase">
           {cap}

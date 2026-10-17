@@ -11,3 +11,6 @@ dist
 .superpowers
 .convex/
 e2e/.results/
+
+# Saved answers of outside sources, kept as they came (parser tests).
+src/lib/samples/*.html

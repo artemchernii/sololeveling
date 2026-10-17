@@ -1,0 +1,68 @@
+{
+  "news": [
+    {
+      "uuid": "8eec8782-fc59-3b3d-8232-a4f60d061252",
+      "title": "Should You Buy Qualcomm Stock For Its Cash?",
+      "publisher": "Trefis",
+      "link": "https://finance.yahoo.com/markets/stocks/articles/buy-qualcomm-stock-cash-030301978.html",
+      "providerPublishTime": 1792206181,
+      "type": "STORY"
+    },
+    {
+      "uuid": "dd3debac-8512-3dc8-a588-f11e36691c99",
+      "title": "Global hedge funds hammered by AI\u00a0selloff\u00a0this week, Asia managers lead losses",
+      "publisher": "Reuters",
+      "link": "https://finance.yahoo.com/markets/stocks/articles/ai-selloff-hammers-hedge-funds-020957793.html",
+      "providerPublishTime": 1792193913,
+      "type": "STORY"
+    },
+    {
+      "uuid": "03e6d058-6072-3521-9e8a-11caed747d86",
+      "title": "Wall Street tumbles as worries about AI trade and high oil prices weigh",
+      "publisher": "Reuters",
+      "link": "https://finance.yahoo.com/markets/stocks/articles/wall-st-futures-mixed-tech-110701262.html",
+      "providerPublishTime": 1792186632,
+      "type": "STORY"
+    },
+    {
+      "uuid": "131399e8-9e49-3ebf-b865-cd3142b8b08e",
+      "title": "Prediction: $1,000 Invested in Taiwan Semi (TSMC) Today Will Be Worth This Much by 2030.",
+      "publisher": "Motley Fool",
+      "link": "https://finance.yahoo.com/markets/stocks/articles/prediction-1-000-invested-taiwan-212500814.html",
+      "providerPublishTime": 1792185900,
+      "type": "STORY"
+    },
+    {
+      "uuid": "54409952-6f98-346f-9393-44ac2492729f",
+      "title": "AI Chip Stocks Flash Signal Not Seen Since 2015",
+      "publisher": "GuruFocus.com",
+      "link": "https://finance.yahoo.com/technology/ai/articles/ai-chip-stocks-flash-signal-205918143.html",
+      "providerPublishTime": 1792184358,
+      "type": "STORY"
+    },
+    {
+      "uuid": "4c74b236-b826-379c-af28-7bc1723efabe",
+      "title": "Broadcom Inc. (AVGO) Falls More Steeply Than Broader Market: What Investors Need to Know",
+      "publisher": "Zacks",
+      "link": "https://finance.yahoo.com/markets/stocks/articles/broadcom-inc-avgo-falls-more-204505934.html",
+      "providerPublishTime": 1792183505,
+      "type": "STORY"
+    },
+    {
+      "uuid": "a608b2d1-9a87-3a90-9212-7f067e28ed57",
+      "title": "Not Nvidia. Not TSMC. This Equipment Maker Is the Real Bottleneck in AI Chip Production.",
+      "publisher": "Motley Fool",
+      "link": "https://finance.yahoo.com/technology/ai/articles/not-nvidia-not-tsmc-equipment-191500119.html",
+      "providerPublishTime": 1792178100,
+      "type": "STORY"
+    },
+    {
+      "uuid": "0fb9e7ee-13a3-3847-8676-7ae9e8dcec71",
+      "title": "Companies Are Saying No to Tokenized Stocks\u2014and Testing Wall Street\u2019s Crypto Push",
+      "publisher": "Barrons.com",
+      "link": "https://finance.yahoo.com/m/0fb9e7ee-13a3-3847-8676-7ae9e8dcec71/companies-are-saying-no-to.html",
+      "providerPublishTime": 1792175700,
+      "type": "STORY"
+    }
+  ]
+}

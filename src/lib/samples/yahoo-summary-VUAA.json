@@ -1,0 +1,14 @@
+{
+  "quoteSummary": {
+    "result": [
+      {
+        "summaryDetail": {
+          "currency": "USD",
+          "trailingPE": { "raw": 27.1, "fmt": "27.10" }
+        },
+        "financialData": { "recommendationKey": "none" }
+      }
+    ],
+    "error": null
+  }
+}

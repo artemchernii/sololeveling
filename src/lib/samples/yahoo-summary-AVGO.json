@@ -1,0 +1,52 @@
+{
+  "quoteSummary": {
+    "result": [
+      {
+        "assetProfile": {
+          "industry": "Semiconductors",
+          "sector": "Technology"
+        },
+        "recommendationTrend": {
+          "trend": [
+            {
+              "period": "0m",
+              "strongBuy": 14,
+              "buy": 22,
+              "hold": 5,
+              "sell": 0,
+              "strongSell": 0
+            },
+            {
+              "period": "-1m",
+              "strongBuy": 13,
+              "buy": 22,
+              "hold": 6,
+              "sell": 0,
+              "strongSell": 0
+            }
+          ]
+        },
+        "summaryDetail": {
+          "currency": "USD",
+          "forwardPE": { "raw": 33.8, "fmt": "33.80" },
+          "trailingPE": { "raw": 88.4, "fmt": "88.40" },
+          "dividendYield": { "raw": 0.0069, "fmt": "0.69%" },
+          "dividendRate": { "raw": 2.36, "fmt": "2.36" },
+          "exDividendDate": { "raw": 1789948800, "fmt": "2026-09-22" }
+        },
+        "financialData": {
+          "currentPrice": { "raw": 343.86, "fmt": "343.86" },
+          "targetHighPrice": { "raw": 500, "fmt": "500.00" },
+          "targetLowPrice": { "raw": 310, "fmt": "310.00" },
+          "targetMeanPrice": { "raw": 412.5, "fmt": "412.50" },
+          "recommendationMean": { "raw": 1.6, "fmt": "1.60" },
+          "recommendationKey": "buy",
+          "numberOfAnalystOpinions": { "raw": 41, "fmt": "41" },
+          "revenueGrowth": { "raw": 0.22, "fmt": "22.00%" },
+          "financialCurrency": "USD"
+        }
+      }
+    ],
+    "error": null
+  }
+}

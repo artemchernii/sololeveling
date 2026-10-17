@@ -60,6 +60,8 @@
   .src .pdf { width: 32px; height: 36px; border-radius: 6px; background: rgba(var(--lift),.07); font-family: var(--mono); font-size: 9.5px; color: var(--ink-400); display: grid; place-items: center; flex: none }
   .src .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px }
   .src .what b { font-weight: 400; font-size: 14px; white-space: nowrap }
+  .src .what b.sync { display: inline-flex; align-items: center; gap: 7px }
+  .src .what b.sync svg { width: 15px; height: 15px; color: var(--good) }
   .src .what small { font-family: var(--mono); font-size: 11px; color: var(--ink-400) }
   .src .badges { display: flex; gap: 6px; flex-wrap: wrap }
   .b { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; color: var(--ink-400); background: rgba(var(--lift),.05); white-space: nowrap; display: inline-flex; align-items: center; gap: 5px }
@@ -108,6 +110,7 @@
   const ICON = {
     fork: '<svg class="i" viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>',
     up: '<svg class="i" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>',
+    sync: '<svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>',
     check: '<svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
   }
   const logo = (d) => `<img src="https://www.google.com/s2/favicons?domain=${d}&sz=128" alt="">`
@@ -142,7 +145,7 @@
     <div class="bal">
       <div class="h"><span>BALANCE · ${when}</span><b>€1,052.10</b></div>
       <div class="src"><span class="slogo">R</span>
-        <div class="what"><b>synced</b><div class="badges">${badges}</div></div>
+        <div class="what"><b class="sync">${ICON.sync}Synced with bank</b><div class="badges">${badges}</div></div>
         <span class="open">OPEN ›</span></div>
     </div>`
   const OK = `<span class="ok">${ICON.check}rows match</span>`

@@ -37,11 +37,15 @@ const TABLES: Array<TableNames> = [
   'removedTrades',
   'payees',
   'bankLinks',
+  'notifications',
+  'pushSubscriptions',
   'reviews',
   'weekReads',
   'projects',
   'commits',
   'tasks',
+  'fundamentals',
+  'sectorAverages',
 ]
 
 async function wipe(ctx: MutationCtx) {

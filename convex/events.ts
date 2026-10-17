@@ -4,10 +4,13 @@ import { requireUser } from './auth'
 import { requireLiveArea } from './areas'
 import { ownedGoal } from './goals'
 import { ownedProject } from './projects'
-import { mutation, query } from './_generated/server'
+import { notifyOwner } from './push'
+import { internal } from './_generated/api'
+import { internalMutation, mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import schema, { areaSlug } from './schema'
+import { nextReminder, reminderBody, reminderTitle } from '../src/lib/remindAt'
 
 /* PLAN.md §2 and §3b.3. An event is something that occupies time whether or not
    you do anything about it; a task is something you intend to do. They are two
@@ -62,6 +65,36 @@ async function assertOwnBindings(
   if (bindings.goalId) await ownedGoal(ctx, ownerId, bindings.goalId)
 }
 
+/* N1b (17 Oct). One scheduled job per event: the next reminder it owes.
+   Every write to the event cancels the old job and schedules the new one,
+   so a moved event never rings at its old time. */
+async function cancelReminder(ctx: MutationCtx, event: Doc<'events'>) {
+  if (event.remindJob === undefined) return
+  const job = await ctx.db.system.get(event.remindJob)
+  if (job !== null && job.state.kind === 'pending') {
+    await ctx.scheduler.cancel(event.remindJob)
+  }
+}
+
+async function scheduleReminder(
+  ctx: MutationCtx,
+  eventId: Id<'events'>,
+  after: number,
+) {
+  const event = await ctx.db.get(eventId)
+  if (event === null) return
+  await cancelReminder(ctx, event)
+  const next = nextReminder(event, after)
+  const remindJob =
+    next === null
+      ? undefined
+      : await ctx.scheduler.runAt(next.fireAt, internal.events.remind, {
+          eventId,
+          startsAt: next.startsAt,
+        })
+  await ctx.db.patch(eventId, { remindJob })
+}
+
 export const create = mutation({
   args: {
     title: v.string(),
@@ -90,7 +123,7 @@ export const create = mutation({
     assertSaneTimes(args.startsAt, args.endsAt)
     assertSaneReminder(args.remindMin)
 
-    return await ctx.db.insert('events', {
+    const eventId = await ctx.db.insert('events', {
       ownerId,
       title,
       startsAt: args.startsAt,
@@ -102,6 +135,8 @@ export const create = mutation({
       notes: args.notes,
       remindMin: args.remindMin,
     })
+    await scheduleReminder(ctx, eventId, Date.now())
+    return eventId
   },
 })
 
@@ -163,6 +198,7 @@ export const update = mutation({
       notes: args.notes ?? existing.notes,
       remindMin: pick(args.remindMin, existing.remindMin),
     })
+    await scheduleReminder(ctx, args.eventId, Date.now())
     return null
   },
 })
@@ -173,8 +209,38 @@ export const remove = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    await ownedEvent(ctx, ownerId, args.eventId)
+    const event = await ownedEvent(ctx, ownerId, args.eventId)
+    await cancelReminder(ctx, event)
     await ctx.db.delete(args.eventId)
+    return null
+  },
+})
+
+/**
+ * The reminder's job, fired at its moment: one push for this occurrence,
+ * then a series schedules its next one. Keyed by the occurrence, so the
+ * open tab's own reminder (ReminderWatcher) and this push show once.
+ */
+export const remind = internalMutation({
+  args: { eventId: v.id('events'), startsAt: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId)
+    if (event === null || event.remindMin === undefined) return null
+    await notifyOwner(ctx, {
+      ownerId: event.ownerId,
+      kind: 'reminder',
+      title: reminderTitle(event.title, args.startsAt),
+      body: reminderBody(event.remindMin),
+      url: '/calendar',
+      tag: `${event._id}:${args.startsAt}`,
+    })
+    /* After this occurrence's moment, so the same one is never sent twice. */
+    await scheduleReminder(
+      ctx,
+      event._id,
+      args.startsAt - event.remindMin * 60_000,
+    )
     return null
   },
 })

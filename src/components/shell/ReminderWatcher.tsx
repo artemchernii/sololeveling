@@ -5,13 +5,12 @@ import { Bell, X } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import { reminderText, remindersToFire } from '@/lib/reminders'
 
-/* R5. Reminders, delivered by whichever tab of the app is open: a system
-   notification when the browser allows one, and always a line inside the app
-   — because a notification can be blocked, and the app is where you are.
+/* R5. Reminders, as a line inside whichever tab of the app is open. The
+   system notification is the server's push since N1b (events.remind) —
+   a tab that posted its own as well made two on the iPhone (17 Oct).
 
-   Every tab runs this. A reminder fires once per occurrence across all of
-   them: the key goes into localStorage before anything is shown, and the
-   system notification carries it as its tag, which a browser shows once. */
+   Every tab runs this. A reminder shows once per occurrence across all of
+   them: the key goes into localStorage before anything is shown. */
 
 const TICK_MS = 20_000
 const STORE = 'sl:reminded'
@@ -69,19 +68,6 @@ export function ReminderWatcher() {
 
     const lines = fresh.map((r) => ({ key: r.key, text: reminderText(r, now) }))
     setShown((prev) => [...prev, ...lines])
-    if (
-      typeof Notification !== 'undefined' &&
-      Notification.permission === 'granted'
-    ) {
-      for (const line of lines) {
-        try {
-          new Notification(line.text, { tag: line.key, silent: false })
-        } catch {
-          /* Some mobile browsers only notify from a service worker. The
-             in-app line is still there. */
-        }
-      }
-    }
   }, [events, now])
 
   if (shown.length === 0) return null

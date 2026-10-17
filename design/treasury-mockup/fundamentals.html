@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · fundamentals and news</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lightweight-charts@5.2.1/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  /* The portfolio helper, the verdict (15 Oct). His words on the built
+     SIGNALS tab: "suggestion based on current situation lets say 50 avg
+     Bearish -6% and its good or bad time to add more shares … And kinda
+     more animation", then "go verdict … technical + fundamentals + news
+     … tell me overall idea what is the best to do". And on the tiles:
+     "Worth now is a bit bland and empty, add $ there", "Down since JUN
+     22 … rename it", "add maybe -% base on account like Revolut -5%
+     (-40$)". Built from indicators.html (approved, built in #222).
+     Sample Broadcom closes; tiles from his AVGO screenshot.
+     16 Oct, built from verdict.html (approved, built in #224): the two
+     NEXT feeds filled. FUNDAMENTALS — Yahoo readings, stored, each with
+     its day — feed the rule (they can hold back an ADD, never make one).
+     NEWS — headlines fetched on open, never stored — sit beside the
+     verdict, not in the rule. The verdict moves above the tabs so it
+     stays in view on every tab. */
+  :root {
+    --bg: #161826; --panel: rgba(255,255,255,.035);
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --ind-50: oklch(0.8 0.11 225); --ind-200: oklch(0.8 0.11 335); --ind-rsi: oklch(0.82 0.09 195);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --ease: cubic-bezier(.2,.8,.2,1);
+    --lift: 255,255,255;
+    --glow: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%);
+  }
+  :root[data-theme="light"] {
+    --bg: #f3f0ea; --panel: rgba(255,255,255,.72);
+    --ink-100: #1c1b27; --ink-200: #2e2d3c; --ink-300: #4a4958; --ink-400: #666577; --ink-500: #7d7c8c; --ink-600: #a6a5b2;
+    --lav-300: oklch(0.42 0.11 285); --lav-400: oklch(0.5 0.13 285);
+    --good: oklch(0.5 0.14 155); --danger: oklch(0.52 0.19 25); --warn: oklch(0.58 0.15 70);
+    --ind-50: oklch(0.55 0.12 225); --ind-200: oklch(0.55 0.13 335); --ind-rsi: oklch(0.55 0.1 195);
+    --sys-edge: color-mix(in oklch, oklch(0.5 0.13 285) 40%, transparent);
+    --lift: 30,28,45;
+    --glow: radial-gradient(1200px 600px at 10% -10%, #e6e0f5 0%, transparent 60%);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: var(--glow), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh; padding: 20px 16px 60px; transition: background .3s }
+  button { font: inherit; color: inherit; cursor: pointer; background: none; border: none }
+  .wrap { max-width: 940px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+  .sys { position: relative; border-radius: 22px; padding: 20px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--sys-edge), 0 0 34px -18px var(--lav-400) }
+  .num { font-variant-numeric: tabular-nums }
+  @keyframes arrive { from { opacity: 0; translate: 0 4px } }
+  @keyframes rise { from { opacity: 0; translate: 0 8px } }
+
+  /* Head, as built (PositionHead + the price block). */
+  .head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
+  .logo { width: 52px; height: 52px; border-radius: 14px; background: #cc092f; display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(var(--lift),.1) }
+  .logo svg { width: 30px; height: 30px; fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round }
+  .head h1 { font-size: 22px; font-weight: 400 } .meta { font-family: var(--mono); font-size: 11px; color: var(--ink-500); margin-top: 5px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap }
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 9px; border-radius: 999px; background: rgba(var(--lift),.07); color: var(--ink-300) }
+  .badge.lav { background: color-mix(in oklch, var(--lav-400) 18%, transparent); color: var(--lav-300) }
+  .badge.ring { background: none; color: var(--ink-100); box-shadow: inset 0 0 0 1px rgba(var(--lift),.22) } .badge.ring b { color: var(--lav-300); font-weight: 500 }
+  .px { margin-left: auto; text-align: right; display: flex; flex-direction: column; gap: 3px }
+  .px .p1 { display: flex; align-items: baseline; gap: 8px; justify-content: flex-end }
+  .px .p1 b { font-size: 36px; line-height: 1; font-weight: 500; letter-spacing: -.02em } .px .p1 span { font-size: 18px; color: var(--ink-300) }
+  .px .chg { display: flex; flex-wrap: wrap; gap: 0 8px; align-items: baseline; justify-content: flex-end }
+  .px .chg b { font-size: 15px; font-weight: 500; color: var(--good) } .px small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-400) }
+
+  /* Tiles, as built (PositionTiles), with WORTH NOW in both currencies
+     and P&L for UP/DOWN SINCE <day>. */
+  .tiles { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) minmax(0,1.3fr); gap: 10px; margin-top: 18px }
+  .tile { display: flex; flex-direction: column; gap: 4px; border-radius: 14px; padding: 12px; background: rgba(var(--lift),.035); box-shadow: inset 0 0 0 1px rgba(var(--lift),.07); animation: arrive .35s var(--ease) both; animation-delay: calc(var(--n) * 40ms) }
+  .tile.good { background: color-mix(in srgb, var(--good) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--good) 30%, transparent) }
+  .tile.danger { background: color-mix(in srgb, var(--danger) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 30%, transparent) }
+  .lbl { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-300); min-height: 19px }
+  .big { font-size: 27px; line-height: 1.15; font-variant-numeric: tabular-nums }
+  .mid2 { font-size: 16px; color: var(--ink-300); font-variant-numeric: tabular-nums }
+  .small { font-family: var(--mono); font-size: 11px; color: var(--ink-300) }
+  .chip { align-self: flex-start; border-radius: 999px; background: rgba(var(--lift),.06); padding: 2px 8px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-300) }
+  .ok { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--good) } .ok svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2.4 }
+  .tone-good { color: var(--good) } .tone-danger { color: var(--danger) }
+  .ud { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; font-size: 10px; font-weight: 500; letter-spacing: .12em; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 40%, transparent) }
+  .pl { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap } .pl .pp { font-size: 16px; font-variant-numeric: tabular-nums }
+  /* An account's P&L sits under its worth, in its colour. */
+  .accpl { display: flex; justify-content: flex-end; margin: -2px 0 4px; font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums }
+  .acc { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; font-family: var(--mono); font-size: 12px }
+  .acc > span:first-child { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ink-300) } .acc .nm2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .acc > span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums }
+  .al { width: 15px; height: 15px; border-radius: 5px; display: grid; place-items: center; font-size: 8px; font-weight: 500; flex: none }
+  .al.rv { background: #0a0a0a; color: #fff } .al.tr { background: #fff; color: #000; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15) }
+  .sep { height: 1px; background: rgba(var(--lift),.07); margin: 4px 0 2px }
+
+  /* Chart, as built. */
+  .bar2 { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; margin: 18px 0 10px }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap }
+  .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 99px; padding: 6px 11px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-400); box-shadow: inset 0 0 0 1px rgba(var(--lift),.12); transition: background .2s, color .2s, box-shadow .2s, transform .12s var(--ease) }
+  .pill:hover { color: var(--ink-100); background: rgba(var(--lift),.06) } .pill:active { transform: scale(.96) }
+  .pill.on { color: var(--ink-100); background: color-mix(in srgb, var(--lav-400) 22%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lav-400) 60%, transparent) }
+  .pill .sw { width: 12px; height: 0; border-top: 2px solid var(--c); opacity: .45; transition: opacity .2s } .pill .sw.dash { border-top-style: dashed } .pill .sw.dot2 { border-top-style: dotted }
+  .pill.on .sw { opacity: 1 }
+  .pill.ind.on { background: color-mix(in srgb, var(--c) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent) }
+  .pill .va { font-size: 10px; letter-spacing: 0; animation: arrive .3s var(--ease) }
+  .plot { position: relative; height: 340px; border-radius: 14px; overflow: hidden; transition: height .35s var(--ease) }
+  .plot.rsi { height: 440px }
+  #chart { position: absolute; inset: 0 }
+  .keys { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); align-items: center }
+  .keys > span { display: inline-flex; align-items: center; gap: 6px; animation: arrive .25s var(--ease) }
+  .keys b { font-weight: 400; color: var(--ink-200); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap }
+  .dot { width: 9px; height: 9px; border-radius: 99px; border: 2px solid } .ln { width: 14px; border-top: 2px solid var(--c) } .ln.dash { border-top-style: dashed }
+  .keys .tv { margin-left: auto }
+
+  /* Tabs and signal rows, as built (PositionSignals). */
+  .tabs { display: flex; gap: 4px; margin-top: 22px; border-bottom: 1px solid rgba(var(--lift),.08) }
+  .tab { position: relative; white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px 11px; font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500); transition: color .2s }
+  .tab:hover { color: var(--ink-200) } .tab.on { color: var(--ink-100) }
+  .tab.on::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--lav-400); box-shadow: 0 0 10px var(--lav-400); animation: grow .3s var(--ease) }
+  @keyframes grow { from { scale: 0 1 } }
+  .tab .ct { display: inline-flex; gap: 6px; letter-spacing: .06em }
+  .up-t { color: var(--good) } .dn-t { color: var(--danger) } .fl-t { color: var(--ink-400) }
+  .sigs { display: flex; flex-direction: column; margin-top: 6px }
+  .sig { --v: var(--ink-400); border-radius: 12px; animation: rise .35s var(--ease) both; animation-delay: calc(var(--n) * 50ms + 250ms) }
+  .sig + .sig { border-top: 1px solid rgba(var(--lift),.06) }
+  .sig.bull { --v: var(--good) } .sig.bear { --v: var(--danger) }
+  .sh { display: grid; grid-template-columns: 30px 150px 132px 72px minmax(80px, 1fr); gap: 12px; align-items: center; width: 100%; padding: 11px 8px; text-align: left }
+  .eye { width: 28px; height: 22px; border-radius: 7px; display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(var(--lift),.12); transition: background .2s, box-shadow .2s }
+  .eye i { width: 14px; border-top: 2px solid var(--c); opacity: .5 } .eye i.dash { border-top-style: dashed } .eye i.dot2 { border-top-style: dotted }
+  .eye.on { background: color-mix(in srgb, var(--c) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 60%, transparent) } .eye.on i { opacity: 1 }
+  .nm { font-family: var(--mono); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-100); white-space: nowrap }
+  .nm small { display: block; margin-top: 2px; font-size: 10px; letter-spacing: .08em; color: var(--ink-500) }
+  .verdict { justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 8px; border-radius: 99px; font-family: var(--mono); font-size: 10.5px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; color: var(--v); background: color-mix(in srgb, var(--v) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--v) 45%, transparent) }
+  svg.i { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .pc { font-size: 19px; color: var(--v); font-variant-numeric: tabular-nums; white-space: nowrap }
+  .gauge { position: relative; height: 7px; border-radius: 99px; background: rgba(var(--lift),.08) }
+  .gauge .z { position: absolute; top: 0; bottom: 0; border-radius: 99px }
+  .gauge .mid { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 1.5px; background: var(--ink-500) }
+  /* The dot slides from the gauge's middle to today's place. */
+  .gauge .mk { position: absolute; top: 50%; left: var(--x); width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; border-radius: 99px; background: var(--v); box-shadow: 0 0 0 3px color-mix(in srgb, var(--v) 25%, transparent), 0 0 12px var(--v); animation: slide .9s var(--ease) both; animation-delay: calc(var(--n) * 50ms + 450ms) }
+  @keyframes slide { from { left: var(--x0, 50%); opacity: 0 } }
+
+  /* THE VERDICT: one panel at the top of SIGNALS. Its colour is its
+     word: ADD good, HOLD lavender, WAIT warn. The badge glows once when
+     it arrives; the reasons arrive after it, one by one. */
+  .vd { --c: var(--lav-400); position: relative; margin-top: 14px; border-radius: 16px; padding: 16px; background: color-mix(in srgb, var(--c) 7%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent); animation: rise .4s var(--ease) both; overflow: hidden }
+  .vd.add { --c: var(--good) } .vd.wait { --c: var(--warn) }
+  .vd::before { content: ''; position: absolute; inset: 0; background: radial-gradient(420px 160px at 0% 0%, color-mix(in srgb, var(--c) 18%, transparent), transparent 70%); pointer-events: none; animation: wash 1.6s ease-out both }
+  @keyframes wash { 0% { opacity: 0 } 35% { opacity: 1 } 100% { opacity: .55 } }
+  .vtop { position: relative; display: grid; grid-template-columns: auto minmax(0,1fr); gap: 16px; align-items: center }
+  .vcap { position: relative; display: flex; align-items: center; gap: 8px; margin-bottom: 12px }
+  .vcap .sp { flex: 1 }
+  .vb { display: inline-flex; align-items: center; gap: 9px; padding: 10px 18px 10px 14px; border-radius: 14px; font-family: var(--mono); font-size: 22px; font-weight: 500; letter-spacing: .14em; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 60%, transparent); animation: pop .5s var(--ease) both .1s, glow 1.8s ease-out both .25s }
+  .vb svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round }
+  @keyframes pop { from { scale: .7; opacity: 0 } 60% { scale: 1.06 } }
+  @keyframes glow { 0% { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 60%, transparent), 0 0 0 0 color-mix(in srgb, var(--c) 60%, transparent) } 40% { box-shadow: inset 0 0 0 1.5px var(--c), 0 0 28px 6px color-mix(in srgb, var(--c) 45%, transparent) } 100% { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 60%, transparent), 0 0 0 0 transparent } }
+  .vl { font-size: 15px; line-height: 1.5; color: var(--ink-100); animation: arrive .4s var(--ease) both .3s }
+  .vl small { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-300); line-height: 1.4 }
+  .why { position: relative; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px }
+  .rc { --v: var(--ink-300); display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 99px; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-200); background: rgba(var(--lift),.05); box-shadow: inset 0 0 0 1px rgba(var(--lift),.1); animation: arrive .35s var(--ease) both; animation-delay: calc(var(--n) * 90ms + 450ms) }
+  .rc b { font-weight: 500; color: var(--v); font-variant-numeric: tabular-nums; letter-spacing: .02em }
+  .rc.bull { --v: var(--good) } .rc.bear { --v: var(--danger) }
+  /* A reason that made the call wears the verdict's ring. */
+  .rc.key { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 70%, transparent); background: color-mix(in srgb, var(--c) 10%, transparent) }
+  .feeds { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(var(--lift),.1) }
+  .fd { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase }
+  .fd.live { color: var(--ink-100); background: rgba(var(--lift),.07) }
+  .fd.next { color: var(--ink-500); box-shadow: inset 0 0 0 1px rgba(var(--lift),.14); border: 0; background-image: repeating-linear-gradient(135deg, rgba(var(--lift),.04) 0 6px, transparent 6px 12px) }
+  .fd.next i { font-style: normal; padding: 0 6px; border-radius: 99px; background: color-mix(in srgb, var(--lav-400) 18%, transparent); color: var(--lav-300); letter-spacing: .1em }
+  .rulebtn { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-400); padding: 4px 6px }
+  .rulebtn:hover { color: var(--ink-100) } .rulebtn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; transition: rotate .25s var(--ease) } .rulebtn.on svg { rotate: 180deg }
+  .rule { position: relative; display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s var(--ease) } .rule.on { grid-template-rows: 1fr }
+  .rule > div { overflow: hidden }
+  .rule table { width: 100%; margin-top: 10px; border-collapse: collapse; font-family: var(--mono); font-size: 11px; color: var(--ink-300) }
+  .rule td { padding: 7px 8px; border-top: 1px solid rgba(var(--lift),.07); vertical-align: top } .rule td:first-child { width: 80px }
+  .rule tr.me td { color: var(--ink-100); background: color-mix(in srgb, var(--c) 9%, transparent) }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 10px; font-weight: 500; letter-spacing: .12em; color: var(--t); background: color-mix(in srgb, var(--t) 16%, transparent) }
+
+  /* Feeds: an input that is live is filled; news is outlined — shown,
+     not in the rule. A fund has no fundamentals: dashed, struck grey. */
+  .fd.live b { font-weight: 400; color: var(--ink-400); letter-spacing: .08em }
+  .fd.beside { color: var(--ink-300); box-shadow: inset 0 0 0 1px rgba(var(--lift),.18) }
+  .fd.beside b { font-weight: 400; color: var(--ink-500); letter-spacing: .08em }
+  .fd.none { color: var(--ink-500); box-shadow: inset 0 0 0 1px rgba(var(--lift),.12); background-image: repeating-linear-gradient(135deg, rgba(var(--lift),.04) 0 6px, transparent 6px 12px) }
+  .fd.fresh { animation: arrive .35s var(--ease) both; animation-delay: calc(var(--n) * 90ms + 700ms) }
+  .rc.flat { --v: var(--ink-300) }
+  /* A feed's colour is its rows' count: more ▲ green, more ▼ red, even
+     amber. The counts always sit inside it. */
+  .fd.tone { color: var(--ink-100); background: color-mix(in srgb, var(--t) 13%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--t) 50%, transparent) }
+  .fd.tone svg { color: var(--t) }
+  .fd { white-space: nowrap }
+  .fd .cn { display: inline-flex; gap: 6px; letter-spacing: .04em; font-weight: 500 }
+  .fd .cn .z0 { opacity: .45 }
+  .fd .dim { font-weight: 400; color: var(--ink-500); letter-spacing: .08em }
+
+  /* ⓘ beside a reading the rule does not read: what it is, and this
+     company's number beside its sector's average, with their source. */
+  /* A row with its card open sits above the rows under it. */
+  .sig:has(.info.on), .sig:has(.info:hover) { position: relative; z-index: 6 }
+  .vc { display: flex; align-items: center; justify-self: start }
+  .info { position: relative; display: inline-flex; margin-left: 6px; vertical-align: middle }
+  .ib { width: 22px; height: 22px; border-radius: 99px; display: grid; place-items: center; color: var(--ink-400); box-shadow: inset 0 0 0 1px rgba(var(--lift),.16); font-family: Georgia, serif; font-style: italic; font-size: 12px; font-weight: 600; transition: color .2s, background .2s, box-shadow .2s }
+  .ib:hover, .info.on .ib { color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--lav-400) 55%, transparent) }
+  .tip { position: absolute; z-index: 5; top: calc(100% + 8px); left: -10px; width: 360px; padding: 14px; border-radius: 14px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--sys-edge), 0 18px 40px -12px rgba(0,0,0,.6); text-align: left; font-family: Inter, system-ui, sans-serif; font-size: 13px; line-height: 1.5; color: var(--ink-200); letter-spacing: 0; text-transform: none; white-space: normal; opacity: 0; translate: 0 -4px; pointer-events: none; transition: opacity .2s, translate .2s var(--ease) }
+  :root[data-theme="light"] .tip { background: #fffdf8 }
+  .info:hover .tip, .info.on .tip { opacity: 1; translate: 0 0; pointer-events: auto }
+  .tip .tc { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--lav-300); margin-bottom: 6px }
+  .cmp { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 10px }
+  .cmp > span { display: grid; grid-template-columns: 150px minmax(0,1fr) 46px; gap: 8px; align-items: center; font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-400) }
+  .cmp i { height: 6px; border-radius: 99px; background: rgba(var(--lift),.07); position: relative; overflow: hidden }
+  .cmp i::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--w); border-radius: 99px; background: var(--c); animation: grow .6s var(--ease) both }
+  .cmp b { font-weight: 500; color: var(--ink-100); text-align: right; font-variant-numeric: tabular-nums }
+  .tip .ts { display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-500) }
+  .rc .src { font-weight: 400; color: var(--ink-500); letter-spacing: .06em }
+  .rule tr.fx td:last-child::after { content: 'fundamentals'; margin-left: 8px; padding: 0 6px; border-radius: 99px; font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 16%, transparent) }
+
+  /* FUNDAMENTALS tab: rows in the SIGNALS anatomy; each says its source
+     and day. A reading the rule does not read wears an ink badge. */
+  .tabsrc { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 8px 4px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-500) }
+  .tabsrc .sp { flex: 1 }
+  .upd { display: inline-flex; align-items: center; gap: 6px; color: var(--lav-300) }
+  .upd i { width: 7px; height: 7px; border-radius: 99px; background: var(--lav-400); animation: breathe 1.2s ease-in-out infinite }
+  @keyframes breathe { 50% { opacity: .3; scale: .7 } }
+  .fu { display: grid; grid-template-columns: 30px 150px 170px 104px minmax(80px, 1fr); gap: 12px; align-items: center; padding: 11px 8px }
+  .ficon { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--v); background: color-mix(in srgb, var(--v) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--v) 30%, transparent) }
+  .ficon svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+  .sig.flat .verdict { --v: var(--ink-400); background: rgba(var(--lift),.05); box-shadow: inset 0 0 0 1px rgba(var(--lift),.12); color: var(--ink-300) }
+  .pc small { display: block; font-family: var(--mono); font-size: 10px; color: var(--ink-500); letter-spacing: .04em; margin-top: 2px }
+  /* Range: analysts' low to high, the mean target and today's price on it. */
+  .range { position: relative; height: 7px; border-radius: 99px; background: rgba(var(--lift),.08); margin: 14px 0 12px }
+  .range .fill { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: color-mix(in srgb, var(--v) 30%, transparent); animation: grow .8s var(--ease) both .4s; transform-origin: left }
+  .range .tick { position: absolute; top: -4px; bottom: -4px; width: 2px; border-radius: 2px; background: var(--ink-200); left: var(--x); animation: slide .9s var(--ease) both .45s }
+  .range .mk { position: absolute; top: 50%; left: var(--x); width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; border-radius: 99px; background: var(--v); box-shadow: 0 0 0 3px color-mix(in srgb, var(--v) 25%, transparent), 0 0 12px var(--v); animation: slide .9s var(--ease) both .5s }
+  .range .lb { position: absolute; top: 11px; translate: -50% 0; font-family: var(--mono); font-size: 9.5px; color: var(--ink-500); white-space: nowrap; left: var(--x) }
+  .range .lb.top { top: auto; bottom: 11px; color: var(--ink-300) } .range .lb.top.l, .range .lb.top.r { color: var(--ink-500) }
+  .range .lb.l { translate: 0 0 } .range .lb.r { translate: -100% 0 }
+  /* Rating: strong buy · buy · hold · sell, as counts in one bar. */
+  .stack { display: flex; height: 7px; border-radius: 99px; overflow: hidden; gap: 2px }
+  .stack i { flex: var(--k) 1 0; background: var(--c); animation: arrive .5s var(--ease) both; animation-delay: calc(var(--n) * 80ms + 400ms) }
+  .stk { display: flex; gap: 10px; margin-top: 6px; font-family: var(--mono); font-size: 9.5px; color: var(--ink-500); letter-spacing: .06em; text-transform: uppercase; flex-wrap: wrap }
+  .stk b { font-weight: 500; color: var(--ink-200) }
+  .facts { display: flex; gap: 6px; flex-wrap: wrap }
+  .fact { font-family: var(--mono); font-size: 10.5px; padding: 3px 8px; border-radius: 99px; background: rgba(var(--lift),.05); color: var(--ink-300); letter-spacing: .04em; white-space: nowrap }
+  .fact b { font-weight: 500; color: var(--ink-100) }
+  .empty { display: flex; align-items: center; gap: 14px; padding: 22px 10px; animation: rise .35s var(--ease) both }
+  .empty .ficon { width: 40px; height: 40px; border-radius: 12px } .empty .ficon svg { width: 20px; height: 20px }
+  .empty .eb { display: flex; flex-direction: column; gap: 6px }
+  .empty .ew { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-100) }
+  .retry { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 99px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-100); box-shadow: inset 0 0 0 1px rgba(var(--lift),.2); transition: background .2s }
+  .retry:hover { background: rgba(var(--lift),.07) } .retry svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2.2 }
+
+  /* NEWS tab: headline, publisher, time, link out. Fetched on open. */
+  .news { display: flex; flex-direction: column; margin-top: 4px }
+  .nw { display: grid; grid-template-columns: 34px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 11px 8px; border-radius: 12px; text-decoration: none; color: inherit; animation: rise .35s var(--ease) both; animation-delay: calc(var(--n) * 50ms + 150ms); transition: background .2s }
+  .nw:hover { background: rgba(var(--lift),.04) } .nw + .nw { border-top: 1px solid rgba(var(--lift),.06) }
+  .pub { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-family: var(--mono); font-size: 10.5px; font-weight: 500; color: #fff; background: var(--pb) }
+  .nh { font-size: 14px; line-height: 1.4; color: var(--ink-100); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
+  .nm3 { margin-top: 3px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); letter-spacing: .06em; text-transform: uppercase }
+  .nm3 b { font-weight: 400; color: var(--ink-300) }
+  .out { color: var(--ink-500) } .out svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2 }
+  .nw:hover .out { color: var(--lav-300) }
+  .new { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 99px; font-size: 9.5px; letter-spacing: .1em; color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 18%, transparent) }
+  .skel { height: 52px; border-radius: 10px; margin: 6px 0; background: linear-gradient(90deg, rgba(var(--lift),.04) 0%, rgba(var(--lift),.09) 50%, rgba(var(--lift),.04) 100%); background-size: 200% 100%; animation: shimmer 1.3s linear infinite }
+  @keyframes shimmer { to { background-position: -200% 0 } }
+
+  .note { max-width: 940px; margin: 0 auto; font-family: var(--mono); font-size: 11px; color: var(--ink-500); line-height: 1.6 }
+  @media (max-width: 860px) { .tiles { grid-template-columns: repeat(2, minmax(0,1fr)) } }
+  /* On a phone P&L and the accounts take the whole row: names and both numbers in full. */
+  @media (max-width: 640px) { .tile.wide { grid-column: span 2 } }
+  @media (max-width: 720px) {
+    .sh { grid-template-columns: 30px minmax(0,1fr) auto; grid-template-areas: 'e n v' '. p g'; row-gap: 8px }
+    .sh .eye { grid-area: e } .sh .nm { grid-area: n } .sh .verdict { grid-area: v } .sh .pc { grid-area: p; font-size: 16px } .sh .gauge { grid-area: g }
+    .fu { grid-template-columns: 30px minmax(0,1fr) auto; grid-template-areas: 'e n v' '. p p' '. g g'; row-gap: 8px }
+    .tip { left: auto; right: -8px; width: min(360px, calc(100vw - 48px)) }
+    .fu .ficon { grid-area: e } .fu .nm { grid-area: n } .fu .vc { grid-area: v } .fu .pc { grid-area: p; font-size: 16px; display: flex; gap: 8px; align-items: baseline } .fu .pc small { margin: 0 } .fu > :last-child { grid-area: g }
+    .tabs { overflow-x: auto; scrollbar-width: none }
+  }
+  @media (max-width: 640px) {
+    .plot { height: 280px } .plot.rsi { height: 370px }
+    .px { margin-left: 0; text-align: left; width: 100% } .px .p1, .px .chg { justify-content: flex-start }
+    .keys .tv { margin-left: 0 }
+    .vtop { grid-template-columns: 1fr; gap: 12px } .vb { justify-self: start; font-size: 19px }
+    .rulebtn { margin-left: 0 }
+    .fd .dim { display: none }
+    .big { font-size: 23px }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="caps" style="text-align:center">mockup · fundamentals and news · sample Broadcom closes, readings and headlines; tiles from your AVGO page</span>
+  <div class="scen">
+    <div class="pills" id="scen"></div>
+  </div>
+  <div class="scen">
+    <div class="pills" id="newsst"></div>
+    <div class="pills" id="theme"></div>
+  </div>
+  <section class="sys">
+    <div class="head" id="head"></div>
+    <div class="tiles" id="tiles"></div>
+    <div class="bar2"><span class="caps">price</span><div class="pills" id="inds"></div></div>
+    <div class="plot" id="plot"><div id="chart"></div></div>
+    <div class="keys" id="keys"></div>
+    <div id="verdict"></div>
+    <div class="tabs" id="tabs"></div>
+    <div id="tabbody"></div>
+  </section>
+  <p class="note" id="note"></p>
+</div>
+<script>
+const LC = LightweightCharts
+const cssv = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim()
+const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
+const rgb = (c, a = 1) => { cv.fillStyle = '#000'; cv.fillStyle = c; cv.fillRect(0, 0, 1, 1); const [r, g, b] = cv.getImageData(0, 0, 1, 1).data; return `rgba(${r},${g},${b},${a})` }
+const usd = (v) => '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const eur = (v) => '€' + Math.abs(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const sgn = (v) => (v < 0 ? '−' : '+')
+const day = (t) => new Date(t + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+
+/* Sample Broadcom-like closes for each state: two years of weekdays
+   through anchor prices, ending on today's $343.86. The verdict is not
+   picked per state — it is read off these closes by the rule below. */
+const SHAPES = {
+  add:  [['2024-10-15', 160], ['2025-04-07', 140], ['2025-10-01', 220], ['2026-02-02', 250], ['2026-06-22', 330], ['2026-08-28', 372], ['2026-10-15', 343.86]],
+  hold: [['2024-10-15', 160], ['2025-04-07', 140], ['2025-10-01', 220], ['2026-02-02', 265], ['2026-06-22', 372], ['2026-08-12', 322], ['2026-10-15', 343.86]],
+  wait: [['2024-10-15', 250], ['2025-06-01', 330], ['2025-12-10', 452], ['2026-04-01', 418], ['2026-06-22', 402], ['2026-08-20', 372], ['2026-10-15', 343.86]],
+  sold: [['2024-10-15', 160], ['2025-04-07', 140], ['2025-10-01', 220], ['2026-02-02', 265], ['2026-06-22', 372], ['2026-08-12', 322], ['2026-10-15', 343.86]],
+}
+SHAPES.held = SHAPES.add
+/* A fund: VUAA-like closes, the add shape at a fund's price. */
+SHAPES.fund = SHAPES.add.map(([t, v]) => [t, +(v * 0.3489).toFixed(2)])
+function makeBars(A) {
+  let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+  const t = (s) => Date.parse(s + 'T00:00:00Z'), out = []; let w = 0
+  for (let d = t(A[0][0]); d <= t(A.at(-1)[0]); d += 864e5) {
+    const dd = new Date(d); if (!(dd.getUTCDay() % 6)) continue
+    let k = 0; while (t(A[k + 1][0]) < d) k++
+    const f = (d - t(A[k][0])) / (t(A[k + 1][0]) - t(A[k][0])), base = A[k][1] + (A[k + 1][1] - A[k][1]) * (0.5 - Math.cos(Math.PI * f) / 2)
+    w = w * .9 + (rnd() - .5) * 2
+    const close = d === t(A.at(-1)[0]) ? A.at(-1)[1] : base + w * 3.2
+    out.push({ time: dd.toISOString().slice(0, 10), close })
+  }
+  return out
+}
+function sma(bars, n) { const out = []; let s = 0; bars.forEach((b, i) => { s += b.close; if (i >= n) s -= bars[i - n].close; if (i >= n - 1) out.push({ time: b.time, value: s / n }) }); return out }
+function rsi(bars, n = 14) { const out = []; let g = 0, l = 0
+  for (let i = 1; i < bars.length; i++) { const d = bars[i].close - bars[i - 1].close, up = Math.max(d, 0), dn = Math.max(-d, 0)
+    if (i <= n) { g += up / n; l += dn / n } else { g = (g * (n - 1) + up) / n; l = (l * (n - 1) + dn) / n }
+    if (i >= n) out.push({ time: bars[i].time, value: l === 0 ? 100 : 100 - 100 / (1 + g / l) }) }
+  return out }
+
+/* His AVGO, from the screenshot: 5 BUY since 22 Jun 2026, €765.92 for
+   2.245996 shares, in two accounts. */
+const HELD = { worth: 689.88, worthUsd: 772.31, shares: 2.245996, paid: 765.92, buys: 5, since: '2026-06-22',
+  acc: [{ k: 'rv', n: 'Revolut', worth: 389.69, paid: 427.89 }, { k: 'tr', n: 'Trade Republic', worth: 300.19, paid: 338.03 }] }
+let AVG_USD = 381.80
+const SOLD = { paid: 765.92, got: 812.40, buys: 5, sells: 2, day: '2026-09-30' }
+const BUYS = ['2026-06-22', '2026-07-08', '2026-08-03', '2026-08-28', '2026-09-22']
+
+/* FUNDAMENTALS: Yahoo readings, stored once a day per ticker, each with
+   its day. Sample Broadcom numbers. `held` has a lower mean target: the
+   lines say ADD, the target holds it back. A fund has none. */
+const FUND = {
+  asOf: '16 Oct 2026', time: '08:10', was: '15 Oct 2026',
+  target: { mean: 412.5, low: 310, high: 500, n: 41 },
+  rating: { mean: 1.6, word: 'buy', strong: 14, buy: 22, hold: 5, sell: 0 },
+  rev: { pct: 22.0, now: '$15.95B', was: '$13.07B', q: 'q3 2026', qWas: 'q3 2025' },
+  pe: { fwd: 33.8, ttm: 88.4 },
+  div: { yld: 0.69, year: 2.36, ex: '22 Sep 2026' },
+}
+const FUND_HELD = { ...FUND, target: { mean: 331.0, low: 260, high: 410, n: 41 }, rating: { mean: 2.4, word: 'buy', strong: 6, buy: 15, hold: 18, sell: 2 } }
+const fundOf = () => (scen === 'fund' ? null : scen === 'held' ? FUND_HELD : FUND)
+
+/* THE RULE (src/lib/indicators.ts after "go"): the lines first, as built.
+   Then the fundamentals, only on an ADD: any one of three holds it back
+   to HOLD. They never make an ADD. News is not in the rule. */
+function verdictOf(x) {
+  const t = technical(x), f = fundOf()
+  if (t.v !== 'add' || !f) return { ...t, fund: false }
+  if (x.p >= f.target.mean) return { v: 'hold', why: ['target'], fund: true, line: `Long trend up with a dip, and the price is at or above the analysts' avg target of ${usd(f.target.mean)}. By the textbook, keep the shares; no room left to the target.` }
+  if (f.rev.pct < 0) return { v: 'hold', why: ['rev'], fund: true, line: `Long trend up with a dip, and revenue fell ${Math.abs(f.rev.pct).toFixed(1)}% on a year before. By the textbook, keep the shares until revenue grows again.` }
+  if (f.rating.mean >= 3.5) return { v: 'hold', why: ['rating'], fund: true, line: 'Long trend up with a dip, and most analysts rate it sell. By the textbook, keep the shares; no new ones against the analysts.' }
+  return { ...t, why: [...t.why, 'target', 'rev', 'rating'], fund: true }
+}
+function technical({ p, s50, s200, r }) {
+  if (r > 70) return { v: 'wait', why: ['rsi'], line: 'RSI 14 above 70: the price rose too fast in 14 days. By the textbook, a pullback often comes next.' }
+  if (p < s50 && p < s200) return { v: 'wait', why: ['50', '200'], line: 'Price below its 50- and 200-day averages: the trend is down. By the textbook, no new shares until the price is back above the 50-day average.' }
+  if (p > s200 && p < s50) return { v: 'add', why: ['200', '50'], line: 'Long trend up, and the price dipped under its 50-day average. By the textbook, a dip in an uptrend is a time to add shares.' }
+  if (p > s200 && r < 45) return { v: 'add', why: ['200', 'rsi'], line: 'Long trend up, and the price fell fast in 14 days. By the textbook, a dip in an uptrend is a time to add shares.' }
+  if (p < s200) return { v: 'hold', why: ['200', '50'], line: 'Price above its 50-day average and below its 200-day average: the trend is turning. By the textbook, keep the shares and watch SMA 200.' }
+  return { v: 'hold', why: ['200', '50'], line: 'Price above its 50- and 200-day averages: the trend is up, with no dip. By the textbook, keep the shares; no rush to add at this price.' }
+}
+const VB = {
+  add: { word: 'add', icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>' },
+  hold: { word: 'hold', icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/></svg>' },
+  wait: { word: 'wait', icon: '<svg viewBox="0 0 24 24"><path d="M7 3h10M7 21h10M8 3c0 5 8 6 8 9s-8 4-8 9M16 3c0 5-8 6-8 9"/></svg>' },
+}
+const ICON = {
+  up: '<svg class="i" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>',
+  down: '<svg class="i" viewBox="0 0 24 24"><path d="M3 7l6 6 4-4 8 8M15 17h6v-6"/></svg>',
+  flat: '<svg class="i" viewBox="0 0 24 24"><path d="M4 12h16M16 8l4 4-4 4"/></svg>',
+  check: '<svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg>',
+  chart: '<svg class="i" viewBox="0 0 24 24"><path d="M3 20h18M5 16l4-5 4 3 6-8"/></svg>',
+  book: '<svg class="i" viewBox="0 0 24 24"><path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4zM20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"/></svg>',
+  news: '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="15" height="14" rx="2"/><path d="M18 9h3v8a2 2 0 0 1-2 2M7 9h7M7 13h7M7 16h4"/></svg>',
+  chev: '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
+  target: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>',
+  star: '<svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>',
+  rev: '<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V6M16 20v-8M22 20H2"/></svg>',
+  pe: '<svg viewBox="0 0 24 24"><path d="M5 19 19 5"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></svg>',
+  coin: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .8-3 2s1.3 1.7 3 2 3 .8 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6v2M12 16v2"/></svg>',
+  out: '<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+  retry: '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>',
+  alert: '<svg viewBox="0 0 24 24"><path d="M12 3 2 20h20zM12 10v4M12 17v.5"/></svg>',
+  fund: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>',
+}
+
+let scen = 'add', theme = 'dark', ruleOpen = false, newsSt = 'ok', tab = 'signals'
+const on = { avg: false, 50: false, 200: false, rsi: false }
+let D // the closes and lines of the state in view
+function load() {
+  AVG_USD = scen === 'fund' ? 133.21 : 381.80
+  const bars = makeBars(SHAPES[scen])
+  const S = { 50: sma(bars, 50), 200: sma(bars, 200), rsi: rsi(bars, 14) }
+  const p = bars.at(-1).close, s50 = S[50].at(-1).value, s200 = S[200].at(-1).value, r = S.rsi.at(-1).value
+  const pct = (a, b) => (a - b) / b * 100
+  D = { bars, S, p, s50, s200, r, d50: pct(p, s50), d200: pct(p, s200), dA: pct(p, AVG_USD), vd: scen === 'sold' ? null : verdictOf({ p, s50, s200, r }) }
+}
+
+/* Count-up: a number arrives from zero on open and on every state. */
+const FMT = { usd: (v) => usd(v), eur: (v) => eur(v), seur: (v) => sgn(v) + eur(v), spct: (v) => sgn(v) + Math.abs(v).toFixed(1) + '%' }
+function countUp(root = document) {
+  for (const el of root.querySelectorAll('[data-to]')) {
+    const to = +el.dataset.to, f = FMT[el.dataset.f], t0 = performance.now(), ms = 900
+    const step = (now) => { const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3); el.textContent = f(to * e); if (k < 1) requestAnimationFrame(step) }
+    requestAnimationFrame(step)
+  }
+}
+
+function accLogo(k) { return `<i class="al ${k}">${k === 'rv' ? 'R' : 'TR'}</i>` }
+function tiles() {
+  const el = document.getElementById('tiles')
+  if (scen === 'sold') {
+    const g = SOLD.got - SOLD.paid
+    el.innerHTML = `
+      <div class="tile" style="--n:0"><span class="lbl">worth now</span><span class="big" style="color:var(--ink-500)">€0.00</span><span class="small">all sold</span></div>
+      <div class="tile" style="--n:1"><span class="lbl">paid · ${SOLD.buys} buy · ${SOLD.sells} sell</span><span class="big" data-to="${SOLD.paid}" data-f="eur"></span><span class="chip">since 22 Jun 2026</span><span class="ok">${ICON.check}every buy in</span></div>
+      <div class="tile" style="--n:2"><span class="lbl">sold for</span><span class="big" data-to="${SOLD.got}" data-f="eur"></span><span class="small">30 Sep 2026</span></div>
+      ${plTile(g, g / SOLD.paid * 100, 'when sold · 30 Sep 2026', 3)}`
+  } else {
+    const g = HELD.worth - HELD.paid
+    el.innerHTML = `
+      <div class="tile" style="--n:0"><span class="lbl">worth now</span><span class="big" data-to="${HELD.worth}" data-f="eur"></span><span class="mid2" data-to="${HELD.worthUsd}" data-f="usd"></span><span class="small">${HELD.shares} shares</span></div>
+      <div class="tile" style="--n:1"><span class="lbl">paid · ${HELD.buys} buy</span><span class="big" data-to="${HELD.paid}" data-f="eur"></span><span class="chip">since 22 Jun 2026</span><span class="ok">${ICON.check}every buy in</span></div>
+      ${plTile(g, g / HELD.paid * 100, 'since first buy · 22 Jun 2026', 2)}
+      <div class="tile wide" style="--n:3"><span class="lbl">accounts</span>${HELD.acc.map((a) => { const d = a.worth - a.paid, p = d / a.paid * 100, t = d >= 0 ? 'good' : 'danger'; return `<span class="acc"><span>${accLogo(a.k)}<span class="nm2">${a.n}</span></span><span>${eur(a.worth)}</span></span><span class="accpl tone-${t}">${d >= 0 ? '▲' : '▼'} ${sgn(d)}${eur(d)} · ${sgn(p)}${Math.abs(p).toFixed(1)}%</span>` }).join('')}</div>`
+  }
+  countUp(el)
+}
+/* P&L: UP or DOWN as a badge, the euros and the %, the day it counts
+   from, then the same for each account. */
+function plTile(g, pc, from, n) {
+  const up = g >= 0, c = up ? 'good' : 'danger'
+  return `<div class="tile wide ${c}" style="--n:${n}">
+    <span class="lbl">p&amp;l <span class="ud" style="--c:var(--${c})">${up ? '▲ up' : '▼ down'}</span></span>
+    <span class="pl"><span class="big tone-${c}" data-to="${g}" data-f="seur"></span><span class="pp tone-${c}" data-to="${pc}" data-f="spct"></span></span>
+    <span class="chip" style="letter-spacing:.07em">${from}</span>
+  </div>`
+}
+
+/* Chart: the built one, cut to what this mockup needs. A line arrives
+   from the left edge of the view when its pill is pressed. */
+const chart = LC.createChart(document.getElementById('chart'), {
+  autoSize: true,
+  layout: { background: { type: 'solid', color: 'transparent' }, fontFamily: 'JetBrains Mono, monospace', fontSize: 10, attributionLogo: true, panes: { separatorColor: 'rgba(128,128,150,.18)' } },
+  grid: { vertLines: { visible: false } }, rightPriceScale: { borderVisible: false }, timeScale: { borderVisible: false, rightOffset: 2 },
+  crosshair: { mode: LC.CrosshairMode.Magnet },
+})
+const DOLLARS = { type: 'custom', minMove: 0.01, formatter: (p) => '$' + p.toFixed(2) }
+let series = [], fresh = null
+function build() {
+  for (const s of series) chart.removeSeries(s)
+  series = []
+  const { bars, S } = D, G = rgb(cssv('--good'))
+  const main = chart.addSeries(LC.AreaSeries, { lineColor: G, lineWidth: 2, topColor: rgb(cssv('--good'), .2), bottomColor: rgb(cssv('--good'), 0), priceLineVisible: false, priceFormat: DOLLARS })
+  main.setData(bars.map((b) => ({ time: b.time, value: b.close }))); series.push(main)
+  const from = bars[Math.max(0, bars.length - 256)].time
+  const add = (id, data, opt, pane) => {
+    const s = chart.addSeries(LC.LineSeries, { lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, ...opt }, pane)
+    series.push(s)
+    if (fresh !== id) { s.setData(data); return s }
+    /* Arriving: drawn from the view's left edge to today in 0.7 s. */
+    const before = data.filter((d) => d.time < from), view = data.filter((d) => d.time >= from), t0 = performance.now()
+    const step = (now) => { const k = Math.min(1, (now - t0) / 700), e = 1 - Math.pow(1 - k, 3); s.setData(before.concat(view.slice(0, Math.max(1, Math.round(view.length * e))))); if (k < 1) requestAnimationFrame(step) }
+    s.setData(before); requestAnimationFrame(step)
+    return s
+  }
+  if (on.avg && scen !== 'sold') add('avg', bars.filter((b) => b.time >= HELD.since).map((b) => ({ time: b.time, value: AVG_USD })), { color: rgb(cssv('--lav-400')), lineStyle: LC.LineStyle.Dashed, title: 'AVG BUY', priceFormat: DOLLARS })
+  for (const n of [50, 200]) if (on[n]) add(String(n), S[n], { color: rgb(cssv(`--ind-${n}`)), title: `SMA ${n}`, priceFormat: DOLLARS })
+  if (on.rsi) {
+    const s = add('rsi', S.rsi, { color: rgb(cssv('--ind-rsi')), priceFormat: { type: 'custom', formatter: (v) => v.toFixed(0) }, autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) }, 1)
+    for (const v of [30, 70]) s.createPriceLine({ price: v, color: rgb(cssv('--ink-500'), .7), lineWidth: 1, lineStyle: LC.LineStyle.Dotted, axisLabelVisible: true, title: '' })
+    const p = chart.panes()[1]; if (p) p.setHeight(innerWidth < 640 ? 80 : 100)
+  }
+  LC.createSeriesMarkers(main, scen === 'sold' ? [] : BUYS.map((t) => ({ time: bars.find((b) => b.time >= t).time, position: 'belowBar', shape: 'circle', color: G, size: 1 })))
+  document.getElementById('plot').classList.toggle('rsi', on.rsi)
+  const lav = rgb(cssv('--lav-400'), .5), lb = theme === 'dark' ? '#3a3566' : '#5b4fb0'
+  chart.applyOptions({ layout: { textColor: rgb(cssv('--ink-500')) }, grid: { horzLines: { color: theme === 'dark' ? 'rgba(255,255,255,.05)' : 'rgba(30,28,45,.06)' } }, crosshair: { vertLine: { color: lav, labelBackgroundColor: lb }, horzLine: { color: lav, labelBackgroundColor: lb } } })
+  fresh = null
+}
+/* 1Y in view; set again once the chart has measured its box. */
+function span() { const n = D.bars.length, r = { from: D.bars[n - 256].time, to: D.bars[n - 1].time }; chart.timeScale().setVisibleRange(r); requestAnimationFrame(() => chart.timeScale().setVisibleRange(r)) }
+
+const side = (d) => d >= 0 ? { cls: 'up', v: 'bull', arrow: '▲', icon: 'up' } : { cls: 'dn', v: 'bear', arrow: '▼', icon: 'down' }
+function V() {
+  const { dA, d50, d200, r } = D
+  return {
+    avg: { ...side(dA), word: dA >= 0 ? 'in profit' : 'at a loss' },
+    50: { ...side(d50), word: d50 >= 0 ? 'bullish' : 'bearish' },
+    200: { ...side(d200), word: d200 >= 0 ? 'bullish' : 'bearish' },
+    rsi: r > 70 ? { cls: 'dn', v: 'bear', arrow: '▼', icon: 'down', word: 'overbought' } : r < 30 ? { cls: 'up', v: 'bull', arrow: '▲', icon: 'up', word: 'oversold' } : { cls: 'fl', v: 'flat', arrow: '—', icon: 'flat', word: 'neutral' },
+  }
+}
+const sg = (v) => sgn(v) + Math.abs(v).toFixed(1) + '%'
+function pills() {
+  const v = V()
+  const pill = (id, label, c, dash) => `<button class="pill ind ${on[id] ? 'on' : ''}" style="--c:${cssv(c)}" onclick="flip('${id}')"><i class="sw ${dash || ''}"></i>${label}${on[id] ? `<span class="va ${v[id].cls}-t">${v[id].arrow}</span>` : ''}</button>`
+  document.getElementById('inds').innerHTML = (scen === 'sold' ? '' : pill('avg', 'avg buy', '--lav-400', 'dash')) + pill(50, 'sma 50', '--ind-50') + pill(200, 'sma 200', '--ind-200') + pill('rsi', 'rsi 14', '--ind-rsi')
+  const k = []
+  if (scen !== 'sold') k.push(`<span><i class="dot" style="border-color:${cssv('--good')}"></i><b>buy</b></span>`)
+  if (on.avg && scen !== 'sold') k.push(`<span style="--c:${cssv('--lav-400')}"><i class="ln dash"></i><b>avg buy</b> ${usd(AVG_USD)} · €341.02 · 5 BUY · SINCE 22 JUN 2026</span>`)
+  for (const n of [50, 200]) if (on[n]) k.push(`<span style="--c:${cssv(`--ind-${n}`)}"><i class="ln"></i><b>sma ${n}</b> · ${n} closes</span>`)
+  if (on.rsi) k.push(`<span style="--c:${cssv('--ind-rsi')}"><i class="ln"></i><b>rsi 14</b> · 14 closes · 30 / 70</span>`)
+  k.push('<span class="tv">TradingView Lightweight Charts™ · © 2025 TradingView, Inc.</span>')
+  document.getElementById('keys').innerHTML = k.join('')
+}
+
+/* Head: the built one; a fund swaps the name and the price. */
+function head() {
+  const fund = scen === 'fund', p = D.p, e = p * 0.8933, prev = p - (fund ? 1.44 : 4.12)
+  document.getElementById('head').innerHTML = `
+      <div class="logo" style="${fund ? 'background:#96151d' : ''}">${fund ? '<span style="font-family:var(--mono);font-size:20px;font-weight:500;color:#fff">V</span>' : '<svg viewBox="0 0 24 24"><path d="M3 15c3 0 4-8 6-8s2 8 3 8 1-8 3-8 3 8 6 8"/></svg>'}</div>
+      <div><h1>${fund ? 'Vanguard S&amp;P 500' : 'Broadcom'}</h1><div class="meta"><span class="badge lav">${fund ? 'fund' : 'share'}</span><span class="badge">${fund ? 'index' : 'tech'}</span><span class="badge ring"><b>$</b>usd</span><span>${fund ? 'VUAA' : 'AVGO'}</span></div></div>
+      <div class="px">
+        <div class="p1"><b class="num" data-to="${p}" data-f="usd"></b><span class="num" data-to="${e}" data-f="eur"></span></div>
+        <div class="chg"><b class="num">+${(p - prev).toFixed(2)} (+${((p - prev) / prev * 100).toFixed(2)}%)</b><small>from ${usd(prev)} · 14 Oct close</small></div>
+        <small>15 Oct 16:40 · Yahoo Finance</small>
+      </div>`
+}
+
+/* What the fundamentals read, as chips in the verdict and rows in the tab. */
+function F() {
+  const f = fundOf(); if (!f) return null
+  const dT = (f.target.mean - D.p) / D.p * 100
+  const rt = f.rating.mean >= 3.5 ? 'bear' : f.rating.mean < 2.5 ? 'bull' : 'flat'
+  return {
+    f, dT,
+    target: { v: dT > 0 ? 'bull' : 'bear', arrow: dT > 0 ? '▲' : '▼', word: dT > 0 ? 'upside' : 'downside', icon: dT > 0 ? 'up' : 'down' },
+    rev: { v: f.rev.pct >= 0 ? 'bull' : 'bear', arrow: f.rev.pct >= 0 ? '▲' : '▼', word: f.rev.pct >= 0 ? 'growing' : 'shrinking', icon: f.rev.pct >= 0 ? 'up' : 'down' },
+    rating: { v: rt, arrow: rt === 'bull' ? '▲' : rt === 'bear' ? '▼' : '—', word: f.rating.word, icon: rt === 'bull' ? 'up' : rt === 'bear' ? 'down' : 'flat' },
+  }
+}
+const NEWS = [
+  ['Reuters', 'R', '#fa6400', '09:12', 'Broadcom to supply custom AI chips to OpenAI in multi-year deal'],
+  ['Bloomberg', 'B', '#1f1f1f', '07:40', 'Broadcom shares rise as AI networking orders build ahead of earnings'],
+  ['CNBC', 'C', '#005594', '15 Oct', 'Chip stocks slide as new export curbs weigh on semiconductor names'],
+  ["Barron's", 'B', '#0b2a4a', '15 Oct', 'Broadcom stock: why analysts keep raising their price targets'],
+  ['MarketWatch', 'MW', '#2f7d32', '14 Oct', "Broadcom's VMware unit lifts software revenue for a third quarter"],
+  ['Motley Fool', 'MF', '#5a2d82', '13 Oct', 'Is Broadcom a buy after its pullback from all-time highs?'],
+  ["Investor's Business Daily", 'IBD', '#0067b1', '12 Oct', 'Broadcom tests its 50-day line as chip stocks pull back'],
+  ['Yahoo Finance', 'Y', '#6001d2', '10 Oct', 'Broadcom declares quarterly dividend of $0.59 per share'],
+]
+const NEWS_FUND = [
+  ['Reuters', 'R', '#fa6400', '09:30', 'S&P 500 futures edge up as bank earnings beat forecasts'],
+  ['Bloomberg', 'B', '#1f1f1f', '15 Oct', 'Record inflows into US index ETFs as rate-cut bets grow'],
+  ['CNBC', 'C', '#005594', '14 Oct', 'Stocks close lower as chipmakers drag on the S&P 500'],
+]
+const newsOf = () => (newsSt === 'empty' ? [] : scen === 'fund' ? NEWS_FUND : NEWS)
+
+const gauge = (d, n) => `<div class="gauge"><i class="z" style="left:0;width:50%;background:color-mix(in srgb,var(--danger) 22%,transparent)"></i><i class="z" style="left:50%;width:50%;background:color-mix(in srgb,var(--good) 22%,transparent)"></i><i class="mid"></i><i class="mk" style="--x:${Math.max(3, Math.min(97, 50 + d / 15 * 50))}%;--n:${n}"></i></div>`
+/* A feed chip: its colour from its rows' ▲ and ▼, the counts inside it. */
+function feed(icon, name, vs, tabId, tail, n, heldBack = false) {
+  const up = vs.filter((x) => x === 'bull').length, dn = vs.filter((x) => x === 'bear').length, fl = vs.length - up - dn
+  /* A group that held an ADD back is never green. */
+  const t = up > dn && !heldBack ? 'var(--good)' : dn > up ? 'var(--danger)' : 'var(--warn)'
+  return `<button class="fd tone fresh" style="--t:${t};--n:${n}" onclick="setTab('${tabId}')">${icon}${name} <span class="cn"><span class="up-t ${up ? '' : 'z0'}">${up} ▲</span><span class="dn-t ${dn ? '' : 'z0'}">${dn} ▼</span><span class="fl-t ${fl ? '' : 'z0'}">${fl} —</span></span>${tail ? `<span class="dim">${tail}</span>` : ''}</button>`
+}
+function verdictPanel() {
+  const vd = D.vd; if (!vd) return ''
+  const v = V(), b = VB[vd.v], fx = F()
+  const chip = (id, name, val, n, vv = v[id]) => `<span class="rc ${vv.v} ${vd.why.includes(id) ? 'key' : ''}" style="--n:${n}">${name} <b>${vv.arrow} ${val}</b></span>`
+  const below = D.p < AVG_USD
+  const slow = newsSt === 'slow'
+  const rows = [
+    ['add', 'good', 'Above SMA 200, and under SMA 50 or RSI 14 under 45. RSI 14 not above 70.', ''],
+    ['hold', 'lav-400', 'An ADD by the lines, and one of: price at or above the avg target · revenue down on a year before · rating 3.5 or worse.', 'fx', 'hold-f'],
+    ['hold', 'lav-400', 'Every other case: above SMA 200 with no dip, or between the two averages.', ''],
+    ['wait', 'warn', 'Under SMA 50 and SMA 200, or RSI 14 above 70.', ''],
+  ]
+  const me = (w, k) => (k === 'hold-f' ? vd.v === 'hold' && vd.why[0] in { target: 1, rev: 1, rating: 1 } : w === vd.v && !(vd.v === 'hold' && vd.why[0] in { target: 1, rev: 1, rating: 1 }))
+  const nN = newsOf().length
+  const newsFeed = newsSt === 'failed' ? `<span class="fd beside fresh" style="--n:2;color:var(--warn)">${ICON.news}news <b>· not loaded</b></span>`
+    : slow ? `<span class="fd beside fresh" style="--n:2">${ICON.news}news <span class="upd"><i></i></span></span>`
+    : `<button class="fd beside fresh" style="--n:2" onclick="setTab('news')">${ICON.news}news <b>· ${nN} · not in the rule</b></button>`
+  return `<div class="vd ${vd.v}">
+    <div class="vcap"><span class="caps">verdict · 15 Oct 2026</span><span class="sp"></span></div>
+    <div class="vtop">
+      <span class="vb">${b.icon}${b.word.toUpperCase()}</span>
+      <div class="vl">${vd.line}
+        <small><i class="ln dash" style="--c:var(--lav-400)"></i>price ${usd(D.p)} · avg buy ${usd(AVG_USD)} · ${below ? 'a buy now lowers the avg buy' : 'a buy now raises the avg buy'}</small></div>
+    </div>
+    <div class="why">
+      ${chip('200', 'sma 200', sg(D.d200), 0)}${chip('50', 'sma 50', sg(D.d50), 1)}${chip('rsi', 'rsi 14', D.r.toFixed(0), 2)}
+      ${fx ? chip('target', 'target', sg(fx.dT), 3, fx.target) + chip('rev', 'revenue', sg(fx.f.rev.pct), 4, fx.rev) + chip('rating', 'rating', `${fx.f.rating.word} ${fx.f.rating.mean.toFixed(1)}`, 5, fx.rating) : ''}
+    </div>
+    <div class="feeds">
+      ${feed(ICON.chart, 'technical', [v[200].v, v[50].v, v.rsi.v], 'signals', '', 0)}
+      ${fx ? feed(ICON.book, 'fundamentals', [fx.target.v, fx.rev.v, fx.rating.v], 'fund', `· yahoo · ${slow ? fx.f.was.slice(0, 6) : fx.f.asOf.slice(0, 6)}${slow ? ' <span class="upd"><i></i></span>' : ''}`, 1, ['target', 'rev', 'rating'].includes(vd.why[0]))
+        : `<span class="fd none fresh" style="--n:1">${ICON.book}fundamentals <b style="font-weight:400">· none for a fund</b></span>`}
+      ${newsFeed}
+      <button class="rulebtn ${ruleOpen ? 'on' : ''}" onclick="ruleOpen=!ruleOpen;this.classList.toggle('on',ruleOpen);this.closest('.vd').querySelector('.rule').classList.toggle('on',ruleOpen)">rule ${ICON.chev}</button>
+    </div>
+    <div class="rule ${ruleOpen ? 'on' : ''}"><div><table>${rows.map(([w, c, t, cls, k]) => `<tr class="${me(w, k) ? 'me' : ''} ${cls}"><td><span class="tag" style="--t:var(--${c})">${w.toUpperCase()}</span></td><td>${t}</td></tr>`).join('')}</table></div></div>
+  </div>`
+}
+
+/* SIGNALS, as built. */
+function signalsBody() {
+  const v = V()
+  const ids = scen === 'sold' ? ['50', '200', 'rsi'] : ['avg', '50', '200', 'rsi']
+  const R = {
+    avg: { c: '--lav-400', mark: 'dash', name: 'avg buy', sub: 'since 22 jun 2026', pc: sg(D.dA), g: D.dA },
+    50: { c: '--ind-50', mark: '', name: 'sma 50', sub: '50 days', pc: sg(D.d50), g: D.d50 },
+    200: { c: '--ind-200', mark: '', name: 'sma 200', sub: '200 days', pc: sg(D.d200), g: D.d200 },
+    rsi: { c: '--ind-rsi', mark: '', name: 'rsi 14', sub: 'momentum', pc: D.r.toFixed(0), g: null },
+  }
+  const rsiG = (n) => `<div class="gauge"><i class="z" style="left:0;width:30%;background:color-mix(in srgb,var(--good) 24%,transparent)"></i><i class="z" style="left:70%;width:30%;background:color-mix(in srgb,var(--danger) 24%,transparent)"></i><i class="mk" style="--x:${Math.max(3, Math.min(97, D.r))}%;--n:${n}"></i></div>`
+  return '<div class="sigs">' + ids.map((id, i) => { const r = R[id]; return `<div class="sig ${v[id].v}" style="--n:${i}">
+      <div class="sh"><button class="eye ${on[id] ? 'on' : ''}" style="--c:${cssv(r.c)}" onclick="flip('${id}')"><i class="${r.mark}"></i></button>
+      <span class="nm">${r.name}<small>${r.sub}</small></span>
+      <span class="verdict">${ICON[v[id].icon]}${v[id].word}</span>
+      <span class="pc">${r.pc}</span>${r.g === null ? rsiG(i) : gauge(r.g, i)}</div></div>` }).join('') + '</div>'
+}
+
+/* Sector averages for the ⓘ cards: an outside reading, attributed and
+   dated (sample numbers; source to settle in the spec). */
+const SECTOR = { name: 'semiconductors', pe: 31.2, peAll: 22.4, div: 0.92, divAll: 1.31, src: 'damodaran · nyu stern · jan 2026' }
+function info(id, cap, what, bars, max, fmt, why) {
+  return `<!--i--><span class="info" onclick="event.stopPropagation();this.classList.toggle('on')"><button class="ib" aria-label="what is ${cap}">i</button><span class="tip">
+    <span class="tc">${cap}</span>${what}
+    <span class="cmp">${bars.map(([n, v, c]) => `<span><span>${n}</span><i style="--w:${Math.min(100, v / max * 100)}%;--c:${c}"></i><b>${fmt(v)}</b></span>`).join('')}</span>
+    ${why}<span class="ts" style="margin-top:8px">sector avg · ${SECTOR.src}</span></span></span>`
+}
+
+/* FUNDAMENTALS: five readings. Three are in the rule (coloured); P/E and
+   dividend are shown with an ink badge. A fund: one empty row. */
+function fundBody() {
+  const fx = F()
+  if (!fx) return `<div class="empty"><span class="ficon" style="--v:var(--ink-400)">${ICON.fund}</span><span class="eb"><span class="ew">no fundamentals · fund</span><span class="facts"><span class="fact">technical only in the verdict</span></span></span></div>`
+  const { f } = fx, slow = newsSt === 'slow'
+  const x = (v) => Math.max(0, Math.min(100, (v - f.target.low) / (f.target.high - f.target.low) * 100))
+  const row = (n, cls, icon, name, sub, badge, pc, small, vis) => `<div class="sig ${cls}" style="--n:${n}"><div class="fu">
+      <span class="ficon">${ICON[icon]}</span>
+      <span class="nm">${name}<small>${sub}</small></span>
+      <span class="vc"><span class="verdict">${badge.split('<!--i-->')[0]}</span>${badge.split('<!--i-->')[1] || ''}</span>
+      <span class="pc">${pc}<small>${small}</small></span>
+      <div>${vis}</div></div></div>`
+  const st = f.rating, tot = st.strong + st.buy + st.hold + st.sell
+  const rows = [
+    row(0, fx.target.v, 'target', 'analyst target', `avg of ${f.target.n}`, `${ICON[fx.target.icon]}${fx.target.word}`, sg(fx.dT), usd(f.target.mean),
+      `<div class="range"><i class="fill" style="left:0;width:100%"></i><i class="tick" style="--x:${x(f.target.mean)}%"></i><i class="mk" style="--x:${x(D.p)}%"></i>
+       <span class="lb top" style="--x:${x(f.target.mean)}%">avg ${usd(f.target.mean)}</span><span class="lb" style="--x:${x(D.p)}%;color:var(--v)">price ${usd(D.p)}</span>
+       <span class="lb top l" style="--x:0%">low ${usd(f.target.low)}</span><span class="lb top r" style="--x:100%">high ${usd(f.target.high)}</span></div>`),
+    row(1, fx.rating.v, 'star', 'analyst rating', `${tot} analysts · 1 to 5`, `${ICON[fx.rating.icon]}${st.word}`, st.mean.toFixed(1), 'avg',
+      `<div class="stack">${[[st.strong, '--good', 1], [st.buy, '--good', .55], [st.hold, '--ink-500', 1], [st.sell, '--danger', 1]].map(([k, c, o], i) => `<i style="--k:${k};--c:color-mix(in srgb,var(${c}) ${o * 100}%,transparent);--n:${i}"></i>`).join('')}</div>
+       <div class="stk"><span><b>${st.strong}</b> strong buy</span><span><b>${st.buy}</b> buy</span><span><b>${st.hold}</b> hold</span><span><b>${st.sell}</b> sell</span></div>`),
+    row(2, fx.rev.v, 'rev', 'revenue', `${f.rev.q} · on ${f.rev.qWas}`, `${ICON[fx.rev.icon]}${fx.rev.word}`, sg(f.rev.pct), 'on a year before',
+      `<div class="facts"><span class="fact">${f.rev.q} <b>${f.rev.now}</b></span><span class="fact">${f.rev.qWas} <b>${f.rev.was}</b></span></div>`),
+    row(3, 'flat', 'pe', 'p/e', 'price ÷ earnings', 'not in the rule' + info('pe', 'p/e · price ÷ profit',
+      `What a share costs for each $1 of the company's yearly profit. ${f.pe.fwd.toFixed(1)} = $${f.pe.fwd.toFixed(2)} for every $1 of profit in the next 12 months.`,
+      [['broadcom', f.pe.fwd, 'var(--lav-400)'], ['semiconductors avg', SECTOR.pe, 'var(--ink-400)'], ['s&p 500 avg', SECTOR.peAll, 'var(--ink-500)']], 60, (v) => v.toFixed(1),
+      'Chip makers grow fast, so a share costs more for each $1 of profit than at a bank or a utility.'), f.pe.fwd.toFixed(1), 'next 12 months',
+      `<div class="facts"><span class="fact">last 12 months <b>${f.pe.ttm.toFixed(1)}</b></span></div>`),
+    row(4, 'flat', 'coin', 'dividend yield', 'a year · on price', 'not in the rule' + info('div', 'dividend yield · cash a year',
+      `Cash paid each year for a share, as a part of its price. ${f.div.yld.toFixed(2)}% = $${f.div.yld.toFixed(2)} a year for every $100 of shares.`,
+      [['broadcom', f.div.yld, 'var(--lav-400)'], ['semiconductors avg', SECTOR.div, 'var(--ink-400)'], ['s&p 500 avg', SECTOR.divAll, 'var(--ink-500)']], 2.5, (v) => v.toFixed(2) + '%',
+      'Chip makers keep most of their profit to grow, so they pay less cash than banks or utilities.'), f.div.yld.toFixed(2) + '%', `${usd(f.div.year)} a share a year`,
+      `<div class="facts"><span class="fact">ex-dividend <b>${f.div.ex}</b></span></div>`),
+  ]
+  return `<div class="tabsrc">${ICON.book.replace('class="i"', 'class="i" style="width:12px;height:12px"')}yahoo finance · ${slow ? f.was : f.asOf + ' · ' + f.time}<span class="sp"></span>${slow ? '<span class="upd"><i></i>updating</span>' : '<span>stored · once a day</span>'}</div><div class="sigs">${rows.join('')}</div>`
+}
+
+/* NEWS: fetched on open, never stored. Loaded · none · not loaded · loading. */
+function newsBody() {
+  if (newsSt === 'slow') return `<div class="tabsrc">${ICON.news}yahoo finance<span class="sp"></span><span class="upd"><i></i>loading</span></div>` + Array.from({ length: 5 }, () => '<div class="skel"></div>').join('')
+  if (newsSt === 'failed') return `<div class="empty"><span class="ficon" style="--v:var(--warn)">${ICON.alert}</span><span class="eb"><span class="ew" style="color:var(--warn)">news not loaded · yahoo finance</span><button class="retry" onclick="setNews('slow');setTimeout(()=>setNews('ok'),1400)">${ICON.retry}try again</button></span></div>`
+  const L = newsOf()
+  if (!L.length) return `<div class="empty"><span class="ficon" style="--v:var(--ink-400)">${ICON.news}</span><span class="eb"><span class="ew">no headlines · 30 days</span><span class="facts"><span class="fact">yahoo finance · 10:05</span></span></span></div>`
+  return `<div class="tabsrc">${ICON.news}yahoo finance · ${L.length} headlines · 10:05<span class="sp"></span><span>not stored</span></div><div class="news">${L.map(([pub, ab, c, t, h], i) => `<a class="nw" href="#" onclick="return false" style="--n:${i}"><span class="pub" style="--pb:${c};${ab.length > 2 ? 'font-size:8.5px' : ''}">${ab}</span><span><span class="nh">${h}</span><span class="nm3"><b>${pub}</b> · ${t}</span></span><span class="out">${ICON.out}</span></a>`).join('')}</div>`
+}
+
+function tabs() {
+  const v = V()
+  const ids = scen === 'sold' ? ['50', '200', 'rsi'] : ['avg', '50', '200', 'rsi']
+  const n = (c) => ids.filter((id) => v[id].cls === c).length
+  const fx = F(), sold = scen === 'sold'
+  if (sold && tab !== 'signals' && tab !== 'trades') tab = 'signals'
+  const fc = fx ? ['target', 'rev', 'rating'].map((k) => fx[k].v) : []
+  const t = (id, label, ct) => `<button class="tab ${tab === id ? 'on' : ''}" onclick="setTab('${id}')">${label} ${ct}</button>`
+  document.getElementById('tabs').innerHTML =
+    t('signals', 'signals', `<span class="ct"><span class="up-t">${n('up')} ▲</span><span class="dn-t">${n('dn')} ▼</span><span class="fl-t">${n('fl')} —</span></span>`) +
+    (sold ? '' : t('fund', 'fundamentals', fx ? `<span class="ct"><span class="up-t">${fc.filter((x) => x === 'bull').length} ▲</span><span class="dn-t">${fc.filter((x) => x === 'bear').length} ▼</span><span class="fl-t">${2 + fc.filter((x) => x === 'flat').length} —</span></span>` : '<span class="ct fl-t">fund</span>')) +
+    (sold ? '' : t('news', 'news', `<span class="ct ${newsSt === 'failed' ? '' : 'fl-t'}" ${newsSt === 'failed' ? 'style="color:var(--warn)"' : ''}>${newsSt === 'slow' ? '<span class="upd"><i></i></span>' : newsSt === 'failed' ? '!' : newsOf().length}</span>`)) +
+    t('trades', 'buys &amp; sells', `<span class="ct fl-t">${sold ? 7 : 5}</span>`)
+  document.getElementById('tabbody').innerHTML = tab === 'fund' ? fundBody() : tab === 'news' ? newsBody() : tab === 'trades' ? '<div class="empty"><span class="ew caps">buys &amp; sells · as built</span></div>' : signalsBody()
+}
+function flip(id) {
+  on[id] = !on[id]; if (on[id]) fresh = id
+  const r = chart.timeScale().getVisibleRange(); build(); pills()
+  for (const el of document.querySelectorAll('.eye')) el.classList.toggle('on', !!on[el.getAttribute('onclick').match(/'(.+)'/)[1]])
+  if (r) chart.timeScale().setVisibleRange(r)
+}
+function bar() {
+  document.getElementById('scen').innerHTML = [['add', 'add'], ['held', 'add held back · target'], ['hold', 'hold'], ['wait', 'wait'], ['fund', 'fund · no fundamentals'], ['sold', 'sold out · no verdict']].map(([s, l]) => `<button class="pill ${s === scen ? 'on' : ''}" onclick="setScen('${s}')">${l}</button>`).join('')
+  document.getElementById('newsst').innerHTML = [['ok', 'news · 8'], ['empty', 'news · none'], ['failed', 'news · not loaded'], ['slow', 'slow load']].map(([s, l]) => `<button class="pill ${s === newsSt ? 'on' : ''}" onclick="setNews('${s}')">${l}</button>`).join('') + '<span style="width:10px"></span>' + ['dark', 'light'].map((t) => `<button class="pill ${t === theme ? 'on' : ''}" onclick="setTheme('${t}')">${t}</button>`).join('')
+  document.getElementById('theme').innerHTML = ''
+  document.getElementById('note').innerHTML = "Each state reads its verdict off its own sample closes and readings by the rule; nothing is picked by hand. The verdict now sits above the tabs, so it stays in view on every tab. Press FUNDAMENTALS or NEWS in the verdict's feeds row to jump to that tab. RULE shows the new fundamentals row."
+}
+function verdictBox() { document.getElementById('verdict').innerHTML = verdictPanel() }
+function all() { load(); bar(); head(); tiles(); build(); span(); pills(); verdictBox(); tabs(); countUp(document.querySelector('.px')) }
+function setScen(s) { scen = s; for (const k in on) on[k] = false; all() }
+function setTheme(t) { theme = t; document.documentElement.dataset.theme = t; all() }
+function setNews(s) { newsSt = s; bar(); verdictBox(); tabs() }
+function setTab(t) { tab = t; tabs() }
+all()
+</script>
+</body>
+</html>

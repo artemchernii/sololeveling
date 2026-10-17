@@ -19,9 +19,11 @@ export function SystemWait({
       className="flex flex-col items-center gap-7"
     >
       <span className="flex items-center gap-[9px]">
-        <span
-          className="system-pulse size-3.5 rounded-[4px] bg-lav-500"
+        <img
+          src="/logo.svg"
+          alt=""
           aria-hidden
+          className="system-pulse size-6 rounded-[6px]"
         />
         <span className="text-[11px] font-medium tracking-[0.2em]">
           SOLO LEVELING

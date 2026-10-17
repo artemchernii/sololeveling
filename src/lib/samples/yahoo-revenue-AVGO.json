@@ -1,0 +1,68 @@
+{
+  "timeseries": {
+    "result": [
+      {
+        "meta": {
+          "symbol": ["AVGO"],
+          "type": ["quarterlyTotalRevenue"]
+        },
+        "timestamp": [
+          1753920000, 1761868800, 1769817600, 1777507200, 1785456000
+        ],
+        "quarterlyTotalRevenue": [
+          {
+            "dataId": 20100,
+            "asOfDate": "2025-07-31",
+            "periodType": "3M",
+            "currencyCode": "USD",
+            "reportedValue": {
+              "raw": 15952000000.0,
+              "fmt": "15.95B"
+            }
+          },
+          {
+            "dataId": 20100,
+            "asOfDate": "2025-10-31",
+            "periodType": "3M",
+            "currencyCode": "USD",
+            "reportedValue": {
+              "raw": 18015000000.0,
+              "fmt": "18.02B"
+            }
+          },
+          {
+            "dataId": 20100,
+            "asOfDate": "2026-01-31",
+            "periodType": "3M",
+            "currencyCode": "USD",
+            "reportedValue": {
+              "raw": 19311000000.0,
+              "fmt": "19.31B"
+            }
+          },
+          {
+            "dataId": 20100,
+            "asOfDate": "2026-04-30",
+            "periodType": "3M",
+            "currencyCode": "USD",
+            "reportedValue": {
+              "raw": 22187000000.0,
+              "fmt": "22.19B"
+            }
+          },
+          {
+            "dataId": 20100,
+            "asOfDate": "2026-07-31",
+            "periodType": "3M",
+            "currencyCode": "USD",
+            "reportedValue": {
+              "raw": 29591000000.0,
+              "fmt": "29.59B"
+            }
+          }
+        ]
+      }
+    ],
+    "error": null
+  }
+}

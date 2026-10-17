@@ -1,5 +1,7 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
+
+import { readingFields } from './fundamentalsFields'
 import type { Infer } from 'convex/values'
 
 import { SECTORS } from '../src/lib/sector'
@@ -176,6 +178,19 @@ const tradeFields = {
      on its day, at no cost — never a buy he paid for. */
   split: v.optional(v.boolean()),
 }
+
+/* N1. Where a push subscription lives, and what a notification is about. */
+export const pushDevice = v.union(
+  v.literal('iphone'),
+  v.literal('mac'),
+  v.literal('other'),
+)
+export const notificationKind = v.union(
+  v.literal('reminder'),
+  v.literal('file_read'),
+  v.literal('file_failed'),
+  v.literal('test'),
+)
 
 export default defineSchema({
   /* R6, 21 Sep. The set of areas used to be a ten-literal union in this file
@@ -529,10 +544,13 @@ export default defineSchema({
     endsAt: v.number(),
     rrule: v.optional(v.string()),
     notes: v.optional(v.string()),
-    /* R5. Minutes before the start to remind, 0 = at the start. Delivered by
-       an open tab only (src/lib/reminders.ts): push to a closed app waits for
-       the bell (PLAN §4 Late). */
+    /* R5. Minutes before the start to remind, 0 = at the start. An open tab
+       shows it (src/lib/reminders.ts); since N1b the server pushes it too. */
     remindMin: v.optional(v.number()),
+    /* N1b (17 Oct). The one scheduled job that sends the next reminder by
+       push (events.remind); moved or cancelled with the event. A job per
+       reminder, not a cron, so nothing is read until one is due. */
+    remindJob: v.optional(v.id('_scheduled_functions')),
   })
     .index('by_owner_start', ['ownerId', 'startsAt'])
     /* A series that began in March still has occurrences in June, so a window
@@ -962,6 +980,31 @@ export default defineSchema({
     rateSource: v.string(),
     fetchedAt: v.number(),
   }).index('by_owner_instrument_year', ['ownerId', 'instrumentId', 'year']),
+
+  /* Source 4: what Yahoo Finance says about a company on one day (16
+     Oct, mockup fundamentals.html) — the analysts' target and rating,
+     revenue on a year before, P/E and dividend yield. One row per
+     reading, never edited; read again when its page is opened and the
+     latest is a day old (fundamentals.ts). A fund has none. */
+  fundamentals: defineTable({
+    ownerId: v.string(),
+    instrumentId: v.id('instruments'),
+    ...readingFields,
+  }).index('by_owner_instrument_asOf', ['ownerId', 'instrumentId', 'asOf']),
+
+  /* Source 4: an industry's forward P/E as Aswath Damodaran (NYU Stern)
+     published it for a year, and the whole US market's ('Total
+     Market'). Shown only beside a company's own P/E in its card. One
+     row per industry and year, stored once. */
+  sectorAverages: defineTable({
+    ownerId: v.string(),
+    industry: v.string(),
+    year: v.number(),
+    firms: v.number(),
+    forwardPe: v.number(),
+    source: v.string(),
+    fetchedAt: v.number(),
+  }).index('by_owner_industry_year', ['ownerId', 'industry', 'year']),
 
   /* Source 4: an exchange rate, one currency into euros, as the ECB
      published it (via Frankfurter). What lets a US share be shown in
@@ -1458,6 +1501,32 @@ export default defineSchema({
     decision: v.optional(v.string()), // the one sentence "what changes next week"
   }).index('by_owner_period_start', ['ownerId', 'period', 'periodStart']),
 
+  /* N1 (15 Oct). One row per browser that allowed notifications — his
+     iPhone from the home screen, the Mac's browser. The endpoint is the
+     push service's address for that browser; the keys encrypt for it. */
+  pushSubscriptions: defineTable({
+    ownerId: v.string(),
+    endpoint: v.string(),
+    p256dh: v.string(),
+    auth: v.string(),
+    device: pushDevice,
+    createdAt: v.number(),
+  })
+    .index('by_owner', ['ownerId'])
+    .index('by_owner_and_endpoint', ['ownerId', 'endpoint']),
+
+  /* N1. Every notification sent, so the bell lists today's and a tap
+     clears its dot. Written before the push goes, whether or not a phone
+     is subscribed. */
+  notifications: defineTable({
+    ownerId: v.string(),
+    kind: notificationKind,
+    title: v.string(),
+    body: v.string(),
+    url: v.string(),
+    sentAt: v.number(),
+    readAt: v.optional(v.number()),
+  }).index('by_owner_and_sent', ['ownerId', 'sentAt']),
   /* The AI read of a week on Review (R7, 15 Oct; spec
      docs/specs/2026-10-15-review-ai-read.md). One row per week and tone, so
      reopening the week shows it without paying again; RUN AGAIN replaces

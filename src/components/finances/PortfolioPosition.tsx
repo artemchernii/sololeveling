@@ -13,7 +13,7 @@ import {
   lineKeys,
   useChartLines,
 } from '@/components/finances/ChartLines'
-import { PositionTabs } from '@/components/finances/PositionSignals'
+import { PositionHelper } from '@/components/finances/PositionHelper'
 import { RANGES, RangePills } from '@/components/finances/RangePills'
 import type { Range } from '@/components/finances/RangePills'
 import type { Tool } from '@/components/finances/ChartTools'
@@ -23,7 +23,6 @@ import { PriceChart, asPt } from '@/components/finances/PriceChart'
 import type { Position } from '@/components/finances/PortfolioList'
 import { HeadLine } from '@/components/finances/PositionHead'
 import { PositionTiles } from '@/components/finances/PositionTiles'
-import { PositionVerdict } from '@/components/finances/PositionVerdict'
 import { PositionTrades } from '@/components/finances/PositionTrades'
 import { AddBuys } from '@/components/finances/AddBuys'
 import { FileView } from '@/components/finances/AccountFileView'
@@ -482,21 +481,16 @@ export function PortfolioPosition({
       {unpriced ? (
         list
       ) : (
-        <PositionTabs
+        <PositionHelper
+          instrumentId={first.instrumentId}
+          name={owned.name}
+          share={first.type === 'EQUITY'}
+          held={!sold && pts.length > 0}
           lines={lines}
           say={say}
           trades={list}
           count={all.length}
-          top={
-            sold || pts.length === 0 ? null : (
-              <PositionVerdict
-                rows={lines.rows}
-                avg={lines.avg?.price ?? null}
-                asOf={pts[pts.length - 1].t}
-                say={say}
-              />
-            )
-          }
+          asOf={pts.at(-1)?.t ?? null}
         />
       )}
     </section>

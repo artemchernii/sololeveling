@@ -1,8 +1,8 @@
 import { expandEvents } from './recurrence'
 import type { Doc } from '../../convex/_generated/dataModel'
 
-/* R5. A reminder is delivered by an open tab of the app — no push to a closed
-   one; that comes with the bell (PLAN §4 Late). So a reminder whose moment
+/* R5. A reminder shows as a line in an open tab of the app; the push to a
+   closed one is the server's (N1b, events.remind). So a reminder whose moment
    passed while no tab was open is not fired late on the next open: a gym
    reminder at 7:50 shown at 14:00 is noise. Only the last few minutes count. */
 
@@ -46,26 +46,4 @@ export function reminderText(r: DueReminder, now: number): string {
   if (mins < 60) return `${r.title} in ${mins} min`
   const h = Math.round(mins / 60)
   return `${r.title} in ${h} ${h === 1 ? 'hour' : 'hours'}`
-}
-
-/**
- * Asks the browser for notifications, from a tap. Returns a line to show when
- * the answer means the reminder will only appear inside the app, or null.
- */
-export async function askToNotify(): Promise<string | null> {
-  if (typeof Notification === 'undefined') {
-    return 'This browser has no notifications — the reminder shows inside the app while it is open.'
-  }
-  let permission = Notification.permission
-  if (permission === 'default') {
-    try {
-      permission = await Notification.requestPermission()
-    } catch {
-      permission = 'denied'
-    }
-  }
-  if (permission === 'granted') {
-    return 'Reminds while any tab of the app is open.'
-  }
-  return 'Notifications are blocked for this site — the reminder shows inside the app while it is open.'
 }

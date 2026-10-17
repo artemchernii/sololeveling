@@ -10,6 +10,7 @@ import {
   writeBalance,
 } from './accounts'
 import { movedSince } from './aggregate'
+import { fileNotice } from './fileNotice'
 import { fileTrade, fileTrades } from './fileTrades'
 import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
@@ -2582,6 +2583,7 @@ export const finish = internalMutation({
     })
     if (args.historyTrades !== undefined)
       await joinUpdate(ctx, intake.ownerId, intake._id)
+    await fileNotice(ctx, intake._id)
     return null
   },
 })
@@ -2607,6 +2609,7 @@ export const fail = internalMutation({
           ? intake.costUsd
           : (intake.costUsd ?? 0) + args.costUsd,
     })
+    await fileNotice(ctx, intake._id)
     return null
   },
 })

@@ -39,6 +39,9 @@ export default [
       // The Claude Design canvas export: a design reference, not app source.
       // support.js there is a generated canvas runtime marked "do not edit".
       'design/**',
+      // The service worker (N1): a plain browser script served as-is,
+      // outside the TypeScript project.
+      'public/sw.js',
       // Third-party skill packages, installed via `skills add`.
       '.claude/**',
       '.agents/**',

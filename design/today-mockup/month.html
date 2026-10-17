@@ -114,6 +114,39 @@
 
   @media (max-width: 860px) { .bento { grid-template-columns: repeat(2, 1fr) } }
   @media (max-width: 640px) { .top, .row2, .bento { grid-template-columns: 1fr } .six { position: static; display:inline-block; margin-top: 10px } }
+
+  /* ── today: one live card ── */
+  .next { display:grid; grid-template-columns: 220px 1fr; gap: 28px; align-items: center }
+  .nextt { font-size: 40px; font-weight: 300; letter-spacing: -.02em; margin: 6px 0 10px }
+  .nextt .at { font-family: var(--mono); font-size: 18px; color: var(--lav-300); vertical-align: middle; margin-left: 6px }
+  .live { display:inline-flex; align-items:center; gap: 6px }
+  .live::before { content:''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: ping 1.6s ease-out infinite }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 currentColor } 80%,100% { box-shadow: 0 0 0 7px transparent } }
+  .line { position: relative; height: 64px }
+  .line .track { position:absolute; left:0; right:0; top: 26px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.06) }
+  .line .past { position:absolute; left:0; top: 26px; height: 6px; border-radius: 3px; width: var(--w); background: linear-gradient(90deg, transparent, rgba(181,171,252,.35)); animation: grow 1.2s .3s cubic-bezier(.2,.8,.2,1) both }
+  .line .ev { position:absolute; top: 18px; height: 22px; border-radius: 6px; background: var(--lav-400); box-shadow: 0 0 18px -2px var(--shine);
+    font-family: var(--mono); font-size: 9.5px; color: #12121c; display:grid; place-items:center; animation: pop .5s .6s cubic-bezier(.3,1.6,.5,1) both }
+  .line .now { position:absolute; top: 10px; bottom: 16px; width: 2px; background: var(--ink-100); border-radius: 1px; box-shadow: 0 0 10px var(--ink-100) }
+  .line .now::before { content:''; position:absolute; top: -4px; left: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-100); animation: ping 1.6s ease-out infinite; color: var(--ink-100) }
+  .line .hr { position:absolute; bottom: 0; font-family: var(--mono); font-size: 9px; color: var(--ink-500); transform: translateX(-50%) }
+  .threeh { display:flex; justify-content:space-between; align-items:center; margin: 18px 0 10px; padding-top: 16px; border-top: 1px solid var(--edge) }
+  .threes { display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px }
+  .q { border-radius: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.025); padding: 12px; min-height: 92px; display:flex; flex-direction:column; gap: 8px; text-align:left }
+  .q .k { font-family: var(--mono); font-size: 10px; color: var(--ink-500) }
+  .q.filled { animation: pop .4s cubic-bezier(.3,1.6,.5,1) }
+  .q .qt { font-size: 15px; display:flex; align-items:center; gap: 10px; flex: 1 }
+  .q .tick { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--ink-500); flex: none; display:grid; place-items:center; font-size: 11px; transition: all .2s }
+  .q .tick:hover { border-color: var(--lav-400); box-shadow: 0 0 10px -2px var(--shine) }
+  .q.done { border-color: color-mix(in oklch, var(--good) 35%, transparent) }
+  .q.done .tick { background: var(--good); border-color: var(--good); color: #12121c; animation: pop .45s cubic-bezier(.3,1.6,.5,1) }
+  .q.done .qt span:last-child { color: var(--ink-500); text-decoration: line-through }
+  .q.empty { border-style: dashed }
+  .sugg { display:flex; flex-wrap: wrap; gap: 6px }
+  .sg { display:inline-flex; align-items:center; gap: 6px; padding: 5px 9px; border-radius: 999px; border: 1px solid var(--edge); font-size: 12px; color: var(--ink-200); transition: border-color .2s, box-shadow .2s }
+  .sg:hover { border-color: rgba(181,171,252,.5); box-shadow: 0 0 14px -6px var(--shine) }
+  .sg svg { width: 12px; height: 12px; color: var(--a) }
+  @media (max-width: 640px) { .next, .threes { grid-template-columns: 1fr } }
 </style>
 </head>
 <body>
@@ -140,17 +173,21 @@
     </div>
   </section>
 
-  <section class="row2">
-    <div class="card" style="--i:1">
-      <div class="ch"><span class="caps">TODAY</span><span class="caps" style="color:var(--ink-200)">SAT, OCT 17</span></div>
-      <div class="ev"><span class="bar"></span><span class="t">02:00 PM</span><span class="n">PT</span><span class="d">60 min</span></div>
+  <section class="card day" style="--i:1">
+    <div class="ch">
+      <span class="caps">TODAY · <span style="color:var(--ink-200)">SAT 17 OCT</span></span>
+      <span class="caps">NOW <span style="color:var(--lav-300)" id="clock">11:50</span></span>
     </div>
-    <div class="card" style="--i:2">
-      <div class="ch"><span class="caps">TODAY'S THREE</span><span class="badge b-lav" id="three">0 OF 3</span></div>
-      <div class="slot"><span class="k">01</span><span class="add">＋</span></div>
-      <div class="slot"><span class="k">02</span></div>
-      <div class="slot"><span class="k">03</span></div>
+    <div class="next">
+      <div>
+        <span class="caps">NEXT</span>
+        <div class="nextt">PT <span class="at">14:00</span></div>
+        <span class="badge b-lav live">IN 2H 10M · 60 MIN</span>
+      </div>
+      <div class="line" id="line"></div>
     </div>
+    <div class="threeh"><span class="caps">TODAY'S THREE</span><span class="badge b-lav" id="three">0 OF 3</span></div>
+    <div class="threes" id="threes"></div>
   </section>
 
   <section class="card" style="--i:3">
@@ -235,16 +272,50 @@ function log(k) {
   setTimeout(() => { T.find(t => t.k === k).days[TODAY]++; busy[k] = 'saved'; render(); }, 600);
   setTimeout(() => { delete busy[k]; render(); }, 2400);
 }
+
+// ── today ──
+const DAY0 = 8, DAY1 = 24, NOW = 11 + 50/60;
+const x = h => ((h - DAY0) / (DAY1 - DAY0) * 100).toFixed(2) + '%';
+document.getElementById('line').innerHTML =
+  `<span class="track"></span><span class="past" style="--w:${x(NOW)}"></span>
+   <span class="ev" style="left:${x(14)};width:calc(${x(15)} - ${x(14)})">PT</span>
+   <span class="now" style="left:${x(NOW)}"></span>` +
+  [8, 12, 16, 20, 24].map(h => `<span class="hr" style="left:${x(h)}">${String(h % 24).padStart(2, '0')}</span>`).join('');
+
+const SUG = [
+  { t: 'PT', ic: 'body', a: 'var(--a-body)' },
+  { t: 'Portuguese', ic: 'lang', a: 'var(--a-lang)' },
+  { t: 'Post', ic: 'post', a: 'var(--a-social)' },
+  { t: 'Today build', ic: 'proj', a: 'var(--a-projects)' },
+];
+let Q = [];
+function renderThree() {
+  const left = SUG.filter(s => !Q.some(q => q.t === s.t));
+  document.getElementById('threes').innerHTML = [0, 1, 2].map(i => {
+    const q = Q[i];
+    if (q) return `<div class="q filled ${q.done ? 'done' : ''}"><span class="k">0${i + 1}</span>
+      <span class="qt"><button class="tick" onclick="tickQ(${i})">${q.done ? '✓' : ''}</button><span style="display:flex;align-items:center;gap:8px"><span class="ic" style="--a:${q.a};width:22px;height:22px">${IC[q.ic]}</span></span><span>${q.t}</span></span></div>`;
+    if (i !== Q.length) return `<div class="q empty"><span class="k">0${i + 1}</span></div>`;
+    return `<div class="q empty"><span class="k">0${i + 1}</span><div class="sugg">${left.map(s =>
+      `<button class="sg" style="--a:${s.a}" onclick="pickQ('${s.t}')">${IC[s.ic]}${s.t}</button>`).join('')}</div></div>`;
+  }).join('');
+  const done = Q.filter(q => q.done).length;
+  document.getElementById('three').textContent = Q.length < 3 ? `${Q.length} OF 3` : `${done} OF 3 DONE`;
+}
+function pickQ(t) { if (Q.length < 3) Q.push({ ...SUG.find(s => s.t === t) }); renderThree() }
+function tickQ(i) { Q[i].done = !Q[i].done; renderThree() }
+
 function scenario(s) {
-  T = BASE(); busy = {}; first = true; document.body.classList.remove('settled');
+  T = BASE(); busy = {}; first = true; Q = []; document.body.classList.remove('settled');
   if (s === 'good') {
     T[0].days = on(2, 6, 9, 13, 16);
     T[1].days = on(1, 3, 5, 7, 8, 10, 12, 14, 15, 17);
     T[2].days = on(3, 8, 15);
     T[3].days = on(3, 7, 10, 14);
+    Q = [{ ...SUG[0], done: true }, { ...SUG[1], done: true }, { ...SUG[2] }];
   }
   document.querySelectorAll('[data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === s));
-  render();
+  render(); renderThree();
   setTimeout(() => document.body.classList.add('settled'), 1500);
 }
 document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => scenario(b.dataset.s));

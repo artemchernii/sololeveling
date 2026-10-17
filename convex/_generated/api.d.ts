@@ -36,6 +36,7 @@ import type * as e2eUpdate from "../e2eUpdate.js";
 import type * as events from "../events.js";
 import type * as fileTrades from "../fileTrades.js";
 import type * as fundamentals from "../fundamentals.js";
+import type * as fundamentalsFields from "../fundamentalsFields.js";
 import type * as gapMatch from "../gapMatch.js";
 import type * as github from "../github.js";
 import type * as goals from "../goals.js";
@@ -115,6 +116,7 @@ declare const fullApi: ApiFromModules<{
   events: typeof events;
   fileTrades: typeof fileTrades;
   fundamentals: typeof fundamentals;
+  fundamentalsFields: typeof fundamentalsFields;
   gapMatch: typeof gapMatch;
   github: typeof github;
   goals: typeof goals;

@@ -134,13 +134,30 @@
   .threes { display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px }
   .q { border-radius: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.025); padding: 12px; min-height: 92px; display:flex; flex-direction:column; gap: 8px; text-align:left }
   .q .k { font-family: var(--mono); font-size: 10px; color: var(--ink-500) }
-  .q.filled { animation: pop .4s cubic-bezier(.3,1.6,.5,1) }
+  .q { position: relative; overflow: hidden; transition: border-color .4s ease, background .4s ease }
+  .q.enter > * { animation: rise .32s cubic-bezier(.2,.8,.2,1) both }
+  .q.enter > *:nth-child(2) { animation-delay: .05s }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px) } }
   .q .qt { font-size: 15px; display:flex; align-items:center; gap: 10px; flex: 1 }
-  .q .tick { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--ink-500); flex: none; display:grid; place-items:center; font-size: 11px; transition: all .2s }
+  .q .label { transition: color .35s ease }
+  /* the check: ring fills from its centre, then the tick draws itself */
+  .q .tick { position: relative; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--ink-500); flex: none; display:grid; place-items:center;
+    transition: border-color .25s ease, box-shadow .25s ease }
+  .q .tick::before { content:''; position:absolute; inset: 2px; border-radius: 50%; background: var(--lav-400); transform: scale(0); transition: transform .28s cubic-bezier(.3,1.4,.5,1) }
+  .q .tick svg { position: relative; width: 12px; height: 12px; color: #12121c; stroke-dasharray: 16; stroke-dashoffset: 16; transition: stroke-dashoffset .26s ease-out .16s }
   .q .tick:hover { border-color: var(--lav-400); box-shadow: 0 0 10px -2px var(--shine) }
-  .q.done { border-color: color-mix(in oklch, var(--good) 35%, transparent) }
-  .q.done .tick { background: var(--good); border-color: var(--good); color: #12121c; animation: pop .45s cubic-bezier(.3,1.6,.5,1) }
-  .q.done .qt span:last-child { color: var(--ink-500); text-decoration: line-through }
+  .q.done { border-color: rgba(181,171,252,.32); background: rgba(181,171,252,.05) }
+  .q.done .tick { border-color: var(--lav-400); box-shadow: 0 0 14px -3px var(--shine) }
+  .q.done .tick::before { transform: scale(1) }
+  .q.done .tick svg { stroke-dashoffset: 0 }
+  .q.done .label { color: var(--ink-400) }
+  .q .ok { position:absolute; top: 10px; right: 10px; opacity: 0; transform: translateY(-3px); transition: opacity .25s ease .3s, transform .25s ease .3s }
+  .q.done .ok { opacity: 1; transform: none }
+  /* one soft light passes across the slot when it is ticked */
+  .q::after { content:''; position:absolute; inset: 0; pointer-events:none; background: linear-gradient(100deg, transparent 30%, rgba(181,171,252,.16) 50%, transparent 70%); transform: translateX(-100%) }
+  .q.flash::after { animation: pass .7s ease-out .1s }
+  @keyframes pass { to { transform: translateX(100%) } }
+  @media (prefers-reduced-motion: reduce) { .q *, .q::after { animation: none !important; transition: none !important } }
   .q.empty { border-style: dashed }
   .sugg { display:flex; flex-wrap: wrap; gap: 6px }
   .sg { display:inline-flex; align-items:center; gap: 6px; padding: 5px 9px; border-radius: 999px; border: 1px solid var(--edge); font-size: 12px; color: var(--ink-200); transition: border-color .2s, box-shadow .2s }
@@ -291,13 +308,14 @@ const SUG = [
   { t: 'Post', ic: 'post', a: 'var(--a-social)' },
   { t: 'Today build', ic: 'proj', a: 'var(--a-projects)' },
 ];
-let Q = [];
+let Q = [], justAdded = -1;
 function renderThree() {
   const left = SUG.filter(s => !Q.some(q => q.t === s.t));
   document.getElementById('threes').innerHTML = [0, 1, 2].map(i => {
     const q = Q[i];
-    if (q) return `<div class="q filled ${q.done ? 'done' : ''}"><span class="k">0${i + 1}</span>
-      <span class="qt"><button class="tick" onclick="tickQ(${i})">${q.done ? '✓' : ''}</button><span style="display:flex;align-items:center;gap:8px"><span class="ic" style="--a:${q.a};width:22px;height:22px">${IC[q.ic]}</span></span><span>${q.t}</span></span></div>`;
+    if (q) return `<div class="q ${q.done ? 'done' : ''} ${i === justAdded ? 'enter' : ''}" id="q${i}"><span class="k">0${i + 1}</span>
+      <span class="qt"><button class="tick" onclick="tickQ(${i})"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.2l2.3 2.3 4.7-4.9"/></svg></button><span class="ic" style="--a:${q.a};width:22px;height:22px">${IC[q.ic]}</span><span class="label">${q.t}</span></span>
+      <span class="badge ok" style="color:var(--lav-300)">DONE</span></div>`;
     if (i !== Q.length) return `<div class="q empty"><span class="k">0${i + 1}</span></div>`;
     return `<div class="q empty"><span class="k">0${i + 1}</span><div class="sugg">${left.map(s =>
       `<button class="sg" style="--a:${s.a}" onclick="pickQ('${s.t}')">${IC[s.ic]}${s.t}</button>`).join('')}
@@ -306,9 +324,16 @@ function renderThree() {
   const done = Q.filter(q => q.done).length;
   document.getElementById('three').textContent = Q.length < 3 ? `${Q.length} OF 3` : `${done} OF 3 DONE`;
 }
-function pickQ(t) { if (Q.length < 3) Q.push({ ...SUG.find(s => s.t === t) }); renderThree() }
-function ownQ(t) { if (Q.length < 3) Q.push({ t, ic: 'proj', a: 'var(--ink-300)' }); renderThree() }
-function tickQ(i) { Q[i].done = !Q[i].done; renderThree() }
+function pickQ(t) { if (Q.length < 3) { Q.push({ ...SUG.find(s => s.t === t) }); justAdded = Q.length - 1 } renderThree(); justAdded = -1 }
+function ownQ(t) { if (Q.length < 3) { Q.push({ t, ic: 'proj', a: 'var(--ink-300)' }); justAdded = Q.length - 1 } renderThree(); justAdded = -1; const f = document.querySelector('.own'); if (f) f.focus() }
+function tickQ(i) {
+  Q[i].done = !Q[i].done;
+  const el = document.getElementById('q' + i);
+  el.classList.toggle('done', Q[i].done);
+  el.classList.remove('flash'); void el.offsetWidth; if (Q[i].done) el.classList.add('flash');
+  const done = Q.filter(q => q.done).length;
+  document.getElementById('three').textContent = Q.length < 3 ? `${Q.length} OF 3` : `${done} OF 3 DONE`;
+}
 
 function scenario(s) {
   T = BASE(); busy = {}; first = true; Q = []; document.body.classList.remove('settled');

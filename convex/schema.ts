@@ -1,5 +1,7 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
+
+import { readingFields } from './fundamentalsFields'
 import type { Infer } from 'convex/values'
 
 import { SECTORS } from '../src/lib/sector'
@@ -975,6 +977,31 @@ export default defineSchema({
     rateSource: v.string(),
     fetchedAt: v.number(),
   }).index('by_owner_instrument_year', ['ownerId', 'instrumentId', 'year']),
+
+  /* Source 4: what Yahoo Finance says about a company on one day (16
+     Oct, mockup fundamentals.html) — the analysts' target and rating,
+     revenue on a year before, P/E and dividend yield. One row per
+     reading, never edited; read again when its page is opened and the
+     latest is a day old (fundamentals.ts). A fund has none. */
+  fundamentals: defineTable({
+    ownerId: v.string(),
+    instrumentId: v.id('instruments'),
+    ...readingFields,
+  }).index('by_owner_instrument_asOf', ['ownerId', 'instrumentId', 'asOf']),
+
+  /* Source 4: an industry's forward P/E as Aswath Damodaran (NYU Stern)
+     published it for a year, and the whole US market's ('Total
+     Market'). Shown only beside a company's own P/E in its card. One
+     row per industry and year, stored once. */
+  sectorAverages: defineTable({
+    ownerId: v.string(),
+    industry: v.string(),
+    year: v.number(),
+    firms: v.number(),
+    forwardPe: v.number(),
+    source: v.string(),
+    fetchedAt: v.number(),
+  }).index('by_owner_industry_year', ['ownerId', 'industry', 'year']),
 
   /* Source 4: an exchange rate, one currency into euros, as the ECB
      published it (via Frankfurter). What lets a US share be shown in

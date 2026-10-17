@@ -32,6 +32,7 @@ import {
   projectWeek,
   spentWeek,
 } from '../src/lib/review'
+import { monthSix as monthSixCount } from '../src/lib/monthSix'
 import type { LedgerTrade, Observation } from '../src/lib/holdings'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
@@ -226,6 +227,77 @@ export const monthCounts = query({
     }
 
     return { ...counts, total }
+  },
+})
+
+/* Today's THIS MONTH, his six (17 Oct, PLAN.md §3 item 4). Five counted
+   here, per local day: sessions under a language, workouts, shakes, posts,
+   and commits (own repo, no merges, as Review). Read through
+   by_owner_area_time so the bank's rows are never scanned. */
+const sixCount = v.object({ days: v.array(v.number()), prev: v.number() })
+
+export const monthSix = query({
+  args: {
+    prevStart: v.number(),
+    /** This month's local midnights, ascending. */
+    dayStarts: v.array(v.number()),
+    nextStart: v.number(),
+    languages: v.array(v.string()),
+  },
+  returns: v.object({
+    langs: sixCount,
+    workout: sixCount,
+    shake: sixCount,
+    post: sixCount,
+    commits: sixCount,
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const logs = []
+    for (const area of ['body', 'social', ...args.languages.slice(0, 20)])
+      logs.push(
+        ...(await ctx.db
+          .query('logs')
+          .withIndex('by_owner_area_time', (q) =>
+            q
+              .eq('ownerId', ownerId)
+              .eq('area', area)
+              .gte('occurredAt', args.prevStart)
+              .lt('occurredAt', args.nextStart),
+          )
+          .take(MAX_ROWS)),
+      )
+    const commits = []
+    for (const status of REVIEW_PROJECTS) {
+      const projects = await ctx.db
+        .query('projects')
+        .withIndex('by_owner_status', (q) =>
+          q.eq('ownerId', ownerId).eq('status', status),
+        )
+        .take(MAX_ROWS)
+      for (const project of projects) {
+        if (project.githubRepo === undefined) continue
+        const rows = await ctx.db
+          .query('commits')
+          .withIndex('by_owner_project_time', (q) =>
+            q
+              .eq('ownerId', ownerId)
+              .eq('projectId', project._id)
+              .gte('authoredAt', args.prevStart)
+              .lt('authoredAt', args.nextStart),
+          )
+          .take(MAX_ROWS)
+        commits.push(...rows.filter((r) => r.repo === project.githubRepo))
+      }
+    }
+    return monthSixCount(
+      logs,
+      commits,
+      args.languages,
+      args.prevStart,
+      args.dayStarts.slice(0, 31),
+      args.nextStart,
+    )
   },
 })
 

@@ -55,6 +55,8 @@ export const logKindValidator = v.union(
   v.literal('exercise'),
   /* Between his own accounts — see schema.ts. */
   v.literal('move'),
+  /* A post — Today's POST tile. See schema.ts. */
+  v.literal('post'),
   v.literal('note'),
   v.literal('idea'),
   v.literal('custom'),

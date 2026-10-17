@@ -104,6 +104,8 @@ const logKind = v.union(
      his statement read €6,601 out on paper, €561 of it spent. Deliberately
      NOT `transfer`, which the Money tile counts as money put aside. */
   v.literal('move'),
+  /* Something he posted (17 Oct): Today's POST tile counts these. */
+  v.literal('post'),
   v.literal('note'),
   v.literal('idea'),
   v.literal('custom'),

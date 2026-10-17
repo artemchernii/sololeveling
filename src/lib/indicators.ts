@@ -225,6 +225,42 @@ export function signals(
 }
 
 export type Call = 'add' | 'hold' | 'wait'
+export type FundId = 'target' | 'revenue' | 'rating'
+
+/** What `verdict()` reads of a company's stored fundamentals
+    (convex/fundamentals.ts): the analysts' mean target in the price's
+    currency, revenue growth on a year before as a fraction, and the
+    analysts' mean rating, 1 (strong buy) to 5 (sell). */
+export type Reading = {
+  asOf: number
+  targetMean?: number
+  revenueGrowth?: number
+  ratingMean?: number
+}
+/** Older than this, a reading no longer feeds the verdict. */
+export const FRESH_DAYS = 7
+/** Whether the fundamentals fed the call: `used`, `old` (older than
+    FRESH_DAYS) or `none` (a fund, or nothing stored). */
+export type Feed = 'used' | 'old' | 'none'
+
+/** The way each fundamental points, as its chip and its feed count it:
+    a target above the price up, under or at it down; revenue growing
+    up, shrinking down; a rating under 2.5 (buy) up, 3.5 or worse
+    (underperform, sell) down, between flat. */
+export function fundWays(
+  r: Reading,
+  price: number,
+): Partial<Record<FundId, Way>> {
+  const out: Partial<Record<FundId, Way>> = {}
+  if (r.targetMean !== undefined)
+    out.target = r.targetMean > price ? 'up' : 'down'
+  if (r.revenueGrowth !== undefined)
+    out.revenue = r.revenueGrowth >= 0 ? 'up' : 'down'
+  if (r.ratingMean !== undefined)
+    out.rating =
+      r.ratingMean < 2.5 ? 'up' : r.ratingMean >= 3.5 ? 'down' : 'flat'
+  return out
+}
 
 /**
  * The call to act on a position (15 Oct, mockup verdict.html; his "go
@@ -238,11 +274,75 @@ export type Call = 'add' | 'hold' | 'wait'
  * - ADD: price over SMA 200 and RSI 14 under 45.
  * - HOLD: every other case (between the averages: turning).
  *
- * `why` names the rows that made the call; the screen shows all three
- * beside it. The average buy is never an input. Null without all three
- * rows. Fundamentals and news join the rule in their own slices.
+ * Then the fundamentals (16 Oct, mockup fundamentals.html), only on an
+ * ADD and only from a reading at most FRESH_DAYS old, checked top to
+ * bottom — any one turns the ADD into a HOLD:
+ *
+ * - HOLD: price at or above the analysts' mean target.
+ * - HOLD: revenue growth under 0 (last quarter on a year before).
+ * - HOLD: rating mean 3.5 or worse (Yahoo's underperform or sell).
+ *
+ * They never make an ADD and never touch a HOLD or WAIT of the lines.
+ * P/E, dividend yield and news are not inputs; nor is the average buy.
+ * `why` names the rows that made the call; the screen shows them all
+ * beside it. Null without all three line rows.
  */
 export function verdict(
+  rows: ReadonlyArray<Signal>,
+  opts: {
+    reading?: Reading | null
+    now?: number
+    /** The target in the price's currency, for its line. */
+    say?: (v: number) => string
+  } = {},
+): {
+  call: Call
+  why: Array<LineId | FundId>
+  line: string
+  feed: Feed
+} | null {
+  const t = lines(rows)
+  if (t === null) return null
+  const r = opts.reading ?? null
+  const feed: Feed =
+    r === null
+      ? 'none'
+      : (opts.now ?? Date.now()) - r.asOf <= FRESH_DAYS * DAY
+        ? 'used'
+        : 'old'
+  if (t.call !== 'add' || feed !== 'used' || r === null) return { ...t, feed }
+  const price = rows.find((x) => x.id === 'sma200')?.price ?? 0
+  const say = opts.say ?? ((v: number) => v.toFixed(2))
+  const UP = 'Long trend up with a dip, and'
+  if (r.targetMean !== undefined && price >= r.targetMean)
+    return {
+      call: 'hold',
+      why: ['target'],
+      feed,
+      line: `${UP} the price is at or above the analysts' avg target of ${say(r.targetMean)}. By the textbook, keep the shares; no room left to the target.`,
+    }
+  if (r.revenueGrowth !== undefined && r.revenueGrowth < 0)
+    return {
+      call: 'hold',
+      why: ['revenue'],
+      feed,
+      line: `${UP} revenue fell ${Math.abs(r.revenueGrowth * 100).toFixed(1)}% on a year before. By the textbook, keep the shares until revenue grows again.`,
+    }
+  if (r.ratingMean !== undefined && r.ratingMean >= 3.5)
+    return {
+      call: 'hold',
+      why: ['rating'],
+      feed,
+      line: `${UP} most analysts rate it sell. By the textbook, keep the shares; no new ones against the analysts.`,
+    }
+  const read = (['target', 'revenue', 'rating'] as const).filter(
+    (k) => fundWays(r, price)[k] !== undefined,
+  )
+  return { ...t, why: [...t.why, ...read], feed }
+}
+
+/* The lines' own call, as built on 15 Oct. */
+function lines(
   rows: ReadonlyArray<Signal>,
 ): { call: Call; why: Array<LineId>; line: string } | null {
   const pct = (id: LineId) => rows.find((r) => r.id === id)?.pct

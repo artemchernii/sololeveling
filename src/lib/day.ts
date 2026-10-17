@@ -33,3 +33,20 @@ export function hourOf(ms: number): number {
   const d = new Date(ms)
   return d.getHours() + d.getMinutes() / 60
 }
+
+/** Rows for the line: an item that starts before another on its row ends
+    goes to the next row down, so two at once are both readable. Returns
+    each item's row and how many rows there are. */
+export function lanes(
+  items: ReadonlyArray<{ startsAt: number; durationMin?: number }>,
+): { lane: Array<number>; count: number } {
+  const ends: Array<number> = []
+  const lane = items.map((i) => {
+    const end = i.startsAt + (i.durationMin ?? 30) * 60_000
+    const free = ends.findIndex((e) => e <= i.startsAt)
+    const row = free === -1 ? ends.length : free
+    ends[row] = end
+    return row
+  })
+  return { lane, count: Math.max(1, ends.length) }
+}

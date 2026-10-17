@@ -1,8 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { SkeletonRows } from '@/components/Skeleton'
-import { DAY_FROM, DAY_TO, dayX, hourOf, inLabel, nextItem } from '@/lib/day'
+import {
+  DAY_FROM,
+  DAY_TO,
+  dayX,
+  hourOf,
+  inLabel,
+  lanes,
+  nextItem,
+} from '@/lib/day'
 import { buildTimeline } from '@/lib/timeline'
 import { ThreeSlots } from './ThreeSlots'
 import type { Pick } from './ThreeSlots'
@@ -53,6 +61,10 @@ export function DayCard({
       hourCycle: 'h23',
     })
   const nowX = dayX(hourOf(now.getTime()))
+  /* Two at once go on two rows, never one block with both names. */
+  const rows = lanes(items)
+  const line = useRef<HTMLDivElement>(null)
+  const width = useWidth(line)
 
   return (
     <section
@@ -101,27 +113,53 @@ export function DayCard({
                   </span>
                 </>
               ) : (
-                <div className="mt-1.5 mb-2.5 text-[40px] leading-tight font-light tracking-[-0.02em] text-ink-500">
-                  —
-                  <span className="ml-3 rounded-full border border-current px-2 py-0.5 align-middle font-mono text-[9.5px] tracking-[0.12em] text-ink-400">
-                    {items.length} EVENTS
+                <>
+                  <div className="mt-1.5 mb-2.5 text-[40px] leading-tight font-light tracking-[-0.02em] text-ink-300">
+                    FREE
+                  </div>
+                  <span className="rounded-full border border-current px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] text-ink-400">
+                    {items.length === 0 ? '0 EVENTS' : 'NOTHING LATER'}
                   </span>
-                </div>
+                </>
               )}
             </div>
-            <div className="td-line" aria-hidden>
+            <div
+              ref={line}
+              className="td-line"
+              aria-hidden
+              style={{ height: 64 + (rows.count - 1) * 26 }}
+            >
               <span className="td-track" />
               <span className="td-past" style={{ width: `${nowX}%` }} />
-              {items.map((i) => {
+              {items.map((i, n) => {
                 const from = dayX(hourOf(i.startsAt))
                 const to = dayX(hourOf(i.startsAt) + (i.durationMin ?? 30) / 60)
+                const top = 18 + rows.lane[n] * 26
+                /* A name that does not fit its block sits beside it. */
+                const fits =
+                  ((to - from) / 100) * width >= i.title.length * 6.5 + 12
                 return (
-                  <span
-                    key={i.id}
-                    className="td-ev"
-                    style={{ left: `${from}%`, width: `${to - from}%` }}
-                  >
-                    {to - from > 4 ? i.title : ''}
+                  <span key={i.id}>
+                    <span
+                      title={i.title}
+                      className="td-ev"
+                      style={{ left: `${from}%`, width: `${to - from}%`, top }}
+                    >
+                      {fits ? i.title : ''}
+                    </span>
+                    {fits ? null : (
+                      <span
+                        className="td-name"
+                        style={{
+                          ...(to > 75
+                            ? { right: `${100 - from}%` }
+                            : { left: `${to}%` }),
+                          top,
+                        }}
+                      >
+                        {i.title}
+                      </span>
+                    )}
                   </span>
                 )
               })}
@@ -157,4 +195,17 @@ function useNow(): Date {
     return () => clearInterval(id)
   }, [])
   return now
+}
+
+/** The line's width in pixels, so a name knows whether it fits. */
+function useWidth(ref: React.RefObject<HTMLElement | null>): number {
+  const [w, setW] = useState(0)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setW(el.clientWidth))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ref])
+  return w
 }

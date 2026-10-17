@@ -146,6 +146,9 @@
   .sg { display:inline-flex; align-items:center; gap: 6px; padding: 5px 9px; border-radius: 999px; border: 1px solid var(--edge); font-size: 12px; color: var(--ink-200); transition: border-color .2s, box-shadow .2s }
   .sg:hover { border-color: rgba(181,171,252,.5); box-shadow: 0 0 14px -6px var(--shine) }
   .sg svg { width: 12px; height: 12px; color: var(--a) }
+  .own { flex: 1 1 120px; min-width: 0; padding: 5px 10px; border-radius: 999px; border: 1px dashed rgba(181,171,252,.4); background: transparent; color: var(--ink-100); font: inherit; font-size: 12px; outline: none }
+  .own::placeholder { color: var(--lav-300) }
+  .own:focus { border-style: solid; border-color: var(--lav-400); box-shadow: 0 0 14px -6px var(--shine) }
   @media (max-width: 640px) { .next, .threes { grid-template-columns: 1fr } }
 </style>
 </head>
@@ -297,12 +300,14 @@ function renderThree() {
       <span class="qt"><button class="tick" onclick="tickQ(${i})">${q.done ? '✓' : ''}</button><span style="display:flex;align-items:center;gap:8px"><span class="ic" style="--a:${q.a};width:22px;height:22px">${IC[q.ic]}</span></span><span>${q.t}</span></span></div>`;
     if (i !== Q.length) return `<div class="q empty"><span class="k">0${i + 1}</span></div>`;
     return `<div class="q empty"><span class="k">0${i + 1}</span><div class="sugg">${left.map(s =>
-      `<button class="sg" style="--a:${s.a}" onclick="pickQ('${s.t}')">${IC[s.ic]}${s.t}</button>`).join('')}</div></div>`;
+      `<button class="sg" style="--a:${s.a}" onclick="pickQ('${s.t}')">${IC[s.ic]}${s.t}</button>`).join('')}
+      <input class="own" placeholder="＋ own task" onkeydown="if(event.key==='Enter'&&this.value.trim()){ownQ(this.value.trim())}"></div></div>`;
   }).join('');
   const done = Q.filter(q => q.done).length;
   document.getElementById('three').textContent = Q.length < 3 ? `${Q.length} OF 3` : `${done} OF 3 DONE`;
 }
 function pickQ(t) { if (Q.length < 3) Q.push({ ...SUG.find(s => s.t === t) }); renderThree() }
+function ownQ(t) { if (Q.length < 3) Q.push({ t, ic: 'proj', a: 'var(--ink-300)' }); renderThree() }
 function tickQ(i) { Q[i].done = !Q[i].done; renderThree() }
 
 function scenario(s) {

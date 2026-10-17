@@ -11,7 +11,12 @@ export function PlainPage({
   return (
     <main className="mx-auto flex min-h-dvh max-w-[640px] flex-col gap-8 px-6 py-14">
       <div className="flex items-center gap-[9px]">
-        <span className="size-3.5 rounded-[4px] bg-lav-500" aria-hidden />
+        <img
+          src="/logo.svg"
+          alt=""
+          aria-hidden
+          className="size-6 rounded-[6px]"
+        />
         <span className="text-[11px] font-medium tracking-[0.2em]">
           SOLO LEVELING
         </span>

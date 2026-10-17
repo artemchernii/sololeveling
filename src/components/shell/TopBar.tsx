@@ -3,8 +3,9 @@ import {
   ClerkLoading,
   UserButton,
 } from '@clerk/tanstack-react-start'
-import { Bell, Plus, Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 
+import { Bell } from './Bell'
 import { ConnectionStatus } from './ConnectionStatus'
 import { Key } from './Key'
 
@@ -42,7 +43,13 @@ export function TopBar({
   return (
     <header className="glass-bar sticky top-0 z-20 flex h-[58px] shrink-0 items-center justify-between px-[18px] lg:px-6">
       <div className="flex items-center gap-[10px]">
-        <span className="size-3.5 rounded-[4px] bg-lav-500" aria-hidden />
+        {/* His logo (15 Oct), the same mark as the home-screen icon. */}
+        <img
+          src="/logo.svg"
+          alt=""
+          aria-hidden
+          className="size-6 rounded-[6px]"
+        />
         <span className="text-[12px] font-medium tracking-[0.2em] text-foreground">
           SOLO LEVELING
         </span>
@@ -74,15 +81,7 @@ export function TopBar({
           </span>
         </button>
 
-        <button
-          type="button"
-          disabled
-          className="relative hidden size-9 place-items-center rounded-[10px] border border-lift/10 bg-sink/20 text-ink-400 disabled:cursor-default md:grid"
-          aria-label="Notifications"
-        >
-          <Bell className="size-4" />
-          <span className="absolute top-[6px] right-[7px] size-[5px] rounded-full bg-lav-500" />
-        </button>
+        <Bell />
 
         {/* The avatar's place is held from the first paint. Clerk's button
             renders nothing until Clerk's script has loaded, and then its

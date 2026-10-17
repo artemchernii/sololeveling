@@ -37,6 +37,8 @@ const TABLES: Array<TableNames> = [
   'removedTrades',
   'payees',
   'bankLinks',
+  'notifications',
+  'pushSubscriptions',
   'reviews',
   'weekReads',
   'projects',

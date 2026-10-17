@@ -22,6 +22,7 @@ import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppFinancesRouteImport } from './routes/_app/finances'
 import { Route as AppGoalsRouteImport } from './routes/_app/goals'
 import { Route as AppLanguagesRouteImport } from './routes/_app/languages'
+import { Route as AppPhoneRouteImport } from './routes/_app/phone'
 import { Route as AppReviewsRouteImport } from './routes/_app/reviews'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppBankCallbackRouteImport } from './routes/_app/bank.callback'
@@ -94,6 +95,11 @@ const AppLanguagesRoute = AppLanguagesRouteImport.update({
   path: '/languages',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPhoneRoute = AppPhoneRouteImport.update({
+  id: '/phone',
+  path: '/phone',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppReviewsRoute = AppReviewsRouteImport.update({
   id: '/reviews',
   path: '/reviews',
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/finances': typeof AppFinancesRoute
   '/goals': typeof AppGoalsRoute
   '/languages': typeof AppLanguagesRoute
+  '/phone': typeof AppPhoneRoute
   '/reviews': typeof AppReviewsRoute
   '/settings': typeof AppSettingsRoute
   '/bank/callback': typeof AppBankCallbackRoute
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/finances': typeof AppFinancesRoute
   '/goals': typeof AppGoalsRoute
   '/languages': typeof AppLanguagesRoute
+  '/phone': typeof AppPhoneRoute
   '/reviews': typeof AppReviewsRoute
   '/settings': typeof AppSettingsRoute
   '/bank/callback': typeof AppBankCallbackRoute
@@ -187,6 +195,7 @@ export interface FileRoutesById {
   '/_app/finances': typeof AppFinancesRoute
   '/_app/goals': typeof AppGoalsRoute
   '/_app/languages': typeof AppLanguagesRoute
+  '/_app/phone': typeof AppPhoneRoute
   '/_app/reviews': typeof AppReviewsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/bank/callback': typeof AppBankCallbackRoute
@@ -210,6 +219,7 @@ export interface FileRouteTypes {
     | '/finances'
     | '/goals'
     | '/languages'
+    | '/phone'
     | '/reviews'
     | '/settings'
     | '/bank/callback'
@@ -231,6 +241,7 @@ export interface FileRouteTypes {
     | '/finances'
     | '/goals'
     | '/languages'
+    | '/phone'
     | '/reviews'
     | '/settings'
     | '/bank/callback'
@@ -253,6 +264,7 @@ export interface FileRouteTypes {
     | '/_app/finances'
     | '/_app/goals'
     | '/_app/languages'
+    | '/_app/phone'
     | '/_app/reviews'
     | '/_app/settings'
     | '/_app/bank/callback'
@@ -363,6 +375,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLanguagesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/phone': {
+      id: '/_app/phone'
+      path: '/phone'
+      fullPath: '/phone'
+      preLoaderRoute: typeof AppPhoneRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/reviews': {
       id: '/_app/reviews'
       path: '/reviews'
@@ -424,6 +443,7 @@ interface AppRouteChildren {
   AppFinancesRoute: typeof AppFinancesRoute
   AppGoalsRoute: typeof AppGoalsRoute
   AppLanguagesRoute: typeof AppLanguagesRoute
+  AppPhoneRoute: typeof AppPhoneRoute
   AppReviewsRoute: typeof AppReviewsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppBankCallbackRoute: typeof AppBankCallbackRoute
@@ -442,6 +462,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFinancesRoute: AppFinancesRoute,
   AppGoalsRoute: AppGoalsRoute,
   AppLanguagesRoute: AppLanguagesRoute,
+  AppPhoneRoute: AppPhoneRoute,
   AppReviewsRoute: AppReviewsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppBankCallbackRoute: AppBankCallbackRoute,

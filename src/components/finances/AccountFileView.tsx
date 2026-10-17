@@ -5,7 +5,7 @@ import type { Id } from '../../../convex/_generated/dataModel'
 import { TakeBack } from '@/components/finances/AccountFileBack'
 import type { Taken } from '@/components/finances/AccountFileBack'
 import { PILL_QUIET } from '@/components/finances/bits'
-import { PayeeLogo } from '@/components/finances/Logo'
+import { AccountLogo, PayeeLogo } from '@/components/finances/Logo'
 import { RowMark } from '@/components/finances/RowMark'
 import { Veiled } from '@/components/finances/Veil'
 import { SkeletonRows } from '@/components/Skeleton'
@@ -27,9 +27,12 @@ const DAY = new Intl.DateTimeFormat(undefined, {
 
 export function FileView({
   intakeId,
+  domain,
   onTaken,
 }: {
   intakeId: Id<'intakes'>
+  /** The account's site, for its logo on a bank's answer. */
+  domain?: string
   onTaken: (t: Taken) => void
 }) {
   const f = useQuery(api.intake.fileRows, { intakeId })
@@ -43,6 +46,7 @@ export function FileView({
       {f.bank ? (
         <SyncedHead
           title={f.title}
+          domain={domain}
           at={f.readAt}
           saved={landed}
           pending={f.rows.filter((r) => r.pending).length}
@@ -196,11 +200,13 @@ const BADGE =
    as on the sheet, and what it saved and showed pending. */
 function SyncedHead({
   title,
+  domain,
   at,
   saved,
   pending,
 }: {
   title: string
+  domain?: string
   at: number
   saved: number
   pending: number
@@ -210,26 +216,29 @@ function SyncedHead({
     minute: '2-digit',
   })
   return (
-    <span className="flex flex-col gap-2">
-      <span className="text-[15px] text-foreground">{title}</span>
-      <span className="flex items-center gap-1.5 text-[13px] text-foreground">
-        <RefreshCw className="size-3.5 text-lav-400 drop-shadow-[0_0_6px_var(--color-lav-400)]" />
-        Synced with bank
-      </span>
-      <span className="flex flex-wrap gap-1.5">
-        <span className={`${BADGE} bg-lift/[0.05] text-ink-400`}>
-          {short(at)} · {time}
+    <span className="flex items-center gap-3">
+      <AccountLogo name={title} domain={domain} size={44} />
+      <span className="flex min-w-0 flex-col gap-1.5">
+        <span className="text-[15px] text-foreground">{title}</span>
+        <span className="flex items-center gap-1.5 text-[13px] text-foreground">
+          <RefreshCw className="size-3.5 text-lav-400 drop-shadow-[0_0_6px_var(--color-lav-400)]" />
+          Synced with bank
         </span>
-        <span className={`${BADGE} bg-state-good/12 text-state-good`}>
-          <i className="size-1.5 rounded-full bg-current" />
-          {saved} saved
-        </span>
-        {pending > 0 ? (
-          <span className={`${BADGE} bg-state-warn/12 text-state-warn`}>
-            <i className="size-1.5 animate-pulse rounded-full bg-current" />
-            {pending} pending
+        <span className="flex flex-wrap gap-1.5">
+          <span className={`${BADGE} bg-lift/[0.05] text-ink-400`}>
+            {short(at)} · {time}
           </span>
-        ) : null}
+          <span className={`${BADGE} bg-state-good/12 text-state-good`}>
+            <i className="size-1.5 rounded-full bg-current" />
+            {saved} saved
+          </span>
+          {pending > 0 ? (
+            <span className={`${BADGE} bg-state-warn/12 text-state-warn`}>
+              <i className="size-1.5 animate-pulse rounded-full bg-current" />
+              {pending} pending
+            </span>
+          ) : null}
+        </span>
       </span>
     </span>
   )

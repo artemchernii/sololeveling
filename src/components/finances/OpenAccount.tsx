@@ -85,6 +85,7 @@ export function OpenAccount({
       {account === null ? null : file ? (
         <FileView
           intakeId={file}
+          domain={account.domain}
           onTaken={(t) => {
             setTaken(t)
             setFile(null)

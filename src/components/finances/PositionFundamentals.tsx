@@ -255,7 +255,7 @@ function PeRow({
         <Info
           label="What is P/E"
           cap="p/e · price ÷ profit"
-          what={`What a share costs for each ${one} of the company's yearly profit. ${pe.toFixed(1)} = ${say(pe)} for every ${one} of profit in the ${fwd !== undefined ? 'next' : 'last'} 12 months.`}
+          what={`What a share costs for each ${one} of the company's yearly profit. ${pe.toFixed(1)} = ${say(Math.round(pe * 10) / 10)} for every ${one} of profit in the ${fwd !== undefined ? 'next' : 'last'} 12 months.`}
           bars={bars}
           fmt={(v) => v.toFixed(1)}
           source={
@@ -360,7 +360,7 @@ function Row({
       data-testid="fund-row"
       data-id={id}
       style={{ animationDelay: `${i * 50}ms` }}
-      className="motion-arrive relative grid grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-t border-lift/6 px-2 py-[11px] first:border-t-0 has-[[data-open=true]]:z-10 sm:grid-cols-[30px_150px_170px_104px_minmax(80px,1fr)]"
+      className="motion-arrive relative grid grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-t border-lift/6 px-2 py-[11px] first:border-t-0 focus-within:z-10 hover:z-10 has-[[data-open=true]]:z-10 sm:grid-cols-[30px_150px_170px_104px_minmax(80px,1fr)]"
     >
       <span
         className={`grid size-7 place-items-center rounded-[8px] ring-1 ring-inset [&>svg]:size-[15px] ${ICON_TONE[way]}`}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { dayX, inLabel, nextItem } from './day'
+import { dayX, inLabel, lanes, nextItem } from './day'
 
 describe('day', () => {
   it('names the next item that has not started', () => {
@@ -19,5 +19,15 @@ describe('day', () => {
     expect(dayX(8)).toBe(0)
     expect(dayX(16)).toBe(50)
     expect(dayX(3)).toBe(0)
+  })
+  it('puts two at once on two rows, one after another on one', () => {
+    const m = 60_000
+    expect(
+      lanes([
+        { startsAt: 0, durationMin: 60 },
+        { startsAt: 0, durationMin: 30 },
+        { startsAt: 60 * m, durationMin: 30 },
+      ]),
+    ).toEqual({ lane: [0, 1, 0], count: 2 })
   })
 })

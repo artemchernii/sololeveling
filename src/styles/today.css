@@ -86,10 +86,26 @@
     color: var(--background);
     font-family: var(--font-mono);
     font-size: 9.5px;
-    display: grid;
-    place-items: center;
+    padding: 0 6px;
+    line-height: 22px;
+    text-align: center;
     overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+    animation: td-pop 0.5s 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  }
+  & .td-name {
+    position: absolute;
+    height: 22px;
+    line-height: 22px;
+    padding: 0 6px;
+    max-width: 40%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-lav-300);
     animation: td-pop 0.5s 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) both;
   }
   & .td-now {
@@ -155,7 +171,6 @@
       transform 0.25s ease 0.3s;
   }
   &[data-done='true'] {
-    border-color: color-mix(in oklch, var(--color-lav-400) 32%, transparent);
     background: color-mix(in oklch, var(--color-lav-400) 5%, transparent);
     & .td-label {
       color: var(--color-ink-400);

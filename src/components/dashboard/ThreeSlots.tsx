@@ -100,7 +100,7 @@ export function ThreeSlots({
 
   return (
     <>
-      <div className="mt-[18px] mb-2.5 flex items-center justify-between border-t border-lift/[0.09] pt-4">
+      <div className="mt-4 mb-1 flex items-center justify-between border-t border-lift/[0.09] pt-4">
         <span className="label-caps">Today&rsquo;s three</span>
         <span
           data-testid="three-count"
@@ -109,10 +109,12 @@ export function ThreeSlots({
           {open < TODAY_LIMIT ? `${open} OF 3` : `${done} OF 3 DONE`}
         </span>
       </div>
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+      <div className="flex flex-col">
         {Array.from({ length: TODAY_LIMIT }, (_, slot) => {
           const number = String(slot + 1).padStart(2, '0')
           const task = slot < tasks.length ? tasks[slot] : undefined
+          const row =
+            'flex min-h-12 items-center gap-3 border-b border-lift/[0.06] py-1.5 last:border-b-0'
           if (task !== undefined) {
             const d = isDone(task)
             const icon = iconFor(task.area)
@@ -122,50 +124,46 @@ export function ThreeSlots({
                 data-testid={`slot-${slot}`}
                 data-done={d}
                 data-flash={flash === task._id}
-                className="td-slot group motion-arrive flex min-h-[92px] flex-col gap-2 rounded-[12px] border border-lift/[0.09] bg-lift/[0.025] p-3"
+                className={`td-slot group motion-arrive rounded-[8px] px-1 ${row}`}
               >
-                <span className="font-mono text-[10px] text-ink-500">
+                <span className="w-4 font-mono text-[10px] text-ink-500">
                   {number}
                 </span>
-                <span className="flex flex-1 items-center gap-2.5 text-[15px]">
-                  <button
-                    type="button"
-                    aria-label={`${d ? 'Un-tick' : 'Complete'} ${task.title}`}
-                    aria-pressed={d}
-                    onClick={() => void tick(task)}
-                    className="td-tick"
+                <button
+                  type="button"
+                  aria-label={`${d ? 'Un-tick' : 'Complete'} ${task.title}`}
+                  aria-pressed={d}
+                  onClick={() => void tick(task)}
+                  className="td-tick"
+                >
+                  <svg
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    <svg
-                      viewBox="0 0 12 12"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M2.5 6.2l2.3 2.3 4.7-4.9" />
-                    </svg>
-                  </button>
-                  {icon && task.area ? (
-                    <AreaIcon icon={icon} area={task.area} size={22} />
-                  ) : null}
-                  <span className="td-label min-w-0 flex-1 truncate">
-                    {task.title}
-                  </span>
+                    <path d="M2.5 6.2l2.3 2.3 4.7-4.9" />
+                  </svg>
+                </button>
+                {icon && task.area ? (
+                  <AreaIcon icon={icon} area={task.area} size={14} />
+                ) : null}
+                <span className="td-label min-w-0 flex-1 truncate text-[15px]">
+                  {task.title}
                 </span>
-                <span className="absolute top-2.5 right-2.5 flex items-center gap-2">
-                  <span className="td-ok rounded-full border border-current px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] text-lav-300">
-                    DONE
-                  </span>
-                  <button
-                    type="button"
-                    aria-label={`Drop ${task.title}`}
-                    onClick={() => void drop({ taskId: task._id })}
-                    className="text-ink-700 opacity-0 transition-opacity group-hover:opacity-100 hover:text-ink-400 focus:opacity-100"
-                  >
-                    <X className="size-3.5" />
-                  </button>
+                <span className="td-ok rounded-full border border-current px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] text-lav-300">
+                  DONE
                 </span>
+                <button
+                  type="button"
+                  aria-label={`Drop ${task.title}`}
+                  onClick={() => void drop({ taskId: task._id })}
+                  className="text-ink-700 opacity-0 transition-opacity group-hover:opacity-100 hover:text-ink-400 focus:opacity-100"
+                >
+                  <X className="size-3.5" />
+                </button>
               </div>
             )
           }
@@ -173,28 +171,13 @@ export function ThreeSlots({
             <div
               key={`empty-${slot}`}
               data-testid={`slot-${slot}`}
-              className="flex min-h-[92px] flex-col gap-2 rounded-[12px] border border-dashed border-lift/[0.09] bg-lift/[0.025] p-3"
+              className={`px-1 ${row}`}
             >
-              <span className="font-mono text-[10px] text-ink-500">
+              <span className="w-4 font-mono text-[10px] text-ink-700">
                 {number}
               </span>
               {slot === open ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {picks.map((p) => (
-                    <button
-                      key={p.title}
-                      type="button"
-                      aria-label={`Pick ${p.title}`}
-                      disabled={busy}
-                      onClick={() => void take(p)}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-lift/[0.09] px-2.5 py-1 text-[12px] text-ink-200 transition-[border-color,box-shadow] hover:border-lav-400/50 hover:shadow-[0_0_14px_-6px_var(--color-lav-400)]"
-                    >
-                      {p.icon && p.area ? (
-                        <AreaIcon icon={p.icon} area={p.area} size={14} />
-                      ) : null}
-                      {p.title}
-                    </button>
-                  ))}
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                   <input
                     ref={field}
                     id={PICK_FIELD_ID}
@@ -205,8 +188,24 @@ export function ThreeSlots({
                       if (e.key === 'Enter') void own()
                     }}
                     placeholder="＋ own task"
-                    className="min-w-0 flex-[1_1_120px] rounded-full border border-dashed border-lav-400/40 bg-transparent px-2.5 py-1 text-[12px] text-foreground outline-none placeholder:text-lav-300 focus:border-solid focus:border-lav-400"
+                    className="min-w-0 flex-[1_1_140px] bg-transparent py-1 text-[15px] text-foreground caret-lav-400 outline-none placeholder:text-ink-600"
                   />
+                  {picks.map((p) => (
+                    <button
+                      key={p.title}
+                      type="button"
+                      aria-label={`Pick ${p.title}`}
+                      title={p.title}
+                      disabled={busy}
+                      onClick={() => void take(p)}
+                      className="inline-flex max-w-[180px] items-center gap-1.5 rounded-full border border-lift/[0.09] px-2.5 py-1 text-[12px] text-ink-300 transition-[border-color,box-shadow] hover:border-lav-400/50 hover:text-ink-100 hover:shadow-[0_0_14px_-6px_var(--color-lav-400)]"
+                    >
+                      {p.icon && p.area ? (
+                        <AreaIcon icon={p.icon} area={p.area} size={14} />
+                      ) : null}
+                      <span className="truncate">{p.title}</span>
+                    </button>
+                  ))}
                 </div>
               ) : null}
             </div>

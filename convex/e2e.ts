@@ -39,6 +39,7 @@ const TABLES: Array<TableNames> = [
   'bankLinks',
   'notifications',
   'pushSubscriptions',
+  'moneyAlerts',
   'reviews',
   'weekReads',
   'projects',

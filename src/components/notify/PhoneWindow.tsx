@@ -1,5 +1,14 @@
 import { useMutation } from 'convex/react'
-import { Bell, Check, FileCheck, Footprints, Loader2 } from 'lucide-react'
+import {
+  Bell,
+  Check,
+  Coins,
+  FileCheck,
+  Footprints,
+  KeyRound,
+  Loader2,
+  TrendingUp,
+} from 'lucide-react'
 import { useState } from 'react'
 
 import { api } from '../../../convex/_generated/api'
@@ -274,6 +283,25 @@ export function PhoneWindow() {
             name="Files read"
             when="WHEN DONE"
             area="var(--color-area-money)"
+          />
+          {/* N2 (17 Oct): money alerts, each morning at 09:00. */}
+          <Source
+            icon={<Coins className="size-[18px]" />}
+            name="Money for a bill"
+            when="2 DAYS BEFORE · 09:00"
+            area="var(--color-state-warn)"
+          />
+          <Source
+            icon={<KeyRound className="size-[18px]" />}
+            name="Bank approval"
+            when="7 DAYS · 1 DAY BEFORE"
+            area="var(--color-state-warn)"
+          />
+          <Source
+            icon={<TrendingUp className="size-[18px]" />}
+            name="Salary"
+            when="WHEN IN · 09:00"
+            area="var(--color-state-good)"
           />
           <TestButton />
         </>

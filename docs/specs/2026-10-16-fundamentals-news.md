@@ -31,7 +31,7 @@ The built page, with these changes:
      `REVENUE ▲ +22.0%`, `RATING ▲ BUY 1.6`, each coloured by its own
      reading; the ones that made the call wear the verdict's ring;
    - feeds row: `TECHNICAL 1 ▲ 1 ▼ 1 —` · `FUNDAMENTALS 3 ▲ 0 ▼ 0 — ·
-     YAHOO · 16 OCT` (opens the tab) · `NEWS · 8 · NOT IN THE RULE`
+YAHOO · 16 OCT` (opens the tab) · `NEWS · 8 · NOT IN THE RULE`
      (outlined, opens the tab). A fund: `FUNDAMENTALS · NONE FOR A FUND`,
      dashed. **Colour by count** (17 Oct, his ask): more ▲ than ▼ green,
      more ▼ red, even amber; the counts always inside the chip; a group
@@ -41,29 +41,29 @@ The built page, with these changes:
 2. **Tabs**: `SIGNALS` · `FUNDAMENTALS 3 ▲ 0 ▼ 2 —` · `NEWS 8` ·
    `BUYS & SELLS 5`. Sold out: SIGNALS and BUYS & SELLS only.
 3. **FUNDAMENTALS tab**: header `YAHOO FINANCE · 16 OCT 2026 · 08:10 ·
-   STORED · ONCE A DAY`; five rows in the SIGNALS anatomy (icon, name +
+STORED · ONCE A DAY`; five rows in the SIGNALS anatomy (icon, name +
    sub, badge, number, picture):
-   | Row | Badge | Number | Picture |
-   | --- | --- | --- | --- |
-   | ANALYST TARGET · mean of 41 | UPSIDE / DOWNSIDE | `+20.0%` · `$412.50` | analysts' low–high bar, mean tick, price dot |
-   | ANALYST RATING · 41 analysts · 1 to 5 | Yahoo's word (BUY …) | `1.6` mean | strong buy / buy / hold / sell counts as one bar |
-   | REVENUE · Q3 2026 on Q3 2025 | GROWING / SHRINKING | `+22.0%` | the two quarters' revenue |
-   | P/E · price ÷ earnings | NOT IN THE RULE | `33.8` next 12 months | last 12 months `88.4` |
-   | DIVIDEND YIELD | NOT IN THE RULE | `0.69%` · `$2.36 a share a year` | ex-dividend day |
-   A fund: one row `NO FUNDAMENTALS · FUND`. Analysts' "mean" reads
-   `AVG` (17 Oct: "what is mean?").
-   **ⓘ on P/E and DIVIDEND YIELD** (17 Oct, his ask): beside the `NOT IN
-   THE RULE` badge; hover or tap opens a card: what it is in one plain
-   line with this company's number worked through (`33.8 = $33.80 for
-   every $1 of profit in the next 12 months`), three bars —
-   `BROADCOM 33.8` · `SEMICONDUCTORS AVG 31.2` · `S&P 500 AVG 22.4` — one
-   line on why this sector sits where it does, and the source line
-   `SECTOR AVG · DAMODARAN · NYU STERN · JAN 2026`.
+   | Row                                                                    | Badge                | Number                           | Picture                                          |
+   | ---------------------------------------------------------------------- | -------------------- | -------------------------------- | ------------------------------------------------ |
+   | ANALYST TARGET · mean of 41                                            | UPSIDE / DOWNSIDE    | `+20.0%` · `$412.50`             | analysts' low–high bar, mean tick, price dot     |
+   | ANALYST RATING · 41 analysts · 1 to 5                                  | Yahoo's word (BUY …) | `1.6` mean                       | strong buy / buy / hold / sell counts as one bar |
+   | REVENUE · Q3 2026 on Q3 2025                                           | GROWING / SHRINKING  | `+22.0%`                         | the two quarters' revenue                        |
+   | P/E · price ÷ earnings                                                 | NOT IN THE RULE      | `33.8` next 12 months            | last 12 months `88.4`                            |
+   | DIVIDEND YIELD                                                         | NOT IN THE RULE      | `0.69%` · `$2.36 a share a year` | ex-dividend day                                  |
+   | A fund: one row `NO FUNDAMENTALS · FUND`. Analysts' "mean" reads       |
+   | `AVG` (17 Oct: "what is mean?").                                       |
+   | **ⓘ on P/E and DIVIDEND YIELD** (17 Oct, his ask): beside the `NOT IN  |
+   | THE RULE` badge; hover or tap opens a card: what it is in one plain    |
+   | line with this company's number worked through (`33.8 = $33.80 for     |
+   | every $1 of profit in the next 12 months`), three bars —               |
+   | `BROADCOM 33.8` · `SEMICONDUCTORS AVG 31.2` · `S&P 500 AVG 22.4` — one |
+   | line on why this sector sits where it does, and the source line        |
+   | `SECTOR AVG · DAMODARAN · NYU STERN · JAN 2026`.                       |
 4. **NEWS tab**: header `YAHOO FINANCE · 8 HEADLINES · 10:05 · NOT STORED`;
    rows = publisher chip, headline (two lines at most), `PUBLISHER · time`
    (time today, day before), link out in a new tab. States: none
    (`NO HEADLINES · 30 DAYS`), not loaded (warn icon, `NEWS NOT LOADED ·
-   YAHOO FINANCE`, `TRY AGAIN`), loading (five shimmer rows).
+YAHOO FINANCE`, `TRY AGAIN`), loading (five shimmer rows).
 5. **Motion**: chips and feeds arrive one by one after the badge; range
    and rating bars grow in; the price dot slides to its place; an
    updating reading breathes a lavender dot.
@@ -73,12 +73,12 @@ The built page, with these changes:
 The lines first, exactly as built. Then, **only when the lines say ADD**
 and fundamentals exist and are at most 7 days old, checked top to bottom:
 
-| Verdict    | When                                                   | Line on screen                                                                                                                                       | Chip ringed |
-| ---------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| ADD → HOLD | price ≥ analysts' mean target                          | Long trend up with a dip, and the price is at or above the analysts' mean target of $331.00. By the textbook, keep the shares; no room left to the target. | TARGET      |
-| ADD → HOLD | revenue growth < 0 (last quarter on a year before)     | Long trend up with a dip, and revenue fell 4.0% on a year before. By the textbook, keep the shares until revenue grows again.                         | REVENUE     |
-| ADD → HOLD | rating mean ≥ 3.5 (Yahoo's underperform or sell)       | Long trend up with a dip, and most analysts rate it sell. By the textbook, keep the shares; no new ones against the analysts.                         | RATING      |
-| ADD        | none of the above                                      | the lines' ADD line, as built                                                                                                                        | all three   |
+| Verdict    | When                                               | Line on screen                                                                                                                                             | Chip ringed |
+| ---------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| ADD → HOLD | price ≥ analysts' mean target                      | Long trend up with a dip, and the price is at or above the analysts' mean target of $331.00. By the textbook, keep the shares; no room left to the target. | TARGET      |
+| ADD → HOLD | revenue growth < 0 (last quarter on a year before) | Long trend up with a dip, and revenue fell 4.0% on a year before. By the textbook, keep the shares until revenue grows again.                              | REVENUE     |
+| ADD → HOLD | rating mean ≥ 3.5 (Yahoo's underperform or sell)   | Long trend up with a dip, and most analysts rate it sell. By the textbook, keep the shares; no new ones against the analysts.                              | RATING      |
+| ADD        | none of the above                                  | the lines' ADD line, as built                                                                                                                              | all three   |
 
 Fundamentals can hold an ADD back; they never make one, and never touch a
 HOLD or WAIT from the lines. P/E and dividend yield are shown, not read by

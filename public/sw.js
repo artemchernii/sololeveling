@@ -14,16 +14,22 @@ self.addEventListener('push', (event) => {
   } catch {
     data = { title: 'Leveling', body: event.data ? event.data.text() : '' }
   }
+  /* The red count on the home screen icon, the bell's own number. */
+  const badge =
+    typeof data.badge === 'number' && self.navigator.setAppBadge
+      ? self.navigator.setAppBadge(data.badge).catch(() => {})
+      : Promise.resolve()
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Leveling', {
-      body: data.body || '',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      /* A reminder's occurrence id: an open tab's own reminder carries
-         the same tag, so the Mac shows it once. */
-      tag: data.tag || undefined,
-      data: { url: data.url || '/dashboard' },
-    }),
+    badge.then(() =>
+      self.registration.showNotification(data.title || 'Leveling', {
+        body: data.body || '',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        /* A reminder's occurrence id: one occurrence shows once. */
+        tag: data.tag || undefined,
+        data: { url: data.url || '/dashboard' },
+      }),
+    ),
   )
 })
 

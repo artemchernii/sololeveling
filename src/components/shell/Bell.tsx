@@ -211,6 +211,16 @@ export function Bell() {
   const rows = today ?? []
   const unread = rows.filter((n) => n.readAt === undefined).length
 
+  /* The home screen icon shows the same count, and loses it when read. */
+  useEffect(() => {
+    if (today === undefined) return
+    /* Safari outside the home screen app, and Firefox, have none. */
+    if (!('setAppBadge' in navigator)) return
+    const done =
+      unread > 0 ? navigator.setAppBadge(unread) : navigator.clearAppBadge()
+    done.catch(() => {})
+  }, [today, unread])
+
   /* A new one arriving rings the bell. */
   const seen = useRef<number | null>(null)
   useEffect(() => {

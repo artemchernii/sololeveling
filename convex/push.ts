@@ -10,6 +10,7 @@ import {
 } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import { notificationKind, pushDevice } from './schema'
+import { dayStart } from '../src/lib/remindAt'
 
 /* N1 (15 Oct). The pipe: a browser that allowed notifications saves its
    subscription here; anything worth a notification calls `notify`, which
@@ -133,14 +134,30 @@ export async function notifyOwner(
   },
 ) {
   const { tag, ...row } = args
-  await ctx.db.insert('notifications', { ...row, sentAt: Date.now() })
+  const now = Date.now()
+  await ctx.db.insert('notifications', { ...row, sentAt: now })
   await ctx.scheduler.runAfter(0, internal.pushNode.send, {
     ownerId: args.ownerId,
     title: args.title,
     body: args.body,
     url: args.url,
     tag,
+    badge: await unreadToday(ctx, args.ownerId, now),
   })
+}
+
+/* The red count on the app's icon: the bell's own number, today's unread
+   (17 Oct, "I dont see any notif from home. Like red (1) dot"). */
+const MAX_TODAY = 30
+
+async function unreadToday(ctx: MutationCtx, ownerId: string, now: number) {
+  const today = await ctx.db
+    .query('notifications')
+    .withIndex('by_owner_and_sent', (q) =>
+      q.eq('ownerId', ownerId).gte('sentAt', dayStart(now)),
+    )
+    .take(MAX_TODAY)
+  return today.filter((n) => n.readAt === undefined).length
 }
 
 /** Anything worth a notification calls this (reminders, files read). */

@@ -20,6 +20,7 @@ export const send = internalAction({
     body: v.string(),
     url: v.string(),
     tag: v.optional(v.string()),
+    badge: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -39,6 +40,7 @@ export const send = internalAction({
       body: args.body,
       url: args.url,
       tag: args.tag,
+      badge: args.badge,
     })
     const results = await Promise.all(
       subs.map(async (s) => {

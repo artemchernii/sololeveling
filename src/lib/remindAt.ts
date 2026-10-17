@@ -58,6 +58,13 @@ function fromFloating(d: Date, zone: string): number {
   return local - offset(guess, zone)
 }
 
+/** Midnight of `ms`'s day on the zone's wall clock. */
+export function dayStart(ms: number, zone: string = OWNER_ZONE): number {
+  const d = toFloating(ms, zone)
+  d.setUTCHours(0, 0, 0, 0)
+  return fromFloating(d, zone)
+}
+
 type Remindable = {
   startsAt: number
   rrule?: string

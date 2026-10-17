@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { nextReminder, reminderBody, reminderTitle } from './remindAt'
+import { dayStart, nextReminder, reminderBody, reminderTitle } from './remindAt'
 
 const MIN = 60_000
 
@@ -46,4 +46,12 @@ test('the body says how soon', () => {
   expect(reminderBody(0)).toBe('Now · Calendar')
   expect(reminderBody(10)).toBe('In 10 min · Calendar')
   expect(reminderBody(60)).toBe('In 1 h · Calendar')
+})
+
+test("dayStart is the zone's midnight", () => {
+  /* 00:30 in Lisbon (UTC+1 in summer) is 23:30 UTC the day before. */
+  expect(dayStart(Date.UTC(2026, 9, 16, 23, 30))).toBe(
+    Date.UTC(2026, 9, 16, 23),
+  )
+  expect(dayStart(Date.UTC(2026, 10, 2, 12))).toBe(Date.UTC(2026, 10, 2))
 })

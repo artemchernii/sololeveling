@@ -336,3 +336,19 @@ describe('a dropped file finishing (N1b S13)', () => {
     })
   })
 })
+
+describe('the red count on the icon', () => {
+  test("each push carries the bell's number: today's unread", async () => {
+    const { t, mine } = twoOwners()
+    await mine.mutation(api.push.sendTest, {})
+    await mine.mutation(api.push.sendTest, {})
+    const sends = await t.run(async (ctx) =>
+      (await ctx.db.system.query('_scheduled_functions').collect()).filter(
+        (j) => j.name.includes('pushNode'),
+      ),
+    )
+    expect(sends.map((j) => (j.args[0] as { badge: number }).badge)).toEqual([
+      1, 2,
+    ])
+  })
+})

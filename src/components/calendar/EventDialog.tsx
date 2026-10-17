@@ -10,7 +10,6 @@ import { useSave } from '@/components/Saving'
 import type { SaveStatus } from '@/components/Saving'
 import { useAreas } from '@/lib/areas'
 import { endFromTime, toTimeInput } from '@/lib/eventTimes'
-import { askToNotify } from '@/lib/reminders'
 
 /* Creating and editing an event. Series-level only, per PLAN §3b.6: an
    occurrence has an id but no row to write to, so "this Tuesday only" is not
@@ -80,7 +79,6 @@ export function EventDialog({
   const [projectId, setProjectId] = useState('')
   const [goalId, setGoalId] = useState('')
   const [remindMin, setRemindMin] = useState<number | undefined>(undefined)
-  const [notifyNote, setNotifyNote] = useState<string | null>(null)
   const projects = useQuery(api.projects.listLive, {})
   const goals = useQuery(api.goals.listActive, {})
   const areas = useAreas()
@@ -119,7 +117,6 @@ export function EventDialog({
          starts at 10 min; an existing one keeps what it had. */
       setRemindMin(10)
     }
-    setNotifyNote(null)
   }, [open, event, startsAt, endsAt, saving.settle])
 
   useEffect(() => {
@@ -370,16 +367,7 @@ export function EventDialog({
                   key={option.label}
                   type="button"
                   aria-pressed={remindMin === option.min}
-                  onClick={() => {
-                    setRemindMin(option.min)
-                    /* Asked here, on a tap, because browsers only let a page
-                       ask from one — and only once a reminder is wanted. */
-                    if (option.min !== undefined) {
-                      void askToNotify().then(setNotifyNote)
-                    } else {
-                      setNotifyNote(null)
-                    }
-                  }}
+                  onClick={() => setRemindMin(option.min)}
                   className={[
                     'rounded-[6px] px-2.5 py-1 text-[11.5px] transition-colors',
                     remindMin === option.min
@@ -391,9 +379,6 @@ export function EventDialog({
                 </button>
               ))}
             </div>
-            {notifyNote ? (
-              <p className="text-[11.5px] text-ink-600">{notifyNote}</p>
-            ) : null}
           </div>
 
           {error ? (

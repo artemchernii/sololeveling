@@ -263,9 +263,18 @@ export const readAll = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const all = (await ctx.runQuery(internal.market.allInstruments, {})).filter(
-      (i) => args.ownerId === undefined || i.ownerId === args.ownerId,
-    )
+    const every = (
+      await ctx.runQuery(internal.market.allInstruments, {})
+    ).filter((i) => args.ownerId === undefined || i.ownerId === args.ownerId)
+    /* Only what is held now (17 Oct): ~33 of 192 tickers. A sold one's
+       stored closes stay; its last price is shown with its day. */
+    const heldNow = new Set<string>()
+    for (const ownerId of new Set(every.map((i) => i.ownerId)))
+      for (const id of await ctx.runQuery(internal.aggregate.heldInstruments, {
+        ownerId,
+      }))
+        heldNow.add(id)
+    const all = every.filter((i) => heldNow.has(i._id))
     const bySymbol = new Map<string, typeof all>()
     for (const i of all) {
       bySymbol.set(i.symbol, [...(bySymbol.get(i.symbol) ?? []), i])

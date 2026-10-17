@@ -128,14 +128,18 @@ export async function notifyOwner(
     title: string
     body: string
     url: string
+    /** One notification per tag: a reminder's occurrence id. */
+    tag?: string
   },
 ) {
-  await ctx.db.insert('notifications', { ...args, sentAt: Date.now() })
+  const { tag, ...row } = args
+  await ctx.db.insert('notifications', { ...row, sentAt: Date.now() })
   await ctx.scheduler.runAfter(0, internal.pushNode.send, {
     ownerId: args.ownerId,
     title: args.title,
     body: args.body,
     url: args.url,
+    tag,
   })
 }
 

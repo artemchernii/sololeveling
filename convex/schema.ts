@@ -542,10 +542,13 @@ export default defineSchema({
     endsAt: v.number(),
     rrule: v.optional(v.string()),
     notes: v.optional(v.string()),
-    /* R5. Minutes before the start to remind, 0 = at the start. Delivered by
-       an open tab only (src/lib/reminders.ts): push to a closed app waits for
-       the bell (PLAN §4 Late). */
+    /* R5. Minutes before the start to remind, 0 = at the start. An open tab
+       shows it (src/lib/reminders.ts); since N1b the server pushes it too. */
     remindMin: v.optional(v.number()),
+    /* N1b (17 Oct). The one scheduled job that sends the next reminder by
+       push (events.remind); moved or cancelled with the event. A job per
+       reminder, not a cron, so nothing is read until one is due. */
+    remindJob: v.optional(v.id('_scheduled_functions')),
   })
     .index('by_owner_start', ['ownerId', 'startsAt'])
     /* A series that began in March still has occurrences in June, so a window

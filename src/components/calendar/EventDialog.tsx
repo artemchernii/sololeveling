@@ -115,7 +115,9 @@ export function EventDialog({
       setRrule(undefined)
       setProjectId('')
       setGoalId('')
-      setRemindMin(undefined)
+      /* N1b (17 Oct): "you send me reminder 10 min before" — a new event
+         starts at 10 min; an existing one keeps what it had. */
+      setRemindMin(10)
     }
     setNotifyNote(null)
   }, [open, event, startsAt, endsAt, saving.settle])
@@ -367,6 +369,7 @@ export function EventDialog({
                 <button
                   key={option.label}
                   type="button"
+                  aria-pressed={remindMin === option.min}
                   onClick={() => {
                     setRemindMin(option.min)
                     /* Asked here, on a tap, because browsers only let a page

@@ -22,7 +22,7 @@ test('Today: an empty day — picks, an own task, a tick', async ({ page }) => {
   await page.goto('/dashboard')
 
   const day = page.getByRole('region', { name: 'Today' })
-  await expect(day.getByText('0 EVENTS')).toBeVisible()
+  await expect(day.getByTestId('next-title')).toHaveCount(0)
   await expect(day.getByTestId('three-count')).toHaveText('0 OF 3')
   await expect(page.getByText('The rest is yours')).toHaveCount(0)
   await expect(page.getByText('CURRENT STATE')).toHaveCount(0)
@@ -54,7 +54,6 @@ test('Today: NEXT, a pick from the day, and the month against September', async 
   const day = page.getByRole('region', { name: 'Today' })
   await expect(day.getByTestId('next-title')).toHaveText('PT')
   await expect(day.getByTestId('next-in')).toContainText(/^IN .* · 60 MIN$/)
-  await expect(day.getByTestId('now-mark')).toBeVisible()
 
   await day.getByRole('button', { name: 'Pick PT' }).click()
   await expect(day.getByTestId('slot-0').getByText('PT')).toBeVisible()

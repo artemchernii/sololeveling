@@ -171,7 +171,6 @@
       transform 0.25s ease 0.3s;
   }
   &[data-done='true'] {
-    border-color: color-mix(in oklch, var(--color-lav-400) 32%, transparent);
     background: color-mix(in oklch, var(--color-lav-400) 5%, transparent);
     & .td-label {
       color: var(--color-ink-400);

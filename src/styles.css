@@ -1119,3 +1119,31 @@ h6 {
       inset 0 0 26px -14px var(--bank-edge);
   }
 }
+
+/* A pending row the bank has now booked (17 Oct, mockup bank-pending.html:
+   "booked we show for some seconds"): the row flashes green once and its
+   BOOKED badge goes after three seconds. */
+@keyframes booked-flash {
+  30% {
+    background: color-mix(in oklab, var(--state-good) 14%, transparent);
+  }
+}
+@keyframes booked-gone {
+  to {
+    opacity: 0;
+    max-width: 0;
+    padding: 0;
+    margin: 0;
+  }
+}
+@layer utilities {
+  .motion-booked {
+    animation:
+      land 0.4s both,
+      booked-flash 1.4s ease 0.3s;
+  }
+  .motion-booked-badge {
+    overflow: hidden;
+    animation: booked-gone 0.5s ease 3s forwards;
+  }
+}

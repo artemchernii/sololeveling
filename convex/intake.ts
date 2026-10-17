@@ -1647,6 +1647,13 @@ async function writeTransactions(
         .filter((r) => r.pending && r.currency === intake.balance?.currency)
         .reduce((t, r) => t + r.amount, 0),
       intake._id,
+      read
+        .filter((r) => r.pending && r.currency === intake.balance?.currency)
+        .map((r) => ({
+          merchant: r.merchant,
+          amount: r.amount,
+          at: r.occurredAt,
+        })),
     )
     /* The account's other currencies (5 Oct: "When I upload csv it means
        usd should be updated as well"). Revolut exports one currency a

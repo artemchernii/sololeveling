@@ -16,7 +16,7 @@ import { FileView } from './AccountFileView'
 import { TakenStrip } from './AccountFileBack'
 import type { Taken } from './AccountFileBack'
 import { BalanceTick, SheetCheck, dayOf } from './AccountSheetCheck'
-import { Divider, RowLine, fmt, short } from './AccountSheetRows'
+import { Divider, PendingLine, RowLine, fmt, short } from './AccountSheetRows'
 import { TypedBalance } from './AccountTypedBalance'
 
 /* An account, opened (A.4 — journey agreed 1 Oct, mock agreed 2 Oct:
@@ -211,6 +211,7 @@ function Ledger({
           </span>
           <Timeline
             data={data}
+            account={account}
             older={page?.older === true}
             loading={asked === undefined}
             onOlder={() => setShow((n) => n + MORE_ROWS)}
@@ -265,6 +266,7 @@ function Said({ check: c }: { check: Check }) {
    between the rows it closes and the ones after it. */
 function Timeline({
   data,
+  account,
   older,
   loading,
   onOlder,
@@ -272,6 +274,7 @@ function Timeline({
   onRemoved,
 }: {
   data: SheetData
+  account: Doc<'accounts'>
   /** Older rows are saved and not on screen yet. */
   older: boolean
   loading: boolean
@@ -286,8 +289,31 @@ function Timeline({
   /* A balance or a file older than the last row on screen waits for its
      rows: it would otherwise sit under rows it does not close. */
   const since = older ? (data.rows.at(-1)?.at ?? 0) : -Infinity
+  /* The bank's pending rows (17 Oct, mockup bank-pending.html): the
+     newest balance's, by name under their day. A row pending at the one
+     before and booked now says BOOKED for a moment. */
+  const newest = new Map<string, SheetData['readings'][number]>()
+  const before = new Map<string, SheetData['readings'][number]>()
+  for (const r of [...data.readings].sort((a, b) => b.at - a.at)) {
+    if (!newest.has(r.currency)) newest.set(r.currency, r)
+    else if (!before.has(r.currency)) before.set(r.currency, r)
+  }
+  const pend = [...newest.values()].flatMap((r) =>
+    r.pendingRows.map((p) => ({ ...p, currency: r.currency })),
+  )
+  const sameRow = (
+    a: { merchant: string; amount: number },
+    b: { text: string; amount: number },
+  ) =>
+    a.merchant === b.text &&
+    Math.round(a.amount * 100) === Math.round(b.amount * 100)
+  const booked = (row: Row) =>
+    (before.get(row.currency)?.pendingRows ?? []).some((p) =>
+      sameRow(p, row),
+    ) && !pend.some((p) => p.currency === row.currency && sameRow(p, row))
   type Item =
     | { t: 'row'; at: number; row: Row }
+    | { t: 'pend'; at: number; p: (typeof pend)[number] }
     | { t: 'bal'; at: number; bal: SheetData['readings'][number] }
     | { t: 'file'; at: number; file: FileInfo }
   /* A balance read again with nothing moved is not said twice (13 Oct:
@@ -305,6 +331,7 @@ function Timeline({
     )
   const items: Array<Item> = [
     ...data.rows.map((row) => ({ t: 'row' as const, at: row.at, row })),
+    ...pend.map((p) => ({ t: 'pend' as const, at: p.at, p })),
     ...data.readings
       .filter((bal) => bal.at >= since && !same(bal))
       .map((bal) => ({ t: 'bal' as const, at: bal.at, bal })),
@@ -322,7 +349,8 @@ function Timeline({
       .filter((f) => f.at >= since),
   ]
   /* Newest first; on a tie a balance sits above the rows it closes. */
-  items.sort((a, b) => b.at - a.at || (a.t === 'row' ? 1 : -1))
+  const rank = { bal: 0, file: 0, pend: 1, row: 2 }
+  items.sort((a, b) => b.at - a.at || rank[a.t] - rank[b.t])
   const gaps = data.checks.filter((c) => c.missing !== 0)
 
   let day = ''
@@ -332,6 +360,24 @@ function Timeline({
   return (
     <div className="flex flex-col">
       {items.map((it) => {
+        if (it.t === 'pend') {
+          const head = dayKey(it.at) !== day
+          day = dayKey(it.at)
+          return (
+            <Fragment key={`pend-${it.at}-${it.p.merchant}-${it.p.amount}`}>
+              {head ? (
+                <span className="px-0.5 pt-3 pb-1 font-mono text-[10.5px] tracking-[0.12em] text-ink-500 uppercase">
+                  {dayLabel(it.at)}
+                </span>
+              ) : null}
+              <PendingLine
+                merchant={it.p.merchant}
+                amount={it.p.amount}
+                currency={it.p.currency}
+              />
+            </Fragment>
+          )
+        }
         if (it.t !== 'row') {
           day = ''
           const gap =
@@ -346,7 +392,9 @@ function Timeline({
                   (c) =>
                     c.to === it.bal.at &&
                     c.currency === it.bal.currency &&
-                    (c.bookedLater !== null || c.pendingPart !== null),
+                    (c.bookedLater !== null ||
+                      (c.pendingPart !== null &&
+                        it.bal.pendingRows.length === 0)),
                 )
               : undefined
           return (
@@ -358,6 +406,16 @@ function Timeline({
                   label={`balance · ${short(it.bal.asOf)}`}
                   value={fmt(it.bal.value, it.bal.currency)}
                   file={fileOf(it.bal.fileId)}
+                  bank={
+                    it.bal.source === 'sync'
+                      ? {
+                          name: account.name,
+                          domain: account.domain,
+                          at: it.bal.at,
+                          pending: it.bal.pendingRows.length,
+                        }
+                      : undefined
+                  }
                   typed={
                     it.bal.source === 'typed' ? (
                       <TypedBalance
@@ -399,6 +457,7 @@ function Timeline({
             ) : null}
             <RowLine
               row={r}
+              booked={booked(r)}
               inside={r.inside === null ? null : dayOf(data, r.inside)}
               index={i++}
               onDelete={

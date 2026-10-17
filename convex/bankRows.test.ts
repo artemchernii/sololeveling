@@ -217,10 +217,20 @@ test('a balance with pending payments taken off: saved with no question, and aga
   /* The sheet draws no "no row" under it. */
   const sheet = () => me.query(api.aggregate.accountSheet, { accountId })
   expect((await sheet())?.checks.filter((c) => c.missing !== 0)).toEqual([])
+  /* By name, for the window to list under their day. */
+  const newest = async () =>
+    (await sheet())?.readings.sort((x, y) => y.at - x.at)[0]
+  expect(
+    (await newest())?.pendingRows.map((p) => [p.merchant, p.amount]),
+  ).toEqual([
+    ["McDonald's", -8.65],
+    ['Petiscaria Do', -6],
+  ])
 
   /* Still pending an hour on, nothing new booked: the same. */
   await arrive(649.98, pending, NEXT + 3_600_000)
   expect((await link()).questions).toEqual([])
+  expect((await newest())?.pendingRows).toHaveLength(2)
   expect((await sheet())?.checks.filter((c) => c.missing !== 0)).toEqual([])
 
   /* Next day the same two, booked; the balance has not moved. */
@@ -235,6 +245,7 @@ test('a balance with pending payments taken off: saved with no question, and aga
   )
   expect(await rows()).toHaveLength(4)
   expect(await balance()).toEqual({ value: 649.98, source: 'sync' })
+  expect((await newest())?.pendingRows).toEqual([])
   expect((await link()).questions).toEqual([])
   expect((await sheet())?.checks.filter((c) => c.missing !== 0)).toEqual([])
 })

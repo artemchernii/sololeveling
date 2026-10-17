@@ -1,12 +1,13 @@
 import { usePayees } from '@/components/finances/flow/Payees'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { ArrowDown, ArrowLeftRight, ArrowUp } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, RefreshCw } from 'lucide-react'
 import type { FunctionReturnType } from 'convex/server'
 
 import type { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { Busy } from '@/components/finances/bits'
+import { AccountLogo } from '@/components/finances/Logo'
 import { RowMark } from '@/components/finances/RowMark'
 import { Veiled } from '@/components/finances/Veil'
 
@@ -46,6 +47,7 @@ export function Divider({
   value,
   file,
   typed,
+  bank,
   onFile,
 }: {
   label: string
@@ -53,6 +55,9 @@ export function Divider({
   file: FileInfo | undefined
   /** A balance typed by hand: its own line, which removes it. */
   typed?: ReactNode
+  /** A connected bank's answer (17 Oct): its logo and "Synced with
+      bank", never a PDF. `at` is when it answered. */
+  bank?: { name: string; domain?: string; at: number; pending: number }
   onFile: (id: Id<'intakes'>) => void
 }) {
   return (
@@ -65,7 +70,9 @@ export function Divider({
           </b>
         ) : null}
       </span>
-      {file ? (
+      {bank && (file === undefined || file.bank) ? (
+        <Synced bank={bank} file={file} onFile={onFile} />
+      ) : file ? (
         <button
           type="button"
           onClick={() => onFile(file.id)}
@@ -103,17 +110,128 @@ export function Divider({
   )
 }
 
+const BADGE =
+  'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[9.5px] tracking-[0.12em] uppercase'
+
+/* The bank's answer between the rows (mockup bank-pending.html, his
+   "Synced with bank" and a violet icon): the time, what it added, what
+   it showed pending. */
+function Synced({
+  bank,
+  file,
+  onFile,
+}: {
+  bank: NonNullable<Parameters<typeof Divider>[0]['bank']>
+  file: FileInfo | undefined
+  onFile: (id: Id<'intakes'>) => void
+}) {
+  const time = new Date(bank.at).toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  const body = (
+    <>
+      <AccountLogo name={bank.name} domain={bank.domain} size={30} />
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="flex items-center gap-1.5 text-[13px] text-foreground">
+          <RefreshCw className="size-3.5 text-lav-400 drop-shadow-[0_0_6px_var(--color-lav-400)]" />
+          Synced with bank
+        </span>
+        <span className="flex flex-wrap gap-1.5">
+          <span className={`${BADGE} bg-lift/[0.05] text-ink-400`}>
+            {short(bank.at)} · {time}
+          </span>
+          {file && file.added > 0 ? (
+            <span className={`${BADGE} bg-state-good/12 text-state-good`}>
+              <i className="size-1.5 rounded-full bg-current" />
+              {file.added} new
+            </span>
+          ) : null}
+          {bank.pending > 0 ? (
+            <span className={`${BADGE} bg-state-warn/12 text-state-warn`}>
+              <i className="size-1.5 animate-pulse rounded-full bg-current" />
+              {bank.pending} pending
+            </span>
+          ) : null}
+        </span>
+      </span>
+    </>
+  )
+  return file ? (
+    <button
+      type="button"
+      onClick={() => onFile(file.id)}
+      className="motion-press flex items-center gap-2.5 rounded-[10px] bg-sink/30 px-2.5 py-2 text-left hover:bg-sink/50"
+    >
+      {body}
+      <span className="font-mono text-[10px] tracking-[0.12em] text-lav-300 uppercase">
+        open ›
+      </span>
+    </button>
+  ) : (
+    <span className="flex items-center gap-2.5 rounded-[10px] bg-sink/30 px-2.5 py-2">
+      {body}
+    </span>
+  )
+}
+
+/** A row the bank shows pending: never saved, named under its day. */
+export function PendingLine({
+  merchant,
+  amount,
+  currency,
+}: {
+  merchant: string
+  amount: number
+  currency: string
+}) {
+  const { who } = usePayees()
+  const named = who({ name: merchant })
+  return (
+    <div
+      data-testid="pending-row"
+      className="motion-land flex items-center gap-2.5 rounded-[10px] px-2.5 py-2"
+    >
+      <span className="opacity-70">
+        <RowMark name={merchant} category={null}>
+          <span className="grid size-[26px] shrink-0 place-items-center rounded-[8px] bg-lift/[0.06] text-ink-400">
+            <ArrowUp className="size-3.5" />
+          </span>
+        </RowMark>
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="truncate text-[13.5px] text-foreground">
+          {named.name}
+        </span>
+        <span
+          className={`${BADGE} self-start bg-state-warn/12 text-state-warn`}
+        >
+          <i className="size-1.5 animate-pulse rounded-full bg-current" />
+          pending
+        </span>
+      </span>
+      <span className="font-mono text-[13.5px] whitespace-nowrap text-ink-400">
+        <Veiled>{fmt(amount, currency, true)}</Veiled>
+      </span>
+    </div>
+  )
+}
+
 export function RowLine({
   row: r,
   inside,
   index,
   onDelete,
   onNotHere,
+  booked = false,
 }: {
   row: Row
   /** The day of the balance that already covers this typed row. */
   inside: number | null
   index: number
+  /** Pending at the last answer, booked at this one: says so for a
+      moment, then is a row like the others. */
+  booked?: boolean
   onDelete?: () => Promise<unknown>
   /** The other side of another account's transfer: "not from here". */
   onNotHere?: () => Promise<unknown>
@@ -144,7 +262,7 @@ export function RowLine({
   return (
     <div
       style={{ animationDelay: `${Math.min(index, 20) * 18}ms` }}
-      className="motion-land group flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 hover:bg-lift/[0.035]"
+      className={`motion-land group flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 hover:bg-lift/[0.035] ${booked ? 'motion-booked' : ''}`}
     >
       <RowMark
         name={moved || traded ? '' : r.text}
@@ -190,6 +308,14 @@ export function RowLine({
             </span>
           ) : r.category ? (
             <span>{r.category}</span>
+          ) : null}
+          {booked ? (
+            <span
+              data-testid="booked"
+              className={`${BADGE} motion-booked-badge bg-state-good/12 text-state-good`}
+            >
+              booked
+            </span>
           ) : null}
           {r.logId ? (
             <span className="rounded-[5px] px-1.5 text-[9.5px] tracking-[0.08em] text-ink-300 uppercase ring-1 ring-lift/10 ring-inset">

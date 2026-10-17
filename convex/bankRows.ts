@@ -255,6 +255,14 @@ export const arrive = internalMutation({
           'sync',
           'free',
           rows.filter((x) => x.pending).reduce((t, x) => t + x.amount, 0),
+          undefined,
+          rows
+            .filter((x) => x.pending)
+            .map((x) => ({
+              merchant: x.merchant,
+              amount: x.amount,
+              at: x.occurredAt,
+            })),
         )
     }
     await ctx.db.patch(link._id, {

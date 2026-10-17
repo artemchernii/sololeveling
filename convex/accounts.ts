@@ -280,6 +280,8 @@ export async function writeBalance(
   pending = 0,
   /** The file that set it: taking the file back takes this too. */
   intakeId?: Id<'intakes'>,
+  /** The pending rows by name. */
+  pendingRows: Array<{ merchant: string; amount: number; at: number }> = [],
 ) {
   if (pocket === 'broker' && (currency !== 'EUR' || !hasBrokerCash(account))) {
     throw new ConvexError(`${account.name} has no broker cash.`)
@@ -320,6 +322,9 @@ export async function writeBalance(
     source,
     ...(pending !== 0 ? { pending: Math.round(pending * 100) / 100 } : {}),
     ...(intakeId !== undefined ? { intakeId } : {}),
+    ...(pendingRows.length > 0
+      ? { pendingRows: pendingRows.slice(0, 50) }
+      : {}),
   })
 }
 

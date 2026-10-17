@@ -6,22 +6,39 @@ import { ARROW, DAY, Stroke, WAY_TEXT } from '@/components/finances/ChartLines'
 import type { Lines } from '@/components/finances/ChartLines'
 import type { LineId, Signal, Way } from '@/lib/indicators'
 
-/* Under a position's chart, two tabs (15 Oct: "hide it in tab, we have
+/* Under a position's chart, its tabs (15 Oct: "hide it in tab, we have
    list of buys/sells, and we can have list of signals"; mockup
-   indicators.html): SIGNALS first, BUYS AND SELLS beside it, the last
-   one chosen kept on this device. A signal is one row — its line's mark
+   indicators.html; 16 Oct, fundamentals.html): SIGNALS first, then
+   FUNDAMENTALS and NEWS while something is held, BUYS AND SELLS last,
+   the one chosen kept on this device. A signal is one row — its line's mark
    (which puts the line on the chart), its textbook verdict in colour,
    the number, a gauge — and opens on a tap to one plain sentence and
    both numbers. */
 
-type Tab = 'signals' | 'trades'
+export type Tab = 'signals' | 'fund' | 'news' | 'trades'
 const KEPT = 'position-tab'
+const TABS: ReadonlyArray<Tab> = ['signals', 'fund', 'news', 'trades']
 const kept = (): Tab => {
   try {
-    return localStorage.getItem(KEPT) === 'trades' ? 'trades' : 'signals'
+    const t = localStorage.getItem(KEPT) as Tab | null
+    return t !== null && TABS.includes(t) ? t : 'signals'
   } catch {
     return 'signals'
   }
+}
+
+/** The tab chosen last, kept on this device. */
+export function useKeptTab(): [Tab, (t: Tab) => void] {
+  const [tab, setTab] = useState<Tab>(kept)
+  const pick = (t: Tab) => {
+    setTab(t)
+    try {
+      localStorage.setItem(KEPT, t)
+    } catch {
+      /* Kept for this visit only. */
+    }
+  }
+  return [tab, pick]
 }
 
 const TONE: Record<Way, string> = {
@@ -49,72 +66,80 @@ const NAME: Record<LineId, [string, string]> = {
 }
 const pct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}%`
 
+/** A tab beside SIGNALS while something is held: its name's tail
+    (counts) and what it shows. */
+export type Extra = { label: ReactNode; body: ReactNode }
+
 export function PositionTabs({
   lines,
   say,
   trades,
   count,
-  top,
+  tab,
+  onTab,
+  fund,
+  news,
 }: {
   lines: Lines
   say: (v: number) => string
-  /** Above the signal rows: the verdict, while something is held. */
-  top?: ReactNode
   /** The BUYS AND SELLS list, as built. */
   trades: ReactNode
   count: number
+  tab: Tab
+  onTab: (t: Tab) => void
+  /** FUNDAMENTALS and NEWS, while something is held. */
+  fund?: Extra
+  news?: Extra
 }) {
-  const [tab, setTab] = useState<Tab>(kept)
   const [opened, setOpened] = useState<LineId | null>(null)
-  const pick = (t: Tab) => {
-    setTab(t)
-    try {
-      localStorage.setItem(KEPT, t)
-    } catch {
-      /* Kept for this visit only. */
-    }
-  }
+  const shown: Tab =
+    (tab === 'fund' && !fund) || (tab === 'news' && !news) ? 'signals' : tab
   const n = (w: Way) => lines.rows.filter((r) => r.way === w).length
   const tabClass = (on: boolean) =>
     `relative inline-flex items-center gap-2 px-2 pt-2.5 pb-3 font-mono text-[10.5px] tracking-[0.1em] whitespace-nowrap uppercase transition-colors sm:px-3 sm:text-[11px] sm:tracking-[0.14em] ${on ? 'text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-lav-400 after:shadow-[0_0_10px_var(--color-lav-400)]' : 'text-ink-500 hover:text-ink-200'}`
+  const button = (id: Tab, name: string, tail: ReactNode) => (
+    <button
+      key={id}
+      type="button"
+      role="tab"
+      aria-selected={shown === id}
+      onClick={() => onTab(id)}
+      className={tabClass(shown === id)}
+    >
+      {name}
+      {tail}
+    </button>
+  )
   return (
     <div className="flex flex-col">
       <div
         role="tablist"
         data-testid="position-tabs"
-        className="flex gap-1 border-b border-lift/8"
+        className="flex gap-1 overflow-x-auto border-b border-lift/8 [scrollbar-width:none]"
       >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'signals'}
-          onClick={() => pick('signals')}
-          className={tabClass(tab === 'signals')}
-        >
-          signals
+        {button(
+          'signals',
+          'signals',
           <span className="flex gap-1.5 tracking-[0.06em]">
             {(['up', 'down', 'flat'] as const).map((w) => (
               <span key={w} className={WAY_TEXT[w]}>
                 {n(w)} {ARROW[w]}
               </span>
             ))}
-          </span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'trades'}
-          onClick={() => pick('trades')}
-          className={tabClass(tab === 'trades')}
-        >
-          {`buys and sells · ${count}`}
-        </button>
+          </span>,
+        )}
+        {fund ? button('fund', 'fundamentals', fund.label) : null}
+        {news ? button('news', 'news', news.label) : null}
+        {button('trades', `buys and sells · ${count}`, null)}
       </div>
-      {tab === 'trades' ? (
+      {shown === 'trades' ? (
         <div className="pt-2">{trades}</div>
+      ) : shown === 'fund' ? (
+        fund?.body
+      ) : shown === 'news' ? (
+        news?.body
       ) : (
         <div className="flex flex-col pt-1.5">
-          {top}
           {lines.rows.map((r, i) => (
             <Row
               key={r.id}

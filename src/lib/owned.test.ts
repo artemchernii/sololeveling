@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { combine, gainOf, ordered } from './owned'
-import type { Held } from './owned'
+import { combine, gainOf, matches, ordered } from './owned'
+import type { Held, Order } from './owned'
 
 const held = (over: Partial<Held>): Held => ({
   accountId: 'revolut',
@@ -96,8 +96,7 @@ describe('ordered', () => {
     }),
     held({ instrumentId: 'unpriced', name: 'unpriced', valueEur: null }),
   ])
-  const ids = (by: 'worth' | 'up' | 'down') =>
-    ordered(list, by).map((o) => o.instrumentId)
+  const ids = (by: Order) => ordered(list, by).map((o) => o.instrumentId)
 
   it('puts the biggest first, one with no worth last', () => {
     expect(ids('worth')).toEqual([
@@ -113,5 +112,33 @@ describe('ordered', () => {
     expect(ids('up').slice(0, 3)).toEqual(['winner', 'big', 'loser'])
     expect(ids('down').slice(0, 3)).toEqual(['loser', 'big', 'winner'])
     expect(ids('up').slice(3)).toEqual(['unknown', 'unpriced'])
+  })
+
+  it('orders A–Z by name', () => {
+    expect(ids('name')).toEqual([
+      'big',
+      'loser',
+      'unknown',
+      'unpriced',
+      'winner',
+    ])
+  })
+})
+
+describe('matches', () => {
+  const [novo] = combine([
+    held({ instrumentId: 'nvo', symbol: 'NVO', name: 'Novo Nordisk' }),
+    held({ instrumentId: 'novo-b', symbol: 'NOVO-B.CO', name: 'Novo Nordisk' }),
+  ])
+
+  it('finds by part of a name or any ticker, any case', () => {
+    expect(matches(novo, 'nordisk')).toBe(true)
+    expect(matches(novo, ' NVO ')).toBe(true)
+    expect(matches(novo, 'novo-b')).toBe(true)
+    expect(matches(novo, 'amazon')).toBe(false)
+  })
+
+  it('matches everything when nothing is typed', () => {
+    expect(matches(novo, '  ')).toBe(true)
   })
 })

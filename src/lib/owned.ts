@@ -96,9 +96,10 @@ export function gainOf(o: Pick<Owned, 'paid' | 'valueEur'>) {
   return { eur, pct: o.paid > 0 ? (eur / o.paid) * 100 : 0 }
 }
 
-export type Order = 'worth' | 'up' | 'down'
+export type Order = 'worth' | 'up' | 'down' | 'name'
 
-/** Biggest first, or by gain in percent; one with no gain known is last. */
+/** Biggest first, by gain in percent (one with no gain known is last),
+    or A–Z by name (17 Oct). */
 export function ordered<T extends Owned>(
   list: ReadonlyArray<T>,
   by: Order,
@@ -106,10 +107,21 @@ export function ordered<T extends Owned>(
   const worth = (o: T) => o.valueEur ?? -1
   return [...list].sort((a, b) => {
     if (by === 'worth') return worth(b) - worth(a)
+    if (by === 'name') return a.name.localeCompare(b.name)
     const ga = gainOf(a)
     const gb = gainOf(b)
     if (ga === null || gb === null)
       return ga === gb ? worth(b) - worth(a) : ga === null ? 1 : -1
     return by === 'up' ? gb.pct - ga.pct : ga.pct - gb.pct
   })
+}
+
+/** Whether a thing owned answers what was typed (17 Oct, find): any
+    listing's name or ticker, any case. Nothing typed matches all. */
+export function matches(o: Pick<Owned, 'name' | 'at'>, typed: string) {
+  const q = typed.trim().toLowerCase()
+  if (q === '') return true
+  return [o.name, ...o.at.flatMap((r) => [r.name, r.symbol])].some((t) =>
+    t.toLowerCase().includes(q),
+  )
 }

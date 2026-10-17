@@ -65,9 +65,7 @@ test('Portfolio: find by name or ticker, sort A–Z', async ({ page }) => {
   await page.reload()
   await expect(az).toHaveAttribute('aria-pressed', 'true')
   await expect(rows.first()).toContainText('Amazon')
-  await page
-    .getByRole('button', { name: 'biggest', exact: true })
-    .click()
+  await page.getByRole('button', { name: 'biggest', exact: true }).click()
   await expect(rows.first()).toContainText('ASML')
 
   /* S2 a ticker: that row; pressing it opens its page. */
@@ -76,7 +74,9 @@ test('Portfolio: find by name or ticker, sort A–Z', async ({ page }) => {
   await rows.first().getByRole('link').click()
   await expect(page).toHaveURL(/position=/)
   await expect(
-    page.getByTestId('position-page').getByRole('heading', { name: 'Palantir' }),
+    page
+      .getByTestId('position-page')
+      .getByRole('heading', { name: 'Palantir' }),
   ).toBeVisible()
 })
 
@@ -110,6 +110,13 @@ test('Portfolio: no field for a short list, and the field on a phone', async ({
     () => document.documentElement.scrollWidth - window.innerWidth,
   )
   expect(wide).toBeLessThanOrEqual(0)
-  await field.scrollIntoViewIfNeeded()
+  await field.evaluate((el) => el.scrollIntoView({ block: 'start' }))
+  await page.mouse.wheel(0, -90)
+  await page.waitForTimeout(500)
   await page.screenshot(shot('portfolio-find-phone'))
+
+  /* The light theme: the field and the lit letters still read. */
+  await page.emulateMedia({ colorScheme: 'light' })
+  await page.waitForTimeout(500)
+  await page.screenshot(shot('portfolio-find-phone-light'))
 })

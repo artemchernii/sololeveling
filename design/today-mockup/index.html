@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Today mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Same palette as design/review-mockup — values from src/styles/tokens.css */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150);
+    --warn: oklch(0.79 0.15 75);
+    --glass: linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
+    --edge: rgba(233,233,237,.09);
+    --shadow: inset 0 1px 0 rgba(233,233,237,.08), 0 24px 48px -28px rgba(0,0,0,.9);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --a-projects: oklch(0.8 0.1 352);
+    --a-lang: oklch(0.8 0.1 190);
+    --a-body: oklch(0.8 0.1 155);
+    --a-cal: oklch(0.8 0.1 225);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 13px; min-height: 100vh;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer }
+  .caps { font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .num { font-weight: 300; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums }
+
+  /* Mockup controls — not part of the design */
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; padding: 10px 16px 0; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .ctl button { color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  /* app shell, on the real app's proportions */
+  .app { display:grid; grid-template-columns: 180px 1fr; gap: 16px; max-width: 1180px; margin: 0 auto; padding: 14px 16px 60px }
+  .app.phone { grid-template-columns: 1fr; max-width: 390px }
+  .app.phone .side { display:none }
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; padding: 12px 16px 40px }
+    .app .side { display:none }
+    .app .logs { grid-template-columns: repeat(2, 1fr) }
+    .app .day { min-height: 54px; padding: 6px 4px }
+    .app .ev { display:none }
+  }
+  .side { border-radius: 16px; border: 1px solid var(--edge); background: var(--glass); padding: 12px 10px; display:flex; flex-direction:column; gap: 2px; align-self: start }
+  .side .caps { padding: 8px 8px 4px }
+  .side a { padding: 7px 8px; border-radius: 9px; color: var(--ink-300); font-size: 13px }
+  .side a.on { color: var(--ink-100); background: rgba(181,171,252,.12); border: 1px solid var(--sys-edge) }
+
+  .main { display:flex; flex-direction:column; gap: 14px; min-width: 0 }
+  .top { display:flex; align-items:end; justify-content:space-between; gap: 10px; padding: 6px 2px 2px }
+  .date { font-size: 34px; font-weight: 300; letter-spacing: -.02em }
+  .lvl { display:flex; gap: 8px; align-items:center }
+
+  .panel { position: relative; border-radius: 16px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 16px;
+    animation: arrive .55s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 70ms) }
+  @keyframes arrive { from { opacity: 0; transform: translateY(10px) scale(.985) } }
+  .sys { border-color: var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.10), rgba(181,171,252,.02) 40%), var(--glass);
+    box-shadow: var(--shadow), 0 0 40px -18px var(--shine) }
+  .sys::after { content:''; position:absolute; inset:-1px; border:2px solid var(--lav-400); border-radius:17px; pointer-events:none;
+    --r: 20px; mask: linear-gradient(#000 0 0) top left/var(--r) var(--r), linear-gradient(#000 0 0) top right/var(--r) var(--r), linear-gradient(#000 0 0) bottom left/var(--r) var(--r), linear-gradient(#000 0 0) bottom right/var(--r) var(--r); mask-repeat:no-repeat;
+    animation: corners 3.2s ease-in-out infinite }
+  @keyframes corners { 0%,100% { filter: drop-shadow(0 0 3px var(--shine)); opacity: .75 } 50% { filter: drop-shadow(0 0 9px var(--shine)); opacity: 1 } }
+  .sys-title { font-family: var(--mono); font-size: 11px; letter-spacing: .34em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 12px var(--shine) }
+  .phead { display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px }
+
+  .badge { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; border: 1px solid currentColor; display:inline-flex; gap:5px; align-items:center; white-space: nowrap }
+  .b-good { color: var(--good); background: color-mix(in oklch, var(--good) 10%, transparent) }
+  .b-lav { color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 10%, transparent) }
+  .b-dim { color: var(--ink-400) }
+
+  /* ── the three ── */
+  .slot { display:flex; align-items:center; gap: 14px; padding: 14px 4px; border-top: 1px solid var(--edge); min-height: 62px }
+  .slot:first-of-type { border-top: 0 }
+  .slot .n { font-family: var(--mono); font-size: 11px; color: var(--ink-500); width: 18px }
+  .tick { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--ink-500); display:grid; place-items:center; flex: none; transition: all .25s }
+  .tick:hover { border-color: var(--lav-400); box-shadow: 0 0 12px -2px var(--shine) }
+  .tick svg { width: 14px; height: 14px; opacity: 0 }
+  .slot.done .tick { background: var(--good); border-color: var(--good); animation: pop .45s cubic-bezier(.3,1.6,.5,1) }
+  .slot.done .tick svg { opacity: 1; color: #10121c }
+  .slot.done .title { color: var(--ink-500); text-decoration: line-through; text-decoration-color: var(--ink-600) }
+  .slot.saving .tick { border-color: var(--lav-400); border-top-color: transparent; animation: spin .7s linear infinite }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  @keyframes pop { from { transform: scale(.4); opacity: 0 } }
+  .title { font-size: 18px; font-weight: 400; flex: 1; min-width: 0 }
+  .slot.filled { animation: arrive .4s cubic-bezier(.2,.8,.2,1) both }
+  .slot.empty .title { color: var(--ink-600); font-size: 15px }
+  .x { color: var(--ink-600); font-size: 16px; padding: 4px 6px; opacity: 0; transition: opacity .2s }
+  .slot:hover .x { opacity: 1 }
+
+  .pick { margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--edge); display:flex; flex-wrap:wrap; gap: 8px; align-items:center }
+  .chip { display:inline-flex; align-items:center; gap: 7px; padding: 7px 12px; border-radius: 999px; border: 1px solid color-mix(in oklch, var(--a) 40%, transparent);
+    background: color-mix(in oklch, var(--a) 9%, transparent); font-size: 13px; transition: transform .2s, box-shadow .2s; animation: arrive .4s both; animation-delay: calc(var(--i,0) * 60ms) }
+  .chip:hover { transform: translateY(-2px); box-shadow: 0 0 18px -6px var(--a) }
+  .chip span { white-space: nowrap }
+  .chip .from { font-family: var(--mono); font-size: 9px; letter-spacing: .12em; color: var(--a) }
+  .chip.typed { --a: var(--ink-400) }
+
+  /* ── log ── */
+  .logs { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px }
+  .app.phone .logs { grid-template-columns: repeat(2, 1fr) }
+  .log { --a: var(--a-body); position: relative; border-radius: 14px; border: 1px solid color-mix(in oklch, var(--a) 30%, transparent);
+    background: color-mix(in oklch, var(--a) 6%, transparent); padding: 14px 12px; display:flex; flex-direction:column; gap: 10px; align-items:flex-start; text-align:left;
+    transition: transform .2s, box-shadow .2s, border-color .2s; overflow: hidden }
+  .log:hover { transform: translateY(-2px); box-shadow: 0 0 24px -10px var(--a); border-color: var(--a) }
+  .log .name { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; color: var(--a) }
+  .log .count { font-size: 28px }
+  .log .sub { font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em; color: var(--ink-500); text-transform: uppercase }
+  .log.saving { border-color: var(--lav-400) }
+  .log.saving .count { opacity: .4 }
+  .log.landed { animation: flash 1s ease-out }
+  @keyframes flash { 0% { box-shadow: 0 0 0 0 var(--a), 0 0 30px -4px var(--a) } 100% { box-shadow: 0 0 0 0 transparent } }
+  .log .state { position:absolute; top: 10px; right: 10px }
+  .bump { display:inline-block; animation: bump .5s cubic-bezier(.3,1.6,.5,1) }
+  @keyframes bump { 0% { transform: translateY(8px); opacity: 0 } }
+
+  /* weight: one number, prefilled with the last */
+  .wbox { display:flex; align-items:center; gap: 8px }
+  .wbox button { width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--edge); color: var(--ink-300) }
+  .wbox .save { width: auto; padding: 0 10px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--a); border-color: var(--a) }
+
+  /* ── week ── */
+  .week { display:grid; grid-template-columns: repeat(7, 1fr); gap: 6px }
+  .day { border-radius: 10px; padding: 8px 7px; background: rgba(255,255,255,.03); border: 1px solid var(--edge); display:flex; flex-direction:column; gap: 7px; min-height: 66px }
+  .day.today { border-color: var(--lav-400); animation: todayPulse 2.4s ease-in-out infinite }
+  @keyframes todayPulse { 0%,100% { box-shadow: 0 0 10px -6px var(--shine) } 50% { box-shadow: 0 0 22px -4px var(--shine) } }
+  .day.future { opacity: .55 }
+  .q { display:flex; gap: 3px }
+  .q i { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,.08) }
+  .q i.on { background: var(--lav-400); box-shadow: 0 0 6px var(--shine) }
+  .dots { display:flex; flex-wrap:wrap; gap: 3px }
+  .dot { width: 8px; height: 8px; border-radius: 3px; background: var(--a); animation: pop .4s cubic-bezier(.3,1.6,.5,1) both }
+  .ev { font-family: var(--mono); font-size: 9px; color: var(--a-cal) }
+  .legend { display:flex; gap: 12px; flex-wrap: wrap; margin-top: 10px }
+  .legend span { display:inline-flex; gap: 5px; align-items:center; font-family: var(--mono); font-size: 9px; color: var(--ink-500); text-transform: uppercase; letter-spacing: .08em }
+  .legend i { width: 8px; height: 8px; border-radius: 3px; background: var(--a) }
+  .app.phone .day { min-height: 54px; padding: 6px 4px }
+  .app.phone .ev { display:none }
+</style>
+</head>
+<body>
+
+<div class="ctl">
+  MOCKUP ·
+  <button data-s="morning" class="on">MORNING · EMPTY</button>
+  <button data-s="picked">THREE PICKED</button>
+  <button data-s="evening">EVENING · DONE</button>
+  · <button id="phone">PHONE</button>
+</div>
+
+<div class="app" id="app">
+  <nav class="side">
+    <div class="caps">NOW</div>
+    <a class="on">Today</a><a>Calendar</a><a>Review</a>
+    <div class="caps">BUILD</div>
+    <a>Projects</a><a>Goals</a><a>Backlog</a><a>Notes</a>
+    <div class="caps">TRACK</div>
+    <a>Finances</a><a>Body</a><a>Languages</a>
+  </nav>
+
+  <main class="main">
+    <div class="top">
+      <div>
+        <div class="caps">SAT</div>
+        <div class="date">17 Oct</div>
+      </div>
+      <div class="lvl"><span class="caps">LEVEL</span><span class="num" style="font-size:22px">32</span></div>
+    </div>
+
+    <section class="panel sys" style="--i:1">
+      <div class="phead">
+        <span class="sys-title">[ TODAY'S THREE ]</span>
+        <span class="badge b-lav" id="threeCount">0 OF 3</span>
+      </div>
+      <div id="slots"></div>
+      <div class="pick" id="pick"></div>
+    </section>
+
+    <section class="panel" style="--i:2">
+      <div class="phead"><span class="caps">LOG</span><span class="caps" id="logHint">THIS WEEK</span></div>
+      <div class="logs" id="logs"></div>
+    </section>
+
+    <section class="panel" style="--i:3">
+      <div class="phead"><span class="caps">WEEK 42</span><span class="caps">12 – 18 OCT</span></div>
+      <div class="week" id="week"></div>
+      <div class="legend">
+        <span><i style="background:var(--lav-400)"></i>THREE</span>
+        <span><i style="--a:var(--a-body)"></i>BODY</span>
+        <span><i style="--a:var(--a-lang)"></i>PORTUGUESE</span>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 8.5l3.2 3L13 4.5"/></svg>';
+
+// Suggestions the app makes — each from a real source, named on the chip
+const SUGGEST = [
+  { t: 'PT · 14:00',            from: 'CALENDAR',     a: 'var(--a-cal)' },
+  { t: 'Portuguese 20 min',     from: '0 OF 4 · OCT', a: 'var(--a-lang)' },
+  { t: 'Workout',               from: '0 OF 12 · OCT',a: 'var(--a-body)' },
+  { t: 'Today page mockup',     from: 'SOLOLEVELING', a: 'var(--a-projects)' },
+];
+
+const LOGS = {
+  workout:    { name: 'WORKOUT',    a: 'var(--a-body)', n: 0, sub: '7 IN 4 WEEKS', saved: 'GYM 60' },
+  portuguese: { name: 'PORTUGUESE', a: 'var(--a-lang)', n: 0, sub: '4 IN 4 WEEKS', saved: '20 MIN' },
+  shake:      { name: 'SHAKE',      a: 'var(--a-body)', n: 0, sub: '1 IN 4 WEEKS', saved: '1 SHAKE' },
+  weight:     { name: 'WEIGHT',     a: 'var(--a-body)', kg: 75.4, sub: 'SEP 8' },
+};
+
+// week: three ticked per day, body / portuguese dots
+const WEEK = [
+  { d: 'MON 12', q: 2, dots: [] }, { d: 'TUE 13', q: 3, dots: ['b'] }, { d: 'WED 14', q: 1, dots: [] },
+  { d: 'THU 15', q: 2, dots: ['l'] }, { d: 'FRI 16', q: 0, dots: [] },
+  { d: 'SAT 17', q: 0, dots: [], today: true, ev: '14:00 PT' }, { d: 'SUN 18', future: true },
+];
+
+let three = [], logState = {}, weightOpen = false;
+
+function renderThree() {
+  const slots = document.getElementById('slots');
+  slots.innerHTML = [0,1,2].map(i => {
+    const q = three[i];
+    if (!q) return `<div class="slot empty"><span class="n">0${i+1}</span><span class="tick"></span><span class="title">—</span></div>`;
+    return `<div class="slot filled ${q.done ? 'done' : ''} ${q.saving ? 'saving' : ''}" style="--a:${q.a}">
+      <span class="n">0${i+1}</span>
+      <button class="tick" onclick="tick(${i})">${CHECK}</button>
+      <span class="title">${q.t}</span>
+      ${q.done ? '<span class="badge b-good">DONE</span>' : `<span class="badge b-dim" style="color:${q.a}">${q.from}</span>`}
+      ${q.done ? '' : `<button class="x" onclick="drop(${i})">×</button>`}
+    </div>`;
+  }).join('');
+  const done = three.filter(q => q.done).length;
+  document.getElementById('threeCount').textContent = three.length < 3 ? `${three.length} OF 3` : `${done} OF 3 DONE`;
+  const pick = document.getElementById('pick');
+  if (three.length >= 3) { pick.style.display = 'none'; return; }
+  pick.style.display = 'flex';
+  const left = SUGGEST.filter(s => !three.some(q => q.t === s.t));
+  pick.innerHTML = `<span class="caps" style="margin-right:4px">PICK</span>` +
+    left.map((s, i) => `<button class="chip" style="--a:${s.a};--i:${i}" onclick="add('${s.t}')"><span>${s.t}</span><span class="from">${s.from}</span></button>`).join('') +
+    `<button class="chip typed" onclick="add('Call the bank')"><span>＋</span><span class="from">TYPE</span></button>`;
+}
+function add(t) {
+  const s = SUGGEST.find(s => s.t === t) || { t, from: 'TYPED', a: 'var(--ink-400)' };
+  if (three.length < 3) three.push({ ...s });
+  renderThree();
+}
+function drop(i) { three.splice(i, 1); renderThree(); }
+function tick(i) {
+  const q = three[i]; if (q.done) return;
+  q.saving = true; renderThree();
+  setTimeout(() => { q.saving = false; q.done = true; renderThree(); }, 650);
+}
+
+function renderLogs() {
+  const el = document.getElementById('logs');
+  el.innerHTML = Object.entries(LOGS).map(([k, l]) => {
+    const s = logState[k] || '';
+    if (k === 'weight') {
+      const body = weightOpen
+        ? `<div class="wbox" onclick="event.stopPropagation()"><button onclick="kg(-0.1)">−</button><span class="num count">${l.kg.toFixed(1)}</span><button onclick="kg(0.1)">+</button></div>
+           <div class="wbox" onclick="event.stopPropagation()"><button class="save" onclick="saveWeight()">SAVE</button></div>`
+        : `<span class="num count ${s==='landed'?'bump':''}">${l.kg.toFixed(1)}<span style="font-size:13px;color:var(--ink-500)"> kg</span></span>
+           <span class="sub">${l.sub}</span>`;
+      return `<div class="log ${s}" style="--a:${l.a}" onclick="openWeight()" role="button">
+        <span class="name">${l.name}</span>${body}${badge(s, 'SAVED')}</div>`;
+    }
+    return `<button class="log ${s}" style="--a:${l.a}" onclick="logIt('${k}')">
+      <span class="name">${l.name}</span>
+      <span class="num count ${s==='landed'?'bump':''}">${l.n}</span>
+      <span class="sub">${l.sub}</span>
+      ${badge(s, l.saved)}
+    </button>`;
+  }).join('');
+}
+function badge(s, word) {
+  if (s === 'saving') return `<span class="state badge b-lav">SAVING…</span>`;
+  if (s === 'landed') return `<span class="state badge b-good">✓ ${word}</span>`;
+  return '';
+}
+function logIt(k) {
+  if (logState[k] === 'saving') return;
+  logState[k] = 'saving'; renderLogs();
+  setTimeout(() => { LOGS[k].n++; logState[k] = 'landed'; renderLogs(); markWeek(k); }, 600);
+  setTimeout(() => { if (logState[k] === 'landed') { logState[k] = ''; renderLogs(); } }, 3200);
+}
+function openWeight() { if (!weightOpen) { weightOpen = true; renderLogs(); } }
+function kg(d) { LOGS.weight.kg = Math.round((LOGS.weight.kg + d) * 10) / 10; renderLogs(); }
+function saveWeight() {
+  weightOpen = false; logState.weight = 'saving'; renderLogs();
+  setTimeout(() => { LOGS.weight.sub = 'TODAY · WAS 75.4 · SEP 8'; logState.weight = 'landed'; renderLogs(); }, 600);
+  setTimeout(() => { logState.weight = ''; renderLogs(); }, 3200);
+}
+
+function markWeek(k) {
+  const t = WEEK.find(d => d.today);
+  t.dots.push(k === 'portuguese' ? 'l' : 'b'); renderWeek();
+}
+function renderWeek() {
+  const today = WEEK.find(d => d.today);
+  today.q = three.filter(q => q.done).length;
+  document.getElementById('week').innerHTML = WEEK.map(d => `
+    <div class="day ${d.today ? 'today' : ''} ${d.future ? 'future' : ''}">
+      <span class="caps" style="font-size:8.5px;${d.today ? 'color:var(--lav-300)' : ''}">${d.d}</span>
+      ${d.future ? '' : `<div class="q">${[0,1,2].map(i => `<i class="${i < d.q ? 'on' : ''}"></i>`).join('')}</div>`}
+      <div class="dots">${(d.dots||[]).map(x => `<i class="dot" style="--a:var(${x==='l'?'--a-lang':'--a-body'})"></i>`).join('')}</div>
+      ${d.ev ? `<span class="ev">${d.ev}</span>` : ''}
+    </div>`).join('');
+}
+
+const _renderThree = renderThree;
+renderThree = function () { _renderThree(); renderWeek(); };
+
+function scenario(s) {
+  logState = {}; weightOpen = false;
+  LOGS.workout.n = 0; LOGS.portuguese.n = 0; LOGS.shake.n = 0; LOGS.weight.kg = 75.4; LOGS.weight.sub = 'SEP 8';
+  WEEK.find(d => d.today).dots = [];
+  three = [];
+  if (s === 'picked') three = [0, 1, 3].map(i => ({ ...SUGGEST[i] }));
+  if (s === 'evening') {
+    three = [0, 1, 3].map(i => ({ ...SUGGEST[i], done: i !== 3 }));
+    LOGS.workout.n = 1; LOGS.portuguese.n = 1; WEEK.find(d => d.today).dots = ['b', 'l'];
+  }
+  document.querySelectorAll('[data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === s));
+  renderThree(); renderLogs();
+}
+document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => scenario(b.dataset.s));
+document.getElementById('phone').onclick = e => { document.getElementById('app').classList.toggle('phone'); e.target.classList.toggle('on'); };
+scenario('morning');
+</script>
+</body>
+</html>

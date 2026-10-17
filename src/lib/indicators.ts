@@ -262,6 +262,11 @@ export function fundWays(
   return out
 }
 
+/** The analysts' avg target against the latest stored price, as
+    `between()` says it — price first, so the % is of the price. */
+export const toTarget = (price: number, mean: number) =>
+  between({ t: 0, v: price }, { t: 1, v: mean }).pct
+
 /**
  * The call to act on a position (15 Oct, mockup verdict.html; his "go
  * verdict … tell me overall idea what is the best to do"), from today's

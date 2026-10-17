@@ -115,7 +115,7 @@ export function parseRevenue(
   const qs: Array<Quarter> = rows
     .flatMap((x: unknown) => {
       const o = obj(x)
-      const value = num(obj(o.reportedValue) as Raw)
+      const value = num(obj(o.reportedValue))
       const asOf = typeof o.asOfDate === 'string' ? Date.parse(o.asOfDate) : NaN
       return value !== undefined && Number.isFinite(asOf)
         ? [{ asOf, value }]

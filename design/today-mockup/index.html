@@ -23,7 +23,6 @@
     --a-body: oklch(0.8 0.1 155);
     --a-shake: oklch(0.8 0.1 120);
     --a-social: oklch(0.8 0.1 15);
-    --a-girls: oklch(0.8 0.12 330);
     --a-projects: oklch(0.8 0.1 352);
     --a-money: oklch(0.8 0.1 88);
   }
@@ -78,8 +77,8 @@
   .daybar i.on { background: var(--lav-400); box-shadow: 0 0 8px var(--shine) }
 
   /* rows */
-  .rows { margin-top: 24px; display:flex; flex-direction:column; position: relative }
-  .r { --a: var(--lav-400); display:grid; grid-template-columns: 34px 120px 1fr 92px 150px 36px; align-items:center; gap: 14px;
+  .rows { margin-top: 2px; display:flex; flex-direction:column; position: relative }
+  .r { --a: var(--lav-400); display:grid; grid-template-columns: 34px 110px 1fr 92px 130px 36px; align-items:center; gap: 14px;
     padding: 13px 4px; border-top: 1px solid rgba(233,233,237,.06);
     animation: rowIn .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 70ms + 300ms) }
   .r:first-child { border-top: 0 }
@@ -90,6 +89,32 @@
     box-shadow: 0 0 16px -6px var(--a) }
   .ic svg { width: 15px; height: 15px }
   .name { font-family: var(--mono); font-size: 12px; letter-spacing: .22em; color: var(--ink-200) }
+
+  /* level line under LV: days to the next birthday */
+  .xp { margin-top: 12px; width: 260px; display:flex; flex-direction:column; gap: 6px }
+  .xp .track { height: 4px; border-radius: 2px; background: rgba(255,255,255,.08); overflow: hidden }
+  .xp .track i { display:block; height: 100%; width: 84%; background: linear-gradient(90deg, var(--lav-400), var(--lav-300)); box-shadow: 0 0 10px var(--shine); animation: grow 1.4s .3s cubic-bezier(.2,.8,.2,1) both }
+
+  /* column heads — the window reads as one table */
+  .cols { display:grid; grid-template-columns: 34px 110px 1fr 92px 130px 36px; gap: 14px; padding: 0 4px 8px; margin-top: 22px; border-bottom: 1px solid rgba(181,171,252,.18) }
+  .cols span { font-family: var(--mono); font-size: 8.5px; letter-spacing: .18em; color: var(--ink-500) }
+  .cols .days { display:grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align:center }
+  .cols .days b { font-weight: 400 }
+  .cols .days b.today { color: var(--lav-300) }
+
+  /* seven day cells per row */
+  .week { display:grid; grid-template-columns: repeat(7, 1fr); gap: 4px }
+  .week i { height: 22px; border-radius: 6px; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.04);
+    display:grid; place-items:center; font-style: normal; font-family: var(--mono); font-size: 9.5px; color: #10121c }
+  .week i.on { background: color-mix(in oklch, var(--a) calc(var(--o, 1) * 100%), transparent); border-color: var(--a); box-shadow: 0 0 12px -3px var(--a);
+    animation: pop .4s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(var(--d) * 50ms + 400ms) }
+  .week i.today { border: 1.5px dashed color-mix(in oklch, var(--a) 70%, transparent) }
+  .week i.today.on { border-style: solid }
+  .week i.future { opacity: .35 }
+  .spark { height: 22px; width: 100% }
+  .spark { overflow: visible; animation: wipe 1.4s .5s ease-out both }
+  .spark path { fill: none; stroke: var(--a); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px var(--a)) }
+  @keyframes wipe { from { clip-path: inset(0 100% 0 0) } to { clip-path: inset(0 0 0 0) } }
 
   /* bar: this week filled, last week as a marker */
   .bar { position: relative; height: 12px; border-radius: 6px; background: rgba(255,255,255,.06) }
@@ -170,6 +195,7 @@
         <div>
           <div class="title">[ STATUS ]</div>
           <div class="who"><span class="lvl"><small>LV</small>32</span><span class="caps" style="color:var(--ink-200)">ARTEM</span></div>
+          <div class="xp"><div class="track"><i></i></div><span class="caps" style="font-size:9px">58 DAYS TO LV 33</span></div>
         </div>
         <div class="right">
           <span class="caps" style="color:var(--ink-200)">SAT 17 OCT</span>
@@ -178,6 +204,7 @@
         </div>
       </div>
 
+      <div class="cols"><span></span><span></span><span class="days"><b>M</b><b>T</b><b>W</b><b>T</b><b>F</b><b class="today">S</b><b>S</b></span><span style="text-align:right">THIS WEEK</span><span>VS LAST WEEK</span><span></span></div>
       <div class="rows" id="rows"></div>
 
       <div class="three" id="three"></div>
@@ -191,40 +218,51 @@ const IC = {
   body:  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1.5 6v4M4 4.5v7M12 4.5v7M14.5 6v4M4 8h8"/></svg>',
   shake: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4.5 4.5h7l-1 9.5h-5zM4 4.5h8M8 4.5V1.5l2-.5"/></svg>',
   post:  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2L7 9M14 2l-4.5 12-2.5-5-5-2.5z"/></svg>',
-  girls: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 13.5S2 10 2 6a3 3 0 0 1 6-1 3 3 0 0 1 6 1c0 4-6 7.5-6 7.5z"/></svg>',
   proj:  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="2.5"/><path d="M1 8h4.5M10.5 8H15"/></svg>',
   money: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12l4-4 3 3 5-6M10 5h4v4"/></svg>',
 };
 
 // this week vs last week; max = the bar's full width. Mock numbers — langs, workout, shake, commits, worth from his Review.
 const BASE = () => [
-  { k:'lang',  name:'LANGS',   a:'var(--a-lang)',     ic:'lang',  now:0,    last:1,    max:6,   tap:true },
-  { k:'work',  name:'WORKOUT', a:'var(--a-body)',     ic:'body',  now:0,    last:2,    max:6,   tap:true },
-  { k:'shake', name:'SHAKE',   a:'var(--a-shake)',    ic:'shake', now:0,    last:1,    max:6,   tap:true },
-  { k:'post',  name:'POST',    a:'var(--a-social)',   ic:'post',  now:0,    last:1,    max:4,   tap:true },
-  { k:'girls', name:'GIRLS',   a:'var(--a-girls)',    ic:'girls', now:1,    last:1,    max:6,   tap:true },
-  { k:'proj',  name:'COMMITS', a:'var(--a-projects)', ic:'proj',  now:172,  last:132,  max:200, auto:'GITHUB' },
-  { k:'money', name:'WORTH',   a:'var(--a-money)',    ic:'money', now:44.9, last:45.3, min:44, max:46, auto:'BANK', money:true },
+  { k:'lang',  name:'LANGS',   a:'var(--a-lang)',     ic:'lang',  days:[0,0,0,0,0,0,0], last:1, tap:true },
+  { k:'work',  name:'WORKOUT', a:'var(--a-body)',     ic:'body',  days:[0,0,0,0,0,0,0], last:2, tap:true },
+  { k:'shake', name:'SHAKE',   a:'var(--a-shake)',    ic:'shake', days:[0,0,0,0,0,0,0], last:1, tap:true },
+  { k:'post',  name:'POST',    a:'var(--a-social)',   ic:'post',  days:[0,0,0,0,0,0,0], last:1, tap:true },
+  { k:'proj',  name:'COMMITS', a:'var(--a-projects)', ic:'proj',  days:[36,68,32,36,0,0,0], last:132, auto:'GITHUB', heat:68 },
+  { k:'money', name:'WORTH',   a:'var(--a-money)',    ic:'money', worth:[45.4,45.4,45.1,45.2,44.9,44.9], now:44.9, last:45.3, auto:'BANK', money:true },
 ];
 let R = BASE(), busy = {}, first = true;
+const TODAY = 5;
 
+function total(r) { return r.money ? r.now : r.days.reduce((x, y) => x + y, 0) }
 function fmt(r, v) { return r.money ? '€' + v.toFixed(1) + 'k' : v }
 function deltaHtml(r) {
-  const d = Math.round((r.now - r.last) * 10) / 10;
+  const d = Math.round((total(r) - r.last) * 10) / 10;
   if (d === 0) return `<span class="delta same">= SAME</span>`;
   const up = d > 0;
-  const txt = r.money ? '€407' : Math.abs(d);
-  return `<span class="delta ${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${txt}</span>`;
+  return `<span class="delta ${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${r.money ? '€407' : Math.abs(d)}</span>`;
 }
-function pct(r, v) { const lo = r.min || 0; return Math.max(2, Math.min(100, (v - lo) / (r.max - lo) * 100)) }
+function weekHtml(r) {
+  if (r.money) {
+    const lo = 44.7, hi = 45.6, pts = r.worth.map((v, i) => [ (i + .5) / 7 * 100, 20 - (v - lo) / (hi - lo) * 18 ]);
+    const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    const [x, y] = pts[pts.length - 1];
+    return `<svg class="spark" viewBox="0 0 100 22" preserveAspectRatio="none"><path d="${d}" vector-effect="non-scaling-stroke"/></svg>`;
+  }
+  return `<div class="week">${r.days.map((n, i) => {
+    const o = r.heat ? Math.max(.35, n / r.heat) : 1;
+    const label = r.heat ? (n || '') : (n > 1 ? n : '');
+    return `<i class="${n ? 'on' : ''} ${i === TODAY ? 'today' : ''} ${i > TODAY ? 'future' : ''}" style="--d:${i};--o:${o}">${label}</i>`;
+  }).join('')}</div>`;
+}
 function render() {
   document.getElementById('rows').innerHTML = R.map((r, i) => {
     const s = busy[r.k], still = first ? '' : 'animation:none';
     return `<div class="r ${s === 'saved' ? 'landed' : ''}" style="--a:${r.a};--i:${i};${still}">
       <span class="ic">${IC[r.ic]}</span>
       <span class="name">${r.name}</span>
-      <div class="bar"><span class="fill" style="--w:${pct(r, r.now)}%;--i:${i};${still}"></span><span class="last" style="--l:${pct(r, r.last)}%"></span></div>
-      <span class="n ${r.money ? 'money' : ''}"><span class="${s === 'saved' ? 'bump' : ''}" data-count>${fmt(r, r.now)}</span></span>
+      ${weekHtml(r)}
+      <span class="n ${r.money ? 'money' : ''}"><span class="${s === 'saved' ? 'bump' : ''}" data-count>${fmt(r, total(r))}</span></span>
       <span class="vs">${deltaHtml(r)}<span>LAST WEEK ${r.money ? '€45,317' : r.last}</span></span>
       ${r.tap
         ? `<button class="plus ${s || ''}" onclick="log('${r.k}')">${s === 'saved' ? '✓' : '+'}</button>`
@@ -236,7 +274,7 @@ function render() {
 }
 function countUp() {
   document.querySelectorAll('[data-count]').forEach((el, i) => {
-    const r = R[i], to = r.now, t0 = performance.now() + 400 + i * 70, dur = 900;
+    const r = R[i], to = total(r), t0 = performance.now() + 400 + i * 70, dur = 900;
     const step = now => {
       const p = Math.min(1, Math.max(0, (now - t0) / dur)), e = 1 - Math.pow(1 - p, 3);
       el.textContent = r.money ? '€' + (to * e).toFixed(1) + 'k' : Math.round(to * e);
@@ -248,7 +286,7 @@ function countUp() {
 function log(k) {
   if (busy[k]) return;
   busy[k] = 'saving'; render();
-  setTimeout(() => { R.find(r => r.k === k).now++; busy[k] = 'saved'; render(); }, 600);
+  setTimeout(() => { R.find(r => r.k === k).days[TODAY]++; busy[k] = 'saved'; render(); }, 600);
   setTimeout(() => { delete busy[k]; render(); }, 2400);
 }
 
@@ -267,8 +305,8 @@ function scenario(s) {
   R = BASE(); busy = {}; first = true;
   three = [{ t: 'PT · 14:00' }];
   if (s === 'good') {
-    const set = { lang: 1, work: 1, shake: 1, post: 1, girls: 2 };
-    R.forEach(r => { if (set[r.k] != null) r.now = set[r.k] });
+    const set = { lang: [0,0,1,0,0,1,0], work: [1,0,1,0,0,1,0], shake: [1,0,0,0,0,1,0], post: [0,1,0,0,0,1,0] };
+    R.forEach(r => { if (set[r.k]) r.days = set[r.k] });
     three = [{ t: 'PT · 14:00', done: true }, { t: 'Portuguese 20 min', done: true }, { t: 'Post on LinkedIn', done: true }];
   }
   document.querySelectorAll('[data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === s));

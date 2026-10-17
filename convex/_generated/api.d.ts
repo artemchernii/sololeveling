@@ -34,6 +34,7 @@ import type * as e2eSignals from "../e2eSignals.js";
 import type * as e2eTransfer from "../e2eTransfer.js";
 import type * as e2eUpdate from "../e2eUpdate.js";
 import type * as events from "../events.js";
+import type * as fileNotice from "../fileNotice.js";
 import type * as fileTrades from "../fileTrades.js";
 import type * as fundamentals from "../fundamentals.js";
 import type * as fundamentalsFields from "../fundamentalsFields.js";
@@ -114,6 +115,7 @@ declare const fullApi: ApiFromModules<{
   e2eTransfer: typeof e2eTransfer;
   e2eUpdate: typeof e2eUpdate;
   events: typeof events;
+  fileNotice: typeof fileNotice;
   fileTrades: typeof fileTrades;
   fundamentals: typeof fundamentals;
   fundamentalsFields: typeof fundamentalsFields;

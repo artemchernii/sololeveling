@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { ExternalLink, Newspaper, RotateCw, TriangleAlert } from 'lucide-react'
 
 import { Empty } from '@/components/finances/FundamentalsParts'
 import type { News } from '@/components/finances/usePositionFeeds'
+import { publisherSite } from '@/lib/publisherSites'
 
 /* The NEWS tab (13 Oct: "we simply fetch it and show"; mockup
    fundamentals.html): Yahoo Finance's headlines for the ticker, fetched
@@ -20,7 +22,7 @@ const when = (t: number) =>
   new Date(t).toDateString() === new Date().toDateString()
     ? TIME.format(new Date(t))
     : DAY.format(new Date(t))
-/* A publisher's chip: its initials. */
+/* A publisher's chip when its site is not known: its initials. */
 const initials = (p: string) =>
   p
     .replace(/[^A-Za-z ]/g, '')
@@ -112,11 +114,7 @@ export function PositionNews({
             style={{ animationDelay: `${150 + i * 50}ms` }}
             className="motion-arrive group grid grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-3 rounded-[12px] border-t border-lift/6 px-2 py-[11px] transition-colors first:border-t-0 hover:bg-lift/[0.04]"
           >
-            <span
-              className={`grid size-[30px] place-items-center rounded-[8px] bg-lav-400/14 font-mono font-medium text-lav-300 ring-1 ring-lav-400/30 ring-inset ${initials(h.publisher).length > 2 ? 'text-[8.5px]' : 'text-[10.5px]'}`}
-            >
-              {initials(h.publisher)}
-            </span>
+            <Mark publisher={h.publisher} />
             <span className="min-w-0">
               <span className="line-clamp-2 text-[14px] leading-snug text-foreground">
                 {h.title}
@@ -131,5 +129,32 @@ export function PositionNews({
         ))}
       </div>
     </div>
+  )
+}
+
+/* A publisher's mark (17 Oct, "go logos"): its site's icon when the
+   publisher is known (src/lib/publisherSites.ts), else its initials. */
+function Mark({ publisher }: { publisher: string }) {
+  const [failed, setFailed] = useState(false)
+  const site = publisherSite(publisher)
+  if (site === undefined || failed)
+    return (
+      <span
+        aria-hidden
+        className={`grid size-[30px] place-items-center rounded-[8px] bg-lav-400/14 font-mono font-medium text-lav-300 ring-1 ring-lav-400/30 ring-inset ${initials(publisher).length > 2 ? 'text-[8.5px]' : 'text-[10.5px]'}`}
+      >
+        {initials(publisher)}
+      </span>
+    )
+  return (
+    <img
+      src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(site)}&sz=64`}
+      alt=""
+      aria-hidden
+      data-testid="publisher-logo"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className="size-[30px] rounded-[8px] bg-mark-ground object-contain p-1"
+    />
   )
 }

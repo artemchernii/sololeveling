@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { anyApi } from 'convex/server'
 import type { Page } from '@playwright/test'
 
-import { start, testClient } from './helpers'
+import { lastDays, start, testClient } from './helpers'
 
 const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
 
@@ -31,8 +31,11 @@ async function open(
     fund?: boolean
     sold?: boolean
   },
+  /* A second open in one test: signed in already, the data reset. */
+  again = false,
 ) {
-  await start(page)
+  if (again) await testClient().mutation(anyApi.e2e.reset, { days: lastDays() })
+  else await start(page)
   await testClient().mutation(anyApi.e2eFundamentals.share, {
     reading: { ageDays: 0.2 },
     ...args,
@@ -40,14 +43,13 @@ async function open(
   await page.goto('/finances?room=portfolio')
   await page.evaluate(() => localStorage.removeItem('position-tab'))
   const name = args.fund ? 'Vanguard S&P 500' : 'Broadcom'
-  if (args.sold) {
-    await page.getByRole('button', { name: /^sold · / }).click()
+  if (args.sold)
     await page
       .getByTestId('sold-row')
       .filter({ hasText: name })
       .getByRole('link')
       .click()
-  } else
+  else
     await page
       .getByTestId('owned-row')
       .filter({ hasText: name })
@@ -59,8 +61,8 @@ async function open(
     verdict.locator(`[data-testid=verdict-why][data-id="${id}"]`)
   const feed = (id: string) =>
     verdict.locator(`[data-testid=feed][data-id="${id}"]`)
-  const tab = (name: RegExp) =>
-    position.getByTestId('position-tabs').getByRole('tab', { name })
+  const tab = (label: RegExp) =>
+    position.getByTestId('position-tabs').getByRole('tab', { name: label })
   return { position, verdict, why, feed, tab }
 }
 
@@ -88,7 +90,7 @@ test('S1 Fundamentals agree: ADD with six reasons, four rule rows', async ({
   await expect(feed('fundamentals')).toContainText(/yahoo/i)
   await expect(feed('fundamentals')).toHaveAttribute('data-tone', 'good')
   await expect(feed('news')).toContainText(/not in the rule/i)
-  await verdict.getByRole('button', { name: /rule/i }).click()
+  await verdict.getByRole('button', { name: 'rule', exact: true }).click()
   await expect(verdict.getByTestId('rule-row')).toHaveCount(4)
   await expect(
     verdict.locator('[data-testid=rule-row][data-on=true]'),
@@ -102,7 +104,7 @@ test('S1 Fundamentals agree: ADD with six reasons, four rule rows', async ({
     position.locator(`[data-testid=fund-row][data-id="${id}"]`)
   await expect(position.getByTestId('fund-row')).toHaveCount(5)
   await expect(position.getByTestId('fund-source')).toContainText(
-    /yahoo finance .* stored · once a day/i,
+    /yahoo finance · .*stored · once a day/i,
   )
   await expect(row('target')).toContainText(/analyst target/i)
   await expect(row('target')).toContainText(/avg of 41/i)
@@ -119,7 +121,9 @@ test('S1 Fundamentals agree: ADD with six reasons, four rule rows', async ({
   await expect(row('dividend')).toContainText('0.69%')
 
   /* The P/E card: the company beside its sector and the market. */
-  await row('pe').getByRole('button', { name: /what is p\/e/i }).click()
+  await row('pe')
+    .getByRole('button', { name: /what is p\/e/i })
+    .click()
   const card = row('pe').getByTestId('info-card')
   await expect(card).toBeVisible()
   await expect(card).toContainText(
@@ -137,7 +141,7 @@ for (const [name, reading, id, words] of [
     'S2 price at or above the avg target',
     { ageDays: 0.2, targetMean: 331 },
     'target',
-    "analysts' avg target of $331.00",
+    "analysts' avg target of $331",
   ],
   [
     'S3 revenue down',
@@ -160,7 +164,7 @@ for (const [name, reading, id, words] of [
     await expect(why('sma50')).toHaveAttribute('data-key', 'false')
     /* The group that held the ADD back is never green. */
     await expect(feed('fundamentals')).not.toHaveAttribute('data-tone', 'good')
-    await verdict.getByRole('button', { name: /rule/i }).click()
+    await verdict.getByRole('button', { name: 'rule', exact: true }).click()
     await expect(
       verdict.locator('[data-testid=rule-row][data-on=true]'),
     ).toHaveAttribute('data-kind', 'fundamentals')
@@ -168,13 +172,13 @@ for (const [name, reading, id, words] of [
       await page.screenshot({ ...shot('fundamentals-held'), fullPage: true })
   })
 
-test("S5 HOLD and WAIT from the lines stay as they are", async ({ page }) => {
+test('S5 HOLD and WAIT from the lines stay as they are', async ({ page }) => {
   const bad = { ageDays: 0.2, targetMean: 300, revenueGrowth: -0.3 }
   let v = await open(page, { shape: 'hold', reading: bad })
   await expect(v.verdict).toHaveAttribute('data-call', 'hold')
   await expect(v.verdict).toContainText('the trend is up, with no dip')
   await expect(v.why('target')).toHaveAttribute('data-key', 'false')
-  v = await open(page, { shape: 'wait', reading: bad })
+  v = await open(page, { shape: 'wait', reading: bad }, true)
   await expect(v.verdict).toHaveAttribute('data-call', 'wait')
   await expect(v.why('revenue')).toHaveAttribute('data-key', 'false')
 })
@@ -215,9 +219,7 @@ test('S7 a reading 8 days old: lines only, its day in warn', async ({
   await expect(feed('fundamentals')).toContainText(day)
 })
 
-test('S8 NEWS: loading, eight headlines out to a new tab', async ({
-  page,
-}) => {
+test('S8 NEWS: loading, eight headlines out to a new tab', async ({ page }) => {
   const { position, feed, tab } = await open(page, { shape: 'add' })
   await feed('news').click()
   await expect(tab(/news/i)).toHaveAttribute('aria-selected', 'true')
@@ -226,7 +228,7 @@ test('S8 NEWS: loading, eight headlines out to a new tab', async ({
   await expect(rows).toHaveCount(8, { timeout: 10_000 })
   await expect(tab(/news/i)).toContainText('8')
   await expect(position.getByTestId('news-source')).toContainText(
-    /yahoo finance · 8 headlines .* not stored/i,
+    /yahoo finance · 8 headlines ·.*not stored/i,
   )
   await expect(rows.first()).toContainText('Reuters')
   await expect(rows.first()).toHaveAttribute('target', '_blank')
@@ -253,7 +255,7 @@ test('S8 NEWS none, and not loaded with TRY AGAIN', async ({ page }) => {
   await expect(v.position.getByTestId('news-none')).toContainText(
     /no headlines · 30 days/i,
   )
-  v = await open(page, { shape: 'add', symbol: 'DOWN' })
+  v = await open(page, { shape: 'add', symbol: 'DOWN' }, true)
   await v.tab(/news/i).click()
   const failed = v.position.getByTestId('news-failed')
   await expect(failed).toContainText(/news not loaded · yahoo finance/i, {
@@ -300,7 +302,7 @@ test('S10 sold out: no verdict, no FUNDAMENTALS or NEWS; phone and light', async
   await expect(v.tab(/news/i)).toHaveCount(0)
 
   /* Held, on a phone, in the light theme. */
-  const h = await open(page, { shape: 'add' })
+  const h = await open(page, { shape: 'add' }, true)
   await page.setViewportSize({ width: 375, height: 812 })
   await page.evaluate(() => localStorage.setItem('sl-theme', 'light'))
   await page.reload()

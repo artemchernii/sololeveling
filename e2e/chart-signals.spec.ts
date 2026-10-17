@@ -55,10 +55,11 @@ test('Portfolio: chart lines and the SIGNALS tab', async ({ page }) => {
   await expect(row('rsi')).toContainText('100')
   await expect(row('yr')).toContainText(/near high/i)
 
-  /* The verdict on top of SIGNALS (15 Oct, mockup verdict.html): RSI
-     100 is over 70, so WAIT, its line and the three reasons; the RSI
-     reason made the call. Fundamentals and news marked next; RULE
-     opens the rule with today's row lit. */
+  /* The verdict above the tabs (15 Oct, mockup verdict.html; 16 Oct,
+     fundamentals.html): RSI 100 is over 70, so WAIT, its line and the
+     three reasons; the RSI reason made the call. No reading stored for
+     Microsoft, so fundamentals are not loaded; three canned headlines.
+     RULE opens the rule with today's row lit. */
   const verdict = position.getByTestId('verdict')
   await expect(verdict).toHaveAttribute('data-call', 'wait')
   await expect(verdict.getByTestId('verdict-badge')).toHaveText(/wait/i)
@@ -71,10 +72,14 @@ test('Portfolio: chart lines and the SIGNALS tab', async ({ page }) => {
     'true',
   )
   await expect(why.filter({ hasText: /sma 50/i })).toContainText('+2.8%')
-  await expect(verdict).toContainText(/fundamentals\s*next/i)
-  await expect(verdict).toContainText(/news\s*next/i)
-  await verdict.getByRole('button', { name: /rule/i }).click()
-  await expect(verdict.getByTestId('rule-row')).toHaveCount(3)
+  await expect(
+    verdict.locator('[data-testid=feed][data-id=fundamentals]'),
+  ).toContainText(/not loaded/i)
+  await expect(
+    verdict.locator('[data-testid=feed][data-id=news]'),
+  ).toContainText(/3 · not in the rule/i, { timeout: 10_000 })
+  await verdict.getByRole('button', { name: 'rule', exact: true }).click()
+  await expect(verdict.getByTestId('rule-row')).toHaveCount(4)
   await expect(
     verdict.locator('[data-testid=rule-row][data-on=true]'),
   ).toContainText(/wait/i)

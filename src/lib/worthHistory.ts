@@ -77,11 +77,9 @@ export function investedSeries<TAccount>(
         total[i] ??= 0
         continue
       }
-      const cents = Math.round(
-        ((shares * close.price) / h.divide) * rate.rate * 100,
-      )
-      values[i] = Math.round((values[i] ?? 0) * 100 + cents) / 100
-      total[i] = Math.round((total[i] ?? 0) * 100 + cents) / 100
+      const cents = positionCents(shares, close.price, h.divide, rate.rate)
+      values[i] = plusCents(values[i], cents)
+      total[i] = plusCents(total[i], cents)
     }
   }
   /* Once shares were first held, a day holding none is €0, not a gap (1
@@ -98,6 +96,104 @@ export function investedSeries<TAccount>(
       values: fromFirst(values),
     })),
     unpriced,
+  }
+}
+
+/* One position's worth on a day, in cents, and a running euro sum: the
+   one rounding both investedSeries and investedDay use. */
+const positionCents = (
+  shares: number,
+  price: number,
+  divide: number,
+  rate: number,
+) => Math.round(((shares * price) / divide) * rate * 100)
+const plusCents = (x: number | null, cents: number) =>
+  Math.round((x ?? 0) * 100 + cents) / 100
+
+/**
+ * investedSeries' value on one day end, from the shares held then and the
+ * close and rate it takes (null: none stored that is still the day's).
+ * `before`: the line was drawn on an earlier day, so holding nothing is
+ * €0, not a gap — investedSeries' fromFirst.
+ */
+export function investedDay<TAccount>(
+  positions: ReadonlyArray<{
+    accountId: TAccount
+    shares: number
+    divide: number
+    close: Close | null
+    rate: { rate: number } | null
+  }>,
+  accounts: ReadonlyArray<{ accountId: TAccount; before: boolean }>,
+  totalBefore: boolean,
+): {
+  invested: number | null
+  accounts: Array<{ accountId: TAccount; value: number | null }>
+  unpriced: number
+} {
+  let total: number | null = null
+  let unpriced = 0
+  const values = new Map<TAccount, number | null>(
+    accounts.map((a) => [a.accountId, null]),
+  )
+  for (const p of positions) {
+    if (p.shares <= 0) continue
+    if (p.close === null || p.rate === null) {
+      unpriced++
+      values.set(p.accountId, values.get(p.accountId) ?? 0)
+      total ??= 0
+      continue
+    }
+    const cents = positionCents(p.shares, p.close.price, p.divide, p.rate.rate)
+    values.set(p.accountId, plusCents(values.get(p.accountId) ?? null, cents))
+    total = plusCents(total, cents)
+  }
+  return {
+    invested: total ?? (totalBefore ? 0 : null),
+    accounts: accounts.map((a) => ({
+      accountId: a.accountId,
+      value: values.get(a.accountId) ?? (a.before ? 0 : null),
+    })),
+    unpriced,
+  }
+}
+
+type Series<TAccount> = {
+  total: Array<number | null>
+  cash: Array<number | null>
+  invested: Array<number | null>
+  cashAccounts: Array<{ accountId: TAccount; values: Array<number | null> }>
+  investedAccounts: Array<{
+    accountId: TAccount
+    values: Array<number | null>
+  }>
+  unpriced: Array<number>
+}
+
+/**
+ * aggregate.worthPast's days with aggregate.worthToday's last one, as
+ * aggregate.worthHistory draws the whole (18 Oct: split so a price saved
+ * today re-reads one point, not the year). The past half's own last point
+ * is not used: it was made without today's reads.
+ */
+export function joinWorth<TAccount, TPast extends Series<TAccount>>(
+  past: TPast & { today: unknown },
+  today: ReturnType<typeof investedDay<TAccount>>,
+): Omit<TPast, 'today'> {
+  const { today: _, ...rest } = past
+  const n = past.cash.length
+  if (n === 0) return rest
+  const last = <T>(xs: ReadonlyArray<T>, x: T) => [...xs.slice(0, n - 1), x]
+  const invested = last(past.invested, today.invested)
+  return {
+    ...rest,
+    total: last(past.total, addSeries([past.cash[n - 1]], [today.invested])[0]),
+    invested,
+    investedAccounts: past.investedAccounts.map((a, k) => ({
+      accountId: a.accountId,
+      values: last(a.values, today.accounts[k].value),
+    })),
+    unpriced: last(past.unpriced, today.unpriced),
   }
 }
 

@@ -4,6 +4,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
 
 import { api } from '../../../convex/_generated/api'
+import { useWorthHistory } from '@/lib/useWorthHistory'
 import { useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import { euros } from '@/lib/money'
@@ -54,7 +55,7 @@ export function useMonth(now: Date, languages: Array<string> | undefined) {
       .slice(0, b.todayIndex + 1)
       .map((_, i) => (b.dayStarts[i + 1] ?? b.nextStart) - 1),
   ]
-  const worth = useQuery(api.aggregate.worthHistory, { dayEnds })
+  const worth = useWorthHistory(dayEnds)
   return { counts, targets, worth, bounds: b }
 }
 

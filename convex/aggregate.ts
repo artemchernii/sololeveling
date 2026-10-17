@@ -17,6 +17,7 @@ import {
   addSeries,
   closeLooks,
   heldDays,
+  investedDay,
   investedSeries,
 } from '../src/lib/worthHistory'
 import { ownMoves } from '../src/lib/accountLines'
@@ -1881,143 +1882,40 @@ async function readCashHistory(
  * src/lib/worthHistory's — shares the files say he held that day × that
  * day's stored close × that day's stored ECB rate. Sources 1, 2 and 4;
  * `unpriced` counts, per day, what was held with no close to value it.
+ *
+ * The screens read it as two halves (18 Oct), worthPast and worthToday,
+ * joined by src/lib/worthHistory's joinWorth: this whole query is what
+ * they must add up to, number for number (aggregate.worthSplit.test).
  */
+const worthReturns = {
+  total: daySeries,
+  cash: daySeries,
+  invested: daySeries,
+  cashAccounts: accountSeries,
+  investedAccounts: accountSeries,
+  unpriced: v.array(v.number()),
+  /** His moves between his own accounts in the range, once each. */
+  moves: v.array(
+    v.object({
+      at: v.number(),
+      from: v.id('accounts'),
+      to: v.id('accounts'),
+      amount: v.number(),
+    }),
+  ),
+}
+
 export const worthHistory = query({
   args: { dayEnds: v.array(v.number()) },
-  returns: v.object({
-    total: daySeries,
-    cash: daySeries,
-    invested: daySeries,
-    cashAccounts: accountSeries,
-    investedAccounts: accountSeries,
-    unpriced: v.array(v.number()),
-    /** His moves between his own accounts in the range, once each. */
-    moves: v.array(
-      v.object({
-        at: v.number(),
-        from: v.id('accounts'),
-        to: v.id('accounts'),
-        amount: v.number(),
-      }),
-    ),
-  }),
+  returns: v.object(worthReturns),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     const dayEnds = args.dayEnds.slice(0, 400)
     const cash = await readCashHistory(ctx, ownerId, dayEnds)
-    const live = new Set(
-      (
-        await ctx.db
-          .query('accounts')
-          .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
-          .take(ACCOUNT_ROWS)
-      )
-        .filter((a) => a.retiredAt === undefined)
-        .map((a) => a._id),
-    )
-    const trades = (
-      await ctx.db
-        .query('trades')
-        .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
-        .take(TRADE_ROWS)
-    ).filter((t) => live.has(t.accountId))
-    const looks = (
-      await ctx.db
-        .query('holdings')
-        .withIndex('by_owner_account', (q) => q.eq('ownerId', ownerId))
-        .take(HOLDING_ROWS)
-    ).filter((h) => live.has(h.accountId))
-
-    const slots = new Map<
-      string,
-      {
-        accountId: Id<'accounts'>
-        instrumentId: Id<'instruments'>
-        trades: Array<LedgerTrade>
-        looks: Array<Observation>
-      }
-    >()
-    const slot = (
-      accountId: Id<'accounts'>,
-      instrumentId: Id<'instruments'>,
-    ) => {
-      const key = `${accountId}:${instrumentId}`
-      let p = slots.get(key)
-      if (p === undefined) {
-        p = { accountId, instrumentId, trades: [], looks: [] }
-        slots.set(key, p)
-      }
-      return p
-    }
-    for (const t of trades) slot(t.accountId, t.instrumentId).trades.push(t)
-    for (const h of looks)
-      slot(h.accountId, h.instrumentId).looks.push({
-        shares: h.shares,
-        paidEur: h.paidEur,
-        asOf: h.asOf,
-      })
-
-    /* Every close and rate is looked up at once, not one after another
-       (9 Oct): the same ~80 one-row reads a position, but in sequence they
-       took 6 s — and Convex holds every update on screen until each open
-       query has caught up, so a save froze the whole app for those 6 s. */
-    const latestAt = async <T>(
-      ends: ReadonlyArray<number>,
-      read: (end: number) => Promise<T | null>,
-      asOf: (row: T) => number,
-    ) => {
-      const found = new Map<number, T>()
-      for (const [k, r] of (await Promise.all(ends.map(read))).entries())
-        if (r !== null && asOf(r) >= ends[k] - STALE_CLOSE_MS - 7 * 86_400_000)
-          found.set(asOf(r), r)
-      return [...found.values()].sort((a, b) => asOf(a) - asOf(b))
-    }
-    const instruments = new Map(
-      (
-        await Promise.all(
-          [...new Set([...slots.values()].map((p) => p.instrumentId))].map(
-            (id) => ctx.db.get(id),
-          ),
-        )
-      )
-        .filter(
-          (x): x is Doc<'instruments'> => x !== null && x.ownerId === ownerId,
-        )
-        .map((x) => [x._id, x]),
-    )
-    const ids = [...instruments.keys()]
-    const bases = [
-      ...new Set(
-        [...instruments.values()]
-          .map((x) => quoteToRate(x.currency).base)
-          .filter((b) => b !== 'EUR'),
-      ),
-    ]
-    /* Where a close is looked up: only on days the instrument was held,
-       every day of the last month and a week apart before it — coarser
-       when that is more than PRICE_LOOKS (closeLooks). A rate, on the
-       days anything quoted in it was held. */
-    const heldOf = ids.map((id) =>
-      heldDays(
-        dayEnds,
-        [...slots.values()].filter((p) => p.instrumentId === id),
-      ),
-    )
-    const looksOf = closeLooks(
+    const { slots, instruments, ids, bases, looksOf } = await investedInputs(
+      ctx,
+      ownerId,
       dayEnds,
-      [
-        ...heldOf,
-        ...bases.map((base) =>
-          dayEnds.map((_, i) =>
-            ids.some(
-              (id, k) =>
-                heldOf[k][i] &&
-                quoteToRate(instruments.get(id)!.currency).base === base,
-            ),
-          ),
-        ),
-      ],
-      PRICE_LOOKS,
     )
     /* One close per point drawn (4 Oct: the year of daily closes for every
        position, read on every re-run, was 99% of the month's database
@@ -2029,23 +1927,7 @@ export const worthHistory = query({
           async (id, k) =>
             [
               id,
-              (
-                await latestAt(
-                  looksOf[k],
-                  (end) =>
-                    ctx.db
-                      .query('prices')
-                      .withIndex('by_owner_instrument_time', (q) =>
-                        q
-                          .eq('ownerId', ownerId)
-                          .eq('instrumentId', id)
-                          .lte('asOf', end),
-                      )
-                      .order('desc')
-                      .first(),
-                  (r) => r.asOf,
-                )
-              ).map((r): Close => ({ asOf: r.asOf, price: r.price })),
+              sorted(await latestAt(looksOf[k], closeAtEnd(ctx, ownerId, id))),
             ] as const,
         ),
       ),
@@ -2056,43 +1938,20 @@ export const worthHistory = query({
           async (base, k) =>
             [
               base,
-              (
+              sorted(
                 await latestAt(
                   looksOf[ids.length + k],
-                  (end) =>
-                    ctx.db
-                      .query('fxRates')
-                      .withIndex('by_owner_currency_time', (q) =>
-                        q
-                          .eq('ownerId', ownerId)
-                          .eq('currency', base)
-                          .lte('asOf', end),
-                      )
-                      .order('desc')
-                      .first(),
-                  (r) => r.asOf,
-                )
-              ).map((r): Rate => ({ asOf: r.asOf, rate: r.rate })),
+                  rateAtEnd(ctx, ownerId, base),
+                ),
+              ),
             ] as const,
         ),
       ),
     )
-    const holdings: Array<Holding<Id<'accounts'>>> = []
-    for (const p of slots.values()) {
-      const instrument = instruments.get(p.instrumentId)
-      if (instrument === undefined) continue
-      const { base, divide } = quoteToRate(instrument.currency)
-      holdings.push({
-        accountId: p.accountId,
-        trades: p.trades,
-        looks: p.looks,
-        closes: closesOf.get(p.instrumentId) ?? [],
-        divide,
-        rates: base === 'EUR' ? null : (ratesOf.get(base) ?? []),
-      })
-    }
-
-    const invested = investedSeries(dayEnds, holdings)
+    const invested = investedSeries(
+      dayEnds,
+      holdingsOf(slots, instruments, closesOf, ratesOf),
+    )
     return {
       total: addSeries(cash.total, invested.total),
       cash: cash.total,
@@ -2104,6 +1963,387 @@ export const worthHistory = query({
     }
   },
 })
+
+/* What today's point needs from the past half (worthToday's args): the
+   shares held at the last day end, each position's and rate's latest
+   close the past looks found, and which lines were drawn before it. */
+const worthTodayArgs = {
+  end: v.number(),
+  totalBefore: v.boolean(),
+  accounts: v.array(
+    v.object({ accountId: v.id('accounts'), before: v.boolean() }),
+  ),
+  positions: v.array(
+    v.object({
+      accountId: v.id('accounts'),
+      instrumentId: v.id('instruments'),
+      shares: v.number(),
+      divide: v.number(),
+      base: v.union(v.string(), v.null()),
+      close: v.union(
+        v.object({ asOf: v.number(), price: v.number() }),
+        v.null(),
+      ),
+    }),
+  ),
+  rates: v.array(
+    v.object({
+      base: v.string(),
+      rate: v.union(v.object({ asOf: v.number(), rate: v.number() }), v.null()),
+    }),
+  ),
+}
+
+/**
+ * worthHistory without the reads a price saved today clears (18 Oct: each
+ * reading re-ran the whole year, ~5 MB, on Today and Finances). Every day
+ * but the last is worthHistory's own number; the last is worthToday's.
+ * Convex re-runs a query when a write lands in a range it read: a past
+ * day's close lookup reads up to that day's end, so today's prices never
+ * touch it — only the lookup at the last end did, and that is worthToday.
+ */
+export const worthPast = query({
+  args: { dayEnds: v.array(v.number()) },
+  returns: v.object({ ...worthReturns, today: v.object(worthTodayArgs) }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const dayEnds = args.dayEnds.slice(0, 400)
+    const n = dayEnds.length
+    const end = dayEnds[n - 1] ?? 0
+    const cutoff = n >= 2 ? dayEnds[n - 2] : null
+    const cash = await readCashHistory(ctx, ownerId, dayEnds)
+    const { slots, instruments, ids, bases, looksOf } = await investedInputs(
+      ctx,
+      ownerId,
+      dayEnds,
+    )
+    /* The rows worthHistory finds that a past day can use: the past looks'
+       own, and the last end's when it is no newer than the day before —
+       which only a read up to the last end can tell, so that read is made
+       only where it can change a past day (a row no past look found). */
+    const past = async <T extends { asOf: number }>(
+      looks: ReadonlyArray<number>,
+      read: (end: number) => Promise<T | null>,
+    ) => {
+      const found = await latestAt(
+        looks.filter((e) => e !== end),
+        read,
+      )
+      if (cutoff !== null && looks.includes(end)) {
+        const before = await read(cutoff)
+        if (
+          before !== null &&
+          fresh(before, end) &&
+          !found.has(before.asOf) &&
+          (await read(end))?.asOf === before.asOf
+        )
+          found.set(before.asOf, before)
+      }
+      return sorted(found)
+    }
+    const closesOf = new Map(
+      await Promise.all(
+        ids.map(
+          async (id, k) =>
+            [id, await past(looksOf[k], closeAtEnd(ctx, ownerId, id))] as const,
+        ),
+      ),
+    )
+    const ratesOf = new Map(
+      await Promise.all(
+        bases.map(
+          async (base, k) =>
+            [
+              base,
+              await past(
+                looksOf[ids.length + k],
+                rateAtEnd(ctx, ownerId, base),
+              ),
+            ] as const,
+        ),
+      ),
+    )
+    const invested = investedSeries(
+      dayEnds,
+      holdingsOf(slots, instruments, closesOf, ratesOf),
+    )
+    const drawnBefore = (xs: ReadonlyArray<number | null>) =>
+      xs.slice(0, n - 1).some((x) => x !== null)
+    const held = []
+    for (const p of slots) {
+      const instrument = instruments.get(p.instrumentId)
+      if (instrument === undefined) continue
+      const shares = reconcile(
+        p.trades.filter((t) => t.occurredAt <= end),
+        p.looks.filter((o) => o.asOf <= end),
+      ).shares
+      if (shares <= 0) continue
+      const { base, divide } = quoteToRate(instrument.currency)
+      held.push({
+        accountId: p.accountId,
+        instrumentId: p.instrumentId,
+        shares,
+        divide,
+        base: base === 'EUR' ? null : base,
+        close: closesOf.get(p.instrumentId)?.at(-1) ?? null,
+      })
+    }
+    return {
+      total: addSeries(cash.total, invested.total),
+      cash: cash.total,
+      invested: invested.total,
+      cashAccounts: cash.accounts,
+      investedAccounts: invested.accounts,
+      unpriced: invested.unpriced,
+      moves: cash.moves,
+      today: {
+        end,
+        totalBefore: drawnBefore(invested.total),
+        accounts: invested.accounts.map((a) => ({
+          accountId: a.accountId,
+          before: drawnBefore(a.values),
+        })),
+        positions: held,
+        rates: [...new Set(held.map((p) => p.base))]
+          .filter((b): b is string => b !== null)
+          .map((base) => ({ base, rate: ratesOf.get(base)?.at(-1) ?? null })),
+      },
+    }
+  },
+})
+
+/**
+ * The last day end's invested, from what worthPast says was held then:
+ * one close and one rate looked up per position held — the only reads a
+ * price saved today re-runs. A close older than two weeks gives way to
+ * the latest one the past looks found, as in worthHistory.
+ */
+export const worthToday = query({
+  args: worthTodayArgs,
+  returns: v.object({
+    invested: v.union(v.number(), v.null()),
+    accounts: v.array(
+      v.object({
+        accountId: v.id('accounts'),
+        value: v.union(v.number(), v.null()),
+      }),
+    ),
+    unpriced: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const latest = async <T extends { asOf: number }>(
+      keys: ReadonlyArray<string>,
+      read: (key: string) => (end: number) => Promise<T | null>,
+    ) =>
+      new Map(
+        await Promise.all(
+          [...new Set(keys)].map(async (key) => {
+            const r = await read(key)(args.end)
+            return [key, r !== null && fresh(r, args.end) ? r : null] as const
+          }),
+        ),
+      )
+    const closes = await latest(
+      args.positions.map((p) => p.instrumentId),
+      (id) => closeAtEnd(ctx, ownerId, id as Id<'instruments'>),
+    )
+    const rates = await latest(
+      args.rates.map((r) => r.base),
+      (base) => rateAtEnd(ctx, ownerId, base),
+    )
+    const fallback = new Map(args.rates.map((r) => [r.base, r.rate]))
+    return investedDay(
+      args.positions.map((p) => ({
+        accountId: p.accountId,
+        shares: p.shares,
+        divide: p.divide,
+        close: closes.get(p.instrumentId) ?? p.close,
+        rate:
+          p.base === null
+            ? { rate: 1 }
+            : (rates.get(p.base) ?? fallback.get(p.base) ?? null),
+      })),
+      args.accounts,
+      args.totalBefore,
+    )
+  },
+})
+
+type Slot = {
+  accountId: Id<'accounts'>
+  instrumentId: Id<'instruments'>
+  trades: Array<LedgerTrade>
+  looks: Array<Observation>
+}
+
+/* Positions as the trades and holdings screens say, and where a close (or
+   a rate) is looked up: only on days the instrument was held, every day of
+   the last month and a week apart before it — coarser when that is more
+   than PRICE_LOOKS (closeLooks). A rate, on the days anything quoted in it
+   was held. One list per instrument (`ids`), then one per rate (`bases`). */
+async function investedInputs(
+  ctx: QueryCtx,
+  ownerId: string,
+  dayEnds: ReadonlyArray<number>,
+) {
+  const live = new Set(
+    (
+      await ctx.db
+        .query('accounts')
+        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+        .take(ACCOUNT_ROWS)
+    )
+      .filter((a) => a.retiredAt === undefined)
+      .map((a) => a._id),
+  )
+  const trades = (
+    await ctx.db
+      .query('trades')
+      .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
+      .take(TRADE_ROWS)
+  ).filter((t) => live.has(t.accountId))
+  const looks = (
+    await ctx.db
+      .query('holdings')
+      .withIndex('by_owner_account', (q) => q.eq('ownerId', ownerId))
+      .take(HOLDING_ROWS)
+  ).filter((h) => live.has(h.accountId))
+
+  const slots = new Map<string, Slot>()
+  const slot = (accountId: Id<'accounts'>, instrumentId: Id<'instruments'>) => {
+    const key = `${accountId}:${instrumentId}`
+    let p = slots.get(key)
+    if (p === undefined) {
+      p = { accountId, instrumentId, trades: [], looks: [] }
+      slots.set(key, p)
+    }
+    return p
+  }
+  for (const t of trades) slot(t.accountId, t.instrumentId).trades.push(t)
+  for (const h of looks)
+    slot(h.accountId, h.instrumentId).looks.push({
+      shares: h.shares,
+      paidEur: h.paidEur,
+      asOf: h.asOf,
+    })
+
+  const instruments = new Map(
+    (
+      await Promise.all(
+        [...new Set([...slots.values()].map((p) => p.instrumentId))].map((id) =>
+          ctx.db.get(id),
+        ),
+      )
+    )
+      .filter(
+        (x): x is Doc<'instruments'> => x !== null && x.ownerId === ownerId,
+      )
+      .map((x) => [x._id, x]),
+  )
+  const ids = [...instruments.keys()]
+  const bases = [
+    ...new Set(
+      [...instruments.values()]
+        .map((x) => quoteToRate(x.currency).base)
+        .filter((b) => b !== 'EUR'),
+    ),
+  ]
+  const heldOf = ids.map((id) =>
+    heldDays(
+      dayEnds,
+      [...slots.values()].filter((p) => p.instrumentId === id),
+    ),
+  )
+  const looksOf = closeLooks(
+    dayEnds,
+    [
+      ...heldOf,
+      ...bases.map((base) =>
+        dayEnds.map((_, i) =>
+          ids.some(
+            (id, k) =>
+              heldOf[k][i] &&
+              quoteToRate(instruments.get(id)!.currency).base === base,
+          ),
+        ),
+      ),
+    ],
+    PRICE_LOOKS,
+  )
+  return { slots: [...slots.values()], instruments, ids, bases, looksOf }
+}
+
+/* The latest close (or rate) at or before a day's end, through the index:
+   one row. */
+const closeAtEnd =
+  (ctx: QueryCtx, ownerId: string, id: Id<'instruments'>) =>
+  async (end: number): Promise<Close | null> => {
+    const r = await ctx.db
+      .query('prices')
+      .withIndex('by_owner_instrument_time', (q) =>
+        q.eq('ownerId', ownerId).eq('instrumentId', id).lte('asOf', end),
+      )
+      .order('desc')
+      .first()
+    return r === null ? null : { asOf: r.asOf, price: r.price }
+  }
+const rateAtEnd =
+  (ctx: QueryCtx, ownerId: string, base: string) =>
+  async (end: number): Promise<Rate | null> => {
+    const r = await ctx.db
+      .query('fxRates')
+      .withIndex('by_owner_currency_time', (q) =>
+        q.eq('ownerId', ownerId).eq('currency', base).lte('asOf', end),
+      )
+      .order('desc')
+      .first()
+    return r === null ? null : { asOf: r.asOf, rate: r.rate }
+  }
+
+/** A close (or rate) still the day's at `end`. */
+const fresh = (r: { asOf: number }, end: number) =>
+  r.asOf >= end - STALE_CLOSE_MS - 7 * 86_400_000
+
+/* Every close and rate is looked up at once, not one after another
+   (9 Oct): the same ~80 one-row reads a position, but in sequence they
+   took 6 s — and Convex holds every update on screen until each open
+   query has caught up, so a save froze the whole app for those 6 s.
+   What was found, by its time; a row too old for its look is left out. */
+async function latestAt<T extends { asOf: number }>(
+  ends: ReadonlyArray<number>,
+  read: (end: number) => Promise<T | null>,
+) {
+  const found = new Map<number, T>()
+  for (const [k, r] of (await Promise.all(ends.map(read))).entries())
+    if (r !== null && fresh(r, ends[k])) found.set(r.asOf, r)
+  return found
+}
+const sorted = <T extends { asOf: number }>(found: Map<number, T>) =>
+  [...found.values()].sort((a, b) => a.asOf - b.asOf)
+
+function holdingsOf(
+  slots: ReadonlyArray<Slot>,
+  instruments: Map<Id<'instruments'>, Doc<'instruments'>>,
+  closesOf: Map<Id<'instruments'>, Array<Close>>,
+  ratesOf: Map<string, Array<Rate>>,
+) {
+  const holdings: Array<Holding<Id<'accounts'>>> = []
+  for (const p of slots) {
+    const instrument = instruments.get(p.instrumentId)
+    if (instrument === undefined) continue
+    const { base, divide } = quoteToRate(instrument.currency)
+    holdings.push({
+      accountId: p.accountId,
+      trades: p.trades,
+      looks: p.looks,
+      closes: closesOf.get(p.instrumentId) ?? [],
+      divide,
+      rates: base === 'EUR' ? null : (ratesOf.get(base) ?? []),
+    })
+  }
+  return holdings
+}
 
 const HISTORY_ROWS = 5000
 /** Closes and rates one worthHistory may look up: Convex stops a query at

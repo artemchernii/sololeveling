@@ -17,6 +17,7 @@ import { TakenStrip } from './AccountFileBack'
 import type { Taken } from './AccountFileBack'
 import { BalanceTick, SheetCheck, dayOf } from './AccountSheetCheck'
 import { Divider, PendingLine, RowLine, fmt, short } from './AccountSheetRows'
+import { Row as CameRow } from './AccountCame'
 import { TypedBalance } from './AccountTypedBalance'
 
 /* An account, opened (A.4 — journey agreed 1 Oct, mock agreed 2 Oct:
@@ -456,22 +457,28 @@ function Timeline({
                 {dayLabel(r.at)}
               </span>
             ) : null}
-            <RowLine
-              row={r}
-              booked={booked(r)}
-              inside={r.inside === null ? null : dayOf(data, r.inside)}
-              index={i++}
-              onDelete={
-                r.logId
-                  ? () => remove({ logId: r.logId as Id<'logs'> })
-                  : undefined
-              }
-              onNotHere={
-                r.sideLogId
-                  ? () => removeSide({ logId: r.sideLogId as Id<'logs'> })
-                  : undefined
-              }
-            />
+            {r.t212 ? (
+              <div className="@container rounded-[10px] px-2.5 hover:bg-lift/[0.035]">
+                <CameRow line={r.t212} i={i++} testId="t212-sheet-line" />
+              </div>
+            ) : (
+              <RowLine
+                row={r}
+                booked={booked(r)}
+                inside={r.inside === null ? null : dayOf(data, r.inside)}
+                index={i++}
+                onDelete={
+                  r.logId
+                    ? () => remove({ logId: r.logId as Id<'logs'> })
+                    : undefined
+                }
+                onNotHere={
+                  r.sideLogId
+                    ? () => removeSide({ logId: r.sideLogId as Id<'logs'> })
+                    : undefined
+                }
+              />
+            )}
           </Fragment>
         )
       })}

@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 
 import { mutation } from './_generated/server'
+import { rebuildLedgers } from './ledgers'
 import type { MutationCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import { requireUser } from './auth'
@@ -146,6 +147,7 @@ export const share = mutation({
           fetchedAt: now,
         })
     }
+    await rebuildLedgers(ctx, ownerId)
     return instrumentId
   },
 })

@@ -2,6 +2,7 @@ import { ConvexError, v } from 'convex/values'
 
 import { quoteToRate } from './aggregate'
 import { requireUser } from './auth'
+import { syncLedgers } from './ledgers'
 import { internal } from './_generated/api'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
@@ -115,6 +116,7 @@ export const removeTrade = mutation({
       removedAt: Date.now(),
     })
     await ctx.db.delete(_id)
+    await syncLedgers(ctx, ownerId, [trade])
     return removedId
   },
 })
@@ -132,6 +134,7 @@ export const restoreTrade = mutation({
     const { _id, _creationTime, removedAt, ...row } = gone
     const tradeId = await ctx.db.insert('trades', row)
     await ctx.db.delete(_id)
+    await syncLedgers(ctx, ownerId, [row])
     return tradeId
   },
 })

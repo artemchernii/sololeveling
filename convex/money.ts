@@ -3,6 +3,7 @@ import { ConvexError, v } from 'convex/values'
 import { requireUser } from './auth'
 import { ownedAccount } from './accounts'
 import { checkTrade, heldShares, upsertInstrument } from './invest'
+import { syncLedgers } from './ledgers'
 import { mutation } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
@@ -288,6 +289,9 @@ export const record = mutation({
           priceEur: Math.round(priceEur * 10000) / 10000,
           occurredAt: l.occurredAt,
         })
+        await syncLedgers(ctx, ownerId, [
+          { accountId: account._id, instrumentId },
+        ])
       }
     }
     return { written: args.lines.length }

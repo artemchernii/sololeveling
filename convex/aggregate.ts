@@ -35,6 +35,7 @@ import {
 } from '../src/lib/review'
 import { monthSix as monthSixCount } from '../src/lib/monthSix'
 import type { LedgerTrade, Observation } from '../src/lib/holdings'
+import { readLedgerTrades } from './ledgers'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
 import { internalQuery, query } from './_generated/server'
@@ -2197,12 +2198,9 @@ async function investedInputs(
       .filter((a) => a.retiredAt === undefined)
       .map((a) => a._id),
   )
-  const trades = (
-    await ctx.db
-      .query('trades')
-      .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
-      .take(TRADE_ROWS)
-  ).filter((t) => live.has(t.accountId))
+  const trades = (await readLedgerTrades(ctx, ownerId)).trades.filter((t) =>
+    live.has(t.accountId),
+  )
   const looks = (
     await ctx.db
       .query('holdings')
@@ -2781,12 +2779,8 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
       .filter((a) => a.retiredAt === undefined)
       .map((a) => a._id),
   )
-  const trades = (
-    await ctx.db
-      .query('trades')
-      .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
-      .take(TRADE_ROWS)
-  ).filter((t) => live.has(t.accountId))
+  const ledger = await readLedgerTrades(ctx, ownerId)
+  const trades = ledger.trades.filter((t) => live.has(t.accountId))
 
   const looks = (
     await ctx.db
@@ -3017,7 +3011,7 @@ async function readPositions(ctx: QueryCtx, ownerId: string) {
     oldestPriceAsOf,
     pricesFetchedAt,
     unvalued,
-    complete: trades.length < TRADE_ROWS && looks.length < HOLDING_ROWS,
+    complete: ledger.complete && looks.length < HOLDING_ROWS,
     usdRate: (await rateFor('USD'))?.rate ?? null,
   }
 }

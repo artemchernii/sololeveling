@@ -1,6 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { slotsOf, syncLedgers } from './ledgers'
 import { transferPair } from './logs'
 import { internal } from './_generated/api'
 import { mutation, query } from './_generated/server'
@@ -514,6 +515,7 @@ export const erase = mutation({
       )
       .take(ERASE_ROWS)
     for (const t of trades) await ctx.db.delete(t._id)
+    await syncLedgers(ctx, ownerId, slotsOf(trades))
 
     const bills = await ctx.db
       .query('recurring')

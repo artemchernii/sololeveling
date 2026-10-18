@@ -59,6 +59,9 @@
   .rows .k i { font-style: normal; font-size: 10.5px; color: var(--ink-200); background: rgba(var(--lift),.08); border-radius: 5px; padding: 2px 6px; margin-left: 4px }
   .rows .mark { color: var(--good); display: inline-flex; margin-left: 7px }
   .rows .mark svg { width: 12px; height: 12px }
+  .rows .ms { display: inline-flex; gap: 8px; align-items: center }
+  .rows .ms > span { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-200) }
+  .rows .ms .bd { font-size: 9px; padding: 2px 7px }
   .rows .lit { animation: flash 1.4s ease .5s; border-radius: 6px }
   .red { color: var(--danger) } .green { color: var(--good) } .lav { color: var(--lav-300) } .amber { color: var(--warn) } .dim { color: var(--ink-500) }
 
@@ -147,6 +150,7 @@ const P = {
 const svg = (k) => `<svg class="i" viewBox="0 0 24 24">${P[k]}</svg>`
 const logo = (d, c = '') => `<img class="logo ${c}" src="https://www.google.com/s2/favicons?domain=${d}&sz=128" alt="">`
 const mark = `<span class="mark">${svg('link')}</span>`
+const ms = (...xs) => xs.map(([b, v]) => `<span><span class="bd ${b}">${b}</span>${v}</span>`).join('')
 const row = (k, v, c = '') => `<span><span class="k">${k}</span><span class="${c}">${v}</span></span>`
 
 /* A row as it lands: [badge, logo domain or null, name, small line, amount, tone] */
@@ -177,11 +181,11 @@ const block = (chips, rows, more = 0) => `
     <div class="list">${rows.map(line).join('')}${more ? `<div class="more">${more} more ›</div>` : ''}</div>
   </div></div>`
 
-const t212 = ({ total = '€5,367.50', cash = '€1,280.30', inv = '€4,087.20', since = ['€0.00', 'dim'], got = '', when = 'today 14:05' } = {}) => `
+const t212 = ({ total = '€5,367.50', cash = '€1,280.30', inv = '€4,087.20', since = ['none', 'dim'], got = '', when = 'today 14:05' } = {}) => `
   <div class="card" onclick="openSheet()">
     <div class="top">${logo('trading212.com')}<span class="who"><b>Trading 212</b><span class="kinds"><span class="kind broker">broker</span></span></span><button class="pill">${svg('pencil')}edit</button></div>
     <div class="total"><b>${total}</b></div>
-    <div class="rows">${row(`free cash <i>EUR</i>${mark}`, cash)}${row(`investments${mark}`, inv)}${row('bought since 1 Oct', since[0], since[1] + (got && since[1] !== 'dim' ? ' lit' : ''))}</div>
+    <div class="rows">${row(`free cash <i>EUR</i>${mark}`, cash)}${row(`investments${mark}`, inv)}${row('since 1 Oct', since[0], since[1] + (got && since[1] !== 'dim' ? ' ms lit' : ''))}</div>
     ${got}
     <div class="foot"><span class="from"><span class="link">${svg('link')}</span>from Trading 212 · ${when}</span></div>
   </div>`
@@ -197,8 +201,8 @@ const revolut = (out) => `
 
 const S = {
   today: () => t212() + revolut(false),
-  first: () => t212({ since: ['€1,240.00', 'lav'], got: block('<span class="chip new"><i></i>14 new</span><span class="chip had">3 already added</span>', [R.buy, R.inRev, R.divV], 11) }) + revolut(false),
-  daily: () => t212({ total: '€5,368.88', cash: '€981.68', inv: '€4,387.20', since: ['€300.00', 'lav'], got: block('<span class="chip new"><i></i>2 new</span>', [R.buy, R.div]) }) + revolut(false),
+  first: () => t212({ since: [ms(['buy', '€1,240.00'], ['sell', '€640.00']), ''], got: block('<span class="chip new"><i></i>14 new</span><span class="chip had">3 already added</span>', [R.buy, R.inRev, R.divV], 11) }) + revolut(false),
+  daily: () => t212({ total: '€5,368.88', cash: '€981.68', inv: '€4,387.20', since: [ms(['buy', '€300.00']), ''], got: block('<span class="chip new"><i></i>2 new</span>', [R.buy, R.div]) }) + revolut(false),
   deposit: () => t212({ total: '€5,867.50', cash: '€1,780.30', got: block('<span class="chip new"><i></i>1 new</span>', [R.inRev]) }) + revolut(true),
   early: () => t212({ total: '€5,867.50', cash: '€1,780.30', got: block('<span class="chip new"><i></i>1 new</span>', [R.inRevMiss]) }) + revolut(false),
   sheet: () => (setTimeout(openSheet, 50), S.first()),

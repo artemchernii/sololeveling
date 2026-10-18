@@ -55,6 +55,11 @@ export const answer = mutation({
       v.literal('many'),
       /* Trading 212's (convex/t212Api.ts). */
       v.literal('traded'),
+      v.literal('shares'),
+      v.literal('paid'),
+      v.literal('deposit'),
+      v.literal('early'),
+      v.literal('first'),
       v.literal('frozen'),
       v.literal('cash'),
       v.literal('refused'),
@@ -98,6 +103,52 @@ export const answer = mutation({
           text: 'Top-up by *2789',
           accountId: link.accountId,
           meta: { merchant: 'Top-up by *2789', raw: 'Top-up by *2789' },
+        })
+      /* Trading 212's first answer after a file: the buy of three days ago
+         is the file's already. */
+      if (args.as === 'first' && link.via === 't212') {
+        let nvda = null
+        for (const h of await ctx.db
+          .query('holdings')
+          .withIndex('by_owner_account', (q) =>
+            q.eq('ownerId', ownerId).eq('accountId', link.accountId),
+          )
+          .take(20)) {
+          const inst = await ctx.db.get(h.instrumentId)
+          if (inst?.symbol === 'NVDA') nvda = inst
+        }
+        if (nvda !== null)
+          await ctx.db.insert('trades', {
+            ownerId,
+            accountId: link.accountId,
+            instrumentId: nvda._id,
+            side: 'buy',
+            shares: 1,
+            priceEur: 140,
+            occurredAt: Date.now() - 72 * 3_600_000,
+          })
+      }
+    }
+    /* The €500 Trading 212 says came in, as Revolut's statement saved it:
+       a move to an account it did not name. */
+    if (args.as === 'deposit') {
+      const revolut = (
+        await ctx.db
+          .query('accounts')
+          .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+          .take(50)
+      ).find((a) => a.name === 'Revolut')
+      if (revolut !== undefined)
+        await ctx.db.insert('logs', {
+          ownerId,
+          area: 'money',
+          kind: 'move',
+          occurredAt: Date.now() - 20 * 3_600_000,
+          value: -500,
+          unit: 'eur',
+          text: 'To Trading 212',
+          accountId: revolut._id,
+          meta: { merchant: 'Trading 212', raw: 'To Trading 212' },
         })
     }
     return null

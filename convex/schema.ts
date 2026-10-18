@@ -179,6 +179,9 @@ const tradeFields = {
   /* A stock split from a trading history (9 Oct): the shares it added,
      on its day, at no cost — never a buy he paid for. */
   split: v.optional(v.boolean()),
+  /* Trading 212's own id of the fill (18 Oct, t212History.ts): an answer
+     read twice writes it once. */
+  ref: v.optional(v.string()),
 }
 
 /* N1. Where a push subscription lives, and what a notification is about. */
@@ -637,6 +640,12 @@ export default defineSchema({
            one day and a jacket the next, so it is named row by row, not
            by payee. */
         payee: v.optional(v.string()),
+        /* Trading 212's own id of a dividend, interest, fee or deposit (18
+           Oct, t212History.ts), and the company and shares a dividend was paid
+           on. */
+        ref: v.optional(v.string()),
+        instrumentId: v.optional(v.id('instruments')),
+        shares: v.optional(v.number()),
       }),
     ),
   })
@@ -818,6 +827,19 @@ export default defineSchema({
             now: v.number(),
           }),
         ),
+      }),
+    ),
+    /* Trading 212's history (18 Oct, docs/specs/2026-10-18-t212-history.md):
+       the newest event read, and the rows the answers since `at` wrote —
+       on the card until he closes it with ✕, with how many a file had
+       saved already. */
+    historyAt: v.optional(v.number()),
+    came: v.optional(
+      v.object({
+        at: v.number(),
+        had: v.number(),
+        trades: v.array(v.id('trades')),
+        logs: v.array(v.id('logs')),
       }),
     ),
     /* The last check wrote nothing: the key was not accepted, or Trading

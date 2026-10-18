@@ -1556,6 +1556,12 @@ async function writeTransactions(
         other === null || other._id === account._id
           ? null
           : await openSide(ctx, ownerId, other._id, -r.amount, r.occurredAt)
+      /* A side that did not know where it came from (a Trading 212
+         deposit read from Trading 212, 18 Oct) learns it here. */
+      if (waiting !== null && waiting.meta?.otherAccountId === undefined)
+        await ctx.db.patch(waiting._id, {
+          meta: { ...waiting.meta, otherAccountId: account._id },
+        })
       if (
         other !== null &&
         other._id !== account._id &&

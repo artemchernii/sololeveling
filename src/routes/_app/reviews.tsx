@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
+import { useWorthHistory } from '@/lib/useWorthHistory'
 import { AiReviewTile } from '@/components/review/AiReviewTile'
 import { BodyTile } from '@/components/review/BodyTile'
 import { FinancesTile } from '@/components/review/FinancesTile'
@@ -54,7 +55,7 @@ function Reviews() {
     api.aggregate.weekReview,
     areas === undefined ? 'skip' : weekArgs,
   )
-  const worth = useQuery(api.aggregate.worthHistory, { dayEnds })
+  const worth = useWorthHistory(dayEnds)
   const levels = useQuery(
     api.aggregate.languageLevels,
     areas === undefined ? 'skip' : { slugs },

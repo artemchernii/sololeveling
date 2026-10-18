@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { AreaSeries, LineStyle, createChart } from 'lightweight-charts'
 import { ChartArea, ChartLine } from 'lucide-react'
 import type { AutoscaleInfo, IChartApi, ISeriesApi } from 'lightweight-charts'
 
-import { api } from '../../../convex/_generated/api'
+import { useWorthHistory } from '@/lib/useWorthHistory'
 import { AccountsChart } from '@/components/finances/AccountsChart'
 import type { AccountsMode } from '@/components/finances/AccountsChart'
 import { PILL_LOUD, PILL_QUIET } from '@/components/finances/bits'
@@ -97,7 +96,7 @@ export function WorthChart() {
      was torn out mid fade — 145ms after it mounted, measured. Now a quick
      load shows no stand-in at all, and one that has shown stays
      --loading-hold. */
-  const history = useHeld(useQuery(api.aggregate.worthHistory, { dayEnds }))
+  const history = useHeld(useWorthHistory(dayEnds))
   const arrived = useArrived(history)
   const { shown } = useVeil()
   const box = useRef<HTMLDivElement>(null)

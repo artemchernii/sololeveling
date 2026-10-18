@@ -2233,7 +2233,17 @@ async function writeHoldings(
       importId: intake._id,
     })
   }
-  if (look.cashEur !== undefined) {
+  /* A connected broker's cash is the bank's (19 Oct): a screenshot brings
+     its positions, and its cash is not saved. Revolut's broker cash is
+     still the screen's — the bank does not send it. */
+  const link = await ctx.db
+    .query('bankLinks')
+    .withIndex('by_owner_account', (q) =>
+      q.eq('ownerId', ownerId).eq('accountId', account._id),
+    )
+    .unique()
+  const cashFromBank = link?.status === 'linked' && !hasBrokerCash(account)
+  if (look.cashEur !== undefined && !cashFromBank) {
     if (!account.currencies.includes('EUR')) {
       throw new ConvexError(`${account.name} does not hold euros.`)
     }

@@ -74,6 +74,15 @@ export function HoldingsReview({
   const balances = useQuery(api.aggregate.balances, {})
   const targetRow = balances?.accounts.find((a) => a.accountId === target)
   const freeStays = targetRow?.brokerCash ? targetRow.cashEur : undefined
+  /* A connected broker: its cash is the bank's, the screen's is not saved
+     (19 Oct). */
+  const links = useQuery(api.bank.links, {})
+  const fromBank =
+    targetRow &&
+    !targetRow.brokerCash &&
+    links?.some((l) => l.accountId === target && l.status === 'linked')
+      ? targetRow.cashEur
+      : undefined
   const [drafts, setDrafts] = useState<Array<PosDraft>>([])
   const [open, setOpen] = useState<number | null>(null)
   const [searching, setSearching] = useState<number | null>(null)
@@ -291,6 +300,7 @@ export function HoldingsReview({
         gain={gain}
         fromFile={fromFile}
         freeStays={freeStays}
+        fromBank={fromBank}
       />
 
       {changes ? (
@@ -492,7 +502,7 @@ export function HoldingsReview({
               ? 'pick the account above'
               : differs
                 ? `save ${targetName} anyway`
-                : `save ${kept.length} ${kept.length === 1 ? 'position' : 'positions'}${cashNum !== null ? (freeStays === undefined ? ' and the cash' : ' and the broker cash') : ''}`}
+                : `save ${kept.length} ${kept.length === 1 ? 'position' : 'positions'}${cashNum !== null && fromBank === undefined ? (freeStays === undefined ? ' and the cash' : ' and the broker cash') : ''}`}
           </Busy>
         </button>
       </div>

@@ -249,9 +249,9 @@ export function Accounts() {
                 const at = accounts.find(
                   (x) => x._id === a.accountId,
                 )?.institution
-                return at === T212
-                  ? a.kinds.includes('broker')
-                  : a.kinds.includes('bank') && canConnect(at)
+                /* Trade Republic is a broker Enable Banking reaches: its
+                   cash connects as a bank's does (19 Oct). */
+                return at === T212 ? a.kinds.includes('broker') : canConnect(at)
               })()}
               onConnect={() =>
                 accounts.find((x) => x._id === a.accountId)?.institution ===

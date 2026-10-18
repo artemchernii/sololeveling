@@ -44,7 +44,7 @@ const asked = v.object({
   uid: v.string(),
   currency: v.string(),
   /* The day rows are asked from; null when the account holds no balance
-     yet — then only the bank's balance is taken. */
+     yet, or is a broker — then only the bank's balance is taken. */
   from: v.union(v.string(), v.null()),
 })
 
@@ -100,6 +100,14 @@ export const begin = internalMutation({
       ...(open.length === 0 ? { checking: now } : {}),
     })
     if (open.length > 0) return { status: 'question' as const }
+    /* A broker the bank API reaches (Trade Republic, 19 Oct): its balance
+       only. Its rows are buys and sells the bank calls payments; they stay
+       with its statement, where a buy is a buy. */
+    const account = await ctx.db.get(args.accountId)
+    const balanceOnly =
+      account !== null &&
+      account.kinds.includes('broker') &&
+      !account.kinds.includes('bank')
     const asks: Array<typeof asked.type> = []
     for (const u of link.uids) {
       const held = await ctx.db
@@ -113,7 +121,10 @@ export const begin = internalMutation({
         .first()
       asks.push({
         ...u,
-        from: held?.value === undefined ? null : dateFrom(held.recordedAt),
+        from:
+          balanceOnly || held?.value === undefined
+            ? null
+            : dateFrom(held.recordedAt),
       })
     }
     return { status: 'go' as const, asks }

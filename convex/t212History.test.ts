@@ -54,16 +54,9 @@ async function connected() {
         )
         .collect(),
     }))
-  const link = () =>
-    t.run(async (ctx) =>
-      ctx.db
-        .query('bankLinks')
-        .withIndex('by_owner_account', (q) =>
-          q.eq('ownerId', ME).eq('accountId', accountId),
-        )
-        .unique(),
-    )
-  return { t, me, accountId, args, later, rows, link }
+  const card = async () =>
+    (await me.query(api.bank.links, {})).find((l) => l.accountId === accountId)
+  return { t, me, accountId, args, later, rows, card }
 }
 
 async function revolut(
@@ -83,8 +76,8 @@ async function revolut(
   )
 }
 
-test('a buy and a sell are saved as trades with no press, kept for the card, not the shares block', async () => {
-  const { later, rows, link } = await connected()
+test('a buy and a sell are saved as trades with no press, the card shows them, not the shares block', async () => {
+  const { later, rows, card } = await connected()
   expect(await later('traded')).toBe('checked')
   const { trades } = await rows()
   expect(
@@ -97,26 +90,29 @@ test('a buy and a sell are saved as trades with no press, kept for the card, not
       ['sell', 1, 640, 't212:fill:2'],
     ]),
   )
-  const l = await link()
-  expect(l?.changed).toBeUndefined()
-  expect(l?.came?.trades).toHaveLength(2)
-  expect(l?.came?.had).toBe(0)
+  const c = await card()
+  expect(c?.changed).toBeNull()
+  expect(c?.came).toMatchObject({ rows: 2, had: 0 })
+  expect(c?.came?.lines.map((l) => [l.kind, l.name, l.amount])).toEqual([
+    ['buy', 'NVIDIA Corporation', -300],
+    ['sell', 'ASML Holding N.V.', 640],
+  ])
 })
 
 test('the same answer again writes nothing, and ✕ closes the block for good', async () => {
-  const { me, args, later, rows, link } = await connected()
+  const { me, args, later, rows, card } = await connected()
   await later('traded')
   const once = await rows()
   await later('traded')
   expect(await rows()).toEqual(once)
-  expect((await link())?.came?.trades).toHaveLength(2)
+  expect((await card())?.came?.rows).toBe(2)
   await me.mutation(api.t212.close, { accountId: args.accountId })
   await later('traded')
-  expect((await link())?.came).toBeUndefined()
+  expect((await card())?.came).toBeNull()
 })
 
 test('a dividend and interest are money in, a fee money out — and the cash is still what Trading 212 says', async () => {
-  const { me, accountId, later, rows, link } = await connected()
+  const { me, accountId, later, rows, card } = await connected()
   await later('paid')
   const { logs } = await rows()
   const got = logs.map((l) => [l.kind, l.value, l.text, l.meta?.ref])
@@ -130,7 +126,11 @@ test('a dividend and interest are money in, a fee money out — and the cash is 
   const dividend = logs.find((l) => l.meta?.ref === 't212:div:1')
   expect(dividend?.meta?.shares).toBe(1)
   expect(dividend?.meta?.instrumentId).toBeDefined()
-  expect((await link())?.came?.logs).toHaveLength(3)
+  expect((await card())?.came?.lines.map((l) => l.kind)).toEqual([
+    'dividend',
+    'interest',
+    'fee',
+  ])
   /* Rows of before the answer are inside its cash, not added to it. */
   const b = await me.query(api.aggregate.balances, {})
   const here = b.accounts.find((a) => a.accountId === accountId)
@@ -138,7 +138,7 @@ test('a dividend and interest are money in, a fee money out — and the cash is 
 })
 
 test("a deposit pairs with Revolut's move of the same €500, and Revolut's learns where it went", async () => {
-  const { t, accountId, later, rows } = await connected()
+  const { t, accountId, later, rows, card } = await connected()
   const revolutId = await revolut(t)
   await later('deposit')
   const { logs } = await rows()
@@ -150,25 +150,34 @@ test("a deposit pairs with Revolut's move of the same €500, and Revolut's lear
     : null
   expect(side).toMatchObject({ accountId: revolutId, value: -500 })
   expect(side?.meta?.otherAccountId).toBe(accountId)
+  expect((await card())?.came?.lines[0]).toMatchObject({
+    kind: 'transfer',
+    name: 'Revolut',
+    amount: 500,
+    other: { name: 'Revolut', domain: 'revolut.com' },
+  })
 })
 
 test('a deposit no bank has a row for is a move of its own, saved in no bank', async () => {
-  const { later, rows } = await connected()
+  const { later, rows, card } = await connected()
   await later('early')
   const move = (await rows()).logs.find((l) => l.meta?.ref === 't212:cash:3')
   expect(move?.meta?.pairOf).toBeUndefined()
-  expect(move?.meta?.otherAccountId).toBeUndefined()
+  expect((await card())?.came?.lines[0]).toMatchObject({
+    kind: 'transfer',
+    name: 'Deposit',
+    other: null,
+  })
 })
 
 test('the first answer reads from the newest file row on: a buy the file had is matched, not written again', async () => {
-  const { later, rows, link } = await connected()
+  const { later, rows, card } = await connected()
   await later('first')
   const { trades } = await rows()
   const file = trades.filter((t) => t.priceEur === 140)
   expect(file).toHaveLength(1)
   expect(file[0].ref).toBe('t212:fill:3')
-  const came = (await link())?.came
-  expect([came?.trades.length, came?.logs.length, came?.had]).toEqual([2, 3, 1])
+  expect((await card())?.came).toMatchObject({ rows: 5, had: 1 })
 })
 
 test('a history call that fails writes nothing at all', async () => {

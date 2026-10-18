@@ -3,6 +3,7 @@ import { v } from 'convex/values'
 import { mutation } from './_generated/server'
 import { requireUser } from './auth'
 import { guard } from './e2e'
+import { rebuildLedgers, slotsOf, syncLedgers } from './ledgers'
 import type { Doc } from './_generated/dataModel'
 import type { Chart } from '../src/lib/market'
 
@@ -186,6 +187,7 @@ export const soldOut = mutation({
     await trade('buy', 1, 80.6, 200)
     await trade('buy', 1, 100, 150)
     await trade('sell', 2, 118.45, 60)
+    await rebuildLedgers(ctx, ownerId)
     return null
   },
 })
@@ -451,6 +453,10 @@ export const misplaceBuys = mutation({
     for (const t of trades)
       if (t.importId !== undefined)
         await ctx.db.patch(t._id, { instrumentId: digital })
+    await syncLedgers(ctx, ownerId, [
+      ...slotsOf(trades),
+      ...slotsOf(trades).map((t) => ({ ...t, instrumentId: digital })),
+    ])
     return null
   },
 })

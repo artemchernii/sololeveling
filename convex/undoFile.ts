@@ -3,6 +3,7 @@ import { ConvexError, v } from 'convex/values'
 import { balanceKey, brokerCashKey, hasBrokerCash } from './accounts'
 import { movedSince, tradedSince } from './aggregate'
 import { requireUser } from './auth'
+import { slotsOf, syncLedgers } from './ledgers'
 import { staysWith } from './handOver'
 import { internal } from './_generated/api'
 import { internalMutation, mutation, query } from './_generated/server'
@@ -358,6 +359,7 @@ async function erase(
       if (to) await ctx.db.patch(t._id, { importId: to.to })
       else await ctx.db.delete(t._id)
     }
+    await syncLedgers(ctx, ownerId, slotsOf(trades.slice(0, left)))
     left -= Math.min(left, trades.length)
     if (left > 0) {
       const looks = (

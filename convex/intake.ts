@@ -12,6 +12,7 @@ import {
 import { movedSince } from './aggregate'
 import { fileNotice } from './fileNotice'
 import { fileTrade, fileTrades } from './fileTrades'
+import { syncLedgers } from './ledgers'
 import { checkTrade, upsertInstrument } from './invest'
 import { transferPair } from './logs'
 import { findFor } from './recurring'
@@ -1840,6 +1841,10 @@ async function writeTrades(
   let skipped = 0
   const seen = new Set<number>()
   const claimed = new Set<Id<'trades'>>()
+  const touched: Array<{
+    accountId: Id<'accounts'>
+    instrumentId: Id<'instruments'>
+  }> = []
   /* Each ticker's stored trades, read once a call: a history chunk of
      hundreds of rows over a few tickers would read them hundreds of times. */
   const stored = new Map<Id<'instruments'>, Array<Doc<'trades'>>>()
@@ -1919,7 +1924,9 @@ async function writeTrades(
       ...(t.crypto || noCash ? { noCash: true } : {}),
     })
     written++
+    touched.push({ accountId: account._id, instrumentId })
   }
+  await syncLedgers(ctx, ownerId, touched)
   return { written, skipped }
 }
 

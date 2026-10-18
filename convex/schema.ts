@@ -922,7 +922,36 @@ export default defineSchema({
     .index('by_owner_account', ['ownerId', 'accountId'])
     /* The account sheet's page (13 Oct): the newest trades of one account
        without reading all of them — Revolut holds 3,700. */
-    .index('by_owner_account_time', ['ownerId', 'accountId', 'occurredAt']),
+    .index('by_owner_account_time', ['ownerId', 'accountId', 'occurredAt'])
+    /* One position's trades, to rebuild its ledger (ledgers.ts). */
+    .index('by_owner_account_instrument_time', [
+      'ownerId',
+      'accountId',
+      'instrumentId',
+      'occurredAt',
+    ]),
+
+  /* One position's trades in a few parallel arrays (18 Oct, "keep in mind
+     spending"): what positions and worth read instead of every trade —
+     3,800 rows, 1.5 MB, on each run. The same rows in their own order,
+     nothing summed; rebuilt from `trades` by every write to them
+     (ledgers.ts). `flags`: 1 a sell, 2 a staking reward. A part holds at
+     most LEDGER_PART rows — an array holds 8,192 values. */
+  ledgers: defineTable({
+    ownerId: v.string(),
+    accountId: v.id('accounts'),
+    instrumentId: v.id('instruments'),
+    part: v.number(),
+    at: v.array(v.number()),
+    shares: v.array(v.number()),
+    priceEur: v.array(v.number()),
+    flags: v.array(v.number()),
+  }).index('by_owner_account_instrument_part', [
+    'ownerId',
+    'accountId',
+    'instrumentId',
+    'part',
+  ]),
 
   /* A trade taken off its position (15 Oct, mockup trade-remove.html):
      the same row kept aside with the moment it went, so UNDO puts it back

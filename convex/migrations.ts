@@ -2,6 +2,7 @@ import { v } from 'convex/values'
 
 import { upsertInstrument } from './invest'
 import { transferPair } from './logs'
+import { slotsOf, syncLedgers } from './ledgers'
 import { internalMutation } from './_generated/server'
 import { productIn } from '../src/lib/institutions'
 import { ownMoney, storedDuplicates } from '../src/lib/intake'
@@ -70,6 +71,10 @@ export const addingMoney = internalMutation({
         )
         .take(2000)
       for (const t of trades) await ctx.db.patch(t._id, { accountId: bank._id })
+      await syncLedgers(ctx, ownerId, [
+        ...slotsOf(trades),
+        ...slotsOf(trades).map((t) => ({ ...t, accountId: bank._id })),
+      ])
       const logs = await ctx.db
         .query('logs')
         .withIndex('by_owner_account_time', (q) =>

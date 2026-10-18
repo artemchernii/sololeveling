@@ -78,6 +78,8 @@ import type * as sheetRows from "../sheetRows.js";
 import type * as state from "../state.js";
 import type * as t212 from "../t212.js";
 import type * as t212Api from "../t212Api.js";
+import type * as t212Held from "../t212Held.js";
+import type * as t212History from "../t212History.js";
 import type * as tasks from "../tasks.js";
 import type * as transferMatch from "../transferMatch.js";
 import type * as typedBalance from "../typedBalance.js";
@@ -163,6 +165,8 @@ declare const fullApi: ApiFromModules<{
   state: typeof state;
   t212: typeof t212;
   t212Api: typeof t212Api;
+  t212Held: typeof t212Held;
+  t212History: typeof t212History;
   tasks: typeof tasks;
   transferMatch: typeof transferMatch;
   typedBalance: typeof typedBalance;

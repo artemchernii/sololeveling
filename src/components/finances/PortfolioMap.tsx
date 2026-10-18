@@ -109,7 +109,8 @@ export function MoneyMap({
         key,
         v,
         label: lens === 'kind' ? (kind?.label ?? key) : key,
-        tone: lens === 'kind' ? (kind?.tone ?? 'var(--color-ink-500)') : look.tone,
+        tone:
+          lens === 'kind' ? (kind?.tone ?? 'var(--color-ink-500)') : look.tone,
         emoji: lens === 'kind' ? null : look.emoji,
       }
     })

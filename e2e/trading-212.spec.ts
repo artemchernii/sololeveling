@@ -32,7 +32,7 @@ async function fromFile(page: Page) {
 /** Connected through the window, then Trading 212's next answer set. */
 async function connected(
   page: Page,
-  as: 'traded' | 'many' | 'cash' | 'refused' | 'down',
+  as: 'shares' | 'many' | 'cash' | 'refused' | 'down',
 ) {
   await fromFile(page)
   await card(page).getByRole('button', { name: 'connect' }).click()
@@ -85,7 +85,7 @@ test('connect: three facts, one press, asking at once, connected, the card says 
 test('bought and sold: saved with no press, the block says it in euros until closed', async ({
   page,
 }) => {
-  await connected(page, 'traded')
+  await connected(page, 'shares')
   await page.goto('/finances')
   const block = card(page).getByTestId('t212-changed')
   await expect(block.getByText('3 changed')).toBeVisible()
@@ -131,7 +131,7 @@ test('the key is not accepted: the card keeps its numbers and says of when; try 
   await expect(card(page).getByTestId('t212-changed')).toHaveCount(0)
   await still(page, 't212-refused')
 
-  await testClient().mutation(anyApi.e2eBank.answer, { as: 'traded' })
+  await testClient().mutation(anyApi.e2eBank.answer, { as: 'shares' })
   await card(page).getByRole('button', { name: 'try again' }).click()
   await expect(
     card(page).getByTestId('t212-changed').getByText('3 changed'),

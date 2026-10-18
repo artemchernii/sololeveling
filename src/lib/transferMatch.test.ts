@@ -64,6 +64,11 @@ test('a line names his accounts by name and by card ending', () => {
   expect(names('Revolutionary Cafe')).toEqual([])
 })
 
+test('the card that paid names no account', () => {
+  expect(names('COMPRA 2789 TRADE REPUBLIC BERLIN DE')).toEqual(['tr'])
+  expect(names('COMPRA 2789 PINGO DOCE LISBOA')).toEqual([])
+})
+
 test('his €700 top-up, booked three days later under another name: already added', () => {
   expect(transferMatches([compra], [topUpHere])).toEqual([
     {

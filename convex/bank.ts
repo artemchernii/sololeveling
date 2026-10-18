@@ -7,6 +7,7 @@ import {
   pickAccounts,
 } from '../src/lib/bankLink'
 import { arrivedFromBank, changedAtBroker } from './aggregate'
+import { cameLine, cameOnCard } from './t212History'
 import { requireUser } from './auth'
 import { bankApi } from './bankApi'
 import { CHECK_LOST_MS, pull } from './bankRows'
@@ -105,6 +106,15 @@ export const links = query({
         }),
         v.null(),
       ),
+      /* Trading 212's history: the rows its answers wrote, until ✕. */
+      came: v.union(
+        v.object({
+          rows: v.number(),
+          had: v.number(),
+          lines: v.array(cameLine),
+        }),
+        v.null(),
+      ),
     }),
   ),
   handler: async (ctx) => {
@@ -162,6 +172,7 @@ export const links = query({
         via: r.via ?? null,
         failed: r.failed?.why ?? null,
         changed,
+        came: r.came ? await cameOnCard(ctx, ownerId, r.came) : null,
       })),
     )
   },

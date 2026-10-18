@@ -1,6 +1,5 @@
 import { ConvexError, v } from 'convex/values'
 
-import { lookFamily, reconcile } from '../src/lib/holdings'
 import { UNPRICED } from '../src/lib/market'
 import {
   T212,
@@ -22,10 +21,12 @@ import { SAME_LOOK_MS, writeScreenPrice } from './intake'
 import { upsertInstrument } from './invest'
 import { searchYahoo } from './market'
 import { T212Fail, t212Api } from './t212Api'
+import { cameAfter, historyStart, t212Event, writeHistory } from './t212History'
+import { linkOf, sharesHeld } from './t212Held'
 import { internal } from './_generated/api'
 import { action, internalMutation, mutation } from './_generated/server'
-import type { ActionCtx, MutationCtx } from './_generated/server'
-import type { Doc, Id } from './_generated/dataModel'
+import type { ActionCtx } from './_generated/server'
+import type { Id } from './_generated/dataModel'
 
 /* Trading 212 connected (12 Oct, docs/specs/2026-10-12-trading-212.md):
    its free cash and its positions, read from Trading 212 itself and stored.
@@ -41,7 +42,6 @@ import type { Doc, Id } from './_generated/dataModel'
    The whole answer or none: both calls are made before a thing is written,
    and `arrive` is one step. */
 
-const ROWS = 2000
 const SOURCE = 'Trading 212'
 
 const candidate = v.object({
@@ -64,55 +64,6 @@ const position = v.object({
   held: v.optional(v.string()),
 })
 
-async function linkOf(
-  ctx: MutationCtx,
-  ownerId: string,
-  accountId: Id<'accounts'>,
-) {
-  return await ctx.db
-    .query('bankLinks')
-    .withIndex('by_owner_account', (q) =>
-      q.eq('ownerId', ownerId).eq('accountId', accountId),
-    )
-    .unique()
-}
-
-/* The shares the account holds now, by instrument: its trades and its
-   looks, merged as every other reader merges them. */
-async function sharesHeld(
-  ctx: MutationCtx,
-  ownerId: string,
-  accountId: Id<'accounts'>,
-) {
-  const looks = await ctx.db
-    .query('holdings')
-    .withIndex('by_owner_account', (q) =>
-      q.eq('ownerId', ownerId).eq('accountId', accountId),
-    )
-    .take(ROWS)
-  const trades = await ctx.db
-    .query('trades')
-    .withIndex('by_owner_account', (q) =>
-      q.eq('ownerId', ownerId).eq('accountId', accountId),
-    )
-    .take(ROWS)
-  const ids = new Set([...looks, ...trades].map((r) => r.instrumentId))
-  const held: Array<{ inst: Doc<'instruments'>; shares: number }> = []
-  for (const id of ids) {
-    const inst = await ctx.db.get(id)
-    /* Trading 212 lists shares and funds: a coin or a metal is not its. */
-    if (inst === null || lookFamily(inst) !== 'security') continue
-    held.push({
-      inst,
-      shares: reconcile(
-        trades.filter((t) => t.instrumentId === id),
-        looks.filter((h) => h.instrumentId === id),
-      ).shares,
-    })
-  }
-  return { held, looks }
-}
-
 /** A look begins: the account is his and is Trading 212, no other look is
     running — and which companies it holds already, to know the new ones. */
 export const begin = internalMutation({
@@ -126,6 +77,8 @@ export const begin = internalMutation({
     v.object({
       status: v.literal('go'),
       uid: v.string(),
+      /* How far back its history is read. */
+      from: v.number(),
       known: v.array(
         v.object({
           symbol: v.string(),
@@ -180,6 +133,7 @@ export const begin = internalMutation({
     return {
       status: 'go' as const,
       uid: link.uids[0].uid,
+      from: await historyStart(ctx, args.ownerId, args.accountId, link),
       known: held.map(({ inst }) => ({
         symbol: inst.symbol,
         name: inst.name,
@@ -220,6 +174,8 @@ export const arrive = internalMutation({
     dayStart: v.number(),
     cash: v.object({ currency: v.string(), value: v.number() }),
     positions: v.array(position),
+    history: v.array(t212Event),
+    from: v.number(),
   },
   returns: v.object({ same: v.number(), changed: v.number() }),
   handler: async (ctx, args) => {
@@ -276,6 +232,15 @@ export const arrive = internalMutation({
         })
     }
 
+    const came = await writeHistory(
+      ctx,
+      ownerId,
+      account,
+      args.history,
+      insts,
+      args.from,
+    )
+    const wrote = came.trades.length + came.logs.length
     const lines = whatChanged(was, now)
     /* A file saved since this link's last look may have left a company
        out: the whole list is written again, so nothing reads as missing. */
@@ -345,23 +310,30 @@ export const arrive = internalMutation({
       open !== undefined ? open.cashWas : cashMoved ? cashWas : undefined
     const cashLine =
       startCash !== undefined && Math.abs(startCash - args.cash.value) >= 0.005
+    /* Rows say what happened better than shares then and now (18 Oct,
+       his "yes"): an answer that wrote rows shows them, not the block. */
+    const open212 = link.came
     await ctx.db.patch(link._id, {
       checking: undefined,
       failed: undefined,
       checkedAt: at,
       lookAt: write ? at : link.lookAt,
+      historyAt: Math.max(link.historyAt ?? 0, came.newest ?? 0) || undefined,
+      came: cameAfter(open212, came, at),
       changed:
-        merged.length === 0 && !cashLine
+        wrote > 0 || open212 !== undefined
           ? undefined
-          : {
-              at: open?.at ?? link.checkedAt ?? (lastLook || at),
-              ...(cashLine ? { cashWas: startCash } : {}),
-              lines: merged.map(({ id, was: w, now: n }) => ({
-                instrumentId: id,
-                was: w,
-                now: n,
-              })),
-            },
+          : merged.length === 0 && !cashLine
+            ? undefined
+            : {
+                at: open?.at ?? link.checkedAt ?? (lastLook || at),
+                ...(cashLine ? { cashWas: startCash } : {}),
+                lines: merged.map(({ id, was: w, now: n }) => ({
+                  instrumentId: id,
+                  was: w,
+                  now: n,
+                })),
+              },
     })
     const kept = [...now.keys()].filter((id) => !lines.some((l) => l.id === id))
     return {
@@ -392,6 +364,7 @@ async function pull(
   try {
     const api = t212Api(start.uid)
     const cash = await api.summary()
+    const history = await api.history(start.from)
     const positions = []
     for (const p of await api.positions()) {
       /* A company the account never held: what the market calls it, by
@@ -425,6 +398,8 @@ async function pull(
         dayStart,
         cash: { currency: cash.currency, value: cashOf(cash) },
         positions,
+        history,
+        from: start.from,
       },
     )
     return { status: 'checked', ...done }
@@ -483,7 +458,7 @@ export const close = mutation({
     const link = await linkOf(ctx, ownerId, args.accountId)
     if (link === null || link.via !== 't212')
       throw new ConvexError('This account is not connected.')
-    await ctx.db.patch(link._id, { changed: undefined })
+    await ctx.db.patch(link._id, { changed: undefined, came: undefined })
     return null
   },
 })

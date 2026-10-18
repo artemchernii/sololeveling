@@ -7,6 +7,8 @@ import { AccountFoot } from '@/components/finances/AccountFoot'
 import type { CardLink } from '@/components/finances/AccountFoot'
 import { AccountArrived } from '@/components/finances/AccountArrived'
 import type { Arrived } from '@/components/finances/AccountArrived'
+import { AccountCame } from '@/components/finances/AccountCame'
+import type { Came } from '@/components/finances/AccountCame'
 import { AccountChanged } from '@/components/finances/AccountChanged'
 import type { Changed } from '@/components/finances/AccountChanged'
 import { AccountLogo } from '@/components/finances/Logo'
@@ -41,6 +43,7 @@ export function AccountCard({
   onConnect,
   arrived,
   changed,
+  came,
   onShut,
   onCheck,
   onRetry,
@@ -76,6 +79,8 @@ export function AccountCard({
   arrived: Arrived | null
   /** What Trading 212's answers changed, until closed with ✕. */
   changed: Changed | null
+  /** The rows Trading 212's history wrote, until closed with ✕. */
+  came: Came | null
   onShut: () => Promise<unknown>
   onCheck: () => void
   onRetry: () => void
@@ -242,20 +247,17 @@ export function AccountCard({
                 })}
               </span>
               {month && month.trades > 0 ? (
-                <span className="flex flex-wrap justify-end gap-x-2.5 text-[12px]">
-                  {month.bought ? (
-                    <span className="text-lav-300">
-                      <Veiled>bought {euros(month.bought)}</Veiled>
-                    </span>
-                  ) : null}
-                  {month.sold ? (
-                    <span className="text-ink-200">
-                      <Veiled>sold {euros(month.sold)}</Veiled>
-                    </span>
-                  ) : null}
+                /* The rows' own BUY and SELL badges, each with its sum
+                   (18 Oct: "bought since 1 Oct" read weird). */
+                <span
+                  data-testid="month-trades"
+                  className="flex flex-wrap justify-end gap-x-2.5 gap-y-1 text-[12px]"
+                >
+                  {month.bought ? <Side side="buy" sum={month.bought} /> : null}
+                  {month.sold ? <Side side="sell" sum={month.sold} /> : null}
                 </span>
               ) : (
-                <span className="text-[12px] text-ink-500">no trades yet</span>
+                <span className="text-[12px] text-ink-500">none</span>
               )}
             </span>
             {held && held.known > 0 ? (
@@ -318,7 +320,11 @@ export function AccountCard({
       {arrived && !link?.question ? (
         <AccountArrived arrived={arrived} onShut={onShut} />
       ) : null}
-      {changed ? <AccountChanged changed={changed} onShut={onShut} /> : null}
+      {came ? (
+        <AccountCame came={came} onShut={onShut} onMore={onOpen} />
+      ) : changed ? (
+        <AccountChanged changed={changed} onShut={onShut} />
+      ) : null}
       <AccountFoot
         onCheck={onCheck}
         onRetry={onRetry}
@@ -407,5 +413,22 @@ function Sparkline({ values }: { values: Array<number | null> }) {
         strokeLinejoin="round"
       />
     </svg>
+  )
+}
+
+function Side({ side, sum }: { side: 'buy' | 'sell'; sum: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-ink-200">
+      <span
+        className={`rounded-full px-[7px] py-[2px] font-mono text-[9px] font-medium tracking-[0.1em] uppercase ring-1 ring-inset ${
+          side === 'buy'
+            ? 'bg-state-good/16 text-state-good ring-state-good/35'
+            : 'bg-state-danger/16 text-state-danger ring-state-danger/35'
+        }`}
+      >
+        {side}
+      </span>
+      <Veiled>{euros(sum)}</Veiled>
+    </span>
   )
 }

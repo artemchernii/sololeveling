@@ -20,11 +20,6 @@
     opacity: 0;
   }
 }
-@keyframes td-grow {
-  from {
-    width: 0;
-  }
-}
 @keyframes td-pass {
   to {
     transform: translateX(100%);
@@ -48,94 +43,6 @@
     border-radius: 50%;
     background: currentColor;
     animation: td-ping 1.6s ease-out infinite;
-  }
-}
-
-/* The day, 08 → 24. */
-@utility td-line {
-  position: relative;
-  height: 64px;
-  & .td-track,
-  & .td-past {
-    position: absolute;
-    left: 0;
-    top: 26px;
-    height: 6px;
-    border-radius: 3px;
-  }
-  & .td-track {
-    right: 0;
-    background: color-mix(in oklch, var(--color-ink-100) 6%, transparent);
-  }
-  & .td-past {
-    background: linear-gradient(
-      90deg,
-      transparent,
-      color-mix(in oklch, var(--color-lav-400) 35%, transparent)
-    );
-    animation: td-grow 1.2s 0.3s var(--motion-ease) both;
-  }
-  & .td-ev {
-    position: absolute;
-    top: 18px;
-    height: 22px;
-    min-width: 6px;
-    border-radius: 6px;
-    background: var(--color-lav-400);
-    box-shadow: 0 0 18px -2px var(--color-lav-400);
-    color: var(--background);
-    font-family: var(--font-mono);
-    font-size: 9.5px;
-    padding: 0 6px;
-    line-height: 22px;
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    animation: td-pop 0.5s 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) both;
-  }
-  & .td-name {
-    position: absolute;
-    height: 22px;
-    line-height: 22px;
-    padding: 0 6px;
-    max-width: 40%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--color-lav-300);
-    animation: td-pop 0.5s 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) both;
-  }
-  & .td-now {
-    position: absolute;
-    top: 10px;
-    bottom: 16px;
-    width: 2px;
-    border-radius: 1px;
-    background: var(--color-ink-100);
-    color: var(--color-ink-100);
-    box-shadow: 0 0 10px var(--color-ink-100);
-    &::before {
-      content: '';
-      position: absolute;
-      top: -4px;
-      left: -3px;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: currentColor;
-      animation: td-ping 1.6s ease-out infinite;
-    }
-  }
-  & .td-hr {
-    position: absolute;
-    bottom: 0;
-    transform: translateX(-50%);
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--color-ink-500);
   }
 }
 
@@ -276,4 +183,9 @@
   to {
     clip-path: inset(0 0 0 0);
   }
+}
+
+/* A week block arriving (18 Oct): pops in, a little after its cell. */
+@utility td-block {
+  animation: td-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both;
 }

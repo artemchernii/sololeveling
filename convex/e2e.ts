@@ -554,3 +554,38 @@ export const todayMonth = mutation({
     return null
   },
 })
+
+/** Today's THIS WEEK: a lived Monday and Tuesday, from the Monday's
+    local midnight the page computed. */
+export const todayWeek = mutation({
+  args: { weekStart: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    const at = (day: number, h: number, m = 0) =>
+      args.weekStart + day * DAY + (h * 60 + m) * 60_000
+    const row = (
+      kind: 'workout' | 'session' | 'post' | 'intake',
+      area: string,
+      occurredAt: number,
+      extra: { value?: number; text?: string; category?: string } = {},
+    ) =>
+      ctx.db.insert('logs', {
+        ownerId,
+        kind,
+        area,
+        occurredAt,
+        ...(extra.value !== undefined ? { value: extra.value } : {}),
+        ...(extra.text !== undefined ? { text: extra.text } : {}),
+        ...(extra.category !== undefined
+          ? { meta: { category: extra.category } }
+          : {}),
+      })
+    await row('workout', 'body', at(0, 7, 30), { value: 60, text: 'legs' })
+    await row('intake', 'body', at(0, 8), { category: 'supplements' })
+    await row('session', 'portuguese', at(0, 19), { value: 25 })
+    await row('post', 'social', at(1, 12, 30))
+    return null
+  },
+})

@@ -224,3 +224,20 @@ test('reviewWeek refuses anywhere but the test backend', async () => {
     'E2E functions run only on the test backend.',
   )
 })
+
+test('todayWeek refuses anywhere but the test backend, and seeds on it', async () => {
+  const t = convexTest(schema, modules)
+  const me = t.withIdentity({ tokenIdentifier: ME })
+  const weekStart = Date.UTC(2026, 9, 12)
+  await expect(me.mutation(api.e2e.todayWeek, { weekStart })).rejects.toThrow(
+    'E2E functions run only on the test backend.',
+  )
+  vi.stubEnv('E2E', '1')
+  await me.mutation(api.e2e.todayWeek, { weekStart })
+  const rows = await me.query(api.aggregate.weekItems, {
+    from: weekStart,
+    to: weekStart + 7 * DAY,
+    languages: ['portuguese'],
+  })
+  expect(rows.map((r) => r.kind)).toEqual(['workout', 'shake', 'langs', 'post'])
+})

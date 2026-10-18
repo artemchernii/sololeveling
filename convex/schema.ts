@@ -617,6 +617,10 @@ export default defineSchema({
         reps: v.optional(v.number()),
         sets: v.optional(v.number()),
         weightKg: v.optional(v.number()),
+        /* The first time this row said it happened, kept when THIS WEEK's
+           drag moved it to another cell (18 Oct): a log is not edited into a
+           different truth without saying so. */
+        movedFrom: v.optional(v.number()),
         category: v.optional(v.string()),
         people: v.optional(v.number()),
         /* The routine item an `exercise` row was ticked from. The row keeps

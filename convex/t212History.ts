@@ -5,7 +5,7 @@ import { heldAs, tickerOf } from '../src/lib/t212'
 import { historyFrom } from '../src/lib/t212History'
 import type { T212Event } from '../src/lib/t212History'
 import { upsertInstrument } from './invest'
-import type { MutationCtx } from './_generated/server'
+import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 
 /* Trading 212's history (18 Oct, docs/specs/2026-10-18-t212-history.md):
@@ -314,4 +314,114 @@ export function cameAfter(
     trades: [...came.trades, ...(open?.trades ?? [])].slice(0, 50),
     logs: [...came.logs, ...(open?.logs ?? [])].slice(0, 50),
   }
+}
+
+/* ---- The card --------------------------------------------------------- */
+
+export const cameLine = v.object({
+  kind: v.union(
+    v.literal('buy'),
+    v.literal('sell'),
+    v.literal('dividend'),
+    v.literal('interest'),
+    v.literal('fee'),
+    v.literal('transfer'),
+  ),
+  at: v.number(),
+  name: v.string(),
+  /* The company's, for its logo. */
+  symbol: v.union(v.string(), v.null()),
+  shares: v.union(v.number(), v.null()),
+  each: v.union(v.number(), v.null()),
+  /* Signed: what the account gained or gave. */
+  amount: v.number(),
+  currency: v.string(),
+  /* A transfer's other account, where its side is saved, and that side's
+     day when this one names it. */
+  other: v.union(
+    v.object({
+      name: v.string(),
+      domain: v.union(v.string(), v.null()),
+      at: v.union(v.number(), v.null()),
+    }),
+    v.null(),
+  ),
+})
+
+const ON_CARD = 3
+
+/** What the answers since the block opened wrote, for the card: how many,
+    how many a file had, and the newest three as lines. Rows he removed
+    since are not counted. */
+export async function cameOnCard(
+  ctx: QueryCtx,
+  ownerId: string,
+  came: NonNullable<Doc<'bankLinks'>['came']>,
+) {
+  type Line = typeof cameLine.type
+  const lines: Array<Line> = []
+  for (const id of came.trades) {
+    const t = await ctx.db.get(id)
+    if (t === null || t.ownerId !== ownerId) continue
+    const inst = await ctx.db.get(t.instrumentId)
+    const sum = Math.round(t.shares * t.priceEur * 100) / 100
+    lines.push({
+      kind: t.side,
+      at: t.occurredAt,
+      name: inst?.name ?? '',
+      symbol: inst?.symbol ?? null,
+      shares: t.shares,
+      each: t.priceEur,
+      amount: t.side === 'buy' ? -sum : sum,
+      currency: 'EUR',
+      other: null,
+    })
+  }
+  for (const id of came.logs) {
+    const l = await ctx.db.get(id)
+    if (l === null || l.ownerId !== ownerId) continue
+    const inst = l.meta?.instrumentId
+      ? await ctx.db.get(l.meta.instrumentId)
+      : null
+    const pair = l.meta?.pairOf ? await ctx.db.get(l.meta.pairOf) : null
+    const otherId = l.meta?.otherAccountId
+    const other = otherId ? await ctx.db.get(otherId) : null
+    const value = l.value ?? 0
+    const kind: Line['kind'] =
+      l.kind === 'move'
+        ? 'transfer'
+        : l.kind === 'expense'
+          ? 'fee'
+          : inst !== null
+            ? 'dividend'
+            : 'interest'
+    lines.push({
+      kind,
+      at: l.occurredAt,
+      name:
+        kind === 'transfer'
+          ? (other?.name ?? l.text ?? '')
+          : kind === 'dividend'
+            ? (l.text ?? '')
+            : SOURCE,
+      symbol: inst?.symbol ?? null,
+      shares: l.meta?.shares ?? null,
+      each:
+        kind === 'dividend' && l.meta?.shares
+          ? Math.round((value / l.meta.shares) * 100) / 100
+          : null,
+      amount: l.kind === 'expense' ? -value : value,
+      currency: (l.unit ?? 'eur').toUpperCase(),
+      other:
+        other === null
+          ? null
+          : {
+              name: other.name,
+              domain: other.domain ?? null,
+              at: pair?.occurredAt ?? null,
+            },
+    })
+  }
+  lines.sort((a, b) => b.at - a.at)
+  return { rows: lines.length, had: came.had, lines: lines.slice(0, ON_CARD) }
 }

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Today mockup · week</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Values from src/styles/tokens.css, as in design/review-mockup */
+  :root {
+    --bg: #12121c;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150);
+    --bad: oklch(0.68 0.2 22);
+    --glass: linear-gradient(155deg, rgba(233,233,237,.06), rgba(233,233,237,.015));
+    --edge: rgba(233,233,237,.09);
+    --shadow: inset 0 1px 0 rgba(233,233,237,.07), 0 24px 48px -28px rgba(0,0,0,.9);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --a-lang: oklch(0.8 0.1 190); --a-body: oklch(0.8 0.1 155); --a-shake: oklch(0.8 0.1 120);
+    --a-social: oklch(0.8 0.1 15); --a-projects: oklch(0.8 0.1 352); --a-money: oklch(0.8 0.1 88);
+    --principle: oklch(0.78 0.12 340);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(900px 500px at 0% -10%, #2a2346 0%, transparent 60%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 13px; min-height: 100vh }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer }
+  .caps { font-family: var(--mono); font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-400) }
+
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; padding: 10px 16px 0; font-family: var(--mono); font-size: 11px; color: oklch(0.79 0.15 75); letter-spacing: .08em }
+  .ctl button { color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px }
+  .ctl button.on { color: var(--ink-100); border-color: oklch(0.79 0.15 75) }
+
+  .page { max-width: 1060px; margin: 0 auto; padding: 22px 16px 60px; display:flex; flex-direction:column; gap: 16px }
+
+  /* ── top: as the app has it now ── */
+  .top { display:grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; padding-bottom: 8px }
+  .hello { font-size: 34px; font-weight: 500; letter-spacing: -.02em }
+  .meta { display:flex; align-items:center; gap: 12px; margin-top: 12px; flex-wrap: wrap }
+  .lvbar { width: 110px; height: 3px; border-radius: 2px; background: rgba(255,255,255,.12); overflow:hidden }
+  .lvbar i { display:block; height:100%; width: 84%; background: var(--ink-200); animation: grow 1.2s .2s cubic-bezier(.2,.8,.2,1) both }
+  .principle { position: relative }
+  .principle .big { font-size: 30px; font-weight: 300; letter-spacing: .01em; color: var(--principle); margin-top: 26px }
+  .six { position:absolute; right: 0; top: -6px; border: 1px solid var(--edge); border-radius: 999px; padding: 7px 14px; font-family: var(--mono); font-size: 10px; letter-spacing: .2em; color: var(--ink-200) }
+
+  .card { position: relative; border-radius: 18px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 18px 20px;
+    animation: arrive .55s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 60ms) }
+  @keyframes arrive { from { opacity: 0; transform: translateY(10px) } }
+  .row2 { display:grid; grid-template-columns: 1fr 1fr; gap: 16px }
+  .ch { gap: 10px; flex-wrap: wrap; display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px }
+  .ev { display:flex; align-items:center; gap: 14px; padding: 4px 0 }
+  .ev .bar { width: 2px; height: 26px; background: var(--ink-300); border-radius: 1px }
+  .ev .t { font-family: var(--mono); font-size: 13px; color: var(--ink-200) }
+  .ev .n { font-size: 16px; flex: 1 }
+  .ev .d { font-family: var(--mono); font-size: 12px; color: var(--ink-400) }
+  .slot { display:flex; align-items:center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--edge); min-height: 46px }
+  .slot:first-of-type { border-top: 0; padding-top: 2px }
+  .slot .k { font-family: var(--mono); font-size: 11px; color: var(--ink-500); width: 18px }
+  .slot .add { color: var(--ink-400); font-size: 16px }
+
+  .badge { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap }
+  .b-lav { color: var(--lav-400) }
+
+  /* ── THIS WEEK: one line, blocks on it ── */
+  .wk { position: relative; height: 200px; margin-top: 6px }
+  .wk .days { position:absolute; inset: 0 0 22px 0; display:grid; grid-template-columns: repeat(7,1fr) }
+  .wk .days i { border-left: 1px solid var(--edge); position:relative }
+  .wk .days i:first-child { border-left: 0 }
+  .wk .days i.today { background: linear-gradient(180deg, transparent, rgba(181,171,252,.07)) }
+  .wk .track { position:absolute; left:0; right:0; top: 148px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.06) }
+  .wk .past { position:absolute; left:0; top: 148px; height: 6px; border-radius: 3px; width: calc(var(--now) * 1%);
+    background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--lav-400) 45%, transparent)); transform-origin: left; animation: grow 1.2s .3s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes grow { from { transform: scaleX(0) } }
+  .wk .dl { position:absolute; bottom: 0; transform: translateX(-50%); font-family: var(--mono); font-size: 9.5px; letter-spacing:.14em; color: var(--ink-500) }
+  .wk .dl.today { color: var(--lav-300) }
+  .blk { position:absolute; height: 20px; min-width: 12px; padding: 0 !important; border-radius: 6px; background: var(--a); color:#12121c; font-family: var(--mono); font-size: 9.5px; line-height: 20px; padding-left: 6px;
+    overflow: hidden; white-space: nowrap; box-shadow: 0 0 16px -4px var(--a); cursor: default;
+    animation: pop .5s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(var(--i) * 40ms + 400ms);
+    transition: transform .2s, box-shadow .2s }
+  @keyframes pop { from { transform: scale(.3); opacity: 0 } }
+  .blk:hover { transform: translateY(-2px) scale(1.08); box-shadow: 0 0 24px 0 var(--a); z-index: 5 }
+  .blk.up { background: transparent; color: var(--a); border: 1px dashed var(--a); box-shadow: none }
+  .wk .now { position:absolute; top: 14px; bottom: 22px; width: 2px; border-radius:1px; background: var(--ink-100); box-shadow: 0 0 10px var(--ink-100); left: calc(var(--now) * 1%) }
+  .wk .now::before { content:''; position:absolute; top:-4px; left:-3px; width:8px; height:8px; border-radius:50%; background: var(--ink-100); animation: ping 1.6s ease-out infinite }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(241,241,245,.5) } 100% { box-shadow: 0 0 0 10px rgba(241,241,245,0) } }
+  .tip { position:fixed; z-index: 50; pointer-events:none; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--edge); background: #1b1b2a; box-shadow: 0 18px 40px -12px #000;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing:.08em; color: var(--ink-200); opacity: 0; transform: translateY(4px); transition: opacity .15s, transform .15s; white-space: nowrap }
+  .tip.on { opacity: 1; transform: none }
+  .tip b { display:block; font-weight: 500; font-size: 12px; letter-spacing:.14em; color: var(--a) ; margin-bottom: 4px }
+  .tip span { color: var(--ink-400) }
+  .legend { display:flex; gap: 8px; flex-wrap: wrap }
+  .chip { display:inline-flex; align-items:center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing:.12em; color: var(--ink-300); border: 1px solid var(--edge); border-radius: 999px; padding: 3px 10px }
+  .chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--a) }
+  .chip b { font-weight: 500; color: var(--ink-100) }
+  .empty { position:absolute; left: 50%; top: 40px; transform: translateX(-50%) }
+</style>
+</head>
+<body>
+<div class="ctl">STATE <button data-s="busy" class="on">BUSY</button><button data-s="quiet">QUIET</button><button data-s="empty">EMPTY</button></div>
+<div class="page">
+  <div class="card" style="--i:0">
+    <div class="ch"><span class="caps">THIS WEEK · 12 – 18 OCT</span><div class="legend" id="legend"></div></div>
+    <div class="wk" id="wk" style="--now:93.4">
+      <div class="days" id="days"></div>
+      <div class="track"></div><div class="past"></div><div class="now"></div>
+    </div>
+  </div>
+</div>
+<div class="tip" id="tip"></div>
+<script>
+const A={workout:['WORKOUT','var(--a-body)'],langs:['SESSION','var(--a-lang)'],shake:['SHAKE','var(--a-shake)'],post:['POST','var(--a-social)'],commit:['COMMITS','var(--a-projects)'],spend:['SPEND','var(--a-money)']};
+const D=['MON 12','TUE 13','WED 14','THU 15','FRI 16','SAT 17','SUN 18'];
+const NOW=6+20.05/24; // Sun 20:03
+// day, hour, kind, detail
+const BUSY=[[0,7.5,'workout','60 MIN · LEGS'],[0,19,'langs','25 MIN · PORTUGUESE'],[1,8,'shake','1 SHAKE'],[1,12.5,'commit','4 COMMITS · SOLOLEVELING'],[1,18,'workout','45 MIN'],
+[2,9,'langs','20 MIN'],[2,13,'spend','€48 · GROCERIES'],[2,13.4,'shake','1 SHAKE'],[3,7,'workout','60 MIN'],[3,15,'post','1 POST · LINKEDIN'],[3,21,'langs','30 MIN'],
+[4,8.5,'shake','1 SHAKE'],[4,11,'commit','9 COMMITS'],[4,17.5,'workout','50 MIN'],[5,10,'langs','40 MIN'],[5,11.2,'spend','€12 · COFFEE'],[5,16,'commit','3 COMMITS'],[6,9,'shake','1 SHAKE'],[6,14,'workout','35 MIN']];
+const UP=[[6,21.5,'langs','PLANNED · 25 MIN']];
+const S={busy:[BUSY,UP],quiet:[[BUSY[0],BUSY[5],BUSY[12]],[]],empty:[[],[]]};
+const wk=document.getElementById('wk'),days=document.getElementById('days'),tip=document.getElementById('tip');
+function draw(s){
+  wk.querySelectorAll('.blk,.empty,.dl').forEach(e=>e.remove());days.innerHTML='';
+  D.forEach((d,i)=>{const c=document.createElement('i');if(i==6)c.className='today';days.appendChild(c);
+    const l=document.createElement('div');l.className='dl'+(i==6?' today':'');l.textContent=d;l.style.left=((i+.5)/7*100)+'%';wk.appendChild(l)});
+  const [logs,up]=S[s],W=wk.clientWidth,rows=[],count={};
+  [...logs.map(l=>[...l,0]),...up.map(l=>[...l,1])].sort((a,b)=>(a[0]+a[1]/24)-(b[0]+b[1]/24)).forEach((l,n)=>{
+    const [d,h,k,det,isUp]=l,x0=(d+h/24)/7*W,w=W>760?(k=='commit'||k=='workout'?64:46):14,lab=W>760?A[k][0]:'';
+    const x=Math.min(x0,W-w-2);let r=0;while(rows[r]!==undefined&&rows[r]>x-4)r++;rows[r]=x+w;
+    const b=document.createElement('div');b.className='blk'+(isUp?' up':'');b.style.cssText=`left:${x}px;top:${118-r*24}px;width:${w}px;--a:${A[k][1]};--i:${n}`;b.textContent=lab;
+    b.onmouseenter=()=>{const hh=String(Math.floor(h)).padStart(2,'0')+':'+String(Math.round(h%1*60)).padStart(2,'0');
+      tip.style.setProperty('--a',A[k][1]);tip.innerHTML=`<b>${A[k][0]}${isUp?' · NOT YET':''}</b>${det}<br><span>${D[d]} · ${hh}</span>`;
+      const r=b.getBoundingClientRect();tip.classList.add('on');tip.style.left=Math.min(innerWidth-tip.offsetWidth-12,Math.max(12,r.left+r.width/2-tip.offsetWidth/2))+'px';tip.style.top=(r.top-tip.offsetHeight-10)+'px'};
+    b.onmouseleave=()=>tip.classList.remove('on');wk.appendChild(b);count[k]=(count[k]||0)+!isUp});
+  if(!logs.length){const e=document.createElement('div');e.className='empty badge b-lav';e.textContent='NOTHING LOGGED';wk.appendChild(e)}
+  document.getElementById('legend').innerHTML=Object.keys(A).map(k=>`<span class="chip" style="--a:${A[k][1]}"><i></i>${A[k][0]} <b>${count[k]||0}</b></span>`).join('');
+}
+document.querySelectorAll('.ctl button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.ctl button').forEach(x=>x.classList.toggle('on',x==b));draw(b.dataset.s)});
+draw('busy');addEventListener('resize',()=>draw(document.querySelector('.ctl .on').dataset.s));
+</script>
+</body></html>

@@ -84,6 +84,10 @@
     animation: pop .5s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(var(--i) * 30ms + 300ms); transition: transform .2s, box-shadow .2s }
   @keyframes pop { from { transform: scale(.3); opacity: 0 } }
   .blk:hover { transform: scale(1.1); box-shadow: 0 0 20px 0 var(--a); z-index: 6 }
+  .blk { cursor: grab }
+  .blk.drag { opacity: .35 }
+  .cell.over { border-color: var(--lav-400); background: rgba(181,171,252,.12); box-shadow: 0 0 20px -6px var(--shine) }
+  .cell.no { border-color: var(--bad) }
   .blk.still { animation: none }
   .blk.new { animation: pop .5s cubic-bezier(.3,1.6,.5,1) both, landed 1.2s ease-out }
   @keyframes landed { 0% { box-shadow: 0 0 0 2px var(--lav-400), 0 0 30px 2px var(--a) } }
@@ -124,7 +128,7 @@ const BUSY=[[0,7.5,'workout','60 MIN · LEGS'],[0,19,'langs','25 MIN · PORTUGUE
 [2,9,'langs','20 MIN'],[2,13,'spend','€48 · GROCERIES'],[2,13.4,'shake','1 SHAKE'],[3,7,'workout','60 MIN'],[3,15,'post','1 POST · LINKEDIN'],[3,21,'langs','30 MIN'],
 [4,8.5,'shake','1 SHAKE'],[4,11,'commit','9 COMMITS'],[4,17.5,'workout','50 MIN'],[5,10,'langs','40 MIN'],[5,11.2,'spend','€12 · COFFEE'],[5,16,'commit','3 COMMITS'],[6,9,'shake','1 SHAKE'],[6,14,'workout','35 MIN']];
 const S={busy:BUSY,quiet:[BUSY[0],BUSY[5],BUSY[12]],empty:[]};
-let items=S.busy.map(r=>[...r]),fresh=-1,drawn=false;
+let dropAt=0,dragN=-1,items=S.busy.map(r=>[...r]),fresh=-1,drawn=false;
 const $=id=>document.getElementById(id),tip=$('tip'),pick=$('pick');
 const hh=h=>String(Math.floor(h)).padStart(2,'0')+':'+String(Math.round(h%1*60)).padStart(2,'0');
 const wide=()=>$('wk').clientWidth>620;
@@ -141,8 +145,14 @@ function draw(){
         const b=document.createElement('div');b.className='blk'+(n==fresh?' new':drawn?' still':'');b.style.cssText=`--a:${A[k][1]};--i:${n}`;b.textContent=wide()?A[k][0]:'';
         b.onmouseenter=()=>{tip.style.setProperty('--a',A[k][1]);tip.innerHTML=`<b>${A[k][0]}</b>${det}<br><span>${D[di]} · ${hh(h)}</span>`;
           const r=b.getBoundingClientRect();tip.classList.add('on');tip.style.left=Math.min(innerWidth-tip.offsetWidth-12,Math.max(12,r.left+r.width/2-tip.offsetWidth/2))+'px';tip.style.top=Math.max(8,r.top-tip.offsetHeight-10)+'px'};
-        b.onmouseleave=()=>tip.classList.remove('on');c.appendChild(b)});
-      if(!lock){c.insertAdjacentHTML('beforeend','<i class="plus">+</i>');c.onclick=e=>{if(!e.target.closest('.blk'))open(e,di,isNow?NOW:f)}}
+        b.onmouseleave=()=>tip.classList.remove('on');
+        b.draggable=true;b.ondragstart=e=>{tip.classList.remove('on');dragN=n;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(n));setTimeout(()=>b.classList.add('drag'))};
+        b.ondragend=()=>{dragN=-1;draw()};
+        c.appendChild(b)});
+      if(!lock){c.insertAdjacentHTML('beforeend','<i class="plus">+</i>');c.onclick=e=>{if(Date.now()-dropAt<400)return;if(!e.target.closest('.blk'))open(e,di,isNow?NOW:f)}}
+      c.ondragover=e=>{if(dragN<0)return;e.preventDefault();c.classList.add(lock?'no':'over')};
+      c.ondragleave=()=>c.classList.remove('over','no');
+      c.ondrop=e=>{e.preventDefault();c.classList.remove('over','no');if(dragN<0||lock)return;const it=items[dragN];it[0]=di;it[1]=isNow?Math.min(NOW,Math.max(f,it[1])):f;fresh=dragN;dragN=-1;dropAt=Date.now();draw()};
       wk.appendChild(c)})});
   $('legend').innerHTML=(items.length?'':'<span class="badge b-lav">NOTHING LOGGED</span>')+Object.keys(A).map(k=>`<span class="chip" style="--a:${A[k][1]}"><i></i>${A[k][0]} <b>${count[k]||0}</b></span>`).join('');
   fresh=-1;drawn=true;

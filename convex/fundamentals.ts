@@ -28,7 +28,7 @@ import {
 const DAY = 86_400_000
 export const SOURCE = 'Yahoo Finance'
 const SECTOR_SOURCE = 'Damodaran · NYU Stern'
-const UA =
+export const UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36'
 const RECENT_JOBS = 30
 
@@ -144,7 +144,10 @@ export const refresh = mutation({
 })
 
 /* Yahoo's quoteSummary wants a cookie and a crumb made with it. */
-async function crumb(): Promise<{ cookie: string; crumb: string } | null> {
+export async function crumb(): Promise<{
+  cookie: string
+  crumb: string
+} | null> {
   const first = await fetch('https://fc.yahoo.com/', {
     headers: { 'User-Agent': UA },
     redirect: 'manual',

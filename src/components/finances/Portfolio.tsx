@@ -18,9 +18,12 @@ import { combine } from '@/lib/owned'
 import { soldSums } from '@/lib/sold'
 import type { Position } from '@/components/finances/PortfolioList'
 import { ProfitPill, paidSums } from '@/components/finances/PortfolioParts'
-import { kindOf } from '@/lib/logo'
-import type { Kind } from '@/lib/logo'
+import { MoneyMap, useTags } from '@/components/finances/PortfolioMap'
+import type { Part } from '@/components/finances/PortfolioMap'
+import type { Lens } from '@/lib/tags'
 import { SkeletonRows } from '@/components/Skeleton'
+
+const NONE: ReadonlyArray<Position> = []
 
 const DATE = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
@@ -40,7 +43,9 @@ export function Portfolio({ position }: { position?: string }) {
   const worth = useQuery(api.aggregate.worth, {})
   const accounts = useQuery(api.accounts.list, {})
   const [filter, setFilter] = useState<Id<'accounts'> | 'all'>('all')
-  const [kind, setKind] = useState<Kind | 'all'>('all')
+  const [lens, setLens] = useState<Lens>('kind')
+  const [part, setPart] = useState<Part>(null)
+  const tags = useTags(data?.rows ?? NONE)
 
   if (data === undefined || accounts === undefined || worth === undefined) {
     return (
@@ -122,7 +127,14 @@ export function Portfolio({ position }: { position?: string }) {
           </div>
         )}
         {data.rows.length > 0 ? (
-          <KindSplit rows={data.rows} kind={kind} onKind={setKind} />
+          <MoneyMap
+            rows={data.rows}
+            tags={tags}
+            lens={lens}
+            onLens={setLens}
+            part={part}
+            onPart={setPart}
+          />
         ) : null}
       </Panel>
 
@@ -234,71 +246,11 @@ export function Portfolio({ position }: { position?: string }) {
           holders={holders}
           filter={filter}
           onFilter={setFilter}
-          kind={kind}
+          part={part}
+          onPart={setPart}
+          tags={tags}
         />
       ) : null}
-    </div>
-  )
-}
-
-const KINDS: ReadonlyArray<{ kind: Kind; label: string; tone: string }> = [
-  { kind: 'stock', label: 'stocks', tone: 'bg-lav-400' },
-  { kind: 'etf', label: 'ETFs', tone: 'bg-area-knowledge' },
-  { kind: 'gold', label: 'gold', tone: 'bg-money-cash' },
-  { kind: 'crypto', label: 'crypto', tone: 'bg-state-warn' },
-]
-
-/* What he owns, by kind (4 Oct: "we gonna have etfs, stocks, crypto and
-   gold"): the valued positions' sums, as a bar and its words. */
-function KindSplit({
-  rows,
-  kind,
-  onKind,
-}: {
-  rows: ReadonlyArray<Position>
-  kind: Kind | 'all'
-  onKind: (next: Kind | 'all') => void
-}) {
-  const sum = new Map<Kind, number>()
-  for (const r of rows)
-    if (r.valueEur !== null)
-      sum.set(kindOf(r), (sum.get(kindOf(r)) ?? 0) + r.valueEur)
-  const total = [...sum.values()].reduce((t, v) => t + v, 0)
-  if (total <= 0) return null
-  const parts = KINDS.filter((k) => (sum.get(k.kind) ?? 0) > 0)
-  return (
-    <div className="mt-4 flex flex-col gap-2">
-      <div className="flex h-2.5 gap-[3px] overflow-hidden rounded-full">
-        {parts.map((k) => (
-          <span
-            key={k.kind}
-            style={{ flex: sum.get(k.kind) }}
-            className={`rounded-full ${k.tone} transition-[flex,opacity] duration-700 ${
-              kind === 'all' || kind === k.kind ? '' : 'opacity-25'
-            }`}
-          />
-        ))}
-      </div>
-      <div className="-mx-2 flex flex-wrap gap-x-1 gap-y-1">
-        {parts.map((k) => {
-          const v = sum.get(k.kind) ?? 0
-          return (
-            <button
-              key={k.kind}
-              type="button"
-              aria-pressed={kind === k.kind}
-              onClick={() => onKind(kind === k.kind ? 'all' : k.kind)}
-              className={`label-caps motion-press flex items-center gap-1.5 rounded-[8px] px-2 py-1 transition-colors hover:bg-lift/[0.07] ${
-                kind === k.kind ? 'bg-lift/[0.07] text-foreground' : ''
-              }`}
-            >
-              <i className={`inline-block size-2 rounded-[2px] ${k.tone}`} />
-              {k.label} <Veiled>{euros(Math.round(v))}</Veiled> ·{' '}
-              {Math.round((v / total) * 100)}%
-            </button>
-          )
-        })}
-      </div>
     </div>
   )
 }

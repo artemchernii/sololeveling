@@ -33,6 +33,7 @@ import type * as e2eHoldingsTotal from "../e2eHoldingsTotal.js";
 import type * as e2eMoney from "../e2eMoney.js";
 import type * as e2ePortfolio from "../e2ePortfolio.js";
 import type * as e2eSignals from "../e2eSignals.js";
+import type * as e2eTags from "../e2eTags.js";
 import type * as e2eTransfer from "../e2eTransfer.js";
 import type * as e2eUpdate from "../e2eUpdate.js";
 import type * as events from "../events.js";
@@ -117,6 +118,7 @@ declare const fullApi: ApiFromModules<{
   e2eMoney: typeof e2eMoney;
   e2ePortfolio: typeof e2ePortfolio;
   e2eSignals: typeof e2eSignals;
+  e2eTags: typeof e2eTags;
   e2eTransfer: typeof e2eTransfer;
   e2eUpdate: typeof e2eUpdate;
   events: typeof events;

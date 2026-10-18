@@ -80,3 +80,20 @@ const WORDS: ReadonlyArray<[RegExp, Sector]> = [
 export function fromName(name: string): Sector | undefined {
   return WORDS.find(([re]) => re.test(name))?.[1]
 }
+
+/** A company's sector and country from Yahoo's quoteSummary with the
+    module assetProfile (18 Oct: the region tag on Portfolio). */
+export function parseProfile(json: unknown): {
+  sector?: string
+  country?: string
+} {
+  const res = (json as { quoteSummary?: { result?: unknown } } | null)
+    ?.quoteSummary?.result
+  const p = Array.isArray(res)
+    ? ((res[0] as { assetProfile?: Record<string, unknown> } | undefined)
+        ?.assetProfile ?? {})
+    : {}
+  const word = (x: unknown) =>
+    typeof x === 'string' && x.trim() ? x.trim() : undefined
+  return { sector: word(p.sector), country: word(p.country) }
+}

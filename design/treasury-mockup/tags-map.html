@@ -174,9 +174,10 @@
   .lens button { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-500); padding: 5px 11px; border-radius: 999px; transition: background .25s, color .25s }
   .lens button.on { background: rgba(181,171,252,.18); color: var(--ink-100); box-shadow: 0 0 18px -8px var(--lav-400) }
   .maphead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 18px }
-  .tg { display: inline-flex; align-items: center; font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; color: var(--ink-300); background: rgba(var(--lift),.06); flex: none }
-  .tg i { width: 6px; height: 6px; border-radius: 2px; margin-right: 5px }
-  .tg.miss { color: var(--warn); background: color-mix(in oklch, var(--warn) 13%, transparent); animation: live 1.8s ease-in-out infinite }
+  .tg { --t: var(--ink-400); display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px 3px 6px; border-radius: 999px; color: color-mix(in oklch, var(--t) 85%, white); background: color-mix(in oklch, var(--t) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--t) 30%, transparent); flex: none }
+  .tg svg.i { width: 11px; height: 11px; stroke-width: 2.2 } .tg .emo { font-size: 11px; letter-spacing: 0; line-height: 1 }
+  .legend .lm { display: inline-flex } .legend .lm svg.i { width: 12px; height: 12px } .legend .lm .emo { font-size: 12px }
+  .tg.miss svg { animation: live 1.8s ease-in-out infinite }
   .legend .miss { color: var(--warn) }
   .on-tag { display: inline-flex; align-items: center; gap: 6px }
   /* Typing re-reads the list in place: nothing arrives again. */
@@ -263,6 +264,31 @@ const T = { vuaa: ['index fund', 'us'], nvda: ['tech', 'us'], msft: ['tech', 'us
 const TONE = { tech: '--lav-400', consumer: '--k-etf', communication: 'oklch(0.72 0.13 300)', finance: 'oklch(0.74 0.1 190)', health: '--good', energy: '--danger', 'index fund': 'oklch(0.8 0.08 235)', gold: '--k-gold', coin: '--warn',
   us: '--lav-400', europe: '--k-etf', asia: 'oklch(0.72 0.13 300)', other: 'oklch(0.7 0.06 260)', 'no country': '--k-gold', 'fund · no region': 'oklch(0.8 0.08 235)', missing: '--ink-600' }
 const tone = (k) => { const t = TONE[k] ?? '--ink-500'; return t.startsWith('--') ? `var(${t})` : t }
+
+/* A tag's mark (18 Oct, his "emojis or icons + color"): try both. */
+const svg = (d) => `<svg class="i" viewBox="0 0 24 24">${d}</svg>`
+const ICON = {
+  tech: svg('<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>'),
+  consumer: svg('<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h3l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/>'),
+  communication: svg('<path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.1 19.1 19"/><circle cx="12" cy="12" r="2"/>'),
+  finance: svg('<path d="M3 22h18M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 2l8 5H4z"/>'),
+  health: svg('<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/>'),
+  energy: svg('<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>'),
+  'index fund': svg('<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>'),
+  gold: svg('<path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M2 9h20"/>'),
+  coin: svg('<circle cx="8" cy="8" r="6"/><path d="M18.1 10.4A6 6 0 1 1 10.3 18"/><path d="M7 6h1v4"/>'),
+  us: svg('<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>'),
+  europe: svg('<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/>'),
+  asia: svg('<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/>'),
+  other: svg('<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>'),
+  'no country': svg('<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>'),
+  'fund · no region': svg('<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>'),
+  missing: svg('<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/>'),
+}
+const EMO = { tech: '💻', consumer: '🛒', communication: '📡', finance: '🏦', health: '💊', energy: '⚡', 'index fund': '📈', gold: '🥇', coin: '🪙', us: '🇺🇸', europe: '🇪🇺', asia: '🌏', other: '🌍', 'no country': '⚪', 'fund · no region': '📈', missing: '⚠️' }
+let mark = 'icons'
+const markOf = (k) => (mark === 'emoji' ? `<span class="emo">${EMO[k] ?? ''}</span>` : ICON[k] ?? '')
+const chip = (k, label) => `<span class="tg ${k === 'missing' ? 'miss' : ''}" style="--t:${k === 'missing' ? 'var(--warn)' : tone(k)}">${markOf(k)}${label}</span>`
 let lens = 'kind', part = 'all'
 const tagOf = (p, l) => (S[K].missing?.includes(p.id) ? 'missing' : T[p.id]?.[l === 'sector' ? 0 : 1] ?? 'missing')
 const partOf = (p) => (lens === 'kind' ? p.kind : tagOf(p, lens))
@@ -323,7 +349,7 @@ function row(p, i) {
     : `<b>${eur(v.worth)}</b><span class="${up ? 'up' : 'down'}">${sgn(gain)}${eur(gain)} · ${up ? '▲' : '▼'} ${Math.abs(gain / v.paid * 100).toFixed(1)}%</span>`
   return `<button class="row" style="animation-delay:${i * 28}ms" onclick="go('${p.id}')">${logo(p, 38)}
     <span class="nm"><b>${hit(p.name)}</b><span class="sub"><span>${hit(p.sym)}</span>·${where}<span>· ${num(v.n)} ${UNIT(p, v.n)}</span></span>
-    <span class="sub">${['sector', 'region'].map((l) => { const t = tagOf(p, l); return t === 'missing' ? `<span class="tg miss">missing</span>` : `<span class="tg"><i style="background:${tone(t)}"></i>${t === 'index fund' ? 'fund · S&amp;P 500' : t}</span>` }).join('')}</span>
+    <span class="sub">${['sector', 'region'].map((l) => { const t = tagOf(p, l); return chip(t, t === 'index fund' ? 'fund · S&amp;P 500' : t) }).join('')}</span>
     ${p.staked && v.at.length ? `<span class="extra up">${I.spark}${eur(p.staked[1])} from staking</span>` : ''}</span>
     ${spark(p, up)}<span class="v">${right}</span><span class="go">${I.chev}</span></button>`
 }
@@ -356,11 +382,11 @@ function list() {
   return `<section class="sys"><div class="head"><span class="title">[ Portfolio · all accounts ]</span></div>
     <div class="worth"><div><span class="caps">worth now</span><b>${eur(worth)}</b></div>${pp(pw - paid, paid, 'since bought')}
       <span class="mono dim" style="font-size:11px;padding-bottom:8px">prices from 9 Oct · Yahoo Finance${noPrice ? ` · ${noPrice} with no price` : ''}</span></div>
-    <div class="maphead"><span class="caps">where the money is</span><div class="lens">${['kind', 'sector', 'region'].map((l) => `<button class="${lens === l ? 'on' : ''}" onclick="lens='${l}';part='all';render()">${l}</button>`).join('')}</div></div>
+    <div class="maphead"><span class="caps">where the money is</span><span style="display:inline-flex;gap:6px"><div class="lens">${[['icons', 'icons'], ['emoji', 'emoji']].map(([m, l]) => `<button class="${mark === m ? 'on' : ''}" onclick="mark='${m}';render()">${l}</button>`).join('')}</div><div class="lens">${['kind', 'sector', 'region'].map((l) => `<button class="${lens === l ? 'on' : ''}" onclick="lens='${l}';part='all';render()">${l}</button>`).join('')}</div></span></div>
     ${(() => { const keys = [...new Set(all.map(partOf))], parts = keys.map((k) => [k, lens === 'kind' ? KINDS.find((x) => x[0] === k)[1] : k, all.filter((p) => partOf(p) === k).reduce((t, p) => t + view(p).worth, 0)]).filter((x) => x[2] > 0).sort((a, b) => (a[0] === 'missing') - (b[0] === 'missing') || b[2] - a[2])
       const col = (k) => lens === 'kind' ? `var(--k-${k})` : tone(k)
       return `<div class="split" style="margin-top:10px">${parts.map(([k, , v]) => `<i style="flex:${v};background:${col(k)};opacity:${part === 'all' || part === k ? 1 : .25}"></i>`).join('')}</div>
-      <div class="legend">${parts.map(([k, l, v]) => `<button class="${part === k ? 'on' : ''} ${k === 'missing' ? 'miss' : ''}" onclick="part=part==='${k}'?'all':'${k}';render()"><i style="background:${col(k)}"></i>${l} ${eur(v, 0)} · ${Math.round(v / worth * 100)}%</button>`).join('')}</div>` })()}</section>
+      <div class="legend">${parts.map(([k, l, v]) => `<button class="${part === k ? 'on' : ''} ${k === 'missing' ? 'miss' : ''}" onclick="part=part==='${k}'?'all':'${k}';render()">${lens === 'kind' ? `<i style="background:${col(k)}"></i>` : `<span class="lm" style="color:${col(k)}">${markOf(k)}</span>`}${l} ${eur(v, 0)} · ${Math.round(v / worth * 100)}%</button>`).join('')}</div>` })()}</section>
   ${s.accts.length > 1 ? `<div class="accts">${cards.map(([a, n, w, pd], i) => `<button class="acct ${acct === a ? 'on' : ''}" style="animation-delay:${i * 50}ms" onclick="acct=acct==='${a}'?'all':'${a}';render()">
       <span class="t">${alogo(a, 32)}<b>${A[a].name}</b><span class="mono dim" style="font-size:10.5px">${n} positions</span></span>
       <span class="big">${eur(w + (A[a].cash ?? 0))}</span>

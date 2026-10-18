@@ -905,6 +905,11 @@ export default defineSchema({
     sector: v.optional(v.union(...SECTORS.map((s) => v.literal(s)))),
     sectorFrom: v.optional(v.union(v.literal('yahoo'), v.literal('name'))),
     sectorReadAt: v.optional(v.number()),
+    /* Where the company is, as Yahoo's assetProfile names it ("United
+       States"), for its region tag on Portfolio (18 Oct, tags-map.html).
+       Shares only; `countryReadAt` set and no country: Yahoo had none. */
+    country: v.optional(v.string()),
+    countryReadAt: v.optional(v.number()),
   })
     .index('by_owner_symbol', ['ownerId', 'symbol'])
     /* Read only by the daily price check, which acts for every owner —

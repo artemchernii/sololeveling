@@ -15,7 +15,8 @@ import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { useDayStarts } from '@/components/track/useDayStarts'
 import { codesOf, holdingLine, unitOf } from '@/lib/holdingLine'
-import type { Kind } from '@/lib/logo'
+import { PartPill, TagChips, partOf } from '@/components/finances/PortfolioMap'
+import type { Part, Tags } from '@/components/finances/PortfolioMap'
 import { euros } from '@/lib/money'
 import { combine, gainOf, matches, ordered } from '@/lib/owned'
 import type { Order, Owned } from '@/lib/owned'
@@ -86,21 +87,29 @@ export function PortfolioList({
   holders,
   filter,
   onFilter,
-  kind,
+  part,
+  onPart,
+  tags,
 }: {
   rows: ReadonlyArray<Position>
   sold: ReadonlyArray<Sold>
   holders: ReadonlyArray<Account>
   filter: Id<'accounts'> | 'all'
   onFilter: (next: Id<'accounts'> | 'all') => void
-  kind: Kind | 'all'
+  part: Part
+  onPart: (next: Part) => void
+  tags: Tags
 }) {
+  /* A pressed part of the bar keeps its rows; sold things are not where
+     the money is, so a sector or region keeps none of them. */
+  const kept = (o: Owned) =>
+    part === null || partOf(part.lens, o.at[0] ?? o, tags) === part.key
   const [order, setOrder] = useState<Order>(keptOrder)
   const [typed, setTyped] = useState('')
   const here = ordered(
     combine(rows.filter((r) => filter === 'all' || r.accountId === filter)),
     order,
-  ).filter((o) => kind === 'all' || o.kind === kind)
+  ).filter(kept)
   const shown = here.filter((o) => matches(o, typed))
   const chosen = holders.find((a) => a._id === filter)
   /* Sold is folded away until asked for (mockup portfolio.html). */
@@ -111,7 +120,7 @@ export function PortfolioList({
   const goneHere = combine(
     sold.filter((r) => filter === 'all' || r.accountId === filter),
   )
-    .filter((o) => kind === 'all' || o.kind === kind)
+    .filter((o) => part === null || (part.lens === 'kind' && kept(o)))
     .map((o) => ({ owned: o, sums: soldSums(o.paid, o.at) }))
     .sort((a, b) => b.sums.day - a.sums.day)
   const gone = goneHere.filter((g) => matches(g.owned, typed))
@@ -130,10 +139,9 @@ export function PortfolioList({
           : `${chosen ? chosen.name : 'everything owned'} · ${count(shown.length, here.length)}`
       }
       aside={
-        <div
-          className={`flex flex-wrap gap-1.5 ${here.length > 1 ? '' : 'hidden'}`}
-        >
-          {ORDERS.map((o) => (
+        <div className="flex flex-wrap gap-1.5">
+          <PartPill part={part} onClear={() => onPart(null)} />
+          {(here.length > 1 ? ORDERS : []).map((o) => (
             <button
               key={o.by}
               type="button"
@@ -185,6 +193,7 @@ export function PortfolioList({
             holders={holders}
             delay={finding ? 0 : i * 28}
             typed={typed}
+            tags={tags}
           />
         ))}
       </div>
@@ -299,11 +308,13 @@ function OwnedRow({
   holders,
   delay,
   typed,
+  tags,
 }: {
   owned: Owned<Position>
   holders: ReadonlyArray<Account>
   delay: number
   typed: string
+  tags: Tags
 }) {
   const today = useDayStarts(1).at(-1) as number
   const first = owned.at[0]
@@ -364,6 +375,7 @@ function OwnedRow({
               <Veiled>{`${owned.shares} ${unitOf(first, owned.shares)}`}</Veiled>
             </span>
           </span>
+          <TagChips tags={tags.get(first.instrumentId)} />
           {owned.stakedEur !== null ? (
             <span className="flex items-center gap-1 font-mono text-[10.5px] text-state-good">
               <Sparkles className="size-3" />

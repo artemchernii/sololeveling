@@ -116,3 +116,53 @@ test('signed out is refused', async () => {
   const { t, instrumentId } = await setup()
   await expect(t.mutation(api.sector.ask, { instrumentId })).rejects.toThrow()
 })
+
+/* Tags on Portfolio (18 Oct): what is missing is read once, on open. */
+test('askAll: a share asks Yahoo once for its profile; the country is stored', async () => {
+  const { t, me, instrumentId, jobs } = await setup({
+    symbol: 'ASML',
+    name: 'ASML Holding',
+    type: 'EQUITY',
+  })
+  expect(await me.mutation(api.sector.askAll, { ids: [instrumentId] })).toBe(1)
+  expect(await jobs()).toHaveLength(1)
+  await t.mutation(internal.sector.storeProfile, {
+    instrumentId,
+    sector: 'tech',
+    country: 'Netherlands',
+  })
+  expect(await me.query(api.sector.tags, { ids: [instrumentId] })).toEqual([
+    { instrumentId, sector: 'tech', country: 'Netherlands' },
+  ])
+  /* Asked again: read already, nothing goes out. */
+  expect(await me.mutation(api.sector.askAll, { ids: [instrumentId] })).toBe(0)
+  expect(await jobs()).toHaveLength(1)
+})
+
+test("askAll: a fund's sector from its name, no Yahoo", async () => {
+  const { me, instrumentId, jobs } = await setup()
+  expect(await me.mutation(api.sector.askAll, { ids: [instrumentId] })).toBe(0)
+  expect(await jobs()).toHaveLength(0)
+  expect(await me.query(api.sector.tags, { ids: [instrumentId] })).toEqual([
+    { instrumentId, sector: 'asia pacific', country: undefined },
+  ])
+})
+
+test('askAll: no Yahoo on the test backend; nothing of another user', async () => {
+  vi.stubEnv('E2E', '1')
+  const mine = await setup({ type: 'EQUITY' })
+  expect(
+    await mine.me.mutation(api.sector.askAll, { ids: [mine.instrumentId] }),
+  ).toBe(0)
+  expect(await mine.jobs()).toHaveLength(0)
+  const other = await setup({ ownerId: OTHER })
+  expect(
+    await other.me.mutation(api.sector.askAll, { ids: [other.instrumentId] }),
+  ).toBe(0)
+  expect(
+    await other.me.query(api.sector.tags, { ids: [other.instrumentId] }),
+  ).toEqual([])
+  await expect(
+    other.t.query(api.sector.tags, { ids: [other.instrumentId] }),
+  ).rejects.toThrow()
+})

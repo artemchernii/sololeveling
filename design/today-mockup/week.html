@@ -49,7 +49,7 @@
     animation: arrive .55s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 60ms) }
   @keyframes arrive { from { opacity: 0; transform: translateY(10px) } }
   .row2 { display:grid; grid-template-columns: 1fr 1fr; gap: 16px }
-  .ch { gap: 10px; flex-wrap: wrap; display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px }
+  .ch { display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px }
   .ev { display:flex; align-items:center; gap: 14px; padding: 4px 0 }
   .ev .bar { width: 2px; height: 26px; background: var(--ink-300); border-radius: 1px }
   .ev .t { font-family: var(--mono); font-size: 13px; color: var(--ink-200) }
@@ -63,38 +63,52 @@
   .badge { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap }
   .b-lav { color: var(--lav-400) }
 
-  /* ── THIS WEEK: one line, blocks on it ── */
-  .wk { position: relative; height: 200px; margin-top: 6px }
-  .wk .days { position:absolute; inset: 0 0 22px 0; display:grid; grid-template-columns: repeat(7,1fr) }
-  .wk .days i { border-left: 1px solid var(--edge); position:relative }
-  .wk .days i:first-child { border-left: 0 }
-  .wk .days i.today { background: linear-gradient(180deg, transparent, rgba(181,171,252,.07)) }
-  .wk .track { position:absolute; left:0; right:0; top: 148px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.06) }
-  .wk .past { position:absolute; left:0; top: 148px; height: 6px; border-radius: 3px; width: calc(var(--now) * 1%);
-    background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--lav-400) 45%, transparent)); transform-origin: left; animation: grow 1.2s .3s cubic-bezier(.2,.8,.2,1) both }
-  @keyframes grow { from { transform: scaleX(0) } }
-  .wk .dl { position:absolute; bottom: 0; transform: translateX(-50%); font-family: var(--mono); font-size: 9.5px; letter-spacing:.14em; color: var(--ink-500) }
-  .wk .dl.today { color: var(--lav-300) }
-  .blk { position:absolute; height: 20px; min-width: 12px; padding: 0 !important; border-radius: 6px; background: var(--a); color:#12121c; font-family: var(--mono); font-size: 9.5px; line-height: 20px; padding-left: 6px;
-    overflow: hidden; white-space: nowrap; box-shadow: 0 0 16px -4px var(--a); cursor: default;
-    animation: pop .5s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(var(--i) * 40ms + 400ms);
-    transition: transform .2s, box-shadow .2s }
-  @keyframes pop { from { transform: scale(.3); opacity: 0 } }
-  .blk:hover { transform: translateY(-2px) scale(1.08); box-shadow: 0 0 24px 0 var(--a); z-index: 5 }
-  .blk.up { background: transparent; color: var(--a); border: 1px dashed var(--a); box-shadow: none }
-  .wk .now { position:absolute; top: 14px; bottom: 22px; width: 2px; border-radius:1px; background: var(--ink-100); box-shadow: 0 0 10px var(--ink-100); left: calc(var(--now) * 1%) }
-  .wk .now::before { content:''; position:absolute; top:-4px; left:-3px; width:8px; height:8px; border-radius:50%; background: var(--ink-100); animation: ping 1.6s ease-out infinite }
+  /* ── THIS WEEK: days across, hours down ── */
+  .wk { position: relative; display:grid; grid-template-columns: 34px 1fr; margin-top: 4px }
+  .ax { position:relative; height: var(--H) ; margin-top: 22px }
+  .ax span { position:absolute; right: 8px; transform: translateY(-50%); font-family: var(--mono); font-size: 9.5px; color: var(--ink-500) }
+  .ax span.nowl { color: var(--ink-100); background: #1b1b2a; border-radius: 4px; padding: 0 3px; z-index: 3 }
+  .grid { position: relative }
+  .hd { display:grid; grid-template-columns: repeat(7,1fr); height: 22px }
+  .hd div { text-align:center; font-family: var(--mono); font-size: 9.5px; letter-spacing:.12em; color: var(--ink-500) }
+  .hd div.today { color: var(--lav-300) }
+  .cols { position: relative; display:grid; grid-template-columns: repeat(7,1fr); height: var(--H); border-top: 1px solid var(--edge) }
+  .col { position: relative; border-left: 1px solid var(--edge); cursor: crosshair }
+  .col:first-child { border-left: 0 }
+  .col.today { background: linear-gradient(180deg, rgba(181,171,252,.04), rgba(181,171,252,.09)) }
+  .hl { position:absolute; left:0; right:0; border-top: 1px dashed rgba(233,233,237,.06); pointer-events:none }
+  .nowline { position:absolute; left:0; right:0; top: var(--ny); height: 0; border-top: 1px solid rgba(241,241,245,.22); pointer-events:none; z-index: 2 }
+  .nowline i { position:absolute; left: calc(6 / 7 * 100%); right: 0; top: -1px; height: 2px; background: var(--ink-100); box-shadow: 0 0 10px var(--ink-100); border-radius: 1px }
+  .nowline i::before { content:''; position:absolute; left:-4px; top:-3px; width:8px; height:8px; border-radius:50%; background: var(--ink-100); animation: ping 1.6s ease-out infinite }
   @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(241,241,245,.5) } 100% { box-shadow: 0 0 0 10px rgba(241,241,245,0) } }
+  .blk { position:absolute; height: 22px; border-radius: 6px; background: var(--a); color:#12121c; font-family: var(--mono); font-size: 9px; line-height: 22px; padding: 0 5px;
+    overflow: hidden; white-space: nowrap; box-shadow: 0 0 14px -4px var(--a); cursor: default; z-index: 4;
+    animation: pop .5s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(var(--i) * 30ms + 300ms); transition: transform .2s, box-shadow .2s }
+  @keyframes pop { from { transform: scale(.3); opacity: 0 } }
+  .blk:hover { transform: scale(1.06); box-shadow: 0 0 24px 0 var(--a); z-index: 6 }
+  .blk.up { background: transparent; color: var(--a); border: 1px dashed var(--a); box-shadow: none; line-height: 20px }
+  .blk.still { animation: none }
+  .blk.new { animation: pop .5s cubic-bezier(.3,1.6,.5,1) both, landed 1.2s ease-out }
+  @keyframes landed { 0% { box-shadow: 0 0 0 2px var(--lav-400), 0 0 30px 2px var(--a) } }
+  .ghost { position:absolute; left: 3px; right: 3px; height: 22px; border-radius: 6px; border: 1px dashed rgba(181,171,252,.55); color: var(--lav-300); display:none; align-items:center; justify-content:center;
+    font-family: var(--mono); font-size: 10px; pointer-events:none; z-index: 3; background: rgba(181,171,252,.07) }
+  .col:hover .ghost { display:flex }
+  .pick { position:fixed; z-index: 60; width: 190px; padding: 10px; border-radius: 14px; border: 1px solid var(--edge); background: #1b1b2a; box-shadow: 0 24px 50px -12px #000; display:none; animation: arrive .25s both }
+  .pick.on { display:block }
+  .pick .t { font-family: var(--mono); font-size: 10px; letter-spacing:.14em; color: var(--ink-300); margin-bottom: 8px; display:flex; justify-content:space-between; align-items:center }
+  .pick button { display:flex; align-items:center; gap: 8px; width:100%; padding: 6px 8px; border-radius: 8px; font-family: var(--mono); font-size: 10.5px; letter-spacing:.12em; color: var(--ink-200); text-align:left }
+  .pick button i { width: 8px; height: 8px; border-radius: 50%; background: var(--a) }
+  .pick button:hover { background: rgba(255,255,255,.07) }
   .tip { position:fixed; z-index: 50; pointer-events:none; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--edge); background: #1b1b2a; box-shadow: 0 18px 40px -12px #000;
     font-family: var(--mono); font-size: 10.5px; letter-spacing:.08em; color: var(--ink-200); opacity: 0; transform: translateY(4px); transition: opacity .15s, transform .15s; white-space: nowrap }
   .tip.on { opacity: 1; transform: none }
-  .tip b { display:block; font-weight: 500; font-size: 12px; letter-spacing:.14em; color: var(--a) ; margin-bottom: 4px }
+  .tip b { display:block; font-weight: 500; font-size: 12px; letter-spacing:.14em; color: var(--a); margin-bottom: 4px }
   .tip span { color: var(--ink-400) }
   .legend { display:flex; gap: 8px; flex-wrap: wrap }
   .chip { display:inline-flex; align-items:center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing:.12em; color: var(--ink-300); border: 1px solid var(--edge); border-radius: 999px; padding: 3px 10px }
   .chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--a) }
   .chip b { font-weight: 500; color: var(--ink-100) }
-  .empty { position:absolute; left: 50%; top: 40px; transform: translateX(-50%) }
+  .empty { position:absolute; left: 50%; top: 40%; transform: translateX(-50%); z-index: 5 }
 </style>
 </head>
 <body>
@@ -102,41 +116,58 @@
 <div class="page">
   <div class="card" style="--i:0">
     <div class="ch"><span class="caps">THIS WEEK · 12 – 18 OCT</span><div class="legend" id="legend"></div></div>
-    <div class="wk" id="wk" style="--now:93.4">
-      <div class="days" id="days"></div>
-      <div class="track"></div><div class="past"></div><div class="now"></div>
+    <div class="wk" id="wk" style="--H:432px">
+      <div class="ax" id="ax"></div>
+      <div class="grid"><div class="hd" id="hd"></div><div class="cols" id="cols"></div></div>
     </div>
   </div>
 </div>
 <div class="tip" id="tip"></div>
+<div class="pick" id="pick"></div>
 <script>
 const A={workout:['WORKOUT','var(--a-body)'],langs:['SESSION','var(--a-lang)'],shake:['SHAKE','var(--a-shake)'],post:['POST','var(--a-social)'],commit:['COMMITS','var(--a-projects)'],spend:['SPEND','var(--a-money)']};
 const D=['MON 12','TUE 13','WED 14','THU 15','FRI 16','SAT 17','SUN 18'];
-const NOW=6+20.05/24; // Sun 20:03
-// day, hour, kind, detail
+const FROM=6,TO=24,H=432,PX=H/(TO-FROM),NOW=20.05; // Sun 20:03
 const BUSY=[[0,7.5,'workout','60 MIN · LEGS'],[0,19,'langs','25 MIN · PORTUGUESE'],[1,8,'shake','1 SHAKE'],[1,12.5,'commit','4 COMMITS · SOLOLEVELING'],[1,18,'workout','45 MIN'],
 [2,9,'langs','20 MIN'],[2,13,'spend','€48 · GROCERIES'],[2,13.4,'shake','1 SHAKE'],[3,7,'workout','60 MIN'],[3,15,'post','1 POST · LINKEDIN'],[3,21,'langs','30 MIN'],
-[4,8.5,'shake','1 SHAKE'],[4,11,'commit','9 COMMITS'],[4,17.5,'workout','50 MIN'],[5,10,'langs','40 MIN'],[5,11.2,'spend','€12 · COFFEE'],[5,16,'commit','3 COMMITS'],[6,9,'shake','1 SHAKE'],[6,14,'workout','35 MIN']];
-const UP=[[6,21.5,'langs','PLANNED · 25 MIN']];
-const S={busy:[BUSY,UP],quiet:[[BUSY[0],BUSY[5],BUSY[12]],[]],empty:[[],[]]};
-const wk=document.getElementById('wk'),days=document.getElementById('days'),tip=document.getElementById('tip');
-function draw(s){
-  wk.querySelectorAll('.blk,.empty,.dl').forEach(e=>e.remove());days.innerHTML='';
-  D.forEach((d,i)=>{const c=document.createElement('i');if(i==6)c.className='today';days.appendChild(c);
-    const l=document.createElement('div');l.className='dl'+(i==6?' today':'');l.textContent=d;l.style.left=((i+.5)/7*100)+'%';wk.appendChild(l)});
-  const [logs,up]=S[s],W=wk.clientWidth,rows=[],count={};
-  [...logs.map(l=>[...l,0]),...up.map(l=>[...l,1])].sort((a,b)=>(a[0]+a[1]/24)-(b[0]+b[1]/24)).forEach((l,n)=>{
-    const [d,h,k,det,isUp]=l,x0=(d+h/24)/7*W,w=W>760?(k=='commit'||k=='workout'?64:46):14,lab=W>760?A[k][0]:'';
-    const x=Math.min(x0,W-w-2);let r=0;while(rows[r]!==undefined&&rows[r]>x-4)r++;rows[r]=x+w;
-    const b=document.createElement('div');b.className='blk'+(isUp?' up':'');b.style.cssText=`left:${x}px;top:${118-r*24}px;width:${w}px;--a:${A[k][1]};--i:${n}`;b.textContent=lab;
-    b.onmouseenter=()=>{const hh=String(Math.floor(h)).padStart(2,'0')+':'+String(Math.round(h%1*60)).padStart(2,'0');
-      tip.style.setProperty('--a',A[k][1]);tip.innerHTML=`<b>${A[k][0]}${isUp?' · NOT YET':''}</b>${det}<br><span>${D[d]} · ${hh}</span>`;
-      const r=b.getBoundingClientRect();tip.classList.add('on');tip.style.left=Math.min(innerWidth-tip.offsetWidth-12,Math.max(12,r.left+r.width/2-tip.offsetWidth/2))+'px';tip.style.top=(r.top-tip.offsetHeight-10)+'px'};
-    b.onmouseleave=()=>tip.classList.remove('on');wk.appendChild(b);count[k]=(count[k]||0)+!isUp});
-  if(!logs.length){const e=document.createElement('div');e.className='empty badge b-lav';e.textContent='NOTHING LOGGED';wk.appendChild(e)}
-  document.getElementById('legend').innerHTML=Object.keys(A).map(k=>`<span class="chip" style="--a:${A[k][1]}"><i></i>${A[k][0]} <b>${count[k]||0}</b></span>`).join('');
+[4,8.5,'shake','1 SHAKE'],[4,11,'commit','9 COMMITS'],[4,17.5,'workout','50 MIN'],[5,10,'langs','40 MIN'],[5,11.2,'spend','€12 · COFFEE'],[5,16,'commit','3 COMMITS'],[6,9,'shake','1 SHAKE'],[6,14,'workout','35 MIN']].map(r=>[...r,0]);
+const UP=[[6,21.5,'langs','25 MIN',1]];
+const S={busy:[...BUSY,...UP],quiet:[BUSY[0],BUSY[5],BUSY[12]],empty:[]};
+let state='busy',items=[],fresh=-1,drawn=false;
+const $=id=>document.getElementById(id),tip=$('tip'),pick=$('pick');
+const hh=h=>String(Math.floor(h)).padStart(2,'0')+':'+String(Math.round(h%1*60)).padStart(2,'0');
+const y=h=>(Math.min(TO-.4,Math.max(FROM,h))-FROM)*PX;
+function draw(){
+  $('ax').innerHTML=[6,9,12,15,18,21].map(h=>`<span style="top:${y(h)}px">${String(h).padStart(2,'0')}</span>`).join('')+`<span class="nowl" style="top:${y(NOW)}px">${hh(NOW)}</span>`;
+  $('hd').innerHTML=D.map((d,i)=>`<div class="${i==6?'today':''}">${d}</div>`).join('');
+  const cols=$('cols');cols.innerHTML='';
+  const hl=[9,12,15,18,21].map(h=>`<i class="hl" style="top:${y(h)}px"></i>`).join('');
+  D.forEach((d,i)=>{const c=document.createElement('div');c.className='col'+(i==6?' today':'');c.dataset.d=i;c.innerHTML=hl+'<div class="ghost"></div>';
+    c.onmousemove=e=>{const r=c.getBoundingClientRect(),h=snap(FROM+(e.clientY-r.top)/PX),g=c.querySelector('.ghost');g.style.top=(y(h)-11)+'px';g.textContent='+ '+hh(h)};
+    c.onclick=e=>{if(e.target.closest('.blk'))return;const r=c.getBoundingClientRect(),h=snap(FROM+(e.clientY-r.top)/PX);open(e,i,h)};
+    cols.appendChild(c)});
+  const ny=document.createElement('div');ny.className='nowline';ny.style.setProperty('--ny',y(NOW)+'px');ny.innerHTML='<i></i>';cols.appendChild(ny);
+  const count={},W=cols.clientWidth/7;
+  items.forEach((it,n)=>{const [d,h,k,det,up]=it;if(!up)count[k]=(count[k]||0)+1;
+    const group=items.filter(o=>o[0]==d&&Math.abs(o[1]-h)*PX<24&&items.indexOf(o)<=n),slot=group.length-1,all=items.filter(o=>o[0]==d&&Math.abs(o[1]-h)*PX<24).length,w=(W-8)/Math.max(all,1);
+    const b=document.createElement('div');b.className='blk'+(up?' up':'')+(n==fresh?' new':'')+(drawn&&n!=fresh?' still':'');b.style.cssText=`left:${4+slot*w}px;width:${w-3}px;top:${y(h)-11}px;--a:${A[k][1]};--i:${n}`;
+    b.textContent=W>80?A[k][0]:'';
+    b.onmouseenter=()=>{tip.style.setProperty('--a',A[k][1]);tip.innerHTML=`<b>${A[k][0]}${up?' · PLANNED':''}</b>${det}<br><span>${D[d]} · ${hh(h)}</span>`;
+      const r=b.getBoundingClientRect();tip.classList.add('on');tip.style.left=Math.min(innerWidth-tip.offsetWidth-12,Math.max(12,r.left+r.width/2-tip.offsetWidth/2))+'px';tip.style.top=Math.max(8,r.top-tip.offsetHeight-10)+'px'};
+    b.onmouseleave=()=>tip.classList.remove('on');cols.children[d].appendChild(b)});
+  if(!items.length){const e=document.createElement('div');e.className='empty badge b-lav';e.textContent='NOTHING LOGGED';cols.appendChild(e)}
+  $('legend').innerHTML=Object.keys(A).map(k=>`<span class="chip" style="--a:${A[k][1]}"><i></i>${A[k][0]} <b>${count[k]||0}</b></span>`).join('');
+  fresh=-1;drawn=true;
 }
-document.querySelectorAll('.ctl button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.ctl button').forEach(x=>x.classList.toggle('on',x==b));draw(b.dataset.s)});
-draw('busy');addEventListener('resize',()=>draw(document.querySelector('.ctl .on').dataset.s));
+const snap=h=>Math.min(TO-.5,Math.max(FROM,Math.round(h*2)/2));
+function open(e,d,h){const up=d*24+h>6*24+NOW;
+  pick.innerHTML=`<div class="t"><span>${D[d]} · ${hh(h)}</span><span class="badge ${up?'b-lav':''}">${up?'PLAN':'LOG'}</span></div>`+Object.keys(A).map(k=>`<button data-k="${k}" style="--a:${A[k][1]}"><i></i>${A[k][0]}</button>`).join('');
+  pick.classList.add('on');pick.style.left=Math.min(innerWidth-202,Math.max(8,e.clientX+8))+'px';pick.style.top=Math.min(innerHeight-250,Math.max(8,e.clientY-20))+'px';
+  pick.querySelectorAll('button').forEach(b=>b.onclick=()=>{items.push([d,h,b.dataset.k,'ADDED NOW',up?1:0]);fresh=items.length-1;pick.classList.remove('on');draw()});
+  e.stopPropagation()}
+document.addEventListener('click',e=>{if(!pick.contains(e.target))pick.classList.remove('on')});
+addEventListener('keydown',e=>{if(e.key=='Escape')pick.classList.remove('on')});
+document.querySelectorAll('.ctl button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.ctl button').forEach(x=>x.classList.toggle('on',x==b));state=b.dataset.s;drawn=false;items=S[state].map(r=>[...r]);draw()});
+items=S.busy.map(r=>[...r]);draw();addEventListener('resize',draw);
 </script>
 </body></html>

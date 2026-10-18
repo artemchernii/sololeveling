@@ -61,7 +61,18 @@ async function mock() {
     )
   /* The next answer, asked some hours on. */
   const later = async (
-    as: 'traded' | 'frozen' | 'cash' | 'refused' | 'down' | 'many',
+    as:
+      | 'traded'
+      | 'shares'
+      | 'paid'
+      | 'deposit'
+      | 'early'
+      | 'first'
+      | 'frozen'
+      | 'cash'
+      | 'refused'
+      | 'down'
+      | 'many',
   ) => {
     await me.mutation(api.e2eBank.answer, { as })
     vi.setSystemTime(Date.now() + 5 * HOUR)
@@ -93,7 +104,7 @@ test('connect: Trading 212 says what the file said — all the same, a look writ
 test('bought and sold: saved with no press, and the block says what each was and is', async () => {
   const { me, args, link, looks, cash, later } = await mock()
   await me.action(api.t212.connect, args)
-  expect(await later('traded')).toBe('checked')
+  expect(await later('shares')).toBe('checked')
   const at = NOON + 5 * HOUR
 
   const rows = (await me.query(api.aggregate.positions, {})).rows
@@ -267,7 +278,7 @@ test('the card reads what changed in euros: shares × the stored price, then and
     failed: null,
     changed: null,
   })
-  await later('traded')
+  await later('shares')
   const [link] = await me.query(api.bank.links, {})
   expect(link.changed).toEqual({
     at: NOON - 5 * HOUR,
@@ -358,6 +369,8 @@ test('a fund the account holds under another listing is that holding, not a seco
     ownerId: ME,
     ...args,
     cash: { currency: 'EUR', value: 1280.3 },
+    history: [],
+    from: 0,
     positions: [
       { ticker: 'NVDA_US_EQ', name: 'Nvidia', isin: 'US67066G1040', shares: 8 },
       {

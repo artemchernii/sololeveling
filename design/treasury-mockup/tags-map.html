@@ -259,10 +259,10 @@ for (const [id, kind, name, sym, a, n, paid, worth] of more) P.splice(P.length -
 P.push({ id: 'nio', kind: 'stock', name: 'NIO', sym: 'NIO', where: 'share · NYSE · USD', logo: share('NIO'), ccy: '$', px: 6.1, from: 9, sold: { day: '2 Feb 2026', bought: 120, got: 82.4 }, at: [], facts: [], trades: [['2 Feb 2026', 'sell', 'tr', 82.4, 15, 6.1, .3]] })
 
 /* Tags: [sector, region]. A fund's from its name; a coin or gold has no country. */
-const T = { vuaa: ['index fund', 'us'], nvda: ['tech', 'us'], msft: ['tech', 'us'], amzn: ['consumer', 'us'], asml: ['tech', 'europe'], sol: ['coin', 'no country'], shld: ['tech', 'fund · no region'], eth: ['coin', 'no country'], gold: ['gold', 'no country'], btc: ['coin', 'no country'], lkoh: ['energy', 'other'],
+const T = { vuaa: ['etf', 'us'], nvda: ['tech', 'us'], msft: ['tech', 'us'], amzn: ['consumer', 'us'], asml: ['tech', 'europe'], sol: ['coin', 'no country'], shld: ['tech', 'etf · no region'], eth: ['coin', 'no country'], gold: ['gold', 'no country'], btc: ['coin', 'no country'], lkoh: ['energy', 'other'],
   aapl: ['tech', 'us'], googl: ['communication', 'us'], meta: ['communication', 'us'], tsla: ['consumer', 'us'], amd: ['tech', 'us'], nflx: ['communication', 'us'], v: ['finance', 'us'], ko: ['consumer', 'us'], pltr: ['tech', 'us'], nvo: ['health', 'europe'], sap: ['tech', 'europe'], shop: ['tech', 'other'], ada: ['coin', 'no country'], nio: ['consumer', 'asia'] }
-const TONE = { tech: '--lav-400', consumer: '--k-etf', communication: 'oklch(0.72 0.13 300)', finance: 'oklch(0.74 0.1 190)', health: '--good', energy: '--danger', 'index fund': 'oklch(0.8 0.08 235)', gold: '--k-gold', coin: '--warn',
-  us: '--lav-400', europe: '--k-etf', asia: 'oklch(0.72 0.13 300)', other: 'oklch(0.7 0.06 260)', 'no country': '--k-gold', 'fund · no region': 'oklch(0.8 0.08 235)', missing: '--ink-600' }
+const TONE = { tech: '--lav-400', consumer: '--k-etf', communication: 'oklch(0.72 0.13 300)', finance: 'oklch(0.74 0.1 190)', health: '--good', energy: '--danger', 'etf': 'oklch(0.8 0.08 235)', gold: '--k-gold', coin: '--warn',
+  us: '--lav-400', europe: '--k-etf', asia: 'oklch(0.72 0.13 300)', other: 'oklch(0.7 0.06 260)', 'no country': '--k-gold', 'etf · no region': 'oklch(0.8 0.08 235)', missing: '--ink-600' }
 const tone = (k) => { const t = TONE[k] ?? '--ink-500'; return t.startsWith('--') ? `var(${t})` : t }
 
 /* A tag's mark (18 Oct, his "emojis or icons + color"): try both. */
@@ -274,7 +274,7 @@ const ICON = {
   finance: svg('<path d="M3 22h18M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 2l8 5H4z"/>'),
   health: svg('<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/>'),
   energy: svg('<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>'),
-  'index fund': svg('<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>'),
+  'etf': svg('<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>'),
   gold: svg('<path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M2 9h20"/>'),
   coin: svg('<circle cx="8" cy="8" r="6"/><path d="M18.1 10.4A6 6 0 1 1 10.3 18"/><path d="M7 6h1v4"/>'),
   us: svg('<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>'),
@@ -282,10 +282,10 @@ const ICON = {
   asia: svg('<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/>'),
   other: svg('<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>'),
   'no country': svg('<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>'),
-  'fund · no region': svg('<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>'),
+  'etf · no region': svg('<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>'),
   missing: svg('<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/>'),
 }
-const EMO = { tech: '💻', consumer: '🛒', communication: '📡', finance: '🏦', health: '💊', energy: '⚡', 'index fund': '📈', gold: '🥇', coin: '🪙', us: '🇺🇸', europe: '🇪🇺', asia: '🌏', other: '🌍', 'no country': '⚪', 'fund · no region': '📈', missing: '⚠️' }
+const EMO = { tech: '💻', consumer: '🛒', communication: '📡', finance: '🏦', health: '💊', energy: '⚡', 'etf': '📈', gold: '🥇', coin: '🪙', us: '🇺🇸', europe: '🇪🇺', asia: '🌏', other: '🌍', 'no country': '⚪', 'etf · no region': '📈', missing: '⚠️' }
 let mark = 'icons'
 const markOf = (k) => (mark === 'emoji' ? `<span class="emo">${EMO[k] ?? ''}</span>` : ICON[k] ?? '')
 const chip = (k, label) => `<span class="tg ${k === 'missing' ? 'miss' : ''}" style="--t:${k === 'missing' ? 'var(--warn)' : tone(k)}">${markOf(k)}${label}</span>`
@@ -349,7 +349,7 @@ function row(p, i) {
     : `<b>${eur(v.worth)}</b><span class="${up ? 'up' : 'down'}">${sgn(gain)}${eur(gain)} · ${up ? '▲' : '▼'} ${Math.abs(gain / v.paid * 100).toFixed(1)}%</span>`
   return `<button class="row" style="animation-delay:${i * 28}ms" onclick="go('${p.id}')">${logo(p, 38)}
     <span class="nm"><b>${hit(p.name)}</b><span class="sub"><span>${hit(p.sym)}</span>·${where}<span>· ${num(v.n)} ${UNIT(p, v.n)}</span></span>
-    <span class="sub">${['sector', 'region'].map((l) => { const t = tagOf(p, l); return chip(t, t === 'index fund' ? 'fund · S&amp;P 500' : t) }).join('')}</span>
+    <span class="sub">${['sector', 'region'].map((l) => { const t = tagOf(p, l); return chip(t, t === 'etf' ? 'ETF · S&amp;P 500' : t) }).join('')}</span>
     ${p.staked && v.at.length ? `<span class="extra up">${I.spark}${eur(p.staked[1])} from staking</span>` : ''}</span>
     ${spark(p, up)}<span class="v">${right}</span><span class="go">${I.chev}</span></button>`
 }

@@ -89,14 +89,15 @@
   .r .n > span { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
   .r .n b { font-weight: 400; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
   .r .n small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); display: flex; gap: 6px; align-items: center; flex-wrap: wrap }
-  .tg { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; padding: 1px 6px; border-radius: 5px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px }
+  .tg { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; padding: 1px 6px; border-radius: 5px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis }
+  .r .n > span, .r .n small { overflow: hidden }
   .tg.same { color: var(--good); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 40%, transparent) }
   .tg.same svg { width: 10px; height: 10px; stroke-width: 3; animation: pop .45s var(--ease) .6s both }
   .tg.miss { color: var(--warn); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 45%, transparent) }
   .tg.miss i { width: 5px; height: 5px; border-radius: 999px; background: currentColor; animation: live 1.6s ease-in-out infinite }
   .tg.had { color: var(--ink-400); box-shadow: inset 0 0 0 1px rgba(var(--lift),.14) }
   .r .v { font-family: var(--mono); font-size: 13.5px; white-space: nowrap; text-align: right }
-  .ic { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; background: rgba(181,171,252,.12); color: var(--lav-300); flex: none }
+  .ic { width: 22px; height: 22px; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: rgba(181,171,252,.12); color: var(--lav-300); flex: none }
   .ic svg.i { width: 12px; height: 12px }
 
   .foot { margin-top: auto; padding-top: 12px; border-top: 1px solid rgba(var(--lift),.08); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; min-height: 41px }
@@ -139,6 +140,8 @@ const P = {
   link: '<path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/>',
   pencil: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
   swap: '<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
+  percent: '<line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6"/><path d="M16 12h-6"/>',
   sync: '<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>',
 }
 const svg = (k) => `<svg class="i" viewBox="0 0 24 24">${P[k]}</svg>`
@@ -153,18 +156,18 @@ const R = {
   sell: ['sell', ASML, 'ASML', '1 share · €640.00', '+€640.00', 'green'],
   div: ['div', ASML, 'ASML', '1 share · €1.38 each', '+€1.38', 'green'],
   divV: ['div', VWRL, 'Vanguard FTSE All-World', '14 shares · €0.44 each', '+€6.16', 'green'],
-  int: ['int', null, 'Interest', 'on free cash', '+€2.04', 'green'],
-  fee: ['fee', null, 'Fee', 'currency', '−€0.45', ''],
-  inRev: ['move', REV, '← Revolut', `<span class="tg same">${svg('check')}same payment · Revolut</span>`, '+€500.00', 'lav'],
-  inRevMiss: ['move', null, '← own account', `<span class="tg miss"><i></i>Revolut · missing</span>`, '+€500.00', 'lav'],
-  inAct: ['move', ACT, '← ActivoBank', `<span class="tg same">${svg('check')}same payment · ActivoBank</span>`, '+€300.00', 'lav'],
+  int: ['int', null, 'Trading 212', 'free cash', '+€2.04', 'green'],
+  fee: ['fee', null, 'Trading 212', 'currency exchange', '−€0.45', ''],
+  inRev: ['move', REV, 'Revolut', `<span class="tg same">${svg('check')}saved in Revolut · 16 Oct</span>`, '+€500.00', 'lav'],
+  inRevMiss: ['move', null, 'Deposit', `<span class="tg miss"><i></i>not saved in a bank</span>`, '+€500.00', 'lav'],
+  inAct: ['move', ACT, 'ActivoBank', `<span class="tg same">${svg('check')}saved in ActivoBank · 13 Oct</span>`, '+€300.00', 'lav'],
   had: ['buy', VWRL, 'Vanguard FTSE All-World', '<span class="tg had">already added · csv 12 Oct</span>', '−€200.00', ''],
 }
 const BADGE = { buy: 'buy', sell: 'sell', div: 'dividend', int: 'interest', fee: 'fee', move: 'transfer' }
 const line = ([b, d, name, sub, v, tone], i = 0) => `
   <div class="r" style="animation-delay:${i * 40}ms">
     <span class="bd ${b}">${BADGE[b]}</span>
-    <span class="n">${d ? logo(d, 'xs') : `<span class="ic">${svg(b === 'move' ? 'swap' : 'sync')}</span>`}<span><b>${name}</b><small>${sub}</small></span></span>
+    <span class="n">${d ? logo(d, 'xs') : `<span class="ic">${svg(b === 'move' ? 'swap' : b === 'int' ? 'percent' : 'receipt')}</span>`}<span><b>${name}</b><small>${sub}</small></span></span>
     <span class="v ${tone}">${v}</span>
   </div>`
 
@@ -174,11 +177,11 @@ const block = (chips, rows, more = 0) => `
     <div class="list">${rows.map(line).join('')}${more ? `<div class="more">${more} more ›</div>` : ''}</div>
   </div></div>`
 
-const t212 = ({ total = '€5,367.50', cash = '€1,280.30', inv = '€4,087.20', since = ['no trades yet', 'dim'], got = '', when = 'today 14:05' } = {}) => `
+const t212 = ({ total = '€5,367.50', cash = '€1,280.30', inv = '€4,087.20', since = ['€0.00', 'dim'], got = '', when = 'today 14:05' } = {}) => `
   <div class="card" onclick="openSheet()">
     <div class="top">${logo('trading212.com')}<span class="who"><b>Trading 212</b><span class="kinds"><span class="kind broker">broker</span></span></span><button class="pill">${svg('pencil')}edit</button></div>
     <div class="total"><b>${total}</b></div>
-    <div class="rows">${row(`free cash <i>EUR</i>${mark}`, cash)}${row(`investments${mark}`, inv)}${row('since 1 Oct', since[0], since[1] + (got && since[1] !== 'dim' ? ' lit' : ''))}</div>
+    <div class="rows">${row(`free cash <i>EUR</i>${mark}`, cash)}${row(`investments${mark}`, inv)}${row('bought since 1 Oct', since[0], since[1] + (got && since[1] !== 'dim' ? ' lit' : ''))}</div>
     ${got}
     <div class="foot"><span class="from"><span class="link">${svg('link')}</span>from Trading 212 · ${when}</span></div>
   </div>`
@@ -188,14 +191,14 @@ const revolut = (out) => `
     <div class="top">${logo(REV)}<span class="who"><b>Revolut</b><span class="kinds"><span class="kind">bank</span><span class="kind broker">broker</span></span></span><button class="pill">${svg('pencil')}edit</button></div>
     <div class="total"><b>€14,001.53</b></div>
     <div class="rows">${row(`cash <i>EUR</i>${mark}`, '€1,052.10')}${row('investments', '€12,949.43')}${row('spent since 1 Oct', '€612.40')}</div>
-    ${out ? `<div class="list">${line(['move', 'trading212.com', '→ Trading 212', `<span class="tg same">${svg('check')}same payment · Trading 212</span>`, '−€500.00', 'lav'])}</div>` : ''}
+    ${out ? `<div class="list">${line(['move', 'trading212.com', 'Trading 212', `<span class="tg same">${svg('check')}saved in Trading 212 · 16 Oct</span>`, '−€500.00', 'lav'])}</div>` : ''}
     <div class="foot"><span class="from"><span class="link">${svg('link')}</span>from the bank · today 13:39</span></div>
   </div>`
 
 const S = {
   today: () => t212() + revolut(false),
-  first: () => t212({ since: ['bought €1,240.00', 'lav'], got: block('<span class="chip new"><i></i>14 new</span><span class="chip had">3 already added</span>', [R.buy, R.inRev, R.divV], 11) }) + revolut(false),
-  daily: () => t212({ total: '€5,368.88', cash: '€981.68', inv: '€4,387.20', since: ['bought €300.00', 'lav'], got: block('<span class="chip new"><i></i>2 new</span>', [R.buy, R.div]) }) + revolut(false),
+  first: () => t212({ since: ['€1,240.00', 'lav'], got: block('<span class="chip new"><i></i>14 new</span><span class="chip had">3 already added</span>', [R.buy, R.inRev, R.divV], 11) }) + revolut(false),
+  daily: () => t212({ total: '€5,368.88', cash: '€981.68', inv: '€4,387.20', since: ['€300.00', 'lav'], got: block('<span class="chip new"><i></i>2 new</span>', [R.buy, R.div]) }) + revolut(false),
   deposit: () => t212({ total: '€5,867.50', cash: '€1,780.30', got: block('<span class="chip new"><i></i>1 new</span>', [R.inRev]) }) + revolut(true),
   early: () => t212({ total: '€5,867.50', cash: '€1,780.30', got: block('<span class="chip new"><i></i>1 new</span>', [R.inRevMiss]) }) + revolut(false),
   sheet: () => (setTimeout(openSheet, 50), S.first()),

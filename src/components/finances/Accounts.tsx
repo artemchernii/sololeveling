@@ -237,6 +237,7 @@ export function Accounts() {
               })()}
               arrived={linkOf(a.accountId)?.arrived ?? null}
               changed={linkOf(a.accountId)?.changed ?? null}
+              came={linkOf(a.accountId)?.came ?? null}
               onShut={() =>
                 (linkOf(a.accountId)?.via === 't212' ? shutT212 : shut)({
                   accountId: a.accountId,

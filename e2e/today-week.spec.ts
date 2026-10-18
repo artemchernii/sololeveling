@@ -79,6 +79,7 @@ test('THIS WEEK: press an empty cell, pick a kind — saving, then landed', asyn
   page,
 }) => {
   const week = await open(page, false)
+  await expect(week.getByTestId('week-empty')).toBeVisible()
   await week.getByTestId('cell-0-2').click()
   const menu = week.getByTestId('week-menu')
   await expect(menu).toContainText('WED 14 · 06:00')

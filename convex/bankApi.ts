@@ -13,6 +13,15 @@ import type { BankTx } from '../src/lib/bankRows'
 
 const BASE = 'https://api.enablebanking.com'
 
+/* Enable Banking turned the call away: the key or the application changed
+   (a new application after the 12 Oct leak), or the bank's approval was
+   taken back. Asking again changes nothing until he approves again. */
+export const BANK_REFUSED = 'The bank rejected the key.'
+const REFUSED_STATUS = [401, 403, 404]
+
+export const isRefused = (e: unknown) =>
+  e instanceof ConvexError && e.data === BANK_REFUSED
+
 export type BankSession = {
   sessionId: string
   bank: string
@@ -111,6 +120,7 @@ function real(appId: string, pem: string, redirect: string): BankApi {
       typeof json === 'object' && json !== null
         ? (json as Record<string, unknown>)
         : {}
+    if (REFUSED_STATUS.includes(res.status)) throw new ConvexError(BANK_REFUSED)
     if (!res.ok) {
       /* The bank's own reason, when it gave one; never the request. */
       throw new ConvexError(
@@ -300,19 +310,21 @@ export const CANNED: BankApi = {
           : [{ uid: 'e2e-a', currency: 'EUR', iban: 'PT50000000004471' }],
     }),
   balances: (uid) =>
-    Promise.resolve([
-      {
-        balance_type: 'ITAV',
-        balance_amount: { amount: '702.49', currency: 'EUR' },
-      },
-      {
-        balance_type: 'CLBD',
-        balance_amount: {
-          amount: LATER[uid.split(':')[1]]?.balance ?? '727.49',
-          currency: 'EUR',
-        },
-      },
-    ]),
+    uid.endsWith(':refused')
+      ? Promise.reject(new ConvexError(BANK_REFUSED))
+      : Promise.resolve([
+          {
+            balance_type: 'ITAV',
+            balance_amount: { amount: '702.49', currency: 'EUR' },
+          },
+          {
+            balance_type: 'CLBD',
+            balance_amount: {
+              amount: LATER[uid.split(':')[1]]?.balance ?? '727.49',
+              currency: 'EUR',
+            },
+          },
+        ]),
   transactions: (uid) => {
     const today = new Date().toISOString().slice(0, 10)
     return Promise.resolve(

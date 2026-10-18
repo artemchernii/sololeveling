@@ -159,6 +159,42 @@ test('approval ended: the card says so, approve again, and it is read', async ({
   )
 })
 
+test('key rejected: the card says so, approve again, and it is read', async ({
+  page,
+}) => {
+  await ready(page)
+  await page.goto('/finances')
+  await card(page).getByRole('button', { name: 'connect' }).click()
+  const sheet = page.getByRole('dialog')
+  await sheet.getByRole('button', { name: /continue at ActivoBank/ }).click()
+  await sheet.getByRole('button', { name: 'Done' }).click()
+
+  /* A new Enable Banking application: the old link is turned away. */
+  await testClient().mutation(anyApi.e2eBank.answer, { as: 'refused' })
+  await page.goto('/finances')
+  await expect(card(page).getByText('the bank rejected the key')).toBeVisible()
+  await expect(
+    card(page).getByText(/balance of today, \d\d:\d\d/),
+  ).toBeVisible()
+  await expect(
+    card(page).getByRole('button', { name: 'try again' }),
+  ).toHaveCount(0)
+  await expect(card(page).getByTestId('account-total')).toContainText('€727.49')
+  await card(page).scrollIntoViewIfNeeded()
+  await page.screenshot(shot('bank-key-rejected'))
+
+  await card(page).getByRole('button', { name: 'approve' }).click()
+  await expect(sheet.getByText('key rejected')).toBeVisible()
+  await sheet.getByRole('button', { name: /continue at ActivoBank/ }).click()
+  await expect(sheet.getByText('ActivoBank is approved')).toBeVisible()
+  await sheet.getByRole('button', { name: 'Done' }).click()
+  await expect(card(page).getByText(/from the bank · today/)).toBeVisible()
+  await expect(card(page).getByText('the bank rejected the key')).toHaveCount(0)
+  await expect(card(page).getByRole('button', { name: 'approve' })).toHaveCount(
+    0,
+  )
+})
+
 test('the bank fails after the approval: said in words, nothing saved', async ({
   page,
 }) => {

@@ -360,6 +360,39 @@ test('not asked: approval ended, or a check already running', async () => {
   expect(await balance()).toEqual({ value: 727.49, source: 'sync' })
 })
 
+test('a key the bank rejects: kept, not asked again, gone once approved again', async () => {
+  const { t, me, accountId, balance, link } = await connected()
+  const linkId = (await link())._id
+  /* What a new Enable Banking application does to every older link. */
+  await t.run((ctx) =>
+    ctx.db.patch(linkId, {
+      uids: [{ uid: 'e2e-a:refused', currency: 'EUR' }],
+    }),
+  )
+  await expect(
+    me.action(api.bankRows.check, { accountId, dayStart: 0 }),
+  ).rejects.toThrow('The bank rejected the key.')
+  expect((await link()).failed?.why).toBe('refused')
+  expect((await link()).checking).toBeUndefined()
+  expect(
+    (await me.query(api.bank.links, {})).find((l) => l.accountId === accountId)
+      ?.failed,
+  ).toBe('refused')
+  /* Nothing is asked of the bank again until he approves. */
+  expect(await me.action(api.bankRows.check, { accountId, dayStart: 0 })).toBe(
+    'ended',
+  )
+  expect(await balance()).toEqual({ value: 727.49, source: 'sync' })
+
+  const url = await me.action(api.bank.connect, { accountId })
+  const state = new URL(url, 'http://app').searchParams.get('state') as string
+  await me.action(api.bank.finish, { code: 'one', state, dayStart: DAY_START })
+  expect((await link()).failed).toBeUndefined()
+  expect(await me.action(api.bankRows.check, { accountId, dayStart: 0 })).toBe(
+    'checked',
+  )
+})
+
 test('refused: someone else’s account, one not connected, not signed in', async () => {
   const { t, me, other, accountId, rows } = await connected()
   await expect(

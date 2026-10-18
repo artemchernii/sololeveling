@@ -79,7 +79,7 @@
   .nowt { position:absolute; right: 4px; top: -7px; font-family: var(--mono); font-size: 8.5px; color: #12121c; background: var(--ink-100); border-radius: 4px; padding: 0 4px; line-height: 13px; z-index: 3 }
   .nowt::before { content:''; position:absolute; left:-9px; top: 3px; width:6px; height:6px; border-radius:50%; background: var(--ink-100); animation: ping 1.6s ease-out infinite }
   @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(241,241,245,.5) } 100% { box-shadow: 0 0 0 9px rgba(241,241,245,0) } }
-  .blk { height: 18px; min-width: 18px; flex: 0 1 auto; border-radius: 6px; background: var(--a); color:#12121c; font-family: var(--mono); font-size: 8.5px; line-height: 18px; padding: 0 5px;
+  .blk { height: 18px; min-width: 24px; flex: 0 1 auto; border-radius: 6px; background: var(--a); color:#12121c; font-family: var(--mono); font-size: 8.5px; line-height: 18px; padding: 0 5px;
     overflow: hidden; white-space: nowrap; box-shadow: 0 0 12px -4px var(--a);
     animation: pop .5s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(var(--i) * 30ms + 300ms); transition: transform .2s, box-shadow .2s }
   @keyframes pop { from { transform: scale(.3); opacity: 0 } }
@@ -88,6 +88,9 @@
   .blk.drag { opacity: .35 }
   .cell.over { border-color: var(--lav-400); background: rgba(181,171,252,.12); box-shadow: 0 0 20px -6px var(--shine) }
   .cell.no { border-color: var(--bad) }
+  .blk { display:inline-flex; align-items:center; gap: 4px; justify-content:center }
+  .blk svg, u svg { width: 11px; height: 11px; flex: none }
+  u { display:inline-flex; color: var(--a); text-decoration: none }
   .blk.still { animation: none }
   .blk.new { animation: pop .5s cubic-bezier(.3,1.6,.5,1) both, landed 1.2s ease-out }
   @keyframes landed { 0% { box-shadow: 0 0 0 2px var(--lav-400), 0 0 30px 2px var(--a) } }
@@ -122,6 +125,7 @@
 <div class="pick" id="pick"></div>
 <script>
 const A={workout:['WORKOUT','var(--a-body)'],langs:['SESSION','var(--a-lang)'],shake:['SHAKE','var(--a-shake)'],post:['POST','var(--a-social)'],commit:['COMMITS','var(--a-projects)'],spend:['SPEND','var(--a-money)']};
+const IC={"workout": "<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\"><path d=\"M1.5 6v4M4 4.5v7M12 4.5v7M14.5 6v4M4 8h8\"/></svg>", "langs": "<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\"><path d=\"M2 3.5h7M5.5 2v1.5M3.5 3.5c.6 2.6 2.3 4.4 4.5 5.2M7.5 3.5c-.6 2.6-2.3 4.4-4.5 5.2M8.5 14l3-7 3 7M9.5 11.8h4\"/></svg>", "shake": "<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\"><path d=\"M4.5 4.5h7l-1 9.5h-5zM4 4.5h8M8 4.5V1.5l2-.5\"/></svg>", "post": "<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\"><path d=\"M14 2L7 9M14 2l-4.5 12-2.5-5-5-2.5z\"/></svg>", "commit": "<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\"><circle cx=\"8\" cy=\"8\" r=\"2.5\"/><path d=\"M1 8h4.5M10.5 8H15\"/></svg>", "spend": "<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\"><path d=\"M2 12l4-4 3 3 5-6M10 5h4v4\"/></svg>"};
 const D=['MON 12','TUE 13','WED 14','THU 15','FRI 16','SAT 17','SUN 18'];
 const B=[['MORNING',6,12],['AFTERNOON',12,18],['EVENING',18,24]],NOW=20.05; // Sun 20:03
 const BUSY=[[0,7.5,'workout','60 MIN · LEGS'],[0,19,'langs','25 MIN · PORTUGUESE'],[1,8,'shake','1 SHAKE'],[1,12.5,'commit','4 COMMITS · SOLOLEVELING'],[1,18,'workout','45 MIN'],
@@ -142,7 +146,7 @@ function draw(){
       if(isNow)c.insertAdjacentHTML('beforeend',`<span class="nowt">${hh(NOW)}</span>`);
       items.map((it,n)=>[it,n]).filter(([it])=>it[0]==di&&it[1]>=f&&it[1]<t).sort((a,b)=>a[0][1]-b[0][1]).forEach(([it,n])=>{
         const [,h,k,det]=it;count[k]=(count[k]||0)+1;
-        const b=document.createElement('div');b.className='blk'+(n==fresh?' new':drawn?' still':'');b.style.cssText=`--a:${A[k][1]};--i:${n}`;b.textContent=wide()?A[k][0]:'';
+        const b=document.createElement('div');b.className='blk'+(n==fresh?' new':drawn?' still':'');b.style.cssText=`--a:${A[k][1]};--i:${n}`;b.innerHTML=IC[k]+(wide()?A[k][0]:'');
         b.onmouseenter=()=>{tip.style.setProperty('--a',A[k][1]);tip.innerHTML=`<b>${A[k][0]}</b>${det}<br><span>${D[di]} · ${hh(h)}</span>`;
           const r=b.getBoundingClientRect();tip.classList.add('on');tip.style.left=Math.min(innerWidth-tip.offsetWidth-12,Math.max(12,r.left+r.width/2-tip.offsetWidth/2))+'px';tip.style.top=Math.max(8,r.top-tip.offsetHeight-10)+'px'};
         b.onmouseleave=()=>tip.classList.remove('on');
@@ -154,11 +158,11 @@ function draw(){
       c.ondragleave=()=>c.classList.remove('over','no');
       c.ondrop=e=>{e.preventDefault();c.classList.remove('over','no');if(dragN<0||lock)return;const it=items[dragN];it[0]=di;it[1]=isNow?Math.min(NOW,Math.max(f,it[1])):f;fresh=dragN;dragN=-1;dropAt=Date.now();draw()};
       wk.appendChild(c)})});
-  $('legend').innerHTML=(items.length?'':'<span class="badge b-lav">NOTHING LOGGED</span>')+Object.keys(A).map(k=>`<span class="chip" style="--a:${A[k][1]}"><i></i>${A[k][0]} <b>${count[k]||0}</b></span>`).join('');
+  $('legend').innerHTML=(items.length?'':'<span class="badge b-lav">NOTHING LOGGED</span>')+Object.keys(A).map(k=>`<span class="chip" style="--a:${A[k][1]}"><u>${IC[k]}</u>${A[k][0]} <b>${count[k]||0}</b></span>`).join('');
   fresh=-1;drawn=true;
 }
 function open(e,d,h){
-  pick.innerHTML=`<div class="t">${D[d]} · ${hh(h)}</div>`+Object.keys(A).map(k=>`<button data-k="${k}" style="--a:${A[k][1]}"><i></i>${A[k][0]}</button>`).join('');
+  pick.innerHTML=`<div class="t">${D[d]} · ${hh(h)}</div>`+Object.keys(A).map(k=>`<button data-k="${k}" style="--a:${A[k][1]}"><u>${IC[k]}</u>${A[k][0]}</button>`).join('');
   pick.classList.add('on');pick.style.left=Math.min(innerWidth-202,Math.max(8,e.clientX+8))+'px';pick.style.top=Math.min(innerHeight-250,Math.max(8,e.clientY-20))+'px';
   pick.querySelectorAll('button').forEach(b=>b.onclick=()=>{items.push([d,h,b.dataset.k,'ADDED NOW']);fresh=items.length-1;pick.classList.remove('on');draw()});
   e.stopPropagation()}

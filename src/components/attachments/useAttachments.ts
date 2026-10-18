@@ -63,13 +63,14 @@ function useUploader() {
           const { storageId } = (await res.json()) as {
             storageId: Id<'_storage'>
           }
-          await add({
+          const out = await add({
             ...args,
             storageId,
             name: named(file),
             contentType: file.type || 'application/octet-stream',
             size: file.size,
           })
+          if (!out.ok) setError(out.error)
         } catch (e) {
           setError(
             e instanceof ConvexError

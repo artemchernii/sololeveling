@@ -1,8 +1,8 @@
-import { ConvexError, v } from 'convex/values'
+import { v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { mutation, query } from './_generated/server'
-import type { Doc, Id } from './_generated/dataModel'
+import type { Id } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 
 /* Files on a note or a task (20 Sep). He asked three times for prompts,
@@ -21,34 +21,29 @@ const MAX_BYTES = 25 * 1024 * 1024
 type Parent = { noteId?: Id<'notes'>; taskId?: Id<'tasks'> }
 
 /**
- * The parent, checked to be his and to be exactly one thing.
+ * Why this parent cannot take a file, or null when it is his and exactly one
+ * thing.
  *
- * Returning the owner rather than trusting the id is the whole point: an id
- * from a client is a claim until the row behind it has been loaded.
+ * Loading the row rather than trusting the id is the whole point: an id from
+ * a client is a claim until the row behind it has been loaded.
  */
-async function ownedParent(
+async function parentRefusal(
   ctx: QueryCtx | MutationCtx,
   ownerId: string,
   args: Parent,
-): Promise<{ note: Doc<'notes'> | null; task: Doc<'tasks'> | null }> {
+): Promise<string | null> {
   const given = [args.noteId, args.taskId].filter((id) => id !== undefined)
   if (given.length !== 1) {
-    throw new ConvexError('An attachment belongs to one note or one task.')
+    return 'An attachment belongs to one note or one task.'
   }
 
   if (args.noteId !== undefined) {
     const note = await ctx.db.get(args.noteId)
-    if (note === null || note.ownerId !== ownerId) {
-      throw new Error('No such note')
-    }
-    return { note, task: null }
+    return note === null || note.ownerId !== ownerId ? 'No such note' : null
   }
 
   const task = await ctx.db.get(args.taskId as Id<'tasks'>)
-  if (task === null || task.ownerId !== ownerId) {
-    throw new Error('No such task')
-  }
-  return { note: null, task }
+  return task === null || task.ownerId !== ownerId ? 'No such task' : null
 }
 
 /** Step one of an upload: a short-lived URL the file is POSTed straight to. */
@@ -71,19 +66,27 @@ export const add = mutation({
     contentType: v.string(),
     size: v.number(),
   },
-  returns: v.id('attachments'),
+  returns: v.union(
+    v.object({ ok: v.literal(true), attachmentId: v.id('attachments') }),
+    v.object({ ok: v.literal(false), error: v.string() }),
+  ),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    await ownedParent(ctx, ownerId, args)
 
-    if (args.size > MAX_BYTES) {
-      /* The bytes are already in storage by the time we get here, so the
-         refusal has to take them back out with it. */
+    /* The bytes are already in storage by the time we get here, so a
+       refusal has to take them back out with it — and it is returned, not
+       thrown: a mutation that throws rolls back everything it did, the
+       storage delete included, and the file would stay stored with nothing
+       pointing at it (as `vault.add` does). */
+    const refusal =
+      (await parentRefusal(ctx, ownerId, args)) ??
+      (args.size > MAX_BYTES ? 'That file is larger than 25 MB.' : null)
+    if (refusal !== null) {
       await ctx.storage.delete(args.storageId)
-      throw new ConvexError('That file is larger than 25 MB.')
+      return { ok: false as const, error: refusal }
     }
 
-    return await ctx.db.insert('attachments', {
+    const attachmentId = await ctx.db.insert('attachments', {
       ownerId,
       noteId: args.noteId,
       taskId: args.taskId,
@@ -92,6 +95,7 @@ export const add = mutation({
       contentType: args.contentType,
       size: args.size,
     })
+    return { ok: true as const, attachmentId }
   },
 })
 

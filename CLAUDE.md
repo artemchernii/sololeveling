@@ -271,12 +271,20 @@ sessions: "Its gonna be many deploys and I gonna spend 7$ again?"
 1. **Sessions never deploy dev on their own.** Tests run on the local e2e
    backend, which costs nothing. A hook refuses `npx convex dev` without
    `--local`.
-2. **`pnpm deploy:dev` deploys `origin/master`**, from a throwaway worktree,
-   once after a batch of merges — a few times a day, not once per session.
-3. **Testing unmerged work on localhost:** `pnpm deploy:dev <branch> …`
-   merges those branches onto master in the throwaway worktree first, so
-   every open branch's functions go up together.
-4. A merged fix rides along with the next deploy; it does not get its own.
+2. **`pnpm deploy:dev` deploys everything open at once**: `origin/master`,
+   with every unmerged `feat/` `fix/` `claude/` branch pushed in the last 3
+   days merged on top (not one whose PR was closed unmerged), from a
+   throwaway worktree. A branch that conflicts is left out and named. It
+   runs a few times a day, never once per session. Artem: "I dont want to
+   type myself command and memorize all sessions branches."
+3. **A session's branch is in the next deploy once it is pushed.** Push
+   before telling him it is ready to test on localhost; say it waits for
+   the next deploy, never a command with branch names for him to type.
+4. **He says "deploy dev" in any session** → that session runs
+   `pnpm deploy:dev --dry-run`, shows the list, then `pnpm deploy:dev`.
+   `pnpm deploy:dev <branch> …` deploys only the named ones, for when he
+   asks for that.
+5. A merged fix rides along with the next deploy; it does not get its own.
 
 ## Stack
 

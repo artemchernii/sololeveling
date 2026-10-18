@@ -198,13 +198,14 @@ describe('the list row', () => {
       const storageId = await mine.run((ctx) =>
         ctx.storage.store(new Blob(['x'], { type: contentType })),
       )
-      await mine.mutation(api.attachments.add, {
+      const out = await mine.mutation(api.attachments.add, {
         noteId,
         storageId,
         name,
         contentType,
         size: 1,
       })
+      expect(out.ok).toBe(true)
     }
     await attach('a.png', 'image/png')
     await attach('b.jpg', 'image/jpeg')
@@ -220,6 +221,58 @@ describe('the list row', () => {
       images: 0,
       files: 0,
     })
+  })
+})
+
+/* A refused file leaves storage with the refusal. Thrown, the delete would
+   roll back with everything else and the bytes would stay, billed, with
+   nothing pointing at them. */
+describe('a refused attachment takes its file with it', () => {
+  async function stored(t: ReturnType<typeof convexTest>) {
+    return await t.run(
+      async (ctx) => (await ctx.db.system.query('_storage').collect()).length,
+    )
+  }
+
+  test('larger than 25 MB', async () => {
+    const t = convexTest(schema, modules)
+    const mine = t.withIdentity({ tokenIdentifier: ME })
+    const noteId = await mine.mutation(api.notes.create, { title: 'Big' })
+    const before = await stored(t)
+    const storageId = await t.run((ctx) => ctx.storage.store(new Blob(['x'])))
+
+    const out = await mine.mutation(api.attachments.add, {
+      noteId,
+      storageId,
+      name: 'huge.mov',
+      contentType: 'video/quicktime',
+      size: 25 * 1024 * 1024 + 1,
+    })
+
+    expect(out).toEqual({ ok: false, error: 'That file is larger than 25 MB.' })
+    expect(await stored(t)).toBe(before)
+    expect(await mine.query(api.attachments.listFor, { noteId })).toEqual([])
+  })
+
+  test('onto somebody else’s note', async () => {
+    const t = convexTest(schema, modules)
+    const mine = t.withIdentity({ tokenIdentifier: ME })
+    const theirs = t.withIdentity({ tokenIdentifier: SOMEONE_ELSE })
+    const noteId = await theirs.mutation(api.notes.create, { title: 'Theirs' })
+    const before = await stored(t)
+    const storageId = await t.run((ctx) => ctx.storage.store(new Blob(['x'])))
+
+    const out = await mine.mutation(api.attachments.add, {
+      noteId,
+      storageId,
+      name: 'a.png',
+      contentType: 'image/png',
+      size: 1,
+    })
+
+    expect(out).toEqual({ ok: false, error: 'No such note' })
+    expect(await stored(t)).toBe(before)
+    expect(await theirs.query(api.attachments.listFor, { noteId })).toEqual([])
   })
 })
 

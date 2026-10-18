@@ -260,6 +260,24 @@ slow the daily loop to make a rarer screen better, the daily loop wins.
 - Aggregations live only in `convex/aggregate.ts`, as `monthCounts()`,
   `currentState()` and `entityCounts()`.
 
+## Deploying dev (18 Oct)
+
+Every branch shares one dev Convex backend, and a deploy replaces its
+functions with exactly what the pushing checkout has — another branch's new
+functions vanish (Review broke twice on 15 Oct). Each deploy also re-runs
+every open tab's queries, which are paid reads. Artem, planning 5–10 parallel
+sessions: "Its gonna be many deploys and I gonna spend 7$ again?"
+
+1. **Sessions never deploy dev on their own.** Tests run on the local e2e
+   backend, which costs nothing. A hook refuses `npx convex dev` without
+   `--local`.
+2. **`pnpm deploy:dev` deploys `origin/master`**, from a throwaway worktree,
+   once after a batch of merges — a few times a day, not once per session.
+3. **Testing unmerged work on localhost:** `pnpm deploy:dev <branch> …`
+   merges those branches onto master in the throwaway worktree first, so
+   every open branch's functions go up together.
+4. A merged fix rides along with the next deploy; it does not get its own.
+
 ## Stack
 
 TanStack Start · Convex · Clerk · Tailwind v4 · shadcn/ui · deployed to

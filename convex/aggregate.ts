@@ -34,6 +34,7 @@ import {
   spentWeek,
 } from '../src/lib/review'
 import { monthSix as monthSixCount } from '../src/lib/monthSix'
+import { weekRows } from '../src/lib/weekGrid'
 import type { LedgerTrade, Observation } from '../src/lib/holdings'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
@@ -268,29 +269,12 @@ export const monthSix = query({
           )
           .take(MAX_ROWS)),
       )
-    const commits = []
-    for (const status of REVIEW_PROJECTS) {
-      const projects = await ctx.db
-        .query('projects')
-        .withIndex('by_owner_status', (q) =>
-          q.eq('ownerId', ownerId).eq('status', status),
-        )
-        .take(MAX_ROWS)
-      for (const project of projects) {
-        if (project.githubRepo === undefined) continue
-        const rows = await ctx.db
-          .query('commits')
-          .withIndex('by_owner_project_time', (q) =>
-            q
-              .eq('ownerId', ownerId)
-              .eq('projectId', project._id)
-              .gte('authoredAt', args.prevStart)
-              .lt('authoredAt', args.nextStart),
-          )
-          .take(MAX_ROWS)
-        commits.push(...rows.filter((r) => r.repo === project.githubRepo))
-      }
-    }
+    const commits = await commitsBetween(
+      ctx,
+      ownerId,
+      args.prevStart,
+      args.nextStart,
+    )
     return monthSixCount(
       logs,
       commits,
@@ -299,6 +283,87 @@ export const monthSix = query({
       args.dayStarts.slice(0, 31),
       args.nextStart,
     )
+  },
+})
+
+/* The commits of the projects he keeps a repo for, between two moments —
+   Today's THIS MONTH and THIS WEEK both read them. */
+async function commitsBetween(
+  ctx: QueryCtx,
+  ownerId: string,
+  from: number,
+  to: number,
+) {
+  const commits: Array<Doc<'commits'>> = []
+  for (const status of REVIEW_PROJECTS) {
+    const projects = await ctx.db
+      .query('projects')
+      .withIndex('by_owner_status', (q) =>
+        q.eq('ownerId', ownerId).eq('status', status),
+      )
+      .take(MAX_ROWS)
+    for (const project of projects) {
+      if (project.githubRepo === undefined) continue
+      const rows = await ctx.db
+        .query('commits')
+        .withIndex('by_owner_project_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('projectId', project._id)
+            .gte('authoredAt', from)
+            .lt('authoredAt', to),
+        )
+        .take(MAX_ROWS)
+      commits.push(...rows.filter((r) => r.repo === project.githubRepo))
+    }
+  }
+  return commits
+}
+
+const weekRow = v.object({
+  id: v.optional(v.string()),
+  kind: v.union(
+    v.literal('workout'),
+    v.literal('langs'),
+    v.literal('shake'),
+    v.literal('post'),
+    v.literal('commits'),
+  ),
+  area: v.string(),
+  at: v.number(),
+  value: v.optional(v.number()),
+  unit: v.optional(v.string()),
+  text: v.optional(v.string()),
+  movedFrom: v.optional(v.number()),
+})
+
+/**
+ * Today's THIS WEEK (18 Oct): the rows of his six that happened between
+ * two moments, one each, for the week's blocks. Rows, not counts — each
+ * block is a thing he can hover and, but for a commit, drag. Same ranges as
+ * `monthSix`, one week of them; the bank's rows are never scanned.
+ */
+export const weekItems = query({
+  args: { from: v.number(), to: v.number(), languages: v.array(v.string()) },
+  returns: v.array(weekRow),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const logs = []
+    for (const area of ['body', 'social', ...args.languages.slice(0, 20)])
+      logs.push(
+        ...(await ctx.db
+          .query('logs')
+          .withIndex('by_owner_area_time', (q) =>
+            q
+              .eq('ownerId', ownerId)
+              .eq('area', area)
+              .gte('occurredAt', args.from)
+              .lt('occurredAt', args.to),
+          )
+          .take(MAX_ROWS)),
+      )
+    const commits = await commitsBetween(ctx, ownerId, args.from, args.to)
+    return weekRows(logs, commits, args.languages, args.from, args.to)
   },
 })
 

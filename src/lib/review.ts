@@ -141,7 +141,7 @@ export type LogRow = {
   occurredAt: number
   value?: number
   unit?: string
-  meta?: { category?: string }
+  meta?: { category?: string; movedFrom?: number }
 }
 
 /** A workout: any kind of training logged under Body. */

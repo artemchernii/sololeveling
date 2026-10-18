@@ -638,6 +638,46 @@ export const setValue = mutation({
 })
 
 /**
+ * A block of Today's THIS WEEK dragged to another cell (18 Oct): the row
+ * says it happened at another time. Only the four kinds the card shows
+ * can move; a weight keeps its snapshot, money keeps its statement. The
+ * first time the row said stays in `meta.movedFrom`, so the move is
+ * visible, and nothing moves into the future.
+ */
+const MOVABLE = ['workout', 'session', 'intake', 'post']
+export const setTime = mutation({
+  args: { logId: v.id('logs'), occurredAt: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    const log = await ctx.db.get(args.logId)
+    if (log === null || log.ownerId !== ownerId) {
+      throw new Error('No such log')
+    }
+    if (!MOVABLE.includes(log.kind)) {
+      throw new ConvexError('Only a workout, session, shake or post moves.')
+    }
+    if (!Number.isFinite(args.occurredAt)) {
+      throw new ConvexError('That is not a time.')
+    }
+    if (args.occurredAt > Date.now() + FUTURE_GRACE_MS) {
+      throw new ConvexError(
+        'A log is something that happened — not in the future',
+      )
+    }
+    if (args.occurredAt === log.occurredAt) return null
+    await ctx.db.patch(args.logId, {
+      occurredAt: args.occurredAt,
+      meta: {
+        ...log.meta,
+        movedFrom: log.meta?.movedFrom ?? log.occurredAt,
+      },
+    })
+    return null
+  },
+})
+
+/**
  * The correction path for a log that should not exist — a mis-typed weight, a
  * workout logged twice. Append-only means a log is never edited into a
  * different truth; it does not mean a mistake is permanent.

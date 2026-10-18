@@ -5,6 +5,7 @@ import { useUser } from '@clerk/tanstack-react-start'
 import { api } from '../../../convex/_generated/api'
 import { DayCard } from '@/components/dashboard/DayCard'
 import { MonthSix, useMonth } from '@/components/dashboard/MonthSix'
+import { WeekCard } from '@/components/dashboard/WeekCard'
 import { Principles } from '@/components/dashboard/Principles'
 import type { Pick } from '@/components/dashboard/ThreeSlots'
 import type { ICONS } from '@/components/dashboard/AreaIcon'
@@ -168,6 +169,10 @@ function Today() {
       </div>
 
       <div className="order-3 lg:col-span-2">
+        <WeekCard now={now} languages={languages} lang={lang} />
+      </div>
+
+      <div className="order-4 lg:col-span-2">
         <MonthSix month={month} now={now} lang={lang} />
       </div>
     </div>

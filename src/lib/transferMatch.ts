@@ -8,6 +8,7 @@
    that is not enough to be sure. */
 
 import { FEE_MAX_CENTS, FEE_SHARE } from './gapMatch'
+import { payingCardTails } from './otherSide'
 
 const DAY_MS = 86_400_000
 /** The two banks book it at most this far apart (3 Oct and the 6th; a
@@ -193,12 +194,16 @@ export function namedAccounts(
   }>,
 ): Array<string> {
   const said = ` ${plain(line)} `
+  /* "COMPRA 2789 …" names the card that paid, not the other side. */
+  const paid = payingCardTails(line)
   return accounts
     .filter((a) => {
       const name = plain(a.name)
       return (
         (name.length >= 3 && said.includes(` ${name} `)) ||
-        a.tails.some((t) => t.length >= 4 && said.includes(` ${t} `))
+        a.tails.some(
+          (t) => t.length >= 4 && !paid.includes(t) && said.includes(` ${t} `),
+        )
       )
     })
     .map((a) => a.id)

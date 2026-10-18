@@ -71,7 +71,8 @@ import {
   reviewMonths,
 } from '../src/lib/bulk'
 import type { OwnRow } from '../src/lib/bulk'
-import { productByIban, productIn, tailsIn } from '../src/lib/institutions'
+import { productByIban, productIn } from '../src/lib/institutions'
+import { otherTails, ownTail, pickOtherSide } from '../src/lib/otherSide'
 
 /* The intake (Treasury, 27 Sep): what he drops on + becomes a list he
    checks. `start` stores the files and asks the reader (ai/intake.ts);
@@ -734,8 +735,9 @@ function guessAccount(
   intake: Doc<'intakes'>,
   accounts: ReadonlyArray<Doc<'accounts'>>,
 ): Id<'accounts'> | null {
-  if (intake.accountTail) {
-    const hit = byTail(accounts, [intake.accountTail])
+  const tail = ownTail(intake.accountTail, intake.transactions ?? [])
+  if (tail) {
+    const hit = byTail(accounts, [tail])
     if (hit) return hit
   }
   const product = productIn(intake.institution)
@@ -1187,9 +1189,18 @@ async function buildReview(
   const liveBills = bills.filter((b) => b.endedAt === undefined)
   const usedBill = new Set<string>()
 
-  const others = accounts
+  const sides = accounts
     .filter((a) => a._id !== here)
-    .map((a) => ({ id: a._id, name: a.name, domain: a.domain }))
+    .map((a) => ({
+      id: a._id,
+      name: a.name,
+      domain: a.domain,
+      tails: [...(a.ibanTails ?? []), ...(a.cardTails ?? [])],
+    }))
+  const hereSide = hereAccount && {
+    id: hereAccount._id,
+    tails: [...(hereAccount.ibanTails ?? []), ...(hereAccount.cardTails ?? [])],
+  }
 
   /* The same amount a week either way, under any name, that no row of the
      file was matched to: asked about only when the sum is off. */
@@ -1261,16 +1272,10 @@ async function buildReview(
             : r.category
               ? ('reader' as const)
               : null,
+      /* The institution the line names, then an ending only one other
+         account has — never the card that paid (src/lib/otherSide.ts). */
       otherAccountId: move
-        ? (byTail(
-            accounts.filter((a) => a._id !== here),
-            tailsIn(`${r.counterparty ?? ''} ${r.raw}`),
-          ) ??
-          (matchAccount(
-            r.counterparty ?? r.merchant,
-            others,
-            here ?? undefined,
-          ) as Id<'accounts'> | null) ??
+        ? ((pickOtherSide(r, sides, hereSide) as Id<'accounts'> | null) ??
           byBank(accounts, here, `${r.counterparty ?? ''} ${r.raw}`))
         : null,
       counterparty: r.counterparty ?? null,
@@ -1331,8 +1336,10 @@ async function buildReview(
   }
 }
 
-/* Endings not yet known anywhere are kept on the account (four at most):
-   the next file that prints one is matched without asking. */
+/* Endings not yet known on any of his accounts are kept on this one
+   (four at most): the next file that prints one is matched without
+   asking. One already another account's stays that account's (11 Oct:
+   ActivoBank's card 2789 was kept as Revolut's too). */
 async function learnTails(
   ctx: MutationCtx,
   account: Doc<'accounts'>,
@@ -1340,7 +1347,14 @@ async function learnTails(
 ) {
   const fresh = await ctx.db.get(account._id)
   if (fresh === null) return
-  const known = [...(fresh.ibanTails ?? []), ...(fresh.cardTails ?? [])]
+  const all = await ctx.db
+    .query('accounts')
+    .withIndex('by_owner_order', (q) => q.eq('ownerId', fresh.ownerId))
+    .take(50)
+  const known = all.flatMap((a) => [
+    ...(a.ibanTails ?? []),
+    ...(a.cardTails ?? []),
+  ])
   const add = tails.filter((t) => !known.includes(t))
   if (add.length === 0) return
   await ctx.db.patch(account._id, {
@@ -1531,7 +1545,7 @@ async function writeTransactions(
         await learnTails(
           ctx,
           other,
-          tailsIn(`${r.counterparty ?? ''} ${r.raw}`),
+          otherTails(`${r.counterparty ?? ''} ${r.raw}`),
         )
       }
       /* Both sides, unless the other account already has this transfer
@@ -1700,7 +1714,8 @@ async function writeTransactions(
       )
     }
   }
-  if (intake.accountTail) await learnTails(ctx, account, [intake.accountTail])
+  const tail = ownTail(intake.accountTail, read)
+  if (tail) await learnTails(ctx, account, [tail])
   await ctx.db.patch(intake._id, {
     status: 'done',
     keptUntil: keepUntil(),

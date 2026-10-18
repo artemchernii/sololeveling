@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Treasury · Trading 212 history</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Trading 212's history from its own API (18 Oct): orders, dividends,
+     deposits arrive as rows with no file. The card, footer, arrived block
+     and sheet are the built ones (AccountCard, AccountFoot, AccountArrived,
+     AccountSheetRows, TradeRow); new is what the rows say. Sample numbers. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.75 0.15 155); --danger: oklch(0.68 0.19 25); --warn: oklch(0.79 0.15 75);
+    --bank: oklch(0.83 0.1 85);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --ease: cubic-bezier(.2,.8,.2,1);
+    --lift: 255,255,255;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 14px; min-height: 100vh }
+  button { font: inherit; color: inherit; cursor: pointer }
+  svg.i { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 14px }
+  .scen { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center }
+  .scen button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-400) }
+  .scen button.on { color: var(--ink-100); background: rgba(181,171,252,.16); border-color: color-mix(in oklch, var(--lav-400) 45%, transparent) }
+  .sect { font-family: var(--mono); font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine); padding-top: 6px }
+
+  @keyframes arrive { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+  @keyframes pop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.15) } }
+  @keyframes live { 50% { opacity: .35 } }
+  @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes flash { 30% { background: color-mix(in oklch, var(--good) 14%, transparent) } }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr } }
+  .card { display: flex; flex-direction: column; border-radius: 18px; padding: 16px; background: rgba(var(--lift),.055); box-shadow: inset 0 0 0 1px rgba(var(--lift),.12); animation: arrive .3s var(--ease) both; cursor: pointer }
+  .card > * + * { margin-top: 14px }
+  .top { display: flex; align-items: flex-start; gap: 12px }
+  .logo { width: 40px; height: 40px; border-radius: 12.5px; background: #fdfdfd; object-fit: contain; padding: 6px; flex: none }
+  .logo.xs { width: 22px; height: 22px; border-radius: 7px; padding: 3px }
+  .who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px }
+  .who b { font-weight: 400; font-size: 17px; line-height: 1 }
+  .kinds { display: flex; gap: 4px }
+  .kind { font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; border-radius: 6px; padding: 2px 6px; color: var(--bank); background: color-mix(in oklch, var(--bank) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--bank) 35%, transparent) }
+  .kind.broker { color: var(--lav-300); background: rgba(181,171,252,.1); box-shadow: inset 0 0 0 1px rgba(181,171,252,.4) }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-300); background: none; border: 0; box-shadow: inset 0 0 0 1px rgba(var(--lift),.15); border-radius: 999px; padding: 6px 12px; white-space: nowrap; flex: none }
+  .pill svg.i { width: 12px; height: 12px }
+  .total b { font-size: 30px; line-height: 1; font-weight: 300; font-variant-numeric: tabular-nums }
+  .rows { display: flex; flex-direction: column; gap: 6px; font-family: var(--mono); font-size: 12.5px }
+  .rows > span { display: flex; justify-content: space-between; align-items: center; gap: 8px }
+  .rows .k { color: var(--ink-400); display: inline-flex; align-items: center }
+  .rows .k i { font-style: normal; font-size: 10.5px; color: var(--ink-200); background: rgba(var(--lift),.08); border-radius: 5px; padding: 2px 6px; margin-left: 4px }
+  .rows .mark { color: var(--good); display: inline-flex; margin-left: 7px }
+  .rows .mark svg { width: 12px; height: 12px }
+  .rows .ms { display: inline-flex; gap: 8px; align-items: center }
+  .rows .ms > span { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-200) }
+  .rows .ms .bd { font-size: 9px; padding: 2px 7px }
+  .rows .lit { animation: flash 1.4s ease .5s; border-radius: 6px }
+  .red { color: var(--danger) } .green { color: var(--good) } .lav { color: var(--lav-300) } .amber { color: var(--warn) } .dim { color: var(--ink-500) }
+
+  /* What arrived (AccountArrived): grows in, stays until ✕. */
+  .grow { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s var(--ease) }
+  .grow.on { grid-template-rows: 1fr }
+  .grow > div { overflow: hidden; min-height: 0; display: flex; flex-direction: column; gap: 10px }
+  .got { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; padding: 4px 10px; border-radius: 999px; white-space: nowrap }
+  .chip i { width: 6px; height: 6px; border-radius: 999px; background: currentColor }
+  .chip.new { color: var(--good); background: color-mix(in oklch, var(--good) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 35%, transparent) }
+  .chip.had { color: #a9a3d6; background: rgba(181,171,252,.08); box-shadow: inset 0 0 0 1px rgba(181,171,252,.22) }
+  .okline { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10.5px; color: var(--good); margin-right: auto; white-space: nowrap }
+  .okline svg { width: 12px; height: 12px; stroke-width: 3; animation: pop .45s var(--ease) .5s both }
+  .shut { width: 26px; height: 26px; border-radius: 999px; border: 0; background: none; box-shadow: inset 0 0 0 1px rgba(var(--lift),.14); color: var(--ink-400); font-size: 11px; display: grid; place-items: center; flex: none }
+  .list { border-radius: 12px; background: rgba(0,0,0,.22); box-shadow: inset 0 0 0 1px rgba(var(--lift),.06); padding: 4px 10px }
+  .more { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--lav-300); padding: 8px 0 6px; display: flex; justify-content: center; border-top: 1px solid rgba(var(--lift),.06) }
+
+  /* One row: badge · name with its small line · amount (TradeRow's grid). */
+  .r { display: grid; grid-template-columns: 74px minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(var(--lift),.06); animation: arrive .35s var(--ease) both }
+  .list .r:first-child { border-top: 0 }
+  .bd { justify-self: start; font-family: var(--mono); font-size: 9.5px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; white-space: nowrap }
+  .bd.buy, .bd.div, .bd.int { color: var(--good); background: color-mix(in oklch, var(--good) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 35%, transparent) }
+  .bd.sell { color: var(--danger); background: color-mix(in oklch, var(--danger) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--danger) 35%, transparent) }
+  .bd.move { color: var(--lav-300); background: rgba(181,171,252,.12); box-shadow: inset 0 0 0 1px rgba(181,171,252,.38) }
+  .bd.fee { color: var(--ink-300); box-shadow: inset 0 0 0 1px rgba(var(--lift),.18) }
+  .r .n { display: flex; align-items: center; gap: 8px; min-width: 0 }
+  .r .n > span { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+  .r .n b { font-weight: 400; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .r .n small { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500); display: flex; gap: 6px; align-items: center; flex-wrap: wrap }
+  .tg { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; padding: 1px 6px; border-radius: 5px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis }
+  .r .n > span, .r .n small { overflow: hidden }
+  .tg.same { color: var(--good); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--good) 40%, transparent) }
+  .tg.same svg { width: 10px; height: 10px; stroke-width: 3; animation: pop .45s var(--ease) .6s both }
+  .tg.miss { color: var(--warn); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--warn) 45%, transparent) }
+  .tg.miss i { width: 5px; height: 5px; border-radius: 999px; background: currentColor; animation: live 1.6s ease-in-out infinite }
+  .tg.had { color: var(--ink-400); box-shadow: inset 0 0 0 1px rgba(var(--lift),.14) }
+  .r .v { font-family: var(--mono); font-size: 13.5px; white-space: nowrap; text-align: right }
+  .ic { width: 22px; height: 22px; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: rgba(181,171,252,.12); color: var(--lav-300); flex: none }
+  .ic svg.i { width: 12px; height: 12px }
+
+  .foot { margin-top: auto; padding-top: 12px; border-top: 1px solid rgba(var(--lift),.08); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; min-height: 41px }
+  .from { font-family: var(--mono); font-size: 11px; color: var(--ink-400); display: flex; align-items: center; gap: 7px }
+  .from .link { color: var(--good); display: inline-flex }
+  .from .link svg { animation: live 2.6s ease-in-out infinite }
+
+  /* The opened account (OpenAccount, AccountSheetRows). */
+  .veil { position: fixed; inset: 0; background: rgba(8,8,16,.66); backdrop-filter: blur(6px); display: none; padding: 16px; z-index: 5; overflow: auto }
+  .veil.on { display: flex; animation: fade .2s both }
+  .sheet { width: 100%; max-width: 600px; border-radius: 22px; padding: 20px; border: 1px solid var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.08), rgba(181,171,252,.015) 40%), #1d1c2d; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 40px -18px var(--shine); margin: auto; animation: arrive .3s var(--ease) both; display: flex; flex-direction: column; gap: 14px }
+  .shead { display: flex; align-items: center; padding-bottom: 14px; border-bottom: 1px solid rgba(181,171,252,.16) }
+  .title { flex: 1; font-family: var(--mono); font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 10px var(--shine) }
+  .close { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(var(--lift),.14); background: none; color: var(--ink-300); display: grid; place-items: center }
+  .src { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(181,171,252,.05); box-shadow: inset 0 0 0 1px rgba(181,171,252,.2) }
+  .src b { font-weight: 400; display: inline-flex; gap: 7px; align-items: center }
+  .src b svg { color: var(--lav-400); filter: drop-shadow(0 0 6px var(--shine)) }
+  .src .bs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px }
+  .day { font-family: var(--mono); font-size: 11px; letter-spacing: .18em; color: var(--ink-500); padding: 8px 0 0 }
+  .meta { font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500) }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="scen">
+    <button data-s="today" class="on">as today</button>
+    <button data-s="first">first answer</button>
+    <button data-s="daily">a buy, a dividend</button>
+    <button data-s="deposit">deposit from Revolut</button>
+    <button data-s="early">deposit, Revolut not read yet</button>
+    <button data-s="sheet">open the account</button>
+  </div>
+  <div class="sect">[ accounts ]</div>
+  <div class="grid" id="grid"></div>
+</div>
+<div class="veil" id="veil"><div class="sheet" id="sheet"></div></div>
+<script>
+const P = {
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  link: '<path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/>',
+  pencil: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
+  swap: '<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
+  percent: '<line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6"/><path d="M16 12h-6"/>',
+  sync: '<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>',
+}
+const svg = (k) => `<svg class="i" viewBox="0 0 24 24">${P[k]}</svg>`
+const logo = (d, c = '') => `<img class="logo ${c}" src="https://www.google.com/s2/favicons?domain=${d}&sz=128" alt="">`
+const mark = `<span class="mark">${svg('link')}</span>`
+const ms = (...xs) => xs.map(([b, v]) => `<span><span class="bd ${b}">${b}</span>${v}</span>`).join('')
+const row = (k, v, c = '') => `<span><span class="k">${k}</span><span class="${c}">${v}</span></span>`
+
+/* A row as it lands: [badge, logo domain or null, name, small line, amount, tone] */
+const NVDA = 'nvidia.com', ASML = 'asml.com', VWRL = 'vanguard.com', REV = 'revolut.com', ACT = 'activobank.pt'
+const R = {
+  buy: ['buy', NVDA, 'Nvidia', '2 shares · €150.00', '−€300.00', ''],
+  sell: ['sell', ASML, 'ASML', '1 share · €640.00', '+€640.00', 'green'],
+  div: ['div', ASML, 'ASML', '1 share · €1.38 each', '+€1.38', 'green'],
+  divV: ['div', VWRL, 'Vanguard FTSE All-World', '14 shares · €0.44 each', '+€6.16', 'green'],
+  int: ['int', null, 'Trading 212', 'free cash', '+€2.04', 'green'],
+  fee: ['fee', null, 'Trading 212', 'currency exchange', '−€0.45', ''],
+  inRev: ['move', REV, 'Revolut', `<span class="tg same">${svg('check')}saved in Revolut · 16 Oct</span>`, '+€500.00', 'lav'],
+  inRevMiss: ['move', null, 'Deposit', `<span class="tg miss"><i></i>not saved in a bank</span>`, '+€500.00', 'lav'],
+  inAct: ['move', ACT, 'ActivoBank', `<span class="tg same">${svg('check')}saved in ActivoBank · 13 Oct</span>`, '+€300.00', 'lav'],
+  had: ['buy', VWRL, 'Vanguard FTSE All-World', '<span class="tg had">already added · csv 12 Oct</span>', '−€200.00', ''],
+}
+const BADGE = { buy: 'buy', sell: 'sell', div: 'dividend', int: 'interest', fee: 'fee', move: 'transfer' }
+const line = ([b, d, name, sub, v, tone], i = 0) => `
+  <div class="r" style="animation-delay:${i * 40}ms">
+    <span class="bd ${b}">${BADGE[b]}</span>
+    <span class="n">${d ? logo(d, 'xs') : `<span class="ic">${svg(b === 'move' ? 'swap' : b === 'int' ? 'percent' : 'receipt')}</span>`}<span><b>${name}</b><small>${sub}</small></span></span>
+    <span class="v ${tone}">${v}</span>
+  </div>`
+
+const block = (chips, rows, more = 0) => `
+  <div class="grow" data-grow><div>
+    <div class="got">${chips}<span class="okline">${svg('check')}as Trading 212 shows</span><button class="shut" onclick="event.stopPropagation()">✕</button></div>
+    <div class="list">${rows.map(line).join('')}${more ? `<div class="more">${more} more ›</div>` : ''}</div>
+  </div></div>`
+
+const t212 = ({ total = '€5,367.50', cash = '€1,280.30', inv = '€4,087.20', since = ['none', 'dim'], got = '', when = 'today 14:05' } = {}) => `
+  <div class="card" onclick="openSheet()">
+    <div class="top">${logo('trading212.com')}<span class="who"><b>Trading 212</b><span class="kinds"><span class="kind broker">broker</span></span></span><button class="pill">${svg('pencil')}edit</button></div>
+    <div class="total"><b>${total}</b></div>
+    <div class="rows">${row(`free cash <i>EUR</i>${mark}`, cash)}${row(`investments${mark}`, inv)}${row('since 1 Oct', since[0], since[1] + (got && since[1] !== 'dim' ? ' ms lit' : ''))}</div>
+    ${got}
+    <div class="foot"><span class="from"><span class="link">${svg('link')}</span>from Trading 212 · ${when}</span></div>
+  </div>`
+
+const revolut = (out) => `
+  <div class="card">
+    <div class="top">${logo(REV)}<span class="who"><b>Revolut</b><span class="kinds"><span class="kind">bank</span><span class="kind broker">broker</span></span></span><button class="pill">${svg('pencil')}edit</button></div>
+    <div class="total"><b>€14,001.53</b></div>
+    <div class="rows">${row(`cash <i>EUR</i>${mark}`, '€1,052.10')}${row('investments', '€12,949.43')}${row('spent since 1 Oct', '€612.40')}</div>
+    ${out ? `<div class="list">${line(['move', 'trading212.com', 'Trading 212', `<span class="tg same">${svg('check')}saved in Trading 212 · 16 Oct</span>`, '−€500.00', 'lav'])}</div>` : ''}
+    <div class="foot"><span class="from"><span class="link">${svg('link')}</span>from the bank · today 13:39</span></div>
+  </div>`
+
+const S = {
+  today: () => t212() + revolut(false),
+  first: () => t212({ since: [ms(['buy', '€1,240.00'], ['sell', '€640.00']), ''], got: block('<span class="chip new"><i></i>14 new</span><span class="chip had">3 already added</span>', [R.buy, R.inRev, R.divV], 11) }) + revolut(false),
+  daily: () => t212({ total: '€5,368.88', cash: '€981.68', inv: '€4,387.20', since: [ms(['buy', '€300.00']), ''], got: block('<span class="chip new"><i></i>2 new</span>', [R.buy, R.div]) }) + revolut(false),
+  deposit: () => t212({ total: '€5,867.50', cash: '€1,780.30', got: block('<span class="chip new"><i></i>1 new</span>', [R.inRev]) }) + revolut(true),
+  early: () => t212({ total: '€5,867.50', cash: '€1,780.30', got: block('<span class="chip new"><i></i>1 new</span>', [R.inRevMiss]) }) + revolut(false),
+  sheet: () => (setTimeout(openSheet, 50), S.first()),
+}
+const SHEET = `
+  <div class="shead"><span class="title">[ Trading 212 ]</span><button class="close" onclick="shut()">✕</button></div>
+  <span class="meta">212 rows · 3 files · newest first</span>
+  <div class="src">${logo('trading212.com', 'xs')}<div><b>${svg('sync')}from Trading 212</b>
+    <div class="bs"><span class="chip had">today 14:05</span><span class="chip new"><i></i>14 new</span><span class="chip had">3 already added</span></div></div></div>
+  <div class="day">SAT 18 OCT</div>${[R.buy, R.div].map(line).join('')}
+  <div class="day">THU 16 OCT</div>${[R.inRev, R.fee].map(line).join('')}
+  <div class="day">WED 15 OCT</div>${[R.sell, R.int].map(line).join('')}
+  <div class="day">MON 13 OCT</div>${[R.inAct, R.divV].map(line).join('')}
+  <div class="day">SUN 12 OCT</div>${[R.had].map(line).join('')}`
+
+const grid = document.getElementById('grid')
+const veil = document.getElementById('veil')
+function openSheet() { document.getElementById('sheet').innerHTML = SHEET; veil.classList.add('on') }
+function shut() { veil.classList.remove('on') }
+veil.onclick = (e) => { if (e.target === veil) shut() }
+const show = (s) => {
+  shut()
+  grid.innerHTML = S[s]()
+  requestAnimationFrame(() => requestAnimationFrame(() => grid.querySelectorAll('[data-grow]').forEach((g) => g.classList.add('on'))))
+  document.querySelectorAll('.scen button').forEach((b) => b.classList.toggle('on', b.dataset.s === s))
+}
+document.querySelectorAll('.scen button').forEach((b) => (b.onclick = () => show(b.dataset.s)))
+show('today')
+</script>
+</body>
+</html>

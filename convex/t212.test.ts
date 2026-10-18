@@ -379,6 +379,7 @@ test('the first answer shows what differs from the last file, as of that file', 
   const fileDay = NOON - 3 * 86_400_000
   const t212 = await import('./t212Api')
   vi.spyOn(t212, 't212Api').mockReturnValue({
+    history: () => Promise.resolve([]),
     summary: () =>
       Promise.resolve({
         currency: 'EUR',

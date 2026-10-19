@@ -198,6 +198,21 @@
   margin-top: auto;
   padding-top: 10px;
   border-top: 1px dashed var(--glass-edge);
+  /* A rate card's foot is one line (19 Oct, his mark: EUROSTAT · SEP
+     broke onto two): the source gives way, the time never wraps. */
+  &.one {
+    flex-wrap: nowrap;
+    & > :first-child {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    & > :last-child {
+      flex: none;
+      white-space: nowrap;
+    }
+  }
 }
 
 /* ⓘ and its card */
@@ -261,8 +276,6 @@
 /* the hero, not read */
 .ins-hero {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 24px;
   padding: 22px 24px 22px 28px;
   &::before {
     content: '';
@@ -280,26 +293,6 @@
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.1;
-  }
-  & .stamp {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    justify-content: center;
-    gap: 10px;
-    min-width: 210px;
-    padding-left: 20px;
-    border-left: 1px dashed var(--glass-edge);
-  }
-  @media (max-width: 760px) {
-    grid-template-columns: 1fr;
-    & .stamp {
-      align-items: flex-start;
-      border-left: 0;
-      padding-left: 0;
-      border-top: 1px dashed var(--glass-edge);
-      padding-top: 12px;
-    }
   }
 }
 .ins-kpi {
@@ -323,22 +316,6 @@
     background: color-mix(in oklch, var(--lift) 6%, transparent);
   }
 }
-.ins-btn {
-  font: 700 11px var(--font-mono);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  padding: 12px 20px;
-  border-radius: 999px;
-  color: var(--color-lav-300);
-  border: 1px solid var(--color-lav-400);
-  background: color-mix(in oklch, var(--color-lav-400) 18%, transparent);
-  white-space: nowrap;
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-}
-
 /* the period switch */
 .ins-seg {
   display: inline-flex;

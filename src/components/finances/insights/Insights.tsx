@@ -58,7 +58,8 @@ export function Insights() {
 }
 
 /* The hero before any read (mockup state "not read"): what a read will
-   look at, as badges. READ MARKET comes with the read itself (I3). */
+   look at, as badges. No READ MARKET until it works (19 Oct, his mark: a
+   dead button reads as broken) — it comes with the read itself (I3). */
 function Hero({ positions }: { positions: number | null }) {
   const month = MONTH[new Date().getMonth()]
   const kpis: Array<[string, string]> = [
@@ -91,11 +92,6 @@ function Hero({ positions }: { positions: number | null }) {
             </span>
           ))}
         </div>
-      </div>
-      <div className="stamp">
-        <button type="button" className="ins-btn" disabled>
-          ✦ READ MARKET
-        </button>
       </div>
     </section>
   )

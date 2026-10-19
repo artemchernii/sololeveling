@@ -193,7 +193,7 @@ function RateCard({
           </>
         )}
       </div>
-      <div className="ins-foot">
+      <div className="ins-foot one">
         <span className="ins-was">
           {source.toUpperCase()}
           {reached && inflation ? ` · ${monthWord(rate.month)}` : ''}

@@ -323,7 +323,7 @@ const SCALE: Record<Period, number> = {
 }
 
 async function canned(p: Period, now: number): Promise<Answer> {
-  await new Promise((r) => setTimeout(r, 700))
+  await new Promise((r) => setTimeout(r, 1200))
   const series = new Map<string, Series>()
   allSymbols().forEach((symbol, k) => {
     const [price, month] = CANNED.get(symbol) ?? [

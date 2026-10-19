@@ -300,6 +300,8 @@
     <button data-s="idle">not read</button><button data-s="reading">reading</button><button data-s="read" class="on">read · calm</button><button data-s="mixed">read · mixed</button><button data-s="failed">failed</button><button data-s="cap">cap reached</button>
     <span style="margin-left:10px">model:</span>
     <button data-m="sonnet" class="on">sonnet · web</button><button data-m="haiku">haiku · no web</button>
+    <span style="margin-left:10px">runs on:</span>
+    <button data-r="local" class="on">localhost</button><button data-r="cloud">deployed</button>
   </div>
 
   <div class="fhead">
@@ -342,6 +344,7 @@
       <div style="display:flex;flex-direction:column;align-items:inherit;gap:8px">
         <span class="m"><img src="https://www.google.com/s2/favicons?domain=claude.ai&sz=64"><span data-model>SONNET 5.5 · 🌐 8</span></span>
         <span class="was" data-show="done">19 OCT 09:12 · 62K IN · 3.1K OUT</span>
+        <span class="badge b-good" data-pay>⚡ PRO PLAN · NO CREDITS</span>
         <span class="was" data-cost>$0.24 · CAP $2.00 · USED $0.33</span>
       </div>
       <span data-when="idle"><button class="btn" onclick="setS('reading')">✦ READ MARKET</button></span>
@@ -677,6 +680,15 @@
     document.querySelector('[data-web]').style.display = c.web ? '' : 'none'
     document.querySelector('[data-websearch]').textContent = c.web ? '🌐 8' : 'OFF'
   })
+  /* who pays: on localhost the read runs through Claude Code on the Mac (Pro plan); deployed, through the API (credits) */
+  document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => {
+    document.querySelectorAll('[data-r]').forEach(x => x.classList.toggle('on', x === b))
+    const local = b.dataset.r === 'local', pay = document.querySelector('[data-pay]')
+    pay.className = 'badge ' + (local ? 'b-good' : 'b-warn')
+    pay.textContent = local ? '⚡ PRO PLAN · NO CREDITS' : '💳 API CREDITS'
+    document.querySelector('[data-cost]').style.display = local ? 'none' : ''
+  })
+  document.querySelector('[data-r="local"]').click()
   setS('read')
 </script>
 </body>

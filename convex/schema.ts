@@ -2,6 +2,12 @@ import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
 import { readingFields } from './fundamentalsFields'
+import {
+  marketFact,
+  marketReadBody,
+  payer,
+  readStamp,
+} from './marketReadFields'
 import type { Infer } from 'convex/values'
 
 import { SECTORS } from '../src/lib/sector'
@@ -1632,4 +1638,33 @@ export default defineSchema({
     inputTokens: v.optional(v.number()),
     outputTokens: v.optional(v.number()),
   }).index('by_owner_week', ['ownerId', 'week', 'grill']),
+  /* The market read on Insights (I3, 19 Oct; spec
+     docs/specs/2026-10-19-insights.md). One row per calendar month; READ
+     AGAIN replaces its read. `facts` are the room's numbers it was given —
+     the lines name them by key and the app prints them. A failed attempt
+     keeps the read before it (`read` stays), so nothing shown is lost. */
+  marketReads: defineTable({
+    ownerId: v.string(),
+    month: v.string(), // "2026-10"
+    status: v.union(
+      v.literal('reading'),
+      v.literal('done'),
+      v.literal('failed'),
+    ),
+    via: payer,
+    facts: v.array(marketFact),
+    read: v.optional(marketReadBody),
+    stamp: v.optional(readStamp),
+    readAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+  }).index('by_owner_month', ['ownerId', 'month']),
+  /* Dollars spent on API credits per calendar month, added from each
+     response's usage (I3; ASK in I4 adds to the same row). Reads stop at
+     CAP_USD in src/lib/marketRead.ts. Runs on his Pro plan add nothing. */
+  aiSpend: defineTable({
+    ownerId: v.string(),
+    month: v.string(),
+    usd: v.number(),
+    calls: v.number(),
+  }).index('by_owner_month', ['ownerId', 'month']),
 })

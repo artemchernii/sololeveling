@@ -7,9 +7,13 @@ import viteReact from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { cloudflare } from '@cloudflare/vite-plugin'
 
+import { claudeRead } from './vite/claudeRead'
+
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: [
+    /* Before the Cloudflare plugin, so its route answers in Node. */
+    claudeRead(),
     devtools(),
     cloudflare({
       viteEnvironment: { name: 'ssr' },

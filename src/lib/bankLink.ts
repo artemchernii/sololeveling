@@ -149,3 +149,18 @@ export function bankWhen(at: number, now: number): string {
 export function approvalDay(validUntil: number): string {
   return `${DAY_FMT.format(validUntil)}, ${new Date(validUntil).getFullYear()}`
 }
+
+type Answer = { source: string | null; currency: string; at: number }
+
+/** Whether a reading is the bank's last answer of its currency (19 Oct,
+    "why we see still pending and new?"): only it says what is new and
+    pending now; an older one says what it was. */
+export function lastSync(
+  readings: ReadonlyArray<Answer>,
+): (r: Answer) => boolean {
+  const last = new Map<string, number>()
+  for (const r of readings)
+    if (r.source === 'sync')
+      last.set(r.currency, Math.max(last.get(r.currency) ?? 0, r.at))
+  return (r) => r.source === 'sync' && last.get(r.currency) === r.at
+}

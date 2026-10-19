@@ -2,7 +2,9 @@
 import { convexTest } from 'convex-test'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
-import { api } from './_generated/api'
+import { api, internal } from './_generated/api'
+import { lastSync } from '../src/lib/bankLink'
+import { samePayment } from '../src/lib/transferMatch'
 import schema from './schema'
 import type { Doc, Id } from './_generated/dataModel'
 
@@ -466,5 +468,455 @@ describe('replay: his statements through UPDATE ALL', () => {
         ['Vodafone', 'expense', 14],
       ].sort(),
     )
+  })
+})
+
+/* ── 19 Oct: the same money through several doors ──────────────────
+
+   Each bug of the day, replayed from the shape of his data as it stood —
+   bank sync, statement, screenshot, the other bank's file writing its
+   side of a transfer — with made-up numbers and names. */
+
+const openBatch = (t: T) =>
+  t.run((ctx) =>
+    ctx.db.insert('batches', {
+      ownerId: ME,
+      status: 'open',
+      leftOut: [],
+      quietMonths: [],
+      moves: [],
+      extras: [],
+      dismissed: [],
+    }),
+  )
+
+/** A screenshot's rows: dated by their day, at noon, as the reader does. */
+async function screenshot(
+  t: T,
+  me: Me,
+  f: Omit<File, 'name'>,
+  answer?: (
+    review: Awaited<ReturnType<typeof updateAll>>,
+    batchId: Id<'batches'>,
+  ) => Promise<void>,
+) {
+  const batchId = await openBatch(t)
+  await t.run((ctx) =>
+    ctx.db.insert('intakes', {
+      ownerId: ME,
+      batchId,
+      storageIds: [],
+      status: 'ready',
+      kind: 'transactions',
+      title: `${f.institution} screenshot`,
+      institution: f.institution,
+      accountTail: f.accountTail,
+      files: [
+        { name: 'IMG_9310.PNG', size: 400_000, contentType: 'image/png' },
+      ],
+      transactions: f.rows,
+      balance: {
+        currency: 'EUR',
+        value: f.balance.value,
+        asOf: Date.now(),
+      },
+    }),
+  )
+  const review = await me.query(api.intake.batchReview, { batchId })
+  if (answer) await answer(review, batchId)
+  await me.mutation(api.intake.applyBatch, {
+    batchId,
+    dayStart: local(10, 4),
+  })
+  await t.finishAllScheduledFunctions(vi.runAllTimers)
+  return { review, batchId }
+}
+
+/** A bank Enable Banking reaches, linked a while ago. */
+async function linked(t: T, accountId: Id<'accounts'>) {
+  await t.run((ctx) =>
+    ctx.db.insert('bankLinks', {
+      ownerId: ME,
+      accountId,
+      status: 'linked',
+      uids: [{ uid: `uid-${accountId}`, currency: 'EUR' }],
+      startedAt: at(9, 1),
+      validUntil: at(12, 31),
+    }),
+  )
+}
+
+/** The bank's answer at this moment, as `bankRows.pull` lays it down. */
+async function bankAnswers(
+  t: T,
+  accountId: Id<'accounts'>,
+  value: number,
+  rows: Array<{
+    status: 'BOOK' | 'PDNG'
+    amount: number
+    day: string
+    name: string
+  }> = [],
+) {
+  const begun = await t.mutation(internal.bankRows.begin, {
+    ownerId: ME,
+    accountId,
+  })
+  await t.mutation(internal.bankRows.arrive, {
+    ownerId: ME,
+    accountId,
+    dayStart: local(10, 4),
+    names: ['Artem Chernii'],
+    readings: [
+      {
+        currency: 'EUR',
+        value,
+        /* As `pull` asks: no rows from a check that asks from no day. */
+        rows: (begun.status === 'go' && begun.asks[0].from === null
+          ? []
+          : rows
+        ).map((r) => ({
+          status: r.status,
+          amount: Math.abs(r.amount).toFixed(2),
+          currency: 'EUR',
+          indicator: r.amount < 0 ? 'DBIT' : 'CRDT',
+          bookingDate: r.status === 'BOOK' ? r.day : undefined,
+          transactionDate: r.day,
+          creditor: r.amount < 0 ? r.name : undefined,
+          debtor: r.amount > 0 ? r.name : undefined,
+          remittance: [r.name],
+        })),
+      },
+    ],
+  })
+  return begun
+}
+
+const statements = [bpiAug, bpiSep, actAug, actSep, revAug, revSep]
+
+describe('replay: 19 Oct, the same money through several doors', () => {
+  beforeEach(() => {
+    vi.stubEnv('E2E', '1')
+    /* Saved positions ask for their prices: never from a test. */
+    vi.stubGlobal('fetch', () => Promise.reject(new Error('no network here')))
+  })
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  /* Revolut Invest for its broker cash: six of his many positions on the
+     screen, every one already held from the statement's trades — gold
+     as XAU on the screen, GC=F in the app — and a total the six and the
+     cash cannot reach, the rest being behind Show more. */
+  test('a Revolut Invest screenshot of positions the statement holds saves only the broker cash', async () => {
+    const { t, me } = setup()
+    const ids = await accounts(me)
+    await updateAll(t, me, statements)
+    await t.run(async (ctx) => {
+      await ctx.db.patch(ids.rev, { kinds: ['bank', 'broker'] })
+      const held: Array<[string, string, string]> = [
+        ['VUAA.L', 'Vanguard S&P 500', 'ETF'],
+        ['NVDA', 'NVIDIA Corporation', 'EQUITY'],
+        ['MSFT', 'Microsoft Corporation', 'EQUITY'],
+        ['ASML', 'ASML Holding N.V.', 'EQUITY'],
+        ['NVO', 'Novo Nordisk A/S', 'EQUITY'],
+        ['GC=F', 'Gold', 'FUTURE'],
+        ['AMZN', 'Amazon.com, Inc.', 'EQUITY'],
+        ['KO', 'The Coca-Cola Company', 'EQUITY'],
+        ['SAP', 'SAP SE', 'EQUITY'],
+      ]
+      for (const [symbol, name, type] of held) {
+        const instrumentId = await ctx.db.insert('instruments', {
+          ownerId: ME,
+          symbol,
+          name,
+          exchange: 'NMS',
+          currency: 'EUR',
+          type,
+        })
+        await ctx.db.insert('trades', {
+          ownerId: ME,
+          accountId: ids.rev,
+          instrumentId,
+          side: 'buy',
+          shares: 2,
+          priceEur: 100,
+          occurredAt: at(8, 10),
+        })
+      }
+    })
+    const screen: Array<[string, string, string, number, number]> = [
+      ['VUAA.L', 'Vanguard S&P 500', 'ETF', 40, 4210.4],
+      ['NVDA', 'NVIDIA', 'EQUITY', 30, 4050.3],
+      ['MSFT', 'Microsoft', 'EQUITY', 8, 3402.16],
+      ['ASML', 'ASML', 'EQUITY', 3, 2690.1],
+      ['NVO', 'Novo Nordisk', 'EQUITY', 25, 1620.5],
+      ['XAU', 'Gold', 'COMMODITY', 2.4, 6408.14],
+    ]
+    const batchId = await openBatch(t)
+    await t.run(async (ctx) => {
+      await ctx.db.insert('intakes', {
+        ownerId: ME,
+        batchId,
+        accountId: ids.rev,
+        storageIds: [],
+        status: 'ready',
+        kind: 'holdings',
+        title: 'Revolut screenshot',
+        institution: 'Revolut',
+        readAt: Date.now(),
+        files: [
+          { name: 'IMG_9301.PNG', size: 400_000, contentType: 'image/png' },
+        ],
+        positions: screen.map(([symbol, name, type, shares, valueEur]) => ({
+          name,
+          shares,
+          valueEur,
+          preferred: 0,
+          todayPriceEur: Math.round((valueEur / shares) * 100) / 100,
+          todayAsOf: Date.now(),
+          candidates: [{ symbol, name, exchange: 'NMS', type }],
+        })),
+        cashEur: 1560,
+        totalEur: 30425.07,
+      })
+    })
+
+    const review = await me.query(api.intake.batchReview, { batchId })
+    const block = review.accounts.find((a) => a.accountId === ids.rev)
+    expect(block?.held).toBe(false)
+    expect(block?.holdings?.total).toMatchObject({
+      state: 'none',
+      known: 6,
+      answer: null,
+    })
+    expect(review.asks).toEqual([])
+
+    await me.mutation(api.intake.applyBatch, {
+      batchId,
+      dayStart: local(10, 4),
+    })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    const saved = await t.run(async (ctx) => ({
+      positions: (await ctx.db.query('holdings').collect()).length,
+      broker: (await ctx.db.query('stateSnapshots').collect())
+        .filter((s) => s.key === `brokerCash:${ids.rev}:EUR`)
+        .map((s) => s.value),
+    }))
+    expect(saved).toEqual({ positions: 0, broker: [1560] })
+    await addsUp(t, me, ids, { bpi: 3966, act: 728, rev: 864.46 })
+  })
+
+  /* His BPI screenshot: −€1,000 on 2 Oct as "Diversos", an IBAN and no
+     name. ActivoBank's statement had already written BPI's side of that
+     move. It is the same payment, in BPI already: nothing new. */
+  test('a BPI row with only an IBAN, whose side ActivoBank wrote, is the same payment', async () => {
+    const { t, me } = setup()
+    const ids = await accounts(me)
+    await updateAll(t, me, statements)
+    await updateAll(t, me, [
+      {
+        ...actAug,
+        name: 'activo-2026-10.pdf',
+        rows: [own(10, 2, 'TRF. P/O ARTEM CHERNII BPI', 1000)],
+        balance: { m: 10, d: 3, value: 1728 },
+      },
+    ])
+    const before = await logsOf(t)
+    expect(
+      before.filter(
+        (l) => l.accountId === ids.bpi && l.occurredAt >= at(10, 1),
+      ),
+    ).toHaveLength(1)
+
+    const { review } = await screenshot(
+      t,
+      me,
+      {
+        institution: 'Banco BPI',
+        accountTail: '4410',
+        rows: [
+          row(10, 2, 'TRF SEPA+ INST 23 P/ PT50000000000000001', -1000, {
+            merchant: 'Diversos',
+          }),
+        ],
+        balance: { m: 10, d: 4, value: 2966 },
+      },
+      async (asked, batchId) => {
+        const tr = asked.accounts.flatMap((a) => a.transfers)
+        expect(tr).toHaveLength(1)
+        expect(tr[0].sides).toHaveLength(1)
+        expect(tr[0].sides[0]).toMatchObject({
+          accountId: ids.bpi,
+          here: true,
+          fee: 0,
+        })
+        expect(samePayment(tr[0].sides[0], tr[0].sides.length > 1)).toBe(true)
+        await me.mutation(api.intake.batchAnswer, {
+          batchId,
+          answer: {
+            kind: 'sum',
+            key: `same:${tr[0].key}:${tr[0].sides[0].id}`,
+            on: true,
+          },
+        })
+      },
+    )
+    expect(review.asks).toEqual([])
+    expect((await logsOf(t)).length).toBe(before.length)
+    await addsUp(t, me, ids, { bpi: 2966, act: 1728, rev: 864.46 })
+  })
+
+  /* He sent €422 from BPI to ActivoBank on 3 Oct, in the evening.
+     ActivoBank's bank answered at 15:01, before the money came. BPI's
+     screenshot then wrote the arrival on ActivoBank, dated the day at
+     noon — a screenshot has no time. Nothing is missing. */
+  test('an arrival dated the day of the bank’s earlier answer is not missing', async () => {
+    const { t, me } = setup()
+    const ids = await accounts(me)
+    await updateAll(t, me, statements)
+    await linked(t, ids.act)
+    vi.setSystemTime(new Date(2026, 9, 3, 15, 1))
+    await bankAnswers(t, ids.act, 728)
+    vi.setSystemTime(at(10, 4))
+
+    await screenshot(t, me, {
+      institution: 'Banco BPI',
+      accountTail: '4410',
+      rows: [own(10, 3, 'TRF SEPA+ INST 24 P/ ACTIVOBANK', -422)],
+      balance: { m: 10, d: 4, value: 3544 },
+    })
+    const arrival = (await logsOf(t)).filter(
+      (l) => l.accountId === ids.act && l.occurredAt === at(10, 3),
+    )
+    expect(arrival.map((l) => l.value)).toEqual([422])
+
+    const sheet = await me.query(api.aggregate.accountSheet, {
+      accountId: ids.act,
+      head: true,
+    })
+    expect(sheet?.readings.map((r) => [r.source, r.value])).toContainEqual([
+      'sync',
+      728,
+    ])
+    expect(sheet?.checks.filter((c) => c.missing !== 0)).toEqual([])
+    /* The bank's 15:01 balance had not seen it; its next answer will. */
+    await addsUp(t, me, ids, { bpi: 3544, act: 728, rev: 864.46 })
+  })
+
+  /* Revolut's sheet: "why we see still pending and new? I was those
+     already many times." Two answers of the bank, each with a row
+     pending: only the last says pending now. */
+  test('of two bank answers with pending rows, only the last is pending now', async () => {
+    const { t, me } = setup()
+    const ids = await accounts(me)
+    await updateAll(t, me, statements)
+    await linked(t, ids.rev)
+    vi.setSystemTime(new Date(2026, 9, 2, 9, 30))
+    await bankAnswers(t, ids.rev, 864.46, [
+      { status: 'PDNG', amount: -6.7, day: '2026-10-02', name: 'Bnp Toc' },
+    ])
+    vi.setSystemTime(new Date(2026, 9, 3, 18, 10))
+    await bankAnswers(t, ids.rev, 864.46, [
+      { status: 'PDNG', amount: -22.14, day: '2026-10-03', name: 'Anthropic' },
+    ])
+    vi.setSystemTime(at(10, 4))
+
+    const sheet = await me.query(api.aggregate.accountSheet, {
+      accountId: ids.rev,
+      head: true,
+    })
+    const syncs = (sheet?.readings ?? []).filter((r) => r.source === 'sync')
+    expect(syncs.map((r) => r.pendingRows.length)).toEqual([1, 1])
+    const latest = lastSync(syncs)
+    expect(
+      syncs.filter(latest).map((r) => r.pendingRows.map((p) => p.merchant)),
+    ).toEqual([['Anthropic']])
+    await addsUp(t, me, ids, { bpi: 3966, act: 728, rev: 864.46 })
+  })
+
+  /* Trade Republic through Enable Banking: a broker, not a bank. Its
+     check takes the balance and no rows — its rows are buys the bank
+     calls payments. A screenshot afterwards brings positions only. */
+  test('a connected broker takes the bank’s balance; its screenshot saves positions only', async () => {
+    const { t, me } = setup()
+    const ids = await accounts(me)
+    await updateAll(t, me, statements)
+    const tr = await me.mutation(api.accounts.create, {
+      name: 'Trade Republic',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+      product: 'trade-republic',
+    })
+    await me.mutation(api.accounts.setBalance, {
+      accountId: tr,
+      currency: 'EUR',
+      value: 300,
+      dayStart: local(9, 30),
+      asOf: at(9, 30),
+    })
+    await linked(t, tr)
+    const begun = await bankAnswers(t, tr, 727.49, [
+      { status: 'BOOK', amount: -500.63, day: '2026-10-02', name: 'NVIDIA' },
+    ])
+    expect(begun).toMatchObject({ status: 'go', asks: [{ from: null }] })
+
+    const batchId = await openBatch(t)
+    await t.run(async (ctx) => {
+      await ctx.db.insert('intakes', {
+        ownerId: ME,
+        batchId,
+        accountId: tr,
+        storageIds: [],
+        status: 'ready',
+        kind: 'holdings',
+        title: 'Trade Republic screenshot',
+        institution: 'Trade Republic',
+        readAt: Date.now(),
+        files: [
+          { name: 'IMG_9320.PNG', size: 400_000, contentType: 'image/png' },
+        ],
+        positions: [
+          ['VWCE.DE', 'Vanguard FTSE All-World', 'ETF', 10, 1300.2],
+          ['NVDA', 'NVIDIA', 'EQUITY', 4, 540.12],
+        ].map(([symbol, name, type, shares, valueEur]) => ({
+          name: name as string,
+          shares: shares as number,
+          valueEur: valueEur as number,
+          preferred: 0,
+          candidates: [
+            {
+              symbol: symbol as string,
+              name: name as string,
+              exchange: 'GER',
+              type: type as string,
+            },
+          ],
+        })),
+        cashEur: 120,
+        totalEur: 1960.32,
+      })
+    })
+    await me.mutation(api.intake.applyBatch, {
+      batchId,
+      dayStart: local(10, 4),
+    })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+
+    const saved = await t.run(async (ctx) => ({
+      rows: (await ctx.db.query('logs').collect()).filter(
+        (l) => l.accountId === tr,
+      ).length,
+      positions: (await ctx.db.query('holdings').collect()).filter(
+        (h) => h.accountId === tr,
+      ).length,
+      cash: (await ctx.db.query('stateSnapshots').collect())
+        .filter((s) => s.key === `balance:${tr}:EUR`)
+        .sort((a, b) => b.recordedAt - a.recordedAt)
+        .map((s) => [s.value, s.source])[0],
+    }))
+    expect(saved).toEqual({ rows: 0, positions: 2, cash: [727.49, 'sync'] })
+    await addsUp(t, me, ids, { bpi: 3966, act: 728, rev: 864.46 })
   })
 })

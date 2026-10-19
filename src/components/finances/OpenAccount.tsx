@@ -11,6 +11,7 @@ import { AccountLogo } from '@/components/finances/Logo'
 import { Busy } from '@/components/finances/bits'
 import { Sheet } from '@/components/finances/Sheet'
 import { Veiled } from '@/components/finances/Veil'
+import { lastSync } from '@/lib/bankLink'
 import { SkeletonRows } from '@/components/Skeleton'
 import { FileView } from './AccountFileView'
 import { TakenStrip } from './AccountFileBack'
@@ -354,6 +355,8 @@ function Timeline({
   const rank = { bal: 0, file: 0, pend: 1, row: 2 }
   items.sort((a, b) => b.at - a.at || rank[a.t] - rank[b.t])
   const gaps = data.checks.filter((c) => c.missing !== 0)
+  /* Only the bank's last answer says what is pending now. */
+  const latest = lastSync(data.readings)
 
   let day = ''
   let i = 0
@@ -415,6 +418,7 @@ function Timeline({
                           domain: account.domain,
                           at: it.bal.at,
                           pending: it.bal.pendingRows.length,
+                          latest: latest(it.bal),
                         }
                       : undefined
                   }

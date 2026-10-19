@@ -47,7 +47,12 @@ async function balance(
    `drop`: Revolut's file and ActivoBank's screenshot in one drop. */
 export const read = mutation({
   args: {
-    as: v.union(v.literal('added'), v.literal('fee'), v.literal('drop')),
+    as: v.union(
+      v.literal('added'),
+      v.literal('unnamed'),
+      v.literal('fee'),
+      v.literal('drop'),
+    ),
   },
   returns: v.id('batches'),
   handler: async (ctx, args) => {
@@ -119,7 +124,9 @@ export const read = mutation({
             : { name: 'statement.csv', size: 9_000, contentType: 'text/csv' },
         ],
       })
-    const screenshot = (first: number, broker = true) =>
+    /* `unnamed`: the top-up's line names no account (19 Oct, his BPI
+       screenshot: "Diversos", an IBAN and nothing else). */
+    const screenshot = (first: number, broker = true, unnamed = false) =>
       dropped(
         activo._id,
         'ActivoBank',
@@ -128,19 +135,21 @@ export const read = mutation({
           ...(broker
             ? [row(5, 'Trade Republic', 'COMPRA 2789 TRADE REPUBLIC', -505.2)]
             : []),
-          row(
-            5,
-            'COMPRA 2789 REVOLUT',
-            'COMPRA 2789 REVOLUT 8134 DUBLIN',
-            -700,
-          ),
+          unnamed
+            ? row(5, 'Diversos', 'TRF SEPA+ INST 23 P/ PT50000000000001', -700)
+            : row(
+                5,
+                'COMPRA 2789 REVOLUT',
+                'COMPRA 2789 REVOLUT 8134 DUBLIN',
+                -700,
+              ),
           row(6, 'Veiga e Seabra', 'COMPRA 2789 EST SERVICO VEIGA', -37.86),
         ],
         first,
         true,
       )
 
-    if (args.as === 'added') {
+    if (args.as === 'added' || args.as === 'unnamed') {
       await balance(ctx, ownerId, activo._id, 153.21, at(8), -1205.2)
       const csv = await file(revolut._id)
       const base = {
@@ -173,7 +182,7 @@ export const read = mutation({
           pairOf: out,
         },
       })
-      await screenshot(90.35)
+      await screenshot(90.35, true, args.as === 'unnamed')
       return batchId
     }
 

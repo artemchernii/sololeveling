@@ -27,7 +27,7 @@ export type MarketId =
   'sp500' | 'ndx' | 'world' | 'stoxx' | 'gold' | 'btc' | 'eurusd' | 'us10y'
 
 type Unit = 'points' | 'EUR' | 'USD' | 'rate' | 'yield'
-const m = (
+const market = (
   id: MarketId,
   name: string,
   symbol: string,

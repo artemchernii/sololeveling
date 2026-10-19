@@ -350,6 +350,90 @@ export const cameLine = v.object({
 
 const ON_CARD = 3
 
+type Line = typeof cameLine.type
+
+/** The documents a row names, each read once per query and only when it
+    is the owner's (the account sheet lists many rows naming the same
+    company or bank). */
+export type OwnReads = {
+  instrument: (id: Id<'instruments'>) => Promise<Doc<'instruments'> | null>
+  log: (id: Id<'logs'>) => Promise<Doc<'logs'> | null>
+  account: (id: Id<'accounts'>) => Promise<Doc<'accounts'> | null>
+}
+export function ownReads(ctx: QueryCtx, ownerId: string): OwnReads {
+  const seen = new Map<string, Promise<unknown>>()
+  const once =
+    <T extends 'instruments' | 'logs' | 'accounts'>() =>
+    (id: Id<T>): Promise<Doc<T> | null> => {
+      if (!seen.has(id))
+        seen.set(
+          id,
+          ctx.db
+            .get(id)
+            .then((d) => (d !== null && d.ownerId === ownerId ? d : null)),
+        )
+      return seen.get(id) as Promise<Doc<T> | null>
+    }
+  return {
+    instrument: once<'instruments'>(),
+    log: once<'logs'>(),
+    account: once<'accounts'>(),
+  }
+}
+
+/** A log Trading 212's history wrote (or a file's row it matched): `ref`
+    starts `t212:`. */
+export const isT212Log = (l: Doc<'logs'>) =>
+  l.meta?.ref?.startsWith('t212:') === true
+
+/** One of Trading 212's logged rows as the card and the opened account
+    show it: what it is, the company or the other account, and its euros.
+    A dividend is known by its id (`t212:div:`), so a file's dividend it
+    matched, with no company saved, is still one. */
+export async function logLine(read: OwnReads, l: Doc<'logs'>): Promise<Line> {
+  const inst = l.meta?.instrumentId
+    ? await read.instrument(l.meta.instrumentId)
+    : null
+  const pair = l.meta?.pairOf ? await read.log(l.meta.pairOf) : null
+  const otherId = l.meta?.otherAccountId
+  const other = otherId ? await read.account(otherId) : null
+  const value = l.value ?? 0
+  const kind: Line['kind'] =
+    l.kind === 'move'
+      ? 'transfer'
+      : l.kind === 'expense'
+        ? 'fee'
+        : inst !== null || l.meta?.ref?.startsWith('t212:div:') === true
+          ? 'dividend'
+          : 'interest'
+  return {
+    kind,
+    at: l.occurredAt,
+    name:
+      kind === 'transfer'
+        ? (other?.name ?? l.text ?? '')
+        : kind === 'dividend'
+          ? (l.text ?? '')
+          : SOURCE,
+    symbol: inst?.symbol ?? null,
+    shares: l.meta?.shares ?? null,
+    each:
+      kind === 'dividend' && l.meta?.shares
+        ? Math.round((value / l.meta.shares) * 100) / 100
+        : null,
+    amount: l.kind === 'expense' ? -value : value,
+    currency: (l.unit ?? 'eur').toUpperCase(),
+    other:
+      other === null
+        ? null
+        : {
+            name: other.name,
+            domain: other.domain ?? null,
+            at: pair?.occurredAt ?? null,
+          },
+  }
+}
+
 /** What the answers since the block opened wrote, for the card: how many,
     how many a file had, and the newest three as lines. Rows he removed
     since are not counted. */
@@ -358,7 +442,6 @@ export async function cameOnCard(
   ownerId: string,
   came: NonNullable<Doc<'bankLinks'>['came']>,
 ) {
-  type Line = typeof cameLine.type
   const lines: Array<Line> = []
   for (const id of came.trades) {
     const t = await ctx.db.get(id)
@@ -377,50 +460,11 @@ export async function cameOnCard(
       other: null,
     })
   }
+  const read = ownReads(ctx, ownerId)
   for (const id of came.logs) {
     const l = await ctx.db.get(id)
     if (l === null || l.ownerId !== ownerId) continue
-    const inst = l.meta?.instrumentId
-      ? await ctx.db.get(l.meta.instrumentId)
-      : null
-    const pair = l.meta?.pairOf ? await ctx.db.get(l.meta.pairOf) : null
-    const otherId = l.meta?.otherAccountId
-    const other = otherId ? await ctx.db.get(otherId) : null
-    const value = l.value ?? 0
-    const kind: Line['kind'] =
-      l.kind === 'move'
-        ? 'transfer'
-        : l.kind === 'expense'
-          ? 'fee'
-          : inst !== null
-            ? 'dividend'
-            : 'interest'
-    lines.push({
-      kind,
-      at: l.occurredAt,
-      name:
-        kind === 'transfer'
-          ? (other?.name ?? l.text ?? '')
-          : kind === 'dividend'
-            ? (l.text ?? '')
-            : SOURCE,
-      symbol: inst?.symbol ?? null,
-      shares: l.meta?.shares ?? null,
-      each:
-        kind === 'dividend' && l.meta?.shares
-          ? Math.round((value / l.meta.shares) * 100) / 100
-          : null,
-      amount: l.kind === 'expense' ? -value : value,
-      currency: (l.unit ?? 'eur').toUpperCase(),
-      other:
-        other === null
-          ? null
-          : {
-              name: other.name,
-              domain: other.domain ?? null,
-              at: pair?.occurredAt ?? null,
-            },
-    })
+    lines.push(await logLine(read, l))
   }
   lines.sort((a, b) => b.at - a.at)
   return { rows: lines.length, had: came.had, lines: lines.slice(0, ON_CARD) }

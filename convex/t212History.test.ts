@@ -180,6 +180,38 @@ test('the first answer reads from the newest file row on: a buy the file had is 
   expect((await card())?.came).toMatchObject({ rows: 5, had: 1 })
 })
 
+test('the opened account lists the same rows as the card, none typed, and a dividend a file had keeps its badge', async () => {
+  const { t, me, accountId, later, rows } = await connected()
+  await later('paid')
+  const page = await me.query(api.sheetRows.page, { accountId, show: 20 })
+  const own = page?.rows.filter((r) => r.t212 !== null) ?? []
+  expect(own.map((r) => [r.t212?.kind, r.t212?.amount, r.logId])).toEqual([
+    ['dividend', 1.38, null],
+    ['interest', 2.04, null],
+    ['fee', -0.45, null],
+  ])
+  expect(own[0].t212).toMatchObject({
+    symbol: 'ASML.AS',
+    shares: 1,
+    each: 1.38,
+  })
+  /* A file's dividend matched by its id, with no company saved. */
+  const div = (await rows()).logs.find((l) => l.meta?.ref === 't212:div:1')!
+  await t.run((ctx) =>
+    ctx.db.patch(div._id, { meta: { ref: 't212:div:1', merchant: 'ASML' } }),
+  )
+  const again = await me.query(api.sheetRows.page, { accountId, show: 20 })
+  expect(again?.rows.find((r) => r.id === div._id)?.t212).toMatchObject({
+    kind: 'dividend',
+    symbol: null,
+  })
+  /* Another owner's account answers nothing. */
+  const them = t.withIdentity({ tokenIdentifier: 'https://clerk.test|them' })
+  expect(await them.query(api.sheetRows.page, { accountId, show: 20 })).toBe(
+    null,
+  )
+})
+
 test('a history call that fails writes nothing at all', async () => {
   const { me, args, rows } = await connected()
   const before = await rows()

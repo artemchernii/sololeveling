@@ -14,7 +14,7 @@ const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
 
 const review = async (
   page: Page,
-  as: 'added' | 'fee' | 'drop',
+  as: 'added' | 'unnamed' | 'fee' | 'drop',
   name: string,
 ) => {
   await start(page)
@@ -50,6 +50,23 @@ test('the top-up another file wrote: already added, nothing asked, saved once', 
   await expect(sheet.getByText('€90.35').first()).toBeVisible()
   await sheet.getByRole('button', { name: 'done' }).click()
   await expect(sheet).toBeHidden()
+})
+
+test('a line that names no account, the payment the app has: "same payment" adds nothing', async ({
+  page,
+}) => {
+  const sheet = await review(page, 'unnamed', 'ActivoBank')
+  const ask = sheet.locator('[data-transfer="ask"]')
+  await expect(ask.getByText('Is this the same payment?')).toBeVisible()
+  await expect(ask.getByText('Is this the same transfer?')).toHaveCount(0)
+  await expect(ask.getByText('new, in this screenshot')).toBeVisible()
+  await expect(ask.getByText('already in the app')).toBeVisible()
+  await page.screenshot(shot('transfer-same-payment'))
+  await ask.getByRole('button', { name: 'same payment' }).click()
+  await expect(sheet.getByText('Same payment — already added.')).toBeVisible()
+  await apply(sheet).click()
+  await expect(sheet.getByText('ActivoBank is up to date')).toBeVisible()
+  await expect(sheet.getByText('€90.35').first()).toBeVisible()
 })
 
 test('a fee less arrived: not saved until answered; "same transfer" saves one transfer and the fee', async ({

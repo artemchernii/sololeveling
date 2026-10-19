@@ -200,7 +200,7 @@
   .strip3 { display:grid; grid-template-columns: repeat(3, 1fr); gap: 14px }
   @media (max-width: 900px) { .strip3 { grid-template-columns: 1fr } }
 
-  /* 19 Oct, round 3: ⓘ cards, WHAT IT MEANS, two heatmaps, rules, ASK */
+  /* 19 Oct, round 3: ⓘ cards, WHAT IT MEANS, two heatmaps, ASK */
   .i { display:inline-grid; place-items:center; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--ink-500); color: var(--ink-400); font: 500 9px var(--mono); cursor: pointer; vertical-align: middle; margin-left: 4px; transition: all .15s; flex: none }
   .i:hover, .i.on { color: var(--lav-300); border-color: var(--lav-400); box-shadow: 0 0 10px -3px var(--shine) }
   .card { position: fixed; z-index: 50; width: 300px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--sys-edge); background: #1d1e30f2; backdrop-filter: blur(12px); box-shadow: 0 20px 40px -12px rgba(0,0,0,.8), 0 0 30px -12px var(--shine); display:none; flex-direction:column; gap: 8px; animation: pop .3s cubic-bezier(.3,1.6,.5,1) both }
@@ -313,7 +313,6 @@
           <span class="badge b-lav">SECTORS · REGIONS</span>
           <span class="badge b-lav" data-web>WEB · NEWS</span>
           <span class="badge b-lav">15 POSITIONS · LOOK-THROUGH</span>
-          <span class="badge b-lav">4 RULES</span>
           <span class="badge b-lav" data-planfeed>PLAN</span>
         </div>
         <span class="was" data-cost>≈ $0.25 A READ · SONNET 5.5 · WEB SEARCH</span>
@@ -361,7 +360,7 @@
           <div class="fnd" style="animation-delay:.3s" data-lights="mine">
             <span class="badge b-bad">ALLOCATION</span>
             <div>Tech is more than half of the money once ETFs are opened up
-              <div class="facts"><span class="fact">AI · TECH 41% · RULE 25%</span><span class="fact">TECH 57% · S&P 500 33%</span><span class="fact">US 71%</span></div>
+              <div class="facts"><span class="fact">AI · TECH 41% · LOOK-THROUGH</span><span class="fact">TECH 57% · S&P 500 33%</span><span class="fact">US 71%</span></div>
               <span class="means">WHAT IT MEANS</span>
               <div class="plain">VUAA already holds Microsoft, Nvidia and Apple, and AVGO and NVDA are held on top. So <b>one bad month for AI moves most of the portfolio at once</b>. New money outside tech — health, Europe, small companies — spreads that risk.</div>
             </div>
@@ -374,10 +373,10 @@
               <div class="plain">Tech went up fast. An RSI above 70 means "ran up quickly" — it often <b>pauses or dips</b> afterwards. Not a sell signal; a reason not to chase it with new money this month.</div>
             </div>
           </div>
-          <div class="fnd" style="animation-delay:.5s" data-lights="rules">
+          <div class="fnd" style="animation-delay:.5s" data-lights="mine">
             <span class="badge b-bad">DON'T</span>
             <div>Adding more AI or chips this month
-              <div class="facts"><span class="fact">AVGO 7.1% · RULE 5%</span><span class="fact">AI · TECH 41% · RULE 25%</span></div>
+              <div class="facts"><span class="fact">AVGO 7.1% · NVDA 5.1%</span><span class="fact">AI · TECH 41%</span></div>
             </div>
           </div>
         </div>
@@ -402,7 +401,7 @@
     </section>
 
     <!-- 3 · rates and inflation -->
-    <section class="tile w2" style="--i:2" data-tile="macro">
+    <section class="tile w2 h2" style="--i:2" data-tile="macro">
       <div class="head">
         <span class="name"><span class="icon" style="--a:var(--warn)">◎</span>RATES · INFLATION</span>
         <span class="badge b-warn b-dash">NEW SOURCE</span>
@@ -413,20 +412,6 @@
         <div class="mline"><span class="caps" style="color:var(--ink-200)">FED FUNDS<span class="i" data-k="fed">i</span></span><span class="num sm">4.25–4.50%</span><span class="was">FRED · 18 OCT</span><span class="badge b-lav" style="justify-self:end">NEXT · 29 OCT</span></div>
         <div class="mline"><span class="caps" style="color:var(--ink-200)">ECB DEPOSIT<span class="i" data-k="ecb">i</span></span><span class="num sm">2.00%</span><span class="was">ECB · 18 OCT</span><span class="badge b-lav" style="justify-self:end">NEXT · 30 OCT</span></div>
         <div class="mline"><span class="caps" style="color:var(--ink-200)">US 10Y<span class="i" data-k="10y">i</span></span><span class="num sm good">▼ 4.02%</span><span class="was">FRED · 18 OCT</span><span class="was" style="text-align:right">1 SEP 4.21%</span></div>
-      </div>
-    </section>
-
-    <!-- 4 · his rules (from his chat prompt) -->
-    <section class="tile w2" style="--i:3" data-tile="rules">
-      <div class="head">
-        <span class="name"><span class="icon" style="--a:var(--bad)">⚑</span>RULES<span class="i" data-k="rules">i</span></span>
-        <span class="badge b-bad">2 BROKEN</span>
-      </div>
-      <div>
-        <div class="rule"><span class="caps" style="color:var(--ink-200)">ONE STOCK ≤ 5%</span><span class="badge b-bad">AVGO 7.1%</span></div>
-        <div class="rule"><span class="caps" style="color:var(--ink-200)">AI · TECH ≤ 25%</span><span class="badge b-bad">41% · LOOK-THROUGH</span></div>
-        <div class="rule"><span class="caps" style="color:var(--ink-200)">TRADE REPUBLIC ≤ 40%</span><span class="badge b-good">33%</span></div>
-        <div class="rule"><span class="caps" style="color:var(--ink-200)">CASH · 6 MONTHS OUT</span><span class="badge b-warn">€3,210 · €9,660</span></div>
       </div>
     </section>
 
@@ -453,7 +438,7 @@
     <!-- 7 · ideas outside AI -->
     <section class="tile w6" style="--i:6" data-tile="ideas">
       <div class="head">
-        <span class="name"><span class="icon" style="--a:var(--lav-400)">✦</span>IDEAS · OUTSIDE AI · NOT OWNED</span>
+        <span class="name"><span class="icon" style="--a:var(--lav-400)">✦</span>IDEAS · NOT OWNED</span>
         <span class="badge b-lav b-dash">MODEL · NOT ADVICE</span>
       </div>
       <div class="after" data-when-not="read"><span class="caps">AFTER THE READ</span></div>
@@ -607,7 +592,6 @@
     fed: ['FED FUNDS', 'The interest rate the US central bank sets for banks lending dollars overnight.', 'A cut makes borrowing cheaper and usually pushes shares up and the dollar down — and a weaker dollar makes US shares worth fewer euros.', '4.25–4.50% · NEXT MEETING 29 OCT'],
     ecb: ['ECB DEPOSIT', 'The rate the European Central Bank pays banks on their deposits.', 'Savings accounts in euros follow it. A cut means less interest on cash.', '2.00% · NEXT MEETING 30 OCT'],
     '10y': ['US 10Y', 'What the US government pays to borrow for 10 years.', 'When it falls, bonds gain and growth shares usually gain too; when it jumps, both drop.', '4.02% · 1 SEP 4.21%'],
-    rules: ['RULES', 'Limits from the plan: no single stock above 5%, AI and tech at most 25% with ETFs opened up, Trade Republic at most 40%, six months of spending kept in cash.', 'They stop one company or one theme from deciding the whole portfolio. New money only — nothing is sold to fix them.', '2 BROKEN · AVGO 7.1% · AI 41%'],
     heat: ['SECTOR HEATMAP', 'The S&P 500 split into its 11 industries. Box size is how big the industry is; colour is how it moved this month. A white dot is an industry held.', 'It shows what drove the market — this month it was tech.', 'TECH ▲ 5.8% · ENERGY ▼ 3.6%'],
     mine: ['POSITIONS HEATMAP', 'Every position as a box: the bigger the box, the more euros in it; green rose this month, red fell.', 'Big green boxes are what moved the total. Big boxes in one colour family mean the money moves together.', 'BIGGEST · VUAA €1,640 · AVGO ▲ 7.4%'],
   }
@@ -635,8 +619,8 @@
     thread.insertAdjacentHTML('beforeend', `<div class="q">${w ? '🌐 ' : ''}${text}</div><div class="a" id="pending"><span class="typing"><i></i><i></i><i></i></span></div>`)
     thread.scrollTop = thread.scrollHeight
     setTimeout(() => {
-      document.getElementById('pending').outerHTML = `<div class="a">Tech and AI are 41% once VUAA and IWDA are opened up, against a 25% rule. The biggest single piece is AVGO at 7.1%. The ETFs spread the rest across about 1,900 companies, mostly in the US.
-        <div class="facts"><span class="fact">AI · TECH 41% · RULE 25%</span><span class="fact">AVGO 7.1%</span><span class="fact">US 71%</span></div>
+      document.getElementById('pending').outerHTML = `<div class="a">Tech and AI are 41% once VUAA and IWDA are opened up, more than the 33% tech is inside the S&P 500 itself. The biggest single piece is AVGO at 7.1%. The ETFs spread the rest across about 1,900 companies, mostly in the US.
+        <div class="facts"><span class="fact">AI · TECH 41%</span><span class="fact">S&P 500 TECH 33%</span><span class="fact">AVGO 7.1%</span><span class="fact">US 71%</span></div>
         <span class="was">${w ? 'SONNET 5.5 · 1 SEARCH · $0.05' : 'HAIKU 5.5 · $0.002'}</span></div>`
       thread.scrollTop = thread.scrollHeight
     }, 1300)

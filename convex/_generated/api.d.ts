@@ -46,6 +46,7 @@ import type * as github from "../github.js";
 import type * as goals from "../goals.js";
 import type * as handOver from "../handOver.js";
 import type * as holdingsTotal from "../holdingsTotal.js";
+import type * as insightsMarket from "../insightsMarket.js";
 import type * as intake from "../intake.js";
 import type * as invest from "../invest.js";
 import type * as justAdded from "../justAdded.js";
@@ -134,6 +135,7 @@ declare const fullApi: ApiFromModules<{
   goals: typeof goals;
   handOver: typeof handOver;
   holdingsTotal: typeof holdingsTotal;
+  insightsMarket: typeof insightsMarket;
   intake: typeof intake;
   invest: typeof invest;
   justAdded: typeof justAdded;

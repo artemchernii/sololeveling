@@ -353,6 +353,12 @@ function Timeline({
   const rank = { bal: 0, file: 0, pend: 1, row: 2 }
   items.sort((a, b) => b.at - a.at || rank[a.t] - rank[b.t])
   const gaps = data.checks.filter((c) => c.missing !== 0)
+  /* Only the bank's last answer says what is pending now (19 Oct: "why
+     we see still pending and new?"); an older one says what it was. */
+  const lastSync = new Map<string, number>()
+  for (const b of data.readings)
+    if (b.source === 'sync')
+      lastSync.set(b.currency, Math.max(lastSync.get(b.currency) ?? 0, b.at))
 
   let day = ''
   let i = 0
@@ -414,6 +420,7 @@ function Timeline({
                           domain: account.domain,
                           at: it.bal.at,
                           pending: it.bal.pendingRows.length,
+                          latest: lastSync.get(it.bal.currency) === it.bal.at,
                         }
                       : undefined
                   }

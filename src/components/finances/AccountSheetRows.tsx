@@ -57,7 +57,14 @@ export function Divider({
   typed?: ReactNode
   /** A connected bank's answer (17 Oct): its logo and "Synced with
       bank", never a PDF. `at` is when it answered. */
-  bank?: { name: string; domain?: string; at: number; pending: number }
+  bank?: {
+    name: string
+    domain?: string
+    at: number
+    pending: number
+    /** The bank's last answer: the only one whose pending is now. */
+    latest: boolean
+  }
   onFile: (id: Id<'intakes'>) => void
 }) {
   return (
@@ -142,16 +149,28 @@ function Synced({
             {short(bank.at)} · {time}
           </span>
           {file && file.added > 0 ? (
-            <span className={`${BADGE} bg-state-good/12 text-state-good`}>
-              <i className="size-1.5 rounded-full bg-current" />
-              {file.added} new
-            </span>
+            bank.latest ? (
+              <span className={`${BADGE} bg-state-good/12 text-state-good`}>
+                <i className="size-1.5 rounded-full bg-current" />
+                {file.added} new
+              </span>
+            ) : (
+              <span className={`${BADGE} bg-lift/[0.05] text-ink-400`}>
+                {file.added} saved
+              </span>
+            )
           ) : null}
           {bank.pending > 0 ? (
-            <span className={`${BADGE} bg-state-warn/12 text-state-warn`}>
-              <i className="size-1.5 animate-pulse rounded-full bg-current" />
-              {bank.pending} pending
-            </span>
+            bank.latest ? (
+              <span className={`${BADGE} bg-state-warn/12 text-state-warn`}>
+                <i className="size-1.5 animate-pulse rounded-full bg-current" />
+                {bank.pending} pending
+              </span>
+            ) : (
+              <span className={`${BADGE} bg-lift/[0.05] text-ink-500`}>
+                {bank.pending} was pending
+              </span>
+            )
           ) : null}
         </span>
       </span>

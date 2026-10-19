@@ -101,7 +101,14 @@ test('a broker’s next check asks for the balance only: no rows saved', async (
     accountId,
   })
   expect(begun).toMatchObject({ status: 'go', asks: [{ from: null }] })
-  await t.mutation(internal.bankRows.fail, { ownerId: ME, accountId })
+  /* The check begun above is let go, as a failed one is. */
+  await t.run(async (ctx) => {
+    const l = await ctx.db
+      .query('bankLinks')
+      .withIndex('by_owner_account', (q) => q.eq('ownerId', ME))
+      .unique()
+    if (l !== null) await ctx.db.patch(l._id, { checking: undefined })
+  })
 
   await checkAgain()
   expect(await balance()).toEqual({ value: 685.09, source: 'sync' })

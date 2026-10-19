@@ -9,6 +9,7 @@ import type { Transfer } from '../../../convex/transferMatch'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { euros } from '@/lib/money'
+import { samePayment } from '@/lib/transferMatch'
 import { DAY, Opt, signed } from '@/components/finances/BulkParts'
 
 type Side = Transfer['sides'][number]
@@ -81,7 +82,7 @@ export function TransferCheck({
               busy={busy}
               onUndo={() => say(`same:${t.key}:${chosen.id}`, false)}
             >
-              {chosen.here && chosen.fee === 0
+              {samePayment(chosen)
                 ? 'Same payment — already added.'
                 : 'Same transfer — added once.'}
               {chosen.fee > 0 ? (
@@ -216,10 +217,7 @@ function Question({
     />
   )
   const sent = Math.abs(t.amount < 0 ? t.amount : one.amount)
-  /* The side is in this row's own account (19 Oct, his BPI screenshot:
-     "it shows BPI -> BPI"): not a transfer but the same payment, which
-     "same payment" does not save again (transferMatch.applyRow). */
-  const twice = !many && one.here && one.fee === 0
+  const twice = samePayment(one, many)
   return (
     <div
       data-transfer="ask"

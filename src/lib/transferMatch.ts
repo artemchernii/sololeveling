@@ -208,3 +208,14 @@ export function namedAccounts(
     })
     .map((a) => a.id)
 }
+
+/** A side in the row's own account, the same amount (19 Oct, his BPI
+    screenshot: "it shows BPI -> BPI"): not a transfer but the same
+    payment, which "same payment" does not save again (convex/transferMatch
+    applyRow). Never when the row has several sides to pick from. */
+export function samePayment(
+  side: { here: boolean; fee: number },
+  many = false,
+): boolean {
+  return !many && side.here && side.fee === 0
+}

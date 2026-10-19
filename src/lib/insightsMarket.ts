@@ -26,155 +26,52 @@ export type Mark =
 export type MarketId =
   'sp500' | 'ndx' | 'world' | 'stoxx' | 'gold' | 'btc' | 'eurusd' | 'us10y'
 
+type Unit = 'points' | 'EUR' | 'USD' | 'rate' | 'yield'
+const m = (
+  id: MarketId,
+  name: string,
+  symbol: string,
+  mark: Mark,
+  unit: Unit,
+) => ({ id, name, symbol, mark, unit }) as const
+
 /** The eight cards, in the mockup's order. `unit` is how the price reads. */
-export const MARKETS: ReadonlyArray<{
-  id: MarketId
-  name: string
-  symbol: string
-  mark: Mark
-  unit: 'points' | 'EUR' | 'USD' | 'rate' | 'yield'
-}> = [
-  {
-    id: 'sp500',
-    name: 'S&P 500',
-    symbol: '^GSPC',
-    mark: { emoji: '🇺🇸' },
-    unit: 'points',
-  },
-  {
-    id: 'ndx',
-    name: 'NASDAQ 100',
-    symbol: '^NDX',
-    mark: { site: 'nasdaq.com' },
-    unit: 'points',
-  },
-  {
-    id: 'world',
-    name: 'MSCI WORLD',
-    symbol: 'IWDA.AS',
-    mark: { emoji: '🌐' },
-    unit: 'EUR',
-  },
-  {
-    id: 'stoxx',
-    name: 'STOXX 600',
-    symbol: '^STOXX',
-    mark: { emoji: '🇪🇺' },
-    unit: 'points',
-  },
-  {
-    id: 'gold',
-    name: 'GOLD',
-    symbol: 'GC=F',
-    mark: { metal: 'GC=F' },
-    unit: 'USD',
-  },
-  {
-    id: 'btc',
-    name: 'BITCOIN',
-    symbol: 'BTC-EUR',
-    mark: { coin: 'BTC-EUR' },
-    unit: 'EUR',
-  },
-  {
-    id: 'eurusd',
-    name: 'EUR / USD',
-    symbol: 'EURUSD=X',
-    mark: { emoji: '💶' },
-    unit: 'rate',
-  },
-  {
-    id: 'us10y',
-    name: 'US 10Y',
-    symbol: '^TNX',
-    mark: { site: 'treasury.gov' },
-    unit: 'yield',
-  },
+export const MARKETS = [
+  market('sp500', 'S&P 500', '^GSPC', { emoji: '🇺🇸' }, 'points'),
+  market('ndx', 'NASDAQ 100', '^NDX', { site: 'nasdaq.com' }, 'points'),
+  market('world', 'MSCI WORLD', 'IWDA.AS', { emoji: '🌐' }, 'EUR'),
+  market('stoxx', 'STOXX 600', '^STOXX', { emoji: '🇪🇺' }, 'points'),
+  market('gold', 'GOLD', 'GC=F', { metal: 'GC=F' }, 'USD'),
+  market('btc', 'BITCOIN', 'BTC-EUR', { coin: 'BTC-EUR' }, 'EUR'),
+  market('eurusd', 'EUR / USD', 'EURUSD=X', { emoji: '💶' }, 'rate'),
+  market('us10y', 'US 10Y', '^TNX', { site: 'treasury.gov' }, 'yield'),
 ]
 
 /** The S&P 500's sectors, each read by its own SPDR fund (a fetched
-    price, not an average of the boxes), with the biggest companies in it.
-    Two rows, as the mockup draws them. */
-export const SECTORS: ReadonlyArray<{
-  id: string
-  name: string
-  emoji: string
-  fund: string
-  row: 0 | 1
-  stocks: ReadonlyArray<string>
-}> = [
-  {
-    id: 'tech',
-    name: 'TECH',
-    emoji: '💻',
-    fund: 'XLK',
-    row: 0,
-    stocks: ['NVDA', 'AAPL', 'MSFT', 'AVGO', 'ORCL', 'PLTR'],
-  },
-  {
-    id: 'comms',
-    name: 'COMMS',
-    emoji: '📡',
-    fund: 'XLC',
-    row: 0,
-    stocks: ['GOOGL', 'META', 'NFLX'],
-  },
-  {
-    id: 'consumer',
-    name: 'CONSUMER',
-    emoji: '🛒',
-    fund: 'XLY',
-    row: 0,
-    stocks: ['AMZN', 'TSLA', 'HD'],
-  },
-  {
-    id: 'health',
-    name: 'HEALTH',
-    emoji: '💊',
-    fund: 'XLV',
-    row: 0,
-    stocks: ['LLY', 'UNH', 'JNJ', 'ABBV'],
-  },
-  {
-    id: 'finance',
-    name: 'FINANCE',
-    emoji: '🏦',
-    fund: 'XLF',
-    row: 1,
-    stocks: ['BRK-B', 'JPM', 'V', 'MA', 'BAC'],
-  },
-  {
-    id: 'industry',
-    name: 'INDUSTRY',
-    emoji: '🏭',
-    fund: 'XLI',
-    row: 1,
-    stocks: ['GE', 'CAT', 'RTX'],
-  },
-  {
-    id: 'energy',
-    name: 'ENERGY',
-    emoji: '⚡',
-    fund: 'XLE',
-    row: 1,
-    stocks: ['XOM', 'CVX'],
-  },
-  {
-    id: 'staples',
-    name: 'STAPLES',
-    emoji: '🧺',
-    fund: 'XLP',
-    row: 1,
-    stocks: ['WMT', 'COST', 'PG', 'KO'],
-  },
-]
+    price, not an average of the boxes), with the biggest companies in it,
+    in two rows as the mockup draws them: [id, name, emoji, fund, row,
+    "STOCKS"]. */
+export const SECTORS = (
+  [
+    ['tech', 'TECH', '💻', 'XLK', 0, 'NVDA AAPL MSFT AVGO ORCL PLTR'],
+    ['comms', 'COMMS', '📡', 'XLC', 0, 'GOOGL META NFLX'],
+    ['consumer', 'CONSUMER', '🛒', 'XLY', 0, 'AMZN TSLA HD'],
+    ['health', 'HEALTH', '💊', 'XLV', 0, 'LLY UNH JNJ ABBV'],
+    ['finance', 'FINANCE', '🏦', 'XLF', 1, 'BRK-B JPM V MA BAC'],
+    ['industry', 'INDUSTRY', '🏭', 'XLI', 1, 'GE CAT RTX'],
+    ['energy', 'ENERGY', '⚡', 'XLE', 1, 'XOM CVX'],
+    ['staples', 'STAPLES', '🧺', 'XLP', 1, 'WMT COST PG KO'],
+  ] as const
+).map(([id, name, emoji, fund, row, stocks]) => ({
+  id,
+  name,
+  emoji,
+  fund,
+  row,
+  stocks: stocks.split(' '),
+}))
 
-export const REGIONS: ReadonlyArray<{
-  id: string
-  name: string
-  emoji: string
-  symbol: string
-}> = [
+export const REGIONS = [
   { id: 'us', name: 'US', emoji: '🇺🇸', symbol: '^GSPC' },
   { id: 'europe', name: 'EUROPE', emoji: '🇪🇺', symbol: '^STOXX' },
   { id: 'japan', name: 'JAPAN', emoji: '🇯🇵', symbol: '^N225' },

@@ -290,71 +290,30 @@ export function rateCards(r: {
    period reads differently. The Fed card is reached only where
    FRED_API_KEY is set — on the test backend it is not, which is the
    NOT REACHED case (S3). */
-const CANNED: Record<string, [price: number, monthChange: number]> = {
-  '^GSPC': [6612, 2.4],
-  '^NDX': [24180, 4.6],
-  'IWDA.AS': [102.4, 1.8],
-  '^STOXX': [561, -0.6],
-  'GC=F': [3712, 3.9],
-  'BTC-EUR': [96400, -4.1],
-  'EURUSD=X': [1.091, -1.2],
-  '^TNX': [4.02, -0.19],
-  XLK: [290, 5.8],
-  XLC: [110, 3.1],
-  XLY: [230, 0.8],
-  XLV: [140, -2.4],
-  XLF: [52, 1.2],
-  XLI: [150, 1.6],
-  XLE: [88, -3.6],
-  XLP: [80, -1.1],
-  NVDA: [182, 8.1],
-  AAPL: [252, 2.0],
-  MSFT: [512, 1.2],
-  AVGO: [344, 7.4],
-  GOOGL: [251, 4.2],
-  META: [712, 2.6],
-  NFLX: [1210, -0.8],
-  AMZN: [214, 1.5],
-  TSLA: [428, -2.8],
-  LLY: [810, -3.9],
-  UNH: [355, -5.1],
-  XOM: [112, -3.2],
-  CVX: [154, -4.1],
-  '^N225': [47500, 1.9],
-  EEM: [53, 2.8],
-  MCHI: [62, -1.8],
-}
-const CANNED_CAPS: Record<string, number> = {
-  NVDA: 4.4e12,
-  MSFT: 3.8e12,
-  AAPL: 3.7e12,
-  GOOGL: 3.0e12,
-  AMZN: 2.3e12,
-  META: 1.8e12,
-  AVGO: 1.6e12,
-  TSLA: 1.4e12,
-  'BRK-B': 1.1e12,
-  ORCL: 0.85e12,
-  JPM: 0.83e12,
-  WMT: 0.8e12,
-  LLY: 0.72e12,
-  V: 0.68e12,
-  NFLX: 0.52e12,
-  MA: 0.52e12,
-  XOM: 0.47e12,
-  COST: 0.42e12,
-  PLTR: 0.42e12,
-  JNJ: 0.38e12,
-  HD: 0.38e12,
-  ABBV: 0.37e12,
-  BAC: 0.36e12,
-  PG: 0.36e12,
-  UNH: 0.32e12,
-  GE: 0.3e12,
-  KO: 0.3e12,
-  CVX: 0.27e12,
-  RTX: 0.21e12,
-  CAT: 0.2e12,
+/* symbol:price:month's change, and the canned caps in trillions. */
+const CANNED = table(
+  '^GSPC:6612:2.4 ^NDX:24180:4.6 IWDA.AS:102.4:1.8 ^STOXX:561:-0.6 ' +
+    'GC=F:3712:3.9 BTC-EUR:96400:-4.1 EURUSD=X:1.091:-1.2 ^TNX:4.02:-0.19 ' +
+    'XLK:290:5.8 XLC:110:3.1 XLY:230:0.8 XLV:140:-2.4 XLF:52:1.2 ' +
+    'XLI:150:1.6 XLE:88:-3.6 XLP:80:-1.1 NVDA:182:8.1 AAPL:252:2.0 ' +
+    'MSFT:512:1.2 AVGO:344:7.4 GOOGL:251:4.2 META:712:2.6 NFLX:1210:-0.8 ' +
+    'AMZN:214:1.5 TSLA:428:-2.8 LLY:810:-3.9 UNH:355:-5.1 XOM:112:-3.2 ' +
+    'CVX:154:-4.1 ^N225:47500:1.9 EEM:53:2.8 MCHI:62:-1.8',
+)
+const CANNED_CAPS = table(
+  'NVDA:4.4 MSFT:3.8 AAPL:3.7 GOOGL:3.0 AMZN:2.3 META:1.8 AVGO:1.6 ' +
+    'TSLA:1.4 BRK-B:1.1 ORCL:0.85 JPM:0.83 WMT:0.8 LLY:0.72 V:0.68 ' +
+    'NFLX:0.52 MA:0.52 XOM:0.47 COST:0.42 PLTR:0.42 JNJ:0.38 HD:0.38 ' +
+    'ABBV:0.37 BAC:0.36 PG:0.36 UNH:0.32 GE:0.3 KO:0.3 CVX:0.27 RTX:0.21 ' +
+    'CAT:0.2',
+)
+function table(rows: string) {
+  return new Map(
+    rows.split(' ').map((r) => {
+      const [k, ...n] = r.split(':')
+      return [k, n.map(Number)] as const
+    }),
+  )
 }
 const SCALE: Record<Period, number> = {
   '1D': 0.12,
@@ -367,7 +326,10 @@ async function canned(p: Period, now: number): Promise<Answer> {
   await new Promise((r) => setTimeout(r, 700))
   const series = new Map<string, Series>()
   allSymbols().forEach((symbol, k) => {
-    const [price, month] = CANNED[symbol] ?? [100 + k, ((k * 37) % 70) / 10 - 3]
+    const [price, month] = CANNED.get(symbol) ?? [
+      100 + k,
+      ((k * 37) % 70) / 10 - 3,
+    ]
     const ch = Math.round(month * SCALE[p] * 100) / 100
     const yieldPoints = symbol === '^TNX'
     const base = yieldPoints ? price - ch : price / (1 + ch / 100)
@@ -397,7 +359,9 @@ async function canned(p: Period, now: number): Promise<Answer> {
     })
     series.set(symbol, { points, previousClose: null })
   })
-  const caps = new Map(Object.entries(CANNED_CAPS))
+  const caps = new Map(
+    [...CANNED_CAPS].map(([k, [t]]) => [k, t * 1e12] as const),
+  )
   const today = day(now)
   const rates = rateCards({
     us: {

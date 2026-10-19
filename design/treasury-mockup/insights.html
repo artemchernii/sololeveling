@@ -216,6 +216,80 @@
   .planin { width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--lav-400); border-radius: 10px; color: var(--ink-100); font: 15px Inter, sans-serif; padding: 12px; outline: none; box-shadow: 0 0 18px -6px var(--shine) }
   .stat { display:flex; flex-direction:column; gap: 8px; padding-top: 12px; border-top: 1px dashed var(--edge) }
   .stat .num { font-size: 26px }
+
+  /* Round 5 (19 Oct, his marks): no check orb; periods 1D·1W·1M·1Y fetched
+     on open; a stock heatmap by sector; verdicts named on each position;
+     an opinion under allocation; no plan tile. */
+  .hero { display:grid; grid-template-columns: 1fr auto; gap: 24px; padding: 22px 24px 22px 28px; align-items: stretch }
+  .hero::before { content:''; position:absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: var(--mood); box-shadow: 0 0 18px var(--mood) }
+  .headline { font-size: 30px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1 }
+  .headline em { font-style: normal; color: var(--mood); text-shadow: 0 0 22px color-mix(in oklch, var(--mood) 40%, transparent) }
+  .summary { font-size: 14px; line-height: 1.6; color: var(--ink-200); max-width: 720px }
+  .summary b { color: var(--ink-100); font-weight: 600 }
+  .kpis { display:flex; gap: 8px; flex-wrap: wrap }
+  .kpi { display:flex; align-items:center; gap: 8px; padding: 6px 10px 6px 6px; border-radius: 10px; border: 1px solid var(--edge); background: rgba(255,255,255,.04) }
+  .kpi .k { font: 600 9px var(--mono); letter-spacing: .12em; color: var(--ink-400) }
+  .kpi .v { font: 700 13px var(--mono) }
+  .stamp { display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; gap: 10px; min-width: 210px; padding-left: 20px; border-left: 1px dashed var(--edge) }
+  .stamp .m { display:flex; align-items:center; gap: 8px; font: 700 11px var(--mono); letter-spacing: .1em; color: var(--lav-300) }
+  .stamp .m img { width: 18px; height: 18px; border-radius: 5px; background: #fff }
+  @media (max-width: 760px) { .hero { grid-template-columns: 1fr } .stamp { align-items:flex-start; border-left: 0; padding-left: 0; border-top: 1px dashed var(--edge); padding-top: 12px } }
+
+  .seg { display:inline-flex; padding: 3px; gap: 2px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.03) }
+  .seg button { font: 700 10px var(--mono); letter-spacing: .12em; padding: 5px 12px; border-radius: 999px; border: 0; background: transparent; color: var(--ink-400); cursor: pointer; transition: all .15s }
+  .seg button.on { color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 22%, transparent); box-shadow: 0 0 14px -5px var(--shine) }
+
+  /* stock heatmap: sectors as groups, the biggest companies inside */
+  .tmap { display:flex; flex-direction:column; gap: 4px }
+  .trow { display:flex; gap: 4px }
+  .grp { display:flex; flex-direction:column; gap: 3px; padding: 3px; border-radius: 9px; background: rgba(255,255,255,.04); border: 1px solid var(--edge); min-width: 0 }
+  .grp .gh { display:flex; align-items:center; gap: 6px; padding: 3px 5px 2px; font: 700 10px var(--mono); letter-spacing: .1em; color: var(--ink-200); white-space: nowrap; overflow: hidden }
+  .grp .gh .p { margin-left: auto }
+  .gin { display:flex; gap: 3px; flex: 1; min-height: 0 }
+  .gcol { display:flex; flex-direction:column; gap: 3px; min-width: 0 }
+  .st { position: relative; border-radius: 6px; padding: 6px; display:flex; flex-direction:column; align-items:flex-start; justify-content:space-between; gap: 2px; min-width: 0; min-height: 0; overflow:hidden; cursor: pointer; transition: transform .15s, box-shadow .15s; animation: pop .4s cubic-bezier(.3,1.6,.5,1) both }
+  .st:hover { transform: scale(1.04); z-index: 2; box-shadow: 0 0 0 1px #fff }
+  .st .t { display:flex; align-items:center; gap: 5px; font: 700 10px var(--mono); color: #fff; white-space: nowrap }
+  .st .c { font: 700 11px var(--mono); color: #fff }
+  .st.lg .t { font-size: 12px } .st.lg .c { font-size: 16px } .st.lg .logo.sm { width: 24px; height: 24px }
+  .st .mine { position:absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px rgba(0,0,0,.25), 0 0 10px #fff }
+  .regions { display:flex; gap: 6px; flex-wrap: wrap }
+  .reg { display:flex; align-items:center; gap: 6px; padding: 6px 10px; border-radius: 9px; font: 700 10.5px var(--mono); color: #fff }
+
+  /* how the read is made */
+  .kinds { display:grid; grid-template-columns: 1fr 1fr; gap: 6px }
+  .kind { display:flex; align-items:center; gap: 8px; padding: 7px 9px; border-radius: 9px; border: 1px solid var(--edge); background: rgba(255,255,255,.03); font: 700 10px var(--mono); letter-spacing: .1em; color: var(--ink-200) }
+  .kind span:first-child { width: 24px; height: 24px; border-radius: 7px; display:grid; place-items:center; font-size: 13px; background: color-mix(in oklch, var(--t) 14%, transparent); border: 1px solid color-mix(in oklch, var(--t) 40%, transparent) }
+  .feed { display:grid; grid-template-columns: 1fr auto; gap: 6px 10px; font-size: 12.5px; color: var(--ink-300) }
+  .feed b { font: 700 11px var(--mono); color: var(--ink-100); text-align:right }
+
+  /* positions with their verdict */
+  .hc .vd { position:absolute; bottom: 8px; right: 8px; font: 700 8.5px var(--mono); letter-spacing: .08em; padding: 2px 6px; border-radius: 4px; background: rgba(10,10,20,.55); border: 1px solid currentColor }
+  .vd.add { color: #b7f7c9 } .vd.hold { color: var(--lav-300) } .vd.wait { color: #ffd98a }
+  .vleg { display:grid; grid-template-columns: repeat(3, 1fr); gap: 6px }
+  .vleg div { display:flex; flex-direction:column; gap: 3px; padding: 8px 10px; border-radius: 9px; border: 1px solid color-mix(in oklch, var(--c) 35%, transparent); background: color-mix(in oklch, var(--c) 8%, transparent) }
+  .vleg b { font: 700 11px var(--mono); letter-spacing: .1em; color: var(--c) }
+  .vleg span { font-size: 11.5px; color: var(--ink-300) }
+
+  .opinion { display:grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 12px; border-radius: 11px; border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 8%, transparent) }
+  .opinion .av { width: 30px; height: 30px; border-radius: 50%; display:grid; place-items:center; color: var(--lav-300); border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 14%, transparent) }
+  .opinion p { font-size: 13px; line-height: 1.6; color: var(--ink-200) } .opinion b { color: var(--ink-100) }
+
+  /* idea cards, round 5 */
+  .idea { padding: 0; gap: 0 }
+  .idea .top { padding: 14px 16px 12px; display:flex; flex-direction:column; gap: 10px; border-bottom: 1px solid var(--edge); background: linear-gradient(180deg, color-mix(in oklch, var(--tone) 12%, transparent), transparent) }
+  .idea .logo { width: 38px; height: 38px; border-radius: 11px }
+  .idea .px { display:flex; align-items:baseline; gap: 8px }
+  .idea .px .num { font-size: 22px }
+  .idea svg { width: 100%; height: 36px; display:block }
+  .idea svg polyline { fill: none; stroke: var(--tone); stroke-width: 1.8 }
+  .idea svg polygon { fill: var(--tone); opacity: .12 }
+  .idea .bot { padding: 12px 16px 14px; display:flex; flex-direction:column; gap: 10px; flex: 1 }
+  .case { display:grid; grid-template-columns: 22px 1fr; gap: 8px; align-items:flex-start; font-size: 12.5px; color: var(--ink-200) }
+  .case i { font-style: normal; width: 22px; height: 22px; border-radius: 6px; display:grid; place-items:center; font: 700 11px var(--mono) }
+  .case .bu { color: var(--good); background: color-mix(in oklch, var(--good) 14%, transparent) }
+  .case .be { color: var(--bad); background: color-mix(in oklch, var(--bad) 14%, transparent) }
+  .case .wr { color: var(--warn); background: color-mix(in oklch, var(--warn) 14%, transparent) }
 </style>
 </head>
 <body>
@@ -223,9 +297,7 @@
 
   <div class="ctl">
     <span>mockup:</span>
-    <button data-s="idle">not read</button><button data-s="reading">reading</button><button data-s="read" class="on">read</button><button data-s="failed">failed</button><button data-s="cap">cap reached</button>
-    <span style="margin-left:10px">plan:</span>
-    <button data-p="set" class="on">set</button><button data-p="none">not set</button>
+    <button data-s="idle">not read</button><button data-s="reading">reading</button><button data-s="read" class="on">read · calm</button><button data-s="mixed">read · mixed</button><button data-s="failed">failed</button><button data-s="cap">cap reached</button>
     <span style="margin-left:10px">model:</span>
     <button data-m="sonnet" class="on">sonnet · web</button><button data-m="haiku">haiku · no web</button>
   </div>
@@ -235,119 +307,154 @@
     <div class="tabs"><span class="tab">OVERVIEW</span><span class="tab">FLOW</span><span class="tab">PORTFOLIO</span><span class="tab on">INSIGHTS</span></div>
   </div>
 
-  <!-- HERO: the read's answer -->
-  <section class="tile sys hero" style="--i:0">
-    <div class="orb" data-orb><span>✦</span></div>
-    <div class="grow" style="display:flex;flex-direction:column;gap:8px">
+  <!-- HERO -->
+  <section class="tile sys hero" style="--i:0; --mood: var(--good)" id="hero">
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
       <span class="sys-title">[ MARKET READ · OCT ]</span>
-      <div data-when="idle" style="display:flex;flex-direction:column;gap:8px">
-        <span style="font-size:20px;font-weight:700">NOT READ</span>
-        <div class="facts"><span class="fact">🇺🇸 🇪🇺 INFLATION</span><span class="fact">🏛️ FED · ECB</span><span class="fact">📊 8 MARKETS · 11 SECTORS</span><span class="fact" data-web>🌐 NEWS</span><span class="fact">💼 15 POSITIONS</span></div>
+      <div data-when="idle" style="display:flex;flex-direction:column;gap:12px">
+        <span class="headline">Not read yet</span>
+        <div class="kpis"><span class="kpi"><span class="logo sm emo">🌡️</span><span class="k">INFLATION</span></span><span class="kpi"><span class="logo sm emo">🏛️</span><span class="k">FED · ECB</span></span><span class="kpi"><span class="logo sm emo">📊</span><span class="k">MARKETS · SECTORS</span></span><span class="kpi" data-web><span class="logo sm emo">🌐</span><span class="k">NEWS</span></span><span class="kpi"><span class="logo sm emo">💼</span><span class="k">15 POSITIONS</span></span></div>
       </div>
-      <div data-when="reading" style="display:flex;flex-direction:column;gap:10px"><span class="badge b-lav live" style="align-self:flex-start">READING · 8 SEARCHES</span><div class="scan"></div></div>
-      <div data-when="read" style="display:flex;flex-direction:column;gap:10px">
-        <span class="verdict">RATES FALLING · RISK ON</span>
-        <div class="facts"><span class="badge b-good">🌡️ INFLATION ▼</span><span class="badge b-lav">🏛️ FED CUT · 29 OCT</span><span class="badge b-warn">🔥 CHIPS HOT</span><span class="badge b-bad">💻 TECH 41% OF MINE</span></div>
+      <div data-when="reading" style="display:flex;flex-direction:column;gap:12px"><span class="headline" style="color:var(--lav-300)">Reading the market…</span><div class="scan"></div><span class="caps">FED · ECB · CPI · 8 MARKETS · 30 COMPANIES · NEWS</span></div>
+      <div data-when="read" style="display:flex;flex-direction:column;gap:12px">
+        <span class="headline"><em>Rates falling</em> · shares up</span>
+        <p class="summary">Inflation cooled in the US and Europe, so the Fed is expected to <b>cut on 29 Oct</b>. Shares rose, led by <b>chips</b> — and the portfolio rode that, because <b>tech is 41% of it</b>.</p>
+        <div class="kpis">
+          <span class="kpi"><span class="logo sm emo">🇺🇸</span><span class="k">S&P 500</span><span class="v good">▲ 2.4%</span></span>
+          <span class="kpi"><span class="logo sm site"><img src="https://www.google.com/s2/favicons?domain=federalreserve.gov&sz=64"></span><span class="k">FED</span><span class="v" style="color:var(--lav-300)">29 OCT</span></span>
+          <span class="kpi"><span class="logo sm emo">💻</span><span class="k">TECH</span><span class="v good">▲ 5.8%</span></span>
+          <span class="kpi"><span class="logo sm emo">💼</span><span class="k">MINE</span><span class="v good">▲ 3.1%</span></span>
+        </div>
       </div>
-      <div data-when="failed"><span class="badge b-bad">✕ READER NOT REACHED · NOTHING PAID</span></div>
-      <div data-when="cap"><span class="badge b-warn">⏸ CAP $2.00 · USED $2.00 · NEXT 1 NOV</span></div>
+      <div data-when="mixed" style="display:flex;flex-direction:column;gap:12px">
+        <span class="headline"><em>Mixed</em> · no clear trend</span>
+        <p class="summary">US inflation came in <b>higher than expected</b> while Europe cooled. Markets <b>swung both ways</b> and ended the month flat. No ECB data since 11 Sep.</p>
+        <div class="kpis">
+          <span class="kpi"><span class="logo sm emo">🇺🇸</span><span class="k">S&P 500</span><span class="v">▲ 0.3%</span></span>
+          <span class="kpi"><span class="logo sm emo">🌡️</span><span class="k">US CPI</span><span class="v bad">▲ 3.4%</span></span>
+          <span class="kpi"><span class="logo sm emo">💼</span><span class="k">MINE</span><span class="v bad">▼ 0.8%</span></span>
+        </div>
+      </div>
+      <div data-when="failed" style="display:flex;flex-direction:column;gap:10px"><span class="headline" style="color:var(--bad)">Reader not reached</span><span class="caps">NOTHING PAID · THE LAST READ STAYS · 19 SEP</span></div>
+      <div data-when="cap" style="display:flex;flex-direction:column;gap:10px"><span class="headline" style="color:var(--warn)">Month cap reached</span><span class="caps">CAP $2.00 · USED $2.00 · NEXT 1 NOV</span></div>
     </div>
-    <div class="who">
+    <div class="stamp">
+      <div style="display:flex;flex-direction:column;align-items:inherit;gap:8px">
+        <span class="m"><img src="https://www.google.com/s2/favicons?domain=claude.ai&sz=64"><span data-model>SONNET 5.5 · 🌐 8</span></span>
+        <span class="was" data-show="done">19 OCT 09:12 · 62K IN · 3.1K OUT</span>
+        <span class="was" data-cost>$0.24 · CAP $2.00 · USED $0.33</span>
+      </div>
       <span data-when="idle"><button class="btn" onclick="setS('reading')">✦ READ MARKET</button></span>
       <span data-when="failed"><button class="btn" onclick="setS('reading')">↻ TRY AGAIN</button></span>
       <span data-when="cap"><button class="btn" disabled>✦ READ MARKET</button></span>
-      <span data-when="read" class="row"><span class="badge b-good">✓ 19 OCT 09:12</span><button class="btn ghost">↻ AGAIN</button></span>
-      <span class="badge b-lav" data-model>SONNET 5.5 · 🌐 WEB</span>
-      <span class="was" data-cost>$0.24 A READ · CAP $2.00 · USED $0.33</span>
+      <span data-show="done"><button class="btn ghost">↻ READ AGAIN</button></span>
     </div>
   </section>
 
   <!-- 1 · THE MARKET -->
-  <div class="band"><span class="n">1</span><b>THE MARKET</b><span class="caps">STORED · NO MODEL</span></div>
+  <div class="band"><span class="n">1</span><b>THE MARKET</b><span class="caps">FETCHED ON OPEN · NOT SAVED</span></div>
   <div class="grid" id="rates"></div>
+
   <section class="tile" style="--i:5" data-tile="markets">
-    <div class="thead"><span class="ico" style="--a:var(--good)">📈</span><span class="tname">MARKETS · THIS MONTH</span><span class="i" data-k="index">i</span><span class="grow"></span><span class="was">YAHOO · 18 OCT CLOSE · VS 1 SEP</span></div>
+    <div class="thead"><span class="ico" style="--a:var(--good)">📈</span><span class="tname">MARKETS</span><span class="i" data-k="index">i</span><span class="grow"></span>
+      <div class="seg" id="seg"><button data-p="1D">1D</button><button data-p="1W">1W</button><button data-p="1M" class="on">1M</button><button data-p="1Y">1Y</button></div></div>
     <div class="mkts" id="mkts"></div>
+    <div class="foot"><span class="was" id="since">VS 18 SEP CLOSE</span><span class="was">YAHOO · FETCHED 09:14 · NOT SAVED</span></div>
+  </section>
+
+  <section class="tile" style="--i:6" data-tile="heatm">
+    <div class="thead"><span class="ico" style="--a:var(--good)">🗺️</span><span class="tname">S&P 500 · BIGGEST 30</span><span class="i" data-k="heat">i</span><span class="grow"></span><span class="badge b-dim"><span style="width:8px;height:8px;border-radius:50%;background:#fff;display:inline-block"></span> HELD</span><span class="badge b-dim" id="heatp">1M</span></div>
+    <div class="tmap" id="tmap"></div>
+    <div class="regions" id="regions"></div>
+    <div class="foot"><div class="hscale"><span class="was">−6%</span><i></i><span class="was">+6%</span></div><span class="was">BOX = COMPANY SIZE · YAHOO · NOT SAVED</span></div>
   </section>
 
   <!-- 2 · WHAT IT MEANS -->
   <div class="band"><span class="n">2</span><b>WHAT IT MEANS</b><span class="caps">MODEL · SOURCES SHOWN</span></div>
   <div class="grid">
-    <section class="tile c7" style="--i:6" data-tile="read">
-      <div class="thead"><span class="ico">✦</span><span class="tname">THE READ · 5 LINES</span><span class="grow"></span><span class="badge b-dim">RESEARCH · NOT ADVICE</span></div>
-      <div class="after" data-when-not="read"><span style="font-size:22px">✦</span><span class="caps">AFTER THE READ</span></div>
-      <div class="lines" data-when="read" id="lines"></div>
-      <div class="srcs" data-when="read" id="srcs"></div>
+    <section class="tile c8" style="--i:7" data-tile="read">
+      <div class="thead"><span class="ico">✦</span><span class="tname">THE READ</span><span class="grow"></span><span class="badge b-dim">RESEARCH · NOT ADVICE</span></div>
+      <div class="after" data-when-not="done"><span style="font-size:22px">✦</span><span class="caps">AFTER THE READ</span></div>
+      <div class="lines" data-show="done" id="lines"></div>
+      <div class="srcs" data-show="done" id="srcs"></div>
     </section>
-    <section class="tile c5" style="--i:7" data-tile="heatm">
-      <div class="thead"><span class="ico" style="--a:var(--good)">🗺️</span><span class="tname">SECTORS · REGIONS</span><span class="i" data-k="heat">i</span><span class="grow"></span><span class="badge b-dim">MINE = HELD</span></div>
-      <div class="heat" id="heatm"></div>
-      <div class="foot"><div class="hscale"><span class="was">−6%</span><i></i><span class="was">+6%</span></div><span class="was">SECTOR ETFS · 18 OCT</span></div>
+    <section class="tile c4" style="--i:8">
+      <div class="thead"><span class="ico">⚙️</span><span class="tname">HOW IT IS MADE</span></div>
+      <div class="feed">
+        <span>Inflation, Fed, ECB</span><b>4 NUMBERS</b>
+        <span>Markets and sectors</span><b>8 · 30</b>
+        <span>Positions, signals, verdicts</span><b>15</b>
+        <span>News searched</span><b data-websearch>🌐 8</b>
+      </div>
+      <span class="caps">THE MODEL PICKS A KIND · THE APP PICKS THE ICON</span>
+      <div class="kinds">
+        <div class="kind" style="--t:var(--good)"><span>🌡️</span>INFLATION</div>
+        <div class="kind" style="--t:var(--lav-400)"><span>🏛️</span>RATES</div>
+        <div class="kind" style="--t:var(--warn)"><span>🔥</span>MARKET</div>
+        <div class="kind" style="--t:var(--bad)"><span>⚖️</span>ALLOCATION</div>
+        <div class="kind" style="--t:var(--bad)"><span>⛔</span>DON'T</div>
+        <div class="kind" style="--t:var(--ink-400)"><span>❔</span>NO DATA</div>
+      </div>
+      <span class="caps">EVERY READ, ANY MONTH</span>
+      <div class="feed">
+        <span>Lines</span><b>3 TO 5</b>
+        <span>Headline</span><b>≤ 40 LETTERS</b>
+        <span>Numbers under a line</span><b>FROM THE APP</b>
+        <span>Nothing to say</span><b>❔ NO DATA</b>
+        <span>A number written by the model</span><b class="bad">NEVER</b>
+      </div>
+      <div class="foot"><span class="was">SAME SHAPE · ONLY THE WORDS CHANGE</span></div>
     </section>
   </div>
 
   <!-- 3 · MINE -->
   <div class="band"><span class="n">3</span><b>MINE</b><span class="caps">€6,158 · 15 POSITIONS</span></div>
   <div class="grid">
-    <section class="tile c7" style="--i:8; --a: var(--money)" data-tile="mine">
-      <div class="thead"><span class="ico" style="--a:var(--money)">💼</span><span class="tname">POSITIONS · THIS MONTH</span><span class="i" data-k="mine">i</span><span class="grow"></span><span class="badge b-good">✚ ADD 3</span><span class="badge b-lav">❚❚ HOLD 8</span><span class="badge b-warn">⧗ WAIT 4</span></div>
+    <section class="tile c7" style="--i:9; --a: var(--money)" data-tile="mine">
+      <div class="thead"><span class="ico" style="--a:var(--money)">💼</span><span class="tname">POSITIONS · 1M</span><span class="i" data-k="mine">i</span><span class="grow"></span><span class="was">BOX = EUROS</span></div>
       <div class="heat" id="heatmine"></div>
-      <div class="foot"><span class="was">BOX = EUROS · COLOUR = MONTH</span><span class="was">YAHOO · 18 OCT CLOSE</span></div>
+      <div class="vleg">
+        <div style="--c:var(--good)"><b>✚ ADD · 3</b><span>Signals say a good time to buy more</span></div>
+        <div style="--c:var(--lav-400)"><b>❚❚ HOLD · 8</b><span>Nothing to do</span></div>
+        <div style="--c:var(--warn)"><b>⧗ WAIT · 4</b><span>Ran up fast — not now</span></div>
+      </div>
+      <div class="foot"><span class="was">VERDICT · PORTFOLIO'S OWN RULES · 18 OCT</span><span class="was">YAHOO · NOT SAVED</span></div>
     </section>
-    <section class="tile c5" style="--i:9" data-tile="alloc">
+    <section class="tile c5" style="--i:10" data-tile="alloc">
       <div class="thead"><span class="ico" style="--a:var(--bad)">⚖️</span><span class="tname">ALLOCATION</span><span class="i" data-k="alloc">i</span><span class="grow"></span><span class="badge b-bad">TECH 41% · WORLD 26%</span></div>
-      <div class="legend"><span><i></i>MINE</span><span><i class="d"></i>MSCI WORLD</span></div>
+      <div class="legend"><span><i></i>MINE</span><span><i class="d"></i>WORLD · MSCI</span></div>
       <div class="alloc" id="alloc"></div>
+      <div class="opinion" data-show="done"><span class="av">✦</span><p><b>Tech-heavy, US-heavy.</b> One bad month for AI moves most of the money. The next euros in <b>health</b> or <b>Europe</b> would bring both lines closer to the world.</p></div>
       <div class="foot"><span class="was">ETFS OPENED UP · TOP 10 EACH</span><span class="was">MSCI · 30 SEP</span></div>
     </section>
   </div>
 
   <!-- 4 · NEXT -->
-  <div class="band"><span class="n">4</span><b>NEXT</b><span class="caps">IDEAS · QUESTIONS · PLAN</span></div>
-  <div class="grid" id="ideas" data-when="read"></div>
-  <div class="grid" data-when-not="read"><section class="tile c12"><div class="thead"><span class="ico">💡</span><span class="tname">IDEAS · NOT OWNED</span></div><div class="after" style="min-height:110px"><span class="caps">AFTER THE READ</span></div></section></div>
+  <div class="band"><span class="n">4</span><b>NEXT</b><span class="caps">IDEAS · QUESTIONS</span></div>
+  <div class="grid" id="ideas" data-show="done"></div>
+  <div class="grid" data-when-not="done"><section class="tile c12"><div class="thead"><span class="ico">💡</span><span class="tname">IDEAS · NOT OWNED</span></div><div class="after" style="min-height:110px"><span class="caps">AFTER THE READ</span></div></section></div>
 
-  <div class="grid">
-    <section class="tile sys c8" style="--i:14" data-tile="ask">
-      <div class="thead"><span class="sys-title">[ ASK ]</span><span class="grow"></span><span class="badge b-dim">OCT · 4 QUESTIONS · $0.09</span></div>
-      <div class="thread" id="thread">
-        <div class="q">Why does a Fed cut matter for VUAA?</div>
-        <div class="a"><span class="av">✦</span><div class="body"><div>VUAA follows the <b>500 biggest US companies</b>. A cut makes borrowing cheaper for them and pulls money from savings into shares, so the index usually rises. <b>Most of a cut is already in the price</b> before the day.</div>
-          <div class="facts"><span class="fact">VUAA €103.20</span><span class="fact">FED 4.25–4.50%</span><span class="fact">NEXT · 29 OCT</span></div>
-          <span class="was">HAIKU 5.5 · $0.002</span></div></div>
-        <div class="q">🌐 What did Powell say this week?</div>
-        <div class="a"><span class="av">✦</span><div class="body"><div>On 16 Oct he said the job market is <b>cooling</b> and inflation is moving the right way, and <b>did not rule out an October cut</b>. Markets read it as a yes.</div>
-          <div class="srcs"><span class="src"><img src="https://www.google.com/s2/favicons?domain=reuters.com&sz=64">REUTERS · 16 OCT ↗</span><span class="src"><img src="https://www.google.com/s2/favicons?domain=federalreserve.gov&sz=64">FED · 16 OCT ↗</span></div>
-          <span class="was">SONNET 5.5 · 2 SEARCHES · $0.07</span></div></div>
-      </div>
-      <div class="sugg"><span data-q="Explain my allocation">⚖️ Explain my allocation</span><span data-q="Is gold still a hedge?">🥇 Is gold still a hedge?</span><span data-q="What if the Fed doesn't cut?">🏛️ What if the Fed doesn't cut?</span><span data-q="Where could €500 go this month?">💶 Where could €500 go this month?</span></div>
-      <div class="askbar"><input id="askin" placeholder="Ask about the market or the portfolio" /><button class="web" id="web">🌐 WEB</button><button class="btn" id="send" style="padding:11px 18px">ASK</button></div>
-      <span class="was">HAIKU 5.5 ≈ $0.002 · 🌐 SONNET 5.5 ≈ $0.07 · SAME CAP $2.00</span>
-    </section>
-
-    <section class="tile c4" style="--i:15; --a: var(--money)" data-tile="plan">
-      <div class="thead"><span class="ico" style="--a:var(--money)">🎯</span><span class="tname">AGAINST PLAN</span><span class="grow"></span><span class="badge b-dim" data-plan-set style="cursor:pointer">✎ PLAN</span><span class="badge b-warn" data-plan-none>NOT SET</span></div>
-      <div class="facts" data-plan-set><span class="chip">€500 / MONTH</span><span class="chip" style="--k:var(--k-etf)">📈 ETF 70%</span><span class="chip" style="--k:var(--k-stock)">🏢 STOCK 20%</span><span class="chip" style="--k:var(--k-coin)">🪙 COIN 10%</span></div>
-      <div class="stat" data-plan-set>
-        <span class="caps">INVESTED · PAY MONTH</span>
-        <div class="row" style="align-items:flex-end"><span class="num">€420</span><span class="was">PLAN €500</span><span class="grow"></span><span class="badge b-lav">BELOW PLAN</span></div>
-        <div class="track"><b style="width:84%"></b></div>
-      </div>
-      <div class="stat" data-plan-set>
-        <span class="caps">IN · OUT · PAY MONTH</span>
-        <div class="row" style="gap:14px"><span class="num good">€2,140</span><span class="num bad">€1,610</span></div>
-        <span class="was">LAST PAY MONTH · IN €2,140 · OUT €1,880</span>
-      </div>
-      <input class="planin" data-plan-none placeholder="€500 a month, 70% ETFs, 20% stocks, 10% crypto" />
-    </section>
-  </div>
+  <section class="tile sys" style="--i:15" data-tile="ask">
+    <div class="thead"><span class="sys-title">[ ASK ]</span><span class="grow"></span><span class="badge b-dim">OCT · 4 QUESTIONS · $0.09</span></div>
+    <div class="thread" id="thread">
+      <div class="q">Why does a Fed cut matter for VUAA?</div>
+      <div class="a"><span class="av">✦</span><div class="body"><div>VUAA follows the <b>500 biggest US companies</b>. A cut makes borrowing cheaper for them and pulls money from savings into shares, so the index usually rises. <b>Most of a cut is already in the price</b> before the day.</div>
+        <div class="facts"><span class="fact">VUAA €103.20</span><span class="fact">FED 4.25–4.50%</span><span class="fact">NEXT · 29 OCT</span></div>
+        <span class="was">HAIKU 5.5 · $0.002</span></div></div>
+      <div class="q">🌐 What did Powell say this week?</div>
+      <div class="a"><span class="av">✦</span><div class="body"><div>On 16 Oct he said the job market is <b>cooling</b> and inflation is moving the right way, and <b>did not rule out an October cut</b>. Markets read it as a yes.</div>
+        <div class="srcs"><span class="src"><img src="https://www.google.com/s2/favicons?domain=reuters.com&sz=64">REUTERS · 16 OCT ↗</span><span class="src"><img src="https://www.google.com/s2/favicons?domain=federalreserve.gov&sz=64">FED · 16 OCT ↗</span></div>
+        <span class="was">SONNET 5.5 · 2 SEARCHES · $0.07</span></div></div>
+    </div>
+    <div class="sugg"><span data-q="Explain my allocation">⚖️ Explain my allocation</span><span data-q="Is gold still a hedge?">🥇 Is gold still a hedge?</span><span data-q="What if the Fed doesn't cut?">🏛️ What if the Fed doesn't cut?</span><span data-q="Where could €500 go this month?">💶 Where could €500 go this month?</span></div>
+    <div class="askbar"><input id="askin" placeholder="Ask about the market or the portfolio" /><button class="web" id="web">🌐 WEB</button><button class="btn" id="send" style="padding:11px 18px">ASK</button></div>
+    <span class="was">HAIKU 5.5 ≈ $0.002 · 🌐 SONNET 5.5 ≈ $0.07 · SAME CAP $2.00</span>
+  </section>
 </div>
 
 <div class="card" id="card"><h4 id="ct"></h4><span class="k">WHAT IT IS</span><p id="c1"></p><span class="k">WHY IT MOVES THE MONEY</span><p id="c2"></p><div class="now" id="c3"></div></div>
 
 <script>
-  /* Logos the way src/lib/logo.ts finds them: a share by ticker, a fund by
-     its issuer's site, a coin its own icon, a source by its site. */
   const SITE = d => `https://www.google.com/s2/favicons?domain=${d}&sz=128`
   const SHARE = t => `https://financialmodelingprep.com/image-stock/${t}.png`
   const COIN = c => `https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color/${c}.svg`
@@ -360,52 +467,92 @@
     return `<span class="logo site${s}"><img src="${SITE(l.site)}"></span>`
   }
   const G = 'oklch(0.78 0.17 150)', R = 'oklch(0.68 0.2 22)'
+  const heat = ch => `color-mix(in srgb, ${ch >= 0 ? '#16a34a' : '#dc2626'} ${30 + Math.min(Math.abs(ch) / 6, 1) * 70}%, #262838)`
+  /* a sample path that ends at the given change (seeded, so it is stable) */
+  const path = (seed, ch, n = 24) => { let x = seed, v = 0, out = [0]; for (let i = 1; i < n; i++) { x = (x * 9301 + 49297) % 233280; v += (x / 233280 - .5) * Math.max(Math.abs(ch), 1) * .5 + ch / n; out.push(v) } return out.map((p, i) => p + (ch - v) * i / (n - 1)) }
+  const spark = (pts, h = 34) => { const lo = Math.min(...pts), hi = Math.max(...pts); const xy = pts.map((p, i) => `${(i / (pts.length - 1)) * 100},${h - 2 - ((p - lo) / (hi - lo || 1)) * (h - 8)}`); return `<svg viewBox="0 0 100 ${h}" preserveAspectRatio="none"><polygon points="0,${h} ${xy.join(' ')} 100,${h}"/><polyline points="${xy.join(' ')}"/></svg>` }
 
-  /* rates: [name, logo, value, change, was, source, next, info key, good] */
+  /* rates */
   const RATES = [
     ['US INFLATION', { emo: '🇺🇸' }, '2.9%', '▼ 0.2', 'AUG 3.1%', 'BLS · SEP', null, 'cpi'],
     ['EURO INFLATION', { emo: '🇪🇺' }, '2.1%', '▼ 0.1', 'AUG 2.2%', 'EUROSTAT · SEP', null, 'hicp'],
-    ['FED RATE', { site: 'federalreserve.gov' }, '4.25–4.50%', null, 'SINCE 17 SEP', 'FRED · 18 OCT', '29 OCT · 10 DAYS', 'fed'],
-    ['ECB RATE', { site: 'ecb.europa.eu' }, '2.00%', null, 'SINCE 11 SEP', 'ECB · 18 OCT', '30 OCT · 11 DAYS', 'ecb'],
+    ['FED RATE', { site: 'federalreserve.gov' }, '4.25–4.50%', null, 'SINCE 17 SEP', 'FRED', '29 OCT · 10 DAYS', 'fed'],
+    ['ECB RATE', { site: 'ecb.europa.eu' }, '2.00%', null, 'SINCE 11 SEP', 'ECB', '30 OCT · 11 DAYS', 'ecb'],
   ]
   document.getElementById('rates').innerHTML = RATES.map(([n, l, v, ch, was, src, next, k], i) => `
     <section class="tile c3 rate" style="--i:${i + 1}; --a:var(--warn)" data-tile="macro">
       <div class="thead">${logo(l)}<span class="tname">${n}</span><span class="grow"></span><span class="i" data-k="${k}">i</span></div>
       <div class="row" style="align-items:flex-end;gap:10px"><span class="num big">${v}</span>${ch ? `<span class="chg g">${ch}</span>` : ''}</div>
       <div class="row" style="justify-content:space-between"><span class="was">${was}</span>${next ? `<span class="badge b-lav">📅 ${next}</span>` : `<span class="badge b-good">▼ COOLING</span>`}</div>
-      <div class="foot"><span class="was">${src}</span><span class="badge b-warn b-dash">NEW SOURCE</span></div>
+      <div class="foot"><span class="was">${src}</span><span class="was">NOT SAVED</span></div>
     </section>`).join('')
 
-  /* markets: [name, logo, value, change, points, kind] */
+  /* markets by period: change per 1D / 1W / 1M / 1Y */
   const MKTS = [
-    ['S&P 500', { emo: '🇺🇸' }, '6,612', 2.4, [40,42,41,44,43,46,48,47,50,52]],
-    ['NASDAQ 100', { site: 'nasdaq.com' }, '24,180', 4.6, [30,33,32,36,38,37,41,44,46,50]],
-    ['MSCI WORLD', { emo: '🌐' }, '€102.40', 1.8, [45,46,45,47,46,48,47,49,50,51]],
-    ['STOXX 600', { emo: '🇪🇺' }, '561', -0.6, [52,51,53,50,49,51,50,48,49,48]],
-    ['GOLD', { metal: 1 }, '$3,712', 3.9, [38,40,41,40,43,45,44,47,48,50]],
-    ['BITCOIN', { coin: 'btc' }, '€96,400', -4.1, [55,57,54,52,53,49,50,47,46,45]],
-    ['EUR / USD', { emo: '💶' }, '1.091', -1.2, [52,51,51,50,50,49,49,48,48,47]],
-    ['US 10Y', { site: 'treasury.gov' }, '4.02%', -0.19, [52,51,50,51,49,48,47,47,46,45], 'yield'],
+    ['S&P 500', { emo: '🇺🇸' }, '6,612', { '1D': 0.4, '1W': 1.1, '1M': 2.4, '1Y': 18.2 }],
+    ['NASDAQ 100', { site: 'nasdaq.com' }, '24,180', { '1D': 0.9, '1W': 2.0, '1M': 4.6, '1Y': 24.7 }],
+    ['MSCI WORLD', { emo: '🌐' }, '€102.40', { '1D': 0.2, '1W': 0.7, '1M': 1.8, '1Y': 14.1 }],
+    ['STOXX 600', { emo: '🇪🇺' }, '561', { '1D': -0.3, '1W': -0.9, '1M': -0.6, '1Y': 7.9 }],
+    ['GOLD', { metal: 1 }, '$3,712', { '1D': 0.6, '1W': 1.4, '1M': 3.9, '1Y': 38.0 }],
+    ['BITCOIN', { coin: 'btc' }, '€96,400', { '1D': -1.8, '1W': -5.2, '1M': -4.1, '1Y': 41.3 }],
+    ['EUR / USD', { emo: '💶' }, '1.091', { '1D': -0.1, '1W': -0.4, '1M': -1.2, '1Y': 0.9 }],
+    ['US 10Y', { site: 'treasury.gov' }, '4.02%', { '1D': -0.03, '1W': -0.08, '1M': -0.19, '1Y': -0.41 }, 'yield'],
   ]
-  document.getElementById('mkts').innerHTML = MKTS.map(([n, l, v, ch, pts, kind]) => {
-    const good = kind === 'yield' ? ch < 0 : ch > 0, c = good ? G : R
-    const lo = Math.min(...pts), hi = Math.max(...pts)
-    const xy = pts.map((p, i) => `${(i / (pts.length - 1)) * 100},${32 - ((p - lo) / (hi - lo || 1)) * 26}`)
-    const txt = kind === 'yield' ? `${ch > 0 ? '▲' : '▼'} ${Math.abs(ch).toFixed(2)} PTS` : `${ch > 0 ? '▲' : '▼'} ${Math.abs(ch).toFixed(1)}%`
-    return `<div class="mk" style="--c:${c}">${logo(l)}<span class="nm">${n}</span><span class="chg ${good ? 'g' : 'r'}" style="justify-self:end">${txt}</span>
-      <span class="num v" style="grid-column: 2 / -1">${v}</span>
-      <svg viewBox="0 0 100 34" preserveAspectRatio="none"><polygon points="0,34 ${xy.join(' ')} 100,34"/><polyline points="${xy.join(' ')}"/></svg></div>`
-  }).join('')
+  const SINCE = { '1D': 'VS YESTERDAY CLOSE · 17 OCT', '1W': 'VS 11 OCT CLOSE', '1M': 'VS 18 SEP CLOSE', '1Y': 'VS 18 OCT 2025 CLOSE' }
+  function drawMarkets(p) {
+    document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('on', b.dataset.p === p))
+    document.getElementById('since').textContent = SINCE[p]
+    document.getElementById('heatp').textContent = p
+    document.getElementById('mkts').innerHTML = MKTS.map(([n, l, v, chs, kind], i) => {
+      const ch = chs[p], good = kind === 'yield' ? ch < 0 : ch > 0, c = good ? G : R
+      const txt = kind === 'yield' ? `${ch > 0 ? '▲' : '▼'} ${Math.abs(ch).toFixed(2)} PTS` : `${ch > 0 ? '▲' : '▼'} ${Math.abs(ch).toFixed(1)}%`
+      return `<div class="mk" style="--c:${c}">${logo(l)}<span class="nm">${n}</span><span class="chg ${good ? 'g' : 'r'}" style="justify-self:end">${txt}</span>
+        <span class="num v" style="grid-column: 2 / -1">${v}</span>${spark(path(i * 77 + p.length * 13 + 5, kind === 'yield' ? ch * 10 : ch))}</div>`
+    }).join('')
+    drawHeat(p)
+  }
 
-  /* the read: [emoji, tone, badge class, badge, title, line, facts, plain, lights] */
-  const LINES = [
+  /* stock heatmap: [sector, emoji, weight, change, stocks[ticker, weight, change, held]] */
+  const SECT = [
+    [['TECH', '💻', 44, 5.8, [['NVDA', 9, 8.1, 1], ['AAPL', 8, 2.0], ['MSFT', 7, 1.2, 1], ['AVGO', 3, 7.4, 1]]],
+     ['COMMS', '📡', 18, 3.1, [['GOOGL', 4, 4.2], ['META', 3, 2.6], ['NFLX', 1, -0.8]]],
+     ['CONSUMER', '🛒', 18, 0.8, [['AMZN', 4, 1.5], ['TSLA', 2.5, -2.8], ['HD', 1, 0.3]]],
+     ['HEALTH', '💊', 20, -2.4, [['LLY', 2.4, -3.9], ['UNH', 1.4, -5.1], ['JNJ', 1.2, 0.6], ['ABBV', 1, -1.2]]]],
+    [['FINANCE', '🏦', 34, 1.2, [['JPM', 2, 2.1], ['V', 1.7, 0.4], ['MA', 1.3, 0.9]]],
+     ['INDUSTRY', '🏭', 24, 1.6, [['GE', 1.2, 3.0], ['CAT', 1, 2.2], ['RTX', 1, 1.1]]],
+     ['ENERGY', '⚡', 16, -3.6, [['XOM', 1.6, -3.2], ['CVX', 1, -4.1]]],
+     ['STAPLES', '🧺', 18, -1.1, [['WMT', 1.6, 0.4], ['PG', 1.2, -1.9], ['KO', 1, -1.6]]]],
+  ]
+  const PF = { '1D': .12, '1W': .4, '1M': 1, '1Y': 4 }
+  function drawHeat(p) {
+    const f = PF[p], cap = p === '1Y' ? 30 : 6
+    const col = ch => `color-mix(in srgb, ${ch >= 0 ? '#16a34a' : '#dc2626'} ${30 + Math.min(Math.abs(ch) / cap, 1) * 70}%, #262838)`
+    const st = ([t, w, ch, held], lg) => { const c = +(ch * f).toFixed(1); return `<div class="st ${lg ? 'lg' : ''}" style="flex:${w}; background:${col(c)}">${held ? '<span class="mine"></span>' : ''}<span class="t"><span class="logo sm"><img src="${SHARE(t)}"></span>${t}</span><span class="c">${c > 0 ? '+' : ''}${c}%</span></div>` }
+    document.getElementById('tmap').innerHTML = SECT.map((row, ri) => `<div class="trow" style="height:${ri ? 150 : 230}px">${row.map(([n, em, w, ch, stocks]) => {
+      const [first, ...rest] = stocks, c = +(ch * f).toFixed(1)
+      return `<div class="grp" style="flex:${w}"><div class="gh">${em} ${n}<span class="p ${c >= 0 ? 'good' : 'bad'}">${c > 0 ? '+' : ''}${c}%</span></div>
+        <div class="gin">${st(first, true)}<div class="gcol" style="flex:${rest.reduce((a, s) => a + s[1], 0)}">${rest.map(s => st(s)).join('')}</div></div></div>`
+    }).join('')}</div>`).join('')
+    document.getElementById('regions').innerHTML = [['🇺🇸', 'US', 2.4, 1], ['🇪🇺', 'EUROPE', -0.6, 1], ['🇯🇵', 'JAPAN', 1.9], ['🌱', 'EMERGING', 2.8, 1], ['🇨🇳', 'CHINA', -1.8]]
+      .map(([e, n, ch, held]) => { const c = +(ch * f).toFixed(1); return `<span class="reg" style="background:${col(c)}">${e} ${n} ${c > 0 ? '+' : ''}${c}%${held ? ' <span style="width:7px;height:7px;border-radius:50%;background:#fff;display:inline-block"></span>' : ''}</span>` }).join('')
+  }
+  document.querySelectorAll('#seg button').forEach(b => b.onclick = () => drawMarkets(b.dataset.p))
+  drawMarkets('1M')
+
+  /* the read: calm month and a mixed one */
+  const CALM = [
     ['🌡️', G, 'b-good', '▼ CPI', 'Inflation is cooling', 'Both sides of the Atlantic; the ECB is close to its 2% aim', ['US 2.9% · AUG 3.1%', 'EURO 2.1% · AUG 2.2%'], 'Prices in shops are rising <b>more slowly</b>. That lets central banks <b>lower interest rates</b>, which usually helps shares and ETFs — and makes savings accounts pay less.', 'macro'],
-    ['🏛️', 'var(--lav-400)', 'b-lav', 'FED CUT', 'Fed likely cuts on 29 Oct', 'Futures price a 0.25 cut; Powell kept the door open on 16 Oct', ['FED 4.25–4.50%', 'NEXT · 29 OCT', 'US 10Y 4.02% · 1 SEP 4.21%'], 'Traders already bet on the cut, so <b>it is mostly in prices</b>. The surprise would be <b>no cut</b> — that usually knocks markets down for a few days.', 'macro'],
-    ['💻', R, 'b-bad', 'ALLOCATION', 'Tech is 41% of the money', 'Once VUAA and IWDA are opened up, AI and tech sit far above the world market', ['MINE 41% · WORLD 26%', 'AVGO 7.1%', 'US 71%'], 'VUAA already holds Microsoft, Nvidia and Apple, and AVGO and NVDA are held on top. So <b>one bad month for AI moves most of the portfolio at once</b>. New money in health, Europe or small companies spreads that.', 'alloc'],
+    ['🏛️', 'var(--lav-400)', 'b-lav', 'FED CUT', 'Fed likely cuts on 29 Oct', 'Futures price a 0.25 cut; Powell kept the door open on 16 Oct', ['FED 4.25–4.50%', 'NEXT · 29 OCT', 'US 10Y 4.02% · 18 SEP 4.21%'], 'Traders already bet on the cut, so <b>it is mostly in prices</b>. The surprise would be <b>no cut</b> — that usually knocks markets down for a few days.', 'macro'],
+    ['⚖️', R, 'b-bad', 'ALLOCATION', 'Tech is 41% of the money', 'Once VUAA and IWDA are opened up, AI and tech sit far above the world market', ['MINE 41% · WORLD 26%', 'AVGO 7.1%', 'US 71%'], 'VUAA already contains Microsoft, Nvidia and Apple, and AVGO and NVDA are held on top. So <b>one bad month for AI moves most of the portfolio at once</b>.', 'alloc'],
     ['🔥', 'var(--warn)', 'b-warn', 'WATCH', 'Chips ran hot this month', 'Tech led every sector; the Nasdaq sits close to its high', ['TECH ▲ 5.8%', 'NASDAQ RSI 14 — 71'], 'An RSI above 70 means <b>it ran up fast</b> and often pauses or dips afterwards. Not a sell signal — a reason <b>not to chase it</b> with this month\'s money.', 'heatm'],
     ['⛔', R, 'b-bad', 'DON\'T', 'No more AI this month', 'AVGO and NVDA already carry the most weight among single stocks', ['AVGO 7.1% · NVDA 5.1%', 'TECH 41%'], 'Adding more would make the portfolio <b>depend even more on one theme</b>. Nothing needs selling — the next euros simply go elsewhere.', 'mine'],
   ]
-  document.getElementById('lines').innerHTML = LINES.map(([em, t, bc, b, h, p, f, plain, lights], i) => `
+  const MIXED = [
+    ['🌡️', R, 'b-bad', '▲ CPI', 'US inflation came in hot', 'September was higher than August and than forecasts; Europe cooled', ['US 3.4% · AUG 3.1%', 'EURO 2.1% · AUG 2.2%'], 'Prices in the US rose <b>faster again</b>. That makes a Fed cut <b>less likely</b>, which is why shares wobbled.', 'macro'],
+    ['❔', 'var(--ink-400)', 'b-dim', 'NO DATA', 'No new ECB numbers', 'The last ECB decision is from 11 Sep; nothing to read since', ['ECB 2.00% · 11 SEP'], 'Nothing new to say about euro rates this month — the model says so <b>rather than guess</b>.', 'macro'],
+    ['🔥', 'var(--warn)', 'b-warn', 'WATCH', 'Markets swung both ways', 'Up 3% mid-month, back to flat by the end', ['S&P 500 ▲ 0.3%', 'BITCOIN ▼ 6.0%'], 'A flat month after big swings usually means <b>investors are unsure</b>. Nothing to act on — the long-term plan does not change.', 'markets'],
+  ]
+  const lineHtml = list => list.map(([em, t, bc, b, h, p, f, plain, lights], i) => `
     <div class="ln" style="--t:${t}; animation-delay:${i * 90}ms" data-lights="${lights}">
       <span class="em">${em}</span>
       <div><div class="row" style="justify-content:space-between"><h3>${h}</h3><span class="badge ${bc}">${b}</span></div>
@@ -416,66 +563,64 @@
     ['federalreserve.gov', 'FED · 16 OCT'], ['reuters.com', 'REUTERS · 18 OCT'], ['ecb.europa.eu', 'ECB · 11 SEP'], ['cmegroup.com', 'FEDWATCH · 18 OCT'], ['bls.gov', 'BLS · 15 OCT'],
   ].map(([d, t]) => `<span class="src"><img src="${SITE(d)}">${t} ↗</span>`).join('') + '<span class="badge b-dim">+3</span>'
 
-  /* heatmaps */
-  const heat = ch => `color-mix(in srgb, ${ch >= 0 ? '#16a34a' : '#dc2626'} ${30 + Math.min(Math.abs(ch) / 6, 1) * 70}%, #262838)`
+  /* positions with verdicts */
+  const V = { site: 'vanguard.com' }, IS = { site: 'ishares.com' }
   const cell = (c, i) => `<div class="hc ${c.big ? 'big' : ''} ${c.frozen ? 'frozen' : ''}" style="background:${heat(c.ch)}; animation-delay:${i * 25}ms">
-      ${c.own ? '<span class="own">MINE</span>' : ''}
+      ${c.vd ? `<span class="vd ${c.vd}">${{ add: '✚ ADD', hold: '❚❚ HOLD', wait: '⧗ WAIT' }[c.vd]}</span>` : ''}
       <div class="top">${c.l ? logo(c.l, true) : ''}<span class="n">${c.n}</span></div>
       <div><div class="v">${c.frozen ? 'FROZEN' : (c.ch > 0 ? '+' : '') + c.ch.toFixed(1) + '%'}</div>${c.e ? `<div class="e">${c.e}</div>` : ''}</div></div>`
-  const rows = (el, rs) => document.getElementById(el).innerHTML = rs.map(r =>
-    `<div class="hrow" style="grid-template-columns:${r.map(c => c.w + 'fr').join(' ')}">${r.map(cell).join('')}</div>`).join('')
-  rows('heatm', [
-    [{ n: 'TECH', l: { emo: '💻' }, ch: 5.8, own: 1, big: 1, w: 33, e: '33% OF S&P' }, { n: 'FINANCE', l: { emo: '🏦' }, ch: 1.2, big: 1, w: 14, e: '13%' }, { n: 'HEALTH', l: { emo: '💊' }, ch: -2.4, big: 1, w: 12, e: '10%' }],
-    [{ n: 'CONSUMER', l: { emo: '🛒' }, ch: 0.8, w: 10 }, { n: 'COMMS', l: { emo: '📡' }, ch: 3.1, own: 1, w: 9 }, { n: 'INDUSTRY', l: { emo: '🏭' }, ch: 1.6, w: 8 }, { n: 'ENERGY', l: { emo: '⚡' }, ch: -3.6, w: 7 }],
-    [{ n: 'US', l: { emo: '🇺🇸' }, ch: 2.4, own: 1, w: 5 }, { n: 'EUROPE', l: { emo: '🇪🇺' }, ch: -0.6, own: 1, w: 3.4 }, { n: 'JAPAN', l: { emo: '🇯🇵' }, ch: 1.9, w: 2.4 }, { n: 'EMERGING', l: { emo: '🌱' }, ch: 2.8, own: 1, w: 3 }],
-  ])
-  const V = { site: 'vanguard.com' }, IS = { site: 'ishares.com' }
-  rows('heatmine', [
-    [{ n: 'VUAA', l: V, ch: 2.3, big: 1, w: 1640, e: '€1,640' }, { n: 'IWDA', l: IS, ch: 1.8, big: 1, w: 1210, e: '€1,210' }, { n: 'AVGO', l: { share: 'AVGO' }, ch: 7.4, big: 1, w: 820, e: '€820' }],
-    [{ n: 'NVDA', l: { share: 'NVDA' }, ch: 6.1, w: 592, e: '€592' }, { n: 'VFEG', l: V, ch: 2.9, w: 410, e: '€410' }, { n: 'MSFT', l: { share: 'MSFT' }, ch: 1.2, w: 374, e: '€374' }, { n: 'GOLD', l: { metal: 1 }, ch: 3.9, w: 370, e: '€370' }],
-    [{ n: 'SHLD', l: { site: 'globalxetfs.com' }, ch: 4.4, w: 300, e: '€300' }, { n: 'BTC', l: { coin: 'btc' }, ch: -4.1, w: 260, e: '€260' }, { n: 'VHYL', l: V, ch: 0.6, w: 190, e: '€190' }, { n: 'ETH', l: { coin: 'eth' }, ch: -6.3, w: 170, e: '€120' }, { n: 'OZON', frozen: 1, ch: 0, w: 140 }],
-  ])
+  document.getElementById('heatmine').innerHTML = [
+    [{ n: 'VUAA', l: V, ch: 2.3, big: 1, w: 1640, e: '€1,640', vd: 'hold' }, { n: 'IWDA', l: IS, ch: 1.8, big: 1, w: 1210, e: '€1,210', vd: 'add' }, { n: 'AVGO', l: { share: 'AVGO' }, ch: 7.4, big: 1, w: 820, e: '€820', vd: 'wait' }],
+    [{ n: 'NVDA', l: { share: 'NVDA' }, ch: 6.1, w: 592, e: '€592', vd: 'wait' }, { n: 'VFEG', l: V, ch: 2.9, w: 410, e: '€410', vd: 'add' }, { n: 'MSFT', l: { share: 'MSFT' }, ch: 1.2, w: 374, e: '€374', vd: 'hold' }, { n: 'GOLD', l: { metal: 1 }, ch: 3.9, w: 370, e: '€370', vd: 'hold' }],
+    [{ n: 'SHLD', l: { site: 'globalxetfs.com' }, ch: 4.4, w: 300, e: '€300', vd: 'wait' }, { n: 'BTC', l: { coin: 'btc' }, ch: -4.1, w: 260, e: '€260', vd: 'add' }, { n: 'VHYL', l: V, ch: 0.6, w: 240, e: '€190', vd: 'hold' }, { n: 'ETH', l: { coin: 'eth' }, ch: -6.3, w: 240, e: '€120', vd: 'wait' }, { n: 'OZON', frozen: 1, ch: 0, w: 170 }],
+  ].map(r => `<div class="hrow" style="grid-template-columns:${r.map(c => c.w + 'fr').join(' ')}">${r.map(cell).join('')}</div>`).join('')
 
-  /* allocation: [emoji, name, mine, world, tone] */
   document.getElementById('alloc').innerHTML = [
     ['💻', 'TECH · AI', 41, 26, R], ['🇺🇸', 'US', 71, 72, 'var(--k-etf)'], ['🇪🇺', 'EUROPE', 9, 15, 'var(--k-etf)'], ['💊', 'HEALTH', 3, 10, 'var(--k-etf)'], ['🥇', 'GOLD', 6, 0, 'var(--money)'],
   ].map(([em, n, m, r, k]) => `<div class="al" style="--k:${k}"><span class="em">${em}</span>
     <div><div class="nm">${n}</div><div class="bars2"><div class="bar"><b style="width:${m}%"></b></div><div class="bar ref"><b style="width:${r}%"></b></div></div></div>
     <div class="vals"><strong>${m}%</strong><span class="was">WORLD ${r}%</span></div></div>`).join('')
 
-  /* ideas: [logo, ticker, company, price, badge class, badge, why, facts, bull, bear, wrong] */
+  /* ideas */
   const IDEAS = [
-    [{ share: 'NVO' }, 'NOVO B', 'Novo Nordisk · 💊 health', 'DKK 412', 'b-good', '💡 IDEA', 'Obesity drugs; P/E at a 5-year low', ['P/E 14.2 · SECTOR 21.5', 'RSI 14 — 29'], 'Huge demand for weight-loss drugs; price already fell a lot', 'Lilly is winning share; US price pressure', 'Sales fall two quarters in a row'],
-    [{ site: 'rheinmetall.com' }, 'RHM', 'Rheinmetall · 🏭 defence', '€1,742', 'b-warn', '⧗ EARNINGS 23 OCT', 'European defence; orders keep rising', ['SMA 200 ▲ +18%', 'TARGET €2,050 · 22'], 'Europe spends more on defence for years', 'Already up a lot; a peace deal hits it', 'The order book shrinks'],
-    [IS, 'WSML', 'iShares World Small Cap · 📈 ETF', '€7.12', 'b-good', '💡 IDEA', '4,000 small companies, 14% tech', ['SMA 200 ▲ +4.0%', 'TER 0.35%'], 'Small companies gain most when rates fall', 'Swings more than big-company ETFs', 'Rates go back up'],
-    [IS, 'IBTM', 'iShares US Treasury 7–10Y · 📈 ETF', '€118.70', 'b-lav', '👁 WATCH', 'Bonds rise when yields fall', ['US 10Y 4.02%', 'SMA 50 ▲ +1.1%'], 'Gains if the Fed keeps cutting', 'Loses if inflation comes back', 'US inflation back above 3.5%'],
+    [{ share: 'NVO' }, 'NOVO B', 'Novo Nordisk · 💊 health', 'DKK 412', -3.9, G, 'b-good', '💡 IDEA', 'Obesity drugs, P/E at a 5-year low', ['P/E 14.2 · SECTOR 21.5', 'RSI 14 — 29'], 'Huge demand for weight-loss drugs; the price already fell a lot', 'Lilly is winning share; US price pressure', 'Sales fall two quarters in a row'],
+    [{ site: 'rheinmetall.com' }, 'RHM', 'Rheinmetall · 🏭 defence', '€1,742', 5.2, 'var(--warn)', 'b-warn', '⧗ EARNINGS 23 OCT', 'European defence, orders keep rising', ['SMA 200 ▲ +18%', 'TARGET €2,050 · 22'], 'Europe spends more on defence for years', 'Already up a lot; a peace deal hits it', 'The order book shrinks'],
+    [IS, 'WSML', 'iShares World Small Cap · 📈 ETF', '€7.12', 1.6, G, 'b-good', '💡 IDEA', '4,000 small companies, 14% tech', ['SMA 200 ▲ +4.0%', 'TER 0.35%'], 'Small companies gain most when rates fall', 'Swings more than big-company ETFs', 'Rates go back up'],
+    [IS, 'IBTM', 'iShares US Treasury 7–10Y · 📈 ETF', '€118.70', 1.1, 'var(--lav-400)', 'b-lav', '👁 WATCH', 'Bonds rise when yields fall', ['US 10Y 4.02%', 'SMA 50 ▲ +1.1%'], 'Gains if the Fed keeps cutting', 'Loses if inflation comes back', 'US inflation back above 3.5%'],
   ]
-  document.getElementById('ideas').innerHTML = IDEAS.map(([l, tk, co, px, bc, b, why, f, bull, bear, wrong], i) => `
-    <section class="tile c3 idea" style="--i:${10 + i}">
-      <div class="thead">${logo(l)}<div class="grow"><div class="tk">${tk}</div><div class="co">${co}</div></div></div>
-      <div class="row" style="justify-content:space-between"><span class="num" style="font-size:18px">${px}</span><span class="badge ${bc}">${b}</span></div>
-      <div class="why">${why}</div>
-      <div class="facts">${f.map(x => `<span class="fact">${x}</span>`).join('')}</div>
-      <div style="margin-top:auto"><span class="means">WHAT IT MEANS</span>
-      <div class="plain"><div class="bb"><span class="good">▲ BULL</span><span>${bull}</span><span class="bad">▼ BEAR</span><span>${bear}</span><span class="warnc">✕ WRONG IF</span><span>${wrong}</span></div></div></div>
+  document.getElementById('ideas').innerHTML = IDEAS.map(([l, tk, co, px, ch, tone, bc, b, why, f, bull, bear, wrong], i) => `
+    <section class="tile c3 idea" style="--i:${11 + i}; --tone:${tone}">
+      <div class="top">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">${logo(l)}<span class="badge ${bc}">${b}</span></div>
+        <div><div class="tk">${tk}</div><div class="co">${co}</div></div>
+        <div class="px"><span class="num">${px}</span><span class="chg ${ch > 0 ? 'g' : 'r'}">${ch > 0 ? '▲' : '▼'} ${Math.abs(ch)}% · 1M</span></div>
+        ${spark(path(i * 31 + 7, ch), 36)}
+      </div>
+      <div class="bot">
+        <div class="why">${why}</div>
+        <div class="facts">${f.map(x => `<span class="fact">${x}</span>`).join('')}</div>
+        <div class="case"><i class="bu">▲</i><span>${bull}</span></div>
+        <div class="case"><i class="be">▼</i><span>${bear}</span></div>
+        <div class="case"><i class="wr">✕</i><span><b>Wrong if</b> ${wrong.toLowerCase()}</span></div>
+      </div>
     </section>`).join('')
 
   /* ⓘ cards */
   const INFO = {
-    index: ['MARKETS', 'Each card is a basket or a price: the S&P 500 is the 500 biggest US companies, MSCI World about 1,400 companies in rich countries, STOXX 600 the 600 biggest in Europe.', 'VUAA follows the S&P 500 and IWDA follows MSCI World — together most of the portfolio.', 'S&P 500 ▲ 2.4% · MSCI WORLD ▲ 1.8%'],
+    index: ['MARKETS', 'Each card is a basket or a price: the S&P 500 is the 500 biggest US companies, MSCI World about 1,400 companies in rich countries, STOXX 600 the 600 biggest in Europe.', 'VUAA follows the S&P 500 and IWDA follows MSCI World — together most of the portfolio.', 'FETCHED ON OPEN · NEVER SAVED'],
     cpi: ['US INFLATION', 'How much more a basket of everyday things costs than a year ago, in the US.', 'High inflation keeps the Fed from cutting; lower inflation lets it cut, which usually lifts shares.', 'SEP 2.9% · AUG 3.1% · FED AIM 2%'],
     hicp: ['EURO INFLATION', 'The same price rise, measured for the euro area — Portugal included.', 'It decides what the ECB does with rates, which moves the ActivoBank savings rate and the euro.', 'SEP 2.1% · AUG 2.2% · ECB AIM 2%'],
     fed: ['FED RATE', 'The interest rate the US central bank sets for banks lending dollars overnight.', 'A cut makes borrowing cheaper, usually pushes shares up and the dollar down — and a weaker dollar makes US shares worth fewer euros.', '4.25–4.50% · NEXT 29 OCT'],
     ecb: ['ECB RATE', 'The rate the European Central Bank pays banks on their deposits.', 'Savings accounts in euros follow it. A cut means less interest on cash.', '2.00% · NEXT 30 OCT'],
-    heat: ['SECTORS · REGIONS', 'The stock market split into industries and places. Box size is how big it is; colour is how it moved this month. MINE marks what is held.', 'It shows what drove the market — this month, tech.', 'TECH ▲ 5.8% · ENERGY ▼ 3.6%'],
-    mine: ['POSITIONS', 'Every position as a box: the bigger the box, the more euros; green rose this month, red fell.', 'Big boxes in one colour move the total together.', 'BIGGEST · VUAA €1,640 · AVGO ▲ 7.4%'],
+    heat: ['S&P 500 HEATMAP', 'The 30 biggest US companies grouped by industry. Box size is how big the company is; colour is how its price moved over the chosen period. A white dot is a company held.', 'It shows what drove the market — and whether the portfolio was in it.', 'NVDA ▲ 8.1% · UNH ▼ 5.1%'],
+    mine: ['POSITIONS', 'Every position as a box: the bigger the box, the more euros; green rose this month, red fell. The corner tag is the Portfolio verdict for that position.', 'ADD — the signals say a good moment to buy more. HOLD — nothing to do. WAIT — it ran up fast, better not now.', 'ADD 3 · HOLD 8 · WAIT 4'],
     alloc: ['ALLOCATION', 'Where the money sits by theme and place, with ETFs opened up to the companies inside, next to the whole world market (MSCI World).', 'Far above the world on one line means one theme decides more of the result.', 'TECH 41% · WORLD 26%'],
   }
   const card = document.getElementById('card'); let openI = null
   const closeCard = () => { card.classList.remove('open'); openI?.classList.remove('on'); openI = null }
   document.addEventListener('click', e => {
     const m = e.target.closest('.means')
-    if (m) { m.closest('.ln, .idea').classList.toggle('open'); return }
+    if (m) { m.closest('.ln').classList.toggle('open'); return }
     const el = e.target.closest('.i')
     if (!el || openI === el) return closeCard()
     openI?.classList.remove('on'); openI = el; el.classList.add('on')
@@ -504,39 +649,35 @@
 
   /* states */
   const COST = {
-    sonnet: { name: 'SONNET 5.5 · 🌐 WEB', cost: '$0.24 A READ · CAP $2.00 · USED $0.33', web: true },
-    haiku: { name: 'HAIKU 5.5 · NO WEB', cost: '$0.003 A READ · CAP $2.00 · USED $0.01', web: false },
+    sonnet: { name: 'SONNET 5.5 · 🌐 8', cost: '$0.24 · CAP $2.00 · USED $0.33', web: true },
+    haiku: { name: 'HAIKU 5.5 · NO WEB', cost: '$0.003 · CAP $2.00 · USED $0.01', web: false },
   }
+  const MOOD = { read: 'var(--good)', mixed: 'var(--warn)', failed: 'var(--bad)', cap: 'var(--warn)', idle: 'var(--lav-400)', reading: 'var(--lav-400)' }
   let s = 'read'
   function setS(next) {
     s = next
+    const done = s === 'read' || s === 'mixed'
     document.querySelectorAll('[data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === s))
     document.querySelectorAll('[data-when]').forEach(el => el.style.display = el.dataset.when === s ? '' : 'none')
-    document.querySelectorAll('[data-when-not]').forEach(el => el.style.display = s === 'read' ? 'none' : '')
-    const orb = document.querySelector('[data-orb]')
-    orb.className = 'orb' + (s === 'reading' ? ' spin' : s === 'read' ? ' ok' : '')
-    orb.firstElementChild.textContent = s === 'read' ? '✓' : s === 'failed' ? '!' : s === 'cap' ? '⏸' : '✦'
+    document.querySelectorAll('[data-show="done"]').forEach(el => el.style.display = done ? '' : 'none')
+    document.querySelectorAll('[data-when-not="done"]').forEach(el => el.style.display = done ? 'none' : '')
+    document.getElementById('hero').style.setProperty('--mood', MOOD[s])
+    if (done) {
+      document.getElementById('lines').innerHTML = lineHtml(s === 'mixed' ? MIXED : CALM)
+      document.querySelectorAll('[data-lights]').forEach(f => { const t = document.querySelector(`[data-tile="${f.dataset.lights}"]`); f.onmouseenter = () => t?.classList.add('lit'); f.onmouseleave = () => t?.classList.remove('lit') })
+    }
     if (s === 'reading') setTimeout(() => s === 'reading' && setS('read'), 2200)
   }
-  function setP(p) {
-    document.querySelectorAll('[data-p]').forEach(b => b.classList.toggle('on', b.dataset.p === p))
-    document.querySelectorAll('[data-plan-set]').forEach(el => el.style.display = p === 'set' ? '' : 'none')
-    document.querySelectorAll('[data-plan-none]').forEach(el => el.style.display = p === 'none' ? '' : 'none')
-  }
   document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => setS(b.dataset.s))
-  document.querySelectorAll('[data-p]').forEach(b => b.onclick = () => setP(b.dataset.p))
   document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => {
     document.querySelectorAll('[data-m]').forEach(x => x.classList.toggle('on', x === b))
     const c = COST[b.dataset.m]
     document.querySelector('[data-model]').textContent = c.name
     document.querySelector('[data-cost]').textContent = c.cost
     document.querySelector('[data-web]').style.display = c.web ? '' : 'none'
+    document.querySelector('[data-websearch]').textContent = c.web ? '🌐 8' : 'OFF'
   })
-  document.querySelectorAll('[data-lights]').forEach(f => {
-    const t = document.querySelector(`[data-tile="${f.dataset.lights}"]`)
-    f.onmouseenter = () => t?.classList.add('lit'); f.onmouseleave = () => t?.classList.remove('lit')
-  })
-  setS('read'); setP('set')
+  setS('read')
 </script>
 </body>
 </html>

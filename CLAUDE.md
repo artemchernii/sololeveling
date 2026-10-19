@@ -148,6 +148,41 @@ SIGNALS tab:
   publisher, time and link, fetched on open, never stored, never
   summarised, not an input to the verdict.
 
+Insights, Finances' fourth room, was allowed on 2026-10-19 ("go" on the
+mockup `design/treasury-mockup/insights.html`, spec
+`docs/specs/2026-10-19-insights.md`). Only on that room:
+
+- **Market data, fetched on open** (his words: "DONT SAVE IT TO DB"):
+  index and company prices over 1D · 1W · 1M · 1Y, inflation, the Fed
+  and ECB rates, ETF holdings and the world split. Attributed and shown
+  with the time they were fetched, like news — but never stored, kept on
+  the page at most 10 minutes, fetched by one Convex action call on open
+  (never a reactive query), and never an input to `verdict()`. The
+  change over a period is two fetched prices with both shown.
+- **A model's market read**, on a press only: a headline, two plain
+  sentences and 3–5 lines, each of a kind from a fixed list (inflation,
+  rates, market, allocation, don't, no data) that picks its icon. The
+  numbers under a line are the app's own facts, printed by the app; the
+  model's words quote numbers only from those facts or from a source it
+  links. Nothing it says is stored as a number. The model, the time, the
+  tokens, the cost and who paid are always shown, with RESEARCH · NOT
+  ADVICE. Missing data is said as ❔ NO DATA, never guessed.
+- **Ideas**: 2–4 tickers not owned, named by the read with a why, a bull,
+  a bear and a wrong-if in words; every number on the card fetched by the
+  app. Badged MODEL · NOT ADVICE. Never a sell, never a € amount, never a
+  score.
+- **ASK**: questions answered by the same model on the same facts, a 🌐
+  switch for web search per question; answers stay on the screen, not in
+  the database.
+- **Explanations may be sentences** ("for not smart person like me I
+  want more like explanation"): behind an ⓘ card and a WHAT IT MEANS
+  tap only. The screen itself stays badges and numbers.
+- **Cost**: paid only on a press, no automatic run, no automatic retry.
+  On localhost the read and ASK go through Claude Code on his Mac (his
+  Pro plan; the one Start server function allowed for it); deployed,
+  through the API, stopped at $2 a month counted from each response's
+  usage. His Anthropic Console spend limit is the ceiling behind it.
+
 The fourth was added deliberately, on 2026-09-09, because money cannot be
 tracked without prices that come from outside. That is the bar for adding
 another: a real thing the app must show, and a written set of conditions that

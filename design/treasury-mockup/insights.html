@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Insights mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Insights — Finances' fourth room (19 Oct, first draft, in review).
+     Sample numbers, not his data. Styles copied from review-mockup/real2.html. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150);
+    --bad: oklch(0.68 0.2 22);
+    --warn: oklch(0.79 0.15 75);
+    --glass: linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
+    --edge: rgba(233,233,237,.09);
+    --shadow: inset 0 1px 0 rgba(233,233,237,.08), 0 24px 48px -28px rgba(0,0,0,.9);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --a-money: oklch(0.8 0.1 88);
+    --k-etf: oklch(0.78 0.11 250);
+    --k-stock: oklch(0.8 0.12 300);
+    --k-coin: oklch(0.82 0.13 75);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 13px; min-height: 100vh;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 16px 16px 60px; display: flex; flex-direction: column; gap: 12px; }
+  .mono { font-family: var(--mono); }
+  .caps { font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400); }
+  .good { color: var(--good) } .bad { color: var(--bad) } .warnc { color: var(--warn) } .dim { color: var(--ink-500) }
+  .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+  .between { justify-content: space-between }
+  .num { font-weight: 300; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums }
+  .xl { font-size: 38px } .big { font-size: 30px } .mid { font-size: 22px } .sm { font-size: 15px }
+  .was { font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+
+  /* Mockup controls — not part of the design */
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; letter-spacing: .08em }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  /* Finances head + room tabs */
+  .fhead { display:flex; align-items:flex-end; justify-content:space-between; gap: 12px; flex-wrap: wrap }
+  .tabs { display:flex; gap: 4px; padding: 3px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.03) }
+  .tab { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; padding: 6px 12px; border-radius: 999px; color: var(--ink-400) }
+  .tab.on { color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 18%, transparent); box-shadow: 0 0 16px -6px var(--shine) }
+
+  /* ───── The bento ───── */
+  .bento { display:grid; gap: 10px; grid-template-columns: repeat(6, 1fr); grid-auto-flow: dense }
+  .w2 { grid-column: span 2 } .w3 { grid-column: span 3 } .w4 { grid-column: span 4 } .w6 { grid-column: span 6 }
+  .h2 { grid-row: span 2 }
+  @media (max-width: 900px) { .bento { grid-template-columns: 1fr } .w2, .w3, .w4, .w6 { grid-column: span 1 } .h2 { grid-row: auto } }
+
+  .tile { position: relative; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 14px; overflow: hidden;
+    display:flex; flex-direction:column; gap: 10px; min-width: 0;
+    transition: transform .25s cubic-bezier(.2,.8,.2,1), border-color .25s, box-shadow .25s;
+    animation: arrive .55s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 55ms) }
+  .tile:hover { transform: translateY(-2px); border-color: color-mix(in oklch, var(--a, var(--lav-400)) 45%, transparent);
+    box-shadow: var(--shadow), 0 0 32px -14px var(--a, var(--shine)) }
+  .tile > * { position: relative; z-index: 2 }
+  @keyframes arrive { from { opacity: 0; transform: translateY(10px) scale(.985) } }
+  .tile.lit { border-color: var(--lav-400) !important; box-shadow: var(--shadow), 0 0 0 1px var(--lav-400), 0 0 34px -8px var(--shine) !important; transform: translateY(-2px) }
+
+  .sys { border-color: var(--sys-edge);
+    background: linear-gradient(160deg, rgba(181,171,252,.10), rgba(181,171,252,.02) 40%), var(--glass);
+    box-shadow: var(--shadow), 0 0 40px -18px var(--shine) }
+  .sys::before { content:''; position:absolute; inset:0; pointer-events:none; z-index: 1; background: repeating-linear-gradient(0deg, rgba(233,233,237,.022) 0 1px, transparent 1px 3px); }
+  .sys::after { content:''; position:absolute; inset:-1px; border:2px solid var(--lav-400); border-radius:15px; pointer-events:none; z-index: 3;
+    --r: 20px; mask: linear-gradient(#000 0 0) top left/var(--r) var(--r), linear-gradient(#000 0 0) top right/var(--r) var(--r), linear-gradient(#000 0 0) bottom left/var(--r) var(--r), linear-gradient(#000 0 0) bottom right/var(--r) var(--r); mask-repeat:no-repeat;
+    animation: corners 3.2s ease-in-out infinite }
+  @keyframes corners { 0%,100% { filter: drop-shadow(0 0 3px var(--shine)); opacity: .75 } 50% { filter: drop-shadow(0 0 9px var(--shine)); opacity: 1 } }
+  .sweep { position:absolute !important; z-index: 1 !important; inset: 0; pointer-events:none; overflow:hidden; border-radius: 14px }
+  .sweep::after { content:''; position:absolute; top:0; bottom:0; width: 40%; left: -50%;
+    background: linear-gradient(100deg, transparent, rgba(181,171,252,.10), transparent); animation: sweep 6s ease-in-out infinite }
+  @keyframes sweep { 0%, 60% { left: -50% } 100% { left: 120% } }
+  .sys-title { font-family: var(--mono); font-size: 11px; letter-spacing: .34em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 12px var(--shine); }
+
+  .glow { position:absolute !important; z-index: 0 !important; top: -80px; left: -50px; width: 220px; height: 220px; border-radius: 50%; background: var(--a); opacity: .13; filter: blur(46px);
+    animation: breathe 5s ease-in-out infinite }
+  @keyframes breathe { 0%,100% { opacity: .09; transform: scale(1) } 50% { opacity: .2; transform: scale(1.12) } }
+
+  .head { display:flex; align-items:center; justify-content:space-between; gap: 8px }
+  .name { display:flex; align-items:center; gap: 7px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .26em; text-transform: uppercase; color: var(--ink-200) }
+  .icon { width: 22px; height: 22px; border-radius: 7px; display:grid; place-items:center; background: color-mix(in oklch, var(--a) 18%, transparent); color: var(--a); border: 1px solid color-mix(in oklch, var(--a) 35%, transparent); font-size: 12px }
+
+  .badge { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; border: 1px solid currentColor; display:inline-flex; gap:5px; align-items:center; white-space: nowrap }
+  .b-good { color: var(--good); background: color-mix(in oklch, var(--good) 10%, transparent) }
+  .b-warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 10%, transparent) }
+  .b-bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 10%, transparent) }
+  .b-lav { color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 10%, transparent) }
+  .b-dim { color: var(--ink-400) }
+  .b-dash { border-style: dashed }
+  .live::before { content:''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: ping 1.6s ease-out infinite }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 currentColor } 80%,100% { box-shadow: 0 0 0 7px transparent } }
+  @keyframes pop { from { transform: scale(.4); opacity: 0 } }
+
+  /* progress against the plan's amount (a real denominator: his plan) */
+  .track { position: relative; height: 8px; border-radius: 4px; background: rgba(255,255,255,.07); overflow:hidden }
+  .track b { display:block; height:100%; border-radius: 4px; background: var(--a-money); transform-origin: left; animation: fill 1s cubic-bezier(.2,.8,.2,1) .3s both; box-shadow: 0 0 12px -2px var(--a-money) }
+  @keyframes fill { from { transform: scaleX(0) } }
+
+  /* split: now against plan, one pair of bars per kind */
+  .split { display:flex; flex-direction:column; gap: 12px }
+  .kind { display:grid; grid-template-columns: 74px 1fr 92px; gap: 10px; align-items:center }
+  .pairbars { display:flex; flex-direction:column; gap: 3px }
+  .pairbars .bar { position: relative; height: 9px; border-radius: 4px; background: rgba(255,255,255,.05); overflow:hidden }
+  .pairbars .bar b { display:block; height:100%; border-radius: 4px; background: var(--k); transform-origin:left; animation: fill 1s cubic-bezier(.2,.8,.2,1) .4s both }
+  .pairbars .bar.plan b { background: transparent; border: 1px dashed var(--k); }
+  .kname { display:flex; align-items:center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: .14em; color: var(--ink-200) }
+  .kname i { width: 9px; height: 9px; border-radius: 3px; background: var(--k) }
+  .legend { display:flex; gap: 12px }
+  .legend span { display:inline-flex; gap: 5px; align-items:center; font-family: var(--mono); font-size: 9.5px; color: var(--ink-400); text-transform: uppercase; letter-spacing: .08em }
+  .legend i { width: 14px; height: 7px; border-radius: 3px; background: var(--ink-300) }
+  .legend i.d { background: transparent; border: 1px dashed var(--ink-300) }
+
+  /* six pay months: in beside out */
+  .bars { display:grid; grid-template-columns: repeat(6, 1fr); gap: 10px; align-items:end; height: 92px }
+  .pair { display:grid; grid-template-columns:1fr 1fr; gap:3px; height:100%; align-items:end }
+  .pair span { border-radius: 3px 3px 1px 1px; transform-origin: bottom; animation: grow .8s cubic-bezier(.2,.8,.2,1) both }
+  .pair .in { background: var(--good); opacity: .8 } .pair .out { background: var(--bad); opacity: .7 }
+  .pair.now span { opacity: 1; box-shadow: 0 0 10px -2px currentColor }
+  @keyframes grow { from { transform: scaleY(0) } }
+  .xlab { display:grid; grid-template-columns: repeat(6, 1fr); gap: 10px; text-align:center }
+
+  /* the read */
+  .aiempty { display:flex; flex-direction:column; align-items:center; gap: 12px; margin: auto 0; padding: 10px 0 }
+  .aiorb { width: 58px; height: 58px; border-radius: 50%; display:grid; place-items:center; color: var(--lav-300); font-size: 24px;
+    background: radial-gradient(circle at 35% 30%, color-mix(in oklch, var(--lav-400) 45%, transparent), color-mix(in oklch, var(--lav-400) 8%, transparent) 70%);
+    border: 1px solid var(--sys-edge); box-shadow: 0 0 30px -6px var(--shine); animation: orb 3s ease-in-out infinite }
+  .aiorb.spin span { display:inline-block; animation: spin 1.4s linear infinite }
+  @keyframes orb { 0%,100% { box-shadow: 0 0 18px -8px var(--shine) } 50% { box-shadow: 0 0 36px -4px var(--shine) } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .btn { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; padding: 10px 18px; border-radius: 999px; cursor: pointer;
+    color: var(--lav-300); border: 1px solid var(--lav-400); background: color-mix(in oklch, var(--lav-400) 16%, transparent); box-shadow: 0 0 22px -8px var(--shine); transition: all .2s }
+  .btn:hover { background: color-mix(in oklch, var(--lav-400) 26%, transparent); box-shadow: 0 0 30px -6px var(--shine) }
+  .btn.ghost { color: var(--ink-300); border-color: var(--edge); background: rgba(255,255,255,.04); box-shadow: none; padding: 6px 12px; font-size: 10px }
+  .btn[disabled] { opacity: .4; cursor: not-allowed }
+  .scan { height: 3px; border-radius: 2px; background: rgba(255,255,255,.06); overflow:hidden; width: 70% }
+  .scan::after { content:''; display:block; height:100%; width: 35%; background: var(--lav-400); box-shadow: 0 0 10px var(--shine); animation: scan 1.3s ease-in-out infinite }
+  @keyframes scan { from { transform: translateX(-100%) } to { transform: translateX(300%) } }
+  .feeds { display:flex; gap: 6px; flex-wrap: wrap; justify-content:center }
+
+  .verdict { display:flex; flex-direction:column; gap: 4px; padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in oklch, var(--good) 40%, transparent); background: color-mix(in oklch, var(--good) 8%, transparent); animation: pop .5s cubic-bezier(.3,1.6,.5,1) both }
+  .vtitle { font-family: var(--mono); font-size: 17px; letter-spacing: .22em; color: var(--good); text-shadow: 0 0 12px color-mix(in oklch, var(--good) 50%, transparent) }
+  .findings { display:flex; flex-direction:column; gap: 6px }
+  .fnd { display:grid; grid-template-columns: 62px 1fr; gap: 10px; align-items:flex-start; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--edge); background: rgba(255,255,255,.025); font-size: 12.5px; color: var(--ink-100); cursor: pointer; opacity: 0; animation: typeIn .45s ease forwards; transition: border-color .15s, background .15s }
+  .fnd:hover { border-color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 8%, transparent) }
+  .fnd .badge { justify-content:center }
+  @keyframes typeIn { from { opacity: 0; transform: translateX(-6px) } to { opacity: 1; transform: none } }
+  .facts { display:flex; gap: 5px; flex-wrap: wrap; margin-top: 5px }
+  .fact { font-family: var(--mono); font-size: 9.5px; letter-spacing: .06em; color: var(--ink-300); padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,.05); border: 1px solid var(--edge) }
+  .who { display:flex; gap: 6px; flex-wrap: wrap; align-items:center; padding-top: 8px; border-top: 1px dashed var(--edge) }
+
+  /* plan chips */
+  .plan { display:flex; gap: 6px; flex-wrap: wrap }
+  .chip { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; padding: 4px 9px; border-radius: 999px; border: 1px solid color-mix(in oklch, var(--k, var(--a-money)) 45%, transparent); color: var(--k, var(--a-money)); background: color-mix(in oklch, var(--k, var(--a-money)) 10%, transparent) }
+  .planin { width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--lav-400); border-radius: 10px; color: var(--ink-100); font: 15px Inter, sans-serif; padding: 12px; outline: none; box-shadow: 0 0 18px -6px var(--shine) }
+  .planin::placeholder { color: var(--ink-500) }
+
+  /* market readings */
+  .reading { display:grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 8px 0; border-bottom: 1px dashed var(--edge) }
+  .reading:last-child { border-bottom: 0 }
+
+  /* verdict counts from Portfolio */
+  .vcounts { display:flex; gap: 8px }
+  .vc { flex: 1; border-radius: 10px; padding: 10px; border: 1px solid color-mix(in oklch, var(--c) 35%, transparent); background: color-mix(in oklch, var(--c) 8%, transparent); display:flex; flex-direction:column; gap: 6px }
+  .vc .num { color: var(--c) }
+  .tick { display:flex; gap: 4px; flex-wrap: wrap }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="ctl">
+    <span>mockup:</span>
+    <button data-s="noplan">no plan</button>
+    <button data-s="idle" class="on">not read</button>
+    <button data-s="reading">reading</button>
+    <button data-s="read">read</button>
+    <button data-s="failed">failed</button>
+    <button data-s="cap">cap reached</button>
+    <span style="margin-left:10px">model:</span>
+    <button data-m="haiku" class="on">haiku</button>
+    <button data-m="sonnet">sonnet</button>
+  </div>
+
+  <div class="fhead">
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <span class="caps">FINANCES</span>
+      <span class="num big">Insights</span>
+    </div>
+    <div class="tabs">
+      <span class="tab">OVERVIEW</span><span class="tab">FLOW</span><span class="tab">PORTFOLIO</span><span class="tab on">INSIGHTS</span>
+    </div>
+  </div>
+
+  <!-- ───── NO PLAN: the one input the app cannot know ───── -->
+  <div class="bento" data-noplan>
+    <section class="tile sys w6" style="--i:0; min-height: 320px; justify-content:center; align-items:center; text-align:center; gap: 16px">
+      <div class="sweep"></div>
+      <span class="sys-title">[ PLAN ]</span>
+      <span class="badge b-warn">NOT SET</span>
+      <input class="planin" style="max-width: 560px" placeholder="€500 a month, 70% ETFs, 20% stocks, 10% crypto" />
+      <div class="plan" style="justify-content:center">
+        <span class="chip">€500 / MONTH</span>
+        <span class="chip" style="--k:var(--k-etf)">ETF 70%</span>
+        <span class="chip" style="--k:var(--k-stock)">STOCK 20%</span>
+        <span class="chip" style="--k:var(--k-coin)">COIN 10%</span>
+      </div>
+      <span class="caps">⏎ SAVE</span>
+    </section>
+  </div>
+
+  <!-- ───── THE ROOM ───── -->
+  <div class="bento" data-room>
+
+    <!-- 1 · this pay month against the plan's amount -->
+    <section class="tile w3" style="--i:0; --a: var(--a-money)" data-tile="invested">
+      <div class="glow"></div>
+      <div class="head">
+        <span class="name"><span class="icon">€</span>INVESTED · PAY MONTH</span>
+        <span class="badge b-lav">BELOW PLAN</span>
+      </div>
+      <div class="row" style="align-items:flex-end; gap: 14px">
+        <span class="num xl" data-count="420">€420</span>
+        <span class="was">PLAN €500</span>
+      </div>
+      <div class="track"><b style="width: 84%"></b></div>
+      <div class="row between">
+        <span class="was">25 SEP → 24 OCT · SALARY TO SALARY</span>
+        <span class="was">3 BUYS · 2 ACCOUNTS</span>
+      </div>
+      <div class="plan">
+        <span class="chip">€500 / MONTH</span>
+        <span class="chip" style="--k:var(--k-etf)">ETF 70%</span>
+        <span class="chip" style="--k:var(--k-stock)">STOCK 20%</span>
+        <span class="chip" style="--k:var(--k-coin)">COIN 10%</span>
+        <span class="badge b-dim" style="cursor:pointer">✎ PLAN</span>
+      </div>
+    </section>
+
+    <!-- 2 · kept: in and out, six pay months -->
+    <section class="tile w3" style="--i:1; --a: var(--good)" data-tile="kept">
+      <div class="head">
+        <span class="name"><span class="icon" style="--a:var(--good)">↕</span>IN · OUT</span>
+        <span class="was">6 PAY MONTHS</span>
+      </div>
+      <div class="row" style="gap: 22px">
+        <div style="display:flex;flex-direction:column;gap:4px"><span class="caps">IN</span><span class="num mid good">€2,140</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span class="caps">OUT</span><span class="num mid bad">€1,610</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span class="caps">LAST PAY MONTH</span><span class="was" style="font-size:12px">IN €2,140 · OUT €1,880</span></div>
+      </div>
+      <div class="bars">
+        <div class="pair"><span class="in" style="height:78%"></span><span class="out" style="height:70%"></span></div>
+        <div class="pair"><span class="in" style="height:78%"></span><span class="out" style="height:82%"></span></div>
+        <div class="pair"><span class="in" style="height:80%"></span><span class="out" style="height:66%"></span></div>
+        <div class="pair"><span class="in" style="height:78%"></span><span class="out" style="height:74%"></span></div>
+        <div class="pair"><span class="in" style="height:78%"></span><span class="out" style="height:69%"></span></div>
+        <div class="pair now"><span class="in" style="height:78%;color:var(--good)"></span><span class="out" style="height:59%;color:var(--bad)"></span></div>
+      </div>
+      <div class="xlab"><span class="caps">MAY</span><span class="caps">JUN</span><span class="caps">JUL</span><span class="caps">AUG</span><span class="caps">SEP</span><span class="caps" style="color:var(--ink-100)">OCT</span></div>
+    </section>
+
+    <!-- 3 · the read: the System window -->
+    <section class="tile sys w4 h2" style="--i:2; min-height: 420px" data-tile="read">
+      <div class="sweep"></div>
+      <div class="head">
+        <span class="sys-title">[ MONTH READ ]</span>
+        <span data-when="idle"><span class="badge b-dim">NOT READ · OCT</span></span>
+        <span data-when="reading"><span class="badge b-lav live">READING OCT</span></span>
+        <span data-when="read"><span class="badge b-good">✓ READ · 19 OCT 09:12</span></span>
+        <span data-when="failed"><span class="badge b-bad">FAILED</span></span>
+        <span data-when="cap"><span class="badge b-warn">MONTH CAP · $1.00 USED</span></span>
+      </div>
+
+      <div class="aiempty" data-when="idle">
+        <div class="aiorb"><span>✦</span></div>
+        <button class="btn" onclick="setS('reading')">READ MONTH</button>
+        <div class="feeds">
+          <span class="badge b-lav">PLAN</span>
+          <span class="badge b-lav">IN · OUT · 6 MONTHS</span>
+          <span class="badge b-lav">15 POSITIONS · SIGNALS</span>
+          <span class="badge b-lav">FUNDAMENTALS</span>
+          <span class="badge b-lav">NEWS · 5 / POSITION</span>
+          <span class="badge b-lav b-dash">INFLATION · MARKET</span>
+        </div>
+        <span class="was" data-cost>≈ $0.003 A READ · HAIKU 5.5</span>
+      </div>
+
+      <div class="aiempty" data-when="reading">
+        <div class="aiorb spin"><span>✦</span></div>
+        <div class="scan"></div>
+        <span class="caps">READING 15 POSITIONS · PLAN · 6 PAY MONTHS</span>
+      </div>
+
+      <div class="aiempty" data-when="failed">
+        <div class="aiorb" style="border-color:var(--bad);box-shadow:0 0 30px -6px var(--bad)"><span class="bad">!</span></div>
+        <span class="badge b-bad">READER NOT REACHED</span>
+        <button class="btn" onclick="setS('reading')">TRY AGAIN</button>
+        <span class="was">NOTHING PAID</span>
+      </div>
+
+      <div class="aiempty" data-when="cap">
+        <div class="aiorb" style="border-color:var(--warn);box-shadow:0 0 30px -6px var(--warn)"><span class="warnc">⏸</span></div>
+        <span class="badge b-warn">CAP $1.00 · USED $1.00</span>
+        <button class="btn" disabled>READ MONTH</button>
+        <span class="was">NEXT · 1 NOV</span>
+      </div>
+
+      <div data-when="read" style="display:flex;flex-direction:column;gap:10px;flex:1">
+        <div class="verdict">
+          <span class="caps">THIS MONTH'S €500</span>
+          <span class="vtitle">ETF FIRST</span>
+        </div>
+        <div class="findings">
+          <div class="fnd" style="animation-delay:.1s" data-lights="split">
+            <span class="badge b-good">ADD</span>
+            <div>VUAA · ETF slice below plan, price under its 50-day line
+              <div class="facts"><span class="fact">ETF NOW 64% · PLAN 70%</span><span class="fact">SMA 50 ▼ −2.1%</span><span class="fact">RSI 14 — 41</span></div>
+            </div>
+          </div>
+          <div class="fnd" style="animation-delay:.25s" data-lights="split">
+            <span class="badge b-warn">WAIT</span>
+            <div>AVGO · stock slice above plan, RSI high
+              <div class="facts"><span class="fact">STOCK NOW 29% · PLAN 20%</span><span class="fact">RSI 14 — 72</span><span class="fact">TARGET $380 · NOW $343.86</span></div>
+            </div>
+          </div>
+          <div class="fnd" style="animation-delay:.4s" data-lights="split">
+            <span class="badge b-lav">HOLD</span>
+            <div>Coins · below plan, no ADD signal on BTC or ETH
+              <div class="facts"><span class="fact">COIN NOW 7% · PLAN 10%</span><span class="fact">BTC SMA 200 ▲ +6.0%</span></div>
+            </div>
+          </div>
+          <div class="fnd" style="animation-delay:.55s" data-lights="market">
+            <span class="badge b-dim">WATCH</span>
+            <div>Cash at the bank vs prices · euro inflation above the savings rate
+              <div class="facts"><span class="fact">INFLATION 2.4% · SEP</span><span class="fact">ACTIVOBANK RATE 1.5%</span><span class="fact">CASH €3,210</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="who" style="margin-top:auto">
+          <span class="badge b-lav" data-model>HAIKU 5.5</span>
+          <span class="badge b-dim">19 OCT 09:12</span>
+          <span class="badge b-dim" data-tok>11.2K IN · 1.6K OUT · $0.002</span>
+          <span class="badge b-dim">CAP $1.00 · USED $0.01</span>
+          <span style="flex:1"></span>
+          <button class="btn ghost">↻ READ AGAIN</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 · split now against plan -->
+    <section class="tile w2 h2" style="--i:3" data-tile="split">
+      <div class="head">
+        <span class="name"><span class="icon" style="--a:var(--k-etf)">◧</span>SPLIT</span>
+        <span class="badge b-warn">1 ABOVE PLAN</span>
+      </div>
+      <div class="row between">
+        <span class="num mid">€6,158</span>
+        <span class="was">INVESTED · 15 POSITIONS</span>
+      </div>
+      <div class="legend"><span><i></i>NOW</span><span><i class="d"></i>PLAN</span></div>
+      <div class="split">
+        <div class="kind" style="--k:var(--k-etf)">
+          <span class="kname"><i></i>ETF</span>
+          <div class="pairbars"><div class="bar"><b style="width:64%"></b></div><div class="bar plan"><b style="width:70%"></b></div></div>
+          <span class="was" style="text-align:right">64% · 70%<br><span class="badge b-lav" style="margin-top:4px">BELOW</span></span>
+        </div>
+        <div class="kind" style="--k:var(--k-stock)">
+          <span class="kname"><i></i>STOCK</span>
+          <div class="pairbars"><div class="bar"><b style="width:29%"></b></div><div class="bar plan"><b style="width:20%"></b></div></div>
+          <span class="was" style="text-align:right">29% · 20%<br><span class="badge b-warn" style="margin-top:4px">ABOVE</span></span>
+        </div>
+        <div class="kind" style="--k:var(--k-coin)">
+          <span class="kname"><i></i>COIN</span>
+          <div class="pairbars"><div class="bar"><b style="width:7%"></b></div><div class="bar plan"><b style="width:10%"></b></div></div>
+          <span class="was" style="text-align:right">7% · 10%<br><span class="badge b-lav" style="margin-top:4px">BELOW</span></span>
+        </div>
+      </div>
+      <div class="was" style="margin-top:auto">ETF €3,941 · STOCK €1,786 · COIN €431</div>
+    </section>
+
+    <!-- 5 · Portfolio's own verdicts, counted -->
+    <section class="tile w3" style="--i:4" data-tile="verdicts">
+      <div class="head">
+        <span class="name"><span class="icon" style="--a:var(--good)">✚</span>VERDICTS · PORTFOLIO</span>
+        <span class="was">RULES · 18 OCT CLOSE</span>
+      </div>
+      <div class="vcounts">
+        <div class="vc" style="--c:var(--good)"><span class="caps">ADD</span><span class="num mid">3</span><div class="tick"><span class="fact">VUAA</span><span class="fact">IWDA</span><span class="fact">SOL</span></div></div>
+        <div class="vc" style="--c:var(--lav-400)"><span class="caps">HOLD</span><span class="num mid">8</span></div>
+        <div class="vc" style="--c:var(--warn)"><span class="caps">WAIT</span><span class="num mid">4</span><div class="tick"><span class="fact">AVGO</span><span class="fact">NVDA</span></div></div>
+      </div>
+    </section>
+
+    <!-- 6 · inflation and market: new external readings -->
+    <section class="tile w3" style="--i:5" data-tile="market">
+      <div class="head">
+        <span class="name"><span class="icon" style="--a:var(--warn)">◎</span>MARKET · INFLATION</span>
+        <span class="badge b-warn b-dash">NEW SOURCE</span>
+      </div>
+      <div>
+        <div class="reading"><span class="caps" style="color:var(--ink-200)">INFLATION · EURO AREA</span><span class="num sm">2.4%</span><span class="was">EUROSTAT · SEP</span><span class="was" style="text-align:right">AUG 2.2%</span></div>
+        <div class="reading"><span class="caps" style="color:var(--ink-200)">MSCI WORLD · MONTH</span><span class="num sm good">▲ 1.8%</span><span class="was">YAHOO · 18 OCT CLOSE</span><span class="was" style="text-align:right">IWDA €102.40 · €100.59</span></div>
+        <div class="reading"><span class="caps" style="color:var(--ink-200)">EUR / USD</span><span class="num sm">1.091</span><span class="was">ECB · 18 OCT</span><span class="was" style="text-align:right">1 SEP 1.104</span></div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+  const COST = {
+    haiku:  { name: 'HAIKU 5.5',  read: '≈ $0.003 A READ · HAIKU 5.5',  tok: '11.2K IN · 1.6K OUT · $0.002' },
+    sonnet: { name: 'SONNET 5.5', read: '≈ $0.05 A READ · SONNET 5.5', tok: '11.2K IN · 2.4K OUT · $0.046' },
+  }
+  let s = 'idle'
+  function setS(next) {
+    s = next
+    document.querySelectorAll('[data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === s))
+    const noplan = s === 'noplan'
+    document.querySelector('[data-noplan]').style.display = noplan ? '' : 'none'
+    document.querySelector('[data-room]').style.display = noplan ? 'none' : ''
+    document.querySelectorAll('[data-when]').forEach(el => { el.style.display = el.dataset.when === s ? '' : 'none' })
+    if (s === 'reading') setTimeout(() => s === 'reading' && setS('read'), 2200)
+  }
+  document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => setS(b.dataset.s))
+  document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => {
+    document.querySelectorAll('[data-m]').forEach(x => x.classList.toggle('on', x === b))
+    const c = COST[b.dataset.m]
+    document.querySelector('[data-cost]').textContent = c.read
+    document.querySelector('[data-model]').textContent = c.name
+    document.querySelector('[data-tok]').textContent = c.tok
+  })
+  /* hover a line → the tile it names lights */
+  document.querySelectorAll('[data-lights]').forEach(f => {
+    const t = document.querySelector(`[data-tile="${f.dataset.lights}"]`)
+    f.onmouseenter = () => t.classList.add('lit')
+    f.onmouseleave = () => t.classList.remove('lit')
+  })
+  setS('idle')
+</script>
+</body>
+</html>

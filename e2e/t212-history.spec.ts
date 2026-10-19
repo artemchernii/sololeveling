@@ -117,3 +117,61 @@ test('the first answer after a file, at phone width: five new, one already added
   await block(page).getByRole('button', { name: '2 more' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
 })
+
+/* The opened account (S10): each Trading 212 row as the card shows it. */
+const opened = async (page: Page) => {
+  await expect(block(page)).toBeVisible()
+  await card(page).click({ position: { x: 24, y: 90 } })
+  const sheet = page.getByRole('dialog')
+  await expect(sheet).toBeVisible()
+  return sheet.getByTestId('t212-sheet-line')
+}
+
+test('the opened account: dividend, interest and fee with their badges, none typed or deletable', async ({
+  page,
+}) => {
+  await answered(page, 'paid')
+  const rows = await opened(page)
+  await expect(rows).toHaveCount(3)
+  await expect(rows.nth(0)).toContainText('dividend')
+  await expect(rows.nth(0)).toContainText('ASML')
+  await expect(rows.nth(0)).toContainText('1 share · €1.38 each')
+  await expect(rows.nth(0)).toContainText('+€1.38')
+  await expect(rows.nth(1)).toContainText('interest')
+  await expect(rows.nth(1)).toContainText('free cash')
+  await expect(rows.nth(1)).toContainText('+€2.04')
+  await expect(rows.nth(2)).toContainText('fee')
+  await expect(rows.nth(2)).toContainText('−€0.45')
+  const sheet = page.getByRole('dialog')
+  await expect(sheet.getByText('typed', { exact: true })).toHaveCount(0)
+  await expect(sheet.getByRole('button', { name: 'delete' })).toHaveCount(0)
+  await page.waitForTimeout(600)
+  await page.screenshot(shot('t212-sheet-paid'))
+})
+
+test('the opened account: a deposit saved in Revolut', async ({ page }) => {
+  await answered(page, 'deposit')
+  const rows = await opened(page)
+  await expect(rows.nth(0)).toContainText('transfer')
+  await expect(rows.nth(0)).toContainText(/saved in Revolut · /)
+  await expect(rows.nth(0)).toContainText('+€500')
+  await page.waitForTimeout(600)
+  await page.screenshot(shot('t212-sheet-deposit'))
+})
+
+test('the opened account at phone width: a deposit no bank has', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await answered(page, 'early')
+  const rows = await opened(page)
+  await expect(rows.nth(0)).toContainText('transfer')
+  await expect(rows.nth(0)).toContainText('not saved in a bank')
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true)
+  await page.waitForTimeout(600)
+  await page.screenshot(shot('t212-sheet-early-phone'))
+})

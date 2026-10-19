@@ -1860,14 +1860,17 @@ async function readCashHistory(
         otherAccountId: other,
       })
     }
-    const trades = account.kinds.includes('broker')
-      ? await ctx.db
-          .query('trades')
-          .withIndex('by_owner_account', (q) =>
-            q.eq('ownerId', ownerId).eq('accountId', account._id),
-          )
-          .take(TRADE_ROWS)
-      : []
+    /* A bank that is also a broker keeps its trades to its broker cash,
+       read below from its first reading on. */
+    const trades =
+      account.kinds.includes('broker') && !hasBrokerCash(account)
+        ? await ctx.db
+            .query('trades')
+            .withIndex('by_owner_account', (q) =>
+              q.eq('ownerId', ownerId).eq('accountId', account._id),
+            )
+            .take(TRADE_ROWS)
+        : []
     const values: Array<number | null> = dayEnds.map(() => null)
     for (const currency of account.currencies) {
       const readings = await ctx.db
@@ -1892,11 +1895,7 @@ async function readCashHistory(
                 .first()
             )?.rate ?? null)
       if (rate === null) continue
-      const moves = pocketMoves(
-        logs,
-        hasBrokerCash(account) ? [] : trades,
-        currency,
-      )
+      const moves = pocketMoves(logs, trades, currency)
       const series = balanceSeries(
         dayEnds,
         readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
@@ -1916,16 +1915,33 @@ async function readCashHistory(
           q.eq('ownerId', ownerId).eq('key', brokerCashKey(account._id)),
         )
         .take(500)
+      const first = Math.min(...readings.map((r) => r.recordedAt))
+      /* Only the trades after its first reading (18 Oct): a day before it
+         is not drawn, and on any later day a trade at or before the
+         reading it starts from is already in that reading — so the 3,700
+         older Revolut trades never changed a point, and were read on
+         every run of the worth chart. */
+      const brokerTrades =
+        readings.length === 0
+          ? []
+          : await ctx.db
+              .query('trades')
+              .withIndex('by_owner_account_time', (q) =>
+                q
+                  .eq('ownerId', ownerId)
+                  .eq('accountId', account._id)
+                  .gt('occurredAt', first),
+              )
+              .take(TRADE_ROWS)
       const series =
         readings.length === 0
           ? []
           : balanceSeries(
               dayEnds,
               readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
-              pocketMoves([], trades, 'EUR'),
+              pocketMoves([], brokerTrades, 'EUR'),
               false,
             )
-      const first = Math.min(...readings.map((r) => r.recordedAt))
       for (const [i, x] of series.entries()) {
         if (x === null || dayEnds[i] < first) continue
         values[i] = Math.round(((values[i] ?? 0) + x) * 100) / 100
@@ -2798,17 +2814,22 @@ export async function tradedSince(
   readAt: number,
   skip?: Id<'intakes'>,
 ): Promise<{ cents: number; rows: number }> {
+  /* Only the trades after the reading (18 Oct): Revolut's 3,700 trades
+     were read on every run of balances, worth, ahead and weekReview to
+     keep the few after its last cash reading. */
   const trades = await ctx.db
     .query('trades')
-    .withIndex('by_owner_account', (q) =>
-      q.eq('ownerId', ownerId).eq('accountId', account._id),
+    .withIndex('by_owner_account_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('accountId', account._id)
+        .gt('occurredAt', readAt),
     )
     .take(TRADE_ROWS)
   let cents = 0
   let rows = 0
   for (const t of trades) {
-    if (t.opening === true || t.noCash === true || t.occurredAt <= readAt)
-      continue
+    if (t.opening === true || t.noCash === true) continue
     if (skip !== undefined && t.importId === skip) continue
     const cost = Math.round(t.shares * t.priceEur * 100)
     cents += t.side === 'buy' ? -cost : cost

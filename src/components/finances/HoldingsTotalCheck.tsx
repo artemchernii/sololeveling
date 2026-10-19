@@ -66,10 +66,42 @@ function Cell({
 export function TotalStrip({
   check,
   cash,
+  known = 0,
 }: {
   check: TotalCheck
   cash: string
+  /** Positions the account's trades hold already (19 Oct): no total. */
+  known?: number
 }) {
+  if (known > 0)
+    return (
+      <div
+        data-total="known"
+        className="grid grid-cols-2 overflow-hidden rounded-[12px] bg-sink/[0.22] ring-1 ring-lift/[0.06] ring-inset"
+      >
+        <Cell
+          label={positionsWords(check.positions)}
+          value={money(check.positionsEur)}
+          tone="good"
+          under={
+            <>
+              <Check className="motion-pop size-[11px]" strokeWidth={3} />
+              {known === check.positions
+                ? 'already added'
+                : `${known} already added`}
+            </>
+          }
+          dot="bg-lav-400"
+        />
+        <Cell
+          label={cash}
+          value={check.cashEur === null ? '—' : money(check.cashEur)}
+          under={check.cashEur === null ? 'not on the screenshot' : 'not saved'}
+          tone="says"
+          dot="bg-money-cash"
+        />
+      </div>
+    )
   /* A total of the positions alone: the cash is beside it, not in it. */
   const both = check.cashEur !== null && !check.withoutCash
   return (
@@ -242,8 +274,8 @@ export function HoldingsTotal({
   const shown = all ? total.lines : total.lines.slice(0, TILES)
   return (
     <div className="flex flex-col gap-3">
-      <TotalStrip check={total} cash={cash} />
-      {total.state === 'none' ? (
+      <TotalStrip check={total} cash={cash} known={total.known} />
+      {total.known > 0 ? null : total.state === 'none' ? (
         <div className="flex items-start gap-2 text-[12.5px] leading-normal text-ink-300">
           <Eye className="mt-0.5 size-3.5 shrink-0 text-lav-400" />
           <span>

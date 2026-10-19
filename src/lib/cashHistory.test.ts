@@ -149,6 +149,58 @@ describe('a wallet carried back (1 Oct)', () => {
 })
 
 describe('balanceChecks', () => {
+  test('a row of the balance’s own day that came after it: counted in the next check (BPI → ActivoBank, 19 Oct)', () => {
+    const oct14 = new Date(2026, 9, 14, 9).getTime()
+    const at1501 = new Date(2026, 9, 19, 15, 1).getTime()
+    const oct20 = new Date(2026, 9, 20, 9).getTime()
+    /* BPI's screenshot wrote the €422 arrival on the day, at noon. */
+    const arrival = {
+      at: new Date(2026, 9, 19, 12).getTime(),
+      cents: 42200,
+      fromFile: true,
+    }
+    const [first, next] = balanceChecks(
+      [
+        { at: oct14, value: 84.37 },
+        { at: at1501, value: 84.37 },
+        { at: oct20, value: 506.37 },
+      ],
+      [arrival],
+    )
+    expect(first).toMatchObject({ missing: 0, rows: 0, sum: 0 })
+    expect(next).toMatchObject({ missing: 0, rows: 1, sum: 422 })
+    /* The last answer alone: nothing is missing either. */
+    expect(
+      balanceGaps(
+        [
+          { at: oct14, value: 84.37 },
+          { at: at1501, value: 84.37 },
+        ],
+        [arrival],
+      ),
+    ).toEqual([])
+  })
+
+  test('a row a day before the balance is not moved past it', () => {
+    const a = new Date(2026, 9, 14, 9).getTime()
+    const b = new Date(2026, 9, 19, 15, 1).getTime()
+    expect(
+      balanceGaps(
+        [
+          { at: a, value: 84.37 },
+          { at: b, value: 84.37 },
+        ],
+        [
+          {
+            at: new Date(2026, 9, 18, 12).getTime(),
+            cents: 42200,
+            fromFile: true,
+          },
+        ],
+      ),
+    ).toMatchObject([{ missing: -422 }])
+  })
+
   test('every pair, with its rows and their sum — his ActivoBank today', () => {
     const t0 = new Date(2026, 7, 31, 12).getTime()
     const t1 = new Date(2026, 8, 27, 19).getTime()

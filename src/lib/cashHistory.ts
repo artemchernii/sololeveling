@@ -128,16 +128,24 @@ export function balanceChecks(
   const checks: Array<Check> = []
   /* Rows a balance already counted: not counted again after it. */
   const counted = new Set<Move>()
+  /* Rows a balance had not seen yet: counted in the next check. */
+  let carried = new Set<Move>()
   for (let i = 1; i < readings.length; i++) {
     const a = readings[i - 1]
     const b = readings[i]
     let sum = 0
     let rows = 0
+    const inside: Array<Move> = []
     for (const m of moves)
-      if (after(m, a) && !after(m, b) && !counted.has(m)) {
+      if (
+        (carried.has(m) || (after(m, a) && !after(m, b))) &&
+        !counted.has(m)
+      ) {
         sum += m.cents
         rows++
+        inside.push(m)
       }
+    carried = new Set()
     const cents = Math.round(a.value * 100) + sum
     const read = Math.round(b.value * 100)
     let gap = read - cents
@@ -157,6 +165,26 @@ export function balanceChecks(
         gap = 0
       }
     }
+    /* A row dated only by its day, that day, later than the bank's
+       answer (19 Oct: BPI's €422 to ActivoBank, sent in the evening, and
+       ActivoBank's 15:01 balance without it). Counted in the next check. */
+    if (gap !== 0) {
+      const day = new Date(b.at).toDateString()
+      const found = bookedLater(
+        -gap,
+        inside.filter(
+          (m) => m.at <= b.at && new Date(m.at).toDateString() === day,
+        ),
+      )
+      if (found) {
+        for (const m of found) {
+          carried.add(m)
+          sum -= m.cents
+          rows--
+        }
+        gap = 0
+      }
+    }
     const pend = Math.round((b.pending ?? 0) * 100)
     if (
       gap !== 0 &&
@@ -173,7 +201,7 @@ export function balanceChecks(
       fromValue: a.value,
       rows,
       sum: sum / 100,
-      expected: cents / 100,
+      expected: (Math.round(a.value * 100) + sum) / 100,
       read: read / 100,
       missing: gap / 100,
       bookedLater: later,

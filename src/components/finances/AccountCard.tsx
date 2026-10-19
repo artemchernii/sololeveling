@@ -95,6 +95,14 @@ export function AccountCard({
         className="ml-1 inline size-3 text-state-good"
       />
     ) : null
+  /* A cash line the bank reports wears the same link (19 Oct, cash-lines.html). */
+  const fromBank =
+    link !== null && link.via === null ? (
+      <Link2
+        aria-label="from the bank"
+        className="ml-1 inline size-3 text-state-good"
+      />
+    ) : null
   const stopped =
     link?.question || (link?.failed === 'refused' && !link.checking)
   const total =
@@ -185,7 +193,7 @@ export function AccountCard({
                 <span className="rounded-[5px] bg-lift/[0.08] px-1.5 py-0.5 text-[10.5px] text-ink-200">
                   {p.currency}
                 </span>
-                {fromT212}
+                {fromT212 ?? fromBank}
               </span>
               <span className="text-ink-100">
                 {p.value === null ? (

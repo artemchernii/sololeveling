@@ -97,7 +97,8 @@ export function parseEcb(json: unknown): Policy | null {
       dimensions?: { observation?: Array<{ values?: Array<{ id?: string }> }> }
     }
   } | null
-  const series = Object.values(j?.dataSets?.[0]?.series ?? {})[0]
+  const series = Object.values(j?.dataSets?.[0]?.series ?? {})[0] as
+    { observations?: Record<string, Array<unknown>> } | undefined
   const days = j?.structure?.dimensions?.observation?.[0]?.values
   if (!series?.observations || !Array.isArray(days)) return null
   const rows = Object.entries(series.observations)

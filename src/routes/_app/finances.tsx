@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { CandlestickChart, LayoutGrid, Waves } from 'lucide-react'
+import { CandlestickChart, LayoutGrid, Sparkles, Waves } from 'lucide-react'
 
 import { Accounts } from '@/components/finances/Accounts'
 import { Flow } from '@/components/finances/flow/Flow'
+import { Insights } from '@/components/finances/insights/Insights'
 import { Portfolio } from '@/components/finances/Portfolio'
 import { useFreshPrices } from '@/components/finances/useFreshPrices'
 import { RoomTabLabel, RoomTabs, roomTabClass } from '@/components/RoomTabs'
@@ -22,6 +23,8 @@ const ROOMS = [
   { id: 'overview', label: 'Overview', Icon: LayoutGrid },
   { id: 'flow', label: 'Flow', Icon: Waves },
   { id: 'portfolio', label: 'Portfolio', Icon: CandlestickChart },
+  /* The market and what it means for his money (19 Oct). */
+  { id: 'insights', label: 'Insights', Icon: Sparkles },
 ] as const
 
 type Room = (typeof ROOMS)[number]['id']
@@ -85,6 +88,13 @@ function Treasury() {
         className="flex flex-col gap-3"
       >
         {opened.has('portfolio') ? <Portfolio position={position} /> : null}
+      </div>
+      <div
+        style={areaVars('money')}
+        hidden={room !== 'insights'}
+        className="flex flex-col gap-3"
+      >
+        {opened.has('insights') ? <Insights /> : null}
       </div>
     </div>
   )

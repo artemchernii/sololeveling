@@ -8,7 +8,9 @@ import type { LucideIcon } from 'lucide-react'
    Left, not centred as the mockup had it: it lines up with the titles and
    cards on each page (27 Sep). It does not stick while scrolling: the
    page's framed cards drew over it however it was glazed, and Artem
-   asked only that nothing overlap. */
+   asked only that nothing overlap. Four rooms are wider than a phone
+   (Finances' Insights, 19 Oct): the capsule scrolls inside itself then,
+   never the page. */
 export function RoomTabs({
   label,
   style,
@@ -22,7 +24,7 @@ export function RoomTabs({
     <nav
       aria-label={label}
       style={style}
-      className="glass flex w-fit max-w-full self-start gap-0.5 rounded-full p-1 sm:gap-1.5 sm:p-1.5"
+      className="glass flex w-fit max-w-full self-start overflow-x-auto [scrollbar-width:none] gap-0.5 rounded-full p-1 sm:gap-1.5 sm:p-1.5"
     >
       {children}
     </nav>

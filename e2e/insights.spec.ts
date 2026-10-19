@@ -129,6 +129,8 @@ test('S4 ⓘ opens its card in plain words, and closes', async ({ page }) => {
   await expect(card).toContainText('WHAT IT IS')
   await expect(card).toContainText('WHY IT MOVES THE MONEY')
   await expect(card).toContainText('SEP 2.9% · AUG 3.1%')
+  /* It pops in: the picture once it has landed. */
+  await expect(card).toHaveCSS('opacity', '1')
   await page.screenshot(shot('insights-info'))
   await page.keyboard.press('Escape')
   await expect(card).toBeHidden()

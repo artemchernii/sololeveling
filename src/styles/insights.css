@@ -1,0 +1,596 @@
+/* Insights, Finances' fourth room (19 Oct, mockup
+   design/treasury-mockup/insights.html, his "go"). The mockup's pieces in
+   the app's tokens: numbered bands, glass tiles on one 12-column grid
+   that arrive one after another, the market cards with a drawn line, the
+   S&P 500 heatmap. Heat boxes sit on --mark-ink, dark in both themes, so
+   their white words read on light too. Every colour from a token. */
+
+.ins-band {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  & b {
+    font: 700 11px var(--font-mono);
+    letter-spacing: 0.3em;
+    color: var(--color-ink-200);
+  }
+  & .n {
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    display: grid;
+    place-items: center;
+    font: 700 11px var(--font-mono);
+    color: var(--color-lav-300);
+    border: 1px solid var(--system-edge);
+    background: color-mix(in oklch, var(--color-lav-400) 12%, transparent);
+  }
+  &::after {
+    content: '';
+    flex: 1;
+    min-width: 20px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--glass-edge), transparent);
+  }
+}
+
+.ins-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  & > .c3 {
+    grid-column: span 3;
+  }
+  @media (max-width: 1000px) {
+    & > .c3 {
+      grid-column: span 6;
+    }
+  }
+  @media (max-width: 560px) {
+    & > .c3 {
+      grid-column: span 12;
+    }
+  }
+}
+
+@keyframes ins-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+.ins-tile {
+  position: relative;
+  border-radius: 14px;
+  background-image: var(--glass-fill);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+  animation: ins-arrive 550ms var(--motion-ease) both;
+  animation-delay: calc(var(--i, 0) * 50ms);
+  transition:
+    transform 250ms var(--motion-ease),
+    border-color 250ms,
+    box-shadow 250ms;
+  &:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(
+      in oklch,
+      var(--a, var(--color-lav-400)) 45%,
+      transparent
+    );
+    box-shadow:
+      var(--glass-shadow),
+      0 0 32px -14px var(--a, var(--system-shine));
+  }
+}
+
+.ins-thead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+  flex-wrap: wrap;
+}
+.ins-tname {
+  font: 700 10.5px var(--font-mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-ink-200);
+}
+.ins-ico {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  font-size: 13px;
+  background: color-mix(
+    in oklch,
+    var(--a, var(--color-lav-400)) 16%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(in oklch, var(--a, var(--color-lav-400)) 35%, transparent);
+}
+.ins-emo {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  background: color-mix(in oklch, var(--lift) 6%, transparent);
+  border: 1px solid var(--glass-edge);
+}
+.ins-was {
+  font: 10.5px var(--font-mono);
+  color: var(--color-ink-500);
+  text-transform: uppercase;
+}
+.ins-num {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ins-badge {
+  font: 600 9.5px var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  white-space: nowrap;
+  &.good {
+    color: var(--state-good);
+    background: color-mix(in oklch, var(--state-good) 12%, transparent);
+  }
+  &.bad {
+    color: var(--state-danger);
+    background: color-mix(in oklch, var(--state-danger) 12%, transparent);
+  }
+  &.warn {
+    color: var(--state-warn);
+    background: color-mix(in oklch, var(--state-warn) 12%, transparent);
+  }
+  &.lav {
+    color: var(--color-lav-300);
+    background: color-mix(in oklch, var(--color-lav-400) 14%, transparent);
+  }
+  &.dim {
+    color: var(--color-ink-400);
+    font-weight: 500;
+  }
+}
+.ins-chg {
+  font: 700 10px var(--font-mono);
+  padding: 3px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+  &.g {
+    color: var(--state-good);
+    background: color-mix(in oklch, var(--state-good) 14%, transparent);
+  }
+  &.r {
+    color: var(--state-danger);
+    background: color-mix(in oklch, var(--state-danger) 14%, transparent);
+  }
+}
+.ins-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px dashed var(--glass-edge);
+}
+
+/* ⓘ and its card */
+.ins-i {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--color-ink-500);
+  color: var(--color-ink-400);
+  font: 700 9px var(--font-mono);
+  flex: none;
+  transition: all 150ms;
+  &:hover,
+  &[aria-expanded='true'] {
+    color: var(--color-lav-300);
+    border-color: var(--color-lav-400);
+    box-shadow: 0 0 10px -3px var(--system-shine);
+  }
+}
+.ins-card {
+  position: absolute;
+  z-index: 50;
+  width: min(310px, calc(100vw - 16px));
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--system-edge);
+  background: var(--color-surface);
+  box-shadow:
+    var(--shadow-lg),
+    0 0 30px -12px var(--system-shine);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  & h4 {
+    font: 700 11px var(--font-mono);
+    letter-spacing: 0.2em;
+    color: var(--color-lav-300);
+  }
+  & .k {
+    font: 500 9px var(--font-mono);
+    letter-spacing: 0.14em;
+    color: var(--color-ink-500);
+  }
+  & p {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--color-ink-200);
+  }
+  & .now {
+    font: 600 10.5px var(--font-mono);
+    color: var(--color-ink-100);
+    padding: 6px 8px;
+    border-radius: 7px;
+    background: color-mix(in oklch, var(--lift) 5%, transparent);
+    border: 1px solid var(--glass-edge);
+  }
+}
+
+/* the hero, not read */
+.ins-hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  padding: 22px 24px 22px 28px;
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 14px;
+    bottom: 14px;
+    width: 4px;
+    border-radius: 0 4px 4px 0;
+    background: var(--color-lav-400);
+    box-shadow: 0 0 18px var(--color-lav-400);
+  }
+  & .headline {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  & .stamp {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 10px;
+    min-width: 210px;
+    padding-left: 20px;
+    border-left: 1px dashed var(--glass-edge);
+  }
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+    & .stamp {
+      align-items: flex-start;
+      border-left: 0;
+      padding-left: 0;
+      border-top: 1px dashed var(--glass-edge);
+      padding-top: 12px;
+    }
+  }
+}
+.ins-kpi {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-edge);
+  background: color-mix(in oklch, var(--lift) 4%, transparent);
+  font: 600 9px var(--font-mono);
+  letter-spacing: 0.12em;
+  color: var(--color-ink-400);
+  & .e {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    background: color-mix(in oklch, var(--lift) 6%, transparent);
+  }
+}
+.ins-btn {
+  font: 700 11px var(--font-mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 12px 20px;
+  border-radius: 999px;
+  color: var(--color-lav-300);
+  border: 1px solid var(--color-lav-400);
+  background: color-mix(in oklch, var(--color-lav-400) 18%, transparent);
+  white-space: nowrap;
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+/* the period switch */
+.ins-seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-edge);
+  background: color-mix(in oklch, var(--lift) 3%, transparent);
+  & button {
+    font: 700 10px var(--font-mono);
+    letter-spacing: 0.12em;
+    padding: 5px 12px;
+    border-radius: 999px;
+    color: var(--color-ink-400);
+    transition: all 150ms;
+    &[aria-pressed='true'] {
+      color: var(--color-ink-100);
+      background: color-mix(in oklch, var(--color-lav-400) 22%, transparent);
+      box-shadow: 0 0 14px -5px var(--system-shine);
+    }
+  }
+}
+
+/* the eight markets */
+.ins-mkts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  @media (max-width: 1000px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (max-width: 420px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@keyframes ins-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.ins-mk {
+  border-radius: 11px;
+  padding: 12px;
+  border: 1px solid var(--glass-edge);
+  background: color-mix(in oklch, var(--lift) 3%, transparent);
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  align-items: center;
+  transition: border-color 200ms;
+  &:hover {
+    border-color: color-mix(in oklch, var(--c) 55%, transparent);
+  }
+  & > .mark {
+    grid-row: span 2;
+  }
+  & .nm {
+    font: 700 10px var(--font-mono);
+    letter-spacing: 0.12em;
+    color: var(--color-ink-200);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  & .v {
+    font-size: 17px;
+    grid-column: 2 / -1;
+  }
+  & svg {
+    grid-column: 1 / -1;
+    width: 100%;
+    height: 34px;
+    display: block;
+    margin-top: 4px;
+  }
+  & polyline {
+    fill: none;
+    stroke: var(--c);
+    stroke-width: 1.8;
+    stroke-dasharray: 300;
+    stroke-dashoffset: 300;
+    animation: ins-draw 1.4s cubic-bezier(0.4, 0, 0.2, 1) 300ms forwards;
+  }
+  & polygon {
+    fill: var(--c);
+    opacity: 0.1;
+  }
+}
+@keyframes ins-wait {
+  50% {
+    opacity: 0.45;
+  }
+}
+.ins-reading {
+  animation: ins-wait 1.2s ease-in-out infinite;
+}
+
+/* the S&P 500 heatmap: sectors as groups, the biggest companies inside */
+@keyframes ins-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+}
+.ins-tmap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ins-trow {
+  display: flex;
+  gap: 4px;
+  @media (max-width: 700px) {
+    flex-wrap: wrap;
+    height: auto !important;
+    & > .ins-grp {
+      flex: 1 1 calc(50% - 4px) !important;
+      height: 150px;
+    }
+  }
+}
+.ins-grp {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 9px;
+  background: color-mix(in oklch, var(--lift) 4%, transparent);
+  border: 1px solid var(--glass-edge);
+  min-width: 74px;
+  & .gh {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 5px 2px;
+    font: 700 10px var(--font-mono);
+    letter-spacing: 0.1em;
+    color: var(--color-ink-200);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  & .gh .p {
+    margin-left: auto;
+  }
+}
+.ins-gin {
+  display: flex;
+  gap: 3px;
+  flex: 1;
+  min-height: 0;
+}
+.ins-gcol {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.ins-st {
+  position: relative;
+  border-radius: 6px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--mark-ground);
+  transition:
+    transform 150ms,
+    box-shadow 150ms;
+  animation: ins-pop 400ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  &:hover {
+    transform: scale(1.04);
+    z-index: 2;
+    box-shadow: 0 0 0 1px var(--mark-ground);
+  }
+  & .t {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font: 700 10px var(--font-mono);
+    white-space: nowrap;
+  }
+  & .c {
+    font: 700 11px var(--font-mono);
+  }
+  &.lg .t {
+    font-size: 12px;
+  }
+  &.lg .c {
+    font-size: 16px;
+  }
+  /* A small box beside the big one: ticker and change on one line when
+     it is short, wrapping when it is narrow. */
+  .ins-gcol > & {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    align-content: center;
+    justify-content: space-between;
+    column-gap: 6px;
+  }
+  & .mine {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--mark-ground);
+    box-shadow:
+      0 0 0 2px color-mix(in oklch, var(--mark-ink) 50%, transparent),
+      0 0 10px var(--mark-ground);
+  }
+}
+.ins-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-ink-100);
+  display: inline-block;
+}
+.ins-regions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ins-reg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  font: 700 10.5px var(--font-mono);
+  color: var(--mark-ground);
+}
+.ins-scale {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  & i {
+    width: 110px;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(
+      90deg,
+      var(--state-danger),
+      var(--mark-ink),
+      var(--state-good)
+    );
+  }
+}

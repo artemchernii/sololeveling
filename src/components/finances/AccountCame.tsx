@@ -19,7 +19,7 @@ import { money } from '@/lib/currency'
 export type Came = NonNullable<
   FunctionReturnType<typeof api.bank.links>[number]['came']
 >
-type Line = Came['lines'][number]
+export type Line = Came['lines'][number]
 
 const BADGE =
   'justify-self-start rounded-full px-2 py-[3px] font-mono text-[9.5px] font-medium tracking-[0.1em] uppercase ring-1 ring-inset'
@@ -140,7 +140,17 @@ function Mark({ line: l }: { line: Line }) {
   )
 }
 
-function Row({ line: l, i }: { line: Line; i: number }) {
+/** One of Trading 212's rows: on the card, and in the opened account
+    inside a container of its own (the badge column needs 380px). */
+export function Row({
+  line: l,
+  i,
+  testId = 't212-came-line',
+}: {
+  line: Line
+  i: number
+  testId?: string
+}) {
   const cur = (n: number) => money(n, l.currency)
   const sub =
     l.kind === 'transfer' ? (
@@ -168,7 +178,7 @@ function Row({ line: l, i }: { line: Line; i: number }) {
     ) : null
   return (
     <div
-      data-testid="t212-came-line"
+      data-testid={testId}
       style={{ animationDelay: `${i * 40}ms` }}
       className="motion-arrive grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 border-t border-lift/6 py-2 first:border-t-0 @[380px]:grid-cols-[70px_minmax(0,1fr)_auto]"
     >

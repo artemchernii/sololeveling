@@ -29,6 +29,7 @@ import { sharesIn } from '../src/lib/crypto'
 import { heldCost } from '../src/lib/holdings'
 import { notSaved, sharesFor, sharesValue, sharesView } from './sharesCheck'
 import { totalStops, totalValue, totalView } from './holdingsTotal'
+import { inStatement, knownCount } from './holdingsKnown'
 import { applyRow, forDrop, transferValue } from './transferMatch'
 import type { DropRow, Transfer } from './transferMatch'
 import { holdingsTotal } from '../src/lib/holdingsTotal'
@@ -3458,7 +3459,11 @@ export async function gatherBatch(
               : null,
           )
         : null
-    const total = held ? totalView(held, accountId, b.dismissed) : null
+    const known =
+      held && accountId && !leftOut
+        ? await knownCount(ctx, ownerId, accountId, held.rows)
+        : 0
+    const total = held ? totalView(held, accountId, b.dismissed, known) : null
     out.push({
       accountId,
       product: accountId ? null : g.product,
@@ -3511,7 +3516,7 @@ export async function gatherBatch(
             cashEur: held.cashEur,
             totalEur: held.totalEur,
             complete: held.missing === 0,
-            total: total ?? totalView(held, accountId, b.dismissed),
+            total: total ?? totalView(held, accountId, b.dismissed, known),
           }
         : null,
       first: balances.at(0) ?? null,
@@ -4212,13 +4217,32 @@ export const applyOne = internalMutation({
       )
       const merged = mergedHoldings(screens)
       if (merged === null || merged.missing > 0) return 0
-      const done = await writeHoldings(ctx, ownerId, intake, account, {
-        asOf: Date.now(),
-        dayStart: args.dayStart,
-        rows: merged.rows.filter((r) => r !== null),
-        cashEur: merged.cashEur ?? undefined,
-        screens,
-      })
+      /* Positions the account's trades hold already are not saved again
+         (19 Oct): from such a screen only the cash is new. */
+      const fresh = []
+      for (const r of merged.rows)
+        if (
+          r !== null &&
+          !(await inStatement(ctx, ownerId, account._id, r.candidate))
+        )
+          fresh.push(r)
+      const cashEur = merged.cashEur ?? undefined
+      const done =
+        fresh.length === 0 && cashEur === undefined
+          ? { positions: 0 }
+          : await writeHoldings(ctx, ownerId, intake, account, {
+              asOf: Date.now(),
+              dayStart: args.dayStart,
+              rows: fresh,
+              cashEur,
+              screens,
+            })
+      if (fresh.length === 0 && cashEur === undefined)
+        await ctx.db.patch(intake._id, {
+          status: 'done',
+          keptUntil: keepUntil(),
+          accountId: account._id,
+        })
       for (const other of screens.filter((i) => i._id !== intake._id)) {
         await ctx.db.patch(other._id, {
           status: 'done',

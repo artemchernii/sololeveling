@@ -9,6 +9,7 @@ import type { Transfer } from '../../../convex/transferMatch'
 import { AccountLogo } from '@/components/finances/Logo'
 import { Veiled } from '@/components/finances/Veil'
 import { euros } from '@/lib/money'
+import { samePayment } from '@/lib/transferMatch'
 import { DAY, Opt, signed } from '@/components/finances/BulkParts'
 
 type Side = Transfer['sides'][number]
@@ -81,7 +82,9 @@ export function TransferCheck({
               busy={busy}
               onUndo={() => say(`same:${t.key}:${chosen.id}`, false)}
             >
-              Same transfer — added once.
+              {samePayment(chosen)
+                ? 'Same payment — already added.'
+                : 'Same transfer — added once.'}
               {chosen.fee > 0 ? (
                 <>
                   {' '}
@@ -214,6 +217,7 @@ function Question({
     />
   )
   const sent = Math.abs(t.amount < 0 ? t.amount : one.amount)
+  const twice = samePayment(one, many)
   return (
     <div
       data-transfer="ask"
@@ -223,7 +227,11 @@ function Question({
         <ArrowLeftRight className="mt-1 size-3.5 shrink-0 text-state-warn" />
         <div>
           <b className="font-medium">
-            {many ? 'Which transfer is this?' : 'Is this the same transfer?'}
+            {many
+              ? 'Which transfer is this?'
+              : twice
+                ? 'Is this the same payment?'
+                : 'Is this the same transfer?'}
           </b>
           <small className="block text-[12px] text-ink-400">
             {many ? (
@@ -248,13 +256,20 @@ function Question({
         </div>
       ) : (
         <>
-          <div className="grid items-stretch gap-2 sm:ml-[23px] sm:grid-cols-[1fr_auto_1fr]">
-            {t.amount > 0 ? theirs(one) : mine}
-            <span className="flex items-center justify-center text-ink-500">
-              <ArrowRight className="size-3.5 max-sm:rotate-90" />
-            </span>
-            {t.amount > 0 ? mine : theirs(one)}
-          </div>
+          {twice ? (
+            <div className="grid items-stretch gap-2 sm:ml-[23px] sm:grid-cols-2">
+              {mine}
+              {theirs(one)}
+            </div>
+          ) : (
+            <div className="grid items-stretch gap-2 sm:ml-[23px] sm:grid-cols-[1fr_auto_1fr]">
+              {t.amount > 0 ? theirs(one) : mine}
+              <span className="flex items-center justify-center text-ink-500">
+                <ArrowRight className="size-3.5 max-sm:rotate-90" />
+              </span>
+              {t.amount > 0 ? mine : theirs(one)}
+            </div>
+          )}
           {one.fee > 0 ? (
             <div className="grid grid-cols-3 overflow-hidden rounded-[12px] bg-sink/[0.22] ring-1 ring-lift/[0.06] ring-inset sm:ml-[23px]">
               <Sum label="sent" value={sent} />
@@ -271,7 +286,7 @@ function Question({
           {many ? null : (
             <Opt loud onClick={() => say(`same:${t.key}:${one.id}`)}>
               <span className="pl-1.5">
-                same transfer
+                {twice ? 'same payment' : 'same transfer'}
                 {one.fee > 0 ? (
                   <>
                     , <Veiled>{euros(one.fee)}</Veiled> fee

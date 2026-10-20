@@ -16,6 +16,9 @@ export const totalValue = v.object({
   bothEur: v.number(),
   totalEur: v.union(v.number(), v.null()),
   withoutCash: v.boolean(),
+  /** Positions on the screen the account's trades hold already (19 Oct):
+      not saved again, and the total is not checked. */
+  known: v.number(),
   /** What he said of one that differs. */
   answer: v.union(v.literal('save'), v.literal('skip'), v.null()),
   /** The positions the sum is of. */
@@ -42,12 +45,18 @@ export function totalView(
   },
   accountId: Id<'accounts'> | null,
   dismissed: ReadonlyArray<string>,
+  known = 0,
 ): typeof totalValue.type {
   const check = holdingsTotal(held.values, held.cashEur, held.totalEur)
+  /* A few of many positions, every one already added: the screen is
+     not the whole account, so its total says nothing of them. */
+  if (known > 0)
+    return { ...check, state: 'none', known, lines: held.lines, answer: null }
   const said = (save: boolean) =>
     accountId !== null && dismissed.includes(totalKey(accountId, save))
   return {
     ...check,
+    known,
     lines: held.lines,
     answer:
       check.state !== 'differs'

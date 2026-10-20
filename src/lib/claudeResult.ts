@@ -54,3 +54,22 @@ export function parseClaudeResult(stdout: string): ProAnswer {
     searches: n(tools.web_search_requests),
   }
 }
+
+/**
+ * The environment `claude -p` is started with: the dev server's, without
+ * what a Claude session that started the dev server leaves in it (20 Oct:
+ * a dev server started from a session handed its child that session's
+ * host sign-in, and the read said CLAUDE SIGNED OUT). An API key goes too,
+ * so the read always runs on his own Pro login, never on credits.
+ */
+export function cleanEnv(
+  env: Record<string, string | undefined>,
+): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(env)) {
+    if (v === undefined) continue
+    if (/^(ANTHROPIC_|CLAUDE_|CLAUDECODE$|CLAUDE$)/.test(k)) continue
+    out[k] = v
+  }
+  return out
+}

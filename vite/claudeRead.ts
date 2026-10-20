@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 
-import { parseClaudeResult } from '../src/lib/claudeResult'
+import { cleanEnv, parseClaudeResult } from '../src/lib/claudeResult'
 import {
   MARKET_READ_MODEL,
   MARKET_READ_SCHEMA,
@@ -47,7 +47,12 @@ function claude(prompt: string): Promise<ProAnswer> {
         '--strict-mcp-config',
       ],
       /* Outside the repo, so no CLAUDE.md or project settings ride along. */
-      { cwd: tmpdir(), stdio: ['pipe', 'pipe', 'ignore'] },
+      {
+        cwd: tmpdir(),
+        /* His own login, not the env of a session that started the dev server. */
+        env: cleanEnv(process.env),
+        stdio: ['pipe', 'pipe', 'ignore'],
+      },
     )
     let out = ''
     const timer = setTimeout(() => child.kill(), TIMEOUT_MS)

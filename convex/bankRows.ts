@@ -4,7 +4,7 @@ import { balanceIsBooked, pickBalance } from '../src/lib/bankLink'
 import { dateFrom, rowsSince } from '../src/lib/bankRows'
 import { balanceKey, writeBalance } from './accounts'
 import { requireUser } from './auth'
-import { bankApi } from './bankApi'
+import { bankApi, isRefused } from './bankApi'
 import { gatherBatch, startApply } from './intake'
 import { balanceIsNews } from './rowBalance'
 import { internal } from './_generated/api'
@@ -77,7 +77,12 @@ export const begin = internalMutation({
     if (link === null || link.status !== 'linked' || link.uids === undefined)
       throw new ConvexError('This account is not connected.')
     const now = Date.now()
-    if (link.validUntil === undefined || link.validUntil <= now)
+    /* A key the bank rejected is asked of nobody until he approves again. */
+    if (
+      link.validUntil === undefined ||
+      link.validUntil <= now ||
+      link.failed?.why === 'refused'
+    )
       return { status: 'ended' as const }
     if (link.checking !== undefined && now - link.checking < CHECK_LOST_MS)
       return { status: 'busy' as const }
@@ -150,9 +155,14 @@ export const begin = internalMutation({
   },
 })
 
-/** The bank did not answer: the check is over and nothing was written. */
+/** The bank did not answer: the check is over and nothing was written.
+    One that rejected the key is kept as such, for the card's approve. */
 export const fail = internalMutation({
-  args: { ownerId: v.string(), accountId: v.id('accounts') },
+  args: {
+    ownerId: v.string(),
+    accountId: v.id('accounts'),
+    refused: v.optional(v.boolean()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const link = await ctx.db
@@ -161,7 +171,13 @@ export const fail = internalMutation({
         q.eq('ownerId', args.ownerId).eq('accountId', args.accountId),
       )
       .unique()
-    if (link !== null) await ctx.db.patch(link._id, { checking: undefined })
+    if (link !== null)
+      await ctx.db.patch(link._id, {
+        checking: undefined,
+        ...(args.refused
+          ? { failed: { at: Date.now(), why: 'refused' as const } }
+          : {}),
+      })
     return null
   },
 })
@@ -300,6 +316,7 @@ export const arrive = internalMutation({
       checkedAt: at,
       arrived,
       questions,
+      failed: undefined,
     })
     return null
   },
@@ -347,7 +364,11 @@ export async function pull(
       readings,
     })
   } catch (e) {
-    await ctx.runMutation(internal.bankRows.fail, { ownerId, accountId })
+    await ctx.runMutation(internal.bankRows.fail, {
+      ownerId,
+      accountId,
+      refused: isRefused(e),
+    })
     throw e
   }
   return 'checked'

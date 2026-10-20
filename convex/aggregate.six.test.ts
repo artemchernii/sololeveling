@@ -67,6 +67,34 @@ test('monthSix counts his posts, workouts, sessions and commits', async () => {
   expect(six.commits.days).toEqual([1, 0])
 })
 
+/* 20 Oct: September's 411 commits used the 500-row read, October showed 65. */
+test('monthSix counts this month past a full month before', async () => {
+  const t = convexTest(schema, modules)
+  await t.run(async (ctx) => {
+    const projectId = await ctx.db.insert('projects', {
+      ownerId: ME,
+      title: 'SL',
+      status: 'focus',
+      githubRepo: 'a/sl',
+    })
+    for (let i = 0; i < 620; i++)
+      await ctx.db.insert('commits', {
+        ownerId: ME,
+        projectId,
+        repo: 'a/sl',
+        sha: `s${i}`,
+        message: 'x',
+        url: 'u',
+        authoredAt: i < 600 ? DAY + i : 31 * DAY + i,
+        fetchedAt: 0,
+      })
+  })
+  const six = await t
+    .withIdentity({ tokenIdentifier: ME })
+    .query(api.aggregate.monthSix, args)
+  expect(six.commits).toEqual({ days: [0, 20], prev: 600 })
+})
+
 test('monthSix refuses without a user', async () => {
   const t = convexTest(schema, modules)
   await expect(t.query(api.aggregate.monthSix, args)).rejects.toThrow()

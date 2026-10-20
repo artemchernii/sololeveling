@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { monthSix } from './monthSix'
+import { monthSix, monthWorth } from './monthSix'
 
 const DAY = 86_400_000
 const prev = 0
@@ -38,5 +38,25 @@ describe('monthSix', () => {
     expect(six.post.days).toEqual([0, 0, 1])
     expect(six.shake.days).toEqual([0, 0, 1])
     expect(six.commits).toEqual({ days: [1, 0, 0], prev: 0 })
+  })
+})
+
+/* 20 Oct: the Revolut broker cash, first read on the 20th, showed as ▲€17k. */
+describe('monthWorth', () => {
+  it('a line first read this month is missing on the day before, not in', () => {
+    expect(
+      monthWorth([44_800, 44_900, 62_500], [{ at: 3, value: 17_400 }], 1),
+    ).toEqual({ was: 44_800, now: 62_500, missing: 17_400, delta: 300 })
+  })
+  it('a line already there that day is not missing', () => {
+    expect(monthWorth([100, 150], [{ at: 1, value: 50 }], 1)).toEqual({
+      was: 100,
+      now: 150,
+      missing: 0,
+      delta: 50,
+    })
+  })
+  it('no reading that day: no change', () => {
+    expect(monthWorth([null, 200], [], 1).delta).toBe(0)
   })
 })

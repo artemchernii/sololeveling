@@ -59,6 +59,8 @@ import type { Doc, Id } from './_generated/dataModel'
    Returning a ratio here would make the wrong thing easy. */
 
 const MAX_ROWS = 500
+/** A month of one repo's commits (411 in September 2026). */
+const COMMIT_ROWS = 2000
 /* A year of commits on a busy repo. Read once for the heatmap. */
 const YEAR_ROWS = 4000
 /* Twelve weeks of one area's logs, generously: the longest strip categoryDays
@@ -274,12 +276,13 @@ export const monthSix = query({
           )
           .take(MAX_ROWS)),
       )
-    const commits = await commitsBetween(
-      ctx,
-      ownerId,
-      args.prevStart,
-      args.nextStart,
-    )
+    /* Each month read on its own (20 Oct: one read of both, oldest first,
+       stopped at 500 rows — September's 411 left October 65). */
+    const first = args.dayStarts[0] ?? args.nextStart
+    const commits = [
+      ...(await commitsBetween(ctx, ownerId, args.prevStart, first)),
+      ...(await commitsBetween(ctx, ownerId, first, args.nextStart)),
+    ]
     return monthSixCount(
       logs,
       commits,
@@ -318,7 +321,7 @@ async function commitsBetween(
             .gte('authoredAt', from)
             .lt('authoredAt', to),
         )
-        .take(MAX_ROWS)
+        .take(COMMIT_ROWS)
       commits.push(...rows.filter((r) => r.repo === project.githubRepo))
     }
   }
@@ -1837,6 +1840,27 @@ async function readCashHistory(
   const out = []
   const total: Array<number | null> = dayEnds.map(() => null)
   const live = new Set(accounts.map((a) => a._id))
+  /* Lines first read inside the range (20 Oct: the Revolut broker cash,
+     read on the 20th, made Today's worth ▲€17k since Sep 30). */
+  const starts: Array<{
+    accountId: Id<'accounts'>
+    at: number
+    value: number
+  }> = []
+  const startAt = (
+    accountId: Id<'accounts'>,
+    series: ReadonlyArray<number | null>,
+    from: number,
+    rate: number,
+  ) => {
+    const k = series.findIndex((x, i) => x !== null && dayEnds[i] >= from)
+    if (k <= 0) return
+    starts.push({
+      accountId,
+      at: dayEnds[k],
+      value: Math.round((series[k] ?? 0) * rate * 100) / 100,
+    })
+  }
   /* Rows of money moving between his own accounts, for the chart's lane
      (src/lib/accountLines, ownMoves). */
   const moveRows: Array<{
@@ -1906,6 +1930,7 @@ async function readCashHistory(
         moves,
         account.kinds.includes('cash') && !account.kinds.includes('bank'),
       )
+      startAt(account._id, series, -Infinity, rate)
       for (const [i, x] of series.entries()) {
         if (x === null) continue
         values[i] = Math.round(((values[i] ?? 0) + x * rate) * 100) / 100
@@ -1946,6 +1971,7 @@ async function readCashHistory(
               pocketMoves([], brokerTrades, 'EUR'),
               false,
             )
+      startAt(account._id, series, first, 1)
       for (const [i, x] of series.entries()) {
         if (x === null || dayEnds[i] < first) continue
         values[i] = Math.round(((values[i] ?? 0) + x) * 100) / 100
@@ -1959,7 +1985,7 @@ async function readCashHistory(
   const moves = ownMoves(moveRows).filter(
     (m) => m.at > first - 86_400_000 && m.at <= (dayEnds.at(-1) ?? 0),
   )
-  return { total, accounts: out, moves }
+  return { total, accounts: out, moves, starts }
 }
 
 /**
@@ -1987,6 +2013,14 @@ const worthReturns = {
       from: v.id('accounts'),
       to: v.id('accounts'),
       amount: v.number(),
+    }),
+  ),
+  /** Cash lines first read inside the range: where, and their first value. */
+  starts: v.array(
+    v.object({
+      accountId: v.id('accounts'),
+      at: v.number(),
+      value: v.number(),
     }),
   ),
 }
@@ -2046,6 +2080,7 @@ export const worthHistory = query({
       investedAccounts: invested.accounts,
       unpriced: invested.unpriced,
       moves: cash.moves,
+      starts: cash.starts,
     }
   },
 })
@@ -2182,6 +2217,7 @@ export const worthPast = query({
       investedAccounts: invested.accounts,
       unpriced: invested.unpriced,
       moves: cash.moves,
+      starts: cash.starts,
       today: {
         end,
         totalBefore: drawnBefore(invested.total),

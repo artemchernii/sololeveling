@@ -56,13 +56,17 @@ export function Allocation({
         worldOf(base.opened.world),
       )
     : null
-  /* The line furthest above the world leads the head, both numbers. */
+  /* The line furthest from the world leads the head, both numbers —
+     among lines the world holds (gold, at 0 in it, would always win). */
   const lead = rows
-    ?.filter((r) => r.mine !== null && r.world !== null)
+    ?.filter((r) => r.mine !== null && r.world !== null && r.world > 0)
     .sort(
       (a, b) =>
-        (b.mine ?? 0) - (b.world ?? 0) - ((a.mine ?? 0) - (a.world ?? 0)),
+        Math.abs((b.mine ?? 0) - (b.world ?? 0)) -
+        Math.abs((a.mine ?? 0) - (a.world ?? 0)),
     )[0]
+  /* Every position not known on some line, named once. */
+  const unopened = [...new Set(rows?.flatMap((r) => r.notOpened) ?? [])]
   const tops = [...opened.entries()].flatMap(([s, o]) =>
     o && o.top.length > 0
       ? [
@@ -129,12 +133,9 @@ export function Allocation({
               <div className="min-w-0">
                 <div className="nm">
                   {a.name}
-                  {r && r.notOpened.length > 0 ? (
+                  {r && r.unknown > 0 ? (
                     <span className="ins-badge dim" data-testid="not-opened">
-                      ❔ NOT OPENED · {r.notOpened.slice(0, 3).join(' ')}
-                      {r.notOpened.length > 3
-                        ? ` · ${r.notOpened.length - 3} MORE`
-                        : ''}
+                      ❔ {pct(r.unknown)}
                     </span>
                   ) : null}
                 </div>
@@ -159,6 +160,13 @@ export function Allocation({
           )
         })}
       </div>
+      {unopened.length > 0 ? (
+        <div className="ins-unopened" data-testid="not-opened-list">
+          <span className="ins-badge dim">
+            ❔ NOT OPENED · {unopened.join(' ')}
+          </span>
+        </div>
+      ) : null}
       <div className="ins-foot">
         <span className="ins-was">PLACES · PORTFOLIO TAGS · FUNDS · YAHOO</span>
         <span className="ins-was">WORLD · IWDA · NOT SAVED</span>

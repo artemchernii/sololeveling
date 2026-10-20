@@ -191,6 +191,14 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  /* As tall as the positions beside it: the lines share the room. */
+  flex: 1;
+  justify-content: space-evenly;
+}
+.ins-unopened {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 .ins-al {
   display: grid;

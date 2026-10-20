@@ -98,7 +98,12 @@ describe('allocation', () => {
     expect(by.world).toMatchObject({ mine: 20, world: null })
     expect(by.gold).toMatchObject({ mine: 20, world: 0 })
     /* IWDA unopened: named under tech and health, not guessed. */
-    expect(by.tech).toMatchObject({ mine: 32, world: 26, notOpened: ['IWDA'] })
+    expect(by.tech).toMatchObject({
+      mine: 32,
+      world: 26,
+      notOpened: ['IWDA'],
+      unknown: 20,
+    })
     expect(by.health).toMatchObject({ mine: 4, world: 10 })
   })
 
@@ -119,6 +124,15 @@ describe('allocation', () => {
     expect(rows.find((r) => r.id === 'us')).toMatchObject({
       mine: null,
       notOpened: ['X'],
+      unknown: 100,
     })
+    /* A share with no stored country: Yahoo's profile on this open. */
+    expect(
+      splitOf(
+        'stock',
+        { sectors: null, top: [], sector: null, country: 'Russia' },
+        { sector: 'missing', region: 'missing' },
+      ),
+    ).toMatchObject({ us: 0, europe: 0, world: 0 })
   })
 })

@@ -1,5 +1,6 @@
 import { signals, verdict } from './indicators'
 import type { Call, Reading } from './indicators'
+import { regionOfCountry } from './tags'
 import type { RegionTag, SectorTag } from './tags'
 
 /* Insights, band 3 MINE (19 Oct, spec I2; mockup insights.html "3 MINE").
@@ -148,9 +149,17 @@ export function splitOf(
   tags: PlaceTags | null,
 ): Split {
   const out: Split = { gold: kind === 'gold' ? 1 : 0 }
-  if (tags && !UNPLACED.has(tags.region))
+  /* A share whose country is not stored yet takes the one Yahoo's
+     profile gives on this open (fetched, never saved). */
+  const region =
+    tags && !UNPLACED.has(tags.region)
+      ? tags.region
+      : kind === 'stock' && o?.country
+        ? regionOfCountry(o.country)
+        : null
+  if (region !== null)
     for (const id of ['us', 'europe', 'world'] as const)
-      out[id] = PLACES[tags.region] === id ? 1 : 0
+      out[id] = PLACES[region] === id ? 1 : 0
   if (kind === 'gold' || kind === 'crypto')
     return { ...out, tech: 0, health: 0 }
   const w: Partial<Record<string, number>> | null = o?.sectors ?? null
@@ -189,6 +198,8 @@ export type AllocRow = {
   world: number | null
   /** Positions whose part in this line is not known, by symbol. */
   notOpened: Array<string>
+  /** Their euros as a percent of all valued euros; 0 when none. */
+  unknown: number
 }
 
 /**
@@ -216,6 +227,16 @@ export function allocation(
       notOpened: parts
         .filter((p) => p.split[id] === undefined)
         .map((p) => p.symbol),
+      unknown:
+        total > 0
+          ? Math.round(
+              (parts
+                .filter((p) => p.split[id] === undefined)
+                .reduce((t, p) => t + p.eur, 0) /
+                total) *
+                1000,
+            ) / 10
+          : 0,
     }
   })
 }

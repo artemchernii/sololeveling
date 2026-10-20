@@ -93,10 +93,11 @@ test('S3 allocation: places by region tag, the world only with a source, unknown
   await expect(row('health')).toContainText('WORLD 10%')
   await expect(row('gold')).toContainText('WORLD 0%')
   /* Places are Portfolio's region tags: VUAA's name says S&P 500 and
-     AVGO's stored country is the US; NVDA's is not stored, so it is
-     named, not guessed — and no world number without a source. */
-  await expect(row('us')).toContainText('NOT OPENED · NVDA')
-  await expect(row('us')).not.toContainText('AVGO')
+     AVGO's stored country is the US; NVDA's is not stored, so its
+     Yahoo profile on this open places it. No world number for places. */
+  await expect(row('us')).toContainText('100%')
+  await expect(row('us').getByTestId('not-opened')).toHaveCount(0)
+  await expect(page.getByTestId('not-opened-list')).toHaveCount(0)
   await expect(row('us').locator('.vals .ins-was')).toHaveCount(0)
   await expect(row('world')).toContainText('0%')
   await expect(row('world').locator('.vals .ins-was')).toHaveCount(0)

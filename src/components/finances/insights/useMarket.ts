@@ -71,3 +71,14 @@ export function useMarket(period: Period) {
     failed: failed.has(period),
   }
 }
+
+/** The month's answer for the read (I3): the kept one, or asked now. */
+export async function monthAnswer(
+  ask: (a: { period: Period }) => Promise<Answer>,
+): Promise<Answer> {
+  const hit = fresh('1M')
+  if (hit) return hit
+  const a = await ask({ period: '1M' })
+  kept.set('1M', { at: Date.now(), answer: a })
+  return a
+}

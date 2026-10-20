@@ -6,6 +6,7 @@
 @import './styles/today.css';
 @import './styles/insights.css';
 @import './styles/insights-map.css';
+@import './styles/insights-read.css';
 
 @plugin '@tailwindcss/typography';
 @import 'tw-animate-css';

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check } from 'lucide-react'
+import { Check, Link2 } from 'lucide-react'
 
 import { FIELD } from '@/components/finances/bits'
 import { money } from '@/lib/currency'
@@ -23,6 +23,7 @@ export function HoldingsSummary({
   gain,
   fromFile,
   freeStays,
+  fromBank,
 }: {
   targetName: string | undefined
   /** The total the screen printed, when it did. */
@@ -44,6 +45,9 @@ export function HoldingsSummary({
   /** A bank that is also a broker: the cash here is its broker cash, and
       this is the free cash that stays as it is (10 Oct). */
   freeStays?: number
+  /** A connected broker: its free cash from the bank, which a screen's
+      cash does not replace (19 Oct). */
+  fromBank?: number
 }) {
   const label = freeStays === undefined ? 'free cash' : 'broker cash'
   const [editCash, setEditCash] = useState(false)
@@ -84,7 +88,33 @@ export function HoldingsSummary({
             <span className="size-[7px] rounded-full bg-money-cash" />
             {label}
           </span>
-          {editCash ? (
+          {fromBank !== undefined ? (
+            <>
+              <span
+                data-testid="cash-from-bank"
+                className="flex flex-col gap-1 pt-1"
+              >
+                <span className="flex items-center gap-1 font-mono text-[10px] tracking-[0.12em] text-state-good uppercase">
+                  <Link2 className="size-3" />
+                  from the bank
+                </span>
+                <span className="text-[22px] leading-none font-light tabular-nums">
+                  {money(fromBank)}
+                </span>
+              </span>
+              {cashNum === null ? null : (
+                <span
+                  data-testid="cash-on-screen"
+                  className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] text-ink-500"
+                >
+                  on the screen {money(cashNum)}
+                  <span className="rounded-[5px] bg-state-warn/12 px-1.5 py-0.5 text-[9.5px] tracking-[0.12em] text-state-warn uppercase">
+                    not saved
+                  </span>
+                </span>
+              )}
+            </>
+          ) : editCash ? (
             <input
               autoFocus
               inputMode="decimal"
@@ -113,9 +143,11 @@ export function HoldingsSummary({
               )}
             </button>
           )}
-          <span className="font-mono text-[10.5px] text-ink-500">
-            not invested · tap to change
-          </span>
+          {fromBank === undefined ? (
+            <span className="font-mono text-[10.5px] text-ink-500">
+              not invested · tap to change
+            </span>
+          ) : null}
         </div>
       </div>
       {invested + (cashNum ?? 0) > 0 ? (

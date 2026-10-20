@@ -272,6 +272,12 @@ export const CANNED: BankApi = {
         country: 'PT',
         maximum_consent_validity: 15_552_000,
       },
+      /* Trade Republic allows 90 days (its TPP guide, 19 Oct). */
+      {
+        name: 'Trade Republic',
+        country: 'PT',
+        maximum_consent_validity: 7_776_000,
+      },
     ]),
   auth: ({ state }) =>
     Promise.resolve(`/bank/callback?code=one&state=${state}`),

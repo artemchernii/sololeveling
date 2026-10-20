@@ -229,3 +229,87 @@ test('another owner cannot answer, and the mock refuses outside tests', async ()
     me.mutation(api.e2eHoldingsTotal.screens, { as: 'same' }),
   ).rejects.toThrow()
 })
+
+/* 19 Oct, his Revolut Invest: six of many positions and the cash. The
+   positions are the statement's already — only the cash is new. */
+async function inTheStatement(
+  t: Awaited<ReturnType<typeof setup>>['t'],
+  accountId: string,
+  symbols: ReadonlyArray<string>,
+) {
+  await t.run(async (ctx) => {
+    for (const symbol of symbols) {
+      const instrumentId = await ctx.db.insert('instruments', {
+        ownerId: ME,
+        symbol,
+        name: symbol,
+        exchange: 'NMS',
+        currency: 'EUR',
+        type: 'EQUITY',
+      })
+      await ctx.db.insert('trades', {
+        ownerId: ME,
+        accountId: accountId as never,
+        instrumentId,
+        side: 'buy',
+        shares: 1,
+        priceEur: 10,
+        occurredAt: NOON - 30 * 86_400_000,
+      })
+    }
+  })
+}
+
+test('positions the statement holds already: not checked, only the cash saved', async () => {
+  const { t, block, apply } = await setup('cut')
+  const a = await block(19)
+  const symbols = a.holdings.total.lines.flatMap((l) =>
+    l.symbol === null ? [] : [l.symbol],
+  )
+  await inTheStatement(t, a.accountId, symbols)
+  const b = await block(19)
+  expect(b.held).toBe(false)
+  expect(b.holdings.total).toMatchObject({
+    state: 'none',
+    known: 19,
+    answer: null,
+  })
+  expect(await apply()).toEqual({})
+  const cash = await t.run(async (ctx) =>
+    (await ctx.db.query('stateSnapshots').collect())
+      .filter((s) => s.key === `balance:${a.accountId}:EUR`)
+      .map((s) => s.value),
+  )
+  expect(cash).toContain(1205.66)
+})
+
+test('one position the statement holds: the rest saved, no total asked', async () => {
+  const { t, block, apply } = await setup('cut')
+  const a = await block(19)
+  await inTheStatement(t, a.accountId, [a.holdings.total.lines[0].symbol ?? ''])
+  const b = await block(19)
+  expect(b.holdings.total).toMatchObject({ state: 'none', known: 1 })
+  expect(b.held).toBe(false)
+  expect(await apply()).toEqual({ 'Trade Republic': 18 })
+})
+
+test('a statement on another account does not count', async () => {
+  const { t, block } = await setup('cut')
+  const a = await block(19)
+  const other = await t.run((ctx) =>
+    ctx.db.insert('accounts', {
+      ownerId: ME,
+      name: 'Elsewhere',
+      kinds: ['broker'],
+      currencies: ['EUR'],
+      ibanTails: [],
+      cardTails: [],
+      order: 9,
+    }),
+  )
+  await inTheStatement(t, other, [a.holdings.total.lines[0].symbol ?? ''])
+  expect((await block(19)).holdings.total).toMatchObject({
+    state: 'differs',
+    known: 0,
+  })
+})

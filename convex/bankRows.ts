@@ -359,7 +359,15 @@ export const close = mutation({
       )
       .unique()
     if (link === null) throw new ConvexError('This account is not connected.')
-    await ctx.db.patch(link._id, { arrived: [] })
+    /* A question he answered is read as arrived rows until the next check
+       moves it over (20 Oct: ✕ did nothing on ActivoBank's answered
+       question). Closing lets it go too; one still open stays. */
+    const open: Array<Id<'batches'>> = []
+    for (const id of link.questions ?? []) {
+      const b = await ctx.db.get(id)
+      if (b !== null && b.status !== 'done') open.push(id)
+    }
+    await ctx.db.patch(link._id, { arrived: [], questions: open })
     return null
   },
 })

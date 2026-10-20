@@ -97,7 +97,6 @@ test('S3 allocation: places by region tag, the world only with a source, unknown
      Yahoo profile on this open places it. No world number for places. */
   await expect(row('us')).toContainText('100%')
   await expect(row('us').getByTestId('not-opened')).toHaveCount(0)
-  await expect(page.getByTestId('not-opened-list')).toHaveCount(0)
   await expect(row('us').locator('.vals .ins-was')).toHaveCount(0)
   await expect(row('world')).toContainText('0%')
   await expect(row('world').locator('.vals .ins-was')).toHaveCount(0)

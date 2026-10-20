@@ -20,7 +20,7 @@ const BAR: Record<AllocRow['id'], string> = {
   health: 'var(--color-lav-400)',
   gold: 'var(--metal-xau)',
 }
-const pct = (n: number | null) => (n === null ? '❔' : `${Math.round(n)}%`)
+const pct = (n: number | null) => (n === null ? 'MISSING' : `${Math.round(n)}%`)
 
 export function Allocation({
   held,
@@ -65,8 +65,6 @@ export function Allocation({
         Math.abs((b.mine ?? 0) - (b.world ?? 0)) -
         Math.abs((a.mine ?? 0) - (a.world ?? 0)),
     )[0]
-  /* Every position not known on some line, named once. */
-  const unopened = [...new Set(rows?.flatMap((r) => r.notOpened) ?? [])]
   const tops = [...opened.entries()].flatMap(([s, o]) =>
     o && o.top.length > 0
       ? [
@@ -133,9 +131,15 @@ export function Allocation({
               <div className="min-w-0">
                 <div className="nm">
                   {a.name}
-                  {r && r.unknown > 0 ? (
-                    <span className="ins-badge dim" data-testid="not-opened">
-                      ❔ {pct(r.unknown)}
+                  {/* Who this line cannot place, and how much of the
+                      money that is (20 Oct: "why its ?"). */}
+                  {r && r.unknown >= 0.5 ? (
+                    <span className="ins-badge warn" data-testid="not-opened">
+                      MISSING · {r.notOpened.slice(0, 2).join(' ')}
+                      {r.notOpened.length > 2
+                        ? ` · ${r.notOpened.length - 2} MORE`
+                        : ''}{' '}
+                      {pct(r.unknown)}
                     </span>
                   ) : null}
                 </div>
@@ -151,7 +155,7 @@ export function Allocation({
                 </div>
               </div>
               <div className="vals">
-                <strong>{r ? pct(r.mine) : failed ? '❔' : '…'}</strong>
+                <strong>{r ? pct(r.mine) : failed ? 'MISSING' : '…'}</strong>
                 {r?.world != null ? (
                   <span className="ins-was">WORLD {pct(r.world)}</span>
                 ) : null}
@@ -160,13 +164,6 @@ export function Allocation({
           )
         })}
       </div>
-      {unopened.length > 0 ? (
-        <div className="ins-unopened" data-testid="not-opened-list">
-          <span className="ins-badge dim">
-            ❔ NOT OPENED · {unopened.join(' ')}
-          </span>
-        </div>
-      ) : null}
       <div className="ins-foot">
         <span className="ins-was">PLACES · PORTFOLIO TAGS · FUNDS · YAHOO</span>
         <span className="ins-was">WORLD · IWDA · NOT SAVED</span>

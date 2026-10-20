@@ -9,6 +9,9 @@
   }
   & > .c5 {
     grid-column: span 5;
+    /* Its own height: many positions make the heatmap tall, and six
+       lines stretched over it read as gaps. */
+    align-self: start;
   }
   @media (max-width: 1000px) {
     & > .c7,
@@ -191,14 +194,6 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  /* As tall as the positions beside it: the lines share the room. */
-  flex: 1;
-  justify-content: space-evenly;
-}
-.ins-unopened {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 .ins-al {
   display: grid;

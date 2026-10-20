@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 
 import { balanceKey } from './accounts'
 import { movedSince } from './aggregate'
-import { HISTORY_GRACE_MS } from '../src/lib/cashHistory'
+import { HISTORY_GRACE_MS, bookedLater } from '../src/lib/cashHistory'
 import { sumCheck } from '../src/lib/fileCheck'
 import type { CheckRow } from '../src/lib/fileCheck'
 import { insideReadings } from '../src/lib/rowBalance'
@@ -244,23 +244,60 @@ export async function accountCheck(
      booked now is a row again (17 Oct, Revolut's two card payments). */
   const pendingMove =
     pendingNowCents === null ? 0 : pendingNowCents - cents(last.pending ?? 0)
-  const sum = checkFrom(
-    pendingNowCents === null ? last : { ...last, pending: 0 },
-    cents(last.value) + moved.cents,
-    rows.flatMap((r, index) =>
-      r.currency === currency
-        ? [
-            {
-              index,
-              at: r.occurredAt,
-              cents: cents(r.amount),
-              twin: r.twinOf !== null && !r.two,
-            },
-          ]
-        : [],
-    ),
-    printed ? cents(printed.value) - pendingMove : null,
+  const checkRows = rows.flatMap((r, index) =>
+    r.currency === currency
+      ? [
+          {
+            index,
+            at: r.occurredAt,
+            cents: cents(r.amount),
+            twin: r.twinOf !== null && !r.two,
+          },
+        ]
+      : [],
   )
+  const held = pendingNowCents === null ? last : { ...last, pending: 0 }
+  const printedCents = printed ? cents(printed.value) - pendingMove : null
+  let wasCents = cents(last.value) + moved.cents
+  let sum = checkFrom(held, wasCents, checkRows, printedCents)
+  /* A saved row of the held balance's own day, dated only by the day and
+     so before it, that the balance had not seen (20 Oct: BPI's €422 to
+     ActivoBank at noon from a screenshot; the bank's 15:01 answer without
+     it; its next answer "€422 came in with no row"). Counted when it is
+     exactly what is missing — the rule of balanceChecks. */
+  if (sum.gapCents !== 0) {
+    const day = new Date(last.recordedAt)
+    day.setUTCHours(0, 0, 0, 0)
+    const earlier = await ctx.db
+      .query('logs')
+      .withIndex('by_owner_account_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('accountId', account._id)
+          .gte('occurredAt', day.getTime())
+          .lte('occurredAt', last.recordedAt),
+      )
+      .take(50)
+    const unit = currency.toLowerCase()
+    const found = bookedLater(
+      sum.gapCents,
+      earlier.flatMap((l) => {
+        if (l.area !== 'money' || l.unit !== unit || l.value === undefined)
+          return []
+        const signed =
+          l.kind === 'expense'
+            ? -l.value
+            : l.kind === 'income' || l.kind === 'move'
+              ? l.value
+              : 0
+        return signed === 0 ? [] : [{ at: l.occurredAt, cents: cents(signed) }]
+      }),
+    )
+    if (found) {
+      wasCents += found.reduce((t, f) => t + f.cents, 0)
+      sum = checkFrom(held, wasCents, checkRows, printedCents)
+    }
+  }
   const line = ({ key, merchant, amount }: SumRow) => ({
     key,
     merchant,
@@ -269,7 +306,7 @@ export async function accountCheck(
   const twin = sum.twin === null ? undefined : rows[sum.twin]
   return {
     currency,
-    was: (cents(last.value) + moved.cents) / 100,
+    was: wasCents / 100,
     wasAt: last.recordedAt,
     out: sum.outCents / 100,
     in: sum.inCents / 100,

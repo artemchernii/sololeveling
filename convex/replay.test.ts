@@ -805,6 +805,48 @@ describe('replay: 19 Oct, the same money through several doors', () => {
     await addsUp(t, me, ids, { bpi: 3544, act: 728, rev: 864.46 })
   })
 
+  /* 20 Oct, the same €422 through the bank's own door: its next answer
+     brings the arrival (already saved from BPI's screenshot) and a new
+     −€10. The open question said "€422 came in with no row" against the
+     15:01 balance that had not seen it. Saved with no question. */
+  test('the bank’s next answer with that arrival already saved asks nothing', async () => {
+    const { t, me } = setup()
+    const ids = await accounts(me)
+    await updateAll(t, me, statements)
+    await linked(t, ids.act)
+    vi.setSystemTime(new Date(2026, 9, 3, 15, 1))
+    await bankAnswers(t, ids.act, 728)
+    vi.setSystemTime(at(10, 4))
+    await screenshot(t, me, {
+      institution: 'Banco BPI',
+      accountTail: '4410',
+      rows: [own(10, 3, 'TRF SEPA+ INST 24 P/ ACTIVOBANK', -422)],
+      balance: { m: 10, d: 4, value: 3544 },
+    })
+
+    vi.setSystemTime(new Date(2026, 9, 4, 18, 30))
+    await bankAnswers(t, ids.act, 1140, [
+      { status: 'BOOK', amount: 422, day: '2026-10-03', name: 'Artem Chernii' },
+      { status: 'BOOK', amount: -10, day: '2026-10-04', name: 'Bolt' },
+    ])
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    const link = await t.run((ctx) =>
+      ctx.db
+        .query('bankLinks')
+        .withIndex('by_owner_account', (q) =>
+          q.eq('ownerId', ME).eq('accountId', ids.act),
+        )
+        .unique(),
+    )
+    expect(link?.questions ?? []).toEqual([])
+    const arrival = (await logsOf(t)).filter(
+      (l) => l.accountId === ids.act && Math.abs(l.value ?? 0) === 422,
+    )
+    expect(arrival).toHaveLength(1)
+    vi.setSystemTime(at(10, 5))
+    await addsUp(t, me, ids, { bpi: 3544, act: 1140, rev: 864.46 })
+  })
+
   /* Revolut's sheet: "why we see still pending and new? I was those
      already many times." Two answers of the bank, each with a row
      pending: only the last says pending now. */

@@ -117,3 +117,21 @@ alone and the refusals (a gap no rule explains stays missing).
    `accountCheck`, bulk `balanceGaps` call it; replay S1–S4. Waits for
    `fix/bank-check-same-day-e0269d` to merge (it touches
    `convex/rowBalance.ts`).
+
+## Built (20 Oct)
+
+- `reach()` takes `earlier`: rows of the held balance's own day it may not
+  have seen. The file's are counted all together when that makes the
+  balance (the old 18 h retry); saved ones, read by index only when the
+  sum is off, count into "was" when they are exactly what is missing (the
+  20 Oct fix). `checkFrom` in `convex/rowBalance.ts` now only fetches.
+- `landedCheck` gets the rule it lacked: the €422 replay showed the landed
+  card at gap 422 by the statement and by the screenshot, with the sum
+  card at 0.
+- The sum cards do not carry a row past the printed balance: there is no
+  next check for it to land in, so a row written twice on the closing day
+  would pass unseen. Carry stays with the sheet.
+- Bulk `balanceGaps` calls `reach`; its ±1 day pending filter stays in
+  `intake.batchReview` for now, and its ledger still leaves out rows the
+  drop already had (point 4 of the map) — not changed here.
+- `FILE_ROW_GRACE_MS` is gone; `movedSince` uses `HISTORY_GRACE_MS`.

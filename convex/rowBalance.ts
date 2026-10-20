@@ -47,29 +47,85 @@ export async function countedRows(
   )
 }
 
-/** The sum, from a held balance. A new row dated the day of that balance
-    may be inside it (a statement's closing balance) or after it (an app
-    screenshot taken that morning): counted after it only when that is what
-    makes the file's balance (10 Oct, Sep 1–15 in, then Sep 1–30 dropped). */
-function checkFrom(
+/** The saved rows of a held balance's own day, at or before it: one it
+    had not seen counts when it is exactly what is missing (20 Oct, BPI's
+    €422 to ActivoBank from a screenshot, the bank's 15:01 answer without
+    it). Negative ids, apart from a file's row indexes. */
+async function heldDayRows(
+  ctx: QueryCtx,
+  ownerId: string,
+  accountId: Doc<'accounts'>['_id'],
+  currency: string,
+  heldAt: number,
+): Promise<Array<CheckRow & { saved: true }>> {
+  const day = new Date(heldAt)
+  day.setUTCHours(0, 0, 0, 0)
+  const logs = await ctx.db
+    .query('logs')
+    .withIndex('by_owner_account_time', (q) =>
+      q
+        .eq('ownerId', ownerId)
+        .eq('accountId', accountId)
+        .gte('occurredAt', day.getTime())
+        .lte('occurredAt', heldAt),
+    )
+    .take(50)
+  const unit = currency.toLowerCase()
+  return logs.flatMap((l, i) => {
+    if (l.area !== 'money' || l.unit !== unit || l.value === undefined)
+      return []
+    const signed =
+      l.kind === 'expense'
+        ? -l.value
+        : l.kind === 'income' || l.kind === 'move'
+          ? l.value
+          : 0
+    return signed === 0
+      ? []
+      : [
+          {
+            index: -1000 - i,
+            at: l.occurredAt,
+            cents: cents(signed),
+            twin: false,
+            saved: true as const,
+          },
+        ]
+  })
+}
+
+/** The sum, from a held balance, by the one rule (src/lib/balanceRule.ts):
+    the file's rows after it, and as `earlier` the rows of its own day it
+    may not have seen — the file's (10 Oct, Sep 1–15 in, then Sep 1–30
+    dropped) and, only when the sum is off, the saved ones. */
+async function checkFrom(
+  ctx: QueryCtx,
+  ownerId: string,
+  account: Doc<'accounts'>,
+  currency: string,
   last: { recordedAt: number; pending?: number },
   wasCents: number,
   rows: ReadonlyArray<CheckRow>,
   printedCents: number | null,
 ) {
-  const from = (after: number) =>
+  const since = last.recordedAt + HISTORY_GRACE_MS
+  const dayBefore = last.recordedAt - 18 * 3_600_000
+  const ask = (saved: ReadonlyArray<CheckRow & { saved: true }>) =>
     sumCheck({
       wasCents,
       pendingCents: cents(last.pending ?? 0),
-      rows: rows.filter((r) => r.at > after),
+      rows: rows.filter((r) => r.at > since),
+      earlier: [
+        ...rows.filter((r) => r.at > dayBefore && r.at <= since),
+        ...saved,
+      ],
       printedCents,
     })
-  const strict = from(last.recordedAt + HISTORY_GRACE_MS)
-  if (strict.state === 'ok' || strict.state === 'bare') return strict
-  const sameDay = from(last.recordedAt - 18 * 3_600_000)
-  /* Or when, counted so, one row that looks like one he has explains it
-     (11 Oct: a bank asked twice in a day books the top-up the same day). */
-  return sameDay.state === 'ok' || sameDay.state === 'ask' ? sameDay : strict
+  const first = ask([])
+  if (first.state === 'ok' || first.state === 'bare') return first
+  return ask(
+    await heldDayRows(ctx, ownerId, account._id, currency, last.recordedAt),
+  )
 }
 
 /** What saving `kept` of a file's rows finds, before any is written: the
@@ -130,13 +186,22 @@ export async function landedCheck(
   if (feeCents > 0) fresh.push({ index: -1, at, cents: -feeCents, twin: false })
   /* The same sum the review showed (src/lib/fileCheck.ts): a row the held
      balance had taken off as pending is saved and not counted again. */
-  const sum = checkFrom(last, was, fresh, balance ? cents(balance.value) : null)
+  const sum = await checkFrom(
+    ctx,
+    ownerId,
+    account,
+    currency,
+    last,
+    was,
+    fresh,
+    balance ? cents(balance.value) : null,
+  )
   const pending = fresh
     .filter((r) => sum.pending.includes(r.index))
     .reduce((t, r) => t + r.cents, 0)
   return {
     currency,
-    was: was / 100,
+    was: sum.wasCents / 100,
     wasAt: last.recordedAt,
     since,
     had: booked.length - added,
@@ -244,21 +309,26 @@ export async function accountCheck(
      booked now is a row again (17 Oct, Revolut's two card payments). */
   const pendingMove =
     pendingNowCents === null ? 0 : pendingNowCents - cents(last.pending ?? 0)
-  const sum = checkFrom(
+  const checkRows = rows.flatMap((r, index) =>
+    r.currency === currency
+      ? [
+          {
+            index,
+            at: r.occurredAt,
+            cents: cents(r.amount),
+            twin: r.twinOf !== null && !r.two,
+          },
+        ]
+      : [],
+  )
+  const sum = await checkFrom(
+    ctx,
+    ownerId,
+    account,
+    currency,
     pendingNowCents === null ? last : { ...last, pending: 0 },
     cents(last.value) + moved.cents,
-    rows.flatMap((r, index) =>
-      r.currency === currency
-        ? [
-            {
-              index,
-              at: r.occurredAt,
-              cents: cents(r.amount),
-              twin: r.twinOf !== null && !r.two,
-            },
-          ]
-        : [],
-    ),
+    checkRows,
     printed ? cents(printed.value) - pendingMove : null,
   )
   const line = ({ key, merchant, amount }: SumRow) => ({
@@ -269,7 +339,7 @@ export async function accountCheck(
   const twin = sum.twin === null ? undefined : rows[sum.twin]
   return {
     currency,
-    was: (cents(last.value) + moved.cents) / 100,
+    was: sum.wasCents / 100,
     wasAt: last.recordedAt,
     out: sum.outCents / 100,
     in: sum.inCents / 100,

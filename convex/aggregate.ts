@@ -11,7 +11,11 @@ import { payMonthDetail as openPayMonth, payMonths } from '../src/lib/payMonth'
 import type { DetailRow } from '../src/lib/payMonth'
 import type { AheadBill, AheadRow } from '../src/lib/ahead'
 import { payeeKey, rowKey } from '../src/lib/payee'
-import { balanceChecks, balanceSeries } from '../src/lib/cashHistory'
+import {
+  HISTORY_GRACE_MS,
+  balanceChecks,
+  balanceSeries,
+} from '../src/lib/cashHistory'
 import type { Move, Reading } from '../src/lib/cashHistory'
 import {
   addSeries,
@@ -2774,10 +2778,6 @@ export const accountSheet = query({
   },
 })
 
-/* A statement's rows are stamped at noon of their day, and a statement's
-   closing balance can be confirmed at 2 am on its own closing day; a row
-   read off a file counts after a reading only from the next day on. */
-const FILE_ROW_GRACE_MS = 12 * 3_600_000
 const MOVED_ROWS = 2000
 
 /**
@@ -2812,9 +2812,12 @@ export async function movedSince(
   for (const l of logs) {
     if (l.area !== 'money' || l.unit !== unit || l.value === undefined) continue
     if (skip !== undefined && l.meta?.intakeId === skip) continue
+    /* A statement's rows are stamped at noon of their day, and its
+       closing balance can be confirmed at 2 am on its closing day: a row
+       read off a file counts after a reading only from the next day on. */
     if (
       l.meta?.intakeId !== undefined &&
-      l.occurredAt <= readAt + FILE_ROW_GRACE_MS
+      l.occurredAt <= readAt + HISTORY_GRACE_MS
     )
       continue
     const signed =

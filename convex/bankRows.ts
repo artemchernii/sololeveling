@@ -50,7 +50,13 @@ const asked = v.object({
 
 /** A check begins: what to ask the bank, or why not to ask now. */
 export const begin = internalMutation({
-  args: { ownerId: v.string(), accountId: v.id('accounts') },
+  args: {
+    ownerId: v.string(),
+    accountId: v.id('accounts'),
+    /* To save a held answer that adds up now (below). */
+    dayStart: v.optional(v.number()),
+    names: v.optional(v.array(v.string())),
+  },
   returns: v.union(
     v.object({
       status: v.union(
@@ -84,6 +90,19 @@ export const begin = internalMutation({
       if (b === null) continue
       if (b.status !== 'done') {
         open.push(id)
+        /* A held answer that adds up now, by a rule that came after it
+           (20 Oct: ActivoBank's question read was €506.37 · out €10 ·
+           now €496.37 ✓ and still waited for APPLY): saved with no
+           press, as a fresh answer that adds up is. It stays a question
+           until its save is done; this check asks the bank nothing. */
+        if (b.status === 'open' && b.via === 'bank' && args.dayStart) {
+          const names = args.names ?? []
+          const mine = (
+            await gatherBatch(ctx, args.ownerId, b, names)
+          ).accounts.find((x) => x.accountId === args.accountId)
+          if (mine !== undefined && mine.fresh > 0 && !mine.held)
+            await startApply(ctx, args.ownerId, b, names, args.dayStart)
+        }
         continue
       }
       const files = await ctx.db
@@ -296,9 +315,13 @@ export async function pull(
   accountId: Id<'accounts'>,
   dayStart: number,
 ): Promise<Checked> {
+  const name = (await ctx.auth.getUserIdentity())?.name
+  const names = name ? [name] : []
   const start = await ctx.runMutation(internal.bankRows.begin, {
     ownerId,
     accountId,
+    dayStart,
+    names,
   })
   if (start.status !== 'go') return start.status
   try {
@@ -316,12 +339,11 @@ export async function pull(
         rows: a.from === null ? [] : await api.transactions(a.uid, a.from),
       })
     }
-    const name = (await ctx.auth.getUserIdentity())?.name
     await ctx.runMutation(internal.bankRows.arrive, {
       ownerId,
       accountId,
       dayStart,
-      names: name ? [name] : [],
+      names,
       readings,
     })
   } catch (e) {

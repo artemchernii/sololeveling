@@ -911,6 +911,64 @@ describe('replay: 19 Oct, the same money through several doors', () => {
     await addsUp(t, me, ids, { bpi: 3544, act: 1140, rev: 864.46 })
   })
 
+  /* 20 Oct, after the deploy: ActivoBank's question, held before the
+     €422 was saved, now read "was · out · now ✓" and still waited for
+     APPLY. "Why after simple fetch data from bank i see all these
+     crap?" The next check saves it with no press. */
+  test('a held bank question that adds up now is saved by the next check', async () => {
+    const { t, me } = setup()
+    const ids = await accounts(me)
+    await updateAll(t, me, statements)
+    await linked(t, ids.act)
+    vi.setSystemTime(new Date(2026, 9, 3, 15, 1))
+    await bankAnswers(t, ids.act, 728)
+    vi.setSystemTime(new Date(2026, 9, 4, 9))
+    await bankAnswers(t, ids.act, 1140, [
+      { status: 'BOOK', amount: -10, day: '2026-10-04', name: 'Bolt' },
+    ])
+    const link = () =>
+      t.run((ctx) =>
+        ctx.db
+          .query('bankLinks')
+          .withIndex('by_owner_account', (q) =>
+            q.eq('ownerId', ME).eq('accountId', ids.act),
+          )
+          .unique(),
+      )
+    expect((await link())?.questions).toHaveLength(1)
+
+    vi.setSystemTime(at(10, 4))
+    await screenshot(t, me, {
+      institution: 'Banco BPI',
+      accountTail: '4410',
+      rows: [own(10, 3, 'TRF SEPA+ INST 24 P/ ACTIVOBANK', -422)],
+      balance: { m: 10, d: 4, value: 3544 },
+    })
+
+    const begin = () =>
+      t.mutation(internal.bankRows.begin, {
+        ownerId: ME,
+        accountId: ids.act,
+        dayStart: local(10, 4),
+        names: ['Artem Chernii'],
+      })
+    expect((await begin()).status).toBe('question')
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    await t.mutation(internal.bankRows.fail, {
+      ownerId: ME,
+      accountId: ids.act,
+    })
+    expect((await begin()).status).toBe('go')
+    expect((await link())?.questions).toEqual([])
+    const bolt = (await logsOf(t)).filter(
+      (l) =>
+        l.accountId === ids.act && l.value === 10 && l.occurredAt > at(10, 1),
+    )
+    expect(bolt).toHaveLength(1)
+    vi.setSystemTime(at(10, 5))
+    await addsUp(t, me, ids, { bpi: 3544, act: 1140, rev: 864.46 })
+  })
+
   /* Revolut's sheet: "why we see still pending and new? I was those
      already many times." Two answers of the bank, each with a row
      pending: only the last says pending now. */

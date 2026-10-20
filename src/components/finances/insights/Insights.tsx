@@ -2,12 +2,16 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { useState } from 'react'
 
 import { api } from '../../../../convex/_generated/api'
+import { Ideas } from './Ideas'
 import { Markets } from './Markets'
 import { Mine } from './Mine'
 import { useTags } from '@/components/finances/PortfolioMap'
 import { RateCards } from './RateCards'
+import { ReadHero } from './ReadHero'
+import { ReadLines } from './ReadLines'
 import { SectorMap } from './SectorMap'
 import { useMarket } from './useMarket'
+import { useMarketRead } from './useMarketRead'
 import { tickerBase } from '@/lib/market'
 import { combine } from '@/lib/owned'
 import type { Period } from '@/lib/insightsMarket'
@@ -16,12 +20,11 @@ import type { Period } from '@/lib/insightsMarket'
    docs/specs/2026-10-19-insights.md, mockup
    design/treasury-mockup/insights.html, his "go"). Once a month, often
    after payday: he reads what the market did and where his money sits.
-   I1 builds the hero not yet read and band 1, THE MARKET — fetched when
-   the room opens, never saved. The read itself (I3), MINE (I2) and ASK
-   (I4) come in their own slices. */
+   I1 built band 1, THE MARKET — fetched when the room opens, never saved.
+   I3 adds the read: the hero, band 2 WHAT IT MEANS and band 4's ideas.
+   I2 adds band 3, MINE. ASK (I4) comes in its own slice. */
 
 const NONE: [] = []
-const MONTH = 'JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC'.split(' ')
 
 export function Insights() {
   const [period, setPeriod] = useState<Period>('1M')
@@ -31,10 +34,12 @@ export function Insights() {
   /* Portfolio's region and sector tags, for ALLOCATION (band 3). */
   const tags = useTags(positions?.rows ?? NONE)
   const held = new Set(positions?.rows.map((r) => tickerBase(r.symbol)) ?? [])
+  const read = useMarketRead(positions ? positions.rows : null)
+  const count = positions ? positions.rows.length : null
 
   return (
     <div data-testid="insights-room" className="flex flex-col gap-3.5">
-      <Hero positions={positions ? positions.rows.length : null} />
+      <ReadHero r={read} positions={count} />
 
       <div className="ins-band">
         <span className="n">1</span>
@@ -59,53 +64,24 @@ export function Insights() {
         held={held}
         reading={market.reading}
       />
+
+      <div className="ins-band">
+        <span className="n">2</span>
+        <b>WHAT IT MEANS</b>
+        <span className="label-caps">MODEL · SOURCES SHOWN</span>
+      </div>
+      <ReadLines shown={read.shown} positions={count} />
+
       {positions ? (
         <Mine held={combine(positions.rows)} tags={tags} period={period} />
       ) : null}
-    </div>
-  )
-}
 
-/* The hero before any read (mockup state "not read"): what a read will
-   look at, as badges. READ MARKET comes with the read itself (I3). */
-function Hero({ positions }: { positions: number | null }) {
-  const month = MONTH[new Date().getMonth()]
-  const kpis: Array<[string, string]> = [
-    ['🌡️', 'INFLATION'],
-    ['🏛️', 'FED · ECB'],
-    ['📊', 'MARKETS · SECTORS'],
-    ['🌐', 'NEWS'],
-    ...(positions !== null
-      ? [
-          [
-            '💼',
-            `${positions} ${positions === 1 ? 'POSITION' : 'POSITIONS'}`,
-          ] as [string, string],
-        ]
-      : []),
-  ]
-  return (
-    <section
-      className="ins-tile ins-hero system-frame"
-      style={{ '--i': 0 } as React.CSSProperties}
-    >
-      <div className="flex min-w-0 flex-col gap-3">
-        <span className="system-title">[ MARKET READ · {month} ]</span>
-        <span className="headline">Not read yet</span>
-        <div className="flex flex-wrap gap-2">
-          {kpis.map(([e, k]) => (
-            <span key={k} className="ins-kpi">
-              <span className="e">{e}</span>
-              {k}
-            </span>
-          ))}
-        </div>
+      <div className="ins-band">
+        <span className="n">4</span>
+        <b>NEXT</b>
+        <span className="label-caps">IDEAS</span>
       </div>
-      <div className="stamp">
-        <button type="button" className="ins-btn" disabled>
-          ✦ READ MARKET
-        </button>
-      </div>
-    </section>
+      <Ideas ideas={read.shown?.read?.ideas ?? null} />
+    </div>
   )
 }

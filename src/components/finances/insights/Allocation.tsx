@@ -1,4 +1,8 @@
-import { Info } from './parts'
+import { Info, dayWord } from './parts'
+import { Words } from './readParts'
+import { TickerLogo } from '@/components/finances/Logo'
+import type { Doc } from '../../../../convex/_generated/dataModel'
+import type { Fact } from '@/lib/marketRead'
 import type { MineAnswer } from './useMine'
 import { ALLOC, allocation, placed, splitOf, worldOf } from '@/lib/insightsMine'
 import type { AllocRow, PlaceTags } from '@/lib/insightsMine'
@@ -22,21 +26,17 @@ const BAR: Record<AllocRow['id'], string> = {
 }
 const pct = (n: number | null) => (n === null ? 'MISSING' : `${Math.round(n)}%`)
 
-export function Allocation({
-  held,
-  tags,
-  base,
-  failed,
-}: {
-  held: ReadonlyArray<Owned>
-  tags: ReadonlyMap<string, PlaceTags>
-  base: MineAnswer | null
-  failed: boolean
-}) {
+/** The six lines from what was read of each position; null until the
+    first answer. Shared with the read (its facts) by the room. */
+export function allocRows(
+  held: ReadonlyArray<Owned>,
+  tags: ReadonlyMap<string, PlaceTags>,
+  base: MineAnswer | null,
+): Array<AllocRow> | null {
   const opened = new Map(
     base?.opened?.parts.map((p) => [p.symbol, p.opened]) ?? [],
   )
-  const rows = base?.opened
+  return base?.opened
     ? allocation(
         held.flatMap((o) =>
           o.valueEur === null
@@ -56,6 +56,49 @@ export function Allocation({
         worldOf(base.opened.world),
       )
     : null
+}
+
+/** The lines as facts for the read (I3), so its opinion speaks to them. */
+export function allocFacts(rows: Array<AllocRow> | null): Array<Fact> {
+  return (rows ?? []).flatMap((r) =>
+    r.mine === null
+      ? []
+      : [
+          {
+            key: `alloc-${r.id}`,
+            label: ALLOC.find((a) => a.id === r.id)?.name ?? r.id,
+            value: `MINE ${Math.round(r.mine)}%${r.world !== null ? ` · WORLD ${Math.round(r.world)}%` : ''}`,
+            tone: null,
+          },
+        ],
+  )
+}
+
+export function Allocation({
+  held,
+  rows,
+  base,
+  read,
+  failed,
+}: {
+  held: ReadonlyArray<Owned>
+  rows: Array<AllocRow> | null
+  base: MineAnswer | null
+  /** The month's read, for its opinion on where the money sits. */
+  read: Doc<'marketReads'> | null
+  failed: boolean
+}) {
+  const opened = new Map(
+    base?.opened?.parts.map((p) => [p.symbol, p.opened]) ?? [],
+  )
+  const total = held.reduce((t, o) => t + (o.valueEur ?? 0), 0)
+  /* The three biggest, each its share of the valued euros. */
+  const top3 = [...held]
+    .filter((o) => (o.valueEur ?? 0) > 0)
+    .sort((a, b) => (b.valueEur ?? 0) - (a.valueEur ?? 0))
+    .slice(0, 3)
+  const share = (o: Owned) => ((o.valueEur ?? 0) / total) * 100
+  const opinion = read?.read?.opinion ?? ''
   /* The line furthest from the world leads the head, both numbers —
      among lines the world holds (gold, at 0 in it, would always win). */
   const lead = rows
@@ -164,6 +207,44 @@ export function Allocation({
           )
         })}
       </div>
+      {total > 0 ? (
+        <div className="ins-top3" data-testid="alloc-top3">
+          <span className="ins-was">
+            TOP 3 · {pct(top3.reduce((t, o) => t + share(o), 0))}
+          </span>
+          {top3.map((o) => (
+            <span key={o.instrumentId} className="ins-badge dim">
+              <TickerLogo
+                symbol={o.symbol}
+                type={o.type}
+                name={o.name}
+                size={14}
+              />
+              {o.symbol.split('.')[0]} {pct(share(o))}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {/* The read's opinion (I3), as the mockup draws it; before a read,
+          where it will be. */}
+      {opinion ? (
+        <div className="ins-opinion" data-testid="alloc-opinion">
+          <span className="av">✦</span>
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <p>
+              <Words text={opinion} />
+            </p>
+            <span className="ins-was">
+              {read?.stamp?.model.toUpperCase().replace(/-/g, ' ') ?? 'MODEL'} ·{' '}
+              {read?.readAt ? dayWord(read.readAt) : ''} · RESEARCH · NOT ADVICE
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="ins-after" data-testid="alloc-opinion-empty">
+          <span className="ins-was">✦ OPINION · AFTER THE READ</span>
+        </div>
+      )}
       <div className="ins-foot">
         <span className="ins-was">PLACES · PORTFOLIO TAGS · FUNDS · YAHOO</span>
         <span className="ins-was">WORLD · IWDA · NOT SAVED</span>

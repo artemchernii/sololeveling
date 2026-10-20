@@ -86,11 +86,19 @@ export const mine = action({
     const items = args.items.slice(0, MAX)
     const now = Date.now()
     const calls = args.first
-      ? await ctx.runQuery(internal.insightsMine.calls, {
-          ownerId,
-          ids: items.map((i) => i.instrumentId),
-          now,
-        })
+      ? /* One query per position: a year of closes is ~250 rows, and
+           fifteen in one query pass its 4,096-read limit. */
+        (
+          await Promise.all(
+            items.map((i) =>
+              ctx.runQuery(internal.insightsMine.callFor, {
+                ownerId,
+                id: i.instrumentId,
+                now,
+              }),
+            ),
+          )
+        ).flatMap((c) => (c === null ? [] : [c]))
       : null
     const priced = items.filter((i) => i.type !== UNPRICED)
     const lookThrough = priced.filter((i) => {
@@ -134,53 +142,42 @@ export const mine = action({
  * `callOf`): the stored closes of the last 366 days and, for a share,
  * the latest stored fundamentals. Only the owner's instruments.
  */
-export const calls = internalQuery({
-  args: {
-    ownerId: v.string(),
-    ids: v.array(v.id('instruments')),
-    now: v.number(),
-  },
-  returns: v.array(v.object({ instrumentId: v.id('instruments'), call })),
-  handler: async (ctx, { ownerId, ids, now }) => {
-    const out: Array<{
-      instrumentId: (typeof ids)[number]
-      call: Infer<typeof call>
-    }> = []
-    for (const id of ids) {
-      const inst = await ctx.db.get(id)
-      if (inst === null || inst.ownerId !== ownerId) continue
-      if (inst.type === UNPRICED) {
-        out.push({ instrumentId: id, call: null })
-        continue
-      }
-      const closes = await ctx.db
-        .query('prices')
-        .withIndex('by_owner_instrument_time', (q) =>
-          q
-            .eq('ownerId', ownerId)
-            .eq('instrumentId', id)
-            .gte('asOf', now - 366 * DAY),
-        )
-        .take(400)
-      const f =
-        inst.type === 'EQUITY'
-          ? await ctx.db
-              .query('fundamentals')
-              .withIndex('by_owner_instrument_asOf', (q) =>
-                q.eq('ownerId', ownerId).eq('instrumentId', id),
-              )
-              .order('desc')
-              .first()
-          : null
-      const reading = f && {
-        asOf: f.asOf,
-        targetMean: f.target?.mean,
-        revenueGrowth: f.revenueGrowth,
-        ratingMean: f.rating?.mean,
-      }
-      out.push({ instrumentId: id, call: callOf(closes, reading, now) })
+export const callFor = internalQuery({
+  args: { ownerId: v.string(), id: v.id('instruments'), now: v.number() },
+  returns: v.union(
+    v.null(),
+    v.object({ instrumentId: v.id('instruments'), call }),
+  ),
+  handler: async (ctx, { ownerId, id, now }) => {
+    const inst = await ctx.db.get(id)
+    if (inst === null || inst.ownerId !== ownerId) return null
+    if (inst.type === UNPRICED) return { instrumentId: id, call: null }
+    const closes = await ctx.db
+      .query('prices')
+      .withIndex('by_owner_instrument_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('instrumentId', id)
+          .gte('asOf', now - 366 * DAY),
+      )
+      .take(400)
+    const f =
+      inst.type === 'EQUITY'
+        ? await ctx.db
+            .query('fundamentals')
+            .withIndex('by_owner_instrument_asOf', (q) =>
+              q.eq('ownerId', ownerId).eq('instrumentId', id),
+            )
+            .order('desc')
+            .first()
+        : null
+    const reading = f && {
+      asOf: f.asOf,
+      targetMean: f.target?.mean,
+      revenueGrowth: f.revenueGrowth,
+      ratingMean: f.rating?.mean,
     }
-    return out
+    return { instrumentId: id, call: callOf(closes, reading, now) }
   },
 })
 

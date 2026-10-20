@@ -25,31 +25,79 @@ export function callOf(
   return verdict(signals(pts, null), { reading, now })?.call ?? null
 }
 
+export type Rect = { x: number; y: number; w: number; h: number }
+
 /**
- * The heatmap's rows (mockup): biggest first, three boxes in the first
- * row, four in the next, then five — each box as wide as its euros
- * within its row. A position with no euros (frozen, no price yet) is as
- * wide as the smallest one with euros, at the end. A last box alone
- * joins the row before it.
+ * The heatmap's boxes (20 Oct, his many case: rows made a €118 box as
+ * wide as the row): a squarified treemap, each box's area its euros,
+ * biggest first, in a space `aspect` wide and 1 tall; rects come back
+ * in percent of it. A box under `floor` (5%) of the whole — or one with no
+ * euros (frozen, no price yet) — is drawn at `floor`, so its words fit.
  */
-export function heatRows<T extends { eur: number | null }>(
+export function treemap<T extends { eur: number | null }>(
   boxes: ReadonlyArray<T>,
-): Array<Array<T & { w: number }>> {
-  const valued = boxes
-    .filter((b) => b.eur !== null)
-    .sort((a, b) => (b.eur ?? 0) - (a.eur ?? 0))
-  const least = valued.at(-1)?.eur ?? 1
-  const all = [
-    ...valued.map((b) => ({ ...b, w: b.eur ?? least })),
-    ...boxes.filter((b) => b.eur === null).map((b) => ({ ...b, w: least })),
-  ]
-  const rows: Array<Array<T & { w: number }>> = []
-  for (let i = 0, n = 3; i < all.length; i += n, n++)
-    rows.push(all.slice(i, i + n))
-  /* A box alone on the last row would be as wide as the tile. */
-  if (rows.length > 1 && rows[rows.length - 1].length === 1)
-    rows[rows.length - 2].push(...(rows.pop() ?? []))
-  return rows
+  aspect: number,
+  floor = 0.05,
+): Array<T & Rect> {
+  const total = boxes.reduce((t, b) => t + (b.eur ?? 0), 0)
+  const least = total > 0 ? total * floor : 1
+  const items = [...boxes]
+    .map((b) => ({ b, v: Math.max(b.eur ?? 0, least) }))
+    .sort((a, b) => b.v - a.v)
+  const sum = items.reduce((t, i) => t + i.v, 0)
+  const scale = sum > 0 ? aspect / sum : 0
+  const out: Array<T & Rect> = []
+  let x = 0
+  let y = 0
+  let w = aspect
+  let h = 1
+  const worst = (row: Array<number>, side: number) => {
+    const t = row.reduce((a, b) => a + b, 0)
+    const max = Math.max(...row)
+    const min = Math.min(...row)
+    return Math.max(
+      (side * side * max) / (t * t),
+      (t * t) / (side * side * min),
+    )
+  }
+  let k = 0
+  while (k < items.length) {
+    const side = Math.min(w, h)
+    const row: Array<number> = [items[k].v * scale]
+    let n = k + 1
+    while (n < items.length) {
+      const next = [...row, items[n].v * scale]
+      if (worst(next, side) > worst(row, side)) break
+      row.push(items[n].v * scale)
+      n++
+    }
+    const t = row.reduce((a, b) => a + b, 0)
+    let at = 0
+    for (let i = k; i < n; i++) {
+      const a = items[i].v * scale
+      const r =
+        w >= h
+          ? { x, y: y + at, w: t / h, h: a / (t / h) }
+          : { x: x + at, y, w: a / (t / w), h: t / w }
+      at += w >= h ? r.h : r.w
+      out.push({
+        ...items[i].b,
+        x: (r.x / aspect) * 100,
+        y: r.y * 100,
+        w: (r.w / aspect) * 100,
+        h: r.h * 100,
+      })
+    }
+    if (w >= h) {
+      x += t / h
+      w -= t / h
+    } else {
+      y += t / w
+      h -= t / w
+    }
+    k = n
+  }
+  return out
 }
 
 /* ---- ALLOCATION ---- */

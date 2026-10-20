@@ -38,11 +38,38 @@ const SEED = [
     shares: 10,
   },
 ] as const
+/* The many case (20 Oct, his "looks small … check yourself"): eleven
+   more, so the heatmap is as tall as his fifteen. */
+const MORE = [
+  ['IWDA.AS', 'iShares Core MSCI World', 'ETF', 'add', 9],
+  ['VHYL.L', 'Vanguard FTSE All-World High Dividend', 'ETF', 'hold', 7],
+  ['SHLD.L', 'Global X Defense Tech', 'ETF', 'wait', 4],
+  ['IGLN.L', 'iShares Physical Gold', 'ETF', 'hold', 5],
+  ['MSFT', 'Microsoft', 'EQUITY', 'hold', 1.2],
+  ['SAP', 'SAP', 'EQUITY', 'add', 1],
+  ['NVO', 'Novo Nordisk', 'EQUITY', 'wait', 1.1],
+  ['ASML', 'ASML Holding', 'EQUITY', 'hold', 0.6],
+  ['LLY', 'Eli Lilly', 'EQUITY', 'add', 0.4],
+  ['BTC-EUR', 'Bitcoin EUR', 'CRYPTOCURRENCY', 'hold', 0.004],
+  ['VFEG.L', 'Vanguard FTSE Emerging Markets', 'ETF', 'wait', 3],
+] as const
+
+const COUNTRY: Partial<Record<string, string>> = {
+  AVGO: 'United States',
+  MSFT: 'United States',
+  LLY: 'United States',
+  SAP: 'Germany',
+  NVO: 'Denmark',
+  ASML: 'Netherlands',
+}
+const HEALTH = new Set(['NVO', 'LLY'])
 
 export const positions = mutation({
-  args: {},
+  /* `part` 1 and 2 add the many case's eleven in two calls: one call
+     would pass a mutation's read limit on a re-run. */
+  args: { part: v.optional(v.union(v.literal(1), v.literal(2))) },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     guard()
     const account = await ctx.db
@@ -61,7 +88,19 @@ export const positions = mutation({
         fetchedAt: now,
         source: 'ECB',
       })
-    for (const s of SEED) {
+    const seed =
+      args.part === undefined
+        ? SEED
+        : MORE.slice(args.part === 1 ? 0 : 6, args.part === 1 ? 6 : 11).map(
+            ([symbol, name, type, shape, shares]) => ({
+              symbol,
+              name,
+              type,
+              shape,
+              shares,
+            }),
+          )
+    for (const s of seed) {
       /* Reset keeps tickers: the same one each time, its days afresh. */
       const found = await ctx.db
         .query('instruments')
@@ -82,11 +121,11 @@ export const positions = mutation({
       /* Portfolio's tags: AVGO's country stored, NVDA's not yet. */
       if (s.type === 'EQUITY')
         await ctx.db.patch(id, {
-          sector: 'tech',
           sectorFrom: 'yahoo',
           sectorReadAt: now,
-          country: s.symbol === 'AVGO' ? 'United States' : undefined,
-          countryReadAt: s.symbol === 'AVGO' ? now : undefined,
+          sector: HEALTH.has(s.symbol) ? 'health' : 'tech',
+          country: COUNTRY[s.symbol],
+          countryReadAt: COUNTRY[s.symbol] ? now : undefined,
         })
       for (const old of await ctx.db
         .query('prices')

@@ -1,14 +1,15 @@
+import { useLayoutEffect, useRef, useState } from 'react'
+
 import { Allocation } from './Allocation'
 import { Info, clock, heatColour, signed } from './parts'
-import { useMine } from './useMine'
-import type { MineAnswer } from './useMine'
-import type { Id } from '../../../../convex/_generated/dataModel'
+import type { MineAnswer, useMine } from './useMine'
+import type { Doc, Id } from '../../../../convex/_generated/dataModel'
 import { TickerLogo } from '@/components/finances/Logo'
-import type { Tags } from '@/components/finances/PortfolioMap'
 import { money } from '@/lib/currency'
 import { heatCap, heatMix } from '@/lib/insightsMarket'
 import type { Period } from '@/lib/insightsMarket'
-import { heatRows } from '@/lib/insightsMine'
+import { treemap } from '@/lib/insightsMine'
+import type { AllocRow } from '@/lib/insightsMine'
 import type { Call } from '@/lib/indicators'
 import { UNPRICED } from '@/lib/market'
 import type { Owned } from '@/lib/owned'
@@ -33,23 +34,27 @@ const LEGEND: Array<[Call, string, string]> = [
 ]
 const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
 
+/** What the band's action is asked about, one per position. */
+export const itemOf = (o: Held) => ({
+  instrumentId: o.instrumentId as Id<'instruments'>,
+  symbol: o.symbol,
+  type: o.type,
+  name: o.name,
+})
+
 export function Mine({
   held,
-  tags,
   period,
+  mine,
+  rows,
+  read,
 }: {
   held: ReadonlyArray<Held>
-  /** Portfolio's sector and region tags, by instrument. */
-  tags: Tags
   period: Period
+  mine: ReturnType<typeof useMine>
+  rows: Array<AllocRow> | null
+  read: Doc<'marketReads'> | null
 }) {
-  const items = held.map((o) => ({
-    instrumentId: o.instrumentId as Id<'instruments'>,
-    symbol: o.symbol,
-    type: o.type,
-    name: o.name,
-  }))
-  const mine = useMine(period, items)
   const total = held.reduce((t, o) => t + (o.valueEur ?? 0), 0)
 
   return (
@@ -72,8 +77,9 @@ export function Mine({
           <Positions held={held} period={period} mine={mine} />
           <Allocation
             held={held}
-            tags={tags}
+            rows={rows}
             base={mine.base}
+            read={read}
             failed={mine.failed}
           />
         </div>
@@ -99,7 +105,23 @@ function Positions({
   )
   const callOf = (o: Held) => calls.get(o.instrumentId) ?? null
   const count = (c: Call) => held.filter((o) => callOf(o) === c).length
-  const rows = heatRows(held.map((o) => ({ o, eur: o.valueEur })))
+  /* Laid out in the box's own shape, so a square stays square. */
+  const heat = useRef<HTMLDivElement>(null)
+  const [aspect, setAspect] = useState(1.6)
+  useLayoutEffect(() => {
+    const el = heat.current
+    if (!el) return
+    const seen = new ResizeObserver(([e]) => {
+      const { width, height } = e.contentRect
+      if (width > 0 && height > 0) setAspect(width / height)
+    })
+    seen.observe(el)
+    return () => seen.disconnect()
+  }, [])
+  const boxes = treemap(
+    held.map((o) => ({ o, eur: o.valueEur })),
+    aspect,
+  )
   const cap = heatCap(period)
   const now = held.flatMap((o) => {
     const ch = changes.get(o.symbol)
@@ -130,30 +152,29 @@ function Positions({
         <span className="ins-was">BOX = EUROS</span>
       </div>
       <div
+        ref={heat}
         className={`ins-heat ${mine.reading && mine.shown ? 'ins-reading' : ''}`}
       >
-        {rows.map((row, r) => (
+        {boxes.map((b, i) => (
           <div
-            key={r}
-            className="ins-hrow"
+            key={b.o.instrumentId}
+            className="ins-cell"
             style={{
-              gridTemplateColumns: row
-                .map((b) => `minmax(68px, ${b.w}fr)`)
-                .join(' '),
+              left: `${b.x}%`,
+              top: `${b.y}%`,
+              width: `${b.w}%`,
+              height: `${b.h}%`,
             }}
           >
-            {row.map(({ o }, i) => (
-              <Box
-                key={o.instrumentId}
-                o={o}
-                big={r === 0}
-                delay={(r * 4 + i) * 25}
-                change={changes.get(o.symbol) ?? null}
-                call={callOf(o)}
-                period={period}
-                reading={mine.reading}
-              />
-            ))}
+            <Box
+              o={b.o}
+              big={b.w * b.h >= 1200}
+              delay={i * 25}
+              change={changes.get(b.o.symbol) ?? null}
+              call={callOf(b.o)}
+              period={period}
+              reading={mine.reading}
+            />
           </div>
         ))}
       </div>

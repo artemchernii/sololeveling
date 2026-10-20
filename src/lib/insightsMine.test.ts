@@ -2,24 +2,29 @@ import { describe, expect, test } from 'vitest'
 
 import {
   allocation,
-  heatRows,
+  treemap,
   parseOpened,
   placed,
   splitOf,
   worldOf,
 } from './insightsMine'
 
-describe('heatRows', () => {
-  test('biggest first, rows of three, four, five; no euros last at the smallest width', () => {
-    const boxes = [5, 40, null, 10, 30, 20, 1, 2, 3].map((eur, i) => ({
-      i,
-      eur,
-    }))
-    const rows = heatRows(boxes)
-    expect(rows.map((r) => r.length)).toEqual([3, 4, 2])
-    expect(rows[0].map((b) => b.eur)).toEqual([40, 30, 20])
-    expect(rows[2].at(-1)).toMatchObject({ eur: null, w: 1 })
-    expect(heatRows(boxes.slice(0, 4)).map((r) => r.length)).toEqual([4])
+describe('treemap', () => {
+  test('areas follow euros, a tiny or frozen box at the floor, all inside', () => {
+    const boxes = [3000, 2000, 1000, 118, 1, null].map((eur, i) => ({ i, eur }))
+    const r = treemap(boxes, 1.6)
+    expect(r.map((b) => b.i)).toEqual([0, 1, 2, 3, 4, 5])
+    const area = (b: (typeof r)[number]) => b.w * b.h
+    expect(area(r[0]) / area(r[1])).toBeCloseTo(1.5, 1)
+    /* 118 and 1 and the frozen one are drawn at 5% of €6,119. */
+    expect(area(r[4])).toBeCloseTo(area(r[5]), 5)
+    expect(area(r[3])).toBeCloseTo(area(r[4]), 5)
+    const all = r.reduce((t, b) => t + area(b), 0)
+    expect(all).toBeCloseTo(100 * 100, 0)
+    for (const b of r) {
+      expect(b.x + b.w).toBeLessThanOrEqual(100.0001)
+      expect(b.y + b.h).toBeLessThanOrEqual(100.0001)
+    }
   })
 })
 

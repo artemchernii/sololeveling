@@ -1,10 +1,12 @@
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { api } from '../../../../convex/_generated/api'
 import { Ideas } from './Ideas'
 import { Markets } from './Markets'
-import { Mine } from './Mine'
+import { allocFacts, allocRows } from './Allocation'
+import { Mine, itemOf } from './Mine'
+import { useMine } from './useMine'
 import { useTags } from '@/components/finances/PortfolioMap'
 import { RateCards } from './RateCards'
 import { ReadHero } from './ReadHero'
@@ -34,7 +36,18 @@ export function Insights() {
   /* Portfolio's region and sector tags, for ALLOCATION (band 3). */
   const tags = useTags(positions?.rows ?? NONE)
   const held = new Set(positions?.rows.map((r) => tickerBase(r.symbol)) ?? [])
-  const read = useMarketRead(positions ? positions.rows : null)
+  /* Band 3's answer and lines live here: the read takes the lines as
+     facts, so its opinion speaks to them. */
+  const owned = useMemo(
+    () => (positions ? combine(positions.rows) : null),
+    [positions],
+  )
+  const mine = useMine(period, owned?.map(itemOf) ?? null)
+  const alloc = owned ? allocRows(owned, tags, mine.base) : null
+  const read = useMarketRead(
+    positions ? positions.rows : null,
+    allocFacts(alloc),
+  )
   const count = positions ? positions.rows.length : null
 
   return (
@@ -73,7 +86,13 @@ export function Insights() {
       <ReadLines shown={read.shown} positions={count} />
 
       {positions ? (
-        <Mine held={combine(positions.rows)} tags={tags} period={period} />
+        <Mine
+          held={owned ?? []}
+          period={period}
+          mine={mine}
+          rows={alloc}
+          read={read.shown}
+        />
       ) : null}
 
       <div className="ins-band">

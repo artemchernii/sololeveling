@@ -14,9 +14,12 @@ const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
    come from their stored closes; moves and what Yahoo opens up are
    canned (convex/insightsMine.ts). */
 
-async function open(page: Page, seed = true) {
+async function open(page: Page, seed = true, many = false) {
   await start(page)
   if (seed) await testClient().mutation(anyApi.e2eMine.positions, {})
+  if (many)
+    for (const part of [1, 2])
+      await testClient().mutation(anyApi.e2eMine.positions, { part })
   await page.goto('/finances?room=insights')
   await expect(page.getByTestId('insights-room')).toBeVisible()
 }
@@ -122,4 +125,20 @@ test('S5 phone width: no sideways scroll', async ({ page }) => {
   await page
     .getByTestId('mine-positions')
     .screenshot(shot('insights-mine-phone'))
+})
+
+test('S6 many positions: the band at his window width', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await open(page, true, true)
+  await expect(page.getByTestId('mine-box')).toHaveCount(15, {
+    timeout: 15_000,
+  })
+  await expect(
+    page.locator('[data-testid=alloc-row][data-id="tech"]'),
+  ).toContainText(/\d+%/, { timeout: 15_000 })
+  const band = page.locator('.ins-grid', {
+    has: page.getByTestId('mine-alloc'),
+  })
+  await band.scrollIntoViewIfNeeded()
+  await band.screenshot(shot('insights-mine-many'))
 })

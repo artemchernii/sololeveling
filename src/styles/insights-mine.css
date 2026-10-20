@@ -9,9 +9,6 @@
   }
   & > .c5 {
     grid-column: span 5;
-    /* Its own height: many positions make the heatmap tall, and six
-       lines stretched over it read as gaps. */
-    align-self: start;
   }
   @media (max-width: 1000px) {
     & > .c7,
@@ -29,21 +26,45 @@
 }
 
 .ins-heat {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  position: relative;
+  /* Grows to the tile's height beside ALLOCATION. */
   flex: 1;
+  min-height: 360px;
+  @media (max-width: 560px) {
+    min-height: 320px;
+  }
 }
-.ins-hrow {
-  display: grid;
-  gap: 4px;
-  flex: 1;
+.ins-cell {
+  position: absolute;
+  padding: 2px;
+  /* A small box drops what does not fit, by its own width and height. */
+  container-type: size;
+  & > .ins-hc {
+    height: 100%;
+    min-height: 0;
+  }
+}
+@container (max-height: 74px) {
+  .ins-hc .e,
+  .ins-hc .vd {
+    display: none;
+  }
+}
+@container (max-height: 46px) {
+  .ins-hc .v {
+    display: none;
+  }
+}
+@container (max-width: 64px) {
+  .ins-hc .top img,
+  .ins-hc .top > :first-child:not(.n) {
+    display: none;
+  }
 }
 .ins-hc {
   position: relative;
   border-radius: 8px;
   padding: 8px;
-  min-height: 62px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -51,8 +72,6 @@
   gap: 4px;
   overflow: hidden;
   color: var(--mark-ground);
-  /* A narrow box puts its verdict under the move instead of over it. */
-  container-type: inline-size;
   transition:
     transform 150ms,
     box-shadow 150ms;
@@ -83,7 +102,6 @@
     opacity: 0.75;
   }
   &.big {
-    min-height: 112px;
     & .n {
       font-size: 11.5px;
     }
@@ -251,4 +269,50 @@
       font: 700 14px var(--font-mono);
     }
   }
+}
+
+/* Under the lines: the three biggest, and the read's opinion (mockup
+   "3 MINE": ✦ beside two sentences on a lavender wash). */
+.ins-top3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.ins-opinion {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+  border-radius: 11px;
+  border: 1px solid var(--system-edge);
+  background: color-mix(in oklch, var(--color-lav-400) 8%, transparent);
+  animation: ins-arrive 550ms var(--motion-ease) both;
+  & .av {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: var(--color-lav-300);
+    border: 1px solid var(--system-edge);
+    background: color-mix(in oklch, var(--color-lav-400) 14%, transparent);
+  }
+  & p {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--color-ink-200);
+  }
+  & b,
+  & strong {
+    color: var(--color-ink-100);
+  }
+}
+.ins-after {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-height: 64px;
+  border: 1px dashed var(--glass-edge);
+  border-radius: 11px;
 }

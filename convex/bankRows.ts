@@ -131,7 +131,7 @@ export const fail = internalMutation({
   args: {
     ownerId: v.string(),
     accountId: v.id('accounts'),
-    refused: v.boolean(),
+    refused: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {

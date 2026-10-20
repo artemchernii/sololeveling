@@ -1,6 +1,6 @@
 import { Info } from './parts'
 import type { MineAnswer } from './useMine'
-import { ALLOC, allocation, splitOf, worldOf } from '@/lib/insightsMine'
+import { ALLOC, allocation, placed, splitOf, worldOf } from '@/lib/insightsMine'
 import type { AllocRow, PlaceTags } from '@/lib/insightsMine'
 import type { Owned } from '@/lib/owned'
 
@@ -48,7 +48,7 @@ export function Allocation({
                   split: splitOf(
                     o.kind,
                     opened.get(o.symbol) ?? null,
-                    tags.get(o.instrumentId) ?? null,
+                    placed(o.symbol, tags.get(o.instrumentId) ?? null),
                   ),
                 },
               ],

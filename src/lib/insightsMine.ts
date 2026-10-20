@@ -132,6 +132,18 @@ const PLACES: Partial<Record<RegionTag, AllocId>> = {
   europe: 'europe',
   world: 'world',
 }
+/* A fund whose name gives no region, placed by Artem (20 Oct: "Count
+   SHLD as US on the allocation"). Only on this room's lines. */
+const PICKED: Partial<Record<string, RegionTag>> = { SHLD: 'us' }
+
+/** Portfolio's tags with his picked region where the name gives none. */
+export function placed(symbol: string, tags: PlaceTags | null) {
+  const pick = PICKED[symbol.split('.')[0]]
+  return tags && pick && UNPLACED.has(tags.region)
+    ? { ...tags, region: pick }
+    : tags
+}
+
 /* Not known where: no region in a fund's name, a share's country not
    stored yet. Every other tag is known to be in none of the three. */
 const UNPLACED: ReadonlySet<RegionTag> = new Set(['etf · no region', 'missing'])

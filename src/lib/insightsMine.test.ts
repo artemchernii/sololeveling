@@ -4,6 +4,7 @@ import {
   allocation,
   heatRows,
   parseOpened,
+  placed,
   splitOf,
   worldOf,
 } from './insightsMine'
@@ -135,4 +136,13 @@ describe('allocation', () => {
       ),
     ).toMatchObject({ us: 0, europe: 0, world: 0 })
   })
+})
+
+test('SHLD counts as US, his pick; a name with a region keeps its own', () => {
+  const none = { sector: 'etf', region: 'etf · no region' } as const
+  expect(placed('SHLD.L', none)?.region).toBe('us')
+  expect(placed('OTHER', none)?.region).toBe('etf · no region')
+  expect(placed('SHLD', { sector: 'etf', region: 'europe' })?.region).toBe(
+    'europe',
+  )
 })

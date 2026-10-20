@@ -1,20 +1,22 @@
 import { Info } from './parts'
 import type { MineAnswer } from './useMine'
-import { ALLOC, allocation, splitOf } from '@/lib/insightsMine'
-import type { AllocRow } from '@/lib/insightsMine'
+import { ALLOC, allocation, splitOf, worldOf } from '@/lib/insightsMine'
+import type { AllocRow, PlaceTags } from '@/lib/insightsMine'
 import type { Owned } from '@/lib/owned'
 
 /* ALLOCATION (19 Oct, spec I2; mockup "3 MINE"): where the money sits by
-   theme and place, funds opened up by what Yahoo gives of them, beside
-   the world (MSCI World, IWDA's own weights). Both numbers on every
-   line. A fund Yahoo cannot open is named under the line it leaves
-   unknown, never guessed. The read's opinion (I3) goes under the lines
+   theme and place. Places are Portfolio's region tags, a world fund its
+   own WORLD line (20 Oct, his pick); tech and health from what Yahoo
+   opens of a fund, else the tags. Beside a line, the world (MSCI World,
+   IWDA's own weights) only where it has a source. A position not known
+   for a line is named under it, never guessed. The read's opinion (I3) goes under the lines
    — nothing is drawn there until it exists. */
 
 const BAR: Record<AllocRow['id'], string> = {
   tech: 'var(--state-danger)',
   us: 'var(--color-lav-400)',
   europe: 'var(--color-lav-400)',
+  world: 'var(--color-lav-400)',
   health: 'var(--color-lav-400)',
   gold: 'var(--metal-xau)',
 }
@@ -22,10 +24,12 @@ const pct = (n: number | null) => (n === null ? '❔' : `${Math.round(n)}%`)
 
 export function Allocation({
   held,
+  tags,
   base,
   failed,
 }: {
   held: ReadonlyArray<Owned>
+  tags: ReadonlyMap<string, PlaceTags>
   base: MineAnswer | null
   failed: boolean
 }) {
@@ -41,11 +45,15 @@ export function Allocation({
                 {
                   symbol: o.symbol.split('.')[0],
                   eur: o.valueEur,
-                  split: splitOf(o.kind, opened.get(o.symbol) ?? null),
+                  split: splitOf(
+                    o.kind,
+                    opened.get(o.symbol) ?? null,
+                    tags.get(o.instrumentId) ?? null,
+                  ),
                 },
               ],
         ),
-        splitOf('etf', base.opened.world),
+        worldOf(base.opened.world),
       )
     : null
   /* The line furthest above the world leads the head, both numbers. */
@@ -134,21 +142,25 @@ export function Allocation({
                   <div className="bar">
                     <b style={{ width: `${r?.mine ?? 0}%` }} />
                   </div>
-                  <div className="bar ref">
-                    <b style={{ width: `${r?.world ?? 0}%` }} />
-                  </div>
+                  {r?.world != null ? (
+                    <div className="bar ref">
+                      <b style={{ width: `${r.world}%` }} />
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <div className="vals">
                 <strong>{r ? pct(r.mine) : failed ? '❔' : '…'}</strong>
-                <span className="ins-was">WORLD {r ? pct(r.world) : '…'}</span>
+                {r?.world != null ? (
+                  <span className="ins-was">WORLD {pct(r.world)}</span>
+                ) : null}
               </div>
             </div>
           )
         })}
       </div>
       <div className="ins-foot">
-        <span className="ins-was">FUNDS OPENED UP · YAHOO</span>
+        <span className="ins-was">PLACES · PORTFOLIO TAGS · FUNDS · YAHOO</span>
         <span className="ins-was">WORLD · IWDA · NOT SAVED</span>
       </div>
     </section>

@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest'
 
-import { allocation, heatRows, parseOpened, splitOf } from './insightsMine'
+import {
+  allocation,
+  heatRows,
+  parseOpened,
+  splitOf,
+  worldOf,
+} from './insightsMine'
 
 describe('heatRows', () => {
   test('biggest first, rows of three, four, five; no euros last at the smallest width', () => {
@@ -51,39 +57,68 @@ describe('parseOpened', () => {
 })
 
 describe('allocation', () => {
-  test('both numbers a line; a fund with no countries is named, not guessed', () => {
-    const fund = splitOf('etf', {
-      sectors: { technology: 0.3, healthcare: 0.1 },
-      top: [],
-      sector: null,
-      country: null,
-    })
-    const share = splitOf('stock', {
-      sectors: null,
-      top: [],
-      sector: 'Technology',
-      country: 'Germany',
-    })
+  test('places by region tag, a world fund its own line; tech from Yahoo, else tags', () => {
+    const fund = splitOf(
+      'etf',
+      {
+        sectors: { technology: 0.3, healthcare: 0.1 },
+        top: [],
+        sector: null,
+        country: null,
+      },
+      { sector: 'etf', region: 'us' },
+    )
+    /* Yahoo opens nothing: its stored tags still place it. */
+    const share = splitOf('stock', null, { sector: 'tech', region: 'europe' })
+    const world = splitOf('etf', null, { sector: 'etf', region: 'world' })
     const rows = allocation(
       [
-        { symbol: 'VUAA', eur: 600, split: fund },
+        { symbol: 'VUAA', eur: 400, split: fund },
         { symbol: 'SAP', eur: 200, split: share },
-        { symbol: 'GOLD', eur: 200, split: splitOf('gold', null) },
+        { symbol: 'IWDA', eur: 200, split: world },
+        {
+          symbol: 'GOLD',
+          eur: 200,
+          split: splitOf('gold', null, {
+            sector: 'gold',
+            region: 'no country',
+          }),
+        },
       ],
-      { tech: 0.26, health: 0.1 },
+      worldOf({
+        sectors: { technology: 0.26, healthcare: 0.1 },
+        top: [],
+        sector: null,
+        country: null,
+      }),
     )
     const by = Object.fromEntries(rows.map((r) => [r.id, r]))
-    expect(by.tech).toMatchObject({ mine: 38, world: 26, notOpened: [] })
-    expect(by.gold).toMatchObject({ mine: 20, world: null })
-    expect(by.europe).toMatchObject({ mine: 20, notOpened: ['VUAA'] })
-    expect(by.health).toMatchObject({ mine: 6, world: 10 })
+    expect(by.us).toMatchObject({ mine: 40, world: null, notOpened: [] })
+    expect(by.europe).toMatchObject({ mine: 20, world: null })
+    expect(by.world).toMatchObject({ mine: 20, world: null })
+    expect(by.gold).toMatchObject({ mine: 20, world: 0 })
+    /* IWDA unopened: named under tech and health, not guessed. */
+    expect(by.tech).toMatchObject({ mine: 32, world: 26, notOpened: ['IWDA'] })
+    expect(by.health).toMatchObject({ mine: 4, world: 10 })
   })
 
-  test('nothing opened: no number, every position named', () => {
+  test('no region in a fund name, no stored country: named under the places', () => {
     const rows = allocation(
-      [{ symbol: 'X', eur: 10, split: splitOf('etf', null) }],
+      [
+        {
+          symbol: 'X',
+          eur: 10,
+          split: splitOf('etf', null, {
+            sector: 'etf',
+            region: 'etf · no region',
+          }),
+        },
+      ],
       {},
     )
-    expect(rows[0]).toMatchObject({ mine: null, world: null, notOpened: ['X'] })
+    expect(rows.find((r) => r.id === 'us')).toMatchObject({
+      mine: null,
+      notOpened: ['X'],
+    })
   })
 })

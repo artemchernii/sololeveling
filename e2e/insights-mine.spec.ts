@@ -81,20 +81,25 @@ test('S2 a frozen position is striped, FROZEN, with no verdict', async ({
   await expect(ozon).toHaveAttribute('data-call', '')
 })
 
-test('S3 allocation: mine and the world on every line, unopened named', async ({
+test('S3 allocation: places by region tag, the world only with a source, unknown named', async ({
   page,
 }) => {
   await open(page)
   const row = (id: string) =>
     page.locator(`[data-testid=alloc-row][data-id="${id}"]`)
-  await expect(page.getByTestId('alloc-row')).toHaveCount(5)
+  await expect(page.getByTestId('alloc-row')).toHaveCount(6)
   await expect(row('tech')).toContainText(/\d+%/, { timeout: 15_000 })
   await expect(row('tech')).toContainText('WORLD 26%')
   await expect(row('health')).toContainText('WORLD 10%')
   await expect(row('gold')).toContainText('WORLD 0%')
-  /* No country split for a fund: VUAA named, its line not guessed. */
-  await expect(row('us')).toContainText('NOT OPENED · VUAA')
-  await expect(row('us')).toContainText('WORLD ❔')
+  /* Places are Portfolio's region tags: VUAA's name says S&P 500 and
+     AVGO's stored country is the US; NVDA's is not stored, so it is
+     named, not guessed — and no world number without a source. */
+  await expect(row('us')).toContainText('NOT OPENED · NVDA')
+  await expect(row('us')).not.toContainText('AVGO')
+  await expect(row('us').locator('.vals .ins-was')).toHaveCount(0)
+  await expect(row('world')).toContainText('0%')
+  await expect(row('world').locator('.vals .ins-was')).toHaveCount(0)
   await expect(page.getByTestId('alloc-lead')).toContainText('TECH · AI')
   await page.getByTestId('mine-alloc').screenshot(shot('insights-alloc'))
 })

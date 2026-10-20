@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { api } from '../../../../convex/_generated/api'
 import { Markets } from './Markets'
 import { Mine } from './Mine'
+import { useTags } from '@/components/finances/PortfolioMap'
 import { RateCards } from './RateCards'
 import { SectorMap } from './SectorMap'
 import { useMarket } from './useMarket'
@@ -19,6 +20,7 @@ import type { Period } from '@/lib/insightsMarket'
    the room opens, never saved. The read itself (I3), MINE (I2) and ASK
    (I4) come in their own slices. */
 
+const NONE: [] = []
 const MONTH = 'JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC'.split(' ')
 
 export function Insights() {
@@ -26,6 +28,8 @@ export function Insights() {
   const market = useMarket(period)
   /* Portfolio's own positions, for the white dot on a held company. */
   const positions = useQuery(api.aggregate.positions, {})
+  /* Portfolio's region and sector tags, for ALLOCATION (band 3). */
+  const tags = useTags(positions?.rows ?? NONE)
   const held = new Set(positions?.rows.map((r) => tickerBase(r.symbol)) ?? [])
 
   return (
@@ -56,7 +60,7 @@ export function Insights() {
         reading={market.reading}
       />
       {positions ? (
-        <Mine held={combine(positions.rows)} period={period} />
+        <Mine held={combine(positions.rows)} tags={tags} period={period} />
       ) : null}
     </div>
   )

@@ -13,7 +13,7 @@ const DAY = 86_400_000
 /* Four positions for Insights' band 3 MINE (19 Oct, spec I2), each with
    a known Portfolio verdict from its stored closes: VUAA a fund that
    holds (the biggest), AVGO a share to add (with a fresh reading),
-   NVDA a share to wait on, and OZON frozen — no price, no verdict. */
+   NVDA a share to wait on with no country stored yet, and OZON frozen — no price, no verdict. */
 const SEED = [
   {
     symbol: 'VUAA.L',
@@ -79,6 +79,15 @@ export const positions = mutation({
           currency: 'USD',
           type: s.type,
         }))
+      /* Portfolio's tags: AVGO's country stored, NVDA's not yet. */
+      if (s.type === 'EQUITY')
+        await ctx.db.patch(id, {
+          sector: 'tech',
+          sectorFrom: 'yahoo',
+          sectorReadAt: now,
+          country: s.symbol === 'AVGO' ? 'United States' : undefined,
+          countryReadAt: s.symbol === 'AVGO' ? now : undefined,
+        })
       for (const old of await ctx.db
         .query('prices')
         .withIndex('by_owner_instrument_time', (q) =>

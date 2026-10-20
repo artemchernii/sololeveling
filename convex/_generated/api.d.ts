@@ -46,6 +46,7 @@ import type * as gapMatch from "../gapMatch.js";
 import type * as github from "../github.js";
 import type * as goals from "../goals.js";
 import type * as handOver from "../handOver.js";
+import type * as holdingsKnown from "../holdingsKnown.js";
 import type * as holdingsTotal from "../holdingsTotal.js";
 import type * as insightsMarket from "../insightsMarket.js";
 import type * as insightsMine from "../insightsMine.js";
@@ -137,6 +138,7 @@ declare const fullApi: ApiFromModules<{
   github: typeof github;
   goals: typeof goals;
   handOver: typeof handOver;
+  holdingsKnown: typeof holdingsKnown;
   holdingsTotal: typeof holdingsTotal;
   insightsMarket: typeof insightsMarket;
   insightsMine: typeof insightsMine;

@@ -1,5 +1,6 @@
 import { signals, verdict } from './indicators'
 import type { Call, Reading } from './indicators'
+import type { RegionTag, SectorTag } from './tags'
 
 /* Insights, band 3 MINE (19 Oct, spec I2; mockup insights.html "3 MINE").
    Pure, so it is tested: the Portfolio verdict of a position from its
@@ -52,7 +53,7 @@ export function heatRows<T extends { eur: number | null }>(
 
 /* ---- ALLOCATION ---- */
 
-export type AllocId = 'tech' | 'us' | 'europe' | 'health' | 'gold'
+export type AllocId = 'tech' | 'us' | 'europe' | 'world' | 'health' | 'gold'
 export const ALLOC: ReadonlyArray<{
   id: AllocId
   emoji: string
@@ -61,12 +62,13 @@ export const ALLOC: ReadonlyArray<{
   { id: 'tech', emoji: '💻', name: 'TECH · AI' },
   { id: 'us', emoji: '🇺🇸', name: 'US' },
   { id: 'europe', emoji: '🇪🇺', name: 'EUROPE' },
+  { id: 'world', emoji: '🌐', name: 'WORLD' },
   { id: 'health', emoji: '💊', name: 'HEALTH' },
   { id: 'gold', emoji: '🥇', name: 'GOLD' },
 ]
 
 /** What one position is made of, as fractions of it; a line left out is
-    not known for it (a fund Yahoo cannot open has no countries). */
+    not known for it (a fund Yahoo cannot open, a tag not stored yet). */
 export type Split = Partial<Record<AllocId, number>>
 
 /** Yahoo's quoteSummary `topHoldings` and `assetProfile` for one symbol. */
@@ -121,44 +123,64 @@ export function parseOpened(json: unknown): Opened | null {
   }
 }
 
-const EUROPE = new Set(
-  'Austria,Belgium,Denmark,Finland,France,Germany,Ireland,Italy,Luxembourg,Netherlands,Norway,Poland,Portugal,Spain,Sweden,Switzerland,United Kingdom'.split(
-    ',',
-  ),
-)
+/** Portfolio's two tags of a position (src/lib/tags.ts `tagsOf`). */
+export type PlaceTags = { sector: SectorTag; region: RegionTag }
+
+const PLACES: Partial<Record<RegionTag, AllocId>> = {
+  us: 'us',
+  europe: 'europe',
+  world: 'world',
+}
+/* Not known where: no region in a fund's name, a share's country not
+   stored yet. Every other tag is known to be in none of the three. */
+const UNPLACED: ReadonlySet<RegionTag> = new Set(['etf · no region', 'missing'])
 
 /**
- * What a position is made of, from what was read of it: gold is gold;
- * a fund opened up by Yahoo has its whole-fund sector weights and no
- * countries; a share is its sector and its country. Nothing read is an
- * empty split — every line not known for it.
+ * What a position is made of (20 Oct, his pick): its place is Portfolio's
+ * region tag, whole — a world fund is its own WORLD line, never split by
+ * country. Tech and health: a fund's whole-fund sector weights where Yahoo
+ * opens it, else its theme tag; a share's Yahoo sector, else its stored
+ * tag. Gold is gold. What is not known is left out, never guessed.
  */
 export function splitOf(
   kind: 'stock' | 'etf' | 'gold' | 'crypto',
   o: Opened | null,
+  tags: PlaceTags | null,
 ): Split {
-  if (kind === 'gold') return { gold: 1, tech: 0, health: 0, us: 0, europe: 0 }
-  if (kind === 'crypto')
-    return { gold: 0, tech: 0, health: 0, us: 0, europe: 0 }
-  if (o === null) return {}
-  if (kind === 'etf') {
-    const w: Partial<Record<string, number>> | null = o.sectors
-    return w
-      ? { tech: w.technology ?? 0, health: w.healthcare ?? 0, gold: 0 }
-      : {}
+  const out: Split = { gold: kind === 'gold' ? 1 : 0 }
+  if (tags && !UNPLACED.has(tags.region))
+    for (const id of ['us', 'europe', 'world'] as const)
+      out[id] = PLACES[tags.region] === id ? 1 : 0
+  if (kind === 'gold' || kind === 'crypto')
+    return { ...out, tech: 0, health: 0 }
+  const w: Partial<Record<string, number>> | null = o?.sectors ?? null
+  if (kind === 'etf' && w) {
+    out.tech = w.technology ?? 0
+    out.health = w.healthcare ?? 0
+    return out
   }
-  const out: Split = { gold: 0 }
-  if (o.sector !== null) {
+  if (kind === 'stock' && o?.sector) {
     out.tech = o.sector === 'Technology' ? 1 : 0
     out.health = o.sector === 'Healthcare' ? 1 : 0
+    return out
   }
-  if (o.country !== null) {
-    out.us = o.country === 'United States' ? 1 : 0
-    out.europe = EUROPE.has(o.country) ? 1 : 0
+  const t = tags?.sector
+  if (t && t !== 'missing' && !(kind === 'etf' && t === 'etf')) {
+    out.tech = t === 'tech' || t === 'cyber security' ? 1 : 0
+    out.health = t === 'health' ? 1 : 0
   }
   return out
 }
 
+/** The world column: MSCI World by IWDA's own sector weights, where Yahoo
+    gives them — only tech, health and gold (none in it). Places have no
+    source, so their lines show without it. */
+export function worldOf(o: Opened | null): Split {
+  const w: Partial<Record<string, number>> | null = o?.sectors ?? null
+  return w
+    ? { tech: w.technology ?? 0, health: w.healthcare ?? 0, gold: 0 }
+    : {}
+}
 export type AllocRow = {
   id: AllocId
   /** Percent of the valued euros; null when no position could be read. */

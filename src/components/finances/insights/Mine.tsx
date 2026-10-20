@@ -4,6 +4,7 @@ import { useMine } from './useMine'
 import type { MineAnswer } from './useMine'
 import type { Id } from '../../../../convex/_generated/dataModel'
 import { TickerLogo } from '@/components/finances/Logo'
+import type { Tags } from '@/components/finances/PortfolioMap'
 import { money } from '@/lib/currency'
 import { heatCap, heatMix } from '@/lib/insightsMarket'
 import type { Period } from '@/lib/insightsMarket'
@@ -34,9 +35,12 @@ const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
 
 export function Mine({
   held,
+  tags,
   period,
 }: {
   held: ReadonlyArray<Held>
+  /** Portfolio's sector and region tags, by instrument. */
+  tags: Tags
   period: Period
 }) {
   const items = held.map((o) => ({
@@ -66,7 +70,12 @@ export function Mine({
       ) : (
         <div className="ins-grid">
           <Positions held={held} period={period} mine={mine} />
-          <Allocation held={held} base={mine.base} failed={mine.failed} />
+          <Allocation
+            held={held}
+            tags={tags}
+            base={mine.base}
+            failed={mine.failed}
+          />
         </div>
       )}
     </>

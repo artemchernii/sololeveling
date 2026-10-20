@@ -3,10 +3,12 @@ import { useState } from 'react'
 
 import { api } from '../../../../convex/_generated/api'
 import { Markets } from './Markets'
+import { Mine } from './Mine'
 import { RateCards } from './RateCards'
 import { SectorMap } from './SectorMap'
 import { useMarket } from './useMarket'
 import { tickerBase } from '@/lib/market'
+import { combine } from '@/lib/owned'
 import type { Period } from '@/lib/insightsMarket'
 
 /* Insights, Finances' fourth room (19 Oct; spec
@@ -53,6 +55,9 @@ export function Insights() {
         held={held}
         reading={market.reading}
       />
+      {positions ? (
+        <Mine held={combine(positions.rows)} period={period} />
+      ) : null}
     </div>
   )
 }

@@ -64,11 +64,11 @@ function canned(symbols: Array<string>, now: number): Array<IdeaQuote> {
       const f = i / 365
       const yearBase = price / (1 + y / 100)
       const monthBase = price / (1 + m / 100)
-      const v =
+      const val =
         i >= 335
           ? monthBase + (price - monthBase) * ((i - 335) / 30)
           : yearBase + (monthBase - yearBase) * (f / (335 / 365))
-      return { asOf: t, price: Math.round(v * 100) / 100 }
+      return { asOf: t, price: Math.round(val * 100) / 100 }
     })
     const q = ideaQuote(s, { currency, price, asOf: now, closes }, now)
     return q ? [q] : []

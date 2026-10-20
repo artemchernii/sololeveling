@@ -1656,7 +1656,11 @@ export default defineSchema({
     read: v.optional(marketReadBody),
     stamp: v.optional(readStamp),
     readAt: v.optional(v.number()),
+    /** When the attempt now reading (or last failed) started. */
+    startedAt: v.optional(v.number()),
     error: v.optional(v.string()),
+    /** What a failed attempt cost anyway (a response that came back unusable). */
+    failCost: v.optional(v.number()),
   }).index('by_owner_month', ['ownerId', 'month']),
   /* Dollars spent on API credits per calendar month, added from each
      response's usage (I3; ASK in I4 adds to the same row). Reads stop at

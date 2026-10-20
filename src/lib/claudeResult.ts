@@ -27,7 +27,9 @@ export function parseClaudeResult(stdout: string): ProAnswer {
     const said = typeof d.result === 'string' ? d.result : ''
     return {
       ok: false,
-      error: /auth|log ?in|expired/i.test(said) ? 'CLAUDE SIGNED OUT' : 'NOT REACHED',
+      error: /auth|log ?in|expired/i.test(said)
+        ? 'CLAUDE SIGNED OUT'
+        : 'NOT REACHED',
     }
   }
   const raw =
@@ -39,11 +41,11 @@ export function parseClaudeResult(stdout: string): ProAnswer {
   if (raw === '') return { ok: false, error: 'NOTHING BACK' }
   const u = (d.usage ?? {}) as Record<string, unknown>
   const tools = (u.server_tool_use ?? {}) as Record<string, unknown>
-  const models = Object.keys((d.modelUsage ?? {}) as Record<string, unknown>)
+  const models = Object.keys(d.modelUsage ?? {})
   return {
     ok: true,
     raw,
-    model: models.find((m) => m.includes('sonnet')) ?? models[0] ?? 'claude',
+    model: models.find((m) => m.includes('sonnet')) ?? models.at(0) ?? 'claude',
     inputTokens:
       n(u.input_tokens) +
       n(u.cache_read_input_tokens) +

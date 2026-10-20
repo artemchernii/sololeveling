@@ -64,19 +64,25 @@ describe('marketFacts', () => {
     ])
     const by = (k: string) => facts.find((f) => f.key === k)
     expect(by('us-cpi')).toMatchObject({ label: 'US CPI SEP', value: '2.9%' })
-    expect(by('us-cpi-was')).toMatchObject({ label: 'US CPI AUG', value: '3.1%' })
+    expect(by('us-cpi-was')).toMatchObject({
+      label: 'US CPI AUG',
+      value: '3.1%',
+    })
     expect(by('fed')).toBeUndefined()
     expect(by('ecb')?.value).toBe('2.00% · SINCE 11 SEP')
     expect(by('ecb-next')?.value).toBe('29 OCT')
-    expect(by('mkt-sp500')).toMatchObject({ value: '▲ 2.4% · 1M', tone: 'good' })
+    expect(by('mkt-sp500')).toMatchObject({
+      value: '▲ 2.4% · 1M',
+      tone: 'good',
+    })
     expect(by('mkt-us10y')?.value).toBe('4.02% · ▼ 0.19 PTS')
     expect(by('mkt-btc')).toBeUndefined()
     expect(by('co-NVDA')).toMatchObject({ value: '▼ 1.3% · 1M', tone: 'bad' })
     expect(by('reg-japan')).toBeUndefined()
     expect(by('mine')?.value).toBe('€2,000 · 2 POSITIONS')
-    expect(facts.filter((f) => f.key.startsWith('pos-')).map((f) => f.key)).toEqual(
-      ['pos-VUAA', 'pos-AVGO'],
-    )
+    expect(
+      facts.filter((f) => f.key.startsWith('pos-')).map((f) => f.key),
+    ).toEqual(['pos-VUAA', 'pos-AVGO'])
     expect(by('pos-AVGO')?.value).toBe('€600 · 30.0%')
   })
 
@@ -122,13 +128,20 @@ describe('parseMarketRead', () => {
   })
 
   test('a NO DATA line needs no fact; fewer than three lines fails', () => {
-    const r = parseMarketRead(CANNED_MARKET_READS.mixed, ['us-cpi', 'us-cpi-was', 'mkt-btc', 'mkt-sp500'])
+    const r = parseMarketRead(CANNED_MARKET_READS.mixed, [
+      'us-cpi',
+      'us-cpi-was',
+      'mkt-btc',
+      'mkt-sp500',
+    ])
     expect(r.ok && r.read.lines.map((l) => l.kind)).toEqual([
       'inflation',
       'nodata',
       'market',
     ])
-    expect(parseMarketRead(CANNED_MARKET_READS.mixed, ['us-cpi']).ok).toBe(false)
+    expect(parseMarketRead(CANNED_MARKET_READS.mixed, ['us-cpi']).ok).toBe(
+      false,
+    )
     expect(parseMarketRead('not json', keys)).toEqual({
       ok: false,
       error: 'BROKEN SHAPE',

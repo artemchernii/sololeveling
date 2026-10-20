@@ -50,7 +50,9 @@ export function ideaQuote(
     month,
     year: since(c, 365, now),
     points: thin(
-      c.closes.filter((x) => x.asOf >= from).map((x) => ({ t: x.asOf, v: x.price })),
+      c.closes
+        .filter((x) => x.asOf >= from)
+        .map((x) => ({ t: x.asOf, v: x.price })),
       32,
     ),
   }

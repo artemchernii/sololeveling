@@ -8,9 +8,19 @@ import {
   query,
 } from './_generated/server'
 import { requireUser } from './auth'
-import { marketFact, marketReadBody, payer, readStamp } from './marketReadFields'
+import {
+  marketFact,
+  marketReadBody,
+  payer,
+  readStamp,
+} from './marketReadFields'
 import schema from './schema'
-import { CAP_USD, monthKey, parseMarketRead } from '../src/lib/marketRead'
+import {
+  CAP_USD,
+  STALE_MS,
+  monthKey,
+  parseMarketRead,
+} from '../src/lib/marketRead'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 
@@ -115,19 +125,25 @@ export const run = mutation({
     const ownerId = await requireUser(ctx)
     const month = monthKey(Date.now())
     if (args.facts.length === 0) throw new ConvexError('NO_FACTS')
-    if (
-      args.via === 'api' &&
-      (await spentIn(ctx, ownerId, month)) >= CAP_USD
-    )
+    if (args.via === 'api' && (await spentIn(ctx, ownerId, month)) >= CAP_USD)
       throw new ConvexError('CAP_REACHED')
     const existing = await monthRow(ctx, ownerId, month)
-    /* A second press while it reads pays nothing more. */
-    if (existing?.status === 'reading') return existing._id
+    /* A second press while it reads pays nothing more. A Pro read whose
+       page was closed mid-way never lands; after STALE_MS it may start
+       again. */
+    const now = Date.now()
+    if (
+      existing?.status === 'reading' &&
+      (existing.via === 'api' || now - (existing.startedAt ?? 0) < STALE_MS)
+    )
+      return existing._id
     const fields = {
       status: 'reading' as const,
       via: args.via,
       facts: args.facts,
+      startedAt: now,
       error: undefined,
+      failCost: undefined,
     }
     const readId =
       existing === null
@@ -155,7 +171,11 @@ async function land(
   ctx: MutationCtx,
   readId: Id<'marketReads'>,
   outcome:
-    | { ok: true; read: typeof marketReadBody.type; stamp: typeof readStamp.type }
+    | {
+        ok: true
+        read: typeof marketReadBody.type
+        stamp: typeof readStamp.type
+      }
     | { ok: false; error: string; cost: number },
 ) {
   const row = await ctx.db.get(readId)
@@ -170,7 +190,12 @@ async function land(
       readAt: Date.now(),
       error: undefined,
     })
-  else await ctx.db.patch(readId, { status: 'failed', error: outcome.error })
+  else
+    await ctx.db.patch(readId, {
+      status: 'failed',
+      error: outcome.error,
+      failCost: cost,
+    })
 }
 
 export const finish = internalMutation({
@@ -204,7 +229,8 @@ export const fail = internalMutation({
 async function proRow(ctx: MutationCtx, readId: Id<'marketReads'>) {
   const ownerId = await requireUser(ctx)
   const row = await ctx.db.get(readId)
-  if (row === null || row.ownerId !== ownerId) throw new ConvexError('NOT_FOUND')
+  if (row === null || row.ownerId !== ownerId)
+    throw new ConvexError('NOT_FOUND')
   if (row.via !== 'pro' || row.status !== 'reading')
     throw new ConvexError('NOT_READING')
   return row

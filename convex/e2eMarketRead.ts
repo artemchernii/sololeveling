@@ -76,7 +76,12 @@ export const spend = mutation({
       .unique()
     if (row) await ctx.db.patch(row._id, { usd: args.usd })
     else
-      await ctx.db.insert('aiSpend', { ownerId, month, usd: args.usd, calls: 1 })
+      await ctx.db.insert('aiSpend', {
+        ownerId,
+        month,
+        usd: args.usd,
+        calls: 1,
+      })
     return null
   },
 })

@@ -41,5 +41,8 @@ test('signed out, an error, or nothing printed is a failed read', () => {
     ok: false,
     error: 'NOT REACHED',
   })
-  expect(parseClaudeResult('oops')).toEqual({ ok: false, error: 'BROKEN SHAPE' })
+  expect(parseClaudeResult('oops')).toEqual({
+    ok: false,
+    error: 'BROKEN SHAPE',
+  })
 })

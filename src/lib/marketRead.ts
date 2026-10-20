@@ -21,6 +21,9 @@ export const CAP_USD = 2
 /** Sonnet 5.5: $2 in, $10 out per million tokens; web search $10 per
     thousand searches. */
 const PRICE = { input: 2, output: 10, search: 0.01 }
+/** A Pro read not landed after this long is taken as lost (its page was
+    closed); claude -p is stopped at five minutes. */
+export const STALE_MS = 6 * 60_000
 /** Searches one read may make. */
 export const MAX_SEARCHES = 8
 
@@ -302,13 +305,15 @@ const text = (v: unknown, max: number) =>
 export function parseMarketRead(
   raw: unknown,
   keys: Array<string>,
-): { ok: true; read: MarketRead; refused: number } | { ok: false; error: string } {
-  let d: Record<string, unknown>
+):
+  | { ok: true; read: MarketRead; refused: number }
+  | { ok: false; error: string } {
+  let d: Record<string, unknown> | null
   try {
     d = (typeof raw === 'string' ? JSON.parse(raw) : raw) as Record<
       string,
       unknown
-    >
+    > | null
   } catch {
     return { ok: false, error: 'BROKEN SHAPE' }
   }

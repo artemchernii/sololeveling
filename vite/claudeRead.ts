@@ -58,7 +58,9 @@ function claude(prompt: string): Promise<ProAnswer> {
     })
     child.on('close', () => {
       clearTimeout(timer)
-      resolve(out ? parseClaudeResult(out) : { ok: false, error: 'NOT REACHED' })
+      resolve(
+        out ? parseClaudeResult(out) : { ok: false, error: 'NOT REACHED' },
+      )
     })
     child.stdin.end(prompt)
   })

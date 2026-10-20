@@ -188,5 +188,7 @@ test('the test helpers refuse off the test backend', async () => {
   await expect(
     me.mutation(api.e2eMarketRead.arm, { shape: 'calm' }),
   ).rejects.toThrow()
-  await expect(me.mutation(api.e2eMarketRead.spend, { usd: 1 })).rejects.toThrow()
+  await expect(
+    me.mutation(api.e2eMarketRead.spend, { usd: 1 }),
+  ).rejects.toThrow()
 })

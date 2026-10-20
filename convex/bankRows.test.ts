@@ -340,6 +340,29 @@ test('✕ closes the arrived rows; they stay saved', async () => {
   expect(await rows()).toHaveLength(2)
 })
 
+test('✕ also closes an answered question; one still open stays', async () => {
+  const { t, me, accountId, link } = await connected()
+  const batch = (status: 'done' | 'open') =>
+    t.run((ctx) =>
+      ctx.db.insert('batches', {
+        ownerId: ME,
+        status,
+        leftOut: [],
+        quietMonths: [],
+        moves: [],
+        extras: [],
+        dismissed: [],
+        via: 'bank',
+      }),
+    )
+  const answered = await batch('done')
+  const waiting = await batch('open')
+  const linkId = (await link())._id
+  await t.run((ctx) => ctx.db.patch(linkId, { questions: [answered, waiting] }))
+  await me.mutation(api.bankRows.close, { accountId })
+  expect((await link()).questions).toEqual([waiting])
+})
+
 test('not asked: approval ended, or a check already running', async () => {
   const { t, me, accountId, balance, link } = await connected()
   const linkId = (await link())._id

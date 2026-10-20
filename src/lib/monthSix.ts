@@ -44,3 +44,25 @@ export function monthSix(
   for (const c of commits) if (c.isMerge !== true) add('commits', c.authoredAt)
   return out
 }
+
+/** Today's WORTH (20 Oct): worth now minus the month before's last day,
+    less the lines first read after it — a balance added is not money in.
+    `total` starts at that day's end. */
+export function monthWorth(
+  total: ReadonlyArray<number | null>,
+  starts: ReadonlyArray<{ at: number; value: number }>,
+  wasEnd: number,
+) {
+  const was = total[0] ?? null
+  const now = total.filter((v): v is number => v !== null).at(-1) ?? null
+  const missing =
+    Math.round(
+      starts.filter((s) => s.at > wasEnd).reduce((a, s) => a + s.value, 0) *
+        100,
+    ) / 100
+  const delta =
+    now !== null && was !== null
+      ? Math.round((now - was - missing) * 100) / 100
+      : 0
+  return { was, now, missing, delta }
+}

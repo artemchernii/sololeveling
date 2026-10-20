@@ -8,6 +8,7 @@ import { useWorthHistory } from '@/lib/useWorthHistory'
 import { useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import { euros } from '@/lib/money'
+import { monthWorth } from '@/lib/monthSix'
 import type { Six } from '@/lib/monthSix'
 import { AreaIcon } from './AreaIcon'
 import type { ICONS } from './AreaIcon'
@@ -201,10 +202,14 @@ function MonthTile({
 
   const sum = count ? count.days.reduce((a, b) => a + b, 0) : 0
   const points = (worth?.total ?? []).filter((v): v is number => v !== null)
-  const wasWorth = worth?.total[0] ?? null
-  const nowWorth = points.at(-1) ?? null
+  const {
+    was: wasWorth,
+    now: nowWorth,
+    missing,
+    delta: worthDelta,
+  } = monthWorth(worth?.total ?? [], worth?.starts ?? [], prevEnd)
 
-  let delta: { text: string; tone: string; was: string }
+  let delta: { text: string; tone: string; was: string; missing?: string }
   if (count) {
     const d = sum - count.prev
     delta = {
@@ -218,7 +223,7 @@ function MonthTile({
       was: `${prevName} ${count.prev}`,
     }
   } else {
-    const d = nowWorth !== null && wasWorth !== null ? nowWorth - wasWorth : 0
+    const d = worthDelta
     const last = new Date(prevEnd)
     const day = `${prevName.slice(0, 3)} ${last.getDate()}`
     delta = {
@@ -236,6 +241,9 @@ function MonthTile({
             : 'text-ink-400',
       was:
         wasWorth === null ? `${day} · MISSING` : `${day} · ${kEur(wasWorth)}`,
+      ...(missing > 0
+        ? { missing: `MISSING ON ${day} · ${kEur(missing)}` }
+        : {}),
     }
   }
 
@@ -300,6 +308,14 @@ function MonthTile({
           <span className="font-mono text-[9.5px] tracking-[0.12em] text-ink-500">
             {delta.was}
           </span>
+          {delta.missing !== undefined ? (
+            <span
+              data-testid="missing"
+              className="font-mono text-[9.5px] tracking-[0.12em] text-ink-500"
+            >
+              {delta.missing}
+            </span>
+          ) : null}
         </span>
       </div>
       {count ? (

@@ -106,6 +106,44 @@ describe('one balance rule', () => {
     ).toBe('off')
   })
 
+  test('earlier, saved: the €422 the held balance had not seen joins was', () => {
+    const r = reach({
+      was: { cents: 72800 },
+      to: { cents: 114000 },
+      rows: [row(1, 4, -10)],
+      earlier: [{ ...row(-1000, 3, 422), saved: true }, row(-1001, 3, -5)],
+    })
+    expect(r).toMatchObject({
+      state: 'ok',
+      wasCents: 115000,
+      outCents: 1000,
+      inCents: 0,
+      nowCents: 114000,
+    })
+  })
+
+  test('earlier, from the file: counted when that is what makes the balance', () => {
+    expect(
+      reach({
+        was: { cents: 10000 },
+        to: { cents: 9000 },
+        rows: [],
+        earlier: [row(0, 3, -10)],
+      }),
+    ).toMatchObject({ state: 'ok', counted: [0], outCents: 1000 })
+  })
+
+  test('earlier rows that explain nothing leave the gap as it was', () => {
+    expect(
+      reach({
+        was: { cents: 10000 },
+        to: { cents: 9000 },
+        rows: [],
+        earlier: [{ ...row(-1000, 3, 422), saved: true }],
+      }),
+    ).toMatchObject({ state: 'off', wasCents: 10000, gapCents: -1000 })
+  })
+
   test('no later balance: summed, nothing claimed', () => {
     expect(
       reach({ was: { cents: 100 }, to: { cents: null }, rows: [row(0, 1, 5)] }),

@@ -16,6 +16,8 @@ export type RuleRow = {
   /** A saved row of the same amount, days apart, that nothing matched:
       this one may be it again. Only a door that can ask marks it. */
   twin?: boolean
+  /** Already saved, not new: counted, it is part of `was`. */
+  saved?: boolean
 }
 
 export type Reach = {
@@ -24,9 +26,11 @@ export type Reach = {
   state: 'ok' | 'ask' | 'off' | 'bare'
   /** The rows counted: not carried, not pending at `was`. */
   counted: Array<number>
+  /** `was` and the saved rows of its day it had not seen. */
+  wasCents: number
   outCents: number
   inCents: number
-  /** `was` and the counted rows. */
+  /** `was` and the counted rows, saved and new. */
   nowCents: number
   /** What nothing explains: `to` − now; 0 when ok or bare. */
   gapCents: number
@@ -75,7 +79,7 @@ export function rowsSumming<T extends { at: number; cents: number }>(
 const sameDay = (a: number, b: number) =>
   new Date(a).toDateString() === new Date(b).toDateString()
 
-export function reach(input: {
+type Input = {
   /** The earlier balance, with the money it showed as pending. */
   was: { cents: number; pending?: number }
   /** The later balance; cents null when there is none to reach, `at`
@@ -85,8 +89,43 @@ export function reach(input: {
   rows: ReadonlyArray<RuleRow>
   /** Rows just after `to`, within BOOKED_LATER_MS, that it may have had. */
   later?: ReadonlyArray<RuleRow>
-}): Reach {
-  const { was, to, rows } = input
+  /** Rows of `was`'s own day, dated at or before it, that it may not have
+      seen: new rows of the file, and rows already saved. */
+  earlier?: ReadonlyArray<RuleRow>
+}
+
+export function reach(input: Input): Reach {
+  const strict = settle(input, input.rows)
+  const earlier = input.earlier ?? []
+  if (strict.state === 'ok' || strict.state === 'bare' || !earlier.length)
+    return strict
+  /* A row dated the day of `was` may be inside it (a statement's closing
+     balance) or after it (an app screenshot taken that morning): counted
+     after it when that is what makes `to`, or when one twin then
+     explains it (10–11 Oct). */
+  const fresh = earlier.filter((r) => !r.saved)
+  if (fresh.length) {
+    const all = settle(input, [...fresh, ...input.rows])
+    if (all.state === 'ok' || all.state === 'ask') return all
+  }
+  /* Or those of them that are exactly what is missing (20 Oct: BPI's
+     €422 to ActivoBank saved at noon from a screenshot, the bank's 15:01
+     balance without it). */
+  const some = rowsSumming(
+    (input.to.cents ?? 0) -
+      input.was.cents -
+      input.rows.reduce((t, r) => t + r.cents, 0),
+    earlier,
+  )
+  if (some) {
+    const s = settle(input, [...some, ...input.rows])
+    if (s.state === 'ok') return s
+  }
+  return strict
+}
+
+function settle(input: Input, rows: ReadonlyArray<RuleRow>): Reach {
+  const { was, to } = input
   const pendWas = was.pending ?? 0
   const pendTo = to.pending ?? 0
   const result = (
@@ -99,19 +138,22 @@ export function reach(input: {
       ...(found.carried ?? []).map((r) => r.id),
       ...(found.pendingWas ?? []),
     ])
+    let wasCents = was.cents
     let outCents = 0
     let inCents = 0
     const counted: Array<number> = []
     for (const r of rows) {
       if (left.has(r.id)) continue
       counted.push(r.id)
-      if (r.cents < 0) outCents -= r.cents
+      if (r.saved) wasCents += r.cents
+      else if (r.cents < 0) outCents -= r.cents
       else inCents += r.cents
     }
-    const nowCents = was.cents - outCents + inCents
+    const nowCents = wasCents - outCents + inCents
     return {
       state,
       counted,
+      wasCents,
       outCents,
       inCents,
       nowCents,

@@ -23,6 +23,8 @@ export type SumCheck = {
   state: 'ok' | 'ask' | 'off' | 'bare'
   outCents: number
   inCents: number
+  /** The held balance, with saved rows of its day it had not seen. */
+  wasCents: number
   /** What the held balance and the rows make. */
   nowCents: number
   /** printed − now: negative when money left that no row shows. */
@@ -41,21 +43,28 @@ export function sumCheck(input: {
   pendingCents: number
   /** The file's new rows dated after that balance. */
   rows: ReadonlyArray<CheckRow>
+  /** Rows of that balance's own day it may not have seen: the file's, and
+      saved ones (`saved`, counted into was). */
+  earlier?: ReadonlyArray<CheckRow & { saved?: boolean }>
   printedCents: number | null
 }): SumCheck {
   /* The one rule (src/lib/balanceRule.ts). */
+  const rule = (row: CheckRow & { saved?: boolean }) => ({
+    id: row.index,
+    at: row.at,
+    cents: row.cents,
+    twin: row.twin,
+    saved: row.saved,
+  })
   const r = reach({
     was: { cents: input.wasCents, pending: input.pendingCents },
     to: { cents: input.printedCents },
-    rows: input.rows.map((row) => ({
-      id: row.index,
-      at: row.at,
-      cents: row.cents,
-      twin: row.twin,
-    })),
+    rows: input.rows.map(rule),
+    earlier: input.earlier?.map(rule),
   })
   return {
     state: r.state,
+    wasCents: r.wasCents,
     outCents: r.outCents,
     inCents: r.inCents,
     nowCents: r.nowCents,

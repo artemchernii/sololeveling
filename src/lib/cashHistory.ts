@@ -9,7 +9,7 @@
    made it), so a row read off a file within GRACE after a reading counts
    as before it — the rule balances already follow (aggregate.movedSince). */
 
-import { BOOKED_LATER_MS, reach, rowsSumming } from './balanceRule'
+import { BOOKED_LATER_MS, reach } from './balanceRule'
 import type { RuleRow } from './balanceRule'
 
 export const HISTORY_GRACE_MS = 12 * 3_600_000
@@ -98,17 +98,6 @@ export type Check = Gap & {
   sum: number
   bookedLater: { amount: number; at: number } | null
   pendingPart: number | null
-}
-
-export { BOOKED_LATER_MS }
-
-/** The rows just after a balance that it already counted: the one
-    rule's finder (src/lib/balanceRule.ts). */
-export function bookedLater<TRow extends { at: number; cents: number }>(
-  gapCents: number,
-  rows: ReadonlyArray<TRow>,
-): Array<TRow> | null {
-  return rowsSumming(gapCents, rows)
 }
 
 export function balanceChecks(

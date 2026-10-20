@@ -847,6 +847,70 @@ describe('replay: 19 Oct, the same money through several doors', () => {
     await addsUp(t, me, ids, { bpi: 3544, act: 1140, rev: 864.46 })
   })
 
+  /* 20 Oct, one rule for every door: the same €422 then reaches
+     ActivoBank's balance by its statement and by its screenshot. Each
+     door's sum card and landed card add up (src/lib/balanceRule.ts). */
+  const after422 = async () => {
+    const { t, me } = setup()
+    const ids = await accounts(me)
+    await updateAll(t, me, statements)
+    await linked(t, ids.act)
+    vi.setSystemTime(new Date(2026, 9, 3, 15, 1))
+    await bankAnswers(t, ids.act, 728)
+    vi.setSystemTime(at(10, 4))
+    await screenshot(t, me, {
+      institution: 'Banco BPI',
+      accountTail: '4410',
+      rows: [own(10, 3, 'TRF SEPA+ INST 24 P/ ACTIVOBANK', -422)],
+      balance: { m: 10, d: 4, value: 3544 },
+    })
+    vi.setSystemTime(new Date(2026, 9, 4, 18, 30))
+    return { t, me, ids }
+  }
+  const actRows = [
+    own(10, 3, 'TRF. P/O ARTEM CHERNII', 422),
+    row(10, 4, 'COMPRA 2789 BOLT', -10, { category: 'transport' }),
+  ]
+  const landedOf = (t: T, accountTail: string) =>
+    t.run(async (ctx) =>
+      (await ctx.db.query('intakes').collect())
+        .filter((i) => i.accountTail === accountTail)
+        .map((i) => i.landed?.gap ?? null),
+    )
+
+  test('the €422 by ActivoBank’s statement: sum card and landed card add up', async () => {
+    const { t, me, ids } = await after422()
+    const review = await updateAll(t, me, [
+      {
+        ...actSep,
+        name: 'activo-2026-10.pdf',
+        rows: actRows,
+        balance: { m: 10, d: 4, value: 1140 },
+      },
+    ])
+    const block = review.accounts.find((a) => a.accountId === ids.act)
+    expect(block?.check).toMatchObject({ state: 'ok', gap: 0 })
+    expect(review.asks.filter((a) => a.kind === 'gap')).toEqual([])
+    expect((await landedOf(t, '3402')).at(-1)).toBe(0)
+    vi.setSystemTime(at(10, 5))
+    await addsUp(t, me, ids, { bpi: 3544, act: 1140, rev: 864.46 })
+  })
+
+  test('the €422 by ActivoBank’s screenshot: sum card and landed card add up', async () => {
+    const { t, me, ids } = await after422()
+    const { review } = await screenshot(t, me, {
+      institution: 'ActivoBank',
+      accountTail: '3402',
+      rows: actRows,
+      balance: { m: 10, d: 4, value: 1140 },
+    })
+    const block = review.accounts.find((a) => a.accountId === ids.act)
+    expect(block?.check).toMatchObject({ state: 'ok', gap: 0 })
+    expect((await landedOf(t, '3402')).at(-1)).toBe(0)
+    vi.setSystemTime(at(10, 5))
+    await addsUp(t, me, ids, { bpi: 3544, act: 1140, rev: 864.46 })
+  })
+
   /* Revolut's sheet: "why we see still pending and new? I was those
      already many times." Two answers of the bank, each with a row
      pending: only the last says pending now. */

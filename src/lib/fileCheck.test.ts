@@ -23,6 +23,7 @@ describe('does the file add up', () => {
   test('his screenshot: the row that was pending is saved, not summed', () => {
     expect(sumCheck({ ...held, rows: [FRIEND, BROKER, FUEL] })).toEqual({
       state: 'ok',
+      wasCents: 15321,
       outCents: 6286,
       inCents: 0,
       nowCents: 9035,

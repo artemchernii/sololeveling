@@ -307,8 +307,8 @@ sessions: "Its gonna be many deploys and I gonna spend 7$ again?"
    backend, which costs nothing. A hook refuses `npx convex dev` without
    `--local`.
 2. **`pnpm deploy:dev` deploys everything open at once**: `origin/master`,
-   with every unmerged `feat/` `fix/` `claude/` branch pushed in the last 3
-   days merged on top (not one whose PR was closed unmerged), from a
+   with every unmerged `feat/` `fix/` `perf/` `refactor/` `claude/` branch
+   pushed in the last 3 days merged on top (not one whose PR was closed unmerged), from a
    throwaway worktree. A branch that conflicts is left out and named. It
    runs a few times a day, never once per session. Artem: "I dont want to
    type myself command and memorize all sessions branches."

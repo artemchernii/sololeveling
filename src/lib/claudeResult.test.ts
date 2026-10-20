@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 
-import { parseClaudeResult } from './claudeResult'
+import { cleanEnv, parseClaudeResult } from './claudeResult'
 
 test('the structured answer and its usage, from what claude -p prints', () => {
   const r = parseClaudeResult(
@@ -45,4 +45,19 @@ test('signed out, an error, or nothing printed is a failed read', () => {
     ok: false,
     error: 'BROKEN SHAPE',
   })
+})
+
+test('claude -p starts on his own login: no session or API key env', () => {
+  expect(
+    cleanEnv({
+      PATH: '/usr/bin',
+      HOME: '/Users/a',
+      ANTHROPIC_BASE_URL: 'http://host',
+      ANTHROPIC_API_KEY: 'k',
+      CLAUDECODE: '1',
+      CLAUDE_CODE_ENTRYPOINT: 'desktop',
+      CLAUDE_CONFIG_DIR: '/x',
+      NODE_ENV: undefined,
+    }),
+  ).toEqual({ PATH: '/usr/bin', HOME: '/Users/a' })
 })

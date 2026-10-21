@@ -1,0 +1,441 @@
+/* Insights in tabs, ASK in a drawer (21 Oct; mockup
+   design/treasury-mockup/insights-tabs.html, his "go on tabs and
+   drawer"). A sticky bar of four tabs under the hero; a band that
+   arrives when its tab is pressed; a tile lit when a read line points at
+   it; a ✦ ASK pill that floats left of the 🌴 button and opens a drawer
+   over the page — a bottom sheet on a phone. Every colour from a token. */
+
+.ins-tabs {
+  /* under the app's sticky top bar (TopBar, 58px) */
+  position: sticky;
+  top: 66px;
+  scroll-margin-top: 66px;
+  z-index: 19;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid var(--glass-edge);
+  background: color-mix(in oklch, var(--color-bg) 80%, transparent);
+  backdrop-filter: blur(14px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ins-tab {
+  flex: 1;
+  min-width: max-content;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  color: var(--color-ink-300);
+  font: 700 10.5px var(--font-mono);
+  letter-spacing: 0.18em;
+  transition: all 200ms;
+  & .n {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    letter-spacing: 0;
+    color: var(--color-lav-300);
+    border: 1px solid var(--system-edge);
+    background: color-mix(in oklch, var(--color-lav-400) 12%, transparent);
+  }
+  & .ins-badge {
+    letter-spacing: 0.08em;
+  }
+  &:hover {
+    color: var(--color-ink-100);
+    background: color-mix(in oklch, var(--lift) 4%, transparent);
+  }
+  &[aria-pressed='true'] {
+    color: var(--color-ink-100);
+    border-color: var(--system-edge);
+    background: color-mix(in oklch, var(--color-lav-400) 14%, transparent);
+    box-shadow: 0 0 22px -10px var(--system-shine);
+  }
+  @media (max-width: 640px) {
+    flex: none;
+  }
+}
+.ins-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: ins-arrive 350ms var(--motion-ease) both;
+}
+.ins-tile.lit {
+  border-color: var(--color-lav-400);
+  box-shadow:
+    var(--glass-shadow),
+    0 0 0 1px var(--color-lav-400),
+    0 0 34px -8px var(--system-shine);
+}
+
+/* a read line's way to the tile it is about */
+.ins-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  & .ins-means {
+    margin-top: 0;
+  }
+}
+.ins-goto {
+  font: 700 9.5px var(--font-mono);
+  letter-spacing: 0.12em;
+  color: var(--color-lav-300);
+  border: 1px solid var(--system-edge);
+  border-radius: 999px;
+  padding: 3px 8px;
+  transition: background 150ms;
+  &:hover {
+    background: color-mix(in oklch, var(--color-lav-400) 14%, transparent);
+  }
+}
+
+/* the ✦ ASK pill: 56px, on the 🌴 button's bottom line */
+.ask-star {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+.ask-orb .ask-star {
+  width: 15px;
+  height: 15px;
+}
+.ask-fab {
+  position: fixed;
+  right: 88px;
+  bottom: 20px;
+  z-index: 40;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 13px;
+  border-radius: 999px;
+  color: var(--color-lav-300);
+  font: 700 11px var(--font-mono);
+  letter-spacing: 0.2em;
+  border: 1px solid var(--color-lav-400);
+  background: radial-gradient(
+    circle at 30% 30%,
+    color-mix(in oklch, var(--color-lav-400) 40%, var(--color-bg)),
+    var(--color-bg) 75%
+  );
+  box-shadow:
+    0 0 30px -6px var(--system-shine),
+    0 12px 30px -12px var(--color-ground);
+  animation: ask-orb 3s ease-in-out infinite;
+  transition: transform 200ms;
+  &:hover {
+    transform: translateY(-2px);
+  }
+  & .o {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--system-edge);
+    background: color-mix(in oklch, var(--color-lav-400) 18%, transparent);
+  }
+  &.busy .ask-star {
+    animation: ask-spin 1.4s linear infinite;
+  }
+  & .w {
+    margin-right: -0.2em;
+    line-height: 1;
+  }
+  & .cnt {
+    flex: none;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    letter-spacing: 0;
+    color: var(--color-bg);
+    background: var(--color-lav-300);
+    animation: ins-pop 400ms var(--motion-ease) both;
+  }
+  /* above the phone and tablet nav (MobileNav, under lg) */
+  @media (max-width: 1023px) {
+    bottom: calc(70px + env(safe-area-inset-bottom));
+  }
+  @media (max-width: 640px) {
+    right: 84px;
+  }
+}
+.ask-orb.busy .ask-star {
+  animation: ask-spin 1.4s linear infinite;
+}
+@keyframes ins-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+}
+
+/* the drawer over the page */
+/* over the 🌴 dev tools button (z-index 99999), as in the mockup */
+.ask-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: color-mix(in oklch, var(--color-ground) 45%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms;
+}
+.ask-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100001;
+  width: min(440px, 100vw);
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--system-edge);
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in oklch, var(--color-lav-400) 12%, transparent),
+      color-mix(in oklch, var(--color-lav-400) 2%, transparent) 45%
+    ),
+    var(--color-bg);
+  box-shadow:
+    -30px 0 60px -30px var(--color-ground),
+    0 0 40px -18px var(--system-shine);
+  transform: translateX(105%);
+  transition: transform 420ms var(--motion-ease);
+  @media (max-width: 640px) {
+    top: auto;
+    left: 0;
+    width: 100vw;
+    height: 86dvh;
+    border-left: 0;
+    border-top: 1px solid var(--system-edge);
+    border-radius: 18px 18px 0 0;
+    transform: translateY(105%);
+    &::before {
+      content: '';
+      width: 40px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--color-ink-600);
+      margin: 8px auto 0;
+      flex: none;
+    }
+  }
+}
+.ask-layer.open {
+  & .ask-scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  & .ask-drawer {
+    transform: none;
+  }
+}
+.ask-dh {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--glass-edge);
+  & .grow {
+    flex: 1;
+  }
+}
+.ask-x {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-edge);
+  background: color-mix(in oklch, var(--lift) 4%, transparent);
+  color: var(--color-ink-200);
+  font-size: 14px;
+}
+
+/* inside: the thread fills it, the dock is stuck to the bottom */
+.ask-drawer .ask {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  & > .grow {
+    flex: 1;
+  }
+  & .ask-thread {
+    flex: 1;
+    max-height: none;
+    padding: 16px;
+    scroll-behavior: smooth;
+    mask: linear-gradient(
+      transparent,
+      #000 18px,
+      #000 calc(100% - 18px),
+      transparent
+    );
+  }
+  & .ask-a {
+    width: 100%;
+    max-width: 100%;
+  }
+  & .ask-q {
+    max-width: 86%;
+  }
+  & .ask-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+  & .ask-chips {
+    gap: 6px;
+  }
+}
+.ask-dock {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--system-edge);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--color-lav-400) 9%, var(--color-bg)),
+    var(--color-bg)
+  );
+  box-shadow: 0 -18px 30px -18px var(--color-ground);
+  &::before {
+    content: '';
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    top: -1px;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--color-lav-400),
+      transparent
+    );
+    opacity: 0.7;
+  }
+  & .ask-bar {
+    flex-wrap: nowrap;
+    & input {
+      padding: 11px 14px;
+      flex-basis: auto;
+    }
+    & .ask-web,
+    & .ins-btn {
+      flex: none;
+      padding: 11px 12px;
+    }
+    &:focus-within .ins-btn {
+      box-shadow: 0 0 22px -4px var(--system-shine);
+    }
+  }
+}
+.ask-srow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  .fresh & {
+    justify-content: flex-end;
+  }
+}
+.ask-stog {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 700 10px var(--font-mono);
+  letter-spacing: 0.16em;
+  color: var(--color-lav-300);
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--system-edge);
+  background: color-mix(in oklch, var(--color-lav-400) 10%, transparent);
+  transition: all 200ms;
+  &:hover {
+    background: color-mix(in oklch, var(--color-lav-400) 18%, transparent);
+    box-shadow: 0 0 16px -6px var(--system-shine);
+  }
+  & span {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--system-edge);
+    & .ask-star {
+      width: 10px;
+      height: 10px;
+    }
+  }
+  & i {
+    font-style: normal;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: var(--color-lav-300);
+    color: var(--color-bg);
+    letter-spacing: 0;
+  }
+  & b {
+    transition: transform 250ms;
+  }
+  &[aria-expanded='true'] b {
+    transform: rotate(180deg);
+  }
+}
+.ask-sugg {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 350ms var(--motion-ease);
+  & > * {
+    overflow: hidden;
+    min-height: 0;
+  }
+  .sopen & {
+    grid-template-rows: 1fr;
+  }
+  & .ask-chips button {
+    opacity: 0;
+    transform: translateY(8px);
+    transition:
+      opacity 300ms,
+      transform 300ms;
+  }
+  .sopen & .ask-chips button {
+    opacity: 1;
+    transform: none;
+  }
+  .sopen & .ask-chips button:nth-child(2) {
+    transition-delay: 50ms;
+  }
+  .sopen & .ask-chips button:nth-child(3) {
+    transition-delay: 100ms;
+  }
+  .sopen & .ask-chips button:nth-child(4) {
+    transition-delay: 150ms;
+  }
+}

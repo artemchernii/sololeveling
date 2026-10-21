@@ -122,6 +122,7 @@ export function Allocation({
   return (
     <section
       data-testid="mine-alloc"
+      data-tile="allocation"
       className="ins-tile c5"
       style={{ '--i': 10 } as React.CSSProperties}
     >

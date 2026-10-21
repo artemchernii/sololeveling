@@ -48,8 +48,15 @@ export function useQuotes(symbols: Array<string>) {
 const price = (q: IdeaQuote, n = q.price) =>
   `${q.currency === 'EUR' ? '€' : q.currency === 'USD' ? '$' : `${q.currency} `}${n.toLocaleString('en-GB', { maximumFractionDigits: n >= 100 ? 0 : 2 })}`
 
-export function Ideas({ ideas }: { ideas: Array<Idea> | null }) {
-  const quotes = useQuotes(ideas?.map((i) => i.ticker) ?? [])
+/** quotes: useQuotes on the same ideas, asked once by the room, which
+    counts the cards for its tab. */
+export function Ideas({
+  ideas,
+  quotes,
+}: {
+  ideas: Array<Idea> | null
+  quotes: Array<IdeaQuote> | null
+}) {
   if (ideas === null)
     return (
       <div className="ins-grid">

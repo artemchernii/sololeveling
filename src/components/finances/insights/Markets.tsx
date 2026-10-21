@@ -63,6 +63,7 @@ export function Markets({
 }) {
   return (
     <section
+      data-tile="markets"
       className="ins-tile"
       style={{ '--i': 5, '--a': 'var(--state-good)' } as React.CSSProperties}
     >

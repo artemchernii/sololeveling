@@ -8,12 +8,13 @@ import type { Fact } from '@/lib/marketRead'
 import { clock } from './parts'
 import { Words, factIcon, modelWord, tokens, usd } from './readParts'
 import { AskIdeas } from './AskIdeas'
-import { useAsk } from './useAsk'
-import type { Turn } from './useAsk'
+import type { Turn, useAsk } from './useAsk'
 import type { useMarketRead } from './useMarketRead'
 
 /* ASK (I4, 21 Oct; mockup design/treasury-mockup/ask.html round 2, his
-   "go"). Before the first question, four cards; after, four chips. A
+   "go"). In the drawer (insights-tabs.html, 21 Oct): the thread fills it, a
+   dock is stuck to the bottom. Before the first question, four cards;
+   after, four chips folded into SUGGESTED. A
    question shows at once with "asking", then lands as an answer: its
    kind, the model's words, the app's facts it named, the pages it used
    with 🌐, and who answered, what it used and who paid. A failed one
@@ -36,14 +37,18 @@ const SUGGEST_COLOUR = [
   LOOK.rates.c,
   LOOK.ideas.c,
 ]
-const MONTH = 'JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC'.split(' ')
+export const MONTH = 'JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC'.split(
+  ' ',
+)
 
 type Read = ReturnType<typeof useMarketRead>
 
-export function Ask({ r }: { r: Read }) {
-  const { turns, busy, capped, ask } = useAsk(r)
+export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
+  const { turns, busy, capped, ask } = a
   const [text, setText] = useState('')
   const [web, setWeb] = useState(false)
+  /* After the first question the four fold into SUGGESTED. */
+  const [unfolded, setUnfolded] = useState(false)
   const thread = useRef<HTMLDivElement>(null)
   const last = turns.at(-1)
   useEffect(() => {
@@ -52,44 +57,23 @@ export function Ask({ r }: { r: Read }) {
   }, [turns.length, last?.state])
 
   const off = busy || capped || r.path === null
+  const fresh = turns.length === 0
+  const folded = !fresh && !unfolded
   const send = (q: string) => {
     if (off || q.trim() === '') return
     void ask(q, web)
     setText('')
+    setUnfolded(false)
   }
-  const pro = r.path === 'pro'
 
   return (
-    <section
+    <div
       data-testid="ask"
-      className="ins-tile system-frame ask"
-      style={{ '--i': 15 } as React.CSSProperties}
+      className={`ask ${fresh ? 'fresh' : ''} ${folded ? '' : 'sopen'}`}
     >
-      <div className="ins-thead flex-wrap">
-        <span className={`ask-orb ${busy ? 'busy' : ''}`}>
-          <span>✦</span>
-        </span>
-        <span className="system-title whitespace-nowrap">[ ASK ]</span>
-        <span className="grow" />
-        {r.path !== null ? (
-          <span
-            data-testid="ask-pay"
-            className={`ins-badge ${pro ? 'good' : 'warn'}`}
-          >
-            {pro ? (
-              <>
-                <span className="ask-ping" />⚡ PRO PLAN · NO CREDITS
-              </>
-            ) : (
-              '💳 API CREDITS'
-            )}
-          </span>
-        ) : null}
-        <span className="ins-badge dim">NOT SAVED</span>
-        <span className="ins-badge dim">RESEARCH · NOT ADVICE</span>
-      </div>
-
-      {turns.length > 0 ? (
+      {fresh ? (
+        <div className="grow" />
+      ) : (
         <div ref={thread} data-testid="ask-thread" className="ask-thread">
           {turns.map((t) => (
             <TurnView
@@ -100,118 +84,131 @@ export function Ask({ r }: { r: Read }) {
             />
           ))}
         </div>
-      ) : null}
-
-      {turns.length === 0 ? (
-        <div className="ask-cards">
-          {SUGGESTED.map((s, i) => (
-            <button
-              type="button"
-              key={s.q}
-              data-testid="ask-suggest"
-              className="ask-card"
-              disabled={off}
-              style={
-                { '--c': SUGGEST_COLOUR[i], '--i': i } as React.CSSProperties
-              }
-              onClick={() => send(s.q)}
-            >
-              <span className="e">{s.e}</span>
-              <b>{s.kind}</b>
-              <span>{s.q}</span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="ask-chips">
-          {SUGGESTED.map((s, i) => (
-            <button
-              type="button"
-              key={s.q}
-              data-testid="ask-suggest"
-              disabled={off}
-              style={{ '--c': SUGGEST_COLOUR[i] } as React.CSSProperties}
-              onClick={() => send(s.q)}
-            >
-              <i>{s.e}</i>
-              {s.q}
-            </button>
-          ))}
-        </div>
       )}
 
-      {capped ? (
-        <div data-testid="ask-cap" className="ask-capbar">
-          <span className="e">⛽</span>
-          <b>CAP REACHED</b>
-          <span className="ins-badge warn">
-            {usd(r.spent)} OF {usd(r.cap)}
-          </span>
-          <span className="grow" />
-          <span className="ins-badge dim">NEXT {nextMonthWord(r.month)}</span>
+      <div className="ask-dock">
+        <div className="ask-srow">
+          {fresh ? null : (
+            <button
+              type="button"
+              data-testid="ask-suggested"
+              className="ask-stog"
+              aria-expanded={!folded}
+              onClick={() => setUnfolded((u) => !u)}
+            >
+              <span>
+                <Star />
+              </span>
+              SUGGESTED <i>{SUGGESTED.length}</i> <b>▾</b>
+            </button>
+          )}
+          <span className="ins-badge dim">RESEARCH · NOT ADVICE</span>
         </div>
-      ) : (
-        <form
-          className={`ask-bar ${busy ? 'off' : ''}`}
-          onSubmit={(e) => {
-            e.preventDefault()
-            send(text)
-          }}
-        >
-          <input
-            data-testid="ask-input"
-            value={text}
-            maxLength={400}
-            disabled={off}
-            placeholder="Ask about the market or the portfolio"
-            onChange={(e) => setText(e.target.value)}
-          />
-          <button
-            type="button"
-            data-testid="ask-web"
-            aria-pressed={web}
-            className={`ask-web ${web ? 'on' : ''}`}
-            onClick={() => setWeb((w) => !w)}
-          >
-            🌐 WEB
-          </button>
-          <button
-            type="submit"
-            data-testid="ask-send"
-            className="ins-btn"
-            disabled={off || text.trim() === ''}
-          >
-            {busy ? '…' : 'ASK'}
-          </button>
-        </form>
-      )}
 
-      <div className="ask-foot">
-        {r.path === 'api' ? (
-          <span className={`ask-meter ${capped ? '' : 'ok'}`}>
-            <span className="track">
-              <b
-                style={{
-                  width: `${Math.min(100, (r.spent / r.cap) * 100)}%`,
-                }}
-              />
+        <div className="ask-sugg" inert={folded}>
+          <div>
+            {fresh ? (
+              <div className="ask-cards">
+                {SUGGESTED.map((s, i) => (
+                  <button
+                    type="button"
+                    key={s.q}
+                    data-testid="ask-suggest"
+                    className="ask-card"
+                    disabled={off}
+                    style={
+                      {
+                        '--c': SUGGEST_COLOUR[i],
+                        '--i': i,
+                      } as React.CSSProperties
+                    }
+                    onClick={() => send(s.q)}
+                  >
+                    <span className="e">{s.e}</span>
+                    <b>{s.kind}</b>
+                    <span>{s.q}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="ask-chips">
+                {SUGGESTED.map((s, i) => (
+                  <button
+                    type="button"
+                    key={s.q}
+                    data-testid="ask-suggest"
+                    disabled={off}
+                    style={{ '--c': SUGGEST_COLOUR[i] } as React.CSSProperties}
+                    onClick={() => send(s.q)}
+                  >
+                    <i>{s.e}</i>
+                    {s.q}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {capped ? (
+          <div data-testid="ask-cap" className="ask-capbar">
+            <span className="e">⛽</span>
+            <b>CAP REACHED</b>
+            <span className="ins-badge warn">
+              {usd(r.spent)} OF {usd(r.cap)}
             </span>
-            <span data-testid="ask-spend" className="ask-pill c">
-              {MONTH[Number(r.month.slice(5, 7)) - 1]} · {usd(r.spent)} OF{' '}
-              {usd(r.cap)}
-            </span>
-          </span>
-        ) : pro ? (
-          <span className="ask-pill">NO CAP ON THE PRO PLAN</span>
-        ) : null}
-        {turns.length > 0 ? (
-          <span data-testid="ask-count" className="ask-pill">
-            {turns.length} {turns.length === 1 ? 'QUESTION' : 'QUESTIONS'} ·
-            THIS PAGE
-          </span>
-        ) : null}
+            <span className="grow" />
+            <span className="ins-badge dim">NEXT {nextMonthWord(r.month)}</span>
+          </div>
+        ) : (
+          <form
+            className={`ask-bar ${busy ? 'off' : ''}`}
+            onSubmit={(e) => {
+              e.preventDefault()
+              send(text)
+            }}
+          >
+            <input
+              data-testid="ask-input"
+              value={text}
+              maxLength={400}
+              disabled={off}
+              placeholder="Ask about the market or the portfolio"
+              onChange={(e) => setText(e.target.value)}
+            />
+            <button
+              type="button"
+              data-testid="ask-web"
+              aria-pressed={web}
+              className={`ask-web ${web ? 'on' : ''}`}
+              onClick={() => setWeb((w) => !w)}
+            >
+              🌐 WEB
+            </button>
+            <button
+              type="submit"
+              data-testid="ask-send"
+              className="ins-btn"
+              disabled={off || text.trim() === ''}
+            >
+              {busy ? '…' : 'ASK'}
+            </button>
+          </form>
+        )}
       </div>
-    </section>
+    </div>
+  )
+}
+
+/** ✦ drawn, not typed: the glyph sits off-centre in a circle. */
+export function Star() {
+  return (
+    <svg className="ask-star" viewBox="0 0 16 16" aria-hidden>
+      <path
+        d="M8 0.5 C8.6 5.6 10.4 7.4 15.5 8 C10.4 8.6 8.6 10.4 8 15.5 C7.4 10.4 5.6 8.6 0.5 8 C5.6 7.4 7.4 5.6 8 0.5 Z"
+        fill="currentColor"
+      />
+    </svg>
   )
 }
 
@@ -240,7 +237,7 @@ function TurnView({
       {t.state === 'asking' ? (
         <div data-testid="ask-asking" className="ask-a">
           <span className="ask-orb busy">
-            <span>✦</span>
+            <Star />
           </span>
           <div className="body think">
             <span className="label-caps text-lav-300">
@@ -298,7 +295,7 @@ function Answer({ t }: { t: Turn }) {
       style={{ '--k': look.c } as React.CSSProperties}
     >
       <span className="ask-orb">
-        <span>✦</span>
+        <Star />
       </span>
       <div className="body">
         <span className="ask-kind">

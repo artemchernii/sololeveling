@@ -51,7 +51,14 @@ test('S1 READ MARKET → reading → the read: headline, lines with icons and fa
   await expect(page.getByTestId('read-cost')).toHaveText(
     'CAP $2.00 · USED $0.00',
   )
+  /* No read this month: MARKET first. */
+  await expect(page.locator('[data-tab="market"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await page.locator('[data-tab="read"]').click()
   await expect(page.getByTestId('read-lines')).toContainText('AFTER THE READ')
+  await page.locator('[data-tab="ideas"]').click()
   await expect(page.getByTestId('ideas-after')).toBeVisible()
 
   await readMarket(page)
@@ -68,6 +75,10 @@ test('S1 READ MARKET → reading → the read: headline, lines with icons and fa
   )
   await expect(page.getByTestId('read-market')).toHaveText('↻ READ AGAIN')
 
+  await page.locator('[data-tab="read"]').click()
+  await expect(
+    page.locator('[data-tab="read"] [data-testid=tab-badge]'),
+  ).toHaveText('4 LINES')
   const lines = page.getByTestId('read-line')
   await expect(lines).toHaveCount(4)
   await expect(lines.nth(0)).toHaveAttribute('data-kind', 'inflation')
@@ -86,6 +97,10 @@ test('S1 READ MARKET → reading → the read: headline, lines with icons and fa
   await expect(page.getByTestId('read-sources')).toContainText('REUTERS')
 
   /* Two ideas the market answered; ZZZZ is dropped. */
+  await page.locator('[data-tab="ideas"]').click()
+  await expect(
+    page.locator('[data-tab="ideas"] [data-testid=tab-badge]'),
+  ).toHaveText('2')
   const cards = page.getByTestId('idea-card')
   await expect(cards).toHaveCount(2, { timeout: 15_000 })
   await expect(page.locator('[data-ticker="ZZZZ"]')).toHaveCount(0)
@@ -95,6 +110,8 @@ test('S1 READ MARKET → reading → the read: headline, lines with icons and fa
   await expect(novo).toContainText('MODEL · NOT ADVICE')
   await expect(novo).toContainText('WRONG IF')
   await expect(novo).toContainText('NOT SAVED')
+  /* The cards have arrived before the picture. */
+  await expect(cards.last()).toHaveCSS('opacity', '1')
   await page.screenshot({ ...shot('insights-read-calm'), fullPage: true })
 
   await page.setViewportSize({ width: 375, height: 812 })
@@ -123,6 +140,8 @@ test('S2 a mixed month: warn edge, a NO DATA line, no ideas', async ({
   const none = page.locator('[data-testid=read-line][data-kind=nodata]')
   await expect(none).toContainText('❔')
   await expect(none).toContainText('NO DATA')
+  await expect(none.getByTestId('read-goto')).toHaveCount(0)
+  await page.locator('[data-tab="ideas"]').click()
   await expect(page.getByTestId('ideas-none')).toContainText('0 IDEAS')
   await page.screenshot({ ...shot('insights-read-mixed'), fullPage: true })
 })
@@ -141,6 +160,7 @@ test('S3 failed: nothing paid, the last read stays', async ({ page }) => {
     /NOTHING PAID · THE LAST READ STAYS · \d+ [A-Z]{3}/,
   )
   await expect(page.getByTestId('read-market')).toHaveText('↻ TRY AGAIN')
+  await page.locator('[data-tab="read"]').click()
   await expect(page.getByTestId('read-line')).toHaveCount(4)
   await expect(page.getByTestId('read-cost')).toHaveText(
     '$0.24 · CAP $2.00 · USED $0.24',
@@ -177,8 +197,49 @@ test('S5 reload shows the stored read without paying again', async ({
   await expect(page.getByTestId('read-headline')).toHaveText(
     'Rates falling · shares up',
   )
+  /* The month has a read and no tab was pressed: READ first. */
+  await expect(page.locator('[data-tab="read"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   await expect(page.getByTestId('read-line')).toHaveCount(4)
   await expect(page.getByTestId('read-cost')).toHaveText(
     '$0.24 · CAP $2.00 · USED $0.24',
   )
+})
+
+test('S6 a line about another tab: → MINE opens it and lights its tile', async ({
+  page,
+}) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2eMine.positions, {})
+  await page.goto('/finances?room=insights')
+  await readMarket(page)
+  await expect(page.getByTestId('read-hero')).toHaveAttribute(
+    'data-state',
+    'done',
+    { timeout: 15_000 },
+  )
+  const dont = page.locator('[data-testid=read-line][data-kind=dont]')
+  const go = dont.getByTestId('read-goto')
+  await expect(go).toHaveText('→ MINE')
+  await go.click()
+  await expect(page.locator('[data-tab="mine"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(page.getByTestId('read-line')).toHaveCount(0)
+  const tile = page.getByTestId('mine-positions')
+  await expect(tile).toHaveClass(/\blit\b/)
+  await expect(tile).toBeInViewport()
+  await page.screenshot(shot('insights-goto-mine'))
+  await expect(tile).not.toHaveClass(/\blit\b/, { timeout: 5_000 })
+
+  await page.locator('[data-tab="read"]').click()
+  const rates = page.locator('[data-testid=read-line][data-kind=rates]')
+  await rates.getByTestId('read-goto').click()
+  await expect(page.getByTestId('tab-market')).toBeVisible()
+  await expect(
+    page.locator('[data-testid=rate-card][data-id=fed]'),
+  ).toHaveClass(/\blit\b/)
 })

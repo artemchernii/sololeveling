@@ -155,3 +155,39 @@ test('S5 phone width: no sideways scroll', async ({ page }) => {
   expect(over).toBeLessThanOrEqual(0)
   await page.screenshot({ ...shot('insights-phone'), fullPage: true })
 })
+
+test('S6 tabs: MARKET with no read, one band at a time, the last tab kept on reload', async ({
+  page,
+}) => {
+  await open(page)
+  const tab = (id: string) => page.locator(`[data-tab="${id}"]`)
+  await expect(page.getByTestId('insights-tab')).toHaveCount(4)
+  await expect(tab('market')).toHaveAttribute('aria-pressed', 'true')
+  /* The S&P 500's change over the period, as its card says it. */
+  await expect(tab('market').getByTestId('tab-badge')).toHaveText(
+    'S&P ▲ 2.4%',
+    { timeout: 15_000 },
+  )
+  await expect(page.getByTestId('tab-market')).toBeVisible()
+  await expect(page.getByTestId('tab-mine')).toHaveCount(0)
+
+  await tab('mine').click()
+  await expect(tab('mine')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('tab-mine')).toBeVisible()
+  await expect(page.getByTestId('tab-market')).toHaveCount(0)
+  await expect(page.getByTestId('rate-card')).toHaveCount(0)
+
+  await page.reload()
+  await expect(tab('mine')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('tab-mine')).toBeVisible()
+
+  /* The bar stays on top while the band scrolls. */
+  await page.mouse.wheel(0, 2000)
+  await expect
+    .poll(
+      async () => (await page.getByTestId('insights-tabs').boundingBox())?.y,
+    )
+    .toBeLessThan(80)
+  await expect(page.getByTestId('insights-tabs')).toBeInViewport()
+  await page.screenshot(shot('insights-tabs'))
+})

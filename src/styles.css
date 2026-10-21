@@ -9,6 +9,7 @@
 @import './styles/insights-mine.css';
 @import './styles/insights-read.css';
 @import './styles/insights-ask.css';
+@import './styles/insights-tabs.css';
 
 @plugin '@tailwindcss/typography';
 @import 'tw-animate-css';

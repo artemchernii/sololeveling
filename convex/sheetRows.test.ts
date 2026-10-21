@@ -157,7 +157,7 @@ test("a broker's trades come a page at a time with the rows", async () => {
    €90.35 on each of the next two days — and all three balances showed the
    screenshot as their file. */
 test("a file is one balance's, and never the bank's own answer", async () => {
-  const { t, me, accountId } = await revolutWith(1)
+  const { t, me, accountId } = await revolutWith(0)
   const at = Date.UTC(2026, 9, 20, 12)
   const ids = await t.run(async (ctx) => {
     const file = (asOf: number) =>

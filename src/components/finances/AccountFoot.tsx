@@ -82,6 +82,8 @@ export function AccountFoot({
   const who = t212 ? 'Trading 212' : 'the bank'
   const ended = link !== null && !t212 && (link.validUntil ?? 0) <= now
   const failed = link?.checking ? null : (link?.failed ?? null)
+  /* A bank that rejected the key is approved again, as one that ended. */
+  const rejected = failed === 'refused' && !t212
   return (
     <div className="mt-auto flex min-h-[41px] flex-wrap items-center justify-between gap-2 border-t border-lift/[0.08] pt-3">
       {link === null ? (
@@ -118,7 +120,7 @@ export function AccountFoot({
           </span>
           {link.checkedAt === null ? null : (
             <span className="pl-[21px] text-ink-500">
-              cash and positions of{' '}
+              {t212 ? 'cash and positions' : 'balance'} of{' '}
               {bankWhen(link.checkedAt, now).replace('today ', 'today, ')}
             </span>
           )}
@@ -167,7 +169,7 @@ export function AccountFoot({
             ) : null}
             {update}
           </>
-        ) : ended ? (
+        ) : ended || rejected ? (
           <button type="button" onClick={press(onConnect)} className={WARN}>
             <ExternalLink className="size-3" />
             approve

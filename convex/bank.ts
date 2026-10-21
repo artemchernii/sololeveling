@@ -265,6 +265,8 @@ export const land = internalMutation({
       validUntil: args.validUntil,
       uids: choosing ? undefined : args.uids,
       choices: choosing ? args.choices : undefined,
+      /* Approved again: a key it rejected before is history. */
+      failed: undefined,
     })
     return row._id
   },

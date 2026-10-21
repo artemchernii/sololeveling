@@ -208,11 +208,13 @@ export function BankSheet({
       ) : (
         <>
           <Head logo={logo} title={name}>
-            {again && link?.validUntil
-              ? `approval ended ${DAY.format(link.validUntil)}`
-              : held?.recordedAt
-                ? `balance here: ${money(held.value as number, held.currency)} · ${DAY.format(held.recordedAt)}`
-                : 'no balance here yet'}
+            {again && link?.failed === 'refused'
+              ? 'key rejected'
+              : again && link?.validUntil
+                ? `approval ended ${DAY.format(link.validUntil)}`
+                : held?.recordedAt
+                  ? `balance here: ${money(held.value as number, held.currency)} · ${DAY.format(held.recordedAt)}`
+                  : 'no balance here yet'}
           </Head>
           <div className="flex flex-col gap-3">
             <Fact Icon={Eye} small="No payments from here.">

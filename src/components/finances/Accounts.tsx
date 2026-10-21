@@ -95,9 +95,10 @@ export function Accounts() {
   useEffect(() => {
     const now = Date.now()
     for (const l of links ?? []) {
+      /* An open question does not stop the check: one that adds up now
+         is saved by it (bankRows.begin), and the bank is not asked. */
       if (
         l.status !== 'linked' ||
-        l.question !== null ||
         l.checking ||
         l.checkedAt === null ||
         now - l.checkedAt < BANK_STALE_MS ||

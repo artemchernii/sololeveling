@@ -5,7 +5,7 @@
    which transfers in one file are the other side of a transfer in
    another. Spec: docs/specs/2026-10-03-bulk-update.md. */
 
-import { BOOKED_LATER_MS, bookedLater } from './cashHistory'
+import { BOOKED_LATER_MS, reach } from './balanceRule'
 
 const DAY_MS = 86_400_000
 /* The same window the single-file review pairs a transfer in. */
@@ -103,40 +103,36 @@ export function balanceGaps(
 ): Array<Gap> {
   const sorted = [...balances].sort((a, b) => a.asOf - b.asOf)
   const out: Array<Gap> = []
+  const ledger = rows.map((r, id) => ({
+    id,
+    at: r.occurredAt,
+    day: dayKey(r.occurredAt),
+    cents: Math.round(r.amount * 100),
+  }))
   /* Rows a balance already counted though the bank dates them after it
-     (bookedLater): not counted again after it. */
-  const counted = new Set<(typeof rows)[number]>()
+     (booked later): not counted again after it. */
+  const counted = new Set<number>()
   for (let i = 1; i < sorted.length; i++) {
     const a = sorted[i - 1]
     const b = sorted[i]
     const from = dayKey(a.asOf)
     const to = dayKey(b.asOf)
     if (from === to) continue
-    let cents = Math.round(a.value * 100)
-    for (const r of rows) {
-      const k = dayKey(r.occurredAt)
-      if (k > from && k <= to && !counted.has(r))
-        cents += Math.round(r.amount * 100)
-    }
-    const gap = Math.round(b.value * 100) - cents
-    if (gap === 0) continue
-    const found = bookedLater(
-      gap,
-      rows
-        .filter(
-          (r) =>
-            dayKey(r.occurredAt) > to &&
-            r.occurredAt <= b.asOf + BOOKED_LATER_MS &&
-            !counted.has(r),
-        )
-        .map((r) => ({
-          at: r.occurredAt,
-          cents: Math.round(r.amount * 100),
-          r,
-        })),
-    )
-    if (found) for (const f of found) counted.add(f.r)
-    else out.push({ from: a.asOf, to: b.asOf, gap: gap / 100 })
+    /* The one rule (src/lib/balanceRule.ts). */
+    const r = reach({
+      was: { cents: Math.round(a.value * 100) },
+      to: { cents: Math.round(b.value * 100) },
+      rows: ledger.filter(
+        (x) => x.day > from && x.day <= to && !counted.has(x.id),
+      ),
+      later: ledger.filter(
+        (x) =>
+          x.day > to && x.at <= b.asOf + BOOKED_LATER_MS && !counted.has(x.id),
+      ),
+    })
+    for (const f of r.bookedLater) counted.add(f.id)
+    if (r.state !== 'ok')
+      out.push({ from: a.asOf, to: b.asOf, gap: r.gapCents / 100 })
   }
   return out
 }

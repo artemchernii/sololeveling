@@ -3,8 +3,9 @@
 # dev Convex backend — the only way a session deploys dev (18 Oct).
 #
 #   pnpm deploy:dev                → origin/master, with every unmerged
-#                                    feat/ fix/ claude/ branch pushed in the
-#                                    last 3 days merged on top (not one
+#                                    feat/ fix/ perf/ refactor/ claude/
+#                                    branch pushed in the last 3 days
+#                                    merged on top (not one
 #                                    whose PR was closed unmerged)
 #   pnpm deploy:dev --dry-run      → the same, without the deploy: says which
 #                                    branches would go up and which conflict
@@ -63,7 +64,9 @@ else
   done < <(git for-each-ref --sort=committerdate \
     --format='%(refname:short) %(committerdate:unix)' \
     --no-merged origin/master \
-    refs/remotes/origin/feat/ refs/remotes/origin/fix/ refs/remotes/origin/claude/)
+    refs/remotes/origin/feat/ refs/remotes/origin/fix/ \
+    refs/remotes/origin/perf/ refs/remotes/origin/refactor/ \
+    refs/remotes/origin/claude/)
 fi
 
 tmp="$(mktemp -d)/deploy-dev"

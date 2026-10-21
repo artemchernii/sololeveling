@@ -4,7 +4,7 @@ import { balanceIsBooked, pickBalance } from '../src/lib/bankLink'
 import { dateFrom, rowsSince } from '../src/lib/bankRows'
 import { balanceKey, writeBalance } from './accounts'
 import { requireUser } from './auth'
-import { bankApi } from './bankApi'
+import { bankApi, isRefused } from './bankApi'
 import { gatherBatch, startApply } from './intake'
 import { balanceIsNews } from './rowBalance'
 import { internal } from './_generated/api'
@@ -50,7 +50,13 @@ const asked = v.object({
 
 /** A check begins: what to ask the bank, or why not to ask now. */
 export const begin = internalMutation({
-  args: { ownerId: v.string(), accountId: v.id('accounts') },
+  args: {
+    ownerId: v.string(),
+    accountId: v.id('accounts'),
+    /* To save a held answer that adds up now (below). */
+    dayStart: v.optional(v.number()),
+    names: v.optional(v.array(v.string())),
+  },
   returns: v.union(
     v.object({
       status: v.union(
@@ -71,7 +77,12 @@ export const begin = internalMutation({
     if (link === null || link.status !== 'linked' || link.uids === undefined)
       throw new ConvexError('This account is not connected.')
     const now = Date.now()
-    if (link.validUntil === undefined || link.validUntil <= now)
+    /* A key the bank rejected is asked of nobody until he approves again. */
+    if (
+      link.validUntil === undefined ||
+      link.validUntil <= now ||
+      link.failed?.why === 'refused'
+    )
       return { status: 'ended' as const }
     if (link.checking !== undefined && now - link.checking < CHECK_LOST_MS)
       return { status: 'busy' as const }
@@ -84,6 +95,19 @@ export const begin = internalMutation({
       if (b === null) continue
       if (b.status !== 'done') {
         open.push(id)
+        /* A held answer that adds up now, by a rule that came after it
+           (20 Oct: ActivoBank's question read was €506.37 · out €10 ·
+           now €496.37 ✓ and still waited for APPLY): saved with no
+           press, as a fresh answer that adds up is. It stays a question
+           until its save is done; this check asks the bank nothing. */
+        if (b.status === 'open' && b.via === 'bank' && args.dayStart) {
+          const names = args.names ?? []
+          const mine = (
+            await gatherBatch(ctx, args.ownerId, b, names)
+          ).accounts.find((x) => x.accountId === args.accountId)
+          if (mine !== undefined && mine.fresh > 0 && !mine.held)
+            await startApply(ctx, args.ownerId, b, names, args.dayStart)
+        }
         continue
       }
       const files = await ctx.db
@@ -131,9 +155,14 @@ export const begin = internalMutation({
   },
 })
 
-/** The bank did not answer: the check is over and nothing was written. */
+/** The bank did not answer: the check is over and nothing was written.
+    One that rejected the key is kept as such, for the card's approve. */
 export const fail = internalMutation({
-  args: { ownerId: v.string(), accountId: v.id('accounts') },
+  args: {
+    ownerId: v.string(),
+    accountId: v.id('accounts'),
+    refused: v.optional(v.boolean()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const link = await ctx.db
@@ -142,7 +171,13 @@ export const fail = internalMutation({
         q.eq('ownerId', args.ownerId).eq('accountId', args.accountId),
       )
       .unique()
-    if (link !== null) await ctx.db.patch(link._id, { checking: undefined })
+    if (link !== null)
+      await ctx.db.patch(link._id, {
+        checking: undefined,
+        ...(args.refused
+          ? { failed: { at: Date.now(), why: 'refused' as const } }
+          : {}),
+      })
     return null
   },
 })
@@ -281,6 +316,7 @@ export const arrive = internalMutation({
       checkedAt: at,
       arrived,
       questions,
+      failed: undefined,
     })
     return null
   },
@@ -296,9 +332,13 @@ export async function pull(
   accountId: Id<'accounts'>,
   dayStart: number,
 ): Promise<Checked> {
+  const name = (await ctx.auth.getUserIdentity())?.name
+  const names = name ? [name] : []
   const start = await ctx.runMutation(internal.bankRows.begin, {
     ownerId,
     accountId,
+    dayStart,
+    names,
   })
   if (start.status !== 'go') return start.status
   try {
@@ -316,16 +356,19 @@ export async function pull(
         rows: a.from === null ? [] : await api.transactions(a.uid, a.from),
       })
     }
-    const name = (await ctx.auth.getUserIdentity())?.name
     await ctx.runMutation(internal.bankRows.arrive, {
       ownerId,
       accountId,
       dayStart,
-      names: name ? [name] : [],
+      names,
       readings,
     })
   } catch (e) {
-    await ctx.runMutation(internal.bankRows.fail, { ownerId, accountId })
+    await ctx.runMutation(internal.bankRows.fail, {
+      ownerId,
+      accountId,
+      refused: isRefused(e),
+    })
     throw e
   }
   return 'checked'
@@ -359,7 +402,15 @@ export const close = mutation({
       )
       .unique()
     if (link === null) throw new ConvexError('This account is not connected.')
-    await ctx.db.patch(link._id, { arrived: [] })
+    /* A question he answered is read as arrived rows until the next check
+       moves it over (20 Oct: ✕ did nothing on ActivoBank's answered
+       question). Closing lets it go too; one still open stays. */
+    const open: Array<Id<'batches'>> = []
+    for (const id of link.questions ?? []) {
+      const b = await ctx.db.get(id)
+      if (b !== null && b.status !== 'done') open.push(id)
+    }
+    await ctx.db.patch(link._id, { arrived: [], questions: open })
     return null
   },
 })

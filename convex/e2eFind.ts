@@ -38,39 +38,41 @@ export const manyHeld = mutation({
     if (account === null) throw new Error('reset first')
     const now = Date.now()
     for (const [symbol, name, price] of HELD) {
-      /* Reset keeps tickers and their prices: the same one each time. */
+      /* Reset keeps tickers and their prices, and other specs store the
+         same tickers under their own names and days (insights MINE: a
+         USD year of closes on ASML). Each run sets this one's own. */
+      const own = {
+        name,
+        exchange: 'NMS',
+        currency: 'EUR',
+        type: 'EQUITY' as const,
+      }
       const found = await ctx.db
         .query('instruments')
         .withIndex('by_owner_symbol', (q) =>
           q.eq('ownerId', ownerId).eq('symbol', symbol),
         )
         .first()
+      if (found !== null) await ctx.db.patch(found._id, own)
       const instrumentId =
         found?._id ??
-        (await ctx.db.insert('instruments', {
-          ownerId,
-          symbol,
-          name,
-          exchange: 'NMS',
-          currency: 'EUR',
-          type: 'EQUITY',
-        }))
-      const had = await ctx.db
+        (await ctx.db.insert('instruments', { ownerId, symbol, ...own }))
+      for (const old of await ctx.db
         .query('prices')
         .withIndex('by_owner_instrument_time', (q) =>
           q.eq('ownerId', ownerId).eq('instrumentId', instrumentId),
         )
-        .first()
-      if (had === null)
-        await ctx.db.insert('prices', {
-          ownerId,
-          instrumentId,
-          price,
-          currency: 'EUR',
-          asOf: now - DAY,
-          fetchedAt: now,
-          source: 'Yahoo Finance',
-        })
+        .take(400))
+        await ctx.db.delete(old._id)
+      await ctx.db.insert('prices', {
+        ownerId,
+        instrumentId,
+        price,
+        currency: 'EUR',
+        asOf: now - DAY,
+        fetchedAt: now,
+        source: 'Yahoo Finance',
+      })
       await ctx.db.insert('holdings', {
         ownerId,
         accountId: account._id,

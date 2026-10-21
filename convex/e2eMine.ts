@@ -108,15 +108,20 @@ export const positions = mutation({
           q.eq('ownerId', ownerId).eq('symbol', s.symbol),
         )
         .first()
+      /* Other specs store the same tickers under their own names. */
+      const own = {
+        name: s.name,
+        exchange: s.type === 'ETF' ? 'LSE' : 'NMS',
+        currency: 'USD',
+        type: s.type,
+      }
+      if (found !== null) await ctx.db.patch(found._id, own)
       const id =
         found?._id ??
         (await ctx.db.insert('instruments', {
           ownerId,
           symbol: s.symbol,
-          name: s.name,
-          exchange: s.type === 'ETF' ? 'LSE' : 'NMS',
-          currency: 'USD',
-          type: s.type,
+          ...own,
         }))
       /* Portfolio's tags: AVGO's country stored, NVDA's not yet. */
       if (s.type === 'EQUITY')

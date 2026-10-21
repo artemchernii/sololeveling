@@ -11,6 +11,7 @@ import {
   ASK_KINDS,
   ASK_SCHEMA,
   MAX_ASK_SEARCHES,
+  MAX_HISTORY,
   MAX_QUESTION,
   askPrompt,
   parseAsk,
@@ -60,7 +61,13 @@ const answerShape = v.object({
 })
 
 export const ask = action({
-  args: { question: v.string(), web: v.boolean(), facts: v.array(marketFact) },
+  args: {
+    question: v.string(),
+    web: v.boolean(),
+    facts: v.array(marketFact),
+    /** The thread so far on the page, oldest first; never stored. */
+    history: v.optional(v.array(v.object({ q: v.string(), a: v.string() }))),
+  },
   returns: v.union(
     v.object({ ok: v.literal(true), answer: answerShape, stamp: readStamp }),
     v.object({ ok: v.literal(false), error: v.string(), cost: v.number() }),
@@ -138,6 +145,7 @@ export const ask = action({
             question,
             args.web,
             new Date().toISOString().slice(0, 10),
+            (args.history ?? []).slice(-MAX_HISTORY),
           ),
         },
       ]

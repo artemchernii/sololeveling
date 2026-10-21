@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react'
 
 import { api } from '../../../../convex/_generated/api'
 import type { ProAnswer } from '@/lib/claudeResult'
-import type { AskAnswer } from '@/lib/marketAsk'
+import type { AskAnswer, Said } from '@/lib/marketAsk'
 import type { Fact } from '@/lib/marketRead'
-import { parseAsk } from '@/lib/marketAsk'
+import { MAX_HISTORY, parseAsk } from '@/lib/marketAsk'
 import type { useMarketRead } from './useMarketRead'
 
 /* ASK (I4): the thread lives on the page, never in the database — kept
@@ -72,6 +72,11 @@ export function useAsk(r: Read) {
     try {
       const facts = await r.factsNow()
       const skip = r.shown?.read?.ideas.map((i) => i.ticker) ?? []
+      /* The answered turns before this one: a follow-up reads on. */
+      const history: Array<Said> = kept
+        .filter((t) => t.id < id && t.state === 'done' && t.answer)
+        .slice(-MAX_HISTORY)
+        .map((t) => ({ q: t.question, a: t.answer!.answer }))
       if (r.path === 'pro') {
         const pro = await fetch(CLAUDE_ASK_PATH, {
           method: 'POST',
@@ -82,6 +87,7 @@ export function useAsk(r: Read) {
             question: q,
             web,
             today: new Date().toISOString().slice(0, 10),
+            history,
           }),
         })
           .then((x) => x.json() as Promise<ProAnswer>)
@@ -111,7 +117,7 @@ export function useAsk(r: Read) {
           },
         })
       }
-      const res = await action({ question: q, web, facts })
+      const res = await action({ question: q, web, facts, history })
       if (!res.ok)
         return patch(id, { state: 'failed', error: res.error, cost: res.cost })
       patch(id, {

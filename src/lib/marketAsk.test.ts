@@ -96,3 +96,21 @@ test('ideas stand only on an ideas answer; owned, in NEXT and repeated tickers a
   const plain = parseAsk({ ...raw, kind: 'allocation' }, keys)
   expect(plain.ok && plain.answer.ideas).toEqual([])
 })
+
+test('a follow-up carries the thread; 🌐 asks for recent news first', () => {
+  const facts = [{ key: 'mine', label: 'MINE', value: '€820', tone: null }]
+  const p = askPrompt(
+    facts,
+    null,
+    'maybe it was earnings?',
+    true,
+    '2026-10-21',
+    [{ q: 'Why did NFLX drop?', a: 'Mostly company-specific.' }],
+  )
+  expect(p).toContain('Q: Why did NFLX drop?')
+  expect(p).toContain('A: Mostly company-specific.')
+  expect(p).toContain('news from the last 14 days')
+  expect(askPrompt(facts, null, 'q', false, '2026-10-21')).toContain(
+    'needs the 🌐',
+  )
+})

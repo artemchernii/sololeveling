@@ -11,7 +11,7 @@ import {
 } from '../src/lib/marketRead'
 import { ASK_SCHEMA, askPrompt } from '../src/lib/marketAsk'
 import type { Fact } from '../src/lib/marketRead'
-import type { ReadContext } from '../src/lib/marketAsk'
+import type { ReadContext, Said } from '../src/lib/marketAsk'
 import type { ProAnswer } from '../src/lib/claudeResult'
 
 /* The market read on his Pro plan (I3, 19 Oct: "On localhost the read and
@@ -132,15 +132,18 @@ export function claudeRead(): Plugin {
         return claude(marketReadPrompt(facts, today), MARKET_READ_SCHEMA, true)
       })
       route(CLAUDE_ASK_PATH, (json) => {
-        const { facts, read, question, web, today } = JSON.parse(json) as {
+        const { facts, read, question, web, today, history } = JSON.parse(
+          json,
+        ) as {
           facts: Array<Fact>
           read: ReadContext | null
           question: string
           web: boolean
           today: string
+          history?: Array<Said>
         }
         return claude(
-          askPrompt(facts, read, question, web === true, today),
+          askPrompt(facts, read, question, web === true, today, history ?? []),
           ASK_SCHEMA,
           web === true,
         )

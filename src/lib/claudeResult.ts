@@ -51,7 +51,14 @@ export function parseClaudeResult(stdout: string): ProAnswer {
       n(u.cache_read_input_tokens) +
       n(u.cache_creation_input_tokens),
     outputTokens: n(u.output_tokens),
-    searches: n(tools.web_search_requests),
+    /* Claude Code's own WebSearch is counted per model, not as a server
+       tool (21 Oct: every Pro answer said 0 searches). */
+    searches: Math.max(
+      n(tools.web_search_requests),
+      Object.values(
+        (d.modelUsage ?? {}) as Record<string, Record<string, unknown>>,
+      ).reduce((sum, m) => sum + n(m.webSearchRequests), 0),
+    ),
   }
 }
 

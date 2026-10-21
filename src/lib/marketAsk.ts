@@ -27,6 +27,11 @@ export type AskAnswer = {
   sources: Array<Source>
   ideas: Array<Idea>
 }
+/** An earlier question in the thread and what was answered. */
+export type Said = { q: string; a: string }
+/** Earlier turns sent with a question. */
+export const MAX_HISTORY = 6
+
 /** What the model is told of the month's read, when there is one. */
 export type ReadContext = Pick<
   MarketRead,
@@ -77,6 +82,8 @@ export function askPrompt(
   question: string,
   web: boolean,
   today: string,
+  /** The thread so far, oldest first: a follow-up reads on from it. */
+  history: Array<Said> = [],
 ): string {
   const told = read
     ? `This month's read, which he has on screen:
@@ -91,8 +98,33 @@ like me I want more like explanation". Talk to him as "you". Today is
 ${today}.
 
 ${told}
-The facts below are the numbers on his screen, each with a key.
-${web ? `You may search the web (at most ${MAX_ASK_SEARCHES} searches) and must list the pages you used.` : 'Do not search the web; answer from the facts and the read only, and leave sources empty.'}
+The facts below are the numbers on his screen, each with a key. They
+are only what the app fetched; they say nothing about why a price moved.
+${
+  web
+    ? `Search the web before you answer (at most ${MAX_ASK_SEARCHES} searches): look for
+news from the last 14 days first — earnings and results, guidance,
+analyst moves, central bank words — for the companies, funds or topics
+in the question. Your own knowledge stops before today, so a recent event
+you do not know of may well have happened: search for it rather than
+doubt it. List the pages you used.`
+    : `Do not search the web; answer from the facts and the read only, and
+leave sources empty. When the question needs recent news (why something
+moved, earnings, what someone said), say plainly that it needs the 🌐
+switch, with kind "nodata", rather than guess at a cause.`
+}
+${
+  history.length
+    ? `
+Earlier in this conversation (his question, then the answer):
+${history
+  .slice(-MAX_HISTORY)
+  .map((h) => `- Q: ${h.q.slice(0, MAX_QUESTION)}\n  A: ${h.a.slice(0, 900)}`)
+  .join('\n')}
+The question below may follow on from these.
+`
+    : ''
+}
 
 Rules:
 - Write a number only if it is in the facts${web ? ' or in a source you list' : ''}.

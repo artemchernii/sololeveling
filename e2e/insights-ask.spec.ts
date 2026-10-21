@@ -191,6 +191,8 @@ test('S7 asked for ideas → cards with fetched prices; owned, in NEXT and unkno
   await expect(answer.locator('[data-ticker="NOVO-B.CO"]')).toHaveCount(0)
   /* NEXT keeps its own two. */
   await expect(page.getByTestId('idea-card')).toHaveCount(2)
+  /* They arrive one after another, then stand. */
+  await expect(cards.last()).toHaveCSS('opacity', '1')
   await answer.scrollIntoViewIfNeeded()
   await page.screenshot(shot('insights-ask-ideas'))
 })

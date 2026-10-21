@@ -127,7 +127,12 @@ export function IdeaCard({
       data-testid={where === 'ask' ? 'ask-idea' : 'idea-card'}
       data-ticker={idea.ticker}
       className={`ins-tile ins-idea ${where === 'ask' ? 'ask-idea' : 'c3'}`}
-      style={{ '--i': 11 + i, '--tone': tone } as React.CSSProperties}
+      style={
+        {
+          '--i': where === 'ask' ? i : 11 + i,
+          '--tone': tone,
+        } as React.CSSProperties
+      }
     >
       <div className="top">
         <div className="flex items-start justify-between gap-2">

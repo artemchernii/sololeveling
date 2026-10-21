@@ -94,7 +94,9 @@ function Treasury() {
         hidden={room !== 'insights'}
         className="flex flex-col gap-3"
       >
-        {opened.has('insights') ? <Insights /> : null}
+        {opened.has('insights') ? (
+          <Insights shown={room === 'insights'} />
+        ) : null}
       </div>
     </div>
   )

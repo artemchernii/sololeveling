@@ -74,10 +74,6 @@
     color-mix(in oklch, var(--color-lav-400) 8%, transparent) 70%
   );
   animation: ask-orb 3s ease-in-out infinite;
-  &.busy span {
-    display: inline-block;
-    animation: ask-spin 1.4s linear infinite;
-  }
 }
 .ask-ping {
   width: 7px;
@@ -362,7 +358,7 @@
   background: color-mix(in oklch, var(--state-danger) 14%, transparent);
 }
 
-/* the box, the cap, the month */
+/* the box, the cap */
 .ask-bar {
   display: flex;
   gap: 8px;
@@ -431,35 +427,6 @@
     color: var(--state-warn);
   }
 }
-.ask-foot {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.ask-meter {
-  display: inline-flex;
-  gap: 10px;
-  align-items: center;
-  & .track {
-    width: 120px;
-    height: 6px;
-    border-radius: 3px;
-    overflow: hidden;
-    background: color-mix(in oklch, var(--lift) 7%, transparent);
-  }
-  & .track b {
-    display: block;
-    height: 100%;
-    border-radius: 3px;
-    background: var(--state-warn);
-    transition: width 600ms var(--motion-ease);
-  }
-  &.ok .track b {
-    background: var(--money-cash);
-  }
-}
-
 /* ideas in an answer (21 Oct, mockup ask-ideas.html): NEXT's cards,
    three to a row, smaller */
 @keyframes ask-shim {

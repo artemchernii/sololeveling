@@ -137,6 +137,7 @@ function RateCard({
     <section
       data-testid="rate-card"
       data-id={id}
+      data-tile={inflation ? 'inflation' : 'rates'}
       data-reached={waiting ? undefined : String(reached)}
       className="ins-tile c3"
       style={{ '--i': i, '--a': 'var(--state-warn)' } as React.CSSProperties}

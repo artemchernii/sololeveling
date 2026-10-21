@@ -55,36 +55,22 @@ export function Mine({
   rows: Array<AllocRow> | null
   read: Doc<'marketReads'> | null
 }) {
-  const total = held.reduce((t, o) => t + (o.valueEur ?? 0), 0)
-
-  return (
-    <>
-      <div className="ins-band">
-        <span className="n">3</span>
-        <b>MINE</b>
-        <span className="label-caps" data-testid="mine-band">
-          {money(Math.round(total), 'EUR')} · {held.length}{' '}
-          {held.length === 1 ? 'POSITION' : 'POSITIONS'}
-        </span>
-      </div>
-      {held.length === 0 ? (
-        <section data-testid="mine-empty" className="ins-tile ins-empty">
-          <span className="ins-emo">💼</span>
-          <span className="ins-badge dim">0 POSITIONS</span>
-        </section>
-      ) : (
-        <div className="ins-grid">
-          <Positions held={held} period={period} mine={mine} />
-          <Allocation
-            held={held}
-            rows={rows}
-            base={mine.base}
-            read={read}
-            failed={mine.failed}
-          />
-        </div>
-      )}
-    </>
+  return held.length === 0 ? (
+    <section data-testid="mine-empty" className="ins-tile ins-empty">
+      <span className="ins-emo">💼</span>
+      <span className="ins-badge dim">0 POSITIONS</span>
+    </section>
+  ) : (
+    <div className="ins-grid">
+      <Positions held={held} period={period} mine={mine} />
+      <Allocation
+        held={held}
+        rows={rows}
+        base={mine.base}
+        read={read}
+        failed={mine.failed}
+      />
+    </div>
   )
 }
 
@@ -131,6 +117,7 @@ function Positions({
   return (
     <section
       data-testid="mine-positions"
+      data-tile="positions"
       className="ins-tile c7"
       style={{ '--i': 9, '--a': 'var(--metal-xau)' } as React.CSSProperties}
     >

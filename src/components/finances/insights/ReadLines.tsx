@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { AccountLogo } from '@/components/finances/Logo'
 import { MAX_SEARCHES, factsFor } from '@/lib/marketRead'
 import type { Doc } from '../../../../convex/_generated/dataModel'
-import type { ReadLine } from '@/lib/marketRead'
+import type { Kind, ReadLine } from '@/lib/marketRead'
+import { TABS, TILE_OF } from './InsightsTabs'
 import { dayWord } from './parts'
 import {
   FactChip,
@@ -24,9 +25,12 @@ type Row = Doc<'marketReads'>
 export function ReadLines({
   shown,
   positions,
+  onGo,
 }: {
   shown: Row | null
   positions: number | null
+  /** Opens the tab a line is about and lights its tile. */
+  onGo: (kind: Kind) => void
 }) {
   const read = shown?.read
   return (
@@ -46,7 +50,7 @@ export function ReadLines({
           <>
             <div className="flex flex-col gap-2">
               {read.lines.map((l, i) => (
-                <Line key={i} line={l} facts={shown.facts} i={i} />
+                <Line key={i} line={l} facts={shown.facts} i={i} onGo={onGo} />
               ))}
             </div>
             {read.sources.length > 0 ? (
@@ -87,11 +91,14 @@ function Line({
   line,
   facts,
   i,
+  onGo,
 }: {
   line: ReadLine
   facts: Row['facts']
   i: number
+  onGo: (kind: Kind) => void
 }) {
+  const to = TILE_OF[line.kind]
   const [open, setOpen] = useState(false)
   const look = KIND_LOOK[line.kind]
   const named = factsFor(line.factKeys, facts)
@@ -127,14 +134,26 @@ function Line({
             ))}
           </div>
         ) : null}
-        <button
-          type="button"
-          className="ins-means"
-          aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
-        >
-          WHAT IT MEANS {open ? '▴' : '▾'}
-        </button>
+        <div className="ins-acts">
+          <button
+            type="button"
+            className="ins-means"
+            aria-expanded={open}
+            onClick={() => setOpen((o) => !o)}
+          >
+            WHAT IT MEANS {open ? '▴' : '▾'}
+          </button>
+          {to ? (
+            <button
+              type="button"
+              data-testid="read-goto"
+              className="ins-goto"
+              onClick={() => onGo(line.kind)}
+            >
+              → {TABS.find((t) => t.id === to.tab)?.name}
+            </button>
+          ) : null}
+        </div>
         {open ? (
           <div data-testid="read-plain" className="ins-plain motion-fade-up">
             <Words text={line.plain} />

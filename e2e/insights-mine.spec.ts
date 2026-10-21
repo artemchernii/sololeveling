@@ -22,6 +22,8 @@ async function open(page: Page, seed = true, many = false) {
       await testClient().mutation(anyApi.e2eMine.positions, { part })
   await page.goto('/finances?room=insights')
   await expect(page.getByTestId('insights-room')).toBeVisible()
+  await page.locator('[data-tab="mine"]').click()
+  await expect(page.getByTestId('tab-mine')).toBeVisible()
 }
 
 const box = (page: Page, symbol: string) =>
@@ -31,8 +33,11 @@ test('S1 every position a box by its euros, with its Portfolio verdict', async (
   page,
 }) => {
   await open(page)
-  await expect(page.getByTestId('mine-band')).toContainText('4 POSITIONS')
   await expect(page.getByTestId('mine-box')).toHaveCount(4)
+  /* The tab says how many ADD, from the same verdicts. */
+  await expect(page.locator('[data-tab="mine"]')).toContainText('1 ADD', {
+    timeout: 15_000,
+  })
   await expect(box(page, 'VUAA.L')).toHaveAttribute('data-call', 'hold', {
     timeout: 15_000,
   })
@@ -58,7 +63,10 @@ test('S1 every position a box by its euros, with its Portfolio verdict', async (
 
   /* Another period changes the moves, not the verdicts. */
   const month = await box(page, 'AVGO').locator('.v').textContent()
+  /* The period is MARKET's switch, shared by the room. */
+  await page.locator('[data-tab="market"]').click()
   await page.getByRole('button', { name: '1Y', exact: true }).click()
+  await page.locator('[data-tab="mine"]').click()
   await expect(page.getByTestId('mine-positions')).toContainText(
     'POSITIONS · 1Y',
   )
@@ -109,8 +117,7 @@ test('S3 allocation: places by region tag, the world only with a source, unknown
 
 test('S4 no positions: the empty state', async ({ page }) => {
   await open(page, false)
-  await expect(page.getByTestId('mine-band')).toContainText('0 POSITIONS')
-  await expect(page.getByTestId('mine-empty')).toBeVisible()
+  await expect(page.getByTestId('mine-empty')).toContainText('0 POSITIONS')
   await expect(page.getByTestId('mine-box')).toHaveCount(0)
 })
 

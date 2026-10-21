@@ -175,8 +175,11 @@
   @media (max-width: 1023px) {
     bottom: calc(70px + env(safe-area-inset-bottom));
   }
-  @media (max-width: 640px) {
-    right: 84px;
+  /* under md, + Log and Search float on that line (MobileActions):
+     ASK goes one row up, at the right edge */
+  @media (max-width: 767px) {
+    right: 16px;
+    bottom: calc(130px + env(safe-area-inset-bottom));
   }
 }
 .ask-orb.busy .ask-star {
@@ -452,11 +455,7 @@
   border-radius: 50%;
   color: var(--color-lav-300);
   border: 1px solid var(--system-edge);
-  background: color-mix(
-    in oklch,
-    var(--color-lav-400) 12%,
-    color-mix(in oklch, var(--mark-ink) 40%, transparent)
-  );
+  background: none;
   transition:
     transform 150ms,
     background 150ms,
@@ -468,18 +467,25 @@
   }
   &:hover {
     transform: scale(1.12) rotate(20deg);
-    background: color-mix(in oklch, var(--color-lav-400) 30%, transparent);
-    box-shadow: 0 0 14px -2px var(--system-shine);
+    background: color-mix(in oklch, var(--color-lav-400) 14%, transparent);
   }
+  /* beside → MARKET, drawn the same: an outline, no fill */
   &.wide {
     width: auto;
     height: auto;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 3px 9px 3px 7px;
+    gap: 5px;
+    padding: 3px 8px;
     font: 700 9.5px var(--font-mono);
     letter-spacing: 0.12em;
+    &:hover {
+      transform: none;
+    }
+    & .ask-star {
+      width: 10px;
+      height: 10px;
+    }
   }
   &.press {
     animation: ask-on-press 500ms ease;
@@ -499,6 +505,10 @@
     width: 20px;
     height: 20px;
     opacity: 0.55;
+    /* on the box's own colour, like its verdict tag */
+    color: var(--mark-ground);
+    border-color: currentColor;
+    background: color-mix(in oklch, var(--mark-ink) 45%, transparent);
   }
   &:hover > .ask-on,
   & > .ask-on:focus-visible {

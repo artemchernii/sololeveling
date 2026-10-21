@@ -510,6 +510,7 @@
     border-radius: inherit;
     background: none;
     color: var(--mark-ground);
+    cursor: pointer;
     &:hover {
       transform: none;
       background: none;
@@ -554,6 +555,9 @@
 @container (max-width: 110px) {
   .ins-hc > .ask-on .ask-star {
     display: none;
+  }
+  .ins-hc:hover > .ask-on .ask-star {
+    display: block;
   }
   .ins-hc .top {
     padding-right: 0;

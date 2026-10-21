@@ -8,6 +8,7 @@ import type { Fact } from '@/lib/marketRead'
 import { clock } from './parts'
 import { Words, factIcon, modelWord, tokens, usd } from './readParts'
 import { AskIdeas } from './AskIdeas'
+import { usePrefill } from './askPrefill'
 import type { Turn, useAsk } from './useAsk'
 import type { useMarketRead } from './useMarketRead'
 
@@ -55,6 +56,29 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
     const el = thread.current
     if (el) el.scrollTop = el.scrollHeight
   }, [turns.length, last?.state])
+
+  /* A card's ✦: its question in the box, lit, the caret at its end — a
+     phone keeps its keyboard down. Never sent from here. */
+  const prefill = usePrefill()
+  const box = useRef<HTMLInputElement>(null)
+  const [lit, setLit] = useState(false)
+  useEffect(() => {
+    if (!prefill) return
+    setText(prefill.q)
+    setLit(true)
+    const wide = window.matchMedia('(min-width: 641px)').matches
+    const at = requestAnimationFrame(() => {
+      const el = box.current
+      if (!el || !wide) return
+      el.focus({ preventScroll: true })
+      el.setSelectionRange(prefill.q.length, prefill.q.length)
+    })
+    const off = setTimeout(() => setLit(false), 1400)
+    return () => {
+      cancelAnimationFrame(at)
+      clearTimeout(off)
+    }
+  }, [prefill])
 
   const off = busy || capped || r.path === null
   const fresh = turns.length === 0
@@ -169,7 +193,9 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
             }}
           >
             <input
+              ref={box}
               data-testid="ask-input"
+              className={lit ? 'lit' : undefined}
               value={text}
               maxLength={400}
               disabled={off}

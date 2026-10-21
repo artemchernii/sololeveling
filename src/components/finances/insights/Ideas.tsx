@@ -7,6 +7,8 @@ import type { Doc } from '../../../../convex/_generated/dataModel'
 import type { IdeaQuote } from '@/lib/ideaQuote'
 import { Line, changeWord, clock, dayWord } from './parts'
 import { Words } from './readParts'
+import { AskOn } from './AskOn'
+import { askIdea } from '@/lib/askOnCards'
 
 /* Band 4, NEXT (mockup): 2–4 tickers not owned, named by the read with a
    why, a bull, a bear and a wrong-if in its words. Every number on a card
@@ -197,6 +199,7 @@ export function IdeaCard({
             <b>WRONG IF</b> {idea.wrong}
           </span>
         </div>
+        {where === 'next' ? <AskOn q={askIdea(idea.ticker)} wide /> : null}
         <div className="ins-foot">
           <span className="ins-was">YAHOO · {clock(q.at)}</span>
           <span className="ins-was">NOT SAVED</span>

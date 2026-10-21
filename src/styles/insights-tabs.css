@@ -439,3 +439,92 @@
     transition-delay: 150ms;
   }
 }
+
+/* ✦ ASK on cards (22 Oct, ask-on-cards.html): a small ✦ on a read line,
+   a box, an allocation line and an idea card fills ASK's box */
+.ask-on {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--color-lav-300);
+  border: 1px solid var(--system-edge);
+  background: color-mix(
+    in oklch,
+    var(--color-lav-400) 12%,
+    color-mix(in oklch, var(--mark-ink) 40%, transparent)
+  );
+  transition:
+    transform 150ms,
+    background 150ms,
+    box-shadow 150ms,
+    opacity 150ms;
+  & .ask-star {
+    width: 11px;
+    height: 11px;
+  }
+  &:hover {
+    transform: scale(1.12) rotate(20deg);
+    background: color-mix(in oklch, var(--color-lav-400) 30%, transparent);
+    box-shadow: 0 0 14px -2px var(--system-shine);
+  }
+  &.wide {
+    width: auto;
+    height: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px 3px 7px;
+    font: 700 9.5px var(--font-mono);
+    letter-spacing: 0.12em;
+  }
+  &.press {
+    animation: ask-on-press 500ms ease;
+  }
+}
+@keyframes ask-on-press {
+  40% {
+    transform: scale(1.35) rotate(90deg);
+    box-shadow: 0 0 22px 0 var(--system-shine);
+  }
+}
+.ins-hc {
+  & > .ask-on {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
+    opacity: 0.55;
+  }
+  &:hover > .ask-on,
+  & > .ask-on:focus-visible {
+    opacity: 1;
+  }
+  & .top {
+    padding-right: 22px;
+  }
+}
+@media (hover: none), (max-width: 640px) {
+  .ins-hc > .ask-on {
+    opacity: 1;
+  }
+}
+@container (max-width: 56px) {
+  .ins-hc > .ask-on {
+    display: none;
+  }
+}
+.ins-idea .bot > .ask-on {
+  align-self: flex-start;
+}
+.ask-bar input.lit {
+  border-color: var(--color-lav-400);
+  box-shadow: 0 0 26px -4px var(--system-shine);
+  transition:
+    box-shadow 600ms,
+    border-color 600ms;
+}

@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 
 import { Allocation } from './Allocation'
+import { AskOn } from './AskOn'
+import { askBox } from '@/lib/askOnCards'
 import { Info, clock, heatColour, signed } from './parts'
 import type { MineAnswer, useMine } from './useMine'
 import type { Doc, Id } from '../../../../convex/_generated/dataModel'
@@ -226,6 +228,7 @@ function Box({
   reading: boolean
 }) {
   const frozen = o.type === UNPRICED
+  const name = o.symbol.split('.')[0]
   return (
     <div
       data-testid="mine-box"
@@ -247,7 +250,7 @@ function Box({
           name={o.name}
           size={big ? 22 : 16}
         />
-        <span className="n">{o.symbol.split('.')[0]}</span>
+        <span className="n">{name}</span>
       </div>
       <div>
         <div className="v">
@@ -263,6 +266,15 @@ function Box({
           <div className="e">{money(Math.round(o.valueEur), 'EUR')}</div>
         ) : null}
       </div>
+      <AskOn
+        q={askBox({
+          name,
+          call,
+          frozen,
+          move: change === null ? null : signed(change),
+          period,
+        })}
+      />
     </div>
   )
 }

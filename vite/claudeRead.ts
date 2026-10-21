@@ -9,7 +9,9 @@ import {
   MARKET_READ_SCHEMA,
   marketReadPrompt,
 } from '../src/lib/marketRead'
+import { ASK_SCHEMA, askPrompt } from '../src/lib/marketAsk'
 import type { Fact } from '../src/lib/marketRead'
+import type { ReadContext } from '../src/lib/marketAsk'
 import type { ProAnswer } from '../src/lib/claudeResult'
 
 /* The market read on his Pro plan (I3, 19 Oct: "On localhost the read and
@@ -25,9 +27,15 @@ import type { ProAnswer } from '../src/lib/claudeResult'
    site open in the browser cannot spend the plan. */
 
 export const CLAUDE_READ_PATH = '/__claude/market-read'
+/** ASK (I4): one question, with web search only when 🌐 is on. */
+export const CLAUDE_ASK_PATH = '/__claude/market-ask'
 const TIMEOUT_MS = 5 * 60_000
 
-function claude(prompt: string): Promise<ProAnswer> {
+function claude(
+  prompt: string,
+  schema: unknown,
+  web: boolean,
+): Promise<ProAnswer> {
   return new Promise((resolve) => {
     const child = spawn(
       'claude',
@@ -38,11 +46,10 @@ function claude(prompt: string): Promise<ProAnswer> {
         '--model',
         MARKET_READ_MODEL,
         '--json-schema',
-        JSON.stringify(MARKET_READ_SCHEMA),
+        JSON.stringify(schema),
         '--tools',
-        'WebSearch',
-        '--allowedTools',
-        'WebSearch',
+        web ? 'WebSearch' : '',
+        ...(web ? ['--allowedTools', 'WebSearch'] : []),
         '--no-session-persistence',
         '--strict-mcp-config',
       ],
@@ -95,27 +102,48 @@ export function claudeRead(): Plugin {
     apply: 'serve',
     configureServer(server) {
       if (process.env.E2E_RUN) return
-      server.middlewares.use(CLAUDE_READ_PATH, (req, res) => {
-        void (async () => {
-          if (req.method === 'GET') return send(res, 200, { ready: true })
-          const origin = req.headers.origin
-          if (
-            req.method !== 'POST' ||
-            !req.headers['content-type']?.startsWith('application/json') ||
-            !origin ||
-            new URL(origin).host !== req.headers.host
-          )
-            return send(res, 403, { ok: false, error: 'REFUSED' })
-          try {
-            const { facts, today } = JSON.parse(await body(req)) as {
-              facts: Array<Fact>
-              today: string
+      const route = (
+        path: string,
+        answer: (json: string) => Promise<ProAnswer>,
+      ) =>
+        server.middlewares.use(path, (req, res) => {
+          void (async () => {
+            if (req.method === 'GET') return send(res, 200, { ready: true })
+            const origin = req.headers.origin
+            if (
+              req.method !== 'POST' ||
+              !req.headers['content-type']?.startsWith('application/json') ||
+              !origin ||
+              new URL(origin).host !== req.headers.host
+            )
+              return send(res, 403, { ok: false, error: 'REFUSED' })
+            try {
+              send(res, 200, await answer(await body(req)))
+            } catch {
+              send(res, 400, { ok: false, error: 'BROKEN SHAPE' })
             }
-            send(res, 200, await claude(marketReadPrompt(facts, today)))
-          } catch {
-            send(res, 400, { ok: false, error: 'BROKEN SHAPE' })
-          }
-        })()
+          })()
+        })
+      route(CLAUDE_READ_PATH, (json) => {
+        const { facts, today } = JSON.parse(json) as {
+          facts: Array<Fact>
+          today: string
+        }
+        return claude(marketReadPrompt(facts, today), MARKET_READ_SCHEMA, true)
+      })
+      route(CLAUDE_ASK_PATH, (json) => {
+        const { facts, read, question, web, today } = JSON.parse(json) as {
+          facts: Array<Fact>
+          read: ReadContext | null
+          question: string
+          web: boolean
+          today: string
+        }
+        return claude(
+          askPrompt(facts, read, question, web === true, today),
+          ASK_SCHEMA,
+          web === true,
+        )
       })
     },
   }

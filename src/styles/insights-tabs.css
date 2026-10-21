@@ -445,56 +445,70 @@
 
 /* ✦ ASK on cards (22 Oct, ask-on-cards.html): a small ✦ on a read line,
    a box, an allocation line and an idea card fills ASK's box */
+/* 22 Oct: "shape and rotate … old and cheap" — a soft square chip,
+   lavender glass, lifted and lit on hover; nothing spins. */
 .ask-on {
   flex: none;
   display: inline-grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   padding: 0;
-  border-radius: 50%;
+  border-radius: 8px;
   color: var(--color-lav-300);
-  border: 1px solid var(--system-edge);
-  background: none;
+  border: 1px solid color-mix(in oklch, var(--color-lav-400) 35%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--color-lav-400) 24%, transparent),
+    color-mix(in oklch, var(--color-lav-400) 8%, transparent)
+  );
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--lift) 14%, transparent);
   transition:
-    transform 150ms,
-    background 150ms,
-    box-shadow 150ms,
-    opacity 150ms;
+    transform 180ms var(--motion-ease),
+    background 180ms,
+    border-color 180ms,
+    box-shadow 180ms;
   & .ask-star {
     width: 11px;
     height: 11px;
+    transition: transform 180ms var(--motion-ease);
   }
   &:hover {
-    transform: scale(1.12) rotate(20deg);
-    background: color-mix(in oklch, var(--color-lav-400) 14%, transparent);
+    transform: translateY(-1px);
+    border-color: color-mix(in oklch, var(--color-lav-400) 60%, transparent);
+    background: linear-gradient(
+      135deg,
+      color-mix(in oklch, var(--color-lav-400) 36%, transparent),
+      color-mix(in oklch, var(--color-lav-400) 14%, transparent)
+    );
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklch, var(--lift) 18%, transparent),
+      0 6px 18px -8px var(--system-shine);
+    & .ask-star {
+      transform: scale(1.15);
+    }
   }
-  /* beside → MARKET, drawn the same: an outline, no fill */
   &.wide {
     width: auto;
-    height: auto;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 8px;
+    gap: 6px;
+    padding: 0 10px 0 8px;
     font: 700 9.5px var(--font-mono);
-    letter-spacing: 0.12em;
-    &:hover {
-      transform: none;
-    }
+    letter-spacing: 0.14em;
     & .ask-star {
       width: 10px;
       height: 10px;
     }
   }
   &.press {
-    animation: ask-on-press 500ms ease;
+    animation: ask-on-press 450ms var(--motion-ease);
   }
 }
 @keyframes ask-on-press {
   40% {
-    transform: scale(1.35) rotate(90deg);
-    box-shadow: 0 0 22px 0 var(--system-shine);
+    box-shadow: 0 0 0 4px
+      color-mix(in oklch, var(--color-lav-400) 22%, transparent);
   }
 }
 /* On a box the whole box is the press; the ✦ shows where it leaves the
@@ -511,9 +525,11 @@
     background: none;
     color: var(--mark-ground);
     cursor: pointer;
+    box-shadow: none;
     &:hover {
       transform: none;
       background: none;
+      box-shadow: none;
     }
     &:focus-visible {
       outline: 2px solid var(--color-lav-400);
@@ -533,7 +549,7 @@
       height: 20px;
       padding: 4px;
       border: 1px solid currentColor;
-      border-radius: 50%;
+      border-radius: 6px;
       background: color-mix(in oklch, var(--mark-ink) 45%, transparent);
       opacity: 0.55;
       transition: opacity 150ms;

@@ -303,23 +303,34 @@ functions vanish (Review broke twice on 15 Oct). Each deploy also re-runs
 every open tab's queries, which are paid reads. Artem, planning 5–10 parallel
 sessions: "Its gonna be many deploys and I gonna spend 7$ again?"
 
-1. **Sessions never deploy dev on their own.** Tests run on the local e2e
-   backend, which costs nothing. A hook refuses `npx convex dev` without
-   `--local`.
+On 21 Oct the rule that sessions never deploy was dropped. Every session
+ended with "say deploy dev" and stopped, so nothing reached localhost and he
+never tested: "We constantly have this 'deploy dev when ready' and never
+test locally." He said "yes change".
+
+1. **While building, tests run on the local e2e backend**, which costs
+   nothing. A hook refuses `npx convex dev` without `--local`; dev is
+   reached only through `pnpm deploy:dev`.
 2. **`pnpm deploy:dev` deploys everything open at once**: `origin/master`,
    with every unmerged `feat/` `fix/` `perf/` `refactor/` `claude/` branch
-   pushed in the last 3 days merged on top (not one whose PR was closed unmerged), from a
-   throwaway worktree. A branch that conflicts is left out and named. It
-   runs a few times a day, never once per session. Artem: "I dont want to
-   type myself command and memorize all sessions branches."
-3. **A session's branch is in the next deploy once it is pushed.** Push
-   before telling him it is ready to test on localhost; say it waits for
-   the next deploy, never a command with branch names for him to type.
-4. **He says "deploy dev" in any session** → that session runs
-   `pnpm deploy:dev --dry-run`, shows the list, then `pnpm deploy:dev`.
-   `pnpm deploy:dev <branch> …` deploys only the named ones, for when he
-   asks for that.
-5. A merged fix rides along with the next deploy; it does not get its own.
+   pushed in the last 3 days merged on top (not one whose PR was closed
+   unmerged), from a throwaway worktree. A branch that conflicts is left
+   out and named. Because it carries every open branch, one session's
+   deploy never drops another's functions.
+3. **A branch ready for his check is put in front of him by the session,
+   in the same turn**: push → `pnpm deploy:dev --dry-run`, then
+   `pnpm deploy:dev` → the main checkout onto the branch (only when it
+   holds nothing of another chat's — check first) → the app on :3000 →
+   a look in the browser pane that the screen loads. Then he gets
+   "open localhost:3000" and 2–3 things to press. Never "say deploy dev",
+   never a command for him to type. A branch with no `convex/` change
+   skips the deploy.
+4. **Once per branch ready, not per edit.** Fixes from his check are
+   tested locally and deployed together when he is to look again. Each
+   deploy re-runs every open tab's queries (paid reads) — say the cost
+   line ([[say-the-convex-cost]]).
+5. After a merge, the session deploys master the same way and puts :3000
+   back on master.
 
 ## Stack
 

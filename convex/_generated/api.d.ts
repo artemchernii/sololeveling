@@ -10,6 +10,7 @@
 
 import type * as accounts from "../accounts.js";
 import type * as aggregate from "../aggregate.js";
+import type * as ai_ask from "../ai/ask.js";
 import type * as ai_intake from "../ai/intake.js";
 import type * as ai_market from "../ai/market.js";
 import type * as ai_read from "../ai/read.js";
@@ -60,6 +61,7 @@ import type * as ledgers from "../ledgers.js";
 import type * as lent from "../lent.js";
 import type * as logs from "../logs.js";
 import type * as market from "../market.js";
+import type * as marketAsk from "../marketAsk.js";
 import type * as marketReadFields from "../marketReadFields.js";
 import type * as marketReads from "../marketReads.js";
 import type * as migrations from "../migrations.js";
@@ -107,6 +109,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   accounts: typeof accounts;
   aggregate: typeof aggregate;
+  "ai/ask": typeof ai_ask;
   "ai/intake": typeof ai_intake;
   "ai/market": typeof ai_market;
   "ai/read": typeof ai_read;
@@ -157,6 +160,7 @@ declare const fullApi: ApiFromModules<{
   lent: typeof lent;
   logs: typeof logs;
   market: typeof market;
+  marketAsk: typeof marketAsk;
   marketReadFields: typeof marketReadFields;
   marketReads: typeof marketReads;
   migrations: typeof migrations;

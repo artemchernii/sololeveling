@@ -1,0 +1,136 @@
+/// <reference types="vite/client" />
+import { convexTest } from 'convex-test'
+import { afterEach, expect, test, vi } from 'vitest'
+
+import { api } from './_generated/api'
+import schema from './schema'
+import { monthKey } from '../src/lib/marketRead'
+import type { Fact } from '../src/lib/marketRead'
+
+const modules = import.meta.glob('./**/*.ts')
+
+const ME = 'https://clerk.test|user_me'
+const THEM = 'https://clerk.test|user_them'
+
+const fact = (key: string, label: string, value: string): Fact => ({
+  key,
+  label,
+  value,
+  tone: null,
+})
+const facts = [
+  fact('us-cpi', 'US CPI SEP', '2.9%'),
+  fact('sec-tech', 'TECH', '▲ 5.8% · 1M'),
+  fact('mine', 'MINE', '€820 · 1 POSITION'),
+]
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+  vi.useRealTimers()
+})
+
+function setup() {
+  vi.useFakeTimers()
+  vi.stubEnv('E2E', '1')
+  const t = convexTest(schema, modules)
+  return {
+    t,
+    me: t.withIdentity({ tokenIdentifier: ME }),
+    them: t.withIdentity({ tokenIdentifier: THEM }),
+  }
+}
+const month = () => monthKey(Date.now())
+
+/* The canned backend waits 900 ms so the page shows "asking". */
+async function ask(
+  who: ReturnType<typeof setup>['me'],
+  question: string,
+  web = false,
+) {
+  const state = { done: false }
+  const p = who
+    .action(api.ai.ask.ask, { question, web, facts })
+    .finally(() => (state.done = true))
+  /* The first call loads the modules before its timer is set. */
+  while (!state.done) await vi.advanceTimersByTimeAsync(300)
+  return await p
+}
+
+test('S1 a question is answered with the keys given, and its cost added to the month', async () => {
+  const { me } = setup()
+  const r = await ask(me, 'Explain my allocation')
+  expect(r.ok).toBe(true)
+  if (!r.ok) return
+  expect(r.answer.kind).toBe('allocation')
+  expect(r.answer.factKeys).toEqual(['mine', 'sec-tech'])
+  expect(r.answer.sources).toHaveLength(0)
+  expect(r.stamp).toMatchObject({ searches: 0, cost: 0.02, paidBy: 'api' })
+  const state = await me.query(api.marketReads.forMonth, { month: month() })
+  expect(state.spent).toBe(0.02)
+  /* Nothing of the question is stored: no read row appears. */
+  expect(state.read).toBeNull()
+})
+
+test('S2 🌐 answers with sources and searches, and costs more', async () => {
+  const { me } = setup()
+  const r = await ask(me, 'What did Powell say?', true)
+  expect(r.ok && r.answer.sources.map((s) => s.site)).toEqual([
+    'reuters.com',
+    'federalreserve.gov',
+  ])
+  expect(r.ok && r.stamp.searches).toBe(2)
+  expect(
+    (await me.query(api.marketReads.forMonth, { month: month() })).spent,
+  ).toBe(0.08)
+})
+
+test('S3 failed: nothing paid, nothing retried', async () => {
+  const { me } = setup()
+  await me.mutation(api.e2eMarketRead.arm, { shape: 'fail' })
+  expect(await ask(me, 'Is gold still a hedge?')).toEqual({
+    ok: false,
+    error: 'NOT REACHED',
+    cost: 0,
+  })
+  expect(
+    (await me.query(api.marketReads.forMonth, { month: month() })).spent,
+  ).toBe(0)
+})
+
+test('S4 at the cap a question is refused before any call', async () => {
+  const { me } = setup()
+  await me.mutation(api.e2eMarketRead.spend, { usd: 2 })
+  expect(await ask(me, 'Anything?')).toEqual({
+    ok: false,
+    error: 'CAP REACHED',
+    cost: 0,
+  })
+  expect(
+    (await me.query(api.marketReads.forMonth, { month: month() })).spent,
+  ).toBe(2)
+})
+
+test('an empty question, or no key off the test backend, pays nothing', async () => {
+  const { me } = setup()
+  expect(await ask(me, '   ')).toMatchObject({
+    ok: false,
+    error: 'NO QUESTION',
+  })
+  vi.stubEnv('E2E', '')
+  vi.stubEnv('ANTHROPIC_API_KEY', '')
+  expect(await ask(me, 'x')).toMatchObject({ ok: false, error: 'NO KEY' })
+  expect(
+    (await me.query(api.marketReads.forMonth, { month: month() })).spent,
+  ).toBe(0)
+})
+
+test('only mine: signed out refused; my spend is not theirs', async () => {
+  const { t, me, them } = setup()
+  await expect(
+    t.action(api.ai.ask.ask, { question: 'x', web: false, facts }),
+  ).rejects.toThrow()
+  await ask(me, 'Explain my allocation')
+  expect(
+    (await them.query(api.marketReads.forMonth, { month: month() })).spent,
+  ).toBe(0)
+})

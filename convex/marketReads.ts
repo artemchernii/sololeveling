@@ -51,7 +51,7 @@ async function monthRow(ctx: QueryCtx, ownerId: string, month: string) {
 }
 
 /** Dollars of API credits spent this month on reads and questions. */
-async function spentIn(ctx: QueryCtx, ownerId: string, month: string) {
+export async function spentIn(ctx: QueryCtx, ownerId: string, month: string) {
   const row = await ctx.db
     .query('aiSpend')
     .withIndex('by_owner_month', (q) =>

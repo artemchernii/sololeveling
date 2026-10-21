@@ -7,7 +7,7 @@
 cmd="$(jq -r '.tool_input.command // empty')"
 if printf '%s' "$cmd" | grep -Eq 'convex[[:space:]]+dev' &&
   ! printf '%s' "$cmd" | grep -q -- '--local'; then
-  echo 'Dev Convex is deployed only through `pnpm deploy:dev`: master with every open branch pushed in the last 3 days, all at once (`--dry-run` lists them). Run it when Artem says "deploy dev" — see CLAUDE.md "Deploying dev".' >&2
+  echo 'Dev Convex is deployed only through `pnpm deploy:dev`: master with every open branch pushed in the last 3 days, all at once (`--dry-run` lists them). A session runs it itself once a branch is ready for his check — see CLAUDE.md "Deploying dev".' >&2
   exit 2
 fi
 exit 0

@@ -377,6 +377,42 @@
   .mi .logo { width: 30px; height: 30px }
   .shim { height: 12px; border-radius: 6px; background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.12), rgba(255,255,255,.04)); background-size: 200% 100%; animation: shim 1.2s linear infinite }
   @keyframes shim { from { background-position: 200% 0 } to { background-position: -200% 0 } }
+
+  /* the drawer (embed) */
+  .emb, .emb body { height: 100%; overflow: hidden }
+  .emb .wrap { height: 100vh; padding: 0 !important; gap: 0 }
+  .emb .ask { height: 100vh; padding: 0 0 0 0; gap: 0; overflow: hidden }
+  .emb .ask .thead { padding: 10px 16px; min-height: 0; justify-content: flex-end; border-bottom: 1px solid var(--edge) }
+  .emb .ask .thead .grow { display: none }
+  .emb .thread { flex: 1; max-height: none !important; padding: 16px; scroll-behavior: smooth; mask: linear-gradient(transparent, #000 18px, #000 calc(100% - 18px), transparent) }
+  .emb .a { width: 100%; max-width: 100% }
+  .emb .q { max-width: 86% }
+  .emb .dock { position: relative; display:flex; flex-direction: column; gap: 10px; padding: 12px 16px 14px; border-top: 1px solid var(--sys-edge);
+    background: linear-gradient(180deg, color-mix(in oklch, var(--lav-400) 9%, #171827), #171827); box-shadow: 0 -18px 30px -18px #000 }
+  .emb .dock::before { content:''; position:absolute; left: 16px; right: 16px; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, var(--lav-400), transparent); opacity: .7; animation: corners 3.2s ease-in-out infinite }
+  .emb .stog { align-self: flex-start; display:inline-flex; align-items:center; gap: 8px; font: 700 10px var(--mono); letter-spacing: .16em; color: var(--lav-300); padding: 6px 12px 6px 8px; border-radius: 999px; border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 10%, transparent); cursor: pointer; transition: all .2s }
+  .emb .stog:hover { background: color-mix(in oklch, var(--lav-400) 18%, transparent); box-shadow: 0 0 16px -6px var(--shine) }
+  .emb .stog span { width: 20px; height: 20px; border-radius: 50%; display:grid; place-items:center; border: 1px solid var(--sys-edge) }
+  .emb .stog i { font-style: normal; min-width: 18px; height: 18px; border-radius: 999px; display:grid; place-items:center; background: var(--lav-300); color: #171827; letter-spacing: 0 }
+  .emb .stog b { transition: transform .25s }
+  .emb .sopen .stog b { transform: rotate(180deg) }
+  .emb .fresh .stog { display: none }
+  .emb #sugg { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s cubic-bezier(.2,.8,.2,1) }
+  .emb #sugg > * { overflow: hidden; min-height: 0 }
+  .emb .sopen #sugg, .emb .fresh #sugg { grid-template-rows: 1fr }
+  .emb .chips { gap: 6px }
+  .emb .chips span { opacity: 0; transform: translateY(8px); transition: opacity .3s, transform .3s }
+  .emb .sopen .chips span { opacity: 1; transform: none }
+  .emb .sopen .chips span:nth-child(2) { transition-delay: .05s } .emb .sopen .chips span:nth-child(3) { transition-delay: .1s } .emb .sopen .chips span:nth-child(4) { transition-delay: .15s }
+  .emb .cards { grid-template-columns: 1fr 1fr }
+  .emb .askbar { flex-wrap: nowrap !important }
+  .emb .askbar input { padding: 11px 14px; flex-basis: auto !important }
+  .emb .askbar .web, .emb .askbar .btn { flex: none !important; padding: 11px 12px !important }
+  .emb .askbar:focus-within .btn { box-shadow: 0 0 22px -4px var(--shine) }
+  .emb #foot { display: none }
+  .emb .srow { display:flex; align-items:center; justify-content: space-between; gap: 8px }
+  .emb .fresh .srow { justify-content: flex-end }
+  .emb .foot2 .badge { font-size: 9px }
 </style>
 </head>
 <body>
@@ -502,6 +538,38 @@
   document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => go(b.dataset.s))
   document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { local = b.dataset.r === 'local'; render() })
   render()
+</script>
+<script>/* EMBED: inside the tabs mockup's drawer */
+  if (location.search.includes('embed')) {
+    document.querySelectorAll('.ctl, .band, .wrap > .caps').forEach(e => e.remove())
+    const w = document.querySelector('.wrap'); w.style.padding = '0'; w.style.maxWidth = 'none'
+    document.body.style.background = 'transparent'
+    const t = document.querySelector('.ask'); t.style.border = '0'; t.style.boxShadow = 'none'; t.style.background = 'transparent'; t.style.borderRadius = '0'; t.classList.remove('sys')
+    const st = new URLSearchParams(location.search).get('s'); if (st) go(st)
+    document.querySelectorAll('.ask > .thead > .orb, .ask > .thead > .sys-title').forEach(e => e.remove())
+    /* Round 2 of the drawer (his "a bit better alignment and dynamic … buttons sticky to the bottom … suggestions collapsed"):
+       the thread fills the drawer, a dock is stuck to the bottom, the suggestions fold into one button after the first question,
+       the badges sit in one row. */
+    document.documentElement.classList.add('emb')
+    const ask = document.querySelector('.ask'), dock = document.createElement('div'); dock.className = 'dock'
+    const tog = document.createElement('button'); tog.className = 'stog'; tog.innerHTML = '<span>✦</span> SUGGESTED <i>4</i> <b>▾</b>'
+    tog.onclick = () => ask.classList.toggle('sopen')
+    ;['sugg', 'barwrap', 'foot'].forEach(id => dock.appendChild(document.getElementById(id)))
+    const row = document.createElement('div'); row.className = 'srow'
+    row.append(tog, Object.assign(document.createElement('span'), { className: 'badge b-dim', textContent: 'RESEARCH · NOT ADVICE' }))
+    dock.prepend(row); ask.appendChild(dock)
+    const head = ask.querySelector('.thead'), badges = [...head.querySelectorAll('.badge')].filter(b => !b.closest('#pay'))
+    const foot = document.getElementById('foot')
+    new MutationObserver(() => {
+      badges.forEach(b => foot.contains(b) || foot.appendChild(b))
+      const empty = !!document.querySelector('#sugg .cards')
+      ask.classList.toggle('fresh', empty)
+      if (empty) ask.classList.remove('sopen')
+    }).observe(foot, { childList: true })
+    foot.dispatchEvent(new Event('x')); badges.forEach(b => foot.appendChild(b)); ask.classList.toggle('fresh', !!document.querySelector('#sugg .cards'))
+    document.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => ask.classList.remove('sopen')))
+    head.style.display = 'none'
+  }
 </script>
 </body>
 </html>

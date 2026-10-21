@@ -427,22 +427,27 @@ export const misplaceBuys = mutation({
       )
       .first()
     if (gold === null) throw new Error('goldBuys first')
+    /* Reset keeps tickers, and insights MINE stores SHLD.L under
+       another fund's name: each run names it as this test reads it. */
+    const own = {
+      name: 'iShares Digital Security',
+      exchange: 'LSE',
+      currency: 'EUR',
+      type: 'ETF' as const,
+    }
+    const had = await ctx.db
+      .query('instruments')
+      .withIndex('by_owner_symbol', (q) =>
+        q.eq('ownerId', ownerId).eq('symbol', 'SHLD.L'),
+      )
+      .first()
+    if (had !== null) await ctx.db.patch(had._id, own)
     const digital =
-      (
-        await ctx.db
-          .query('instruments')
-          .withIndex('by_owner_symbol', (q) =>
-            q.eq('ownerId', ownerId).eq('symbol', 'SHLD.L'),
-          )
-          .first()
-      )?._id ??
+      had?._id ??
       (await ctx.db.insert('instruments', {
         ownerId,
         symbol: 'SHLD.L',
-        name: 'iShares Digital Security',
-        exchange: 'LSE',
-        currency: 'EUR',
-        type: 'ETF',
+        ...own,
       }))
     const trades = await ctx.db
       .query('trades')

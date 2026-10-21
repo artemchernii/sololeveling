@@ -12,7 +12,7 @@ import { Words } from './readParts'
    why, a bull, a bear and a wrong-if in its words. Every number on a card
    is the app's, fetched on open and never saved — the price, the month
    and the year each as two prices with both shown, the month's line. A
-   ticker the market does not answer is dropped. ASK (I4) comes after. */
+   ticker the market does not answer is dropped. */
 
 type Idea = NonNullable<Doc<'marketReads'>['read']>['ideas'][number]
 

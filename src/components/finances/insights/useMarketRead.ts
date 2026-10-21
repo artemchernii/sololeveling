@@ -106,8 +106,17 @@ export function useMarketRead(
     }
   }
 
+  /** What a question (ASK) is asked on: the month's read's own facts,
+      else the room's numbers now. */
+  async function factsNow(): Promise<Array<Fact>> {
+    if (row?.status === 'done' && row.facts.length > 0) return row.facts
+    const m = await monthAnswer(ask)
+    return [...marketFacts(m, holdings ?? []), ...extra]
+  }
+
   return {
     month,
+    factsNow,
     loading: state === undefined,
     hero,
     row,

@@ -6,7 +6,7 @@ import { api } from '../../../../convex/_generated/api'
 import { monthAnswer } from './useMarket'
 import type { Doc } from '../../../../convex/_generated/dataModel'
 import type { ProAnswer } from '@/lib/claudeResult'
-import type { Holding } from '@/lib/marketRead'
+import type { Fact, Holding } from '@/lib/marketRead'
 import { STALE_MS, marketFacts, monthKey } from '@/lib/marketRead'
 
 /* The market read (I3): the month's stored read, and the press that makes
@@ -31,7 +31,11 @@ async function findPath(): Promise<Path> {
   return knownPath
 }
 
-export function useMarketRead(holdings: Array<Holding> | null) {
+export function useMarketRead(
+  holdings: Array<Holding> | null,
+  /** More facts from the room: band 3's allocation lines (I2). */
+  extra: Array<Fact> = [],
+) {
   const month = monthKey(Date.now())
   const state = useQuery(api.marketReads.forMonth, { month })
   const run = useMutation(api.marketReads.run)
@@ -73,7 +77,7 @@ export function useMarketRead(holdings: Array<Holding> | null) {
     setRefused(null)
     try {
       const m = await monthAnswer(ask)
-      const facts = marketFacts(m, holdings)
+      const facts = [...marketFacts(m, holdings), ...extra]
       const readId = await run({ facts, via: path })
       if (path === 'pro') {
         const answer = await fetch(CLAUDE_READ_PATH, {

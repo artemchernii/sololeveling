@@ -282,8 +282,9 @@ Answer with:
   are printed under the line by the app, so the line need not repeat them.
   plain: 2–3 easy sentences explaining what it means for his money, with
   **double stars** on the key words.
-- opinion: two sentences on where his money sits (positions against the
-  market); "" when there are no positions in the facts.
+- opinion: two sentences on where his money sits — his positions and
+  the alloc- lines (his share against the world's) against the market;
+  "" when there are no positions in the facts.
 - ideas: 0 to 4 Yahoo Finance tickers he does not own (no pos- key), each
   with name, why (at most 8 words), bull, bear and wrong (when the idea
   would be wrong), each one short sentence. None when nothing fits.

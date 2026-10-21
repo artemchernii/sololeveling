@@ -47,6 +47,16 @@ const answerShape = v.object({
       day: v.string(),
     }),
   ),
+  ideas: v.array(
+    v.object({
+      ticker: v.string(),
+      name: v.string(),
+      why: v.string(),
+      bull: v.string(),
+      bear: v.string(),
+      wrong: v.string(),
+    }),
+  ),
 })
 
 export const ask = action({
@@ -70,6 +80,13 @@ export const ask = action({
     const charge = (usd: number) =>
       ctx.runMutation(internal.marketAsk.charge, { ownerId, month, usd })
 
+    const read = await ctx.runQuery(internal.marketAsk.context, {
+      ownerId,
+      month,
+    })
+    /* NEXT already shows the read's ideas: an answer does not name them again. */
+    const skip = read?.ideas.map((i) => i.ticker) ?? []
+
     if (process.env.E2E === '1') {
       await new Promise((r) => setTimeout(r, 900))
       const shape = await ctx.runQuery(internal.e2eMarketRead.armed, {
@@ -77,7 +94,13 @@ export const ask = action({
       })
       if (shape === 'fail')
         return { ok: false as const, error: 'NOT REACHED', cost: 0 }
-      const parsed = parseAsk(CANNED_ASK[args.web ? 'web' : 'plain'], keys)
+      const parsed = parseAsk(
+        CANNED_ASK[
+          args.web ? 'web' : /idea/i.test(question) ? 'ideas' : 'plain'
+        ],
+        keys,
+        skip,
+      )
       if (!parsed.ok)
         return { ok: false as const, error: parsed.error, cost: 0 }
       const cost = args.web ? 0.08 : 0.02
@@ -98,10 +121,6 @@ export const ask = action({
     if (!process.env.ANTHROPIC_API_KEY)
       return { ok: false as const, error: 'NO KEY', cost: 0 }
 
-    const read = await ctx.runQuery(internal.marketAsk.context, {
-      ownerId,
-      month,
-    })
     const usage: Usage = { input: 0, output: 0, searches: 0 }
     const failed = async (error: string) => {
       const cost = readCost(usage)
@@ -160,6 +179,7 @@ export const ask = action({
       const parsed = parseAsk(
         response.content.map((b) => (b.type === 'text' ? b.text : '')).join(''),
         keys,
+        skip,
       )
       if (!parsed.ok) return await failed(parsed.error)
       const cost = readCost(usage)

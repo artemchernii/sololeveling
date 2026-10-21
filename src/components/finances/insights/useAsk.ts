@@ -24,6 +24,8 @@ export type Turn = {
   state: 'asking' | 'done' | 'failed'
   answer?: AskAnswer
   facts?: Array<Fact>
+  /** The tickers NEXT showed when it was asked. */
+  skip?: Array<string>
   stamp?: {
     model: string
     inputTokens: number
@@ -69,6 +71,7 @@ export function useAsk(r: Read) {
       put([...kept, { id, question: q, web, at: Date.now(), state: 'asking' }])
     try {
       const facts = await r.factsNow()
+      const skip = r.shown?.read?.ideas.map((i) => i.ticker) ?? []
       if (r.path === 'pro') {
         const pro = await fetch(CLAUDE_ASK_PATH, {
           method: 'POST',
@@ -88,6 +91,7 @@ export function useAsk(r: Read) {
         const parsed = parseAsk(
           pro.raw,
           facts.map((f) => f.key),
+          skip,
         )
         if (!parsed.ok)
           return patch(id, { state: 'failed', error: parsed.error, cost: 0 })
@@ -95,6 +99,7 @@ export function useAsk(r: Read) {
           state: 'done',
           answer: parsed.answer,
           facts,
+          skip,
           at: Date.now(),
           stamp: {
             model: pro.model,
@@ -113,6 +118,7 @@ export function useAsk(r: Read) {
         state: 'done',
         answer: res.answer,
         facts,
+        skip,
         stamp: res.stamp,
         at: Date.now(),
       })

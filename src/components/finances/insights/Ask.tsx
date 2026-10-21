@@ -7,6 +7,7 @@ import type { AskKind } from '@/lib/marketAsk'
 import type { Fact } from '@/lib/marketRead'
 import { clock } from './parts'
 import { Words, factIcon, modelWord, tokens, usd } from './readParts'
+import { AskIdeas } from './AskIdeas'
 import { useAsk } from './useAsk'
 import type { Turn } from './useAsk'
 import type { useMarketRead } from './useMarketRead'
@@ -306,13 +307,19 @@ function Answer({ t }: { t: Turn }) {
         <p>
           <Words text={a.answer} />
         </p>
-        {facts.length > 0 ? (
+        {facts.length > 0 || (a.kind === 'ideas' && t.skip?.length) ? (
           <div className="ask-facts">
             {facts.map((f) => (
               <FactPill key={f.key} f={f} />
             ))}
+            {a.kind === 'ideas' && t.skip?.length ? (
+              <span data-testid="ask-in-next" className="ins-fact">
+                💡 IN NEXT · {t.skip.join(' · ')}
+              </span>
+            ) : null}
           </div>
         ) : null}
+        {a.ideas.length > 0 ? <AskIdeas ideas={a.ideas} /> : null}
         {a.sources.length > 0 ? (
           <div data-testid="ask-sources" className="ins-srcs">
             {a.sources.map((src) => (

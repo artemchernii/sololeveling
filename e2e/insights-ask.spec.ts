@@ -153,3 +153,44 @@ test('S6 phone width: no sideways scroll', async ({ page }) => {
   await page.getByTestId('ask').scrollIntoViewIfNeeded()
   await page.screenshot(shot('insights-ask-phone'))
 })
+
+test('S7 asked for ideas → cards with fetched prices; owned, in NEXT and unknown tickers left out', async ({
+  page,
+}) => {
+  await open(page)
+  /* A read first, so NEXT shows its ideas. */
+  await page.getByTestId('read-market').click()
+  await expect(page.getByTestId('read-hero')).toHaveAttribute(
+    'data-state',
+    'done',
+    { timeout: 15_000 },
+  )
+  await expect(page.getByTestId('idea-card')).toHaveCount(2, {
+    timeout: 15_000,
+  })
+  await page.getByTestId('ask-input').fill('Give me more ideas')
+  await page.getByTestId('ask-send').click()
+  const answer = page.getByTestId('ask-answer')
+  await expect(answer).toHaveAttribute('data-kind', 'ideas', {
+    timeout: 15_000,
+  })
+  await expect(answer).toContainText('💡 IDEAS')
+  await expect(page.getByTestId('ask-in-next')).toContainText(
+    'IN NEXT · NOVO-B.CO',
+  )
+  const cards = answer.getByTestId('ask-idea')
+  await expect(cards).toHaveCount(2, { timeout: 15_000 })
+  await expect(answer.locator('[data-ticker="JNJ"]')).toContainText('$187')
+  await expect(answer.locator('[data-ticker="JNJ"]')).toContainText(
+    'MODEL · NOT ADVICE',
+  )
+  await expect(answer.locator('[data-ticker="EXV1.DE"]')).toContainText(
+    'WRONG IF',
+  )
+  await expect(answer.locator('[data-ticker="ZZZZ"]')).toHaveCount(0)
+  await expect(answer.locator('[data-ticker="NOVO-B.CO"]')).toHaveCount(0)
+  /* NEXT keeps its own two. */
+  await expect(page.getByTestId('idea-card')).toHaveCount(2)
+  await answer.scrollIntoViewIfNeeded()
+  await page.screenshot(shot('insights-ask-ideas'))
+})

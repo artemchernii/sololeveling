@@ -61,3 +61,38 @@ test('without 🌐 the prompt forbids searching; with it, it caps searches', () 
   expect(web).toContain('- mine: MINE €820')
   expect(web).toContain('Question: q?')
 })
+
+test('ideas stand only on an ideas answer; owned, in NEXT and repeated tickers are dropped', () => {
+  const idea = (ticker: string) => ({
+    ticker,
+    name: ticker,
+    why: 'w',
+    bull: 'b',
+    bear: 'b',
+    wrong: 'w',
+  })
+  const raw = {
+    kind: 'ideas',
+    answer: 'Two more.',
+    factKeys: [],
+    sources: [],
+    ideas: [
+      'jnj',
+      'AVGO',
+      'NOVO-B.CO',
+      'JNJ',
+      'bad ticker!',
+      'GDX',
+      'SAN',
+      'X',
+    ].map(idea),
+  }
+  const r = parseAsk(raw, [...keys, 'pos-AVGO'], ['NOVO-B.CO'])
+  expect(r.ok && r.answer.ideas.map((i) => i.ticker)).toEqual([
+    'JNJ',
+    'GDX',
+    'SAN',
+  ])
+  const plain = parseAsk({ ...raw, kind: 'allocation' }, keys)
+  expect(plain.ok && plain.answer.ideas).toEqual([])
+})

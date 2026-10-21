@@ -48,10 +48,13 @@ export const quotes = action({
   },
 })
 
-/* The test backend's quotes: two known tickers, everything else unknown. */
+/* The test backend's quotes: four known tickers (two for NEXT, two for
+   an ASK answer's ideas), everything else unknown. */
 const CANNED: Record<string, [string, number, number, number]> = {
   'NOVO-B.CO': ['DKK', 412, -3.9, -38.2],
   'WSML.L': ['USD', 7.12, 1.6, 9.4],
+  JNJ: ['USD', 187.4, 2.1, 8.3],
+  'EXV1.DE': ['EUR', 31.85, 4.4, 22.6],
 }
 function canned(symbols: Array<string>, now: number): Array<IdeaQuote> {
   const DAY = 86_400_000

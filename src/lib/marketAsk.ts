@@ -1,5 +1,5 @@
 import { KINDS } from './marketRead'
-import type { Fact, MarketRead, Source } from './marketRead'
+import type { Fact, Idea, MarketRead, Source } from './marketRead'
 
 /* ASK on Insights (I4, 21 Oct; spec docs/specs/2026-10-19-insights.md,
    mockup design/treasury-mockup/ask.html, his "go"). A question is
@@ -7,10 +7,15 @@ import type { Fact, MarketRead, Source } from './marketRead'
    the read itself; 🌐 lets it search the web for that one question.
    Like a read line, the answer names fact keys and the app prints their
    numbers under it; a key not given is dropped, never shown. Nothing of
-   it is stored — the thread lives on the page. */
+   it is stored — the thread lives on the page. Asked for ideas, it may
+   name up to three tickers he does not own and NEXT does not show, each
+   with a why, a bull, a bear and a wrong-if (21 Oct, "ideas in ASK");
+   every number on their cards is fetched by the app. */
 
 export const ASK_KINDS = [...KINDS, 'gold', 'ideas'] as const
 export type AskKind = (typeof ASK_KINDS)[number]
+/** Ideas one answer may name. */
+export const MAX_ASK_IDEAS = 3
 /** Searches one 🌐 question may make. */
 export const MAX_ASK_SEARCHES = 3
 export const MAX_QUESTION = 400
@@ -20,6 +25,7 @@ export type AskAnswer = {
   answer: string
   factKeys: Array<string>
   sources: Array<Source>
+  ideas: Array<Idea>
 }
 /** What the model is told of the month's read, when there is one. */
 export type ReadContext = Pick<
@@ -50,6 +56,17 @@ export const ASK_SCHEMA = object({
   sources: {
     type: 'array',
     items: object({ site: str, title: str, url: str, day: str }),
+  },
+  ideas: {
+    type: 'array',
+    items: object({
+      ticker: str,
+      name: str,
+      why: str,
+      bull: str,
+      bear: str,
+      wrong: str,
+    }),
   },
 })
 
@@ -96,7 +113,12 @@ Answer with:
   important words in **double stars**.
 - factKeys: 0–3 keys from the facts the answer is about; the app prints
   their numbers under it, so the answer need not repeat them.
-- sources: ${web ? 'the pages you used, each with site (domain), title, url and day (YYYY-MM-DD)' : 'empty'}.`
+- sources: ${web ? 'the pages you used, each with site (domain), title, url and day (YYYY-MM-DD)' : 'empty'}.
+- ideas: only when he asks for ideas (kind "ideas"), else empty. 0 to
+  ${MAX_ASK_IDEAS} Yahoo Finance tickers he does not own (no pos- key) and not among
+  the read's ideas, each with name, why (at most 8 words), bull, bear and
+  wrong (when the idea would be wrong), each one short sentence. The app
+  fetches their prices; do not write any.`
 }
 
 const text = (v: unknown, max: number) =>
@@ -105,11 +127,15 @@ const text = (v: unknown, max: number) =>
 /**
  * The model's answer, checked. A fact key not given is dropped (its chip
  * never shows), an unknown kind reads as nodata, a source that is not an
- * https link is dropped. No words is a failed answer.
+ * https link is dropped, an idea on a ticker he owns or NEXT shows is
+ * dropped, and ideas stand only on an answer of kind ideas. No words is a
+ * failed answer.
  */
 export function parseAsk(
   raw: unknown,
   keys: Array<string>,
+  /** Tickers NEXT already shows: not named again. */
+  skip: Array<string> = [],
 ): { ok: true; answer: AskAnswer } | { ok: false; error: string } {
   let d: Record<string, unknown> | null
   try {
@@ -145,8 +171,34 @@ export function parseAsk(
   const kind = ASK_KINDS.includes(d.kind as AskKind)
     ? (d.kind as AskKind)
     : 'nodata'
+  const away = new Set([
+    ...keys.filter((k) => k.startsWith('pos-')).map((k) => k.slice(4)),
+    ...skip.map((t) => t.toUpperCase()),
+  ])
+  const ideas: Array<Idea> = []
+  for (const i of kind === 'ideas' && Array.isArray(d.ideas)
+    ? (d.ideas as Array<Record<string, unknown>>)
+    : []) {
+    const ticker = text(i.ticker, 16).toUpperCase()
+    if (!/^[A-Z0-9.^=-]{1,16}$/.test(ticker) || away.has(ticker)) continue
+    if (ideas.some((x) => x.ticker === ticker)) continue
+    ideas.push({
+      ticker,
+      name: text(i.name, 60),
+      why: text(i.why, 80),
+      bull: text(i.bull, 160),
+      bear: text(i.bear, 160),
+      wrong: text(i.wrong, 160),
+    })
+  }
   return {
     ok: true,
-    answer: { kind, answer, factKeys, sources: sources.slice(0, 6) },
+    answer: {
+      kind,
+      answer,
+      factKeys,
+      sources: sources.slice(0, 6),
+      ideas: ideas.slice(0, MAX_ASK_IDEAS),
+    },
   }
 }

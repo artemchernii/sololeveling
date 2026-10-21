@@ -18,10 +18,20 @@ const fact = (key: string, label: string, value: string): Fact => ({
   value,
   tone: null,
 })
+/* The room's numbers as the canned read names them. */
 const facts = [
   fact('us-cpi', 'US CPI SEP', '2.9%'),
+  fact('us-cpi-was', 'US CPI AUG', '3.1%'),
+  fact('eu-hicp', 'EURO CPI SEP', '2.1%'),
+  fact('ecb', 'ECB', '2.00% · SINCE 11 SEP'),
+  fact('ecb-next', 'NEXT ECB', '29 OCT'),
+  fact('mkt-sp500', 'S&P 500', '▲ 2.4% · 1M'),
+  fact('mkt-btc', 'BITCOIN', '▼ 4.1% · 1M'),
   fact('sec-tech', 'TECH', '▲ 5.8% · 1M'),
+  fact('co-NVDA', 'NVDA', '▲ 8.1% · 1M'),
+  fact('co-AVGO', 'AVGO', '▲ 7.4% · 1M'),
   fact('mine', 'MINE', '€820 · 1 POSITION'),
+  fact('pos-AVGO', 'AVGO', '€820 · 100.0%'),
 ]
 
 afterEach(() => {
@@ -82,6 +92,22 @@ test('S2 🌐 answers with sources and searches, and costs more', async () => {
   expect(
     (await me.query(api.marketReads.forMonth, { month: month() })).spent,
   ).toBe(0.08)
+})
+
+test('S7 asked for ideas: tickers not owned and not in NEXT, on the same cap', async () => {
+  const { t, me } = setup()
+  await me.mutation(api.marketReads.run, { facts, via: 'api' })
+  await t.finishAllScheduledFunctions(vi.runAllTimers)
+  const r = await ask(me, 'Give me more ideas')
+  expect(r.ok && r.answer.kind).toBe('ideas')
+  /* The canned read's NEXT shows NOVO-B.CO and ZZZZ. */
+  expect(r.ok && r.answer.ideas.map((i) => i.ticker)).toEqual([
+    'JNJ',
+    'EXV1.DE',
+  ])
+  expect(
+    (await me.query(api.marketReads.forMonth, { month: month() })).spent,
+  ).toBe(0.26)
 })
 
 test('S3 failed: nothing paid, nothing retried', async () => {

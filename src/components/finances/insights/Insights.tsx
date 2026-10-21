@@ -2,6 +2,7 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { useMemo, useState } from 'react'
 
 import { api } from '../../../../convex/_generated/api'
+import { Ask } from './Ask'
 import { Ideas } from './Ideas'
 import { Markets } from './Markets'
 import { allocFacts, allocRows } from './Allocation'
@@ -24,7 +25,7 @@ import type { Period } from '@/lib/insightsMarket'
    after payday: he reads what the market did and where his money sits.
    I1 built band 1, THE MARKET — fetched when the room opens, never saved.
    I3 adds the read: the hero, band 2 WHAT IT MEANS and band 4's ideas.
-   I2 adds band 3, MINE. ASK (I4) comes in its own slice. */
+   I2 adds band 3, MINE. I4 adds ASK under the ideas, never saved. */
 
 const NONE: [] = []
 
@@ -98,9 +99,10 @@ export function Insights() {
       <div className="ins-band">
         <span className="n">4</span>
         <b>NEXT</b>
-        <span className="label-caps">IDEAS</span>
+        <span className="label-caps">IDEAS · QUESTIONS</span>
       </div>
       <Ideas ideas={read.shown?.read?.ideas ?? null} />
+      <Ask r={read} />
     </div>
   )
 }

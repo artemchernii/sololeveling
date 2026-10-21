@@ -8,6 +8,7 @@
 @import './styles/insights-map.css';
 @import './styles/insights-mine.css';
 @import './styles/insights-read.css';
+@import './styles/insights-ask.css';
 
 @plugin '@tailwindcss/typography';
 @import 'tw-animate-css';

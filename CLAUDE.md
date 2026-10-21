@@ -174,6 +174,12 @@ mockup `design/treasury-mockup/insights.html`, spec
 - **ASK**: questions answered by the same model on the same facts, a 🌐
   switch for web search per question; answers stay on the screen, not in
   the database.
+  Asked for ideas (21 Oct, "go on ideas in ASK" on the mockup
+  `design/treasury-mockup/ask-ideas.html`), an answer may name up to
+  three tickers not owned and not in NEXT, on the same terms as Ideas
+  below: a why, a bull, a bear and a wrong-if in words, every number on
+  their cards fetched by the app, MODEL · NOT ADVICE, gone with the
+  thread.
 - **Explanations may be sentences** ("for not smart person like me I
   want more like explanation"): behind an ⓘ card and a WHAT IT MEANS
   tap only. The screen itself stays badges and numbers.

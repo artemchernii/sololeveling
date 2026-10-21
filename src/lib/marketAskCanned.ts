@@ -1,16 +1,19 @@
 import type { AskAnswer } from './marketAsk'
 
 /* What the test backend (E2E=1) answers a question with, so no test pays:
-   one answer without the web, one with it. Keys from the canned market
+   one answer without the web, one with it, and one naming ideas — JNJ
+   and EXV1.DE answered by the canned quotes, NOVO-B.CO which the canned
+   read's NEXT already shows, ZZZZ which no market knows. Keys from the canned market
    (convex/insightsMarket.ts) and the mock Broadcom position. */
 
-export const CANNED_ASK: Record<'plain' | 'web', AskAnswer> = {
+export const CANNED_ASK: Record<'plain' | 'web' | 'ideas', AskAnswer> = {
   plain: {
     kind: 'allocation',
     answer:
       'Almost all of the money sits in **one US chip company**, so one bad month for chips moves most of it. The tech sector itself rose **faster than the market** this month.',
     factKeys: ['mine', 'sec-tech'],
     sources: [],
+    ideas: [],
   },
   web: {
     kind: 'rates',
@@ -29,6 +32,48 @@ export const CANNED_ASK: Record<'plain' | 'web', AskAnswer> = {
         title: 'Speech',
         url: 'https://www.federalreserve.gov/newsevents/speech.htm',
         day: '2026-10-16',
+      },
+    ],
+    ideas: [],
+  },
+  ideas: {
+    kind: 'ideas',
+    answer:
+      "Two more **outside tech**, so the next euros would not add to the chip weight: **health** and **Europe's banks**.",
+    factKeys: ['sec-tech'],
+    sources: [],
+    ideas: [
+      {
+        ticker: 'JNJ',
+        name: 'Johnson & Johnson',
+        why: 'Medicines and devices, steady dividend',
+        bull: 'Health spending grows in good and bad years',
+        bear: 'Lawsuits over old products',
+        wrong: 'Two drug launches miss',
+      },
+      {
+        ticker: 'EXV1.DE',
+        name: 'iShares STOXX Europe 600 Banks',
+        why: "Europe's banks, outside tech",
+        bull: 'Banks earn more while rates stay up',
+        bear: 'A cut by the ECB squeezes them',
+        wrong: 'Euro rates fall fast',
+      },
+      {
+        ticker: 'ZZZZ',
+        name: 'Nowhere Inc',
+        why: 'A ticker no market knows',
+        bull: 'x',
+        bear: 'x',
+        wrong: 'x',
+      },
+      {
+        ticker: 'NOVO-B.CO',
+        name: 'Novo Nordisk',
+        why: 'Already in NEXT',
+        bull: 'x',
+        bear: 'x',
+        wrong: 'x',
       },
     ],
   },

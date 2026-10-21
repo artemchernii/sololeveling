@@ -19,7 +19,7 @@ type Idea = NonNullable<Doc<'marketReads'>['read']>['ideas'][number]
 const KEEP_MS = 10 * 60_000
 const kept = new Map<string, { at: number; quotes: Array<IdeaQuote> }>()
 
-function useQuotes(symbols: Array<string>) {
+export function useQuotes(symbols: Array<string>) {
   const ask = useAction(api.insightsIdeas.quotes)
   const key = symbols.join(',')
   const hit = kept.get(key)
@@ -103,7 +103,18 @@ export function Ideas({ ideas }: { ideas: Array<Idea> | null }) {
   )
 }
 
-function IdeaCard({ idea, q, i }: { idea: Idea; q: IdeaQuote; i: number }) {
+/** One idea's card; `in` an ASK answer it sits three to a row. */
+export function IdeaCard({
+  idea,
+  q,
+  i,
+  in: where = 'next',
+}: {
+  idea: Idea
+  q: IdeaQuote
+  i: number
+  in?: 'next' | 'ask'
+}) {
   const m = q.month
   const tone =
     m === null || m.change === 0
@@ -113,10 +124,15 @@ function IdeaCard({ idea, q, i }: { idea: Idea; q: IdeaQuote; i: number }) {
         : 'var(--state-danger)'
   return (
     <section
-      data-testid="idea-card"
+      data-testid={where === 'ask' ? 'ask-idea' : 'idea-card'}
       data-ticker={idea.ticker}
-      className="ins-tile c3 ins-idea"
-      style={{ '--i': 11 + i, '--tone': tone } as React.CSSProperties}
+      className={`ins-tile ins-idea ${where === 'ask' ? 'ask-idea' : 'c3'}`}
+      style={
+        {
+          '--i': where === 'ask' ? i : 11 + i,
+          '--tone': tone,
+        } as React.CSSProperties
+      }
     >
       <div className="top">
         <div className="flex items-start justify-between gap-2">

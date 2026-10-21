@@ -28,6 +28,20 @@ test('the structured answer and its usage, from what claude -p prints', () => {
   })
 })
 
+test("Claude Code's own searches count, read per model", () => {
+  const r = parseClaudeResult(
+    JSON.stringify({
+      result: 'x',
+      usage: { server_tool_use: { web_search_requests: 0 } },
+      modelUsage: {
+        'claude-sonnet-5-5': { webSearchRequests: 2 },
+        'claude-haiku-5-5': { webSearchRequests: 1 },
+      },
+    }),
+  )
+  expect(r.ok && r.searches).toBe(3)
+})
+
 test('signed out, an error, or nothing printed is a failed read', () => {
   expect(
     parseClaudeResult(

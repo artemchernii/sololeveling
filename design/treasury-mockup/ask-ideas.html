@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ASK ideas mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* Insights — Finances' fourth room. Round 4 (19 Oct): "a bit bland, no
+     logos, no badges … all over the place". One 12-column grid, four
+     numbered bands (THE MARKET · WHAT IT MEANS · MINE · NEXT), logos the
+     way src/lib/logo.ts finds them, emoji as in src/lib/tags.ts.
+     Sample numbers, not his data. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150); --bad: oklch(0.68 0.2 22); --warn: oklch(0.79 0.15 75);
+    --glass: linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
+    --edge: rgba(233,233,237,.09);
+    --shadow: inset 0 1px 0 rgba(233,233,237,.08), 0 24px 48px -28px rgba(0,0,0,.9);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --money: oklch(0.8 0.1 88);
+    --k-etf: oklch(0.78 0.11 250); --k-stock: oklch(0.8 0.12 300); --k-coin: oklch(0.82 0.13 75);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font: 13px/1.4 Inter, system-ui, sans-serif; min-height: 100vh }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 16px 16px 80px; display:flex; flex-direction:column; gap: 14px }
+  .caps { font: 500 9.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .was { font: 10.5px var(--mono); color: var(--ink-500) }
+  .good { color: var(--good) } .bad { color: var(--bad) } .warnc { color: var(--warn) }
+  .row { display:flex; align-items:center; gap: 8px }
+  .grow { flex: 1; min-width: 0 }
+  .num { font-weight: 600; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums }
+
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; font: 11px var(--mono); color: var(--warn); letter-spacing: .08em; text-transform: uppercase }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  .fhead { display:flex; align-items:flex-end; justify-content:space-between; gap: 12px; flex-wrap: wrap }
+  .title { font-size: 30px; font-weight: 300; letter-spacing: -.02em }
+  .tabs { display:flex; gap: 4px; padding: 3px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.03) }
+  .tab { font: 500 10px var(--mono); letter-spacing: .18em; padding: 6px 12px; border-radius: 999px; color: var(--ink-400) }
+  .tab.on { color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 18%, transparent); box-shadow: 0 0 16px -6px var(--shine) }
+
+  .band { display:flex; align-items:center; gap: 10px; margin-top: 10px }
+  .band b { font: 700 11px var(--mono); letter-spacing: .3em; color: var(--ink-200) }
+  .band .n { width: 22px; height: 22px; border-radius: 7px; display:grid; place-items:center; font: 700 11px var(--mono); color: var(--lav-300); border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 12%, transparent) }
+  .band::after { content:''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--edge), transparent) }
+
+  .grid { display:grid; grid-template-columns: repeat(12, 1fr); gap: 12px; align-items: stretch }
+  .c3 { grid-column: span 3 } .c4 { grid-column: span 4 } .c5 { grid-column: span 5 } .c7 { grid-column: span 7 } .c8 { grid-column: span 8 } .c12 { grid-column: span 12 }
+  @media (max-width: 1000px) { .c3 { grid-column: span 6 } .c4, .c5, .c7, .c8 { grid-column: span 12 } }
+  @media (max-width: 560px) { .c3 { grid-column: span 12 } }
+
+  .tile { position: relative; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 16px; display:flex; flex-direction:column; gap: 12px; min-width: 0; overflow: hidden;
+    transition: transform .25s cubic-bezier(.2,.8,.2,1), border-color .25s, box-shadow .25s; animation: arrive .55s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 50ms) }
+  .tile:hover { transform: translateY(-2px); border-color: color-mix(in oklch, var(--a, var(--lav-400)) 45%, transparent); box-shadow: var(--shadow), 0 0 32px -14px var(--a, var(--shine)) }
+  .tile.lit { border-color: var(--lav-400) !important; box-shadow: var(--shadow), 0 0 0 1px var(--lav-400), 0 0 34px -8px var(--shine) !important }
+  @keyframes arrive { from { opacity: 0; transform: translateY(10px) scale(.985) } }
+  .thead { display:flex; align-items:center; gap: 10px; min-height: 24px }
+  .tname { font: 700 10.5px var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--ink-200) }
+  .ico { width: 24px; height: 24px; border-radius: 8px; display:grid; place-items:center; flex: none; font-size: 13px; background: color-mix(in oklch, var(--a, var(--lav-400)) 16%, transparent); border: 1px solid color-mix(in oklch, var(--a, var(--lav-400)) 35%, transparent) }
+
+  .sys { border-color: var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.11), rgba(181,171,252,.02) 45%), var(--glass); box-shadow: var(--shadow), 0 0 40px -18px var(--shine) }
+  .sys::after { content:''; position:absolute; inset:-1px; border:2px solid var(--lav-400); border-radius:15px; pointer-events:none; z-index: 3; --r: 20px;
+    mask: linear-gradient(#000 0 0) top left/var(--r) var(--r), linear-gradient(#000 0 0) top right/var(--r) var(--r), linear-gradient(#000 0 0) bottom left/var(--r) var(--r), linear-gradient(#000 0 0) bottom right/var(--r) var(--r); mask-repeat:no-repeat; animation: corners 3.2s ease-in-out infinite }
+  @keyframes corners { 0%,100% { filter: drop-shadow(0 0 3px var(--shine)); opacity: .75 } 50% { filter: drop-shadow(0 0 9px var(--shine)); opacity: 1 } }
+  .sys-title { font: 500 11px var(--mono); letter-spacing: .34em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 12px var(--shine) }
+
+  .badge { font: 600 9.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid currentColor; display:inline-flex; gap: 5px; align-items:center; white-space: nowrap }
+  .b-good { color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent) }
+  .b-bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 12%, transparent) }
+  .b-warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 12%, transparent) }
+  .b-lav { color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 14%, transparent) }
+  .b-dim { color: var(--ink-400); font-weight: 500 }
+  .b-dash { border-style: dashed }
+  .live::before { content:''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: ping 1.6s ease-out infinite }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 currentColor } 80%,100% { box-shadow: 0 0 0 7px transparent } }
+  @keyframes pop { from { transform: scale(.4); opacity: 0 } }
+  @keyframes typeIn { from { opacity: 0; transform: translateY(4px) } }
+  .fact { font: 500 10px var(--mono); letter-spacing: .04em; color: var(--ink-200); padding: 3px 8px; border-radius: 6px; background: rgba(255,255,255,.05); border: 1px solid var(--edge); white-space: nowrap }
+  .facts { display:flex; gap: 5px; flex-wrap: wrap }
+
+  .logo { width: 30px; height: 30px; border-radius: 9px; flex: none; display:grid; place-items:center; background: #fff; overflow:hidden; border: 1px solid var(--edge) }
+  .logo img { width: 100%; height: 100%; object-fit: contain }
+  .logo.coin { border-radius: 50%; background: transparent; border: 0 }
+  .logo.site img { width: 70%; height: 70% }
+  .logo.emo { background: rgba(255,255,255,.06); font-size: 16px }
+  .logo.sm { width: 20px; height: 20px; border-radius: 6px }
+  .logo.sm.emo { font-size: 11px }
+  .logo.metal { background: radial-gradient(circle at 35% 30%, #ffe9a3, #c9971f); border-radius: 50%; border: 0 }
+
+  .i { display:inline-grid; place-items:center; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--ink-500); color: var(--ink-400); font: 700 9px var(--mono); cursor: pointer; flex: none; transition: all .15s }
+  .i:hover, .i.on { color: var(--lav-300); border-color: var(--lav-400); box-shadow: 0 0 10px -3px var(--shine) }
+  .card { position: fixed; z-index: 50; width: 310px; padding: 14px; border-radius: 12px; border: 1px solid var(--sys-edge); background: #1d1e30f5; backdrop-filter: blur(12px); box-shadow: 0 20px 40px -12px rgba(0,0,0,.8), 0 0 30px -12px var(--shine); display:none; flex-direction:column; gap: 8px; animation: pop .3s cubic-bezier(.3,1.6,.5,1) both }
+  .card.open { display:flex }
+  .card h4 { font: 700 11px var(--mono); letter-spacing: .2em; color: var(--lav-300) }
+  .card .k { font: 500 9px var(--mono); letter-spacing: .14em; color: var(--ink-500) }
+  .card p { font-size: 12.5px; line-height: 1.55; color: var(--ink-200) }
+  .card .now { font: 600 10.5px var(--mono); color: var(--ink-100); padding: 6px 8px; border-radius: 7px; background: rgba(255,255,255,.05); border: 1px solid var(--edge) }
+
+  .hero { flex-direction: row; align-items: center; gap: 20px; padding: 20px 22px; min-height: 132px }
+  .orb { width: 64px; height: 64px; border-radius: 50%; display:grid; place-items:center; flex: none; font-size: 26px; color: var(--lav-300);
+    background: radial-gradient(circle at 35% 30%, color-mix(in oklch, var(--lav-400) 45%, transparent), color-mix(in oklch, var(--lav-400) 8%, transparent) 70%); border: 1px solid var(--sys-edge); animation: orb 3s ease-in-out infinite }
+  .orb.spin span { display:inline-block; animation: spin 1.4s linear infinite }
+  .orb.ok { color: var(--good); border-color: color-mix(in oklch, var(--good) 50%, transparent); background: radial-gradient(circle, color-mix(in oklch, var(--good) 30%, transparent), transparent 70%) }
+  @keyframes orb { 0%,100% { box-shadow: 0 0 18px -8px var(--shine) } 50% { box-shadow: 0 0 36px -4px var(--shine) } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .verdict { font: 700 26px var(--mono); letter-spacing: .12em; color: var(--good); text-shadow: 0 0 18px color-mix(in oklch, var(--good) 45%, transparent); animation: pop .5s cubic-bezier(.3,1.6,.5,1) both }
+  .btn { font: 700 11px var(--mono); letter-spacing: .2em; text-transform: uppercase; padding: 12px 20px; border-radius: 999px; cursor: pointer; color: var(--lav-300); border: 1px solid var(--lav-400); background: color-mix(in oklch, var(--lav-400) 18%, transparent); box-shadow: 0 0 22px -8px var(--shine); transition: all .2s; white-space: nowrap }
+  .btn:hover { background: color-mix(in oklch, var(--lav-400) 28%, transparent) }
+  .btn.ghost { color: var(--ink-300); border-color: var(--edge); background: rgba(255,255,255,.04); box-shadow: none; padding: 7px 12px; font-size: 10px }
+  .btn[disabled] { opacity: .4; cursor: not-allowed }
+  .scan { height: 3px; border-radius: 2px; background: rgba(255,255,255,.06); overflow:hidden; width: 260px }
+  .scan::after { content:''; display:block; height:100%; width: 35%; background: var(--lav-400); box-shadow: 0 0 10px var(--shine); animation: scan 1.3s ease-in-out infinite }
+  @keyframes scan { from { transform: translateX(-100%) } to { transform: translateX(300%) } }
+  .who { display:flex; flex-direction:column; align-items:flex-end; gap: 6px; flex: none }
+  @media (max-width: 760px) { .hero { flex-direction: column; align-items: flex-start } .who { align-items: flex-start } }
+
+  .rate .big { font-size: 32px }
+  .chg { font: 700 10px var(--mono); padding: 3px 7px; border-radius: 6px; white-space: nowrap }
+  .chg.g { color: var(--good); background: color-mix(in oklch, var(--good) 14%, transparent) }
+  .chg.r { color: var(--bad); background: color-mix(in oklch, var(--bad) 14%, transparent) }
+  .foot { display:flex; justify-content:space-between; align-items:center; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px dashed var(--edge) }
+
+  .mkts { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px }
+  @media (max-width: 1000px) { .mkts { grid-template-columns: repeat(2, 1fr) } }
+  .mk { border-radius: 11px; padding: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.03); display:grid; grid-template-columns: 30px 1fr auto; gap: 4px 10px; align-items:center; transition: border-color .2s }
+  .mk:hover { border-color: color-mix(in oklch, var(--c) 55%, transparent) }
+  .mk .logo { grid-row: span 2 }
+  .mk .nm { font: 700 10px var(--mono); letter-spacing: .12em; color: var(--ink-200) }
+  .mk .v { font-size: 17px }
+  .mk svg { grid-column: 1 / -1; width: 100%; height: 34px; display:block; margin-top: 4px }
+  .mk polyline { fill: none; stroke: var(--c); stroke-width: 1.8; stroke-dasharray: 300; stroke-dashoffset: 300; animation: draw 1.4s cubic-bezier(.4,0,.2,1) .3s forwards }
+  .mk polygon { fill: var(--c); opacity: .1 }
+  @keyframes draw { to { stroke-dashoffset: 0 } }
+
+  .lines { display:flex; flex-direction:column; gap: 8px }
+  .ln { display:grid; grid-template-columns: 36px 1fr; gap: 12px; padding: 12px; border-radius: 11px; border: 1px solid var(--edge); background: rgba(255,255,255,.025); animation: typeIn .45s ease both; transition: border-color .15s, background .15s }
+  .ln:hover { border-color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 6%, transparent) }
+  .ln .em { width: 36px; height: 36px; border-radius: 10px; display:grid; place-items:center; font-size: 18px; background: color-mix(in oklch, var(--t) 14%, transparent); border: 1px solid color-mix(in oklch, var(--t) 40%, transparent) }
+  .ln h3 { font-size: 14px; font-weight: 700; color: var(--ink-100) }
+  .ln p { font-size: 12.5px; color: var(--ink-300); margin: 3px 0 8px }
+  .means { font: 700 9.5px var(--mono); letter-spacing: .14em; color: var(--lav-400); cursor: pointer; margin-top: 8px; display:inline-flex; gap: 4px; align-items:center }
+  .means::after { content: '▾' }
+  .open .means::after { content: '▴' }
+  .plain { display:none; margin-top: 8px; padding: 10px 12px; border-radius: 9px; border-left: 3px solid var(--lav-400); background: color-mix(in oklch, var(--lav-400) 8%, transparent); font-size: 13px; line-height: 1.6; color: var(--ink-200) }
+  .open .plain { display:block; animation: typeIn .3s ease both }
+  .plain b { color: var(--ink-100); font-weight: 600 }
+  .after { flex: 1; display:flex; flex-direction:column; gap: 8px; align-items:center; justify-content:center; border: 1px dashed var(--edge); border-radius: 11px; min-height: 160px }
+  .srcs { display:flex; gap: 6px; flex-wrap: wrap; align-items:center }
+  .src { display:inline-flex; gap: 6px; align-items:center; font: 500 10px var(--mono); color: var(--lav-300); padding: 3px 8px 3px 4px; border-radius: 7px; border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 6%, transparent); cursor: pointer }
+  .src img { width: 14px; height: 14px; border-radius: 3px; background: #fff }
+
+  .heat { display:flex; flex-direction:column; gap: 4px; flex: 1 }
+  .hrow { display:grid; gap: 4px; flex: 1 }
+  .hc { position: relative; border-radius: 8px; padding: 8px; min-height: 62px; display:flex; flex-direction:column; justify-content:space-between; gap: 4px; overflow:hidden; cursor: pointer; transition: transform .15s, box-shadow .15s; animation: pop .45s cubic-bezier(.3,1.6,.5,1) both }
+  .hc:hover { transform: scale(1.03); z-index: 2; box-shadow: 0 0 0 1px #fff }
+  .hc .top { display:flex; align-items:center; gap: 6px; min-width: 0 }
+  .hc .n { font: 700 10px var(--mono); letter-spacing: .06em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .hc .v { font: 700 12px var(--mono); color: #fff }
+  .hc .e { font: 400 10px var(--mono); color: rgba(255,255,255,.75) }
+  .hc .own { position:absolute; bottom: 8px; right: 8px; font: 700 8px var(--mono); letter-spacing: .1em; color: #161826; background: #fff; padding: 1px 5px; border-radius: 4px }
+  .hc.big { min-height: 112px } .hc.big .n { font-size: 11.5px } .hc.big .v { font-size: 18px }
+  .hc.frozen { background: repeating-linear-gradient(45deg, rgba(255,255,255,.06) 0 6px, rgba(255,255,255,.02) 6px 12px) !important; border: 1px dashed var(--ink-600) }
+  .hscale { display:flex; align-items:center; gap: 6px }
+  .hscale i { width: 110px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, #dc2626, #262838, #16a34a) }
+
+  .alloc { display:flex; flex-direction:column; gap: 14px }
+  .al { display:grid; grid-template-columns: 26px 1fr 92px; gap: 10px; align-items:center }
+  .al .em { font-size: 16px; text-align:center }
+  .al .nm { font: 700 10px var(--mono); letter-spacing: .14em; color: var(--ink-200); margin-bottom: 5px }
+  .bars2 { display:flex; flex-direction:column; gap: 3px }
+  .bar { height: 9px; border-radius: 4px; background: rgba(255,255,255,.06); overflow:hidden }
+  .bar b { display:block; height:100%; border-radius: 4px; background: var(--k); transform-origin:left; animation: fill 1s cubic-bezier(.2,.8,.2,1) .4s both }
+  .bar.ref b { background: repeating-linear-gradient(90deg, var(--ink-400) 0 4px, transparent 4px 7px); opacity: .8 }
+  @keyframes fill { from { transform: scaleX(0) } }
+  .al .vals { text-align:right; display:flex; flex-direction:column; gap: 2px }
+  .al .vals strong { font: 700 14px var(--mono) }
+  .legend { display:flex; gap: 14px }
+  .legend span { display:inline-flex; gap: 6px; align-items:center; font: 500 9.5px var(--mono); color: var(--ink-400); letter-spacing: .08em }
+  .legend i { width: 16px; height: 8px; border-radius: 3px; background: var(--ink-200) }
+  .legend i.d { background: transparent; border: 1px dashed var(--ink-300) }
+
+  .idea .tk { font-size: 15px; font-weight: 700; letter-spacing: .02em }
+  .idea .co { font-size: 11.5px; color: var(--ink-400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .idea .why { font-size: 13px; font-weight: 600; color: var(--ink-100); min-height: 36px }
+  .bb { display:grid; grid-template-columns: 78px 1fr; gap: 6px 8px; font-size: 12.5px }
+  .bb span:nth-child(odd) { font: 700 9.5px var(--mono); letter-spacing: .1em; padding-top: 2px }
+
+  .thread { display:flex; flex-direction:column; gap: 12px; max-height: 360px; overflow:auto; padding-right: 4px }
+  .q { align-self: flex-end; max-width: 70%; padding: 9px 14px; border-radius: 14px 14px 4px 14px; background: color-mix(in oklch, var(--lav-400) 20%, transparent); border: 1px solid var(--sys-edge); font-size: 13px; font-weight: 500 }
+  .a { align-self: flex-start; display:grid; grid-template-columns: 28px 1fr; gap: 10px; max-width: 86%; animation: typeIn .4s ease both }
+  .a .av { width: 28px; height: 28px; border-radius: 50%; display:grid; place-items:center; color: var(--lav-300); border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 14%, transparent); font-size: 12px }
+  .a .body { padding: 10px 14px; border-radius: 4px 14px 14px 14px; background: rgba(255,255,255,.04); border: 1px solid var(--edge); font-size: 13px; line-height: 1.6; color: var(--ink-200); display:flex; flex-direction:column; gap: 8px }
+  .a .body b { color: var(--ink-100); font-weight: 600 }
+  .askbar { display:flex; gap: 8px; align-items:center }
+  .askbar input { flex: 1; min-width: 0; background: rgba(255,255,255,.05); border: 1px solid var(--edge); border-radius: 999px; color: var(--ink-100); font: 14px Inter, sans-serif; padding: 12px 16px; outline: none }
+  .askbar input:focus { border-color: var(--lav-400); box-shadow: 0 0 16px -6px var(--shine) }
+  .web { font: 700 10px var(--mono); letter-spacing: .12em; padding: 11px 14px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.04); color: var(--ink-400); cursor: pointer; white-space: nowrap; transition: all .2s }
+  .web.on { color: var(--lav-300); border-color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 16%, transparent); box-shadow: 0 0 14px -5px var(--shine) }
+  .sugg { display:flex; gap: 6px; flex-wrap: wrap }
+  .sugg span { font: 500 11.5px Inter, sans-serif; padding: 6px 12px; border-radius: 999px; border: 1px dashed var(--sys-edge); color: var(--lav-300); cursor: pointer; transition: background .15s }
+  .sugg span:hover { background: color-mix(in oklch, var(--lav-400) 12%, transparent) }
+  .typing { display:inline-flex; gap: 4px } .typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--lav-400); animation: blink 1s infinite } .typing i:nth-child(2) { animation-delay: .15s } .typing i:nth-child(3) { animation-delay: .3s }
+  @keyframes blink { 0%,100% { opacity: .25 } 50% { opacity: 1 } }
+
+  .chip { font: 700 10px var(--mono); letter-spacing: .1em; padding: 5px 10px; border-radius: 999px; border: 1px solid color-mix(in oklch, var(--k, var(--money)) 45%, transparent); color: var(--k, var(--money)); background: color-mix(in oklch, var(--k, var(--money)) 10%, transparent) }
+  .track { height: 9px; border-radius: 5px; background: rgba(255,255,255,.07); overflow:hidden }
+  .track b { display:block; height:100%; border-radius: 5px; background: var(--money); transform-origin: left; animation: fill 1s cubic-bezier(.2,.8,.2,1) .3s both; box-shadow: 0 0 12px -2px var(--money) }
+  .planin { width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--lav-400); border-radius: 10px; color: var(--ink-100); font: 15px Inter, sans-serif; padding: 12px; outline: none; box-shadow: 0 0 18px -6px var(--shine) }
+  .stat { display:flex; flex-direction:column; gap: 8px; padding-top: 12px; border-top: 1px dashed var(--edge) }
+  .stat .num { font-size: 26px }
+
+  /* Round 5 (19 Oct, his marks): no check orb; periods 1D·1W·1M·1Y fetched
+     on open; a stock heatmap by sector; verdicts named on each position;
+     an opinion under allocation; no plan tile. */
+  .hero { display:grid; grid-template-columns: 1fr auto; gap: 24px; padding: 22px 24px 22px 28px; align-items: stretch }
+  .hero::before { content:''; position:absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: var(--mood); box-shadow: 0 0 18px var(--mood) }
+  .headline { font-size: 30px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1 }
+  .headline em { font-style: normal; color: var(--mood); text-shadow: 0 0 22px color-mix(in oklch, var(--mood) 40%, transparent) }
+  .summary { font-size: 14px; line-height: 1.6; color: var(--ink-200); max-width: 720px }
+  .summary b { color: var(--ink-100); font-weight: 600 }
+  .kpis { display:flex; gap: 8px; flex-wrap: wrap }
+  .kpi { display:flex; align-items:center; gap: 8px; padding: 6px 10px 6px 6px; border-radius: 10px; border: 1px solid var(--edge); background: rgba(255,255,255,.04) }
+  .kpi .k { font: 600 9px var(--mono); letter-spacing: .12em; color: var(--ink-400) }
+  .kpi .v { font: 700 13px var(--mono) }
+  .stamp { display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; gap: 10px; min-width: 210px; padding-left: 20px; border-left: 1px dashed var(--edge) }
+  .stamp .m { display:flex; align-items:center; gap: 8px; font: 700 11px var(--mono); letter-spacing: .1em; color: var(--lav-300) }
+  .stamp .m img { width: 18px; height: 18px; border-radius: 5px; background: #fff }
+  @media (max-width: 760px) { .hero { grid-template-columns: 1fr } .stamp { align-items:flex-start; border-left: 0; padding-left: 0; border-top: 1px dashed var(--edge); padding-top: 12px } }
+
+  .seg { display:inline-flex; padding: 3px; gap: 2px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.03) }
+  .seg button { font: 700 10px var(--mono); letter-spacing: .12em; padding: 5px 12px; border-radius: 999px; border: 0; background: transparent; color: var(--ink-400); cursor: pointer; transition: all .15s }
+  .seg button.on { color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 22%, transparent); box-shadow: 0 0 14px -5px var(--shine) }
+
+  /* stock heatmap: sectors as groups, the biggest companies inside */
+  .tmap { display:flex; flex-direction:column; gap: 4px }
+  .trow { display:flex; gap: 4px }
+  .grp { display:flex; flex-direction:column; gap: 3px; padding: 3px; border-radius: 9px; background: rgba(255,255,255,.04); border: 1px solid var(--edge); min-width: 0 }
+  .grp .gh { display:flex; align-items:center; gap: 6px; padding: 3px 5px 2px; font: 700 10px var(--mono); letter-spacing: .1em; color: var(--ink-200); white-space: nowrap; overflow: hidden }
+  .grp .gh .p { margin-left: auto }
+  .gin { display:flex; gap: 3px; flex: 1; min-height: 0 }
+  .gcol { display:flex; flex-direction:column; gap: 3px; min-width: 0 }
+  .st { position: relative; border-radius: 6px; padding: 6px; display:flex; flex-direction:column; align-items:flex-start; justify-content:space-between; gap: 2px; min-width: 0; min-height: 0; overflow:hidden; cursor: pointer; transition: transform .15s, box-shadow .15s; animation: pop .4s cubic-bezier(.3,1.6,.5,1) both }
+  .st:hover { transform: scale(1.04); z-index: 2; box-shadow: 0 0 0 1px #fff }
+  .st .t { display:flex; align-items:center; gap: 5px; font: 700 10px var(--mono); color: #fff; white-space: nowrap }
+  .st .c { font: 700 11px var(--mono); color: #fff }
+  .st.lg .t { font-size: 12px } .st.lg .c { font-size: 16px } .st.lg .logo.sm { width: 24px; height: 24px }
+  .st .mine { position:absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px rgba(0,0,0,.25), 0 0 10px #fff }
+  .regions { display:flex; gap: 6px; flex-wrap: wrap }
+  .reg { display:flex; align-items:center; gap: 6px; padding: 6px 10px; border-radius: 9px; font: 700 10.5px var(--mono); color: #fff }
+
+  /* how the read is made */
+  .kinds { display:grid; grid-template-columns: 1fr 1fr; gap: 6px }
+  .kind { display:flex; align-items:center; gap: 8px; padding: 7px 9px; border-radius: 9px; border: 1px solid var(--edge); background: rgba(255,255,255,.03); font: 700 10px var(--mono); letter-spacing: .1em; color: var(--ink-200) }
+  .kind span:first-child { width: 24px; height: 24px; border-radius: 7px; display:grid; place-items:center; font-size: 13px; background: color-mix(in oklch, var(--t) 14%, transparent); border: 1px solid color-mix(in oklch, var(--t) 40%, transparent) }
+  .feed { display:grid; grid-template-columns: 1fr auto; gap: 6px 10px; font-size: 12.5px; color: var(--ink-300) }
+  .feed b { font: 700 11px var(--mono); color: var(--ink-100); text-align:right }
+
+  /* positions with their verdict */
+  .hc .vd { position:absolute; bottom: 8px; right: 8px; font: 700 8.5px var(--mono); letter-spacing: .08em; padding: 2px 6px; border-radius: 4px; background: rgba(10,10,20,.55); border: 1px solid currentColor }
+  .vd.add { color: #b7f7c9 } .vd.hold { color: var(--lav-300) } .vd.wait { color: #ffd98a }
+  .vleg { display:grid; grid-template-columns: repeat(3, 1fr); gap: 6px }
+  .vleg div { display:flex; flex-direction:column; gap: 3px; padding: 8px 10px; border-radius: 9px; border: 1px solid color-mix(in oklch, var(--c) 35%, transparent); background: color-mix(in oklch, var(--c) 8%, transparent) }
+  .vleg b { font: 700 11px var(--mono); letter-spacing: .1em; color: var(--c) }
+  .vleg span { font-size: 11.5px; color: var(--ink-300) }
+
+  .opinion { display:grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 12px; border-radius: 11px; border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 8%, transparent) }
+  .opinion .av { width: 30px; height: 30px; border-radius: 50%; display:grid; place-items:center; color: var(--lav-300); border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 14%, transparent) }
+  .opinion p { font-size: 13px; line-height: 1.6; color: var(--ink-200) } .opinion b { color: var(--ink-100) }
+
+  /* idea cards, round 5 */
+  .idea { padding: 0; gap: 0 }
+  .idea .top { padding: 14px 16px 12px; display:flex; flex-direction:column; gap: 10px; border-bottom: 1px solid var(--edge); background: linear-gradient(180deg, color-mix(in oklch, var(--tone) 12%, transparent), transparent) }
+  .idea .logo { width: 38px; height: 38px; border-radius: 11px }
+  .idea .px { display:flex; align-items:baseline; gap: 8px }
+  .idea .px .num { font-size: 22px }
+  .idea svg { width: 100%; height: 36px; display:block }
+  .idea svg polyline { fill: none; stroke: var(--tone); stroke-width: 1.8 }
+  .idea svg polygon { fill: var(--tone); opacity: .12 }
+  .idea .bot { padding: 12px 16px 14px; display:flex; flex-direction:column; gap: 10px; flex: 1 }
+  .case { display:grid; grid-template-columns: 22px 1fr; gap: 8px; align-items:flex-start; font-size: 12.5px; color: var(--ink-200) }
+  .case i { font-style: normal; width: 22px; height: 22px; border-radius: 6px; display:grid; place-items:center; font: 700 11px var(--mono) }
+  .case .bu { color: var(--good); background: color-mix(in oklch, var(--good) 14%, transparent) }
+  .case .be { color: var(--bad); background: color-mix(in oklch, var(--bad) 14%, transparent) }
+  .case .wr { color: var(--warn); background: color-mix(in oklch, var(--warn) 14%, transparent) }
+  /* ASK (I4), round 2 (21 Oct): "a bit bland tho and failed is bad". */
+  .ask { gap: 14px }
+  .ask .thead { flex-wrap: wrap }
+  .ask .sys-title { white-space: nowrap }
+  .orb.s { width: 34px; height: 34px; font-size: 15px }
+  .orb.busy span { display:inline-block; animation: spin 1.4s linear infinite }
+  .ping { width: 7px; height: 7px; border-radius: 50%; background: currentColor; display:inline-block; animation: ping 1.6s infinite }
+
+  /* suggestion cards (no question yet) and chips (after) */
+  .cards { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px }
+  .sc { --c: var(--lav-400); display:flex; flex-direction:column; gap: 10px; padding: 14px; border-radius: 12px; cursor: pointer; border: 1px solid color-mix(in oklch, var(--c) 30%, transparent);
+    background: linear-gradient(160deg, color-mix(in oklch, var(--c) 14%, transparent), transparent 70%); transition: transform .2s, box-shadow .2s, border-color .2s; animation: arrive .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 70ms) }
+  .sc:hover { transform: translateY(-3px); border-color: var(--c); box-shadow: 0 0 26px -10px var(--c) }
+  .sc .e { width: 36px; height: 36px; border-radius: 11px; display:grid; place-items:center; font-size: 18px; background: color-mix(in oklch, var(--c) 18%, transparent); border: 1px solid color-mix(in oklch, var(--c) 40%, transparent) }
+  .sc b { font: 700 9.5px var(--mono); letter-spacing: .18em; color: var(--c) }
+  .sc span { font-size: 13px; font-weight: 500; color: var(--ink-100) }
+  .chips { display:flex; gap: 6px; flex-wrap: wrap }
+  .chips span { --c: var(--lav-400); display:inline-flex; gap: 6px; align-items:center; font: 500 11.5px Inter, sans-serif; padding: 6px 12px 6px 6px; border-radius: 999px; cursor: pointer; color: var(--ink-100);
+    border: 1px solid color-mix(in oklch, var(--c) 35%, transparent); background: color-mix(in oklch, var(--c) 10%, transparent); transition: all .15s }
+  .chips span i { font-style: normal; width: 20px; height: 20px; border-radius: 50%; display:grid; place-items:center; font-size: 11px; background: color-mix(in oklch, var(--c) 22%, transparent) }
+  .chips span:hover { border-color: var(--c); box-shadow: 0 0 14px -6px var(--c) }
+
+  /* thread */
+  .thread { max-height: 460px; gap: 14px }
+  .q { display:flex; flex-direction:column; gap: 4px; align-items:flex-end }
+  .q small { font: 500 9.5px var(--mono); letter-spacing: .1em; color: var(--lav-300); opacity: .8 }
+  .q.miss { border-color: color-mix(in oklch, var(--bad) 45%, transparent) }
+  .a { grid-template-columns: 34px 1fr; max-width: 90%; width: 90% }
+  .a .body { position: relative; overflow: hidden; gap: 10px; padding: 12px 14px 12px 16px; border-color: var(--sys-edge); background: linear-gradient(160deg, color-mix(in oklch, var(--k, var(--lav-400)) 10%, transparent), rgba(255,255,255,.02) 60%) }
+  .a .body::before { content:''; position:absolute; left:0; top:0; bottom:0; width: 3px; background: var(--k, var(--lav-400)); box-shadow: 0 0 12px var(--k, var(--shine)) }
+  .a.land .body { animation: land 1.2s ease-out both }
+  @keyframes land { 0% { box-shadow: 0 0 0 1px var(--lav-400), 0 0 34px -4px var(--shine) } 100% { box-shadow: none } }
+  .ans-kind { display:flex; gap: 8px; align-items:center }
+  .fact { display:inline-flex; gap: 6px; align-items:center }
+  .fact .logo.sm { width: 16px; height: 16px; border-radius: 4px }
+  .fact.up { color: var(--good); border-color: color-mix(in oklch, var(--good) 35%, transparent) }
+  .fact.dn { color: var(--bad); border-color: color-mix(in oklch, var(--bad) 35%, transparent) }
+  .ans-stamp { display:flex; flex-direction: row; min-width: 0; border-left: 0; padding-left: 0; justify-content: flex-start; gap: 6px; flex-wrap: wrap; align-items:center; padding-top: 8px; border-top: 1px dashed var(--edge) }
+  .pill { font: 600 9.5px var(--mono); letter-spacing: .08em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--edge); color: var(--ink-300); white-space: nowrap }
+  .pill.mm { color: var(--lav-300); border-color: var(--sys-edge) }
+  .pill.c { color: var(--money); border-color: color-mix(in oklch, var(--money) 40%, transparent) }
+  .pill.g { color: var(--good); border-color: color-mix(in oklch, var(--good) 40%, transparent) }
+  .pill.w { color: var(--warn); border-color: color-mix(in oklch, var(--warn) 40%, transparent) }
+
+  /* asking */
+  .think { display:flex; flex-direction:column; gap: 10px }
+  .think .scan { width: 100%; max-width: 320px }
+  .favs { display:flex; gap: 6px } .favs img { width: 18px; height: 18px; border-radius: 4px; background:#fff; animation: pop .4s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(var(--i) * 450ms) }
+
+  /* failed */
+  .a.bad { --k: var(--bad) }
+  .a.bad .av { color: var(--bad); border-color: color-mix(in oklch, var(--bad) 50%, transparent); background: radial-gradient(circle, color-mix(in oklch, var(--bad) 28%, transparent), transparent 70%); animation: pop .5s cubic-bezier(.3,1.6,.5,1) both }
+  .a.bad .body { border-color: color-mix(in oklch, var(--bad) 45%, transparent); animation: shake .45s ease both }
+  @keyframes shake { 20% { transform: translateX(-5px) } 40% { transform: translateX(4px) } 60% { transform: translateX(-3px) } 80% { transform: translateX(2px) } }
+  .fail { display:flex; gap: 14px; align-items:center; flex-wrap: wrap }
+  .fail .big { font: 700 15px var(--mono); letter-spacing: .14em; color: var(--bad); text-shadow: 0 0 14px color-mix(in oklch, var(--bad) 50%, transparent) }
+  .fail .grow { flex: 1 }
+  .btn.again { padding: 9px 16px; font-size: 10px; color: var(--ink-100); border-color: color-mix(in oklch, var(--bad) 60%, transparent); background: color-mix(in oklch, var(--bad) 14%, transparent); box-shadow: 0 0 18px -8px var(--bad) }
+
+  /* bar and month */
+  .askbar.off { opacity: .45; pointer-events: none }
+  .capbar { display:flex; gap: 12px; align-items:center; padding: 12px 14px; border-radius: 12px; border: 1px solid color-mix(in oklch, var(--warn) 45%, transparent); background: color-mix(in oklch, var(--warn) 9%, transparent); animation: arrive .4s ease both }
+  .capbar .e { font-size: 18px }
+  .capbar b { font: 700 12px var(--mono); letter-spacing: .14em; color: var(--warn) }
+  .meter { display:flex; gap: 10px; align-items:center }
+  .meter .track { width: 120px; height: 6px }
+  .meter .track b { background: var(--warn); box-shadow: 0 0 10px -2px var(--warn) }
+  .meter.ok .track b { background: var(--money) }
+  .foot2 { display:flex; gap: 8px; align-items:center; flex-wrap: wrap }
+  @media (max-width: 640px) { .cards { grid-template-columns: 1fr 1fr } .a { max-width: 100%; width: 100% } .q { max-width: 88% } .askbar { flex-wrap: wrap } .askbar input { flex-basis: 100% } .askbar .web, .askbar .btn { flex: 1 } }
+
+  /* ideas in an ASK answer (21 Oct, his "ideas in ASK next") */
+  .ideas3 { display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px }
+  @media (max-width: 640px) { .ideas3 { grid-template-columns: 1fr } }
+  .mi { --tone: var(--good); border-radius: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.03); overflow: hidden; display:flex; flex-direction:column; animation: arrive .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 120ms); transition: transform .2s, border-color .2s, box-shadow .2s }
+  .mi:hover { transform: translateY(-2px); border-color: color-mix(in oklch, var(--tone) 45%, transparent); box-shadow: 0 0 24px -12px var(--tone) }
+  .mi .top { padding: 11px 12px 8px; display:flex; flex-direction:column; gap: 8px; background: linear-gradient(180deg, color-mix(in oklch, var(--tone) 12%, transparent), transparent) }
+  .mi .tk { font-size: 14px; font-weight: 700; color: var(--ink-100) }
+  .mi .co { font-size: 11px; color: var(--ink-400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .mi .px { display:flex; align-items:baseline; gap: 8px } .mi .px .num { font-size: 18px; color: var(--ink-100) }
+  .mi svg { width: 100%; height: 30px; display:block } .mi svg polyline { fill:none; stroke: var(--tone); stroke-width: 1.8 } .mi svg polygon { fill: var(--tone); opacity: .12 }
+  .mi .bot { padding: 8px 12px 12px; display:flex; flex-direction:column; gap: 7px; border-top: 1px solid var(--edge) }
+  .mi .why { font-size: 12.5px; font-weight: 600; color: var(--ink-100) }
+  .mi .case { font-size: 11.5px; grid-template-columns: 20px 1fr; gap: 6px; line-height: 1.45 } .mi .case i { width: 20px; height: 20px; font-size: 10px }
+  .mi .logo { width: 30px; height: 30px }
+  .shim { height: 12px; border-radius: 6px; background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.12), rgba(255,255,255,.04)); background-size: 200% 100%; animation: shim 1.2s linear infinite }
+  @keyframes shim { from { background-position: 200% 0 } to { background-position: -200% 0 } }
+
+  /* the drawer (embed) */
+  .emb, .emb body { height: 100%; overflow: hidden }
+  .emb .wrap { height: 100vh; padding: 0 !important; gap: 0 }
+  .emb .ask { height: 100vh; padding: 0 0 0 0; gap: 0; overflow: hidden }
+  .emb .ask .thead { padding: 10px 16px; min-height: 0; justify-content: flex-end; border-bottom: 1px solid var(--edge) }
+  .emb .ask .thead .grow { display: none }
+  .emb .thread { flex: 1; max-height: none !important; padding: 16px; scroll-behavior: smooth; mask: linear-gradient(transparent, #000 18px, #000 calc(100% - 18px), transparent) }
+  .emb .a { width: 100%; max-width: 100% }
+  .emb .q { max-width: 86% }
+  .emb .dock { position: relative; display:flex; flex-direction: column; gap: 10px; padding: 12px 16px 14px; border-top: 1px solid var(--sys-edge);
+    background: linear-gradient(180deg, color-mix(in oklch, var(--lav-400) 9%, #171827), #171827); box-shadow: 0 -18px 30px -18px #000 }
+  .emb .dock::before { content:''; position:absolute; left: 16px; right: 16px; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, var(--lav-400), transparent); opacity: .7; animation: corners 3.2s ease-in-out infinite }
+  .emb .stog { align-self: flex-start; display:inline-flex; align-items:center; gap: 8px; font: 700 10px var(--mono); letter-spacing: .16em; color: var(--lav-300); padding: 6px 12px 6px 8px; border-radius: 999px; border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 10%, transparent); cursor: pointer; transition: all .2s }
+  .emb .stog:hover { background: color-mix(in oklch, var(--lav-400) 18%, transparent); box-shadow: 0 0 16px -6px var(--shine) }
+  .emb .stog span { width: 20px; height: 20px; border-radius: 50%; display:grid; place-items:center; border: 1px solid var(--sys-edge) }
+  .emb .stog i { font-style: normal; min-width: 18px; height: 18px; border-radius: 999px; display:grid; place-items:center; background: var(--lav-300); color: #171827; letter-spacing: 0 }
+  .emb .stog b { transition: transform .25s }
+  .emb .sopen .stog b { transform: rotate(180deg) }
+  .emb .fresh .stog { display: none }
+  .emb #sugg { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s cubic-bezier(.2,.8,.2,1) }
+  .emb #sugg > * { overflow: hidden; min-height: 0 }
+  .emb .sopen #sugg, .emb .fresh #sugg { grid-template-rows: 1fr }
+  .emb .chips { gap: 6px }
+  .emb .chips span { opacity: 0; transform: translateY(8px); transition: opacity .3s, transform .3s }
+  .emb .sopen .chips span { opacity: 1; transform: none }
+  .emb .sopen .chips span:nth-child(2) { transition-delay: .05s } .emb .sopen .chips span:nth-child(3) { transition-delay: .1s } .emb .sopen .chips span:nth-child(4) { transition-delay: .15s }
+  .emb .cards { grid-template-columns: 1fr 1fr }
+  .emb .askbar { flex-wrap: nowrap !important }
+  .emb .askbar input { padding: 11px 14px; flex-basis: auto !important }
+  .emb .askbar .web, .emb .askbar .btn { flex: none !important; padding: 11px 12px !important }
+  .emb .askbar:focus-within .btn { box-shadow: 0 0 22px -4px var(--shine) }
+  .emb #foot { display: none }
+  .emb .srow { display:flex; align-items:center; justify-content: space-between; gap: 8px }
+  .emb .fresh .srow { justify-content: flex-end }
+  .emb .foot2 .badge { font-size: 9px }
+</style>
+</head>
+<body>
+<div class="wrap" style="max-width: 950px">
+  <div class="ctl">
+    <span>mockup:</span>
+    <button data-s="ideas" class="on">💡 ideas</button><button data-s="ideasfetch">💡 fetching prices</button><button data-s="empty">no question</button><button data-s="asking">asking</button><button data-s="webasking">🌐 asking</button><button data-s="answer">answer</button><button data-s="web">🌐 answer</button><button data-s="failed">failed</button><button data-s="cap">cap reached</button>
+    <span style="margin-left:10px">runs on:</span>
+    <button data-r="local" class="on">localhost</button><button data-r="cloud">deployed</button>
+  </div>
+
+  <div class="band"><span class="n">4</span><b>NEXT</b><span class="caps">IDEAS · QUESTIONS</span></div>
+  <div class="caps" style="opacity:.6">… idea cards above, as built …</div>
+
+  <section class="tile sys ask" style="--i:0">
+    <div class="thead"><span class="orb s" id="orb"><span>✦</span></span><span class="sys-title">[ ASK ]</span><span class="grow"></span><span id="pay"></span><span class="badge b-dim">NOT SAVED</span><span class="badge b-dim">RESEARCH · NOT ADVICE</span></div>
+    <div class="thread" id="thread"></div>
+    <div id="sugg"></div>
+    <div id="barwrap"></div>
+    <div class="foot2" id="foot"></div>
+  </section>
+</div>
+
+<script>
+  const SITE = d => `https://www.google.com/s2/favicons?domain=${d}&sz=64`
+  const SUGG = [
+    ['⚖️', 'ALLOCATION', 'Explain my allocation', 'var(--lav-400)'],
+    ['🥇', 'GOLD', 'Is gold still a hedge?', 'var(--k-coin)'],
+    ['🏛️', 'RATES', "What if the Fed doesn't cut?", 'var(--k-etf)'],
+    ['💡', 'IDEAS', 'Why these ideas?', 'var(--k-stock)'],
+  ]
+  let state = 'ideas', local = true, webOn = false
+  const $ = id => document.getElementById(id)
+
+  const fav = d => `<span class="logo sm"><img src="${SITE(d)}"></span>`
+  const stamp = (searches, tin, tout, cost, time) => `<div class="ans-stamp"><span class="pill mm">✦ SONNET 5.5</span>${searches ? `<span class="pill mm">🌐 ${searches} SEARCHES</span>` : ''}<span class="pill">${tin} IN · ${tout} OUT</span>${local ? '<span class="pill g">⚡ PRO</span>' : `<span class="pill c">💳 ${cost}</span>`}<span class="pill">${time}</span></div>`
+  const Q = (text, w, time, miss) => `<div class="q${miss ? ' miss' : ''}">${w ? '🌐 ' : ''}${text}<small>${miss ? '✕ NOT ANSWERED · ' : ''}${time}</small></div>`
+
+  const A1 = land => `<div class="a${land ? ' land' : ''}" style="--k: var(--lav-400)"><span class="orb s"><span>✦</span></span><div class="body">
+    <div class="ans-kind"><span class="badge b-dim" style="color:var(--lav-300)">⚖️ ALLOCATION</span></div>
+    <div>Tech and AI are <b>41%</b> once VUAA and IWDA are opened up — against <b>26%</b> for the world market. The biggest single piece is <b>AVGO</b>. The rest spreads across about 1,900 companies, mostly in the US.</div>
+    <div class="facts"><span class="fact">💻 TECH · MINE 41% · WORLD 26%</span><span class="fact up">${fav('broadcom.com')}AVGO €1,180 ▲ 6.2%</span><span class="fact">🇺🇸 US · MINE 71%</span></div>
+    ${stamp(0, '9.4K', '380', '$0.02', '14:32')}</div></div>`
+  const A2 = land => `<div class="a${land ? ' land' : ''}" style="--k: var(--k-etf)"><span class="orb s"><span>✦</span></span><div class="body">
+    <div class="ans-kind"><span class="badge" style="color:var(--k-etf)">🏛️ RATES</span></div>
+    <div>On 16 Oct he said the job market is <b>cooling</b> and inflation is moving the right way, and <b>did not rule out an October cut</b>.</div>
+    <div class="facts"><span class="fact">🏛️ FED 4.25–4.50%</span><span class="fact">📅 NEXT · 29 OCT</span><span class="fact dn">🌡️ US CPI 2.9% · AUG 3.1%</span></div>
+    <div class="srcs"><span class="src"><img src="${SITE('reuters.com')}">REUTERS · 16 OCT ↗</span><span class="src"><img src="${SITE('federalreserve.gov')}">FED · 16 OCT ↗</span></div>
+    ${stamp(2, '28K', '420', '$0.08', '14:35')}</div></div>`
+  const THINK = w => `<div class="a"><span class="orb s busy"><span>✦</span></span><div class="body think">
+    <span class="caps" style="color:var(--lav-300)">${w ? '🌐 SEARCHING · 41 FACTS' : 'READING · 41 FACTS'}</span><div class="scan"></div>
+    ${w ? `<div class="favs">${['reuters.com', 'ft.com', 'bloomberg.com', 'federalreserve.gov'].map((d, i) => `<img style="--i:${i}" src="${SITE(d)}">`).join('')}</div>` : ''}</div></div>`
+  const FAIL = () => `<div class="a bad"><span class="orb s"><span>✕</span></span><div class="body">
+    <div class="fail"><span class="big">✕ NOT REACHED</span><span class="grow"></span><button class="btn again" data-again>↻ ASK AGAIN</button></div>
+    <div class="ans-stamp"><span class="pill mm">✦ SONNET 5.5</span>${local ? '<span class="pill g">⚡ PRO · NOTHING USED</span>' : '<span class="pill g">$0.00 · NOTHING PAID</span>'}<span class="pill">NO RETRY</span><span class="pill">14:38</span></div></div></div>`
+
+
+  const G = 'oklch(0.78 0.17 150)', R = 'oklch(0.68 0.2 22)'
+  const SHARE = t => `https://financialmodelingprep.com/image-stock/${t}.png`
+  const path = (seed, ch, n = 24) => { let x = seed, v = 0, out = [0]; for (let i = 1; i < n; i++) { x = (x * 9301 + 49297) % 233280; v += (x / 233280 - .5) * Math.max(Math.abs(ch), 1) * .5 + ch / n; out.push(v) } return out.map((p, i) => p + (ch - v) * i / (n - 1)) }
+  const spark = (pts, h = 30) => { const lo = Math.min(...pts), hi = Math.max(...pts); const xy = pts.map((p, i) => `${(i / (pts.length - 1)) * 100},${h - 2 - ((p - lo) / (hi - lo || 1)) * (h - 8)}`); return `<svg viewBox="0 0 100 ${h}" preserveAspectRatio="none"><polygon points="0,${h} ${xy.join(' ')} 100,${h}"/><polyline points="${xy.join(' ')}"/></svg>` }
+  const MI = [
+    [`<span class="logo"><img src="${SHARE('JNJ')}"></span>`, 'JNJ', 'Johnson & Johnson · 💊 health', '$187.40', 2.1, 'Medicines and devices, steady dividend', 'Health spending grows in good and bad years', 'Lawsuits over old products', 'Two drug launches miss'],
+    [`<span class="logo site"><img src="${SITE('ishares.com')}"></span>`, 'EXV1', 'iShares STOXX Europe 600 Banks · 🏦 ETF', '€31.85', 4.4, 'Europe\'s banks, outside tech', 'Banks earn more while rates stay up', 'A cut by the ECB squeezes them', 'Euro rates fall fast'],
+    [`<span class="logo site"><img src="${SITE('vaneck.com')}"></span>`, 'GDX', 'VanEck Gold Miners · 🥇 ETF', '$58.20', -2.7, 'Gold companies, more swing than gold', 'Miners rise faster than gold in a rally', 'They fall faster too', 'Gold drops under its 200-day line'],
+  ]
+  const miCard = ([lg, tk, co, px, ch, why, bull, bear, wrong], i, fetching) => `<div class="mi" style="--i:${i};--tone:${ch > 0 ? G : R}">
+    <div class="top"><div class="row" style="justify-content:space-between">${lg}<span class="badge b-good">💡 IDEA</span></div>
+      <div><div class="tk">${tk}</div><div class="co">${co}</div></div>
+      ${fetching ? '<div class="shim" style="width:60%;height:18px"></div><div class="shim" style="height:30px"></div>' : `<div class="px"><span class="num">${px}</span><span class="chg ${ch > 0 ? 'g' : 'r'}">${ch > 0 ? '▲' : '▼'} ${Math.abs(ch)}% · 1M</span></div>${spark(path(i * 31 + 7, ch))}`}</div>
+    <div class="bot"><div class="why">${why}</div>
+      <div class="case"><i class="bu">▲</i><span>${bull}</span></div>
+      <div class="case"><i class="be">▼</i><span>${bear}</span></div>
+      <div class="case"><i class="wr">✕</i><span><b>Wrong if</b> ${wrong.toLowerCase()}</span></div></div></div>`
+  const AI = (land, fetching) => `<div class="a${land ? ' land' : ''}" style="--k: var(--k-stock); width: 100%"><span class="orb s"><span>✦</span></span><div class="body">
+    <div class="ans-kind"><span class="badge" style="color:var(--k-stock)">💡 IDEAS</span></div>
+    <div>Three more <b>outside tech</b>, so the next euros would not add to the AI weight. Each is a different bet: <b>health</b>, <b>Europe's banks</b>, <b>gold miners</b>.</div>
+    <div class="facts"><span class="fact">💻 TECH · MINE 41% · WORLD 26%</span><span class="fact">💡 IN NEXT · NOVO B · RHM</span></div>
+    <div class="ideas3">${MI.map((m, i) => miCard(m, i, fetching)).join('')}</div>
+    <div class="ans-stamp"><span class="pill mm">✦ SONNET 5.5</span><span class="pill">9.8K IN · 610 OUT</span>${local ? '<span class="pill g">⚡ PRO</span>' : '<span class="pill c">💳 $0.03</span>'}<span class="pill">${fetching ? 'FETCHING PRICES…' : 'PRICES · FETCHED 19:42 · NOT SAVED'}</span><span class="pill">MODEL · NOT ADVICE</span><span class="pill">19:42</span></div></div></div>`
+  function render() {
+    document.querySelectorAll('[data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === state))
+    document.querySelectorAll('[data-r]').forEach(b => b.classList.toggle('on', (b.dataset.r === 'local') === local))
+    const cap = state === 'cap' && !local, busy = state === 'asking' || state === 'webasking'
+    const q1 = Q('Explain my allocation', false, '14:32')
+    const html = {
+      ideas: Q('Give me more ideas', false, '19:42') + AI(true, false),
+      ideasfetch: Q('Give me more ideas', false, '19:42') + AI(false, true),
+      empty: '',
+      asking: q1 + THINK(false),
+      webasking: q1 + A1() + Q('What did Powell say this week?', true, '14:35') + THINK(true),
+      answer: q1 + A1(true),
+      web: q1 + A1() + Q('What did Powell say this week?', true, '14:35') + A2(true),
+      failed: q1 + A1() + Q('Is gold still a hedge?', false, '14:38', true) + FAIL(),
+      cap: q1 + A1(),
+    }[state]
+    const thread = $('thread')
+    thread.innerHTML = html
+    thread.style.display = html ? '' : 'none'
+    thread.scrollTop = thread.scrollHeight
+    $('orb').classList.toggle('busy', busy)
+    $('sugg').innerHTML = state === 'empty'
+      ? `<div class="cards">${SUGG.map(([e, k, q, c], i) => `<div class="sc" style="--c:${c};--i:${i}"><span class="e">${e}</span><b>${k}</b><span>${q}</span></div>`).join('')}</div>`
+      : `<div class="chips" style="opacity:${busy || cap ? .45 : 1}">${SUGG.map(([e, k, q, c]) => `<span style="--c:${c}"><i>${e}</i>${q}</span>`).join('')}</div>`
+    $('barwrap').innerHTML = cap
+      ? `<div class="capbar"><span class="e">⛽</span><b>CAP REACHED</b><span class="badge b-warn">$2.00 OF $2.00</span><span class="grow"></span><span class="badge b-dim">NEXT 1 NOV</span></div>`
+      : `<div class="askbar${busy ? ' off' : ''}"><input id="askin" placeholder="Ask about the market or the portfolio" /><button class="web${webOn ? ' on' : ''}" id="web">🌐 WEB</button><button class="btn" id="send" style="padding:11px 18px">${busy ? '…' : 'ASK'}</button></div>`
+    $('pay').innerHTML = local ? '<span class="badge b-good"><span class="ping"></span>⚡ PRO PLAN · NO CREDITS</span>' : '<span class="badge b-warn">💳 API CREDITS</span>'
+    const used = state === 'cap' ? 2 : state === 'web' || state === 'webasking' ? 0.43 : 0.35
+    const n = { ideas: 1, ideasfetch: 1, empty: 0, asking: 1, answer: 1, webasking: 2, web: 2, failed: 2, cap: 1 }[state]
+    $('foot').innerHTML = (local ? '<span class="pill">NO CAP ON THE PRO PLAN</span>' : `<span class="meter${used < 2 ? ' ok' : ''}"><span class="track"><b style="width:${used / 2 * 100}%"></b></span><span class="pill c">OCT · $${used.toFixed(2)} OF $2.00</span></span>`) + (n ? `<span class="pill">${n} QUESTION${n > 1 ? 'S' : ''} · THIS PAGE</span>` : '')
+    wire()
+  }
+  function go(s) { state = s; render(); if (s === 'asking' || s === 'webasking') setTimeout(() => state === s && go(s === 'asking' ? 'answer' : 'web'), 2000) }
+  function wire() {
+    document.querySelectorAll('[data-again]').forEach(b => b.onclick = () => go('asking'))
+    document.querySelectorAll('.sc, .chips span').forEach(b => b.onclick = () => go('asking'))
+    const web = $('web'), send = $('send'), askin = $('askin')
+    if (web) web.onclick = () => { webOn = !webOn; web.classList.toggle('on', webOn) }
+    if (send) send.onclick = () => go(webOn ? 'webasking' : 'asking')
+    if (askin) askin.onkeydown = e => { if (e.key === 'Enter') go(webOn ? 'webasking' : 'asking') }
+  }
+  document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => go(b.dataset.s))
+  document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { local = b.dataset.r === 'local'; render() })
+  render()
+</script>
+<script>/* EMBED: inside the tabs mockup's drawer */
+  if (location.search.includes('embed')) {
+    document.querySelectorAll('.ctl, .band, .wrap > .caps').forEach(e => e.remove())
+    const w = document.querySelector('.wrap'); w.style.padding = '0'; w.style.maxWidth = 'none'
+    document.body.style.background = 'transparent'
+    const t = document.querySelector('.ask'); t.style.border = '0'; t.style.boxShadow = 'none'; t.style.background = 'transparent'; t.style.borderRadius = '0'; t.classList.remove('sys')
+    const st = new URLSearchParams(location.search).get('s'); if (st) go(st)
+    document.querySelectorAll('.ask > .thead > .orb, .ask > .thead > .sys-title').forEach(e => e.remove())
+    /* Round 2 of the drawer (his "a bit better alignment and dynamic … buttons sticky to the bottom … suggestions collapsed"):
+       the thread fills the drawer, a dock is stuck to the bottom, the suggestions fold into one button after the first question,
+       the badges sit in one row. */
+    document.documentElement.classList.add('emb')
+    const ask = document.querySelector('.ask'), dock = document.createElement('div'); dock.className = 'dock'
+    const tog = document.createElement('button'); tog.className = 'stog'; tog.innerHTML = '<span>✦</span> SUGGESTED <i>4</i> <b>▾</b>'
+    tog.onclick = () => ask.classList.toggle('sopen')
+    ;['sugg', 'barwrap', 'foot'].forEach(id => dock.appendChild(document.getElementById(id)))
+    const row = document.createElement('div'); row.className = 'srow'
+    row.append(tog, Object.assign(document.createElement('span'), { className: 'badge b-dim', textContent: 'RESEARCH · NOT ADVICE' }))
+    dock.prepend(row); ask.appendChild(dock)
+    const head = ask.querySelector('.thead'), badges = [...head.querySelectorAll('.badge')].filter(b => !b.closest('#pay'))
+    const foot = document.getElementById('foot')
+    new MutationObserver(() => {
+      badges.forEach(b => foot.contains(b) || foot.appendChild(b))
+      const empty = !!document.querySelector('#sugg .cards')
+      ask.classList.toggle('fresh', empty)
+      if (empty) ask.classList.remove('sopen')
+    }).observe(foot, { childList: true })
+    foot.dispatchEvent(new Event('x')); badges.forEach(b => foot.appendChild(b)); ask.classList.toggle('fresh', !!document.querySelector('#sugg .cards'))
+    document.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => ask.classList.remove('sopen')))
+    head.style.display = 'none'
+  }
+</script>
+</body>
+</html>

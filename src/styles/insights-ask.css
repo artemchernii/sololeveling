@@ -459,3 +459,64 @@
     background: var(--money-cash);
   }
 }
+
+/* ideas in an answer (21 Oct, mockup ask-ideas.html): NEXT's cards,
+   three to a row, smaller */
+@keyframes ask-shim {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.ask-ideas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
+}
+.ask-idea {
+  padding: 0;
+  gap: 0;
+  animation-delay: calc(var(--i, 0) * 120ms);
+  & .tk {
+    font-size: 14px;
+  }
+  & .ins-num {
+    font-size: 18px !important;
+  }
+}
+.ask-idea-wait {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-edge);
+  animation: ins-arrive 400ms var(--motion-ease) both;
+  animation-delay: calc(var(--i) * 120ms);
+  & .tk {
+    font-weight: 700;
+    color: var(--color-ink-100);
+  }
+  & .co {
+    font-size: 11px;
+    color: var(--color-ink-400);
+  }
+}
+.ask-shim {
+  display: block;
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklch, var(--lift) 4%, transparent),
+    color-mix(in oklch, var(--lift) 12%, transparent),
+    color-mix(in oklch, var(--lift) 4%, transparent)
+  );
+  background-size: 200% 100%;
+  animation: ask-shim 1.2s linear infinite;
+}

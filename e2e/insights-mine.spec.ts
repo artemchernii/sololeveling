@@ -149,3 +149,79 @@ test('S6 many positions: the band at his window width', async ({ page }) => {
   await band.scrollIntoViewIfNeeded()
   await band.screenshot(shot('insights-mine-many'))
 })
+
+/* Earnings on MINE (22 Oct, docs/specs/2026-10-21-earnings-dates.md;
+   mockup design/treasury-mockup/earnings.html). Canned on the test
+   backend: AVGO reported yesterday and fell 7.8%, NVDA reports in five
+   days; the fund and the frozen share get none. */
+test('S7 earnings: a ribbon on a company that reported or soon will', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 950, height: 900 })
+  await open(page)
+  const ribbon = (s: string) => box(page, s).getByTestId('earn-ribbon')
+  await expect(ribbon('AVGO')).toHaveAttribute('data-kind', 'reported', {
+    timeout: 15_000,
+  })
+  await expect(ribbon('AVGO')).toHaveAttribute(
+    'aria-label',
+    /^REPORTED \d+ [A-Z]{3} ▼ 7\.8%$/,
+  )
+  await expect(ribbon('NVDA')).toHaveAttribute('data-kind', 'soon')
+  await expect(ribbon('NVDA')).toHaveAttribute(
+    'aria-label',
+    /^EARNINGS \d+ [A-Z]{3} · IN 5 DAYS$/,
+  )
+  await expect(ribbon('VUAA.L')).toHaveCount(0)
+  await expect(ribbon('OZON')).toHaveCount(0)
+  /* Shown in words that fit: nothing cut. */
+  for (const s of ['AVGO', 'NVDA']) {
+    const cut = await ribbon(s).evaluate(
+      (el) => el.scrollWidth > el.clientWidth,
+    )
+    expect(cut).toBe(false)
+  }
+  await expect(ribbon('NVDA')).toHaveCSS('opacity', '1')
+  await page.getByTestId('mine-positions').screenshot(shot('insights-earnings'))
+
+  /* A press opens both prices; ASK is not asked. */
+  await ribbon('AVGO').click()
+  const card = page.getByTestId('earn-card')
+  await expect(card).toContainText('REPORTED')
+  await expect(card).toContainText('$340.50')
+  await expect(card).toContainText('$313.94')
+  await expect(card).toContainText('▼ 7.8%')
+  await expect(card).toContainText(/YAHOO · FETCHED \d\d:\d\d · NOT SAVED/)
+  await expect(page.getByTestId('ask-drawer')).toHaveAttribute(
+    'aria-hidden',
+    'true',
+  )
+  await card.screenshot(shot('insights-earnings-card'))
+  await page.keyboard.press('Escape')
+  await expect(card).toHaveCount(0)
+
+  /* The ⓘ card lists them. */
+  await page.getByRole('button', { name: 'About POSITIONS' }).click()
+  await expect(page.getByRole('dialog', { name: 'POSITIONS' })).toContainText(
+    'NVDA EARNINGS',
+  )
+})
+
+test('S8 earnings at phone width: short words, nothing cut', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 })
+  await open(page)
+  const ribbons = page.getByTestId('earn-ribbon')
+  await expect(ribbons.first()).toBeVisible({ timeout: 15_000 })
+  /* Landed: the ribbon slides in after the boxes. */
+  await expect(ribbons.first()).toHaveCSS('opacity', '1')
+  for (const r of await ribbons.all()) {
+    if (!(await r.isVisible())) continue
+    const cut = await r.evaluate((el) => el.scrollWidth > el.clientWidth)
+    expect(cut).toBe(false)
+  }
+  await page
+    .getByTestId('mine-positions')
+    .screenshot(shot('insights-earnings-phone'))
+})

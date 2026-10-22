@@ -11,6 +11,7 @@ import { Markets } from './Markets'
 import { allocFacts, allocRows } from './Allocation'
 import { Mine, itemOf } from './Mine'
 import { useMine } from './useMine'
+import { earningsFacts } from '@/lib/insightsEarnings'
 import { useTags } from '@/components/finances/PortfolioMap'
 import { RateCards } from './RateCards'
 import { ReadHero } from './ReadHero'
@@ -52,9 +53,14 @@ export function Insights({ shown }: { shown: boolean }) {
   )
   const mine = useMine(period, owned?.map(itemOf) ?? null)
   const alloc = owned ? allocRows(owned, tags, mine.base) : null
+  /* A held company's results day: a fact for the read and for ASK. */
+  const earn = mine.base?.earnings
+    ? earningsFacts(mine.base.earnings.rows, mine.base.fetchedAt)
+    : []
   const read = useMarketRead(
     positions ? positions.rows : null,
-    allocFacts(alloc),
+    [...allocFacts(alloc), ...earn],
+    earn,
   )
   const count = positions ? positions.rows.length : null
 

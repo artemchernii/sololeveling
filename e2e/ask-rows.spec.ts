@@ -216,6 +216,20 @@ test('phone: a bottom sheet, nothing wider than the screen', async ({
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(375)
   await page.screenshot(shot('ask-rows-phone'))
+
+  /* The handle drags the sheet: a short pull springs back, a long one
+     closes it (23 Oct, his "I cant drag it down with that dash"). */
+  const top = (await drawer.boundingBox())!.y
+  await page.mouse.move(187, top + 6)
+  await page.mouse.down()
+  await page.mouse.move(187, top + 50, { steps: 5 })
+  await page.mouse.up()
+  await expect(drawer).toHaveAttribute('aria-hidden', 'false')
+  await page.mouse.move(187, top + 6)
+  await page.mouse.down()
+  await page.mouse.move(187, top + 260, { steps: 8 })
+  await page.mouse.up()
+  await expect(drawer).toHaveAttribute('aria-hidden', 'true')
 })
 
 test('S8 a week: every day named, a count per area', async ({ page }) => {

@@ -11,6 +11,7 @@ import { usd } from '@/components/finances/insights/readParts'
 import { monthKey, nextMonthWord } from '@/lib/marketRead'
 import { MAX_QUESTION } from '@/lib/rowsAskPrompt'
 import { PeriodBadges, RowsAnswer, Strip, areaColour } from './RowsAnswer'
+import { useSheetDrag } from './useSheetDrag'
 import { useSheetViewport } from './useSheetViewport'
 import { openReply, useRowsAsk } from './useRowsAsk'
 import type { RowsTurn } from './useRowsAsk'
@@ -57,6 +58,7 @@ export function RowsDrawer({
   const [text, setText] = useState('')
   const [unfolded, setUnfolded] = useState(false)
   const panel = useRef<HTMLElement>(null)
+  useSheetDrag(panel, open, () => onOpenChange(false))
   const thread = useRef<HTMLDivElement>(null)
   useEffect(() => setReady(true), [])
   const month = monthKey(Date.now())

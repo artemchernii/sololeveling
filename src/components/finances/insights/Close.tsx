@@ -166,7 +166,7 @@ export function Close({ close }: { close: ReturnType<typeof useClose> }) {
       </section>
 
       <section
-        className="ins-tile c7"
+        className="ins-tile c7 close-moves"
         style={{ '--i': 1 } as React.CSSProperties}
       >
         <div className="ins-thead">
@@ -175,7 +175,7 @@ export function Close({ close }: { close: ReturnType<typeof useClose> }) {
           <span className="grow" />
           <span className="ins-was">BIGGEST FIRST</span>
         </div>
-        <div>
+        <div className="close-list" data-testid="close-list">
           {rows.map((r, k) => {
             const p = pctOf(r)
             const ms = momentsOf(r.instrumentId)

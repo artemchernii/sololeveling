@@ -184,3 +184,25 @@
   height: 28px;
   flex: none;
 }
+
+/* MOVES scrolls inside its tile (22 Oct, his "very tall … make it
+   scrollable"): beside the right column it is as tall as that column;
+   stacked on a narrow screen, at most 520px. Biggest moves stay on top. */
+.close-moves {
+  min-height: 0;
+}
+.close-list {
+  flex: 1 1 auto;
+  height: 0;
+  min-height: 360px;
+  overflow-y: auto;
+  margin-right: -8px;
+  padding-right: 8px;
+  overscroll-behavior: contain;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  @media (max-width: 1000px) {
+    height: auto;
+    min-height: 0;
+    max-height: 520px;
+  }
+}

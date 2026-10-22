@@ -228,8 +228,11 @@
   @media (max-width: 640px) {
     top: auto;
     left: 0;
+    /* on the keyboard, and never taller than what it leaves visible
+       (useSheetViewport) */
+    bottom: var(--ask-kb, 0px);
     width: 100vw;
-    height: 86dvh;
+    height: min(86dvh, calc(var(--ask-vh, 100dvh) - 8px));
     border-left: 0;
     border-top: 1px solid var(--system-edge);
     border-radius: 18px 18px 0 0;
@@ -273,6 +276,21 @@
   background: color-mix(in oklch, var(--lift) 4%, transparent);
   color: var(--color-ink-200);
   font-size: 14px;
+}
+
+/* a phone: the page under an open sheet stays put, and the thread's
+   scroll never hands over to it (useSheetViewport) */
+html.ask-open,
+html.ask-open body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.ask-scrim {
+  touch-action: none;
+}
+.ask-drawer .ask,
+.ask-drawer .ask-thread {
+  overscroll-behavior: contain;
 }
 
 /* inside: the thread fills it, the dock is stuck to the bottom */

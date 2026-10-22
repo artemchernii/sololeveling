@@ -11,6 +11,7 @@ import { usd } from '@/components/finances/insights/readParts'
 import { monthKey, nextMonthWord } from '@/lib/marketRead'
 import { MAX_QUESTION } from '@/lib/rowsAskPrompt'
 import { PeriodBadges, RowsAnswer, Strip, areaColour } from './RowsAnswer'
+import { useSheetViewport } from './useSheetViewport'
 import { openReply, useRowsAsk } from './useRowsAsk'
 import type { RowsTurn } from './useRowsAsk'
 
@@ -51,6 +52,7 @@ export function RowsDrawer({
 }) {
   const a = useRowsAsk()
   const convex = useConvex()
+  useSheetViewport(open)
   const [ready, setReady] = useState(false)
   const [text, setText] = useState('')
   const [unfolded, setUnfolded] = useState(false)

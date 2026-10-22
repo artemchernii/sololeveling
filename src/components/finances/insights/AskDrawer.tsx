@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { Ask, MONTH, Star } from './Ask'
+import { useSheetViewport } from '@/components/ask/useSheetViewport'
 import { usePrefill } from './askPrefill'
 import { usd } from './readParts'
 import { useAsk } from './useAsk'
@@ -20,6 +21,7 @@ export function AskDrawer({ r }: { r: Read }) {
   const a = useAsk(r)
   const [open, setOpen] = useState(false)
   const [ready, setReady] = useState(false)
+  useSheetViewport(open)
   const panel = useRef<HTMLElement>(null)
   useEffect(() => setReady(true), [])
   /* A card's ✦ opens it; Ask puts the question in the box. */

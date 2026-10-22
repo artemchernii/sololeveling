@@ -86,8 +86,17 @@ const unseen = new Set<Id<'askReplies'>>()
 const onScreen = () => document.visibilityState === 'visible'
 
 function settle(convex: ConvexReactClient, id: Id<'askReplies'>) {
-  if (onScreen()) void convex.mutation(api.askReplies.seen, { id })
-  else unseen.add(id)
+  if (!onScreen()) return void unseen.add(id)
+  /* A locked iPhone can still say "visible" (22 Oct: both his answers
+     were marked seen 0.1 s after they landed, and nothing rang). A frame
+     is drawn only on a lit screen, so seen waits for two of them; locked,
+     they come on unlock — after the ring, if it took longer. */
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      if (onScreen()) void convex.mutation(api.askReplies.seen, { id })
+      else unseen.add(id)
+    }),
+  )
 }
 
 /** A kept answer into the thread: in place of the turn that lost it (the

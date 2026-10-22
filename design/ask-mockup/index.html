@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ask AI mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* R7 Ask AI (22 Oct). A ⌘J drawer over any page — the Insights ASK
+     drawer's anatomy (design/treasury-mockup/insights-tabs.html), asked
+     about his own rows instead of the market. Sample numbers, not his data. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150); --bad: oklch(0.68 0.2 22); --warn: oklch(0.79 0.15 75);
+    --glass: linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
+    --edge: rgba(233,233,237,.09);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --a-body: oklch(0.78 0.14 25); --a-lang: oklch(0.8 0.13 160); --a-money: oklch(0.8 0.1 88);
+    --a-proj: oklch(0.78 0.11 250); --a-task: oklch(0.8 0.12 300); --a-none: var(--ink-400);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font: 13px/1.4 Inter, system-ui, sans-serif; min-height: 100vh; overflow-x: hidden }
+  .caps { font: 500 9.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  button { font: inherit; color: inherit }
+
+  /* mockup controls */
+  .ctl { position: fixed; left: 10px; top: 60px; z-index: 200; flex-direction: column; display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width: 96vw;
+    font: 11px var(--mono); color: var(--warn); letter-spacing: .08em; text-transform: uppercase; padding: 6px; border-radius: 14px; background: rgba(10,10,20,.85); border: 1px solid var(--edge) }
+  .ctl button { color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase; font: 10px var(--mono) }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  /* the app behind (Today, dimmed) */
+  .top { height: 52px; display:flex; align-items:center; gap: 14px; padding: 0 18px; border-bottom: 1px solid var(--edge) }
+  .brand { font: 700 11px var(--mono); letter-spacing: .24em }
+  .brand::before { content:''; display:inline-block; width: 9px; height: 9px; background: var(--lav-400); margin-right: 9px; box-shadow: 0 0 10px var(--shine) }
+  .kbtn { display:inline-flex; align-items:center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--edge); background: rgba(255,255,255,.04); font: 500 11px var(--mono); letter-spacing: .1em; color: var(--ink-200); cursor: pointer }
+  .kbtn kbd { font: 500 10px var(--mono); color: var(--ink-400); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--edge) }
+  .kbtn.ask { color: var(--lav-300); border-color: var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 12%, transparent); box-shadow: 0 0 18px -8px var(--shine) }
+  .kbtn.ask .st { display:inline-block; transition: transform .6s }
+  .busy .kbtn.ask .st { animation: spin 1.4s linear infinite }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .grow { flex: 1 }
+  .page { max-width: 1100px; margin: 0 auto; padding: 22px 18px; display:grid; grid-template-columns: 1fr 1fr; gap: 14px }
+  .ghost { border-radius: 14px; border: 1px solid var(--edge); background: var(--glass); padding: 16px; min-height: 150px }
+  .ghost h3 { font: 500 10px var(--mono); letter-spacing: .18em; color: var(--ink-400); margin-bottom: 12px }
+  .ghost .big { font-size: 34px; font-weight: 300 }
+  .ghost.w { grid-column: span 2 }
+  @media (max-width: 760px) { .page { grid-template-columns: 1fr } .ghost.w { grid-column: span 1 } .kbtn .lbl { display:none } }
+
+  /* the drawer */
+  .scrim { position: fixed; inset: 0; background: rgba(6,6,14,.55); backdrop-filter: blur(2px); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 50 }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 60; width: min(460px, 100vw); display:flex; flex-direction: column;
+    border-left: 1px solid var(--sys-edge); background: linear-gradient(180deg, #1d1f33, #161826); box-shadow: -30px 0 60px -30px rgba(0,0,0,.9), inset 1px 0 0 rgba(181,171,252,.12);
+    transform: translateX(105%); transition: transform .32s cubic-bezier(.2,.8,.2,1) }
+  .open .scrim { opacity: 1; pointer-events: auto } .open .drawer { transform: none }
+  @media (max-width: 640px) {
+    .drawer { top: auto; left: 0; width: 100vw; height: 88vh; border-left: 0; border-top: 1px solid var(--sys-edge); border-radius: 18px 18px 0 0; transform: translateY(105%) }
+    .drawer::before { content:''; width: 40px; height: 4px; border-radius: 2px; background: var(--ink-600); margin: 8px auto 0; flex: none }
+  }
+  .dh { display:flex; align-items:center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--edge); flex: none }
+  .sys { font: 700 11px var(--mono); letter-spacing: .22em; color: var(--lav-300) }
+  .pay { font: 500 9.5px var(--mono); letter-spacing: .1em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--edge); color: var(--ink-300) }
+  .pay.cap { color: var(--bad); border-color: color-mix(in oklch, var(--bad) 45%, transparent) }
+  .x { margin-left: auto; width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--edge); background: rgba(255,255,255,.04); color: var(--ink-200); cursor: pointer; font-size: 14px }
+
+  .body { flex: 1; overflow: auto; padding: 16px; display:flex; flex-direction:column; gap: 14px }
+  .hero { display:flex; flex-direction:column; align-items:center; gap: 8px; padding: 22px 0 6px; text-align:center }
+  .orb { width: 52px; height: 52px; border-radius: 16px; display:grid; place-items:center; border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 12%, transparent); box-shadow: 0 0 30px -10px var(--shine); animation: breathe 3.2s ease-in-out infinite }
+  @keyframes breathe { 50% { box-shadow: 0 0 40px -6px var(--shine) } }
+  .reads { display:flex; gap: 5px; flex-wrap: wrap; justify-content:center }
+  .tag { font: 500 9.5px var(--mono); letter-spacing: .1em; padding: 3px 8px; border-radius: 6px; border: 1px solid color-mix(in oklch, var(--c) 40%, transparent); color: var(--c); background: color-mix(in oklch, var(--c) 9%, transparent) }
+  .tag.off { --c: var(--ink-500); text-decoration: line-through }
+  .ex { display:flex; flex-direction:column; gap: 7px }
+  .exq { --c: var(--lav-400); display:flex; align-items:center; gap: 10px; text-align:left; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.03); cursor:pointer; font-size: 13px; transition: border-color .15s, box-shadow .15s, transform .15s }
+  .exq:hover { border-color: var(--c); box-shadow: 0 0 16px -8px var(--c); transform: translateX(-2px) }
+  .exq i { font-style: normal; width: 26px; height: 26px; border-radius: 8px; display:grid; place-items:center; font-size: 13px; flex: none; background: color-mix(in oklch, var(--c) 16%, transparent); border: 1px solid color-mix(in oklch, var(--c) 40%, transparent) }
+
+  .q { align-self: flex-end; max-width: 85%; padding: 9px 14px; border-radius: 14px 14px 4px 14px; background: color-mix(in oklch, var(--lav-400) 20%, transparent); border: 1px solid var(--sys-edge); font-size: 13px; font-weight: 500; animation: rise .3s ease-out }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px) } }
+  .a { display:flex; flex-direction:column; gap: 10px; padding: 14px; border-radius: 14px 14px 14px 4px; border: 1px solid var(--edge); background: var(--glass); animation: rise .35s ease-out }
+  .per { display:flex; gap: 6px; flex-wrap: wrap; align-items:center }
+  .per .tag { --c: var(--lav-300) }
+  .typing { display:inline-flex; gap: 4px; align-items:center } .typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--lav-400); animation: blink 1s infinite } .typing i:nth-child(2) { animation-delay: .15s } .typing i:nth-child(3) { animation-delay: .3s }
+  @keyframes blink { 50% { opacity: .25 } }
+  .scan { height: 3px; border-radius: 2px; background: rgba(255,255,255,.06); overflow:hidden }
+  .scan::after { content:''; display:block; height:100%; width: 35%; background: var(--lav-400); box-shadow: 0 0 10px var(--shine); animation: scan 1.3s ease-in-out infinite }
+  @keyframes scan { from { transform: translateX(-100%) } to { transform: translateX(300%) } }
+  .head { font-size: 15px; font-weight: 600; letter-spacing: -.01em }
+  .line { display:flex; gap: 10px; animation: rise .35s ease-out backwards }
+  .line > i { font-style: normal; width: 26px; height: 26px; border-radius: 8px; display:grid; place-items:center; font-size: 13px; flex: none; background: color-mix(in oklch, var(--c) 16%, transparent); border: 1px solid color-mix(in oklch, var(--c) 40%, transparent) }
+  .line .t { display:flex; flex-direction:column; gap: 6px; min-width: 0 }
+  .line p { color: var(--ink-200); font-size: 12.5px; line-height: 1.45 }
+  .facts { display:flex; gap: 5px; flex-wrap: wrap }
+  .fact { --c: var(--lav-300); display:inline-flex; gap: 6px; align-items:center; font: 600 10px var(--mono); letter-spacing: .06em; color: var(--ink-100); padding: 4px 8px; border-radius: 7px; background: rgba(255,255,255,.05);
+    border: 1px solid color-mix(in oklch, var(--c) 35%, transparent); cursor: pointer; white-space: nowrap; transition: background .15s }
+  .fact b { color: var(--c); font-weight: 700 }
+  .fact:hover, .fact.on { background: color-mix(in oklch, var(--c) 14%, transparent) }
+  .fact::after { content:'›'; color: var(--ink-500); transition: transform .2s } .fact.on::after { transform: rotate(90deg) }
+  .rows { display:none; flex-direction:column; border-radius: 10px; border: 1px solid var(--edge); overflow:hidden; background: rgba(0,0,0,.18) }
+  .rows.on { display:flex; animation: rise .25s ease-out }
+  .rows div { display:flex; gap: 8px; align-items:center; padding: 6px 10px; font: 11px var(--mono); color: var(--ink-300) }
+  .rows div + div { border-top: 1px solid var(--edge) }
+  .rows .d { color: var(--ink-500); width: 52px; flex: none }
+  .rows .k { font: 700 9px var(--mono); letter-spacing: .1em; color: var(--c); width: 66px; flex: none }
+  .rows .v { margin-left: auto; color: var(--ink-100) }
+  .rows .more { justify-content:center; color: var(--lav-300); cursor: pointer }
+  .stamp { display:flex; gap: 6px; flex-wrap: wrap; align-items:center; padding-top: 9px; border-top: 1px dashed var(--edge); font: 500 9.5px var(--mono); letter-spacing: .08em; color: var(--ink-400) }
+  .stamp .m { color: var(--lav-300); font-weight: 700; display:inline-flex; gap: 6px; align-items:center }
+  .stamp .m span { width: 16px; height: 16px; border-radius: 5px; background: #d97757; display:inline-grid; place-items:center; color: #fff; font-size: 10px }
+  .stamp .dot { color: var(--ink-600) }
+  .stamp .free { color: var(--good) }
+  .acts { display:flex; gap: 6px; margin-left: auto }
+  .pill { font: 600 9.5px var(--mono); letter-spacing: .1em; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.04); color: var(--ink-200); cursor: pointer }
+  .fail { border-color: color-mix(in oklch, var(--bad) 45%, transparent) }
+  .bad { color: var(--bad) }
+
+  .dock { flex: none; padding: 12px 16px 16px; border-top: 1px solid var(--edge); display:flex; flex-direction:column; gap: 8px }
+  .box { display:flex; align-items:flex-end; gap: 8px; padding: 8px 8px 8px 14px; border-radius: 14px; border: 1px solid var(--sys-edge); background: rgba(255,255,255,.04); box-shadow: 0 0 24px -14px var(--shine) }
+  .box textarea { flex: 1; resize: none; background: transparent; border: 0; outline: 0; color: var(--ink-100); font: 13px/1.4 Inter, sans-serif; height: 38px; padding-top: 9px }
+  .box textarea::placeholder { color: var(--ink-500) }
+  .go { height: 36px; padding: 0 14px; border-radius: 10px; border: 0; background: var(--lav-400); color: #17152a; font: 700 11px var(--mono); letter-spacing: .14em; cursor: pointer; display:inline-flex; align-items:center; gap: 6px }
+  .go[disabled] { background: rgba(255,255,255,.08); color: var(--ink-500); cursor: default }
+  .foot { display:flex; gap: 6px; flex-wrap: wrap; align-items:center }
+  .foot .grow { flex: 1 }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <span class="brand">SOLO LEVELING</span>
+  <span class="grow"></span>
+  <button class="kbtn"><span class="lbl">LOG</span><kbd>⌘L</kbd></button>
+  <button class="kbtn"><span class="lbl">SEARCH</span><kbd>⌘K</kbd></button>
+  <button class="kbtn ask" onclick="setOpen(true)"><span class="st">✦</span><span class="lbl">ASK</span><kbd>⌘J</kbd></button>
+</header>
+<main class="page">
+  <div class="ghost"><h3>[ TODAY'S THREE ]</h3><div class="big">2 / 3</div></div>
+  <div class="ghost"><h3>[ TODAY ]</h3><div class="big">18:00 RUN</div></div>
+  <div class="ghost w"><h3>[ THIS MONTH ]</h3><div class="big">LANGS 6 · WORKOUT 4 · COMMITS 71</div></div>
+</main>
+
+<div class="scrim" onclick="setOpen(false)"></div>
+<aside class="drawer" id="drawer">
+  <div class="dh">
+    <span class="sys">[ ASK ]</span>
+    <span class="pay" id="pay">PRO · FREE</span>
+    <button class="x" onclick="setOpen(false)">✕</button>
+  </div>
+  <div class="body" id="body"></div>
+  <div class="dock">
+    <div class="box">
+      <textarea id="ta" placeholder="What did I do in August?"></textarea>
+      <button class="go" id="go" onclick="ask(ta.value || EX[0].q)">✦ ASK</button>
+    </div>
+    <div class="foot">
+      <span class="tag" style="--c: var(--ink-400)">NOT SAVED</span>
+      <span class="grow"></span>
+      <span class="caps">⌘J · ESC</span>
+    </div>
+  </div>
+</aside>
+
+<div class="ctl" id="ctl"></div>
+
+<script>
+  const AREA = { body: ['🏋️', '--a-body'], lang: ['🗣️', '--a-lang'], money: ['💶', '--a-money'], proj: ['🛠️', '--a-proj'], task: ['✅', '--a-task'], none: ['❔', '--a-none'] }
+  const c = a => `var(${AREA[a][1]})`
+  const EX = [
+    { a: 'task', q: 'What did I actually do in August?' },
+    { a: 'body', q: 'How many workouts since 1 September?' },
+    { a: 'lang', q: 'Portuguese this month and last month' },
+    { a: 'money', q: 'Where did the money go last week?' },
+    { a: 'proj', q: 'Which projects got commits in October?' },
+  ]
+  /* the rows a fact opens (sample) */
+  const ROWS = {
+    workout: [['AUG 02', 'WORKOUT', 'gym · push', '60 min'], ['AUG 05', 'WORKOUT', 'run', '35 min'], ['AUG 09', 'WORKOUT', 'gym · pull', '55 min'], ['AUG 12', 'WORKOUT', 'gym · legs', '60 min'], ['AUG 16', 'WORKOUT', 'run', '40 min']],
+    lang: [['AUG 04', 'SESSION', 'class · past tense', '90 min'], ['AUG 06', 'SESSION', 'homework', '30 min'], ['AUG 11', 'SESSION', 'class · ser vs estar', '90 min']],
+    spent: [['AUG 01', 'EXPENSE', 'Pingo Doce', '€48.20'], ['AUG 03', 'EXPENSE', 'Solinca', '€39.90'], ['AUG 07', 'EXPENSE', 'Anthropic', '€22.14']],
+    commits: [['AUG 28', 'COMMIT', 'oreum · feat: onboarding', ''], ['AUG 28', 'COMMIT', 'sololeveling · fix: week bar', ''], ['AUG 27', 'COMMIT', 'oreum · fix: auth', '']],
+    tasks: [['AUG 30', 'TASK DONE', 'Send invoice', ''], ['AUG 29', 'TASK DONE', 'Book dentist', ''], ['AUG 26', 'TASK DONE', 'Renew NIF', '']],
+  }
+  const AUG = {
+    head: 'A building month: code most days, the gym about twice a week.',
+    lines: [
+      { a: 'proj', p: 'Most days went into code — Oreum far ahead of the app.', f: [['COMMITS · AUG', '138', 'commits'], ['OREUM', '96', 'commits'], ['SOLO LEVELING', '42', 'commits']] },
+      { a: 'body', p: 'Gym and runs, steady in the first half, quiet after the 16th.', f: [['WORKOUT · AUG', '9', 'workout'], ['LAST · AUG 16', '40 min', 'workout']] },
+      { a: 'lang', p: 'Classes kept; homework in fewer weeks than classes.', f: [['SESSION · PORTUGUESE', '8', 'lang'], ['HOMEWORK', '3', 'lang']] },
+      { a: 'money', p: 'Groceries and subscriptions are the biggest rows.', f: [['SPENT · AUG', '€1,284.10', 'spent'], ['IN · AUG', '€2,900.00', 'spent']] },
+      { a: 'task', p: 'Tasks ticked, mostly admin.', f: [['TASK DONE · AUG', '23', 'tasks']] },
+    ],
+  }
+  let state = 'empty', open = true, pay = 'pro', thread = []
+
+  const exHtml = () => `<div class="hero"><div class="orb">✦</div><span class="caps">READS</span>
+      <div class="reads">${['LOGS', 'TASKS', 'PROJECTS', 'COMMITS', 'GOALS'].map((t, i) => `<span class="tag" style="--c:${c(['task', 'task', 'proj', 'proj', 'lang'][i])}">${t}</span>`).join('')}<span class="tag off">NOTES</span></div></div>
+    <div class="ex">${EX.map(e => `<button class="exq" style="--c:${c(e.a)}" onclick="ask('${e.q}')"><i>${AREA[e.a][0]}</i>${e.q}</button>`).join('')}</div>`
+
+  const stamp = () => `<div class="stamp"><span class="m"><span>✦</span>SONNET 5.5</span><span class="dot">·</span>22 OCT 14:05<span class="dot">·</span>18.4K IN · 520 OUT<span class="dot">·</span>
+      ${pay === 'pro' ? '<span class="free">$0 · PRO</span>' : '$0.05 · API'}
+      <span class="acts"><button class="pill">⧉ COPY</button></span></div>`
+
+  const answerHtml = (n) => `<div class="a">
+      <div class="per"><span class="tag">AUG 1 – 31</span><span class="tag" style="--c:var(--ink-300)">214 ROWS READ</span></div>
+      <div class="head">${AUG.head}</div>
+      ${AUG.lines.map((l, i) => `<div class="line" style="--c:${c(l.a)}; animation-delay:${i * 90}ms"><i>${AREA[l.a][0]}</i><div class="t"><p>${l.p}</p>
+        <div class="facts">${l.f.map(([k, v, r]) => `<span class="fact" style="--c:${c(l.a)}" onclick="tog(this,'${n}-${i}-${r}')">${k} <b>${v}</b></span>`).join('')}</div>
+        ${[...new Set(l.f.map(f => f[2]))].map(r => `<div class="rows" id="${n}-${i}-${r}" style="--c:${c(l.a)}">${ROWS[r].map(([d, k, t, v]) => `<div><span class="d">${d}</span><span class="k">${k}</span><span>${t}</span><span class="v">${v}</span></div>`).join('')}<div class="more">ALL ${l.f[0][1]} →</div></div>`).join('')}
+      </div></div>`).join('')}
+      ${stamp()}</div>`
+
+  const noDataHtml = () => `<div class="a">
+      <div class="per"><span class="tag">JUN 1 – 30</span><span class="tag" style="--c:var(--ink-300)">0 ROWS READ</span></div>
+      <div class="line" style="--c:${c('none')}"><i>❔</i><div class="t"><p>No sleep rows in June.</p><div class="facts"><span class="tag" style="--c:var(--ink-400)">NO DATA · SLEEP</span></div></div></div>
+      ${stamp()}</div>`
+
+  function render() {
+    document.body.classList.toggle('open', open)
+    document.body.classList.toggle('busy', state === 'asking')
+    const P = document.getElementById('pay')
+    P.className = 'pay' + (pay === 'cap' ? ' cap' : '')
+    P.textContent = pay === 'pro' ? 'PRO · FREE' : pay === 'api' ? '$0.31 OF $2 · OCT' : '$2 OF $2 · NEXT 1 NOV'
+    document.getElementById('go').disabled = pay === 'cap' || state === 'asking'
+    const B = document.getElementById('body')
+    if (state === 'empty') B.innerHTML = exHtml()
+    else {
+      B.innerHTML = thread.map((t, n) => `<div class="q">${t.q}</div>${
+        t.s === 'asking' ? `<div class="a"><div class="per"><span class="tag">AUG 1 – 31</span><span class="tag" style="--c:var(--ink-300)">214 ROWS</span></div><div class="typing"><i></i><i></i><i></i><span class="caps" style="margin-left:8px">READING ROWS</span></div><div class="scan"></div></div>`
+        : t.s === 'fail' ? `<div class="a fail"><div class="head bad">✕ NOT REACHED</div><div class="stamp"><span class="free">$0 · NOTHING PAID</span><span class="acts"><button class="pill" onclick="ask('${t.q}')">↻ ASK AGAIN</button></span></div></div>`
+        : t.s === 'none' ? noDataHtml() : answerHtml(n)}`).join('')
+      B.scrollTop = B.scrollHeight
+    }
+    document.getElementById('ctl').innerHTML = [
+      ['closed', () => { open = false }], ['empty', () => { open = true; state = 'empty'; thread = [] }],
+      ['asking', () => { open = true; state = 'asking'; thread = [{ q: EX[0].q, s: 'asking' }] }],
+      ['answer', () => { open = true; state = 'answer'; thread = [{ q: EX[0].q, s: 'ok' }] }],
+      ['no data', () => { open = true; state = 'answer'; thread = [{ q: 'How did I sleep in June?', s: 'none' }] }],
+      ['failed', () => { open = true; state = 'answer'; thread = [{ q: EX[0].q, s: 'fail' }] }],
+      ['pro', () => { pay = 'pro' }], ['api', () => { pay = 'api' }], ['cap', () => { pay = 'cap' }],
+    ].map(([k, f], i) => `<button class="${(k === 'closed' && !open) || (open && k === ({ empty: 'empty', asking: 'asking' }[state] ?? (thread[0]?.s === 'none' ? 'no data' : thread[0]?.s === 'fail' ? 'failed' : 'answer'))) || k === pay ? 'on' : ''}" data-i="${i}">${k}</button>`).join('')
+    const fs = [...document.querySelectorAll('#ctl button')]
+    const acts = [() => { open = false }, () => { open = true; state = 'empty'; thread = [] }, () => { open = true; state = 'asking'; thread = [{ q: EX[0].q, s: 'asking' }] }, () => { open = true; state = 'answer'; thread = [{ q: EX[0].q, s: 'ok' }] }, () => { open = true; state = 'answer'; thread = [{ q: 'How did I sleep in June?', s: 'none' }] }, () => { open = true; state = 'answer'; thread = [{ q: EX[0].q, s: 'fail' }] }, () => { pay = 'pro' }, () => { pay = 'api' }, () => { pay = 'cap' }]
+    fs.forEach((b, i) => b.onclick = () => { acts[i](); render() })
+  }
+  function setOpen(v) { open = v; render() }
+  function tog(el, id) { el.classList.toggle('on'); document.getElementById(id).classList.toggle('on') }
+  function ask(q) {
+    if (pay === 'cap') return
+    document.getElementById('ta').value = ''
+    state = 'asking'; thread.push({ q, s: 'asking' }); render()
+    setTimeout(() => { thread[thread.length - 1].s = 'ok'; state = 'answer'; render() }, 1600)
+  }
+  addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); setOpen(!open) }
+    if (e.key === 'Escape') setOpen(false)
+  })
+  render()
+</script>
+</body>
+</html>

@@ -40,11 +40,12 @@ Empty sections are left out. Idea prices are not copied (fetched on
 open, and a stale price in a note reads as current).
 
 Scenarios:
+
 - S1 answer → press ⧉ COPY → pill `✓ COPIED` at once (green, pop), the
   card glows once, back to `⧉ COPY` after ~1.8 s; the clipboard holds the
-  text above. (e2e, `e2e/insights-ask.spec.ts`)
-- S2 the clipboard refuses → pill `✕ NOT COPIED` red, shake, back. (unit
-  on nothing; covered by the component's catch)
+  text above. (e2e S11, `e2e/insights-ask.spec.ts`)
+- S2 the clipboard refuses → pill `✕ NOT COPIED` red, shake, back; no
+  glow. (e2e S12)
 - S3 an answer with ideas and sources → every section present, in
   order. (unit, `src/lib/askCopy.test.ts`)
 - S4 an answer with no facts, no sources → only question, kind, words,

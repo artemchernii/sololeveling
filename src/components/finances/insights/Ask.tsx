@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { AccountLogo } from '@/components/finances/Logo'
+import { askCopyText, dayWord, siteWord } from '@/lib/askCopy'
 import { SUGGESTED } from '@/lib/marketAsk'
 import { factsFor, nextMonthWord } from '@/lib/marketRead'
 import type { AskKind } from '@/lib/marketAsk'
@@ -8,6 +9,7 @@ import type { Fact } from '@/lib/marketRead'
 import { clock } from './parts'
 import { Words, factIcon, modelWord, tokens, usd } from './readParts'
 import { AskIdeas } from './AskIdeas'
+import { CopyPill } from './AskCopy'
 import { usePrefill } from './askPrefill'
 import type { Turn, useAsk } from './useAsk'
 import type { useMarketRead } from './useMarketRead'
@@ -313,8 +315,33 @@ function Answer({ t }: { t: Turn }) {
   const look = LOOK[a.kind]
   const facts = factsFor(a.factKeys, t.facts ?? [])
   const s = t.stamp
+  const card = useRef<HTMLDivElement>(null)
+  /* What the card shows, as text — built on the press, never stored. */
+  const text = () =>
+    askCopyText({
+      question: t.question,
+      web: t.web,
+      kind: `${look.icon} ${look.name}`,
+      answer: a.answer,
+      facts: facts.map((f) => `${factIcon(f.key)} ${f.label} ${f.value}`),
+      inNext: a.kind === 'ideas' ? (t.skip ?? []) : [],
+      ideas: a.ideas,
+      sources: a.sources,
+      model: s ? modelWord(s.model) : '',
+      searches: s?.searches ?? 0,
+      at: t.at,
+    })
+  /* The card glows once on every copy. */
+  const glow = () => {
+    const el = card.current
+    if (!el) return
+    el.classList.remove('copied')
+    void el.offsetWidth
+    el.classList.add('copied')
+  }
   return (
     <div
+      ref={card}
       data-testid="ask-answer"
       data-kind={a.kind}
       className="ask-a land"
@@ -354,11 +381,8 @@ function Answer({ t }: { t: Turn }) {
                 className="ins-src"
               >
                 <AccountLogo name={src.site} domain={src.site} size={14} />
-                {src.site
-                  .replace(/^www\./, '')
-                  .split('.')[0]
-                  .toUpperCase()}
-                {src.day ? ` · ${dayOf(src.day)}` : ''} ↗
+                {siteWord(src.site)}
+                {src.day ? ` · ${dayWord(src.day)}` : ''} ↗
               </a>
             ))}
           </div>
@@ -380,6 +404,7 @@ function Answer({ t }: { t: Turn }) {
               <span className="ask-pill c">💳 {usd(s.cost)}</span>
             )}
             <span className="ask-pill">{clock(t.at)}</span>
+            <CopyPill text={text} onCopied={glow} />
           </div>
         ) : null}
       </div>
@@ -397,6 +422,3 @@ function FactPill({ f }: { f: Fact }) {
     </span>
   )
 }
-
-const dayOf = (d: string) =>
-  `${Number(d.slice(8, 10))} ${MONTH[Number(d.slice(5, 7)) - 1]}`

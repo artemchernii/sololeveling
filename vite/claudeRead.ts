@@ -13,6 +13,7 @@ import { ASK_SCHEMA, askPrompt } from '../src/lib/marketAsk'
 import type { Fact } from '../src/lib/marketRead'
 import type { ReadContext, Said } from '../src/lib/marketAsk'
 import type { ProAnswer } from '../src/lib/claudeResult'
+import { ROWS_SCHEMA, rowsPrompt } from '../src/lib/rowsAskPrompt'
 
 /* The market read on his Pro plan (I3, 19 Oct: "On localhost the read and
    ASK go through Claude Code on his Mac"). Artem allowed one Start server
@@ -29,6 +30,8 @@ import type { ProAnswer } from '../src/lib/claudeResult'
 export const CLAUDE_READ_PATH = '/__claude/market-read'
 /** ASK (I4): one question, with web search only when 🌐 is on. */
 export const CLAUDE_ASK_PATH = '/__claude/market-ask'
+/** R7 Ask AI: a question about his rows; the page sends the rows it read. */
+export const CLAUDE_ROWS_PATH = '/__claude/rows-ask'
 const TIMEOUT_MS = 5 * 60_000
 
 function claude(
@@ -78,12 +81,12 @@ function claude(
   })
 }
 
-function body(req: IncomingMessage): Promise<string> {
+function body(req: IncomingMessage, max = 200_000): Promise<string> {
   return new Promise((resolve, reject) => {
     let s = ''
     req.on('data', (b: Buffer) => {
       s += b.toString()
-      if (s.length > 200_000) reject(new Error('too big'))
+      if (s.length > max) reject(new Error('too big'))
     })
     req.on('end', () => resolve(s))
     req.on('error', reject)
@@ -105,6 +108,8 @@ export function claudeRead(): Plugin {
       const route = (
         path: string,
         answer: (json: string) => Promise<ProAnswer>,
+        /* A month of rows is a few hundred lines; three months fit. */
+        max?: number,
       ) =>
         server.middlewares.use(path, (req, res) => {
           void (async () => {
@@ -118,7 +123,7 @@ export function claudeRead(): Plugin {
             )
               return send(res, 403, { ok: false, error: 'REFUSED' })
             try {
-              send(res, 200, await answer(await body(req)))
+              send(res, 200, await answer(await body(req, max)))
             } catch {
               send(res, 400, { ok: false, error: 'BROKEN SHAPE' })
             }
@@ -148,6 +153,16 @@ export function claudeRead(): Plugin {
           web === true,
         )
       })
+      route(
+        CLAUDE_ROWS_PATH,
+        (json) =>
+          claude(
+            rowsPrompt(JSON.parse(json) as Parameters<typeof rowsPrompt>[0]),
+            ROWS_SCHEMA,
+            false,
+          ),
+        2_000_000,
+      )
     },
   }
 }

@@ -179,8 +179,11 @@ mockup `design/treasury-mockup/insights.html`, spec
   worth at the last stored close of the day before, both always shown,
   ▲/▼ green or red, nothing stored, only on CLOSE and its push; (2)
   "major news" is chosen by the app, never a model: the headlines of the
-  three biggest movers held and of any company reporting, fetched on
-  open like news, never stored, never summarised.
+  three biggest movers held and of any company reporting, and (his
+  "small block for overall market news") the market's day — the S&P 500,
+  Nasdaq 100, Stoxx 600 and Bitcoin over 1D, as MARKET fetches them —
+  with the newest two S&P 500 headlines; all fetched on open like news,
+  never stored, never summarised.
 - **A model's market read**, on a press only: a headline, two plain
   sentences and 3–5 lines, each of a kind from a fixed list (inflation,
   rates, market, allocation, don't, no data) that picks its icon. The

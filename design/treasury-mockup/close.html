@@ -122,6 +122,12 @@
   .news { display:flex; gap: 10px; padding: 10px; border-radius: 11px; text-decoration: none; color: inherit; border: 1px solid var(--edge); background: rgba(255,255,255,.02); animation: arrive .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i,0) * 60ms) }
   .news:hover { border-color: var(--sys-edge) }
   .news .h { font-size: 13px; line-height: 1.35 } .news .m { font: 10px var(--mono); color: var(--ink-500); margin-top: 4px; letter-spacing: .06em }
+  .col { display:flex; flex-direction:column; gap: 12px; min-width: 0 }
+  .col > .tile:last-child { flex: 1 }
+  .idx { display:grid; grid-template-columns: repeat(4, 1fr); gap: 6px }
+  @media (max-width: 560px) { .idx { grid-template-columns: repeat(2, 1fr) } }
+  .ix { display:flex; flex-direction:column; gap: 5px; padding: 8px; border-radius: 10px; border: 1px solid var(--edge); background: rgba(255,255,255,.02); animation: arrive .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i,0) * 50ms) }
+  .ix .badge { align-self: flex-start }
   .more { font: 600 10px var(--mono); letter-spacing: .16em; color: var(--lav-300); text-align: center; padding: 8px; border-radius: 9px; border: 1px dashed var(--sys-edge); cursor: pointer }
   .empty { display:flex; flex-direction:column; align-items:center; gap: 10px; padding: 34px 0 }
   .empty .o { width: 64px; height: 64px; border-radius: 20px; display:grid; place-items:center; font-size: 26px; border: 1px solid var(--edge); background: rgba(255,255,255,.04) }
@@ -163,8 +169,14 @@ const RED = [
   [L('AAPL'), 'Apple', 'AAPL', -6.1, -0.4, '$231.40', '$230.47', []],
   [L('ASML'), 'ASML', 'ASML', 22.8, 1.9, '€601.00', '€612.40', ['<span class="badge b-good">HOLD → ADD</span>']],
   [L('NVDA'), 'NVIDIA', 'NVDA', 31.4, 4.1, '$138.20', '$143.87', []],
+  [L('AMZN'), 'Amazon', 'AMZN', -9.8, -0.9, '$186.30', '$184.62', []],
+  [L('GOOGL'), 'Alphabet', 'GOOGL', 4.2, 0.5, '$164.10', '$164.92', []],
+  [L('META'), 'Meta', 'META', -12.6, -1.4, '$578.20', '$570.11', []],
+  [L('AVGO'), 'Broadcom', 'AVGO', 8.9, 1.2, '$172.40', '$174.47', []],
+  [site('ishares.com'), 'iShares Physical Gold', 'IGLN', 3.1, 0.3, '€52.10', '€52.26', []],
+  [`<span class="logo coin"><img src="https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color/btc.svg" alt=""></span>`, 'Bitcoin', 'BTC', 6.7, 1.4, '€57,210', '€58,011', []],
 ]
-const QUIET = RED.map((r, k) => { const p = [-0.8, -0.3, 0.2, 0.1, -0.2, 0.6, 0.9][k]; return [r[0], r[1], r[2], Math.round(r[3] / r[4] * p * 10) / 10, p, r[5], r[6], k === 1 ? r[7] : []] })
+const QUIET = RED.map((r, k) => { const p = [-0.8, -0.3, 0.2, 0.1, -0.2, 0.6, 0.9, 0.1, -0.1, 0.3, 0.2, 0.1, 0.4][k]; return [r[0], r[1], r[2], Math.round(r[3] / r[4] * p * 10) / 10, p, r[5], r[6], k === 1 ? r[7] : []] })
 const NEWS = [
   [L('TSLA'), 'TSLA', 'Tesla shares slide after deliveries guidance cut', 'Reuters', '19:42'],
   [L('NVDA'), 'NVDA', 'Nvidia gains as new data-center orders land', 'Bloomberg', '18:10'],
@@ -173,6 +185,11 @@ const NEWS = [
   [L('NVDA'), 'NVDA', 'Chip stocks rise with Nvidia in the lead', 'CNBC', '14:48'],
   [L('NFLX'), 'NFLX', 'What to watch in Netflix results on Friday', 'Barron\'s', '12:30'],
 ]
+/* The market's day, fetched like MARKET's (1D): two prices, the move. */
+const IDX = [['S&P 500', '5,812', -0.9], ['NASDAQ 100', '20,104', -1.3], ['STOXX 600', '518', 0.2], ['BITCOIN', '$67,210', 1.4]]
+const IDXQ = [['S&P 500', '5,866', 0.1], ['NASDAQ 100', '20,371', 0.2], ['STOXX 600', '517', -0.1], ['BITCOIN', '$66,480', 0.3]]
+/* Market headlines: Yahoo's news for the S&P 500, the newest two. */
+const MKT = [['🏦', 'Stocks slip as Treasury yields climb to 3-month high', 'Reuters', '21:05'], ['🛢️', 'Oil rises after OPEC signals deeper output cuts', 'Bloomberg', '19:30']]
 const eur = (v) => `${v < 0 ? '−' : '+'}€${Math.abs(v).toFixed(2)}`
 const pct = (v) => `<span class="badge ${v < 0 ? 'b-bad' : v > 0 ? 'b-good' : 'b-dim'} pct">${v < 0 ? '▼' : v > 0 ? '▲' : '='} ${Math.abs(v).toFixed(1)}%</span>`
 const bar = (v, max) => `<span class="bar"><i style="${v < 0 ? 'right:50%' : 'left:50%'};width:${Math.abs(v) / max * 50}%;background:var(${v < 0 ? '--bad' : '--good'})"></i></span>`
@@ -181,7 +198,7 @@ const head = (tab = 'CLOSE', badge = '') => `<div class="fhead"><span class="tit
   <div class="tabs"><span class="tab">OVERVIEW</span><span class="tab">FLOW</span><span class="tab">PORTFOLIO</span><span class="tab on">INSIGHTS</span></div></div>
   <div class="itabs">${['MARKET', 'READ', 'MINE', 'IDEAS', 'CLOSE'].map((t, k) => `<button class="itab ${t === tab ? 'on' : ''}"><span class="n">${k + 1}</span>${t}${t === 'CLOSE' ? badge : ''}</button>`).join('')}</div>`
 
-function report(rows, { day = 'THU 22 OCT', at = '21:30', now = 6158.4, wasDay = '21 OCT', news = true } = {}) {
+function report(rows, { day = 'THU 22 OCT', at = '21:30', now = 6158.4, wasDay = '21 OCT', news = true, quiet = false } = {}) {
   const sorted = [...rows].sort((a, b) => Math.abs(b[4]) - Math.abs(a[4]))
   const max = Math.max(...rows.map((r) => Math.abs(r[4])))
   const d = Math.round(rows.reduce((t, r) => t + r[3], 0) * 100) / 100, was = now - d, p = d / was * 100
@@ -205,24 +222,31 @@ function report(rows, { day = 'THU 22 OCT', at = '21:30', now = 6158.4, wasDay =
         <div class="grow"><div class="nm">${r[1]} <span class="caps" style="margin-left:4px">${r[2]}</span></div><div class="sub">WAS ${r[5]} · NOW ${r[6]}</div></div>
         <div class="split">${r[7].join('')}</div>${bar(r[4], max)}<span class="eur ${r[3] < 0 ? 'bad' : 'good'}">${eur(r[3])}</span>${pct(r[4])}</div>`).join('')}</div>
     </section>
-    <section class="tile c5" style="--i:2">
+    <div class="c5 col">
+    <section class="tile" style="--i:2">
+      <div class="thead"><span class="ico">🌐</span><span class="tname">MARKET · TODAY</span><span class="grow"></span><span class="caps">FETCHED ${at}</span></div>
+      <div class="idx">${(quiet ? IDXQ : IDX).map((x, k) => `<div class="ix" style="--i:${k}"><span class="caps">${x[0]}</span><span class="num" style="font-size:15px">${x[1]}</span>${pct(x[2])}</div>`).join('')}</div>
+      ${MKT.map((n, k) => `<a class="news" href="#" style="--i:${k}"><span class="logo emo">${n[0]}</span><div><div class="h">${n[1]}</div><div class="m">${n[2].toUpperCase()} · ${n[3]} ↗</div></div></a>`).join('')}
+    </section>
+    <section class="tile" style="--i:3">
       <div class="thead"><span class="ico">📰</span><span class="tname">NEWS · TOP MOVERS</span><span class="grow"></span><span class="caps">FETCHED ${at}</span></div>
       ${news ? NEWS.map((n, k) => `<a class="news" href="#" style="--i:${k}">${n[0]}<div><div class="h">${n[2]}</div><div class="m">${n[1]} · ${n[3].toUpperCase()} · ${n[4]} ↗</div></div></a>`).join('')
         : `<div class="empty"><span class="o">📰</span><span class="caps">NO HEADLINES · ${at}</span></div>`}
     </section>
+    </div>
   </div>` }
 
 const S = {
   close: () => report(RED),
-  quiet: () => report(QUIET, { now: 6262.9 }),
+  quiet: () => report(QUIET, { now: 6262.9, quiet: true }),
   weekend: () => report(RED, { day: 'FRI 24 OCT', wasDay: '23 OCT' }).replace('PRICES 21:30', 'MARKET CLOSED · SAT · FRI CLOSE'),
   none: () => `${head()}<div class="grid"><section class="tile sys c12"><div class="thead"><span class="sys-title">[ CLOSE ]</span></div>
     <div class="empty"><span class="o">📊</span><span class="caps">NO SHARES HELD</span><span class="badge b-dim">NO PUSH AT 21:30</span></div></section></div>`,
   lock: () => `<div class="phone"><div class="lock"><div class="d">Thursday 22 October</div><div class="h">21:30</div>
     <div class="note" onclick="show('close')"><span class="ic"><svg viewBox="0 0 128 128" width="30" height="30"><g fill="#9184d9"><rect x="24" y="78" width="18" height="26" rx="6"/><rect x="49" y="60" width="18" height="44" rx="6"/><rect x="74" y="42" width="18" height="62" rx="6"/></g><circle cx="107" cy="30" r="9" fill="#d2cefd"/></svg></span>
-      <span style="flex:1;min-width:0"><span class="t1">Close · ▼ €102.90 · 1.6%<span>now</span></span><span class="t2">TSLA ▼ 6.2% · ASML HOLD → ADD · NFLX earnings 24 Oct</span></span></div>
+      <span style="flex:1;min-width:0"><span class="t1">Close · ▼ €102.40 · 1.6%<span>now</span></span><span class="t2">TSLA ▼ 6.2% · ASML HOLD → ADD · NFLX earnings 24 Oct</span></span></div>
   </div></div><p class="caps" style="text-align:center;margin-top:12px">TAP → INSIGHTS · CLOSE</p>`,
-  bell: () => `<div class="bellrow" onclick="show('close')"><span class="k">▼</span><span class="grow"><div class="t">Close · ▼ €102.90 · 1.6%</div><div class="m">TSLA ▼ 6.2% · ASML HOLD → ADD · NFLX EARNINGS 24 OCT</div></span><span class="caps">21:30</span></div>`,
+  bell: () => `<div class="bellrow" onclick="show('close')"><span class="k">▼</span><span class="grow"><div class="t">Close · ▼ €102.40 · 1.6%</div><div class="m">TSLA ▼ 6.2% · ASML HOLD → ADD · NFLX EARNINGS 24 OCT</div></span><span class="caps">21:30</span></div>`,
 }
 const stage = document.getElementById('stage')
 function show(s) { stage.innerHTML = S[s](); document.querySelectorAll('#show button').forEach((b) => b.classList.toggle('on', b.dataset.s === s)) }

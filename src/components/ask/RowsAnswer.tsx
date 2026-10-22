@@ -253,6 +253,12 @@ export function RowsAnswer({ t }: { t: RowsTurn }) {
   const picked = pick ? byKey.get(pick) : undefined
   const toggle = (k: string) => setPick((p) => (p === k ? null : k))
   const tiles = a.tiles.map((k) => byKey.get(k)).filter((f) => f !== undefined)
+  /* A key the page did not count is dropped, as a tile's is: the answer
+     may come from the server, which counted on its own. */
+  const lines = a.lines.map((l) => ({
+    ...l,
+    factKeys: l.factKeys.filter((k) => byKey.has(k)),
+  }))
   const s = t.stamp
   const n = rows.logs.length + rows.commits.length
 
@@ -262,7 +268,7 @@ export function RowsAnswer({ t }: { t: RowsTurn }) {
       `${t.period.title} · ${t.period.range} · ${n} ROWS`,
       a.headline,
       ...tiles.map((f) => `${f.label} ${f.value}`),
-      ...a.lines.map(
+      ...lines.map(
         (l) =>
           `${LINE[l.area].e} ${l.text}${l.factKeys.length ? ` (${l.factKeys.map((k) => `${byKey.get(k)!.label} ${byKey.get(k)!.value}`).join(' · ')})` : ''}`,
       ),
@@ -337,7 +343,7 @@ export function RowsAnswer({ t }: { t: RowsTurn }) {
           <div>{picked ? <RowsList f={picked} byId={byId} /> : null}</div>
         </div>
         <div className="r7-lines">
-          {a.lines.map((l, i) => (
+          {lines.map((l, i) => (
             <div
               key={i}
               data-testid="rows-line"

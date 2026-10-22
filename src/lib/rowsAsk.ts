@@ -411,13 +411,17 @@ export function rowFacts(
   return out
 }
 
-/** The `YYYY-MM` months a period touches, oldest first. */
-export function monthsOf(p: Period): Array<string> {
+/** The `YYYY-MM` months a period touches, oldest first — in his days
+    (`offsetMin`, the page's getTimezoneOffset), never the server's: on the
+    UTC server his 1 October midnight is 30 September, which named a month
+    the page never counted and broke the answer on his phone (22 Oct). */
+export function monthsOf(p: Period, offsetMin: number): Array<string> {
   const out: Array<string> = []
-  const d = new Date(p.from)
-  let y = d.getFullYear()
-  let m = d.getMonth()
-  while (new Date(y, m, 1).getTime() < p.to) {
+  const shift = offsetMin * 60_000
+  const d = new Date(p.from - shift)
+  let y = d.getUTCFullYear()
+  let m = d.getUTCMonth()
+  while (Date.UTC(y, m, 1) + shift < p.to) {
     out.push(`${y}-${String(m + 1).padStart(2, '0')}`)
     m++
     if (m === 12) {

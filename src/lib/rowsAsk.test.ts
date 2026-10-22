@@ -38,7 +38,21 @@ describe('periodOf', () => {
     const p = periodOf('Portuguese this month and last month', NOW)!
     expect(p.title).toBe('SEP – OCT 2026')
     expect(p.range).toBe('SEP 1 – OCT 22')
-    expect(monthsOf(p)).toEqual(['2026-09', '2026-10'])
+    expect(monthsOf(p, new Date(p.from).getTimezoneOffset())).toEqual([
+      '2026-09',
+      '2026-10',
+    ])
+  })
+  it('the months are his, not the server’s (Lisbon on a UTC server)', () => {
+    /* His 1 October midnight, WEST (UTC+1): 30 September 23:00 UTC. */
+    const p = {
+      from: Date.UTC(2026, 9, 1) - 3_600_000,
+      to: Date.UTC(2026, 9, 23) - 3_600_000,
+      title: 'OCT 2026',
+      range: 'OCT 1 – 22',
+    }
+    expect(monthsOf(p, -60)).toEqual(['2026-10'])
+    expect(monthsOf(p, 0)).toEqual(['2026-09', '2026-10'])
   })
   it('since a day', () => {
     const p = periodOf('How many workouts since 1 September?', NOW)!

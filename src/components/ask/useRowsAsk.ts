@@ -74,7 +74,7 @@ async function readRows(
     rows,
     (s) => label.get(s) ?? s,
     offsetMin,
-    monthsOf(period),
+    monthsOf(period, offsetMin),
   )
   return { rows, facts, labels: Object.fromEntries(label) }
 }

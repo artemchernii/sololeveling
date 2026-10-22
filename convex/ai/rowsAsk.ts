@@ -133,7 +133,7 @@ async function answer(
     rows,
     (s) => label.get(s) ?? s,
     args.offsetMin,
-    monthsOf(period),
+    monthsOf(period, args.offsetMin),
   )
 
   if (process.env.E2E === '1') {

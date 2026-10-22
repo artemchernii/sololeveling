@@ -35,6 +35,9 @@ export function useMarketRead(
   holdings: Array<Holding> | null,
   /** More facts from the room: band 3's allocation lines (I2). */
   extra: Array<Fact> = [],
+  /** Facts that change inside the month (earnings): ASK gets them even
+      after the month's read, which keeps its own. */
+  live: Array<Fact> = [],
 ) {
   const month = monthKey(Date.now())
   const state = useQuery(api.marketReads.forMonth, { month })
@@ -109,7 +112,10 @@ export function useMarketRead(
   /** What a question (ASK) is asked on: the month's read's own facts,
       else the room's numbers now. */
   async function factsNow(): Promise<Array<Fact>> {
-    if (row?.status === 'done' && row.facts.length > 0) return row.facts
+    if (row?.status === 'done' && row.facts.length > 0) {
+      const had = new Set(row.facts.map((f) => f.key))
+      return [...row.facts, ...live.filter((f) => !had.has(f.key))]
+    }
     const m = await monthAnswer(ask)
     return [...marketFacts(m, holdings ?? []), ...extra]
   }

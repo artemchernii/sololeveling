@@ -1,6 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 
 import { Allocation } from './Allocation'
+import { AskOn } from './AskOn'
+import { EarnRibbon } from './EarnRibbon'
+import { askBox } from '@/lib/askOnCards'
 import { Info, clock, heatColour, signed } from './parts'
 import type { MineAnswer, useMine } from './useMine'
 import type { Doc, Id } from '../../../../convex/_generated/dataModel'
@@ -11,6 +14,8 @@ import type { Period } from '@/lib/insightsMarket'
 import { treemap } from '@/lib/insightsMine'
 import type { AllocRow } from '@/lib/insightsMine'
 import type { Call } from '@/lib/indicators'
+import { dayWord, moveWord, ribbonOf } from '@/lib/insightsEarnings'
+import type { Earning, Ribbon } from '@/lib/insightsEarnings'
 import { UNPRICED } from '@/lib/market'
 import type { Owned } from '@/lib/owned'
 
@@ -90,6 +95,14 @@ function Positions({
     (mine.base?.calls ?? []).map((c) => [c.instrumentId as string, c.call]),
   )
   const callOf = (o: Held) => calls.get(o.instrumentId) ?? null
+  /* Earnings come with the first answer, like the verdicts. */
+  const earnAt = mine.base?.fetchedAt ?? 0
+  const ribbons = new Map(
+    (mine.base?.earnings?.rows ?? []).flatMap((e) => {
+      const r = ribbonOf(e, earnAt)
+      return r ? [[e.symbol, { r, e }] as const] : []
+    }),
+  )
   const count = (c: Call) => held.filter((o) => callOf(o) === c).length
   /* Laid out in the box's own shape, so a square stays square. */
   const heat = useRef<HTMLDivElement>(null)
@@ -128,10 +141,11 @@ function Positions({
           info={{
             title: 'POSITIONS',
             what: 'Every position as a box: the bigger the box, the more euros; green rose in the period, red fell. The corner tag is the Portfolio verdict for that position.',
-            why: 'ADD — the signals say a good moment to buy more. HOLD — nothing to do. WAIT — it ran up fast or the trend is down, better not now.',
+            why: 'ADD — the signals say a good moment to buy more. HOLD — nothing to do. WAIT — it ran up fast or the trend is down, better not now. A date across the top of a company is its results day: EARNINGS in the next 14 days, or REPORTED in the last 7 with the move since the close before it.',
             now: [
               `ADD ${count('add')} · HOLD ${count('hold')} · WAIT ${count('wait')}`,
               ...now.slice(0, 3),
+              ...[...ribbons.values()].map(({ r, e }) => earnLine(e, r)),
             ],
           }}
         />
@@ -161,6 +175,8 @@ function Positions({
               call={callOf(b.o)}
               period={period}
               reading={mine.reading}
+              earn={ribbons.get(b.o.symbol) ?? null}
+              earnAt={earnAt}
             />
           </div>
         ))}
@@ -188,11 +204,23 @@ function Positions({
         </div>
         <span className="ins-was" data-testid="mine-foot">
           {foot(mine.base, mine.shown, mine.failed)}
+          {mine.base?.earnings?.reached === false ? (
+            <span className="ins-earn-miss" data-testid="earn-missing">
+              {' · EARNINGS NOT REACHED'}
+            </span>
+          ) : null}
         </span>
       </div>
     </section>
   )
 }
+
+const earnLine = (e: Earning, r: Ribbon) =>
+  `${e.symbol.split('.')[0]} ${
+    r.kind === 'soon'
+      ? `EARNINGS ${dayWord(r.at)}`
+      : `REPORTED ${dayWord(r.at)} ${moveWord(r.change)}`
+  }`
 
 function foot(
   base: MineAnswer | null,
@@ -216,6 +244,8 @@ function Box({
   call,
   period,
   reading,
+  earn,
+  earnAt,
 }: {
   o: Held
   big: boolean
@@ -224,8 +254,11 @@ function Box({
   call: Call | null
   period: Period
   reading: boolean
+  earn: { r: Ribbon; e: Earning } | null
+  earnAt: number
 }) {
   const frozen = o.type === UNPRICED
+  const name = o.symbol.split('.')[0]
   return (
     <div
       data-testid="mine-box"
@@ -240,6 +273,7 @@ function Box({
       }}
     >
       {call ? <span className={`vd ${call}`}>{TAG[call]}</span> : null}
+      {earn ? <EarnRibbon r={earn.r} e={earn.e} fetchedAt={earnAt} /> : null}
       <div className="top">
         <TickerLogo
           symbol={o.symbol}
@@ -247,7 +281,7 @@ function Box({
           name={o.name}
           size={big ? 22 : 16}
         />
-        <span className="n">{o.symbol.split('.')[0]}</span>
+        <span className="n">{name}</span>
       </div>
       <div>
         <div className="v">
@@ -263,6 +297,15 @@ function Box({
           <div className="e">{money(Math.round(o.valueEur), 'EUR')}</div>
         ) : null}
       </div>
+      <AskOn
+        q={askBox({
+          name,
+          call,
+          frozen,
+          move: change === null ? null : signed(change),
+          period,
+        })}
+      />
     </div>
   )
 }

@@ -245,3 +245,113 @@ test('S7 asked for ideas → cards with fetched prices; owned, in NEXT and unkno
   await answer.scrollIntoViewIfNeeded()
   await page.screenshot(shot('insights-ask-ideas'))
 })
+
+/* ✦ ASK on cards (22 Oct, docs/specs/2026-10-21-ask-on-cards.md; mockup
+   design/treasury-mockup/ask-on-cards.html, his "go"): a ✦ on a read
+   line, a box, an allocation line or an idea card opens the drawer with
+   the card's question in the box — never sent, never paid. */
+
+async function opened(page: Page, question: string | RegExp, paid: string) {
+  await expect(page.getByTestId('ask-drawer')).toHaveAttribute(
+    'aria-hidden',
+    'false',
+  )
+  await expect(page.getByTestId('ask-input')).toHaveValue(question)
+  await expect
+    .poll(async () => {
+      const b = await page.getByTestId('ask-drawer').boundingBox()
+      return b ? Math.round(b.x + b.width) : 0
+    })
+    .toBe(page.viewportSize()!.width)
+  /* Nothing sent: no thread, no count, nothing paid. */
+  await expect(page.getByTestId('ask-thread')).toHaveCount(0)
+  await expect(page.getByTestId('ask-fab-count')).toHaveCount(0)
+  await expect(page.getByTestId('ask-pay')).toHaveText(paid)
+}
+
+/** The month's spend after the read, which ASK shares. */
+async function withRead(page: Page) {
+  await open(page)
+  await page.keyboard.press('Escape')
+  await page.getByTestId('read-market').click()
+  await expect(page.getByTestId('read-hero')).toHaveAttribute(
+    'data-state',
+    'done',
+    { timeout: 15_000 },
+  )
+  await expect(page.getByTestId('ask-pay')).not.toHaveText(SPEND('0.00'))
+  return (await page.getByTestId('ask-pay').textContent())!
+}
+
+test('S8 ✦ on a read line, a box and an allocation line → the question in the box, nothing sent', async ({
+  page,
+}) => {
+  const paid = await withRead(page)
+  await page.locator('[data-tab="read"]').click()
+  const line = page.getByTestId('read-line').first()
+  await line.getByTestId('ask-on').click()
+  await opened(page, 'Inflation is cooling — why?', paid)
+  await expect(page.getByTestId('ask-input')).toBeFocused()
+  await page.screenshot(shot('insights-ask-on-line'))
+
+  await page.keyboard.press('Escape')
+  await page.locator('[data-tab="mine"]').click()
+  const avgo = page.locator('[data-testid=mine-box][data-symbol="AVGO"]')
+  await expect(avgo).toHaveAttribute('data-call', /add|hold|wait/, {
+    timeout: 15_000,
+  })
+  const call = (await avgo.getAttribute('data-call'))!.toUpperCase()
+  await avgo.getByTestId('ask-on').click()
+  await opened(page, `Why is AVGO ${call}?`, paid)
+
+  /* A second ✦ puts its own question in place of the first. */
+  await page.keyboard.press('Escape')
+  const tech = page.locator('[data-testid=alloc-row][data-id="tech"]')
+  await expect(tech).toContainText('WORLD 26%', { timeout: 15_000 })
+  await tech.getByTestId('ask-on').click()
+  await opened(page, /^Why is tech \d+%, world 26%\?$/, paid)
+})
+
+test('S9 ✦ ASK on an idea → edit it, ASK → asked like a typed question', async ({
+  page,
+}) => {
+  const paid = await withRead(page)
+  await page.locator('[data-tab="ideas"]').click()
+  const card = page.locator('[data-testid=idea-card][data-ticker="NOVO-B.CO"]')
+  await expect(card).toBeVisible({ timeout: 15_000 })
+  await card.getByTestId('ask-on').click()
+  await opened(page, 'What could go wrong with NOVO-B.CO?', paid)
+  await page.screenshot(shot('insights-ask-on-idea'))
+
+  await page.getByTestId('ask-input').press('End')
+  await page.getByTestId('ask-input').pressSequentially(' In a year')
+  await page.getByTestId('ask-send').click()
+  await expect(page.getByTestId('ask-q')).toContainText(
+    'What could go wrong with NOVO-B.CO? In a year',
+  )
+  await expect(page.getByTestId('ask-answer')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId('ask-fab-count')).toHaveText('1')
+})
+
+test('S10 phone width: the ✦ on a box shows without hover, the box keeps its keyboard down', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 })
+  await withRead(page)
+  await page.locator('[data-tab="mine"]').click()
+  const ask = page
+    .locator('[data-testid=mine-box][data-symbol="AVGO"]')
+    .getByTestId('ask-on')
+  await expect(ask).toBeVisible()
+  await expect(ask).toHaveCSS('opacity', '1')
+  await ask.click()
+  await expect(page.getByTestId('ask-input')).toHaveValue(/AVGO/)
+  await expect(page.getByTestId('ask-input')).not.toBeFocused()
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth,
+      ),
+    )
+    .toBeLessThanOrEqual(0)
+})

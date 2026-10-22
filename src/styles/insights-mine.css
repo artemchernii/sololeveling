@@ -215,7 +215,7 @@
 }
 .ins-al {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) 92px;
+  grid-template-columns: 26px minmax(0, 1fr) 92px 22px;
   gap: 10px;
   align-items: center;
   & .em {
@@ -315,4 +315,151 @@
   min-height: 64px;
   border: 1px dashed var(--glass-edge);
   border-radius: 11px;
+}
+
+/* Earnings on MINE (22 Oct, mockup earnings.html): a ribbon across a
+   company's box — amber with a pulsing dot ahead, red or green after a
+   report — in the longest words its box has room for. */
+.ins-hc:has(.ins-ea) {
+  padding-top: 24px;
+  & > .ask-on .ask-star {
+    top: 22px;
+  }
+}
+.ins-ea {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 17px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  font: 700 9px var(--font-mono);
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+  overflow: hidden;
+  color: var(--mark-ground);
+  background: color-mix(in oklch, var(--mark-ink) 62%, transparent);
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  cursor: pointer;
+  animation: ins-ea-in 500ms 450ms ease-out both;
+  &::before {
+    content: '';
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  &:hover,
+  &[aria-expanded='true'] {
+    background: color-mix(in oklch, var(--mark-ink) 90%, transparent);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-lav-400);
+    outline-offset: -2px;
+  }
+  &.soon {
+    color: color-mix(in oklch, var(--state-warn) 60%, var(--mark-ground));
+    &::before {
+      animation: ins-ea-ping 1.6s infinite;
+    }
+  }
+  &.up {
+    color: color-mix(in oklch, var(--state-good) 55%, var(--mark-ground));
+  }
+  &.down {
+    color: color-mix(in oklch, var(--state-danger) 35%, var(--mark-ground));
+  }
+  & .s,
+  & .t {
+    display: none;
+  }
+}
+@container (max-width: 204px) {
+  .ins-ea .l {
+    display: none;
+  }
+  .ins-ea .s {
+    display: inline;
+  }
+}
+@container (max-width: 128px) {
+  .ins-ea .s {
+    display: none;
+  }
+  .ins-ea .t {
+    display: inline;
+  }
+}
+/* Too short a box: no ribbon; the ⓘ card lists it. */
+@container (max-height: 56px) {
+  .ins-ea {
+    display: none;
+  }
+  .ins-hc:has(.ins-ea) {
+    padding-top: 8px;
+  }
+}
+@keyframes ins-ea-in {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+@keyframes ins-ea-ping {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  80%,
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+.ins-ecard {
+  width: min(290px, calc(100vw - 16px));
+  & .eh {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font: 700 12px var(--font-mono);
+    letter-spacing: 0.06em;
+    color: var(--color-ink-100);
+  }
+  & dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 5px 12px;
+    font: 400 10.5px var(--font-mono);
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  & dt {
+    color: var(--color-ink-400);
+  }
+  & dd {
+    font-weight: 700;
+    color: var(--color-ink-100);
+    text-align: right;
+    &.good {
+      color: var(--state-good);
+    }
+    &.bad {
+      color: var(--state-danger);
+    }
+  }
+  & .ef {
+    font: 400 9px var(--font-mono);
+    letter-spacing: 0.1em;
+    color: var(--color-ink-500);
+    border-top: 1px solid var(--glass-edge);
+    padding-top: 8px;
+  }
+}
+.ins-earn-miss {
+  color: var(--state-danger);
 }

@@ -5,6 +5,7 @@ import {
   nextMonthWord,
   parseMarketRead,
   readCost,
+  ROWS_ASK_MODEL,
 } from './marketRead'
 import { CANNED_MARKET_READS } from './marketReadCanned'
 import type { MarketNumbers } from './marketRead'
@@ -152,6 +153,14 @@ describe('parseMarketRead', () => {
 test('cost from usage: tokens and searches, to the tenth of a cent', () => {
   expect(readCost({ input: 61_800, output: 3_100, searches: 8 })).toBe(0.235)
   expect(readCost({ input: 0, output: 0, searches: 0 })).toBe(0)
+  /* ⌘J asks Haiku 5.5: his 30K-token question, $0.06 on Sonnet */
+  expect(
+    readCost({ input: 30_000, output: 249, searches: 0 }, ROWS_ASK_MODEL),
+  ).toBe(0.004)
+  /* a prompt over 100K is priced at the long rate */
+  expect(
+    readCost({ input: 200_000, output: 1_000, searches: 0 }, ROWS_ASK_MODEL),
+  ).toBe(0.103)
 })
 
 test('the next month starts on the 1st, December rolls to January', () => {

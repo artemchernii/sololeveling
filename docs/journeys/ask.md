@@ -15,3 +15,4 @@ spend.
 | A period with nothing logged                                | ❔ NO DATA line          | `RowsAnswer`               | `cannedRows` / the prompt's nodata rule                       | `ask-rows.spec` S4                        |
 | The reader fails; ask again                                 | ✕ NOT REACHED, ASK AGAIN | `RowsDrawer` `TurnView`    | `useRowsAsk.ask(q, id)`                                       | `ask-rows.spec` S5                        |
 | The month's $2 is spent (deployed)                          | CAP REACHED              | `RowsDrawer`               | `rowsAsk.spend`, `marketAsk.spent`                            | `ask-rows.spec` S6, `convex/rowsAsk.test` |
+| An answer landed off screen rings; the push opens it (N4)   | 📲 on the question       | `RowsDrawer`, `useRowsAsk` | `askReplies.keep` `ring` `seen` `get` `since`                 | `ask-reply.spec` S1–S5, `askReplies.test` |

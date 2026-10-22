@@ -94,7 +94,7 @@ test('S1–S3 ⌘J → a month asked → counts from the rows, the rows behind a
   )
   await expect(answer.getByTestId('rows-stray')).toHaveCount(1)
   const stamp = answer.getByTestId('rows-stamp')
-  await expect(stamp).toContainText('✦ SONNET 5.5')
+  await expect(stamp).toContainText('✦ HAIKU 5.5')
   await expect(stamp).toContainText('11 ROWS')
   await expect(stamp).toContainText('14K IN · 410 OUT')
   await expect(stamp).toContainText('💳 $0.03')
@@ -216,6 +216,30 @@ test('phone: a bottom sheet, nothing wider than the screen', async ({
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(375)
   await page.screenshot(shot('ask-rows-phone'))
+
+  /* The handle drags the sheet: a short pull springs back, a long one
+     closes it (23 Oct, his "I cant drag it down with that dash"). */
+  /* slid all the way in first */
+  await expect
+    .poll(async () => Math.round((await drawer.boundingBox())!.y), {
+      intervals: [200],
+    })
+    .toBeLessThan(200)
+  const top = (await drawer.boundingBox())!.y
+  await page.mouse.move(187, top + 6)
+  await page.mouse.down()
+  await page.mouse.move(187, top + 50, { steps: 5 })
+  await page.mouse.up()
+  await expect(drawer).toHaveAttribute('aria-hidden', 'false')
+  /* sprung all the way back before the next pull */
+  await expect
+    .poll(async () => Math.round((await drawer.boundingBox())!.y))
+    .toBe(Math.round(top))
+  await page.mouse.move(187, top + 6)
+  await page.mouse.down()
+  await page.mouse.move(187, top + 260, { steps: 8 })
+  await page.mouse.up()
+  await expect(drawer).toHaveAttribute('aria-hidden', 'true')
 })
 
 test('S8 a week: every day named, a count per area', async ({ page }) => {

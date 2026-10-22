@@ -17,6 +17,8 @@ import type * as ai_read from "../ai/read.js";
 import type * as ai_rowsAsk from "../ai/rowsAsk.js";
 import type * as ai_week from "../ai/week.js";
 import type * as areas from "../areas.js";
+import type * as askReplies from "../askReplies.js";
+import type * as askReplyFields from "../askReplyFields.js";
 import type * as attachments from "../attachments.js";
 import type * as auth from "../auth.js";
 import type * as bank from "../bank.js";
@@ -121,6 +123,8 @@ declare const fullApi: ApiFromModules<{
   "ai/rowsAsk": typeof ai_rowsAsk;
   "ai/week": typeof ai_week;
   areas: typeof areas;
+  askReplies: typeof askReplies;
+  askReplyFields: typeof askReplyFields;
   attachments: typeof attachments;
   auth: typeof auth;
   bank: typeof bank;

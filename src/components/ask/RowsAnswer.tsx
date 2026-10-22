@@ -106,6 +106,12 @@ const LEGEND: Record<string, string> = {
   task: 'TASKS',
 }
 
+/* Each week's first day and the last day are numbered — but not a
+   week's first day within two of the last, where 29 and 30 ran together
+   into "2930" on his phone (22 Oct). */
+const marked = (i: number, n: number) =>
+  i === n - 1 || (i % 7 === 0 && n - 1 - i >= 3)
+
 export function Strip({
   rows,
   period,
@@ -133,7 +139,7 @@ export function Strip({
         {days.map((d, i) => (
           <div
             key={i}
-            className={`r7-day ${i % 7 === 0 || i === days.length - 1 ? 'wk' : ''} ${d.areas.length === 0 ? 'none' : ''}`}
+            className={`r7-day ${marked(i, days.length) ? 'wk' : ''} ${d.areas.length === 0 ? 'none' : ''}`}
             data-areas={d.areas.join(' ')}
           >
             {wide ? <span className="wd">{WEEKDAYS[d.weekday]}</span> : null}
@@ -152,9 +158,7 @@ export function Strip({
               ))}
               {wide && d.areas.length === 0 ? <i>—</i> : null}
             </div>
-            {wide ? null : (
-              <b>{i % 7 === 0 || i === days.length - 1 ? d.day : ''}</b>
-            )}
+            {wide ? null : <b>{marked(i, days.length) ? d.day : ''}</b>}
           </div>
         ))}
       </div>
@@ -253,6 +257,12 @@ export function RowsAnswer({ t }: { t: RowsTurn }) {
   const picked = pick ? byKey.get(pick) : undefined
   const toggle = (k: string) => setPick((p) => (p === k ? null : k))
   const tiles = a.tiles.map((k) => byKey.get(k)).filter((f) => f !== undefined)
+  /* A key the page did not count is dropped, as a tile's is: the answer
+     may come from the server, which counted on its own. */
+  const lines = a.lines.map((l) => ({
+    ...l,
+    factKeys: l.factKeys.filter((k) => byKey.has(k)),
+  }))
   const s = t.stamp
   const n = rows.logs.length + rows.commits.length
 
@@ -262,7 +272,7 @@ export function RowsAnswer({ t }: { t: RowsTurn }) {
       `${t.period.title} · ${t.period.range} · ${n} ROWS`,
       a.headline,
       ...tiles.map((f) => `${f.label} ${f.value}`),
-      ...a.lines.map(
+      ...lines.map(
         (l) =>
           `${LINE[l.area].e} ${l.text}${l.factKeys.length ? ` (${l.factKeys.map((k) => `${byKey.get(k)!.label} ${byKey.get(k)!.value}`).join(' · ')})` : ''}`,
       ),
@@ -337,7 +347,7 @@ export function RowsAnswer({ t }: { t: RowsTurn }) {
           <div>{picked ? <RowsList f={picked} byId={byId} /> : null}</div>
         </div>
         <div className="r7-lines">
-          {a.lines.map((l, i) => (
+          {lines.map((l, i) => (
             <div
               key={i}
               data-testid="rows-line"

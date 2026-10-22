@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
+import { askReplyFields } from './askReplyFields'
 import { readingFields } from './fundamentalsFields'
 import {
   marketFact,
@@ -207,6 +208,8 @@ export const notificationKind = v.union(
   v.literal('salary_in'),
   /* CLOSE (22 Oct): the day's report at 21:30. */
   v.literal('day_close'),
+  /* N4 (22 Oct): an Ask answer that landed off screen. */
+  v.literal('ask_reply'),
 )
 
 export default defineSchema({
@@ -1616,6 +1619,13 @@ export default defineSchema({
     sentAt: v.number(),
     readAt: v.optional(v.number()),
   }).index('by_owner_and_sent', ['ownerId', 'sentAt']),
+  /* N4 (22 Oct): an Ask answer the action finished, kept a day so a
+     locked phone can open it from the push (convex/askReplies.ts). The
+     thread itself lives on the page; the rows are read again on open. */
+  askReplies: defineTable(askReplyFields).index('by_owner_and_answered', [
+    'ownerId',
+    'answeredAt',
+  ]),
   /* CLOSE's 21:30 job, one per owner (convex/closeReport.ts). */
   closeJobs: defineTable({
     ownerId: v.string(),

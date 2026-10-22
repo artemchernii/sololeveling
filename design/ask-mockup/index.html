@@ -353,10 +353,13 @@
             : `<div class="ask-chips">${[...EX.map(([a, e, , q]) => [a, e, q]), ...CHIPS].map(([a, e, q]) => `<button style="--c:${A[a].c}" data-q="${q}" ${capped || busy ? 'disabled' : ''}><i>${e}</i>${q}</button>`).join('')}</div>`}
         </div></div>
         ${capped ? `<div class="ask-capbar"><span class="e">⛽</span><b>CAP REACHED</b><span class="ins-badge warn">$2.00 OF $2.00</span><span class="grow"></span><span class="ins-badge dim">NEXT 1 NOV</span></div>`
-          : `<form class="ask-bar ${busy ? 'off' : ''}" id="form"><input id="box" maxlength="400" placeholder="What did I do in August?" ${busy ? 'disabled' : ''} /><button type="submit" class="ins-btn" ${busy ? 'disabled' : ''}>${busy ? '…' : 'ASK'}</button></form>`}
+          : `<form class="ask-bar ${busy ? 'busy' : ''}" id="form"><input id="box" maxlength="400" placeholder="${busy ? 'READING…' : 'What did I do in August?'}" ${busy ? 'disabled' : ''} /><button type="submit" class="ins-btn" ${busy ? 'disabled' : ''}>${busy ? `<span class="ask-busy">${STAR}<span class="t" id="secs">0:00</span></span>` : 'ASK'}</button></form>`}
       </div>`
     const th = document.getElementById('thread')
     if (th && !pick) th.scrollTop = th.scrollHeight
+    /* the seconds on the busy button (AskBusy) */
+    clearInterval(window.__secs)
+    if (busy) { const t0 = Date.now(); window.__secs = setInterval(() => { const el = document.getElementById('secs'), s = Math.floor((Date.now() - t0) / 1000); if (el) el.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }, 1000) }
     countUp()
     ctl()
   }
@@ -428,7 +431,20 @@
   document.getElementById('today').addEventListener('load', hideCtl)
   hideCtl()
   addEventListener('resize', ctl)
+  /* N4 (design/notifications-mockup/n4.html) shows this page inside its
+     phone: ?s= a state, ?p= who pays, ?embed hides the switches, ?push= the
+     time the answer rang the phone (the turn says when). */
+  const Q = new URLSearchParams(location.search)
+  if (Q.has('p')) pay = Q.get('p')
+  if (Q.has('s') && STATES[Q.get('s')]) { shown = Q.get('s'); STATES[shown]() }
+  if (Q.has('embed')) document.head.insertAdjacentHTML('beforeend', '<style>.ctl{display:none!important}</style>')
+  if (Q.has('push')) {
+    const at = Q.get('push'), was = turn
+    turn = (t, n) => was(t, n).replace('14:05</small>', `14:05 · 📲 ${t.s === 'fail' ? 'RANG' : 'ANSWERED'} ${at}</small>`)
+  }
   render()
+  /* opened from the push: the answer from its question down */
+  if (Q.has('push')) document.getElementById('thread')?.scrollTo(0, 0)
 </script>
 </body>
 </html>

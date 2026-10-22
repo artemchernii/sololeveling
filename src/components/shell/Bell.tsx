@@ -10,6 +10,7 @@ import {
   KeyRound,
   Laptop,
   Smartphone,
+  Sparkles,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react'
@@ -68,9 +69,19 @@ const KIND: Record<
     icon: <TrendingUp className="size-[18px]" />,
     area: 'var(--color-state-good)',
   },
+  /* N4 (22 Oct): an Ask answer that landed off screen; red when it failed. */
+  ask_reply: {
+    icon: <Sparkles className="size-[18px]" />,
+    area: 'var(--color-lav-400)',
+  },
 }
 
 function kindOf(n: Doc<'notifications'>) {
+  if (n.kind === 'ask_reply' && n.title.startsWith('✕'))
+    return {
+      icon: <FileX className="size-[18px]" />,
+      area: 'var(--color-state-danger)',
+    }
   if (n.kind !== 'day_close' || !n.title.includes('▼')) return KIND[n.kind]
   return {
     icon: <TrendingDown className="size-[18px]" />,

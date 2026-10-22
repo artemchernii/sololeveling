@@ -19,7 +19,7 @@ export type Path = 'pro' | 'api'
 export type HeroState = 'idle' | 'reading' | 'done' | 'failed' | 'cap'
 
 let knownPath: Path | null = null
-async function findPath(): Promise<Path> {
+export async function findPath(): Promise<Path> {
   if (knownPath) return knownPath
   try {
     const r = await fetch(CLAUDE_READ_PATH)

@@ -3,8 +3,20 @@ import { anyApi } from 'convex/server'
 import type { Page } from '@playwright/test'
 
 import { start, testClient } from './helpers'
+import { bankWhen } from '../src/lib/bankLink'
 
 const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
+
+/* e2eBank.answer stamps the last check 5 hours back, so opening the app
+   asks again (over 4 hours old). Before 05:00 that is yesterday: the card
+   names the day as the app does, so the test asks for that word. */
+const fiveHoursAgo = () => {
+  const now = Date.now()
+  const day = bankWhen(now - 5 * 3_600_000, now)
+    .replace(/ \d\d:\d\d$/, '')
+    .replace(/^today$/, 'today,')
+  return new RegExp(`balance of ${day} \\d\\d:\\d\\d`)
+}
 
 /* A connected bank, slice 1b (docs/specs/2026-10-11-bank-connections.md).
    The bank is the canned one of convex/bankApi.ts: its "own page" is the
@@ -173,9 +185,7 @@ test('key rejected: the card says so, approve again, and it is read', async ({
   await testClient().mutation(anyApi.e2eBank.answer, { as: 'refused' })
   await page.goto('/finances')
   await expect(card(page).getByText('the bank rejected the key')).toBeVisible()
-  await expect(
-    card(page).getByText(/balance of today, \d\d:\d\d/),
-  ).toBeVisible()
+  await expect(card(page).getByText(fiveHoursAgo())).toBeVisible()
   await expect(
     card(page).getByRole('button', { name: 'try again' }),
   ).toHaveCount(0)

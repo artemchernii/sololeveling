@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Investment alerts · N3</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* N1, third pass (15 Oct, "still bland, no animations"): his own logo —
+     the three rising bars and the dot on the SOLOLEVELING project — is the
+     app icon; the Review mockup's motion (glowing System corners, sweep,
+     area glows, pop, ping) is the bar. Sample data, not his. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc; --lav-500: #9184d9;
+    --good: oklch(0.78 0.17 150); --bad: oklch(0.68 0.2 22); --warn: oklch(0.79 0.15 75);
+    --glass: linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
+    --edge: rgba(233,233,237,.09);
+    --shadow: inset 0 1px 0 rgba(233,233,237,.08), 0 24px 48px -28px rgba(0,0,0,.9);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --a-body: oklch(0.8 0.1 155); --a-money: oklch(0.8 0.1 88); --a-lang: oklch(0.8 0.1 190);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --ios: -apple-system, 'SF Pro Text', 'SF Pro Display', Inter, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg); color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 13px; min-height: 100vh }
+  button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0 }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 18px 16px 60px; display: flex; flex-direction: column; gap: 18px; align-items: center }
+  #stage { width: 100%; display: flex; justify-content: center }
+  .ctl { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center }
+  .ctl button { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 11px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: var(--ink-300) }
+  .ctl button.on { color: var(--ink-100); border-color: var(--lav-400); box-shadow: 0 0 14px -4px var(--shine) }
+  .ctl .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .16em; color: var(--ink-600); margin: 0 4px }
+  .caps { font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+
+  /* ---- the Review vocabulary ---- */
+  .tile { position: relative; border-radius: 16px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); overflow: hidden;
+    transition: transform .25s cubic-bezier(.2,.8,.2,1), border-color .25s, box-shadow .25s;
+    animation: arrive .55s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 70ms) }
+  .tile:hover { transform: translateY(-2px); border-color: color-mix(in oklch, var(--a, var(--lav-400)) 45%, transparent); box-shadow: var(--shadow), 0 0 32px -14px var(--a, var(--shine)) }
+  .tile > * { position: relative; z-index: 2 }
+  @keyframes arrive { from { transform: translateY(12px) scale(.98) } }
+  .sys { border-color: var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.10), rgba(181,171,252,.02) 40%), var(--glass), #1a1928; box-shadow: var(--shadow), 0 0 40px -18px var(--shine) }
+  .sys::before { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1; background: repeating-linear-gradient(0deg, rgba(233,233,237,.022) 0 1px, transparent 1px 3px) }
+  .sys::after { content: ''; position: absolute; inset: -1px; border: 2px solid var(--lav-400); border-radius: 17px; pointer-events: none; z-index: 3;
+    --r: 20px; mask: linear-gradient(#000 0 0) top left/var(--r) var(--r), linear-gradient(#000 0 0) top right/var(--r) var(--r), linear-gradient(#000 0 0) bottom left/var(--r) var(--r), linear-gradient(#000 0 0) bottom right/var(--r) var(--r); mask-repeat: no-repeat;
+    -webkit-mask: linear-gradient(#000 0 0) top left/var(--r) var(--r), linear-gradient(#000 0 0) top right/var(--r) var(--r), linear-gradient(#000 0 0) bottom left/var(--r) var(--r), linear-gradient(#000 0 0) bottom right/var(--r) var(--r); -webkit-mask-repeat: no-repeat;
+    animation: corners 3.2s ease-in-out infinite }
+  @keyframes corners { 0%, 100% { filter: drop-shadow(0 0 3px var(--shine)); opacity: .75 } 50% { filter: drop-shadow(0 0 9px var(--shine)); opacity: 1 } }
+  .sweep { position: absolute !important; z-index: 1 !important; top: 0; bottom: 0; width: 45%; left: -50%; pointer-events: none; background: linear-gradient(100deg, transparent, rgba(181,171,252,.12), transparent); animation: sweep 6s ease-in-out infinite }
+  @keyframes sweep { 0%, 60% { left: -50% } 100% { left: 120% } }
+  .sys-title { font-family: var(--mono); font-size: 11px; letter-spacing: .34em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 12px var(--shine) }
+  .glow { position: absolute !important; z-index: 0 !important; top: -70px; left: -40px; width: 200px; height: 200px; border-radius: 50%; background: var(--a); opacity: .13; filter: blur(46px); animation: breathe 5s ease-in-out infinite }
+  @keyframes breathe { 0%, 100% { opacity: .09; transform: scale(1) } 50% { opacity: .22; transform: scale(1.12) } }
+  .badge { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid currentColor; display: inline-flex; gap: 6px; align-items: center; white-space: nowrap }
+  .b-good { color: var(--good); background: color-mix(in oklch, var(--good) 10%, transparent) }
+  .b-warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 10%, transparent) }
+  .b-bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 10%, transparent) }
+  .b-lav { color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 10%, transparent) }
+  .b-dim { color: var(--ink-400) }
+  .live::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: ping 1.6s ease-out infinite }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 currentColor } 80%, 100% { box-shadow: 0 0 0 7px transparent } }
+  .pop { animation: pop .5s cubic-bezier(.3,1.6,.5,1) both }
+  @keyframes pop { from { transform: scale(.4) } }
+
+  /* ---- the logo: three bars grow, the dot breathes ---- */
+  .logo { display: block }
+  .logo .b { transform-box: fill-box; transform-origin: bottom; animation: grow .7s cubic-bezier(.2,.8,.2,1) both }
+  .logo .b:nth-of-type(2) { animation-delay: .12s } .logo .b:nth-of-type(3) { animation-delay: .24s }
+  .logo .d { transform-box: fill-box; transform-origin: center; animation: dotin .5s .45s cubic-bezier(.3,1.6,.5,1) both, dot 2.6s 1s ease-in-out infinite }
+  @keyframes grow { from { transform: scaleY(.15) } }
+  @keyframes dotin { from { transform: scale(0) } }
+  @keyframes dot { 50% { filter: drop-shadow(0 0 6px #d2cefd) } }
+  .still .b, .still .d { animation: none }
+
+  /* ---- iPhone ---- */
+  .phone { width: 375px; max-width: 100%; height: 790px; border-radius: 56px; padding: 11px; background: linear-gradient(145deg, #3a3a46, #15151b); box-shadow: 0 0 0 1px #000, 0 40px 90px rgba(0,0,0,.55), 0 0 80px -30px var(--shine); flex: none }
+  .phone.buzz { animation: buzz .45s linear }
+  @keyframes buzz { 10%, 50%, 90% { transform: translateX(-3px) rotate(-.4deg) } 30%, 70% { transform: translateX(3px) rotate(.4deg) } }
+  .screen { position: relative; height: 100%; border-radius: 46px; overflow: hidden; display: flex; flex-direction: column; background: radial-gradient(420px 300px at 0% 0%, #2a2550, transparent 70%), #10101a }
+  .island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 122px; height: 35px; border-radius: 20px; background: #000; z-index: 9 }
+  .status { position: relative; z-index: 8; height: 54px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 30px 0 36px; font: 600 16px var(--ios); color: #fff }
+  .status .r { display: flex; gap: 6px; align-items: center }
+  .homebar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.85); z-index: 9 }
+
+  .note { display: flex; gap: 10px; align-items: center; padding: 11px 13px 11px 11px; border-radius: 22px; background: rgba(40,37,58,.6); backdrop-filter: blur(24px) saturate(1.7); -webkit-backdrop-filter: blur(24px) saturate(1.7); text-align: left; width: 100%; font-family: var(--ios); color: #fff; transition: transform .15s; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.12) }
+  .note:active { transform: scale(.97) }
+  .note .ic { flex: none; border-radius: 9px; overflow: hidden; width: 38px; height: 38px }
+  .note .tx { flex: 1; min-width: 0 }
+  .note .t1 { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 600; letter-spacing: -.01em }
+  .note .t1 span { font-weight: 400; font-size: 13px; color: rgba(255,255,255,.55) }
+  .note .t2 { font-size: 15px; line-height: 1.3; color: rgba(255,255,255,.92); letter-spacing: -.01em }
+  .note.in { animation: noteIn .7s cubic-bezier(.2,.9,.25,1.15) both }
+  @keyframes noteIn { from { transform: translateY(60px) scale(.9) } }
+  .banner { position: absolute; left: 10px; right: 10px; top: 8px; z-index: 10; animation: drop .65s cubic-bezier(.2,.9,.25,1.15) both }
+  @keyframes drop { from { transform: translateY(-150%) } }
+
+  .lockbg { background: #0b0a1a }
+  .aurora { position: absolute; inset: -20%; z-index: 0; background: radial-gradient(40% 35% at 75% 20%, #5b4bd1 0%, transparent 70%), radial-gradient(40% 40% at 10% 65%, #2d6a8a 0%, transparent 70%), radial-gradient(35% 30% at 70% 95%, #8a3b7a 0%, transparent 70%); filter: blur(10px); animation: aurora 14s ease-in-out infinite alternate }
+  @keyframes aurora { from { transform: translate(-4%, -2%) rotate(-4deg) } to { transform: translate(4%, 3%) rotate(5deg) } }
+  .lockhead { position: relative; z-index: 2; text-align: center; color: #fff; font-family: var(--ios); margin-top: 8px }
+  .lockhead .d { font-size: 19px; font-weight: 600; opacity: .85 }
+  .lockhead .h { font-size: 96px; font-weight: 700; letter-spacing: -.04em; line-height: 1; margin-top: 2px; opacity: .92 }
+  .stack { position: absolute; z-index: 3; left: 10px; right: 10px; bottom: 112px; display: flex; flex-direction: column; gap: 8px }
+  .lockbtns { position: absolute; z-index: 3; bottom: 40px; left: 44px; right: 44px; display: flex; justify-content: space-between }
+  .lockbtns span { width: 50px; height: 50px; border-radius: 50%; background: rgba(40,40,52,.55); backdrop-filter: blur(10px); display: grid; place-items: center; color: #fff }
+
+  .app { position: relative; flex: 1; padding: 6px 14px 30px; display: flex; flex-direction: column; gap: 12px; overflow: hidden }
+  .panel { padding: 16px; display: flex; flex-direction: column; gap: 14px }
+  .hrow { display: flex; align-items: center; gap: 8px }
+  .hrow .badge { margin-left: auto }
+  .segs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px }
+  .seg { display: flex; flex-direction: column; gap: 6px }
+  .seg i { height: 4px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; display: block; position: relative }
+  .seg i b { position: absolute; inset: 0; transform-origin: left; transform: scaleX(0); border-radius: 4px }
+  .seg.done i b { transform: scaleX(1); background: var(--good); box-shadow: 0 0 8px var(--good); animation: fill .7s cubic-bezier(.2,.8,.2,1) both }
+  .seg.now i b { transform: scaleX(1); background: linear-gradient(90deg, transparent, var(--lav-400), transparent); background-size: 200% 100%; animation: scan 1.6s linear infinite }
+  .seg.bad i b { transform: scaleX(1); background: var(--bad) }
+  @keyframes fill { from { transform: scaleX(0) } }
+  @keyframes scan { from { background-position: 200% 0 } to { background-position: -200% 0 } }
+  .seg span { font-family: var(--mono); font-size: 9px; letter-spacing: .14em; color: var(--ink-500) }
+  .seg.done span { color: var(--good) } .seg.now span { color: var(--lav-300) } .seg.bad span { color: var(--bad) }
+  .btn { font-family: var(--mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; padding: 15px; border-radius: 16px; background: linear-gradient(180deg, #cdc6ff, #a091f7); color: #17152a; font-weight: 500; display: flex; justify-content: center; gap: 8px; align-items: center; position: relative; overflow: hidden; box-shadow: 0 10px 30px -8px rgba(154,140,245,.6) }
+  .btn::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent); animation: sweep 3.4s ease-in-out infinite }
+  .btn.ghost { background: rgba(255,255,255,.05); color: var(--ink-100); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12) }
+  .btn.ghost::after { background: linear-gradient(100deg, transparent, rgba(181,171,252,.18), transparent) }
+  .btn.ok { background: color-mix(in oklch, var(--good) 18%, transparent); color: var(--good); box-shadow: inset 0 0 0 1px var(--good), 0 0 24px -8px var(--good) }
+
+  /* the three taps, drawn */
+  .shot { border-radius: 16px; overflow: hidden; background: #f2f2f7; color: #000; font-family: var(--ios); position: relative; height: 280px; animation: arrive .45s cubic-bezier(.2,.8,.2,1) both }
+  .safari-page { position: absolute; inset: 0 0 86px 0; background: radial-gradient(260px 200px at 20% 0%, #2a2550, transparent 70%), #10101a; padding: 16px; display: flex; flex-direction: column; gap: 8px }
+  .safari-page i { display: block; height: 10px; border-radius: 5px; background: rgba(255,255,255,.08) }
+  .safari-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 86px; background: rgba(245,245,247,.97); padding: 8px 14px 0 }
+  .url { height: 36px; border-radius: 12px; background: #e3e3e8; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; color: #333 }
+  .tools { display: flex; justify-content: space-between; padding: 9px 10px 0; color: #0a7aff }
+  .tools span { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50% }
+  .tools .hit { background: rgba(10,122,255,.14); animation: ringb 1.6s ease-out infinite }
+  @keyframes ringb { 0% { box-shadow: 0 0 0 0 rgba(10,122,255,.5) } 100% { box-shadow: 0 0 0 14px rgba(10,122,255,0) } }
+  .sheet { position: absolute; left: 8px; right: 8px; bottom: 8px; border-radius: 14px; background: #fff; overflow: hidden; animation: up .5s cubic-bezier(.2,.9,.25,1.1) both }
+  @keyframes up { from { transform: translateY(100%) } }
+  .sheet div { display: flex; justify-content: space-between; align-items: center; padding: 13px 14px; font-size: 15px; border-top: 1px solid #e5e5ea }
+  .sheet div:first-child { border-top: 0 }
+  .sheet .hit { background: rgba(10,122,255,.1); color: #0a7aff; font-weight: 600 }
+  .home { position: absolute; inset: 0; background: radial-gradient(260px 240px at 80% 20%, #5b4bd1, transparent 70%), radial-gradient(260px 240px at 0% 90%, #2d6a8a, transparent 70%), #0b0a1a; display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 10px; padding: 22px 18px; align-content: start }
+  .home .a { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 10.5px; color: #fff }
+  .home .a > i { width: 50px; height: 50px; border-radius: 12px; display: block; background: rgba(255,255,255,.14) }
+  .home .me .ic { width: 50px; height: 50px; border-radius: 12px; overflow: hidden; animation: landIcon .8s .2s cubic-bezier(.3,1.6,.5,1) both, glowIcon 2s 1s ease-in-out infinite }
+  @keyframes landIcon { from { transform: scale(0) rotate(-20deg) } }
+  @keyframes glowIcon { 50% { box-shadow: 0 0 18px 2px rgba(181,171,252,.7) } }
+  .finger { position: absolute; z-index: 5; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.3); border: 2px solid #fff; animation: tap 1.6s ease-in-out infinite; pointer-events: none }
+  @keyframes tap { 0%, 100% { transform: scale(1); opacity: .9 } 50% { transform: scale(.72); opacity: 1 } }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px }
+  .steps button { padding: 10px 6px; border-radius: 12px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--ink-400); background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); transition: all .25s }
+  .steps button.on { color: var(--ink-100); background: rgba(181,171,252,.16); box-shadow: inset 0 0 0 1px var(--lav-400), 0 0 16px -6px var(--shine) }
+
+  .hero { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 0 6px; text-align: center }
+  .orb { position: relative; width: 120px; height: 120px; display: grid; place-items: center }
+  .orb .ic { width: 92px; height: 92px; border-radius: 22px; overflow: hidden; position: relative; z-index: 2; box-shadow: 0 0 40px -6px var(--shine) }
+  .orb::before, .orb::after { content: ''; position: absolute; inset: 0; border-radius: 34px; border: 1.5px solid var(--lav-400); animation: halo 2.4s ease-out infinite; opacity: 0 }
+  .orb::after { animation-delay: 1.2s }
+  @keyframes halo { 0% { transform: scale(.75); opacity: .8 } 100% { transform: scale(1.35); opacity: 0 } }
+  .hero .big { font-size: 30px; font-weight: 300; letter-spacing: -.01em }
+  .src { display: flex; align-items: center; gap: 12px; padding: 12px; --a: var(--lav-400) }
+  .src .k { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; flex: none; background: color-mix(in oklch, var(--a) 18%, transparent); color: var(--a); border: 1px solid color-mix(in oklch, var(--a) 35%, transparent) }
+  .src .n { font-size: 14.5px } .src .m { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; color: var(--ink-400); margin-top: 2px }
+  .src .r { margin-left: auto }
+  .tog { width: 46px; height: 28px; border-radius: 14px; background: var(--good); position: relative; flex: none; box-shadow: 0 0 14px -4px var(--good) }
+  .tog::after { content: ''; position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.3) }
+  .settings { border-radius: 16px; background: #1c1c1e; font-family: var(--ios); overflow: hidden }
+  .settings div { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid #2c2c2e; font-size: 15px; animation: arrive .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 120ms) }
+  .settings div:first-child { border-top: 0 }
+  .settings .chev { margin-left: auto; color: #6e6e73 }
+  .settings .gi { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; overflow: hidden; flex: none }
+  .settings .hit { background: rgba(10,122,255,.18) }
+  .settings .tg { margin-left: auto; width: 46px; height: 28px; border-radius: 14px; background: #39393d; position: relative; animation: flip 3s 1s ease-in-out infinite }
+  .settings .tg::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; animation: knob 3s 1s ease-in-out infinite }
+  @keyframes flip { 0%, 30% { background: #39393d } 45%, 85% { background: #34c759 } 100% { background: #39393d } }
+  @keyframes knob { 0%, 30% { transform: none } 45%, 85% { transform: translateX(18px) } 100% { transform: none } }
+  .pills { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px }
+  .pills button { padding: 10px 0; border-radius: 10px; font-size: 12px; background: rgba(255,255,255,.05); color: var(--ink-400); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); transition: all .2s }
+  .pills button.on { background: rgba(210,206,253,.2); color: #fff; box-shadow: inset 0 0 0 1px var(--lav-300), 0 0 16px -6px var(--shine) }
+
+  /* ---- Mac ---- */
+  .desk { width: 980px; max-width: 100%; border-radius: 18px; border: 1px solid var(--edge); background: #12121c; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5) }
+  .topbar { height: 58px; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-bottom: 1px solid rgba(255,255,255,.07) }
+  .brand { font-family: var(--mono); font-size: 12px; letter-spacing: .2em; display: flex; gap: 10px; align-items: center }
+  .brand .ic { width: 24px; height: 24px; border-radius: 6px; overflow: hidden }
+  .search { padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,.05); color: var(--ink-500); font-size: 12px; width: 240px }
+  @media (max-width: 720px) { .search { display: none } }
+  .bellbtn { margin-left: auto; position: relative; width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; color: var(--ink-300); transition: background .2s, color .2s, box-shadow .2s }
+  .bellbtn:hover, .bellbtn.open { background: rgba(181,171,252,.16); color: var(--lav-300); box-shadow: 0 0 18px -6px var(--shine) }
+  .bellbtn.ring svg { animation: swing 1s ease-in-out; transform-origin: 50% 10% }
+  @keyframes swing { 15% { transform: rotate(18deg) } 30% { transform: rotate(-15deg) } 45% { transform: rotate(10deg) } 60% { transform: rotate(-6deg) } 75% { transform: rotate(3deg) } }
+  .count { position: absolute; top: -4px; right: -5px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--lav-400); color: #17152a; font: 600 10px var(--mono); display: grid; place-items: center; padding: 0 4px; box-shadow: 0 0 10px var(--shine) }
+  .deskbody { position: relative; min-height: 620px; padding: 22px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-content: start }
+  .deskbody > .ghosttile { height: 130px; border-radius: 16px; background: var(--glass); border: 1px solid var(--edge); opacity: .5 }
+  .pop-panel { position: absolute; right: 60px; top: 8px; width: 420px; max-width: calc(100% - 24px); padding: 14px; display: flex; flex-direction: column; gap: 10px; z-index: 5; animation: panelIn .45s cubic-bezier(.2,.9,.25,1.1) both; transform-origin: top right }
+  @keyframes panelIn { from { transform: translateY(-8px) scale(.94) } }
+  @media (max-width: 720px) { .pop-panel { right: 12px } }
+  .grp { font-family: var(--mono); font-size: 9px; letter-spacing: .2em; color: var(--ink-500); margin: 4px 2px 0 }
+  .item { display: flex; gap: 12px; align-items: center; padding: 11px 12px; width: 100%; text-align: left; cursor: pointer }
+  .item .k { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex: none; background: color-mix(in oklch, var(--a) 18%, transparent); color: var(--a); border: 1px solid color-mix(in oklch, var(--a) 35%, transparent) }
+  .item .t { font-size: 14px } .item .m { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: var(--ink-400); margin-top: 3px }
+  .item .w { margin-left: auto; align-self: flex-start; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-500) }
+  .item .u { width: 7px; height: 7px; border-radius: 50%; background: var(--lav-400); color: var(--lav-400); animation: ping 1.6s ease-out infinite }
+  .item .go { font-family: var(--mono); color: var(--ink-500); transition: transform .2s, color .2s }
+  .item:hover .go { transform: translateX(3px); color: var(--a) }
+  .devs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 4px }
+  .dev { display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-size: 12.5px; --a: var(--good) }
+  .dev .badge { margin-left: auto }
+  .emptyb { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 30px 0 22px }
+  .emptyb .k { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; color: var(--ink-500); background: rgba(255,255,255,.04); border: 1px solid var(--edge) }
+  .qrbox { display: flex; gap: 16px; align-items: center; padding: 14px; --a: var(--warn) }
+  .qr { position: relative; background: #fff; padding: 8px; border-radius: 12px; flex: none; overflow: hidden; box-shadow: 0 0 30px -8px var(--shine) }
+  .qr svg { display: block; width: 118px; height: 118px }
+  .qr::after { content: ''; position: absolute; left: 0; right: 0; height: 3px; background: var(--lav-400); box-shadow: 0 0 12px 2px var(--lav-400); animation: qscan 2.2s ease-in-out infinite }
+  @keyframes qscan { 0%, 100% { top: 6% } 50% { top: 92% } }
+  .opened { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; color: var(--lav-300); text-align: center; min-height: 16px }
+  /* ---- N2 additions: money alerts (17 Oct). Sample numbers, not his. ---- */
+  .logochip { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font: 600 10px var(--mono); color: #fff; flex: none }
+  .lg-activo { background: #e4002b } .lg-bpi { background: #ff6a13 } .lg-rev { background: #191c1f; box-shadow: inset 0 0 0 1px rgba(255,255,255,.2) }
+  .money { font-variant-numeric: tabular-nums; font-weight: 300; letter-spacing: -.01em }
+  .bill { display: flex; align-items: center; gap: 10px; padding: 12px; --a: var(--a-money) }
+  .bill .n { font-size: 14px } .bill .m { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: var(--ink-400); margin-top: 3px }
+  .bill .amt { margin-left: auto; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 5px }
+  .bill .amt .money { font-size: 16px }
+  .bill.hot { border-color: color-mix(in oklch, var(--warn) 55%, transparent); box-shadow: var(--shadow), 0 0 26px -10px var(--warn); --a: var(--warn) }
+  .bill.dim { opacity: .45 }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+  .cell { padding: 12px; display: flex; flex-direction: column; gap: 6px; --a: var(--lav-400) }
+  .cell .money { font-size: 24px }
+  .cell.warn { --a: var(--warn); border-color: color-mix(in oklch, var(--warn) 45%, transparent) }
+  .cell.warn .money { color: var(--warn) }
+  .cell.good { --a: var(--good) } .cell.good .money { color: var(--good) }
+  /* the two days before a bill, drawn as a strip */
+  .strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; padding: 14px 12px 12px }
+  .day { display: flex; flex-direction: column; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em; color: var(--ink-500) }
+  .day i { width: 100%; height: 34px; border-radius: 8px; background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); display: grid; place-items: center; font-style: normal; color: var(--ink-300); font-size: 12px }
+  .day.ring i { background: color-mix(in oklch, var(--warn) 16%, transparent); box-shadow: inset 0 0 0 1px var(--warn), 0 0 18px -6px var(--warn); color: var(--warn); animation: ringday 1.6s ease-out infinite }
+  .day.quiet i { background: color-mix(in oklch, var(--good) 12%, transparent); box-shadow: inset 0 0 0 1px var(--good); color: var(--good) }
+  .day.due i { background: color-mix(in oklch, var(--a-money) 14%, transparent); box-shadow: inset 0 0 0 1px var(--a-money); color: var(--a-money) }
+  .day.ring span, .day.due span { color: var(--ink-200) }
+  @keyframes ringday { 0% { box-shadow: inset 0 0 0 1px var(--warn), 0 0 0 0 color-mix(in oklch, var(--warn) 60%, transparent) } 100% { box-shadow: inset 0 0 0 1px var(--warn), 0 0 0 9px transparent } }
+  .cand { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 980px }
+  .pick { font-family: var(--mono); font-size: 9px; letter-spacing: .16em; color: var(--lav-300); margin-left: 6px }
+  .twocol { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; align-items: flex-start }
+  .side { width: 360px; max-width: 100%; display: flex; flex-direction: column; gap: 10px }
+  .apprbtn { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; padding: 9px 14px; border-radius: 12px; color: #17152a; background: linear-gradient(180deg, #cdc6ff, #a091f7); display: inline-flex; gap: 6px; align-items: center; position: relative; overflow: hidden; box-shadow: 0 0 22px -6px var(--shine); animation: ringb2 1.8s ease-out infinite }
+  @keyframes ringb2 { 0% { box-shadow: 0 0 0 0 rgba(181,171,252,.55) } 100% { box-shadow: 0 0 0 12px rgba(181,171,252,0) } }
+  /* ---- N3 additions: investment alerts (22 Oct). Sample numbers, not his. ---- */
+  .tick { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font: 600 9px var(--mono); color: #fff; flex: none }
+  .t-nflx { background: #b20710 } .t-asml { background: #10069f } .t-tsla { background: #2b2b33; box-shadow: inset 0 0 0 1px rgba(255,255,255,.2) }
+  .head { padding: 14px; display: flex; flex-direction: column; gap: 10px; --a: var(--lav-400) }
+  .head .top { display: flex; align-items: center; gap: 10px }
+  .head .n { font-size: 16px } .head .m { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; color: var(--ink-400); margin-top: 2px }
+  .head .px { margin-left: auto; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 5px }
+  .head .px .money { font-size: 26px }
+  .ribbon { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; padding: 6px 10px; border-radius: 10px; text-align: center }
+  .ribbon.soon { color: var(--lav-300); background: rgba(181,171,252,.12); box-shadow: inset 0 0 0 1px var(--sys-edge) }
+  .ribbon.down { color: var(--bad); background: color-mix(in oklch, var(--bad) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--bad) 45%, transparent) }
+  .ribbon.hit { animation: ringb2 1.8s ease-out infinite }
+  .sig { display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; color: var(--ink-300) }
+  .sig .v { margin-left: auto }
+  .call { font: 300 30px Inter; letter-spacing: .04em }
+  .c-add { color: var(--good) } .c-hold { color: var(--ink-200) } .c-wait { color: var(--warn) }
+  .b-hold { color: var(--ink-300) }
+  .src { padding: 9px 12px } .src .k { width: 30px; height: 30px }
+  .grp2 { font-family: var(--mono); font-size: 9px; letter-spacing: .2em; color: var(--ink-500); margin: 2px 2px -4px }
+  .clogo { display: block; border-radius: 28%; background: #fff; object-fit: contain; padding: 3px; flex: none; box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 6px 18px -6px rgba(0,0,0,.6); animation: pop .5s cubic-bezier(.3,1.6,.5,1) both }
+  .item .k.lk { position: relative; background: none; border: 0; width: 38px; height: 38px }
+  .item .k.lk .kind { position: absolute; right: -6px; bottom: -6px; width: 20px; height: 20px; border-radius: 7px; display: grid; place-items: center; background: color-mix(in oklch, var(--a) 30%, #1a1928); color: var(--a); border: 1px solid color-mix(in oklch, var(--a) 55%, transparent); box-shadow: 0 0 10px -2px var(--a) }
+  .item .k.lk .kind svg { width: 12px; height: 12px }
+  .macnote { position: absolute; right: 14px; top: 10px; width: 360px; max-width: calc(100% - 28px); z-index: 6; display: flex; gap: 10px; align-items: center; padding: 11px 12px; border-radius: 16px; background: rgba(50,48,66,.72); backdrop-filter: blur(24px) saturate(1.6); -webkit-backdrop-filter: blur(24px) saturate(1.6); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.18), 0 18px 40px -12px rgba(0,0,0,.7); font-family: var(--ios); color: #fff; text-align: left; animation: macIn .6s cubic-bezier(.2,.9,.25,1.1) both }
+  @keyframes macIn { from { transform: translateX(120%) } }
+  .macnote .ic { width: 34px; height: 34px; border-radius: 8px; overflow: hidden; flex: none }
+  .macnote .tx { flex: 1; min-width: 0 } .macnote .a { font-size: 11px; color: rgba(255,255,255,.55); display: flex; justify-content: space-between }
+  .macnote .t { font-size: 13.5px; font-weight: 600; margin-top: 1px } .macnote .b { font-size: 13px; color: rgba(255,255,255,.88) }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl" id="cand">
+    <span class="lbl">ALERT</span>
+    <button data-c="earn" class="on">A · earnings<span class="pick">★</span></button>
+    <button data-c="call">B · call changes<span class="pick">★</span></button>
+    <button data-c="big">C · big day<span class="pick">★</span></button>
+  </div>
+  <div class="ctl" id="scen"></div>
+  <div id="stage"></div>
+  <div class="opened" id="opened"></div>
+</div>
+
+<script>
+/* shared pieces, copied from index.html (N1) */
+/* His logo (the SOLOLEVELING project's image), unchanged but for the motion. */
+let n = 0
+const logo = (still) => { const g = 'g' + n++
+  return `<svg class="logo ${still ? 'still' : ''}" viewBox="0 0 128 128" width="100%" height="100%"><defs><linearGradient id="${g}" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#5d5294"/><stop offset=".55" stop-color="#9184d9"/><stop offset="1" stop-color="#d2cefd"/></linearGradient></defs>
+  <rect width="128" height="128" fill="#14131c"/><g fill="url(#${g})"><rect class="b" x="24" y="78" width="18" height="26" rx="6"/><rect class="b" x="49" y="60" width="18" height="44" rx="6"/><rect class="b" x="74" y="42" width="18" height="62" rx="6"/></g>
+  <circle class="d" cx="107" cy="30" r="9" fill="#d2cefd"/></svg>` }
+const ic = (still = true) => `<span class="ic">${logo(still)}</span>`
+
+const I = {
+  bell: (s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>`,
+  check: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg>',
+  run: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="15" cy="4.5" r="2"/><path d="M8 21l3-6 3 2 1 4M6 12l3-4h5l2 4 3 1M11 15l1-5"/></svg>',
+  stretch: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="4.5" r="2"/><path d="M4 10l8 1 8-1M12 11v4l-4 6M12 15l4 6"/></svg>',
+  file: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 14l2 2 4-4"/></svg>',
+  x: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>',
+  book: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h6a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H4zM20 5h-6a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h6z"/></svg>',
+  share: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v12M7.5 7.5L12 3l4.5 4.5M6 11H5v10h14V11h-1"/></svg>',
+  addsq: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>',
+  phone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="7" y="3" width="10" height="18" rx="2.5"/></svg>',
+  mac: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg>',
+  flash: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 3h8l-1 5H9zM9 8h6v12a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1z"/></svg>',
+  cam: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+}
+const statusBar = (t) => `<div class="island"></div><div class="status"><span>${t}</span>
+  <span class="r"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.5" width="3" height="9.5" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+  <span style="font-size:14px">5G</span><svg width="26" height="13" viewBox="0 0 26 13"><rect x=".5" y=".5" width="22" height="12" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.5" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>`
+const phone = (inner, { time = '17:50', cls = '' } = {}) =>
+  `<div class="phone" id="phone"><div class="screen ${cls}">${statusBar(time)}${inner}<div class="homebar"></div></div></div>`
+const note = (title, body, when, open, cls = '', delay = 0) => `<button class="note ${cls}" style="animation-delay:${delay}ms" data-open="${open}">
+  ${ic()}<span class="tx"><span class="t1">${title}<span>${when}</span></span><span class="t2">${body}</span></span></button>`
+const sys = (title, badge, body) => `<div class="tile sys panel"><div class="sweep"></div>
+  <div class="hrow"><span class="sys-title">[ ${title} ]</span>${badge}</div>${body}</div>`
+const segs = (states) => `<div class="segs">${['HOME SCREEN', 'ALLOW', 'TEST'].map((t, i) =>
+  `<div class="seg ${states[i] || ''}"><i><b></b></i><span>${t}${states[i] === 'done' ? ' ✓' : ''}</span></div>`).join('')}</div>`
+const buzz = (ms) => setTimeout(() => { const p = document.getElementById('phone'); if (!p) return; p.classList.remove('buzz'); void p.offsetWidth; p.classList.add('buzz') }, ms)
+
+
+const I3 = {
+  cal: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>',
+  swap: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>',
+  down: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l6 6 4-4 6 7M15 16h5v-5"/></svg>',
+  coin: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 7v10"/></svg>',
+  key: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/></svg>',
+}
+const LOGO = (k) => `https://financialmodelingprep.com/image-stock/${k}.png`
+/* The company's own mark, as Portfolio draws it (src/lib/logo.ts). */
+const tk = (k, s = 34) => `<img class="clogo" src="${LOGO(k)}" alt="${k}" style="width:${s}px;height:${s}px">`
+
+/* ---- the three moments, each in its own words ---- */
+const C = {
+  earn: {
+    lock: [['Netflix · earnings 20 Oct', 'In 2 days · NFLX', 'Sunday 18 October', 'Portfolio → Netflix'],
+           ['Netflix reported · ▼ 5.3%', 'Was $1,180.40 · 20 Oct · now $1,117.80 · 21 Oct', 'Thursday 22 October', 'Portfolio → Netflix']],
+    row: ['--lav-400', I3.cal, 'Netflix · earnings 20 Oct', 'NFLX · IN 2 DAYS', '09:00', 'Portfolio → Netflix', 'NFLX'],
+    row2: ['--bad', I3.cal, 'Netflix reported · ▼ 5.3%', 'WAS $1,180.40 · 20 OCT · NOW $1,117.80 · 21 OCT', '09:00', 'Portfolio → Netflix', 'NFLX'],
+  },
+  call: {
+    lock: [['ASML · HOLD → ADD', 'SMA 200 bullish · RSI 41 · was HOLD', 'Thursday 22 October', 'Portfolio → ASML, SIGNALS']],
+    row: ['--good', I3.swap, 'ASML · HOLD → ADD', 'SMA 200 BULLISH · RSI 41', '09:00', 'Portfolio → ASML, SIGNALS', 'ASML'],
+  },
+  big: {
+    lock: [['Tesla ▼ 6.2%', '$248.10 · 20 Oct → $232.70 · 21 Oct', 'Thursday 22 October', 'Portfolio → Tesla']],
+    row: ['--bad', I3.down, 'Tesla ▼ 6.2%', '$248.10 · 20 OCT → $232.70 · 21 OCT', '09:00', 'Portfolio → Tesla', 'TSLA'],
+  },
+}
+let cand = 'earn'
+const SCENS = {
+  earn: [['lock', 'locked · in 2 days'], ['lock2', 'locked · reported'], ['pos', 'tap → netflix'], ['when', 'when it rings'], ['set', 'iphone screen'], ['macpush', 'mac · push'], ['bell', 'mac · bell']],
+  call: [['lock', 'locked'], ['pos', 'tap → asml'], ['when', 'when it rings'], ['set', 'iphone screen'], ['macpush', 'mac · push'], ['bell', 'mac · bell']],
+  big: [['lock', 'locked'], ['pos', 'tap → tesla'], ['when', 'when it rings'], ['set', 'iphone screen'], ['macpush', 'mac · push'], ['bell', 'mac · bell']],
+}
+
+/* ---- iPhone locked: the alert arrives over the morning's money one ---- */
+const lockAt = (k) => () => { const [t, b, day, o] = C[cand].lock[k]
+  return phone(`<div class="aurora"></div>
+  <div class="lockhead"><div class="d">${day}</div><div class="h">09:00</div></div>
+  <div class="stack">
+    ${note(t, b, 'now', o, 'in', 700)}
+    ${note('Gym · 08:00', 'In 10 min · Calendar', '07:50', 'Calendar → Gym, 08:00', 'in', 100)}
+  </div>
+  <div class="lockbtns"><span>${I.flash}</span><span>${I.cam}</span></div>`, { cls: 'lockbg', time: '09:00' }) }
+
+/* ---- the tap opens the position (Portfolio → one position) ---- */
+const pos = () => {
+  if (cand === 'earn') return phone(`<div class="app">
+    ${sys('NETFLIX', '<span class="badge b-dim">NFLX · NASDAQ</span>', `
+      <div class="tile head" style="--i:0"><div class="glow"></div>
+        <div class="top">${tk('NFLX')}<div><div class="n">€2,140.60</div><div class="m">2 SHARES · USD</div></div>
+          <div class="px"><span class="money">$1,117.80</span></div></div>
+        <span class="badge b-bad" style="align-self:flex-end">▼ $62.60 · 5.3% · SINCE 20 OCT</span>
+        <div class="ribbon down hit">REPORTED 20 OCT ▼ 5.3%</div></div>
+      <div class="tile sig" style="--i:1"><span>CLOSE · 20 OCT</span><span class="v">$1,180.40</span></div>
+      <div class="tile sig" style="--i:2"><span>CLOSE · 21 OCT</span><span class="v">$1,117.80</span></div>`)}
+    </div>`, { time: '09:01' })
+  if (cand === 'call') return phone(`<div class="app">
+    ${sys('ASML', '<span class="badge b-good live pop">HOLD → ADD</span>', `
+      <div class="tile head" style="--i:0;--a:var(--good)"><div class="glow"></div>
+        <div class="top">${tk('ASML')}<div><div class="call c-add">ADD</div><div class="m">WAS HOLD · 21 OCT</div></div>
+          <div class="px"><span class="money">€612.40</span><span class="caps">CLOSE · 21 OCT</span></div></div></div>
+      <div class="grp2">SIGNALS</div>
+      <div class="tile sig" style="--i:1"><span>SMA 200 · €588.10</span><span class="v badge b-good">BULLISH</span></div>
+      <div class="tile sig" style="--i:2"><span>SMA 50 · €631.70</span><span class="v badge b-bad">BEARISH</span></div>
+      <div class="tile sig" style="--i:3"><span>RSI 14 · 41</span><span class="v badge b-dim">NEUTRAL</span></div>
+      <div class="tile sig" style="--i:4"><span>TARGET · €720.00 · 22 OCT</span><span class="v badge b-good">▲ 17.6%</span></div>`)}
+    </div>`, { time: '09:01' })
+  return phone(`<div class="app">
+    ${sys('TESLA', '<span class="badge b-dim">TSLA · NASDAQ</span>', `
+      <div class="tile head" style="--i:0;--a:var(--bad)"><div class="glow"></div>
+        <div class="top">${tk('TSLA')}<div><div class="n">€1,163.20</div><div class="m">5 SHARES · USD</div></div>
+          <div class="px"><span class="money">$232.70</span></div></div>
+        <span class="badge b-bad live" style="align-self:flex-end">▼ $15.40 · 6.2% · 21 OCT</span></div>
+      <div class="tile sig" style="--i:1"><span>CLOSE · 20 OCT</span><span class="v">$248.10</span></div>
+      <div class="tile sig" style="--i:2"><span>CLOSE · 21 OCT</span><span class="v">$232.70</span></div>`)}
+    </div>`, { time: '09:01' })
+}
+
+/* ---- when it rings, drawn as days ---- */
+const when = () => {
+  const D = {
+    earn: { title: 'NETFLIX · EARNINGS 20 OCT', badge: '2 DAYS BEFORE · REPORTED · 09:00',
+      days: [['17', ''], ['18', 'ring', '09:00'], ['19', ''], ['20', 'due', 'RESULTS'], ['21', ''], ['22', 'ring', '09:00']],
+      a: ['18 OCT · EARNINGS 20 OCT', 'RINGS', 'IN 2 DAYS'], b: ['22 OCT · REPORTED', 'RINGS', 'ONCE · ▲ OR ▼ · 21 OCT CLOSE'] },
+    call: { title: 'ASML · THE CALL', badge: 'EACH MORNING · 09:00',
+      days: [['17', '', 'HOLD'], ['18', '', 'HOLD'], ['19', '', 'HOLD'], ['20', '', 'HOLD'], ['21', 'ring', 'ADD'], ['22', '', 'ADD']],
+      a: ['21 OCT · WAS HOLD', 'RINGS', 'NOW ADD'], q: ['22 OCT · WAS ADD', 'QUIET', 'NOW ADD'] },
+    big: { title: 'TESLA · DAY CHANGE', badge: '±5% · 09:00',
+      days: [['17', '', '▲ 1.1%'], ['18', '', '▼ 3.4%'], ['19', '', ''], ['20', '', '▲ 0.4%'], ['21', 'ring', '▼ 6.2%'], ['22', '', '']],
+      a: ['21 OCT · ▼ 6.2%', 'RINGS', '5% OR MORE'], q: ['18 OCT · ▼ 3.4%', 'QUIET', 'UNDER 5%'] },
+  }[cand]
+  const q = D.q || D.b
+  return `<div class="cand"><div class="tile sys panel"><div class="sweep"></div>
+    <div class="hrow"><span class="sys-title">[ ${D.title} ]</span><span class="badge b-lav">${D.badge}</span></div>
+    <div class="tile"><div class="strip">${D.days.map(([d, k, w]) => `<div class="day ${k}"><i>${d}</i><span>${w || '&nbsp;'}</span></div>`).join('')}</div></div>
+    <div class="pair">
+      <div class="tile cell warn"><div class="glow"></div><span class="caps">${D.a[0]}</span><span class="money">${D.a[1]}</span><span class="caps">${D.a[2]}</span></div>
+      <div class="tile cell ${D.q ? 'good' : 'warn'}"><div class="glow"></div><span class="caps">${q[0]}</span><span class="money">${q[1]}</span><span class="caps">${q[2]}</span></div></div>
+    </div></div>` }
+
+/* ---- the IPHONE screen: three more source rows ---- */
+const src = (a, k, n, m, i) => `<div class="tile src" style="--a:var(${a});--i:${i}"><div class="glow"></div><span class="k">${k}</span><div><div class="n">${n}</div><div class="m">${m}</div></div><span class="r tog"></span></div>`
+const set = () => phone(`<div class="app">
+  ${sys('IPHONE', '<span class="badge b-good live">ON</span>', `
+    ${src('--a-body', I.run, 'Calendar', '10 MIN BEFORE', 0)}
+    ${src('--a-money', I.file, 'Files read', 'WHEN DONE', 1)}
+    ${src('--warn', I3.coin, 'Money for a bill', '2 DAYS BEFORE · 09:00', 2)}
+    ${src('--warn', I3.key, 'Bank approval', '7 DAYS · 1 DAY BEFORE', 3)}
+    ${src('--lav-400', I3.cal, 'Earnings', '2 DAYS BEFORE · REPORTED · 09:00', 4)}
+    ${src('--good', I3.swap, 'ADD · HOLD · WAIT', 'WHEN IT CHANGES · 09:00', 5)}
+    ${src('--bad', I3.down, 'Big day', '±5% · 09:00', 6)}`)}
+  </div>`, { time: '09:01' })
+
+/* ---- Mac: the bell with the investment rows on top ---- */
+const ROWS = {
+  run: ['--a-body', I.run, 'Gym · 08:00', 'IN 10 MIN · CALENDAR', '07:50', 'Calendar → Gym, 08:00'],
+  money: ['--warn', I3.coin, 'Preply · €123.72 · 24 Oct', 'ACTIVOBANK €78.39 · €45.33 MISSING', '09:00', 'Finances → Flow'],
+}
+const item = (key, i, unread) => { const [a, ico, t, m, w, o, logo] = ROWS[key]
+  const k = logo ? `<span class="k lk">${tk(logo, 38)}<span class="kind">${ico}</span></span>` : `<span class="k">${ico}</span>`
+  return `<button class="tile item" style="--a:var(${a});--i:${i}" data-open="${o}"><div class="glow"></div>${k}
+    <span><div class="t">${t}</div><div class="m">${m}</div></span><span class="w">${w}${unread ? '<i class="u"></i>' : '<span class="go">→</span>'}</span></button>` }
+const bellM = () => {
+  ROWS.earn = C.earn.row2; ROWS.call = C.call.row; ROWS.big = C.big.row
+  const first = cand
+  const rest = ['earn', 'call', 'big'].filter((k) => k !== first)
+  return `<div class="desk">
+    <div class="topbar"><span class="brand">${ic(false)}SOLO LEVELING</span><span class="search">Search ⌘K</span>
+      <button class="bellbtn open ring" id="bellBtn">${I.bell(18)}<span class="count pop">4</span></button><span class="caps">ARTEM ▾</span></div>
+    <div class="deskbody">${'<div class="ghosttile"></div>'.repeat(6)}
+      <div class="tile sys pop-panel"><div class="sweep"></div>
+        <div class="hrow"><span class="sys-title">[ TODAY ]</span><span class="badge b-lav live">4 NEW</span></div>
+        <div class="grp">NOW</div>${item(first, 0, 1)}${item(rest[0], 1, 1)}${item(rest[1], 2, 1)}${item('money', 3, 1)}
+        <div class="grp">EARLIER TODAY</div>${item('run', 4, 0)}
+      </div></div></div>` }
+
+/* ---- Mac: the push itself, the company's mark on its right (Chrome shows a push's icon there) ---- */
+const macpush = () => { const r = cand === 'earn' ? C.earn.row2 : C[cand].row
+  const [t, b] = C[cand].lock[cand === 'earn' ? 1 : 0]
+  return `<div class="desk">
+    <div class="topbar"><span class="brand">${ic(false)}SOLO LEVELING</span><span class="search">Search ⌘K</span>
+      <button class="bellbtn ring">${I.bell(18)}<span class="count pop">4</span></button><span class="caps">ARTEM ▾</span></div>
+    <div class="deskbody">${'<div class="ghosttile"></div>'.repeat(6)}
+      <button class="macnote" data-open="${r[5]}">${ic()}<span class="tx"><span class="a"><span>SOLO LEVELING</span><span>now</span></span><div class="t">${t}</div><div class="b">${b}</div></span>${tk(r[6], 40)}</button>
+    </div></div>` }
+
+/* ---- wiring ---- */
+const stage = document.getElementById('stage'), opened = document.getElementById('opened'), scen = document.getElementById('scen')
+let current = 'lock'
+function drawScen() {
+  scen.innerHTML = '<span class="lbl">SHOW</span>' + SCENS[cand].map(([s, l]) => `<button data-s="${s}" class="${s === current ? 'on' : ''}">${l}</button>`).join('')
+}
+function show(s) {
+  if (!SCENS[cand].some(([k]) => k === s)) s = 'lock'
+  current = s; opened.textContent = ''; drawScen()
+  stage.innerHTML = ({ lock: lockAt(0), lock2: lockAt(1), pos, when, set, macpush, bell: bellM })[s]()
+  if (s.startsWith('lock')) buzz(700)
+  stage.querySelectorAll('[data-open]').forEach(b => b.onclick = () => {
+    opened.textContent = 'OPENS → ' + b.dataset.open
+    if (s.startsWith('lock') && b.dataset.open.startsWith('Portfolio →') && s !== 'macpush') setTimeout(() => show('pos'), 500)
+  })
+}
+document.getElementById('cand').onclick = e => { const b = e.target.closest('[data-c]'); if (!b) return
+  cand = b.dataset.c; document.querySelectorAll('#cand button').forEach(x => x.classList.toggle('on', x === b)); show(current) }
+scen.onclick = e => { if (e.target.dataset.s) show(e.target.dataset.s) }
+show('lock')
+</script>
+</body>
+</html>

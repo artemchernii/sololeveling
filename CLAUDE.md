@@ -166,6 +166,12 @@ mockup `design/treasury-mockup/insights.html`, spec
   7 with the move since the close before it — two fetched prices, both
   shown on its card. They reach the read and ASK as facts (`earn-…`),
   never `verdict()`.
+  The same dates may ring the phone (22 Oct, N3, "go — build N3 as the
+  mockup, yes CLAUDE.md line for earnings" on
+  `design/notifications-mockup/n3.html`): fetched once by the 09:00
+  morning job, never stored, two days before a results day and on the
+  first stored close after it — that close and the stored close before
+  it both on the push (`src/lib/investAlert.ts`).
 - **A model's market read**, on a press only: a headline, two plain
   sentences and 3–5 lines, each of a kind from a fixed list (inflation,
   rates, market, allocation, don't, no data) that picks its icon. The

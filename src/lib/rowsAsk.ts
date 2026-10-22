@@ -446,27 +446,41 @@ export function rowLines(rows: AskRows, offsetMin: number): Array<string> {
   ].sort()
 }
 
-/** Which areas have a row on each day of the period, for the strip. */
+/** Which areas have a row on each day of the period, and how many (a
+    log count per day), for the strip. */
 export function dayAreas(
   rows: AskRows,
   p: Period,
-): Array<{ day: number; areas: Array<string> }> {
-  const out: Array<{ day: number; areas: Array<string> }> = []
+): Array<{
+  day: number
+  /** 0 Monday … 6 Sunday. */
+  weekday: number
+  areas: Array<string>
+  counts: Record<string, number>
+}> {
+  const out: ReturnType<typeof dayAreas> = []
   for (let t = p.from; t < p.to; t = plusDays(t, 1)) {
     const end = plusDays(t, 1)
     const on = (at: number) => at >= t && at < end
-    const areas = new Set<string>()
+    const counts: Record<string, number> = {}
+    const add = (a: string) => (counts[a] = (counts[a] ?? 0) + 1)
     for (const l of rows.logs)
       if (on(l.at))
-        areas.add(
+        add(
           MONEY_KINDS.has(l.kind)
             ? 'money'
             : l.kind === 'task_done'
               ? 'task'
               : l.area,
         )
-    if (rows.commits.some((c) => on(c.at))) areas.add('projects')
-    out.push({ day: new Date(t).getDate(), areas: [...areas].sort() })
+    for (const c of rows.commits) if (on(c.at)) add('projects')
+    const d = new Date(t)
+    out.push({
+      day: d.getDate(),
+      weekday: (d.getDay() + 6) % 7,
+      areas: Object.keys(counts).sort(),
+      counts,
+    })
   }
   return out
 }

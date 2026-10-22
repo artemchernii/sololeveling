@@ -97,6 +97,8 @@ export function PeriodBadges({
 }
 
 const STRIP_DAYS = 62
+const WIDE_DAYS = 14
+const WEEKDAYS = 'MON TUE WED THU FRI SAT SUN'.split(' ')
 
 const LEGEND: Record<string, string> = {
   projects: 'PROJECTS',
@@ -118,19 +120,24 @@ export function Strip({
   const days = dayAreas(rows, period)
   if (days.length > STRIP_DAYS) return null
   const areas = [...new Set(days.flatMap((d) => d.areas))].sort()
+  /* Up to two weeks every day is named and says how many rows each area
+     has; longer, a dot per area and a date every seventh day. */
+  const wide = days.length <= WIDE_DAYS
   return (
     <>
       <div
         data-testid="rows-strip"
-        className={`r7-strip ${pick ? 'pick' : ''}`}
+        className={`r7-strip ${wide ? 'wide' : ''} ${pick ? 'pick' : ''}`}
         style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}
       >
         {days.map((d, i) => (
           <div
             key={i}
-            className={`r7-day ${d.day % 7 === 1 ? 'wk' : ''}`}
+            className={`r7-day ${i % 7 === 0 || i === days.length - 1 ? 'wk' : ''} ${d.areas.length === 0 ? 'none' : ''}`}
             data-areas={d.areas.join(' ')}
           >
+            {wide ? <span className="wd">{WEEKDAYS[d.weekday]}</span> : null}
+            {wide ? <span className="dn">{d.day}</span> : null}
             <div className="dots">
               {d.areas.map((a) => (
                 <span
@@ -139,10 +146,15 @@ export function Strip({
                   style={
                     { '--c': areaColour(a), '--d': i } as React.CSSProperties
                   }
-                />
+                >
+                  {wide ? d.counts[a] : null}
+                </span>
               ))}
+              {wide && d.areas.length === 0 ? <i>—</i> : null}
             </div>
-            <b>{d.day % 7 === 1 || i === days.length - 1 ? d.day : ''}</b>
+            {wide ? null : (
+              <b>{i % 7 === 0 || i === days.length - 1 ? d.day : ''}</b>
+            )}
           </div>
         ))}
       </div>

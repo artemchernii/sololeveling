@@ -250,7 +250,12 @@ describe('rows for the model and the strip', () => {
     const p = periodOf('august', NOW)!
     const d = dayAreas(ROWS, p)
     expect(d).toHaveLength(31)
-    expect(d[1]).toEqual({ day: 2, areas: ['body', 'projects'] })
+    expect(d[1]).toEqual({
+      day: 2,
+      weekday: 6,
+      areas: ['body', 'projects'],
+      counts: { body: 1, projects: 2 },
+    })
     expect(d[29].areas).toEqual(['task'])
   })
 })

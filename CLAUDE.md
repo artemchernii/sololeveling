@@ -168,10 +168,19 @@ mockup `design/treasury-mockup/insights.html`, spec
   never `verdict()`.
   The same dates may ring the phone (22 Oct, N3, "go — build N3 as the
   mockup, yes CLAUDE.md line for earnings" on
-  `design/notifications-mockup/n3.html`): fetched once by the 09:00
-  morning job, never stored, two days before a results day and on the
+  `design/notifications-mockup/n3.html`): fetched once by the 21:30
+  evening job, never stored, two days before a results day and on the
   first stored close after it — that close and the stored close before
   it both on the push (`src/lib/investAlert.ts`).
+- **CLOSE, the day's report** (22 Oct, his "report opens in Insights as
+  CLOSE, one push at 21:30, rules 1 and 2 as you say"): one push a day
+  at 21:30 Lisbon, after the US close, opening Insights' CLOSE tab. Two
+  rules for it only: (1) the day's change of worth — worth now minus
+  worth at the last stored close of the day before, both always shown,
+  ▲/▼ green or red, nothing stored, only on CLOSE and its push; (2)
+  "major news" is chosen by the app, never a model: the headlines of the
+  three biggest movers held and of any company reporting, fetched on
+  open like news, never stored, never summarised.
 - **A model's market read**, on a press only: a headline, two plain
   sentences and 3–5 lines, each of a kind from a fixed list (inflation,
   rates, market, allocation, don't, no data) that picks its icon. The

@@ -355,3 +355,61 @@ test('S10 phone width: the ✦ on a box shows without hover, the box keeps its k
     )
     .toBeLessThanOrEqual(0)
 })
+
+/* COPY (22 Oct, docs/specs/2026-10-21-copy-answer.md; mockup
+   design/treasury-mockup/copy-answer.html, his "go"). Nothing is saved:
+   the press puts the answer on the clipboard as markdown. */
+
+test('S11 ⧉ COPY → ✓ COPIED at once, the clipboard holds the answer, back to ⧉ COPY', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await open(page)
+  await page.getByTestId('ask-web').click()
+  await page.getByTestId('ask-input').fill('What did Powell say this week?')
+  await page.getByTestId('ask-input').press('Enter')
+  await expect(page.getByTestId('ask-answer')).toHaveAttribute(
+    'data-kind',
+    'rates',
+    { timeout: 15_000 },
+  )
+  const copy = page.getByTestId('ask-copy')
+  await expect(copy).toHaveText('⧉ COPY')
+  await copy.click()
+  await expect(copy).toHaveText('✓ COPIED')
+  await expect(copy).toHaveAttribute('data-state', 'ok')
+  await expect(page.getByTestId('ask-answer')).toHaveClass(/copied/)
+  await page.screenshot(shot('insights-ask-copied'))
+
+  const text = await page.evaluate(() => navigator.clipboard.readText())
+  expect(text).toMatch(/^## 🌐 What did Powell say this week\?\n\n🏛️ RATES\n\n/)
+  expect(text).toContain(
+    'did not rule out a cut. Markets read it as **a likely cut**',
+  )
+  expect(text).toMatch(/\n\nFACTS\n- 🇺🇸 /)
+  expect(text).toContain(
+    'SOURCES\n- REUTERS · 16 OCT · https://www.reuters.com/markets/fed\n- FEDERALRESERVE · 16 OCT · ',
+  )
+  expect(text).toMatch(
+    /\n\n✦ SONNET 5\.5 · 2 SEARCHES · \d{1,2} [A-Z]{3} \d\d:\d\d · RESEARCH · NOT ADVICE$/,
+  )
+  await expect(copy).toHaveText('⧉ COPY', { timeout: 4000 })
+})
+
+test('S12 the clipboard refuses → ✕ NOT COPIED in red, then back', async ({
+  page,
+}) => {
+  await open(page)
+  await page.evaluate(() => {
+    navigator.clipboard.writeText = () => Promise.reject(new Error('refused'))
+  })
+  await page.getByTestId('ask-suggest').first().click()
+  await expect(page.getByTestId('ask-answer')).toBeVisible({ timeout: 15_000 })
+  const copy = page.getByTestId('ask-copy')
+  await copy.click()
+  await expect(copy).toHaveText('✕ NOT COPIED')
+  await expect(copy).toHaveAttribute('data-state', 'no')
+  await expect(page.getByTestId('ask-answer')).not.toHaveClass(/copied/)
+  await expect(copy).toHaveText('⧉ COPY', { timeout: 4000 })
+})

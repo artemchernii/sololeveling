@@ -487,3 +487,47 @@
   background-size: 200% 100%;
   animation: ask-shim 1.2s linear infinite;
 }
+
+/* ⧉ COPY (22 Oct, copy-answer.html): the last pill of the stamp row,
+   pushed right; green and a pop when copied, red and a shake when the
+   clipboard refuses. The card glows once on a copy. */
+@keyframes ask-copied {
+  0% {
+    box-shadow:
+      0 0 0 1px var(--state-good),
+      0 0 28px -6px var(--state-good);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+.ask-copy {
+  margin-left: auto;
+  cursor: pointer;
+  color: var(--color-lav-300);
+  border-color: var(--system-edge);
+  background: color-mix(in oklch, var(--color-lav-400) 10%, transparent);
+  transition:
+    background var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease);
+  &:hover {
+    background: color-mix(in oklch, var(--color-lav-400) 20%, transparent);
+    box-shadow: 0 0 14px -4px var(--system-shine);
+  }
+  &.ok {
+    color: var(--state-good);
+    border-color: color-mix(in oklch, var(--state-good) 55%, transparent);
+    background: color-mix(in oklch, var(--state-good) 14%, transparent);
+    box-shadow: 0 0 16px -4px var(--state-good);
+    animation: pop 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  }
+  &.no {
+    color: var(--state-danger);
+    border-color: color-mix(in oklch, var(--state-danger) 55%, transparent);
+    background: color-mix(in oklch, var(--state-danger) 12%, transparent);
+    animation: ask-shake 450ms ease both;
+  }
+}
+.ask-a.copied .body {
+  animation: ask-copied 900ms ease-out both;
+}

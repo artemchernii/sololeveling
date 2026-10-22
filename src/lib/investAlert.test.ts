@@ -1,19 +1,18 @@
 import { describe, expect, test } from 'vitest'
 
 import {
+  badgeOf,
   bigDay,
-  bigWords,
   callTurn,
-  callWords,
+  closePush,
   earnSoon,
+  nextEvening,
   plainCompany,
-  reportWords,
   reported,
-  soonWords,
 } from './investAlert'
 
-/* N3 (spec docs/specs/2026-10-22-n3-investment-alerts.md). Vitest runs
-   in Lisbon. Closes at 21:00 UTC, the morning at 09:00 the day after. */
+/* CLOSE (spec docs/specs/2026-10-22-n3-investment-alerts.md). Vitest
+   runs in Lisbon. Closes at 21:00 UTC; checked the morning after. */
 
 const DAY = 86_400_000
 const close = (m: number, d: number, price: number) => ({
@@ -38,9 +37,10 @@ describe('S1 big day', () => {
       morning(10, 22),
     )
     expect(b).not.toBeNull()
-    expect(bigWords('Tesla', b!, 'USD')).toEqual({
-      title: 'Tesla ▼ 6.2%',
-      body: '$248.10 · 20 Oct → $232.70 · 21 Oct',
+    expect(b!.pct).toBeCloseTo(-6.21, 2)
+    expect(badgeOf({ kind: 'big', pct: b!.pct })).toEqual({
+      text: 'BIG DAY',
+      tone: 'bad',
     })
   })
   test('4% → quiet', () => {
@@ -71,9 +71,11 @@ describe('S2 the call changes', () => {
     expect(t).not.toBeNull()
     expect(t!.was).toBe('hold')
     expect(t!.now).toBe('add')
-    const w = callWords('ASML', t!)
-    expect(w.title).toBe('ASML · HOLD → ADD')
-    expect(w.body).toMatch(/^SMA 200 bullish · SMA 50 bearish · was HOLD$/)
+    expect(t!.why).toEqual(['SMA 200 bullish', 'SMA 50 bearish'])
+    expect(badgeOf({ kind: 'call', ...t! })).toEqual({
+      text: 'HOLD → ADD',
+      tone: 'good',
+    })
   })
   test('the same call → quiet', () => {
     const up = { asOf: Date.UTC(2026, 9, 21, 21), price: 200.4 }
@@ -88,10 +90,7 @@ describe('S3 earnings soon', () => {
   const report = Date.UTC(2026, 9, 20, 20, 5)
   test('two days away → rings', () => {
     expect(earnSoon(report, morning(10, 18))).toBe(true)
-    expect(soonWords('Netflix', 'NFLX', report)).toEqual({
-      title: 'Netflix · earnings 20 Oct',
-      body: 'In 2 days · NFLX',
-    })
+    expect(badgeOf({ kind: 'soon', at: report }).text).toBe('EARNINGS 20 OCT')
   })
   test('three days, one day, none → quiet', () => {
     expect(earnSoon(report, morning(10, 17))).toBe(false)
@@ -110,10 +109,9 @@ describe('S4 reported', () => {
   test('the first close after → rings with the close before', () => {
     const r = reported(closes, after, morning(10, 22))
     expect(r).not.toBeNull()
-    expect(reportWords('Netflix', r!, 'USD')).toEqual({
-      title: 'Netflix reported · ▼ 5.3%',
-      body: 'Was $1,180.40 · 20 Oct · now $1,117.80 · 21 Oct',
-    })
+    expect(r!.from.price).toBe(1180.4)
+    expect(r!.to.price).toBe(1117.8)
+    expect(badgeOf({ kind: 'reported', ...r! }).text).toBe('REPORTED ▼ 5.3%')
   })
   test('before the open → the day before is the base', () => {
     const r = reported(
@@ -131,5 +129,45 @@ describe('S4 reported', () => {
   })
   test('no close after yet → quiet', () => {
     expect(reported(closes.slice(0, 2), after, morning(10, 21))).toBeNull()
+  })
+})
+
+describe('S9 the 21:30 push', () => {
+  test('the day, then the moments, then the biggest movers', () => {
+    const w = closePush({ nowEur: 6158.4, wasEur: 6260.8 }, [
+      { symbol: 'NVDA', pct: 4.1, moments: [] },
+      { symbol: 'MSFT', pct: -1.1, moments: [] },
+      {
+        symbol: 'ASML.AS',
+        pct: 1.9,
+        moments: [{ kind: 'call', was: 'hold', now: 'add', why: [] }],
+      },
+      { symbol: 'TSLA', pct: -6.2, moments: [{ kind: 'big', pct: -6.2 }] },
+    ])
+    expect(w).toEqual({
+      title: 'Close · ▼ €102.40 · 1.6%',
+      body: 'TSLA ▼ 6.2% · ASML HOLD → ADD · NVDA ▲ 4.1%',
+    })
+  })
+  test('a quiet day says its movers', () => {
+    expect(
+      closePush({ nowEur: 100.5, wasEur: 100 }, [
+        { symbol: 'AAPL', pct: 0.5, moments: [] },
+        { symbol: 'VUAA.L', pct: null, moments: [] },
+      ]),
+    ).toEqual({ title: 'Close · ▲ €0.50 · 0.5%', body: 'AAPL ▲ 0.5%' })
+  })
+})
+
+describe('the 21:30 clock', () => {
+  const lisbon = (m: number, d: number, h: number, min = 0) =>
+    new Date(2026, m - 1, d, h, min).getTime()
+  test('later today, else tomorrow', () => {
+    expect(nextEvening(lisbon(10, 22, 12))).toBe(lisbon(10, 22, 21, 30))
+    expect(nextEvening(lisbon(10, 22, 21, 30))).toBe(lisbon(10, 23, 21, 30))
+  })
+  test('across the clock change (25 Oct)', () => {
+    expect(nextEvening(lisbon(10, 24, 22))).toBe(lisbon(10, 25, 21, 30))
+    expect(nextEvening(lisbon(10, 25, 22))).toBe(lisbon(10, 26, 21, 30))
   })
 })

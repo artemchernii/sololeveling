@@ -2,22 +2,35 @@ import { v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { guard } from './e2e'
-import { investMorning } from './investAlerts'
+import { ringClose } from './closeReport'
 import { internal } from './_generated/api'
 import { action, internalMutation } from './_generated/server'
 
-/* N3 mock step (docs/specs/2026-10-22-n3-investment-alerts.md). Test
-   backend only. After `e2eSignals.heldShare`: a close two hours ago 6%
-   above the one before — a big day — then this morning's share alerts. */
-export const ringShares = action({
+/* CLOSE mock steps (docs/specs/2026-10-22-n3-investment-alerts.md).
+   Test backend only. After `e2eSignals.heldShare`: `bigDay` stores a
+   close two hours ago 6% above the one before; `ringClose` then runs the
+   21:30 job on the stored prices. */
+export const bigDay = action({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
     guard()
-    const now = Date.now()
-    await ctx.runMutation(internal.e2eInvest.bigClose, { ownerId, now })
-    await investMorning(ctx, ownerId, now)
+    await ctx.runMutation(internal.e2eInvest.bigClose, {
+      ownerId,
+      now: Date.now(),
+    })
+    return null
+  },
+})
+
+export const ring = action({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const ownerId = await requireUser(ctx)
+    guard()
+    await ringClose(ctx, ownerId, false)
     return null
   },
 })

@@ -1,72 +1,72 @@
-# N3 — investment alerts on the iPhone
+# N3 — CLOSE, the day's report at 21:30
 
-**Status: approved 22 Oct** ("A B C, your picks", then "go — build N3 as
-the mockup, yes CLAUDE.md line for earnings" on
-`design/notifications-mockup/n3.html`, :3967, launch entry `notify-n3`;
-his "you know im a big fan of logos" put the company's mark on the bell,
-the share and the Mac push).
+**Status: approved 22 Oct.** N3 began as three separate pushes at 09:00
+("A B C, your picks"; mockup `design/notifications-mockup/n3.html`), then
+became one report: "maybe 21:30 we get notification with main thing =>
+report of the day: my holdings + major news", "report opens in Insights
+as CLOSE, one push at 21:30, rules 1 and 2 as you say", "maybe add small
+block for overall market news?", "go — build CLOSE as the mockup"
+(mockup `design/treasury-mockup/close.html`, :3950). Rules in CLAUDE.md
+("CLOSE, the day's report").
 
-Journey: the phone is locked, 09:00. Last night's closes are stored
-(22:30 UTC). It rings for a share he holds when (A) its results are two
-days away, or its first close after results is in; (B) its ADD / HOLD /
-WAIT changed with that close; (C) that close moved 5% or more on the one
-before. A tap opens the share on Portfolio. Rare: a few a month.
+Journey: 21:30, the US has just closed. The phone rings once:
+`Close · ▼ €102.40 · 1.6%` / `TSLA ▼ 6.2% · ASML HOLD → ADD · NVDA ▲ 4.1%`.
+A tap opens Insights tab 5 CLOSE: worth now and at the close before,
+every share's move biggest first with its moments as badges, the
+market's day, the headlines. A minute, then closed. Trading days only.
 
-## Moments
+## Moments (badges on CLOSE, words on the push)
 
-|            | Push                                                                            | When                                                                    | Numbers                                                              |
-| ---------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| A soon     | `Netflix · earnings 20 Oct` / `In 2 days · NFLX`                                | the morning 2 days before the results day (Lisbon days)                 | the date, fetched (CLAUDE.md 22 Oct line), not stored                |
-| A reported | `Netflix reported · ▼ 5.3%` / `Was $1,180.40 · 20 Oct · now $1,117.80 · 21 Oct` | the morning after the first stored close after the report               | two stored closes (`between()`), both shown                          |
-| B          | `ASML · HOLD → ADD` / `SMA 200 bullish · RSI 41 · was HOLD`                     | the newest close changes `callOf()` from what the closes before it gave | `verdict()` on stored closes and fundamentals, twice; nothing stored |
-| C          | `Tesla ▼ 6.2%` / `$248.10 · 20 Oct → $232.70 · 21 Oct`                          | the newest close is 5% or more from the one before                      | two stored closes, both shown                                        |
+| Moment                    | Badge             | Push                   | From                                         |
+| ------------------------- | ----------------- | ---------------------- | -------------------------------------------- |
+| big day, ±5%              | `BIG DAY`         | `TSLA ▼ 6.2%`          | the newest stored close on the one before    |
+| the call changed          | `HOLD → ADD`      | `ASML HOLD → ADD`      | `callOf()` with and without the newest close |
+| results in 2 days         | `EARNINGS 24 OCT` | `NFLX earnings 24 Oct` | the date, fetched, never stored              |
+| first close after results | `REPORTED ▼ 5.3%` | `NFLX reported ▼ 5.3%` | two stored closes                            |
 
-A close counts only on the first morning after it (newer than 24 h), so
-a weekend says nothing twice. A second run the same day skips a push
-already in today's bell (same kind and title).
+A close counts on the evening it is made (newer than 24 h). The push
+names the moments first, then the biggest movers, three in all.
 
 ## Files
 
-- `src/lib/investAlert.ts` — pure: `bigDay`, `callTurn`, `earnSoon`,
-  `reported`, the words, `plainCompany`. Unit-tested.
-- `convex/investAlerts.ts` — `investMorning(ctx, ownerId, now)` from
-  `moneyAlerts.morning` after the money alerts (no new job): held
-  instruments (`aggregate.heldInstruments`), each one's year of closes
-  and latest fundamentals (`shareFacts`, one query per share like MINE's
-  `callFor`), earnings fetched for the shares (`earningsOf`, canned on
-  E2E), then `send` writes the bell rows and pushes.
-- `notifications.share` (optional `{ symbol, type, name }`) — the bell
-  draws the company's mark with the kind in its corner; `pushNode`
-  sends it as the push's `icon` (Mac shows it; iOS shows only the app's).
-- `notificationKind` + `earnings`, `call_change`, `big_day`.
-- `/phone` three rows: `Earnings · 2 DAYS BEFORE · REPORTED · 09:00`,
-  `ADD · HOLD · WAIT · WHEN IT CHANGES · 09:00`, `Big day · ±5% · 09:00`.
-- Taps: `/finances?room=portfolio&position=<instrumentId>`.
+- `src/lib/investAlert.ts` — pure: the moments, `badgeOf`, `closePush`,
+  `nextEvening` (21:30 across the clock change). Unit-tested.
+- `convex/aggregate.ts` `dayClose` / `dayCloseFor` — each share held, its
+  latest price and the last close before midnight, both worths (rule 1).
+- `convex/closeReport.ts` — `keepEvening` (one job per owner,
+  `closeJobs`; started by `push.subscribe`, `closeReport:startAll` once
+  after the deploy), `evening` → `ringClose`: today's prices
+  (`market.readAll` pricesOnly), the day, the moments, one `day_close`
+  push a day → `/finances?room=insights#close`. `badges` and
+  `marketNews` for the tab, fetched on open.
+- `src/components/finances/insights/Close.tsx` (+ `insights-close.css`),
+  tab 5 in `InsightsTabs.tsx`, its badge the day's %. Indices from MARKET's
+  1D answer; headlines from `news.of` for the three biggest movers and any
+  company reporting, and `closeReport.marketNews`.
+- Bell: `day_close`, red with ▼. `/phone`: `Close · TRADING DAYS · 21:30`.
 
 ## Scenarios
 
-- S1 closes ending +6% on the one before, newest 10 h old → `big_day`
-  "Microsoft ▲ 6%"; 4% → quiet; newest 30 h old → quiet. (unit + convex-test)
-- S2 the newest close turns HOLD into ADD → `call_change`; same call →
-  quiet. (unit)
-- S3 results in 2 days → `earnings` soon; in 3 → quiet. (unit)
-- S4 first stored close after results → reported with both closes; the
-  second close after → quiet. (unit)
-- S5 a run twice in a day → one row. (convex-test)
-- S6 another owner's share never reaches mine. (convex-test)
-- S7 /phone ON shows the three rows. (e2e notifications S2)
-- S8 a held share's big day → the bell row with its logo → a tap opens
-  the share on Portfolio. (e2e `invest-alerts.spec.ts`)
+- S1–S4 the moments, quiet cases included (unit).
+- S5 one push a day, one 21:30 job kept (convex-test).
+- S6 another owner's shares never reach mine (convex-test).
+- S7 /phone shows the CLOSE row (e2e notifications S2).
+- S8 the 21:30 job → the bell row → a tap opens CLOSE (e2e `close.spec.ts`).
+- S9 the push's words; the 21:30 clock (unit).
+- S10 worth now and at the close before (convex-test).
+- S11 a weekend: no price today, no push (convex-test).
+- S12 CLOSE shows the day, the BIG DAY row, the market, the news (e2e).
 
-No write is pressed on screen in N3.
+No write is pressed on screen.
 
 ## Cost
 
-Inside the 09:00 job: about 15 held shares × ~250 closes ≈ 3,800 small
-documents, ~1 MB a day, ~30 MB a month (3% of the free 1 GB); one
-Yahoo quote call and one calendar call per share, nothing stored.
+The 21:30 job: ~15 Yahoo price reads, then about 1 MB of Convex reads
+(a year of closes per share for the call). Opening CLOSE: the same
+moments read once (kept 10 minutes), the day as a reactive query (the
+positions read plus one close per share), and Yahoo calls for news.
 
 ## Out of scope
 
-RSI and 52-week pushes (in B already, or noisy); a sell push; amounts in
-euros on a push; switches per moment; choosing 09:00 or 5% on screen.
+RSI and 52-week moments; a sell push; switches per moment; choosing
+21:30 or 5% on screen; a model's summary of the news (never).

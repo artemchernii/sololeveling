@@ -9,13 +9,15 @@ import type { Kind } from '@/lib/marketRead'
    each with a badge from what the page already holds. One band shows at
    a time. The tab pressed last is kept on this device. */
 
-export type Tab = 'market' | 'read' | 'mine' | 'ideas'
+export type Tab = 'market' | 'read' | 'mine' | 'ideas' | 'close'
 
 export const TABS: Array<{ id: Tab; n: number; name: string }> = [
   { id: 'market', n: 1, name: 'MARKET' },
   { id: 'read', n: 2, name: 'READ' },
   { id: 'mine', n: 3, name: 'MINE' },
   { id: 'ideas', n: 4, name: 'IDEAS' },
+  /* CLOSE (22 Oct): the day's report, the 21:30 push opens it (#close). */
+  { id: 'close', n: 5, name: 'CLOSE' },
 ]
 
 /** The tile a read line of this kind is about, and the tab it sits in. */
@@ -45,7 +47,10 @@ function stored(): Tab | null {
 export function useTab(hasRead: boolean, loading: boolean) {
   const [pressed, setPressed] = useState<Tab | null>(null)
   const [kept, setKept] = useState<Tab | null | undefined>(undefined)
-  useEffect(() => setKept(stored()), [])
+  useEffect(() => {
+    if (window.location.hash === '#close') setPressed('close')
+    setKept(stored())
+  }, [])
   const tab: Tab | null =
     pressed ??
     kept ??

@@ -1,8 +1,6 @@
 import { useMutation } from 'convex/react'
 import {
-  ArrowLeftRight,
   Bell,
-  CalendarDays,
   Check,
   Coins,
   FileCheck,
@@ -306,24 +304,12 @@ export function PhoneWindow() {
             when="WHEN IN · 09:00"
             area="var(--color-state-good)"
           />
-          {/* N3 (22 Oct): the shares held, each morning at 09:00. */}
-          <Source
-            icon={<CalendarDays className="size-[18px]" />}
-            name="Earnings"
-            when="2 DAYS BEFORE · REPORTED · 09:00"
-            area="var(--color-lav-400)"
-          />
-          <Source
-            icon={<ArrowLeftRight className="size-[18px]" />}
-            name="ADD · HOLD · WAIT"
-            when="WHEN IT CHANGES · 09:00"
-            area="var(--color-state-good)"
-          />
+          {/* CLOSE (22 Oct): the day's report after the US close. */}
           <Source
             icon={<TrendingDown className="size-[18px]" />}
-            name="Big day"
-            when="±5% · 09:00"
-            area="var(--color-state-danger)"
+            name="Close"
+            when="TRADING DAYS · 21:30"
+            area="var(--color-lav-400)"
           />
           <TestButton />
         </>

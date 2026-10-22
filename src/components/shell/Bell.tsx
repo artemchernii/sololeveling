@@ -2,10 +2,8 @@ import { useNavigate } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import {
-  ArrowLeftRight,
   Bell as BellIcon,
   CalendarClock,
-  CalendarDays,
   Coins,
   FileCheck,
   FileX,
@@ -20,7 +18,6 @@ import { renderSVG } from 'uqr'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
-import { TickerLogo } from '@/components/finances/Logo'
 import { deviceOf } from '@/lib/push'
 
 /* N1 (15 Oct). The bell, as design/notifications-mockup draws it: today's
@@ -66,28 +63,17 @@ const KIND: Record<
     icon: <TrendingUp className="size-[18px]" />,
     area: 'var(--color-state-good)',
   },
-  /* N3 (22 Oct): drawn as the company's mark, the kind in its corner. */
-  earnings: {
-    icon: <CalendarDays className="size-[18px]" />,
-    area: 'var(--color-lav-400)',
-  },
-  call_change: {
-    icon: <ArrowLeftRight className="size-[18px]" />,
-    area: 'var(--color-state-good)',
-  },
-  big_day: {
+  /* CLOSE (22 Oct): the day's report; red with ▼ in its title. */
+  day_close: {
     icon: <TrendingUp className="size-[18px]" />,
     area: 'var(--color-state-good)',
   },
 }
 
-/* A move down is red, its arrow down: the title says ▼ (N3). */
 function kindOf(n: Doc<'notifications'>) {
-  const k = KIND[n.kind]
-  if (!n.title.includes('▼')) return k
+  if (n.kind !== 'day_close' || !n.title.includes('▼')) return KIND[n.kind]
   return {
-    icon:
-      n.kind === 'big_day' ? <TrendingDown className="size-[18px]" /> : k.icon,
+    icon: <TrendingDown className="size-[18px]" />,
     area: 'var(--color-state-danger)',
   }
 }
@@ -129,33 +115,14 @@ function Row({
       }
     >
       {unread ? <span aria-hidden className="nt-glow-blob" /> : null}
-      {n.share ? (
-        <span data-testid="bell-logo" className="relative size-11 shrink-0">
-          <TickerLogo
-            symbol={n.share.symbol}
-            type={n.share.type}
-            name={n.share.name}
-            size={44}
-          />
-          <span
-            className={[
-              'absolute -right-1.5 -bottom-1.5 grid size-[22px] place-items-center rounded-[8px] border border-[color-mix(in_oklch,var(--a)_55%,transparent)] bg-[color-mix(in_oklch,var(--a)_30%,var(--color-background))] text-[var(--a)] [&_svg]:size-3',
-              unread ? 'shadow-[0_0_10px_-2px_var(--a)]' : '',
-            ].join(' ')}
-          >
-            {k.icon}
-          </span>
-        </span>
-      ) : (
-        <span
-          className={[
-            'relative grid size-11 shrink-0 place-items-center rounded-[13px] border border-[color-mix(in_oklch,var(--a)_40%,transparent)] bg-[color-mix(in_oklch,var(--a)_20%,transparent)] text-[var(--a)]',
-            unread ? 'shadow-[0_0_16px_-4px_var(--a)]' : '',
-          ].join(' ')}
-        >
-          {k.icon}
-        </span>
-      )}
+      <span
+        className={[
+          'relative grid size-11 shrink-0 place-items-center rounded-[13px] border border-[color-mix(in_oklch,var(--a)_40%,transparent)] bg-[color-mix(in_oklch,var(--a)_20%,transparent)] text-[var(--a)]',
+          unread ? 'shadow-[0_0_16px_-4px_var(--a)]' : '',
+        ].join(' ')}
+      >
+        {k.icon}
+      </span>
       <span className="relative min-w-0">
         <span
           className={[

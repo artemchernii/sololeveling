@@ -1,12 +1,15 @@
 import { useMutation } from 'convex/react'
 import {
+  ArrowLeftRight,
   Bell,
+  CalendarDays,
   Check,
   Coins,
   FileCheck,
   Footprints,
   KeyRound,
   Loader2,
+  TrendingDown,
   TrendingUp,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -302,6 +305,25 @@ export function PhoneWindow() {
             name="Salary"
             when="WHEN IN · 09:00"
             area="var(--color-state-good)"
+          />
+          {/* N3 (22 Oct): the shares held, each morning at 09:00. */}
+          <Source
+            icon={<CalendarDays className="size-[18px]" />}
+            name="Earnings"
+            when="2 DAYS BEFORE · REPORTED · 09:00"
+            area="var(--color-lav-400)"
+          />
+          <Source
+            icon={<ArrowLeftRight className="size-[18px]" />}
+            name="ADD · HOLD · WAIT"
+            when="WHEN IT CHANGES · 09:00"
+            area="var(--color-state-good)"
+          />
+          <Source
+            icon={<TrendingDown className="size-[18px]" />}
+            name="Big day"
+            when="±5% · 09:00"
+            area="var(--color-state-danger)"
           />
           <TestButton />
         </>

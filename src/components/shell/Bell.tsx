@@ -2,14 +2,17 @@ import { useNavigate } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import {
+  ArrowLeftRight,
   Bell as BellIcon,
   CalendarClock,
+  CalendarDays,
   Coins,
   FileCheck,
   FileX,
   KeyRound,
   Laptop,
   Smartphone,
+  TrendingDown,
   TrendingUp,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -17,6 +20,7 @@ import { renderSVG } from 'uqr'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
+import { TickerLogo } from '@/components/finances/Logo'
 import { deviceOf } from '@/lib/push'
 
 /* N1 (15 Oct). The bell, as design/notifications-mockup draws it: today's
@@ -62,6 +66,30 @@ const KIND: Record<
     icon: <TrendingUp className="size-[18px]" />,
     area: 'var(--color-state-good)',
   },
+  /* N3 (22 Oct): drawn as the company's mark, the kind in its corner. */
+  earnings: {
+    icon: <CalendarDays className="size-[18px]" />,
+    area: 'var(--color-lav-400)',
+  },
+  call_change: {
+    icon: <ArrowLeftRight className="size-[18px]" />,
+    area: 'var(--color-state-good)',
+  },
+  big_day: {
+    icon: <TrendingUp className="size-[18px]" />,
+    area: 'var(--color-state-good)',
+  },
+}
+
+/* A move down is red, its arrow down: the title says ▼ (N3). */
+function kindOf(n: Doc<'notifications'>) {
+  const k = KIND[n.kind]
+  if (!n.title.includes('▼')) return k
+  return {
+    icon:
+      n.kind === 'big_day' ? <TrendingDown className="size-[18px]" /> : k.icon,
+    area: 'var(--color-state-danger)',
+  }
 }
 
 const time = (ms: number) =>
@@ -79,7 +107,7 @@ function Row({
   i: number
   onOpen: (n: Doc<'notifications'>) => void
 }) {
-  const k = KIND[n.kind]
+  const k = kindOf(n)
   const unread = n.readAt === undefined
   /* Unread is lit — a lavender edge, its area's glow breathing, NEW and a
      pinging dot; seen is dimmed with a tick (15 Oct: "when already viewed
@@ -101,14 +129,33 @@ function Row({
       }
     >
       {unread ? <span aria-hidden className="nt-glow-blob" /> : null}
-      <span
-        className={[
-          'relative grid size-11 shrink-0 place-items-center rounded-[13px] border border-[color-mix(in_oklch,var(--a)_40%,transparent)] bg-[color-mix(in_oklch,var(--a)_20%,transparent)] text-[var(--a)]',
-          unread ? 'shadow-[0_0_16px_-4px_var(--a)]' : '',
-        ].join(' ')}
-      >
-        {k.icon}
-      </span>
+      {n.share ? (
+        <span data-testid="bell-logo" className="relative size-11 shrink-0">
+          <TickerLogo
+            symbol={n.share.symbol}
+            type={n.share.type}
+            name={n.share.name}
+            size={44}
+          />
+          <span
+            className={[
+              'absolute -right-1.5 -bottom-1.5 grid size-[22px] place-items-center rounded-[8px] border border-[color-mix(in_oklch,var(--a)_55%,transparent)] bg-[color-mix(in_oklch,var(--a)_30%,var(--color-background))] text-[var(--a)] [&_svg]:size-3',
+              unread ? 'shadow-[0_0_10px_-2px_var(--a)]' : '',
+            ].join(' ')}
+          >
+            {k.icon}
+          </span>
+        </span>
+      ) : (
+        <span
+          className={[
+            'relative grid size-11 shrink-0 place-items-center rounded-[13px] border border-[color-mix(in_oklch,var(--a)_40%,transparent)] bg-[color-mix(in_oklch,var(--a)_20%,transparent)] text-[var(--a)]',
+            unread ? 'shadow-[0_0_16px_-4px_var(--a)]' : '',
+          ].join(' ')}
+        >
+          {k.icon}
+        </span>
+      )}
       <span className="relative min-w-0">
         <span
           className={[

@@ -5,6 +5,7 @@ import {
 } from '@clerk/tanstack-react-start'
 import { Plus, Search } from 'lucide-react'
 
+import { Star } from '@/components/finances/insights/Ask'
 import { Bell } from './Bell'
 import { ConnectionStatus } from './ConnectionStatus'
 import { Key } from './Key'
@@ -36,9 +37,12 @@ import { Key } from './Key'
 export function TopBar({
   onLog,
   onSearch,
+  onAsk,
 }: {
   onLog: () => void
   onSearch: () => void
+  /** R7 Ask AI's drawer (⌘J), beside Search; on a phone the star alone. */
+  onAsk: () => void
 }) {
   return (
     <header className="glass-bar sticky top-0 z-20 flex h-[58px] shrink-0 items-center justify-between px-[18px] lg:px-6">
@@ -78,6 +82,22 @@ export function TopBar({
           Search
           <span className="ml-auto">
             <Key>⌘K</Key>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          data-testid="rows-open"
+          onClick={onAsk}
+          className="r7-topask"
+          aria-label="Ask"
+        >
+          <span className="o">
+            <Star />
+          </span>
+          <span className="w">Ask</span>
+          <span className="k">
+            <Key>⌘J</Key>
           </span>
         </button>
 

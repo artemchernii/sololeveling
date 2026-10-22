@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ask on cards mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* Insights — Finances' fourth room. Round 4 (19 Oct): "a bit bland, no
+     logos, no badges … all over the place". One 12-column grid, four
+     numbered bands (THE MARKET · WHAT IT MEANS · MINE · NEXT), logos the
+     way src/lib/logo.ts finds them, emoji as in src/lib/tags.ts.
+     Sample numbers, not his data. */
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150); --bad: oklch(0.68 0.2 22); --warn: oklch(0.79 0.15 75);
+    --glass: linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
+    --edge: rgba(233,233,237,.09);
+    --shadow: inset 0 1px 0 rgba(233,233,237,.08), 0 24px 48px -28px rgba(0,0,0,.9);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --money: oklch(0.8 0.1 88);
+    --k-etf: oklch(0.78 0.11 250); --k-stock: oklch(0.8 0.12 300); --k-coin: oklch(0.82 0.13 75);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font: 13px/1.4 Inter, system-ui, sans-serif; min-height: 100vh }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 16px 16px 80px; display:flex; flex-direction:column; gap: 14px }
+  .caps { font: 500 9.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .was { font: 10.5px var(--mono); color: var(--ink-500) }
+  .good { color: var(--good) } .bad { color: var(--bad) } .warnc { color: var(--warn) }
+  .row { display:flex; align-items:center; gap: 8px }
+  .grow { flex: 1; min-width: 0 }
+  .num { font-weight: 600; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums }
+
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; font: 11px var(--mono); color: var(--warn); letter-spacing: .08em; text-transform: uppercase }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  .fhead { display:flex; align-items:flex-end; justify-content:space-between; gap: 12px; flex-wrap: wrap }
+  .title { font-size: 30px; font-weight: 300; letter-spacing: -.02em }
+  .tabs { display:flex; gap: 4px; padding: 3px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.03) }
+  .tab { font: 500 10px var(--mono); letter-spacing: .18em; padding: 6px 12px; border-radius: 999px; color: var(--ink-400) }
+  .tab.on { color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 18%, transparent); box-shadow: 0 0 16px -6px var(--shine) }
+
+  .band { display:flex; align-items:center; gap: 10px; margin-top: 10px }
+  .band b { font: 700 11px var(--mono); letter-spacing: .3em; color: var(--ink-200) }
+  .band .n { width: 22px; height: 22px; border-radius: 7px; display:grid; place-items:center; font: 700 11px var(--mono); color: var(--lav-300); border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 12%, transparent) }
+  .band::after { content:''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--edge), transparent) }
+
+  .grid { display:grid; grid-template-columns: repeat(12, 1fr); gap: 12px; align-items: stretch }
+  .c3 { grid-column: span 3 } .c4 { grid-column: span 4 } .c5 { grid-column: span 5 } .c7 { grid-column: span 7 } .c8 { grid-column: span 8 } .c12 { grid-column: span 12 }
+  @media (max-width: 1000px) { .c3 { grid-column: span 6 } .c4, .c5, .c7, .c8 { grid-column: span 12 } }
+  @media (max-width: 560px) { .c3 { grid-column: span 12 } }
+
+  .tile { position: relative; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 16px; display:flex; flex-direction:column; gap: 12px; min-width: 0; overflow: hidden;
+    transition: transform .25s cubic-bezier(.2,.8,.2,1), border-color .25s, box-shadow .25s; animation: arrive .55s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 50ms) }
+  .tile:hover { transform: translateY(-2px); border-color: color-mix(in oklch, var(--a, var(--lav-400)) 45%, transparent); box-shadow: var(--shadow), 0 0 32px -14px var(--a, var(--shine)) }
+  .tile.lit { border-color: var(--lav-400) !important; box-shadow: var(--shadow), 0 0 0 1px var(--lav-400), 0 0 34px -8px var(--shine) !important }
+  @keyframes arrive { from { opacity: 0; transform: translateY(10px) scale(.985) } }
+  .thead { display:flex; align-items:center; gap: 10px; min-height: 24px }
+  .tname { font: 700 10.5px var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--ink-200) }
+  .ico { width: 24px; height: 24px; border-radius: 8px; display:grid; place-items:center; flex: none; font-size: 13px; background: color-mix(in oklch, var(--a, var(--lav-400)) 16%, transparent); border: 1px solid color-mix(in oklch, var(--a, var(--lav-400)) 35%, transparent) }
+
+  .sys { border-color: var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.11), rgba(181,171,252,.02) 45%), var(--glass); box-shadow: var(--shadow), 0 0 40px -18px var(--shine) }
+  .sys::after { content:''; position:absolute; inset:-1px; border:2px solid var(--lav-400); border-radius:15px; pointer-events:none; z-index: 3; --r: 20px;
+    mask: linear-gradient(#000 0 0) top left/var(--r) var(--r), linear-gradient(#000 0 0) top right/var(--r) var(--r), linear-gradient(#000 0 0) bottom left/var(--r) var(--r), linear-gradient(#000 0 0) bottom right/var(--r) var(--r); mask-repeat:no-repeat; animation: corners 3.2s ease-in-out infinite }
+  @keyframes corners { 0%,100% { filter: drop-shadow(0 0 3px var(--shine)); opacity: .75 } 50% { filter: drop-shadow(0 0 9px var(--shine)); opacity: 1 } }
+  .sys-title { font: 500 11px var(--mono); letter-spacing: .34em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 12px var(--shine) }
+
+  .badge { font: 600 9.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid currentColor; display:inline-flex; gap: 5px; align-items:center; white-space: nowrap }
+  .b-good { color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent) }
+  .b-bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 12%, transparent) }
+  .b-warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 12%, transparent) }
+  .b-lav { color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 14%, transparent) }
+  .b-dim { color: var(--ink-400); font-weight: 500 }
+  .b-dash { border-style: dashed }
+  .live::before { content:''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: ping 1.6s ease-out infinite }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 currentColor } 80%,100% { box-shadow: 0 0 0 7px transparent } }
+  @keyframes pop { from { transform: scale(.4); opacity: 0 } }
+  @keyframes typeIn { from { opacity: 0; transform: translateY(4px) } }
+  .fact { font: 500 10px var(--mono); letter-spacing: .04em; color: var(--ink-200); padding: 3px 8px; border-radius: 6px; background: rgba(255,255,255,.05); border: 1px solid var(--edge); white-space: nowrap }
+  .facts { display:flex; gap: 5px; flex-wrap: wrap }
+
+  .logo { width: 30px; height: 30px; border-radius: 9px; flex: none; display:grid; place-items:center; background: #fff; overflow:hidden; border: 1px solid var(--edge) }
+  .logo img { width: 100%; height: 100%; object-fit: contain }
+  .logo.coin { border-radius: 50%; background: transparent; border: 0 }
+  .logo.site img { width: 70%; height: 70% }
+  .logo.emo { background: rgba(255,255,255,.06); font-size: 16px }
+  .logo.sm { width: 20px; height: 20px; border-radius: 6px }
+  .logo.sm.emo { font-size: 11px }
+  .logo.metal { background: radial-gradient(circle at 35% 30%, #ffe9a3, #c9971f); border-radius: 50%; border: 0 }
+
+  .i { display:inline-grid; place-items:center; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--ink-500); color: var(--ink-400); font: 700 9px var(--mono); cursor: pointer; flex: none; transition: all .15s }
+  .i:hover, .i.on { color: var(--lav-300); border-color: var(--lav-400); box-shadow: 0 0 10px -3px var(--shine) }
+  .card { position: fixed; z-index: 50; width: 310px; padding: 14px; border-radius: 12px; border: 1px solid var(--sys-edge); background: #1d1e30f5; backdrop-filter: blur(12px); box-shadow: 0 20px 40px -12px rgba(0,0,0,.8), 0 0 30px -12px var(--shine); display:none; flex-direction:column; gap: 8px; animation: pop .3s cubic-bezier(.3,1.6,.5,1) both }
+  .card.open { display:flex }
+  .card h4 { font: 700 11px var(--mono); letter-spacing: .2em; color: var(--lav-300) }
+  .card .k { font: 500 9px var(--mono); letter-spacing: .14em; color: var(--ink-500) }
+  .card p { font-size: 12.5px; line-height: 1.55; color: var(--ink-200) }
+  .card .now { font: 600 10.5px var(--mono); color: var(--ink-100); padding: 6px 8px; border-radius: 7px; background: rgba(255,255,255,.05); border: 1px solid var(--edge) }
+
+  .hero { flex-direction: row; align-items: center; gap: 20px; padding: 20px 22px; min-height: 132px }
+  .orb { width: 64px; height: 64px; border-radius: 50%; display:grid; place-items:center; flex: none; font-size: 26px; color: var(--lav-300);
+    background: radial-gradient(circle at 35% 30%, color-mix(in oklch, var(--lav-400) 45%, transparent), color-mix(in oklch, var(--lav-400) 8%, transparent) 70%); border: 1px solid var(--sys-edge); animation: orb 3s ease-in-out infinite }
+  .orb.spin span { display:inline-block; animation: spin 1.4s linear infinite }
+  .orb.ok { color: var(--good); border-color: color-mix(in oklch, var(--good) 50%, transparent); background: radial-gradient(circle, color-mix(in oklch, var(--good) 30%, transparent), transparent 70%) }
+  @keyframes orb { 0%,100% { box-shadow: 0 0 18px -8px var(--shine) } 50% { box-shadow: 0 0 36px -4px var(--shine) } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .verdict { font: 700 26px var(--mono); letter-spacing: .12em; color: var(--good); text-shadow: 0 0 18px color-mix(in oklch, var(--good) 45%, transparent); animation: pop .5s cubic-bezier(.3,1.6,.5,1) both }
+  .btn { font: 700 11px var(--mono); letter-spacing: .2em; text-transform: uppercase; padding: 12px 20px; border-radius: 999px; cursor: pointer; color: var(--lav-300); border: 1px solid var(--lav-400); background: color-mix(in oklch, var(--lav-400) 18%, transparent); box-shadow: 0 0 22px -8px var(--shine); transition: all .2s; white-space: nowrap }
+  .btn:hover { background: color-mix(in oklch, var(--lav-400) 28%, transparent) }
+  .btn.ghost { color: var(--ink-300); border-color: var(--edge); background: rgba(255,255,255,.04); box-shadow: none; padding: 7px 12px; font-size: 10px }
+  .btn[disabled] { opacity: .4; cursor: not-allowed }
+  .scan { height: 3px; border-radius: 2px; background: rgba(255,255,255,.06); overflow:hidden; width: 260px }
+  .scan::after { content:''; display:block; height:100%; width: 35%; background: var(--lav-400); box-shadow: 0 0 10px var(--shine); animation: scan 1.3s ease-in-out infinite }
+  @keyframes scan { from { transform: translateX(-100%) } to { transform: translateX(300%) } }
+  .who { display:flex; flex-direction:column; align-items:flex-end; gap: 6px; flex: none }
+  @media (max-width: 760px) { .hero { flex-direction: column; align-items: flex-start } .who { align-items: flex-start } }
+
+  .rate .big { font-size: 32px }
+  .chg { font: 700 10px var(--mono); padding: 3px 7px; border-radius: 6px; white-space: nowrap }
+  .chg.g { color: var(--good); background: color-mix(in oklch, var(--good) 14%, transparent) }
+  .chg.r { color: var(--bad); background: color-mix(in oklch, var(--bad) 14%, transparent) }
+  .foot { display:flex; justify-content:space-between; align-items:center; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px dashed var(--edge) }
+
+  .mkts { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px }
+  @media (max-width: 1000px) { .mkts { grid-template-columns: repeat(2, 1fr) } }
+  .mk { border-radius: 11px; padding: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.03); display:grid; grid-template-columns: 30px 1fr auto; gap: 4px 10px; align-items:center; transition: border-color .2s }
+  .mk:hover { border-color: color-mix(in oklch, var(--c) 55%, transparent) }
+  .mk .logo { grid-row: span 2 }
+  .mk .nm { font: 700 10px var(--mono); letter-spacing: .12em; color: var(--ink-200) }
+  .mk .v { font-size: 17px }
+  .mk svg { grid-column: 1 / -1; width: 100%; height: 34px; display:block; margin-top: 4px }
+  .mk polyline { fill: none; stroke: var(--c); stroke-width: 1.8; stroke-dasharray: 300; stroke-dashoffset: 300; animation: draw 1.4s cubic-bezier(.4,0,.2,1) .3s forwards }
+  .mk polygon { fill: var(--c); opacity: .1 }
+  @keyframes draw { to { stroke-dashoffset: 0 } }
+
+  .lines { display:flex; flex-direction:column; gap: 8px }
+  .ln { display:grid; grid-template-columns: 36px 1fr; gap: 12px; padding: 12px; border-radius: 11px; border: 1px solid var(--edge); background: rgba(255,255,255,.025); animation: typeIn .45s ease both; transition: border-color .15s, background .15s }
+  .ln:hover { border-color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 6%, transparent) }
+  .ln .em { width: 36px; height: 36px; border-radius: 10px; display:grid; place-items:center; font-size: 18px; background: color-mix(in oklch, var(--t) 14%, transparent); border: 1px solid color-mix(in oklch, var(--t) 40%, transparent) }
+  .ln h3 { font-size: 14px; font-weight: 700; color: var(--ink-100) }
+  .ln p { font-size: 12.5px; color: var(--ink-300); margin: 3px 0 8px }
+  .means { font: 700 9.5px var(--mono); letter-spacing: .14em; color: var(--lav-400); cursor: pointer; margin-top: 8px; display:inline-flex; gap: 4px; align-items:center }
+  .means::after { content: '▾' }
+  .open .means::after { content: '▴' }
+  .plain { display:none; margin-top: 8px; padding: 10px 12px; border-radius: 9px; border-left: 3px solid var(--lav-400); background: color-mix(in oklch, var(--lav-400) 8%, transparent); font-size: 13px; line-height: 1.6; color: var(--ink-200) }
+  .open .plain { display:block; animation: typeIn .3s ease both }
+  .plain b { color: var(--ink-100); font-weight: 600 }
+  .after { flex: 1; display:flex; flex-direction:column; gap: 8px; align-items:center; justify-content:center; border: 1px dashed var(--edge); border-radius: 11px; min-height: 160px }
+  .srcs { display:flex; gap: 6px; flex-wrap: wrap; align-items:center }
+  .src { display:inline-flex; gap: 6px; align-items:center; font: 500 10px var(--mono); color: var(--lav-300); padding: 3px 8px 3px 4px; border-radius: 7px; border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 6%, transparent); cursor: pointer }
+  .src img { width: 14px; height: 14px; border-radius: 3px; background: #fff }
+
+  .heat { display:flex; flex-direction:column; gap: 4px; flex: 1 }
+  .hrow { display:grid; gap: 4px; flex: 1 }
+  .hc { position: relative; border-radius: 8px; padding: 8px; min-height: 62px; display:flex; flex-direction:column; justify-content:space-between; gap: 4px; overflow:hidden; cursor: pointer; transition: transform .15s, box-shadow .15s; animation: pop .45s cubic-bezier(.3,1.6,.5,1) both }
+  .hc:hover { transform: scale(1.03); z-index: 2; box-shadow: 0 0 0 1px #fff }
+  .hc .top { display:flex; align-items:center; gap: 6px; min-width: 0 }
+  .hc .n { font: 700 10px var(--mono); letter-spacing: .06em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .hc .v { font: 700 12px var(--mono); color: #fff }
+  .hc .e { font: 400 10px var(--mono); color: rgba(255,255,255,.75) }
+  .hc .own { position:absolute; bottom: 8px; right: 8px; font: 700 8px var(--mono); letter-spacing: .1em; color: #161826; background: #fff; padding: 1px 5px; border-radius: 4px }
+  .hc.big { min-height: 112px } .hc.big .n { font-size: 11.5px } .hc.big .v { font-size: 18px }
+  .hc.frozen { background: repeating-linear-gradient(45deg, rgba(255,255,255,.06) 0 6px, rgba(255,255,255,.02) 6px 12px) !important; border: 1px dashed var(--ink-600) }
+  .hscale { display:flex; align-items:center; gap: 6px }
+  .hscale i { width: 110px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, #dc2626, #262838, #16a34a) }
+
+  .alloc { display:flex; flex-direction:column; gap: 14px }
+  .al { display:grid; grid-template-columns: 26px 1fr 92px; gap: 10px; align-items:center }
+  .al .em { font-size: 16px; text-align:center }
+  .al .nm { font: 700 10px var(--mono); letter-spacing: .14em; color: var(--ink-200); margin-bottom: 5px }
+  .bars2 { display:flex; flex-direction:column; gap: 3px }
+  .bar { height: 9px; border-radius: 4px; background: rgba(255,255,255,.06); overflow:hidden }
+  .bar b { display:block; height:100%; border-radius: 4px; background: var(--k); transform-origin:left; animation: fill 1s cubic-bezier(.2,.8,.2,1) .4s both }
+  .bar.ref b { background: repeating-linear-gradient(90deg, var(--ink-400) 0 4px, transparent 4px 7px); opacity: .8 }
+  @keyframes fill { from { transform: scaleX(0) } }
+  .al .vals { text-align:right; display:flex; flex-direction:column; gap: 2px }
+  .al .vals strong { font: 700 14px var(--mono) }
+  .legend { display:flex; gap: 14px }
+  .legend span { display:inline-flex; gap: 6px; align-items:center; font: 500 9.5px var(--mono); color: var(--ink-400); letter-spacing: .08em }
+  .legend i { width: 16px; height: 8px; border-radius: 3px; background: var(--ink-200) }
+  .legend i.d { background: transparent; border: 1px dashed var(--ink-300) }
+
+  .idea .tk { font-size: 15px; font-weight: 700; letter-spacing: .02em }
+  .idea .co { font-size: 11.5px; color: var(--ink-400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .idea .why { font-size: 13px; font-weight: 600; color: var(--ink-100); min-height: 36px }
+  .bb { display:grid; grid-template-columns: 78px 1fr; gap: 6px 8px; font-size: 12.5px }
+  .bb span:nth-child(odd) { font: 700 9.5px var(--mono); letter-spacing: .1em; padding-top: 2px }
+
+  .thread { display:flex; flex-direction:column; gap: 12px; max-height: 360px; overflow:auto; padding-right: 4px }
+  .q { align-self: flex-end; max-width: 70%; padding: 9px 14px; border-radius: 14px 14px 4px 14px; background: color-mix(in oklch, var(--lav-400) 20%, transparent); border: 1px solid var(--sys-edge); font-size: 13px; font-weight: 500 }
+  .a { align-self: flex-start; display:grid; grid-template-columns: 28px 1fr; gap: 10px; max-width: 86%; animation: typeIn .4s ease both }
+  .a .av { width: 28px; height: 28px; border-radius: 50%; display:grid; place-items:center; color: var(--lav-300); border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 14%, transparent); font-size: 12px }
+  .a .body { padding: 10px 14px; border-radius: 4px 14px 14px 14px; background: rgba(255,255,255,.04); border: 1px solid var(--edge); font-size: 13px; line-height: 1.6; color: var(--ink-200); display:flex; flex-direction:column; gap: 8px }
+  .a .body b { color: var(--ink-100); font-weight: 600 }
+  .askbar { display:flex; gap: 8px; align-items:center }
+  .askbar input { flex: 1; min-width: 0; background: rgba(255,255,255,.05); border: 1px solid var(--edge); border-radius: 999px; color: var(--ink-100); font: 14px Inter, sans-serif; padding: 12px 16px; outline: none }
+  .askbar input:focus { border-color: var(--lav-400); box-shadow: 0 0 16px -6px var(--shine) }
+  .web { font: 700 10px var(--mono); letter-spacing: .12em; padding: 11px 14px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.04); color: var(--ink-400); cursor: pointer; white-space: nowrap; transition: all .2s }
+  .web.on { color: var(--lav-300); border-color: var(--lav-400); background: color-mix(in oklch, var(--lav-400) 16%, transparent); box-shadow: 0 0 14px -5px var(--shine) }
+  .sugg { display:flex; gap: 6px; flex-wrap: wrap }
+  .sugg span { font: 500 11.5px Inter, sans-serif; padding: 6px 12px; border-radius: 999px; border: 1px dashed var(--sys-edge); color: var(--lav-300); cursor: pointer; transition: background .15s }
+  .sugg span:hover { background: color-mix(in oklch, var(--lav-400) 12%, transparent) }
+  .typing { display:inline-flex; gap: 4px } .typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--lav-400); animation: blink 1s infinite } .typing i:nth-child(2) { animation-delay: .15s } .typing i:nth-child(3) { animation-delay: .3s }
+  @keyframes blink { 0%,100% { opacity: .25 } 50% { opacity: 1 } }
+
+  .chip { font: 700 10px var(--mono); letter-spacing: .1em; padding: 5px 10px; border-radius: 999px; border: 1px solid color-mix(in oklch, var(--k, var(--money)) 45%, transparent); color: var(--k, var(--money)); background: color-mix(in oklch, var(--k, var(--money)) 10%, transparent) }
+  .track { height: 9px; border-radius: 5px; background: rgba(255,255,255,.07); overflow:hidden }
+  .track b { display:block; height:100%; border-radius: 5px; background: var(--money); transform-origin: left; animation: fill 1s cubic-bezier(.2,.8,.2,1) .3s both; box-shadow: 0 0 12px -2px var(--money) }
+  .planin { width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--lav-400); border-radius: 10px; color: var(--ink-100); font: 15px Inter, sans-serif; padding: 12px; outline: none; box-shadow: 0 0 18px -6px var(--shine) }
+  .stat { display:flex; flex-direction:column; gap: 8px; padding-top: 12px; border-top: 1px dashed var(--edge) }
+  .stat .num { font-size: 26px }
+
+  /* Round 5 (19 Oct, his marks): no check orb; periods 1D·1W·1M·1Y fetched
+     on open; a stock heatmap by sector; verdicts named on each position;
+     an opinion under allocation; no plan tile. */
+  .hero { display:grid; grid-template-columns: 1fr auto; gap: 24px; padding: 22px 24px 22px 28px; align-items: stretch }
+  .hero::before { content:''; position:absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: var(--mood); box-shadow: 0 0 18px var(--mood) }
+  .headline { font-size: 30px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1 }
+  .headline em { font-style: normal; color: var(--mood); text-shadow: 0 0 22px color-mix(in oklch, var(--mood) 40%, transparent) }
+  .summary { font-size: 14px; line-height: 1.6; color: var(--ink-200); max-width: 720px }
+  .summary b { color: var(--ink-100); font-weight: 600 }
+  .kpis { display:flex; gap: 8px; flex-wrap: wrap }
+  .kpi { display:flex; align-items:center; gap: 8px; padding: 6px 10px 6px 6px; border-radius: 10px; border: 1px solid var(--edge); background: rgba(255,255,255,.04) }
+  .kpi .k { font: 600 9px var(--mono); letter-spacing: .12em; color: var(--ink-400) }
+  .kpi .v { font: 700 13px var(--mono) }
+  .stamp { display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; gap: 10px; min-width: 210px; padding-left: 20px; border-left: 1px dashed var(--edge) }
+  .stamp .m { display:flex; align-items:center; gap: 8px; font: 700 11px var(--mono); letter-spacing: .1em; color: var(--lav-300) }
+  .stamp .m img { width: 18px; height: 18px; border-radius: 5px; background: #fff }
+  @media (max-width: 760px) { .hero { grid-template-columns: 1fr } .stamp { align-items:flex-start; border-left: 0; padding-left: 0; border-top: 1px dashed var(--edge); padding-top: 12px } }
+
+  .seg { display:inline-flex; padding: 3px; gap: 2px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.03) }
+  .seg button { font: 700 10px var(--mono); letter-spacing: .12em; padding: 5px 12px; border-radius: 999px; border: 0; background: transparent; color: var(--ink-400); cursor: pointer; transition: all .15s }
+  .seg button.on { color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 22%, transparent); box-shadow: 0 0 14px -5px var(--shine) }
+
+  /* stock heatmap: sectors as groups, the biggest companies inside */
+  .tmap { display:flex; flex-direction:column; gap: 4px }
+  .trow { display:flex; gap: 4px }
+  .grp { display:flex; flex-direction:column; gap: 3px; padding: 3px; border-radius: 9px; background: rgba(255,255,255,.04); border: 1px solid var(--edge); min-width: 0 }
+  .grp .gh { display:flex; align-items:center; gap: 6px; padding: 3px 5px 2px; font: 700 10px var(--mono); letter-spacing: .1em; color: var(--ink-200); white-space: nowrap; overflow: hidden }
+  .grp .gh .p { margin-left: auto }
+  .gin { display:flex; gap: 3px; flex: 1; min-height: 0 }
+  .gcol { display:flex; flex-direction:column; gap: 3px; min-width: 0 }
+  .st { position: relative; border-radius: 6px; padding: 6px; display:flex; flex-direction:column; align-items:flex-start; justify-content:space-between; gap: 2px; min-width: 0; min-height: 0; overflow:hidden; cursor: pointer; transition: transform .15s, box-shadow .15s; animation: pop .4s cubic-bezier(.3,1.6,.5,1) both }
+  .st:hover { transform: scale(1.04); z-index: 2; box-shadow: 0 0 0 1px #fff }
+  .st .t { display:flex; align-items:center; gap: 5px; font: 700 10px var(--mono); color: #fff; white-space: nowrap }
+  .st .c { font: 700 11px var(--mono); color: #fff }
+  .st.lg .t { font-size: 12px } .st.lg .c { font-size: 16px } .st.lg .logo.sm { width: 24px; height: 24px }
+  .st .mine { position:absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px rgba(0,0,0,.25), 0 0 10px #fff }
+  .regions { display:flex; gap: 6px; flex-wrap: wrap }
+  .reg { display:flex; align-items:center; gap: 6px; padding: 6px 10px; border-radius: 9px; font: 700 10.5px var(--mono); color: #fff }
+
+  /* how the read is made */
+  .kinds { display:grid; grid-template-columns: 1fr 1fr; gap: 6px }
+  .kind { display:flex; align-items:center; gap: 8px; padding: 7px 9px; border-radius: 9px; border: 1px solid var(--edge); background: rgba(255,255,255,.03); font: 700 10px var(--mono); letter-spacing: .1em; color: var(--ink-200) }
+  .kind span:first-child { width: 24px; height: 24px; border-radius: 7px; display:grid; place-items:center; font-size: 13px; background: color-mix(in oklch, var(--t) 14%, transparent); border: 1px solid color-mix(in oklch, var(--t) 40%, transparent) }
+  .feed { display:grid; grid-template-columns: 1fr auto; gap: 6px 10px; font-size: 12.5px; color: var(--ink-300) }
+  .feed b { font: 700 11px var(--mono); color: var(--ink-100); text-align:right }
+
+  /* positions with their verdict */
+  .hc .vd { position:absolute; bottom: 8px; right: 8px; font: 700 8.5px var(--mono); letter-spacing: .08em; padding: 2px 6px; border-radius: 4px; background: rgba(10,10,20,.55); border: 1px solid currentColor }
+  .vd.add { color: #b7f7c9 } .vd.hold { color: var(--lav-300) } .vd.wait { color: #ffd98a }
+  .vleg { display:grid; grid-template-columns: repeat(3, 1fr); gap: 6px }
+  .vleg div { display:flex; flex-direction:column; gap: 3px; padding: 8px 10px; border-radius: 9px; border: 1px solid color-mix(in oklch, var(--c) 35%, transparent); background: color-mix(in oklch, var(--c) 8%, transparent) }
+  .vleg b { font: 700 11px var(--mono); letter-spacing: .1em; color: var(--c) }
+  .vleg span { font-size: 11.5px; color: var(--ink-300) }
+
+  .opinion { display:grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 12px; border-radius: 11px; border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 8%, transparent) }
+  .opinion .av { width: 30px; height: 30px; border-radius: 50%; display:grid; place-items:center; color: var(--lav-300); border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 14%, transparent) }
+  .opinion p { font-size: 13px; line-height: 1.6; color: var(--ink-200) } .opinion b { color: var(--ink-100) }
+
+  /* idea cards, round 5 */
+  .idea { padding: 0; gap: 0 }
+  .idea .top { padding: 14px 16px 12px; display:flex; flex-direction:column; gap: 10px; border-bottom: 1px solid var(--edge); background: linear-gradient(180deg, color-mix(in oklch, var(--tone) 12%, transparent), transparent) }
+  .idea .logo { width: 38px; height: 38px; border-radius: 11px }
+  .idea .px { display:flex; align-items:baseline; gap: 8px }
+  .idea .px .num { font-size: 22px }
+  .idea svg { width: 100%; height: 36px; display:block }
+  .idea svg polyline { fill: none; stroke: var(--tone); stroke-width: 1.8 }
+  .idea svg polygon { fill: var(--tone); opacity: .12 }
+  .idea .bot { padding: 12px 16px 14px; display:flex; flex-direction:column; gap: 10px; flex: 1 }
+  .case { display:grid; grid-template-columns: 22px 1fr; gap: 8px; align-items:flex-start; font-size: 12.5px; color: var(--ink-200) }
+  .case i { font-style: normal; width: 22px; height: 22px; border-radius: 6px; display:grid; place-items:center; font: 700 11px var(--mono) }
+  .case .bu { color: var(--good); background: color-mix(in oklch, var(--good) 14%, transparent) }
+  .case .be { color: var(--bad); background: color-mix(in oklch, var(--bad) 14%, transparent) }
+  .case .wr { color: var(--warn); background: color-mix(in oklch, var(--warn) 14%, transparent) }
+
+  /* Tabs and the ASK drawer (21 Oct, his "maybe lets devided this page into tabs … chat maybe can be like a floating or drawer") */
+  .itabs { position: sticky; top: 0; z-index: 20; display:flex; gap: 6px; padding: 8px; border-radius: 14px; border: 1px solid var(--edge); background: color-mix(in oklch, var(--bg) 80%, transparent); backdrop-filter: blur(14px); overflow-x: auto }
+  .itab { flex: 1; min-width: max-content; display:flex; align-items:center; justify-content:center; gap: 8px; padding: 10px 14px; border-radius: 10px; border: 1px solid transparent; cursor: pointer; color: var(--ink-300); font: 700 10.5px var(--mono); letter-spacing: .18em; transition: all .2s; background: none }
+  .itab .n { width: 20px; height: 20px; border-radius: 6px; display:grid; place-items:center; font-size: 10px; color: var(--lav-300); border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 12%, transparent); letter-spacing: 0 }
+  .itab:hover { color: var(--ink-100); background: rgba(255,255,255,.04) }
+  .itab.on { color: var(--ink-100); border-color: var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 14%, transparent); box-shadow: 0 0 22px -10px var(--shine) }
+  .itab .badge { letter-spacing: .08em }
+  .panel { display:none; flex-direction: column; gap: 14px }
+  .panel.on { display:flex; animation: arrive .35s cubic-bezier(.2,.8,.2,1) both }
+  .panel > .band:first-child { display:none }
+  .goto { font: 700 9.5px var(--mono); letter-spacing: .12em; color: var(--lav-300); border: 1px solid var(--sys-edge); border-radius: 999px; padding: 3px 8px; background: none; cursor: pointer; margin-top: 8px }
+  .goto:hover { background: color-mix(in oklch, var(--lav-400) 14%, transparent) }
+  .fab { position: fixed; right: 88px; bottom: 20px; height: 56px; box-sizing: border-box; z-index: 40; display:flex; align-items:center; gap: 10px; padding: 0 13px; border-radius: 999px; cursor: pointer; color: var(--lav-300); font: 700 11px var(--mono); letter-spacing: .2em;
+    border: 1px solid var(--lav-400); background: radial-gradient(circle at 30% 30%, color-mix(in oklch, var(--lav-400) 40%, #1c1d2e), #1c1d2e 75%); box-shadow: 0 0 30px -6px var(--shine), 0 12px 30px -12px #000; animation: orb 3s ease-in-out infinite; transition: transform .2s }
+  .fab:hover { transform: translateY(-2px) }
+  .fab .o { flex: none; letter-spacing: 0; width: 30px; height: 30px; border-radius: 50%; display:grid; place-items:center; font-size: 14px; border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 18%, transparent) }
+  
+  .star { width: 14px; height: 14px; display:block }
+  .fab.busy .star { animation: spin 1.4s linear infinite }
+  .fab .w { margin-right: -.2em; line-height: 1 }
+  .fab .cnt { flex: none; min-width: 20px; height: 20px; border-radius: 999px; display:grid; place-items:center; font-size: 10px; letter-spacing: 0; color: #1c1d2e; background: var(--lav-300) }
+  .palm { position: fixed; right: 20px; bottom: 20px; z-index: 40; width: 56px; height: 56px; border-radius: 50%; display:grid; place-items:center; font-size: 28px; background: linear-gradient(160deg, #ffb36b, #6fd6c8) }
+  .scrim { position: fixed; inset: 0; z-index: 45; background: rgba(5,6,14,.45); opacity: 0; pointer-events: none; transition: opacity .3s }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; width: min(440px, 100vw); display:flex; flex-direction: column; border-left: 1px solid var(--sys-edge);
+    background: linear-gradient(160deg, rgba(181,171,252,.12), rgba(181,171,252,.02) 45%), #171827; box-shadow: -30px 0 60px -30px #000, 0 0 40px -18px var(--shine); transform: translateX(105%); transition: transform .42s cubic-bezier(.2,.8,.2,1) }
+  .open .scrim { opacity: 1; pointer-events: auto } .open .drawer { transform: none }
+  .drawer .dh { display:flex; align-items:center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--edge) }
+  .drawer .x { margin-left: auto; width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--edge); background: rgba(255,255,255,.04); color: var(--ink-200); cursor: pointer; font-size: 14px }
+  .drawer iframe { flex: 1; border: 0; width: 100%; background: transparent }
+  @media (max-width: 640px) {
+    .drawer { top: auto; left: 0; width: 100vw; height: 86vh; border-left: 0; border-top: 1px solid var(--sys-edge); border-radius: 18px 18px 0 0; transform: translateY(105%) }
+    .drawer::before { content:''; width: 40px; height: 4px; border-radius: 2px; background: var(--ink-600); margin: 8px auto 0 }
+    .fab { right: 84px; bottom: 20px } .itab { flex: none }
+  }
+
+  /* ✦ ASK on cards (21 Oct): a small ✦ on a read line, a box, an allocation line, an idea card */
+  .qa { flex: none; display:inline-grid; place-items:center; width: 22px; height: 22px; padding: 0; border-radius: 50%; cursor: pointer; color: var(--lav-300); border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 12%, rgba(10,10,20,.4)); transition: transform .15s, background .15s, box-shadow .15s }
+  .qa svg { width: 11px; height: 11px }
+  .qa:hover { transform: scale(1.12) rotate(20deg); background: color-mix(in oklch, var(--lav-400) 30%, transparent); box-shadow: 0 0 14px -2px var(--shine) }
+  .qa.wide { width: auto; height: auto; gap: 6px; display:inline-flex; align-items:center; padding: 3px 9px 3px 7px; font: 700 9.5px var(--mono); letter-spacing: .12em; margin-top: 8px }
+  .qa.press { animation: qpress .5s ease }
+  @keyframes qpress { 40% { transform: scale(1.35) rotate(90deg); box-shadow: 0 0 22px 0 var(--shine) } }
+  .hc .qa { position:absolute; top: 6px; right: 6px; width: 20px; height: 20px; opacity: .55 }
+  .hc:hover .qa, .hc .qa:focus-visible { opacity: 1 }
+  @media (hover: none) { .hc .qa { opacity: 1 } }
+  .hc .top { padding-right: 22px }
+  .al { grid-template-columns: 26px 1fr 92px 22px }
+  .ln .acts { display:flex; gap: 8px; align-items:center; flex-wrap: wrap }
+  .ln .acts > * { margin-top: 8px }
+  .idea .bot .qa.wide { align-self: flex-start; margin-top: 2px }
+  .ctl .tip { color: var(--ink-400) }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="ctl">
+    <span>mockup:</span>
+    <button data-s="idle">not read</button><button data-s="reading">reading</button><button data-s="read" class="on">read · calm</button><button data-s="mixed">read · mixed</button><button data-s="failed">failed</button><button data-s="cap">cap reached</button>
+    <span style="margin-left:10px">model:</span>
+    <button data-m="sonnet" class="on">sonnet · web</button><button data-m="haiku">haiku · no web</button>
+    <span style="margin-left:10px">runs on:</span>
+    <button data-r="local" class="on">localhost</button><button data-r="cloud">deployed</button>
+    <span style="margin-left:10px">ask:</span><button data-d="none">no question</button><button data-d="asking">asking</button><button data-d="web" class="on">answers</button><button data-d="ideas">ideas</button>
+  </div>
+
+  <div class="fhead">
+    <div style="display:flex;flex-direction:column;gap:6px"><span class="caps">FINANCES</span><span class="title">Insights</span></div>
+    <div class="tabs"><span class="tab">OVERVIEW</span><span class="tab">FLOW</span><span class="tab">PORTFOLIO</span><span class="tab on">INSIGHTS</span></div>
+  </div>
+
+  <!-- HERO -->
+  <section class="tile sys hero" style="--i:0; --mood: var(--good)" id="hero">
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+      <span class="sys-title">[ MARKET READ · OCT ]</span>
+      <div data-when="idle" style="display:flex;flex-direction:column;gap:12px">
+        <span class="headline">Not read yet</span>
+        <div class="kpis"><span class="kpi"><span class="logo sm emo">🌡️</span><span class="k">INFLATION</span></span><span class="kpi"><span class="logo sm emo">🏛️</span><span class="k">FED · ECB</span></span><span class="kpi"><span class="logo sm emo">📊</span><span class="k">MARKETS · SECTORS</span></span><span class="kpi" data-web><span class="logo sm emo">🌐</span><span class="k">NEWS</span></span><span class="kpi"><span class="logo sm emo">💼</span><span class="k">15 POSITIONS</span></span></div>
+      </div>
+      <div data-when="reading" style="display:flex;flex-direction:column;gap:12px"><span class="headline" style="color:var(--lav-300)">Reading the market…</span><div class="scan"></div><span class="caps">FED · ECB · CPI · 8 MARKETS · 30 COMPANIES · NEWS</span></div>
+      <div data-when="read" style="display:flex;flex-direction:column;gap:12px">
+        <span class="headline"><em>Rates falling</em> · shares up</span>
+        <p class="summary">Inflation cooled in the US and Europe, so the Fed is expected to <b>cut on 29 Oct</b>. Shares rose, led by <b>chips</b> — and the portfolio rode that, because <b>tech is 41% of it</b>.</p>
+        <div class="kpis">
+          <span class="kpi"><span class="logo sm emo">🇺🇸</span><span class="k">S&P 500</span><span class="v good">▲ 2.4%</span></span>
+          <span class="kpi"><span class="logo sm site"><img src="https://www.google.com/s2/favicons?domain=federalreserve.gov&sz=64"></span><span class="k">FED</span><span class="v" style="color:var(--lav-300)">29 OCT</span></span>
+          <span class="kpi"><span class="logo sm emo">💻</span><span class="k">TECH</span><span class="v good">▲ 5.8%</span></span>
+          <span class="kpi"><span class="logo sm emo">💼</span><span class="k">MINE</span><span class="v good">▲ 3.1%</span></span>
+        </div>
+      </div>
+      <div data-when="mixed" style="display:flex;flex-direction:column;gap:12px">
+        <span class="headline"><em>Mixed</em> · no clear trend</span>
+        <p class="summary">US inflation came in <b>higher than expected</b> while Europe cooled. Markets <b>swung both ways</b> and ended the month flat. No ECB data since 11 Sep.</p>
+        <div class="kpis">
+          <span class="kpi"><span class="logo sm emo">🇺🇸</span><span class="k">S&P 500</span><span class="v">▲ 0.3%</span></span>
+          <span class="kpi"><span class="logo sm emo">🌡️</span><span class="k">US CPI</span><span class="v bad">▲ 3.4%</span></span>
+          <span class="kpi"><span class="logo sm emo">💼</span><span class="k">MINE</span><span class="v bad">▼ 0.8%</span></span>
+        </div>
+      </div>
+      <div data-when="failed" style="display:flex;flex-direction:column;gap:10px"><span class="headline" style="color:var(--bad)">Reader not reached</span><span class="caps">NOTHING PAID · THE LAST READ STAYS · 19 SEP</span></div>
+      <div data-when="cap" style="display:flex;flex-direction:column;gap:10px"><span class="headline" style="color:var(--warn)">Month cap reached</span><span class="caps">CAP $2.00 · USED $2.00 · NEXT 1 NOV</span></div>
+    </div>
+    <div class="stamp">
+      <div style="display:flex;flex-direction:column;align-items:inherit;gap:8px">
+        <span class="m"><img src="https://www.google.com/s2/favicons?domain=claude.ai&sz=64"><span data-model>SONNET 5.5 · 🌐 8</span></span>
+        <span class="was" data-show="done">19 OCT 09:12 · 62K IN · 3.1K OUT</span>
+        <span class="badge b-good" data-pay>⚡ PRO PLAN · NO CREDITS</span>
+        <span class="was" data-cost>$0.24 · CAP $2.00 · USED $0.33</span>
+      </div>
+      <span data-when="idle"><button class="btn" onclick="setS('reading')">✦ READ MARKET</button></span>
+      <span data-when="failed"><button class="btn" onclick="setS('reading')">↻ TRY AGAIN</button></span>
+      <span data-when="cap"><button class="btn" disabled>✦ READ MARKET</button></span>
+      <span data-show="done"><button class="btn ghost">↻ READ AGAIN</button></span>
+    </div>
+  </section>
+
+  <!-- 1 · THE MARKET -->
+  <div class="band"><span class="n">1</span><b>THE MARKET</b><span class="caps">FETCHED ON OPEN · NOT SAVED</span></div>
+  <div class="grid" id="rates"></div>
+
+  <section class="tile" style="--i:5" data-tile="markets">
+    <div class="thead"><span class="ico" style="--a:var(--good)">📈</span><span class="tname">MARKETS</span><span class="i" data-k="index">i</span><span class="grow"></span>
+      <div class="seg" id="seg"><button data-p="1D">1D</button><button data-p="1W">1W</button><button data-p="1M" class="on">1M</button><button data-p="1Y">1Y</button></div></div>
+    <div class="mkts" id="mkts"></div>
+    <div class="foot"><span class="was" id="since">VS 18 SEP CLOSE</span><span class="was">YAHOO · FETCHED 09:14 · NOT SAVED</span></div>
+  </section>
+
+  <section class="tile" style="--i:6" data-tile="heatm">
+    <div class="thead"><span class="ico" style="--a:var(--good)">🗺️</span><span class="tname">S&P 500 · BIGGEST 30</span><span class="i" data-k="heat">i</span><span class="grow"></span><span class="badge b-dim"><span style="width:8px;height:8px;border-radius:50%;background:#fff;display:inline-block"></span> HELD</span><span class="badge b-dim" id="heatp">1M</span></div>
+    <div class="tmap" id="tmap"></div>
+    <div class="regions" id="regions"></div>
+    <div class="foot"><div class="hscale"><span class="was">−6%</span><i></i><span class="was">+6%</span></div><span class="was">BOX = COMPANY SIZE · YAHOO · NOT SAVED</span></div>
+  </section>
+
+  <!-- 2 · WHAT IT MEANS -->
+  <div class="band"><span class="n">2</span><b>WHAT IT MEANS</b><span class="caps">MODEL · SOURCES SHOWN</span></div>
+  <div class="grid">
+    <section class="tile c8" style="--i:7" data-tile="read">
+      <div class="thead"><span class="ico">✦</span><span class="tname">THE READ</span><span class="grow"></span><span class="badge b-dim">RESEARCH · NOT ADVICE</span></div>
+      <div class="after" data-when-not="done"><span style="font-size:22px">✦</span><span class="caps">AFTER THE READ</span></div>
+      <div class="lines" data-show="done" id="lines"></div>
+      <div class="srcs" data-show="done" id="srcs"></div>
+    </section>
+    <section class="tile c4" style="--i:8">
+      <div class="thead"><span class="ico">⚙️</span><span class="tname">HOW IT IS MADE</span></div>
+      <div class="feed">
+        <span>Inflation, Fed, ECB</span><b>4 NUMBERS</b>
+        <span>Markets and sectors</span><b>8 · 30</b>
+        <span>Positions, signals, verdicts</span><b>15</b>
+        <span>News searched</span><b data-websearch>🌐 8</b>
+      </div>
+      <span class="caps">THE MODEL PICKS A KIND · THE APP PICKS THE ICON</span>
+      <div class="kinds">
+        <div class="kind" style="--t:var(--good)"><span>🌡️</span>INFLATION</div>
+        <div class="kind" style="--t:var(--lav-400)"><span>🏛️</span>RATES</div>
+        <div class="kind" style="--t:var(--warn)"><span>🔥</span>MARKET</div>
+        <div class="kind" style="--t:var(--bad)"><span>⚖️</span>ALLOCATION</div>
+        <div class="kind" style="--t:var(--bad)"><span>⛔</span>DON'T</div>
+        <div class="kind" style="--t:var(--ink-400)"><span>❔</span>NO DATA</div>
+      </div>
+      <span class="caps">EVERY READ, ANY MONTH</span>
+      <div class="feed">
+        <span>Lines</span><b>3 TO 5</b>
+        <span>Headline</span><b>≤ 40 LETTERS</b>
+        <span>Numbers under a line</span><b>FROM THE APP</b>
+        <span>Nothing to say</span><b>❔ NO DATA</b>
+        <span>A number written by the model</span><b class="bad">NEVER</b>
+      </div>
+      <div class="foot"><span class="was">SAME SHAPE · ONLY THE WORDS CHANGE</span></div>
+    </section>
+  </div>
+
+  <!-- 3 · MINE -->
+  <div class="band"><span class="n">3</span><b>MINE</b><span class="caps">€6,158 · 15 POSITIONS</span></div>
+  <div class="grid">
+    <section class="tile c7" style="--i:9; --a: var(--money)" data-tile="mine">
+      <div class="thead"><span class="ico" style="--a:var(--money)">💼</span><span class="tname">POSITIONS · 1M</span><span class="i" data-k="mine">i</span><span class="grow"></span><span class="was">BOX = EUROS</span></div>
+      <div class="heat" id="heatmine"></div>
+      <div class="vleg">
+        <div style="--c:var(--good)"><b>✚ ADD · 3</b><span>Signals say a good time to buy more</span></div>
+        <div style="--c:var(--lav-400)"><b>❚❚ HOLD · 8</b><span>Nothing to do</span></div>
+        <div style="--c:var(--warn)"><b>⧗ WAIT · 4</b><span>Ran up fast — not now</span></div>
+      </div>
+      <div class="foot"><span class="was">VERDICT · PORTFOLIO'S OWN RULES · 18 OCT</span><span class="was">YAHOO · NOT SAVED</span></div>
+    </section>
+    <section class="tile c5" style="--i:10" data-tile="alloc">
+      <div class="thead"><span class="ico" style="--a:var(--bad)">⚖️</span><span class="tname">ALLOCATION</span><span class="i" data-k="alloc">i</span><span class="grow"></span><span class="badge b-bad">TECH 41% · WORLD 26%</span></div>
+      <div class="legend"><span><i></i>MINE</span><span><i class="d"></i>WORLD · MSCI</span></div>
+      <div class="alloc" id="alloc"></div>
+      <div class="opinion" data-show="done"><span class="av">✦</span><p><b>Tech-heavy, US-heavy.</b> One bad month for AI moves most of the money. The next euros in <b>health</b> or <b>Europe</b> would bring both lines closer to the world.</p></div>
+      <div class="foot"><span class="was">ETFS OPENED UP · TOP 10 EACH</span><span class="was">MSCI · 30 SEP</span></div>
+    </section>
+  </div>
+
+  <!-- 4 · NEXT -->
+  <div class="band"><span class="n">4</span><b>NEXT</b><span class="caps">IDEAS · QUESTIONS</span></div>
+  <div class="grid" id="ideas" data-show="done"></div>
+  <div class="grid" data-when-not="done"><section class="tile c12"><div class="thead"><span class="ico">💡</span><span class="tname">IDEAS · NOT OWNED</span></div><div class="after" style="min-height:110px"><span class="caps">AFTER THE READ</span></div></section></div>
+
+  <section class="tile sys" style="--i:15" data-tile="ask">
+    <div class="thead"><span class="sys-title">[ ASK ]</span><span class="grow"></span><span class="badge b-dim">OCT · 4 QUESTIONS · $0.09</span></div>
+    <div class="thread" id="thread">
+      <div class="q">Why does a Fed cut matter for VUAA?</div>
+      <div class="a"><span class="av">✦</span><div class="body"><div>VUAA follows the <b>500 biggest US companies</b>. A cut makes borrowing cheaper for them and pulls money from savings into shares, so the index usually rises. <b>Most of a cut is already in the price</b> before the day.</div>
+        <div class="facts"><span class="fact">VUAA €103.20</span><span class="fact">FED 4.25–4.50%</span><span class="fact">NEXT · 29 OCT</span></div>
+        <span class="was">HAIKU 5.5 · $0.002</span></div></div>
+      <div class="q">🌐 What did Powell say this week?</div>
+      <div class="a"><span class="av">✦</span><div class="body"><div>On 16 Oct he said the job market is <b>cooling</b> and inflation is moving the right way, and <b>did not rule out an October cut</b>. Markets read it as a yes.</div>
+        <div class="srcs"><span class="src"><img src="https://www.google.com/s2/favicons?domain=reuters.com&sz=64">REUTERS · 16 OCT ↗</span><span class="src"><img src="https://www.google.com/s2/favicons?domain=federalreserve.gov&sz=64">FED · 16 OCT ↗</span></div>
+        <span class="was">SONNET 5.5 · 2 SEARCHES · $0.07</span></div></div>
+    </div>
+    <div class="sugg"><span data-q="Explain my allocation">⚖️ Explain my allocation</span><span data-q="Is gold still a hedge?">🥇 Is gold still a hedge?</span><span data-q="What if the Fed doesn't cut?">🏛️ What if the Fed doesn't cut?</span><span data-q="Where could €500 go this month?">💶 Where could €500 go this month?</span></div>
+    <div class="askbar"><input id="askin" placeholder="Ask about the market or the portfolio" /><button class="web" id="web">🌐 WEB</button><button class="btn" id="send" style="padding:11px 18px">ASK</button></div>
+    <span class="was">HAIKU 5.5 ≈ $0.002 · 🌐 SONNET 5.5 ≈ $0.07 · SAME CAP $2.00</span>
+  </section>
+</div>
+
+<div class="card" id="card"><h4 id="ct"></h4><span class="k">WHAT IT IS</span><p id="c1"></p><span class="k">WHY IT MOVES THE MONEY</span><p id="c2"></p><div class="now" id="c3"></div></div>
+
+<script>
+  const SITE = d => `https://www.google.com/s2/favicons?domain=${d}&sz=128`
+  const SHARE = t => `https://financialmodelingprep.com/image-stock/${t}.png`
+  const COIN = c => `https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color/${c}.svg`
+  const logo = (l, sm) => {
+    const s = sm ? ' sm' : ''
+    if (l.emo) return `<span class="logo emo${s}">${l.emo}</span>`
+    if (l.metal) return `<span class="logo metal${s}"></span>`
+    if (l.coin) return `<span class="logo coin${s}"><img src="${COIN(l.coin)}"></span>`
+    if (l.share) return `<span class="logo${s}"><img src="${SHARE(l.share)}"></span>`
+    return `<span class="logo site${s}"><img src="${SITE(l.site)}"></span>`
+  }
+  const G = 'oklch(0.78 0.17 150)', R = 'oklch(0.68 0.2 22)'
+  const heat = ch => `color-mix(in srgb, ${ch >= 0 ? '#16a34a' : '#dc2626'} ${30 + Math.min(Math.abs(ch) / 6, 1) * 70}%, #262838)`
+  /* a sample path that ends at the given change (seeded, so it is stable) */
+  const path = (seed, ch, n = 24) => { let x = seed, v = 0, out = [0]; for (let i = 1; i < n; i++) { x = (x * 9301 + 49297) % 233280; v += (x / 233280 - .5) * Math.max(Math.abs(ch), 1) * .5 + ch / n; out.push(v) } return out.map((p, i) => p + (ch - v) * i / (n - 1)) }
+  const spark = (pts, h = 34) => { const lo = Math.min(...pts), hi = Math.max(...pts); const xy = pts.map((p, i) => `${(i / (pts.length - 1)) * 100},${h - 2 - ((p - lo) / (hi - lo || 1)) * (h - 8)}`); return `<svg viewBox="0 0 100 ${h}" preserveAspectRatio="none"><polygon points="0,${h} ${xy.join(' ')} 100,${h}"/><polyline points="${xy.join(' ')}"/></svg>` }
+
+  /* rates */
+  const RATES = [
+    ['US INFLATION', { emo: '🇺🇸' }, '2.9%', '▼ 0.2', 'AUG 3.1%', 'BLS · SEP', null, 'cpi'],
+    ['EURO INFLATION', { emo: '🇪🇺' }, '2.1%', '▼ 0.1', 'AUG 2.2%', 'EUROSTAT · SEP', null, 'hicp'],
+    ['FED RATE', { site: 'federalreserve.gov' }, '4.25–4.50%', null, 'SINCE 17 SEP', 'FRED', '29 OCT · 10 DAYS', 'fed'],
+    ['ECB RATE', { site: 'ecb.europa.eu' }, '2.00%', null, 'SINCE 11 SEP', 'ECB', '30 OCT · 11 DAYS', 'ecb'],
+  ]
+  document.getElementById('rates').innerHTML = RATES.map(([n, l, v, ch, was, src, next, k], i) => `
+    <section class="tile c3 rate" style="--i:${i + 1}; --a:var(--warn)" data-tile="macro">
+      <div class="thead">${logo(l)}<span class="tname">${n}</span><span class="grow"></span><span class="i" data-k="${k}">i</span></div>
+      <div class="row" style="align-items:flex-end;gap:10px"><span class="num big">${v}</span>${ch ? `<span class="chg g">${ch}</span>` : ''}</div>
+      <div class="row" style="justify-content:space-between"><span class="was">${was}</span>${next ? `<span class="badge b-lav">📅 ${next}</span>` : `<span class="badge b-good">▼ COOLING</span>`}</div>
+      <div class="foot"><span class="was">${src}</span><span class="was">NOT SAVED</span></div>
+    </section>`).join('')
+
+  /* markets by period: change per 1D / 1W / 1M / 1Y */
+  const MKTS = [
+    ['S&P 500', { emo: '🇺🇸' }, '6,612', { '1D': 0.4, '1W': 1.1, '1M': 2.4, '1Y': 18.2 }],
+    ['NASDAQ 100', { site: 'nasdaq.com' }, '24,180', { '1D': 0.9, '1W': 2.0, '1M': 4.6, '1Y': 24.7 }],
+    ['MSCI WORLD', { emo: '🌐' }, '€102.40', { '1D': 0.2, '1W': 0.7, '1M': 1.8, '1Y': 14.1 }],
+    ['STOXX 600', { emo: '🇪🇺' }, '561', { '1D': -0.3, '1W': -0.9, '1M': -0.6, '1Y': 7.9 }],
+    ['GOLD', { metal: 1 }, '$3,712', { '1D': 0.6, '1W': 1.4, '1M': 3.9, '1Y': 38.0 }],
+    ['BITCOIN', { coin: 'btc' }, '€96,400', { '1D': -1.8, '1W': -5.2, '1M': -4.1, '1Y': 41.3 }],
+    ['EUR / USD', { emo: '💶' }, '1.091', { '1D': -0.1, '1W': -0.4, '1M': -1.2, '1Y': 0.9 }],
+    ['US 10Y', { site: 'treasury.gov' }, '4.02%', { '1D': -0.03, '1W': -0.08, '1M': -0.19, '1Y': -0.41 }, 'yield'],
+  ]
+  const SINCE = { '1D': 'VS YESTERDAY CLOSE · 17 OCT', '1W': 'VS 11 OCT CLOSE', '1M': 'VS 18 SEP CLOSE', '1Y': 'VS 18 OCT 2025 CLOSE' }
+  function drawMarkets(p) {
+    document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('on', b.dataset.p === p))
+    document.getElementById('since').textContent = SINCE[p]
+    document.getElementById('heatp').textContent = p
+    document.getElementById('mkts').innerHTML = MKTS.map(([n, l, v, chs, kind], i) => {
+      const ch = chs[p], good = kind === 'yield' ? ch < 0 : ch > 0, c = good ? G : R
+      const txt = kind === 'yield' ? `${ch > 0 ? '▲' : '▼'} ${Math.abs(ch).toFixed(2)} PTS` : `${ch > 0 ? '▲' : '▼'} ${Math.abs(ch).toFixed(1)}%`
+      return `<div class="mk" style="--c:${c}">${logo(l)}<span class="nm">${n}</span><span class="chg ${good ? 'g' : 'r'}" style="justify-self:end">${txt}</span>
+        <span class="num v" style="grid-column: 2 / -1">${v}</span>${spark(path(i * 77 + p.length * 13 + 5, kind === 'yield' ? ch * 10 : ch))}</div>`
+    }).join('')
+    drawHeat(p)
+  }
+
+  /* stock heatmap: [sector, emoji, weight, change, stocks[ticker, weight, change, held]] */
+  const SECT = [
+    [['TECH', '💻', 44, 5.8, [['NVDA', 9, 8.1, 1], ['AAPL', 8, 2.0], ['MSFT', 7, 1.2, 1], ['AVGO', 3, 7.4, 1]]],
+     ['COMMS', '📡', 18, 3.1, [['GOOGL', 4, 4.2], ['META', 3, 2.6], ['NFLX', 1, -0.8]]],
+     ['CONSUMER', '🛒', 18, 0.8, [['AMZN', 4, 1.5], ['TSLA', 2.5, -2.8], ['HD', 1, 0.3]]],
+     ['HEALTH', '💊', 20, -2.4, [['LLY', 2.4, -3.9], ['UNH', 1.4, -5.1], ['JNJ', 1.2, 0.6], ['ABBV', 1, -1.2]]]],
+    [['FINANCE', '🏦', 34, 1.2, [['JPM', 2, 2.1], ['V', 1.7, 0.4], ['MA', 1.3, 0.9]]],
+     ['INDUSTRY', '🏭', 24, 1.6, [['GE', 1.2, 3.0], ['CAT', 1, 2.2], ['RTX', 1, 1.1]]],
+     ['ENERGY', '⚡', 16, -3.6, [['XOM', 1.6, -3.2], ['CVX', 1, -4.1]]],
+     ['STAPLES', '🧺', 18, -1.1, [['WMT', 1.6, 0.4], ['PG', 1.2, -1.9], ['KO', 1, -1.6]]]],
+  ]
+  const PF = { '1D': .12, '1W': .4, '1M': 1, '1Y': 4 }
+  function drawHeat(p) {
+    const f = PF[p], cap = p === '1Y' ? 30 : 6
+    const col = ch => `color-mix(in srgb, ${ch >= 0 ? '#16a34a' : '#dc2626'} ${30 + Math.min(Math.abs(ch) / cap, 1) * 70}%, #262838)`
+    const st = ([t, w, ch, held], lg) => { const c = +(ch * f).toFixed(1); return `<div class="st ${lg ? 'lg' : ''}" style="flex:${w}; background:${col(c)}">${held ? '<span class="mine"></span>' : ''}<span class="t"><span class="logo sm"><img src="${SHARE(t)}"></span>${t}</span><span class="c">${c > 0 ? '+' : ''}${c}%</span></div>` }
+    document.getElementById('tmap').innerHTML = SECT.map((row, ri) => `<div class="trow" style="height:${ri ? 150 : 230}px">${row.map(([n, em, w, ch, stocks]) => {
+      const [first, ...rest] = stocks, c = +(ch * f).toFixed(1)
+      return `<div class="grp" style="flex:${w}"><div class="gh">${em} ${n}<span class="p ${c >= 0 ? 'good' : 'bad'}">${c > 0 ? '+' : ''}${c}%</span></div>
+        <div class="gin">${st(first, true)}<div class="gcol" style="flex:${rest.reduce((a, s) => a + s[1], 0)}">${rest.map(s => st(s)).join('')}</div></div></div>`
+    }).join('')}</div>`).join('')
+    document.getElementById('regions').innerHTML = [['🇺🇸', 'US', 2.4, 1], ['🇪🇺', 'EUROPE', -0.6, 1], ['🇯🇵', 'JAPAN', 1.9], ['🌱', 'EMERGING', 2.8, 1], ['🇨🇳', 'CHINA', -1.8]]
+      .map(([e, n, ch, held]) => { const c = +(ch * f).toFixed(1); return `<span class="reg" style="background:${col(c)}">${e} ${n} ${c > 0 ? '+' : ''}${c}%${held ? ' <span style="width:7px;height:7px;border-radius:50%;background:#fff;display:inline-block"></span>' : ''}</span>` }).join('')
+  }
+  document.querySelectorAll('#seg button').forEach(b => b.onclick = () => drawMarkets(b.dataset.p))
+  drawMarkets('1M')
+
+  /* the read: calm month and a mixed one */
+  const CALM = [
+    ['🌡️', G, 'b-good', '▼ CPI', 'Inflation is cooling', 'Both sides of the Atlantic; the ECB is close to its 2% aim', ['US 2.9% · AUG 3.1%', 'EURO 2.1% · AUG 2.2%'], 'Prices in shops are rising <b>more slowly</b>. That lets central banks <b>lower interest rates</b>, which usually helps shares and ETFs — and makes savings accounts pay less.', 'macro'],
+    ['🏛️', 'var(--lav-400)', 'b-lav', 'FED CUT', 'Fed likely cuts on 29 Oct', 'Futures price a 0.25 cut; Powell kept the door open on 16 Oct', ['FED 4.25–4.50%', 'NEXT · 29 OCT', 'US 10Y 4.02% · 18 SEP 4.21%'], 'Traders already bet on the cut, so <b>it is mostly in prices</b>. The surprise would be <b>no cut</b> — that usually knocks markets down for a few days.', 'macro'],
+    ['⚖️', R, 'b-bad', 'ALLOCATION', 'Tech is 41% of the money', 'Once VUAA and IWDA are opened up, AI and tech sit far above the world market', ['MINE 41% · WORLD 26%', 'AVGO 7.1%', 'US 71%'], 'VUAA already contains Microsoft, Nvidia and Apple, and AVGO and NVDA are held on top. So <b>one bad month for AI moves most of the portfolio at once</b>.', 'alloc'],
+    ['🔥', 'var(--warn)', 'b-warn', 'WATCH', 'Chips ran hot this month', 'Tech led every sector; the Nasdaq sits close to its high', ['TECH ▲ 5.8%', 'NASDAQ RSI 14 — 71'], 'An RSI above 70 means <b>it ran up fast</b> and often pauses or dips afterwards. Not a sell signal — a reason <b>not to chase it</b> with this month\'s money.', 'heatm'],
+    ['⛔', R, 'b-bad', 'DON\'T', 'No more AI this month', 'AVGO and NVDA already carry the most weight among single stocks', ['AVGO 7.1% · NVDA 5.1%', 'TECH 41%'], 'Adding more would make the portfolio <b>depend even more on one theme</b>. Nothing needs selling — the next euros simply go elsewhere.', 'mine'],
+  ]
+  const MIXED = [
+    ['🌡️', R, 'b-bad', '▲ CPI', 'US inflation came in hot', 'September was higher than August and than forecasts; Europe cooled', ['US 3.4% · AUG 3.1%', 'EURO 2.1% · AUG 2.2%'], 'Prices in the US rose <b>faster again</b>. That makes a Fed cut <b>less likely</b>, which is why shares wobbled.', 'macro'],
+    ['❔', 'var(--ink-400)', 'b-dim', 'NO DATA', 'No new ECB numbers', 'The last ECB decision is from 11 Sep; nothing to read since', ['ECB 2.00% · 11 SEP'], 'Nothing new to say about euro rates this month — the model says so <b>rather than guess</b>.', 'macro'],
+    ['🔥', 'var(--warn)', 'b-warn', 'WATCH', 'Markets swung both ways', 'Up 3% mid-month, back to flat by the end', ['S&P 500 ▲ 0.3%', 'BITCOIN ▼ 6.0%'], 'A flat month after big swings usually means <b>investors are unsure</b>. Nothing to act on — the long-term plan does not change.', 'markets'],
+  ]
+  const lineHtml = list => list.map(([em, t, bc, b, h, p, f, plain, lights], i) => `
+    <div class="ln" style="--t:${t}; animation-delay:${i * 90}ms" data-lights="${lights}">
+      <span class="em">${em}</span>
+      <div><div class="row" style="justify-content:space-between"><h3>${h}</h3><span class="badge ${bc}">${b}</span></div>
+        <p>${p}</p><div class="facts">${f.map(x => `<span class="fact">${x}</span>`).join('')}</div>
+        <span class="means">WHAT IT MEANS</span><div class="plain">${plain}</div></div>
+    </div>`).join('')
+  document.getElementById('srcs').innerHTML = '<span class="caps">SOURCES</span>' + [
+    ['federalreserve.gov', 'FED · 16 OCT'], ['reuters.com', 'REUTERS · 18 OCT'], ['ecb.europa.eu', 'ECB · 11 SEP'], ['cmegroup.com', 'FEDWATCH · 18 OCT'], ['bls.gov', 'BLS · 15 OCT'],
+  ].map(([d, t]) => `<span class="src"><img src="${SITE(d)}">${t} ↗</span>`).join('') + '<span class="badge b-dim">+3</span>'
+
+  /* positions with verdicts */
+  const V = { site: 'vanguard.com' }, IS = { site: 'ishares.com' }
+  const cell = (c, i) => `<div class="hc ${c.big ? 'big' : ''} ${c.frozen ? 'frozen' : ''}" style="background:${heat(c.ch)}; animation-delay:${i * 25}ms">
+      ${c.vd ? `<span class="vd ${c.vd}">${{ add: '✚ ADD', hold: '❚❚ HOLD', wait: '⧗ WAIT' }[c.vd]}</span>` : ''}
+      <div class="top">${c.l ? logo(c.l, true) : ''}<span class="n">${c.n}</span></div>
+      <div><div class="v">${c.frozen ? 'FROZEN' : (c.ch > 0 ? '+' : '') + c.ch.toFixed(1) + '%'}</div>${c.e ? `<div class="e">${c.e}</div>` : ''}</div></div>`
+  document.getElementById('heatmine').innerHTML = [
+    [{ n: 'VUAA', l: V, ch: 2.3, big: 1, w: 1640, e: '€1,640', vd: 'hold' }, { n: 'IWDA', l: IS, ch: 1.8, big: 1, w: 1210, e: '€1,210', vd: 'add' }, { n: 'AVGO', l: { share: 'AVGO' }, ch: 7.4, big: 1, w: 820, e: '€820', vd: 'wait' }],
+    [{ n: 'NVDA', l: { share: 'NVDA' }, ch: 6.1, w: 592, e: '€592', vd: 'wait' }, { n: 'VFEG', l: V, ch: 2.9, w: 410, e: '€410', vd: 'add' }, { n: 'MSFT', l: { share: 'MSFT' }, ch: 1.2, w: 374, e: '€374', vd: 'hold' }, { n: 'GOLD', l: { metal: 1 }, ch: 3.9, w: 370, e: '€370', vd: 'hold' }],
+    [{ n: 'SHLD', l: { site: 'globalxetfs.com' }, ch: 4.4, w: 300, e: '€300', vd: 'wait' }, { n: 'BTC', l: { coin: 'btc' }, ch: -4.1, w: 260, e: '€260', vd: 'add' }, { n: 'VHYL', l: V, ch: 0.6, w: 240, e: '€190', vd: 'hold' }, { n: 'ETH', l: { coin: 'eth' }, ch: -6.3, w: 240, e: '€120', vd: 'wait' }, { n: 'OZON', frozen: 1, ch: 0, w: 170 }],
+  ].map(r => `<div class="hrow" style="grid-template-columns:${r.map(c => c.w + 'fr').join(' ')}">${r.map(cell).join('')}</div>`).join('')
+
+  document.getElementById('alloc').innerHTML = [
+    ['💻', 'TECH · AI', 41, 26, R], ['🇺🇸', 'US', 71, 72, 'var(--k-etf)'], ['🇪🇺', 'EUROPE', 9, 15, 'var(--k-etf)'], ['💊', 'HEALTH', 3, 10, 'var(--k-etf)'], ['🥇', 'GOLD', 6, 0, 'var(--money)'],
+  ].map(([em, n, m, r, k]) => `<div class="al" style="--k:${k}"><span class="em">${em}</span>
+    <div><div class="nm">${n}</div><div class="bars2"><div class="bar"><b style="width:${m}%"></b></div><div class="bar ref"><b style="width:${r}%"></b></div></div></div>
+    <div class="vals"><strong>${m}%</strong><span class="was">WORLD ${r}%</span></div></div>`).join('')
+
+  /* ideas */
+  const IDEAS = [
+    [{ share: 'NVO' }, 'NOVO B', 'Novo Nordisk · 💊 health', 'DKK 412', -3.9, G, 'b-good', '💡 IDEA', 'Obesity drugs, P/E at a 5-year low', ['P/E 14.2 · SECTOR 21.5', 'RSI 14 — 29'], 'Huge demand for weight-loss drugs; the price already fell a lot', 'Lilly is winning share; US price pressure', 'Sales fall two quarters in a row'],
+    [{ site: 'rheinmetall.com' }, 'RHM', 'Rheinmetall · 🏭 defence', '€1,742', 5.2, 'var(--warn)', 'b-warn', '⧗ EARNINGS 23 OCT', 'European defence, orders keep rising', ['SMA 200 ▲ +18%', 'TARGET €2,050 · 22'], 'Europe spends more on defence for years', 'Already up a lot; a peace deal hits it', 'The order book shrinks'],
+    [IS, 'WSML', 'iShares World Small Cap · 📈 ETF', '€7.12', 1.6, G, 'b-good', '💡 IDEA', '4,000 small companies, 14% tech', ['SMA 200 ▲ +4.0%', 'TER 0.35%'], 'Small companies gain most when rates fall', 'Swings more than big-company ETFs', 'Rates go back up'],
+    [IS, 'IBTM', 'iShares US Treasury 7–10Y · 📈 ETF', '€118.70', 1.1, 'var(--lav-400)', 'b-lav', '👁 WATCH', 'Bonds rise when yields fall', ['US 10Y 4.02%', 'SMA 50 ▲ +1.1%'], 'Gains if the Fed keeps cutting', 'Loses if inflation comes back', 'US inflation back above 3.5%'],
+  ]
+  document.getElementById('ideas').innerHTML = IDEAS.map(([l, tk, co, px, ch, tone, bc, b, why, f, bull, bear, wrong], i) => `
+    <section class="tile c3 idea" style="--i:${11 + i}; --tone:${tone}">
+      <div class="top">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">${logo(l)}<span class="badge ${bc}">${b}</span></div>
+        <div><div class="tk">${tk}</div><div class="co">${co}</div></div>
+        <div class="px"><span class="num">${px}</span><span class="chg ${ch > 0 ? 'g' : 'r'}">${ch > 0 ? '▲' : '▼'} ${Math.abs(ch)}% · 1M</span></div>
+        ${spark(path(i * 31 + 7, ch), 36)}
+      </div>
+      <div class="bot">
+        <div class="why">${why}</div>
+        <div class="facts">${f.map(x => `<span class="fact">${x}</span>`).join('')}</div>
+        <div class="case"><i class="bu">▲</i><span>${bull}</span></div>
+        <div class="case"><i class="be">▼</i><span>${bear}</span></div>
+        <div class="case"><i class="wr">✕</i><span><b>Wrong if</b> ${wrong.toLowerCase()}</span></div>
+      </div>
+    </section>`).join('')
+
+  /* ⓘ cards */
+  const INFO = {
+    index: ['MARKETS', 'Each card is a basket or a price: the S&P 500 is the 500 biggest US companies, MSCI World about 1,400 companies in rich countries, STOXX 600 the 600 biggest in Europe.', 'VUAA follows the S&P 500 and IWDA follows MSCI World — together most of the portfolio.', 'FETCHED ON OPEN · NEVER SAVED'],
+    cpi: ['US INFLATION', 'How much more a basket of everyday things costs than a year ago, in the US.', 'High inflation keeps the Fed from cutting; lower inflation lets it cut, which usually lifts shares.', 'SEP 2.9% · AUG 3.1% · FED AIM 2%'],
+    hicp: ['EURO INFLATION', 'The same price rise, measured for the euro area — Portugal included.', 'It decides what the ECB does with rates, which moves the ActivoBank savings rate and the euro.', 'SEP 2.1% · AUG 2.2% · ECB AIM 2%'],
+    fed: ['FED RATE', 'The interest rate the US central bank sets for banks lending dollars overnight.', 'A cut makes borrowing cheaper, usually pushes shares up and the dollar down — and a weaker dollar makes US shares worth fewer euros.', '4.25–4.50% · NEXT 29 OCT'],
+    ecb: ['ECB RATE', 'The rate the European Central Bank pays banks on their deposits.', 'Savings accounts in euros follow it. A cut means less interest on cash.', '2.00% · NEXT 30 OCT'],
+    heat: ['S&P 500 HEATMAP', 'The 30 biggest US companies grouped by industry. Box size is how big the company is; colour is how its price moved over the chosen period. A white dot is a company held.', 'It shows what drove the market — and whether the portfolio was in it.', 'NVDA ▲ 8.1% · UNH ▼ 5.1%'],
+    mine: ['POSITIONS', 'Every position as a box: the bigger the box, the more euros; green rose this month, red fell. The corner tag is the Portfolio verdict for that position.', 'ADD — the signals say a good moment to buy more. HOLD — nothing to do. WAIT — it ran up fast, better not now.', 'ADD 3 · HOLD 8 · WAIT 4'],
+    alloc: ['ALLOCATION', 'Where the money sits by theme and place, with ETFs opened up to the companies inside, next to the whole world market (MSCI World).', 'Far above the world on one line means one theme decides more of the result.', 'TECH 41% · WORLD 26%'],
+  }
+  const card = document.getElementById('card'); let openI = null
+  const closeCard = () => { card.classList.remove('open'); openI?.classList.remove('on'); openI = null }
+  document.addEventListener('click', e => {
+    const m = e.target.closest('.means')
+    if (m) { m.closest('.ln').classList.toggle('open'); return }
+    const el = e.target.closest('.i')
+    if (!el || openI === el) return closeCard()
+    openI?.classList.remove('on'); openI = el; el.classList.add('on')
+    const [t, a, b, n] = INFO[el.dataset.k]; ct.textContent = t; c1.textContent = a; c2.textContent = b; c3.textContent = n
+    const r = el.getBoundingClientRect(); card.style.left = Math.max(8, Math.min(r.left - 10, innerWidth - 322)) + 'px'; card.style.top = (r.bottom + 8) + 'px'; card.classList.add('open')
+  })
+
+  /* ask */
+  const web = document.getElementById('web'), thread = document.getElementById('thread')
+  web.onclick = () => web.classList.toggle('on')
+  const ask = text => {
+    if (!text) return
+    const w = web.classList.contains('on')
+    thread.insertAdjacentHTML('beforeend', `<div class="q">${w ? '🌐 ' : ''}${text}</div><div class="a" id="pending"><span class="av">✦</span><div class="body"><span class="typing"><i></i><i></i><i></i></span></div></div>`)
+    thread.scrollTop = thread.scrollHeight
+    setTimeout(() => {
+      document.getElementById('pending').outerHTML = `<div class="a"><span class="av">✦</span><div class="body"><div>Tech and AI are <b>41%</b> once VUAA and IWDA are opened up — against <b>26%</b> for the world market. The biggest single piece is <b>AVGO at 7.1%</b>. The rest spreads across about 1,900 companies, mostly in the US.</div>
+        <div class="facts"><span class="fact">TECH 41% · WORLD 26%</span><span class="fact">AVGO 7.1%</span><span class="fact">US 71%</span></div>
+        <span class="was">${w ? 'SONNET 5.5 · 1 SEARCH · $0.05' : 'HAIKU 5.5 · $0.002'}</span></div></div>`
+      thread.scrollTop = thread.scrollHeight
+    }, 1300)
+  }
+  send.onclick = () => { ask(askin.value.trim()); askin.value = '' }
+  askin.onkeydown = e => { if (e.key === 'Enter') { ask(askin.value.trim()); askin.value = '' } }
+  document.querySelectorAll('.sugg span').forEach(s => s.onclick = () => ask(s.dataset.q))
+
+  /* states */
+  const COST = {
+    sonnet: { name: 'SONNET 5.5 · 🌐 8', cost: '$0.24 · CAP $2.00 · USED $0.33', web: true },
+    haiku: { name: 'HAIKU 5.5 · NO WEB', cost: '$0.003 · CAP $2.00 · USED $0.01', web: false },
+  }
+  const MOOD = { read: 'var(--good)', mixed: 'var(--warn)', failed: 'var(--bad)', cap: 'var(--warn)', idle: 'var(--lav-400)', reading: 'var(--lav-400)' }
+  let s = 'read'
+  function setS(next) {
+    s = next
+    const done = s === 'read' || s === 'mixed'
+    document.querySelectorAll('[data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === s))
+    document.querySelectorAll('[data-when]').forEach(el => el.style.display = el.dataset.when === s ? '' : 'none')
+    document.querySelectorAll('[data-show="done"]').forEach(el => el.style.display = done ? '' : 'none')
+    document.querySelectorAll('[data-when-not="done"]').forEach(el => el.style.display = done ? 'none' : '')
+    document.getElementById('hero').style.setProperty('--mood', MOOD[s])
+    if (done) {
+      document.getElementById('lines').innerHTML = lineHtml(s === 'mixed' ? MIXED : CALM)
+      document.querySelectorAll('[data-lights]').forEach(f => { const t = document.querySelector(`[data-tile="${f.dataset.lights}"]`); f.onmouseenter = () => t?.classList.add('lit'); f.onmouseleave = () => t?.classList.remove('lit') })
+    }
+    if (s === 'reading') setTimeout(() => s === 'reading' && setS('read'), 2200)
+  }
+  document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => setS(b.dataset.s))
+  document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => {
+    document.querySelectorAll('[data-m]').forEach(x => x.classList.toggle('on', x === b))
+    const c = COST[b.dataset.m]
+    document.querySelector('[data-model]').textContent = c.name
+    document.querySelector('[data-cost]').textContent = c.cost
+    document.querySelector('[data-web]').style.display = c.web ? '' : 'none'
+    document.querySelector('[data-websearch]').textContent = c.web ? '🌐 8' : 'OFF'
+  })
+  /* who pays: on localhost the read runs through Claude Code on the Mac (Pro plan); deployed, through the API (credits) */
+  document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => {
+    document.querySelectorAll('[data-r]').forEach(x => x.classList.toggle('on', x === b))
+    const local = b.dataset.r === 'local', pay = document.querySelector('[data-pay]')
+    pay.className = 'badge ' + (local ? 'b-good' : 'b-warn')
+    pay.textContent = local ? '⚡ PRO PLAN · NO CREDITS' : '💳 API CREDITS'
+    document.querySelector('[data-cost]').style.display = local ? 'none' : ''
+  })
+  document.querySelector('[data-r="local"]').click()
+  setS('read')
+</script>
+
+<div class="palm">🌴</div>
+<button class="fab" id="fab"><span class="o"><svg class="star" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0.5 C8.6 5.6 10.4 7.4 15.5 8 C10.4 8.6 8.6 10.4 8 15.5 C7.4 10.4 5.6 8.6 0.5 8 C5.6 7.4 7.4 5.6 8 0.5 Z" fill="currentColor"/></svg></span><span class="w">ASK</span><span class="cnt" id="cnt">2</span></button>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer">
+  <div class="dh"><span class="orb s" style="width:34px;height:34px"><svg class="star" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0.5 C8.6 5.6 10.4 7.4 15.5 8 C10.4 8.6 8.6 10.4 8 15.5 C7.4 10.4 5.6 8.6 0.5 8 C5.6 7.4 7.4 5.6 8 0.5 Z" fill="currentColor"/></svg></span><span class="sys-title">[ ASK ]</span><span id="dpay" class="badge b-good" style="margin-left:auto"><span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block;animation:ping 1.6s infinite"></span>⚡ PRO PLAN · NO CREDITS</span><button class="x" id="x" style="margin-left:8px">✕</button></div>
+  <iframe id="askf" src="ask-ideas.html?embed=1&s=web"></iframe>
+</aside>
+<script>
+  /* Tabs: each band and what follows it becomes a panel; the hero stays on top. */
+  const wrap = document.querySelector('.wrap'), hero = document.getElementById('hero')
+  const bands = [...wrap.querySelectorAll(':scope > .band')]
+  const NAMES = [['1', 'MARKET', '<span class="badge b-good">S&P ▲ 2.4%</span>'], ['2', 'READ', '<span class="badge b-lav">5 LINES</span>'], ['3', 'MINE', '<span class="badge b-good">2 ADD</span>'], ['4', 'IDEAS', '<span class="badge b-dim">4</span>']]
+  const bar = document.createElement('nav'); bar.className = 'itabs'
+  const panels = bands.map((b, i) => {
+    const p = document.createElement('div'); p.className = 'panel'; p.dataset.p = i
+    b.before(p)
+    let el = b; const take = []
+    while (el && !(el !== b && el.classList?.contains('band'))) { take.push(el); el = el.nextElementSibling }
+    take.forEach(t => p.appendChild(t))
+    return p
+  })
+  hero.after(bar)
+  bar.innerHTML = NAMES.map(([n, name, badge], i) => `<button class="itab" data-t="${i}"><span class="n">${n}</span>${name}${badge}</button>`).join('')
+  /* ASK leaves the page for the drawer */
+  document.querySelector('[data-tile="ask"]')?.remove()
+  const show = i => {
+    panels.forEach((p, k) => p.classList.toggle('on', k === i))
+    bar.querySelectorAll('.itab').forEach((b, k) => b.classList.toggle('on', k === i))
+    try { localStorage.setItem('ins-tab', i) } catch {}
+  }
+  bar.querySelectorAll('.itab').forEach(b => b.onclick = () => { show(+b.dataset.t); bar.scrollIntoView({ block: 'nearest' }) })
+  let start = 1; try { const v = localStorage.getItem('ins-tab'); if (v !== null) start = +v } catch {}
+  show(start)
+  /* A read line names the tile it is about: → MINE switches to its tab and lights it */
+  const tabOf = el => panels.findIndex(p => p.contains(el))
+  const linkLines = () => document.querySelectorAll('[data-lights]').forEach(l => {
+    if (l.querySelector('.goto')) return
+    const t = document.querySelector(`[data-tile="${l.dataset.lights}"]`); const k = t ? tabOf(t) : -1
+    if (k < 0 || k === tabOf(l)) return
+    const g = document.createElement('button'); g.className = 'goto'; g.textContent = `→ ${NAMES[k][1]}`
+    g.onclick = e => { e.stopPropagation(); show(k); t.classList.add('lit'); t.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => t.classList.remove('lit'), 1600) }
+    ;(l.querySelector('.body, div:last-child') || l).appendChild(g)
+  })
+  linkLines(); new MutationObserver(linkLines).observe(document.getElementById('lines'), { childList: true })
+  /* The drawer */
+  const root = document.documentElement
+  const open = v => root.classList.toggle('open', v)
+  document.getElementById('fab').onclick = () => open(true)
+  document.getElementById('x').onclick = () => open(false)
+  document.getElementById('scrim').onclick = () => open(false)
+  document.querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
+    document.querySelectorAll('[data-d]').forEach(x => x.classList.toggle('on', x === b))
+    const d = b.dataset.d, f = document.getElementById('askf'), fab = document.getElementById('fab'), cnt = document.getElementById('cnt')
+    f.src = 'ask-ideas.html?embed=1&s=' + ({ none: 'empty', asking: 'webasking', web: 'web', ideas: 'ideas' })[d]
+    fab.classList.toggle('busy', d === 'asking'); cnt.style.display = d === 'none' ? 'none' : ''; cnt.textContent = d === 'web' ? 2 : 1
+    open(true)
+  })
+  addEventListener('keydown', e => e.key === 'Escape' && open(false))
+  /* who pays, in the drawer's header: Pro on localhost; deployed, the month's spend against the cap */
+  document.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => {
+    const local = b.dataset.r === 'local', p = document.getElementById('dpay')
+    p.className = 'badge ' + (local ? 'b-good' : 'b-warn')
+    p.innerHTML = local ? '<span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block;animation:ping 1.6s infinite"></span>⚡ PRO PLAN · NO CREDITS' : '💳 OCT · $0.43 OF $2.00'
+  }))
+</script>
+
+<script>
+  /* ✦ ASK on cards: the app builds the question from the card's own words and numbers; the drawer opens with it in the box. Nothing is sent. */
+  const STAR = `<svg class="star" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0.5 C8.6 5.6 10.4 7.4 15.5 8 C10.4 8.6 8.6 10.4 8 15.5 C7.4 10.4 5.6 8.6 0.5 8 C5.6 7.4 7.4 5.6 8 0.5 Z" fill="currentColor"/></svg>`
+  const qa = (q, wide) => `<button class="qa${wide ? ' wide' : ''}" data-q="${q.replace(/"/g, '&quot;')}" title="${q.replace(/"/g, '&quot;')}">${STAR}${wide ? 'ASK' : ''}</button>`
+  const CALL = { add: 'ADD', hold: 'HOLD', wait: 'WAIT' }
+  function addMarks() {
+    /* read lines: next to WHAT IT MEANS and → MINE */
+    document.querySelectorAll('#lines .ln').forEach(l => {
+      if (l.querySelector('.qa')) return
+      const m = l.querySelector('.means'); const h = l.querySelector('h3').textContent
+      const acts = document.createElement('div'); acts.className = 'acts'
+      m.before(acts); acts.appendChild(m)
+      const g = l.querySelector('.goto'); if (g) acts.appendChild(g)
+      acts.insertAdjacentHTML('beforeend', qa(`${h} — why?`, true))
+    })
+    /* position boxes */
+    document.querySelectorAll('#heatmine .hc').forEach(c => {
+      if (c.querySelector('.qa')) return
+      const n = c.querySelector('.n').textContent, vd = c.querySelector('.vd'), v = c.querySelector('.v').textContent
+      const call = vd ? Object.keys(CALL).find(k => vd.classList.contains(k)) : null
+      const q = c.classList.contains('frozen') ? `Why is ${n} FROZEN?` : call ? `Why is ${n} ${CALL[call]}?` : `What moved ${n} ${v} in 1M?`
+      c.insertAdjacentHTML('beforeend', qa(q))
+    })
+    /* allocation lines */
+    document.querySelectorAll('#alloc .al').forEach(a => {
+      if (a.querySelector('.qa')) return
+      const n = { 'TECH · AI': 'tech', US: 'US', EUROPE: 'Europe', HEALTH: 'health', GOLD: 'gold', WORLD: 'world funds' }[a.querySelector('.nm').textContent], m = a.querySelector('.vals strong').textContent, w = a.querySelector('.vals .was')?.textContent.replace('WORLD ', '')
+      a.insertAdjacentHTML('beforeend', qa(w ? `Why is ${n} ${m}, world ${w}?` : `Why is ${n} ${m}?`))
+    })
+    /* idea cards */
+    document.querySelectorAll('#ideas .idea').forEach(c => {
+      if (c.querySelector('.qa')) return
+      c.querySelector('.bot').insertAdjacentHTML('beforeend', qa(`What could go wrong with ${c.querySelector('.tk').textContent}?`, true))
+    })
+  }
+  addMarks(); new MutationObserver(addMarks).observe(document.getElementById('lines'), { childList: true })
+  /* the box inside the drawer: filled, lit, cursor at the end — never sent */
+  function fill(q) {
+    const d = document.getElementById('askf').contentDocument, i = d?.getElementById('askin')
+    if (!i) return setTimeout(() => fill(q), 80)
+    i.value = q
+    i.style.transition = 'box-shadow .6s, border-color .6s'
+    i.style.borderColor = 'var(--lav-400)'; i.style.boxShadow = '0 0 26px -4px var(--shine)'
+    setTimeout(() => { i.style.boxShadow = ''; i.style.borderColor = '' }, 1400)
+    if (matchMedia('(min-width: 641px)').matches) { i.focus(); i.setSelectionRange(q.length, q.length) }
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.qa'); if (!b) return
+    e.stopPropagation()
+    b.classList.remove('press'); void b.offsetWidth; b.classList.add('press')
+    document.documentElement.classList.add('open')
+    fill(b.dataset.q)
+  }, true)
+</script>
+</body>
+</html>

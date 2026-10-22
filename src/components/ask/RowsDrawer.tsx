@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { api } from '../../../convex/_generated/api'
-import { MONTH, Star } from '@/components/finances/insights/Ask'
+import { AskBusy, MONTH, Star } from '@/components/finances/insights/Ask'
 import { clock } from '@/components/finances/insights/parts'
 import { usd } from '@/components/finances/insights/readParts'
 import { monthKey, nextMonthWord } from '@/lib/marketRead'
@@ -298,7 +298,7 @@ export function RowsDrawer({
               </div>
             ) : (
               <form
-                className={`ask-bar ${a.busy ? 'off' : ''}`}
+                className={`ask-bar ${a.busy ? 'busy' : ''}`}
                 onSubmit={(e) => {
                   e.preventDefault()
                   send(text)
@@ -309,7 +309,7 @@ export function RowsDrawer({
                   value={text}
                   maxLength={MAX_QUESTION}
                   disabled={off}
-                  placeholder="What did I do in August?"
+                  placeholder={a.busy ? 'READING…' : 'What did I do in August?'}
                   onChange={(e) => setText(e.target.value)}
                 />
                 <button
@@ -318,7 +318,7 @@ export function RowsDrawer({
                   className="ins-btn"
                   disabled={off || text.trim() === ''}
                 >
-                  {a.busy ? '…' : 'ASK'}
+                  {a.busy ? <AskBusy /> : 'ASK'}
                 </button>
               </form>
             )}

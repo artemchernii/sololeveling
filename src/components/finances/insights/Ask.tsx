@@ -188,7 +188,7 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
           </div>
         ) : (
           <form
-            className={`ask-bar ${busy ? 'off' : ''}`}
+            className={`ask-bar ${busy ? 'busy' : ''}`}
             onSubmit={(e) => {
               e.preventDefault()
               send(text)
@@ -201,7 +201,9 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
               value={text}
               maxLength={400}
               disabled={off}
-              placeholder="Ask about the market or the portfolio"
+              placeholder={
+                busy ? 'READING…' : 'Ask about the market or the portfolio'
+              }
               onChange={(e) => setText(e.target.value)}
             />
             <button
@@ -219,7 +221,7 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
               className="ins-btn"
               disabled={off || text.trim() === ''}
             >
-              {busy ? '…' : 'ASK'}
+              {busy ? <AskBusy /> : 'ASK'}
             </button>
           </form>
         )}
@@ -229,6 +231,26 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
 }
 
 /** ✦ drawn, not typed: the glyph sits off-centre in a circle. */
+/* The ASK button while the model reads (22 Oct, his "nothing is moving"):
+   the star turns and the seconds count, from the press. */
+export function AskBusy() {
+  const [start] = useState(() => Date.now())
+  const [now, setNow] = useState(start)
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+  const s = Math.floor((now - start) / 1000)
+  return (
+    <span className="ask-busy" data-testid="ask-busy">
+      <Star />
+      <span className="t">
+        {Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}
+      </span>
+    </span>
+  )
+}
+
 export function Star() {
   return (
     <svg className="ask-star" viewBox="0 0 16 16" aria-hidden>

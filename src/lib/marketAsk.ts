@@ -100,6 +100,9 @@ ${today}.
 ${told}
 The facts below are the numbers on his screen, each with a key. They
 are only what the app fetched; they say nothing about why a price moved.
+An earn- fact is a held company's results day: one reported in the last
+7 days, with the close before it and the price now, or one coming in 14.
+When a question is about a company that has one, start from it.
 ${
   web
     ? `Search the web before you answer (at most ${MAX_ASK_SEARCHES} searches): look for

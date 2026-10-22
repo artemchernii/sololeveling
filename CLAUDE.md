@@ -159,6 +159,13 @@ mockup `design/treasury-mockup/insights.html`, spec
   the page at most 10 minutes, fetched by one Convex action call on open
   (never a reactive query), and never an input to `verdict()`. The
   change over a period is two fetched prices with both shown.
+  Earnings dates of held companies were added on 2026-10-22 ("go —
+  window next 14 days / last 7, yes add the earnings line" on the mockup
+  `design/treasury-mockup/earnings.html`), on the same terms and only on
+  MINE's boxes: the next results day within 14 days, or the last within
+  7 with the move since the close before it — two fetched prices, both
+  shown on its card. They reach the read and ASK as facts (`earn-…`),
+  never `verdict()`.
 - **A model's market read**, on a press only: a headline, two plain
   sentences and 3–5 lines, each of a kind from a fixed list (inflation,
   rates, market, allocation, don't, no data) that picks its icon. The

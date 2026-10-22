@@ -15,6 +15,14 @@ import {
 import type { Period, Series } from '../src/lib/insightsMarket'
 import { callOf, parseOpened } from '../src/lib/insightsMine'
 import type { Opened } from '../src/lib/insightsMine'
+import {
+  BACK_DAYS,
+  parseCalendar,
+  parseQuotes,
+  pickDays,
+  sinceReport,
+} from '../src/lib/insightsEarnings'
+import type { Earning } from '../src/lib/insightsEarnings'
 import { kindOf } from '../src/lib/logo'
 
 /* Insights, band 3 MINE (19 Oct, spec I2). One action, asked when the
@@ -25,7 +33,10 @@ import { kindOf } from '../src/lib/logo'
      out from its stored closes and fundamentals by the same functions
      its page uses, and what Yahoo opens up of each fund and share
      (sector weights, top holdings, a share's sector and country), with
-     IWDA's for the world.
+     IWDA's for the world;
+   - on the first ask too, each share's next and last results day, and
+     for a report in the last 7 days the close before it and the price
+     now (22 Oct, earnings on MINE).
    It writes nothing ("DONT SAVE IT TO DB"). */
 
 const DAY = 86_400_000
@@ -57,6 +68,20 @@ const item = v.object({
   name: v.string(),
 })
 
+const atPrice = v.union(
+  v.null(),
+  v.object({ at: v.number(), price: v.number() }),
+)
+const earning = v.object({
+  symbol: v.string(),
+  next: v.union(v.number(), v.null()),
+  estimate: v.boolean(),
+  last: v.union(v.number(), v.null()),
+  base: atPrice,
+  now: atPrice,
+  currency: v.union(v.string(), v.null()),
+})
+
 export const answer = v.object({
   period,
   fetchedAt: v.number(),
@@ -74,6 +99,11 @@ export const answer = v.object({
       parts: v.array(v.object({ symbol: v.string(), opened })),
       world: opened,
     }),
+  ),
+  /** Null on a later ask; `reached` false when Yahoo gave no dates. */
+  earnings: v.union(
+    v.null(),
+    v.object({ reached: v.boolean(), rows: v.array(earning) }),
   ),
 })
 export type MineAnswer = Infer<typeof answer>
@@ -105,13 +135,19 @@ export const mine = action({
       const k = kindOf(i)
       return k === 'etf' || k === 'stock'
     })
+    const shares = priced.filter((i) => kindOf(i) === 'stock')
     const e2e = process.env.E2E === '1'
-    const [series, opens] = await Promise.all([
+    const [series, opens, earnings] = await Promise.all([
       e2e ? canned(args.period, priced, now) : spark(args.period, priced),
       args.first
         ? e2e
           ? cannedOpened(lookThrough)
           : openUp([...lookThrough.map((i) => i.symbol), WORLD])
+        : null,
+      args.first
+        ? e2e
+          ? cannedEarnings(shares, now)
+          : earningsOf(shares, now)
         : null,
     ])
     return {
@@ -133,6 +169,7 @@ export const mine = action({
         })),
         world: opens.get(WORLD) ?? null,
       },
+      earnings,
     }
   },
 })
@@ -229,6 +266,70 @@ async function openUp(symbols: Array<string>): Promise<Map<string, Opened>> {
   return out
 }
 
+/**
+ * Each share's results days: Yahoo's quote (the last and the next
+ * window) and quoteSummary `calendarEvents` (the next, and whether it is
+ * a guess). A report in the last 7 days also gets a month of daily
+ * closes, for the close before it and the price now.
+ */
+async function earningsOf(
+  shares: ReadonlyArray<{ symbol: string }>,
+  now: number,
+): Promise<{ reached: boolean; rows: Array<Earning> } | null> {
+  if (shares.length === 0) return null
+  const auth = await crumb().catch(() => null)
+  if (auth === null) return { reached: false, rows: [] }
+  const symbols = shares.map((s) => s.symbol)
+  const init = { headers: { 'User-Agent': UA, Cookie: auth.cookie } }
+  const [quotes, calendars] = await Promise.all([
+    getJson(
+      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.map(encodeURIComponent).join(',')}&fields=earningsTimestamp,earningsTimestampStart,earningsTimestampEnd,isEarningsDateEstimate,currency&crumb=${encodeURIComponent(auth.crumb)}`,
+      init,
+    ).then(parseQuotes),
+    Promise.all(
+      symbols.map(async (s) =>
+        parseCalendar(
+          await getJson(
+            `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(s)}?modules=calendarEvents&crumb=${encodeURIComponent(auth.crumb)}`,
+            init,
+          ),
+        ),
+      ),
+    ),
+  ])
+  const rows = symbols.map((symbol, k): Earning => {
+    const q = quotes.get(symbol)
+    const c = calendars[k]
+    const { next, last } = pickDays(
+      [...(q?.times ?? []), ...(c?.times ?? [])],
+      now,
+    )
+    return {
+      symbol,
+      next,
+      estimate: c?.estimate ?? q?.estimate ?? false,
+      last,
+      base: null,
+      now: null,
+      currency: q?.currency ?? null,
+    }
+  })
+  if (rows.every((r) => r.next === null && r.last === null))
+    return { reached: false, rows: [] }
+  const recent = rows.filter(
+    (r) => r.last !== null && now - r.last <= (BACK_DAYS + 1) * DAY,
+  )
+  if (recent.length > 0) {
+    const daily = await spark('1M', recent)
+    for (const r of recent) {
+      const s = daily.get(r.symbol)
+      const since = s && r.last !== null ? sinceReport(s.points, r.last) : null
+      if (since) Object.assign(r, since)
+    }
+  }
+  return { reached: true, rows }
+}
+
 /* The test backend (E2E=1): a move per symbol from its letters, larger
    for longer periods, a moment late so READING is seen; a fund named
    VUAA opened up, shares as Yahoo profiles them, and IWDA's weights. */
@@ -254,6 +355,44 @@ async function canned(
     })
   }
   return out
+}
+
+/* AVGO reported yesterday after the close and fell 7.8%; NVDA reports in
+   five days; any other share has nothing near. */
+async function cannedEarnings(
+  shares: ReadonlyArray<{ symbol: string }>,
+  now: number,
+): Promise<{ reached: boolean; rows: Array<Earning> } | null> {
+  if (shares.length === 0) return null
+  const today = Math.floor(now / DAY) * DAY
+  return {
+    reached: true,
+    rows: shares.map(({ symbol }): Earning => {
+      const none = {
+        symbol,
+        next: today + 60 * DAY,
+        estimate: true,
+        last: today - 50 * DAY,
+        base: null,
+        now: null,
+        currency: 'USD',
+      }
+      if (symbol === 'AVGO')
+        return {
+          ...none,
+          last: today - DAY + 20 * 3_600_000,
+          base: { at: today - DAY + 13.5 * 3_600_000, price: 340.5 },
+          now: { at: today + 13.5 * 3_600_000, price: 313.94 },
+        }
+      if (symbol === 'NVDA')
+        return {
+          ...none,
+          next: today + 5 * DAY + 20 * 3_600_000,
+          estimate: false,
+        }
+      return none
+    }),
+  }
 }
 
 async function cannedOpened(items: ReadonlyArray<{ symbol: string }>) {

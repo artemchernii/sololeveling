@@ -104,4 +104,7 @@ export function tokens(n: number): string {
   return `${k < 10 ? k.toFixed(1).replace(/\.0$/, '') : Math.round(k)}K`
 }
 
-export const usd = (n: number) => `$${n.toFixed(2)}`
+/** Under a cent shows three places: a Haiku answer is $0.004, never a
+    $0.00 that reads as free. */
+export const usd = (n: number) =>
+  `$${n > 0 && n < 0.01 ? n.toFixed(3) : n.toFixed(2)}`

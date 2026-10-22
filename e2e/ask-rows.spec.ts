@@ -94,7 +94,7 @@ test('S1–S3 ⌘J → a month asked → counts from the rows, the rows behind a
   )
   await expect(answer.getByTestId('rows-stray')).toHaveCount(1)
   const stamp = answer.getByTestId('rows-stamp')
-  await expect(stamp).toContainText('✦ SONNET 5.5')
+  await expect(stamp).toContainText('✦ HAIKU 5.5')
   await expect(stamp).toContainText('11 ROWS')
   await expect(stamp).toContainText('14K IN · 410 OUT')
   await expect(stamp).toContainText('💳 $0.03')

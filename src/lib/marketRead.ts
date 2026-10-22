@@ -21,6 +21,13 @@ export const CAP_USD = 2
 /** Sonnet 5.5: $2 in, $10 out per million tokens; web search $10 per
     thousand searches. */
 const PRICE = { input: 2, output: 10, search: 0.01 }
+/** ⌘J Ask AI asks Haiku 5.5 instead (22 Oct, his "I spend 1$ for small
+    requests. Setup haiku 5.5 for that"): $0.10 in and $0.50 out per
+    million tokens up to a 100K prompt, $0.50 and $2.50 above it —
+    twenty times less than Sonnet. */
+export const ROWS_ASK_MODEL = 'claude-haiku-5-5'
+const HAIKU = { input: 0.1, output: 0.5, longInput: 0.5, longOutput: 2.5 }
+const HAIKU_LONG = 100_000
 /** A Pro read not landed after this long is taken as lost (its page was
     closed); claude -p is stopped at five minutes. */
 export const STALE_MS = 6 * 60_000
@@ -406,10 +413,15 @@ export function parseMarketRead(
 export type Usage = { input: number; output: number; searches: number }
 
 /** What a response cost in dollars, from its usage, to the tenth of a cent. */
-export function readCost(u: Usage): number {
+export function readCost(u: Usage, model = MARKET_READ_MODEL): number {
+  const long = u.input > HAIKU_LONG
   const usd =
-    (u.input * PRICE.input + u.output * PRICE.output) / 1_000_000 +
-    u.searches * PRICE.search
+    model === ROWS_ASK_MODEL
+      ? (u.input * (long ? HAIKU.longInput : HAIKU.input) +
+          u.output * (long ? HAIKU.longOutput : HAIKU.output)) /
+        1_000_000
+      : (u.input * PRICE.input + u.output * PRICE.output) / 1_000_000 +
+        u.searches * PRICE.search
   return Math.ceil(usd * 1000) / 1000
 }
 

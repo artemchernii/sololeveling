@@ -13,7 +13,7 @@ import { requireUser } from '../auth'
 import { readStamp } from '../marketReadFields'
 import {
   CAP_USD,
-  MARKET_READ_MODEL,
+  ROWS_ASK_MODEL,
   monthKey,
   readCost,
 } from '../../src/lib/marketRead'
@@ -28,8 +28,9 @@ import {
   rowsPrompt,
 } from '../../src/lib/rowsAskPrompt'
 
-/* R7 Ask AI when deployed: one question, one call — Sonnet 5.5, the model
-   Insights asks with, under the same $2 a month. The rows are read here
+/* R7 Ask AI when deployed: one question, one call — Haiku 5.5 since 22 Oct
+   (Sonnet 5.5 before; his "$1 for small requests"), under Insights' $2 a
+   month. The rows are read here
    (rowsAsk.forOwner), counted by src/lib/rowsAsk.ts and handed over with
    the counts; no web search. Paid only on a press, never retried; what the
    response cost, from its own usage, is added usable or not. The question
@@ -150,7 +151,7 @@ async function answer(
       ok: true as const,
       answer: parsed.answer,
       stamp: {
-        model: MARKET_READ_MODEL,
+        model: ROWS_ASK_MODEL,
         inputTokens: 14_200,
         outputTokens: 410,
         searches: 0,
@@ -164,14 +165,15 @@ async function answer(
 
   const usage: Usage = { input: 0, output: 0, searches: 0 }
   const failed = async (error: string) => {
-    const cost = readCost(usage)
+    const cost = readCost(usage, ROWS_ASK_MODEL)
     await charge(cost)
     return { ok: false as const, error, cost }
   }
   try {
     const response = await new Anthropic().messages.create({
-      model: MARKET_READ_MODEL,
-      max_tokens: 3000,
+      model: ROWS_ASK_MODEL,
+      /* Haiku thinks before it writes; room for both */
+      max_tokens: 6000,
       output_config: {
         effort: 'low',
         format: { type: 'json_schema', schema: ROWS_SCHEMA },
@@ -207,13 +209,13 @@ async function answer(
       facts,
     )
     if (!parsed.ok) return await failed(parsed.error)
-    const cost = readCost(usage)
+    const cost = readCost(usage, ROWS_ASK_MODEL)
     await charge(cost)
     return {
       ok: true as const,
       answer: parsed.answer,
       stamp: {
-        model: MARKET_READ_MODEL,
+        model: ROWS_ASK_MODEL,
         inputTokens: usage.input,
         outputTokens: usage.output,
         searches: 0,

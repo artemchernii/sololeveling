@@ -1,5 +1,6 @@
 import { ModelPick } from '@/components/ask/ModelPick'
 import { AccountLogo } from '@/components/finances/Logo'
+import { useLocalModel } from '@/lib/localModel'
 import { MARKET_READ_MODEL, factsFor, nextMonthWord } from '@/lib/marketRead'
 import { clock, dayWord } from './parts'
 import { Kpi, Words, modelWord, tokens, usd } from './readParts'
@@ -42,6 +43,8 @@ export function ReadHero({
           : 'var(--color-lav-400)'
   const stamp = (hero === 'done' ? row?.stamp : shown?.stamp) ?? null
   const pro = (stamp?.paidBy ?? r.path) === 'pro'
+  /* Before a read, the model the next press asks. */
+  const picked = useLocalModel()
 
   return (
     <section
@@ -131,7 +134,9 @@ export function ReadHero({
         <div className="flex flex-col items-[inherit] gap-2">
           <span className="ins-model">
             <AccountLogo name="Claude" domain="claude.ai" size={18} />
-            {modelWord(stamp?.model ?? MARKET_READ_MODEL)}
+            {modelWord(
+              stamp?.model ?? (r.path === 'pro' ? picked : MARKET_READ_MODEL),
+            )}
             {stamp ? ` · 🌐 ${stamp.searches}` : ''}
           </span>
           {stamp && shown?.readAt ? (

@@ -217,3 +217,17 @@ test('phone: a bottom sheet, nothing wider than the screen', async ({
   ).toBeLessThanOrEqual(375)
   await page.screenshot(shot('ask-rows-phone'))
 })
+
+test('S8 a week: every day named, a count per area', async ({ page }) => {
+  const drawer = await open(page)
+  await drawer.getByTestId('rows-input').fill('Tasks done this week')
+  await drawer.getByTestId('rows-send').click()
+  const answer = drawer.getByTestId('rows-answer')
+  await expect(answer).toBeVisible({ timeout: 15_000 })
+  const strip = answer.getByTestId('rows-strip')
+  await expect(strip).toHaveClass(/wide/)
+  const days = strip.locator('.r7-day')
+  await expect(days).toHaveCount(((new Date().getDay() + 6) % 7) + 1)
+  await expect(days.first()).toContainText('MON')
+  await page.screenshot(shot('ask-rows-week'))
+})

@@ -5,261 +5,429 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ask AI mockup</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<!-- The app's own CSS, not a copy: the drawer, the answer card, the pills
+     and badges are the shipped Insights ASK (served from the repo root). -->
+<link rel="stylesheet" href="/src/styles/tokens.css" />
+<link rel="stylesheet" href="/src/styles/insights.css" />
+<link rel="stylesheet" href="/src/styles/insights-read.css" />
+<link rel="stylesheet" href="/src/styles/insights-ask.css" />
+<link rel="stylesheet" href="/src/styles/insights-tabs.css" />
 <style>
-  /* R7 Ask AI (22 Oct). A ⌘J drawer over any page — the Insights ASK
-     drawer's anatomy (design/treasury-mockup/insights-tabs.html), asked
-     about his own rows instead of the market. Sample numbers, not his data. */
+  /* R7 Ask AI, round 2 (22 Oct, his "UI looks cheap and broken"). The
+     ⌘J drawer is the Insights ASK drawer, class for class; what R7 adds
+     (the month strip, the four count tiles, the rows a number opens, the
+     area lines) is drawn in the same idiom. Behind it: the approved Today
+     mockup (design/today-mockup/month.html). Sample numbers, not his data;
+     every number shown is counted below from the sample rows. */
+
+  /* what Tailwind's @theme gives the app (src/styles.css) */
   :root {
-    --bg: #161826;
-    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
-    --lav-300: #d2cefd; --lav-400: #b5abfc;
-    --good: oklch(0.78 0.17 150); --bad: oklch(0.68 0.2 22); --warn: oklch(0.79 0.15 75);
-    --glass: linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
-    --edge: rgba(233,233,237,.09);
-    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
-    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
-    --mono: 'JetBrains Mono', ui-monospace, monospace;
-    --a-body: oklch(0.78 0.14 25); --a-lang: oklch(0.8 0.13 160); --a-money: oklch(0.8 0.1 88);
-    --a-proj: oklch(0.78 0.11 250); --a-task: oklch(0.8 0.12 300); --a-none: var(--ink-400);
+    --color-ink-100: var(--color-neutral-100); --color-ink-200: var(--color-neutral-200); --color-ink-300: var(--color-neutral-300);
+    --color-ink-400: var(--color-neutral-400); --color-ink-500: var(--color-neutral-500); --color-ink-600: var(--color-neutral-600);
+    --color-ink-700: var(--color-neutral-700);
+    --color-lav-300: var(--color-accent-300); --color-lav-400: var(--color-accent-400); --color-lav-500: var(--color-accent-500); --color-lav-900: var(--color-accent-900);
+    /* area hues as AreaStyles writes them (src/lib/area-slug.ts) */
+    --area-projects: oklch(var(--area-l) var(--area-c) 352);
+    --area-portuguese: oklch(var(--area-l) var(--area-c) 190);
+    --area-body: oklch(var(--area-l) var(--area-c) 155);
+    --area-money: oklch(var(--area-l) var(--area-c) 88);
+    --area-task: var(--color-lav-400);
   }
-  * { box-sizing: border-box; margin: 0 }
-  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
-    color: var(--ink-100); font: 13px/1.4 Inter, system-ui, sans-serif; min-height: 100vh; overflow-x: hidden }
-  .caps { font: 500 9.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
-  button { font: inherit; color: inherit }
+  *, *::before, *::after { box-sizing: border-box; margin: 0 }
+  button, input { font: inherit; color: inherit; background: none; border: 0; cursor: pointer }
+  input { cursor: text }
+  html, body { height: 100% }
+  body { background: var(--color-ground); color: var(--color-ink-100); font: 13px/1.4 var(--font-body); overflow: hidden; display: flex; flex-direction: column }
+  .label-caps { font: 400 10px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-500) }
+  .text-lav-300 { color: var(--color-lav-300) }
+  .system-title { font: 11px var(--font-mono); letter-spacing: .3em; text-transform: uppercase; color: var(--color-lav-400); text-shadow: 0 0 10px var(--system-shine) }
+  .whitespace-nowrap { white-space: nowrap }
 
-  /* mockup controls */
-  .ctl { position: fixed; left: 10px; top: 60px; z-index: 200; flex-direction: column; display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width: 96vw;
-    font: 11px var(--mono); color: var(--warn); letter-spacing: .08em; text-transform: uppercase; padding: 6px; border-radius: 14px; background: rgba(10,10,20,.85); border: 1px solid var(--edge) }
-  .ctl button { color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase; font: 10px var(--mono) }
-  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+  /* mockup switches — not app */
+  .ctl { flex: none; display:flex; gap: 6px; align-items:center; flex-wrap: wrap; justify-content:center; padding: 7px 12px; background: #000; border-bottom: 1px solid var(--glass-edge);
+    font: 600 10px var(--font-mono); letter-spacing: .1em; color: var(--state-warn); position: relative; z-index: 100002 }
+  .ctl button { color: var(--color-ink-300); border: 1px solid rgba(255,255,255,.14); border-radius: 999px; padding: 3px 9px; text-transform: uppercase; font: inherit }
+  .ctl button.on { color: var(--color-ink-100); border-color: var(--state-warn); background: color-mix(in oklch, var(--state-warn) 12%, transparent) }
+  .ctl .sep { width: 1px; height: 14px; background: var(--glass-edge) }
 
-  /* the app behind (Today, dimmed) */
-  .top { height: 52px; display:flex; align-items:center; gap: 14px; padding: 0 18px; border-bottom: 1px solid var(--edge) }
-  .brand { font: 700 11px var(--mono); letter-spacing: .24em }
-  .brand::before { content:''; display:inline-block; width: 9px; height: 9px; background: var(--lav-400); margin-right: 9px; box-shadow: 0 0 10px var(--shine) }
-  .kbtn { display:inline-flex; align-items:center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--edge); background: rgba(255,255,255,.04); font: 500 11px var(--mono); letter-spacing: .1em; color: var(--ink-200); cursor: pointer }
-  .kbtn kbd { font: 500 10px var(--mono); color: var(--ink-400); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--edge) }
-  .kbtn.ask { color: var(--lav-300); border-color: var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 12%, transparent); box-shadow: 0 0 18px -8px var(--shine) }
-  .kbtn.ask .st { display:inline-block; transition: transform .6s }
-  .busy .kbtn.ask .st { animation: spin 1.4s linear infinite }
-  @keyframes spin { to { transform: rotate(360deg) } }
-  .grow { flex: 1 }
-  .page { max-width: 1100px; margin: 0 auto; padding: 22px 18px; display:grid; grid-template-columns: 1fr 1fr; gap: 14px }
-  .ghost { border-radius: 14px; border: 1px solid var(--edge); background: var(--glass); padding: 16px; min-height: 150px }
-  .ghost h3 { font: 500 10px var(--mono); letter-spacing: .18em; color: var(--ink-400); margin-bottom: 12px }
-  .ghost .big { font-size: 34px; font-weight: 300 }
-  .ghost.w { grid-column: span 2 }
-  @media (max-width: 760px) { .page { grid-template-columns: 1fr } .ghost.w { grid-column: span 1 } .kbtn .lbl { display:none } }
+  /* the shell: TopBar.tsx, SideNav.tsx */
+  .app { flex: 1; min-height: 0; display:flex; flex-direction: column; position: relative }
+  .tb { flex: none; height: 58px; display:flex; align-items:center; justify-content: space-between; padding: 0 24px; background-image: var(--glass-bar-fill); border-bottom: 1px solid var(--glass-edge); backdrop-filter: blur(18px); position: relative; z-index: 2 }
+  .tb .l, .tb .r { display:flex; align-items:center; gap: 12px }
+  .tb .l img { width: 24px; height: 24px; border-radius: 6px }
+  .tb .l span { font-size: 12px; font-weight: 500; letter-spacing: .2em }
+  .key { font: 500 10.5px var(--font-mono); padding: 2px 6px; border-radius: 6px; border: 1px solid color-mix(in oklch, var(--lift) 14%, transparent); color: var(--color-ink-400) }
+  .log { height: 36px; display:flex; align-items:center; gap: 7px; padding: 0 8px 0 12px; border-radius: 10px; background: var(--color-lav-500); color: var(--color-lav-900); font-size: 12.5px; font-weight: 500 }
+  .log .key { color: var(--color-lav-900); border-color: color-mix(in oklch, var(--color-lav-900) 30%, transparent); margin-left: 6px }
+  .search { height: 36px; width: 180px; display:flex; align-items:center; gap: 10px; padding: 0 8px 0 12px; border-radius: 10px; border: 1px solid color-mix(in oklch, var(--lift) 10%, transparent); background: color-mix(in oklch, var(--sink) 20%, transparent); color: var(--color-ink-400); font-size: 12.5px }
+  .search .key { margin-left: auto }
+  /* NEW: ✦ Ask beside Search — the System's lavender, its star breathing */
+  .askbtn { height: 36px; display:flex; align-items:center; gap: 8px; padding: 0 8px 0 6px; border-radius: 10px; border: 1px solid var(--system-edge); color: var(--color-lav-300); font-size: 12.5px; font-weight: 500;
+    background: linear-gradient(160deg, color-mix(in oklch, var(--color-lav-400) 18%, transparent), color-mix(in oklch, var(--color-lav-400) 4%, transparent)); box-shadow: 0 0 20px -10px var(--system-shine); transition: box-shadow 200ms, transform 200ms }
+  .askbtn:hover { box-shadow: 0 0 26px -6px var(--system-shine); transform: translateY(-1px) }
+  .askbtn .o { width: 24px; height: 24px; border-radius: 50%; display:grid; place-items:center; border: 1px solid var(--system-edge); background: color-mix(in oklch, var(--color-lav-400) 18%, transparent); animation: ask-orb 3s ease-in-out infinite }
+  .askbtn .ask-star { width: 12px; height: 12px }
+  .busy .askbtn .ask-star { animation: ask-spin 1.4s linear infinite }
+  .askbtn .key { color: var(--color-lav-300); border-color: var(--system-edge) }
+  .bell, .av { width: 36px; height: 36px; border-radius: 10px; display:grid; place-items:center; border: 1px solid var(--glass-edge); color: var(--color-ink-300) }
+  .av { background: linear-gradient(135deg, oklch(0.6 0.12 300), oklch(0.5 0.1 250)); border: 0; font: 600 12px var(--font-body); color: #fff }
+  .shell { flex: 1; min-height: 0; display:flex; gap: 16px; padding: 16px 0 0 24px }
+  .rail { flex: none; width: 204px; align-self: flex-start; display:flex; flex-direction: column; gap: 18px; padding: 12px; border-radius: 22px; background-image: var(--glass-fill); border: 1px solid var(--glass-edge); box-shadow: var(--glass-shadow) }
+  .rail .g { display:flex; flex-direction: column; gap: 2px }
+  .rail .h { display:flex; align-items:center; gap: 10px; padding: 0 10px 6px; font: 10px var(--font-mono); letter-spacing: .18em; color: var(--color-ink-400) }
+  .rail .h::after { content:''; flex: 1; height: 1px; background: linear-gradient(90deg, color-mix(in oklch, var(--lift) 10%, transparent), transparent) }
+  .rail a { position: relative; display:flex; align-items:center; gap: 10px; padding: 7px 10px; border-radius: 10px; font-size: 13px; color: var(--color-ink-300) }
+  .rail a i { font-style: normal; width: 16px; text-align:center; font-size: 12px; opacity: .8 }
+  .rail a.on { color: var(--color-ink-100); background: color-mix(in oklch, var(--color-lav-400) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--color-lav-400) 35%, transparent), 0 0 18px -6px var(--system-shine) }
+  .rail a.on::before { content:''; position: absolute; left: 0; top: 50%; width: 3px; height: 16px; transform: translateY(-50%); border-radius: 9px; background: var(--color-lav-400); box-shadow: 0 0 8px var(--system-shine) }
+  .main { flex: 1; min-width: 0; position: relative }
+  .main iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent }
+  @media (max-width: 1023px) { .rail { display: none } .shell { padding: 0 } }
+  @media (max-width: 767px) { .log, .search { display: none } .askbtn .w, .askbtn .key { display: none } .askbtn { padding: 0 5px } .tb { padding: 0 16px } }
 
-  /* the drawer */
-  .scrim { position: fixed; inset: 0; background: rgba(6,6,14,.55); backdrop-filter: blur(2px); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 50 }
-  .drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 60; width: min(460px, 100vw); display:flex; flex-direction: column;
-    border-left: 1px solid var(--sys-edge); background: linear-gradient(180deg, #1d1f33, #161826); box-shadow: -30px 0 60px -30px rgba(0,0,0,.9), inset 1px 0 0 rgba(181,171,252,.12);
-    transform: translateX(105%); transition: transform .32s cubic-bezier(.2,.8,.2,1) }
-  .open .scrim { opacity: 1; pointer-events: auto } .open .drawer { transform: none }
-  @media (max-width: 640px) {
-    .drawer { top: auto; left: 0; width: 100vw; height: 88vh; border-left: 0; border-top: 1px solid var(--sys-edge); border-radius: 18px 18px 0 0; transform: translateY(105%) }
-    .drawer::before { content:''; width: 40px; height: 4px; border-radius: 2px; background: var(--ink-600); margin: 8px auto 0; flex: none }
-  }
-  .dh { display:flex; align-items:center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--edge); flex: none }
-  .sys { font: 700 11px var(--mono); letter-spacing: .22em; color: var(--lav-300) }
-  .pay { font: 500 9.5px var(--mono); letter-spacing: .1em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--edge); color: var(--ink-300) }
-  .pay.cap { color: var(--bad); border-color: color-mix(in oklch, var(--bad) 45%, transparent) }
-  .x { margin-left: auto; width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--edge); background: rgba(255,255,255,.04); color: var(--ink-200); cursor: pointer; font-size: 14px }
+  /* the drawer sits under the switches */
+  .ask-drawer { top: var(--ctl-h, 0px); width: min(500px, 100vw) }
+  .ask-drawer .ask .ask-a { width: 100% }
+  .ask-drawer .ask .ask-thread { padding: 16px 14px }
+  @media (max-width: 640px) { .ask-drawer { top: auto } }
 
-  .body { flex: 1; overflow: auto; padding: 16px; display:flex; flex-direction:column; gap: 14px }
-  .hero { display:flex; flex-direction:column; align-items:center; gap: 8px; padding: 22px 0 6px; text-align:center }
-  .orb { width: 52px; height: 52px; border-radius: 16px; display:grid; place-items:center; border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 12%, transparent); box-shadow: 0 0 30px -10px var(--shine); animation: breathe 3.2s ease-in-out infinite }
-  @keyframes breathe { 50% { box-shadow: 0 0 40px -6px var(--shine) } }
-  .reads { display:flex; gap: 5px; flex-wrap: wrap; justify-content:center }
-  .tag { font: 500 9.5px var(--mono); letter-spacing: .1em; padding: 3px 8px; border-radius: 6px; border: 1px solid color-mix(in oklch, var(--c) 40%, transparent); color: var(--c); background: color-mix(in oklch, var(--c) 9%, transparent) }
-  .tag.off { --c: var(--ink-500); text-decoration: line-through }
-  .ex { display:flex; flex-direction:column; gap: 7px }
-  .exq { --c: var(--lav-400); display:flex; align-items:center; gap: 10px; text-align:left; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.03); cursor:pointer; font-size: 13px; transition: border-color .15s, box-shadow .15s, transform .15s }
-  .exq:hover { border-color: var(--c); box-shadow: 0 0 16px -8px var(--c); transform: translateX(-2px) }
-  .exq i { font-style: normal; width: 26px; height: 26px; border-radius: 8px; display:grid; place-items:center; font-size: 13px; flex: none; background: color-mix(in oklch, var(--c) 16%, transparent); border: 1px solid color-mix(in oklch, var(--c) 40%, transparent) }
+  /* ---- what R7 adds ---- */
+  /* before the first question: the reader, what it reads */
+  .r7-hero { flex: 1; display:flex; flex-direction: column; align-items:center; justify-content:center; gap: 14px; padding: 24px 16px; text-align:center }
+  .r7-hero .big { width: 64px; height: 64px; font-size: 22px }
+  .r7-hero .big .ask-star { width: 24px; height: 24px }
+  .r7-reads { display:flex; gap: 6px; flex-wrap: wrap; justify-content:center; max-width: 340px }
+  .r7-read { --c: var(--color-lav-400); display:inline-flex; align-items:center; gap: 6px; font: 600 9.5px var(--font-mono); letter-spacing: .1em; padding: 4px 9px 4px 5px; border-radius: 999px;
+    color: var(--color-ink-200); border: 1px solid color-mix(in oklch, var(--c) 35%, transparent); background: color-mix(in oklch, var(--c) 9%, transparent); animation: ins-arrive 450ms var(--motion-ease) both; animation-delay: calc(var(--i) * 60ms) }
+  .r7-read i { font-style: normal; width: 18px; height: 18px; border-radius: 50%; display:grid; place-items:center; font-size: 10px; background: color-mix(in oklch, var(--c) 22%, transparent) }
+  .r7-read.off { --c: var(--color-ink-600); color: var(--color-ink-500); text-decoration: line-through }
+  .ask-card .e { font-size: 17px }
 
-  .q { align-self: flex-end; max-width: 85%; padding: 9px 14px; border-radius: 14px 14px 4px 14px; background: color-mix(in oklch, var(--lav-400) 20%, transparent); border: 1px solid var(--sys-edge); font-size: 13px; font-weight: 500; animation: rise .3s ease-out }
-  @keyframes rise { from { opacity: 0; transform: translateY(8px) } }
-  .a { display:flex; flex-direction:column; gap: 10px; padding: 14px; border-radius: 14px 14px 14px 4px; border: 1px solid var(--edge); background: var(--glass); animation: rise .35s ease-out }
-  .per { display:flex; gap: 6px; flex-wrap: wrap; align-items:center }
-  .per .tag { --c: var(--lav-300) }
-  .typing { display:inline-flex; gap: 4px; align-items:center } .typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--lav-400); animation: blink 1s infinite } .typing i:nth-child(2) { animation-delay: .15s } .typing i:nth-child(3) { animation-delay: .3s }
-  @keyframes blink { 50% { opacity: .25 } }
-  .scan { height: 3px; border-radius: 2px; background: rgba(255,255,255,.06); overflow:hidden }
-  .scan::after { content:''; display:block; height:100%; width: 35%; background: var(--lav-400); box-shadow: 0 0 10px var(--shine); animation: scan 1.3s ease-in-out infinite }
-  @keyframes scan { from { transform: translateX(-100%) } to { transform: translateX(300%) } }
-  .head { font-size: 15px; font-weight: 600; letter-spacing: -.01em }
-  .line { display:flex; gap: 10px; animation: rise .35s ease-out backwards }
-  .line > i { font-style: normal; width: 26px; height: 26px; border-radius: 8px; display:grid; place-items:center; font-size: 13px; flex: none; background: color-mix(in oklch, var(--c) 16%, transparent); border: 1px solid color-mix(in oklch, var(--c) 40%, transparent) }
-  .line .t { display:flex; flex-direction:column; gap: 6px; min-width: 0 }
-  .line p { color: var(--ink-200); font-size: 12.5px; line-height: 1.45 }
-  .facts { display:flex; gap: 5px; flex-wrap: wrap }
-  .fact { --c: var(--lav-300); display:inline-flex; gap: 6px; align-items:center; font: 600 10px var(--mono); letter-spacing: .06em; color: var(--ink-100); padding: 4px 8px; border-radius: 7px; background: rgba(255,255,255,.05);
-    border: 1px solid color-mix(in oklch, var(--c) 35%, transparent); cursor: pointer; white-space: nowrap; transition: background .15s }
-  .fact b { color: var(--c); font-weight: 700 }
-  .fact:hover, .fact.on { background: color-mix(in oklch, var(--c) 14%, transparent) }
-  .fact::after { content:'›'; color: var(--ink-500); transition: transform .2s } .fact.on::after { transform: rotate(90deg) }
-  .rows { display:none; flex-direction:column; border-radius: 10px; border: 1px solid var(--edge); overflow:hidden; background: rgba(0,0,0,.18) }
-  .rows.on { display:flex; animation: rise .25s ease-out }
-  .rows div { display:flex; gap: 8px; align-items:center; padding: 6px 10px; font: 11px var(--mono); color: var(--ink-300) }
-  .rows div + div { border-top: 1px solid var(--edge) }
-  .rows .d { color: var(--ink-500); width: 52px; flex: none }
-  .rows .k { font: 700 9px var(--mono); letter-spacing: .1em; color: var(--c); width: 66px; flex: none }
-  .rows .v { margin-left: auto; color: var(--ink-100) }
-  .rows .more { justify-content:center; color: var(--lav-300); cursor: pointer }
-  .stamp { display:flex; gap: 6px; flex-wrap: wrap; align-items:center; padding-top: 9px; border-top: 1px dashed var(--edge); font: 500 9.5px var(--mono); letter-spacing: .08em; color: var(--ink-400) }
-  .stamp .m { color: var(--lav-300); font-weight: 700; display:inline-flex; gap: 6px; align-items:center }
-  .stamp .m span { width: 16px; height: 16px; border-radius: 5px; background: #d97757; display:inline-grid; place-items:center; color: #fff; font-size: 10px }
-  .stamp .dot { color: var(--ink-600) }
-  .stamp .free { color: var(--good) }
-  .acts { display:flex; gap: 6px; margin-left: auto }
-  .pill { font: 600 9.5px var(--mono); letter-spacing: .1em; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.04); color: var(--ink-200); cursor: pointer }
-  .fail { border-color: color-mix(in oklch, var(--bad) 45%, transparent) }
-  .bad { color: var(--bad) }
+  /* the period and the month strip: which days have rows, by area */
+  .r7-per { display:flex; gap: 6px; flex-wrap: wrap; align-items:center }
+  .r7-strip { display:grid; grid-template-columns: repeat(31, 1fr); gap: 2px; padding: 8px 8px 6px; border-radius: 10px; border: 1px solid var(--glass-edge); background: color-mix(in oklch, var(--sink) 25%, transparent) }
+  .r7-day { display:flex; flex-direction: column; align-items:center; gap: 2px; min-width: 0 }
+  .r7-day .dots { height: 32px; display:flex; flex-direction: column-reverse; gap: 2px; align-items:center }
+  .r7-day .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--c); box-shadow: 0 0 6px -1px var(--c); animation: ins-pop 300ms var(--motion-ease) both; animation-delay: calc(var(--d) * 22ms); transition: opacity 200ms }
+  .r7-day b { font: 500 7.5px var(--font-mono); color: var(--color-ink-600); font-weight: 500; height: 9px }
+  .r7-day.wk b { color: var(--color-ink-400) }
+  .pick .r7-day .dots span:not(.sel) { opacity: .15; box-shadow: none }
+  .r7-filling .r7-day .dots span { animation-duration: 260ms }
+  .r7-legend { display:flex; gap: 10px; flex-wrap: wrap; margin-top: -4px }
+  .r7-legend span { display:inline-flex; align-items:center; gap: 5px; font: 500 9px var(--font-mono); letter-spacing: .1em; color: var(--color-ink-400) }
+  .r7-legend span::before { content:''; width: 6px; height: 6px; border-radius: 50%; background: var(--c) }
 
-  .dock { flex: none; padding: 12px 16px 16px; border-top: 1px solid var(--edge); display:flex; flex-direction:column; gap: 8px }
-  .box { display:flex; align-items:flex-end; gap: 8px; padding: 8px 8px 8px 14px; border-radius: 14px; border: 1px solid var(--sys-edge); background: rgba(255,255,255,.04); box-shadow: 0 0 24px -14px var(--shine) }
-  .box textarea { flex: 1; resize: none; background: transparent; border: 0; outline: 0; color: var(--ink-100); font: 13px/1.4 Inter, sans-serif; height: 38px; padding-top: 9px }
-  .box textarea::placeholder { color: var(--ink-500) }
-  .go { height: 36px; padding: 0 14px; border-radius: 10px; border: 0; background: var(--lav-400); color: #17152a; font: 700 11px var(--mono); letter-spacing: .14em; cursor: pointer; display:inline-flex; align-items:center; gap: 6px }
-  .go[disabled] { background: rgba(255,255,255,.08); color: var(--ink-500); cursor: default }
-  .foot { display:flex; gap: 6px; flex-wrap: wrap; align-items:center }
-  .foot .grow { flex: 1 }
+  /* the four counts the model named, big numerals, each opens its rows */
+  .r7-tiles { display:grid; grid-template-columns: 1fr 1fr; gap: 8px }
+  .r7-tile { --c: var(--color-lav-400); position: relative; display:flex; flex-direction: column; align-items:flex-start; gap: 6px; padding: 10px 12px; border-radius: 12px; text-align:left; overflow: hidden;
+    border: 1px solid color-mix(in oklch, var(--c) 28%, transparent); background: linear-gradient(160deg, color-mix(in oklch, var(--c) 13%, transparent), transparent 75%);
+    animation: ins-arrive 450ms var(--motion-ease) both; animation-delay: calc(200ms + var(--i) * 70ms); transition: border-color 200ms, box-shadow 200ms, transform 200ms }
+  .r7-tile:hover { transform: translateY(-2px); border-color: var(--c); box-shadow: 0 0 22px -10px var(--c) }
+  .r7-tile.on { border-color: var(--c); box-shadow: 0 0 0 1px var(--c), 0 0 26px -8px var(--c) }
+  .r7-tile .top { display:flex; align-items:center; gap: 7px; width: 100% }
+  .r7-tile .top i { font-style: normal; width: 22px; height: 22px; border-radius: 7px; display:grid; place-items:center; font-size: 11px; background: color-mix(in oklch, var(--c) 20%, transparent); border: 1px solid color-mix(in oklch, var(--c) 40%, transparent) }
+  .r7-tile .top b { font: 700 9px var(--font-mono); letter-spacing: .16em; color: var(--c); flex: 1 }
+  .r7-tile .top em { font: normal 600 9px var(--font-mono); color: var(--color-ink-500); transition: transform 250ms }
+  .r7-tile.on .top em { transform: rotate(90deg); color: var(--c) }
+  .r7-tile .n { font-size: 26px; font-weight: 300; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; color: var(--color-ink-100) }
+  .r7-tile .n small { font-size: 13px; color: var(--color-ink-400); margin-right: 1px }
+  .r7-tile .s { font: 500 9px var(--font-mono); letter-spacing: .1em; color: var(--color-ink-400) }
+
+  /* the rows behind a number */
+  .r7-rows { display:grid; grid-template-rows: 0fr; transition: grid-template-rows 350ms var(--motion-ease) }
+  .r7-rows > div { overflow: hidden; min-height: 0 }
+  .r7-rows.open { grid-template-rows: 1fr }
+  .r7-list { --c: var(--color-lav-400); border-radius: 10px; border: 1px solid color-mix(in oklch, var(--c) 30%, transparent); background: color-mix(in oklch, var(--sink) 30%, transparent) }
+  .r7-list .hd { display:flex; align-items:center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--glass-edge); font: 700 9px var(--font-mono); letter-spacing: .14em; color: var(--c) }
+  .r7-list .hd .grow { flex: 1 }
+  .r7-list .hd span:last-child { color: var(--color-ink-100) }
+  .r7-list .sc { max-height: 196px; overflow: auto }
+  .r7-row { display:grid; grid-template-columns: 46px 74px 1fr auto; gap: 8px; align-items:center; padding: 6px 10px; font-size: 12px; color: var(--color-ink-200); animation: ins-arrive 300ms var(--motion-ease) both; animation-delay: calc(var(--i) * 25ms) }
+  .r7-row + .r7-row { border-top: 1px solid color-mix(in oklch, var(--lift) 5%, transparent) }
+  .r7-row .d { font: 500 9.5px var(--font-mono); color: var(--color-ink-500); letter-spacing: .06em }
+  .r7-row .k { justify-self: start; font: 700 8.5px var(--font-mono); letter-spacing: .1em; padding: 2px 6px; border-radius: 5px; color: var(--c); background: color-mix(in oklch, var(--c) 14%, transparent) }
+  .r7-row .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .r7-row .v { font: 600 11px var(--font-mono); color: var(--color-ink-100); font-variant-numeric: tabular-nums }
+
+  /* the model's lines, each with the facts it named */
+  .r7-lines { display:flex; flex-direction: column; gap: 10px; padding-top: 2px }
+  .r7-line { --c: var(--color-lav-400); display:grid; grid-template-columns: 22px 1fr; gap: 9px; animation: ins-arrive 400ms var(--motion-ease) both; animation-delay: calc(500ms + var(--i) * 90ms) }
+  .r7-line > i { font-style: normal; width: 22px; height: 22px; border-radius: 7px; display:grid; place-items:center; font-size: 11px; background: color-mix(in oklch, var(--c) 18%, transparent); border: 1px solid color-mix(in oklch, var(--c) 40%, transparent) }
+  .r7-line > div { display:flex; flex-direction: column; gap: 5px; min-width: 0 }
+  .r7-line p { font-size: 12.5px; line-height: 1.5; color: var(--color-ink-200) }
+  .r7-fact { --c: var(--color-lav-400); display:inline-flex; align-items:center; gap: 5px; font: 600 9.5px var(--font-mono); letter-spacing: .06em; padding: 3px 8px; border-radius: 7px; white-space: nowrap; color: var(--color-ink-300);
+    border: 1px solid color-mix(in oklch, var(--c) 32%, transparent); background: color-mix(in oklch, var(--lift) 4%, transparent); transition: background 150ms, border-color 150ms }
+  .r7-fact b { color: var(--color-ink-100); font-weight: 700 }
+  .r7-fact:hover, .r7-fact.on { border-color: var(--c); background: color-mix(in oklch, var(--c) 14%, transparent) }
+  .ask-pill.copy { cursor: pointer; margin-left: auto; transition: all 150ms }
+  .ask-pill.copy:hover { color: var(--color-ink-100); border-color: var(--system-edge) }
+  .ask-stamp .t { font: 500 9.5px var(--font-mono); color: var(--color-ink-500); letter-spacing: .08em }
+  .ask-bar input { font-size: 13.5px }
 </style>
 </head>
 <body>
 
-<header class="top">
-  <span class="brand">SOLO LEVELING</span>
-  <span class="grow"></span>
-  <button class="kbtn"><span class="lbl">LOG</span><kbd>⌘L</kbd></button>
-  <button class="kbtn"><span class="lbl">SEARCH</span><kbd>⌘K</kbd></button>
-  <button class="kbtn ask" onclick="setOpen(true)"><span class="st">✦</span><span class="lbl">ASK</span><kbd>⌘J</kbd></button>
-</header>
-<main class="page">
-  <div class="ghost"><h3>[ TODAY'S THREE ]</h3><div class="big">2 / 3</div></div>
-  <div class="ghost"><h3>[ TODAY ]</h3><div class="big">18:00 RUN</div></div>
-  <div class="ghost w"><h3>[ THIS MONTH ]</h3><div class="big">LANGS 6 · WORKOUT 4 · COMMITS 71</div></div>
-</main>
-
-<div class="scrim" onclick="setOpen(false)"></div>
-<aside class="drawer" id="drawer">
-  <div class="dh">
-    <span class="sys">[ ASK ]</span>
-    <span class="pay" id="pay">PRO · FREE</span>
-    <button class="x" onclick="setOpen(false)">✕</button>
-  </div>
-  <div class="body" id="body"></div>
-  <div class="dock">
-    <div class="box">
-      <textarea id="ta" placeholder="What did I do in August?"></textarea>
-      <button class="go" id="go" onclick="ask(ta.value || EX[0].q)">✦ ASK</button>
-    </div>
-    <div class="foot">
-      <span class="tag" style="--c: var(--ink-400)">NOT SAVED</span>
-      <span class="grow"></span>
-      <span class="caps">⌘J · ESC</span>
-    </div>
-  </div>
-</aside>
-
 <div class="ctl" id="ctl"></div>
 
+<div class="app" id="app">
+  <header class="tb">
+    <div class="l"><img src="/public/logo.svg" alt="" /><span>SOLO LEVELING</span></div>
+    <div class="r">
+      <button class="log"><span style="font-size:16px;line-height:1">＋</span>Log<span class="key">⌘L</span></button>
+      <button class="search"><span>⌕</span>Search<span class="key">⌘K</span></button>
+      <button class="askbtn" data-open><span class="o"><svg class="ask-star" viewBox="0 0 16 16"><path d="M8 0.5 C8.6 5.6 10.4 7.4 15.5 8 C10.4 8.6 8.6 10.4 8 15.5 C7.4 10.4 5.6 8.6 0.5 8 C5.6 7.4 7.4 5.6 8 0.5 Z" fill="currentColor"/></svg></span><span class="w">Ask</span><span class="key">⌘J</span></button>
+      <span class="bell">🔔</span>
+      <span class="av">A</span>
+    </div>
+  </header>
+  <div class="shell">
+    <nav class="rail">
+      <div class="g"><div class="h">NOW</div><a class="on"><i>▦</i>Today</a><a><i>▤</i>Calendar</a><a><i>◎</i>Review</a></div>
+      <div class="g"><div class="h">BUILD</div><a><i>◫</i>Projects</a><a><i>◉</i>Goals</a><a><i>▢</i>Backlog</a><a><i>▣</i>Notes</a></div>
+      <div class="g"><div class="h">TRACK</div><a><i>⟋</i>Finances</a><a><i>∿</i>Body</a><a><i>Aa</i>Languages</a></div>
+    </nav>
+    <div class="main"><iframe id="today" src="/design/today-mockup/month.html" title="Today"></iframe></div>
+  </div>
+</div>
+
+<div class="ask-layer" id="layer">
+  <div class="ask-scrim" data-close></div>
+  <aside class="ask-drawer" aria-label="Ask">
+    <div class="ask-dh">
+      <span class="ask-orb" id="orb"></span>
+      <span class="system-title whitespace-nowrap">[ ASK ]</span>
+      <span class="grow"></span>
+      <span id="pay"></span>
+      <button class="ask-x" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="ask fresh sopen" id="ask"></div>
+  </aside>
+</div>
+
 <script>
-  const AREA = { body: ['🏋️', '--a-body'], lang: ['🗣️', '--a-lang'], money: ['💶', '--a-money'], proj: ['🛠️', '--a-proj'], task: ['✅', '--a-task'], none: ['❔', '--a-none'] }
-  const c = a => `var(${AREA[a][1]})`
-  const EX = [
-    { a: 'task', q: 'What did I actually do in August?' },
-    { a: 'body', q: 'How many workouts since 1 September?' },
-    { a: 'lang', q: 'Portuguese this month and last month' },
-    { a: 'money', q: 'Where did the money go last week?' },
-    { a: 'proj', q: 'Which projects got commits in October?' },
-  ]
-  /* the rows a fact opens (sample) */
-  const ROWS = {
-    workout: [['AUG 02', 'WORKOUT', 'gym · push', '60 min'], ['AUG 05', 'WORKOUT', 'run', '35 min'], ['AUG 09', 'WORKOUT', 'gym · pull', '55 min'], ['AUG 12', 'WORKOUT', 'gym · legs', '60 min'], ['AUG 16', 'WORKOUT', 'run', '40 min']],
-    lang: [['AUG 04', 'SESSION', 'class · past tense', '90 min'], ['AUG 06', 'SESSION', 'homework', '30 min'], ['AUG 11', 'SESSION', 'class · ser vs estar', '90 min']],
-    spent: [['AUG 01', 'EXPENSE', 'Pingo Doce', '€48.20'], ['AUG 03', 'EXPENSE', 'Solinca', '€39.90'], ['AUG 07', 'EXPENSE', 'Anthropic', '€22.14']],
-    commits: [['AUG 28', 'COMMIT', 'oreum · feat: onboarding', ''], ['AUG 28', 'COMMIT', 'sololeveling · fix: week bar', ''], ['AUG 27', 'COMMIT', 'oreum · fix: auth', '']],
-    tasks: [['AUG 30', 'TASK DONE', 'Send invoice', ''], ['AUG 29', 'TASK DONE', 'Book dentist', ''], ['AUG 26', 'TASK DONE', 'Renew NIF', '']],
+  const STAR = '<svg class="ask-star" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0.5 C8.6 5.6 10.4 7.4 15.5 8 C10.4 8.6 8.6 10.4 8 15.5 C7.4 10.4 5.6 8.6 0.5 8 C5.6 7.4 7.4 5.6 8 0.5 Z" fill="currentColor"/></svg>'
+  const A = {
+    projects: { c: 'var(--area-projects)', e: '🛠️', n: 'PROJECTS' },
+    portuguese: { c: 'var(--area-portuguese)', e: '🗣️', n: 'PORTUGUESE' },
+    body: { c: 'var(--area-body)', e: '🏋️', n: 'BODY' },
+    money: { c: 'var(--area-money)', e: '💶', n: 'MONEY' },
+    task: { c: 'var(--area-task)', e: '✅', n: 'TASKS' },
   }
-  const AUG = {
-    head: 'A building month: code most days, the gym about twice a week.',
+
+  /* ---- the sample rows of one August (what forPeriod would return) ---- */
+  const W = [[2, 'Gym · push', 60], [5, 'Run', 35], [7, 'Gym · pull', 55], [9, 'Gym · legs', 60], [12, 'Run', 40], [14, 'Gym · push', 60], [16, 'Gym · pull', 50], [23, 'Run', 30], [27, 'Gym · legs', 55]]
+  const L = [[4, 'CLASS', 'Pretérito perfeito', 90], [6, 'HOMEWORK', 'Sheet 7', 30], [11, 'CLASS', 'Ser vs estar', 90], [13, 'HOMEWORK', 'Sheet 8', 25], [18, 'CLASS', 'Por vs para', 90], [20, 'CLASS', 'Imperativo', 90], [25, 'CLASS', 'Conjuntivo', 90], [27, 'HOMEWORK', 'Sheet 9', 35]]
+  const CPD = [0, 3, 6, 9, 5, 0, 2, 7, 8, 11, 4, 0, 6, 9, 3, 0, 0, 5, 7, 8, 6, 0, 4, 10, 9, 0, 0, 6, 5, 4, 1]
+  const MSG = ['feat(onboarding): first run', 'fix(auth): token refresh', 'feat(week): drag a log', 'docs: journey map', 'fix(chart): ruler snaps', 'feat(feed): posts']
+  const C = []
+  CPD.forEach((n, i) => { for (let j = 0; j < n; j++) C.push([i + 1, j % 3 === 2 ? 'Solo Leveling' : 'Oreum', MSG[(i + j) % MSG.length]]) })
+  const M = [[1, 'Pingo Doce', 48.2], [3, 'Solinca', 39.9], [4, 'Uber', 11.4], [7, 'Anthropic', 22.14], [8, 'Pingo Doce', 61.35], [10, 'Galp', 52.0], [12, 'Zara', 89.95], [15, 'Pingo Doce', 54.8], [17, 'Restaurante Zé', 38.5], [19, 'Vodafone', 30.0], [21, 'Pingo Doce', 47.1], [22, 'Renda · quarto', 650.0], [24, 'Uber', 9.8], [26, 'Continente', 72.46], [29, 'Farmácia', 18.6], [30, 'Pingo Doce', 37.9]]
+  const T = [1, 1, 3, 4, 6, 6, 8, 9, 11, 12, 12, 14, 15, 17, 18, 19, 21, 22, 24, 25, 27, 29, 30]
+  const eur = v => '€' + v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const spent = M.reduce((s, r) => s + r[2], 0)
+  const day = d => `AUG ${String(d).padStart(2, '0')}`
+  const ROWS = {
+    workout: { a: 'body', label: 'WORKOUT', total: `${W.reduce((s, w) => s + w[2], 0)} MIN`, rows: W.map(([d, t, v]) => [day(d), 'WORKOUT', t, `${v} MIN`]) },
+    session: { a: 'portuguese', label: 'SESSION · PORTUGUESE', total: `${L.reduce((s, l) => s + l[3], 0)} MIN`, rows: L.map(([d, k, t, v]) => [day(d), k, t, `${v} MIN`]) },
+    commits: { a: 'projects', label: 'COMMITS', total: '', rows: C.slice().reverse().map(([d, p, m]) => [day(d), p.toUpperCase(), m, '']) },
+    spent: { a: 'money', label: 'SPENT', total: eur(spent), rows: M.map(([d, t, v]) => [day(d), 'EXPENSE', t, eur(v)]) },
+    tasks: { a: 'task', label: 'TASK DONE', total: '', rows: T.map((d, i) => [day(d), 'TASK DONE', ['Send invoice', 'Renew NIF', 'Book dentist', 'Pay IRS', 'Fix bike', 'Call bank'][i % 6], '']) },
+  }
+  const total = W.length + L.length + C.length + M.length + T.length
+  const codeDays = CPD.filter(n => n > 0).length
+  const oreum = C.filter(c => c[1] === 'Oreum').length
+  const classes = L.filter(l => l[1] === 'CLASS').length, homework = L.length - classes
+  const w1 = W.filter(w => w[0] <= 16).length
+  /* which areas have a row on each day */
+  const onDay = d => [['body', W.some(w => w[0] === d)], ['portuguese', L.some(l => l[0] === d)], ['projects', CPD[d - 1] > 0], ['money', M.some(m => m[0] === d)]].filter(x => x[1]).map(x => x[0])
+
+  /* ---- the answer: the model's words, the facts it named by key ---- */
+  const ANSWER = {
+    head: `<b>A building month.</b> Code on ${codeDays} days, the gym ${W.length} times, every Portuguese class kept.`,
+    tiles: [['commits', 'COMMITS', `${C.length}`, `${codeDays} DAYS`], ['workout', 'WORKOUT', `${W.length}`, `${W.reduce((s, w) => s + w[2], 0)} MIN`], ['session', 'PORTUGUESE', `${L.length}`, `${classes} CLASS · ${homework} HOMEWORK`], ['spent', 'SPENT', eur(spent), `${M.length} ROWS`]],
     lines: [
-      { a: 'proj', p: 'Most days went into code — Oreum far ahead of the app.', f: [['COMMITS · AUG', '138', 'commits'], ['OREUM', '96', 'commits'], ['SOLO LEVELING', '42', 'commits']] },
-      { a: 'body', p: 'Gym and runs, steady in the first half, quiet after the 16th.', f: [['WORKOUT · AUG', '9', 'workout'], ['LAST · AUG 16', '40 min', 'workout']] },
-      { a: 'lang', p: 'Classes kept; homework in fewer weeks than classes.', f: [['SESSION · PORTUGUESE', '8', 'lang'], ['HOMEWORK', '3', 'lang']] },
-      { a: 'money', p: 'Groceries and subscriptions are the biggest rows.', f: [['SPENT · AUG', '€1,284.10', 'spent'], ['IN · AUG', '€2,900.00', 'spent']] },
-      { a: 'task', p: 'Tasks ticked, mostly admin.', f: [['TASK DONE · AUG', '23', 'tasks']] },
+      ['projects', `Most of it went into <b>Oreum</b>; Solo Leveling on the quieter days.`, [['commits', 'OREUM', `${oreum}`], ['commits', 'SOLO LEVELING', `${C.length - oreum}`]]],
+      ['body', `Steady until the 16th, then a week with nothing logged.`, [['workout', 'AUG 1–16', `${w1}`], ['workout', 'AUG 17–31', `${W.length - w1}`]]],
+      ['portuguese', `Classes every week; homework after three of them.`, [['session', 'CLASS', `${classes}`], ['session', 'HOMEWORK', `${homework}`]]],
+      ['money', `The room is half of it; groceries are the most rows.`, [['spent', 'RENDA · QUARTO', eur(650)], ['spent', 'PINGO DOCE', `${M.filter(m => m[1] === 'Pingo Doce').length} ROWS`]]],
+      ['task', `Mostly admin ticked off.`, [['tasks', 'TASK DONE', `${T.length}`]]],
     ],
   }
-  let state = 'empty', open = true, pay = 'pro', thread = []
+  const EX = [
+    ['task', '🗓️', 'MONTH', 'What did I actually do in August?'],
+    ['body', '🏋️', 'BODY', 'How many workouts since 1 September?'],
+    ['portuguese', '🗣️', 'PORTUGUESE', 'Portuguese this month and last month'],
+    ['money', '💶', 'MONEY', 'Where did the money go last week?'],
+  ]
+  const CHIPS = [['projects', '🛠️', 'Which projects got commits in October?'], ['task', '✅', 'Tasks done this week']]
 
-  const exHtml = () => `<div class="hero"><div class="orb">✦</div><span class="caps">READS</span>
-      <div class="reads">${['LOGS', 'TASKS', 'PROJECTS', 'COMMITS', 'GOALS'].map((t, i) => `<span class="tag" style="--c:${c(['task', 'task', 'proj', 'proj', 'lang'][i])}">${t}</span>`).join('')}<span class="tag off">NOTES</span></div></div>
-    <div class="ex">${EX.map(e => `<button class="exq" style="--c:${c(e.a)}" onclick="ask('${e.q}')"><i>${AREA[e.a][0]}</i>${e.q}</button>`).join('')}</div>`
+  /* ---- state ---- */
+  let open = true, pay = 'pro', turns = [], unfolded = false, pick = null
 
-  const stamp = () => `<div class="stamp"><span class="m"><span>✦</span>SONNET 5.5</span><span class="dot">·</span>22 OCT 14:05<span class="dot">·</span>18.4K IN · 520 OUT<span class="dot">·</span>
-      ${pay === 'pro' ? '<span class="free">$0 · PRO</span>' : '$0.05 · API'}
-      <span class="acts"><button class="pill">⧉ COPY</button></span></div>`
+  const strip = (filling) => `<div class="r7-strip ${filling ? 'r7-filling' : ''}">${Array.from({ length: 31 }, (_, i) => {
+      const d = i + 1, on = onDay(d)
+      return `<div class="r7-day ${d % 7 === 1 ? 'wk' : ''}"><div class="dots">${on.map(a => `<span class="${pick && ROWS[pick].a === a ? 'sel' : ''}" data-a="${a}" style="--c:${A[a].c};--d:${d}"></span>`).join('')}</div><b>${d % 7 === 1 || d === 31 ? d : ''}</b></div>`
+    }).join('')}</div>`
 
-  const answerHtml = (n) => `<div class="a">
-      <div class="per"><span class="tag">AUG 1 – 31</span><span class="tag" style="--c:var(--ink-300)">214 ROWS READ</span></div>
-      <div class="head">${AUG.head}</div>
-      ${AUG.lines.map((l, i) => `<div class="line" style="--c:${c(l.a)}; animation-delay:${i * 90}ms"><i>${AREA[l.a][0]}</i><div class="t"><p>${l.p}</p>
-        <div class="facts">${l.f.map(([k, v, r]) => `<span class="fact" style="--c:${c(l.a)}" onclick="tog(this,'${n}-${i}-${r}')">${k} <b>${v}</b></span>`).join('')}</div>
-        ${[...new Set(l.f.map(f => f[2]))].map(r => `<div class="rows" id="${n}-${i}-${r}" style="--c:${c(l.a)}">${ROWS[r].map(([d, k, t, v]) => `<div><span class="d">${d}</span><span class="k">${k}</span><span>${t}</span><span class="v">${v}</span></div>`).join('')}<div class="more">ALL ${l.f[0][1]} →</div></div>`).join('')}
-      </div></div>`).join('')}
-      ${stamp()}</div>`
+  const legend = () => `<div class="r7-legend">${['projects', 'body', 'portuguese', 'money'].map(a => `<span style="--c:${A[a].c}">${A[a].n}</span>`).join('')}</div>`
 
-  const noDataHtml = () => `<div class="a">
-      <div class="per"><span class="tag">JUN 1 – 30</span><span class="tag" style="--c:var(--ink-300)">0 ROWS READ</span></div>
-      <div class="line" style="--c:${c('none')}"><i>❔</i><div class="t"><p>No sleep rows in June.</p><div class="facts"><span class="tag" style="--c:var(--ink-400)">NO DATA · SLEEP</span></div></div></div>
-      ${stamp()}</div>`
+  const rowsList = k => {
+    const R = ROWS[k]
+    return `<div class="r7-list" style="--c:${A[R.a].c}"><div class="hd">${A[R.a].e} ${R.label} · AUG 1–31<span class="grow"></span><span>${R.rows.length} ROWS${R.total ? ` · ${R.total}` : ''}</span></div>
+      <div class="sc">${R.rows.map(([d, kk, t, v], i) => `<div class="r7-row" style="--i:${Math.min(i, 12)}"><span class="d">${d}</span><span class="k">${kk}</span><span class="t">${t}</span><span class="v">${v}</span></div>`).join('')}</div></div>`
+  }
+
+  const payBadge = () => pay === 'pro'
+    ? '<span class="ins-badge good"><span class="ask-ping"></span>⚡ PRO PLAN · NO CREDITS</span>'
+    : pay === 'api' ? '<span class="ins-badge warn">💳 OCT · $0.31 OF $2.00</span>' : '<span class="ins-badge bad">⛽ OCT · $2.00 OF $2.00</span>'
+
+  const stamp = (rows = total) => `<div class="ask-stamp">
+      <span class="ask-pill m">✦ SONNET 5.5</span>
+      <span class="ask-pill">${rows} ROWS</span>
+      <span class="ask-pill">${rows === total ? '18.4K' : '2.1K'} IN · ${rows === total ? 520 : 60} OUT</span>
+      ${pay === 'pro' ? '<span class="ask-pill g">⚡ PRO · $0.00</span>' : '<span class="ask-pill c">$0.05 · API</span>'}
+</div>`
+
+  function answer() {
+    const a = ANSWER
+    return `<div class="ask-a land" style="--k: var(--color-lav-400)"><span class="ask-orb">${STAR}</span>
+      <div class="body ${pick ? 'pick' : ''}">
+        <div class="r7-per"><span class="ask-kind">🗓️ AUG 2026</span><span class="ins-badge dim">AUG 1 – 31</span><span class="ins-badge lav">${total} ROWS</span><span class="ask-pill copy">⧉ COPY</span></div>
+        ${strip(false)}
+        ${legend()}
+        <p>${a.head}</p>
+        <div class="r7-tiles">${a.tiles.map(([k, label, v, s], i) => {
+          const R = ROWS[k], cur = v.startsWith('€')
+          return `<button class="r7-tile ${pick === k ? 'on' : ''}" style="--c:${A[R.a].c};--i:${i}" data-pick="${k}">
+            <span class="top"><i>${A[R.a].e}</i><b>${label}</b><em>›</em></span>
+            <span class="n" data-to="${cur ? v.slice(1).replace(/,/g, '') : v}" data-cur="${cur ? 1 : ''}">${cur ? `<small>€</small>${v.slice(1)}` : v}</span>
+            <span class="s">${s}</span></button>`
+        }).join('')}</div>
+        <div class="r7-rows ${pick ? 'open' : ''}"><div>${pick ? rowsList(pick) : ''}</div></div>
+        <div class="r7-lines">${a.lines.map(([ar, p, facts], i) => `<div class="r7-line" style="--c:${A[ar].c};--i:${i}"><i>${A[ar].e}</i><div><p>${p}</p>
+          <div class="ask-facts">${facts.map(([k, l, v]) => `<button class="r7-fact ${pick === k ? 'on' : ''}" style="--c:${A[ar].c}" data-pick="${k}">${l} <b>${v}</b></button>`).join('')}</div></div></div>`).join('')}</div>
+        ${stamp()}
+      </div></div>`
+  }
+
+  function turn(t, n) {
+    const q = `<div class="ask-q ${t.s === 'fail' ? 'miss' : ''}">${t.q}<small>${t.s === 'fail' ? '✕ NOT ANSWERED · ' : ''}14:05</small></div>`
+    if (t.s === 'asking') return q + `<div class="ask-a"><span class="ask-orb busy">${STAR}</span><div class="body think">
+        <div class="r7-per"><span class="ask-kind" style="--k:var(--color-lav-400)">🗓️ AUG 2026</span><span class="ins-badge dim">AUG 1 – 31</span><span class="ins-badge lav">${total} ROWS</span></div>
+        ${strip(true)}
+        <span class="label-caps text-lav-300">READING ${total} ROWS</span><div class="ins-scan"></div></div></div>`
+    if (t.s === 'fail') return q + `<div class="ask-a bad"><span class="ask-orb"><span>✕</span></span><div class="body">
+        <div class="ask-fail"><span class="big">✕ NOT REACHED</span><span class="grow"></span><button class="ins-btn again" data-again="${n}">↻ ASK AGAIN</button></div>
+        <div class="ask-stamp"><span class="ask-pill g">$0.00 · NOTHING PAID</span><span class="ask-pill">NO RETRY</span></div></div></div>`
+    if (t.s === 'none') return q + `<div class="ask-a land" style="--k: var(--color-ink-400)"><span class="ask-orb">${STAR}</span><div class="body">
+        <div class="r7-per"><span class="ask-kind">❔ NO DATA</span><span class="ins-badge dim">JUN 1 – 30</span><span class="ins-badge dim">7 ROWS</span></div>
+        <p>No sleep rows. Sleep is not logged.</p>
+        <div class="ask-facts"><span class="ins-fact">🌙 SLEEP · JUN · 0 ROWS</span><span class="ins-fact">🏋️ WORKOUT · JUN · 7</span></div>
+        ${stamp(7)}</div></div>`
+    return q + answer()
+  }
 
   function render() {
-    document.body.classList.toggle('open', open)
-    document.body.classList.toggle('busy', state === 'asking')
-    const P = document.getElementById('pay')
-    P.className = 'pay' + (pay === 'cap' ? ' cap' : '')
-    P.textContent = pay === 'pro' ? 'PRO · FREE' : pay === 'api' ? '$0.31 OF $2 · OCT' : '$2 OF $2 · NEXT 1 NOV'
-    document.getElementById('go').disabled = pay === 'cap' || state === 'asking'
-    const B = document.getElementById('body')
-    if (state === 'empty') B.innerHTML = exHtml()
-    else {
-      B.innerHTML = thread.map((t, n) => `<div class="q">${t.q}</div>${
-        t.s === 'asking' ? `<div class="a"><div class="per"><span class="tag">AUG 1 – 31</span><span class="tag" style="--c:var(--ink-300)">214 ROWS</span></div><div class="typing"><i></i><i></i><i></i><span class="caps" style="margin-left:8px">READING ROWS</span></div><div class="scan"></div></div>`
-        : t.s === 'fail' ? `<div class="a fail"><div class="head bad">✕ NOT REACHED</div><div class="stamp"><span class="free">$0 · NOTHING PAID</span><span class="acts"><button class="pill" onclick="ask('${t.q}')">↻ ASK AGAIN</button></span></div></div>`
-        : t.s === 'none' ? noDataHtml() : answerHtml(n)}`).join('')
-      B.scrollTop = B.scrollHeight
-    }
-    document.getElementById('ctl').innerHTML = [
-      ['closed', () => { open = false }], ['empty', () => { open = true; state = 'empty'; thread = [] }],
-      ['asking', () => { open = true; state = 'asking'; thread = [{ q: EX[0].q, s: 'asking' }] }],
-      ['answer', () => { open = true; state = 'answer'; thread = [{ q: EX[0].q, s: 'ok' }] }],
-      ['no data', () => { open = true; state = 'answer'; thread = [{ q: 'How did I sleep in June?', s: 'none' }] }],
-      ['failed', () => { open = true; state = 'answer'; thread = [{ q: EX[0].q, s: 'fail' }] }],
-      ['pro', () => { pay = 'pro' }], ['api', () => { pay = 'api' }], ['cap', () => { pay = 'cap' }],
-    ].map(([k, f], i) => `<button class="${(k === 'closed' && !open) || (open && k === ({ empty: 'empty', asking: 'asking' }[state] ?? (thread[0]?.s === 'none' ? 'no data' : thread[0]?.s === 'fail' ? 'failed' : 'answer'))) || k === pay ? 'on' : ''}" data-i="${i}">${k}</button>`).join('')
-    const fs = [...document.querySelectorAll('#ctl button')]
-    const acts = [() => { open = false }, () => { open = true; state = 'empty'; thread = [] }, () => { open = true; state = 'asking'; thread = [{ q: EX[0].q, s: 'asking' }] }, () => { open = true; state = 'answer'; thread = [{ q: EX[0].q, s: 'ok' }] }, () => { open = true; state = 'answer'; thread = [{ q: 'How did I sleep in June?', s: 'none' }] }, () => { open = true; state = 'answer'; thread = [{ q: EX[0].q, s: 'fail' }] }, () => { pay = 'pro' }, () => { pay = 'api' }, () => { pay = 'cap' }]
-    fs.forEach((b, i) => b.onclick = () => { acts[i](); render() })
+    const L = document.getElementById('layer'), X = document.getElementById('ask')
+    L.classList.toggle('open', open)
+    const busy = turns.some(t => t.s === 'asking')
+    document.body.classList.toggle('busy', busy)
+    document.getElementById('orb').className = `ask-orb ${busy ? 'busy' : ''}`
+    document.getElementById('orb').innerHTML = STAR
+    document.getElementById('pay').innerHTML = payBadge()
+    const fresh = turns.length === 0, folded = !fresh && !unfolded, capped = pay === 'cap'
+    X.className = `ask ${fresh ? 'fresh' : ''} ${folded ? '' : 'sopen'}`
+    X.innerHTML = `
+      ${fresh ? `<div class="r7-hero"><span class="ask-orb big">${STAR}</span><span class="system-title">[ MY ROWS ]</span>
+          <div class="r7-reads">${[['task', '📒', 'LOGS'], ['task', '✅', 'TASKS'], ['projects', '🛠️', 'PROJECTS'], ['projects', '⌥', 'COMMITS'], ['portuguese', '🎯', 'GOALS']].map(([a, e, n], i) => `<span class="r7-read" style="--c:${A[a].c};--i:${i}"><i>${e}</i>${n}</span>`).join('')}<span class="r7-read off" style="--i:5"><i>📝</i>NOTES</span></div></div>`
+        : `<div class="ask-thread" id="thread">${turns.map(turn).join('')}</div>`}
+      <div class="ask-dock">
+        <div class="ask-srow">
+          ${fresh ? '' : `<button class="ask-stog" aria-expanded="${!folded}" data-fold><span>${STAR}</span>SUGGESTED <i>${EX.length + CHIPS.length}</i> <b>▾</b></button>`}
+          <span class="ins-badge dim">🔒 NOT SAVED</span>
+        </div>
+        <div class="ask-sugg" ${folded ? 'inert' : ''}><div>
+          ${fresh ? `<div class="ask-cards">${EX.map(([a, e, k, q], i) => `<button class="ask-card" style="--c:${A[a].c};--i:${i}" data-q="${q}" ${capped ? 'disabled' : ''}><span class="e">${e}</span><b>${k}</b><span>${q}</span></button>`).join('')}</div>
+              <div class="ask-chips" style="margin-top:8px">${CHIPS.map(([a, e, q]) => `<button style="--c:${A[a].c}" data-q="${q}" ${capped ? 'disabled' : ''}><i>${e}</i>${q}</button>`).join('')}</div>`
+            : `<div class="ask-chips">${[...EX.map(([a, e, , q]) => [a, e, q]), ...CHIPS].map(([a, e, q]) => `<button style="--c:${A[a].c}" data-q="${q}" ${capped || busy ? 'disabled' : ''}><i>${e}</i>${q}</button>`).join('')}</div>`}
+        </div></div>
+        ${capped ? `<div class="ask-capbar"><span class="e">⛽</span><b>CAP REACHED</b><span class="ins-badge warn">$2.00 OF $2.00</span><span class="grow"></span><span class="ins-badge dim">NEXT 1 NOV</span></div>`
+          : `<form class="ask-bar ${busy ? 'off' : ''}" id="form"><input id="box" maxlength="400" placeholder="What did I do in August?" ${busy ? 'disabled' : ''} /><button type="submit" class="ins-btn" ${busy ? 'disabled' : ''}>${busy ? '…' : 'ASK'}</button></form>`}
+      </div>`
+    const th = document.getElementById('thread')
+    if (th && !pick) th.scrollTop = th.scrollHeight
+    countUp()
+    ctl()
   }
-  function setOpen(v) { open = v; render() }
-  function tog(el, id) { el.classList.toggle('on'); document.getElementById(id).classList.toggle('on') }
+
+  /* numbers count up as they land, as Review's tiles do */
+  function countUp() {
+    document.querySelectorAll('.ask-a.land .r7-tile .n[data-to]').forEach(el => {
+      const to = parseFloat(el.dataset.to), cur = el.dataset.cur, t0 = performance.now()
+      const fmt = v => cur ? `<small>€</small>${v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : Math.round(v)
+      const step = now => { const p = Math.min(1, (now - t0) / 900), e = 1 - Math.pow(1 - p, 3); el.innerHTML = fmt(to * e); if (p < 1) requestAnimationFrame(step) }
+      requestAnimationFrame(step)
+    })
+  }
+
   function ask(q) {
-    if (pay === 'cap') return
-    document.getElementById('ta').value = ''
-    state = 'asking'; thread.push({ q, s: 'asking' }); render()
-    setTimeout(() => { thread[thread.length - 1].s = 'ok'; state = 'answer'; render() }, 1600)
+    if (pay === 'cap' || turns.some(t => t.s === 'asking')) return
+    pick = null; unfolded = false
+    turns.push({ q, s: 'asking' }); render()
+    setTimeout(() => { const t = turns.at(-1); t.s = /sleep/i.test(q) ? 'none' : 'ok'; render() }, 2200)
   }
-  addEventListener('keydown', e => {
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); setOpen(!open) }
-    if (e.key === 'Escape') setOpen(false)
+
+  const STATES = {
+    closed: () => { open = false },
+    empty: () => { open = true; turns = []; pick = null },
+    asking: () => { open = true; turns = [{ q: EX[0][3], s: 'asking' }]; pick = null },
+    answer: () => { open = true; turns = [{ q: EX[0][3], s: 'ok' }]; pick = null },
+    'rows open': () => { open = true; turns = [{ q: EX[0][3], s: 'ok' }]; pick = 'workout' },
+    'no data': () => { open = true; turns = [{ q: 'How did I sleep in June?', s: 'none' }]; pick = null },
+    failed: () => { open = true; turns = [{ q: EX[0][3], s: 'fail' }]; pick = null },
+  }
+  let shown = 'empty'
+  function ctl() {
+    const el = document.getElementById('ctl')
+    el.innerHTML = `MOCKUP ${Object.keys(STATES).map(k => `<button class="${k === shown ? 'on' : ''}" data-s="${k}">${k}</button>`).join('')}<span class="sep"></span>${['pro', 'api', 'cap'].map(p => `<button class="${p === pay ? 'on' : ''}" data-p="${p}">${p === 'pro' ? 'localhost · pro' : p === 'api' ? 'deployed · api' : 'at the cap'}</button>`).join('')}`
+    document.documentElement.style.setProperty('--ctl-h', el.offsetHeight + 'px')
+  }
+
+  document.addEventListener('click', e => {
+    const b = e.target.closest('button, [data-close]')
+    if (!b) return
+    if (b.dataset.s) { shown = b.dataset.s; STATES[shown](); render(); return }
+    if (b.dataset.p) { pay = b.dataset.p; render(); return }
+    if (b.hasAttribute('data-close')) { open = false; shown = 'closed'; render(); return }
+    if (b.hasAttribute('data-open')) { open = true; if (shown === 'closed') shown = turns.length ? 'answer' : 'empty'; render(); setTimeout(() => document.getElementById('box')?.focus(), 400); return }
+    if (b.hasAttribute('data-fold')) { unfolded = !unfolded; render(); return }
+    if (b.dataset.q) { ask(b.dataset.q); return }
+    if (b.dataset.again) { const n = +b.dataset.again; turns[n].s = 'asking'; render(); setTimeout(() => { turns[n].s = 'ok'; render() }, 2200); return }
+    if (b.dataset.pick) {
+      const k = b.dataset.pick
+      pick = pick === k ? null : k
+      /* only the rows and the strip change: the tiles do not count up again */
+      document.querySelectorAll('.r7-tile, .r7-fact').forEach(x => x.classList.toggle('on', x.dataset.pick === pick))
+      const box = document.querySelector('.r7-rows')
+      box.classList.toggle('open', !!pick)
+      if (pick) box.firstElementChild.innerHTML = rowsList(pick)
+      const body = box.closest('.body')
+      body.classList.toggle('pick', !!pick)
+      body.querySelectorAll('.r7-day .dots span').forEach(s => s.classList.toggle('sel', !!pick && s.dataset.a === ROWS[pick].a))
+      if (pick) setTimeout(() => box.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 120)
+    }
   })
+  document.addEventListener('submit', e => { e.preventDefault(); const v = document.getElementById('box').value.trim(); if (v) ask(v) })
+  addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); open = !open; shown = open ? (turns.length ? 'answer' : 'empty') : 'closed'; render() }
+    if (e.key === 'Escape' && open) { open = false; shown = 'closed'; render() }
+  })
+  /* the Today mockup behind keeps its own switches out of sight */
+  const hideCtl = () => { try { const d = document.getElementById('today').contentDocument; if (!d?.head || d.getElementById('no-ctl')) return; const s = d.createElement('style'); s.id = 'no-ctl'; s.textContent = '.ctl{display:none!important}'; d.head.appendChild(s) } catch {} }
+  document.getElementById('today').addEventListener('load', hideCtl)
+  hideCtl()
+  addEventListener('resize', ctl)
   render()
 </script>
 </body>

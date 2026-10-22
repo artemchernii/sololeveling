@@ -548,3 +548,87 @@
     }
   }
 }
+
+/* A phone, round 2 (22 Oct, his "mobile UX is still bad, when type when
+   press"): the answer gets the room. The sheet is nearly the whole
+   screen; the dock is one row — ✦ 6 beside the box and ASK, NOT SAVED
+   left to the wide screen; typing a first question folds the four cards
+   away so the box, the chips and the keyboard fit; the period's badges
+   and COPY share one line. */
+@media (max-width: 640px) {
+  .r7-drawer.ask-drawer {
+    height: min(94dvh, calc(var(--ask-vh, 100dvh) - 8px));
+  }
+  .r7-drawer .ask-dock {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    & .ask-srow {
+      display: contents;
+      & > .ins-badge {
+        display: none;
+      }
+    }
+    & .ask-sugg,
+    & .ask-capbar {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
+    & .ask-stog {
+      grid-row: 2;
+      font-size: 0;
+      gap: 6px;
+      padding: 6px 10px 6px 6px;
+      & i {
+        font-size: 10px;
+      }
+      & b {
+        display: none;
+      }
+    }
+    & .ask-bar {
+      grid-row: 2;
+      min-width: 0;
+      flex-wrap: nowrap;
+      & input {
+        flex-basis: auto;
+        min-width: 0;
+        width: 100%;
+        padding: 10px 14px;
+      }
+      & button {
+        flex: none;
+      }
+    }
+  }
+  .r7-drawer .ask.fresh .ask-dock .ask-bar {
+    grid-column: 1 / -1;
+  }
+  /* folded while the box is focused or holds a question: a tap on ASK
+     takes the focus first, and the cards coming back moved ASK away
+     from under the finger */
+  .r7-drawer .ask.fresh:has(.ask-bar input:focus),
+  .r7-drawer .ask.fresh:has(.ask-bar input:not(:placeholder-shown)) {
+    & .r7-hero,
+    & .ask-cards {
+      display: none;
+    }
+    & .ask-dock {
+      margin-top: auto;
+    }
+  }
+  .r7-drawer .r7-per {
+    gap: 5px;
+    flex-wrap: nowrap;
+    & .ask-kind,
+    & .ins-badge,
+    & .ask-pill.ask-copy {
+      flex: none;
+      font-size: 9px;
+      padding: 3px 7px;
+      letter-spacing: 0.08em;
+    }
+  }
+}

@@ -56,8 +56,9 @@ type Menu = { x: number; y: number; day: number; band: 0 | 1 | 2; at: number }
 
 /* THIS WEEK (18 Oct, mockup design/today-mockup/week.html, his "go"):
    Monday to Sunday across, three bands of the day down. A block is a row
-   he logged; hover says what it was, an empty cell logs one, a block
-   dragged to another cell moves it. Counts are of what is shown (§1). */
+   he logged; hover says what it was, a pressed cell lists what is in it
+   and logs one more (22 Oct: on a phone a tap on a pill is the cell), a
+   block dragged to another cell moves it. Counts are of what is shown (§1). */
 export function WeekCard({
   now,
   languages,
@@ -226,8 +227,6 @@ export function WeekCard({
                   data-testid={`cell-${key}`}
                   aria-disabled={future}
                   onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('[data-block]'))
-                      return
                     if (future || cells === undefined) return
                     e.stopPropagation()
                     const p = place(e.currentTarget)
@@ -335,15 +334,32 @@ export function WeekCard({
             role="menu"
             onClick={(e) => e.stopPropagation()}
             style={{
-              left: Math.max(8, menu.x - 95),
+              left: Math.max(
+                8,
+                Math.min(menu.x - 110, (box.current?.clientWidth ?? 0) - 228),
+              ),
               top: menu.y + 44,
             }}
-            className="absolute z-40 w-[190px] rounded-[14px] border border-lift/[0.09] bg-popover p-2.5 shadow-2xl"
+            className="absolute z-40 w-[220px] rounded-[14px] border border-lift/[0.09] bg-popover p-2.5 shadow-2xl"
           >
             <div className="mb-2 font-mono text-[10px] tracking-[0.14em] text-ink-300">
               {DAYS[menu.day]} {new Date(dayStarts[menu.day]).getDate()} ·{' '}
               {clock(menu.at)}
             </div>
+            {(cells?.[menu.band][menu.day] ?? []).map((b) => (
+              <div
+                key={`${b.id ?? 'c'}${b.at}`}
+                data-testid="menu-block"
+                className="flex items-center gap-2 px-2 py-1 font-mono text-[10px] tracking-[0.1em] text-ink-300"
+              >
+                <AreaIcon icon={ICON[b.kind]} area={b.area} size={14} />
+                <span className="min-w-0 flex-1 truncate">{detail(b)}</span>
+                <span className="text-ink-500">{clock(b.at)}</span>
+              </div>
+            ))}
+            {(cells?.[menu.band][menu.day].length ?? 0) > 0 ? (
+              <div className="my-1.5 border-t border-lift/[0.09]" />
+            ) : null}
             {(Object.keys(WRITE) as Array<keyof typeof WRITE>).map((k) => (
               <button
                 key={k}
@@ -442,8 +458,10 @@ function BlockPill({
         ['--area' as string]: `var(--area-${block.area})`,
         animationDelay: `${index * 30 + 200}ms`,
       }}
-      onMouseEnter={(e) => onTip(e.currentTarget)}
-      onMouseLeave={() => onTip(null)}
+      onPointerEnter={(e) =>
+        e.pointerType === 'mouse' && onTip(e.currentTarget)
+      }
+      onPointerLeave={() => onTip(null)}
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = 'move'
         e.dataTransfer.setData('text/plain', block.id ?? '')

@@ -1,5 +1,7 @@
 import { Info, dayWord } from './parts'
 import { Words } from './readParts'
+import { AskOn } from './AskOn'
+import { askAlloc } from '@/lib/askOnCards'
 import { TickerLogo } from '@/components/finances/Logo'
 import type { Doc } from '../../../../convex/_generated/dataModel'
 import type { Fact } from '@/lib/marketRead'
@@ -204,6 +206,7 @@ export function Allocation({
                   <span className="ins-was">WORLD {pct(r.world)}</span>
                 ) : null}
               </div>
+              {r ? <AskOn q={askAlloc(a.id, r.mine, r.world)} /> : <span />}
             </div>
           )
         })}

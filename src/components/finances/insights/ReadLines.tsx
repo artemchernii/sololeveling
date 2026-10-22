@@ -4,6 +4,8 @@ import { AccountLogo } from '@/components/finances/Logo'
 import { MAX_SEARCHES, factsFor } from '@/lib/marketRead'
 import type { Doc } from '../../../../convex/_generated/dataModel'
 import type { Kind, ReadLine } from '@/lib/marketRead'
+import { askLine } from '@/lib/askOnCards'
+import { AskOn } from './AskOn'
 import { TABS, TILE_OF } from './InsightsTabs'
 import { dayWord } from './parts'
 import {
@@ -153,6 +155,7 @@ function Line({
               → {TABS.find((t) => t.id === to.tab)?.name}
             </button>
           ) : null}
+          <AskOn q={askLine(line.title)} wide />
         </div>
         {open ? (
           <div data-testid="read-plain" className="ins-plain motion-fade-up">

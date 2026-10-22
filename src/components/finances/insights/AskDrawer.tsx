@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { Ask, MONTH, Star } from './Ask'
+import { usePrefill } from './askPrefill'
 import { usd } from './readParts'
 import { useAsk } from './useAsk'
 import type { useMarketRead } from './useMarketRead'
@@ -21,6 +22,11 @@ export function AskDrawer({ r }: { r: Read }) {
   const [ready, setReady] = useState(false)
   const panel = useRef<HTMLElement>(null)
   useEffect(() => setReady(true), [])
+  /* A card's ✦ opens it; Ask puts the question in the box. */
+  const prefill = usePrefill()
+  useEffect(() => {
+    if (prefill) setOpen(true)
+  }, [prefill])
 
   useEffect(() => {
     if (!open) return

@@ -1,3 +1,5 @@
+import { useNavigate, useRouterState } from '@tanstack/react-router'
+import { useConvex } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -9,7 +11,7 @@ import { usd } from '@/components/finances/insights/readParts'
 import { monthKey, nextMonthWord } from '@/lib/marketRead'
 import { MAX_QUESTION } from '@/lib/rowsAskPrompt'
 import { PeriodBadges, RowsAnswer, Strip, areaColour } from './RowsAnswer'
-import { useRowsAsk } from './useRowsAsk'
+import { openReply, useRowsAsk } from './useRowsAsk'
 import type { RowsTurn } from './useRowsAsk'
 
 /* R7 Ask AI (22 Oct, mockup design/ask-mockup/index.html round 2, his
@@ -32,6 +34,9 @@ const CARDS: Array<[string, string, string, string]> = [
   ['portuguese', '🗣️', 'PORTUGUESE', 'Portuguese this month and last month'],
   ['money', '💶', 'MONEY', 'Where did the money go last week?'],
 ]
+/* `?ask=` ids this page has opened already. */
+const opened = new Set<string>()
+
 const CHIPS: Array<[string, string, string]> = [
   ['projects', '🛠️', 'Which projects got commits in October?'],
   ['task', '✅', 'Tasks done this week'],
@@ -45,6 +50,7 @@ export function RowsDrawer({
   onOpenChange: (open: boolean) => void
 }) {
   const a = useRowsAsk()
+  const convex = useConvex()
   const [ready, setReady] = useState(false)
   const [text, setText] = useState('')
   const [unfolded, setUnfolded] = useState(false)
@@ -73,6 +79,22 @@ export function RowsDrawer({
         ?.focus({ preventScroll: true })
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onOpenChange])
+
+  /* N4: the push and the bell open `/dashboard?ask=<id>` — the drawer
+     opens on that answer, kept on the server for a day. */
+  const href = useRouterState({ select: (st) => st.location.href })
+  const navigate = useNavigate()
+  useEffect(() => {
+    /* The router's href, not window.location: the router has it first. */
+    const url = new URL(href, window.location.origin)
+    const id = url.searchParams.get('ask')
+    if (id === null || opened.has(id)) return
+    opened.add(id)
+    onOpenChange(true)
+    void openReply(convex, id)
+    url.searchParams.delete('ask')
+    void navigate({ href: url.pathname + url.search + url.hash, replace: true })
+  }, [href, convex, onOpenChange, navigate])
 
   const last = a.turns.at(-1)
   /* A new question, and its answer landing: the question at the top of
@@ -327,6 +349,12 @@ function TurnView({
         <small>
           {t.state === 'failed' ? '✕ NOT ANSWERED · ' : ''}
           {clock(t.at)}
+          {t.rang !== undefined ? (
+            <span data-testid="rows-rang">
+              {' · 📲 '}
+              {t.state === 'failed' ? 'RANG' : 'ANSWERED'} {clock(t.rang)}
+            </span>
+          ) : null}
         </small>
       </div>
       {t.state === 'asking' ? (

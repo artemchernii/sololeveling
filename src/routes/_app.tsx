@@ -8,6 +8,7 @@ import {
 import { createServerFn } from '@tanstack/react-start'
 import { auth } from '@clerk/tanstack-react-start/server'
 
+import { RowsDrawer } from '@/components/ask/RowsDrawer'
 import { Ambient } from '@/components/shell/Ambient'
 import { AreaStyles } from '@/components/shell/AreaStyles'
 import { MobileActions } from '@/components/shell/MobileActions'
@@ -103,7 +104,7 @@ function AppWait() {
    button and the mobile pill must not each own a copy that listens for ⌘K and
    cancels the other out. ⌘K now opens Search, whose first row is Log, so
    capture is still two keystrokes away. */
-type Overlay = 'search' | 'capture' | null
+type Overlay = 'search' | 'capture' | 'ask' | null
 
 function AppShell() {
   const [overlay, setOverlay] = useState<Overlay>(null)
@@ -135,6 +136,12 @@ function AppShell() {
         setCapturePrefill('')
         setOverlay((current) => (current === 'capture' ? null : 'capture'))
       }
+      /* ⌘J opens Ask AI (R7, 22 Oct, his pick): Chrome's downloads page
+         is given up here, as ⌘L gave up the address bar. */
+      if (key === 'j') {
+        e.preventDefault()
+        setOverlay((current) => (current === 'ask' ? null : 'ask'))
+      }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -149,6 +156,7 @@ function AppShell() {
       <TopBar
         onLog={() => openCapture()}
         onSearch={() => setOverlay('search')}
+        onAsk={() => setOverlay('ask')}
       />
       <div className="relative z-10 grid flex-1 gap-5 px-[18px] pt-5 pb-[calc(150px+env(safe-area-inset-bottom))] md:pb-24 lg:grid-cols-[214px_minmax(0,1fr)] lg:px-6 lg:pb-[26px]">
         <SideNav />
@@ -178,6 +186,10 @@ function AppShell() {
         open={overlay === 'capture'}
         onOpenChange={(next) => setOverlay(next ? 'capture' : null)}
         initialInput={capturePrefill}
+      />
+      <RowsDrawer
+        open={overlay === 'ask'}
+        onOpenChange={(next) => setOverlay(next ? 'ask' : null)}
       />
       <WriteFailureNotice />
       <ReminderWatcher />

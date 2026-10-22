@@ -7,6 +7,7 @@ import {
   Footprints,
   KeyRound,
   Loader2,
+  TrendingDown,
   TrendingUp,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -302,6 +303,13 @@ export function PhoneWindow() {
             name="Salary"
             when="WHEN IN · 09:00"
             area="var(--color-state-good)"
+          />
+          {/* CLOSE (22 Oct): the day's report after the US close. */}
+          <Source
+            icon={<TrendingDown className="size-[18px]" />}
+            name="Close"
+            when="TRADING DAYS · 21:30"
+            area="var(--color-lav-400)"
           />
           <TestButton />
         </>

@@ -95,6 +95,8 @@ test('S2 S3 ALLOW, then a test lands in the bell', async ({ page }) => {
   await expect(win.getByText('2 DAYS BEFORE · 09:00')).toBeVisible()
   await expect(win.getByText('7 DAYS · 1 DAY BEFORE')).toBeVisible()
   await expect(win.getByText('WHEN IN · 09:00')).toBeVisible()
+  /* CLOSE: the day's report. */
+  await expect(win.getByText('TRADING DAYS · 21:30')).toBeVisible()
 
   await win.getByRole('button', { name: 'SEND A TEST' }).click()
   await expect(win.getByText('SENT')).toBeVisible()

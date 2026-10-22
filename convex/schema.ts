@@ -205,6 +205,8 @@ export const notificationKind = v.union(
   v.literal('money_missing'),
   v.literal('bank_approval'),
   v.literal('salary_in'),
+  /* CLOSE (22 Oct): the day's report at 21:30. */
+  v.literal('day_close'),
 )
 
 export default defineSchema({
@@ -1614,6 +1616,12 @@ export default defineSchema({
     sentAt: v.number(),
     readAt: v.optional(v.number()),
   }).index('by_owner_and_sent', ['ownerId', 'sentAt']),
+  /* CLOSE's 21:30 job, one per owner (convex/closeReport.ts). */
+  closeJobs: defineTable({
+    ownerId: v.string(),
+    jobId: v.id('_scheduled_functions'),
+    at: v.number(),
+  }).index('by_owner', ['ownerId']),
   /* The AI read of a week on Review (R7, 15 Oct; spec
      docs/specs/2026-10-15-review-ai-read.md). One row per week and tone, so
      reopening the week shows it without paying again; RUN AGAIN replaces

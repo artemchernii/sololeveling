@@ -161,7 +161,7 @@ test('S6 tabs: MARKET with no read, one band at a time, the last tab kept on rel
 }) => {
   await open(page)
   const tab = (id: string) => page.locator(`[data-tab="${id}"]`)
-  await expect(page.getByTestId('insights-tab')).toHaveCount(4)
+  await expect(page.getByTestId('insights-tab')).toHaveCount(5)
   await expect(tab('market')).toHaveAttribute('aria-pressed', 'true')
   /* The S&P 500's change over the period, as its card says it. */
   await expect(tab('market').getByTestId('tab-badge')).toHaveText(

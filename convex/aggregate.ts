@@ -2890,6 +2890,101 @@ export const heldInstruments = internalQuery({
   ],
 })
 
+/* CLOSE (22 Oct; CLAUDE.md rule 1): each share held, its latest stored
+   price and the last stored close before `since` (his midnight), and the
+   worth of both — same shares, same rate, so the move is the price's.
+   A row without both prices is shown, not added. */
+const dayRow = v.object({
+  instrumentId: v.id('instruments'),
+  symbol: v.string(),
+  name: v.string(),
+  type: v.string(),
+  currency: v.string(),
+  price: v.union(v.number(), v.null()),
+  priceAsOf: v.union(v.number(), v.null()),
+  was: v.union(v.number(), v.null()),
+  wasAsOf: v.union(v.number(), v.null()),
+  nowEur: v.union(v.number(), v.null()),
+  wasEur: v.union(v.number(), v.null()),
+})
+const dayAnswer = v.object({
+  rows: v.array(dayRow),
+  nowEur: v.number(),
+  wasEur: v.number(),
+  /** A price stored today: a trading day. */
+  traded: v.boolean(),
+})
+
+async function dayCloseOf(ctx: QueryCtx, ownerId: string, since: number) {
+  const byId = new Map<string, Infer<typeof dayRow>>()
+  for (const r of (await readPositions(ctx, ownerId)).rows) {
+    const had = byId.get(r.instrumentId)
+    if (had) {
+      if (had.nowEur !== null && r.valueEur !== null)
+        had.nowEur = Math.round((had.nowEur + r.valueEur) * 100) / 100
+      continue
+    }
+    byId.set(r.instrumentId, {
+      instrumentId: r.instrumentId,
+      symbol: r.symbol,
+      name: r.name,
+      type: r.type,
+      currency: r.currency,
+      price: r.price,
+      priceAsOf: r.priceAsOf,
+      was: null,
+      wasAsOf: null,
+      nowEur: r.valueEur,
+      wasEur: null,
+    })
+  }
+  const rows = [...byId.values()]
+  let nowEur = 0
+  let wasEur = 0
+  for (const r of rows) {
+    const before = await ctx.db
+      .query('prices')
+      .withIndex('by_owner_instrument_time', (q) =>
+        q
+          .eq('ownerId', ownerId)
+          .eq('instrumentId', r.instrumentId)
+          .lt('asOf', since),
+      )
+      .order('desc')
+      .first()
+    if (before === null || r.price === null || r.nowEur === null) continue
+    r.was = before.price
+    r.wasAsOf = before.asOf
+    r.wasEur =
+      r.price > 0
+        ? Math.round((r.nowEur * before.price * 100) / r.price) / 100
+        : null
+    if (r.wasEur === null) continue
+    nowEur += r.nowEur
+    wasEur += r.wasEur
+  }
+  return {
+    rows,
+    nowEur: Math.round(nowEur * 100) / 100,
+    wasEur: Math.round(wasEur * 100) / 100,
+    traded: rows.some((r) => r.priceAsOf !== null && r.priceAsOf >= since),
+  }
+}
+
+/** CLOSE's top and moves: `since` is the caller's midnight. */
+export const dayClose = query({
+  args: { since: v.number() },
+  returns: dayAnswer,
+  handler: async (ctx, args) =>
+    await dayCloseOf(ctx, await requireUser(ctx), args.since),
+})
+
+export const dayCloseFor = internalQuery({
+  args: { ownerId: v.string(), since: v.number() },
+  returns: dayAnswer,
+  handler: async (ctx, args) => await dayCloseOf(ctx, args.ownerId, args.since),
+})
+
 async function readPositions(ctx: QueryCtx, ownerId: string) {
   /* A deleted account with history is retired, not erased — and what it
      held leaves every total with it (27 Sep: his deleted test accounts

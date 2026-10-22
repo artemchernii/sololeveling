@@ -17,6 +17,7 @@ import { RateCards } from './RateCards'
 import { ReadHero } from './ReadHero'
 import { ReadLines } from './ReadLines'
 import { SectorMap } from './SectorMap'
+import { Close, closeBadge, useClose } from './Close'
 import { useMarket } from './useMarket'
 import { useMarketRead } from './useMarketRead'
 import { tickerBase } from '@/lib/market'
@@ -67,6 +68,7 @@ export function Insights({ shown }: { shown: boolean }) {
   const ideas = read.shown?.read?.ideas ?? null
   const quotes = useQuotes(ideas?.map((i) => i.ticker) ?? [])
   const [tab, pick] = useTab(read.row?.read !== undefined, read.loading)
+  const close = useClose(shown, shown && tab === 'close')
   const room = useRef<HTMLDivElement>(null)
   /* A read line's → MINE: its tab opens, then its tile is lit. */
   const [lit, setLit] = useState<{ tile: string } | null>(null)
@@ -138,6 +140,10 @@ export function Insights({ shown }: { shown: boolean }) {
             />
           ) : null}
         </div>
+      ) : tab === 'close' ? (
+        <div data-testid="tab-close" className="ins-panel">
+          <Close close={close} />
+        </div>
       ) : tab === 'ideas' ? (
         <div data-testid="tab-ideas" className="ins-panel">
           <Ideas ideas={ideas} quotes={quotes} />
@@ -173,6 +179,7 @@ export function Insights({ shown }: { shown: boolean }) {
           ? undefined
           : { text: `${adds} ADD`, tone: adds > 0 ? 'good' : 'dim' },
       ideas: cards ? { text: String(cards), tone: 'dim' } : undefined,
+      close: closeBadge(close.day),
     }
   }
 }

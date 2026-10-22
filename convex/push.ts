@@ -10,6 +10,7 @@ import {
 } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Infer } from 'convex/values'
+import { keepEvening } from './closeReport'
 import { keepMorning } from './moneyAlerts'
 import { notificationKind, pushDevice } from './schema'
 import { dayStart } from '../src/lib/remindAt'
@@ -59,6 +60,8 @@ export const subscribe = mutation({
     })
     /* N2: a device on means money alerts each morning. */
     await keepMorning(ctx, ownerId)
+    /* CLOSE: the day's report at 21:30. */
+    await keepEvening(ctx, ownerId)
     return null
   },
 })

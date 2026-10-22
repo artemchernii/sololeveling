@@ -10,6 +10,7 @@ import {
   KeyRound,
   Laptop,
   Smartphone,
+  TrendingDown,
   TrendingUp,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -62,6 +63,19 @@ const KIND: Record<
     icon: <TrendingUp className="size-[18px]" />,
     area: 'var(--color-state-good)',
   },
+  /* CLOSE (22 Oct): the day's report; red with ▼ in its title. */
+  day_close: {
+    icon: <TrendingUp className="size-[18px]" />,
+    area: 'var(--color-state-good)',
+  },
+}
+
+function kindOf(n: Doc<'notifications'>) {
+  if (n.kind !== 'day_close' || !n.title.includes('▼')) return KIND[n.kind]
+  return {
+    icon: <TrendingDown className="size-[18px]" />,
+    area: 'var(--color-state-danger)',
+  }
 }
 
 const time = (ms: number) =>
@@ -79,7 +93,7 @@ function Row({
   i: number
   onOpen: (n: Doc<'notifications'>) => void
 }) {
-  const k = KIND[n.kind]
+  const k = kindOf(n)
   const unread = n.readAt === undefined
   /* Unread is lit — a lavender edge, its area's glow breathing, NEW and a
      pinging dot; seen is dimmed with a tick (15 Oct: "when already viewed

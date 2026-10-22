@@ -1,0 +1,215 @@
+/* Insights tab 5 CLOSE (22 Oct, mockup design/treasury-mockup/close.html):
+   the day's worth now and at the close before, each share's move with
+   its moments as badges, the market's day and the movers' headlines. */
+
+.ins-grid > .c12 {
+  grid-column: span 12;
+}
+.close-hero .grow,
+.close-mv .grow,
+.close-news .grow,
+.ins-thead .grow {
+  flex: 1;
+  min-width: 0;
+}
+.close-pair {
+  display: flex;
+  gap: 22px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.close-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.close-big {
+  font-size: 46px;
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.close-was {
+  font-size: 22px;
+  font-weight: 300;
+  color: var(--color-ink-300);
+  font-variant-numeric: tabular-nums;
+}
+.close-delta {
+  font: 600 22px var(--font-mono);
+  animation: pop 500ms 200ms var(--motion-ease) both;
+  &.good {
+    color: var(--state-good);
+  }
+  &.bad {
+    color: var(--state-danger);
+  }
+}
+.close-mv {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+  &:hover {
+    background: color-mix(in oklch, var(--color-lift) 4%, transparent);
+    border-color: var(--glass-edge);
+  }
+  &.hot {
+    background: color-mix(in oklch, var(--state-danger) 8%, transparent);
+    border-color: color-mix(in oklch, var(--state-danger) 35%, transparent);
+  }
+  &.hot.up {
+    background: color-mix(in oklch, var(--state-good) 8%, transparent);
+    border-color: color-mix(in oklch, var(--state-good) 35%, transparent);
+  }
+  .nm {
+    font-size: 13.5px;
+  }
+  .sub {
+    font: 10px var(--font-mono);
+    color: var(--color-ink-500);
+    margin-top: 2px;
+    letter-spacing: 0.04em;
+  }
+}
+.close-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.close-bar {
+  position: relative;
+  width: 70px;
+  height: 4px;
+  flex: none;
+  border-radius: 3px;
+  background: color-mix(in oklch, var(--color-lift) 6%, transparent);
+  i {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 3px;
+    &.good {
+      background: var(--state-good);
+    }
+    &.bad {
+      background: var(--state-danger);
+    }
+  }
+  @media (max-width: 560px) {
+    display: none;
+  }
+}
+.close-eur {
+  font: 600 13px var(--font-mono);
+  min-width: 64px;
+  text-align: right;
+  &.good {
+    color: var(--state-good);
+  }
+  &.bad {
+    color: var(--state-danger);
+  }
+}
+.close-pct {
+  min-width: 66px;
+  justify-content: center;
+}
+.close-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  & > .ins-tile:last-child {
+    flex: 1;
+  }
+}
+.close-idx {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  @media (max-width: 560px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.close-ix {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-edge);
+  .ins-badge {
+    align-self: flex-start;
+  }
+  .mark {
+    flex: none;
+    font-size: 12px;
+  }
+}
+.close-ixh {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  .ins-was {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+.close-news {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 11px;
+  border: 1px solid var(--glass-edge);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 200ms;
+  &:hover {
+    border-color: var(--system-edge);
+  }
+  .h {
+    display: block;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .m {
+    display: block;
+    font: 10px var(--font-mono);
+    color: var(--color-ink-500);
+    margin-top: 4px;
+    letter-spacing: 0.06em;
+  }
+}
+.close-emo {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+
+/* MOVES scrolls inside its tile (22 Oct, his "very tall … make it
+   scrollable"): beside the right column it is as tall as that column;
+   stacked on a narrow screen, at most 520px. Biggest moves stay on top. */
+.close-moves {
+  min-height: 0;
+}
+.close-list {
+  flex: 1 1 auto;
+  height: 0;
+  min-height: 360px;
+  overflow-y: auto;
+  margin-right: -8px;
+  padding-right: 8px;
+  overscroll-behavior: contain;
+  @media (max-width: 1000px) {
+    height: auto;
+    min-height: 0;
+    max-height: 520px;
+  }
+}

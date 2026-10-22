@@ -446,3 +446,54 @@
     }
   }
 }
+
+/* A card lifts on hover (insights-ask.css): the fold around the cards
+   hides overflow, which cut the lifted card's top edge — room for the
+   lift and its glow, taken back by the margin so nothing moves. */
+.r7-drawer .ask-sugg > div {
+  padding: 4px 4px 2px;
+  margin: -4px -4px -2px;
+}
+
+/* A phone (22 Oct, his "mobile view is broken"): the sheet is shorter
+   than the hero and the cards together, so the hero shrinks and the
+   whole drawer scrolls with the box kept at the bottom. */
+@media (max-width: 640px) {
+  .r7-drawer .ask.fresh {
+    overflow-y: auto;
+    & .ask-dock {
+      position: sticky;
+      bottom: 0;
+    }
+  }
+  .r7-hero {
+    flex: 1 0 auto;
+    gap: 10px;
+    padding: 16px 12px 14px;
+    & .ask-orb.big {
+      width: 48px;
+      height: 48px;
+      & .ask-star {
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+  .r7-drawer .ask-cards {
+    gap: 8px;
+  }
+  .r7-drawer .ask-card {
+    gap: 6px;
+    padding: 10px 12px;
+    & .e {
+      width: 28px;
+      height: 28px;
+      font-size: 14px;
+      border-radius: 9px;
+    }
+    & > span:last-child {
+      font-size: 12.5px;
+      line-height: 1.35;
+    }
+  }
+}

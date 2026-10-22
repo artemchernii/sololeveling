@@ -14,12 +14,12 @@ before. A tap opens the share on Portfolio. Rare: a few a month.
 
 ## Moments
 
-| | Push | When | Numbers |
-| --- | --- | --- | --- |
-| A soon | `Netflix · earnings 20 Oct` / `In 2 days · NFLX` | the morning 2 days before the results day (Lisbon days) | the date, fetched (CLAUDE.md 22 Oct line), not stored |
-| A reported | `Netflix reported · ▼ 5.3%` / `Was $1,180.40 · 20 Oct · now $1,117.80 · 21 Oct` | the morning after the first stored close after the report | two stored closes (`between()`), both shown |
-| B | `ASML · HOLD → ADD` / `SMA 200 bullish · RSI 41 · was HOLD` | the newest close changes `callOf()` from what the closes before it gave | `verdict()` on stored closes and fundamentals, twice; nothing stored |
-| C | `Tesla ▼ 6.2%` / `$248.10 · 20 Oct → $232.70 · 21 Oct` | the newest close is 5% or more from the one before | two stored closes, both shown |
+|            | Push                                                                            | When                                                                    | Numbers                                                              |
+| ---------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| A soon     | `Netflix · earnings 20 Oct` / `In 2 days · NFLX`                                | the morning 2 days before the results day (Lisbon days)                 | the date, fetched (CLAUDE.md 22 Oct line), not stored                |
+| A reported | `Netflix reported · ▼ 5.3%` / `Was $1,180.40 · 20 Oct · now $1,117.80 · 21 Oct` | the morning after the first stored close after the report               | two stored closes (`between()`), both shown                          |
+| B          | `ASML · HOLD → ADD` / `SMA 200 bullish · RSI 41 · was HOLD`                     | the newest close changes `callOf()` from what the closes before it gave | `verdict()` on stored closes and fundamentals, twice; nothing stored |
+| C          | `Tesla ▼ 6.2%` / `$248.10 · 20 Oct → $232.70 · 21 Oct`                          | the newest close is 5% or more from the one before                      | two stored closes, both shown                                        |
 
 A close counts only on the first morning after it (newer than 24 h), so
 a weekend says nothing twice. A second run the same day skips a push

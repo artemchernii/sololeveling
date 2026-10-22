@@ -11,7 +11,9 @@ import {
 import type { MutationCtx } from './_generated/server'
 import type { Infer } from 'convex/values'
 import { keepMorning } from './moneyAlerts'
+import type { notificationShare} from './schema';
 import { notificationKind, pushDevice } from './schema'
+import { logoSrc } from '../src/lib/logo'
 import { dayStart } from '../src/lib/remindAt'
 
 /* N1 (15 Oct). The pipe: a browser that allowed notifications saves its
@@ -135,6 +137,8 @@ export async function notifyOwner(
     url: string
     /** One notification per tag: a reminder's occurrence id. */
     tag?: string
+    /** N3: the company, drawn by its mark. */
+    share?: Infer<typeof notificationShare>
   },
 ) {
   const { tag, ...row } = args
@@ -146,6 +150,7 @@ export async function notifyOwner(
     body: args.body,
     url: args.url,
     tag,
+    icon: (args.share && logoSrc(args.share)) ?? undefined,
     badge: await unreadToday(ctx, args.ownerId, now),
   })
 }

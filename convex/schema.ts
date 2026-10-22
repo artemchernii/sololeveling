@@ -205,7 +205,19 @@ export const notificationKind = v.union(
   v.literal('money_missing'),
   v.literal('bank_approval'),
   v.literal('salary_in'),
+  /* N3 (22 Oct): a held share's results, its call, a big day. */
+  v.literal('earnings'),
+  v.literal('call_change'),
+  v.literal('big_day'),
 )
+
+/* N3: the company a notification is about, for its mark on the bell and
+   the push (src/lib/logo.ts). */
+export const notificationShare = v.object({
+  symbol: v.string(),
+  type: v.string(),
+  name: v.string(),
+})
 
 export default defineSchema({
   /* R6, 21 Sep. The set of areas used to be a ten-literal union in this file
@@ -1613,6 +1625,7 @@ export default defineSchema({
     url: v.string(),
     sentAt: v.number(),
     readAt: v.optional(v.number()),
+    share: v.optional(notificationShare),
   }).index('by_owner_and_sent', ['ownerId', 'sentAt']),
   /* The AI read of a week on Review (R7, 15 Oct; spec
      docs/specs/2026-10-15-review-ai-read.md). One row per week and tone, so

@@ -10,6 +10,7 @@ import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import { moneySoon } from './aggregate'
 import { pull } from './bankRows'
+import { investMorning } from './investAlerts'
 import { notifyOwner } from './push'
 import { dueBetween, paysBill } from '../src/lib/ahead'
 import {
@@ -86,6 +87,12 @@ export const morning = internalAction({
       }
     }
     await ctx.runMutation(internal.moneyAlerts.send, { ownerId, now })
+    /* N3 (22 Oct): the shares held, after the money. */
+    try {
+      await investMorning(ctx, ownerId, now)
+    } catch (e) {
+      console.warn('investAlerts:', e instanceof Error ? e.message : e)
+    }
     return null
   },
 })

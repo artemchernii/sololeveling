@@ -272,7 +272,7 @@ async function openUp(symbols: Array<string>): Promise<Map<string, Opened>> {
  * a guess). A report in the last 7 days also gets a month of daily
  * closes, for the close before it and the price now.
  */
-async function earningsOf(
+export async function earningsOf(
   shares: ReadonlyArray<{ symbol: string }>,
   now: number,
 ): Promise<{ reached: boolean; rows: Array<Earning> } | null> {
@@ -359,7 +359,7 @@ async function canned(
 
 /* AVGO reported yesterday after the close and fell 7.8%; NVDA reports in
    five days; any other share has nothing near. */
-async function cannedEarnings(
+export async function cannedEarnings(
   shares: ReadonlyArray<{ symbol: string }>,
   now: number,
 ): Promise<{ reached: boolean; rows: Array<Earning> } | null> {

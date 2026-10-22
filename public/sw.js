@@ -23,7 +23,8 @@ self.addEventListener('push', (event) => {
     badge.then(() =>
       self.registration.showNotification(data.title || 'Leveling', {
         body: data.body || '',
-        icon: '/icon-192.png',
+        /* N3: a company's mark where the system shows one (Mac). */
+        icon: data.icon || '/icon-192.png',
         badge: '/icon-192.png',
         /* A reminder's occurrence id: one occurrence shows once. */
         tag: data.tag || undefined,

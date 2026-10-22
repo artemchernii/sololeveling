@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ask replies · N4</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<!-- The app's own CSS for the badges; the app inside the phone is the R7
+     mockup itself (design/ask-mockup/index.html, the shipped ASK CSS).
+     Served from the repo root. -->
+<link rel="stylesheet" href="/src/styles/tokens.css" />
+<link rel="stylesheet" href="/src/styles/insights.css" />
+<style>
+  /* N4 (22 Oct): an answer from ⌘J that lands while the app is not on
+     screen rings the phone; a tap opens the drawer on it. Only the iPhone
+     around it is drawn (from n3.html); the app is the R7 mockup in an
+     iframe at phone width, so its drawer is the real bottom sheet. */
+  :root { --ios: -apple-system, 'SF Pro Text', 'SF Pro Display', Inter, system-ui, sans-serif }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--color-ground); color: var(--color-neutral-100); font: 13px/1.4 var(--font-body); min-height: 100vh }
+  button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0 }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 18px 16px 60px; display: flex; flex-direction: column; gap: 16px; align-items: center }
+  .ctl { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center }
+  .ctl button { font: 500 10.5px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; padding: 5px 11px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: var(--color-neutral-300) }
+  .ctl button.on { color: var(--color-neutral-100); border-color: var(--color-accent-400); box-shadow: 0 0 14px -4px var(--system-shine) }
+  .ctl .lbl { font: 10px var(--font-mono); letter-spacing: .16em; color: var(--color-neutral-600); margin: 0 4px }
+  .pick { color: var(--state-warn); margin-left: 5px }
+  .stage { display: flex; gap: 28px; align-items: flex-start; justify-content: center; flex-wrap: wrap; width: 100% }
+
+  /* ---- the steps beside the phone, as badges ---- */
+  .steps { width: 260px; display: flex; flex-direction: column; gap: 8px; padding-top: 40px }
+  .step { display: grid; grid-template-columns: 44px 1fr; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--glass-edge); background-image: var(--glass-fill); text-align: left; opacity: .45; transition: opacity 250ms, border-color 250ms, box-shadow 250ms, transform 250ms }
+  .step.done { opacity: .8 }
+  .step.now { opacity: 1; border-color: var(--system-edge); box-shadow: 0 0 22px -10px var(--system-shine); transform: translateX(4px) }
+  .step .t { font: 600 11px var(--font-mono); color: var(--color-neutral-400); font-variant-numeric: tabular-nums }
+  .step .b { display: flex; flex-wrap: wrap; gap: 5px }
+  .step.now .t { color: var(--color-accent-300) }
+
+  /* ---- iPhone (drawn, from n3.html) ---- */
+  .phone { width: 375px; max-width: 100%; height: 790px; border-radius: 56px; padding: 11px; background: linear-gradient(145deg, #3a3a46, #15151b); box-shadow: 0 0 0 1px #000, 0 40px 90px rgba(0,0,0,.55), 0 0 80px -30px var(--system-shine); flex: none }
+  .phone.buzz { animation: buzz .45s linear }
+  @keyframes buzz { 10%, 50%, 90% { transform: translateX(-3px) rotate(-.4deg) } 30%, 70% { transform: translateX(3px) rotate(.4deg) } }
+  .screen { position: relative; height: 100%; border-radius: 46px; overflow: hidden; display: flex; flex-direction: column; background: var(--color-ground) }
+  .island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 122px; height: 35px; border-radius: 20px; background: #000; z-index: 9 }
+  .status { position: relative; z-index: 8; height: 54px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 30px 0 36px; font: 600 16px var(--ios); color: #fff }
+  .status .r { display: flex; gap: 6px; align-items: center }
+  .homebar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.85); z-index: 9 }
+  .appframe { flex: 1; width: 100%; border: 0; display: block; background: var(--color-ground); animation: open .45s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes open { from { transform: scale(.92); opacity: 0; border-radius: 40px } }
+
+  .lock { position: absolute; inset: 0; background: #0b0a1a; z-index: 5; animation: lockin .35s ease both }
+  @keyframes lockin { from { opacity: 0 } }
+  .aurora { position: absolute; inset: -20%; background: radial-gradient(40% 35% at 75% 20%, #5b4bd1 0%, transparent 70%), radial-gradient(40% 40% at 10% 65%, #2d6a8a 0%, transparent 70%), radial-gradient(35% 30% at 70% 95%, #8a3b7a 0%, transparent 70%); filter: blur(10px); animation: aurora 14s ease-in-out infinite alternate }
+  @keyframes aurora { from { transform: translate(-4%, -2%) rotate(-4deg) } to { transform: translate(4%, 3%) rotate(5deg) } }
+  .lockhead { position: relative; z-index: 2; text-align: center; color: #fff; font-family: var(--ios); margin-top: 62px }
+  .lockhead .d { font-size: 19px; font-weight: 600; opacity: .85 }
+  .lockhead .h { font-size: 96px; font-weight: 700; letter-spacing: -.04em; line-height: 1; margin-top: 2px; opacity: .92 }
+  .stack { position: absolute; z-index: 3; left: 10px; right: 10px; bottom: 112px; display: flex; flex-direction: column; gap: 8px }
+  .lockbtns { position: absolute; z-index: 3; bottom: 40px; left: 44px; right: 44px; display: flex; justify-content: space-between }
+  .lockbtns span { width: 50px; height: 50px; border-radius: 50%; background: rgba(40,40,52,.55); backdrop-filter: blur(10px) }
+  .note { display: flex; gap: 10px; align-items: center; padding: 11px 13px 11px 11px; border-radius: 22px; background: rgba(40,37,58,.6); backdrop-filter: blur(24px) saturate(1.7); -webkit-backdrop-filter: blur(24px) saturate(1.7); text-align: left; width: 100%; font-family: var(--ios); color: #fff; transition: transform .15s; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.12); animation: noteIn .7s cubic-bezier(.2,.9,.25,1.15) both }
+  .note:active { transform: scale(.97) }
+  @keyframes noteIn { from { transform: translateY(60px) scale(.9); opacity: 0 } }
+  .note .ic { flex: none; border-radius: 9px; overflow: hidden; width: 38px; height: 38px }
+  .note .tx { flex: 1; min-width: 0 }
+  .note .t1 { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 600; letter-spacing: -.01em }
+  .note .t1 span { font-weight: 400; font-size: 13px; color: rgba(255,255,255,.55) }
+  .note .t2 { font-size: 15px; line-height: 1.3; color: rgba(255,255,255,.92); letter-spacing: -.01em; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
+  .tap { position: absolute; z-index: 4; left: 50%; bottom: 168px; transform: translateX(-50%); font: 600 10px var(--font-mono); letter-spacing: .16em; color: rgba(255,255,255,.7); animation: tapping 1.6s ease-in-out infinite }
+  @keyframes tapping { 50% { opacity: .35 } }
+
+  .logo .b { transform-box: fill-box; transform-origin: bottom }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl" id="scen"></div>
+  <div class="stage">
+    <div id="phone-slot"></div>
+    <div class="steps" id="steps"></div>
+  </div>
+</div>
+
+<script>
+/* His logo, as the app icon on the lock screen (from n3.html). */
+const ICON = `<svg class="logo" viewBox="0 0 128 128" width="100%" height="100%"><defs><linearGradient id="lg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#5d5294"/><stop offset=".55" stop-color="#9184d9"/><stop offset="1" stop-color="#d2cefd"/></linearGradient></defs>
+  <rect width="128" height="128" fill="#14131c"/><g fill="url(#lg)"><rect class="b" x="24" y="78" width="18" height="26" rx="6"/><rect class="b" x="49" y="60" width="18" height="44" rx="6"/><rect class="b" x="74" y="42" width="18" height="62" rx="6"/></g><circle cx="107" cy="30" r="9" fill="#d2cefd"/></svg>`
+const statusBar = (t) => `<div class="island"></div><div class="status"><span>${t}</span>
+  <span class="r"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.5" width="3" height="9.5" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+  <span style="font-size:14px">5G</span><svg width="26" height="13" viewBox="0 0 26 13"><rect x=".5" y=".5" width="22" height="12" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.5" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>`
+/* The app at phone width: the R7 mockup, its switches hidden. */
+const app = (s, push) => `<iframe class="appframe" src="/design/ask-mockup/index.html?embed&p=api&s=${encodeURIComponent(s)}${push ? `&push=${push}` : ''}" title="Leveling"></iframe>`
+const lock = (time, notes = '', hint = false) => `<div class="lock"><div class="aurora"></div>
+  <div class="lockhead"><div class="d">Thursday 22 October</div><div class="h">${time}</div></div>
+  <div class="stack">${notes}</div>${hint ? '<div class="tap">TAP</div>' : ''}<div class="lockbtns"><span></span><span></span></div></div>`
+const note = (title, body, when) => `<button class="note" data-next><span class="ic">${ICON}</span>
+  <span class="tx"><span class="t1">${title}<span>${when}</span></span><span class="t2">${body}</span></span></button>`
+
+const Q = 'What did I actually do in August?'
+const ANSWERED = note('✦ Ask · AUG 1 – 31', 'A building month. Code on 23 days, the gym 9 times, every Portuguese class kept.', 'now')
+const FAILED = note('✕ Ask · NOT REACHED', `$0.00 · NOTHING PAID · ${Q}`, 'now')
+
+/* Each scenario is its steps; a step is what the phone shows and its badges. */
+const SCENS = {
+  locked: {
+    label: 'locked while asking', pick: true,
+    steps: [
+      { t: '14:05', b: ['<span class="ins-badge lav">✦ ASKED</span>', '<span class="ins-badge dim">API · $2 CAP</span>'], phone: () => app('asking'), time: '14:05' },
+      { t: '14:05', b: ['<span class="ins-badge dim">🔒 LOCKED</span>'], phone: () => lock('14:05'), time: '' },
+      { t: '14:07', b: ['<span class="ins-badge good">✓ ANSWERED</span>', '<span class="ins-badge lav">📲 RANG</span>'], phone: () => lock('14:07', ANSWERED, true), time: '', buzz: true },
+      { t: '14:08', b: ['<span class="ins-badge good">OPENED</span>', '<span class="ins-badge dim">🗑 GONE FROM SERVER</span>'], phone: () => app('answer', '14:07'), time: '14:08' },
+    ],
+  },
+  watching: {
+    label: 'on screen',
+    steps: [
+      { t: '14:05', b: ['<span class="ins-badge lav">✦ ASKED</span>'], phone: () => app('asking'), time: '14:05' },
+      { t: '14:07', b: ['<span class="ins-badge good">✓ ANSWERED</span>', '<span class="ins-badge dim">NO PUSH</span>'], phone: () => app('answer'), time: '14:07' },
+    ],
+  },
+  failed: {
+    label: 'failed while locked',
+    steps: [
+      { t: '14:05', b: ['<span class="ins-badge lav">✦ ASKED</span>'], phone: () => app('asking'), time: '14:05' },
+      { t: '14:05', b: ['<span class="ins-badge dim">🔒 LOCKED</span>'], phone: () => lock('14:05'), time: '' },
+      { t: '14:07', b: ['<span class="ins-badge bad">✕ NOT REACHED</span>', '<span class="ins-badge lav">📲 RANG</span>'], phone: () => lock('14:07', FAILED, true), time: '', buzz: true },
+      { t: '14:08', b: ['<span class="ins-badge warn">↻ ASK AGAIN</span>', '<span class="ins-badge good">$0.00</span>'], phone: () => app('failed', '14:07'), time: '14:08' },
+    ],
+  },
+}
+
+let cur = 'locked', at = 0, timer = 0
+function show() {
+  const S = SCENS[cur], st = S.steps[at]
+  document.getElementById('scen').innerHTML = '<span class="lbl">SHOW</span>' + Object.entries(SCENS).map(([k, s]) =>
+    `<button data-s="${k}" class="${k === cur ? 'on' : ''}">${s.label}${s.pick ? '<span class="pick">★</span>' : ''}</button>`).join('') +
+    '<span class="lbl">·</span><button data-replay>▶ play</button>'
+  document.getElementById('steps').innerHTML = S.steps.map((x, i) =>
+    `<button class="step ${i < at ? 'done' : i === at ? 'now' : ''}" data-at="${i}"><span class="t">${x.t}</span><span class="b">${x.b.join('')}</span></button>`).join('')
+  /* the phone keeps its frame; only the screen changes */
+  document.getElementById('phone-slot').innerHTML = `<div class="phone" id="phone"><div class="screen">${statusBar(st.time || '&nbsp;')}${st.phone()}<div class="homebar"></div></div></div>`
+  if (st.buzz) requestAnimationFrame(() => document.getElementById('phone').classList.add('buzz'))
+}
+function play() {
+  clearTimeout(timer); at = 0; show()
+  const next = () => { if (at < SCENS[cur].steps.length - 1 && !SCENS[cur].steps[at].buzz) { at++; show(); timer = setTimeout(next, 2600) } }
+  timer = setTimeout(next, 2600)
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return
+  if (b.dataset.s) { cur = b.dataset.s; play(); return }
+  if (b.hasAttribute('data-replay')) { play(); return }
+  if (b.dataset.at) { clearTimeout(timer); at = +b.dataset.at; show(); return }
+  /* a tap on the push opens the app on the answer */
+  if (b.hasAttribute('data-next')) { clearTimeout(timer); at = Math.min(at + 1, SCENS[cur].steps.length - 1); show() }
+})
+play()
+</script>
+</body>
+</html>

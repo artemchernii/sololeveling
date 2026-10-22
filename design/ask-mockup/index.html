@@ -428,7 +428,20 @@
   document.getElementById('today').addEventListener('load', hideCtl)
   hideCtl()
   addEventListener('resize', ctl)
+  /* N4 (design/notifications-mockup/n4.html) shows this page inside its
+     phone: ?s= a state, ?p= who pays, ?embed hides the switches, ?push= the
+     time the answer rang the phone (the turn says when). */
+  const Q = new URLSearchParams(location.search)
+  if (Q.has('p')) pay = Q.get('p')
+  if (Q.has('s') && STATES[Q.get('s')]) { shown = Q.get('s'); STATES[shown]() }
+  if (Q.has('embed')) document.head.insertAdjacentHTML('beforeend', '<style>.ctl{display:none!important}</style>')
+  if (Q.has('push')) {
+    const at = Q.get('push'), was = turn
+    turn = (t, n) => was(t, n).replace('14:05</small>', `14:05 · 📲 ${t.s === 'fail' ? 'RANG' : 'ANSWERED'} ${at}</small>`)
+  }
   render()
+  /* opened from the push: the answer from its question down */
+  if (Q.has('push')) document.getElementById('thread')?.scrollTo(0, 0)
 </script>
 </body>
 </html>

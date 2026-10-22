@@ -7,6 +7,7 @@ import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { findPath } from '@/components/finances/insights/useMarketRead'
 import type { Path } from '@/components/finances/insights/useMarketRead'
 import type { ProAnswer } from '@/lib/claudeResult'
+import { localModel } from '@/lib/localModel'
 import { lastDays, monthsOf, periodOf, rowFacts, rowLines } from '@/lib/rowsAsk'
 import type { AskRows, Period, RowFact } from '@/lib/rowsAsk'
 import { MAX_HISTORY, parseRows } from '@/lib/rowsAskPrompt'
@@ -230,6 +231,7 @@ export function useRowsAsk() {
               .toISOString()
               .slice(0, 10),
             history,
+            model: localModel(),
           }),
         })
           .then((x) => x.json() as Promise<ProAnswer>)

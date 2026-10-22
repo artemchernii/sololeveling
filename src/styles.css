@@ -12,6 +12,7 @@
 @import './styles/insights-ask.css';
 @import './styles/insights-tabs.css';
 @import './styles/ask-rows.css';
+@import './styles/model-pick.css';
 
 @plugin '@tailwindcss/typography';
 @import 'tw-animate-css';

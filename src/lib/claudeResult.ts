@@ -3,6 +3,19 @@
    `structured_output` when a JSON schema was given, else the result
    text — and what it used, read from its own usage. */
 
+import { MARKET_READ_MODEL, isLocalModel } from './marketRead'
+
+/** The model a request to the dev server's route asks for (the page's
+    pick, src/lib/localModel.ts): only the three allowed ids, nothing sent
+    means Sonnet 5.5. Any other id throws — the route answers MODEL
+    REFUSED and Claude Code is never started. */
+export function askedModel(json: string): string {
+  const m = (JSON.parse(json) as { model?: unknown }).model
+  if (m === undefined) return MARKET_READ_MODEL
+  if (!isLocalModel(m)) throw new Error('model')
+  return m
+}
+
 export type ProAnswer =
   | {
       ok: true
@@ -16,7 +29,12 @@ export type ProAnswer =
 
 const n = (x: unknown) => (typeof x === 'number' && x > 0 ? x : 0)
 
-export function parseClaudeResult(stdout: string): ProAnswer {
+export function parseClaudeResult(
+  stdout: string,
+  /** The model it was started with: the stamp names it, not a helper
+      model Claude Code also used. */
+  asked?: string,
+): ProAnswer {
   let d: Record<string, unknown>
   try {
     d = JSON.parse(stdout) as Record<string, unknown>
@@ -45,7 +63,9 @@ export function parseClaudeResult(stdout: string): ProAnswer {
   return {
     ok: true,
     raw,
-    model: models.find((m) => m.includes('sonnet')) ?? models.at(0) ?? 'claude',
+    model: asked
+      ? (models.find((m) => m.startsWith(asked)) ?? asked)
+      : (models.find((m) => m.includes('sonnet')) ?? models.at(0) ?? 'claude'),
     inputTokens:
       n(u.input_tokens) +
       n(u.cache_read_input_tokens) +

@@ -6,6 +6,7 @@ import { api } from '../../../../convex/_generated/api'
 import { monthAnswer } from './useMarket'
 import type { Doc } from '../../../../convex/_generated/dataModel'
 import type { ProAnswer } from '@/lib/claudeResult'
+import { localModel } from '@/lib/localModel'
 import type { Fact, Holding } from '@/lib/marketRead'
 import { STALE_MS, marketFacts, monthKey } from '@/lib/marketRead'
 
@@ -89,6 +90,7 @@ export function useMarketRead(
           body: JSON.stringify({
             facts,
             today: new Date().toISOString().slice(0, 10),
+            model: localModel(),
           }),
         })
           .then((r) => r.json() as Promise<ProAnswer>)

@@ -1,3 +1,4 @@
+import { ModelPick } from '@/components/ask/ModelPick'
 import { AccountLogo } from '@/components/finances/Logo'
 import { MARKET_READ_MODEL, factsFor, nextMonthWord } from '@/lib/marketRead'
 import { clock, dayWord } from './parts'
@@ -139,7 +140,9 @@ export function ReadHero({
               {tokens(stamp.inputTokens)} IN · {tokens(stamp.outputTokens)} OUT
             </span>
           ) : null}
-          {r.path !== null || stamp ? (
+          {r.path === 'pro' ? (
+            <ModelPick label="PRO PLAN" />
+          ) : r.path !== null || stamp ? (
             <span
               data-testid="read-pay"
               className={`ins-badge ${pro ? 'good' : 'warn'}`}

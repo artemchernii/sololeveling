@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Close · the day</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #161826;
+    --ink-100: #f1f1f5; --ink-200: #d9d9e2; --ink-300: #b5b5c4; --ink-400: #8e8ea3; --ink-500: #6e6e84; --ink-600: #52526a;
+    --lav-300: #d2cefd; --lav-400: #b5abfc;
+    --good: oklch(0.78 0.17 150); --bad: oklch(0.68 0.2 22); --warn: oklch(0.79 0.15 75);
+    --glass: linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
+    --edge: rgba(233,233,237,.09);
+    --shadow: inset 0 1px 0 rgba(233,233,237,.08), 0 24px 48px -28px rgba(0,0,0,.9);
+    --sys-edge: color-mix(in oklch, #b5abfc 34%, transparent);
+    --shine: color-mix(in oklch, #b5abfc 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --money: oklch(0.8 0.1 88);
+    --k-etf: oklch(0.78 0.11 250); --k-stock: oklch(0.8 0.12 300); --k-coin: oklch(0.82 0.13 75);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1200px 600px at 10% -10%, #2a2550 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #1f3140 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font: 13px/1.4 Inter, system-ui, sans-serif; min-height: 100vh }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 16px 16px 80px; display:flex; flex-direction:column; gap: 14px }
+  .caps { font: 500 9.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .was { font: 10.5px var(--mono); color: var(--ink-500) }
+  .good { color: var(--good) } .bad { color: var(--bad) } .warnc { color: var(--warn) }
+  .row { display:flex; align-items:center; gap: 8px }
+  .grow { flex: 1; min-width: 0 }
+  .num { font-weight: 600; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums }
+
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; font: 11px var(--mono); color: var(--warn); letter-spacing: .08em; text-transform: uppercase }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  .fhead { display:flex; align-items:flex-end; justify-content:space-between; gap: 12px; flex-wrap: wrap }
+  .title { font-size: 30px; font-weight: 300; letter-spacing: -.02em }
+  .tabs { display:flex; gap: 4px; padding: 3px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.03) }
+  .tab { font: 500 10px var(--mono); letter-spacing: .18em; padding: 6px 12px; border-radius: 999px; color: var(--ink-400) }
+  .tab.on { color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 18%, transparent); box-shadow: 0 0 16px -6px var(--shine) }
+
+  .band { display:flex; align-items:center; gap: 10px; margin-top: 10px }
+  .band b { font: 700 11px var(--mono); letter-spacing: .3em; color: var(--ink-200) }
+  .band .n { width: 22px; height: 22px; border-radius: 7px; display:grid; place-items:center; font: 700 11px var(--mono); color: var(--lav-300); border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 12%, transparent) }
+  .band::after { content:''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--edge), transparent) }
+
+  .grid { display:grid; grid-template-columns: repeat(12, 1fr); gap: 12px; align-items: stretch }
+  .c3 { grid-column: span 3 } .c4 { grid-column: span 4 } .c5 { grid-column: span 5 } .c7 { grid-column: span 7 } .c8 { grid-column: span 8 } .c12 { grid-column: span 12 }
+  @media (max-width: 1000px) { .c3 { grid-column: span 6 } .c4, .c5, .c7, .c8 { grid-column: span 12 } }
+  @media (max-width: 560px) { .c3 { grid-column: span 12 } }
+
+  .tile { position: relative; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 16px; display:flex; flex-direction:column; gap: 12px; min-width: 0; overflow: hidden;
+    transition: transform .25s cubic-bezier(.2,.8,.2,1), border-color .25s, box-shadow .25s; animation: arrive .55s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 50ms) }
+  .tile:hover { transform: translateY(-2px); border-color: color-mix(in oklch, var(--a, var(--lav-400)) 45%, transparent); box-shadow: var(--shadow), 0 0 32px -14px var(--a, var(--shine)) }
+  .tile.lit { border-color: var(--lav-400) !important; box-shadow: var(--shadow), 0 0 0 1px var(--lav-400), 0 0 34px -8px var(--shine) !important }
+  @keyframes arrive { from { opacity: 0; transform: translateY(10px) scale(.985) } }
+  .thead { display:flex; align-items:center; gap: 10px; min-height: 24px }
+  .tname { font: 700 10.5px var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--ink-200) }
+  .ico { width: 24px; height: 24px; border-radius: 8px; display:grid; place-items:center; flex: none; font-size: 13px; background: color-mix(in oklch, var(--a, var(--lav-400)) 16%, transparent); border: 1px solid color-mix(in oklch, var(--a, var(--lav-400)) 35%, transparent) }
+
+  .sys { border-color: var(--sys-edge); background: linear-gradient(160deg, rgba(181,171,252,.11), rgba(181,171,252,.02) 45%), var(--glass); box-shadow: var(--shadow), 0 0 40px -18px var(--shine) }
+  .sys::after { content:''; position:absolute; inset:-1px; border:2px solid var(--lav-400); border-radius:15px; pointer-events:none; z-index: 3; --r: 20px;
+    mask: linear-gradient(#000 0 0) top left/var(--r) var(--r), linear-gradient(#000 0 0) top right/var(--r) var(--r), linear-gradient(#000 0 0) bottom left/var(--r) var(--r), linear-gradient(#000 0 0) bottom right/var(--r) var(--r); mask-repeat:no-repeat; animation: corners 3.2s ease-in-out infinite }
+  @keyframes corners { 0%,100% { filter: drop-shadow(0 0 3px var(--shine)); opacity: .75 } 50% { filter: drop-shadow(0 0 9px var(--shine)); opacity: 1 } }
+  .sys-title { font: 500 11px var(--mono); letter-spacing: .34em; text-transform: uppercase; color: var(--lav-400); text-shadow: 0 0 12px var(--shine) }
+
+  .badge { font: 600 9.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid currentColor; display:inline-flex; gap: 5px; align-items:center; white-space: nowrap }
+  .b-good { color: var(--good); background: color-mix(in oklch, var(--good) 12%, transparent) }
+  .b-bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 12%, transparent) }
+  .b-warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 12%, transparent) }
+  .b-lav { color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 14%, transparent) }
+  .b-dim { color: var(--ink-400); font-weight: 500 }
+  .b-dash { border-style: dashed }
+  .live::before { content:''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: ping 1.6s ease-out infinite }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 currentColor } 80%,100% { box-shadow: 0 0 0 7px transparent } }
+  @keyframes pop { from { transform: scale(.4); opacity: 0 } }
+  @keyframes typeIn { from { opacity: 0; transform: translateY(4px) } }
+  .fact { font: 500 10px var(--mono); letter-spacing: .04em; color: var(--ink-200); padding: 3px 8px; border-radius: 6px; background: rgba(255,255,255,.05); border: 1px solid var(--edge); white-space: nowrap }
+  .facts { display:flex; gap: 5px; flex-wrap: wrap }
+
+  .logo { width: 30px; height: 30px; border-radius: 9px; flex: none; display:grid; place-items:center; background: #fff; overflow:hidden; border: 1px solid var(--edge) }
+  .logo img { width: 100%; height: 100%; object-fit: contain }
+  .logo.coin { border-radius: 50%; background: transparent; border: 0 }
+  .logo.site img { width: 70%; height: 70% }
+  .logo.emo { background: rgba(255,255,255,.06); font-size: 16px }
+  .logo.sm { width: 20px; height: 20px; border-radius: 6px }
+  .logo.sm.emo { font-size: 11px }
+  .logo.metal { background: radial-gradient(circle at 35% 30%, #ffe9a3, #c9971f); border-radius: 50%; border: 0 }
+
+  .i { display:inline-grid; place-items:center; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--ink-500); color: var(--ink-400); font: 700 9px var(--mono); cursor: pointer; flex: none; transition: all .15s }
+  .i:hover, .i.on { color: var(--lav-300); border-color: var(--lav-400); box-shadow: 0 0 10px -3px var(--shine) }
+  .card { position: fixed; z-index: 50; width: 310px; padding: 14px; border-radius: 12px; border: 1px solid var(--sys-edge); background: #1d1e30f5; backdrop-filter: blur(12px); box-shadow: 0 20px 40px -12px rgba(0,0,0,.8), 0 0 30px -12px var(--shine); display:none; flex-direction:column; gap: 8px; animation: pop .3s cubic-bezier(.3,1.6,.5,1) both }
+  .card.open { display:flex }
+  .card h4 { font: 700 11px var(--mono); letter-spacing: .2em; color: var(--lav-300) }
+  .card .k { font: 500 9px var(--mono); letter-spacing: .14em; color: var(--ink-500) }
+  .card p { font-size: 12.5px; line-height: 1.55; color: var(--ink-200) }
+  .itabs { position: sticky; top: 0; z-index: 20; display:flex; gap: 6px; padding: 8px; border-radius: 14px; border: 1px solid var(--edge); background: color-mix(in oklch, var(--bg) 80%, transparent); backdrop-filter: blur(14px); overflow-x: auto }
+  .itab { flex: 1; min-width: max-content; display:flex; align-items:center; justify-content:center; gap: 8px; padding: 10px 14px; border-radius: 10px; border: 1px solid transparent; cursor: pointer; color: var(--ink-300); font: 700 10.5px var(--mono); letter-spacing: .18em; transition: all .2s; background: none }
+  .itab .n { width: 20px; height: 20px; border-radius: 6px; display:grid; place-items:center; font-size: 10px; color: var(--lav-300); border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 12%, transparent); letter-spacing: 0 }
+  .itab:hover { color: var(--ink-100); background: rgba(255,255,255,.04) }
+  .itab.on { color: var(--ink-100); border-color: var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 14%, transparent); box-shadow: 0 0 22px -10px var(--shine) }
+  .itab .badge { letter-spacing: .08em }
+  /* CLOSE (22 Oct, his "21:30 we get notification with main thing =>
+     report of the day: my holdings + major news"). Sample numbers, not his. */
+  .big { font-size: 46px; font-weight: 300; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums }
+  .pair { display:flex; gap: 22px; align-items: flex-end; flex-wrap: wrap }
+  .pair .side { display:flex; flex-direction:column; gap: 6px }
+  .delta { font: 600 22px var(--mono); letter-spacing: -.01em; animation: pop .5s .2s cubic-bezier(.3,1.6,.5,1) both }
+  .split { display:flex; gap: 6px; flex-wrap: wrap }
+  .mv { display:flex; align-items:center; gap: 10px; padding: 9px 10px; border-radius: 11px; border: 1px solid transparent; transition: background .2s; animation: arrive .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i,0) * 45ms) }
+  .mv:hover { background: rgba(255,255,255,.035); border-color: var(--edge) }
+  .mv .nm { font-size: 13.5px } .mv .sub { font: 10px var(--mono); color: var(--ink-500); margin-top: 2px; letter-spacing: .04em }
+  .mv .eur { font: 600 13px var(--mono); text-align: right; min-width: 64px }
+  .mv .pct { min-width: 66px; justify-content: center }
+  .mv.hot { background: color-mix(in oklch, var(--bad) 8%, transparent); border-color: color-mix(in oklch, var(--bad) 35%, transparent) }
+  .bar { height: 4px; border-radius: 3px; background: rgba(255,255,255,.06); position: relative; width: 70px; flex: none }
+  .bar i { position:absolute; top:0; bottom:0; border-radius: 3px; animation: grow .7s cubic-bezier(.2,.8,.2,1) both; transform-origin: left }
+  @keyframes grow { from { transform: scaleX(0) } }
+  .news { display:flex; gap: 10px; padding: 10px; border-radius: 11px; text-decoration: none; color: inherit; border: 1px solid var(--edge); background: rgba(255,255,255,.02); animation: arrive .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i,0) * 60ms) }
+  .news:hover { border-color: var(--sys-edge) }
+  .news .h { font-size: 13px; line-height: 1.35 } .news .m { font: 10px var(--mono); color: var(--ink-500); margin-top: 4px; letter-spacing: .06em }
+  .col { display:flex; flex-direction:column; gap: 12px; min-width: 0 }
+  .col > .tile:last-child { flex: 1 }
+  .idx { display:grid; grid-template-columns: repeat(4, 1fr); gap: 6px }
+  @media (max-width: 560px) { .idx { grid-template-columns: repeat(2, 1fr) } }
+  .ix { display:flex; flex-direction:column; gap: 5px; padding: 8px; border-radius: 10px; border: 1px solid var(--edge); background: rgba(255,255,255,.02); animation: arrive .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i,0) * 50ms) }
+  .ix .badge { align-self: flex-start }
+  .more { font: 600 10px var(--mono); letter-spacing: .16em; color: var(--lav-300); text-align: center; padding: 8px; border-radius: 9px; border: 1px dashed var(--sys-edge); cursor: pointer }
+  .empty { display:flex; flex-direction:column; align-items:center; gap: 10px; padding: 34px 0 }
+  .empty .o { width: 64px; height: 64px; border-radius: 20px; display:grid; place-items:center; font-size: 26px; border: 1px solid var(--edge); background: rgba(255,255,255,.04) }
+  /* the push, drawn: iPhone banner and the bell row */
+  .phone { width: 360px; max-width: 100%; border-radius: 44px; padding: 10px; background: linear-gradient(145deg, #3a3a46, #15151b); box-shadow: 0 0 0 1px #000, 0 30px 70px rgba(0,0,0,.55); margin: 0 auto }
+  .lock { position: relative; height: 560px; border-radius: 36px; overflow: hidden; background: radial-gradient(40% 35% at 75% 20%, #5b4bd1 0%, transparent 70%), radial-gradient(40% 40% at 10% 65%, #2d6a8a 0%, transparent 70%), #0b0a1a; font-family: -apple-system, 'SF Pro Text', Inter, sans-serif; color: #fff; text-align: center; padding-top: 40px }
+  .lock .d { font-size: 17px; font-weight: 600; opacity: .85 } .lock .h { font-size: 84px; font-weight: 700; letter-spacing: -.04em; line-height: 1; opacity: .92 }
+  .note { position: absolute; left: 10px; right: 10px; bottom: 120px; display:flex; gap: 10px; align-items:center; text-align: left; padding: 11px 12px; border-radius: 20px; background: rgba(40,37,58,.62); backdrop-filter: blur(24px); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.12); animation: noteIn .7s .3s cubic-bezier(.2,.9,.25,1.15) both; cursor: pointer }
+  @keyframes noteIn { from { transform: translateY(60px) scale(.9); opacity: 0 } }
+  .note .ic { width: 36px; height: 36px; border-radius: 9px; flex: none; background: #14131c; display:grid; place-items:center }
+  .note .t1 { display:flex; justify-content:space-between; font-size: 14.5px; font-weight: 600 } .note .t1 span { font-weight: 400; font-size: 12.5px; opacity: .55 }
+  .note .t2 { font-size: 14px; opacity: .92; line-height: 1.3 }
+  .bellrow { display:flex; gap: 12px; align-items:center; padding: 12px; border-radius: 16px; border: 1px solid color-mix(in oklch, var(--lav-400) 45%, transparent); background: color-mix(in oklch, var(--lav-400) 8%, transparent); box-shadow: 0 0 24px -10px var(--shine); max-width: 440px; margin: 0 auto; cursor: pointer }
+  .bellrow .k { width: 44px; height: 44px; border-radius: 13px; display:grid; place-items:center; flex: none; font-size: 19px; color: var(--bad); border: 1px solid color-mix(in oklch, var(--bad) 40%, transparent); background: color-mix(in oklch, var(--bad) 18%, transparent) }
+  .bellrow .t { font-size: 15px; font-weight: 500 } .bellrow .m { font: 10.5px var(--mono); letter-spacing: .08em; color: var(--ink-300); margin-top: 3px; text-transform: uppercase }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl" id="show">SHOW
+    <button data-s="close" class="on">close · a red day</button>
+    <button data-s="quiet">close · a quiet day</button>
+    <button data-s="weekend">saturday</button>
+    <button data-s="none">no shares</button>
+    <button data-s="lock">iphone · 21:30</button>
+    <button data-s="bell">mac · bell</button>
+  </div>
+  <div id="stage"></div>
+</div>
+<script>
+const L = (s) => `<span class="logo"><img src="https://financialmodelingprep.com/image-stock/${s}.png" alt="${s}"></span>`
+const site = (d) => `<span class="logo site"><img src="https://www.google.com/s2/favicons?sz=64&domain=${d}" alt=""></span>`
+/* [logo, name, ticker, € move, % move, was, now, badges] */
+const RED = [
+  [L('TSLA'), 'Tesla', 'TSLA', -76.6, -6.2, '$248.10', '$232.70', ['<span class="badge b-bad">BIG DAY</span>']],
+  [L('NFLX'), 'Netflix', 'NFLX', -41.2, -2.4, '$1,145.00', '$1,117.80', ['<span class="badge b-lav live">EARNINGS 24 OCT</span>']],
+  [L('MSFT'), 'Microsoft', 'MSFT', -18.9, -1.1, '$432.10', '$427.35', []],
+  [site('vanguard.com'), 'Vanguard S&P 500', 'VUAA', -14.3, -0.6, '€104.12', '€103.50', []],
+  [L('AAPL'), 'Apple', 'AAPL', -6.1, -0.4, '$231.40', '$230.47', []],
+  [L('ASML'), 'ASML', 'ASML', 22.8, 1.9, '€601.00', '€612.40', ['<span class="badge b-good">HOLD → ADD</span>']],
+  [L('NVDA'), 'NVIDIA', 'NVDA', 31.4, 4.1, '$138.20', '$143.87', []],
+  [L('AMZN'), 'Amazon', 'AMZN', -9.8, -0.9, '$186.30', '$184.62', []],
+  [L('GOOGL'), 'Alphabet', 'GOOGL', 4.2, 0.5, '$164.10', '$164.92', []],
+  [L('META'), 'Meta', 'META', -12.6, -1.4, '$578.20', '$570.11', []],
+  [L('AVGO'), 'Broadcom', 'AVGO', 8.9, 1.2, '$172.40', '$174.47', []],
+  [site('ishares.com'), 'iShares Physical Gold', 'IGLN', 3.1, 0.3, '€52.10', '€52.26', []],
+  [`<span class="logo coin"><img src="https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color/btc.svg" alt=""></span>`, 'Bitcoin', 'BTC', 6.7, 1.4, '€57,210', '€58,011', []],
+]
+const QUIET = RED.map((r, k) => { const p = [-0.8, -0.3, 0.2, 0.1, -0.2, 0.6, 0.9, 0.1, -0.1, 0.3, 0.2, 0.1, 0.4][k]; return [r[0], r[1], r[2], Math.round(r[3] / r[4] * p * 10) / 10, p, r[5], r[6], k === 1 ? r[7] : []] })
+const NEWS = [
+  [L('TSLA'), 'TSLA', 'Tesla shares slide after deliveries guidance cut', 'Reuters', '19:42'],
+  [L('NVDA'), 'NVDA', 'Nvidia gains as new data-center orders land', 'Bloomberg', '18:10'],
+  [L('NFLX'), 'NFLX', 'Netflix earnings preview: ad tier in focus', 'Yahoo Finance', '16:05'],
+  [L('TSLA'), 'TSLA', 'Analysts trim Tesla targets ahead of quarter', 'MarketWatch', '15:20'],
+  [L('NVDA'), 'NVDA', 'Chip stocks rise with Nvidia in the lead', 'CNBC', '14:48'],
+  [L('NFLX'), 'NFLX', 'What to watch in Netflix results on Friday', 'Barron\'s', '12:30'],
+]
+/* The market's day, fetched like MARKET's (1D): two prices, the move. */
+const IDX = [['S&P 500', '5,812', -0.9], ['NASDAQ 100', '20,104', -1.3], ['STOXX 600', '518', 0.2], ['BITCOIN', '$67,210', 1.4]]
+const IDXQ = [['S&P 500', '5,866', 0.1], ['NASDAQ 100', '20,371', 0.2], ['STOXX 600', '517', -0.1], ['BITCOIN', '$66,480', 0.3]]
+/* Market headlines: Yahoo's news for the S&P 500, the newest two. */
+const MKT = [['🏦', 'Stocks slip as Treasury yields climb to 3-month high', 'Reuters', '21:05'], ['🛢️', 'Oil rises after OPEC signals deeper output cuts', 'Bloomberg', '19:30']]
+const eur = (v) => `${v < 0 ? '−' : '+'}€${Math.abs(v).toFixed(2)}`
+const pct = (v) => `<span class="badge ${v < 0 ? 'b-bad' : v > 0 ? 'b-good' : 'b-dim'} pct">${v < 0 ? '▼' : v > 0 ? '▲' : '='} ${Math.abs(v).toFixed(1)}%</span>`
+const bar = (v, max) => `<span class="bar"><i style="${v < 0 ? 'right:50%' : 'left:50%'};width:${Math.abs(v) / max * 50}%;background:var(${v < 0 ? '--bad' : '--good'})"></i></span>`
+
+const head = (tab = 'CLOSE', badge = '') => `<div class="fhead"><span class="title">Finances</span>
+  <div class="tabs"><span class="tab">OVERVIEW</span><span class="tab">FLOW</span><span class="tab">PORTFOLIO</span><span class="tab on">INSIGHTS</span></div></div>
+  <div class="itabs">${['MARKET', 'READ', 'MINE', 'IDEAS', 'CLOSE'].map((t, k) => `<button class="itab ${t === tab ? 'on' : ''}"><span class="n">${k + 1}</span>${t}${t === 'CLOSE' ? badge : ''}</button>`).join('')}</div>`
+
+function report(rows, { day = 'THU 22 OCT', at = '21:30', now = 6158.4, wasDay = '21 OCT', news = true, quiet = false } = {}) {
+  const sorted = [...rows].sort((a, b) => Math.abs(b[4]) - Math.abs(a[4]))
+  const max = Math.max(...rows.map((r) => Math.abs(r[4])))
+  const d = Math.round(rows.reduce((t, r) => t + r[3], 0) * 100) / 100, was = now - d, p = d / was * 100
+  const ups = rows.filter((r) => r[4] > 0).length, downs = rows.filter((r) => r[4] < 0).length
+  const cls = d < 0 ? 'bad' : 'good'
+  return `${head('CLOSE', ` <span class="badge ${d < 0 ? 'b-bad' : 'b-good'} live">${d < 0 ? '▼' : '▲'} ${Math.abs(p).toFixed(1)}%</span>`)}
+  <div class="grid">
+    <section class="tile sys c12" style="--i:0">
+      <div class="thead"><span class="sys-title">[ CLOSE · ${day} ]</span><span class="grow"></span><span class="badge b-dim">PRICES ${at} · YAHOO FINANCE</span></div>
+      <div class="pair">
+        <div class="side"><span class="caps">NOW · ${rows.length} SHARES</span><span class="big">€${now.toLocaleString('en', { minimumFractionDigits: 2 })}</span></div>
+        <div class="side"><span class="caps">WAS · ${wasDay} CLOSE</span><span class="num" style="font-size:22px;font-weight:300;color:var(--ink-300)">€${was.toLocaleString('en', { minimumFractionDigits: 2 })}</span></div>
+        <div class="side"><span class="delta ${cls}">${d < 0 ? '▼' : '▲'} €${Math.abs(d).toFixed(2)} · ${Math.abs(p).toFixed(1)}%</span></div>
+        <span class="grow"></span>
+        <div class="split"><span class="badge b-good">${ups} ▲</span><span class="badge b-bad">${downs} ▼</span></div>
+      </div>
+    </section>
+    <section class="tile c7" style="--i:1">
+      <div class="thead"><span class="ico">📊</span><span class="tname">MOVES · TODAY</span><span class="grow"></span><span class="caps">BIGGEST FIRST</span></div>
+      <div>${sorted.map((r, k) => `<div class="mv ${r[7].some((b) => b.includes('BIG DAY')) ? 'hot' : ''}" style="--i:${k}">${r[0]}
+        <div class="grow"><div class="nm">${r[1]} <span class="caps" style="margin-left:4px">${r[2]}</span></div><div class="sub">WAS ${r[5]} · NOW ${r[6]}</div></div>
+        <div class="split">${r[7].join('')}</div>${bar(r[4], max)}<span class="eur ${r[3] < 0 ? 'bad' : 'good'}">${eur(r[3])}</span>${pct(r[4])}</div>`).join('')}</div>
+    </section>
+    <div class="c5 col">
+    <section class="tile" style="--i:2">
+      <div class="thead"><span class="ico">🌐</span><span class="tname">MARKET · TODAY</span><span class="grow"></span><span class="caps">FETCHED ${at}</span></div>
+      <div class="idx">${(quiet ? IDXQ : IDX).map((x, k) => `<div class="ix" style="--i:${k}"><span class="caps">${x[0]}</span><span class="num" style="font-size:15px">${x[1]}</span>${pct(x[2])}</div>`).join('')}</div>
+      ${MKT.map((n, k) => `<a class="news" href="#" style="--i:${k}"><span class="logo emo">${n[0]}</span><div><div class="h">${n[1]}</div><div class="m">${n[2].toUpperCase()} · ${n[3]} ↗</div></div></a>`).join('')}
+    </section>
+    <section class="tile" style="--i:3">
+      <div class="thead"><span class="ico">📰</span><span class="tname">NEWS · TOP MOVERS</span><span class="grow"></span><span class="caps">FETCHED ${at}</span></div>
+      ${news ? NEWS.map((n, k) => `<a class="news" href="#" style="--i:${k}">${n[0]}<div><div class="h">${n[2]}</div><div class="m">${n[1]} · ${n[3].toUpperCase()} · ${n[4]} ↗</div></div></a>`).join('')
+        : `<div class="empty"><span class="o">📰</span><span class="caps">NO HEADLINES · ${at}</span></div>`}
+    </section>
+    </div>
+  </div>` }
+
+const S = {
+  close: () => report(RED),
+  quiet: () => report(QUIET, { now: 6262.9, quiet: true }),
+  weekend: () => report(RED, { day: 'FRI 24 OCT', wasDay: '23 OCT' }).replace('PRICES 21:30', 'MARKET CLOSED · SAT · FRI CLOSE'),
+  none: () => `${head()}<div class="grid"><section class="tile sys c12"><div class="thead"><span class="sys-title">[ CLOSE ]</span></div>
+    <div class="empty"><span class="o">📊</span><span class="caps">NO SHARES HELD</span><span class="badge b-dim">NO PUSH AT 21:30</span></div></section></div>`,
+  lock: () => `<div class="phone"><div class="lock"><div class="d">Thursday 22 October</div><div class="h">21:30</div>
+    <div class="note" onclick="show('close')"><span class="ic"><svg viewBox="0 0 128 128" width="30" height="30"><g fill="#9184d9"><rect x="24" y="78" width="18" height="26" rx="6"/><rect x="49" y="60" width="18" height="44" rx="6"/><rect x="74" y="42" width="18" height="62" rx="6"/></g><circle cx="107" cy="30" r="9" fill="#d2cefd"/></svg></span>
+      <span style="flex:1;min-width:0"><span class="t1">Close · ▼ €102.40 · 1.6%<span>now</span></span><span class="t2">TSLA ▼ 6.2% · ASML HOLD → ADD · NFLX earnings 24 Oct</span></span></div>
+  </div></div><p class="caps" style="text-align:center;margin-top:12px">TAP → INSIGHTS · CLOSE</p>`,
+  bell: () => `<div class="bellrow" onclick="show('close')"><span class="k">▼</span><span class="grow"><div class="t">Close · ▼ €102.40 · 1.6%</div><div class="m">TSLA ▼ 6.2% · ASML HOLD → ADD · NFLX EARNINGS 24 OCT</div></span><span class="caps">21:30</span></div>`,
+}
+const stage = document.getElementById('stage')
+function show(s) { stage.innerHTML = S[s](); document.querySelectorAll('#show button').forEach((b) => b.classList.toggle('on', b.dataset.s === s)) }
+document.getElementById('show').onclick = (e) => { if (e.target.dataset.s) show(e.target.dataset.s) }
+show('close')
+</script>
+</body>
+</html>

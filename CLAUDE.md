@@ -398,7 +398,11 @@ These are rules, not advice.
    closes. An e2e test asserts all three.
 5. **Small**: a PR under ~600 changed lines, never over 1000; a file
    under ~500 lines (split, don't grow). The `session-guard` hook says
-   when a branch is too big or a session too long.
+   when a branch is too big or a session too long. One exception (22
+   Oct, his "one PR for a slice I've tested", after saying "next" four
+   times through a chain of five): a slice he has said "works" on goes
+   in as one PR, whatever its size, with auto-merge — never a chain of
+   dependent PRs. The PR body says it is over the limit by this rule.
 6. **Find, don't search**: `docs/journeys/<area>.md` maps each journey
    to its screens, functions and test. Read it before the code; update
    it in the same PR.

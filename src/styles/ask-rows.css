@@ -1,0 +1,448 @@
+/* R7 Ask AI (22 Oct, mockup design/ask-mockup/index.html round 2, his
+   "go"). The drawer is Insights ASK's (insights-tabs.css, insights-ask.css);
+   what this adds: what it reads, the period's day strip, the counts as big
+   numbers that open their rows, the model's lines with their counts. Every
+   colour from a token; an area's colour names the area, never a grade. */
+
+.r7-drawer {
+  width: min(500px, 100vw);
+  & .ask .ask-a {
+    width: 100%;
+  }
+  & .ask .ask-thread {
+    padding: 16px 14px;
+  }
+}
+
+/* before the first question */
+.r7-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 16px;
+  text-align: center;
+  & .ask-orb.big {
+    width: 64px;
+    height: 64px;
+    & .ask-star {
+      width: 24px;
+      height: 24px;
+    }
+  }
+}
+.r7-reads {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 340px;
+}
+.r7-read {
+  --c: var(--color-lav-400);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 9.5px var(--font-mono);
+  letter-spacing: 0.1em;
+  padding: 4px 9px 4px 5px;
+  border-radius: 999px;
+  color: var(--color-ink-200);
+  border: 1px solid color-mix(in oklch, var(--c) 35%, transparent);
+  background: color-mix(in oklch, var(--c) 9%, transparent);
+  animation: ins-arrive 450ms var(--motion-ease) both;
+  animation-delay: calc(var(--i) * 60ms);
+  & i {
+    font-style: normal;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    background: color-mix(in oklch, var(--c) 22%, transparent);
+  }
+  &.off {
+    --c: var(--color-ink-600);
+    color: var(--color-ink-500);
+    text-decoration: line-through;
+  }
+}
+.r7-chips {
+  margin-top: 8px;
+}
+
+/* the period and its days */
+.r7-per {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.r7-copy {
+  margin-left: auto;
+}
+.r7-strip {
+  display: grid;
+  gap: 2px;
+  padding: 8px 8px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-edge);
+  background: color-mix(in oklch, var(--sink) 25%, transparent);
+}
+.r7-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  & .dots {
+    height: 32px;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 2px;
+    align-items: center;
+  }
+  & .dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow: 0 0 6px -1px var(--c);
+    animation: ins-pop 300ms var(--motion-ease) both;
+    animation-delay: calc(var(--d) * 22ms);
+    transition: opacity 200ms;
+  }
+  & b {
+    font: 500 7.5px var(--font-mono);
+    color: var(--color-ink-600);
+    height: 9px;
+  }
+  &.wk b {
+    color: var(--color-ink-400);
+  }
+}
+.r7-strip.pick .r7-day .dots span:not(.sel) {
+  opacity: 0.15;
+  box-shadow: none;
+}
+.r7-legend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: -4px;
+  & span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font: 500 9px var(--font-mono);
+    letter-spacing: 0.1em;
+    color: var(--color-ink-400);
+    &::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--c);
+    }
+  }
+}
+.r7-head {
+  color: var(--color-ink-100);
+  font-weight: 500;
+}
+
+/* the counts, each opens its rows */
+.r7-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.r7-tile {
+  --c: var(--color-lav-400);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  text-align: left;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--c) 28%, transparent);
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklch, var(--c) 13%, transparent),
+    transparent 75%
+  );
+  animation: ins-arrive 450ms var(--motion-ease) both;
+  animation-delay: calc(200ms + var(--i) * 70ms);
+  transition:
+    border-color 200ms,
+    box-shadow 200ms,
+    transform 200ms;
+  &:hover {
+    transform: translateY(-2px);
+    border-color: var(--c);
+    box-shadow: 0 0 22px -10px var(--c);
+  }
+  &.on {
+    border-color: var(--c);
+    box-shadow:
+      0 0 0 1px var(--c),
+      0 0 26px -8px var(--c);
+  }
+  & .top {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    & i {
+      font-style: normal;
+      width: 22px;
+      height: 22px;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      background: color-mix(in oklch, var(--c) 20%, transparent);
+      border: 1px solid color-mix(in oklch, var(--c) 40%, transparent);
+    }
+    & b {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font: 700 9px var(--font-mono);
+      letter-spacing: 0.16em;
+      color: var(--c);
+    }
+    & em {
+      font: normal 600 9px var(--font-mono);
+      color: var(--color-ink-500);
+      transition: transform 250ms;
+    }
+  }
+  &.on .top em {
+    transform: rotate(90deg);
+    color: var(--c);
+  }
+  & .n {
+    font-size: 26px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink-100);
+    & small {
+      font-size: 13px;
+      color: var(--color-ink-400);
+      margin-right: 1px;
+    }
+  }
+  & .s {
+    font: 500 9px var(--font-mono);
+    letter-spacing: 0.1em;
+    color: var(--color-ink-400);
+  }
+}
+
+/* the rows behind a number */
+.r7-rows {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 350ms var(--motion-ease);
+  & > div {
+    overflow: hidden;
+    min-height: 0;
+  }
+  &.open {
+    grid-template-rows: 1fr;
+  }
+}
+.r7-list {
+  --c: var(--color-lav-400);
+  border-radius: 10px;
+  border: 1px solid color-mix(in oklch, var(--c) 30%, transparent);
+  background: color-mix(in oklch, var(--sink) 30%, transparent);
+  & .hd {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--glass-edge);
+    font: 700 9px var(--font-mono);
+    letter-spacing: 0.14em;
+    color: var(--c);
+    & .grow {
+      flex: 1;
+    }
+    & span:last-child {
+      color: var(--color-ink-100);
+    }
+  }
+  & .sc {
+    max-height: 196px;
+    overflow: auto;
+  }
+}
+.r7-row {
+  display: grid;
+  grid-template-columns: 46px 84px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-ink-200);
+  animation: ins-arrive 300ms var(--motion-ease) both;
+  animation-delay: calc(var(--i) * 25ms);
+  & + & {
+    border-top: 1px solid color-mix(in oklch, var(--lift) 5%, transparent);
+  }
+  & .d {
+    font: 500 9.5px var(--font-mono);
+    color: var(--color-ink-500);
+    letter-spacing: 0.06em;
+  }
+  & .k {
+    justify-self: start;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font: 700 8.5px var(--font-mono);
+    letter-spacing: 0.1em;
+    padding: 2px 6px;
+    border-radius: 5px;
+    color: var(--c);
+    background: color-mix(in oklch, var(--c) 14%, transparent);
+  }
+  & .t {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  & .v {
+    font: 600 11px var(--font-mono);
+    color: var(--color-ink-100);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* the model's lines, each with the counts it named */
+.r7-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 2px;
+}
+.r7-line {
+  --c: var(--color-lav-400);
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 9px;
+  animation: ins-arrive 400ms var(--motion-ease) both;
+  animation-delay: calc(500ms + var(--i) * 90ms);
+  & > i {
+    font-style: normal;
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    background: color-mix(in oklch, var(--c) 18%, transparent);
+    border: 1px solid color-mix(in oklch, var(--c) 40%, transparent);
+  }
+  & > div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+  }
+  & p {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--color-ink-200);
+  }
+}
+.r7-fact {
+  --c: var(--color-lav-400);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 9.5px var(--font-mono);
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 7px;
+  white-space: nowrap;
+  color: var(--color-ink-300);
+  border: 1px solid color-mix(in oklch, var(--c) 32%, transparent);
+  background: color-mix(in oklch, var(--lift) 4%, transparent);
+  transition:
+    background 150ms,
+    border-color 150ms;
+  & b {
+    color: var(--color-ink-100);
+    font-weight: 700;
+  }
+  &:hover,
+  &.on {
+    border-color: var(--c);
+    background: color-mix(in oklch, var(--c) 14%, transparent);
+  }
+}
+
+/* ✦ Ask in the top bar, beside Search */
+.r7-topask {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 0 6px;
+  border-radius: 10px;
+  border: 1px solid var(--system-edge);
+  color: var(--color-lav-300);
+  font-size: 12.5px;
+  font-weight: 500;
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklch, var(--color-lav-400) 18%, transparent),
+    color-mix(in oklch, var(--color-lav-400) 4%, transparent)
+  );
+  box-shadow: 0 0 20px -10px var(--system-shine);
+  transition:
+    box-shadow 200ms,
+    transform 200ms;
+  &:hover {
+    box-shadow: 0 0 26px -6px var(--system-shine);
+    transform: translateY(-1px);
+  }
+  & .o {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--system-edge);
+    background: color-mix(in oklch, var(--color-lav-400) 18%, transparent);
+    animation: ask-orb 3s ease-in-out infinite;
+    & .ask-star {
+      width: 12px;
+      height: 12px;
+    }
+  }
+  &.busy .ask-star {
+    animation: ask-spin 1.4s linear infinite;
+  }
+  @media (max-width: 767px) {
+    padding: 0 5px;
+    & .w,
+    & .k {
+      display: none;
+    }
+  }
+}

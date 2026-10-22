@@ -11,7 +11,7 @@ import type { Period } from '@/lib/insightsMarket'
 
 type Unit = (typeof MARKETS)[number]['unit']
 
-function priceWord(n: number, unit: Unit) {
+export function priceWord(n: number, unit: Unit) {
   const whole = (x: number) =>
     x.toLocaleString('en-US', { maximumFractionDigits: 0 })
   const two = (x: number) =>

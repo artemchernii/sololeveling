@@ -6,6 +6,7 @@ import { api } from '../../../../convex/_generated/api'
 import type { Id } from '../../../../convex/_generated/dataModel'
 import type { FunctionReturnType } from 'convex/server'
 import { MarkLogo, clock } from './parts'
+import { priceWord } from './Markets'
 import { useMarket } from './useMarket'
 import { TickerLogo } from '@/components/finances/Logo'
 import { money } from '@/lib/currency'
@@ -304,20 +305,19 @@ function MarketToday() {
           const move = a?.markets.find((x) => x.id === id)?.move ?? null
           return m ? (
             <div key={id} className="close-ix">
-              <span className="ins-was">
-                <MarkLogo mark={m.mark} size={16} /> {m.name}
+              <span className="close-ixh">
+                <MarkLogo mark={m.mark} size={20} />
+                <span className="ins-was">{m.name}</span>
               </span>
               <span className="ins-num">
-                {move
-                  ? move.price.toLocaleString('en', {
-                      maximumFractionDigits: 0,
-                    })
-                  : '—'}
+                {move ? priceWord(move.price, m.unit) : '—'}
+                {m.unit === 'points' ? (
+                  <span className="ins-was"> PTS</span>
+                ) : null}
               </span>
               {move ? (
                 <span className="ins-was">
-                  WAS{' '}
-                  {move.base.toLocaleString('en', { maximumFractionDigits: 0 })}
+                  WAS {priceWord(move.base, m.unit)}
                 </span>
               ) : null}
               {move ? (

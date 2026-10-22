@@ -53,8 +53,6 @@
   padding: 9px 10px;
   border-radius: 11px;
   border: 1px solid transparent;
-  animation: ins-arrive 450ms var(--motion-ease) both;
-  animation-delay: calc(var(--i, 0) * 45ms);
   &:hover {
     background: color-mix(in oklch, var(--color-lift) 4%, transparent);
     border-color: var(--glass-edge);
@@ -145,13 +143,23 @@
   padding: 8px;
   border-radius: 10px;
   border: 1px solid var(--glass-edge);
-  .ins-was {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-  }
   .ins-badge {
     align-self: flex-start;
+  }
+  .mark {
+    flex: none;
+    font-size: 12px;
+  }
+}
+.close-ixh {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  .ins-was {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 .close-news {
@@ -162,7 +170,7 @@
   border: 1px solid var(--glass-edge);
   color: inherit;
   text-decoration: none;
-  animation: ins-arrive 450ms var(--motion-ease) both;
+  transition: border-color 200ms;
   &:hover {
     border-color: var(--system-edge);
   }
@@ -199,7 +207,6 @@
   margin-right: -8px;
   padding-right: 8px;
   overscroll-behavior: contain;
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
   @media (max-width: 1000px) {
     height: auto;
     min-height: 0;

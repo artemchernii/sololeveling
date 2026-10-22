@@ -385,6 +385,8 @@
     flex-wrap: wrap;
     & input {
       flex-basis: 100%;
+      /* under 16px an iPhone zooms the page on focus (22 Oct) */
+      font-size: 16px;
     }
     & button {
       flex: 1;

@@ -106,6 +106,12 @@ const LEGEND: Record<string, string> = {
   task: 'TASKS',
 }
 
+/* Each week's first day and the last day are numbered — but not a
+   week's first day within two of the last, where 29 and 30 ran together
+   into "2930" on his phone (22 Oct). */
+const marked = (i: number, n: number) =>
+  i === n - 1 || (i % 7 === 0 && n - 1 - i >= 3)
+
 export function Strip({
   rows,
   period,
@@ -133,7 +139,7 @@ export function Strip({
         {days.map((d, i) => (
           <div
             key={i}
-            className={`r7-day ${i % 7 === 0 || i === days.length - 1 ? 'wk' : ''} ${d.areas.length === 0 ? 'none' : ''}`}
+            className={`r7-day ${marked(i, days.length) ? 'wk' : ''} ${d.areas.length === 0 ? 'none' : ''}`}
             data-areas={d.areas.join(' ')}
           >
             {wide ? <span className="wd">{WEEKDAYS[d.weekday]}</span> : null}
@@ -152,9 +158,7 @@ export function Strip({
               ))}
               {wide && d.areas.length === 0 ? <i>—</i> : null}
             </div>
-            {wide ? null : (
-              <b>{i % 7 === 0 || i === days.length - 1 ? d.day : ''}</b>
-            )}
+            {wide ? null : <b>{marked(i, days.length) ? d.day : ''}</b>}
           </div>
         ))}
       </div>

@@ -219,12 +219,22 @@ test('phone: a bottom sheet, nothing wider than the screen', async ({
 
   /* The handle drags the sheet: a short pull springs back, a long one
      closes it (23 Oct, his "I cant drag it down with that dash"). */
+  /* slid all the way in first */
+  await expect
+    .poll(async () => Math.round((await drawer.boundingBox())!.y), {
+      intervals: [200],
+    })
+    .toBeLessThan(200)
   const top = (await drawer.boundingBox())!.y
   await page.mouse.move(187, top + 6)
   await page.mouse.down()
   await page.mouse.move(187, top + 50, { steps: 5 })
   await page.mouse.up()
   await expect(drawer).toHaveAttribute('aria-hidden', 'false')
+  /* sprung all the way back before the next pull */
+  await expect
+    .poll(async () => Math.round((await drawer.boundingBox())!.y))
+    .toBe(Math.round(top))
   await page.mouse.move(187, top + 6)
   await page.mouse.down()
   await page.mouse.move(187, top + 260, { steps: 8 })

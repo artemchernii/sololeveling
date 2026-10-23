@@ -28,6 +28,17 @@ const PRICE = { input: 2, output: 10, search: 0.01 }
 export const ROWS_ASK_MODEL = 'claude-haiku-5-5'
 const HAIKU = { input: 0.1, output: 0.5, longInput: 0.5, longOutput: 2.5 }
 const HAIKU_LONG = 100_000
+/** On localhost Claude Code answers with the one he picks (22 Oct, his
+    "locally I want to be able to change models"); the dev server's route
+    refuses any other id. */
+export const LOCAL_MODELS = [
+  'claude-haiku-5-5',
+  'claude-sonnet-5-5',
+  'claude-opus-5-5',
+] as const
+export type LocalModel = (typeof LOCAL_MODELS)[number]
+export const isLocalModel = (m: unknown): m is LocalModel =>
+  (LOCAL_MODELS as ReadonlyArray<unknown>).includes(m)
 /** A Pro read not landed after this long is taken as lost (its page was
     closed); claude -p is stopped at five minutes. */
 export const STALE_MS = 6 * 60_000

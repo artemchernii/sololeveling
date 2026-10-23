@@ -3,12 +3,12 @@ import { tmpdir } from 'node:os'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 
-import { cleanEnv, parseClaudeResult } from '../src/lib/claudeResult'
 import {
-  MARKET_READ_MODEL,
-  MARKET_READ_SCHEMA,
-  marketReadPrompt,
-} from '../src/lib/marketRead'
+  askedModel,
+  cleanEnv,
+  parseClaudeResult,
+} from '../src/lib/claudeResult'
+import { MARKET_READ_SCHEMA, marketReadPrompt } from '../src/lib/marketRead'
 import { ASK_SCHEMA, askPrompt } from '../src/lib/marketAsk'
 import type { Fact } from '../src/lib/marketRead'
 import type { ReadContext, Said } from '../src/lib/marketAsk'
@@ -38,6 +38,7 @@ function claude(
   prompt: string,
   schema: unknown,
   web: boolean,
+  model: string,
 ): Promise<ProAnswer> {
   return new Promise((resolve) => {
     const child = spawn(
@@ -47,7 +48,7 @@ function claude(
         '--output-format',
         'json',
         '--model',
-        MARKET_READ_MODEL,
+        model,
         '--json-schema',
         JSON.stringify(schema),
         '--tools',
@@ -74,7 +75,9 @@ function claude(
     child.on('close', () => {
       clearTimeout(timer)
       resolve(
-        out ? parseClaudeResult(out) : { ok: false, error: 'NOT REACHED' },
+        out
+          ? parseClaudeResult(out, model)
+          : { ok: false, error: 'NOT REACHED' },
       )
     })
     child.stdin.end(prompt)
@@ -124,8 +127,14 @@ export function claudeRead(): Plugin {
               return send(res, 403, { ok: false, error: 'REFUSED' })
             try {
               send(res, 200, await answer(await body(req, max)))
-            } catch {
-              send(res, 400, { ok: false, error: 'BROKEN SHAPE' })
+            } catch (e) {
+              send(res, 400, {
+                ok: false,
+                error:
+                  (e as Error).message === 'model'
+                    ? 'MODEL REFUSED'
+                    : 'BROKEN SHAPE',
+              })
             }
           })()
         })
@@ -134,7 +143,12 @@ export function claudeRead(): Plugin {
           facts: Array<Fact>
           today: string
         }
-        return claude(marketReadPrompt(facts, today), MARKET_READ_SCHEMA, true)
+        return claude(
+          marketReadPrompt(facts, today),
+          MARKET_READ_SCHEMA,
+          true,
+          askedModel(json),
+        )
       })
       route(CLAUDE_ASK_PATH, (json) => {
         const { facts, read, question, web, today, history } = JSON.parse(
@@ -151,6 +165,7 @@ export function claudeRead(): Plugin {
           askPrompt(facts, read, question, web === true, today, history ?? []),
           ASK_SCHEMA,
           web === true,
+          askedModel(json),
         )
       })
       route(
@@ -160,6 +175,7 @@ export function claudeRead(): Plugin {
             rowsPrompt(JSON.parse(json) as Parameters<typeof rowsPrompt>[0]),
             ROWS_SCHEMA,
             false,
+            askedModel(json),
           ),
         2_000_000,
       )

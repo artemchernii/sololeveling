@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 
-import { cleanEnv, parseClaudeResult } from './claudeResult'
+import { askedModel, cleanEnv, parseClaudeResult } from './claudeResult'
 
 test('the structured answer and its usage, from what claude -p prints', () => {
   const r = parseClaudeResult(
@@ -74,4 +74,26 @@ test('claude -p starts on his own login: no session or API key env', () => {
       NODE_ENV: undefined,
     }),
   ).toEqual({ PATH: '/usr/bin', HOME: '/Users/a' })
+})
+
+test('the stamp names the model it was started with, not a helper', () => {
+  const out = JSON.stringify({
+    result: 'x',
+    modelUsage: { 'claude-haiku-5-5': {}, 'claude-opus-5-5': {} },
+  })
+  const r = parseClaudeResult(out, 'claude-opus-5-5')
+  expect(r.ok && r.model).toBe('claude-opus-5-5')
+  const h = parseClaudeResult(
+    JSON.stringify({ result: 'x', modelUsage: { 'claude-sonnet-5-5': {} } }),
+    'claude-haiku-5-5',
+  )
+  expect(h.ok && h.model).toBe('claude-haiku-5-5')
+})
+
+test('the route allows only the three models, Sonnet when none is sent', () => {
+  expect(askedModel('{}')).toBe('claude-sonnet-5-5')
+  for (const m of ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5'])
+    expect(askedModel(JSON.stringify({ model: m }))).toBe(m)
+  for (const m of ['claude-opus-4', 'gpt-5', '', 5, null])
+    expect(() => askedModel(JSON.stringify({ model: m }))).toThrow('model')
 })

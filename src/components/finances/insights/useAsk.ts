@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { api } from '../../../../convex/_generated/api'
 import type { ProAnswer } from '@/lib/claudeResult'
+import { localModel } from '@/lib/localModel'
 import type { AskAnswer, Said } from '@/lib/marketAsk'
 import type { Fact } from '@/lib/marketRead'
 import { MAX_HISTORY, parseAsk } from '@/lib/marketAsk'
@@ -88,6 +89,7 @@ export function useAsk(r: Read) {
             web,
             today: new Date().toISOString().slice(0, 10),
             history,
+            model: localModel(),
           }),
         })
           .then((x) => x.json() as Promise<ProAnswer>)

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { Ask, MONTH, Star } from './Ask'
+import { ModelPick } from '@/components/ask/ModelPick'
 import { useSheetDrag } from '@/components/ask/useSheetDrag'
 import { useSheetViewport } from '@/components/ask/useSheetViewport'
 import { usePrefill } from './askPrefill'
@@ -89,18 +90,11 @@ export function AskDrawer({ r }: { r: Read }) {
           </span>
           <span className="system-title whitespace-nowrap">[ ASK ]</span>
           <span className="grow" />
-          {r.path !== null ? (
-            <span
-              data-testid="ask-pay"
-              className={`ins-badge ${pro ? 'good' : 'warn'}`}
-            >
-              {pro ? (
-                <>
-                  <span className="ask-ping" />⚡ PRO PLAN · NO CREDITS
-                </>
-              ) : (
-                `💳 ${MONTH[Number(r.month.slice(5, 7)) - 1]} · ${usd(r.spent)} OF ${usd(r.cap)}`
-              )}
+          {pro ? (
+            <ModelPick />
+          ) : r.path !== null ? (
+            <span data-testid="ask-pay" className="ins-badge warn">
+              {`💳 ${MONTH[Number(r.month.slice(5, 7)) - 1]} · ${usd(r.spent)} OF ${usd(r.cap)}`}
             </span>
           ) : null}
           <button

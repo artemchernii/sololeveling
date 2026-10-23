@@ -10,6 +10,7 @@ import { clock } from '@/components/finances/insights/parts'
 import { usd } from '@/components/finances/insights/readParts'
 import { monthKey, nextMonthWord } from '@/lib/marketRead'
 import { MAX_QUESTION } from '@/lib/rowsAskPrompt'
+import { ModelPick } from './ModelPick'
 import { PeriodBadges, RowsAnswer, Strip, areaColour } from './RowsAnswer'
 import { useSheetDrag } from './useSheetDrag'
 import { useSheetViewport } from './useSheetViewport'
@@ -140,9 +141,7 @@ export function RowsDrawer({
           <span className="system-title whitespace-nowrap">[ ASK ]</span>
           <span className="grow" />
           {a.path === 'pro' ? (
-            <span data-testid="rows-pay" className="ins-badge good">
-              <span className="ask-ping" />⚡ PRO PLAN · NO CREDITS
-            </span>
+            <ModelPick />
           ) : a.path === 'api' && spend ? (
             <span
               data-testid="rows-pay"

@@ -145,3 +145,41 @@ test('THIS WEEK: phone width — icons only, nothing wider than the screen', asy
   await page.waitForTimeout(900)
   await page.screenshot({ ...shot('today-week-phone'), fullPage: true })
 })
+
+test.describe('THIS WEEK: on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })
+
+  test('a tap on a filled cell shows what is in it and logs one more', async ({
+    page,
+  }) => {
+    const week = await open(page)
+    const mon = week.getByTestId('cell-0-0')
+    await mon.getByTestId('block-workout').tap()
+    await expect(week.getByTestId('week-tip')).toHaveCount(0)
+    const menu = week.getByTestId('week-menu')
+    await expect(menu).toContainText('MON 12 · 06:00')
+    const inCell = menu.getByTestId('menu-block')
+    await expect(inCell).toHaveCount(2)
+    await expect(inCell.nth(0)).toContainText('60 MIN · LEGS')
+    await expect(inCell.nth(0)).toContainText('07:30')
+    await expect(inCell.nth(1)).toContainText('1 SHAKE')
+    const box = await menu.boundingBox()
+    expect(box && box.x + box.width).toBeLessThanOrEqual(390)
+    await page.screenshot({
+      ...shot('today-week-phone-filled'),
+      fullPage: true,
+    })
+
+    await menu.getByRole('menuitem', { name: 'Log SHAKE' }).tap()
+    await expect(week.getByTestId('week-menu')).toHaveCount(0)
+    await expect(week.getByTestId('week-save')).toBeVisible()
+    await expect(mon.getByTestId('block-shake')).toHaveCount(2)
+    await expect(week.getByTestId('chip-shake')).toContainText('2')
+    await page.screenshot({ ...shot('today-week-phone-added'), fullPage: true })
+    await expect(week.getByTestId('week-save')).toBeHidden({ timeout: 5000 })
+
+    await week.getByTestId('cell-0-1').tap()
+    await expect(menu).toContainText('TUE 13 · 06:00')
+    await expect(menu.getByTestId('menu-block')).toHaveCount(0)
+  })
+})

@@ -140,3 +140,12 @@ test('when the bank answered: the time today, the day and time before', () => {
 test('the day an approval runs to carries its year', () => {
   expect(approvalDay(new Date(2027, 3, 9, 12).getTime())).toBe('Apr 9, 2027')
 })
+
+test('a currency the bank named nowhere is the card’s own, when it has one', () => {
+  const blank = { uid: 'x', currency: '' }
+  expect(pickAccounts([blank], ['EUR'], [])).toEqual({
+    kind: 'found',
+    accounts: [{ uid: 'x', currency: 'EUR' }],
+  })
+  expect(pickAccounts([blank], ['EUR', 'USD'], [])).toEqual({ kind: 'none' })
+})

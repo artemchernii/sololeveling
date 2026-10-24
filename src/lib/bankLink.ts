@@ -114,7 +114,14 @@ export function pickAccounts(
   currencies: ReadonlyArray<string>,
   ibanTails: ReadonlyArray<string>,
 ): Picked {
-  const mine = fromBank.filter((a) => currencies.includes(a.currency))
+  /* A currency the bank named nowhere (BPI, 24 Oct) is the card's own when
+     the card has only one. */
+  const named = fromBank.map((a) =>
+    a.currency === '' && currencies.length === 1
+      ? { ...a, currency: currencies[0] }
+      : a,
+  )
+  const mine = named.filter((a) => currencies.includes(a.currency))
   if (mine.length === 0) return { kind: 'none' }
   const known = mine.filter(
     (a) => a.iban !== undefined && ibanTails.some((t) => a.iban?.endsWith(t)),

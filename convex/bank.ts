@@ -14,12 +14,14 @@ import { CHECK_LOST_MS, pull } from './bankRows'
 import { internal } from './_generated/api'
 import {
   action,
+  internalAction,
   internalMutation,
   internalQuery,
   mutation,
   query,
 } from './_generated/server'
 import type { Id } from './_generated/dataModel'
+import type { ActionCtx } from './_generated/server'
 
 /* A connected bank (11 Oct, docs/specs/2026-10-11-bank-connections.md),
    slice 1: connect and approve again. What the bank then reports — its
@@ -345,8 +347,33 @@ export const finish = action({
       mine.currencies,
       mine.ibanTails,
     )
-    if (picked.kind === 'none')
-      throw new ConvexError('The bank showed no account in this currency.')
+    if (picked.kind === 'none') {
+      const sent = [...new Set(session.accounts.map((a) => a.currency))]
+      /* What it sent, never its IBANs: the logs say why next time. */
+      console.log('bank.finish none', {
+        bank: session.bank,
+        accounts: session.accounts.length,
+        sent,
+        wanted: mine.currencies,
+      })
+      /* The approval stays: its accounts can be read again from the
+         session (bank.again) with no new trip to the bank's page. */
+      await ctx.runMutation(internal.bank.keepSession, {
+        ownerId,
+        state: args.state,
+        bank: session.bank,
+        country: session.country,
+        sessionId: session.sessionId,
+        validUntil: session.validUntil,
+      })
+      throw new ConvexError(
+        /* Enable Banking in restricted mode returns an empty list for an
+           account not linked to the application (its FAQ; BPI, 24 Oct). */
+        sent.length === 0
+          ? `${session.bank} · 0 accounts · not linked in Enable Banking`
+          : `The bank showed ${sent.join(' · ')}, not ${mine.currencies.join(' · ')}.`,
+      )
+    }
     const accountId: Id<'accounts'> = await ctx.runMutation(
       internal.bank.land,
       {
@@ -361,8 +388,136 @@ export const finish = action({
       },
     )
     if (picked.kind === 'found')
-      await pull(ctx, ownerId, accountId, args.dayStart)
+      await firstPull(ctx, ownerId, accountId, args.dayStart)
     return { accountId, status: picked.kind === 'found' ? 'linked' : 'choose' }
+  },
+})
+
+/* The link is made: a first read that fails is kept on the card (its
+   failed line and CHECK), not thrown back as if the approval failed. */
+async function firstPull(
+  ctx: ActionCtx,
+  ownerId: string,
+  accountId: Id<'accounts'>,
+  dayStart: number,
+) {
+  try {
+    await pull(ctx, ownerId, accountId, dayStart)
+  } catch (e) {
+    console.log('bank.firstPull failed', {
+      why: e instanceof ConvexError ? String(e.data) : 'failed',
+    })
+  }
+}
+
+/** The bank approved but its accounts were not readable: the session is
+    kept on the link, still pending, so bank.again can read it later. */
+export const keepSession = internalMutation({
+  args: {
+    ownerId: v.string(),
+    state: v.string(),
+    bank: v.string(),
+    country: v.string(),
+    sessionId: v.string(),
+    validUntil: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query('bankLinks')
+      .withIndex('by_owner_state', (q) =>
+        q.eq('ownerId', args.ownerId).eq('state', args.state),
+      )
+      .unique()
+    if (link === null || link.status !== 'pending') return null
+    await ctx.db.patch(link._id, {
+      bank: args.bank,
+      country: args.country,
+      sessionId: args.sessionId,
+      validUntil: args.validUntil,
+    })
+    return null
+  },
+})
+
+/** What bank.again needs: a pending link that kept its session. */
+export const keptSession = internalQuery({
+  args: { accountId: v.id('accounts') },
+  returns: v.object({
+    ownerId: v.string(),
+    state: v.string(),
+    bank: v.string(),
+    country: v.string(),
+    sessionId: v.string(),
+    validUntil: v.number(),
+    currencies: v.array(v.string()),
+    ibanTails: v.array(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const row = await ctx.db.get(args.accountId)
+    if (row === null) throw new ConvexError('No such account.')
+    const link = await ctx.db
+      .query('bankLinks')
+      .withIndex('by_owner_account', (q) =>
+        q.eq('ownerId', row.ownerId).eq('accountId', args.accountId),
+      )
+      .unique()
+    if (
+      link === null ||
+      link.status !== 'pending' ||
+      link.state === undefined ||
+      link.sessionId === undefined ||
+      link.validUntil === undefined
+    )
+      throw new ConvexError('No kept session on this account.')
+    return {
+      ownerId: row.ownerId,
+      state: link.state,
+      bank: link.bank ?? '',
+      country: link.country ?? '',
+      sessionId: link.sessionId,
+      validUntil: link.validUntil,
+      currencies: row.currencies,
+      ibanTails: row.ibanTails ?? [],
+    }
+  },
+})
+
+/** Run by hand (`npx convex run bank:again`), never by a page: a kept
+    session's accounts read again and the card linked, with no new
+    approval. */
+export const again = internalAction({
+  args: { accountId: v.id('accounts'), dayStart: v.number() },
+  returns: v.string(),
+  handler: async (ctx, args): Promise<string> => {
+    const kept: {
+      ownerId: string
+      state: string
+      bank: string
+      country: string
+      sessionId: string
+      validUntil: number
+      currencies: Array<string>
+      ibanTails: Array<string>
+    } = await ctx.runQuery(internal.bank.keptSession, {
+      accountId: args.accountId,
+    })
+    const accounts = await bankApi().accounts(kept.sessionId)
+    const picked = pickAccounts(accounts, kept.currencies, kept.ibanTails)
+    if (picked.kind === 'none') return 'none'
+    await ctx.runMutation(internal.bank.land, {
+      ownerId: kept.ownerId,
+      state: kept.state,
+      bank: kept.bank,
+      country: kept.country,
+      sessionId: kept.sessionId,
+      validUntil: kept.validUntil,
+      uids: picked.kind === 'found' ? picked.accounts : [],
+      choices: picked.kind === 'choose' ? picked.choices : [],
+    })
+    if (picked.kind === 'found')
+      await firstPull(ctx, kept.ownerId, args.accountId, args.dayStart)
+    return picked.kind
   },
 })
 
@@ -433,7 +588,7 @@ export const choose = action({
       uids: [{ uid: picked.uid, currency: picked.currency }],
       choices: [],
     })
-    await pull(ctx, ownerId, args.accountId, args.dayStart)
+    await firstPull(ctx, ownerId, args.accountId, args.dayStart)
     return null
   },
 })

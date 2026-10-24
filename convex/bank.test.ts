@@ -2,7 +2,7 @@
 import { convexTest } from 'convex-test'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
-import { api } from './_generated/api'
+import { api, internal } from './_generated/api'
 import schema from './schema'
 
 const modules = import.meta.glob('./**/*.ts')
@@ -170,4 +170,26 @@ test('with no key set, nothing is sent', async () => {
   await expect(me.action(api.bank.connect, { accountId })).rejects.toThrow(
     'The bank connection is not set up yet.',
   )
+})
+
+/* BPI, 24 Oct: approved, and no account readable in the bank's answer. The
+   approval is kept so its accounts can be read again with no new trip to
+   the bank. */
+test('approved with no account readable: the session is kept, and read again later', async () => {
+  const { t, me, accountId, stateOf, balances } = await setup('bpi')
+  const state = stateOf(await me.action(api.bank.connect, { accountId }))
+  await expect(
+    me.action(api.bank.finish, { code: 'none', state, dayStart: DAY_START }),
+  ).rejects.toThrow('0 accounts · not linked in Enable Banking')
+  expect(await me.query(api.bank.links, {})).toMatchObject([
+    { accountId, status: 'pending' },
+  ])
+  expect(await balances()).toEqual([])
+  expect(
+    await t.action(internal.bank.again, { accountId, dayStart: DAY_START }),
+  ).toBe('found')
+  expect(await me.query(api.bank.links, {})).toMatchObject([
+    { accountId, status: 'linked', checkedAt: NOON },
+  ])
+  expect(await balances()).toMatchObject([{ value: 727.49, source: 'sync' }])
 })

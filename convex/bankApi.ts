@@ -102,7 +102,7 @@ const list = (v: unknown): Array<Record<string, unknown>> =>
       )
     : []
 
-function real(appId: string, pem: string, redirect: string): BankApi {
+export function real(appId: string, pem: string, redirect: string): BankApi {
   const call = async (
     path: string,
     body?: object,
@@ -129,6 +129,33 @@ function real(appId: string, pem: string, redirect: string): BankApi {
     }
     return data
   }
+  const balances = async (uid: string): Promise<Array<BankBalance>> =>
+    list(
+      (await call(`/accounts/${encodeURIComponent(uid)}/balances`)).balances,
+    ).flatMap((b) => {
+      const type = text(b.balance_type)
+      const amount = b.balance_amount
+      if (type === undefined || typeof amount !== 'object' || amount === null)
+        return []
+      const value = text((amount as Record<string, unknown>).amount)
+      const currency = text((amount as Record<string, unknown>).currency)
+      if (value === undefined || currency === undefined) return []
+      return [
+        { balance_type: type, balance_amount: { amount: value, currency } },
+      ]
+    })
+
+  /* BPI (through SIBS, 24 Oct) can list its accounts with no currency: it
+     is asked of the account itself, then read off its balances. */
+  const currencyOf = async (uid: string): Promise<string | undefined> => {
+    const id = encodeURIComponent(uid)
+    const details = await call(`/accounts/${id}/details`).catch(() => null)
+    const said = details === null ? undefined : text(details.currency)
+    if (said !== undefined && said !== '') return said
+    const read = await balances(uid).catch(() => [])
+    return read.at(0)?.balance_amount.currency
+  }
+
   return {
     aspsps: async () =>
       list((await call('/aspsps')).aspsps).flatMap((a) => {
@@ -183,42 +210,37 @@ function real(appId: string, pem: string, redirect: string): BankApi {
         bank: text(aspsp.name) ?? '',
         country: text(aspsp.country) ?? '',
         validUntil: until,
-        accounts: list(data.accounts).flatMap((a) => {
-          const uid = text(a.uid)
-          const currency = text(a.currency)
-          if (uid === undefined || currency === undefined) return []
-          const id = a.account_id
-          const iban =
-            typeof id === 'object' && id !== null
-              ? text((id as Record<string, unknown>).iban)
-              : undefined
-          const name = text(a.name) ?? text(a.product)
-          return [
-            {
-              uid,
-              currency,
-              ...(iban !== undefined ? { iban } : {}),
-              ...(name !== undefined ? { name } : {}),
-            },
-          ]
-        }),
+        accounts: (
+          await Promise.all(
+            list(data.accounts).map(async (a) => {
+              const uid = text(a.uid)
+              if (uid === undefined) return []
+              const listed = text(a.currency)
+              const currency =
+                listed !== undefined && listed !== ''
+                  ? listed
+                  : await currencyOf(uid)
+              if (currency === undefined) return []
+              const id = a.account_id
+              const iban =
+                typeof id === 'object' && id !== null
+                  ? text((id as Record<string, unknown>).iban)
+                  : undefined
+              const name = text(a.name) ?? text(a.product)
+              return [
+                {
+                  uid,
+                  currency,
+                  ...(iban !== undefined ? { iban } : {}),
+                  ...(name !== undefined ? { name } : {}),
+                },
+              ]
+            }),
+          )
+        ).flat(),
       }
     },
-    balances: async (uid) =>
-      list(
-        (await call(`/accounts/${encodeURIComponent(uid)}/balances`)).balances,
-      ).flatMap((b) => {
-        const type = text(b.balance_type)
-        const amount = b.balance_amount
-        if (type === undefined || typeof amount !== 'object' || amount === null)
-          return []
-        const value = text((amount as Record<string, unknown>).amount)
-        const currency = text((amount as Record<string, unknown>).currency)
-        if (value === undefined || currency === undefined) return []
-        return [
-          { balance_type: type, balance_amount: { amount: value, currency } },
-        ]
-      }),
+    balances,
     transactions: async (uid, from) => {
       const rows: Array<BankTx> = []
       let key: string | undefined

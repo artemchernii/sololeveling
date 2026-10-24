@@ -345,8 +345,21 @@ export const finish = action({
       mine.currencies,
       mine.ibanTails,
     )
-    if (picked.kind === 'none')
-      throw new ConvexError('The bank showed no account in this currency.')
+    if (picked.kind === 'none') {
+      const sent = [...new Set(session.accounts.map((a) => a.currency))]
+      /* What it sent, never its IBANs: the logs say why next time. */
+      console.log('bank.finish none', {
+        bank: session.bank,
+        accounts: session.accounts.length,
+        sent,
+        wanted: mine.currencies,
+      })
+      throw new ConvexError(
+        sent.length === 0
+          ? 'The bank showed no account.'
+          : `The bank showed ${sent.join(' · ')}, not ${mine.currencies.join(' · ')}.`,
+      )
+    }
     const accountId: Id<'accounts'> = await ctx.runMutation(
       internal.bank.land,
       {

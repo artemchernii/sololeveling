@@ -48,7 +48,9 @@ export const send = internalAction({
           const r = await webpush.sendNotification(
             { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
             payload,
-            { TTL: 60 * 60 },
+            /* 'high' (24 Oct): at the default 'normal' iOS held a 13:50
+               reminder until the 21:30 push woke the phone. */
+            { TTL: 60 * 60, urgency: 'high' },
           )
           return { endpoint: s.endpoint, status: r.statusCode }
         } catch (e) {

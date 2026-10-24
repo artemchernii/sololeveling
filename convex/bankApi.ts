@@ -145,15 +145,76 @@ export function real(appId: string, pem: string, redirect: string): BankApi {
       ]
     })
 
-  /* BPI (through SIBS, 24 Oct) can list its accounts with no currency: it
-     is asked of the account itself, then read off its balances. */
-  const currencyOf = async (uid: string): Promise<string | undefined> => {
-    const id = encodeURIComponent(uid)
-    const details = await call(`/accounts/${id}/details`).catch(() => null)
-    const said = details === null ? undefined : text(details.currency)
-    if (said !== undefined && said !== '') return said
-    const read = await balances(uid).catch(() => [])
-    return read.at(0)?.balance_amount.currency
+  /* BPI (through SIBS, 24 Oct) answered the approval with no account the
+     app could read: an account's uid "can be not set" there, and its
+     currency may be missing. The session itself is asked for its account
+     ids, each account for its details, and its balances for a currency. */
+  const details = (uid: string) =>
+    call(`/accounts/${encodeURIComponent(uid)}/details`).catch(() => null)
+
+  const readAccount = async (
+    a: Record<string, unknown>,
+    uid: string,
+  ): Promise<Array<BankAccount>> => {
+    const more = text(a.currency) ? null : await details(uid)
+    const from = { ...(more ?? {}), ...a }
+    const listed = text(from.currency) || text(more?.currency) || undefined
+    const currency =
+      listed ??
+      (await balances(uid).catch(() => [])).at(0)?.balance_amount.currency
+    if (currency === undefined) return []
+    const id = from.account_id
+    const iban =
+      typeof id === 'object' && id !== null
+        ? text((id as Record<string, unknown>).iban)
+        : undefined
+    const name = text(from.name) ?? text(from.product)
+    return [
+      {
+        uid,
+        currency,
+        ...(iban !== undefined ? { iban } : {}),
+        ...(name !== undefined ? { name } : {}),
+      },
+    ]
+  }
+
+  const sessionAccounts = async (
+    sessionId: string,
+    listed: Array<Record<string, unknown>>,
+  ): Promise<Array<BankAccount>> => {
+    const read = (
+      await Promise.all(
+        listed.map((a) => {
+          const uid = text(a.uid)
+          return uid === undefined ? [] : readAccount(a, uid)
+        }),
+      )
+    ).flat()
+    if (read.length > 0) return read
+    const kept = await call(`/sessions/${encodeURIComponent(sessionId)}`)
+    const uids = [
+      ...(Array.isArray(kept.accounts) ? kept.accounts : []).flatMap((u) => {
+        const uid = text(u)
+        return uid === undefined ? [] : [uid]
+      }),
+      ...list(kept.accounts_data).flatMap((d) => {
+        const uid = text(d.uid)
+        return uid === undefined ? [] : [uid]
+      }),
+    ]
+    const found = (
+      await Promise.all([...new Set(uids)].map((uid) => readAccount({}, uid)))
+    ).flat()
+    /* Its shape, never its numbers: the logs say why next time. */
+    console.log('bank.session accounts', {
+      listed: listed.length,
+      listedWithUid: listed.filter((a) => text(a.uid) !== undefined).length,
+      status: text(kept.status),
+      sessionUids: uids.length,
+      read: found.length,
+    })
+    return found
   }
 
   return {
@@ -210,34 +271,7 @@ export function real(appId: string, pem: string, redirect: string): BankApi {
         bank: text(aspsp.name) ?? '',
         country: text(aspsp.country) ?? '',
         validUntil: until,
-        accounts: (
-          await Promise.all(
-            list(data.accounts).map(async (a) => {
-              const uid = text(a.uid)
-              if (uid === undefined) return []
-              const listed = text(a.currency)
-              const currency =
-                listed !== undefined && listed !== ''
-                  ? listed
-                  : await currencyOf(uid)
-              if (currency === undefined) return []
-              const id = a.account_id
-              const iban =
-                typeof id === 'object' && id !== null
-                  ? text((id as Record<string, unknown>).iban)
-                  : undefined
-              const name = text(a.name) ?? text(a.product)
-              return [
-                {
-                  uid,
-                  currency,
-                  ...(iban !== undefined ? { iban } : {}),
-                  ...(name !== undefined ? { name } : {}),
-                },
-              ]
-            }),
-          )
-        ).flat(),
+        accounts: await sessionAccounts(sessionId, list(data.accounts)),
       }
     },
     balances,

@@ -93,3 +93,39 @@ test('an account listed with no currency is read from its details, then its bala
     { uid: 'b', currency: 'USD' },
   ])
 })
+
+/* BPI's answer on 24 Oct: no account readable in the approval, so the
+   session is asked for its account ids and each one for its details. */
+test('accounts the approval did not list are read from the session', async () => {
+  const { pem } = await newPair()
+  const answers: Record<string, unknown> = {
+    '/sessions': {
+      session_id: 's1',
+      access: { valid_until: '2027-04-20T00:00:00Z' },
+      aspsp: { name: 'BPI', country: 'PT' },
+      accounts: [{ currency: 'EUR', cash_account_type: 'CACC' }],
+    },
+    '/sessions/s1': {
+      status: 'AUTHORIZED',
+      accounts: ['x'],
+      accounts_data: [{ uid: 'x', identification_hash: 'h' }],
+    },
+    '/accounts/x/details': {
+      uid: 'x',
+      currency: 'EUR',
+      account_id: { iban: 'PT50000000005678' },
+      name: 'Conta',
+    },
+  }
+  vi.stubGlobal('fetch', async (url: string) => {
+    const path = url.replace('https://api.enablebanking.com', '')
+    const body = answers[path]
+    return new Response(JSON.stringify(body ?? {}), {
+      status: body === undefined ? 500 : 200,
+    })
+  })
+  const session = await real('app', pem, 'https://x/cb').session('code')
+  expect(session.accounts).toEqual([
+    { uid: 'x', currency: 'EUR', iban: 'PT50000000005678', name: 'Conta' },
+  ])
+})

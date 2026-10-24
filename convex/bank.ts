@@ -367,8 +367,10 @@ export const finish = action({
         validUntil: session.validUntil,
       })
       throw new ConvexError(
+        /* Enable Banking in restricted mode returns an empty list for an
+           account not linked to the application (its FAQ; BPI, 24 Oct). */
         sent.length === 0
-          ? 'The bank showed no account.'
+          ? `${session.bank} · 0 accounts · not linked in Enable Banking`
           : `The bank showed ${sent.join(' · ')}, not ${mine.currencies.join(' · ')}.`,
       )
     }

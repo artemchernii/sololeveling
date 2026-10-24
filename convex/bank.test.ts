@@ -180,7 +180,7 @@ test('approved with no account readable: the session is kept, and read again lat
   const state = stateOf(await me.action(api.bank.connect, { accountId }))
   await expect(
     me.action(api.bank.finish, { code: 'none', state, dayStart: DAY_START }),
-  ).rejects.toThrow('The bank showed no account.')
+  ).rejects.toThrow('0 accounts · not linked in Enable Banking')
   expect(await me.query(api.bank.links, {})).toMatchObject([
     { accountId, status: 'pending' },
   ])

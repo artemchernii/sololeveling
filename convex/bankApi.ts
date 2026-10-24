@@ -40,6 +40,8 @@ export type BankApi = {
     validUntil: number
   }) => Promise<string>
   session: (code: string) => Promise<BankSession>
+  /** A session's accounts read again, from its id alone. */
+  accounts: (sessionId: string) => Promise<Array<BankAccount>>
   balances: (uid: string) => Promise<Array<BankBalance>>
   /** Every row from `from` ("2026-10-10") on, all pages — or it throws:
       half an answer is no answer. */
@@ -48,6 +50,9 @@ export type BankApi = {
 
 /* Pages of rows asked for in one check: a month of his is one or two. */
 const MAX_PAGES = 20
+
+const SESSION_TRIES = 3
+const SESSION_PAUSE_MS = 2000
 
 const b64url = (bytes: Uint8Array | string) => {
   const raw =
@@ -152,67 +157,84 @@ export function real(appId: string, pem: string, redirect: string): BankApi {
   const details = (uid: string) =>
     call(`/accounts/${encodeURIComponent(uid)}/details`).catch(() => null)
 
+  /* An account whose currency nothing names keeps '' — pickAccounts
+     gives it the card's own when the card has one. */
   const readAccount = async (
     a: Record<string, unknown>,
     uid: string,
-  ): Promise<Array<BankAccount>> => {
+  ): Promise<BankAccount> => {
     const more = text(a.currency) ? null : await details(uid)
     const from = { ...(more ?? {}), ...a }
     const listed = text(from.currency) || text(more?.currency) || undefined
     const currency =
       listed ??
-      (await balances(uid).catch(() => [])).at(0)?.balance_amount.currency
-    if (currency === undefined) return []
+      (await balances(uid).catch(() => [])).at(0)?.balance_amount.currency ??
+      ''
     const id = from.account_id
     const iban =
       typeof id === 'object' && id !== null
         ? text((id as Record<string, unknown>).iban)
         : undefined
     const name = text(from.name) ?? text(from.product)
-    return [
-      {
-        uid,
-        currency,
-        ...(iban !== undefined ? { iban } : {}),
-        ...(name !== undefined ? { name } : {}),
-      },
-    ]
+    return {
+      uid,
+      currency,
+      ...(iban !== undefined ? { iban } : {}),
+      ...(name !== undefined ? { name } : {}),
+    }
+  }
+
+  /* The session's own account ids: a bank may fill them in a moment after
+     the approval, so it is asked three times, two seconds apart. */
+  const keptUids = async (sessionId: string) => {
+    let last: Record<string, unknown> = {}
+    for (let i = 0; i < SESSION_TRIES; i++) {
+      if (i > 0) await new Promise((r) => setTimeout(r, SESSION_PAUSE_MS))
+      last = await call(`/sessions/${encodeURIComponent(sessionId)}`).catch(
+        (e: unknown) => ({
+          error: e instanceof ConvexError ? String(e.data) : 'failed',
+        }),
+      )
+      const uids = [
+        ...(Array.isArray(last.accounts) ? last.accounts : []).flatMap((u) => {
+          const uid = text(u)
+          return uid === undefined ? [] : [uid]
+        }),
+        ...list(last.accounts_data).flatMap((d) => {
+          const uid = text(d.uid)
+          return uid === undefined ? [] : [uid]
+        }),
+      ]
+      if (uids.length > 0)
+        return { uids: [...new Set(uids)], last, tries: i + 1 }
+    }
+    return { uids: [], last, tries: SESSION_TRIES }
   }
 
   const sessionAccounts = async (
     sessionId: string,
     listed: Array<Record<string, unknown>>,
   ): Promise<Array<BankAccount>> => {
-    const read = (
-      await Promise.all(
-        listed.map((a) => {
-          const uid = text(a.uid)
-          return uid === undefined ? [] : readAccount(a, uid)
-        }),
-      )
-    ).flat()
-    if (read.length > 0) return read
-    const kept = await call(`/sessions/${encodeURIComponent(sessionId)}`)
-    const uids = [
-      ...(Array.isArray(kept.accounts) ? kept.accounts : []).flatMap((u) => {
-        const uid = text(u)
-        return uid === undefined ? [] : [uid]
-      }),
-      ...list(kept.accounts_data).flatMap((d) => {
-        const uid = text(d.uid)
-        return uid === undefined ? [] : [uid]
-      }),
-    ]
-    const found = (
-      await Promise.all([...new Set(uids)].map((uid) => readAccount({}, uid)))
-    ).flat()
-    /* Its shape, never its numbers: the logs say why next time. */
+    const withUid = listed.flatMap((a) => {
+      const uid = text(a.uid)
+      return uid === undefined ? [] : [{ a, uid }]
+    })
+    if (withUid.length > 0)
+      return Promise.all(withUid.map(({ a, uid }) => readAccount(a, uid)))
+    const kept = await keptUids(sessionId)
+    const found = await Promise.all(
+      kept.uids.map((uid) => readAccount({}, uid)),
+    )
+    /* Its shape — counts and field names, never a value — so the logs say
+       why when a bank answers in a way not seen before. */
     console.log('bank.session accounts', {
       listed: listed.length,
-      listedWithUid: listed.filter((a) => text(a.uid) !== undefined).length,
-      status: text(kept.status),
-      sessionUids: uids.length,
-      read: found.length,
+      listedFields: [...new Set(listed.flatMap((a) => Object.keys(a)))],
+      sessionFields: Object.keys(kept.last),
+      sessionStatus: text(kept.last.status) ?? text(kept.last.error),
+      tries: kept.tries,
+      sessionUids: kept.uids.length,
+      read: found.map((f) => f.currency || 'NO CURRENCY'),
     })
     return found
   }
@@ -274,6 +296,7 @@ export function real(appId: string, pem: string, redirect: string): BankApi {
         accounts: await sessionAccounts(sessionId, list(data.accounts)),
       }
     },
+    accounts: (sessionId) => sessionAccounts(sessionId, []),
     balances,
     transactions: async (uid, from) => {
       const rows: Array<BankTx> = []
@@ -324,7 +347,8 @@ export function real(appId: string, pem: string, redirect: string): BankApi {
 }
 
 /* The test backend's bank: one euro account, €727.49 booked. A code of
-   "two" answers with two accounts the app cannot tell apart. */
+   "two" answers with two accounts the app cannot tell apart; "none" with
+   none readable, which `accounts` then finds. */
 export const CANNED: BankApi = {
   aspsps: () =>
     Promise.resolve([
@@ -353,24 +377,32 @@ export const CANNED: BankApi = {
       bank: 'ActivoBank',
       country: 'PT',
       validUntil: Date.now() + 180 * 86_400_000,
+      /* "none": approved, and no account readable in the answer (BPI,
+         24 Oct) — the session itself still has it. */
       accounts:
-        code === 'two'
-          ? [
-              {
-                uid: 'e2e-a',
-                currency: 'EUR',
-                iban: 'PT50000000004471',
-                name: 'Conta à Ordem',
-              },
-              {
-                uid: 'e2e-b',
-                currency: 'EUR',
-                iban: 'PT50000000009920',
-                name: 'Conta Poupança',
-              },
-            ]
-          : [{ uid: 'e2e-a', currency: 'EUR', iban: 'PT50000000004471' }],
+        code === 'none'
+          ? []
+          : code === 'two'
+            ? [
+                {
+                  uid: 'e2e-a',
+                  currency: 'EUR',
+                  iban: 'PT50000000004471',
+                  name: 'Conta à Ordem',
+                },
+                {
+                  uid: 'e2e-b',
+                  currency: 'EUR',
+                  iban: 'PT50000000009920',
+                  name: 'Conta Poupança',
+                },
+              ]
+            : [{ uid: 'e2e-a', currency: 'EUR', iban: 'PT50000000004471' }],
     }),
+  accounts: () =>
+    Promise.resolve([
+      { uid: 'e2e-a', currency: 'EUR', iban: 'PT50000000004471' },
+    ]),
   balances: (uid) =>
     uid.endsWith(':refused')
       ? Promise.reject(new ConvexError(BANK_REFUSED))

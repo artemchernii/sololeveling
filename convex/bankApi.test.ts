@@ -91,6 +91,7 @@ test('an account listed with no currency is read from its details, then its bala
   expect(session.accounts).toEqual([
     { uid: 'a', currency: 'EUR', iban: 'PT50000000001234' },
     { uid: 'b', currency: 'USD' },
+    { uid: 'c', currency: '' },
   ])
 })
 
@@ -129,3 +130,30 @@ test('accounts the approval did not list are read from the session', async () =>
     { uid: 'x', currency: 'EUR', iban: 'PT50000000005678', name: 'Conta' },
   ])
 })
+
+/* Nothing names the currency and the session fills its ids only on the
+   second ask: the account is kept with '' for pickAccounts to name. */
+test('the session asked again when its ids come late; no currency kept as blank', async () => {
+  const { pem } = await newPair()
+  let asked = 0
+  vi.stubGlobal('fetch', async (url: string) => {
+    const path = url.replace('https://api.enablebanking.com', '')
+    const body: unknown =
+      path === '/sessions'
+        ? {
+            session_id: 's1',
+            access: { valid_until: '2027-04-20T00:00:00Z' },
+            aspsp: { name: 'BPI', country: 'PT' },
+            accounts: [],
+          }
+        : path === '/sessions/s1'
+          ? { status: 'AUTHORIZED', accounts: ++asked > 1 ? ['x'] : [] }
+          : path === '/accounts/x/balances'
+            ? { balances: [] }
+            : {}
+    return new Response(JSON.stringify(body), { status: 200 })
+  })
+  const read = await real('app', pem, 'https://x/cb').session('code')
+  expect(read.accounts).toEqual([{ uid: 'x', currency: '' }])
+  expect(asked).toBe(2)
+}, 10_000)

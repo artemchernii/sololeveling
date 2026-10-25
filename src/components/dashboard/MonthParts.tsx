@@ -76,7 +76,7 @@ export function PressButton({
         type="button"
         aria-expanded={p.kinds ? asking : undefined}
         onClick={() => (p.kinds ? setAsking((a) => !a) : void press({}))}
-        className={`h-[30px] rounded-full border px-3.5 font-mono text-[10px] tracking-[0.16em] transition-[background,box-shadow] ${
+        className={`h-[28px] rounded-full border px-2.5 font-mono text-[9.5px] tracking-[0.12em] whitespace-nowrap sm:h-[30px] sm:px-3.5 sm:text-[10px] sm:tracking-[0.16em] transition-[background,box-shadow] ${
           save.status === 'saving'
             ? 'border-dashed border-lav-400/40 text-ink-400'
             : save.status === 'saved'

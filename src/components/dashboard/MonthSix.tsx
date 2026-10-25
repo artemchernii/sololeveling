@@ -159,7 +159,7 @@ export function MonthSix({
       {counts === undefined || worth === undefined ? (
         <SkeletonRows rows={3} />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
           {tiles.map((t, i) => (
             <MonthTile
               key={t.key}
@@ -265,26 +265,26 @@ function MonthTile({
     <div
       data-testid={`tile-${tile.key}`}
       style={{ ['--i' as string]: index }}
-      className={`bento-tile flex flex-col gap-3 rounded-[16px] border border-lift/[0.09] bg-lift/[0.025] px-4 pt-4 pb-3.5 ${landed ? 'motion-edge' : ''}`}
+      className={`bento-tile flex min-w-0 flex-col gap-2.5 rounded-[16px] border border-lift/[0.09] bg-lift/[0.025] px-3 pt-3 pb-3 sm:gap-3 sm:px-4 sm:pt-4 sm:pb-3.5 ${landed ? 'motion-edge' : ''}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2.5 font-mono text-[10.5px] tracking-[0.22em] text-ink-200">
+        <span className="flex min-w-0 items-center gap-2 font-mono text-[10px] tracking-[0.16em] text-ink-200 sm:gap-2.5 sm:text-[10.5px] sm:tracking-[0.22em]">
           <AreaIcon icon={tile.icon} area={tile.area} />
           {tile.name}
         </span>
         {target !== undefined ? (
-          <span className="flex items-center gap-1.5 font-mono text-[10px] text-ink-400">
+          <span className="flex shrink-0 items-center gap-1 font-mono text-[9.5px] whitespace-nowrap text-ink-400 sm:gap-1.5 sm:text-[10px]">
             <span
-              className="td-ring"
+              className="td-ring hidden sm:block"
               style={{ ['--p' as string]: Math.min(100, (sum / target) * 100) }}
             />
             {sum} / {target}
           </span>
         ) : null}
       </div>
-      <div className="flex items-end gap-3.5">
+      <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-end sm:gap-3.5">
         <span
-          className={`leading-[0.9] font-light tracking-[-0.03em] tabular-nums ${count ? 'text-[44px]' : 'text-[34px]'}`}
+          className={`leading-[0.9] font-light tracking-[-0.03em] tabular-nums ${count ? 'text-[34px] sm:text-[44px]' : 'text-[26px] sm:text-[34px]'}`}
         >
           {count ? (
             <span data-testid="count" className={landed ? 'td-bump' : ''}>
@@ -352,7 +352,7 @@ function MonthTile({
       ) : (
         <Spark points={points} />
       )}
-      <div className="flex min-h-[30px] items-center justify-end gap-2">
+      <div className="flex min-h-[30px] flex-wrap items-center justify-end gap-1.5 sm:gap-2">
         {tile.presses ? (
           tile.presses.map((p) => (
             <PressButton

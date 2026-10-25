@@ -84,6 +84,25 @@ test('Today: PT and ENG apart — chips, pills, the tile and its presses', async
   await page.screenshot({ ...shot('today-two-languages'), fullPage: true })
 })
 
+/* 25 Oct: `eng` in ⌘L, as `pt` (docs/specs/2026-10-25-same-days-eng.md). */
+test('Today: eng homework 20 in ⌘L lands on ENG', async ({ page }) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2eToday.twoLanguages, { at: Date.now() })
+  await page.goto('/dashboard')
+  const langs = page
+    .getByRole('region', { name: 'This month' })
+    .getByTestId('tile-langs')
+  await expect(langs.getByTestId('lang-ENG')).toHaveText('ENG 1')
+
+  await page.keyboard.press('ControlOrMeta+l')
+  await page.keyboard.type('eng homework 20')
+  await expect(page.getByRole('dialog').getByText('English')).toBeVisible()
+  await page.screenshot({ ...shot('today-eng-capture'), fullPage: true })
+  await page.keyboard.press('Enter')
+  await expect(langs.getByTestId('lang-ENG')).toHaveText('ENG 2')
+  await expect(langs.getByTestId('lang-PT')).toHaveText('PT 1')
+})
+
 test('Today: 0 against 0 shows no comparison', async ({ page }) => {
   await start(page)
   await page.goto('/dashboard')
@@ -95,7 +114,7 @@ test('Today: 0 against 0 shows no comparison', async ({ page }) => {
   await expect(post.getByText('= SAME')).toHaveCount(0)
 })
 
-test('Today: NEXT, a pick from the day, and the month against September', async ({
+test('Today: NEXT, a pick from the day, and the month against its same days', async ({
   page,
 }) => {
   await start(page)
@@ -115,7 +134,16 @@ test('Today: NEXT, a pick from the day, and the month against September', async 
   const six = page.getByRole('region', { name: 'This month' })
   const work = six.getByTestId('tile-workout')
   await expect(work.getByTestId('count')).toHaveText('3')
-  await expect(work.getByText('SEPTEMBER 2')).toBeVisible()
+  /* 25 Oct: the month before over the same days, its span beside it. */
+  const before = new Date()
+  before.setDate(0)
+  const last = Math.min(new Date().getDate(), before.getDate())
+  const mon = before
+    .toLocaleDateString('en-GB', { month: 'short' })
+    .slice(0, 3)
+    .toUpperCase()
+  const span = last === 1 ? `1 ${mon}` : `1–${last} ${mon}`
+  await expect(work.getByTestId('was')).toHaveText(`${span} · 2`)
   await expect(work.getByTestId('delta')).toHaveText('▲ 1')
   const langs = six.getByTestId('tile-langs')
   await expect(langs.getByText('0 / 4')).toBeVisible()

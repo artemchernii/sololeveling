@@ -156,7 +156,7 @@ test('the opened account: a buy and a sell with their badges and companies', asy
   await answered(page, 'traded')
   const rows = await opened(page)
   const buy = rows.filter({ hasText: 'buy' }).first()
-  await expect(buy).toContainText('Nvidia')
+  await expect(buy).toContainText('NVIDIA Corporation')
   await expect(buy).toContainText('2 shares · €150')
   await expect(buy).toContainText('−€300')
   const sell = rows.filter({ hasText: 'sell' }).first()

@@ -11,7 +11,7 @@ import type { Id } from './_generated/dataModel'
 import { moneySoon } from './aggregate'
 import { pull } from './bankRows'
 import { notifyOwner } from './push'
-import { dueBetween, paysBill } from '../src/lib/ahead'
+import { dueBetween, payingRow, salaryBill } from '../src/lib/ahead'
 import {
   APPROVAL_MARKS,
   MISSING_DAYS,
@@ -226,13 +226,15 @@ async function decide(
     amount: number
     t: number
   } | null = null
+  const pay = salaryBill(bills)
   for (const { t: due, bill } of dueBetween(
-    bills.filter((b) => b.kind === 'income' && b.accountId !== undefined),
+    pay?.accountId === undefined ? [] : [pay],
     today - SALARY_AFTER * DAY,
     today + SALARY_BEFORE * DAY,
   )) {
-    const paid = soon.rows.find(
-      (r) => paysBill(bill, r) && r.t >= due - SALARY_BEFORE * DAY,
+    const paid = payingRow(
+      bill,
+      soon.rows.filter((r) => r.t >= due - SALARY_BEFORE * DAY),
     )
     if (paid === undefined) {
       if (readable.has(bill.accountId as string))

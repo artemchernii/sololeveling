@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { billsEachMonth, buildAhead, paysBill, yearAhead } from './ahead'
+import {
+  billsEachMonth,
+  buildAhead,
+  payingRow,
+  paysBill,
+  salaryBill,
+  yearAhead,
+} from './ahead'
 import type { AheadBill, AheadRow } from './ahead'
 
 /* Local midnights in Lisbon (vitest pins TZ). */
@@ -35,6 +42,36 @@ const base = {
   past: [],
   free: [{ accountId: 'bank', eur: 1000 }],
 }
+
+/* His 23 Oct: BNP Paribas paid €2,674.76 of salary and €80 of commute
+   pay, and the €80 was found as a bill of its own. */
+describe('salaryBill · payingRow', () => {
+  const bnp = { kind: 'income' as const, key: 'BNP PARIBAS' }
+  const commute = bill({ ...bnp, id: 'commute', amount: 80, day: 23 })
+  const salary = bill({ ...bnp, id: 'salary', amount: 2668.98, day: 25 })
+  const rows = [
+    row({ ...bnp, id: 'r80', amount: 80 }),
+    row({ ...bnp, id: 'r2674', amount: 2674.76 }),
+  ]
+
+  it('the salary is the biggest income bill', () => {
+    expect(salaryBill([commute, salary])?.id).toBe('salary')
+    expect(salaryBill([salary, commute, bill({})])?.id).toBe('salary')
+    expect(salaryBill([bill({})])).toBeUndefined()
+  })
+
+  it('the row nearest the bill pays it', () => {
+    expect(payingRow(salary, rows)?.id).toBe('r2674')
+    expect(payingRow(commute, rows)?.id).toBe('r80')
+    expect(payingRow(salary, [])).toBeUndefined()
+  })
+
+  it('one that varies: the biggest row', () => {
+    const varies = { ...salary, varies: true, amount: 100 }
+    expect(payingRow(varies, rows)?.id).toBe('r2674')
+    expect(payingRow(varies, [...rows].reverse())?.id).toBe('r2674')
+  })
+})
 
 describe('paysBill', () => {
   it('matches the payee near the amount, or a row that names the bill', () => {

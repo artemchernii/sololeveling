@@ -19,6 +19,15 @@ function world() {
   }
 }
 
+/** The local midnight after `dayStart` — not +24h: the day the clocks go
+    back is 25 hours long (25 Oct, after 23:00 a row logged now fell past
+    a +24h end). */
+function nextMidnight(dayStart: number) {
+  const d = new Date(dayStart)
+  d.setDate(d.getDate() + 1)
+  return d.getTime()
+}
+
 function dayStartsBack(count: number, from = new Date()) {
   const midnight = new Date(from)
   midnight.setHours(0, 0, 0, 0)
@@ -175,7 +184,7 @@ describe('aggregate.drillDays — how often each item was done', () => {
   test('per drill per day, with a total and the last time', async () => {
     const { me } = world()
     const days = dayStartsBack(7)
-    const end = days[6] + 86_400_000
+    const end = nextMidnight(days[6])
     const a = await me.mutation(api.drills.create, {
       area: 'body',
       group: 'stretch',
@@ -222,7 +231,7 @@ describe('aggregate.drillDays — how often each item was done', () => {
     const { rows } = await me.query(api.aggregate.drillDays, {
       area: 'body',
       dayStarts: days,
-      end: days[6] + 86_400_000,
+      end: nextMidnight(days[6]),
     })
     expect(rows).toEqual([])
   })
@@ -248,7 +257,7 @@ describe('categoryDays — a routine and its session are one habit', () => {
       area: 'body',
       kinds: ['workout', 'exercise'],
       dayStarts: days,
-      end: days[6] + 86_400_000,
+      end: nextMidnight(days[6]),
       recentDays: 7,
     })
     expect(rows).toHaveLength(1)

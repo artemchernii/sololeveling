@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { monthSix, monthWorth } from './monthSix'
+import { monthSix, monthWorth, sameDays } from './monthSix'
 
 const DAY = 86_400_000
 const prev = 0
@@ -60,6 +60,49 @@ describe('monthSix', () => {
     )
     expect(six.langs.prev).toBe(1)
     expect(six.langs.byArea).toEqual({ portuguese: 1, english: 2 })
+  })
+
+  /* 25 Oct: the month before over the same days, not all of it. */
+  it('counts the month before only up to its cut', () => {
+    const six = monthSix(
+      [
+        { kind: 'post', area: 'social', occurredAt: DAY },
+        { kind: 'post', area: 'social', occurredAt: 10 * DAY },
+        { kind: 'post', area: 'social', occurredAt: 31 * DAY },
+      ],
+      [{ repo: 'a', authoredAt: 20 * DAY }],
+      ['portuguese'],
+      prev,
+      days,
+      end,
+      5 * DAY,
+    )
+    expect(six.post).toEqual({ days: [0, 1, 0], prev: 1 })
+    expect(six.commits.prev).toBe(0)
+  })
+})
+
+describe('sameDays', () => {
+  it('25 Oct against 1–25 Sep', () => {
+    const b = sameDays(new Date(2026, 9, 25, 10))
+    expect(b.span).toBe('1–25 SEP')
+    expect(b.prevCut).toBe(new Date(2026, 8, 26).getTime())
+  })
+
+  it('31 Oct against all 30 days of September', () => {
+    const b = sameDays(new Date(2026, 9, 31, 23))
+    expect(b.span).toBe('1–30 SEP')
+    expect(b.prevCut).toBe(new Date(2026, 9, 1).getTime())
+  })
+
+  it('30 Mar against 1–28 Feb', () => {
+    expect(sameDays(new Date(2026, 2, 30)).span).toBe('1–28 FEB')
+  })
+
+  it('1 Jan against 1 Dec', () => {
+    const b = sameDays(new Date(2027, 0, 1))
+    expect(b.span).toBe('1 DEC')
+    expect(b.prevCut).toBe(new Date(2026, 11, 2).getTime())
   })
 })
 

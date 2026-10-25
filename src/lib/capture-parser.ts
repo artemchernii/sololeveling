@@ -1,6 +1,7 @@
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import type { BuiltinArea } from './area-slug'
 import { categoryFromText } from './money'
+import { langShort } from './languages/catalog'
 
 /* PLAN.md §3: under three seconds, no form.
 
@@ -59,7 +60,7 @@ export type VerbInfo = {
   /** The word to write back into the line — the verb's first spelling. */
   word: string
   kind: LogKind
-  area: BuiltinArea
+  area: Area
   unit?: string
   amount: Amount
   action: VerbAction
@@ -120,8 +121,10 @@ export type Verb = {
      area stays in code, so `gym` files under `body` however that area is
      named — and this type is what keeps the compiler checking the seventeen
      of them while the field they write to is open to anything. Retiring an
-     area a verb names redirects it instead; see areas.retire. */
-  area: BuiltinArea
+     area a verb names redirects it instead; see areas.retire. Generated
+     verbs (a language area's `eng`, 25 Oct) carry that area's slug, so
+     the type is open here and narrowed on VERBS. */
+  area: Area
   unit?: string
   amount: Amount
   action?: VerbAction
@@ -168,7 +171,7 @@ function joined(...parts: Array<string | number | undefined | null>): string {
 const minutes = (l: ParsedLog) =>
   l.value !== undefined ? `${l.value} min` : undefined
 
-const VERBS: Array<Verb> = [
+const VERBS: Array<Verb & { area: BuiltinArea }> = [
   /* — Body. The count of sessions is what the dashboard reads — monthCounts()
        adds one per row and never looks at minutes — so minutes are optional. */
   {
@@ -512,6 +515,49 @@ export function projectVerbs(
   return out
 }
 
+/**
+ * One verb per language area he added — `eng`, `eng homework 20` (25 Oct) —
+ * shaped as `pt`: a class, 50 min unless said. From the area's short and
+ * its label; `portuguese` already has `pt`, and a built-in word wins.
+ */
+export function languageVerbs(
+  areas: ReadonlyArray<{
+    slug: string
+    label: string
+    lang?: string
+    track?: 'language'
+  }>,
+): Array<Verb> {
+  const taken = new Set(VERBS.flatMap((verb) => verb.words))
+  const out: Array<Verb> = []
+  for (const area of areas) {
+    if (area.track !== 'language' || area.slug === 'portuguese') continue
+    const words = [langShort(area), area.label]
+      .map((w) => w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''))
+      .filter(
+        (w, i, list) => w.length >= 2 && !taken.has(w) && list.indexOf(w) === i,
+      )
+    if (words.length === 0) continue
+    for (const w of words) taken.add(w)
+    out.push({
+      words,
+      kind: 'session',
+      area: area.slug,
+      category: 'class',
+      unit: 'min',
+      amount: 'optional',
+      icon: 'languages',
+      defaultValue: 50,
+      defaultText: 'class',
+      describe: (l) => joined(capitalise(l.text ?? 'session'), minutes(l)),
+      example: words[0],
+      hint: `a class, 50 min — or ${words[0]} homework 20`,
+      keywords: ['class', 'lesson', 'homework', 'language', 'study'],
+    })
+  }
+  return out
+}
+
 function all(extra: Array<Verb>): Array<Verb> {
   return extra.length === 0 ? VERBS : [...VERBS, ...extra]
 }
@@ -560,7 +606,7 @@ export function verbFor(
 
 export type VerbChoice = {
   word: string
-  area: BuiltinArea
+  area: Area
   hint: string
   icon: VerbIcon
 }

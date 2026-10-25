@@ -95,6 +95,24 @@ test('monthSix counts this month past a full month before', async () => {
   expect(six.commits).toEqual({ days: [0, 20], prev: 600 })
 })
 
+/* 25 Oct: the month before over the same days — a row past the cut is out. */
+test('monthSix counts the month before up to prevCut', async () => {
+  const t = convexTest(schema, modules)
+  await t.run(async (ctx) => {
+    for (const at of [DAY, 20 * DAY])
+      await ctx.db.insert('logs', {
+        ownerId: ME,
+        kind: 'post',
+        area: 'social',
+        occurredAt: at,
+      })
+  })
+  const six = await t
+    .withIdentity({ tokenIdentifier: ME })
+    .query(api.aggregate.monthSix, { ...args, prevCut: 10 * DAY })
+  expect(six.post.prev).toBe(1)
+})
+
 test('monthSix refuses without a user', async () => {
   const t = convexTest(schema, modules)
   await expect(t.query(api.aggregate.monthSix, args)).rejects.toThrow()

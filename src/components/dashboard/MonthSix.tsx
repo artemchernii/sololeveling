@@ -6,7 +6,7 @@ import { api } from '../../../convex/_generated/api'
 import { useWorthHistory } from '@/lib/useWorthHistory'
 import { SkeletonRows } from '@/components/Skeleton'
 import { euros } from '@/lib/money'
-import { monthWorth } from '@/lib/monthSix'
+import { monthWorth, sameDays } from '@/lib/monthSix'
 import type { Six } from '@/lib/monthSix'
 import { AreaIcon } from './AreaIcon'
 import { CountUp, PressButton, Spark, kEur } from './MonthParts'
@@ -26,6 +26,7 @@ export function monthBounds(now: Date) {
   )
   return {
     prevStart: new Date(y, m - 1, 1).getTime(),
+    ...sameDays(now),
     dayStarts,
     nextStart: new Date(y, m + 1, 1).getTime(),
     todayIndex: now.getDate() - 1,
@@ -44,6 +45,7 @@ export function useMonth(now: Date, languages: Array<string> | undefined) {
           prevStart: b.prevStart,
           dayStarts: b.dayStarts,
           nextStart: b.nextStart,
+          prevCut: b.prevCut,
           languages: languages.length > 0 ? languages : ['portuguese'],
         },
   )
@@ -72,7 +74,7 @@ type Tile = {
 }
 
 /* THIS MONTH, his six (17 Oct; PLAN.md §3 item 4). Colour on the icon
-   only. Each count against the month before, both numbers shown; a goal
+   only. Each count against the month before's same days, both shown; a goal
    ring only where goals.targetValue gives it a denominator (§1). */
 export function MonthSix({
   month,
@@ -170,6 +172,7 @@ export function MonthSix({
               worth={t.key === 'worth' ? worth : undefined}
               target={goal(t.key)?.value}
               prevName={prevName}
+              span={bounds.span}
               prevEnd={bounds.dayStarts[0] - 1}
             />
           ))}
@@ -187,6 +190,7 @@ function MonthTile({
   worth,
   target,
   prevName,
+  span,
   prevEnd,
 }: {
   tile: Tile
@@ -196,6 +200,8 @@ function MonthTile({
   worth?: Worth
   target?: number
   prevName: string
+  /** The month before's same days: `1–25 SEP`. */
+  span: string
   prevEnd: number
 }) {
   /* A press that landed: the tile's edge lights and its number bumps. */
@@ -234,7 +240,7 @@ function MonthTile({
           : d < 0
             ? 'text-state-danger'
             : 'text-ink-400',
-      was: `${prevName} ${count.prev}`,
+      was: `${span} · ${count.prev}`,
     }
   } else {
     const d = worthDelta
@@ -304,7 +310,10 @@ function MonthTile({
             >
               {delta.text}
             </span>
-            <span className="font-mono text-[9.5px] tracking-[0.12em] text-ink-500">
+            <span
+              data-testid="was"
+              className="font-mono text-[9.5px] tracking-[0.12em] text-ink-500"
+            >
               {delta.was}
             </span>
             {delta.missing !== undefined ? (

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import {
   formatLine,
+  languageVerbs,
   lineFromLog,
   parseCapture,
   projectVerbs,
@@ -430,6 +431,53 @@ describe('projectVerbs — a verb per project, from its title', () => {
         extra,
       ),
     ).toBe('oreum 45')
+  })
+})
+
+/* 25 Oct: `eng` in ⌘L, as `pt` — one verb per language area he added. */
+describe('languageVerbs — a verb per language area, from its short', () => {
+  const extra = languageVerbs([
+    {
+      slug: 'portuguese',
+      label: 'Portuguese',
+      lang: 'pt-PT',
+      track: 'language',
+    },
+    { slug: 'english', label: 'English', lang: 'en', track: 'language' },
+    { slug: 'body', label: 'Body' },
+  ])
+
+  test('eng is a 50 minute English class', () => {
+    expect(extra.map((v) => v.words)).toEqual([['eng', 'english']])
+    const result = parseCapture('eng', extra)
+    expect(result.ok && result.log).toMatchObject({
+      kind: 'session',
+      area: 'english',
+      category: 'class',
+      value: 50,
+      text: 'class',
+    })
+  })
+
+  test('eng homework 20', () => {
+    const result = parseCapture('eng homework 20', extra)
+    expect(result.ok && result.log).toMatchObject({
+      area: 'english',
+      value: 20,
+      text: 'homework',
+    })
+  })
+
+  test('without an English area, eng is not a verb', () => {
+    expect(parseCapture('eng 30').ok).toBe(false)
+  })
+
+  test('a built-in word stays built-in', () => {
+    const work = languageVerbs([
+      { slug: 'workish', label: 'Work', track: 'language' },
+    ])
+    expect(work.flatMap((v) => v.words)).toEqual(['wor'])
+    expect(parseCapture('work 30', work).verb?.area).toBe('career')
   })
 })
 

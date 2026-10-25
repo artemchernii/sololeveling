@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useMutation } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
@@ -9,7 +10,6 @@ import { SaveLabel, useSave } from '@/components/Saving'
 import { addDays, startOfWeek } from '@/lib/weeks'
 import {
   BANDS,
-  KIND_NAME,
   WEEK_KINDS,
   detail,
   dropAt,
@@ -18,38 +18,33 @@ import {
   weekCells,
 } from '@/lib/weekGrid'
 import type { Block, WeekKind } from '@/lib/weekGrid'
-import { AreaIcon, ICONS } from './AreaIcon'
+import { AreaIcon } from './AreaIcon'
+import {
+  BandRow,
+  BlockPill,
+  DAYS,
+  ICON,
+  areaColour,
+  clock,
+  dayName,
+  isCurrentBand,
+  nameOf,
+  todayIndex,
+} from './WeekParts'
 
 type Rows = FunctionReturnType<typeof api.aggregate.weekItems>
 
-const ICON: Record<WeekKind, keyof typeof ICONS> = {
-  workout: 'body',
-  langs: 'language',
-  shake: 'shake',
-  post: 'social',
-  commits: 'projects',
-}
-const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
-const dayName = (ms: number) => {
-  const d = new Date(ms)
-  return `${DAYS[(d.getDay() + 6) % 7]} ${d.getDate()}`
-}
-const pad = (n: number) => String(n).padStart(2, '0')
-const clock = (ms: number) => {
-  const d = new Date(ms)
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
 /* What each press writes: the same rows THIS MONTH's tiles write. */
-const WRITE: Record<
-  Exclude<WeekKind, 'commits'>,
-  (lang: string) => { kind: string; area: string; category?: string }
-> = {
-  workout: () => ({ kind: 'workout', area: 'body' }),
-  langs: (lang) => ({ kind: 'session', area: lang }),
-  shake: () => ({ kind: 'intake', area: 'body', category: 'supplements' }),
-  post: () => ({ kind: 'post', area: 'social' }),
+type Write = {
+  key: string
+  name: string
+  icon: WeekKind
+  kind: string
+  area: string
+  category?: string
 }
+/** A language area as THIS WEEK shows it: its slug and its badge. */
+export type Lang = { slug: string; short: string }
 
 type Tip = { x: number; y: number; block: Block; day: number }
 type Menu = { x: number; y: number; day: number; band: 0 | 1 | 2; at: number }
@@ -62,12 +57,45 @@ type Menu = { x: number; y: number; day: number; band: 0 | 1 | 2; at: number }
 export function WeekCard({
   now,
   languages,
-  lang,
+  langs,
+  bar,
 }: {
   now: Date
   languages: Array<string> | undefined
-  lang: string
+  /** One per language area, in the order chips and presses show them. */
+  langs: Array<Lang>
+  /** TASKS TODAY, under the header (25 Oct). */
+  bar?: ReactNode
 }) {
+  const short = (area: string) =>
+    langs.find((l) => l.slug === area)?.short ?? 'LANG'
+  /* What each press writes: the same rows THIS MONTH's tiles write; a
+     session one per language (25 Oct, his "log PT or ENG"). */
+  const writes: Array<Write> = [
+    {
+      key: 'workout',
+      name: 'WORKOUT',
+      icon: 'workout',
+      kind: 'workout',
+      area: 'body',
+    },
+    ...langs.map((l) => ({
+      key: `langs-${l.slug}`,
+      name: l.short,
+      icon: 'langs' as const,
+      kind: 'session',
+      area: l.slug,
+    })),
+    {
+      key: 'shake',
+      name: 'SHAKE',
+      icon: 'shake',
+      kind: 'intake',
+      area: 'body',
+      category: 'supplements',
+    },
+    { key: 'post', name: 'POST', icon: 'post', kind: 'post', area: 'social' },
+  ]
   const monday = startOfWeek(now)
   const dayStarts = Array.from({ length: 7 }, (_, i) =>
     addDays(monday, i).getTime(),
@@ -117,8 +145,25 @@ export function WeekCard({
   }, [menu])
 
   const cells = rows ? weekCells(rows, dayStarts) : undefined
-  const count = (k: WeekKind) =>
-    rows ? rows.filter((r) => r.kind === k).length : 0
+  const count = (k: WeekKind, area?: string) =>
+    rows
+      ? rows.filter(
+          (r) => r.kind === k && (area === undefined || r.area === area),
+        ).length
+      : 0
+  /* The header's chips: a language each (25 Oct), never a task — a tick is
+     intent, not something done. */
+  type Chip = { key: string; kind: WeekKind; area: string; name: string }
+  const chips = WEEK_KINDS.flatMap((k): Array<Chip> =>
+    k === 'langs'
+      ? langs.map((l) => ({
+          key: `langs-${l.slug}`,
+          kind: k,
+          area: l.slug,
+          name: l.short,
+        }))
+      : [{ key: k, kind: k, area: areaOf(k), name: k.toUpperCase() }],
+  )
   const place = (el: HTMLElement) => {
     const b = box.current?.getBoundingClientRect()
     const r = el.getBoundingClientRect()
@@ -180,19 +225,23 @@ export function WeekCard({
               SAVED
             </SaveLabel>
           </span>
-          {WEEK_KINDS.map((k) => (
+          {chips.map((c) => (
             <span
-              key={k}
-              data-testid={`chip-${k}`}
+              key={c.key}
+              data-testid={`chip-${c.key}`}
               className="flex items-center gap-1.5 rounded-full border border-lift/[0.09] px-2.5 py-[3px] font-mono text-[10px] tracking-[0.12em] text-ink-300"
             >
-              <AreaIcon icon={ICON[k]} area={areaOf(k, lang)} size={14} />
-              <span className="hidden @2xl:inline">{KIND_NAME[k]}</span>
-              <b className="font-medium text-ink-100">{count(k)}</b>
+              <AreaIcon icon={ICON[c.kind]} area={c.area} size={14} />
+              <span className="hidden @2xl:inline">{c.name}</span>
+              <b className="font-medium text-ink-100">
+                {count(c.kind, c.kind === 'langs' ? c.area : undefined)}
+              </b>
             </span>
           ))}
         </div>
       </div>
+
+      {bar}
 
       <div
         ref={box}
@@ -277,8 +326,9 @@ export function WeekCard({
                   ) : null}
                   {blocks.map((b, n) => (
                     <BlockPill
-                      key={`${b.id ?? 'c'}${b.at}`}
+                      key={`${b.id ?? b.kind}${b.at}`}
                       block={b}
+                      name={nameOf(b, short)}
                       index={n}
                       onTip={(el) =>
                         setTip(el ? { ...place(el), block: b, day: di } : null)
@@ -308,12 +358,12 @@ export function WeekCard({
             style={{
               left: tip.x,
               top: tip.y - 8,
-              ['--area' as string]: `var(--area-${tip.block.area})`,
+              ['--area' as string]: areaColour(tip.block),
             }}
             className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-full rounded-xl border border-lift/[0.09] bg-popover px-3 py-2.5 font-mono text-[10.5px] tracking-[0.08em] whitespace-nowrap text-ink-200 shadow-xl"
           >
             <b className="mb-1 block text-[12px] font-medium tracking-[0.14em] text-(--area)">
-              {KIND_NAME[tip.block.kind]}
+              {nameOf(tip.block, short)}
               {tip.block.movedFrom !== undefined ? ' · MOVED' : ''}
             </b>
             {detail(tip.block)}
@@ -348,11 +398,15 @@ export function WeekCard({
             </div>
             {(cells?.[menu.band][menu.day] ?? []).map((b) => (
               <div
-                key={`${b.id ?? 'c'}${b.at}`}
+                key={`${b.id ?? b.kind}${b.at}`}
                 data-testid="menu-block"
                 className="flex items-center gap-2 px-2 py-1 font-mono text-[10px] tracking-[0.1em] text-ink-300"
               >
-                <AreaIcon icon={ICON[b.kind]} area={b.area} size={14} />
+                <AreaIcon
+                  icon={ICON[b.kind]}
+                  area={b.kind === 'task' ? 'projects' : b.area}
+                  size={14}
+                />
                 <span className="min-w-0 flex-1 truncate">{detail(b)}</span>
                 <span className="text-ink-500">{clock(b.at)}</span>
               </div>
@@ -360,16 +414,15 @@ export function WeekCard({
             {(cells?.[menu.band][menu.day].length ?? 0) > 0 ? (
               <div className="my-1.5 border-t border-lift/[0.09]" />
             ) : null}
-            {(Object.keys(WRITE) as Array<keyof typeof WRITE>).map((k) => (
+            {writes.map((w) => (
               <button
-                key={k}
+                key={w.key}
                 type="button"
                 role="menuitem"
-                aria-label={`Log ${KIND_NAME[k]}`}
+                aria-label={`Log ${w.name}`}
                 onClick={() => {
                   const m = menu
                   setMenu(null)
-                  const w = WRITE[k](lang)
                   void write(
                     () =>
                       create({
@@ -383,8 +436,8 @@ export function WeekCard({
                 }}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left font-mono text-[10.5px] tracking-[0.12em] text-ink-200 hover:bg-lift/[0.07]"
               >
-                <AreaIcon icon={ICON[k]} area={areaOf(k, lang)} size={14} />
-                {KIND_NAME[k]}
+                <AreaIcon icon={ICON[w.icon]} area={w.area} size={14} />
+                {w.name}
               </button>
             ))}
           </div>
@@ -394,84 +447,6 @@ export function WeekCard({
   )
 }
 
-function areaOf(k: WeekKind, lang: string) {
-  return k === 'langs'
-    ? lang
-    : k === 'post'
-      ? 'social'
-      : k === 'commits'
-        ? 'projects'
-        : 'body'
-}
-
-function todayIndex(dayStarts: Array<number>, t: number) {
-  for (let i = 6; i >= 0; i--) if (t >= dayStarts[i]) return i
-  return 0
-}
-
-function isCurrentBand(t: number, band: number) {
-  const h = new Date(t).getHours()
-  return h >= BANDS[band].startHour && h < BANDS[band].endHour
-}
-
-function BandRow({
-  label,
-  current,
-  children,
-}: {
-  label: (typeof BANDS)[number]
-  current: boolean
-  children: React.ReactNode
-}) {
-  return (
-    <>
-      <div
-        className={`flex items-center font-mono text-[9px] tracking-[0.14em] ${current ? 'text-lav-300' : 'text-ink-500'}`}
-      >
-        <span className="@2xl:hidden">{label.short}</span>
-        <span className="hidden @2xl:inline">{label.name}</span>
-      </div>
-      {children}
-    </>
-  )
-}
-
-function BlockPill({
-  block,
-  index,
-  onTip,
-  onDrag,
-}: {
-  block: Block
-  index: number
-  onTip: (el: HTMLElement | null) => void
-  onDrag: (on: boolean) => void
-}) {
-  const movable = block.id !== undefined
-  const Icon = ICONS[ICON[block.kind]]
-  return (
-    <div
-      data-block
-      data-testid={`block-${block.kind}`}
-      draggable={movable}
-      style={{
-        ['--area' as string]: `var(--area-${block.area})`,
-        animationDelay: `${index * 30 + 200}ms`,
-      }}
-      onPointerEnter={(e) =>
-        e.pointerType === 'mouse' && onTip(e.currentTarget)
-      }
-      onPointerLeave={() => onTip(null)}
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = 'move'
-        e.dataTransfer.setData('text/plain', block.id ?? '')
-        onDrag(true)
-      }}
-      onDragEnd={() => onDrag(false)}
-      className={`td-block flex h-[18px] min-w-6 items-center justify-center gap-1 rounded-[6px] bg-(--area) px-1.5 font-mono text-[8.5px] text-background transition-transform hover:z-10 hover:scale-110 ${movable ? 'cursor-grab' : 'cursor-default'}`}
-    >
-      <Icon aria-hidden className="size-[11px] shrink-0" strokeWidth={2} />
-      <span className="hidden @2xl:inline">{KIND_NAME[block.kind]}</span>
-    </div>
-  )
+function areaOf(k: WeekKind) {
+  return k === 'post' ? 'social' : k === 'commits' ? 'projects' : 'body'
 }

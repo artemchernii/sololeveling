@@ -243,7 +243,12 @@ export const monthCounts = query({
    here, per local day: sessions under a language, workouts, shakes, posts,
    and commits (own repo, no merges, as Review). Read through
    by_owner_area_time so the bank's rows are never scanned. */
-const sixCount = v.object({ days: v.array(v.number()), prev: v.number() })
+const sixCount = v.object({
+  days: v.array(v.number()),
+  prev: v.number(),
+  /** LANGS only (25 Oct): this month's sessions per language area. */
+  byArea: v.optional(v.record(v.string(), v.number())),
+})
 
 export const monthSix = query({
   args: {
@@ -336,6 +341,7 @@ const weekRow = v.object({
     v.literal('shake'),
     v.literal('post'),
     v.literal('commits'),
+    v.literal('task'),
   ),
   area: v.string(),
   at: v.number(),
@@ -370,6 +376,18 @@ export const weekItems = query({
           )
           .take(MAX_ROWS)),
       )
+    logs.push(
+      ...(await ctx.db
+        .query('logs')
+        .withIndex('by_owner_kind_time', (q) =>
+          q
+            .eq('ownerId', ownerId)
+            .eq('kind', 'task_done')
+            .gte('occurredAt', args.from)
+            .lt('occurredAt', args.to),
+        )
+        .take(MAX_ROWS)),
+    )
     const commits = await commitsBetween(ctx, ownerId, args.from, args.to)
     return weekRows(logs, commits, args.languages, args.from, args.to)
   },

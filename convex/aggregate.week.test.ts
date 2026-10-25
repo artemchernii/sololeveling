@@ -47,3 +47,26 @@ test('weekItems is refused without a user', async () => {
   const t = convexTest(schema, modules)
   await expect(t.query(api.aggregate.weekItems, args)).rejects.toThrow()
 })
+
+/* 25 Oct: a ticked task is a TASK where it was ticked, whatever its area;
+   another user's tick and one outside the week are never read. */
+test('weekItems returns his ticked tasks of the week', async () => {
+  const t = convexTest(schema, modules)
+  await t.run(async (ctx) => {
+    const done = (ownerId: string, area: string, occurredAt: number) =>
+      ctx.db.insert('logs', {
+        ownerId,
+        kind: 'task_done',
+        area,
+        occurredAt,
+        text: 'Bank fix',
+      })
+    await done(ME.tokenIdentifier, 'money', 12 * DAY)
+    await done(ME.tokenIdentifier, 'life', 18 * DAY)
+    await done(OTHER.tokenIdentifier, 'money', 12 * DAY)
+  })
+  const rows = await t.withIdentity(ME).query(api.aggregate.weekItems, args)
+  expect(rows).toEqual([
+    { kind: 'task', area: 'money', at: 12 * DAY, text: 'Bank fix' },
+  ])
+})

@@ -3,13 +3,14 @@ import { useQuery } from 'convex-helpers/react/cache/hooks'
 import { useUser } from '@clerk/tanstack-react-start'
 
 import { api } from '../../../convex/_generated/api'
-import { DayCard } from '@/components/dashboard/DayCard'
 import { MonthSix, useMonth } from '@/components/dashboard/MonthSix'
 import { WeekCard } from '@/components/dashboard/WeekCard'
 import { Principles } from '@/components/dashboard/Principles'
-import type { Pick } from '@/components/dashboard/ThreeSlots'
+import { TaskBar } from '@/components/dashboard/TaskBar'
+import type { Pick } from '@/components/dashboard/TaskBar'
 import type { ICONS } from '@/components/dashboard/AreaIcon'
 import { YearBar } from '@/components/dashboard/YearBar'
+import { langShort } from '@/lib/languages/catalog'
 import { localToday } from '@/lib/today'
 import { useHeld } from '@/lib/loading'
 
@@ -58,9 +59,13 @@ function Today() {
   const firstName = user?.firstName ?? user?.username ?? 'you'
 
   const areas = useQuery(api.areas.list, {})
-  const languages = areas
-    ?.filter((a) => a.track === 'language')
-    .map((a) => a.slug)
+  const languageAreas = areas?.filter((a) => a.track === 'language')
+  const languages = languageAreas?.map((a) => a.slug)
+  /* PT and ENG apart (25 Oct): a badge per language area. */
+  const langs = (languageAreas ?? []).map((a) => ({
+    slug: a.slug,
+    short: langShort(a),
+  }))
   const lang = languages?.[0] ?? 'portuguese'
   const month = useMonth(now, languages)
   const goals = useQuery(api.goals.listActive, {})
@@ -159,21 +164,31 @@ function Today() {
       </div>
 
       <div className="order-2 lg:col-span-2">
-        <DayCard
-          tasks={quests}
-          events={quests === undefined ? [] : (events ?? [])}
-          today={today}
-          picks={picks}
-          iconFor={iconFor}
+        <WeekCard
+          now={now}
+          languages={languages}
+          langs={langs.length > 0 ? langs : [{ slug: lang, short: 'PT' }]}
+          bar={
+            quests === undefined ? null : (
+              <TaskBar
+                tasks={quests}
+                events={events ?? []}
+                today={today}
+                picks={picks}
+                iconFor={iconFor}
+                now={now}
+              />
+            )
+          }
         />
       </div>
 
       <div className="order-3 lg:col-span-2">
-        <WeekCard now={now} languages={languages} lang={lang} />
-      </div>
-
-      <div className="order-4 lg:col-span-2">
-        <MonthSix month={month} now={now} lang={lang} />
+        <MonthSix
+          month={month}
+          now={now}
+          langs={langs.length > 0 ? langs : [{ slug: lang, short: 'PT' }]}
+        />
       </div>
     </div>
   )

@@ -1,4 +1,5 @@
 import {
+  CircleCheck,
   CupSoda,
   Dumbbell,
   GitCommitHorizontal,
@@ -19,6 +20,8 @@ export const ICONS: Record<string, LucideIcon> = {
   projects: GitCommitHorizontal,
   money: TrendingUp,
   language: Languages,
+  /* A ticked task in THIS WEEK (25 Oct). */
+  task: CircleCheck,
 }
 
 export function AreaIcon({

@@ -34,10 +34,32 @@ describe('monthSix', () => {
       end,
     )
     expect(six.workout).toEqual({ days: [0, 1, 0], prev: 1 })
-    expect(six.langs).toEqual({ days: [1, 0, 0], prev: 0 })
+    expect(six.langs).toEqual({
+      days: [1, 0, 0],
+      prev: 0,
+      byArea: { portuguese: 1 },
+    })
     expect(six.post.days).toEqual([0, 0, 1])
     expect(six.shake.days).toEqual([0, 0, 1])
     expect(six.commits).toEqual({ days: [1, 0, 0], prev: 0 })
+  })
+
+  it("splits this month's sessions by language, never the month before", () => {
+    const six = monthSix(
+      [
+        { kind: 'session', area: 'portuguese', occurredAt: DAY },
+        { kind: 'session', area: 'portuguese', occurredAt: 30 * DAY },
+        { kind: 'session', area: 'english', occurredAt: 31 * DAY },
+        { kind: 'session', area: 'english', occurredAt: 32 * DAY },
+      ],
+      [],
+      ['portuguese', 'english'],
+      prev,
+      days,
+      end,
+    )
+    expect(six.langs.prev).toBe(1)
+    expect(six.langs.byArea).toEqual({ portuguese: 1, english: 2 })
   })
 })
 

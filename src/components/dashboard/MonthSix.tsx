@@ -65,13 +65,16 @@ type Tile = {
   name: string
   icon: keyof typeof ICONS
   area: string
-  press?: {
-    label: string
-    kind: 'session' | 'workout' | 'intake' | 'post'
-    area: string
-    category?: string
-  }
+  presses?: Array<Press>
   auto?: string
+  /** LANGS: the badge of each language area, for its count chip. */
+  langs?: Array<{ slug: string; short: string }>
+}
+type Press = {
+  label: string
+  kind: 'session' | 'workout' | 'intake' | 'post'
+  area: string
+  category?: string
 }
 
 /* THIS MONTH, his six (17 Oct; PLAN.md §3 item 4). Colour on the icon
@@ -80,11 +83,12 @@ type Tile = {
 export function MonthSix({
   month,
   now,
-  lang,
+  langs,
 }: {
   month: ReturnType<typeof useMonth>
   now: Date
-  lang: string
+  /** One per language area (25 Oct, his "log PT or ENG"). */
+  langs: Array<{ slug: string; short: string }>
 }) {
   const { counts, targets, worth, bounds } = month
   const prevName = new Date(bounds.prevStart)
@@ -95,34 +99,41 @@ export function MonthSix({
       key: 'langs',
       name: 'LANGS',
       icon: 'language',
-      area: lang,
-      press: { label: '+ SESSION', kind: 'session', area: lang },
+      area: langs[0].slug,
+      presses: langs.map((l) => ({
+        label: `+ ${l.short}`,
+        kind: 'session' as const,
+        area: l.slug,
+      })),
+      langs,
     },
     {
       key: 'workout',
       name: 'WORKOUT',
       icon: 'body',
       area: 'body',
-      press: { label: '+ WORKOUT', kind: 'workout', area: 'body' },
+      presses: [{ label: '+ WORKOUT', kind: 'workout', area: 'body' }],
     },
     {
       key: 'shake',
       name: 'SHAKE',
       icon: 'shake',
       area: 'body',
-      press: {
-        label: '+ SHAKE',
-        kind: 'intake',
-        area: 'body',
-        category: 'supplements',
-      },
+      presses: [
+        {
+          label: '+ SHAKE',
+          kind: 'intake',
+          area: 'body',
+          category: 'supplements',
+        },
+      ],
     },
     {
       key: 'post',
       name: 'POST',
       icon: 'social',
       area: 'social',
-      press: { label: '+ POST', kind: 'post', area: 'social' },
+      presses: [{ label: '+ POST', kind: 'post', area: 'social' }],
     },
     {
       key: 'commits',
@@ -192,13 +203,13 @@ function MonthTile({
   prevName: string
   prevEnd: number
 }) {
-  const log = useMutation(api.logs.create)
-  const save = useSave()
+  /* A press that landed: the tile's edge lights and its number bumps. */
+  const [landed, setLanded] = useState(0)
   useEffect(() => {
-    if (save.status !== 'saved') return
-    const id = setTimeout(save.settle, 1800)
+    if (landed === 0) return
+    const id = setTimeout(() => setLanded(0), 1800)
     return () => clearTimeout(id)
-  }, [save.status, save.settle])
+  }, [landed])
 
   const sum = count ? count.days.reduce((a, b) => a + b, 0) : 0
   const points = (worth?.total ?? []).filter((v): v is number => v !== null)
@@ -209,11 +220,19 @@ function MonthTile({
     delta: worthDelta,
   } = monthWorth(worth?.total ?? [], worth?.starts ?? [], prevEnd)
 
-  let delta: { text: string; tone: string; was: string; missing?: string }
-  if (count) {
+  let delta: {
+    text: string
+    tone: string
+    was: string
+    missing?: string
+  } | null
+  if (count && sum === 0 && count.prev === 0) {
+    /* 0 against 0 says nothing (25 Oct): no comparison at all. */
+    delta = null
+  } else if (count) {
     const d = sum - count.prev
     delta = {
-      text: d > 0 ? `▲ ${d}` : d < 0 ? `▼ ${-d}` : '= SAME',
+      text: d > 0 ? `▲ ${d}` : d < 0 ? `▼ ${-d}` : `= ${sum}`,
       tone:
         d > 0
           ? 'text-state-good'
@@ -247,24 +266,11 @@ function MonthTile({
     }
   }
 
-  async function press() {
-    if (!tile.press || save.busy) return
-    const p = tile.press
-    await save.run(() =>
-      log({
-        kind: p.kind,
-        area: p.area,
-        occurredAt: Date.now(),
-        ...(p.category ? { category: p.category } : {}),
-      }),
-    )
-  }
-
   return (
     <div
       data-testid={`tile-${tile.key}`}
       style={{ ['--i' as string]: index }}
-      className={`bento-tile flex flex-col gap-3 rounded-[16px] border border-lift/[0.09] bg-lift/[0.025] px-4 pt-4 pb-3.5 ${save.status === 'saved' ? 'motion-edge' : ''}`}
+      className={`bento-tile flex flex-col gap-3 rounded-[16px] border border-lift/[0.09] bg-lift/[0.025] px-4 pt-4 pb-3.5 ${landed ? 'motion-edge' : ''}`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-2.5 font-mono text-[10.5px] tracking-[0.22em] text-ink-200">
@@ -286,10 +292,7 @@ function MonthTile({
           className={`leading-[0.9] font-light tracking-[-0.03em] tabular-nums ${count ? 'text-[44px]' : 'text-[34px]'}`}
         >
           {count ? (
-            <span
-              data-testid="count"
-              className={save.status === 'saved' ? 'td-bump' : ''}
-            >
+            <span data-testid="count" className={landed ? 'td-bump' : ''}>
               <CountUp to={sum} />
             </span>
           ) : nowWorth === null ? (
@@ -298,26 +301,44 @@ function MonthTile({
             kEur(nowWorth)
           )}
         </span>
-        <span className="flex flex-col gap-[3px] pb-[3px]">
-          <span
-            data-testid="delta"
-            className={`font-mono text-[12px] font-medium ${delta.tone}`}
-          >
-            {delta.text}
-          </span>
-          <span className="font-mono text-[9.5px] tracking-[0.12em] text-ink-500">
-            {delta.was}
-          </span>
-          {delta.missing !== undefined ? (
+        {delta ? (
+          <span className="flex flex-col gap-[3px] pb-[3px]">
             <span
-              data-testid="missing"
-              className="font-mono text-[9.5px] tracking-[0.12em] text-ink-500"
+              data-testid="delta"
+              className={`font-mono text-[12px] font-medium ${delta.tone}`}
             >
-              {delta.missing}
+              {delta.text}
             </span>
-          ) : null}
-        </span>
+            <span className="font-mono text-[9.5px] tracking-[0.12em] text-ink-500">
+              {delta.was}
+            </span>
+            {delta.missing !== undefined ? (
+              <span
+                data-testid="missing"
+                className="font-mono text-[9.5px] tracking-[0.12em] text-ink-500"
+              >
+                {delta.missing}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
       </div>
+      {tile.langs && tile.langs.length > 1 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {tile.langs.map((l) => (
+            <span
+              key={l.slug}
+              data-testid={`lang-${l.short}`}
+              className="rounded-full border border-lift/[0.09] px-2.5 py-[3px] font-mono text-[10px] tracking-[0.12em] text-ink-300"
+            >
+              {l.short}{' '}
+              <b className="font-medium text-ink-100">
+                {count?.byArea?.[l.slug] ?? 0}
+              </b>
+            </span>
+          ))}
+        </div>
+      ) : null}
       {count ? (
         <div
           className="td-days"
@@ -336,25 +357,15 @@ function MonthTile({
       ) : (
         <Spark points={points} />
       )}
-      <div className="flex min-h-[30px] items-center justify-end">
-        {tile.press ? (
-          <button
-            type="button"
-            onClick={() => void press()}
-            className={`h-[30px] rounded-full border px-3.5 font-mono text-[10px] tracking-[0.16em] transition-[background,box-shadow] ${
-              save.status === 'saving'
-                ? 'border-dashed border-lav-400/40 text-ink-400'
-                : save.status === 'saved'
-                  ? 'border-lav-400 bg-lav-400 text-background'
-                  : 'border-lav-400/40 text-lav-300 hover:bg-lav-400/12 hover:shadow-[0_0_16px_-4px_var(--color-lav-400)]'
-            }`}
-          >
-            {save.status === 'saving'
-              ? 'SAVING…'
-              : save.status === 'saved'
-                ? '✓ SAVED'
-                : tile.press.label}
-          </button>
+      <div className="flex min-h-[30px] items-center justify-end gap-2">
+        {tile.presses ? (
+          tile.presses.map((p) => (
+            <PressButton
+              key={p.label}
+              press={p}
+              onLanded={() => setLanded(Date.now())}
+            />
+          ))
         ) : (
           <span className="font-mono text-[9px] tracking-[0.16em] text-ink-500">
             AUTO · {tile.auto}
@@ -362,6 +373,56 @@ function MonthTile({
         )}
       </div>
     </div>
+  )
+}
+
+/** One log with a press: saving at once, saved, back to rest. */
+function PressButton({
+  press: p,
+  onLanded,
+}: {
+  press: Press
+  onLanded: () => void
+}) {
+  const log = useMutation(api.logs.create)
+  const save = useSave()
+  useEffect(() => {
+    if (save.status !== 'saved') return
+    const id = setTimeout(save.settle, 1800)
+    return () => clearTimeout(id)
+  }, [save.status, save.settle])
+
+  async function press() {
+    if (save.busy) return
+    await save.run(() =>
+      log({
+        kind: p.kind,
+        area: p.area,
+        occurredAt: Date.now(),
+        ...(p.category ? { category: p.category } : {}),
+      }),
+    )
+    onLanded()
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => void press()}
+      className={`h-[30px] rounded-full border px-3.5 font-mono text-[10px] tracking-[0.16em] transition-[background,box-shadow] ${
+        save.status === 'saving'
+          ? 'border-dashed border-lav-400/40 text-ink-400'
+          : save.status === 'saved'
+            ? 'border-lav-400 bg-lav-400 text-background'
+            : 'border-lav-400/40 text-lav-300 hover:bg-lav-400/12 hover:shadow-[0_0_16px_-4px_var(--color-lav-400)]'
+      }`}
+    >
+      {save.status === 'saving'
+        ? 'SAVING…'
+        : save.status === 'saved'
+          ? '✓ SAVED'
+          : p.label}
+    </button>
   )
 }
 

@@ -14,6 +14,8 @@ export type Language = {
   code: LanguageCode
   /** What you call it. */
   name: string
+  /** Its badge on Today (25 Oct, his "log PT or ENG"): `PT`, `ENG`. */
+  short: string
   /** What it calls itself. */
   native: string
   flag: string
@@ -30,6 +32,7 @@ export const LANGUAGES: ReadonlyArray<Language> = [
   {
     code: 'pt-PT',
     name: 'Portuguese',
+    short: 'PT',
     native: 'Português',
     flag: '🇵🇹',
     /* The yellow elevador climbing to the Tejo. */
@@ -39,6 +42,7 @@ export const LANGUAGES: ReadonlyArray<Language> = [
   {
     code: 'en',
     name: 'English',
+    short: 'ENG',
     native: 'English',
     flag: '🇬🇧',
     /* Big Ben's clock face. */
@@ -48,6 +52,7 @@ export const LANGUAGES: ReadonlyArray<Language> = [
   {
     code: 'de',
     name: 'German',
+    short: 'GER',
     native: 'Deutsch',
     flag: '🇩🇪',
     /* The flag over the Reichstag. */
@@ -58,6 +63,14 @@ export const LANGUAGES: ReadonlyArray<Language> = [
 
 export function languageByCode(code: string | undefined): Language | undefined {
   return LANGUAGES.find((l) => l.code === code)
+}
+
+/** A language area's badge: its language's short name, else the first
+    three letters of its label. */
+export function langShort(area: { lang?: string; label: string }): string {
+  return (
+    languageByCode(area.lang)?.short ?? area.label.slice(0, 3).toUpperCase()
+  )
 }
 
 /** The area label a new language gets: "English". */

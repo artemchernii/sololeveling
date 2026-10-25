@@ -228,7 +228,11 @@ test('phone: a bottom sheet, nothing wider than the screen', async ({
   const top = (await drawer.boundingBox())!.y
   await page.mouse.move(187, top + 6)
   await page.mouse.down()
-  await page.mouse.move(187, top + 50, { steps: 5 })
+  /* slowly, as a finger: 44px in a few ms is a flick, and a flick closes */
+  for (let y = 10; y <= 50; y += 8) {
+    await page.mouse.move(187, top + y)
+    await page.waitForTimeout(40)
+  }
   await page.mouse.up()
   await expect(drawer).toHaveAttribute('aria-hidden', 'false')
   /* sprung all the way back before the next pull */

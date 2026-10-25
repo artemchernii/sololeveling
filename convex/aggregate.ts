@@ -257,6 +257,8 @@ export const monthSix = query({
     dayStarts: v.array(v.number()),
     nextStart: v.number(),
     languages: v.array(v.string()),
+    /** The month before counts up to here: its same days (25 Oct). */
+    prevCut: v.optional(v.number()),
   },
   returns: v.object({
     langs: sixCount,
@@ -295,6 +297,7 @@ export const monthSix = query({
       args.prevStart,
       args.dayStarts.slice(0, 31),
       args.nextStart,
+      args.prevCut,
     )
   },
 })

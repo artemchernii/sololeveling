@@ -99,6 +99,10 @@ test('Today: eng homework 20 in ⌘L lands on ENG', async ({ page }) => {
   await expect(page.getByRole('dialog').getByText('English')).toBeVisible()
   await page.screenshot({ ...shot('today-eng-capture'), fullPage: true })
   await page.keyboard.press('Enter')
+  await expect(page.getByRole('dialog')).toContainText(
+    /eng homework 20\s*logged/,
+  )
+  await page.keyboard.press('Escape')
   await expect(langs.getByTestId('lang-ENG')).toHaveText('ENG 2')
   await expect(langs.getByTestId('lang-PT')).toHaveText('PT 1')
 })

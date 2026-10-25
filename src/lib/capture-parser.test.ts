@@ -437,7 +437,12 @@ describe('projectVerbs — a verb per project, from its title', () => {
 /* 25 Oct: `eng` in ⌘L, as `pt` — one verb per language area he added. */
 describe('languageVerbs — a verb per language area, from its short', () => {
   const extra = languageVerbs([
-    { slug: 'portuguese', label: 'Portuguese', lang: 'pt-PT', track: 'language' },
+    {
+      slug: 'portuguese',
+      label: 'Portuguese',
+      lang: 'pt-PT',
+      track: 'language',
+    },
     { slug: 'english', label: 'English', lang: 'en', track: 'language' },
     { slug: 'body', label: 'Body' },
   ])
@@ -471,7 +476,8 @@ describe('languageVerbs — a verb per language area, from its short', () => {
     const work = languageVerbs([
       { slug: 'workish', label: 'Work', track: 'language' },
     ])
-    expect(work.flatMap((v) => v.words)).toEqual([])
+    expect(work.flatMap((v) => v.words)).toEqual(['wor'])
+    expect(parseCapture('work 30', work).verb?.area).toBe('career')
   })
 })
 

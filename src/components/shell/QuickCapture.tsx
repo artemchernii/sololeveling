@@ -38,6 +38,7 @@ import {
   formatLine,
   lineFromLog,
   parseCapture,
+  languageVerbs,
   projectVerbs,
   searchVerbs,
   suggestVerbs,
@@ -261,7 +262,12 @@ export function QuickCapture({
   const pickForToday = useMutation(api.tasks.pickForToday)
   /* Your live projects, each of which is a verb — `sololeveling 90`. */
   const projects = useQuery(api.projects.listLive, {})
-  const extra = useMemo(() => projectVerbs(projects ?? []), [projects])
+  /* And each language area he added — `eng` (25 Oct). */
+  const areaRows = useQuery(api.areas.list, {})
+  const extra = useMemo(
+    () => [...projectVerbs(projects ?? []), ...languageVerbs(areaRows ?? [])],
+    [projects, areaRows],
+  )
   /** Which row is on its way out, so it can animate before it is removed. */
   const [leaving, setLeaving] = useState<string | null>(null)
   const removeNote = useMutation(api.notes.remove)

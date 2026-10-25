@@ -14,9 +14,11 @@ const NINE = 9 * 3_600_000
 export const MISSING_DAYS = 2
 /** An approval rings these many days before it ends. */
 export const APPROVAL_MARKS: ReadonlyArray<number> = [7, 1]
-/** The salary account is read from two days before its day to three
-    after, until the salary is in. */
-export const SALARY_BEFORE = 2
+/** The salary account is read from five days before its day to three
+    after, until the salary is in. Five, not two (25 Oct): his salary of
+    the 25th landed on the 23rd, and a 23rd on a weekend pays on the
+    Friday before (22 Jan 2027, 21 May 2027). */
+export const SALARY_BEFORE = 5
 export const SALARY_AFTER = 3
 
 const HOUR = new Intl.DateTimeFormat('en-GB', {

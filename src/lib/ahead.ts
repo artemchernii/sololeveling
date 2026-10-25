@@ -60,6 +60,38 @@ export function paysBill(bill: AheadBill, row: AheadRow): boolean {
   )
 }
 
+/** His salary of the income bills: the biggest. The same payer can pay
+    twice a month — on 23 Oct BNP Paribas sent €80 of commute pay beside
+    the €2,674.76 salary, the app found the €80 as a bill of its own, and
+    the push said "Salary in · €80". */
+export function salaryBill<TBill extends AheadBill>(
+  bills: ReadonlyArray<TBill>,
+): TBill | undefined {
+  return bills
+    .filter((b) => b.kind === 'income')
+    .reduce<TBill | undefined>(
+      (a, b) => (a && a.amount >= b.amount ? a : b),
+      undefined,
+    )
+}
+
+/** Of the rows that pay a bill, the one that paid it: the nearest to its
+    amount, or the biggest for one that varies (a month's sum is no
+    single payment). */
+export function payingRow<TRow extends AheadRow>(
+  bill: AheadBill,
+  rows: ReadonlyArray<TRow>,
+): TRow | undefined {
+  const score = (r: TRow) =>
+    bill.varies ? -r.amount : Math.abs(r.amount - bill.amount)
+  return rows
+    .filter((r) => paysBill(bill, r))
+    .reduce<TRow | undefined>(
+      (a, r) => (a && score(a) <= score(r) ? a : r),
+      undefined,
+    )
+}
+
 /** The local calendar date of a day that starts at `start` (local
     midnight): its noon, read in UTC, is the same date in Lisbon. */
 function dateOf(start: number) {
@@ -271,7 +303,8 @@ export function buildAhead(input: AheadInput) {
   }
 
   /* The lowest point before the next salary (or in the whole stretch). */
-  const salary = events.find((e) => e.kind === 'income')
+  const pay = salaryBill(bills)
+  const salary = events.find((e) => e.billId === pay?.id)
   const before = series.filter((p) => !salary || p.t < salary.t)
   const low = before.reduce((a, p) => (p.lower < a.lower ? p : a), before[0])
 

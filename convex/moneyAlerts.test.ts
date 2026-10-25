@@ -245,6 +245,75 @@ describe('C · salary in (S10)', () => {
     expect(await sent(t)).toHaveLength(1)
   })
 
+  /* His 23 Oct: commute pay and salary from one payer, the commute pay
+     found as a bill of its own and due first. */
+  test('same payer twice → the salary rings, not the €80', async () => {
+    const t = convexTest(schema, modules)
+    vi.setSystemTime(at(10, 24, 8))
+    const bpi = await account(t, ME, 'BPI', 3000)
+    const commute = await bill(t, ME, 'Bnp Paribas', 80, 23, bpi, 'income')
+    const salary = await bill(t, ME, 'Bnp Paribas', 2668.98, 25, bpi, 'income')
+    await t.run(async (ctx) => {
+      for (const id of [commute, salary])
+        await ctx.db.patch(id, { matchKey: 'BNP PARIBAS' })
+      for (const [n, value] of [
+        ['26', 80],
+        ['25', 2674.76],
+      ] as const)
+        await ctx.db.insert('logs', {
+          ownerId: ME,
+          area: 'money',
+          kind: 'income',
+          occurredAt: Date.UTC(2026, 9, 23, 12),
+          value,
+          unit: 'eur',
+          text: `TRF CR SEPA+ 00000${n} DE BNP PARIBAS`,
+          accountId: bpi,
+          meta: { raw: `TRF CR SEPA+ 00000${n} DE BNP PARIBAS` },
+        })
+    })
+    await morning(t)
+    expect(await sent(t)).toEqual([
+      {
+        kind: 'salary_in',
+        title: 'Salary in · €2,674.76',
+        body: 'BPI · 23 Oct',
+        url: '/finances',
+      },
+    ])
+  })
+
+  /* A 23rd on a Saturday: the salary of the 25th lands on Friday 22
+     Jan, three days early. */
+  test('paid three days before its day → rings', async () => {
+    const t = convexTest(schema, modules)
+    vi.setSystemTime(new Date(2027, 0, 23, 8).getTime())
+    const bpi = await account(t, ME, 'BPI', 3000)
+    const salary = await bill(t, ME, 'Bnp Paribas', 2668.98, 25, bpi, 'income')
+    await t.run((ctx) =>
+      ctx.db.insert('logs', {
+        ownerId: ME,
+        area: 'money',
+        kind: 'income',
+        occurredAt: Date.UTC(2027, 0, 22, 12),
+        value: 2674.76,
+        unit: 'eur',
+        text: 'BNP PARIBAS',
+        accountId: bpi,
+        meta: { raw: 'BNP PARIBAS', recurringId: salary },
+      }),
+    )
+    await morning(t)
+    expect(await sent(t)).toEqual([
+      {
+        kind: 'salary_in',
+        title: 'Salary in · €2,674.76',
+        body: 'BPI · 22 Jan',
+        url: '/finances',
+      },
+    ])
+  })
+
   test('not in yet → quiet', async () => {
     const t = convexTest(schema, modules)
     const bpi = await account(t, ME, 'BPI', 100)

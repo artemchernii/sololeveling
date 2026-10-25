@@ -436,3 +436,31 @@ export const sameFund = internalMutation({
     }
   },
 })
+
+/* The €80 said as his salary (25 Oct): the push of 23 Oct named BNP
+   Paribas' commute pay, and the fixed morning job would ring the real
+   salary again. Rewrites that bell entry's title and marks the salary day
+   said, so nothing rings twice. Shows first, writes only with apply. */
+export const resaySalary = internalMutation({
+  args: {
+    notificationId: v.id('notifications'),
+    title: v.string(),
+    salaryFor: v.number(),
+    apply: v.boolean(),
+  },
+  returns: v.object({ was: v.string(), now: v.string() }),
+  handler: async (ctx, args) => {
+    const n = await ctx.db.get(args.notificationId)
+    if (n === null || n.kind !== 'salary_in') throw new Error('NOT_SALARY')
+    if (args.apply) {
+      await ctx.db.patch(n._id, { title: args.title })
+      const alerts = await ctx.db
+        .query('moneyAlerts')
+        .withIndex('by_owner', (q) => q.eq('ownerId', n.ownerId))
+        .unique()
+      if (alerts !== null)
+        await ctx.db.patch(alerts._id, { salaryFor: args.salaryFor })
+    }
+    return { was: n.title, now: args.title }
+  },
+})

@@ -9,7 +9,7 @@
    what he holds. Moves between his accounts are never rows here. */
 
 import { dueDay, dueOn } from './bills'
-import { noonOf, paysBill } from './ahead'
+import { noonOf, paysBill, salaryBill } from './ahead'
 import type { AheadBill, AheadRow } from './ahead'
 
 const DAY = 86_400_000
@@ -92,10 +92,7 @@ export function payMonths(input: {
   /** Local midnight of today. */
   today: number
 }) {
-  const salary = input.bills
-    .filter((b) => b.kind === 'income')
-    .sort((a, b) => b.amount - a.amount)
-    .at(0)
+  const salary = salaryBill(input.bills)
   if (!salary) return null
   const today = noonOf(input.today)
 
@@ -204,10 +201,7 @@ export function payMonthDetail(input: {
     dayOf(r.t) >= s && dayOf(r.t) < e
   const billOf = (r: DetailRow) =>
     input.bills.find((b) => b.kind === r.kind && paysBill(b, r))
-  const salary = input.bills
-    .filter((b) => b.kind === 'income')
-    .sort((a, b) => b.amount - a.amount)
-    .at(0)
+  const salary = salaryBill(input.bills)
 
   const rows = input.rows.filter((r) => inside(r, input.start, input.end))
   const paid = rows

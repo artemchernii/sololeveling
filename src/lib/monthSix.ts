@@ -6,7 +6,12 @@ import type { CommitRow, LogRow } from './review'
    sixth, is a stored reading (worthHistory), not a count. */
 export const SIX = ['langs', 'workout', 'shake', 'post', 'commits'] as const
 export type Six = (typeof SIX)[number]
-export type SixCount = { days: Array<number>; prev: number }
+export type SixCount = {
+  days: Array<number>
+  prev: number
+  /** LANGS only: this month's sessions per language area (25 Oct). */
+  byArea?: Record<string, number>
+}
 
 /** `dayStarts`: this month's local midnights, ascending; `prevStart` the
     month before's first; `end` the next month's first. */
@@ -34,8 +39,13 @@ export function monthSix(
       }
   }
   for (const l of logs) {
-    if (l.kind === 'session' && languages.includes(l.area))
+    if (l.kind === 'session' && languages.includes(l.area)) {
       add('langs', l.occurredAt)
+      if (l.occurredAt >= dayStarts[0] && l.occurredAt < end) {
+        const by = (out.langs.byArea ??= {})
+        by[l.area] = (by[l.area] ?? 0) + 1
+      }
+    }
     if (isWorkout(l)) add('workout', l.occurredAt)
     if (isShake(l)) add('shake', l.occurredAt)
     if (l.kind === 'post') add('post', l.occurredAt)

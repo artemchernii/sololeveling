@@ -55,6 +55,24 @@ describe('weekRows', () => {
   })
 })
 
+describe('a ticked task', () => {
+  it('is a TASK where it was ticked, with no id to drag and its title', () => {
+    const rows = weekRows(
+      [log('task_done', 'life', at(2, 14), { text: 'Bank fix' })],
+      [],
+      ['portuguese'],
+      from,
+      to,
+    )
+    expect(rows).toEqual([
+      { kind: 'task', area: 'life', at: at(2, 14), text: 'Bank fix' },
+    ])
+    const cells = weekCells(rows, days)
+    expect(cells[1][2]).toHaveLength(1)
+    expect(detail(cells[1][2][0])).toBe('Bank fix')
+  })
+})
+
 describe('weekCells', () => {
   it('puts a row in its band and day, in time order, commits as one', () => {
     const rows = weekRows(

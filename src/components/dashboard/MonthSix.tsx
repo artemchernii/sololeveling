@@ -1,16 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
-import { useMutation } from 'convex/react'
+import { useEffect, useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
 
 import { api } from '../../../convex/_generated/api'
 import { useWorthHistory } from '@/lib/useWorthHistory'
-import { useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import { euros } from '@/lib/money'
 import { monthWorth } from '@/lib/monthSix'
 import type { Six } from '@/lib/monthSix'
 import { AreaIcon } from './AreaIcon'
+import { CountUp, PressButton, Spark, kEur } from './MonthParts'
+import type { Press } from './MonthParts'
 import type { ICONS } from './AreaIcon'
 
 type Counts = FunctionReturnType<typeof api.aggregate.monthSix>
@@ -65,13 +65,10 @@ type Tile = {
   name: string
   icon: keyof typeof ICONS
   area: string
-  press?: {
-    label: string
-    kind: 'session' | 'workout' | 'intake' | 'post'
-    area: string
-    category?: string
-  }
+  presses?: Array<Press>
   auto?: string
+  /** LANGS: the badge of each language area, for its count chip. */
+  langs?: Array<{ slug: string; short: string }>
 }
 
 /* THIS MONTH, his six (17 Oct; PLAN.md §3 item 4). Colour on the icon
@@ -80,11 +77,12 @@ type Tile = {
 export function MonthSix({
   month,
   now,
-  lang,
+  langs,
 }: {
   month: ReturnType<typeof useMonth>
   now: Date
-  lang: string
+  /** One per language area (25 Oct, his "log PT or ENG"). */
+  langs: Array<{ slug: string; short: string }>
 }) {
   const { counts, targets, worth, bounds } = month
   const prevName = new Date(bounds.prevStart)
@@ -95,34 +93,42 @@ export function MonthSix({
       key: 'langs',
       name: 'LANGS',
       icon: 'language',
-      area: lang,
-      press: { label: '+ SESSION', kind: 'session', area: lang },
+      area: langs[0].slug,
+      presses: langs.map((l) => ({
+        label: `+ ${l.short}`,
+        kind: 'session' as const,
+        area: l.slug,
+        kinds: true,
+      })),
+      langs,
     },
     {
       key: 'workout',
       name: 'WORKOUT',
       icon: 'body',
       area: 'body',
-      press: { label: '+ WORKOUT', kind: 'workout', area: 'body' },
+      presses: [{ label: '+ WORKOUT', kind: 'workout', area: 'body' }],
     },
     {
       key: 'shake',
       name: 'SHAKE',
       icon: 'shake',
       area: 'body',
-      press: {
-        label: '+ SHAKE',
-        kind: 'intake',
-        area: 'body',
-        category: 'supplements',
-      },
+      presses: [
+        {
+          label: '+ SHAKE',
+          kind: 'intake',
+          area: 'body',
+          category: 'supplements',
+        },
+      ],
     },
     {
       key: 'post',
       name: 'POST',
       icon: 'social',
       area: 'social',
-      press: { label: '+ POST', kind: 'post', area: 'social' },
+      presses: [{ label: '+ POST', kind: 'post', area: 'social' }],
     },
     {
       key: 'commits',
@@ -153,7 +159,7 @@ export function MonthSix({
       {counts === undefined || worth === undefined ? (
         <SkeletonRows rows={3} />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
           {tiles.map((t, i) => (
             <MonthTile
               key={t.key}
@@ -192,13 +198,13 @@ function MonthTile({
   prevName: string
   prevEnd: number
 }) {
-  const log = useMutation(api.logs.create)
-  const save = useSave()
+  /* A press that landed: the tile's edge lights and its number bumps. */
+  const [landed, setLanded] = useState(0)
   useEffect(() => {
-    if (save.status !== 'saved') return
-    const id = setTimeout(save.settle, 1800)
+    if (landed === 0) return
+    const id = setTimeout(() => setLanded(0), 1800)
     return () => clearTimeout(id)
-  }, [save.status, save.settle])
+  }, [landed])
 
   const sum = count ? count.days.reduce((a, b) => a + b, 0) : 0
   const points = (worth?.total ?? []).filter((v): v is number => v !== null)
@@ -209,11 +215,19 @@ function MonthTile({
     delta: worthDelta,
   } = monthWorth(worth?.total ?? [], worth?.starts ?? [], prevEnd)
 
-  let delta: { text: string; tone: string; was: string; missing?: string }
-  if (count) {
+  let delta: {
+    text: string
+    tone: string
+    was: string
+    missing?: string
+  } | null
+  if (count && sum === 0 && count.prev === 0) {
+    /* 0 against 0 says nothing (25 Oct): no comparison at all. */
+    delta = null
+  } else if (count) {
     const d = sum - count.prev
     delta = {
-      text: d > 0 ? `▲ ${d}` : d < 0 ? `▼ ${-d}` : '= SAME',
+      text: d > 0 ? `▲ ${d}` : d < 0 ? `▼ ${-d}` : `= ${sum}`,
       tone:
         d > 0
           ? 'text-state-good'
@@ -247,49 +261,33 @@ function MonthTile({
     }
   }
 
-  async function press() {
-    if (!tile.press || save.busy) return
-    const p = tile.press
-    await save.run(() =>
-      log({
-        kind: p.kind,
-        area: p.area,
-        occurredAt: Date.now(),
-        ...(p.category ? { category: p.category } : {}),
-      }),
-    )
-  }
-
   return (
     <div
       data-testid={`tile-${tile.key}`}
       style={{ ['--i' as string]: index }}
-      className={`bento-tile flex flex-col gap-3 rounded-[16px] border border-lift/[0.09] bg-lift/[0.025] px-4 pt-4 pb-3.5 ${save.status === 'saved' ? 'motion-edge' : ''}`}
+      className={`bento-tile flex min-w-0 flex-col gap-2.5 rounded-[16px] border border-lift/[0.09] bg-lift/[0.025] px-3 pt-3 pb-3 sm:gap-3 sm:px-4 sm:pt-4 sm:pb-3.5 ${landed ? 'motion-edge' : ''}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2.5 font-mono text-[10.5px] tracking-[0.22em] text-ink-200">
+        <span className="flex min-w-0 items-center gap-2 font-mono text-[10px] tracking-[0.16em] text-ink-200 sm:gap-2.5 sm:text-[10.5px] sm:tracking-[0.22em]">
           <AreaIcon icon={tile.icon} area={tile.area} />
           {tile.name}
         </span>
         {target !== undefined ? (
-          <span className="flex items-center gap-1.5 font-mono text-[10px] text-ink-400">
+          <span className="flex shrink-0 items-center gap-1 font-mono text-[9.5px] whitespace-nowrap text-ink-400 sm:gap-1.5 sm:text-[10px]">
             <span
-              className="td-ring"
+              className="td-ring hidden sm:block"
               style={{ ['--p' as string]: Math.min(100, (sum / target) * 100) }}
             />
             {sum} / {target}
           </span>
         ) : null}
       </div>
-      <div className="flex items-end gap-3.5">
+      <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-end sm:gap-3.5">
         <span
-          className={`leading-[0.9] font-light tracking-[-0.03em] tabular-nums ${count ? 'text-[44px]' : 'text-[34px]'}`}
+          className={`leading-[0.9] font-light tracking-[-0.03em] tabular-nums ${count ? 'text-[34px] sm:text-[44px]' : 'text-[26px] sm:text-[34px]'}`}
         >
           {count ? (
-            <span
-              data-testid="count"
-              className={save.status === 'saved' ? 'td-bump' : ''}
-            >
+            <span data-testid="count" className={landed ? 'td-bump' : ''}>
               <CountUp to={sum} />
             </span>
           ) : nowWorth === null ? (
@@ -298,26 +296,44 @@ function MonthTile({
             kEur(nowWorth)
           )}
         </span>
-        <span className="flex flex-col gap-[3px] pb-[3px]">
-          <span
-            data-testid="delta"
-            className={`font-mono text-[12px] font-medium ${delta.tone}`}
-          >
-            {delta.text}
-          </span>
-          <span className="font-mono text-[9.5px] tracking-[0.12em] text-ink-500">
-            {delta.was}
-          </span>
-          {delta.missing !== undefined ? (
+        {delta ? (
+          <span className="flex flex-col gap-[3px] pb-[3px]">
             <span
-              data-testid="missing"
-              className="font-mono text-[9.5px] tracking-[0.12em] text-ink-500"
+              data-testid="delta"
+              className={`font-mono text-[12px] font-medium ${delta.tone}`}
             >
-              {delta.missing}
+              {delta.text}
             </span>
-          ) : null}
-        </span>
+            <span className="font-mono text-[9.5px] tracking-[0.12em] text-ink-500">
+              {delta.was}
+            </span>
+            {delta.missing !== undefined ? (
+              <span
+                data-testid="missing"
+                className="font-mono text-[9.5px] tracking-[0.12em] text-ink-500"
+              >
+                {delta.missing}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
       </div>
+      {tile.langs && tile.langs.length > 1 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {tile.langs.map((l) => (
+            <span
+              key={l.slug}
+              data-testid={`lang-${l.short}`}
+              className="rounded-full border border-lift/[0.09] px-2.5 py-[3px] font-mono text-[10px] tracking-[0.12em] text-ink-300"
+            >
+              {l.short}{' '}
+              <b className="font-medium text-ink-100">
+                {count?.byArea?.[l.slug] ?? 0}
+              </b>
+            </span>
+          ))}
+        </div>
+      ) : null}
       {count ? (
         <div
           className="td-days"
@@ -336,25 +352,15 @@ function MonthTile({
       ) : (
         <Spark points={points} />
       )}
-      <div className="flex min-h-[30px] items-center justify-end">
-        {tile.press ? (
-          <button
-            type="button"
-            onClick={() => void press()}
-            className={`h-[30px] rounded-full border px-3.5 font-mono text-[10px] tracking-[0.16em] transition-[background,box-shadow] ${
-              save.status === 'saving'
-                ? 'border-dashed border-lav-400/40 text-ink-400'
-                : save.status === 'saved'
-                  ? 'border-lav-400 bg-lav-400 text-background'
-                  : 'border-lav-400/40 text-lav-300 hover:bg-lav-400/12 hover:shadow-[0_0_16px_-4px_var(--color-lav-400)]'
-            }`}
-          >
-            {save.status === 'saving'
-              ? 'SAVING…'
-              : save.status === 'saved'
-                ? '✓ SAVED'
-                : tile.press.label}
-          </button>
+      <div className="flex min-h-[30px] flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+        {tile.presses ? (
+          tile.presses.map((p) => (
+            <PressButton
+              key={p.label}
+              press={p}
+              onLanded={() => setLanded(Date.now())}
+            />
+          ))
         ) : (
           <span className="font-mono text-[9px] tracking-[0.16em] text-ink-500">
             AUTO · {tile.auto}
@@ -363,66 +369,4 @@ function MonthTile({
       </div>
     </div>
   )
-}
-
-/** €44.9k, €820. */
-function kEur(n: number): string {
-  return Math.abs(n) >= 1000
-    ? `€${(n / 1000).toFixed(1)}k`
-    : euros(Math.round(n))
-}
-
-function Spark({ points }: { points: Array<number> }) {
-  if (points.length < 2) return <div className="h-[22px]" />
-  const lo = Math.min(...points)
-  const hi = Math.max(...points)
-  const span = hi - lo || 1
-  const d = points
-    .map(
-      (v, i) =>
-        `${i ? 'L' : 'M'}${((i / (points.length - 1)) * 100).toFixed(1)} ${(20 - ((v - lo) / span) * 18).toFixed(1)}`,
-    )
-    .join(' ')
-  return (
-    <svg
-      className="td-spark h-[22px] w-full"
-      viewBox="0 0 100 22"
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <path
-        d={d}
-        fill="none"
-        stroke="var(--color-lav-400)"
-        strokeWidth="2"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  )
-}
-
-/** The month's number counts up the first time it is drawn. */
-function CountUp({ to }: { to: number }) {
-  const [shown, setShown] = useState(to)
-  const first = useRef(true)
-  useEffect(() => {
-    if (!first.current) {
-      setShown(to)
-      return
-    }
-    first.current = false
-    if (to === 0) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const t0 = performance.now() + 300
-    let raf = 0
-    const step = (t: number) => {
-      const p = Math.min(1, Math.max(0, (t - t0) / 900))
-      setShown(Math.round(to * (1 - Math.pow(1 - p, 3))))
-      if (p < 1) raf = requestAnimationFrame(step)
-    }
-    raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
-  }, [to])
-  return <>{shown}</>
 }

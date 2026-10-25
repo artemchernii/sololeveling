@@ -666,6 +666,9 @@ export default defineSchema({
   })
     .index('by_owner_time', ['ownerId', 'occurredAt'])
     .index('by_owner_area_time', ['ownerId', 'area', 'occurredAt'])
+    /* Today's THIS WEEK (25 Oct): the week's ticked tasks, whatever their
+       area, without reading every row of the week. */
+    .index('by_owner_kind_time', ['ownerId', 'kind', 'occurredAt'])
     /* Time on one project (R3): a range over one project's logs, rather than
        every log this month filtered in JavaScript. A log with no project has
        an absent projectId and never matches an eq(). */

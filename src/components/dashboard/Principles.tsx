@@ -6,7 +6,7 @@ import type { CSSProperties } from 'react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
-import { PICK_FIELD_ID } from './ThreeSlots'
+import { PICK_BUTTON_ID } from './TaskBar'
 
 /** How long one line holds before the column moves up by one. */
 const HOLD_MS = 10_000
@@ -303,7 +303,7 @@ function AllSix({
             onClick={() => {
               onClose()
               requestAnimationFrame(() =>
-                document.getElementById(PICK_FIELD_ID)?.focus(),
+                document.getElementById(PICK_BUTTON_ID)?.click(),
               )
             }}
             className="motion-press chip-focus flex items-center gap-2 rounded-full border border-lav-500/60 px-4 py-2 font-mono text-[11px] tracking-[0.14em] text-lav-300 uppercase transition-colors hover:border-lav-500 hover:bg-lav-900/50"

@@ -30,7 +30,7 @@ test('THIS WEEK: an empty week, now in its cell, the future refused', async ({
   const week = await open(page, false)
   await expect(week.locator('[data-testid^=cell-]')).toHaveCount(21)
   await expect(week.getByTestId('week-empty')).toHaveText('NOTHING LOGGED')
-  for (const k of ['workout', 'langs', 'shake', 'post', 'commits'])
+  for (const k of ['workout', 'langs-portuguese', 'shake', 'post', 'commits'])
     await expect(week.getByTestId(`chip-${k}`)).toContainText('0')
   await expect(week.getByTestId('cell-1-2').getByTestId('week-now')).toHaveText(
     '15:30',
@@ -62,7 +62,7 @@ test('THIS WEEK: a lived week — blocks in time order, hover says what', async 
   await expect(
     week.getByTestId('cell-1-1').getByTestId('block-post'),
   ).toBeVisible()
-  for (const k of ['workout', 'langs', 'shake', 'post'])
+  for (const k of ['workout', 'langs-portuguese', 'shake', 'post'])
     await expect(week.getByTestId(`chip-${k}`)).toContainText('1')
   await expect(week.getByTestId('week-empty')).toHaveCount(0)
 

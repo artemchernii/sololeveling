@@ -5,8 +5,9 @@ import { start, testClient } from './helpers'
 
 const shot = (name: string) => ({ path: `e2e/screens/${name}.png` })
 
-/* Today: one live TODAY card and THIS MONTH as his six
-   (docs/specs/2026-10-17-today-rework.md, mockup design/today-mockup/month.html). */
+/* Today: THIS WEEK with TASKS TODAY in it, and THIS MONTH as his six
+   (docs/specs/2026-10-25-today-tasks-grid.md, mockup
+   design/today-mockup/three.html). */
 
 function month() {
   const now = new Date()
@@ -17,31 +18,81 @@ function month() {
   return { now: now.getTime(), dayEnd: dayEnd.getTime(), monthStart, prevStart }
 }
 
-test('Today: an empty day — picks, an own task, a tick', async ({ page }) => {
+test('Today: an empty day — the bar, an own task, a tick in the week', async ({
+  page,
+}) => {
   await start(page)
   await page.goto('/dashboard')
 
-  const day = page.getByRole('region', { name: 'Today' })
-  await expect(day.getByTestId('next-title')).toHaveCount(0)
-  await expect(day.getByTestId('three-count')).toHaveText('0 OF 3')
-  await expect(page.getByText('The rest is yours')).toHaveCount(0)
-  await expect(page.getByText('CURRENT STATE')).toHaveCount(0)
+  const week = page.getByRole('region', { name: 'This week' })
+  const bar = week.getByTestId('task-bar')
+  await expect(bar.getByTestId('three-count')).toHaveText('0 OF 3')
+  await expect(bar.getByTestId('task-chip')).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Today' })).toHaveCount(0)
 
-  const own = day.getByPlaceholder('＋ own task')
+  await bar.getByRole('button', { name: /＋ TASK/ }).click()
+  const own = bar.getByPlaceholder('own task')
+  await expect(own).toBeFocused()
   await own.fill('Write the post')
   await own.press('Enter')
-  const first = day.getByTestId('slot-0')
-  await expect(first.getByText('Write the post')).toBeVisible()
-  await expect(day.getByTestId('three-count')).toHaveText('1 OF 3')
-  await expect(day.getByPlaceholder('＋ own task')).toBeFocused()
+  const chip = bar.getByTestId('task-chip')
+  await expect(chip.getByText('Write the post')).toBeVisible()
+  await expect(bar.getByTestId('task-menu')).toHaveCount(0)
+  await expect(bar.getByTestId('three-count')).toHaveText('1 OF 3')
 
-  await first.getByRole('button', { name: 'Complete Write the post' }).click()
-  await expect(first).toHaveAttribute('data-done', 'true')
-  await expect(first.getByText('DONE')).toBeVisible()
+  await chip.getByRole('button', { name: 'Complete Write the post' }).click()
+  await expect(chip).toHaveAttribute('data-done', 'true')
+  await expect(week.getByTestId('block-task')).toHaveCount(1)
   await page.screenshot({ ...shot('today-empty-day'), fullPage: true })
 
-  await first.getByRole('button', { name: 'Un-tick Write the post' }).click()
-  await expect(first).toHaveAttribute('data-done', 'false')
+  await chip.getByRole('button', { name: 'Un-tick Write the post' }).click()
+  await expect(chip).toHaveAttribute('data-done', 'false')
+  await expect(week.getByTestId('block-task')).toHaveCount(0)
+})
+
+test('Today: PT and ENG apart — chips, pills, the tile and its presses', async ({
+  page,
+}) => {
+  await start(page)
+  await testClient().mutation(anyApi.e2eToday.twoLanguages, { at: Date.now() })
+  await page.goto('/dashboard')
+
+  const week = page.getByRole('region', { name: 'This week' })
+  await expect(week.getByTestId('chip-langs-portuguese')).toContainText('PT1')
+  await expect(week.getByTestId('chip-langs-english')).toContainText('ENG1')
+  await expect(week.getByTestId('block-langs')).toHaveCount(2)
+
+  const langs = page
+    .getByRole('region', { name: 'This month' })
+    .getByTestId('tile-langs')
+  await expect(langs.getByTestId('lang-PT')).toHaveText('PT 1')
+  await expect(langs.getByTestId('lang-ENG')).toHaveText('ENG 1')
+  await langs.getByRole('button', { name: '+ ENG' }).click()
+  const kinds = langs.getByTestId('session-kinds')
+  await expect(kinds.getByRole('menuitem')).toHaveText([
+    'CLASS · 50 MIN',
+    'HOMEWORK',
+    'AT HOME',
+  ])
+  await kinds.getByRole('menuitem', { name: 'HOMEWORK' }).click()
+  await expect(kinds).toHaveCount(0)
+  await expect(
+    langs.getByRole('button', { name: /SAVING|SAVED/ }),
+  ).toBeVisible()
+  await expect(langs.getByTestId('lang-ENG')).toHaveText('ENG 2')
+  await expect(langs.getByTestId('lang-PT')).toHaveText('PT 1')
+  await page.screenshot({ ...shot('today-two-languages'), fullPage: true })
+})
+
+test('Today: 0 against 0 shows no comparison', async ({ page }) => {
+  await start(page)
+  await page.goto('/dashboard')
+  const post = page
+    .getByRole('region', { name: 'This month' })
+    .getByTestId('tile-post')
+  await expect(post.getByTestId('count')).toHaveText('0')
+  await expect(post.getByTestId('delta')).toHaveCount(0)
+  await expect(post.getByText('= SAME')).toHaveCount(0)
 })
 
 test('Today: NEXT, a pick from the day, and the month against September', async ({
@@ -51,13 +102,15 @@ test('Today: NEXT, a pick from the day, and the month against September', async 
   await testClient().mutation(anyApi.e2e.todayMonth, month())
   await page.goto('/dashboard')
 
-  const day = page.getByRole('region', { name: 'Today' })
-  await expect(day.getByTestId('next-title')).toHaveText('PT')
-  await expect(day.getByTestId('next-in')).toContainText(/^IN .* · 60 MIN$/)
+  const bar = page.getByTestId('task-bar')
+  await expect(bar.getByTestId('next-title')).toHaveText('PT')
+  await expect(bar.getByTestId('next-in')).toContainText(/^IN .* · 60 MIN$/)
 
-  await day.getByRole('button', { name: 'Pick PT' }).click()
-  await expect(day.getByTestId('slot-0').getByText('PT')).toBeVisible()
-  await expect(day.getByRole('button', { name: 'Pick PT' })).toHaveCount(0)
+  await bar.getByRole('button', { name: /＋ TASK/ }).click()
+  await bar.getByRole('menuitem', { name: 'Pick PT' }).click()
+  await expect(bar.getByTestId('task-chip').getByText('PT')).toBeVisible()
+  await bar.getByRole('button', { name: /＋ TASK/ }).click()
+  await expect(bar.getByRole('menuitem', { name: 'Pick PT' })).toHaveCount(0)
 
   const six = page.getByRole('region', { name: 'This month' })
   const work = six.getByTestId('tile-workout')

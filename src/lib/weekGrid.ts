@@ -11,7 +11,15 @@ export const BANDS = [
   { name: 'EVENING', short: 'EVE', startHour: 18, endHour: 24 },
 ] as const
 
-export type WeekKind = 'workout' | 'langs' | 'shake' | 'post' | 'commits'
+export type WeekKind =
+  | 'workout'
+  | 'langs'
+  | 'shake'
+  | 'post'
+  | 'commits'
+  /* A ticked task (25 Oct): where it was ticked. Intent, not activity — it
+     counts in no chip and no tile. */
+  | 'task'
 export const WEEK_KINDS: ReadonlyArray<WeekKind> = [
   'workout',
   'langs',
@@ -45,6 +53,16 @@ export function weekRows(
   const out: Array<WeekRow> = []
   for (const l of logs) {
     if (l.occurredAt < from || l.occurredAt >= to) continue
+    if (l.kind === 'task_done') {
+      /* No id: a tick is moved by ticking, not by dragging its log. */
+      out.push({
+        kind: 'task',
+        area: l.area,
+        at: l.occurredAt,
+        ...(l.text !== undefined ? { text: l.text } : {}),
+      })
+      continue
+    }
     const kind: WeekKind | null =
       l.kind === 'session' && languages.includes(l.area)
         ? 'langs'
@@ -120,12 +138,14 @@ export const KIND_NAME: Record<WeekKind, string> = {
   shake: 'SHAKE',
   post: 'POST',
   commits: 'COMMITS',
+  task: 'TASK',
 }
 
 /** The hover card's second line: `60 MIN · LEGS`, `1 SHAKE`, `4 COMMITS`. */
 export function detail(b: Block): string {
   if (b.kind === 'commits') return `${b.count} COMMITS`
   if (b.kind === 'shake') return '1 SHAKE'
+  if (b.kind === 'task') return b.text ?? 'TASK'
   if (b.kind === 'post')
     return b.text ? `1 POST · ${b.text.toUpperCase()}` : '1 POST'
   const mins = b.value !== undefined ? `${b.value} MIN` : null

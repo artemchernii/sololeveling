@@ -44,6 +44,7 @@ import type * as e2ePortfolio from "../e2ePortfolio.js";
 import type * as e2eRowsAsk from "../e2eRowsAsk.js";
 import type * as e2eSignals from "../e2eSignals.js";
 import type * as e2eTags from "../e2eTags.js";
+import type * as e2eToday from "../e2eToday.js";
 import type * as e2eTransfer from "../e2eTransfer.js";
 import type * as e2eUpdate from "../e2eUpdate.js";
 import type * as events from "../events.js";
@@ -150,6 +151,7 @@ declare const fullApi: ApiFromModules<{
   e2eRowsAsk: typeof e2eRowsAsk;
   e2eSignals: typeof e2eSignals;
   e2eTags: typeof e2eTags;
+  e2eToday: typeof e2eToday;
   e2eTransfer: typeof e2eTransfer;
   e2eUpdate: typeof e2eUpdate;
   events: typeof events;

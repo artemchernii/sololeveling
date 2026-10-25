@@ -233,7 +233,11 @@ export function WeekCard({
               className="flex items-center gap-1.5 rounded-full border border-lift/[0.09] px-2.5 py-[3px] font-mono text-[10px] tracking-[0.12em] text-ink-300"
             >
               <AreaIcon icon={ICON[c.kind]} area={c.area} size={14} />
-              <span className="hidden @2xl:inline">{c.name}</span>
+              <span
+                className={c.kind === 'langs' ? 'inline' : 'hidden @2xl:inline'}
+              >
+                {c.name}
+              </span>
               <b className="font-medium text-ink-100">
                 {count(c.kind, c.kind === 'langs' ? c.area : undefined)}
               </b>

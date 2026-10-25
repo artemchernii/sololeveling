@@ -102,7 +102,13 @@ export function BlockPill({
       className={`td-block flex h-[18px] min-w-6 items-center justify-center gap-1 rounded-[6px] bg-(--area) px-1.5 font-mono text-[8.5px] text-background transition-transform hover:z-10 hover:scale-110 ${movable ? 'cursor-grab' : 'cursor-default'}`}
     >
       <Icon aria-hidden className="size-[11px] shrink-0" strokeWidth={2} />
-      <span className="hidden @2xl:inline">{name}</span>
+      {/* A session says PT or ENG even on a phone (25 Oct): the two
+          languages share one icon. */}
+      <span
+        className={block.kind === 'langs' ? 'inline' : 'hidden @2xl:inline'}
+      >
+        {name}
+      </span>
     </div>
   )
 }

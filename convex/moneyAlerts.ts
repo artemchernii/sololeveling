@@ -218,7 +218,7 @@ async function decide(
     }))
     .filter((a) => APPROVAL_MARKS.includes(a.days))
 
-  /* C: the salary, from two days before its day to three after. Its
+  /* C: the salary, from five days before its day to three after. Its
      account is read until a row pays it. */
   let salary: {
     due: number

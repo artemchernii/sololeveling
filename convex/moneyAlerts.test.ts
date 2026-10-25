@@ -283,6 +283,37 @@ describe('C · salary in (S10)', () => {
     ])
   })
 
+  /* A 23rd on a Saturday: the salary of the 25th lands on Friday 22
+     Jan, three days early. */
+  test('paid three days before its day → rings', async () => {
+    const t = convexTest(schema, modules)
+    vi.setSystemTime(new Date(2027, 0, 23, 8).getTime())
+    const bpi = await account(t, ME, 'BPI', 3000)
+    const salary = await bill(t, ME, 'Bnp Paribas', 2668.98, 25, bpi, 'income')
+    await t.run((ctx) =>
+      ctx.db.insert('logs', {
+        ownerId: ME,
+        area: 'money',
+        kind: 'income',
+        occurredAt: Date.UTC(2027, 0, 22, 12),
+        value: 2674.76,
+        unit: 'eur',
+        text: 'BNP PARIBAS',
+        accountId: bpi,
+        meta: { raw: 'BNP PARIBAS', recurringId: salary },
+      }),
+    )
+    await morning(t)
+    expect(await sent(t)).toEqual([
+      {
+        kind: 'salary_in',
+        title: 'Salary in · €2,674.76',
+        body: 'BPI · 22 Jan',
+        url: '/finances',
+      },
+    ])
+  })
+
   test('not in yet → quiet', async () => {
     const t = convexTest(schema, modules)
     const bpi = await account(t, ME, 'BPI', 100)

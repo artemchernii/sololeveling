@@ -155,6 +155,12 @@
   & i[data-today='true'] {
     box-shadow: inset 0 0 0 1px var(--color-lav-300);
   }
+  /* Today with something in it (25 Oct: "border color and filled color
+     same. Hard to distinguish"): a ring in the ink, a gap off the fill. */
+  & i[data-today='true'][data-on='true'] {
+    outline: 1.5px solid var(--foreground);
+    outline-offset: 1.5px;
+  }
   & i[data-future='true'] {
     opacity: 0.35;
   }

@@ -1,16 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
-import { useMutation } from 'convex/react'
+import { useEffect, useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 import type { FunctionReturnType } from 'convex/server'
 
 import { api } from '../../../convex/_generated/api'
 import { useWorthHistory } from '@/lib/useWorthHistory'
-import { useSave } from '@/components/Saving'
 import { SkeletonRows } from '@/components/Skeleton'
 import { euros } from '@/lib/money'
 import { monthWorth } from '@/lib/monthSix'
 import type { Six } from '@/lib/monthSix'
 import { AreaIcon } from './AreaIcon'
+import { CountUp, PressButton, Spark, kEur } from './MonthParts'
+import type { Press } from './MonthParts'
 import type { ICONS } from './AreaIcon'
 
 type Counts = FunctionReturnType<typeof api.aggregate.monthSix>
@@ -70,12 +70,6 @@ type Tile = {
   /** LANGS: the badge of each language area, for its count chip. */
   langs?: Array<{ slug: string; short: string }>
 }
-type Press = {
-  label: string
-  kind: 'session' | 'workout' | 'intake' | 'post'
-  area: string
-  category?: string
-}
 
 /* THIS MONTH, his six (17 Oct; PLAN.md §3 item 4). Colour on the icon
    only. Each count against the month before, both numbers shown; a goal
@@ -104,6 +98,7 @@ export function MonthSix({
         label: `+ ${l.short}`,
         kind: 'session' as const,
         area: l.slug,
+        kinds: true,
       })),
       langs,
     },
@@ -374,116 +369,4 @@ function MonthTile({
       </div>
     </div>
   )
-}
-
-/** One log with a press: saving at once, saved, back to rest. */
-function PressButton({
-  press: p,
-  onLanded,
-}: {
-  press: Press
-  onLanded: () => void
-}) {
-  const log = useMutation(api.logs.create)
-  const save = useSave()
-  useEffect(() => {
-    if (save.status !== 'saved') return
-    const id = setTimeout(save.settle, 1800)
-    return () => clearTimeout(id)
-  }, [save.status, save.settle])
-
-  async function press() {
-    if (save.busy) return
-    await save.run(() =>
-      log({
-        kind: p.kind,
-        area: p.area,
-        occurredAt: Date.now(),
-        ...(p.category ? { category: p.category } : {}),
-      }),
-    )
-    onLanded()
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => void press()}
-      className={`h-[30px] rounded-full border px-3.5 font-mono text-[10px] tracking-[0.16em] transition-[background,box-shadow] ${
-        save.status === 'saving'
-          ? 'border-dashed border-lav-400/40 text-ink-400'
-          : save.status === 'saved'
-            ? 'border-lav-400 bg-lav-400 text-background'
-            : 'border-lav-400/40 text-lav-300 hover:bg-lav-400/12 hover:shadow-[0_0_16px_-4px_var(--color-lav-400)]'
-      }`}
-    >
-      {save.status === 'saving'
-        ? 'SAVING…'
-        : save.status === 'saved'
-          ? '✓ SAVED'
-          : p.label}
-    </button>
-  )
-}
-
-/** €44.9k, €820. */
-function kEur(n: number): string {
-  return Math.abs(n) >= 1000
-    ? `€${(n / 1000).toFixed(1)}k`
-    : euros(Math.round(n))
-}
-
-function Spark({ points }: { points: Array<number> }) {
-  if (points.length < 2) return <div className="h-[22px]" />
-  const lo = Math.min(...points)
-  const hi = Math.max(...points)
-  const span = hi - lo || 1
-  const d = points
-    .map(
-      (v, i) =>
-        `${i ? 'L' : 'M'}${((i / (points.length - 1)) * 100).toFixed(1)} ${(20 - ((v - lo) / span) * 18).toFixed(1)}`,
-    )
-    .join(' ')
-  return (
-    <svg
-      className="td-spark h-[22px] w-full"
-      viewBox="0 0 100 22"
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <path
-        d={d}
-        fill="none"
-        stroke="var(--color-lav-400)"
-        strokeWidth="2"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  )
-}
-
-/** The month's number counts up the first time it is drawn. */
-function CountUp({ to }: { to: number }) {
-  const [shown, setShown] = useState(to)
-  const first = useRef(true)
-  useEffect(() => {
-    if (!first.current) {
-      setShown(to)
-      return
-    }
-    first.current = false
-    if (to === 0) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const t0 = performance.now() + 300
-    let raf = 0
-    const step = (t: number) => {
-      const p = Math.min(1, Math.max(0, (t - t0) / 900))
-      setShown(Math.round(to * (1 - Math.pow(1 - p, 3))))
-      if (p < 1) raf = requestAnimationFrame(step)
-    }
-    raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
-  }, [to])
-  return <>{shown}</>
 }

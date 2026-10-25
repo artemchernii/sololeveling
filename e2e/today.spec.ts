@@ -68,6 +68,14 @@ test('Today: PT and ENG apart — chips, pills, the tile and its presses', async
   await expect(langs.getByTestId('lang-PT')).toHaveText('PT 1')
   await expect(langs.getByTestId('lang-ENG')).toHaveText('ENG 1')
   await langs.getByRole('button', { name: '+ ENG' }).click()
+  const kinds = langs.getByTestId('session-kinds')
+  await expect(kinds.getByRole('menuitem')).toHaveText([
+    'CLASS · 50 MIN',
+    'HOMEWORK',
+    'AT HOME',
+  ])
+  await kinds.getByRole('menuitem', { name: 'HOMEWORK' }).click()
+  await expect(kinds).toHaveCount(0)
   await expect(
     langs.getByRole('button', { name: /SAVING|SAVED/ }),
   ).toBeVisible()

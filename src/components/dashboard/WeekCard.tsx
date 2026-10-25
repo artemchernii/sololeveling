@@ -7,6 +7,7 @@ import type { FunctionReturnType } from 'convex/server'
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { SaveLabel, useSave } from '@/components/Saving'
+import { SESSION_KINDS } from '@/lib/sessionKinds'
 import { addDays, startOfWeek } from '@/lib/weeks'
 import {
   BANDS,
@@ -386,11 +387,11 @@ export function WeekCard({
             style={{
               left: Math.max(
                 8,
-                Math.min(menu.x - 110, (box.current?.clientWidth ?? 0) - 228),
+                Math.min(menu.x - 130, (box.current?.clientWidth ?? 0) - 268),
               ),
               top: menu.y + 44,
             }}
-            className="absolute z-40 w-[220px] rounded-[14px] border border-lift/[0.09] bg-popover p-2.5 shadow-2xl"
+            className="absolute z-40 w-[260px] rounded-[14px] border border-lift/[0.09] bg-popover p-2.5 shadow-2xl"
           >
             <div className="mb-2 font-mono text-[10px] tracking-[0.14em] text-ink-300">
               {DAYS[menu.day]} {new Date(dayStarts[menu.day]).getDate()} ·{' '}
@@ -414,32 +415,61 @@ export function WeekCard({
             {(cells?.[menu.band][menu.day].length ?? 0) > 0 ? (
               <div className="my-1.5 border-t border-lift/[0.09]" />
             ) : null}
-            {writes.map((w) => (
-              <button
-                key={w.key}
-                type="button"
-                role="menuitem"
-                aria-label={`Log ${w.name}`}
-                onClick={() => {
-                  const m = menu
-                  setMenu(null)
-                  void write(
-                    () =>
-                      create({
-                        kind: w.kind as 'workout',
-                        area: w.area,
-                        occurredAt: m.at,
-                        ...(w.category ? { category: w.category } : {}),
-                      }),
-                    `${m.band}-${m.day}`,
-                  )
-                }}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left font-mono text-[10.5px] tracking-[0.12em] text-ink-200 hover:bg-lift/[0.07]"
-              >
-                <AreaIcon icon={ICON[w.icon]} area={w.area} size={14} />
-                {w.name}
-              </button>
-            ))}
+            {writes.map((w) => {
+              const log = (extra: object = {}) => {
+                const m = menu
+                setMenu(null)
+                void write(
+                  () =>
+                    create({
+                      kind: w.kind as 'workout',
+                      area: w.area,
+                      occurredAt: m.at,
+                      ...(w.category ? { category: w.category } : {}),
+                      ...extra,
+                    }),
+                  `${m.band}-${m.day}`,
+                )
+              }
+              const row =
+                'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left font-mono text-[10.5px] tracking-[0.12em] text-ink-200'
+              /* A session says its kind, one tap (25 Oct), so Languages
+                 counts it. */
+              return w.kind === 'session' ? (
+                <div key={w.key} className={`${row} flex-wrap`}>
+                  <AreaIcon icon={ICON[w.icon]} area={w.area} size={14} />
+                  {w.name}
+                  <span className="flex flex-wrap gap-1">
+                    {SESSION_KINDS.map((k) => (
+                      <button
+                        key={k.category}
+                        type="button"
+                        role="menuitem"
+                        aria-label={`Log ${w.name} ${k.label}`}
+                        onClick={() =>
+                          log({ category: k.category, ...k.extra })
+                        }
+                        className="rounded-md border border-lift/[0.09] px-1.5 py-0.5 text-[9.5px] text-ink-300 hover:border-lav-400/50 hover:bg-lav-400/10 hover:text-ink-100"
+                      >
+                        {k.label}
+                      </button>
+                    ))}
+                  </span>
+                </div>
+              ) : (
+                <button
+                  key={w.key}
+                  type="button"
+                  role="menuitem"
+                  aria-label={`Log ${w.name}`}
+                  onClick={() => log()}
+                  className={`${row} hover:bg-lift/[0.07]`}
+                >
+                  <AreaIcon icon={ICON[w.icon]} area={w.area} size={14} />
+                  {w.name}
+                </button>
+              )
+            })}
           </div>
         ) : null}
       </div>

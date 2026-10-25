@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Today mockup · three</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Light theme, as his screen on 25 Oct. Values approximate src/styles/tokens.css. */
+  :root {
+    --bg: #f1ece6;
+    --ink-100: #1d1c26; --ink-200: #2f2e3a; --ink-300: #4a4958; --ink-400: #6d6c7d; --ink-500: #8d8c9c; --ink-600: #adacba;
+    --lav: #6b5fd6; --lav-soft: rgba(107,95,214,.12);
+    --good: oklch(0.55 0.15 150); --bad: oklch(0.55 0.2 22);
+    --glass: rgba(255,255,255,.62);
+    --edge: rgba(30,28,45,.08);
+    --shadow: 0 1px 0 rgba(255,255,255,.8) inset, 0 18px 40px -26px rgba(40,30,80,.35);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --a-lang: oklch(0.55 0.1 260); --a-body: oklch(0.55 0.18 15); --a-proj: oklch(0.55 0.15 352); --a-shake: oklch(0.6 0.12 88);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(900px 500px at 0% -10%, #ddd6f3 0%, transparent 60%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 13px; min-height: 100vh }
+  button, input { font: inherit; color: inherit; background: none; border: 0 }
+  button { cursor: pointer }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-400) }
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; padding: 12px 16px 0; font-family: var(--mono); font-size: 11px; letter-spacing:.08em }
+  .ctl button { color: var(--ink-300); background: rgba(255,255,255,.6); border: 1px solid var(--edge); border-radius: 999px; padding: 4px 11px }
+  .ctl button.on { color: var(--ink-100); border-color: var(--lav); box-shadow: 0 0 0 1px var(--lav) inset }
+  .page { max-width: 1000px; margin: 0 auto; padding: 22px 16px 80px; display:flex; flex-direction:column; gap: 18px }
+  .card { position: relative; border-radius: 18px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 20px 22px }
+  .card:first-child { z-index: 3 }
+  .ch { display:flex; justify-content:space-between; align-items:center }
+  .ch b { color: var(--ink-200); font-weight: 500 }
+  .rule { border-top: 1px solid var(--edge); margin: 16px 0 0 }
+  .badge { border: 1px solid currentColor; border-radius: 999px; padding: 3px 9px; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--lav) }
+
+  /* THREE head: one row, the picker at its right */
+  .head { display:flex; align-items:center; gap: 12px; padding-top: 14px }
+  .head .grow { flex: 1 }
+  .pick { position: relative }
+  .pickbtn { display:inline-flex; align-items:center; gap: 8px; border: 1px solid color-mix(in oklch, var(--lav) 45%, transparent); border-radius: 999px;
+    padding: 6px 12px 6px 10px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em; color: var(--lav); transition: box-shadow .2s, background .2s }
+  .pickbtn:hover, .pickbtn.open { background: var(--lav-soft); box-shadow: 0 0 18px -8px var(--lav) }
+  .pickbtn .chev { transition: transform .2s }
+  .pickbtn.open .chev { transform: rotate(180deg) }
+  .menu { position:absolute; right: 0; top: calc(100% + 8px); width: 340px; z-index: 5; border-radius: 14px; border: 1px solid var(--edge);
+    background: rgba(255,255,255,.96); backdrop-filter: blur(14px); box-shadow: 0 24px 50px -20px rgba(40,30,80,.45); padding: 8px;
+    animation: drop .18s cubic-bezier(.2,.8,.2,1) both; transform-origin: top right }
+  @keyframes drop { from { opacity: 0; transform: translateY(-4px) scale(.98) } }
+  .own { display:flex; align-items:center; gap: 10px; border: 1px solid var(--edge); border-radius: 10px; padding: 9px 10px; background: #fff }
+  .own input { flex: 1; outline: none; font-size: 14px }
+  .own input::placeholder { color: var(--ink-500) }
+  .own kbd { font-family: var(--mono); font-size: 10px; color: var(--ink-500); border: 1px solid var(--edge); border-radius: 5px; padding: 1px 5px }
+  .mlabel { padding: 12px 8px 6px }
+  .opt { display:flex; align-items:center; gap: 10px; width: 100%; text-align: left; padding: 9px 8px; border-radius: 9px; font-size: 14px }
+  .opt:hover { background: var(--lav-soft) }
+  .opt .t { flex: 1 }
+  .opt .a { font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; color: var(--ink-500) }
+  .ico { width: 22px; height: 22px; border-radius: 7px; display:grid; place-items:center; font-size: 12px; background: rgba(30,28,45,.05) }
+
+  /* picked rows */
+  .slot { display:flex; align-items:center; gap: 12px; padding: 11px 4px; border-top: 1px solid var(--edge); animation: arrive .4s cubic-bezier(.2,.8,.2,1) both }
+  .slot:first-child { margin-top: 10px }
+  @keyframes arrive { from { opacity:0; transform: translateY(6px) } }
+  .slot .k { font-family: var(--mono); font-size: 10px; color: var(--ink-500); width: 16px }
+  .tick { width: 18px; height: 18px; border-radius: 6px; border: 1.5px solid var(--ink-500); display:grid; place-items:center }
+  .slot.done .tick { background: var(--lav); border-color: var(--lav); color: #fff }
+  .slot .n { flex: 1; font-size: 15px }
+  .slot.done .n { color: var(--ink-400); text-decoration: line-through; text-decoration-color: var(--ink-500) }
+  .slot .x { color: var(--ink-500); opacity: .5 }
+
+  /* month tiles */
+  .tiles { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px }
+  .tile { border: 1px solid var(--edge); border-radius: 16px; padding: 20px 22px; background: rgba(255,255,255,.45) }
+  .tile .th { display:flex; align-items:center; gap: 12px }
+  .num { display:flex; align-items: center; gap: 18px; margin-top: 16px; min-height: 76px }
+  .num .big { font-size: 64px; font-weight: 300; line-height: 1 }
+  .delta { display:flex; flex-direction: column; gap: 6px }
+  .delta .d { font-family: var(--mono); font-size: 15px }
+  .dots { display:flex; gap: 4px; margin-top: 14px }
+  .dots i { flex: 1; height: 14px; border-radius: 4px; background: rgba(30,28,45,.06) }
+  .dots i.today { background: transparent; box-shadow: 0 0 0 1.5px var(--lav) inset }
+  .dots i.after { background: rgba(30,28,45,.025) }
+  .tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; color: var(--ink-500); margin-left: auto }
+  .was { position:absolute; left: 14px; top: -10px; background: var(--bg); padding: 0 6px }
+  .wrap { position: relative }
+  .wk { display:flex; gap: 10px; align-items:center; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--edge) }
+  .wk b { font-family: var(--mono); font-size: 12px; color: var(--ink-200); font-weight: 500 }
+  .wk .now b { color: var(--lav) }
+  .split { display:flex; gap: 8px; margin-top: 8px }
+  .chip { display:inline-flex; align-items:center; gap: 6px; border: 1px solid var(--edge); border-radius: 999px; padding: 3px 9px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--ink-300); background: rgba(255,255,255,.6) }
+  .chip b { color: var(--ink-100); font-weight: 500 }
+  .presses { display:flex; gap: 8px; justify-content:flex-end; margin-top: 14px }
+  .press { border: 1px solid color-mix(in oklch, var(--lav) 45%, transparent); border-radius: 999px; padding: 8px 16px; font-family: var(--mono); font-size: 11px; letter-spacing: .18em; color: var(--lav); transition: background .2s, box-shadow .2s }
+  .press:hover { background: var(--lav-soft); box-shadow: 0 0 18px -8px var(--lav) }
+  .ring { margin-left:auto; font-family: var(--mono); font-size: 11px; color: var(--ink-400); letter-spacing: .1em }
+  .dots i.on { background: var(--lav) }
+  .wchips { display:flex; gap: 6px; flex-wrap: wrap; justify-content:flex-end }
+  .grid { display:grid; grid-template-columns: 90px repeat(7, 1fr); gap: 6px; margin-top: 16px; align-items: center }
+  .grid .dh { text-align:center; font-family: var(--mono); font-size: 10.5px; letter-spacing:.16em; color: var(--ink-400) }
+  .grid .dh.now { color: var(--lav) }
+  .grid .cell { min-height: 46px; border: 1px solid var(--edge); border-radius: 10px; background: rgba(255,255,255,.5); display:flex; flex-direction:column; gap: 4px; align-items:center; justify-content:center; padding: 5px }
+  .grid .cell.now { border-color: var(--lav); box-shadow: 0 0 0 1px var(--lav) inset }
+  .grid .cell.after { background: rgba(255,255,255,.2) }
+  .tg { font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em; color: #fff; border-radius: 6px; padding: 3px 7px; white-space: nowrap }
+  .tg.c { background: oklch(0.5 0.13 352) } .tg.pt { background: oklch(0.5 0.12 152) } .tg.en { background: oklch(0.5 0.12 69) }
+  .grid { grid-template-columns: 96px repeat(7, 1fr) !important }
+  .grid .cell.three { align-items: stretch; justify-content: flex-start; min-height: 52px }
+  .grid .cell.three.past { align-items:center; justify-content:center }
+  .grid .cell.tcell { border-color: var(--lav); box-shadow: 0 0 0 1px var(--lav) inset; position: relative; z-index: 4; align-items: stretch; padding: 8px }
+  .tcell .top { display:flex; align-items:center; gap: 8px }
+  .tcell .top .grow { flex: 1 }
+  .tcell .pickbtn { padding: 4px 9px; font-size: 9.5px }
+  .tcell .slot { padding: 6px 2px; gap: 7px; margin: 0 !important }
+  .tcell .slot:first-child { border-top: 0 }
+  .tcell .slot .n { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0 }
+  .tcell .slot .k { display:none }
+  .tcell .slot .ico { width: 18px; height: 18px; font-size: 10px }
+  .tcell .tick { width: 15px; height: 15px; font-size: 10px; flex: none }
+  .tg.t3 { background: transparent; color: var(--ink-300); border: 1px solid var(--edge) }
+  .tg.t3.all { color: var(--lav); border-color: var(--lav) }
+  .menu { width: 320px }
+  .taskbar { display:flex; align-items:center; gap: 10px; margin-top: 14px; padding: 8px 10px; border: 1px dashed var(--edge); border-radius: 12px }
+  .taskbar .grow { flex: 1 }
+  .tg.tk { background: var(--lav) }
+  .tg.open { background: transparent; color: var(--lav); border: 1px solid var(--lav); cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis }
+  .tg.open.done { background: var(--lav); color: #fff }
+  #slots { display: none }
+  .grid > * { min-width: 0 }
+  .grid .cell { overflow: hidden }
+  .tg { max-width: 100%; overflow: hidden; text-overflow: ellipsis }
+  .grid .dh { white-space: nowrap; overflow: hidden }
+  .taskbar > .caps, .badge { white-space: nowrap }
+  .barchips { display:flex; gap: 8px; flex-wrap: wrap; min-width: 0 }
+  .tchip { display:inline-flex; align-items:center; gap: 8px; border: 1px solid var(--edge); background: rgba(255,255,255,.75); border-radius: 999px; padding: 4px 12px 4px 6px; font-size: 13px; animation: arrive .35s cubic-bezier(.2,.8,.2,1) both }
+  .tchip .ico { width: 18px; height: 18px; font-size: 10px }
+  .tbox { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--ink-500); display:grid; place-items:center; font-size: 10px; color: #fff }
+  .tchip.done { border-color: color-mix(in oklch, var(--lav) 40%, transparent) }
+  .tchip.done .tbox { background: var(--lav); border-color: var(--lav) }
+  .tchip.done span:last-child { color: var(--ink-400); text-decoration: line-through }
+  @media (max-width: 640px) { .tiles { grid-template-columns: 1fr } .menu { width: calc(100vw - 64px) } }
+</style>
+</head>
+<body>
+<div class="ctl" id="ctl">
+  <button data-s="empty" class="on">0 PICKED</button>
+  <button data-s="open">PICK OPEN</button>
+  <button data-s="one">1 PICKED</button>
+  <button data-s="full">3 PICKED</button>
+</div>
+
+<div class="page">
+<div id="stash" hidden><span class="badge" id="count">0 OF 3</span>
+      <div class="pick" id="pick">
+        <button class="pickbtn" id="pickbtn">＋ TASK <span class="chev">▾</span></button>
+        <div class="menu" id="menu" hidden>
+          <label class="own"><input placeholder="own task" /><kbd>↵</kbd></label>
+          <div class="caps mlabel">Suggested</div>
+          <button class="opt"><span class="ico" style="color:var(--a-lang)">文</span><span class="t">Portuguese sessions each month</span><span class="a">LANGS</span></button>
+          <button class="opt"><span class="ico" style="color:var(--a-body)">🏋</span><span class="t">Workouts each month</span><span class="a">BODY</span></button>
+          <button class="opt"><span class="ico" style="color:var(--a-proj)">◆</span><span class="t">SoloLeveling · next task</span><span class="a">PROJECTS</span></button>
+        </div>
+      </div>
+<div id="slots"></div></div>
+
+  <section class="card">
+    <div class="ch"><span class="caps">This week · <b>19 – 25 Oct</b> · now <b style="color:var(--lav)">12:52</b></span><span class="wchips" id="wchips"></span></div>
+    <div class="taskbar"><span class="caps">Tasks today</span><span id="cslot"></span><span id="barchips" class="barchips"></span><span class="grow"></span><span id="pslot"></span></div>
+    <div class="grid" id="grid"></div>
+    <div class="rule" style="margin-top:22px"></div>
+    <div class="ch" style="margin-top:18px"><span class="caps">This month · <b>October</b></span><span class="caps">Day 25 of 31</span></div>
+    <div class="tiles" id="tiles"></div>
+  </section>
+</div>
+
+<script>
+  const TILES = [
+    { n:'Langs', ico:'文', c:'var(--a-lang)', v:'3', ring:'3 / 4', d:['▼ 4','bad','September 7'], split:[['PT',2],['ENG',1]], wk:[2,3], on:[13,18,21], press:['+ PT','+ ENG'] },
+    { n:'Workout', ico:'🏋', c:'var(--a-body)', v:'0', ring:'0 / 12', d:['▼ 7','bad','September 7'], wk:[0,2], on:[], press:['+ WORKOUT'] },
+    { n:'Shake', ico:'🥤', c:'var(--a-shake)', v:'0', d:['▼ 1','bad','September 1'], wk:[0,0], on:[], press:['+ SHAKE'] },
+    { n:'Post', ico:'✈', c:'var(--a-body)', v:'0', d:null, wk:[0,0], on:[], press:['+ POST'] },
+    { n:'Commits', ico:'⊸', c:'var(--a-proj)', v:'637', d:['▲ 226','good','September 411'], wk:[118,140], on:[...Array(25).keys()] },
+    { n:'Worth', ico:'↗', c:'var(--a-shake)', v:'€64.7k', d:['▲ €1,942','good','Sep 30 · €44.8k'], wk:null, on:null },
+  ]
+  document.getElementById('tiles').innerHTML = TILES.map((t) => `
+    <div class="tile">
+      <div class="th"><span class="ico" style="color:${t.c}">${t.ico}</span><span class="caps" style="color:var(--ink-200)">${t.n}</span>${t.ring ? `<span class="ring">◔ ${t.ring}</span>` : ''}</div>
+      <div class="num"><span class="big">${t.v}</span>${t.d ? `<div class="delta"><span class="d" style="color:var(--${t.d[1]})">${t.d[0]}</span><span class="caps">${t.d[2]}</span></div>` : ''}</div>
+      ${t.split ? `<div class="split">${t.split.map(([k, v]) => `<span class="chip">${k} <b>${v}</b></span>`).join('')}</div>` : ''}
+      ${t.on ? `<div class="dots">${Array.from({ length: 31 }, (_, i) => `<i class="${t.on.includes(i) ? 'on' : i === 24 ? 'today' : i > 24 ? 'after' : ''}"></i>`).join('')}</div>` : ''}
+      ${false && t.wk ? `<div class="wk"><span class="caps now">This week <b>${t.wk[0]}</b></span><span class="caps">·</span><span class="caps">Last week <b>${t.wk[1]}</b></span></div>` : ''}
+      ${t.press ? `<div class="presses">${t.press.map((p) => `<button class="press">${p}</button>`).join('')}</div>` : ''}
+    </div>`).join('')
+  const DAYS = ['MON 19','TUE 20','WED 21','THU 22','FRI 23','SAT 24','SUN 25']
+  const C = '<span class="tg c">⊸ COMMITS</span>', PT = '<span class="tg pt">文 PT</span>', EN = '<span class="tg en">文 ENG</span>'
+  const K = (t) => `<span class="tg tk" title="${t}">✓ TASK</span>`
+  const G = { MORNING: [C,C,C,C,C,C,''], AFTERNOON: [C,'',C+K('Bank fix'),C,'',C,EN+'<span id="nowtasks"></span>'], EVENING: [C,C,C,C+PT,'',C,''] }
+  const DONE = [3, 2, 3, 1, 0, 2]
+  document.getElementById('grid').innerHTML = '<span></span>' + DAYS.map((d, i) => `<span class="dh ${i === 6 ? 'now' : ''}">${d}</span>`).join('') +
+
+    Object.entries(G).map(([k, row]) => `<span class="caps">${k}</span>` + row.map((c, i) => `<div class="cell ${i === 6 && k === 'AFTERNOON' ? 'now' : ''}">${c}</div>`).join('')).join('')
+  document.getElementById('wchips').innerHTML = [['🏋 WORKOUT',0],['文 PT',1],['文 ENG',1],['🥤 SHAKE',0],['✈ POST',0],['⊸ COMMITS',118]].map(([k, v]) => `<span class="chip">${k} <b>${v}</b></span>`).join('')
+  document.getElementById('cslot').append(document.getElementById('count'))
+  document.getElementById('pslot').append(document.getElementById('pick'))
+  for (const d of document.querySelectorAll('[data-dots]'))
+    d.innerHTML = Array.from({ length: 31 }, (_, i) => `<i class="${i === 24 ? 'today' : i > 24 ? 'after' : ''}"></i>`).join('')
+  const TASKS = ['Portuguese sessions each month', 'Ship Today’s three picker', 'Workouts each month']
+  const ICON = ['<span class="ico" style="color:var(--a-lang)">文</span>', '<span class="ico" style="color:var(--a-proj)">◆</span>', '<span class="ico" style="color:var(--a-body)">🏋</span>']
+  function show(s) {
+    for (const b of document.querySelectorAll('#ctl button')) b.classList.toggle('on', b.dataset.s === s)
+    const n = s === 'one' ? 1 : s === 'full' ? 3 : 0
+    document.getElementById('count').textContent = s === 'full' ? '1 OF 3 DONE' : `${n} OF 3`
+    document.getElementById('pick').style.display = n === 3 ? 'none' : ''
+    const open = s === 'open'
+    document.getElementById('menu').hidden = !open
+    document.getElementById('pickbtn').classList.toggle('open', open)
+    document.getElementById('nowtasks').innerHTML = s === 'full' ? `<span class="tg tk" title="${TASKS[0]}">✓ TASK</span>` : ''
+    document.getElementById('barchips').innerHTML = TASKS.slice(0, n).map((t, i) => { const d = s === 'full' && i === 0; return `<span class="tchip ${d ? 'done' : ''}"><span class="tbox">${d ? '✓' : ''}</span>${ICON[i]}<span>${t}</span></span>` }).join('')
+    document.getElementById('slots').innerHTML = TASKS.slice(0, n).map((t, i) =>
+      `<div class="slot ${s === 'full' && i === 0 ? 'done' : ''}"><span class="k">0${i + 1}</span><span class="tick">${s === 'full' && i === 0 ? '✓' : ''}</span>${ICON[i]}<span class="n">${t}</span><span class="x">✕</span></div>`).join('')
+  }
+  for (const b of document.querySelectorAll('#ctl button')) b.onclick = () => show(b.dataset.s)
+  document.getElementById('pickbtn').onclick = () => show(document.getElementById('menu').hidden ? 'open' : 'empty')
+  show('empty')
+</script>
+</body>
+</html>

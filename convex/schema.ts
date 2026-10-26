@@ -257,6 +257,17 @@ export default defineSchema({
     .index('by_owner_order', ['ownerId', 'order'])
     .index('by_owner_slug', ['ownerId', 'slug']),
 
+  /* R8 · S2 (26 Oct, docs/specs/2026-10-26-first-run.md): what a person
+     answered on their first open. Its existence ends the first run; the
+     zone is read from their device then, and their reminders follow it.
+     Artem has none — his logs already say he is not new, and his zone is
+     OWNER_ZONE. Name and avatar are Clerk's, not here. */
+  profiles: defineTable({
+    ownerId: v.string(),
+    timezone: v.string(),
+    firstRunAt: v.number(),
+  }).index('by_owner', ['ownerId']),
+
   goals: defineTable({
     ownerId: v.string(),
     title: v.string(),

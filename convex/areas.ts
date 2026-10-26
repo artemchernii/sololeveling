@@ -278,42 +278,51 @@ export const addLanguage = mutation({
   returns: v.string(),
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
-    const language = languageByCode(args.lang)
-    if (language === undefined) throw new Error('NO_SUCH_LANGUAGE')
-
-    const areas = await ownedAreas(ctx, ownerId)
-    const label = areaLabelFor(language)
-    const slug = slugify(label)
-    if (slug === null) throw new Error('AREA_NEEDS_A_NAME')
-    const existing =
-      areas.find((a) => a.lang === language.code) ??
-      areas.find((a) => a.slug === slug)
-    if (existing !== undefined) {
-      await ctx.db.patch(existing._id, {
-        track: 'language',
-        lang: language.code,
-        retiredAt: undefined,
-        replacedBy: undefined,
-      })
-      return existing.slug
-    }
-    await ctx.db.insert('areas', {
-      ownerId,
-      slug,
-      label,
-      hue: nextHue(areas.map((a) => a.hue)),
-      order: areas.length,
-      track: 'language',
-      lang: language.code,
-      /* Silver (26 Sep): a language's colour is its flag and its photo.
-         A hue of its own sat beside the lavender frame and the green that
-         means "done" and read as a mess ("not organic"). A hue is still
-         one tap away in Settings. */
-      silver: true,
-    })
-    return slug
+    return await addLanguageFor(ctx, ownerId, args.lang)
   },
 })
+
+/** addLanguage's body, shared with the first run (convex/profiles.ts). */
+export async function addLanguageFor(
+  ctx: MutationCtx,
+  ownerId: string,
+  code: string,
+): Promise<string> {
+  const language = languageByCode(code)
+  if (language === undefined) throw new Error('NO_SUCH_LANGUAGE')
+
+  const areas = await ownedAreas(ctx, ownerId)
+  const label = areaLabelFor(language)
+  const slug = slugify(label)
+  if (slug === null) throw new Error('AREA_NEEDS_A_NAME')
+  const existing =
+    areas.find((a) => a.lang === language.code) ??
+    areas.find((a) => a.slug === slug)
+  if (existing !== undefined) {
+    await ctx.db.patch(existing._id, {
+      track: 'language',
+      lang: language.code,
+      retiredAt: undefined,
+      replacedBy: undefined,
+    })
+    return existing.slug
+  }
+  await ctx.db.insert('areas', {
+    ownerId,
+    slug,
+    label,
+    hue: nextHue(areas.map((a) => a.hue)),
+    order: areas.length,
+    track: 'language',
+    lang: language.code,
+    /* Silver (26 Sep): a language's colour is its flag and its photo.
+       A hue of its own sat beside the lavender frame and the green that
+       means "done" and read as a mess ("not organic"). A hue is still
+       one tap away in Settings. */
+    silver: true,
+  })
+  return slug
+}
 
 /** His order, as the whole list. Every slug he owns, once. */
 export const reorder = mutation({

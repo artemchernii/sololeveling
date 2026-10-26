@@ -6,7 +6,8 @@
 <title>First run mockup</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
-  /* R8 · S2 — a friend's first open: NAME, then LANGUAGE. Dark Nocturne,
+  /* R8 · S2 — a friend's first open: LANGUAGE only (26 Oct, "yes, language
+     only; HUNTER instead of 'you'"); name and avatar come from Clerk. Dark Nocturne,
      values from src/styles/tokens.css; the window is the System window
      (system-frame / system-title in src/styles.css). Served from the repo
      root so the language photos come from public/languages. */
@@ -143,15 +144,14 @@
   <button data-k="name" data-v="Marta" class="on">MARTA</button>
   <button data-k="name" data-v="">NONE → HUNTER</button>
   <span>&nbsp;·&nbsp; STEP</span>
-  <button data-k="step" data-v="1" class="on">1 NAME</button>
-  <button data-k="step" data-v="2">2 LANGUAGE</button>
+  <button data-k="step" data-v="2" class="on">LANGUAGE</button>
   <button data-k="step" data-v="3">TODAY</button>
 </div>
 
 <div class="stage" id="stage"></div>
 
 <script>
-  const S = { signup: 'Marta', name: 'MARTA', step: 1, lang: null, tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Lisbon' }
+  const S = { signup: 'Marta', name: 'MARTA', step: 2, lang: null, tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Lisbon' }
   const LANGS = [
     { code: 'pt-PT', name: 'Portuguese', nat: 'Português', flag: '🇵🇹', photo: '/public/languages/pt-PT.jpg', focus: '50% 92%' },
     { code: 'en', name: 'English', nat: 'English', flag: '🇬🇧', photo: '/public/languages/en.jpg', focus: '50% 66%' },
@@ -162,7 +162,7 @@
   function frame(body, foot) {
     return `<div class="sys" id="sys">
       <div class="top"><span class="title">[ FIRST RUN ]</span>
-        <span class="dots"><i class="${S.step >= 1 ? 'on' : ''}"></i><i class="${S.step >= 2 ? 'on' : ''}"></i></span></div>
+        </div>
       <div class="step">${body}</div>
       <div class="foot">${foot}</div></div>`
   }
@@ -198,13 +198,12 @@
            <button class="lang none ${S.lang === 'none' ? 'on' : ''}" data-l="none"><span class="tick">✓</span><span class="n">NONE</span><span class="nat">NO LANGUAGES ROOM</span></button>
          </div>
          <div class="tz"><span class="caps">TIMEZONE</span><b>${S.tz}</b><span class="badge grey">FROM THIS DEVICE</span></div>`,
-        `<button class="back" id="back">← BACK</button><button class="go" id="go" ${S.lang ? '' : 'disabled'}>GO</button>`)
+        `<button class="back" hidden>BACK</button><button class="go" id="go" ${S.lang ? '' : 'disabled'}>GO</button>`)
       stage.querySelectorAll('.lang').forEach(b => b.onclick = () => {
         S.lang = b.dataset.l
         stage.querySelectorAll('.lang').forEach(x => x.classList.toggle('on', x === b))
         document.getElementById('go').disabled = false
       })
-      document.getElementById('back').onclick = () => { S.step = 1; render() }
       document.getElementById('go').onclick = save
     }
   }
@@ -248,7 +247,7 @@
   }
   document.getElementById('ctl').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return
-    if (b.dataset.k === 'name') { S.signup = b.dataset.v; S.name = b.dataset.v ? b.dataset.v.toUpperCase() : 'HUNTER'; S.step = 1 }
+    if (b.dataset.k === 'name') { S.signup = b.dataset.v; S.name = b.dataset.v ? b.dataset.v.toUpperCase() : 'HUNTER'; S.step = 2; S.lang = null }
     else { S.step = Number(b.dataset.v); if (S.step === 3 && !S.lang) S.lang = 'en' }
     render()
   })

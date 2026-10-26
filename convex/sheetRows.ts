@@ -7,7 +7,13 @@ import type { Reading } from '../src/lib/cashHistory'
 import { query } from './_generated/server'
 import type { QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
-import { cameLine, isT212Log, logLine, ownReads } from './t212History'
+import {
+  cameLine,
+  isT212Log,
+  logLine,
+  ownReads,
+  tradeLine,
+} from './t212History'
 
 /* The account sheet's rows (split from aggregate.ts, 12 Oct). Revolut,
    connected to its bank, opened on hundreds of rows at once and the sheet
@@ -45,8 +51,9 @@ export const sheetRow = v.object({
   /** A typed row on a day a balance already covers: that balance's time —
       the row changed no balance after it. */
   inside: v.union(v.number(), v.null()),
-  /** Trading 212's own row (19 Oct): as its card shows it, badge and all. */
-  t212: v.union(cameLine, v.null()),
+  /** As the card shows it, badge and all: Trading 212's own rows (19 Oct)
+      and every broker's trades (25 Oct, "Revolut too"). */
+  line: v.union(cameLine, v.null()),
 })
 type SheetRow = Infer<typeof sheetRow>
 
@@ -104,8 +111,8 @@ export async function buildSheetRows(
     if (kind === null || l.value === undefined) continue
     /* Trading 212's rows are its, not typed: deleting one would only
        bring it back with the next answer. */
-    const t212 = isT212Log(l) ? await logLine(read, l) : null
-    const typed = l.meta?.intakeId === undefined && t212 === null
+    const line = isT212Log(l) ? await logLine(read, l) : null
+    const typed = l.meta?.intakeId === undefined && line === null
     const cover = typed
       ? coveredBy(l.occurredAt, coverOf.get(l.unit ?? '') ?? [])
       : null
@@ -122,26 +129,18 @@ export async function buildSheetRows(
       ...(await sideOf(l)),
       fileId: l.meta?.intakeId ?? null,
       inside: cover?.at ?? null,
-      t212,
+      line,
     })
   }
-  const symbols = new Map<Id<'instruments'>, string>()
   for (const t of trades) {
-    if (!symbols.has(t.instrumentId)) {
-      const i = await ctx.db.get(t.instrumentId)
-      symbols.set(
-        t.instrumentId,
-        i !== null && i.ownerId === ownerId ? i.symbol : 'A share',
-      )
-    }
-    const cost = Math.round(t.shares * t.priceEur * 100) / 100
+    const line = await tradeLine(read, t)
     out.push({
       id: t._id,
       at: t.occurredAt,
       kind: t.side,
-      amount: t.side === 'buy' ? -cost : cost,
+      amount: line.amount,
       currency: 'EUR',
-      text: `${symbols.get(t.instrumentId)} · ${Math.round(t.shares * 1e6) / 1e6} sh`,
+      text: line.name,
       category: null,
       other: null,
       logId: null,
@@ -149,7 +148,7 @@ export async function buildSheetRows(
       sideLogId: null,
       fileId: t.importId ?? null,
       inside: null,
-      t212: null,
+      line,
     })
   }
   out.sort((a, b) => b.at - a.at)

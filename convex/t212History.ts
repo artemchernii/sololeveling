@@ -434,6 +434,27 @@ export async function logLine(read: OwnReads, l: Doc<'logs'>): Promise<Line> {
   }
 }
 
+/** A trade as the card and the opened account show it: BUY or SELL, the
+    company, its shares at their price, the euros (any broker's, 25 Oct). */
+export async function tradeLine(
+  read: OwnReads,
+  t: Doc<'trades'>,
+): Promise<Line> {
+  const inst = await read.instrument(t.instrumentId)
+  const sum = Math.round(t.shares * t.priceEur * 100) / 100
+  return {
+    kind: t.side,
+    at: t.occurredAt,
+    name: inst?.name ?? inst?.symbol ?? '',
+    symbol: inst?.symbol ?? null,
+    shares: t.shares,
+    each: t.priceEur,
+    amount: t.side === 'buy' ? -sum : sum,
+    currency: 'EUR',
+    other: null,
+  }
+}
+
 /** What the answers since the block opened wrote, for the card: how many,
     how many a file had, and the newest three as lines. Rows he removed
     since are not counted. */
@@ -443,24 +464,12 @@ export async function cameOnCard(
   came: NonNullable<Doc<'bankLinks'>['came']>,
 ) {
   const lines: Array<Line> = []
+  const read = ownReads(ctx, ownerId)
   for (const id of came.trades) {
     const t = await ctx.db.get(id)
     if (t === null || t.ownerId !== ownerId) continue
-    const inst = await ctx.db.get(t.instrumentId)
-    const sum = Math.round(t.shares * t.priceEur * 100) / 100
-    lines.push({
-      kind: t.side,
-      at: t.occurredAt,
-      name: inst?.name ?? '',
-      symbol: inst?.symbol ?? null,
-      shares: t.shares,
-      each: t.priceEur,
-      amount: t.side === 'buy' ? -sum : sum,
-      currency: 'EUR',
-      other: null,
-    })
+    lines.push(await tradeLine(read, t))
   }
-  const read = ownReads(ctx, ownerId)
   for (const id of came.logs) {
     const l = await ctx.db.get(id)
     if (l === null || l.ownerId !== ownerId) continue

@@ -153,6 +153,61 @@ test("a broker's trades come a page at a time with the rows", async () => {
   )
 })
 
+/* 25 Oct, his "BUY/SELL badge rows for every broker's trades, Revolut
+   too": a trade is a line as the card shows it — badge, company, shares
+   at their price, euros. */
+test("a broker's trade is a BUY or SELL line with its company", async () => {
+  const { t, me, accountId } = await revolutWith(0)
+  await t.run(async (ctx) => {
+    await ctx.db.patch(accountId, { kinds: ['bank', 'broker'] })
+    const instrumentId = await ctx.db.insert('instruments', {
+      ownerId: ME,
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      exchange: 'NMS',
+      currency: 'USD',
+      type: 'EQUITY',
+    })
+    for (const [side, at] of [
+      ['buy', 1],
+      ['sell', 2],
+    ] as const)
+      await ctx.db.insert('trades', {
+        ownerId: ME,
+        accountId,
+        instrumentId,
+        side,
+        shares: 2,
+        priceEur: 150,
+        occurredAt: Date.UTC(2026, 9, at),
+      })
+  })
+  const page = (await me.query(api.sheetRows.page, { accountId, show: 20 }))!
+  const lines = page.rows.filter((r) => r.kind === 'buy' || r.kind === 'sell')
+  expect(lines.map((r) => [r.kind, r.amount, r.line])).toEqual([
+    [
+      'sell',
+      300,
+      {
+        kind: 'sell',
+        at: Date.UTC(2026, 9, 2),
+        name: 'NVIDIA',
+        symbol: 'NVDA',
+        shares: 2,
+        each: 150,
+        amount: 300,
+        currency: 'EUR',
+        other: null,
+      },
+    ],
+    [
+      'buy',
+      -300,
+      expect.objectContaining({ kind: 'buy', name: 'NVIDIA', amount: -300 }),
+    ],
+  ])
+})
+
 /* 13 Oct, his ActivoBank: a screenshot read €90.35, then the bank answered
    €90.35 on each of the next two days — and all three balances showed the
    screenshot as their file. */

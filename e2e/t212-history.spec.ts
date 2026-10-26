@@ -124,7 +124,7 @@ const opened = async (page: Page) => {
   await card(page).click({ position: { x: 24, y: 90 } })
   const sheet = page.getByRole('dialog')
   await expect(sheet).toBeVisible()
-  return sheet.getByTestId('t212-sheet-line')
+  return sheet.getByTestId('sheet-line')
 }
 
 test('the opened account: dividend, interest and fee with their badges, none typed or deletable', async ({
@@ -147,6 +147,24 @@ test('the opened account: dividend, interest and fee with their badges, none typ
   await expect(sheet.getByRole('button', { name: 'delete' })).toHaveCount(0)
   await page.waitForTimeout(600)
   await page.screenshot(shot('t212-sheet-paid'))
+})
+
+/* 25 Oct: trades as the card shows them, not `NVDA · 2 sh`. */
+test('the opened account: a buy and a sell with their badges and companies', async ({
+  page,
+}) => {
+  await answered(page, 'traded')
+  const rows = await opened(page)
+  const buy = rows.filter({ hasText: 'buy' }).first()
+  await expect(buy).toContainText('NVIDIA Corporation')
+  await expect(buy).toContainText('2 shares · €150')
+  await expect(buy).toContainText('−€300')
+  const sell = rows.filter({ hasText: 'sell' }).first()
+  await expect(sell).toContainText('+€640')
+  const sheet = page.getByRole('dialog')
+  await expect(sheet.getByText(/ sh$/)).toHaveCount(0)
+  await page.waitForTimeout(600)
+  await page.screenshot(shot('t212-sheet-traded'))
 })
 
 test('the opened account: a deposit saved in Revolut', async ({ page }) => {

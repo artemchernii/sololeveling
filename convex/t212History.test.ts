@@ -184,13 +184,13 @@ test('the opened account lists the same rows as the card, none typed, and a divi
   const { t, me, accountId, later, rows } = await connected()
   await later('paid')
   const page = await me.query(api.sheetRows.page, { accountId, show: 20 })
-  const own = page?.rows.filter((r) => r.t212 !== null) ?? []
-  expect(own.map((r) => [r.t212?.kind, r.t212?.amount, r.logId])).toEqual([
+  const own = page?.rows.filter((r) => r.line !== null) ?? []
+  expect(own.map((r) => [r.line?.kind, r.line?.amount, r.logId])).toEqual([
     ['dividend', 1.38, null],
     ['interest', 2.04, null],
     ['fee', -0.45, null],
   ])
-  expect(own[0].t212).toMatchObject({
+  expect(own[0].line).toMatchObject({
     symbol: 'ASML.AS',
     shares: 1,
     each: 1.38,
@@ -201,7 +201,7 @@ test('the opened account lists the same rows as the card, none typed, and a divi
     ctx.db.patch(div._id, { meta: { ref: 't212:div:1', merchant: 'ASML' } }),
   )
   const again = await me.query(api.sheetRows.page, { accountId, show: 20 })
-  expect(again?.rows.find((r) => r.id === div._id)?.t212).toMatchObject({
+  expect(again?.rows.find((r) => r.id === div._id)?.line).toMatchObject({
     kind: 'dividend',
     symbol: null,
   })

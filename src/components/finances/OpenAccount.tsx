@@ -461,9 +461,9 @@ function Timeline({
                 {dayLabel(r.at)}
               </span>
             ) : null}
-            {r.t212 ? (
+            {r.line ? (
               <div className="@container rounded-[10px] px-2.5 hover:bg-lift/[0.035]">
-                <CameRow line={r.t212} i={i++} testId="t212-sheet-line" />
+                <CameRow line={r.line} i={i++} testId="sheet-line" />
               </div>
             ) : (
               <RowLine

@@ -26,6 +26,8 @@ const BADGE =
 const TONE: Record<Line['kind'], string> = {
   buy: 'bg-state-good/16 text-state-good ring-state-good/35',
   sell: 'bg-state-danger/16 text-state-danger ring-state-danger/35',
+  reward: 'bg-state-good/16 text-state-good ring-state-good/35',
+  split: 'bg-lav-400/12 text-lav-300 ring-lav-400/38',
   dividend: 'bg-state-good/16 text-state-good ring-state-good/35',
   interest: 'bg-state-good/16 text-state-good ring-state-good/35',
   fee: 'text-ink-300 ring-lift/18',
@@ -35,6 +37,11 @@ const TAG =
   'inline-flex max-w-full min-w-0 items-center gap-1 truncate rounded-[5px] px-1.5 font-mono text-[9.5px] tracking-[0.08em] uppercase ring-1 ring-inset'
 const shares = (n: number) =>
   `${Math.round(n * 1e4) / 1e4} ${n === 1 ? 'share' : 'shares'}`
+/** `0.1097 ADA`, `3 AAPL`: a count by its ticker, else in shares. */
+const coins = (n: number, symbol: string | null) =>
+  symbol === null
+    ? shares(n)
+    : `${Math.round(n * 1e4) / 1e4} ${symbol.replace(/-(EUR|USD)$/, '')}`
 
 /* Trading 212's own rows (18 Oct, t212-history.html): a badge for what
    each is, the company or the account, and the euros it moved — the newest
@@ -152,6 +159,9 @@ export function Row({
   testId?: string
 }) {
   const cur = (n: number) => money(n, l.currency)
+  /* A reward or a split moved coins, not money (26 Oct, his ADA at
+     `−€0`): the coins stand where the euros would. */
+  const given = l.kind === 'reward' || l.kind === 'split'
   const sub =
     l.kind === 'transfer' ? (
       l.other ? (
@@ -205,16 +215,17 @@ export function Row({
       </span>
       <b
         className={`font-mono text-[13.5px] font-normal whitespace-nowrap ${
-          l.kind === 'transfer'
+          l.kind === 'transfer' || l.kind === 'split'
             ? 'text-lav-300'
-            : l.amount > 0
+            : l.amount > 0 || l.kind === 'reward'
               ? 'text-state-good'
               : 'text-foreground'
         }`}
       >
         <Veiled>
-          {l.amount > 0 ? '+' : '−'}
-          {cur(Math.abs(l.amount))}
+          {given && l.shares !== null
+            ? `+${coins(l.shares, l.symbol)}`
+            : `${l.amount > 0 ? '+' : '−'}${cur(Math.abs(l.amount))}`}
         </Veiled>
       </b>
     </div>

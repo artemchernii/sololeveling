@@ -322,6 +322,9 @@ export const cameLine = v.object({
   kind: v.union(
     v.literal('buy'),
     v.literal('sell'),
+    /* Coins or shares given, not bought (26 Oct): no money, no price. */
+    v.literal('reward'),
+    v.literal('split'),
     v.literal('dividend'),
     v.literal('interest'),
     v.literal('fee'),
@@ -435,21 +438,23 @@ export async function logLine(read: OwnReads, l: Doc<'logs'>): Promise<Line> {
 }
 
 /** A trade as the card and the opened account show it: BUY or SELL, the
-    company, its shares at their price, the euros (any broker's, 25 Oct). */
+    company, its shares at their price, the euros (any broker's, 25 Oct);
+    a staking reward or a split as REWARD or SPLIT, its coins only. */
 export async function tradeLine(
   read: OwnReads,
   t: Doc<'trades'>,
 ): Promise<Line> {
   const inst = await read.instrument(t.instrumentId)
   const sum = Math.round(t.shares * t.priceEur * 100) / 100
+  const given = t.reward === true || t.split === true
   return {
-    kind: t.side,
+    kind: t.reward ? 'reward' : t.split ? 'split' : t.side,
     at: t.occurredAt,
     name: inst?.name ?? inst?.symbol ?? '',
     symbol: inst?.symbol ?? null,
     shares: t.shares,
-    each: t.priceEur,
-    amount: t.side === 'buy' ? -sum : sum,
+    each: given ? null : t.priceEur,
+    amount: given ? 0 : t.side === 'buy' ? -sum : sum,
     currency: 'EUR',
     other: null,
   }

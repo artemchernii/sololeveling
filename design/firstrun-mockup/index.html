@@ -117,6 +117,12 @@
   .who { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; color: var(--ink-100); padding: 5px 10px; border-radius: 999px;
     border: 1px solid var(--sys-edge); box-shadow: 0 0 16px -6px var(--sys-shine); animation: breatheName 1.6s ease-out 2 }
   @keyframes breatheName { 50% { box-shadow: 0 0 22px -2px var(--sys-shine) } }
+  /* Clerk's UserButton, as TopBar.tsx draws it: a 36px rounded tile — their
+     Google photo when they signed up with Google, else Clerk's initials/silhouette. */
+  .ava { width: 36px; height: 36px; border-radius: 10px; display:grid; place-items:center; font-weight: 500; font-size: 15px;
+    background: linear-gradient(135deg, #c98a6b, #8a5fd6); color: #fff; animation: breatheName 1.6s ease-out 2 }
+  .hello { font-size: 30px; font-weight: 300; margin: 22px 4px 0 }
+  .hello .nm { color: var(--accent-400); text-shadow: 0 0 14px var(--sys-shine) }
   .grid { display:grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-top: 14px }
   .card { border: 1px solid var(--edge); border-radius: 16px; padding: 18px 20px; background: linear-gradient(155deg, rgba(233,233,237,.06), rgba(233,233,237,.02)); min-height: 120px }
   .slots { display:flex; flex-direction:column; gap: 8px; margin-top: 14px }
@@ -222,7 +228,8 @@
     const lang = LANGS.find(l => l.code === S.lang)
     stage.innerHTML = `<div class="today">
       <div class="bar"><span class="caps" style="color:var(--ink-100)">■ SOLO LEVELING</span><span class="grow"></span>
-        <span class="caps">⌘K</span><span class="who">${S.name || 'HUNTER'} ▾</span></div>
+        <span class="caps">⌘K</span><span class="ava">${S.signup ? (S.name || 'H')[0] : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>'}</span></div>
+      <div class="hello">${hour() }, <span class="nm">${S.name || 'HUNTER'}</span>.</div>
       <div class="grid">
         <div class="card"><div class="caps">THREE</div>
           <div class="slots"><div class="slot">+ PICK 1</div><div class="slot">+ PICK 2</div><div class="slot">+ PICK 3</div></div></div>
@@ -230,6 +237,8 @@
           <div class="big">0</div><div class="caps" style="margin-top:4px">THIS MONTH</div></div>
       </div></div>`
   }
+
+  function hour() { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' }
 
   function syncCtl() {
     document.querySelectorAll('#ctl button').forEach(b => {

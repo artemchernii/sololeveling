@@ -13,6 +13,7 @@ import { nextCefr, parseCefr } from '@/lib/languages/catalog'
 import type { Cefr } from '@/lib/languages/catalog'
 import { nextTopic, pathFor, pathLevels } from '@/lib/languages/path'
 import type { PathTopic, TopicProgress } from '@/lib/languages/path'
+import { nextLocalMidnight } from '@/lib/today'
 
 /* The built-in path (25 Sep): "I want suggestions, some data on Portuguese.
    I don't want to write a list myself — I need a helper."
@@ -34,7 +35,7 @@ function useProgress(slug: string): Progress {
   const days = useQuery(api.aggregate.drillDays, {
     area: slug,
     dayStarts,
-    end: dayStarts[dayStarts.length - 1] + 86_400_000,
+    end: nextLocalMidnight(dayStarts[dayStarts.length - 1]),
   })
   const byRef = new Map<string, Doc<'drills'>>()
   for (const d of drills ?? []) if (d.ref) byRef.set(d.ref, d)

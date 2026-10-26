@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { localDateIn, localToday } from './today'
+import { localDateIn, localToday, nextLocalMidnight } from './today'
 
 describe('localDateIn', () => {
   it('0 days is today', () => {
@@ -32,5 +32,26 @@ describe('localDateIn', () => {
     const lateEvening = new Date(2026, 8, 20, 23, 30)
     expect(localDateIn(0, lateEvening)).toBe('2026-09-20')
     expect(localDateIn(1, lateEvening)).toBe('2026-09-21')
+  })
+})
+
+/* 25 Oct 2026: the clocks went back, the day was 25 hours long, and a
+   +24h end left its last hour out of every count. Lisbon is pinned in
+   vitest.config.ts. */
+describe('nextLocalMidnight', () => {
+  it('the 25-hour day ends at the next midnight', () => {
+    const start = new Date(2026, 9, 25).getTime()
+    expect(nextLocalMidnight(start)).toBe(new Date(2026, 9, 26).getTime())
+    expect(nextLocalMidnight(start) - start).toBe(25 * 3_600_000)
+  })
+
+  it('the 23-hour day too', () => {
+    const start = new Date(2026, 2, 29).getTime()
+    expect(nextLocalMidnight(start) - start).toBe(23 * 3_600_000)
+  })
+
+  it('an ordinary day is 24 hours', () => {
+    const start = new Date(2026, 9, 20).getTime()
+    expect(nextLocalMidnight(start) - start).toBe(86_400_000)
   })
 })

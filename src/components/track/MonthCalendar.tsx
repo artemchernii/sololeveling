@@ -14,6 +14,7 @@ import {
   shiftMonth,
 } from '@/lib/month-grid'
 import type { YearMonth } from '@/lib/month-grid'
+import { nextLocalMidnight } from '@/lib/today'
 
 /* History on a tracking page. Body's first; Languages' too since 26 Sep
    ("move calendar-dates into history tab"), so both pages look back the
@@ -30,7 +31,6 @@ import type { YearMonth } from '@/lib/month-grid'
 
    It counts nothing itself. */
 
-const DAY = 86_400_000
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const MONTH_NAME = new Intl.DateTimeFormat(undefined, {
   month: 'long',
@@ -76,7 +76,7 @@ export function MonthCalendar({
           area,
           kinds,
           dayStarts,
-          end: dayStarts[dayStarts.length - 1] + DAY,
+          end: nextLocalMidnight(dayStarts[dayStarts.length - 1]),
           recentDays: dayStarts.length,
         },
   )

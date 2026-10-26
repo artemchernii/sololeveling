@@ -26,3 +26,13 @@ export function startOfLocalDay(now: Date = new Date()): number {
   d.setHours(0, 0, 0, 0)
   return d.getTime()
 }
+
+/** The local midnight after `dayStart` — the end of that day. Never
+    `+ 86_400_000`: the day the clocks go back is 25 hours long, and its
+    last hour fell out of every count (25 Oct). */
+export function nextLocalMidnight(dayStart: number): number {
+  const d = new Date(dayStart)
+  d.setDate(d.getDate() + 1)
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}

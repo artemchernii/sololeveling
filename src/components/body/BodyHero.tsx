@@ -15,6 +15,7 @@ import { KINDS, SESSION_LABEL } from '@/lib/body/library'
 import { RECENT_DAYS } from '@/lib/day-strip'
 import { whenLabel } from '@/lib/format'
 import { monthRange } from '@/lib/month'
+import { nextLocalMidnight } from '@/lib/today'
 
 /* The line from the photo he chose for Body. */
 const QUOTE = 'One bad chapter doesn’t mean your story is over.'
@@ -96,7 +97,7 @@ export function LastThirty() {
     area: 'body',
     kinds: ['workout', 'intake'],
     dayStarts,
-    end: dayStarts[dayStarts.length - 1] + 86_400_000,
+    end: nextLocalMidnight(dayStarts[dayStarts.length - 1]),
     recentDays: RECENT_DAYS,
   })
   /* Sessions and shakes only since 26 Sep — what History lists. Every
@@ -359,7 +360,7 @@ function LogButton({
     area: 'body',
     category,
     start: today,
-    end: today + 86_400_000,
+    end: nextLocalMidnight(today),
   })
   const month = useQuery(api.aggregate.kindCount, {
     kind,

@@ -11,6 +11,7 @@ import { DidButton } from '@/components/track/DidButton'
 import { TrackPanel } from '@/components/track/TrackPanel'
 import { STRIP_WEEKS } from '@/lib/day-strip'
 import { agoLabel } from '@/lib/format'
+import { nextLocalMidnight } from '@/lib/today'
 
 /* Topics (25 Sep): "a list of most important topics / tenses, and next to
    it a button". His list, typed in — nothing is seeded.
@@ -34,7 +35,7 @@ export function Topics({ slug, delay = 0 }: { slug: string; delay?: number }) {
   const days = useQuery(api.aggregate.drillDays, {
     area: slug,
     dayStarts,
-    end: dayStarts[dayStarts.length - 1] + 86_400_000,
+    end: nextLocalMidnight(dayStarts[dayStarts.length - 1]),
   })
   const retire = useMutation(api.drills.retire)
   const restore = useMutation(api.drills.restore)

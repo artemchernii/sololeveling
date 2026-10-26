@@ -42,6 +42,7 @@ import {
 } from '@/lib/languages/catalog'
 import { monthRange } from '@/lib/month'
 import { buildTimeline } from '@/lib/timeline'
+import { nextLocalMidnight } from '@/lib/today'
 
 /* One language's panel (R6b-b; rebuilt 25 Sep; laid out like Body 26 Sep).
    Every number here is a log count, the latest state row, or a goal's
@@ -302,7 +303,7 @@ function KindButton({
     area: slug,
     category: kind.category,
     start: today,
-    end: today + 86_400_000,
+    end: nextLocalMidnight(today),
   })
   const month = useQuery(api.aggregate.kindCount, {
     kind: 'session',
@@ -501,7 +502,7 @@ function LastThirty({ slug }: { slug: string }) {
     area: slug,
     kinds: ['session', 'exercise'],
     dayStarts,
-    end: dayStarts[dayStarts.length - 1] + 86_400_000,
+    end: nextLocalMidnight(dayStarts[dayStarts.length - 1]),
     recentDays: RECENT_DAYS,
   })
   if (result === undefined) return null
@@ -587,7 +588,8 @@ function DayRows({ slug, day }: { slug: string; day: number }) {
   const setCategory = useMutation(api.logs.setCategory)
 
   const rows = (result?.rows ?? []).filter(
-    (row) => row.kind !== 'task_done' && row.occurredAt < day + 86_400_000,
+    (row) =>
+      row.kind !== 'task_done' && row.occurredAt < nextLocalMidnight(day),
   )
   const sessionIds = rows.filter((r) => r.kind === 'session').map((r) => r._id)
   const sheets = useQuery(api.vault.countsForLogs, { logIds: sessionIds })

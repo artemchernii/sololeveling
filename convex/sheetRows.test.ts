@@ -208,6 +208,44 @@ test("a broker's trade is a BUY or SELL line with its company", async () => {
   ])
 })
 
+/* 26 Oct: his ADA staking rewards read `BUY · −€0`. A reward and a split
+   are their own lines, coins and no money. */
+test('a reward and a split are REWARD and SPLIT lines, not a BUY at €0', async () => {
+  const { t, me, accountId } = await revolutWith(0)
+  await t.run(async (ctx) => {
+    await ctx.db.patch(accountId, { kinds: ['bank', 'broker'] })
+    const instrumentId = await ctx.db.insert('instruments', {
+      ownerId: ME,
+      symbol: 'ADA',
+      name: 'ADA',
+      exchange: 'CCC',
+      currency: 'EUR',
+      type: 'CRYPTOCURRENCY',
+    })
+    for (const [mark, at] of [
+      [{ reward: true }, 1],
+      [{ split: true }, 2],
+    ] as const)
+      await ctx.db.insert('trades', {
+        ownerId: ME,
+        accountId,
+        instrumentId,
+        side: 'buy',
+        shares: 0.1097,
+        priceEur: 0,
+        occurredAt: Date.UTC(2026, 9, at),
+        ...mark,
+      })
+  })
+  const page = (await me.query(api.sheetRows.page, { accountId, show: 20 }))!
+  const lines = page.rows.filter((r) => r.line?.symbol === 'ADA')
+  expect(lines.map((r) => [r.line?.kind, r.line?.shares, r.amount])).toEqual([
+    ['split', 0.1097, 0],
+    ['reward', 0.1097, 0],
+  ])
+  expect(lines.every((r) => r.line?.each === null)).toBe(true)
+})
+
 /* 13 Oct, his ActivoBank: a screenshot read €90.35, then the bank answered
    €90.35 on each of the next two days — and all three balances showed the
    screenshot as their file. */

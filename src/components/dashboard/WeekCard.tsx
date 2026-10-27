@@ -50,6 +50,9 @@ export type Lang = { slug: string; short: string }
 type Tip = { x: number; y: number; block: Block; day: number }
 type Menu = { x: number; y: number; day: number; band: 0 | 1 | 2; at: number }
 
+/* R8 · S3a: what a guest's week counts. */
+const GUEST_KINDS: ReadonlyArray<WeekKind> = ['workout', 'langs']
+
 /* THIS WEEK (18 Oct, mockup design/today-mockup/week.html, his "go"):
    Monday to Sunday across, three bands of the day down. A block is a row
    he logged; hover says what it was, a pressed cell lists what is in it
@@ -60,6 +63,7 @@ export function WeekCard({
   languages,
   langs,
   bar,
+  guest = false,
 }: {
   now: Date
   languages: Array<string> | undefined
@@ -67,12 +71,15 @@ export function WeekCard({
   langs: Array<Lang>
   /** TASKS TODAY, under the header (25 Oct). */
   bar?: ReactNode
+  /** R8 · S3a: a guest's week is WORKOUT and their language — shake, post
+      and commits are Artem's. */
+  guest?: boolean
 }) {
   const short = (area: string) =>
     langs.find((l) => l.slug === area)?.short ?? 'LANG'
   /* What each press writes: the same rows THIS MONTH's tiles write; a
      session one per language (25 Oct, his "log PT or ENG"). */
-  const writes: Array<Write> = [
+  const allWrites: Array<Write> = [
     {
       key: 'workout',
       name: 'WORKOUT',
@@ -97,6 +104,9 @@ export function WeekCard({
     },
     { key: 'post', name: 'POST', icon: 'post', kind: 'post', area: 'social' },
   ]
+  const writes = guest
+    ? allWrites.filter((w) => w.key !== 'shake' && w.key !== 'post')
+    : allWrites
   const monday = startOfWeek(now)
   const dayStarts = Array.from({ length: 7 }, (_, i) =>
     addDays(monday, i).getTime(),
@@ -155,7 +165,7 @@ export function WeekCard({
   /* The header's chips: a language each (25 Oct), never a task — a tick is
      intent, not something done. */
   type Chip = { key: string; kind: WeekKind; area: string; name: string }
-  const chips = WEEK_KINDS.flatMap((k): Array<Chip> =>
+  const chips = (guest ? GUEST_KINDS : WEEK_KINDS).flatMap((k): Array<Chip> =>
     k === 'langs'
       ? langs.map((l) => ({
           key: `langs-${l.slug}`,

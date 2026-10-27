@@ -266,6 +266,10 @@ export default defineSchema({
     ownerId: v.string(),
     timezone: v.string(),
     firstRunAt: v.number(),
+    /* The browser tests' user stands in for Artem: past the first run and
+       not a guest (R8 · S3a). Written only by e2e.reset, on the test
+       backend. */
+    asOwner: v.optional(v.boolean()),
   }).index('by_owner', ['ownerId']),
 
   goals: defineTable({

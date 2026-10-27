@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 
 import { areaVars } from '@/lib/areas'
-import { mobileNav, moreNav } from '@/lib/nav'
+import { forGuest, mobileNav, moreNav as allMore } from '@/lib/nav'
+import { useGuest } from '@/lib/useGuest'
 
 /* Bottom nav under 1024. PLAN.md §3 asks for 48–56px rows on mobile, so the
    tap targets here are 56px tall — not the 40px a desktop-first component
@@ -14,6 +15,7 @@ import { mobileNav, moreNav } from '@/lib/nav'
 export function MobileNav() {
   const [open, setOpen] = useState(false)
   const path = useRouterState({ select: (s) => s.location.pathname })
+  const moreNav = forGuest(allMore, useGuest())
   const inMore = moreNav.some((g) =>
     g.items.some((i) => path === i.to || path.startsWith(`${i.to}/`)),
   )

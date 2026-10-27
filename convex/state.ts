@@ -2,7 +2,8 @@ import { v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { requireLiveArea } from './areas'
-import { internalMutation, mutation } from './_generated/server'
+import { internalMutation } from './_generated/server'
+import { mutation } from './write'
 import { areaSlug } from './schema'
 
 /* The only way a number reaches the CURRENT STATE strip. Nothing is seeded, so

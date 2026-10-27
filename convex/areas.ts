@@ -9,7 +9,8 @@ import {
 } from '../src/lib/area-slug'
 import { areaLabelFor, languageByCode } from '../src/lib/languages/catalog'
 import type { Doc } from './_generated/dataModel'
-import { mutation, query } from './_generated/server'
+import { query } from './_generated/server'
+import { mutation, openMutation } from './write'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import { requireUser } from './auth'
 
@@ -70,9 +71,9 @@ export const list = query({
  * screen emptier; deleting these makes the app wrong.
  *
  * Idempotent, and it never touches a row that exists — so a renamed, re-hued
- * or retired area survives it.
+ * or retired area survives it. Open to the demo account for that reason.
  */
-export const ensure = mutation({
+export const ensure = openMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {

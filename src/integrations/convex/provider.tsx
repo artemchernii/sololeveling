@@ -4,6 +4,8 @@ import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache/provider'
 import { useAuth } from '@clerk/tanstack-react-start'
 
+import { announceDemo } from '@/lib/demoRefused'
+
 /* ConvexProviderWithClerk — not the bare ConvexProvider the scaffold ships.
    It hands Clerk's JWT to every Convex call, which is what makes
    ctx.auth.getUserIdentity() return anything at all. With the bare provider the
@@ -23,7 +25,20 @@ function createClient() {
         'deployment, which writes it into .env.local.',
     )
   }
-  return new ConvexReactClient(url)
+  const client = new ConvexReactClient(url)
+  /* The demo account's refusals are announced wherever they are caught
+     (src/lib/demoRefused.ts). */
+  type Call = (...args: Array<unknown>) => Promise<unknown>
+  const announced =
+    (call: Call): Call =>
+    (...args) =>
+      call(...args).catch((e: unknown) => {
+        announceDemo(e)
+        throw e
+      })
+  client.mutation = announced(client.mutation.bind(client) as Call)
+  client.action = announced(client.action.bind(client) as Call)
+  return client
 }
 
 export default function AppConvexProvider({

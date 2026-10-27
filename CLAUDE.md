@@ -241,6 +241,16 @@ Never write fixture data to make a screen look populated. If a screen has
 nothing to show, build its empty state — that is the screen I will actually see
 on day one, and the one a demo row would hide.
 
+One exception (27 Oct, "go" on the mockup `design/firstrun-mockup/demo.html`,
+spec `docs/specs/2026-10-27-demo-account.md`): the **demo account**, his
+other Gmail, so a friend can hold his phone without seeing his money. Made-up
+rows live on the real app in that account only — marked `demo` on its
+profile by `demo:make`, an internal mutation run with the deploy key, and
+written only by `convex/fake/story.ts`. Every public write refuses it
+(`convex/write.ts`, held by a lint rule), so does every paid model, and
+every one of its screens carries `DEMO · FAKE DATA` — its numbers are not
+reality, and the badge says so. His own account never gets the mark.
+
 ## The map is PLAN.md §3, one slice at a time
 
 On 15 Sep the layout was rethought: fewer places, each one deep. `PLAN.md` §3

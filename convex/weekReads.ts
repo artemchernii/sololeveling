@@ -1,12 +1,8 @@
 import { ConvexError, v } from 'convex/values'
 
 import { internal } from './_generated/api'
-import {
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-} from './_generated/server'
+import { internalMutation, internalQuery, query } from './_generated/server'
+import { aiMutation } from './write'
 import { weekReviewArgs, weekReviewFor } from './aggregate'
 import { requireUser } from './auth'
 import { chargeGuest, guestAtCap } from './profiles'
@@ -39,7 +35,7 @@ export const forWeek = query({
   },
 })
 
-export const run = mutation({
+export const run = aiMutation({
   args: {
     week: v.string(),
     grill: v.boolean(),

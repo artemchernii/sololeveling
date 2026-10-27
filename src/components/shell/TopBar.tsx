@@ -7,6 +7,7 @@ import { Plus, Search } from 'lucide-react'
 
 import { Star } from '@/components/finances/insights/Ask'
 import { Bell } from './Bell'
+import { DemoBadge } from './DemoBadge'
 import { ConnectionStatus } from './ConnectionStatus'
 import { Key } from './Key'
 
@@ -58,6 +59,7 @@ export function TopBar({
           SOLO LEVELING
         </span>
         <ConnectionStatus />
+        <DemoBadge />
       </div>
 
       <div className="flex items-center gap-3">

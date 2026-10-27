@@ -14,6 +14,7 @@ import { useGuest } from '@/lib/useGuest'
 import { langShort } from '@/lib/languages/catalog'
 import { localToday } from '@/lib/today'
 import { useHeld } from '@/lib/loading'
+import { useDemo } from '@/lib/useDemo'
 
 export const Route = createFileRoute('/_app/dashboard')({
   component: Today,
@@ -57,7 +58,10 @@ function Today() {
   const quests = useHeld(dayReady ? tasks : undefined)
 
   const focus = projects?.find((p) => p.status === 'focus')
-  const firstName = user?.firstName ?? user?.username ?? 'HUNTER'
+  const demo = useDemo()
+  const firstName = demo
+    ? 'DEMO'
+    : (user?.firstName ?? user?.username ?? 'HUNTER')
 
   const areas = useQuery(api.areas.list, {})
   const languageAreas = areas?.filter((a) => a.track === 'language')

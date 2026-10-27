@@ -2,7 +2,8 @@ import { v } from 'convex/values'
 
 import { internal } from './_generated/api'
 import type { Id, TableNames } from './_generated/dataModel'
-import { internalMutation, mutation, query } from './_generated/server'
+import { internalMutation, query } from './_generated/server'
+import { mutation } from './write'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import { requireUser } from './auth'
 import { isGuest } from './profiles'
@@ -169,36 +170,7 @@ export const wipe = internalMutation({
   args: { ownerId: v.string() },
   returns: v.null(),
   handler: async (ctx, { ownerId }) => {
-    let budget = BATCH
-    for (const [table, index] of OWNED) {
-      if (budget <= 0) break
-      const rows = await owned(ctx, table, index, ownerId).take(budget)
-      for (const row of rows) {
-        if (budget <= 0) break
-        if (table === 'intakes') {
-          /* Its trades first; the intake only once none is left, so a
-             big statement split over runs never orphans a trade. */
-          const trades = await ctx.db
-            .query('intakeTrades')
-            .withIndex('by_intake', (q) => q.eq('intakeId', row._id as never))
-            .take(budget)
-          for (const t of trades) await ctx.db.delete(t._id)
-          budget -= trades.length
-          if (budget <= 0) break
-        }
-        for (const file of filesOf(row)) await ctx.storage.delete(file as never)
-        for (const job of [row.remindJob, row.jobId]) {
-          if (job === undefined) continue
-          const id = job as Id<'_scheduled_functions'>
-          const scheduled = await ctx.db.system.get(id)
-          if (scheduled !== null && scheduled.state.kind === 'pending')
-            await ctx.scheduler.cancel(id)
-        }
-        await ctx.db.delete(row._id as never)
-        budget -= 1
-      }
-    }
-    if (budget <= 0) {
+    if (!(await wipeSome(ctx, ownerId, BATCH))) {
       await ctx.scheduler.runAfter(0, internal.account.wipe, { ownerId })
       return null
     }
@@ -207,3 +179,42 @@ export const wipe = internalMutation({
     return null
   },
 })
+
+/** Deletes up to `budget` of a person's rows, files and pending jobs —
+    never the profile. True once nothing is left. Also the demo's refill
+    (demo.ts). */
+export async function wipeSome(
+  ctx: MutationCtx,
+  ownerId: string,
+  budget: number,
+): Promise<boolean> {
+  for (const [table, index] of OWNED) {
+    if (budget <= 0) break
+    const rows = await owned(ctx, table, index, ownerId).take(budget)
+    for (const row of rows) {
+      if (budget <= 0) break
+      if (table === 'intakes') {
+        /* Its trades first; the intake only once none is left, so a
+             big statement split over runs never orphans a trade. */
+        const trades = await ctx.db
+          .query('intakeTrades')
+          .withIndex('by_intake', (q) => q.eq('intakeId', row._id as never))
+          .take(budget)
+        for (const t of trades) await ctx.db.delete(t._id)
+        budget -= trades.length
+        if (budget <= 0) break
+      }
+      for (const file of filesOf(row)) await ctx.storage.delete(file as never)
+      for (const job of [row.remindJob, row.jobId]) {
+        if (job === undefined) continue
+        const id = job as Id<'_scheduled_functions'>
+        const scheduled = await ctx.db.system.get(id)
+        if (scheduled !== null && scheduled.state.kind === 'pending')
+          await ctx.scheduler.cancel(id)
+      }
+      await ctx.db.delete(row._id as never)
+      budget -= 1
+    }
+  }
+  return budget > 0
+}

@@ -1,7 +1,8 @@
 import { v } from 'convex/values'
 
 import { requireUser } from './auth'
-import { mutation, query } from './_generated/server'
+import { query } from './_generated/server'
+import { mutation } from './write'
 
 /* N1 (15 Oct). The bell: today's notifications, newest first, and a tap
    that clears one's dot. "Today" starts at the caller's own midnight, so

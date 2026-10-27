@@ -4,12 +4,8 @@ import { requireUser } from './auth'
 import { chargeGuest, guestAtCap } from './profiles'
 import { requireLanguageArea } from './areas'
 import { internal } from './_generated/api'
-import {
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-} from './_generated/server'
+import { internalMutation, internalQuery, query } from './_generated/server'
+import { aiMutation, mutation } from './write'
 import type { Doc, Id } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import { areaSlug } from './schema'
@@ -168,7 +164,7 @@ async function insertPages(
  * sheet, are not his, or the cap is reached, the bytes are taken back out
  * and the reason comes back to be shown.
  */
-export const add = mutation({
+export const add = aiMutation({
   args: {
     area: areaSlug,
     logId: v.optional(v.id('logs')),
@@ -218,7 +214,7 @@ export const add = mutation({
  * More pages on a sheet — page 2 handed out next week. Not read on its
  * own: the card offers "read again", which reads every page together.
  */
-export const addPages = mutation({
+export const addPages = aiMutation({
   args: { sheetId: v.id('vaultSheets'), files: v.array(fileValidator) },
   returns: v.union(
     v.object({ ok: v.literal(true) }),
@@ -376,7 +372,7 @@ export const countsForLogs = query({
  * a newer reading gives. Not while it is being read. Counts toward the
  * cap: it is another call.
  */
-export const retry = mutation({
+export const retry = aiMutation({
   args: { sheetId: v.id('vaultSheets') },
   returns: v.null(),
   handler: async (ctx, args) => {

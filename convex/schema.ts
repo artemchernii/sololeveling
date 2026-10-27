@@ -270,6 +270,12 @@ export default defineSchema({
        not a guest (R8 · S3a). Written only by e2e.reset, on the test
        backend. */
     asOwner: v.optional(v.boolean()),
+    /* The demo account (27 Oct, docs/specs/2026-10-27-demo-account.md):
+       his other Gmail, full of made-up rows, every write refused. Written
+       only by demo.make, with the deploy key. `demoFilledOn` is the
+       Lisbon day of the last fill, so the rows move with the calendar. */
+    demo: v.optional(v.boolean()),
+    demoFilledOn: v.optional(v.string()),
   }).index('by_owner', ['ownerId']),
 
   goals: defineTable({

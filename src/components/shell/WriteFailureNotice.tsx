@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
 import { failureMessage } from '@/lib/convex-errors'
+import { demoWords } from '@/lib/demoRefused'
 
 /* Most writes in the app are fired from a tap — `void setArea(...)`, a tick,
    a drop — with nothing waiting on the answer. When one of those failed, the
@@ -23,6 +24,11 @@ export function WriteFailureNotice() {
 
   useEffect(() => {
     function onRejection(event: PromiseRejectionEvent) {
+      /* The demo account's refusals are DemoBadge's to say. */
+      if (demoWords(event.reason) !== null) {
+        event.preventDefault()
+        return
+      }
       const text = failureMessage(event.reason)
       if (text === null) return
       /* Reported here, so not again as an uncaught error in the console. */

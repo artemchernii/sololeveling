@@ -2,12 +2,8 @@ import { v } from 'convex/values'
 
 import { requireUser } from './auth'
 import { internal } from './_generated/api'
-import {
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-} from './_generated/server'
+import { internalMutation, internalQuery, query } from './_generated/server'
+import { mutation } from './write'
 import type { MutationCtx } from './_generated/server'
 import type { Infer } from 'convex/values'
 import { keepEvening } from './closeReport'

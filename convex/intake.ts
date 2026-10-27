@@ -35,12 +35,8 @@ import { applyRow, forDrop, transferValue } from './transferMatch'
 import type { DropRow, Transfer } from './transferMatch'
 import { holdingsTotal } from '../src/lib/holdingsTotal'
 import { internal } from './_generated/api'
-import {
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-} from './_generated/server'
+import { internalMutation, internalQuery, query } from './_generated/server'
+import { aiMutation, mutation } from './write'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import { UNPRICED, screenSource, tickerBase } from '../src/lib/market'
@@ -158,7 +154,7 @@ async function ownedIntake(
  * nothing. The account is optional — the reader names the bank, and the
  * review matches it to one of his.
  */
-export const start = mutation({
+export const start = aiMutation({
   args: {
     accountId: v.optional(v.id('accounts')),
     /** What he says it is — optional, offered for screenshots. */
@@ -237,7 +233,7 @@ const BATCH_STAGGER_MS = 1500
  * be read or the drop would take more reads than the month has left —
  * the same rule as `start`, counting only files the model reads.
  */
-export const startBatch = mutation({
+export const startBatch = aiMutation({
   args: {
     files: v.array(fileArg),
     /* More files for an update still open — "drop March". */
@@ -497,7 +493,7 @@ async function fingerprintOf(
  * stopped without answering. The files are still there until he throws
  * them away.
  */
-export const retry = mutation({
+export const retry = aiMutation({
   args: { intakeId: v.id('intakes') },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -636,7 +632,7 @@ export const open = query({
  * screenshot now that he said whose it is. Costs one more read; refused
  * once its files are gone.
  */
-export const readAgain = mutation({
+export const readAgain = aiMutation({
   args: { intakeId: v.id('intakes') },
   returns: v.null(),
   handler: async (ctx, args) => {

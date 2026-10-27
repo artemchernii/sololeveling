@@ -39,15 +39,15 @@ profile; everyone else is a guest. Add:
 
 What demo sees, beside the other two:
 
-| | owner | guest | demo |
-|---|---|---|---|
-| Finances, LEVEL, all six tiles, Body photo slot, Review spent/worth | ✓ | — | ✓ (fake) |
-| Writes (log, tick, capture, upload, connect bank, 212 key, push) | ✓ | ✓ | refused |
-| Money AI (read, ASK, statements) | ✓ $2 | — | refused |
-| Other AI (week read, Vault sheets) | ✓ | $0.50 pot | refused |
-| Market data, news, earnings (fetched on open, no model) | ✓ | — | ✓ real |
-| Badge `DEMO · FAKE DATA` on every screen | — | — | ✓ |
-| Delete account | — | ✓ | — |
+|                                                                     | owner | guest     | demo     |
+| ------------------------------------------------------------------- | ----- | --------- | -------- |
+| Finances, LEVEL, all six tiles, Body photo slot, Review spent/worth | ✓     | —         | ✓ (fake) |
+| Writes (log, tick, capture, upload, connect bank, 212 key, push)    | ✓     | ✓         | refused  |
+| Money AI (read, ASK, statements)                                    | ✓ $2  | —         | refused  |
+| Other AI (week read, Vault sheets)                                  | ✓     | $0.50 pot | refused  |
+| Market data, news, earnings (fetched on open, no model)             | ✓     | —         | ✓ real   |
+| Badge `DEMO · FAKE DATA` on every screen                            | —     | —         | ✓        |
+| Delete account                                                      | —     | ✓         | —        |
 
 ## Read-only, enforced on the server
 

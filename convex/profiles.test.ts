@@ -25,6 +25,7 @@ describe('who is asked the first run', () => {
     const { friend } = two()
     expect(await friend.query(api.profiles.mine, {})).toEqual({
       needsFirstRun: true,
+      guest: false,
       timezone: 'Europe/Lisbon',
     })
   })
@@ -70,6 +71,7 @@ describe('finishing the first run', () => {
     })
     expect(await friend.query(api.profiles.mine, {})).toEqual({
       needsFirstRun: false,
+      guest: true,
       timezone: 'America/New_York',
     })
     const areas = await friend.query(api.areas.list, {})
@@ -131,6 +133,36 @@ describe('finishing the first run', () => {
     })
     expect(await me.query(api.profiles.mine, {})).toEqual({
       needsFirstRun: true,
+      guest: false,
+      timezone: 'Europe/Lisbon',
+    })
+  })
+})
+
+describe('a guest (R8 · S3a)', () => {
+  test('someone who did the first run is a guest; nobody else is', async () => {
+    const { me, friend } = two()
+    await friend.mutation(api.profiles.finishFirstRun, {
+      lang: null,
+      timezone: 'Europe/Lisbon',
+    })
+    expect((await friend.query(api.profiles.mine, {})).guest).toBe(true)
+    expect((await me.query(api.profiles.mine, {})).guest).toBe(false)
+  })
+
+  test('the test backend stand-in for Artem is past the first run, not a guest', async () => {
+    const { t, me } = two()
+    await t.run(async (ctx) => {
+      await ctx.db.insert('profiles', {
+        ownerId: ME,
+        timezone: 'Europe/Lisbon',
+        firstRunAt: 1,
+        asOwner: true,
+      })
+    })
+    expect(await me.query(api.profiles.mine, {})).toEqual({
+      needsFirstRun: false,
+      guest: false,
       timezone: 'Europe/Lisbon',
     })
   })

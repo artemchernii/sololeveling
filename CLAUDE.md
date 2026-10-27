@@ -333,8 +333,9 @@ slow the daily loop to make a rarer screen better, the daily loop wins.
   **through an index** — never `.filter()` over a full table scan. There is no `OWNER_ID`
   env var. A query that could return another user's row is a bug, even while
   there is only one user.
-- Aggregations live only in `convex/aggregate.ts`, as `monthCounts()`,
-  `currentState()` and `entityCounts()`.
+- Aggregations live only in `convex/aggregate.ts` (its queries) and
+  `convex/reads/` (the plain helpers behind them, split out 27 Oct so a
+  fix reads one small file).
 
 ## Deploying dev (18 Oct)
 

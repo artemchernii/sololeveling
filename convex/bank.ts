@@ -6,7 +6,7 @@ import {
   canConnect,
   pickAccounts,
 } from '../src/lib/bankLink'
-import { arrivedFromBank, changedAtBroker } from './aggregate'
+import { arrivedFromBank, changedAtBroker } from './reads/moves'
 import { cameLine, cameOnCard } from './t212History'
 import { requireUser } from './auth'
 import { bankApi } from './bankApi'

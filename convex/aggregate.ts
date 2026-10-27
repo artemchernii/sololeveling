@@ -1,7 +1,6 @@
 import { v } from 'convex/values'
 import type { Infer } from 'convex/values'
-
-import { balanceKey, brokerCashKey, hasBrokerCash } from './accounts'
+import { hasBrokerCash } from './accounts'
 import { requireUser } from './auth'
 import { logKindValidator } from './logs'
 import { SHEET_ROWS, buildSheetRows, isSheetLog, sheetRow } from './sheetRows'
@@ -11,46 +10,46 @@ import { payMonthDetail as openPayMonth, payMonths } from '../src/lib/payMonth'
 import type { DetailRow } from '../src/lib/payMonth'
 import type { AheadBill, AheadRow } from '../src/lib/ahead'
 import { payeeKey, rowKey } from '../src/lib/payee'
-import {
-  HISTORY_GRACE_MS,
-  balanceChecks,
-  balanceSeries,
-} from '../src/lib/cashHistory'
-import type { Move, Reading } from '../src/lib/cashHistory'
-import {
-  addSeries,
-  closeLooks,
-  heldDays,
-  investedDay,
-  investedSeries,
-} from '../src/lib/worthHistory'
-import { ownMoves } from '../src/lib/accountLines'
-import type { Close, Holding, Rate } from '../src/lib/worthHistory'
-import { lookFamily, notSeenSince, reconcile } from '../src/lib/holdings'
-import { soldPart } from '../src/lib/sold'
-import {
-  countIn,
-  dayMarks,
-  isShake,
-  isWorkout,
-  kindCounts,
-  projectWeek,
-  spentWeek,
-} from '../src/lib/review'
+import { balanceChecks } from '../src/lib/cashHistory'
+import type { Reading } from '../src/lib/cashHistory'
+import { addSeries, investedDay, investedSeries } from '../src/lib/worthHistory'
+import { reconcile } from '../src/lib/holdings'
 import { monthSix as monthSixCount } from '../src/lib/monthSix'
 import { weekRows } from '../src/lib/weekGrid'
-import type { LedgerTrade, Observation } from '../src/lib/holdings'
-import { readLedgerTrades } from './ledgers'
 import { areaSlug } from './schema'
 import type { Tile } from './schema'
 import { internalQuery, query } from './_generated/server'
 import type { QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
+import { MAX_ROWS, MONEY_ROWS } from './reads/limits'
+import {
+  TRADE_ROWS,
+  closeAtEnd,
+  fresh,
+  holdingsOf,
+  investedInputs,
+  latestAt,
+  pocket,
+  pocketMoves,
+  positionRow,
+  quoteToRate,
+  rateAtEnd,
+  readBalances,
+  readCashHistory,
+  readPositions,
+  sorted,
+} from './reads/positions'
+import {
+  REVIEW_PROJECTS,
+  weekReviewArgs,
+  weekReviewFor,
+  weekReviewResult,
+} from './reads/week'
 
 /* PLAN.md §1: every number on screen comes from exactly one of four sources —
    a log count over a period, the latest stateSnapshots row for a key, an entity
    count over projects/tasks, or a stored external reading. All four live here
-   and nowhere else; the fourth's first reading is GitHub commits (R3c,
+   (and in the plain helpers under convex/reads/) and nowhere else; the fourth's first reading is GitHub commits (R3c,
    convex/github.ts); prices arrive with Finances. Components read these numbers; they never compute them.
  
    None of these can produce a score, an index or a percentage. `done` and
@@ -58,17 +57,19 @@ import type { Doc, Id } from './_generated/dataModel'
    "11 of 17", and a bar only where goals.targetValue gives a real denominator.
    Returning a ratio here would make the wrong thing easy. */
 
-const MAX_ROWS = 500
 /** A month of one repo's commits (411 in September 2026). */
 const COMMIT_ROWS = 2000
+
 /* A year of commits on a busy repo. Read once for the heatmap. */
 const YEAR_ROWS = 4000
+
 /* Twelve weeks of one area's logs, generously: the longest strip categoryDays
    is asked to fill, at a ceiling well past what quick capture could fill it
    with. Its own bound because it shares an area's whole log stream with
    kinds `.take()` cannot filter out before this cap is checked — a `weight`
    row costs the same slot as a `workout` row. */
 const CATEGORY_DAYS_ROWS = 1500
+
 /* Twice a day for a year and a half, generously. `stateHistory`'s `key` is a
    `v.string()` — it is general over any state key someone starts recording,
    not only weight — so it does not get to assume one key's volume the way a
@@ -821,11 +822,6 @@ export const kindCount = query({
   },
 })
 
-/* A month of money rows, generously: ten a day is more than capture is
-   ever used for. Its own bound because a sum that silently dropped rows
-   would read as a smaller month, not a missing one. */
-const MONEY_ROWS = 1000
-
 const moneyBucket = v.object({
   kind: v.union(v.literal('expense'), v.literal('income')),
   /** null — logged with no category: unsorted. */
@@ -1521,58 +1517,6 @@ export const projectActivity = query({
    Finances F2 and F4 (26 Sep).
    ------------------------------------------------------------------------ */
 
-/* Accounts and holdings are few; these bound the reads generously. */
-const ACCOUNT_ROWS = 50
-/* His Revolut export alone is 3,595 trades since 2020 (27 Sep). */
-const TRADE_ROWS = 6000
-/* A screen of 15 positions a month for years. */
-const HOLDING_ROWS = 3000
-
-/**
- * Each live account's FREE CASH, and the total (Finances F2) — money not
- * in shares; what its positions are worth is `worth`'s other half.
- *
- * Each balance is source 2, the latest `balance:<id>` state. The total is
- * a sum of those latest states, allowed on 26 Sep on the sum rule's
- * conditions (PLAN.md §1): euros only, and never shown without
- * `oldestAt`, the reading furthest back in it, so a total made partly of a
- * month-old number cannot look fresh. An account with no reading yet is
- * counted in `unread` and added to nothing.
- *
- * Since 27 Sep ("adding money"), a pocket is its latest reading PLUS the
- * money that moved in it after that reading — its logs (spending, money
- * in, both sides of a transfer) and, in a broker's euro pocket, what its
- * buys cost and its sells brought (`trades`, never an `opening` one). That
- * is source 2 plus a source-1 sum over rows that open: `moved` and
- * `movedRows` say how much and how many, so the number is never a bare
- * one. The reading always wins over what came before it — a statement
- * that disagrees resets the pocket.
- */
-const pocket = v.object({
-  currency: v.string(),
-  /** As read plus what moved since, in its own currency. */
-  value: v.union(v.number(), v.null()),
-  recordedAt: v.union(v.number(), v.null()),
-  /** The reading alone, and what moved in the pocket after it. */
-  read: v.union(v.number(), v.null()),
-  moved: v.number(),
-  movedRows: v.number(),
-  /** In euros at the latest stored ECB rate; null without a reading or a
-      rate — never guessed. */
-  eur: v.union(v.number(), v.null()),
-  rateAsOf: v.union(v.number(), v.null()),
-  /** Where the reading came from, and when he gave it — which may be long
-      after the day it is true for (an August statement read today). */
-  source: v.union(
-    v.literal('typed'),
-    v.literal('statement'),
-    v.literal('screenshot'),
-    v.literal('sync'),
-    v.null(),
-  ),
-  writtenAt: v.union(v.number(), v.null()),
-})
-
 export const balances = query({
   args: {},
   returns: v.object({
@@ -1610,48 +1554,6 @@ export const balances = query({
   }),
   handler: async (ctx) => await readBalances(ctx, await requireUser(ctx)),
 })
-
-/* Pence: London quotes in GBp, a hundredth of the pound the rate is for. */
-export function quoteToRate(currency: string): {
-  base: string
-  divide: number
-} {
-  return currency === 'GBp' || currency === 'GBX'
-    ? { base: 'GBP', divide: 100 }
-    : { base: currency, divide: 1 }
-}
-
-/* One position as the room reads it. */
-const positionRow = {
-  accountId: v.id('accounts'),
-  instrumentId: v.id('instruments'),
-  symbol: v.string(),
-  name: v.string(),
-  type: v.string(),
-  currency: v.string(),
-  shares: v.number(),
-  paid: v.union(v.number(), v.null()),
-  /** What he paid in dollars, at each day's ECB rate (10 Oct). */
-  paidUsd: v.union(v.number(), v.null()),
-  status: v.union(
-    v.literal('trades'),
-    v.literal('match'),
-    v.literal('screen'),
-    v.literal('gap'),
-    v.literal('over'),
-  ),
-  seenAt: v.union(v.number(), v.null()),
-  gap: v.number(),
-  /** A later screen of the account left it out. */
-  notSeen: v.boolean(),
-  price: v.union(v.number(), v.null()),
-  priceAsOf: v.union(v.number(), v.null()),
-  rate: v.union(v.number(), v.null()),
-  rateAsOf: v.union(v.number(), v.null()),
-  valueEur: v.union(v.number(), v.null()),
-  /** Coins given for holding it (staking), in its own units. */
-  staked: v.number(),
-}
 
 /**
  * What he holds, per account and ticker (Finances F4; R6c, 27 Sep).
@@ -1699,127 +1601,6 @@ export const positions = query({
   handler: async (ctx) => await readPositions(ctx, await requireUser(ctx)),
 })
 
-async function readBalances(ctx: QueryCtx, ownerId: string) {
-  const accounts = (
-    await ctx.db
-      .query('accounts')
-      .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
-      .take(ACCOUNT_ROWS)
-  ).filter((a) => a.retiredAt === undefined)
-
-  const rates = new Map<string, { rate: number; asOf: number } | null>()
-  async function rateFor(currency: string) {
-    if (currency === 'EUR') return { rate: 1, asOf: null as number | null }
-    if (!rates.has(currency)) {
-      const row = await ctx.db
-        .query('fxRates')
-        .withIndex('by_owner_currency_time', (q) =>
-          q.eq('ownerId', ownerId).eq('currency', currency),
-        )
-        .order('desc')
-        .first()
-      rates.set(
-        currency,
-        row === null ? null : { rate: row.rate, asOf: row.asOf },
-      )
-    }
-    const r = rates.get(currency) ?? null
-    return r === null ? null : { rate: r.rate, asOf: r.asOf as number | null }
-  }
-
-  let cents = 0
-  let oldestAt: number | null = null
-  let unread = 0
-  const out = []
-  for (const account of accounts) {
-    const pockets = []
-    let accountCents = 0
-    for (const currency of account.currencies) {
-      const row = await ctx.db
-        .query('stateSnapshots')
-        .withIndex('by_owner_key_time', (q) =>
-          q
-            .eq('ownerId', ownerId)
-            .eq('key', `balance:${account._id}:${currency}`),
-        )
-        .order('desc')
-        .first()
-      const read = row?.value ?? null
-      const since =
-        row === null
-          ? { cents: 0, rows: 0 }
-          : await movedSince(ctx, ownerId, account, currency, row.recordedAt)
-      const value =
-        read === null ? null : (Math.round(read * 100) + since.cents) / 100
-      const rate = await rateFor(currency)
-      const eur =
-        value === null || rate === null
-          ? null
-          : Math.round(value * rate.rate * 100) / 100
-      if (eur === null || row === null) {
-        unread++
-      } else {
-        accountCents += Math.round(eur * 100)
-        oldestAt =
-          oldestAt === null
-            ? row.recordedAt
-            : Math.min(oldestAt, row.recordedAt)
-      }
-      pockets.push({
-        currency,
-        value,
-        recordedAt: row?.recordedAt ?? null,
-        read,
-        moved: since.cents / 100,
-        movedRows: since.rows,
-        eur,
-        rateAsOf: rate?.asOf ?? null,
-        source: row?.source ?? null,
-        writtenAt: row?._creationTime ?? null,
-      })
-    }
-    cents += accountCents
-    let brokerCash = null
-    if (hasBrokerCash(account)) {
-      const row = await ctx.db
-        .query('stateSnapshots')
-        .withIndex('by_owner_key_time', (q) =>
-          q.eq('ownerId', ownerId).eq('key', brokerCashKey(account._id)),
-        )
-        .order('desc')
-        .first()
-      if (row === null) {
-        unread++
-        brokerCash = { eur: null, recordedAt: null, moved: 0, movedRows: 0 }
-      } else {
-        const since = await tradedSince(ctx, ownerId, account, row.recordedAt)
-        const now = Math.round((row.value ?? 0) * 100) + since.cents
-        cents += now
-        oldestAt =
-          oldestAt === null
-            ? row.recordedAt
-            : Math.min(oldestAt, row.recordedAt)
-        brokerCash = {
-          eur: now / 100,
-          recordedAt: row.recordedAt,
-          moved: since.cents / 100,
-          movedRows: since.rows,
-        }
-      }
-    }
-    out.push({
-      accountId: account._id,
-      name: account.name,
-      kinds: account.kinds,
-      domain: account.domain ?? null,
-      pockets,
-      cashEur: accountCents / 100,
-      brokerCash,
-    })
-  }
-  return { accounts: out, total: cents / 100, oldestAt, unread }
-}
-
 /**
  * Free cash at the end of each day he asks for (27 Sep — the Overview
  * chart and the account cards' lines): per account, each pocket's nearest
@@ -1830,6 +1611,7 @@ async function readBalances(ctx: QueryCtx, ownerId: string) {
  * not stored yet.
  */
 const daySeries = v.array(v.union(v.number(), v.null()))
+
 const accountSeries = v.array(
   v.object({ accountId: v.id('accounts'), values: daySeries }),
 )
@@ -1846,168 +1628,6 @@ export const cashHistory = query({
     return { total, accounts }
   },
 })
-
-async function readCashHistory(
-  ctx: QueryCtx,
-  ownerId: string,
-  dayEnds: ReadonlyArray<number>,
-) {
-  const accounts = (
-    await ctx.db
-      .query('accounts')
-      .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
-      .take(ACCOUNT_ROWS)
-  ).filter((a) => a.retiredAt === undefined)
-  const out = []
-  const total: Array<number | null> = dayEnds.map(() => null)
-  const live = new Set(accounts.map((a) => a._id))
-  /* Lines first read inside the range (20 Oct: the Revolut broker cash,
-     read on the 20th, made Today's worth ▲€17k since Sep 30). */
-  const starts: Array<{
-    accountId: Id<'accounts'>
-    at: number
-    value: number
-  }> = []
-  const startAt = (
-    accountId: Id<'accounts'>,
-    series: ReadonlyArray<number | null>,
-    from: number,
-    rate: number,
-  ) => {
-    const k = series.findIndex((x, i) => x !== null && dayEnds[i] >= from)
-    if (k <= 0) return
-    starts.push({
-      accountId,
-      at: dayEnds[k],
-      value: Math.round((series[k] ?? 0) * rate * 100) / 100,
-    })
-  }
-  /* Rows of money moving between his own accounts, for the chart's lane
-     (src/lib/accountLines, ownMoves). */
-  const moveRows: Array<{
-    at: number
-    accountId: Id<'accounts'>
-    value: number
-    otherAccountId: Id<'accounts'> | null
-  }> = []
-  for (const account of accounts) {
-    const logs = await ctx.db
-      .query('logs')
-      .withIndex('by_owner_account_time', (q) =>
-        q.eq('ownerId', ownerId).eq('accountId', account._id),
-      )
-      .take(HISTORY_ROWS)
-    for (const l of logs) {
-      const other = l.meta?.otherAccountId
-      if (l.kind !== 'move' || l.value === undefined || other === undefined)
-        continue
-      if (!live.has(other)) continue
-      moveRows.push({
-        at: l.occurredAt,
-        accountId: account._id,
-        value: l.value,
-        otherAccountId: other,
-      })
-    }
-    /* A bank that is also a broker keeps its trades to its broker cash,
-       read below from its first reading on. */
-    const trades =
-      account.kinds.includes('broker') && !hasBrokerCash(account)
-        ? await ctx.db
-            .query('trades')
-            .withIndex('by_owner_account', (q) =>
-              q.eq('ownerId', ownerId).eq('accountId', account._id),
-            )
-            .take(TRADE_ROWS)
-        : []
-    const values: Array<number | null> = dayEnds.map(() => null)
-    for (const currency of account.currencies) {
-      const readings = await ctx.db
-        .query('stateSnapshots')
-        .withIndex('by_owner_key_time', (q) =>
-          q
-            .eq('ownerId', ownerId)
-            .eq('key', `balance:${account._id}:${currency}`),
-        )
-        .take(500)
-      if (readings.length === 0) continue
-      const rate =
-        currency === 'EUR'
-          ? 1
-          : ((
-              await ctx.db
-                .query('fxRates')
-                .withIndex('by_owner_currency_time', (q) =>
-                  q.eq('ownerId', ownerId).eq('currency', currency),
-                )
-                .order('desc')
-                .first()
-            )?.rate ?? null)
-      if (rate === null) continue
-      const moves = pocketMoves(logs, trades, currency)
-      const series = balanceSeries(
-        dayEnds,
-        readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
-        moves,
-        account.kinds.includes('cash') && !account.kinds.includes('bank'),
-      )
-      startAt(account._id, series, -Infinity, rate)
-      for (const [i, x] of series.entries()) {
-        if (x === null) continue
-        values[i] = Math.round(((values[i] ?? 0) + x * rate) * 100) / 100
-      }
-    }
-    if (hasBrokerCash(account)) {
-      /* Its broker cash, from the day it was first read (10 Oct). */
-      const readings = await ctx.db
-        .query('stateSnapshots')
-        .withIndex('by_owner_key_time', (q) =>
-          q.eq('ownerId', ownerId).eq('key', brokerCashKey(account._id)),
-        )
-        .take(500)
-      const first = Math.min(...readings.map((r) => r.recordedAt))
-      /* Only the trades after its first reading (18 Oct): a day before it
-         is not drawn, and on any later day a trade at or before the
-         reading it starts from is already in that reading — so the 3,700
-         older Revolut trades never changed a point, and were read on
-         every run of the worth chart. */
-      const brokerTrades =
-        readings.length === 0
-          ? []
-          : await ctx.db
-              .query('trades')
-              .withIndex('by_owner_account_time', (q) =>
-                q
-                  .eq('ownerId', ownerId)
-                  .eq('accountId', account._id)
-                  .gt('occurredAt', first),
-              )
-              .take(TRADE_ROWS)
-      const series =
-        readings.length === 0
-          ? []
-          : balanceSeries(
-              dayEnds,
-              readings.map((r) => ({ at: r.recordedAt, value: r.value ?? 0 })),
-              pocketMoves([], brokerTrades, 'EUR'),
-              false,
-            )
-      startAt(account._id, series, first, 1)
-      for (const [i, x] of series.entries()) {
-        if (x === null || dayEnds[i] < first) continue
-        values[i] = Math.round(((values[i] ?? 0) + x) * 100) / 100
-      }
-    }
-    for (const [i, x] of values.entries())
-      if (x !== null) total[i] = Math.round(((total[i] ?? 0) + x) * 100) / 100
-    out.push({ accountId: account._id, values })
-  }
-  const first = dayEnds[0] ?? 0
-  const moves = ownMoves(moveRows).filter(
-    (m) => m.at > first - 86_400_000 && m.at <= (dayEnds.at(-1) ?? 0),
-  )
-  return { total, accounts: out, moves, starts }
-}
 
 /**
  * The worth chart as on :3950 (Finances B, 1 Oct): free cash, invested and
@@ -2313,228 +1933,11 @@ export const worthToday = query({
   },
 })
 
-type Slot = {
-  accountId: Id<'accounts'>
-  instrumentId: Id<'instruments'>
-  trades: Array<LedgerTrade>
-  looks: Array<Observation>
-}
-
-/* Positions as the trades and holdings screens say, and where a close (or
-   a rate) is looked up: only on days the instrument was held, every day of
-   the last month and a week apart before it — coarser when that is more
-   than PRICE_LOOKS (closeLooks). A rate, on the days anything quoted in it
-   was held. One list per instrument (`ids`), then one per rate (`bases`). */
-async function investedInputs(
-  ctx: QueryCtx,
-  ownerId: string,
-  dayEnds: ReadonlyArray<number>,
-) {
-  const live = new Set(
-    (
-      await ctx.db
-        .query('accounts')
-        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
-        .take(ACCOUNT_ROWS)
-    )
-      .filter((a) => a.retiredAt === undefined)
-      .map((a) => a._id),
-  )
-  const trades = (await readLedgerTrades(ctx, ownerId)).trades.filter((t) =>
-    live.has(t.accountId),
-  )
-  const looks = (
-    await ctx.db
-      .query('holdings')
-      .withIndex('by_owner_account', (q) => q.eq('ownerId', ownerId))
-      .take(HOLDING_ROWS)
-  ).filter((h) => live.has(h.accountId))
-
-  const slots = new Map<string, Slot>()
-  const slot = (accountId: Id<'accounts'>, instrumentId: Id<'instruments'>) => {
-    const key = `${accountId}:${instrumentId}`
-    let p = slots.get(key)
-    if (p === undefined) {
-      p = { accountId, instrumentId, trades: [], looks: [] }
-      slots.set(key, p)
-    }
-    return p
-  }
-  for (const t of trades) slot(t.accountId, t.instrumentId).trades.push(t)
-  for (const h of looks)
-    slot(h.accountId, h.instrumentId).looks.push({
-      shares: h.shares,
-      paidEur: h.paidEur,
-      asOf: h.asOf,
-    })
-
-  const instruments = new Map(
-    (
-      await Promise.all(
-        [...new Set([...slots.values()].map((p) => p.instrumentId))].map((id) =>
-          ctx.db.get(id),
-        ),
-      )
-    )
-      .filter(
-        (x): x is Doc<'instruments'> => x !== null && x.ownerId === ownerId,
-      )
-      .map((x) => [x._id, x]),
-  )
-  const ids = [...instruments.keys()]
-  const bases = [
-    ...new Set(
-      [...instruments.values()]
-        .map((x) => quoteToRate(x.currency).base)
-        .filter((b) => b !== 'EUR'),
-    ),
-  ]
-  const heldOf = ids.map((id) =>
-    heldDays(
-      dayEnds,
-      [...slots.values()].filter((p) => p.instrumentId === id),
-    ),
-  )
-  const looksOf = closeLooks(
-    dayEnds,
-    [
-      ...heldOf,
-      ...bases.map((base) =>
-        dayEnds.map((_, i) =>
-          ids.some(
-            (id, k) =>
-              heldOf[k][i] &&
-              quoteToRate(instruments.get(id)!.currency).base === base,
-          ),
-        ),
-      ),
-    ],
-    PRICE_LOOKS,
-  )
-  return { slots: [...slots.values()], instruments, ids, bases, looksOf }
-}
-
-/* The latest close (or rate) at or before a day's end, through the index:
-   one row. */
-const closeAtEnd =
-  (ctx: QueryCtx, ownerId: string, id: Id<'instruments'>) =>
-  async (end: number): Promise<Close | null> => {
-    const r = await ctx.db
-      .query('prices')
-      .withIndex('by_owner_instrument_time', (q) =>
-        q.eq('ownerId', ownerId).eq('instrumentId', id).lte('asOf', end),
-      )
-      .order('desc')
-      .first()
-    return r === null ? null : { asOf: r.asOf, price: r.price }
-  }
-const rateAtEnd =
-  (ctx: QueryCtx, ownerId: string, base: string) =>
-  async (end: number): Promise<Rate | null> => {
-    const r = await ctx.db
-      .query('fxRates')
-      .withIndex('by_owner_currency_time', (q) =>
-        q.eq('ownerId', ownerId).eq('currency', base).lte('asOf', end),
-      )
-      .order('desc')
-      .first()
-    return r === null ? null : { asOf: r.asOf, rate: r.rate }
-  }
-
-/** A close (or rate) still the day's at `end`. */
-const fresh = (r: { asOf: number }, end: number) =>
-  r.asOf >= end - STALE_CLOSE_MS - 7 * 86_400_000
-
-/* Every close and rate is looked up at once, not one after another
-   (9 Oct): the same ~80 one-row reads a position, but in sequence they
-   took 6 s — and Convex holds every update on screen until each open
-   query has caught up, so a save froze the whole app for those 6 s.
-   What was found, by its time; a row too old for its look is left out. */
-async function latestAt<T extends { asOf: number }>(
-  ends: ReadonlyArray<number>,
-  read: (end: number) => Promise<T | null>,
-) {
-  const found = new Map<number, T>()
-  for (const [k, r] of (await Promise.all(ends.map(read))).entries())
-    if (r !== null && fresh(r, ends[k])) found.set(r.asOf, r)
-  return found
-}
-const sorted = <T extends { asOf: number }>(found: Map<number, T>) =>
-  [...found.values()].sort((a, b) => a.asOf - b.asOf)
-
-function holdingsOf(
-  slots: ReadonlyArray<Slot>,
-  instruments: Map<Id<'instruments'>, Doc<'instruments'>>,
-  closesOf: Map<Id<'instruments'>, Array<Close>>,
-  ratesOf: Map<string, Array<Rate>>,
-) {
-  const holdings: Array<Holding<Id<'accounts'>>> = []
-  for (const p of slots) {
-    const instrument = instruments.get(p.instrumentId)
-    if (instrument === undefined) continue
-    const { base, divide } = quoteToRate(instrument.currency)
-    holdings.push({
-      accountId: p.accountId,
-      trades: p.trades,
-      looks: p.looks,
-      closes: closesOf.get(p.instrumentId) ?? [],
-      divide,
-      rates: base === 'EUR' ? null : (ratesOf.get(base) ?? []),
-    })
-  }
-  return holdings
-}
-
-const HISTORY_ROWS = 5000
-/** Closes and rates one worthHistory may look up: Convex stops a query at
-    4,096 reads, and the cash side needs its share. */
-const PRICE_LOOKS = 3200
-/** A close or rate this old is no longer the day's: the point is unpriced. */
-const STALE_CLOSE_MS = 14 * 86_400_000
-
-/* One pocket's rows as signed cents: spending out, money in, a move's own
-   side; in a broker's euro pocket, buys out and sells in. */
-function pocketMoves(
-  logs: ReadonlyArray<Doc<'logs'>>,
-  trades: ReadonlyArray<Doc<'trades'>>,
-  currency: string,
-): Array<Move> {
-  const unit = currency.toLowerCase()
-  const moves: Array<Move> = []
-  for (const l of logs) {
-    if (l.area !== 'money' || l.unit !== unit || l.value === undefined) continue
-    const signed =
-      l.kind === 'expense'
-        ? -l.value
-        : l.kind === 'income' || l.kind === 'move'
-          ? l.value
-          : 0
-    if (signed !== 0)
-      moves.push({
-        at: l.occurredAt,
-        cents: Math.round(signed * 100),
-        fromFile: l.meta?.intakeId !== undefined,
-      })
-  }
-  if (currency === 'EUR')
-    for (const t of trades) {
-      /* No cash side: opening holdings, and coins whose money the bank
-         statement already shows leaving (noCash). */
-      if (t.opening === true || t.noCash === true) continue
-      const cost = Math.round(t.shares * t.priceEur * 100)
-      moves.push({
-        at: t.occurredAt,
-        cents: t.side === 'buy' ? -cost : cost,
-        fromFile: false,
-      })
-    }
-  return moves
-}
-
 /* How close a file's printed balance and a stored reading must be, in
    time, to be the same reading (a statement's "balance of Aug 31" is
    stored when he confirms, often a day or more later). */
 const FILE_READING_MS = 3 * 86_400_000
+
 const SHEET_FILES = 200
 
 /**
@@ -2799,105 +2202,6 @@ export const accountSheet = query({
   },
 })
 
-const MOVED_ROWS = 2000
-
-/**
- * What moved in one pocket after its reading: signed, in cents of the
- * pocket's currency. Spending out, money in, a transfer's own side; in the
- * euro pocket of an account with trades, buys out and sells in.
- */
-export async function movedSince(
-  ctx: QueryCtx,
-  ownerId: string,
-  account: Doc<'accounts'>,
-  currency: string,
-  readAt: number,
-  /** Up to and including this moment; now when absent. */
-  until?: number,
-  /** As if this file had never been saved (undoFile.ts). */
-  skip?: Id<'intakes'>,
-): Promise<{ cents: number; rows: number }> {
-  const unit = currency.toLowerCase()
-  const logs = await ctx.db
-    .query('logs')
-    .withIndex('by_owner_account_time', (q) => {
-      const from = q
-        .eq('ownerId', ownerId)
-        .eq('accountId', account._id)
-        .gt('occurredAt', readAt)
-      return until === undefined ? from : from.lte('occurredAt', until)
-    })
-    .take(MOVED_ROWS)
-  let cents = 0
-  let rows = 0
-  for (const l of logs) {
-    if (l.area !== 'money' || l.unit !== unit || l.value === undefined) continue
-    if (skip !== undefined && l.meta?.intakeId === skip) continue
-    /* A statement's rows are stamped at noon of their day, and its
-       closing balance can be confirmed at 2 am on its closing day: a row
-       read off a file counts after a reading only from the next day on. */
-    if (
-      l.meta?.intakeId !== undefined &&
-      l.occurredAt <= readAt + HISTORY_GRACE_MS
-    )
-      continue
-    const signed =
-      l.kind === 'expense'
-        ? -l.value
-        : l.kind === 'income' || l.kind === 'move'
-          ? l.value
-          : 0
-    if (signed === 0) continue
-    cents += Math.round(signed * 100)
-    rows++
-  }
-  /* A bank that is also a broker pays for shares from its broker cash,
-     not from these euros (10 Oct). */
-  if (
-    currency === 'EUR' &&
-    account.kinds.includes('broker') &&
-    !hasBrokerCash(account)
-  ) {
-    const traded = await tradedSince(ctx, ownerId, account, readAt, skip)
-    cents += traded.cents
-    rows += traded.rows
-  }
-  return { cents, rows }
-}
-
-/* What an account's buys cost and its sells brought after a reading, as
-   signed cents: the trades side of a broker's cash. */
-export async function tradedSince(
-  ctx: QueryCtx,
-  ownerId: string,
-  account: Doc<'accounts'>,
-  readAt: number,
-  skip?: Id<'intakes'>,
-): Promise<{ cents: number; rows: number }> {
-  /* Only the trades after the reading (18 Oct): Revolut's 3,700 trades
-     were read on every run of balances, worth, ahead and weekReview to
-     keep the few after its last cash reading. */
-  const trades = await ctx.db
-    .query('trades')
-    .withIndex('by_owner_account_time', (q) =>
-      q
-        .eq('ownerId', ownerId)
-        .eq('accountId', account._id)
-        .gt('occurredAt', readAt),
-    )
-    .take(TRADE_ROWS)
-  let cents = 0
-  let rows = 0
-  for (const t of trades) {
-    if (t.opening === true || t.noCash === true) continue
-    if (skip !== undefined && t.importId === skip) continue
-    const cost = Math.round(t.shares * t.priceEur * 100)
-    cents += t.side === 'buy' ? -cost : cost
-    rows++
-  }
-  return { cents, rows }
-}
-
 /* The tickers held now, for the price reading (17 Oct: "We care about my
    holdings"). A ticker sold out keeps its stored closes; reading it again
    adds nothing and each save re-ran every open worth query. */
@@ -2928,6 +2232,7 @@ const dayRow = v.object({
   nowEur: v.union(v.number(), v.null()),
   wasEur: v.union(v.number(), v.null()),
 })
+
 const dayAnswer = v.object({
   rows: v.array(dayRow),
   nowEur: v.number(),
@@ -3005,257 +2310,6 @@ export const dayCloseFor = internalQuery({
   returns: dayAnswer,
   handler: async (ctx, args) => await dayCloseOf(ctx, args.ownerId, args.since),
 })
-
-async function readPositions(ctx: QueryCtx, ownerId: string) {
-  /* A deleted account with history is retired, not erased — and what it
-     held leaves every total with it (27 Sep: his deleted test accounts
-     still counted in the hero). */
-  const live = new Set(
-    (
-      await ctx.db
-        .query('accounts')
-        .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
-        .take(ACCOUNT_ROWS)
-    )
-      .filter((a) => a.retiredAt === undefined)
-      .map((a) => a._id),
-  )
-  const ledger = await readLedgerTrades(ctx, ownerId)
-  const trades = ledger.trades.filter((t) => live.has(t.accountId))
-
-  const looks = (
-    await ctx.db
-      .query('holdings')
-      .withIndex('by_owner_account', (q) => q.eq('ownerId', ownerId))
-      .take(HOLDING_ROWS)
-  ).filter((h) => live.has(h.accountId))
-
-  const held = new Map<
-    string,
-    {
-      accountId: Id<'accounts'>
-      instrumentId: Id<'instruments'>
-      trades: Array<LedgerTrade>
-      staked: number
-      looks: Array<Observation>
-    }
-  >()
-  const slot = (accountId: Id<'accounts'>, instrumentId: Id<'instruments'>) => {
-    const key = `${accountId}:${instrumentId}`
-    let p = held.get(key)
-    if (p === undefined) {
-      p = { accountId, instrumentId, trades: [], looks: [], staked: 0 }
-      held.set(key, p)
-    }
-    return p
-  }
-  for (const t of trades) {
-    const p = slot(t.accountId, t.instrumentId)
-    p.trades.push(t)
-    if (t.reward) p.staked += t.shares
-  }
-  for (const h of looks)
-    slot(h.accountId, h.instrumentId).looks.push({
-      shares: h.shares,
-      paidEur: h.paidEur,
-      asOf: h.asOf,
-    })
-  /* Every instrument once, side by side. */
-  const instruments = new Map(
-    await Promise.all(
-      [...new Set([...held.values()].map((p) => p.instrumentId))].map(
-        async (id) => [id, await ctx.db.get(id)] as const,
-      ),
-    ),
-  )
-  /* The latest look of each kind of file an account had (10 Oct: a gold
-     file is not a look at his coins). */
-  const lookKey = (accountId: Id<'accounts'>, id: Id<'instruments'>) => {
-    const i = instruments.get(id)
-    return `${accountId}:${i ? lookFamily(i) : 'security'}`
-  }
-  const lastLook = new Map<string, number>()
-  for (const h of looks) {
-    const k = lookKey(h.accountId, h.instrumentId)
-    lastLook.set(k, Math.max(lastLook.get(k) ?? 0, h.asOf))
-  }
-
-  const rates = new Map<string, { rate: number; asOf: number } | null>()
-  async function rateFor(base: string) {
-    if (base === 'EUR') return { rate: 1, asOf: null }
-    if (!rates.has(base)) {
-      const row = await ctx.db
-        .query('fxRates')
-        .withIndex('by_owner_currency_time', (q) =>
-          q.eq('ownerId', ownerId).eq('currency', base),
-        )
-        .order('desc')
-        .first()
-      rates.set(base, row === null ? null : { rate: row.rate, asOf: row.asOf })
-    }
-    const r = rates.get(base) ?? null
-    return r === null ? null : { rate: r.rate, asOf: r.asOf as number | null }
-  }
-
-  /* The dollar rate of each day he traded or a screen saw a cost (10
-     Oct): what he paid, in dollars on the day — Revolut's own view. Read
-     side by side, one row a day. */
-  const usdOn = new Map<number, number | null>()
-  const dayOf = (at: number) => Math.floor(at / 86_400_000)
-  const days = new Set<number>()
-  for (const p of held.values()) {
-    for (const t of p.trades) days.add(dayOf(t.occurredAt))
-    for (const o of p.looks)
-      if (o.paidEur !== undefined) days.add(dayOf(o.asOf))
-  }
-  await Promise.all(
-    [...days].map(async (d) => {
-      const r = await ctx.db
-        .query('fxRates')
-        .withIndex('by_owner_currency_time', (q) =>
-          q
-            .eq('ownerId', ownerId)
-            .eq('currency', 'USD')
-            .lte('asOf', (d + 1) * 86_400_000),
-        )
-        .order('desc')
-        .first()
-      usdOn.set(d, r === null ? null : r.rate)
-    }),
-  )
-  const inDollars = (p: {
-    trades: Array<LedgerTrade>
-    looks: Array<Observation>
-  }) => {
-    const rateAt = (at: number) => usdOn.get(dayOf(at)) ?? null
-    if (p.trades.some((t) => rateAt(t.occurredAt) === null)) return null
-    const r = reconcile(
-      p.trades.map((t) => ({
-        ...t,
-        priceEur: t.priceEur / (rateAt(t.occurredAt) as number),
-      })),
-      p.looks.map((o) => {
-        const rate = rateAt(o.asOf)
-        return {
-          ...o,
-          paidEur:
-            o.paidEur === undefined || rate === null
-              ? undefined
-              : o.paidEur / rate,
-        }
-      }),
-    )
-    return r.paid
-  }
-
-  const rows = []
-  const gone = []
-  let pricesFetchedAt: number | null = null
-  for (const p of held.values()) {
-    const r = reconcile(p.trades, p.looks)
-    const shares = r.shares
-    const instrument = instruments.get(p.instrumentId) ?? null
-    if (instrument === null || instrument.ownerId !== ownerId) continue
-    const price = await ctx.db
-      .query('prices')
-      .withIndex('by_owner_instrument_time', (q) =>
-        q.eq('ownerId', ownerId).eq('instrumentId', p.instrumentId),
-      )
-      .order('desc')
-      .first()
-    const { base, divide } = quoteToRate(instrument.currency)
-    const rate = await rateFor(base)
-    const valueEur =
-      price === null || rate === null
-        ? null
-        : Math.round(((shares * price.price) / divide) * rate.rate * 100) / 100
-    /* Sold out, or dust left by a sale — 0.06 XLM, €0.01 — is not a
-       position (10 Oct: Revolut does not list it either). It goes under
-       "sold" when a sale or a later screen says so. */
-    if (shares <= 0 || (valueEur !== null && valueEur < 1)) {
-      const s = soldPart(p.trades, p.looks)
-      if (s !== null)
-        gone.push({
-          accountId: p.accountId,
-          instrumentId: p.instrumentId,
-          symbol: instrument.symbol,
-          name: instrument.name,
-          type: instrument.type,
-          currency: instrument.currency,
-          shares: 0,
-          paid: s.boughtFor,
-          paidUsd: null,
-          status: r.status,
-          seenAt: r.seenAt,
-          gap: 0,
-          notSeen: false,
-          price: price?.price ?? null,
-          priceAsOf: price?.asOf ?? null,
-          rate: rate?.rate ?? null,
-          rateAsOf: rate?.asOf ?? null,
-          valueEur: 0,
-          staked: 0,
-          soldFor: s.soldFor,
-          soldAt: s.soldAt,
-        })
-      continue
-    }
-    if (price) pricesFetchedAt = Math.max(pricesFetchedAt ?? 0, price.fetchedAt)
-    rows.push({
-      accountId: p.accountId,
-      instrumentId: p.instrumentId,
-      symbol: instrument.symbol,
-      name: instrument.name,
-      type: instrument.type,
-      currency: instrument.currency,
-      shares,
-      paid: r.paid,
-      paidUsd: r.paid === null ? null : inDollars(p),
-      status: r.status,
-      seenAt: r.seenAt,
-      gap: r.gap,
-      notSeen: notSeenSince(
-        r.seenAt,
-        lastLook.get(lookKey(p.accountId, p.instrumentId)) ?? null,
-      ),
-      price: price?.price ?? null,
-      priceAsOf: price?.asOf ?? null,
-      rate: rate?.rate ?? null,
-      rateAsOf: rate?.asOf ?? null,
-      valueEur,
-      staked: Math.round(p.staked * 1e6) / 1e6,
-    })
-  }
-  rows.sort((a, b) => (b.valueEur ?? b.paid ?? 0) - (a.valueEur ?? a.paid ?? 0))
-  let cents = 0
-  let oldestPriceAsOf: number | null = null
-  let unvalued = 0
-  for (const r of rows) {
-    if (r.valueEur === null || r.priceAsOf === null) {
-      unvalued++
-      continue
-    }
-    cents += Math.round(r.valueEur * 100)
-    oldestPriceAsOf =
-      oldestPriceAsOf === null
-        ? r.priceAsOf
-        : Math.min(oldestPriceAsOf, r.priceAsOf)
-  }
-  /* Sold in one account and owned in another is owned. */
-  const owned = new Set(rows.map((r) => r.instrumentId))
-  return {
-    rows,
-    sold: gone
-      .filter((g) => !owned.has(g.instrumentId))
-      .sort((a, b) => b.soldAt - a.soldAt),
-    totalEur: cents / 100,
-    oldestPriceAsOf,
-    pricesFetchedAt,
-    unvalued,
-    complete: ledger.complete && looks.length < HOLDING_ROWS,
-    usdRate: (await rateFor('USD'))?.rate ?? null,
-  }
-}
 
 /**
  * What is his, split the way he thinks of it (26 Sep: "we need to
@@ -3341,6 +2395,7 @@ const billOut = v.object({
   amount: v.number(),
   accountId: v.optional(v.id('accounts')),
 })
+
 const point = v.object({
   t: v.number(),
   bills: v.number(),
@@ -3896,394 +2951,6 @@ export const payMonthDetail = query({
     }
   },
 })
-
-/**
- * What a bank's own rows brought (11 Oct, the card's arrived block): how
- * many were saved, what went out and came in — sums over those logged rows
- * (source 1: one currency, from the day of `was`, only rows a bank reading
- * wrote, each opening in the account's rows) — between the balance held
- * before the first of them (`was`, state) and the account's balance now
- * (state). Null until a reading of them has been saved.
- */
-export async function arrivedFromBank(
-  ctx: QueryCtx,
-  ownerId: string,
-  accountId: Id<'accounts'>,
-  intakeIds: ReadonlyArray<Id<'intakes'>>,
-) {
-  let first: NonNullable<Doc<'intakes'>['landed']> | null = null
-  let rows = 0
-  let outCents = 0
-  let inCents = 0
-  for (const id of intakeIds) {
-    const intake = await ctx.db.get(id)
-    if (
-      intake === null ||
-      intake.ownerId !== ownerId ||
-      intake.status !== 'done' ||
-      intake.landed === undefined
-    )
-      continue
-    first ??= intake.landed
-    const unit = first.currency.toLowerCase()
-    const logs = await ctx.db
-      .query('logs')
-      .withIndex('by_owner_intake', (q) =>
-        q.eq('ownerId', ownerId).eq('meta.intakeId', id),
-      )
-      .take(300)
-    for (const l of logs) {
-      if (l.accountId !== accountId || l.unit !== unit) continue
-      const signed =
-        l.kind === 'expense'
-          ? -(l.value ?? 0)
-          : l.kind === 'income' || l.kind === 'move'
-            ? (l.value ?? 0)
-            : 0
-      if (signed === 0) continue
-      rows++
-      if (signed < 0) outCents -= Math.round(signed * 100)
-      else inCents += Math.round(signed * 100)
-    }
-  }
-  if (first === null || rows === 0) return null
-  const { currency } = first
-  const now = await ctx.db
-    .query('stateSnapshots')
-    .withIndex('by_owner_key_time', (q) =>
-      q.eq('ownerId', ownerId).eq('key', balanceKey(accountId, currency)),
-    )
-    .order('desc')
-    .first()
-  if (now?.value === undefined) return null
-  return {
-    rows,
-    currency,
-    was: first.was,
-    wasAt: first.wasAt,
-    out: outCents / 100,
-    in: inCents / 100,
-    now: now.value,
-  }
-}
-
-/**
- * What Trading 212's answers changed since the look at `at`, as the card
- * says it (12 Oct, docs/specs/2026-10-12-trading-212.md): per company the
- * shares then and now (state, kept on the link) and what they are worth —
- * shares × the stored price (external reading) of that day, and of now.
- * Null euros where no price is stored. Free cash: the balance it had and
- * the balance stored now (state).
- */
-export async function changedAtBroker(
-  ctx: QueryCtx,
-  ownerId: string,
-  account: Doc<'accounts'>,
-  changed: NonNullable<Doc<'bankLinks'>['changed']>,
-) {
-  const worthOf = async (
-    inst: Doc<'instruments'>,
-    shares: number,
-    at?: number,
-  ) => {
-    if (shares === 0) return 0
-    const { base, divide } = quoteToRate(inst.currency)
-    const price = await ctx.db
-      .query('prices')
-      .withIndex('by_owner_instrument_time', (q) => {
-        const mine = q.eq('ownerId', ownerId).eq('instrumentId', inst._id)
-        return at === undefined ? mine : mine.lte('asOf', at)
-      })
-      .order('desc')
-      .first()
-    const rate =
-      base === 'EUR'
-        ? 1
-        : (
-            await ctx.db
-              .query('fxRates')
-              .withIndex('by_owner_currency_time', (q) => {
-                const mine = q.eq('ownerId', ownerId).eq('currency', base)
-                return at === undefined ? mine : mine.lte('asOf', at)
-              })
-              .order('desc')
-              .first()
-          )?.rate
-    return price === null || rate === undefined
-      ? null
-      : Math.round(((shares * price.price) / divide) * rate * 100) / 100
-  }
-  const lines: Array<{
-    symbol: string
-    name: string
-    type: string
-    was: number
-    now: number
-    wasEur: number | null
-    nowEur: number | null
-  }> = []
-  for (const l of changed.lines) {
-    const inst = await ctx.db.get(l.instrumentId)
-    if (inst === null || inst.ownerId !== ownerId) continue
-    lines.push({
-      symbol: inst.symbol,
-      name: inst.name,
-      type: inst.type,
-      was: l.was,
-      now: l.now,
-      wasEur: await worthOf(inst, l.was, changed.at),
-      nowEur: await worthOf(inst, l.now),
-    })
-  }
-  const move = (l: (typeof lines)[number]) =>
-    Math.abs((l.nowEur ?? 0) - (l.wasEur ?? 0))
-  lines.sort((a, b) => move(b) - move(a))
-  const currency = account.currencies[0] ?? 'EUR'
-  const cashNow =
-    changed.cashWas === undefined
-      ? undefined
-      : (
-          await ctx.db
-            .query('stateSnapshots')
-            .withIndex('by_owner_key_time', (q) =>
-              q
-                .eq('ownerId', ownerId)
-                .eq(
-                  'key',
-                  hasBrokerCash(account)
-                    ? brokerCashKey(account._id)
-                    : balanceKey(account._id, currency),
-                ),
-            )
-            .order('desc')
-            .first()
-        )?.value
-  return {
-    at: changed.at,
-    cash:
-      changed.cashWas === undefined || cashNow === undefined
-        ? null
-        : { currency, was: changed.cashWas, now: cashNow },
-    lines,
-  }
-}
-
-/* ---------------------------------------------------------------------------
-   The week, for Review (15 Oct, mockup design/review-mockup/real.html) — on
-   what the app gets by itself: bank rows, commits, a weight reading, and
-   the hand logs beside four weeks of them so a quiet week is not a screen
-   of zeros. Source 1 (log counts and sums, commits counted as Projects
-   counts them), source 2 (the latest weight) and source 3 (live projects,
-   done tasks). Counted in src/lib/review.ts; nothing stored.
-   ------------------------------------------------------------------------ */
-
-const REVIEW_PROJECTS = ['focus', 'active', 'paused'] as const
-
-/** What `weekReview` takes: the week as the page's local midnights. */
-export const weekReviewArgs = v.object({
-  /** Fourteen local midnights: last week's Monday to this week's Sunday. */
-  dayStarts: v.array(v.number()),
-  /** The midnight after this week's Sunday — exclusive. */
-  end: v.number(),
-  /** The Monday three weeks before this one: four whole weeks to `end`. */
-  fourWeeksStart: v.number(),
-  /** Language area slugs, from areas.list. */
-  languages: v.array(v.string()),
-})
-
-export const weekReviewResult = v.object({
-  money: v.object({
-    spent: v.number(),
-    lastSpent: v.number(),
-    bills: v.number(),
-    byDay: v.array(v.number()),
-    count: v.number(),
-    biggest: v.array(
-      v.object({
-        _id: v.id('logs'),
-        name: v.string(),
-        /** The site of its logo, when the payee was named with one. */
-        domain: v.union(v.string(), v.null()),
-        category: v.union(v.string(), v.null()),
-        amount: v.number(),
-        occurredAt: v.number(),
-      }),
-    ),
-  }),
-  /** This week's days, Monday first: what each carried besides commits
-      and money out — the week bar's badges. */
-  days: v.array(
-    v.object({
-      in: v.number(),
-      workouts: v.array(v.string()),
-      shakes: v.number(),
-      languages: v.array(v.string()),
-    }),
-  ),
-  projects: v.array(
-    v.object({
-      _id: v.id('projects'),
-      title: v.string(),
-      focus: v.boolean(),
-      area: v.optional(v.string()),
-      logoUrl: v.union(v.string(), v.null()),
-      target: v.union(v.number(), v.null()),
-      thisWeek: v.number(),
-      lastWeek: v.number(),
-      days: v.array(v.number()),
-    }),
-  ),
-  body: v.object({
-    workouts: v.number(),
-    workouts4: v.number(),
-    shakes: v.number(),
-    shakes4: v.number(),
-    /** Workouts per kind over the four weeks, most first. */
-    kinds: v.array(v.object({ category: v.string(), count: v.number() })),
-    weight: v.union(v.object({ value: v.number(), at: v.number() }), v.null()),
-  }),
-  languages: v.array(
-    v.object({ slug: v.string(), week: v.number(), four: v.number() }),
-  ),
-  /** False when a read hit its cap — a number may be missing rows. */
-  complete: v.boolean(),
-})
-
-/* The query's counting, apart from it, so weekReads.run stores exactly the
-   numbers the page shows when it asks the AI to read the week. */
-export async function weekReviewFor(
-  ctx: QueryCtx,
-  ownerId: string,
-  args: Infer<typeof weekReviewArgs>,
-): Promise<Infer<typeof weekReviewResult>> {
-  if (args.dayStarts.length !== 14) throw new Error('FOURTEEN_DAYS')
-  const lastStarts = args.dayStarts.slice(0, 7)
-  const starts = args.dayStarts.slice(7)
-  const lastWeekStart = lastStarts[0]
-  const start = starts[0]
-  let complete = true
-
-  /* Four weeks of logs in one read: money for this week and last, the
-     hand logs for this week and the four. */
-  const logs = await ctx.db
-    .query('logs')
-    .withIndex('by_owner_time', (q) =>
-      q
-        .eq('ownerId', ownerId)
-        .gte('occurredAt', args.fourWeeksStart)
-        .lt('occurredAt', args.end),
-    )
-    .take(MONEY_ROWS)
-  if (logs.length === MONEY_ROWS) complete = false
-
-  const money = logs.filter((l) => l.area === 'money')
-  const week = spentWeek(money, starts, args.end)
-  const last = spentWeek(money, lastStarts, start)
-  /* The biggest rows under the names he gave their payees (payees.set),
-     as every Finances list shows them. */
-  const biggest = []
-  for (const b of week.biggest) {
-    const row = money.find((m) => m._id === b._id)
-    const named =
-      row === undefined
-        ? null
-        : await ctx.db
-            .query('payees')
-            .withIndex('by_owner_key', (q) =>
-              q.eq('ownerId', ownerId).eq('key', rowKey(row)),
-            )
-            .first()
-    biggest.push({
-      ...b,
-      _id: b._id as Id<'logs'>,
-      name: named?.name ?? b.name,
-      domain: named?.domain ?? null,
-    })
-  }
-  const weight = await ctx.db
-    .query('stateSnapshots')
-    .withIndex('by_owner_key_time', (q) =>
-      q.eq('ownerId', ownerId).eq('key', 'weight').lt('recordedAt', args.end),
-    )
-    .order('desc')
-    .first()
-
-  const projects = []
-  for (const status of REVIEW_PROJECTS) {
-    const rows = await ctx.db
-      .query('projects')
-      .withIndex('by_owner_status', (q) =>
-        q.eq('ownerId', ownerId).eq('status', status),
-      )
-      .take(MAX_ROWS)
-    for (const project of rows) {
-      const commits = await ctx.db
-        .query('commits')
-        .withIndex('by_owner_project_time', (q) =>
-          q
-            .eq('ownerId', ownerId)
-            .eq('projectId', project._id)
-            .gte('authoredAt', lastWeekStart)
-            .lt('authoredAt', args.end),
-        )
-        .take(MAX_ROWS)
-      if (commits.length === MAX_ROWS) complete = false
-      const counted = projectWeek(
-        commits,
-        project.githubRepo,
-        lastWeekStart,
-        starts,
-        args.end,
-      )
-      projects.push({
-        _id: project._id,
-        title: project.title,
-        focus: project.status === 'focus',
-        area: project.area,
-        logoUrl:
-          project.logoId === undefined
-            ? null
-            : await ctx.storage.getUrl(project.logoId),
-        target: project.commitTargetWeekly ?? null,
-        ...counted,
-      })
-    }
-  }
-
-  return {
-    money: {
-      spent: week.spent,
-      lastSpent: last.spent,
-      bills: week.bills,
-      byDay: week.byDay,
-      count: week.count,
-      biggest,
-    },
-    days: dayMarks(logs, starts, args.end, args.languages),
-    projects,
-    body: {
-      workouts: countIn(logs, start, args.end, isWorkout),
-      workouts4: countIn(logs, args.fourWeeksStart, args.end, isWorkout),
-      shakes: countIn(logs, start, args.end, isShake),
-      shakes4: countIn(logs, args.fourWeeksStart, args.end, isShake),
-      kinds: kindCounts(logs, args.fourWeeksStart, args.end),
-      weight:
-        weight?.value === undefined
-          ? null
-          : { value: weight.value, at: weight.recordedAt },
-    },
-    languages: args.languages.map((slug) => {
-      const isSession = (l: Doc<'logs'>) =>
-        l.area === slug && l.kind === 'session'
-      return {
-        slug,
-        week: countIn(logs, start, args.end, isSession),
-        four: countIn(logs, args.fourWeeksStart, args.end, isSession),
-      }
-    }),
-    complete,
-  }
-}
 
 export const weekReview = query({
   args: weekReviewArgs.fields,

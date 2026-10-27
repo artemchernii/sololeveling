@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
 
 import { balanceKey } from './accounts'
-import { movedSince } from './aggregate'
+import { movedSince } from './reads/moves'
 import { HISTORY_GRACE_MS } from '../src/lib/cashHistory'
 import { sumCheck } from '../src/lib/fileCheck'
 import type { CheckRow } from '../src/lib/fileCheck'

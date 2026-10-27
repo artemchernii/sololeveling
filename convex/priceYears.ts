@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 
 import { internal } from './_generated/api'
 import { action, internalMutation, query } from './_generated/server'
-import { quoteToRate } from './aggregate'
+import { quoteToRate } from './reads/positions'
 import { requireUser } from './auth'
 import { cannedYears } from './e2ePortfolio'
 import { bar, chart } from './market'

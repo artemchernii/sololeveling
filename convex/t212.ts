@@ -17,7 +17,7 @@ import {
 } from './accounts'
 import { requireUser } from './auth'
 import { CHECK_LOST_MS } from './bankRows'
-import { SAME_LOOK_MS, writeScreenPrice } from './intake'
+import { SAME_LOOK_MS, writeScreenPrice } from './files/write'
 import { upsertInstrument } from './invest'
 import { searchYahoo } from './market'
 import { T212Fail, t212Api } from './t212Api'

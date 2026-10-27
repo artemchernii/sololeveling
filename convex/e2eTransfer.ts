@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 
 import { mutation } from './_generated/server'
 import { requireUser } from './auth'
-import { movedSince } from './aggregate'
+import { movedSince } from './reads/moves'
 import { guard } from './e2e'
 import type { Id } from './_generated/dataModel'
 import type { MutationCtx } from './_generated/server'

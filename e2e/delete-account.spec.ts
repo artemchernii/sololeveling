@@ -54,8 +54,9 @@ test('a guest: DELETE ACCOUNT → NO UNDO → DELETE ALL → deleting → nothin
       timeout: 30_000,
     })
     .toBe(true)
+  /* Still a guest: anyone not Artem is one, profile or not (27 Oct). */
   expect(await c.query(anyApi.account.counts, {})).toMatchObject({
-    guest: false,
+    guest: true,
   })
 })
 

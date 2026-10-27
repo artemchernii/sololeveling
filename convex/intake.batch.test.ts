@@ -23,8 +23,12 @@ afterEach(() => {
 
 let bytes = 0
 
-function setup() {
+async function setup() {
   const t = convexTest(schema, modules)
+  /* Artem: the deploy key seeded his principles (profiles.ts isOwner). */
+  await t.run((ctx) =>
+    ctx.db.insert('principles', { ownerId: ME, text: 'P', sortOrder: 0 }),
+  )
   return {
     t,
     me: t.withIdentity({ tokenIdentifier: ME }),
@@ -32,7 +36,7 @@ function setup() {
   }
 }
 
-type T = ReturnType<typeof setup>['t']
+type T = Awaited<ReturnType<typeof setup>>['t']
 
 async function stored(t: T, name: string, contentType = 'application/pdf') {
   const storageId = await t.run((ctx) =>
@@ -45,7 +49,7 @@ const day = (m: number, d: number) => new Date(2026, m - 1, d, 12).getTime()
 
 describe('startBatch', () => {
   test('one intake per file, tied to the batch; the batch shows each', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const files = [
       await stored(t, 'extrato_BPI_2026-08.pdf'),
       await stored(t, 'extrato_BPI_2026-09.pdf'),
@@ -64,7 +68,7 @@ describe('startBatch', () => {
   })
 
   test('refused whole when one file cannot be read — and its files are gone', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const good = await stored(t, 'a.pdf')
     const bad = await stored(t, 'notes.txt', 'text/plain')
     const r = await me.mutation(api.intake.startBatch, { files: [good, bad] })
@@ -79,7 +83,7 @@ describe('startBatch', () => {
   })
 
   test('counts only the files the model reads against the month', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     /* 38 PDFs read this month already. */
     await t.run(async (ctx) => {
       for (let i = 0; i < 38; i++)
@@ -110,7 +114,7 @@ describe('startBatch', () => {
   })
 
   test('another owner cannot open my batch', async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     const started = await me.mutation(api.intake.startBatch, {
       files: [await stored(t, 'a.pdf')],
     })
@@ -122,7 +126,7 @@ describe('startBatch', () => {
   })
 
   test('a read file shows the account it is heading for and the days it covers', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const bpi = await me.mutation(api.accounts.create, {
       name: 'BPI',
       kinds: ['bank'],
@@ -230,7 +234,7 @@ const self = (r: ReturnType<typeof row>, counterparty?: string) => ({
   counterparty,
 })
 
-async function accountsOf(me: ReturnType<typeof setup>['me']) {
+async function accountsOf(me: Awaited<ReturnType<typeof setup>>['me']) {
   const bpi = await me.mutation(api.accounts.create, {
     name: 'BPI',
     kinds: ['bank'],
@@ -248,7 +252,7 @@ async function accountsOf(me: ReturnType<typeof setup>['me']) {
 
 describe('batchReview and apply', () => {
   test('per account: months, new rows, balances; a transfer across two files paired and written once', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const { bpi, act } = await accountsOf(me)
     const batchId = await emptyBatch(t)
     await readFile(t, batchId, {
@@ -322,7 +326,7 @@ describe('batchReview and apply', () => {
   })
 
   test('a month with no buy is not a statement missing', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const { bpi } = await accountsOf(me)
     const batchId = await emptyBatch(t)
     const gold = {
@@ -387,7 +391,7 @@ describe('batchReview and apply', () => {
   })
 
   test('ADD BUYS: a drop with rows for another thing is not saved', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const { bpi } = await accountsOf(me)
     const batchId = await emptyBatch(t)
     /* 14 Oct: iShares Physical Gold dropped on Gold's ADD BUYS. */
@@ -436,7 +440,7 @@ describe('batchReview and apply', () => {
   })
 
   test('a missing month is asked, and a quiet one is not', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const { bpi } = await accountsOf(me)
     const batchId = await emptyBatch(t)
     await readFile(t, batchId, {
@@ -462,7 +466,7 @@ describe('batchReview and apply', () => {
   })
 
   test("balances that don't add up: where, and the row he adds is written with the rest", async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const { act } = await accountsOf(me)
     const batchId = await emptyBatch(t)
     await readFile(t, batchId, {
@@ -507,7 +511,7 @@ describe('batchReview and apply', () => {
   })
 
   test('a move with one side is asked; outside the app writes it on its own', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const { act } = await accountsOf(me)
     const batchId = await emptyBatch(t)
     const intakeId = await readFile(t, batchId, {
@@ -545,7 +549,7 @@ describe('batchReview and apply', () => {
   })
 
   test('a left-out account keeps waiting; the batch opens again', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const { bpi } = await accountsOf(me)
     const batchId = await emptyBatch(t)
     await readFile(t, batchId, {
@@ -574,7 +578,7 @@ describe('batchReview and apply', () => {
   })
 
   test('refused: still reading; another owner answering or applying', async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     await accountsOf(me)
     const batchId = await emptyBatch(t)
     await readFile(t, batchId, {
@@ -606,7 +610,7 @@ describe('batchReview and apply', () => {
   })
 
   test("a file it cannot place is asked; placing it into another owner's account is refused", async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     const { bpi } = await accountsOf(me)
     const theirs = await them.mutation(api.accounts.create, {
       name: 'Theirs',
@@ -639,7 +643,7 @@ describe('batchReview and apply', () => {
 
 describe('around a batch', () => {
   test('more files join an open update; not another owner’s', async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     const first = await me.mutation(api.intake.startBatch, {
       files: [await stored(t, 'feb.pdf')],
     })
@@ -662,7 +666,7 @@ describe('around a batch', () => {
   })
 
   test("a batch's files stay off Overview's open list; one opens by id, only mine", async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     const started = await me.mutation(api.intake.startBatch, {
       files: [await stored(t, 'a.pdf')],
     })
@@ -681,7 +685,7 @@ describe('around a batch', () => {
 })
 
 test('a file that cannot go in fails alone; the rest is written and the batch opens again', async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   const { bpi, act } = await accountsOf(me)
   const batchId = await emptyBatch(t)
   const usd = await readFile(t, batchId, {
@@ -717,7 +721,7 @@ test('a file that cannot go in fails alone; the rest is written and the batch op
 })
 
 test('a file read by an older reader is read again, not reused', async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   const first = await stored(t, 'extrato.pdf')
   const a = await me.mutation(api.intake.start, { files: [first] })
   if (!a.ok) throw new Error(a.error)
@@ -753,7 +757,7 @@ test('a file read by an older reader is read again, not reused', async () => {
 
 describe('his first real drop (3 Oct)', () => {
   test('a bank he has not added is its own block, kept with one tap', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     await accountsOf(me)
     await t.run(async (ctx) => {
       const all = await ctx.db.query('accounts').collect()
@@ -796,7 +800,7 @@ describe('his first real drop (3 Oct)', () => {
   })
 
   test('a gap the pending rows explain is not asked; it is said', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const { act } = await accountsOf(me)
     const batchId = await emptyBatch(t)
     await readFile(t, batchId, {
@@ -826,7 +830,7 @@ describe('his first real drop (3 Oct)', () => {
   })
 
   test("212's two screens go in as one: positions from one, cash from the other", async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const t212 = await me.mutation(api.accounts.create, {
       name: 'Trading 212',
       kinds: ['broker'],
@@ -909,7 +913,7 @@ describe('his first real drop (3 Oct)', () => {
   })
 
   test('a broker screen it cannot complete waits for the check screen', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const t212 = await me.mutation(api.accounts.create, {
       name: 'Trading 212',
       kinds: ['broker'],
@@ -946,7 +950,7 @@ describe('his first real drop (3 Oct)', () => {
 })
 
 test("a listing whose price doesn't fit the screen is asked, not filed (212's SHLD, 3 Oct)", async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   const t212 = await me.mutation(api.accounts.create, {
     name: 'Trading 212',
     kinds: ['broker'],
@@ -995,7 +999,7 @@ test("a listing whose price doesn't fit the screen is asked, not filed (212's SH
 })
 
 test('read again: his account named to the reader; another owner refused; start over throws the drop away', async () => {
-  const { t, me, them } = setup()
+  const { t, me, them } = await setup()
   const { act } = await accountsOf(me)
   const started = await me.mutation(api.intake.startBatch, {
     files: [
@@ -1027,7 +1031,7 @@ test('read again: his account named to the reader; another owner refused; start 
 })
 
 test("BPI's transfer pairs with ActivoBank's side already in the app — by the IBAN's last group (3 Oct)", async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   const bpi = await me.mutation(api.accounts.create, {
     name: 'BPI',
     kinds: ['bank'],
@@ -1104,7 +1108,7 @@ test("BPI's transfer pairs with ActivoBank's side already in the app — by the 
 })
 
 test("'not from here': BPI's side goes, ActivoBank's +€1,000 stays — from outside (3 Oct)", async () => {
-  const { t, me, them } = setup()
+  const { t, me, them } = await setup()
   const { bpi, act } = await accountsOf(me)
   const batchId = await emptyBatch(t)
   const screen = await readFile(t, batchId, {
@@ -1143,7 +1147,7 @@ test("'not from here': BPI's side goes, ActivoBank's +€1,000 stays — from ou
 })
 
 test("BPI's screenshots (3 Oct): own transfers by his name on other files and ActivoBank's bank code; a renamed row is already had", async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   const bpi = await me.mutation(api.accounts.create, {
     name: 'BPI',
     kinds: ['bank'],
@@ -1207,7 +1211,7 @@ test("BPI's screenshots (3 Oct): own transfers by his name on other files and Ac
 })
 
 test('dedupeMoney: lists first, removes only with apply, only his', async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   const { act } = await accountsOf(me)
   const theirs = await t.run((ctx) =>
     ctx.db.insert('accounts', {
@@ -1265,7 +1269,7 @@ test('dedupeMoney: lists first, removes only with apply, only his', async () => 
 })
 
 test('relist: SHLD moves to SHLD.L — lists first, writes only with apply, only his', async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   const { act } = await accountsOf(me)
   const setupOwner = (owner: string, accountId: Id<'accounts'>) =>
     t.run(async (ctx) => {
@@ -1345,7 +1349,7 @@ test('relist: SHLD moves to SHLD.L — lists first, writes only with apply, only
 })
 
 test("a frozen share is valued as 212's screen shows it, attributed to the screen (LUKOIL, 3 Oct)", async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   const t212 = await me.mutation(api.accounts.create, {
     name: 'Trading 212',
     kinds: ['broker'],
@@ -1402,7 +1406,7 @@ test("a frozen share is valued as 212's screen shows it, attributed to the scree
 })
 
 test('a confirmed file is kept 90 days to open again, only by him, then erased — what was read stays', async () => {
-  const { t, me, them } = setup()
+  const { t, me, them } = await setup()
   const t212 = await me.mutation(api.accounts.create, {
     name: 'Trading 212',
     kinds: ['broker'],
@@ -1461,7 +1465,7 @@ test('a confirmed file is kept 90 days to open again, only by him, then erased �
 })
 
 test('the same account screenshotted again lands on what it holds, whichever listing the search found (VUAA.L then VUAA.MI, 3 Oct)', async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   const t212 = await me.mutation(api.accounts.create, {
     name: 'Trading 212',
     kinds: ['broker'],
@@ -1510,7 +1514,7 @@ test('the same account screenshotted again lands on what it holds, whichever lis
 })
 
 test("two scrolls of one 212 list in one update: one position per fund, the later reading's", async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   const t212 = await me.mutation(api.accounts.create, {
     name: 'Trading 212',
     kinds: ['broker'],
@@ -1584,7 +1588,7 @@ test("two scrolls of one 212 list in one update: one position per fund, the late
 })
 
 test("a different issuer on the same root is its own position: Global X's SHLD is not iShares' SHLD.L", async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   const t212 = await me.mutation(api.accounts.create, {
     name: 'Trading 212',
     kinds: ['broker'],
@@ -1629,7 +1633,7 @@ test("a different issuer on the same root is its own position: Global X's SHLD i
 })
 
 test('a file whose 90 days ran out long ago (a missed night) is still erased', async () => {
-  const { t } = setup()
+  const { t } = await setup()
   const id = await t.run(async (ctx) => {
     const file = await ctx.storage.store(new Blob(['pdf']))
     return ctx.db.insert('intakes', {
@@ -1650,6 +1654,14 @@ test('startBatch: a drop can name its account and carry his words', async () => 
   const t = convexTest(schema, modules)
   const me = t.withIdentity({ tokenIdentifier: 'https://clerk.test|door_me' })
   const other = t.withIdentity({ tokenIdentifier: 'https://clerk.test|door_x' })
+  /* Two owners, so the isolation is tested past the guest door. */
+  for (const ownerId of [
+    'https://clerk.test|door_me',
+    'https://clerk.test|door_x',
+  ])
+    await t.run((ctx) =>
+      ctx.db.insert('principles', { ownerId, text: 'P', sortOrder: 0 }),
+    )
   const mine = await me.mutation(api.accounts.create, {
     name: 'Mine',
     kinds: ['broker'],

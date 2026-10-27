@@ -5,14 +5,14 @@ import type { Id, TableNames } from './_generated/dataModel'
 import { internalMutation, mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import { requireUser } from './auth'
+import { isGuest } from './profiles'
 
 /**
  * R8 · S3b, "delete my account and data" (docs/specs/2026-10-27-delete-
  * account.md, mockup design/firstrun-mockup/delete.html). Guests only —
  * his pick, 27 Oct: Artem never has the button and the server refuses him
  * too. Every table goes through its owner index; `intakeTrades` hangs off
- * its intake and goes with it; the profile goes last, so the person stays a
- * guest until nothing else of theirs is left.
+ * its intake and goes with it; the profile goes last.
  */
 
 /* Each table and the index whose first field is ownerId. `profiles` is not
@@ -106,9 +106,6 @@ async function profileOf(ctx: QueryCtx | MutationCtx, ownerId: string) {
     .unique()
 }
 
-const isGuest = (p: { asOwner?: boolean } | null) =>
-  p !== null && p.asOwner !== true
-
 /* A query reads at most 4096 rows; past this the count says "or more". */
 const COUNT_CAP = 4000
 
@@ -126,10 +123,10 @@ export const counts = query({
   }),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
-    const profile = await profileOf(ctx, ownerId)
-    if (!isGuest(profile))
+    if (!(await isGuest(ctx, ownerId)))
       return { guest: false, rows: 0, files: 0, more: false }
-    let rows = 1
+    /* The profile, once the first run is done. */
+    let rows = (await profileOf(ctx, ownerId)) === null ? 0 : 1
     let files = 0
     for (const [table, index] of OWNED) {
       const left = COUNT_CAP - rows
@@ -158,7 +155,7 @@ export const deleteAll = mutation({
   returns: v.null(),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
-    if (!isGuest(await profileOf(ctx, ownerId))) throw new Error('NOT_A_GUEST')
+    if (!(await isGuest(ctx, ownerId))) throw new Error('NOT_A_GUEST')
     await ctx.scheduler.runAfter(0, internal.account.wipe, { ownerId })
     return null
   },

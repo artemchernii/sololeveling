@@ -39,10 +39,14 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-function setup() {
+async function setup() {
   vi.useFakeTimers()
   vi.stubEnv('E2E', '1')
   const t = convexTest(schema, modules)
+  /* Artem: the deploy key seeded his principles (profiles.ts isOwner). */
+  await t.run((ctx) =>
+    ctx.db.insert('principles', { ownerId: ME, text: 'P', sortOrder: 0 }),
+  )
   return {
     t,
     me: t.withIdentity({ tokenIdentifier: ME }),
@@ -52,7 +56,7 @@ function setup() {
 const month = () => monthKey(Date.now())
 
 test('S1 a press stores the facts, reads, and adds the cost to the month', async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   await me.mutation(api.marketReads.run, { facts, via: 'api' })
   let state = await me.query(api.marketReads.forMonth, { month: month() })
   expect(state.read?.status).toBe('reading')
@@ -69,7 +73,7 @@ test('S1 a press stores the facts, reads, and adds the cost to the month', async
 })
 
 test('S6 a line naming a fact key not given is refused; the rest stands', async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   await me.mutation(api.e2eMarketRead.arm, { shape: 'broken' })
   await me.mutation(api.marketReads.run, { facts, via: 'api' })
   await t.finishAllScheduledFunctions(vi.runAllTimers)
@@ -82,7 +86,7 @@ test('S6 a line naming a fact key not given is refused; the rest stands', async 
 })
 
 test('S6 on the Pro path too: an answer naming only unknown keys fails, nothing paid', async () => {
-  const { me } = setup()
+  const { me } = await setup()
   const readId = await me.mutation(api.marketReads.run, { facts, via: 'pro' })
   const line = (k: string) => ({
     kind: 'market',
@@ -108,7 +112,7 @@ test('S6 on the Pro path too: an answer naming only unknown keys fails, nothing 
 })
 
 test('S7 spend adds up per response and stops at $2', async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   const readId = await me.mutation(api.marketReads.run, { facts, via: 'api' })
   /* A response that came back unusable still cost what it cost. */
   await t.mutation(internal.marketReads.fail, {
@@ -134,7 +138,7 @@ test('S7 spend adds up per response and stops at $2', async () => {
 })
 
 test('S3 a failed read keeps the read before it, and nothing is paid', async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   await me.mutation(api.marketReads.run, { facts, via: 'api' })
   await t.finishAllScheduledFunctions(vi.runAllTimers)
   await me.mutation(api.e2eMarketRead.arm, { shape: 'fail' })
@@ -147,7 +151,7 @@ test('S3 a failed read keeps the read before it, and nothing is paid', async () 
 })
 
 test('a second press while reading pays once', async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   const a = await me.mutation(api.marketReads.run, { facts, via: 'api' })
   const b = await me.mutation(api.marketReads.run, { facts, via: 'api' })
   expect(b).toBe(a)
@@ -158,7 +162,7 @@ test('a second press while reading pays once', async () => {
 })
 
 test('without the key, off the test backend, it fails and pays nothing', async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   vi.stubEnv('E2E', '')
   vi.stubEnv('ANTHROPIC_API_KEY', '')
   await me.mutation(api.marketReads.run, { facts, via: 'api' })
@@ -169,7 +173,7 @@ test('without the key, off the test backend, it fails and pays nothing', async (
 })
 
 test('only mine: signed out refused, another person sees and finishes nothing', async () => {
-  const { t, me, them } = setup()
+  const { t, me, them } = await setup()
   await expect(
     t.mutation(api.marketReads.run, { facts, via: 'api' }),
   ).rejects.toThrow()
@@ -183,7 +187,7 @@ test('only mine: signed out refused, another person sees and finishes nothing', 
 })
 
 test('the test helpers refuse off the test backend', async () => {
-  const { me } = setup()
+  const { me } = await setup()
   vi.stubEnv('E2E', '')
   await expect(
     me.mutation(api.e2eMarketRead.arm, { shape: 'calm' }),

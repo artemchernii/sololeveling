@@ -39,10 +39,14 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-function setup() {
+async function setup() {
   vi.useFakeTimers()
   vi.stubEnv('E2E', '1')
   const t = convexTest(schema, modules)
+  /* Artem: the deploy key seeded his principles (profiles.ts isOwner). */
+  await t.run((ctx) =>
+    ctx.db.insert('principles', { ownerId: ME, text: 'P', sortOrder: 0 }),
+  )
   return {
     t,
     me: t.withIdentity({ tokenIdentifier: ME }),
@@ -53,7 +57,7 @@ const month = () => monthKey(Date.now())
 
 /* The canned backend waits 900 ms so the page shows "asking". */
 async function ask(
-  who: ReturnType<typeof setup>['me'],
+  who: Awaited<ReturnType<typeof setup>>['me'],
   question: string,
   web = false,
 ) {
@@ -67,7 +71,7 @@ async function ask(
 }
 
 test('S1 a question is answered with the keys given, and its cost added to the month', async () => {
-  const { me } = setup()
+  const { me } = await setup()
   const r = await ask(me, 'Explain my allocation')
   expect(r.ok).toBe(true)
   if (!r.ok) return
@@ -82,7 +86,7 @@ test('S1 a question is answered with the keys given, and its cost added to the m
 })
 
 test('S2 🌐 answers with sources and searches, and costs more', async () => {
-  const { me } = setup()
+  const { me } = await setup()
   const r = await ask(me, 'What did Powell say?', true)
   expect(r.ok && r.answer.sources.map((s) => s.site)).toEqual([
     'reuters.com',
@@ -95,7 +99,7 @@ test('S2 🌐 answers with sources and searches, and costs more', async () => {
 })
 
 test('S7 asked for ideas: tickers not owned and not in NEXT, on the same cap', async () => {
-  const { t, me } = setup()
+  const { t, me } = await setup()
   await me.mutation(api.marketReads.run, { facts, via: 'api' })
   await t.finishAllScheduledFunctions(vi.runAllTimers)
   const r = await ask(me, 'Give me more ideas')
@@ -111,7 +115,7 @@ test('S7 asked for ideas: tickers not owned and not in NEXT, on the same cap', a
 })
 
 test('S3 failed: nothing paid, nothing retried', async () => {
-  const { me } = setup()
+  const { me } = await setup()
   await me.mutation(api.e2eMarketRead.arm, { shape: 'fail' })
   expect(await ask(me, 'Is gold still a hedge?')).toEqual({
     ok: false,
@@ -124,7 +128,7 @@ test('S3 failed: nothing paid, nothing retried', async () => {
 })
 
 test('S4 at the cap a question is refused before any call', async () => {
-  const { me } = setup()
+  const { me } = await setup()
   await me.mutation(api.e2eMarketRead.spend, { usd: 2 })
   expect(await ask(me, 'Anything?')).toEqual({
     ok: false,
@@ -137,7 +141,7 @@ test('S4 at the cap a question is refused before any call', async () => {
 })
 
 test('an empty question, or no key off the test backend, pays nothing', async () => {
-  const { me } = setup()
+  const { me } = await setup()
   expect(await ask(me, '   ')).toMatchObject({
     ok: false,
     error: 'NO QUESTION',
@@ -151,7 +155,7 @@ test('an empty question, or no key off the test backend, pays nothing', async ()
 })
 
 test('only mine: signed out refused; my spend is not theirs', async () => {
-  const { t, me, them } = setup()
+  const { t, me, them } = await setup()
   await expect(
     t.action(api.ai.ask.ask, { question: 'x', web: false, facts }),
   ).rejects.toThrow()

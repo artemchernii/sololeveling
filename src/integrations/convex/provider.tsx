@@ -28,18 +28,16 @@ function createClient() {
   const client = new ConvexReactClient(url)
   /* The demo account's refusals are announced wherever they are caught
      (src/lib/demoRefused.ts). */
-  const mutation = client.mutation.bind(client)
-  client.mutation = ((...args: Parameters<typeof mutation>) =>
-    mutation(...args).catch((e: unknown) => {
-      announceDemo(e)
-      throw e
-    })) as typeof mutation
-  const action = client.action.bind(client)
-  client.action = ((...args: Parameters<typeof action>) =>
-    action(...args).catch((e: unknown) => {
-      announceDemo(e)
-      throw e
-    })) as typeof action
+  type Call = (...args: Array<unknown>) => Promise<unknown>
+  const announced =
+    (call: Call): Call =>
+    (...args) =>
+      call(...args).catch((e: unknown) => {
+        announceDemo(e)
+        throw e
+      })
+  client.mutation = announced(client.mutation.bind(client) as Call)
+  client.action = announced(client.action.bind(client) as Call)
   return client
 }
 

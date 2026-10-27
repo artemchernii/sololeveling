@@ -25,7 +25,7 @@ export function lisbonDay(ms: number): string {
 const on = (ago: number, every: number, shift = 0) =>
   (ago * 7 + shift) % every === 0 || (ago + shift) % 11 === 3
 
-const SHARES: ReadonlyArray<{
+export const SHARES: ReadonlyArray<{
   symbol: string
   name: string
   exchange: string

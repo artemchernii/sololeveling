@@ -39,6 +39,10 @@ test('D1–D3 demo: badge, DEMO greeting, full Today and Finances, a tick is not
   await page.screenshot({ ...shot('demo-finances'), fullPage: true })
 })
 
+test.afterEach(async () => {
+  await testClient().mutation(anyApi.e2eDemo.undoDemo, {})
+})
+
 test('D8 Artem after a reset: no badge, his name', async ({ page }) => {
   await start(page)
   await page.goto('/dashboard')

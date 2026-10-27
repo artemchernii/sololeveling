@@ -10,6 +10,7 @@ import { auth } from '@clerk/tanstack-react-start/server'
 
 import { RowsDrawer } from '@/components/ask/RowsDrawer'
 import { Ambient } from '@/components/shell/Ambient'
+import { FirstRun } from '@/components/shell/FirstRun'
 import { AreaStyles } from '@/components/shell/AreaStyles'
 import { MobileActions } from '@/components/shell/MobileActions'
 import { MobileNav } from '@/components/shell/MobileNav'
@@ -153,6 +154,8 @@ function AppShell() {
           calls areaVars() reads one of them, so it goes first. */}
       <AreaStyles />
       <Ambient />
+      {/* R8 · S2: a new person's one window; null for everyone else. */}
+      <FirstRun />
       <TopBar
         onLog={() => openCapture()}
         onSearch={() => setOverlay('search')}

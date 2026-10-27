@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>First run mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* R8 · S2 — a friend's first open: LANGUAGE only (26 Oct, "yes, language
+     only; HUNTER instead of 'you'"); name and avatar come from Clerk. Dark Nocturne,
+     values from src/styles/tokens.css; the window is the System window
+     (system-frame / system-title in src/styles.css). Served from the repo
+     root so the language photos come from public/languages. */
+  :root {
+    --bg: #0d0e17; --panel: #161826;
+    --ink-100: #e9e9ed; --ink-300: #b3b3c0; --ink-400: #8b8b9c; --ink-500: #6a6a7c;
+    --accent: #9184d9; --accent-400: #b5abfc;
+    --good: oklch(0.72 0.15 150);
+    --edge: rgba(233,233,237,.09);
+    --sys-edge: color-mix(in oklch, var(--accent-400) 34%, transparent);
+    --sys-shine: color-mix(in oklch, var(--accent-400) 75%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(900px 520px at 50% -10%, rgba(145,132,217,.16), transparent 60%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 13px; min-height: 100vh }
+  button, input { font: inherit; color: inherit; background: none; border: 0 }
+  button { cursor: pointer }
+  .caps { font-family: var(--mono); font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-400) }
+
+  /* Scenario bar — mockup only */
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; padding: 12px 16px 0; font-family: var(--mono); font-size: 11px; letter-spacing:.08em }
+  .ctl span { color: var(--ink-500); align-self:center }
+  .ctl button { color: var(--ink-300); background: rgba(233,233,237,.05); border: 1px solid var(--edge); border-radius: 999px; padding: 4px 11px }
+  .ctl button.on { color: var(--ink-100); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset }
+
+  .stage { display:grid; place-items:center; min-height: calc(100vh - 60px); padding: 24px 16px 60px }
+
+  /* The System window */
+  .sys { position: relative; width: 100%; max-width: 460px; border-radius: 18px; padding: 26px 26px 22px;
+    background: linear-gradient(180deg, color-mix(in oklch, var(--accent) 13%, transparent), transparent 55%),
+                linear-gradient(155deg, rgba(233,233,237,.075), rgba(233,233,237,.02));
+    backdrop-filter: blur(18px) saturate(140%); border: 1px solid var(--sys-edge);
+    box-shadow: 0 30px 60px -30px rgba(0,0,0,.7), 0 0 38px -10px color-mix(in oklch, var(--accent) 55%, transparent),
+                inset 0 0 42px -16px color-mix(in oklch, var(--accent) 45%, transparent);
+    transition: height .28s cubic-bezier(.2,.8,.2,1), opacity .3s, transform .3s; overflow: hidden;
+    animation: arrive .45s cubic-bezier(.2,.8,.2,1) both }
+  .sys::before { content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    background: repeating-linear-gradient(0deg, rgba(233,233,237,.022) 0 1px, transparent 1px 3px) }
+  .sys::after { content:''; position:absolute; inset:-1px; border: 2px solid var(--accent-400); border-radius: 19px; pointer-events:none;
+    --r: 22px; mask: linear-gradient(#000 0 0) top left / var(--r) var(--r), linear-gradient(#000 0 0) top right / var(--r) var(--r),
+      linear-gradient(#000 0 0) bottom left / var(--r) var(--r), linear-gradient(#000 0 0) bottom right / var(--r) var(--r);
+    mask-repeat:no-repeat; filter: drop-shadow(0 0 5px var(--sys-shine)); animation: breathe 3.2s ease-in-out infinite }
+  @keyframes breathe { 50% { filter: drop-shadow(0 0 12px var(--sys-shine)) } }
+  @keyframes arrive { from { opacity:0; transform: translateY(10px) scale(.98) } }
+  .sys.gone { opacity: 0; transform: translateY(-8px) scale(.97); pointer-events:none }
+
+  .top { display:flex; justify-content:space-between; align-items:center }
+  .title { font-family: var(--mono); font-size: 11px; letter-spacing: .3em; color: var(--accent-400); text-shadow: 0 0 10px var(--sys-shine) }
+  .dots { display:flex; gap: 6px }
+  .dots i { width: 22px; height: 3px; border-radius: 2px; background: rgba(233,233,237,.14); transition: background .3s }
+  .dots i.on { background: var(--accent-400); box-shadow: 0 0 8px var(--sys-shine) }
+
+  .step { margin-top: 22px; animation: slide .3s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes slide { from { opacity:0; transform: translateX(12px) } }
+
+  /* NAME */
+  .namebox { display:flex; align-items:center; gap: 10px; margin-top: 10px; border: 1px solid var(--edge); border-radius: 12px;
+    padding: 14px 14px; background: rgba(0,0,0,.18); transition: border-color .2s, box-shadow .2s }
+  .namebox:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 22%, transparent) }
+  .namebox input { flex: 1; min-width: 0; outline: none; font-size: 26px; font-weight: 300; letter-spacing: .08em; text-transform: uppercase }
+  .badge { flex: none; border: 1px solid currentColor; border-radius: 999px; padding: 3px 9px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; color: var(--accent-400) }
+  .badge.grey { color: var(--ink-400) }
+
+  /* LANGUAGE */
+  .langs { display:grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px }
+  .lang { position: relative; height: 92px; border-radius: 12px; overflow: hidden; border: 1px solid var(--edge); text-align: left;
+    transition: transform .15s, border-color .2s, box-shadow .2s }
+  .lang img { position:absolute; inset:0; width:100%; height:100%; object-fit: cover; filter: saturate(.85) brightness(.55); transition: filter .2s }
+  .lang .shade { position:absolute; inset:0; background: linear-gradient(0deg, rgba(10,10,18,.85), transparent 70%) }
+  .lang .txt { position:absolute; left: 12px; right: 12px; bottom: 10px; display:flex; align-items:flex-end; justify-content:space-between; gap: 8px }
+  .lang .n { font-size: 15px; font-weight: 500 }
+  .lang .nat { font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; color: var(--ink-300); text-transform: uppercase }
+  .lang .fl { font-size: 18px }
+  .lang:hover { transform: translateY(-1px) }
+  .lang:hover img { filter: saturate(1) brightness(.7) }
+  .lang.on { border-color: var(--accent-400); box-shadow: 0 0 0 1px var(--accent-400) inset, 0 0 22px -6px var(--sys-shine) }
+  .lang.on img { filter: saturate(1) brightness(.75) }
+  .lang .tick { position:absolute; top: 9px; right: 9px; width: 20px; height: 20px; border-radius: 50%; display:grid; place-items:center;
+    background: var(--accent-400); color: #161826; font-size: 11px; transform: scale(0); transition: transform .2s cubic-bezier(.3,1.6,.5,1) }
+  .lang.on .tick { transform: scale(1) }
+  .lang.none { display:flex; align-items:center; justify-content:center; flex-direction:column; gap: 4px; background: rgba(0,0,0,.18) }
+  .lang.none .n { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; color: var(--ink-300) }
+
+  .tz { display:flex; align-items:center; gap: 8px; margin-top: 16px; flex-wrap: wrap }
+  .tz b { font-weight: 400; color: var(--ink-100); font-family: var(--mono); font-size: 11px; letter-spacing: .06em }
+
+  .foot { display:flex; justify-content:space-between; align-items:center; margin-top: 22px; gap: 10px }
+  .back { font-family: var(--mono); font-size: 10.5px; letter-spacing: .2em; color: var(--ink-400); padding: 10px 4px }
+  .back[hidden] { visibility: hidden; display: block }
+  .go { display:inline-flex; align-items:center; gap: 8px; min-width: 132px; justify-content:center; height: 42px; padding: 0 20px; border-radius: 999px;
+    background: var(--accent); color: #12131d; font-family: var(--mono); font-size: 11.5px; letter-spacing: .22em; font-weight: 500;
+    box-shadow: 0 0 24px -6px var(--sys-shine); transition: background .2s, transform .15s }
+  .go:hover { transform: translateY(-1px) }
+  .go:disabled { opacity: .4; cursor: default; transform: none }
+  .go.saving { background: color-mix(in oklch, var(--accent) 60%, transparent) }
+  .go.landed { background: var(--good) }
+  .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(18,19,29,.35); border-top-color: #12131d; animation: spin .7s linear infinite }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .pop { animation: pop .35s cubic-bezier(.3,1.6,.5,1) both }
+  @keyframes pop { from { transform: scale(.4); opacity: 0 } }
+
+  /* Today, after GO — the top bar and an empty Today, only to show the name landing */
+  .today { width: 100%; max-width: 1000px; animation: arrive .45s cubic-bezier(.2,.8,.2,1) both }
+  .bar { display:flex; align-items:center; gap: 12px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 14px;
+    background: linear-gradient(180deg, rgba(233,233,237,.06), rgba(233,233,237,.02)) }
+  .bar .grow { flex:1 }
+  .who { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; color: var(--ink-100); padding: 5px 10px; border-radius: 999px;
+    border: 1px solid var(--sys-edge); box-shadow: 0 0 16px -6px var(--sys-shine); animation: breatheName 1.6s ease-out 2 }
+  @keyframes breatheName { 50% { box-shadow: 0 0 22px -2px var(--sys-shine) } }
+  /* Clerk's UserButton, as TopBar.tsx draws it: a 36px rounded tile — their
+     Google photo when they signed up with Google, else Clerk's initials/silhouette. */
+  .ava { width: 36px; height: 36px; border-radius: 10px; display:grid; place-items:center; font-weight: 500; font-size: 15px;
+    background: linear-gradient(135deg, #c98a6b, #8a5fd6); color: #fff; animation: breatheName 1.6s ease-out 2 }
+  .hello { font-size: 30px; font-weight: 300; margin: 22px 4px 0 }
+  .hello .nm { color: var(--accent-400); text-shadow: 0 0 14px var(--sys-shine) }
+  .grid { display:grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-top: 14px }
+  .card { border: 1px solid var(--edge); border-radius: 16px; padding: 18px 20px; background: linear-gradient(155deg, rgba(233,233,237,.06), rgba(233,233,237,.02)); min-height: 120px }
+  .slots { display:flex; flex-direction:column; gap: 8px; margin-top: 14px }
+  .slot { height: 40px; border: 1px dashed rgba(233,233,237,.14); border-radius: 10px; display:flex; align-items:center; padding: 0 12px; color: var(--ink-500); font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em }
+  .big { font-size: 34px; font-weight: 300; margin-top: 10px }
+
+  @media (max-width: 560px) {
+    .sys { padding: 22px 18px 18px }
+    .namebox input { font-size: 22px }
+    .lang { height: 84px }
+    .grid { grid-template-columns: 1fr }
+  }
+</style>
+</head>
+<body>
+<div class="ctl" id="ctl">
+  <span>SIGN-UP NAME</span>
+  <button data-k="name" data-v="Marta" class="on">MARTA</button>
+  <button data-k="name" data-v="">NONE → HUNTER</button>
+  <span>&nbsp;·&nbsp; STEP</span>
+  <button data-k="step" data-v="2" class="on">LANGUAGE</button>
+  <button data-k="step" data-v="3">TODAY</button>
+</div>
+
+<div class="stage" id="stage"></div>
+
+<script>
+  const S = { signup: 'Marta', name: 'MARTA', step: 2, lang: null, tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Lisbon' }
+  const LANGS = [
+    { code: 'pt-PT', name: 'Portuguese', nat: 'Português', flag: '🇵🇹', photo: '/public/languages/pt-PT.jpg', focus: '50% 92%' },
+    { code: 'en', name: 'English', nat: 'English', flag: '🇬🇧', photo: '/public/languages/en.jpg', focus: '50% 66%' },
+    { code: 'de', name: 'German', nat: 'Deutsch', flag: '🇩🇪', photo: '/public/languages/de.jpg', focus: '30% 40%' },
+  ]
+  const stage = document.getElementById('stage')
+
+  function frame(body, foot) {
+    return `<div class="sys" id="sys">
+      <div class="top"><span class="title">[ FIRST RUN ]</span>
+        </div>
+      <div class="step">${body}</div>
+      <div class="foot">${foot}</div></div>`
+  }
+
+  function render() {
+    syncCtl()
+    if (S.step === 3) return renderToday()
+    if (S.step === 1) {
+      const fromSignup = S.signup && S.name === S.signup.toUpperCase()
+      const isPlaceholder = S.name === 'HUNTER' && !S.signup
+      stage.innerHTML = frame(
+        `<div class="caps">NAME</div>
+         <label class="namebox"><input id="name" value="${S.name}" maxlength="20" spellcheck="false" autocomplete="off" />
+           <span class="badge ${isPlaceholder ? 'grey' : ''}" id="nb">${fromSignup ? 'FROM SIGN-UP' : isPlaceholder ? 'PLACEHOLDER' : 'TYPED'}</span></label>`,
+        `<button class="back" hidden>BACK</button><button class="go" id="next">NEXT →</button>`)
+      const inp = document.getElementById('name')
+      inp.addEventListener('input', () => {
+        S.name = inp.value.toUpperCase()
+        document.getElementById('nb').textContent = 'TYPED'
+        document.getElementById('nb').className = 'badge'
+        document.getElementById('next').disabled = !S.name.trim()
+      })
+      document.getElementById('next').onclick = () => { S.step = 2; render() }
+    } else {
+      stage.innerHTML = frame(
+        `<div class="caps">LANGUAGE</div>
+         <div class="langs">${LANGS.map(l => `
+           <button class="lang ${S.lang === l.code ? 'on' : ''}" data-l="${l.code}">
+             <img src="${l.photo}" style="object-position:${l.focus}" alt="" /><span class="shade"></span>
+             <span class="tick">✓</span>
+             <span class="txt"><span><span class="n">${l.name}</span><br><span class="nat">${l.nat}</span></span><span class="fl">${l.flag}</span></span>
+           </button>`).join('')}
+           <button class="lang none ${S.lang === 'none' ? 'on' : ''}" data-l="none"><span class="tick">✓</span><span class="n">NONE</span><span class="nat">NO LANGUAGES ROOM</span></button>
+         </div>
+         <div class="tz"><span class="caps">TIMEZONE</span><b>${S.tz}</b><span class="badge grey">FROM THIS DEVICE</span></div>`,
+        `<button class="back" hidden>BACK</button><button class="go" id="go" ${S.lang ? '' : 'disabled'}>GO</button>`)
+      stage.querySelectorAll('.lang').forEach(b => b.onclick = () => {
+        S.lang = b.dataset.l
+        stage.querySelectorAll('.lang').forEach(x => x.classList.toggle('on', x === b))
+        document.getElementById('go').disabled = false
+      })
+      document.getElementById('go').onclick = save
+    }
+  }
+
+  // Every press answers: saving… at once → a landed tick → the window closes.
+  function save() {
+    const go = document.getElementById('go')
+    go.disabled = true; go.classList.add('saving')
+    go.innerHTML = '<span class="spin"></span>SAVING'
+    setTimeout(() => {
+      go.classList.remove('saving'); go.classList.add('landed')
+      go.innerHTML = '<span class="pop">✓</span>SAVED'
+      setTimeout(() => {
+        document.getElementById('sys').classList.add('gone')
+        setTimeout(() => { S.step = 3; render() }, 300)
+      }, 700)
+    }, 900)
+  }
+
+  function renderToday() {
+    const lang = LANGS.find(l => l.code === S.lang)
+    stage.innerHTML = `<div class="today">
+      <div class="bar"><span class="caps" style="color:var(--ink-100)">■ SOLO LEVELING</span><span class="grow"></span>
+        <span class="caps">⌘K</span><span class="ava">${S.signup ? (S.name || 'H')[0] : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>'}</span></div>
+      <div class="hello">${hour() }, <span class="nm">${S.name || 'HUNTER'}</span>.</div>
+      <div class="grid">
+        <div class="card"><div class="caps">THREE</div>
+          <div class="slots"><div class="slot">+ PICK 1</div><div class="slot">+ PICK 2</div><div class="slot">+ PICK 3</div></div></div>
+        <div class="card"><div class="caps">${lang ? lang.flag + ' ' + lang.name.toUpperCase() : 'LANGUAGES · OFF'}</div>
+          <div class="big">0</div><div class="caps" style="margin-top:4px">THIS MONTH</div></div>
+      </div></div>`
+  }
+
+  function hour() { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' }
+
+  function syncCtl() {
+    document.querySelectorAll('#ctl button').forEach(b => {
+      const v = b.dataset.v
+      b.classList.toggle('on', b.dataset.k === 'name' ? v === (S.signup || '') : Number(v) === S.step)
+    })
+  }
+  document.getElementById('ctl').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return
+    if (b.dataset.k === 'name') { S.signup = b.dataset.v; S.name = b.dataset.v ? b.dataset.v.toUpperCase() : 'HUNTER'; S.step = 2; S.lang = null }
+    else { S.step = Number(b.dataset.v); if (S.step === 3 && !S.lang) S.lang = 'en' }
+    render()
+  })
+  render()
+</script>
+</body>
+</html>

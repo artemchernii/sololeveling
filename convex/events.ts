@@ -11,6 +11,7 @@ import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import schema, { areaSlug } from './schema'
 import { nextReminder, reminderBody, reminderTitle } from '../src/lib/remindAt'
+import { zoneFor } from './profiles'
 
 /* PLAN.md §2 and §3b.3. An event is something that occupies time whether or not
    you do anything about it; a task is something you intend to do. They are two
@@ -84,7 +85,7 @@ async function scheduleReminder(
   const event = await ctx.db.get(eventId)
   if (event === null) return
   await cancelReminder(ctx, event)
-  const next = nextReminder(event, after)
+  const next = nextReminder(event, after, await zoneFor(ctx, event.ownerId))
   const remindJob =
     next === null
       ? undefined
@@ -230,7 +231,11 @@ export const remind = internalMutation({
     await notifyOwner(ctx, {
       ownerId: event.ownerId,
       kind: 'reminder',
-      title: reminderTitle(event.title, args.startsAt),
+      title: reminderTitle(
+        event.title,
+        args.startsAt,
+        await zoneFor(ctx, event.ownerId),
+      ),
       body: reminderBody(event.remindMin),
       url: '/calendar',
       tag: `${event._id}:${args.startsAt}`,

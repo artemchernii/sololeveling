@@ -14,6 +14,7 @@ import { keepEvening } from './closeReport'
 import { keepMorning } from './moneyAlerts'
 import { notificationKind, pushDevice } from './schema'
 import { dayStart } from '../src/lib/remindAt'
+import { zoneFor } from './profiles'
 
 /* N1 (15 Oct). The pipe: a browser that allowed notifications saves its
    subscription here; anything worth a notification calls `notify`, which
@@ -158,10 +159,11 @@ export async function notifyOwner(
 const MAX_TODAY = 30
 
 async function unreadToday(ctx: MutationCtx, ownerId: string, now: number) {
+  const zone = await zoneFor(ctx, ownerId)
   const today = await ctx.db
     .query('notifications')
     .withIndex('by_owner_and_sent', (q) =>
-      q.eq('ownerId', ownerId).gte('sentAt', dayStart(now)),
+      q.eq('ownerId', ownerId).gte('sentAt', dayStart(now, zone)),
     )
     .take(MAX_TODAY)
   return today.filter((n) => n.readAt === undefined).length

@@ -56,7 +56,7 @@ function Today() {
   const quests = useHeld(dayReady ? tasks : undefined)
 
   const focus = projects?.find((p) => p.status === 'focus')
-  const firstName = user?.firstName ?? user?.username ?? 'you'
+  const firstName = user?.firstName ?? user?.username ?? 'HUNTER'
 
   const areas = useQuery(api.areas.list, {})
   const languageAreas = areas?.filter((a) => a.track === 'language')

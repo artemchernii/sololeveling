@@ -16,12 +16,7 @@ import {
   askPrompt,
   parseAsk,
 } from '../../src/lib/marketAsk'
-import {
-  CAP_USD,
-  MARKET_READ_MODEL,
-  monthKey,
-  readCost,
-} from '../../src/lib/marketRead'
+import { MARKET_READ_MODEL, monthKey, readCost } from '../../src/lib/marketRead'
 import type { Usage } from '../../src/lib/marketRead'
 import { CANNED_ASK } from '../../src/lib/marketAskCanned'
 
@@ -80,7 +75,7 @@ export const ask = action({
       return { ok: false as const, error: 'NO QUESTION', cost: 0 }
     if (
       (await ctx.runQuery(internal.marketAsk.spent, { ownerId, month })) >=
-      CAP_USD
+      (await ctx.runQuery(internal.marketAsk.cap, { ownerId }))
     )
       return { ok: false as const, error: 'CAP REACHED', cost: 0 }
     const keys = args.facts.map((f) => f.key)

@@ -3,6 +3,7 @@ import { groupFor } from '../src/lib/merchantRule'
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { refuseGuest } from './profiles'
 import {
   balanceKey,
   hasBrokerCash,
@@ -420,6 +421,8 @@ async function beginIntake(
     return intakeId
   }
 
+  /* R8 · S4: the statement reader is money AI, Artem's alone. */
+  await refuseGuest(ctx, base.ownerId)
   const intakeId = await ctx.db.insert('intakes', {
     ...base,
     status: 'reading',
@@ -516,6 +519,7 @@ export const retry = mutation({
     if (intake.storageIds.length === 0) {
       throw new ConvexError('Its files are gone — drop it again.')
     }
+    await refuseGuest(ctx, intake.ownerId)
     await ctx.db.patch(intake._id, {
       status: 'reading',
       error: undefined,
@@ -643,6 +647,7 @@ export const readAgain = mutation({
     if (intake.storageIds.length === 0)
       throw new ConvexError('Its files are gone — drop it again.')
     const account = intake.accountId ? await ctx.db.get(intake.accountId) : null
+    await refuseGuest(ctx, intake.ownerId)
     await ctx.db.patch(intake._id, {
       status: 'reading',
       error: undefined,

@@ -1,4 +1,4 @@
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 
 import { internal } from './_generated/api'
 import {
@@ -9,6 +9,7 @@ import {
 } from './_generated/server'
 import { weekReviewArgs, weekReviewFor } from './aggregate'
 import { requireUser } from './auth'
+import { chargeGuest, guestAtCap } from './profiles'
 import schema, { weekReadLine } from './schema'
 import { weekFacts } from '../src/lib/weekRead'
 
@@ -50,6 +51,7 @@ export const run = mutation({
   handler: async (ctx, args) => {
     const ownerId = await requireUser(ctx)
     if (!WEEK.test(args.week)) throw new Error('BAD_WEEK')
+    if (await guestAtCap(ctx, ownerId)) throw new ConvexError('CAP_REACHED')
     const existing = await ctx.db
       .query('weekReads')
       .withIndex('by_owner_week', (q) =>
@@ -115,6 +117,8 @@ export const finish = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { readId, ...read }) => {
+    const row = await ctx.db.get(readId)
+    if (row !== null) await chargeGuest(ctx, row.ownerId, read)
     await ctx.db.patch(readId, {
       ...read,
       status: 'done',

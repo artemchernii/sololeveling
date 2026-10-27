@@ -1,6 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
+import { chargeGuest, guestAtCap } from './profiles'
 import { requireLanguageArea } from './areas'
 import { internal } from './_generated/api'
 import {
@@ -74,6 +75,7 @@ async function askForReading(
   ownerId: string,
   sheetId: Id<'vaultSheets'>,
 ): Promise<void> {
+  if (await guestAtCap(ctx, ownerId)) throw new ConvexError('CAP_REACHED')
   const readingId = await ctx.db.insert('readings', {
     ownerId,
     sheetId,
@@ -595,6 +597,7 @@ export const finish = internalMutation({
     const reading = await ctx.db.get(args.readingId)
     /* Removed while it was being read: nothing to write to. */
     if (reading === null) return null
+    await chargeGuest(ctx, reading.ownerId, args)
     await ctx.db.patch(args.readingId, {
       status: 'done',
       title: args.title || undefined,

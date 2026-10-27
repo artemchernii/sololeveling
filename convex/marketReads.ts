@@ -23,6 +23,7 @@ import {
 } from '../src/lib/marketRead'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
+import { refuseGuest } from './profiles'
 
 /* The market read on Insights (I3, 19 Oct; spec
    docs/specs/2026-10-19-insights.md). Paid only on a press, never retried
@@ -125,6 +126,7 @@ export const run = mutation({
     const ownerId = await requireUser(ctx)
     const month = monthKey(Date.now())
     if (args.facts.length === 0) throw new ConvexError('NO_FACTS')
+    await refuseGuest(ctx, ownerId)
     if (args.via === 'api' && (await spentIn(ctx, ownerId, month)) >= CAP_USD)
       throw new ConvexError('CAP_REACHED')
     const existing = await monthRow(ctx, ownerId, month)

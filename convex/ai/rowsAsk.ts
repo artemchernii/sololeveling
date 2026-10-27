@@ -11,12 +11,7 @@ import type { Id } from '../_generated/dataModel'
 import { rowsAnswerShape } from '../askReplyFields'
 import { requireUser } from '../auth'
 import { readStamp } from '../marketReadFields'
-import {
-  CAP_USD,
-  ROWS_ASK_MODEL,
-  monthKey,
-  readCost,
-} from '../../src/lib/marketRead'
+import { ROWS_ASK_MODEL, monthKey, readCost } from '../../src/lib/marketRead'
 import type { Usage } from '../../src/lib/marketRead'
 import { monthsOf, rowFacts, rowLines } from '../../src/lib/rowsAsk'
 import {
@@ -112,7 +107,7 @@ async function answer(
     return { ok: false as const, error: 'NO QUESTION', cost: 0 }
   if (
     (await ctx.runQuery(internal.marketAsk.spent, { ownerId, month })) >=
-    CAP_USD
+    (await ctx.runQuery(internal.marketAsk.cap, { ownerId }))
   )
     return { ok: false as const, error: 'CAP REACHED', cost: 0 }
   const charge = (usd: number) =>

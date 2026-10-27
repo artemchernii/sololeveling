@@ -20,6 +20,10 @@ afterEach(() => {
 async function setup() {
   vi.stubEnv('E2E', '1')
   const t = convexTest(schema, modules)
+  /* Artem: the deploy key seeded his principles (profiles.ts isOwner). */
+  await t.run((ctx) =>
+    ctx.db.insert('principles', { ownerId: ME, text: 'P', sortOrder: 0 }),
+  )
   await t
     .withIdentity({ tokenIdentifier: ME })
     .mutation(api.e2eRowsAsk.month, { from: AUG })

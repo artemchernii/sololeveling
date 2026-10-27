@@ -27,13 +27,17 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-function setup() {
+async function setup() {
   const t = convexTest(schema, modules)
+  /* Artem: the deploy key seeded his principles (profiles.ts isOwner). */
+  await t.run((ctx) =>
+    ctx.db.insert('principles', { ownerId: ME, text: 'P', sortOrder: 0 }),
+  )
   return { t, me: t.withIdentity({ tokenIdentifier: ME }) }
 }
 
-type T = ReturnType<typeof setup>['t']
-type Me = ReturnType<typeof setup>['me']
+type T = Awaited<ReturnType<typeof setup>>['t']
+type Me = Awaited<ReturnType<typeof setup>>['me']
 
 const DAY = 86_400_000
 const START = new Date(2020, 2, 2, 15).getTime()
@@ -149,7 +153,7 @@ const tradesOf = (t: T) => t.run((ctx) => ctx.db.query('trades').collect())
 
 describe('a trading history through update all', () => {
   test('every row lands, a chunk at a time; splits at no cost; no cash moves; the update finishes', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const accountId = await revolut(t, me)
     const batchId = await openBatch(t)
     const rows: Array<Row> = [
@@ -196,7 +200,7 @@ describe('a trading history through update all', () => {
   })
 
   test('the same history again adds nothing', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     await revolut(t, me)
     const rows = Array.from({ length: 30 }, (_, i) => buy(i))
     await history(t, await openBatch(t), rows)
@@ -212,7 +216,7 @@ describe('a trading history through update all', () => {
   })
 
   test('a trade a statement already brought in is skipped, not doubled', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const accountId = await revolut(t, me)
     await t.run(async (ctx) => {
       const instrumentId = await ctx.db.insert('instruments', {
@@ -245,7 +249,7 @@ describe('a trading history through update all', () => {
   })
 
   test('a name with no ticker found is left out and said, never guessed', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     await revolut(t, me)
     const batchId = await openBatch(t)
     const intakeId = await history(
@@ -268,7 +272,7 @@ describe('a trading history through update all', () => {
 
 describe('a history dropped on its own', () => {
   test('joins the update that is open, so it opens on the update-all screen', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const batchId = await openBatch(t)
     const intakeId = await t.run((ctx) =>
       ctx.db.insert('intakes', {
@@ -294,7 +298,7 @@ describe('a history dropped on its own', () => {
   })
 
   test('starts an update of its own when none is open', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const intakeId = await t.run((ctx) =>
       ctx.db.insert('intakes', {
         ownerId: ME,
@@ -320,7 +324,7 @@ describe('a history dropped on its own', () => {
 
 describe('a history read by the reader before 9 Oct', () => {
   test('is read again, once; a ready statement is still refused', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const file = await t.run((ctx) =>
       ctx.storage.store(new Blob(['csv'], { type: 'text/csv' })),
     )

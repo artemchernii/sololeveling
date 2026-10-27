@@ -21,6 +21,10 @@ afterEach(() => {
 
 async function world() {
   const t = convexTest(schema, modules)
+  /* Artem: the deploy key seeded his principles (profiles.ts isOwner). */
+  await t.run((ctx) =>
+    ctx.db.insert('principles', { ownerId: ME, text: 'P', sortOrder: 0 }),
+  )
   const me = t.withIdentity({ tokenIdentifier: ME })
   const friend = t.withIdentity({ tokenIdentifier: FRIEND })
   await friend.mutation(api.profiles.finishFirstRun, {

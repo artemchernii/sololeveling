@@ -24,8 +24,12 @@ afterEach(() => {
    file, and the intake reuses its first reading. */
 let files = 0
 
-function setup() {
+async function setup() {
   const t = convexTest(schema, modules)
+  /* Artem: the deploy key seeded his principles (profiles.ts isOwner). */
+  await t.run((ctx) =>
+    ctx.db.insert('principles', { ownerId: ME, text: 'P', sortOrder: 0 }),
+  )
   return {
     t,
     me: t.withIdentity({ tokenIdentifier: ME }),
@@ -36,7 +40,7 @@ function setup() {
 /* A buy or a sell as he types it (money.record), in the old addTrade's
    words so the investment tests read as they did. */
 function trade(
-  who: ReturnType<typeof setup>['me'],
+  who: Awaited<ReturnType<typeof setup>>['me'],
   a: {
     accountId: Id<'accounts'>
     candidate: typeof TSLA
@@ -61,7 +65,10 @@ function trade(
   })
 }
 
-function stored(t: ReturnType<typeof setup>['t'], storageId: Id<'_storage'>) {
+function stored(
+  t: Awaited<ReturnType<typeof setup>>['t'],
+  storageId: Id<'_storage'>,
+) {
   return t.run(async (ctx) => (await ctx.db.system.get(storageId)) !== null)
 }
 
@@ -81,7 +88,7 @@ const VWCE = {
 
 describe('balances', () => {
   test('latest reading per account, a total in euros, and its oldest as-of', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const revolut = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank'],
@@ -124,7 +131,7 @@ describe('balances', () => {
   })
 
   test('a second reading the same day replaces it; another day adds history', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const a = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank'],
@@ -159,7 +166,7 @@ describe('balances', () => {
   })
 
   test('a retired account leaves the total', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const a = await me.mutation(api.accounts.create, {
       name: 'Old',
       kinds: ['bank'],
@@ -176,7 +183,7 @@ describe('balances', () => {
   })
 
   test("another owner's account is neither listed nor writable", async () => {
-    const { me, them } = setup()
+    const { me, them } = await setup()
     const theirs = await them.mutation(api.accounts.create, {
       name: 'Theirs',
       kinds: ['bank'],
@@ -200,7 +207,7 @@ describe('balances', () => {
   })
 
   test('a duplicate name is refused', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank'],
@@ -225,7 +232,7 @@ describe('bills', () => {
   }
 
   test('each on its day; paid is a log he tapped, and removing it makes it due again', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const mortgage = await me.mutation(api.recurring.create, {
       name: 'Mortgage',
       kind: 'expense',
@@ -277,7 +284,7 @@ describe('bills', () => {
   })
 
   test('remove: only a bill never paid', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const trial = await me.mutation(api.recurring.create, {
       name: 'Trial',
       kind: 'expense',
@@ -304,7 +311,7 @@ describe('bills', () => {
   })
 
   test('nothing is logged until he taps', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     await me.mutation(api.recurring.create, {
       name: 'Netflix',
       kind: 'expense',
@@ -320,7 +327,7 @@ describe('bills', () => {
   })
 
   test('a paid amount can differ from the plan', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const id = await me.mutation(api.recurring.create, {
       name: 'Electricity',
       kind: 'expense',
@@ -338,7 +345,7 @@ describe('bills', () => {
   })
 
   test("refuses a bad day, a future payment, another owner's bill", async () => {
-    const { me, them } = setup()
+    const { me, them } = await setup()
     await expect(
       me.mutation(api.recurring.create, {
         name: 'X',
@@ -372,7 +379,10 @@ describe('bills', () => {
 })
 
 describe('investments', () => {
-  async function withPrices(t: ReturnType<typeof setup>['t'], ownerId: string) {
+  async function withPrices(
+    t: Awaited<ReturnType<typeof setup>>['t'],
+    ownerId: string,
+  ) {
     const [tsla] = await t.run(async (ctx) =>
       ctx.db
         .query('instruments')
@@ -398,7 +408,7 @@ describe('investments', () => {
   }
 
   test('a position is the sum of its trades, valued at the stored price and rate', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -444,7 +454,7 @@ describe('investments', () => {
   })
 
   test('a euro ETF needs no rate', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -473,7 +483,7 @@ describe('investments', () => {
   })
 
   test('a sell cannot exceed what is held in that account', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -505,7 +515,7 @@ describe('investments', () => {
   })
 
   test('storing the same close twice adds one row; a later same-day price replaces it', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -542,7 +552,7 @@ describe('investments', () => {
   })
 
   test("another owner's trades and positions are never read", async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     const theirs = await them.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -578,7 +588,7 @@ describe('investments', () => {
 
 describe('worth: free cash and investments, apart', () => {
   test('one account can hold both, and nothing is counted twice', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const revolut = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank', 'broker'],
@@ -644,7 +654,7 @@ describe('worth: free cash and investments, apart', () => {
   })
 
   test("another owner's money is in neither half", async () => {
-    const { me, them } = setup()
+    const { me, them } = await setup()
     const theirs = await them.mutation(api.accounts.create, {
       name: 'X',
       kinds: ['bank'],
@@ -663,7 +673,7 @@ describe('worth: free cash and investments, apart', () => {
 
 describe('accounts: kinds, currencies, delete', () => {
   test('Revolut is a bank and a broker, with a USD pocket shown in euros', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const rev = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank', 'broker'],
@@ -711,7 +721,7 @@ describe('accounts: kinds, currencies, delete', () => {
   })
 
   test('a currency with no daily rate, or no kind at all, is refused', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     await expect(
       me.mutation(api.accounts.create, {
         name: 'X',
@@ -729,7 +739,7 @@ describe('accounts: kinds, currencies, delete', () => {
   })
 
   test('a balance in a currency the account does not hold is refused', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const a = await me.mutation(api.accounts.create, {
       name: 'BPI',
       kinds: ['bank'],
@@ -746,7 +756,7 @@ describe('accounts: kinds, currencies, delete', () => {
   })
 
   test('delete: gone for good when nothing hangs off it, retired when something does', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const typo = await me.mutation(api.accounts.create, {
       name: 'Revoult',
       kinds: ['bank'],
@@ -775,7 +785,7 @@ describe('accounts: kinds, currencies, delete', () => {
   })
 
   test('erase: a deleted account’s history goes, the other side of a transfer stays', async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     const bpi = await me.mutation(api.accounts.create, {
       name: 'BPI',
       kinds: ['bank'],
@@ -836,7 +846,7 @@ describe('accounts: kinds, currencies, delete', () => {
   })
 
   test('update: rename, add a currency, not onto another account’s name', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const a = await me.mutation(api.accounts.create, {
       name: 'Rev',
       kinds: ['bank'],
@@ -886,8 +896,8 @@ describe('intake: transactions', () => {
   })
 
   async function ready(
-    t: ReturnType<typeof setup>['t'],
-    me: ReturnType<typeof setup>['me'],
+    t: Awaited<ReturnType<typeof setup>>['t'],
+    me: Awaited<ReturnType<typeof setup>>['me'],
     rows: Array<ReturnType<typeof tx>>,
     balance?: number,
     holderName?: string,
@@ -925,7 +935,7 @@ describe('intake: transactions', () => {
   }
 
   test('moves are set apart, his own broker matched; the institution picks the account', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const rev = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank', 'broker'],
@@ -966,7 +976,7 @@ describe('intake: transactions', () => {
   })
 
   test('his own money is never income, whatever the reader said (1 Oct)', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     await me.mutation(api.accounts.create, {
       name: 'ActivoBank',
       kinds: ['bank'],
@@ -993,7 +1003,7 @@ describe('intake: transactions', () => {
   })
 
   test('his sign-in name counts when the statement printed none', async () => {
-    const { t } = setup()
+    const { t } = await setup()
     const named = t.withIdentity({ tokenIdentifier: ME, name: 'Artem Chernii' })
     await named.mutation(api.accounts.create, {
       name: 'ActivoBank',
@@ -1008,7 +1018,7 @@ describe('intake: transactions', () => {
   })
 
   test('a typed withdraw into Cash is a move, not income', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const cash = await me.mutation(api.accounts.create, {
       name: 'Cash',
       kinds: ['cash'],
@@ -1032,7 +1042,7 @@ describe('intake: transactions', () => {
   })
 
   test('re-filing stored rows: own name and withdrawals become moves, only his', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const bank = await me.mutation(api.accounts.create, {
       name: 'ActivoBank',
       kinds: ['bank'],
@@ -1097,7 +1107,7 @@ describe('intake: transactions', () => {
   })
 
   test('confirm: spends, a move, the balance; pending never written; spending sums only spending', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const rev = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank'],
@@ -1148,7 +1158,7 @@ describe('intake: transactions', () => {
   })
 
   test('a EUR statement keeps the account’s USD as it stood that day (5 Oct)', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const rev = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank'],
@@ -1185,7 +1195,7 @@ describe('intake: transactions', () => {
   })
 
   test('a broker statement’s orders land as trades, not moves — once, and not into a bank', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -1292,7 +1302,7 @@ describe('intake: transactions', () => {
   })
 
   test('a merchant taught once files itself next time; a second read of the same rows is all duplicates', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const rev = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank'],
@@ -1331,7 +1341,7 @@ describe('intake: transactions', () => {
   })
 
   test('a statement row that pays a bill on its day ticks it', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const rev = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank'],
@@ -1375,7 +1385,7 @@ describe('intake: transactions', () => {
   })
 
   test('what comes round is offered as a bill', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank'],
@@ -1399,7 +1409,15 @@ describe('intake: transactions', () => {
   })
 
   test("another owner's intake is neither readable nor confirmable; a non-statement file is refused and not kept", async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
+    /* A second owner, so the isolation is tested past the guest door. */
+    await t.run((ctx) =>
+      ctx.db.insert('principles', {
+        ownerId: SOMEONE_ELSE,
+        text: 'P',
+        sortOrder: 0,
+      }),
+    )
     const theirs = await them.mutation(api.accounts.create, {
       name: 'X',
       kinds: ['bank'],
@@ -1433,8 +1451,8 @@ describe('intake: transactions', () => {
 
 describe('intake: holdings', () => {
   async function ready(
-    t: ReturnType<typeof setup>['t'],
-    me: ReturnType<typeof setup>['me'],
+    t: Awaited<ReturnType<typeof setup>>['t'],
+    me: Awaited<ReturnType<typeof setup>>['me'],
   ) {
     const storageId = await t.run(async (ctx) =>
       ctx.storage.store(new Blob([`png ${++files}`], { type: 'image/png' })),
@@ -1471,7 +1489,7 @@ describe('intake: holdings', () => {
   }
 
   test('a screenshot is saved as it was seen: no prices asked, no buys, cash kept', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -1506,7 +1524,7 @@ describe('intake: holdings', () => {
   })
 
   test('what the screen printed as paid is kept', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -1524,7 +1542,7 @@ describe('intake: holdings', () => {
   })
 
   test('a second look the same day replaces the first; a later day adds a look', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -1550,7 +1568,7 @@ describe('intake: holdings', () => {
   })
 
   test('looks: a position’s screens, newest first, only his', async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -1572,7 +1590,7 @@ describe('intake: holdings', () => {
   })
 
   test('a ticker a later day’s screen left out is flagged, not sold', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -1604,7 +1622,7 @@ describe('intake: holdings', () => {
   })
 
   test('refusals: twice, the same ticker twice, no shares, a bank, the future', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -1648,7 +1666,7 @@ describe('intake: holdings', () => {
   })
 
   test('discard throws it away, files and all', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const intakeId = await ready(t, me)
     await me.mutation(api.intake.discard, { intakeId })
     expect(await me.query(api.intake.open, {})).toEqual([])
@@ -1656,7 +1674,7 @@ describe('intake: holdings', () => {
 })
 
 describe('adding money — typed lines', () => {
-  async function two(me: ReturnType<typeof setup>['me']) {
+  async function two(me: Awaited<ReturnType<typeof setup>>['me']) {
     const bpi = await me.mutation(api.accounts.create, {
       name: 'BPI',
       kinds: ['bank'],
@@ -1680,7 +1698,7 @@ describe('adding money — typed lines', () => {
   const later = () => Date.now() + 60_000
 
   test('a transfer moves both balances and is neither spending nor income', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const { bpi, tr } = await two(me)
     vi.setSystemTime(later())
     await me.mutation(api.money.record, {
@@ -1744,7 +1762,7 @@ describe('adding money — typed lines', () => {
   })
 
   test('a buy takes its cost out of the broker cash; a sell puts it back', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const { tr } = await two(me)
     vi.setSystemTime(later())
     await me.mutation(api.money.record, {
@@ -1778,7 +1796,7 @@ describe('adding money — typed lines', () => {
   })
 
   test('a reading after the movements resets the pocket — the reading wins', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const { bpi, tr } = await two(me)
     vi.setSystemTime(later())
     await me.mutation(api.money.record, {
@@ -1805,7 +1823,7 @@ describe('adding money — typed lines', () => {
   })
 
   test('refuses the same account twice, a currency it does not hold, selling what is not held, the future, another owner', async () => {
-    const { me, them } = setup()
+    const { me, them } = await setup()
     const { bpi, tr } = await two(me)
     const theirs = await them.mutation(api.accounts.create, {
       name: 'X',
@@ -1894,7 +1912,7 @@ describe('adding money — typed lines', () => {
   })
 
   test('an account knows its bank and its IBAN and card endings', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const id = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank', 'broker'],
@@ -1929,7 +1947,7 @@ describe('adding money — typed lines', () => {
   })
 
   test('a balance typed as of an earlier day counts what moved after it', async () => {
-    const { me } = setup()
+    const { me } = await setup()
     const { bpi } = await two(me)
     vi.setSystemTime(later())
     await me.mutation(api.money.record, {
@@ -1959,7 +1977,7 @@ describe('adding money — typed lines', () => {
 
 describe('migrations.addingMoney', () => {
   test('joins "<bank> Invest" back into its bank, learns institutions, marks opening positions, pairs transfers — and twice changes nothing', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const rev = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank'],
@@ -2069,8 +2087,8 @@ describe('migrations.addingMoney', () => {
 
 describe('the reader says what it is — trades, and whose account', () => {
   async function read(
-    t: ReturnType<typeof setup>['t'],
-    me: ReturnType<typeof setup>['me'],
+    t: Awaited<ReturnType<typeof setup>>['t'],
+    me: Awaited<ReturnType<typeof setup>>['me'],
     finish: Record<string, unknown>,
   ) {
     const storageId = await t.run(async (ctx) =>
@@ -2097,7 +2115,7 @@ describe('the reader says what it is — trades, and whose account', () => {
   }
 
   test('a trade history lands with its own dates and prices, once', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const t212 = await me.mutation(api.accounts.create, {
       name: 'Trading 212',
       kinds: ['broker'],
@@ -2170,7 +2188,7 @@ describe('the reader says what it is — trades, and whose account', () => {
   })
 
   test('a crypto statement: rate of the day, fee in coins, staking at €0, no cash moved, the closing amount kept — only his', async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     const DAY = 86_400_000
     const rev = await me.mutation(api.accounts.create, {
       name: 'Revolut',
@@ -2294,7 +2312,7 @@ describe('the reader says what it is — trades, and whose account', () => {
 
   test('a statement after a screenshot fills in what was paid, and adds no shares — in any order, and once', async () => {
     const run = async (screenFirst: boolean) => {
-      const { t, me } = setup()
+      const { t, me } = await setup()
       const tr = await me.mutation(api.accounts.create, {
         name: 'TR',
         kinds: ['broker'],
@@ -2359,7 +2377,7 @@ describe('the reader says what it is — trades, and whose account', () => {
   })
 
   test('a statement’s order lands on the ticker the screenshot saved, whatever the search said', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -2431,7 +2449,7 @@ describe('the reader says what it is — trades, and whose account', () => {
   })
 
   test('a statement’s sell of shares only a screenshot knew is taken, not refused', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const tr = await me.mutation(api.accounts.create, {
       name: 'TR',
       kinds: ['broker'],
@@ -2472,7 +2490,7 @@ describe('the reader says what it is — trades, and whose account', () => {
   })
 
   test('refuses a bank as the broker, and another owner’s account', async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     const bpi = await me.mutation(api.accounts.create, {
       name: 'BPI',
       kinds: ['bank'],
@@ -2512,7 +2530,7 @@ describe('the reader says what it is — trades, and whose account', () => {
   })
 
   test('a statement finds its account by IBAN ending, pairs a transfer by ending, and learns the endings it is told', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const rev = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank'],
@@ -2572,7 +2590,7 @@ describe('the reader says what it is — trades, and whose account', () => {
   })
 
   test('Revolut is one account: its statement and its portfolio screen both land in it', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const rev = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank', 'broker'],
@@ -2617,7 +2635,7 @@ describe('the reader says what it is — trades, and whose account', () => {
   })
 
   test('a file from a bank he has not added suggests it', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const intakeId = await read(t, me, {
       kind: 'holdings',
       title: 'Revolut · portfolio',
@@ -2638,7 +2656,7 @@ describe('the reader says what it is — trades, and whose account', () => {
 
 describe('aggregate.accountMonth', () => {
   test('what moved in each account this month: in, out, both sides of a transfer — euros only, his only', async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     const bpi = await me.mutation(api.accounts.create, {
       name: 'BPI',
       kinds: ['bank'],
@@ -2748,7 +2766,7 @@ describe('aggregate.accountMonth', () => {
 })
 
 test('a deleted account with history is retired, and what it held leaves every total', async () => {
-  const { me } = setup()
+  const { me } = await setup()
   const tr = await me.mutation(api.accounts.create, {
     name: 'TR',
     kinds: ['broker'],
@@ -2773,12 +2791,12 @@ test('a deleted account with history is retired, and what it held leaves every t
 
 /* The reading, made visible and made cheap (27 Sep). */
 describe('intake: reuse, progress, failures, cost', () => {
-  const store = (t: ReturnType<typeof setup>['t'], bytes: string) =>
+  const store = (t: Awaited<ReturnType<typeof setup>>['t'], bytes: string) =>
     t.run(async (ctx) =>
       ctx.storage.store(new Blob([bytes], { type: 'application/pdf' })),
     )
   const drop = (
-    who: ReturnType<typeof setup>['me'],
+    who: Awaited<ReturnType<typeof setup>>['me'],
     storageId: Id<'_storage'>,
   ) =>
     who.mutation(api.intake.start, {
@@ -2797,7 +2815,7 @@ describe('intake: reuse, progress, failures, cost', () => {
   }
 
   test('the same file again reuses its reading, at no cost; a failed one is read again', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const first = await drop(me, await store(t, 'same statement'))
     if (!first.ok) throw new Error(first.error)
     await t.mutation(internal.intake.finish, {
@@ -2838,7 +2856,15 @@ describe('intake: reuse, progress, failures, cost', () => {
   })
 
   test('someone else’s identical file is not reused', async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
+    /* A second owner, so the isolation is tested past the guest door. */
+    await t.run((ctx) =>
+      ctx.db.insert('principles', {
+        ownerId: SOMEONE_ELSE,
+        text: 'P',
+        sortOrder: 0,
+      }),
+    )
     const theirs = await drop(them, await store(t, 'shared bytes'))
     if (!theirs.ok) throw new Error(theirs.error)
     await t.mutation(internal.intake.finish, {
@@ -2855,7 +2881,7 @@ describe('intake: reuse, progress, failures, cost', () => {
   })
 
   test('progress: rows counted as they come, the ones he has marked', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const rev = await me.mutation(api.accounts.create, {
       name: 'Revolut',
       kinds: ['bank'],
@@ -2919,7 +2945,7 @@ describe('intake: reuse, progress, failures, cost', () => {
   })
 
   test('failures: the cost is kept, a retry adds to it; retry refuses what is not stuck and what is not his', async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     const s = await drop(me, await store(t, 'retry me'))
     if (!s.ok) throw new Error(s.error)
     await expect(
@@ -2951,7 +2977,7 @@ describe('intake: reuse, progress, failures, cost', () => {
   })
 
   test('a reading that stopped answering can be tried again', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const s = await drop(me, await store(t, 'stuck'))
     if (!s.ok) throw new Error(s.error)
     vi.setSystemTime(Date.now() + 12 * 60_000)
@@ -2964,7 +2990,7 @@ describe('intake: reuse, progress, failures, cost', () => {
   })
 
   test('a long history is kept row by row, and goes with a discard', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const s = await drop(me, await store(t, 'history'))
     if (!s.ok) throw new Error(s.error)
     await t.mutation(internal.intake.storeHistory, {
@@ -3014,7 +3040,7 @@ describe('intake: reuse, progress, failures, cost', () => {
   })
 
   test('a column map is remembered by its header, per owner', async () => {
-    const { t } = setup()
+    const { t } = await setup()
     const layout = {
       kind: 'trades' as const,
       dateColumn: 0,
@@ -3052,7 +3078,7 @@ describe('intake: reuse, progress, failures, cost', () => {
 
 describe('cash history', () => {
   test('a balance per day from his reading and rows; nothing of anyone else', async () => {
-    const { me, them } = setup()
+    const { me, them } = await setup()
     const a = await me.mutation(api.accounts.create, {
       name: 'Activo',
       kinds: ['bank'],
@@ -3108,7 +3134,7 @@ describe('cash history', () => {
 
 describe('intake.lastRead — the + sheet’s "last read" line', () => {
   test('null before anything is read; then the newest done, not a failed one', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     expect(await me.query(api.intake.lastRead, {})).toBeNull()
     await t.run(async (ctx) => {
       await ctx.db.insert('intakes', {
@@ -3136,7 +3162,7 @@ describe('intake.lastRead — the + sheet’s "last read" line', () => {
   })
 
   test('another owner’s reads are not his', async () => {
-    const { t, them } = setup()
+    const { t, them } = await setup()
     await t.run(async (ctx) => {
       await ctx.db.insert('intakes', {
         ownerId: ME,
@@ -3149,18 +3175,18 @@ describe('intake.lastRead — the + sheet’s "last read" line', () => {
   })
 
   test('signed out is refused', async () => {
-    const { t } = setup()
+    const { t } = await setup()
     await expect(t.query(api.intake.lastRead, {})).rejects.toThrow()
   })
 })
 
 describe('intake.start — his words about a screenshot', () => {
-  const shot = (t: ReturnType<typeof setup>['t'], bytes: string) =>
+  const shot = (t: Awaited<ReturnType<typeof setup>>['t'], bytes: string) =>
     t.run(async (ctx) =>
       ctx.storage.store(new Blob([bytes], { type: 'image/png' })),
     )
   const drop = (
-    who: ReturnType<typeof setup>['me'],
+    who: Awaited<ReturnType<typeof setup>>['me'],
     storageId: Id<'_storage'>,
     hint?: string,
   ) =>
@@ -3172,7 +3198,7 @@ describe('intake.start — his words about a screenshot', () => {
     })
 
   test('the hint is kept, trimmed, and handed to the reader', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const started = await drop(
       me,
       await shot(t, 'tr screen'),
@@ -3186,7 +3212,7 @@ describe('intake.start — his words about a screenshot', () => {
   })
 
   test('a blank hint is none', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const started = await drop(me, await shot(t, 'blank'), '   ')
     if (!started.ok) throw new Error(started.error)
     const job = await t.query(internal.intake.forReading, {
@@ -3196,7 +3222,7 @@ describe('intake.start — his words about a screenshot', () => {
   })
 
   test('the same screenshot with a hint is read again, not reused', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const first = await drop(me, await shot(t, 'same screen'))
     if (!first.ok) throw new Error(first.error)
     await t.mutation(internal.intake.finish, {
@@ -3224,7 +3250,7 @@ describe('an account, opened (A.4)', () => {
   const at = (d: number, h = 12) => new Date(2026, 8, d, h).getTime()
 
   async function bank() {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     const bankId = await me.mutation(api.accounts.create, {
       name: 'ActivoBank',
       kinds: ['bank'],
@@ -3410,7 +3436,7 @@ describe('an account, opened (A.4)', () => {
 
 describe('a year of rates (Finances B)', () => {
   test('one row per currency and ECB day, for each owner, never twice', async () => {
-    const { t } = setup()
+    const { t } = await setup()
     const day = (d: number) => Date.parse(`2026-09-${d}T16:00:00Z`)
     const rows = [
       { rate: 0.87032, asOf: day(21) },
@@ -3437,7 +3463,7 @@ describe('a year of rates (Finances B)', () => {
 
 describe('worth, day by day (Finances B)', () => {
   test('cash, invested at that day’s close and rate, total; only his', async () => {
-    const { t, me, them } = setup()
+    const { t, me, them } = await setup()
     const end = (d: number) => new Date(2026, 8, d, 23, 59, 59, 999).getTime()
     const noon = (d: number) => new Date(2026, 8, d, 12).getTime()
     const tr = await me.mutation(api.accounts.create, {
@@ -3507,7 +3533,7 @@ describe('worth, day by day (Finances B)', () => {
   })
 
   test('a long range reads a close a week apart before the last month (4 Oct, database reads)', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const DAY = 86_400_000
     const base = new Date(2026, 6, 1, 23, 59, 59, 999).getTime()
     const tr = await me.mutation(api.accounts.create, {
@@ -3562,7 +3588,7 @@ describe('worth, day by day (Finances B)', () => {
   })
 
   test('bought between two weekly looks and sold again: priced from its first day, €0 after, and never looked up outside (10 Oct, too many reads)', async () => {
-    const { t, me } = setup()
+    const { t, me } = await setup()
     const DAY = 86_400_000
     const base = new Date(2026, 6, 1, 23, 59, 59, 999).getTime()
     const tr = await me.mutation(api.accounts.create, {
@@ -3617,7 +3643,7 @@ describe('worth, day by day (Finances B)', () => {
 })
 
 test("the chart's lane: his own moves once each, whichever side names the other account; only his", async () => {
-  const { t, me, them } = setup()
+  const { t, me, them } = await setup()
   const bank = (name: string) =>
     me.mutation(api.accounts.create, {
       name,

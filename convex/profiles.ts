@@ -28,13 +28,29 @@ async function profileOf(ctx: QueryCtx | MutationCtx, ownerId: string) {
    week reads are not counted. */
 export const GUEST_CAP_USD = 0.5
 
-/** Someone who did the first run (and not the test backend's stand-in). */
+/* Artem is the one whose principles the deploy key seeded (seed.ts, an
+   internal mutation no client can reach), or the test backend's stand-in.
+   Everyone else is a guest — first run done or not. Before 27 Oct a guest
+   was "has a profile", so a new sign-up who never pressed GO counted as
+   Artem: money AI open, his $2 cap, one more $2 for every new account. */
+export async function isOwner(
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string,
+): Promise<boolean> {
+  if ((await profileOf(ctx, ownerId))?.asOwner === true) return true
+  const principle = await ctx.db
+    .query('principles')
+    .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+    .first()
+  return principle !== null
+}
+
+/** Anyone who is not Artem. */
 export async function isGuest(
   ctx: QueryCtx | MutationCtx,
   ownerId: string,
 ): Promise<boolean> {
-  const profile = await profileOf(ctx, ownerId)
-  return profile !== null && profile.asOwner !== true
+  return !(await isOwner(ctx, ownerId))
 }
 
 /** The month's AI cap for this person, in dollars. */
@@ -106,35 +122,26 @@ function knownZone(zone: string): boolean {
 }
 
 /**
- * Asked only of someone with no profile and no log at all. A log says the
- * person has used the app already — Artem on dev and prod — so he is never
- * shown the window and his data needs no write for it.
+ * Asked of every guest with no profile yet, logs or not — the window is
+ * what gives them a zone. Artem is never shown it and his data needs no
+ * write for it.
  */
 export const mine = query({
   args: {},
   returns: v.object({
     needsFirstRun: v.boolean(),
-    /* R8 · S3a: someone who did the first run. Artem never did. */
+    /* R8 · S3a: anyone who is not Artem. */
     guest: v.boolean(),
     timezone: v.string(),
   }),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
     const profile = await profileOf(ctx, ownerId)
-    if (profile !== null)
-      return {
-        needsFirstRun: false,
-        guest: profile.asOwner !== true,
-        timezone: profile.timezone,
-      }
-    const anyLog = await ctx.db
-      .query('logs')
-      .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
-      .first()
+    const guest = await isGuest(ctx, ownerId)
     return {
-      needsFirstRun: anyLog === null,
-      guest: false,
-      timezone: OWNER_ZONE,
+      needsFirstRun: profile === null && guest,
+      guest,
+      timezone: profile?.timezone ?? OWNER_ZONE,
     }
   },
 })

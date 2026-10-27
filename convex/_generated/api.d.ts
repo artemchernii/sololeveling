@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as account from "../account.js";
 import type * as accounts from "../accounts.js";
 import type * as aggregate from "../aggregate.js";
 import type * as ai_ask from "../ai/ask.js";
@@ -117,6 +118,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  account: typeof account;
   accounts: typeof accounts;
   aggregate: typeof aggregate;
   "ai/ask": typeof ai_ask;

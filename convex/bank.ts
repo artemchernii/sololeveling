@@ -13,13 +13,12 @@ import { bankApi } from './bankApi'
 import { CHECK_LOST_MS, pull } from './bankRows'
 import { internal } from './_generated/api'
 import {
-  action,
   internalAction,
   internalMutation,
   internalQuery,
-  mutation,
   query,
 } from './_generated/server'
+import { action, mutation } from './write'
 import type { Id } from './_generated/dataModel'
 import type { ActionCtx } from './_generated/server'
 

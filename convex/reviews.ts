@@ -1,7 +1,8 @@
 import { v } from 'convex/values'
 
 import { requireUser } from './auth'
-import { mutation, query } from './_generated/server'
+import { query } from './_generated/server'
+import { mutation } from './write'
 import schema from './schema'
 
 /* PLAN.md §3, the weekly review: "the week, as it actually went". The numbers

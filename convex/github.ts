@@ -7,9 +7,9 @@ import {
   internalAction,
   internalMutation,
   internalQuery,
-  mutation,
   query,
 } from './_generated/server'
+import { mutation } from './write'
 import type { ActionCtx } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 

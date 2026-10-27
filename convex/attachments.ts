@@ -1,7 +1,8 @@
 import { v } from 'convex/values'
 
 import { requireUser } from './auth'
-import { mutation, query } from './_generated/server'
+import { query } from './_generated/server'
+import { mutation } from './write'
 import type { Id } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 

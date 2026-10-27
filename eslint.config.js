@@ -30,6 +30,33 @@ export default [
       ],
     },
   },
+  /* The demo account is read-only (convex/write.ts): a public write is
+     built there. The exceptions only refresh stored outside readings on
+     open, or run on the test backend. */
+  {
+    files: ['convex/**/*.ts'],
+    ignores: [
+      'convex/write.ts',
+      'convex/e2e*.ts',
+      'convex/demo.ts',
+      'convex/bars.ts',
+      'convex/prices.ts',
+      'convex/fundamentals.ts',
+      'convex/sector.ts',
+      'convex/**/*.test.ts',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "ImportDeclaration[source.value=/_generated\\/server$/] ImportSpecifier[imported.name='mutation']",
+          message:
+            "Import mutation from './write' so the demo account cannot write.",
+        },
+      ],
+    },
+  },
   {
     ignores: [
       'eslint.config.js',

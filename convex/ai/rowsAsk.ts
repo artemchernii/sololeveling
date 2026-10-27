@@ -5,7 +5,7 @@ import { v } from 'convex/values'
 import type { Infer, ObjectType } from 'convex/values'
 
 import { internal } from '../_generated/api'
-import { action } from '../_generated/server'
+import { aiAction } from '../write'
 import type { ActionCtx } from '../_generated/server'
 import type { Id } from '../_generated/dataModel'
 import { rowsAnswerShape } from '../askReplyFields'
@@ -48,7 +48,7 @@ const askArgs = {
 /* N4: every answer the model gave (or failed to) is kept a day in
    askReplies, so a phone locked while it ran can open it from the push;
    a question refused before any call (empty, at the cap) is not. */
-export const ask = action({
+export const ask = aiAction({
   args: askArgs,
   returns: v.union(
     v.object({

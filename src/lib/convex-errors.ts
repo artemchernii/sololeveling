@@ -4,6 +4,9 @@ import { ConvexError } from 'convex/values'
    codes live here; a ConvexError that is already a sentence is shown as is. */
 const CODES: Record<string, string> = {
   TODAY_FULL: 'Today is full. Finish one or drop one.',
+  /* The demo account (convex/write.ts): nothing it presses is kept. */
+  DEMO_READ_ONLY: 'DEMO · NOT SAVED',
+  DEMO_NO_AI: 'DEMO · NO AI',
   /* R6. Each of these is a guard in convex/areas.ts, in the words the areas
      editor would use. The last four are backstops — the interface is built so
      they cannot normally be reached (the retire control asks where the capture

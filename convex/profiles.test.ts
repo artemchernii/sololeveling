@@ -34,6 +34,7 @@ describe('who is asked the first run', () => {
     expect(await friend.query(api.profiles.mine, {})).toEqual({
       needsFirstRun: true,
       guest: true,
+      demo: false,
       timezone: 'Europe/Lisbon',
     })
   })
@@ -44,6 +45,7 @@ describe('who is asked the first run', () => {
     expect(await me.query(api.profiles.mine, {})).toEqual({
       needsFirstRun: false,
       guest: false,
+      demo: false,
       timezone: 'Europe/Lisbon',
     })
   })
@@ -77,6 +79,7 @@ describe('finishing the first run', () => {
     expect(await friend.query(api.profiles.mine, {})).toEqual({
       needsFirstRun: false,
       guest: true,
+      demo: false,
       timezone: 'America/New_York',
     })
     const areas = await friend.query(api.areas.list, {})
@@ -140,6 +143,7 @@ describe('finishing the first run', () => {
     expect(await me.query(api.profiles.mine, {})).toEqual({
       needsFirstRun: false,
       guest: false,
+      demo: false,
       timezone: 'Europe/Lisbon',
     })
   })
@@ -179,6 +183,7 @@ describe('a guest (R8 · S3a)', () => {
     expect(await me.query(api.profiles.mine, {})).toEqual({
       needsFirstRun: false,
       guest: false,
+      demo: false,
       timezone: 'Europe/Lisbon',
     })
   })

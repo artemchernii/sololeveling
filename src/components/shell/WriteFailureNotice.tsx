@@ -45,8 +45,17 @@ export function WriteFailureNotice() {
         className="glass-modal motion-arrive pointer-events-auto flex max-w-[460px] items-start gap-3 rounded-[14px] py-2.5 pr-2.5 pl-4"
       >
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="label-caps">Didn&rsquo;t save</span>
-          <span className="text-[13px] text-foreground">{message.text}</span>
+          {/* The demo account's refusals are a badge alone. */}
+          {message.text.startsWith('DEMO ·') ? (
+            <span className="label-caps text-state-warn">{message.text}</span>
+          ) : (
+            <>
+              <span className="label-caps">Didn&rsquo;t save</span>
+              <span className="text-[13px] text-foreground">
+                {message.text}
+              </span>
+            </>
+          )}
         </div>
         <button
           type="button"

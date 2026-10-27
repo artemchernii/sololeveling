@@ -2,7 +2,8 @@ import { ConvexError, v } from 'convex/values'
 
 import { CAP_USD, monthKey, readCost } from '../src/lib/marketRead'
 import { OWNER_ZONE } from '../src/lib/remindAt'
-import { mutation, query } from './_generated/server'
+import { query } from './_generated/server'
+import { mutation } from './write'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import { addLanguageFor } from './areas'
 import { addSpend } from './marketReads'
@@ -37,7 +38,10 @@ export async function isOwner(
   ctx: QueryCtx | MutationCtx,
   ownerId: string,
 ): Promise<boolean> {
-  if ((await profileOf(ctx, ownerId))?.asOwner === true) return true
+  const profile = await profileOf(ctx, ownerId)
+  /* The demo account is never Artem, whatever a fill ever wrote. */
+  if (profile?.demo === true) return false
+  if (profile?.asOwner === true) return true
   const principle = await ctx.db
     .query('principles')
     .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
@@ -132,15 +136,20 @@ export const mine = query({
     needsFirstRun: v.boolean(),
     /* R8 · S3a: anyone who is not Artem. */
     guest: v.boolean(),
+    /* The demo account: Artem's rooms, made-up rows, nothing saved. Not a
+       guest on screen — it shows Finances and his six. */
+    demo: v.boolean(),
     timezone: v.string(),
   }),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
     const profile = await profileOf(ctx, ownerId)
-    const guest = await isGuest(ctx, ownerId)
+    const demo = profile?.demo === true
+    const guest = !demo && (await isGuest(ctx, ownerId))
     return {
       needsFirstRun: profile === null && guest,
       guest,
+      demo,
       timezone: profile?.timezone ?? OWNER_ZONE,
     }
   },

@@ -32,7 +32,7 @@ profile; everyone else is a guest. Add:
   `demo:make {ownerId}`, an internal mutation run with the deploy key
   (`npx convex run --prod demo:make`). No client path sets it.
 - `isOwner()` returns false for a demo profile before it looks at
-  principles. `demo:fill` never writes principles (that would make it
+  principles. `demo.refill` never writes principles (that would make it
   the owner).
 - `profiles.mine` returns `kind: 'owner' | 'guest' | 'demo'` (keeps
   `guest` for old callers).
@@ -56,8 +56,14 @@ What demo sees, beside the other two:
   `requireUser`, a demo profile throws `DEMO_READ_ONLY`. Every public
   write file imports from it instead of `_generated/server` (45 files,
   one line each); a lint rule (`no-restricted-imports`) keeps it so.
-- Internal functions (crons, `demo:fill`) are unaffected.
-- The one public write allowed for demo: `demo.freshen` (below).
+- Internal functions (crons, `demo.refill`) are unaffected.
+- Open to demo (built on `openMutation` or left on the raw builder,
+  each with its reason): `demo.freshen`, `areas.ensure` (idempotent),
+  and the on-open refreshes of stored outside readings — `prices.refresh`,
+  `bars.ask`, `fundamentals.refresh`, `sector.ask/askAll`. Actions that
+  only fetch (market, news, Insights MINE/MARKET/CLOSE, ticker search,
+  `priceYears.read`) stay open; bank, Trading 212 and the two Ask actions
+  are refused.
 - Client: every write path already shows "saving…"; on
   `DEMO_READ_ONLY` it shows the badge `DEMO · NOT SAVED` (amber, pulse)
   and closes. One handler in the shared write hook, not per screen.
@@ -66,8 +72,9 @@ What demo sees, beside the other two:
 
 ## Filling it
 
-`demo:fill {ownerId, now}` — internal, deploy key only. Wipes the
-owner's rows (reuses `account.ts`'s per-table wipe) and writes a fixed
+`demo.make {ownerId}` marks the profile and schedules `demo.refill`,
+which wipes the account in batches (`wipeSome`, shared with delete
+account) and then writes the story and writes a fixed
 story, every date as an offset from `now`:
 
 - Areas: Portuguese, English, Body; ~90 days of logs (workouts, language
@@ -78,22 +85,20 @@ story, every date as an offset from `now`:
 - Finances: 3 accounts (bank, card, broker) with made-up balances; ~120
   spends over 90 days with recurring bills; 6 positions in real tickers
   (e.g. VWCE, AAPL, MSFT, ASML, GLD, BTC) with fake buy history.
-  Prices: one stored year per ticker built from a seeded curve, then the
-  nightly `market.readAll` adds real closes on top — real prices, fake
-  shares.
+  No made-up prices: the fill asks `market.readAll` for the account's
+  tickers, so every price is a real close — real prices, made-up shares.
+  A position's older years arrive when its page is opened, as for Artem.
 - No principles, no bank links, no GitHub link, no push subscription,
   no files.
 
-The builders are lifted out of the e2e seeds into plain helpers
-`(ctx, ownerId, now) => …` under `convex/fake/`: today `convex/e2e*.ts`
-are public mutations that call `requireUser` + `guard()`. The e2e
-mutations become thin wrappers over the same helpers, so tests and demo
-share one source. New pieces (90-day story, all-screens) are written once
-in `convex/fake/story.ts`.
+The story is one file, `convex/fake/story.ts`, written in the shapes the
+e2e seeds use. The e2e seeds were not lifted into it: each sets up one
+test's corner case, and none is a whole life; moving them would have
+touched every e2e spec for no screen.
 
 **Stays fresh**: `profiles.demoFilledOn` (Lisbon day). On open the app
 calls `demo.freshen`; if the day is older than today it schedules
-`demo:fill` with `now`. So "last month" always means last month, and any
+`demo.refill` with `now`. So "last month" always means last month, and any
 day nobody opens it costs nothing.
 
 ## Rule changes — his words needed
@@ -123,7 +128,7 @@ price job reads 6 more tickers (external, free).
 - D3 demo ticks a quest → "saving…" → `DEMO · NOT SAVED` → closes; the
   quest stays unticked.
 - D4 demo presses ASK / READ → `DEMO · NO AI`, no action called.
-- D5 `demo:fill` twice → same row counts (wipe then fill), no principles
+- D5 `demo.refill` twice → same row counts (wipe then fill), no principles
   row; `isOwner` false.
 - D6 demo filled yesterday → open → `demo.freshen` refills; dates move.
 - D7 every public mutation refuses demo (convex-test loops over the

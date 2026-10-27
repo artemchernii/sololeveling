@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { v } from 'convex/values'
 
 import { internal } from '../_generated/api'
-import { action } from '../_generated/server'
+import { aiAction } from '../write'
 import { requireUser } from '../auth'
 import { marketFact, readStamp } from '../marketReadFields'
 import {
@@ -55,7 +55,7 @@ const answerShape = v.object({
   ),
 })
 
-export const ask = action({
+export const ask = aiAction({
   args: {
     question: v.string(),
     web: v.boolean(),

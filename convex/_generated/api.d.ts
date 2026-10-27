@@ -29,6 +29,7 @@ import type * as bars from "../bars.js";
 import type * as buysLanded from "../buysLanded.js";
 import type * as closeReport from "../closeReport.js";
 import type * as crons from "../crons.js";
+import type * as demo from "../demo.js";
 import type * as drills from "../drills.js";
 import type * as e2e from "../e2e.js";
 import type * as e2eAccountUpdate from "../e2eAccountUpdate.js";
@@ -50,6 +51,7 @@ import type * as e2eToday from "../e2eToday.js";
 import type * as e2eTransfer from "../e2eTransfer.js";
 import type * as e2eUpdate from "../e2eUpdate.js";
 import type * as events from "../events.js";
+import type * as fake_story from "../fake/story.js";
 import type * as fileNotice from "../fileNotice.js";
 import type * as fileTrades from "../fileTrades.js";
 import type * as fundamentals from "../fundamentals.js";
@@ -110,6 +112,7 @@ import type * as undoFile from "../undoFile.js";
 import type * as vault from "../vault.js";
 import type * as weekReads from "../weekReads.js";
 import type * as why from "../why.js";
+import type * as write from "../write.js";
 
 import type {
   ApiFromModules,
@@ -139,6 +142,7 @@ declare const fullApi: ApiFromModules<{
   buysLanded: typeof buysLanded;
   closeReport: typeof closeReport;
   crons: typeof crons;
+  demo: typeof demo;
   drills: typeof drills;
   e2e: typeof e2e;
   e2eAccountUpdate: typeof e2eAccountUpdate;
@@ -160,6 +164,7 @@ declare const fullApi: ApiFromModules<{
   e2eTransfer: typeof e2eTransfer;
   e2eUpdate: typeof e2eUpdate;
   events: typeof events;
+  "fake/story": typeof fake_story;
   fileNotice: typeof fileNotice;
   fileTrades: typeof fileTrades;
   fundamentals: typeof fundamentals;
@@ -220,6 +225,7 @@ declare const fullApi: ApiFromModules<{
   vault: typeof vault;
   weekReads: typeof weekReads;
   why: typeof why;
+  write: typeof write;
 }>;
 
 /**

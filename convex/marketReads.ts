@@ -1,12 +1,8 @@
 import { ConvexError, v } from 'convex/values'
 
 import { internal } from './_generated/api'
-import {
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-} from './_generated/server'
+import { internalMutation, internalQuery, query } from './_generated/server'
+import { aiMutation, mutation } from './write'
 import { requireUser } from './auth'
 import {
   marketFact,
@@ -119,7 +115,7 @@ export const forMonth = query({
   },
 })
 
-export const run = mutation({
+export const run = aiMutation({
   args: { facts: v.array(marketFact), via: payer },
   returns: v.id('marketReads'),
   handler: async (ctx, args) => {

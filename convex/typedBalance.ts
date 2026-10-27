@@ -1,7 +1,8 @@
 import { ConvexError, v } from 'convex/values'
 
 import { requireUser } from './auth'
-import { mutation, query } from './_generated/server'
+import { query } from './_generated/server'
+import { mutation } from './write'
 import { readingsOf, standing } from './undoFile'
 import type { Pocket } from './undoFile'
 import type { QueryCtx } from './_generated/server'

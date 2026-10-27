@@ -506,7 +506,8 @@ screen. Everything in 1–3 holds in both themes.
 
 ## 4. Phases
 
-**Shipped:** phases 0–6b (8–14 Sep), then R1, R2, R3 (a/b/c), R6, R4, R6b-a, R6b-b, R5, R7a.
+**Shipped:** phases 0–6b (8–14 Sep), then R1, R2, R3 (a/b/c), R6, R4, R6b-a, R6b-b, R5, R7a,
+and on through R8 Sharing (26–27 Oct, #297–#300) — the last row.
 **Order from here (26 Sep, Artem's):** Finances (R6b-c, rows F1–F3,
 `docs/specs/2026-09-26-r6b-finances.md`) → Review → Today → Sharing
 (`docs/specs/2026-09-26-later-sharing.md`) → polish. Where R7 (Ask AI) falls
@@ -543,10 +544,16 @@ one-page spec under `docs/specs/` written when the previous row has shipped.
 - **Finances (R6b-c).** Unblocked 26 Sep by the sum rule in §1. Three rows: F1 Spending (a
   month's out and in by category, `logs.meta.category`), F2 Balances,
   F3 Investments — each its own spec when the one before ships.
-- **Sharing (R8) is wanted, said again 12 Oct:** "I want to actually later share this app at
-  some point." Nothing new may assume one person. Connections are the open part — one Trading
-  212 key for the whole backend, an Enable Banking application activated for his accounts only
-  — and what each needs is point 6 of `docs/specs/2026-09-26-later-sharing.md`.
+- **Sharing (R8), shipped 26–27 Oct.** His data lives on prod (copied from dev, same Clerk
+  dev instance, so the same ownerId); dev is the test copy. A **guest** is someone who did
+  the first run (`profiles` row, `docs/specs/2026-10-26-first-run.md`): one language step,
+  name and avatar from Clerk, HUNTER without a name. A guest gets no Finances, LEVEL,
+  shake/post/commits/worth, Body photo, or spent and worth on Review
+  (`docs/specs/2026-10-27-guest-rooms.md`); can delete everything they made
+  (`docs/specs/2026-10-27-delete-account.md`); and shares one $0.50 monthly AI pot, money
+  AI refused (`docs/specs/2026-10-27-guest-ai-cap.md`). Nothing new may assume one person:
+  a new room or AI press decides what a guest gets. Deferred, his call: a domain, then
+  Clerk production and the ownerId migration; the Clerk allowlist for invite-only.
 
 **Rules that carry through every row:** every number from a sanctioned source (§1); three a
 day (§3c.1); the backlog never on Today (§3c.3); tasks and events two tables (§3b.3);

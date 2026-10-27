@@ -1,9 +1,11 @@
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 
+import { CAP_USD, monthKey, readCost } from '../src/lib/marketRead'
 import { OWNER_ZONE } from '../src/lib/remindAt'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import { addLanguageFor } from './areas'
+import { addSpend } from './marketReads'
 import { requireUser } from './auth'
 
 /**
@@ -17,6 +19,73 @@ async function profileOf(ctx: QueryCtx | MutationCtx, ownerId: string) {
     .query('profiles')
     .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
     .unique()
+}
+
+/* R8 · S4 (27 Oct, his "money AI closed to guests, $0.50 a month per
+   guest"): everything a guest asks the model — Ask, Review's week read, a
+   class sheet — comes out of one pot of this many dollars a month, counted
+   in aiSpend. Artem keeps CAP_USD on Ask and Insights, and his sheets and
+   week reads are not counted. */
+export const GUEST_CAP_USD = 0.5
+
+/** Someone who did the first run (and not the test backend's stand-in). */
+export async function isGuest(
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string,
+): Promise<boolean> {
+  const profile = await profileOf(ctx, ownerId)
+  return profile !== null && profile.asOwner !== true
+}
+
+/** The month's AI cap for this person, in dollars. */
+export async function capFor(
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string,
+): Promise<number> {
+  return (await isGuest(ctx, ownerId)) ? GUEST_CAP_USD : CAP_USD
+}
+
+/** A guest whose month's pot is spent; never Artem. */
+export async function guestAtCap(
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string,
+): Promise<boolean> {
+  if (!(await isGuest(ctx, ownerId))) return false
+  const row = await ctx.db
+    .query('aiSpend')
+    .withIndex('by_owner_month', (q) =>
+      q.eq('ownerId', ownerId).eq('month', monthKey(Date.now())),
+    )
+    .unique()
+  return (row?.usd ?? 0) >= GUEST_CAP_USD
+}
+
+/** A guest's sheet or week read, from the response's usage, priced as
+    Sonnet so the pot is never under-counted; Artem's are not counted. */
+export async function chargeGuest(
+  ctx: MutationCtx,
+  ownerId: string,
+  usage: { inputTokens: number; outputTokens: number },
+): Promise<void> {
+  if (!(await isGuest(ctx, ownerId))) return
+  await addSpend(
+    ctx,
+    ownerId,
+    monthKey(Date.now()),
+    readCost({
+      input: usage.inputTokens,
+      output: usage.outputTokens,
+      searches: 0,
+    }),
+  )
+}
+
+/** Money AI (the statement reader, the Insights read) is Artem's alone. */
+export async function refuseGuest(
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string,
+): Promise<void> {
+  if (await isGuest(ctx, ownerId)) throw new ConvexError('NOT_FOR_GUESTS')
 }
 
 /** A person's zone: theirs once answered, else Artem's. */

@@ -5,7 +5,7 @@ import type { QueryCtx } from './_generated/server'
 import { requireUser } from './auth'
 import { spentIn } from './marketReads'
 import { BUILTIN_AREAS } from '../src/lib/area-slug'
-import { CAP_USD } from '../src/lib/marketRead'
+import { capFor } from './profiles'
 import { DAY, MAX_DAYS, MAX_ROWS } from '../src/lib/rowsAsk'
 import type { AskRows } from '../src/lib/rowsAsk'
 
@@ -154,8 +154,11 @@ export const forOwner = internalQuery({
 export const spend = query({
   args: { month: v.string() },
   returns: v.object({ spent: v.number(), cap: v.number() }),
-  handler: async (ctx, args) => ({
-    spent: await spentIn(ctx, await requireUser(ctx), args.month),
-    cap: CAP_USD,
-  }),
+  handler: async (ctx, args) => {
+    const ownerId = await requireUser(ctx)
+    return {
+      spent: await spentIn(ctx, ownerId, args.month),
+      cap: await capFor(ctx, ownerId),
+    }
+  },
 })

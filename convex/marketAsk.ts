@@ -2,6 +2,7 @@ import { v } from 'convex/values'
 
 import { internalMutation, internalQuery } from './_generated/server'
 import { addSpend, spentIn } from './marketReads'
+import { capFor } from './profiles'
 import { marketReadBody } from './marketReadFields'
 
 /* What ASK (I4, convex/ai/ask.ts) reads and writes: the month's spend
@@ -13,6 +14,13 @@ export const spent = internalQuery({
   args: { ownerId: v.string(), month: v.string() },
   returns: v.number(),
   handler: async (ctx, args) => await spentIn(ctx, args.ownerId, args.month),
+})
+
+/** The month's cap for this person: $0.50 for a guest (R8 · S4). */
+export const cap = internalQuery({
+  args: { ownerId: v.string() },
+  returns: v.number(),
+  handler: async (ctx, args) => await capFor(ctx, args.ownerId),
 })
 
 /** The latest read on screen: this month's, else the last one kept. */

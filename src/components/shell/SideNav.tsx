@@ -3,8 +3,9 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { Settings } from 'lucide-react'
 
 import { areaVars } from '@/lib/areas'
-import { navGroups } from '@/lib/nav'
+import { forGuest, navGroups } from '@/lib/nav'
 import type { NavItem } from '@/lib/nav'
+import { useGuest } from '@/lib/useGuest'
 
 /* Desktop rail (≥1024). Ten destinations grouped NOW / BUILD / TRACK
    (lib/nav.ts, PLAN.md §3), with Settings pinned.
@@ -26,7 +27,8 @@ function isActive(pathname: string, to: string): boolean {
 
 export function SideNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const all = [...navGroups.flatMap((g) => g.items), SETTINGS]
+  const groups = forGuest(navGroups, useGuest())
+  const all = [...groups.flatMap((g) => g.items), SETTINGS]
   const active = all.find((item) => isActive(pathname, item.to))
 
   const railRef = useRef<HTMLElement>(null)
@@ -85,7 +87,7 @@ export function SideNav() {
       ) : null}
 
       <div className="flex flex-1 flex-col gap-[18px]">
-        {navGroups.map((group) => (
+        {groups.map((group) => (
           <div key={group.heading} className="flex flex-col gap-[2px]">
             <div className="flex items-center gap-2.5 px-[10px] pb-[6px]">
               <span className="font-mono text-[10px] tracking-[0.18em] text-ink-400">

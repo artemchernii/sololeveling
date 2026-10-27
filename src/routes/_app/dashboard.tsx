@@ -10,6 +10,7 @@ import { TaskBar } from '@/components/dashboard/TaskBar'
 import type { Pick } from '@/components/dashboard/TaskBar'
 import type { ICONS } from '@/components/dashboard/AreaIcon'
 import { YearBar } from '@/components/dashboard/YearBar'
+import { useGuest } from '@/lib/useGuest'
 import { langShort } from '@/lib/languages/catalog'
 import { localToday } from '@/lib/today'
 import { useHeld } from '@/lib/loading'
@@ -67,6 +68,10 @@ function Today() {
     short: langShort(a),
   }))
   const lang = languages?.[0] ?? 'portuguese'
+  /* R8 · S3a: a guest has no PT stand-in — NONE means no LANGS at all. */
+  const guest = useGuest()
+  const langsShown =
+    langs.length > 0 ? langs : guest ? [] : [{ slug: lang, short: 'PT' }]
   const month = useMonth(now, languages)
   const goals = useQuery(api.goals.listActive, {})
   const focusTasks = useQuery(
@@ -129,7 +134,7 @@ function Today() {
             {/* LEVEL is my age, from the birthday in lib/year.ts. It is a
                 joke, and it stays honest by being one: it goes up on 14
                 December and never because of what I did this week. */}
-            <YearBar date={now} />
+            {guest ? null : <YearBar date={now} />}
             {/* Nothing until projects arrive: "No project in focus" is a
                 claim, and a loading screen does not get to make one
                 (§3d.2). It holds the line's height while it waits, so the
@@ -140,7 +145,7 @@ function Today() {
               </span>
             ) : (
               <>
-                <span className="text-ink-800">·</span>
+                {guest ? null : <span className="text-ink-800">·</span>}
                 {focus ? (
                   <>
                     <span className="label-caps text-lav-400">
@@ -167,7 +172,8 @@ function Today() {
         <WeekCard
           now={now}
           languages={languages}
-          langs={langs.length > 0 ? langs : [{ slug: lang, short: 'PT' }]}
+          langs={langsShown}
+          guest={guest}
           bar={
             quests === undefined ? null : (
               <TaskBar
@@ -184,11 +190,7 @@ function Today() {
       </div>
 
       <div className="order-3 lg:col-span-2">
-        <MonthSix
-          month={month}
-          now={now}
-          langs={langs.length > 0 ? langs : [{ slug: lang, short: 'PT' }]}
-        />
+        <MonthSix month={month} now={now} langs={langsShown} guest={guest} />
       </div>
     </div>
   )

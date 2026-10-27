@@ -5,7 +5,7 @@ import { requireUser } from './auth'
 import { guard } from './e2e'
 
 /* R8 · S2's browser test: the test user as a new person — no profile, no
-   log — after reset gave them both. Test backend only. */
+   log, no area — after reset gave them a profile. Test backend only. */
 export const newPerson = mutation({
   args: {},
   returns: v.null(),
@@ -17,6 +17,11 @@ export const newPerson = mutation({
       .withIndex('by_owner', (q) => q.eq('ownerId', ownerId))
       .collect())
       await ctx.db.delete(p._id)
+    for (const a of await ctx.db
+      .query('areas')
+      .withIndex('by_owner_order', (q) => q.eq('ownerId', ownerId))
+      .collect())
+      await ctx.db.delete(a._id)
     for (const l of await ctx.db
       .query('logs')
       .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))

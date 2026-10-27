@@ -82,12 +82,13 @@ export const reset = mutation({
     const ownerId = await requireUser(ctx)
     guard()
     await wipe(ctx)
-    /* Past the first run (R8 · S2): every test opens the app as a person
-       who has answered it; firstRun.spec.ts takes it away again. */
+    /* Past the first run and not a guest (R8 · S2, S3a): every test opens
+       the app as Artem would; first-run.spec.ts takes it away again. */
     await ctx.db.insert('profiles', {
       ownerId,
       timezone: 'Europe/Lisbon',
       firstRunAt: Date.now(),
+      asOwner: true,
     })
     const now = Date.now()
     const old = now - 8 * DAY

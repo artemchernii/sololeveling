@@ -84,6 +84,18 @@ export const navGroups: Array<NavGroup> = [
   },
 ]
 
+/* R8 · S3a: a guest's sidebar has no Finances — money is Artem's room. */
+export function forGuest(
+  groups: Array<NavGroup>,
+  guest: boolean,
+): Array<NavGroup> {
+  if (!guest) return groups
+  return groups.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => i.to !== '/finances'),
+  }))
+}
+
 /** Bottom nav on mobile (PLAN.md §3): five destinations, thumb-reachable. */
 export const mobileNav: Array<NavItem> = [
   { to: '/dashboard', label: 'Today', icon: LayoutDashboard },

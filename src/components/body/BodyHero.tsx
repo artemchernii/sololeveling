@@ -11,6 +11,7 @@ import { WeekChips } from '@/components/body/Week'
 import { BODY_ORDER } from '@/lib/body/log-groups'
 import { TrackPanel } from '@/components/track/TrackPanel'
 import { areaVars } from '@/lib/areas'
+import { useGuest } from '@/lib/useGuest'
 import { KINDS, SESSION_LABEL } from '@/lib/body/library'
 import { RECENT_DAYS } from '@/lib/day-strip'
 import { whenLabel } from '@/lib/format'
@@ -29,6 +30,8 @@ const QUOTE = 'One bad chapter doesn’t mean your story is over.'
 export function BodyHero() {
   const state = useQuery(api.aggregate.currentState, {})
   const weight = state?.weight
+  /* R8 · S3a: the photo is Artem's; a guest's Body has none. */
+  const guest = useGuest()
 
   return (
     <section
@@ -45,19 +48,21 @@ export function BodyHero() {
           there"). Not on a phone: there it would sit under the pills, and
           the hero is kept short on purpose. A portrait, cropped to the face
           and faded into the card from the left. */}
-      <img
-        src="/body/body.jpg"
-        alt=""
-        aria-hidden
-        decoding="async"
-        style={{
-          objectPosition: '50% 68%',
-          maskImage: 'linear-gradient(to left, black 40%, transparent 100%)',
-          WebkitMaskImage:
-            'linear-gradient(to left, black 40%, transparent 100%)',
-        }}
-        className="motion-fade pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[40%] object-cover opacity-60 select-none sm:block"
-      />
+      {guest ? null : (
+        <img
+          src="/body/body.jpg"
+          alt=""
+          aria-hidden
+          decoding="async"
+          style={{
+            objectPosition: '50% 68%',
+            maskImage: 'linear-gradient(to left, black 40%, transparent 100%)',
+            WebkitMaskImage:
+              'linear-gradient(to left, black 40%, transparent 100%)',
+          }}
+          className="motion-fade pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[40%] object-cover opacity-60 select-none sm:block"
+        />
+      )}
       <div className="relative flex items-center justify-between gap-3 border-b border-lav-400/20 pb-3 sm:w-[60%]">
         <span className="system-title">[ body ]</span>
         <BicepsFlexed className="size-4 text-area" strokeWidth={1.8} />

@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
 
 import { api } from '../../../convex/_generated/api'
+import { useGuest } from '@/lib/useGuest'
 import { useWorthHistory } from '@/lib/useWorthHistory'
 import { AiReviewTile } from '@/components/review/AiReviewTile'
 import { BodyTile } from '@/components/review/BodyTile'
@@ -43,6 +44,7 @@ function Reviews() {
   ).filter((t) => t < today + 86_400_000)
 
   const areas = useQuery(api.areas.list, {})
+  const guest = useGuest()
   const languages = (areas ?? []).filter((a) => a.track === 'language')
   const slugs = languages.map((a) => a.slug)
   const weekArgs = {
@@ -105,14 +107,17 @@ function Reviews() {
           key={key}
           className="grid grid-flow-dense grid-cols-2 gap-2.5 lg:grid-cols-6"
         >
-          <FinancesTile
-            money={data.week.money}
-            worth={data.worth}
-            dayEnds={dayEnds}
-            today={todayIndex}
-            wasLabel={isThisWeek ? 'LAST WEEK' : 'WEEK BEFORE'}
-            span="col-span-2 lg:col-span-4 lg:row-span-2"
-          />
+          {/* Spent and worth are Artem's (R8 · S3a). */}
+          {guest ? null : (
+            <FinancesTile
+              money={data.week.money}
+              worth={data.worth}
+              dayEnds={dayEnds}
+              today={todayIndex}
+              wasLabel={isThisWeek ? 'LAST WEEK' : 'WEEK BEFORE'}
+              span="col-span-2 lg:col-span-4 lg:row-span-2"
+            />
+          )}
           <AiReviewTile
             weekNumber={isoWeek(weekStart)}
             week={key}

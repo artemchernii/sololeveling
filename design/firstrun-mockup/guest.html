@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Guest rooms mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* R8 · S3a — what a guest (someone who did the first run) sees, beside
+     Artem. Shapes copied from the built Today (e2e/screens/first-run-landed). */
+  :root {
+    --bg: #0d0e17; --ink-100: #e9e9ed; --ink-300: #b3b3c0; --ink-400: #8b8b9c; --ink-500: #6a6a7c;
+    --accent: #9184d9; --accent-400: #b5abfc; --edge: rgba(233,233,237,.09);
+    --gone: oklch(0.62 0.18 22);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(900px 520px at 50% -10%, rgba(145,132,217,.14), transparent 60%), var(--bg);
+    color: var(--ink-100); font-family: Inter, system-ui, sans-serif; font-size: 13px; min-height: 100vh }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer }
+  .caps { font-family: var(--mono); font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-400) }
+  .ctl { display:flex; gap:8px; justify-content:center; padding: 14px 16px 0; font-family: var(--mono); font-size: 11px; letter-spacing:.08em }
+  .ctl button { color: var(--ink-300); background: rgba(233,233,237,.05); border: 1px solid var(--edge); border-radius: 999px; padding: 4px 11px }
+  .ctl button.on { color: var(--ink-100); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset }
+  .cols { display:grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 1240px; margin: 0 auto; padding: 18px 16px 60px }
+  .col h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .3em; color: var(--accent-400); margin: 0 0 10px 4px; font-weight: 500 }
+  .app { display:grid; grid-template-columns: 150px 1fr; gap: 12px; border: 1px solid var(--edge); border-radius: 16px; padding: 12px;
+    background: linear-gradient(155deg, rgba(233,233,237,.05), rgba(233,233,237,.015)) }
+  .nav { border: 1px solid var(--edge); border-radius: 12px; padding: 10px 8px; display:flex; flex-direction:column; gap: 2px }
+  .nav .g { margin: 8px 6px 4px }
+  .nav .i { padding: 5px 8px; border-radius: 7px; font-size: 12.5px; color: var(--ink-300) }
+  .nav .i.on { background: rgba(145,132,217,.14); color: var(--ink-100); box-shadow: 0 0 0 1px rgba(181,171,252,.35) inset }
+  .hello { font-size: 24px; font-weight: 300 }
+  .lvl { display:flex; align-items:center; gap: 8px; margin-top: 6px }
+  .lvl i { display:block; width: 70px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, var(--ink-100) 80%, rgba(233,233,237,.15) 80%) }
+  .card { border: 1px solid var(--edge); border-radius: 12px; padding: 10px 12px; margin-top: 12px }
+  .pills { display:flex; flex-wrap: wrap; gap: 6px; margin-top: 8px }
+  .pill { font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; border: 1px solid var(--edge); border-radius: 999px; padding: 3px 8px; color: var(--ink-300) }
+  .tiles { display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px }
+  .tile { border: 1px solid var(--edge); border-radius: 10px; padding: 8px 10px; min-height: 64px }
+  .tile b { display:block; font-size: 22px; font-weight: 300; margin-top: 4px }
+  .hero { display:grid; grid-template-columns: 1fr 38%; border: 1px solid var(--edge); border-radius: 12px; overflow:hidden; margin-top: 12px; min-height: 110px }
+  .hero .t { padding: 12px }
+  .hero .ph { background: linear-gradient(to left, rgba(160,110,90,.55), transparent), repeating-linear-gradient(45deg, rgba(233,233,237,.05) 0 6px, transparent 6px 12px);
+    display:grid; place-items:center; color: var(--ink-400); font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em }
+  .rev { display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px }
+
+  /* What a guest does not get: struck through and marked, on the guest side only */
+  .x { position: relative; opacity: .35; text-decoration: line-through; text-decoration-color: var(--gone) }
+  .x::after { content: 'OUT'; position: absolute; top: 4px; right: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: .14em; color: var(--gone);
+    border: 1px solid var(--gone); border-radius: 999px; padding: 1px 5px; text-decoration: none; opacity: 1 }
+  .clean .x { display: none }
+  .tile.x::after, .hero .x::after, .card.x::after { top: 6px }
+  .nav .i.x::after { top: 5px; right: 4px }
+  .pill.x::after { content: none }
+
+  @media (max-width: 860px) { .cols { grid-template-columns: 1fr } }
+</style>
+</head>
+<body>
+<div class="ctl" id="ctl">
+  <button data-v="today" class="on">TODAY</button>
+  <button data-v="body">BODY</button>
+  <button data-v="review">REVIEW</button>
+  <span style="width:16px"></span>
+  <button data-m="marked" class="on">MARKED</button>
+  <button data-m="clean">AS THE GUEST SEES IT</button>
+</div>
+<div class="cols" id="cols"></div>
+
+<script>
+  let page = 'today', mode = 'marked'
+  const NAV = [
+    ['NOW', ['Today', 'Calendar', 'Review']],
+    ['BUILD', ['Projects', 'Goals', 'Backlog', 'Notes']],
+    ['TRACK', ['Finances', 'Body', 'Languages']],
+  ]
+  const GUEST_OUT = new Set(['Finances'])
+
+  function nav(guest, on) {
+    return `<div class="nav">${NAV.map(([g, items]) => `<div class="caps g">${g}</div>` +
+      items.map(i => `<div class="i ${i === on ? 'on' : ''} ${guest && GUEST_OUT.has(i) ? 'x' : ''}">${i}</div>`).join('')).join('')}
+      <div class="caps g">&nbsp;</div><div class="i">Settings</div></div>`
+  }
+  const x = (guest) => guest ? 'x' : ''
+
+  function today(guest) {
+    return `<div class="hello">Good evening, ${guest ? 'MARTA' : 'ARTEM'}.</div>
+      <div class="lvl ${x(guest)}"><span class="caps">LEVEL 32</span><i></i><span class="caps">49 DAYS TO 33</span></div>
+      <div class="card"><div class="caps">THIS WEEK · 26 – 1 NOV</div>
+        <div class="pills">
+          <span class="pill">WORKOUT 0</span><span class="pill">${guest ? 'ENG' : 'PT'} 0</span>
+          <span class="pill ${x(guest)}">SHAKE 0</span><span class="pill ${x(guest)}">POST 0</span><span class="pill ${x(guest)}">COMMITS 4</span>
+        </div></div>
+      <div class="card"><div class="caps">THIS MONTH · OCTOBER</div>
+        <div class="tiles">
+          <div class="tile"><span class="caps">LANGS</span><b>0</b></div>
+          <div class="tile"><span class="caps">WORKOUT</span><b>0</b></div>
+          <div class="tile ${x(guest)}"><span class="caps">SHAKE</span><b>0</b></div>
+          <div class="tile ${x(guest)}"><span class="caps">POST</span><b>0</b></div>
+          <div class="tile ${x(guest)}"><span class="caps">COMMITS</span><b>4</b></div>
+          <div class="tile ${x(guest)}"><span class="caps">WORTH</span><b>€…</b></div>
+        </div></div>`
+  }
+  function body(guest) {
+    return `<div class="hero"><div class="t"><span class="caps" style="color:var(--accent-400)">[ BODY ]</span>
+        <div class="pills" style="margin-top:12px"><span class="pill">WORKOUT</span><span class="pill">RUN</span><span class="pill">WEIGHT</span></div></div>
+        <div class="ph ${x(guest)}">PHOTO · ARTEM</div></div>
+      <div class="card"><div class="caps">THIS WEEK</div><div class="pills"><span class="pill">MON</span><span class="pill">TUE</span><span class="pill">WED</span></div></div>`
+  }
+  function review(guest) {
+    return `<div class="caps">REVIEW · THIS WEEK AND LAST</div>
+      <div class="rev">
+        <div class="tile"><span class="caps">WORKOUT</span><b>3</b></div>
+        <div class="tile"><span class="caps">LANGS</span><b>5</b></div>
+        <div class="tile ${x(guest)}"><span class="caps">SPENT</span><b>€…</b></div>
+        <div class="tile ${x(guest)}"><span class="caps">WORTH</span><b>€…</b></div>
+      </div>`
+  }
+  const PAGES = { today: ['Today', today], body: ['Body', body], review: ['Review', review] }
+
+  function render() {
+    const [on, fn] = PAGES[page]
+    document.getElementById('cols').innerHTML = [false, true].map(g => `
+      <div class="col ${g && mode === 'clean' ? 'clean' : ''}"><h3>${g ? '[ GUEST · DID THE FIRST RUN ]' : '[ YOU · AS NOW ]'}</h3>
+        <div class="app">${nav(g, on)}<div>${fn(g)}</div></div></div>`).join('')
+    document.querySelectorAll('#ctl button').forEach(b => b.classList.toggle('on', b.dataset.v ? b.dataset.v === page : b.dataset.m === mode))
+  }
+  document.getElementById('ctl').onclick = e => {
+    const b = e.target.closest('button'); if (!b) return
+    if (b.dataset.v) page = b.dataset.v; else mode = b.dataset.m
+    render()
+  }
+  render()
+</script>
+</body>
+</html>

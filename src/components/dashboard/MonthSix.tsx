@@ -80,22 +80,26 @@ export function MonthSix({
   month,
   now,
   langs,
+  guest = false,
 }: {
   month: ReturnType<typeof useMonth>
   now: Date
   /** One per language area (25 Oct, his "log PT or ENG"). */
   langs: Array<{ slug: string; short: string }>
+  /** R8 · S3a: a guest's month is LANGS and WORKOUT — shake, post, commits
+      and worth are Artem's. LANGS only with a language. */
+  guest?: boolean
 }) {
   const { counts, targets, worth, bounds } = month
   const prevName = new Date(bounds.prevStart)
     .toLocaleDateString('en-GB', { month: 'long' })
     .toUpperCase()
-  const tiles: Array<Tile> = [
+  const allTiles: Array<Tile> = [
     {
       key: 'langs',
       name: 'LANGS',
       icon: 'language',
-      area: langs[0].slug,
+      area: langs[0]?.slug ?? 'portuguese',
       presses: langs.map((l) => ({
         label: `+ ${l.short}`,
         kind: 'session' as const,
@@ -141,6 +145,11 @@ export function MonthSix({
     },
     { key: 'worth', name: 'WORTH', icon: 'money', area: 'money', auto: 'BANK' },
   ]
+  const tiles = guest
+    ? allTiles.filter(
+        (t) => t.key === 'workout' || (t.key === 'langs' && langs.length > 0),
+      )
+    : allTiles
   const goal = (k: Tile['key']) =>
     k === 'langs' ? targets?.portuguese : k === 'workout' ? targets?.body : null
 

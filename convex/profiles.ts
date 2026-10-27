@@ -43,17 +43,30 @@ function knownZone(zone: string): boolean {
  */
 export const mine = query({
   args: {},
-  returns: v.object({ needsFirstRun: v.boolean(), timezone: v.string() }),
+  returns: v.object({
+    needsFirstRun: v.boolean(),
+    /* R8 · S3a: someone who did the first run. Artem never did. */
+    guest: v.boolean(),
+    timezone: v.string(),
+  }),
   handler: async (ctx) => {
     const ownerId = await requireUser(ctx)
     const profile = await profileOf(ctx, ownerId)
     if (profile !== null)
-      return { needsFirstRun: false, timezone: profile.timezone }
+      return {
+        needsFirstRun: false,
+        guest: profile.asOwner !== true,
+        timezone: profile.timezone,
+      }
     const anyLog = await ctx.db
       .query('logs')
       .withIndex('by_owner_time', (q) => q.eq('ownerId', ownerId))
       .first()
-    return { needsFirstRun: anyLog === null, timezone: OWNER_ZONE }
+    return {
+      needsFirstRun: anyLog === null,
+      guest: false,
+      timezone: OWNER_ZONE,
+    }
   },
 })
 

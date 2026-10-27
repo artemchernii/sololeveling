@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
 import { failureMessage } from '@/lib/convex-errors'
+import { demoWords } from '@/lib/demoRefused'
 
 /* Most writes in the app are fired from a tap — `void setArea(...)`, a tick,
    a drop — with nothing waiting on the answer. When one of those failed, the
@@ -23,6 +24,11 @@ export function WriteFailureNotice() {
 
   useEffect(() => {
     function onRejection(event: PromiseRejectionEvent) {
+      /* The demo account's refusals are DemoBadge's to say. */
+      if (demoWords(event.reason) !== null) {
+        event.preventDefault()
+        return
+      }
       const text = failureMessage(event.reason)
       if (text === null) return
       /* Reported here, so not again as an uncaught error in the console. */
@@ -45,17 +51,8 @@ export function WriteFailureNotice() {
         className="glass-modal motion-arrive pointer-events-auto flex max-w-[460px] items-start gap-3 rounded-[14px] py-2.5 pr-2.5 pl-4"
       >
         <div className="flex min-w-0 flex-col gap-0.5">
-          {/* The demo account's refusals are a badge alone. */}
-          {message.text.startsWith('DEMO ·') ? (
-            <span className="label-caps text-state-warn">{message.text}</span>
-          ) : (
-            <>
-              <span className="label-caps">Didn&rsquo;t save</span>
-              <span className="text-[13px] text-foreground">
-                {message.text}
-              </span>
-            </>
-          )}
+          <span className="label-caps">Didn&rsquo;t save</span>
+          <span className="text-[13px] text-foreground">{message.text}</span>
         </div>
         <button
           type="button"

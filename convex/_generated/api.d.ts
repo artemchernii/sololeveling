@@ -34,6 +34,7 @@ import type * as drills from "../drills.js";
 import type * as e2e from "../e2e.js";
 import type * as e2eAccountUpdate from "../e2eAccountUpdate.js";
 import type * as e2eBank from "../e2eBank.js";
+import type * as e2eDemo from "../e2eDemo.js";
 import type * as e2eFind from "../e2eFind.js";
 import type * as e2eFirstRun from "../e2eFirstRun.js";
 import type * as e2eFundamentals from "../e2eFundamentals.js";
@@ -147,6 +148,7 @@ declare const fullApi: ApiFromModules<{
   e2e: typeof e2e;
   e2eAccountUpdate: typeof e2eAccountUpdate;
   e2eBank: typeof e2eBank;
+  e2eDemo: typeof e2eDemo;
   e2eFind: typeof e2eFind;
   e2eFirstRun: typeof e2eFirstRun;
   e2eFundamentals: typeof e2eFundamentals;

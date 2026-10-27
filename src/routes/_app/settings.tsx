@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { useTheme } from '@/integrations/theme/provider'
 import { PREFERENCES } from '@/lib/theme'
 import { useHeld } from '@/lib/loading'
+import { DeleteAccount } from '@/components/settings/DeleteAccount'
 
 export const Route = createFileRoute('/_app/settings')({
   component: Settings,
@@ -54,6 +55,9 @@ function Settings() {
           <code className="font-mono">seed:run</code> takes.
         </p>
       </div>
+
+      {/* R8 · S3b: a guest's only; null for Artem. */}
+      <DeleteAccount />
     </div>
   )
 }

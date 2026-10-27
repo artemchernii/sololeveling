@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { Check } from 'lucide-react'
 import {
   ClerkLoaded,
   ClerkLoading,
@@ -7,6 +8,7 @@ import {
 } from '@clerk/tanstack-react-start'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 
+import { DELETED_KEY } from '@/components/settings/DeleteAccount'
 import { SystemWait } from '@/components/shell/SystemWait'
 
 export const Route = createFileRoute('/login')({ component: Login })
@@ -17,6 +19,22 @@ export const Route = createFileRoute('/login')({ component: Login })
 function Login() {
   const { isLoaded, isSignedIn } = useAuth()
   const navigate = useNavigate()
+  /* R8 · S3b: after a guest's DELETE ALL, once, what went. */
+  const [deleted, setDeleted] = useState<{
+    rows: number
+    files: number
+    more?: boolean
+  } | null>(null)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DELETED_KEY)
+      if (raw === null) return
+      sessionStorage.removeItem(DELETED_KEY)
+      setDeleted(JSON.parse(raw))
+    } catch {
+      /* Nothing to say then. */
+    }
+  }, [])
   useEffect(() => {
     if (isLoaded && isSignedIn)
       void navigate({ to: '/dashboard', replace: true })
@@ -55,6 +73,19 @@ function Login() {
                   SOLO LEVELING
                 </span>
               </div>
+              {deleted ? (
+                <div
+                  role="status"
+                  className="flex items-center gap-2 font-mono text-[11px] tracking-[0.14em] text-state-good"
+                >
+                  <span className="motion-pop grid size-5 place-items-center rounded-full bg-state-good text-ink-900">
+                    <Check className="size-3" strokeWidth={3} />
+                  </span>
+                  DELETED · {deleted.rows}
+                  {deleted.more ? '+' : ''} ROWS · {deleted.files} FILES ·
+                  ACCOUNT
+                </div>
+              ) : null}
               <SignIn routing="hash" />
             </div>
           </ClerkLoaded>

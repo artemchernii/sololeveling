@@ -66,12 +66,16 @@ export function IdeasBoard({
   const heldOf = (l: BoardLine) => {
     const o = owned?.find((x) => x.symbol.toUpperCase() === l.ticker)
     if (o && o.valueEur !== null)
-      return { big: eurWord(o.valueEur), small: `${o.pct ?? 0}% OF MINE` }
+      return {
+        big: eurWord(o.valueEur),
+        small: `MINE ${o.pct === null ? '—' : o.pct < 1 ? '<1' : Math.round(o.pct)}%`,
+        pct: o.pct ?? 0,
+      }
     const a = alloc?.find((r) => r.id === l.area)
     if (l.part === 'new' && a && a.mine !== null)
       return {
         big: ALLOC.find((x) => x.id === a.id)?.name ?? '',
-        small: `${Math.round(a.mine)}% MINE${a.world !== null ? ` · ${Math.round(a.world)}% WORLD` : ''}`,
+        small: `MINE ${Math.round(a.mine)}%${a.world !== null ? ` · WORLD ${Math.round(a.world)}%` : ''}`,
       }
     return { big: '—', small: 'NOT IN MINE' }
   }

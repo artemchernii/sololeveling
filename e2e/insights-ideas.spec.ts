@@ -64,7 +64,7 @@ test('S1 before a read: cash, strip and movers; READ → reading → the plan in
   await expect(add).toContainText('ADD TO MINE')
   const avgo = add.locator('[data-ticker="AVGO"]')
   await expect(avgo.getByTestId('idb-call')).toHaveText('ADD')
-  await expect(avgo).toContainText('OF MINE')
+  await expect(avgo).toContainText(/MINE \d+%/)
   await expect(avgo).toContainText('WHY')
   await avgo.getByTestId('idb-numbers').locator('summary').click()
   await expect(avgo.getByTestId('idb-numbers')).toContainText('RSI 14')

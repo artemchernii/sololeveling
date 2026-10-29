@@ -140,13 +140,19 @@ Rules:
   "buy an index fund". Size by % of MINE: one company above ~7% of MINE
   is a bet on one name. Stage big amounts over weeks or months.
 - 6–12 lines in all. Yahoo Finance tickers only (e.g. XEON.DE, VEUR.AS).
-- take: two plain sentences, a real opinion about his money. Wrap the
-  first sentence in **double stars**.
+- take: two short sentences, at most 30 words in all, a real opinion
+  about his money. Wrap the first sentence in **double stars**.
 - area: for a NEW line, the allocation line it fills (the alloc- facts:
   tech, us, europe, world, health, gold), else none.
-- why: one or two plain sentences on why this ticker, now, for him.
-- eurWhy: one sentence on why that many euros (what it takes the line to
-  as % of MINE, how it is staged).
+- why: ONE sentence, at most 16 words: the fact first, then what it
+  means for him. Example: "Fell 12.6% on results; AI spending, not sales,
+  is the worry."
+- eurWhy: at most 12 words, a fragment is fine. Example: "2 buys, 3
+  weeks apart · to 6.7% of MINE."
+- How to write: plain words a non-expert reads in one go. No hedging
+  (may, might, could, likely, deeply, significantly), no filler (it is
+  worth noting, overall, in addition), no lists of reasons joined by
+  "and … but … so". Numbers as digits.
 - numbers: 2–4 rows. A row is either a fact of the list (key set, text
   and url empty — the app prints it) or a claim you found (key empty,
   text short with its number, url the https page it came from).

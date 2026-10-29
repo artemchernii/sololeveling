@@ -66,7 +66,7 @@ export function IdeasLine({
   /** Undefined while the board is fetched. */
   facts: TickerFacts | undefined
   /** What MINE holds of it, or the allocation line a NEW one fills. */
-  held: { big: string; small: string }
+  held: { big: string; small: string; pct?: number }
   readFacts: Array<Fact>
   lit: boolean
   onAsk: () => void
@@ -96,29 +96,40 @@ export function IdeasLine({
         <span className="nm">{line.name}</span>
         <span className="tk">{line.ticker}</span>
       </span>
-      <span className="idb-held">
-        <b>{held.big}</b>
-        {held.small}
-      </span>
-      {facts ? (
-        <Spark points={facts.points} />
-      ) : (
-        <span className="ask-shim h-[22px]" />
-      )}
-      <span className="idb-chips">
-        {day ? (
-          <span
-            className={`idb-pill ${day.change >= 0 ? 'good' : 'bad'}`}
-            title={`close before ${day.base}`}
-          >
-            {day.change >= 0 ? '▲' : '▼'} {Math.abs(day.change).toFixed(1)}%
+      <span className="idb-facts">
+        <span className="idb-held">
+          <b>{held.big}</b>
+          <span className="sm">
+            {held.pct !== undefined ? (
+              <i
+                className="meter"
+                style={
+                  {
+                    '--w': `${Math.min(100, held.pct)}%`,
+                  } as React.CSSProperties
+                }
+              />
+            ) : null}
+            {held.small}
           </span>
-        ) : null}
-        {chips.map((c) => (
-          <span key={c.text} className={`idb-pill ${c.tone}`}>
-            {c.text}
-          </span>
-        ))}
+        </span>
+        {facts ? (
+          <Spark points={facts.points} />
+        ) : (
+          <span className="ask-shim h-[22px]" />
+        )}
+        <span className="idb-chips">
+          {day ? (
+            <span className={`idb-pill ${day.change >= 0 ? 'good' : 'bad'}`}>
+              {day.change >= 0 ? '▲' : '▼'} {Math.abs(day.change).toFixed(1)}%
+            </span>
+          ) : null}
+          {chips.map((c) => (
+            <span key={c.text} className={`idb-pill ${c.tone}`}>
+              {c.text}
+            </span>
+          ))}
+        </span>
       </span>
       <span data-testid="idb-call" className={`idb-call ${line.call}`}>
         {line.call.toUpperCase()}

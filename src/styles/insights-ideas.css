@@ -85,6 +85,11 @@
 
 .idb-tile {
   gap: 0;
+  /* Its hover cards reach past it. */
+  overflow: visible;
+  &:has(.idb-tip) {
+    z-index: 20;
+  }
 }
 .idb-head {
   display: grid;
@@ -665,5 +670,272 @@
   & th:first-child,
   & td:first-child {
     text-align: left;
+  }
+}
+
+/* The plan's parts (29 Oct, his "not very clear … when hover give better
+   explanation"): a thin bar, a tile per part under it, and a card on
+   hover, focus or tap. The strip's cells open the same kind of card with
+   a real chart. */
+.idb-ico {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ask-card .e .idb-ico,
+.ask-chips i .idb-ico {
+  color: var(--c);
+}
+.ask-card .e .idb-ico {
+  width: 18px;
+  height: 18px;
+}
+.idb-plan {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.idb-plan .idb-bar {
+  height: 10px;
+  margin-top: 0;
+  border-radius: 999px;
+  & i {
+    transition: opacity 200ms;
+    &.dim {
+      opacity: 0.3;
+    }
+  }
+}
+.idb-pts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.idb-pt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 9px 11px;
+  border-radius: 11px;
+  text-align: left;
+  border: 1px solid color-mix(in oklch, var(--c) 32%, transparent);
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklch, var(--c) 13%, transparent),
+    transparent 75%
+  );
+  animation: ins-arrive 450ms var(--motion-ease) both;
+  animation-delay: calc(var(--i) * 60ms);
+  transition:
+    opacity 200ms,
+    transform 200ms,
+    box-shadow 200ms;
+  &.dim {
+    opacity: 0.5;
+  }
+  &[aria-expanded='true'] {
+    transform: translateY(-2px);
+    border-color: var(--c);
+    box-shadow: 0 0 22px -10px var(--c);
+    z-index: 5;
+  }
+  & .h {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font: 700 9.5px var(--font-mono);
+    letter-spacing: 0.16em;
+    color: var(--c);
+  }
+  & .ic {
+    display: grid;
+    place-items: center;
+  }
+  & b {
+    font: 600 17px var(--font-mono);
+    color: var(--color-ink-100);
+    letter-spacing: -0.01em;
+  }
+  & .s {
+    font: 500 9px var(--font-mono);
+    letter-spacing: 0.08em;
+    color: var(--color-ink-400);
+  }
+}
+.idb-tip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  width: 290px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 13px;
+  border-radius: 12px;
+  text-align: left;
+  border: 1px solid
+    color-mix(in oklch, var(--c, var(--color-lav-400)) 55%, transparent);
+  background: var(--color-bg);
+  background-image: var(--glass-fill);
+  box-shadow:
+    var(--glass-shadow),
+    0 18px 40px -18px rgb(0 0 0 / 0.45);
+  cursor: default;
+  animation: ins-arrive 220ms var(--motion-ease) both;
+  & .t {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font: 700 10px var(--font-mono);
+    letter-spacing: 0.14em;
+    color: var(--color-ink-100);
+    & .ic {
+      color: var(--c);
+      display: grid;
+    }
+    & .grow {
+      flex: 1;
+    }
+  }
+  & .w {
+    font: 400 12.5px/1.5 var(--font-sans, inherit);
+    color: var(--color-ink-200);
+    letter-spacing: 0;
+  }
+  & .rows {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding-top: 8px;
+    border-top: 1px solid var(--glass-edge);
+    font: 500 10px var(--font-mono);
+    letter-spacing: 0.06em;
+    color: var(--color-ink-400);
+    & > span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: space-between;
+    }
+    & b {
+      color: var(--color-ink-100);
+      font-weight: 600;
+    }
+    & .ln {
+      justify-content: flex-start;
+      color: var(--color-ink-200);
+      & .grow {
+        flex: 1;
+      }
+      & .idb-call {
+        padding: 2px 6px;
+        font-size: 8.5px;
+      }
+    }
+    &.two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px 12px;
+    }
+  }
+  &.wide {
+    width: 340px;
+  }
+  & .big {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font: 600 12px var(--font-mono);
+    & b {
+      font: 600 22px var(--font-mono);
+      color: var(--color-ink-100);
+    }
+  }
+  & svg {
+    width: 100%;
+    height: 120px;
+    display: block;
+    & polygon {
+      opacity: 0.12;
+    }
+    & polyline {
+      fill: none;
+      stroke-width: 1.8;
+      vector-effect: non-scaling-stroke;
+    }
+    & line.zero {
+      stroke: var(--color-ink-500);
+      stroke-dasharray: 3 3;
+      vector-effect: non-scaling-stroke;
+    }
+  }
+  & .ins-was {
+    text-align: right;
+    margin: 0;
+  }
+  & .idb-seg span {
+    font: 700 9px var(--font-mono);
+    letter-spacing: 0.12em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: var(--color-ink-400);
+    cursor: pointer;
+    &[aria-pressed='true'] {
+      color: var(--color-ink-100);
+      background: color-mix(in oklch, var(--color-lav-400) 20%, transparent);
+    }
+  }
+}
+.idb-pt.end .idb-tip,
+.idb-strip .mk.end .idb-tip {
+  left: auto;
+  right: 0;
+}
+.idb-strip {
+  position: relative;
+  & button.mk {
+    position: relative;
+    text-align: left;
+    border-radius: 8px;
+    transition: background 150ms;
+    &:hover,
+    &.on {
+      background: color-mix(in oklch, var(--color-lav-400) 10%, transparent);
+    }
+  }
+}
+@container (max-width: 520px) {
+  .idb-pts {
+    grid-template-columns: 1fr 1fr;
+  }
+  .idb-pt:nth-child(odd) .idb-tip {
+    left: 0;
+    right: auto;
+  }
+  .idb-pt:nth-child(even) .idb-tip {
+    left: auto;
+    right: 0;
+  }
+  .idb-strip .mk:nth-child(4n + 1) .idb-tip,
+  .idb-strip .mk:nth-child(4n + 2) .idb-tip {
+    left: 0;
+    right: auto;
+  }
+  .idb-strip .mk:nth-child(4n + 3) .idb-tip,
+  .idb-strip .mk:nth-child(4n) .idb-tip {
+    left: auto;
+    right: 0;
+  }
+  .idb-tip,
+  .idb-tip.wide {
+    width: min(300px, 86vw);
   }
 }

@@ -6,7 +6,10 @@ import { ModelPick } from '@/components/ask/ModelPick'
 import { shareOfMine } from '@/lib/ideasFacts'
 import type { AllocRow } from '@/lib/insightsMine'
 import type { Fact } from '@/lib/marketRead'
+import { ideasSuggested } from '@/lib/ideasSuggest'
 import { Ask } from './Ask'
+import type { Suggestion } from './Ask'
+import { PARTS, PartIcon } from './IdeasParts'
 import { Star } from './AskBlocks'
 import { usePrefill } from './askPrefill'
 import { IdeasBoard } from './IdeasBoard'
@@ -54,6 +57,30 @@ export function IdeasTab({
   }, [held])
   const a = useAsk(r)
   const prefill = usePrefill()
+  /* His plan's own questions, not the market's (his "suggestions are
+     kinda weak"). */
+  const suggested = useMemo(
+    (): Array<Suggestion> =>
+      ideasSuggested(
+        read.shown?.board ?? null,
+        board.answer?.movers ?? null,
+        new Set((held ?? []).map((h) => h.symbol.toUpperCase())),
+        cash?.idle ?? null,
+      ).map((x) => ({
+        q: x.q,
+        kind: x.label,
+        c: x.kind === 'mover' ? 'var(--state-warn)' : PARTS[x.kind].c,
+        e:
+          x.kind === 'mover' ? (
+            <svg viewBox="0 0 24 24" aria-hidden className="idb-ico">
+              <path d="M3 17l6-6 4 4 8-8M15 7h6v6" />
+            </svg>
+          ) : (
+            <PartIcon part={x.kind} />
+          ),
+      })),
+    [read.shown, board.answer, held, cash],
+  )
 
   return (
     <div className="idb-page">
@@ -79,7 +106,7 @@ export function IdeasTab({
           <span className="grow" />
           {r.path === 'pro' ? <ModelPick /> : null}
         </div>
-        <Ask r={r} a={a} />
+        <Ask r={r} a={a} suggested={suggested} />
       </aside>
     </div>
   )

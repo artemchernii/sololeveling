@@ -3,15 +3,16 @@ import { useState } from 'react'
 import type { BoardAnswer } from '../../../../convex/insightsBoard'
 import type { Doc } from '../../../../convex/_generated/dataModel'
 import { TickerLogo } from '@/components/finances/Logo'
-import { STRIP } from '@/lib/ideasBoard'
 import type { MoverList } from '@/lib/ideasBoard'
 import type { Cash } from '@/lib/ideasFacts'
 import { ALLOC } from '@/lib/insightsMine'
 import type { AllocRow } from '@/lib/insightsMine'
-import type { BoardLine, LinePart } from '@/lib/ideasRead'
+import type { BoardLine } from '@/lib/ideasRead'
 import { AskBusy } from './Ask'
 import { askAbout } from './askPrefill'
-import { IdeasLine, Spark, eurWord } from './IdeasLine'
+import { IdeasLine, eurWord } from './IdeasLine'
+import { PARTS, PartIcon, PlanBar } from './IdeasParts'
+import { IdeasStrip } from './IdeasStrip'
 import { clock } from './parts'
 import { Words, modelWord, tokens, usd } from './readParts'
 import type { IdeasState } from './useIdeas'
@@ -29,35 +30,6 @@ export type Owned = {
   name: string
   valueEur: number | null
   pct: number | null
-}
-
-const PART: Record<
-  LinePart,
-  { name: string; sub: string; c: string; icon: React.ReactNode }
-> = {
-  add: {
-    name: 'ADD TO MINE',
-    sub: 'MINE · AFTER TODAY',
-    c: 'var(--idb-add)',
-    icon: <path d="M12 5v14M5 12h14" />,
-  },
-  protect: {
-    name: 'PROTECT',
-    sub: 'GOLD · BONDS · CASH THAT PAYS',
-    c: 'var(--idb-protect)',
-    icon: <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />,
-  },
-  new: {
-    name: 'NEW',
-    sub: 'NOT IN MINE · % MINE · % WORLD',
-    c: 'var(--idb-new)',
-    icon: (
-      <>
-        <circle cx="12" cy="12" r="8" />
-        <path d="M15 9l-2 4-4 2 2-4z" />
-      </>
-    ),
-  },
 }
 
 export function IdeasBoard({
@@ -156,23 +128,7 @@ export function IdeasBoard({
           </div>
         </div>
         {b ? (
-          <div className="idb-bar" data-testid="idb-bar">
-            {(['keep', 'protect', 'add', 'new'] as const).map((k) =>
-              b.parts[k] > 0 ? (
-                <i
-                  key={k}
-                  style={
-                    {
-                      '--c': `var(--idb-${k})`,
-                      flex: b.parts[k],
-                    } as React.CSSProperties
-                  }
-                >
-                  {k.toUpperCase()} <span>{eurWord(b.parts[k])}</span>
-                </i>
-              ) : null,
-            )}
-          </div>
+          <PlanBar b={b} facts={read.facts} />
         ) : status !== 'reading' ? (
           <div className="idb-none" data-testid="idb-none">
             <span className="idb-pill ink">NOT READ YET</span>
@@ -180,35 +136,7 @@ export function IdeasBoard({
         ) : (
           <div className="ins-scan" />
         )}
-        <div className="idb-strip" data-testid="idb-strip">
-          {STRIP.map((s) => {
-            const c = board?.strip.find((x) => x.id === s.id)?.cell
-            return (
-              <div key={s.id} className="mk">
-                <span className="n">{s.name}</span>
-                {c ? (
-                  <>
-                    <span className="v">
-                      {s.unit === 'yield'
-                        ? `${c.price.toFixed(2)}%`
-                        : `${s.unit === 'USD' ? '$' : ''}${c.price.toLocaleString('en-GB', { maximumFractionDigits: c.price >= 1000 ? 0 : 2 })}`}
-                    </span>
-                    <span className={c.change >= 0 ? 'd up' : 'd dn'}>
-                      {c.change >= 0 ? '+' : '−'}
-                      {Math.abs(c.change).toFixed(2)}
-                      {s.unit === 'yield' ? ' PTS' : '%'}
-                    </span>
-                    <Spark points={c.points} w={100} h={14} />
-                  </>
-                ) : (
-                  <span className="v dim">
-                    {board || boardFailed ? '❔' : '…'}
-                  </span>
-                )}
-              </div>
-            )
-          })}
-        </div>
+        <IdeasStrip board={board} failed={boardFailed} />
         {board ? (
           <span className="ins-was">
             YAHOO · {clock(board.fetchedAt)} · NOT SAVED
@@ -220,7 +148,7 @@ export function IdeasBoard({
         ? (['add', 'protect', 'new'] as const).map((part) => {
             const lines = shown.filter((l) => l.part === part)
             if (lines.length === 0) return null
-            const P = PART[part]
+            const P = PARTS[part]
             return (
               <section
                 key={part}
@@ -231,9 +159,7 @@ export function IdeasBoard({
               >
                 <div className="idb-phead">
                   <span className="ic">
-                    <svg viewBox="0 0 24 24" aria-hidden>
-                      {P.icon}
-                    </svg>
+                    <PartIcon part={part} />
                   </span>
                   <span className="t">{P.name}</span>
                   <span className="s">{P.sub}</span>

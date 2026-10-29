@@ -34,7 +34,27 @@ export const MONTH = 'JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC'.split(
 
 type Read = ReturnType<typeof useMarketRead>
 
-export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
+/** A question offered before the first one; IDEAS passes its own. */
+export type Suggestion = {
+  e: React.ReactNode
+  kind: string
+  q: string
+  c: string
+}
+const DEFAULT: Array<Suggestion> = SUGGESTED.map((s, i) => ({
+  ...s,
+  c: SUGGEST_COLOUR[i],
+}))
+
+export function Ask({
+  r,
+  a,
+  suggested = DEFAULT,
+}: {
+  r: Read
+  a: ReturnType<typeof useAsk>
+  suggested?: Array<Suggestion>
+}) {
   const { turns, busy, capped, ask } = a
   const [text, setText] = useState('')
   /* IDEAS (29 Oct): the line a ✦ opened on, and a dropped screenshot —
@@ -135,7 +155,7 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
               <span>
                 <Star />
               </span>
-              SUGGESTED <i>{SUGGESTED.length}</i> <b>▾</b>
+              SUGGESTED <i>{suggested.length}</i> <b>▾</b>
             </button>
           )}
         </div>
@@ -144,7 +164,7 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
           <div>
             {fresh ? (
               <div className="ask-cards">
-                {SUGGESTED.map((s, i) => (
+                {suggested.map((s, i) => (
                   <button
                     type="button"
                     key={s.q}
@@ -153,7 +173,7 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
                     disabled={off}
                     style={
                       {
-                        '--c': SUGGEST_COLOUR[i],
+                        '--c': s.c,
                         '--i': i,
                       } as React.CSSProperties
                     }
@@ -167,13 +187,13 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
               </div>
             ) : (
               <div className="ask-chips">
-                {SUGGESTED.map((s, i) => (
+                {suggested.map((s) => (
                   <button
                     type="button"
                     key={s.q}
                     data-testid="ask-suggest"
                     disabled={off}
-                    style={{ '--c': SUGGEST_COLOUR[i] } as React.CSSProperties}
+                    style={{ '--c': s.c } as React.CSSProperties}
                     onClick={() => send(s.q)}
                   >
                     <i>{s.e}</i>

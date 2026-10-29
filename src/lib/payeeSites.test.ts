@@ -17,7 +17,7 @@ describe('whose mark a row gets', () => {
     expect(payeeSite('Intermarché Super')).toBe('intermarche.pt')
   })
   test('MB Way to a person keeps the MB Way mark', () => {
-    expect(payeeSite('TRF MB WAY P ANA SILVA')).toBe('mbway.pt')
+    expect(payeeSite('TRF MB WAY P ANA SILVA')).toBe('www.mbway.pt')
     expect(payeeSite('DD FIDELIDADE COM')).toBe('fidelidade.pt')
   })
   test('the longer name wins', () => {

@@ -86,7 +86,8 @@ describe('paysBill', () => {
   })
 
   it("matches BPI's longer EDP line to the EDP bill (29 Oct)", () => {
-    const edp = bill({ key: payeeKey('Edp Comercial'), amount: 29.11 })
+    /* His bill as dev holds it: matchKey from August's statement. */
+    const edp = bill({ key: 'EDP COMERCIAL COMERCIALIZACAO', amount: 29.11 })
     const paid = row({
       key: payeeKey('DD EDP COMERCIAL-COMERCIAL.ENERGIA S.A'),
       amount: 29.55,

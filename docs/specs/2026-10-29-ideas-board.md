@@ -29,6 +29,7 @@ Two columns on desktop: board ~⅔, chat ~⅓ sticky. Phone: one column,
 floating ✦ ASK opens the chat as a bottom sheet.
 
 Board, top to bottom:
+
 1. **Head**: `CASH · NOT INVESTED €X · Y%` (app's numbers), two plain
    sentences from the model, model · time, ↻ READ AGAIN. Bar KEEP /
    PROTECT / ADD / NEW with € each. Market strip of 8 (S&P 500, Nasdaq,
@@ -40,7 +41,7 @@ Board, top to bottom:
 3. **PROTECT** — gold (held), cash that pays (e.g. XEON), short bonds
    (e.g. IBGS, IB01). Same line.
 4. **NEW** — 2–4 not owned; the held column says `<AREA> x% MINE · y%
-   WORLD` from the app's allocation.
+WORLD` from the app's allocation.
 5. **MOVERS · US** — TRENDING / GAINERS / LOSERS, 10 chips each, MINE
    marked, ✦ on press.
 
@@ -74,6 +75,7 @@ Inputs: idle cash split (banks / broker cash), monthly spending (bills +
 day-to-day), holdings with € and %, allocation vs world, today's CLOSE
 moves, earnings facts, the strip, movers, web search (always on).
 Output, checked like `marketRead.ts` checks its answer:
+
 - `take`: two sentences — a real opinion about his money.
 - `parts`: keep / protect / add / new with € sums that add up to the idle
   cash (checked; reject otherwise).

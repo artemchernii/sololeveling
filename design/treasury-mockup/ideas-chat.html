@@ -127,6 +127,30 @@
   .empty { text-align:center; padding: 30px 10px; display:flex; flex-direction:column; gap: 12px; align-items:center }
   .skel { height: 110px; border-radius: 12px; background: linear-gradient(90deg, rgba(30,30,50,.04), rgba(30,30,50,.09), rgba(30,30,50,.04)); background-size: 200% 100%; animation: sh 1.2s infinite }
   @keyframes sh { to { background-position: -200% 0 } }
+
+  /* the plan: keep / safe / growth */
+  .plan { border-color: var(--sys-edge); background: linear-gradient(155deg, color-mix(in oklch, var(--lav-400) 9%, white), rgba(255,255,255,.7)) }
+  .split { display:flex; gap: 3px; height: 26px; border-radius: 8px; overflow:hidden; margin-bottom: 12px }
+  .split i { font: 700 10px var(--mono); letter-spacing: .14em; font-style: normal; color: #fff; display:grid; place-items:center; background: var(--c); transform-origin: left; animation: fill 1s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes fill { from { transform: scaleX(0) } }
+  .pcols { display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px }
+  @media (max-width: 860px) { .pcols { grid-template-columns: 1fr } }
+  .pcol { display:flex; flex-direction:column; gap: 7px; padding: 10px; border-radius: 11px; background: rgba(255,255,255,.7); border: 1px solid var(--edge) }
+  .ph { display:flex; align-items:center; gap: 8px; font: 700 11px var(--mono); letter-spacing: .14em }
+  .ph strong { font: 700 15px var(--mono); letter-spacing: 0 }
+  .dot { width: 9px; height: 9px; border-radius: 3px; background: var(--c) }
+  .pr { display:grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items:center; font-size: 12px; color: var(--ink-300) }
+  .pr > span:first-child:not(.logo) { text-align:center; font-size: 15px }
+  .pr b { font-family: var(--mono); color: var(--ink-100) }
+  .pr em { font: 700 12px var(--mono); font-style: normal; color: var(--ink-100) }
+  /* a dropped screenshot */
+  .shot { display:flex; gap: 8px; align-items:center; margin-top: 8px }
+  .shot .img { width: 54px; height: 96px; border-radius: 8px; border: 1px solid var(--sys-edge); background: linear-gradient(180deg, #fff, #ece9f8); display:flex; flex-direction:column; gap: 4px; padding: 6px }
+  .shot .img i { display:block; height: 5px; border-radius: 2px; background: rgba(30,30,50,.12) }
+  .attach { font-size: 16px; width: 34px; height: 34px; border-radius: 50%; border: 1px dashed var(--sys-edge); background: transparent; color: var(--lav-300); cursor: pointer }
+  .chat.drop { outline: 2px dashed var(--lav-400); outline-offset: -6px }
+  .dropzone { position:absolute; inset: 0; display:grid; place-items:center; border-radius: 16px; background: color-mix(in oklch, var(--lav-400) 14%, rgba(255,255,255,.85)); font: 700 12px var(--mono); letter-spacing: .2em; color: var(--lav-300); z-index: 5 }
+  .chat { position: relative }
 </style>
 </head>
 <body>
@@ -134,6 +158,8 @@
   <div class="ctl">mockup · state
     <button data-s="answer" class="on">answer</button>
     <button data-s="asking">asking</button>
+    <button data-s="shot">with a screenshot</button>
+    <button data-s="drop">dropping</button>
     <button data-s="empty">no question yet</button>
   </div>
 
@@ -157,14 +183,9 @@
     <div class="chead">
       <span class="t">[ ASK ]</span>
       <span class="pill lav">⚡ PRO · SONNET 5.5</span>
-      <span class="pill ink">🌐 WEB · ALWAYS</span>
-      <span class="pill ink">📈 YAHOO</span>
-      <span class="pill ink">🏦 ECB</span>
-      <span class="grow"></span>
-      <span class="pill warn">RESEARCH · NOT ADVICE</span>
     </div>
     <div id="thread" style="display:flex;flex-direction:column;gap:16px"></div>
-    <div class="askbar"><input placeholder="Ask about MINE, a market, an idea…" /><button>ASK</button></div>
+    <div class="askbar"><button class="attach" title="screenshot">📎</button><input placeholder="Ask, or drop a screenshot…" /><button>ASK</button></div>
   </section>
 </div>
 
@@ -203,9 +224,38 @@ const ANSWER = `
   <span class="step">⏱ 14 s</span>
 </div>
 
-<p class="say">Today's drop is <b>two companies, not the market</b>: Alphabet fell on its results, Amazon on its cash flow, while the S&amp;P 500 moved 0.3%. On the euro: about <b>72% of MINE is in US assets</b>, priced in dollars — <b>if the euro falls, those rise in euros</b>. The real exposure is the euro cash in the banks. Three directions below, each with what would make it wrong.</p>
+<p class="say"><b>The bigger problem is not today's drop — it's that 71% of your money isn't working.</b> €45,858 of €64,686 sits as cash: €13,425 in the banks and €32,433 as broker cash, earning close to nothing while prices rise 3–4% a year. Google and Amazon fell on their own results (the S&amp;P 500 moved 0.3%), so this isn't a crash — for long-term money a 12% drop in a company you like is a better price, not a reason to run. On the euro: 72% of your investments are in dollars, so a weaker euro <b>raises</b> them in euros. My take: keep six months of spending as cash, put half of the rest somewhere safe that pays, and the other half to work for growth — spread over four months so one bad day doesn't decide it.</p>
 
 <div class="blocks">
+  <div class="tile c12 plan">
+    <div class="bhead"><span>🧭</span><span class="t">THE PLAN · €45,858 CASH</span><span class="grow"></span><span class="pill lav">SPREAD · 4 MONTHS · €8,576 A MONTH</span></div>
+    <div class="split">
+      <i style="--c:var(--ink-400);flex:11556">KEEP</i>
+      <i style="--c:var(--usd);flex:17150">SAFE</i>
+      <i style="--c:var(--good);flex:17152">GROWTH</i>
+    </div>
+    <div class="pcols">
+      <div class="pcol">
+        <div class="ph"><span class="dot" style="--c:var(--ink-400)"></span><b>KEEP</b><span class="grow"></span><strong>€11,556</strong></div>
+        <div class="pr"><span>💶</span><span>6 × €1,926 a month · bills and day-to-day</span></div>
+        <div class="pr"><span>🏦</span><span>BPI · ActivoBank · Revolut</span></div>
+      </div>
+      <div class="pcol">
+        <div class="ph"><span class="dot" style="--c:var(--usd)"></span><b>SAFE</b><span class="grow"></span><strong>€17,150</strong></div>
+        <div class="pr">${fav('xtrackers.com')}<span><b>XEON</b> · euro overnight rate · ~2%</span><em>€9,000</em></div>
+        <div class="pr">${fav('ishares.com')}<span><b>IBGS</b> · euro gov bonds 1–3Y</span><em>€8,150</em></div>
+        <div class="pr"><span>🥇</span><span>gold 11% · kept, not added</span><em>—</em></div>
+      </div>
+      <div class="pcol">
+        <div class="ph"><span class="dot" style="--c:var(--good)"></span><b>GROWTH</b><span class="grow"></span><strong>€17,152</strong></div>
+        <div class="pr">${fav('invesco.com')}<span><b>EQQQ</b> · Nasdaq 100 · buys the dip</span><em>€8,000</em></div>
+        <div class="pr">${fav('vanguard.com')}<span><b>VEUR</b> · Europe 2% → 9%</span><em>€5,000</em></div>
+        <div class="pr">${fav('ishares.com')}<span><b>EWZ</b> · Brazil · a small bet</span><em>€2,000</em></div>
+        <div class="pr"><span>💡</span><span><b>LLY · PG</b> · from IDEAS</span><em>€2,152</em></div>
+      </div>
+    </div>
+  </div>
+
   <div class="tile c6">
     <div class="bhead"><span>📊</span><span class="t">TODAY · FROM CLOSE</span><span class="grow"></span><span class="caps">mine</span></div>
     <div class="mv">${fav('google.com')}<span><div class="nm">Alphabet GOOGL</div><div class="sub">WAS $324.89 · NOW $283.82</div></span><span class="e bad" style="color:var(--bad)">−€104.87</span><span class="pill bad">▼ 12.6%</span></div>
@@ -237,7 +287,7 @@ const ANSWER = `
   <div class="tile c4 opt">
     <div class="row">${fav('ishares.com')}<span class="tk">IB01</span><span class="pill ink">BONDS · USD 0–1Y</span></div>
     <div class="sr"><span class="pill ink">YIELD 4.1%</span><span class="pill good">BULLISH</span></div>
-    <div class="case"><i class="bu">▲</i><span>Cash-like, pays the US short rate.</span></div>
+    <div class="case"><i class="bu">▲</i><span>Like cash, pays the US T-bill rate.</span></div>
     <div class="case"><i class="be">▼</i><span>Falls in euros if the dollar falls.</span></div>
     <div class="case"><i class="wr">✕</i><span><b class="caps">wrong if</b> the Fed cuts fast.</span></div>
   </div>
@@ -258,8 +308,8 @@ const ANSWER = `
 </div>
 
 <div class="srcs"><span class="caps">sources</span><span class="src">reuters.com · 29 Oct</span><span class="src">ft.com · 28 Oct</span><span class="src">ecb.europa.eu · 23 Oct</span><span class="src">YAHOO · 21:30</span></div>
-<div class="sugg"><span>Compare EWZ with emerging markets</span><span>How much of MINE is in euros, exactly?</span><span>Bonds in euros instead</span></div>
-<div class="meta"><span>SONNET 5.5 · 29 OCT 21:31 · 41K IN · 3.2K OUT · PRO PLAN</span><span>RESEARCH · NOT ADVICE · NOT SAVED</span></div>`
+<div class="sugg"><span>Compare EWZ with emerging markets</span><span>How much of MINE is in euros, exactly?</span><span>Only euro bonds?</span></div>
+<div class="meta"><span>SONNET 5.5 · 29 OCT 21:31 · 41K IN · 3.2K OUT · PRO PLAN</span><span>NOT SAVED</span></div>`
 
 const ASKING = `
 <div class="steps">
@@ -272,9 +322,16 @@ const ASKING = `
 const EMPTY = `<div class="empty"><span class="caps" style="font-size:11px">✦ ASK · MINE · MARKETS · IDEAS</span>
 <div class="sugg" style="justify-content:center"><span>Why did GOOGL fall today?</span><span>Is my euro cash at risk?</span><span>Ideas outside the US</span><span>Gold or bonds now?</span></div></div>`
 
+const SHOT_Q = `<div class="q">Is this a good time to add more? This is my Trading 212 now.<div class="shot"><span class="img"><i style="width:70%"></i><i></i><i style="width:50%"></i><i></i><i style="width:80%"></i><i></i><i style="width:60%"></i></span><span class="caps">IMG_9412.PNG · TRADING 212 · 15 ROWS READ</span></div></div>`
 function render(s) {
   const t = document.getElementById('thread')
-  t.innerHTML = s === 'empty' ? EMPTY : `<div class="q">${Q}</div><div class="a">${s === 'asking' ? ASKING : ANSWER}</div>`
+  const chat = document.querySelector('.chat')
+  chat.querySelector('.dropzone')?.remove()
+  chat.classList.toggle('drop', s === 'drop')
+  if (s === 'drop') chat.insertAdjacentHTML('afterbegin', '<div class="dropzone">📎 DROP · SCREENSHOT</div>')
+  t.innerHTML = s === 'empty' || s === 'drop' ? EMPTY
+    : s === 'shot' ? `${SHOT_Q}<div class="a">${ASKING}</div>`
+    : `<div class="q">${Q}</div><div class="a">${s === 'asking' ? ASKING : ANSWER}</div>`
 }
 document.querySelectorAll('.ctl button').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('.ctl button').forEach((x) => x.classList.toggle('on', x === b))

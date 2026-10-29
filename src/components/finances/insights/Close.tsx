@@ -1,6 +1,6 @@
 import { useAction } from 'convex/react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 
 import { api } from '../../../../convex/_generated/api'
 import type { Id } from '../../../../convex/_generated/dataModel'
@@ -100,6 +100,14 @@ export function Close({ close }: { close: ReturnType<typeof useClose> }) {
   const rows = [...day.rows].sort(
     (a, b) => Math.abs(pctOf(b) ?? 0) - Math.abs(pctOf(a) ?? 0),
   )
+  /* Stocks and crypto apart (29 Oct: a coin's 4% on a few euros sat
+     among the companies), each biggest first. */
+  const groups = (
+    [
+      ['STOCKS', rows.filter((r) => r.type !== 'CRYPTOCURRENCY')],
+      ['CRYPTO', rows.filter((r) => r.type === 'CRYPTOCURRENCY')],
+    ] as const
+  ).filter(([, list]) => list.length > 0)
   const max = Math.max(1, ...rows.map((r) => Math.abs(pctOf(r) ?? 0)))
   const diff = Math.round((day.nowEur - day.wasEur) * 100) / 100
   const pct = day.wasEur > 0 ? (diff / day.wasEur) * 100 : 0
@@ -177,75 +185,87 @@ export function Close({ close }: { close: ReturnType<typeof useClose> }) {
           <span className="ins-was">BIGGEST FIRST</span>
         </div>
         <div className="close-list" data-testid="close-list">
-          {rows.map((r, k) => {
-            const p = pctOf(r)
-            const ms = momentsOf(r.instrumentId)
-            const big = ms.some((m) => m.kind === 'big')
-            const hot = big ? ((p ?? 0) < 0 ? 'hot' : 'hot up') : ''
-            const eur =
-              r.nowEur !== null && r.wasEur !== null
-                ? r.nowEur - r.wasEur
-                : null
-            return (
-              <div
-                key={r.instrumentId}
-                data-testid="close-row"
-                className={`close-mv ${hot}`}
-                style={{ '--i': k } as React.CSSProperties}
-              >
-                <TickerLogo
-                  symbol={r.symbol}
-                  type={r.type}
-                  name={r.name}
-                  size={30}
-                />
-                <div className="grow">
-                  <div className="nm">
-                    {plainCompany(r.name)}{' '}
-                    <span className="ins-was">{r.symbol.split('.')[0]}</span>
-                  </div>
-                  <div className="sub">
-                    {r.was !== null && r.price !== null
-                      ? `WAS ${money(r.was, r.currency)} · NOW ${money(r.price, r.currency)}`
-                      : 'NO CLOSE BEFORE'}
-                  </div>
+          {groups.map(([label, list]) => (
+            <Fragment key={label}>
+              {groups.length > 1 ? (
+                <div data-testid="close-group" className="close-group">
+                  <span className="ins-tname">{label}</span>
+                  <span className="ins-was">{list.length}</span>
                 </div>
-                <div className="close-badges">
-                  {ms.map((m, i) => {
-                    const b = badgeOf(m)
-                    return (
-                      <span
-                        key={i}
-                        data-testid="close-badge"
-                        className={`ins-badge ${b.tone}`}
-                      >
-                        {b.text}
-                      </span>
-                    )
-                  })}
-                </div>
-                {p !== null ? (
-                  <span className="close-bar">
-                    <i
-                      className={p < 0 ? 'bad' : 'good'}
-                      style={{
-                        [p < 0 ? 'right' : 'left']: '50%',
-                        width: `${(Math.abs(p) / max) * 50}%`,
-                      }}
+              ) : null}
+              {list.map((r, k) => {
+                const p = pctOf(r)
+                const ms = momentsOf(r.instrumentId)
+                const big = ms.some((m) => m.kind === 'big')
+                const hot = big ? ((p ?? 0) < 0 ? 'hot' : 'hot up') : ''
+                const eur =
+                  r.nowEur !== null && r.wasEur !== null
+                    ? r.nowEur - r.wasEur
+                    : null
+                return (
+                  <div
+                    key={r.instrumentId}
+                    data-testid="close-row"
+                    className={`close-mv ${hot}`}
+                    style={{ '--i': k } as React.CSSProperties}
+                  >
+                    <TickerLogo
+                      symbol={r.symbol}
+                      type={r.type}
+                      name={r.name}
+                      size={30}
                     />
-                  </span>
-                ) : null}
-                <span className={`close-eur ${tone(eur ?? 0)}`}>
-                  {eur === null
-                    ? '—'
-                    : `${eur < 0 ? '−' : '+'}${money(Math.abs(eur))}`}
-                </span>
-                <span className={`ins-badge ${tone(p ?? 0)} close-pct`}>
-                  {p === null ? '—' : p === 0 ? '= 0%' : pctWord(p)}
-                </span>
-              </div>
-            )
-          })}
+                    <div className="grow">
+                      <div className="nm">
+                        {plainCompany(r.name)}{' '}
+                        <span className="ins-was">
+                          {r.symbol.split('.')[0]}
+                        </span>
+                      </div>
+                      <div className="sub">
+                        {r.was !== null && r.price !== null
+                          ? `WAS ${money(r.was, r.currency)} · NOW ${money(r.price, r.currency)}`
+                          : 'NO CLOSE BEFORE'}
+                      </div>
+                    </div>
+                    <div className="close-badges">
+                      {ms.map((m, i) => {
+                        const b = badgeOf(m)
+                        return (
+                          <span
+                            key={i}
+                            data-testid="close-badge"
+                            className={`ins-badge ${b.tone}`}
+                          >
+                            {b.text}
+                          </span>
+                        )
+                      })}
+                    </div>
+                    {p !== null ? (
+                      <span className="close-bar">
+                        <i
+                          className={p < 0 ? 'bad' : 'good'}
+                          style={{
+                            [p < 0 ? 'right' : 'left']: '50%',
+                            width: `${(Math.abs(p) / max) * 50}%`,
+                          }}
+                        />
+                      </span>
+                    ) : null}
+                    <span className={`close-eur ${tone(eur ?? 0)}`}>
+                      {eur === null
+                        ? '—'
+                        : `${eur < 0 ? '−' : '+'}${money(Math.abs(eur))}`}
+                    </span>
+                    <span className={`ins-badge ${tone(p ?? 0)} close-pct`}>
+                      {p === null ? '—' : p === 0 ? '= 0%' : pctWord(p)}
+                    </span>
+                  </div>
+                )
+              })}
+            </Fragment>
+          ))}
         </div>
       </section>
 

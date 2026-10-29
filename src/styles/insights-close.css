@@ -213,3 +213,14 @@
     max-height: 520px;
   }
 }
+
+/* STOCKS and CRYPTO heads inside MOVES (29 Oct). */
+.close-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 4px 4px;
+}
+.close-group:first-child {
+  padding-top: 0;
+}

@@ -1,5 +1,5 @@
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import { api } from '../../../../convex/_generated/api'
 import { ModelPick } from '@/components/ask/ModelPick'
@@ -11,7 +11,7 @@ import { Ask } from './Ask'
 import type { Suggestion } from './Ask'
 import { PARTS, PartIcon } from './IdeasParts'
 import { Star } from './AskBlocks'
-import { usePrefill } from './askPrefill'
+import { offerQuestions, usePrefill } from './askPrefill'
 import { IdeasBoard } from './IdeasBoard'
 import { useAsk } from './useAsk'
 import { useBoard, useCash, useIdeasRead } from './useIdeas'
@@ -81,6 +81,10 @@ export function IdeasTab({
       })),
     [read.shown, board.answer, held, cash],
   )
+  useEffect(() => {
+    offerQuestions(suggested)
+    return () => offerQuestions(null)
+  }, [suggested])
 
   return (
     <div className="idb-page">
@@ -106,7 +110,7 @@ export function IdeasTab({
           <span className="grow" />
           {r.path === 'pro' ? <ModelPick /> : null}
         </div>
-        <Ask r={r} a={a} suggested={suggested} />
+        <Ask r={r} a={a} />
       </aside>
     </div>
   )

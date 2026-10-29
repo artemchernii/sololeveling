@@ -103,7 +103,7 @@ export function PlanBar({ b, facts }: { b: Board; facts: Array<Fact> }) {
           const badge =
             k === 'keep'
               ? spend
-                ? `${(b.parts.keep / spend).toFixed(1)} MO OF SPENDING`
+                ? `${(b.parts.keep / spend).toFixed(1)} MO SPENDING`
                 : 'CASH'
               : `${lines.length} ${lines.length === 1 ? 'LINE' : 'LINES'}`
           return (

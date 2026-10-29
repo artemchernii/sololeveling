@@ -27,3 +27,23 @@ export function usePrefill() {
   }, [])
   return p
 }
+
+/* IDEAS' own questions (29 Oct): while the board is open, ASK — docked
+   or the drawer — offers them instead of the four market ones. */
+let offered: Array<unknown> | null = null
+const offerListeners = new Set<(o: Array<unknown> | null) => void>()
+
+export function offerQuestions<T>(o: Array<T> | null) {
+  offered = o
+  for (const l of offerListeners) l(offered)
+}
+
+export function useOffered<T>(): Array<T> | null {
+  const [o, setO] = useState(offered)
+  useEffect(() => {
+    offerListeners.add(setO)
+    setO(offered)
+    return () => void offerListeners.delete(setO)
+  }, [])
+  return o as Array<T> | null
+}

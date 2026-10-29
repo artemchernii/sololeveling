@@ -6,7 +6,7 @@ import { nextMonthWord } from '@/lib/marketRead'
 import { usd } from './readParts'
 import { LOOK, TurnView } from './AskAnswer'
 import { ShotChip, Star, readShot } from './AskBlocks'
-import { usePrefill } from './askPrefill'
+import { useOffered, usePrefill } from './askPrefill'
 import type { useAsk } from './useAsk'
 import type { useMarketRead } from './useMarketRead'
 
@@ -49,12 +49,14 @@ const DEFAULT: Array<Suggestion> = SUGGESTED.map((s, i) => ({
 export function Ask({
   r,
   a,
-  suggested = DEFAULT,
+  suggested: given,
 }: {
   r: Read
   a: ReturnType<typeof useAsk>
   suggested?: Array<Suggestion>
 }) {
+  const offered = useOffered<Suggestion>()
+  const suggested = given ?? offered ?? DEFAULT
   const { turns, busy, capped, ask } = a
   const [text, setText] = useState('')
   /* IDEAS (29 Oct): the line a ✦ opened on, and a dropped screenshot —

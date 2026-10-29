@@ -74,6 +74,25 @@ test('S1 before a read: cash, strip and movers; READ → reading → the plan in
     page.locator('[data-tab="ideas"] [data-testid=tab-badge]'),
   ).toContainText('€')
   await expect(page.locator('body')).not.toContainText('NOT ADVICE')
+  /* ASK beside it offers questions from the plan. */
+  await expect(
+    page.getByTestId('idb-chat').getByTestId('ask-suggest').first(),
+  ).toContainText('ADD ·')
+  /* A part's tile opens what the part is and what is in it. */
+  await page.locator('[data-testid=idb-pt][data-part=protect]').hover()
+  const tip = page.getByTestId('idb-tip')
+  await expect(tip).toContainText('should not fall much')
+  await expect(tip).toContainText('XEON.DE')
+  await page.screenshot(shot('ideas-part-card'))
+  /* A market opens its chart: the day, then 1M fetched on the press. */
+  await page.locator('[data-testid=idb-mk][data-id=sp500]').hover()
+  const card = page.getByTestId('idb-mk-card')
+  await expect(card).toContainText('CLOSE BEFORE')
+  await card.getByTestId('idb-mk-range').nth(1).click()
+  await expect(card.locator('polyline')).toHaveCount(1)
+  await expect(card).toContainText('HIGH')
+  await page.screenshot(shot('ideas-market-card'))
+  await page.mouse.move(0, 0)
   await expect(page.getByTestId('idb-line').last()).toHaveCSS('opacity', '1')
   await page.screenshot({ ...shot('ideas-board'), fullPage: true })
 })

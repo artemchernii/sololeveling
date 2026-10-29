@@ -14,6 +14,7 @@
 
 import { feeInside } from './tradeCost'
 import { printedBalance } from './rowBalance'
+import { WITHDRAWAL } from './cashOut'
 
 export const INTAKE_MODEL = 'claude-haiku-5-5'
 /* Bumped whenever what the reader is asked changes: a file read by an
@@ -1135,16 +1136,9 @@ export function hasTradeRows(rows: ReadonlyArray<ReadTransaction>): boolean {
 
 /* ---- His own money ------------------------------------------------------ */
 
-/* Cash out of a machine, or into his wallet from one (1 Oct: a typed
-   "withdraw +€20" in Cash was counted as income). */
-const WITHDRAWAL = /\b(atm|withdraw(al)?|levantamento|cash out)\b/i
 /* Money arriving on a top-up is his own card's. A top-up going OUT is a
    phone bill ("Vodafone carregamento"), so only money in counts. */
 const TOP_UP = /\b(top[- ]?up|carregamento)\b/i
-
-/** Cash out of a machine: "LEV ATM 2789 BCP Lisboa" (29 Oct: it read as
-    "transfer · own account"). */
-export const cashOut = (text: string): boolean => WITHDRAWAL.test(text)
 
 const plain = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()

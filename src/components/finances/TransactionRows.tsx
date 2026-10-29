@@ -8,7 +8,8 @@ import { groupIcon } from '@/components/finances/GroupBadge'
 import { usePayees } from '@/components/finances/flow/Payees'
 import { TickerLogo } from '@/components/finances/Logo'
 import { money } from '@/lib/currency'
-import { cashOut, sameCompany } from '@/lib/intake'
+import { cashOut } from '@/lib/cashOut'
+import { sameCompany } from '@/lib/intake'
 import { Section } from '@/components/finances/IntakeParts'
 
 export const DAY_FMT = new Intl.DateTimeFormat(undefined, {

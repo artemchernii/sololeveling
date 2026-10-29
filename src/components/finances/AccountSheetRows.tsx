@@ -15,7 +15,7 @@ import type { Id } from '../../../convex/_generated/dataModel'
 import { Busy } from '@/components/finances/bits'
 import { AccountLogo } from '@/components/finances/Logo'
 import { RowMark } from '@/components/finances/RowMark'
-import { cashOut } from '@/lib/intake'
+import { cashOut } from '@/lib/cashOut'
 import { Veiled } from '@/components/finances/Veil'
 
 /* The account sheet's lines (split from OpenAccount.tsx, 5 Oct): a

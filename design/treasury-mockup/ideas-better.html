@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>IDEAS, better</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* Insights IDEAS, reworked (29 Oct, his "can we do some better IDEAS?").
+     Each card leads with what it adds to MINE (his real allocation:
+     health 5% vs world 9%, Europe 2%, tech 27% vs 33%), then the same
+     SIGNALS rows a held position has, then bull / bear / wrong-if.
+     Allocation is his; prices and signals are sample numbers. */
+  :root {
+    --bg: #f4f2ef;
+    --ink-100: #1d1d2b; --ink-200: #33334a; --ink-300: #55556c; --ink-400: #7a7a90; --ink-500: #9a9aae;
+    --lav-300: #6b5fd6; --lav-400: #8b7ff0;
+    --good: oklch(0.58 0.16 150); --bad: oklch(0.58 0.2 22); --warn: oklch(0.66 0.15 70);
+    --glass: linear-gradient(155deg, rgba(255,255,255,.85), rgba(255,255,255,.6));
+    --edge: rgba(30,30,50,.09);
+    --shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 18px 40px -28px rgba(30,30,60,.35);
+    --sys-edge: color-mix(in oklch, #8b7ff0 40%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --ind-rsi: oklch(0.62 0.13 300); --ind-sma: oklch(0.6 0.12 230); --ind-52: oklch(0.6 0.1 60); --ind-tg: oklch(0.58 0.1 180);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1000px 500px at 10% -10%, #e9e4f7 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #f6ead8 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font: 13px/1.4 Inter, system-ui, sans-serif; min-height: 100vh }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 16px 16px 80px; display:flex; flex-direction:column; gap: 14px }
+  .caps { font: 500 9.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .num { font-weight: 600; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums }
+  .row { display:flex; align-items:center; gap: 8px } .grow { flex: 1; min-width: 0 }
+
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; font: 11px var(--mono); color: var(--warn); letter-spacing: .08em; text-transform: uppercase }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.6); border: 1px solid var(--edge); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  .tabs { display:grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 8px; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass) }
+  .tab { display:flex; align-items:center; justify-content:center; gap: 8px; padding: 9px; border-radius: 10px; font: 700 10.5px var(--mono); letter-spacing: .16em; color: var(--ink-200) }
+  .tab .n { width: 18px; height: 18px; border-radius: 5px; display:grid; place-items:center; font-size: 9.5px; color: var(--lav-300); border: 1px solid var(--sys-edge) }
+  .tab.on { background: color-mix(in oklch, var(--lav-400) 14%, transparent); border: 1px solid var(--sys-edge) }
+  .pill { font: 700 9px var(--mono); letter-spacing: .1em; padding: 3px 7px; border-radius: 999px; border: 1px solid currentColor; text-transform: uppercase; white-space: nowrap }
+  .pill.good { color: var(--good); background: color-mix(in oklch, var(--good) 10%, transparent) }
+  .pill.bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 10%, transparent) }
+  .pill.lav { color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 10%, transparent) }
+  .pill.ink { color: var(--ink-300); background: rgba(30,30,50,.04) }
+
+  .grid { display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr } }
+
+  .idea { position: relative; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); display:flex; flex-direction:column; overflow:hidden; animation: rise .5s cubic-bezier(.2,.8,.2,1) both }
+  .idea:nth-child(2) { animation-delay: .08s } .idea:nth-child(3) { animation-delay: .16s }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px) } }
+  .idea .top { padding: 14px 16px 12px; display:flex; flex-direction:column; gap: 10px; background: linear-gradient(180deg, color-mix(in oklch, var(--tone) 12%, transparent), transparent) }
+  .logo { width: 38px; height: 38px; border-radius: 11px; background: #fff; border: 1px solid var(--edge); display:grid; place-items:center; overflow:hidden }
+  .logo img { width: 26px; height: 26px }
+  .tk { font-size: 15px; font-weight: 700; letter-spacing: .02em }
+  .co { font-size: 11.5px; color: var(--ink-400) }
+  .kind { font: 700 8.5px var(--mono); letter-spacing: .12em; padding: 2px 6px; border-radius: 5px; color: var(--ind-sma); border: 1px solid color-mix(in oklch, var(--ind-sma) 45%, transparent) }
+
+  /* what it adds to MINE: two numbers with their places */
+  .fit { display:grid; grid-template-columns: 26px 1fr auto; align-items:center; gap: 10px; padding: 9px 10px; border-radius: 11px; border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 7%, transparent) }
+  .fit .ic { font-size: 16px; text-align:center }
+  .fit .lab { font: 700 10.5px var(--mono); letter-spacing: .12em; color: var(--ink-100) }
+  .fit .bars { display:flex; flex-direction:column; gap: 3px; margin-top: 4px }
+  .fit .bar { height: 6px; border-radius: 3px; background: rgba(30,30,50,.06); overflow:hidden }
+  .fit .bar b { display:block; height: 100%; border-radius: 3px; background: var(--lav-400); transform-origin:left; animation: fill 1s cubic-bezier(.2,.8,.2,1) .3s both }
+  .fit .bar.w b { background: repeating-linear-gradient(90deg, var(--ink-400) 0 4px, transparent 4px 7px) }
+  @keyframes fill { from { transform: scaleX(0) } }
+  .fit .vals { text-align:right; font: 10px var(--mono); color: var(--ink-400); display:flex; flex-direction:column; gap: 2px; white-space: nowrap }
+  .fit .vals strong { font: 700 12px var(--mono); color: var(--ink-100) }
+
+  .px { display:flex; align-items:baseline; gap: 8px } .px .num { font-size: 24px }
+  svg.spark { width: 100%; height: 34px; display:block }
+  svg.spark polyline { fill: none; stroke: var(--tone); stroke-width: 1.8 }
+  svg.spark polygon { fill: var(--tone); opacity: .12 }
+
+  /* SIGNALS, the rows a held position shows */
+  .sig { padding: 10px 16px 12px; border-top: 1px solid var(--edge); display:flex; flex-direction:column; gap: 6px }
+  .sr { display:grid; grid-template-columns: 8px 64px 1fr auto; align-items:center; gap: 8px; font: 11px var(--mono); color: var(--ink-300) }
+  .sr i { width: 8px; height: 8px; border-radius: 50%; background: var(--c) }
+  .sr .k { font-weight: 700; letter-spacing: .08em; color: var(--ink-200) }
+  .sr .v { color: var(--ink-300); white-space: nowrap; overflow:hidden; text-overflow: ellipsis }
+  .sr .nodata { color: var(--ink-400) }
+  .skel { height: 12px; border-radius: 4px; background: linear-gradient(90deg, rgba(30,30,50,.05), rgba(30,30,50,.1), rgba(30,30,50,.05)); background-size: 200% 100%; animation: sh 1.2s infinite }
+  @keyframes sh { to { background-position: -200% 0 } }
+
+  .bot { padding: 12px 16px 12px; border-top: 1px solid var(--edge); display:flex; flex-direction:column; gap: 8px; flex: 1 }
+  .why { font-size: 13.5px; font-weight: 600; color: var(--ink-100) }
+  .case { display:grid; grid-template-columns: 22px 1fr; gap: 8px; align-items:flex-start; font-size: 12.5px; color: var(--ink-200) }
+  .case i { font-style: normal; width: 22px; height: 22px; border-radius: 6px; display:grid; place-items:center; font: 700 11px var(--mono) }
+  .case .bu { color: var(--good); background: color-mix(in oklch, var(--good) 14%, transparent) }
+  .case .be { color: var(--bad); background: color-mix(in oklch, var(--bad) 14%, transparent) }
+  .case .wr { color: var(--warn); background: color-mix(in oklch, var(--warn) 14%, transparent) }
+  .foot { display:flex; justify-content:space-between; padding: 8px 16px 12px; font: 10px var(--mono); letter-spacing: .1em; color: var(--ink-400) }
+  .askb { align-self:flex-start; font: 700 9.5px var(--mono); letter-spacing: .12em; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--sys-edge); color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 8%, transparent) }
+
+  .none { grid-column: 1 / -1; text-align:center; padding: 40px; border-radius: 14px; border: 1px dashed var(--edge); background: var(--glass) }
+  .note { font-size: 12px; color: var(--ink-400); text-align:center }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup · state
+    <button data-s="ideas" class="on">3 ideas</button>
+    <button data-s="fetch">signals fetching</button>
+    <button data-s="nodata">one with no data</button>
+    <button data-s="none">none fit</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab"><span class="n">1</span>MARKET <span class="pill good">S&amp;P ▲ 0.5%</span></div>
+    <div class="tab"><span class="n">2</span>READ <span class="pill lav">5 LINES</span></div>
+    <div class="tab"><span class="n">3</span>MINE <span class="pill good">9 ADD</span></div>
+    <div class="tab on"><span class="n">4</span>IDEAS <span class="pill ink">3</span></div>
+    <div class="tab"><span class="n">5</span>CLOSE <span class="pill bad">▼ 0.6%</span></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <p class="note">Allocation rows: his, from MINE · prices, signals and targets: sample</p>
+</div>
+
+<script>
+const IDEAS = [
+  {
+    tk: 'LLY', co: 'Eli Lilly', kind: 'STOCK', site: 'lilly.com', tone: 'oklch(0.6 0.15 150)',
+    fit: { ic: '💊', lab: 'HEALTH', mine: 5, world: 9 },
+    px: '$1,365', m1: '▲ 15.3% · 1M', y1: '1Y ▲ 67.8%', d: '29 SEP $1,185',
+    sig: [
+      ['--ind-rsi', 'RSI 14', '74', 'overbought', 'bad'],
+      ['--ind-sma', 'SMA 200', '$1,040 · above', 'bullish', 'good'],
+      ['--ind-52', '52W', 'high $1,380 · ▼ 1.1%', 'near high', 'ink'],
+      ['--ind-tg', 'TARGET', '$1,420 · ▲ 4.0% · 31', 'analysts', 'ink'],
+    ],
+    why: 'Health 5% in MINE, 9% in the world',
+    bull: 'Weight-loss drugs keep sales growing fast.',
+    bear: 'Up 15% this month; a miss can drop it hard.',
+    wrong: 'Sales of its weight-loss drugs slow down.',
+  },
+  {
+    tk: 'VEUR', co: 'Vanguard FTSE Developed Europe', kind: 'ETF', site: 'vanguard.com', tone: 'oklch(0.6 0.12 250)',
+    fit: { ic: '🇪🇺', lab: 'EUROPE', mine: 2, world: 15 },
+    px: '€47.80', m1: '▲ 2.1% · 1M', y1: '1Y ▲ 9.4%', d: '29 SEP €46.82',
+    sig: [
+      ['--ind-rsi', 'RSI 14', '52', 'neutral', 'ink'],
+      ['--ind-sma', 'SMA 200', '€45.10 · above', 'bullish', 'good'],
+      ['--ind-52', '52W', 'high €48.60 · ▼ 1.6%', 'near high', 'ink'],
+      ['--ind-tg', 'TARGET', 'ETF', '—', 'ink'],
+    ],
+    why: 'Europe 2% in MINE, 15% in the world',
+    bull: 'One fund, about 600 European companies.',
+    bear: 'Europe grows slower than the US.',
+    wrong: 'A strong dollar keeps US shares ahead.',
+  },
+  {
+    tk: 'PG', co: 'Procter & Gamble', kind: 'STOCK', site: 'pg.com', tone: 'oklch(0.6 0.12 230)',
+    fit: { ic: '🧴', lab: 'STAPLES', mine: 0, world: 6 },
+    px: '$161', m1: '▲ 8.3% · 1M', y1: '1Y ▲ 7.9%', d: '29 SEP $148',
+    sig: [
+      ['--ind-rsi', 'RSI 14', '48', 'neutral', 'ink'],
+      ['--ind-sma', 'SMA 200', '$158 · above', 'bullish', 'good'],
+      ['--ind-52', '52W', 'high $175 · ▼ 8.0%', 'mid range', 'ink'],
+      ['--ind-tg', 'TARGET', '$178 · ▲ 10.6% · 22', 'analysts', 'ink'],
+    ],
+    why: 'Staples 0% in MINE, 6% in the world',
+    bull: 'People buy soap and nappies in any economy.',
+    bear: 'Higher costs squeeze its margins.',
+    wrong: 'Shoppers switch to cheaper store brands.',
+  },
+]
+
+const spark = (seed) => {
+  const pts = []
+  let y = 22
+  for (let i = 0; i < 24; i++) { y += Math.sin(i * 1.7 + seed) * 2.4 - 0.55; pts.push([i * (300 / 23), Math.max(4, Math.min(30, y))]) }
+  const line = pts.map((p) => p.join(',')).join(' ')
+  return `<svg class="spark" viewBox="0 0 300 34" preserveAspectRatio="none"><polygon points="0,34 ${line} 300,34"/><polyline points="${line}"/></svg>`
+}
+
+function card(i, k, state) {
+  const nodata = state === 'nodata' && k === 2
+  const max = Math.max(i.fit.mine, i.fit.world, 1)
+  const sig = state === 'fetch'
+    ? [0, 1, 2, 3].map(() => `<div class="skel"></div>`).join('')
+    : nodata
+      ? `<div class="sr"><i style="--c: var(--ink-500)"></i><span class="k">SIGNALS</span><span class="v nodata">❔ NO DATA · 120 CLOSES</span><span></span></div>`
+      : i.sig.map(([c, k, v, w, t]) => `<div class="sr"><i style="--c: var(${c})"></i><span class="k">${k}</span><span class="v">${v}</span>${w === '—' ? '<span class="pill ink">NONE</span>' : `<span class="pill ${t}">${w}</span>`}</div>`).join('')
+  return `<article class="idea" style="--tone:${i.tone}">
+    <div class="top">
+      <div class="row">
+        <span class="logo"><img src="https://www.google.com/s2/favicons?domain=${i.site}&sz=64" alt=""></span>
+        <span class="grow"><div class="row"><span class="tk">${i.tk}</span><span class="kind">${i.kind}</span></div><div class="co">${i.co}</div></span>
+        <span class="pill lav">💡 MODEL · NOT ADVICE</span>
+      </div>
+      <div class="fit">
+        <span class="ic">${i.fit.ic}</span>
+        <span>
+          <span class="lab">${i.fit.lab}</span>
+          <span class="bars">
+            <span class="bar"><b style="width:${(i.fit.mine / max) * 100}%"></b></span>
+            <span class="bar w"><b style="width:${(i.fit.world / max) * 100}%"></b></span>
+          </span>
+        </span>
+        <span class="vals"><span><strong>${i.fit.mine}%</strong> MINE</span><span><strong>${i.fit.world}%</strong> WORLD</span></span>
+      </div>
+      <div class="px"><span class="num">${i.px}</span><span class="pill good">${i.m1}</span></div>
+      ${spark(k * 2.1)}
+      <div class="row"><span class="pill ink">${i.d}</span><span class="pill good">${i.y1}</span></div>
+    </div>
+    <div class="sig"><span class="caps">Signals</span>${sig}</div>
+    <div class="bot">
+      <div class="case"><i class="bu">▲</i><span>${i.bull}</span></div>
+      <div class="case"><i class="be">▼</i><span>${i.bear}</span></div>
+      <div class="case"><i class="wr">✕</i><span><b class="caps" style="color:var(--ink-200)">wrong if</b> ${i.wrong}</span></div>
+      <span class="askb">✦ ASK</span>
+    </div>
+    <div class="foot"><span>YAHOO · 19:27</span><span>NOT SAVED</span></div>
+  </article>`
+}
+
+function render(state) {
+  const g = document.getElementById('grid')
+  g.innerHTML = state === 'none'
+    ? `<div class="none"><div class="caps" style="font-size:11px">💡 Ideas · 0</div><div style="margin-top:8px"><span class="pill ink">❔ NO FIT</span></div></div>`
+    : IDEAS.map((i, k) => card(i, k, state)).join('')
+}
+document.querySelectorAll('.ctl button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('.ctl button').forEach((x) => x.classList.toggle('on', x === b))
+  render(b.dataset.s)
+}))
+render('ideas')
+</script>
+</body>
+</html>

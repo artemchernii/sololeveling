@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from 'convex-test'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, expect, onTestFinished, test, vi } from 'vitest'
 
 import { api } from './_generated/api'
 import schema from './schema'
@@ -250,6 +250,14 @@ test('a reward and a split are REWARD and SPLIT lines, not a BUY at €0', async
    €90.35 on each of the next two days — and all three balances showed the
    screenshot as their file. */
 test("a file is one balance's, and never the bank's own answer", async () => {
+  /* Its days are fixed and the account's typed balances sit 8 days
+     before "now": on 29 Oct those walked in among them. The clock stays
+     on the 25th, after the four days and before the typed ones reach. */
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(Date.UTC(2026, 9, 25, 12))
+  onTestFinished(() => {
+    vi.useRealTimers()
+  })
   const { t, me, accountId } = await revolutWith(0)
   const at = Date.UTC(2026, 9, 20, 12)
   const ids = await t.run(async (ctx) => {

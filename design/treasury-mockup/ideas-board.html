@@ -88,7 +88,12 @@
   .ln.on { background: color-mix(in oklch, var(--lav-400) 8%, white); box-shadow: inset 3px 0 0 var(--lav-400) }
   .ln .nm { font-weight: 600; white-space: nowrap; overflow:hidden; text-overflow: ellipsis } .ln .tk { font: 500 10px var(--mono); color: var(--ink-400) }
   .ln > svg { width: 60px; height: 22px }
-  .ln .why { font-size: 11.5px; color: var(--ink-300); grid-column: 2 / -2; margin-top: -4px }
+  .ln .why { grid-column: 2 / -2; display:grid; grid-template-columns: 44px 1fr; gap: 3px 10px; font-size: 12px; color: var(--ink-200); margin-top: -2px }
+  .ln .why .k { font: 700 9.5px var(--mono); letter-spacing: .1em; color: var(--ink-400); padding-top: 2px }
+  .ln .more { grid-column: 2 / -2; font-size: 11.5px; color: var(--ink-300) }
+  .ln .more summary { font: 700 9px var(--mono); letter-spacing: .14em; color: var(--lav-300); cursor: pointer; list-style: none; padding-left: 54px }
+  .ln .more summary::before { content: '▸ ' } .ln .more[open] summary::before { content: '▾ ' }
+  .ln .more ul { margin: 6px 0 0 54px; padding-left: 14px; display:flex; flex-direction:column; gap: 3px; font-family: var(--mono); font-size: 11px }
   .held { display:flex; flex-direction:column; gap: 2px; font: 9.5px var(--mono); color: var(--ink-400); letter-spacing: .04em } .held b { font: 600 12px var(--mono); color: var(--ink-100); letter-spacing: 0 }
   .chips { display:flex; gap: 4px; flex-wrap: wrap }
   .call { font: 700 10px var(--mono); letter-spacing: .12em; padding: 4px 0; border-radius: 6px; text-align:center }
@@ -194,7 +199,7 @@
       </div>
 
       <div class="tile part" style="--c:var(--new)">
-        <div class="phead"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M15 9l-2 4-4 2 2-4z"/></svg></span><span class="t">NEW</span><span class="s">where MINE is thin</span><span class="grow"></span><span class="sum">€11,000</span></div>
+        <div class="phead"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M15 9l-2 4-4 2 2-4z"/></svg></span><span class="t">NEW</span><span class="s">not in MINE · % MINE vs % WORLD</span><span class="grow"></span><span class="sum">€11,000</span></div>
         <div id="new"></div>
       </div>
 
@@ -223,26 +228,62 @@ const spk = (seed, dir, w, h) => `<svg viewBox="0 0 ${w} ${h}" preserveAspectRat
 const MK = [['S&P 500','7,720','−0.30%',-1,2],['NASDAQ','26,185','−1.38%',-1,8],['DOW','52,343','−0.25%',-1,5],['RUSSELL','2,859','+1.01%',1,3],['10Y','4.99%','−1.11%',-1,9],['VIX','17.20','+1.71%',1,6],['GOLD','$4,033','−0.45%',-1,12],['BTC','$78,966','−2.83%',-1,4]]
 document.getElementById('mstrip').innerHTML = MK.map(([n, v, d, dir, s]) => `<div class="mk"><span class="n">${n}</span><span class="v">${v}</span><span class="d ${dir > 0 ? 'up' : 'dn'}">${d}</span>${spk(s, dir, 100, 14)}</div>`).join('')
 
-/* [site, name, ticker, held €, held line, today, dir, chips, call, €, why] */
+/* [site, name, ticker, held €, held line, today, dir, chips, call, €, why, € why, more] */
 const ADD = [
-  ['google.com','Alphabet','GOOGL','€1,180','2% OF MINE','▼ 12.6%',-1,[['RSI 29 · OVERSOLD','good'],['TARGET ▲ 24%','ink']],'add','€2,500','Fell on spending plans, not on demand: cloud still grew. P/E 19 after the drop.'],
-  ['amazon.com','Amazon','AMZN','€1,320','2% OF MINE','▼ 4.2%',-1,[['SMA 200 · ABOVE','good'],['TARGET ▲ 18%','ink']],'add','€2,000','Missed on profit, not on sales. Still above its 200-day average.'],
-  ['merck.com','Merck','MRK','€960','1.5% OF MINE','▲ 3.8%',1,[['P/E 11','ink'],['HEALTH 5% · WORLD 9%','lav']],'add','€1,652','Cheap for its earnings; adds health where MINE is light.'],
-  ['microsoft.com','Microsoft','MSFT','€4,530','7% OF MINE','▼ 0.4%',-1,[['TOP 3','ink'],['NEAR HIGH','ink']],'hold','—','Already 7% of MINE. Enough of one company.'],
-  ['mastercard.com','Mastercard','MA','€1,240','2% OF MINE','▲ 4.2%',1,[['RSI 74 · OVERBOUGHT','bad'],['REPORTED ▲ 4.1%','good']],'wait','—','Jumped on results. Add on a pullback.'],
+  ['google.com','Alphabet','GOOGL','€1,180','2% OF MINE','▼ 12.6%',-1,[['RSI 29 · OVERSOLD','good'],['TARGET ▲ 24%','ink']],'add','€2,500',
+   'Fell 12.6% on its results because it will spend more on AI data centres, not because people use it less. Cloud sales still grew.',
+   '€2,500 takes it from 2% to 6% of MINE, still under Microsoft. Two parts: €1,250 now, €1,250 in a month.',
+   ['P/E 19 next year after the drop · Microsoft 31 · its 5-year average 22','37 of 45 analysts say buy · mean target $352','Your average buy $241 · now $283']],
+  ['amazon.com','Amazon','AMZN','€1,320','2% OF MINE','▼ 4.2%',-1,[['SMA 200 · ABOVE','good'],['TARGET ▲ 18%','ink']],'add','€2,000',
+   'Missed on profit, not on sales: shoppers and cloud both grew. The drop is smaller than Alphabet\'s and it stays above its 200-day average.',
+   '€2,000 takes it to 5% of MINE. Two parts, like Alphabet.',
+   ['Sales ▲ 11% on a year · profit below forecasts','AWS cloud ▲ 20%','Mean target $288 · ▲ 18% from now']],
+  ['merck.com','Merck','MRK','€960','1.5% OF MINE','▲ 3.8%',1,[['P/E 11','ink'],['HEALTH 5% · WORLD 9%','lav']],'add','€1,652',
+   'Health is 5% of MINE and 9% of the world. Merck is the cheapest big drug maker by earnings and pays a 3.6% dividend.',
+   '€1,652 is what is left of ADD after Alphabet and Amazon. It brings health to 7% of MINE.',
+   ['P/E 11 · sector average 18','Dividend 3.6%','Beat forecasts today · ▲ 3.8%']],
+  ['microsoft.com','Microsoft','MSFT','€4,530','7% OF MINE','▼ 0.4%',-1,[['TOP 3','ink'],['NEAR HIGH','ink']],'hold','—',
+   'A good company, but already your second biggest line and close to its high.',
+   '€0: one company above 7% of MINE is a bet on one name.',
+   ['7% of MINE · top 3 with gold and Amazon','2% under its 52-week high']],
+  ['mastercard.com','Mastercard','MA','€1,240','2% OF MINE','▲ 4.2%',1,[['RSI 74 · OVERBOUGHT','bad'],['REPORTED ▲ 4.1%','good']],'wait','—',
+   'Jumped 4.2% on good results; RSI 74 says it ran fast. A better price usually comes back within weeks.',
+   '€0 today. Asked again after a pullback under RSI 60.',
+   ['RSI 74 · over 70 is overbought','Results beat forecasts']],
 ]
 const PROTECT = [
-  ['AU','Gold','GC=F','€7,120','11% OF MINE','▼ 0.5%',-1,[['RSI 72 · OVERBOUGHT','bad'],['▲ 41% · 1Y','good']],'hold','—','Already 11%, up 41% in a year. Kept, no more now.'],
-  ['xtrackers.com','Euro overnight rate','XEON','—','NOT IN MINE','▲ 0.0%',1,[['~2.0% A YEAR','good'],['NO DROPS','ink']],'add','€9,000','Cash that pays the ECB rate. Out any day.'],
-  ['ishares.com','Euro gov bonds 1–3Y','IBGS','—','NOT IN MINE','▲ 0.1%',1,[['YIELD 2.3%','good'],['RATE CUTS ▲','ink']],'add','€5,000','Rises if the ECB cuts; small moves.'],
-  ['ishares.com','US T-bills 0–1Y','IB01','—','NOT IN MINE','▲ 0.0%',1,[['YIELD 4.1%','good'],['USD RISK','warn']],'add','€3,150','Pays more than euro cash; moves with the dollar.'],
+  ['AU','Gold','GC=F','€7,120','11% OF MINE','▼ 0.5%',-1,[['RSI 72 · OVERBOUGHT','bad'],['▲ 41% · 1Y','good']],'hold','—',
+   'Gold protects when people fear for a currency — and it has already done its job: up 41% in a year.',
+   '€0 more: 11% of MINE is already more than most plans hold (5–10%).',
+   ['▲ 41% in a year · near its high','11% of MINE · world portfolios 0%']],
+  ['xtrackers.com','Euro overnight rate','XEON','—','NOT IN MINE','▲ 0.0%',1,[['~2.0% A YEAR','good'],['NO DROPS','ink']],'add','€9,000',
+   'Your broker cash earns close to nothing. XEON pays the ECB rate every day, does not drop, and can be sold any day.',
+   '€9,000 is about half of PROTECT: money you may want within a year stays here.',
+   ['Pays the ECB deposit rate · ~2% a year','€9,000 × 2% ≈ €180 a year more than idle cash']],
+  ['ishares.com','Euro gov bonds 1–3Y','IBGS','—','NOT IN MINE','▲ 0.1%',1,[['YIELD 2.3%','good'],['RATE CUTS ▲','ink']],'add','€5,000',
+   'Short euro government bonds: they pay a bit more than XEON and rise if the ECB cuts rates. Small moves either way.',
+   '€5,000: money you will not need for 1–3 years.',
+   ['Yield 2.3%','ECB rate 2.0% · cuts make these rise']],
+  ['ishares.com','US T-bills 0–1Y','IB01','—','NOT IN MINE','▲ 0.0%',1,[['YIELD 4.1%','good'],['USD RISK','warn']],'add','€3,150',
+   'Pays 4.1%, double the euro rate, but in dollars: if the dollar falls, it falls in euros.',
+   '€3,150 is the rest of PROTECT — small, because of the dollar.',
+   ['Yield 4.1% · euro cash ~2%','EUR/USD ▼ 3.1% this month']],
 ]
 const NEW = [
-  ['vanguard.com','Vanguard FTSE Dev. Europe','VEUR','—','EUROPE 2% · WORLD 15%','▲ 0.6%',1,[['SMA 200 · ABOVE','good'],['RSI 52','ink']],'add','€6,000','MINE is 72% US. One fund, ~600 European companies.'],
-  ['lilly.com','Eli Lilly','LLY','—','HEALTH 5% · WORLD 9%','▲ 1.1%',1,[['RSI 74 · OVERBOUGHT','bad'],['TARGET ▲ 4%','ink']],'wait','€3,000','Growing fast, up 15% this month. Two halves, a month apart.'],
-  ['ishares.com','iShares MSCI Brazil','EWZ','—','EMERGING 0% · WORLD 11%','▼ 2.4%',-1,[['RSI 27 · OVERSOLD','good'],['DIVIDEND 7.1%','ink']],'add','€2,000','Sold off on politics; the companies still earn. A small bet.'],
+  ['vanguard.com','Vanguard FTSE Dev. Europe','VEUR','—','EUROPE 2% MINE · 15% WORLD','▲ 0.6%',1,[['SMA 200 · ABOVE','good'],['RSI 52','ink']],'add','€6,000',
+   '72% of MINE is in US companies. One fund with ~600 European ones balances that, and you live and spend in euros.',
+   '€6,000 takes Europe from 2% to 11% of MINE — about half the way to the world\'s 15%.',
+   ['P/E 14 · S&P 500 23','Dividend 3.1%','Above its 200-day average']],
+  ['lilly.com','Eli Lilly','LLY','—','HEALTH 5% MINE · 9% WORLD','▲ 1.1%',1,[['RSI 74 · OVERBOUGHT','bad'],['TARGET ▲ 4%','ink']],'wait','€3,000',
+   'The fastest-growing big drug maker (weight-loss drugs), but it rose 15% this month.',
+   '€3,000 in two halves a month apart, so one high price does not decide it.',
+   ['Sales ▲ 45% on a year','RSI 74 · up 15% in a month']],
+  ['ishares.com','iShares MSCI Brazil','EWZ','—','EMERGING 0% MINE · 11% WORLD','▼ 2.4%',-1,[['RSI 27 · OVERSOLD','good'],['DIVIDEND 7.1%','ink']],'add','€2,000',
+   'Brazil fell 18% in a month on politics; its big companies (Petrobras, Vale, Itaú) still earn and pay 7%.',
+   '€2,000 is a small bet: if it halves, MINE loses 1.5%.',
+   ['P/E 7.8 · emerging markets 13','▼ 31% from its 52-week high']],
 ]
-const line = ([site, nm, tk, held, pct, today, dir, chips, call, eur, why], i) => `<div class="ln" data-tk="${tk}">
+const line = ([site, nm, tk, held, pct, today, dir, chips, call, eur, why, size, more], i) => `<div class="ln" data-tk="${tk}">
   ${fav(site)}<span><div class="nm">${nm}</div><div class="tk">${tk}</div></span>
   <span class="held"><b>${held}</b>${pct}</span>
   ${spk(i * 7 + tk.length, dir, 60, 22)}
@@ -250,16 +291,17 @@ const line = ([site, nm, tk, held, pct, today, dir, chips, call, eur, why], i) =
   <span class="call ${call}">${call.toUpperCase()}</span>
   <span class="eur ${eur === '—' ? 'zero' : ''}">${eur === '—' ? '€0' : '+' + eur}</span>
   <button class="star" data-ask="${tk}">✦</button>
-  <span class="why">${why}</span>
+  <div class="why"><span class="k">WHY</span><span>${why}</span><span class="k">${eur === '—' ? '€0' : eur}</span><span>${size}</span></div>
+  <details class="more"><summary>NUMBERS · ${more.length}</summary><ul>${more.map((m) => `<li>${m}</li>`).join('')}</ul></details>
 </div>`
 document.getElementById('add').innerHTML = ADD.map(line).join('')
 document.getElementById('protect').innerHTML = PROTECT.map(line).join('')
 document.getElementById('new').innerHTML = NEW.map(line).join('')
 
 const LISTS = {
-  trending: [['amazon.com','AMZN','−4.25%',-1,1],['intel.com','INTC','−3.62%',-1],['sandisk.com','SNDK','−5.32%',-1],['reddit.com','RDDT','−3.79%',-1],['cat.com','CAT','−9.25%',-1],['google.com','GOOGL','−12.6%',-1,1]],
-  gainers: [['freddiemac.com','FMCC','+13.46%',1],['doordash.com','DASH','+5.6%',1,1],['gm.com','GM','+3.93%',1],['ishares.com','IWM','+1.01%',1]],
-  losers: [['google.com','GOOGL','−12.6%',-1,1],['cat.com','CAT','−9.25%',-1],['sandisk.com','SNDK','−5.32%',-1],['amazon.com','AMZN','−4.25%',-1,1]],
+  trending: [['amazon.com','AMZN','−4.25%',-1,1],['google.com','GOOGL','−12.6%',-1,1],['cat.com','CAT','−9.25%',-1],['intel.com','INTC','−3.62%',-1],['sandisk.com','SNDK','−5.32%',-1],['reddit.com','RDDT','−3.79%',-1],['nvidia.com','NVDA','−1.9%',-1],['tesla.com','TSLA','+0.8%',1],['meta.com','META','−2.1%',-1,1],['freddiemac.com','FMCC','+13.46%',1]],
+  gainers: [['freddiemac.com','FMCC','+13.46%',1],['enphase.com','ENPH','+9.8%',1],['doordash.com','DASH','+5.6%',1,1],['ge.com','GE','+4.7%',1],['mastercard.com','MA','+4.2%',1,1],['gm.com','GM','+3.93%',1],['merck.com','MRK','+3.8%',1,1],['boeing.com','BA','+3.1%',1],['ford.com','F','+2.9%',1],['ishares.com','IWM','+1.01%',1]],
+  losers: [['google.com','GOOGL','−12.6%',-1,1],['cat.com','CAT','−9.25%',-1],['sandisk.com','SNDK','−5.32%',-1],['amazon.com','AMZN','−4.25%',-1,1],['reddit.com','RDDT','−3.79%',-1],['intel.com','INTC','−3.62%',-1],['paypal.com','PYPL','−3.4%',-1],['shopify.com','SHOP','−3.1%',-1,1],['netflix.com','NFLX','−2.6%',-1,1],['meta.com','META','−2.1%',-1,1]],
 }
 function mv(l) { document.getElementById('mvs').innerHTML = LISTS[l].map(([s, tk, pc, d, mine]) => `<span class="mv ${mine ? 'mine' : ''}" data-ask="${tk}">${fav(s)}${tk}<span class="${d > 0 ? 'up' : 'dn'}">${pc}</span>${mine ? '<span class="pill lav">MINE</span>' : ''}</span>`).join('') }
 document.querySelectorAll('#seg button').forEach((b) => b.onclick = () => { document.querySelectorAll('#seg button').forEach((x) => x.classList.toggle('on', x === b)); mv(b.dataset.l) })

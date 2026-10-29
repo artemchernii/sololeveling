@@ -3,7 +3,8 @@ import { useEffect, useMemo } from 'react'
 
 import { api } from '../../../../convex/_generated/api'
 import { ModelPick } from '@/components/ask/ModelPick'
-import { shareOfMine } from '@/lib/ideasFacts'
+import { ideasFacts, shareOfMine } from '@/lib/ideasFacts'
+import { planText } from '@/lib/ideasRead'
 import type { AllocRow } from '@/lib/insightsMine'
 import type { Fact } from '@/lib/marketRead'
 import { ideasSuggested } from '@/lib/ideasSuggest'
@@ -11,7 +12,7 @@ import { Ask } from './Ask'
 import type { Suggestion } from './Ask'
 import { PARTS, PartIcon } from './IdeasParts'
 import { Star } from './AskBlocks'
-import { offerQuestions, usePrefill } from './askPrefill'
+import { offerQuestions, setAskContext, usePrefill } from './askPrefill'
 import { IdeasBoard } from './IdeasBoard'
 import { useAsk } from './useAsk'
 import { useBoard, useCash, useIdeasRead } from './useIdeas'
@@ -81,6 +82,29 @@ export function IdeasTab({
       })),
     [read.shown, board.answer, held, cash],
   )
+  /* ASK from here knows his money: today's numbers, and what the read was
+     given (spending among them), and the plan on the board. */
+  useEffect(() => {
+    const shown = read.shown
+    const live =
+      cash && held && board.answer
+        ? ideasFacts({
+            cash,
+            spend: null,
+            held,
+            tickers: board.answer.tickers,
+            strip: board.answer.strip,
+            movers: board.answer.movers,
+            extra,
+          })
+        : []
+    const had = new Set(live.map((f) => f.key))
+    setAskContext({
+      facts: [...live, ...(shown?.facts ?? []).filter((f) => !had.has(f.key))],
+      plan: planText(shown?.board),
+    })
+    return () => setAskContext(null)
+  }, [cash, held, board.answer, extra, read.shown])
   useEffect(() => {
     offerQuestions(suggested)
     return () => offerQuestions(null)

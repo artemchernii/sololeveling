@@ -132,7 +132,13 @@ test('S2 ✦ on a line → the docked ASK opens on it; ASK → words, a chart th
   )
   await chat.getByTestId('ask-send').click()
   await expect(chat.getByTestId('ask-q-line')).toHaveText('✦ AVGO')
-  await expect(chat.getByTestId('ask-asking')).toContainText('🌐 SEARCHING')
+  await expect(chat.getByTestId('ask-asking')).toContainText(
+    'SEARCHING THE WEB',
+  )
+  /* It carries his money: holdings, cash and the plan. */
+  await expect(chat.getByTestId('ask-asking')).toContainText('HOLDINGS')
+  await expect(chat.getByTestId('ask-asking')).toContainText('IDEAS PLAN')
+  await expect(chat.getByTestId('ask-asking')).not.toContainText('🌐')
   await expect(chat.getByTestId('ask-ctx')).toHaveCount(0)
   const answer = chat.getByTestId('ask-answer')
   await expect(answer).toContainText('spending, not demand', {
@@ -165,9 +171,7 @@ test('S3 a screenshot dropped in goes with the question and is not saved', async
   await chat.getByTestId('ask-send').click()
   const q = chat.getByTestId('ask-q')
   await expect(q.getByTestId('ask-shot')).toContainText('NOT SAVED')
-  await expect(chat.getByTestId('ask-asking')).toContainText(
-    'READING THE SCREENSHOT',
-  )
+  await expect(chat.getByTestId('ask-asking')).toContainText('SCREENSHOT')
   await expect(chat.getByTestId('ask-answer')).toBeVisible({ timeout: 15_000 })
 })
 

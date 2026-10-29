@@ -103,16 +103,18 @@ test('S2 the web is always searched: sources and searches', async () => {
   ).toBe(0.08)
 })
 
-test('S7 asked for ideas: tickers not owned and not in NEXT, on the same cap', async () => {
+test('S7 asked for ideas: tickers not owned, three at most, on the same cap', async () => {
   const { t, me } = await setup()
   await me.mutation(api.marketReads.run, { facts, via: 'api' })
   await t.finishAllScheduledFunctions(vi.runAllTimers)
   const r = await ask(me, 'Give me more ideas')
   expect(r.ok && r.answer.kind).toBe('ideas')
-  /* The canned read's NEXT shows NOVO-B.CO and ZZZZ. */
+  /* NEXT's cards are gone (29 Oct): nothing skipped; ZZZZ is dropped on
+     screen when the market does not know it. */
   expect(r.ok && r.answer.ideas.map((i) => i.ticker)).toEqual([
     'JNJ',
     'EXV1.DE',
+    'ZZZZ',
   ])
   expect(
     (await me.query(api.marketReads.forMonth, { month: month() })).spent,

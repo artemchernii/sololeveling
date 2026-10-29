@@ -135,7 +135,12 @@ export function askPrompt(
   history: Array<Said> = [],
   /** IDEAS (29 Oct): the line its ✦ opened on, and a screenshot — a
       file Claude Code reads on his Mac, or 'attached' to the message. */
-  more: { line: LineContext | null; shot: string | null } = {
+  more: {
+    line: LineContext | null
+    shot: string | null
+    /** His IDEAS plan, when asked from IDEAS. */
+    plan?: string | null
+  } = {
     line: null,
     shot: null,
   },
@@ -185,11 +190,21 @@ The question below may follow on from these.
 }
 
 ${
-  more.line
-    ? `He asks about this line of his IDEAS board: ${more.line.ticker} in ${more.line.part.toUpperCase()}, the call ${more.line.call.toUpperCase()}${more.line.eur > 0 ? ` with €${more.line.eur}` : ''}, because: ${more.line.why}
+  more.plan
+    ? `You know his money: the facts below carry his cash (cash-), monthly
+spending (spend-), every holding with its euros and share of MINE (pos-)
+and each one's fetched price and signals (tk-). Answer about HIS money:
+name his holdings, his euros, his plan. His IDEAS plan for his idle cash,
+on his screen now:
+${more.plan}
 `
     : ''
 }${
+    more.line
+      ? `He asks about this line of his IDEAS board: ${more.line.ticker} in ${more.line.part.toUpperCase()}, the call ${more.line.call.toUpperCase()}${more.line.eur > 0 ? ` with €${more.line.eur}` : ''}, because: ${more.line.why}
+`
+      : ''
+  }${
     more.shot
       ? `He dropped a screenshot with the question${more.shot === 'attached' ? ' (attached)' : `: read the image file ${more.shot}`}. Read what is on it (rows, prices, a chart) and answer from it.
 `

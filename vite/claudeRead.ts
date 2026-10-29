@@ -175,7 +175,7 @@ export function claudeRead(): Plugin {
       route(
         CLAUDE_ASK_PATH,
         async (json) => {
-          const { facts, read, question, today, history, line, shot } =
+          const { facts, read, question, today, history, line, shot, plan } =
             JSON.parse(json) as {
               facts: Array<Fact>
               read: ReadContext | null
@@ -184,6 +184,7 @@ export function claudeRead(): Plugin {
               history?: Array<Said>
               line?: LineContext | null
               shot?: string | null
+              plan?: string | null
             }
           const img = shot ? shotOf(shot) : null
           /* A dropped screenshot: a file in a folder of its own that
@@ -197,6 +198,7 @@ export function claudeRead(): Plugin {
               askPrompt(facts, read, question, true, today, history ?? [], {
                 line: line ?? null,
                 shot: file,
+                plan: plan?.slice(0, 4000) ?? null,
               }),
               ASK_SCHEMA,
               true,

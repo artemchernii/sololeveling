@@ -84,6 +84,8 @@ export const ask = aiAction({
     ),
     /** A dropped screenshot as a data URL; sent on, never stored. */
     shot: v.optional(v.string()),
+    /** His IDEAS plan, as text, when asked from IDEAS. */
+    plan: v.optional(v.string()),
     /** The thread so far on the page, oldest first; never stored. */
     history: v.optional(v.array(v.object({ q: v.string(), a: v.string() }))),
   },
@@ -169,7 +171,11 @@ export const ask = aiAction({
         true,
         new Date().toISOString().slice(0, 10),
         (args.history ?? []).slice(-MAX_HISTORY),
-        { line: args.line ?? null, shot: img ? 'attached' : null },
+        {
+          line: args.line ?? null,
+          shot: img ? 'attached' : null,
+          plan: args.plan?.slice(0, 4000) ?? null,
+        },
       )
       const messages: Array<Anthropic.MessageParam> = [
         {

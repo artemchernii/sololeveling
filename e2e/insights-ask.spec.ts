@@ -60,19 +60,21 @@ test('S1 a question → asking at once → an answer with its kind, facts, model
   await page.getByTestId('ask-suggest').first().click()
   /* Pressed: the question shows at once, asking, and nothing more can be sent. */
   await expect(page.getByTestId('ask-q')).toContainText('Explain my allocation')
-  await expect(page.getByTestId('ask-asking')).toContainText('🌐 SEARCHING')
+  await expect(page.getByTestId('ask-asking')).toContainText(
+    'SEARCHING THE WEB',
+  )
   await expect(page.getByTestId('ask-input')).toBeDisabled()
 
   const answer = page.getByTestId('ask-answer')
   await expect(answer).toBeVisible({ timeout: 15_000 })
   await expect(answer).toHaveAttribute('data-kind', 'allocation')
-  await expect(answer).toContainText('⚖️ ALLOCATION')
+  await expect(answer).toContainText('ALLOCATION')
   await expect(answer).toContainText('one US chip company')
   await expect(answer.getByTestId('ask-fact')).toHaveCount(2)
   await expect(answer.getByTestId('ask-fact').first()).toContainText('MINE')
   await expect(page.getByTestId('ask-stamp')).toContainText('✦ SONNET 5.5')
   await expect(page.getByTestId('ask-stamp')).toContainText('28K IN · 420 OUT')
-  await expect(page.getByTestId('ask-stamp')).toContainText('💳 $0.08')
+  await expect(page.getByTestId('ask-stamp')).toContainText('$0.08')
   await expect(page.getByTestId('ask-pay')).toHaveText(SPEND('0.08'))
   await expect(page.getByTestId('ask-fab-count')).toHaveText('1')
   await expect(page.getByTestId('ask-input')).toBeEnabled()
@@ -93,7 +95,9 @@ test('S2 a typed question searches the web → sources and searches', async ({
   await page.getByTestId('ask-input').fill('What did Powell say this week?')
   await page.getByTestId('ask-input').press('Enter')
   await expect(page.getByTestId('ask-q')).toContainText('What did Powell')
-  await expect(page.getByTestId('ask-asking')).toContainText('🌐 SEARCHING')
+  await expect(page.getByTestId('ask-asking')).toContainText(
+    'SEARCHING THE WEB',
+  )
   const answer = page.getByTestId('ask-answer')
   await expect(answer).toHaveAttribute('data-kind', 'rates', {
     timeout: 15_000,
@@ -101,8 +105,8 @@ test('S2 a typed question searches the web → sources and searches', async ({
   await expect(page.getByTestId('ask-sources')).toContainText(
     'REUTERS · 16 OCT',
   )
-  await expect(page.getByTestId('ask-stamp')).toContainText('🌐 2 SEARCHES')
-  await expect(page.getByTestId('ask-stamp')).toContainText('💳 $0.08')
+  await expect(page.getByTestId('ask-stamp')).toContainText('2 SEARCHES')
+  await expect(page.getByTestId('ask-stamp')).toContainText('$0.08')
   await page.screenshot(shot('insights-ask-web'))
 })
 
@@ -206,7 +210,7 @@ test('S7 asked for ideas → cards with fetched prices; owned and unknown ticker
   await expect(answer).toHaveAttribute('data-kind', 'ideas', {
     timeout: 15_000,
   })
-  await expect(answer).toContainText('💡 IDEAS')
+  await expect(answer).toContainText('IDEAS')
   const cards = answer.getByTestId('ask-idea')
   /* Three at most: JNJ, EXV1.DE and ZZZZ, which no market knows. */
   await expect(cards).toHaveCount(2, { timeout: 15_000 })

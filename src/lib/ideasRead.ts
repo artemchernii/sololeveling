@@ -275,3 +275,19 @@ export function parseIdeasRead(
     },
   }
 }
+
+/** The plan as ASK is told it: the parts and each line in a few words. */
+export function planText(b: Board | null | undefined): string | null {
+  if (!b) return null
+  const e = (n: number) => `€${Math.round(n)}`
+  return [
+    `Take: ${b.take.replace(/\*\*/g, '')}`,
+    `Parts: KEEP ${e(b.parts.keep)}, PROTECT ${e(b.parts.protect)}, ADD TO MINE ${e(b.parts.add)}, NEW ${e(b.parts.new)}`,
+    ...b.lines.map(
+      (l) =>
+        `- ${l.part.toUpperCase()} ${l.ticker} (${l.name}): ${l.call.toUpperCase()} ${e(l.eur)} — ${l.why} ${l.eurWhy}`,
+    ),
+  ]
+    .join('\n')
+    .slice(0, 4000)
+}

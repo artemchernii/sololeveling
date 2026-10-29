@@ -1020,3 +1020,40 @@
     width: min(300px, 86vw);
   }
 }
+
+/* ASK while it works: what the question carries, then the live step. */
+.ask-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+.ask-step {
+  font: 600 9.5px var(--font-mono);
+  letter-spacing: 0.1em;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--color-ink-300);
+  background: color-mix(in oklch, var(--color-ink-400) 10%, transparent);
+  animation: ins-arrive 300ms var(--motion-ease) both;
+  &.live {
+    color: var(--color-lav-300);
+    background: color-mix(in oklch, var(--color-lav-400) 14%, transparent);
+    &::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      margin-right: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      vertical-align: 1px;
+      animation: ask-blink 1s infinite;
+    }
+  }
+}
+@keyframes ask-blink {
+  50% {
+    opacity: 0.2;
+  }
+}

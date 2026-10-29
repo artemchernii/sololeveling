@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { AccountLogo } from '@/components/finances/Logo'
 import { askCopyText, dayWord, siteWord } from '@/lib/askCopy'
@@ -61,11 +61,18 @@ export function TurnView({
           <span className="ask-orb busy">
             <Star />
           </span>
-          <div className="body think">
-            <span className="label-caps text-lav-300">
-              {t.shot ? 'READING THE SCREENSHOT · 🌐' : '🌐 SEARCHING'}
+          <div className="body think ask-steps">
+            {/* What it was given, then the step it is on — no emoji, his
+                29 Oct "searching and shitty emoji is awful". */}
+            {(t.given ?? []).map((g) => (
+              <span key={g} className="ask-step">
+                {g}
+              </span>
+            ))}
+            {t.shot ? <span className="ask-step">SCREENSHOT</span> : null}
+            <span className="ask-step live">
+              SEARCHING THE WEB · <Since at={t.at} />
             </span>
-            <div className="ins-scan" />
           </div>
         </div>
       ) : t.state === 'failed' ? (
@@ -145,9 +152,7 @@ function Answer({ t }: { t: Turn }) {
         <Star />
       </span>
       <div className="body">
-        <span className="ask-kind">
-          {look.icon} {look.name}
-        </span>
+        <span className="ask-kind">{look.name}</span>
         <p>
           <Words text={a.answer} />
         </p>
@@ -192,16 +197,16 @@ function Answer({ t }: { t: Turn }) {
             <span className="ask-pill m">✦ {modelWord(s.model)}</span>
             {s.searches > 0 ? (
               <span className="ask-pill m">
-                🌐 {s.searches} {s.searches === 1 ? 'SEARCH' : 'SEARCHES'}
+                {s.searches} {s.searches === 1 ? 'SEARCH' : 'SEARCHES'}
               </span>
             ) : null}
             <span className="ask-pill">
               {tokens(s.inputTokens)} IN · {tokens(s.outputTokens)} OUT
             </span>
             {s.paidBy === 'pro' ? (
-              <span className="ask-pill g">⚡ PRO</span>
+              <span className="ask-pill g">PRO PLAN</span>
             ) : (
-              <span className="ask-pill c">💳 {usd(s.cost)}</span>
+              <span className="ask-pill c">{usd(s.cost)}</span>
             )}
             <span className="ask-pill">{clock(t.at)}</span>
             <CopyPill text={text} onCopied={glow} />
@@ -220,5 +225,20 @@ function FactPill({ f }: { f: Fact }) {
     >
       {factIcon(f.key)} {f.label} {f.value}
     </span>
+  )
+}
+
+/** Seconds since the press, counting. */
+function Since({ at }: { at: number }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+  const s = Math.max(0, Math.floor((now - at) / 1000))
+  return (
+    <>
+      {Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}
+    </>
   )
 }

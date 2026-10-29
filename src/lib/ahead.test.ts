@@ -8,6 +8,7 @@ import {
   salaryBill,
   yearAhead,
 } from './ahead'
+import { payeeKey } from './payee'
 import type { AheadBill, AheadRow } from './ahead'
 
 /* Local midnights in Lisbon (vitest pins TZ). */
@@ -82,6 +83,18 @@ describe('paysBill', () => {
       true,
     )
     expect(paysBill(bill({}), row({ kind: 'income' }))).toBe(false)
+  })
+
+  it("matches BPI's longer EDP line to the EDP bill (29 Oct)", () => {
+    const edp = bill({ key: payeeKey('Edp Comercial'), amount: 29.11 })
+    const paid = row({
+      key: payeeKey('DD EDP COMERCIAL-COMERCIAL.ENERGIA S.A'),
+      amount: 29.55,
+    })
+    expect(paysBill(edp, paid)).toBe(true)
+    expect(
+      paysBill(bill({ key: 'UBER' }), row({ key: 'UBER EATS', amount: 112 })),
+    ).toBe(false)
   })
 
   it('takes any amount to the payee for one that varies', () => {

@@ -151,6 +151,31 @@
   .chat.drop { outline: 2px dashed var(--lav-400); outline-offset: -6px }
   .dropzone { position:absolute; inset: 0; display:grid; place-items:center; border-radius: 16px; background: color-mix(in oklch, var(--lav-400) 14%, rgba(255,255,255,.85)); font: 700 12px var(--mono); letter-spacing: .2em; color: var(--lav-300); z-index: 5 }
   .chat { position: relative }
+
+  /* the market strip, Yahoo's eight */
+  .mstrip { display:grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; padding: 8px; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow) }
+  @media (max-width: 1000px) { .mstrip { grid-template-columns: repeat(4, minmax(0, 1fr)) } }
+  @media (max-width: 520px) { .mstrip { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+  .mk { display:flex; flex-direction:column; gap: 2px; padding: 6px 8px; border-radius: 9px; min-width: 0 }
+  .mk:hover { background: rgba(30,30,50,.04) }
+  .mk .n { font: 700 9.5px var(--mono); letter-spacing: .08em; color: var(--ink-300); white-space: nowrap; overflow:hidden; text-overflow: ellipsis }
+  .mk .v { font: 600 13px var(--mono) }
+  .mk .d { font: 600 10px var(--mono) }
+  .mk svg { width: 100%; height: 18px }
+  .mk svg polyline { fill: none; stroke-width: 1.4 }
+  .up { color: var(--good) } .dn { color: var(--bad) }
+
+  /* trending, gainers, losers */
+  .seg { display:inline-flex; padding: 3px; gap: 2px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.6) }
+  .seg button { font: 700 9.5px var(--mono); letter-spacing: .12em; padding: 5px 10px; border-radius: 999px; border: 0; background: transparent; color: var(--ink-400); cursor: pointer }
+  .seg button.on { color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 18%, white) }
+  .trows { display:grid; grid-template-columns: repeat(2, 1fr); gap: 0 18px }
+  @media (max-width: 800px) { .trows { grid-template-columns: 1fr } }
+  .tr { display:grid; grid-template-columns: 26px 1fr 80px auto auto auto; gap: 10px; align-items:center; padding: 8px 0; border-top: 1px solid var(--edge); animation: up .4s both }
+  .tr .tk { font: 700 12px var(--mono) } .tr .co { font-size: 11px; color: var(--ink-400); white-space: nowrap; overflow:hidden; text-overflow: ellipsis }
+  .tr svg { width: 80px; height: 22px } .tr svg polyline { fill: none; stroke-width: 1.4 }
+  .tr .p { font: 600 12px var(--mono); text-align: right }
+  .tr .ask { font: 700 9px var(--mono); letter-spacing: .1em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--sys-edge); color: var(--lav-300); background: transparent; cursor: pointer }
 </style>
 </head>
 <body>
@@ -171,6 +196,16 @@
     <div class="tab"><span class="n">5</span>CLOSE <span class="pill bad">▼ 0.6%</span></div>
   </div>
 
+
+  <div class="mstrip" id="mstrip"></div>
+  <div class="row caps" style="justify-content:flex-end;margin-top:-8px">YAHOO · 21:31 · 15 MIN LATE · NOT SAVED</div>
+
+  <div class="tile">
+    <div class="bhead"><span>🔥</span><span class="t">MOVERS · US</span><span class="grow"></span>
+      <span class="seg" id="seg"><button data-l="trending" class="on">TRENDING</button><button data-l="gainers">GAINERS</button><button data-l="losers">LOSERS</button><button data-l="active">ACTIVE</button></span>
+    </div>
+    <div class="trows" id="trows"></div>
+  </div>
   <div class="tile strip">
     <span class="caps">💡 Ideas · 3</span>
     <span class="mini"><span class="logo"><img src="https://www.google.com/s2/favicons?domain=lilly.com&sz=64"></span><b>LLY</b><span class="pill ink">💊 5% · 9%</span><span class="pill bad">OVERBOUGHT</span></span>
@@ -276,7 +311,7 @@ const ANSWER = `
 
   <div class="tile c6">
     <div class="bhead"><span>📈</span><span class="t">EUR / USD · GOLD IN €</span><span class="grow"></span><span class="pill ink">1Y</span></div>
-    ${chart([[series(7, -0.04), 'var(--eur)'], [series(11, 0.3), 'var(--gold)']], [['EUR/USD 1.162 · ▼ 3.1% 1M', 'var(--eur)'], ['GOLD €3,410 · ▲ 41% 1Y', 'var(--gold)']])}
+    ${chart([[series(7, -0.04), 'var(--eur)'], [series(11, 0.3), 'var(--gold)']], [['EUR/USD 1.162 · ▼ 3.1% 1M', 'var(--eur)'], ['GOLD €3,477 · ▲ 41% 1Y', 'var(--gold)']])}
   </div>
 
   <div class="tile c6">
@@ -338,6 +373,41 @@ document.querySelectorAll('.ctl button').forEach((b) => b.addEventListener('clic
   render(b.dataset.s)
 }))
 render('answer')
+
+const MK = [
+  ['S&P 500', '7,720.39', '−23.59 · −0.30%', -1, 2],
+  ['DOW 30', '52,342.56', '−132.54 · −0.25%', -1, 5],
+  ['NASDAQ', '26,184.73', '−365.13 · −1.38%', -1, 8],
+  ['RUSSELL 2000', '2,859.22', '+28.71 · +1.01%', 1, 3],
+  ['10Y BOND', '4.989%', '−0.056 · −1.11%', -1, 9],
+  ['VIX', '17.20', '+0.29 · +1.71%', 1, 6],
+  ['GOLD', '$4,033.30', '−18.30 · −0.45%', -1, 12],
+  ['BITCOIN', '$78,966', '−2,300 · −2.83%', -1, 4],
+]
+const LISTS = {
+  trending: [['AMZN','Amazon.com','amazon.com','243.79','−4.25%',-1,true],['INTC','Intel','intel.com','92.07','−3.62%',-1],['SNDK','Sandisk','sandisk.com','1,330.05','−5.32%',-1],['RDDT','Reddit','reddit.com','129.60','−3.79%',-1],['CAT','Caterpillar','cat.com','647.39','−9.25%',-1],['GOOGL','Alphabet','google.com','283.82','−12.6%',-1,true]],
+  gainers: [['FMCC','Freddie Mac','freddiemac.com','14.21','+13.46%',1],['GM','General Motors','gm.com','71.30','+3.93%',1],['IWM','Russell 2000 ETF','ishares.com','284.10','+1.01%',1],['DASH','DoorDash','doordash.com','179.00','+5.6%',1,true]],
+  losers: [['GOOGL','Alphabet','google.com','283.82','−12.6%',-1,true],['CAT','Caterpillar','cat.com','647.39','−9.25%',-1],['SNDK','Sandisk','sandisk.com','1,330.05','−5.32%',-1],['AMZN','Amazon.com','amazon.com','243.79','−4.25%',-1,true]],
+  active: [['NVDA','NVIDIA','nvidia.com','182.40','−1.9%',-1],['AMZN','Amazon.com','amazon.com','243.79','−4.25%',-1,true],['INTC','Intel','intel.com','92.07','−3.62%',-1],['TSLA','Tesla','tesla.com','441.20','+0.8%',1]],
+}
+function spk(seed, dir, w = 100, h = 18) {
+  let x = seed * 7919 + 13
+  const rnd = () => ((x = (x * 9301 + 49297) % 233280) / 233280)
+  const o = []; let v = 50
+  for (let i = 0; i < 40; i++) { v += (rnd() - 0.5) * 6 + dir * 0.35; o.push(v) }
+  const lo = Math.min(...o), hi = Math.max(...o)
+  const pts = o.map((y, i) => `${(i / 39) * w},${h - ((y - lo) / (hi - lo || 1)) * (h - 2) - 1}`).join(' ')
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" style="stroke:var(${dir > 0 ? '--good' : '--bad'})"/></svg>`
+}
+document.getElementById('mstrip').innerHTML = MK.map(([n, v, d, dir, seed]) => `<div class="mk"><span class="n">${n}</span><span class="v">${v}</span><span class="d ${dir > 0 ? 'up' : 'dn'}">${d}</span>${spk(seed, dir)}</div>`).join('')
+function list(l) {
+  document.getElementById('trows').innerHTML = LISTS[l].map(([tk, co, site, px, pc, dir, mine], i) => `<div class="tr" style="animation-delay:${i * 40}ms">${fav(site)}<span><div class="row"><span class="tk">${tk}</span>${mine ? '<span class="pill lav">IN MINE</span>' : ''}</div><div class="co">${co}</div></span>${spk(i * 3 + tk.length, dir, 80, 22)}<span class="p">${px}</span><span class="pill ${dir > 0 ? 'good' : 'bad'}">${pc}</span><button class="ask">✦ ASK</button></div>`).join('')
+}
+document.querySelectorAll('#seg button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('#seg button').forEach((x) => x.classList.toggle('on', x === b)); list(b.dataset.l)
+}))
+list('trending')
+
 </script>
 </body>
 </html>

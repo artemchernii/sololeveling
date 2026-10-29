@@ -27,7 +27,7 @@ describe('askCopyText', () => {
         '## Explain my allocation',
         '⚖️ ALLOCATION',
         'Tech is **41%** of it.',
-        '✦ SONNET 5.5 · 21 OCT 14:35 · RESEARCH · NOT ADVICE',
+        '✦ SONNET 5.5 · 21 OCT 14:35',
       ].join('\n\n'),
     )
   })
@@ -67,9 +67,9 @@ describe('askCopyText', () => {
         '💡 IDEAS',
         'Tech is **41%** of it.',
         'FACTS\n- 💻 TECH · MINE 41% · WORLD 26%\n- 💡 IN NEXT · NOVO B · RHM',
-        'IDEAS · MODEL · NOT ADVICE\n- JNJ · Johnson & Johnson — Medicines, steady dividend\n  ▲ Health spending grows\n  ▼ Lawsuits\n  ✕ Wrong if two launches miss',
+        'IDEAS\n- JNJ · Johnson & Johnson — Medicines, steady dividend\n  ▲ Health spending grows\n  ▼ Lawsuits\n  ✕ Wrong if two launches miss',
         'SOURCES\n- REUTERS · 16 OCT · https://www.reuters.com/a\n- FED · https://fed.gov/b',
-        '✦ SONNET 5.5 · 1 SEARCH · 21 OCT 14:35 · RESEARCH · NOT ADVICE',
+        '✦ SONNET 5.5 · 1 SEARCH · 21 OCT 14:35',
       ].join('\n\n'),
     )
   })

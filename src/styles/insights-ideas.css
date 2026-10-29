@@ -444,18 +444,41 @@
     color: var(--color-lav-300);
   }
 }
-@media (max-width: 1399px) {
+/* The board's own width decides, not the window's: beside the dock it
+   is narrower than the page. Narrow: the take goes under the cash, and a
+   line keeps its chips and what MINE holds on a row of their own. */
+.idb-board {
+  container-type: inline-size;
+}
+@container (max-width: 860px) {
+  .idb-head {
+    grid-template-columns: auto 1fr;
+    & .take {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+  }
   .idb-ln {
     grid-template-columns: 28px minmax(0, 1fr) 58px 76px 28px;
-    & .idb-held,
     & > .idb-spark,
-    & > .ask-shim,
-    & .idb-chips {
+    & > .ask-shim {
       display: none;
+    }
+    & .idb-held {
+      grid-column: 2 / 3;
+      grid-row: 2;
+      flex-direction: row;
+      align-items: baseline;
+      gap: 6px;
+    }
+    & .idb-chips {
+      grid-column: 3 / -1;
+      grid-row: 2;
+      justify-content: flex-end;
     }
   }
 }
-@media (max-width: 640px) {
+@container (max-width: 520px) {
   .idb-head {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -470,6 +493,14 @@
     grid-template-columns: 28px minmax(0, 1fr) 52px 70px 28px;
     gap: 8px;
     padding: 10px 12px;
+    & .idb-held {
+      grid-column: 2 / -1;
+    }
+    & .idb-chips {
+      grid-column: 2 / -1;
+      grid-row: 3;
+      justify-content: flex-start;
+    }
   }
   .idb-why {
     grid-column: 1 / -1;

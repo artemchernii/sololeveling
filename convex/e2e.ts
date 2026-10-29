@@ -45,6 +45,7 @@ const TABLES: Array<TableNames> = [
   'weekReads',
   'askReplies',
   'marketReads',
+  'ideasReads',
   'aiSpend',
   'projects',
   'commits',

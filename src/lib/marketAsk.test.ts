@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 
-import { askPrompt, parseAsk } from './marketAsk'
+import { askPrompt, parseAsk, shotOf } from './marketAsk'
 import { CANNED_ASK } from './marketAskCanned'
 
 const keys = ['us-cpi', 'mine', 'sec-tech']
@@ -113,4 +113,41 @@ test('a follow-up carries the thread; 🌐 asks for recent news first', () => {
   expect(askPrompt(facts, null, 'q', false, '2026-10-21')).toContain(
     'needs the 🌐',
   )
+})
+
+test('IDEAS: a chart of known tickers and a table are kept; a screenshot is an image or nothing', () => {
+  const r = parseAsk(
+    {
+      kind: 'ideas',
+      answer: 'x',
+      factKeys: [],
+      sources: [],
+      ideas: [],
+      charts: [{ tickers: ['avgo', 'bad ticker!'], range: '5y' }],
+      tables: [
+        { head: ['', 'A', 'B'], rows: [['P/E', '1', '2'], ['short']] },
+        { head: ['one'], rows: [['x']] },
+      ],
+    },
+    [],
+  )
+  expect(r.ok && r.answer.charts).toEqual([{ tickers: ['AVGO'], range: '6mo' }])
+  expect(r.ok && r.answer.tables).toEqual([
+    { head: ['', 'A', 'B'], rows: [['P/E', '1', '2']] },
+  ])
+  expect(shotOf('data:image/png;base64,AAAA')).toEqual({
+    mediaType: 'image/png',
+    ext: 'png',
+    data: 'AAAA',
+  })
+  expect(shotOf('data:text/html;base64,AAAA')).toBeNull()
+})
+
+test('IDEAS: the prompt carries the line and the screenshot', () => {
+  const p = askPrompt([], null, 'q?', true, '2026-10-29', [], {
+    line: { ticker: 'GOOGL', part: 'add', call: 'add', eur: 2500, why: 'fell' },
+    shot: '/tmp/x/shot.png',
+  })
+  expect(p).toContain('GOOGL in ADD, the call ADD with €2500')
+  expect(p).toContain('read the image file /tmp/x/shot.png')
 })

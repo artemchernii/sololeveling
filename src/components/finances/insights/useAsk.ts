@@ -87,7 +87,8 @@ export function useAsk(r: Read) {
       : more
     try {
       const facts = await r.factsNow()
-      const skip = r.shown?.read?.ideas.map((i) => i.ticker) ?? []
+      /* Since IDEAS became the board (29 Oct) no NEXT cards to skip. */
+      const skip: Array<string> = []
       /* The answered turns before this one: a follow-up reads on. */
       const history: Array<Said> = kept
         .filter((t) => t.id < id && t.state === 'done' && t.answer)

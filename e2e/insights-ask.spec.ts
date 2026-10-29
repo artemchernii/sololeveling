@@ -60,9 +60,7 @@ test('S1 a question → asking at once → an answer with its kind, facts, model
   await page.getByTestId('ask-suggest').first().click()
   /* Pressed: the question shows at once, asking, and nothing more can be sent. */
   await expect(page.getByTestId('ask-q')).toContainText('Explain my allocation')
-  await expect(page.getByTestId('ask-asking')).toContainText(
-    'READING THE FACTS',
-  )
+  await expect(page.getByTestId('ask-asking')).toContainText('🌐 SEARCHING')
   await expect(page.getByTestId('ask-input')).toBeDisabled()
 
   const answer = page.getByTestId('ask-answer')
@@ -73,9 +71,9 @@ test('S1 a question → asking at once → an answer with its kind, facts, model
   await expect(answer.getByTestId('ask-fact')).toHaveCount(2)
   await expect(answer.getByTestId('ask-fact').first()).toContainText('MINE')
   await expect(page.getByTestId('ask-stamp')).toContainText('✦ SONNET 5.5')
-  await expect(page.getByTestId('ask-stamp')).toContainText('9.4K IN · 380 OUT')
-  await expect(page.getByTestId('ask-stamp')).toContainText('💳 $0.02')
-  await expect(page.getByTestId('ask-pay')).toHaveText(SPEND('0.02'))
+  await expect(page.getByTestId('ask-stamp')).toContainText('28K IN · 420 OUT')
+  await expect(page.getByTestId('ask-stamp')).toContainText('💳 $0.08')
+  await expect(page.getByTestId('ask-pay')).toHaveText(SPEND('0.08'))
   await expect(page.getByTestId('ask-fab-count')).toHaveText('1')
   await expect(page.getByTestId('ask-input')).toBeEnabled()
   /* The four fold into SUGGESTED; a press opens them. */
@@ -87,16 +85,14 @@ test('S1 a question → asking at once → an answer with its kind, facts, model
   await page.screenshot(shot('insights-ask-answer'))
 })
 
-test('S2 🌐 on a typed question → sources and searches', async ({ page }) => {
+test('S2 a typed question searches the web → sources and searches', async ({
+  page,
+}) => {
   await open(page)
-  await page.getByTestId('ask-web').click()
-  await expect(page.getByTestId('ask-web')).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
+  await expect(page.getByTestId('ask-web')).toHaveCount(0)
   await page.getByTestId('ask-input').fill('What did Powell say this week?')
   await page.getByTestId('ask-input').press('Enter')
-  await expect(page.getByTestId('ask-q')).toContainText('🌐 What did Powell')
+  await expect(page.getByTestId('ask-q')).toContainText('What did Powell')
   await expect(page.getByTestId('ask-asking')).toContainText('🌐 SEARCHING')
   const answer = page.getByTestId('ask-answer')
   await expect(answer).toHaveAttribute('data-kind', 'rates', {
@@ -178,7 +174,7 @@ test('S5 ✕, Esc and a tap outside close it, the thread stays; switching rooms 
   await expect(page.getByTestId('ask-thread')).toHaveCount(0)
   await expect(page.getByTestId('ask-suggest')).toHaveCount(4)
   /* The answer's cost was counted; the words were not kept. */
-  await expect(page.getByTestId('ask-pay')).toHaveText(SPEND('0.02'))
+  await expect(page.getByTestId('ask-pay')).toHaveText(SPEND('0.08'))
 })
 
 test('S6 phone width: a bottom sheet, no sideways scroll', async ({ page }) => {
@@ -200,23 +196,10 @@ test('S6 phone width: a bottom sheet, no sideways scroll', async ({ page }) => {
   await page.screenshot(shot('insights-ask-phone'))
 })
 
-test('S7 asked for ideas → cards with fetched prices; owned, in NEXT and unknown tickers left out', async ({
+test('S7 asked for ideas → cards with fetched prices; owned and unknown tickers left out', async ({
   page,
 }) => {
   await open(page)
-  await page.keyboard.press('Escape')
-  /* A read first, so NEXT shows its ideas. */
-  await page.getByTestId('read-market').click()
-  await expect(page.getByTestId('read-hero')).toHaveAttribute(
-    'data-state',
-    'done',
-    { timeout: 15_000 },
-  )
-  await page.locator('[data-tab="ideas"]').click()
-  await expect(page.getByTestId('idea-card')).toHaveCount(2, {
-    timeout: 15_000,
-  })
-  await openDrawer(page)
   await page.getByTestId('ask-input').fill('Give me more ideas')
   await page.getByTestId('ask-send').click()
   const answer = page.getByTestId('ask-answer')
@@ -224,22 +207,15 @@ test('S7 asked for ideas → cards with fetched prices; owned, in NEXT and unkno
     timeout: 15_000,
   })
   await expect(answer).toContainText('💡 IDEAS')
-  await expect(page.getByTestId('ask-in-next')).toContainText(
-    'IN NEXT · NOVO-B.CO',
-  )
   const cards = answer.getByTestId('ask-idea')
+  /* Three at most: JNJ, EXV1.DE and ZZZZ, which no market knows. */
   await expect(cards).toHaveCount(2, { timeout: 15_000 })
   await expect(answer.locator('[data-ticker="JNJ"]')).toContainText('$187')
-  await expect(answer.locator('[data-ticker="JNJ"]')).toContainText(
-    'MODEL · NOT ADVICE',
-  )
+  await expect(answer).not.toContainText('NOT ADVICE')
   await expect(answer.locator('[data-ticker="EXV1.DE"]')).toContainText(
     'WRONG IF',
   )
   await expect(answer.locator('[data-ticker="ZZZZ"]')).toHaveCount(0)
-  await expect(answer.locator('[data-ticker="NOVO-B.CO"]')).toHaveCount(0)
-  /* NEXT keeps its own two. */
-  await expect(page.getByTestId('idea-card')).toHaveCount(2)
   /* They arrive one after another, then stand. */
   await expect(cards.last()).toHaveCSS('opacity', '1')
   await answer.scrollIntoViewIfNeeded()
@@ -312,27 +288,6 @@ test('S8 ✦ on a read line, a box and an allocation line → the question in th
   await opened(page, /^Why is tech \d+%, world 26%\?$/, paid)
 })
 
-test('S9 ✦ ASK on an idea → edit it, ASK → asked like a typed question', async ({
-  page,
-}) => {
-  const paid = await withRead(page)
-  await page.locator('[data-tab="ideas"]').click()
-  const card = page.locator('[data-testid=idea-card][data-ticker="NOVO-B.CO"]')
-  await expect(card).toBeVisible({ timeout: 15_000 })
-  await card.getByTestId('ask-on').click()
-  await opened(page, 'What could go wrong with NOVO-B.CO?', paid)
-  await page.screenshot(shot('insights-ask-on-idea'))
-
-  await page.getByTestId('ask-input').press('End')
-  await page.getByTestId('ask-input').pressSequentially(' In a year')
-  await page.getByTestId('ask-send').click()
-  await expect(page.getByTestId('ask-q')).toContainText(
-    'What could go wrong with NOVO-B.CO? In a year',
-  )
-  await expect(page.getByTestId('ask-answer')).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByTestId('ask-fab-count')).toHaveText('1')
-})
-
 test('S10 phone width: the ✦ on a box shows without hover, the box keeps its keyboard down', async ({
   page,
 }) => {
@@ -366,7 +321,6 @@ test('S11 ⧉ COPY → ✓ COPIED at once, the clipboard holds the answer, back 
 }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await open(page)
-  await page.getByTestId('ask-web').click()
   await page.getByTestId('ask-input').fill('What did Powell say this week?')
   await page.getByTestId('ask-input').press('Enter')
   await expect(page.getByTestId('ask-answer')).toHaveAttribute(
@@ -383,7 +337,7 @@ test('S11 ⧉ COPY → ✓ COPIED at once, the clipboard holds the answer, back 
   await page.screenshot(shot('insights-ask-copied'))
 
   const text = await page.evaluate(() => navigator.clipboard.readText())
-  expect(text).toMatch(/^## 🌐 What did Powell say this week\?\n\n🏛️ RATES\n\n/)
+  expect(text).toMatch(/^## What did Powell say this week\?\n\n🏛️ RATES\n\n/)
   expect(text).toContain(
     'did not rule out a cut. Markets read it as **a likely cut**',
   )
@@ -392,7 +346,7 @@ test('S11 ⧉ COPY → ✓ COPIED at once, the clipboard holds the answer, back 
     'SOURCES\n- REUTERS · 16 OCT · https://www.reuters.com/markets/fed\n- FEDERALRESERVE · 16 OCT · ',
   )
   expect(text).toMatch(
-    /\n\n✦ SONNET 5\.5 · 2 SEARCHES · \d{1,2} [A-Z]{3} \d\d:\d\d · RESEARCH · NOT ADVICE$/,
+    /\n\n✦ SONNET 5\.5 · 2 SEARCHES · \d{1,2} [A-Z]{3} \d\d:\d\d$/,
   )
   await expect(copy).toHaveText('⧉ COPY', { timeout: 4000 })
 })

@@ -60,6 +60,7 @@ const OWNED: ReadonlyArray<[TableNames, string]> = [
   ['closeJobs', 'by_owner'],
   ['weekReads', 'by_owner_week'],
   ['marketReads', 'by_owner_month'],
+  ['ideasReads', 'by_owner'],
   ['aiSpend', 'by_owner_month'],
 ]
 

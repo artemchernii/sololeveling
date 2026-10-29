@@ -110,8 +110,8 @@ export const ask = aiAction({
       ownerId,
       month,
     })
-    /* NEXT already shows the read's ideas: an answer does not name them again. */
-    const skip = read?.ideas.map((i) => i.ticker) ?? []
+    /* NEXT's cards are gone (IDEAS is the board, 29 Oct): nothing to skip. */
+    const skip: Array<string> = []
 
     if (process.env.E2E === '1') {
       await new Promise((r) => setTimeout(r, 900))

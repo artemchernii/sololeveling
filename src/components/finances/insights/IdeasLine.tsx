@@ -78,6 +78,9 @@ export function IdeasLine({
     if (n.key === '') return [{ text: n.text, url: n.url }]
     const f = readFacts.find((x) => x.key === n.key)
     if (!f) return []
+    /* A ticker's facts are one row each, not one long line. */
+    if (f.key.startsWith('tk-'))
+      return f.value.split(' · ').map((v) => ({ text: v, url: '' }))
     return [{ text: `${factIcon(f.key)} ${f.label} ${f.value}`, url: '' }]
   })
   return (

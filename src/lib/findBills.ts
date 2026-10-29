@@ -94,7 +94,8 @@ export function isKnown(
   r: { key: string; amount: number },
 ): boolean {
   return known.some(
-    (k) => sameKey(k.key, r.key) && (k.varies || sameAmount(k.amount, r.amount)),
+    (k) =>
+      sameKey(k.key, r.key) && (k.varies || sameAmount(k.amount, r.amount)),
   )
 }
 

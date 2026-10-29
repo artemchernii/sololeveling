@@ -498,8 +498,8 @@
   }
   .idb-ln {
     grid-template-columns: 28px minmax(0, 1fr) 58px 76px 28px;
-    & > .idb-spark,
-    & > .ask-shim {
+    & .idb-facts > .idb-spark,
+    & .idb-facts > .ask-shim {
       display: none;
     }
     /* One row of facts under the name: what MINE holds, then today and

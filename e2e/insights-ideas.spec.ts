@@ -88,11 +88,26 @@ test('S1 before a read: cash, strip and movers; READ → reading → the plan in
   await page.locator('[data-testid=idb-mk][data-id=sp500]').hover()
   const card = page.getByTestId('idb-mk-card')
   await expect(card).toContainText('CLOSE BEFORE')
-  await card.getByTestId('idb-mk-range').nth(1).click()
+  /* The mouse crosses to the card and presses a range: it stays. */
+  await card.hover()
+  await card.getByTestId('idb-mk-range').nth(2).click()
   await expect(card.locator('polyline')).toHaveCount(1)
   await expect(card).toContainText('HIGH')
+  await card.getByTestId('idb-mk-range').nth(1).click()
+  await expect(card.getByTestId('idb-mk-range').nth(1)).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(card).toContainText('^GSPC')
   await page.screenshot(shot('ideas-market-card'))
+  /* Left alone it closes; a click pins it until Esc. */
   await page.mouse.move(0, 0)
+  await expect(card).toHaveCount(0)
+  await page.locator('[data-testid=idb-mk][data-id=gold]').click()
+  await page.mouse.move(0, 0)
+  await expect(card).toHaveClass(/pinned/)
+  await page.keyboard.press('Escape')
+  await expect(card).toHaveCount(0)
   await expect(page.getByTestId('idb-line').last()).toHaveCSS('opacity', '1')
   await page.screenshot({ ...shot('ideas-board'), fullPage: true })
 })

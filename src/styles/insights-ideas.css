@@ -894,21 +894,67 @@
     }
   }
 }
-.idb-pt.end .idb-tip,
-.idb-strip .mk.end .idb-tip {
+.idb-ptw.end .idb-tip,
+.idb-strip .mkw.end .idb-tip {
   left: auto;
   right: 0;
 }
 .idb-strip {
   position: relative;
-  & button.mk {
+  & .mkw {
     position: relative;
+    min-width: 0;
+  }
+  & button.mk {
+    width: 100%;
     text-align: left;
     border-radius: 8px;
     transition: background 150ms;
-    &:hover,
-    &.on {
-      background: color-mix(in oklch, var(--color-lav-400) 10%, transparent);
+  }
+  & .mkw:hover button.mk,
+  & .mkw.on button.mk {
+    background: color-mix(in oklch, var(--color-lav-400) 10%, transparent);
+  }
+}
+.idb-ptw {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  & .idb-pt {
+    flex: 1;
+  }
+}
+/* The card is reached across the gap above it, its text can be copied,
+   and a pinned one says so with its edge. */
+.idb-tip {
+  user-select: text;
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -12px;
+    height: 12px;
+  }
+  &.pinned {
+    border-color: var(--c, var(--color-lav-400));
+    box-shadow:
+      var(--glass-shadow),
+      0 0 0 1px var(--c, var(--color-lav-400)),
+      0 18px 40px -18px rgb(0 0 0 / 0.45);
+  }
+  & .sel {
+    user-select: all;
+  }
+  & .idb-seg button {
+    font: 700 9px var(--font-mono);
+    letter-spacing: 0.12em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: var(--color-ink-400);
+    &[aria-pressed='true'] {
+      color: var(--color-ink-100);
+      background: color-mix(in oklch, var(--color-lav-400) 20%, transparent);
     }
   }
 }
@@ -916,21 +962,21 @@
   .idb-pts {
     grid-template-columns: 1fr 1fr;
   }
-  .idb-pt:nth-child(odd) .idb-tip {
+  .idb-ptw:nth-child(odd) .idb-tip {
     left: 0;
     right: auto;
   }
-  .idb-pt:nth-child(even) .idb-tip {
+  .idb-ptw:nth-child(even) .idb-tip {
     left: auto;
     right: 0;
   }
-  .idb-strip .mk:nth-child(4n + 1) .idb-tip,
-  .idb-strip .mk:nth-child(4n + 2) .idb-tip {
+  .idb-strip > :nth-child(4n + 1) .idb-tip,
+  .idb-strip > :nth-child(4n + 2) .idb-tip {
     left: 0;
     right: auto;
   }
-  .idb-strip .mk:nth-child(4n + 3) .idb-tip,
-  .idb-strip .mk:nth-child(4n) .idb-tip {
+  .idb-strip > :nth-child(4n + 3) .idb-tip,
+  .idb-strip > :nth-child(4n) .idb-tip {
     left: auto;
     right: 0;
   }

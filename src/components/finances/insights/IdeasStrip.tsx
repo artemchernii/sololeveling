@@ -7,6 +7,7 @@ import { STRIP } from '@/lib/ideasBoard'
 import type { Point } from '@/lib/insightsMarket'
 import { Spark } from './IdeasLine'
 import { clock } from './parts'
+import { usePop } from './usePop'
 
 /* The market strip (29 Oct): eight markets, the day's change and line.
    His word on the first build: "in hover show tooltip with better chart
@@ -17,9 +18,10 @@ import { clock } from './parts'
 
 type Cell = NonNullable<BoardAnswer['strip'][number]['cell']>
 type Def = (typeof STRIP)[number]
-const RANGES = ['1D', '1M', '6M', '1Y'] as const
+const RANGES = ['1D', '1W', '1M', '6M', '1Y'] as const
 type Range = (typeof RANGES)[number]
-const FETCH = { '1M': '1mo', '6M': '6mo', '1Y': '1y' } as const
+/* 1W is the month's closes from seven days back. */
+const FETCH = { '1W': '1mo', '1M': '1mo', '6M': '6mo', '1Y': '1y' } as const
 
 const KEEP_MS = 10 * 60_000
 const kept = new Map<string, { at: number; points: Array<Point> }>()
@@ -46,13 +48,9 @@ export function IdeasStrip({
   board: BoardAnswer | null
   failed: boolean
 }) {
-  const [on, setOn] = useState<string | null>(null)
+  const pop = usePop<string>()
   return (
-    <div
-      className="idb-strip"
-      data-testid="idb-strip"
-      onMouseLeave={() => setOn(null)}
-    >
+    <div className="idb-strip" data-testid="idb-strip" ref={pop.box}>
       {STRIP.map((s, i) => {
         const c = board?.strip.find((x) => x.id === s.id)?.cell
         if (!c)
@@ -64,30 +62,37 @@ export function IdeasStrip({
           )
         const d = change(s, c.base, c.price)
         return (
-          <button
+          <div
             key={s.id}
-            type="button"
-            data-testid="idb-mk"
-            data-id={s.id}
-            aria-expanded={on === s.id}
-            className={`mk ${on === s.id ? 'on' : ''} ${i >= 4 ? 'end' : ''}`}
-            onMouseEnter={() => setOn(s.id)}
-            onFocus={() => setOn(s.id)}
-            onClick={() => setOn(on === s.id ? null : s.id)}
+            className={`mkw ${pop.on === s.id ? 'on' : ''} ${i >= 4 ? 'end' : ''}`}
+            onMouseEnter={() => pop.enter(s.id)}
+            onMouseLeave={pop.leave}
           >
-            <span className="n">{s.name}</span>
-            <span className="v">{price(s, c.price)}</span>
-            <span className={d.c >= 0 ? 'd up' : 'd dn'}>{d.t}</span>
-            <Spark points={c.points} w={100} h={14} />
-            {on === s.id ? <Card d={s} cell={c} /> : null}
-          </button>
+            <button
+              type="button"
+              data-testid="idb-mk"
+              data-id={s.id}
+              aria-expanded={pop.on === s.id}
+              className="mk"
+              onFocus={() => pop.enter(s.id)}
+              onClick={() => pop.press(s.id)}
+            >
+              <span className="n">{s.name}</span>
+              <span className="v">{price(s, c.price)}</span>
+              <span className={d.c >= 0 ? 'd up' : 'd dn'}>{d.t}</span>
+              <Spark points={c.points} w={100} h={14} />
+            </button>
+            {pop.on === s.id ? (
+              <Card d={s} cell={c} pinned={pop.pinned} />
+            ) : null}
+          </div>
         )
       })}
     </div>
   )
 }
 
-function Card({ d, cell }: { d: Def; cell: Cell }) {
+function Card({ d, cell, pinned }: { d: Def; cell: Cell; pinned: boolean }) {
   const fetchChart = useAction(api.insightsBoard.chartOf)
   const [range, setRange] = useState<Range>('1D')
   const [pts, setPts] = useState<Array<Point> | null>(cell.points)
@@ -100,7 +105,9 @@ function Card({ d, cell }: { d: Def; cell: Cell }) {
     setPts(null)
     fetchChart({ symbols: [d.symbol], range: FETCH[range] })
       .then((l) => {
-        const p = l[0]?.points ?? []
+        const all = l[0]?.points ?? []
+        const from = Date.now() - 7 * 86_400_000
+        const p = range === '1W' ? all.filter((x) => x.t >= from) : all
         kept.set(key, { at: Date.now(), points: p })
         if (live) setPts(p)
       })
@@ -120,28 +127,26 @@ function Card({ d, cell }: { d: Def; cell: Cell }) {
   const y = (v: number) => H - 4 - ((v - lo) / (hi - lo || 1)) * (H - 8)
   const ch = base !== null && last ? change(d, base, last.v) : null
   return (
-    <span
-      className="idb-tip wide"
+    <div
+      className={`idb-tip wide ${pinned ? 'pinned' : ''}`}
       data-testid="idb-mk-card"
-      role="tooltip"
-      onClick={(e) => e.stopPropagation()}
     >
       <span className="t">
-        {d.name}
+        <span className="sel">
+          {d.name} · {d.symbol}
+        </span>
         <span className="grow" />
         <span className="idb-seg">
           {RANGES.map((r) => (
-            <span
+            <button
               key={r}
-              role="button"
-              tabIndex={0}
+              type="button"
               data-testid="idb-mk-range"
               aria-pressed={r === range}
               onClick={() => setRange(r)}
-              onKeyDown={(e) => e.key === 'Enter' && setRange(r)}
             >
               {r}
-            </span>
+            </button>
           ))}
         </span>
       </span>
@@ -191,6 +196,6 @@ function Card({ d, cell }: { d: Def; cell: Cell }) {
           <span className="ins-was">YAHOO · NOT SAVED</span>
         </>
       )}
-    </span>
+    </div>
   )
 }

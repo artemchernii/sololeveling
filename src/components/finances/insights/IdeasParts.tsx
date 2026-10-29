@@ -1,8 +1,7 @@
-import { useState } from 'react'
-
 import type { Board, Part } from '@/lib/ideasRead'
 import type { Fact } from '@/lib/marketRead'
 import { TickerLogo } from '@/components/finances/Logo'
+import { usePop } from './usePop'
 
 /* The plan's four parts (29 Oct, his "keep, protect and so on not very
    clear … maybe when hover give better explanation"): the bar, and under
@@ -75,18 +74,20 @@ export function spendMonth(facts: Array<Fact>): number | null {
 }
 
 export function PlanBar({ b, facts }: { b: Board; facts: Array<Fact> }) {
-  const [on, setOn] = useState<Part | null>(null)
+  const pop = usePop<Part>()
+  const on = pop.on
   const total = ORDER.reduce((t, k) => t + b.parts[k], 0)
   const spend = spendMonth(facts)
   const shown = ORDER.filter((k) => b.parts[k] > 0)
   return (
-    <div className="idb-plan" onMouseLeave={() => setOn(null)}>
+    <div className="idb-plan" ref={pop.box}>
       <div className="idb-bar" data-testid="idb-bar">
         {shown.map((k) => (
           <i
             key={k}
             className={on && on !== k ? 'dim' : ''}
-            onMouseEnter={() => setOn(k)}
+            onMouseEnter={() => pop.enter(k)}
+            onMouseLeave={pop.leave}
             style={
               {
                 '--c': PARTS[k].c,
@@ -107,31 +108,38 @@ export function PlanBar({ b, facts }: { b: Board; facts: Array<Fact> }) {
                 : 'CASH'
               : `${lines.length} ${lines.length === 1 ? 'LINE' : 'LINES'}`
           return (
-            <button
+            <div
               key={k}
-              type="button"
-              data-testid="idb-pt"
-              data-part={k}
-              aria-expanded={on === k}
-              className={`idb-pt ${on && on !== k ? 'dim' : ''} ${i >= shown.length - 2 ? 'end' : ''}`}
+              className={`idb-ptw ${i >= shown.length - 2 ? 'end' : ''}`}
               style={{ '--c': PARTS[k].c, '--i': i } as React.CSSProperties}
-              onMouseEnter={() => setOn(k)}
-              onFocus={() => setOn(k)}
-              onBlur={() => setOn(null)}
-              onClick={() => setOn(on === k ? null : k)}
+              onMouseEnter={() => pop.enter(k)}
+              onMouseLeave={pop.leave}
             >
-              <span className="h">
-                <span className="ic">
-                  <PartIcon part={k} />
+              <button
+                type="button"
+                data-testid="idb-pt"
+                data-part={k}
+                aria-expanded={on === k}
+                className={`idb-pt ${on && on !== k ? 'dim' : ''}`}
+                onFocus={() => pop.enter(k)}
+                onClick={() => pop.press(k)}
+              >
+                <span className="h">
+                  <span className="ic">
+                    <PartIcon part={k} />
+                  </span>
+                  {k === 'add' ? 'ADD' : PARTS[k].name}
                 </span>
-                {k === 'add' ? 'ADD' : PARTS[k].name}
-              </span>
-              <b>{eur(b.parts[k])}</b>
-              <span className="s">
-                {share}% OF CASH · {badge}
-              </span>
+                <b>{eur(b.parts[k])}</b>
+                <span className="s">
+                  {share}% OF CASH · {badge}
+                </span>
+              </button>
               {on === k ? (
-                <span className="idb-tip" data-testid="idb-tip" role="tooltip">
+                <div
+                  className={`idb-tip ${pop.pinned ? 'pinned' : ''}`}
+                  data-testid="idb-tip"
+                >
                   <span className="t">
                     <span className="ic">
                       <PartIcon part={k} />
@@ -171,9 +179,9 @@ export function PlanBar({ b, facts }: { b: Board; facts: Array<Fact> }) {
                       ))}
                     </span>
                   ) : null}
-                </span>
+                </div>
               ) : null}
-            </button>
+            </div>
           )
         })}
       </div>

@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>IDEAS board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* IDEAS as a board with a chat beside it (29 Oct, his "something we
+     will see all the time, and at the same time to be able to discuss",
+     journey said yes). Left: strip, THE PLAN, PICKS, MOVERS — the day's
+     read, there every time he opens it until READ AGAIN. Right: the chat,
+     docked, empty until ✦ on anything. Phone: the chat is a sheet.
+     His cash, spending, allocation and today's moves are real; prices,
+     signals and the plan's split are sample. */
+  :root {
+    --bg: #f4f2ef;
+    --ink-100: #1d1d2b; --ink-200: #33334a; --ink-300: #55556c; --ink-400: #7a7a90; --ink-500: #9a9aae;
+    --lav-300: #6b5fd6; --lav-400: #8b7ff0;
+    --good: oklch(0.58 0.16 150); --bad: oklch(0.58 0.2 22); --warn: oklch(0.66 0.15 70);
+    --glass: linear-gradient(155deg, rgba(255,255,255,.88), rgba(255,255,255,.62));
+    --edge: rgba(30,30,50,.09);
+    --shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 18px 40px -28px rgba(30,30,60,.35);
+    --sys-edge: color-mix(in oklch, #8b7ff0 40%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --usd: oklch(0.6 0.12 250); --eur: oklch(0.6 0.13 300); --gold: oklch(0.7 0.13 85);
+    --ind-rsi: oklch(0.62 0.13 300); --ind-sma: oklch(0.6 0.12 230); --ind-52: oklch(0.6 0.1 60); --ind-tg: oklch(0.58 0.1 180);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1000px 500px at 10% -10%, #e9e4f7 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #f6ead8 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font: 13px/1.45 Inter, system-ui, sans-serif; min-height: 100vh }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 16px 16px 60px; display:flex; flex-direction:column; gap: 12px }
+  .caps { font: 500 9.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .num { font-weight: 600; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums }
+  .row { display:flex; align-items:center; gap: 8px } .grow { flex: 1; min-width: 0 }
+  .pill { font: 700 9px var(--mono); letter-spacing: .1em; padding: 3px 7px; border-radius: 999px; border: 1px solid currentColor; text-transform: uppercase; white-space: nowrap; display:inline-flex; align-items:center; gap: 4px }
+  .pill.good { color: var(--good); background: color-mix(in oklch, var(--good) 10%, transparent) }
+  .pill.bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 10%, transparent) }
+  .pill.lav { color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 10%, transparent) }
+  .pill.ink { color: var(--ink-300); background: rgba(30,30,50,.04) }
+  .up { color: var(--good) } .dn { color: var(--bad) }
+
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; font: 11px var(--mono); color: var(--warn); letter-spacing: .08em; text-transform: uppercase }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.6); border: 1px solid var(--edge); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  .tabs { display:grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 8px; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass) }
+  .tab { display:flex; align-items:center; justify-content:center; gap: 8px; padding: 9px; border-radius: 10px; font: 700 10.5px var(--mono); letter-spacing: .16em; color: var(--ink-200) }
+  .tab .n { width: 18px; height: 18px; border-radius: 5px; display:grid; place-items:center; font-size: 9.5px; color: var(--lav-300); border: 1px solid var(--sys-edge) }
+  .tab.on { background: color-mix(in oklch, var(--lav-400) 14%, transparent); border: 1px solid var(--sys-edge) }
+
+  /* the page: board + chat */
+  .page { display:grid; grid-template-columns: minmax(0, 2fr) minmax(340px, 1fr); gap: 14px; align-items: start }
+  .board { display:flex; flex-direction:column; gap: 12px; min-width: 0 }
+  .tile { border-radius: 14px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 14px 16px; min-width: 0; animation: up .45s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes up { from { opacity: 0; transform: translateY(8px) } }
+  .bhead { display:flex; align-items:center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap }
+  .bhead .t { font: 700 10.5px var(--mono); letter-spacing: .18em; color: var(--ink-200) }
+  .logo { width: 26px; height: 26px; border-radius: 8px; background: #fff; border: 1px solid var(--edge); display:grid; place-items:center; overflow:hidden; flex: none; font-size: 14px }
+  .logo img { width: 18px; height: 18px }
+  .star { font: 700 9px var(--mono); letter-spacing: .1em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--sys-edge); color: var(--lav-300); background: transparent; cursor: pointer; white-space: nowrap }
+  .star:hover, .star.on { background: color-mix(in oklch, var(--lav-400) 16%, white); box-shadow: 0 0 12px -4px var(--lav-400) }
+
+  /* read header */
+  .rhead { display:flex; align-items:center; gap: 10px; flex-wrap: wrap }
+  .rhead .h { font-size: 22px; font-weight: 700; letter-spacing: -.02em }
+  .rhead .h em { font-style: normal; color: var(--warn) }
+  .again { font: 700 9.5px var(--mono); letter-spacing: .14em; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.7); color: var(--ink-200); cursor: pointer }
+
+  /* strip */
+  .mstrip { display:grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px }
+  .mk { display:flex; flex-direction:column; gap: 1px; padding: 4px 6px; border-radius: 8px; min-width: 0 }
+  .mk .n { font: 700 9px var(--mono); letter-spacing: .06em; color: var(--ink-300); white-space: nowrap; overflow:hidden; text-overflow: ellipsis }
+  .mk .v { font: 600 12px var(--mono) } .mk .d { font: 600 9.5px var(--mono) }
+  .mk svg { width: 100%; height: 16px } .mk svg polyline, .tr svg polyline { fill: none; stroke-width: 1.4 }
+
+  /* plan */
+  .plan { border-color: var(--sys-edge); background: linear-gradient(155deg, color-mix(in oklch, var(--lav-400) 9%, white), rgba(255,255,255,.7)) }
+  .say { font-size: 13.5px; line-height: 1.6; color: var(--ink-200); margin-bottom: 12px } .say b { color: var(--ink-100) }
+  .split { display:flex; gap: 3px; height: 24px; border-radius: 8px; overflow:hidden; margin-bottom: 10px }
+  .split i { font: 700 9.5px var(--mono); letter-spacing: .14em; font-style: normal; color: #fff; display:grid; place-items:center; background: var(--c); transform-origin: left; animation: fill 1s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes fill { from { transform: scaleX(0) } }
+  .pcols { display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px }
+  .pcol { display:flex; flex-direction:column; gap: 7px; padding: 10px; border-radius: 11px; background: rgba(255,255,255,.7); border: 1px solid var(--edge) }
+  .ph { display:flex; align-items:center; gap: 8px; font: 700 10.5px var(--mono); letter-spacing: .14em }
+  .ph strong { font: 700 14px var(--mono); letter-spacing: 0 }
+  .dot { width: 9px; height: 9px; border-radius: 3px; background: var(--c) }
+  .pr { display:grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items:center; font-size: 12px; color: var(--ink-300) }
+  .pr b { font-family: var(--mono); color: var(--ink-100) }
+  .pr em { font: 700 12px var(--mono); font-style: normal; color: var(--ink-100) }
+
+  /* picks */
+  .picks { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
+  .pick { display:flex; flex-direction:column; gap: 9px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.72); border: 1px solid var(--edge); position: relative; transition: box-shadow .2s }
+  .pick.on { border-color: var(--lav-400); box-shadow: 0 0 0 2px color-mix(in oklch, var(--lav-400) 30%, transparent) }
+  .pick .tk { font: 700 14px var(--mono) } .pick .co { font-size: 11px; color: var(--ink-400); white-space: nowrap; overflow:hidden; text-overflow: ellipsis }
+  .kind { font: 700 8px var(--mono); letter-spacing: .12em; padding: 2px 5px; border-radius: 4px; color: var(--ind-sma); border: 1px solid color-mix(in oklch, var(--ind-sma) 45%, transparent) }
+  .fit { display:grid; grid-template-columns: 22px 1fr auto; align-items:center; gap: 8px; padding: 7px 8px; border-radius: 9px; border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 7%, transparent) }
+  .fit .lab { font: 700 9.5px var(--mono); letter-spacing: .12em }
+  .fit .bar { height: 5px; border-radius: 3px; background: rgba(30,30,50,.06); overflow:hidden; margin-top: 3px }
+  .fit .bar b { display:block; height:100%; background: var(--lav-400); border-radius: 3px; transform-origin: left; animation: fill 1s .2s both }
+  .fit .bar.w b { background: repeating-linear-gradient(90deg, var(--ink-400) 0 4px, transparent 4px 7px) }
+  .fit .vals { font: 9.5px var(--mono); color: var(--ink-400); text-align:right; white-space: nowrap } .fit .vals strong { color: var(--ink-100); font-size: 11px }
+  .px { display:flex; align-items:baseline; gap: 8px } .px .num { font-size: 20px }
+  .sig { display:flex; flex-direction:column; gap: 4px }
+  .sr { display:grid; grid-template-columns: 7px 52px 1fr auto; gap: 6px; align-items:center; font: 10.5px var(--mono); color: var(--ink-300) }
+  .sr i { width: 7px; height: 7px; border-radius: 50%; background: var(--c) } .sr .k { font-weight: 700; color: var(--ink-200) }
+  .sr .v { white-space: nowrap; overflow:hidden; text-overflow: ellipsis }
+  .case { display:grid; grid-template-columns: 18px 1fr; gap: 6px; font-size: 11.5px; color: var(--ink-200) }
+  .case i { font-style: normal; width: 18px; height: 18px; border-radius: 5px; display:grid; place-items:center; font: 700 9px var(--mono) }
+  .case .bu { color: var(--good); background: color-mix(in oklch, var(--good) 14%, transparent) }
+  .case .be { color: var(--bad); background: color-mix(in oklch, var(--bad) 14%, transparent) }
+  .case .wr { color: var(--warn); background: color-mix(in oklch, var(--warn) 14%, transparent) }
+
+  /* movers */
+  .seg { display:inline-flex; padding: 3px; gap: 2px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.6) }
+  .seg button { font: 700 9px var(--mono); letter-spacing: .12em; padding: 4px 9px; border-radius: 999px; border: 0; background: transparent; color: var(--ink-400); cursor: pointer }
+  .seg button.on { color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 18%, white) }
+  .trows { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px }
+  .tr { display:grid; grid-template-columns: 26px minmax(0,1fr) 64px auto auto auto; gap: 8px; align-items:center; padding: 7px 0; border-top: 1px solid var(--edge) }
+  .tr .tk { font: 700 12px var(--mono) } .tr .co { font-size: 10.5px; color: var(--ink-400); white-space: nowrap; overflow:hidden; text-overflow: ellipsis }
+  .tr svg { width: 64px; height: 20px } .tr .p { font: 600 11.5px var(--mono); text-align: right }
+
+  /* the chat, docked */
+  .chat { position: sticky; top: 12px; height: calc(100vh - 24px); min-height: 560px; display:flex; flex-direction:column; border-radius: 16px; border: 1px solid var(--sys-edge); background: var(--glass); box-shadow: var(--shadow), 0 0 30px -18px var(--lav-400); overflow: hidden }
+  .chat .top { display:flex; align-items:center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--edge) }
+  .chat .top .t { font: 700 11px var(--mono); letter-spacing: .3em; color: var(--lav-300) }
+  .thread { flex: 1; overflow-y: auto; padding: 14px; display:flex; flex-direction:column; gap: 12px }
+  .ctx { align-self: flex-start; display:flex; align-items:center; gap: 8px; padding: 6px 10px 6px 6px; border-radius: 10px; border: 1px dashed var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 6%, white) }
+  .q { align-self: flex-end; max-width: 88%; padding: 9px 12px; border-radius: 14px 14px 4px 14px; background: color-mix(in oklch, var(--lav-400) 16%, white); border: 1px solid var(--sys-edge); font-size: 13px; font-weight: 500 }
+  .a { display:flex; flex-direction:column; gap: 10px; font-size: 13px; line-height: 1.6; color: var(--ink-200); animation: up .4s both } .a b { color: var(--ink-100) }
+  .card { border-radius: 11px; border: 1px solid var(--edge); background: rgba(255,255,255,.8); padding: 10px 12px }
+  svg.ch { width: 100%; height: 90px; display:block } svg.ch polyline { fill: none; stroke-width: 1.8 }
+  .legend { display:flex; gap: 10px; flex-wrap: wrap; margin-top: 4px } .legend span { display:inline-flex; gap: 5px; align-items:center; font: 600 9.5px var(--mono); color: var(--ink-300) } .legend i { width: 12px; height: 3px; border-radius: 2px; background: var(--c) }
+  .tbl { width: 100%; border-collapse: collapse; font: 11px var(--mono) } .tbl td { padding: 5px 2px; border-top: 1px solid var(--edge) } .tbl tr:first-child td { border-top: 0; color: var(--ink-400) } .tbl td:not(:first-child) { text-align: right }
+  .steps { display:flex; gap: 5px; flex-wrap: wrap } .step { font: 500 9.5px var(--mono); padding: 3px 7px; border-radius: 6px; background: rgba(30,30,50,.04); color: var(--ink-300) }
+  .step.live { color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 10%, transparent) } .step.live::before { content:'● '; animation: blink 1s infinite } @keyframes blink { 50% { opacity: .2 } }
+  .sugg { display:flex; gap: 6px; flex-wrap: wrap } .sugg span { font-size: 11.5px; padding: 5px 10px; border-radius: 999px; border: 1px dashed var(--sys-edge); color: var(--lav-300); cursor: pointer }
+  .empty { margin: auto; text-align:center; display:flex; flex-direction:column; gap: 12px; align-items:center; padding: 20px }
+  .empty .big { font-size: 30px }
+  .askbar { display:flex; gap: 6px; align-items:center; margin: 10px; padding: 6px; border-radius: 999px; border: 1px solid var(--sys-edge); background: #fff }
+  .askbar input { flex: 1; min-width: 0; border: 0; background: transparent; font: 13px Inter, sans-serif; padding: 6px 8px; outline: none }
+  .askbar .go { font: 700 9.5px var(--mono); letter-spacing: .14em; padding: 8px 14px; border-radius: 999px; border: 0; color: #fff; background: var(--lav-300) }
+  .attach { width: 30px; height: 30px; border-radius: 50%; border: 1px dashed var(--sys-edge); background: transparent; color: var(--lav-300); font-size: 14px }
+  .shot { display:flex; gap: 8px; align-items:center; margin-top: 6px } .shot .img { width: 40px; height: 70px; border-radius: 6px; border: 1px solid var(--sys-edge); background: linear-gradient(180deg, #fff, #ece9f8); padding: 4px; display:flex; flex-direction:column; gap: 3px } .shot .img i { height: 4px; border-radius: 2px; background: rgba(30,30,50,.12) }
+  .meta { font: 9.5px var(--mono); color: var(--ink-400); letter-spacing: .08em }
+  .fab { display:none }
+  svg polyline { fill: none; stroke-width: 1.5 }
+  .pick svg { width: 100%; height: 26px; display:block }
+
+  /* phone: one column, the chat is a sheet behind ✦ ASK */
+  .phone .wrap { max-width: 400px }
+  .phone .page { grid-template-columns: 1fr }
+  .phone .tabs { grid-template-columns: repeat(3, 1fr) }
+  .phone .mstrip { grid-template-columns: repeat(4, minmax(0, 1fr)) }
+  .phone .pcols, .phone .picks, .phone .trows { grid-template-columns: 1fr }
+  .phone .chat { display:none }
+  .phone .fab { display:flex; position: fixed; right: max(16px, calc(50% - 184px)); bottom: 20px; align-items:center; gap: 6px; font: 700 11px var(--mono); letter-spacing: .14em; padding: 12px 18px; border-radius: 999px; color: #fff; background: var(--lav-300); box-shadow: 0 10px 30px -8px var(--lav-400); border: 0; z-index: 9 }
+  .phone.sheet .chat { display:flex; position: fixed; left: 50%; transform: translateX(-50%); width: 400px; max-width: 100%; top: auto; bottom: 0; height: 78vh; min-height: 0; border-radius: 18px 18px 0 0; z-index: 10; background: #faf9f7; animation: sheet .35s cubic-bezier(.2,.8,.2,1) }
+  .phone.sheet .fab { display:none }
+  .phone.sheet::after { content:''; position: fixed; inset: 0; background: rgba(20,20,40,.25); z-index: 8 }
+  @keyframes sheet { from { transform: translate(-50%, 100%) } }
+  @media (max-width: 1000px) { body:not(.phone) .page { grid-template-columns: 1fr } body:not(.phone) .chat { position: static; height: 640px } body:not(.phone) .picks { grid-template-columns: 1fr } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup ·
+    <button data-c="empty" class="on">chat empty</button>
+    <button data-c="ewz">✦ on EWZ</button>
+    <button data-c="asking">asking</button>
+    <button data-c="shot">screenshot</button>
+    <span style="width:12px"></span>
+    <button data-v="desk" class="on">desktop</button>
+    <button data-v="phone">phone</button>
+    <button data-v="sheet">phone · chat open</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab"><span class="n">1</span>MARKET <span class="pill good">S&amp;P ▲ 0.5%</span></div>
+    <div class="tab"><span class="n">2</span>READ <span class="pill lav">5 LINES</span></div>
+    <div class="tab"><span class="n">3</span>MINE <span class="pill good">9 ADD</span></div>
+    <div class="tab on"><span class="n">4</span>IDEAS <span class="pill lav">PLAN · 3</span></div>
+    <div class="tab"><span class="n">5</span>CLOSE <span class="pill bad">▼ 0.6%</span></div>
+  </div>
+
+  <div class="page">
+    <div class="board">
+      <div class="tile">
+        <div class="rhead">
+          <span class="h">Cash idle · <em>71%</em></span>
+          <span class="grow"></span>
+          <span class="meta">SONNET 5.5 · 29 OCT 21:30</span>
+          <button class="again">↻ READ AGAIN</button>
+        </div>
+        <div class="mstrip" id="mstrip" style="margin-top:10px"></div>
+      </div>
+
+      <div class="tile plan" id="plan">
+        <div class="bhead"><span>🧭</span><span class="t">THE PLAN · €45,858 CASH</span><span class="grow"></span><span class="pill lav">4 MONTHS · €8,576 A MONTH</span><button class="star" data-ask="plan">✦</button></div>
+        <p class="say"><b>€45,858 of €64,686 is cash</b> — €13,425 in the banks, €32,433 as broker cash, earning close to nothing. Keep six months of spending, put half of the rest somewhere safe that pays and half to work for growth, over four months.</p>
+        <div class="split"><i style="--c:var(--ink-400);flex:11556">KEEP</i><i style="--c:var(--usd);flex:17150">SAFE</i><i style="--c:var(--good);flex:17152">GROWTH</i></div>
+        <div class="pcols">
+          <div class="pcol"><div class="ph"><span class="dot" style="--c:var(--ink-400)"></span><b>KEEP</b><span class="grow"></span><strong>€11,556</strong></div>
+            <div class="pr"><span class="logo">💶</span><span>6 × €1,926 · bills and day-to-day</span><em></em></div>
+            <div class="pr"><span class="logo">🏦</span><span>BPI · ActivoBank · Revolut</span><em></em></div></div>
+          <div class="pcol"><div class="ph"><span class="dot" style="--c:var(--usd)"></span><b>SAFE</b><span class="grow"></span><strong>€17,150</strong></div>
+            <div class="pr" id="p-xeon"></div><div class="pr" id="p-ibgs"></div>
+            <div class="pr"><span class="logo">🥇</span><span>gold 11% · kept</span><em>—</em></div></div>
+          <div class="pcol"><div class="ph"><span class="dot" style="--c:var(--good)"></span><b>GROWTH</b><span class="grow"></span><strong>€17,152</strong></div>
+            <div class="pr" id="p-eqqq"></div><div class="pr" id="p-veur"></div><div class="pr" id="p-ewz"></div>
+            <div class="pr"><span class="logo">💡</span><span><b>LLY</b> · from PICKS</span><em>€2,152</em></div></div>
+        </div>
+      </div>
+
+      <div class="tile">
+        <div class="bhead"><span>💡</span><span class="t">PICKS · 3</span><span class="grow"></span><span class="caps">MINE vs WORLD · SIGNALS</span></div>
+        <div class="picks" id="picks"></div>
+      </div>
+
+      <div class="tile">
+        <div class="bhead"><span>🔥</span><span class="t">MOVERS · US</span><span class="grow"></span>
+          <span class="seg" id="seg"><button data-l="trending" class="on">TRENDING</button><button data-l="gainers">GAINERS</button><button data-l="losers">LOSERS</button></span></div>
+        <div class="trows" id="trows"></div>
+        <div class="caps" style="margin-top:8px;text-align:right">YAHOO · 21:31 · 15 MIN LATE · NOT SAVED</div>
+      </div>
+    </div>
+
+    <aside class="chat">
+      <div class="top"><span class="t">[ ASK ]</span><span class="pill lav">⚡ PRO · SONNET 5.5</span><span class="grow"></span><span class="caps" id="cnt"></span></div>
+      <div class="thread" id="thread"></div>
+      <div class="askbar"><button class="attach">📎</button><input placeholder="Ask, or drop a screenshot…" /><button class="go">ASK</button></div>
+    </aside>
+  </div>
+</div>
+<button class="fab" id="fab">✦ ASK</button>
+
+<script>
+const fav = (d) => `<span class="logo"><img src="https://www.google.com/s2/favicons?domain=${d}&sz=64"></span>`
+function walk(seed, dir, n = 40) { let x = seed * 7919 + 13; const r = () => ((x = (x * 9301 + 49297) % 233280) / 233280); const o = []; let v = 50; for (let i = 0; i < n; i++) { v += (r() - .5) * 6 + dir * .35; o.push(v) } return o }
+function poly(o, w, h, c) { const lo = Math.min(...o), hi = Math.max(...o); return `<polyline points="${o.map((y, i) => `${(i / (o.length - 1)) * w},${h - ((y - lo) / (hi - lo || 1)) * (h - 2) - 1}`).join(' ')}" style="stroke:${c}"/>` }
+const spk = (seed, dir, w, h) => `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${poly(walk(seed, dir), w, h, `var(${dir > 0 ? '--good' : '--bad'})`)}</svg>`
+
+const MK = [['S&P 500','7,720','−0.30%',-1,2],['NASDAQ','26,185','−1.38%',-1,8],['DOW','52,343','−0.25%',-1,5],['RUSSELL','2,859','+1.01%',1,3],['10Y','4.99%','−1.11%',-1,9],['VIX','17.20','+1.71%',1,6],['GOLD','$4,033','−0.45%',-1,12],['BTC','$78,966','−2.83%',-1,4]]
+document.getElementById('mstrip').innerHTML = MK.map(([n, v, d, dir, s]) => `<div class="mk"><span class="n">${n}</span><span class="v">${v}</span><span class="d ${dir > 0 ? 'up' : 'dn'}">${d}</span>${spk(s, dir, 100, 16)}</div>`).join('')
+
+const PL = { xeon: ['xtrackers.com','XEON','euro overnight · ~2%','€9,000'], ibgs: ['ishares.com','IBGS','euro bonds 1–3Y','€8,150'], eqqq: ['invesco.com','EQQQ','Nasdaq 100','€8,000'], veur: ['vanguard.com','VEUR','Europe · from PICKS','€5,000'], ewz: ['ishares.com','EWZ','Brazil · small','€2,000'] }
+for (const [k, [d, t, w, e]] of Object.entries(PL)) document.getElementById('p-' + k).innerHTML = `${fav(d)}<span><b>${t}</b> · ${w}</span><em>${e}</em>`
+
+const PICKS = [
+  { tk:'VEUR', co:'Vanguard FTSE Dev. Europe', kind:'ETF', site:'vanguard.com', fit:['🇪🇺','EUROPE',2,15], px:'€47.80', m:'▲ 2.1% · 1M', sig:[['--ind-rsi','RSI 14','52','neutral','ink'],['--ind-sma','SMA 200','above','bullish','good'],['--ind-52','52W','▼ 1.6%','near high','ink']], bu:'One fund, ~600 European companies.', be:'Europe grows slower than the US.', wr:'A strong dollar keeps the US ahead.' },
+  { tk:'EWZ', co:'iShares MSCI Brazil', kind:'ETF', site:'ishares.com', fit:['🌎','EMERGING',0,11], px:'$24.10', m:'▼ 18% · 1M', sig:[['--ind-rsi','RSI 14','27','oversold','good'],['--ind-sma','SMA 200','below','bearish','bad'],['--ind-52','52W','▼ 31%','near low','ink']], bu:'Cheap after the selloff; pays dividends.', be:'Election and budget risk; the real can fall more.', wr:'Rates in Brazil keep rising.' },
+  { tk:'LLY', co:'Eli Lilly', kind:'STOCK', site:'lilly.com', fit:['💊','HEALTH',5,9], px:'$1,365', m:'▲ 15.3% · 1M', sig:[['--ind-rsi','RSI 14','74','overbought','bad'],['--ind-sma','SMA 200','above','bullish','good'],['--ind-tg','TARGET','▲ 4.0% · 31','analysts','ink']], bu:'Weight-loss drugs keep sales growing.', be:'Up 15% this month; a miss hits hard.', wr:'Sales of its weight-loss drugs slow.' },
+]
+document.getElementById('picks').innerHTML = PICKS.map((p, i) => { const max = Math.max(p.fit[2], p.fit[3], 1); return `<div class="pick" id="pick-${p.tk}">
+  <div class="row">${fav(p.site)}<span class="grow"><div class="row"><span class="tk">${p.tk}</span><span class="kind">${p.kind}</span></div><div class="co">${p.co}</div></span><button class="star" data-ask="${p.tk}">✦</button></div>
+  <div class="fit"><span>${p.fit[0]}</span><span><span class="fit lab" style="all:unset;font:700 9.5px var(--mono);letter-spacing:.12em">${p.fit[1]}</span><div class="bar"><b style="width:${p.fit[2] / max * 100}%"></b></div><div class="bar w"><b style="width:${p.fit[3] / max * 100}%"></b></div></span><span class="vals"><strong>${p.fit[2]}%</strong> MINE<br><strong>${p.fit[3]}%</strong> WORLD</span></div>
+  <div class="px"><span class="num">${p.px}</span><span class="pill ${p.m.startsWith('▲') ? 'good' : 'bad'}">${p.m}</span></div>
+  ${spk(i * 5 + 2, p.m.startsWith('▲') ? 1 : -1, 200, 26)}
+  <div class="sig">${p.sig.map(([c, k, v, w, t]) => `<div class="sr"><i style="--c:var(${c})"></i><span class="k">${k}</span><span class="v">${v}</span><span class="pill ${t}">${w}</span></div>`).join('')}</div>
+  <div class="case"><i class="bu">▲</i><span>${p.bu}</span></div><div class="case"><i class="be">▼</i><span>${p.be}</span></div><div class="case"><i class="wr">✕</i><span><b class="caps">wrong if</b> ${p.wr}</span></div>
+</div>` }).join('')
+
+const LISTS = {
+  trending: [['AMZN','Amazon','amazon.com','243.79','−4.25%',-1,1],['INTC','Intel','intel.com','92.07','−3.62%',-1],['SNDK','Sandisk','sandisk.com','1,330','−5.32%',-1],['RDDT','Reddit','reddit.com','129.60','−3.79%',-1],['CAT','Caterpillar','cat.com','647.39','−9.25%',-1],['GOOGL','Alphabet','google.com','283.82','−12.6%',-1,1]],
+  gainers: [['FMCC','Freddie Mac','freddiemac.com','14.21','+13.46%',1],['GM','General Motors','gm.com','71.30','+3.93%',1],['DASH','DoorDash','doordash.com','179.00','+5.6%',1,1],['IWM','Russell 2000','ishares.com','284.10','+1.01%',1]],
+  losers: [['GOOGL','Alphabet','google.com','283.82','−12.6%',-1,1],['CAT','Caterpillar','cat.com','647.39','−9.25%',-1],['SNDK','Sandisk','sandisk.com','1,330','−5.32%',-1],['AMZN','Amazon','amazon.com','243.79','−4.25%',-1,1]],
+}
+function list(l) { document.getElementById('trows').innerHTML = LISTS[l].map(([tk, co, s, px, pc, d, mine], i) => `<div class="tr">${fav(s)}<span><div class="row"><span class="tk">${tk}</span>${mine ? '<span class="pill lav">MINE</span>' : ''}</div><div class="co">${co}</div></span>${spk(i * 3 + tk.length, d, 64, 20)}<span class="p">${px}</span><span class="pill ${d > 0 ? 'good' : 'bad'}">${pc}</span><button class="star" data-ask="${tk}">✦</button></div>`).join('') }
+document.querySelectorAll('#seg button').forEach((b) => b.onclick = () => { document.querySelectorAll('#seg button').forEach((x) => x.classList.toggle('on', x === b)); list(b.dataset.l) })
+list('trending')
+
+const EMPTY = `<div class="empty"><span class="big">✦</span><span class="caps" style="font-size:10.5px">✦ ON A PICK · A MOVER · THE PLAN</span>
+  <div class="sugg" style="justify-content:center"><span>Why is so much cash a problem?</span><span>Is my euro cash at risk?</span><span>CAT −9%: worth a look?</span><span>Gold or bonds now?</span></div></div>`
+const EWZ = `<div class="ctx">${fav('ishares.com')}<span class="caps" style="color:var(--ink-200)">EWZ · FROM PICKS</span><span class="pill bad">▼ 18% · 1M</span></div>
+  <div class="q">Why Brazil, and why now?</div>
+  <div class="a">
+    <div class="steps"><span class="step">🌐 brazil selloff news 14 days</span><span class="step">📈 EWZ · BRL=X · EEM 1Y</span><span class="step">⏱ 9 s</span></div>
+    <p><b>It fell on worries, not on profits.</b> The selloff came from Brazil's budget and next year's election; the companies inside EWZ — Petrobras, Vale, Itaú — still earn well and pay about 7% in dividends. RSI 27 says it is oversold: these drops often bounce, but not always.</p>
+    <div class="card"><div class="row"><span class="caps" style="color:var(--ink-200)">EWZ · BRL · EMERGING · 1Y</span></div>
+      <svg class="ch" viewBox="0 0 300 90" preserveAspectRatio="none">${poly(walk(4, -0.4, 120), 300, 90, 'var(--good)')}${poly(walk(9, -0.2, 120), 300, 90, 'var(--warn)')}${poly(walk(2, 0.2, 120), 300, 90, 'var(--ind-sma)')}</svg>
+      <div class="legend"><span style="--c:var(--good)"><i></i>EWZ ▼ 31%</span><span style="--c:var(--warn)"><i></i>BRL ▼ 14%</span><span style="--c:var(--ind-sma)"><i></i>EEM ▲ 9%</span></div></div>
+    <table class="tbl"><tr><td></td><td>EWZ</td><td>EEM</td></tr><tr><td>P/E</td><td>7.8</td><td>13.1</td></tr><tr><td>DIVIDEND</td><td>7.1%</td><td>2.6%</td></tr><tr><td>1Y</td><td class="dn">▼ 31%</td><td class="up">▲ 9%</td></tr></table>
+    <p><b>My take:</b> keep it the small bet in the plan — €2,000, split over two months. If you want less risk, EEM holds Brazil inside 24 countries.</p>
+    <div class="sugg"><span>EEM, less risk?</span><span>What if the real falls 10%?</span></div>
+    <span class="meta">SONNET 5.5 · 21:34 · 22K IN · 1.4K OUT · PRO PLAN · NOT SAVED</span>
+  </div>`
+const ASKING = `<div class="ctx">${fav('ishares.com')}<span class="caps" style="color:var(--ink-200)">EWZ · FROM PICKS</span></div><div class="q">Why Brazil, and why now?</div>
+  <div class="a"><div class="steps"><span class="step">🌐 brazil selloff news 14 days</span><span class="step live">FETCHING · EWZ 1Y</span></div></div>`
+const SHOT = `<div class="q">Is this a good time to add? My Trading 212 now.<div class="shot"><span class="img"><i style="width:70%"></i><i></i><i style="width:50%"></i><i></i><i style="width:80%"></i></span><span class="caps">IMG_9412.PNG · 15 ROWS READ</span></div></div>
+  <div class="a"><div class="steps"><span class="step">🖼 15 positions read</span><span class="step live">COMPARING · MINE</span></div></div>`
+
+function chat(c) {
+  document.getElementById('thread').innerHTML = { empty: EMPTY, ewz: EWZ, asking: ASKING, shot: SHOT }[c]
+  document.querySelectorAll('.pick').forEach((p) => p.classList.toggle('on', c !== 'empty' && c !== 'shot' && p.id === 'pick-EWZ'))
+  document.querySelectorAll('.star').forEach((s) => s.classList.toggle('on', c !== 'empty' && c !== 'shot' && s.dataset.ask === 'EWZ'))
+}
+document.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-c]').forEach((x) => x.classList.toggle('on', x === b)); chat(b.dataset.c) })
+document.querySelectorAll('[data-v]').forEach((b) => b.onclick = () => {
+  document.querySelectorAll('[data-v]').forEach((x) => x.classList.toggle('on', x === b))
+  document.body.classList.toggle('phone', b.dataset.v !== 'desk'); document.body.classList.toggle('sheet', b.dataset.v === 'sheet')
+})
+document.getElementById('fab').onclick = () => document.querySelector('[data-v=sheet]').click()
+document.addEventListener('click', (e) => { const s = e.target.closest('.star'); if (s && s.dataset.ask === 'EWZ') document.querySelector('[data-c=ewz]').click() })
+chat('empty')
+</script>
+</body>
+</html>

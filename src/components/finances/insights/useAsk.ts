@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../../../convex/_generated/api'
 import type { ProAnswer } from '@/lib/claudeResult'
 import { localModel } from '@/lib/localModel'
-import type { AskAnswer, Said } from '@/lib/marketAsk'
+import type { AskAnswer, LineContext, Said } from '@/lib/marketAsk'
 import type { Fact } from '@/lib/marketRead'
 import { MAX_HISTORY, parseAsk } from '@/lib/marketAsk'
 import type { useMarketRead } from './useMarketRead'
@@ -13,15 +13,20 @@ import type { useMarketRead } from './useMarketRead'
    while the rooms are switched, gone on reload. A question goes through
    the same path the read takes: Claude Code on his Mac on localhost (Pro
    plan, nothing counted), else the API action under the month's cap.
-   One call per press, no retry; ASK AGAIN is a press. */
+   One call per press, no retry; ASK AGAIN is a press. The web is always
+   searched (29 Oct). From IDEAS a question carries the line its ✦ opened
+   on and a dropped screenshot — both on the page only, never stored. */
 
 const CLAUDE_ASK_PATH = '/__claude/market-ask'
 
 export type Turn = {
   id: number
   question: string
-  web: boolean
   at: number
+  /** The IDEAS line it was asked on. */
+  line?: LineContext
+  /** A dropped screenshot, as a data URL, and its file name. */
+  shot?: { url: string; name: string }
   state: 'asking' | 'done' | 'failed'
   answer?: AskAnswer
   facts?: Array<Fact>
@@ -62,14 +67,24 @@ export function useAsk(r: Read) {
   const busy = turns.some((t) => t.state === 'asking')
   const capped = r.path === 'api' && r.spent >= r.cap
 
-  async function ask(question: string, web: boolean, again?: number) {
+  async function ask(
+    question: string,
+    more: { line?: LineContext; shot?: Turn['shot'] } = {},
+    again?: number,
+  ) {
     const q = question.trim()
     if (q === '' || busy || capped || r.path === null) return
     const id = again ?? nextId++
     if (again !== undefined)
       patch(id, { state: 'asking', error: undefined, at: Date.now() })
     else
-      put([...kept, { id, question: q, web, at: Date.now(), state: 'asking' }])
+      put([
+        ...kept,
+        { id, question: q, at: Date.now(), state: 'asking', ...more },
+      ])
+    const { line, shot } = again
+      ? (kept.find((t) => t.id === again) ?? {})
+      : more
     try {
       const facts = await r.factsNow()
       const skip = r.shown?.read?.ideas.map((i) => i.ticker) ?? []
@@ -86,9 +101,10 @@ export function useAsk(r: Read) {
             facts,
             read: r.shown?.read ?? null,
             question: q,
-            web,
             today: new Date().toISOString().slice(0, 10),
             history,
+            line: line ?? null,
+            shot: shot?.url ?? null,
             model: localModel(),
           }),
         })
@@ -119,7 +135,13 @@ export function useAsk(r: Read) {
           },
         })
       }
-      const res = await action({ question: q, web, facts, history })
+      const res = await action({
+        question: q,
+        facts,
+        history,
+        ...(line && { line }),
+        ...(shot && { shot: shot.url }),
+      })
       if (!res.ok)
         return patch(id, { state: 'failed', error: res.error, cost: res.cost })
       patch(id, {

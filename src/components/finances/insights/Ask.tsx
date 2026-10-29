@@ -1,18 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { AccountLogo } from '@/components/finances/Logo'
-import { askCopyText, dayWord, siteWord } from '@/lib/askCopy'
 import { SUGGESTED } from '@/lib/marketAsk'
-import { factsFor, nextMonthWord } from '@/lib/marketRead'
-import type { AskKind } from '@/lib/marketAsk'
-import type { Fact } from '@/lib/marketRead'
-import { clock } from './parts'
-import { Words, factIcon, modelWord, tokens, usd } from './readParts'
-import { AskIdeas } from './AskIdeas'
-import { CopyPill } from './AskCopy'
+import type { LineContext } from '@/lib/marketAsk'
+import { nextMonthWord } from '@/lib/marketRead'
+import { usd } from './readParts'
+import { LOOK, TurnView } from './AskAnswer'
+import { ShotChip, Star, readShot } from './AskBlocks'
 import { usePrefill } from './askPrefill'
-import type { Turn, useAsk } from './useAsk'
+import type { useAsk } from './useAsk'
 import type { useMarketRead } from './useMarketRead'
+
+export { Star }
 
 /* ASK (I4, 21 Oct; mockup design/treasury-mockup/ask.html round 2, his
    "go"). In the drawer (insights-tabs.html, 21 Oct): the thread fills it, a
@@ -24,16 +22,6 @@ import type { useMarketRead } from './useMarketRead'
    says so in red and pays nothing; ASK AGAIN is a press. At the cap the
    box gives way to CAP REACHED. Nothing here is saved. */
 
-const LOOK: Record<AskKind, { icon: string; name: string; c: string }> = {
-  allocation: { icon: '⚖️', name: 'ALLOCATION', c: 'var(--color-lav-400)' },
-  rates: { icon: '🏛️', name: 'RATES', c: 'var(--kind-note)' },
-  inflation: { icon: '🌡️', name: 'INFLATION', c: 'var(--line-1)' },
-  market: { icon: '📊', name: 'MARKET', c: 'var(--state-warn)' },
-  gold: { icon: '🥇', name: 'GOLD', c: 'var(--metal-xau)' },
-  ideas: { icon: '💡', name: 'IDEAS', c: 'var(--line-2)' },
-  dont: { icon: '⛔', name: "DON'T", c: 'var(--state-danger)' },
-  nodata: { icon: '❔', name: 'NO DATA', c: 'var(--color-ink-400)' },
-}
 const SUGGEST_COLOUR = [
   LOOK.allocation.c,
   LOOK.gold.c,
@@ -49,7 +37,15 @@ type Read = ReturnType<typeof useMarketRead>
 export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
   const { turns, busy, capped, ask } = a
   const [text, setText] = useState('')
-  const [web, setWeb] = useState(false)
+  /* IDEAS (29 Oct): the line a ✦ opened on, and a dropped screenshot —
+     sent with the next question, then cleared. */
+  const [line, setLine] = useState<LineContext | null>(null)
+  const [shot, setShot] = useState<{ url: string; name: string } | null>(null)
+  const [over, setOver] = useState(false)
+  const take = (f: File | undefined) => {
+    if (f && f.type.startsWith('image/'))
+      void readShot(f).then((x) => x && setShot(x))
+  }
   /* After the first question the four fold into SUGGESTED. */
   const [unfolded, setUnfolded] = useState(false)
   const thread = useRef<HTMLDivElement>(null)
@@ -67,6 +63,7 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
   useEffect(() => {
     if (!prefill) return
     setText(prefill.q)
+    setLine(prefill.line ?? null)
     setLit(true)
     const wide = window.matchMedia('(min-width: 641px)').matches
     const at = requestAnimationFrame(() => {
@@ -87,15 +84,28 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
   const folded = !fresh && !unfolded
   const send = (q: string) => {
     if (off || q.trim() === '') return
-    void ask(q, web)
+    void ask(q, { ...(line && { line }), ...(shot && { shot }) })
     setText('')
+    setLine(null)
+    setShot(null)
     setUnfolded(false)
   }
 
   return (
     <div
       data-testid="ask"
-      className={`ask ${fresh ? 'fresh' : ''} ${folded ? '' : 'sopen'}`}
+      className={`ask ${fresh ? 'fresh' : ''} ${folded ? '' : 'sopen'} ${over ? 'over' : ''}`}
+      onDragOver={(e) => {
+        if (off || !e.dataTransfer.types.includes('Files')) return
+        e.preventDefault()
+        setOver(true)
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        setOver(false)
+        if (!off) take(e.dataTransfer.files[0])
+      }}
     >
       {fresh ? (
         <div className="grow" />
@@ -105,7 +115,7 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
             <TurnView
               key={t.id}
               t={t}
-              again={() => void ask(t.question, t.web, t.id)}
+              again={() => void ask(t.question, {}, t.id)}
               canAgain={!off}
             />
           ))}
@@ -128,7 +138,6 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
               SUGGESTED <i>{SUGGESTED.length}</i> <b>▾</b>
             </button>
           )}
-          <span className="ins-badge dim">RESEARCH · NOT ADVICE</span>
         </div>
 
         <div className="ask-sugg" inert={folded}>
@@ -187,43 +196,77 @@ export function Ask({ r, a }: { r: Read; a: ReturnType<typeof useAsk> }) {
             <span className="ins-badge dim">NEXT {nextMonthWord(r.month)}</span>
           </div>
         ) : (
-          <form
-            className={`ask-bar ${busy ? 'busy' : ''}`}
-            onSubmit={(e) => {
-              e.preventDefault()
-              send(text)
-            }}
-          >
-            <input
-              ref={box}
-              data-testid="ask-input"
-              className={lit ? 'lit' : undefined}
-              value={text}
-              maxLength={400}
-              disabled={off}
-              placeholder={
-                busy ? 'READING…' : 'Ask about the market or the portfolio'
-              }
-              onChange={(e) => setText(e.target.value)}
-            />
-            <button
-              type="button"
-              data-testid="ask-web"
-              aria-pressed={web}
-              className={`ask-web ${web ? 'on' : ''}`}
-              onClick={() => setWeb((w) => !w)}
+          <>
+            {line || shot ? (
+              <div className="ask-ctx">
+                {line ? (
+                  <span data-testid="ask-ctx" className="ask-ctxline">
+                    ✦ {line.ticker} · {line.part.toUpperCase()} ·{' '}
+                    {line.call.toUpperCase()}
+                    {line.eur > 0
+                      ? ` · +€${line.eur.toLocaleString('en-GB')}`
+                      : ''}
+                    <button
+                      type="button"
+                      aria-label="Remove"
+                      onClick={() => setLine(null)}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ) : null}
+                {shot ? (
+                  <ShotChip shot={shot} onRemove={() => setShot(null)} />
+                ) : null}
+              </div>
+            ) : null}
+            <form
+              className={`ask-bar ${busy ? 'busy' : ''}`}
+              onSubmit={(e) => {
+                e.preventDefault()
+                send(text)
+              }}
             >
-              🌐 WEB
-            </button>
-            <button
-              type="submit"
-              data-testid="ask-send"
-              className="ins-btn"
-              disabled={off || text.trim() === ''}
-            >
-              {busy ? <AskBusy /> : 'ASK'}
-            </button>
-          </form>
+              <input
+                ref={box}
+                data-testid="ask-input"
+                className={lit ? 'lit' : undefined}
+                value={text}
+                maxLength={400}
+                disabled={off}
+                placeholder={busy ? 'READING…' : 'Ask, or drop a screenshot…'}
+                onChange={(e) => setText(e.target.value)}
+                onPaste={(e) => take(e.clipboardData.files[0])}
+              />
+              <label
+                data-testid="ask-attach"
+                className="ask-attach"
+                title="Screenshot"
+              >
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  data-testid="ask-file"
+                  disabled={off}
+                  onChange={(e) => {
+                    take(e.target.files?.[0])
+                    e.target.value = ''
+                  }}
+                />
+                <svg viewBox="0 0 24 24" aria-hidden>
+                  <path d="M21 12.5l-8.5 8.5a5 5 0 0 1-7-7L14 5.5a3.3 3.3 0 0 1 4.7 4.7L10.2 18.7a1.7 1.7 0 0 1-2.4-2.4L15.5 8.6" />
+                </svg>
+              </label>
+              <button
+                type="submit"
+                data-testid="ask-send"
+                className="ins-btn"
+                disabled={off || text.trim() === ''}
+              >
+                {busy ? <AskBusy /> : 'ASK'}
+              </button>
+            </form>
+          </>
         )}
       </div>
     </div>
@@ -247,200 +290,6 @@ export function AskBusy() {
       <span className="t">
         {Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}
       </span>
-    </span>
-  )
-}
-
-export function Star() {
-  return (
-    <svg className="ask-star" viewBox="0 0 16 16" aria-hidden>
-      <path
-        d="M8 0.5 C8.6 5.6 10.4 7.4 15.5 8 C10.4 8.6 8.6 10.4 8 15.5 C7.4 10.4 5.6 8.6 0.5 8 C5.6 7.4 7.4 5.6 8 0.5 Z"
-        fill="currentColor"
-      />
-    </svg>
-  )
-}
-
-function TurnView({
-  t,
-  again,
-  canAgain,
-}: {
-  t: Turn
-  again: () => void
-  canAgain: boolean
-}) {
-  return (
-    <>
-      <div
-        data-testid="ask-q"
-        className={`ask-q ${t.state === 'failed' ? 'miss' : ''}`}
-      >
-        {t.web ? '🌐 ' : ''}
-        {t.question}
-        <small>
-          {t.state === 'failed' ? '✕ NOT ANSWERED · ' : ''}
-          {clock(t.at)}
-        </small>
-      </div>
-      {t.state === 'asking' ? (
-        <div data-testid="ask-asking" className="ask-a">
-          <span className="ask-orb busy">
-            <Star />
-          </span>
-          <div className="body think">
-            <span className="label-caps text-lav-300">
-              {t.web ? '🌐 SEARCHING' : 'READING THE FACTS'}
-            </span>
-            <div className="ins-scan" />
-          </div>
-        </div>
-      ) : t.state === 'failed' ? (
-        <div data-testid="ask-failed" className="ask-a bad">
-          <span className="ask-orb">
-            <span>✕</span>
-          </span>
-          <div className="body">
-            <div className="ask-fail">
-              <span className="big">✕ {t.error ?? 'NOT REACHED'}</span>
-              <span className="grow" />
-              <button
-                type="button"
-                data-testid="ask-again"
-                className="ins-btn again"
-                disabled={!canAgain}
-                onClick={again}
-              >
-                ↻ ASK AGAIN
-              </button>
-            </div>
-            <div className="ask-stamp">
-              {t.cost ? (
-                <span className="ask-pill c">{usd(t.cost)} · PAID</span>
-              ) : (
-                <span className="ask-pill g">$0.00 · NOTHING PAID</span>
-              )}
-              <span className="ask-pill">NO RETRY</span>
-            </div>
-          </div>
-        </div>
-      ) : t.answer ? (
-        <Answer t={t} />
-      ) : null}
-    </>
-  )
-}
-
-function Answer({ t }: { t: Turn }) {
-  const a = t.answer!
-  const look = LOOK[a.kind]
-  const facts = factsFor(a.factKeys, t.facts ?? [])
-  const s = t.stamp
-  const card = useRef<HTMLDivElement>(null)
-  /* What the card shows, as text — built on the press, never stored. */
-  const text = () =>
-    askCopyText({
-      question: t.question,
-      web: t.web,
-      kind: `${look.icon} ${look.name}`,
-      answer: a.answer,
-      facts: facts.map((f) => `${factIcon(f.key)} ${f.label} ${f.value}`),
-      inNext: a.kind === 'ideas' ? (t.skip ?? []) : [],
-      ideas: a.ideas,
-      sources: a.sources,
-      model: s ? modelWord(s.model) : '',
-      searches: s?.searches ?? 0,
-      at: t.at,
-    })
-  /* The card glows once on every copy. */
-  const glow = () => {
-    const el = card.current
-    if (!el) return
-    el.classList.remove('copied')
-    void el.offsetWidth
-    el.classList.add('copied')
-  }
-  return (
-    <div
-      ref={card}
-      data-testid="ask-answer"
-      data-kind={a.kind}
-      className="ask-a land"
-      style={{ '--k': look.c } as React.CSSProperties}
-    >
-      <span className="ask-orb">
-        <Star />
-      </span>
-      <div className="body">
-        <span className="ask-kind">
-          {look.icon} {look.name}
-        </span>
-        <p>
-          <Words text={a.answer} />
-        </p>
-        {facts.length > 0 || (a.kind === 'ideas' && t.skip?.length) ? (
-          <div className="ask-facts">
-            {facts.map((f) => (
-              <FactPill key={f.key} f={f} />
-            ))}
-            {a.kind === 'ideas' && t.skip?.length ? (
-              <span data-testid="ask-in-next" className="ins-fact">
-                💡 IN NEXT · {t.skip.join(' · ')}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-        {a.ideas.length > 0 ? <AskIdeas ideas={a.ideas} /> : null}
-        {a.sources.length > 0 ? (
-          <div data-testid="ask-sources" className="ins-srcs">
-            {a.sources.map((src) => (
-              <a
-                key={src.url}
-                href={src.url}
-                target="_blank"
-                rel="noreferrer"
-                className="ins-src"
-              >
-                <AccountLogo name={src.site} domain={src.site} size={14} />
-                {siteWord(src.site)}
-                {src.day ? ` · ${dayWord(src.day)}` : ''} ↗
-              </a>
-            ))}
-          </div>
-        ) : null}
-        {s ? (
-          <div data-testid="ask-stamp" className="ask-stamp">
-            <span className="ask-pill m">✦ {modelWord(s.model)}</span>
-            {s.searches > 0 ? (
-              <span className="ask-pill m">
-                🌐 {s.searches} {s.searches === 1 ? 'SEARCH' : 'SEARCHES'}
-              </span>
-            ) : null}
-            <span className="ask-pill">
-              {tokens(s.inputTokens)} IN · {tokens(s.outputTokens)} OUT
-            </span>
-            {s.paidBy === 'pro' ? (
-              <span className="ask-pill g">⚡ PRO</span>
-            ) : (
-              <span className="ask-pill c">💳 {usd(s.cost)}</span>
-            )}
-            <span className="ask-pill">{clock(t.at)}</span>
-            <CopyPill text={text} onCopied={glow} />
-          </div>
-        ) : null}
-      </div>
-    </div>
-  )
-}
-
-function FactPill({ f }: { f: Fact }) {
-  return (
-    <span
-      data-testid="ask-fact"
-      className={`ins-fact ask-fact ${f.tone === 'good' ? 'up' : f.tone === 'bad' ? 'dn' : ''}`}
-    >
-      {factIcon(f.key)} {f.label} {f.value}
     </span>
   )
 }

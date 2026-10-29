@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
 
+import type { LineContext } from '@/lib/marketAsk'
+
 /* ✦ ASK on cards: a card's ✦ hands its question to the drawer, which
    opens and puts it in the box. Page memory only, like the thread; `n`
    counts the presses, so the same ✦ twice fills the box twice. */
 
-export type Prefill = { q: string; n: number }
+export type Prefill = { q: string; n: number; line?: LineContext }
 
 let kept: Prefill | null = null
 const listeners = new Set<(p: Prefill) => void>()
 
-/** Opens ASK with `q` in the box. Never sends it. */
-export function askAbout(q: string) {
-  kept = { q, n: (kept?.n ?? 0) + 1 }
+/** Opens ASK with `q` in the box — and, from IDEAS, the line it is on.
+    Never sends it. */
+export function askAbout(q: string, line?: LineContext) {
+  kept = { q, n: (kept?.n ?? 0) + 1, ...(line && { line }) }
   for (const l of listeners) l(kept)
 }
 

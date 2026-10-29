@@ -302,7 +302,7 @@ html.ask-open body {
 }
 
 /* inside: the thread fills it, the dock is stuck to the bottom */
-.ask-drawer .ask {
+:is(.ask-drawer, .idb-chat) .ask {
   flex: 1;
   min-height: 0;
   display: flex;

@@ -1,5 +1,7 @@
 import { spawn } from 'node:child_process'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 
@@ -9,9 +11,10 @@ import {
   parseClaudeResult,
 } from '../src/lib/claudeResult'
 import { MARKET_READ_SCHEMA, marketReadPrompt } from '../src/lib/marketRead'
-import { ASK_SCHEMA, askPrompt } from '../src/lib/marketAsk'
+import { ASK_SCHEMA, askPrompt, shotOf } from '../src/lib/marketAsk'
 import type { Fact } from '../src/lib/marketRead'
-import type { ReadContext, Said } from '../src/lib/marketAsk'
+import type { LineContext, ReadContext, Said } from '../src/lib/marketAsk'
+import { IDEAS_SCHEMA, ideasPrompt } from '../src/lib/ideasRead'
 import type { ProAnswer } from '../src/lib/claudeResult'
 import { ROWS_SCHEMA, rowsPrompt } from '../src/lib/rowsAskPrompt'
 
@@ -28,8 +31,10 @@ import { ROWS_SCHEMA, rowsPrompt } from '../src/lib/rowsAskPrompt'
    site open in the browser cannot spend the plan. */
 
 export const CLAUDE_READ_PATH = '/__claude/market-read'
-/** ASK (I4): one question, with web search only when 🌐 is on. */
+/** ASK (I4): one question; web search always on since 29 Oct. */
 export const CLAUDE_ASK_PATH = '/__claude/market-ask'
+/** IDEAS (29 Oct): the board's plan for his idle cash. */
+export const CLAUDE_IDEAS_PATH = '/__claude/ideas-read'
 /** R7 Ask AI: a question about his rows; the page sends the rows it read. */
 export const CLAUDE_ROWS_PATH = '/__claude/rows-ask'
 const TIMEOUT_MS = 5 * 60_000
@@ -39,7 +44,10 @@ function claude(
   schema: unknown,
   web: boolean,
   model: string,
+  /** A folder Claude Code may read (a dropped screenshot), else none. */
+  readable?: string,
 ): Promise<ProAnswer> {
+  const tools = [...(web ? ['WebSearch'] : []), ...(readable ? ['Read'] : [])]
   return new Promise((resolve) => {
     const child = spawn(
       'claude',
@@ -52,8 +60,9 @@ function claude(
         '--json-schema',
         JSON.stringify(schema),
         '--tools',
-        web ? 'WebSearch' : '',
-        ...(web ? ['--allowedTools', 'WebSearch'] : []),
+        tools.join(','),
+        ...(tools.length ? ['--allowedTools', tools.join(',')] : []),
+        ...(readable ? ['--add-dir', readable] : []),
         '--no-session-persistence',
         '--strict-mcp-config',
       ],
@@ -150,24 +159,56 @@ export function claudeRead(): Plugin {
           askedModel(json),
         )
       })
-      route(CLAUDE_ASK_PATH, (json) => {
-        const { facts, read, question, web, today, history } = JSON.parse(
-          json,
-        ) as {
+      route(CLAUDE_IDEAS_PATH, (json) => {
+        const { facts, idle, today } = JSON.parse(json) as {
           facts: Array<Fact>
-          read: ReadContext | null
-          question: string
-          web: boolean
+          idle: number
           today: string
-          history?: Array<Said>
         }
         return claude(
-          askPrompt(facts, read, question, web === true, today, history ?? []),
-          ASK_SCHEMA,
-          web === true,
+          ideasPrompt(facts, idle, today),
+          IDEAS_SCHEMA,
+          true,
           askedModel(json),
         )
       })
+      route(
+        CLAUDE_ASK_PATH,
+        async (json) => {
+          const { facts, read, question, today, history, line, shot } =
+            JSON.parse(json) as {
+              facts: Array<Fact>
+              read: ReadContext | null
+              question: string
+              today: string
+              history?: Array<Said>
+              line?: LineContext | null
+              shot?: string | null
+            }
+          const img = shot ? shotOf(shot) : null
+          /* A dropped screenshot: a file in a folder of its own that
+             Claude Code may read, gone when the answer is back. */
+          const dir = img ? await mkdtemp(join(tmpdir(), 'ask-shot-')) : null
+          const file = dir && img ? join(dir, `shot.${img.ext}`) : null
+          if (file && img)
+            await writeFile(file, Buffer.from(img.data, 'base64'))
+          try {
+            return await claude(
+              askPrompt(facts, read, question, true, today, history ?? [], {
+                line: line ?? null,
+                shot: file,
+              }),
+              ASK_SCHEMA,
+              true,
+              askedModel(json),
+              dir ?? undefined,
+            )
+          } finally {
+            if (dir) await rm(dir, { recursive: true, force: true })
+          }
+        },
+        8_000_000,
+      )
       route(
         CLAUDE_ROWS_PATH,
         (json) =>

@@ -118,7 +118,7 @@ describe('demo account', () => {
       /DEMO_READ_ONLY/,
     )
     await expect(
-      demo.action(api.ai.ask.ask, { question: 'x', web: false, facts: [] }),
+      demo.action(api.ai.ask.ask, { question: 'x', facts: [] }),
     ).rejects.toThrow(/DEMO_NO_AI/)
     /* Nothing changed. */
     expect(await count(t, DEMO, 'tasks')).toBe(6)

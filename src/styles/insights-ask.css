@@ -443,21 +443,31 @@
     animation: none;
   }
 }
-.ask-web {
-  font: 700 10px var(--font-mono);
-  letter-spacing: 0.12em;
-  padding: 11px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--glass-edge);
-  background: color-mix(in oklch, var(--lift) 4%, transparent);
-  color: var(--color-ink-400);
-  white-space: nowrap;
-  transition: all 200ms;
-  &.on {
-    color: var(--color-lav-300);
-    border-color: var(--color-lav-400);
-    background: color-mix(in oklch, var(--color-lav-400) 16%, transparent);
-    box-shadow: 0 0 14px -5px var(--system-shine);
+.ask-attach {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--color-lav-300);
+  border: 1px dashed var(--color-lav-400);
+  transition: background 200ms;
+  & input {
+    display: none;
+  }
+  & svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  &:hover {
+    background: color-mix(in oklch, var(--color-lav-400) 14%, transparent);
   }
 }
 .ask-capbar {

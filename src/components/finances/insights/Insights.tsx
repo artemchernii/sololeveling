@@ -6,7 +6,7 @@ import { AskDrawer } from './AskDrawer'
 import { TILE_OF, TabBar, useTab } from './InsightsTabs'
 import type { Badge, Tab } from './InsightsTabs'
 import { changeWord } from './parts'
-import { Ideas, useQuotes } from './Ideas'
+import { IdeasTab } from './IdeasTab'
 import { Markets } from './Markets'
 import { allocFacts, allocRows } from './Allocation'
 import { Mine, itemOf } from './Mine'
@@ -65,8 +65,8 @@ export function Insights({ shown }: { shown: boolean }) {
   )
   const count = positions ? positions.rows.length : null
 
-  const ideas = read.shown?.read?.ideas ?? null
-  const quotes = useQuotes(ideas?.map((i) => i.ticker) ?? [])
+  /* IDEAS' badge: what the board's plan puts to work (29 Oct). */
+  const plan = useQuery(api.ideasReads.latest, {})?.shown?.board?.parts
   const [tab, pick] = useTab(read.row?.read !== undefined, read.loading)
   const close = useClose(shown, shown && tab === 'close')
   const room = useRef<HTMLDivElement>(null)
@@ -146,11 +146,16 @@ export function Insights({ shown }: { shown: boolean }) {
         </div>
       ) : tab === 'ideas' ? (
         <div data-testid="tab-ideas" className="ins-panel">
-          <Ideas ideas={ideas} quotes={quotes} />
+          <IdeasTab
+            r={read}
+            held={owned}
+            alloc={alloc}
+            extra={[...allocFacts(alloc), ...earn]}
+          />
         </div>
       ) : null}
 
-      {shown ? <AskDrawer r={read} /> : null}
+      {shown ? <AskDrawer r={read} docked={tab === 'ideas'} /> : null}
     </div>
   )
 
@@ -161,11 +166,7 @@ export function Insights({ shown }: { shown: boolean }) {
     const adds = mine.base?.calls
       ? mine.base.calls.filter((c) => c.call === 'add').length
       : null
-    /* The cards NEXT shows: a ticker the market did not answer is left out. */
-    const cards =
-      ideas && quotes
-        ? ideas.filter((i) => quotes.some((q) => q.symbol === i.ticker)).length
-        : null
+    const put = plan ? plan.protect + plan.add + plan.new : 0
     return {
       market: sp
         ? {
@@ -178,7 +179,9 @@ export function Insights({ shown }: { shown: boolean }) {
         adds === null
           ? undefined
           : { text: `${adds} ADD`, tone: adds > 0 ? 'good' : 'dim' },
-      ideas: cards ? { text: String(cards), tone: 'dim' } : undefined,
+      ideas: put
+        ? { text: `€${put.toLocaleString('en-GB')}`, tone: 'lav' }
+        : undefined,
       close: closeBadge(close.day),
     }
   }

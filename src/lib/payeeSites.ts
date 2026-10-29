@@ -112,6 +112,7 @@ const SITES: ReadonlyArray<readonly [string, string]> = [
   ['fitness hut', 'fitnesshut.pt'],
   ['holmes place', 'holmesplace.pt'],
   ['allianz', 'allianz.pt'],
+  ['fidelidade', 'fidelidade.pt'],
   ['solinca', 'solinca.pt'],
   /* Banks and brokers, when one is a row and not an account */
   ['revolut', 'revolut.com'],
@@ -121,8 +122,8 @@ const SITES: ReadonlyArray<readonly [string, string]> = [
   ['bpi', 'bancobpi.pt'],
   ['bnp paribas', 'bnpparibas.com'],
   ['wise', 'wise.com'],
-  ['mb way', 'mbway.pt'],
-  ['mbway', 'mbway.pt'],
+  ['mb way', 'www.mbway.pt'],
+  ['mbway', 'www.mbway.pt'],
   ['binance', 'binance.com'],
   ['coinbase', 'coinbase.com'],
 ]
@@ -145,6 +146,9 @@ function plain(name: string): string {
 export function payeeSite(name: string): string | null {
   const words = plain(name)
   if (words.trim() === '') return null
+  /* MB Way to a person is still MB Way (29 Oct: "TRF MB WAY P ANA
+     SILVA" kept its arrow): the app sent it, whoever got it. */
+  if (/ mb ?way /.test(words)) return 'www.mbway.pt'
   /* Money sent to a person is not a shop: "Transfer to Claude Martin" is
      not the Claude subscription. A wrong mark is worse than letters. */
   if (/^ (transfer|transferencia|trf|to|from|sent) /.test(words)) return null

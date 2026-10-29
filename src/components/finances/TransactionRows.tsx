@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { ArrowLeftRight, TrendingUp } from 'lucide-react'
+import { ArrowLeftRight, Banknote, TrendingUp } from 'lucide-react'
 
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
@@ -8,6 +8,7 @@ import { groupIcon } from '@/components/finances/GroupBadge'
 import { usePayees } from '@/components/finances/flow/Payees'
 import { TickerLogo } from '@/components/finances/Logo'
 import { money } from '@/lib/currency'
+import { cashOut } from '@/lib/cashOut'
 import { sameCompany } from '@/lib/intake'
 import { Section } from '@/components/finances/IntakeParts'
 
@@ -246,7 +247,9 @@ function RowMark({
     )
   const Icon =
     kind === 'move'
-      ? ArrowLeftRight
+      ? cashOut(`${r.merchant} ${r.raw}`)
+        ? Banknote
+        : ArrowLeftRight
       : kind === 'income'
         ? TrendingUp
         : groupIcon(r.category)

@@ -1,4 +1,4 @@
-import { payeeKey } from './payee'
+import { payeeKey, sameKey } from './payee'
 import { PHRASES, bankPhrase } from './payees'
 
 /* Bills found in his statements (Flow, 3 Oct). He: asking about a €5.99
@@ -94,7 +94,8 @@ export function isKnown(
   r: { key: string; amount: number },
 ): boolean {
   return known.some(
-    (k) => k.key === r.key && (k.varies || sameAmount(k.amount, r.amount)),
+    (k) =>
+      sameKey(k.key, r.key) && (k.varies || sameAmount(k.amount, r.amount)),
   )
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { payeeKey, rowKey } from './payee'
+import { payeeKey, rowKey, sameKey } from './payee'
 
 /* Lines as his banks printed them (3 Oct). */
 describe('payeeKey', () => {
@@ -67,5 +67,18 @@ describe('rowKey', () => {
         },
       }),
     ).toBe('NAMED PREPLY PORTUGUESE')
+  })
+})
+
+describe('sameKey', () => {
+  it('the same payee, or its first two words or more', () => {
+    expect(sameKey('EDP COMERCIAL', 'EDP COMERCIAL ENERGIA')).toBe(true)
+    expect(
+      sameKey('EDP COMERCIAL COMERCIALIZACAO', 'EDP COMERCIAL ENERGIA'),
+    ).toBe(true)
+    expect(sameKey('EDP GAS', 'EDP COMERCIAL')).toBe(false)
+    expect(sameKey('UBER', 'UBER EATS')).toBe(false)
+    expect(sameKey('EDP COMERCIAL', 'EDP COMERCIALX')).toBe(false)
+    expect(sameKey('', '')).toBe(false)
   })
 })

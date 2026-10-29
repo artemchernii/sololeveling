@@ -20,6 +20,7 @@ import { BalanceTick, SheetCheck, dayOf } from './AccountSheetCheck'
 import { Divider, PendingLine, RowLine, fmt, short } from './AccountSheetRows'
 import { Row as CameRow } from './AccountCame'
 import { TypedBalance } from './AccountTypedBalance'
+import { shownBalance } from './sheetBalances'
 
 /* An account, opened (A.4 — journey agreed 1 Oct, mock agreed 2 Oct:
    "build it"). Everything in it, newest first: each row, moves and trades
@@ -319,24 +320,13 @@ function Timeline({
     | { t: 'pend'; at: number; p: (typeof pend)[number] }
     | { t: 'bal'; at: number; bal: SheetData['readings'][number] }
     | { t: 'file'; at: number; file: FileInfo }
-  /* A balance read again with nothing moved is not said twice (13 Oct:
-     the bank answers every day, and Revolut's $0.00 stood there once a
-     day): the first reading of an amount stays, with its file. */
-  const same = (bal: SheetData['readings'][number]) =>
-    bal.fileId === null &&
-    data.checks.some(
-      (c) =>
-        c.to === bal.at &&
-        c.currency === bal.currency &&
-        c.rows === 0 &&
-        c.missing === 0 &&
-        c.fromValue === bal.value,
-    )
+  /* Only the bank's last answer says what is pending now. */
+  const latest = lastSync(data.readings)
   const items: Array<Item> = [
     ...data.rows.map((row) => ({ t: 'row' as const, at: row.at, row })),
     ...pend.map((p) => ({ t: 'pend' as const, at: p.at, p })),
     ...data.readings
-      .filter((bal) => bal.at >= since && !same(bal))
+      .filter((bal) => bal.at >= since && shownBalance(data, bal, latest))
       .map((bal) => ({ t: 'bal' as const, at: bal.at, bal })),
     /* A file that set no balance (a broker's orders) still has a place:
        where its rows end. One that read rows the account already had,
@@ -355,8 +345,6 @@ function Timeline({
   const rank = { bal: 0, file: 0, pend: 1, row: 2 }
   items.sort((a, b) => b.at - a.at || rank[a.t] - rank[b.t])
   const gaps = data.checks.filter((c) => c.missing !== 0)
-  /* Only the bank's last answer says what is pending now. */
-  const latest = lastSync(data.readings)
 
   let day = ''
   let i = 0

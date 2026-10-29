@@ -79,3 +79,15 @@ export function rowKey(row: {
   if (row.meta?.payee) return `NAMED ${payeeKey(row.meta.payee)}`
   return payeeIdOf(row.meta?.raw ?? row.meta?.merchant ?? row.text ?? '')
 }
+
+/** Two payee keys of one payee: the same, or the same first two words
+ * (29 Oct: the EDP bill keyed "EDP COMERCIAL COMERCIALIZACAO" from
+ * August's statement, BPI's new line "EDP COMERCIAL-COMERCIAL.ENERGIA
+ * S.A" keys "EDP COMERCIAL ENERGIA", and the bill stayed not seen). One
+ * word is not enough: "UBER" is not "UBER EATS". */
+export function sameKey(a: string, b: string): boolean {
+  if (a === '' || b === '') return false
+  if (a === b) return true
+  const two = (k: string) => k.split(' ').slice(0, 2)
+  return two(a).length === 2 && two(a).join(' ') === two(b).join(' ')
+}

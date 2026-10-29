@@ -8,6 +8,7 @@
    Never an average. */
 
 import { dueOn, monthlyShare } from './bills'
+import { sameKey } from './payee'
 
 const DAY = 86_400_000
 const NOON = 12 * 3_600_000
@@ -50,7 +51,7 @@ export type AheadRow = {
     matches; 15%, looser than finding, which wants 10%). */
 export function paysBill(bill: AheadBill, row: AheadRow): boolean {
   if (row.recurringId === bill.id) return true
-  if (row.kind !== bill.kind || bill.key === '' || row.key !== bill.key) {
+  if (row.kind !== bill.kind || !sameKey(row.key, bill.key)) {
     return false
   }
   if (bill.varies) return true

@@ -1,7 +1,13 @@
 import { usePayees } from '@/components/finances/flow/Payees'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { ArrowDown, ArrowLeftRight, ArrowUp, RefreshCw } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowLeftRight,
+  ArrowUp,
+  Banknote,
+  RefreshCw,
+} from 'lucide-react'
 import type { FunctionReturnType } from 'convex/server'
 
 import type { api } from '../../../convex/_generated/api'
@@ -9,6 +15,7 @@ import type { Id } from '../../../convex/_generated/dataModel'
 import { Busy } from '@/components/finances/bits'
 import { AccountLogo } from '@/components/finances/Logo'
 import { RowMark } from '@/components/finances/RowMark'
+import { cashOut } from '@/lib/cashOut'
 import { Veiled } from '@/components/finances/Veil'
 
 /* The account sheet's lines (split from OpenAccount.tsx, 5 Oct): a
@@ -273,8 +280,16 @@ export function RowLine({
     : r.amount > 0
       ? 'text-state-good'
       : 'text-foreground'
-  const Icon =
-    moved || traded ? ArrowLeftRight : r.amount > 0 ? ArrowDown : ArrowUp
+  /* Out of an ATM into his wallet: a move with no account on the other
+     side, said as ATM · CASH with a banknote. */
+  const atm = moved && !r.other && cashOut(r.text)
+  const Icon = atm
+    ? Banknote
+    : moved || traded
+      ? ArrowLeftRight
+      : r.amount > 0
+        ? ArrowDown
+        : ArrowUp
   /* A shop the app knows shows its logo, else the row's group its icon
      (RowMark, 11 Oct); a transfer, a trade and a row with neither keep
      the arrow. */
@@ -316,10 +331,16 @@ export function RowLine({
           ) : null}
           {moved ? (
             <span className="rounded-[5px] px-1.5 text-[9.5px] tracking-[0.08em] text-lav-300 uppercase ring-1 ring-lav-400/35 ring-inset">
-              transfer{' '}
-              {r.other
-                ? ` · ${r.amount < 0 ? '→' : '←'} ${r.other}`
-                : ' · own account'}
+              {atm ? (
+                'atm · cash'
+              ) : (
+                <>
+                  transfer{' '}
+                  {r.other
+                    ? ` · ${r.amount < 0 ? '→' : '←'} ${r.other}`
+                    : ' · own account'}
+                </>
+              )}
             </span>
           ) : traded ? (
             <span className="rounded-[5px] px-1.5 text-[9.5px] tracking-[0.08em] text-lav-300 uppercase ring-1 ring-lav-400/35 ring-inset">

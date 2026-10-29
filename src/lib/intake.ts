@@ -1142,6 +1142,10 @@ const WITHDRAWAL = /\b(atm|withdraw(al)?|levantamento|cash out)\b/i
    phone bill ("Vodafone carregamento"), so only money in counts. */
 const TOP_UP = /\b(top[- ]?up|carregamento)\b/i
 
+/** Cash out of a machine: "LEV ATM 2789 BCP Lisboa" (29 Oct: it read as
+    "transfer · own account"). */
+export const cashOut = (text: string): boolean => WITHDRAWAL.test(text)
+
 const plain = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 

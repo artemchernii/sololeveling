@@ -16,6 +16,10 @@ describe('whose mark a row gets', () => {
     expect(payeeSite("McDonald's Colombo")).toBe('mcdonalds.com')
     expect(payeeSite('Intermarché Super')).toBe('intermarche.pt')
   })
+  test('MB Way to a person keeps the MB Way mark', () => {
+    expect(payeeSite('TRF MB WAY P ANA SILVA')).toBe('mbway.pt')
+    expect(payeeSite('DD FIDELIDADE COM')).toBe('fidelidade.pt')
+  })
   test('the longer name wins', () => {
     expect(payeeSite('Uber Eats')).toBe('ubereats.com')
     expect(payeeSite('Uber')).toBe('uber.com')

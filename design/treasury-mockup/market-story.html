@@ -241,8 +241,8 @@
     <aside class="side">
       <div class="tile trend" id="trend" data-src="Yahoo Finance"></div>
       <div class="tile basics" id="basics" data-src="FRED · ECB · BLS · Eurostat"></div>
-      <div class="tile" id="crowd" data-src="Reddit API"></div>
-      <p class="quiet">Fetched on open, kept 10 minutes, never saved: Yahoo Finance, Finnhub, SEC EDGAR, FRED, the ECB, BLS, Eurostat, Reddit.</p>
+      <div class="tile" id="crowd" data-src="ApeWisdom"></div>
+      <p class="quiet">Fetched on open, kept 10 minutes, never saved: Yahoo Finance, Finnhub, SEC EDGAR, FRED, the ECB, BLS, Eurostat, ApeWisdom.</p>
     </aside>
   </div>
 </div>
@@ -469,12 +469,12 @@ function comps() {
     <div class="hd">COMPANY</div><div class="hd">RESULTS</div><div class="hd">ANALYSTS</div><div class="hd">INSIDERS</div><div class="hd">BIG FUNDS</div>
     ${COMP.map(([site, nm, e, ...c]) => `<div class="co1">${fav(site, true)}<span><b>${nm}</b> <span class="e">${e}</span></span></div>${c.map(cell).join('')}`).join('')}</div>`
 }
-/* the most named tickers in this week's top posts — Reddit API */
+/* the most named tickers on Reddit in 24 hours, and 24 hours before — ApeWisdom */
 const RD = [['nvidia.com', 'NVDA', 1240, 410, 1], ['tesla.com', 'TSLA', 980, 1120], ['google.com', 'GOOGL', 760, 150, 1], ['amd.com', 'AMD', 540, 390], ['palantir.com', 'PLTR', 420, 610]]
 function crowd() {
   document.getElementById('crowd').innerHTML = `<h2 style="font-size:13px;font-weight:700;letter-spacing:.14em;color:var(--ink-200)">ON REDDIT</h2>
-    <div class="caps" style="margin-top:6px;letter-spacing:.08em">r/stocks · r/investing · r/wallstreetbets</div>
-    <div class="rdl">${RD.map(([site, t, a, b, h], i) => `<div class="rd"><span class="r">${i + 1}</span>${fav(site, true)}<span class="nm">${t}${h ? '<i>HELD</i>' : ''}</span><span class="c">${a.toLocaleString('en')}× this week</span></div>`).join('')}</div>`
+    <div class="caps" style="margin-top:6px;letter-spacing:.08em">r/wallstreetbets · r/stocks · r/investing · ApeWisdom</div>
+    <div class="rdl">${RD.map(([site, t, a, b, h], i) => `<div class="rd"><span class="r">${i + 1}</span>${fav(site, true)}<span class="nm">${t}${h ? '<i>HELD</i>' : ''}</span><span class="c">${a.toLocaleString('en')}× today<span>${b.toLocaleString('en')}× yesterday</span></span></div>`).join('')}</div>`
 }
 document.getElementById('srcbtn').onclick = (e) => { e.target.classList.toggle('on'); document.body.classList.toggle('srcs') }
 trend(); sectors(); comps(); crowd(); show('busy')

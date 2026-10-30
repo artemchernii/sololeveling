@@ -1,6 +1,7 @@
 import { Fragment } from 'react'
 
-import { REGIONS, SECTORS } from '@/lib/insightsMarket'
+import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
+import { MARKETS, REGIONS, SECTORS } from '@/lib/insightsMarket'
 import type { Fact, Kind, Tone } from '@/lib/marketRead'
 
 /* Small pieces of the market read (I3): the model's **bold** words, the
@@ -80,15 +81,93 @@ export function FactChip({ fact }: { fact: Fact }) {
   )
 }
 
-/** One of the hero's numbers. */
+/** One of the hero's numbers: its source's logo or a line icon (30 Oct,
+    his "Reduce emojies, use more logos icons"), its plain label. */
 export function Kpi({ fact }: { fact: Fact }) {
   return (
     <span data-testid="read-kpi" className="ins-kpi">
-      <span className="e">{factIcon(fact.key)}</span>
-      {fact.label}
+      <span className="e">
+        <FactMark k={fact.key} />
+      </span>
+      {labelOf(fact)}
       <span className={`v ${toneClass(fact)}`}>{fact.value}</span>
     </span>
   )
+}
+
+/** Who a number comes from, where a logo says it best. */
+const SITE: Array<[string, string]> = [
+  ['us-cpi', 'bls.gov'],
+  ['eu-hicp', 'ec.europa.eu'],
+  ['fed', 'federalreserve.gov'],
+  ['ecb', 'ecb.europa.eu'],
+]
+/** Thin line icons, as the IDEAS board draws them. */
+export const LINE: Record<string, string> = {
+  wallet: 'M3 7h15a3 3 0 0 1 3 3v8H3zM3 7l12-3v3M16 13h2',
+  chart: 'M3 17l6-6 4 4 8-8M15 7h6v6',
+  bars: 'M4 20V10M10 20V4M16 20v-8M22 20H2',
+  globe:
+    'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18',
+  pie: 'M21.2 15.9A10 10 0 1 1 8 2.8M22 12A10 10 0 0 0 12 2v10z',
+  day: 'M4 5h16v15H4zM4 10h16M9 3v4M15 3v4',
+}
+export function LineIcon({ d, size = 13 }: { d: string; size?: number }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      aria-hidden
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={d} />
+    </svg>
+  )
+}
+
+export function FactMark({ k }: { k: string }) {
+  const site = SITE.find(([p]) => k === p || k.startsWith(`${p}-`))?.[1]
+  if (site) return <AccountLogo name={site} domain={site} size={18} />
+  if (k.startsWith('mkt-')) {
+    const m = MARKETS.find((x) => `mkt-${x.id}` === k)?.mark
+    if (m && 'site' in m)
+      return <AccountLogo name={m.site} domain={m.site} size={18} />
+    if (m && 'coin' in m) return <TickerLogo symbol={m.coin} size={18} />
+    if (m && 'metal' in m) return <TickerLogo symbol={m.metal} size={18} />
+    return <LineIcon d={LINE.chart} />
+  }
+  if (k.startsWith('co-') || k.startsWith('pos-'))
+    return <TickerLogo symbol={k.slice(k.indexOf('-') + 1)} size={18} />
+  if (k === 'mine' || k.startsWith('me-')) return <LineIcon d={LINE.wallet} />
+  if (k.startsWith('sec-')) return <LineIcon d={LINE.bars} />
+  if (k.startsWith('reg-')) return <LineIcon d={LINE.globe} />
+  if (k.startsWith('alloc-')) return <LineIcon d={LINE.pie} />
+  if (k.startsWith('earn-')) return <LineIcon d={LINE.day} />
+  return <LineIcon d={LINE.chart} />
+}
+
+/** The market's own facts in plain words; his (me-) already are. */
+const PLAIN: Record<string, string> = {
+  'us-cpi': 'US prices, a year',
+  'us-cpi-was': 'US prices, the month before',
+  'eu-hicp': 'Euro area prices, a year',
+  'eu-hicp-was': 'Euro area prices, the month before',
+  fed: 'US central bank rate',
+  'fed-next': 'Next Fed meeting',
+  ecb: 'ECB rate',
+  'ecb-next': 'Next ECB meeting',
+  mine: 'Investments',
+}
+export function labelOf(f: Fact) {
+  if (PLAIN[f.key]) return PLAIN[f.key]
+  if (f.key.startsWith('mkt-'))
+    return MARKETS.find((m) => `mkt-${m.id}` === f.key)?.name ?? f.label
+  return f.label
 }
 
 /** "claude-sonnet-5-5" → "SONNET 5.5". */

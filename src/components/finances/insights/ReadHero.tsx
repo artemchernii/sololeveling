@@ -3,7 +3,7 @@ import { AccountLogo } from '@/components/finances/Logo'
 import { useLocalModel } from '@/lib/localModel'
 import { MARKET_READ_MODEL, factsFor, nextMonthWord } from '@/lib/marketRead'
 import { clock, dayWord } from './parts'
-import { Kpi, Words, modelWord, tokens, usd } from './readParts'
+import { FactMark, Kpi, Words, modelWord, tokens, usd } from './readParts'
 import type { useMarketRead } from './useMarketRead'
 
 /* The hero (mockup states: not read, reading, read · calm, read · mixed,
@@ -61,23 +61,25 @@ export function ReadHero({
             <div className="flex flex-wrap gap-2">
               {(
                 [
-                  ['🌡️', 'INFLATION'],
-                  ['🏛️', 'FED · ECB'],
-                  ['📊', 'MARKETS · SECTORS'],
-                  ['🌐', 'NEWS'],
+                  ['eu-hicp', 'INFLATION'],
+                  ['ecb', 'FED · ECB'],
+                  ['sec-', 'MARKETS · SECTORS'],
+                  ['reg-', 'NEWS'],
                   ...(positions !== null
                     ? [
                         [
-                          '💼',
+                          'mine',
                           `${positions} ${positions === 1 ? 'POSITION' : 'POSITIONS'}`,
                         ],
                       ]
                     : []),
                 ] as Array<[string, string]>
-              ).map(([e, k]) => (
-                <span key={k} className="ins-kpi">
-                  <span className="e">{e}</span>
-                  {k}
+              ).map(([k, word]) => (
+                <span key={word} className="ins-kpi">
+                  <span className="e">
+                    <FactMark k={k} />
+                  </span>
+                  {word}
                 </span>
               ))}
             </div>
@@ -137,7 +139,9 @@ export function ReadHero({
             {modelWord(
               stamp?.model ?? (r.path === 'pro' ? picked : MARKET_READ_MODEL),
             )}
-            {stamp ? ` · 🌐 ${stamp.searches}` : ''}
+            {stamp
+              ? ` · ${stamp.searches} ${stamp.searches === 1 ? 'SEARCH' : 'SEARCHES'}`
+              : ''}
           </span>
           {stamp && shown?.readAt ? (
             <span data-testid="read-stamp" className="ins-was">
@@ -152,7 +156,7 @@ export function ReadHero({
               data-testid="read-pay"
               className={`ins-badge ${pro ? 'good' : 'warn'}`}
             >
-              {pro ? '⚡ PRO PLAN · NO CREDITS' : '💳 API CREDITS'}
+              {pro ? 'PRO PLAN · NO CREDITS' : 'API CREDITS'}
             </span>
           ) : null}
           {!pro && r.path !== null ? (

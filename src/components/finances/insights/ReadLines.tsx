@@ -1,14 +1,13 @@
 import { AccountLogo } from '@/components/finances/Logo'
 import { factsFor } from '@/lib/marketRead'
-import type { Fact, Kind, ReadLine } from '@/lib/marketRead'
+import type { Kind, ReadLine } from '@/lib/marketRead'
 import { boxOf, ideaOf, moveWords } from '@/lib/readMine'
 import type { Board } from '@/lib/ideasRead'
 import { askLine } from '@/lib/askOnCards'
 import type { Doc } from '../../../../convex/_generated/dataModel'
 import { AskOn } from './AskOn'
-import { MARKETS } from '@/lib/insightsMarket'
 import { dayWord } from './parts'
-import { Words } from './readParts'
+import { Words, labelOf } from './readParts'
 import { ReadWeek } from './ReadWeek'
 
 /* Tab 2, READ (29 Oct; spec docs/specs/2026-10-29-read-personal.md, mockup
@@ -186,25 +185,6 @@ const KIND: Record<Kind, { name: string; c: string; d: string }> = {
     c: 'var(--color-ink-400)',
     d: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01',
   },
-}
-
-/** The market's own facts in plain words for a box; his (me-) already are. */
-const PLAIN: Record<string, string> = {
-  'us-cpi': 'US prices, a year',
-  'us-cpi-was': 'US prices, the month before',
-  'eu-hicp': 'Euro area prices, a year',
-  'eu-hicp-was': 'Euro area prices, the month before',
-  fed: 'US central bank rate',
-  'fed-next': 'Next Fed meeting',
-  ecb: 'ECB rate',
-  'ecb-next': 'Next ECB meeting',
-  mine: 'Investments',
-}
-function labelOf(f: Fact) {
-  if (PLAIN[f.key]) return PLAIN[f.key]
-  if (f.key.startsWith('mkt-'))
-    return MARKETS.find((m) => `mkt-${m.id}` === f.key)?.name ?? f.label
-  return f.label
 }
 
 function Line({

@@ -47,7 +47,7 @@ test('S1 READ MARKET → reading → the read: headline, lines with icons and fa
 }) => {
   const hero = await open(page)
   await expect(hero).toContainText('Not read yet')
-  await expect(page.getByTestId('read-pay')).toHaveText('💳 API CREDITS')
+  await expect(page.getByTestId('read-pay')).toHaveText('API CREDITS')
   await expect(page.getByTestId('read-cost')).toHaveText(
     'CAP $2.00 · USED $0.00',
   )

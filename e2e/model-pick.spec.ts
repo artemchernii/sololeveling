@@ -59,7 +59,7 @@ test('S1–S3 PRO badge opens the pick → OPUS asked and stamped → kept after
   let drawer = await open(page)
 
   const pick = drawer.getByTestId('model-pick')
-  await expect(pick).toHaveText('⚡ PRO · SONNET 5.5 ▾')
+  await expect(pick).toHaveText('PRO · SONNET 5.5 ▾')
   await expect(drawer.getByTestId('rows-pay')).toHaveCount(0)
 
   await pick.click()
@@ -80,7 +80,7 @@ test('S1–S3 PRO badge opens the pick → OPUS asked and stamped → kept after
   await pick.click()
   await options.nth(2).click()
   await expect(drawer.getByTestId('model-menu')).toHaveCount(0)
-  await expect(pick).toHaveText('⚡ PRO · OPUS 5.5 ▾')
+  await expect(pick).toHaveText('PRO · OPUS 5.5 ▾')
 
   await drawer.getByTestId('rows-suggest').first().click()
   const answer = drawer.getByTestId('rows-answer')
@@ -88,14 +88,14 @@ test('S1–S3 PRO badge opens the pick → OPUS asked and stamped → kept after
   expect(asked).toEqual(['claude-opus-5-5'])
   const stamp = answer.getByTestId('rows-stamp')
   await expect(stamp).toContainText('✦ OPUS 5.5')
-  await expect(stamp).toContainText('⚡ PRO · $0.00')
+  await expect(stamp).toContainText('PRO · $0.00')
   await page.screenshot(shot('model-pick-answer'))
 
   await page.reload()
   await expect(page.getByTestId('rows-open')).toBeVisible()
   drawer = await open(page)
   await expect(drawer.getByTestId('model-pick')).toHaveText(
-    '⚡ PRO · OPUS 5.5 ▾',
+    'PRO · OPUS 5.5 ▾',
   )
 })
 
@@ -149,10 +149,10 @@ test('S6 one pick: HAIKU on the Insights read is the ASK drawer’s too', async 
   await page.goto('/finances?room=insights')
   const hero = page.getByTestId('read-hero')
   const read = hero.getByTestId('model-pick')
-  await expect(read).toHaveText('⚡ PRO PLAN · SONNET 5.5 ▾')
+  await expect(read).toHaveText('PRO PLAN · SONNET 5.5 ▾')
   await read.click()
   await hero.getByTestId('model-option').first().click()
-  await expect(read).toHaveText('⚡ PRO PLAN · HAIKU 5.5 ▾')
+  await expect(read).toHaveText('PRO PLAN · HAIKU 5.5 ▾')
   /* Not read yet: the model line names the one the press asks. */
   await expect(hero.locator('.ins-model')).toHaveText('HAIKU 5.5')
   await page.screenshot(shot('model-pick-read'))
@@ -161,7 +161,7 @@ test('S6 one pick: HAIKU on the Insights read is the ASK drawer’s too', async 
   const drawer = page.getByTestId('ask-drawer')
   await expect(drawer).toHaveAttribute('aria-hidden', 'false')
   await expect(drawer.getByTestId('model-pick')).toHaveText(
-    '⚡ PRO · HAIKU 5.5 ▾',
+    'PRO · HAIKU 5.5 ▾',
   )
   await expect(drawer.getByTestId('ask-pay')).toHaveCount(0)
 })

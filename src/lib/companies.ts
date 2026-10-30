@@ -117,6 +117,8 @@ export type CompanyRow = {
   results: Results | null
   analysts: Analysts | null
   insider: Insider | null
+  /** Calls Finnhub did not answer: those cells say NOT REACHED. */
+  missed?: Array<'results' | 'analysts' | 'insider'>
 }
 
 /** Only a company with results in the window or an insider trade earns a row. */

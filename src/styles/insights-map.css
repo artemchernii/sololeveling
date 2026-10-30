@@ -276,7 +276,7 @@
 /* YOUR COMPANIES: company, results, analysts, insiders */
 .ins-cg {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.2fr) repeat(4, minmax(0, 1fr));
   gap: 0 14px;
   & > .hd {
     font: 700 9.5px var(--font-mono);

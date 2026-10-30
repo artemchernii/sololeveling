@@ -6,16 +6,27 @@ import { api } from '../../../../convex/_generated/api'
 import { Info, clock, dayWord, monthWord } from './parts'
 import type { FunctionReturnType } from 'convex/server'
 import type { Analysts, Insider, Results } from '@/lib/companies'
-import { usdShort } from '@/lib/companies'
+import { hasNews, usdShort } from '@/lib/companies'
+import type { FundMove } from '@/lib/bigFunds'
+import {
+  NEWS_MOVE,
+  moveOf,
+  moveWord,
+  quarter,
+  sharesShort,
+} from '@/lib/bigFunds'
 import { TickerLogo } from '@/components/finances/Logo'
 
 /* YOUR COMPANIES (30 Oct, market-story.html): a row per held company with
    results or an insider trade in the window — RESULTS (actual and
    expected, or the next day), ANALYSTS (buy and hold this month, last
-   month under it), INSIDERS (the biggest open-market buy or sale). Every
-   value with its day; "—" where nothing. Fetched on open, never stored. */
+   month under it), INSIDERS (the biggest open-market buy or sale), BIG
+   FUNDS (the fund of five whose 13F shares moved the most, both quarters'
+   counts under it). Every value with its day or quarter; "—" where
+   nothing. Fetched on open, never stored. */
 
 type Answer = FunctionReturnType<typeof api.marketSources.companies.companies>
+type Funds = FunctionReturnType<typeof api.marketSources.funds.funds>
 export type HeldCompany = {
   symbol: string
   name: string
@@ -23,6 +34,7 @@ export type HeldCompany = {
 }
 const KEEP_MS = 10 * 60_000
 let kept: { at: number; key: string; answer: Answer } | null = null
+let keptFunds: { at: number; key: string; answer: Funds } | null = null
 
 const eur = (n: number | null) =>
   n === null ? '' : `€${Math.round(n).toLocaleString('en-US')}`
@@ -98,10 +110,27 @@ function InsiderCell({ i }: { i: Insider | null }) {
   )
 }
 
+function FundCell({ m }: { m: FundMove | undefined }) {
+  if (!m) return <Dash />
+  return (
+    <Cell
+      k={`${m.fund} ${moveWord(m)}`}
+      w={`${quarter(m.wasPeriod)} ${sharesShort(m.was)} · ${quarter(m.nowPeriod)} ${sharesShort(m.now)} · 13F`}
+    />
+  )
+}
+
 const Cell = ({ k, w, tone = '' }: { k: string; w: string; tone?: string }) => (
   <div>
     <span className={`k ${tone}`}>{k}</span>
     <span className="w">{w}</span>
+  </div>
+)
+const Missed = () => (
+  <div>
+    <span className="k text-state-danger" data-testid="cell-missed">
+      ✕ NOT REACHED
+    </span>
   </div>
 )
 const Dash = () => (
@@ -140,12 +169,54 @@ export function useCompanies(held: Array<HeldCompany> | null) {
   return { answer, failed }
 }
 
+/** BIG FUNDS' answer for the same companies, asked once per set and kept
+    ten minutes, apart from Finnhub's so one source down leaves the other. */
+export function useFunds(held: Array<HeldCompany> | null) {
+  const ask = useAction(api.marketSources.funds.funds)
+  const key = held?.map((h) => h.symbol).join(',') ?? ''
+  const fresh =
+    keptFunds && keptFunds.key === key && Date.now() - keptFunds.at < KEEP_MS
+      ? keptFunds.answer
+      : null
+  const [answer, setAnswer] = useState<Funds | null>(fresh)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    if (held === null || answer) return
+    let live = true
+    ask({ held: held.map(({ symbol, name }) => ({ symbol, name })) })
+      .then((a) => {
+        keptFunds = { at: Date.now(), key, answer: a }
+        if (live) setAnswer(a)
+      })
+      .catch(() => {
+        if (live) setFailed(true)
+      })
+    return () => {
+      live = false
+    }
+    /* asked once per set of companies: `key` stands for `held` */
+  }, [ask, key])
+  return { answer, failed }
+}
+
 export function YourCompanies({
   c: { answer, failed },
+  f,
 }: {
   c: ReturnType<typeof useCompanies>
+  f: ReturnType<typeof useFunds>
 }) {
   const reached = answer?.reached === true && !failed
+  const fundsIn = f.answer?.reached === true && !f.failed
+  const moves = new Map(
+    (fundsIn ? (f.answer?.moves ?? []) : []).map((m) => [m.symbol, m]),
+  )
+  /* A row: results, an insider trade, or a fund's shares moved 5% or more. */
+  const rows =
+    answer?.rows.filter((r) => {
+      const m = moves.get(r.symbol)
+      return hasNews(r) || (m !== undefined && Math.abs(moveOf(m)) >= NEWS_MOVE)
+    }) ?? []
   return (
     <section
       data-tile="companies"
@@ -160,9 +231,12 @@ export function YourCompanies({
         <Info
           info={{
             title: 'YOUR COMPANIES',
-            what: 'Companies held that reported results, have results coming in two weeks, or had a manager buy or sell shares on the market in the last two weeks.',
-            why: 'Results move a price the most. Analysts turning from buy to hold, or a manager selling a lot, is worth a look before adding more.',
-            now: ['FINNHUB · FETCHED ON OPEN · NOT SAVED'],
+            what: 'Companies held that reported results, have results coming in two weeks, had a manager buy or sell shares on the market in the last two weeks, or where one of five big funds (Berkshire, Bridgewater, Norges Bank, Pershing Square, Duquesne) changed its shares by 5% or more in its last quarterly 13F filing.',
+            why: 'Results move a price the most. Analysts turning from buy to hold, or a manager selling a lot, is worth a look before adding more. A big fund buying or selling shows what careful money did, three to four months late.',
+            now: [
+              'FINNHUB · FETCHED ON OPEN · NOT SAVED',
+              'SEC EDGAR 13F · FETCHED ON OPEN · NOT SAVED',
+            ],
           }}
         />
       </div>
@@ -173,7 +247,7 @@ export function YourCompanies({
         >
           {answer || failed ? '✕ NOT REACHED' : 'READING'}
         </span>
-      ) : answer.rows.length === 0 ? (
+      ) : rows.length === 0 ? (
         <span className="ins-badge dim" data-testid="companies-quiet">
           NO RESULTS OR INSIDER TRADES · 2 WEEKS
         </span>
@@ -183,7 +257,18 @@ export function YourCompanies({
           <div className="hd">RESULTS</div>
           <div className="hd">ANALYSTS</div>
           <div className="hd">INSIDERS</div>
-          {answer.rows.map((r) => (
+          <div className="hd">
+            BIG FUNDS
+            {f.answer || f.failed ? (
+              fundsIn ? null : (
+                <span className="text-state-danger" data-testid="funds-none">
+                  {' '}
+                  ✕
+                </span>
+              )
+            ) : null}
+          </div>
+          {rows.map((r) => (
             <div key={r.symbol} className="contents" data-testid="company-row">
               <div className="co1">
                 <TickerLogo symbol={r.symbol} size={24} />
@@ -191,16 +276,37 @@ export function YourCompanies({
                   <b>{r.name}</b> <span className="e">{eur(r.valueEur)}</span>
                 </span>
               </div>
-              <ResultsCell r={r.results} />
-              <AnalystsCell a={r.analysts} />
-              <InsiderCell i={r.insider} />
+              {r.missed?.includes('results') ? (
+                <Missed />
+              ) : (
+                <ResultsCell r={r.results} />
+              )}
+              {r.missed?.includes('analysts') ? (
+                <Missed />
+              ) : (
+                <AnalystsCell a={r.analysts} />
+              )}
+              {r.missed?.includes('insider') ? (
+                <Missed />
+              ) : (
+                <InsiderCell i={r.insider} />
+              )}
+              <FundCell m={moves.get(r.symbol)} />
             </div>
           ))}
         </div>
       )}
       <div className="ins-foot one">
         <span className="ins-was">
-          FINNHUB{answer ? ` · ${clock(answer.fetchedAt)}` : ''} · NOT SAVED
+          FINNHUB{answer ? ` · ${clock(answer.fetchedAt)}` : ''} · SEC EDGAR
+          {f.answer
+            ? fundsIn
+              ? ` · ${clock(f.answer.fetchedAt)}`
+              : ' · NOT REACHED'
+            : f.failed
+              ? ' · NOT REACHED'
+              : ''}{' '}
+          · NOT SAVED
         </span>
       </div>
     </section>

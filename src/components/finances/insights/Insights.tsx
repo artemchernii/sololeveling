@@ -9,7 +9,7 @@ import { changeWord } from './parts'
 import { IdeasTab } from './IdeasTab'
 import { Markets } from './Markets'
 import { OnReddit } from './OnReddit'
-import { YourCompanies, useCompanies } from './YourCompanies'
+import { YourCompanies, useCompanies, useFunds } from './YourCompanies'
 import { WeekStories } from './WeekStories'
 import { allocFacts, allocRows } from './Allocation'
 import { Mine, itemOf } from './Mine'
@@ -83,6 +83,7 @@ export function Insights({ shown }: { shown: boolean }) {
     [owned],
   )
   const comp = useCompanies(companies)
+  const funds = useFunds(companies)
   /* A held company's results day, and its results out (YOUR COMPANIES):
      facts for the read, THE WEEK and ASK. */
   const earn = [
@@ -177,7 +178,7 @@ export function Insights({ shown }: { shown: boolean }) {
               board={board}
               onIdea={goIdea}
             />
-            <YourCompanies c={comp} />
+            <YourCompanies c={comp} f={funds} />
             <SectorMap
               shown={market.shown}
               period={period}

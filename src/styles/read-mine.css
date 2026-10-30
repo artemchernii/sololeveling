@@ -394,3 +394,14 @@
   color: var(--color-ink-400);
   padding: 0 6px;
 }
+
+/* A number's icon in the READ head, in its own colour on a tint of it. */
+.fm {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--t);
+  background: color-mix(in oklch, var(--t) 16%, transparent);
+}

@@ -130,6 +130,29 @@ const MINE_ICON: Array<[string, string]> = [
   ['me-alloc-', 'pie'],
   ['me-tax-', 'tax'],
 ]
+/** Each icon in its own colour (30 Oct, his "i want colorful icons"),
+    on a tint of it. A kind of number, not a grade. */
+const TINT: Record<string, string> = {
+  heat: 'var(--state-warn)',
+  bank: 'var(--color-lav-400)',
+  wallet: 'var(--state-good)',
+  case: 'var(--kind-note)',
+  globe: 'var(--line-2)',
+  dollar: 'var(--state-good)',
+  pie: 'var(--color-lav-400)',
+  tax: 'var(--state-danger)',
+  chart: 'var(--kind-note)',
+  bars: 'var(--state-warn)',
+  day: 'var(--line-2)',
+}
+function Tinted({ n }: { n: string }) {
+  return (
+    <span className="fm" style={{ '--t': TINT[n] } as React.CSSProperties}>
+      <LineIcon d={LINE[n]} />
+    </span>
+  )
+}
+
 export function LineIcon({ d, size = 13 }: { d: string; size?: number }) {
   return (
     <svg
@@ -157,22 +180,22 @@ export function FactMark({ k }: { k: string }) {
       return <AccountLogo name={m.site} domain={m.site} size={18} />
     if (m && 'coin' in m) return <TickerLogo symbol={m.coin} size={18} />
     if (m && 'metal' in m) return <TickerLogo symbol={m.metal} size={18} />
-    return <LineIcon d={LINE.chart} />
+    return <Tinted n="chart" />
   }
   if (k.startsWith('co-') || k.startsWith('pos-'))
     return <TickerLogo symbol={k.slice(k.indexOf('-') + 1)} size={18} />
-  if (k === 'mine') return <LineIcon d={LINE.case} />
+  if (k === 'mine') return <Tinted n="case" />
   if (k.startsWith('me-')) {
     const i = MINE_ICON.find(
       ([p]) => k === p || (p.endsWith('-') && k.startsWith(p)),
     )
-    return <LineIcon d={LINE[i?.[1] ?? 'wallet']} />
+    return <Tinted n={i?.[1] ?? 'wallet'} />
   }
-  if (k.startsWith('sec-')) return <LineIcon d={LINE.bars} />
-  if (k.startsWith('reg-')) return <LineIcon d={LINE.globe} />
-  if (k.startsWith('alloc-')) return <LineIcon d={LINE.pie} />
-  if (k.startsWith('earn-')) return <LineIcon d={LINE.day} />
-  return <LineIcon d={LINE.chart} />
+  if (k.startsWith('sec-')) return <Tinted n="bars" />
+  if (k.startsWith('reg-')) return <Tinted n="globe" />
+  if (k.startsWith('alloc-')) return <Tinted n="pie" />
+  if (k.startsWith('earn-')) return <Tinted n="day" />
+  return <Tinted n="chart" />
 }
 
 /** The market's own facts in plain words; his (me-) already are. */

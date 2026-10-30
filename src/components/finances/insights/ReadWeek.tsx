@@ -12,9 +12,9 @@ import type { Cash } from './ReadLines'
 
 const eur = (n: number) => `€${Math.round(n).toLocaleString('en-GB')}`
 const PART_WORD: Record<BoardLine['part'], string> = {
-  protect: 'Protect',
-  add: 'Add to mine',
-  new: 'New',
+  protect: 'PROTECT',
+  add: 'ADD TO MINE',
+  new: 'NEW',
 }
 
 export function ReadWeek({
@@ -39,7 +39,7 @@ export function ReadWeek({
     <aside className="rm-side">
       <section data-testid="read-week" className="ins-tile rm-week">
         <div className="rm-wh">
-          <h2>This week</h2>
+          <h2>THIS WEEK</h2>
           <span className="grow" />
           {moves.length > 0 ? (
             <span className="ins-badge lav">
@@ -53,7 +53,7 @@ export function ReadWeek({
               {eur(total)}
             </div>
             <div className="rm-of">
-              to put to work{cash ? `, out of ${eur(cash.idle)} cash` : ''}
+              {cash ? `OF ${eur(cash.idle)} CASH` : ''}
             </div>
             {cash && cash.idle > 0 ? (
               <div className="rm-bar" aria-hidden>
@@ -79,7 +79,7 @@ export function ReadWeek({
                   <span className="min-w-0 text-left">
                     <span className="nm">{m.name}</span>
                     <span className="p">
-                      {m.ticker} · Ideas, {PART_WORD[m.part]}
+                      {m.ticker} · IDEAS · {PART_WORD[m.part]}
                     </span>
                   </span>
                   <span className="e">{eur(m.eur)}</span>
@@ -94,7 +94,7 @@ export function ReadWeek({
                 <path d="M20 6L9 17l-5-5" />
               </svg>
             </span>
-            <b>{board ? 'No action' : 'No plan yet'}</b>
+            <b>{board ? 'NO ACTION' : 'NO PLAN YET'}</b>
           </div>
         )}
         <button
@@ -103,13 +103,20 @@ export function ReadWeek({
           className="rm-open"
           onClick={() => onIdea(null)}
         >
-          {board ? 'Open the plan in Ideas' : 'Open Ideas'}
+          {board ? 'OPEN THE PLAN IN IDEAS' : 'OPEN IDEAS'}
         </button>
       </section>
       <p className="rm-from">
-        Data from Eurostat, BLS, the Fed, the ECB and Yahoo Finance.
+        FROM EUROSTAT · BLS · FED · ECB · YAHOO FINANCE
         {at
-          ? ` Read ${new Date(at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}.`
+          ? ` · READ ${new Date(at)
+              .toLocaleString('en-GB', {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+              .toUpperCase()}`
           : ''}
       </p>
     </aside>

@@ -86,14 +86,14 @@ test('S1 READ MARKET → reading → the read: headline, lines with icons and fa
   /* Three boxes in plain words, printed by the app. */
   const boxes = lines.nth(0).getByTestId('read-box')
   await expect(boxes).toHaveCount(3)
-  await expect(boxes.nth(0)).toContainText('Euro area prices, a year')
-  await expect(boxes.nth(1)).toContainText('ECB rate')
-  await expect(boxes.nth(2)).toContainText('US prices, a year')
+  await expect(boxes.nth(0)).toContainText('EURO INFLATION')
+  await expect(boxes.nth(1)).toContainText('ECB RATE')
+  await expect(boxes.nth(2)).toContainText('US INFLATION')
   await expect(lines.nth(3)).toHaveAttribute('data-kind', 'dont')
   await expect(lines.nth(3)).toContainText('AVGO')
   await expect(page.getByTestId('read-move')).toHaveCount(0)
   await expect(page.getByTestId('read-none')).toHaveCount(4)
-  await expect(page.getByTestId('read-week-none')).toHaveText('No plan yet')
+  await expect(page.getByTestId('read-week-none')).toHaveText('NO PLAN YET')
   /* HOW IT IS MADE and the NOT ADVICE badge are gone. */
   await expect(page.getByTestId('read-how')).toHaveCount(0)
   await expect(page.getByTestId('tab-read')).not.toContainText('NOT ADVICE')
@@ -125,7 +125,7 @@ test('S2 a mixed month: warn edge, a NO DATA line', async ({ page }) => {
   const none = page.locator('[data-testid=read-line][data-kind=nodata]')
   await expect(none).toContainText('NO DATA')
   await expect(none.getByTestId('read-move')).toHaveCount(0)
-  await expect(none.getByTestId('read-none')).toHaveText('No action')
+  await expect(none.getByTestId('read-none')).toHaveText('NO ACTION')
   await page.screenshot({ ...shot('insights-read-mixed'), fullPage: true })
 })
 

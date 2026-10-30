@@ -153,15 +153,15 @@ export function FactMark({ k }: { k: string }) {
 
 /** The market's own facts in plain words; his (me-) already are. */
 const PLAIN: Record<string, string> = {
-  'us-cpi': 'US prices, a year',
-  'us-cpi-was': 'US prices, the month before',
-  'eu-hicp': 'Euro area prices, a year',
-  'eu-hicp-was': 'Euro area prices, the month before',
-  fed: 'US central bank rate',
-  'fed-next': 'Next Fed meeting',
-  ecb: 'ECB rate',
-  'ecb-next': 'Next ECB meeting',
-  mine: 'Investments',
+  'us-cpi': 'US INFLATION',
+  'us-cpi-was': 'US INFLATION · MONTH BEFORE',
+  'eu-hicp': 'EURO INFLATION',
+  'eu-hicp-was': 'EURO INFLATION · MONTH BEFORE',
+  fed: 'FED RATE',
+  'fed-next': 'NEXT FED MEETING',
+  ecb: 'ECB RATE',
+  'ecb-next': 'NEXT ECB MEETING',
+  mine: 'INVESTMENTS',
 }
 export function labelOf(f: Fact) {
   if (PLAIN[f.key]) return PLAIN[f.key]

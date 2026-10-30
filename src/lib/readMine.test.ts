@@ -42,24 +42,26 @@ const get = (facts: ReturnType<typeof readMine>, key: string) =>
 describe('readMine', () => {
   test('cash lost to prices is cash × euro inflation, both shown', () => {
     const f = get(readMine(base), 'me-cash-lost')
-    expect(f?.value).toBe('−€1,743 · 3.8% of €45,858')
+    expect(f?.value).toBe('−€1,743 · 3.8% · €45,858 CASH')
     expect(f?.tone).toBe('bad')
     expect(get(readMine(base), 'me-cash-ecb')?.value).toBe(
-      '+€917 · 2.0% of €45,858',
+      '+€917 · 2.0% · €45,858 CASH',
     )
   })
 
   test('the dollar: a stronger dollar lifts the US part in euros', () => {
     const facts = readMine(base)
-    expect(get(facts, 'me-us-eur')?.value).toBe('€13,556 · 72% of €18,828')
+    expect(get(facts, 'me-us-eur')?.value).toBe(
+      '€13,556 · 72% · €18,828 INVESTED',
+    )
     const d = get(facts, 'me-dollar')
-    expect(d?.value).toBe('+€434 · €1 ▼ 3.1% in dollars on €13,556')
+    expect(d?.value).toBe('+€434 · EUR/USD ▼ 3.1% · €13,556 IN US')
     expect(d?.tone).toBe('good')
   })
 
   test('tax on a sale only where there is a gain', () => {
     const facts = readMine(base)
-    expect(get(facts, 'me-tax-IGLN')?.value).toBe('−€169 · 28% of €602 profit')
+    expect(get(facts, 'me-tax-IGLN')?.value).toBe('−€169 · 28% · €602 PROFIT')
     expect(get(facts, 'me-tax-GOOGL')).toBeUndefined()
   })
 
@@ -73,7 +75,7 @@ describe('readMine', () => {
     expect(get(facts, 'me-prices')).toBeUndefined()
     expect(get(facts, 'me-dollar')).toBeUndefined()
     expect(get(facts, 'me-alloc-gold')).toBeUndefined()
-    expect(get(facts, 'me-alloc-europe')?.value).toBe('2% · world 15%')
+    expect(get(facts, 'me-alloc-europe')?.value).toBe('2% · WORLD 15%')
   })
 
   test('nothing read yet: no cash facts', () => {
@@ -142,9 +144,9 @@ describe('the IDEAS move a line points at', () => {
       boxOf({
         key: 'k',
         label: 'L',
-        value: '−€1,743 · 3.8% of €45,858',
+        value: '−€1,743 · 3.8% · €45,858 CASH',
         tone: null,
       }),
-    ).toEqual({ label: 'L', value: '−€1,743', note: '3.8% of €45,858' })
+    ).toEqual({ label: 'L', value: '−€1,743', note: '3.8% · €45,858 CASH' })
   })
 })

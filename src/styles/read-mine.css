@@ -63,8 +63,10 @@
     padding-left: 0;
     border-left: 0;
   }
-  & .n {
-    font-size: 12px;
+  & .n,
+  & .s {
+    font: 600 9.5px var(--font-mono);
+    letter-spacing: 0.12em;
     color: var(--color-ink-400);
   }
   & .v {
@@ -74,10 +76,6 @@
   }
   & .v.warn {
     color: var(--state-warn);
-  }
-  & .s {
-    font-size: 11.5px;
-    color: var(--color-ink-400);
   }
 }
 
@@ -166,7 +164,8 @@
   border: 1px solid var(--glass-edge);
   background: color-mix(in oklch, var(--lift) 5%, transparent);
   & .n {
-    font-size: 12.5px;
+    font: 600 9.5px var(--font-mono);
+    letter-spacing: 0.12em;
     color: var(--color-ink-300);
   }
   & .v {
@@ -177,7 +176,8 @@
     overflow-wrap: anywhere;
   }
   & .s {
-    font-size: 12px;
+    font: 500 9.5px var(--font-mono);
+    letter-spacing: 0.08em;
     color: var(--color-ink-400);
   }
   &.good,
@@ -226,7 +226,8 @@
   }
 }
 .rm-hint {
-  font-size: 12.5px;
+  font: 600 9.5px var(--font-mono);
+  letter-spacing: 0.12em;
   color: var(--color-ink-400);
 }
 .rm-none {
@@ -284,7 +285,8 @@
   color: var(--color-ink-100);
 }
 .rm-of {
-  font-size: 13px;
+  font: 600 9.5px var(--font-mono);
+  letter-spacing: 0.12em;
   color: var(--color-ink-400);
   margin-top: 6px;
 }
@@ -329,7 +331,8 @@
   }
   & .p {
     display: block;
-    font-size: 12px;
+    font: 500 9.5px var(--font-mono);
+    letter-spacing: 0.08em;
     color: var(--color-ink-400);
   }
   & .e {
@@ -385,7 +388,8 @@
   }
 }
 .rm-from {
-  font-size: 12px;
+  font: 600 9.5px var(--font-mono);
+  letter-spacing: 0.1em;
   line-height: 1.6;
   color: var(--color-ink-400);
   padding: 0 6px;

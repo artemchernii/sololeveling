@@ -6,8 +6,8 @@ import type { Fact, MarketNumbers } from './marketRead'
    line means for his money in €: one of his numbers times one fetched rate,
    with both printed after the result ("−€1,743 · 3.8% of €45,858"), never
    stored as a number of its own. Each is a fact the model may name; the
-   app prints it. Labels are plain words (his "I dont understand LLM style
-   of text"). Pure. */
+   app prints it. Labels are caps with values, bank-app words (30 Oct: "can it be
+   simple?"). Pure. */
 
 /** Portugal taxes a gain at 28% when it is sold (CIRS art. 72). */
 export const PT_GAINS_TAX = 28
@@ -38,12 +38,12 @@ export type MineInput = {
 }
 
 const AREA_WORD: Record<string, string> = {
-  tech: 'Tech',
+  tech: 'TECH',
   us: 'US',
-  europe: 'Europe',
-  world: 'World funds',
-  health: 'Health',
-  gold: 'Gold',
+  europe: 'EUROPE',
+  world: 'WORLD FUNDS',
+  health: 'HEALTH',
+  gold: 'GOLD',
 }
 
 export function readMine(i: MineInput): Array<Fact> {
@@ -58,42 +58,42 @@ export function readMine(i: MineInput): Array<Fact> {
   const hicp = i.rates.find((r) => r.id === 'eu-hicp')
   const ecb = i.rates.find((r) => r.id === 'ecb')
   if (i.cash) {
-    add('me-cash', 'Cash', `${eur(i.cash.idle)} · banks and broker`)
+    add('me-cash', 'CASH', `${eur(i.cash.idle)} · BANKS AND BROKER`)
     if (hicp?.reached && hicp.value !== null && i.cash.idle > 0)
       add(
         'me-cash-lost',
-        'Lost to prices in a year',
-        `${signed(-(i.cash.idle * hicp.value) / 100)} · ${pc(hicp.value)} of ${eur(i.cash.idle)}`,
+        'INFLATION ON CASH · A YEAR',
+        `${signed(-(i.cash.idle * hicp.value) / 100)} · ${pc(hicp.value)} · ${eur(i.cash.idle)} CASH`,
         'bad',
       )
     if (ecb?.reached && ecb.value !== null && i.cash.idle > 0)
       add(
         'me-cash-ecb',
-        'Cash at the ECB rate, a year',
-        `${signed((i.cash.idle * ecb.value) / 100)} · ${pc(ecb.value)} of ${eur(i.cash.idle)}`,
+        'ECB RATE ON CASH · A YEAR',
+        `${signed((i.cash.idle * ecb.value) / 100)} · ${pc(ecb.value)} · ${eur(i.cash.idle)} CASH`,
         'good',
       )
   }
   if (hicp?.reached && hicp.value !== null)
     add(
       'me-prices',
-      'Euro area prices, a year',
+      'EURO INFLATION',
       hicp.prev !== null
-        ? `${pc(hicp.value)} · was ${pc(hicp.prev)}`
+        ? `${pc(hicp.value)} · WAS ${pc(hicp.prev)}`
         : pc(hicp.value),
     )
   if (ecb?.reached && ecb.value !== null)
-    add('me-ecb', 'ECB rate', `${ecb.value.toFixed(2)}% · for euro cash`)
-  if (i.invested !== null) add('me-invested', 'Investments', eur(i.invested))
+    add('me-ecb', 'ECB RATE', `${ecb.value.toFixed(2)}%`)
+  if (i.invested !== null) add('me-invested', 'INVESTMENTS', eur(i.invested))
 
   for (const a of i.alloc ?? []) {
     if (a.mine === null) continue
     const word = AREA_WORD[a.id] ?? a.id
     add(
       `me-alloc-${a.id}`,
-      `${word} in investments`,
+      `${word} IN MINE`,
       a.world !== null
-        ? `${Math.round(a.mine)}% · world ${Math.round(a.world)}%`
+        ? `${Math.round(a.mine)}% · WORLD ${Math.round(a.world)}%`
         : `${Math.round(a.mine)}%`,
     )
   }
@@ -106,15 +106,15 @@ export function readMine(i: MineInput): Array<Fact> {
     const usEur = (i.invested * us) / 100
     add(
       'me-us-eur',
-      'Investments in the US',
-      `${eur(usEur)} · ${Math.round(us)}% of ${eur(i.invested)}`,
+      'US IN MINE',
+      `${eur(usEur)} · ${Math.round(us)}% · ${eur(i.invested)} INVESTED`,
     )
     if (fx) {
       const moved = usEur * (1 / (1 + fx.change / 100) - 1)
       add(
         'me-dollar',
-        'From the dollar this month',
-        `${signed(moved)} · €1 ${fx.change > 0 ? '▲' : '▼'} ${pc(fx.change)} in dollars on ${eur(usEur)}`,
+        'DOLLAR · THIS MONTH',
+        `${signed(moved)} · EUR/USD ${fx.change > 0 ? '▲' : '▼'} ${pc(fx.change)} · ${eur(usEur)} IN US`,
         moved > 0 ? 'good' : moved < 0 ? 'bad' : null,
       )
     }
@@ -127,8 +127,8 @@ export function readMine(i: MineInput): Array<Fact> {
     if (gain <= 0) continue
     add(
       `me-tax-${o.symbol.toUpperCase()}`,
-      `Tax if ${o.name} is sold today`,
-      `${signed(-(gain * PT_GAINS_TAX) / 100)} · ${PT_GAINS_TAX}% of ${eur(gain)} profit`,
+      `TAX IF SOLD · ${o.symbol.toUpperCase()}`,
+      `${signed(-(gain * PT_GAINS_TAX) / 100)} · ${PT_GAINS_TAX}% · ${eur(gain)} PROFIT`,
       'bad',
     )
   }

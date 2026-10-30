@@ -51,37 +51,37 @@ export function ReadLines({
       <div className="rm-board">
         <section data-testid="read-mine" className="ins-tile rm-head">
           <div className="rm-facts">
-            <Fig n="Total" v={cash ? eur(cash.worth) : '—'} s="now" />
+            <Fig n="TOTAL" v={cash ? eur(cash.worth) : '—'} s="NOW" />
             <Fig
-              n="Cash"
+              n="CASH"
               v={cash ? eur(cash.idle) : '—'}
               s={
                 cash && cash.worth > 0
-                  ? `${Math.round((cash.idle / cash.worth) * 100)}% of total`
+                  ? `${Math.round((cash.idle / cash.worth) * 100)}% OF TOTAL`
                   : ''
               }
               warn
             />
             <Fig
-              n="In banks"
+              n="IN BANKS"
               v={cash ? eur(cash.banks) : '—'}
-              s="bank accounts"
+              s="BANK ACCOUNTS"
             />
             <Fig
-              n="Broker cash"
+              n="BROKER CASH"
               v={cash ? eur(cash.broker) : '—'}
-              s="not invested"
+              s="NOT INVESTED"
             />
             <Fig
-              n="Investments"
+              n="INVESTMENTS"
               v={invested !== null ? eur(invested) : '—'}
-              s="now"
+              s="NOW"
             />
             <Fig
-              n="Spending a month"
+              n="SPENDING · MONTH"
               v={spend !== null ? eur(spend) : '—'}
               s={
-                spend !== null ? 'bills and day-to-day' : 'after an IDEAS read'
+                spend !== null ? 'BILLS AND DAY-TO-DAY' : 'AFTER AN IDEAS READ'
               }
             />
           </div>
@@ -255,14 +255,14 @@ function Line({
                 <span aria-hidden>→</span>
                 {moveWords(move)}
               </button>
-              <span className="rm-hint">Opens in Ideas</span>
+              <span className="rm-hint">OPENS IN IDEAS</span>
             </>
           ) : (
             <span data-testid="read-none" className="rm-none">
               <svg viewBox="0 0 24 24" aria-hidden>
                 <path d="M20 6L9 17l-5-5" />
               </svg>
-              No action
+              NO ACTION
             </span>
           )}
           <span className="grow" />

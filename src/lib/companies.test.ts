@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   hasNews,
+  latestResults,
   parseAnalysts,
   parseEarnings,
   parseInsiders,
@@ -46,6 +47,13 @@ describe('YOUR COMPANIES parsers', () => {
     })
     expect(m.has('XOM')).toBe(false)
     expect(parseEarnings(null, new Set(['GOOGL'])).size).toBe(0)
+    /* Asked for GOOG, Finnhub answers GOOGL: the entry still counts. */
+    expect(latestResults(json)).toEqual({
+      day: '2026-11-19',
+      actual: null,
+      expected: 1.2,
+    })
+    expect(latestResults({ earningsCalendar: [] })).toBeNull()
   })
 
   it('analysts: buy and hold this month and the month before', () => {

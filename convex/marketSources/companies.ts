@@ -8,15 +8,15 @@ import {
   MAX_COMPANIES,
   hasNews,
   parseAnalysts,
-  parseEarnings,
+  latestResults,
   parseInsiders,
 } from '../../src/lib/companies'
 import type { CompanyRow } from '../../src/lib/companies'
 
 /* YOUR COMPANIES: when MARKET opens, the page sends the held companies
    (biggest first, at most twelve) and this asks Finnhub for the earnings
-   calendar once and, per company, the analysts' counts and the insider
-   trades — 25 calls at most, under the free key's 60 a minute. Nothing
+   calendar, the analysts' counts and the insider trades for each — 36
+   calls at most, under the free key's 60 a minute. Nothing
    is stored. No key or no answer → `reached: false`, the tile alone says
    so. Canned on the test backend. */
 
@@ -99,24 +99,25 @@ export const companies = action({
       }
     }
     const since = day(now - 14 * DAY)
-    const [calendar, ...per] = await Promise.all([
-      get(
-        `calendar/earnings?from=${day(now - 7 * DAY)}&to=${day(now + 14 * DAY)}`,
-      ),
-      ...held.flatMap((h) => [
-        get(`stock/recommendation?symbol=${encodeURIComponent(h.symbol)}`),
-        get(
-          `stock/insider-transactions?symbol=${encodeURIComponent(h.symbol)}&from=${since}`,
-        ),
-      ]),
-    ])
-    if (calendar === null && per.every((x) => x === null)) return none
-    const results = parseEarnings(calendar, new Set(held.map((h) => h.symbol)))
+    const from = day(now - 7 * DAY)
+    const to = day(now + 14 * DAY)
+    /* Per company: the full calendar stops at 1,500 rows (30 Oct). */
+    const per = await Promise.all(
+      held.flatMap((h) => {
+        const s = encodeURIComponent(h.symbol)
+        return [
+          get(`calendar/earnings?from=${from}&to=${to}&symbol=${s}`),
+          get(`stock/recommendation?symbol=${s}`),
+          get(`stock/insider-transactions?symbol=${s}&from=${since}`),
+        ]
+      }),
+    )
+    if (per.every((x) => x === null)) return none
     const rows: Array<CompanyRow> = held.map((h, i) => ({
       ...h,
-      results: results.get(h.symbol) ?? null,
-      analysts: parseAnalysts(per[i * 2]),
-      insider: parseInsiders(per[i * 2 + 1], since),
+      results: latestResults(per[i * 3]),
+      analysts: parseAnalysts(per[i * 3 + 1]),
+      insider: parseInsiders(per[i * 3 + 2], since),
     }))
     return {
       source: COMPANIES_SOURCE,

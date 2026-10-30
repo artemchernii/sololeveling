@@ -6,7 +6,7 @@
    Finnhub (403 on 30 Oct), so the counts stand in for them. */
 
 export const COMPANIES_SOURCE = 'Finnhub'
-/** Finnhub's free key allows 60 calls a minute; two per company and one calendar. */
+/** Finnhub's free key allows 60 calls a minute; three per company. */
 export const MAX_COMPANIES = 12
 
 const num = (x: unknown) =>
@@ -40,6 +40,23 @@ export function parseEarnings(
     })
   }
   return out
+}
+
+/** One company's calendar answer, its latest entry: Finnhub may answer
+    GOOG with GOOGL, so the symbol is not checked. */
+export function latestResults(json: unknown): Results | null {
+  const rows = (
+    json as { earningsCalendar?: Array<Record<string, unknown>> } | null
+  )?.earningsCalendar
+  if (!Array.isArray(rows)) return null
+  const all = new Set(
+    rows.map((r) => r.symbol).filter((x): x is string => typeof x === 'string'),
+  )
+  return (
+    [...parseEarnings(json, all).values()].sort((a, b) =>
+      b.day.localeCompare(a.day),
+    )[0] ?? null
+  )
 }
 
 export type Count = { month: string; buy: number; hold: number; sell: number }

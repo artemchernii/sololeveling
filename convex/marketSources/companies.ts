@@ -6,7 +6,6 @@ import { requireUser } from '../auth'
 import {
   COMPANIES_SOURCE,
   MAX_COMPANIES,
-  hasNews,
   parseAnalysts,
   latestResults,
   parseInsiders,
@@ -123,7 +122,9 @@ export const companies = action({
       source: COMPANIES_SOURCE,
       fetchedAt: now,
       reached: true,
-      rows: rows.filter(hasNews),
+      /* Every held company: the page keeps those with news, a big
+         fund's move counted too (BIG FUNDS, funds.ts). */
+      rows,
     }
   },
 })

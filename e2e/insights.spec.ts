@@ -53,8 +53,8 @@ test('S1 open: six rates, the trend, sectors as rows, each with its source and t
   await expect(page.getByTestId('market-card')).toHaveCount(8)
   await expect(market(page, 'sp500')).toContainText('S&P 500')
   await expect(market(page, 'sp500')).toContainText('6,612')
-  /* THE TREND opens on 3M (30 Oct): the canned month × 2.5. */
-  await expect(market(page, 'sp500')).toContainText('▲ 6.0%')
+  /* Opens on the day (30 Oct, "it should be day"). */
+  await expect(market(page, 'sp500')).toContainText('▲ 0.3%')
   await expect(market(page, 'sp500')).toContainText('→ 6,612')
   await expect(market(page, 'us10y')).toContainText('PTS')
   await expect(page.getByTestId('markets-foot')).toContainText(
@@ -97,14 +97,14 @@ test('S1 open: six rates, the trend, sectors as rows, each with its source and t
 test('S2 each period changes the numbers and the vs line', async ({ page }) => {
   await open(page)
   const sp = market(page, 'sp500')
-  await expect(sp).toContainText('▲ 6.0%', { timeout: 15_000 })
+  await expect(sp).toContainText('▲ 0.3%', { timeout: 15_000 })
   const since = page.getByTestId('markets-since')
-  await expect(since).toContainText(/VS \d+ [A-Z]{3} CLOSE/)
+  await expect(since).toContainText('VS PREVIOUS CLOSE')
   const seen: Array<string> = [(await since.textContent()) ?? '']
 
   for (const [p, change] of [
-    ['1D', '▲ 0.3%'],
     ['1W', '▲ 1.0%'],
+    ['3M', '▲ 6.0%'],
     ['1M', '▲ 2.4%'],
     ['1Y', '▲ 9.6%'],
   ] as const) {
@@ -119,9 +119,9 @@ test('S2 each period changes the numbers and the vs line', async ({ page }) => {
     seen.push(line)
   }
   await expect(since).toContainText(/2025 CLOSE/)
-  /* A period seen once is kept: back to 3M is at once, no reading. */
-  await page.getByRole('button', { name: '3M', exact: true }).first().click()
-  await expect(sp).toContainText('▲ 6.0%')
+  /* A period seen once is kept: back to 1D is at once, no reading. */
+  await page.getByRole('button', { name: '1D', exact: true }).first().click()
+  await expect(sp).toContainText('▲ 0.3%')
   await expect(page.getByTestId('insights-room')).not.toContainText('READING')
   await page.screenshot(shot('insights-periods'))
 })
@@ -168,7 +168,7 @@ test('S4 ⓘ opens its card in plain words, and closes', async ({ page }) => {
 test('S5 phone width: no sideways scroll', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await open(page)
-  await expect(market(page, 'sp500')).toContainText('▲ 6.0%', {
+  await expect(market(page, 'sp500')).toContainText('▲ 0.3%', {
     timeout: 15_000,
   })
   const over = await page.evaluate(

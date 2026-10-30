@@ -58,19 +58,33 @@ function ResultsCell({ r }: { r: Results | null }) {
   )
 }
 
+/** Buy green, hold in ink, sell red: what each count is, not how many. */
+function Counts({ c }: { c: Analysts['now'] }) {
+  return (
+    <span className="k">
+      <span className="text-state-good">Buy {c.buy}</span> ·{' '}
+      <span>Hold {c.hold}</span>
+      {c.sell ? (
+        <>
+          {' '}
+          · <span className="text-state-danger">Sell {c.sell}</span>
+        </>
+      ) : null}
+    </span>
+  )
+}
+
 function AnalystsCell({ a }: { a: Analysts | null }) {
   if (!a) return <Dash />
-  /* No colour: a count of analysts is not good or bad (30 Oct, "this
-     colours are weird"). Last month under it, both with their months. */
   return (
-    <Cell
-      k={counts(a.now)}
-      w={
-        a.was
+    <div>
+      <Counts c={a.now} />
+      <span className="w">
+        {a.was
           ? `${monthWord(a.was.month)}: ${counts(a.was)}`
-          : monthWord(a.now.month)
-      }
-    />
+          : monthWord(a.now.month)}
+      </span>
+    </div>
   )
 }
 

@@ -43,8 +43,9 @@ const NONE: [] = []
 /** shown: the room is the one on screen — rooms stay mounted when
     hidden, and the ASK pill lives outside the room. */
 export function Insights({ shown }: { shown: boolean }) {
-  /* THE TREND's switch, 3M first (30 Oct); MINE follows it. */
-  const [period, setPeriod] = useState<Period>('3M')
+  /* One switch for SECTORS, THE TREND and MINE; the day first, like READ
+     and CLOSE (30 Oct: "it should be day"). */
+  const [period, setPeriod] = useState<Period>('1D')
   const market = useMarket(period)
   /* The MARKET tab's badge is today's S&P 500, whatever the switch says
      (30 Oct: "why i see market S&P up 3.8%? its down today"). Shared

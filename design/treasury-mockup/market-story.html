@@ -474,7 +474,7 @@ const RD = [['nvidia.com', 'NVDA', 1240, 410, 1], ['tesla.com', 'TSLA', 980, 112
 function crowd() {
   document.getElementById('crowd').innerHTML = `<h2 style="font-size:13px;font-weight:700;letter-spacing:.14em;color:var(--ink-200)">ON REDDIT</h2>
     <div class="caps" style="margin-top:6px;letter-spacing:.08em">r/stocks · r/investing · r/wallstreetbets</div>
-    <div class="rdl">${RD.map(([site, t, a, b, h], i) => `<div class="rd"><span class="r">${i + 1}</span>${fav(site, true)}<span class="nm">${t}${h ? '<i>HELD</i>' : ''}</span><span class="c">${a.toLocaleString('en')}× this week<span>${b.toLocaleString('en')}× last week</span></span></div>`).join('')}</div>`
+    <div class="rdl">${RD.map(([site, t, a, b, h], i) => `<div class="rd"><span class="r">${i + 1}</span>${fav(site, true)}<span class="nm">${t}${h ? '<i>HELD</i>' : ''}</span><span class="c">${a.toLocaleString('en')}× this week</span></div>`).join('')}</div>`
 }
 document.getElementById('srcbtn').onclick = (e) => { e.target.classList.toggle('on'); document.body.classList.toggle('srcs') }
 trend(); sectors(); comps(); crowd(); show('busy')

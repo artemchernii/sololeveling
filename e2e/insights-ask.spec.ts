@@ -270,7 +270,7 @@ test('S8 ✦ on a read line, a box and an allocation line → the question in th
   await page.locator('[data-tab="read"]').click()
   const line = page.getByTestId('read-line').first()
   await line.getByTestId('ask-on').click()
-  await opened(page, 'Inflation is cooling — why?', paid)
+  await opened(page, 'Prices are rising more slowly — why?', paid)
   await expect(page.getByTestId('ask-input')).toBeFocused()
   await page.screenshot(shot('insights-ask-on-line'))
 

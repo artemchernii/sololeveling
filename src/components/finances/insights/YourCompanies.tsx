@@ -126,6 +126,13 @@ const Cell = ({ k, w, tone = '' }: { k: string; w: string; tone?: string }) => (
     <span className="w">{w}</span>
   </div>
 )
+const Missed = () => (
+  <div>
+    <span className="k text-state-danger" data-testid="cell-missed">
+      ✕ NOT REACHED
+    </span>
+  </div>
+)
 const Dash = () => (
   <div>
     <span className="dash">—</span>
@@ -269,9 +276,21 @@ export function YourCompanies({
                   <b>{r.name}</b> <span className="e">{eur(r.valueEur)}</span>
                 </span>
               </div>
-              <ResultsCell r={r.results} />
-              <AnalystsCell a={r.analysts} />
-              <InsiderCell i={r.insider} />
+              {r.missed?.includes('results') ? (
+                <Missed />
+              ) : (
+                <ResultsCell r={r.results} />
+              )}
+              {r.missed?.includes('analysts') ? (
+                <Missed />
+              ) : (
+                <AnalystsCell a={r.analysts} />
+              )}
+              {r.missed?.includes('insider') ? (
+                <Missed />
+              ) : (
+                <InsiderCell i={r.insider} />
+              )}
               <FundCell m={moves.get(r.symbol)} />
             </div>
           ))}

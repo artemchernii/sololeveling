@@ -50,6 +50,16 @@ const row = v.object({
     }),
     v.null(),
   ),
+  /* A call Finnhub did not answer: its cell says NOT REACHED, never "—". */
+  missed: v.optional(
+    v.array(
+      v.union(
+        v.literal('results'),
+        v.literal('analysts'),
+        v.literal('insider'),
+      ),
+    ),
+  ),
 })
 const answer = v.object({
   source: v.string(),
@@ -60,6 +70,12 @@ const answer = v.object({
 type Answer = Infer<typeof answer>
 
 const DAY = 86_400_000
+/* Finnhub's free key refuses a burst (2 of 36 at once got 429, 30 Oct):
+   one call every 70 ms, about 14 a second, and a refused one tried once
+   more a second later. */
+const GAP_MS = 70
+const RETRY_MS = 1100
+const MISSED = Symbol('missed')
 const day = (t: number) => new Date(t).toISOString().slice(0, 10)
 
 export const companies = action({
@@ -86,16 +102,29 @@ export const companies = action({
       rows: [],
     }
     if (!key || held.length === 0) return none
-    const get = async (path: string): Promise<unknown> => {
+    let next = Date.now()
+    const slot = () => {
+      const at = Math.max(Date.now(), next)
+      next = at + GAP_MS
+      return new Promise((r) => setTimeout(r, at - Date.now()))
+    }
+    const once = async (path: string): Promise<unknown> => {
+      await slot()
       try {
         const res = await fetch(`https://finnhub.io/api/v1/${path}`, {
           headers: { 'X-Finnhub-Token': key },
           signal: AbortSignal.timeout(8000),
         })
-        return res.ok ? await res.json() : null
+        return res.ok ? ((await res.json()) as unknown) : MISSED
       } catch {
-        return null
+        return MISSED
       }
+    }
+    const get = async (path: string): Promise<unknown> => {
+      const first = await once(path)
+      if (first !== MISSED) return first
+      await new Promise((r) => setTimeout(r, RETRY_MS))
+      return once(path)
     }
     const since = day(now - 14 * DAY)
     const from = day(now - 7 * DAY)
@@ -111,12 +140,14 @@ export const companies = action({
         ]
       }),
     )
-    if (per.every((x) => x === null)) return none
+    if (per.every((x) => x === MISSED)) return none
+    const parts = ['results', 'analysts', 'insider'] as const
     const rows: Array<CompanyRow> = held.map((h, i) => ({
       ...h,
       results: latestResults(per[i * 3]),
       analysts: parseAnalysts(per[i * 3 + 1]),
       insider: parseInsiders(per[i * 3 + 2], since),
+      missed: parts.filter((_, k) => per[i * 3 + k] === MISSED),
     }))
     return {
       source: COMPANIES_SOURCE,

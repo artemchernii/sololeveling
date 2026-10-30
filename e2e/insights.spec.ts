@@ -80,6 +80,7 @@ test('S1 open: six rates, the trend, sectors as rows, each with its source and t
   await expect(co).toContainText('Berkshire +8% shares')
   await expect(co).toContainText('Q1 17.8M · Q2 19.2M · 13F')
   await expect(page.getByTestId('funds-none')).toHaveCount(0)
+  await expect(page.getByTestId('cell-missed')).toHaveCount(0)
   /* ON REDDIT: five rows, today over yesterday, HELD on a held one. */
   await expect(page.getByTestId('crowd-row')).toHaveCount(5)
   await expect(page.getByTestId('crowd-row').first()).toContainText(

@@ -9,6 +9,8 @@ import { siteWord } from '@/lib/askCopy'
 import type { Point } from '@/lib/insightsMarket'
 import { Star } from './AskBlocks'
 import { RangeChart } from './RangeChart'
+import { money, tickerRows } from '@/lib/ideasNumbers'
+import type { NumRow } from '@/lib/ideasNumbers'
 
 /* One line of the IDEAS board (mockup ideas-board.html): logo and name,
    what MINE holds of it, three months' line, today and two signal chips
@@ -77,14 +79,24 @@ export function IdeasLine({
   const [open, setOpen] = useState(false)
   const day = facts?.day
   const chips = facts ? chipsOf(facts) : []
-  const rows = line.numbers.flatMap((n) => {
-    if (n.key === '') return [{ text: n.text, url: n.url }]
+  const rows = line.numbers.flatMap((n): Array<NumRow> => {
+    if (n.key === '')
+      return [{ k: siteWord(new URL(n.url).hostname), v: n.text, url: n.url }]
     const f = readFacts.find((x) => x.key === n.key)
     if (!f) return []
-    /* A ticker's facts are one row each, not one long line. */
     if (f.key.startsWith('tk-'))
-      return f.value.split(' · ').map((v) => ({ text: v, url: '' }))
-    return [{ text: `${f.label} ${f.value}`, url: '' }]
+      return facts
+        ? tickerRows(facts)
+        : f.value.split(' · ').map((v) => ({ k: '', v }))
+    if (f.key.startsWith('pos-'))
+      return [
+        {
+          k: 'MINE',
+          v: f.value.split(' · ')[0],
+          n: f.value.split(' · ')[1]?.toUpperCase(),
+        },
+      ]
+    return [{ k: f.label, v: f.value }]
   })
   return (
     <div
@@ -167,19 +179,23 @@ export function IdeasLine({
         >
           <summary>NUMBERS · {rows.length}</summary>
           <div className="idb-nums">
-            <ul>
-              {rows.map((r) => (
-                <li key={r.text}>
-                  {r.text}
-                  {r.url ? (
-                    <a href={r.url} target="_blank" rel="noreferrer">
-                      {' '}
-                      {siteWord(new URL(r.url).hostname)} ↗
-                    </a>
-                  ) : null}
-                </li>
+            <div className="idb-numtab" data-testid="idb-numtab">
+              {rows.map((r, j) => (
+                <div key={j} className="r">
+                  <span className="k">{r.k}</span>
+                  <span className={`v ${r.tone ?? ''}`}>
+                    {r.url ? (
+                      <a href={r.url} target="_blank" rel="noreferrer">
+                        {r.v} ↗
+                      </a>
+                    ) : (
+                      r.v
+                    )}
+                  </span>
+                  <span className="n">{r.n ?? ''}</span>
+                </div>
               ))}
-            </ul>
+            </div>
             {/* His 29 Oct "next to the numbers I would add chart and link
               to yahoo finance": fetched when NUMBERS opens. */}
             {open ? (
@@ -187,7 +203,7 @@ export function IdeasLine({
                 title={`${line.name} · ${line.ticker}`}
                 symbol={line.ticker}
                 start="1M"
-                fmt={(v) => money(facts?.currency ?? '', v)}
+                fmt={(v) => money(facts?.currency ?? 'USD', v)}
               />
             ) : null}
           </div>
@@ -196,6 +212,3 @@ export function IdeasLine({
     </div>
   )
 }
-
-const money = (cur: string, v: number) =>
-  `${cur === 'USD' ? '$' : cur === 'EUR' ? '€' : cur === 'GBp' ? '' : ''}${v.toLocaleString('en-GB', { maximumFractionDigits: v >= 1000 ? 0 : 2 })}${cur === 'GBp' ? 'p' : cur && cur !== 'USD' && cur !== 'EUR' ? ` ${cur}` : ''}`

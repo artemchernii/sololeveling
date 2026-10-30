@@ -68,6 +68,7 @@ test('S1 before a read: cash, strip and movers; READ → reading → the plan in
   await expect(avgo).toContainText('WHY')
   await avgo.getByTestId('idb-numbers').locator('summary').click()
   await expect(avgo.getByTestId('idb-numbers')).toContainText('RSI 14')
+  await expect(avgo.getByTestId('idb-numtab')).toContainText('SMA 200')
   /* Beside the numbers, the ticker's chart and its Yahoo page. */
   await expect(
     avgo

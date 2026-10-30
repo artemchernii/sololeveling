@@ -1191,3 +1191,58 @@
     margin-left: 0;
   }
 }
+
+/* NUMBERS as a table beside the chart, both in the same frame. */
+.idb-numtab {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 12px;
+  border-radius: 11px;
+  border: 1px solid var(--glass-edge);
+  background: color-mix(in oklch, var(--lift) 3%, transparent);
+  user-select: text;
+  & .r {
+    display: grid;
+    grid-template-columns: 72px minmax(0, auto) minmax(0, 1fr);
+    align-items: baseline;
+    gap: 10px;
+    padding: 7px 0;
+    border-top: 1px solid var(--glass-edge);
+    &:first-child {
+      border-top: 0;
+    }
+  }
+  & .k {
+    font: 700 9px var(--font-mono);
+    letter-spacing: 0.14em;
+    color: var(--color-ink-400);
+  }
+  & .v {
+    font: 600 12.5px var(--font-mono);
+    color: var(--color-ink-100);
+    white-space: nowrap;
+    &.good {
+      color: var(--state-good);
+    }
+    &.bad {
+      color: var(--state-danger);
+    }
+    & a {
+      color: var(--color-lav-300);
+      white-space: normal;
+      font: 500 11.5px var(--font-sans, inherit);
+    }
+  }
+  & .n {
+    font: 500 9.5px var(--font-mono);
+    letter-spacing: 0.06em;
+    color: var(--color-ink-400);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+.idb-nums {
+  align-items: stretch;
+}

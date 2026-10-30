@@ -9,6 +9,7 @@ import { changeWord } from './parts'
 import { IdeasTab } from './IdeasTab'
 import { Markets } from './Markets'
 import { OnReddit } from './OnReddit'
+import { YourCompanies } from './YourCompanies'
 import { allocFacts, allocRows } from './Allocation'
 import { Mine, itemOf } from './Mine'
 import { useMine } from './useMine'
@@ -58,6 +59,19 @@ export function Insights({ shown }: { shown: boolean }) {
   )
   const mine = useMine(period, owned?.map(itemOf) ?? null)
   const alloc = owned ? allocRows(owned, tags, mine.base) : null
+  /* YOUR COMPANIES: the held companies, biggest first (30 Oct). */
+  const companies = useMemo(
+    () =>
+      owned
+        ?.filter((o) => o.type === 'EQUITY')
+        .sort((a, b) => (b.valueEur ?? 0) - (a.valueEur ?? 0))
+        .map((o) => ({
+          symbol: tickerBase(o.symbol),
+          name: o.name,
+          valueEur: o.valueEur,
+        })) ?? null,
+    [owned],
+  )
   /* A held company's results day: a fact for the read and for ASK. */
   const earn = mine.base?.earnings
     ? earningsFacts(mine.base.earnings.rows, mine.base.fetchedAt)
@@ -111,6 +125,7 @@ export function Insights({ shown }: { shown: boolean }) {
       {tab === 'market' ? (
         <div data-testid="tab-market" className="ins-panel ins-mgrid">
           <div className="flex min-w-0 flex-col gap-3.5">
+            <YourCompanies held={companies} />
             <SectorMap
               shown={market.shown}
               period={period}

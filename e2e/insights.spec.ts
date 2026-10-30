@@ -70,6 +70,12 @@ test('S1 open: six rates, the trend, sectors as rows, each with its source and t
   ).toHaveAttribute('data-held', 'false')
   await expect(page.getByTestId('sector')).toHaveCount(8)
   await expect(page.getByTestId('region')).toHaveCount(6)
+  /* YOUR COMPANIES: the held company with its results, analysts, insider. */
+  const co = page.getByTestId('company-row').first()
+  await expect(co).toContainText('$2.31 a share')
+  await expect(co).toContainText('$2.10 expected')
+  await expect(co).toContainText('Buy 48 · Hold 9')
+  await expect(co).toContainText('Sold $4.2M')
   /* ON REDDIT: five rows, today over yesterday, HELD on a held one. */
   await expect(page.getByTestId('crowd-row')).toHaveCount(5)
   await expect(page.getByTestId('crowd-row').first()).toContainText(

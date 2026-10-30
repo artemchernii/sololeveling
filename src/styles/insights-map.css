@@ -272,3 +272,58 @@
     }
   }
 }
+
+/* YOUR COMPANIES: company, results, analysts, insiders */
+.ins-cg {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr));
+  gap: 0 14px;
+  & > .hd {
+    font: 700 9.5px var(--font-mono);
+    letter-spacing: 0.14em;
+    color: var(--color-ink-500);
+    padding-bottom: 6px;
+  }
+  & > .contents > div {
+    padding: 10px 0;
+    border-top: 1px solid var(--glass-edge);
+    min-width: 0;
+  }
+  & .co1 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    & b {
+      font-size: 13.5px;
+    }
+    & .e {
+      font: 500 11px var(--font-mono);
+      color: var(--color-ink-500);
+    }
+  }
+  & .k {
+    display: block;
+    font: 600 12.5px var(--font-mono);
+  }
+  & .w {
+    display: block;
+    font-size: 11.5px;
+    color: var(--color-ink-500);
+  }
+  & .dash {
+    color: var(--color-ink-500);
+  }
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    & > .hd {
+      display: none;
+    }
+    & .co1 {
+      grid-column: 1 / -1;
+    }
+    & > .contents > div:not(.co1) {
+      border-top: 0;
+      padding-top: 2px;
+    }
+  }
+}

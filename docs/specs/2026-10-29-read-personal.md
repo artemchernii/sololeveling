@@ -76,7 +76,7 @@ banned list in CLAUDE.md still holds.
   - `gold-tax-now` = gold gain × 28% (gain from the round held now, as
     PAID counts it; Portugal's 28% as a constant with its source)
   - `xeon-year` = an IDEAS amount × the ECB rate (the hint under a move)
-  Nothing is stored; a missing input makes the box ❔ No data.
+    Nothing is stored; a missing input makes the box ❔ No data.
 - **The moves come from IDEAS, not from the model's READ answer.** The
   model names an IDEAS ticker per line (`idea: 'XEON'` or none); the app
   looks it up in the latest IDEAS read and takes the words, part and €

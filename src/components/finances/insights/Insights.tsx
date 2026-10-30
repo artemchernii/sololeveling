@@ -46,6 +46,10 @@ export function Insights({ shown }: { shown: boolean }) {
   /* THE TREND's switch, 3M first (30 Oct); MINE follows it. */
   const [period, setPeriod] = useState<Period>('3M')
   const market = useMarket(period)
+  /* The MARKET tab's badge is today's S&P 500, whatever the switch says
+     (30 Oct: "why i see market S&P up 3.8%? its down today"). Shared
+     with CLOSE's 1D answer: one fetch, kept ten minutes. */
+  const today = useMarket('1D')
   /* Portfolio's own positions, for the white dot on a held company. */
   const positions = useQuery(api.aggregate.positions, {})
   /* Portfolio's region and sector tags, for ALLOCATION (band 3). */
@@ -129,6 +133,7 @@ export function Insights({ shown }: { shown: boolean }) {
             <SectorMap
               shown={market.shown}
               period={period}
+              onPeriod={setPeriod}
               held={held}
               reading={market.reading}
             />
@@ -167,6 +172,7 @@ export function Insights({ shown }: { shown: boolean }) {
             <Mine
               held={owned ?? []}
               period={period}
+              onPeriod={setPeriod}
               mine={mine}
               rows={alloc}
               read={read.shown}
@@ -196,7 +202,7 @@ export function Insights({ shown }: { shown: boolean }) {
 
   /** Each tab's badge, from numbers already on the page. */
   function badgesOf(): Partial<Record<Tab, Badge>> {
-    const sp = market.shown?.markets.find((m) => m.id === 'sp500')?.move
+    const sp = today.answer?.markets.find((m) => m.id === 'sp500')?.move
     const lines = read.shown?.read?.lines
     const moves = lines
       ? new Set(
@@ -212,7 +218,7 @@ export function Insights({ shown }: { shown: boolean }) {
     return {
       market: sp
         ? {
-            text: `S&P ${changeWord(sp.change)}`,
+            text: `S&P TODAY ${changeWord(sp.change)}`,
             tone: sp.change > 0 ? 'good' : sp.change < 0 ? 'bad' : 'dim',
           }
         : undefined,

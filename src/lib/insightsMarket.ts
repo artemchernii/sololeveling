@@ -7,13 +7,6 @@
 
 export const PERIODS = ['1D', '1W', '1M', '3M', '1Y'] as const
 export type Period = (typeof PERIODS)[number]
-/** MARKET's THE TREND switch (30 Oct, market-story.html): the longer view,
-    3M first. 1D stays for CLOSE, 1W for MINE. */
-export const TREND_PERIODS = [
-  '1M',
-  '3M',
-  '1Y',
-] as const satisfies ReadonlyArray<Period>
 
 /** How Yahoo is asked for each period, and how far back its base close is. */
 export const PERIOD_FETCH: Record<

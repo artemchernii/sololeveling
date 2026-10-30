@@ -1,12 +1,20 @@
 import { TrendingUp } from 'lucide-react'
 
-import { Info, Line, MarkLogo, changeWord, clock, dayWord } from './parts'
+import {
+  Info,
+  Line,
+  MarkLogo,
+  PeriodSwitch,
+  changeWord,
+  clock,
+  dayWord,
+} from './parts'
 import type { Answer } from './useMarket'
-import { MARKETS, TREND_PERIODS } from '@/lib/insightsMarket'
+import { MARKETS } from '@/lib/insightsMarket'
 import type { Period } from '@/lib/insightsMarket'
 
 /* THE TREND (30 Oct, design/treasury-mockup/market-story.html): the eight
-   markets as rows over 1M · 3M · 1Y, 3M first — the longer view his "not
+   markets as rows over 1D · 1W · 1M · 3M · 1Y, 3M first — the longer view his "not
    like today only but in general" asked for. Each row: the mark, the name,
    the close the period starts from and the price now (two fetched
    prices), the line, the change. A yield moves in points and in ink: a
@@ -91,18 +99,7 @@ export function Markets({
         <span className="ins-tname">THE TREND</span>
         <Info info={MARKETS_INFO} />
         <span className="flex-1" />
-        <div className="ins-seg" role="group" aria-label="Period">
-          {TREND_PERIODS.map((p) => (
-            <button
-              key={p}
-              type="button"
-              aria-pressed={p === period}
-              onClick={() => onPeriod(p)}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
+        <PeriodSwitch period={period} onPeriod={onPeriod} />
       </div>
       <span className="ins-was" data-testid="markets-since">
         {reading ? `READING ${period}…` : sinceWord(shown)}

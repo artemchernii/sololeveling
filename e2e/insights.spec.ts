@@ -103,12 +103,14 @@ test('S2 each period changes the numbers and the vs line', async ({ page }) => {
   const seen: Array<string> = [(await since.textContent()) ?? '']
 
   for (const [p, change] of [
+    ['1D', '▲ 0.3%'],
+    ['1W', '▲ 1.0%'],
     ['1M', '▲ 2.4%'],
     ['1Y', '▲ 9.6%'],
   ] as const) {
-    await page.getByRole('button', { name: p, exact: true }).click()
+    await page.getByRole('button', { name: p, exact: true }).first().click()
     await expect(
-      page.getByRole('button', { name: p, exact: true }),
+      page.getByRole('button', { name: p, exact: true }).first(),
     ).toHaveAttribute('aria-pressed', 'true')
     await expect(sp).toContainText(change, { timeout: 15_000 })
     await expect(page.getByTestId('heat-period')).toHaveText(p)
@@ -118,7 +120,7 @@ test('S2 each period changes the numbers and the vs line', async ({ page }) => {
   }
   await expect(since).toContainText(/2025 CLOSE/)
   /* A period seen once is kept: back to 3M is at once, no reading. */
-  await page.getByRole('button', { name: '3M', exact: true }).click()
+  await page.getByRole('button', { name: '3M', exact: true }).first().click()
   await expect(sp).toContainText('▲ 6.0%')
   await expect(page.getByTestId('insights-room')).not.toContainText('READING')
   await page.screenshot(shot('insights-periods'))
@@ -185,7 +187,7 @@ test('S6 tabs: MARKET with no read, one band at a time, the last tab kept on rel
   await expect(tab('market')).toHaveAttribute('aria-pressed', 'true')
   /* The S&P 500's change over the period, as its card says it. */
   await expect(tab('market').getByTestId('tab-badge')).toHaveText(
-    'S&P ▲ 6.0%',
+    'S&P TODAY ▲ 0.3%',
     { timeout: 15_000 },
   )
   await expect(page.getByTestId('tab-market')).toBeVisible()

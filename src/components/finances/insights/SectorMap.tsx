@@ -9,7 +9,7 @@ import {
   Zap,
 } from 'lucide-react'
 
-import { Info, signed } from './parts'
+import { Info, PeriodSwitch, signed } from './parts'
 import type { Answer } from './useMarket'
 import { TickerLogo } from '@/components/finances/Logo'
 import { REGIONS, SECTORS, zeroBar } from '@/lib/insightsMarket'
@@ -58,11 +58,13 @@ function Bar({ change }: { change: number | null }) {
 export function SectorMap({
   shown,
   period,
+  onPeriod,
   held,
   reading,
 }: {
   shown: Answer | null
   period: Period
+  onPeriod: (p: Period) => void
   held: ReadonlySet<string>
   reading: boolean
 }) {
@@ -94,9 +96,10 @@ export function SectorMap({
         />
         <span className="flex-1" />
         <span className="ins-badge lav">HELD</span>
-        <span className="ins-badge dim" data-testid="heat-period">
+        <span className="sr-only" data-testid="heat-period">
           {period}
         </span>
+        <PeriodSwitch period={period} onPeriod={onPeriod} />
       </div>
       <div className={`ins-sgrid ${reading && shown ? 'ins-reading' : ''}`}>
         {sorted.map((s) => {

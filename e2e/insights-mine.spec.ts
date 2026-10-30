@@ -63,10 +63,11 @@ test('S1 every position a box by its euros, with its Portfolio verdict', async (
 
   /* Another period changes the moves, not the verdicts. */
   const month = await box(page, 'AVGO').locator('.v').textContent()
-  /* The period is MARKET's switch, shared by the room. */
-  await page.locator('[data-tab="market"]').click()
-  await page.getByRole('button', { name: '1Y', exact: true }).click()
-  await page.locator('[data-tab="mine"]').click()
+  /* MINE has its own switch, the same choice as MARKET's (30 Oct). */
+  await page
+    .getByTestId('mine-positions')
+    .getByRole('button', { name: '1Y', exact: true })
+    .click()
   await expect(page.getByTestId('mine-positions')).toContainText(
     'POSITIONS · 1Y',
   )

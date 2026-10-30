@@ -60,12 +60,8 @@ function ResultsCell({ r }: { r: Results | null }) {
 
 function AnalystsCell({ a }: { a: Analysts | null }) {
   if (!a) return <Dash />
-  const tone =
-    a.was === null || a.now.buy === a.was.buy
-      ? ''
-      : a.now.buy > a.was.buy
-        ? 'text-state-good'
-        : 'text-state-danger'
+  /* No colour: a count of analysts is not good or bad (30 Oct, "this
+     colours are weird"). Last month under it, both with their months. */
   return (
     <Cell
       k={counts(a.now)}
@@ -74,7 +70,6 @@ function AnalystsCell({ a }: { a: Analysts | null }) {
           ? `${monthWord(a.was.month)}: ${counts(a.was)}`
           : monthWord(a.now.month)
       }
-      tone={tone}
     />
   )
 }

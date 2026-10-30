@@ -4,7 +4,7 @@ import { Allocation } from './Allocation'
 import { AskOn } from './AskOn'
 import { EarnRibbon } from './EarnRibbon'
 import { askBox } from '@/lib/askOnCards'
-import { Info, clock, heatColour, signed } from './parts'
+import { Info, PeriodSwitch, clock, heatColour, signed } from './parts'
 import type { MineAnswer, useMine } from './useMine'
 import type { Doc, Id } from '../../../../convex/_generated/dataModel'
 import { TickerLogo } from '@/components/finances/Logo'
@@ -50,12 +50,14 @@ export const itemOf = (o: Held) => ({
 export function Mine({
   held,
   period,
+  onPeriod,
   mine,
   rows,
   read,
 }: {
   held: ReadonlyArray<Held>
   period: Period
+  onPeriod: (p: Period) => void
   mine: ReturnType<typeof useMine>
   rows: Array<AllocRow> | null
   read: Doc<'marketReads'> | null
@@ -67,7 +69,7 @@ export function Mine({
     </section>
   ) : (
     <div className="ins-grid">
-      <Positions held={held} period={period} mine={mine} />
+      <Positions held={held} period={period} onPeriod={onPeriod} mine={mine} />
       <Allocation
         held={held}
         rows={rows}
@@ -82,10 +84,12 @@ export function Mine({
 function Positions({
   held,
   period,
+  onPeriod,
   mine,
 }: {
   held: ReadonlyArray<Held>
   period: Period
+  onPeriod: (p: Period) => void
   mine: ReturnType<typeof useMine>
 }) {
   const changes = new Map(
@@ -151,6 +155,7 @@ function Positions({
         />
         <span className="flex-1" />
         <span className="ins-was">BOX = EUROS</span>
+        <PeriodSwitch period={period} onPeriod={onPeriod} />
       </div>
       <div
         ref={heat}

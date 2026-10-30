@@ -94,9 +94,7 @@ test('S1–S3 PRO badge opens the pick → OPUS asked and stamped → kept after
   await page.reload()
   await expect(page.getByTestId('rows-open')).toBeVisible()
   drawer = await open(page)
-  await expect(drawer.getByTestId('model-pick')).toHaveText(
-    'PRO · OPUS 5.5 ▾',
-  )
+  await expect(drawer.getByTestId('model-pick')).toHaveText('PRO · OPUS 5.5 ▾')
 })
 
 test('S4 the API path has no pick', async ({ page }) => {
@@ -160,8 +158,6 @@ test('S6 one pick: HAIKU on the Insights read is the ASK drawer’s too', async 
   await page.getByTestId('ask-open').click()
   const drawer = page.getByTestId('ask-drawer')
   await expect(drawer).toHaveAttribute('aria-hidden', 'false')
-  await expect(drawer.getByTestId('model-pick')).toHaveText(
-    'PRO · HAIKU 5.5 ▾',
-  )
+  await expect(drawer.getByTestId('model-pick')).toHaveText('PRO · HAIKU 5.5 ▾')
   await expect(drawer.getByTestId('ask-pay')).toHaveCount(0)
 })

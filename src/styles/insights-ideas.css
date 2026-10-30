@@ -1057,3 +1057,137 @@
     opacity: 0.2;
   }
 }
+
+/* A ticker's range chart — in the strip's card and beside NUMBERS. */
+.idb-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  user-select: text;
+  & .t {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font: 700 10px var(--font-mono);
+    letter-spacing: 0.14em;
+    color: var(--color-ink-100);
+    & .grow {
+      flex: 1;
+    }
+  }
+  & .big {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font: 600 12px var(--font-mono);
+    & b {
+      font: 600 22px var(--font-mono);
+      color: var(--color-ink-100);
+    }
+  }
+  & > svg {
+    width: 100%;
+    height: 120px;
+    display: block;
+    & polygon {
+      opacity: 0.12;
+    }
+    & polyline {
+      fill: none;
+      stroke-width: 1.8;
+      vector-effect: non-scaling-stroke;
+    }
+    & line.zero {
+      stroke: var(--color-ink-500);
+      stroke-dasharray: 3 3;
+      vector-effect: non-scaling-stroke;
+    }
+  }
+  & .rows.two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px 12px;
+    padding-top: 8px;
+    border-top: 1px solid var(--glass-edge);
+    font: 500 10px var(--font-mono);
+    letter-spacing: 0.06em;
+    color: var(--color-ink-400);
+    & > span {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    & b {
+      color: var(--color-ink-100);
+      font-weight: 600;
+    }
+  }
+  & .idb-seg button {
+    font: 700 9px var(--font-mono);
+    letter-spacing: 0.12em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: var(--color-ink-400);
+    &[aria-pressed='true'] {
+      color: var(--color-ink-100);
+      background: color-mix(in oklch, var(--color-lav-400) 20%, transparent);
+    }
+  }
+  & .foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    & a {
+      font: 700 9px var(--font-mono);
+      letter-spacing: 0.14em;
+      color: var(--color-lav-300);
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+    & .grow {
+      flex: 1;
+    }
+    & .ins-was {
+      margin: 0;
+    }
+  }
+}
+
+/* NUMBERS open: the facts as rows on the left, the chart on the right. */
+.idb-nums {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 16px;
+  margin: 8px 0 4px 14px;
+  align-items: start;
+  & ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    font: 11px var(--font-mono);
+    color: var(--color-ink-200);
+    & li {
+      padding: 5px 0;
+      border-top: 1px solid var(--glass-edge);
+      &:first-child {
+        border-top: 0;
+      }
+    }
+  }
+  & .idb-chart {
+    padding: 10px 12px;
+    border-radius: 11px;
+    border: 1px solid var(--glass-edge);
+    background: color-mix(in oklch, var(--lift) 3%, transparent);
+  }
+}
+@container (max-width: 640px) {
+  .idb-nums {
+    grid-template-columns: 1fr;
+    margin-left: 0;
+  }
+}

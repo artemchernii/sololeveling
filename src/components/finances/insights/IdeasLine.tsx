@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 import { TickerLogo } from '@/components/finances/Logo'
 import { chipsOf } from '@/lib/ideasBoard'
 import type { TickerFacts } from '@/lib/ideasBoard'
@@ -6,7 +8,7 @@ import type { Fact } from '@/lib/marketRead'
 import { siteWord } from '@/lib/askCopy'
 import type { Point } from '@/lib/insightsMarket'
 import { Star } from './AskBlocks'
-import { factIcon } from './readParts'
+import { RangeChart } from './RangeChart'
 
 /* One line of the IDEAS board (mockup ideas-board.html): logo and name,
    what MINE holds of it, three months' line, today and two signal chips
@@ -72,6 +74,7 @@ export function IdeasLine({
   onAsk: () => void
   i: number
 }) {
+  const [open, setOpen] = useState(false)
   const day = facts?.day
   const chips = facts ? chipsOf(facts) : []
   const rows = line.numbers.flatMap((n) => {
@@ -81,7 +84,7 @@ export function IdeasLine({
     /* A ticker's facts are one row each, not one long line. */
     if (f.key.startsWith('tk-'))
       return f.value.split(' · ').map((v) => ({ text: v, url: '' }))
-    return [{ text: `${factIcon(f.key)} ${f.label} ${f.value}`, url: '' }]
+    return [{ text: `${f.label} ${f.value}`, url: '' }]
   })
   return (
     <div
@@ -157,23 +160,42 @@ export function IdeasLine({
         <span>{line.eurWhy}</span>
       </div>
       {rows.length > 0 ? (
-        <details data-testid="idb-numbers" className="idb-more">
+        <details
+          data-testid="idb-numbers"
+          className="idb-more"
+          onToggle={(e) => setOpen(e.currentTarget.open)}
+        >
           <summary>NUMBERS · {rows.length}</summary>
-          <ul>
-            {rows.map((r) => (
-              <li key={r.text}>
-                {r.text}
-                {r.url ? (
-                  <a href={r.url} target="_blank" rel="noreferrer">
-                    {' '}
-                    {siteWord(new URL(r.url).hostname)} ↗
-                  </a>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+          <div className="idb-nums">
+            <ul>
+              {rows.map((r) => (
+                <li key={r.text}>
+                  {r.text}
+                  {r.url ? (
+                    <a href={r.url} target="_blank" rel="noreferrer">
+                      {' '}
+                      {siteWord(new URL(r.url).hostname)} ↗
+                    </a>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            {/* His 29 Oct "next to the numbers I would add chart and link
+              to yahoo finance": fetched when NUMBERS opens. */}
+            {open ? (
+              <RangeChart
+                title={`${line.name} · ${line.ticker}`}
+                symbol={line.ticker}
+                start="1M"
+                fmt={(v) => money(facts?.currency ?? '', v)}
+              />
+            ) : null}
+          </div>
         </details>
       ) : null}
     </div>
   )
 }
+
+const money = (cur: string, v: number) =>
+  `${cur === 'USD' ? '$' : cur === 'EUR' ? '€' : cur === 'GBp' ? '' : ''}${v.toLocaleString('en-GB', { maximumFractionDigits: v >= 1000 ? 0 : 2 })}${cur === 'GBp' ? 'p' : cur && cur !== 'USD' && cur !== 'EUR' ? ` ${cur}` : ''}`

@@ -68,6 +68,17 @@ test('S1 before a read: cash, strip and movers; READ → reading → the plan in
   await expect(avgo).toContainText('WHY')
   await avgo.getByTestId('idb-numbers').locator('summary').click()
   await expect(avgo.getByTestId('idb-numbers')).toContainText('RSI 14')
+  /* Beside the numbers, the ticker's chart and its Yahoo page. */
+  await expect(
+    avgo
+      .getByTestId('idb-numbers')
+      .getByTestId('idb-chart')
+      .locator('polyline'),
+  ).toHaveCount(1)
+  await expect(avgo.getByTestId('idb-yahoo')).toHaveAttribute(
+    'href',
+    'https://finance.yahoo.com/quote/AVGO',
+  )
   /* ZZZZ is not a ticker the market knows: its line is dropped. */
   await expect(page.locator('[data-ticker="ZZZZ"]')).toHaveCount(0)
   await expect(

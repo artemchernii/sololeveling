@@ -8,6 +8,7 @@ import type { Badge, Tab } from './InsightsTabs'
 import { changeWord } from './parts'
 import { IdeasTab } from './IdeasTab'
 import { Markets } from './Markets'
+import { OnReddit } from './OnReddit'
 import { allocFacts, allocRows } from './Allocation'
 import { Mine, itemOf } from './Mine'
 import { useMine } from './useMine'
@@ -131,6 +132,7 @@ export function Insights({ shown }: { shown: boolean }) {
               reading={market.reading}
               failed={market.failed}
             />
+            <OnReddit held={held} />
           </div>
         </div>
       ) : tab === 'read' ? (

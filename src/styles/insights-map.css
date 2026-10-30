@@ -233,3 +233,42 @@
     );
   }
 }
+
+/* ON REDDIT: rank, logo, ticker, today over yesterday */
+.ins-cr {
+  display: grid;
+  grid-template-columns: 16px 22px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--glass-edge);
+  &:first-child {
+    border-top: 0;
+  }
+  & .r {
+    font: 700 11px var(--font-mono);
+    color: var(--color-ink-500);
+  }
+  & .nm {
+    font-weight: 600;
+    font-size: 13px;
+  }
+  & .held {
+    font: 700 8px var(--font-mono);
+    font-style: normal;
+    letter-spacing: 0.1em;
+    color: var(--color-lav-300);
+    margin-left: 6px;
+  }
+  & .c {
+    font: 600 12px var(--font-mono);
+    text-align: right;
+    white-space: nowrap;
+    & span {
+      display: block;
+      font-weight: 500;
+      font-size: 10.5px;
+      color: var(--color-ink-500);
+    }
+  }
+}

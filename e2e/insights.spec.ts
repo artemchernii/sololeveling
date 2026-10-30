@@ -70,6 +70,15 @@ test('S1 open: six rates, the trend, sectors as rows, each with its source and t
   ).toHaveAttribute('data-held', 'false')
   await expect(page.getByTestId('sector')).toHaveCount(8)
   await expect(page.getByTestId('region')).toHaveCount(6)
+  /* ON REDDIT: five rows, today over yesterday, HELD on a held one. */
+  await expect(page.getByTestId('crowd-row')).toHaveCount(5)
+  await expect(page.getByTestId('crowd-row').first()).toContainText(
+    '1,240× today',
+  )
+  await expect(page.getByTestId('crowd-row').first()).toContainText(
+    '410× yesterday',
+  )
+  await expect(page.getByTestId('crowd-row').nth(2)).toContainText('HELD')
   /* No emoji anywhere on the tab (29 Oct: "Emojies again"). */
   expect(await page.getByTestId('tab-market').innerText()).not.toMatch(
     /\p{Extended_Pictographic}/u,

@@ -237,7 +237,9 @@ function Line({
                 >
                   <span className="n">{labelOf(f)}</span>
                   <span className="v">{b.value}</span>
-                  {b.note ? <span className="s">{b.note.toUpperCase()}</span> : null}
+                  {b.note ? (
+                    <span className="s">{b.note.toUpperCase()}</span>
+                  ) : null}
                 </div>
               )
             })}

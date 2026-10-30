@@ -173,6 +173,24 @@
   .phone .go { white-space: normal; text-align: left }
   .phone .sgrid { grid-template-columns: 1fr } .phone .sr:nth-child(2) { border-top: 1px solid var(--edge) } .phone .sr { grid-template-columns: 26px 84px minmax(0, 1fr) 52px }
   .phone .bas .box { display:flex }
+  /* your companies: one row per held company that had news this week */
+  .cg { display:grid; grid-template-columns: minmax(0, 1.1fr) repeat(4, minmax(0, 1fr)); gap: 0 14px; margin-top: 12px }
+  .cg > div { padding: 10px 0; border-top: 1px solid var(--edge); min-width: 0; font-size: 12.5px; color: var(--ink-200) }
+  .cg > .hd { border-top: 0; padding: 0 0 6px; font: 700 9.5px var(--mono); letter-spacing: .14em; color: var(--ink-400) }
+  .cg .co1 { display:flex; align-items:center; gap: 8px } .cg .co1 b { font-size: 13.5px } .cg .co1 .e { font: 500 11px var(--mono); color: var(--ink-400) }
+  .cg .k { display:block; font: 600 12.5px var(--mono); color: var(--ink-100) } .cg .w { display:block; font-size: 11.5px; color: var(--ink-400) }
+  .cg .dash { color: var(--ink-500) }
+  /* on reddit: counts only, no move */
+  .rd { display:grid; grid-template-columns: 18px 26px minmax(0, 1fr) auto; gap: 10px; align-items:center; padding: 8px 0; border-top: 1px solid var(--edge) }
+  .rdl { margin-top: 10px } .rd:first-child { border-top: 0 }
+  .rd .r { font: 700 11px var(--mono); color: var(--ink-400) } .rd .nm { font-weight: 600; font-size: 13px }
+  .rd .c { font: 600 12px var(--mono); text-align: right; white-space: nowrap } .rd .c span { display:block; font: 500 10.5px var(--mono); color: var(--ink-400) }
+  .rd .nm i { font: 700 8px var(--mono); font-style: normal; letter-spacing: .1em; color: var(--lav-300); margin-left: 6px; vertical-align: 2px }
+  /* the sources switch: every block shows where its numbers come from */
+  .srcs [data-src] { position: relative; outline: 2px dashed var(--warn); outline-offset: 3px }
+  .srcs [data-src]::after { content: attr(data-src); position: absolute; top: -10px; right: 12px; z-index: 3; font: 700 9.5px var(--mono); letter-spacing: .06em; color: #fff; background: var(--warn); padding: 3px 8px; border-radius: 999px; white-space: nowrap }
+  .phone .cg { grid-template-columns: 1fr 1fr } .phone .cg > .hd { display:none } .phone .cg .co1 { grid-column: 1 / -1; padding-top: 14px }
+  .phone .cg > div:not(.co1) { border-top: 0; padding-top: 2px }
 </style>
 </head>
 <body>
@@ -185,6 +203,8 @@
     <span style="width:12px"></span>
     <button data-v="desk" class="on">desktop</button>
     <button data-v="phone">phone</button>
+    <span style="width:12px"></span>
+    <button id="srcbtn">sources</button>
   </div>
 
   <div class="tabs">
@@ -197,7 +217,7 @@
 
   <div class="page">
     <div class="board">
-      <div class="tile">
+      <div class="tile" data-src="words: model · READ MARKET">
         <div class="head">
           <div class="grow">
             <div class="caps">The market · week of 27 Oct</div>
@@ -211,14 +231,18 @@
       <div class="sec"><h2>THE WEEK</h2><span class="caps" id="secn"></span></div>
       <div id="lines" style="display:flex;flex-direction:column;gap:14px"></div>
 
-      <div class="tile" id="sectors"></div>
+      <div class="sec"><h2>YOUR COMPANIES</h2><span class="caps">27–30 Oct · held only</span></div>
+      <div class="tile" id="comps" data-src="Finnhub · SEC EDGAR"></div>
+
+      <div class="tile" id="sectors" data-src="Yahoo Finance"></div>
       <p class="foot"><b>Sample:</b> every price, rate, inflation figure, change, date and headline, the € held in each company, tokens and cost. <b style="color:var(--good)">Real:</b> total, cash, investments, 72% in the US, 2% in Europe, 11% in gold.</p>
     </div>
 
     <aside class="side">
-      <div class="tile trend" id="trend"></div>
-      <div class="tile basics" id="basics"></div>
-      <p class="quiet">Prices from Yahoo Finance, fetched on open, kept 10 minutes. Rates from the Fed and the ECB, inflation from BLS and Eurostat.</p>
+      <div class="tile trend" id="trend" data-src="Yahoo Finance"></div>
+      <div class="tile basics" id="basics" data-src="FRED · ECB · BLS · Eurostat"></div>
+      <div class="tile" id="crowd" data-src="Reddit API"></div>
+      <p class="quiet">Fetched on open, kept 10 minutes, never saved: Yahoo Finance, Finnhub, SEC EDGAR, FRED, the ECB, BLS, Eurostat, Reddit.</p>
     </aside>
   </div>
 </div>
@@ -269,7 +293,7 @@ const S = {
     act: { label: 'Open the euro cash fund in Ideas', hint: 'XEON pays the ECB rate' } },
   earn: { k: 'earn', src: 'Yahoo Finance · 30 Oct', title: 'Big tech reported. Alphabet and Meta fell',
     sub: 'Both said they will spend more on AI next year. Microsoft and Apple rose after their results.',
-    boxes: [{ n: 'Alphabet in a month', v: '−16.8%', s: '$201 → $167', c: 'bad', sp: [5, -1] }, { n: 'Meta in a month', v: '−15.5%', s: '$742 → $627', c: 'bad', sp: [8, -1] }, { n: 'S&P 500 reported', v: '312 of 500', s: '71% above forecast' }],
+    boxes: [{ n: 'Alphabet in a month', v: '−16.8%', s: '$201 → $167', c: 'bad', sp: [5, -1] }, { n: 'Meta in a month', v: '−15.5%', s: '$742 → $627', c: 'bad', sp: [8, -1] }, { n: 'Alphabet results', v: '$2.31', s: 'a share · $2.10 expected', c: 'good' }],
     mine: { lab: 'YOUR MONEY', items: [['google.com', 'Alphabet', '€1,240', -16.8], ['meta.com', 'Meta', '€610', -15.5], ['microsoft.com', 'Microsoft', '€900', 4.2]], tot: '€2,750 in companies that reported' },
     act: { label: 'Open Alphabet in Ideas', hint: 'on the board under Add to mine' } },
   eu: { k: 'eu', src: 'Eurostat · Reuters · 28 Oct', title: 'Europe: prices up again, growth near zero',
@@ -333,7 +357,8 @@ function story(key, i) {
   const act = x.facts ? '' : `<div class="act">${x.act
     ? `<button class="go" data-go="${key}"><span>→</span>${x.act.label}</button><span class="hint grow">${x.act.hint}</span><button class="ask" data-ask="${key}">✦ Ask</button>`
     : `<span class="none">${ico('ok')}No action</span><span class="grow"></span><button class="ask" data-ask="${key}">✦ Ask</button>`}</div>`
-  return `<div class="tile ln" style="--c:var(${kc});animation-delay:${i * 70}ms">
+  const SRC = { rates: 'FRED · ECB', earn: 'Finnhub · Yahoo', eu: 'ECB · Eurostat · Yahoo', gold: 'Yahoo', em: 'Yahoo', mkt: 'Yahoo', none: 'Eurostat · Yahoo' }
+  return `<div class="tile ln" data-src="${SRC[x.k]}${x.facts ? '' : ' · words: model'}" style="--c:var(${kc});animation-delay:${i * 70}ms">
     <span class="ic">${ico(x.k)}</span>
     <div class="body">
       <div><div class="top"><span class="kind">${kn}</span><span class="src">${x.src}</span></div>
@@ -377,6 +402,8 @@ function basics(s) {
       <div class="box ${euNo ? 'none' : 'bad'}"><span class="n">Euro inflation</span><span class="v">${euNo ? 'NO DATA' : '3.8%'}</span><span class="s">${euNo ? 'Eurostat · no answer' : '3.2% in August · Eurostat'}</span></div>
       <div class="box"><span class="n">Fed rate</span><span class="v">3.75–4.00%</span><span class="s">next 9 Dec · in 40 days</span></div>
       <div class="box"><span class="n">ECB rate</span><span class="v">2.50%</span><span class="s">next 17 Dec · in 48 days</span></div>
+      <div class="box"><span class="n">US unemployment</span><span class="v">4.4%</span><span class="s">4.3% in August · FRED</span></div>
+      <div class="box"><span class="n">US 2-year · 10-year</span><span class="v">3.62 · 4.99%</span><span class="s">bond rates · FRED</span></div>
     </div>`
 }
 
@@ -429,7 +456,28 @@ document.addEventListener('click', (e) => {
 document.querySelectorAll('[data-s]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-s]').forEach((x) => x.classList.toggle('on', x === b)); shut(); show(b.dataset.s) })
 document.querySelectorAll('[data-v]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-v]').forEach((x) => x.classList.toggle('on', x === b)); document.body.classList.toggle('phone', b.dataset.v === 'phone') })
 if (Math.min(screen.width, innerWidth) < 600) document.querySelector('[data-v=phone]').click()
-trend(); sectors(); show('busy')
+/* held companies with news this week: [site, name, €, results, analysts, insiders, funds] — Finnhub, SEC EDGAR */
+const COMP = [
+  ['google.com', 'Alphabet', '€1,240', ['$2.31 a share', '$2.10 expected · 28 Oct', 'up'], ['Morgan Stanley', 'Buy → Hold · 29 Oct', 'dn'], ['CFO sold $4.2M', 'form 4 · 27 Oct', ''], ['Berkshire +8% shares', '13F · Q3', '']],
+  ['meta.com', 'Meta', '€610', ['$6.03 a share', '$6.70 expected · 29 Oct', 'dn'], ['UBS', 'Buy → Hold · 30 Oct', 'dn'], null, ['Bridgewater −31% shares', '13F · Q3', '']],
+  ['microsoft.com', 'Microsoft', '€900', ['$3.72 a share', '$3.66 expected · 29 Oct', 'up'], ['Jefferies', 'Hold → Buy · 30 Oct', 'up'], null, null],
+  ['nvidia.com', 'Nvidia', '€1,480', ['19 Nov', 'next results', ''], null, ['CEO sold $33M', 'form 4 · planned sale · 28 Oct', ''], ['Norges Bank +4% shares', '13F · Q3', '']],
+]
+function comps() {
+  const cell = (x) => x ? `<div><span class="k ${x[2]}">${x[0]}</span><span class="w">${x[1]}</span></div>` : '<div><span class="dash">—</span></div>'
+  document.getElementById('comps').innerHTML = `<div class="cg">
+    <div class="hd">COMPANY</div><div class="hd">RESULTS</div><div class="hd">ANALYSTS</div><div class="hd">INSIDERS</div><div class="hd">BIG FUNDS</div>
+    ${COMP.map(([site, nm, e, ...c]) => `<div class="co1">${fav(site, true)}<span><b>${nm}</b> <span class="e">${e}</span></span></div>${c.map(cell).join('')}`).join('')}</div>`
+}
+/* the most named tickers in this week's top posts — Reddit API */
+const RD = [['nvidia.com', 'NVDA', 1240, 410, 1], ['tesla.com', 'TSLA', 980, 1120], ['google.com', 'GOOGL', 760, 150, 1], ['amd.com', 'AMD', 540, 390], ['palantir.com', 'PLTR', 420, 610]]
+function crowd() {
+  document.getElementById('crowd').innerHTML = `<h2 style="font-size:13px;font-weight:700;letter-spacing:.14em;color:var(--ink-200)">ON REDDIT</h2>
+    <div class="caps" style="margin-top:6px;letter-spacing:.08em">r/stocks · r/investing · r/wallstreetbets</div>
+    <div class="rdl">${RD.map(([site, t, a, b, h], i) => `<div class="rd"><span class="r">${i + 1}</span>${fav(site, true)}<span class="nm">${t}${h ? '<i>HELD</i>' : ''}</span><span class="c">${a.toLocaleString('en')}× this week<span>${b.toLocaleString('en')}× last week</span></span></div>`).join('')}</div>`
+}
+document.getElementById('srcbtn').onclick = (e) => { e.target.classList.toggle('on'); document.body.classList.toggle('srcs') }
+trend(); sectors(); comps(); crowd(); show('busy')
 </script>
 </body>
 </html>

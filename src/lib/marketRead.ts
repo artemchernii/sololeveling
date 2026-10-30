@@ -314,9 +314,12 @@ Answer with:
   shares by area, the dollar's effect, the tax on a sale), then the
   market's. A line of kind nodata may name fewer.
   plain: "" (not shown).
-  idea: the ticker of one idea- fact whose move fits this line (for
-  example "XEON" for idea-XEON), or "" when nothing needs doing. Use each
-  idea at most once. A dont line has "".
+  idea: the move on his plan this line leads to — copy the text after
+  "idea-" of one idea- fact exactly (for idea-XEON.DE write "XEON.DE").
+  Every line that is not dont or nodata should point at the idea- fact
+  that fits it best (inflation → cash that pays, the dollar → Europe, a
+  share that fell → that share); "" only when no idea- fact fits. Use
+  each idea at most once. A dont line has "".
 - opinion: two sentences on where his money sits — his positions and
   the alloc- lines (his share against the world's) against the market,
   and any earn- fact (a held company that just reported or soon will);
@@ -340,10 +343,20 @@ function ideaField(
   known: Set<string>,
   before: Array<ReadLine>,
 ): { idea?: string } {
-  const t = text(raw, 16).toUpperCase()
-  if (!t || !known.has(`idea-${t}`) || before.some((l) => l.idea === t))
-    return {}
-  return { idea: t }
+  /* Named as the fact ("idea-XEON.DE"), its ticker, or the ticker
+     without its exchange ("XEON"): all point at the same board line. */
+  const t = text(raw, 24)
+    .toUpperCase()
+    .replace(/^IDEA-/, '')
+  if (!t) return {}
+  const offered = [...known]
+    .filter((k) => k.startsWith('idea-'))
+    .map((k) => k.slice(5))
+  const hit =
+    offered.find((o) => o === t) ??
+    offered.find((o) => o.split('.')[0] === t.split('.')[0])
+  if (!hit || before.some((l) => l.idea === hit)) return {}
+  return { idea: hit }
 }
 
 /**

@@ -113,6 +113,96 @@ test('S6 on the Pro path too: an answer naming only unknown keys fails, nothing 
   expect(state.spent).toBe(0)
 })
 
+test('THE WEEK: stored with the read; an unknown kind, a key not given and a sixth story refused', async () => {
+  const { me } = await setup()
+  const readId = await me.mutation(api.marketReads.run, { facts, via: 'pro' })
+  const line = {
+    kind: 'market',
+    tone: 'calm',
+    badge: 'X',
+    title: 'x',
+    line: 'x',
+    factKeys: ['mkt-sp500'],
+    plain: '',
+  }
+  const story = (over: Record<string, unknown> = {}) => ({
+    kind: 'rates',
+    title: 'The ECB kept its rate',
+    line: 'No rise and no cut.',
+    factKeys: ['ecb', 'ecb-next'],
+    move: '',
+    ...over,
+  })
+  await me.mutation(api.marketReads.finishPro, {
+    readId,
+    raw: JSON.stringify({
+      lines: [line, line, line],
+      weekHead: 'Rates held',
+      weekTake: 'Two lines.',
+      week: [
+        story({ kind: 'moon' }),
+        story({ factKeys: ['ecb', 'mkt-moon'] }),
+        ...Array.from({ length: 6 }, () => story()),
+      ],
+    }),
+    model: 'claude-sonnet-5-5',
+    inputTokens: 1,
+    outputTokens: 1,
+    searches: 0,
+  })
+  const read = (await me.query(api.marketReads.forMonth, { month: month() }))
+    .read?.read
+  expect(read?.weekHead).toBe('Rates held')
+  expect(read?.week).toHaveLength(5)
+  expect(read?.week?.every((s) => s.kind === 'rates')).toBe(true)
+  expect(read?.week?.every((s) => s.move === null)).toBe(true)
+})
+
+test('THE WEEK: the stored shape refuses a kind not on the list', async () => {
+  const { t, me } = await setup()
+  const readId = await me.mutation(api.marketReads.run, { facts, via: 'api' })
+  const read = {
+    mood: 'calm' as const,
+    lead: 'a',
+    rest: 'b',
+    summary: '',
+    kpis: [],
+    lines: [],
+    opinion: '',
+    ideas: [],
+    sources: [],
+  }
+  const stamp = {
+    model: 'm',
+    inputTokens: 0,
+    outputTokens: 0,
+    searches: 0,
+    cost: 0,
+    paidBy: 'api' as const,
+  }
+  await expect(
+    t.mutation(internal.marketReads.finish, {
+      readId,
+      stamp,
+      read: {
+        ...read,
+        week: [
+          {
+            kind: 'moon' as 'rates',
+            title: 't',
+            line: 'l',
+            factKeys: [],
+            move: null,
+          },
+        ],
+      },
+    }),
+  ).rejects.toThrow()
+  await expect(
+    t.mutation(internal.marketReads.finish, { readId, stamp, read }),
+  ).resolves.toBeNull()
+})
+
 test('S7 spend adds up per response and stops at $2', async () => {
   const { t, me } = await setup()
   const readId = await me.mutation(api.marketReads.run, { facts, via: 'api' })

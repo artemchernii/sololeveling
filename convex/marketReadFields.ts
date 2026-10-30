@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 
 import { KINDS, MOODS, TONES } from '../src/lib/marketRead'
+import { WEEK_KINDS } from '../src/lib/marketWeek'
 
 /* The market read's shapes (I3, 19 Oct), kept beside the schema the way
    fundamentalsFields.ts is. The read's words are the model's; its numbers
@@ -55,6 +56,21 @@ export const marketReadBody = v.object({
       day: v.string(),
     }),
   ),
+  /* THE WEEK on MARKET (30 Oct): stored with the read, as its lines are;
+     absent on reads made before it. */
+  week: v.optional(
+    v.array(
+      v.object({
+        kind: literals(WEEK_KINDS),
+        title: v.string(),
+        line: v.string(),
+        factKeys: v.array(v.string()),
+        move: v.union(v.object({ ticker: v.string() }), v.null()),
+      }),
+    ),
+  ),
+  weekHead: v.optional(v.string()),
+  weekTake: v.optional(v.string()),
 })
 
 export const payer = v.union(v.literal('pro'), v.literal('api'))

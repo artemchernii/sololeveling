@@ -213,3 +213,154 @@ test('S6 tabs: MARKET with no read, one band at a time, the last tab kept on rel
   await expect(page.getByTestId('insights-tabs')).toBeInViewport()
   await page.screenshot(shot('insights-tabs'))
 })
+
+/* THE WEEK on MARKET (30 Oct, docs/specs/2026-10-30-market.md; mockup
+   market-story.html). Four mock positions (e2eMine): Broadcom and NVIDIA
+   reported in YOUR COMPANIES' canned answer, nothing in Brazil. The read
+   is canned: calm is a busy week of five stories, quiet a week of two. */
+
+async function openHeld(page: Page) {
+  await start(page)
+  await testClient().mutation(anyApi.e2eMine.positions, {})
+  await page.goto('/finances?room=insights')
+  await expect(page.getByTestId('read-hero')).toHaveAttribute(
+    'data-state',
+    'idle',
+  )
+}
+async function readWeek(page: Page) {
+  const button = page.getByTestId('read-market')
+  await expect(button).toBeEnabled({ timeout: 15_000 })
+  await button.click()
+  await expect(page.getByTestId('read-hero')).toHaveAttribute(
+    'data-state',
+    'done',
+    { timeout: 15_000 },
+  )
+  await page.locator('[data-tab="market"]').click()
+}
+const story = (page: Page, kind: string) =>
+  page.locator(`[data-testid=week-story][data-kind="${kind}"]`)
+
+test('WEEK S4 not read yet: facts only, no move, ✦ READ MARKET', async ({
+  page,
+}) => {
+  await openHeld(page)
+  await expect(page.getByTestId('week-headline')).toHaveText('Not read yet')
+  await expect(page.getByTestId('week-count')).toContainText('FACTS ONLY')
+  await expect(story(page, 'rates')).toContainText('ECB 2.00%', {
+    timeout: 15_000,
+  })
+  await expect(story(page, 'earn')).toContainText('2 companies held reported')
+  /* The month's biggest mover among gold, Stoxx 600, Bitcoin, EUR/USD. */
+  await expect(page.getByTestId('week-story').nth(2)).toContainText(
+    'BITCOIN ▼ 4.1% in a month',
+  )
+  await expect(page.getByTestId('week-move')).toHaveCount(0)
+  await expect(page.getByTestId('week-none')).toHaveCount(0)
+  await expect(page.getByTestId('read-market')).toContainText('READ MARKET')
+  await page.screenshot({ ...shot('week-facts'), fullPage: true })
+})
+
+test('WEEK S1 busy week: the headline, five stories with boxes, YOUR MONEY, a move or No action', async ({
+  page,
+}) => {
+  await openHeld(page)
+  await readWeek(page)
+  await expect(page.getByTestId('week-headline')).toHaveText(
+    'Rates held, chips rose, Brazil votes',
+  )
+  await expect(page.getByTestId('week-count')).toContainText('5 STORIES')
+  await expect(
+    page.locator('[data-tab="market"] [data-testid=tab-badge]'),
+  ).toHaveText('5 STORIES')
+  const all = page.getByTestId('week-story')
+  await expect(all).toHaveCount(5)
+  for (let i = 0; i < 5; i++) {
+    const s = all.nth(i)
+    await expect(s.locator('.rm-kind')).not.toBeEmpty()
+    await expect(s.getByTestId('week-box')).toHaveCount(3)
+    await expect(s.getByTestId('week-money')).toBeVisible()
+    await expect(
+      s.locator('[data-testid=week-move], [data-testid=week-none]'),
+    ).toHaveCount(1)
+  }
+  /* Kinds in words with line icons; no emoji on the tab. */
+  await expect(story(page, 'earn')).toContainText('EARNINGS')
+  await expect(story(page, 'em')).toContainText('EMERGING MARKETS')
+  expect(await page.getByTestId('tab-market').innerText()).not.toMatch(
+    /\p{Extended_Pictographic}/u,
+  )
+  await page.waitForTimeout(800)
+  await page.screenshot({ ...shot('week-busy'), fullPage: true })
+})
+
+test('WEEK S2 earnings: the held companies that reported, and the move opens IDEAS lit', async ({
+  page,
+}) => {
+  await openHeld(page)
+  /* The plan first: a story's move must be a line on the board. */
+  await page.locator('[data-tab="ideas"]').click()
+  const again = page.getByTestId('idb-read')
+  await expect(again).toBeEnabled({ timeout: 15_000 })
+  await again.click()
+  await expect(again).toHaveAttribute('data-state', 'done', {
+    timeout: 20_000,
+  })
+  await readWeek(page)
+
+  const earn = story(page, 'earn')
+  const money = earn.getByTestId('week-money')
+  await expect(money.getByTestId('week-chip')).toHaveCount(2)
+  await expect(money.getByTestId('week-chip').first()).toContainText('Broadcom')
+  await expect(money).toContainText(/€[\d,]+ in companies that reported/)
+  await expect(earn.getByTestId('week-box').first()).toContainText('$2.31')
+  await expect(earn.getByTestId('week-box').first()).toContainText(
+    'A SHARE · $2.10 EXPECTED',
+  )
+  const move = earn.getByTestId('week-move')
+  await expect(move).toHaveText('→Open Broadcom in Ideas')
+  await earn.screenshot(shot('week-earn'))
+
+  await move.click()
+  await expect(page.locator('[data-tab="ideas"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  const line = page.locator('[data-testid=idb-line][data-ticker="AVGO"]')
+  await expect(line).toHaveClass(/\bon\b/)
+  await expect(line).toBeInViewport()
+})
+
+test('WEEK S3 nothing held: the Brazil story is a grey row and No action', async ({
+  page,
+}) => {
+  await openHeld(page)
+  await readWeek(page)
+  const br = story(page, 'em')
+  const money = br.getByTestId('week-money')
+  await expect(money).toHaveAttribute('data-zero', 'true')
+  await expect(money).toContainText(
+    'nothing in Brazil · 0% in emerging markets',
+  )
+  await expect(money.getByTestId('week-chip')).toHaveCount(0)
+  /* Its move names ZZZZ, not on the board. */
+  await expect(br.getByTestId('week-none')).toHaveText('No action')
+  await expect(br.getByTestId('week-move')).toHaveCount(0)
+})
+
+test('WEEK S5 quiet week: two stories, each No action, badge 2 STORIES', async ({
+  page,
+}) => {
+  await openHeld(page)
+  await testClient().mutation(anyApi.e2eMarketRead.arm, { shape: 'quiet' })
+  await readWeek(page)
+  await expect(page.getByTestId('week-headline')).toHaveText('A quiet week')
+  await expect(page.getByTestId('week-story')).toHaveCount(2)
+  await expect(page.getByTestId('week-none')).toHaveCount(2)
+  await expect(page.getByTestId('week-move')).toHaveCount(0)
+  await expect(
+    page.locator('[data-tab="market"] [data-testid=tab-badge]'),
+  ).toHaveText('2 STORIES')
+  await page.screenshot({ ...shot('week-quiet'), fullPage: true })
+})

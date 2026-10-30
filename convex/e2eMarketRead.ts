@@ -8,13 +8,14 @@ import type { CannedShape } from '../src/lib/marketReadCanned'
 
 /* Browser tests of the market read (I3) on the test backend. `arm` picks
    which canned answer the next read gets — calm, mixed, broken (a line
-   naming a key never given) or fail — kept in a row of month "E2E", which
+   naming a key never given), quiet (a week of two stories) or fail — kept in a row of month "E2E", which
    no screen asks for. `spend` sets this month's API spend, for the cap. */
 
 const shape = v.union(
   v.literal('calm'),
   v.literal('mixed'),
   v.literal('broken'),
+  v.literal('quiet'),
   v.literal('fail'),
 )
 const ARMED = 'E2E'
@@ -57,7 +58,9 @@ export const armed = internalQuery({
       )
       .unique()
     const s = row?.error
-    return s === 'mixed' || s === 'broken' || s === 'fail' ? s : 'calm'
+    return s === 'mixed' || s === 'broken' || s === 'quiet' || s === 'fail'
+      ? s
+      : 'calm'
   },
 })
 

@@ -1,3 +1,5 @@
+import type { Fact } from './marketRead'
+
 /* YOUR COMPANIES (30 Oct, market-story.html): one row per held company
    with something this week — its results (actual and expected, or the
    next results day), the analysts' buy / hold count this month and last,
@@ -127,4 +129,25 @@ export function usdShort(n: number): string {
   if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
   if (n >= 1e3) return `$${Math.round(n / 1e3)}K`
   return `$${Math.round(n)}`
+}
+
+const MONTHS = 'JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC'.split(' ')
+
+/** A held company's results out, as a fact for the read and THE WEEK:
+    `res-GOOGL` · "$2.31 · A SHARE · $2.10 EXPECTED". */
+export function resultsFacts(rows: ReadonlyArray<CompanyRow>): Array<Fact> {
+  return rows.flatMap((r): Array<Fact> => {
+    const x = r.results
+    if (!x || x.actual === null) return []
+    const day = `${Number(x.day.slice(8, 10))} ${MONTHS[Number(x.day.slice(5, 7)) - 1] ?? ''}`
+    return [
+      {
+        key: `res-${r.symbol}`,
+        label: `${r.symbol} RESULTS ${day}`,
+        value: `$${x.actual.toFixed(2)} · A SHARE${x.expected !== null ? ` · $${x.expected.toFixed(2)} EXPECTED` : ''}`,
+        tone:
+          x.expected === null ? null : x.actual >= x.expected ? 'good' : 'bad',
+      },
+    ]
+  })
 }

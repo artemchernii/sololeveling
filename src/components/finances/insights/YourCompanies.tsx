@@ -110,7 +110,9 @@ const Dash = () => (
   </div>
 )
 
-export function YourCompanies({ held }: { held: Array<HeldCompany> | null }) {
+/** The held companies' answer, asked once per set and kept ten minutes:
+    shared by YOUR COMPANIES and THE WEEK's results (30 Oct). */
+export function useCompanies(held: Array<HeldCompany> | null) {
   const ask = useAction(api.marketSources.companies.companies)
   const key = held?.map((h) => h.symbol).join(',') ?? ''
   const fresh =
@@ -135,7 +137,14 @@ export function YourCompanies({ held }: { held: Array<HeldCompany> | null }) {
     }
     /* asked once per set of companies: `key` stands for `held` */
   }, [ask, key])
+  return { answer, failed }
+}
 
+export function YourCompanies({
+  c: { answer, failed },
+}: {
+  c: ReturnType<typeof useCompanies>
+}) {
   const reached = answer?.reached === true && !failed
   return (
     <section

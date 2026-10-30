@@ -9,7 +9,8 @@ import { changeWord } from './parts'
 import { IdeasTab } from './IdeasTab'
 import { Markets } from './Markets'
 import { OnReddit } from './OnReddit'
-import { YourCompanies } from './YourCompanies'
+import { YourCompanies, useCompanies } from './YourCompanies'
+import { WeekStories } from './WeekStories'
 import { allocFacts, allocRows } from './Allocation'
 import { Mine, itemOf } from './Mine'
 import { useMine } from './useMine'
@@ -27,6 +28,10 @@ import { spendMonth } from './IdeasParts'
 import { ideaFacts, ideaOf, readMine } from '@/lib/readMine'
 import { tickerBase } from '@/lib/market'
 import { combine } from '@/lib/owned'
+import { resultsFacts } from '@/lib/companies'
+import { marketFacts } from '@/lib/marketRead'
+import { placed } from '@/lib/insightsMine'
+import type { MoneyInput } from '@/lib/weekMoney'
 import type { Period } from '@/lib/insightsMarket'
 
 /* Insights, Finances' fourth room (19 Oct; spec
@@ -77,10 +82,15 @@ export function Insights({ shown }: { shown: boolean }) {
         })) ?? null,
     [owned],
   )
-  /* A held company's results day: a fact for the read and for ASK. */
-  const earn = mine.base?.earnings
-    ? earningsFacts(mine.base.earnings.rows, mine.base.fetchedAt)
-    : []
+  const comp = useCompanies(companies)
+  /* A held company's results day, and its results out (YOUR COMPANIES):
+     facts for the read, THE WEEK and ASK. */
+  const earn = [
+    ...(mine.base?.earnings
+      ? earningsFacts(mine.base.earnings.rows, mine.base.fetchedAt)
+      : []),
+    ...resultsFacts(comp.answer?.rows ?? []),
+  ]
   /* READ about his money (29 Oct): his cash and investments, and the
      IDEAS moves a line may point at. */
   const cash = useCash()
@@ -106,6 +116,36 @@ export function Insights({ shown }: { shown: boolean }) {
 
   const count = positions ? positions.rows.length : null
 
+  /* THE WEEK before a read: the month's numbers the press would hand
+     the model (one fetch, kept ten minutes, shared with the press). */
+  const month = useMarket('1M')
+  const factsNow = month.answer
+    ? [
+        ...marketFacts(month.answer, positions?.rows ?? []),
+        ...allocFacts(alloc),
+        ...earn,
+      ]
+    : []
+  /* YOUR MONEY under each story: his holdings by place, his euro cash,
+     and the held companies whose results are out. */
+  const money: MoneyInput = {
+    held:
+      owned?.map((o) => ({
+        symbol: o.symbol,
+        name: o.name,
+        kind: o.kind,
+        valueEur: o.valueEur,
+        region:
+          placed(o.symbol, tags.get(o.instrumentId) ?? null)?.region ?? null,
+      })) ?? null,
+    cash: cash ? cash.idle : null,
+    reported: new Set(
+      comp.answer?.rows
+        .filter((r) => r.results?.actual != null)
+        .map((r) => r.symbol) ?? [],
+    ),
+  }
+
   /* IDEAS' badge: what the board's plan puts to work (29 Oct). */
   const plan = board?.parts
   const [tab, pick] = useTab(read.row?.read !== undefined, read.loading)
@@ -130,7 +170,14 @@ export function Insights({ shown }: { shown: boolean }) {
       {tab === 'market' ? (
         <div data-testid="tab-market" className="ins-panel ins-mgrid">
           <div className="flex min-w-0 flex-col gap-3.5">
-            <YourCompanies held={companies} />
+            <WeekStories
+              shown={read.shown}
+              facts={factsNow}
+              money={money}
+              board={board}
+              onIdea={goIdea}
+            />
+            <YourCompanies c={comp} />
             <SectorMap
               shown={market.shown}
               period={period}
@@ -204,6 +251,8 @@ export function Insights({ shown }: { shown: boolean }) {
   /** Each tab's badge, from numbers already on the page. */
   function badgesOf(): Partial<Record<Tab, Badge>> {
     const sp = today.answer?.markets.find((m) => m.id === 'sp500')?.move
+    /* After a read with THE WEEK, its count (market-story.html). */
+    const stories = read.shown?.read?.week?.length ?? 0
     const lines = read.shown?.read?.lines
     const moves = lines
       ? new Set(
@@ -217,12 +266,17 @@ export function Insights({ shown }: { shown: boolean }) {
       : null
     const put = plan ? plan.protect + plan.add + plan.new : 0
     return {
-      market: sp
+      market: stories
         ? {
-            text: `S&P TODAY ${changeWord(sp.change)}`,
-            tone: sp.change > 0 ? 'good' : sp.change < 0 ? 'bad' : 'dim',
+            text: `${stories} ${stories === 1 ? 'STORY' : 'STORIES'}`,
+            tone: 'lav',
           }
-        : undefined,
+        : sp
+          ? {
+              text: `S&P TODAY ${changeWord(sp.change)}`,
+              tone: sp.change > 0 ? 'good' : sp.change < 0 ? 'bad' : 'dim',
+            }
+          : undefined,
       read: !lines
         ? undefined
         : moves > 0

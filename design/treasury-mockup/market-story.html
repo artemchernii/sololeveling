@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MARKET story</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* MARKET, round 1 (30 Oct). His words (29 Oct): "Emojies again… not
+     much idea what is current going on on the market. And not like today
+     only but in general … earning reports, FED didnt hike didint cut, in
+     Europe we have problems, Brazil election … basic data (good) but not
+     enough and how this helps me?". Journey: yes (30 Oct).
+     So: THE WEEK (3-5 stories, each with its numbers and a "Your money"
+     row of what he has in it, then one move or No action), THE TREND
+     (the 8 markets in 1M / 3M / 1Y, both prices shown) and the basics
+     kept (inflation, Fed, ECB, sectors) with line icons and logos, no
+     emoji. Same look as READ round 2 (read-personal.html). */
+  :root {
+    --bg: #f4f2ef;
+    --ink-100: #1d1d2b; --ink-200: #33334a; --ink-300: #55556c; --ink-400: #7a7a90; --ink-500: #9a9aae;
+    --lav-300: #6b5fd6; --lav-400: #8b7ff0;
+    --good: oklch(0.58 0.16 150); --bad: oklch(0.58 0.2 22); --warn: oklch(0.66 0.15 70);
+    --glass: linear-gradient(155deg, rgba(255,255,255,.9), rgba(255,255,255,.66));
+    --edge: rgba(30,30,50,.09);
+    --shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 18px 40px -28px rgba(30,30,60,.35);
+    --sys-edge: color-mix(in oklch, #8b7ff0 40%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --k-rates: oklch(0.55 0.13 250); --k-earn: oklch(0.55 0.15 300); --k-eu: oklch(0.55 0.13 210);
+    --k-gold: oklch(0.62 0.13 75); --k-em: oklch(0.56 0.14 160); --k-none: var(--ink-400); --k-mkt: oklch(0.55 0.1 280);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1000px 500px at 10% -10%, #e9e4f7 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #f6ead8 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font: 14px/1.5 Inter, system-ui, sans-serif; min-height: 100vh }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 16px 16px 60px; display:flex; flex-direction:column; gap: 14px }
+  .caps { font: 500 10px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .row { display:flex; align-items:center; gap: 8px } .grow { flex: 1; min-width: 0 }
+  .pill { font: 700 9px var(--mono); letter-spacing: .1em; padding: 3px 7px; border-radius: 999px; border: 1px solid currentColor; text-transform: uppercase; white-space: nowrap; display:inline-flex; align-items:center; gap: 4px }
+  .pill.good { color: var(--good); background: color-mix(in oklch, var(--good) 9%, transparent) }
+  .pill.bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 9%, transparent) }
+  .pill.lav { color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 9%, transparent) }
+  .pill.ink { color: var(--ink-300); background: rgba(30,30,50,.03); border-color: rgba(30,30,50,.18) }
+  .up { color: var(--good) } .dn { color: var(--bad) } .warn { color: var(--warn) }
+  svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; font: 11px var(--mono); color: var(--warn); letter-spacing: .08em; text-transform: uppercase }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.6); border: 1px solid var(--edge); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  .tabs { display:grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 8px; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass) }
+  .tab { display:flex; align-items:center; justify-content:center; gap: 8px; padding: 9px; border-radius: 10px; font: 700 10.5px var(--mono); letter-spacing: .16em; color: var(--ink-200) }
+  .tab .n { width: 18px; height: 18px; border-radius: 5px; display:grid; place-items:center; font-size: 9.5px; color: var(--lav-300); border: 1px solid var(--sys-edge) }
+  .tab.on { background: color-mix(in oklch, var(--lav-400) 14%, transparent); border: 1px solid var(--sys-edge) }
+
+  .page { display:grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start }
+  .board { display:flex; flex-direction:column; gap: 14px; min-width: 0 }
+  .tile { border-radius: 16px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 20px 22px; min-width: 0; animation: up .45s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes up { from { opacity: 0; transform: translateY(8px) } }
+  .logo { width: 30px; height: 30px; border-radius: 9px; background: #fff; border: 1px solid var(--edge); display:grid; place-items:center; overflow:hidden; flex: none; font: 700 10px var(--mono); color: var(--ink-300) }
+  .logo img { width: 18px; height: 18px }
+  .logo.sm { width: 24px; height: 24px; border-radius: 7px; font-size: 8.5px } .logo.sm img { width: 14px; height: 14px }
+
+  /* head: the week in one line, from the same READ MARKET press */
+  .head { display:flex; gap: 16px; align-items: flex-start }
+  .head h1 { font-size: 26px; font-weight: 500; letter-spacing: -.02em; line-height: 1.2 }
+  .take { font-size: 15px; line-height: 1.55; color: var(--ink-300); margin-top: 6px; max-width: 680px }
+  .meta { font: 10px/1.6 var(--mono); color: var(--ink-400); text-align: right; white-space: nowrap }
+  .again { margin-top: 8px; font: 700 10px var(--mono); letter-spacing: .12em; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.7); color: var(--ink-200); cursor: pointer }
+  .again.main { color: #fff; background: var(--lav-300); border-color: transparent; box-shadow: 0 8px 20px -12px var(--lav-400) }
+  .sec { display:flex; align-items:baseline; gap: 10px; padding: 6px 4px 0 }
+  .sec h2 { font: 700 12px var(--mono); letter-spacing: .22em; color: var(--ink-100) }
+  .sec .caps { letter-spacing: .1em }
+
+  /* a story: icon column, then everything on one left edge */
+  .ln { display:grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 16px; --c: var(--ink-400) }
+  .ln .ic { width: 40px; height: 40px; border-radius: 12px; display:grid; place-items:center; color: var(--c); border: 1px solid color-mix(in oklch, var(--c) 35%, transparent); background: color-mix(in oklch, var(--c) 10%, white) }
+  .ln .ic svg.i { width: 19px; height: 19px }
+  .ln .body { display:flex; flex-direction:column; gap: 14px; min-width: 0 }
+  .top { display:flex; gap: 12px; align-items: baseline; justify-content: space-between }
+  .kind { font: 700 10px var(--mono); letter-spacing: .18em; color: var(--c) }
+  .src { font: 10px var(--mono); color: var(--ink-400); white-space: nowrap }
+  .src a { color: inherit }
+  .title { font-size: 18px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; margin-top: 2px }
+  .sub { font-size: 14px; color: var(--ink-300); margin-top: 3px }
+  .boxes { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
+  .box { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.8); display:flex; flex-direction:column; gap: 3px; min-width: 0 }
+  .box .n { font-size: 12.5px; color: var(--ink-300) }
+  .box .v { font: 600 22px var(--mono); letter-spacing: -.02em; line-height: 1.15 }
+  .box .s { font-size: 12px; color: var(--ink-400) }
+  .box svg { width: 100%; height: 26px; margin-top: 4px } .box svg polyline { fill: none; stroke-width: 1.6 }
+  .box.bad .v { color: var(--bad) } .box.good .v { color: var(--good) } .box.none .v { color: var(--ink-500) }
+  /* your money: what he has in the story, from his accounts */
+  .mine { display:flex; align-items:center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px; background: color-mix(in oklch, var(--lav-400) 6%, white); border: 1px dashed var(--sys-edge) }
+  .mine .lab { font: 700 9.5px var(--mono); letter-spacing: .16em; color: var(--lav-300); white-space: nowrap }
+  .hold { display:inline-flex; align-items:center; gap: 7px; padding: 3px 9px 3px 3px; border-radius: 9px; background: #fff; border: 1px solid var(--edge); font-size: 13px; font-weight: 600; white-space: nowrap }
+  .hold .e { font: 600 12.5px var(--mono); color: var(--ink-200) }
+  .hold .d { font: 600 11.5px var(--mono) }
+  .mine .tot { margin-left: auto; font: 600 13px var(--mono); color: var(--ink-300); white-space: nowrap }
+  .mine.zero { background: rgba(30,30,50,.03); border-color: rgba(30,30,50,.14) } .mine.zero .lab { color: var(--ink-400) }
+  .act { display:flex; align-items:center; gap: 12px; padding-top: 14px; border-top: 1px solid var(--edge) }
+  .go { display:inline-flex; align-items:center; gap: 8px; font: 600 14px Inter; padding: 10px 18px; border-radius: 999px; border: 0; color: #fff; background: var(--lav-300); cursor: pointer; box-shadow: 0 8px 20px -12px var(--lav-400); transition: transform .15s; white-space: nowrap }
+  .go:hover { transform: translateY(-1px) }
+  .go.soft { color: var(--lav-300); background: transparent; border: 1px solid var(--sys-edge); box-shadow: none }
+  .hint { font-size: 12.5px; color: var(--ink-400) }
+  .ask { font: 600 13px Inter; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--sys-edge); color: var(--lav-300); background: transparent; cursor: pointer; white-space: nowrap }
+  .ask:hover { background: color-mix(in oklch, var(--lav-400) 14%, white) }
+  .none { display:inline-flex; gap: 8px; align-items:center; font: 600 14px Inter; color: var(--ink-300); padding: 9px 16px; border-radius: 999px; border: 1px solid rgba(30,30,50,.14); background: rgba(30,30,50,.03) }
+  .none svg.i { color: var(--good) }
+  .facts-only { display:flex; align-items:center; gap: 10px; font-size: 13px; color: var(--ink-400) }
+
+  /* sectors, kept: S&P 500's biggest 30, line icons, held ones ringed */
+  .secs { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px }
+  .sc { border-radius: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.75); padding: 10px 12px; display:flex; flex-direction:column; gap: 8px; min-width: 0 }
+  .sc .h { display:flex; align-items:center; gap: 7px; font: 700 10px var(--mono); letter-spacing: .14em; color: var(--ink-200) }
+  .sc .h svg.i { width: 14px; height: 14px; color: var(--ink-400) }
+  .sc .h b { margin-left: auto; font: 700 12px var(--mono); letter-spacing: 0 }
+  .tk { display:flex; flex-wrap: wrap; gap: 4px }
+  .tk span { font: 600 10.5px var(--mono); padding: 3px 6px; border-radius: 6px; color: var(--ink-100); background: var(--bg-c) }
+  .tk span.held { box-shadow: 0 0 0 1.5px var(--lav-300) }
+  .regions { display:flex; gap: 6px; flex-wrap: wrap; margin-top: 12px }
+  .rg { display:inline-flex; align-items:center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.7); font: 600 11.5px var(--mono) }
+  .cc { width: 22px; height: 22px; border-radius: 999px; display:grid; place-items:center; font: 700 8.5px var(--mono); color: var(--ink-200); background: rgba(30,30,50,.06) }
+
+  /* right: the trend and the basics */
+  .side { position: sticky; top: 12px; display:flex; flex-direction:column; gap: 12px }
+  .trend { border-color: var(--sys-edge); box-shadow: var(--shadow), 0 0 30px -18px var(--lav-400) }
+  .trend h2, .basics h2 { font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--lav-300); text-transform: uppercase }
+  .basics h2 { color: var(--ink-200) }
+  .seg { display:inline-flex; padding: 3px; gap: 2px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.6) }
+  .seg button { font: 700 9.5px var(--mono); letter-spacing: .12em; padding: 4px 10px; border-radius: 999px; border: 0; background: transparent; color: var(--ink-400); cursor: pointer }
+  .seg button.on { color: var(--ink-100); background: color-mix(in oklch, var(--lav-400) 18%, white) }
+  .mk { display:grid; grid-template-columns: 30px minmax(0, 1fr) 64px 78px; gap: 10px; align-items:center; padding: 9px 0; border-top: 1px solid var(--edge) }
+  .mlist { margin-top: 10px } .mk:first-child { border-top: 0 }
+  .mk .nm { font-weight: 600; font-size: 13.5px } .mk .p { font: 10.5px var(--mono); color: var(--ink-400); white-space: nowrap }
+  .mk svg { width: 64px; height: 24px } .mk svg polyline { fill: none; stroke-width: 1.5 }
+  .mk .ch { font: 700 13px var(--mono); text-align: right; white-space: nowrap }
+  .mk.mine-row .nm::after { content: 'HELD'; font: 700 8px var(--mono); letter-spacing: .1em; color: var(--lav-300); margin-left: 6px; vertical-align: 2px }
+  .bas { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px }
+  .bas .box .v { font-size: 19px }
+  .quiet { font-size: 12px; line-height: 1.6; color: var(--ink-400); padding: 0 6px }
+  .foot { font-size: 12px; line-height: 1.6; color: var(--ink-400); padding: 0 6px } .foot b { color: var(--warn) }
+
+  .veil { position: fixed; inset: 0; background: rgba(20,20,40,.25); z-index: 8; display:none }
+  .pop { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(500px, calc(100% - 32px)); z-index: 9; display:none; border-color: var(--sys-edge); background: #faf9f7; animation: none }
+  .open .veil, .open .pop { display:block }
+  .pop .bc { display:flex; gap: 8px; align-items:center; margin-bottom: 12px }
+  .x { font: 700 12px var(--mono); border: 0; background: transparent; color: var(--ink-400); cursor: pointer; margin-left: auto }
+  .pop p { font-size: 14px; color: var(--ink-200) }
+  .sugg { display:flex; gap: 6px; flex-wrap: wrap; margin-top: 12px } .sugg span { font-size: 13px; padding: 6px 12px; border-radius: 999px; border: 1px dashed var(--sys-edge); color: var(--lav-300); cursor: pointer }
+
+  @media (max-width: 1100px) { body:not(.phone) .page { grid-template-columns: 1fr } body:not(.phone) .side { position: static } }
+  .phone .wrap { max-width: 400px }
+  .phone .page { grid-template-columns: 1fr }
+  .phone .side { position: static }
+  .phone .tabs { grid-template-columns: repeat(5, auto); overflow-x: auto }
+  .phone .tab { padding: 7px 4px; letter-spacing: .1em } .phone .tab .pill { display:none } .phone .tab.on .pill { display:inline-flex }
+  .phone .tile { padding: 16px }
+  .phone .head { flex-direction: column } .phone .head > div:last-child { align-items: flex-start !important } .phone .meta { text-align: left }
+  .phone .head h1 { font-size: 22px }
+  .phone .ln { grid-template-columns: 1fr; row-gap: 10px }
+  .phone .top { flex-direction: column; gap: 2px }
+  .phone .boxes { grid-template-columns: 1fr }
+  .phone .box { display:grid; grid-template-columns: 1fr auto; column-gap: 10px; align-items: baseline } .phone .box .n { grid-column: 1 / -1 } .phone .box .v { font-size: 19px } .phone .box svg { grid-column: 1 / -1 }
+  .phone .mine .tot { margin-left: 0; flex: 1 0 100% }
+  .phone .act { flex-wrap: wrap } .phone .act .hint { flex: 1 0 100%; order: 3 }
+  .phone .go { white-space: normal; text-align: left }
+  .phone .secs { grid-template-columns: 1fr 1fr }
+  .phone .bas .box { display:flex }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup ·
+    <button data-s="busy" class="on">busy week</button>
+    <button data-s="quiet">quiet week</button>
+    <button data-s="unread">not read yet</button>
+    <button data-s="nodata">no data</button>
+    <span style="width:12px"></span>
+    <button data-v="desk" class="on">desktop</button>
+    <button data-v="phone">phone</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab on"><span class="n">1</span>MARKET <span class="pill lav" id="tabn">5 STORIES</span></div>
+    <div class="tab"><span class="n">2</span>READ <span class="pill lav">3 ACTIONS</span></div>
+    <div class="tab"><span class="n">3</span>MINE <span class="pill good">9 ADD</span></div>
+    <div class="tab"><span class="n">4</span>IDEAS <span class="pill lav">€30,194</span></div>
+    <div class="tab"><span class="n">5</span>CLOSE <span class="pill bad">▼ 0.1%</span></div>
+  </div>
+
+  <div class="page">
+    <div class="board">
+      <div class="tile">
+        <div class="head">
+          <div class="grow">
+            <div class="caps">The market · week of 27 Oct</div>
+            <h1 id="h1" style="margin-top:6px"></h1>
+            <p class="take" id="take"></p>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end" id="meta"></div>
+        </div>
+      </div>
+
+      <div class="sec"><h2>THE WEEK</h2><span class="caps" id="secn"></span></div>
+      <div id="lines" style="display:flex;flex-direction:column;gap:14px"></div>
+
+      <div class="tile" id="sectors"></div>
+      <p class="foot"><b>Sample:</b> every price, rate, inflation figure, change, date and headline, the € held in each company, tokens and cost. <b style="color:var(--good)">Real:</b> total, cash, investments, 72% in the US, 2% in Europe, 11% in gold.</p>
+    </div>
+
+    <aside class="side">
+      <div class="tile trend" id="trend"></div>
+      <div class="tile basics" id="basics"></div>
+      <p class="quiet">Prices from Yahoo Finance, fetched on open, kept 10 minutes. Rates from the Fed and the ECB, inflation from BLS and Eurostat.</p>
+    </aside>
+  </div>
+</div>
+
+<div class="veil" id="veil"></div>
+<div class="tile pop" id="pop"></div>
+
+<script>
+const fav = (d, sm) => `<span class="logo${sm ? ' sm' : ''}"><img src="https://www.google.com/s2/favicons?domain=${d}&sz=64"></span>`
+const chip = (t, sm) => `<span class="logo${sm ? ' sm' : ''}">${t}</span>`
+const I = {
+  rates: '<path d="M3 21h18M5 21V10M19 21V10M9 21V10M15 21V10M2 10l10-6 10 6"/>',
+  earn: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M8 14l2.5 2.5L16 12"/>',
+  eu: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  gold: '<path d="M3 18h18l-3-6H6z"/><path d="M7 12l2-5h6l2 5"/>',
+  em: '<path d="M4 21V9l8-6 8 6v12"/><path d="M9 21v-6h6v6"/>',
+  none: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  ok: '<path d="M20 6L9 17l-5-5"/>',
+  mkt: '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  chip: '<rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"/>',
+  wave: '<path d="M2 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0"/><path d="M12 20v-2M12 6V4"/>',
+  cart: '<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l3 12h11l2-8H6"/>',
+  heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/>',
+  bank: '<path d="M3 21h18M4 10h16M12 3l8 5H4z"/><path d="M6 10v8M10 10v8M14 10v8M18 10v8"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  basket: '<path d="M3 10h18l-2 10H5z"/><path d="M8 10l4-6 4 6"/>',
+}
+const ico = (k) => `<svg class="i" viewBox="0 0 24 24">${I[k]}</svg>`
+const KIND = { rates: ['INTEREST RATES', '--k-rates'], earn: ['EARNINGS', '--k-earn'], eu: ['EUROPE', '--k-eu'], gold: ['GOLD', '--k-gold'], em: ['EMERGING MARKETS', '--k-em'], none: ['NO DATA', '--k-none'], mkt: ['MARKETS', '--k-mkt'] }
+
+/* a small line from a seeded walk to the change given */
+function spark(seed, ch, w = 64, h = 24, n = 28, ink) {
+  let r = seed, v = [0]
+  for (let i = 1; i < n; i++) { r = (r * 9301 + 49297) % 233280; v.push(v[i - 1] + (r / 233280 - 0.5) * 2) }
+  const drift = (ch * 3 - v[n - 1]) / (n - 1); v = v.map((x, i) => x + drift * i)
+  const lo = Math.min(...v), hi = Math.max(...v), k = hi - lo || 1
+  const col = ink ? 'var(--ink-400)' : ch >= 0 ? 'var(--good)' : 'var(--bad)'
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline stroke="${col}" points="${v.map((x, i) => `${(i / (n - 1)) * w},${h - 2 - ((x - lo) / k) * (h - 4)}`).join(' ')}"/></svg>`
+}
+
+/* stories: kind, source, title, line under it, three boxes, your money, the move */
+const S = {
+  fed: { k: 'rates', src: 'Fed · 29 Oct', title: 'The Fed kept its rate at 3.75–4.00%',
+    sub: 'No rise and no cut on 29 Oct. The ECB kept 2.50% on 23 Oct. Both meet again in December.',
+    boxes: [{ n: 'Fed rate', v: '3.75–4.00%', s: 'since 17 Sep · next 9 Dec' }, { n: 'ECB rate', v: '2.50%', s: 'since 16 Sep · next 17 Dec' }, { n: 'US 10-year bond', v: '4.99%', s: '5.26% on 29 Sep' }],
+    mine: { lab: 'YOUR MONEY', items: [['ec.europa.eu', 'Cash in euros', '€45,858']], tot: 'the ECB rate counts for it, not the Fed' },
+    act: { label: 'Open the euro cash fund in Ideas', hint: 'XEON pays the ECB rate' } },
+  earn: { k: 'earn', src: 'Yahoo Finance · 30 Oct', title: 'Big tech reported. Alphabet and Meta fell',
+    sub: 'Both said they will spend more on AI next year. Microsoft and Apple rose after their results.',
+    boxes: [{ n: 'Alphabet in a month', v: '−16.8%', s: '$201 → $167', c: 'bad', sp: [5, -1] }, { n: 'Meta in a month', v: '−15.5%', s: '$742 → $627', c: 'bad', sp: [8, -1] }, { n: 'S&P 500 reported', v: '312 of 500', s: '71% above forecast' }],
+    mine: { lab: 'YOUR MONEY', items: [['google.com', 'Alphabet', '€1,240', -16.8], ['meta.com', 'Meta', '€610', -15.5], ['microsoft.com', 'Microsoft', '€900', 4.2]], tot: '€2,750 in companies that reported' },
+    act: { label: 'Open Alphabet in Ideas', hint: 'on the board under Add to mine' } },
+  eu: { k: 'eu', src: 'Eurostat · Reuters · 28 Oct', title: 'Europe: prices up again, growth near zero',
+    sub: 'Euro area inflation rose to 3.8%. France and Germany grew 0.1% last quarter. European shares still rose.',
+    boxes: [{ n: 'Euro area inflation', v: '3.8%', s: '3.2% in August', c: 'bad' }, { n: 'Stoxx 600 in a month', v: '+2.0%', s: '634 → 647', c: 'good', sp: [11, 1] }, { n: '€1 in dollars', v: '$1.120', s: '$1.134 on 29 Sep', sp: [13, -0.4] }],
+    mine: { lab: 'YOUR MONEY', items: [['vanguard.com', 'Europe', '€377 · 2%'], ['ec.europa.eu', 'Cash in euros', '€45,858']], tot: '2% of investments in Europe' },
+    act: { label: 'Open European shares in Ideas', hint: 'VEUR, on the board under New' } },
+  gold: { k: 'gold', src: 'Yahoo Finance · 30 Oct', title: 'Gold fell 4.6% in a month, after a year of rises',
+    sub: 'Still up 41% in a year. It fell as the dollar and US bond rates rose.',
+    boxes: [{ n: 'Gold in a month', v: '−4.6%', s: '$4,187 → $3,994', c: 'bad', sp: [17, -1] }, { n: 'Gold in a year', v: '+41%', s: '$2,833 → $3,994', c: 'good', sp: [19, 2] }, { n: 'Highest ever', v: '$4,210', s: '8 Oct' }],
+    mine: { lab: 'YOUR MONEY', items: [['ishares.com', 'iShares Physical Gold', '€2,071 · 11%', -4.6]], tot: 'gold is 11% of investments' },
+    act: null },
+  br: { k: 'em', src: 'Reuters · 29 Oct', title: 'Brazil votes for president on Sunday',
+    sub: 'A second round on 2 Nov. Brazilian shares and the real fell this month. Emerging markets fell 6.9%.',
+    boxes: [{ n: 'Brazil shares in a month', v: '−5.4%', s: '146,200 → 138,300', c: 'bad', sp: [23, -1] }, { n: '$1 in Brazilian real', v: 'R$5.71', s: 'R$5.38 on 29 Sep' }, { n: 'Emerging in a month', v: '−6.9%', s: 'MSCI Emerging', c: 'bad', sp: [29, -1] }],
+    mine: { lab: 'YOUR MONEY', zero: true, items: [], tot: 'nothing in Brazil · 0% in emerging markets' },
+    act: null },
+  // quiet week
+  fedq: { k: 'rates', src: 'Fed · ECB · 30 Oct', title: 'No rate decisions this week',
+    sub: 'The Fed meets on 9 Dec and the ECB on 17 Dec.',
+    boxes: [{ n: 'Fed rate', v: '3.75–4.00%', s: 'since 17 Sep' }, { n: 'ECB rate', v: '2.50%', s: 'since 16 Sep' }, { n: 'US 10-year bond', v: '4.99%', s: '4.97% a week ago' }],
+    mine: { lab: 'YOUR MONEY', items: [['ec.europa.eu', 'Cash in euros', '€45,858']], tot: 'the ECB rate counts for it' },
+    act: null },
+  mktq: { k: 'mkt', src: 'Yahoo Finance · 30 Oct', title: 'Shares moved less than 1% this week',
+    sub: 'No big company reported. The S&P 500 is up 2.1% in a month.',
+    boxes: [{ n: 'S&P 500 this week', v: '+0.4%', s: '7,689 → 7,720', sp: [31, 0.3] }, { n: 'Stoxx 600 this week', v: '−0.2%', s: '648 → 647', sp: [37, -0.2] }, { n: 'Gold this week', v: '+0.3%', s: '$3,982 → $3,994', sp: [41, 0.2] }],
+    mine: { lab: 'YOUR MONEY', items: [['ishares.com', 'Investments', '€18,828', 0.3]], tot: '72% in the US' },
+    act: null },
+  // not read yet: only the facts the app fetches, no model words
+  fedf: { k: 'rates', src: 'Fed · 29 Oct', title: 'Fed: 3.75–4.00%, no change on 29 Oct',
+    boxes: [{ n: 'Fed rate', v: '3.75–4.00%', s: 'since 17 Sep · next 9 Dec' }, { n: 'ECB rate', v: '2.50%', s: 'since 16 Sep · next 17 Dec' }, { n: 'US 10-year bond', v: '4.99%', s: '5.26% on 29 Sep' }],
+    mine: { lab: 'YOUR MONEY', items: [['ec.europa.eu', 'Cash in euros', '€45,858']], tot: '' }, facts: true },
+  earnf: { k: 'earn', src: 'Yahoo Finance · 30 Oct', title: 'Earnings: 3 companies held reported this week',
+    boxes: [{ n: 'Alphabet since results', v: '−9.4%', s: '$184 → $167 · 28 Oct', c: 'bad' }, { n: 'Meta since results', v: '−11.2%', s: '$706 → $627 · 29 Oct', c: 'bad' }, { n: 'Microsoft since results', v: '+2.1%', s: '$512 → $523 · 29 Oct', c: 'good' }],
+    mine: { lab: 'YOUR MONEY', items: [['google.com', 'Alphabet', '€1,240', -16.8], ['meta.com', 'Meta', '€610', -15.5], ['microsoft.com', 'Microsoft', '€900', 4.2]], tot: '€2,750' }, facts: true },
+  goldf: { k: 'gold', src: 'Yahoo Finance · 30 Oct', title: 'Gold: −4.6% in a month',
+    boxes: [{ n: 'Gold in a month', v: '−4.6%', s: '$4,187 → $3,994', c: 'bad', sp: [17, -1] }, { n: 'Gold in a year', v: '+41%', s: '$2,833 → $3,994', c: 'good', sp: [19, 2] }, { n: 'Highest ever', v: '$4,210', s: '8 Oct' }],
+    mine: { lab: 'YOUR MONEY', items: [['ishares.com', 'iShares Physical Gold', '€2,071 · 11%', -4.6]], tot: '' }, facts: true },
+  // no data: a source not reached
+  eun: { k: 'none', src: 'Eurostat · no answer at 08:27', title: 'Europe: no inflation number',
+    sub: 'Eurostat did not answer. European shares and the euro are below.',
+    boxes: [{ n: 'Euro area inflation', v: 'NO DATA', s: '3.2% in August', c: 'none' }, { n: 'Stoxx 600 in a month', v: '+2.0%', s: '634 → 647', c: 'good', sp: [11, 1] }, { n: '€1 in dollars', v: '$1.120', s: '$1.134 on 29 Sep', sp: [13, -0.4] }],
+    mine: { lab: 'YOUR MONEY', items: [['vanguard.com', 'Europe', '€377 · 2%'], ['ec.europa.eu', 'Cash in euros', '€45,858']], tot: '2% of investments in Europe' },
+    act: { label: 'Open European shares in Ideas', hint: 'VEUR, on the board under New' } },
+}
+const STATE = {
+  busy: { lines: ['fed', 'earn', 'eu', 'gold', 'br'], read: true, h1: 'Rates held, big tech fell, Europe slowed',
+    take: 'The Fed and the ECB did not move. Alphabet and Meta fell after their results, gold fell from its high, and Brazil votes on Sunday. Your €45,858 of cash is in euros, so the ECB matters more than the Fed.' },
+  quiet: { lines: ['fedq', 'mktq'], read: true, h1: 'A quiet week',
+    take: 'No rate decisions, no big results, and markets moved less than 1%. Nothing here asks for a move.' },
+  unread: { lines: ['fedf', 'earnf', 'goldf'], read: false },
+  nodata: { lines: ['fed', 'earn', 'eun', 'gold', 'br'], read: true, h1: 'Rates held, big tech fell, no euro inflation number',
+    take: 'The Fed and the ECB did not move. Alphabet and Meta fell after their results. Eurostat did not answer, so Europe has no inflation number this week.' },
+}
+
+function story(key, i) {
+  const x = S[key], [kn, kc] = KIND[x.k]
+  const box = (b) => `<div class="box ${b.c || ''}"><span class="n">${b.n}</span><span class="v">${b.v}</span><span class="s">${b.s}</span>${b.sp ? spark(b.sp[0] * 97, b.sp[1], 120, 26) : ''}</div>`
+  const hold = ([site, nm, e, d]) => `<span class="hold">${fav(site, true)}${nm} <span class="e">${e}</span>${d == null ? '' : `<span class="d ${d < 0 ? 'dn' : 'up'}">${d < 0 ? '▼' : '▲'} ${Math.abs(d)}%</span>`}</span>`
+  const mine = `<div class="mine${x.mine.zero ? ' zero' : ''}"><span class="lab">${x.mine.lab}</span>${x.mine.items.map(hold).join('')}${x.mine.tot ? `<span class="tot">${x.mine.tot}</span>` : ''}</div>`
+  const act = x.facts ? '' : `<div class="act">${x.act
+    ? `<button class="go" data-go="${key}"><span>→</span>${x.act.label}</button><span class="hint grow">${x.act.hint}</span><button class="ask" data-ask="${key}">✦ Ask</button>`
+    : `<span class="none">${ico('ok')}No action</span><span class="grow"></span><button class="ask" data-ask="${key}">✦ Ask</button>`}</div>`
+  return `<div class="tile ln" style="--c:var(${kc});animation-delay:${i * 70}ms">
+    <span class="ic">${ico(x.k)}</span>
+    <div class="body">
+      <div><div class="top"><span class="kind">${kn}</span><span class="src">${x.src}</span></div>
+        <div class="title">${x.title}</div>${x.sub ? `<div class="sub">${x.sub}</div>` : ''}</div>
+      <div class="boxes">${x.boxes.map(box).join('')}</div>
+      ${mine}${act}
+    </div>
+  </div>`
+}
+
+/* the trend: [mark, name, held, then, now, change by period] */
+const MK = [
+  [chip('US'), 'S&P 500', true, { '1M': ['7,562', '7,720', 2.1], '3M': ['7,105', '7,720', 8.7], '1Y': ['5,812', '7,720', 32.8] }],
+  [fav('nasdaq.com'), 'Nasdaq 100', true, { '1M': ['30,343', '29,403', -3.1], '3M': ['27,950', '29,403', 5.2], '1Y': ['20,410', '29,403', 44.1] }],
+  [fav('ishares.com'), 'MSCI World', false, { '1M': ['€129.15', '€130.05', 0.7], '3M': ['€124.30', '€130.05', 4.6], '1Y': ['€103.80', '€130.05', 25.3] }],
+  [chip('EU'), 'Stoxx 600', false, { '1M': ['634', '647', 2.0], '3M': ['612', '647', 5.7], '1Y': ['521', '647', 24.2] }],
+  [fav('ishares.com'), 'Gold', true, { '1M': ['$4,187', '$3,994', -4.6], '3M': ['$3,410', '$3,994', 17.1], '1Y': ['$2,833', '$3,994', 41.0] }],
+  [fav('bitcoin.org'), 'Bitcoin', false, { '1M': ['€73,800', '€69,590', -5.7], '3M': ['€88,900', '€69,590', -21.7], '1Y': ['€61,200', '€69,590', 13.7] }],
+  [chip('€$'), 'Euro in dollars', false, { '1M': ['1.134', '1.120', -1.2], '3M': ['1.162', '1.120', -3.6], '1Y': ['1.085', '1.120', 3.2] }],
+  [fav('treasury.gov'), 'US 10-year bond', false, { '1M': ['5.26%', '4.99%', -0.27, 'pts'], '3M': ['4.71%', '4.99%', 0.28, 'pts'], '1Y': ['4.28%', '4.99%', 0.71, 'pts'] }],
+]
+let period = '3M'
+function trend() {
+  const rows = MK.map(([m, nm, held, by], i) => {
+    const [a, b, ch, u] = by[period]
+    const t = u ? `${ch > 0 ? '+' : '−'}${Math.abs(ch).toFixed(2)} pts` : `${ch > 0 ? '+' : '−'}${Math.abs(ch).toFixed(1)}%`
+    return `<div class="mk${held ? ' mine-row' : ''}">${m}<span style="min-width:0"><div class="nm">${nm}</div><div class="p">${a} → ${b}</div></span>${spark(i * 131 + period.length * 7, ch, 64, 24, 28, !!u)}<span class="ch ${u ? '' : ch >= 0 ? 'up' : 'dn'}">${t}</span></div>`
+  }).join('')
+  const since = { '1M': '29 Sep', '3M': '30 Jul', '1Y': '30 Oct 2025' }[period]
+  document.getElementById('trend').innerHTML = `<div class="row"><h2>The trend</h2><span class="grow"></span>
+    <div class="seg">${['1M', '3M', '1Y'].map((p) => `<button data-p="${p}" class="${p === period ? 'on' : ''}">${p}</button>`).join('')}</div></div>
+    <div class="caps" style="margin-top:8px">${since} close → now</div>
+    <div class="mlist">${rows}</div>`
+}
+function basics(s) {
+  const usNo = s === 'nodata'
+  const euNo = s === 'nodata'
+  document.getElementById('basics').innerHTML = `<h2>Rates and prices</h2>
+    <div class="bas">
+      <div class="box ${usNo ? 'none' : ''}"><span class="n">US inflation</span><span class="v">${usNo ? 'NO DATA' : '3.7%'}</span><span class="s">${usNo ? 'BLS · no answer' : '3.4% in August · BLS'}</span></div>
+      <div class="box ${euNo ? 'none' : 'bad'}"><span class="n">Euro inflation</span><span class="v">${euNo ? 'NO DATA' : '3.8%'}</span><span class="s">${euNo ? 'Eurostat · no answer' : '3.2% in August · Eurostat'}</span></div>
+      <div class="box"><span class="n">Fed rate</span><span class="v">3.75–4.00%</span><span class="s">next 9 Dec · in 40 days</span></div>
+      <div class="box"><span class="n">ECB rate</span><span class="v">2.50%</span><span class="s">next 17 Dec · in 48 days</span></div>
+    </div>`
+}
+
+/* sectors kept: [icon, name, change, [ticker, change, held]] */
+const SEC = [
+  ['chip', 'TECH', -3.0, [['NVDA', -6.0, 1], ['AAPL', 5.9, 1], ['MSFT', 4.2, 1], ['AVGO', -2.8], ['PLTR', 5.0], ['ORCL', 1.3]]],
+  ['wave', 'COMMS', -9.2, [['GOOGL', -16.8, 1], ['META', -15.5, 1], ['NFLX', -11.7]]],
+  ['cart', 'CONSUMER', 6.5, [['AMZN', -1.2, 1], ['TSLA', 14.3], ['HD', 14.2]]],
+  ['heart', 'HEALTH', 7.8, [['LLY', 16.0], ['JNJ', 2.9], ['ABBV', 10.4], ['UNH', 9.6, 1]]],
+  ['bank', 'FINANCE', 5.4, [['BRK-B', 7.9], ['JPM', 2.6], ['V', 12.2, 1], ['MA', 12.8], ['BAC', -7.0]]],
+  ['gear', 'INDUSTRY', 0.6, [['GE', -1.5], ['CAT', -21.7], ['RTX', 6.7]]],
+  ['bolt', 'ENERGY', 11.7, [['XOM', 13.6], ['CVX', 13.3]]],
+  ['basket', 'STAPLES', 7.7, [['WMT', 13.5], ['COST', 7.7], ['KO', 6.9], ['PG', 8.3]]],
+]
+const heat = (c) => `color-mix(in oklch, ${c < 0 ? 'var(--bad)' : 'var(--good)'} ${Math.min(8 + Math.abs(c) * 3, 55)}%, white)`
+function sectors() {
+  document.getElementById('sectors').innerHTML = `<div class="row"><h2 style="font:700 12px var(--mono);letter-spacing:.22em">S&amp;P 500 · BIGGEST 30</h2><span class="grow"></span><span class="caps">1M · ringed = held</span></div>
+    <div class="secs">${SEC.map(([ic, nm, c, tks]) => `<div class="sc"><div class="h">${ico(ic)}${nm}<b class="${c < 0 ? 'dn' : 'up'}">${c > 0 ? '+' : '−'}${Math.abs(c).toFixed(1)}%</b></div>
+      <div class="tk">${tks.map(([t, d, h]) => `<span class="${h ? 'held' : ''}" style="--bg-c:${heat(d)}">${t} ${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(1)}</span>`).join('')}</div></div>`).join('')}</div>
+    <div class="regions">${[['US', 'US', 2.1], ['EU', 'Europe', 2.0], ['JP', 'Japan', -5.2], ['EM', 'Emerging', -6.9], ['CN', 'China', -6.0], ['BR', 'Brazil', -5.4]].map(([c, n, d]) => `<span class="rg"><span class="cc">${c}</span>${n} <span class="${d < 0 ? 'dn' : 'up'}">${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(1)}%</span></span>`).join('')}</div>`
+}
+
+function show(s) {
+  const st = STATE[s]
+  document.getElementById('lines').innerHTML = st.lines.map(story).join('')
+  document.getElementById('h1').textContent = st.read ? st.h1 : 'Not read yet'
+  document.getElementById('take').textContent = st.read ? st.take : 'Facts only · no stories before ✦ READ MARKET'
+  document.getElementById('meta').innerHTML = st.read
+    ? `<span class="meta">Sonnet 5.5 · web 7 · 30 Oct, 08:27<br>22K in · 1.6K out · $0.08 · Pro plan</span><button class="again">↻ READ AGAIN</button>`
+    : `<span class="meta">Pro plan · Sonnet 5.5</span><button class="again main">✦ READ MARKET</button>`
+  document.getElementById('secn').textContent = st.read ? `${st.lines.length} stories · 27–30 Oct` : 'facts only · 27–30 Oct'
+  document.getElementById('tabn').textContent = st.read ? `${st.lines.length} STORIES` : 'S&P ▲ 0.4%'
+  basics(s)
+}
+
+function pop(html) { document.getElementById('pop').innerHTML = html; document.body.classList.add('open') }
+function shut() { document.body.classList.remove('open') }
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-x]') || e.target.id === 'veil') return shut()
+  const p = e.target.closest('[data-p]'); if (p) { period = p.dataset.p; return trend() }
+  const g = e.target.closest('[data-go]'); if (g) return pop(`<div class="bc"><span class="caps" style="color:var(--lav-300)">Opens Ideas</span><button class="x" data-x>✕</button></div><p>The board opens with this line lit: ${S[g.dataset.go].act.label.replace('Open ', '').replace(' in Ideas', '')}.</p><div class="sugg"><span onclick="location.href='ideas-board.html'">→ ideas-board.html</span></div>`)
+  const a = e.target.closest('[data-ask]'); if (a) return pop(`<div class="bc"><span class="caps" style="color:var(--lav-300)">Ask</span><span class="pill lav">Sonnet 5.5 · web</span><button class="x" data-x>✕</button></div><p>About: <b>${S[a.dataset.ask].title}</b></p><div class="sugg"><span>What does this change for my cash?</span><span>Is it already in the price?</span></div>`)
+})
+document.querySelectorAll('[data-s]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-s]').forEach((x) => x.classList.toggle('on', x === b)); shut(); show(b.dataset.s) })
+document.querySelectorAll('[data-v]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-v]').forEach((x) => x.classList.toggle('on', x === b)); document.body.classList.toggle('phone', b.dataset.v === 'phone') })
+if (Math.min(screen.width, innerWidth) < 600) document.querySelector('[data-v=phone]').click()
+trend(); sectors(); show('busy')
+</script>
+</body>
+</html>

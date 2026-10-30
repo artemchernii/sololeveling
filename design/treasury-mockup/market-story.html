@@ -110,17 +110,23 @@
   .facts-only { display:flex; align-items:center; gap: 10px; font-size: 13px; color: var(--ink-400) }
 
   /* sectors, kept: S&P 500's biggest 30, line icons, held ones ringed */
-  .secs { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px }
-  .sc { border-radius: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.75); padding: 10px 12px; display:flex; flex-direction:column; gap: 8px; min-width: 0 }
-  .sc .h { display:flex; align-items:center; gap: 7px; font: 700 10px var(--mono); letter-spacing: .14em; color: var(--ink-200) }
-  .sc .h svg.i { width: 14px; height: 14px; color: var(--ink-400) }
-  .sc .h b { margin-left: auto; font: 700 12px var(--mono); letter-spacing: 0 }
-  .tk { display:flex; flex-wrap: wrap; gap: 4px }
-  .tk span { font: 600 10.5px var(--mono); padding: 3px 6px; border-radius: 6px; color: var(--ink-100); background: var(--bg-c) }
-  .tk span.held { box-shadow: 0 0 0 1.5px var(--lav-300) }
-  .regions { display:flex; gap: 6px; flex-wrap: wrap; margin-top: 12px }
-  .rg { display:inline-flex; align-items:center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.7); font: 600 11.5px var(--mono) }
-  .cc { width: 22px; height: 22px; border-radius: 999px; display:grid; place-items:center; font: 700 8.5px var(--mono); color: var(--ink-200); background: rgba(30,30,50,.06) }
+  /* sectors and regions: one row each, a bar from zero, the companies as logos */
+  .sgrid { display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 28px; margin-top: 12px }
+  .sr { display:grid; grid-template-columns: 26px 92px minmax(0, 1fr) 56px; gap: 10px; align-items:center; padding: 9px 0; border-top: 1px solid var(--edge) }
+  .sr:nth-child(-n+2) { border-top: 0 }
+  .sr .si { width: 26px; height: 26px; border-radius: 8px; display:grid; place-items:center; color: var(--ink-300); background: rgba(30,30,50,.04); border: 1px solid var(--edge); font: 700 8.5px var(--mono) }
+  .sr .si svg.i { width: 14px; height: 14px }
+  .sr .nm { font-weight: 600; font-size: 13.5px }
+  .sr .pc { font: 700 13px var(--mono); text-align: right }
+  .zb { position: relative; height: 8px; border-radius: 4px; background: rgba(30,30,50,.05) }
+  .zb::before { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: rgba(30,30,50,.2) }
+  .zb i { position: absolute; top: 0; bottom: 0; border-radius: 4px; transform-origin: var(--o); animation: fill .9s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes fill { from { transform: scaleX(0) } }
+  .co { grid-column: 2 / -1; display:flex; gap: 5px; flex-wrap: wrap; margin-top: -2px }
+  .co span { display:inline-flex; align-items:center; gap: 5px; padding: 2px 7px 2px 2px; border-radius: 8px; border: 1px solid var(--edge); background: rgba(255,255,255,.8); font: 600 10.5px var(--mono); color: var(--ink-300) }
+  .co span img { width: 16px; height: 16px; border-radius: 4px; background: #fff }
+  .co span.held { border-color: var(--lav-300); color: var(--ink-100); box-shadow: 0 0 0 1px var(--lav-300) inset }
+  .sub2 { font: 700 10px var(--mono); letter-spacing: .18em; color: var(--ink-400); margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--edge) }
 
   /* right: the trend and the basics */
   .side { position: sticky; top: 12px; display:flex; flex-direction:column; gap: 12px }
@@ -165,7 +171,7 @@
   .phone .mine .tot { margin-left: 0; flex: 1 0 100% }
   .phone .act { flex-wrap: wrap } .phone .act .hint { flex: 1 0 100%; order: 3 }
   .phone .go { white-space: normal; text-align: left }
-  .phone .secs { grid-template-columns: 1fr 1fr }
+  .phone .sgrid { grid-template-columns: 1fr } .phone .sr:nth-child(2) { border-top: 1px solid var(--edge) } .phone .sr { grid-template-columns: 26px 84px minmax(0, 1fr) 52px }
   .phone .bas .box { display:flex }
 </style>
 </head>
@@ -376,21 +382,27 @@ function basics(s) {
 
 /* sectors kept: [icon, name, change, [ticker, change, held]] */
 const SEC = [
-  ['chip', 'TECH', -3.0, [['NVDA', -6.0, 1], ['AAPL', 5.9, 1], ['MSFT', 4.2, 1], ['AVGO', -2.8], ['PLTR', 5.0], ['ORCL', 1.3]]],
-  ['wave', 'COMMS', -9.2, [['GOOGL', -16.8, 1], ['META', -15.5, 1], ['NFLX', -11.7]]],
-  ['cart', 'CONSUMER', 6.5, [['AMZN', -1.2, 1], ['TSLA', 14.3], ['HD', 14.2]]],
-  ['heart', 'HEALTH', 7.8, [['LLY', 16.0], ['JNJ', 2.9], ['ABBV', 10.4], ['UNH', 9.6, 1]]],
-  ['bank', 'FINANCE', 5.4, [['BRK-B', 7.9], ['JPM', 2.6], ['V', 12.2, 1], ['MA', 12.8], ['BAC', -7.0]]],
-  ['gear', 'INDUSTRY', 0.6, [['GE', -1.5], ['CAT', -21.7], ['RTX', 6.7]]],
-  ['bolt', 'ENERGY', 11.7, [['XOM', 13.6], ['CVX', 13.3]]],
-  ['basket', 'STAPLES', 7.7, [['WMT', 13.5], ['COST', 7.7], ['KO', 6.9], ['PG', 8.3]]],
+  ['chip', 'Tech', -3.0, [['NVDA', -6.0, 1], ['AAPL', 5.9, 1], ['MSFT', 4.2, 1], ['AVGO', -2.8], ['PLTR', 5.0], ['ORCL', 1.3]]],
+  ['wave', 'Comms', -9.2, [['GOOGL', -16.8, 1], ['META', -15.5, 1], ['NFLX', -11.7]]],
+  ['cart', 'Consumer', 6.5, [['AMZN', -1.2, 1], ['TSLA', 14.3], ['HD', 14.2]]],
+  ['heart', 'Health', 7.8, [['LLY', 16.0], ['JNJ', 2.9], ['ABBV', 10.4], ['UNH', 9.6, 1]]],
+  ['bank', 'Finance', 5.4, [['BRK-B', 7.9], ['JPM', 2.6], ['V', 12.2, 1], ['MA', 12.8], ['BAC', -7.0]]],
+  ['gear', 'Industry', 0.6, [['GE', -1.5], ['CAT', -21.7], ['RTX', 6.7]]],
+  ['bolt', 'Energy', 11.7, [['XOM', 13.6], ['CVX', 13.3]]],
+  ['basket', 'Staples', 7.7, [['WMT', 13.5], ['COST', 7.7], ['KO', 6.9], ['PG', 8.3]]],
 ]
-const heat = (c) => `color-mix(in oklch, ${c < 0 ? 'var(--bad)' : 'var(--good)'} ${Math.min(8 + Math.abs(c) * 3, 55)}%, white)`
+const DOM = { NVDA: 'nvidia.com', AAPL: 'apple.com', MSFT: 'microsoft.com', AVGO: 'broadcom.com', PLTR: 'palantir.com', ORCL: 'oracle.com', GOOGL: 'google.com', META: 'meta.com', NFLX: 'netflix.com', AMZN: 'amazon.com', TSLA: 'tesla.com', HD: 'homedepot.com', LLY: 'lilly.com', JNJ: 'jnj.com', ABBV: 'abbvie.com', UNH: 'unitedhealthgroup.com', 'BRK-B': 'berkshirehathaway.com', JPM: 'jpmorganchase.com', V: 'visa.com', MA: 'mastercard.com', BAC: 'bankofamerica.com', GE: 'ge.com', CAT: 'cat.com', RTX: 'rtx.com', XOM: 'exxonmobil.com', CVX: 'chevron.com', WMT: 'walmart.com', COST: 'costco.com', KO: 'coca-colacompany.com', PG: 'pg.com' }
+const REG = [['US', 'US', 2.1], ['EU', 'Europe', 2.0], ['JP', 'Japan', -5.2], ['EM', 'Emerging', -6.9], ['CN', 'China', -6.0], ['BR', 'Brazil', -5.4]]
+const pct = (c) => `${c > 0 ? '+' : '−'}${Math.abs(c).toFixed(1)}%`
+/* a bar from the zero line, full length at 12% */
+const zbar = (c) => { const w = Math.min(Math.abs(c) / 12, 1) * 50; return `<span class="zb"><i style="${c < 0 ? `right:50%;--o:right` : `left:50%;--o:left`};width:${w}%;background:${c < 0 ? 'var(--bad)' : 'var(--good)'}"></i></span>` }
 function sectors() {
-  document.getElementById('sectors').innerHTML = `<div class="row"><h2 style="font:700 12px var(--mono);letter-spacing:.22em">S&amp;P 500 · BIGGEST 30</h2><span class="grow"></span><span class="caps">1M · ringed = held</span></div>
-    <div class="secs">${SEC.map(([ic, nm, c, tks]) => `<div class="sc"><div class="h">${ico(ic)}${nm}<b class="${c < 0 ? 'dn' : 'up'}">${c > 0 ? '+' : '−'}${Math.abs(c).toFixed(1)}%</b></div>
-      <div class="tk">${tks.map(([t, d, h]) => `<span class="${h ? 'held' : ''}" style="--bg-c:${heat(d)}">${t} ${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(1)}</span>`).join('')}</div></div>`).join('')}</div>
-    <div class="regions">${[['US', 'US', 2.1], ['EU', 'Europe', 2.0], ['JP', 'Japan', -5.2], ['EM', 'Emerging', -6.9], ['CN', 'China', -6.0], ['BR', 'Brazil', -5.4]].map(([c, n, d]) => `<span class="rg"><span class="cc">${c}</span>${n} <span class="${d < 0 ? 'dn' : 'up'}">${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(1)}%</span></span>`).join('')}</div>`
+  const sorted = [...SEC].sort((a, b) => b[2] - a[2])
+  document.getElementById('sectors').innerHTML = `<div class="row"><h2 style="font:700 12px var(--mono);letter-spacing:.22em">SECTORS</h2><span class="caps">S&amp;P 500 · biggest 30</span><span class="grow"></span><span class="pill lav">HELD</span><span class="caps">1M</span></div>
+    <div class="sgrid">${sorted.map(([ic, nm, c, tks]) => `<div class="sr"><span class="si">${ico(ic)}</span><span class="nm">${nm}</span>${zbar(c)}<span class="pc ${c < 0 ? 'dn' : 'up'}">${pct(c)}</span>
+      <div class="co">${tks.map(([t, d, h]) => `<span class="${h ? 'held' : ''}"><img src="https://www.google.com/s2/favicons?domain=${DOM[t]}&sz=64">${t} <b class="${d < 0 ? 'dn' : 'up'}">${pct(d)}</b></span>`).join('')}</div></div>`).join('')}</div>
+    <div class="sub2">REGIONS</div>
+    <div class="sgrid">${REG.map(([cc, n, d]) => `<div class="sr"><span class="si">${cc}</span><span class="nm">${n}</span>${zbar(d)}<span class="pc ${d < 0 ? 'dn' : 'up'}">${pct(d)}</span></div>`).join('')}</div>`
 }
 
 function show(s) {

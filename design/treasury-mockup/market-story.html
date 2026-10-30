@@ -458,9 +458,9 @@ document.querySelectorAll('[data-v]').forEach((b) => b.onclick = () => { documen
 if (Math.min(screen.width, innerWidth) < 600) document.querySelector('[data-v=phone]').click()
 /* held companies with news this week: [site, name, €, results, analysts, insiders, funds] — Finnhub, SEC EDGAR */
 const COMP = [
-  ['google.com', 'Alphabet', '€1,240', ['$2.31 a share', '$2.10 expected · 28 Oct', 'up'], ['Morgan Stanley', 'Buy → Hold · 29 Oct', 'dn'], ['CFO sold $4.2M', 'form 4 · 27 Oct', ''], ['Berkshire +8% shares', '13F · Q3', '']],
-  ['meta.com', 'Meta', '€610', ['$6.03 a share', '$6.70 expected · 29 Oct', 'dn'], ['UBS', 'Buy → Hold · 30 Oct', 'dn'], null, ['Bridgewater −31% shares', '13F · Q3', '']],
-  ['microsoft.com', 'Microsoft', '€900', ['$3.72 a share', '$3.66 expected · 29 Oct', 'up'], ['Jefferies', 'Hold → Buy · 30 Oct', 'up'], null, null],
+  ['google.com', 'Alphabet', '€1,240', ['$2.31 a share', '$2.10 expected · 28 Oct', 'up'], ['Buy 48 · Hold 9', 'Oct · Sep: Buy 51 · Hold 6', 'dn'], ['CFO sold $4.2M', 'form 4 · 27 Oct', ''], ['Berkshire +8% shares', '13F · Q3', '']],
+  ['meta.com', 'Meta', '€610', ['$6.03 a share', '$6.70 expected · 29 Oct', 'dn'], ['Buy 55 · Hold 7', 'Oct · Sep: Buy 58 · Hold 5', 'dn'], null, ['Bridgewater −31% shares', '13F · Q3', '']],
+  ['microsoft.com', 'Microsoft', '€900', ['$3.72 a share', '$3.66 expected · 29 Oct', 'up'], ['Buy 52 · Hold 4', 'Oct · Sep: Buy 49 · Hold 6', 'up'], null, null],
   ['nvidia.com', 'Nvidia', '€1,480', ['19 Nov', 'next results', ''], null, ['CEO sold $33M', 'form 4 · planned sale · 28 Oct', ''], ['Norges Bank +4% shares', '13F · Q3', '']],
 ]
 function comps() {

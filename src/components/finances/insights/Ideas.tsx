@@ -7,14 +7,13 @@ import type { Doc } from '../../../../convex/_generated/dataModel'
 import type { IdeaQuote } from '@/lib/ideaQuote'
 import { Line, changeWord, clock, dayWord } from './parts'
 import { Words } from './readParts'
-import { AskOn } from './AskOn'
-import { askIdea } from '@/lib/askOnCards'
 
-/* Band 4, NEXT (mockup): 2–4 tickers not owned, named by the read with a
-   why, a bull, a bear and a wrong-if in its words. Every number on a card
-   is the app's, fetched on open and never saved — the price, the month
-   and the year each as two prices with both shown, the month's line. A
-   ticker the market does not answer is dropped. */
+/* An idea card (I3): a ticker not owned, named by the model with a why,
+   a bull, a bear and a wrong-if in its words. Every number on a card is
+   the app's, fetched on open and never saved — the price, the month and
+   the year each as two prices with both shown, the month's line. A ticker
+   the market does not answer is dropped. Since 29 Oct (IDEAS became the
+   board) only ASK's answers show these cards. */
 
 type Idea = NonNullable<Doc<'marketReads'>['read']>['ideas'][number]
 
@@ -50,68 +49,6 @@ export function useQuotes(symbols: Array<string>) {
 const price = (q: IdeaQuote, n = q.price) =>
   `${q.currency === 'EUR' ? '€' : q.currency === 'USD' ? '$' : `${q.currency} `}${n.toLocaleString('en-GB', { maximumFractionDigits: n >= 100 ? 0 : 2 })}`
 
-/** quotes: useQuotes on the same ideas, asked once by the room, which
-    counts the cards for its tab. */
-export function Ideas({
-  ideas,
-  quotes,
-}: {
-  ideas: Array<Idea> | null
-  quotes: Array<IdeaQuote> | null
-}) {
-  if (ideas === null)
-    return (
-      <div className="ins-grid">
-        <section className="ins-tile c12" data-testid="ideas-after">
-          <div className="ins-thead">
-            <span className="ins-ico">💡</span>
-            <span className="ins-tname">IDEAS · NOT OWNED</span>
-          </div>
-          <div className="ins-after min-h-[110px]">
-            <span className="label-caps">AFTER THE READ</span>
-          </div>
-        </section>
-      </div>
-    )
-  const found = ideas.flatMap((idea) => {
-    const q = quotes?.find((x) => x.symbol === idea.ticker)
-    return q ? [{ idea, q }] : []
-  })
-  if (ideas.length === 0 || (quotes !== null && found.length === 0))
-    return (
-      <div className="ins-grid">
-        <section className="ins-tile c12" data-testid="ideas-none">
-          <div className="ins-thead">
-            <span className="ins-ico">💡</span>
-            <span className="ins-tname">IDEAS · NOT OWNED</span>
-            <span className="flex-1" />
-            <span className="ins-badge dim">0 IDEAS</span>
-          </div>
-        </section>
-      </div>
-    )
-  return (
-    <div className="ins-grid">
-      {quotes === null
-        ? ideas.map((idea, i) => (
-            <section
-              key={idea.ticker}
-              className="ins-tile c3 ins-idea"
-              style={{ '--i': 11 + i } as React.CSSProperties}
-            >
-              <div className="top">
-                <span className="tk">{idea.name}</span>
-                <span className="ins-badge dim ins-reading">READING</span>
-              </div>
-            </section>
-          ))
-        : found.map(({ idea, q }, i) => (
-            <IdeaCard key={idea.ticker} idea={idea} q={q} i={i} />
-          ))}
-    </div>
-  )
-}
-
 /** One idea's card; `in` an ASK answer it sits three to a row. */
 export function IdeaCard({
   idea,
@@ -144,10 +81,7 @@ export function IdeaCard({
       }
     >
       <div className="top">
-        <div className="flex items-start justify-between gap-2">
-          <TickerLogo symbol={q.symbol} name={idea.name} size={38} />
-          <span className="ins-badge lav">💡 MODEL · NOT ADVICE</span>
-        </div>
+        <TickerLogo symbol={q.symbol} name={idea.name} size={38} />
         <div className="min-w-0">
           <div className="tk">{idea.ticker}</div>
           <div className="co">{idea.name}</div>
@@ -199,7 +133,6 @@ export function IdeaCard({
             <b>WRONG IF</b> {idea.wrong}
           </span>
         </div>
-        {where === 'next' ? <AskOn q={askIdea(idea.ticker)} wide /> : null}
         <div className="ins-foot">
           <span className="ins-was">YAHOO · {clock(q.at)}</span>
           <span className="ins-was">NOT SAVED</span>

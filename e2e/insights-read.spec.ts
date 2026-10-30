@@ -58,8 +58,6 @@ test('S1 READ MARKET → reading → the read: headline, lines with icons and fa
   )
   await page.locator('[data-tab="read"]').click()
   await expect(page.getByTestId('read-lines')).toContainText('AFTER THE READ')
-  await page.locator('[data-tab="ideas"]').click()
-  await expect(page.getByTestId('ideas-after')).toBeVisible()
 
   await readMarket(page)
   await expect(hero).toHaveAttribute('data-state', 'done', { timeout: 15_000 })
@@ -96,22 +94,6 @@ test('S1 READ MARKET → reading → the read: headline, lines with icons and fa
   await expect(page.getByTestId('read-plain')).toContainText('more slowly')
   await expect(page.getByTestId('read-sources')).toContainText('REUTERS')
 
-  /* Two ideas the market answered; ZZZZ is dropped. */
-  await page.locator('[data-tab="ideas"]').click()
-  await expect(
-    page.locator('[data-tab="ideas"] [data-testid=tab-badge]'),
-  ).toHaveText('2')
-  const cards = page.getByTestId('idea-card')
-  await expect(cards).toHaveCount(2, { timeout: 15_000 })
-  await expect(page.locator('[data-ticker="ZZZZ"]')).toHaveCount(0)
-  const novo = page.locator('[data-ticker="NOVO-B.CO"]')
-  await expect(novo).toContainText('DKK 412')
-  await expect(novo).toContainText('▼ 3.9% · 1M')
-  await expect(novo).toContainText('MODEL · NOT ADVICE')
-  await expect(novo).toContainText('WRONG IF')
-  await expect(novo).toContainText('NOT SAVED')
-  /* The cards have arrived before the picture. */
-  await expect(cards.last()).toHaveCSS('opacity', '1')
   await page.screenshot({ ...shot('insights-read-calm'), fullPage: true })
 
   await page.setViewportSize({ width: 375, height: 812 })
@@ -125,9 +107,7 @@ test('S1 READ MARKET → reading → the read: headline, lines with icons and fa
   await page.screenshot({ ...shot('insights-read-phone'), fullPage: true })
 })
 
-test('S2 a mixed month: warn edge, a NO DATA line, no ideas', async ({
-  page,
-}) => {
+test('S2 a mixed month: warn edge, a NO DATA line', async ({ page }) => {
   await open(page)
   await arm('mixed')
   const hero = await readMarket(page)
@@ -141,8 +121,6 @@ test('S2 a mixed month: warn edge, a NO DATA line, no ideas', async ({
   await expect(none).toContainText('❔')
   await expect(none).toContainText('NO DATA')
   await expect(none.getByTestId('read-goto')).toHaveCount(0)
-  await page.locator('[data-tab="ideas"]').click()
-  await expect(page.getByTestId('ideas-none')).toContainText('0 IDEAS')
   await page.screenshot({ ...shot('insights-read-mixed'), fullPage: true })
 })
 

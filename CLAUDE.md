@@ -190,21 +190,32 @@ mockup `design/treasury-mockup/insights.html`, spec
   numbers under a line are the app's own facts, printed by the app; the
   model's words quote numbers only from those facts or from a source it
   links. Nothing it says is stored as a number. The model, the time, the
-  tokens, the cost and who paid are always shown, with RESEARCH · NOT
-  ADVICE. Missing data is said as ❔ NO DATA, never guessed.
-- **Ideas**: 2–4 tickers not owned, named by the read with a why, a bull,
-  a bear and a wrong-if in words; every number on the card fetched by the
-  app. Badged MODEL · NOT ADVICE. Never a sell, never a € amount, never a
-  score.
-- **ASK**: questions answered by the same model on the same facts, a 🌐
-  switch for web search per question; answers stay on the screen, not in
-  the database.
-  Asked for ideas (21 Oct, "go on ideas in ASK" on the mockup
-  `design/treasury-mockup/ask-ideas.html`), an answer may name up to
-  three tickers not owned and not in NEXT, on the same terms as Ideas
-  below: a why, a bull, a bear and a wrong-if in words, every number on
-  their cards fetched by the app, MODEL · NOT ADVICE, gone with the
-  thread.
+  tokens, the cost and who paid are always shown. Missing data is said
+  as ❔ NO DATA, never guessed. No NOT ADVICE badge anywhere (29 Oct:
+  "Remove that crap not advice … I already know that").
+- **IDEAS, the board** (29 Oct, "go" on the mockup
+  `design/treasury-mockup/ideas-board.html`, spec
+  `docs/specs/2026-10-29-ideas-board.md`; his words: "give ideas to ADD
+  some stocks, to add gold or buy BONDS", "more of explanation why you
+  suggest those tickers and why that much money"): the model's plan for
+  his idle cash in four parts — KEEP (months of spending), PROTECT (gold,
+  bonds, cash that pays), ADD TO MINE (his own holdings), NEW (tickers
+  not owned, each beside its % in MINE and % in the world). Each line
+  has ADD / HOLD / WAIT, a € amount, a WHY and an € reason in words, and
+  its NUMBERS. The calls and € amounts are the model's plan: shown with
+  the model, time and tokens, kept until READ AGAIN like the read, never
+  counted by the app, never an input to `verdict()`, never a sell. Every
+  price, %, signal and target on a line is the app's own — fetched, or
+  from `src/lib/indicators.ts` on fetched closes — never the model's.
+  The market strip (S&P 500, Nasdaq, Dow, Russell 2000, 10Y, VIX, gold,
+  Bitcoin) and the movers (Yahoo trending, gainers, losers) are fetched
+  on open like MARKET.
+- **ASK**, docked beside the board: web search always on (29 Oct: "why
+  add that 🌐 icon, we need by default search"); ✦ on any line opens it
+  on that line; a screenshot dropped in goes to the model and is not
+  stored; answers stay on the screen, not in the database. An answer may
+  be sentences, charts, tables and cards; a number in it comes from the
+  app's facts, a fetch or a source it links.
 - **Explanations may be sentences** ("for not smart person like me I
   want more like explanation"): behind an ⓘ card and a WHAT IT MEANS
   tap only. The screen itself stays badges and numbers.

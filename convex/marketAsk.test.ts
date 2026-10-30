@@ -59,11 +59,17 @@ const month = () => monthKey(Date.now())
 async function ask(
   who: Awaited<ReturnType<typeof setup>>['me'],
   question: string,
-  web = false,
+  line?: {
+    ticker: string
+    part: string
+    call: string
+    eur: number
+    why: string
+  },
 ) {
   const state = { done: false }
   const p = who
-    .action(api.ai.ask.ask, { question, web, facts })
+    .action(api.ai.ask.ask, { question, facts, ...(line && { line }) })
     .finally(() => (state.done = true))
   /* The first call loads the modules before its timer is set. */
   while (!state.done) await vi.advanceTimersByTimeAsync(300)
@@ -77,17 +83,16 @@ test('S1 a question is answered with the keys given, and its cost added to the m
   if (!r.ok) return
   expect(r.answer.kind).toBe('allocation')
   expect(r.answer.factKeys).toEqual(['mine', 'sec-tech'])
-  expect(r.answer.sources).toHaveLength(0)
-  expect(r.stamp).toMatchObject({ searches: 0, cost: 0.02, paidBy: 'api' })
+  expect(r.stamp).toMatchObject({ searches: 2, cost: 0.08, paidBy: 'api' })
   const state = await me.query(api.marketReads.forMonth, { month: month() })
-  expect(state.spent).toBe(0.02)
+  expect(state.spent).toBe(0.08)
   /* Nothing of the question is stored: no read row appears. */
   expect(state.read).toBeNull()
 })
 
-test('S2 🌐 answers with sources and searches, and costs more', async () => {
+test('S2 the web is always searched: sources and searches', async () => {
   const { me } = await setup()
-  const r = await ask(me, 'What did Powell say?', true)
+  const r = await ask(me, 'What did Powell say?')
   expect(r.ok && r.answer.sources.map((s) => s.site)).toEqual([
     'reuters.com',
     'federalreserve.gov',
@@ -98,20 +103,37 @@ test('S2 🌐 answers with sources and searches, and costs more', async () => {
   ).toBe(0.08)
 })
 
-test('S7 asked for ideas: tickers not owned and not in NEXT, on the same cap', async () => {
+test('S7 asked for ideas: tickers not owned, three at most, on the same cap', async () => {
   const { t, me } = await setup()
   await me.mutation(api.marketReads.run, { facts, via: 'api' })
   await t.finishAllScheduledFunctions(vi.runAllTimers)
   const r = await ask(me, 'Give me more ideas')
   expect(r.ok && r.answer.kind).toBe('ideas')
-  /* The canned read's NEXT shows NOVO-B.CO and ZZZZ. */
+  /* NEXT's cards are gone (29 Oct): nothing skipped; ZZZZ is dropped on
+     screen when the market does not know it. */
   expect(r.ok && r.answer.ideas.map((i) => i.ticker)).toEqual([
     'JNJ',
     'EXV1.DE',
+    'ZZZZ',
   ])
   expect(
     (await me.query(api.marketReads.forMonth, { month: month() })).spent,
-  ).toBe(0.26)
+  ).toBe(0.32)
+})
+
+test('S8 asked from an IDEAS line: a chart the app draws and a table', async () => {
+  const { me } = await setup()
+  const r = await ask(me, 'Should I really add?', {
+    ticker: 'AVGO',
+    part: 'add',
+    call: 'add',
+    eur: 2500,
+    why: 'Fell on results',
+  })
+  expect(r.ok && r.answer.charts).toEqual([
+    { tickers: ['AVGO', 'NVDA'], range: '6mo' },
+  ])
+  expect(r.ok && r.answer.tables[0].head).toEqual(['', 'AVGO', 'NVDA'])
 })
 
 test('S3 failed: nothing paid, nothing retried', async () => {
@@ -157,7 +179,7 @@ test('an empty question, or no key off the test backend, pays nothing', async ()
 test('only mine: signed out refused; my spend is not theirs', async () => {
   const { t, me, them } = await setup()
   await expect(
-    t.action(api.ai.ask.ask, { question: 'x', web: false, facts }),
+    t.action(api.ai.ask.ask, { question: 'x', facts }),
   ).rejects.toThrow()
   await ask(me, 'Explain my allocation')
   expect(

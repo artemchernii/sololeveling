@@ -4,24 +4,32 @@ import { useEffect, useState } from 'react'
 import { api } from '../../../../convex/_generated/api'
 import type { ProAnswer } from '@/lib/claudeResult'
 import { localModel } from '@/lib/localModel'
-import type { AskAnswer, Said } from '@/lib/marketAsk'
+import type { AskAnswer, LineContext, Said } from '@/lib/marketAsk'
 import type { Fact } from '@/lib/marketRead'
 import { MAX_HISTORY, parseAsk } from '@/lib/marketAsk'
+import { askContext } from './askPrefill'
 import type { useMarketRead } from './useMarketRead'
 
 /* ASK (I4): the thread lives on the page, never in the database — kept
    while the rooms are switched, gone on reload. A question goes through
    the same path the read takes: Claude Code on his Mac on localhost (Pro
    plan, nothing counted), else the API action under the month's cap.
-   One call per press, no retry; ASK AGAIN is a press. */
+   One call per press, no retry; ASK AGAIN is a press. The web is always
+   searched (29 Oct). From IDEAS a question carries the line its ✦ opened
+   on and a dropped screenshot — both on the page only, never stored. */
 
 const CLAUDE_ASK_PATH = '/__claude/market-ask'
 
 export type Turn = {
   id: number
   question: string
-  web: boolean
   at: number
+  /** The IDEAS line it was asked on. */
+  line?: LineContext
+  /** What it was asked on, as the asking line names it. */
+  given?: Array<string>
+  /** A dropped screenshot, as a data URL, and its file name. */
+  shot?: { url: string; name: string }
   state: 'asking' | 'done' | 'failed'
   answer?: AskAnswer
   facts?: Array<Fact>
@@ -62,17 +70,37 @@ export function useAsk(r: Read) {
   const busy = turns.some((t) => t.state === 'asking')
   const capped = r.path === 'api' && r.spent >= r.cap
 
-  async function ask(question: string, web: boolean, again?: number) {
+  async function ask(
+    question: string,
+    more: { line?: LineContext; shot?: Turn['shot'] } = {},
+    again?: number,
+  ) {
     const q = question.trim()
     if (q === '' || busy || capped || r.path === null) return
     const id = again ?? nextId++
     if (again !== undefined)
       patch(id, { state: 'asking', error: undefined, at: Date.now() })
     else
-      put([...kept, { id, question: q, web, at: Date.now(), state: 'asking' }])
+      put([
+        ...kept,
+        { id, question: q, at: Date.now(), state: 'asking', ...more },
+      ])
+    const { line, shot } = again
+      ? (kept.find((t) => t.id === again) ?? {})
+      : more
     try {
-      const facts = await r.factsNow()
-      const skip = r.shown?.read?.ideas.map((i) => i.ticker) ?? []
+      /* From IDEAS: his cash, spending, holdings and plan ride along. */
+      const ctx = askContext()
+      const base = await r.factsNow()
+      const had = new Set(base.map((f) => f.key))
+      const facts = [
+        ...base,
+        ...(ctx?.facts ?? []).filter((f) => !had.has(f.key)),
+      ]
+      const plan = ctx?.plan ?? null
+      patch(id, { given: givenOf(facts, plan) })
+      /* Since IDEAS became the board (29 Oct) no NEXT cards to skip. */
+      const skip: Array<string> = []
       /* The answered turns before this one: a follow-up reads on. */
       const history: Array<Said> = kept
         .filter((t) => t.id < id && t.state === 'done' && t.answer)
@@ -86,9 +114,11 @@ export function useAsk(r: Read) {
             facts,
             read: r.shown?.read ?? null,
             question: q,
-            web,
             today: new Date().toISOString().slice(0, 10),
             history,
+            line: line ?? null,
+            shot: shot?.url ?? null,
+            plan,
             model: localModel(),
           }),
         })
@@ -119,7 +149,14 @@ export function useAsk(r: Read) {
           },
         })
       }
-      const res = await action({ question: q, web, facts, history })
+      const res = await action({
+        question: q,
+        facts,
+        history,
+        ...(line && { line }),
+        ...(shot && { shot: shot.url }),
+        ...(plan && { plan }),
+      })
       if (!res.ok)
         return patch(id, { state: 'failed', error: res.error, cost: res.cost })
       patch(id, {
@@ -136,4 +173,16 @@ export function useAsk(r: Read) {
   }
 
   return { turns, busy, capped, ask }
+}
+
+/** The asking line's chips: what the question carries of his. */
+function givenOf(facts: Array<Fact>, plan: string | null): Array<string> {
+  const held = facts.filter((f) => f.key.startsWith('pos-')).length
+  const cash = facts.find((f) => f.key === 'cash-idle')?.value.split(' · ')[0]
+  return [
+    ...(held ? [`${held} HOLDINGS`] : []),
+    ...(cash ? [`CASH ${cash}`] : []),
+    ...(facts.some((f) => f.key === 'spend-month') ? ['SPENDING'] : []),
+    ...(plan ? ['IDEAS PLAN'] : []),
+  ]
 }

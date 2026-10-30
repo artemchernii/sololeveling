@@ -19,7 +19,17 @@ import type { useMarketRead } from './useMarketRead'
 
 type Read = ReturnType<typeof useMarketRead>
 
-export function AskDrawer({ r }: { r: Read }) {
+/** docked: IDEAS shows ASK beside the board on a wide screen (29 Oct);
+    there a ✦ fills the dock, and the pill and drawer step aside. */
+const WIDE = '(min-width: 1100px)'
+
+export function AskDrawer({
+  r,
+  docked = false,
+}: {
+  r: Read
+  docked?: boolean
+}) {
   const a = useAsk(r)
   const [open, setOpen] = useState(false)
   const [ready, setReady] = useState(false)
@@ -30,7 +40,7 @@ export function AskDrawer({ r }: { r: Read }) {
   /* A card's ✦ opens it; Ask puts the question in the box. */
   const prefill = usePrefill()
   useEffect(() => {
-    if (prefill) setOpen(true)
+    if (prefill && !(docked && window.matchMedia(WIDE).matches)) setOpen(true)
   }, [prefill])
 
   useEffect(() => {
@@ -53,7 +63,9 @@ export function AskDrawer({ r }: { r: Read }) {
   const pro = r.path === 'pro'
 
   return createPortal(
-    <div className={`ask-layer ${open ? 'open' : ''}`}>
+    <div
+      className={`ask-layer ${open ? 'open' : ''} ${docked ? 'docked' : ''}`}
+    >
       <button
         type="button"
         data-testid="ask-open"

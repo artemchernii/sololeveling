@@ -63,7 +63,7 @@ export function askCopyText(c: CopyInput): string {
   if (c.ideas.length)
     parts.push(
       [
-        'IDEAS · MODEL · NOT ADVICE',
+        'IDEAS',
         ...c.ideas.map((i) =>
           [
             `- ${i.ticker} · ${i.name} — ${i.why}`,
@@ -88,6 +88,6 @@ export function askCopyText(c: CopyInput): string {
     c.searches > 0
       ? `${c.searches} ${c.searches === 1 ? 'SEARCH' : 'SEARCHES'} · `
       : ''
-  parts.push(`✦ ${c.model} · ${searches}${when(c.at)} · RESEARCH · NOT ADVICE`)
+  parts.push(`✦ ${c.model} · ${searches}${when(c.at)}`)
   return parts.join('\n\n')
 }

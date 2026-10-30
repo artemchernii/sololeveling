@@ -9,6 +9,7 @@ import {
   payer,
   readStamp,
 } from './marketReadFields'
+import { ideasBody } from './ideasReadFields'
 import type { Infer } from 'convex/values'
 
 import { SECTORS } from '../src/lib/sector'
@@ -1704,6 +1705,27 @@ export default defineSchema({
     /** What a failed attempt cost anyway (a response that came back unusable). */
     failCost: v.optional(v.number()),
   }).index('by_owner_month', ['ownerId', 'month']),
+  /* The IDEAS board's read (29 Oct, docs/specs/2026-10-29-ideas-board.md):
+     one row per READ AGAIN — the facts and idle cash it was given, then the
+     model's plan. Nothing fetched is stored here beyond those facts. */
+  ideasReads: defineTable({
+    ownerId: v.string(),
+    status: v.union(
+      v.literal('reading'),
+      v.literal('done'),
+      v.literal('failed'),
+    ),
+    via: payer,
+    facts: v.array(marketFact),
+    /** The idle cash the plan splits, in euros. */
+    idle: v.number(),
+    board: v.optional(ideasBody),
+    stamp: v.optional(readStamp),
+    readAt: v.optional(v.number()),
+    startedAt: v.number(),
+    error: v.optional(v.string()),
+    failCost: v.optional(v.number()),
+  }).index('by_owner', ['ownerId']),
   /* Dollars spent on API credits per calendar month, added from each
      response's usage (I3; ASK in I4 adds to the same row). Reads stop at
      CAP_USD in src/lib/marketRead.ts. Runs on his Pro plan add nothing. */

@@ -162,12 +162,24 @@ const PLAIN: Record<string, string> = {
   ecb: 'ECB RATE',
   'ecb-next': 'NEXT ECB MEETING',
   mine: 'INVESTMENTS',
+  /* His own, by key, so a read stored before 30 Oct shows today's words. */
+  'me-cash': 'CASH',
+  'me-cash-lost': 'INFLATION ON CASH · A YEAR',
+  'me-cash-ecb': 'ECB RATE ON CASH · A YEAR',
+  'me-prices': 'EURO INFLATION',
+  'me-ecb': 'ECB RATE',
+  'me-invested': 'INVESTMENTS',
+  'me-us-eur': 'US IN MINE',
+  'me-dollar': 'DOLLAR · THIS MONTH',
 }
 export function labelOf(f: Fact) {
   if (PLAIN[f.key]) return PLAIN[f.key]
+  if (f.key.startsWith('me-tax-')) return `TAX IF SOLD · ${f.key.slice(7)}`
+  if (f.key.startsWith('me-alloc-'))
+    return `${f.key.slice(9).toUpperCase()} IN MINE`
   if (f.key.startsWith('mkt-'))
     return MARKETS.find((m) => `mkt-${m.id}` === f.key)?.name ?? f.label
-  return f.label
+  return f.label.toUpperCase()
 }
 
 /** "claude-sonnet-5-5" → "SONNET 5.5". */

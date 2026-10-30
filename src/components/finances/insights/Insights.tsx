@@ -1,9 +1,9 @@
 import { useQuery } from 'convex-helpers/react/cache/hooks'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 import { api } from '../../../../convex/_generated/api'
 import { AskDrawer } from './AskDrawer'
-import { TILE_OF, TabBar, useTab } from './InsightsTabs'
+import { TabBar, useTab } from './InsightsTabs'
 import type { Badge, Tab } from './InsightsTabs'
 import { changeWord } from './parts'
 import { IdeasTab } from './IdeasTab'
@@ -20,10 +20,12 @@ import { SectorMap } from './SectorMap'
 import { Close, closeBadge, useClose } from './Close'
 import { useMarket } from './useMarket'
 import { useMarketRead } from './useMarketRead'
+import { useCash } from './useIdeas'
+import { spendMonth } from './IdeasParts'
+import { ideaFacts, ideaOf, readMine } from '@/lib/readMine'
 import { tickerBase } from '@/lib/market'
 import { combine } from '@/lib/owned'
 import type { Period } from '@/lib/insightsMarket'
-import type { Kind } from '@/lib/marketRead'
 
 /* Insights, Finances' fourth room (19 Oct; spec
    docs/specs/2026-10-19-insights.md, mockup
@@ -58,40 +60,41 @@ export function Insights({ shown }: { shown: boolean }) {
   const earn = mine.base?.earnings
     ? earningsFacts(mine.base.earnings.rows, mine.base.fetchedAt)
     : []
+  /* READ about his money (29 Oct): his cash and investments, and the
+     IDEAS moves a line may point at. */
+  const cash = useCash()
+  const worth = useQuery(api.aggregate.worth, {})
+  const ideas = useQuery(api.ideasReads.latest, {})
+  const board = ideas?.shown?.board ?? null
   const read = useMarketRead(
     positions ? positions.rows : null,
     [...allocFacts(alloc), ...earn],
     earn,
+    (m) => [
+      ...readMine({
+        cash,
+        invested: worth?.invested.total ?? null,
+        rates: m.rates,
+        markets: m.markets,
+        alloc,
+        owned,
+      }),
+      ...ideaFacts(board?.lines ?? null),
+    ],
   )
+
   const count = positions ? positions.rows.length : null
 
   /* IDEAS' badge: what the board's plan puts to work (29 Oct). */
-  const plan = useQuery(api.ideasReads.latest, {})?.shown?.board?.parts
+  const plan = board?.parts
   const [tab, pick] = useTab(read.row?.read !== undefined, read.loading)
   const close = useClose(shown, shown && tab === 'close')
   const room = useRef<HTMLDivElement>(null)
-  /* A read line's → MINE: its tab opens, then its tile is lit. */
-  const [lit, setLit] = useState<{ tile: string } | null>(null)
-  useEffect(() => {
-    const el = lit
-      ? room.current?.querySelectorAll<HTMLElement>(`[data-tile="${lit.tile}"]`)
-      : null
-    if (!el || el.length === 0) return
-    el[0].scrollIntoView({ behavior: 'smooth', block: 'center' })
-    /* Lit once the band has arrived, for long enough to be seen. */
-    const on = setTimeout(() => el.forEach((t) => t.classList.add('lit')), 450)
-    const off = setTimeout(() => setLit(null), 2050)
-    return () => {
-      clearTimeout(on)
-      clearTimeout(off)
-      el.forEach((t) => t.classList.remove('lit'))
-    }
-  }, [lit])
-  const go = (kind: Kind) => {
-    const to = TILE_OF[kind]
-    if (!to) return
-    pick(to.tab)
-    setLit({ tile: to.tile })
+  /* A read line's move: IDEAS opens on that line, lit. */
+  const [toIdea, setToIdea] = useState<string | null>(null)
+  const goIdea = (ticker: string | null) => {
+    pick('ideas')
+    setToIdea(ticker)
   }
 
   return (
@@ -126,7 +129,14 @@ export function Insights({ shown }: { shown: boolean }) {
         </div>
       ) : tab === 'read' ? (
         <div data-testid="tab-read" className="ins-panel">
-          <ReadLines shown={read.shown} positions={count} onGo={go} />
+          <ReadLines
+            shown={read.shown}
+            cash={cash}
+            invested={worth?.invested.total ?? null}
+            board={board}
+            spend={ideas?.shown ? spendMonth(ideas.shown.facts) : null}
+            onIdea={goIdea}
+          />
         </div>
       ) : tab === 'mine' ? (
         <div data-testid="tab-mine" className="ins-panel">
@@ -151,6 +161,8 @@ export function Insights({ shown }: { shown: boolean }) {
             held={owned}
             alloc={alloc}
             extra={[...allocFacts(alloc), ...earn]}
+            goTo={toIdea}
+            onGone={() => setToIdea(null)}
           />
         </div>
       ) : null}
@@ -162,7 +174,14 @@ export function Insights({ shown }: { shown: boolean }) {
   /** Each tab's badge, from numbers already on the page. */
   function badgesOf(): Partial<Record<Tab, Badge>> {
     const sp = market.shown?.markets.find((m) => m.id === 'sp500')?.move
-    const lines = read.shown?.read?.lines.length
+    const lines = read.shown?.read?.lines
+    const moves = lines
+      ? new Set(
+          lines
+            .map((l) => ideaOf(l.idea, board?.lines ?? null)?.ticker)
+            .filter(Boolean),
+        ).size
+      : 0
     const adds = mine.base?.calls
       ? mine.base.calls.filter((c) => c.call === 'add').length
       : null
@@ -174,7 +193,14 @@ export function Insights({ shown }: { shown: boolean }) {
             tone: sp.change > 0 ? 'good' : sp.change < 0 ? 'bad' : 'dim',
           }
         : undefined,
-      read: lines ? { text: `${lines} LINES`, tone: 'lav' } : undefined,
+      read: !lines
+        ? undefined
+        : moves > 0
+          ? {
+              text: `${moves} ${moves === 1 ? 'ACTION' : 'ACTIONS'}`,
+              tone: 'lav',
+            }
+          : { text: 'NO ACTION', tone: 'dim' },
       mine:
         adds === null
           ? undefined

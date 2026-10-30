@@ -193,6 +193,16 @@ mockup `design/treasury-mockup/insights.html`, spec
   tokens, the cost and who paid are always shown. Missing data is said
   as ❔ NO DATA, never guessed. No NOT ADVICE badge anywhere (29 Oct:
   "Remove that crap not advice … I already know that").
+  Reworked 29 Oct ("Go" on the mockup
+  `design/treasury-mockup/read-personal.html`, spec
+  `docs/specs/2026-10-29-read-personal.md`; his "I dont understand LLM
+  style of text, make it more readable for normal human"): READ may use
+  plain short sentences — a title and one line per line, no caps
+  shorthand. Under each line, three boxes say what it means for his
+  money in €: one of his numbers times one fetched rate
+  (`src/lib/readMine.ts`), both always printed under the result, nothing
+  stored. A line's move is an IDEAS line, looked up by the app, never
+  an amount the read writes itself.
 - **IDEAS, the board** (29 Oct, "go" on the mockup
   `design/treasury-mockup/ideas-board.html`, spec
   `docs/specs/2026-10-29-ideas-board.md`; his words: "give ideas to ADD

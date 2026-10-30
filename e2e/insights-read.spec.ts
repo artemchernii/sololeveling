@@ -47,7 +47,7 @@ test('S1 READ MARKET → reading → the read: headline, lines with icons and fa
 }) => {
   const hero = await open(page)
   await expect(hero).toContainText('Not read yet')
-  await expect(page.getByTestId('read-pay')).toHaveText('💳 API CREDITS')
+  await expect(page.getByTestId('read-pay')).toHaveText('API CREDITS')
   await expect(page.getByTestId('read-cost')).toHaveText(
     'CAP $2.00 · USED $0.00',
   )
@@ -74,24 +74,29 @@ test('S1 READ MARKET → reading → the read: headline, lines with icons and fa
   await expect(page.getByTestId('read-market')).toHaveText('↻ READ AGAIN')
 
   await page.locator('[data-tab="read"]').click()
+  /* No IDEAS plan yet: no line has a move. */
   await expect(
     page.locator('[data-tab="read"] [data-testid=tab-badge]'),
-  ).toHaveText('4 LINES')
+  ).toHaveText('NO ACTION')
   const lines = page.getByTestId('read-line')
   await expect(lines).toHaveCount(4)
   await expect(lines.nth(0)).toHaveAttribute('data-kind', 'inflation')
-  await expect(lines.nth(0)).toContainText('🌡️')
-  await expect(lines.nth(0)).toContainText('US CPI SEP 2.9%')
-  await expect(lines.nth(0)).toContainText('US CPI AUG 3.1%')
+  await expect(lines.nth(0)).toContainText('INFLATION')
+  await expect(lines.nth(0)).toContainText('Prices are rising more slowly')
+  /* Three boxes in plain words, printed by the app. */
+  const boxes = lines.nth(0).getByTestId('read-box')
+  await expect(boxes).toHaveCount(3)
+  await expect(boxes.nth(0)).toContainText('EURO INFLATION')
+  await expect(boxes.nth(1)).toContainText('ECB RATE')
+  await expect(boxes.nth(2)).toContainText('US INFLATION')
   await expect(lines.nth(3)).toHaveAttribute('data-kind', 'dont')
   await expect(lines.nth(3)).toContainText('AVGO')
-
-  await expect(page.getByTestId('read-plain')).toHaveCount(0)
-  await lines
-    .nth(0)
-    .getByRole('button', { name: /WHAT IT MEANS/ })
-    .click()
-  await expect(page.getByTestId('read-plain')).toContainText('more slowly')
+  await expect(page.getByTestId('read-move')).toHaveCount(0)
+  await expect(page.getByTestId('read-none')).toHaveCount(4)
+  await expect(page.getByTestId('read-week-none')).toHaveText('NO PLAN YET')
+  /* HOW IT IS MADE and the NOT ADVICE badge are gone. */
+  await expect(page.getByTestId('read-how')).toHaveCount(0)
+  await expect(page.getByTestId('tab-read')).not.toContainText('NOT ADVICE')
   await expect(page.getByTestId('read-sources')).toContainText('REUTERS')
 
   await page.screenshot({ ...shot('insights-read-calm'), fullPage: true })
@@ -118,9 +123,9 @@ test('S2 a mixed month: warn edge, a NO DATA line', async ({ page }) => {
   const lines = page.getByTestId('read-line')
   await expect(lines).toHaveCount(3)
   const none = page.locator('[data-testid=read-line][data-kind=nodata]')
-  await expect(none).toContainText('❔')
   await expect(none).toContainText('NO DATA')
-  await expect(none.getByTestId('read-goto')).toHaveCount(0)
+  await expect(none.getByTestId('read-move')).toHaveCount(0)
+  await expect(none.getByTestId('read-none')).toHaveText('NO ACTION')
   await page.screenshot({ ...shot('insights-read-mixed'), fullPage: true })
 })
 
@@ -186,38 +191,47 @@ test('S5 reload shows the stored read without paying again', async ({
   )
 })
 
-test('S6 a line about another tab: → MINE opens it and lights its tile', async ({
+test('S6 a line with a move: the button opens IDEAS on that line, THIS WEEK counts it', async ({
   page,
 }) => {
   await start(page)
   await testClient().mutation(anyApi.e2eMine.positions, {})
   await page.goto('/finances?room=insights')
+  /* The plan first: the read points its lines at the board's moves. */
+  await page.locator('[data-tab="ideas"]').click()
+  const again = page.getByTestId('idb-read')
+  await expect(again).toBeEnabled({ timeout: 15_000 })
+  await again.click()
+  await expect(again).toHaveAttribute('data-state', 'done', {
+    timeout: 20_000,
+  })
+
   await readMarket(page)
   await expect(page.getByTestId('read-hero')).toHaveAttribute(
     'data-state',
     'done',
     { timeout: 15_000 },
   )
-  const dont = page.locator('[data-testid=read-line][data-kind=dont]')
-  const go = dont.getByTestId('read-goto')
-  await expect(go).toHaveText('→ MINE')
-  await go.click()
-  await expect(page.locator('[data-tab="mine"]')).toHaveAttribute(
+  await page.locator('[data-tab="read"]').click()
+  await expect(
+    page.locator('[data-tab="read"] [data-testid=tab-badge]'),
+  ).toHaveText('1 ACTION')
+  const move = page.getByTestId('read-move')
+  await expect(move).toHaveCount(1)
+  await expect(move).toHaveText(/→Move €[\d,]+ to XEON\.DE/)
+  await expect(page.getByTestId('read-none')).toHaveCount(3)
+  const week = page.getByTestId('read-week')
+  await expect(week).toContainText('1 ACTION')
+  await expect(page.getByTestId('read-week-move')).toContainText('XEON.DE')
+  await page.screenshot({ ...shot('insights-read-move'), fullPage: true })
+
+  await move.click()
+  await expect(page.locator('[data-tab="ideas"]')).toHaveAttribute(
     'aria-pressed',
     'true',
   )
-  await expect(page.getByTestId('read-line')).toHaveCount(0)
-  const tile = page.getByTestId('mine-positions')
-  await expect(tile).toHaveClass(/\blit\b/)
-  await expect(tile).toBeInViewport()
-  await page.screenshot(shot('insights-goto-mine'))
-  await expect(tile).not.toHaveClass(/\blit\b/, { timeout: 5_000 })
-
-  await page.locator('[data-tab="read"]').click()
-  const rates = page.locator('[data-testid=read-line][data-kind=rates]')
-  await rates.getByTestId('read-goto').click()
-  await expect(page.getByTestId('tab-market')).toBeVisible()
-  await expect(
-    page.locator('[data-testid=rate-card][data-id=fed]'),
-  ).toHaveClass(/\blit\b/)
+  const line = page.locator('[data-testid=idb-line][data-ticker="XEON.DE"]')
+  await expect(line).toHaveClass(/\bon\b/)
+  await expect(line).toBeInViewport()
+  await page.screenshot(shot('insights-read-to-ideas'))
 })

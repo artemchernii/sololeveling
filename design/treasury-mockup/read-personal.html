@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>READ, made his</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* READ, round 2 (29 Oct): "alignment is shit, words are weird, I dont
+     understand LLM style of text, make it more readable for normal human".
+     So: no dot-chained caps shorthand. Each line is a plain title, one plain
+     line under it, three equal boxes (label · number · what the number is),
+     and one button that says the move in words. Everything starts at one
+     left edge. His totals, cash split, allocation and spending are real;
+     every price, rate, CPI value, tax and € plan is sample (footnote). */
+  :root {
+    --bg: #f4f2ef;
+    --ink-100: #1d1d2b; --ink-200: #33334a; --ink-300: #55556c; --ink-400: #7a7a90; --ink-500: #9a9aae;
+    --lav-300: #6b5fd6; --lav-400: #8b7ff0;
+    --good: oklch(0.58 0.16 150); --bad: oklch(0.58 0.2 22); --warn: oklch(0.66 0.15 70);
+    --glass: linear-gradient(155deg, rgba(255,255,255,.9), rgba(255,255,255,.66));
+    --edge: rgba(30,30,50,.09);
+    --shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 18px 40px -28px rgba(30,30,60,.35);
+    --sys-edge: color-mix(in oklch, #8b7ff0 40%, transparent);
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --protect: oklch(0.6 0.12 250); --add: oklch(0.58 0.16 150); --new: oklch(0.6 0.15 300);
+    --k-infl: var(--warn); --k-rates: var(--lav-300); --k-mkt: var(--protect); --k-alloc: var(--new); --k-dont: var(--bad); --k-none: var(--ink-400);
+  }
+  * { box-sizing: border-box; margin: 0 }
+  body { background: radial-gradient(1000px 500px at 10% -10%, #e9e4f7 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #f6ead8 0%, transparent 55%), var(--bg);
+    color: var(--ink-100); font: 14px/1.5 Inter, system-ui, sans-serif; min-height: 100vh }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 16px 16px 60px; display:flex; flex-direction:column; gap: 14px }
+  .caps { font: 600 10px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-400) }
+  .row { display:flex; align-items:center; gap: 8px } .grow { flex: 1; min-width: 0 }
+  .pill { font: 700 9px var(--mono); letter-spacing: .1em; padding: 3px 7px; border-radius: 999px; border: 1px solid currentColor; text-transform: uppercase; white-space: nowrap; display:inline-flex; align-items:center; gap: 4px }
+  .pill.good { color: var(--good); background: color-mix(in oklch, var(--good) 9%, transparent) }
+  .pill.bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 9%, transparent) }
+  .pill.lav { color: var(--lav-300); background: color-mix(in oklch, var(--lav-400) 9%, transparent) }
+  .pill.ink { color: var(--ink-300); background: rgba(30,30,50,.03); border-color: rgba(30,30,50,.18) }
+  .up { color: var(--good) } .dn { color: var(--bad) } .warn { color: var(--warn) }
+  svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
+
+  .ctl { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; font: 11px var(--mono); color: var(--warn); letter-spacing: .08em; text-transform: uppercase }
+  .ctl button { font: inherit; color: var(--ink-300); background: rgba(255,255,255,.6); border: 1px solid var(--edge); border-radius: 999px; padding: 4px 10px; cursor: pointer; text-transform: uppercase }
+  .ctl button.on { color: var(--ink-100); border-color: var(--warn) }
+
+  .tabs { display:grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 8px; border-radius: 14px; border: 1px solid var(--edge); background: var(--glass) }
+  .tab { display:flex; align-items:center; justify-content:center; gap: 8px; padding: 9px; border-radius: 10px; font: 700 10.5px var(--mono); letter-spacing: .16em; color: var(--ink-200) }
+  .tab .n { width: 18px; height: 18px; border-radius: 5px; display:grid; place-items:center; font-size: 9.5px; color: var(--lav-300); border: 1px solid var(--sys-edge) }
+  .tab.on { background: color-mix(in oklch, var(--lav-400) 14%, transparent); border: 1px solid var(--sys-edge) }
+
+  .page { display:grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start }
+  .board { display:flex; flex-direction:column; gap: 14px; min-width: 0 }
+  .tile { border-radius: 16px; border: 1px solid var(--edge); background: var(--glass); box-shadow: var(--shadow); padding: 20px 22px; min-width: 0; animation: up .45s cubic-bezier(.2,.8,.2,1) both }
+  @keyframes up { from { opacity: 0; transform: translateY(8px) } }
+  .logo { width: 32px; height: 32px; border-radius: 9px; background: #fff; border: 1px solid var(--edge); display:grid; place-items:center; overflow:hidden; flex: none }
+  .logo img { width: 20px; height: 20px }
+
+  /* head */
+  .head { display:flex; gap: 16px; align-items: flex-start }
+  .head h1 { font-size: 26px; font-weight: 500; letter-spacing: -.02em; line-height: 1.2 }
+  .take { font-size: 15px; line-height: 1.55; color: var(--ink-300); margin-top: 6px; max-width: 640px }
+  .meta { font: 10px/1.6 var(--mono); color: var(--ink-400); text-align: right; white-space: nowrap }
+  .again { margin-top: 8px; font: 700 10px var(--mono); letter-spacing: .12em; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--edge); background: rgba(255,255,255,.7); color: var(--ink-200); cursor: pointer }
+  .who { font: 500 12px Inter; color: var(--ink-400); margin-top: 10px }
+  .facts { display:grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: 18px; border-top: 1px solid var(--edge) }
+  .fact { padding: 12px 12px 0 0; display:flex; flex-direction:column; gap: 2px; min-width: 0 }
+  .fact + .fact { padding-left: 14px; border-left: 1px solid var(--edge) }
+  .fact .n { font-size: 12px; color: var(--ink-400) } .fact .v { font: 600 17px var(--mono) } .fact .s { font-size: 11.5px; color: var(--ink-400) }
+
+  /* a READ line: icon column, then everything on one left edge */
+  .ln { display:grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 16px; --c: var(--ink-400) }
+  .ln.on { border-color: var(--sys-edge); box-shadow: var(--shadow), 0 0 0 2px color-mix(in oklch, var(--lav-400) 30%, transparent) }
+  .ln .ic { width: 40px; height: 40px; border-radius: 12px; display:grid; place-items:center; color: var(--c); border: 1px solid color-mix(in oklch, var(--c) 35%, transparent); background: color-mix(in oklch, var(--c) 10%, white) }
+  .ln .ic svg.i { width: 19px; height: 19px }
+  .ln .body { display:flex; flex-direction:column; gap: 14px; min-width: 0 }
+  .top { display:flex; gap: 12px; align-items: baseline; justify-content: space-between }
+  .kind { font: 700 10px var(--mono); letter-spacing: .18em; color: var(--c) }
+  .src { font-size: 11.5px; color: var(--ink-400); white-space: nowrap }
+  .title { font-size: 18px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; margin-top: 2px }
+  .sub { font-size: 14px; color: var(--ink-300); margin-top: 3px }
+  .boxes { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
+  .box { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--edge); background: rgba(255,255,255,.8); display:flex; flex-direction:column; gap: 3px; min-width: 0 }
+  .box .n { font-size: 12.5px; color: var(--ink-300) }
+  .box .v { font: 600 22px var(--mono); letter-spacing: -.02em; line-height: 1.15 }
+  .box .s { font-size: 12px; color: var(--ink-400) }
+  .box.bad { background: color-mix(in oklch, var(--bad) 5%, white); border-color: color-mix(in oklch, var(--bad) 22%, transparent) } .box.bad .v { color: var(--bad) }
+  .box.good { background: color-mix(in oklch, var(--good) 5%, white); border-color: color-mix(in oklch, var(--good) 22%, transparent) } .box.good .v { color: var(--good) }
+  .act { display:flex; align-items:center; gap: 12px; padding-top: 14px; border-top: 1px solid var(--edge) }
+  .go { display:inline-flex; align-items:center; gap: 8px; font: 600 14px Inter; padding: 10px 18px; border-radius: 999px; border: 0; color: #fff; background: var(--lav-300); cursor: pointer; box-shadow: 0 8px 20px -12px var(--lav-400); transition: transform .15s; white-space: nowrap }
+  .go:hover { transform: translateY(-1px) }
+  .go .arr { font-size: 16px; line-height: 1 }
+  .hint { font-size: 12.5px; color: var(--ink-400) }
+  .ask { font: 600 13px Inter; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--sys-edge); color: var(--lav-300); background: transparent; cursor: pointer; white-space: nowrap }
+  .ask:hover, .ask.on { background: color-mix(in oklch, var(--lav-400) 14%, white) }
+  .none { display:inline-flex; gap: 8px; align-items:center; font: 600 14px Inter; color: var(--ink-300); padding: 9px 16px; border-radius: 999px; border: 1px solid rgba(30,30,50,.14); background: rgba(30,30,50,.03) }
+  .none svg.i { color: var(--good) }
+
+  /* right: this week */
+  .side { position: sticky; top: 12px; display:flex; flex-direction:column; gap: 12px }
+  .week { border-color: var(--sys-edge); box-shadow: var(--shadow), 0 0 30px -18px var(--lav-400) }
+  .week h2 { font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--lav-300); text-transform: uppercase }
+  .week .big { font: 600 34px var(--mono); letter-spacing: -.03em; line-height: 1; margin-top: 14px }
+  .week .of { font-size: 13px; color: var(--ink-400); margin-top: 6px }
+  .bar { display:flex; gap: 3px; height: 8px; border-radius: 6px; overflow: hidden; margin-top: 14px; background: rgba(30,30,50,.06) }
+  .bar i { background: var(--c); transform-origin: left; animation: fill 1s cubic-bezier(.2,.8,.2,1) both } @keyframes fill { from { transform: scaleX(0) } }
+  .wl { display:grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--edge); cursor: pointer }
+  .wlist { margin-top: 14px } .wl:first-child { border-top: 0 }
+  .wl .nm { font-weight: 600; font-size: 14px } .wl .p { font-size: 12px; color: var(--ink-400) }
+  .wl .eur { font: 600 15px var(--mono); text-align: right }
+  .wl:hover .nm { color: var(--lav-300) }
+  .toideas { margin-top: 8px; width: 100%; font: 600 13px Inter; padding: 11px; border-radius: 999px; border: 1px solid var(--sys-edge); background: transparent; color: var(--lav-300); cursor: pointer }
+  .quiet { font-size: 12px; line-height: 1.6; color: var(--ink-400); padding: 0 6px }
+  .quietweek { display:flex; flex-direction:column; align-items:center; gap: 6px; padding: 22px 0 10px; text-align:center }
+  .quietweek .mk { width: 46px; height: 46px; border-radius: 14px; display:grid; place-items:center; color: var(--good); border: 1px solid color-mix(in oklch, var(--good) 40%, transparent); background: color-mix(in oklch, var(--good) 8%, white); margin-bottom: 4px }
+  .quietweek b { font-size: 16px } .quietweek span { font-size: 13px; color: var(--ink-400) }
+
+  .foot { font-size: 12px; line-height: 1.6; color: var(--ink-400); padding: 0 6px } .foot b { color: var(--warn) }
+
+  /* what a button opens */
+  .veil { position: fixed; inset: 0; background: rgba(20,20,40,.25); z-index: 8; display:none }
+  .pop { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100% - 32px)); z-index: 9; display:none; border-color: var(--sys-edge); background: #faf9f7; animation: none }
+  .open .veil, .open .pop { display:block }
+  .pop .bc { display:flex; gap: 8px; align-items:center; margin-bottom: 14px }
+  .x { font: 700 12px var(--mono); border: 0; background: transparent; color: var(--ink-400); cursor: pointer; margin-left: auto }
+  .iln { display:grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items:center; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 8%, white) }
+  .iln .nm { font-weight: 600 } .iln .tk { font-size: 12px; color: var(--ink-400) } .iln .eur { font: 600 16px var(--mono); color: var(--good) }
+  .iwhy { display:flex; flex-direction:column; gap: 8px; font-size: 14px; color: var(--ink-200); margin-top: 14px } .iwhy b { display:block; font-size: 12px; font-weight: 500; color: var(--ink-400) }
+  .ctxc { font-size: 13px; color: var(--ink-300); padding: 10px 12px; border-radius: 10px; border: 1px dashed var(--sys-edge); background: color-mix(in oklch, var(--lav-400) 6%, white) } .ctxc b { color: var(--ink-100) }
+  .sugg { display:flex; gap: 6px; flex-wrap: wrap; margin-top: 12px } .sugg span { font-size: 13px; padding: 6px 12px; border-radius: 999px; border: 1px dashed var(--sys-edge); color: var(--lav-300); cursor: pointer }
+  .askbar { display:flex; gap: 6px; align-items:center; margin-top: 12px; padding: 6px; border-radius: 999px; border: 1px solid var(--sys-edge); background: #fff }
+  .askbar input { flex: 1; min-width: 0; border: 0; background: transparent; font: 14px Inter, sans-serif; padding: 6px 8px; outline: none }
+  .askbar .btn { font: 600 13px Inter; padding: 8px 16px; border-radius: 999px; border: 0; color: #fff; background: var(--lav-300) }
+
+  @media (max-width: 1100px) { body:not(.phone) .page { grid-template-columns: 1fr } body:not(.phone) .side { position: static } body:not(.phone) .facts { grid-template-columns: repeat(3, minmax(0, 1fr)) } body:not(.phone) .fact:nth-child(4) { border-left: 0; padding-left: 0 } }
+  .phone .wrap { max-width: 400px }
+  .phone .page { grid-template-columns: 1fr }
+  .phone .side { position: static; order: -1 }
+  .phone .tabs { grid-template-columns: repeat(5, auto); overflow-x: auto }
+  .phone .tab { padding: 7px 4px; letter-spacing: .1em } .phone .tab .pill { display:none } .phone .tab.on .pill { display:inline-flex }
+  .phone .tile { padding: 16px }
+  .phone .head { flex-direction: column } .phone .meta { text-align: left }
+  .phone .head h1 { font-size: 22px }
+  .phone .facts { grid-template-columns: 1fr 1fr } .phone .fact { padding: 10px 0 0 } .phone .fact + .fact { border-left: 0; padding-left: 0 }
+  .phone .ln { grid-template-columns: 1fr; row-gap: 10px }
+  .phone .top { flex-direction: column; gap: 2px }
+  .phone .boxes { grid-template-columns: 1fr }
+  .phone .box { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 10px } .phone .box .n { flex: 1 0 100% } .phone .box .v { font-size: 19px }
+  .phone .act { flex-wrap: wrap } .phone .act .hint { flex: 1 0 100%; order: 3 }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ctl">mockup ·
+    <button data-s="normal" class="on">normal week</button>
+    <button data-s="quiet">no action week</button>
+    <button data-s="nodata">no data line</button>
+    <span style="width:12px"></span>
+    <button data-v="desk" class="on">desktop</button>
+    <button data-v="phone">phone</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab"><span class="n">1</span>MARKET <span class="pill bad">S&amp;P ▼ 0.3%</span></div>
+    <div class="tab on"><span class="n">2</span>READ <span class="pill lav" id="tabn">3 ACTIONS</span></div>
+    <div class="tab"><span class="n">3</span>MINE <span class="pill good">9 ADD</span></div>
+    <div class="tab"><span class="n">4</span>IDEAS <span class="pill lav">€34,302</span></div>
+    <div class="tab"><span class="n">5</span>CLOSE <span class="pill bad">▼ 0.6%</span></div>
+  </div>
+
+  <div class="page">
+    <div class="board">
+      <div class="tile">
+        <div class="head">
+          <div class="grow">
+            <div class="caps">This week's read · 29 Oct</div>
+            <h1 id="h1" style="margin-top:6px"></h1>
+            <p class="take" id="take"></p>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end">
+            <span class="meta">Sonnet 5.5 · 29 Oct, 21:30<br>18K in · 1.4K out · $0.07 · Pro plan</span>
+            <button class="again">↻ READ AGAIN</button>
+          </div>
+        </div>
+        <div class="facts">
+          <div class="fact"><span class="n">Total</span><span class="v">€64,686</span><span class="s">29 Oct</span></div>
+          <div class="fact"><span class="n">Cash</span><span class="v warn">€45,858</span><span class="s">71% of total</span></div>
+          <div class="fact"><span class="n">In banks</span><span class="v">€13,425</span><span class="s">bank accounts</span></div>
+          <div class="fact"><span class="n">Broker cash</span><span class="v">€32,433</span><span class="s">not invested</span></div>
+          <div class="fact"><span class="n">Investments</span><span class="v">€18,828</span><span class="s">72% in the US</span></div>
+          <div class="fact"><span class="n">Spending a month</span><span class="v">€1,926</span><span class="s">last 3 months</span></div>
+        </div>
+        <p class="who">Age 33 · lives in Portugal · earns and spends in euros</p>
+      </div>
+      <div id="lines" style="display:flex;flex-direction:column;gap:14px"></div>
+      <p class="foot"><b>Sample:</b> inflation figures, central bank and bank rates, the US 10-year, the dollar rate, gold's price and its profit and tax, the € moves, the amounts from Ideas, tokens and cost. <b style="color:var(--good)">Real:</b> age, country, total, cash and where it sits, investments, the US / Europe / health / tech / gold shares, spending a month.</p>
+    </div>
+
+    <aside class="side">
+      <div class="tile week" id="week"></div>
+      <p class="quiet">Data from Eurostat, BLS, the Fed, the ECB and Yahoo Finance. Account numbers as of 29 Oct, 21:30.</p>
+    </aside>
+  </div>
+</div>
+
+<div class="veil" id="veil"></div>
+<div class="tile pop" id="pop"></div>
+
+<script>
+const fav = (d) => `<span class="logo"><img src="https://www.google.com/s2/favicons?domain=${d}&sz=64"></span>`
+const I = {
+  infl: '<path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/><path d="M11.5 10v7"/>',
+  rates: '<path d="M3 21h18M5 21V10M19 21V10M9 21V10M15 21V10M2 10l10-6 10 6"/>',
+  mkt: '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  alloc: '<path d="M21.2 15.9A10 10 0 1 1 8 2.8"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
+  dont: '<circle cx="12" cy="12" r="9"/><path d="M5.7 5.7l12.6 12.6"/>',
+  none: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  ok: '<path d="M20 6L9 17l-5-5"/>',
+}
+const ico = (k) => `<svg class="i" viewBox="0 0 24 24">${I[k]}</svg>`
+const KIND = { infl: ['INFLATION', '--k-infl'], rates: ['INTEREST RATES', '--k-rates'], mkt: ['MARKETS', '--k-mkt'], alloc: ['MIX', '--k-alloc'], dont: ["DON'T", '--k-dont'], none: ['NO DATA', '--k-none'] }
+
+/* the Ideas lines the buttons open: [site, name, ticker, part, €, what it is, why this amount] */
+const IDEA = {
+  XEON: ['xtrackers.com', 'Euro cash fund', 'XEON', 'Protect', '€9,000', 'A fund that pays the ECB rate every day. Its price does not drop, and it can be sold any day.', 'About half of the Protect part: money that may be needed within a year.'],
+  GOOGL: ['google.com', 'Alphabet', 'GOOGL', 'Add to mine', '€2,500', 'Fell 12.6% because it will spend more on AI, not because fewer people use it.', '€1,250 now and €1,250 after the Fed meets in December.'],
+  VEUR: ['vanguard.com', 'European shares', 'VEUR', 'New', '€6,000', 'One fund with about 600 European companies.', 'Takes Europe from 2% to 11% of investments.'],
+}
+
+/* a line: kind, source, title, one line under it, three boxes, the move */
+const L = {
+  infl: { k: 'infl', src: 'Eurostat · 17 Oct', title: 'Prices in the euro area rose 3.8% in a year',
+    sub: 'In August it was 3.1%. The ECB aims for 2%.',
+    boxes: [{ n: 'Cash', v: '€45,858', s: 'banks and broker' }, { n: 'Lost to prices in a year', v: '−€1,743', s: '3.8% of €45,858', c: 'bad' }, { n: 'ECB rate', v: '2.0%', s: 'banks pay about 0%' }],
+    act: { tk: 'XEON', label: 'Move €9,000 to XEON', hint: 'earns about €180 a year at 2.0%' } },
+  infl_nodata: { k: 'none', src: 'Eurostat · no answer at 21:30', title: 'Euro area prices: no data this week',
+    sub: 'Eurostat did not answer. The last number was 3.1% for August.',
+    boxes: [{ n: 'Cash', v: '€45,858', s: 'banks and broker' }, { n: 'Lost to prices in a year', v: '❔', s: 'no data' }, { n: 'ECB rate', v: '2.0%', s: 'banks pay about 0%' }],
+    act: { tk: 'XEON', label: 'Move €9,000 to XEON', hint: 'based on the ECB rate, not on inflation' } },
+  rates: { k: 'rates', src: 'Fed, BLS · 29 Oct', title: 'The US central bank kept its rate at 4.50%',
+    sub: 'US prices rose 3.7% (3.4% in August), so a rise in December is being talked about.',
+    boxes: [{ n: 'Tech in investments', v: '27%', s: 'world: 33%' }, { n: 'Alphabet today', v: '−12.6%', s: 'tech falls first on a rate rise', c: 'bad' }, { n: 'Amazon today', v: '−4.2%', s: 'same reason', c: 'bad' }],
+    act: { tk: 'GOOGL', label: 'Buy Alphabet for €2,500', hint: '€1,250 now, €1,250 in December' } },
+  mkt: { k: 'mkt', src: 'Yahoo Finance · 21:30', title: 'The dollar got stronger against the euro',
+    sub: '€1 buys $1.072, it bought $1.106 on 1 Oct. The US 10-year bond pays 5.04%.',
+    boxes: [{ n: 'Investments in the US', v: '72%', s: 'about €13,556' }, { n: 'Gained from the dollar in Oct', v: '+€420', s: '3.1% of €13,556', c: 'good' }, { n: 'Investments in Europe', v: '2%', s: 'world: 15%' }],
+    act: { tk: 'VEUR', label: 'Put €6,000 into Europe (VEUR)', hint: 'less depends on the dollar' } },
+  dont: { k: 'dont', src: 'Yahoo Finance · 21:30', title: 'Gold is up 41% in a year — do not sell it now',
+    sub: '$4,033 an ounce, close to its highest ever.',
+    boxes: [{ n: 'Gold in investments', v: '11%', s: 'common plans: 5–10%' }, { n: 'Tax on profit in Portugal', v: '28%', s: 'paid when sold' }, { n: 'Tax if sold today', v: '−€169', s: '28% of €602 profit', c: 'bad' }],
+    act: null },
+  health: { k: 'alloc', src: 'Accounts · MSCI World', title: 'Health and tech are a little below the world',
+    sub: 'No news on either this week.',
+    boxes: [{ n: 'Health in investments', v: '5%', s: 'world: 9%' }, { n: 'Tech in investments', v: '27%', s: 'world: 33%' }, { n: 'Gold in investments', v: '11%', s: 'world: 0%' }],
+    act: null },
+  usq: { k: 'mkt', src: 'Yahoo Finance · 21:30', title: 'The dollar barely moved',
+    sub: '€1 buys $1.104, it bought $1.106 on 1 Oct.',
+    boxes: [{ n: 'Investments in the US', v: '72%', s: 'about €13,556' }, { n: 'Gained from the dollar in Oct', v: '+€25', s: '0.2% of €13,556' }, { n: 'Investments in Europe', v: '2%', s: 'world: 15%' }],
+    act: null },
+  inflq: { k: 'infl', src: 'Eurostat · 17 Oct', title: 'Prices in the euro area rose 2.1% in a year',
+    sub: 'In August it was 2.2%. Close to the ECB\'s 2%.',
+    boxes: [{ n: 'Cash', v: '€11,556', s: 'six months of spending' }, { n: 'Lost to prices in a year', v: '−€243', s: '2.1% of €11,556' }, { n: 'ECB rate', v: '2.0%', s: 'on XEON' }],
+    act: null },
+}
+const STATE = {
+  normal: { lines: ['infl', 'rates', 'mkt', 'dont'], h1: 'Cash is losing to prices', take: '€45,858 of €64,686 is cash and earns about 0%, while prices rose 3.8%. Three moves this week put €17,500 to work. Gold stays as it is.' },
+  nodata: { lines: ['infl_nodata', 'rates', 'mkt', 'dont'], h1: 'The Fed and the dollar move the money this week', take: 'No euro inflation number this week. Three moves still put €17,500 to work. Gold stays as it is.' },
+  quiet: { lines: ['inflq', 'usq', 'health'], h1: 'A quiet week', take: 'Nothing moved enough to act on. The plan in Ideas stays as it is.' },
+}
+
+function line(key, i) {
+  const x = L[key], [kn, kc] = KIND[x.k]
+  const box = (b) => `<div class="box ${b.c || ''}"><span class="n">${b.n}</span><span class="v">${b.v}</span><span class="s">${b.s}</span></div>`
+  const act = x.act
+    ? `<button class="go" data-go="${x.act.tk}"><span class="arr">→</span>${x.act.label}</button><span class="hint grow">${x.act.hint}</span><button class="ask" data-ask="${key}">✦ Ask</button>`
+    : `<span class="none">${ico('ok')}No action</span><span class="grow"></span><button class="ask" data-ask="${key}">✦ Ask</button>`
+  return `<div class="tile ln" data-k="${key}" style="--c:var(${kc});animation-delay:${i * 70}ms">
+    <span class="ic">${ico(x.k)}</span>
+    <div class="body">
+      <div><div class="top"><span class="kind">${kn}</span><span class="src">${x.src}</span></div>
+        <div class="title">${x.title}</div><div class="sub">${x.sub}</div></div>
+      <div class="boxes">${x.boxes.map(box).join('')}</div>
+      <div class="act">${act}</div>
+    </div>
+  </div>`
+}
+
+function week(s) {
+  const acts = STATE[s].lines.map((k) => L[k].act).filter(Boolean)
+  if (!acts.length) return `<h2>This week</h2>
+    <div class="quietweek"><span class="mk">${ico('ok')}</span><b>No action</b><span>Cash at six months of spending</span></div>
+    <button class="toideas" data-go="IDEAS">Open the plan in Ideas</button>`
+  const C = { Protect: 'var(--protect)', 'Add to mine': 'var(--add)', New: 'var(--new)' }
+  const num = (e) => +e.replace(/[^0-9]/g, '')
+  return `<div class="row"><h2>This week</h2><span class="grow"></span><span class="pill lav">${acts.length} actions</span></div>
+    <div class="big">€17,500</div><div class="of">to put to work, out of €45,858 cash</div>
+    <div class="bar">${acts.map((a) => `<i style="--c:${C[IDEA[a.tk][3]]};flex:${num(IDEA[a.tk][4])}"></i>`).join('')}<i style="--c:transparent;flex:28358"></i></div>
+    <div class="wlist">${acts.map((a) => { const [site, nm, tk, part, eur] = IDEA[a.tk]; return `<div class="wl" data-go="${tk}">${fav(site)}<span style="min-width:0"><div class="nm">${nm}</div><div class="p">${tk} · Ideas, ${part}</div></span><span class="eur">${eur}</span></div>` }).join('')}</div>
+    <button class="toideas" data-go="IDEAS">Open the plan in Ideas</button>`
+}
+
+function show(s) {
+  document.getElementById('lines').innerHTML = STATE[s].lines.map(line).join('')
+  document.getElementById('h1').textContent = STATE[s].h1
+  document.getElementById('take').textContent = STATE[s].take
+  document.getElementById('week').innerHTML = week(s)
+  const n = STATE[s].lines.map((k) => L[k].act).filter(Boolean).length
+  document.getElementById('tabn').textContent = n ? `${n} ACTIONS` : 'NO ACTION'
+}
+
+function pop(html) { document.getElementById('pop').innerHTML = html; document.body.classList.add('open') }
+function shut() { document.body.classList.remove('open'); document.querySelectorAll('.ln.on, .ask.on').forEach((l) => l.classList.remove('on')) }
+function goIdeas(tk) {
+  if (tk === 'IDEAS') return pop(`<div class="bc"><span class="caps" style="color:var(--lav-300)">Opens Ideas</span><button class="x" data-x>✕</button></div><p>The whole plan: Keep, Protect, Add to mine, New.</p><div class="sugg"><span onclick="location.href='ideas-board.html'">→ ideas-board.html</span></div>`)
+  const [site, nm, t, part, eur, what, why] = IDEA[tk]
+  pop(`<div class="bc"><span class="caps" style="color:var(--lav-300)">Opens Ideas · ${part}</span><button class="x" data-x>✕</button></div>
+    <div class="iln">${fav(site)}<span><div class="nm">${nm}</div><div class="tk">${t}</div></span><span class="eur">+${eur}</span></div>
+    <div class="iwhy"><span><b>What it is</b>${what}</span><span><b>Why ${eur}</b>${why}</span></div>
+    <div class="sugg"><span onclick="location.href='ideas-board.html'">→ ideas-board.html</span></div>`)
+}
+function askOn(key) {
+  document.querySelector(`.ln[data-k="${key}"]`).classList.add('on')
+  document.querySelector(`.ask[data-ask="${key}"]`).classList.add('on')
+  const Q = { infl: ['Is XEON safe for €9,000?', 'What about Portuguese savings certificates?'], infl_nodata: ['What did August say?', 'Is XEON safe for €9,000?'], rates: ['What if the Fed raises in December?', 'Alphabet or Microsoft?'], mkt: ['What if the dollar falls 10%?', 'VEUR or a Portuguese fund?'], dont: ['When is the tax lower?', 'Sell part of the gold?'] }[key] || ['What would change this?', 'Anything for Ideas?']
+  pop(`<div class="bc"><span class="caps" style="color:var(--lav-300)">Ask</span><span class="pill lav">Sonnet 5.5 · web</span><button class="x" data-x>✕</button></div>
+    <div class="ctxc">About: <b>${L[key].title}</b></div>
+    <div class="sugg">${Q.map((q) => `<span>${q}</span>`).join('')}</div>
+    <div class="askbar"><input placeholder="Ask about this…" /><button class="btn">Ask</button></div>`)
+}
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-x]') || e.target.id === 'veil') return shut()
+  const g = e.target.closest('[data-go]'); if (g) return goIdeas(g.dataset.go)
+  const a = e.target.closest('[data-ask]'); if (a) return askOn(a.dataset.ask)
+})
+document.querySelectorAll('[data-s]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-s]').forEach((x) => x.classList.toggle('on', x === b)); shut(); show(b.dataset.s) })
+document.querySelectorAll('[data-v]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-v]').forEach((x) => x.classList.toggle('on', x === b)); document.body.classList.toggle('phone', b.dataset.v === 'phone') })
+if (Math.min(screen.width, innerWidth) < 600) document.querySelector('[data-v=phone]').click()
+show('normal')
+</script>
+</body>
+</html>

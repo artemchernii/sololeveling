@@ -50,7 +50,8 @@ export function ModelPick({ label = 'PRO' }: { label?: string }) {
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        <span className="ask-ping" />⚡ {label} · {modelWord(model)} ▾
+        <span className="ask-ping" />
+        {label} · {modelWord(model)} ▾
       </button>
       {open ? (
         <span role="menu" data-testid="model-menu" className="model-menu">

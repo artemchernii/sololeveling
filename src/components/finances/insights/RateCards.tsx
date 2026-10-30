@@ -1,3 +1,5 @@
+import { CalendarDays } from 'lucide-react'
+
 import { Info, MarkLogo, clock, dayWord, daysTo, monthWord } from './parts'
 import type { InfoText } from './parts'
 import type { Answer, Rate } from './useMarket'
@@ -11,12 +13,14 @@ import type { Mark } from '@/lib/insightsMarket'
 type Id = Rate['id']
 
 const CARDS: Record<Id, { name: string; mark: Mark }> = {
-  'us-cpi': { name: 'US INFLATION', mark: { emoji: '🇺🇸' } },
-  'eu-hicp': { name: 'EURO INFLATION', mark: { emoji: '🇪🇺' } },
+  'us-cpi': { name: 'US INFLATION', mark: { chip: 'US' } },
+  'eu-hicp': { name: 'EURO INFLATION', mark: { chip: 'EU' } },
   fed: { name: 'FED RATE', mark: { site: 'federalreserve.gov' } },
   ecb: { name: 'ECB RATE', mark: { site: 'ecb.europa.eu' } },
+  'us-jobs': { name: 'US UNEMPLOYMENT', mark: { chip: 'US' } },
+  'us-2y': { name: 'US 2-YEAR BOND', mark: { site: 'treasury.gov' } },
 }
-const IDS: Array<Id> = ['us-cpi', 'eu-hicp', 'fed', 'ecb']
+const IDS: Array<Id> = ['us-cpi', 'eu-hicp', 'fed', 'ecb', 'us-jobs', 'us-2y']
 
 const pct = (n: number) => `${n.toFixed(1)}%`
 const rateValue = (r: Rate) =>
@@ -24,7 +28,7 @@ const rateValue = (r: Rate) =>
     ? '—'
     : r.upper !== null
       ? `${r.value.toFixed(2)}–${r.upper.toFixed(2)}%`
-      : r.id === 'fed' || r.id === 'ecb'
+      : r.id === 'fed' || r.id === 'ecb' || r.id === 'us-2y'
         ? `${r.value.toFixed(2)}%`
         : pct(r.value)
 
@@ -65,6 +69,22 @@ function info(id: Id, r: Rate | null): InfoText {
         why: 'A cut makes borrowing cheaper, usually pushes shares up and the dollar down — and a weaker dollar makes US shares worth fewer euros.',
         now: now(`${r ? rateValue(r) : ''}${next}`),
       }
+    case 'us-jobs':
+      return {
+        title: CARDS[id].name,
+        what: 'The share of Americans who want a job and do not have one.',
+        why: 'Rising unemployment makes a Fed cut likelier; it also means US companies may sell less.',
+        now: now(`${month}${prev}`),
+      }
+    case 'us-2y':
+      return {
+        title: CARDS[id].name,
+        what: 'What the US government pays to borrow for two years.',
+        why: 'It moves ahead of the Fed: it falls when markets expect cuts. Below the 10-year is the usual order.',
+        now: now(
+          `${r ? rateValue(r) : ''}${r?.since ? ` · ${dayWord(r.since)}` : ''}`,
+        ),
+      }
     case 'ecb':
       return {
         title: CARDS[id].name,
@@ -85,7 +105,7 @@ export function RateCards({
   failed: boolean
 }) {
   return (
-    <div className="ins-grid">
+    <div className="ins-rates" data-testid="rate-cards">
       {IDS.map((id, i) => (
         <RateCard
           key={id}
@@ -119,7 +139,7 @@ function RateCard({
   const card = CARDS[id]
   const reached = rate?.reached === true && !failed
   const waiting = rate === null && reading
-  const inflation = id === 'us-cpi' || id === 'eu-hicp'
+  const inflation = id === 'us-cpi' || id === 'eu-hicp' || id === 'us-jobs'
   const move =
     reached && inflation && rate.value !== null && rate.prev !== null
       ? Math.round((rate.value - rate.prev) * 10) / 10
@@ -129,17 +149,19 @@ function RateCard({
     (inflation
       ? id === 'us-cpi'
         ? 'BLS'
-        : 'EUROSTAT'
-      : id === 'fed'
-        ? 'FRED'
-        : 'ECB')
+        : id === 'us-jobs'
+          ? 'FRED'
+          : 'EUROSTAT'
+      : id === 'ecb'
+        ? 'ECB'
+        : 'FRED')
   return (
     <section
       data-testid="rate-card"
       data-id={id}
       data-tile={inflation ? 'inflation' : 'rates'}
       data-reached={waiting ? undefined : String(reached)}
-      className="ins-tile c3"
+      className="ins-tile"
       style={{ '--i': i, '--a': 'var(--state-warn)' } as React.CSSProperties}
     >
       <div className="ins-thead">
@@ -150,7 +172,7 @@ function RateCard({
       </div>
       <div className="flex items-end gap-2.5">
         <span
-          className={`ins-num text-[32px] ${waiting ? 'ins-reading text-ink-500' : reached ? '' : 'text-ink-500'}`}
+          className={`ins-num text-[22px] ${waiting ? 'ins-reading text-ink-500' : reached ? '' : 'text-ink-500'}`}
         >
           {waiting ? '…' : reached ? rateValue(rate) : '—'}
         </span>
@@ -173,7 +195,9 @@ function RateCard({
                 : ''}
             </span>
             {move !== null && move < 0 ? (
-              <span className="ins-badge good">▼ COOLING</span>
+              <span className="ins-badge good">
+                {id === 'us-jobs' ? '▼ FALLING' : '▼ COOLING'}
+              </span>
             ) : move !== null && move > 0 ? (
               <span className="ins-badge bad">▲ RISING</span>
             ) : (
@@ -183,12 +207,16 @@ function RateCard({
         ) : (
           <>
             <span className="ins-was">
-              {rate.since ? `SINCE ${dayWord(rate.since)}` : ''}
+              {rate.since
+                ? id === 'us-2y'
+                  ? dayWord(rate.since)
+                  : `SINCE ${dayWord(rate.since)}`
+                : ''}
             </span>
             {rate.next ? (
               <span className="ins-badge lav">
-                📅 {dayWord(rate.next)} · {daysTo(rate.next)}{' '}
-                {daysTo(rate.next) === 1 ? 'DAY' : 'DAYS'}
+                <CalendarDays size={11} aria-hidden /> {dayWord(rate.next)} ·{' '}
+                {daysTo(rate.next)} {daysTo(rate.next) === 1 ? 'DAY' : 'DAYS'}
               </span>
             ) : null}
           </>

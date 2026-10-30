@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
-import { MARKETS, REGIONS, SECTORS } from '@/lib/insightsMarket'
+import { MARKETS } from '@/lib/insightsMarket'
 import type { Fact, Kind, Tone } from '@/lib/marketRead'
 
 /* Small pieces of the market read (I3): the model's **bold** words, the
@@ -56,10 +56,8 @@ export function factIcon(key: string): string {
   if (key === 'us-cpi' || key === 'us-cpi-was') return '🇺🇸'
   if (key.startsWith('eu-hicp')) return '🇪🇺'
   if (key.startsWith('fed') || key.startsWith('ecb')) return '🏛️'
-  if (key.startsWith('sec-'))
-    return SECTORS.find((s) => s.id === key.slice(4))?.emoji ?? '📊'
-  if (key.startsWith('reg-'))
-    return REGIONS.find((r) => r.id === key.slice(4))?.emoji ?? '🌐'
+  if (key.startsWith('sec-')) return '📊'
+  if (key.startsWith('reg-')) return '🌐'
   if (key === 'mine' || key.startsWith('pos-')) return '💼'
   if (key.startsWith('co-')) return '🏢'
   return '📈'

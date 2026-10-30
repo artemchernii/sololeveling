@@ -41,7 +41,8 @@ const NONE: [] = []
 /** shown: the room is the one on screen — rooms stay mounted when
     hidden, and the ASK pill lives outside the room. */
 export function Insights({ shown }: { shown: boolean }) {
-  const [period, setPeriod] = useState<Period>('1M')
+  /* THE TREND's switch, 3M first (30 Oct); MINE follows it. */
+  const [period, setPeriod] = useState<Period>('3M')
   const market = useMarket(period)
   /* Portfolio's own positions, for the white dot on a held company. */
   const positions = useQuery(api.aggregate.positions, {})
@@ -107,25 +108,30 @@ export function Insights({ shown }: { shown: boolean }) {
       <TabBar tab={tab} badges={badgesOf()} onPick={pick} />
 
       {tab === 'market' ? (
-        <div data-testid="tab-market" className="ins-panel">
-          <RateCards
-            answer={market.answer ?? market.shown}
-            reading={market.reading}
-            failed={market.failed}
-          />
-          <Markets
-            period={period}
-            onPeriod={setPeriod}
-            shown={market.shown}
-            reading={market.reading}
-            failed={market.failed}
-          />
-          <SectorMap
-            shown={market.shown}
-            period={period}
-            held={held}
-            reading={market.reading}
-          />
+        <div data-testid="tab-market" className="ins-panel ins-mgrid">
+          <div className="flex min-w-0 flex-col gap-3.5">
+            <SectorMap
+              shown={market.shown}
+              period={period}
+              held={held}
+              reading={market.reading}
+            />
+          </div>
+          <div className="side">
+            <Markets
+              period={period}
+              onPeriod={setPeriod}
+              shown={market.shown}
+              reading={market.reading}
+              failed={market.failed}
+              held={held}
+            />
+            <RateCards
+              answer={market.answer ?? market.shown}
+              reading={market.reading}
+              failed={market.failed}
+            />
+          </div>
         </div>
       ) : tab === 'read' ? (
         <div data-testid="tab-read" className="ins-panel">

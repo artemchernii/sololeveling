@@ -339,7 +339,7 @@ async function canned(
   now: number,
 ) {
   await new Promise((r) => setTimeout(r, 800))
-  const scale = { '1D': 0.12, '1W': 0.4, '1M': 1, '1Y': 4 }[p]
+  const scale = { '1D': 0.12, '1W': 0.4, '1M': 1, '3M': 2.5, '1Y': 4 }[p]
   const out = new Map<string, Series>()
   for (const { symbol } of items) {
     const code = [...symbol].reduce((t, c) => t + c.charCodeAt(0), 0)

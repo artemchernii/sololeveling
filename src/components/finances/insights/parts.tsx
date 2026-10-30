@@ -55,12 +55,12 @@ export function heatColour(change: number | null, mix: number) {
   return `color-mix(in srgb, ${state} ${Math.round(mix * 0.72)}%, var(--mark-ink))`
 }
 
-/** A market's mark: a flag, a site's icon, gold's bars, a coin. */
+/** A market's mark: letters (US, EU), a site's icon, gold's bars, a coin. */
 export function MarkLogo({ mark, size = 30 }: { mark: Mark; size?: number }) {
-  if ('emoji' in mark)
+  if ('chip' in mark)
     return (
-      <span className="ins-emo mark" style={{ width: size, height: size }}>
-        {mark.emoji}
+      <span className="ins-chip mark" style={{ width: size, height: size }}>
+        {mark.chip}
       </span>
     )
   if ('site' in mark)

@@ -1,13 +1,16 @@
+import { TrendingUp } from 'lucide-react'
+
 import { Info, Line, MarkLogo, changeWord, clock, dayWord } from './parts'
 import type { Answer } from './useMarket'
-import { MARKETS, PERIODS } from '@/lib/insightsMarket'
+import { MARKETS, TREND_PERIODS } from '@/lib/insightsMarket'
 import type { Period } from '@/lib/insightsMarket'
 
-/* MARKETS (mockup): eight cards — the price now, its change over the
-   period with an arrow, and the period's line — under one 1D · 1W · 1M ·
-   1Y switch. The change is two fetched prices: the base close is named in
-   the foot ("VS 18 SEP CLOSE"). A yield moves in points, and its fall is
-   the green one. */
+/* THE TREND (30 Oct, design/treasury-mockup/market-story.html): the eight
+   markets as rows over 1M · 3M · 1Y, 3M first — the longer view his "not
+   like today only but in general" asked for. Each row: the mark, the name,
+   the close the period starts from and the price now (two fetched
+   prices), the line, the change. A yield moves in points and in ink: a
+   rate, not a gain. HELD on a market he holds through a fund. */
 
 type Unit = (typeof MARKETS)[number]['unit']
 
@@ -42,10 +45,18 @@ export function sinceWord(answer: Answer | null) {
 }
 
 export const MARKETS_INFO = {
-  title: 'MARKETS',
+  title: 'THE TREND',
   what: 'Each card is a basket or a price: the S&P 500 is the 500 biggest US companies, MSCI World about 1,400 companies in rich countries, STOXX 600 the 600 biggest in Europe.',
   why: 'VUAA follows the S&P 500 and IWDA follows MSCI World. Gold and bitcoin are prices; EUR / USD is how many dollars a euro buys; US 10Y is what the US government pays to borrow for ten years.',
   now: ['FETCHED ON OPEN · NEVER SAVED'],
+}
+
+/** The markets a held fund follows (VUAA the S&P 500, the Nasdaq fund, gold). */
+const HELD_BY: Partial<Record<(typeof MARKETS)[number]['id'], RegExp>> = {
+  sp500: /^(VUAA|CSPX|VUSA|SXR8|SPY|VOO)$/,
+  ndx: /^(EQQQ|CNDX|QQQ|SXRV)$/,
+  world: /^(IWDA|SWDA|VWCE|VWRL)$/,
+  gold: /^(IGLN|SGLN|PHAU|4GLD|GLD)$/,
 }
 
 export function Markets({
@@ -54,31 +65,34 @@ export function Markets({
   shown,
   reading,
   failed,
+  held,
 }: {
   period: Period
   onPeriod: (p: Period) => void
   shown: Answer | null
   reading: boolean
   failed: boolean
+  held: ReadonlySet<string>
 }) {
+  const mine = (id: (typeof MARKETS)[number]['id']) => {
+    const re = HELD_BY[id]
+    return re ? [...held].some((t) => re.test(t)) : false
+  }
   return (
     <section
       data-tile="markets"
-      className="ins-tile"
-      style={{ '--i': 5, '--a': 'var(--state-good)' } as React.CSSProperties}
+      className="ins-tile ins-trend"
+      style={{ '--i': 1, '--a': 'var(--color-lav-400)' } as React.CSSProperties}
     >
       <div className="ins-thead">
-        <span
-          className="ins-ico"
-          style={{ '--a': 'var(--state-good)' } as React.CSSProperties}
-        >
-          📈
+        <span className="ins-ico">
+          <TrendingUp size={15} aria-hidden />
         </span>
-        <span className="ins-tname">MARKETS</span>
+        <span className="ins-tname">THE TREND</span>
         <Info info={MARKETS_INFO} />
         <span className="flex-1" />
         <div className="ins-seg" role="group" aria-label="Period">
-          {PERIODS.map((p) => (
+          {TREND_PERIODS.map((p) => (
             <button
               key={p}
               type="button"
@@ -90,62 +104,54 @@ export function Markets({
           ))}
         </div>
       </div>
-      <div className={`ins-mkts ${reading && shown ? 'ins-reading' : ''}`}>
+      <span className="ins-was" data-testid="markets-since">
+        {reading ? `READING ${period}…` : sinceWord(shown)}
+      </span>
+      <div className={`ins-tr-list ${reading && shown ? 'ins-reading' : ''}`}>
         {MARKETS.map((m) => {
           const move = shown?.markets.find((x) => x.id === m.id)?.move ?? null
           const yieldPts = m.unit === 'yield'
-          const good =
-            move !== null && (yieldPts ? move.change < 0 : move.change > 0)
+          const tone =
+            move === null || yieldPts
+              ? 'var(--color-ink-400)'
+              : move.change >= 0
+                ? 'var(--state-good)'
+                : 'var(--state-danger)'
           return (
             <div
               key={m.id}
               data-testid="market-card"
               data-id={m.id}
-              className="ins-mk"
-              style={
-                {
-                  '--c':
-                    move === null
-                      ? 'var(--color-ink-500)'
-                      : good
-                        ? 'var(--state-good)'
-                        : 'var(--state-danger)',
-                } as React.CSSProperties
-              }
+              className="ins-tr"
+              style={{ '--c': tone } as React.CSSProperties}
             >
-              <MarkLogo mark={m.mark} />
-              <span className="nm">{m.name}</span>
-              {move !== null ? (
-                <span
-                  className={`ins-chg ${good ? 'g' : 'r'}`}
-                  style={{ justifySelf: 'end' }}
-                >
-                  {changeWord(move.change, yieldPts)}
+              <MarkLogo mark={m.mark} size={28} />
+              <span className="min-w-0">
+                <span className="nm">
+                  {m.name}
+                  {mine(m.id) ? <i className="held">HELD</i> : null}
                 </span>
-              ) : reading && !shown ? (
-                <span className="ins-badge dim ins-reading justify-self-end">
-                  READING
+                <span className="ins-was block">
+                  {move !== null
+                    ? `${priceWord(move.base, m.unit)} → ${priceWord(move.price, m.unit)}`
+                    : reading && !shown
+                      ? 'READING'
+                      : 'NOT REACHED'}
                 </span>
-              ) : (
-                <span className="ins-badge bad justify-self-end">
-                  NOT REACHED
-                </span>
-              )}
-              <span className="ins-num v">
-                {move !== null ? priceWord(move.price, m.unit) : '—'}
               </span>
               <Line
                 key={`${m.id}-${shown?.period}`}
                 points={move?.points ?? []}
+                h={24}
               />
+              <span className="ch" style={{ color: tone }}>
+                {move !== null ? changeWord(move.change, yieldPts) : '—'}
+              </span>
             </div>
           )
         })}
       </div>
       <div className="ins-foot" data-testid="markets-foot">
-        <span className="ins-was" data-testid="markets-since">
-          {reading ? `READING ${period}…` : sinceWord(shown)}
-        </span>
         <span className="ins-was">
           {failed
             ? 'YAHOO FINANCE · NOT REACHED'

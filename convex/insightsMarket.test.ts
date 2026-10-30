@@ -45,13 +45,20 @@ test('S6 the canned market comes back for a period and writes nothing', async ()
   expect(a.markets).toHaveLength(8)
   expect(a.companies).toHaveLength(30)
   expect(a.markets.every((m) => m.move !== null)).toBe(true)
-  /* No FRED_API_KEY: the Fed card alone is not reached. */
+  /* No FRED_API_KEY: the three FRED cards alone are not reached. */
   expect(a.rates.map((r) => [r.id, r.reached])).toEqual([
     ['us-cpi', true],
     ['eu-hicp', true],
     ['fed', false],
     ['ecb', true],
+    ['us-jobs', false],
+    ['us-2y', false],
   ])
+  /* Brazil is a region (30 Oct, MARKET's story). */
+  expect(a.regions.map((r) => r.id)).toContain('brazil')
+  const q = await me.action(api.insightsMarket.market, { period: '3M' })
+  expect(q.period).toBe('3M')
+  expect(q.markets[0].move?.change).not.toBe(a.markets[0].move?.change)
   const m = await me.action(api.insightsMarket.market, { period: '1M' })
   expect(m.markets[0].move?.change).not.toBe(a.markets[0].move?.change)
   expect(await rows(t)).toBe(0)

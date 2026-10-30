@@ -7,6 +7,7 @@ import {
   parseCaps,
   parseSpark,
   thin,
+  zeroBar,
 } from './insightsMarket'
 import {
   ECB_MEETINGS,
@@ -15,6 +16,7 @@ import {
   parseEcb,
   parseEurostat,
   parseFred,
+  parseFredMonthly,
 } from './insightsRates'
 
 const DAY = 86_400_000
@@ -200,5 +202,32 @@ describe('rates', () => {
     expect(nextMeeting(ECB_MEETINGS, '2026-10-19')).toBe('2026-10-29')
     expect(nextMeeting(ECB_MEETINGS, '2026-10-29')).toBe('2026-10-29')
     expect(nextMeeting(ECB_MEETINGS, '2026-12-18')).toBeNull()
+  })
+})
+
+describe('MARKET rework (30 Oct)', () => {
+  it('a monthly FRED series: the latest month and the one before', () => {
+    expect(
+      parseFredMonthly({
+        observations: [
+          { date: '2026-08-01', value: '4.3' },
+          { date: '2026-09-01', value: '4.4' },
+          { date: '2026-07-01', value: '.' },
+        ],
+      }),
+    ).toEqual({
+      value: 4.4,
+      month: '2026-09',
+      prev: 4.3,
+      prevMonth: '2026-08',
+      index: null,
+    })
+    expect(parseFredMonthly({})).toBeNull()
+  })
+  it('a bar from zero is full at 12%, half the track either way', () => {
+    expect(zeroBar(0)).toBe(0)
+    expect(zeroBar(6)).toBe(25)
+    expect(zeroBar(-12)).toBe(50)
+    expect(zeroBar(30)).toBe(50)
   })
 })

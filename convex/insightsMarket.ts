@@ -29,6 +29,7 @@ import {
   parseEcb,
   parseEurostat,
   parseFred,
+  parseFredMonthly,
 } from '../src/lib/insightsRates'
 import type { Inflation, Policy } from '../src/lib/insightsRates'
 
@@ -62,6 +63,8 @@ export const rate = v.object({
     v.literal('eu-hicp'),
     v.literal('fed'),
     v.literal('ecb'),
+    v.literal('us-jobs'),
+    v.literal('us-2y'),
   ),
   source: v.string(),
   reached: v.boolean(),
@@ -198,7 +201,7 @@ async function readRates(now: number): Promise<Array<Rate>> {
           `https://api.stlouisfed.org/fred/series/observations?series_id=${series}&api_key=${encodeURIComponent(key)}&file_type=json&observation_start=${twoYears}`,
         )
       : Promise.resolve(null)
-  const [bls, euro, ecb, fedHigh, fedLow] = await Promise.all([
+  const [bls, euro, ecb, fedHigh, fedLow, jobs, us2y] = await Promise.all([
     getJson('https://api.bls.gov/publicAPI/v2/timeseries/data/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -216,6 +219,8 @@ async function readRates(now: number): Promise<Array<Rate>> {
     ),
     fred('DFEDTARU'),
     fred('DFEDTARL'),
+    fred('UNRATE'),
+    fred('DGS2'),
   ])
   const today = day(now)
   return rateCards({
@@ -224,6 +229,8 @@ async function readRates(now: number): Promise<Array<Rate>> {
     ecb: parseEcb(ecb),
     fedHigh: parseFred(fedHigh),
     fedLow: parseFred(fedLow),
+    jobs: parseFredMonthly(jobs),
+    us2y: parseFred(us2y),
     today,
   })
 }
@@ -235,6 +242,8 @@ export function rateCards(r: {
   ecb: Policy | null
   fedHigh: Policy | null
   fedLow: Policy | null
+  jobs: Inflation | null
+  us2y: Policy | null
   today: string
 }): Array<Rate> {
   const none = {
@@ -248,7 +257,7 @@ export function rateCards(r: {
     index: null,
   }
   const inflation = (
-    id: 'us-cpi' | 'eu-hicp',
+    id: 'us-cpi' | 'eu-hicp' | 'us-jobs',
     source: string,
     i: Inflation | null,
   ): Rate =>
@@ -282,6 +291,17 @@ export function rateCards(r: {
           next: nextMeeting(ECB_MEETINGS, r.today),
         }
       : { ...none, id: 'ecb', source: ECB_SOURCE, reached: false },
+    inflation('us-jobs', FRED_SOURCE, r.jobs),
+    r.us2y
+      ? {
+          ...none,
+          id: 'us-2y',
+          source: FRED_SOURCE,
+          reached: true,
+          value: r.us2y.value,
+          since: r.us2y.since,
+        }
+      : { ...none, id: 'us-2y', source: FRED_SOURCE, reached: false },
   ]
 }
 
@@ -298,7 +318,7 @@ const CANNED = table(
     'XLI:150:1.6 XLE:88:-3.6 XLP:80:-1.1 NVDA:182:8.1 AAPL:252:2.0 ' +
     'MSFT:512:1.2 AVGO:344:7.4 GOOGL:251:4.2 META:712:2.6 NFLX:1210:-0.8 ' +
     'AMZN:214:1.5 TSLA:428:-2.8 LLY:810:-3.9 UNH:355:-5.1 XOM:112:-3.2 ' +
-    'CVX:154:-4.1 ^N225:47500:1.9 EEM:53:2.8 MCHI:62:-1.8',
+    'CVX:154:-4.1 ^N225:47500:1.9 EEM:53:2.8 MCHI:62:-1.8 ^BVSP:138300:-5.4',
 )
 const CANNED_CAPS = table(
   'NVDA:4.4 MSFT:3.8 AAPL:3.7 GOOGL:3.0 AMZN:2.3 META:1.8 AVGO:1.6 ' +
@@ -319,6 +339,7 @@ const SCALE: Record<Period, number> = {
   '1D': 0.12,
   '1W': 0.4,
   '1M': 1,
+  '3M': 2.5,
   '1Y': 4,
 }
 
@@ -384,6 +405,18 @@ async function canned(p: Period, now: number): Promise<Answer> {
       : null,
     fedLow: process.env.FRED_API_KEY
       ? { value: 4.25, since: '2026-09-17' }
+      : null,
+    jobs: process.env.FRED_API_KEY
+      ? {
+          value: 4.4,
+          month: '2026-09',
+          prev: 4.3,
+          prevMonth: '2026-08',
+          index: null,
+        }
+      : null,
+    us2y: process.env.FRED_API_KEY
+      ? { value: 3.62, since: '2026-10-29' }
       : null,
     today,
   })

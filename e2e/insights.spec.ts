@@ -31,7 +31,7 @@ const rate = (page: Page, id: string) =>
 const market = (page: Page, id: string) =>
   page.locator(`[data-testid=market-card][data-id="${id}"]`)
 
-test('S1 open: four rates, eight markets, the heatmap, each with its source and time', async ({
+test('S1 open: six rates, the trend, sectors as rows, each with its source and time', async ({
   page,
 }) => {
   const room = await open(page)
@@ -39,7 +39,7 @@ test('S1 open: four rates, eight markets, the heatmap, each with its source and 
   await expect(
     room.getByText('READING', { exact: false }).first(),
   ).toBeVisible()
-  await expect(page.getByTestId('rate-card')).toHaveCount(4)
+  await expect(page.getByTestId('rate-card')).toHaveCount(6)
   await expect(rate(page, 'us-cpi')).toContainText('2.9%', { timeout: 15_000 })
   await expect(rate(page, 'us-cpi')).toContainText('AUG 3.1%')
   await expect(rate(page, 'us-cpi')).toContainText('BLS · SEP')
@@ -53,7 +53,9 @@ test('S1 open: four rates, eight markets, the heatmap, each with its source and 
   await expect(page.getByTestId('market-card')).toHaveCount(8)
   await expect(market(page, 'sp500')).toContainText('S&P 500')
   await expect(market(page, 'sp500')).toContainText('6,612')
-  await expect(market(page, 'sp500')).toContainText('▲ 2.4%')
+  /* THE TREND opens on 3M (30 Oct): the canned month × 2.5. */
+  await expect(market(page, 'sp500')).toContainText('▲ 6.0%')
+  await expect(market(page, 'sp500')).toContainText('→ 6,612')
   await expect(market(page, 'us10y')).toContainText('PTS')
   await expect(page.getByTestId('markets-foot')).toContainText(
     /YAHOO FINANCE · FETCHED \d\d:\d\d · NOT SAVED/,
@@ -67,7 +69,11 @@ test('S1 open: four rates, eight markets, the heatmap, each with its source and 
     page.locator('[data-testid=stock][data-symbol=AAPL]'),
   ).toHaveAttribute('data-held', 'false')
   await expect(page.getByTestId('sector')).toHaveCount(8)
-  await expect(page.getByTestId('region')).toHaveCount(5)
+  await expect(page.getByTestId('region')).toHaveCount(6)
+  /* No emoji anywhere on the tab (29 Oct: "Emojies again"). */
+  expect(await page.getByTestId('tab-market').innerText()).not.toMatch(
+    /\p{Extended_Pictographic}/u,
+  )
   await page.waitForTimeout(1200)
   await page.screenshot(shot('insights-market'))
   await page.screenshot({ ...shot('insights-market-full'), fullPage: true })
@@ -76,14 +82,13 @@ test('S1 open: four rates, eight markets, the heatmap, each with its source and 
 test('S2 each period changes the numbers and the vs line', async ({ page }) => {
   await open(page)
   const sp = market(page, 'sp500')
-  await expect(sp).toContainText('▲ 2.4%', { timeout: 15_000 })
+  await expect(sp).toContainText('▲ 6.0%', { timeout: 15_000 })
   const since = page.getByTestId('markets-since')
   await expect(since).toContainText(/VS \d+ [A-Z]{3} CLOSE/)
   const seen: Array<string> = [(await since.textContent()) ?? '']
 
   for (const [p, change] of [
-    ['1D', '▲ 0.3%'],
-    ['1W', '▲ 1.0%'],
+    ['1M', '▲ 2.4%'],
     ['1Y', '▲ 9.6%'],
   ] as const) {
     await page.getByRole('button', { name: p, exact: true }).click()
@@ -97,9 +102,9 @@ test('S2 each period changes the numbers and the vs line', async ({ page }) => {
     seen.push(line)
   }
   await expect(since).toContainText(/2025 CLOSE/)
-  /* A period seen once is kept: back to 1M is at once, no reading. */
-  await page.getByRole('button', { name: '1M', exact: true }).click()
-  await expect(sp).toContainText('▲ 2.4%')
+  /* A period seen once is kept: back to 3M is at once, no reading. */
+  await page.getByRole('button', { name: '3M', exact: true }).click()
+  await expect(sp).toContainText('▲ 6.0%')
   await expect(page.getByTestId('insights-room')).not.toContainText('READING')
   await page.screenshot(shot('insights-periods'))
 })
@@ -135,10 +140,10 @@ test('S4 ⓘ opens its card in plain words, and closes', async ({ page }) => {
   await page.keyboard.press('Escape')
   await expect(card).toBeHidden()
 
-  await page.getByRole('button', { name: 'About S&P 500 HEATMAP' }).click()
-  await expect(
-    page.getByRole('dialog', { name: 'S&P 500 HEATMAP' }),
-  ).toContainText('white dot')
+  await page.getByRole('button', { name: 'About SECTORS' }).click()
+  await expect(page.getByRole('dialog', { name: 'SECTORS' })).toContainText(
+    'framed',
+  )
   await page.mouse.click(5, 5)
   await expect(page.getByRole('dialog')).toBeHidden()
 })
@@ -146,7 +151,7 @@ test('S4 ⓘ opens its card in plain words, and closes', async ({ page }) => {
 test('S5 phone width: no sideways scroll', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await open(page)
-  await expect(market(page, 'sp500')).toContainText('▲ 2.4%', {
+  await expect(market(page, 'sp500')).toContainText('▲ 6.0%', {
     timeout: 15_000,
   })
   const over = await page.evaluate(
@@ -165,7 +170,7 @@ test('S6 tabs: MARKET with no read, one band at a time, the last tab kept on rel
   await expect(tab('market')).toHaveAttribute('aria-pressed', 'true')
   /* The S&P 500's change over the period, as its card says it. */
   await expect(tab('market').getByTestId('tab-badge')).toHaveText(
-    'S&P ▲ 2.4%',
+    'S&P ▲ 6.0%',
     { timeout: 15_000 },
   )
   await expect(page.getByTestId('tab-market')).toBeVisible()

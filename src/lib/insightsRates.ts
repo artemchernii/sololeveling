@@ -126,6 +126,30 @@ export function parseFred(json: unknown): Policy | null {
   return sinceOf(rows)
 }
 
+/** A monthly FRED series (UNRATE): the latest month and the one before. */
+export function parseFredMonthly(json: unknown): Inflation | null {
+  const obs = (json as { observations?: Array<Record<string, unknown>> } | null)
+    ?.observations
+  if (!Array.isArray(obs)) return null
+  const rows = obs
+    .map((o) => ({ day: o.date, v: Number(o.value) }))
+    .filter(
+      (r): r is { day: string; v: number } =>
+        typeof r.day === 'string' && Number.isFinite(r.v),
+    )
+    .sort((a, b) => a.day.localeCompare(b.day))
+  const last = rows.at(-1)
+  if (!last) return null
+  const prev = rows.at(-2) ?? null
+  return {
+    value: last.v,
+    month: last.day.slice(0, 7),
+    prev: prev?.v ?? null,
+    prevMonth: prev?.day.slice(0, 7) ?? null,
+    index: null,
+  }
+}
+
 /** The latest value, and the first day of the run that ends on it. */
 function sinceOf(rows: Array<{ day: string; v: number }>): Policy | null {
   const last = rows[rows.length - 1] as (typeof rows)[number] | undefined

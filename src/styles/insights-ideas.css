@@ -1234,8 +1234,8 @@
     }
   }
   & .n {
-    font: 500 9.5px var(--font-mono);
-    letter-spacing: 0.06em;
+    font: 500 9px var(--font-mono);
+    letter-spacing: 0.02em;
     color: var(--color-ink-400);
     text-align: right;
     white-space: nowrap;

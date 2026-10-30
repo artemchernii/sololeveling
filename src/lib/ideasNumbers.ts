@@ -13,7 +13,9 @@ export type NumRow = {
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100
-const signed = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(r2(n))}%`
+/* A note's distance: whole percent under it, a decimal under 10. */
+const signed = (n: number) =>
+  `${n >= 0 ? '+' : '−'}${Math.abs(n) >= 10 ? Math.round(Math.abs(n)) : Math.abs(n).toFixed(1)}%`
 
 export function money(cur: string, v: number) {
   const n = v.toLocaleString('en-GB', {

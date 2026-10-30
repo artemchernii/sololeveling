@@ -1,71 +1,118 @@
-/* Insights' market cards and the S&P 500 heatmap (19 Oct, mockup
-   design/treasury-mockup/insights.html), split from insights.css to keep
-   each file small. */
+/* MARKET (30 Oct, design/treasury-mockup/market-story.html): THE TREND's
+   rows, SECTORS and REGIONS as rows with a bar from zero, letter chips in
+   place of emoji. Split from insights.css to keep each file small. */
 
-/* the eight markets */
-.ins-mkts {
+/* the room: SECTORS on the left, THE TREND and the rates on the right */
+/* .ins-panel is a flex column: this wins over it */
+.ins-panel.ins-mgrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 14px;
+  align-items: start;
+  & > .side {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: sticky;
+    top: 12px;
+  }
+  @media (max-width: 1100px) {
+    grid-template-columns: minmax(0, 1fr);
+    & > .side {
+      position: static;
+    }
+  }
+}
+.ins-chip {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font: 700 9.5px var(--font-mono);
+  color: var(--color-ink-300);
+  background: color-mix(in oklch, var(--lift) 6%, transparent);
+  border: 1px solid var(--glass-edge);
+}
+.ins-rates {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
-  @media (max-width: 1000px) {
+  /* one column beside SECTORS; two when the right column drops under it */
+  @media (max-width: 1100px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   @media (max-width: 420px) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
 @keyframes ins-draw {
   to {
     stroke-dashoffset: 0;
   }
 }
-.ins-mk {
-  border-radius: 11px;
-  padding: 12px;
-  border: 1px solid var(--glass-edge);
-  background: color-mix(in oklch, var(--lift) 3%, transparent);
+/* THE TREND: mark, name and two prices, line, change */
+.ins-tr {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
-  gap: 4px 10px;
+  grid-template-columns: 28px minmax(0, 1fr) 64px 84px;
+  gap: 10px;
   align-items: center;
-  transition: border-color 200ms;
-  &:hover {
-    border-color: color-mix(in oklch, var(--c) 55%, transparent);
-  }
-  & > .mark {
-    grid-row: span 2;
+  padding: 9px 0;
+  border-top: 1px solid var(--glass-edge);
+  &:first-child {
+    border-top: 0;
   }
   & .nm {
-    font: 700 10px var(--font-mono);
-    letter-spacing: 0.12em;
-    color: var(--color-ink-200);
+    display: block;
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--color-ink-100);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  & .v {
-    font-size: 17px;
-    grid-column: 2 / -1;
+  & .held {
+    font: 700 8px var(--font-mono);
+    font-style: normal;
+    letter-spacing: 0.1em;
+    color: var(--color-lav-300);
+    margin-left: 6px;
+    vertical-align: 2px;
+  }
+  & > .mark {
+    width: 28px;
+    height: 28px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+  }
+  & .ch {
+    font: 700 12.5px var(--font-mono);
+    text-align: right;
+    white-space: nowrap;
   }
   & svg {
-    grid-column: 1 / -1;
-    width: 100%;
-    height: 34px;
+    width: 64px;
+    height: 24px;
     display: block;
-    margin-top: 4px;
   }
   & polyline {
     fill: none;
     stroke: var(--c);
-    stroke-width: 1.8;
+    stroke-width: 1.6;
     stroke-dasharray: 300;
     stroke-dashoffset: 300;
     animation: ins-draw 1.4s cubic-bezier(0.4, 0, 0.2, 1) 300ms forwards;
   }
   & polygon {
     fill: var(--c);
-    opacity: 0.1;
+    opacity: 0.08;
   }
+}
+.ins-tr-list {
+  margin-top: 6px;
 }
 @keyframes ins-wait {
   50% {
@@ -76,148 +123,100 @@
   animation: ins-wait 1.2s ease-in-out infinite;
 }
 
-/* the S&P 500 heatmap: sectors as groups, the biggest companies inside */
-@keyframes ins-pop {
-  from {
-    transform: scale(0.4);
-    opacity: 0;
+/* SECTORS and REGIONS: one row each, two columns */
+.ins-sgrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 28px;
+  margin-top: 6px;
+  @media (max-width: 700px) {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
-.ins-tmap {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.ins-trow {
-  display: flex;
-  gap: 4px;
-  @media (max-width: 700px) {
+.ins-sr {
+  display: grid;
+  grid-template-columns: 26px 92px minmax(0, 1fr) 56px;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 0;
+  border-top: 1px solid var(--glass-edge);
+  & .si {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    color: var(--color-ink-300);
+    background: color-mix(in oklch, var(--lift) 5%, transparent);
+    border: 1px solid var(--glass-edge);
+    font-size: 8.5px;
+  }
+  & .nm {
+    font-weight: 600;
+    font-size: 13.5px;
+  }
+  & .pc {
+    font: 700 12.5px var(--font-mono);
+    text-align: right;
+  }
+  & .co {
+    grid-column: 2 / -1;
+    display: flex;
+    gap: 5px;
     flex-wrap: wrap;
-    height: auto !important;
-    & > .ins-grp {
-      flex: 1 1 calc(50% - 4px) !important;
-      height: 150px;
+    & > span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 7px 2px 3px;
+      border-radius: 8px;
+      border: 1px solid var(--glass-edge);
+      background: color-mix(in oklch, var(--lift) 4%, transparent);
+      font: 600 10.5px var(--font-mono);
+      color: var(--color-ink-300);
+    }
+    & > span.held {
+      border-color: var(--color-lav-300);
+      color: var(--color-ink-100);
+      box-shadow: inset 0 0 0 1px var(--color-lav-300);
     }
   }
 }
-.ins-grp {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 3px;
-  border-radius: 9px;
-  background: color-mix(in oklch, var(--lift) 4%, transparent);
-  border: 1px solid var(--glass-edge);
-  min-width: 74px;
-  & .gh {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 5px 2px;
-    font: 700 10px var(--font-mono);
-    letter-spacing: 0.1em;
-    color: var(--color-ink-200);
-    white-space: nowrap;
-    overflow: hidden;
-  }
-  & .gh .p {
-    margin-left: auto;
-  }
-}
-.ins-gin {
-  display: flex;
-  gap: 3px;
-  flex: 1;
-  min-height: 0;
-}
-.ins-gcol {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-.ins-st {
+.ins-zb {
   position: relative;
-  border-radius: 6px;
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 2px;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  color: var(--mark-ground);
-  transition:
-    transform 150ms,
-    box-shadow 150ms;
-  animation: ins-pop 400ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
-  &:hover {
-    transform: scale(1.04);
-    z-index: 2;
-    box-shadow: 0 0 0 1px var(--mark-ground);
-  }
-  & .t {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font: 700 10px var(--font-mono);
-    white-space: nowrap;
-  }
-  & .c {
-    font: 700 11px var(--font-mono);
-  }
-  &.lg .t {
-    font-size: 12px;
-  }
-  &.lg .c {
-    font-size: 16px;
-  }
-  /* A small box beside the big one: ticker and change on one line when
-     it is short, wrapping when it is narrow. */
-  .ins-gcol > & {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    align-content: center;
-    justify-content: space-between;
-    column-gap: 6px;
-  }
-  & .mine {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--mark-ground);
-    box-shadow:
-      0 0 0 2px color-mix(in oklch, var(--mark-ink) 50%, transparent),
-      0 0 10px var(--mark-ground);
-  }
-}
-.ins-dot {
-  width: 8px;
   height: 8px;
-  border-radius: 50%;
-  background: var(--color-ink-100);
-  display: inline-block;
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--lift) 7%, transparent);
+  &::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -3px;
+    bottom: -3px;
+    width: 1px;
+    background: var(--glass-edge);
+  }
+  & i {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 4px;
+    animation: ins-grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
 }
-.ins-regions {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+@keyframes ins-grow {
+  from {
+    clip-path: inset(0 50% 0 50%);
+  }
 }
-.ins-reg {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 9px;
-  font: 700 10.5px var(--font-mono);
-  color: var(--mark-ground);
+.ins-sub2 {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-edge);
+  letter-spacing: 0.18em;
 }
+
+/* MINE's heat scale */
 .ins-scale {
   display: flex;
   align-items: center;
@@ -232,5 +231,99 @@
       var(--mark-ink),
       var(--state-good)
     );
+  }
+}
+
+/* ON REDDIT: rank, logo, ticker, today over yesterday */
+.ins-cr {
+  display: grid;
+  grid-template-columns: 16px 22px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--glass-edge);
+  &:first-child {
+    border-top: 0;
+  }
+  & .r {
+    font: 700 11px var(--font-mono);
+    color: var(--color-ink-500);
+  }
+  & .nm {
+    font-weight: 600;
+    font-size: 13px;
+  }
+  & .held {
+    font: 700 8px var(--font-mono);
+    font-style: normal;
+    letter-spacing: 0.1em;
+    color: var(--color-lav-300);
+    margin-left: 6px;
+  }
+  & .c {
+    font: 600 12px var(--font-mono);
+    text-align: right;
+    white-space: nowrap;
+    & span {
+      display: block;
+      font-weight: 500;
+      font-size: 10.5px;
+      color: var(--color-ink-500);
+    }
+  }
+}
+
+/* YOUR COMPANIES: company, results, analysts, insiders */
+.ins-cg {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr));
+  gap: 0 14px;
+  & > .hd {
+    font: 700 9.5px var(--font-mono);
+    letter-spacing: 0.14em;
+    color: var(--color-ink-500);
+    padding-bottom: 6px;
+  }
+  & > .contents > div {
+    padding: 10px 0;
+    border-top: 1px solid var(--glass-edge);
+    min-width: 0;
+  }
+  & .co1 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    & b {
+      font-size: 13.5px;
+    }
+    & .e {
+      font: 500 11px var(--font-mono);
+      color: var(--color-ink-500);
+    }
+  }
+  & .k {
+    display: block;
+    font: 600 12.5px var(--font-mono);
+  }
+  & .w {
+    display: block;
+    font-size: 11.5px;
+    color: var(--color-ink-500);
+  }
+  & .dash {
+    color: var(--color-ink-500);
+  }
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    & > .hd {
+      display: none;
+    }
+    & .co1 {
+      grid-column: 1 / -1;
+    }
+    & > .contents > div:not(.co1) {
+      border-top: 0;
+      padding-top: 2px;
+    }
   }
 }

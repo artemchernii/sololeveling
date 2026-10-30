@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { AccountLogo, TickerLogo } from '@/components/finances/Logo'
-import type { Mark, Point } from '@/lib/insightsMarket'
+import { PERIODS } from '@/lib/insightsMarket'
+import type { Mark, Period, Point } from '@/lib/insightsMarket'
 
 /* Small pieces of the Insights room: words for times and months, a
    market's mark, its line, and the ⓘ card. */
@@ -55,12 +56,12 @@ export function heatColour(change: number | null, mix: number) {
   return `color-mix(in srgb, ${state} ${Math.round(mix * 0.72)}%, var(--mark-ink))`
 }
 
-/** A market's mark: a flag, a site's icon, gold's bars, a coin. */
+/** A market's mark: letters (US, EU), a site's icon, gold's bars, a coin. */
 export function MarkLogo({ mark, size = 30 }: { mark: Mark; size?: number }) {
-  if ('emoji' in mark)
+  if ('chip' in mark)
     return (
-      <span className="ins-emo mark" style={{ width: size, height: size }}>
-        {mark.emoji}
+      <span className="ins-chip mark" style={{ width: size, height: size }}>
+        {mark.chip}
       </span>
     )
   if ('site' in mark)
@@ -186,5 +187,31 @@ export function Info({ info }: { info: InfoText }) {
           )
         : null}
     </>
+  )
+}
+
+/** The period switch, the same on SECTORS, THE TREND and MINE: every
+    period, one choice for all three (30 Oct: "3 month and no possibility
+    to change is crap"). */
+export function PeriodSwitch({
+  period,
+  onPeriod,
+}: {
+  period: Period
+  onPeriod: (p: Period) => void
+}) {
+  return (
+    <div className="ins-seg" role="group" aria-label="Period">
+      {PERIODS.map((p) => (
+        <button
+          key={p}
+          type="button"
+          aria-pressed={p === period}
+          onClick={() => onPeriod(p)}
+        >
+          {p}
+        </button>
+      ))}
+    </div>
   )
 }

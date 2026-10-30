@@ -5,7 +5,7 @@
    TO DB"). The change over a period is two fetched prices, and both are
    on the screen beside it. */
 
-export const PERIODS = ['1D', '1W', '1M', '1Y'] as const
+export const PERIODS = ['1D', '1W', '1M', '3M', '1Y'] as const
 export type Period = (typeof PERIODS)[number]
 
 /** How Yahoo is asked for each period, and how far back its base close is. */
@@ -16,12 +16,14 @@ export const PERIOD_FETCH: Record<
   '1D': { range: '1d', interval: '5m', days: 0 },
   '1W': { range: '1mo', interval: '1d', days: 7 },
   '1M': { range: '3mo', interval: '1d', days: 30 },
+  '3M': { range: '6mo', interval: '1d', days: 91 },
   '1Y': { range: '2y', interval: '1d', days: 365 },
 }
 
-/** A mark for something that is not a company: a flag, a site, a metal, a coin. */
+/** A mark for something that is not a company: letters (US, EU), a site,
+    a metal, a coin. No emoji (29 Oct, his "Emojies again"). */
 export type Mark =
-  { emoji: string } | { site: string } | { metal: string } | { coin: string }
+  { chip: string } | { site: string } | { metal: string } | { coin: string }
 
 export type MarketId =
   'sp500' | 'ndx' | 'world' | 'stoxx' | 'gold' | 'btc' | 'eurusd' | 'us10y'
@@ -37,47 +39,52 @@ const market = (
 
 /** The eight cards, in the mockup's order. `unit` is how the price reads. */
 export const MARKETS = [
-  market('sp500', 'S&P 500', '^GSPC', { emoji: '🇺🇸' }, 'points'),
+  market('sp500', 'S&P 500', '^GSPC', { chip: 'US' }, 'points'),
   market('ndx', 'NASDAQ 100', '^NDX', { site: 'nasdaq.com' }, 'points'),
-  market('world', 'MSCI WORLD', 'IWDA.AS', { emoji: '🌐' }, 'EUR'),
-  market('stoxx', 'STOXX 600', '^STOXX', { emoji: '🇪🇺' }, 'points'),
+  market('world', 'MSCI WORLD', 'IWDA.AS', { site: 'ishares.com' }, 'EUR'),
+  market('stoxx', 'STOXX 600', '^STOXX', { chip: 'EU' }, 'points'),
   market('gold', 'GOLD', 'GC=F', { metal: 'GC=F' }, 'USD'),
   market('btc', 'BITCOIN', 'BTC-EUR', { coin: 'BTC-EUR' }, 'EUR'),
-  market('eurusd', 'EUR / USD', 'EURUSD=X', { emoji: '💶' }, 'rate'),
+  market('eurusd', 'EUR / USD', 'EURUSD=X', { chip: '€$' }, 'rate'),
   market('us10y', 'US 10Y', '^TNX', { site: 'treasury.gov' }, 'yield'),
 ]
 
 /** The S&P 500's sectors, each read by its own SPDR fund (a fetched
-    price, not an average of the boxes), with the biggest companies in it,
-    in two rows as the mockup draws them: [id, name, emoji, fund, row,
-    "STOCKS"]. */
+    price, not an average of the boxes), with the biggest companies in it:
+    [id, name, line icon, fund, "STOCKS"]. Shown as rows, best first
+    (market-story.html, his "this part is a bit ugly" on the boxes). */
 export const SECTORS = (
   [
-    ['tech', 'TECH', '💻', 'XLK', 0, 'NVDA AAPL MSFT AVGO ORCL PLTR'],
-    ['comms', 'COMMS', '📡', 'XLC', 0, 'GOOGL META NFLX'],
-    ['consumer', 'CONSUMER', '🛒', 'XLY', 0, 'AMZN TSLA HD'],
-    ['health', 'HEALTH', '💊', 'XLV', 0, 'LLY UNH JNJ ABBV'],
-    ['finance', 'FINANCE', '🏦', 'XLF', 1, 'BRK-B JPM V MA BAC'],
-    ['industry', 'INDUSTRY', '🏭', 'XLI', 1, 'GE CAT RTX'],
-    ['energy', 'ENERGY', '⚡', 'XLE', 1, 'XOM CVX'],
-    ['staples', 'STAPLES', '🧺', 'XLP', 1, 'WMT COST PG KO'],
+    ['tech', 'Tech', 'chip', 'XLK', 'NVDA AAPL MSFT AVGO ORCL PLTR'],
+    ['comms', 'Comms', 'wave', 'XLC', 'GOOGL META NFLX'],
+    ['consumer', 'Consumer', 'cart', 'XLY', 'AMZN TSLA HD'],
+    ['health', 'Health', 'heart', 'XLV', 'LLY UNH JNJ ABBV'],
+    ['finance', 'Finance', 'bank', 'XLF', 'BRK-B JPM V MA BAC'],
+    ['industry', 'Industry', 'gear', 'XLI', 'GE CAT RTX'],
+    ['energy', 'Energy', 'bolt', 'XLE', 'XOM CVX'],
+    ['staples', 'Staples', 'basket', 'XLP', 'WMT COST PG KO'],
   ] as const
-).map(([id, name, emoji, fund, row, stocks]) => ({
+).map(([id, name, icon, fund, stocks]) => ({
   id,
   name,
-  emoji,
+  icon,
   fund,
-  row,
   stocks: stocks.split(' '),
 }))
+export type SectorIcon = (typeof SECTORS)[number]['icon']
 
 export const REGIONS = [
-  { id: 'us', name: 'US', emoji: '🇺🇸', symbol: '^GSPC' },
-  { id: 'europe', name: 'EUROPE', emoji: '🇪🇺', symbol: '^STOXX' },
-  { id: 'japan', name: 'JAPAN', emoji: '🇯🇵', symbol: '^N225' },
-  { id: 'emerging', name: 'EMERGING', emoji: '🌱', symbol: 'EEM' },
-  { id: 'china', name: 'CHINA', emoji: '🇨🇳', symbol: 'MCHI' },
+  { id: 'us', name: 'US', chip: 'US', symbol: '^GSPC' },
+  { id: 'europe', name: 'Europe', chip: 'EU', symbol: '^STOXX' },
+  { id: 'japan', name: 'Japan', chip: 'JP', symbol: '^N225' },
+  { id: 'emerging', name: 'Emerging', chip: 'EM', symbol: 'EEM' },
+  { id: 'china', name: 'China', chip: 'CN', symbol: 'MCHI' },
+  { id: 'brazil', name: 'Brazil', chip: 'BR', symbol: '^BVSP' },
 ]
+
+/** A row's bar from the zero line: its share of half the track, full at 12%. */
+export const zeroBar = (change: number) =>
+  Math.round(Math.min(Math.abs(change) / 12, 1) * 500) / 10
 
 /** Every symbol one period asks Yahoo for, once each. */
 export function allSymbols(): Array<string> {

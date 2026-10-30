@@ -31,7 +31,7 @@ const rate = (page: Page, id: string) =>
 const market = (page: Page, id: string) =>
   page.locator(`[data-testid=market-card][data-id="${id}"]`)
 
-test('S1 open: four rates, eight markets, the heatmap, each with its source and time', async ({
+test('S1 open: six rates, the trend, sectors as rows, each with its source and time', async ({
   page,
 }) => {
   const room = await open(page)
@@ -39,7 +39,7 @@ test('S1 open: four rates, eight markets, the heatmap, each with its source and 
   await expect(
     room.getByText('READING', { exact: false }).first(),
   ).toBeVisible()
-  await expect(page.getByTestId('rate-card')).toHaveCount(4)
+  await expect(page.getByTestId('rate-card')).toHaveCount(6)
   await expect(rate(page, 'us-cpi')).toContainText('2.9%', { timeout: 15_000 })
   await expect(rate(page, 'us-cpi')).toContainText('AUG 3.1%')
   await expect(rate(page, 'us-cpi')).toContainText('BLS · SEP')
@@ -53,7 +53,9 @@ test('S1 open: four rates, eight markets, the heatmap, each with its source and 
   await expect(page.getByTestId('market-card')).toHaveCount(8)
   await expect(market(page, 'sp500')).toContainText('S&P 500')
   await expect(market(page, 'sp500')).toContainText('6,612')
-  await expect(market(page, 'sp500')).toContainText('▲ 2.4%')
+  /* Opens on the day (30 Oct, "it should be day"). */
+  await expect(market(page, 'sp500')).toContainText('▲ 0.3%')
+  await expect(market(page, 'sp500')).toContainText('→ 6,612')
   await expect(market(page, 'us10y')).toContainText('PTS')
   await expect(page.getByTestId('markets-foot')).toContainText(
     /YAHOO FINANCE · FETCHED \d\d:\d\d · NOT SAVED/,
@@ -67,7 +69,26 @@ test('S1 open: four rates, eight markets, the heatmap, each with its source and 
     page.locator('[data-testid=stock][data-symbol=AAPL]'),
   ).toHaveAttribute('data-held', 'false')
   await expect(page.getByTestId('sector')).toHaveCount(8)
-  await expect(page.getByTestId('region')).toHaveCount(5)
+  await expect(page.getByTestId('region')).toHaveCount(6)
+  /* YOUR COMPANIES: the held company with its results, analysts, insider. */
+  const co = page.getByTestId('company-row').first()
+  await expect(co).toContainText('$2.31 a share')
+  await expect(co).toContainText('$2.10 expected')
+  await expect(co).toContainText('Buy 48 · Hold 9')
+  await expect(co).toContainText('Sold $4.2M')
+  /* ON REDDIT: five rows, today over yesterday, HELD on a held one. */
+  await expect(page.getByTestId('crowd-row')).toHaveCount(5)
+  await expect(page.getByTestId('crowd-row').first()).toContainText(
+    '1,240× today',
+  )
+  await expect(page.getByTestId('crowd-row').first()).toContainText(
+    '410× yesterday',
+  )
+  await expect(page.getByTestId('crowd-row').nth(2)).toContainText('HELD')
+  /* No emoji anywhere on the tab (29 Oct: "Emojies again"). */
+  expect(await page.getByTestId('tab-market').innerText()).not.toMatch(
+    /\p{Extended_Pictographic}/u,
+  )
   await page.waitForTimeout(1200)
   await page.screenshot(shot('insights-market'))
   await page.screenshot({ ...shot('insights-market-full'), fullPage: true })
@@ -76,19 +97,20 @@ test('S1 open: four rates, eight markets, the heatmap, each with its source and 
 test('S2 each period changes the numbers and the vs line', async ({ page }) => {
   await open(page)
   const sp = market(page, 'sp500')
-  await expect(sp).toContainText('▲ 2.4%', { timeout: 15_000 })
+  await expect(sp).toContainText('▲ 0.3%', { timeout: 15_000 })
   const since = page.getByTestId('markets-since')
-  await expect(since).toContainText(/VS \d+ [A-Z]{3} CLOSE/)
+  await expect(since).toContainText('VS PREVIOUS CLOSE')
   const seen: Array<string> = [(await since.textContent()) ?? '']
 
   for (const [p, change] of [
-    ['1D', '▲ 0.3%'],
     ['1W', '▲ 1.0%'],
+    ['3M', '▲ 6.0%'],
+    ['1M', '▲ 2.4%'],
     ['1Y', '▲ 9.6%'],
   ] as const) {
-    await page.getByRole('button', { name: p, exact: true }).click()
+    await page.getByRole('button', { name: p, exact: true }).first().click()
     await expect(
-      page.getByRole('button', { name: p, exact: true }),
+      page.getByRole('button', { name: p, exact: true }).first(),
     ).toHaveAttribute('aria-pressed', 'true')
     await expect(sp).toContainText(change, { timeout: 15_000 })
     await expect(page.getByTestId('heat-period')).toHaveText(p)
@@ -97,9 +119,9 @@ test('S2 each period changes the numbers and the vs line', async ({ page }) => {
     seen.push(line)
   }
   await expect(since).toContainText(/2025 CLOSE/)
-  /* A period seen once is kept: back to 1M is at once, no reading. */
-  await page.getByRole('button', { name: '1M', exact: true }).click()
-  await expect(sp).toContainText('▲ 2.4%')
+  /* A period seen once is kept: back to 1D is at once, no reading. */
+  await page.getByRole('button', { name: '1D', exact: true }).first().click()
+  await expect(sp).toContainText('▲ 0.3%')
   await expect(page.getByTestId('insights-room')).not.toContainText('READING')
   await page.screenshot(shot('insights-periods'))
 })
@@ -135,10 +157,10 @@ test('S4 ⓘ opens its card in plain words, and closes', async ({ page }) => {
   await page.keyboard.press('Escape')
   await expect(card).toBeHidden()
 
-  await page.getByRole('button', { name: 'About S&P 500 HEATMAP' }).click()
-  await expect(
-    page.getByRole('dialog', { name: 'S&P 500 HEATMAP' }),
-  ).toContainText('white dot')
+  await page.getByRole('button', { name: 'About SECTORS' }).click()
+  await expect(page.getByRole('dialog', { name: 'SECTORS' })).toContainText(
+    'framed',
+  )
   await page.mouse.click(5, 5)
   await expect(page.getByRole('dialog')).toBeHidden()
 })
@@ -146,7 +168,7 @@ test('S4 ⓘ opens its card in plain words, and closes', async ({ page }) => {
 test('S5 phone width: no sideways scroll', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await open(page)
-  await expect(market(page, 'sp500')).toContainText('▲ 2.4%', {
+  await expect(market(page, 'sp500')).toContainText('▲ 0.3%', {
     timeout: 15_000,
   })
   const over = await page.evaluate(
@@ -165,7 +187,7 @@ test('S6 tabs: MARKET with no read, one band at a time, the last tab kept on rel
   await expect(tab('market')).toHaveAttribute('aria-pressed', 'true')
   /* The S&P 500's change over the period, as its card says it. */
   await expect(tab('market').getByTestId('tab-badge')).toHaveText(
-    'S&P ▲ 2.4%',
+    'S&P TODAY ▲ 0.3%',
     { timeout: 15_000 },
   )
   await expect(page.getByTestId('tab-market')).toBeVisible()
@@ -190,4 +212,155 @@ test('S6 tabs: MARKET with no read, one band at a time, the last tab kept on rel
     .toBeLessThan(80)
   await expect(page.getByTestId('insights-tabs')).toBeInViewport()
   await page.screenshot(shot('insights-tabs'))
+})
+
+/* THE WEEK on MARKET (30 Oct, docs/specs/2026-10-30-market.md; mockup
+   market-story.html). Four mock positions (e2eMine): Broadcom and NVIDIA
+   reported in YOUR COMPANIES' canned answer, nothing in Brazil. The read
+   is canned: calm is a busy week of five stories, quiet a week of two. */
+
+async function openHeld(page: Page) {
+  await start(page)
+  await testClient().mutation(anyApi.e2eMine.positions, {})
+  await page.goto('/finances?room=insights')
+  await expect(page.getByTestId('read-hero')).toHaveAttribute(
+    'data-state',
+    'idle',
+  )
+}
+async function readWeek(page: Page) {
+  const button = page.getByTestId('read-market')
+  await expect(button).toBeEnabled({ timeout: 15_000 })
+  await button.click()
+  await expect(page.getByTestId('read-hero')).toHaveAttribute(
+    'data-state',
+    'done',
+    { timeout: 15_000 },
+  )
+  await page.locator('[data-tab="market"]').click()
+}
+const story = (page: Page, kind: string) =>
+  page.locator(`[data-testid=week-story][data-kind="${kind}"]`)
+
+test('WEEK S4 not read yet: facts only, no move, ✦ READ MARKET', async ({
+  page,
+}) => {
+  await openHeld(page)
+  await expect(page.getByTestId('week-headline')).toHaveText('Not read yet')
+  await expect(page.getByTestId('week-count')).toContainText('FACTS ONLY')
+  await expect(story(page, 'rates')).toContainText('ECB 2.00%', {
+    timeout: 15_000,
+  })
+  await expect(story(page, 'earn')).toContainText('2 companies held reported')
+  /* The month's biggest mover among gold, Stoxx 600, Bitcoin, EUR/USD. */
+  await expect(page.getByTestId('week-story').nth(2)).toContainText(
+    'BITCOIN ▼ 4.1% in a month',
+  )
+  await expect(page.getByTestId('week-move')).toHaveCount(0)
+  await expect(page.getByTestId('week-none')).toHaveCount(0)
+  await expect(page.getByTestId('read-market')).toContainText('READ MARKET')
+  await page.screenshot({ ...shot('week-facts'), fullPage: true })
+})
+
+test('WEEK S1 busy week: the headline, five stories with boxes, YOUR MONEY, a move or No action', async ({
+  page,
+}) => {
+  await openHeld(page)
+  await readWeek(page)
+  await expect(page.getByTestId('week-headline')).toHaveText(
+    'Rates held, chips rose, Brazil votes',
+  )
+  await expect(page.getByTestId('week-count')).toContainText('5 STORIES')
+  await expect(
+    page.locator('[data-tab="market"] [data-testid=tab-badge]'),
+  ).toHaveText('5 STORIES')
+  const all = page.getByTestId('week-story')
+  await expect(all).toHaveCount(5)
+  for (let i = 0; i < 5; i++) {
+    const s = all.nth(i)
+    await expect(s.locator('.rm-kind')).not.toBeEmpty()
+    await expect(s.getByTestId('week-box')).toHaveCount(3)
+    await expect(s.getByTestId('week-money')).toBeVisible()
+    await expect(
+      s.locator('[data-testid=week-move], [data-testid=week-none]'),
+    ).toHaveCount(1)
+  }
+  /* Kinds in words with line icons; no emoji on the tab. */
+  await expect(story(page, 'earn')).toContainText('EARNINGS')
+  await expect(story(page, 'em')).toContainText('EMERGING MARKETS')
+  expect(await page.getByTestId('tab-market').innerText()).not.toMatch(
+    /\p{Extended_Pictographic}/u,
+  )
+  await page.waitForTimeout(800)
+  await page.screenshot({ ...shot('week-busy'), fullPage: true })
+})
+
+test('WEEK S2 earnings: the held companies that reported, and the move opens IDEAS lit', async ({
+  page,
+}) => {
+  await openHeld(page)
+  /* The plan first: a story's move must be a line on the board. */
+  await page.locator('[data-tab="ideas"]').click()
+  const again = page.getByTestId('idb-read')
+  await expect(again).toBeEnabled({ timeout: 15_000 })
+  await again.click()
+  await expect(again).toHaveAttribute('data-state', 'done', {
+    timeout: 20_000,
+  })
+  await readWeek(page)
+
+  const earn = story(page, 'earn')
+  const money = earn.getByTestId('week-money')
+  await expect(money.getByTestId('week-chip')).toHaveCount(2)
+  await expect(money.getByTestId('week-chip').first()).toContainText('Broadcom')
+  await expect(money).toContainText(/€[\d,]+ in companies that reported/)
+  await expect(earn.getByTestId('week-box').first()).toContainText('$2.31')
+  await expect(earn.getByTestId('week-box').first()).toContainText(
+    'A SHARE · $2.10 EXPECTED',
+  )
+  const move = earn.getByTestId('week-move')
+  await expect(move).toHaveText('→Open Broadcom in Ideas')
+  await earn.screenshot(shot('week-earn'))
+
+  await move.click()
+  await expect(page.locator('[data-tab="ideas"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  const line = page.locator('[data-testid=idb-line][data-ticker="AVGO"]')
+  await expect(line).toHaveClass(/\bon\b/)
+  await expect(line).toBeInViewport()
+})
+
+test('WEEK S3 nothing held: the Brazil story is a grey row and No action', async ({
+  page,
+}) => {
+  await openHeld(page)
+  await readWeek(page)
+  const br = story(page, 'em')
+  const money = br.getByTestId('week-money')
+  await expect(money).toHaveAttribute('data-zero', 'true')
+  await expect(money).toContainText(
+    'nothing in Brazil · 0% in emerging markets',
+  )
+  await expect(money.getByTestId('week-chip')).toHaveCount(0)
+  /* Its move names ZZZZ, not on the board. */
+  await expect(br.getByTestId('week-none')).toHaveText('No action')
+  await expect(br.getByTestId('week-move')).toHaveCount(0)
+})
+
+test('WEEK S5 quiet week: two stories, each No action, badge 2 STORIES', async ({
+  page,
+}) => {
+  await openHeld(page)
+  await testClient().mutation(anyApi.e2eMarketRead.arm, { shape: 'quiet' })
+  await readWeek(page)
+  await expect(page.getByTestId('week-headline')).toHaveText('A quiet week')
+  await expect(page.getByTestId('week-story')).toHaveCount(2)
+  await expect(page.getByTestId('week-none')).toHaveCount(2)
+  await expect(page.getByTestId('week-move')).toHaveCount(0)
+  await expect(
+    page.locator('[data-tab="market"] [data-testid=tab-badge]'),
+  ).toHaveText('2 STORIES')
+  await page.screenshot({ ...shot('week-quiet'), fullPage: true })
 })

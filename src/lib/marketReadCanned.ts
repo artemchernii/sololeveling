@@ -98,6 +98,46 @@ const calm: MarketRead = {
       day: '2026-10-15',
     },
   ],
+  weekHead: 'Rates held, chips rose, Brazil votes',
+  weekTake:
+    'The ECB kept its rate and Broadcom reported more than expected. Brazil votes on Sunday, and nothing is held there.',
+  week: [
+    {
+      kind: 'rates',
+      title: 'The ECB kept its rate at 2.00%',
+      line: 'No rise and no cut. It meets again at the end of the month.',
+      factKeys: ['ecb', 'ecb-next', 'mkt-us10y'],
+      move: { ticker: 'XEON.DE' },
+    },
+    {
+      kind: 'earn',
+      title: 'Broadcom earned more than expected',
+      line: 'Chip makers rose after the results.',
+      factKeys: ['res-AVGO', 'co-AVGO', 'sec-tech'],
+      move: { ticker: 'AVGO' },
+    },
+    {
+      kind: 'eu',
+      title: 'European shares fell a little',
+      line: 'Prices in the euro area rose 2.1% in a year.',
+      factKeys: ['eu-hicp', 'mkt-stoxx', 'mkt-eurusd'],
+      move: null,
+    },
+    {
+      kind: 'gold',
+      title: 'Gold rose again this month',
+      line: 'It rose as US bond rates fell.',
+      factKeys: ['mkt-gold', 'mkt-us10y', 'mkt-eurusd'],
+      move: null,
+    },
+    {
+      kind: 'em',
+      title: 'Brazil votes for president on Sunday',
+      line: 'Brazilian shares fell this month.',
+      factKeys: ['reg-brazil', 'reg-emerging', 'reg-china'],
+      move: { ticker: 'ZZZZ' },
+    },
+  ],
 }
 
 const mixed: MarketRead = {
@@ -158,5 +198,28 @@ const broken: MarketRead = {
   ],
 }
 
-export const CANNED_MARKET_READS = { calm, mixed, broken }
+/* A quiet week: two stories, no move on either. */
+const quiet: MarketRead = {
+  ...mixed,
+  weekHead: 'A quiet week',
+  weekTake: 'No rate decisions and no big results. Shares moved little.',
+  week: [
+    {
+      kind: 'rates',
+      title: 'No rate decisions this week',
+      line: 'The ECB meets at the end of the month.',
+      factKeys: ['ecb', 'ecb-next', 'us-cpi'],
+      move: null,
+    },
+    {
+      kind: 'mkt',
+      title: 'Shares moved little this week',
+      line: 'No big company reported.',
+      factKeys: ['mkt-sp500', 'mkt-stoxx', 'mkt-gold'],
+      move: null,
+    },
+  ],
+}
+
+export const CANNED_MARKET_READS = { calm, mixed, broken, quiet }
 export type CannedShape = keyof typeof CANNED_MARKET_READS | 'fail'

@@ -1,5 +1,7 @@
 import { euros } from './money'
 import { MARKETS, REGIONS, SECTORS } from './insightsMarket'
+import { WEEK_PROMPT, WEEK_SCHEMA, matchIdea, parseWeek } from './marketWeek'
+import type { WeekStory } from './marketWeek'
 
 /* The market read on Insights (I3, 19 Oct; spec
    docs/specs/2026-10-19-insights.md, mockup
@@ -97,6 +99,10 @@ export type MarketRead = {
   opinion: string
   ideas: Array<Idea>
   sources: Array<Source>
+  /** THE WEEK on MARKET (30 Oct); absent on reads made before it. */
+  week?: Array<WeekStory>
+  weekHead?: string
+  weekTake?: string
 }
 
 /* ---------------------------------------------------------------- facts */
@@ -104,7 +110,7 @@ export type MarketRead = {
 /** What the room has on screen when READ MARKET is pressed (I1's 1M answer). */
 export type MarketNumbers = {
   rates: Array<{
-    id: 'us-cpi' | 'eu-hicp' | 'fed' | 'ecb'
+    id: 'us-cpi' | 'eu-hicp' | 'fed' | 'ecb' | 'us-jobs' | 'us-2y'
     reached: boolean
     value: number | null
     upper: number | null
@@ -149,11 +155,18 @@ export function marketFacts(
 
   for (const r of m.rates) {
     if (!r.reached || r.value === null) continue
-    if (r.id === 'us-cpi' || r.id === 'eu-hicp') {
-      const name = r.id === 'us-cpi' ? 'US CPI' : 'EURO CPI'
+    if (r.id === 'us-cpi' || r.id === 'eu-hicp' || r.id === 'us-jobs') {
+      const name =
+        r.id === 'us-cpi'
+          ? 'US CPI'
+          : r.id === 'eu-hicp'
+            ? 'EURO CPI'
+            : 'US UNEMPLOYMENT'
       add(r.id, `${name} ${monthOf(r.month)}`, pct(r.value))
       if (r.prev !== null)
         add(`${r.id}-was`, `${name} ${monthOf(r.prevMonth)}`, pct(r.prev))
+    } else if (r.id === 'us-2y') {
+      add(r.id, 'US 2-YEAR BOND', `${r.value.toFixed(2)}%`)
     } else {
       const name = r.id === 'fed' ? 'FED' : 'ECB'
       const v =
@@ -263,6 +276,7 @@ export const MARKET_READ_SCHEMA = object({
     type: 'array',
     items: object({ site: str, title: str, url: str, day: str }),
   },
+  ...WEEK_SCHEMA,
 })
 
 /* --------------------------------------------------------------- prompt */
@@ -328,7 +342,8 @@ Answer with:
   with name, why (at most 8 words), bull, bear and wrong (when the idea
   would be wrong), each one short sentence. None when nothing fits.
 - sources: the pages you used, each with site (domain), title, url and day
-  (YYYY-MM-DD).`
+  (YYYY-MM-DD).
+${WEEK_PROMPT}`
 }
 
 /* ---------------------------------------------------------------- check */
@@ -343,18 +358,7 @@ function ideaField(
   known: Set<string>,
   before: Array<ReadLine>,
 ): { idea?: string } {
-  /* Named as the fact ("idea-XEON.DE"), its ticker, or the ticker
-     without its exchange ("XEON"): all point at the same board line. */
-  const t = text(raw, 24)
-    .toUpperCase()
-    .replace(/^IDEA-/, '')
-  if (!t) return {}
-  const offered = [...known]
-    .filter((k) => k.startsWith('idea-'))
-    .map((k) => k.slice(5))
-  const hit =
-    offered.find((o) => o === t) ??
-    offered.find((o) => o.split('.')[0] === t.split('.')[0])
+  const hit = matchIdea(raw, known)
   if (!hit || before.some((l) => l.idea === hit)) return {}
   return { idea: hit }
 }
@@ -431,6 +435,9 @@ export function parseMarketRead(
       wrong: text(i.wrong, 160),
     })
   }
+  /* THE WEEK's stories are checked the same way; a refused story is
+     left out of MARKET, not counted with the lines. */
+  const { refused: _, ...week } = parseWeek(d, known)
   const sources: Array<Source> = []
   for (const s of Array.isArray(d.sources)
     ? (d.sources as Array<Record<string, unknown>>)
@@ -459,6 +466,7 @@ export function parseMarketRead(
       opinion: text(d.opinion, 400),
       ideas: ideas.slice(0, 4),
       sources: sources.slice(0, 12),
+      ...week,
     },
   }
 }

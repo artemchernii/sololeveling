@@ -111,7 +111,25 @@ export const LINE: Record<string, string> = {
     'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18',
   pie: 'M21.2 15.9A10 10 0 1 1 8 2.8M22 12A10 10 0 0 0 12 2v10z',
   day: 'M4 5h16v15H4zM4 10h16M9 3v4M15 3v4',
+  heat: 'M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0zM11.5 10v7',
+  bank: 'M3 21h18M5 21V10M19 21V10M9 21V10M15 21V10M2 10l10-6 10 6',
+  case: 'M3 7h18v13H3zM8 7V4h8v3M3 13h18',
+  dollar: 'M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
+  tax: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4',
 }
+/** One icon per kind of his own number, never two the same in a row. */
+const MINE_ICON: Array<[string, string]> = [
+  ['me-cash-lost', 'heat'],
+  ['me-prices', 'heat'],
+  ['me-cash-ecb', 'bank'],
+  ['me-ecb', 'bank'],
+  ['me-cash', 'wallet'],
+  ['me-invested', 'case'],
+  ['me-us-eur', 'globe'],
+  ['me-dollar', 'dollar'],
+  ['me-alloc-', 'pie'],
+  ['me-tax-', 'tax'],
+]
 export function LineIcon({ d, size = 13 }: { d: string; size?: number }) {
   return (
     <svg
@@ -143,7 +161,13 @@ export function FactMark({ k }: { k: string }) {
   }
   if (k.startsWith('co-') || k.startsWith('pos-'))
     return <TickerLogo symbol={k.slice(k.indexOf('-') + 1)} size={18} />
-  if (k === 'mine' || k.startsWith('me-')) return <LineIcon d={LINE.wallet} />
+  if (k === 'mine') return <LineIcon d={LINE.case} />
+  if (k.startsWith('me-')) {
+    const i = MINE_ICON.find(
+      ([p]) => k === p || (p.endsWith('-') && k.startsWith(p)),
+    )
+    return <LineIcon d={LINE[i?.[1] ?? 'wallet']} />
+  }
   if (k.startsWith('sec-')) return <LineIcon d={LINE.bars} />
   if (k.startsWith('reg-')) return <LineIcon d={LINE.globe} />
   if (k.startsWith('alloc-')) return <LineIcon d={LINE.pie} />

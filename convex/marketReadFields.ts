@@ -32,6 +32,8 @@ export const marketReadBody = v.object({
       line: v.string(),
       factKeys: v.array(v.string()),
       plain: v.string(),
+      /* The IDEAS line its move opens (29 Oct). */
+      idea: v.optional(v.string()),
     }),
   ),
   opinion: v.string(),

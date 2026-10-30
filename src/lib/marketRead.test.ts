@@ -105,7 +105,26 @@ describe('parseMarketRead', () => {
     'pos-AVGO',
     'mine',
     'mkt-sp500',
+    'me-prices',
+    'me-ecb',
   ]
+
+  test('a move is kept only when the board offered it, and once', () => {
+    const calm = CANNED_MARKET_READS.calm
+    const twice = {
+      ...calm,
+      lines: calm.lines.map((l, i) => (i < 2 ? { ...l, idea: 'xeon.de' } : l)),
+    }
+    const r = parseMarketRead(twice, [...keys, 'idea-XEON.DE'])
+    expect(r.ok && r.read.lines.map((l) => l.idea)).toEqual([
+      'XEON.DE',
+      undefined,
+      undefined,
+      undefined,
+    ])
+    const none = parseMarketRead(calm, keys)
+    expect(none.ok && none.read.lines[0].idea).toBeUndefined()
+  })
 
   test('S6 a line naming a key not given is refused, and counted', () => {
     const r = parseMarketRead(CANNED_MARKET_READS.broken, keys)

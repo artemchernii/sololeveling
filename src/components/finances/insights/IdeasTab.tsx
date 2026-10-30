@@ -30,11 +30,16 @@ export function IdeasTab({
   held,
   alloc,
   extra,
+  goTo = null,
+  onGone,
 }: {
   r: ReturnType<typeof useMarketRead>
   held: Array<Held> | null
   alloc: Array<AllocRow> | null
   extra: Array<Fact>
+  /** READ's move pressed (29 Oct): this line opens lit. */
+  goTo?: string | null
+  onGone?: () => void
 }) {
   const cash = useCash()
   const latest = useQuery(api.ideasReads.latest, {})
@@ -58,6 +63,18 @@ export function IdeasTab({
   }, [held])
   const a = useAsk(r)
   const prefill = usePrefill()
+  /* A ✦ pressed here takes over from READ's move. */
+  useEffect(() => {
+    if (prefill) onGone?.()
+  }, [prefill])
+  useEffect(() => {
+    if (!goTo || !lines) return
+    document
+      .querySelector(
+        `[data-testid=idb-line][data-ticker="${CSS.escape(goTo)}"]`,
+      )
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [goTo, lines])
   /* His plan's own questions, not the market's (his "suggestions are
      kinda weak"). */
   const suggested = useMemo(
@@ -123,7 +140,7 @@ export function IdeasTab({
         error={read.error}
         canPress={read.canPress}
         onPress={() => void read.press()}
-        lit={prefill?.line?.ticker ?? null}
+        lit={goTo ?? prefill?.line?.ticker ?? null}
       />
       <aside data-testid="idb-chat" className="idb-chat" aria-label="Ask">
         <div className="ask-dh">

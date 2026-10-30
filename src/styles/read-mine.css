@@ -1,0 +1,392 @@
+/* READ, about his money (29 Oct; mockup
+   design/treasury-mockup/read-personal.html, his "Go" on round 2). Plain
+   words, one left edge: a 40px icon, then title, one line, three equal
+   boxes and the move, all starting at the same x. THIS WEEK beside it on
+   a wide screen, first on a phone. Every colour from a token; the IDEAS
+   part colours as the board has them. */
+
+.rm-page {
+  --idb-keep: var(--color-ink-400);
+  --idb-protect: var(--kind-note);
+  --idb-add: var(--state-good);
+  --idb-new: var(--line-2);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 14px;
+  align-items: start;
+  @media (max-width: 1000px) {
+    grid-template-columns: minmax(0, 1fr);
+    & .rm-side {
+      position: static;
+      order: -1;
+    }
+  }
+}
+.rm-board,
+.rm-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* his money */
+.rm-facts {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 12px;
+  }
+  @media (max-width: 560px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.rm-fig {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 12px;
+  border-left: 1px solid var(--glass-edge);
+  &:first-child {
+    padding-left: 0;
+    border-left: 0;
+  }
+  @media (max-width: 1200px) {
+    &:nth-child(3n + 1) {
+      padding-left: 0;
+      border-left: 0;
+    }
+  }
+  @media (max-width: 560px) {
+    padding-left: 0;
+    border-left: 0;
+  }
+  & .n {
+    font-size: 12px;
+    color: var(--color-ink-400);
+  }
+  & .v {
+    font: 600 17px var(--font-mono);
+    color: var(--color-ink-100);
+    white-space: nowrap;
+  }
+  & .v.warn {
+    color: var(--state-warn);
+  }
+  & .s {
+    font-size: 11.5px;
+    color: var(--color-ink-400);
+  }
+}
+
+/* a line */
+.rm-ln {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  column-gap: 16px;
+  padding: 18px 20px;
+  animation: motion-rise 450ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  @media (max-width: 560px) {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 10px;
+    padding: 16px;
+  }
+}
+@keyframes motion-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.rm-ic {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--c);
+  border: 1px solid color-mix(in oklch, var(--c) 35%, transparent);
+  background: color-mix(in oklch, var(--c) 10%, transparent);
+  & svg {
+    width: 19px;
+    height: 19px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+.rm-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.rm-kind {
+  font: 700 10px var(--font-mono);
+  letter-spacing: 0.18em;
+  color: var(--c);
+}
+.rm-title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--color-ink-100);
+  margin-top: 2px;
+}
+.rm-sub {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink-300);
+  margin-top: 3px;
+  & b {
+    color: var(--color-ink-100);
+    font-weight: 600;
+  }
+}
+.rm-boxes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  @media (max-width: 560px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.rm-box {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-edge);
+  background: color-mix(in oklch, var(--lift) 5%, transparent);
+  & .n {
+    font-size: 12.5px;
+    color: var(--color-ink-300);
+  }
+  & .v {
+    font: 600 22px var(--font-mono);
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: var(--color-ink-100);
+    overflow-wrap: anywhere;
+  }
+  & .s {
+    font-size: 12px;
+    color: var(--color-ink-400);
+  }
+  &.good,
+  &.bad {
+    --t: var(--state-good);
+    border-color: color-mix(in oklch, var(--t) 25%, transparent);
+    background: color-mix(in oklch, var(--t) 6%, transparent);
+    & .v {
+      color: var(--t);
+    }
+  }
+  &.bad {
+    --t: var(--state-danger);
+  }
+  @media (max-width: 560px) {
+    & .v {
+      font-size: 19px;
+    }
+  }
+}
+.rm-act {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--glass-edge);
+  & .grow {
+    flex: 1;
+  }
+}
+.rm-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 14px var(--font-sans, inherit);
+  padding: 10px 18px;
+  border-radius: 999px;
+  color: white;
+  /* Darkened so white reads on it in both themes. */
+  background: color-mix(in oklch, var(--color-lav-400) 78%, black);
+  box-shadow: 0 8px 20px -12px var(--color-lav-400);
+  transition: transform 150ms;
+  &:hover {
+    transform: translateY(-1px);
+  }
+}
+.rm-hint {
+  font-size: 12.5px;
+  color: var(--color-ink-400);
+}
+.rm-none {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ink-300);
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-edge);
+  & svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: var(--state-good);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+/* this week */
+.rm-side {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rm-week {
+  border-color: var(--sys-edge, var(--glass-edge));
+  gap: 0;
+}
+.rm-wh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  & h2 {
+    font: 700 12px var(--font-mono);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-lav-300, var(--color-lav-400));
+  }
+  & .grow {
+    flex: 1;
+  }
+}
+.rm-big {
+  font: 600 34px var(--font-mono);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-top: 14px;
+  color: var(--color-ink-100);
+}
+.rm-of {
+  font-size: 13px;
+  color: var(--color-ink-400);
+  margin-top: 6px;
+}
+.rm-bar {
+  display: flex;
+  gap: 3px;
+  height: 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 14px;
+  background: color-mix(in oklch, var(--lift) 8%, transparent);
+  & i {
+    transform-origin: left;
+    animation: rm-fill 1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+}
+@keyframes rm-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+.rm-wl {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+}
+.rm-wr {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 0;
+  border-top: 1px solid var(--glass-edge);
+  &:first-child {
+    border-top: 0;
+  }
+  & .nm {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-ink-100);
+  }
+  & .p {
+    display: block;
+    font-size: 12px;
+    color: var(--color-ink-400);
+  }
+  & .e {
+    font: 600 15px var(--font-mono);
+    color: var(--color-ink-100);
+  }
+  &:hover .nm {
+    color: var(--color-lav-300, var(--color-lav-400));
+  }
+}
+.rm-quiet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 0 8px;
+  & .mk {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    color: var(--state-good);
+    border: 1px solid color-mix(in oklch, var(--state-good) 40%, transparent);
+    background: color-mix(in oklch, var(--state-good) 8%, transparent);
+  }
+  & svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  & b {
+    font-size: 16px;
+    color: var(--color-ink-100);
+  }
+}
+.rm-open {
+  margin-top: 12px;
+  width: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 11px;
+  border-radius: 999px;
+  border: 1px solid var(--sys-edge, var(--glass-edge));
+  color: var(--color-lav-300, var(--color-lav-400));
+  transition: background 200ms;
+  &:hover {
+    background: color-mix(in oklch, var(--color-lav-400) 12%, transparent);
+  }
+}
+.rm-from {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-ink-400);
+  padding: 0 6px;
+}

@@ -74,6 +74,9 @@ export type ReadLine = {
   line: string
   factKeys: Array<string>
   plain: string
+  /** The IDEAS line this line's move opens (29 Oct, READ about his
+      money): a ticker the board had when it was read; absent for none. */
+  idea?: string
 }
 export type Idea = {
   ticker: string
@@ -241,6 +244,7 @@ export const MARKET_READ_SCHEMA = object({
       line: str,
       factKeys: strings,
       plain: str,
+      idea: str,
     }),
   },
   opinion: str,
@@ -267,7 +271,10 @@ export const MARKET_READ_SCHEMA = object({
 export function marketReadPrompt(facts: Array<Fact>, today: string): string {
   return `You write the monthly market read for Artem's personal finance app.
 He is not a finance expert: "for not smart person like me I want more like
-explanation". Talk to him as "you". Today is ${today}.
+explanation", "I dont understand LLM style of text, make it more readable
+for normal human". He lives in Portugal and earns and spends in euros:
+cash follows the ECB, not the Fed, and a gain is taxed 28% when sold.
+Talk to him as "you". Today is ${today}.
 
 The facts below are the numbers on his screen, each with a key. Search the
 web for this month's news on inflation, the Fed, the ECB and the markets
@@ -275,8 +282,10 @@ web for this month's news on inflation, the Fed, the ECB and the markets
 
 Rules:
 - Write a number only if it is in the facts or in a source you link.
-- Never a sell, never a euro amount to put in, never a score. This is
-  research, not advice.
+- Never a sell, never a euro amount of your own, never a score. A move
+  is only ever an idea- fact: the app prints its amount.
+- Plain words a normal person reads once: whole sentences, no
+  shorthand, no "·" between words, no capitals for emphasis.
 - If there is nothing new on a subject, write a line of kind "nodata"
   rather than guess.
 
@@ -292,14 +301,22 @@ Answer with:
   in **double stars**.
 - kpis: 3 or 4 fact keys to show as the month's numbers, the most telling
   first; include "mine" when it is in the facts.
-- lines: 3 to 5 lines. kind is inflation, rates, market, allocation,
-  dont (something not to do this month) or nodata. tone is good, bad,
-  warn or calm. badge: 1–2 words in capitals (for example "FED CUT",
-  "WATCH"). title: at most 6 words. line: one sentence, at most 16 words.
-  factKeys: 1–3 keys from the facts that the line is about — their numbers
-  are printed under the line by the app, so the line need not repeat them.
-  plain: 2–3 easy sentences explaining what it means for his money, with
-  **double stars** on the key words.
+- lines: 3 to 5 lines, each about what happened AND what it means for
+  his money. kind is inflation, rates, market, allocation, dont
+  (something not to do now) or nodata. tone is good, bad, warn or calm.
+  badge: 1–2 words in capitals (for example "FED CUT").
+  title: what happened, one plain sentence, at most 10 words (for
+  example "Prices in the euro area rose 3.8% in a year").
+  line: one plain sentence, at most 20 words, on what it means for his
+  money (for example "Cash in Portugal follows the ECB, not the Fed").
+  factKeys: exactly 3 keys the app prints as boxes under the line — his
+  money first: prefer me- keys (his cash, what prices take from it, his
+  shares by area, the dollar's effect, the tax on a sale), then the
+  market's. A line of kind nodata may name fewer.
+  plain: "" (not shown).
+  idea: the ticker of one idea- fact whose move fits this line (for
+  example "XEON" for idea-XEON), or "" when nothing needs doing. Use each
+  idea at most once. A dont line has "".
 - opinion: two sentences on where his money sits — his positions and
   the alloc- lines (his share against the world's) against the market,
   and any earn- fact (a held company that just reported or soon will);
@@ -315,6 +332,19 @@ Answer with:
 
 const text = (v: unknown, max: number) =>
   typeof v === 'string' ? v.trim().slice(0, max) : ''
+
+/** A line's move: kept only when the board offered it (an idea- fact)
+    and no line before took it. */
+function ideaField(
+  raw: unknown,
+  known: Set<string>,
+  before: Array<ReadLine>,
+): { idea?: string } {
+  const t = text(raw, 16).toUpperCase()
+  if (!t || !known.has(`idea-${t}`) || before.some((l) => l.idea === t))
+    return {}
+  return { idea: t }
+}
 
 /**
  * The model's answer, checked. A line that names a key not among the
@@ -365,6 +395,7 @@ export function parseMarketRead(
       line: text(l.line, 200),
       factKeys: factKeys.slice(0, 3),
       plain: text(l.plain, 600),
+      ...ideaField(l.idea, known, lines),
     })
   }
   if (lines.length < 3) return { ok: false, error: 'TOO FEW LINES' }

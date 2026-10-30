@@ -7,7 +7,7 @@ import { monthAnswer } from './useMarket'
 import type { Doc } from '../../../../convex/_generated/dataModel'
 import type { ProAnswer } from '@/lib/claudeResult'
 import { localModel } from '@/lib/localModel'
-import type { Fact, Holding } from '@/lib/marketRead'
+import type { Fact, Holding, MarketNumbers } from '@/lib/marketRead'
 import { STALE_MS, marketFacts, monthKey } from '@/lib/marketRead'
 
 /* The market read (I3): the month's stored read, and the press that makes
@@ -39,6 +39,9 @@ export function useMarketRead(
   /** Facts that change inside the month (earnings): ASK gets them even
       after the month's read, which keeps its own. */
   live: Array<Fact> = [],
+  /** His money against the market's numbers (READ, 29 Oct): the €
+      boxes and the IDEAS moves a line may point at. */
+  mine: (m: MarketNumbers) => Array<Fact> = () => [],
 ) {
   const month = monthKey(Date.now())
   const state = useQuery(api.marketReads.forMonth, { month })
@@ -81,7 +84,7 @@ export function useMarketRead(
     setRefused(null)
     try {
       const m = await monthAnswer(ask)
-      const facts = [...marketFacts(m, holdings), ...extra]
+      const facts = [...marketFacts(m, holdings), ...extra, ...mine(m)]
       const readId = await run({ facts, via: path })
       if (path === 'pro') {
         const answer = await fetch(CLAUDE_READ_PATH, {
@@ -119,7 +122,7 @@ export function useMarketRead(
       return [...row.facts, ...live.filter((f) => !had.has(f.key))]
     }
     const m = await monthAnswer(ask)
-    return [...marketFacts(m, holdings ?? []), ...extra]
+    return [...marketFacts(m, holdings ?? []), ...extra, ...mine(m)]
   }
 
   return {

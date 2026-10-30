@@ -32,6 +32,8 @@ const facts = [
   fact('co-AVGO', 'AVGO', '▲ 7.4% · 1M'),
   fact('mine', 'MINE', '€820 · 1 POSITION'),
   fact('pos-AVGO', 'AVGO', '€820 · 100.0%'),
+  fact('me-prices', 'Euro area prices, a year', '2.1% · was 2.2%'),
+  fact('me-ecb', 'ECB rate', '2.00% · for euro cash'),
 ]
 
 afterEach(() => {
